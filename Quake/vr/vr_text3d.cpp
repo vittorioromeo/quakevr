@@ -1,6 +1,7 @@
 // vr_text3d.cpp -- see vr_text3d.hpp. Layout from the old engine's R_DrawWorldText.
 
 #include "vr_text3d.hpp"
+#include "vr_tracy.h"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
@@ -1363,6 +1364,7 @@ extern "C" void VR_DrawSceneOpaque()
     // Billboards and facing tests belong to this camera, including portal views.
     // Reusing the first portal camera here mirrors text in the main eye view.
     {
+        QVR_TRACY_SCOPE(zoneLayout, "text3d layout"); // (profiling builds: the boards, texts and log laid out)
         builtFrame = host_framecount;
         setViewPlanes(gfx::sceneViewProjection()); // the boards' cull (layoutBoard)
         vertices.clear();

@@ -34,6 +34,17 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+// Profiling builds name each job's "Job execute" zone by where it was posted (the posting zone, the file and line);
+// other builds take no argument and store nothing.
+#ifdef QVR_TRACY
+#include <source_location>
+#define QVR_JOBS_WHERE , const std::source_location& where = std::source_location::current()
+#define QVR_JOBS_NOTE(job) (job)->note(where.file_name(), where.line())
+#else
+#define QVR_JOBS_WHERE
+#define QVR_JOBS_NOTE(job) ((void)0)
+#endif
+
 namespace qvr::jobs
 {
 
@@ -57,6 +68,13 @@ struct Job
     bool claimAndRun() noexcept;
     // Returns once it is done (run here if nobody has claimed it yet).
     void wait() noexcept;
+
+#ifdef QVR_TRACY
+    const char* tracyFrom{}; // the posting thread's innermost zone (VR_TracyCurrentName)
+    const char* tracyFile{};
+    unsigned tracyLine{};
+    void note(const char* file, unsigned line) noexcept;
+#endif
 };
 
 // A counted reference to a job (the queued task's and the Future's: std::shared_ptr's role, the count in the job): the
@@ -258,10 +276,11 @@ public:
         Site* site = nullptr) noexcept;
 
     template <typename F>
-    [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
+    [[nodiscard]] auto async(F&& f QVR_JOBS_WHERE) -> Future<detail::ResultOf<F>>
     {
         using T = detail::ResultOf<F>;
         detail::JobPtr<detail::Result<T>> job{new detail::JobOf<T, ZA_DECAY(F)>(ZA_FORWARD(f))};
+        QVR_JOBS_NOTE(job);
         post(job);
         return Future<T>{ZA_MOVE(job)};
     }
@@ -286,7 +305,7 @@ public:
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
 
-    void post(Pool& pool, void (*fn)(void*), void* context);
+    void post(Pool& pool, void (*fn)(void*), void* context QVR_JOBS_WHERE);
     void wait() noexcept;
     bool tryRun() noexcept;
 
@@ -315,10 +334,11 @@ void parallelFor(Site& site, za::SizeT count, za::SizeT chunk, FunctionRef<void(
     bool split = true) noexcept;
 
 template <typename F>
-[[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
+[[nodiscard]] auto async(F&& f QVR_JOBS_WHERE) -> Future<detail::ResultOf<F>>
 {
     using T = detail::ResultOf<F>;
     detail::JobPtr<detail::Result<T>> job{new detail::JobOf<T, ZA_DECAY(F)>(ZA_FORWARD(f))};
+    QVR_JOBS_NOTE(job);
     if(Pool* p = pool())
     {
         p->post(job);
@@ -334,9 +354,6 @@ template <typename F>
 void start();            // VR_Init: the game's pool made
 void registerCommands(); // vr_jobs_threads, vr_jobs_parallel; vr_jobs_info, vr_jobs_sites, vr_jobs_bench,
                          // vr_jobs_test
-void info_f();
-void test_f();
-void sites_f();
-void bench_f();
+void registerDiagCommands(); // vr_jobs_info, vr_jobs_sites, vr_jobs_bench, vr_jobs_test (vr_jobs_diag.cpp)
 
 } // namespace qvr::jobs

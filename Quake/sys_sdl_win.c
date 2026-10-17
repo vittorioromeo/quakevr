@@ -1064,6 +1064,12 @@ qboolean Sys_IsDebuggerPresent (void)
 	return IsDebuggerPresent ();
 }
 
+// QVR: a frame debugger injected in the process (RenderDoc, Nsight Graphics): vr_gl_markers 2's
+qboolean Sys_GraphicsDebuggerPresent (void)
+{
+	return GetModuleHandleA ("renderdoc.dll") != NULL || GetModuleHandleA ("Nvda.Graphics.Interception.dll") != NULL;
+}
+
 void Sys_ReportError (const char *error, ...)
 {
 	va_list		argptr;

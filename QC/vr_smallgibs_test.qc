@@ -39,6 +39,9 @@
 //     neither (removed then). Prints a
 //     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
 //  23 shoves, weapon bashes, slaps and punches (10 each): the gore each sent; none for the first three (VR_HitBloodless)
+//  24 blood streams by melee kind (ROUND22.md, "Melee opens blood streams"): one blow a frame, in turn a sword's blade,
+//     an axe's blade, the crowbar, a punch and a thrown axe, n of each; then vr_gore_streams_info (its melee line: how
+//     many of each kind's wounds opened one: vr_gore_streams_melee_blade, _melee_blunt, _thrown_blade)
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -706,6 +709,19 @@ void(float xCase) VR_SmallGib_TestStart =
     {
         VR_SmallGib_TestBloodless(m, min(n, 10));
     }
+    else if(xCase == 24)
+    {
+        vr_sgib_test_b = 0; // (the blows struck, one a frame: VR_SmallGib_TestFrame)
+        vr_sgib_test_a = n;
+        if(m.vr_corpse == 2)
+        {
+            m.vr_corpse_hp = 100000;
+        }
+        else
+        {
+            m.health = 100000;
+        }
+    }
     else if(xCase == 4)
     {
         VR_SmallGib_TestBlows(m, self, QVR_HITKIND_MELEE, WID_AXE, FALSE, dmg, n, "axe blade");
@@ -1047,7 +1063,56 @@ void() VR_SmallGib_TestFrame =
         float t = time - vr_sgib_test_t;
         entity m = vr_sgib_test_m;
         entity g = vr_sgib_test_g;
-        if(vr_sgib_test == 6)
+        if(vr_sgib_test == 24)
+        {
+            // Blood streams by melee kind: a blow a frame, in turn a sword's blade, an axe's blade, the crowbar, a
+            // punch and a thrown axe, vr_smallgibs_test_n of each; then vr_gore_streams_info's melee line has the rates.
+            float k = vr_sgib_test_b - floor(vr_sgib_test_b / 5) * 5;
+            if(m != world && vr_sgib_test_b < vr_sgib_test_a * 5)
+            {
+                float ow = self.weapon;
+                vector hm = (m.absmin + m.absmax) * 0.5;
+                entity inf = self;
+                if(k == 4)
+                {
+                    inf = spawn();
+                    inf.classname = "thrown_weapon";
+                    inf.weapon = WID_AXE;
+                    setorigin(inf, hm + normalize(self.origin - hm) * 16);
+                    inf.velocity = normalize(hm - self.origin) * 600;
+                    VR_SetHitKind(QVR_HITKIND_NONE, -1, hm, normalize(hm - self.origin));
+                }
+                else
+                {
+                    self.weapon = k == 0 ? WID_SWORD : (k == 1 ? WID_AXE : (k == 2 ? WID_CROWBAR : WID_FIST));
+                    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, hm, normalize(hm - self.origin));
+                }
+                T_Damage(m, inf, self, 20);
+                VR_ClearHitKind();
+                self.weapon = ow;
+                if(inf != self)
+                {
+                    remove(inf);
+                }
+                if(m.vr_corpse == 2)
+                {
+                    m.vr_corpse_hp = max(m.vr_corpse_hp, 1000);
+                }
+                else
+                {
+                    m.health = max(m.health, 1000);
+                }
+                vr_sgib_test_b++;
+            }
+            else
+            {
+                bprint(sprintf("sgibtest: melee streams: %d blows struck (sword, axe, crowbar, punch, thrown axe in turn)\n",
+                    vr_sgib_test_b));
+                localcmd("vr_gore_streams_info\n");
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 6)
         {
             // The chain running through it a second (VR_Saw's cut: a tick's damage each frame).
             if(t < 1)

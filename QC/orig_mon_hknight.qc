@@ -70,6 +70,7 @@ void(float offset) hknight_shot =
 // set missile speed
     vec = normalize(v_forward);
     vec_z = 0 - vec_z + (random() - 0.5)*0.1;
+    vec = VR_AimCone_Bend(vec, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     newmis = launch_spike (org, vec);
     newmis.classname = "knightspike";
@@ -287,7 +288,9 @@ void()    hknight_magicc2 =[    $magicc2,    hknight_magicc3    ] {ai_face();};
 void()    hknight_magicc3 =[    $magicc3,    hknight_magicc4    ] {ai_face();};
 void()    hknight_magicc4 =[    $magicc4,    hknight_magicc5    ] {ai_face();};
 void()    hknight_magicc5 =[    $magicc5,    hknight_magicc6    ] {ai_face();};
-void()    hknight_magicc6 =[    $magicc6,    hknight_magicc7    ] {hknight_shot(-2);};
+void()    hknight_magicc6 =[    $magicc6,    hknight_magicc7    ] {
+    if(VR_AimCone_Wait(hknight_magicc6, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+hknight_shot(-2);};
 void()    hknight_magicc7 =[    $magicc7,    hknight_magicc8    ] {hknight_shot(-1);};
 void()    hknight_magicc8 =[    $magicc8,    hknight_magicc9    ] {hknight_shot(0);};
 void()    hknight_magicc9 =[    $magicc9,    hknight_magicc10] {hknight_shot(1);};

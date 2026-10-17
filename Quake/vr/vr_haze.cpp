@@ -192,11 +192,12 @@ struct SizedScene
     int samples = 0, w = 0, h = 0;
     GLint format = 0;
 };
-SizedScene sizedFor[2]; // (sceneFormat, the main thread's drawing)
+// (sceneFormat, the main thread's drawing): each eye's (single-pass stereo: each its own texture), the spectator's
+SizedScene sizedFor[3];
 
 GLint sceneFormat(GLuint color, int samples)
 {
-    SizedScene& z = sizedFor[viewSlot()];
+    SizedScene& z = sizedFor[stereo::isSpectator() ? 2 : stereo::eye() & 1];
     if(color != z.color || samples != z.samples || vid.width != z.w || vid.height != z.h)
     {
         const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;

@@ -2,6 +2,7 @@
 // (vr_xr_runtime.hpp).
 
 #include "vr_xr_runtime.hpp"
+#include "vr_runlogs.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -569,6 +570,7 @@ void logText(const char* text, bool always = false)
         fputs(text, f);
         fclose(f);
     }
+    runlogs::append("qvr_openxr.txt", text); // (the run's copy, kept with its logs: vr_runlogs.cpp)
 }
 
 // +vr_xr_runtime on the command line (the shortcut's or the debugger's arguments): its value, or null.
@@ -729,12 +731,83 @@ struct ApiLayer
     bool registryOff = false;
 };
 
-// The disable_environment variables vr_xr_api_layers 0 set (cleared again with 1).
+// The disable_environment variables the game set (vr_xr_api_layers 0, vr_xr_skip_incompatible_layers 1: cleared again
+// at each start, then set as those say), and those of them set for a known incompatibility.
 za::Vector<za::String> layerVarsSet;
+za::Vector<za::String> skippedVarsSet;
+
+// The implicit layers known not to work with this game (it renders with OpenGL): turned off by their own switch
+// (vr_xr_skip_incompatible_layers 1), as each manifest's "name" says. Add to it as players report them.
+struct IncompatibleLayer
+{
+    const char* name;
+    const char* why;
+};
+
+constexpr IncompatibleLayer incompatibleLayers[] = {
+    {"XR_APILAYER_NOVENDOR_OBSMirror",
+        "OBS's OpenXR mirror supports Direct3D 11/12 only, not OpenGL (with VDXR it crashed in xrEnumerateSwapchainImages: 1.0.1)"},
+};
+
+// Why a layer is skipped ("" when it isn't known to be incompatible).
+[[nodiscard]] const char* incompatibility(const ApiLayer& layer)
+{
+    for(const IncompatibleLayer& known : incompatibleLayers)
+    {
+        if(!q_strcasecmp(layer.name.cStr(), known.name))
+        {
+            return known.why;
+        }
+    }
+    return "";
+}
+
+// A layer from its manifest (name, its variables, its library).
+[[nodiscard]] ApiLayer readLayer(const char* manifest, bool registryOff)
+{
+    ApiLayer layer;
+    layer.manifest = manifest;
+    layer.registryOff = registryOff;
+    if(FILE* f = fopen(manifest, "rb"))
+    {
+        char text[8192];
+        const size_t n = fread(text, 1, sizeof(text) - 1, f);
+        fclose(f);
+        text[n] = 0;
+        layer.name = jsonString(text, "name");
+        layer.disableVar = jsonString(text, "disable_environment");
+        layer.enableVar = jsonString(text, "enable_environment");
+        layer.library = libraryOf(manifest);
+    }
+    return layer;
+}
 
 [[nodiscard]] za::Vector<ApiLayer> implicitLayers()
 {
     za::Vector<ApiLayer> layers;
+    // The test environment: vr_xr_test_layers' manifests instead of the registry's (docs/vr-port/TESTING.md).
+    if(vr_xr_test.value != 0.f)
+    {
+        za::String manifest;
+        for(const char* c = vr_xr_test_layers.string;; c++)
+        {
+            if(*c && *c != ',')
+            {
+                manifest += *c;
+                continue;
+            }
+            if(!manifest.empty())
+            {
+                layers.pushBack(readLayer(manifest.cStr(), false));
+            }
+            manifest = "";
+            if(!*c)
+            {
+                break;
+            }
+        }
+        return layers;
+    }
     for(HKEY root : {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER})
     {
         HKEY key = nullptr;
@@ -758,21 +831,7 @@ za::Vector<za::String> layerVarsSet;
             {
                 continue;
             }
-            ApiLayer layer;
-            layer.manifest = name;
-            layer.registryOff = type == REG_DWORD && off != 0;
-            if(FILE* f = fopen(name, "rb"))
-            {
-                char text[8192];
-                const size_t n = fread(text, 1, sizeof(text) - 1, f);
-                fclose(f);
-                text[n] = 0;
-                layer.name = jsonString(text, "name");
-                layer.disableVar = jsonString(text, "disable_environment");
-                layer.enableVar = jsonString(text, "enable_environment");
-                layer.library = libraryOf(name);
-            }
-            layers.pushBack(static_cast<ApiLayer&&>(layer));
+            layers.pushBack(readLayer(name, type == REG_DWORD && off != 0));
         }
         RegCloseKey(key);
     }
@@ -791,25 +850,58 @@ void setEnv(const char* var, const char* value)
     _putenv_s(var, value ? value : "");
 }
 
-// vr_xr_api_layers 0: each layer's disable_environment variable set; 1: the ones the game set cleared.
+// Before each xrCreateInstance (the loader reads the variables then): the ones the game set before cleared, then
+// vr_xr_api_layers 0: every implicit layer's disable_environment variable set; else, with
+// vr_xr_skip_incompatible_layers 1, the known incompatible layers' (each said, to the console and qvr_openxr.txt). A
+// variable set outside the game is left as it is.
 void applyLayerSwitch(const za::Vector<ApiLayer>& layers)
 {
-    const bool off = vr_xr_api_layers.value == 0.f;
-    if(!off)
+    for(const za::String& var : layerVarsSet)
     {
-        for(const za::String& var : layerVarsSet)
-        {
-            setEnv(var.cStr(), nullptr);
-        }
-        layerVarsSet.clear();
-        return;
+        setEnv(var.cStr(), nullptr);
     }
+    layerVarsSet.clear();
+    skippedVarsSet.clear();
+    const bool allOff = vr_xr_api_layers.value == 0.f;
+    const bool skip = vr_xr_skip_incompatible_layers.value != 0.f;
     for(const ApiLayer& layer : layers)
     {
-        if(!layer.disableVar.empty() && !envSet(layer.disableVar))
+        const char* why = incompatibility(layer);
+        if(!allOff && (!skip || !why[0]))
         {
-            setEnv(layer.disableVar.cStr(), "1");
-            layerVarsSet.pushBack(layer.disableVar);
+            if(why[0] && !layer.registryOff)
+            {
+                note("OpenXR: API layer %s allowed (vr_xr_skip_incompatible_layers 0), though known not to work: %s\n",
+                    layer.name.cStr(), why);
+            }
+            continue;
+        }
+        const char* name = layer.name.empty() ? layer.manifest.cStr() : layer.name.cStr();
+        if(layer.registryOff || envSet(layer.disableVar))
+        {
+            if(why[0] && !allOff)
+            {
+                note("OpenXR: API layer %s: off already (%s)\n", name, layer.registryOff ? "its registry value" : "its variable");
+            }
+            continue;
+        }
+        if(layer.disableVar.empty())
+        {
+            if(why[0])
+            {
+                note("OpenXR: API layer %s is known not to work (%s), but its manifest has no disable_environment: not "
+                     "skipped\n",
+                    name, why);
+            }
+            continue;
+        }
+        setEnv(layer.disableVar.cStr(), "1");
+        layerVarsSet.pushBack(layer.disableVar);
+        if(why[0] && !allOff)
+        {
+            skippedVarsSet.pushBack(layer.disableVar);
+            note("OpenXR: API layer %s skipped: %s (%s=1 set; vr_xr_skip_incompatible_layers 0 allows it)\n", name, why,
+                layer.disableVar.cStr());
         }
     }
 }
@@ -828,15 +920,27 @@ void applyLayerSwitch(const za::Vector<ApiLayer>& layers)
     if(envSet(layer.disableVar))
     {
         bool ours = false;
+        bool skipped = false;
         for(const za::String& var : layerVarsSet)
         {
             ours = ours || var == layer.disableVar;
         }
-        return va("off (%s set%s)", layer.disableVar.cStr(), ours ? " by vr_xr_api_layers 0" : "");
+        for(const za::String& var : skippedVarsSet)
+        {
+            skipped = skipped || var == layer.disableVar;
+        }
+        return va("off (%s set%s)", layer.disableVar.cStr(),
+            skipped ? " by vr_xr_skip_incompatible_layers 1: known not to work with OpenGL"
+            : ours  ? " by vr_xr_api_layers 0"
+                    : "");
     }
     if(!layer.enableVar.empty() && !envSet(layer.enableVar))
     {
         return va("off (only with %s set)", layer.enableVar.cStr());
+    }
+    if(incompatibility(layer)[0] && !layer.disableVar.empty() && vr_xr_skip_incompatible_layers.value != 0.f)
+    {
+        return "ON now; skipped at each VR start (vr_xr_skip_incompatible_layers 1: known not to work with OpenGL)";
     }
     return layer.disableVar.empty() ? "ON (no switch to turn it off)" : "ON";
 }

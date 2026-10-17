@@ -439,6 +439,7 @@ void Host_Version_f (void)
 	Con_Printf ("QuakeSpasm " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("Ironwail   " IRONWAIL_VER_STRING "\n");
 	Con_Printf ("Quake VR   %s\n", VR_BuildVersion ()); // QVR
+	Con_Printf ("QVR build  %s\n", VR_BuildInfo ()); // QVR
 	Con_Printf ("Exe        " __TIME__ " " __DATE__ "\n");
 	Con_Printf ("SDL        " Q_SDL_COMPILED_VERSION_STRING " (compiled)\n");
 	Con_Printf ("           %d.%d.%d (linked)\n", sdl_linked.major, sdl_linked.minor, sdl_linked.patch);
@@ -844,6 +845,7 @@ void Host_ClearMemory (void)
 	PR_ClearProgs(&sv.qcvm);
 	PR_ClearProgs(&cl.qcvm);
 /* host_hunklevel MUST be set at this point */
+	Hunk_ClearKeep (); // QVR: the models kept on the hunk go with it (Hunk_KeepLoaded)
 	Hunk_FreeToLowMark (host_hunklevel);
 	cls.signon = 0; // not CL_ClearSignons()
 	memset (&sv, 0, sizeof(sv));
@@ -1570,6 +1572,8 @@ void _Host_Frame (double time)
 	if (host_speeds.value)
 		time2 = Sys_DoubleTime ();
 
+	S_MixKick (false); // QVR: the frame's sounds started: their mix on the thread pool while the screen updates (R_RenderScene's
+	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
 	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
 	VR_ProfileEnd (); // QVR
@@ -1644,6 +1648,7 @@ void Host_Frame (double time)
 	static int		timecount;
 	int		i, c, m;
 
+	LOG_Tick (); // QVR: the buffered console log out a second after its last write (console.c)
 	if (!serverprofile.value)
 	{
 		_Host_Frame (time);
@@ -1700,6 +1705,7 @@ void Host_Init (void)
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_LogsBegin (); // QVR: every run's logs in <game folder>/logs/<date>_<time>; -bugreport makes the report and exits (vr/vr_runlogs.cpp)
 	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
@@ -1718,6 +1724,7 @@ void Host_Init (void)
 	VR_Init (); // QVR
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
+	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 
@@ -1739,6 +1746,8 @@ void Host_Init (void)
 		VR_TimeMark ("texture manager"); // QVR
 		Draw_Init ();
 		VR_TimeMark ("draw init (conchars, pics)"); // QVR
+		VR_MenuBrandPreload (); // QVR: the menus' images (a 40 ms first menu frame otherwise)
+		VR_TimeMark ("menu images (banner)"); // QVR
 		SCR_Init ();
 		R_Init ();
 		VR_TimeMark ("screen, renderer init"); // QVR
@@ -1814,6 +1823,7 @@ void Host_Shutdown(void)
 	}
 	isdown = true;
 	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
+	VR_LogsEnd (); // QVR: the OpenXR messages' summary (vr/vr_runlogs.cpp)
 	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
 
 // keep Con_Printf from trying to update the screen

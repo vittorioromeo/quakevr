@@ -111,6 +111,10 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	int	fullband;
 	sfxcache_t	*sc;
 
+// QVR: off the main thread (the sound mix on the pool, S_MixKick) only a look: a load is the main thread's
+	if (!VR_OnMainThread ())
+		return (sfxcache_t *) Cache_Peek (&s->cache);
+
 // see if still in memory
 	sc = (sfxcache_t *) Cache_Check (&s->cache);
 	if (sc)

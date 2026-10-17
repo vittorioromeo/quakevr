@@ -152,7 +152,7 @@
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}})
             .help("Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle."),
         slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
-        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
+        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the thumbstick. Off: the stick never turns you, in any state (menus, climbing, swimming), so you turn in real life; the stick's other uses stay. The same as VR Settings' Turning Mode: Off."),
         header("Teleport"),
         toggle("Teleport", vr_teleport_enabled).help("Jump to the spot you point at instead of walking there."),
         slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
@@ -406,7 +406,11 @@ void resetHandMoves()
                   "this many degrees of the way it faces; never from behind (180: from anywhere)."),
         slider("Ammo Button Depth", "vr_weapon_button_depth", 0.f, 3.f, 0.1f, "%.1f units").extend(0.f, 10.f)
             .help("How far behind the button's middle the cone above starts: a fingertip coming in flat, just over the "
-                  "button's face, still presses it (0: the cone from its middle).")
+                  "button's face, still presses it (0: the cone from its middle)."),
+        toggle("Ammo Switch Needs Empty Hand", "vr_ammo_switch_empty_hand")
+            .help("The ammo type switch button on a gun works only while your other hand holds nothing at all: not another "
+                  "gun (akimbo), a prop, a torch or a grabbed enemy. A refused press gives a short click and a buzz (off: "
+                  "always works).")
     );
     return list;
 }
@@ -483,6 +487,7 @@ void resetHandMoves()
         slider("Least Blow Damage", "vr_melee_dmg_min", 0.f, 1.f, 0.05f, "x%.2f").extend(0.f, 3.f).help("The weakest blow still deals this much of its weapon's base damage, however slow and wherever it lands (a pommel strike its own share of it). Before the Damage Multiplier and the punch multiplier."),
         slider("Most Blow Damage", "vr_melee_dmg_max", 1.f, 4.f, 0.05f, "x%.2f").extend(1.f, 10.f).help("The hardest blow deals at most this much of its weapon's base damage: the swing's speed times the zone's multiplier (a head hit) is capped here, so a fast head hit counts near its full speed and no more. Before the Damage Multiplier and the punch multiplier."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
+        slider("Wall Hit Window", "vr_melee_wall_hold", 0.f, 0.5f, 0.05f, "%.2f s").help("A weapon swung into a wall or the floor is held off it, and slows down there: for this long after it met the surface, while it stays against it, the blow is still judged, at the speed it came in at, so a deliberate swing at a wall or the floor registers (sound, sparks, mark). A light brush along a wall still doesn't. 0: only in the frame the weapon crosses the surface, and never chopping down at the floor (as before)."),
         slider("Quad: Extra Melee Damage", "vr_quad_melee_damage", 1.f, 4.f, 0.05f, "x%.2f").extend().help("With Quad Damage, melee does this much more on top of the x4 every weapon gets. 1: like any weapon (x4 in all); the old Quake VR had 2.75 (x11 in all)."),
         slider("Quad: Extra Melee Reach", "vr_quad_melee_range", 1.f, 1.5f, 0.01f, "x%.2f").extend().help("With Quad Damage, melee reaches this much further. 1: the same reach as without Quad; the old Quake VR had 1.23."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
@@ -621,12 +626,14 @@ void resetHandMoves()
         header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
         cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}, {3.f, "Immersive"}}).help("Weapons have magazines. All Holsters, Hip Holsters: a gun held at a holster reloads. Immersive: the shotgun is loaded by hand, a shell at a time from the ammo pouch on your belt; the other guns reload at the hip holsters (Weapons > Reloading). Reloading only works with 'immersive' weapon mode."),
+        open("Holster Zones", pageIndex(pageHolsterZones))
+            .help("Where a hand (and the gun it holds) is at a holster or a pouch: a box at each, as drawn, their sizes and "
+                  "places, and a wireframe of them."),
         cycle("Holster Haptics", "vr_holster_haptics", {{0.f, "Off"}, {1.f, "Continuous"}, {2.f, "Once"}}).help("Haptic feedback when hovering a usable holster slot."),
         slider("Holster Haptic Time", "vr_holster_haptic_time", 0.05f, 0.6f, 0.05f, "%.2f s").extend().help("How long the buzz lasts as a hand reaches a holster (Holster Haptics: Once)."),
         slider("Draw Blend Time", "vr_weapon_draw_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun drawn from a holster eases from its holstered pose into your hand over this time, turning the shortest way (0: at once). It fires at once: only its look eases."),
         slider("Holster Blend Time", "vr_weapon_holster_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun put in a holster eases from your hand into its holstered pose over this time (0: at once)."),
         toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
-        cycle("Weapon Throw Mode", "vr_weapon_throw_mode", {{0.f, "Immersive"}, {1.f, "Vanish on Hit"}, {2.f, "Discard"}}).help("Immersive: thrown weapons can be picked back up. Vanish on Hit and Discard avoid piles of weapons with Quick Slots."),
         open("Throw Damage: Weapon Damage", pageIndex(pageWeaponDamage)).help("The damage of thrown weapons is on Combat > Weapon Damage (All Throws)."),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast what you throw flies, times your hand's speed."),
@@ -644,6 +651,9 @@ void resetHandMoves()
             .help("Out of your hands this long, it comes back (0: never by time)."),
         slider("Return Beyond", vr_magholster_return_distance, 0.f, 20.f, 0.5f, "%.1f m").extend(0.f, 200.f)
             .help("This far from its holster, it comes back (0: never by distance). Either one brings it back."),
+        slider("Land First", vr_magholster_land_time, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("A thrown or dropped weapon must lie still on the ground (or stuck in a wall) this long before either return "
+                  "brings it back, however far it is: a throw is let finish, never called back in the air (0: off)."),
         slider("Flight Time", vr_magholster_flight_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 5.f)
             .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
         cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})
@@ -653,6 +663,66 @@ void resetHandMoves()
             .help("Its links' size, times the flashlight chain's (1.6 cm links)."),
         slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below 1 the chain is see-through (0: not drawn)."),
+        slider("Full Chain Up To", vr_magholster_chain_lod, 0.f, 15.f, 0.5f, "%.1f m").extend(0.f, 100.f)
+            .help("The tether is drawn as links this far along it from the holster, then as a plain thin line on to the "
+                  "weapon along the same curve (cheaper, unnoticeable far off); it never disappears, however far the "
+                  "weapon goes (0: all a line)."),
+        slider("Zip Volume", vr_magholster_zip_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bound weapon flying home: the reel's zip as it winds the chain back in (0: none)."),
+        slider("Draw Sound Volume", vr_magholster_draw_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bound weapon drawn from its holster: the chain paid out, heard over the holster's own sound (0: none)."),
+        header("Chain Physics"),
+        toggle("Simulated Chain", vr_magholster_chain_sim)
+            .help("On: the tether is a chain of points that hangs, lies on the floor and wraps round walls, never through "
+                  "them (the grappling hook rope's physics, coarser). Off: the old simple chain, through the world."),
+        toggle("Chain Collision", vr_magholster_chain_collide)
+            .help("The chain's points and pieces kept out of the world (off: cheaper, through it)."),
+        slider("Chain Point Spacing", vr_magholster_chain_spacing, 0.05f, 1.f, 0.05f, "%.2f m").extend(0.02f, 4.f)
+            .help("Metres between the chain's simulated points (finer: truer on edges and the floor, more work). A long "
+                  "tether's are farther apart (Chain Most Points)."),
+        slider("Chain Most Points", vr_magholster_chain_points, 4.f, 128.f, 4.f, "%.0f").extend(4.f, 256.f)
+            .help("The most pieces the chain has, however long."),
+        slider("Chain Iterations", vr_magholster_chain_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
+            .help("Passes a frame holding the pieces to their length (more: less stretch, more work)."),
+        slider("Chain Stiffness", vr_magholster_chain_stiffness, 0.05f, 1.f, 0.05f, "%.2f")
+            .help("The share of each piece's stretch a pass takes out (lower: stretchier, softer)."),
+        slider("Chain Thickness", vr_magholster_chain_radius, 0.05f, 4.f, 0.05f, "%.2f").extend(0.05f, 8.f)
+            .help("Units the chain's points keep off what they lie on."),
+        slider("Chain Air Drag", vr_magholster_chain_drag, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 20.f)
+            .help("Its speed lost to the air a second (higher: it settles from a swing sooner)."),
+        slider("Chain Floor Slide", vr_magholster_chain_slide, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of its speed along a surface a point keeps where it touches it (lower: a rougher floor)."),
+        slider("Chain Carry", vr_magholster_chain_carry, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much your own movement carries the chain along near the holster (none of it at the weapon; 0: it is "
+                  "only pulled)."),
+        slider("Locomotion Sway", vr_magholster_chain_sway, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the chain swings as you walk and turn with the sticks: the share of that movement it lags "
+                  "behind (0: carried along whole; 1: all of it, as before). Your real body's moves swing it as ever; "
+                  "what lies on the floor is dragged as before."),
+        header("Chain Origin"),
+        slider("All Forward", vr_magholster_chain_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("Where the chain leaves every holster: units forward (the body's frame). Added to each kind's below."),
+        slider("All Outwards", vr_magholster_chain_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("Units outwards (away from the body's middle: the left holsters' to the left)."),
+        slider("All Up", vr_magholster_chain_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f).help("Units up."),
+        slider("Hip Forward", vr_magholster_chain_hip_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units forward."),
+        slider("Hip Outwards", vr_magholster_chain_hip_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units outwards."),
+        slider("Hip Up", vr_magholster_chain_hip_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units up."),
+        slider("Chest Forward", vr_magholster_chain_upper_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units forward."),
+        slider("Chest Outwards", vr_magholster_chain_upper_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units outwards."),
+        slider("Chest Up", vr_magholster_chain_upper_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units up."),
+        slider("Shoulder Forward", vr_magholster_chain_shoulder_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units forward."),
+        slider("Shoulder Outwards", vr_magholster_chain_shoulder_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units outwards."),
+        slider("Shoulder Up", vr_magholster_chain_shoulder_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units up."),
         header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").extend().help("How long spent shells lie on the floor before fading out."),
@@ -1149,6 +1219,35 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Per-Weapon Reload Overrides: each gun's own reloading mode (vr_reload_mode_<gun>), or the global one.
+[[nodiscard]] za::Vector<Item> pageReloadOverrides()
+{
+    const auto mode = [](const char* label, const char* cvar) {
+        return cycle(label, cvar, {{-1.f, "Use Global"}, {3.f, "Immersive"}, {2.f, "Simple"}, {1.f, "Simple (all holsters)"}, {0.f, "Disabled"}})
+            .help("This gun's reloading mode. Use Global: Reloading's mode. Immersive: loaded by hand (the shotgun a "
+                  "shell at a time, the nailguns and the thunderbolt a magazine, the launchers a round at the muzzle), "
+                  "from the ammo pouch. Simple: reloaded at a hip holster. Simple (all holsters): at any holster. "
+                  "Disabled: it fires from your ammo, no magazine. Needs Weapon Mode Immersive.");
+    };
+    za::Vector<Item> list{
+        header("Per-Weapon Reload Overrides"),
+        mode("Shotgun", "vr_reload_mode_shot"),
+        mode("Super Shotgun", "vr_reload_mode_sshot"),
+        mode("Nailgun", "vr_reload_mode_nail"),
+        mode("Super Nailgun", "vr_reload_mode_snail"),
+        mode("Grenade Launcher", "vr_reload_mode_gl"),
+        mode("Rocket Launcher", "vr_reload_mode_rl"),
+        mode("Thunderbolt", "vr_reload_mode_light"),
+    };
+    // (Hipnotic's proximity gun only where Hipnotic is installed.)
+    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
+    if(hipnotic && hipnotic->value != 0.f)
+    {
+        list.pushBack(mode("Proximity Gun (Hipnotic)", "vr_reload_mode_prox"));
+    }
+    return list;
+}
+
 // Weapons > Reloading (General): the mode, a page per gun, the ammo pouch, what is the same for every gun
 // (docs/vr-port/RELOAD.md; QC vr_reload.qc).
 [[nodiscard]] za::Vector<Item> pageReloading()
@@ -1163,6 +1262,8 @@ void resetHandMoves()
                   "the muzzle; the other guns reload at the hip holsters for now. A gun brought to the pouch by its port "
                   "or well reloads there too (Reloading at the Pouch: two guns, no free hand). Needs Weapon Mode "
                   "Immersive."),
+        open("Per-Weapon Reload Overrides", pageIndex(pageReloadOverrides))
+            .help("A reloading mode of its own for each gun (or Use Global): the shotgun loaded by hand while the nailguns reload at the hips, say."),
         header("Weapons"),
         open("Shotgun", pageIndex(pageReloadShotgun)).help("Its shells (pairs, their pose) and its loading port."),
         open("Super Shotgun", pageIndex(pageReloadSuperShotgun)).help("Broken open: each way to open and close it, their thresholds; its breech."),
@@ -1299,6 +1400,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsTeleporters();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
+[[nodiscard]] za::Vector<Item> pageGraphicsLootBeams();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetroLight();
 [[nodiscard]] za::Vector<Item> pageGraphicsRelighting();
@@ -1332,6 +1434,7 @@ void resetHandMoves()
         open("Teleporters", pageIndex(pageGraphicsTeleporters)),
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
+        open("Loot Beams", pageIndex(pageGraphicsLootBeams)).help("A soft pillar of light over weapons, magazines and (if you want) other things to pick up lying about, so they stand out among corpses and gibs."),
         open("Retro Textures", pageIndex(pageGraphicsRetro)),
         open("Retro Lighting", pageIndex(pageGraphicsRetroLight)),
         open("Particles", pageIndex(pageParticleSettings)),
@@ -1427,9 +1530,6 @@ void resetHandMoves()
         header("Bumps"),
         toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
         slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f").extend(),
-        toggle("Generated Companion Maps", "vr_pbr").help("Generated normal and height maps for the exact texture image. Next map."),
-        slider("Generated Relief Strength", "vr_pbr_strength", 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 8.f)
-            .help("Multiplies generated bump and parallax relief immediately. 1: as generated; 0: flat. Authored components keep their strength, including mixed maps."),
         slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
         toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
         slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
@@ -1441,6 +1541,7 @@ void resetHandMoves()
         slider("Parallax Refinement", "vr_parallax_refine", 0.f, 8.f, 1.f, "%.0f").extend().help("Steps finding exactly where your view meets the carving: smooth edges seen from the side instead of stairs and layers that slide as you move (0 none; 1 the old look; 4 the default)."),
         slider("Parallax Side Fade", "vr_parallax_grazing", 60.f, 90.f, 1.f, "%.0f").extend().help("How far round to the side, in degrees from straight on, walls still look carved before it fades out (90, the default: never fades; 86 before; 83 the old look; lower if seen-from-the-side walls swim)."),
         toggle("Parallax Depth Write", "vr_parallax_depth_write").help("The carving has real depth: monsters, items, hands, particles and water meet the sunken parts where they look to be, instead of at the flat wall. On by default; costs a few tenths of a millisecond a frame."),
+        slider("Parallax Surface Level", "vr_parallax_plane", 0.f, 1.f, 0.05f, "%.2f").extend().help("Where the flat surface sits in the carving. 0: at its top, everything carved down (objects on a deeply carved floor can look like they float a little). 0.5: in the middle. 1, the default: at the bottom, the relief raised, so objects sit in it (needs Parallax Depth Write to hide their bottom edge). Never lower than a texture's average height, so flat textures aren't raised."),
         slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").extend().help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
         slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").extend().help("How deep monsters, pickups and weapons without baked maps look carved, their heights guessed from the skin's paint, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
         slider("Parallax Depth: Authored Models", "vr_parallax_authored", 0.f, 2.f, 0.25f, "%.2f").extend().help("How deep models with authored bump maps look carved (your hands and body, the gadget, the flashlight, the weapons): their real baked relief, 1 as deep as baked, 0 off."),
@@ -1775,6 +1876,42 @@ void retroAllUncheckCategories()
     return items;
 }
 
+// Graphics > Loot Beams (vr_lootbeams.cpp): pillars of light over things to pick up.
+[[nodiscard]] za::Vector<Item> pageGraphicsLootBeams()
+{
+    return {
+        toggle("Loot Beams", "vr_lootbeams").help("A soft pillar of light rising from things lying about to pick up, as in Diablo or Path of Exile, so loot stands out among corpses and gibs. Never while held, holstered or flying: it fades in once the thing comes to rest. Which things: below."),
+        header("What Has One"),
+        toggle("Weapons", "vr_lootbeam_weapons").help("Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too)."),
+        toggle("Magazines", "vr_lootbeam_mags").help("Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness)."),
+        slider("Magazine Fullness", "vr_lootbeam_mag_min", 0.f, 1.f, 0.05f, "%.2f").help("A magazine has a beam only when fuller than this share of its rounds. 0: any magazine not empty."),
+        toggle("Ammo Boxes", "vr_lootbeam_ammo"),
+        toggle("Health Boxes", "vr_lootbeam_health"),
+        toggle("Armour", "vr_lootbeam_armor"),
+        toggle("Power-ups", "vr_lootbeam_powerups").help("Quad damage, the pentagram, the ring, the suit, and the mission packs' power-ups."),
+        toggle("Keys and Runes", "vr_lootbeam_keys"),
+        toggle("Backpacks", "vr_lootbeam_backpacks"),
+        header("Look"),
+        slider("Opacity", "vr_lootbeam_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How bright the beams are."),
+        slider("Length", "vr_lootbeam_length", 0.2f, 4.f, 0.1f, "%.1f m").help("How high a beam rises from the thing's middle."),
+        slider("Thickness", "vr_lootbeam_thickness", 0.01f, 0.3f, 0.01f, "%.2f m").help("How wide its bright core is; its soft glow is three times as wide."),
+        slider("Colourfulness", "vr_lootbeam_saturation", 0.f, 1.f, 0.05f, "%.2f").help("0: all white."),
+        slider("Fade In", "vr_lootbeam_fade_in", 0.f, 2.f, 0.1f, "%.1f s").help("How long a beam takes to appear once the thing has come to rest."),
+        slider("Rest Before Showing", "vr_lootbeam_settle", 0.f, 2.f, 0.1f, "%.1f s").help("How long a thing must lie still before its beam fades in."),
+        slider("Fade Up Close", "vr_lootbeam_near", 0.f, 2.f, 0.1f, "%.1f m").help("A beam fades out as your head comes this close to it (across the floor), so it is not in your face as you pick the thing up. 0: never."),
+        slider("Fade Far Away", "vr_lootbeam_far", 0.f, 60.f, 1.f, "%.0f m").help("Beams farther than this fade out. 0: never."),
+        header("Colours"),
+        slider("Weapons Hue", "vr_lootbeam_hue_weapons", 0.f, 355.f, 5.f, "%.0f").help("Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet."),
+        slider("Magazines Hue", "vr_lootbeam_hue_mags", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Ammo Boxes Hue", "vr_lootbeam_hue_ammo", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Health Boxes Hue", "vr_lootbeam_hue_health", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Armour Hue", "vr_lootbeam_hue_armor", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Power-ups Hue", "vr_lootbeam_hue_powerups", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Keys and Runes Hue", "vr_lootbeam_hue_keys", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Backpacks Hue", "vr_lootbeam_hue_backpacks", 0.f, 355.f, 5.f, "%.0f"),
+    };
+}
+
 // Graphics: water, slime and lava.
 // Graphics: teleporters that show where they lead, and going through them (vr_portals.cpp).
 [[nodiscard]] za::Vector<Item> pageGraphicsTeleporters()
@@ -1842,7 +1979,7 @@ void retroAllUncheckCategories()
         slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").extend().help("Glow of white and pale lights (lamps, flashes), times Bloom."),
         slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").extend().help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
         slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").extend().help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
-        toggle("Bloom: Fast", "vr_bloom_fast").help("Adds the glow with one texture read a pixel instead of four, its smoothing done on the small glow image: about 0.03 ms a frame cheaper at 2048 x 2048 eyes (some 0.08 ms at your headset's), the halos' edges up to 3% different. Off: as before."),
+        toggle("Bloom: Fast", "vr_bloom_fast").help("On: a cheaper glow: three glow sizes instead of four (the widest folded into the next) and the glow added with one texture read a pixel instead of four. About 0.035 ms an eye cheaper at 2784 x 2784 (a quarter of the post-processing and bloom), halo edges and lava at most about 20/255 different. Off: as before, for comparison."),
         header("Tone and Colour"),
         toggle("Tone Mapping", "vr_tonemap").help("Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's."),
         slider("Exposure", "vr_exposure", 0.5f, 2.f, 0.05f, "%.2f").extend().help("Brightness before tone mapping (1: as Quake)."),
@@ -1879,6 +2016,9 @@ void retroAllUncheckCategories()
         toggle("Lit Particles", "vr_particle_light").help("Blood, smoke, dust, debris and water take the light where they are: dark in dark corners, lit by your flashlight, muzzle flashes and explosions. Fire, sparks and glows stay bright. Off: all as bright as their colours, as in Quake."),
         toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
         slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
+        slider("Particle Fade Near Eyes", "vr_particle_near_fade", 0.f, 100.f, 5.f, "%.0f cm").help("Smoke, blood and sparks fade out as they come this close to your eyes, gone at Particles Hidden Nearer: no screen-filling blot in your face (0: no fade)."),
+        slider("Particles Hidden Nearer", "vr_particle_near_cull", 0.f, 50.f, 1.f, "%.0f cm").extend().help("Particles nearer your eyes than this are not drawn at all (0: all drawn)."),
+        slider("Largest Particle", "vr_particle_max_screen", 0.f, 1.f, 0.05f, "%.2f").help("A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit."),
         toggle("Half-Res Heavy Particles", "vr_particle_halfres").help("When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer."),
         toggle("Trim Particle Margins", "vr_particle_trim").help("Trim empty margins of larger fire and smoke sprites. Off by default: the extra work can cost more than it saves for small particles. Keeps filtering and retro blocks; uncertain cases keep their full shape."),
         toggle("Skip Hidden Particles", "vr_particle_saturate").help("Particles are composited in reverse order into a layer of their own, and where thick smoke or blood is already opaque the particles under it are skipped: the same image, less GPU work in dense effects. Off: each blended into the scene in turn, as before."),
@@ -1934,6 +2074,69 @@ void retroAllUncheckCategories()
         slider("Upper Yaw", "vr_upper_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Upper Roll", "vr_upper_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
     };
+}
+
+// Immersion > Holster Zones (vr_holsterzones.hpp): the boxes where a hand, and the gun it holds, is at a holster or a
+// pouch; each kind's place and shape, its size from its reach (the Threshold sliders, here too).
+[[nodiscard]] za::Vector<Item> pageHolsterZones()
+{
+    za::Vector<Item> items{
+        cycle("Zones", vr_holster_zones, {{1.f, "Boxes"}, {0.f, "Old Spheres"}})
+            .help("Boxes: a box at each holster and pouch where it is drawn; a gun goes in a holster when its grip or body is "
+                  "in the box, the one it is deepest in, and a pouch never takes a gun (it gives and takes rounds, "
+                  "magazines and grenades). Old Spheres: a ball round each, the hand alone (a gun let go by the ammo pouch "
+                  "fell there)."),
+        toggle("Show Zones", vr_holster_zones_show)
+            .help("Every zone as a wireframe: grey idle, blue with a gun in it, yellow a candidate, green where a hand is "
+                  "(holding a gun: where it goes when let go). Also on Debug > Views."),
+        slider("Size", vr_holster_zone_scale, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Every zone's size, times."),
+        slider("Hysteresis", vr_holster_zone_hysteresis, 0.f, 0.5f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("The zone a hand is at keeps it this much (a share of its size) further out, and wins over another until "
+                  "that one is this much deeper: no flicker between two that touch."),
+        toggle("Hand Point", vr_holster_zone_hand_point)
+            .help("A hand holding a gun is tested at its palm as drawn too, beside the gun's grip and body: the hand in a "
+                  "holster puts the gun in it even when the gun's points are not (the holsters only: the pouches take an "
+                  "empty hand alone)."),
+        slider("Handle Radius", vr_holster_zone_handle_radius, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("A hand reaching for a holstered gun: a ball this many units round its grip as drawn is that holster's "
+                  "zone too, so a handle standing out of the box (the shoulders') can be taken. 0: the box alone."),
+    };
+    const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
+                          cvar_t& width, cvar_t& height, cvar_t& item) {
+        items.pushBack(header(title));
+        items.pushBack(slider("Reach", reach, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
+                .help("Its size (units; its Threshold elsewhere): the box's half depth, width and height are this times "
+                      "the three below, stretched to take in both the holster as drawn and its reach point."));
+        items.pushBack(slider("Depth", depth, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f)
+                .help("Out of the body's surface there (the hips': sideways), turned as the holster is."));
+        items.pushBack(slider("Width", width, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f)
+                .help("Along the body's surface there (the hips': front to back)."));
+        items.pushBack(slider("Height", height, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f).help("Up and down."));
+        items.pushBack(slider("Move Forward", x, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f)
+                .help("Units forward (negative: back), from midway between the holster as drawn and its reach point (the "
+                      "box takes in both)."));
+        items.pushBack(slider("Move Outwards", y, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f)
+                .help("Units outwards, away from the body's middle (negative: towards it), mirrored for the left ones; the "
+                      "pouches: to the right."));
+        items.pushBack(slider("Move Up", z, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f).help("Units up (negative: down)."));
+        items.pushBack(slider("Item Size", item, 1.f, 3.f, 0.05f, "%.2fx").extend(0.25f, 5.f)
+                .help("Carrying an ammo box, a health box or a backpack to put away: the box this much larger about its "
+                      "middle (a gun, a key or a grenade: as set above). 1: no larger."));
+    };
+    kind("Hip Holsters", vr_hip_holster_thresh, vr_holster_zone_hip_x, vr_holster_zone_hip_y, vr_holster_zone_hip_z,
+        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height, vr_holster_zone_item_hip);
+    kind("Chest Holsters", vr_upper_holster_thresh, vr_holster_zone_upper_x, vr_holster_zone_upper_y,
+        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height, vr_holster_zone_item_upper);
+    kind("Shoulder Holsters", vr_shoulder_holster_thresh, vr_holster_zone_shoulder_x, vr_holster_zone_shoulder_y,
+        vr_holster_zone_shoulder_z, vr_holster_zone_shoulder_depth, vr_holster_zone_shoulder_width,
+        vr_holster_zone_shoulder_height, vr_holster_zone_item_shoulder);
+    kind("Ammo Pouch", vr_ammo_pouch_thresh, vr_holster_zone_ammo_x, vr_holster_zone_ammo_y, vr_holster_zone_ammo_z,
+        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height, vr_holster_zone_item_ammo);
+    kind("Grenade Pouch", vr_grenade_pouch_thresh, vr_holster_zone_grenade_x, vr_holster_zone_grenade_y,
+        vr_holster_zone_grenade_z, vr_holster_zone_grenade_depth, vr_holster_zone_grenade_width,
+        vr_holster_zone_grenade_height, vr_holster_zone_item_grenade);
+    return items;
 }
 
 // Split from Hotspots: the hip holsters and their slots' models.

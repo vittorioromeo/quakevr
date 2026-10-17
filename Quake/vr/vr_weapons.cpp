@@ -108,88 +108,16 @@ namespace
     return info.is(modelmeta::Id::HandBase) || info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig);
 }
 
-// Configs archive every slot's settings, so a slot whose defaults change keeps a config's old
-// values: vr_wofs_version says which of these changes a config has seen, and the slots are reset to
-// their new defaults once. 1: slots 19 and 20 (the knights' swords; they were unused placeholders);
-// 2: the same (the swords remade with grips, held as the axe); 3: the same (the grips centred on
-// the blades, thicker); 4: the same (new hilts: crossguard, grip and pommel on the blades' axes);
-// 5: the same (longer grips, held just under the crossguard, and two-handed: TwoHMode 3);
-// 6: slot 5 (the super nailgun: its body re-triangulated for real grooves, which moved its muzzle
-// and two-handed grip anchors in the vertex order); 7: slots 3 and 7 (the double shotgun and the
-// rocket launcher remade with pistol grips: the hand on the new grip, the offsets following the
-// models' new bounds; Misc/quakevr/improve_weapons.py); 8: slot 8 (the lightning gun: a pistol grip
-// under the hand, the gun 2.5 model units higher over it, the offsets following the model's new
-// bounds; Misc/quakevr/improve_weapons2.py); 9: slots 2, 6, 10, 11 and 14 (the shotgun, the grenade
-// launcher, the laser cannon, the proximity gun and the multi-grenade launcher: pistol and spade
-// grips with trigger guards; the three launchers sit higher and further forward over the hand,
-// the offsets follow the models' new bounds; Misc/quakevr/improve_weapons3.py); 10: slots 12..16
-// (the alternate models the secondary ammo switches to: the lava nailguns, the multi-grenade and
-// multi-rocket launchers, the plasma gun, placed exactly as the normal guns, their grips, guards and
-// grooves too; Misc/quakevr/improve_weapons_alt.py); 11: slots 2, 3 and 18 (the shotguns' muzzle
-// flashes widen the models' bounds, the offsets follow them; the grappling hook's pistol grip:
-// Misc/quakevr/improve_weapons.py and improve_weapons3.py); 12: slots 4 and 12 (the nailgun and the
-// lava nailgun: the shotguns' pistol grip reaches below the models' old bounds, the offsets follow
-// them; Misc/quakevr/improve_weapons2.py); 13: slots 2, 3, 6, 7, 8, 10, 11, 14, 15, 16 and 18 (the
-// author's placements tuned in the headset, round 20: the alternates moved by the same amounts as
-// their normal guns); 14: slots 1..3, 5..7, 9..11, 13..15, 17 (the author's placements after round 20); 15: none
-// reset (round 21: the hand is where the controller is, the fingers wrap the weapon; the two-handed grips became
-// hotspots: a config's own grips, or a weapon it moved or scaled, are turned into hotspots where they were:
-// takeHotspotMigration). 16: the alternates inherit (InheritFrom). 17: a hotspot allows two-handed use. 18: none reset
-// (round 21, third pass: a cup hotspot is the helping hand's palm: a config's cups are moved to where their hands were
-// drawn, by the view: cupMigrationPending). 19: slots 0..3, 7 and 17 (the author's poses after the posing mode). 20: slots
-// 0..3, 5..10 and 17..19 (the author's offsets, hotspots, two-handed aim and Hand and Weapon Together, 2026-09-28, set
-// over his hand calibration, which ships with them: vr_cvars.cpp, config version 16). 21: slots 1..3 (the author's
-// hotspots, second pass, 2026-09-28 afternoon: the shotgun's cup moved, a cup and a grip on the super shotgun, a cup on
-// the nailgun). 22: the author's holstered poses (2026-09-29: 94 hip and chest Holstered values in 13 weapons) and the
-// axe's thumb bias: only those keys are reset, each slot's other settings kept. 23: slot 17's weapon button (the
-// grappling hook's quick release: vr_grapple.qc VR_Grapple_QuickRelease): only its button's keys. 24: slot 20 (the ogres'
-// chainsaw, Misc/quakevr/make_chainsaw.py; an unused placeholder before). 25: slot 20 (the author's
-// chainsaw, 2026-09-30: its offset, scale, hotspots, grip overlap, thumb, mass and spring). 26: the author's weights of slots 9 and 20 (the
-// laser cannon and the chainsaw: 15 kg, stiffness, damping, sag; the cannon's balance), each key only where the config
-// still held its old default (weightMigration). 27: slot 20's hotspots (the author, 2026-09-30: two, both on the front
-// handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). 28: slots 21 and 22 (the grunts' shotgun
-// and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). 29: slot 23 (the crowbar,
-// Misc/quakevr/make_crowbar.py; an unused placeholder before). 30: slots 21 and 22 (the author's offsets, hotspots, weights
-// and holstered poses, 2026-09-30, over make_enemyguns.py's detail pass: the grunts' gun's stock moved its bounds, its
-// offset and hotspots follow; both muzzles at the new barrels' bores). 31: slot 20's hotspots' Bias and Stickiness (the
-// author's, 2026-10-01: 1, 1 and 1.5, 1.5), each key only where the config still held its old default. 32: slot 21's ammo screen hidden (WpnTextMode 0, where
-// the config still shows it; its new weapon effects' keys take their defaults by themselves). 33: slot 22 (the enforcers' rifle: its
-// shots along its barrel, Shot Pitch 7; Recoil on at half strength, Muzzle Flash on), each key only where the config still
-// held its old default. 34: the author's, 2026-10-02 evening (his weights of 15 weapons, the crowbar's holstered poses, the
-// lightning gun's second hotspot, the laser cannon's grip bias, roll weight and ammo screen, the grunts' gun's stock pitch,
-// the enforcers' rifle's ammo screen hidden), each key only where the config still held its old default (the hotspot
-// whole, where the config has none there). 35: the author's flashlight on the grappling hook (slot 17's Torch Out -0.035 and
-// Up 0.075, 2026-10-07; INSTALLER.md, Appendix A), each key only where the config still held its old default (0). 36: slots 24
-// and 25 (Dawn of the Machine's Super Axe and its glowing twin, MG3's model read in place: QC vr_mg3_weapons.qc; unused
-// placeholders before). 38: the author's Super Axe (slot 24: Offset Z and its first hotspot, 2026-10-08), each key only
-// where the config still held its old default. 39: the author's nailgun foregrip (slot 3: its first hotspot, the evening
-// of 2026-10-08), each key only where the config still held its old default. 40: slot 26 (the toolgun,
-// Misc/quakevr/make_toolgun.py; an unused placeholder before). 41: the anchors (round 22: points on the models' surfaces, not vertex
-// indices; vr_anchor.hpp): each of the config's indices to its slot's default, that vertex's point (convertAnchors). 42: the
-// toolgun's muzzle (slot 26) on its lens's front middle (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a
-// corner of the lens's back, was about 1 cm off), where the config still held the old point. 43: slots 27-31 (AD support: Arcane
-// Dimensions' soldiers' guns, vr_adguns.cpp; unused placeholders before). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+// Configs archive every slot's settings, so a slot whose defaults change keeps a config's old values: vr_wofs_version
+// says which of these changes a config has seen (vr_props_version is the held objects'). The changes before 1.0.0
+// (versions 1-40) were dropped with the configs older than 1.0.0 (vr_cvars.cpp resetOldConfig resets those). 41: the
+// anchors (round 22: points on the models' surfaces, not vertex indices; vr_anchor.hpp): each of the config's indices to
+// its slot's default, that vertex's point (convertAnchors). 42: the toolgun's muzzle (slot 26) on its lens's front middle
+// (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a corner of the lens's back, was about 1 cm off), where
+// the config still held the old point. 43: slots 27-31 (AD support: Arcane Dimensions' soldiers' guns, vr_adguns.cpp;
+// unused placeholders before). A first start (no saved config) takes this version as it is: its settings are these
+// defaults (markCurrent).
 constexpr int settingsVersion = 43;
-
-// Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
-bool hotspotMigration[numSlots]{};
-// Slots owning a cup hotspot made before round 21's third pass (a config's), to move to where its hand was drawn.
-bool cupMigration[numSlots]{};
-
-// Every key of every hotspot of `slot` back to its default; the slot's other settings kept.
-void resetHotspots(int slot)
-{
-    for(int i = 0; i < maxHotspots; i++)
-    {
-        for(int field = 0; field < hotspotFields; field++)
-        {
-            cvar_t& var = cvarAt(slot, hotspotKey(i, field));
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-    hotspotMigration[slot] = false;
-    cupMigration[slot] = false;
-}
 
 void resetSlot(int slot)
 {
@@ -197,30 +125,6 @@ void resetSlot(int slot)
     {
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
-    }
-    // The defaults are in today's form: nothing of the config's left to turn into hotspots or cups.
-    hotspotMigration[slot] = false;
-    cupMigration[slot] = false;
-}
-
-// A key whose default changed: the slot, the key and its old default.
-struct OldDefault
-{
-    int slot;
-    Key key;
-    float before;
-};
-
-// Each key to its new default where the config still holds the old one (one the player changed is kept).
-void takeWhereOld(za::Span<const OldDefault> changes)
-{
-    for(const OldDefault& c : changes)
-    {
-        cvar_t& var = cvarAt(c.slot, c.key);
-        if(var.value == c.before)
-        {
-            Cvar_SetQuick(&var, var.default_string);
-        }
     }
 }
 
@@ -250,6 +154,38 @@ void convertAnchors()
     Con_DPrintf("Weapon settings: %d anchor indices replaced by their points\n", converted);
 }
 
+// The toolgun's muzzle on its lens's middle (42): where the config still held the old point.
+void takeToolgunMuzzle()
+{
+    cvar_t& var = cvarAt(26, Key::MuzzleAnchor);
+    if(!strcmp(var.string, "15.0245 -0.6162 5.3987"))
+    {
+        Cvar_SetQuick(&var, var.default_string);
+    }
+}
+
+// AD support: the AD soldiers' guns (43; unused placeholders before).
+void takeAdGuns()
+{
+    for(int slot = 27; slot <= 31; slot++)
+    {
+        resetSlot(slot);
+    }
+}
+
+// The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
+struct Step
+{
+    int version;
+    void (*run)();
+};
+constexpr Step steps[] = {
+    {41, convertAnchors},
+    {42, takeToolgunMuzzle},
+    {43, takeAdGuns},
+};
+static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
+
 // The configs are read before anything asks for a slot.
 void migrate()
 {
@@ -257,346 +193,11 @@ void migrate()
     {
         return;
     }
-    if(vr_wofs_version.value < 5)
+    for(const Step& step : steps)
     {
-        resetSlot(18);
-        resetSlot(19);
-    }
-    if(vr_wofs_version.value < 6)
-    {
-        resetSlot(4);
-    }
-    if(vr_wofs_version.value < 7)
-    {
-        resetSlot(2);
-        resetSlot(6);
-    }
-    if(vr_wofs_version.value < 8)
-    {
-        resetSlot(7);
-    }
-    if(vr_wofs_version.value < 9)
-    {
-        resetSlot(1);
-        resetSlot(5);
-        resetSlot(9);
-        resetSlot(10);
-        resetSlot(13);
-    }
-    if(vr_wofs_version.value < 10)
-    {
-        for(int slot = 11; slot <= 15; slot++)
+        if(vr_wofs_version.value < static_cast<float>(step.version))
         {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 11)
-    {
-        resetSlot(1);
-        resetSlot(2);
-        resetSlot(17);
-    }
-    if(vr_wofs_version.value < 12)
-    {
-        resetSlot(3);
-        resetSlot(11);
-    }
-    if(vr_wofs_version.value < 13)
-    {
-        for(const int slot : {1, 2, 5, 6, 7, 9, 10, 13, 14, 15, 17})
-        {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 14) // the author's placements and finger settings after round 20
-    {
-        for(const int slot : {1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17})
-        {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 15)
-    {
-        constexpr Key tuned[] = {Key::TwoHDisplayMode, Key::TwoHHandAnchor, Key::TwoHFixedOffsetX, Key::TwoHFixedOffsetY,
-            Key::TwoHFixedOffsetZ, Key::TwoHBladeGrip, Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Scale};
-        for(int slot = 0; slot < numSlots; slot++)
-        {
-            for(const Key key : tuned)
-            {
-                const cvar_t& var = cvarAt(slot, key);
-                if(strcmp(var.string, var.default_string) != 0)
-                {
-                    hotspotMigration[slot] = true;
-                }
-            }
-        }
-    }
-    if(vr_wofs_version.value < 16)
-    {
-        // Round 21, second pass: the other ammo's models inherit their base's settings: their own (the same as their
-        // base's, tuned twice) go back to their defaults, so that they inherit.
-        for(int slot = 0; slot < numSlots; slot++)
-        {
-            if(Q_atoi(cvarAt(slot, Key::InheritFrom).default_string) <= 0)
-            {
-                continue;
-            }
-            for(int key = 0; key < numKeys; key++)
-            {
-                if(inheritable(static_cast<Key>(key)))
-                {
-                    cvar_t& var = cvarAt(slot, static_cast<Key>(key));
-                    Cvar_SetQuick(&var, var.default_string);
-                }
-            }
-        }
-    }
-    if(vr_wofs_version.value < 17)
-    {
-        // A weapon given a hotspot while its two-handed use was forbidden (the grappling hook, the axe, Mjolnir by
-        // default) never let the other hand take it: a hotspot allows it (the menu now does so as it is given).
-        for(int slot = 0; slot < numSlots; slot++)
-        {
-            cvar_t& mode = cvarAt(slot, Key::TwoHMode);
-            if(static_cast<int>(mode.value) != 2) // WPN_2H_FORBIDDEN
-            {
-                continue;
-            }
-            for(int i = 0; i < maxHotspots; i++)
-            {
-                if(static_cast<int>(cvarAt(slot, hotspotKey(i, 0)).value) != 0)
-                {
-                    Cvar_SetValueQuick(&mode, 0.f);
-                    break;
-                }
-            }
-        }
-    }
-    if(vr_wofs_version.value < 18)
-    {
-        for(int slot = 0; slot < numSlots; slot++)
-        {
-            for(int i = 0; i < maxHotspots; i++)
-            {
-                if(static_cast<int>(cvarAt(slot, hotspotKey(i, 0)).value) == static_cast<int>(HotspotType::Cup))
-                {
-                    cupMigration[slot] = true;
-                }
-            }
-        }
-    }
-    if(vr_wofs_version.value < 19) // the author's poses after the posing mode (axe, shotguns, nailgun, lightning gun, hook)
-    {
-        for(const int slot : {0, 1, 2, 3, 7, 17})
-        {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 20) // the author's offsets and hotspots, 2026-09-28
-    {
-        for(const int slot : {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 17, 18, 19})
-        {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 21) // the author's hotspots, second pass, 2026-09-28 afternoon
-    {
-        for(const int slot : {1, 2, 3})
-        {
-            resetSlot(slot);
-        }
-    }
-    if(vr_wofs_version.value < 22) // the author's holstered poses, 2026-09-29: these keys only
-    {
-        struct Keys
-        {
-            int slot;
-            za::Vector<Key> keys;
-        };
-        const Keys changed[] = {
-            {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
-                     Key::UpperHolsterY, Key::UpperHolsterZ}},
-            {1, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
-                     Key::UpperHolsterY, Key::UpperHolsterYaw}},
-            {2, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {3, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterX, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {4, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {5, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {6, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-            {7, {Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterX,
-                     Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {8, {Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {10, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {17, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterZ}},
-            {18, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-            {19, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-        };
-        for(const Keys& k : changed)
-        {
-            for(const Key key : k.keys)
-            {
-                cvar_t& var = cvarAt(k.slot, key);
-                Cvar_SetQuick(&var, var.default_string);
-            }
-        }
-    }
-    if(vr_wofs_version.value < 23) // the grappling hook's quick release button: these keys only
-    {
-        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
-                 Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
-        {
-            cvar_t& var = cvarAt(17, key);
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-    if(vr_wofs_version.value < 24) // the ogres' chainsaw (an unused placeholder before)
-    {
-        resetSlot(20);
-    }
-    // The author's chainsaw (NOTES.md vrfiringrange_2026-09-30_11-09-08).
-    if(vr_wofs_version.value >= 24 && vr_wofs_version.value < 25)
-    {
-        resetSlot(20);
-    }
-    if(vr_wofs_version.value < 26) // the author's laser cannon and chainsaw weights, 2026-09-30: where still the old ones
-    {
-        const OldDefault weights[] = {{9, Key::Mass, 7.f}, {9, Key::Balance, 12.f}, {9, Key::SpringStiffness, 1.f}, {9, Key::SpringDamping, 1.f},
-            {9, Key::SpringSag, 1.f}, {20, Key::Mass, 6.5f}, {20, Key::SpringStiffness, 1.f}, {20, Key::SpringDamping, 1.f},
-            {20, Key::SpringSag, 1.f}};
-        takeWhereOld(weights);
-    }
-    if(vr_wofs_version.value < 27) // the chainsaw's two hotspots, 2026-09-30: its hotspots' keys only
-    {
-        resetHotspots(20);
-    }
-    if(vr_wofs_version.value < 28) // the grunts' shotgun and the enforcers' laser rifle (unused placeholders before)
-    {
-        resetSlot(21);
-        resetSlot(22);
-    }
-    if(vr_wofs_version.value < 29) // the crowbar (an unused placeholder before)
-    {
-        resetSlot(23);
-    }
-    if(vr_wofs_version.value >= 28 && vr_wofs_version.value < 30) // the author's grunts' gun and enforcers' rifle
-    {
-        resetSlot(21);
-        resetSlot(22);
-    }
-    if(vr_wofs_version.value < 31) // the author's chainsaw grips, 2026-10-01: where still the old ones
-    {
-        const OldDefault grips[] = {{20, Key::Hotspot1Bias, 2.5f}, {20, Key::Hotspot2Bias, 0.f}, {20, Key::Hotspot1Sticky, 1.f},
-            {20, Key::Hotspot2Sticky, 1.f}};
-        takeWhereOld(grips);
-    }
-    if(vr_wofs_version.value >= 28 && vr_wofs_version.value < 32) // the burst rifle's ammo screen hidden (still shown)
-    {
-        cvar_t& var = cvarAt(21, Key::WpnTextMode);
-        if(var.value == 1.f)
-        {
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-    if(vr_wofs_version.value < 33) // the enforcers' rifle's shots, recoil and muzzle flash: where still the old ones
-    {
-        const OldDefault fx[] = {{22, Key::ShotPitch, 0.f}, {22, Key::Recoil, 0.f}, {22, Key::RecoilStrength, 1.f},
-            {22, Key::Flash, 0.f}};
-        takeWhereOld(fx);
-    }
-    if(vr_wofs_version.value < 34) // the author's, 2026-10-02 evening: where still the old ones
-    {
-        const OldDefault changes[] = {
-            // The crowbar's holstered poses.
-            {23, Key::HipHolsterX, 0.5f}, {23, Key::HipHolsterY, 5.f}, {23, Key::HipHolsterZ, 1.5f},
-            {23, Key::HipHolsterPitch, 0.f}, {23, Key::HipHolsterYaw, 0.f}, {23, Key::HipHolsterRoll, -50.f},
-            {23, Key::UpperHolsterX, -1.5f}, {23, Key::UpperHolsterY, 6.f}, {23, Key::UpperHolsterZ, -3.5f},
-            {23, Key::UpperHolsterPitch, 15.f}, {23, Key::UpperHolsterYaw, 25.f}, {23, Key::UpperHolsterRoll, -70.f},
-            // The laser cannon's grip bias, roll weight and ammo screen; the grunts' gun's stock pitch; the enforcers'
-            // rifle's ammo screen hidden.
-            {9, Key::Hotspot1Bias, 0.f}, {9, Key::SpringRoll, 1.f}, {9, Key::WpnTextPitch, 0.f},
-            {9, Key::WpnTextX, -31.200014f}, {9, Key::WpnTextY, -0.5f}, {21, Key::StockPitch, 0.f},
-            {22, Key::WpnTextMode, 1.f},
-            // Weights: masses, balances and lengths.
-            {0, Key::Mass, 2.f}, {1, Key::Mass, 3.f}, {8, Key::Mass, 5.f}, {17, Key::Mass, 1.5f}, {18, Key::Mass, 1.8f},
-            {19, Key::Mass, 2.5f}, {23, Key::Mass, 2.2f},
-            {0, Key::Balance, 35.f}, {1, Key::Balance, 12.f}, {2, Key::Balance, 10.f}, {3, Key::Balance, 10.f},
-            {4, Key::Balance, 12.f}, {7, Key::Balance, 12.f}, {8, Key::Balance, 30.f}, {9, Key::Balance, 40.f},
-            {18, Key::Balance, 25.f}, {19, Key::Balance, 28.f}, {21, Key::Balance, 14.f}, {22, Key::Balance, 16.f},
-            {0, Key::Span, 75.f}, {1, Key::Span, 80.f}, {2, Key::Span, 75.f}, {3, Key::Span, 70.f}, {4, Key::Span, 80.f},
-            {5, Key::Span, 70.f}, {7, Key::Span, 80.f}, {9, Key::Span, 90.f}, {10, Key::Span, 70.f}, {18, Key::Span, 100.f},
-            {19, Key::Span, 110.f}, {22, Key::Span, 90.f}};
-        takeWhereOld(changes);
-        // The lightning gun's second hotspot: taken whole, where the config has none there.
-        if(cvarAt(7, Key::Hotspot2Type).value == 0.f)
-        {
-            for(const Key key : {Key::Hotspot2Type, Key::Hotspot2X, Key::Hotspot2Y, Key::Hotspot2Z, Key::Hotspot2Pitch,
-                     Key::Hotspot2Yaw, Key::Hotspot2Roll, Key::Hotspot2Overlap, Key::Hotspot2VisualX, Key::Hotspot2VisualY,
-                     Key::Hotspot2VisualZ})
-            {
-                cvar_t& var = cvarAt(7, key);
-                Cvar_SetQuick(&var, var.default_string);
-            }
-        }
-    }
-    if(vr_wofs_version.value < 35) // the author's flashlight on the grappling hook: where still the old default
-    {
-        const OldDefault changes[] = {{17, Key::TorchOut, 0.f}, {17, Key::TorchUp, 0.f}};
-        takeWhereOld(changes);
-    }
-    if(vr_wofs_version.value < 36) // Dawn of the Machine's Super Axe and its glow (unused placeholders before)
-    {
-        resetSlot(24);
-        resetSlot(25);
-    }
-    if(vr_wofs_version.value < 37) // the super nailguns' ammo button on their right, the magazine on the left (the author's
-    {                              // note vrfiringrange_2026-10-07_22-10-39): where still the old default
-        const OldDefault changes[] = {{4, Key::WpnButtonY, 1.500001f}, {4, Key::WpnButtonRoll, -65.399933f},
-            {12, Key::WpnButtonY, 1.500001f}, {12, Key::WpnButtonRoll, -65.399933f}};
-        takeWhereOld(changes);
-    }
-    if(vr_wofs_version.value < 38) // the author's Super Axe (note vrfiringrange_2026-10-08_14-16-19): where still the old default
-    {
-        const OldDefault changes[] = {{24, Key::OffsetZ, 0.046f}, {24, Key::Hotspot1X, 1.217f}, {24, Key::Hotspot1Y, -2.025f},
-            {24, Key::Hotspot1Z, 1.354f}, {24, Key::Hotspot1Pitch, 0.f}, {24, Key::Hotspot1Yaw, 0.f}, {24, Key::Hotspot1Roll, 0.f}};
-        takeWhereOld(changes);
-    }
-    if(vr_wofs_version.value < 39) // the author's nailgun foregrip (note vrfiringrange_2026-10-08_22-20-23): where still the old default
-    {
-        const OldDefault changes[] = {{3, Key::Hotspot1X, 3.3519f}, {3, Key::Hotspot1Y, -2.0113f}, {3, Key::Hotspot1Z, -4.1278f},
-            {3, Key::Hotspot1Pitch, 0.f}, {3, Key::Hotspot1Yaw, 0.f}, {3, Key::Hotspot1Roll, 0.f}};
-        takeWhereOld(changes);
-    }
-    if(vr_wofs_version.value < 40) // the toolgun (an unused placeholder before)
-    {
-        resetSlot(26);
-    }
-    if(vr_wofs_version.value < 41) // the anchors: points, not vertex indices
-    {
-        convertAnchors();
-    }
-    if(vr_wofs_version.value < 42) // the toolgun's muzzle on its lens's middle: where still the old point
-    {
-        cvar_t& var = cvarAt(26, Key::MuzzleAnchor);
-        if(!strcmp(var.string, "15.0245 -0.6162 5.3987"))
-        {
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (unused placeholders before)
-    {
-        for(int slot = 27; slot <= 31; slot++)
-        {
-            resetSlot(slot);
+            step.run();
         }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
@@ -711,103 +312,6 @@ const char* anchor(int slot, Key key)
 
 void markCurrent()
 {
-    if(vr_wofs_version.value < 22) // the author's holstered poses, 2026-09-29: these keys only
-    {
-        struct Keys
-        {
-            int slot;
-            za::Vector<Key> keys;
-        };
-        const Keys changed[] = {
-            {0, {Key::FingerThumbBias, Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
-                     Key::UpperHolsterY, Key::UpperHolsterZ}},
-            {1, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll,
-                     Key::UpperHolsterY, Key::UpperHolsterYaw}},
-            {2, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {3, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterX, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {4, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {5, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {6, {Key::HipHolsterX, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-            {7, {Key::HipHolsterZ, Key::UpperHolsterPitch, Key::UpperHolsterRoll, Key::UpperHolsterX,
-                     Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {8, {Key::HipHolsterRoll, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterRoll, Key::UpperHolsterY,
-                     Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {10, {Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterYaw, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterY, Key::UpperHolsterYaw, Key::UpperHolsterZ}},
-            {17, {Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterY, Key::UpperHolsterZ}},
-            {18, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-            {19, {Key::HipHolsterRoll, Key::HipHolsterX, Key::HipHolsterY, Key::HipHolsterZ, Key::UpperHolsterPitch,
-                     Key::UpperHolsterRoll, Key::UpperHolsterX, Key::UpperHolsterY, Key::UpperHolsterYaw,
-                     Key::UpperHolsterZ}},
-        };
-        for(const Keys& k : changed)
-        {
-            for(const Key key : k.keys)
-            {
-                cvar_t& var = cvarAt(k.slot, key);
-                Cvar_SetQuick(&var, var.default_string);
-            }
-        }
-    }
-    if(vr_wofs_version.value < 23) // the grappling hook's quick release button (as migrate)
-    {
-        for(const Key key : {Key::WpnButtonAnchor, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ,
-                 Key::WpnButtonPitch, Key::WpnButtonYaw, Key::WpnButtonRoll, Key::WpnButtonMode})
-        {
-            cvar_t& var = cvarAt(17, key);
-            Cvar_SetQuick(&var, var.default_string);
-        }
-    }
-    if(vr_wofs_version.value < 25) // the ogres' chainsaw, the author's (as migrate)
-    {
-        resetSlot(20);
-    }
-    if(vr_wofs_version.value < 27) // the chainsaw's two hotspots (as migrate)
-    {
-        resetHotspots(20);
-    }
-    if(vr_wofs_version.value < 28) // the grunts' shotgun and the enforcers' laser rifle (as migrate)
-    {
-        resetSlot(21);
-        resetSlot(22);
-    }
-    if(vr_wofs_version.value < 29) // the crowbar (as migrate)
-    {
-        resetSlot(23);
-    }
-    if(vr_wofs_version.value < 30) // the author's grunts' gun and enforcers' rifle (as migrate)
-    {
-        resetSlot(21);
-        resetSlot(22);
-    }
-    if(vr_wofs_version.value < 31) // the author's chainsaw grips (as migrate)
-    {
-        const OldDefault grips[] = {{20, Key::Hotspot1Bias, 2.5f}, {20, Key::Hotspot2Bias, 0.f}, {20, Key::Hotspot1Sticky, 1.f},
-            {20, Key::Hotspot2Sticky, 1.f}};
-        takeWhereOld(grips);
-    }
-    if(vr_wofs_version.value < 36) // the Super Axe (as migrate)
-    {
-        resetSlot(24);
-        resetSlot(25);
-    }
-    if(vr_wofs_version.value < 40) // the toolgun (as migrate)
-    {
-        resetSlot(26);
-    }
-    if(vr_wofs_version.value < 43) // AD support: the AD soldiers' guns (as migrate)
-    {
-        for(int slot = 27; slot <= 31; slot++)
-        {
-            resetSlot(slot);
-        }
-    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -863,12 +367,6 @@ void resetSlotToDefaults(int slot, Part part)
             cvar_t& var = cvarAt(slot, static_cast<Key>(key));
             Cvar_SetQuick(&var, var.default_string);
         }
-    }
-    if(part == Part::Offsets)
-    {
-        // The defaults are in today's form: nothing of the config's left to turn into hotspots or cups (resetSlot).
-        hotspotMigration[slot] = false;
-        cupMigration[slot] = false;
     }
 }
 
@@ -965,29 +463,6 @@ void setHotspot(int slot, int index, const Hotspot& h)
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 22)), h.thumbAcross);
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 23)), h.sticky);
-}
-
-bool takeHotspotMigration(int slot)
-{
-    if(slot < 0 || slot >= numSlots || !hotspotMigration[slot])
-    {
-        return false;
-    }
-    hotspotMigration[slot] = false;
-    return true;
-}
-
-bool cupMigrationPending(int slot)
-{
-    return slot >= 0 && slot < numSlots && cupMigration[slot];
-}
-
-void cupMigrationDone(int slot)
-{
-    if(slot >= 0 && slot < numSlots)
-    {
-        cupMigration[slot] = false;
-    }
 }
 
 int ownerSlot(int slot, Key key)

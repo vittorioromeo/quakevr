@@ -171,6 +171,8 @@ void() orb_fast2 = [$blink1, orb_fast3] {};
 void() orb_fast3 = [$blink2, orb_fast4] {self.nextthink = time + 0.3; ai_face();};
 void() orb_fast4 = [$hover1, orb_fast5]
 {
+    if(VR_AimCone_Wait(orb_fast4, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+
     ai_face();
     orb_blast();
     self.nextthink = time + 0.2;
@@ -302,6 +304,7 @@ void() orb_blast =
         setmodel(mis, "owned/mg3/progs/rogue/sphere.mdl");
         setsize(mis, '0 0 0', '0 0 0');
         mis.velocity = newVec * (baseSpeed + crandom() * 100);
+        mis.velocity = VR_AimCone_Bend(mis.velocity, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
         mis.avelocity = '300 300 300';
         mis.avelocity_x = mis.avelocity_x * crandom();
         mis.avelocity_y = mis.avelocity_y * crandom();

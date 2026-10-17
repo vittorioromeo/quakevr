@@ -1279,6 +1279,69 @@ static void Con_Print (const char *txt)
 static char	logfilename[MAX_OSPATH];	// current logfile name
 static int	log_fd = -1;			// log file descriptor
 
+// QVR: the console log is buffered (one write a second, not one a line) and goes to the run's console.log too
+// (quakevr/logs/<date>_<time>/, every run: vr/vr_runlogs.cpp; LOG_OpenRun), beside -condebug's qconsole.log. Until the
+// run's file is opened (after the filesystem) the lines wait in the buffer: the file has them from the first. Flushed at
+// LOG_Tick (a second after the last), a full buffer, LOG_Close, exit() and a crash (LOG_Flush, from the crash reporter).
+static int	log_run_fd = -1;		// the run's console.log
+static qboolean	log_run_ready;		// LOG_OpenRun was called (opened or not): the buffer goes out as it fills
+static char	log_buf[65536];
+static int	log_len;
+static double	log_flushed;		// Sys_DoubleTime of the last flush
+static SDL_SpinLock	log_lock;		// (Con_Printf from any thread; the crash reporter flushes with a try)
+
+static void LOG_WriteFd (int *fd, const char *data, int len)
+{
+	if (*fd == -1 || len <= 0)
+		return;
+	if (write (*fd, data, len) < 0)
+	{
+		close (*fd);
+		*fd = -1;
+		fprintf (stderr, "Error writing to log file\n");
+	}
+}
+
+static void LOG_FlushLocked (void)
+{
+	LOG_WriteFd (&log_fd, log_buf, log_len);
+	LOG_WriteFd (&log_run_fd, log_buf, log_len);
+	log_len = 0;
+	log_flushed = Sys_DoubleTime ();
+}
+
+/*
+================
+LOG_Flush
+
+QVR: the buffered lines written out now (the crash reporter, a VR start's failure, a bug report). Never waits: with
+the lock held elsewhere (a thread stopped mid-line by the crash) it writes anyway.
+================
+*/
+void LOG_Flush (void)
+{
+	qboolean locked = SDL_AtomicTryLock (&log_lock);
+	if (log_run_ready || log_fd != -1)
+		LOG_FlushLocked ();
+	if (locked)
+		SDL_AtomicUnlock (&log_lock);
+}
+
+// QVR: Host_Frame: the lines a second old written out (a hang or a kill loses at most a second's).
+void LOG_Tick (void)
+{
+	if (!log_len || !log_run_ready || Sys_DoubleTime () - log_flushed < 1.0)
+		return;
+	SDL_AtomicLock (&log_lock);
+	LOG_FlushLocked ();
+	SDL_AtomicUnlock (&log_lock);
+}
+
+static void LOG_AtExit (void)
+{
+	LOG_Flush ();
+}
+
 /*
 ================
 Con_DebugLog
@@ -1290,15 +1353,30 @@ Note: msg is expected to be in UTF-8, not Quake charset
 */
 void Con_DebugLog(const char *msg)
 {
-	if (log_fd == -1)
-		return;
+	int len = (int) strlen (msg);
 
-	if (write(log_fd, msg, strlen(msg)) < 0)
+	// QVR: buffered (above); before the run's file is opened, kept for it while the buffer has room
+	if (!len || (log_run_ready && log_fd == -1 && log_run_fd == -1))
+		return;
+	SDL_AtomicLock (&log_lock);
+	if (log_len + len > (int) sizeof (log_buf))
 	{
-		close (log_fd);
-		log_fd = -1;
-		fprintf (stderr, "Error writing to log file\n");
+		if (log_run_ready)
+			LOG_FlushLocked ();
+		else
+			len = 0; // (the buffer full before the run's file: the first 64 KB kept)
 	}
+	if (len > (int) sizeof (log_buf))
+	{
+		LOG_WriteFd (&log_fd, msg, len);
+		LOG_WriteFd (&log_run_fd, msg, len);
+	}
+	else if (len)
+	{
+		memcpy (log_buf + log_len, msg, len);
+		log_len += len;
+	}
+	SDL_AtomicUnlock (&log_lock);
 }
 
 
@@ -2613,6 +2691,7 @@ void LOG_Init (quakeparms_t *parms)
 	time_t	inittime;
 	char	session[24];
 
+	atexit (LOG_AtExit); // QVR: the buffered lines (above) out at exit() (Sys_Error's, the bug report's)
 	if (!COM_CheckParm("-condebug"))
 		return;
 
@@ -2635,33 +2714,43 @@ void LOG_Init (quakeparms_t *parms)
 
 /*
 ================
-LOG_Reopen
+LOG_OpenRun
 
-QVR: the console log from here on in path (diagnostics mode: vr/vr_diagnostics.cpp), with or without -condebug
+QVR: the run's console.log (vr/vr_runlogs.cpp; null: none, the buffer goes to qconsole.log alone): the lines so far
+(from the first) written into it, then every line, beside -condebug's qconsole.log
 ================
 */
-void LOG_Reopen (const char *path)
+void LOG_OpenRun (const char *path)
 {
 	time_t	now = time (NULL);
-	char	session[24];
-	int	fd = open (path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (fd == -1)
+	char	session[64];
+
+	SDL_AtomicLock (&log_lock);
+	if (path)
 	{
-		fprintf (stderr, "Error: Unable to create log file %s\n", path);
-		return;
+		log_run_fd = open (path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+		if (log_run_fd == -1)
+			fprintf (stderr, "Error: Unable to create log file %s\n", path);
+		else
+		{
+			strftime (session, sizeof(session), "LOG started on: %m/%d/%Y %H:%M:%S \n", localtime(&now));
+			LOG_WriteFd (&log_run_fd, session, (int) strlen (session));
+		}
 	}
-	if (log_fd != -1)
-		close (log_fd);
-	log_fd = fd;
-	strftime (session, sizeof(session), "%m/%d/%Y %H:%M:%S", localtime(&now));
-	Con_DebugLog (va("LOG started on: %s \n", session));
+	log_run_ready = true;
+	LOG_FlushLocked ();
+	SDL_AtomicUnlock (&log_lock);
 }
 
 void LOG_Close (void)
 {
-	if (log_fd == -1)
-		return;
-	close (log_fd);
-	log_fd = -1;
+	SDL_AtomicLock (&log_lock);
+	LOG_FlushLocked ();
+	if (log_fd != -1)
+		close (log_fd);
+	if (log_run_fd != -1)
+		close (log_run_fd);
+	log_fd = log_run_fd = -1;
+	SDL_AtomicUnlock (&log_lock);
 }
 

@@ -12,6 +12,10 @@ public enum LaunchVariant
     /// messages, the console, the crash report and the runtimes' logs in quakevr\diagnostics\&lt;date&gt;_&lt;time&gt;
     /// (Quake/vr/vr_diagnostics.cpp). Start menu only.</summary>
     Diagnostics,
+    /// <summary>The bug report (<c>-bugreport</c>): the last run's logs (quakevr\logs), the crash report if any, the
+    /// config and the runtimes' logs zipped into quakevr\bugreports\&lt;date&gt;_&lt;time&gt;.zip, the folder opened; the
+    /// game is not started (Quake/vr/vr_runlogs.cpp). Start menu only.</summary>
+    BugReport,
 }
 
 /// <summary>
@@ -34,6 +38,7 @@ public static class LaunchCommand
             LaunchVariant.Flat => " +vr_enabled 0",
             LaunchVariant.Log => " -condebug",
             LaunchVariant.Diagnostics => " -diagnostics",
+            LaunchVariant.BugReport => " -bugreport",
             _ => "",
         };
         return string.IsNullOrWhiteSpace(extra) ? args : args + " " + extra.Trim();

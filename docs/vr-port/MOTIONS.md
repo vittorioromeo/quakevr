@@ -152,6 +152,25 @@ stands)"). The header records the `vr_foegrab_lift*` and `vr_foegrab_throw*` set
 `eval.sh` keeps these takes out of the melee sets and replays them once (the takes' own settings), printing per kind
 the expected ones caught and missed and the false ones, every take by name (report only, no baseline).
 
+### Leg sweep takes
+
+For tuning the leg sweep's rule (ROUND22.md, "Leg sweep"; `vr_legsweep.cpp`), set up as the neck snap takes: on the
+recording map with the training dummy, a weapon in the hand (or a prop). **Leg Sweep Expected** (Detail: shotgun, prop,
+crowbar, left_right, right_left, away, toward, hilt): start the take, swing the weapon level through the dummy's shins
+at a sweep's speed. **Leg Sweep Not Expected** (axe, slow, blade, not_level, short, super_shotgun, high): a blade's cut, a
+slow swing, a swing that isn't level, a short thing (a crate, a brick), the super shotgun, over its head. The game's
+sweep is the take's `legsweep` event (sub `knocked_down`, or `standing` for the training dummy, which is only "would be
+swept"; value the level speed in m/s; detail the weapon, its length and slenderness, the point that met the legs, the
+speed), from `vr_legsweep.cpp` `sweepHand`. Verdicts (`expect.cfg`): Expected passes with a `legsweep`, Not Expected
+without one; blows on the way in are allowed. The held weapon is in the take (the `m_wid` / `o_wid` columns, the header's
+`main weapon`); a prop in a hand is in the header (`main held`, `off held`: `model (classname)`, as the take ended) but
+playback does not put a prop back in the hand, so such a take is listed apart by `eval.sh` (not replayed, not counted).
+
+`eval.sh` keeps the leg takes out of the melee sets and replays them once (`legkinds_set`, driven by `LEG_KINDS` at the top
+of the script: one `<label>:<event>` per kind, so the leg pull and lift labels are one more entry there plus their
+categories in `vr_motion.cpp` and `expect.cfg`), printing per kind the expected ones caught and missed and the false
+ones, then per weapon, then every take by name with its weapon (report only; verdicts in `eval_status.csv`).
+
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
 ### Console
@@ -564,6 +583,8 @@ s), `no_neck_snap_shoulders` (the same turn at its shoulders), `no_neck_snap_sma
 only, `neck_snap_push_pull` (a 25 cm push-pull, the wrists turning 100 degrees: Hand Line misses it at the shipped
 settings, 2026-10-15). `--head` (1.39 m) the head's middle above the floor, `--necksnap-distance` (0.7 m) the dummy's.
 `EVAL_TAKES=<that folder> bash kit/eval.sh <agent>` runs them through eval.sh's neck snap section.
+
+The leg sweep presets (`legsweep`; `scratch/synth_legsweep`, never his folder): `leg_sweep_shotgun` (the shotgun held low, pointing forward and down, 0.8 m across the dummy's shins in 0.25 s: sweeps), `no_leg_sweep_axe` (the same with the axe: a blade), `no_leg_sweep_slow` (the shotgun across in 1.9 s). `--sweep-height` (0.45 m) the hand over the floor.
 
 Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
 dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),

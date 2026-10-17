@@ -39,7 +39,7 @@ def setup(enabled, guard=True, stationary=True):
     return ["map vrtesthall", wait(60), "setpos 0 0 24 0 0 0", "developer 1",
             "vr_enemy_shove 0", "vr_stealth_meter 0", "vr_parry 1", "vr_parry_stamina 0", "vr_parry_drop_chance 0",
             "vr_parry_push_enemy 0", "vr_parry_push_player 0", "vr_parry_reduction 0.75",
-            "vr_parry_interrupt " + str(enabled), "vr_parry_stagger 0.35", "vr_weapon_grip_mode 1",
+            "vr_parry_stagger 0.35", "vr_weapon_grip_mode 1",
             "impulse 154", wait(5), GUARD if guard else LOWER, wait(20)] + (
             ["notarget"] if stationary else []) + ["vr_test_spawn 5", "vr_test_spawn_dist 48", "impulse 241", wait(30)]
 
@@ -49,8 +49,8 @@ def health(log):
 
 
 # Real parry, then lower the weapon. Follow-up damage must stay cancelled until recovery.
-for enabled, guarded, expected in [(1, True, [97, 97, 87]), (0, True, [97, 87, 77]),
-                                   (1, False, [90, 80, 70]), (0, False, [90, 80, 70])] if selected("forced") else []:
+# (`enabled`: always 1 since vr_parry_interrupt was retired, 2026-10-16: a parry always interrupts.)
+for enabled, guarded, expected in [(1, True, [97, 97, 87]), (1, False, [90, 80, 70])] if selected("forced") else []:
     label = "forced_%s_%s" % (enabled, "guard" if guarded else "fail")
     log = run(label, setup(enabled, guarded) + ["impulse 242", wait(1), "edict 1", LOWER,
               wait(2), "impulse 242", wait(1), "edict 1", wait(35), "impulse 242", wait(1), "edict 1"])
@@ -61,7 +61,7 @@ for enabled, guarded, expected in [(1, True, [97, 97, 87]), (0, True, [97, 87, 7
     print(label + ": PASS health " + str(got))
 
 # Let an actual knight animation run. Enabled: one hit per attack, no cooldown hits.
-for enabled in [1, 0] if selected("animations") else []:
+for enabled in [1] if selected("animations") else []:
     label = "animation_%s" % enabled
     log = run(label, setup(enabled, stationary=False) + [wait(150), "edict 1"])
     parries = len(re.findall(r"^parry: monster_knight with hand", log, re.M))
@@ -92,7 +92,7 @@ if selected("smoke"):
 
 
 if selected("dragon"):
-    for enabled, guarded in [(1, True), (0, True), (1, False)]:
+    for enabled, guarded in [(1, True), (1, False)]:
         label = "dragon_%s_%s" % (enabled, "guard" if guarded else "fail")
         log = run(label, setup(enabled, guarded)[:-5] +
                   ["vr_physics_spawn VR_Parry_DragonTest 120", wait(65)])

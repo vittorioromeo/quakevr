@@ -25,6 +25,7 @@
 #include "vr_menu.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_menuui.hpp"
+#include "vr_renderdoc.hpp"
 #include "vr_toolgun_icons.hpp"
 #include "vr_toolgun_brush.hpp"
 #include "vr_brushes.hpp"
@@ -1002,6 +1003,22 @@ void morePage(Ui& ui)
             menu::toolgunCheatUse(i);
         }
     }
+    if(qvr::renderdoc::attached())
+    {
+        // RenderDoc's Capture Frame (vr_renderdoc.cpp): the panel is hidden for the captured frame; the delay 0 / 1 / 3 s.
+        const float y = 158.f;
+        if(button(ui, Rect{pad, y, pad + 120.f, y + h}, "Capture Frame (RenderDoc)", false, 6.f))
+        {
+            qvr::renderdoc::captureFromCvars();
+        }
+        char label[24];
+        q_snprintf(label, sizeof(label), "Delay: %g s", vr_renderdoc_delay.value);
+        if(button(ui, Rect{pad + 124.f, y, pad + 180.f, y + h}, label, false, 6.f))
+        {
+            const float d = vr_renderdoc_delay.value;
+            Cvar_SetValueQuick(&vr_renderdoc_delay, d < 0.5f ? 1.f : d < 2.f ? 3.f : 0.f);
+        }
+    }
     sliderRow(ui, Rect{pad, 172.f, panelWidth - pad, 188.f}, "Panel Size", vr_toolgun_panel_size, 3.f, 12.f, 0.5f, "%.1f");
 }
 
@@ -1194,7 +1211,7 @@ void render()
 void drawInEye(const hands::State& s)
 {
     glm::vec3 corner, xAxis, yAxis;
-    if(!shown() || !ps.target.texture || !s.valid || !quadOf(s, corner, xAxis, yAxis))
+    if(!shown() || qvr::renderdoc::hidingPanel() || !ps.target.texture || !s.valid || !quadOf(s, corner, xAxis, yAxis))
     {
         return;
     }

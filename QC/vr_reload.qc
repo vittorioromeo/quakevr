@@ -50,6 +50,7 @@
 
 // (.vr_ammo_aid, .vr_ammo_count, .vr_ammo_front, .vr_ammo_born: vr_fields.qc)
 .float vr_ammo_wid;      // a magazine: the gun it fits (WID_*; 0 a shell)
+.float vr_ammo_cap;      // and the rounds it holds full (VR_Reload_SetModel; the engine sends how full it is: its loot beam)
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun (or dropped, knocked out; the super shotgun's live shells
                          // thrown out): it goes in again only once it has left the well
 .float vr_ammo_fresh_at;   // and when it came out (vr_reload_eject_cooldown),
@@ -123,6 +124,7 @@ void() VR_Reload_Precache =
     precache_sound("vr/reload_empty.wav");    // the pouch found empty
     precache_sound("vr/reload_blocked.wav");  // a shell held to a full shotgun: the gate won't open
     precache_sound("vr/reload_full.wav");     // the last shell in: the tube full
+    precache_sound("vr/pack_full.wav");       // a box put away while full up of it (vr_carry.qc VR_Carry_FullCue)
     precache_sound("vr/reload_ssg_open.wav");  // the super shotgun broken open (make_reload_ssg_sounds.py),
     precache_sound("vr/reload_ssg_eject.wav"); // its shells thrown out (make_sounds.py),
     precache_sound("vr/reload_ssg_close.wav"); // and snapped shut
@@ -136,9 +138,16 @@ void() VR_Reload_Precache =
 // The mode
 
 // Whether immersive reloading is on (and reloading at all: Weapon Mode Immersive).
+// Of any gun: the global mode, or a gun's own override (Per-Weapon Reload Overrides): the pouch, its furniture.
 float() VR_Reload_Immersive =
 {
-    return cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+    return VR_Reload_BestMode() == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+};
+
+// The same of the gun `xWeapon` alone (its own mode, else the global).
+float(float xWeapon) VR_Reload_ImmersiveFor =
+{
+    return VR_Reload_ModeOf(xWeapon) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
 };
 
 // Whether `xWeapon` takes magazines (immersive reloading's phase 2).
@@ -158,7 +167,7 @@ float(float xWeapon) VR_Reload_IsFront =
 // flick reload for it.
 float(float xWeapon, entity xInst) VR_Reload_ManualForInst =
 {
-    return VR_Reload_Immersive() && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
+    return VR_Reload_ImmersiveFor(xWeapon) && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
         (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker(xInst))); // (AD support: the Widowmaker reloads at the hip)
 };
 
@@ -221,7 +230,7 @@ float(entity p, float xHand) VR_Reload_MagIn =
 {
     float w = VRGetEntWeapon(p, xHand);
     float f = VRGetEntWeaponFlags(p, xHand);
-    return p.ishuman && VR_Reload_Immersive() && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
+    return p.ishuman && VR_Reload_ImmersiveFor(w) && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
 };
 
 // The ammo whose rounds the pouch gives for the gun `p` holds in `xHand` (by its handle or carried), if it loads by hand;
@@ -417,6 +426,7 @@ void(entity r) VR_Reload_SetModel =
     if(r.vr_ammo_wid)
     {
         setmodel(r, VR_Reload_MagModel(r.vr_ammo_wid));
+        r.vr_ammo_cap = WeaponIdToBaseClipSize(r.vr_ammo_wid); // (how full it is, for its loot beam: vr_lootbeams.cpp)
         float k = propvalue(r, "size"); // (its prop slot's Size, as drawn: the model's own bounds were twice the drawn magazine)
         if(k <= 0)
         {
@@ -1217,6 +1227,7 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
         VR_Reload_Log(sprintf("an ammo box into the pouch (hand %g)", xHand));
         return TRUE;
     }
+    VR_Carry_FullCue(xHand, box); // (full up: it drops there, not a miss of the pouch)
     VR_Carry_SetHeld(self, xHand, world);
     VR_Carry_Loose(box);
     box.velocity = '0 0 0';

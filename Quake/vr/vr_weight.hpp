@@ -92,11 +92,11 @@ void reset();
 // (vr_weight_lenient*: 1 up to vr_weight_lenient_from, lower for heavier things, at least vr_weight_lenient_min).
 [[nodiscard]] float leniency(float mass);
 
-// Throws by weight (vr_throw_mass_model; ROUND21.md, "Throws by weight"): the velocity (m/s) a thing of `mass` kg
+// Throws by weight (ROUND21.md, "Throws by weight"): the velocity (m/s) a thing of `mass` kg
 // thrown with `hands` hands (1 or 2) leaves them at, from the hand's estimate `vel` (m/s) and the part of it the wrist's
 // flick gives, `flick`: the flick kept by its mass (vr_throw_flick_mass), the gain of a real throw (vr_throw_gain_*), and
 // the speed limited by its mass (vr_throw_max_speed, _mass_light, _mass_exp, _mass_knee; two hands: vr_throw_2h_strength).
-// vr_throw_mass_model 0: only the gain. `mass` 0: a light thing's.
+// `mass` 0: a light thing's.
 struct ThrowOut
 {
     glm::vec3 vel{0.f};
@@ -105,7 +105,7 @@ struct ThrowOut
     float limit{0.f};  // m/s (0: none)
 };
 [[nodiscard]] ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands);
-// The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands (0: none, the model off).
+// The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands.
 [[nodiscard]] float throwLimit(float mass, int hands);
 // The spin limit by mass (rad/s): a thing of `mass` kg turned by `hands` hands (vr_throw_spin_mass_exp; 0: none beyond
 // vr_throw_spin_max), and a throw's spin `angVel` (rad/s) limited by it (soft, as the speed: vr_throw_mass_knee).
@@ -130,7 +130,8 @@ struct ThrowOut
 // The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
 [[nodiscard]] float dropLimit(float mass, float twoHanded);
 
-// vr_weight_test: the spring offline (vr_weight.cpp).
+// vr_throw_table, vr_weight_test, vr_weight_table (vr_weight_diag.cpp).
+void registerDiagCommands();
 void registerCommands();
 
 } // namespace qvr::weight

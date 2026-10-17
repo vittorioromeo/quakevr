@@ -50,6 +50,10 @@ QVR_FIELD(offloadportface)
 QVR_FIELD(vr_ammo_pass) // a loose round passing through a player's guns to their ports: the hands (vr_reload.qc; vr_box3d.cpp reachSkips)
 QVR_FIELD(vr_ammo_passer) // and the player
 QVR_FIELD(vr_ammo_passgun) // a loose round passing through a gun lying about to its port: that gun (vr_reload.qc VR_Reload_PropsFrame; vr_box3d.cpp preSolve)
+QVR_FIELD(vr_ammo_wid)   // a magazine: the gun it fits (vr_reload.qc; 0 not one): its loot beam's fullness (vr_server.cpp, U_QVR_WEAPONUID)
+QVR_FIELD(vr_ammo_count) // and its rounds
+QVR_FIELD(vr_ammo_cap)   // and the rounds it holds full (0: unknown, an older save's)
+QVR_FIELD(carry_player)  // a box or round carried in a hand (vr_carry.qc): who carries it (no loot beam while carried)
 QVR_FIELD(magboxpos) // the main hand's gun's attached magazine, a box: its middle and half-axes (vr_reload.qc)
 QVR_FIELD(magboxx)
 QVR_FIELD(magboxy)
@@ -166,6 +170,7 @@ QVR_FIELD(carry_portal) // held through a portal: its remote pose is not constra
 QVR_FIELD(carry_rigid) // solid carried prop (2): torso collision and locomotion load
 QVR_FIELD(carry_offset) // a held prop's origin in the hand (vr_carry.qc), kept at a regrip (vr_grip.cpp)
 QVR_FIELD(offhand_held)
+QVR_FIELD(vr_carry_items) // the hands carrying a thing to put away (vr_carry.qc VR_Carry_IsCollectable): STAT_QVR_CARRYITEM
 QVR_FIELD(carry_teleported) // until then what the hands carry follows them from the player (vr_carry.qc VR_Carry_FollowTeleported): set by the VR teleport
 QVR_FIELD(vr_hot_hud)   // the hands' incandescent blades' glow (vr_hotblade.qc VR_HotBlade_Hud; STAT_QVR_HOTBLADE: vr_meleehud.cpp)
 QVR_FIELD(vr_hot_hud2)  // the holsters' (STAT_QVR_HOTBLADEHOLSTER)
@@ -226,3 +231,13 @@ QVR_FIELD(scale)
 
 // A monster in a melee attack: when (QC/fight.qc ai_charge and kin): kept out of the player's head (vr_bodycontact.cpp).
 QVR_FIELD(vr_melee_time)
+// Show Melee Arcs (vr_enemy_melee_arc_show; QC/fight.qc VR_MeleeArc_ShowFrame): a melee monster's arc and reach, drawn (vr_bodycontact.cpp).
+QVR_FIELD(vr_melee_arc)
+QVR_FIELD(vr_melee_arc_wide)
+QVR_FIELD(vr_melee_reach)
+QVR_FIELD(vr_melee_shown)
+// Show Aim Cones (vr_enemy_aim_show; QC/vr_aimcone.qc VR_AimCone_ShowFrame): a ranged monster's aim and fire cones, drawn (vr_bodycontact.cpp).
+QVR_FIELD(vr_aim_cone)
+QVR_FIELD(vr_aim_fire)
+QVR_FIELD(vr_aim_shown)
+QVR_FIELD(vr_aim_holding)

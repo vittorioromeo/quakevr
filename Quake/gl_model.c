@@ -439,6 +439,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	byte	*buf;
 	int		mod_type;
 	qboolean	derived, recorded; // QVR
+	double		t0; // QVR
 
 	if (!mod->needload)
 	{
@@ -462,16 +463,25 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	t0 = Sys_DoubleTime (); // QVR: a load while a map is in play counted (VR_NoteModelLoad: vr_cache_info)
+	VR_TracyBegin ("model metadata and file", 0); // QVR: (profiling builds)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
+	{
+		VR_TracyEnd (); // QVR
 		return mod;
+	}
 	if (VR_RuntimeBrushModel (mod)) // QVR: a box made in the game (vr/vr_brushes.cpp)
+	{
+		VR_TracyEnd (); // QVR
 		return mod;
+	}
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	derived = buf != NULL; // QVR
 	if (!buf)
 		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
+	VR_TracyEnd (); // QVR
 	if (!buf)
 	{
 		if (crash)
@@ -502,11 +512,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
+		VR_TracyBegin ("load alias model", 0); // QVR: (profiling builds)
 		VR_TIMED ("alias models (.mdl) loaded", Mod_LoadAliasModel (mod, buf)); // QVR: load timing (vr_startup_times)
+		VR_TracyEnd (); // QVR
 		break;
 
 	case IDSPRITEHEADER:
+		VR_TracyBegin ("load sprite model", 0); // QVR: (profiling builds)
 		Mod_LoadSpriteModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 
 	case MD3_IDENT:
@@ -529,13 +543,18 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		break;
 
 	default:
+		VR_TracyBegin ("load brush model", 0); // QVR: (profiling builds)
 		Mod_LoadBrushModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 	}
+	if (mod->type != mod_alias) // QVR: its data on the hunk: kept there, if loaded inside a temporary allocation (zone.c)
+		Hunk_KeepLoaded ();
 	if (recorded)
 		VR_ModelSourcesEnd (mod); // QVR
 
 	VR_HeapFree (buf);
+	VR_NoteModelLoad (mod->name, Sys_DoubleTime () - t0); // QVR
 
 	return mod;
 }
@@ -668,6 +687,37 @@ static void Mod_LoadTextures (lump_t *l)
 
 	loadmodel->numtextures = nummiptex + 2; //johnfitz -- need 2 dummy texture chains for missing textures
 	loadmodel->textures = (texture_t **) Hunk_AllocName (loadmodel->numtextures * sizeof(*loadmodel->textures) , loadname);
+
+	if (!isDedicated && nummiptex > 0) // QVR: the replacement images decoded ahead on worker threads (vr/vr_imgprefetch.cpp)
+	{
+		char (*names)[17] = (char (*)[17]) VR_HeapMalloc (nummiptex * sizeof (*names));
+		const char **namelist = (const char **) VR_HeapMalloc (nummiptex * sizeof (*namelist));
+		int *kinds = (int *) VR_HeapMalloc (nummiptex * sizeof (*kinds));
+		for (i=0 ; i<nummiptex ; i++)
+		{
+			int ofs = LittleLong (m->dataofs[i]);
+			names[i][0] = 0;
+			namelist[i] = names[i];
+			kinds[i] = 0;
+			if (ofs == -1)
+				continue;
+			mt = (miptex_t *)((byte *)m + ofs);
+			if (!LittleLong (mt->width) || !LittleLong (mt->height))
+				continue;
+			memcpy (names[i], mt->name, 16);
+			names[i][16] = 0;
+			if (names[i][0])
+			{
+				int type = Mod_TextureTypeFromName (names[i]);
+				kinds[i] = type == TEXTYPE_SKY ? 0 : TEXTYPE_ISLIQUID (type) ? 1 : 2;
+			}
+		}
+		COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
+		VR_TexturePrefetchBegin (mapname, namelist, kinds, nummiptex);
+		VR_HeapFree (kinds);
+		VR_HeapFree (namelist);
+		VR_HeapFree (names);
+	}
 
 	for (i=0 ; i<nummiptex ; i++)
 	{
@@ -858,6 +908,7 @@ static void Mod_LoadTextures (lump_t *l)
 		}
 		//johnfitz
 	}
+	VR_TexturePrefetchEnd (); // QVR
 
 	//johnfitz -- last 2 slots in array should be filled with dummy textures
 	loadmodel->textures[loadmodel->numtextures-2] = r_notexture_mip; //for lightmapped surfs
@@ -3530,6 +3581,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			 */
 		};
 		int num_loaders = sizeof (loaders) / sizeof (loaders[0]);
+		qboolean loaded; // QVR
 
 
 		for (int iter = 0; iter < num_loaders; iter++) {
@@ -3547,7 +3599,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 				break;
 			}
 
-			if (loaders[iter].load_func (mod, path)) {
+			VR_TracyBegin (loaders[iter].load_func == (ModelLoadFunc)loadMd3Replacement ? "alias replacement md3" : "alias replacement md5", 0); // QVR
+			loaded = loaders[iter].load_func (mod, path);
+			VR_TracyEnd (); // QVR
+			if (loaded) {
 				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
 				return;
 			}
@@ -4526,6 +4581,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 	md5animctx_t		anim = {NULL};
 	char				*shaders = NULL, *s;
+	char				meshshader[64] = {0}; // QVR: the mesh's (VR_RangerHeadMesh)
 
 	start = Hunk_LowMark ();
 
@@ -4628,6 +4684,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 		MD5EXPECT("shader");
 		MultiString_Append (&shaders, com_token);
+		q_strlcpy (meshshader, com_token, sizeof (meshshader)); // QVR: (VR_RangerHeadMesh)
 
 		buffer = COM_Parse(buffer);
 		MD5EXPECT("numverts");
@@ -4691,6 +4748,14 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		//so make it gpu-friendly.
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
+		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
+		if (VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
+		{
+			surf->numverts_vbo = surf->numverts;
+			surf->numtris = surf->numindexes / 3;
+			surf->vertexes = (byte*)poutvert-(byte*)surf;
+			surf->indexes = (byte*)poutindexes-(byte*)surf;
+		}
 		//and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
 		MD5_ComputeNormals(poutvert, surf->numverts, poutindexes, surf->numindexes);
 

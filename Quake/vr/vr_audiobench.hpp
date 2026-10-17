@@ -65,6 +65,13 @@ struct Stats
 [[nodiscard]] long long samples();
 [[nodiscard]] double meanVoices();
 
+// The `q` quantile (0..1) of `n` > 0 values sorted ascending: the nearest rank (also vr_audio.cpp's sim runs).
+[[nodiscard]] inline float quantile(const float* sorted, int n, double q)
+{
+    const int i = static_cast<int>(q * (n - 1) + 0.5);
+    return sorted[i < n - 1 ? i : n - 1];
+}
+
 } // namespace qvr::audio::bench
 
 namespace qvr::audio::bench

@@ -1144,7 +1144,8 @@ float(float ad_attackdist, float ad_attackzaxis) ad_ai_checkmelee =
 	ad_delta = vlen(ad_spot1 - ad_spot2);		// Calculate vector distance
 
 	// Is the enemy too far away and the zaxis is wrong (too low/high)
-	if (ad_delta <= ad_attackdist && ad_zdiff <= ad_MONAI_MELEEZAXIS) return ad_TRUE;
+	// AD support: melee arc: the reach grows with size (fight.qc VR_MeleeReach)
+	if (ad_delta <= VR_MeleeReach(ad_attackdist) && ad_zdiff <= ad_MONAI_MELEEZAXIS) return ad_TRUE;
 	else return ad_FALSE;
 };
 
@@ -1160,7 +1161,7 @@ void() ad_ai_melee =
 
 	if (!self.enemy) return;			// removed before stroke
 	ad_ai_damagebreakable(10);				// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFRONT,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1202,7 +1203,7 @@ void(float ad_dmg_multiplier) ad_ai_meleesmash =
 	if (!self.enemy) return;						// removed before stroke
 	ad_ai_damagebreakable(3*ad_dmg_multiplier);			// Damage any breakables
 	// Is the enemy too far away, ++ extra Z height
-	if (!(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(self.ad_meleerange, ad_MONAI_MELEEZTALL) && VR_MeleeArc_Hits(ad_FALSE))) return; // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	// This candamage test not in origina id code (sync'd to melee_side)
@@ -1247,7 +1248,7 @@ void() ad_ai_melee_side =
 	if (!self.enemy) return;	// removed before stroke
 	ad_ai_damagebreakable(10);		// Damage any breakables
 	ad_ai_charge_side();			// move (20 units) to the side of enemy
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESIDE,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - no blood/damage, quick exit
 	if (!ad_CanDamage (self.enemy, self)) return;

@@ -39,8 +39,11 @@ struggle physically; `_frequency` 2.2 Hz, `_pause` 0 s).
 - Down knockdowns don't count against `vr_ragdoll_max` in the engine. QC makes room first (`VR_Knockdown_MakeRoom`):
   the oldest dead ragdoll is removed; if none is left, the oldest knocked-down monster is killed and its body removed.
 - Hits land on the ragdoll (the precise hits test the limbs as drawn). It reacts as usual: it gets angry, plays its
-  pain sound and bleeds. Its pain frames don't play (`T_DamageImpl` keeps its frame and think). Each hit keeps it down
-  `vr_knockdown_hit_time` longer, never past `vr_knockdown_time_max` from that hit.
+  pain sound and bleeds. Its pain frames don't play (`T_DamageImpl` keeps its frame and think). Each hit (a punch, a
+  shot, a stomp) keeps it down at least `vr_knockdown_hit_time` (1 s) after it; a hand holding it (dragging, lifting)
+  keeps it down while held and `vr_knockdown_keep_time` (1 s) after; never past `vr_knockdown_keep_max` (6.5 s) down
+  in all, and its own timer is never cut short (`VR_Knockdown_Keep`). Left alone it gets up on its own time, or a
+  second after the last interaction if that has passed.
 - Grabbing, pushing and throwing work as on a dead one's ragdoll.
 
 ## Killed while down

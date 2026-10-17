@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_alias.c -- alias model rendering
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
@@ -71,6 +72,7 @@ typedef struct aliasinstance_s {
 	float		blend;
 	int32_t		padding;
 	vraliasinstance_t	vr; // QVR: Quake VR's (vr_api_render.h: VR_AliasInstance)
+	int32_t		motion[4]; // QVR: temporal AA's vertex slots (VR_TemporalAliasMotion; the shader's Motion)
 } aliasinstance_t;
 
 struct ibuf_s {
@@ -104,21 +106,39 @@ static struct {
 // (its gun offsets follow the camera's axes).
 #define ALIASDEPTH_CACHE_SIZE	4096	// a power of two
 #define ALIASDEPTH_CACHE_PROBES	16
+// vr_shadow_setup_share (R_AliasDepthShare) 1 or 2 also keeps each caster's whole instance (its pose, matrix, zero
+// blend, depth-only data, motion slots: the same for every light) and its swing rows (r_lerpmodels 3), copied into the
+// other lights' batches; and the first eye's scene takes the pass's lerp and matrices for the same entities instead of
+// setting them up again (R_AliasTransformShared: R_AliasTransform is the same for a light and an eye; 2 sets them up
+// anyway and compares). 0: only the lerp and the matrix, as before.
 typedef struct {
 	const entity_t	*ent;
 	const qmodel_t	*model;
 	int			frame;
 	int			gen;
-	short		pose1, pose2;
-	float		blend;
 	int			totalverts;
 	int			zeroblend;
+	lerpdata_t	lerpdata;
 	float		model_matrix[16];
+	float		bounds_matrix[16];
+	int			instok;		// inst and the swing rows kept (vr_shadow_setup_share)
+	const float	*boxbones;	// a posed caster's box (R_AliasPosedBox) and the bone matrices it is of (NULL: none)
+	vec3_t		boxmins, boxmaxs;
+	int			smoothfirst;	// its swing rows: where they are kept (VR_AnimSmoothKeep), how many, where they were in the batch
+	int			smoothrows;
+	int			smoothat;
+	aliasinstance_t	inst;
 } aliasdepthentry_t;
 static aliasdepthentry_t	aliasdepthcache[ALIASDEPTH_CACHE_SIZE];
 static int					aliasdepthgen; // the pass's (0: none)
 static int					aliasdepthgens; // the last pass's
 static int					aliasdepthhits, aliasdepthmisses; // the last passes' (R_AliasDepthCacheStats)
+static int					aliasdepthshare; // vr_shadow_setup_share: 0 off, 1 on, 2 the first eye's checked
+static int					aliasdepthkeep; // this pass keeps the casters' swing rows (none of the eyes' kept ones to clear)
+static int					aliasdepthlast; // the frame's last pass's gen, for the first eye (R_AliasTransformShared); 0 none
+static int					aliaseyemode; // (the eyes' cache's, below)
+enum { ADS_TAKEN, ADS_CHECKED, ADS_BAD, ADS_NUMSTATS };
+static int					aliasdepthsharestats[ADS_NUMSTATS];
 
 /*
 =================
@@ -135,11 +155,32 @@ void R_AliasDepthCacheBegin (qboolean on)
 		aliasdepthgens = 1;
 	}
 	aliasdepthgen = on ? aliasdepthgens : 0;
+	aliasdepthlast = 0;
+	// the swing rows are kept in the store the eyes' cache keeps its own in (cleared as the first eye begins): kept here
+	// only outside the eyes' modes (then cleared here: none kept), or in the first eye's (whose clearing came first)
+	aliasdepthkeep = aliasdepthgen && aliasdepthshare && (aliaseyemode == 0 || aliaseyemode == 1);
+	if (aliasdepthkeep && aliaseyemode == 0)
+		VR_AnimSmoothKeepClear ();
 }
 
 void R_AliasDepthCacheEnd (void)
 {
+	aliasdepthlast = aliasdepthshare ? aliasdepthgen : 0;
 	aliasdepthgen = 0;
+	aliasdepthkeep = 0;
+}
+
+void R_AliasDepthShare (int mode)
+{
+	aliasdepthshare = mode < 0 ? 0 : mode > 2 ? 2 : mode;
+}
+
+void R_AliasDepthShareStats (int *taken, int *checked, int *bad)
+{
+	*taken = aliasdepthsharestats[ADS_TAKEN];
+	*checked = aliasdepthsharestats[ADS_CHECKED];
+	*bad = aliasdepthsharestats[ADS_BAD];
+	memset (aliasdepthsharestats, 0, sizeof (aliasdepthsharestats));
 }
 
 void R_AliasDepthCacheStats (int *hits, int *misses)
@@ -214,7 +255,8 @@ typedef struct {
 static aliaseyeentry_t	aliaseyecache[ALIASEYE_CACHE_SIZE];
 static int				aliaseyegen;	// the frame's (0: none)
 static int				aliaseyegens;	// the last frame's
-static int				aliaseyemode;	// 0 off, 1 the first eye (kept), 2 the second (reused), 3 the second (checked)
+// aliaseyemode (declared above, with the shadow casters' cache): 0 off, 1 the first eye (kept), 2 the second (reused), 3
+// the second (checked)
 
 // vr_alias_eye_cache_stats: what the second eyes found since the last call; the check's mismatches by part
 enum { AEYE_HIT, AEYE_TRANSFORM_ONLY, AEYE_MISS, AEYE_CHECKED, AEYE_BAD_LERP, AEYE_BAD_MATRIX, AEYE_BAD_LIGHT,
@@ -240,6 +282,7 @@ void R_AliasEyeCacheEnd (void)
 {
 	aliaseyemode = 0;
 	aliaseyegen = 0;
+	aliasdepthlast = 0; // QVR: (the frame's shadow casters' set-ups: R_AliasTransformShared)
 }
 
 void R_AliasEyeCacheStats (int *out, int count)
@@ -621,12 +664,14 @@ R_FlushAliasInstances
 */
 void R_FlushAliasInstances (qboolean showtris)
 {
+	VR_TRACY_SCOPE ("alias flush"); // QVR: the batch's upload and draw (profiling builds)
 	extern cvar_t r_softemu_mdl_warp;
 	qmodel_t* model;
 	aliashdr_t* mainhdr, *hdr;
 	qboolean	alphatest, translucent, oit;
 	qboolean	a2c; // QVR
 	qboolean	layered; // QVR: into all their faces at once (aliasfaces)
+	qboolean	depthonly, notex; // QVR: a caster without a fragment shader; and so no textures bound for it
 	int			drawcount; // QVR: instances drawn (layered: an instance once per face)
 	int			i, f; // QVR
 	int			totalverts;
@@ -688,9 +733,12 @@ void R_FlushAliasInstances (qboolean showtris)
 		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
 		break;
 	}
-	GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
-	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
+	else
+		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+	notex = depthonly && aliasdepthshare; // QVR: none of the fragment shader's textures bound (vr_shadow_setup_share)
 	if (layered) // QVR: the faces' view-projections and the draws (holey skins are drawn a face at a time: vr_lighting.cpp)
 	{
 		GLuint		facebuf;
@@ -773,10 +821,13 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, model->meshvbo, mainhdr->vbofracofs, sizeof (unsigned) * totalverts * mainhdr->numposes);
 	VR_AnimSmoothBind (ibuf.ent, 0); // QVR: r_lerpmodels 3's swings (the model's rig: its rest pose, the instances' bones)
 	VR_DentBind (); // QVR: the flesh dents (Dents: vr/vr_dents.cpp)
-	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
-	GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
-	GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
-	GL_BindNative (GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, VR_WoundBloodTexture ()); // QVR: the blood on them not yours (WoundBloodFine)
+	if (!notex) // QVR: (the fragment shader's only)
+	{
+		GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
+		GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
+		GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
+		GL_BindNative (GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, VR_WoundBloodTexture ()); // QVR: the blood on them not yours (WoundBloodFine)
+	}
 
 	if (poseverttype == PV_IQM)
 	{
@@ -793,7 +844,29 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	if (!translucent)
 		GL_SetState (opaque_state);
-	VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
+	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
+	if (!translucent && !aliasdepth && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
+	{ // QVR: your body's depth first (vr_body_prepass): its opaque skins with no fragment shader, the same instances and
+	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
+		VR_GPUZoneBegin ("body depth prepass");
+		GL_UseProgram (glprogs.alias_depth[poseverttype]);
+		VR_AliasShadowClip (); // (its own program's plane, the same as the shading's)
+		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+		{
+			skinnum = ibuf.ent->skinnum;
+			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+			if (!hdr->gltextures[skinnum][anim] || (hdr->gltextures[skinnum][anim]->flags & TEXPREF_ALPHAPIXELS))
+				continue;
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+		}
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_SetState (opaque_state | GLS_NO_ZWRITE);
+		VR_GPUZoneEnd ();
+	}
+	if (!notex)
+		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
 	{
@@ -810,6 +883,12 @@ void R_FlushAliasInstances (qboolean showtris)
 
 		if (!translucent && (textures[0]->flags & TEXPREF_ALPHAPIXELS))
 		{
+			continue;
+		}
+		if (notex) // QVR: (no fragment shader to read them)
+		{
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+			rs_aliaspasses += hdr->numtris * drawcount;
 			continue;
 		}
 		textures[1] = hdr->fbtextures[skinnum][anim];
@@ -848,7 +927,14 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (!textures[0]) continue;
 
 			if (!(textures[0]->flags & TEXPREF_ALPHAPIXELS))
-			{ 
+			{
+				continue;
+			}
+			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
+			if (notex) // QVR: (no fragment shader to read them)
+			{
+				GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+				rs_aliaspasses += hdr->numtris * drawcount;
 				continue;
 			}
 
@@ -1007,11 +1093,459 @@ static void R_AliasSmoothInstance (const entity_t *e, const aliashdr_t *hdr, con
 R_DrawAliasModel_Real
 =================
 */
+/*
+=================
+R_AliasTransform -- QVR: (from R_DrawAliasModel_Real) the lerp and the model's matrices: model_matrix with its
+vertices' scale, bounds_matrix without
+=================
+*/
+static void R_AliasTransform (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata, float model_matrix[16], float bounds_matrix[16])
+{
+	float fovscale = 1.0f;
+
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias frame", R_SetupAliasFrame (e, paliashdr, lerpdata)); // QVR: (vr_tracy_render_detail)
+	R_SetupEntityTransform (e, lerpdata);
+
+	if (lerpdata->pose1 == lerpdata->pose2)
+		lerpdata->blend = 0.f;
+
+	//
+	// viewmodel adjustments (position, fov distortion correction)
+	//
+	if (e == &cl.viewent)
+	{
+		if (r_refdef.basefov > 90.f && cl_gun_fovscale.value)
+		{
+			fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
+			fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+		}
+
+		VectorMA (lerpdata->origin, cl_gun_x.value * paliashdr->scale[0] * fovscale,	vright,	lerpdata->origin);
+		VectorMA (lerpdata->origin, cl_gun_y.value * paliashdr->scale[1] * fovscale,	vup,	lerpdata->origin);
+		VectorMA (lerpdata->origin, cl_gun_z.value * paliashdr->scale[2],			vpn,	lerpdata->origin);
+	}
+
+	//
+	// transform it
+	//
+	R_EntityMatrix (model_matrix, lerpdata->origin, lerpdata->angles, e->scale);
+	VR_AliasPreTransform (e, model_matrix); // QVR
+	memcpy (bounds_matrix, model_matrix, sizeof (float[16]));
+	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	VR_AliasPostTransform (e, model_matrix); // QVR
+}
+
+/*
+=================
+R_AliasTransformShared -- QVR
+
+R_AliasTransform in the first eye's scene (vr_shadow_setup_share): the lerp and matrices this frame's shadow pass set up
+for the same entity (its model and frame unchanged) instead of working them out again; 2 works them out and compares
+(vr_alias_eye_cache_stats prints how many were taken, checked and differed). Never cl.viewent (as the casters' cache),
+nor while the drawn moves are logged (their order kept).
+=================
+*/
+static const aliasdepthentry_t *R_AliasDepthFind (const entity_t *e)
+{
+	uint64_t h;
+	int i;
+	if (!aliasdepthlast || aliaseyemode != 1 || e == &cl.viewent || VR_DebugDrawnOn ())
+		return NULL;
+	h = ((uint64_t) (uintptr_t) e >> 4) * 0x9E3779B97F4A7C15ull;
+	h >>= 64 - 12;
+	for (i = 0; i < ALIASDEPTH_CACHE_PROBES; i++)
+	{
+		const aliasdepthentry_t *s = &aliasdepthcache[(h + i) & (ALIASDEPTH_CACHE_SIZE - 1)];
+		if (s->gen != aliasdepthlast) // (as R_AliasDepthSlot: the first free slot ends the search)
+			return NULL;
+		if (s->ent == e)
+			return s->model == e->model && s->frame == e->frame ? s : NULL;
+	}
+	return NULL;
+}
+
+static void R_AliasTransformShared (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata, float model_matrix[16], float bounds_matrix[16])
+{
+	const aliasdepthentry_t *s = R_AliasDepthFind (e);
+	if (s && aliasdepthshare == 1)
+	{
+		*lerpdata = s->lerpdata;
+		memcpy (model_matrix, s->model_matrix, sizeof (s->model_matrix));
+		memcpy (bounds_matrix, s->bounds_matrix, sizeof (s->bounds_matrix));
+		aliasdepthsharestats[ADS_TAKEN]++;
+		return;
+	}
+	R_AliasTransform (e, paliashdr, lerpdata, model_matrix, bounds_matrix);
+	if (s)
+	{
+		aliasdepthsharestats[ADS_CHECKED]++;
+		if ((memcmp (lerpdata, &s->lerpdata, sizeof (*lerpdata)) || memcmp (model_matrix, s->model_matrix, sizeof (s->model_matrix)) ||
+			memcmp (bounds_matrix, s->bounds_matrix, sizeof (s->bounds_matrix))) && aliasdepthsharestats[ADS_BAD]++ < 8)
+			Con_Printf ("vr_shadow_setup_share check: %s's set-up differs from the shadow pass's\n", e->model->name);
+	}
+}
+
+/*
+=================
+R_AliasPosedBox -- QVR
+
+The IK-posed skeletal models (VR_AliasBonePoses: your body, its mirror image, the jointed hands, the ragdolls) were
+never culled: their bones place them, past the model's bounds (a ragdoll's model says +-64). Their box: each bone's
+box round the vertices it moves (in the bind pose, kept by model: R_AliasBoneBoxes) through the bone's matrix, all
+together, then through the model's. A vertex is a blend of its bones' places with weights that sum to one, each of
+them inside its bone's box so moved: inside their union. The cull (R_AliasCullPosed) is the eyes' (R_CullBox) and the
+layered shadow faces' (R_AliasFacesOf); vr_alias_cull_posed 0 culls none, as before.
+=================
+*/
+#define ALIASBONEBOX_CACHE		16
+#define ALIASBONEBOX_SAMPLES	16	// vertices a surface for the signature
+typedef struct {
+	const aliashdr_t	*hdr;	// NULL: free
+	int			numbones;
+	int			numverts;
+	unsigned	sig;		// a sample of the vertices (a ragdoll's model made again where another one was)
+	int			frame;		// host_framecount when the signature last matched (checked once a frame)
+	float		*box;		// numbones x 6: mins, maxs (mins above maxs: no vertex on it)
+} aliasbonebox_t;
+static aliasbonebox_t	aliasboneboxes[ALIASBONEBOX_CACHE];
+static int				aliasboneboxnext;
+
+static unsigned R_AliasBoneBoxSig (const aliashdr_t *hdr, int *numverts)
+{
+	unsigned h = 2166136261u;
+	*numverts = 0;
+	for (; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		int step = hdr->numverts_vbo / ALIASBONEBOX_SAMPLES + 1, v;
+		size_t i;
+		for (v = 0; v < hdr->numverts_vbo; v += step)
+		{
+			const byte *p = (const byte *) &verts[v];
+			for (i = 0; i < sizeof (iqmvert_t); i++)
+				h = (h ^ p[i]) * 16777619u;
+		}
+		*numverts += hdr->numverts_vbo;
+	}
+	return h;
+}
+
+static const float *R_AliasBoneBoxes (const aliashdr_t *mainhdr)
+{
+	const aliashdr_t *hdr;
+	aliasbonebox_t *c;
+	float *box;
+	int numverts, i, v, k;
+	unsigned sig;
+	for (i = 0; i < ALIASBONEBOX_CACHE; i++)
+	{
+		c = &aliasboneboxes[i];
+		if (c->hdr == mainhdr && c->numbones == mainhdr->numbones && c->frame == host_framecount)
+			return c->box;
+	}
+	sig = R_AliasBoneBoxSig (mainhdr, &numverts);
+	for (i = 0; i < ALIASBONEBOX_CACHE; i++)
+	{
+		c = &aliasboneboxes[i];
+		if (c->hdr == mainhdr && c->numbones == mainhdr->numbones && c->numverts == numverts && c->sig == sig)
+		{
+			c->frame = host_framecount;
+			return c->box;
+		}
+	}
+	if (mainhdr->numbones <= 0)
+		return NULL;
+	c = &aliasboneboxes[aliasboneboxnext];
+	aliasboneboxnext = (aliasboneboxnext + 1) % ALIASBONEBOX_CACHE;
+	c->hdr = NULL;
+	box = (float *) realloc (c->box, sizeof (float) * 6 * mainhdr->numbones);
+	if (!box)
+		return NULL;
+	c->box = box;
+	for (i = 0; i < mainhdr->numbones; i++)
+	{
+		box[6 * i + 0] = box[6 * i + 1] = box[6 * i + 2] = 1e30f;
+		box[6 * i + 3] = box[6 * i + 4] = box[6 * i + 5] = -1e30f;
+	}
+	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		for (v = 0; v < hdr->numverts_vbo; v++)
+			for (k = 0; k < 4; k++)
+			{
+				float *b;
+				if (!verts[v].weight[k])
+					continue;
+				if (verts[v].idx[k] >= mainhdr->numbones)
+					return NULL; // (left free)
+				b = box + 6 * verts[v].idx[k];
+				for (i = 0; i < 3; i++)
+				{
+					b[i] = q_min (b[i], verts[v].xyz[i]);
+					b[3 + i] = q_max (b[3 + i], verts[v].xyz[i]);
+				}
+			}
+	}
+	c->hdr = mainhdr;
+	c->numbones = mainhdr->numbones;
+	c->numverts = numverts;
+	c->sig = sig;
+	c->frame = host_framecount;
+	return box;
+}
+
+// the box lo..hi through a 4x4 matrix (columns: m[0..3] the first)
+static void R_AliasBoxThrough4 (const float m[16], const vec3_t lo, const vec3_t hi, vec3_t mins, vec3_t maxs)
+{
+	int i;
+	vec3_t c, ext;
+	for (i = 0; i < 3; i++)
+	{
+		c[i] = (lo[i] + hi[i]) * 0.5f;
+		ext[i] = (hi[i] - lo[i]) * 0.5f;
+	}
+	for (i = 0; i < 3; i++)
+	{
+		float wc = m[i] * c[0] + m[4 + i] * c[1] + m[8 + i] * c[2] + m[12 + i];
+		float we = fabs (m[i]) * ext[0] + fabs (m[4 + i]) * ext[1] + fabs (m[8 + i]) * ext[2];
+		mins[i] = wc - we;
+		maxs[i] = wc + we;
+	}
+}
+
+// e's world box as posed (model_matrix: its vertices' to the world); false: none (not posed, or not known)
+// (cached: the shadow pass's entry for e, set up by an earlier light: its box taken while of the same bone matrices)
+static qboolean R_AliasPosedBox (entity_t *e, aliashdr_t *hdr, const float model_matrix[16], vec3_t mins, vec3_t maxs,
+	aliasdepthentry_t *cached, qboolean cachehit)
+{
+	const float *bones = NULL, *box;
+	vec3_t lo = {1e30f, 1e30f, 1e30f}, hi = {-1e30f, -1e30f, -1e30f};
+	int numbones, b, i;
+	if (cached)
+		cached->boxbones = cachehit ? cached->boxbones : NULL;
+	if (hdr->poseverttype != PV_IQM)
+		return false;
+	numbones = aliasdepth ? VR_AliasShadowBonePoses (e, &bones) : VR_AliasBonePoses (e, &bones);
+	if (cached && cachehit && bones && cached->boxbones == bones)
+	{
+		VectorCopy (cached->boxmins, mins);
+		VectorCopy (cached->boxmaxs, maxs);
+		return true;
+	}
+	if (!bones || numbones < hdr->numbones || !(box = R_AliasBoneBoxes (hdr)))
+		return false;
+	for (b = 0; b < hdr->numbones; b++)
+	{
+		const float *bb = box + 6 * b, *m = bones + 12 * b; // (3x4, by rows)
+		vec3_t c, ext;
+		if (bb[0] > bb[3])
+			continue;
+		for (i = 0; i < 3; i++)
+		{
+			c[i] = (bb[i] + bb[3 + i]) * 0.5f;
+			ext[i] = (bb[3 + i] - bb[i]) * 0.5f;
+		}
+		for (i = 0; i < 3; i++)
+		{
+			const float *r = m + 4 * i;
+			float pc = r[0] * c[0] + r[1] * c[1] + r[2] * c[2] + r[3];
+			float pe = fabs (r[0]) * ext[0] + fabs (r[1]) * ext[1] + fabs (r[2]) * ext[2];
+			lo[i] = q_min (lo[i], pc - pe);
+			hi[i] = q_max (hi[i], pc + pe);
+		}
+	}
+	if (lo[0] > hi[0])
+		return false;
+	R_AliasBoxThrough4 (model_matrix, lo, hi, mins, maxs);
+	for (i = 0; i < 3; i++) // (the weights' bytes need not sum to exactly one)
+	{
+		mins[i] -= 1.f;
+		maxs[i] += 1.f;
+	}
+	if (cached)
+	{
+		cached->boxbones = bones;
+		VectorCopy (mins, cached->boxmins);
+		VectorCopy (maxs, cached->boxmaxs);
+	}
+	return true;
+}
+
+// which of `faces` (the layered shadow faces, aliasfacebuf.viewproj) the box reaches: outside none of a face's four sides
+static unsigned char R_AliasFacesOf (unsigned char faces, const vec3_t mins, const vec3_t maxs)
+{
+	unsigned char out = 0;
+	int f, k;
+	for (f = 0; f < 6; f++)
+	{
+		const float *m = aliasfacebuf.viewproj[f];
+		int outside[4] = {0, 0, 0, 0};
+		if (!(faces & (1u << f)))
+			continue;
+		for (k = 0; k < 8; k++)
+		{
+			float p[3], x, y, w;
+			p[0] = (k & 1) ? maxs[0] : mins[0];
+			p[1] = (k & 2) ? maxs[1] : mins[1];
+			p[2] = (k & 4) ? maxs[2] : mins[2];
+			x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
+			y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
+			w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+			outside[0] += x < -w;
+			outside[1] += x > w;
+			outside[2] += y < -w;
+			outside[3] += y > w;
+		}
+		if (outside[0] < 8 && outside[1] < 8 && outside[2] < 8 && outside[3] < 8)
+			out |= (unsigned char) (1u << f);
+	}
+	return out;
+}
+
+// vr_alias_cull_posed 2: e culled (from the eye's frustum, or from the layered faces `faces`) skinned again as the shader
+// does it, its vertices through model_matrix: whether any lies where its box said none does (on the inner side of every
+// side of the frustum or of a culled face: the box was wholly outside one of them, so all its vertices should be)
+static qboolean R_AliasPosedWrong (entity_t *e, aliashdr_t *mainhdr, const float model_matrix[16], unsigned char faces)
+{
+	const float *bones = NULL;
+	const aliashdr_t *hdr;
+	unsigned char inside[7][4];
+	int numbones = aliasdepth ? VR_AliasShadowBonePoses (e, &bones) : VR_AliasBonePoses (e, &bones);
+	int f, v, k, i;
+	if (!bones || numbones < mainhdr->numbones)
+		return false;
+	memset (inside, 0, sizeof (inside));
+	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		for (v = 0; v < hdr->numverts_vbo; v++)
+		{
+			float m[12], pos[3], world[3];
+			memset (m, 0, sizeof (m));
+			for (k = 0; k < 4; k++)
+				if (verts[v].weight[k] && verts[v].idx[k] < numbones)
+					for (i = 0; i < 12; i++)
+						m[i] += bones[12 * verts[v].idx[k] + i] * (verts[v].weight[k] / 255.f);
+			for (i = 0; i < 3; i++)
+				pos[i] = m[4 * i] * verts[v].xyz[0] + m[4 * i + 1] * verts[v].xyz[1] + m[4 * i + 2] * verts[v].xyz[2] + m[4 * i + 3];
+			for (i = 0; i < 3; i++)
+				world[i] = model_matrix[i] * pos[0] + model_matrix[4 + i] * pos[1] + model_matrix[8 + i] * pos[2] + model_matrix[12 + i];
+			if (!aliasfaces)
+			{
+				for (i = 0; i < 4; i++)
+					inside[6][i] |= DotProduct (frustum[i].normal, world) >= frustum[i].dist;
+				continue;
+			}
+			for (f = 0; f < 6; f++)
+			{
+				const float *c = aliasfacebuf.viewproj[f];
+				float x, y, w;
+				if (!(faces & (1u << f)))
+					continue;
+				x = c[0] * world[0] + c[4] * world[1] + c[8] * world[2] + c[12];
+				y = c[1] * world[0] + c[5] * world[1] + c[9] * world[2] + c[13];
+				w = c[3] * world[0] + c[7] * world[1] + c[11] * world[2] + c[15];
+				inside[f][0] |= x >= -w;
+				inside[f][1] |= x <= w;
+				inside[f][2] |= y >= -w;
+				inside[f][3] |= y <= w;
+			}
+		}
+	}
+	for (f = 0; f < 7; f++)
+		if (inside[f][0] && inside[f][1] && inside[f][2] && inside[f][3])
+			return true;
+	return false;
+}
+
+// vr_alias_cull_stats: the alias draws' culls since the last call, by model (R_AliasCullStats)
+#define ALIASCULL_MODELS 48
+typedef struct {
+	const qmodel_t	*model;
+	int		drawn[2];		// eyes, shadow faces: tested (a face each, layered)
+	int		culled[2];		// ... culled
+	int		posed;			// posed draws (eyes and faces)
+	int		repeats;		// the same entity again in one eye's view (R_RenderView)
+	int		wrong;			// vr_alias_cull_posed 2: culled with a vertex inside (none expected)
+	double	tris[2];		// triangles submitted (eyes, shadow faces)
+} aliascullstat_t;
+static aliascullstat_t	aliascullstats[ALIASCULL_MODELS];
+static int				aliascullframe0, aliascullview0;
+static struct { const entity_t *ent; int frame; } aliascullseen[256];
+
+static aliascullstat_t *R_AliasCullStat (const qmodel_t *model)
+{
+	int i;
+	for (i = 0; i < ALIASCULL_MODELS; i++)
+	{
+		if (aliascullstats[i].model == model)
+			return &aliascullstats[i];
+		if (!aliascullstats[i].model)
+		{
+			aliascullstats[i].model = model;
+			return &aliascullstats[i];
+		}
+	}
+	return NULL;
+}
+
+static int R_AliasFaceCount (unsigned faces)
+{
+	int n = 0;
+	for (; faces; faces &= faces - 1u)
+		n++;
+	return n;
+}
+
+static void R_AliasCullCount (const entity_t *e, aliashdr_t *hdr, int depth, int tested, int culled, qboolean posed, qboolean wrong)
+{
+	aliascullstat_t *s = R_AliasCullStat (e->model);
+	if (!s)
+		return;
+	for (; hdr && tested > culled; hdr = Mod_NextSurface (hdr))
+		s->tris[depth] += (double) hdr->numtris * (tested - culled);
+	s->wrong += wrong;
+	s->drawn[depth] += tested;
+	s->culled[depth] += culled;
+	s->posed += posed ? tested : 0;
+	if (!depth && tested > culled)
+	{
+		int slot = (int) (((uintptr_t) e >> 4) & 255);
+		if (aliascullseen[slot].ent == e && aliascullseen[slot].frame == r_framecount)
+			s->repeats++;
+		aliascullseen[slot].ent = e;
+		aliascullseen[slot].frame = r_framecount;
+	}
+}
+
+void R_AliasCullStats (void)
+{
+	int i, frames = q_max (host_framecount - aliascullframe0, 1), views = r_framecount - aliascullview0;
+	int sum[6] = {0, 0, 0, 0, 0, 0};
+	double tris[2] = {0, 0};
+	Con_Printf ("vr_alias_cull_stats over %d frames, %d views (vr_alias_cull_posed %d), a frame: eyes drawn/culled, shadow faces drawn/culled, posed, repeats; wrongly culled in all\n",
+		frames, views, VR_AliasCullPosedOn (NULL, 0));
+	for (i = 0; i < ALIASCULL_MODELS && aliascullstats[i].model; i++)
+	{
+		const aliascullstat_t *s = &aliascullstats[i];
+		Con_Printf ("  %-28s %6.1f %6.1f  %6.1f %6.1f  %5.1f %4.1f\n", s->model->name, s->drawn[0] / (float) frames,
+			s->culled[0] / (float) frames, s->drawn[1] / (float) frames, s->culled[1] / (float) frames, s->posed / (float) frames,
+			s->repeats / (float) frames);
+		sum[0] += s->drawn[0]; sum[1] += s->culled[0]; sum[2] += s->drawn[1]; sum[3] += s->culled[1]; sum[4] += s->repeats; sum[5] += s->wrong; tris[0] += s->tris[0]; tris[1] += s->tris[1];
+	}
+	Con_Printf ("  %-28s %6.1f %6.1f  %6.1f %6.1f        %4.1f; wrong %d\n", "all", sum[0] / (float) frames, sum[1] / (float) frames,
+		sum[2] / (float) frames, sum[3] / (float) frames, sum[4] / (float) frames, sum[5]);
+	Con_Printf ("  triangles a frame: eyes %.0f, shadow faces %.0f\n", tris[0] / frames, tris[1] / frames);
+	memset (aliascullstats, 0, sizeof (aliascullstats));
+	aliascullframe0 = host_framecount;
+	aliascullview0 = r_framecount;
+}
+
 static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 {
 	aliashdr_t	*paliashdr, *hdr;
 	lerpdata_t	lerpdata;
-	float		fovscale = 1.0f;
 	float		model_matrix[16], bounds_matrix[16], mapped_matrix[16];
 	float		source_clip[4], destination_clip[4];
 	int		portal_split;
@@ -1023,6 +1557,8 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	aliaseyeentry_t	*eye; // QVR: its set-up in the first eye's scene (R_AliasEyeSlot)
 	qboolean	eyefound, eyekeep, eyeuse, eyecheck;
 	int			smoothbefore;
+	qboolean	posed; // QVR: IK-posed (VR_AliasBonePoses)
+	unsigned char	facemask; // QVR: layered: the faces it is drawn into
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -1047,51 +1583,15 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	cached = mode == ALIAS_DEPTH ? R_AliasDepthSlot (e, &cachehit) : NULL;
 	if (cached && cachehit)
 	{
-		lerpdata.pose1 = cached->pose1;
-		lerpdata.pose2 = cached->pose2;
-		lerpdata.blend = cached->blend;
+		lerpdata = cached->lerpdata;
 		memcpy (model_matrix, cached->model_matrix, sizeof (model_matrix));
+		memcpy (bounds_matrix, cached->bounds_matrix, sizeof (bounds_matrix));
 		portal_split = 0;
 		aliasdepthhits++;
 		goto cull;
 	}
 
-	R_SetupAliasFrame (e, paliashdr, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
-
-	if (lerpdata.pose1 == lerpdata.pose2)
-		lerpdata.blend = 0.f;
-
-	//
-	// viewmodel adjustments (position, fov distortion correction)
-	//
-	if (e == &cl.viewent)
-	{
-		if (r_refdef.basefov > 90.f && cl_gun_fovscale.value)
-		{
-			fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
-			fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-		}
-
-		VectorMA (lerpdata.origin, cl_gun_x.value * paliashdr->scale[0] * fovscale,	vright,	lerpdata.origin);
-		VectorMA (lerpdata.origin, cl_gun_y.value * paliashdr->scale[1] * fovscale,	vup,	lerpdata.origin);
-		VectorMA (lerpdata.origin, cl_gun_z.value * paliashdr->scale[2],			vpn,	lerpdata.origin);
-	}
-
-	//
-	// cull it
-	//
-
-
-	//
-	// transform it
-	//
-	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
-	VR_AliasPreTransform (e, model_matrix); // QVR
-	memcpy (bounds_matrix, model_matrix, sizeof (bounds_matrix));
-	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	VR_AliasPostTransform (e, model_matrix); // QVR
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias transform", mode == ALIAS_STANDARD ? R_AliasTransformShared (e, paliashdr, &lerpdata, model_matrix, bounds_matrix) : R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix)); // QVR: (vr_tracy_render_detail; the first eye: the shadow pass's)
 	if (eyekeep) // QVR: kept for the second eye
 	{
 		eye->ent = e;
@@ -1116,7 +1616,37 @@ transformed:
 	if (mode == ALIAS_DEPTH)
 		aliasdepthmisses++;
 cull:
-	if (!portal_split && !VR_AliasBonePoses (e, NULL) && !aliasfaces && R_CullModelForEntity(e)) // QVR: layered: the caller culled it by face
+	posed = VR_AliasBonePoses (e, NULL) != 0; // QVR
+	facemask = aliasfaces ? *aliasfaces : 0;
+	if (cached && !cachehit)
+		cached->boxbones = NULL; // (a new entry: no box yet)
+	if (mode == ALIAS_STANDARD || mode == ALIAS_DEPTH) // QVR: the posed by their bones' box (R_AliasPosedBox)
+	{
+		int tested = aliasfaces ? R_AliasFaceCount (facemask) : 1, culled = 0, cullmode = 0;
+		qboolean wrong = false;
+		vec3_t pmins, pmaxs;
+		if (portal_split)
+			;
+		else if (!posed)
+			culled = !aliasfaces && R_CullModelForEntity (e); // (layered: the caller culled it by face)
+		else if ((cullmode = VR_AliasCullPosedOn (e, mode == ALIAS_DEPTH)) && R_AliasPosedBox (e, paliashdr, model_matrix, pmins, pmaxs, cached, cachehit))
+		{
+			unsigned char before = facemask;
+			if (aliasfaces)
+			{
+				facemask = R_AliasFacesOf (facemask, pmins, pmaxs);
+				culled = tested - R_AliasFaceCount (facemask);
+			}
+			else
+				culled = R_CullBox (pmins, pmaxs);
+			if (cullmode == 2 && culled)
+				wrong = R_AliasPosedWrong (e, paliashdr, model_matrix, (unsigned char) (before & ~facemask));
+		}
+		R_AliasCullCount (e, paliashdr, mode == ALIAS_DEPTH, tested, culled, posed, wrong);
+		if (culled == tested)
+			return;
+	}
+	else if (!portal_split && !posed && !aliasfaces && R_CullModelForEntity(e))
 		return;
 
 	//
@@ -1140,21 +1670,22 @@ cull:
 	// set up lighting
 	//
 	rs_aliaspolys += paliashdr->numtris;
+	vr_profcounts.aliastris += paliashdr->numtris; // QVR: profile (the Tracy plot: rs_aliaspolys is cleared only under r_speeds)
 	if (mode == ALIAS_DEPTH) // QVR: a shadow map's caster: its depth only (none of the light it gets)
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.f;
 	else if (eyeuse && eye->lit) // QVR: the light at its origin as the first eye found it, the rest this eye's
 	{
 		VectorCopy (eye->light, lightcolor);
-		R_AliasLightFinish (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e)); // QVR: (vr_tracy_render_detail)
 	}
 	else
 	{
-		R_AliasLightPoint (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light point", R_AliasLightPoint (e));
 		if (eyekeep)
 			VectorCopy (lightcolor, eye->light);
 		else if (eyecheck && eye->lit)
 			R_AliasEyeCompare (lightcolor, eye->light, sizeof (vec3_t), AEYE_BAD_LIGHT);
-		R_AliasLightFinish (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e));
 	}
 
 	//
@@ -1177,8 +1708,23 @@ cull:
 		aliasnear = nearflags; // QVR
 	}
 
-	aliasinstfaces[ibuf.count] = aliasfaces ? *aliasfaces : 0; // QVR: layered shadow casters: its faces
+	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
 	instance = &ibuf.inst[ibuf.count++];
+
+	if (cached && cachehit && cached->instok) // QVR: the pass's first set-up of it (vr_shadow_setup_share), its swing rows added to this batch
+	{
+		int at, shift;
+		*instance = cached->inst;
+		at = VR_AnimSmoothReplay (0, cached->smoothfirst, cached->smoothrows, ibuf.count == 1);
+		shift = at - cached->smoothat;
+		if (instance->vr.smooth[2] > 0)
+			instance->vr.smooth[2] += shift;
+		else if (instance->vr.smooth[2] < 0)
+			instance->vr.smooth[2] -= shift;
+		if (instance->vr.smooth[3] >= 2)
+			instance->vr.smooth[3] += shift;
+		return; // (a caster: no gates, no pose check)
+	}
 
 	MatrixTranspose4x3 (model_matrix, instance->worldmatrix);
 
@@ -1224,23 +1770,40 @@ cull:
 			instance->vr.smooth[3] += shift;
 		goto instanced;
 	}
-	instance->padding = cached && cachehit ? cached->zeroblend : VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	if (cached && cachehit) // QVR
+		instance->padding = cached->zeroblend;
+	else
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias zero blend", instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts)); // QVR: (vr_tracy_render_detail)
 	if (cached && !cachehit) // QVR: kept for the pass's other lights
 	{
 		cached->ent = e;
 		cached->model = e->model;
 		cached->frame = e->frame;
-		cached->pose1 = lerpdata.pose1;
-		cached->pose2 = lerpdata.pose2;
-		cached->blend = lerpdata.blend;
+		cached->lerpdata = lerpdata;
 		cached->totalverts = totalverts;
 		cached->zeroblend = instance->padding;
 		memcpy (cached->model_matrix, model_matrix, sizeof (model_matrix));
+		memcpy (cached->bounds_matrix, bounds_matrix, sizeof (bounds_matrix));
+		cached->instok = 0; // (below, once its instance is made)
+		if (!posed)
+			cached->boxbones = NULL; // (a posed one's: kept at the cull)
 		cached->gen = aliasdepthgen;
 	}
-	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
 	smoothbefore = ibuf.count == 1 ? 0 : VR_AnimSmoothRows (0); // (a batch's first instance starts its rows)
-	R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0); // QVR: r_lerpmodels 3
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias smooth", R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0)); // QVR: r_lerpmodels 3
+	if (cached && !cachehit && aliasdepthkeep) // QVR: its swing rows kept for the pass's other lights (vr_shadow_setup_share)
+	{
+		cached->smoothrows = VR_AnimSmoothRows (0) - smoothbefore;
+		cached->smoothfirst = VR_AnimSmoothKeep (0, smoothbefore, cached->smoothrows);
+		cached->smoothat = smoothbefore;
+		if (cached->smoothfirst >= 0)
+		{
+			VR_TemporalAliasMotion (e, totalverts, 0, instance->motion); // (a caster's: none; done here for the copy)
+			cached->inst = *instance;
+			cached->instok = 1;
+		}
+	}
 	if (eyekeep || (eyecheck && eye->lit && eye->vrok)) // QVR: kept for the second eye, or compared with what was
 	{
 		int rows = VR_AnimSmoothRows (0) - smoothbefore;
@@ -1279,12 +1842,14 @@ cull:
 		}
 	}
 instanced:
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias motion", VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion)); // QVR: its previous frame's positions
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
 	{
 		aliasinstance_t* copy = &ibuf.inst[ibuf.count++];
 		*copy = *instance; // exact current pose, bone buffer, skin and wounds
+		copy->motion[0] = copy->motion[1] = -1; // QVR: (the gate's other side: no slots of its own)
 		memcpy (instance->vr.portalclip, source_clip, sizeof(source_clip));
 		memcpy (copy->vr.portalclip, destination_clip, sizeof(destination_clip));
 		MatrixTranspose4x3 (mapped_matrix, copy->worldmatrix);
@@ -1364,6 +1929,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 		data.inst.pose2 *= totalverts;
 	}
 	data.inst.padding = VR_AliasZeroBlend (e, hdr, totalverts);
+	data.inst.motion[0] = data.inst.motion[1] = -1; // QVR: (no temporal AA slots)
 	VR_AliasWoundPaintSide (e, side, data.inst.vr.woundside);
 	R_AliasSmoothInstance (e, hdr, &lerpdata, totalverts, &data.inst, 0, 1); // QVR: r_lerpmodels 3, as it is drawn
 
@@ -1432,8 +1998,9 @@ void R_DrawAliasModels (entity_t **ents, int count)
 {
 	int i;
 	for (i = 0; i < count; i++)
-		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
 	R_FlushAliasInstances (false);
+	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }
 
 /*
@@ -1449,7 +2016,7 @@ void R_DrawAliasModelsDepth (entity_t **ents, int count)
 	int i;
 	aliasdepth = true;
 	for (i = 0; i < count; i++)
-		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias shadow model", R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH)); // QVR: (vr_tracy_render_detail)
 	R_FlushAliasInstances (false);
 	aliasdepth = false;
 }
@@ -1472,7 +2039,7 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 	for (i = 0; i < count; i++)
 	{
 		aliasfaces = &faces[i];
-		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias shadow model", R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH)); // QVR: (vr_tracy_render_detail)
 	}
 	R_FlushAliasInstances (false);
 	aliasfaces = NULL;

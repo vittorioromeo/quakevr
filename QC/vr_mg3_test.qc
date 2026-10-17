@@ -647,6 +647,83 @@ void() MG3_T_RouteFrame = {
     else if(request == 37) MG1_H_Presser();
     else if(request == 38) { MG1_H_Presser(); entity pr = find(world, classname, "mghub_presser"); if(pr) pr.cnt = 1; }
 };
+// 200 + k: the player presses this map's k-th wall button (func_button / func_axe_button, entity order) as a hand
+// would, or shoots it when it is a shot button (health); prints what it targets. Misc/quakevr/mg3_buttons_test.sh.
+void(float k) MG3_T_PressButton = {
+    entity p = find(world, classname, "player");
+    entity b = nextent(world);
+    float n = 0;
+    while(b) {
+        if(b.classname == "func_button" || b.classname == "func_axe_button") { if(n == k) break; n = n + 1; }
+        b = nextent(b);
+    }
+    if(!b || !p) { dprint(sprintf("mg3btn: no button %g (%g buttons)\n", k, n)); return; }
+    dprint(sprintf("mg3btn: press %g %s %s target %s killtarget %s health %g\n", k, b.classname, b.model,
+        b.target, b.killtarget, b.health));
+    MG3_T_player = p;
+    if(b.health > 0) T_Damage(b, p, p, b.health + 1);
+    else MG3_T_Touch(b);
+};
+// 300 + k: this map's k-th monster (entity order, "monster_" classnames, live or dead) is killed by a rocket's blast at
+// its middle (the player's; T_RadiusDamage: the blast's throw, the death's gore and limb cuts, its ragdoll), then a trace
+// crosses to it in the same frame (any trace meets an entity whose solid changed after its link). Prints what it
+// targets. A player's report: The Sacrifice (map8) ended with "Trigger in clipping list" when its two vores were killed
+// (ROUND22.md, "The Sacrifice"); Misc/quakevr/mg3_kill_test.sh.
+void(float k) MG3_T_KillMonster = {
+    entity p = find(world, classname, "player");
+    entity m = nextent(world);
+    float n = 0;
+    while(m) {
+        if(substring(m.classname, 0, 8) == "monster_") { if(n == k) break; n = n + 1; }
+        m = nextent(m);
+    }
+    if(!m || !p) { dprint(sprintf("mg3kill: no monster %g (%g monsters)\n", k, n)); return; }
+    dprint(sprintf("mg3kill: kill %g %s target %s health %g\n", k, m.classname, m.target, m.health));
+    if(m.health <= 0) return;
+    vector kmid = (m.absmin + m.absmax) * 0.5;
+    entity bomb = spawn();
+    setorigin(bomb, kmid);
+    bomb.owner = p;
+    T_RadiusDamage(bomb, p, 160 + m.health * 2, world);
+    remove(bomb);
+    traceline(p.origin, kmid, TRUE, p);
+    dprint(sprintf("mg3kill: killed %g health %g trace %g\n", k, m.health, trace_fraction));
+};
+// 23: every rune's state ("mg3rune:" lines: there or hidden, its solid) and the "first use" triggers' (upstream
+// SPAWNFLAG_TRIGGER_FIRST: still waiting, or touchable). 24: the sacrifices are made, every misc_sacrifice but the
+// altar's (map8's "rune_sacrifice") used as its death would (gibbed: its targets fired, the counter counting).
+// A player's report: map8's Rune of Sacrifice came with no sacrifice made (ROUND22.md, "The Sacrifice").
+void() MG3_T_RuneState = {
+    entity e = find(world, classname, "player");
+    if(e) dprint(sprintf("mg3rune: player at %v\n", e.origin));
+    e = find(world, classname, "item_sigil");
+    while(e) {
+        dprint(sprintf("mg3rune: sigil %s %s solid %g modelindex %g\n", e.targetname,
+            e.model != string_null ? "there" : "hidden", e.solid, e.modelindex));
+        e = find(e, classname, "item_sigil");
+    }
+    e = nextent(world);
+    while(e) {
+        if((e.classname == "trigger_once" || e.classname == "trigger_multiple") && e.targetname != string_null)
+            dprint(sprintf("mg3rune: trigger %s %s\n", e.targetname, e.use == trigger_multiple ? "waiting" : "armed"));
+        e = nextent(e);
+    }
+};
+void() MG3_T_Sacrifices = {
+    float n = 0;
+    entity e = find(world, classname, "misc_sacrifice");
+    while(e) {
+        entity nx = find(e, classname, "misc_sacrifice");
+        if(e.targetname != "rune_sacrifice") {
+            entity os = self, oa = activator;
+            self = e; activator = MG3_T_player; e.use();
+            self = os; activator = oa;
+            n = n + 1;
+        }
+        e = nx;
+    }
+    dprint(sprintf("mg3rune: %g sacrifices made\n", n));
+};
 void() MG3_TestFrame = {
     float request = cvar("vr_mg3_test"); if(!request) return;
     if(((request >= 31 && request <= 38) || (request >= 40 && request <= 43) || (request >= 100 && request < 140)) && MG3_Campaign()) {
@@ -702,6 +779,10 @@ void() MG3_TestFrame = {
     }
     else if(request == 21) { dprint(sprintf("mg3test: Chthon beaten, serverflags %g\n", serverflags)); MG3_BossEnding(); }
     else if(request == 22) { dprint("mg3test: Shub beaten\n"); MG3_ShubEnding(); }
+    else if(request >= 200 && request < 300) MG3_T_PressButton(request - 200);
+    else if(request >= 300 && request < 1300) MG3_T_KillMonster(request - 300);
+    else if(request == 23) MG3_T_RuneState();
+    else if(request == 24) { MG3_T_player = find(world, classname, "player"); MG3_T_Sacrifices(); }
     else if(request == 14) { // leave the intermission (a button press)
         entity ip = find(world, classname, "player");
         dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));

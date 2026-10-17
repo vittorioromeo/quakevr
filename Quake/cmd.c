@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cmd.c -- Quake script command processing module
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 void Cmd_ForwardToServer (void);
 
@@ -1094,6 +1095,8 @@ qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 // execute the command line
 	if (!Cmd_Argc())
 		return true;		// no tokens
+	VR_TRACY_SCOPE ("console command"); // QVR: profiling builds: each command (map, exec, a cvar...) a zone, named in its text
+	VR_TracyText (cmd_argv[0]);
 
 // check functions
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)

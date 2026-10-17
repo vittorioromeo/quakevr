@@ -22,6 +22,16 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
+# The build number and date (qvr_buildinfo.cmake: qvr_buildver.h, rewritten only when its text changes, before every build).
+set(QVR_GEN_DIR "${CMAKE_BINARY_DIR}/qvr_gen")
+add_custom_target(qvr_buildinfo ALL
+	COMMAND "${CMAKE_COMMAND}" "-DQVR_REPO=${CMAKE_CURRENT_LIST_DIR}/../.." "-DQVR_OUT=${QVR_GEN_DIR}/qvr_buildver.h"
+		-P "${CMAKE_CURRENT_LIST_DIR}/qvr_buildinfo.cmake"
+	BYPRODUCTS "${QVR_GEN_DIR}/qvr_buildver.h"
+	COMMENT "Quake VR build number"
+	VERBATIM)
+add_dependencies(ironwail qvr_buildinfo)
+target_include_directories(ironwail PRIVATE "${QVR_GEN_DIR}")
 # OpenXR: the backend's graphics binding is the game's OpenGL context, WGL's on Windows (the vendored loader), GLX's on
 # Linux (the system's OpenXR headers and loader, X11 and GLX; docs/vr-port/LINUX_ARM64.md). A Linux build without the
 # OpenXR headers or loader has the mock backend alone, as macOS. QVR_OPENXR_LIBRARY picks the loader by hand (on the

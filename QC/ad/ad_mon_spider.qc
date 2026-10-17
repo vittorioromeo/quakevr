@@ -175,7 +175,9 @@ void()	ad_spider_spit6	=[	$atkloop1,		ad_spider_spit7 ] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_SPIDER); };
 void()	ad_spider_spit7	=[	$atkloop3,		ad_spider_spit8 ] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_SPIDER); };
-void()	ad_spider_spit8 = [	$atkloop5,		ad_spider_spit9 ] {ad_spider_spitacid(-0.1);};
+void()	ad_spider_spit8 = [	$atkloop5,		ad_spider_spit9 ] {
+	if (VR_AimCone_Wait(ad_spider_spit8, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_spider_spitacid(-0.1);};
 void()	ad_spider_spit9 = [	$atkloop7,		ad_spider_spit10 ] {ad_spider_spitacid(0);};
 void()	ad_spider_spit10 =[	$atkloop9,		ad_spider_spit11 ] {ad_spider_spitacid(0.1);};
 void()	ad_spider_spit11	=[	$atkup7,		ad_spider_spit12] {};
@@ -193,7 +195,7 @@ void() ad_spider_melee =
 		
 	ad_ai_charge(10);									// Get closer for extra bite
 	ad_ai_damagebreakable(10);							// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESPIDER,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESPIDER,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;

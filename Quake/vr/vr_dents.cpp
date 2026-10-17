@@ -1,5 +1,6 @@
 // vr_dents.cpp -- flesh dents (vr_dents.hpp; ROUND22.md, "Flesh dents").
 
+#include "vr_geom.hpp"
 #include "vr_dents.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -359,48 +360,12 @@ const Flesh& fleshOf(const qmodel_t* model, const aliashdr_t* hdr)
     return l > 1e-8f ? -n / l : glm::vec3{0.f, 0.f, 1.f};
 }
 
-// The point of triangle abc nearest p, as barycentrics (Ericson, "Real-Time Collision Detection" 5.1.5).
+// The point of triangle abc nearest p, as barycentrics (geom::closestOnTriangle).
 [[nodiscard]] glm::vec3 nearestOn(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
 {
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return {1.f, 0.f, 0.f};
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return {0.f, 1.f, 0.f};
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        const float v = d1 / (d1 - d3);
-        return {1.f - v, v, 0.f};
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return {0.f, 0.f, 1.f};
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        const float w = d2 / (d2 - d6);
-        return {1.f - w, 0.f, w};
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        const float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return {0.f, 1.f - w, w};
-    }
-    const float denom = 1.f / (va + vb + vc);
-    const float v = vb * denom, w = vc * denom;
-    return {1.f - v - w, v, w};
+    glm::vec3 bary;
+    (void)geom::closestOnTriangle(p, a, b, c, &bary);
+    return bary;
 }
 
 // How far a line from `from` going `dir` runs inside the drawn body before it leaves it (the first triangle it meets).
@@ -451,6 +416,7 @@ struct Size
         case kindShot: return {rnd(2.f, 2.6f), rnd(0.9f, 1.2f), 1.f};
         case kindNail: return {za::min(2.4f + 0.05f * amount, 3.6f) * rnd(0.9f, 1.1f), rnd(1.2f, 1.6f), 1.f};
         case kindMelee: return {za::min(3.f + 0.03f * amount, 5.f) * rnd(0.9f, 1.1f), rnd(1.4f, 1.9f), rnd(2.2f, 3.f)};
+        case kindBlunt: return {za::min(3.4f + 0.035f * amount, 5.5f) * rnd(0.9f, 1.1f), rnd(1.5f, 2.f), rnd(1.f, 1.3f)};
         case kindBlast: return {za::min(3.8f + 0.015f * amount, 5.5f) * rnd(0.9f, 1.1f), za::min(2.f + 0.01f * amount, 3.f), 1.f};
         default: return {rnd(2.6f, 3.4f), rnd(1.1f, 1.5f), 1.f};
     }
@@ -579,6 +545,13 @@ Body* bodyOf(const entity_t* e, const qmodel_t* model)
     return &b;
 }
 
+// A dent's radius and depth as the shader is given them (the scales applied, held to its limits).
+[[nodiscard]] glm::vec2 radiusDepth(const Dent& d, float depthScale, float sizeScale)
+{
+    const float r = za::min(d.r * sizeScale, d.rmax);
+    return {r, za::min(za::min(d.depth * depthScale * sizeScale, r * maxDepthShare * za::max(depthScale, 1.f)), d.limit)};
+}
+
 void writeRows(const Body& b, float depthScale, float sizeScale)
 {
     glm::vec4 rows[rowsPerBody];
@@ -589,9 +562,9 @@ void writeRows(const Body& b, float depthScale, float sizeScale)
     for(int i = 0; i < b.count; i++)
     {
         const Dent& d = b.dents[i];
-        const float r = za::min(d.r * sizeScale, d.rmax);
-        rows[1 + i * 3 + 0] = glm::vec4{d.c, r};
-        rows[1 + i * 3 + 1] = glm::vec4{d.n, za::min(za::min(d.depth * depthScale * sizeScale, r * maxDepthShare * za::max(depthScale, 1.f)), d.limit)};
+        const glm::vec2 rd = radiusDepth(d, depthScale, sizeScale);
+        rows[1 + i * 3 + 0] = glm::vec4{d.c, rd.x};
+        rows[1 + i * 3 + 1] = glm::vec4{d.n, rd.y};
         rows[1 + i * 3 + 2] = glm::vec4{d.axis, za::max(d.stretch, 1.f)};
     }
     if(b.count <= 0)
@@ -721,6 +694,42 @@ void struck(const entity_t* e, za::Span<const glm::vec3> tris, const glm::vec3& 
             model->name, part < ragdoll::maxBones ? part : -1, part < ragdoll::maxBones && flesh.partHead[part] ? " (head)" : "",
             d.r, d.rmax < 1e29f ? d.rmax : -1.f, d.depth, thick < 1e29f ? thick : -1.f, d.stretch, body ? body->count : -1);
     }
+}
+
+float pushAt(const entity_t* e, const glm::vec3& p, const glm::vec3& rn)
+{
+    if(!vr_gore_dents.value || !e || state.bodies.empty())
+    {
+        return 0.f;
+    }
+    const auto it = state.bodies.find(e);
+    if(it == state.bodies.end() || it->second.count <= 0 || it->second.model != sourceOf(e))
+    {
+        return 0.f;
+    }
+    // QVR_DENT_FUNCTIONS's DentDepth (reach 1), on the CPU: the same rows, the deepest counts.
+    const float depthK = za::max(vr_gore_dents_depth.value, 0.f), sizeK = za::max(vr_gore_dents_size.value, 0.05f);
+    const int n = za::min(it->second.count, za::clamp(static_cast<int>(vr_gore_dents_max.value), 1, maxDents));
+    float best = 0.f;
+    for(int i = 0; i < n; i++)
+    {
+        const Dent& d = it->second.dents[i];
+        const glm::vec2 rd = radiusDepth(d, depthK, sizeK);
+        const float x = za::clamp((glm::dot(rn, d.n) + 0.1f) / 0.55f, 0.f, 1.f);
+        const float face = x * x * (3.f - 2.f * x);
+        const glm::vec3 dd = p - d.c;
+        const float squash = 1.f - 1.f / za::max(d.stretch, 1.f);
+        const glm::vec3 q = dd - d.axis * (glm::dot(dd, d.axis) * squash);
+        const float off = glm::dot(q, d.n);
+        const float t2 = (glm::dot(q, q) + 3.f * off * off) / za::max(rd.x * rd.x, 1e-6f);
+        if(face <= 0.f || t2 >= 1.f)
+        {
+            continue;
+        }
+        const float k1 = 1.f - t2;
+        best = za::max(best, rd.y * face * k1 * k1);
+    }
+    return best;
 }
 
 void forget(const entity_t* e)

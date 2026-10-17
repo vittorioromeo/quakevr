@@ -413,7 +413,7 @@ float(float xHand) VR_Chainsaw_Cut =
         e.vr_saw_victim = world;
         vector at = e.vr_saw_at;
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         float alive = e.health > 0;
         float flesh = (e.flags & FL_MONSTER) || (e.flags & FL_CLIENT) || e.vr_gib; // (a gib may be gone after it)
         float wood = VR_Crate_Wooden(e); // (a crate: splinters, not sparks)

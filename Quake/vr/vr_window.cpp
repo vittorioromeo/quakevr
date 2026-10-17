@@ -57,13 +57,6 @@ int currentEye = 0; // the eye shown (eye()): 0, 1, -1 both
 }
 
 // Quake angles to a basis (columns: forward, left, up) and back.
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
-{
-    glm::vec3 f, r, u;
-    hands::angleVectors(angles, f, r, u);
-    return glm::mat3{f, -r, u};
-}
-
 [[nodiscard]] glm::vec3 anglesOf(const glm::mat3& b)
 {
     return hands::anglesFromVectors(b[0], b[2]);
@@ -79,7 +72,7 @@ int currentEye = 0; // the eye shown (eye()): 0, 1, -1 both
     }
     glm::vec3 a = anglesOf(glm::mat3_cast(q));
     a.z *= 1.f - level;
-    return glm::normalize(glm::quat_cast(basisOf(a)));
+    return glm::normalize(glm::quat_cast(hands::basisOf(a)));
 }
 
 // The steadied head.
@@ -211,7 +204,7 @@ void update(const FrameState& frame, const hands::State& s)
     const glm::quat head = quakeTurn(frame.eyes[e].pose.orientation);
     const glm::vec3 position = 0.5f * (frame.eyes[0].pose.position + frame.eyes[1].pose.position);
     filter.headAngles = s.eyeAngles[e];
-    filter.worldTurn = basisOf(s.eyeAngles[e]) * glm::transpose(glm::mat3_cast(head));
+    filter.worldTurn = hands::basisOf(s.eyeAngles[e]) * glm::transpose(glm::mat3_cast(head));
     filter.worldHead = 0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]);
     if((currentView != View::Smoothed && currentView != View::Spectator) || filter.eye != e)
     {

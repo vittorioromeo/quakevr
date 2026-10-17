@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_lighting.hpp"
+#include "vr_tracy.h"
 #include "vr_brushes.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
@@ -800,8 +801,8 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         profile::end();
         if(!cs.faceCasters.empty())
         {
-            R_DrawAliasModelsDepthLayered(cs.faceCasters.data(), cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()),
-                &vps[0][0][0]);
+            QVR_TRACY_CALL("shadow alias layered draw", R_DrawAliasModelsDepthLayered(cs.faceCasters.data(),
+                cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()), &vps[0][0][0]));
         }
         // The holey ones a face at a time (glViewport sets every viewport: after the layered draws).
         for(int face = 0; face < numViews && !cs.holey.empty(); face++)
@@ -986,6 +987,54 @@ constexpr int shadowFadeExtra = 2;
     return za::clamp((d - beyond) / (shadowDistanceFade * d), 0.f, 1.f);
 }
 za::Array<DlightSlot, MAX_DLIGHTS> dlightSlots;
+
+// A dynamic light's world casters (collectWorld; vr_shadow_caster_cache), kept while the light's sphere stays inside
+// the one they were collected for (the world does not move): a light that moved or grew out of it is collected again,
+// worldCasterMargin units wider, so that the next frames' moves stay inside. A light that never changes keeps the
+// exact set. The wider set only adds surfaces wholly outside the light's sphere (beyond what it lights, and not between
+// it and anything inside): the same shadows.
+constexpr float worldCasterMargin = 24.f;
+struct WorldCasters
+{
+    const qmodel_t* world = nullptr;
+    int generation = -1;
+    glm::vec3 center{0.f};
+    float reach = -1.f; // collected for: the world's surfaces within `reach` of `center` (-1: none yet)
+    za::Vector<uint32_t> indices;
+};
+za::Array<WorldCasters, MAX_DLIGHTS> worldCasters; // by cl_dlights slot
+int worldCastersKept = 0, worldCastersCollected = 0; // since the last vr_shadow_caster_stats
+int casterCacheOverride = -1; // vr_shadow_layered_check casters: the mode it draws with (-1: vr_shadow_caster_cache's)
+
+// The world's casters of dynamic light `slot` (its sphere: center, reach) into `indices`.
+void collectWorldCached(int slot, const glm::vec3& center, float reach)
+{
+    WorldCasters& wc = worldCasters[slot];
+    const float mode = casterCacheOverride >= 0 ? static_cast<float>(casterCacheOverride) : vr_shadow_caster_cache.value;
+    if(mode <= 0.f)
+    {
+        wc.reach = -1.f;
+        collectWorld(cl.worldmodel->nodes, center, reach);
+        return;
+    }
+    if(mode < 2.f && wc.world == cl.worldmodel && wc.generation == worldGeneration() &&
+        wc.reach >= 0.f && glm::distance(center, wc.center) + reach <= wc.reach)
+    {
+        indices = wc.indices;
+        worldCastersKept++;
+        return;
+    }
+    // Collected before: a light that moves, grows or comes and goes here. (vr_shadow_caster_cache 2: the wider set
+    // collected every frame, a check that it draws the same shadows as the exact one.)
+    const bool changed = wc.reach >= 0.f || mode >= 2.f;
+    wc.world = cl.worldmodel;
+    wc.generation = worldGeneration();
+    wc.center = center;
+    wc.reach = reach + (changed ? worldCasterMargin : 0.f);
+    collectWorld(cl.worldmodel->nodes, wc.center, wc.reach);
+    wc.indices = indices;
+    worldCastersCollected++;
+}
 
 // Spot lights (lighting::dlightSpot): valid while the slot holds the same light (its key and
 // death time).
@@ -1497,15 +1546,18 @@ bool shadowsSupported()
 // `repeats` times each, alternating, timed (CPU: the submission; GPU: timestamps round it, waited for), then once more
 // each with the map lights' cached world drawn again too, read back and compared texel by texel (both atlases).
 // "cache": as vr_shadow_layered says both times, the casters set up for each light, then once a pass
-// (R_AliasDepthCacheBegin).
+// (R_AliasDepthCacheBegin). "casters": the dynamic lights' world casters collected exactly, then the wider set kept for a
+// moving light (vr_shadow_caster_cache 0, then 2: collectWorldCached).
 int layeredCheckRepeats = 0;
 bool layeredCheckCache = false; // the comparison is the casters' set-up cache off and on
+bool layeredCheckCasters = false; // ... the world casters exact and wider
 bool setupCacheOn = true;
 
 void layeredCheck_f()
 {
     layeredCheckRepeats = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 500) : 1;
     layeredCheckCache = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "cache");
+    layeredCheckCasters = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "casters");
     if(!gl_viewport_layer_able || !depthLayeredProgram)
     {
         Con_Printf("vr_shadow_layered_check: no layered shadows here (%s), compared with themselves\n",
@@ -1524,6 +1576,19 @@ void eyeCacheStats_f()
         static_cast<double>(vr_alias_eye_cache.value), s[0], s[1], s[2]);
     Con_Printf("  checked %d: differ lerp %d, matrix %d, light %d, counts %d, instance %d, smooth rows %d\n", s[3], s[4],
         s[5], s[6], s[7], s[8], s[9]);
+    int taken = 0, checked = 0, bad = 0;
+    R_AliasDepthShareStats(&taken, &checked, &bad);
+    Con_Printf("  first eye (vr_shadow_setup_share %g): %d transforms from the shadow pass, %d checked, %d differ\n",
+        static_cast<double>(vr_shadow_setup_share.value), taken, checked, bad);
+}
+
+// vr_shadow_caster_stats: since the last call, the dynamic lights' world caster sets kept and collected
+// (vr_shadow_caster_cache, collectWorldCached).
+void casterStats_f()
+{
+    Con_Printf("vr_shadow_caster_stats (vr_shadow_caster_cache %g): dynamic lights' world casters %d kept, %d collected\n",
+        static_cast<double>(vr_shadow_caster_cache.value), worldCastersKept, worldCastersCollected);
+    worldCastersKept = worldCastersCollected = 0;
 }
 
 // An atlas' depth, read back.
@@ -1597,8 +1662,9 @@ void layeredCheck(const Render& renderAll)
     {
         for(int way = 0; way < 2; way++)
         {
-            layeredOverride = layeredCheckCache ? -1 : way;
+            layeredOverride = layeredCheckCache || layeredCheckCasters ? -1 : way;
             setupCacheOn = !layeredCheckCache || way == 1;
+            casterCacheOverride = layeredCheckCasters ? (way ? 2 : 0) : -1;
             const bool last = r == repeats; // the read-back: every atlas drawn again
             if(last)
             {
@@ -1644,6 +1710,7 @@ void layeredCheck(const Render& renderAll)
     }
     layeredOverride = -1;
     setupCacheOn = true;
+    casterCacheOverride = -1;
     GL_DeleteQueriesFunc(2, queries);
     int dl = 0, spots = 0, ml = 0;
     for(const DlightSlot& s : dlightSlots)
@@ -1660,6 +1727,7 @@ void layeredCheck(const Render& renderAll)
     for(int way = 0; way < 2; way++)
     {
         Con_Printf("  %s: %d draw calls, %d faces, %d model draws (%d set up, %d reused); CPU %.3f ms, GPU %.3f ms\n",
+            layeredCheckCasters ? (way ? "wider casters" : "exact casters") :
             layeredCheckCache ? (way ? "set up once " : "each light  ") : way ? "layered     " : "face at a time", calls[way], faces[way], models[way],
             misses[way] / (repeats + 1), hits[way] / (repeats + 1), cpu[way] / repeats, gpu[way] / repeats);
     }
@@ -1854,6 +1922,7 @@ extern "C" void VR_RenderShadowMaps(void)
     // Everything drawn into the atlases (twice by vr_shadow_layered_check).
     const auto renderAll = [&]()
     {
+        R_AliasDepthShare(setupCacheOn ? static_cast<int>(vr_shadow_setup_share.value) : 0); // (the check's off way: as before)
         R_AliasDepthCacheBegin(setupCacheOn); // each caster set up once in this pass (r_alias.c)
         facesDrawn = 0;
         modelsDrawn = 0;
@@ -1932,7 +2001,7 @@ extern "C" void VR_RenderShadowMaps(void)
             profile::begin("dlight casters", false);
             indices.clear();
             profile::begin("dlight world casters", false);
-            collectWorld(cl.worldmodel->nodes, center, reach);
+            collectWorldCached(i, center, reach);
             profile::end();
             const size_t worldCount = indices.size();
             profile::begin("dlight brush casters", false);
@@ -2278,6 +2347,9 @@ extern "C" void VR_PushMapLights(void)
     // bounds it in the world's depth pre-pass: glprogs.world_depth_pdo).
     // 2: and drawn as that depth (vr_parallax_debug).
     r_framedata.parallax2[3] = parallax && vr_parallax_depth_write.value != 0.f ? (vr_parallax_debug.value != 0.f ? 2.f : 1.f) : 0.f;
+    // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
+    // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
+    r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);
@@ -2636,6 +2708,8 @@ void lighting::init()
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
     Cmd_AddCommand("vr_alias_eye_cache_stats", eyeCacheStats_f);
+    Cmd_AddCommand("vr_alias_cull_stats", R_AliasCullStats);
+    Cmd_AddCommand("vr_shadow_caster_stats", casterStats_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();
 }

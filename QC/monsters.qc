@@ -111,8 +111,7 @@ void() walkmonster_start_go =
         }
 // this used to be an objerror
         if(self.movetarget.classname == "path_corner") {
-            if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
-            else self.th_walk();
+            if(!MG_MonsterStartPaused()) self.th_walk();
         } else {
             self.pausetime = 99999999;
             self.th_stand();
@@ -204,8 +203,7 @@ void() flymonster_start_go =
         }
 // this used to be an objerror
         if(self.movetarget.classname == "path_corner") {
-            if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
-            else self.th_walk();
+            if(!MG_MonsterStartPaused()) self.th_walk();
         } else {
             self.pausetime = 99999999;
             self.th_stand();
@@ -291,8 +289,7 @@ void() swimmonster_start_go =
         }
 // this used to be an objerror
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
-        if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
-        else self.th_walk();
+        if(!MG_MonsterStartPaused()) self.th_walk();
     }
     else
     {

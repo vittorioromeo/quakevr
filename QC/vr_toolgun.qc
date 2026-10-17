@@ -15,6 +15,9 @@ void() VR_Toolgun_Precache =
     precache_model("progs/flame.mdl");
     precache_model("progs/flame2.mdl");
     precache_model("progs/vrtorch.mdl");
+    // (the Fire tab's candle and lantern, where their pak is: small, loaded at their first spawn otherwise, a 3-50 ms frame)
+    if(VR_Has("progs/candle.mdl")) { precache_model("progs/candle.mdl"); }
+    if(VR_Has("progs/lantern.mdl")) { precache_model("progs/lantern.mdl"); }
     precache_sound("vr/torch_pull.wav");
     precache_sound("vr/torch_out.wav");
     precache_sound("vr/torch_light.wav");
@@ -100,6 +103,47 @@ void() weapon_toolgun =
         FALSE /* deal damage */,
         WeaponIdToThrowDamage(WID_TOOLGUN));
     remove(self);
+};
+
+// vr_debug_spawn_toolgun (Debug > Toolgun, for tests in the headset): each spawn of `self` (a new level, a respawn), a
+// toolgun in the first empty holster (the hips, the chest, the shoulders; right before left) unless one is carried
+// already (a hand, a holster). Weapon Mode Immersive (quick slots' holsters keep copies).
+void() VR_Toolgun_SpawnInHolster =
+{
+    if(!cvar_hget(cvarh_vr_debug_spawn_toolgun) || getWeaponMode() != QVR_WEAPONMODE_IMMERSIVE)
+    {
+        return;
+    }
+    if(self.weapon == WID_TOOLGUN || self.weapon2 == WID_TOOLGUN)
+    {
+        return;
+    }
+    float order0 = QVR_HS_RIGHT_HIP_HOLSTER, order1 = QVR_HS_LEFT_HIP_HOLSTER, order2 = QVR_HS_RIGHT_UPPER_HOLSTER;
+    float order3 = QVR_HS_LEFT_UPPER_HOLSTER, order4 = QVR_HS_RIGHT_SHOULDER_HOLSTER, order5 = QVR_HS_LEFT_SHOULDER_HOLSTER;
+    float empty = -1;
+    for(float i = 0; i < 6; i++)
+    {
+        float hs = i == 0 ? order0 : (i == 1 ? order1 : (i == 2 ? order2 : (i == 3 ? order3 : (i == 4 ? order4 : order5))));
+        float w = getHolsterWeapon(hs);
+        if(w == WID_TOOLGUN)
+        {
+            return; // (carried already)
+        }
+        if(w == WID_FIST && empty < 0)
+        {
+            empty = hs;
+        }
+    }
+    if(empty < 0)
+    {
+        dprint("toolgun: every holster taken: none put in one\n");
+        return;
+    }
+    setHolsterWeapon(empty, WID_TOOLGUN);
+    setHolsterWeaponModel(empty, WeaponIdToModel(WID_TOOLGUN, 0));
+    setHolsterWeaponFlags(empty, 0);
+    VRSetEntHolsterWeaponInst(self, empty, WeaponInst_New(0));
+    dprint(sprintf("toolgun: put in holster %g (vr_debug_spawn_toolgun)\n", empty));
 };
 
 void(entity e) VR_Scene_Remove; // (vr_cheats.qc)

@@ -337,6 +337,8 @@ void() ad_drole_rocket4 = [ 3, ad_SUB_Remove ] {
 //----------------------------------------------------------------------
 void() ad_drole_fire =
 {
+	if (VR_AimCone_Wait(ad_drole_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir, ad_avel;
 	if (!self.enemy) return;
 	if (self.health < 1) return;

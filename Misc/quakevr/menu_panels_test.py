@@ -26,6 +26,7 @@ KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
 BASH = os.environ.get("KIT_BASH", "C:/Program Files/Git/usr/bin/bash.exe")
 if not os.path.exists(BASH):
     BASH = "bash"
+SHORTCUTS = ["levels", "advanced", "relighting", "checklist", "maps", "search", "console", "recording", "settings"]
 H0 = "vr_mock_hand main 0.2 1.2 -0.3 0 0 0;vr_mock_hand off -0.2 1.2 -0.3 0 0 0"
 steps = [
     ("open", f"map e1m1;wait60;{H0};menu_vr 3;wait20;vr_menu_panels open;wait20"),
@@ -46,8 +47,14 @@ steps = [
     ("again", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20;vr_menu_panels focus 2;wait5"),
     ("map", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait10;map e1m2;wait60;"
             "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20;vr_menu_panels focus 2;wait5"),
-    ("close2", "vr_menu_panels close 2;wait5"),
+    # 13: every corner shortcut that opens a page acts on the panel it is pressed on (the second), the first untouched
+    ("sc0", "vr_mock_laser off;vr_mock_laser off hand off;vr_menu_panels focus 2;menu_vr 0;vr_menu_level 2;wait10"),
 ]
+for n in SHORTCUTS:
+    steps.append((n, f"vr_mock_laser {n} panel 2;wait10;vr_mock_button main trigger 1;wait1;vr_mock_button main trigger 0;wait5"))
+    if n == "levels":
+        steps.append(("lvback", "vr_mock_laser off;vr_mock_key escape;wait5"))
+steps.append(("close2", "vr_menu_panels close 2;wait5"))
 script = ";".join(f"{cmd};echo STEP {name};vr_menu_panels;vr_menu_panel" for name, cmd in steps) + ";toggleconsole;quit"
 out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script, "-Filter", "STEP|MENUPANEL|one panel at a time|exit="],
                      capture_output=True, text=True).stdout
@@ -62,7 +69,7 @@ for line in text.splitlines():
     panels = {}
     for p in re.finditer(r"MENUPANEL (\d) menu (\d+) page (-?\d+) \"([^\"]*)\" row \"([^\"]*)\" value (\S+) drawn (-?\d+)",
                          m.group(4)):
-        panels[int(p.group(1))] = {"page": int(p.group(3)), "row": p.group(5), "value": float(p.group(6)),
+        panels[int(p.group(1))] = {"menu": int(p.group(2)), "page": int(p.group(3)), "row": p.group(5), "value": float(p.group(6)),
                                    "drawn": int(p.group(7))}
     place = re.search(r"MENUPANEL placed (\d) held \S+ armed \S+ centre \S+ \S+ \S+ from head (\S+) (\S+) (\S+)", m.group(4))
     state.setdefault(m.group(1), {"open": int(m.group(2)), "focused": int(m.group(3)), "panels": panels,
@@ -127,6 +134,18 @@ check(ag["open"] == 2 and panel("again", 1)["page"] == panel("pre", 1)["page"] a
 check(same(pr, ag), "10 the second panel in the same place (%s -> %s)" % (pr["from"], ag["from"]))
 check(mp["open"] == 2 and panel("map", 1)["page"] == panel("pre", 1)["page"] and panel("map", 2)["page"] == panel("pre", 2)["page"]
       and near(pr, mp), "11 after a map change: both panels back, same pages and place (%s)" % (mp["from"],))
+base1, base2 = panel("sc0", 1), panel("sc0", 2)
+for n in SHORTCUTS:
+    p1, p2 = panel(n, 1), panel(n, 2)
+    first_kept = p1["page"] == base1["page"] and p1["menu"] == base1["menu"]
+    if n == "levels":
+        check(p2["menu"] == 5 and first_kept, "13 the Levels shortcut on the second panel: the Levels open there, the first's page kept")
+        check(panel("lvback", 2)["page"] == base2["page"] and panel("lvback", 2)["menu"] == 26,
+              "13 Back from the Levels in the second panel: its page again")
+        continue
+    before = panel(SHORTCUTS[SHORTCUTS.index(n) - 1], 2)["page"]
+    check(p2["menu"] == 26 and p2["page"] != before and first_kept,
+          "13 the %s shortcut on the second panel: its page changed (%d), the first's kept" % (n, p2["page"]))
 check(get("close2")["open"] == 1, "12 Close Panel still removes one")
 check("exit=0" in out, "the game quit normally")
 sys.exit(fail)

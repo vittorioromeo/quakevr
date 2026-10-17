@@ -376,11 +376,12 @@ int distancesFrame = -1; // r_framecount the current one is for (one a view: eac
 // This view's distances from the depth texture `source` (made now if not yet: then `restore` puts back the framebuffer
 // drawn to), 0 if there is none.
 // What makeDistances last sized its target for, per slot (the eyes', the spectator camera's).
+// (Each eye's, as single-pass stereo gives each eye its own depth texture; the spectator camera's.)
 struct SizedDistances
 {
-    GLuint source[2] = {0, 0};
-    GLint sourceWidth[2] = {0, 0}, sourceHeight[2] = {0, 0};
-    int vidWidth[2] = {0, 0}, vidHeight[2] = {0, 0};
+    GLuint source[3] = {};
+    GLint sourceWidth[3] = {}, sourceHeight[3] = {};
+    int vidWidth[3] = {}, vidHeight[3] = {};
 };
 SizedDistances sizedDistances;
 
@@ -422,18 +423,15 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     // come back under the same name.
     // (One for the eyes' size, one for the spectator camera's.)
     const int slot = stereo::isSpectator() ? 1 : 0;
-    GLuint(&sizedSourceFor)[2] = sizedDistances.source;
-    GLint(&sourceWidthFor)[2] = sizedDistances.sourceWidth;
-    GLint(&sourceHeightFor)[2] = sizedDistances.sourceHeight;
-    int(&sizedVidWidthFor)[2] = sizedDistances.vidWidth;
-    int(&sizedVidHeightFor)[2] = sizedDistances.vidHeight;
-    GLuint& sizedSource = sizedSourceFor[slot];
-    GLint& sourceWidth = sourceWidthFor[slot];
-    GLint& sourceHeight = sourceHeightFor[slot];
-    if(source != sizedSource || vid.width != sizedVidWidthFor[slot] || vid.height != sizedVidHeightFor[slot])
+    const int sized = stereo::isSpectator() ? 2 : stereo::eye() & 1;
+    GLuint& sizedSource = sizedDistances.source[sized];
+    GLint& sourceWidth = sizedDistances.sourceWidth[sized];
+    GLint& sourceHeight = sizedDistances.sourceHeight[sized];
+    if(source != sizedSource || vid.width != sizedDistances.vidWidth[sized] ||
+        vid.height != sizedDistances.vidHeight[sized])
     {
-        sizedVidWidthFor[slot] = vid.width;
-        sizedVidHeightFor[slot] = vid.height;
+        sizedDistances.vidWidth[sized] = vid.width;
+        sizedDistances.vidHeight[sized] = vid.height;
         GL_BindNative(GL_TEXTURE0, sourceTarget, source);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_WIDTH, &sourceWidth);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_HEIGHT, &sourceHeight);

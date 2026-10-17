@@ -91,6 +91,11 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 void R_AliasDepthCacheBegin (qboolean on); // r_alias.c: a pass over the shadow maps' lights: each caster set up once in it
 void R_AliasDepthCacheEnd (void);
 void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups reused and made since the last call
+// r_alias.c (vr_shadow_setup_share): 1 the casters' whole instances shared by the pass's lights, their depth draws without
+// textures, the first eye's transforms taken from the pass; 2 the same, the first eye's worked out again and compared;
+// 0 neither. Stats: the first eyes' transforms taken, checked and found different since the last call.
+void R_AliasDepthShare (int mode);
+void R_AliasDepthShareStats (int *taken, int *checked, int *bad);
 // r_alias.c (vr_alias_eye_cache): the eyes' scenes: 1 the first (each model's set-up kept), 2 the second (reused), 3 the
 // second (made again and compared), 0 neither (between the eyes); End: the frame's eyes done (what was kept forgotten);
 // the second eyes' counts since the last call (hit, transform only, miss, checked, then the check's mismatches: lerp,
@@ -98,6 +103,8 @@ void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups 
 void R_AliasEyeCacheBegin (int mode);
 void R_AliasEyeCacheEnd (void);
 void R_AliasEyeCacheStats (int *out, int count);
+void R_AliasCullStats (void); // r_alias.c: vr_alias_cull_stats (the alias draws' culls since the last call, by model)
+void R_Clear (void); // gl_rmain.c: the bound scene's depth, stencil (and colour with gl_clear) cleared (vr_stereo_single.cpp)
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn

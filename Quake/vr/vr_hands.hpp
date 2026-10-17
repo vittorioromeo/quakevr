@@ -18,6 +18,10 @@ struct State
     // The play space's turn about the vertical through playerOrigin + lean (hands::playSpaceYaw; flat screen: the aim's
     // yaw): what the thumbstick's turn moves. A hand's place on the body is its offset from there turned back by it.
     float turnYaw{0.f};
+    // Where the play space's origin is in the world (flat screen: playerOrigin), turned by turnYaw: a tracked point's
+    // world place is spaceOrigin + rotateYaw(its place in the room, turnYaw). Only the artificial movement (the stick's
+    // walk and turn, a push, a fall, the stairs) moves it; the real body's moves in the room do not.
+    glm::vec3 spaceOrigin{0.f};
     glm::vec3 head{0.f};        // world eye position
     glm::vec3 headAngles{0.f};  // pitch, yaw, roll (view convention: pitch down is positive)
     float headHeight{0.f};      // metres above the play-space floor
@@ -205,5 +209,6 @@ void angleVectors(
 [[nodiscard]] glm::vec3 rotateYaw(const glm::vec3& v, float degrees); // about the vertical axis
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
 [[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
+[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // Quake angles' axes (forward, left, up)
 
 } // namespace qvr::hands

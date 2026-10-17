@@ -71,11 +71,6 @@ enum class Part
 };
 [[nodiscard]] bool weightKey(Key key); // Mass, Inertia, Com*, Throw, the spring's multipliers, the damage multipliers
 void resetSlotToDefaults(int slot, Part part = Part::All);
-// A config saved before `slot` was given a shipped prop: the slot takes its shipped settings (a model the menu had put
-// there moves to a free slot with its settings). vr_cfg_version's migrations (vr_cvars.cpp).
-void takeShippedSlot(int slot);
-inline constexpr int wallTorchSlot = 16; // progs/vrtorch.mdl (vr_props.inc; vr_cfg_version 25)
-inline constexpr int fleshSlotsFirst = 33, fleshSlotsLast = 47; // gibs and heads (vr_props.inc; vr_cfg_version 27)
 void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as vr_props.inc lines
 
 // Densities (kg/m^3) of what things are made of, by their model (a brush model: an ammo or health box, a crate; a
@@ -95,8 +90,8 @@ void printSlot(int slot, Part part = Part::All); // the settings that differ fro
 // Mass setting's.
 [[nodiscard]] float massScale(const qmodel_t* model);
 
-// How much of the hand's throw a prop of `mass` kg keeps: its Throw setting, else all of it up to
-// vr_weight_throw_mass kg, less beyond (by the square root: a thing twice as heavy leaves at 71% the speed).
+// How much of the hand's throw a prop keeps: its Throw setting, else all of it (throws by weight then limit it by its
+// mass: weight::throwVelocity). (`mass`: unused since vr_weight_throw_mass was retired.)
 [[nodiscard]] float throwScale(int slot, float mass);
 
 } // namespace qvr::props

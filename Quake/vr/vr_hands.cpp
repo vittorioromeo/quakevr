@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_flatplay.hpp"
@@ -54,7 +55,6 @@ int stateFrame = -1;
     return anglesFromVectors(f, u);
 }
 
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // below
 
 // Quake axes (x forward, y left, z up) to OpenXR tracking space.
 [[nodiscard]] glm::vec3 trackingFromQuake(const glm::vec3& v)
@@ -285,8 +285,10 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.handsRefValid = false;
     }
 
-    // Weighed together (any one can tell), scaled by vr_lean_detect.
-    const float sure = 1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue);
+    // Weighed together (any one can tell), scaled by vr_lean_detect; with body tracking, the tracked spine's tilt blended
+    // in (vr_bodytrack.cpp: a lean tilts it, a step or a neck bend does not).
+    const float sure =
+        bodytrack::leanSure(1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue), off);
     const float target = CLAMP(0.f, sure * vr_lean_detect.value, 1.f);
     ls.hold += (target - ls.hold) * ease(target > ls.hold ? 0.08f : 0.35f);
 
@@ -530,32 +532,29 @@ void updateVelocities(const TrackingState* t)
         // the palm, where the object is held, not the controller point further out; and with the
         // controller alone, whatever the hand calibration (see throwFrame).
         const double time = t && t->time >= 0.0 ? t->time : vr_gametime;
-        glm::vec3 throwVel = state.vel[h];
-        glm::vec3 throwForward = forward(state.rot[h]);
-        glm::vec3 throwSpin = state.angVel[h];
-        float throwSpinLag = 0.f;
+        throwing::Motion drawn{state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h])};
         // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
         // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
-        throwing::Motion own{state.pos[h], throwVel, throwSpin, throwForward};
+        throwing::Motion own = drawn;
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
         if(t && t->hands[h].velocityValid)
         {
             const Pose& p = t->hands[h];
-            throwVel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
-            throwForward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
+            drawn.vel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
+            drawn.forward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
             float spinLag = 0.f, ownSpinLag = 0.f;
             const glm::vec3 spin = poseSpin(h, p.orientation, time, spinLag);
             const glm::vec3 ownSpin = poseSpin(h, ctrl ? ctrl->orientation : p.orientation, time, ownSpinLag, true);
             if(vr_throw_spin_from_pose.value)
             {
-                throwSpin = fromTracking(spin);
+                drawn.angVel = fromTracking(spin);
             }
             else
             {
                 spinLag = ownSpinLag = 0.f; // the runtime's: of the sample's own time
             }
-            throwSpinLag = spinLag;
-            own = {state.pos[h], throwVel, throwSpin, throwForward, spinLag};
+            drawn.spinLag = spinLag;
+            own = drawn;
             if(ctrl && ctrl->velocityValid)
             {
                 own.pos = state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
@@ -565,7 +564,7 @@ void updateVelocities(const TrackingState* t)
                 own.spinLag = ownSpinLag;
             }
         }
-        throwing::sample(h, time, {state.pos[h], throwVel, throwSpin, throwForward, throwSpinLag}, own);
+        throwing::sample(h, time, drawn, own);
     }
 
     previous.head = head;
@@ -683,6 +682,8 @@ void update()
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
         state.turnYaw = turnYaw;
+        state.spaceOrigin = toWorld(glm::vec3{0.f});
+        bodytrack::place(base, floorBelowHead, turnYaw, m2u); // the tracked body, as the head and hands
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -742,6 +743,7 @@ void update()
 
         state.lean = glm::vec3{0.f};
         state.turnYaw = yaw;
+        state.spaceOrigin = state.playerOrigin;
         state.leanHold = 0.f;
         state.standingHeight = units::eyeHeight();
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
@@ -779,9 +781,10 @@ void update()
     updateVelocities(vrActive() ? &t : nullptr);
     flick::update(state);
 
-    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it.
-    state.bodyYaw = vrActive() ? torso::estimate(state, headYawBlended(), turnYaw,
-                                                 t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid)
+    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
+    // the tracked hips' (vr_bodytrack.cpp).
+    state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(state, headYawBlended(), turnYaw,
+                                                     t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
                                : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
@@ -1064,16 +1067,16 @@ glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)
     return fwd * v.x + right * v.y + up * v.z;
 }
 
-namespace
-{
-
-// rot's axes (forward, left, up).
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
+// Quake angles' axes (forward, left, up).
+glm::mat3 basisOf(const glm::vec3& angles)
 {
     glm::vec3 f, r, u;
     angleVectors(angles, f, r, u);
     return glm::mat3{f, -r, u};
 }
+
+namespace
+{
 
 // A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
 bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)

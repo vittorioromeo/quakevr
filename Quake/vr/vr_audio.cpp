@@ -2129,9 +2129,9 @@ void benchFinish()
             Con_Printf("  sim %s: no runs\n", name);
             return;
         }
-        za::quickSort(ms.begin(), ms.end(), [](float a, float b) { return a < b; });
+        za::quickSort(ms.begin(), ms.end());
         const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return ms[za::min(n - 1, static_cast<int>(q * (n - 1) + 0.5))]; };
+        const auto at = [&](double q) { return bench::quantile(ms.data(), n, q); };
         Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
             ms[n - 1]);
         if(csv)
@@ -2763,7 +2763,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
             releaseVoice(v);
             continue;
         }
-        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Check(&ch->sfx->cache));
+        // (a look, from any thread: S_MixKick's mix on the pool; selectVoices's S_LoadSound moved it up the LRU)
+        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Peek(&ch->sfx->cache));
         const double pos = L.mixer.position(v);
         ch->pos = static_cast<int>(pos);
         const int length = sc ? sc->length : ch->pos;
@@ -2785,6 +2786,36 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     L.mixMs += (ms - L.mixMs) * 0.05;
     bench::add(bench::Spatial, benchStart);
+}
+
+namespace
+{
+
+// The render's mix on the pool (snd_dma.c S_MixKick .. S_MixJoin; ROUND22.md, "Sound mix off the render path").
+jobs::Task mixTask;
+bool mixPosted = false;
+
+} // namespace
+
+extern "C" int VR_SndJobPost(void (*fn)(void*))
+{
+    jobs::Pool* p = jobs::pool();
+    if(!p || mixPosted)
+    {
+        return 0;
+    }
+    mixTask.post(*p, fn, nullptr);
+    mixPosted = true;
+    return 1;
+}
+
+extern "C" void VR_SndJobWait(void)
+{
+    if(mixPosted)
+    {
+        mixTask.wait();
+        mixPosted = false;
+    }
 }
 
 namespace

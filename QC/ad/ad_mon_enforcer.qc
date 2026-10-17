@@ -78,6 +78,8 @@ void()	ad_enf_run8	=[	$run8,		ad_enf_run1	] {ad_ai_run(11);};
 //----------------------------------------------------------------------
 void() ad_enforcer_fire =
 {
+	if (VR_AimCone_Wait(ad_enforcer_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_vec;
 
 	if (!self.enemy) return;
@@ -114,6 +116,8 @@ void()	ad_enf_atk14	=[	$attack10,	ad_enf_run1	] {ad_ai_face();ad_SUB_CheckRefire
 //----------------------------------------------------------------------
 void() ad_defender_ssg =
 {
+	if (VR_AimCone_Wait(ad_defender_ssg, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	if (!self.enemy) return;
 	if (self.health < 1) return;
 
@@ -152,7 +156,9 @@ void()	ad_def_atkgl4	=[	$attack4,	ad_def_atkgl5	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed); };
 void()	ad_def_atkgl5	=[	$attack5,	ad_def_atkgl6	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed); };
-void()	ad_def_atkgl6	=[	$attack6,	ad_def_atkgl7	] {ad_ai_face();
+void()	ad_def_atkgl6	=[	$attack6,	ad_def_atkgl7	] {
+	if (VR_AimCone_Wait(ad_def_atkgl6, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_ai_face();
 	makevectors(self.angles);
 	self.pos1 = self.origin + ad_attack_vector(self.ad_attack_offset);
 	ad_MonsterFireGrenade(self.pos1, self.enemy.origin);
@@ -168,6 +174,8 @@ void()	ad_def_atkgl10=[	$attack10,	ad_enf_run1	]{ad_ai_face();};
 //----------------------------------------------------------------------
 void() ad_eliminator_fire =
 {
+	if (VR_AimCone_Wait(ad_eliminator_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_vec;
 
 	if (!self.enemy) return;

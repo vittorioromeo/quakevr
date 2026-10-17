@@ -10,6 +10,7 @@
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
+#include "vr_verlet.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -149,7 +150,8 @@ struct RopeScratch
     za::Vector<float> lengths;            // each piece between two pins: its length and its points
     za::Vector<int> counts;
     za::Vector<char> pinned;              // each chain point: a pin
-    auto members() { return qvr::mem::list(onLine, lies, samples, points, data, packed, packedFirst, path, from, resampled, lengths, counts, pinned); }
+    za::Vector<float> rests;              // each piece's length (verlet::holdLengths)
+    auto members() { return qvr::mem::list(onLine, lies, samples, points, data, packed, packedFirst, path, from, resampled, lengths, counts, pinned, rests); }
 };
 mem::Scratch<RopeScratch> scratch{"rope"};
 
@@ -396,32 +398,6 @@ void simPoints(const glm::vec3* sim, za::SizeT simCount, const glm::vec3& a, con
     out.pushBack(p.back());
 }
 
-// The polyline `pts[0 .. count - 1]` as `n` + 1 points evenly along it (its ends kept), appended to `out`.
-void resample(const glm::vec3* pts, int count, int n, za::Vector<glm::vec3>& out)
-{
-    float total = 0.f;
-    for(int i = 1; i < count; i++)
-    {
-        total += glm::distance(pts[i - 1], pts[i]);
-    }
-    out.pushBack(pts[0]);
-    int seg = 1;
-    float segStart = 0.f;
-    for(int k = 1; k < n; k++)
-    {
-        const float want = total * static_cast<float>(k) / static_cast<float>(n);
-        while(seg + 1 < count && segStart + glm::distance(pts[seg - 1], pts[seg]) < want)
-        {
-            segStart += glm::distance(pts[seg - 1], pts[seg]);
-            seg++;
-        }
-        const float len = count > 1 ? glm::distance(pts[seg - 1], pts[seg]) : 0.f;
-        const float t = len > 1e-4f ? za::clamp((want - segStart) / len, 0.f, 1.f) : 0.f;
-        out.pushBack(count > 1 ? glm::mix(pts[seg - 1], pts[seg], t) : pts[0]);
-    }
-    out.pushBack(pts[count - 1]);
-}
-
 [[nodiscard]] bool pointInWorld(const glm::vec3& q)
 {
     if(!cl.worldmodel)
@@ -512,7 +488,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
                 for(int i = 0; i < pieces; i++)
                 {
                     const int a = ch.pins[static_cast<za::SizeT>(i)], b = ch.pins[static_cast<za::SizeT>(i) + 1];
-                    resample(v->data() + a, b - a + 1, counts[static_cast<za::SizeT>(i)], out);
+                    verlet::resample(v->data() + a, b - a + 1, counts[static_cast<za::SizeT>(i)], out);
                     out.popBack(); // (the next piece's first)
                 }
                 out.pushBack(v->back());
@@ -537,151 +513,31 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
         ch.p[i] = ch.prev[i] = path[k];
     }
 
-    // Verlet: the free points fall, a little slowed by the air.
+    // Verlet: the free points fall, a little slowed by the air (vr_verlet.cpp, shared with the magnetic holsters' tether).
     za::Vector<glm::vec3>& from = scratch.from;
     from.assignRange(ch.p.data(), ch.p.data() + ch.p.size());
-    const float keep = za::exp(-chainDrag * dt) * (ch.lastDt > 0.f ? dt / ch.lastDt : 1.f);
-    const glm::vec3 fall{0.f, 0.f, -chainGravity * dt * dt};
-    for(za::SizeT i = 0; i < ch.p.size(); i++)
-    {
-        if(!pinned[i])
-        {
-            const glm::vec3 v = (ch.p[i] - ch.prev[i]) * keep;
-            ch.prev[i] = ch.p[i];
-            ch.p[i] += v + fall;
-        }
-    }
+    verlet::fall(ch.p.data(), ch.prev.data(), pinned.data(), ch.p.size(), dt, ch.lastDt, chainDrag, chainGravity);
 
     // The pieces' lengths (the pins fixed).
-    const int iterations = za::clamp(static_cast<int>(vr_grapple_rope_iterations.value), 1, 64);
-    for(int it = 0; it < iterations; it++)
+    za::Vector<float>& rests = scratch.rests;
+    rests.clear();
+    rests.resize(ch.p.size(), 0.f);
+    for(int i = 0; i < pieces; i++)
     {
-        for(int i = 0; i < pieces; i++)
+        const float rest = lengths[static_cast<za::SizeT>(i)] / static_cast<float>(counts[static_cast<za::SizeT>(i)]);
+        for(int j = ch.pins[static_cast<za::SizeT>(i)]; j < ch.pins[static_cast<za::SizeT>(i) + 1]; j++)
         {
-            const float rest = lengths[static_cast<za::SizeT>(i)] / static_cast<float>(counts[static_cast<za::SizeT>(i)]);
-            for(int j = ch.pins[static_cast<za::SizeT>(i)]; j < ch.pins[static_cast<za::SizeT>(i) + 1]; j++)
-            {
-                glm::vec3& a = ch.p[static_cast<za::SizeT>(j)];
-                glm::vec3& b = ch.p[static_cast<za::SizeT>(j) + 1];
-                const float wa = pinned[static_cast<za::SizeT>(j)] ? 0.f : 1.f;
-                const float wb = pinned[static_cast<za::SizeT>(j) + 1] ? 0.f : 1.f;
-                const glm::vec3 d = b - a;
-                const float len = glm::length(d);
-                if(len <= rest || wa + wb <= 0.f)
-                {
-                    continue; // (a rope pulls, it doesn't push: bunched up, its slack lies still rather than shoving)
-                }
-                const glm::vec3 corr = d * ((len - rest) / (len * (wa + wb)));
-                a += corr * wa;
-                b -= corr * wb;
-            }
+            rests[static_cast<za::SizeT>(j)] = rest;
         }
     }
+    const int iterations = za::clamp(static_cast<int>(vr_grapple_rope_iterations.value), 1, 64);
+    verlet::holdLengths(ch.p.data(), pinned.data(), ch.p.size(), rests.data(), iterations, 1.f);
 
     // The world: each free point traced from where it was (stopped on what it meets, the rest of its move slid along it;
     // its speed into it gone, some of its speed along it kept), then each piece (one through the world: its free ends
     // pushed out past where it met it).
     const float rad = za::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
-    for(za::SizeT i = 0; i < ch.p.size(); i++)
-    {
-        if(pinned[i])
-        {
-            continue;
-        }
-        // Lying on the floor: held its thickness over it, its speed into it gone and some of its speed along it lost.
-        // (A point moved only by the trace below sank through the thickness each frame and was put back on top: the
-        // slack on the floor bounced by the thickness, many times a second.)
-        const auto settle = [&] {
-            const trace_t down = worldtrace::world(ch.p[i], ch.p[i] - glm::vec3{0.f, 0.f, rad});
-            if(down.startsolid || down.allsolid || down.fraction >= 1.f)
-            {
-                return;
-            }
-            const glm::vec3 n = worldtrace::normal(down);
-            if(n.z < 0.3f)
-            {
-                return;
-            }
-            const glm::vec3 on = worldtrace::endPos(down) + n * rad;
-            const float up = glm::dot(on - ch.p[i], n);
-            if(up <= 0.f || worldtrace::world(ch.p[i], on).fraction < 1.f)
-            {
-                return;
-            }
-            glm::vec3 v = ch.p[i] - ch.prev[i];
-            v -= n * za::min(0.f, glm::dot(v, n));
-            v -= (v - n * glm::dot(v, n)) * (1.f - chainSlide);
-            ch.p[i] += n * up;
-            ch.prev[i] = ch.p[i] - v;
-        };
-        if(glm::distance(from[i], ch.p[i]) < 1e-4f)
-        {
-            settle();
-            continue;
-        }
-        const glm::vec3 was = from[i], to = ch.p[i];
-        const trace_t tr = worldtrace::world(was, to);
-        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
-        {
-            if(!tr.startsolid && !tr.allsolid)
-            {
-                settle();
-            }
-            continue;
-        }
-        const glm::vec3 n = worldtrace::normal(tr);
-        const glm::vec3 at = worldtrace::endPos(tr) + n * rad;
-        glm::vec3 rest = to - at;
-        rest -= n * glm::dot(rest, n);
-        const trace_t tr2 = worldtrace::world(at, at + rest);
-        if(tr2.startsolid)
-        {
-            ch.p[i] = at;
-        }
-        else if(tr2.fraction < 1.f)
-        {
-            ch.p[i] = worldtrace::endPos(tr2) + worldtrace::normal(tr2) * rad;
-        }
-        else
-        {
-            ch.p[i] = at + rest;
-        }
-        glm::vec3 along = to - was;
-        along -= n * glm::dot(along, n);
-        ch.prev[i] = ch.p[i] - along * chainSlide;
-        settle();
-    }
-    for(za::SizeT i = 0; i + 1 < ch.p.size(); i++)
-    {
-        if(pinned[i] && pinned[i + 1])
-        {
-            continue;
-        }
-        const trace_t tr = worldtrace::world(ch.p[i], ch.p[i + 1]);
-        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
-        {
-            continue;
-        }
-        const glm::vec3 n = worldtrace::normal(tr);
-        const glm::vec3 hit = worldtrace::endPos(tr);
-        for(const za::SizeT j : {i, i + 1})
-        {
-            if(pinned[j])
-            {
-                continue;
-            }
-            const float under = glm::dot(hit - ch.p[j], n) + rad;
-            if(under > 0.f)
-            {
-                const glm::vec3 to = ch.p[j] + n * under;
-                if(worldtrace::world(ch.p[j], to).fraction >= 1.f)
-                {
-                    ch.p[j] = to;
-                    ch.prev[j] += n * under; // (no speed from it)
-                }
-            }
-        }
-    }
+    verlet::collide(ch.p.data(), ch.prev.data(), from.data(), pinned.data(), ch.p.size(), rad, chainSlide);
 
     // As drawn: a piece still through the world goes round what it meets (a point off each side's first hit), so the rope
     // is never drawn through it; the chain itself gets out over the next frames.

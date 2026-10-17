@@ -63,6 +63,7 @@ void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entiti
 int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame)
+void VR_RenderDocPresented (void);	// GL_EndRendering, after the desktop window's present (RenderDoc's frame boundary; vr_renderdoc_status counts them)
 void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
@@ -108,6 +109,8 @@ const char *VR_ParseToken (const char *data, const char **token); // Cmd_Tokeniz
 const char *VR_BuildVersion (void);	// vr_crash.cpp: this build: its version, the last commit's date and short hash ("1.0.0-dev (2026-10-07 9460b8e1)"; "-dirty": changed files)
 const char *VR_Version (void);		// vr_crash.cpp: the version, the repository's VERSION file ("1.0.0"; docs/vr-port/RELEASING.md, "Versions")
 int VR_VersionIsDev (void);		// vr_crash.cpp: 1 unless the release script built this (Misc/release/make_release.ps1)
+const char *VR_BuildInfo (void);	// vr_crash.cpp: "1.1.0-dev build 4321 (abc1234+dirty) 2026-10-17 14:05": the version, the commit count, the commit, the build's local time
+int VR_BuildNumber (void);			// vr_crash.cpp: the commit count (0 without git), always increasing
 void VR_InstallCrashHandler (void);	// main, first: a crash, abort or a CRT fatal error writes quakevr/crash/<date>_<time>.txt (the stack, the map, the build) and .dmp, with a dialog naming them (test runs: none, and qvr_crash.txt too); Zancle's asserts reported (vr_zancle.cpp)
 void VR_SetCrashDir (const char *gamedir);	// Host_Init: the reports go to <gamedir>/crash (before: quakevr/crash in the working directory)
 void VR_ErrorReport (const char *message);	// Sys_ReportError: the error's report, the stack from Sys_Error's caller (VR_LastCrashReport names it)
@@ -155,6 +158,13 @@ const char *VR_RelightIndicator (float *fraction);
 unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
 void VR_ImagePrefetchNote (const char *name, double seconds);
 void VR_ImagePrefetchEnd (void);	// the first map load's end: the workers joined, the rest freed, the list written
+// Mod_LoadTextures (gl_model.c), before its loop: the textures' replacement images (and their glows, the external pack's
+// maps) found and their files read, decoded on worker threads while the loop uploads them in order (vr_texture_prefetch).
+// names: the miptex names; kinds: 0 none (the sky, no name), 1 a liquid, 2 a regular texture.
+void VR_TexturePrefetchBegin (const char *mapname, const char *const *names, const int *kinds, int count);
+void VR_TexturePrefetchEnd (void);	// ... after it: the workers joined, the images not asked for freed
+int VR_ImageCacheHas (const char *name, FILE *f, int length); // VR_ImageCacheFind would find it (no copy)
+int VR_ImageCacheHasName (const char *name); // ... it holds an image looked up by that name (the file not opened)
 unsigned char *VR_ImageCacheFind (const char *name, FILE *f, int length, int *width, int *height, unsigned char *(*alloc) (int bytes, const char *what), const char *what); // decoded before (vr_imgcache.cpp): a copy from alloc, or NULL
 int VR_ImageCachePut (const char *name, FILE *f, int length, unsigned char *pixels, int width, int height); // ... and kept now (1: the cache frees pixels)
 
@@ -162,6 +172,7 @@ int VR_ImageCachePut (const char *name, FILE *f, int length, unsigned char *pixe
 int VR_NormalCacheMode (void);	// vr_normalmap_cache: 0 off, 1 on, 2 check
 int VR_NormalCacheLoad (const char *build, unsigned long long key, unsigned char *rgba, int width, int height);
 void VR_NormalCacheStore (const char *build, unsigned long long key, const unsigned char *rgba, int width, int height);
+void VR_NoteModelLoad (const char *name, double seconds); // a model's load from its file; counted while a map is in play
 void VR_TexCacheFinishWrites (void); // the cache files still being written finished (VR_Shutdown)
 void VR_NormalCacheChecked (int same, const char *name);	// vr_normalmap_cache 2: a map made again against its file	// end of _Host_Frame: the first frame drawn ends the start-up, and a load once signed on
 
@@ -195,14 +206,20 @@ enum
 };
 void VR_GLStep (const char *fmt, ...) FUNC_PRINTF(1,2);	// a breadcrumb, before the GL call it names: the crash report's last steps; gl_startup.log while the game starts
 int VR_GLRecentSteps (char *out, int outSize, int count);	// vr_crash.cpp: the last `count` breadcrumbs, a line each; how many
+// Every run's logs (vr_runlogs.cpp): <game folder>/logs/<date>_<time>/, the last 5 runs kept; the bug report.
+void VR_LogsBegin (void);	// Host_Init after the filesystem: the run's folder, console.log; -bugreport: the report made, exit
+void VR_LogsEnd (void);	// Host_Shutdown: the OpenXR messages' summary
+void VR_LogsSystemLine (const char *line);	// a line of the run's system.txt (the GPU, the runtime)
+void VR_LogsIncident (const char *what);	// a VR start failed, a runtime crash caught, the game crashed: the runtimes' logs copied in
+void VR_LogsInit (void);	// VR_Init: bugreport
 // Diagnostics mode (vr_diagnostics.cpp): -diagnostics or vr_diagnostics 1.
 void VR_DiagnosticsBegin (void);	// Host_Init after the filesystem (-diagnostics), VID_Init (vr_diagnostics): the folder made
 void VR_DiagnosticsOwnOutput (int on);	// Sys_Printf around its OutputDebugString
 int VR_DiagnosticsOn (void);	// nonzero: diagnostics mode this run
 const char *VR_DiagnosticsDir (void);	// its folder ("" when off)
 void VR_DiagnosticsGL (unsigned source, unsigned type, unsigned id, unsigned severity, const char *message);	// a GL debug message: gl_debug.log
-void VR_DiagnosticsXr (const char *severity, const char *messageId, const char *function, const char *message);	// an OpenXR debug message (any thread): openxr_debug.log
-void VR_DiagnosticsNote (const char *line);	// a line of the backend's in openxr_debug.log
+void VR_DiagnosticsXr (const char *severity, const char *messageId, const char *function, const char *message);	// an OpenXR debug message (any thread): the run's openxr_debug.log (vr_runlogs.cpp)
+void VR_DiagnosticsNote (const char *line);	// a line of the backend's in openxr_debug.log (vr_runlogs.cpp)
 void VR_DiagnosticsEnd (int crashed);	// Host_Shutdown (0), the crash handler (1): summaries, the logs copied
 void VR_DiagnosticsInit (void);	// VR_Init: vr_diagnostics_status
 void VR_GLStartupBegin (void);	// VID_Init, before the window: the last start's log read, safe mode decided
@@ -308,7 +325,8 @@ void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fi
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
-void VR_DecalTempEntity (int scorch, const float *pos);	// cl_tent.c: a wall hit (0) or an explosion (1) leaves a mark
+enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DECAL_TE_SUPERSPIKE, QVR_DECAL_TE_MONSTERSPIKE };
+void VR_DecalTempEntity (int what, const float *pos);	// cl_tent.c: a wall hit or an explosion (QVR_DECAL_TE_*) leaves a mark, carved as what made it
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
 void VR_ExplosionDebrisTrail (int ent);					// CL_RelinkEntities, an entity without a trail of Quake's: an explosion's chunk's fire trail (vr_explosiondebris.cpp)
 int VR_GrenadeTrail (int ent);						// CL_RelinkEntities: whether a grenade model smokes (not a hand grenade with its pin in: vr_grenade.qc)
@@ -462,7 +480,7 @@ int VR_NavBack (int state);								// its Back: nonzero if it went back where th
 int VR_MenuMainShowsMods (void);
 int VR_MenuMouseOnButtons (float x, float y);			// M_Mousemove: the spot (menu x, y) on one of the corner's buttons (the menu's rows left alone)						// M_Main_Draw: the main menu's Mods row asked for (vr_menu_main_mods)
 void VR_StartTutorial (void);							// the main menu's VR Tutorial, confirmed: as the Play page's Tutorial (its map's command queued)
-void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vr_hub_map)
+void VR_StartHub (void);								// the main menu's VR Hub, confirmed: as the Play page's VR Hub (vr_campaign_hub: vrstart)
 void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 // Several menu panels (vr_menu.cpp; MULTI_MENU.md): M_Draw draws the first panel's menu (the 2D layer's canvas) whichever
@@ -489,6 +507,7 @@ int VR_MenuHidesPlaque (void);							// M_DrawTransPic: the options pages' verti
 int VR_MenuDrawBanner (int x, int y);					// M_DrawPlaque: the banner where the plaque's top left would be; nonzero if drawn (0: no image, draw the plaque)
 int VR_MenuBannerExtent (int x, float *left, float *right); // M_Main_Draw: where M_DrawPlaque (x, y) puts the banner (or the plaque) across (menu x); 0 if nothing
 void VR_MenuDrawBannerColumn (void);					// M_Draw, before the page: the VR menu style's banner, in the left column under the corner's buttons
+void VR_MenuBrandPreload (void);					// Host_Init, after Draw_Init: the menus' images (the banner, Ko-fi's logo) loaded, not at the first menu draw
 void VR_MenuDrawVersion (void);						// M_Draw, before the page: "Quake VR: Unleashed - v1.0" / "by Vittorio Romeo" / a "Support on Ko-fi" link, in a box in the bottom right corner (vr_menu_version)
 void VR_MenuRecolor (float *params);					// Draw_SetMenuRecolor: the gui shader's MenuRecolor (vr_menu_recolor; x 0: off)
 int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons took the key (a click on one, the sticks' selection on them)
@@ -550,6 +569,8 @@ void VR_SndBypass (portable_samplepair_t *buffer, int count);	// S_PaintChannels
 float VR_SndFullBandAt (const short *data, int length, int loopstart, double pos);	// SND_PaintChannelRate, vr_snd_fullband 2: a band-limited copy between its samples (windowed sinc)
 void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loopstart, int fracstep, short *out, int outcount);	// S_LoadSound: the sound resampled band-limited (ResampleSfx's timing: `fracstep`/256 of its samples an output sample)
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
+int VR_SndJobPost (void (*fn) (void *));			// S_MixKick: fn on the game's thread pool (one at a time); 0 without a pool (not posted)
+void VR_SndJobWait (void);							// S_MixJoin: the posted fn done (run here if no worker has started it)
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 

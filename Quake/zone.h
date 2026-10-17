@@ -93,6 +93,8 @@ char *Hunk_Strdup (const char *s, const char *name);
 
 int	Hunk_LowMark (void);
 void Hunk_FreeToLowMark (int mark);
+void Hunk_KeepLoaded (void); // QVR: a model just loaded on the hunk: no free goes under it (zone.c)
+void Hunk_ClearKeep (void); // QVR: Host_ClearMemory's
 
 void Hunk_Check (void);
 
@@ -104,6 +106,7 @@ typedef struct cache_user_s
 void Cache_Flush (void);
 
 void *Cache_Check (cache_user_t *c);
+void *Cache_Peek (const cache_user_t *c); // QVR: Cache_Check without the LRU's move, from any thread (the sound mix on the pool)
 // returns the cached data, and moves to the head of the LRU list
 // if present, otherwise returns NULL
 

@@ -116,7 +116,8 @@ float IID_ADELIMINATOR       = 54;
 float IID_ADCENTURION        = 55;
 float IID_ADPYRO             = 56;
 float IID_ADFUMIGATOR        = 57;
-float IID_LAST               = 57; // the last item id
+float IID_ADCROSSBOW         = 58; // AD support: the crossbow knight's crossbow (WID_ADCROSSBOW)
+float IID_LAST               = 58; // the last item id
 
 //
 //
@@ -156,7 +157,8 @@ float WID_ADELIMINATOR     = 24; // AD: the eliminator's plasma gun
 float WID_ADCENTURION      = 25; // AD: the centurion's plasma gun
 float WID_ADPYRO           = 26; // AD: the pyro's flamethrower
 float WID_ADFUMIGATOR      = 27; // AD: the fumigator's poison sprayer
-float WID_LAST             = 27; // the last weapon id
+float WID_ADCROSSBOW       = 28; // AD: the crossbow knight's crossbow (vr_ad_enemyguns.qc: AD's bolts; its own bolts only)
+float WID_LAST             = 28; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 // FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
 float vr_tracer_hand;
@@ -227,6 +229,7 @@ float QVR_HS_GRENADE_POUCH          = 11; // the grenade pouch at the small of t
 float QVR_HS_AMMO_POUCH             = 12; // the ammo pouch on the front of the belt (vr_reload_mode 3: vr_reload.qc)
 float QVR_HS_MAGAZINE               = 13;
 float QVR_CFX_INTO_PROP             = 241; // and into the gun lying about given as its entity (vr_reload.qc VR_Reload_IntoProp)
+float QVR_CFX_INTO_HAND             = 242; // into the hand that took it (vr_carry_autocollect: vr_carry.qc VR_Carry_AutoCollect; vr_collectfx.cpp)
 float QVR_CFX_INTO_GUN              = 240; // collectfx's "hotspot" for a round slid into the gun in the other hand (vr_reload.qc; vr_collectfx.cpp) // the magazine attached to the other hand's gun (vr_reload_mode 3: vr_reload.qc)
 
 //
@@ -262,17 +265,6 @@ float QVR_RELOADMODE_HIPHOLSTERS = 2;
 // Manual-immersive (docs/vr-port/RELOAD.md): the guns that load by hand (VR_Reload_ManualFor, vr_reload.qc) take
 // their ammo from the front pouch, one round or magazine at a time; the others reload at the hip holsters, as 2.
 float QVR_RELOADMODE_IMMERSIVE   = 3;
-
-//
-//
-//
-// ----------------------------------------------------------------------------
-// Enum values for `VrWeaponThrowMode'
-// ----------------------------------------------------------------------------
-
-float QVR_WEAPONTHROWMODE_IMMERSIVE      = 0;
-float QVR_WEAPONTHROWMODE_DISAPPEARONHIT = 1;
-float QVR_WEAPONTHROWMODE_DISCARD        = 2;
 
 //
 //

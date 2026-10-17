@@ -1,8 +1,9 @@
 // vr_hull.cpp -- see vr_hull.hpp.
 
-#include "vr_hull.hpp"
+#include "vr_hull_internal.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_brushes.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
@@ -41,6 +42,8 @@
 #include <string.h>
 namespace qvr::hull
 {
+using namespace detail;
+
 namespace
 {
 
@@ -53,82 +56,9 @@ namespace
 constexpr double distEpsilon = 0.03125; // Quake's DIST_EPSILON: how far a move stops short of a surface
 constexpr double onEpsilon = 0.001;     // a winding's point this close to a plane is on it (the build)
 constexpr double bogus = 262144.0;      // a plane's first winding, far past any map (BSP2's included)
-constexpr float minWidth = 8.f, maxWidth = 32.f;
 constexpr float headTop = 5.f; // units: the top of a player's head over the headset's middle (hitBox; QC VR_SHOT_OVER_HEAD)
 
-// A brush's face, outward: inside is dot(normal, p) < dist.
-// A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
-// brushes grows with the box (grows 1); a recovered clip brush's face (see recoverClips) is already grown by Quake's
-// 32 box and shrinks back with a narrower one if it faces the open (grows 1, dist less Quake's box), else stays but for
-// its height (growsZ -1, dist plus Quake's box's: a shorter box's floor under it rises toward it as much; recoverClips).
-struct Plane
-{
-    glm::vec3 normal;
-    float dist;
-    float grows;
-    float growsZ = 0.f; // ... plus growsZ * the box's reach along normal's z alone
-};
-
-struct Brush
-{
-    za::U32 first;
-    za::U32 count;
-    glm::vec3 mins, maxs; // hull 0's: its bounds; a clip brush's: the bounds of the box centres it holds (32 box)
-    bool clip;
-};
-
-// A brush model's brushes: one of the world's submodels (its doors, lifts, func_walls), or an external .bsp's model
-// (maps/b_*.bsp, vrfiringrange's panels and tables), whose hull 0 has its own nodes: its leaves' entries in leafBrush
-// start at `base`.
-struct SubModel
-{
-    const mclipnode_t* clipnodes; // its hull 0's
-    int head;                     // its head node in them
-    za::U32 base;           // its hull 0's leaves in leafBrush: [base + node * 2 + side]
-    za::U32 firstBrush, numBrushes;
-};
-
-// The server map's solid space as brushes: pointers into the hunk (the world's hull 0), released at every map change.
-struct Brushes
-{
-    const mclipnode_t* clipnodes = nullptr; // the hull 0 they were built from (the world's and its brush models')
-    za::Vector<Plane> planes;
-    za::Vector<Brush> brushes;
-    za::Vector<int> leafBrush; // [base + node * 2 + side]: the brush of that child when it is a solid leaf, else -1
-    za::Vector<SubModel> subs; // the world's submodels (0: the world), then external models as they are met
-    za::Vector<int> modelSub;  // [modelindex]: its entry in subs; -1 none (not a brush model), -2 not looked up
-    za::Vector<int> clips;     // the world's recovered clip brushes
-    za::Vector<int> leafClipStart; // [node * 2 + side]: where the clip brushes whose box centres reach into that
-    za::Vector<int> leafClipList;  // leaf of the world's hull 0 (empty or solid) start in leafClipList (and end: +1)
-    mutable za::Vector<za::SizeT> clipStamp; // a clip brush's last test (one per sweep: it is in many leaves)
-    mutable za::SizeT stamp = 0;
-    za::Vector<int> hull1Clip; // [hull 1 node * 2 + side]: a solid leaf's clip brush, -1 not one, -2 not looked at
-    double ms = 0.0;            // the build's time
-    double clipMs = 0.0;        // of which the clip brushes'
-    int bevels = 0;             // planes added as Quake 2's bevels (axial, edge)
-    int dropped = 0;            // solid leaves with no volume left (slivers under the build's epsilon)
-    int hull1Leaves = 0;        // the world's hull 1 solid leaves looked at for clip brushes
-    int numnodes = 0;
-    za::U64 key = 0;            // the world's content (keyOf): what they are kept under for the same map's next load
-    // The world's own (build): external models' brushes, planes and leaves follow (subOf), let go when kept.
-    za::SizeT worldSubs = 0, worldPlanes = 0, worldBrushes = 0, worldLeafBrush = 0;
-    int worldBevels = 0, worldDropped = 0;
-    auto members()
-    {
-        return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
-            clipMs, bevels, dropped, hull1Leaves, numnodes, key, worldSubs, worldPlanes, worldBrushes, worldLeafBrush, worldBevels,
-            worldDropped);
-    }
-};
-
 // Its heap bytes (a kept map's: KeptMap).
-za::SizeT heldBytes(const Brushes& b)
-{
-    return mem::heldBytes(b.planes) + mem::heldBytes(b.brushes) + mem::heldBytes(b.leafBrush) + mem::heldBytes(b.subs) +
-           mem::heldBytes(b.modelSub) + mem::heldBytes(b.clips) + mem::heldBytes(b.leafClipStart) +
-           mem::heldBytes(b.leafClipList) + mem::heldBytes(b.clipStamp) + mem::heldBytes(b.hull1Clip);
-}
-mem::Cache<Brushes> built{"hull brushes", mem::MapChange};
 
 // ---------------------------------------------------------------------------------------------------------------
 // The build: hull 0's tree walked from each model's head node, a convex polytope (faces with their windings)
@@ -671,6 +601,9 @@ void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, za::U32 base, in
 }
 
 // The map as brushes into b (the world's content: key).
+} // namespace
+namespace detail
+{
 void build(Brushes& b, qmodel_t* world, za::U64 key)
 {
     const auto t0 = za::Clock::nowNanoseconds();
@@ -758,11 +691,17 @@ void build(Brushes& b, qmodel_t* world, za::U64 key)
     b.worldBevels = b.bevels;
     b.worldDropped = b.dropped;
 }
+} // namespace detail
+namespace
+{
 
 // What the map's brushes and compiled hulls are made from, hashed (they are kept for a load of a map with the same:
 // keepForReload): hull 0's nodes (the brushes' walk), hull 1's (the clip brushes'), the planes, the models' heads and
 // bounds, and the build's version (to be bumped when a change to the build changes its results).
 constexpr za::U64 buildVersion = 1;
+} // namespace
+namespace detail
+{
 za::U64 keyOf(const qmodel_t* world)
 {
     namespace wy = ankerl::unordered_dense::detail::wyhash;
@@ -793,15 +732,25 @@ za::U64 keyOf(const qmodel_t* world)
     }
     return h ? h : 1; // (0: none)
 }
+} // namespace detail
+namespace
+{
 
+} // namespace
+namespace detail
+{
 float widthSetting()
 {
     return za::clamp(vr_hull_width.value, minWidth, maxWidth);
 }
-
-void settle();
+} // namespace detail
+namespace
+{
 
 // The server's map as brushes, built now if not yet (the setting turned on during a map: a hitch, once).
+} // namespace
+namespace detail
+{
 const Brushes* worldBrushes(qmodel_t* world)
 {
     settle(); // (the map load's builds on the pool)
@@ -817,6 +766,9 @@ const Brushes* worldBrushes(qmodel_t* world)
     }
     return &built;
 }
+} // namespace detail
+namespace
+{
 
 // ---------------------------------------------------------------------------------------------------------------
 // The sweep: Quake 2's CM_RecursiveHullCheck and CM_ClipBoxToBrush, with Quake's rules for a box that starts
@@ -843,7 +795,6 @@ struct Sweep
 
 // Minimum projection of the box portion on this side of a portal. Its vertices are retained box corners and
 // intersections of the twelve edges with the gate plane. Within a corner-crossing interval these move linearly.
-double support(const Plane& p, const glm::dvec3& ext);
 double halfDistance(const Sweep& s, const Plane& p, const glm::dvec3& centre)
 {
     if(!s.halfspace) { return glm::dot(centre, glm::dvec3{p.normal}) - p.dist - support(p, s.ext); }
@@ -873,11 +824,17 @@ double halfDistance(const Sweep& s, const Plane& p, const glm::dvec3& centre)
     return result < 1e29 && p.grows != 1.0 ? glm::dot(centre, n) - p.dist - support(p, s.ext) : result;
 }
 
+} // namespace
+namespace detail
+{
 double support(const Plane& p, const glm::dvec3& ext)
 {
     return p.grows * (za::abs(p.normal.x * ext.x) + za::abs(p.normal.y * ext.y) + za::abs(p.normal.z * ext.z)) +
            p.growsZ * za::abs(p.normal.z * ext.z);
 }
+} // namespace detail
+namespace
+{
 
 void clipToBrush(Sweep& s, const Brush& br)
 {
@@ -1035,6 +992,9 @@ void sweepChild(Sweep& s, int num, int side, double p1f, double p2f, const glm::
     }
 }
 
+} // namespace
+namespace detail
+{
 bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const glm::dvec3& ext)
 {
     for(za::U32 i = 0; i < br.count; ++i)
@@ -1047,6 +1007,9 @@ bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const gl
     }
     return true;
 }
+} // namespace detail
+namespace
+{
 
 // Whether the box at p overlaps a brush of the tree (touching is not: Quake's "d >= 0 is in front").
 bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext, bool clips,
@@ -1096,12 +1059,18 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
 }
 
 // ... or a clip brush (the world's: head 0).
+} // namespace
+namespace detail
+{
 bool boxInSolid(const Brushes& b, const hull_t& hull, int head, const glm::dvec3& p, const glm::dvec3& ext,
-    bool clips = true, za::SizeT base = 0)
+    bool clips, za::SizeT base)
 {
     ++b.stamp;
     return boxInTree(b, hull, head, p, ext, clips && head == 0 && base == 0 && !b.leafClipStart.empty(), base);
 }
+} // namespace detail
+namespace
+{
 
 // The leaves of the world's hull 0 a box reaches into (touching included): a clip brush's box centres.
 void leavesOfBox(const hull_t& hull, int num, const glm::dvec3& lo, const glm::dvec3& hi, za::Vector<int>& out)
@@ -1376,15 +1345,12 @@ void recoverClips(Brushes& b, qmodel_t* world)
     b.clipStamp.resize(b.brushes.size(), 0);
 }
 
-struct Result
-{
-    trace_t trace;
-    int brushTests;
-};
-
 // A box (mins..maxs about the point) from start to end through a model's brushes, in its own space; Quake's trace.
+} // namespace
+namespace detail
+{
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0, const float* halfspace = nullptr)
+    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base, const float* halfspace)
 {
     Result r{};
     trace_t& tr = r.trace;
@@ -1436,79 +1402,28 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     }
     return r;
 }
+} // namespace detail
+namespace
+{
 
 // ---------------------------------------------------------------------------------------------------------------
-// Method A (vr_hull_method 1): a clipping hull compiled for the box at load, as qbsp compiles hull 1. Each of a model's
+// Method A (the moves' only since 2026-10-16, the brush sweep's switch vr_hull_method retired; boxTrace, the sweep,
+// stays for the portals' clipping and as vr_hull_bench's reference): a clipping hull compiled for the box at load, as
+// qbsp compiles hull 1. Each of a model's
 // brushes (hull 0's, with their bevels, and the world's recovered clip brushes) is grown by the box: its planes moved
 // out by the box's reach, which with Quake 2's bevels is exactly the brush's Minkowski sum with the box. A BSP tree is
 // compiled from the grown brushes, their faces the splitting planes: a leaf is solid where one grown brush holds all of
 // it (every face of that brush already split on, the leaf on its inside), empty where none reaches. Being Quake's own
 // clipnodes and planes, it is traced by SV_RecursiveHullCheck exactly as hull 1 is (in the box centre's space).
 
-// A table's planes by planeKey(dist), each key's in the order they were added.
-using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
 long long planeKey(float d)
 {
     return static_cast<long long>(za::floor(d * 4.f));
 }
 
-struct Tree
-{
-    za::Vector<mclipnode_t> nodes;
-    za::Vector<mplane_t> planes;
-    za::Vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
-    // Its planes' index (TreeBuilder), kept from one model's build to the next: the first `indexed` planes are in it. Made
-    // again for each model's build it was most of a big map's allocations (ad_grendel: 5.2 million of 8.5, its 440 brush
-    // models times two trees, each indexing all the tree's planes again).
-    PlaneIndex index;
-    za::SizeT indexed = 0;
-    // What a load of the same map gets back (keepForReload): the tree as the load left it (its world's tree, and the
-    // models prepared with the map: checkpoint), the models' builds after it let go.
-    za::SizeT keptNodes = 0, keptPlanes = 0;
-    int keptSolid = 0, keptEmpty = 0;
-    za::Vector<int> keptHeads; // (empty: nothing to keep)
-    const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
-    glm::vec3 ext{0.f};                        // the half size of the box it was built for
-    int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
-    double ms = 0.0;                           // the builds so far
-    // (developer 1) the world's build on the pool: its brushes grown, its units built, merged; its units' count and the
-    // slowest's build and pieces (the critical path: buildTree)
-    double growMs = 0.0, unitsMs = 0.0, mergeMs = 0.0, slowestMs = 0.0;
-    za::SizeT slowestPieces = 0, units = 0;
-    int solidLeaves = 0, emptyLeaves = 0;
-    bool fromDisk = false;                     // the world's tree read from the disk cache (vr_hull_cache)
-    int cutBack = 0;                           // the world's compile (or file): its pieces cut back (reported by settle)
-    auto members()
-    {
-        return qvr::mem::list(nodes, planes, heads, index, indexed, keptNodes, keptPlanes, keptSolid, keptEmpty, keptHeads,
-            forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone, fromDisk, cutBack, growMs, unitsMs, mergeMs, slowestMs,
-            slowestPieces, units);
-    }
-};
-mem::Cache<Tree> tree{"hull tree", mem::MapChange};
-
 // Its bytes, for a set holding trees (found by the set's heldBytes of a vector of them).
-za::SizeT heldBytes(const Tree& t)
-{
-    return mem::heldBytes(t.nodes) + mem::heldBytes(t.planes) + mem::heldBytes(t.heads) + mem::heldBytes(t.index) +
-           mem::heldBytes(t.keptHeads);
-}
 
-// Monsters' trees (vr_mhull): one per box size their widths ask for (a few: the widths come from the classes'
-// settings); the player's size shares the player's tree.
-struct MonsterTrees
-{
-    za::Vector<Tree> trees;
-    auto members() { return qvr::mem::list(trees); }
-};
-mem::Cache<MonsterTrees> monsterTrees{"hull monster trees", mem::MapChange};
-constexpr za::SizeT maxMonsterTrees = 128; // reserved before asynchronous builds: their Tree pointers remain stable
 cvar_t vr_hull_audit = {"vr_hull_audit", "0", CVAR_NONE};
-struct HullAudit
-{
-    za::U64 slots = 0, clears = 0, runtimeBuilds = 0;
-};
-HullAudit hullAudit;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Kept for a reload (vr_hull_keep; PROFILING_2026-10.md, decision 1): at a map change the map's brushes and trees are
@@ -1535,6 +1450,9 @@ bool keepable(const Tree& t)
 }
 
 // Back to its checkpoint, its pointer cleared (kept).
+} // namespace
+namespace detail
+{
 void cutBack(Tree& t)
 {
     if(t.indexed == t.planes.size())
@@ -1561,8 +1479,14 @@ void cutBack(Tree& t)
     t.emptyLeaves = t.keptEmpty;
     t.forClipnodes = nullptr;
 }
+} // namespace detail
+namespace
+{
 
 // The world's own brushes (external models' let go), its pointers cleared (kept).
+} // namespace
+namespace detail
+{
 void cutBack(Brushes& b)
 {
     b.subs.resize(b.worldSubs);
@@ -1577,34 +1501,20 @@ void cutBack(Brushes& b)
         sm.clipnodes = nullptr;
     }
 }
-
-struct KeptMap
+} // namespace detail
+namespace
 {
-    za::U64 key = 0;
-    Brushes brushes;
-    Tree player;                // (its heads empty: none)
-    za::Vector<Tree> monsters;
-};
 
-za::SizeT heldBytes(const KeptMap& k)
+} // namespace
+namespace detail
 {
-    return heldBytes(k.brushes) + heldBytes(k.player) + mem::heldBytes(k.monsters);
-}
-
-struct KeptMaps
-{
-    za::Vector<KeptMap> maps; // the most recent last
-    za::U64 hits = 0, misses = 0; // loads that got theirs back, loads that built them
-    auto members() { return qvr::mem::list(maps, hits, misses); }
-};
-// Kept across game folder changes too (a map package mounted and let go): the key is the map's content, and nothing
-// in them points anywhere while kept. Only counted (vr_memstats); vr_hull_keep bounds it.
-mem::Cache<KeptMaps> kept{"hull kept maps", mem::Never};
-
 za::SizeT keepLimit()
 {
     return static_cast<za::SizeT>(za::clamp(static_cast<int>(vr_hull_keep.value), 0, 8));
 }
+} // namespace detail
+namespace
+{
 
 // The oldest let go, past the setting's count.
 void trimKept()
@@ -2874,7 +2784,10 @@ void growAllOnPool(TreeBuilder& tb, const Brushes& b, const za::Vector<const Bru
 // The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own). Only t is written:
 // trees for different boxes are built at once on the pool (report false there: the pieces cut back are returned, for
 // the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
-int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true)
+} // namespace
+namespace detail
+{
+int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch, bool report)
 {
     const auto t0 = za::Clock::nowNanoseconds();
     TreeBuilder tb{t};
@@ -2972,6 +2885,9 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
     t.ms += za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
     return tb.rebounded;
 }
+} // namespace detail
+namespace
+{
 
 jobs::Site modelsSite{"hull models"}; // (buildModelsAtOnce's units and merges: vr_jobs_sites)
 
@@ -3118,6 +3034,9 @@ void buildModelsAtOnce(const za::Vector<Tree*>& sizes, const Brushes& b, const z
 }
 
 // Quake's trace of a point (the box's centre) through a model's tree.
+} // namespace
+namespace detail
+{
 trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::vec3& end)
 {
     trace_t tr;
@@ -3134,7 +3053,13 @@ trace_t treeTrace(const Tree& t, int head, const glm::vec3& start, const glm::ve
     SV_RecursiveHullCheck(&h, head, 0.f, 1.f, a, e, &tr);
     return tr;
 }
+} // namespace detail
+namespace
+{
 
+} // namespace
+namespace detail
+{
 int clientNum(const edict_t* ent)
 {
     if(!ent || qcvm != &sv.qcvm || !qcvm->edicts || qcvm->edict_size <= 0)
@@ -3144,6 +3069,9 @@ int clientNum(const edict_t* ent)
     const za::PtrDiffT bytes = reinterpret_cast<const byte*>(ent) - reinterpret_cast<const byte*>(qcvm->edicts);
     return static_cast<int>(bytes / qcvm->edict_size);
 }
+} // namespace detail
+namespace
+{
 
 float hull1Height(const qmodel_t* world)
 {
@@ -3267,6 +3195,9 @@ void crouchStatus_f()
 }
 
 // The player's width against entities' boxes: 0 Quake's (off).
+} // namespace
+namespace detail
+{
 float entWidthSetting()
 {
     const float v = vr_hull_ent_width.value;
@@ -3276,13 +3207,22 @@ float entWidthSetting()
     }
     return v > 0.f ? za::clamp(v, minWidth, maxWidth) : 0.f;
 }
+} // namespace detail
+namespace
+{
 
 // The player's width that shots, missiles and splash traces hit (vr_hull_hit_width): 0 Quake's (off).
+} // namespace
+namespace detail
+{
 float hitWidthSetting()
 {
     const float v = vr_hull_hit_width.value;
     return v > 0.f && v < maxWidth ? za::clamp(v, minWidth, maxWidth) : 0.f;
 }
+} // namespace detail
+namespace
+{
 
 // A box narrowed to the width about its centre, its height kept.
 void narrowBox(const float* mins, const float* maxs, float width, float* boxMins, float* boxMaxs)
@@ -3320,30 +3260,6 @@ bool categoryOn(const edict_t* other)
 // own box's; Quake's hull height kept: 56 for hull 1's, 88 for hull 2's). A width narrower than their box also meets
 // other bodies (vr_mhull_ents) and tests ledges with its corners (vr_mhull_ledges).
 
-struct MonsterClass
-{
-    const char* classname;
-    const char* name;
-    cvar_t* width;
-};
-const MonsterClass monsterClasses[] = {
-    {"monster_army", "Grunt", &vr_mhull_army},
-    {"monster_dog", "Rottweiler", &vr_mhull_dog},
-    {"monster_ogre", "Ogre", &vr_mhull_ogre},
-    {"monster_knight", "Knight", &vr_mhull_knight},
-    {"monster_hell_knight", "Death Knight", &vr_mhull_hknight},
-    {"monster_ranged_knight", "Ranged Knight", &vr_mhull_hknight}, // (Dawn of the Machine's: the death knight's width)
-    {"monster_zombie", "Zombie", &vr_mhull_zombie},
-    {"monster_wizard", "Scrag", &vr_mhull_wizard},
-    {"monster_demon1", "Fiend", &vr_mhull_demon},
-    {"monster_shambler", "Shambler", &vr_mhull_shambler},
-    {"monster_super_shambler", "Super Shambler", &vr_mhull_shambler}, // (Dawn of the Machine's: the shambler's width)
-    {"monster_shalrath", "Vore", &vr_mhull_shalrath},
-    {"monster_enforcer", "Enforcer", &vr_mhull_enforcer},
-    {"monster_fish", "Rotfish", &vr_mhull_fish},
-    {"monster_tarbaby", "Spawn", &vr_mhull_tarbaby},
-};
-constexpr int monsterClassCount = static_cast<int>(sizeof(monsterClasses) / sizeof(monsterClasses[0]));
 constexpr float minMonsterWidth = 16.f;
 
 // Each edict's class (an index in monsterClasses, -1 none), for the classname it had when looked up.
@@ -3355,6 +3271,9 @@ struct ClassCache
 };
 mem::Cache<ClassCache> classCache{"hull monster classes", mem::MapChange};
 
+} // namespace
+namespace detail
+{
 int monsterClassOf(const edict_t* ent)
 {
     const int num = clientNum(ent);
@@ -3386,6 +3305,9 @@ int monsterClassOf(const edict_t* ent)
     }
     return c.classes[i];
 }
+} // namespace detail
+namespace
+{
 
 float hull2Height(const qmodel_t* world)
 {
@@ -3394,6 +3316,9 @@ float hull2Height(const qmodel_t* world)
 }
 
 // Quake's hull for a box of this width (SV_HullForEntity: hull 1 up to 32, else hull 2): its width and height.
+} // namespace
+namespace detail
+{
 void quakeHull(float size, float& width, float& height)
 {
     const bool one = size <= 32.f;
@@ -3402,8 +3327,14 @@ void quakeHull(float size, float& width, float& height)
     width = width > 0.f ? width : (one ? 32.f : 64.f);
     height = one ? hull1Height(sv.worldmodel) : hull2Height(sv.worldmodel);
 }
+} // namespace detail
+namespace
+{
 
 // A class's width for its monsters' box (size) and Quake's hull for it: 0 when they keep Quake's hull.
+} // namespace
+namespace detail
+{
 float classWidth(int cls, float size, float quake)
 {
     const float v = monsterClasses[cls].width->value;
@@ -3415,6 +3346,9 @@ float classWidth(int cls, float size, float quake)
     const float c = za::max(w, minMonsterWidth);
     return c < quake ? c : 0.f;
 }
+} // namespace detail
+namespace
+{
 
 // A live monster of a known class moving with its narrower width (vr_mhull): its width, and the height its world
 // clipping keeps (Quake's hull's).
@@ -3552,6 +3486,9 @@ Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
 }
 
 // The tree already made (or being made) for this box, if any (no slot taken).
+} // namespace
+namespace detail
+{
 Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext)
 {
     if(tree.forClipnodes == clipnodes && tree.ext == ext)
@@ -3567,20 +3504,9 @@ Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext)
     }
     return nullptr;
 }
-
-// The map load's builds on the pool (beforeLoad, spawned): the map as brushes, then the player's and the monsters'
-// trees, made while the server spawns the map; settle() waits for them (every use of the brushes or the trees first).
-// While they run, the main thread touches neither `built` nor the trees being made.
-struct Pending
+} // namespace detail
+namespace
 {
-    jobs::Future<void> brushes;         // build(): the map as brushes
-    za::Vector<Tree*> trees;           // being compiled, each by its job below (after the brushes)
-    za::Vector<jobs::Future<void>> run;
-    glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
-    double posted = 0.0;                // when the builds were handed out (the load's report)
-    bool kept = false;                  // the brushes (and the trees found) the last load's of the same map
-};
-Pending pending;
 
 // The trees for these boxes whose world model (sub 0) is not compiled yet: their slots taken (their order kept, each
 // once; the player's size is the player's tree); none being compiled already (pending).
@@ -3633,32 +3559,33 @@ void reportTree(const Tree& t, int rebounded)
 // ---------------------------------------------------------------------------------------------------------------
 // The world's compiled trees kept on disk (vr_hull_cache): `<gamedir>/cache/hulls/<build>/<world>_<box>.hul`, <world>
 // the world's content (keyOf: hull 0's and hull 1's nodes, the planes, the models' heads), <box> the tree's box, <build>
-// this file's compile time (changed code never reads an old tree). A tree is the same bytes whenever the same brushes are
+// the compile's version (treeVersion: bumped when the compile changes). A tree is the same bytes whenever the same brushes are
 // compiled for the same box (the build on the pool is the build on one thread's, node for node), so a file is that
 // build's result: a cold start of a big map reads it instead of compiling it (vrstart: four trees of 1.2-1.4 million
 // nodes, 9 s of 32 threads). Only trees that took diskMinMs or more are written (a small map's build is about as quick
 // as its file). A file is read and checked (magic, version, sizes, the world and the box, every node's numbers, a sum of
 // its bytes) on the tree's own job; anything amiss is compiled again and written over. Written beside its place and
 // renamed (another copy of the game never reads half a file). The first use in a session under a game directory
-// removes the other builds' folders and the oldest files past diskBudget. vr_hull_cache 2: read, then compiled anyway
+// removes the other builds' folders and the oldest files past its budget (vr_diskcache.cpp: 1 GB). vr_hull_cache 2: read, then compiled anyway
 // and compared (vr_hull_stats counts them).
 
 constexpr char diskMagic[4] = {'Q', 'V', 'R', 'H'};
 constexpr za::U32 diskVersion = 1;
 constexpr double diskMinMs = 250.0;
-constexpr za::U64 diskBudget = 1024ull << 20; // bytes in the build's folder (vrstart's four trees: 105 MB)
+
+// The trees' compile version: BUMP IT whenever a change to the compile (growing, the units, speculate, merging, the
+// rebounding, their constants) could change the tree compiled for the same brushes and box. The disk folder is this,
+// the file layout's version and the brushes' buildVersion (also in keyOf), no longer the build's compile time
+// (2026-10-16, VRTRACE_20261016 D): a new build reads the trees the last one wrote unless the compile changed.
+// vr_hull_cache 2 compiles anyway and compares (a forgotten bump shows as "differed" in vr_hull_stats).
+constexpr za::U32 treeVersion = 1;
 
 za::String makeDiskBuild()
 {
-    const char* stamp = __DATE__ " " __TIME__;
-    za::U64 h = 14695981039346656037ull;
-    for(; *stamp; ++stamp)
-    {
-        h = (h ^ static_cast<unsigned char>(*stamp)) * 1099511628211ull;
-    }
-    char build[24];
-    snprintf(build, sizeof(build), "%016llx", static_cast<unsigned long long>(h));
-    return build;
+    const za::U32 parts[] = {treeVersion, diskVersion, static_cast<za::U32>(buildVersion),
+        static_cast<za::U32>(sizeof(mclipnode_t)), static_cast<za::U32>(sizeof(mplane_t))};
+    static_assert(sizeof(za::U32) == sizeof(unsigned));
+    return diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
 }
 const za::String diskBuild = makeDiskBuild(); // (made before main, only read)
 
@@ -3708,78 +3635,6 @@ struct DiskJob
     za::U64 world = 0;
 };
 
-// The disk cache's counts this session (vr_hull_stats), added to by the trees' jobs.
-struct DiskCounts
-{
-    std::atomic<int> read{0}, written{0}, missed{0}, rejected{0}, same{0}, differed{0};
-    std::atomic<long long> readUs{0};
-};
-DiskCounts diskCounts;
-za::Vector<za::String> diskPruned; // the cache roots pruned this session (the main thread)
-
-za::String diskRoot()
-{
-    return za::String{com_gamedir} + "/cache/hulls";
-}
-
-// The first use in a session under a game directory (the main thread, before the trees' jobs are posted): the other
-// builds' folders removed, then the oldest files (by their last write) until the build's folder is within diskBudget.
-void diskPrune()
-{
-    const za::String root = diskRoot();
-    if(za::find(diskPruned.begin(), diskPruned.end(), root) != diskPruned.end())
-    {
-        return;
-    }
-    diskPruned.pushBack(root);
-    za::Vector<za::String> others;
-    files::forEachEntry(root.cStr(), [&](const char* name, bool) {
-        if(strcmp(name, diskBuild.cStr()) != 0)
-        {
-            others.pushBack(root + "/" + name);
-        }
-    });
-    for(const za::String& other : others)
-    {
-        files::removeAll(other.cStr());
-    }
-    struct Entry
-    {
-        za::String path;
-        za::I64 time;
-        za::U64 bytes;
-    };
-    za::Vector<Entry> entries;
-    za::U64 total = 0;
-    const za::String dir = root + "/" + diskBuild;
-    files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
-        if(!isDirectory)
-        {
-            Entry e{dir + "/" + name, 0, 0};
-            e.time = files::lastWriteTime(e.path.cStr());
-            e.bytes = files::fileSize(e.path.cStr());
-            total += e.bytes;
-            entries.pushBack(ZA_MOVE(e));
-        }
-    });
-    if(total > diskBudget)
-    {
-        za::quickSort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.time < b.time; });
-        for(const Entry& e : entries)
-        {
-            if(total <= diskBudget * 3 / 4)
-            {
-                break;
-            }
-            if(files::remove(e.path.cStr()))
-            {
-                total -= e.bytes;
-            }
-        }
-    }
-    files::createDirectories(dir.cStr());
-}
-
 // The tree's job's disk (the main thread): off with the setting.
 DiskJob diskJob(const Tree& t, qmodel_t* world)
 {
@@ -3790,21 +3645,23 @@ DiskJob diskJob(const Tree& t, qmodel_t* world)
         d.mode = 0;
         return d;
     }
-    diskPrune();
     d.world = keyOf(world);
     char name[96];
     snprintf(name, sizeof(name), "/%016llx_%g_%g_%g.hul", static_cast<unsigned long long>(d.world),
         static_cast<double>(t.ext.x), static_cast<double>(t.ext.y), static_cast<double>(t.ext.z));
-    d.path = diskRoot() + "/" + diskBuild + name;
+    // (the folder made, the other builds' and the oldest files past the budget removed: once a session, vr_diskcache.cpp)
+    d.path = diskcache::prepare(diskcache::Product::Hulls, diskBuild.cStr()) + name;
     return d;
 }
 
 // The world's tree read into t (a fresh tree, its heads sized) and checked; false: no file, or one amiss (t untouched).
 bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
 {
+    const double t0 = Sys_DoubleTime();
     FILE* in = Sys_fopen(d.path.cStr(), "rb");
     if(!in)
     {
+        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree)");
         return false;
     }
     Sys_fseek(in, 0, SEEK_END);
@@ -3844,8 +3701,11 @@ bool diskRead(Tree& t, const DiskJob& d, int& rebounded)
     if(!ok)
     {
         ++diskCounts.rejected;
+        diskcache::noteRejected(diskcache::Product::Hulls);
+        diskcache::noteMiss(diskcache::Product::Hulls, "(the world's tree, rejected)");
         return false;
     }
+    diskcache::noteHit(diskcache::Product::Hulls, static_cast<size_t>(size), Sys_DoubleTime() - t0);
     t.nodes = ZA_MOVE(nodes);
     t.planes = ZA_MOVE(planes);
     t.index.clear(); // (made again by the next build that needs it: TreeBuilder)
@@ -3875,29 +3735,14 @@ void diskWrite(const Tree& t, const DiskJob& d, int rebounded)
     h.empty = t.emptyLeaves;
     h.rebounded = rebounded;
     h.sum = diskSumOf(t.nodes, t.planes);
-    char suffix[32];
-    snprintf(suffix, sizeof(suffix), ".%llx.tmp", static_cast<unsigned long long>(za::Clock::nowNanoseconds()));
-    const za::String tmp = d.path + suffix;
-    FILE* out = Sys_fopen(tmp.cStr(), "wb");
-    if(!out)
-    {
-        return;
-    }
-    bool ok = fwrite(&h, 1, sizeof(h), out) == sizeof(h) &&
-              fwrite(t.nodes.data(), sizeof(mclipnode_t), t.nodes.size(), out) == t.nodes.size() &&
-              fwrite(t.planes.data(), sizeof(mplane_t), t.planes.size(), out) == t.planes.size();
-    ok = fclose(out) == 0 && ok;
-    if(ok && files::rename(tmp.cStr(), d.path.cStr()))
+    const diskcache::Part parts[] = {{&h, sizeof(h)}, {t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)},
+        {t.planes.data(), t.planes.size() * sizeof(mplane_t)}};
+    if(diskcache::writeAtomic(d.path, parts, 3))
     {
         ++diskCounts.written;
-    }
-    else
-    {
-        files::remove(tmp.cStr());
+        diskcache::noteWrite(diskcache::Product::Hulls, parts[0].size + parts[1].size + parts[2].size);
     }
 }
-
-za::U32 hashOf(const Tree& t);
 
 // ---------------------------------------------------------------------------------------------------------------
 // The world's trees compiled at once within a memory budget (vr_hull_build_mb). A compile holds its pieces while it
@@ -4045,6 +3890,7 @@ void diskOrCompile(Tree& t, const Brushes& b, GateWork w)
                               ZA_MEMCMP(fresh.nodes.data(), t.nodes.data(), t.nodes.size() * sizeof(mclipnode_t)) == 0 &&
                               ZA_MEMCMP(fresh.planes.data(), t.planes.data(), t.planes.size() * sizeof(mplane_t)) == 0;
             ++(same ? diskCounts.same : diskCounts.differed);
+            diskcache::noteChecked(diskcache::Product::Hulls, same, "(the world's tree)");
         }
         t.cutBack = rebounded;
         return;
@@ -4066,6 +3912,9 @@ void postTree(Tree* t)
         }));
 }
 
+} // namespace
+namespace detail
+{
 void settle()
 {
     if(!pending.brushes.valid())
@@ -4098,8 +3947,14 @@ void settle()
         reportTree(*t, t->cutBack);
     }
 }
+} // namespace detail
+namespace
+{
 
-const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const char* target = nullptr)
+} // namespace
+namespace detail
+{
+const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const char* target)
 {
     settle();
     const bool audit = vr_hull_audit.value != 0.f;
@@ -4140,41 +3995,10 @@ const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const
     }
     return t;
 }
-
-// Exercise more than the old 12-size limit and revisit every compiled world tree.
-za::U32 hashOf(const Tree& t);
-
-void cacheTest_f()
+} // namespace detail
+namespace
 {
-    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
-    settle();
-    const int room = static_cast<int>(maxMonsterTrees - monsterTrees.trees.size());
-    const int count = za::min(room, za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 64, 1, 120));
-    if(count < 1) { Con_Printf("vr_hull_cachetest: no free slots; run on a fresh map\n"); return; }
-    za::Vector<za::U32> hashes;
-    const auto extAt = [](int i) { const float half = 4.f + static_cast<float>(i) / 32.f; return glm::vec3{half, half, 28.f}; };
-    const auto clears = hullAudit.clears;
-    const Tree* first = nullptr;
-    for(int i = 0; i < count; ++i)
-    {
-        const Tree& t = treeFor(built, 0, extAt(i), "(cachetest)");
-        if(i == 0) first = &t;
-        hashes.pushBack(hashOf(t));
-    }
-    const auto builds = hullAudit.runtimeBuilds;
-    bool ok = hullAudit.clears == clears;
-    for(int i = 0; i < count; ++i)
-    {
-        ok = ok && hashOf(treeFor(built, 0, extAt(i), "(cachetest)")) == hashes[static_cast<za::SizeT>(i)];
-    }
-    ok = ok && hullAudit.runtimeBuilds == builds && findSlot(built.clipnodes, extAt(0)) == first;
-    Con_Printf("vr_hull_cachetest: %s sizes=%d slots=%zu limit=%zu clears=%llu retained=%zu\n", ok ? "PASS" : "FAIL",
-        count, monsterTrees.trees.size(), maxMonsterTrees, static_cast<unsigned long long>(hullAudit.clears - clears),
-        monsterTrees.bytes());
-}
 
-// Diagnostic control: prebuild loaded brush models for the box sizes already in the cache.
-// Runs synchronously only when requested; shifts first-touch work out of a subsequent capture.
 void warmCache_f()
 {
     if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
@@ -4202,241 +4026,6 @@ void warmCache_f()
         tree.bytes() + monsterTrees.bytes());
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Test aids: vr_hull_bench (numbers) and vr_hull_walktest (a random walk looking for stuck and fall-through).
-
-struct Bench
-{
-    double ns = 0.0;
-    int brushTests = 0;
-};
-
-// Hull 0's solid points in Quake's player box at p (a 2-unit grid): the bench's check of what it reports.
-constexpr int boxGridPoints = 17 * 17 * 29;
-int hull0PointsInBox(const hull_t& hull0, const glm::vec3& p)
-{
-    int solid = 0;
-    for(float x = -16.f; x <= 16.f; x += 2.f)
-    {
-        for(float y = -16.f; y <= 16.f; y += 2.f)
-        {
-            for(float z = -24.f; z <= 32.f; z += 2.f)
-            {
-                vec3_t q{p.x + x, p.y + y, p.z + z};
-                const int contents = SV_HullPointContents(const_cast<hull_t*>(&hull0), 0, q);
-                solid += contents == CONTENTS_SOLID ? 1 : (contents == CONTENTS_SKY ? 100000 : 0);
-            }
-        }
-    }
-    return solid;
-}
-
-// FNV-1a over the build's results (vr_hull_stats: the same on the pool and on one thread).
-struct Hash
-{
-    za::U32 h = 2166136261u;
-    template <class T>
-    void add(const T& v)
-    {
-        const auto* p = reinterpret_cast<const unsigned char*>(&v);
-        for(za::SizeT i = 0; i < sizeof(T); ++i)
-        {
-            h = (h ^ p[i]) * 16777619u;
-        }
-    }
-};
-
-za::U32 hashOf(const Brushes& b)
-{
-    Hash h;
-    for(const Plane& q : b.planes)
-    {
-        h.add(q.normal);
-        h.add(q.dist);
-        h.add(q.grows);
-        h.add(q.growsZ);
-    }
-    for(const Brush& br : b.brushes)
-    {
-        h.add(br.first);
-        h.add(br.count);
-        h.add(br.mins);
-        h.add(br.maxs);
-        h.add(br.clip);
-    }
-    for(const int v : b.leafBrush)
-    {
-        h.add(v);
-    }
-    for(const int v : b.clips)
-    {
-        h.add(v);
-    }
-    for(const int v : b.leafClipStart)
-    {
-        h.add(v);
-    }
-    for(const int v : b.leafClipList)
-    {
-        h.add(v);
-    }
-    for(const int v : b.hull1Clip)
-    {
-        h.add(v);
-    }
-    for(const SubModel& sm : b.subs)
-    {
-        h.add(sm.head);
-        h.add(sm.firstBrush);
-        h.add(sm.numBrushes);
-    }
-    h.add(b.bevels);
-    h.add(b.dropped);
-    h.add(b.hull1Leaves);
-    return h.h;
-}
-
-// The world's tree (its models' trees, compiled when first met, follow in the same arrays): its nodes from the root,
-// with their numbers and planes.
-za::U32 hashOf(const Tree& t)
-{
-    Hash h;
-    const int root = t.heads.empty() ? -1 : t.heads[0];
-    za::Vector<int> stack{root};
-    while(!stack.empty())
-    {
-        const int num = stack.back();
-        stack.popBack();
-        h.add(num);
-        if(num < 0)
-        {
-            continue;
-        }
-        const mclipnode_t& n = t.nodes[static_cast<za::SizeT>(num)];
-        const mplane_t& p = t.planes[static_cast<za::SizeT>(n.planenum)];
-        h.add(n.planenum);
-        h.add(p.normal);
-        h.add(p.dist);
-        h.add(p.type);
-        h.add(p.signbits);
-        stack.pushBack(n.children[1]);
-        stack.pushBack(n.children[0]);
-    }
-    return h.h;
-}
-
-void stats_f()
-{
-    if(!sv.active || !sv.worldmodel)
-    {
-        Con_Printf("vr_hull_stats: no map\n");
-        return;
-    }
-    const Brushes* b = worldBrushes(sv.worldmodel);
-    if(!b)
-    {
-        return;
-    }
-    const za::SizeT bytes = built.bytes();
-    Con_Printf("hull: %s: %d nodes (hulls 1-2: %d clipnodes), %d brushes (%d clip), %d planes (%d bevels), %d slivers "
-               "dropped, %.0f KB, built in %.1f ms (clip brushes %.1f); width %g (%s)\n",
-        sv.worldmodel->name, b->numnodes, sv.worldmodel->numclipnodes, static_cast<int>(b->brushes.size()),
-        static_cast<int>(b->clips.size()), static_cast<int>(b->planes.size()), b->bevels, b->dropped, bytes / 1024.0,
-        b->ms, b->clipMs, vr_hull_width.value > 0.f ? widthSetting() : 0.f,
-        vr_hull_width.value > 0.f ? "on" : "off: Quake's hull 1");
-    Con_Printf("hull: hash brushes %08x (stamp %u)\n", hashOf(*b), static_cast<unsigned>(b->stamp));
-    int external = 0;
-    for(za::SizeT i = 0; i < b->subs.size(); ++i)
-    {
-        external += b->subs[i].clipnodes != b->clipnodes;
-    }
-    const Tree& t = tree;
-    Con_Printf("hull: %d brush models (%d external .bsp); method %s; compiled hull: %s%d nodes, %d planes, %d solid "
-               "and %d empty leaves, %.0f KB, %s in %.1f ms\n",
-        static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
-        t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
-        static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0,
-        t.fromDisk ? "read from the disk cache" : "built", t.ms);
-    if(t.forClipnodes == b->clipnodes)
-    {
-        Con_Printf("hull: hash tree %gx%g %08x\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t));
-    }
-    Con_Printf("hull_audit: cache slots=%zu limit=%zu new_slots=%llu clears=%llu runtime_builds=%llu (since map load)\n",
-        monsterTrees.trees.size(), maxMonsterTrees, static_cast<unsigned long long>(hullAudit.slots),
-        static_cast<unsigned long long>(hullAudit.clears), static_cast<unsigned long long>(hullAudit.runtimeBuilds));
-    // The monsters' (vr_mhull).
-    double ms = 0.0;
-    int count = 0;
-    for(const Tree& m : static_cast<MonsterTrees&>(monsterTrees).trees)
-    {
-        if(m.forClipnodes != b->clipnodes)
-        {
-            continue;
-        }
-        ++count;
-        ms += m.ms;
-        Con_Printf("hull: monsters' tree %gx%g: %d nodes, %d planes, %.0f KB, %s in %.1f ms\n", m.ext.x * 2.f,
-            m.ext.z * 2.f, static_cast<int>(m.nodes.size()), static_cast<int>(m.planes.size()), heldBytes(m) / 1024.0,
-            m.fromDisk ? "read from the disk cache" : "built", m.ms);
-        Con_Printf("hull: hash tree %gx%g %08x\n", m.ext.x * 2.f, m.ext.z * 2.f, hashOf(m));
-    }
-    Con_Printf("hull: monsters (vr_mhull %s): %d trees, %.0f KB, built in %.1f ms\n", vr_mhull.value != 0.f ? "on" : "off",
-        count, monsterTrees.bytes() / 1024.0, ms);
-    Con_Printf("hull: kept for reloads (vr_hull_keep %d): %d other maps, %.0f KB; this load's %s; %llu loads got theirs "
-               "back, %llu built them\n",
-        static_cast<int>(keepLimit()), static_cast<int>(kept.maps.size()), kept.bytes() / 1024.0,
-        pending.kept ? "kept from its last load" : "built", static_cast<unsigned long long>(kept.hits),
-        static_cast<unsigned long long>(kept.misses));
-    Con_Printf("hull: disk cache (vr_hull_cache %d, this session): %d trees read (%.1f ms), %d compiled (no file), %d "
-               "written, %d files amiss; compared (2): %d the same, %d different\n",
-        static_cast<int>(vr_hull_cache.value), diskCounts.read.load(), static_cast<double>(diskCounts.readUs.load()) / 1000.0,
-        diskCounts.missed.load(), diskCounts.written.load(), diskCounts.rejected.load(), diskCounts.same.load(),
-        diskCounts.differed.load());
-}
-
-// vr_hull_keeptest: the map's brushes and its trees' world models built again from scratch, their hashes against the
-// server's (kept from the last load or built with this one: they must be the same).
-void keepTest_f()
-{
-    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel))
-    {
-        Con_Printf("vr_hull_keeptest: no map\n");
-        return;
-    }
-    qmodel_t* world = sv.worldmodel;
-    Brushes fresh;
-    build(fresh, world, keyOf(world));
-    Brushes live = built; // (the world's own, as a reload keeps them: what a fresh build makes)
-    cutBack(live);
-    bool ok = hashOf(live) == hashOf(fresh) && built.key == fresh.key;
-    Con_Printf("vr_hull_keeptest: brushes %08x, fresh %08x; key %016llx, fresh %016llx\n", hashOf(live), hashOf(fresh),
-        static_cast<unsigned long long>(built.key), static_cast<unsigned long long>(fresh.key));
-    int trees = 0;
-    auto check = [&](const Tree& t)
-    {
-        if(t.forClipnodes != built.clipnodes || t.heads.empty() || t.heads[0] < 0)
-        {
-            return;
-        }
-        Tree f;
-        f.ext = t.ext;
-        f.heads.resize(fresh.subs.size(), -1);
-        buildTree(f, fresh, 0, nullptr, false);
-        const bool same = hashOf(f) == hashOf(t);
-        ok = ok && same;
-        ++trees;
-        Con_Printf("vr_hull_keeptest: tree %gx%g %08x, fresh %08x%s\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t), hashOf(f),
-            same ? "" : " (differs)");
-    };
-    check(tree);
-    for(const Tree& t : monsterTrees.trees)
-    {
-        check(t);
-    }
-    Con_Printf("vr_hull_keeptest: %s (%d trees; this load's %s)\n", ok ? "PASS" : "FAIL", trees,
-        pending.kept ? "kept from its last load" : "built");
-}
-
 // vr_mhull_reset: every class's width back to its own box's (the settings' defaults).
 void reset_f()
 {
@@ -4446,1004 +4035,18 @@ void reset_f()
     }
 }
 
-// vr_hull_bench [traces] [width]: random moves from where Quake's player box fits (hull 1), each through hull 1,
-// through the brushes with the same 32x32x56 box (they should agree, but for clip brushes: hull 1 only), and with
-// the narrow box; times and disagreements (the first few printed, with what hull 0 has there).
-void bench_f()
+// The world's brushes and its hull for the player's box: built with the map or the setting (not at the first move: a
+// hitch in play).
+} // namespace
+namespace detail
 {
-    if(!sv.active || !sv.worldmodel)
-    {
-        Con_Printf("vr_hull_bench [traces] [width]: needs a map\n");
-        return;
-    }
-    const int count = Cmd_Argc() > 1 ? za::max(100, Q_atoi(Cmd_Argv(1))) : 20000;
-    const float width = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), minWidth, maxWidth)
-                                       : (vr_hull_width.value > 0.f ? widthSetting() : 20.f);
-    qmodel_t* world = sv.worldmodel;
-    built.clipnodes = nullptr; // time a fresh build
-    const Brushes* b = worldBrushes(world);
-    if(!b)
-    {
-        return;
-    }
-    hull_t* hull1 = &world->hulls[1];
-    const hull_t& hull0 = world->hulls[0];
-    const glm::vec3 wmins{world->mins[0], world->mins[1], world->mins[2]};
-    const glm::vec3 wmaxs{world->maxs[0], world->maxs[1], world->maxs[2]};
-    za::FastNonCryptoRng rng{1234u}; // the same points every run
-    const auto u01 = [&rng] { return rng.getF(0.f, 1.f); };
-    auto randomPoint = [&] { return wmins + (wmaxs - wmins) * glm::vec3{u01(), u01(), u01()}; };
-
-    za::Vector<glm::vec3> starts, ends;
-    int tries = 0;
-    while(static_cast<int>(starts.size()) < count && tries < count * 200)
-    {
-        ++tries;
-        glm::vec3 p = randomPoint();
-        vec3_t v{p.x, p.y, p.z};
-        if(SV_HullPointContents(hull1, hull1->firstclipnode, v) == CONTENTS_SOLID)
-        {
-            continue;
-        }
-        glm::vec3 dir{u01() * 2.f - 1.f, u01() * 2.f - 1.f, u01() * 2.f - 1.f};
-        if(glm::length(dir) < 0.1f)
-        {
-            continue;
-        }
-        starts.pushBack(p);
-        ends.pushBack(p + glm::normalize(dir) * (u01() * 256.f));
-    }
-    const int n = static_cast<int>(starts.size());
-    if(!n)
-    {
-        Con_Printf("vr_hull_bench: no room found\n");
-        return;
-    }
-    const glm::vec3 m32{-16.f, -16.f, -24.f}, M32{16.f, 16.f, 32.f};
-    const glm::vec3 mw{-width * 0.5f, -width * 0.5f, -24.f}, Mw{width * 0.5f, width * 0.5f, 32.f};
-    za::Vector<trace_t> stock(n), box32(n), boxw(n);
-    Bench bs, b32, bw;
-    // Each set twice, the second timed (the first warms the caches).
-    for(int pass = 0; pass < 2; ++pass)
-    {
-        auto t0 = za::Clock::nowNanoseconds();
-        for(int i = 0; i < n; ++i)
-        {
-            trace_t& tr = stock[i];
-            memset(&tr, 0, sizeof(tr));
-            tr.fraction = 1.f;
-            tr.allsolid = true;
-            vec3_t a{starts[i].x, starts[i].y, starts[i].z}, e{ends[i].x, ends[i].y, ends[i].z};
-            VectorCopy(e, tr.endpos);
-            SV_RecursiveHullCheck(hull1, hull1->firstclipnode, 0.f, 1.f, a, e, &tr);
-        }
-        bs.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
-        b32.brushTests = bw.brushTests = 0;
-        t0 = za::Clock::nowNanoseconds();
-        for(int i = 0; i < n; ++i)
-        {
-            const Result r = boxTrace(*b, hull0, 0, starts[i], m32, M32, ends[i]);
-            box32[i] = r.trace;
-            b32.brushTests += r.brushTests;
-        }
-        b32.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
-        t0 = za::Clock::nowNanoseconds();
-        for(int i = 0; i < n; ++i)
-        {
-            const Result r = boxTrace(*b, hull0, 0, starts[i], mw, Mw, ends[i]);
-            boxw[i] = r.trace;
-            bw.brushTests += r.brushTests;
-        }
-        bw.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
-    }
-
-    // Agreement of the two 32 boxes: more than a unit apart along the move. Hull 1 stopping much sooner (8 units or
-    // more) is a clip brush or qbsp's own expansion; a little sooner, qbsp's rounder corners.
-    int agree = 0, stockShorter = 0, stockMuch = 0, brushShorter = 0, brushStartSolid = 0, wider = 0;
-    float worstStock = 0.f, worstBrush = 0.f;
-    for(int i = 0; i < n; ++i)
-    {
-        const float len = glm::distance(starts[i], ends[i]);
-        const float fs = stock[i].allsolid ? 0.f : stock[i].fraction, fb = box32[i].allsolid ? 0.f : box32[i].fraction;
-        if(box32[i].startsolid && !stock[i].startsolid)
-        {
-            ++brushStartSolid;
-            if(brushStartSolid <= 3)
-            {
-                Con_Printf("  brush startsolid at %.0f %.0f %.0f: hull 0 solid points in the box %d of %d\n",
-                    starts[i].x, starts[i].y, starts[i].z, hull0PointsInBox(hull0, starts[i]), boxGridPoints);
-            }
-        }
-        const float gap = (fb - fs) * len;
-        if(za::abs(gap) <= 1.f)
-        {
-            ++agree;
-        }
-        else if(gap > 0.f)
-        {
-            ++stockShorter;
-            stockMuch += gap >= 8.f;
-            if(gap >= 8.f && stockMuch <= 3)
-            {
-                // Hull 0's points in the box half a unit into the face hull 1 stopped at: none, and hull 1 has solid that
-                // hull 0 has not (a clip brush).
-                const glm::vec3 past = glm::vec3{stock[i].endpos[0], stock[i].endpos[1], stock[i].endpos[2]} +
-                                       glm::vec3{stock[i].plane.normal[0], stock[i].plane.normal[1], stock[i].plane.normal[2]} * -0.5f;
-                int key = -1;
-                for(int num = hull1->firstclipnode; num >= 0;)
-                {
-                    const mclipnode_t& nd = hull1->clipnodes[num];
-                    const mplane_t& pl = hull1->planes[nd.planenum];
-                    const int side = pl.normal[0] * past.x + pl.normal[1] * past.y + pl.normal[2] * past.z - pl.dist < 0.f;
-                    key = num * 2 + side;
-                    num = nd.children[side];
-                }
-                const int cls = key >= 0 && key < static_cast<int>(b->hull1Clip.size()) ? b->hull1Clip[key] : -3;
-                Con_Printf("  hull1 stops %.0f units sooner at %.0f %.0f %.0f: hull 0 solid points in the box %d, hull 1 "
-                           "leaf %d: %d; brushes say solid %d\n",
-                    gap, stock[i].endpos[0], stock[i].endpos[1], stock[i].endpos[2], hull0PointsInBox(hull0, past), key,
-                    cls, boxInSolid(*b, hull0, 0, glm::dvec3{past} + glm::dvec3{0.0, 0.0, 4.0}, glm::dvec3{16.0, 16.0, 28.0}, false) ? 1 : 0);
-            }
-            worstStock = za::max(worstStock, gap);
-        }
-        else
-        {
-            ++brushShorter;
-            worstBrush = za::max(worstBrush, -gap);
-        }
-        if(!boxw[i].startsolid && boxw[i].fraction + 1e-4f < fb)
-        {
-            ++wider; // the narrow box stopped sooner than the wide one: never expected
-        }
-    }
-    Con_Printf("hullbench %s: build %.1f ms (clips %.1f: %d of %d hull 1 leaves), %d brushes, %d planes; %d moves: hull1 %.0f ns, brush32 %.0f ns (%.1f "
-               "brushes), brush%g %.0f ns (%.1f brushes)\n",
-        world->name, b->ms, b->clipMs, static_cast<int>(b->clips.size()), b->hull1Leaves,
-        static_cast<int>(b->brushes.size()), static_cast<int>(b->planes.size()), n, bs.ns, b32.ns,
-        static_cast<double>(b32.brushTests) / n, width, bw.ns, static_cast<double>(bw.brushTests) / n);
-    Con_Printf("hullbench %s: 32 vs hull1: %.2f%% agree (1 unit); hull1 shorter %d (%d by 8+, worst %.1f); brush "
-               "shorter %d (worst %.1f); brush startsolid %d; narrow stopped sooner %d\n",
-        world->name, 100.0 * agree / n, stockShorter, stockMuch, worstStock, brushShorter, worstBrush, brushStartSolid,
-        wider);
-
-    // Method A: the hulls compiled for the 32 box (against hull 1: how close qbsp's own is) and for the width (against
-    // the sweep: both methods should agree), each built fresh and timed.
-    auto compile = [&](Tree& t, const glm::vec3& mins, const glm::vec3& maxs)
-    {
-        t.ext = (maxs - mins) * 0.5f;
-        t.forClipnodes = b->clipnodes;
-        t.heads.clear();
-        t.heads.resize(b->subs.size(), -1);
-        buildTree(t, *b, 0);
-    };
-    auto treeBytes = [](const Tree& t)
-    { return t.nodes.capacity() * sizeof(mclipnode_t) + t.planes.capacity() * sizeof(mplane_t); };
-    Tree a32, aw;
-    compile(a32, m32, M32);
-    compile(aw, mw, Mw);
-    za::Vector<trace_t> tree32(n), treew(n);
-    Bench ba32, baw;
-    for(int pass = 0; pass < 2; ++pass)
-    {
-        for(int k = 0; k < 2; ++k)
-        {
-            const Tree& t = k ? aw : a32;
-            const glm::vec3 centre = k ? (mw + Mw) * 0.5f : (m32 + M32) * 0.5f;
-            za::Vector<trace_t>& out = k ? treew : tree32;
-            const auto t0 = za::Clock::nowNanoseconds();
-            for(int i = 0; i < n; ++i)
-            {
-                out[i] = treeTrace(t, t.heads[0], starts[i] + centre, ends[i] + centre);
-            }
-            (k ? baw : ba32).ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
-        }
-    }
-    // Agreement within a unit along the move; startsolid differing.
-    auto compare = [&](const za::Vector<trace_t>& x, const za::Vector<trace_t>& y, int& same, int& xSooner, int& ySooner,
-                       int& solidDiff, const char* what)
-    {
-        same = xSooner = ySooner = solidDiff = 0;
-        int shown = 0;
-        for(int i = 0; i < n; ++i)
-        {
-            const float len = glm::distance(starts[i], ends[i]);
-            const float fx = x[i].allsolid ? 0.f : x[i].fraction, fy = y[i].allsolid ? 0.f : y[i].fraction;
-            solidDiff += (x[i].startsolid != 0) != (y[i].startsolid != 0);
-            const float gap = (fy - fx) * len;
-            if(za::abs(gap) <= 1.f)
-            {
-                ++same;
-                continue;
-            }
-            (gap > 0.f ? xSooner : ySooner)++;
-            if(za::abs(gap) >= 8.f && shown++ < 2)
-            {
-                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, za::abs(gap), starts[i].x,
-                    starts[i].y, starts[i].z, gap > 0.f ? "first" : "second");
-            }
-        }
-    };
-    int s1, x1, y1, d1, s2, x2, y2, d2;
-    compare(tree32, stock, s1, x1, y1, d1, "hull32 vs hull1");
-    compare(treew, boxw, s2, x2, y2, d2, "hullw vs brushw");
-    Con_Printf("hullbench %s: method A: compiled 32 in %.1f ms (%d nodes, %d planes, %.0f KB; hull 1 has %d nodes), %g in "
-               "%.1f ms (%d nodes, %.0f KB); hull32 %.0f ns, hull%g %.0f ns\n",
-        world->name, a32.ms, static_cast<int>(a32.nodes.size()), static_cast<int>(a32.planes.size()),
-        treeBytes(a32) / 1024.0, world->hulls[1].lastclipnode - world->hulls[1].firstclipnode + 1, width, aw.ms,
-        static_cast<int>(aw.nodes.size()), treeBytes(aw) / 1024.0, ba32.ns, width, baw.ns);
-    Con_Printf("hullbench %s: method A: hull32 vs hull1 %.2f%% agree (hull32 sooner %d, hull1 sooner %d, startsolid "
-               "differs %d); hull%g vs brush%g %.2f%% agree (hull sooner %d, brush sooner %d, startsolid differs %d)\n",
-        world->name, 100.0 * s1 / n, x1, y1, d1, width, width, 100.0 * s2 / n, x2, y2, d2);
-}
-
-// The random walk: each server frame (VR_ClientPreMove) the first player is driven in a random direction at run
-// speed (a new one every so often, now and then a jump), and put down somewhere random (on the floor, where the
-// box fits) every few seconds. Counted: frames the box starts in solid (stuck), frames its centre is inside hull 0
-// solid (in a wall or through the floor), and frames outside the world.
-struct WalkTest
-{
-    double until = 0.0;
-    double nextTurn = 0.0;
-    double nextJump = 0.0;
-    double nextHop = 0.0;
-    float yaw = 0.f;
-    za::U32 seed = 1;
-    int frames = 0, stuck = 0, embedded = 0, outside = 0, hops = 0, hopFails = 0, stuckAfterHop = 0, moverHops = 0, stuckOther = 0;
-    double travelled = 0.0;
-    glm::vec3 last{0.f};
-    bool lastValid = false;
-};
-WalkTest walkTest;
-
-za::U32 nextRandom(za::U32& s)
-{
-    s ^= s << 13;
-    s ^= s >> 17;
-    s ^= s << 5;
-    return s;
-}
-
-float random01(za::U32& s)
-{
-    return static_cast<float>(nextRandom(s) & 0xffffff) / 16777216.f;
-}
-
-// Somewhere random the player's box stands (on a floor, in the open, not in liquid).
-bool hop(edict_t* ent)
-{
-    qmodel_t* world = sv.worldmodel;
-    glm::vec3 wmins{world->mins[0], world->mins[1], world->mins[2]};
-    glm::vec3 wmaxs{world->maxs[0], world->maxs[1], world->maxs[2]};
-    WalkTest& w = walkTest;
-    // Every other hop near a door, lift, train or button (a pusher), if the map has any.
-    if(random01(w.seed) < 0.5f)
-    {
-        int count = 0;
-        edict_t* chosen = nullptr;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
-        {
-            edict_t* e = EDICT_NUM(i);
-            if(!e->free && static_cast<int>(e->v.solid) == SOLID_BSP && static_cast<int>(e->v.movetype) == MOVETYPE_PUSH &&
-                random01(w.seed) * static_cast<float>(++count) < 1.f)
-            {
-                chosen = e; // reservoir sampling: each pusher alike
-            }
-        }
-        if(chosen)
-        {
-            wmins = glm::vec3{chosen->v.absmin[0] - 96.f, chosen->v.absmin[1] - 96.f, chosen->v.absmin[2]};
-            wmaxs = glm::vec3{chosen->v.absmax[0] + 96.f, chosen->v.absmax[1] + 96.f, chosen->v.absmax[2] + 128.f};
-            ++w.moverHops;
-        }
-    }
-    for(int attempt = 0; attempt < 400; ++attempt)
-    {
-        glm::vec3 p = wmins + (wmaxs - wmins) * glm::vec3{random01(w.seed), random01(w.seed), random01(w.seed)};
-        vec3_t v{p.x, p.y, p.z};
-        if(SV_PointContents(v) != CONTENTS_EMPTY)
-        {
-            continue;
-        }
-        vec3_t down{p.x, p.y, p.z - 4096.f};
-        const trace_t tr = SV_Move(v, ent->v.mins, ent->v.maxs, down, MOVE_NOMONSTERS, ent);
-        if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f)
-        {
-            continue;
-        }
-        vec3_t at;
-        VectorCopy(tr.endpos, at);
-        if(SV_PointContents(at) != CONTENTS_EMPTY)
-        {
-            continue;
-        }
-        vec3_t was;
-        VectorCopy(ent->v.origin, was);
-        VectorCopy(at, ent->v.origin);
-        if(SV_TestEntityPosition(ent)) // on a monster: somewhere else
-        {
-            VectorCopy(was, ent->v.origin);
-            continue;
-        }
-        ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
-        SV_LinkEdict(ent, false);
-        w.lastValid = false;
-        return true;
-    }
-    return false;
-}
-
-// vr_mhull_walktest: the level's monsters walked (pathing with vr_mhull on or off). Mode 0 (random walk): their AI
-// stopped, each is sent by movetogoal (16 units a tenth of a second, the id AI's step) to a floor spot 96-384 units away
-// in a random direction, a new one when it gets there (within 32 units across, 48 up or down) or after 8 seconds.
-// Mode 1 (patrol): their own AI left running (notarget the player first), the path_corners they reach counted. For
-// each class: the units walked, stuck (2-second spells moving less than 16 units), drops (a walker 20 units lower than
-// a tenth of a second before: off a ledge, or a lift), in solid (tenths of a second SV_TestEntityPosition finds its box
-// in something), embedded (its origin in the world's solid) and the goals reached.
-
-struct MonsterWalk
-{
-    struct Mon
-    {
-        int num = 0, cls = 0;
-        glm::vec3 last{0.f}, windowStart{0.f}, goal{0.f};
-        double windowUntil = 0.0, goalUntil = 0.0;
-        int oldThink = 0, lastGoal = 0;
-        bool patrols = false;
-    };
-    struct Counts
-    {
-        int monsters = 0, patrollers = 0, steps = 0, stuck = 0, drops = 0, inSolid = 0, embedded = 0, reached = 0,
-            given = 0, corners = 0;
-        double moved = 0.0;
-    };
-    za::Vector<Mon> mons;
-    Counts counts[monsterClassCount];
-    double until = 0.0, nextStep = 0.0, started = 0.0;
-    za::U32 seed = 1;
-    int mode = 0;
-    edict_t* goal = nullptr;
-    za::String then; // a command run at the end (a test's next map)
-};
-MonsterWalk monsterWalk;
-
-// A spot 96-384 units away in a random direction the monster can stand at (a walker: on a floor, not in liquid; a
-// flyer or swimmer: in what it is in now); somewhere that way if none is found.
-glm::vec3 monsterGoal(MonsterWalk& w, const edict_t* e)
-{
-    const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
-    const bool flies = (static_cast<int>(e->v.flags) & (FL_FLY | FL_SWIM)) != 0;
-    vec3_t ov{o.x, o.y, o.z};
-    const int here = SV_PointContents(ov);
-    glm::vec3 p = o;
-    for(int attempt = 0; attempt < 24; ++attempt)
-    {
-        const float yaw = random01(w.seed) * 6.2831853f, d = 96.f + 288.f * random01(w.seed);
-        p = o + glm::vec3{za::cos(yaw) * d, za::sin(yaw) * d, flies ? (random01(w.seed) - 0.5f) * 96.f : 24.f};
-        vec3_t v{p.x, p.y, p.z};
-        if(flies)
-        {
-            if(SV_PointContents(v) == here)
-            {
-                return p;
-            }
-            continue;
-        }
-        if(SV_PointContents(v) != CONTENTS_EMPTY)
-        {
-            continue;
-        }
-        vec3_t down{p.x, p.y, p.z - 160.f};
-        const trace_t tr = SV_Move(v, vec3_origin, vec3_origin, down, MOVE_NOMONSTERS, nullptr);
-        if(tr.startsolid || tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f)
-        {
-            continue;
-        }
-        vec3_t above{tr.endpos[0], tr.endpos[1], tr.endpos[2] + 8.f};
-        if(SV_PointContents(above) != CONTENTS_EMPTY)
-        {
-            continue;
-        }
-        return glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2] - e->v.mins[2]};
-    }
-    return p;
-}
-
-void monsterWalkEnd(MonsterWalk& w)
-{
-    const bool on = vr_mhull.value != 0.f;
-    Con_Printf("mhullwalk %s: mode %s, vr_mhull %d (ents %d, ledges %d), %.0f s\n", sv.worldmodel->name,
-        w.mode ? "patrol" : "random", on, vr_mhull_ents.value != 0.f, vr_mhull_ledges.value != 0.f, sv.qcvm.time - w.started);
-    MonsterWalk::Counts total;
-    for(int k = 0; k < monsterClassCount; ++k)
-    {
-        const MonsterWalk::Counts& c = w.counts[k];
-        if(!c.monsters)
-        {
-            continue;
-        }
-        float width = 0.f, box = 0.f;
-        for(const MonsterWalk::Mon& m : w.mons)
-        {
-            if(m.cls == k)
-            {
-                const edict_t* e = EDICT_NUM(m.num);
-                float quake = 0.f, height = 0.f;
-                box = e->v.size[0];
-                quakeHull(box, quake, height);
-                width = on ? classWidth(k, box, quake) : 0.f;
-                width = width > 0.f ? width : quake;
-                break;
-            }
-        }
-        Con_Printf("mhullwalk %-12s n %2d box %2.0f walls %2.0f: walked %6.0f, stuck %3d, drops %3d, in solid %3d, embedded %2d, "
-                   "goals %3d/%3d, corners %3d (%d patrol)\n",
-            monsterClasses[k].name, c.monsters, box, width, c.moved, c.stuck, c.drops, c.inSolid, c.embedded, c.reached, c.given,
-            c.corners, c.patrollers);
-        total.monsters += c.monsters;
-        total.moved += c.moved;
-        total.stuck += c.stuck;
-        total.drops += c.drops;
-        total.inSolid += c.inSolid;
-        total.embedded += c.embedded;
-        total.reached += c.reached;
-        total.given += c.given;
-        total.corners += c.corners;
-        total.patrollers += c.patrollers;
-    }
-    Con_Printf("mhullwalk total        n %2d: walked %6.0f, stuck %3d, drops %3d, in solid %3d, embedded %2d, goals %3d/%3d, "
-               "corners %3d (%d patrol)\n",
-        total.monsters, total.moved, total.stuck, total.drops, total.inSolid, total.embedded, total.reached, total.given,
-        total.corners, total.patrollers);
-    // Their AI given back (random walk).
-    for(const MonsterWalk::Mon& m : w.mons)
-    {
-        edict_t* e = EDICT_NUM(m.num);
-        if(!e->free && w.mode == 0 && m.oldThink)
-        {
-            e->v.think = m.oldThink;
-            e->v.nextthink = static_cast<float>(sv.qcvm.time + 0.1);
-        }
-    }
-    if(w.goal && !w.goal->free)
-    {
-        ED_Free(w.goal);
-    }
-    w.goal = nullptr;
-    w.until = 0.0;
-    mem::release(w.mons);
-    if(!w.then.empty())
-    {
-        Cbuf_AddText(w.then.cStr());
-        Cbuf_AddText("\n");
-    }
-}
-
-void monsterWalkStep(MonsterWalk& w)
-{
-    const double now = sv.qcvm.time;
-    for(MonsterWalk::Mon& m : w.mons)
-    {
-        edict_t* e = EDICT_NUM(m.num);
-        if(e->free || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
-        {
-            continue;
-        }
-        MonsterWalk::Counts& c = w.counts[m.cls];
-        const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
-        ++c.steps;
-        c.moved += glm::distance(o, m.last);
-        const bool flies = (static_cast<int>(e->v.flags) & (FL_FLY | FL_SWIM)) != 0;
-        if(!flies && o.z < m.last.z - 20.f)
-        {
-            ++c.drops;
-            if(c.drops <= 2)
-            {
-                Con_DPrintf("mhullwalk: %s %d dropped %.0f at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
-                    m.last.z - o.z, o.x, o.y, o.z);
-            }
-        }
-        m.last = o;
-        if(const edict_t* in = SV_TestEntityPosition(e))
-        {
-            if(++c.inSolid <= 2)
-            {
-                Con_Printf("mhullwalk: %s %d in %s at %.0f %.0f %.0f\n", monsterClasses[m.cls].name, m.num,
-                    PR_GetString(in->v.classname), o.x, o.y, o.z);
-            }
-        }
-        vec3_t ov{o.x, o.y, o.z};
-        if(SV_HullPointContents(&sv.worldmodel->hulls[0], 0, ov) == CONTENTS_SOLID)
-        {
-            ++c.embedded;
-        }
-        if(now >= m.windowUntil)
-        {
-            c.stuck += glm::distance(o, m.windowStart) < 16.f && (w.mode == 0 || m.patrols);
-            m.windowStart = o;
-            m.windowUntil = now + 2.0;
-        }
-        if(w.mode == 1)
-        {
-            const int g = e->v.goalentity;
-            if(m.patrols && g != m.lastGoal && g)
-            {
-                c.corners += !strcmp(PR_GetString(PROG_TO_EDICT(g)->v.classname), "path_corner");
-            }
-            m.lastGoal = g;
-            continue;
-        }
-        const glm::vec2 across{o.x - m.goal.x, o.y - m.goal.y};
-        const bool there = glm::length(across) < 32.f && za::abs(o.z - m.goal.z) < 48.f;
-        if(there || now >= m.goalUntil)
-        {
-            c.reached += there;
-            m.goal = monsterGoal(w, e);
-            m.goalUntil = now + 8.0;
-            ++c.given;
-        }
-        VectorCopy(m.goal, w.goal->v.origin);
-        e->v.goalentity = EDICT_TO_PROG(w.goal);
-        e->v.enemy = 0;
-        pr_global_struct->self = EDICT_TO_PROG(e);
-        G_FLOAT(OFS_PARM0) = 16.f;
-        SV_MoveToGoal();
-    }
-}
-
-void monsterWalkFrame()
-{
-    MonsterWalk& w = monsterWalk;
-    if(w.until <= 0.0)
-    {
-        return;
-    }
-    if(sv.qcvm.time < w.started) // a new map
-    {
-        w.until = 0.0;
-        w.goal = nullptr;
-        mem::release(w.mons);
-        return;
-    }
-    if(sv.qcvm.time >= w.until)
-    {
-        monsterWalkEnd(w);
-        return;
-    }
-    if(sv.qcvm.time < w.nextStep)
-    {
-        return;
-    }
-    w.nextStep += 0.1;
-    const int oldSelf = pr_global_struct->self;
-    monsterWalkStep(w);
-    pr_global_struct->self = oldSelf;
-}
-
-void monsterWalk_f()
-{
-    if(Cmd_Argc() < 2 || !sv.active)
-    {
-        Con_Printf("vr_mhull_walktest <seconds> [seed] [mode: 0 random walk, 1 patrol] [command run at the end]: the "
-                   "level's monsters walked; the counts by class at the end\n");
-        return;
-    }
-    MonsterWalk& w = monsterWalk;
-    w.mons.clear();
-    for(MonsterWalk::Counts& c : w.counts)
-    {
-        c = MonsterWalk::Counts{};
-    }
-    w.started = sv.qcvm.time;
-    w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
-    w.nextStep = sv.qcvm.time;
-    w.seed = Cmd_Argc() > 2 ? static_cast<za::U32>(za::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
-    w.mode = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
-    w.then.clear();
-    for(int i = 4; i < Cmd_Argc(); ++i)
-    {
-        w.then += i > 4 ? " " : "";
-        w.then += Cmd_Argv(i);
-    }
-    qvr::srvrandom::seedNow(w.seed); // movetogoal's turns (the server's stream)
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-    w.goal = ED_Alloc();
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
-    {
-        edict_t* e = EDICT_NUM(i);
-        const int cls = e->free ? -1 : monsterClassOf(e);
-        if(cls < 0 || e->v.health <= 0.f || static_cast<int>(e->v.solid) != SOLID_SLIDEBOX)
-        {
-            continue;
-        }
-        MonsterWalk::Mon m;
-        m.num = i;
-        m.cls = cls;
-        m.last = m.windowStart = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
-        m.windowUntil = sv.qcvm.time + 2.0;
-        m.lastGoal = e->v.goalentity;
-        m.patrols = e->v.goalentity && !strcmp(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
-        ++w.counts[cls].monsters;
-        w.counts[cls].patrollers += m.patrols;
-        if(w.mode == 0)
-        {
-            m.oldThink = e->v.think;
-            e->v.nextthink = 0.f; // its AI stopped: the walk moves it
-        }
-        w.mons.pushBack(m);
-    }
-    PR_PopQCVM(oldvm);
-    Con_Printf("vr_mhull_walktest: %d monsters, %s\n", static_cast<int>(w.mons.size()), w.mode ? "patrol" : "random walk");
-}
-
-// vr_hull_probe: which of the map's brushes the first player's narrow box is in, and by how much (the plane it is
-// least inside of): for a "stuck" report.
-void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& p, const glm::dvec3& ext)
-{
-    const mclipnode_t& node = hull.clipnodes[num];
-    const mplane_t& plane = hull.planes[node.planenum];
-    const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
-    const double t = glm::dot(n, p) - plane.dist;
-    const double offset = za::abs(ext.x * n.x) + za::abs(ext.y * n.y) + za::abs(ext.z * n.z);
-    for(int side = 0; side < 2; ++side)
-    {
-        if(side == 0 ? t <= -offset - 1.0 : t >= offset + 1.0)
-        {
-            continue;
-        }
-        const int child = node.children[side];
-        if(child >= 0)
-        {
-            probeTree(b, hull, child, p, ext);
-            continue;
-        }
-        const za::SizeT key = static_cast<za::SizeT>(num) * 2 + side;
-        auto report = [&](int index)
-        {
-            const Brush& br = b.brushes[index];
-            if(!boxInBrush(b, br, p, ext))
-            {
-                return;
-            }
-            double best = -1e300;
-            int bestPlane = -1;
-            for(za::U32 i = 0; i < br.count; ++i)
-            {
-                const Plane& q = b.planes[br.first + i];
-                const double d = glm::dot(p, glm::dvec3{q.normal}) - (q.dist + support(q, ext));
-                if(d > best)
-                {
-                    best = d;
-                    bestPlane = static_cast<int>(i);
-                }
-            }
-            const Plane& q = b.planes[br.first + bestPlane];
-            Con_Printf("  in %s brush %d (%u planes, %.1f %.1f %.1f .. %.1f %.1f %.1f): least inside plane %d "
-                       "(%.6f %.6f %.6f, %.3f) by %.6f\n",
-                br.clip ? "clip" : "hull 0", index, br.count, br.mins.x, br.mins.y, br.mins.z, br.maxs.x, br.maxs.y,
-                br.maxs.z, bestPlane, q.normal.x, q.normal.y, q.normal.z, q.dist, -best);
-        };
-        if(b.leafBrush[key] >= 0)
-        {
-            report(b.leafBrush[key]);
-        }
-        for(int i = b.leafClipStart.empty() ? 0 : b.leafClipStart[key],
-                e = b.leafClipStart.empty() ? 0 : b.leafClipStart[key + 1];
-            i < e; ++i)
-        {
-            report(b.leafClipList[i]);
-        }
-    }
-}
-
-// vr_hull_leafdebug <edict>: a fresh compiled hull for that entity's narrow box, the leaf at its centre described.
-void leafDebug_f()
-{
-    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1;
-    if(!sv.active || !sv.worldmodel || num < 1 || num >= sv.qcvm.num_edicts)
-    {
-        return;
-    }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-    edict_t* ent = EDICT_NUM(num);
-    float lo[3], hi[3];
-    const Brushes* b = worldBrushes(sv.worldmodel);
-    const bool narrow = b && moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi);
-    PR_PopQCVM(oldvm);
-    if(!narrow)
-    {
-        return;
-    }
-    const glm::dvec3 c = glm::dvec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} +
-                         (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
-    Tree t;
-    t.ext = (glm::vec3{hi[0], hi[1], hi[2]} - glm::vec3{lo[0], lo[1], lo[2]}) * 0.5f;
-    t.heads.clear();
-    t.heads.resize(b->subs.size(), -1);
-    buildTree(t, *b, 0, &c);
-    Con_Printf("leaf debug at %.2f %.2f %.2f: %d nodes\n", c.x, c.y, c.z, static_cast<int>(t.nodes.size()));
-}
-
-void probe_f()
-{
-    if(!sv.active || !sv.worldmodel || svs.maxclients < 1)
-    {
-        return;
-    }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
-    const int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 1; // vr_hull_probe <edict>: a monster's (vr_mhull)
-    if(num < 1 || num >= qcvm->num_edicts)
-    {
-        PR_PopQCVM(oldvm);
-        return;
-    }
-    edict_t* ent = EDICT_NUM(num);
-    float lo[3], hi[3];
-    const Brushes* b = worldBrushes(sv.worldmodel);
-    {
-        // Quake's hull there (hull 1 or 2, as SV_HullForEntity picks it).
-        const hull_t& qh = sv.worldmodel->hulls[ent->v.size[0] <= 32.f ? 1 : 2];
-        vec3_t q;
-        for(int i = 0; i < 3; ++i)
-        {
-            q[i] = ent->v.origin[i] - (qh.clip_mins[i] - ent->v.mins[i]);
-        }
-        Con_Printf("vr_hull_probe %d (%s): Quake's hull: %s\n", num, PR_GetString(ent->v.classname),
-            SV_HullPointContents(const_cast<hull_t*>(&qh), qh.firstclipnode, q) == CONTENTS_SOLID ? "solid" : "empty");
-    }
-    const bool narrow = b && moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi);
-    PR_PopQCVM(oldvm);
-    if(!narrow)
-    {
-        Con_Printf("vr_hull_probe: the narrow box is off\n");
-        return;
-    }
-    const glm::dvec3 c = glm::dvec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} +
-                         (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
-    const glm::dvec3 e = (glm::dvec3{hi[0], hi[1], hi[2]} - glm::dvec3{lo[0], lo[1], lo[2]}) * 0.5;
-    Con_Printf("vr_hull_probe at %.3f %.3f %.3f: %s\n", ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
-        boxInSolid(*b, sv.worldmodel->hulls[0], 0, c, e) ? "in solid" : "free");
-    probeTree(*b, sv.worldmodel->hulls[0], 0, c, e);
-    // Method A's compiled hull at the box's centre.
-    const Tree& t = treeFor(built, 0, glm::vec3{e});
-    hull_t h{};
-    h.clipnodes = const_cast<mclipnode_t*>(t.nodes.data());
-    h.planes = const_cast<mplane_t*>(t.planes.data());
-    h.firstclipnode = t.heads[0];
-    h.lastclipnode = static_cast<int>(t.nodes.size()) - 1;
-    vec3_t p{static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.z)};
-    Con_Printf("  compiled hull: %s\n", SV_HullPointContents(&h, h.firstclipnode, p) == CONTENTS_SOLID ? "solid" : "empty");
-}
-
-// vr_hull_approach [classname [n]]: how close the first player's box gets to things, through SV_Move as play moves it.
-// No argument: from where the player stands, in 8 directions, to whatever the box meets first. With a classname: the
-// n-th such entity (0 first), approached from 8 directions round it on its floor; a monster's box also moved into the
-// player (the other way). Each: the gap from the player's centre to the surface it stopped at (Quake's 32 box: 16).
-float centreGap(edict_t* player, const glm::vec3& from, const glm::vec3& dir)
-{
-    vec3_t a{from.x, from.y, from.z}, b{from.x + dir.x * 64.f, from.y + dir.y * 64.f, from.z + dir.z * 64.f};
-    const trace_t tr = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NORMAL, player);
-    return tr.fraction < 1.f ? tr.fraction * 64.f : -1.f;
-}
-
-// vr_hull_hittest [distance] [spread]: shots at the first player (hitscan traces, as a grunt's: aimed at its origin, spread
-// per axis like FireBullets') from 8 directions round it at that distance (300; 0.1), 200 each with a fixed seed: how many
-// hit it with the current Width Shots Hit (vr_hull_hit_width). Directions a wall blocks are left out.
-void hitTest_f()
-{
-    if(!sv.active || svs.maxclients < 1)
-    {
-        Con_Printf("vr_hull_hittest [distance] [spread]: needs a map\n");
-        return;
-    }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
-    const float dist = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 300.f;
-    const float spread = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.1f;
-    edict_t* player = EDICT_NUM(1);
-    const glm::vec3 target{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    za::U32 seed = 12345u;
-    int shots = 0, hits = 0, dirs = 0;
-    for(int k = 0; k < 8; ++k)
-    {
-        const float a = static_cast<float>(k) * 0.785398163f;
-        const glm::vec3 from = target + glm::vec3{za::cos(a), za::sin(a), 0.f} * dist;
-        vec3_t f{from.x, from.y, from.z}, t{target.x, target.y, target.z};
-        const trace_t clear = SV_Move(f, vec3_origin, vec3_origin, t, MOVE_NOMONSTERS, nullptr);
-        if(clear.fraction < 1.f || clear.startsolid || clear.allsolid)
-        {
-            continue; // a wall between, or outside the map
-        }
-        ++dirs;
-        const glm::vec3 aim = glm::normalize(target - from);
-        const glm::vec3 right = glm::normalize(glm::vec3{-aim.y, aim.x, 0.f}), up{0.f, 0.f, 1.f};
-        for(int i = 0; i < 200; ++i)
-        {
-            const float cr = (random01(seed) + random01(seed)) - 1.f, cu = (random01(seed) + random01(seed)) - 1.f;
-            const glm::vec3 end = from + (aim + right * (cr * spread) + up * (cu * spread)) * (dist * 2.f);
-            vec3_t e{end.x, end.y, end.z};
-            const trace_t tr = SV_Move(f, vec3_origin, vec3_origin, e, MOVE_NORMAL, nullptr);
-            ++shots;
-            hits += tr.ent == player ? 1 : 0;
-        }
-    }
-    const float w = hitWidthSetting();
-    Con_Printf("hullhit: width %g, distance %g, spread %g: %d of %d shots hit (%d directions)\n",
-        w > 0.f ? w : 32.f, dist, spread, hits, shots, dirs);
-    PR_PopQCVM(oldvm);
-}
-
-void approachRun();
-
-void approach_f()
-{
-    if(!sv.active)
-    {
-        return;
-    }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
-    approachRun();
-    PR_PopQCVM(oldvm);
-}
-
-void approachRun()
-{
-    if(!sv.active || svs.maxclients < 1)
-    {
-        Con_Printf("vr_hull_approach [classname [n]]: needs a map\n");
-        return;
-    }
-    edict_t* player = EDICT_NUM(1);
-    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    if(Cmd_Argc() < 2)
-    {
-        for(int k = 0; k < 8; ++k)
-        {
-            const float a = static_cast<float>(k) * 0.785398163f;
-            const glm::vec3 dir{za::cos(a), za::sin(a), 0.f};
-            const glm::vec3 end = origin + dir * 256.f;
-            vec3_t s{origin.x, origin.y, origin.z}, e{end.x, end.y, end.z};
-            const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
-            if(tr.fraction >= 1.f)
-            {
-                continue;
-            }
-            const glm::vec3 stop{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
-            Con_Printf("approach %d deg: %s, centre %.2f units from its surface\n", k * 45,
-                tr.ent ? PR_GetString(tr.ent->v.classname) : "?", centreGap(player, stop, dir));
-        }
-        return;
-    }
-    const char* name = Cmd_Argv(1);
-    int nth = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0;
-    edict_t* target = nullptr;
-    for(int i = 1; i < qcvm->num_edicts && !target; ++i)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(!e->free && !strcmp(PR_GetString(e->v.classname), name) && nth-- == 0)
-        {
-            target = e;
-        }
-    }
-    if(!target)
-    {
-        Con_Printf("approach: no %s\n", name);
-        return;
-    }
-    const int solid = static_cast<int>(target->v.solid);
-    const glm::vec3 lo{target->v.absmin[0], target->v.absmin[1], target->v.absmin[2]};
-    const glm::vec3 hi{target->v.absmax[0], target->v.absmax[1], target->v.absmax[2]};
-    const glm::vec3 c = (lo + hi) * 0.5f;
-    if(solid == SOLID_TRIGGER || solid == SOLID_NOT || solid == SOLID_NOT_BUT_TOUCHABLE)
-    {
-        Con_Printf("approach %s at %.0f %.0f %.0f: not solid (solid %d): touched, not met; the player's touch box is Quake's (%.0f wide), "
-                   "so touched with its centre %.1f units from the %s's box\n",
-            name, c.x, c.y, c.z, solid, player->v.maxs[0] - player->v.mins[0], (player->v.maxs[0] - player->v.mins[0]) * 0.5f, name);
-        return;
-    }
-    const float reach = za::max(hi.x - lo.x, hi.y - lo.y) * 0.5f + 40.f;
-    int tried = 0, met = 0;
-    float gapLo = 1e9f, gapHi = -1e9f;
-    for(int k = 0; k < 8; ++k)
-    {
-        const float a = static_cast<float>(k) * 0.785398163f;
-        const glm::vec3 dir{-za::cos(a), -za::sin(a), 0.f}; // towards the entity
-        bool done = false;
-        for(float up = 1.f; up <= 25.f && !done; up += 8.f)
-        {
-            const glm::vec3 start{c.x - dir.x * reach, c.y - dir.y * reach, lo.z + 24.f + up};
-            vec3_t s{start.x, start.y, start.z}, e{c.x, c.y, start.z};
-            const trace_t fit = SV_Move(s, player->v.mins, player->v.maxs, s, MOVE_NORMAL, player);
-            if(fit.startsolid)
-            {
-                continue;
-            }
-            const trace_t tr = SV_Move(s, player->v.mins, player->v.maxs, e, MOVE_NORMAL, player);
-            done = true;
-            ++tried;
-            if(tr.ent != target)
-            {
-                Con_Printf("approach %s %d deg: stopped by %s first\n", name, k * 45,
-                    tr.ent ? PR_GetString(tr.ent->v.classname) : "nothing");
-                continue;
-            }
-            ++met;
-            const glm::vec3 stop{tr.endpos[0], tr.endpos[1], tr.endpos[2]};
-            const float gap = centreGap(player, stop, dir);
-            gapLo = za::min(gapLo, gap);
-            gapHi = za::max(gapHi, gap);
-            // A monster moved into the player standing there (a body's move: it meets the player's box as shown to it).
-            if((static_cast<int>(target->v.flags) & FL_MONSTER) && k == 0)
-            {
-                vec3_t was, back;
-                VectorCopy(player->v.origin, was);
-                VectorCopy(tr.endpos, player->v.origin);
-                player->v.origin[0] -= dir.x * 24.f;
-                player->v.origin[1] -= dir.y * 24.f;
-                SV_LinkEdict(player, false);
-                VectorCopy(target->v.origin, back);
-                vec3_t mend{player->v.origin[0], player->v.origin[1], target->v.origin[2]};
-                const trace_t mt = SV_Move(target->v.origin, target->v.mins, target->v.maxs, mend, MOVE_NORMAL, target);
-                const glm::vec3 pc{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-                // The monster's box face from the player's centre, once moved.
-                VectorCopy(mt.endpos, target->v.origin);
-                SV_LinkEdict(target, false);
-                const float gap = centreGap(player, pc, dir);
-                Con_Printf("approach %s moved into the player: hit %s; player's centre %.2f units from its box\n", name,
-                    mt.ent ? PR_GetString(mt.ent->v.classname) : "nothing", gap);
-                VectorCopy(back, target->v.origin);
-                SV_LinkEdict(target, false);
-                VectorCopy(was, player->v.origin);
-                SV_LinkEdict(player, false);
-            }
-        }
-    }
-    Con_Printf("approach %s (%s at %.0f %.0f %.0f): %d directions tried, %d met it: centre %.2f to %.2f units from its surface\n", name,
-        PR_GetString(target->v.model), c.x, c.y, c.z, tried, met, met ? gapLo : 0.f, met ? gapHi : 0.f);
-}
-
-void walkTest_f()
-{
-    WalkTest& w = walkTest;
-    if(Cmd_Argc() < 2)
-    {
-        Con_Printf("vr_hull_walktest <seconds> [seed]: a random walk of the player (god and notarget it first); "
-                   "the counts at the end\n");
-        return;
-    }
-    w = WalkTest{};
-    w.until = sv.qcvm.time + Q_atof(Cmd_Argv(1));
-    w.seed = Cmd_Argc() > 2 ? static_cast<za::U32>(za::max(1, Q_atoi(Cmd_Argv(2)))) : 1u;
-    w.nextHop = sv.qcvm.time + 4.0;
-    // The level's exits closed (not solid): walking into one would end the walk at the intermission, the player put
-    // at its camera spot (in a ceiling, often) and frozen there.
-    if(sv.active)
-    {
-        qcvm_t* oldvm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldvm);
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
-        {
-            edict_t* e = EDICT_NUM(i);
-            if(!e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
-            {
-                e->v.solid = SOLID_NOT;
-                SV_LinkEdict(e, false);
-            }
-        }
-        PR_PopQCVM(oldvm);
-    }
-}
-
-// The world's brushes, and with method A its hull for the player's box: built with the map or the setting (not at the
-// first move: a hitch in play).
 bool wanted()
 {
-    return sv.worldmodel && vr_hull_method.value != 0.f &&
-           (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
+    return sv.worldmodel && (vr_hull_width.value > 0.f || vr_mhull.value != 0.f || crouchOn());
 }
+} // namespace detail
+namespace
+{
 
 glm::vec3 playerExt(const qmodel_t* world)
 {
@@ -5490,6 +4093,9 @@ za::Vector<glm::vec3> wantedExts(bool loading)
 // The brush models a box can collide with now: those of live edicts that are neither triggers nor SOLID_NOT (the
 // clipping lists never hold those: world.c's SV_ClipToLinks; func_illusionary, every trigger_*). One made solid later,
 // or a model no edict uses yet, is built on its first trace (traceSub's runtime build).
+} // namespace
+namespace detail
+{
 void collidingSubs(za::Vector<za::SizeT>& subs)
 {
     subs.clear();
@@ -5507,6 +4113,9 @@ void collidingSubs(za::Vector<za::SizeT>& subs)
         if(za::find(subs.begin(), subs.end(), s) == subs.end()) subs.pushBack(s);
     }
 }
+} // namespace detail
+namespace
+{
 
 void prepareBrushModels()
 {
@@ -5546,76 +4155,6 @@ void prepareBrushModels()
     }
 }
 
-// Rebuild nodes independently against the same shared plane table. An isolated model's fresh plane table can
-// choose slightly different near-equal planes from the world's table (the builder's existing plane deduplication).
-// Do not fill missing cached heads: the test must catch incomplete preparation.
-void preloadTest_f()
-{
-    if(!sv.active || !wanted() || vr_hull_brushmodels.value == 0.f || !worldBrushes(sv.worldmodel)) return;
-    settle();
-    za::Vector<const Tree*> sizes;
-    if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
-    for(const Tree& t : monsterTrees.trees)
-    {
-        if(t.forClipnodes == built.clipnodes) sizes.pushBack(&t);
-    }
-    int checked = 0, mismatches = 0, missing = 0;
-    za::U32 seed = 17;
-    const auto random = [&seed] { seed = seed * 1664525u + 1013904223u; return static_cast<float>(seed >> 8) / 8388608.f - 1.f; };
-    za::Vector<za::SizeT> wantedSubs; // (the prepared ones: those that can collide)
-    {
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
-        collidingSubs(wantedSubs);
-        PR_PopQCVM(oldVm);
-    }
-    for(const Tree* cached : sizes)
-    {
-        for(const za::SizeT sub : wantedSubs)
-        {
-            if(sub >= cached->heads.size() || cached->heads[sub] < 0) { ++missing; continue; }
-            Tree reference;
-            reference.ext = cached->ext;
-            reference.planes = cached->planes;
-            reference.heads.resize(built.subs.size(), -1);
-            buildTree(reference, built, sub, nullptr, false);
-            const SubModel& sm = built.subs[sub];
-            glm::vec3 lo{0.f}, hi{0.f};
-            for(za::U32 j = 0; j < sm.numBrushes; ++j)
-            {
-                const Brush& br = built.brushes[sm.firstBrush + j];
-                lo = j ? glm::min(lo, br.mins) : br.mins;
-                hi = j ? glm::max(hi, br.maxs) : br.maxs;
-            }
-            const glm::vec3 centre = (lo + hi) * 0.5f;
-            const glm::vec3 reach = (hi - lo) * 0.5f + cached->ext + glm::vec3{16.f};
-            for(int n = 0; n < 128; ++n)
-            {
-                const glm::vec3 start = centre + reach * glm::vec3{random(), random(), random()};
-                const glm::vec3 end = centre + reach * glm::vec3{random(), random(), random()};
-                const trace_t a = treeTrace(*cached, cached->heads[sub], start, end);
-                const trace_t b = treeTrace(reference, reference.heads[sub], start, end);
-                bool same = a.startsolid == b.startsolid && a.allsolid == b.allsolid && fabsf(a.fraction - b.fraction) <= 0.00001f;
-                for(int axis = 0; axis < 3; ++axis) same = same && fabsf(a.endpos[axis] - b.endpos[axis]) <= 0.0001f;
-                if(!same)
-                {
-                    if(mismatches < 5)
-                    {
-                        Con_Printf("preloadtest mismatch sub=%zu size=%gx%gx%g fractions=%.9g/%.9g solid=%d,%d/%d,%d "
-                            "end_delta=%g,%g,%g\n", sub, cached->ext.x * 2.f, cached->ext.y * 2.f, cached->ext.z * 2.f,
-                            a.fraction, b.fraction, a.startsolid, a.allsolid, b.startsolid, b.allsolid,
-                            a.endpos[0] - b.endpos[0], a.endpos[1] - b.endpos[1], a.endpos[2] - b.endpos[2]);
-                    }
-                    ++mismatches;
-                }
-                ++checked;
-            }
-        }
-    }
-    Con_Printf("vr_hull_preloadtest: %s traces=%d missing=%d mismatches=%d\n",
-        checked && !missing && !mismatches ? "PASS" : "FAIL", checked, missing, mismatches);
-}
-
 // World and loaded brush hulls for these boxes, prepared before play (or after a width-setting change).
 void prepare()
 {
@@ -5638,20 +4177,9 @@ void init()
 {
     Cvar_RegisterVariable(&vr_hull_audit);
     Cmd_AddCommand("vr_hull_warmcache", warmCache_f);
-    Cmd_AddCommand("vr_hull_cachetest", cacheTest_f);
-    Cmd_AddCommand("vr_hull_preloadtest", preloadTest_f);
-    Cmd_AddCommand("vr_hull_stats", stats_f);
-    Cmd_AddCommand("vr_hull_keeptest", keepTest_f);
-    Cmd_AddCommand("vr_hull_bench", bench_f);
-    Cmd_AddCommand("vr_hull_walktest", walkTest_f);
-    Cmd_AddCommand("vr_hull_probe", probe_f);
-    Cmd_AddCommand("vr_hull_leafdebug", leafDebug_f);
-    Cmd_AddCommand("vr_hull_approach", approach_f);
-    Cmd_AddCommand("vr_hull_hittest", hitTest_f);
-    Cmd_AddCommand("vr_mhull_walktest", monsterWalk_f);
+    registerDiagCommands(); // vr_hull_cachetest, _preloadtest, _stats, _keeptest, _bench, _walktest, _probe, _leafdebug, _approach, _hittest, vr_mhull_walktest (vr_hull_diag.cpp)
     Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
-    Cvar_SetCallback(&vr_hull_method, onWidthChanged);
     Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
     Cvar_SetCallback(&vr_crouch_hull, onWidthChanged);
@@ -5962,22 +4490,12 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     const glm::vec3 e = glm::vec3{end[0], end[1], end[2]} - origin;
     const glm::vec3 lo{boxMins[0], boxMins[1], boxMins[2]}, hi{boxMaxs[0], boxMaxs[1], boxMaxs[2]};
     ++vr_profcounts.hullchecks;
-    if(vr_hull_method.value != 0.f)
-    {
-        const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
-        trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
-        for(int i = 0; i < 3; ++i)
-        {
-            trace.endpos[i] += origin[i] - centre[i];
-        }
-        return true;
-    }
-    const SubModel& sm = built.subs[static_cast<za::SizeT>(sub)];
-    trace = boxTrace(built, model->hulls[0], sm.head, s, lo, hi, e, sm.base).trace;
+    const glm::vec3 centre = (lo + hi) * 0.5f;
+    const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
+    trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
     for(int i = 0; i < 3; ++i)
     {
-        trace.endpos[i] += origin[i];
+        trace.endpos[i] += origin[i] - centre[i];
     }
     return true;
 }
@@ -6084,24 +4602,15 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     {
         return -1;
     }
-    const Brushes* b = worldBrushes(world);
-    if(!b)
+    if(!worldBrushes(world))
     {
         return -1;
     }
     const float half = (vr_hull_width.value > 0.f ? widthSetting() : 32.f) * 0.5f;
     const glm::vec3 lo{-half, -half, -24.f}, hi{half, half, -24.f + (crouch > 0.f ? crouch : hull1Height(world))};
-    trace_t tr;
-    if(vr_hull_method.value != 0.f)
-    {
-        const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, 0, (hi - lo) * 0.5f);
-        tr = treeTrace(t, t.heads[0], start + centre, end + centre);
-    }
-    else
-    {
-        tr = boxTrace(*b, world->hulls[0], 0, start, lo, hi, end).trace;
-    }
+    const glm::vec3 centre = (lo + hi) * 0.5f;
+    const Tree& t = treeFor(built, 0, (hi - lo) * 0.5f);
+    const trace_t tr = treeTrace(t, t.heads[0], start + centre, end + centre);
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
@@ -6151,116 +4660,6 @@ void updateCrouch(edict_t* ent, const glm::vec3& head)
 bool isCrouched(const edict_t* ent)
 {
     return crouchTop(ent) > 0.f;
-}
-
-void walkTestFrame(edict_t* ent)
-{
-    if(clientNum(ent) == 1)
-    {
-        monsterWalkFrame(); // vr_mhull_walktest
-    }
-    WalkTest& w = walkTest;
-    if(w.until <= 0.0 || clientNum(ent) != 1)
-    {
-        return;
-    }
-    if(sv.qcvm.time >= w.until)
-    {
-        Con_Printf("hullwalk %s: width %g (%s), entities %g, %d frames, %.0f units walked, %d hops (%d near pushers, %d failed), stuck %d "
-                   "(%d right after a hop), in monsters or items %d, embedded %d, outside %d\n",
-            sv.worldmodel->name, vr_hull_width.value > 0.f ? widthSetting() : 32.f,
-            vr_hull_width.value <= 0.f ? "Quake's hull 1" : (vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep"), entWidthSetting() > 0.f ? entWidthSetting() : 32.f,
-            w.frames, w.travelled, w.hops,
-            w.moverHops, w.hopFails, w.stuck, w.stuckAfterHop, w.stuckOther, w.embedded, w.outside);
-        w.until = 0.0;
-        return;
-    }
-    ++w.frames;
-    const glm::vec3 o{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    if(w.lastValid)
-    {
-        w.travelled += glm::distance(o, w.last);
-    }
-    const bool afterHop = !w.lastValid;
-    const glm::vec3 prev = w.last;
-    w.last = o;
-    w.lastValid = true;
-    edict_t* in = SV_TestEntityPosition(ent);
-    if(in && static_cast<int>(in->v.solid) != SOLID_BSP)
-    {
-        if(++w.stuckOther <= 3) // in a monster or an item: not the map's collision
-        {
-            Con_Printf("hullwalk: in %s at %.1f %.1f %.1f\n", PR_GetString(in->v.classname), o.x, o.y, o.z);
-        }
-    }
-    else if(in)
-    {
-        ++w.stuck;
-        w.stuckAfterHop += afterHop;
-        if(w.stuck <= 5)
-        {
-            // In what: an entity, or the world's hull 0 brushes, or (neither) a recovered clip brush.
-            const char* what = in == qcvm->edicts ? "the world's clip brushes" : PR_GetString(in->v.classname);
-            if(in == qcvm->edicts && built.clipnodes)
-            {
-                float lo[3], hi[3];
-                if(moveBox(ent, ent->v.mins, ent->v.maxs, lo, hi))
-                {
-                    const glm::dvec3 c = glm::dvec3{o} + (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
-                    const glm::dvec3 e = (glm::dvec3{hi[0], hi[1], hi[2]} - glm::dvec3{lo[0], lo[1], lo[2]}) * 0.5;
-                    if(boxInSolid(built, sv.worldmodel->hulls[0], 0, c, e, false))
-                    {
-                        what = "the world's hull 0 brushes";
-                    }
-                }
-            }
-            Con_Printf("hullwalk: stuck at %.1f %.1f %.1f in %s (velocity %.0f %.0f %.0f; the frame before at %.1f %.1f %.1f, on %s)\n", o.x, o.y, o.z, what,
-                ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2], prev.x, prev.y, prev.z, ent->v.groundentity ? PR_GetString(PROG_TO_EDICT(ent->v.groundentity)->v.classname) : "nothing");
-        }
-    }
-    vec3_t v{o.x, o.y, o.z};
-    if(SV_HullPointContents(&sv.worldmodel->hulls[0], 0, v) == CONTENTS_SOLID)
-    {
-        ++w.embedded;
-        if(w.embedded <= 5)
-        {
-            Con_Printf("hullwalk: embedded at %.1f %.1f %.1f\n", o.x, o.y, o.z);
-        }
-    }
-    for(int i = 0; i < 3; ++i)
-    {
-        if(o[i] < sv.worldmodel->mins[i] - 64.f || o[i] > sv.worldmodel->maxs[i] + 64.f)
-        {
-            ++w.outside;
-            break;
-        }
-    }
-    if(sv.qcvm.time >= w.nextHop)
-    {
-        if(hop(ent))
-        {
-            ++w.hops;
-        }
-        else
-        {
-            ++w.hopFails;
-        }
-        w.nextHop = sv.qcvm.time + 3.0 + 4.0 * random01(w.seed);
-    }
-    if(sv.qcvm.time >= w.nextTurn)
-    {
-        w.yaw = random01(w.seed) * 6.2831853f;
-        w.nextTurn = sv.qcvm.time + 0.3 + 1.2 * random01(w.seed);
-    }
-    const float speed = 320.f;
-    ent->v.velocity[0] = za::cos(w.yaw) * speed;
-    ent->v.velocity[1] = za::sin(w.yaw) * speed;
-    if(sv.qcvm.time >= w.nextJump && ((int)ent->v.flags & FL_ONGROUND))
-    {
-        ent->v.velocity[2] = 270.f;
-        ent->v.flags = static_cast<float>((int)ent->v.flags & ~FL_ONGROUND);
-        w.nextJump = sv.qcvm.time + 0.5 + 3.0 * random01(w.seed);
-    }
 }
 
 float crouchSpeedMax(edict_t* ent, float maxspeed)

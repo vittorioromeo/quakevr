@@ -88,7 +88,7 @@ bool hasNotice = false;
 
 [[nodiscard]] za::String cachePath()
 {
-    return za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/update_check.txt";
+    return files::baseCacheDir() + "/update_check.txt";
 }
 
 // vr_update_url's feeds (separated by ';' or spaces), else GitHub's.

@@ -92,6 +92,9 @@ void clear();
 // already); and `count` tiny specks thrown up off `normal` where one lands.
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color);
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color);
+// A drop of blood flying (the blood streams' spurts and splashes, vr_bloodstream.cpp): `size` units, fading and shrinking
+// over its `life` seconds as it falls, in `color` (lit already); gone below `floorZ`. From the pool (no allocation).
+void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ);
 
 // Exact burst of additional fire particles for a flame-model source.
 int largeExplosionCount(); // diagnostic: live large textured blast fireballs
@@ -151,6 +154,8 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count);
 void mistTest_f();
 // vr_particle_light_report: the last frame's lit particles (vr_particle_light), their mean light and colour, its cost.
 void lightReport_f();
+// vr_particle_waste_report: the shaded fragments that showed (next to) nothing since the last (vr_debug_particle_waste).
+void wasteReport_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)

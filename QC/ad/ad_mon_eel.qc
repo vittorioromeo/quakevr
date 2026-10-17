@@ -46,6 +46,8 @@ void() ad_eel_run = [ $eswim1, ad_eel_swim ] {
 //============================================================================
 void() ad_eel_plasma =
 {
+	if (VR_AimCone_Wait(ad_eel_plasma, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir;
 
 	// Check if can fire bolt of plasma

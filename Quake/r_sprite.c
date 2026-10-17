@@ -48,6 +48,7 @@ static GLuint softdistances;
 static float batchsoftfade;
 static float batchalpha = 1.f; // QVR: the entity's alpha (soft pass only; see-through: no depth written)
 static entity_t *batchentity; // QVR: retro textures (vr/vr_retro.cpp)
+static qboolean badspritesaid; // QVR: R_DrawSpriteModel_Real's skip, said once (developer 1)
 static mspriteframe_t *batchframe; // QVR
 
 /*
@@ -89,6 +90,8 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 
 	psprite = (msprite_t *) currentent->model->cache.data;
 	frame = currentent->frame;
+	if (!psprite || psprite->numframes <= 0) // QVR: none to draw (R_DrawSpriteModel_Real skips it)
+		return NULL;
 
 	if ((frame >= psprite->numframes) || (frame < 0))
 	{
@@ -110,12 +113,16 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 			float r = DotProduct(vright, axis[0]);
 			int dir = (atan2(r, f)+1.125*M_PI)*(4/M_PI);
 			pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
+			if (!pspritegroup) // QVR
+				return NULL;
 			pspriteframe = pspritegroup->frames[dir&7];
 		}
 	}
 	else
 	{
 		pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
+		if (!pspritegroup || pspritegroup->numframes <= 0) // QVR
+			return NULL;
 		pintervals = pspritegroup->intervals;
 		numframes = pspritegroup->numframes;
 		fullinterval = pintervals[numframes-1];
@@ -224,8 +231,20 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	float			softfade = 0.f; // QVR
 	float			alpha; // QVR
 
+	// QVR: the old Quake explosion sprite (QuakeC's BecomeExplosion and the expansions' copies) is not drawn: the
+	// explosion's particles and debris (vr_particles.cpp, vr_explosiondebris.cpp) are the explosion.
+	if (!strcmp (e->model->name, "progs/s_explod.spr"))
+		return;
+
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;
+	if (!frame || !frame->gltexture) // QVR: a sprite with no frame to draw: skipped, not a crash
+	{
+		if (!badspritesaid)
+			Con_DPrintf ("R_DrawSpriteModel: '%s' frame %d has no picture: not drawn\n", e->model->name, e->frame);
+		badspritesaid = true;
+		return;
+	}
 
 	switch(psprite->type)
 	{

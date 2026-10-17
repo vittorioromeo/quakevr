@@ -187,6 +187,23 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
     </Exec>
+    <!-- The build number (QVR_BUILD_NUMBER: the commit count, always increasing; QVR_BUILD_INFO: "1.1.0-dev build 4321
+         (abc1234+dirty) 2026-10-17 14:05", the menus' bottom left corner and the console): 0 and "unknown" without
+         git. The date is the build's local time, to the minute: the header is rewritten only when its text changes. -->
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildNumber" />
+    </Exec>
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-parse --short=7 HEAD"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildHash" />
+    </Exec>
+    <PropertyGroup>
+      <QvrBuildDirty>0</QvrBuildDirty>
+      <QvrBuildDirty Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">1</QvrBuildDirty>
+      <QvrBuildNumber Condition="'$(QvrGitExit)'!='0' or '$(QvrBuildNumber)'==''">0</QvrBuildNumber>
+      <QvrBuildDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd HH:mm'))</QvrBuildDate>
+    </PropertyGroup>
     <PropertyGroup>
       <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">$(QvrGitCommit)-dirty</QvrVersion>
@@ -196,11 +213,15 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrVersionShown>$(QvrSemver)-dev</QvrVersionShown>
       <QvrVersionShown Condition="'$(QvrDev)'=='0'">$(QvrSemver)</QvrVersionShown>
       <QvrVersion>$(QvrVersionShown) ($(QvrVersion))</QvrVersion>
+      <QvrBuildStamp Condition="'$(QvrGitExit)'=='0'">$(QvrBuildHash)</QvrBuildStamp>
+      <QvrBuildStamp Condition="'$(QvrGitExit)'=='0' and '$(QvrBuildDirty)'=='1'">$(QvrBuildHash)+dirty</QvrBuildStamp>
+      <QvrBuildInfo Condition="'$(QvrGitExit)'=='0'">$(QvrVersionShown) build $(QvrBuildNumber) ($(QvrBuildStamp)) $(QvrBuildDate)</QvrBuildInfo>
+      <QvrBuildInfo Condition="'$(QvrGitExit)'!='0'">$(QvrVersionShown) build 0 (unknown) $(QvrBuildDate)</QvrBuildInfo>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Overwrite="true" WriteOnlyWhenDifferent="true"
-                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" />
-    <Message Importance="normal" Text="Quake VR build $(QvrVersion)" />
+                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;;#define QVR_BUILD_NUMBER $(QvrBuildNumber);#define QVR_BUILD_INFO &quot;$(QvrBuildInfo)&quot;" />
+    <Message Importance="normal" Text="Quake VR build $(QvrBuildInfo)" />
   </Target>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
        without its asserts, except in Debug with QVR_ZANCLE_DEBUG; zancle.vcxproj). -->

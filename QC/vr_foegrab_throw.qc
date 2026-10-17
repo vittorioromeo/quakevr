@@ -258,7 +258,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     m.health = -1;
     if(!VR_AD_NeckSnapKilled(m, self)) // AD support: an AD monster dies by AD's Killed (vr_ad_monsters.qc)
     {
-        if(VR_Decap_IsZombie(m) || m.classname == "monster_mummy")
+        if(VR_Limb_IsZombie(m))
         {
             m.th_die = VR_Decap_ZombieDie; // (its death code gibs it)
         }

@@ -6,6 +6,8 @@
 // the view glows (one texel, from the smallest level) weakens it (vr_bloom_adapt). The result is
 // added by the eye's post-processing (GL_PostProcess, VR_PostProcessBloom), so there is no pass at
 // the scene's full size: eight small passes an eye, all at a sixteenth of the pixels or less.
+// vr_bloom_fast 1 (the default): three levels (the sixteenth the smallest, taking the thirty-second's
+// weight), six passes, and the result added by one tap (ROUND22.md, "Cheaper bloom"); 0 the four.
 
 #pragma once
 
@@ -20,7 +22,7 @@ void apply(GLuint sceneTex, int width, int height);
 // This eye's glow (a quarter of the scene's size), if there is one.
 [[nodiscard]] bool result(unsigned& texture);
 
-// vr_bloom_fast: the glow is added by one bilinear tap instead of four (GL_PostProcess, the window's mirror), its
+// This eye's glow is added by one bilinear tap instead of four (vr_bloom_fast: GL_PostProcess, the window's mirror), its
 // smoothing done at a quarter of the size, in the last level (ROUND21.md, "Shader optimizations: AO, liquids, bloom").
 [[nodiscard]] bool fast();
 

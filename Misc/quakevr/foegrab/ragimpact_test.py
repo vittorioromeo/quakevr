@@ -7,11 +7,16 @@ Cases (all by default):
   slam      a grunt knocked down where it stands, its ragdoll's head taken in the main hand (vr_mock_hand_to ... ragdoll
             head), turned palm down, lifted 0.6 m and slammed down 1.2 m in 0.2 s ten times (the hand kept above the floor: the head about 2.5 m/s): killed, its head popped.
   crush     you dropped 256 units onto a knocked-down grunt (vr_knockdown_test 52): the part under your feet crushed for
-            20 or more; 16 units over the floor by its head (60): nothing; a standing grunt's head from 64 and 128
-            units (59): crushed, harder the higher, popped at 128; 16: nothing; a standing ogre from 256: knocked down.
+            20 or more; 16 units over the floor by its head (60): nothing; a same-level jump onto a settled corpse's
+            head and torso (63) moves its parts (64: 4 units or more; none with vr_ragimpact_crush_push 0); a
+            standing grunt's head from 64 and 128 units (59): crushed, harder the higher, popped at 128; 16: nothing;
+            a standing ogre from 256: knocked down.
   stompwear landings wear heads and limbs: same-level jumps (46 units over the floor, 60) on a down grunt's head pop it
-            in 2-4; 112 units pop it at once (a down grunt; a corpse's head, then its shin, 61); standing grunt,
-            knight, enforcer from 112 over their top: the head pops; ogre, shambler: hurt only.
+            in 1-2 (a thud for each landing before, the gib's sound for the pop); on its torso (63) and its shin (61)
+            it dies in more; 112 units pop it at once (a down grunt; a corpse's head, then its shin, 61); standing
+            grunt, knight, enforcer from 112 over their top: the head pops; ogre, shambler: hurt only.
+  keep      kept down (vr_knockdown_keep_*; own timer 3 s): alone up at 3; hit (65) every 0.5 s: 6.5; hits to 4.3 s:
+            5.3; hits to 1.8 s: 3; dragged by its head and let go at 4 s: 5; held 9 s: 6.5.
   grab      one hand grips a standing grunt: staggered a moment ago (vr_knockdown_test 54) or at a fifth of its health
             (55): knocked down, held as a ragdoll ('manhandle: ... staggered' / 'weak'); healthy and steady: held standing,
             not knocked down; staggering as a ragdoll (a one-hand shove, vr_knockdown_test 21) and taken by a hand: it
@@ -26,12 +31,13 @@ import sys
 KIT = "C:/OHWorkspace/qvr-kit"
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "voxelopt"
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
-CASES = sys.argv[2:] or ["wall", "slam", "crush", "stompwear", "grab"]
+CASES = sys.argv[2:] or ["wall", "slam", "crush", "stompwear", "grab", "keep"]
 MOTIONS = os.path.join(TREE, "quakevr", "motions")  # (git-ignored)
 SCRATCH = os.path.join(TREE, "scratch")
 PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 6;"
        "vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait40;vr_knockdown_debug 1;vr_knockdown_test 56")
-FILTER = "ragimpact|manhandle|limb taken|limb lost|let go of by|foegrab: .*(takes|lifted|held on)|staggered and fell|decap:|limb:|rror|CRASH"
+FILTER = ("ragimpact|manhandle|limb taken|limb lost|let go of by|foegrab: .*(takes|lifted|held on)|staggered and fell|"
+          "knockdown: .*(kept down|get-up due)|decap:|limb:|rror|CRASH")
 SLAMS = 10
 UP, DOWN = float(os.environ.get("SLAM_UP", "0.35")), float(os.environ.get("SLAM_DOWN", "-0.5"))  # (m, from where it took the head)
 GAP, NEAR = 0.09, -1.15  # (the judo test's: a hand beside the grunt's middle, on its near side; tracking space, m)
@@ -131,6 +137,25 @@ def case_crush():
                     "256-unit drop onto it: no crush")
         else:
             verdict(not bad and not m, "16-unit drop: " + ("crushed (wrong)" if m else "nothing"))
+    # The crush's push: a same-level jump (46 units over the floor) onto a grunt's head and onto its torso, its parts'
+    # places kept as you drop (64) and compared a moment after: they move with vr_ragimpact_crush_push, lie still at 0.
+    # A corpse settled (a living one down moves by itself: its active ragdoll).
+    moved = {}
+    for push in ("1", "0"):
+        for what, mode in [("head", 60), ("torso", 63)]:
+            flat = run(f"crush_push{push}_{what}", f"{PRE};{KNOCKED};vr_knockdown_test 62;wait300;"
+                       f"vr_ragimpact_crush_push {push};vr_test_drop_height 46;vr_knockdown_test {mode};"
+                       "vr_knockdown_test 64;wait90;vr_knockdown_test 64")
+            m = re.search(r"ragimpact parts: \S+, \d+ parts moved ([\d.]+) units at most, ([\d.]+) on average", flat)
+            moved[(push, what)] = (float(m.group(1)), float(m.group(2))) if m else None
+            crushed = "ragimpact crush push:" in flat
+            if push != "0":
+                verdict(crushed and m and float(m.group(1)) >= 4,
+                        f"jump onto its {what}, push {push}: parts moved {moved[(push, what)]} (most, mean units), "
+                        f"crushed {crushed}")
+    for what in ("head", "torso"):
+        a, b = moved.get(("1", what)), moved.get(("0", what))
+        verdict(a and b and a[0] > b[0] * 2, f"{what}: the push moves it ({a}) where none lies still ({b})")
     # Standing grunts: you dropped onto its head from 64 and 128 units (vr_knockdown_test 59: the higher pops it), then
     # 16 units (too slow).
     got = []
@@ -194,8 +219,22 @@ def case_stompwear():
         elif popped_at is None:
             popped_at = count
     speeds = re.findall(r"you landing at ([\d.]+) m/s", flat)
-    verdict("rror" not in flat and popped_at is not None and 2 <= popped_at <= 4,
+    sounds = re.findall(r"crush sound: (gib|thud)", flat)
+    verdict("rror" not in flat and popped_at is not None and 1 <= popped_at <= 2,
             f"same-level jumps on a down grunt's head (at {speeds[:1]} m/s): popped at stomp {popped_at} of {count}")
+    # The sound: a thud for each landing that popped nothing, the gib's for the one that popped the head.
+    verdict(popped_at is not None and len(sounds) >= popped_at and sounds[popped_at - 1] == "gib" and
+            all(s == "thud" for s in sounds[:popped_at - 1]), f"crush sounds, stomp by stomp: {sounds}")
+    # Same-level jumps on its torso (63) and its left shin (61): it dies in more than on its head.
+    jumps = {}
+    for what, mode in [("torso", 63), ("shin", 61)]:
+        stomps = "".join(f"vr_knockdown_test {mode};wait60;vr_knockdown_test 50;" for _ in range(14))
+        flat = run(f"stomp_jumps_{what}", f"{PRE};{KNOCKED};vr_test_drop_height 46;{stomps}")
+        healths = [float(h) for h in re.findall(r"ragimpact state: \S+ health ([-\d.]+)", flat)]
+        dead = next((i + 1 for i, h in enumerate(healths) if h <= 0), None)
+        jumps[what] = dead
+        verdict("rror" not in flat and dead is not None and dead > (popped_at or 2),
+                f"same-level jumps on a down grunt's {what}: dead at jump {dead} (health {healths[:dead or 14]})")
     # Two heights (112 units over the floor) onto a down grunt's head: popped at once.
     flat = run("stomp_down112", f"{PRE};{KNOCKED};vr_test_drop_height 112;vr_knockdown_test 60;wait60;vr_knockdown_test 50")
     p = pops(flat)
@@ -260,6 +299,51 @@ def case_grab():
     bad = "rror" in flat or "CRASH" in flat
     verdict(not bad and went and fell, f"staggering, taken by a hand: {'goes down' if went else 'not manhandled'}, "
                                        f"{'fell' if fell else 'did not fall'}")
+
+
+KEEP = ("vr_knockdown_push 0;vr_knockdown_time_min 3;vr_knockdown_time_max 3;vr_knockdown_keep_max 6.5;"
+        "vr_knockdown_hit_time 1;vr_knockdown_keep_time 1")
+
+
+def due(flat):
+    """(s down when its get-up came due, its own timer) or None."""
+    m = re.search(r"get-up due after ([\d.]+) s down \(its own timer ([\d.]+) s\)", flat)
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def case_keep():
+    # A grunt knocked down for 3 s (its own timer): left alone it gets up at 3; hit (1 damage, a punch's stand-in, 65)
+    # every 0.5 s it stays down until 6.5 (vr_knockdown_keep_max); hits until 4.3 then none: up 1 s after the last
+    # (vr_knockdown_hit_time); hits until 1.8: up at 3 (never cut short, never longer).
+    for what, last, want in [("alone", None, 3.0), ("hits", 10.0, 6.5), ("hits_to4", 4.3, 5.3), ("hits_to2", 1.8, 3.0)]:
+        keys = [(0.0, "cmd vr_knockdown_test 0")]
+        t = 0.3
+        while last is not None and t <= last + 1e-6:
+            keys.append((t, "cmd vr_knockdown_test 65"))
+            t += 0.5
+        path = motion(f"ragimpact_keep_{what}", keys)
+        flat = run(f"keep_{what}", f"{PRE};{KEEP};vr_mock_play {path};wait2000")
+        d = due(flat)
+        verdict("rror" not in flat and d and abs(d[0] - want) <= 0.25,
+                f"{what}: its get-up due after {d[0] if d else '?'} s (own {d[1] if d else '?'} s; want ~{want})")
+    # Held by its head and dragged about (the main hand), let go at 4 s: up about a second after (5); held for 9 s: up at
+    # 6.5, out of the hand.
+    for what, release, want in [("drag4", 4.0, 5.0), ("drag9", 9.0, 6.5)]:
+        keys = [(0.0, "cmd vr_knockdown_test 0"), (0.8, "cmd vr_mock_walk_to nearest monster_army 24"),
+                (1.5, "cmd vr_mock_walk_to off"), (1.6, "cmd vr_mock_hand_to main ragdoll head 0"), (1.63, "rel main 0 0 0"),
+                (1.8, "cmd +grabmain")]
+        t, side = 2.1, 1
+        while t < release:
+            keys.append((t, "rel main %.2f 0.10 0" % (0.15 * side)))
+            t += 0.5
+            side = -side
+        keys.append((release, "cmd -grabmain"))
+        path = motion(f"ragimpact_keep_{what}", keys)
+        flat = run(f"keep_{what}", f"{PRE};{KEEP};vr_mock_play {path};wait2000")
+        d = due(flat)
+        held = re.search(r"kept down \(held\)", flat) is not None
+        verdict("rror" not in flat and held and d and abs(d[0] - want) <= 0.4,
+                f"{what}: held {held}, its get-up due after {d[0] if d else '?'} s (want ~{want})")
 
 
 def main():

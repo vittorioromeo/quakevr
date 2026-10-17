@@ -1508,8 +1508,8 @@ void ensureStarted()
     // The cache and the installed list stay with the map index's cache, in the user's base dir (as qvr_addons/ does),
     // which does not change when the game dir does. The game dir is only where the old layout's files are moved from.
     gameDirName = com_gamedir;
-    cacheDirName = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps";
-    registryPath = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps_installed.txt";
+    cacheDirName = files::baseCacheDir() + "/maps";
+    registryPath = files::baseCacheDir() + "/maps_installed.txt";
     loadRegistry();
 }
 

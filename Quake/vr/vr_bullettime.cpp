@@ -77,6 +77,7 @@ constexpr double offCut = 0.06;
     {
         return nullptr;
     }
+    S_MixJoin(); // (the pool's mix done first: S_MixKick)
     for(int i = 0; i < MAX_DYNAMIC_CHANNELS; i++)
     {
         channel_t* ch = &snd_channels[i];

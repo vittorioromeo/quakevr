@@ -33,6 +33,25 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #define QVR_BUILD_VERSION QVR_VERSION "-dev (unknown build)"
 #endif
 
+// The build number and date (qvr_buildver.h; vr.cmake and vr.mk write the same): the commit count, "1.1.0-dev build 4321
+// (abc1234+dirty) 2026-10-17 14:05". Without git, number 0 and the compiler's date.
+#ifndef QVR_BUILD_NUMBER
+#define QVR_BUILD_NUMBER 0
+#endif
+#ifndef QVR_BUILD_INFO
+#define QVR_BUILD_INFO QVR_VERSION "-dev build 0 (unknown) " __DATE__ " " __TIME__
+#endif
+
+extern "C" const char *VR_BuildInfo (void)
+{
+	return QVR_BUILD_INFO;
+}
+
+extern "C" int VR_BuildNumber (void)
+{
+	return QVR_BUILD_NUMBER;
+}
+
 extern "C" const char *VR_BuildVersion (void)
 {
 	return QVR_BUILD_VERSION;
@@ -66,6 +85,8 @@ extern "C" void Con_DebugLog (const char *msg); // console.c: -condebug's qconso
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
 extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
 extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
+extern "C" void VR_LogsIncident (const char *what); // vr_runlogs.cpp: the runtimes' logs copied into the run's folder
+extern "C" void LOG_Flush (void);                  // console.c: the buffered console log out
 extern "C" const char *VR_GLSafeDescribe (void);                       // vr_glsafe.cpp: the run's GL safe mode
 
 /* Crash reports (docs/vr-port/TESTING.md, "Crash reports"). Every fatal end of the game writes one:
@@ -734,6 +755,7 @@ void tryLog ()
 		Con_DebugLog ("\n");
 		Con_DebugLog (report);
 		report[reportHeadLen] = saved;
+		LOG_Flush (); // (the log is buffered: console.c)
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
@@ -743,6 +765,13 @@ void tryLog ()
 // Diagnostics mode: the logs copied beside the report (vr_diagnostics.cpp).
 void tryDiagnostics ()
 {
+	__try
+	{
+		VR_LogsIncident ("the game crashed (the report is in crash/)"); // (every run: the runtimes' logs in its folder)
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
 	__try
 	{
 		VR_DiagnosticsEnd (1);

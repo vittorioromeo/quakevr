@@ -9,6 +9,7 @@
 #include "vr_climb.hpp"
 #include "vr_bodycontact.hpp"
 #include "vr_foegrab.hpp"
+#include "vr_legsweep.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
@@ -640,6 +641,23 @@ void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& ha
 
 // The ammo pouch's rounds (VrMove::ammoPouch) into .ammopouchpos, .ammopouchx/y/z (on the body: never through a portal;
 // all zero: none).
+// Hand `h`'s fields of `ent` (1: the main hand) from its move, through the portal it reaches through from `origin` (its
+// place, turn and motion carried through the gate): the move's (VR_ReadMoveExtras), and again after walking (rebaseHands).
+void writeHandFields(edict_t* ent, const glm::vec3& origin, const VrHandMove& hand, int h)
+{
+    const FieldOffsets& f = fields();
+    const portals::Reach gate = portals::reach(origin, hand.pos);
+    glm::vec3 angles = hand.rot;
+    angles.y = anglemod(angles.y + gate.yaw);
+    setFieldVec(ent, h ? f.handpos : f.offhandpos, gate.position);
+    setFieldVec(ent, h ? f.handrot : f.offhandrot, angles);
+    setFieldVec(ent, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
+    setFieldVec(ent, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
+    setFieldVec(ent, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
+    setFieldVec(ent, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
+    setFieldVec(ent, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+}
+
 void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
 {
     const FieldOffsets& f = fields();
@@ -679,27 +697,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldVec(ent, f.v_viewangle, move.headAngles);
     setFieldFloat(ent, f.vryaw, move.vrYaw);
 
-    const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
-                             int throwVel, int velMag, int angVel, int throwPos, int throwAge, int throwFlick) {
-        const portals::Reach gate = portals::reach(move.origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        const auto carry = [&](const glm::vec3& p) { return gate.turn * (p - gate.from) + gate.to; };
-        setFieldVec(ent, pos, gate.position);
-        setFieldVec(ent, rot, angles);
-        setFieldVec(ent, vel, gate.turn * hand.vel);
-        setFieldVec(ent, throwVel, gate.turn * hand.throwVel);
-        setFieldFloat(ent, velMag, hand.velMag);
-        setFieldVec(ent, angVel, gate.turn * hand.angVel);
-        setFieldVec(ent, throwPos, carry(hand.throwPos));
-        setFieldFloat(ent, throwAge, hand.throwAge);
-        setFieldVec(ent, throwFlick, gate.turn * hand.throwFlick);
-    };
-
-    setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
-        f.offhandthrowvel, f.offhandvelmag, f.offhandavel, f.offhandthrowpos, f.offhandthrowage, f.offhandthrowflick);
-    setHand(move.hands[1], f.handpos, f.handrot, f.handvel, f.handthrowvel,
-        f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage, f.handthrowflick);
+    for(int h = 0; h < 2; h++)
+    {
+        writeHandFields(ent, move.origin, move.hands[h], h);
+        setFieldFloat(ent, h ? f.handvelmag : f.offhandvelmag, move.hands[h].velMag);
+        setFieldFloat(ent, h ? f.handthrowage : f.offhandthrowage, move.hands[h].throwAge);
+    }
 
     setFieldVec(ent, f.headvel, move.headVel);
     setFieldVec(ent, f.headpos, move.headPos);
@@ -820,7 +823,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
     stat(STAT_QVR_HOTBLADE, f.vr_hot_hud); // incandescent blades' glow (vr_meleehud.cpp)
     stat(STAT_QVR_HOTBLADEHOLSTER, f.vr_hot_hud2);
-    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? static_cast<int>(vr_reload_mode.value) : 0;
+    // The highest of the global mode and the guns' own (vr_reload_mode_<gun>; -1 follows the global): the clients draw the
+    // pouch and the magazines if any gun reloads by hand.
+    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? reloadModeBest() : 0;
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
@@ -875,6 +880,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     };
     statsi[STAT_QVR_CARRYMAIN] = carried(f.mainhand_held);
     statsi[STAT_QVR_CARRYOFF] = carried(f.offhand_held);
+    statsi[STAT_QVR_CARRYITEM] = static_cast<int>(fieldFloatOr(ent, f.vr_carry_items, 0.f)); // (their zones: vr_holsterzones.cpp)
 
     for(int i = 0; i < numHolsters; i++)
     {
@@ -914,6 +920,32 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     const int interval = static_cast<int>(host_frametime * 255.0 + 0.5);
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
 }
+
+namespace
+{
+// What a thing that is not a weapon prop tells its loot beam (vr_lootbeams.cpp), sent with U_QVR_WEAPONUID and weapon id
+// 0 (the clip's byte): bit 7 carried in a hand (no beam), bits 0-6 a magazine's fullness in percent (127: not a
+// magazine). -1: nothing to tell (not carried, not a magazine), nothing sent.
+[[nodiscard]] int lootByte(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    const bool carried = f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0;
+    const float wid = fieldFloatOr(ent, f.vr_ammo_wid, 0.f);
+    if(!carried && wid == 0.f)
+    {
+        return -1;
+    }
+    int full = 127;
+    if(wid != 0.f)
+    {
+        const float count = fieldFloatOr(ent, f.vr_ammo_count, 0.f);
+        const float cap = fieldFloatOr(ent, f.vr_ammo_cap, 0.f);
+        const float share = cap > 0.f ? count / cap : (count > 0.f ? 1.f : 0.f); // (an older save's: no capacity)
+        full = CLAMP(0, static_cast<int>(share * 100.f + 0.5f), 100);
+    }
+    return (carried ? 0x80 : 0) | full;
+}
+} // namespace
 
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
@@ -957,6 +989,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
             bits |= U_QVR_SSGOPEN; // a super shotgun broken open (the client draws it open, its chambers loaded)
         }
     }
+    else if(NUM_FOR_EDICT(ent) > svs.maxclients && lootByte(ent) >= 0)
+    {
+        bits |= U_QVR_WEAPONUID; // weapon id 0: a magazine's fullness or a carried thing, for its loot beam (lootByte)
+    }
     return bits;
 }
 
@@ -992,6 +1028,13 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         edict_t* const inst = weaponInst(ent, f.weaponinst);
+        if(weaponUid(inst) == 0)
+        {
+            // Not a weapon prop: id 0, then the loot beam's byte (lootByte).
+            MSG_WriteLong(msg, 0);
+            MSG_WriteByte(msg, za::max(lootByte(ent), 0));
+            return;
+        }
         // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
         // vr_hotblade.cpp draws it; 0 in older demos).
         const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
@@ -1043,6 +1086,7 @@ extern "C" void VR_ServerFrameEnd()
     sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
     tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
 
+    qvr::legsweep::serverFrame(); // a staff swept through a humanoid's legs knocks it down (its poses not yet kept)
     qvr::foegrab::serverFrame(); // held enemies slowed and dragged (before their poses are kept)
     qvr::bodycontact::serverFrame(); // a player and a monster overlapping (a hold let go of) pushed apart
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
@@ -1170,18 +1214,9 @@ void rebaseHands(edict_t* player)
     for(int h = 0; h < 2; h++)
     {
         const auto& hand = move.hands[h];
-        const auto gate = portals::reach(origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        setFieldVec(player, h ? f.handpos : f.offhandpos, gate.position);
-        setFieldVec(player, h ? f.handrot : f.offhandrot, angles);
-        setFieldVec(player, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
-        setFieldVec(player, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
-        setFieldVec(player, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
-        setFieldVec(player, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
-        setFieldVec(player, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+        writeHandFields(player, origin, hand, h);
         const auto muzzle = portals::reachAlong(origin, hand.pos, move.muzzlePos[h]);
-        angles = move.shotRot[h];
+        glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
@@ -1406,6 +1441,7 @@ void init()
     Cmd_AddCommand("vr_net_stats", netStats_f);
     climb::init();
     foegrab::init();
+    legsweep::init();
     bodycontact::init();
     ledges::init();
 }

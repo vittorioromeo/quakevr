@@ -342,6 +342,7 @@ void(float xMode) VR_HitStagger_Test;
 void(entity e) VR_Manhandle_Shaken;
 float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush;
 void(float xMode) VR_RagImpact_Test;
+void(entity m, float xFor, string xWhat) VR_Knockdown_Keep; // (vr_knockdown.qc: a hit, a stomp, a hand keeps one down)
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
@@ -355,8 +356,8 @@ vector vr_decap_src;    // and where from
 void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet;
 float(entity targ) VR_Decap_BlastArm;
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
-float(entity m, entity xAxe) VR_Decap_Thrown;
-float(entity targ, entity xThing, entity by, float xDamage) VR_Decap_ThrownArm;
+float(entity m, entity xAxe) VR_Dismember_Thrown;
+float(entity targ, entity xThing, entity by, float xDamage) VR_Dismember_ThrownArm;
 float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
 void() VR_Decap_TestFrame;
@@ -782,6 +783,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     {
         damage = damage * 4;
     }
+    // Painted and dented where it struck as the same blow on the living (vr_wounds.qc; ROUND22.md, "Every hit dents"):
+    // T_DamageImpl hands a corpse's hits here before its own VR_Wound_Hit, so a blade's, a blunt blow's, a nail's or a
+    // thrown brick's hit on a ragdoll left no wound and no dent (a shotgun's pellets paint their own: VR_Wound_Pellet).
+    VR_Wound_Hit(targ, inflictor, attacker, ceil(damage));
     damage = damage / VR_Corpse_PositionalFactor(targ);
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
@@ -906,10 +911,70 @@ float(entity e, entity p, float xHand) VR_Ragdoll_HandSpares; // (vr_carry.qc)
 float(entity e, entity p) VR_Throw_SparedBlows;
 float(entity p, float xHand) VR_Throw_HandMayStrike;
 
-// Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
-// blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer; // (vr_crates.qc)
 
+// The corpse (or a body still dying) what a hand holds strikes along its line (vr_melee.qc VR_Corpse_StrikeAlong: the
+// line VR_Melee_Line left; VR_Corpse_StrikeLine: the hand's now), world for none: where (vr_cstrike_at), and whether
+// with a blunt part (vr_cstrike_blunt: a sword's or an axe's pommel, hilt or handle).
+vector vr_cstrike_at;
+float vr_cstrike_blunt;
+float vr_cstrike_fh; // (a sword's or an axe's: the part struck, VR_Melee_PartAt's share from its handle to its tip)
+entity(entity p, float xThing, vector xDir) VR_Corpse_StrikeAlong;
+entity(entity p, float xHand, vector xDir) VR_Corpse_StrikeLine;
+float vr_melee_blunt; // (vr_melee.qc)
+
+// A hand's blow at `xSpeed` going `xDir` struck corpse `c` at `xAt` (self the player; VR_Corpse_StrikeFrame, the dents'
+// test): its corpse damage, wound and dent (VR_Corpse_Damage), the beheading cut instead, the torch's or the hot blade's
+// fire. `xBlunt`: struck with a pommel, a hilt, a handle's end (a blunt blow).
+void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR_Corpse_Struck =
+{
+    if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
+    {
+        return;
+    }
+    // Not a ragdoll this hand holds or just let go of, nor one just thrown with both hands (a throw is not a blow:
+    // ROUND21.md, "Two-handed ragdoll throws").
+    if(VR_Ragdoll_HandSpares(c, self, xHand) || VR_Throw_SparedBlows(c, self) || !VR_Throw_HandMayStrike(self, xHand))
+    {
+        return;
+    }
+    c.vr_corpse_struck = time;
+
+    // A blade's slash at its head beheads it instead (vr_decap.qc): no corpse damage.
+    if(!xBlunt && VR_Decap_CorpseBlow(c, xHand, at))
+    {
+        haptic(xHand, 0.0, 0.15, 60, 0.9);
+        return;
+    }
+
+    float dmg = VR_Gib_StrikeDamage(speed);
+    if(!VRIsHandWeaponless(self, xHand))
+    {
+        dmg = dmg * 1.5;
+    }
+    VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
+    VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
+    haptic(xHand, 0.0, 0.1, 60, 0.7);
+    SpawnBlood(at, dir * 40, dmg);
+
+    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
+    vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
+    T_Damage(c, self, self, dmg);
+    vr_melee_blunt = FALSE;
+    VR_ClearHitKind();
+
+    // A lit torch sets it on fire (vr_burning.qc).
+    entity t = VR_Carry_Held(self, xHand);
+    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
+    {
+        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
+    }
+    // So does an incandescent blade (vr_hotblade.qc).
+    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
+};
+
+// Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
+// blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(float xHand) VR_Corpse_StrikeFrame =
 {
     if(!cvar_hget(cvarh_vr_corpse_gib) || !self.ishuman || self.health <= 0)
@@ -936,6 +1001,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     vector hand = VRGetHandPos(xHand);
     entity c = world;
     vector at = hand;
+    float blunt = FALSE;
 
     // The hand, along its swing.
     traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
@@ -944,58 +1010,18 @@ void(float xHand) VR_Corpse_StrikeFrame =
         c = trace_ent;
         at = trace_endpos;
     }
-    // What it holds, from the hand to its end.
-    else if(!VRIsHandWeaponless(self, xHand))
+    // What it holds, all of it, as the living's blows have it (VR_Melee_Line): from the hand to its tip and back to its
+    // pommel, butt or handle's end; a weapon carried off its handle (a sword by its blade) end to end; a club's head.
+    // It was the hand to the muzzle only: a pommel or a hilt held out (a sword held by its blade, used as a club)
+    // never struck a ragdoll (NOTES.md 2026-10-17).
+    else
     {
-        traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self);
-        if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
-        {
-            c = trace_ent;
-            at = trace_endpos;
-        }
+        c = VR_Corpse_StrikeLine(self, xHand, dir);
+        at = vr_cstrike_at;
+        blunt = vr_cstrike_blunt;
     }
 
-    if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
-    {
-        return;
-    }
-    // Not a ragdoll this hand holds or just let go of, nor one just thrown with both hands (a throw is not a blow:
-    // ROUND21.md, "Two-handed ragdoll throws").
-    if(VR_Ragdoll_HandSpares(c, self, xHand) || VR_Throw_SparedBlows(c, self) || !VR_Throw_HandMayStrike(self, xHand))
-    {
-        return;
-    }
-    c.vr_corpse_struck = time;
-
-    // A blade's slash at its head beheads it instead (vr_decap.qc): no corpse damage.
-    if(VR_Decap_CorpseBlow(c, xHand, at))
-    {
-        haptic(xHand, 0.0, 0.15, 60, 0.9);
-        return;
-    }
-
-    float dmg = VR_Gib_StrikeDamage(speed);
-    if(!VRIsHandWeaponless(self, xHand))
-    {
-        dmg = dmg * 1.5;
-    }
-    VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
-    VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
-    haptic(xHand, 0.0, 0.1, 60, 0.7);
-    SpawnBlood(at, dir * 40, dmg);
-
-    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
-    T_Damage(c, self, self, dmg);
-    VR_ClearHitKind();
-
-    // A lit torch sets it on fire (vr_burning.qc).
-    entity t = VR_Carry_Held(self, xHand);
-    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
-    {
-        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
-    }
-    // So does an incandescent blade (vr_hotblade.qc).
-    VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
+    VR_Corpse_Struck(xHand, c, at, dir, speed, blunt);
 };
 
 float() getVRMeleeBloodlust =
@@ -1395,34 +1421,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE;
     }
 
-    // Dawn of the Machine's Bloody Nightmare: the player's blows 80%, the rest on the player 120% (vr_mg3_defs.qc).
-    if(MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE))
-    {
-        damage = MG3_BloodyNightmareDamage(targ, attacker, damage);
-    }
-    // Dawn of the Machine's lava man: 0.8 of anything but the lightning gun and the laser cannon, nothing from Chthon.
-    if(targ.mg3_lavaman)
-    {
-        damage = MG3_LavaManDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
-    // Dawn of the Machine's Shub: nothing while she thrashes or dies (vr_mg3_shub.qc; upstream combat.qc's boss_immune).
-    if(targ.mg3_shub_immune)
+    // Dawn of the Machine's damage rules: Bloody Nightmare, lava man, Shub, Chthon (vr_mg3_defs.qc).
+    if(!MG3_DamageFilter(targ, inflictor, attacker, damage))
     {
         return FALSE;
     }
-    // Dawn of the Machine's Chthon (killable): none during his fits or from lava men, 0.8 but lightning and laser.
-    if(targ.mg3_chthon)
-    {
-        damage = MG3_ChthonDamage(targ, inflictor, attacker, damage);
-        if(damage <= 0)
-        {
-            return FALSE;
-        }
-    }
+    damage = mg3_damage;
 
     if(targ.classname == "trigger_explosion")
     {
@@ -1762,8 +1766,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         self.nextthink = kdNext;
         if(kdState == 1)
         {
-            self.vr_kd_until = min(max(self.vr_kd_until, time) + cvar_hget(cvarh_vr_knockdown_hit_time),
-                time + cvar_hget(cvarh_vr_knockdown_time_max));
+            VR_Knockdown_Keep(self, cvar_hget(cvarh_vr_knockdown_hit_time), "hit");
         }
     }
 
@@ -2148,7 +2151,7 @@ void() VR_Dragon_ParryInterrupt;
 void(entity m, entity p) VR_Parry_Interrupt =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
-    if(!cvar_hget(cvarh_vr_parry_interrupt) || m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
+    if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
     {
         return;
     }
@@ -2361,17 +2364,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         self = targ;
 
         vector at = vr_parry_at + to * 4;
-        // Its own ring (vr_bash_sound; round 18), apart from a blow landing; 0: the old clang.
+        // Its own ring (vr_bash_sound, its volume; round 18), apart from a blow landing; 0: silent.
         float parrySound = cvar_hget(cvarh_vr_bash_sound);
         if(parrySound > 0)
         {
             sound(self, VRGetHandChannel(hand), "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
-        }
-        else
-        {
-            VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 1, ATTN_NORM);
-            VR_SoundVaried(self, VRGetHandChannel(hand), "weapons/tink1.wav", 0.6, ATTN_NORM);
         }
         particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
         haptic(hand, 0.0, 0.3, 90, 1.0);
@@ -2673,85 +2671,3 @@ void(entity attacker, float damage) T_BeamDamage =
 // VR_TestOnly for the length of one test call): world, the nearest as each test finds it. VR_TestKill_Frame,
 // VR_TestHit_Frame, VR_Limb_TestTarget (vr_test_cut) and VR_Knockdown_Test take it instead of their nearest.
 entity vr_test_only;
-void(entity xTarget) VR_TestOnly =
-{
-    vr_test_only = xTarget;
-};
-
-// Whether a test looking for its nearest monster skips `e` (vr_test_only set, and not it).
-float(entity e) VR_TestSkips =
-{
-    return (vr_test_only != world && e != vr_test_only);
-};
-
-// Test aid `vr_test_kill <n>` (console; the active ragdolls' tests, Misc/quakevr/ragdoll/active_test.sh): the live
-// monster nearest the player killed by a shot of his (20 damage on its last point of health), struck (n - 1) on: 0 the body, 1 the head, 2 an arm (its right
-// side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
-void() VR_TestKill_Frame =
-{
-    float want = cvar("vr_test_kill");
-    if(want < 1)
-    {
-        return;
-    }
-    cvar_set("vr_test_kill", "0");
-    entity pl = find(world, classname, "player");
-    entity best = world;
-    float bestD = 100000;
-    entity e = nextent(world);
-    while(e)
-    {
-        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e) &&
-           vlen(e.origin - pl.origin) < bestD)
-        {
-            bestD = vlen(e.origin - pl.origin);
-            best = e;
-        }
-        e = nextent(e);
-    }
-    if(best == world)
-    {
-        dprint("test kill: no live monster\n");
-        return;
-    }
-    float part = want - 1;
-    vector dir = best.origin - pl.origin;
-    dir_z = 0;
-    dir = normalize(dir);
-    vector right = '0 0 0';
-    right_x = dir_y;
-    right_y = 0 - dir_x;
-    float lo = best.absmin_z;
-    float hi = best.absmax_z;
-    vector at = (best.absmin + best.absmax) * 0.5 - dir * ((best.maxs_x - best.mins_x) * 0.35);
-    at_z = lo + (hi - lo) * 0.6;
-    if(part == 1)
-    {
-        at_z = hi - (hi - lo) * 0.08;
-    }
-    else if(part == 2)
-    {
-        at_z = lo + (hi - lo) * 0.62;
-        at = at + right * ((best.maxs_y - best.mins_y) * 0.4);
-    }
-    else if(part == 3)
-    {
-        at_z = lo + (hi - lo) * 0.22;
-    }
-    VR_ClearHitKind();
-    vr_hitpart_target = world;
-    if(part < 4)
-    {
-        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
-        vr_hitpart = part;
-        vr_hitpart_target = best;
-        vr_hitpart_time = time;
-        vr_hitpart_pos = at;
-    }
-    dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
-    // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
-    best.health = 1;
-    T_Damage(best, pl, pl, 20);
-    VR_ClearHitKind();
-    vr_hitpart_target = world;
-};

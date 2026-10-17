@@ -99,7 +99,9 @@ void()    army_atk1    =[    $shoot1,    army_atk2    ] {ai_face();};
 void()    army_atk2    =[    $shoot2,    army_atk3    ] {ai_face();};
 void()    army_atk3    =[    $shoot3,    army_atk4    ] {ai_face();};
 void()    army_atk4    =[    $shoot4,    army_atk5    ] {ai_face();};
-void()    army_atk5    =[    $shoot5,    army_atk6    ] {ai_face();army_fire();
+void()    army_atk5    =[    $shoot5,    army_atk6    ] {ai_face();
+if(VR_AimCone_Wait(army_atk5, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+army_fire();
 self.effects = self.effects | EF_MUZZLEFLASH;};
 void()    army_atk6    =[    $shoot6,    army_atk7    ] {ai_face();army_burst();};
 void()    army_atk7    =[    $shoot7,    army_atk8    ] {ai_face();army_burst();SUB_CheckRefire (army_atk1);};

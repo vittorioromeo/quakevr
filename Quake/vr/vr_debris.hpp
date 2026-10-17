@@ -38,6 +38,12 @@ enum class Material : int
 };
 
 [[nodiscard]] Material materialOf(const char* texture);
+
+// Small helpers (also vr_crates.cpp's): FNV-1a of a string, a line through the level only (no entities), the contents
+// at a point.
+[[nodiscard]] uint64_t hashString(const char* s, uint64_t h = 1469598103934665603ull);
+[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b);
+[[nodiscard]] int contents(const glm::vec3& p);
 [[nodiscard]] const char* materialName(Material m);
 
 // What entities a piece (or a crate: vr_crates.cpp) keeps away from: their boxes, grown by a margin.

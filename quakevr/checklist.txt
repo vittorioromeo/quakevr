@@ -2,6 +2,30 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Ragdolls after a load (make a NEW save): die and respawn, then shove/leg-grab/lift a grunt: it goes active ragdoll
+Shub (end): once the ball moves, save and load, step into the teleporter as the ball reaches Shub: she dies
+Holsters: shells box to a hip slightly short of a gun's spot (goes in); put away shells when full (pat, tick); draw a holstered gun by its handle; magnetic binding survives a level change
+Magnetic chain: throw a bound gun across the floor and round a corner: lies on the floor, wraps the corner, links near, thin line far; swing the held gun fast and check the chain
+Loot beams (Graphics > Loot Beams): dropped guns and full magazines glow among gibs; nothing in hand glows; fades within 0.5 m
+Lava nails through map6's braziers; blood streams from sword/axe/crowbar/fist hits and a thrown axe
+Near-eye particles: grenade at arm's length with Largest Particle 0.15 vs 0.3 vs 0; walk through blood with the fade on/off
+Elbow: hand in front of face, elbow raised: Body Over Tracked yellow elbow follows magenta; Print Body Tracking Stats says arms on 100%
+Ranger head: Player Appearance > Ranger Head sliders with the body clone; melee wall hits (one thunk per hard swing, nothing on light drags); Create Bug Report buttons
+Auto-collect (Physics > Carrying Boxes > Auto-Collect on): grip or force-grab an ammo or health box: it shrinks straight into your hand (full: a dull pat, stays held); should it be the new default?
+Half-res particles A/B: vr_particle_halfres_force 1 vs 0 during a close blood burst and an explosion; look for fringes or blocky 2x2 edges at walls and monster outlines, retro grid misaligned (vr_particle_halfres_upsample 2 shows edge pixels in green); tell me which wins
+Quest body tracking (VD, Meta body tracking on; Body page > Body Tracking group): lean/twist your chest, bend elbows: the body follows you; legs off by default; drop to 0 confidence fades back to IK
+Per-weapon reload (Weapons > Reloading > Per-Weapon Reload Overrides): global Simple, shotgun Immersive: pouch appears, shotgun loads by hand, nailgun reloads at the hip
+Turning Mode Off (Comfort): the right stick never turns you, also in menus, climbing, swimming
+MG3 Dawn of the Machine map6 (Matriarch of Decay): press the palace button, fight, take an ammo box that appears: no crash
+Leg grabs: both hands on a grunt's shins, yank toward you: falls on its back; pull up: hangs head-down, swing/throw it; thighs do nothing by default (Combat > Holding Enemies > Leg Grabs)
+Leg sweep: sweep a grunt's shins with shotgun/crowbar/plank/rocket launcher, front and side: it falls; axe, super shotgun, lightning gun, sword blade: nothing; sword hilt-down works
+Crush: jump on a downed grunt: parts jolt, thud unless something pops, head pops on the 2nd jump; punching/dragging keeps it down up to 6.5 s, rises ~1 s after you stop
+Enemy Melee menu (Combat): Show Melee Arcs; sidestep a knight (narrow) and an ogre (wide, its overhead smash doesn't track); DoE Guardian stab and Overlord smash respect the arc
+Throws: weapon and brick thrown while running go a bit shorter; a gib thrown near a monster bends toward it; two-handed window 0.2 s for props and guns
+Graphics: Parallax Surface Level 0 / 0.5 / 1 with a crate on carved floors; TAA (off by default) on: railings while moving the head, fast axe swing trails, sharpen 0-0.6
+Motion recorder: record Leg Sweep Expected (shotgun, crowbar, super shotgun) and Not Expected (axe, slow swing) takes, then eval.sh
+Defaults: your tuned values are now built in (knockdown times, ragdoll hand stick, 192 others): a fresh config should feel like yours; Debug > Tests only has human tests now (agent ones under Automation & Self-Tests)
+Nothing should feel different after the cleanup (A/B switches removed): walk along walls, throw props and guns, drop a gun in water, catch a tossed weapon, press a wall button with a sword, parry a knight
 Stomps: jump repeatedly on a downed grunt's head: pops on the 3rd; ~2 heights onto a head (alive or dead) pops it; corpse legs pop; ogre/shambler only hurt
 Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
 Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
@@ -52,7 +76,8 @@ Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never
 Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps; reopen: back in front of you
 Steady Model Vertices: idle grunt and knight over several loops: no itch at the loop restart, shading no longer flickers/pulses; toggle off/on to compare
-Melee Space (Holding Enemies > Getting Close): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Melee Space (Combat > Enemy Melee): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Enemy Melee (Combat > Enemy Melee, Show Melee Arcs on): a knight, an ogre, a shambler after you: the floor fans (red: you are in, green: out) match where blows land? sidestep a knight vs an ogre; tune Arc Growth / Reach Growth with Size, Swing Turn
 Toolgun Spawn: hold A on the gun hand and turn your wrist: the ghost stays put and turns 2x your hand (2x right?); let go: follows the gun again, still turned (jump back to the aim OK?); A held + stick press twice goes back twice
 Hits Unbalance (Combat > Knockdowns): hard throw (crate/weapon) or strong punch/axe on a grunt staggers it like a shove (head counts more); light taps never; ogre seldom, shambler rarely; no re-stagger within 4 s; is Least Impact 0.5 too generous for punches?
 Quad Damage (Debug > Cheats): hands/arms/body glow soft pulsing blue, hands throw blue light; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs = old look, Both = both; glow/light sliders; lightning strike still arcs; glow goes when quad ends

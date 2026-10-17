@@ -853,6 +853,11 @@ qboolean Sys_IsDebuggerPresent (void)
 	return false;
 }
 
+qboolean Sys_GraphicsDebuggerPresent (void) // QVR: (vr_gl_markers 2: not detected here)
+{
+	return false;
+}
+
 static const char errortxt1[] = "\nERROR-OUT BEGIN\n\n";
 static const char errortxt2[] = "\nQUAKE ERROR: ";
 

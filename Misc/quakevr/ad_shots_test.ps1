@@ -1,7 +1,7 @@
 param([string]$Name = 'adshots', [switch]$Full, [switch]$VolleysOnly, [switch]$CheckLog)
 if ($Full -and $VolleysOnly) { throw 'Choose Full or VolleysOnly' }
 # Headless actual-flight regression. Damage and pops come from moving projectile touches.
-$lines = @('alias adm map vrmelee-recording','developer 0','vr_ragdoll_inherit 0','sv_gravity 0','vr_debug_shots 1','vr_ad_projectiles 2','vr_ragdoll 1','vr_limbs 1','vr_decap_pop_chance 0','vr_decap_pop_laser 1','vr_ragdoll_start 0','god')
+$lines = @('alias adm map vrmelee-recording','developer 0','vr_ragdoll_inherit 0','sv_gravity 0','vr_debug_shots 1','vr_ad_projectiles 2','vr_ragdoll 1','vr_limbs 1','vr_decap_pop_always_range 1000','vr_decap_pop_laser 1','vr_ragdoll_start 0','god')
 $sizes = if ($VolleysOnly) { @() } elseif ($Full) { @(0,1) } else { @(1) }
 foreach ($small in $sizes) {
     $modes = if ($small) { 50..53 } else { 50..57 }

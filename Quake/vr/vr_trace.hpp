@@ -14,9 +14,10 @@
 namespace qvr::worldtrace
 {
 
-// A box swept from `start` to `end`, ignoring the local player; nothing when not hosting.
+// A box swept from `start` to `end`, ignoring the local player (or, `pass` above 0, that edict and what it owns
+// instead); nothing when not hosting.
 [[nodiscard]] za::Optional<trace_t> move(
-    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type);
+    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass = 0);
 
 // A line through the world's geometry and, with `brushEntities`, the moving brush models the
 // client has (lifts, doors, platforms; not rotated), from the client's own data: works without

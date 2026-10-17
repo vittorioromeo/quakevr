@@ -18,7 +18,10 @@ Research climbing by bracing a hand on each side of a pillar or pipe and moving 
 ### Climbing leg animation (legs seek footholds) (23:10:39, 2026-10-14)
 
 Legs should seek plausible support points on walls, ledges, pillars and ladders, so looking down shows believable
-assistance during climbing. Open.
+assistance during climbing. Done 2026-10-16 (branch `agent/climblegs`; ROUND22.md, "Climbing footholds"): while a hand
+holds on, each foot finds a ledge's, a rung's or the floor's top, else a spot on the face, steps between them in turn
+and hangs when there is none (VR Settings > Body: Climbing Footholds, Foothold Reach, Foothold Step Speed). Awaiting his
+VR check.
 
 ### Repository chores
 
@@ -39,15 +42,15 @@ models with an arm, made for the flat view. To do: bloody skins for `progs/v_sho
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
 
-- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`): stage 2a (motion vectors for both eyes) is
-  safe to start any time; the DLSS helper waits
-  on TEMPORAL.md's section 12 questions (private use or public, the helper's licence, FSR 3.1, TAA as default AA, 120
-  vs 90 Hz with DLSS).
-
 ## In progress, 2026-10-15 (other workers; not open here)
 
 Glove customization, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from
 this file; the workers' ROUND22.md sections carry them.
+
+- **Temporal AA, then DLSS/DLAA and FSR 3.1** (`docs/vr-port/TEMPORAL.md`, the author 2026-10-16: "start a worker on
+  motion vectors + initial TAA implementation"): stages 2a (motion vectors) and 2b (TAA behind `vr_taa`, off by
+  default) landed in a first cut (ROUND22.md, "Temporal AA: motion vectors and a first TAA"); HMD tuning next. The DLSS
+  helper still waits on TEMPORAL.md's section 12 questions 1-3 and 5.
 
 ## Proposed, waiting on the author
 
@@ -347,3 +350,5 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
   - Done (ROUND22.md, "More gore: blood streams, back-splatter, teeth"): the streams from bullet holes (Gore > Blood
     Streams), the back-splatter streaks (Gore > Back-splatter), the teeth (Gore > Knocked-out Teeth). To check in VR:
     how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).
+
+- **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
