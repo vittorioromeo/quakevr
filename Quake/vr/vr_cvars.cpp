@@ -246,8 +246,10 @@ const DefaultChange defaultChanges[] = {
     {150, &vr_body_blood, "1"},                         // 1.25
     {150, &vr_body_blood_amount, "1"},                  // 1.25
     {150, &vr_body_blood_mark_size, "1"},               // 1.5
+    // 151: tracked legs on by default (2026-10-17: his value).
+    {151, &vr_bodytrack_legs, "0"},                     // 1
 };
-constexpr int configVersion = 150;
+constexpr int configVersion = 151;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
