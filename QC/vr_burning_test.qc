@@ -141,6 +141,45 @@ void() VR_Burn_TestFrame =
         dprint(sprintf("burning: test 6: a nail at the torch's flame at %v\n", flame));
         return;
     }
+    if(ask == 12)
+    {
+        // A nail through the nearest of the map's flames (a fire spot: a flame, a brazier, a static wall torch, a
+        // candle), level from 64 units before it on the player's side, through its volume's middle.
+        float bi = -1;
+        float bd = 100000;
+        float i;
+        for(i = 0; i < vr_fire_spots; i++)
+        {
+            vector so = vr_fire_spot[i];
+            if(vlen(so - p.origin) < bd)
+            {
+                bd = vlen(so - p.origin);
+                bi = i;
+            }
+        }
+        if(bi < 0)
+        {
+            dprint("burning: test 12: no map flame\n");
+            return;
+        }
+        vector fo = vr_fire_spot[bi];
+        float fk = vr_fire_spot_large[bi];
+        VR_Burn_FireVolume(fk);
+        vector fm = fo + (vr_fv_lo + vr_fv_hi) * 0.5;
+        vector fway = fm - p.origin;
+        fway_z = 0;
+        fway = normalize(fway);
+        // From as far back as is clear (up to 64), so that it is not stopped before the flame.
+        traceline(fm, fm - fway * 64, TRUE, p);
+        float back = max(8, vlen(trace_endpos - fm) - 4);
+        entity fs = self;
+        self = p;
+        launch_spike(fm - fway * back, fway);
+        self = fs;
+        dprint(sprintf("burning: test 12: a nail at the map's flame (kind %g) at %v, %.0f away, from %.0f before it\n",
+                       fk, fm, bd, back));
+        return;
+    }
     if(ask == 8 || ask == 9)
     {
         VR_Burn_TestCrate(p, ask);

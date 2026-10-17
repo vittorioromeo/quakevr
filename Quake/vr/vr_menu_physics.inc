@@ -631,8 +631,12 @@
         toggle("Lava Nails", vr_burn_lava_nails)
             .help("Your lava nails (the nailgun's and super nailgun's lava ammo) set what they hit on fire."),
         toggle("Nails Through a Flame", vr_burn_nail_convert)
-            .help("A nail fired through a lit torch's flame (one in your other hand, thrown, lying or on its wall) becomes a "
-                  "lava nail: more damage, and it sets what it hits on fire."),
+            .help("A nail fired through a fire becomes a lava nail: more damage, and it sets what it hits on fire. A lit "
+                  "torch's flame (in your other hand, thrown, lying or on its wall), the map's flames, braziers and "
+                  "candles, the toolgun's flames, a lava ball."),
+        toggle("Nails Through Burning Things", vr_burn_nail_burning)
+            .help("A burning monster's, corpse's or crate's flames turn nails into lava nails too (Nails Through a "
+                  "Flame on)."),
         slider("Flame's Reach for Nails", vr_burn_nail_reach, 2.f, 30.f, 1.f, "%.0f").extend(0.f, 80.f)
             .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
         slider("Nail Sizzle Volume", vr_burn_nail_sound, 0.f, 1.f, 0.1f, "%.1f")

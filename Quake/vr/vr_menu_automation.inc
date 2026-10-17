@@ -549,6 +549,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_burn_test 9: the nearest crate burns through now (lit first if it isn't): charred pieces."),
         command("A Lava Nail at the Nearest Piece", "vr_burn_test 11")
             .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
+        command("A Nail Through the Nearest Map Flame", "vr_burn_test 12")
+            .help("vr_burn_test 12: a nail of yours shot level through the nearest of the map's flames (a flame, a brazier, a wall torch, a candle): it becomes a lava nail (the console says so)."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         header("Incandescent Blades (developer 1: hotblade: ...)"),

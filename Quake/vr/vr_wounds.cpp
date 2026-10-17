@@ -3093,6 +3093,13 @@ void parseEvent()
     ev.extra = MSG_ReadByte();
     ev.clean = (ev.kind & cleanFlag) != 0; // (QC QVR_WOUND_CLEAN: a clean training dummy's, for its dents and streams)
     ev.kind &= ~cleanFlag;
+    // A melee wound's extra: 1 a blunt blow, and over it whose and how (QC VR_Wound_Hit: bloodstream::Melee).
+    int melee = bloodstream::MeleeNone;
+    if(ev.kind == KindMelee)
+    {
+        melee = (ev.extra >> 1) & 3;
+        ev.extra &= 1;
+    }
     if(vr_wounds_debug.value >= 2)
     {
         Con_Printf("wounds: received kind %d on %d%s\n", ev.kind, ev.num, ev.clean ? " (clean dummy)" : "");
@@ -3101,7 +3108,8 @@ void parseEvent()
     // vr_dummy_streams).
     if(!ev.clean || vr_dummy_streams.value)
     {
-        bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount);
+        bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount,
+            melee);
     }
     if(enabled() && events.size() < 512)
     {

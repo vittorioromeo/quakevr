@@ -163,6 +163,15 @@ constexpr int maxPending = 32;
 Pending pending[maxPending];
 int pendingCount = 0;
 
+// Your melee wounds seen and the streams they opened (blade, blunt, thrown blade: onWound), since the map began; shown
+// by vr_gore_streams_info (the rates' tests).
+struct MeleeTally
+{
+    int seen[3];
+    int opened[3];
+};
+MeleeTally meleeTally{};
+
 // The posed vertices (binding a new stream to its nearest): kept, grown once.
 za::Vector<glm::vec3> scratchRest, scratchNow, scratchTris;
 
@@ -971,18 +980,35 @@ void draw(const Stream& s)
 
 } // namespace
 
-void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int amount)
+void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int amount, int melee)
 {
-    // Bullet holes: a shot or a pellet (1), a nail or a small missile (2).
-    if((kind != 1 && kind != 2) || !enabled() || pendingCount >= maxPending || ent == cl.viewentity)
+    // Bullet holes: a shot or a pellet (1), a nail or a small missile (2); and your melee (3: a blade's or a blunt blow
+    // in your hand, a blade you threw), each kind at its own chance.
+    if((kind != 1 && kind != 2 && !(kind == 3 && melee != MeleeNone)) || !enabled() || ent == cl.viewentity)
     {
         return;
     }
-    if(rnd(0.f, 1.f) >= za::clamp(vr_gore_streams_chance.value, 0.f, 1.f))
+    const cvar_t& chance = kind != 3              ? vr_gore_streams_chance
+                           : melee == MeleeBlade  ? vr_gore_streams_melee_blade
+                           : melee == MeleeBlunt  ? vr_gore_streams_melee_blunt
+                                                  : vr_gore_streams_thrown_blade;
+    const int tally = kind == 3 ? melee - 1 : -1;
+    if(tally >= 0)
+    {
+        meleeTally.seen[tally]++;
+    }
+    if(rnd(0.f, 1.f) >= za::clamp(chance.value, 0.f, 1.f))
     {
         return;
     }
-    pending[pendingCount++] = {ent, at, dir, amount};
+    if(tally >= 0)
+    {
+        meleeTally.opened[tally]++;
+    }
+    if(pendingCount < maxPending)
+    {
+        pending[pendingCount++] = {ent, at, dir, amount};
+    }
 }
 
 void frame()
@@ -1041,6 +1067,7 @@ void clear()
     pendingCount = 0;
     lastTime = -1.0;
     spurtsMade = splashesMade = 0;
+    meleeTally = {};
 }
 
 void count()
@@ -1094,6 +1121,9 @@ void forget(int ent, bool drop)
 
 void info_f()
 {
+    Con_Printf("bloodstreams: melee since the map began: blade %d of %d, blunt %d of %d, thrown blade %d of %d wounds opened one\n",
+        meleeTally.opened[0], meleeTally.seen[0], meleeTally.opened[1], meleeTally.seen[1], meleeTally.opened[2],
+        meleeTally.seen[2]);
     int shown = 0;
     for(const Stream& s : streams)
     {

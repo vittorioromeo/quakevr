@@ -530,9 +530,10 @@ float(vector p, vector a, vector b) VR_WallTorch_SegmentDist =
 // The map's flames (light_flame_large_yellow, light_flame_small_yellow, light_flame_small_white) are static entities,
 // gone from the entity list: each leaves its place here as it spawns, for VR_WallTorch_FireAt (not entities: those
 // would move the map's edict numbers). Set at each map's spawn, which a loaded save runs too (before its own globals).
-float VR_FIRE_SPOTS_MAX = 128;
-vector vr_fire_spot[128];
-float vr_fire_spot_large[128]; // 0 small flame2, 1 large flame2, 2 a static wall torch
+// Candles (3) are kept for the nails alone (VR_Burn_NailCheck): too small to light a torch, heat a blade or burn you.
+float VR_FIRE_SPOTS_MAX = 256;
+vector vr_fire_spot[256];
+float vr_fire_spot_large[256]; // 0 small flame2, 1 large flame2 (a brazier's), 2 a static wall torch, 3 a candle
 float vr_fire_spots;
 
 void(float xLarge) VR_FireSpot =
@@ -586,6 +587,10 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         // flame2.mdl's ball: the small one about 6 units wide, up to 16 over its origin; the large one 13 wide, to 39.
         // A little more all round: held into it, the torch's head is in it.
         vector o = vr_fire_spot[i];
+        if(vr_fire_spot_large[i] == 3)
+        {
+            continue; // a candle: nails only
+        }
         if(vr_fire_spot_large[i] == 2)
         {
             if(VR_WallTorch_SegmentDist(xHead, o + '0 0 1', o + '0 0 16') < 6)

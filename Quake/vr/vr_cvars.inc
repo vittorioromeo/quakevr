@@ -1211,7 +1211,8 @@ QVR_CVAR(vr_burn_piece_time, "5", CVAR_ARCHIVE)          // s a piece burns befo
 QVR_CVAR(vr_burn_piece_gap, "8", CVAR_ARCHIVE)           // units apart a burning piece and a piece or a crate catch from each other
 QVR_CVAR(vr_burn_piece_flames, "3", CVAR_ARCHIVE)        // flames a piece's fire spreads to (Most Flames caps it)
 QVR_CVAR(vr_burn_piece_flame_size, "0.7", CVAR_ARCHIVE)  // a piece's flames' size, times a body's
-QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
+QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a fire (a lit torch held, thrown, lying or on its wall; the map's flames, braziers and candles; the toolgun's; a lava ball) becomes a lava nail
+QVR_CVAR(vr_burn_nail_burning, "1", CVAR_ARCHIVE)        // 1: a burning monster's, corpse's or crate's flames do too
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
 QVR_CVAR(vr_burn_sound, "0.6", CVAR_ARCHIVE)             // the volume of the crackle a burning body, crate or piece makes (ambience/fire1.wav looped, heard near; QC vr_burning.qc VR_Burn_Crackle; 0 none)
@@ -1972,6 +1973,9 @@ QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceil
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
 QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on
 QVR_CVAR(vr_gore_streams_chance, "0.6", CVAR_ARCHIVE)   // the chance a shot or a nail (each pellet) opens one
+QVR_CVAR(vr_gore_streams_melee_blade, "1", CVAR_ARCHIVE) // the chance your blade's blow opens one (the axe, the sword, the chainsaw)
+QVR_CVAR(vr_gore_streams_melee_blunt, "0.6", CVAR_ARCHIVE) // the chance your blunt blow opens one (the crowbar, a punch, a pommel, a gun)
+QVR_CVAR(vr_gore_streams_thrown_blade, "1", CVAR_ARCHIVE) // the chance a blade you threw (an axe, a sword) opens one where it strikes
 QVR_CVAR(vr_gore_streams_per_body, "4", CVAR_ARCHIVE)   // most on one body (a new one takes the weakest's place)
 QVR_CVAR(vr_gore_streams_max, "24", CVAR_ARCHIVE)       // most in all (0-64)
 QVR_CVAR(vr_gore_streams_time, "7", CVAR_ARCHIVE)       // seconds one pours, about (weakening all along)

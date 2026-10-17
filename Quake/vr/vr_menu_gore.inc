@@ -364,6 +364,14 @@
                   "following the body as it moves and falls, painting a pool where it lands (vr_gore_streams)."),
         slider("Stream Chance", vr_gore_streams_chance, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance each shot or pellet opens one (vr_gore_streams_chance)."),
+        slider("Melee Blade Chance", vr_gore_streams_melee_blade, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance each blow of a blade in your hand (the axe, the sword, the chainsaw) opens one, on a monster "
+                  "or a corpse (vr_gore_streams_melee_blade)."),
+        slider("Melee Blunt Chance", vr_gore_streams_melee_blunt, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance each blunt blow of yours (the crowbar, a punch, a pommel, a gun, a thing in the fist) opens "
+                  "one (vr_gore_streams_melee_blunt)."),
+        slider("Thrown Blade Chance", vr_gore_streams_thrown_blade, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance an axe or a sword you threw opens one where it strikes (vr_gore_streams_thrown_blade)."),
         slider("Streams per Body", vr_gore_streams_per_body, 1.f, 8.f, 1.f, "%.0f")
             .help("Most on one body: a new one takes the weakest's place (vr_gore_streams_per_body)."),
         slider("Streams in All", vr_gore_streams_max, 0.f, 64.f, 2.f, "%.0f")

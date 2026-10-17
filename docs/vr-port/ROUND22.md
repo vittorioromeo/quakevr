@@ -12056,3 +12056,34 @@ little stretched); the flight home goes through walls while the chain's points d
 To try in VR: throw a bound gun across the floor and round a corner: the chain lies on the floor and goes round the
 corner, links near you and a thin line on past Full Chain Up To. Chain Physics rows to tune it (Simulated Chain off
 for the old one to compare).
+## Nails catch fire in any flame; melee opens blood streams (worktree `goreflesh`, branch `agent/firestreams`, 2026-10-17)
+
+NOTES.md map6_2026-10-17_17-07-04: normal nails shot through an MG3 brazier (map6's `light_flame_large_yellow` at -696
+3100 76) stayed normal: only lit torches (held, thrown, lying, on their walls) converted them. Now `VR_Burn_NailCheck`
+(vr_burning.qc) also tests every fire with a volume: the map's flames from the fire spot registry (id's small and large
+flames, static wall torches, MG's gas flames, AD's torches, flames, pyres and braziers, and now `light_candle` as kind 3,
+kept for the nails alone: torch relighting, hot blades and body burns skip it), the toolgun's flames, lava balls in
+flight, and (`vr_burn_nail_burning` 1, Physics > Burning: Nails Through Burning Things) a burning monster's, corpse's or
+crate's fire (an upright capsule in its box; never your own). Each kind's volume is an upright capsule over its origin
+(`VR_Burn_FireVolume`: small flame -6..12 r 8, large/brazier -6..32 r 12, wall torch 1..16 r 6, candle 6..13 r 4); the
+nail's frame segment against its axis is an exact segment-segment distance after a sphere cull. The fire entities are
+chained once a frame (`VR_Burn_OtherFires`); the registry grew to 256 spots. The same lava-nail conversion
+(`VR_Burn_NailToLava`); a static flame's fizz plays on the nail.
+
+Melee blood streams (voice note 2): your hand's blade blow, your blunt blow and a blade you threw now roll for a blood
+stream as a shot does (`vr_gore_streams_melee_blade` 1, `vr_gore_streams_melee_blunt` 0.6, `vr_gore_streams_thrown_blade`
+1; Gore > Blood Streams: Melee Blade Chance, Melee Blunt Chance, Thrown Blade Chance). QC `VR_Wound_Hit` marks the melee
+wound's extra byte over its blunt bit (`QVR_WOUND_MELEE_BLADE` 2, `_BLUNT` 4, `_THROWN` 6: `bloodstream::Melee` x 2); the
+engine strips it on receipt. Blade: the axe, sword, Super Axe, chainsaw; blunt: the crowbar, punches, pommels, a gun
+swung, a thing in the fist. Bashes, headbutts, shoves, monsters' blows and decapitation cuts open none. Living monsters
+and corpses/ragdolls alike. `vr_gore_streams_info` now starts with a melee line (each kind's wounds and the streams they
+opened since the map began). The chance roll no longer waits on the pending queue's room (the queue still caps at 32).
+
+Tests: `vr_burn_test 12` (new; Debug > Burning Tests) shoots a nail level through the nearest map flame: on map6 (MG3)
+from his screenshot's spot the brazier (kind 1) and a candle (kind 3) both made lava nails; with `vr_burn_nail_convert 0`
+none. `vr_smallgibs_test 24` (new): one blow a frame, sword, axe, crowbar, punch, thrown axe in turn; on a live grunt (n
+200) blade 400/400, blunt 226/400 (57%), thrown 200/200; on its ragdoll (n 60) 120/120, 68/121, 60/60. eval.sh 168/177.
+Not run headlessly: the burning-body and lava-ball volumes, the toolgun's flames.
+
+To try in VR: on map6 (Dawn of the Machine) shoot the nailgun through the braziers: lava nails, with a fizz. Swing the
+sword or axe into a grunt: a blood stream every blow; the crowbar or a punch about every other; throw the axe into one.
