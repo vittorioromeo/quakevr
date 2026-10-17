@@ -12179,3 +12179,5 @@ that box at its lowest corner, so the pillar rises from where the item lies; the
 Verified: builds, 0 warnings. NOT verified in a run: the author's game (C:\OHWorkspace\quakevr-iw) was running the whole
 time, so no mock launch was allowed and there are no before/after screenshots. To check: `vr_lootbeam_debug 1;
 vr_lootbeam_test 24 18`, with the ammo, health and backpack categories on, from above and the side.
+
+Mock run after the game closed (e1m1, vr_lootbeam_test 12, debug on, all categories): shotgun, nailgun, rocket launcher, ammo and health boxes; beams rise from the foot (green) of each drawn yellow box, screenshots from above (pitch 40) and level. Not covered: AD gun, crossbow, backpack (the test lays out none), no before shots (old code removed).
