@@ -236,7 +236,7 @@ float(string model, string key) weaponvalue = #0;
 // no mass). Heavy leniency (vr_weight_lenient*): the factor on its strikes' and throws' speed thresholds (1: not heavy).
 float(float mass) weightdamage = #0;
 float(float mass) weightleniency = #0;
-// Throws by weight (vr_throw_mass_model): the velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from
+// Throws by weight: the velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from
 // the hand's throw estimate `vel` (m/s) and the part of it the wrist's flick gives (VRGetHandThrowFlick): a heavy thing
 // keeps less of the flick, the gain of a real throw (vr_throw_gain_*), and its speed limited by its mass.
 vector(vector vel, vector flick, float mass, float hands) throwvelocity = #0;
@@ -506,8 +506,7 @@ entity(entity start, .float fld, float flags, .float deadline, float now, .float
 // with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).
 entity(entity start, .float fld, float flags, vector eye, float range, float mincos) findflagsinview = #0;
 // forcegrabbable_think_impl's work on self in the engine (vr_propthink.cpp; `particles`: vr_weapondrop_particles_on):
-// the same fields, the same random() draw and the same particle2 as forcegrabbable_think_qc. FALSE when it did nothing
-// (vr_prop_think_native 0, a progs without the fields, an angle too far out to bring round natively): the QuakeC runs.
+// water, dust, settling after a throw. FALSE when it did nothing (a progs without the fields).
 float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;

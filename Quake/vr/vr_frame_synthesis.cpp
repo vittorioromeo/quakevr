@@ -432,10 +432,10 @@ void captureDepth(int eye, int width, int height, unsigned depthFormat)
     GL_ClearBufferfvFunc(GL_COLOR, 0, seedClear);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     e.captured = glGetError() == GL_NO_ERROR;
-    const float near = CLAMP(depthFormat == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f) / units::metresToUnits();
-    const float far = gl_farclip.value / units::metresToUnits();
-    e.metadata.nearZ = gl_clipcontrol_able ? far : near;
-    e.metadata.farZ = gl_clipcontrol_able ? near : far;
+    const float nearMetres = CLAMP(depthFormat == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f) / units::metresToUnits();
+    const float farMetres = gl_farclip.value / units::metresToUnits();
+    e.metadata.nearZ = gl_clipcontrol_able ? farMetres : nearMetres;
+    e.metadata.farZ = gl_clipcontrol_able ? nearMetres : farMetres;
     e.metadata.appSpaceDelta = {};
     e.metadata.appSpaceDelta.valid = true;
     if(e.history)

@@ -388,7 +388,9 @@ void()	ad_dknight_magicc2 =[	$magicc3,	ad_dknight_magicc3	] {ad_ai_face();};
 void()	ad_dknight_magicc3 =[	$magicc4,	ad_dknight_magicc4	] {ad_ai_face();};
 void()	ad_dknight_magicc4 =[	$magicc5,	ad_dknight_magicc5	] {ad_ai_face();};
 void()	ad_dknight_magicc5 =[	$magicc6,	ad_dknight_magicc6	] {ad_ai_face();};
-void()	ad_dknight_magicc6 =[	$magicc7,	ad_dknight_magicc7	] {ad_hknight_shot(-2);};
+void()	ad_dknight_magicc6 =[	$magicc7,	ad_dknight_magicc7	] {
+	if (VR_AimCone_Wait(ad_dknight_magicc6, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_hknight_shot(-2);};
 void()	ad_dknight_magicc7 =[	$magicc8,	ad_dknight_magicc8	] {ad_hknight_shot(-1);};
 void()	ad_dknight_magicc8 =[	$magicc9,	ad_dknight_magicc9	] {ad_hknight_shot(0);};
 void()	ad_dknight_magicc9 =[	$magicc11,	ad_dknight_magicc10] {ad_hknight_shot(1);};

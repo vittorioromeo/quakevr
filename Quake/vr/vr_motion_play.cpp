@@ -135,7 +135,9 @@ struct Take
     size_t firstRec{0};
 };
 
-[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep)
+} // namespace
+
+za::Vector<za::String> split(za::StringView s, char sep)
 {
     za::Vector<za::String> out;
     za::String cur;
@@ -154,6 +156,9 @@ struct Take
     out.pushBack(cur);
     return out;
 }
+
+namespace
+{
 
 [[nodiscard]] za::String trim(za::StringView s)
 {
@@ -1148,7 +1153,7 @@ struct Match
     {
         const Event& e = events[i];
         if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
-           e.kind != "decap" && e.kind != "necksnap" &&
+           e.kind != "decap" && e.kind != "necksnap" && e.kind != "legsweep" &&
            e.kind != "lift" && e.kind != "judothrow")
         {
             continue;
@@ -1998,7 +2003,7 @@ void loadExpectations()
         case 16: return "gun";
         case 17: return "crowbar"; // a melee weapon (QC VR_MTHING_CROWBAR)
         case 18: return "superaxe"; // Dawn of the Machine's Super Axe (QC vr_mg3_weapons.qc; VR_MTHING_AXE)
-        default: return (wid >= 4 && wid <= 12) || (wid >= 20 && wid <= 27) ? "gun" : "other"; // (20-27: AD's soldiers' guns)
+        default: return (wid >= 4 && wid <= 12) || (wid >= 20 && wid <= 28) ? "gun" : "other"; // (20-28: AD's soldiers' guns, the crossbow knight's)
     }
 }
 

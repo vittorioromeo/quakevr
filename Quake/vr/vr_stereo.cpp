@@ -21,6 +21,7 @@
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
+#include "vr_dynres.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
@@ -33,7 +34,9 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_synthesis_math.hpp"
+#include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
+#include "vr_temporal.hpp"
 #include "vr_tonemap.hpp"
 #include "vr_tracy.h"
 #include "vr_upscale.hpp"
@@ -62,6 +65,7 @@ struct SceneTargets
     float fsaa = 0.f;    // the MSAA they were made with (vid_fsaa; the spectator camera's: vr_spectator_aa)
     unsigned format = 0; // their scene colour format (vr_tonemap: float)
     unsigned depth = 0;  // their depth/stencil format (vr_depth_float)
+    unsigned generation = 0; // bumped each time they are made (single-pass stereo's framebuffers follow)
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
@@ -117,6 +121,7 @@ void ensureResampleTarget(int width, int height)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
     GL_GenFramebuffersFunc(1, &resampleFbo);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, resampleFbo);
+    GL_ObjectLabelFunc(GL_FRAMEBUFFER, resampleFbo, -1, "vr resample");
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resampleTex, 0);
     resampleWidth = width;
     resampleHeight = height;
@@ -179,10 +184,12 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
 
     t.width = width;
     t.height = height;
+    ++t.generation;
 
     if(!targetFbo)
     {
         GL_GenFramebuffersFunc(1, &targetFbo);
+        GL_LabelNewFramebuffer(targetFbo, "vr eye target");
     }
 }
 
@@ -428,6 +435,9 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
 // window's aspect ratio, or the smoothed mirror of the shown eye.
 void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHeight)
 {
+    // The eye's own targets (framebufs: with single-pass stereo, its layer's views; else the eyes' targets).
+    SceneTargets source = eyeTargets;
+    source.fb = framebufs;
     const window::View view = window::view();
     const int shown = window::eye();
     if(view == window::View::Smoothed)
@@ -445,7 +455,7 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
         }
         const glm::mat3 map = window::mirrorMap(frameState().eyes[eye].fov,
             static_cast<float>(windowWidth) / static_cast<float>(windowHeight), hidden);
-        drawToWindow(eyeTargets, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
+        drawToWindow(source, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
         return;
     }
 
@@ -480,7 +490,7 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     }
     const float ew = static_cast<float>(eyeTargets.width);
     const float eh = static_cast<float>(eyeTargets.height);
-    drawToWindow(eyeTargets, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
+    drawToWindow(source, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
         dx0, dx1, windowHeight);
 }
 
@@ -612,7 +622,7 @@ void renderPortal(int width, int height, int depth)
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         target.layers[slot] = layers;
     }
-    if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); }
+    if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); GL_LabelNewFramebuffer(target.fbo, "portal view array"); }
     framebufs = target.scene.fb;
     r_refdef.scale = za::clamp(savedView.scale * portals::scaleAt(depth), 1, za::max(vid.maxscale, 1));
     const int layer = portals::layer(depth);
@@ -809,6 +819,35 @@ bool isFirstEye()
     return firstEye;
 }
 
+void setCurrentEye(int eye)
+{
+    currentEye = eye;
+}
+
+void drawHiddenAreaOf(int eye)
+{
+    const int saved = currentEye;
+    currentEye = eye;
+    drawHiddenArea();
+    currentEye = saved;
+}
+
+void eyeSceneFormats(unsigned& color, unsigned& depth)
+{
+    color = eyeTargets.format;
+    depth = eyeTargets.depth;
+}
+
+const glframebufs_t& eyeFramebufs()
+{
+    return eyeTargets.fb;
+}
+
+unsigned eyeTargetsGeneration()
+{
+    return eyeTargets.generation;
+}
+
 } // namespace qvr::stereo
 
 using namespace qvr;
@@ -853,15 +892,22 @@ extern "C" int VR_RenderView()
         return 0;
     }
     const EyeSizes sizes = be->eyeSizes();
+    dynres::beginFrame(); // (the scale this frame is drawn at, for its GPU time read back later)
     const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
+    // (profiling builds: the eyes' drawn width over the image's, vr_render_scale's result, and the width itself)
+    VR_TracyPlot("Render scale", static_cast<double>(width) / imageWidth);
+    VR_TracyPlot("Eye render width", width);
 
-    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, vid_fsaa.value);
+    stereo::ensureSceneTargets(stereo::eyeTargets, width, height, temporal::eyeFsaa(vid_fsaa.value)); // (no MSAA under TAA)
     if(stereo::resampling)
     {
         stereo::ensureResampleTarget(width, height);
     }
+    // Temporal AA (vr_temporal.cpp): this frame's slots for the models' positions, the motion target on the eye targets
+    temporal::beginFrame(stereo::eyeTargets.fb.scene.fbo, stereo::eyeTargets.fb.composite.fbo, width, height,
+        stereo::eyeTargets.fb.scene.samples);
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width, windowHeight = vid.height;
@@ -915,6 +961,32 @@ extern "C" int VR_RenderView()
     const bool lateAcquire = vr_xr_late_acquire.value != 0.f;
     frame_synthesis::beginFrame();
 
+    // Single-pass stereo (vr_stereo_single.cpp, vr_stereo_single): both eyes' views set up first and the passes ported so
+    // far drawn once into both; each eye below draws the rest of its scene from its layer.
+    if(stereosingle::wanted(stereo::eyeTargets.fb.scene.samples))
+    {
+        framebufs = stereo::eyeTargets.fb;
+        vid.width = width;
+        vid.height = height;
+        glx = gly = 0;
+        glwidth = width;
+        glheight = height;
+        r_refdef.vrect.x = r_refdef.vrect.y = 0;
+        r_refdef.vrect.width = width;
+        r_refdef.vrect.height = height;
+        for(int eye = 0; eye < 2; eye++)
+        {
+            stereo::renderingEye = true;
+            stereo::currentEye = eye;
+            stereo::firstEye = eye == 0;
+            V_SetupView();
+            stereosingle::captureEye(eye);
+        }
+        QVR_GPU_PROFILE("eyes: single pass");
+        stereosingle::render(width, height);
+        stereo::renderingEye = false;
+    }
+
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
     {
@@ -941,8 +1013,13 @@ extern "C" int VR_RenderView()
         // The models' set-up the same for both eyes: the first eye's kept for the second (vr_alias_eye_cache; r_alias.c)
         const int eyeCache = static_cast<int>(vr_alias_eye_cache.value);
         R_AliasEyeCacheBegin(eyeCache <= 0 ? 0 : stereo::firstEye ? 1 : eyeCache >= 2 ? 3 : 2);
+        stereosingle::beginEye(eye);
+        temporal::beginEye(eye);
         V_RenderView();
+        temporal::endEye();
+        stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
+        dynres::testLoad(eye, framebufs.composite.fbo, width, height); // (vr_dynres_test_load: Debug > Profiling)
         {
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
@@ -1027,6 +1104,7 @@ extern "C" int VR_RenderView()
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
     R_AliasEyeCacheEnd();
+    stereosingle::endFrame();
 
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
     const bool stereoRendered = eyesRendered == 2;

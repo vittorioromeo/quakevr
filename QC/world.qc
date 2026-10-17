@@ -574,6 +574,8 @@ void() StartFrame =
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
+    VR_MeleeArc_ShowFrame(); // QVR: Show Melee Arcs: the arcs and reaches the engine draws (fight.qc)
+    VR_AimCone_ShowFrame(); // QVR: Show Aim Cones: the ranged monsters' cones the engine draws (vr_aimcone.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
@@ -587,6 +589,7 @@ void() StartFrame =
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
+    VR_AimConeTest_Frame(); // vr_test_aimcone (vr_aimcone_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
@@ -616,6 +619,7 @@ void() StartFrame =
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
+    VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
     VR_Burn_LavaFrame(); // VR: wood in lava catches fire (vr_burning.qc)

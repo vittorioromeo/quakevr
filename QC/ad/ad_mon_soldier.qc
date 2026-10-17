@@ -97,6 +97,8 @@ void()	ad_army_runback8	=[	$run1,	ad_army_run1	] {ad_ai_backface(11);};
 //======================================================================
 void() ad_army_fire =
 {
+	if (VR_AimCone_Wait(ad_army_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	if (!self.enemy) return;
 	if (self.health < 1) return;
 
@@ -127,6 +129,8 @@ void()	ad_army_atk9	=[	$shoot9,	ad_army_run1	] {ad_ai_face();};
 //======================================================================
 void() ad_army_fire_rocket =
 {
+	if (VR_AimCone_Wait(ad_army_fire_rocket, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir;
 	
 	if (!self.enemy) return;
@@ -180,7 +184,9 @@ void()	ad_army_grenade_atk3 =[	$shoot3, ad_army_grenade_atk4	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed);};
 void()	ad_army_grenade_atk4 =[	$shoot4, ad_army_grenade_atk5	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed);};
-void()	ad_army_grenade_atk5 =[	$shoot5, ad_army_grenade_atk6	] {ad_ai_face();
+void()	ad_army_grenade_atk5 =[	$shoot5, ad_army_grenade_atk6	] {
+	if (VR_AimCone_Wait(ad_army_grenade_atk5, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_ai_face();
 	makevectors(self.angles);
 	self.pos1 = self.origin + ad_attack_vector(self.ad_attack_offset);
 	ad_MonsterFireGrenade(self.pos1, self.enemy.origin);
@@ -193,6 +199,8 @@ void()	ad_army_grenade_atk9 =[	$shoot9, ad_army_run1	] {ad_ai_face();};
 //======================================================================
 void() ad_army_plasma_fire = 
 {
+	if (VR_AimCone_Wait(ad_army_plasma_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_vec;
 
 	if (!self.enemy) return;

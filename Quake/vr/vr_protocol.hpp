@@ -21,7 +21,8 @@ inline constexpr int U_QVR_SCALE = 1 << 24;        // 3 floats
 inline constexpr int U_QVR_SCALEORIGIN = 1 << 25;  // 3 coords
 inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
-inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255)
+inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255);
+                                                   // id 0: not a weapon prop, the byte its loot beam's (vr_server.cpp lootByte)
 inline constexpr int U_QVR_SPIN = 1 << 29;         // no data: drawn spinning as an EF_ROTATE pickup (a weapon pickup drawn as its prop)
 inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop with no magazine in (QC QVR_WPNFLAG_NOMAG: immersive reloading)
 // The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare
@@ -159,7 +160,11 @@ enum Stat : int
     STAT_QVR_HOTBLADEHOLSTER,
     // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp): 6, each holster's bound weapon's id (0: none bound).
     STAT_QVR_MAGBIND0,
-    STAT_QVR_END = STAT_QVR_MAGBIND0 + 6
+    // The hands carrying a thing to put away (QC .vr_carry_items, VR_Carry_IsCollectable: an ammo box, a health box, a
+    // backpack): bit 0 the off hand, 1 the main. Their zones are larger (vr_holster_zone_item_*; vr_holsterzones.cpp).
+    STAT_QVR_CARRYITEM = STAT_QVR_MAGBIND0 + 6,
+    STAT_QVR_END
+
 };
 
 inline constexpr int numHolsters = 6;

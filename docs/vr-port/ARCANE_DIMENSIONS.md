@@ -658,6 +658,12 @@ from Ironwail. Anything in shared engine or QC code carries a clear `// AD suppo
   - `QC/ad/AD_IMPORT.txt` lists what was kept, renamed and dropped.
   - `--verify-frames` (after a build) checks every AD frame function against AD's own `progs.dat`. Current result:
     7,311 of 7,311 equal.
+  - **Before committing a QC/ad change**: never edit `QC/ad/` by hand. Make the change in the importer (`PATCHES`,
+    `FUNC_PATCHES`, `ARC_HITS` or a hook in `main`; names of ours it calls go in `QVR_NAMES`), regenerate, then run
+    `python Misc/quakevr/ad_import.py --release <dir> --check` (writes to `scratch/ad_check`, diffs it against
+    `QC/ad/` and `progs.src`; must say `0 of N files differ`). The Steam copy of AD 1.80p1
+    (`steamapps/common/Quake/ad`) holds the pinned paks and works as `--release` (read only). The 2026-10-16 cleanup
+    moved the earlier hand edits (melee arc, melee space, AD guns' effects, toolgun live torches) into the importer.
 - `QC/vr_ad_bridge.qc` holds the two switches, `VR_Pack_AD()` and `AD_Rules()`. Both return FALSE until P1b.
 - CREDITS.md credits AD's QC (GPL-2.0-or-later).
 

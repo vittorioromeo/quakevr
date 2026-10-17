@@ -709,16 +709,12 @@ Returns true if the field should be printed by the edict command:
 */
 qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
 {
-	const char	*name;
-	size_t		l;
 	int			*v;
 	int			type;
 	int			i;
 
-	name = PR_GetString (d->s_name);
-	l = strlen (name);
-	if (l > 1 && name[l - 2] == '_')
-		return false;	// skip _x, _y, _z vars
+	if (!(d->type & DEF_SAVEGLOBAL))
+		return false;	// skip _x, _y, _z vars (VR: only a vector's; PR_FindSavegameFields)
 
 	type = d->type & ~DEF_SAVEGLOBAL;
 	if (type >= NUM_TYPE_SIZES)
@@ -2009,15 +2005,40 @@ PR_FindSavegameFields
 Determines which fields should be stored in savefiles
 ===============
 */
+// VR: whether the field is a vector field's _x, _y or _z (a float named so, at that vector's offset plus 0, 1 or 2):
+// saved as part of the vector. The stock test (any name whose next-to-last character is '_') also dropped plain fields
+// such as vr_kd_chance_h from every save, so a loaded game's monsters had no knockdown chance and no shove, leg grab or
+// lift made an active ragdoll (ROUND22.md, "No active ragdolls after a load").
+static qboolean PR_IsVectorComponentField (const ddef_t *field)
+{
+	const char *name = PR_GetString (field->s_name);
+	size_t len = strlen (name);
+	int axis, i;
+	if (len < 3 || name[len - 2] != '_' || (field->type & ~DEF_SAVEGLOBAL) != ev_float)
+		return false;
+	axis = name[len - 1] - 'x';
+	if (axis < 0 || axis > 2)
+		return false;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		const ddef_t *v = &qcvm->fielddefs[i];
+		if ((v->type & ~DEF_SAVEGLOBAL) == ev_vector && v->ofs + axis == field->ofs)
+		{
+			const char *vname = PR_GetString (v->s_name);
+			if (strlen (vname) == len - 2 && !strncmp (vname, name, len - 2))
+				return true;
+		}
+	}
+	return false;
+}
+
 static void PR_FindSavegameFields (void)
 {
 	int i;
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		ddef_t *field = &qcvm->fielddefs[i];
-		const char *name = PR_GetString (field->s_name);
-		size_t len = strlen (name);
-		if (len < 2 || name[len - 2] != '_') // skip _x, _y, _z vars
+		if (!PR_IsVectorComponentField (field)) // skip _x, _y, _z vars
 			field->type |= DEF_SAVEGLOBAL;
 	}
 }

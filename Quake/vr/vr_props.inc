@@ -14,7 +14,7 @@ QVR_PROP_KEY(Inertia, "inertia", "1")        // times the inertia of its box: ho
 QVR_PROP_KEY(ComX, "com_x", "0")             // units off the middle of its drawn box, in its model's axes: its
 QVR_PROP_KEY(ComY, "com_y", "0")             // centre of mass (a torch's head, a hammer's)
 QVR_PROP_KEY(ComZ, "com_z", "0")
-QVR_PROP_KEY(Throw, "throw", "0")            // times the hand's throw; 0: from the mass (vr_weight_throw_mass)
+QVR_PROP_KEY(Throw, "throw", "0")            // times the hand's throw; 0: all of it, limited by its mass (throws by weight)
 QVR_PROP_KEY(GripMode, "grip", "0")          // how it sits in the hand (vr_grip.hpp): 0 where taken; 1 fixed (Grip X..Roll);
                                              // 2 in the palm (a rock); 3 along the handle (a torch)
 QVR_PROP_KEY(GripX, "grip_x", "0")           // Grip Mode 1: the model's origin in the right hand's frame, units (x forward,

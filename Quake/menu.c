@@ -1428,7 +1428,7 @@ enum
 	MAIN_CONTINUE, // QVR: the newest save of a campaign's map (vr_continue.cpp), the first row; shown only when there is one
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp)
 	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
-	MAIN_VRHUB, // QVR: the VR hub (vr_hub_map, as the Play page's VR Hub), confirmed
+	MAIN_VRHUB, // QVR: the VR hub (vrstart, as the Play page's VR Hub), confirmed
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), after the VR places; Back from them to this menu
 	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
 	MAIN_SINGLEPLAYER,
@@ -3754,6 +3754,7 @@ void M_Menu_Gamepad_f (void)
 		item (SPACER,					"")								\
 		item (OPT_CONSOLE,				"Console")						\
 		item (OPT_DEFAULTS,				"Reset All")					\
+		item (OPT_BUGREPORT,			"Create Bug Report") /* QVR */	\
 	end_menu ()															\
 	begin_menu (VIDEO_OPTIONS, m_video, TITLE("Display"))				\
 		item (OPT_RESOLUTION,			"Resolution")					\
@@ -5468,6 +5469,9 @@ void M_Options_Key (int k)
 		case OPT_CONSOLE:
 			m_state = m_none;
 			Con_ToggleConsole_f ();
+			break;
+		case OPT_BUGREPORT: // QVR: this run's and the last run's logs in quakevr/bugreports/<date>_<time>.zip (vr/vr_runlogs.cpp)
+			Cbuf_AddText ("bugreport\n");
 			break;
 		case OPT_DEFAULTS: // QVR: asked over the menu (M_Confirm), Cancel by itself after 15 seconds as before
 			M_Confirm ("This will reset all controls\nand stored cvars. Continue?", "Reset", "Cancel", 15.f, M_Options_ResetDefaults);

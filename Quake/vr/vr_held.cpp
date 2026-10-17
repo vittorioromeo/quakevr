@@ -1,5 +1,6 @@
 // vr_held.cpp -- see vr_held.hpp.
 
+#include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
@@ -9,9 +10,11 @@
 #include "vr_fatigue.hpp"
 #include "vr_painknock.hpp"
 #include "vr_grip.hpp"
+#include "vr_handfit.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_physics.hpp"
@@ -127,10 +130,7 @@ mem::Cache<ModelBoxCache> modelBoxes{"held model boxes", mem::MapChange | mem::G
         a.t.active == b.t.active && a.t.k == b.t.k && a.t.scale == b.t.scale && a.t.offset == b.t.offset;
 }
 
-struct Triangle
-{
-    glm::vec3 p[3];
-};
+using Triangle = handfit::Triangle;
 
 // The surface of the model `ent` is drawn with, as triangles in its axes relative to its origin: an
 // alias model's current frame (its first pose), a brush model's faces. False if it has none to give.
@@ -171,13 +171,10 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& o
     const int frame = static_cast<int>(ent->v.frame);
     const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
     const auto* base = reinterpret_cast<const byte*>(hdr);
-    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + pose * hdr->numverts;
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-    const auto vertex = [&](int i) {
-        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
-        return xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
-    };
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    const auto vertex = [&](int i) { return xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex)); };
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
         out.pushBack({{vertex(i), vertex(i + 1), vertex(i + 2)}});
@@ -258,9 +255,10 @@ struct HeldScratch
     za::Vector<char> inside;             // and whether its middle is inside
     za::Vector<glm::vec4> grabSpheres;   // grabTouch: the fist's spheres in the world
     za::Vector<Triangle> fitTris;        // surfaceFit
+    za::Vector<glm::vec4> fitCells;      // surfaceFit: the fist's cells (the hand's frame)
     auto members()
     {
-        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
+        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris, fitCells);
     }
 };
 mem::Scratch<HeldScratch> scratch{"held"};
@@ -361,12 +359,12 @@ bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& 
         return false;
     }
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
-    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
-                        hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
-        glm::vec3 p = xf.stored(glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, i));
         if(mirrored)
         {
             p.y = -p.y;
@@ -391,14 +389,14 @@ bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>&
     }
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
     const auto* base = reinterpret_cast<const byte*>(hdr);
-    const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numindexes));
     for(int i = 0; i < hdr->numindexes; i++)
     {
-        const trivertx_t& v = verts[mesh[indexes[i]].vertindex];
-        glm::vec3 p = xf.stored(glm::vec3{v.v[0], v.v[1], v.v[2]});
+        glm::vec3 p = xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex));
         if(mirrored)
         {
             p.y = -p.y;
@@ -425,14 +423,14 @@ bool magazinePoints(const DrawnTransform& xf, const qmodel_t* mag, bool mirrored
     {
         return false;
     }
-    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
-                        hdr->frames[0].firstpose * hdr->numverts;
+    const int pose = hdr->frames[0].firstpose;
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    mdldequant::prepare(mag); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
-        glm::vec3 p = xf.modelPoint(so + hs * glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]});
+        glm::vec3 p = xf.modelPoint(so + hs * mdldequant::poseVertex(hdr, pose, i));
         if(mirrored)
         {
             p.y = -p.y;
@@ -592,47 +590,6 @@ void forgetDrawnCentres()
 namespace
 {
 
-// The point of the triangle nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 nearestOn(const Triangle& t, const glm::vec3& p)
-{
-    const glm::vec3 &a = t.p[0], &b = t.p[1], &c = t.p[2];
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return a;
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return b;
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        return a + ab * (d1 / (d1 - d3));
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return c;
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        return a + ac * (d2 / (d2 - d6));
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-    }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
-}
-
 // `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
 bool entityTriangles(edict_t* ent, za::Vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
 {
@@ -719,7 +676,7 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     glm::vec3 at{0.f};
     for(const Triangle& t : triangles)
     {
-        const glm::vec3 q = nearestOn(t, p);
+        const glm::vec3 q = geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2]);
         const float d = glm::distance(p, q);
         if(d < best)
         {
@@ -819,7 +776,7 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
         for(size_t i = 0; i < local.size(); i++)
         {
             const glm::vec3 c{local[i]};
-            const glm::vec3 q = nearestOn(t, c);
+            const glm::vec3 q = geom::closestOnTriangle(c, t.p[0], t.p[1], t.p[2]);
             const float d = glm::distance(c, q);
             if(d < nearest[i])
             {
@@ -1088,55 +1045,36 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         }
     }
 
-    // Over each cell of the fist, where the object's surface nearest the back of the hand is (along
-    // the palm's normal through the cell's middle): it goes just clear of the fingers there, and so
-    // the object is moved along the normal until the tightest cell touches (out of the fist, or in to
-    // it). Moving it that way changes nothing of what is over which cell.
+    // Each cell of the fist a probe at its middle, on the fingers' surface there, kept `gap` clear of the object: the
+    // object (a Surface along the palm's normal: what of it is nearest the back of the hand over each cell) is moved
+    // along the normal until the tightest cell touches, out of the fist or in to it (handfit::slide). Moving it that way
+    // changes nothing of what is over which cell.
     const float m2u = units::metresToUnits();
     const float cm = 0.01f * units::perMetre * 1.25f * weapons::offsetScale(); // the hand's cm (as measured), in units
     const float gap = (vr_held_fit_gap.value + modelGap(model)) * 0.01f * m2u;
-    float move = -ZA_FLOAT_MAX;
+    za::Vector<glm::vec4>& cells = scratch.fitCells;
+    cells.clear();
     for(int row = 0; row < fistRows; row++)
     {
         for(int column = 0; column < fistColumns; column++)
         {
             const float surface = fistSurface[row][column];
-            if(surface == none)
+            if(surface != none)
             {
-                continue;
-            }
-            const float x = (static_cast<float>(fistForward0 + column) + 0.5f) * cm;
-            const float z = (static_cast<float>(fistUp0 - row) + 0.5f) * cm;
-            float nearest = ZA_FLOAT_MAX;
-            for(const Triangle& t : triangles)
-            {
-                // Where the line (x, z) crosses it: barycentric in the forward-up plane.
-                const glm::vec2 a{t.p[0].x, t.p[0].z}, b{t.p[1].x, t.p[1].z}, c{t.p[2].x, t.p[2].z};
-                const float det = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-                if(za::fabs(det) < 1e-6f)
-                {
-                    continue;
-                }
-                const float u = ((x - a.x) * (c.y - a.y) - (c.x - a.x) * (z - a.y)) / det;
-                const float v = ((b.x - a.x) * (z - a.y) - (x - a.x) * (b.y - a.y)) / det;
-                if(u < 0.f || v < 0.f || u + v > 1.f)
-                {
-                    continue;
-                }
-                nearest = za::min(nearest, t.p[0].y + u * (t.p[1].y - t.p[0].y) + v * (t.p[2].y - t.p[0].y));
-            }
-            if(nearest != ZA_FLOAT_MAX)
-            {
-                move = za::max(move, surface * cm + gap - nearest);
+                cells.pushBack(glm::vec4{(static_cast<float>(fistForward0 + column) + 0.5f) * cm, surface * cm,
+                    (static_cast<float>(fistUp0 - row) + 0.5f) * cm, -gap});
             }
         }
     }
-    if(move == -ZA_FLOAT_MAX)
+    const handfit::Group all{0, static_cast<int>(cells.size()), 1};
+    const handfit::Slide fit = handfit::slide(handfit::Shape::ofSurface(triangles.data(), static_cast<int>(triangles.size())),
+        handfit::Probes{cells.data(), &all, 1}, glm::vec3{0.f, -1.f, 0.f}, 0.f);
+    if(!fit.found)
     {
         return glm::vec3{0.f}; // nothing of it over the fist: beside it
     }
 
-    const float t = CLAMP(-mostPull * m2u, move, mostPush * m2u);
+    const float t = CLAMP(-mostPull * m2u, fit.t, mostPush * m2u);
     if(vr_debug_throw.value)
     {
         Con_Printf("carryfit %s: moved %.1f cm along the palm's normal\n", model->name, t * 100.f / m2u);
@@ -1668,8 +1606,7 @@ void meetFrame(const hands::State& s)
         // under the receiver or the well (the box is the whole gun's, down to its grip).
         const auto isRound = [](const Held& hd) {
             const qmodel_t* m = hd.drawn && hd.ent > 0 ? cl_entities[hd.ent].model : nullptr;
-            return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine) ||
-                         modelmeta::has(m, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(m)); // (a pouch grenade: the launchers' round)
+            return m && modelmeta::isRound(m);
         };
         if(meet.weapon && (isRound(a) || isRound(b)))
         {
@@ -2016,7 +1953,8 @@ void bothFrame(const hands::State& s, int ent)
     for(int h = 0; h < 2; h++)
     {
         const carry2h::Frame grip = carry2h::onGrip(both.hold, both.object, h);
-        glm::vec3 off = grip.pos - hands[h].pos;
+        const glm::vec3 from = carry2h::reached(both.hold, hands[h], h).pos; // (a hand held out of it: from its reach)
+        glm::vec3 off = grip.pos - from;
         const float length = glm::length(off);
         if(length > drift)
         {
@@ -2029,7 +1967,7 @@ void bothFrame(const hands::State& s, int ent)
         }
         const float angle = glm::angle(turn);
         const float share = drift <= 0.f ? 0.f : angle > mostHandTurn ? mostHandTurn / angle : 1.f;
-        both.drawn[h] = {hands[h].pos + off,
+        both.drawn[h] = {from + off,
             glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, share) * hands[h].rot)};
     }
 }
@@ -2257,7 +2195,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     const int ent = carried[hand];
     const bool inBoth = ent && carried[1 - hand] == ent;
     const BothRelease& other = bothRelease[1 - hand];
-    const double window = za::fmax(vr_carry_two_hands_window.value, 0.f);
+    const double window = za::fmax(vr_throw_2h_window.value, 0.f);
     const bool afterOther = release && ent && other.ent == ent && at - other.at >= -0.02 && at - other.at <= window;
     if(!inBoth && !afterOther)
     {

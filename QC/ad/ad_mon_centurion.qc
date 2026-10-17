@@ -80,6 +80,8 @@ void()	ad_cent_run8	=[	$stand8,	ad_cent_run1	] {ad_ai_run(8);};
 //============================================================================
 void() ad_cent_fire =
 {
+	if (VR_AimCone_Wait(ad_cent_fire, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_vec;
 
 	self.effects = self.effects | ad_EF_MUZZLEFLASH;

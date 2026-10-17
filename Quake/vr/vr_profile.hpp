@@ -116,6 +116,8 @@ struct PhaseSums
 // The runtime's display period (xrWaitFrame's predictedDisplayPeriod), in milliseconds.
 void noteDisplayPeriod(double ms);
 [[nodiscard]] double displayPeriodMs(); // (0: not known, the mock)
+// The serial the frame being drawn gets at its end (the history's, and its GPU times' when read back: dynres::gpuFrame).
+[[nodiscard]] unsigned long long nextFrameSerial();
 
 // ---- The last frames, one by one (the wrist gadget's detailed counter, vr_gadget_fps 2) ----
 // A frame from the same phases (always timed): when it began (seconds, the steady clock of nowSeconds), its period (to

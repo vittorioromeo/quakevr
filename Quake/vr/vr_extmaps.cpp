@@ -77,8 +77,9 @@ struct SessionResults
     ankerl::unordered_dense::map<za::U64, Prepared> prepared; // by the texture's name and pixels (pixelsKey)
     ankerl::unordered_dense::set<za::U64> missingFiles;      // the pack's files not there ("vrext/..."), by their names' hash
     ankerl::unordered_dense::map<za::U64, FrameMatch> frames; // frameMatch's, by both pictures' pixels
+    ankerl::unordered_dense::map<za::U64, za::String> matTexts; // readMat's .mat files (empty: none), by the base's hash
     za::U64 context{0}; // the settings and palette they were made with (contextKey)
-    auto members() { return mem::list(prepared, missingFiles, frames, context); }
+    auto members() { return mem::list(prepared, missingFiles, frames, matTexts, context); }
 };
 mem::Cache<SessionResults> results{"extmaps session results", mem::GameDirChange};
 za::ThreadId resultsOwner; // the main thread (the first VR_ExtMapsPrepare's): VR_ExtMapsOpen's others ask the disk
@@ -165,20 +166,39 @@ bool isAbsolute(const char* dir)
     return dir[0] == '/' || dir[0] == '\\' || (dir[0] && dir[1] == ':');
 }
 
-// <name>.mat read into `mat` (defaults if there is none).
+
+// <name>.mat read into `mat` (what it has over what `mat` has; nothing if there is none). Its text is kept for the
+// session on the main thread (SessionResults: an empty one for none).
 void readMat(const char* base, Material& mat)
 {
-    char path[MAX_QPATH];
-    q_snprintf(path, sizeof(path), "%s%s.mat", prefix, base);
-    FILE* f = VR_ExtMapsOpen(path);
-    if(!f)
+    char text[4096];
+    text[0] = 0;
+    const bool own = za::ThisThread::getId() == resultsOwner;
+    const za::U64 key = own ? bytesHash(base, strlen(base), 4) : 0;
+    const auto known = own ? results.matTexts.find(key) : results.matTexts.end();
+    if(known != results.matTexts.end())
+    {
+        q_strlcpy(text, known->second.cStr(), sizeof(text));
+    }
+    else
+    {
+        char path[MAX_QPATH];
+        q_snprintf(path, sizeof(path), "%s%s.mat", prefix, base);
+        if(FILE* f = VR_ExtMapsOpen(path))
+        {
+            const size_t n = fread(text, 1, za::clamp(static_cast<size_t>(com_filesize), size_t{0}, sizeof(text) - 1), f);
+            fclose(f);
+            text[n] = 0;
+        }
+        if(own)
+        {
+            results.matTexts[key] = za::String{text};
+        }
+    }
+    if(!text[0])
     {
         return;
     }
-    char text[4096];
-    const size_t n = fread(text, 1, za::clamp(static_cast<size_t>(com_filesize), size_t{0}, sizeof(text) - 1), f);
-    fclose(f);
-    text[n] = 0;
 
     int depth = 0;
     for(char* line = text; line && *line;)
@@ -679,6 +699,53 @@ bool completePending()
             }
     Hunk_FreeToLowMark(mark);
     return complete;
+}
+
+void prefetchNames(const char* texname, za::Vector<za::Vector<za::String>>& groups)
+{
+    if(vr_extmaps.value == 0.f || !texname[0])
+    {
+        return;
+    }
+    resultsOwner = za::ThisThread::getId(); // (the main thread: the pack's missing files kept, as Prepare's)
+    checkContext();
+    char base[MAX_QPATH], file[MAX_QPATH];
+    packName(texname, base, sizeof(base));
+    Material mat;
+    readMat(base, mat);
+    const auto add = [&groups](za::Vector<za::String>&& g) { groups.pushBack(ZA_MOVE(g)); };
+    za::Vector<za::String> picture;
+    q_snprintf(file, sizeof(file), "%s%s", prefix, mat.diffusemap[0] ? fileOf(mat.diffusemap) : base);
+    picture.emplaceBack(file);
+    if(const char* frame = strchr(base, '+'); frame && !mat.diffusemap[0]) // (prepare: the animation's one picture)
+    {
+        char lead[MAX_QPATH];
+        q_strlcpy(lead, base, za::min(sizeof(lead), static_cast<size_t>(frame - base) + 1));
+        Material leadMat;
+        readMat(lead, leadMat);
+        q_snprintf(file, sizeof(file), "%s%s", prefix, leadMat.diffusemap[0] ? fileOf(leadMat.diffusemap) : lead);
+        picture.emplaceBack(file);
+    }
+    add(ZA_MOVE(picture));
+    if(VR_NormalMaps())
+    {
+        za::Vector<za::String> normal;
+        q_snprintf(file, sizeof(file), "%s%s%s", prefix, mat.normalmap[0] ? fileOf(mat.normalmap) : base,
+            mat.normalmap[0] ? "" : "_norm");
+        normal.emplaceBack(file);
+        add(ZA_MOVE(normal));
+    }
+    za::Vector<za::String> spec;
+    q_snprintf(file, sizeof(file), "%s%s%s", prefix, mat.specularmap[0] ? fileOf(mat.specularmap) : base,
+        mat.specularmap[0] ? "" : "_spec");
+    spec.emplaceBack(file);
+    add(ZA_MOVE(spec));
+    za::Vector<za::String> glow; // (Attach: only for a texture with no glow of its own)
+    q_snprintf(file, sizeof(file), "%s%s_luma", prefix, base);
+    glow.emplaceBack(file);
+    q_snprintf(file, sizeof(file), "%s%s_glow", prefix, base);
+    glow.emplaceBack(file);
+    add(ZA_MOVE(glow));
 }
 
 } // namespace qvr::extmaps

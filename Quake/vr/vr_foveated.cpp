@@ -160,6 +160,17 @@ RateImage& rateImage(int eye, int width, int height)
 using BindFramebufferFn = decltype(GL_BindFramebufferFunc);
 BindFramebufferFn realBindFramebuffer = nullptr;
 GLuint sceneFbos[2] = {0, 0};
+// Single-pass stereo's multiview pass (beginSceneLayered): both eyes' rate images as the layers of one array, each view
+// shaded by its own layer.
+struct LayeredRates
+{
+    GLuint texture = 0;
+    int tilesX = 0, tilesY = 0;
+};
+LayeredRates layered;
+using CopyImageFn = void(APIENTRY*)(GLuint, GLenum, GLint, GLint, GLint, GLint, GLuint, GLenum, GLint, GLint, GLint,
+    GLint, GLsizei, GLsizei, GLsizei);
+CopyImageFn copyImage = nullptr;
 bool active = false; // between beginScene and endScene
 bool enabled = false; // GL_SHADING_RATE_IMAGE_NV
 
@@ -302,6 +313,56 @@ void beginScene(int eye, int width, int height)
     int viewport[4]{};
     const GLuint bound = VR_SceneTarget(&color, &depth, &samples, viewport);
     setEnabled(bound != 0 && (bound == sceneFbos[0] || bound == sceneFbos[1]));
+}
+
+void beginSceneLayered(unsigned fbo, int width, int height)
+{
+    endScene();
+    if(vr_foveated.value < 1.f || r_refdef.scale != 1 || width <= 0 || height <= 0 || !supported())
+    {
+        return;
+    }
+    QVR_PROFILE("foveation");
+    const RateImage& left = rateImage(0, width, height);
+    const RateImage& right = rateImage(1, width, height);
+    if(!copyImage)
+    {
+        copyImage = reinterpret_cast<CopyImageFn>(SDL_GL_GetProcAddress("glCopyImageSubData"));
+    }
+    if(!copyImage || left.tilesX != right.tilesX || left.tilesY != right.tilesY)
+    {
+        return;
+    }
+    if(!layered.texture || layered.tilesX != left.tilesX || layered.tilesY != left.tilesY)
+    {
+        if(layered.texture)
+        {
+            GL_DeleteNativeTexture(layered.texture);
+        }
+        glGenTextures(1, &layered.texture);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, layered.texture);
+        GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, GL_R8UI, left.tilesX, left.tilesY, 2);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, 0);
+        layered.tilesX = left.tilesX;
+        layered.tilesY = left.tilesY;
+    }
+    // (each frame: a few hundred bytes; the eyes' images are remade when the lens or size changes)
+    copyImage(left.texture, GL_TEXTURE_2D, 0, 0, 0, 0, layered.texture, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, left.tilesX,
+        left.tilesY, 1);
+    copyImage(right.texture, GL_TEXTURE_2D, 0, 0, 0, 0, layered.texture, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, left.tilesX,
+        left.tilesY, 1);
+    bindShadingRateImage(layered.texture);
+    shadingRateImagePalette(0, 0, static_cast<GLsizei>(za::getArraySize(palette)), palette);
+    sceneFbos[0] = sceneFbos[1] = fbo;
+    if(GL_BindFramebufferFunc != watchedBindFramebuffer)
+    {
+        realBindFramebuffer = GL_BindFramebufferFunc;
+        GL_BindFramebufferFunc = watchedBindFramebuffer;
+    }
+    active = true;
+    setEnabled(true); // (the multiview framebuffer is bound)
 }
 
 void shadeBoundAsScene(bool on)

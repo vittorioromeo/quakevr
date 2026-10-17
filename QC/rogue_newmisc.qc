@@ -37,6 +37,7 @@ void() light_candle =
         VR_FlameProp_Setup(3, FALSE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
         return;
     }
+    VR_FireSpot(3); // QVR: its flame turns nails into lava nails (vr_burning.qc VR_Burn_NailCheck)
     makestatic (self);
 };
 

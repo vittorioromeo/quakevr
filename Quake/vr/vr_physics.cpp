@@ -20,6 +20,7 @@
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -127,7 +128,7 @@ constexpr float easyHandTouchBonus = 4.5f;
     return carry && fieldFunc(target, f().handtouch) == carry;
 }
 
-// vr_debug_carry 2: a hand's box touching a carried thing (the old test, vr_carry_grab_drawn 0): how far its fist is
+// vr_debug_carry 2: a hand's box touching a carried thing (no fist push, another player's hand): how far its fist is
 // from the thing's drawn surface.
 void debugBoxTouch(edict_t* target, edict_t* player, int which)
 {
@@ -187,11 +188,14 @@ constexpr float weaponDrawnReach = 48.f;
 {
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
     // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
-    const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
-    if(box3d::isRagdoll(NUM_FOR_EDICT(target)))
+    const bool byFist = vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    const int h = which == HAND_OFF ? 0 : 1;
+    const int handPos = which == HAND_OFF ? f().offhandpos : f().handpos; // (the hand's field)
+    const float m2u = units::metresToUnits();
+    if(const int num = NUM_FOR_EDICT(target); box3d::isRagdoll(num))
     {
         // A ragdoll: a hand on one of its limbs (its box is round all of them).
-        return box3d::ragdollReach(NUM_FOR_EDICT(target), fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos));
+        return box3d::ragdollReach(num, fieldVec(player, handPos));
     }
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
@@ -199,12 +203,10 @@ constexpr float weaponDrawnReach = 48.f;
         // gets: taken within vr_reload_grab_slack of its surface.
         const int mi = static_cast<int>(target->v.modelindex);
         const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
-        const float slack = model && (modelmeta::has(model, modelmeta::Trait::LiveShell) ||
-                                      modelmeta::has(model, modelmeta::Trait::Magazine) ||
-                                      modelmeta::has(model, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(model))
-                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()
+        const float slack = model && modelmeta::isRound(model)
+                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * m2u
                                 : 0.f;
-        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack);
+        return held::grabTouch(target, player, h, slack);
     }
     if(weaponByFist(target))
     {
@@ -217,9 +219,7 @@ constexpr float weaponDrawnReach = 48.f;
         // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
         // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
         // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
-        const int h = which == HAND_OFF ? 0 : 1;
-        const float m2u = units::metresToUnits();
-        const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+        const glm::vec3 hand = fieldVec(player, handPos);
         const bool atHandle =
             glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
         float slack = 0.f;
@@ -241,13 +241,13 @@ constexpr float weaponDrawnReach = 48.f;
         }
         // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20:
         // the hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off).
-        // Without a fist (no jointed hand model) or with vr_weapon_grab_box 1: by its box, as before.
-        if(!held::fist(h).empty() && !vr_weapon_grab_box.value)
+        // Without a fist (no jointed hand model): by its box, as before.
+        if(!held::fist(h).empty())
         {
             return false;
         }
     }
-    const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+    const glm::vec3 hand = fieldVec(player, handPos);
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
@@ -1963,6 +1963,13 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
     return !thingSplash(ent, at, entering);
 }
 
+#ifdef QVR_TRACY
+namespace
+{
+constexpr vr_tracy_loc touchLinksZone{"VR touch links", "QVR", __FILE__, __LINE__, 0}; // a player's only
+} // namespace
+#endif
+
 extern "C" int VR_TouchLinks(edict_t* ent)
 {
     if(!active())
@@ -1975,12 +1982,17 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     // touchable one is linked: only SOLID_NOT isn't), found down the area nodes rather than by a scan
     // of every edict for every mover, and taken in edict order as that scan did (touch functions may
     // relink, hence the copy).
+    const bool client = isClient(ent);
+#ifdef QVR_TRACY
+    // A player's (a few a tick): the touches round his body and hands, zoned (the C6 hitches: ROUND22.md).
+    const vr_tracy_loc* const zone = client ? &touchLinksZone : nullptr;
+    if(zone) VR_TracyBeginLoc(zone);
+#endif
     const int mark = Hunk_LowMark();
     const int space = qcvm->num_edicts * 3;
     edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
     int found = 0;
 
-    const bool client = isClient(ent);
     SV_AreaEdictsUnordered(ent->v.absmin, ent->v.absmax, list, &found, space);
     if(client)
     {
@@ -2023,11 +2035,15 @@ extern "C" int VR_TouchLinks(edict_t* ent)
         touch(ent, target);
         if(client && !target->free)
         {
+            QVR_TRACY_SCOPE(handZone, "VR hand touch");
             handTouch(ent, target);
         }
     }
 
     Hunk_FreeToLowMark(mark);
+#ifdef QVR_TRACY
+    if(zone) VR_TracyEnd();
+#endif
     return 1;
 }
 

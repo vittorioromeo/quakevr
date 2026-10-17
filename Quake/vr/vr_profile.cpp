@@ -12,8 +12,10 @@
 #include "vr_profile_systems.hpp"
 #include "vr_bench.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_dynres.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -40,6 +42,106 @@ int vr_profile_on = 0;
 int vr_profile_fine = 0;
 int vr_profile_inqc = 0;
 vr_profcounts_t vr_profcounts;
+int vr_gl_markers_on = 0;
+extern qboolean glmarkers; // gl_vidsdl.c: -glmarkers, -gldebug
+}
+
+namespace
+{
+
+// The GPU scopes' GL debug groups (vr_gl_markers): bit k set while the main thread's scope at depth k pushed one.
+// Scopes deeper than 64 push none; a frame's start closes what a Host_Error left open (VR_ProfileFrame).
+struct GlMarkerStack
+{
+    za::U64 pushed = 0;
+    int depth = 0;
+    int frameGroups = 0; // this frame's groups pushed so far, and their deepest nesting
+    int frameDeepest = 0;
+    int lastGroups = 0; // the last whole frame's (vr_gl_markers_report)
+    int lastDeepest = 0;
+    int lastLeftOpen = 0; // scopes still open at the frame's start (a Host_Error, a modal dialog's frames): closed then
+};
+GlMarkerStack glMarkerStack;
+int glMarkerTool = -1; // a graphics debugger or a debugger in the process (vr_gl_markers 2), checked once with the GL
+
+void glMarkerPush(const char* name, bool gpu)
+{
+    const int d = glMarkerStack.depth++;
+    if(d >= 64)
+    {
+        return;
+    }
+    const za::U64 bit = za::U64{1} << d;
+    if(gpu && vr_gl_markers_on)
+    {
+        GL_PushDebugGroupFunc(GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+        glMarkerStack.pushed |= bit;
+        ++glMarkerStack.frameGroups;
+        glMarkerStack.frameDeepest = za::max(glMarkerStack.frameDeepest, d + 1);
+    }
+    else
+    {
+        glMarkerStack.pushed &= ~bit;
+    }
+}
+
+void glMarkerPop()
+{
+    if(glMarkerStack.depth <= 0)
+    {
+        return;
+    }
+    const int d = --glMarkerStack.depth;
+    if(d < 64 && ((glMarkerStack.pushed >> d) & 1u))
+    {
+        glMarkerStack.pushed &= ~(za::U64{1} << d);
+        GL_PopDebugGroupFunc();
+    }
+}
+
+void glMarkerFrame()
+{
+    glMarkerStack.lastLeftOpen = glMarkerStack.depth;
+    while(glMarkerStack.depth > 0)
+    {
+        glMarkerPop();
+    }
+    glMarkerStack.lastGroups = glMarkerStack.frameGroups;
+    glMarkerStack.lastDeepest = glMarkerStack.frameDeepest;
+    glMarkerStack.frameGroups = 0;
+    glMarkerStack.frameDeepest = 0;
+    const int mode = static_cast<int>(qvr::vr_gl_markers.value);
+    if(mode == 2 && glMarkerTool < 0 && GL_PushDebugGroupFunc)
+    {
+        glMarkerTool = Sys_IsDebuggerPresent() || Sys_GraphicsDebuggerPresent() ? 1 : 0;
+    }
+    vr_gl_markers_on = GL_PushDebugGroupFunc && GL_PopDebugGroupFunc && cls.state != ca_dedicated &&
+                       (mode == 1 || (mode == 2 && glMarkerTool == 1) || glmarkers);
+}
+
+void glMarkersReport_f()
+{
+    GLint glDepth = -1;
+    if(GL_PushDebugGroupFunc)
+    {
+        glGetIntegerv(GL_DEBUG_GROUP_STACK_DEPTH, &glDepth);
+    }
+    Con_Printf("vr_gl_markers %d (%s): the last frame's GL debug groups %d, nested %d deep; scopes left open at its "
+               "start %d; the GL's group stack now %d (1: none open)\n",
+               static_cast<int>(qvr::vr_gl_markers.value), vr_gl_markers_on ? "on" : "off", glMarkerStack.lastGroups,
+               glMarkerStack.lastDeepest, glMarkerStack.lastLeftOpen, static_cast<int>(glDepth));
+}
+
+} // namespace
+
+extern "C" void VR_GLMarkerBegin(const char* name)
+{
+    glMarkerPush(name, true);
+}
+
+extern "C" void VR_GLMarkerEnd()
+{
+    glMarkerPop();
 }
 
 namespace qvr::profile
@@ -316,6 +418,7 @@ bool resolvePhases(PhaseGpuSlot& s)
     {
         history[s.sample].gpuMs = static_cast<float>(eyes);
     }
+    dynres::gpuFrame(s.serial, eyes); // dynamic resolution's input (vr_dynres.cpp)
     s.pending = false;
     return true;
 }
@@ -759,12 +862,7 @@ void writeFile(double seconds)
     const bool created = capturePath.empty();
     if(created)
     {
-        const time_t now = time(nullptr);
-        char stamp[64];
-        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        capturePath = dir + "/profile_" + captureMap + "_" + stamp + ".csv";
+        capturePath = files::profileFile((za::String{"profile_"} + captureMap + "_").cStr(), time(nullptr));
     }
 
     FILE* f = fopen(capturePath.cStr(), "a");
@@ -961,6 +1059,11 @@ double displayPeriodMs()
     return displayPeriod;
 }
 
+unsigned long long nextFrameSerial()
+{
+    return static_cast<unsigned long long>(frameSerial) + 1;
+}
+
 bool frameSample(int back, FrameSample& out)
 {
     if(back < 0 || back >= frameHistorySize || static_cast<za::U64>(back) >= frameSerial)
@@ -979,6 +1082,13 @@ double nowSeconds()
 void begin(const char* name, bool gpu)
 {
     VR_TracyBegin(name, gpu);
+    if(!VR_OnMainThread())
+    {
+        // A scope on the thread pool (the sound mix: S_MixKick): Tracy's alone (each thread has its own); the tree, the
+        // phases and their GPU queries are the main thread's.
+        return;
+    }
+    glMarkerPush(name, gpu); // (each scope a level, so that end pops the group its begin pushed)
     beginPhase(name, gpu);
     if(!active)
     {
@@ -1046,6 +1156,11 @@ void endScope()
 void end()
 {
     VR_TracyEnd();
+    if(!VR_OnMainThread())
+    {
+        return; // (as begin)
+    }
+    glMarkerPop();
     endPhase();
     endScope();
 }
@@ -1060,6 +1175,7 @@ void init()
     root.view = systems::rootView();
     nodes.pushBack(root);
     Cmd_AddCommand("vr_profile_dump", dump_f);
+    Cmd_AddCommand("vr_gl_markers_report", glMarkersReport_f);
     systems::init();
 }
 
@@ -1080,6 +1196,7 @@ unsigned gpuFrameCount = 0; // VR_ProfileFrame's frames: the GPU is timed on one
 extern "C" void VR_ProfileFrame()
 {
     VR_TracyFrame();
+    glMarkerFrame();
     using namespace qvr::profile;
     if(nodes.empty() || cls.state == ca_dedicated)
     {

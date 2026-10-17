@@ -250,6 +250,15 @@ bool qvr::menuui::bannerColumnShown()
     return columnPlace.x1 >= columnPlace.x0 && host_framecount - columnPlace.frame <= 2;
 }
 
+// Host_Init, after Draw_Init: the menus' images loaded now, not at the first menu's draw (VRTRACE_20261016: a 40 ms
+// frame at the first menu open, the banner's decode). In the start-up's window, so the next start decodes them ahead
+// on a worker (vr_imgprefetch.cpp's list).
+extern "C" void VR_MenuBrandPreload()
+{
+    (void)bannerPic();
+    (void)imagePic(kofiLogo);
+}
+
 // The VR menu style: the banner left of the corner's buttons (the author's note: under them, the menu looked cluttered),
 // in the panel's margin from its left edge, its top level with the first button's, columnHeight tall (less where the
 // margin is narrower or the bottom left corner's rows come sooner), as near the buttons as columnGap. Where the margin
@@ -324,7 +333,11 @@ constexpr float versionCorner = 4.f; // the box from the canvas's right and bott
 constexpr float versionPad = 4.f;    // its lines from its edges (true pixels; the status box's: vr_menuui.cpp, StatusMetrics)
 constexpr float versionGap = 8.f;    // clear of what the menu draws beside it (menu x) and of the status box (true pixels)
 constexpr float versionGapAbove = 4.f; // and of what it draws above it (true pixels; a VR page's help box ends 4 above its bottom)
-constexpr double linkFeedback = 3.0;   // seconds the link says it opened the page
+constexpr float buildInfoSizeHeadset = 5.f; // the build text's glyphs in the bottom left corner (true pixels)
+constexpr float buildInfoSizeFlat = 5.f;
+constexpr float buildInfoGap = 3.f; // clear of the corner's buttons below it (true pixels)
+static_assert(versionCorner + buildInfoSizeHeadset + buildInfoGap == 12.f, "ToolbarLayout::corner + labelReserve (vr_menuui.cpp)");
+constexpr double linkFeedback = 3.0;  // seconds the link says it opened the page
 constexpr double linkRepeat = 1.5;     // seconds a second press does nothing (a double click, both triggers)
 
 // The label as last placed, for menu_vr pos and the link's presses.
@@ -689,6 +702,31 @@ void drawUpdateNotice(const VersionBox& b)
     drawSmall(nameX, nb.rowY[1], size, name, n.hot);
 }
 
+// The build (VR_BuildInfo: "1.1.0 build 4321 (abc1234) 2026-10-17 14:05") small and faint in the canvas's bottom left
+// corner, for a bug report or a screenshot to name it.
+void drawBuildInfo()
+{
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float left, top, right, bottom;
+    Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
+    const float size = qvr::menuui::active() ? buildInfoSizeHeadset : buildInfoSizeFlat; // true pixels
+    const float k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // (as versionBox)
+    // At the very bottom, under what sits in that corner (the buttons keep ToolbarLayout::labelReserve clear of it).
+    const float bottomEdge = bottom - versionCorner / k;
+    const float x = left + versionCorner;
+    const float ym = bottomEdge - size * 0.5f / k;
+    const float width = size * static_cast<float>(strlen(VR_BuildInfo()));
+    // Not where the menu draws (its rows or help box reach down to it): left out, the console has the text.
+    if(x + width + versionGap > qvr::menu::contentLeftBelow(ym - size * 0.5f / k - versionGapAbove / k))
+    {
+        return;
+    }
+    pushFaded(0.65f);
+    drawSmall(x, ym, size, VR_BuildInfo());
+    GL_PopCanvasColor();
+}
+
 } // namespace
 
 extern "C" void VR_MenuDrawVersion()
@@ -708,6 +746,7 @@ extern "C" void VR_MenuDrawVersion()
         v.leftOut = "not the menu canvas";
         return;
     }
+    drawBuildInfo();
     const VersionBox b = versionBox(v.text, sizeof(v.text));
     const float size = b.size, k = b.k;
     v.x0 = b.x0;

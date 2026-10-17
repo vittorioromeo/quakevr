@@ -26,10 +26,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.h"
 
 glprogs_t glprogs;
-static GLuint gl_programs[128];
+static GLuint gl_programs[256]; // QVR: 256 (the multiview twins)
 static GLuint gl_current_program;
 static int gl_num_programs;
 static int gl_shader_ab; // QVR: tests: QVR_SHADER_AB in every shader (vr_shader_reload)
+
+// QVR: single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): each graphics program's sources, for its
+// multiview twin (the same sources compiled with QVR_MULTIVIEW), made when single-pass stereo turns on
+// (GL_MultiviewPrepare).
+typedef struct {
+	GLuint		program;
+	GLuint		twin;		// 0: not made (yet)
+	qboolean	tried;		// made, or failed to
+	qboolean	ported;		// a ported pass's program (its name)
+	qboolean	pending;	// its twin compiling in the background (GL_MultiviewPending)
+	int			missing;	// used in the multiview pass, its twin failed (GL_MultiviewStats)
+	const char	*sources[2];
+	char		macros[1024];
+	char		name[128];
+} glprogsource_t;
+static glprogsource_t gl_progsources[160];
+static int gl_num_progsources;
+static int gl_multiview_compile; // GL_CreateShader: the twin's header (1); a failure is reported, not fatal
+static int gl_multiview_missing; // programs used in the multiview pass without a twin (VR_StereoSingleInfo)
+static qboolean gl_multiview_unprepared; // a ported program made since GL_MultiviewPrepare (its twin not yet)
+#ifndef GL_COMPLETION_STATUS_KHR
+#define GL_COMPLETION_STATUS_KHR 0x91B1
+#endif
+static qboolean gl_multiview_async; // GL_CreateShader, GL_CreateProgramFromShaders: a twin not waited for
+static int gl_multiview_pending; // twins compiling in the background (GL_MultiviewPending)
+qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
 
 /*
 =============
@@ -138,6 +164,10 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		gl_shader_ab
 	);
 	strings[numstrings++] = header;
+	if (gl_multiview_compile) // QVR: a multiview twin (single-pass stereo): both eyes from each draw
+		strings[numstrings++] = type == GL_VERTEX_SHADER ?
+			"#extension GL_OVR_multiview2 : require\nlayout(num_views = 2) in;\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n" :
+			"#extension GL_OVR_multiview2 : require\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n";
 
 	if (extradefs && *extradefs)
 		strings[numstrings++] = extradefs;
@@ -148,6 +178,8 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 	GL_ObjectLabelFunc (GL_SHADER, shader, -1, name);
 	GL_ShaderSourceFunc (shader, numstrings, strings, NULL);
 	GL_CompileShaderFunc (shader);
+	if (gl_multiview_async) // QVR: a twin made in the background: not waited for (GL_MultiviewPending)
+		return shader;
 	GL_GetShaderivFunc (shader, GL_COMPILE_STATUS, &status);
 
 	if (status != GL_TRUE)
@@ -155,6 +187,12 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
+		if (gl_multiview_compile) // QVR: a twin that fails leaves its pass per eye
+		{
+			Con_Printf ("multiview twin of %s: %s shader:\n%s\n", name, typestr, infolog);
+			gl_multiview_compile = 2;
+			return shader;
+		}
 		GL_InitError ("Error compiling %s %s shader:\n\n%s", name, typestr, infolog);
 	}
 
@@ -183,13 +221,21 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 
 	VR_GLStep ("link %s", name); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_LinkProgramFunc (program);
-	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
+	status = GL_TRUE;
+	if (!gl_multiview_async) // QVR: a twin made in the background: its status later (GL_MultiviewPending)
+		GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
 
 	if (status != GL_TRUE)
 	{
 		char infolog[1024];
 		memset(infolog, 0, sizeof(infolog));
 		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
+		if (gl_multiview_compile) // QVR: a twin
+		{
+			Con_Printf ("multiview twin of %s: link:\n%s\n", name, infolog);
+			gl_multiview_compile = 2;
+		}
+		else
 		GL_InitError ("Error linking %s program:\n\n%s", name, infolog);
 	}
 
@@ -256,7 +302,177 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 		if (sources[i])
 			shaders[realcount++] = GL_CreateShader (types[i], sources[i], macros, name);
 
-	return GL_CreateProgramFromShaders (shaders, realcount, name);
+	{ // QVR: a graphics program's sources kept for its multiview twin (GL_MultiviewProgram)
+		GLuint program = GL_CreateProgramFromShaders (shaders, realcount, name);
+		if (count == 2 && !gl_multiview_compile && gl_num_progsources < (int) countof (gl_progsources))
+		{
+			glprogsource_t *src = &gl_progsources[gl_num_progsources++];
+			memset (src, 0, sizeof (*src));
+			src->program = program;
+			src->sources[0] = sources[0];
+			src->sources[1] = sources[1];
+			q_strlcpy (src->macros, macros, sizeof (src->macros));
+			q_strlcpy (src->name, name, sizeof (src->name));
+			// the ported passes' (STEREO.md): the world's solid and fence surfaces and its depth pre-pass, the alias models
+			src->ported = !strncmp (name, "world|", 6) || !strncmp (name, "world pdo|", 10) || !strncmp (name, "world depth", 11) ||
+				!strncmp (name, "world decal retro|", 18) || !strncmp (name, "world pdo decal retro|", 22) || !strncmp (name, "alias|", 6);
+			gl_multiview_unprepared = gl_multiview_unprepared || src->ported;
+		}
+		return program;
+	}
+}
+
+/*
+====================
+GL_MultiviewMake -- QVR
+
+The multiview twin of `src`'s program compiled and linked; `async`: not waited for (GL_MultiviewPending tells when it
+is done, and whether it failed).
+====================
+*/
+static void GL_MultiviewMake (glprogsource_t *src, qboolean async)
+{
+	GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+	GLuint shaders[2];
+	int j, realcount;
+	src->tried = true;
+	gl_multiview_compile = 1;
+	gl_multiview_async = async;
+	for (j = 0, realcount = 0; j < 2; j++)
+		if (src->sources[j])
+			shaders[realcount++] = GL_CreateShader (types[j], src->sources[j], src->macros, src->name);
+	if (gl_multiview_compile == 1)
+		src->twin = GL_CreateProgramFromShaders (shaders, realcount, src->name);
+	else
+		for (j = 0; j < realcount; j++)
+			GL_DeleteShaderFunc (shaders[j]);
+	if (gl_multiview_compile != 1)
+		src->twin = 0;
+	src->pending = async && src->twin;
+	gl_multiview_pending += src->pending;
+	gl_multiview_compile = 0;
+	gl_multiview_async = false;
+}
+
+/*
+====================
+GL_MultiviewProgram -- QVR
+
+The multiview twin of `program` (single-pass stereo); `program` itself when it has none (a pass not ported, or a twin
+that failed to compile or is still compiling: counted in gl_multiview_missing). The twins are made ahead
+(GL_MultiviewPrepare): one made here is a program made since.
+====================
+*/
+static GLuint GL_MultiviewProgram (GLuint program)
+{
+	int i;
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		glprogsource_t *src = &gl_progsources[i];
+		if (src->program != program)
+			continue;
+		if (!src->ported)
+			break;
+		if (!src->tried)
+			GL_MultiviewMake (src, false);
+		if (src->twin && !src->pending)
+			return src->twin;
+		gl_multiview_missing++;
+		src->missing++;
+		break;
+	}
+	return program; // (a compute program, or one of Quake VR's own)
+}
+
+/*
+====================
+GL_MultiviewPrepare -- QVR
+
+Every ported program's twin begun now (single-pass stereo turned on, or on at start: vr/vr_stereo_single.cpp), so none
+is compiled mid-game the first time its pass draws. `async` (the driver has GL_KHR_parallel_shader_compile): compiled
+by the driver's threads in the background; until GL_MultiviewPending says they are all done, the frames are two-pass.
+Returns how many were begun (0: all were already).
+====================
+*/
+int GL_MultiviewPrepare (int async)
+{
+	int i, made = 0;
+	if (!gl_multiview_unprepared)
+		return 0;
+	gl_multiview_unprepared = false;
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		glprogsource_t *src = &gl_progsources[i];
+		if (src->ported && !src->tried)
+		{
+			GL_MultiviewMake (src, async != 0);
+			made++;
+		}
+	}
+	return made;
+}
+
+/*
+====================
+GL_MultiviewPending -- QVR
+
+How many twins are still compiling in the background (GL_MultiviewPrepare). Those done are checked: a twin that failed
+is reported and dropped (its pass then draws per eye in no frame: the multiview pass counts it as missing).
+====================
+*/
+int GL_MultiviewPending (void)
+{
+	int i;
+	if (!gl_multiview_pending)
+		return 0;
+	gl_multiview_pending = 0;
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		glprogsource_t *src = &gl_progsources[i];
+		GLint done = GL_TRUE, status = GL_TRUE;
+		if (!src->pending)
+			continue;
+		GL_GetProgramivFunc (src->twin, GL_COMPLETION_STATUS_KHR, &done);
+		if (!done)
+		{
+			gl_multiview_pending++;
+			continue;
+		}
+		src->pending = false;
+		GL_GetProgramivFunc (src->twin, GL_LINK_STATUS, &status);
+		if (status != GL_TRUE)
+		{
+			char infolog[1024];
+			memset (infolog, 0, sizeof (infolog));
+			GL_GetProgramInfoLogFunc (src->twin, sizeof (infolog), NULL, infolog);
+			Con_Printf ("multiview twin of %s: link:\n%s\n", src->name, infolog);
+			src->twin = 0;
+		}
+	}
+	return gl_multiview_pending;
+}
+
+/*
+====================
+GL_MultiviewStats -- QVR
+
+The twins made so far, and the programs the multiview pass used without one (since the last call).
+====================
+*/
+void GL_MultiviewStats (int *twins, int *missing)
+{
+	int i;
+	*twins = 0;
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		if (gl_progsources[i].twin)
+			++*twins;
+		if (gl_progsources[i].missing)
+			Con_Printf ("  %s: its twin failed, %d uses\n", gl_progsources[i].name, gl_progsources[i].missing);
+		gl_progsources[i].missing = 0;
+	}
+	*missing = gl_multiview_missing;
+	gl_multiview_missing = 0;
 }
 
 /*
@@ -307,6 +523,8 @@ GL_UseProgram
 */
 void GL_UseProgram (GLuint program)
 {
+	if (gl_multiview_draw && program) // QVR: the multiview pass (single-pass stereo): the program's twin
+		program = GL_MultiviewProgram (program);
 	if (program == gl_current_program)
 		return;
 	gl_current_program = program;
@@ -434,6 +652,8 @@ void GL_DeleteShaders (void)
 		gl_programs[i] = 0;
 	}
 	gl_num_programs = 0;
+	gl_num_progsources = 0; // QVR: (the twins were among gl_programs)
+	gl_multiview_pending = 0; // QVR
 
 	GL_UseProgramFunc (0);
 	gl_current_program = 0;

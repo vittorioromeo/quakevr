@@ -86,10 +86,6 @@ VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,
                            self.offmuzzlepos,
                            self.muzzlepos);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,
-                          self.offhandvelmag,
-                          self.handvelmag);
-
 // Where a hand's shots, projectiles and beams go: its aim turned by the weapon's Shot Pitch and Yaw (the client's
 // weapons::shotAngles). The hand's aim for a player the engine gives none (a bot: its shotrot stays 0 0 0).
 vector(float xHand) VRGetWeaponFireRot =
@@ -440,26 +436,6 @@ inline float(entity ent) VRGet2HAiming =
     return !!(ent.vrbits0 & QVR_VRBITS0_2H_AIMING);
 }
 
-inline float(entity ent) VRGetOffHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetMainHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetOffHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADFLICKING);
-}
-
-inline float(entity ent) VRGetMainHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADFLICKING);
-}
-
 
 void(entity ent, float value) VRSetTeleporting =
 {
@@ -523,22 +499,30 @@ float(entity ent) VRIsWeaponReloadingEnabled =
 {
     // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it
     // empties, with no handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
-    return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
+    // (Whether any gun reloads: the global mode, or a gun's own override.)
+    return (VR_Reload_BestMode() != QVR_RELOADMODE_NONE) &&
            (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE) &&
            !VR_FlatPlay(ent);
+}
+
+// The same of the weapon `wid` alone (its own reloading mode: the Per-Weapon Reload Overrides).
+float(entity ent, float wid) VRIsWeaponReloadingEnabledForWeapon =
+{
+    return VRIsWeaponReloadingEnabled(ent) &&
+           WeaponIdToSupportsReload(wid) &&
+           VR_Reload_ModeOf(wid) != QVR_RELOADMODE_NONE;
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled(ent) &&
-           WeaponIdToSupportsReload(VRGetWeapon(xHand));
+           VRIsWeaponReloadingEnabledForWeapon(ent, VRGetWeapon(xHand));
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled(ent) &&
+           VRIsWeaponReloadingEnabledForWeapon(ent, VRGetWeapon(xHand)) &&
            WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
 }
 

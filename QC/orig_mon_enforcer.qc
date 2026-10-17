@@ -70,11 +70,7 @@ void() Laser_Touch =
         vector dir = normalize(self.velocity);
         VR_TouchTrace(self.origin - dir * 16, self.origin + dir * 16);
         float pop = VR_Decap_LaserArm(other, self.owner, trace_ent == other ? trace_endpos : self.origin, dir, dmg);
-        T_Damage(other, self, self.owner, dmg);
-        if(pop)
-        {
-            VR_Decap_After(other);
-        }
+        VR_Decap_Damage(other, self, self.owner, dmg, pop);
     }
     else
     {
@@ -93,7 +89,7 @@ entity(vector org, vector vec) LaunchLaser =
     if(self.classname == "monster_enforcer")
         sound(self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: a monster's bent to its facing's aim cone (vr_aimcone.qc)
 
     newmis = spawn();
     newmis.owner = self;
@@ -132,6 +128,7 @@ entity(vector org, vector vec) LaunchLaser =
 void() enforcer_fire =
 {
     vector org;
+    if(VR_AimCone_Wait(enforcer_fire, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     makevectors(self.angles);

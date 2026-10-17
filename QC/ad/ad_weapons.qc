@@ -293,6 +293,7 @@ void(float ad_shotcount, vector ad_spread) ad_FireBullets =
 			ad_dir = self.enemy.origin - self.enemy.velocity*0.2;
 			ad_dir = normalize (ad_dir - ad_src);
 		}
+		ad_dir = VR_AimCone_Bend(ad_dir, VR_AIM_NARROW); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	}
 
 	ad_ClearMultiDamage ();

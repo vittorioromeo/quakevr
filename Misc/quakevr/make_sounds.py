@@ -23,6 +23,8 @@
 #                 shell pushed into the shotgun's port, reload_shell_in*.wav: recorded, cut by make_reload_shell_sounds.py)
 #   reload_blocked.wav, reload_full.wav  a shell held to a full shotgun (the gate's dry click: it won't open), and the
 #                 last shell in (the tube full: a heavier double knock)
+#   pack_full.wav  a box put away while full up of it (QC vr_carry.qc VR_Carry_FullCue): a dull falling double pat on a
+#                 stuffed pack
 #   reload_mag_in.wav, reload_mag_out.wav  a magazine seated in its gun (a slide, the catch's click, a metal clack) and
 #                 let go of (the catch's click, a falling scrape)
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
@@ -869,6 +871,28 @@ def reload_full():
     return finish(out, 0.85)
 
 
+def pack_full():
+    """A box put away while full up of it (QC vr_carry.qc VR_Carry_FullCue): a dull double pat on a stuffed leather pack
+    that won't give, falling in pitch ("no room"), soft and low, unlike any metal knock: the box drops, not a miss."""
+    rng = random.Random(733)
+    n = int(RATE * 0.3)
+    lp = OnePole(900)
+    body = ((150, 1.0, 0.05), (235, 0.55, 0.035), (330, 0.3, 0.02))
+    phase = [0.0]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        x = 0.0
+        for at, a, pitch in ((0.0, 1.0, 1.0), (0.11, 0.85, 0.78)):
+            tc = t - at
+            if tc >= 0:
+                x += a * (partials(tc, pitch, body) * min(1.0, tc / 0.002) +
+                          rng.uniform(-1, 1) * math.exp(-tc / 0.012) * 0.5)
+                x += a * thud(tc, phase, 40.0 * pitch, 70.0 * pitch, 0.07) * 0.8
+        out.append(math.tanh(lp(x) * 1.6))
+    return finish(out, 0.8)
+
+
 def reload_mag_in():
     """A magazine seated in its gun: a short slide of steel on steel, then the catch snapping over it (a hard click) and
     the magazine's own weight knocking home (a dull metal clack, a short ring)."""
@@ -1300,6 +1324,7 @@ def main():
         "reload_empty.wav": reload_empty,
         "reload_blocked.wav": reload_blocked,
         "reload_full.wav": reload_full,
+        "pack_full.wav": pack_full,
         "reload_mag_in.wav": reload_mag_in,
         "reload_mag_out.wav": reload_mag_out,
         "reload_ssg_eject.wav": reload_ssg_eject,

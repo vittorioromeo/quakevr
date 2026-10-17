@@ -8,6 +8,7 @@
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_particles.hpp"
@@ -457,9 +458,7 @@ void finish()
     int endCounts[CountCount]{};
     takeCounts(endCounts);
     const double seconds = static_cast<double>(za::Clock::nowNanoseconds() - c.startNs) / 1e9;
-    const za::String dir = za::String{com_gamedir} + "/profile";
-    Sys_mkdir(dir.cStr());
-    const za::String benchDir = dir + "/bench";
+    const za::String benchDir = files::profileDir() + "/bench";
     Sys_mkdir(benchDir.cStr());
     const za::String path = benchDir + "/" + c.name + ".json";
     FILE* f = fopen(path.cStr(), "w");

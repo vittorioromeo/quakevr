@@ -144,8 +144,8 @@ void curls(const FingerStop& stop, float curl, float engage, float out[handrig::
 // and how thick a handle it is (`radius`). False if it can't be found.
 bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
 
-// The same for the hand before "Hands remodelled" (the six models' fit), for settings made with it (the cups' one-time
-// move, vr_view.cpp migrateCups): its channel with the fingers at their default places, moved as they are.
+// The same for the hand before "Hands remodelled" (the six models' fit), for settings made with it: its channel with
+// the fingers at their default places, moved as they are.
 void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
 
 // The signed distance (world units) from the world point `p` to `shape`'s surface, if within `reach`: negative inside

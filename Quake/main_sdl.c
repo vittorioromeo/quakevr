@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 	VR_TimeStart (); // QVR: start-up timing (vr_startup_times)
 
 	Sys_Printf("Initializing Ironwail v%s\n", IRONWAIL_VER_STRING);
-	Sys_Printf("Quake VR build %s\n", VR_BuildVersion ()); // QVR
+	Sys_Printf("Quake VR %s\n", VR_BuildInfo ()); // QVR
 
 	parms.memsize = DEFAULT_MEMORY;
 	if (COM_CheckParm("-heapsize"))

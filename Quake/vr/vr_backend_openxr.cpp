@@ -11,6 +11,7 @@
 
 #ifdef QVR_HAVE_OPENXR
 
+#include "vr_bodytrack_xr.hpp"
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
@@ -19,6 +20,7 @@
 #include "vr_xr_runtime.hpp"
 #include "vr_synthesis_math.hpp"
 #include "vr_synthesis_submission.hpp"
+#include "vr_xr_stall.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -163,7 +165,8 @@ void describeFault(const Fault& fault, char* out, size_t size)
 }
 #endif
 
-// Diagnostics mode's messenger (any thread): the message to openxr_debug.log (vr_diagnostics.cpp).
+// The debug messenger (any thread; every run, vr_diagnostics_xr): the message to the run's openxr_debug.log
+// (vr_runlogs.cpp, rate-limited).
 XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT severity, XrDebugUtilsMessageTypeFlagsEXT,
     const XrDebugUtilsMessengerCallbackDataEXT* data, void*)
 {
@@ -240,6 +243,7 @@ public:
                 Con_Printf("VR: %svr_xr_api_layers 0 turns off the OpenXR API layers installed (overlays, toolkits); "
                            "qvr_openxr.txt has the details\n",
                     vdxr ? "set Virtual Desktop's OpenXR runtime to SteamVR (the Streamer's settings), or " : "");
+                VR_LogsIncident(va("%s crashed (%s), caught", runtime[0] ? runtime : attempt.label.cStr(), faultText));
             }
             stop(); // (all of it: the next runtime starts from nothing)
 #ifdef QVR_OPENXR_INTEROP
@@ -258,6 +262,7 @@ public:
         {
             return false;
         }
+        bodytrack::xr::create(instance, systemId, session); // (vr_bodytrack_xr.cpp: when the runtime offers it)
 
         // The runtime paces frames (xrWaitFrame): the desktop mirror must not wait for vsync.
         SDL_GL_SetSwapInterval(0);
@@ -343,6 +348,7 @@ public:
         }
         getVisibilityMask = nullptr;
 
+        bodytrack::xr::destroy();
         for(XrSpace& space : handSpaces)
         {
             destroySpace(space);
@@ -494,9 +500,9 @@ public:
         profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
         t0 = Sys_DoubleTime();
         const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
-        timeCall(CallWait, t0);
+        frameWaitMs = timeCall(CallWait, t0);
         profile::end();
-        if(!check(waited, "xrWaitFrame"))
+        if(!checkFrameCall(waited, "xrWaitFrame"))
         {
             return true;
         }
@@ -521,7 +527,7 @@ public:
         XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
         syncInfo.countActiveActionSets = 1;
         syncInfo.activeActionSets = &active;
-        xrSyncActions(session, &syncInfo);
+        QVR_TRACY_CALL("xrSyncActions", xrSyncActions(session, &syncInfo));
         timeCall(CallSync, t0);
 
         const XrTime time = frameState.predictedDisplayTime;
@@ -538,8 +544,10 @@ public:
         {
             v = XrView{XR_TYPE_VIEW};
         }
+        XrResult located = XR_SUCCESS;
+        QVR_TRACY_CALL("xrLocateViews", located = xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views));
         const bool viewsOk =
-            check(xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views), "xrLocateViews") &&
+            check(located, "xrLocateViews") &&
             viewCount == 2 &&
             (viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
 
@@ -573,6 +581,7 @@ public:
                 }
             }
         }
+        bodytrack::xr::locate(worldSpace, time); // the tracked body, as the hands (vr_bodytrack_xr.cpp)
 
         if(!userPresent())
         {
@@ -1070,8 +1079,10 @@ public:
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
-        const XrResult ended = xrEndFrame(session, &endInfo);
-        submitSucceeded = check(ended, "xrEndFrame");
+        xrstall::debugStall(); // (vr_debug_frame_stall_ms: as if the runtime held the frame)
+        XrResult ended = XR_SUCCESS;
+        QVR_TRACY_CALL("xrEndFrame", ended = xrEndFrame(session, &endInfo));
+        submitSucceeded = checkFrameCall(ended, "xrEndFrame");
 #ifdef QVR_OPENXR_INTEROP
         if(interopMode) submitSucceeded = ended == XR_SUCCESS;
         if(interopMode && !submitSucceeded)
@@ -1086,7 +1097,7 @@ public:
             haveLastViews = true;
         }
         lastProjectionTime = submitSucceeded && layer.viewCount == 2 && !held ? frameState.predictedDisplayTime : 0;
-        timeCall(CallEnd, t0);
+        const double endMs = timeCall(CallEnd, t0);
         if(COM_CheckParm("-qvr-frame-diagnostics") && Sys_DoubleTime() - diagnosticLayersAt >= 1.0)
         {
             diagnosticLayersAt = Sys_DoubleTime();
@@ -1114,6 +1125,10 @@ public:
             }
         }
         timing.frames++;
+        // Held frames (the runtime holding them, as at the 2026-10-17 drop): said once as they start and end.
+        xrstall::frame(frameWaitMs, endMs, static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6,
+            stateName(sessionState));
+        frameWaitMs = 0.0;
     }
 
     [[nodiscard]] GraphicsImage acquirePanelImage(int width, int height) override
@@ -1477,13 +1492,31 @@ private:
     double diagnosticAt{-1.0};
     double diagnosticLayersAt{-1.0};
 
-    void timeCall(Call call, double since)
+    double timeCall(Call call, double since)
     {
         CallTime& c = timing.calls[call];
         const double ms = (Sys_DoubleTime() - since) * 1000.0;
         c.sum += ms;
         c.max = za::max(c.max, ms);
         c.count++;
+        return ms;
+    }
+    double frameWaitMs{0.0}; // this frame's xrWaitFrame (xrstall::frame)
+
+    // check's, for xrWaitFrame and xrEndFrame: each failure timestamped in the log and Tracy, repeats folded.
+    bool checkFrameCall(XrResult result, const char* what) const
+    {
+        if(XR_SUCCEEDED(result))
+        {
+            return true;
+        }
+        char text[XR_MAX_RESULT_STRING_SIZE] = "";
+        if(instance != XR_NULL_HANDLE)
+        {
+            xrResultToString(instance, result, text);
+        }
+        xrstall::callFailed(what, static_cast<int>(result), text);
+        return false;
     }
 
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
@@ -2032,7 +2065,8 @@ private:
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
         double t0 = Sys_DoubleTime();
-        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index);
+        XrResult acquired = XR_SUCCESS;
+        QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index));
         timeCall(CallAcquire, t0);
         if(acquired != XR_SUCCESS)
         {
@@ -2045,7 +2079,8 @@ private:
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
         t0 = Sys_DoubleTime();
-        const XrResult waited = xrWaitSwapchainImage(sc.handle, &waitInfo);
+        XrResult waited = XR_SUCCESS;
+        QVR_TRACY_CALL("xrWaitSwapchainImage", waited = xrWaitSwapchainImage(sc.handle, &waitInfo));
         timeCall(CallWaitImage, t0);
         if(waited != XR_SUCCESS)
         {
@@ -2072,7 +2107,9 @@ private:
     {
         if(sc.handle == XR_NULL_HANDLE || !sc.acquired || !sc.waited) return false;
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        const bool released = check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        XrResult releaseResult = XR_SUCCESS;
+        QVR_TRACY_CALL("xrReleaseSwapchainImage", releaseResult = xrReleaseSwapchainImage(sc.handle, &releaseInfo));
+        const bool released = check(releaseResult, "xrReleaseSwapchainImage");
         if(released) sc.acquired = sc.waited = false;
         else
         {
@@ -2091,7 +2128,8 @@ private:
         XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
         double t0 = Sys_DoubleTime();
-        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquire, &index);
+        XrResult acquired = XR_SUCCESS;
+        QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquire, &index));
         timeCall(CallAcquire, t0);
         if(acquired != XR_SUCCESS)
         {
@@ -2104,7 +2142,8 @@ private:
         XrSwapchainImageWaitInfo wait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         wait.timeout = XR_INFINITE_DURATION;
         t0 = Sys_DoubleTime();
-        const XrResult waited = xrWaitSwapchainImage(sc.handle, &wait);
+        XrResult waited = XR_SUCCESS;
+        QVR_TRACY_CALL("xrWaitSwapchainImage", waited = xrWaitSwapchainImage(sc.handle, &wait));
         timeCall(CallWaitImage, t0);
         if(waited != XR_SUCCESS)
         {
@@ -2369,6 +2408,7 @@ private:
 #else
         za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
 #endif
+        bodytrack::xr::reset();
         uint32_t available = 0;
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
         za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
@@ -2439,8 +2479,13 @@ private:
                 extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
                 visibilityMaskExtension = true;
             }
-            // Diagnostics mode: the loader's and the runtime's own messages (openxr_debug.log).
-            if(VR_DiagnosticsOn() && vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
+            // Body tracking (vr_bodytrack_xr.cpp): the FB tracker, Meta's full body, fidelity and calibration.
+            if(const char* body = bodytrack::xr::wanted(p.extensionName))
+            {
+                extensions.pushBack(body);
+            }
+            // The loader's and the runtime's own messages (every run: logs/<date>_<time>/openxr_debug.log).
+            if(vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
             {
                 extensions.pushBack(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
                 debugUtils = true;
@@ -2489,7 +2534,8 @@ private:
         // The messenger chained to the instance's creation (the loader's and the runtime's messages while it is made),
         // then one of its own for the instance's life (createDebugMessenger).
         XrDebugUtilsMessengerCreateInfoEXT messengerInfo{XR_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-        messengerInfo.messageSeverities = XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        // (Verbose only in diagnostics mode: a runtime's per-call chatter.)
+        messengerInfo.messageSeverities = (VR_DiagnosticsOn() ? XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT : 0) |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -2513,7 +2559,7 @@ private:
         XrResult created = xrCreateInstance(&info, &instance);
         if(XR_FAILED(created) && (debugUtils || !layers.empty()))
         {
-            // Diagnostics mode must not cost the VR start: again without the messenger and the validation layer.
+            // The logs must not cost the VR start: again without the messenger and the validation layer.
             VR_DiagnosticsNote(va("xrCreateInstance failed (%d) with the debug messenger/validation layer (instance %p left): "
                                   "again without\n",
                 static_cast<int>(created), static_cast<void*>(instance)));
@@ -2522,7 +2568,7 @@ private:
                 xrDestroyInstance(instance); // (the loader's own failure after the runtime's instance was made)
                 instance = XR_NULL_HANDLE;
             }
-            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with diagnostics' debug messenger: again without it\n",
+            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with the debug messenger: again without it\n",
                 static_cast<int>(created));
             debugUtils = false;
             za::Vector<const char*> kept;
@@ -2583,6 +2629,8 @@ private:
         // The crash report's VR line from here: which runtime, and what sits between it and the game.
         const za::String around = xrruntime::layersAndOverlays();
         xrruntime::logLine(va("OpenXR: %s\n", around.cStr()));
+        VR_LogsSystemLine(va("VR: OpenXR %s (%s); %s\n", runtime[0] ? runtime : "a runtime without a name",
+            currentAttempt.label.cStr(), around.cStr())); // (the run's system.txt: vr_runlogs.cpp)
         q_snprintf(crashBase, sizeof(crashBase), "OpenXR %s (%s); %s", runtime[0] ? runtime : "a runtime without a name",
             currentAttempt.label.cStr(), around.cStr());
         VR_SetCrashVr(crashBase);
@@ -3664,7 +3712,7 @@ private:
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                     sessionState = changed.state;
                     noteState(stateName(sessionState));
-                    xrruntime::logLine(va("%s session %s%s\n", wallClock(), stateName(sessionState),
+                    xrstall::note(va("%s session %s%s\n", wallClock(), stateName(sessionState), // (Tracy too)
                         sessionState == XR_SESSION_STATE_VISIBLE
                             ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
                                                               "shown again, not rendered; vr_xr_unfocused 1)"

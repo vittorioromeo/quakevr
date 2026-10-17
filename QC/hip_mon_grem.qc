@@ -1232,7 +1232,7 @@ void() Gremlin_FireRocket =
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
-   missile.velocity = normalize(dir);
+   missile.velocity = VR_AimCone_Bend(normalize(dir), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
    missile.velocity = missile.velocity * 1000;
     missile.angles = vectoangles(missile.velocity);
 
@@ -1268,7 +1268,7 @@ void(float ox) Gremlin_FireNailGun =
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
-   dir = normalize(dir);
+   dir = VR_AimCone_Bend(normalize(dir), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
    launch_spike (self.origin + '0 0 16', dir);
 };
 
@@ -1383,7 +1383,7 @@ void() Gremlin_FireLightningGun =
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
-   dir = normalize(dir);
+   dir = VR_AimCone_Bend(normalize(dir), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     VR_AI_Lightning(org, dir, 600, TE_LIGHTNING2, 30);
 };
@@ -1423,6 +1423,7 @@ void() GremlinFireProximityGrenade =
     dir = normalize(dir);
     missile.velocity = dir * 600;
     missile.velocity_z = 200;
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     missile.avelocity = '100 600 100';
     missile.angles = vectoangles(missile.velocity);
@@ -1635,7 +1636,7 @@ void(float side) Gremlin_Melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
     if(!VR_MeleeArc_Hits(FALSE))
         return; // QVR: (melee arc: fight.qc)

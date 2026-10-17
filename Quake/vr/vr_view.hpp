@@ -58,6 +58,11 @@ struct ViewEntity
 // light direction and the light round it, vraliasinstance_t) keep the body's and give it to the hands.
 void bareLight(const entity_t* e, float lightcolor[3]);
 void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
+// Whether e is the body whose light the bare hands take (bareLitHand): drawn in each eye, never culled.
+[[nodiscard]] bool keepsBareLight(const entity_t* e);
+
+// Which of the view entities' parts `e` is (VR_DRAW_HANDS ... VR_DRAW_OTHER, vr_api_render.h); -1 not a view entity.
+[[nodiscard]] int drawGroup(const entity_t* e);
 
 // The view entity a copy in the body's mirror image (vr_bodyclone.cpp) is of; null if `e` is not one. (find() gives the
 // copy's own ViewEntity: its place, turn and mirroring the image's.)
@@ -116,6 +121,22 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
+
+// modelPoint's transform made once, for several points of the same entity as it is now (the same results, without making
+// its matrix again for each): ModelSpace m{ve}; m.point(p).
+class ModelSpace
+{
+public:
+    explicit ModelSpace(const ViewEntity& ve);
+    [[nodiscard]] glm::vec3 point(const glm::vec3& p) const;
+
+private:
+    float m_[16]{};
+    glm::vec3 origin_;           // (not an alias model: its origin for every point)
+    glm::vec3 scaleOrigin_{0.f}; // the model's header's
+    glm::vec3 scale_{1.f};
+    bool alias_ = false;
+};
 
 // QVR flashlight on guns (round 20): the gun drawn in `hand` this frame, for what clips onto it: its
 // model, the pose it is drawn from (the hand's; for a gun carried by its foregrip, the hand's that let
@@ -177,6 +198,9 @@ struct WeaponFrame
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
 [[nodiscard]] entity_t* holsteredWeapon(int stat);
+// Where holster `stat` (body::Holster) itself was drawn last frame, empty or not: its model's origin, the loops a gun
+// hangs in (on the body, not the hand's reach point body::holsterPosition, which stands out of it). False: not placed.
+[[nodiscard]] bool holsterPoint(int stat, glm::vec3& at);
 // A gun drawn as parts in its place: the super shotgun broken open (its frame and barrels, their skin the gun's with rows
 // added under it for the breech plates), the shotgun while its auto pump strokes (the gun without its fore-end and the
 // fore-end, the gun's very skin). The parts drawn this frame in place of the gun entity `gun` (a hand's, a holster's, a
@@ -223,6 +247,14 @@ struct WeaponHotspot
 // middle of its drawn points within a unit and a half of the way there), `cm` over it (tests: vr_mock_hand_to <hand>
 // held). False if it has none.
 [[nodiscard]] bool heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out);
+
+// The weapon `hand` holds, as drawn last: its handle's place and its muzzle's anchor (the holster zones: its grip and
+// body). False if it holds none (or a fist).
+[[nodiscard]] bool heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip);
+
+// The middle of the palm of `hand` as drawn last holding a weapon (the holster zones' hand point: the hand can be in
+// a holster's box while its gun's grip and body are not). False if it holds none.
+[[nodiscard]] bool heldHandPoint(int hand, glm::vec3& out);
 
 // The butt of the weapon `hand` holds, as drawn last: the middle of its drawn points within a unit of its rearmost end
 // along its line from the muzzle to the handle (a stock's heel, a pistol grip's base). The wrist gadget's screen tap
@@ -285,6 +317,12 @@ struct DrawnWeapon
 // weapon hand by it (vr_modelcollide.cpp, with held::drawnPush).
 [[nodiscard]] glm::vec3 handPress(int hand);
 
+// The free `hand` drawn held out of the prop `ent` (an entity number) the other hand holds alone, last frame's
+// (vr_hand_collide_props_keep_out): how far it is drawn moved off its tracked place, relative to the prop as drawn (the
+// hand's push less the prop's press; world units). Zero when it is not against it. The second hand's grab of that prop
+// (vr_carry2h.cpp) takes it there, at the surface, not where the real hand is in it.
+[[nodiscard]] glm::vec3 heldOutOf(int hand, int ent);
+
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();
@@ -309,6 +347,10 @@ void woundTargets(entity_t* out[3]);
 [[nodiscard]] int handBonePoses(const entity_t* e, const float** matrices);
 
 void dumpView_f();
+
+// The view's debug and test commands (vr_view_diag.cpp: vr_dumpview, vr_grasp_*, vr_ragdoll_hand_probe,
+// vr_model_reload, vr_hotspots_check, vr_anchor_where, vr_weapon_hotspot_here, vr_hotspot_fit), registered (VR_Init).
+void registerDiagCommands();
 
 // vr_pose_check (vr_posing.cpp): the hand holding the weapon now (`weaponTarget`: the weapon hand; else the other hand,
 // holding it by a hotspot) against the pose confirmed: its rig and drawn palm, and the weapon's muzzle, where the pose put

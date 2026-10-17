@@ -139,6 +139,8 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 	VR_TRACY_SCOPE("Image decode");
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 	byte *data = Image_LoadImageRun (name, width, height, fmt);
+	if (data)
+		VR_RangerHeadImage (name, data, *width, *height, *fmt); // QVR: the body's skins with the ranger's head (vr_rangerhead.cpp)
 	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
 	return data;
 }
@@ -178,7 +180,7 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 				return data;
 			}
 			long start = ftell (f); // (where the image starts: the cache's key again after the decoding)
-			data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			data = VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp: the start-up's list, a map load's textures)
 			if (!data)
 				data = stbi_load_from_file (f, width, height, NULL, 4);
 			if (data && !extmap)

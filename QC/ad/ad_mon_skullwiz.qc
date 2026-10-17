@@ -337,7 +337,9 @@ void() ad_skullw_attack2	=[	$spellA5,	ad_skullw_attack3	] {ad_ai_face();};
 void() ad_skullw_attack3	=[	$spellA7,	ad_skullw_attack4	] {ad_ai_face();};
 void() ad_skullw_attack4	=[	$spellA10,	ad_skullw_attack5	] {ad_ai_face();};
 void() ad_skullw_attack5	=[	$spellA11,	ad_skullw_attack6	] {ad_ai_face();};
-void() ad_skullw_attack6	=[	$spellA12,	ad_skullw_attack7	] {ad_skullw_fire('30 0 16');};
+void() ad_skullw_attack6	=[	$spellA12,	ad_skullw_attack7	] {
+	if (VR_AimCone_Wait(ad_skullw_attack6, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_skullw_fire('30 0 16');};
 void() ad_skullw_attack7	=[	$spellA13,	ad_skullw_attack8	] {};
 void() ad_skullw_attack8	=[	$spellA15,	ad_skullw_run1		] {};
 

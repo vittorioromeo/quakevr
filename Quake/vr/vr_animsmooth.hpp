@@ -10,6 +10,7 @@ namespace qvr::animsmooth
 
 // vr_anim_smooth_pin, vr_anim_smooth_info, vr_anim_smooth_check, vr_anim_smooth_trace (Debug > Reports).
 void registerCommands();
+void registerDiagCommands(); // (vr_animsmooth_diag.cpp)
 
 // Whether `e`'s model is drawn through its rig's bones (an alias model with a ragdoll rig that fits it): its hit
 // reactions are its bones' (vr_hitreact.cpp), else its whole model's tilt.

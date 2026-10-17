@@ -33,6 +33,7 @@
 //   half a step is far below their tolerances.
 
 #include "vr_mdldequant.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1270,11 +1271,81 @@ void onChanged(cvar_t*)
 
 } // namespace
 
+namespace
+{
+
+// The disk cache's (vr_mdl_dequant_cache; vr_diskcache.hpp, cache/dequant): BUMP dequantVersion whenever a change here
+// could give other offsets or normals for the same model and loops (the solver, its constants, the runs' rules, the
+// normals' packing, Quake's normal table). vr_mdl_dequant_cache 2 computes anyway and compares.
+constexpr unsigned dequantVersion = 1;
+const za::String dequantBuild = [] {
+    const unsigned parts[] = {dequantVersion, static_cast<unsigned>(sizeof(trivertx_t)), static_cast<unsigned>(NUMVERTEXNORMALS)};
+    return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
+}();
+constexpr char dequantMagic[5] = "QVRD";
+
+// All that compute reads: the poses, the frames (their poses and names: the runs) and the progs' loops it takes.
+[[nodiscard]] unsigned long long dequantKey(const aliashdr_t* hdr, const char* model)
+{
+    using qvr::diskcache::fnv;
+    buildQcLoops();
+    const int counts[3] = {hdr->numposes, hdr->numverts, hdr->numframes};
+    unsigned long long h = fnv(qvr::diskcache::fnvStart, counts, sizeof(counts));
+    h = fnv(h, posesOf(hdr), static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    for(int f = 0; f < hdr->numframes; f++)
+    {
+        const maliasframedesc_t& d = hdr->frames[f];
+        h = fnv(h, &d.firstpose, sizeof(d.firstpose));
+        h = fnv(h, &d.numposes, sizeof(d.numposes));
+        h = fnv(h, d.name, sizeof(d.name));
+    }
+    for(const QcLoop& loop : qcLoopsOf(hdr, model))
+    {
+        h = fnv(h, &loop.firstFrame, sizeof(loop.firstFrame));
+        h = fnv(h, &loop.count, sizeof(loop.count));
+    }
+    return h;
+}
+
+// compute's result read from the disk, else computed (and written); vr_mdl_dequant_cache 2: computed and compared.
+void computeCached(const aliashdr_t* hdr, const char* model, unsigned* out)
+{
+    using qvr::diskcache::Product;
+    const int mode = qvr::diskcache::modeOf(Product::Dequant);
+    const size_t bytes = static_cast<size_t>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
+    if(!mode)
+    {
+        compute(hdr, model, out);
+        return;
+    }
+    const unsigned long long key = dequantKey(hdr, model);
+    unsigned a = 0, b = 0;
+    za::Vector<char> data;
+    const bool read = qvr::diskcache::read(Product::Dequant, dequantBuild.cStr(), key, "dqt", dequantMagic, a, b, data, model) &&
+                      a == static_cast<unsigned>(hdr->numposes) && b == static_cast<unsigned>(hdr->numverts) &&
+                      data.size() == bytes;
+    if(read && mode == 1)
+    {
+        memcpy(out, data.data(), bytes);
+        return;
+    }
+    compute(hdr, model, out);
+    if(read)
+    {
+        qvr::diskcache::noteChecked(Product::Dequant, memcmp(out, data.data(), bytes) == 0, model);
+        return;
+    }
+    qvr::diskcache::write(Product::Dequant, dequantBuild.cStr(), key, "dqt", dequantMagic,
+        static_cast<unsigned>(hdr->numposes), static_cast<unsigned>(hdr->numverts), out, bytes);
+}
+
+} // namespace
+
 extern "C" void VR_MdlDequantCompute(const char* model, const void* aliashdr, unsigned* out)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     const double t0 = Sys_DoubleTime();
-    compute(hdr, model, out);
+    computeCached(hdr, model, out);
     loadTotals.withoutProgs += sv.qcvm.progs ? 0 : 1;
     loadTotals.models++;
     loadTotals.seconds += Sys_DoubleTime() - t0;
@@ -1297,6 +1368,28 @@ void init()
 void registerCommands()
 {
     Cmd_AddCommand("vr_mdl_dequant_check", check_f);
+}
+
+void prepare(const qmodel_s* model)
+{
+    if(!model || model->type != mod_alias || !VR_MdlDequantOn())
+    {
+        return;
+    }
+    auto* mainhdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(mainhdr->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return;
+    }
+    // As GLMesh_LoadVertexBuffer does at the model's first upload (which then finds them ready).
+    for(aliashdr_t* hdr = mainhdr; hdr; hdr = Mod_NextSurface(hdr))
+    {
+        if(hdr->dequant && !hdr->dequantready)
+        {
+            VR_MdlDequantCompute(model->name, hdr, reinterpret_cast<unsigned*>(reinterpret_cast<byte*>(hdr) + hdr->dequant));
+            hdr->dequantready = 1;
+        }
+    }
 }
 
 glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)

@@ -25,6 +25,9 @@ struct EntityVr
     bool noMag{false};    // a weapon prop with no magazine in (U_QVR_NOMAG: vr_view.cpp setupMagazines draws none)
     bool ssgOpen{false};  // a super shotgun prop broken open (U_QVR_SSGOPEN: vr_view.cpp setupSsgParts draws it open)
     int ssgLoaded{0};     // and its chambers loaded (0-2: the barrels' skin)
+    // Not a weapon prop, its loot beam's state (vr_lootbeams.cpp; U_QVR_WEAPONUID with weapon id 0): -1 nothing sent,
+    // else bit 7 carried in a hand, bits 0-6 a magazine's fullness in percent (127: not a magazine).
+    int loot{-1};
 };
 
 void init(); // registers input commands

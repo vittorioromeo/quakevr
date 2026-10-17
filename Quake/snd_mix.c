@@ -241,6 +241,9 @@ kernel is 4x faster, because we can skip 3/4 of the input samples that are
 known to be 0 and skip 3/4 of the filter kernel.
 ==============
 */
+static float	*s_filterinput; // QVR: S_ApplyFilter's input (was the hunk's), grown as needed
+static size_t	s_filterinputsize;
+
 static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 {
 	int i, j;
@@ -248,12 +251,17 @@ static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 	float *input;
 	const int kernelsize = filter->kernelsize;
 	const float *kernel = filter->kernel;
-	int mark;
 	int parity;
 
-	mark = Hunk_LowMark ();
+	// QVR: a heap buffer kept between calls, not the hunk's top: the mix may run on the thread pool (S_MixKick), and the
+	// hunk is the main thread's
 	inputsize = sizeof(float) * (filter->kernelsize + count);
-	input = (float *) Hunk_AllocNoFill (inputsize);
+	if (inputsize > s_filterinputsize)
+	{
+		s_filterinput = (float *) VR_HeapRealloc (s_filterinput, inputsize);
+		s_filterinputsize = inputsize;
+	}
+	input = s_filterinput;
 
 // set up the input buffer
 // memory holds the previous filter->kernelsize samples of input.
@@ -292,8 +300,6 @@ static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 	}
 
 	filter->parity = parity;
-
-	Hunk_FreeToLowMark (mark);
 }
 
 /*

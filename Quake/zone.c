@@ -357,6 +357,7 @@ typedef struct hunkseg_s
 #define LASTSEG			(hunk_segments[hunk_numsegments-1])
 
 static int				hunk_low_used;
+static int				hunk_keep_mark; // QVR: Hunk_KeepLoaded: frees stop here
 static int				hunk_numsegments;
 static hunkseg_t		*hunk_segments[MAX_SEGMENTS];
 
@@ -735,10 +736,45 @@ void Hunk_FreeToLowMark (int mark)
 	if (mark < 0 || mark > hunk_low_used)
 		Sys_Error ("Hunk_FreeToLowMark: bad mark %i", mark);
 
+	// QVR: never under a model kept on the hunk (Hunk_KeepLoaded): one loaded inside this temporary allocation (a late
+	// precache from QuakeC run in a touch or a push, which hold their lists here) stays, and the list under it until the
+	// map's end (Hunk_ClearKeep)
+	if (mark < hunk_keep_mark && hunk_keep_mark <= hunk_low_used)
+	{
+		Con_DPrintf ("Hunk_FreeToLowMark: %i bytes held under a model loaded inside them, until the map's end\n",
+			hunk_keep_mark - mark);
+		mark = hunk_keep_mark;
+	}
+
 	VR_TracyHunkReset(mark);
 	hunk_low_used = mark;
 	for (i = Hunk_SegForOfs (hunk_low_used); i < hunk_numsegments; i++)
 		hunk_segments[i]->used = q_max (0, hunk_low_used - hunk_segments[i]->base);
+}
+
+/*
+===================
+Hunk_KeepLoaded -- QVR
+
+A model whose data stays on the hunk (a sprite, a brush model) was just loaded: nothing frees under it until
+Hunk_ClearKeep. Quake loads them only with the map, with no temporary allocation open; Quake VR also loads them during
+play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open (SV_TouchLinks, VR_TouchLinks,
+SV_PushMove keep their lists on the hunk), whose free would otherwise hand the model's memory to the cache.
+===================
+*/
+void Hunk_KeepLoaded (void)
+{
+	hunk_keep_mark = hunk_low_used;
+}
+
+/*
+===================
+Hunk_ClearKeep -- QVR: the memory is cleared (Host_ClearMemory), the models with it
+===================
+*/
+void Hunk_ClearKeep (void)
+{
+	hunk_keep_mark = 0;
 }
 
 char *Hunk_Strdup (const char *s, const char *name)
@@ -810,6 +846,7 @@ Throw things out until the hunk can be expanded to the given point
 */
 void Cache_FreeLow (int new_low_hunk)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*c;
 	hunkseg_t		*seg;
 	int				ofs;
@@ -941,6 +978,7 @@ Throw everything out, so new data will be demand cached
 */
 void Cache_Flush (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	while (cache_head.next != &cache_head)
 		Cache_Free ( cache_head.next->user, true); // reclaim the space //johnfitz -- added second argument
 }
@@ -952,6 +990,7 @@ Cache_FlushExcept -- QVR: Cache_Flush, but the entries `keep` accepts stay (a ca
 */
 void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c))
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*cs, *next;
 
 	for (cs = cache_head.next; cs != &cache_head; cs = next)
@@ -1012,6 +1051,7 @@ Frees the memory and removes it from the LRU list
 */
 void Cache_Free (cache_user_t *c, qboolean freetextures) //johnfitz -- added second argument
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 
@@ -1063,11 +1103,23 @@ void *Cache_Check (cache_user_t *c)
 
 /*
 ==============
+Cache_Peek -- QVR: the data, or NULL; the LRU left alone, so any thread may (the sound mix on the thread pool, S_MixKick:
+the main thread frees, moves or allocates only after joining it)
+==============
+*/
+void *Cache_Peek (const cache_user_t *c)
+{
+	return c->data;
+}
+
+/*
+==============
 Cache_Alloc
 ==============
 */
 void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 

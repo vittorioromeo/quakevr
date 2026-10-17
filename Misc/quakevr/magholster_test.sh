@@ -8,13 +8,15 @@
 #          second press at the holster), dropped and walked away from again: no flight
 #   catch  tossed, flying home over 2 s: the main hand closes on it near the end: "caught on its way home"
 #   save   bound, saved, unbound, loaded: bound again; tossed, a level change at once: home before e1m2, bound there
+#   level  bound, drawn, and still in the hand through changelevel e1m2, a save and a load there and changelevel e1m3: bound
+#          to it all the way (vr_magholster_info: holster 3's line each time); there tossed and called home: home in 3
 #   busy   the axe put into holster 3 while the bound shotgun is out: it waits (no flight after 1 s); the axe taken out:
 #          it flies home at once (style Both, the chain half see-through; a screenshot from behind: mag_busy.png)
 #   shots  the lanyard on the holstered and the held gun (the stub at the holster), the tether to the thrown gun, the
 #          flight home: scratch/magholster_shots.png (vrfiringrange)
 AGENT=$1; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-CASES=${*:-time walk catch save busy shots}
+CASES=${*:-time walk catch save level busy shots}
 P="map e1m1;wait60;developer 1;god;notarget;"
 BIND="vr_mock_hand_to off holster 3;wait5;vr_mock_button off stickclick 1;wait3;vr_mock_button off stickclick 0;wait3;"
 DRAW="vr_mock_hand_to main holster 3;wait5;+grabright;vr_mock_button main grip 1;wait10;"
@@ -31,11 +33,12 @@ for c in $CASES; do
     walk) S="$P vr_magholster_return_time 0;vr_magholster_return_distance 2;$BIND$DRAW$DROP$WALK$INFO$BIND$INFO$DRAW$DROP$WALK$INFO" ;;
     catch) S="$P vr_magholster_return_time 1;vr_magholster_return_distance 0;vr_magholster_flight_time 2;$BIND$DRAW${TOSS}wait180;${INFO}vr_mock_hand_to main weapon 0.5;wait2;vr_mock_hand_to main weapon 0.5;wait2;vr_mock_hand_to main weapon 0.5;+grabright;vr_mock_button main grip 1;wait2;vr_mock_hand_to main weapon 0.5;wait2;vr_mock_hand_to main weapon 0.5;wait30;$INFO" ;;
     save) S="$P $BIND${INFO}save magtest;wait5;$BIND${INFO}load magtest;wait60;$INFO$DRAW${TOSS}wait5;changelevel e1m2;wait90;$INFO" ;;
+    level) S="$P $BIND$DRAW${INFO}changelevel e1m2;wait90;${INFO}save magtest2;wait5;load magtest2;wait60;${INFO}changelevel e1m3;wait90;${INFO}vr_mock_hand_to main by 0 30 10;wait5;-grabright;vr_mock_button main grip 0;wait10;vr_magholster_return;wait90;$INFO" ;;
     busy) S="$P vr_magholster_return_time 1;vr_magholster_return_distance 0;vr_magholster_style 2;vr_magholster_chain_alpha 0.5;$BIND${DRAW}vr_mock_hand_glide 0.3;vr_mock_hand_to main by 25 0 15;wait60;vr_mock_hand_glide 0;vr_mock_hand_to off holster 2;wait5;+graboff;vr_mock_button off grip 1;wait15;vr_mock_hand_to off holster 3;wait10;-graboff;vr_mock_button off grip 0;wait10;vr_mock_hand off -0.3 1.0 -0.1 0 0 0;wait5;${TOSS}wait150;$INFO${BACK}wait5;screenshot;vr_mock_camera off;vr_mock_hand_to off holster 3;wait5;+graboff;vr_mock_button off grip 1;wait60;$INFO"
           EXTRA="-Clean -Out mag_busy.png" ;;
     shots) S="map vrfiringrange;wait60;developer 1;god;notarget;vr_magholster_style 0;vr_magholster_return_time 30;vr_magholster_return_distance 0;vr_magholster_flight_time 1.5;${BIND}vr_mock_hand off -0.3 1.0 -0.1 0 0 0;vr_mock_camera 0.55 1.0 -0.05 20 95;wait40;screenshot;${DRAW}vr_mock_camera 0.4 1.25 0.3 15 0;vr_mock_hand main 0.42 1.15 -0.25 50 0 0;wait50;screenshot;vr_mock_camera off;vr_mock_hand main 0.2 1.3 -0.3 70 0 0;wait10;vr_mock_hand_to main by 0 25 12;wait4;-grabright;vr_mock_button main grip 0;vr_magholster_style 1;wait100;${BACK}wait20;${INFO}screenshot;vr_magholster_style 2;vr_magholster_return;wait85;${INFO}screenshot;"
            EXTRA="-Clean -Out magholster_shots.png" ;;
-    *) echo "unknown case $c (time walk catch save busy shots)"; exit 2 ;;
+    *) echo "unknown case $c (time walk catch save level busy shots)"; exit 2 ;;
     esac
     echo "== $c"
     bash $KIT/run.sh $AGENT $EXTRA -Script "${S}toggleconsole;quit" -Filter "$F|composed"

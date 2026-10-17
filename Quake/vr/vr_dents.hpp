@@ -30,12 +30,19 @@ inline constexpr int kindNail = 2;
 inline constexpr int kindMelee = 3; // a blade (drawn out along the swing) or a blunt blow
 inline constexpr int kindBlast = 4; // the crater nearest an explosion
 inline constexpr int kindBlastBleed = 5; // a blast's lesser wounds round it
+inline constexpr int kindBlunt = 6; // a blunt blow (a melee wound event's extra 1): a pommel, a fist, a gun, a brick in the
+                                    // fist or thrown: a round crater, wider than a cut
 
 // A blow struck entity `e` (a Quake .mdl, or a ragdoll of one) at `at` (the world), the surface's outward normal `n`
 // there, going `way`; `tris` the model's triangles as drawn now (vr_modelcollide.cpp's drawnTriangles: three corners
 // each, in the world). `amount` the blow's damage.
 void struck(const entity_s* e, za::Span<const glm::vec3> tris, const glm::vec3& at, const glm::vec3& n, const glm::vec3& way,
     int kind, float amount);
+
+// How far the dents of `e` push its surface in at rest point `p` (its model's pose 0, units) whose rest normal is `rn`:
+// the vertex shader's push (DentDepth), on the CPU (0: none). What is drawn at a wound sits on the dented surface
+// (vr_bloodstream.cpp).
+[[nodiscard]] float pushAt(const entity_s* e, const glm::vec3& p, const glm::vec3& rn);
 
 // The entity was removed on the server (its slot's next one starts clean).
 void forget(const entity_s* e);

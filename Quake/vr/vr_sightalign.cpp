@@ -365,12 +365,6 @@ ankerl::unordered_dense::map<za::String, SightLine> lines;
 // Frames and angles
 
 // The hands' angles as a basis (columns forward, left, up), and back.
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& a)
-{
-    glm::vec3 f, r, u;
-    hands::angleVectors(a, f, r, u);
-    return glm::mat3{f, -r, u};
-}
 [[nodiscard]] glm::vec3 anglesOf(const glm::mat3& b)
 {
     return hands::anglesFromVectors(glm::normalize(b[0]), glm::normalize(b[2]));
@@ -380,7 +374,7 @@ ankerl::unordered_dense::map<za::String, SightLine> lines;
 // aim frame, and back.
 [[nodiscard]] glm::mat3 wholeTurn(const glm::vec3& a)
 {
-    return basisOf({-a.x, a.y, a.z});
+    return hands::basisOf({-a.x, a.y, a.z});
 }
 [[nodiscard]] glm::vec3 wholeAngles(const glm::mat3& t)
 {
@@ -479,10 +473,10 @@ struct Pose
     out.eye = s.eyeOrigin[dominantEye()];
     out.gaze = hands::forward(s.eyeAngles[dominantEye()]);
     out.cPos = s.calibratedPos[hand];
-    out.cBasis = basisOf(s.calibratedRot[hand]);
+    out.cBasis = hands::basisOf(s.calibratedRot[hand]);
     out.handPos = s.pos[hand];
     out.handFwd = hands::forward(s.rot[hand]);
-    out.handBasis = basisOf(s.rot[hand]);
+    out.handBasis = hands::basisOf(s.rot[hand]);
     out.gripValid = false;
     for(int i = 0; i < weapons::maxHotspots && !out.gripValid; i++)
     {

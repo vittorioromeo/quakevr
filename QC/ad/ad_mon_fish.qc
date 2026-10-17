@@ -99,7 +99,7 @@ void() ad_fish_melee =
 
 	if (!self.enemy) return;				// removed before stroke
 	ad_ai_damagebreakable(5);					// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFISH,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEEFISH,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 		
 	// Fish bites man! 1-6 Damage
 	ad_ldmg = (random() + random() + random()) * 2;

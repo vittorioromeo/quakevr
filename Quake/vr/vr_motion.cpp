@@ -105,6 +105,17 @@ const za::Vector<Category> categoryList = {
     {{"no_neck_snap", "Neck Snap Not Expected"},
         {any, {"shoulders", "At the Shoulders"}, {"slow", "Too Slow"}, {"small", "Too Small"}, {"pull", "Pull"},
             {"lift", "Lift"}, {"adjusting", "Adjusting the Grip"}}},
+    // Leg sweeps (ROUND22.md, "Leg sweep takes"): a staff-like thing (a gun, a plank, a crowbar...: the held weapon or
+    // prop is in the take's header) swung level through the training dummy's legs; the take should (should not) sweep it
+    // (vr_legsweep.cpp sweepHand: the "legsweep" event). eval.sh replays them at the leg sweep settings as set.
+    {{"leg_sweep", "Leg Sweep Expected"},
+        {any, {"shotgun", "Shotgun"}, {"prop", "Prop (plank...)"}, {"crowbar", "Crowbar"}, {"left_right", "Left to Right"},
+            {"right_left", "Right to Left"}, {"away", "Along Its Back"}, {"toward", "Along Its Front"}, {"hilt", "Pommel"},
+            {"super_shotgun", "Super Shotgun"}, {"short_gun", "Short Gun (nailgun, lightning gun)"}}},
+    {{"no_leg_sweep", "Leg Sweep Not Expected"},
+        {any, {"axe", "Axe"}, {"slow", "Too Slow"}, {"brush", "Barely Touched"}, {"walk", "Walked Into It"},
+            {"blade", "Blade (a cut)"}, {"not_level", "Not Level"}, {"short", "Too Short (crate, brick)"},
+            {"high", "Too High"}}},
     // Lifts and judo throws (ROUND22.md, "Lift and judo throw takes"): both hands on the training dummy pulling it up
     // (vr_foegrab_lift: the "lift" event) or turning it down (the two-hand throw: the "judothrow" event).
     {{"lift", "Lift Expected"},
@@ -132,7 +143,7 @@ za::Vector<int> categoryOrder()
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
-        "neck_snap", "no_neck_snap", "lift", "no_lift", "judo_throw", "no_judo_throw", "other"};
+        "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)
@@ -663,12 +674,36 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         h.grip2h == 1 ? ", two-handed by the foregrip" : h.grip2h == 2 ? ", two-handed by the blade" : "");
 }
 
+// A prop (not a weapon) carried in the hand (the player's mainhand_held / offhand_held): "model (classname)", else "".
+[[nodiscard]] za::String heldProp(int hand)
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return {};
+    }
+    const auto& f = progs::fields();
+    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    const int num = ofs >= 0 ? progs::fieldInt(EDICT_NUM(1), ofs) : 0;
+    if(num <= 0)
+    {
+        return {};
+    }
+    edict_t* ent = PROG_TO_EDICT(num);
+    const int index = static_cast<int>(ent->v.modelindex);
+    if(ent->free || index <= 0 || index >= MAX_MODELS || !sv.models[index])
+    {
+        return {};
+    }
+    return va("%s (%s)", sv.models[index]->name, PR_GetString(ent->v.classname));
+}
+
 // The settings the melee reads, for the header.
 [[nodiscard]] za::String meleeSettings()
 {
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
-        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw"};
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw",
+        "vr_legsweep"};
     za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
@@ -776,6 +811,15 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     {
         line("main weapon", weaponLine(first->hands[HAND_MAIN]));
         line("off weapon", weaponLine(first->hands[HAND_OFF]));
+        // A prop carried in a hand (the leg sweep's verdict depends on it; playback doesn't put it back in the hand).
+        if(!info.heldMain.empty())
+        {
+            line("main held", info.heldMain);
+        }
+        if(!info.heldOff.empty())
+        {
+            line("off held", info.heldOff);
+        }
     }
     line("vr_world_scale", vr_world_scale.string);
     line("units per metre", va("%.4f", units::metresToUnits()));
@@ -1194,6 +1238,8 @@ void finishTake()
     info.origin0 = first->origin;
     info.t0 = first->realtime;
     info.take = takeNumber;
+    info.heldMain = heldProp(HAND_MAIN);
+    info.heldOff = heldProp(HAND_OFF);
 
     // Written in the background; never lost quietly: if it can't go into motions/, it goes into the
     // game folder, and failing that stays in memory (vr_motion_save_unsaved tries again), with a warning

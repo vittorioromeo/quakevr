@@ -959,11 +959,10 @@ static qboolean GL_FindExtension (const char *name)
 GL_BeginGroup
 =============
 */
-static qboolean glmarkers = false;
+qboolean glmarkers = false; // QVR: -glmarkers, -gldebug: vr_gl_markers forced on (vr/vr_profile.cpp)
 void GL_BeginGroup (const char *name)
 {
-	if (glmarkers)
-		GL_PushDebugGroupFunc (GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+	VR_GLMarkerBegin (name); // QVR: with vr_gl_markers (the GPU profile scopes' stack, so that each end pops its own)
 }
 
 /*
@@ -973,8 +972,24 @@ GL_EndGroup
 */
 void GL_EndGroup (void)
 {
-	if (glmarkers)
-		GL_PopDebugGroupFunc ();
+	VR_GLMarkerEnd (); // QVR
+}
+
+/*
+=============
+GL_LabelNewFramebuffer -- QVR
+
+A framebuffer's debug label (frame debuggers name it), right after its glGenFramebuffers: bound once to become an
+object (a name never bound can't take a label), the draw binding put back. At creation only.
+=============
+*/
+void GL_LabelNewFramebuffer (GLuint fbo, const char *name)
+{
+	GLint prev = 0;
+	glGetIntegerv (GL_DRAW_FRAMEBUFFER_BINDING, &prev);
+	GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, fbo);
+	GL_ObjectLabelFunc (GL_FRAMEBUFFER, fbo, -1, name);
+	GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, (GLuint) prev);
 }
 
 /*
@@ -1379,6 +1394,7 @@ static void GL_Init (void)
 		char gpu[512];
 		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
 		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
+		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
 	}
 
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
@@ -1397,6 +1413,7 @@ static void GL_Init (void)
 	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);
 	GL_BindVertexArrayFunc (globalvao);
+	GL_ObjectLabelFunc (GL_VERTEX_ARRAY, globalvao, -1, "global vao"); // QVR
 
 	glGetIntegerv (GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_align);
 	glGetIntegerv (GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &ubo_align);
@@ -1500,6 +1517,7 @@ void GL_EndRendering (void)
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		SDL_GL_SwapWindow(draw_context);
+		VR_RenderDocPresented (); // QVR: the frame boundary RenderDoc sees
 	}
 }
 

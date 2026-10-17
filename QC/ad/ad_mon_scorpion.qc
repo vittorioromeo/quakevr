@@ -88,7 +88,7 @@ void(float ad_side) ad_pinch_melee =
 		
 	ad_ai_charge(10);							// Get closer for extra bite
 	ad_ai_damagebreakable(10);					// Damage any breakables
-	if (!(ad_ai_checkmelee(ad_MONAI_MELEESCORPION,ad_FALSE) && VR_MeleeArc_Hits(FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(ad_MONAI_MELEESCORPION,ad_FALSE) && VR_MeleeArc_Hits(ad_FALSE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed?
 	if (!self.enemy.takedamage) return;
@@ -168,7 +168,9 @@ void()	ad_pinch_tail3	=[	$attackA6,		ad_pinch_tail4	] {ad_ai_face();};
 void()	ad_pinch_tail4	=[	$attackA8,		ad_pinch_tail5 ] {ad_ai_face();};
 void()	ad_pinch_tail5	=[	$attackA10,		ad_pinch_tail6 ] {ad_ai_face();};
 void()	ad_pinch_tail6	=[	$attackA12,		ad_pinch_tail7 ] {ad_ai_face();ad_pinch_tailsound();};
-void()	ad_pinch_tail7	=[	$attackA14,		ad_pinch_tail8 ] {ad_pinch_tailspike('32 8 14');};
+void()	ad_pinch_tail7	=[	$attackA14,		ad_pinch_tail8 ] {
+	if (VR_AimCone_Wait(ad_pinch_tail7, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_pinch_tailspike('32 8 14');};
 void()	ad_pinch_tail8 = [	$attackA16,		ad_pinch_tail9 ] {ad_pinch_tailsound();};
 void()	ad_pinch_tail9 = [	$attackA18,		ad_pinch_tail10 ] {ad_ai_face();};
 void()	ad_pinch_tail10 =[	$attackA20,		ad_pinch_tail11 ] {};

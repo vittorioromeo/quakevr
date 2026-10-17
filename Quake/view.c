@@ -950,7 +950,8 @@ void V_RenderView (void)
 	if (con_forcedup)
 		return;
 
-	V_SetupView (); // QVR: split out
+	if (!VR_StereoSingleViewReady ()) // QVR: single-pass stereo: the eye's view was set up before the multiview pass
+		V_SetupView (); // QVR: split out
 	{
 		VR_TRACY_SCOPE ("view: portals for view"); // QVR: profiling builds only
 		VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view

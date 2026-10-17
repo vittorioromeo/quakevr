@@ -210,14 +210,71 @@ void(vector before) VR_MeleeSpace_Step =
 // ai_run_melee, AD's ad_ai_run_melee); and while it swings (ai_charge and kin) it turns after him at most
 // vr_enemy_melee_turn degrees a frame, so stepping aside or behind it dodges the swing. Leaps (a fiend's, a dog's) hit
 // by touch and are left alone. Monsters fighting each other keep Quake's blows.
+// Size and kind (ROUND22.md, "Enemy Melee menu"): the arc and the reach grow with the monster's width against a grunt's
+// 24 units (vr_enemy_melee_arc_size, vr_enemy_melee_reach_size: the share more per grunt width more; 0: the same for
+// all), times its kind's multipliers (VR_MeleeArc_Kind; vr_enemy_melee_kind). A grunt-sized monster's are as before.
+// Show Melee Arcs (vr_enemy_melee_arc_show): each frame VR_MeleeArc_ShowFrame sets the arc and reach of each melee
+// monster after a player near him on .vr_melee_arc and kin; the engine draws them (vr_bodycontact.cpp).
 float vr_meleearc_yaw0; // (VR_MeleeArc_TurnBegin, VR_MeleeArc_TurnEnd: self's facing before the frame's turns)
 float vr_meleearc_last_off; // the last blow's angle off its facing (the test, vr_meleearc_test.qc)
 float vr_meleearc_last_time; // ... and when (time)
 float vr_meleearc_last_hit; // ... and whether it was inside the arc
+float vr_meleearc_reach_base; // the last reach check's own reach (VR_MeleeReach: Quake's or AD's, before the growth)
 
 float() VR_MeleeArc_On =
 {
     return cvar("vr_enemy_melee_arc") && self.enemy && (self.enemy.flags & FL_CLIENT);
+};
+
+// Self's kind's multipliers ('arc reach 0'; vr_enemy_melee_kind 0: '1 1 0'). Short list, by classname: a knight's
+// sword is a light, quick thrust (its arc 0.85: easier to sidestep than a grunt-sized blow). Every other kind 1 (its
+// size alone: an ogre's and a shambler's grow by the size sliders).
+vector() VR_MeleeArc_Kind =
+{
+    if(!cvar("vr_enemy_melee_kind"))
+    {
+        return '1 1 0';
+    }
+    if(self.classname == "monster_knight")
+    {
+        return '0.85 1 0';
+    }
+    return '1 1 0';
+};
+
+// Self's size against a grunt's (its level width over a grunt's 24: a knight's, a dog's 1, a fiend's 1.33, an ogre's
+// 1.67, a shambler's 2.67), less 1.
+float() VR_MeleeArc_SizeMore =
+{
+    float s = self.size_x / 24;
+    return (s < 0.5 ? 0.5 : (s > 4 ? 4 : s)) - 1;
+};
+
+// Self's arc (degrees each side; wide: a sweeping blow's) and its reach from Quake's own (units).
+float(float wide) VR_MeleeArc_Angle =
+{
+    vector kind = VR_MeleeArc_Kind();
+    float a = cvar("vr_enemy_melee_arc_angle") * (1 + cvar("vr_enemy_melee_arc_size") * VR_MeleeArc_SizeMore());
+    a = a * kind_x + (wide ? cvar("vr_enemy_melee_arc_wide") : 0);
+    return a < 0 ? 0 : (a > 180 ? 180 : a);
+};
+float(float base) VR_MeleeArc_Reach =
+{
+    vector kind = VR_MeleeArc_Kind();
+    float r = base * (1 + cvar("vr_enemy_melee_reach_size") * VR_MeleeArc_SizeMore()) * kind_y;
+    return r < 0 ? 0 : r;
+};
+
+// A blow's reach check (id's `vlen(delta) > 60`, AD's ad_ai_checkmelee): Quake's reach `base` grown by self's size and
+// kind against a player with the melee arc on; else `base` as ever.
+float(float base) VR_MeleeReach =
+{
+    vr_meleearc_reach_base = base;
+    if(!self.vr_melee_reach_base)
+    {
+        self.vr_melee_reach_base = base; // (until its first blow, for Show Melee Arcs)
+    }
+    return VR_MeleeArc_On() ? VR_MeleeArc_Reach(base) : base;
 };
 
 // Degrees (0..180, level) between self's facing and the way to its enemy.
@@ -242,13 +299,19 @@ float(float wide) VR_MeleeArc_Hits =
     }
     float on = VR_MeleeArc_On();
     float off = VR_MeleeArc_Off();
-    float arc = cvar("vr_enemy_melee_arc_angle") + (wide ? cvar("vr_enemy_melee_arc_wide") : 0);
+    float arc = VR_MeleeArc_Angle(wide);
     vr_meleearc_last_off = off;
     vr_meleearc_last_time = time;
     vr_meleearc_last_hit = on ? (off <= arc) : TRUE;
+    self.vr_melee_reach_base = vr_meleearc_reach_base; // (its blows' reach, for Show Melee Arcs)
+    if(wide)
+    {
+        self.vr_melee_wide_seen = TRUE;
+    }
     if(cvar("vr_enemy_melee_arc_debug") && (self.enemy.flags & FL_CLIENT))
     {
-        bprint(sprintf("meleearc: %s blow %.0f deg off (arc %.0f): %s\n", self.classname, off, arc,
+        bprint(sprintf("meleearc: %s blow %.0f deg off (arc %.0f, reach %.0f): %s\n", self.classname, off, arc,
+            on ? VR_MeleeArc_Reach(vr_meleearc_reach_base) : vr_meleearc_reach_base,
             vr_meleearc_last_hit ? "lands" : "misses"));
     }
     return vr_meleearc_last_hit;
@@ -257,12 +320,69 @@ float(float wide) VR_MeleeArc_Hits =
 // Before a melee attack starts: TRUE if self faces its enemy enough to start it now (else it turns first).
 float() VR_MeleeArc_Launch =
 {
-    return !VR_MeleeArc_On() || VR_MeleeArc_Off() <= cvar("vr_enemy_melee_arc_angle");
+    return !VR_MeleeArc_On() || VR_MeleeArc_Off() <= VR_MeleeArc_Angle(FALSE);
+};
+
+// Show Melee Arcs (vr_enemy_melee_arc_show), from StartFrame: each live melee monster within 600 units of a player and
+// after him gets its arc and reach now (.vr_melee_arc and kin, drawn by the engine). Its reach until its first blow: its
+// first reach check's, else Quake's usual (60 a grunt-sized one, 100 a wider one). With 2 also printed once a second
+// (meleearc: show), for the logs.
+float vr_meleearc_show_print; // (when it last printed)
+void() VR_MeleeArc_ShowFrame =
+{
+    if(!cvar("vr_enemy_melee_arc_show"))
+    {
+        return;
+    }
+    float print = cvar("vr_enemy_melee_arc_show") >= 2 && time >= vr_meleearc_show_print + 1;
+    if(print)
+    {
+        vr_meleearc_show_print = time;
+    }
+    entity oself = self;
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        entity m = findradius(p.origin, 600);
+        while(m)
+        {
+            // (Not the eel's zap, a burst all round it, nor the lava man's fireball: no blow, no arc.)
+            if((m.flags & FL_MONSTER) && m.health > 0 && m.enemy == p && (m.th_melee || AD_HasMelee(m)) &&
+                m.classname != "monster_eel" && m.classname != "monster_lava_man")
+            {
+                self = m;
+                float base = self.vr_melee_reach_base ? self.vr_melee_reach_base : (self.size_x > 24 ? 100 : 60);
+                float on = cvar("vr_enemy_melee_arc");
+                self.vr_melee_arc = on ? VR_MeleeArc_Angle(FALSE) : 180;
+                self.vr_melee_arc_wide = self.vr_melee_wide_seen ? (on ? VR_MeleeArc_Angle(TRUE) : 180) : 0;
+                self.vr_melee_reach = on ? VR_MeleeArc_Reach(base) : base;
+                self.vr_melee_shown = time;
+                if(print)
+                {
+                    bprint(sprintf("meleearc: show %s width %g arc %.1f wide %.1f reach %.1f (base %g)\n",
+                        self.classname, self.size_x, self.vr_melee_arc, VR_MeleeArc_Angle(TRUE), self.vr_melee_reach,
+                        base));
+                }
+                self = oself;
+            }
+            m = m.chain;
+        }
+        p = find(p, classname, "player");
+    }
 };
 
 // Around a swing frame's turns after its enemy (ai_face's, and movetogoal's step's: a second ChangeYaw): all of them
-// together held to vr_enemy_melee_turn degrees.
-void() VR_MeleeArc_TurnBegin = { vr_meleearc_yaw0 = self.angles_y; };
+// together held to vr_enemy_melee_turn degrees. Per frame, not per call: a frame that charges twice (the ogre's
+// smash: the frame's ai_charge and chainsaw's own) turns no more than one that charges once.
+void() VR_MeleeArc_TurnBegin =
+{
+    if(self.vr_melee_turn_time != time)
+    {
+        self.vr_melee_turn_time = time;
+        self.vr_melee_turn_yaw0 = self.angles_y;
+    }
+    vr_meleearc_yaw0 = self.vr_melee_turn_yaw0;
+};
 void() VR_MeleeArc_TurnEnd =
 {
     float cap = cvar("vr_enemy_melee_turn");
@@ -292,6 +412,22 @@ void(float d) ai_charge =
     before = self.origin;
     movetogoal (d);        // done in C code...
     VR_MeleeArc_TurnEnd();
+    VR_MeleeSpace_Step(before);
+};
+
+// QVR: a committed blow's frame (the ogre's overhead smash coming down): against a player with the melee arc on, its
+// step goes straight ahead and it does not turn after him, so stepping aside as it comes down dodges it; else
+// ai_charge as ever.
+void(float d) VR_MeleeArc_ChargeAhead =
+{
+    if(!VR_MeleeArc_On())
+    {
+        ai_charge(d);
+        return;
+    }
+    self.vr_melee_time = time;
+    vector before = self.origin;
+    walkmove(self.angles_y, d);
     VR_MeleeSpace_Step(before);
 };
 
@@ -335,7 +471,7 @@ void() ai_melee =
     self.vr_melee_time = time; // QVR: (as ai_charge)
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 60)
+    if(vlen(delta) > VR_MeleeReach(60))
         return;
     if(!VR_MeleeArc_Hits(FALSE))
         return; // QVR: (melee arc)
@@ -357,7 +493,7 @@ void() ai_melee_side =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 60)
+    if(vlen(delta) > VR_MeleeReach(60))
         return;
     if(!CanDamage(self.enemy, self))
         return;

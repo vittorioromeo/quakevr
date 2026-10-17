@@ -103,6 +103,9 @@ from the spawns, which dominate the averages).
 
 ## Native prop think (worktree `qcvm`, branch `agent/fgnative`, 2026-10-15)
 
+(2026-10-16: the native is the only one. `forcegrabbable_think_qc`, `vr_prop_think_native` and `vr_propthink_check`
+below were removed (ROUND22.md, "A/B switches removed"); `forcegrabbable_think_impl` is `propthink(particles);`.)
+
 `forcegrabbable_think_impl` (QC/weapons.qc: water entry and exit, slowing in water, the dust puff, settling a thrown
 weapon) runs for every thrown or dropped weapon, pickup-as-object and bag, 50 times a second each. Its work is now the
 `propthink` builtin (`Quake/vr/vr_propthink.cpp`), the way liquids and wounds moved their gates (d05011ec3): the

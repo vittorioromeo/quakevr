@@ -252,17 +252,6 @@ void() PlaceItem =
     self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
     self.handtouch = itemTouch;
 
-    // HONEY
-    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
-    {
-        item_unspawn();
-    }
-    else if(MG3_Campaign() && ((self.classname != "item_sigil" && (self.spawnflags & MG3_ITEM_SPAWNED))
-        || (self.classname == "item_sigil" && (self.spawnflags & 128))))
-    {
-        MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
-    }
-
     if(vr_spawn_live != 2) // (not the toolgun's ghost's probe: box3d::spawnClass)
     {
         SpawnAmmoBoxWeapons(self);
@@ -274,6 +263,19 @@ void() PlaceItem =
     self.think = PlacedItem;
 
     VRBoxObjectNow();
+
+    // HONEY. VR: hidden once it is what it will be (an ammo or health box an object, MakeItemGrabbable's
+    // SOLID_NOT_BUT_TOUCHABLE, sized by its model): hidden before, the box was made an object with no model, and its
+    // coming a crash (item_spawn).
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
+    {
+        item_unspawn();
+    }
+    else if(MG3_Campaign() && ((self.classname != "item_sigil" && (self.spawnflags & MG3_ITEM_SPAWNED))
+        || (self.classname == "item_sigil" && (self.spawnflags & 128))))
+    {
+        MG3_ItemUnspawn(); // Dawn of the Machine: one a trigger brings (upstream SPAWNED; vr_mg3_items.qc)
+    }
 };
 
 // Ammo and health boxes become objects (AfterPlacementAmmoBox, AfterPlacementHealthBox: MakeItemGrabbable) the frame
@@ -825,7 +827,7 @@ void() VR_PickupObj_WeaponTouch =
 // The hand touch of an object pickup (VR_Carry_Handtouch's, but for these).
 void() VR_PickupObj_Handtouch =
 {
-    if(cvar("vr_campaign") == 4 && self.MG1_rune_locked) return;
+    if(MG1_Campaign() && self.MG1_rune_locked) return;
     if(!VR_PickupObj_Enabled(self))
     {
         self.carry_use(); // touching takes it
@@ -1112,7 +1114,7 @@ void() weapon_touch =
     // A fresh pickup is ready to fire: move rounds from the bounded reserve into its own magazine.
     // Pool-only firing modes keep their ammo in the reserve. Existing weapon instances never pass here.
     float clip = 0;
-    if(other.ishuman && VRIsWeaponReloadingEnabled(other) && WeaponIdToSupportsReload(weaponId))
+    if(other.ishuman && VRIsWeaponReloadingEnabledForWeapon(other, weaponId))
     {
         clip = max(0, min(WeaponIdToBaseClipSize(weaponId), VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId)));
         VR_AmmoUtil_DelAmmoCountByAmmoId(other, ammoId, clip);
@@ -1829,8 +1831,8 @@ End of level sigil, pick up to end episode and return to jrstart.
 
 void() item_sigil =
 {
-    if(cvar("vr_campaign") == 4) { MG1_item_sigil(); return; }
-    if(cvar("vr_campaign") == 5) { MG3_item_sigil(); return; } // vr_mg3_items.qc
+    if(MG1_Campaign()) { MG1_item_sigil(); return; }
+    if(MG3_Campaign()) { MG3_item_sigil(); return; } // vr_mg3_items.qc
     if(!self.spawnflags)
         objerror ("no spawnflags");
 

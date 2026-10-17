@@ -107,10 +107,7 @@ void debugDraw();    // vr_debug_hits (the view, each frame)
 // standing mesh and the resulting colored polygons follow the actual rendered animation; otherwise reference wires.
 void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float radius);
 void zonesDraw(); // (the view, each frame)
-void zonesCheck_f(); // vr_hitzones_check: drawn region samples versus the gameplay QC point classifier
-
-void stats_f();      // vr_hitmodel_stats
-void bench_f();      // vr_hitmodel_bench [rays]
-void check_f();      // vr_hitmodel_check [reset|print]
+// vr_hitzones_check, vr_hitmodel_stats, vr_hitmodel_bench, vr_hitmodel_check (vr_hitmodel_diag.cpp)
+void registerDiagCommands();
 
 } // namespace qvr::hitmodel

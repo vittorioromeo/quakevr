@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
@@ -363,13 +364,23 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
 {
     const glm::vec3& pos = s.pos[hand];
 
+    // The zones (vr_holsterzones.hpp): boxes where the holsters and pouches are drawn, a gun's grip and body tested, a gun
+    // never at a pouch. Picked either way (the wireframes and the report show both); used unless vr_holster_zones 0.
+    const int zone = zones::pick(s, hand, holsters, pouch, ammoPouch);
+    if(zones::enabled() && zone >= 0)
+    {
+        return zone < HolsterCount         ? holsterHotspot(static_cast<Holster>(zone))
+               : zone == zones::ZoneAmmoPouch ? HS_AMMO_POUCH
+                                              : HS_GRENADE_POUCH;
+    }
+
     // The holster the hand is most within (its distance over the holster's reach), not the first in the list: the
     // shoulders' reach (vr_shoulder_holster_thresh, 7.8) comes down over the top of the upper holsters' (on the chest,
     // a few units below), and a gun let go at the top of a chest holster went into the shoulder holster over it
     // (round 20: "invisible until I pick it up and put it back").
     int best = -1;
     float bestRatio = 1.f;
-    for(int h = 0; h < HolsterCount; h++)
+    for(int h = 0; h < HolsterCount && !zones::enabled(); h++)
     {
         const auto holster = static_cast<Holster>(h);
         const float reach = threshold(holster);
@@ -382,8 +393,10 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
     }
     // The grenade pouch (vr_handgrenade) and the ammo pouch (vr_reload_mode 3), the same way: the one the hand is most
     // within, holsters and pouches alike (the ammo pouch sits between the hip holsters).
-    const float grenadeRatio = pouch && pouchReach() > 0.f ? glm::distance(pos, *pouch) / pouchReach() : 2.f;
-    const float ammoRatio = ammoPouch && ammoPouchReach() > 0.f ? glm::distance(pos, *ammoPouch) / ammoPouchReach() : 2.f;
+    const bool old = !zones::enabled();
+    const float grenadeRatio = old && pouch && pouchReach() > 0.f ? glm::distance(pos, *pouch) / pouchReach() : 2.f;
+    const float ammoRatio =
+        old && ammoPouch && ammoPouchReach() > 0.f ? glm::distance(pos, *ammoPouch) / ammoPouchReach() : 2.f;
     if(ammoRatio < bestRatio && ammoRatio <= grenadeRatio)
     {
         return HS_AMMO_POUCH;
@@ -557,38 +570,6 @@ glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
     return avatar::Follower{s}(avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
 }
 
-void migrateHolsters()
-{
-    // Round 21 stopped a hip or upper holster on the body at its front (frontOfTheBody): an X behind
-    // that put it there. Now X goes on from the default's place, round the body: an X that was
-    // stopped becomes the default (where it was), a further forward one keeps its distance ahead of
-    // the front. For the body standing as the settings make it (the head over the box's middle).
-    if(!vr_body_anchors.value || vr_body_mode.value < 1.f)
-    {
-        return; // not on the body: placed as before
-    }
-    hands::State s;
-    s.headHeight = units::eyeHeight();
-    s.standingHeight = s.headHeight;
-    s.head = {0.f, 0.f, vr_floor_offset.value + s.headHeight * units::metresToUnits()};
-    const hands::State standing = avatar::standing(s);
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
-    for(const Holster h : {RightHip, RightUpper})
-    {
-        cvar_t& var = h == RightHip ? vr_hip_offset_x : vr_upper_holster_offset_x;
-        const glm::vec3 pos = legacyHolsterPosition(standing, h);
-        const float now = glm::dot(pos - standing.head, fwd);
-        const float front = frontOfTheBody(standing, h, pos);
-        const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + za::max(now, front) - now;
-        if(za::abs(x - var.value) > 1e-3f)
-        {
-            Con_DPrintf("VR: %s %s is now %.2f (the same place on the body)\n", var.name, var.string, x);
-            Cvar_SetValueQuick(&var, za::round(x * 100.f) / 100.f);
-        }
-    }
-}
-
 Hotspot holsterHotspot(Holster holster)
 {
     constexpr Hotspot hotspots[HolsterCount] = {HS_LEFT_SHOULDER_HOLSTER, HS_RIGHT_SHOULDER_HOLSTER,
@@ -602,6 +583,7 @@ void queueDebug(const hands::State& s)
     {
         return;
     }
+    zones::queueDebug(s); // (vr_holster_zones_show)
 
     // Each zone also on the body's mirror image while a menu page tweaks the body (vr_bodyclone.cpp), at the same place on
     // it.

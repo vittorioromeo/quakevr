@@ -126,14 +126,39 @@ QVR_TONE_GLSL
 "	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
-"	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n"
+"	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
+"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
+"	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n"
+
+// Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
+// view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
+// FrameEyePos name their own members otherwise there (QVR_MONO), and these macros stand for them. Without
+// QVR_MULTIVIEW, nothing.
+#define QVR_STEREO_VIEWS \
+"#if defined(QVR_MULTIVIEW) && !defined(QVR_STEREO_VIEWS)\n"\
+"#define QVR_STEREO_VIEWS\n"\
+"layout(std140, binding=5) uniform QvrStereoUBO\n"\
+"{\n"\
+"	mat4	QvrViewProj[2];\n"\
+"	vec4	QvrEyePos[2];\n"\
+"};\n"\
+"#define ViewProj QvrViewProj[QVR_VIEW]\n"\
+"#define EyePos QvrEyePos[QVR_VIEW].xyz\n"\
+"#define FrameViewProj QvrViewProj[QVR_VIEW]\n"\
+"#define FrameEyePos QvrEyePos[QVR_VIEW].xyz\n"\
+"#endif\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
 #define ALIAS_FRAMEDATA_BUFFER \
+QVR_STEREO_VIEWS \
 "layout(std140, binding=0) uniform FrameDataUBO\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	FrameViewProjMono;\n"\
+"#else\n"\
 "	mat4	FrameViewProj;\n"\
+"#endif\n"\
 "	vec4	FrameFog;\n"\
 "	vec4	FrameSkyFog;\n"\
 "	vec3	FrameWindDir;\n"\
@@ -142,7 +167,11 @@ QVR_TONE_GLSL
 "	float	FrameTextureDither;\n"\
 "	float	ShadowBias;\n"\
 "	float	DlightAngle;\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	vec3	FrameEyePosMono;\n"\
+"#else\n"\
 "	vec3	FrameEyePos;\n"\
+"#endif\n"\
 "	float	FrameTime;\n"\
 "	float	ZLogScale;\n"\
 "	float	ZLogBias;\n"\
@@ -602,18 +631,26 @@ QVR_ZFIX_FUNCTION \
 "}\n"\
 "// pixel depth offset (vr_parallax_depth_write): ParallaxUV's hit, how far past the surface along the eye's ray (0:\n"\
 "// none); ParallaxFragDepth the depth of the point that far along it (dir, a unit) from p, as the view's matrix puts\n"\
-"// it (zfix: with the vertex shader's polygon offset, QVR_ZFixDepth), never nearer than the surface's own\n"\
+"// it (zfix: with the vertex shader's polygon offset, QVR_ZFixDepth), never nearer than the surface's own for a hit\n"\
+"// below it (s > 0); s < 0: a raised hit, over the surface (vr_parallax_plane), nearer\n"\
 "float ParallaxDist = 0.;\n"\
 "float ParallaxFragDepth(mat4 viewproj, vec3 p, vec3 dir, float s, bool zfix)\n"\
 "{\n"\
 "	vec4 clip = viewproj * vec4(p + dir * s, 1.0);\n"\
 "	float ndc = (zfix ? QVR_ZFixDepth(clip.z, clip.w) : clip.z) / clip.w;\n"\
 "#if REVERSED_Z\n"\
-"	return min(gl_DepthRange.near + gl_DepthRange.diff * ndc, gl_FragCoord.z);\n"\
+"	float d = gl_DepthRange.near + gl_DepthRange.diff * ndc;\n"\
+"	return s > 0. ? min(d, gl_FragCoord.z) : d;\n"\
 "#else\n"\
-"	return max(gl_DepthRange.near + gl_DepthRange.diff * (ndc * 0.5 + 0.5), gl_FragCoord.z);\n"\
+"	float d = gl_DepthRange.near + gl_DepthRange.diff * (ndc * 0.5 + 0.5);\n"\
+"	return s > 0. ? max(d, gl_FragCoord.z) : d;\n"\
 "#endif\n"\
 "}\n"\
+"// vr_parallax_plane: where the surface's polygon sits in the relief, 0..1 (0: at its top, the relief carved down from\n"\
+"// it; 0.5 its middle; 1 its bottom, the relief raised over it), at most at the texture's average height. Set before\n"\
+"// ParallaxUV (0 unless the world's shader sets it): the ray is walked from where it crosses the relief's top, that\n"\
+"// share of the depth over the surface\n"\
+"float ParallaxPlane = 0.;\n"\
 "vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
 "	float steps, vec4 uvclamp)\n"\
 "{\n"\
@@ -627,21 +664,30 @@ QVR_ZFIX_FUNCTION \
 "		return uv;\n"\
 "	vec3 gu = (cross(dpdy, n) * duvdx.x + cross(n, dpdx) * duvdy.x) / det; // the coordinates' change per unit\n"\
 "	vec3 gv = (cross(dpdy, n) * duvdx.y + cross(n, dpdx) * duvdy.y) / det;\n"\
-"	vec3 shift = (ray + n * cosa) * reach; // along the surface, to the bottom\n"\
+"	vec3 shift = (ray + n * cosa) * reach; // along the surface, from the relief's top to its bottom\n"\
 "	vec2 duv = vec2(dot(shift, gu), dot(shift, gv));\n"\
+"	// the walk from uv - duv * plane (the top) to uv + duv * (1 - plane); the surface never below the texture's average\n"\
+"	// height (its smallest mip's), so a flat one (all at the top) or one mostly at the top isn't raised over the props\n"\
+"	float plane = ParallaxPlane > 0. ? min(clamp(ParallaxPlane, 0., 1.), 1.0 - textureLod(tex, uv, 16.0).a) : 0.;\n"\
 "	if (uvclamp.z > uvclamp.x || uvclamp.w > uvclamp.y)\n"\
 "	{\n"\
 "		vec2 margin = 0.5 / vec2(textureSize(tex, 0));\n"\
 "		vec2 base = floor(uv - (uvclamp.xy + uvclamp.zw) * 0.5 + 0.5); // the whole textures the face is moved by\n"\
 "		vec2 lo = uvclamp.xy + base + margin - uv, hi = uvclamp.zw + base - margin - uv; // how far it may go\n"\
 "		float k = 1.0;\n"\
-"		if (uvclamp.z > uvclamp.x && abs(duv.x) > 1e-7)\n"\
-"			k = min(k, max((duv.x > 0. ? hi.x : lo.x) / duv.x, 0.));\n"\
-"		if (uvclamp.w > uvclamp.y && abs(duv.y) > 1e-7)\n"\
-"			k = min(k, max((duv.y > 0. ? hi.y : lo.y) / duv.y, 0.));\n"\
+"		for (int e = 0; e < 2; e++) // both ends of the walk\n"\
+"		{\n"\
+"			vec2 d = duv * (e == 0 ? 1.0 - plane : -plane);\n"\
+"			if (uvclamp.z > uvclamp.x && abs(d.x) > 1e-7)\n"\
+"				k = min(k, max((d.x > 0. ? hi.x : lo.x) / d.x, 0.));\n"\
+"			if (uvclamp.w > uvclamp.y && abs(d.y) > 1e-7)\n"\
+"				k = min(k, max((d.y > 0. ? hi.y : lo.y) / d.y, 0.));\n"\
+"		}\n"\
 "		duv *= k;\n"\
-"		reach *= k; // the hit as far below the surface as the texture shows (none at the face's edges)\n"\
+"		reach *= k; // the hit as far from the surface as the texture shows (none at the face's edges)\n"\
 "	}\n"\
+"	uv -= duv * plane; // where the ray crosses the relief's top; ParallaxDist from the surface: less reach * plane\n"\
+"	float over_surface = reach * plane;\n"\
 "	vec2 size = vec2(textureSize(tex, 0));\n"\
 "	float px = length(duvdx * size), py = length(duvdy * size); // the pixel's footprint in texels, its two ways\n"\
 "	float lod = max(log2(max(min(px, py), max(px, py) * 0.125)), 0.); // the mip level read (8x anisotropic)\n"\
@@ -651,7 +697,10 @@ QVR_ZFIX_FUNCTION \
 "	float stepsize = 1.0 / steps;\n"\
 "	float h = 1.0 - textureGrad(tex, uv, duvdx, duvdy).a; // how deep the height field is, 0..1\n"\
 "	if (h <= 0.)\n"\
+"	{\n"\
+"		ParallaxDist = -over_surface;\n"\
 "		return uv;\n"\
+"	}\n"\
 "	float ray_depth = 0., prev = h; // prev: how far over the height field the ray was, the step before\n"\
 "	// four steps' reads at a time (independent: the GPU overlaps them), then the steps taken in order as before (the\n"\
 "	// same reads and result; up to 3 past the hit read for nothing): ROUND21.md, Shader optimizations: retro and parallax\n"\
@@ -676,7 +725,7 @@ QVR_ZFIX_FUNCTION \
 "	float over = h - ray_depth; // <= 0: under it\n"\
 "	if (over > 0.)\n"\
 "	{\n"\
-"		ParallaxDist = reach;\n"\
+"		ParallaxDist = reach - over_surface;\n"\
 "		return uv + duv; // the bottom\n"\
 "	}\n"\
 "	// refined between the ray's depths a (over it: fa > 0) and b (under it: fb <= 0): regula falsi, the Illinois way\n"\
@@ -705,7 +754,7 @@ QVR_ZFIX_FUNCTION \
 "		}\n"\
 "	}\n"\
 "	float t = a + (b - a) * fa / max(fa - fb, 1e-5);\n"\
-"	ParallaxDist = reach * t;\n"\
+"	ParallaxDist = reach * t - over_surface;\n"\
 "	return uv + duv * t;\n"\
 "}\n"\
 "\n"\
@@ -714,21 +763,20 @@ QVR_ZFIX_FUNCTION \
 // glprogs.world_pdo and its pre-pass glprogs.world_depth_pdo, used only while it is on: a shader that writes
 // gl_FragDepth writes it for every pixel, and under foveated rendering's coarse shading one value for each block of
 // pixels, so the others keep the fixed-function depth), QVR_PDO is 1 and the shader writes gl_FragDepth on every
-// path: the surface's own (gl_FragCoord.z), or a parallax hit's, which is always further (ParallaxFragDepth).
-// Declared conservative (depth_less with reversed depth, depth_greater without), so that the early depth test
-// could still reject what is hidden. The driver measured here (NVIDIA, 2026-10) shades every fragment of such a shader
-// either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
+// path: the surface's own (gl_FragCoord.z), or a parallax hit's (ParallaxFragDepth): further, or nearer where
+// vr_parallax_plane raises the relief over the surface, so depth_any (it was depth_less with reversed depth,
+// depth_greater without, before the plane, round 22). The driver measured here (NVIDIA, 2026-10) shades every fragment
+// of such a shader either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
+// Declaring the depth never nearer (depth_less/depth_greater) where nothing is raised was tried in round 22 and removed:
+// this NVIDIA driver shaded the same fragments either way (vr_world_fragments; ROUND22.md, "Conservative depth for the
+// parallax depth write", and "Removed perf attempts").
 #define QVR_PARALLAX_DEPTH_OUT \
 "#ifndef PDO\n"\
 "	#define PDO 0\n"\
 "#endif\n"\
 "#if PDO\n"\
 "	#define QVR_PDO 1\n"\
-"	#if REVERSED_Z\n"\
-"		layout(depth_less) out float gl_FragDepth;\n"\
-"	#else\n"\
-"		layout(depth_greater) out float gl_FragDepth;\n"\
-"	#endif\n"\
+"	layout(depth_any) out float gl_FragDepth;\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
 "#endif\n"
@@ -750,7 +798,7 @@ QVR_ZFIX_FUNCTION \
 "		vec3 ray = in_pos - EyePos;\n"\
 "		float dist = length(ray);\n"\
 "		ray /= max(dist, 1e-3);\n"\
-"		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth);\n"\
+"		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth); // (also with vr_parallax_plane: its texture's cap unknown here)\n"\
 "		if (reach > 0.)\n"\
 "			gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), reach * 1.01 + 0.01,\n"\
 "				(in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"\
@@ -1329,6 +1377,7 @@ LIQUID_SWELL \
 "	vec4	v; // xyz its width's way, w half its width\n" \
 "	vec4	n; // xyz the normal of the surface it was laid on, w how far from its plane a surface takes it\n" \
 "	vec4	time; // x when it shows (DecalClock.x's clock), y seconds it spreads over (0: at once), z from this part of its size, w how much darker it gets (+2: spreading from its -u end, a run)\n" \
+"	vec4	carve; // x its crater's depth in units (0: flat), y its radius, z its rim's height over its depth, w its dark core's part of the radius + 2 x its shape (0 a pit, 1 a nail's hole, 2 a blast's crater)\n" \
 "};\n" \
 "layout(std430, binding=3) restrict readonly buffer DecalBuffer\n" \
 "{\n" \
@@ -1349,6 +1398,203 @@ LIQUID_SWELL \
 "	float a = (duv.x * duvdy.y - duv.y * duvdy.x) / det;\n" \
 "	float b = (duvdx.x * duv.y - duvdx.y * duv.x) / det;\n" \
 "	return dpdx * a + dpdy * b;\n" \
+"}\n" \
+"// ... and back: a move along the surface (in the world) as one of its texture coordinates (none if the frame is flat).\n" \
+"vec2 WorldShiftUV(vec3 s, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	float xx = dot(dpdx, dpdx), xy = dot(dpdx, dpdy), yy = dot(dpdy, dpdy);\n" \
+"	float det = xx * yy - xy * xy;\n" \
+"	if (abs(det) < 1e-20)\n" \
+"		return vec2(0.0);\n" \
+"	float sx = dot(dpdx, s), sy = dot(dpdy, s);\n" \
+"	return duvdx * ((sx * yy - sy * xy) / det) + duvdy * ((sy * xx - sx * xy) / det);\n" \
+"}\n" \
+"\n" \
+"// QVR: the carved decals (vr_decal_carve). A round mark's ragged edge: its radius's factor along dir (a few harmonics of\n" \
+"// the angle, made from the direction itself: no atan), turned by rot (each mark's own), `amount` of it.\n" \
+"float CarveRag(vec2 dir, vec2 rot, float amount)\n" \
+"{\n" \
+"	float c = dir.x * rot.x - dir.y * rot.y, s = dir.x * rot.y + dir.y * rot.x;\n" \
+"	return 1.0 + amount * (0.08 * (4.0 * c * c * c - 3.0 * c) + 0.06 * (2.0 * c * s) + 0.04 * (3.0 * s - 4.0 * s * s * s));\n" \
+"}\n" \
+"// A round mark's height at x (its radius 1): k.y its depth, k.z its rim's height, k.w its shape (0 a pit: a bowl; 1 a\n" \
+"// nail's hole: steep walls; 2 a blast's crater: wide and smooth; 3 a blunt blow's dent: shallow, rounded).\n" \
+"float CarveProfile(float x, vec4 k)\n" \
+"{\n" \
+"	float x2 = x * x, b = max(1.0 - x2, 0.0);\n" \
+"	float bowl = k.w < 0.5 ? b : k.w < 1.5 ? sqrt(max(1.0 - x2 * x2, 0.0)) : k.w < 2.5 ? b * (1.0 - 0.35 * x2) : b * sqrt(b);\n" \
+"	float rr = (x - 1.0) / (k.w > 2.5 ? 0.4 : k.w > 1.5 ? 0.35 : 0.25);\n" \
+"	return -k.y * bowl + k.z * exp(-rr * rr);\n" \
+"}\n" \
+"// A blade's groove (shape 4) at q: along u its length (k.x * e each way), across v its width (k.x each way), its depth\n" \
+"// and width tapering to its ends, a rounded V across. facet: a straight V, the taper in 3 steps each way.\n" \
+"float CarveGroove(vec2 q, vec4 k, float e, bool facet)\n" \
+"{\n" \
+"	float xs = abs(q.x) / (k.x * e), ta;\n" \
+"	if (facet)\n" \
+"	{\n" \
+"		float xf = xs * 3.0, x0 = floor(xf) * (1.0 / 3.0), x1 = x0 + 1.0 / 3.0;\n" \
+"		ta = mix(sqrt(max(1.0 - x0 * x0, 0.0)), sqrt(max(1.0 - x1 * x1, 0.0)), fract(xf));\n" \
+"	}\n" \
+"	else\n" \
+"		ta = sqrt(max(1.0 - xs * xs, 0.0));\n" \
+"	float yn = abs(q.y) / (k.x * (0.3 + 0.7 * ta));\n" \
+"	float v = max(1.0 - yn, 0.0);\n" \
+"	v = facet ? v : v * (2.0 - v);\n" \
+"	float rr = (yn - 1.0) / 0.35;\n" \
+"	return (-k.y * v + k.z * exp(-rr * rr)) * ta;\n" \
+"}\n" \
+"// A carved mark's height over the surface at q (in units, about its middle, along its u and v), k: its radius (a\n" \
+"// groove's half width), depth, rim's height and shape (CarveProfile's, 4 a groove e times as long as wide); rot turns its\n" \
+"// ragged edge. facet (vr_decal_carve_style 2): low-poly, flat facets: 8 sides round, 3 rings out (a polygon's corners on\n" \
+"// the ragged edge, the height linear across each ring of each side).\n" \
+"float CarveHeight(vec2 q, vec4 k, vec2 rot, float e, bool facet)\n" \
+"{\n" \
+"	if (k.w > 3.5)\n" \
+"		return CarveGroove(q, k, e, facet);\n" \
+"	float amount = k.w > 2.5 ? 0.5 : 1.0;\n" \
+"	if (facet)\n" \
+"	{\n" \
+"		const float sec = 0.78539816;\n" \
+"		float i0 = floor(atan(q.y, q.x == 0.0 && q.y == 0.0 ? 1.0 : q.x) / sec) * sec;\n" \
+"		vec2 d0 = vec2(cos(i0), sin(i0)), d1 = vec2(d0.x - d0.y, d0.x + d0.y) * 0.70710678; // (the next corner: 45 degrees on)\n" \
+"		vec2 v0 = d0 * (k.x * CarveRag(d0, rot, amount)), v1 = d1 * (k.x * CarveRag(d1, rot, amount));\n" \
+"		float x = (q.x * (v1.y - v0.y) + q.y * (v0.x - v1.x)) / (v0.x * v1.y - v0.y * v1.x); // q = a v0 + b v1: x = a + b\n" \
+"		float xf = x * 3.0, x0 = floor(xf) * (1.0 / 3.0);\n" \
+"		return mix(CarveProfile(x0, k), CarveProfile(x0 + 1.0 / 3.0, k), fract(xf));\n" \
+"	}\n" \
+"	float r = length(q);\n" \
+"	vec2 dir = r > 1e-4 ? q / r : vec2(1.0, 0.0);\n" \
+"	return CarveProfile(r / (k.x * CarveRag(dir, rot, amount)), k);\n" \
+"}\n" \
+"// The retro style (vr_decal_carve_style 1): q moved to the middle of the wall's texel block it is in (toB: the mark's\n" \
+"// u, v to the texture's blocks; b0: the blocks at its middle; fromB back).\n" \
+"vec2 CarveSnap(vec2 q, bool snap, mat2 toB, mat2 fromB, vec2 b0)\n" \
+"{\n" \
+"	return snap ? fromB * (floor(toB * q + b0) + 0.5 - b0) : q;\n" \
+"}\n" \
+"// The height the ray meets: snapped, a block's height is its middle's, in steps of a quarter of the depth.\n" \
+"float CarveSample(vec2 q, vec4 k, vec2 rot, float e, bool facet, bool snap, mat2 toB, mat2 fromB, vec2 b0)\n" \
+"{\n" \
+"	if (!snap)\n" \
+"		return CarveHeight(q, k, rot, e, facet);\n" \
+"	float st = max(k.y * 0.25, 0.05);\n" \
+"	return floor(CarveHeight(CarveSnap(q, true, toB, fromB, b0), k, rot, e, false) / st + 0.5) * st;\n" \
+"}\n" \
+"\n" \
+"// The first carved decal at p (where the parallax mapping put the surface; q its own point, facing its normal, dpdx and\n" \
+"// dpdy its derivatives across the screen): the eye's ray marched into its crater (parallax occlusion: steps down from\n" \
+"// its rim's top to its floor, the hit refined between the last two), as many steps as the ray crosses pixels (fewer far\n" \
+"// off, 3 at least, DecalCarve.z at most). shift: how far along the surface the hit is from p; bend: its normal there\n" \
+"// less the decal's; dark: its colour's factor (deeper darker, its core darker still); light: where the baked light is\n" \
+"// guessed to come from (its v: turned towards the light that reaches it, vr_decals.cpp). Flat (false): none here,\n" \
+"// beyond DecalCarve.w, or one spanning a pixel or two (it flattens as it shrinks, and as it fades out). tuv: the\n" \
+"// texture's coordinates at p, duvdx and duvdy their derivatives, grid: its texel blocks across it (the retro style's;\n" \
+"// DecalCarve.z's 128s: the style, 0 smooth, 1 retro, 2 faceted, 3 retro on retro textures' blocks, else smooth).\n" \
+"bool CarveAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy, vec2 tuv, vec2 duvdx, vec2 duvdy, vec2 grid, out vec3 shift, out vec3 bend, out float dark, out vec3 light)\n" \
+"{\n" \
+"	shift = vec3(0.0);\n" \
+"	bend = vec3(0.0);\n" \
+"	dark = 1.0;\n" \
+"	light = facing;\n" \
+"	ivec3 c = ivec3(floor(p * (1.0 / 32.0)));\n" \
+"	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);\n" \
+"	uint mask = DecalGrid[0];\n" \
+"	uint bucket = DecalGrid[1u + (h & mask)];\n" \
+"	uint first = 2u + mask + (bucket >> 8), count = bucket & 255u;\n" \
+"	if (count == 0u)\n" \
+"		return false;\n" \
+"	vec3 eye = p - EyePos;\n" \
+"	float dist = length(eye);\n" \
+"	float fade = 1.0 - smoothstep(0.5 * DecalCarve.w, DecalCarve.w, dist);\n" \
+"	if (fade <= 0.0)\n" \
+"		return false;\n" \
+"	vec3 view = eye / max(dist, 1e-3);\n" \
+"	float foot = max(max(length(dpdx), length(dpdy)), 1e-4); // units a pixel\n" \
+"	float style = floor(DecalCarve.z * (1.0 / 128.0)), maxSteps = DecalCarve.z - 128.0 * style;\n" \
+"	if (style > 2.5)\n" \
+"		style = Retro > 0 && RetroP0.w > 0.0 && RetroFar < 1.0 ? 1.0 : 0.0;\n" \
+"	bool facet = style > 1.5, retro = style > 0.5 && style < 1.5 && grid.x > 0.0 && grid.y > 0.0;\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		uint at = DecalGrid[first + k];\n" \
+"		vec4 cv = Decals[at].carve;\n" \
+"		if (cv.x <= 0.0) // flat (blood, a scorch of lightning): the early way out\n" \
+"			continue;\n" \
+"		vec4 n4 = Decals[at].n, c4 = Decals[at].centre;\n" \
+"		if (dot(facing, n4.xyz) < 0.5 || abs(dot(c4.xyz - q, facing)) > n4.w)\n" \
+"			continue;\n" \
+"		vec4 u4 = Decals[at].u, v4 = Decals[at].v;\n" \
+"		vec3 off = p - c4.xyz;\n" \
+"		vec2 q0 = vec2(dot(off, u4.xyz), dot(off, v4.xyz));\n" \
+"		float R = cv.y;\n" \
+"		float el = cv.w > 7.5 ? max(u4.w / max(v4.w, 1e-3), 1.0) : 1.0; // a groove's length over its width\n" \
+"		vec2 sc = vec2(1.0 / el, 1.0), q0s = q0 * sc;\n" \
+"		float age = DecalClock.x - Decals[at].time.x;\n" \
+"		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
+"		float strength = fade * a * smoothstep(1.0, 3.0, R / foot); // (flattening far off, small on the screen, fading out)\n" \
+"		float D = cv.x * DecalCarve.x * strength;\n" \
+"		if (age < 0.0 || D < 0.02 || dot(q0s, q0s) > R * R * 9.0)\n" \
+"			continue;\n" \
+"		float rimH = D * cv.z * DecalCarve.y;\n" \
+"		float shape = floor(cv.w * 0.5);\n" \
+"		vec4 kk = vec4(R, D, rimH, shape);\n" \
+"		vec3 n = n4.xyz;\n" \
+"		float vz = min(dot(view, n), -0.12); // into it (grazing rays: their reach bounded)\n" \
+"		vec2 slope = vec2(dot(view, u4.xyz), dot(view, v4.xyz)) / -vz; // along it per unit down\n" \
+"		// the ray from the rim's top to the floor: missing the crater and its rim (1.6 radii), flat here\n" \
+"		vec2 ra = q0 - slope * rimH, rb = q0 + slope * D, ab = rb - ra;\n" \
+"		vec2 near = (ra + ab * clamp(-dot(ra, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0)) * sc;\n" \
+"		if (dot(near, near) > R * R * 2.56)\n" \
+"			continue;\n" \
+"		float ang = fract(sin(dot(c4.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;\n" \
+"		vec2 rot = vec2(cos(ang), sin(ang));\n" \
+"		// The retro style: the heights block by block, the wall's texel blocks (a block a pixel and a half wide or more)\n" \
+"		bool snap = false;\n" \
+"		mat2 toB = mat2(1.0), fromB = mat2(1.0);\n" \
+"		vec2 b0 = vec2(0.0);\n" \
+"		if (retro)\n" \
+"		{\n" \
+"			toB = mat2(WorldShiftUV(u4.xyz, duvdx, duvdy, dpdx, dpdy) * grid, WorldShiftUV(v4.xyz, duvdx, duvdy, dpdx, dpdy) * grid);\n" \
+"			float bd = abs(determinant(toB));\n" \
+"			snap = bd > 1e-8 && inversesqrt(bd) > foot * 1.5;\n" \
+"			if (snap)\n" \
+"			{\n" \
+"				fromB = inverse(toB);\n" \
+"				b0 = tuv * grid - toB * q0;\n" \
+"			}\n" \
+"		}\n" \
+"		float steps = clamp(ceil(length(ab) / foot * 0.5) + 2.0, 3.0, max(maxSteps, 3.0));\n" \
+"		float ds = (D + rimH) / steps;\n" \
+"		float s0 = -rimH, g0 = s0 + CarveSample(ra, kk, rot, el, facet, snap, toB, fromB, b0), s1 = s0, g1 = g0; // g: the ray's depth past the surface's\n" \
+"		for (float i = 1.0; i <= steps; i += 1.0)\n" \
+"		{\n" \
+"			s1 = -rimH + ds * i;\n" \
+"			g1 = s1 + CarveSample(q0 + slope * s1, kk, rot, el, facet, snap, toB, fromB, b0);\n" \
+"			if (g1 >= 0.0)\n" \
+"				break;\n" \
+"			s0 = s1;\n" \
+"			g0 = g1;\n" \
+"		}\n" \
+"		float sh = g1 > g0 && !snap ? mix(s0, s1, clamp(-g0 / (g1 - g0), 0.0, 1.0)) : s1;\n" \
+"		vec2 qh = q0 + slope * sh;\n" \
+"		vec2 qn = CarveSnap(qh, snap, toB, fromB, b0); // (snapped: the block's normal, its middle's)\n" \
+"		float e = max(R * 0.06, 0.02);\n" \
+"		float h0 = CarveHeight(qn, kk, rot, el, facet);\n" \
+"		float hh = snap ? CarveSample(qh, kk, rot, el, facet, snap, toB, fromB, b0) : h0;\n" \
+"		vec2 g = vec2(CarveHeight(qn + vec2(e, 0.0), kk, rot, el, facet) - h0, CarveHeight(qn + vec2(0.0, e), kk, rot, el, facet) - h0) / e;\n" \
+"		bend = normalize(n - u4.xyz * g.x - v4.xyz * g.y) - n;\n" \
+"		shift = u4.xyz * (qh.x - q0.x) + v4.xyz * (qh.y - q0.y);\n" \
+"		float deep = clamp(-hh / D, 0.0, 1.0);\n" \
+"		float core = cv.w - 2.0 * shape;\n" \
+"		dark = 1.0 - 0.45 * deep * deep;\n" \
+"		if (core > 0.0)\n" \
+"			dark *= mix(0.22, 1.0, smoothstep(core * 0.55, core, length(qn) / R));\n" \
+"		dark = mix(1.0, dark, strength);\n" \
+"		light = normalize(n * 0.6 + v4.xyz * 0.8);\n" \
+"		return true;\n" \
+"	}\n" \
+"	return false;\n" \
 "}\n" \
 "\n" \
 "// The decals' colour on the texture at p (where the parallax mapping put it; q: the surface's own point there, facing\n" \
@@ -1532,6 +1778,27 @@ LIQUID_SWELL \
 "layout(location=21) in vec2 in_grime; // QVR: the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS)\n" \
 "layout(location=22) flat in vec2 in_grimepages; // QVR\n"
 
+// QVR: the carved decals (QVR_DECAL_FUNCTIONS' CarveAt; the solid world's, before its textures are read): where a
+// crater's floor or wall is seen through the pixel the textures are read from instead (puv moved on, as the parallax
+// mapping moves it: the decals and the permanent layer then follow it as they follow that), its normal bent for the
+// lights (QVR_WORLD_FS_LIGHT), its colour darkened (QVR_WORLD_FS_DECALS).
+#define QVR_WORLD_FS_CARVE \
+"	bool carve_on = false;\n" \
+"	vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n" \
+"	float carve_dark = 1.;\n" \
+"	if (DecalCarve.x > 0.0 && DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
+"	{\n" \
+"		vec3 carve_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
+"		vec3 carve_shift;\n" \
+"		vec2 carve_grid = Retro > 0 && RetroP0.w > 0.0 ? RetroGrid : in_retro.xy; // (the retro style's blocks: the retro textures', else the texels)\n" \
+"		carve_on = CarveAt(carve_pos, in_pos, facing, dpdx, dpdy, puv, duvdx, duvdy, carve_grid, carve_shift, carve_bend, carve_dark, carve_light);\n" \
+"		if (carve_on)\n" \
+"		{\n" \
+"			puv += WorldShiftUV(carve_shift, duvdx, duvdy, dpdx, dpdy);\n" \
+"			parallax = true;\n" \
+"		}\n" \
+"	}\n"
+
 // QVR: the decals on the world's own surfaces (QVR_DECAL_FUNCTIONS) on its texture, before its light: the world's
 // instance only (Instance.retro.w, R_InitBModelInstance), not brush models (the meshes were laid on the world alone);
 // its fullbrights and sheen covered as much. Then the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS), the world's
@@ -1539,13 +1806,16 @@ LIQUID_SWELL \
 // texture to)
 #define QVR_WORLD_FS_DECALS \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
-"	vec3 decal_mod = vec3(1.0);\n" \
+"	vec3 decal_mod = vec3(carve_dark); // (1: not carved here, QVR_WORLD_FS_CARVE)\n" \
+"	result.rgb *= carve_dark;\n" \
+"	fullbright *= carve_dark;\n" \
 "	if (DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
 "	{\n" \
 "		vec3 decal_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
-"		decal_mod = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
-"		result.rgb *= decal_mod;\n" \
-"		fullbright *= decal_mod;\n" \
+"		vec3 marks = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
+"		result.rgb *= marks;\n" \
+"		fullbright *= marks;\n" \
+"		decal_mod *= marks;\n" \
 "	}\n" \
 "	vec2 grime_dx = dFdx(in_grime), grime_dy = dFdy(in_grime);\n" \
 "	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
@@ -1697,6 +1967,15 @@ QVR_PERMDECAL_FUNCTIONS \
 "				total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum); // guessed from where it brightens\n" \
 "			}\n" \
 "		}\n" \
+"	}\n" \
+"	if (carve_on) // QVR: a carved decal's crater (QVR_WORLD_FS_CARVE) in the baked light, from where it comes (deluxemaps), else\n" \
+"	{ // from its side towards the light that reaches it; then its normal for the dynamic lights and the sheen\n" \
+"		vec3 carve_n = normalize(facing + carve_bend);\n" \
+"		vec4 carve_lux = (ShadowFlags & 128u) != 0u ? LuxDirection(lmuv, facing, duvdx, duvdy, dpdx, dpdy) : vec4(0.);\n" \
+"		vec3 carve_l = carve_lux.w > 0. ? LuxLight(facing, carve_lux.xyz) : carve_light;\n" \
+"		float carve_f = max(dot(carve_n, carve_l), 0.0) / max(dot(facing, carve_l), 0.2);\n" \
+"		total_light *= mix(1.0, clamp(carve_f, 0.15, 1.8), 0.85);\n" \
+"		bumped = normalize(bumped + carve_bend);\n" \
 "	}\n" \
 "	total_light *= LiquidCaustics(in_pos, facing); // QVR: under water (vr_water_caustics)\n" \
 "	total_light *= DynamicAO(in_pos, AONormal(facing, luxdir), in_aoself, in_coord, in_depth); // QVR: what moves darkens the baked light near it (vr/vr_ao.cpp)\n" \
@@ -2279,7 +2558,7 @@ SPECULAR_AA_FUNCTIONS
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
 "	cluster_coord.y = int(floor(in_coord.y));\n" \
 "	cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0); /* nearer than the first slice (a held gun): in it */\n" \
-"	uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n" \
+"	uvec2 clusterdata = QVR_LOAD_CLUSTER(cluster_coord).xy;\n" \
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n" \
 "		return vec3(0.);\n" \
 "	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \
@@ -2945,9 +3224,13 @@ QVR_DENT_FUNCTIONS \
 "#define PortalPlane FramePortalPlane\n" \
 "#define PortalMin FramePortalMin\n" \
 "#define PortalMax FramePortalMax\n" \
+"#ifndef QVR_MULTIVIEW\n" /* (a multiview twin's EyePos is the view's already: QVR_STEREO_VIEWS) */ \
 "#define EyePos FrameEyePos\n" \
+"#endif\n" \
 QVR_BEHIND_SHOWN_GATE \
-"#undef EyePos\n"
+"#ifndef QVR_MULTIVIEW\n" \
+"#undef EyePos\n" \
+"#endif\n"
 
 // soft sprites, fading out close in front of the scene
 #define QVR_SPRITES_FS_SOFT \
@@ -2980,3 +3263,28 @@ QVR_BEHIND_SHOWN_GATE \
 "				center += dir * along;\n" \
 "				radius = min(radius * 1.01 + 1.0, l.radius);\n" \
 "			}\n"
+
+// Temporal anti-aliasing's motion vectors (vr_temporal.cpp, docs/vr-port/TEMPORAL.md 5): the eye's view-projection a
+// frame ago (unjittered) and this frame's jitter; all zero outside the eyes' scenes (TemporalJitter.w 0: none written).
+#define QVR_TEMPORAL_BLOCK \
+"layout(std140, binding=7) uniform TemporalBlock\n" \
+"{\n" \
+"	mat4	PrevViewProj;\n" \
+"	vec4	TemporalJitter; // xy the jitter in uv, z the eye's stamp, w 1 while the eye collects motion vectors\n" \
+"	vec4	TemporalSize; // xy 1 / the eye's size\n" \
+"};\n"
+
+// The vertex's clip position a frame ago (0: it does not move by itself; the camera's motion comes from the depth).
+#define QVR_TEMPORAL_VS_OUTPUT "layout(location=29) out vec4 out_prevclip;\n"
+
+// The motion target (colour attachment 1, written while VR_TemporalMotionWrites has it on): xy uv a frame ago minus uv
+// now (unjittered), z the depth, w the eye's stamp (-1: the camera's motion; + 0.5: a liquid, its warp animated).
+// Written first in main (before any early return: an output left unwritten is undefined).
+#define QVR_TEMPORAL_FS_OUTPUT \
+"#if !OIT && !defined(QVR_MULTIVIEW)\n" \
+"layout(location=1) out vec4 out_motion;\n" \
+"layout(location=29) in vec4 in_prevclip;\n" \
+"#define QVR_TEMPORAL_WRITE(liquid) out_motion = in_prevclip.w == 0.0 ? vec4(0.0, 0.0, 0.0, -1.0) : vec4(in_prevclip.xy / in_prevclip.w * 0.5 + 0.5 - (gl_FragCoord.xy * TemporalSize.xy - TemporalJitter.xy), gl_FragCoord.z, TemporalJitter.z + (liquid))\n" \
+"#else\n" \
+"#define QVR_TEMPORAL_WRITE(liquid)\n" \
+"#endif\n"

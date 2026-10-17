@@ -263,6 +263,7 @@ void GL_CheckBoundFramebuffers (const char *where); // vr_debug_glstate: the sha
 
 void GL_BeginGroup (const char *name);
 void GL_EndGroup (void);
+void GL_LabelNewFramebuffer (GLuint fbo, const char *name); // QVR: a just-made framebuffer's debug label
 
 //==============================================================================
 
@@ -474,6 +475,8 @@ typedef struct gpuframedata_s {
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
+	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
+	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
@@ -629,6 +632,13 @@ void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
+extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
+void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)
+void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); // QVR: the current eye's, from r_refdef
+void GL_MultiviewStats (int *twins, int *missing); // QVR
+int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun now (single-pass stereo on)
+int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {

@@ -92,6 +92,8 @@ void()	ad_WizardAttackFinished =
 //----------------------------------------------------------------------
 void() ad_Wiz_FastFire =
 {
+	if (VR_AimCone_Wait(ad_Wiz_FastFire, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_vec, ad_dst;
 	local entity ad_twizard, ad_tmissile;
 

@@ -10,6 +10,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
@@ -114,6 +115,7 @@ constexpr Def defs[] = {
     {"wound paint", Render, "wounds"},
     {"flashlight cord", Render, "flashlight cord|flashlight cord draw"},
     {"grapple rope", Render, "grapple rope|grapple rope upload|grapple rope draw"}, // vr_rope.cpp: its curve (made with the temp entities), its links bent on the GPU
+    {"magholster chains", Render, "magnetic holsters|magnetic holsters tether sim|magnetic holsters build|magnetic holsters draw"}, // vr_magholster.cpp: the chains' simulation (the tether's world traces), their links built and drawn
     {"mirror/spectator", Render, "mirror|spectator|window view"},
     {"render other", Render, "screen|3D|eye L|eye R|scene|scene setup|setup view|hidden area"},
     {"map loading", Misc, "map spawn|map load"},
@@ -342,10 +344,7 @@ void appendf(za::String& out, const char* fmt, ...)
 
 [[nodiscard]] za::String stamp(const char* fmt)
 {
-    const time_t now = time(nullptr);
-    char buf[64];
-    strftime(buf, sizeof(buf), fmt, localtime(&now));
-    return buf;
+    return files::timestamp(time(nullptr), fmt);
 }
 
 // A system's name as a CSV column: letters and digits, '_' for the rest.
@@ -480,9 +479,7 @@ void csvRow(const Second& s, double time)
 {
     if(csvPath.empty())
     {
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        csvPath = dir + "/systems_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
+        csvPath = files::profileFile("systems_", ::time(nullptr));
         csvFile = fopen(csvPath.cStr(), "w");
         if(!csvFile)
         {
@@ -595,9 +592,7 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
     const bool created = hitchPath.empty();
     if(created)
     {
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        hitchPath = dir + "/hitches_" + stamp("%Y-%m-%d_%H-%M-%S") + ".csv";
+        hitchPath = files::profileFile("hitches_", ::time(nullptr));
     }
     if(!hitchFile)
     {

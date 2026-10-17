@@ -12,6 +12,7 @@
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
 #include <stdio.h>
+#include <time.h>
 
 namespace qvr::files
 {
@@ -149,5 +150,16 @@ struct Identity
 // A name matched by a glob (* any run, ? any one character), whole; ASCII letters of either case alike (the
 // std::regex::icase expression the eval made of it).
 [[nodiscard]] bool globMatch(za::StringView glob, za::StringView name);
+
+// The local time `when` as `fmt` (strftime): by default a file name's stamp, 2026-10-16_14-03-59.
+[[nodiscard]] za::String timestamp(time_t when, const char* fmt = "%Y-%m-%d_%H-%M-%S");
+
+// The profilers' folder, `<game dir>/profile` (made), and a new CSV in it, `<name><when's stamp>.csv`.
+[[nodiscard]] za::String profileDir();
+[[nodiscard]] za::String profileFile(const char* name, time_t when);
+
+// The cache folder in the user's base dir, `<last base dir>/cache` (the map index's, the installed maps', the update
+// check's; the derived-data cache's unless vr_cache_dir). The first base dir before any is set.
+[[nodiscard]] za::String baseCacheDir();
 
 } // namespace qvr::files

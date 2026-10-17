@@ -1,6 +1,6 @@
 param([string]$Name = 'adshots')
 # Actual projectile impacts with guaranteed failed rolls must preserve the whole corpse.
-$lines = @('developer 0','sv_gravity 0','vr_ragdoll_inherit 0','vr_debug_shots 1','vr_ad_projectiles 2','vr_ragdoll 1','vr_limbs 1','vr_ragdoll_start 0','vr_decap_pop_chance 1','vr_decap_pop_laser 1','vr_decap_pop_roll 1','vr_decap_chance_scale 0.5','vr_limbs_chance_scale 0.5','vr_decap_pop_quad 0','god')
+$lines = @('developer 0','sv_gravity 0','vr_ragdoll_inherit 0','vr_debug_shots 1','vr_ad_projectiles 2','vr_ragdoll 1','vr_limbs 1','vr_ragdoll_start 0','vr_decap_pop_laser 1','vr_decap_pop_roll 1','vr_decap_chance_scale 0.5','vr_limbs_chance_scale 0.5','vr_decap_pop_quad 0','god')
 foreach ($case in @(@(51,0),@(57,1))) {
     $lines += @('map vrmelee-recording','wait30','sv_gravity 800',"scratch1 $($case[1])",'scratch2 0','scratch3 14','scratch4 1',"vr_ad_test $($case[0])",'wait270')
 }

@@ -7,7 +7,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 32;
+inline constexpr int numSlots = 33;
 
 enum class Key : int
 {
@@ -147,17 +147,6 @@ inline constexpr int hotspotFields = 24;
 [[nodiscard]] float bladeTo(const Hotspot& h);
 [[nodiscard]] Hotspot hotspot(int slot, int index);
 void setHotspot(int slot, int index, const Hotspot& h);
-
-// Round 21's migration of a config's two-handed grips (tuned in it: its foregrip or blade grip keys, or the weapon's
-// offset or scale, not the defaults) into hotspots needs the model: true once per such slot, for the view to do it.
-[[nodiscard]] bool takeHotspotMigration(int slot);
-
-// Round 21, third pass: a cup hotspot is where the helping hand's palm sits (it was a point the hand's grip channel
-// was aligned round, often far from where the hand ended up). A config's cups made before are moved, once, to where
-// their hands were drawn: the slots owning such a cup (their own values, not inherited), for the view to do it (it needs
-// the hands drawn); `done` once it has.
-[[nodiscard]] bool cupMigrationPending(int slot);
-void cupMigrationDone(int slot);
 
 // The slot whose own value of `key` `slot` uses (itself, or what it inherits it from).
 [[nodiscard]] int ownerSlot(int slot, Key key);

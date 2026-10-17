@@ -7,6 +7,9 @@
 
 namespace qvr::openxr_vulkan
 {
+// context() before the session is exposed (a namespace-scope constant: no function-local statics, CODE_STYLE.md).
+inline const gl_vulkan::DeviceContext emptyDeviceContext{};
+
 class Bootstrap final
 {
 public:
@@ -26,8 +29,7 @@ public:
     // explicit drained-shutdown requirement for every possible bridge child.
     [[nodiscard]] const gl_vulkan::DeviceContext& context() const
     {
-        static const gl_vulkan::DeviceContext empty{};
-        return sessionExposed ? device : empty;
+        return sessionExposed ? device : emptyDeviceContext;
     }
     [[nodiscard]] const char* error() const { return failure; }
     // Call only after successful xrDestroySession and destruction/draining of

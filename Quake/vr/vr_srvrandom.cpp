@@ -70,16 +70,6 @@ void registerCommands()
 {
     Cmd_AddCommand("sv_random_info", info_f);
 }
-
-za::FastNonCryptoRng stream()
-{
-    return rng;
-}
-
-void setStream(const za::FastNonCryptoRng& state)
-{
-    rng = state;
-}
 } // namespace qvr::srvrandom
 
 // SV_SpawnServer, before anything spawns: the stream seeded for this map (see above).

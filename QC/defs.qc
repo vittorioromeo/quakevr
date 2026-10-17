@@ -515,6 +515,7 @@ float HIP_IT_ADELIMINATOR      = VRUTIL_POWER_OF_TWO(16);
 float HIP_IT_ADCENTURION       = VRUTIL_POWER_OF_TWO(17);
 float HIP_IT_ADPYRO            = VRUTIL_POWER_OF_TWO(18);
 float HIP_IT_ADFUMIGATOR       = VRUTIL_POWER_OF_TWO(19);
+float HIP_IT_ADCROSSBOW        = VRUTIL_POWER_OF_TWO(20); // AD support: the crossbow knight's crossbow.
 
 //
 //

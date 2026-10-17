@@ -12,6 +12,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 
@@ -82,14 +83,23 @@ public:
         return glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
     }
 
+    // Instead of update: the line given, its nodes `p[0 .. n - 1]` (world, at least 2) simulated elsewhere (the magnetic
+    // holsters' tether, vr_verlet.hpp: any number of them), drawn in `style`. (update after it starts afresh.)
+    void shape(const glm::vec3* p, za::SizeT n, const Style& style);
+
     // Not drawn this frame: starts afresh when drawn again.
     void hide() { valid_ = false; }
 
     [[nodiscard]] bool visible() const { return valid_; }
 
     // Its rings for gfx::drawTube, lit, and the sides round them, seen from `eye` (the detail: fewer further away).
-    // False: nothing to draw. Once a frame, for both eyes.
-    [[nodiscard]] bool build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides) const;
+    // False: nothing to draw. Once a frame, for both eyes. A chain with `linksUpTo` (units along the line from its first
+    // end, at least 0) and `tail`: its links only that far, then a plain thin line along the same curve to the second
+    // end (its rings in `tail`, lineSides round, not flat; empty when every link is drawn), starting in the last link
+    // drawn (no gap).
+    [[nodiscard]] bool build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides, float linksUpTo = -1.f,
+        za::Vector<gfx::TubeRing>* tail = nullptr) const;
+    static constexpr int lineSides = 4;
 
     [[nodiscard]] const glm::vec3& albedo() const { return style_.albedo; }
     [[nodiscard]] const glm::vec3& rust() const { return style_.rust; }
@@ -99,6 +109,7 @@ public:
     [[nodiscard]] int rings() const { return rings_; }
     [[nodiscard]] int links() const { return links_; }
     [[nodiscard]] float length() const { return length_; } // the line's, metres
+    [[nodiscard]] float tailLength() const { return tailLength_; } // the last build's plain line's, metres (0: none)
 
     // The simulated nodes (world), and the springs' worst stretch or squeeze from their relaxed length, a share of it
     // (vr_magholster_chain_log).
@@ -117,6 +128,7 @@ private:
     mutable int rings_{0};
     mutable int links_{0};
     mutable float length_{0.f};
+    mutable float tailLength_{0.f};
     float lastRest_{0.f}; // a rigid chain's spacing last frame (units; 0: afresh)
 };
 

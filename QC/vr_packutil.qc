@@ -1,5 +1,10 @@
 // Saved native campaign context; engine restores it before map/resource spawn.
 float vr_save_campaign;
+// vr_campaign's values for Machine Games' campaigns (the engine's campaign list); read through Dopa_Campaign,
+// MG1_Campaign, MG3_Campaign and MG_WorldCampaign (DOPA..MG3: the MG world's rules).
+const float VR_CAMPAIGN_DOPA = 3;
+const float VR_CAMPAIGN_MG1 = 4;
+const float VR_CAMPAIGN_MG3 = 5;
 // Saved precache layout: 1 + Hipnotic + 2*Rogue. It must match when a save is restored.
 float vr_save_packmask;
 
