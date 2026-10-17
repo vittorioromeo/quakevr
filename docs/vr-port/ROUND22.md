@@ -11838,3 +11838,25 @@ To try in VR: nothing should look different. Look up and around with the hands l
 torch, and at the body clone on a VR page: no part of the body, the hands or a ragdoll should pop in or out at the view's
 edges or in shadows. Cull Posed Models Off/On in Debug > Profiling and Memory to compare; Checked with Model Cull Stats
 should say wrong 0.
+## No active ragdolls after a load (worktree `permdecals`, branch `agent/ragload`, 2026-10-17)
+
+Voice note: after dying and respawning from the autosave, or a quick load, no shove, leg grab or body lift turned an
+enemy into an active ragdoll; a fresh map from the levels menu worked again.
+
+- Cause: the engine's save (pr_edict.c `PR_FindSavegameFields`, stock Quake) skips every field whose name's
+  next-to-last character is `_`, meant for a vector's `_x`/`_y`/`_z`. That also dropped `vr_kd_chance_h` (a monster's
+  knockdown chance, a cvar handle), so a loaded game's monsters all had handle 0, "never knocked down", and every gate
+  that tests it (VR_Knockdown_Try, the throws and lift, the leg sweep, ragimpact, hit stagger) refused. The respawn
+  path is a load too (`restart` loads the last save). The same rule dropped `vr_dummy_board_z`, `vr_gib_bornin_t`,
+  `gh_prev_d`, `gh_log_d`, `mh_n`, `mh_wall_n` and `bat_i`; all saved now.
+- Fix: a field is skipped only when it is a float named `<v>_x|_y|_z` at the offset of a vector field `<v>` (plus 0, 1,
+  2); `ED_IsRelevantField` (the `edict` printout) uses the same flag. Old saves load as before (the fields absent: 0);
+  only a save made by this build restores the monsters' chance. A save made before the fix still has no shoves.
+- Test: `bash Misc/quakevr/ragdoll/saveload_test.sh <agent>`: e1m1, a two-handed shove of the nearest standing monster
+  (`vr_knockdown_test 22`) fresh, after save, kill and load, after kill and `restart`, after `changelevel e1m2`, and
+  after loading the e1m1 save from e1m2; each phase also prints the nearest monster's chance handle. Before: load and
+  crossload FAIL (handle 0, "knockdown test: no monster"); after: PASS, all five. eval.sh 168/177. `vr_physics_hash
+  piles` (vrfiringrange, 40 crates and 40 rocks, fixed frames 120 Hz, 300 frames) b6b38a14f96f5075 before and after.
+
+To try in VR: start e1m1, save (or wait for the autosave), die and respawn, then shove a grunt: it staggers. Saves made
+before this build still carry no chance; make a new one.
