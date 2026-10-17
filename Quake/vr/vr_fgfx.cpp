@@ -302,11 +302,6 @@ extern "C" float VR_EntityGlow(const entity_t* e)
     {
         return -counter;
     }
-    const float hot = qvr::hotblade::entityGlow(e);
-    if(hot != 0.f)
-    {
-        return hot;
-    }
     return qvr::view::powerupGlow(e);
 }
 

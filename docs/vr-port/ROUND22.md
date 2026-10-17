@@ -12419,3 +12419,27 @@ same known bash damage-number differences from the baseline).
 Timing, `bench.sh ragdolls_32_active` (exclusive, 3 reps, 90 Hz paced): the client read phase 0.119 -> 0.070 ms (the
 skinned model lookups), CPU busy p50 2.43 -> 2.36-2.40 ms; server and SV_Physics unchanged within noise (1.02 ms).
 Two of the three baseline reps ran with another game on the machine (their numbers higher), so the before is one rep.
+## Code sweep Batch C: render, menu, audio and misc per-frame work (worktree `gorefx`, branch `agent/sweepC`, 2026-10-18)
+
+The code sweep's Batch C (scratch/sweep/SWEEP.md ids), the same results with less work per frame:
+- 05.1: the axe-stick and monster-grab QC functions (VR_AxeStick_Stuck, VR_FoeGrab_*, VR_Grapple_MonsterMass,
+  VR_LegSweep_Down) resolved once at progs load into `progs::bindings()` (`AxeStick_Stuck`, `foegrab.*`), not by a
+  linear scan of every progs function per physics step or call. 17.2 and 19.10: `fg_portal`, `vr_ai_gate`,
+  `vr_button_label_top` and `pos1` added to vr_fields.inc; vr_portals.cpp and vr_setup.cpp read `progs::fields()`
+  (with `vr_spin`, `carry_portal`, `handpos`) instead of a field search by name per entity and frame. `mangle` in the
+  gate build stays a name lookup (once a map, and it must work with non-VR progs).
+- 21.4: view::viewModel's cache is 256 slots in pairs (two ways). 21.5: patchModelFlags runs again on a new map load
+  (worldGeneration) as well as a new world pointer (it is idempotent). 19.8: the shells' model through view::viewModel.
+- 09.2: pushDecal takes the mark by move: its triangles and buckets are no longer deep-copied into the ring slot (the
+  layer's marks shown live keep their own triangles). 05.3: the sound simulation's brush-entity instances indexed by
+  entity number. 15.2: the menu toolbar's Quickload looks for quick.sav at most once a second while drawn (afresh when
+  pressed). 14.2: the dead second hot-blade glow call gone. 22.1: slotForPart memoised per model (cleared with the slot
+  cache). 22.2: the wall torch's crackle recognised by its sfx_t once seen (the sound table is never freed). 20.1: the
+  toolgun's Spawn grid made only when the section changes (the spawn list is a constexpr table). 04.2: the body AO's 15
+  bone indices found once per model (kept while the model, its header, bone count and name match). 15.13: the pak
+  write-time cache looked up by a string view. 13.3: the map index's ratings matched through a case-folded name map.
+- Checks: paused screenshots (e1m1 with 128 stress marks through a 48-slot ring, the menu, e1m2) equal the old build's
+  (the marks' shot identical; the menu's spinning logo and status numbers, and e1m2's animated pixels, 0.04-0.2%);
+  `vr_physics_hash` (props piled and blasted, `sv_random_seed 7`) and `vr_physics_mtbench 200 200` identical;
+  `vr_menu_path_check` 0 missing; judo_test.py lift 0 fails (as before); axe sticks still caught (12 throws: 42-75% either build, run to run);
+  eval 168/177.

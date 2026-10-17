@@ -653,9 +653,35 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
     return tool == ToolBack && menu::currentInstance() > 0 ? "Close Panel" : toolLabels[tool];
 }
 
+// Whether a quick.sav is there (load quick's lookup: the game's folder, then the base folders): looked for on disk at
+// most once a second for the buttons drawn each frame, and afresh when `fresh` (the button pressed).
+struct QuickSaveSeen
+{
+    double at{-1e9}; // realtime it was looked for
+    bool found{false};
+};
+QuickSaveSeen quickSaveSeen;
+
+[[nodiscard]] bool quickSaveThere(bool fresh)
+{
+    QuickSaveSeen& q = quickSaveSeen;
+    if(!fresh && realtime >= q.at && realtime - q.at < 1.0)
+    {
+        return q.found;
+    }
+    q.at = realtime;
+    q.found = Sys_FileExists(va("%s/quick.sav", com_gamedir));
+    for(int i = com_numbasedirs - 1; i >= 0 && !q.found; i--)
+    {
+        q.found = Sys_FileExists(va("%s/quick.sav", com_basedirs[i]));
+    }
+    return q.found;
+}
+
 // Match save quick's restrictions and load quick's file lookup. Leave unavailable buttons in the same place, so
-// opening a menu before a game or after dying never moves the other shortcuts under the laser.
-[[nodiscard]] const char* toolUnavailable(int tool)
+// opening a menu before a game or after dying never moves the other shortcuts under the laser. `fresh`: the files
+// looked at now (a press), not as seen up to a second ago (the buttons drawn).
+[[nodiscard]] const char* toolUnavailable(int tool, bool fresh = false)
 {
     if(tool == ToolNewPanel)
     {
@@ -710,18 +736,7 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
         {
             return "Saving game; try again shortly";
         }
-        if(Sys_FileExists(va("%s/quick.sav", com_gamedir)))
-        {
-            return nullptr;
-        }
-        for(int i = com_numbasedirs - 1; i >= 0; i--)
-        {
-            if(Sys_FileExists(va("%s/quick.sav", com_basedirs[i])))
-            {
-                return nullptr;
-            }
-        }
-        return "No quicksave in this game";
+        return quickSaveThere(fresh) ? nullptr : "No quicksave in this game";
     }
     return nullptr;
 }
@@ -1878,7 +1893,7 @@ void backToGame(int hand)
 // shown again.
 void useTool(int tool, int hand)
 {
-    if(const char* reason = toolUnavailable(tool))
+    if(const char* reason = toolUnavailable(tool, true))
     {
         Con_Printf("%s: %s.\n", toolLabels[tool], reason);
         S_LocalSound("misc/menu1.wav");

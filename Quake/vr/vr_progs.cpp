@@ -278,6 +278,20 @@ extern "C" void VR_OnProgsLoaded()
         b.propTouches[1] = findFunction("VR_Debris_Touch");
         b.propTouches[2] = findFunction("VR_CratePiece_Touch");
         b.propTouches[3] = findFunction("wpnthrow_touch");
+        b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
+        b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
+        b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
+        b.foegrab.Released = findFunction("VR_FoeGrab_Released");
+        b.foegrab.Strength = findFunction("VR_FoeGrab_Strength");
+        b.foegrab.Taken = findFunction("VR_FoeGrab_Taken");
+        b.foegrab.Throw = findFunction("VR_FoeGrab_Throw");
+        b.foegrab.HandOver = findFunction("VR_FoeGrab_HandOver");
+        b.foegrab.Manhandle = findFunction("VR_FoeGrab_Manhandle");
+        b.foegrab.BreakFree = findFunction("VR_FoeGrab_BreakFree");
+        b.foegrab.NeckSnap = findFunction("VR_FoeGrab_NeckSnap");
+        b.foegrab.Lift = findFunction("VR_FoeGrab_Lift");
+        b.foegrab.MonsterMass = findFunction("VR_Grapple_MonsterMass");
+        b.foegrab.LegSweepDown = findFunction("VR_LegSweep_Down");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);

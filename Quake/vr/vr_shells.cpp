@@ -777,7 +777,7 @@ void frame(const view::ViewEntity (&weapons)[2])
     qmodel_t* models[za::getArraySize(kindModels)];
     for(za::SizeT k = 0; k < za::getArraySize(kindModels); k++)
     {
-        models[k] = Mod_ForName(kindModels[k], false);
+        models[k] = view::viewModel(kindModels[k]); // (Mod_ForName's, kept: not looked up by name every frame)
     }
 
     for(Shell& s : shells)

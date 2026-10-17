@@ -2176,7 +2176,7 @@ glm::vec3 pullImageSeen(const glm::vec3& from, const glm::vec3& point)
 extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin, float out[3])
 {
     using namespace qvr::portals;
-    const int field = ED_FindFieldOffset("fg_portal");
+    const int field = qvr::progs::fields().fg_portal;
     setVec(out, vec(hand));
     if(field < 0) { return; }
     eval_t* state = GetEdictFieldValue(ent, field);
@@ -2216,7 +2216,7 @@ namespace qvr::portals
 static int aiRoute(edict_t* entity)
 {
     if(!entity || !vr_portals_ai.value) { return 0; }
-    const int offset = ED_FindFieldOffset("vr_ai_gate");
+    const int offset = progs::fields().vr_ai_gate;
     return offset >= 0 ? static_cast<int>(GetEdictFieldValue(entity, offset)->_float) : 0;
 }
 }
@@ -2321,13 +2321,13 @@ extern "C" void VR_PortalToss(edict_t* ent)
         setVec(ent->v.oldorigin, to);
         setVec(ent->v.velocity, dir);
         ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + sd.yaw);
-        const int spinField = ED_FindFieldOffset("vr_spin"); // a rigid body's spin (rad/s, the world's axes)
+        const int spinField = progs::fields().vr_spin; // a rigid body's spin (rad/s, the world's axes)
         if(spinField >= 0)
         {
             eval_t* spin = GetEdictFieldValue(ent, spinField);
             setVec(spin->vector, sd.turn * vec(spin->vector));
         }
-        const int gateField = ED_FindFieldOffset("vr_ai_gate");
+        const int gateField = progs::fields().vr_ai_gate;
         if(gateField >= 0) { GetEdictFieldValue(ent, gateField)->_float = 0.f; }
         // Come out of a gate, it meets its owner (VR_PortalHitsOwner): your nail at your own image hits you.
         if(progs::fields().vr_gate_crossed >= 0) { progs::fieldFloat(ent, progs::fields().vr_gate_crossed) = za::max(static_cast<float>(qcvm->time), 0.001f); }
@@ -3035,7 +3035,7 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
 extern "C" void VR_PortalCarry(edict_t* box, edict_t* player, int hand, int begin)
 {
     using namespace qvr::portals;
-    const int field = ED_FindFieldOffset("carry_portal");
+    const int field = qvr::progs::fields().carry_portal;
     const VrMove* move = server::clientMove(player);
     if(field < 0 || !move || hand < 0 || hand > 1) { return; }
     eval_t* saved = GetEdictFieldValue(box, field);
@@ -3244,7 +3244,7 @@ void reachTest_f()
     {
         const glm::vec3 raw = move->hands[1].pos;
         const Reach mapped = reach(vec(player->v.origin), raw);
-        const int offset = ED_FindFieldOffset("handpos");
+        const int offset = qvr::progs::fields().handpos;
         const glm::vec3 physical = offset >= 0 ? vec(GetEdictFieldValue(player, offset)->vector) : glm::vec3{0.f};
         vec3_t start{player->v.origin[0], player->v.origin[1], player->v.origin[2]}, end{raw.x, raw.y, raw.z};
         vec3_t lo{-1.f,-1.f,-1.f}, hi{1.f,1.f,1.f};

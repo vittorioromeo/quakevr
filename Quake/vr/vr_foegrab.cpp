@@ -214,9 +214,8 @@ namespace
 }
 
 // A QC function of the monster (with the player as self): its float return (`fallback` without the function).
-float callQc(const char* name, edict_t* player, edict_t* m, float hand, float extra, float fallback)
+float callQc(func_t fn, edict_t* player, edict_t* m, float hand, float extra, float fallback)
 {
-    const func_t fn = findFunction(name);
     if(!fn)
     {
         return fallback;
@@ -274,7 +273,7 @@ void release(edict_t* player, int h, Why why, const char* text)
     }
     if(m && !m->free && bindings().isVrProgs)
     {
-        (void)callQc("VR_FoeGrab_Released", player, m, static_cast<float>(h), static_cast<float>(why), 0.f);
+        (void)callQc(bindings().foegrab.Released, player, m, static_cast<float>(h), static_cast<float>(why), 0.f);
     }
 }
 
@@ -427,7 +426,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     g.palmAt = palm;
     g.lastPalm = palm;
     g.since = qcvm->time;
-    g.strength = za::clamp(callQc("VR_FoeGrab_Strength", player, best, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
+    g.strength = za::clamp(callQc(bindings().foegrab.Strength, player, best, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
     setFieldFloat(best, fields().vr_foegrab_letgo, 0.f);
     addFoe(best);
     if(debug())
@@ -435,7 +434,7 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
         Con_Printf("foegrab: %s hand takes hold of %s (%d) at (%.1f %.1f %.1f), %.1f cm from its fist, hold %.2f\n",
             handName(h), PR_GetString(best->v.classname), g.ent, point.x, point.y, point.z, bestGap / cm(), g.strength);
     }
-    (void)callQc("VR_FoeGrab_Taken", player, best, static_cast<float>(h), 0.f, 0.f);
+    (void)callQc(bindings().foegrab.Taken, player, best, static_cast<float>(h), 0.f, 0.f);
     return true;
 }
 } // namespace
@@ -527,7 +526,7 @@ bool startTrace(edict_t* m, const glm::vec3& dir, const char* kind)
 float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, bool trace)
 {
     const float yaw = glm::degrees(za::atan2(dir.y, dir.x));
-    const float result = callQc("VR_FoeGrab_Throw", player, m, yaw, throwTier(m), 0.f);
+    const float result = callQc(bindings().foegrab.Throw, player, m, yaw, throwTier(m), 0.f);
     // His grunt as he throws it (his note vrfiringrange_2026-10-09_10-56; the training dummy's "would be thrown" too).
     const bool grunted = result >= 1.f && climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
     if(grunted && debug())
@@ -691,7 +690,7 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
         {
             continue;
         }
-        if(callQc("VR_FoeGrab_HandOver", player, m, static_cast<float>(h), 0.f, 0.f) >= 1.f)
+        if(callQc(bindings().foegrab.HandOver, player, m, static_cast<float>(h), 0.f, 0.f) >= 1.f)
         {
             bits |= 1 << h;
         }
@@ -741,7 +740,7 @@ void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
         return;
     }
     const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
-    const float result = callQc("VR_FoeGrab_Manhandle", player, m, static_cast<float>(h), hold + 1.f, 0.f);
+    const float result = callQc(bindings().foegrab.Manhandle, player, m, static_cast<float>(h), hold + 1.f, 0.f);
     if(result < 1.f)
     {
         return;
@@ -795,7 +794,7 @@ void breakFree(int c, edict_t* m)
     (void)box3d::ragdollFlail(m, false);
     hd.flailing = false;
     const float shove = za::clamp(vr_foegrab_lift_shove.value, 0.f, 500.f);
-    (void)callQc("VR_FoeGrab_BreakFree", player, m, shove, 0.f, 0.f);
+    (void)callQc(bindings().foegrab.BreakFree, player, m, shove, 0.f, 0.f);
     if(debug())
     {
         Con_Printf("foegrab: %s (%d) breaks free after %.2f s lifted: shoves you back %.0f units\n",
@@ -864,12 +863,12 @@ namespace
 // false: none. `left`: its middle's offset to its left (QC VR_FoeGrab_HeadLeft: AD's zombie knight's; 0 for most).
 bool headSphereOf(edict_t* m, glm::vec3& out, float* left = nullptr)
 {
-    const func_t fn = findFunction("VR_FoeGrab_HeadZone");
+    const func_t fn = bindings().foegrab.HeadZone;
     if(!fn)
     {
         return false;
     }
-    const func_t leftFn = left ? findFunction("VR_FoeGrab_HeadLeft") : 0;
+    const func_t leftFn = left ? bindings().foegrab.HeadLeft : 0;
     const int oldSelf = pr_global_struct->self;
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(m);
@@ -1088,7 +1087,7 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
         }
         return;
     }
-    const float result = callQc("VR_FoeGrab_NeckSnap", player, m, za::clamp(vr_foegrab_necksnap_volume.value, 0.f, 2.f),
+    const float result = callQc(bindings().foegrab.NeckSnap, player, m, za::clamp(vr_foegrab_necksnap_volume.value, 0.f, 2.f),
         ragdoll ? 1.f : 0.f, 0.f);
     if(debug() || dummy)
     {
@@ -1492,7 +1491,7 @@ bool liftCheck(int c, const TwoHands& t)
     }
     const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
     const float result =
-        callQc("VR_FoeGrab_Lift", player, m, za::clamp(vr_foegrab_lift_up.value, 0.f, 1000.f), hold + 1.f, 0.f);
+        callQc(bindings().foegrab.Lift, player, m, za::clamp(vr_foegrab_lift_up.value, 0.f, 1000.f), hold + 1.f, 0.f);
     if(result >= 1.f)
     {
         (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
@@ -1808,7 +1807,7 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         return true;
     }
     const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
-    const float result = callQc("VR_FoeGrab_Lift", player, m, 0.f, hold + 1.f, 0.f); // (no hop: the hands lift its legs)
+    const float result = callQc(bindings().foegrab.Lift, player, m, 0.f, hold + 1.f, 0.f); // (no hop: the hands lift its legs)
     legNote(c, result >= 1.f ? "lifted by the legs" : "can't knock it down now");
     legTry(c, m, "lift", result >= 2.f ? "dummy: would lift" : result >= 1.f ? "LIFTED BY THE LEGS" : "no: can't knock it down",
         up, liftNeed);
@@ -2036,7 +2035,7 @@ bool qvr::foegrab::humanoid(edict_t* m)
 
 float qvr::foegrab::monsterMass(edict_t* player, edict_t* m)
 {
-    return callQc("VR_Grapple_MonsterMass", player, m, 0.f, 0.f, 80.f);
+    return callQc(bindings().foegrab.MonsterMass, player, m, 0.f, 0.f, 80.f);
 }
 
 float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& sweep, float topple, float feet, float damage)
@@ -2048,7 +2047,7 @@ float qvr::foegrab::sweepDown(edict_t* player, edict_t* m, const glm::vec3& swee
     }
     level = alignToFacing(m, glm::normalize(level));
     const glm::vec3 fall = -level; // (its feet go with the sweep: its top over the other way)
-    const float result = callQc("VR_LegSweep_Down", player, m, glm::degrees(za::atan2(fall.y, fall.x)), damage, -2.f);
+    const float result = callQc(bindings().foegrab.LegSweepDown, player, m, glm::degrees(za::atan2(fall.y, fall.x)), damage, -2.f);
     if(result != 1.f)
     {
         return result;

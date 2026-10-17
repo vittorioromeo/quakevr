@@ -398,7 +398,13 @@ qmodel_t* view::viewModel(const char* name)
 {
     using Entry = ViewModelEntry;
     Entry* const entries = viewModels;
-    Entry& e = entries[(reinterpret_cast<za::UIntPtrT>(name) * 0x9E3779B97F4A7C15ull) >> 58];
+    const za::UIntPtrT slot = (reinterpret_cast<za::UIntPtrT>(name) * 0x9E3779B97F4A7C15ull) >> 56;
+    Entry* pick = &entries[slot];
+    if(pick->name != name && (entries[slot ^ 1].name == name || (pick->name && !entries[slot ^ 1].name)))
+    {
+        pick = &entries[slot ^ 1]; // (found in the other way, or that way still free)
+    }
+    Entry& e = *pick;
     if(e.name == name)
     {
         qmodel_t* m = e.model;
@@ -3953,19 +3959,26 @@ namespace
 // them when they loaded. Some of its heads (the dog's, the fiend's, the shambler's, the zombie's)
 // lack the gib flag, so they left no blood trail: a head with no trail bleeds like a gib (the
 // zombie's like a zombie's gibs).
-const qmodel_t* flagsPatchedFor = nullptr; // the world patchModelFlags last ran for
+// The world and the map load patchModelFlags last ran for: a new map can get the old one's qmodel_t (and its models
+// reloaded, their flags reset), so the world pointer alone is not enough.
+struct FlagsPatched
+{
+    const qmodel_t* world{nullptr};
+    int generation{-1};
+};
+FlagsPatched flagsPatchedFor;
 } // namespace
 
 } // namespace view_detail
 
 static void patchModelFlags()
 {
-    const qmodel_t*& world = flagsPatchedFor;
-    if(cl.worldmodel == world)
+    FlagsPatched& done = flagsPatchedFor;
+    if(cl.worldmodel == done.world && worldGeneration() == done.generation)
     {
         return;
     }
-    world = cl.worldmodel;
+    done = {cl.worldmodel, worldGeneration()};
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         qmodel_t* m = cl.model_precache[i];

@@ -60,6 +60,24 @@ struct Bindings
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
+    func_t AxeStick_Stuck{0}; // a thrown axe's blade stuck in something (QC vr_axestick.qc; vr_axestick.cpp)
+    // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
+    struct FoeGrab
+    {
+        func_t HeadZone{0};
+        func_t HeadLeft{0};
+        func_t Released{0};
+        func_t Strength{0};
+        func_t Taken{0};
+        func_t Throw{0};
+        func_t HandOver{0};
+        func_t Manhandle{0};
+        func_t BreakFree{0};
+        func_t NeckSnap{0};
+        func_t Lift{0};
+        func_t MonsterMass{0}; // VR_Grapple_MonsterMass
+        func_t LegSweepDown{0}; // VR_LegSweep_Down
+    } foegrab;
 
     float* spawnServerFromSaveFile{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)

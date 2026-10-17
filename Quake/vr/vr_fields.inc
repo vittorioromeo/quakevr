@@ -241,3 +241,10 @@ QVR_FIELD(vr_aim_cone)
 QVR_FIELD(vr_aim_fire)
 QVR_FIELD(vr_aim_shown)
 QVR_FIELD(vr_aim_holding)
+// Seamless teleporters (vr_portals.cpp): a gravity-glove flight's teleporter (QC vr_fields.qc), a monster's route
+// through one (QC vr_portal_ai.qc).
+QVR_FIELD(fg_portal)
+QVR_FIELD(vr_ai_gate)
+// The setup map's option screens (vr_setup.cpp): a button's label board's top (QC buttons.qc), its rest place (pos1).
+QVR_FIELD(vr_button_label_top)
+QVR_FIELD(pos1)

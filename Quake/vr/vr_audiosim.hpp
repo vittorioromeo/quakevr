@@ -236,6 +236,9 @@ private:
     jobs::Future<Built> building;
     za::Vector<SubScene> subScenes; // by submodel number
     za::Vector<Instance> instances;
+    // instances' index + 1 by key (an entity number; 0: none), so placeInstance finds one without a scan per entity.
+    za::Vector<int> instanceAt;
+    void indexInstances();
     bool dirty{false};
 
     jobs::Future<void> directTask;

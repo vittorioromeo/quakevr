@@ -327,6 +327,56 @@ void addLimb(const glm::vec3& a, const glm::vec3& b, float radius, float extra, 
     addEllipsoid(o, strength, reach, PLAYER_GROUP);
 }
 
+// The body's joints addBody reads, and their bone indices in the model last drawn as your body (found by name once per
+// model, not each frame): kept while it is the same model, loaded at the same place with the same bones.
+enum BodyJoint : int
+{
+    Pelvis,
+    Neck,
+    Chest,
+    UpperarmL,
+    UpperarmR,
+    ForearmL,
+    HandL,
+    ForearmR,
+    HandR,
+    ThighL,
+    CalfL,
+    FootL,
+    ThighR,
+    CalfR,
+    FootR,
+    bodyJointCount
+};
+constexpr const char* bodyJointNames[bodyJointCount] = {"pelvis", "neck", "chest", "upperarm_l", "upperarm_r",
+    "forearm_l", "hand_l", "forearm_r", "hand_r", "thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"};
+struct BodyJoints
+{
+    const qmodel_t* model{nullptr};
+    const aliashdr_t* hdr{nullptr};
+    int numbones{0};
+    char name[MAX_QPATH]{};
+    int index[bodyJointCount]{};
+};
+BodyJoints bodyJoints;
+
+[[nodiscard]] const int* bodyJointIndices(const qmodel_t* model, const aliashdr_t* hdr)
+{
+    BodyJoints& b = bodyJoints;
+    if(b.model != model || b.hdr != hdr || b.numbones != hdr->numbones || strcmp(b.name, model->name))
+    {
+        b.model = model;
+        b.hdr = hdr;
+        b.numbones = hdr->numbones;
+        q_strlcpy(b.name, model->name, sizeof(b.name));
+        for(int j = 0; j < bodyJointCount; j++)
+        {
+            b.index[j] = modelmeta::boneIndex(model, bodyJointNames[j]);
+        }
+    }
+    return b.index;
+}
+
 // Your body (vr_avatar.cpp): the posed joints from the skinning matrices (the joint's bind position, posed, through
 // the entity's matrix), one ellipsoid for the torso and one for each drawn limb; the hands from the forearms.
 void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float reach)
@@ -340,8 +390,9 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
     float m[16];
     aliasMatrix(e, hdr, m);
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
-    const auto joint = [&](const char* name, glm::vec3& out, float* size) {
-        const int i = modelmeta::boneIndex(e->model, name);
+    const int* const jointIndex = bodyJointIndices(e->model, hdr);
+    const auto joint = [&](BodyJoint which, glm::vec3& out, float* size) {
+        const int i = jointIndex[which];
         if(i >= 0)
         {
             const float* inv = bones[i].inverse.mat; // [R^T | -R^T p]
@@ -362,8 +413,8 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
     };
     glm::vec3 pelvis, neck, chest, ul, ur;
     float s0 = 0.f, s1 = 0.f;
-    if(!joint("pelvis", pelvis, nullptr) || !joint("neck", neck, nullptr) || !joint("chest", chest, &s0) ||
-       !joint("upperarm_l", ul, nullptr) || !joint("upperarm_r", ur, nullptr) || s0 < 0.1f)
+    if(!joint(Pelvis, pelvis, nullptr) || !joint(Neck, neck, nullptr) || !joint(Chest, chest, &s0) ||
+       !joint(UpperarmL, ul, nullptr) || !joint(UpperarmR, ur, nullptr) || s0 < 0.1f)
     {
         return;
     }
@@ -407,12 +458,12 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
     // Limbs, when drawn (the legs only in the full body, vr_body_mode 3).
     struct Limb
     {
-        const char *from, *to;
+        BodyJoint from, to;
         float radius; // times the segment's length
     };
-    static constexpr Limb limbs[] = {{"upperarm_l", "forearm_l", 0.2f}, {"forearm_l", "hand_l", 0.17f},
-        {"upperarm_r", "forearm_r", 0.2f}, {"forearm_r", "hand_r", 0.17f}, {"thigh_l", "calf_l", 0.22f},
-        {"calf_l", "foot_l", 0.17f}, {"thigh_r", "calf_r", 0.22f}, {"calf_r", "foot_r", 0.17f}};
+    static constexpr Limb limbs[] = {{UpperarmL, ForearmL, 0.2f}, {ForearmL, HandL, 0.17f}, {UpperarmR, ForearmR, 0.2f},
+        {ForearmR, HandR, 0.17f}, {ThighL, CalfL, 0.22f}, {CalfL, FootL, 0.17f}, {ThighR, CalfR, 0.22f},
+        {CalfR, FootR, 0.17f}};
     float calf = 0.f;
     for(const Limb& l : limbs)
     {
@@ -423,7 +474,7 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
         }
         const float len = glm::distance(a, b);
         addLimb(a, b, len * l.radius, len * 0.05f, strength, reach);
-        if(l.from[0] == 'c')
+        if(l.from == CalfL || l.from == CalfR)
         {
             calf = len;
             // The foot: a flat ellipsoid forward of the ankle (the way the body faces), its sole on the floor.

@@ -29,6 +29,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 
 extern "C" void VR_FileCacheEnable(int on); // vr_fscache.cpp
 extern "C" int VR_FileCacheEnabled();
@@ -58,11 +59,24 @@ struct Lookup
     return qvr::mem::heldBytes(l.name) + qvr::mem::heldBytes(l.file.source);
 }
 
+// A pak's path, looked up by a view of the caller's string (a transparent hash): no za::String made for a lookup.
+struct PathHash
+{
+    using is_transparent = void;
+    [[nodiscard]] za::U64 operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
+};
+struct PathEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+
 struct KeepState
 {
     ankerl::unordered_dense::map<const qmodel_t*, za::Vector<Lookup>> sources; // an alias model's lookups (its load's)
     za::Vector<const qmodel_t*> recording; // the loads under way (a model's load may load another)
-    ankerl::unordered_dense::map<za::String, za::I64> pakTimes; // a pak's write time (read once: open, it is not rewritten)
+    // A pak's write time (read once: open, it is not rewritten).
+    ankerl::unordered_dense::map<za::String, za::I64, PathHash, PathEqual> pakTimes;
     za::Vector<Lookup> before; // the palette's and colormap's, before the switch's new folders
     ankerl::unordered_dense::set<const qmodel_t*> kept; // the switch's (VR_ModelsKeepDecide to VR_ModelsKeepEnd)
     ankerl::unordered_dense::set<const cache_user_t*> keptCaches;
@@ -81,13 +95,13 @@ constexpr const char* globalFiles[] = {"gfx/palette.lmp", "gfx/colormap.lmp"};
 
 [[nodiscard]] za::I64 pakTime(const char* pak)
 {
-    const auto it = state.pakTimes.find(za::String{pak});
+    const auto it = state.pakTimes.find(za::StringView{pak});
     if(it != state.pakTimes.end())
     {
         return it->second;
     }
     const za::I64 t = qvr::files::lastWriteTime(pak);
-    state.pakTimes[za::String{pak}] = t;
+    state.pakTimes.emplace(za::String{pak}, t);
     return t;
 }
 

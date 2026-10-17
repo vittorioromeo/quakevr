@@ -41,6 +41,7 @@
 extern "C"
 {
 #include "json.h" // (the engine's C header: as vr_engine.hpp includes the others)
+#include "q_ctype.h" // (q_tolower: q_strcasecmp's folding)
 }
 
 #include <ctype.h>
@@ -339,6 +340,23 @@ int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<ch
     note("map index: the ratings: %d KiB in %u ms", static_cast<int>(body.size() / 1024), SDL_GetTicks() - t0);
     body.pushBack('\0');
     int matched = 0;
+    // Each zip name, case folded as q_strcasecmp compares, to its first entry: one lookup per <file>, not a scan.
+    const auto folded = [](const char* s) {
+        za::String out{s};
+        char* const d = out.data();
+        for(za::SizeT i = 0; i < out.size(); i++)
+        {
+            d[i] = static_cast<char>(q_tolower(static_cast<unsigned char>(d[i])));
+        }
+        return out;
+    };
+    const za::SizeT count = za::min(idx.entries.size(), zipNames.size());
+    ankerl::unordered_dense::map<za::String, za::SizeT> byZip;
+    byZip.reserve(count);
+    for(za::SizeT i = 0; i < count; i++)
+    {
+        byZip.try_emplace(folded(zipNames[i].cStr()), i); // (the first of equal names, as the scan found)
+    }
     for(const char* p = strstr(body.data(), "<file "); p; p = strstr(p + 1, "<file "))
     {
         const char* end = strchr(p, '>');
@@ -352,21 +370,18 @@ int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<ch
             continue;
         }
         const za::String zip = id + ".zip";
+        const auto found = byZip.find(folded(zip.cStr()));
+        if(found == byZip.end())
+        {
+            continue;
+        }
         const za::String stars = xmlAttribute(p + 1, end, "rating");
         const za::String users = xmlAttribute(p + 1, end, "normalized_users_rating");
-        for(za::SizeT i = 0; i < idx.entries.size() && i < zipNames.size(); i++)
-        {
-            if(q_strcasecmp(zipNames[i].cStr(), zip.cStr()))
-            {
-                continue;
-            }
-            Entry& e = idx.entries[i];
-            const int s = stars.empty() ? 0 : Q_atoi(stars.cStr());
-            e.rating = static_cast<za::U8>(s >= 1 && s <= 5 ? s : 0);
-            const double u = users.empty() ? 0.0 : atof(users.cStr());
-            e.userRating = static_cast<za::U16>(u > 0.0 && u <= 5.0 ? static_cast<int>(u * 100.0 + 0.5) : 0);
-            break;
-        }
+        Entry& e = idx.entries[found->second];
+        const int s = stars.empty() ? 0 : Q_atoi(stars.cStr());
+        e.rating = static_cast<za::U8>(s >= 1 && s <= 5 ? s : 0);
+        const double u = users.empty() ? 0.0 : atof(users.cStr());
+        e.userRating = static_cast<za::U16>(u > 0.0 && u <= 5.0 ? static_cast<int>(u * 100.0 + 0.5) : 0);
     }
     for(const Entry& e : idx.entries)
     {

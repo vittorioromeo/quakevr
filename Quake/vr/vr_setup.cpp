@@ -9,6 +9,7 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
+#include "vr_progs.hpp"
 #include "vr_still.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
@@ -144,7 +145,7 @@ void drawOptionScreens()
     const size_t prefixLength = ZA_STRLEN(prefix);
     // The button's label board's top over its top (QC buttons.qc), when it has one: a screen goes above it, 2 clear of
     // it (its half height: 0.3's characters, vr_text3d.cpp's screens), or at least `least` over the button's top.
-    const int labelTopField = ED_FindFieldOffset("vr_button_label_top");
+    const int labelTopField = qvr::progs::fields().vr_button_label_top;
     const auto overTop = [&](edict_t* e, float least) {
         const eval_t* const v = labelTopField >= 0 ? GetEdictFieldValue(e, labelTopField) : nullptr;
         constexpr float screenHalf = 2.4f * 0.5f + 2.4f * 0.375f + 2.4f * 0.3f;
@@ -152,7 +153,7 @@ void drawOptionScreens()
     };
     // A button's box where it rests (the author, 2026-10-09: the screens rode the press into the wall): its box now,
     // less how far it has moved from its rest place (QC's pos1, where func_button starts: its origin then).
-    const int pos1Field = ED_FindFieldOffset("pos1");
+    const int pos1Field = qvr::progs::fields().pos1;
     const auto restBox = [&](edict_t* e, glm::vec3& lo, glm::vec3& hi) {
         glm::vec3 moved{0.f};
         const eval_t* const p = pos1Field >= 0 ? GetEdictFieldValue(e, pos1Field) : nullptr;
