@@ -1,8 +1,24 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
+[Active ragdoll test plan (vrfiringrange; god + notarget; one grunt per line unless said)]
+Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Tests > Holding Enemies > Show Struggle on; spawn from the toolgun or the range dispensers (vr_test_spawn_facing 4/5 = side-on)
+1 Shove hard with two hands: it falls or staggers back 3-4 steps, then gets up where it lies and fights on; one-hand shove staggers, falls about half the time
+2 Lift by the chest (both hands, pull up fast): it swats at your face/hands and kicks; carry it, throw it down or into a wall (hard = kills); breaks free after ~2 s
+3 Head hold on a downed grunt: its hands go for yours and tug; neck snap: hands on head/neck, twist fast (Hand Line): crack, dies, stays limp in your hands
+4 Judo: grip at the belt and pull left/right: it falls that way and stays softly held; drag it with the hands lower
+5 Leg sweep with shotgun, then super shotgun and nailgun, front and side: falls the way you swept; walking into its legs or a light brush: nothing
+6 Leg pull: both hands on the shins, yank from the front, the side and from behind: it falls away from you each time
+7 Leg lift: both hands on the shins, pull up: it hangs head-down and crunches up toward you; swing it, throw it
+8 Drag a downed grunt by the legs: it rolls belly-down and claws (unverified; may not move at all if leg holds are too soft); drag by an arm: its legs brace
+9 Crush and stomps: jump on a downed grunt: parts jolt, thud, head pops on the 2nd-3rd jump; drop on a standing grunt's head from one storey: it goes down, you bounce
+10 Keep down: keep punching or dragging a downed grunt: stays down, rises about 1 s after you stop (never after 7 s)
+11 Dies while held: shoot or stab one you are lifting: the struggle fades, it goes limp
+12 After a load: make a NEW save, die, respawn, repeat 1 and 2: it still goes active ragdoll
+13 Other humanoids, steps 1, 2, 5, 7 each: enforcer, knight, death knight (struggle too); ogre (rarely falls, needs more to lift); zombie and mummy (no struggle, judo leaves them whole)
+14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
+
 [next branch: test these first]
-Ragdolls after a load (make a NEW save): die and respawn, then shove/leg-grab/lift a grunt: it goes active ragdoll
 Shub (end): once the ball moves, save and load, step into the teleporter as the ball reaches Shub: she dies
 Holsters: shells box to a hip slightly short of a gun's spot (goes in); put away shells when full (pat, tick); draw a holstered gun by its handle; magnetic binding survives a level change
 Magnetic chain: throw a bound gun across the floor and round a corner: lies on the floor, wraps the corner, links near, thin line far; swing the held gun fast and check the chain
@@ -17,16 +33,12 @@ Quest body tracking (VD, Meta body tracking on; Body page > Body Tracking group)
 Per-weapon reload (Weapons > Reloading > Per-Weapon Reload Overrides): global Simple, shotgun Immersive: pouch appears, shotgun loads by hand, nailgun reloads at the hip
 Turning Mode Off (Comfort): the right stick never turns you, also in menus, climbing, swimming
 MG3 Dawn of the Machine map6 (Matriarch of Decay): press the palace button, fight, take an ammo box that appears: no crash
-Leg grabs: both hands on a grunt's shins, yank toward you: falls on its back; pull up: hangs head-down, swing/throw it; thighs do nothing by default (Combat > Holding Enemies > Leg Grabs)
-Leg sweep: sweep a grunt's shins with shotgun/crowbar/plank/rocket launcher, front and side: it falls; axe, super shotgun, lightning gun, sword blade: nothing; sword hilt-down works
-Crush: jump on a downed grunt: parts jolt, thud unless something pops, head pops on the 2nd jump; punching/dragging keeps it down up to 6.5 s, rises ~1 s after you stop
 Enemy Melee menu (Combat): Show Melee Arcs; sidestep a knight (narrow) and an ogre (wide, its overhead smash doesn't track); DoE Guardian stab and Overlord smash respect the arc
 Throws: weapon and brick thrown while running go a bit shorter; a gib thrown near a monster bends toward it; two-handed window 0.2 s for props and guns
 Graphics: Parallax Surface Level 0 / 0.5 / 1 with a crate on carved floors; TAA (off by default) on: railings while moving the head, fast axe swing trails, sharpen 0-0.6
 Motion recorder: record Leg Sweep Expected (shotgun, crowbar, super shotgun) and Not Expected (axe, slow swing) takes, then eval.sh
 Defaults: your tuned values are now built in (knockdown times, ragdoll hand stick, 192 others): a fresh config should feel like yours; Debug > Tests only has human tests now (agent ones under Automation & Self-Tests)
 Nothing should feel different after the cleanup (A/B switches removed): walk along walls, throw props and guns, drop a gun in water, catch a tossed weapon, press a wall button with a sword, parry a knight
-Stomps: jump repeatedly on a downed grunt's head: pops on the 3rd; ~2 heights onto a head (alive or dead) pops it; corpse legs pop; ogre/shambler only hurt
 Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
 Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
 Magnetic holsters: hand at a holster + click a stick binds it; throw/drop the gun: back after ~3 s or 4 m; grab it mid-flight; lanyard/tether/both, chain size and opacity
@@ -35,11 +47,9 @@ Gloves: Worn Leather painted layer (knuckle scuffs, joint creases, stitched seam
 Grip fit: grab a crate by the lid or a barrel by the rim with the hand pushed in: the hand rests on the surface
 Toolgun: megahealth/health/ammo in vrfiringrange appear small at once where the ghost was; AD monster ghosts not corrupted; AD/MG3 backpacks in any map
 Menu panels: grip one and pull your hand in / push out: it moves in depth (30 cm to 2 m), kept after reopening
-Landing on enemies: drop onto a grunt's head from one storey: it goes down, you bounce, it gets up; higher kills (head pops); ogre/shambler need more height; no fall damage when you crush
 Impacts settings (Combat > Knockdowns > Impacts): Damage Curve 2 and Most per Strike change throws into walls; repeated head slams pop the head
 Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
 Neck snap: Hand Line only at your values (75 deg in 0.15 s); a snapped neck flops (carry the body by its head); Lift and Two-Hand Throw > Show Diagnostic panels make sense
-AD humanoids: shove AD grunts, fumigator, death knight, zombie knight: stagger, fall, get up, fight on; lift a defender (flails); zombie knight headshots land
 Step In Depth (Holding Enemies > Getting Close): walk into a held grunt: stop face to face, strafe/back off freely; try 4-12
 Vore: walk into one: two-handed shove reads, both hands at your chest, push not early
 Grip fit: grab a crate/barrel with the hand pushed in or by an edge: fingers sit at its surface; a normal grab doesn't move the prop
@@ -94,9 +104,6 @@ Stealth: brushing against an unaware enemy no longer alerts it; grabbing it does
 Flatscreen play (desktop, launched with -flatscreenmode): hands look like natural viewmodels (turn, walk, idle); E grabs what you look at; 1 / 2 cycle the left / right hand's weapons; LMB and RMB fire and hit the crosshair; V melee; body hits press buttons; no reloading; flashlight always on the head (Debug > Reports > Flatscreen Play: reach, sway, bob)
 Flatscreen: what you grab stays grabbed and picked-up weapons stay in your hands (the flat hands are closed) — nothing lets go on its own; change a held weapon with 1 / 2, there is no drop key yet
 Without -flatscreenmode the desktop build and all VR gameplay are unchanged
-Neck snap: both hands on a humanoid head (standing, staggered, knocked down), twist fast: crack, dies, stays limp in hands till you let go; head zone not too big; crack loudness
-Judo: pull left (hands at belt, or one hand higher) and it falls left; after a throw it stays softly held, drag it (lower hands)
-Lift: both hands on a grunt/enforcer, pull up fast: it flails, carry or throw it down; breaks free and shoves you after 2 s; ogres not
 Magazines: pull out, push back, pull out again without letting go; bumped-out one: new one at the well seats after ~0.25 s (Reloading > Magazine Reinsertion Delay)
 Vore: walk into one, it turns and shoves you instead of firing; shoves, bashes, slaps draw no blood (punches/blades still do)
 Your bash/shove/parry tweaks are now defaults (bash 3 m/s, shove 3.5 m/s): feel the same as your config
@@ -122,8 +129,6 @@ Arms: bracers on/off same skin tone; skin slider affects only skin; two gadget s
 Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same; held/mirrored and dropped gun ports/wells still accept shells/magazines after hull reuse and voxel optimization
 Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
 Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
-Shoves: one-hand shove (staggers, falls about half the time), two-hand shove; ogres rarely fall: rates OK?
-Judo: throw a knight (survives the landing, gets up) and a mummy or zombie (stays in one piece)
 Dismemberment: axe cuts limbs; any weapon wears only its struck corpse piece until it pops, even at chance 0; torso gibs whole body; living leg loss balances/falls, both legs crawl
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in; wet/burn wounds and drowning remain unchanged after save/load
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
