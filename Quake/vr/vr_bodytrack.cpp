@@ -915,12 +915,23 @@ bool sample(Sample& out)
     static constexpr int joints[CalJointCount] = {ArmUpperL, ArmUpperR, ArmLowerL, ArmLowerR, WristL, WristR, Hips, Neck,
         UpperLegL, UpperLegR, LowerLegL, LowerLegR, AnkleL, AnkleR};
     const float conf = za::clamp(st.raw.confidence, 0.f, 1.f);
+    // The upper body (the torso and the arms: Quest 3's cameras follow it) at full weight when valid: Virtual Desktop
+    // flags none of it tracked, only the head (ROUND22.md, "Elbow fit: no hand joints through Virtual Desktop"). The
+    // legs, generated, stay a weak prior unless flagged tracked.
+    const auto weightOf = [&](int calJoint, int j) {
+        if(!valid(j))
+        {
+            return 0.f;
+        }
+        const bool leg = calJoint >= CalHipL;
+        return conf * (!leg || (st.raw.flags[j] & POS_TRACKED) ? 1.f : GUESSED_WEIGHT);
+    };
     bool any = false;
     for(int i = 0; i < CalJointCount; i++)
     {
         const int j = joints[i];
         out.pos[i] = st.world[j];
-        out.weight[i] = valid(j) ? conf * ((st.raw.flags[j] & POS_TRACKED) ? 1.f : GUESSED_WEIGHT) : 0.f;
+        out.weight[i] = weightOf(i, j);
         any = any || out.weight[i] > 0.f;
     }
     // No hand joints (Virtual Desktop with controllers): the forearm's twist joint by the wrist instead.
@@ -930,7 +941,7 @@ bool sample(Sample& out)
         if(out.weight[CalWristL + side] <= 0.f && valid(j))
         {
             out.pos[CalWristL + side] = st.world[j];
-            out.weight[CalWristL + side] = conf * ((st.raw.flags[j] & POS_TRACKED) ? 1.f : GUESSED_WEIGHT);
+            out.weight[CalWristL + side] = weightOf(CalWristL + side, j);
         }
     }
     return any;

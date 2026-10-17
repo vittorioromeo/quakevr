@@ -152,8 +152,9 @@ struct Posed
 void posed(const Posed& p);
 
 // Body Calibration's samples (vr_bodycal.cpp): this frame's joints in the world (the placed, smoothed ones), when the
-// source is live and active. Each joint's weight: the source's confidence, times 1 for a joint the headset sees and
-// GUESSED_WEIGHT for one it only infers (Quest 3's generated legs: a weak prior); 0 not valid.
+// source is live and active. Each joint's weight: the source's confidence, times 1 for the upper body's (valid: Virtual
+// Desktop flags none of it tracked) and a leg's flagged tracked, GUESSED_WEIGHT for a leg's only inferred (Quest 3's
+// generated legs: a weak prior); 0 not valid. The wrists fall back to the forearms' twist joints.
 enum CalJoint : int
 {
     CalShoulderL,
