@@ -10486,7 +10486,8 @@ ogre (wide) bent 1; scrag bent 25 (inside its 80 deg fire cone: no wait); hell k
 0.3 s, bent 41; scourge bent 24; Guardian waited 0.3 s, bent 38; mummy bent 16; MG3 ranged knight bent 1, orb waited
 0.3 s, bent 37, infected enforcer waited, bent 61; vore, Wrath, super shambler untouched (0 shots weighed). AD (start
 map, its own monsters): soldier waited, bent 20, 0 hits (6 hits at 0 deg); enforcer waited, bent 60; ogre bent 20;
-scrag bent 25; hell knight bent 52; shambler waited, bent 40; zombie bent 17; vore untouched. The gremlin was not
+scrag bent 25; hell knight bent 52 (him at its 80 deg fire cone's edge: no wait; its fan's -12 deg shot 92 off), at 90
+deg waited 0.3 s, bent 82; shambler waited, bent 40; zombie bent 17; vore untouched. The gremlin was not
 weighed (it spawns with no gun to fire).
 
 For him in VR: Combat > Enemy Melee > Show Aim Cones on; circle a grunt or an enforcer fast at mid range: its shots
