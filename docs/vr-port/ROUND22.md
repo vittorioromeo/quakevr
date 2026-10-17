@@ -11314,3 +11314,57 @@ spectator switch / OBS row, `menuui::cornerLabelBottom`; left out where the menu
 hides it with the version box), on the VR panel and the flat menu (5 px letters).
 Checked: two builds in a row recompile nothing; an empty commit took the number 7169 to 7170; mock screenshots, both menus.
 The cmake and make steps are untested (no cmake or make on this machine).
+
+## VR drop diagnostics, the server's physics zones, first-use hitches (worktree `dequant`, branch `agent/xrdiag`, 2026-10-17)
+
+Follow-up to the Tracy capture qvr_gpu1 (`qvr-kit/scratch/tracy_gpu1.md`, items D1, C2's first step and H1).
+
+**Held frames** (vr_xr_stall.cpp). The 2026-10-17 drop: every frame took 100 ms while the session stayed FOCUSED,
+xrEndFrame 79-87 ms of it, and nothing in the logs said what else was going on. Now a frame counts as held when its
+xrWaitFrame or xrEndFrame takes over 3 display periods and at least 25 ms. After 3 held frames in a row, one line goes
+to qvr_openxr.txt, to Tracy (a message on the timeline) and, with developer 1, to the console. It gives the time, the
+foreground window's program, title and pid (Win32 `GetForegroundWindow`, not SDL's focus), whether that is the game's
+window, SDL's focus, the session state, the display period, the last 3 frames' wait/end/interval and the CPU busy and GPU
+eyes times. After 30 frames on time, a second line gives how long the episode lasted, how many frames were held, the
+largest wait and end, and the same context again. Episodes start a line at most once every 10 s; later episodes are
+counted and the count goes into the next line. Every session state change now also goes to Tracy (it was already
+logged with a timestamp). xrWaitFrame's and xrEndFrame's failures are logged with the time and the result code, and the
+same code failing again within a second is only counted. While frames are on time, the cost is two compares and a
+Sys_DoubleTime a frame. The runtime's own GPU time (`xr submit`) is only in Tracy's GPU zones, so the line can't give it.
+
+Test aid: `vr_debug_frame_stall_ms` (0; Debug > Profiling and Memory > Simulate Held Frames, 40 or 100 ms) waits that long
+inside the timed end call of either backend. Checked headless (mock, e1m1): 100 ms for 20 frames gave the start line
+(`frames 0.0/100.3/103.8 ...`) and, 1.9 s later, the end line (`21 frames held, xrEndFrame up to 100.8 ms`). A second
+episode 2 s later (60 ms, 10 frames) was rate-limited and not logged. In the mock the session says MOCK and the period
+is 0 (the 25 ms floor applies). The GPU eyes time in the start line read 100.8 ms: the eyes' timer spans the hold.
+
+**Server physics' own time** (sv_phys.c). The capture had 0.27 ms a frame of "Server physics" self time. It now has
+three zones under it: `SV StartFrame` (the QC StartFrame), `SV edicts` (the loop, its text the edict count) and
+`SV physics frame end` (VR_PhysicsFrameEnd: box3d and what comes before it). There is also `SV edict retouch` (the
+force_retouch relink) under vr_tracy_physics_detail. What is left in `SV edicts`' own time is the loop itself (reading
+every edict, the sendinterval) and, with physics detail on, the per-edict zones' own cost. The Release-Tracy build
+compiles. A headless capture to confirm the split was cut short by the worktree's cleanup, so the next VR capture is
+the check.
+
+**First-use hitches.**
+- **The cord's program:** `flashlight cord draw` cost 25.6 ms at the cord's first frame. That zone is the tube
+  program's compile and its first draw, and the program is shared by every cord: the torch's, the chainsaw's, the
+  cells' and the holsters' chains. `gfx::prepareTube` (VR_NewMap's "cords" step) now makes the program in the load and
+  draws one radius-0 tube, which draws no pixel. Headless before: the program was made at the cord's first frame in play
+  (2.4 ms here, with the driver's shader cache warm). After: "cords 0.3 ms" in the prewarm, the first draw is the
+  load's, and taking the torch draws nothing new. Developer 1 prints `VR: tube: program made` and `first draw ... (the
+  load's warm-up | in play)`.
+- **The crates' first tick (`VR_Crates_Frame`, 26-28 ms): not moved.** It already runs in the load: SV_SpawnServer's two
+  settle frames (`crates: e1m1: ... 15.5 ms` comes before `vr prewarm`). It can't run any earlier, because it plans
+  around the spawned entities. Caching the plan per map would only shorten the load.
+- **The first physics sync (`box3d sync entities`, 33 ms on hip1m1): not changed. The cause is that the box3d world is
+  built twice a map.** The spawn frames build it and make every body. Then R_NewMap's VR_NewMap bumps
+  `worldGeneration()`, so on the first game frame `VR_PhysicsFrameEnd` destroys that world and builds it again. The
+  headless log has `box3d: world built` before and after the prewarm. Keying the box3d world on the server's spawn
+  instead would save that second sync in every load. It would also change how each map starts: the props would keep
+  their spawn frames' bodies and contacts instead of fresh ones. That needs his decision.
+
+To try in VR: take the torch off the belt in a fresh map, and the first frame shouldn't hitch. If the view drops to the
+slow frames again, the qvr_openxr.txt lines starting `held frames` say what had the foreground and what the runtime was
+doing. Debug > Profiling and Memory > Simulate Held Frames shows what the lines look like, but turn it off at once,
+because the view stutters.
