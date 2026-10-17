@@ -1792,7 +1792,7 @@ QVR_CVAR(vr_particle_saturate_cover, "10", CVAR_NONE) // tests: from how many vi
 QVR_CVAR(vr_particle_saturate_growth, "1", CVAR_NONE) // tests: each batch this many times the one before (1: all the same size)
 QVR_CVAR(vr_particle_saturate_opacity, "0.999", CVAR_NONE) // tests: a pixel this opaque skips the particles behind it (1: none skipped)
 QVR_CVAR(vr_particle_retro_fast, "1", CVAR_ARCHIVE) // full resolution: derive the retro grid per vertex; 0: original fragment path for comparison (retro half always uses fast shaders)
-QVR_CVAR(vr_particle_retro_halfres, "0", CVAR_ARCHIVE) // opt-in half resolution for heavy retro particles; preserves palette/grid, softer edges
+QVR_CVAR(vr_particle_retro_halfres, "1", CVAR_ARCHIVE) // half resolution for heavy retro particles (blended in by depth: vr_particle_halfres_upsample); softer edges; 0: always full size
 QVR_CVAR(vr_particle_retro_halfres_pixels, "0", CVAR_ARCHIVE) // minimum projected half-size for the retro half-resolution pass; smaller particles stay crisp but draw over the larger ones (0: all, in their order)
 QVR_CVAR(vr_blob_shadows, "2", CVAR_ARCHIVE)          // blob shadows (dark discs under things): 0 off, 1 always, 2 only without real shadows
 QVR_CVAR(vr_player_shadows, "3", CVAR_ARCHIVE)
