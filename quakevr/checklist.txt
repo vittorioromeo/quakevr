@@ -2,6 +2,15 @@
 # Reload List refreshes this page; no rebuild needed. Older items are in git history.
 
 [next branch: test these first]
+Ragdolls after a load (make a NEW save): die and respawn, then shove/leg-grab/lift a grunt: it goes active ragdoll
+Shub (end): once the ball moves, save and load, step into the teleporter as the ball reaches Shub: she dies
+Holsters: shells box to a hip slightly short of a gun's spot (goes in); put away shells when full (pat, tick); draw a holstered gun by its handle; magnetic binding survives a level change
+Magnetic chain: throw a bound gun across the floor and round a corner: lies on the floor, wraps the corner, links near, thin line far; swing the held gun fast and check the chain
+Loot beams (Graphics > Loot Beams): dropped guns and full magazines glow among gibs; nothing in hand glows; fades within 0.5 m
+Lava nails through map6's braziers; blood streams from sword/axe/crowbar/fist hits and a thrown axe
+Near-eye particles: grenade at arm's length with Largest Particle 0.15 vs 0.3 vs 0; walk through blood with the fade on/off
+Elbow: hand in front of face, elbow raised: Body Over Tracked yellow elbow follows magenta; Print Body Tracking Stats says arms on 100%
+Ranger head: Player Appearance > Ranger Head sliders with the body clone; melee wall hits (one thunk per hard swing, nothing on light drags); Create Bug Report buttons
 Auto-collect (Physics > Carrying Boxes > Auto-Collect on): grip or force-grab an ammo or health box: it shrinks straight into your hand (full: a dull pat, stays held); should it be the new default?
 Half-res particles A/B: vr_particle_halfres_force 1 vs 0 during a close blood burst and an explosion; look for fringes or blocky 2x2 edges at walls and monster outlines, retro grid misaligned (vr_particle_halfres_upsample 2 shows edge pixels in green); tell me which wins
 Quest body tracking (VD, Meta body tracking on; Body page > Body Tracking group): lean/twist your chest, bend elbows: the body follows you; legs off by default; drop to 0 confidence fades back to IK
