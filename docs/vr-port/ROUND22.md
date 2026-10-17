@@ -11651,3 +11651,46 @@ the `xr submit` zone should show it), the error of the bound on his GPU, and the
 
 To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
 hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".
+
+## Retro particles' GPU cost, and a baked retro atlas: not worth it (worktree `dequant`, branch `agent/partatlas`, 2026-10-17)
+
+The question (RenderDoc F2, Tracy's +1.8 ms gib burst): does the retro look make particle bursts expensive, and would
+a particle atlas with the retro look baked in (sampled nearest, the plain shader) win it back? **No: retro costs
+about 8% of `vr particles`, and most of that is not texture-space.** No code changed.
+
+Measured: Release-Tracy, `vr_tracy_gpu_detail 1`, mock headset at 2784x2784 an eye (`vr_mock_eye_size`, about his
+7.7 Mpx), `-RealTime`, exclusive, `vr_particle_seed 7`, e1m1's start; the burst made and then frozen
+(`vr_particle_freeze 1`), the GPU zone `vr particles` over the run's last 300 frames, one setting a run (toggling
+`vr_tracy_gpu` or `vr_tracy_gpu_detail` mid-run at this resolution lost every later GPU zone: worth a look in
+vr_tracy.cpp some day). Blood: `vr_particle_test 1 700` ten times, 3 frames apart. Explosion: `vr_particle_test 2 300`
+plus `quake`, five times. Median ms per eye (both eyes are about twice):
+
+| burst | retro on | retro off | on, palette off | on, snap off | on, hard edges | on, reference shader |
+|---|---|---|---|---|---|---|
+| blood, full size | 0.264 / 0.267 | 0.244 (0.230, a noisy run) | 0.266 | 0.258 | 0.255 | 0.272 |
+| explosion, full size | 0.028 / 0.029 | 0.026 / 0.094 (noisy) | | | | |
+
+- Retro on against off: +0.02 ms an eye in the blood burst (+8%), +0.003 in the explosion. Turning off the palette,
+  the blocks or the edge blend each moves it by under 0.01 ms: the fragments' blending and fill are the cost, not the
+  retro shader's arithmetic. A cheaper shader cannot touch the +1.8 ms; fewer fragments (F2's other options) can.
+- Half size (`vr_particle_retro_halfres 1`, `vr_particle_halfres 1`) in these frozen bursts: retro blood never takes
+  the half path (the reverse-order gate, as the tghost note found), so the same as full; retro off it does and costs
+  more (0.869 against 0.52-0.59 ms both eyes, `half size` 0.86); the retro explosion took it and costs more too (0.19
+  against 0.06-0.08 both eyes, bimodal). The half path is not a win for bursts this size on this GPU.
+- The retro particle shader, by part (vr_retro.h `RetroBlocks`/`RetroQuantPremul`, vr_gfx_gl.cpp particle variants):
+  - block grid: **per particle**, not per texture: blocks are 0.25 world units, so the grid in the atlas follows each
+    particle's world size (the vertex shader's eighth-octave `particleGridScale`); a bake would need one atlas per
+    eighth-octave of size (dozens) or would change the look (blocks per particle instead of per world unit);
+  - block colour (centre texel, mip level of the block or the pixel footprint, whichever is coarser): texture-space
+    up close, screen-dependent when blocks are under a pixel;
+  - edge blend over `_soft` pixels (1 to 4 taps): screen-space (derivatives);
+  - palette and dither: applied to texture x vertex colour (tint, lighting, life fade, premultiplied), so per
+    particle and frame; only the dither's cell (the block index) is texture-space;
+  - fade back to mipmapping far off (off in the shipped look), soft-particle depth fade, teleporter cut-outs, the half
+    path's depth test: screen/scene-dependent.
+- So step 2 (`vr_particle_retro_baked`) was not built: under the 20% bar, and the parts it could bake are the cheap
+  ones.
+
+Scripts and results: `scratch/pa/` (cap1.ps1, batch.ps1, last.py, results.txt), copies in the kit's scratch
+(`partatlas_*`). A screenshot pair confirmed the retro path was drawn (burst region differs by 1.15 mean, background
+by 0.05).
