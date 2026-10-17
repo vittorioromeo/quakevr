@@ -11297,3 +11297,20 @@ was not run headless (the same matrix the permanent layer's door marks use).
 To try in VR: shoot grunts and let them chase you with streams pouring: no ribbons or strings whipping round them,
 the stream following the body softly. The firing range: shoot a spawn button and its panel (chips, blood), punch one;
 the marks stay on the button as it presses in. Gore > Stream Smoothing / Body Motion to taste.
+
+## Build number and date
+
+`VR_BuildInfo()` (vr_crash.cpp) says `1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05`: the version (no `-dev` from the
+release script), the commit count (`git rev-list --count HEAD`, always increasing), the short hash (`+dirty` with
+uncommitted changes to tracked files) and the build's local time to the minute. Written into `qvr_buildver.h` (with
+`QVR_BUILD_NUMBER`) by every build, only when its text changes (so only vr_crash.cpp recompiles, then the link): Visual
+Studio, quakevr.props `QvrBuildVersion` (intermediate folder, as before); CMake, `Quake/vr/qvr_buildinfo.cmake` (a
+`qvr_buildinfo` target before ironwail, header in `<build>/qvr_gen`); make, vr.mk (at make run, `Quake/vr/qvr_buildver.h`,
+git-ignored). Without git: number 0, `unknown`, and in vr_crash.cpp the compiler's `__DATE__ __TIME__`. VR_BuildVersion's
+text (the date and hash of the last commit, parsed by the installer and release script) is unchanged, so the release script
+needed nothing. Shown in the console at startup (`Quake VR <info>` before `Exe:`; also stdout, and the `version` command),
+and small and faint in the menus' bottom left corner (vr_menubrand.cpp, `drawBuildInfo`: above the Recording button /
+spectator switch / OBS row, `menuui::cornerLabelBottom`; left out where the menu reaches under it; `vr_menu_version 0`
+hides it with the version box), on the VR panel and the flat menu (5 px letters).
+Checked: two builds in a row recompile nothing; an empty commit took the number 7169 to 7170; mock screenshots, both menus.
+The cmake and make steps are untested (no cmake or make on this machine).

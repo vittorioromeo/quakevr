@@ -1722,6 +1722,7 @@ void Host_Init (void)
 	VR_Init (); // QVR
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
+	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 

@@ -334,7 +334,8 @@ constexpr float versionPad = 4.f;    // its lines from its edges (true pixels; t
 constexpr float versionGap = 8.f;    // clear of what the menu draws beside it (menu x) and of the status box (true pixels)
 constexpr float versionGapAbove = 4.f; // and of what it draws above it (true pixels; a VR page's help box ends 4 above its bottom)
 constexpr float buildInfoSizeHeadset = 5.f; // the build text's glyphs in the bottom left corner (true pixels)
-constexpr float buildInfoSizeFlat = 4.f;
+constexpr float buildInfoSizeFlat = 5.f;
+constexpr float buildInfoGap = 3.f; // clear of the corner's buttons below it (true pixels)
 constexpr double linkFeedback = 3.0;  // seconds the link says it opened the page
 constexpr double linkRepeat = 1.5;     // seconds a second press does nothing (a double click, both triggers)
 
@@ -710,8 +711,18 @@ void drawBuildInfo()
     Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
     const float size = qvr::menuui::active() ? buildInfoSizeHeadset : buildInfoSizeFlat; // true pixels
     const float k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // (as versionBox)
-    pushFaded(0.5f);
-    drawSmall(left + versionCorner, bottom - (versionCorner + size * 0.5f) / k, size, VR_BuildInfo());
+    // Above what sits in that corner (the Recording button, the spectator camera's switch, OBS's row), a little clear of it.
+    const float bottomEdge = za::fmin(bottom - versionCorner / k, qvr::menuui::cornerLabelBottom() - buildInfoGap / k);
+    const float x = left + versionCorner;
+    const float ym = bottomEdge - size * 0.5f / k;
+    const float width = size * static_cast<float>(strlen(VR_BuildInfo()));
+    // Not where the menu draws (its rows or help box reach down to it): left out, the console has the text.
+    if(x + width + versionGap > qvr::menu::contentLeftBelow(ym - size * 0.5f / k - versionGapAbove / k))
+    {
+        return;
+    }
+    pushFaded(0.65f);
+    drawSmall(x, ym, size, VR_BuildInfo());
     GL_PopCanvasColor();
 }
 
