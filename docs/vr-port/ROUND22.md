@@ -11651,3 +11651,67 @@ the `xr submit` zone should show it), the error of the bound on his GPU, and the
 
 To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
 hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".
+
+## Particles near the eyes, a size cap, the quads' waste; half resolution in the densest frames (worktree `tghost`, branch `agent/nearpart`, 2026-10-17)
+
+Why: RenderDoc's F2 (bursts shade 4.5-7.2 screens of fragments in one draw) and Tracy's +1.8 ms burst frames.
+
+**Near-eye fade** (`vr_particle_near_fade` 30 cm, `vr_particle_near_cull` 10 cm, archived): in the particle vertex
+shader (`particleVertexShader`, shared by the plain, retro, trimmed, half-size and reverse-order draws, so blood
+streams' spurts too: `bloodDroplet` goes through the same pool), a particle's premultiplied colour is smoothstepped to 0
+between the two distances from the eye (its centre, each eye's own), and nearer than the cull it is not drawn (a
+degenerate quad). The pieces lying on liquids (CPU quads, `buildLying`) fade the same.
+**Size cap** (`vr_particle_max_screen` 0.15, archived; 0 off): a particle never more than that part of the view's height
+across (`max(|r|, |u|)`, so streaks too), shrunk about its centre, in the same shader before the large/small split. The
+CPU's coverage estimates for half resolution and reverse order (`largeCover`, `screenCover`) count particles as drawn
+(`drawnHalf`). Graphics > Effects: Particle Fade Near Eyes, Particles Hidden Nearer, Largest Particle.
+
+**Waste counter** (Debug > Particles' Fill: Count Wasted Particle Fill, `vr_debug_particle_waste`; report
+`vr_particle_waste_report`): a variant of each particle program (`PARTICLE_WASTE`) declares early fragment tests (as
+the plain shader gets them) and counts, per atlas cell and size (big: the quad covers `vr_debug_particle_waste_big` 5%
+of the view or more), the fragments shaded, those showing anything (largest premultiplied channel at least half a
+level) and those above `vr_debug_particle_waste_alpha` 0.02; drained to 64-bit totals once a frame.
+`vr_particle_test <preset> [count] [distance]` takes a distance now (6: a burst flying through your face).
+
+Measured (Release-Tracy, mock, `vr_profile` GPU, half resolution off, bursts frozen, seed 7; fragments per 10 frames):
+
+| case (eye size) | GPU `vr particles` off -> on | fragments off -> on |
+|---|---|---|
+| blood `1 700 6` (2784) | 11.78 -> 2.46 ms | 3.48 G -> 1.03 G (-70%) |
+| blood `1 700` at 64 units (default mock eye) | 0.14 -> 0.10 ms | 180 M -> 105 M (the blood mist capped) |
+| explosion `2 1 32` (2784) | 0.120 -> 0.066 ms | 230 M -> 137 M |
+| blood `1 700 24`, explosion at 32 (default eye) | 0.30 -> 0.30, 0.016 -> 0.016 | unchanged / 41 M -> 24 M |
+
+Look: the near burst keeps its shape but no blot fills the face; **an explosion at 1.2 m is visibly smaller** (its
+fireball sprites are about 0.56 of the view's height there; 0.3 or 0.5 keeps more: 3.6 M / 9.4 M against 11.9 M
+fragments for that explosion). Screenshots: tghost `scratch/nearpart_ab.png` (blood 24 off/on, explosion off/on),
+`scratch/nearpart_sweep.png` (cap 0.3, 0.5, blood 64, blood 6 off/on).
+
+**Quad waste** (cap and fade off): wasted (invisible + faint) fragments are 35-42% overall. Near blood at 2784: 97% of
+the fragments are big particles' quads, 38.8% of them wasted (24.5% invisible); explosion sprites 48-53% (45-50%
+invisible); blood mist 0-27%; small blood 37-45%. **Fitted geometry not built:** an octagon removes at most 17% of a
+quad (its corners), so at best about 15% of the big particles' fragments, while the cap removes 70% of them, and with
+the cap on (default) no particle reaches 5% of the view (every "big" list is empty). It would pay only with the cap off;
+the small ones' waste (blood's shape) would need 3x the vertices for every particle. The earlier verdict holds.
+
+### Half resolution in the densest frames (`vr_particle_halfres_dense` 1, archived)
+
+Approved: retro frames composited in reverse order (`vr_particle_saturate`, from 10 views of particles) were kept at
+full size (PERF_DECISIONS item 5: 25 against 8 ms then). Now half resolution takes them too; 0 restores the old.
+Re-measured with today's code (cap and fade on):
+
+| case | reverse order, full size | half size |
+|---|---|---|
+| near blood `1 700 6`, frozen, 2784 an eye | 5.04 ms | 1.39 ms |
+| five bursts at once (blood 6 and 12, smoke, explosion, big smoke), frozen, 2784 | 8.19 ms | 2.24 ms |
+| explosion at 32, frozen, 2784 (neither path heavy) | 0.070 | 0.069 |
+| `particles_dense` (bench, 2048, live, 90 Hz paced, r2) GPU 3D | 5.39 ms | 3.87 ms (r1 4.64; its p99 hitch 208 ms, first use of the program) |
+| `explosions_storm`, `combined` | 2.18-2.24 / 7.5-8.9 | 2.27-2.49 / 6.9-9.9 (noise: reverse order rarely engages) |
+
+Reconciling partatlas' "half slower" (0.87 against 0.52-0.59 ms): those bursts were light (under a view and a half of
+large particles, half size forced): the half path's clear and composite cost more than it saves there. Half size is
+only chosen from 1.5 views of large particles, and in the reverse-order frames (10 views) it wins 3-4x. The look of
+the near and multi bursts at half size against full: no difference visible in `scratch/dense_near.png`.
+
+To try in VR: a close gib burst and a grenade at arm's length with Largest Particle 0.15 against 0 (the explosion's
+size); Particle Fade Near Eyes against 0 walking through blood; Debug > Half-Res In Densest Frames on/off in a big fight.

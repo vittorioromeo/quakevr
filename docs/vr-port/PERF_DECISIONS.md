@@ -84,6 +84,10 @@ the pixels off by more than 8 levels (the chunks' retro blocks and the square sp
 `combined` and `particles_dense` 0.2-1% of the pixels and no GPU saved. On in the menu (Half-Res Retro Particles) for
 whoever prefers the frames.
 
+**Revisited 2026-10-17** (approved; ROUND22.md "Half resolution in the densest frames"): half resolution is now on for
+retro particles and also takes the reverse-order frames (`vr_particle_halfres_dense` 1): with today's code a near
+burst at 2784 an eye costs 1.4 against 5.0 ms, five bursts 2.2 against 8.2, `particles_dense` 3.9 against 5.4.
+
 Before:
 
 `particles_dense`: GPU 5.7 ms, the VR particles 4.8 of it; `combined` GPU 7.4, particles 4.3. Nsight Systems on
