@@ -23,6 +23,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -36,6 +37,8 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+
+#include <glm/gtc/type_ptr.hpp>
 
 
 namespace qvr::decals
@@ -751,11 +754,19 @@ void makeAtlas()
 // ---- Placing ----------------------------------------------------------------------------------
 
 // The static world along `from` -> `to`: where, and its normal.
+[[nodiscard]] int entityAlong(const glm::vec3& from, const glm::vec3& to, float fraction, trace_t& tr);
+
 [[nodiscard]] bool hitWorld(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
     // With the permanent layer (vr_permdecals), the brush models too: a mark on a door is baked into its faces.
-    const trace_t tr = worldtrace::world(from, to, permdecals::on());
-    const bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
+    trace_t tr = worldtrace::world(from, to, permdecals::on());
+    bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
+    // A brush entity of its own file (or the map's, the permanent layer off) nearer: marked in its space (add).
+    if(trace_t te; entityAlong(from, to, world ? tr.fraction : 1.f, te) > 0)
+    {
+        tr = te;
+        world = true;
+    }
     // The boxes made in the game are the world's kind too (vr_brushes.cpp): the nearer of the two.
     glm::vec3 bw, bn;
     float bf = 1.f;
@@ -820,6 +831,54 @@ void clipPolygon(const za::Vector<glm::vec3>& poly, const glm::vec3& normal, flo
     }
 }
 
+constexpr za::SizeT maxCorners = 32 * 3; // a mark's triangles' corners at most: over very broken ground, the rest left out
+
+// Face `s` of model `m` as a polygon, into `poly` (emptied first).
+void facePolygon(const qmodel_t* m, const msurface_t* s, za::Vector<glm::vec3>& poly)
+{
+    poly.clear();
+    for(int e = 0; e < s->numedges; e++)
+    {
+        const int se = m->surfedges[s->firstedge + e];
+        const unsigned int vi = se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1];
+        const float* p = m->vertexes[vi].position;
+        poly.pushBack({p[0], p[1], p[2]});
+    }
+}
+
+// scratch.poly (a face facing `sn`) cut to decal `d`'s footprint, as triangles added to `tris`.
+void layOnFace(const Decal& d, const glm::vec3& sn, za::Vector<Corner>& tris)
+{
+    const float hu = glm::length(d.u), hv = glm::length(d.v);
+    const glm::vec3 U = d.u / hu, V = d.v / hv;
+    const float sideDist[4] = {glm::dot(d.centre, U) + hu, glm::dot(d.centre, -U) + hu, glm::dot(d.centre, V) + hv,
+        glm::dot(d.centre, -V) + hv};
+    const glm::vec3 sideNormal[4] = {U, -U, V, -V};
+    za::Vector<glm::vec3>& poly = scratch.poly;
+    za::Vector<glm::vec3>& clipped = scratch.clipped;
+    for(int k = 0; k < 4 && poly.size() >= 3; k++)
+    {
+        clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
+        poly.swap(clipped);
+    }
+    if(poly.size() < 3)
+    {
+        return;
+    }
+    // A fan of triangles, lifted off the face (not fighting it for depth), its cell
+    // coordinates from where each corner is in the footprint.
+    const auto corner = [&](const glm::vec3& p) {
+        const glm::vec3 r = p - d.centre;
+        return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
+    };
+    for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
+    {
+        tris.pushBack(corner(poly[0]));
+        tris.pushBack(corner(poly[k]));
+        tris.pushBack(corner(poly[k + 1]));
+    }
+}
+
 // Lays decal `d` (on a surface facing `n`) on the world: its footprint (the box of its centre, u
 // and v, `depth` deep either side of the surface) cut out of each face of the world in it that faces
 // about its way, as triangles (into `tris`, emptied first), lifted off the face a little. Faces are found down the BSP
@@ -835,40 +894,10 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
     {
         return;
     }
-    const glm::vec3 U = d.u / hu, V = d.v / hv;
     const glm::vec3 extent = glm::abs(d.u) + glm::abs(d.v) + glm::abs(n) * depth;
     const glm::vec3 lo = d.centre - extent, hi = d.centre + extent;
-    const float sideDist[4] = {glm::dot(d.centre, U) + hu, glm::dot(d.centre, -U) + hu, glm::dot(d.centre, V) + hv,
-        glm::dot(d.centre, -V) + hv};
-    const glm::vec3 sideNormal[4] = {U, -U, V, -V};
-
     za::Vector<glm::vec3>& poly = scratch.poly;
-    za::Vector<glm::vec3>& clipped = scratch.clipped;
-    constexpr za::SizeT maxCorners = 32 * 3; // over very broken ground, the rest is left out
-    // `poly` (a face facing `sn`) cut to the footprint, as triangles into `tris`.
-    const auto layOn = [&](const glm::vec3& sn) {
-        for(int k = 0; k < 4 && poly.size() >= 3; k++)
-        {
-            clipPolygon(poly, sideNormal[k], sideDist[k], clipped);
-            poly.swap(clipped);
-        }
-        if(poly.size() < 3)
-        {
-            return;
-        }
-        // A fan of triangles, lifted off the face (not fighting it for depth), its cell
-        // coordinates from where each corner is in the footprint.
-        const auto corner = [&](const glm::vec3& p) {
-            const glm::vec3 r = p - d.centre;
-            return Corner{p + sn * 0.2f, {glm::dot(r, U) / hu * 0.5f + 0.5f, glm::dot(r, V) / hv * 0.5f + 0.5f}};
-        };
-        for(za::SizeT k = 1; k + 1 < poly.size() && tris.size() < maxCorners; k++)
-        {
-            tris.pushBack(corner(poly[0]));
-            tris.pushBack(corner(poly[k]));
-            tris.pushBack(corner(poly[k + 1]));
-        }
-    };
+    const auto layOn = [&](const glm::vec3& sn) { layOnFace(d, sn, tris); };
     const mnode_t* stack[256];
     int top = 0;
     stack[top++] = m->nodes + m->hulls[0].firstclipnode;
@@ -919,14 +948,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
             {
                 continue;
             }
-            poly.clear();
-            for(int e = 0; e < s->numedges; e++)
-            {
-                const int se = m->surfedges[s->firstedge + e];
-                const unsigned int vi = se >= 0 ? m->edges[se].v[0] : m->edges[-se].v[1];
-                const float* p = m->vertexes[vi].position;
-                poly.pushBack({p[0], p[1], p[2]});
-            }
+            facePolygon(m, s, poly);
             layOn(sn);
         }
     }
@@ -949,6 +971,117 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
             brush = brush == 0 || brush == id ? id : -1;
         }
     });
+}
+
+// ---- On brush entities (vr_decal_entities) ------------------------------------------------------
+
+// The marks on a brush entity whose model is a file of its own (the firing range's spawn buttons and panels; one model
+// for many entities, so the permanent layer, laid out on a model's faces, can't take them), or on one of the map's
+// own (*n: doors, lifts) with that layer off: each cut out of the entity's faces in its own space, kept live and drawn
+// where the entity is drawn, each frame (moving, turning with it). Flat: the carved relief is the world's shader's.
+struct EntityDecal
+{
+    int ent = 0;
+    const qmodel_t* model = nullptr;
+    Decal d; // in the model's space
+};
+constexpr za::SizeT maxEntityDecals = 128;
+Ring<EntityDecal> entityDecals{maxEntityDecals};
+za::Vector<gfx::Vertex> entityVertices, entityLocal; // (drawEntityDecals')
+
+// Whether a mark on entity `e` is laid on it here (not the items' boxes, b_*.bsp; not the boxes made in the game,
+// vr_brushes.cpp; not the map's own models while the permanent layer bakes them).
+[[nodiscard]] bool markable(const entity_t& e)
+{
+    const qmodel_t* m = e.model;
+    if(!vr_decal_entities.value || !m || m->type != mod_brush || m == cl.worldmodel || VR_IsRuntimeBrushModel(m))
+    {
+        return false;
+    }
+    if(m->name[0] == '*')
+    {
+        return !permdecals::on();
+    }
+    return ZA_STRNCMP(m->name, "maps/b_", 7) != 0;
+}
+
+// The markable brush entity along `from` -> `to` nearer than the world's `fraction` (1: none), or 0.
+[[nodiscard]] int entityAlong(const glm::vec3& from, const glm::vec3& to, float fraction, trace_t& tr)
+{
+    if(!vr_decal_entities.value)
+    {
+        return 0;
+    }
+    int ent = 0;
+    tr = worldtrace::world(from, to, true, true, 0, 0, &ent);
+    return ent > 0 && tr.fraction < fraction && !tr.startsolid && markable(cl_entities[ent]) ? ent : 0;
+}
+
+// Lays `d` (in model `m`'s space) on that model's faces, as clipToWorld on the world's.
+void clipToModel(const Decal& d, const qmodel_t* m, za::Vector<Corner>& tris)
+{
+    tris.clear();
+    if(glm::length(d.u) <= 0.f || glm::length(d.v) <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 extent = glm::abs(d.u) + glm::abs(d.v) + glm::abs(d.normal) * d.depth;
+    const glm::vec3 lo = d.centre - extent, hi = d.centre + extent;
+    for(int i = 0; i < m->nummodelsurfaces && tris.size() < maxCorners; i++)
+    {
+        const msurface_t* s = m->surfaces + m->firstmodelsurface + i;
+        if(s->flags & (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWFENCE | SURF_NOTEXTURE))
+        {
+            continue;
+        }
+        if(s->maxs[0] < lo.x || s->mins[0] > hi.x || s->maxs[1] < lo.y || s->mins[1] > hi.y || s->maxs[2] < lo.z ||
+            s->mins[2] > hi.z)
+        {
+            continue;
+        }
+        const float flip = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
+        const glm::vec3 sn = glm::vec3{s->plane->normal[0], s->plane->normal[1], s->plane->normal[2]} * flip;
+        if(glm::dot(sn, d.normal) < 0.5f || za::fabs(glm::dot(d.centre, sn) - s->plane->dist * flip) > d.depth)
+        {
+            continue;
+        }
+        facePolygon(m, s, scratch.poly);
+        layOnFace(d, sn, tris);
+    }
+}
+
+// Mark `d` (in the world's space) laid on brush entity `ent`, in its space: false if it found no face of it.
+bool addOnEntity(int ent, const Decal& d)
+{
+    entity_t& e = cl_entities[ent];
+    float mat[16];
+    VR_BModelMatrix(&e, mat);
+    const glm::mat4 toModel = glm::inverse(glm::make_mat4(mat));
+    const glm::mat3 turn{toModel};
+    Decal local = d;
+    local.centre = glm::vec3{toModel * glm::vec4{d.centre, 1.f}};
+    local.u = turn * d.u;
+    local.v = turn * d.v;
+    local.normal = glm::normalize(turn * d.normal);
+    clipToModel(local, e.model, scratch.tris);
+    if(scratch.tris.empty())
+    {
+        return false;
+    }
+    if(entityDecals.full())
+    {
+        entityDecals.popFront();
+    }
+    EntityDecal& slot = entityDecals.pushBack();
+    slot.ent = ent;
+    slot.model = e.model;
+    slot.d = local;
+    slot.d.tris.clear();
+    for(const Corner& c : scratch.tris)
+    {
+        slot.d.tris.pushBack(c);
+    }
+    return true;
 }
 
 // The direction along a surface at `where` (normal `n`) that the light lighting it comes from: the
@@ -1181,6 +1314,12 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.normal = n;
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
     d.carve = carve.x > 0.f ? glm::vec4{carve.x, carve.y * halfV, carve.z, carve.w} : glm::vec4{0.f};
+    // On a brush entity of its own file (or the map's, the permanent layer off): laid on it, in its space.
+    trace_t onEnt;
+    if(const int ent = entityAlong(where + n * 2.f, where - n * 3.f, 1.f, onEnt); ent > 0)
+    {
+        return addOnEntity(ent, d);
+    }
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
     // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked when it shows (at once,
@@ -2021,6 +2160,55 @@ void bakeSettled()
     }
 }
 
+// The marks on brush entities, where each is drawn now (vr_decal_entities): the ones whose entity is gone or has
+// another model dropped.
+void drawEntityDecals()
+{
+    for(za::SizeT k = 0; k < entityDecals.size();)
+    {
+        const EntityDecal& m = entityDecals[k];
+        const bool gone = m.ent <= 0 || m.ent >= cl.num_entities || cl_entities[m.ent].model != m.model;
+        if(gone)
+        {
+            entityDecals.eraseAt(k);
+            continue;
+        }
+        k++;
+    }
+    if(entityDecals.empty())
+    {
+        return;
+    }
+    if(!atlas)
+    {
+        makeAtlas();
+    }
+    // The layer on: they stay (as the baked marks), to the cap; off, they fade as the live marks.
+    const double life = permdecals::on() ? 1e9 : za::max(5.f, vr_decal_life.value);
+    entityVertices.clear();
+    for(za::SizeT k = 0; k < entityDecals.size(); k++)
+    {
+        const EntityDecal& m = entityDecals[k];
+        entity_t& e = cl_entities[m.ent];
+        float mat[16];
+        VR_BModelMatrix(&e, mat);
+        const glm::mat4 toWorld = glm::make_mat4(mat);
+        entityLocal.clear();
+        appendDecal(m.d, life, entityLocal);
+        for(gfx::Vertex& v : entityLocal)
+        {
+            v.pos = glm::vec3{toWorld * glm::vec4{v.pos, 1.f}};
+            entityVertices.pushBack(v);
+        }
+    }
+    if(!entityVertices.empty())
+    {
+        const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true,
+            .depthWrite = false, .retro = retro::categorySet(retro::Category::Decals)};
+        gfx::draw(entityVertices, gfx::sceneViewProjection(), state, atlas);
+    }
+}
+
 void draw()
 {
     QVR_GPU_PROFILE("decals");
@@ -2034,6 +2222,7 @@ void draw()
         goreFrame = host_framecount;
         gore::frame();
     }
+    drawEntityDecals(); // (not in the world's shader: theirs move)
     if(decals.empty() || onWorld())
     {
         return; // (on the world: in its shader, QVR_WORLD_FS_DECALS)
@@ -2442,9 +2631,10 @@ void at_f()
     o.delay = Cmd_Argc() > 9 ? za::max(0.f, static_cast<float>(Q_atof(Cmd_Argv(9)))) : 0.f;
     const bool made = add(kind, where, normal, size, o);
     int entity = 0;
-    (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, false, 0, 0, &entity);
-    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d\n", made ? "laid" : "none", where.x,
-        where.y, where.z, normal.x, normal.y, normal.z, entity);
+    (void)worldtrace::world(from, from + glm::normalize(dir) * 512.f, true, true, 0, 0, &entity);
+    Con_Printf("vr_decal_at: %s at %.1f %.1f %.1f (normal %.2f %.2f %.2f), entity %d (%s); %d marks on brush entities\n",
+        made ? "laid" : "none", where.x, where.y, where.z, normal.x, normal.y, normal.z, entity,
+        entity > 0 && cl_entities[entity].model ? cl_entities[entity].model->name : "-", static_cast<int>(entityDecals.size()));
 }
 
 void count_f()
@@ -2481,6 +2671,8 @@ void count_f()
         carved, vr_decal_carve.value, vr_decal_carve_style.value, carved - nailShaped - craters - dents - grooves,
         nailShaped, craters, dents, grooves);
     Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
+    Con_Printf("%d marks on brush entities (vr_decal_entities %g), %d vertices drawn for them last\n",
+        static_cast<int>(entityDecals.size()), vr_decal_entities.value, static_cast<int>(entityVertices.size()));
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
         static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
     Con_Printf("settled vertices uploaded %lld times so far, %.1f KB in all (%.1f KB a frame for both eyes if copied "
@@ -2569,6 +2761,7 @@ void prepare()
 void clear()
 {
     decals.clear();
+    entityDecals.clear();
     dropCount = 0;
     builtFrame = -1;
     worldDirty = true;
