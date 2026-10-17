@@ -1468,6 +1468,7 @@ void _Host_Frame (double time)
 	AsyncQueue_Drain (&async_queue);
 
 // get new key events
+	VR_ServerTickPhase ("input"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("input"); // QVR: profile
 	Key_UpdateForDest ();
 	IN_UpdateInputMode ();
@@ -1483,9 +1484,11 @@ void _Host_Frame (double time)
 	Host_GetConsoleCommands ();
 
 // process console commands
+	VR_ServerTickPhase ("commands"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("commands"); // QVR: profile
 	Cbuf_Execute ();
 	VR_ProfileEnd (); // QVR
+	VR_ServerTickPhase ("other"); // QVR
 	if (host_framecount == 0) VR_TimeMark ("first frame: configs, autoexec"); // QVR
 
 	NET_Poll();
@@ -1529,6 +1532,9 @@ void _Host_Frame (double time)
 		accumtime = 0;
 	}
 	Host_TickStatsFrame (time, ticks, ticklen); // QVR: host_tickstats
+	VR_ServerTickPhase ("client send"); // QVR: vr_server_thread_check
+	qboolean vrdefer = VR_ServerTickDefer (ticks); // QVR: vr_server_thread_check 2: the tick after the screen (the threaded order)
+	double vrdeferframetime = 0.0;
 	for (tick = 0; tick < ticks; tick++)
 	{
 		double realframetime = host_frametime;
@@ -1549,13 +1555,22 @@ void _Host_Frame (double time)
 		VR_ProfileBegin ("client send"); // QVR: profile
 		CL_SendCmd ();
 		VR_ProfileEnd (); // QVR
+		if (vrdefer) // QVR: run after the screen, with this frame time
+		{
+			vrdeferframetime = host_frametime;
+			host_frametime = realframetime;
+			ranserver = true;
+			continue;
+		}
 		if (sv.active)
 		{
+			VR_ServerTickBegin (); // QVR: vr_server_thread_check
 			PR_SwitchQCVM(&sv.qcvm);
 			VR_ProfileBegin ("server"); // QVR: profile
 			Host_ServerFrame ();
 			VR_ProfileEnd (); // QVR
 			PR_SwitchQCVM(NULL);
+			VR_ServerTickEnd (); // QVR
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();
@@ -1563,8 +1578,9 @@ void _Host_Frame (double time)
 	}
 
 // fetch results from server
+	VR_ServerTickPhase ("client read"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("client read"); // QVR: profile
-	if (cls.state == ca_connected)
+	if (cls.state == ca_connected && !vrdefer)
 		CL_ReadFromServer ();
 	VR_ProfileEnd (); // QVR
 
@@ -1574,13 +1590,40 @@ void _Host_Frame (double time)
 
 	S_MixKick (false); // QVR: the frame's sounds started: their mix on the thread pool while the screen updates (R_RenderScene's
 	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
+	VR_ServerTickPhase ("screen"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
 	VR_ProfileEnd (); // QVR
 
+	VR_ServerTickPhase ("particles"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("run particles"); // QVR: profile
 	CL_RunParticles (); //johnfitz -- seperated from rendering
 	VR_ProfileEnd (); // QVR
+
+	if (vrdefer) // QVR: vr_server_thread_check 2: the frame's tick, then the client's read of it, after the screen
+	{
+		double realframetime = host_frametime;
+		VR_ServerTickPhase ("client send");
+		host_frametime = vrdeferframetime;
+		if (sv.active)
+		{
+			VR_ServerTickBegin ();
+			PR_SwitchQCVM(&sv.qcvm);
+			VR_ProfileBegin ("server");
+			Host_ServerFrame ();
+			VR_ProfileEnd ();
+			PR_SwitchQCVM(NULL);
+			VR_ServerTickEnd ();
+		}
+		host_frametime = realframetime;
+		Cbuf_Waited();
+		VR_ServerTickPhase ("client read");
+		VR_ProfileBegin ("client read");
+		if (cls.state == ca_connected)
+			CL_ReadFromServer ();
+		VR_ProfileEnd ();
+	}
+	VR_ServerTickPhase ("sound"); // QVR: vr_server_thread_check
 
 	if (host_speeds.value)
 		time3 = Sys_DoubleTime ();

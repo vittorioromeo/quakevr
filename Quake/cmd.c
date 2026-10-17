@@ -175,6 +175,7 @@ Adds command text at the end of the buffer
 void Cbuf_AddText (const char *text)
 {
 	int		l;
+	VR_CLIENT_ACCESS ("Cbuf_AddText"); // QVR: vr_server_thread_check
 
 	l = Q_strlen (text);
 
@@ -211,6 +212,7 @@ void Cbuf_InsertText (const char *text)
 {
 	char	*temp;
 	int		templen;
+	VR_CLIENT_ACCESS ("Cbuf_InsertText"); // QVR: vr_server_thread_check
 
 // copy off any commands still remaining in the exec buffer
 	Cbuf_Compact (); // QVR: without the text already run
