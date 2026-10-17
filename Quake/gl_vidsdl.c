@@ -1394,6 +1394,7 @@ static void GL_Init (void)
 		char gpu[512];
 		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
 		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
+		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
 	}
 
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)

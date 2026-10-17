@@ -624,6 +624,11 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         cycle("OpenXR Runtime", vr_xr_runtime, {{4.f, "Auto"}, {0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
             .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: the runtime picked in its Streamer's OpenXR Runtime option; VDXR, which skips SteamVR, unless SteamVR is picked there), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
         info(xrRuntimeLine),
+        command("Create Bug Report", "bugreport")
+            .help("Zips this run's and the last run's logs (the console, the OpenXR runtime's start and messages, the "
+                  "crash report if any, the settings, the runtimes' own logs) into quakevr\\bugreports\\<date>.zip, "
+                  "and opens the folder on the desktop: attach it to your bug report. After a crash, the Start menu's "
+                  "'Quake VR Unleashed (Create Bug Report)' makes it without starting the game."),
         cycle("Try Other Runtimes", vr_xr_runtime_fallback, {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, SteamVR too"}}).advanced()
             .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
         slider("SteamVR Wait", vr_xr_steamvr_wait, 0.f, 20.f, 1.f, "%.0f s").advanced()

@@ -237,6 +237,11 @@ void startBackend()
     {
         Con_Warning("VR: failed to start %s backend (vr_restart to retry)\n", backend->name());
         backend->stop();
+        // The runtimes' logs kept with the run's (vr_runlogs.cpp), and the bug report offered.
+        VR_LogsIncident(va("the VR start failed (%s backend)", backend->name()));
+        Con_Printf("\x02" "VR: a bug report can be made with Options > Create Bug Report (or bugreport in the console): "
+                   "this run's logs in one zip, in quakevr\\bugreports\n");
+        SCR_CenterPrintFor("VR didn't start: playing flat.\nA bug report can be made with\nOptions > Create Bug Report", 8.f);
         return;
     }
 
@@ -1944,6 +1949,7 @@ extern "C" void VR_Init()
     VR_TimeInit(); // vr_startup_times, vr_walltime
     VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
     VR_DiagnosticsInit(); // vr_diagnostics_status
+    VR_LogsInit(); // bugreport, vr_logs_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();

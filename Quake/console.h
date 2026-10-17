@@ -73,7 +73,9 @@ qboolean Con_CopySelectionToClipboard (void);
 //
 void LOG_Init (quakeparms_t *parms);
 void LOG_Close (void);
-void LOG_Reopen (const char *path); // QVR: diagnostics mode
+void LOG_OpenRun (const char *path); // QVR: the run's console.log (vr/vr_runlogs.cpp; console.c: the log is buffered)
+void LOG_Flush (void); // QVR: the buffered lines out now (never waits: the crash reporter's)
+void LOG_Tick (void); // QVR: Host_Frame: the lines a second old out
 void Con_DebugLog (const char *msg);
 
 #endif	/* __CONSOLE_H */

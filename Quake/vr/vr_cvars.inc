@@ -526,7 +526,8 @@ QVR_CVAR(vr_xr_guard, "1", CVAR_NONE)
 // messages, the OpenXR loader's and debug messenger's output, the console, the crash report and the runtimes' logs in
 // <game folder>/diagnostics/<date>_<time> (vr_diagnostics.cpp). Slower: for a bug report only.
 QVR_CVAR(vr_diagnostics, "0", CVAR_ARCHIVE)
-// Diagnostics mode's OpenXR messages: 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
+// The OpenXR debug messages, every run (in the run's logs/<date>_<time>/openxr_debug.log, rate-limited: vr_runlogs.cpp;
+// verbose ones in diagnostics mode only): 1 the XR_EXT_debug_utils messenger once the instance is made; 2 also chained to
 // its creation (the loader's messages while it is made); 0 none.
 QVR_CVAR(vr_diagnostics_xr, "1", CVAR_NONE)
 // Diagnostics mode's OpenXR core validation layer (Khronos', shipped in quakevr/xr_layers): 1 every OpenXR call checked
@@ -540,6 +541,10 @@ QVR_CVAR(vr_xr_test_drop_context, "0", CVAR_NONE)
 // qvr_openxr.txt): 1 the loader loads them as usual; 0 each one is turned off by its manifest's disable_environment
 // variable, from the next VR start (a workaround when one breaks the runtime: VDXR crashed in 1.0.0).
 QVR_CVAR(vr_xr_api_layers, "1", CVAR_ARCHIVE)
+// 1: the implicit OpenXR API layers known not to work with this game (it renders with OpenGL; vr_xr_runtime.cpp,
+// incompatibleLayers: OBS's OpenXR mirror, Direct3D only, crashed VDXR in 1.0.1) turned off by their manifest's
+// disable_environment variable at each VR start, each one said in the console and qvr_openxr.txt; 0 allowed.
+QVR_CVAR(vr_xr_skip_incompatible_layers, "1", CVAR_ARCHIVE)
 // While the runtime's own menu has the focus (the session VISIBLE, not FOCUSED: SteamVR's dashboard, Virtual Desktop's
 // or Meta's menu): 1 the eyes are not rendered, the last frame is shown again (world-locked: the runtime reprojects
 // it; the GPU left to the runtime's menu); 0 they are rendered as usual.
@@ -638,6 +643,8 @@ QVR_CVAR(vr_xr_test_runtimes, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_active, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_processes, "", CVAR_NONE)
 QVR_CVAR(vr_xr_test_fail, "", CVAR_NONE)
+// With vr_xr_test 1: the implicit API layers' manifests (comma-separated paths) read instead of the registry's.
+QVR_CVAR(vr_xr_test_layers, "", CVAR_NONE)
 // Virtual Desktop's own OpenXR runtime setting as Auto reads it (with or without vr_xr_test): "" the Streamer's
 // %ProgramData%\Virtual Desktop\StreamerSettings.json (none with vr_xr_test 1); a number, VD's: -1 unknown, 0 Automatic,
 // 1 SteamVR, 2 VDXR; or another StreamerSettings.json to read.

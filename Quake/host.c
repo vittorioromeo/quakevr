@@ -1694,6 +1694,7 @@ void Host_Frame (double time)
 	static int		timecount;
 	int		i, c, m;
 
+	LOG_Tick (); // QVR: the buffered console log out a second after its last write (console.c)
 	if (!serverprofile.value)
 	{
 		_Host_Frame (time);
@@ -1750,6 +1751,7 @@ void Host_Init (void)
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_LogsBegin (); // QVR: every run's logs in <game folder>/logs/<date>_<time>; -bugreport makes the report and exits (vr/vr_runlogs.cpp)
 	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
@@ -1867,6 +1869,7 @@ void Host_Shutdown(void)
 	}
 	isdown = true;
 	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
+	VR_LogsEnd (); // QVR: the OpenXR messages' summary (vr/vr_runlogs.cpp)
 	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
 
 // keep Con_Printf from trying to update the screen
