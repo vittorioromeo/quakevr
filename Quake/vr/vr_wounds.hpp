@@ -25,6 +25,10 @@
 
 #pragma once
 
+#include "Zancle/Vocabulary/Span.hpp"
+
+#include <glm/glm.hpp>
+
 struct entity_s;
 
 namespace qvr::wounds
@@ -59,6 +63,15 @@ void clear();
 // `origin` (null: unknown), shows for the damage skin `level`: none after a wash until the wounds re-open (or a new
 // hit), at least a bloody one while a gib's blood is on a hand.
 [[nodiscard]] int skinLevel(int part, int level, const float* origin);
+
+// The point on a model a blow at `org` going `dir` (unit) struck, as the wounds and dents place it: `tris` its triangles
+// as drawn (three corners each, the world), the front face the line through `org` meets nearest it, else the facing one
+// nearest the line; `at`, the face's outward `normal`, and its first corner's index returned (-1: none).
+[[nodiscard]] int strikeTriangles(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at,
+    glm::vec3& normal);
+
+// vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds cleared (Gore > Training Dummy).
+void dummyReset_f();
 
 // The test and report commands (vr_wounds_test, _dump, _info; vr_gore_hands_test, vr_wrist_blood_test, vr_gore_wash_test,
 // vr_gore_hands_info, vr_gore_spatter_test; vr_wounds_diag.cpp), where their usage is.

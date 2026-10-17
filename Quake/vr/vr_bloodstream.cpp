@@ -4,13 +4,17 @@
 #include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
+#include "vr_dents.hpp"
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_gore.hpp"
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
+#include "vr_trace.hpp"
+#include "vr_wounds.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Chrono/Clock.hpp"
@@ -41,6 +45,9 @@ constexpr int arcSteps = 12;        // so many (1.2 s of fall at most)
 constexpr double arcInterval = 0.08; // seconds between a stream's landing traces
 constexpr double paintInterval = 0.15; // seconds between a stream's marks where it lands
 constexpr float heartRate = 1.35f;  // beats a second
+constexpr float surfaceInset = 0.15f; // units its start sits under the (dented) surface: no gap at the hole
+constexpr int maxDropsAFrame = 12;  // spurts, and splashes, a stream throws in one frame at most
+constexpr float splashRate = 45.f;  // splash drops a second at vr_gore_streams_splash 1, at its strongest
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())};
 
@@ -70,7 +77,16 @@ struct Stream
     bool emitting = false;
     int ent = 0;
     const qmodel_t* model = nullptr;
-    int vertex = 0;
+    // Where on the model: the struck triangle's corners (.mdl vertices) and the point's barycentrics on it (the dents'
+    // own placing: wounds::strikeTriangles); or one vertex (all three the same) where no triangle was found.
+    int corner[3] = {0, 0, 0};
+    glm::vec3 bary{1.f, 0.f, 0.f};
+    bool onTriangle = false;
+    glm::vec3 restC[3]{glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}}; // its corners in the rest pose (the dents')
+    glm::vec3 restN{0.f, 0.f, 1.f};
+    glm::vec3 surfN{0.f, 0.f, 1.f}; // the surface's outward normal there, as drawn
+    float push = 0.f;               // how far the dents push it in there now (vr_gore_streams_info)
+    int oldVertex = -1;             // the vertex nearest the hit (the binding before: vr_gore_streams_info)
     Pose pose = Pose::None;
     glm::vec3 outLocal{1.f, 0.f, 0.f}; // the way it pours, in the pose's frame (yaw-only, or the ragdoll body's)
     glm::vec3 outWorld{1.f, 0.f, 0.f};
@@ -85,10 +101,17 @@ struct Stream
     // phase.
     float wobFreq[4] = {1.f, 1.f, 1.f, 1.f};
     float wobPhase[4] = {0.f, 0.f, 0.f, 0.f};
+    // Its thickness's swell (vr_gore_streams_thickness_var): three sines, each its own rate and phase.
+    float thkFreq[3] = {1.f, 1.f, 1.f};
+    float thkPhase[3] = {0.f, 0.f, 0.f};
     float emitAcc = 0.f;
+    float spurtAcc = 0.f, splashAcc = 0.f; // the drops owed (vr_gore_streams_spurt_rate, _splash)
+    float lastStrength = 0.f;
+    glm::vec3 lastV0{0.f};      // its way out and speed as last emitted
     // The landing, traced every arcInterval.
     double nextArc = 0.0;
     bool lands = false;
+    bool landsOnThing = false; // on a monster, a prop, a door (no pools painted there)
     float landTime = 1.2f;
     glm::vec3 land{0.f}, landN{0.f, 0.f, 1.f};
     glm::vec3 color{0.4f, 0.02f, 0.015f};
@@ -107,6 +130,9 @@ struct Stream
 Stream streams[hardMaxStreams];
 double lastTime = -1.0;
 lightcache_t light{}; // lightColor's lookup
+int spurtsMade = 0, splashesMade = 0; // drops thrown since the map began (vr_decal_count)
+double busySeconds = 0.0; // the streams' own time (moving, tracing, drawing, throwing drops) since the last count,
+int busyFrames = 0;       // over these frames with any (vr_decal_count)
 
 // Wounds received this frame, started in frame() (the entities posed then).
 struct Pending
@@ -120,7 +146,7 @@ Pending pending[maxPending];
 int pendingCount = 0;
 
 // The posed vertices (binding a new stream to its nearest): kept, grown once.
-za::Vector<glm::vec3> scratchRest, scratchNow;
+za::Vector<glm::vec3> scratchRest, scratchNow, scratchTris;
 
 [[nodiscard]] int maxStreams()
 {
@@ -232,14 +258,44 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
     return true;
 }
 
-[[nodiscard]] glm::vec3 animatedVertex(const entity_t& e, int v)
+// A triangle's outward normal (the dents' and the wounds' winding).
+[[nodiscard]] glm::vec3 outward(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
 {
-    float m[16];
-    render::entityMatrix(e, false, e.scale ? e.scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
-    return bytePoint(m, anchor::posedVertex(e, v, 0.f));
+    const glm::vec3 n = glm::cross(b - a, c - a);
+    const float l = glm::length(n);
+    return l > 1e-8f ? -n / l : glm::vec3{0.f, 0.f, 1.f};
 }
 
-// Where the wound is now, and the way it pours; false if its body is gone.
+// A Quake .mdl's header, if its triangles and pose 0 can be read (the dents' rest pose); null otherwise.
+[[nodiscard]] const aliashdr_t* quakeHeader(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return nullptr;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc ||
+        hdr->numframes <= 0 || hdr->numverts <= 0 || hdr->numbones)
+    {
+        return nullptr;
+    }
+    return hdr;
+}
+
+// Vertex `v` of the stream's body as drawn now (a ragdoll's, else the animated model's through matrix `m`); for a
+// ragdoll its bone's turn too.
+[[nodiscard]] bool vertexNow(const Stream& s, const entity_t& e, bool rag, const float m[16], int v, glm::vec3& at, glm::quat& rot)
+{
+    if(rag)
+    {
+        return ragdollVertex(s.ent, v, at, rot);
+    }
+    at = bytePoint(m, anchor::posedVertex(e, v, 0.f));
+    return true;
+}
+
+// Where the wound is now, and the way it pours; false if its body is gone. The point on its triangle as drawn, pushed in
+// as its dents push the corners (the vertex shader's push: dents::pushAt), a little under it.
 [[nodiscard]] bool locate(Stream& s)
 {
     const entity_t* e = entityOf(s.ent, s.model);
@@ -248,34 +304,65 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
         return false;
     }
     glm::quat rot;
-    glm::vec3 at;
-    if(ragdollVertex(s.ent, s.vertex, at, rot))
+    glm::vec3 p[3];
+    float m[16]{};
+    const bool rag = ragdollVertex(s.ent, s.corner[0], p[0], rot);
+    if(rag)
     {
         if(s.pose != Pose::Ragdoll)
         {
             s.outLocal = glm::inverse(rot) * s.outWorld; // (it fell: the way it poured, now the body's)
             s.pose = Pose::Ragdoll;
         }
-        s.wound = at;
         s.outWorld = rot * s.outLocal;
+    }
+    else
+    {
+        if(s.pose == Pose::Ragdoll)
+        {
+            return false; // (a ragdoll no more: removed, gibbed)
+        }
+        if(s.pose != Pose::Animated)
+        {
+            s.outLocal = yawTurn(s.outWorld, -e->angles[1]);
+            s.pose = Pose::Animated;
+        }
+        s.outWorld = yawTurn(s.outLocal, e->angles[1]);
+        render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+        p[0] = bytePoint(m, anchor::posedVertex(*e, s.corner[0], 0.f));
+    }
+    if(!s.onTriangle)
+    {
+        s.surfN = s.outWorld;
+        s.push = 0.f;
+        s.wound = p[0];
         return true;
     }
-    if(s.pose == Pose::Ragdoll)
+    glm::quat r2;
+    for(int k = 1; k < 3; k++)
     {
-        return false; // (a ragdoll no more: removed, gibbed)
+        if(!vertexNow(s, *e, rag, m, s.corner[k], p[k], r2))
+        {
+            p[k] = p[0];
+        }
     }
-    if(s.pose != Pose::Animated)
+    const glm::vec3 n = outward(p[0], p[1], p[2]);
+    glm::vec3 at{0.f};
+    float push = 0.f;
+    for(int k = 0; k < 3; k++)
     {
-        s.outLocal = yawTurn(s.outWorld, -e->angles[1]);
-        s.pose = Pose::Animated;
+        const float d = dents::pushAt(e, s.restC[k], s.restN);
+        at += s.bary[k] * (p[k] - n * d);
+        push += s.bary[k] * d;
     }
-    s.wound = animatedVertex(*e, s.vertex);
-    s.outWorld = yawTurn(s.outLocal, e->angles[1]);
+    s.surfN = n;
+    s.push = push;
+    s.wound = at - n * surfaceInset;
     return true;
 }
 
-// The vertex of `ent`'s model nearest `at` as it is drawn now; -1 if none.
-[[nodiscard]] int nearestVertex(int ent, const glm::vec3& at, float reach)
+// `ent`'s model's vertices as drawn now (the world) into scratchNow; false if none.
+[[nodiscard]] bool posedNow(int ent)
 {
     za::Vector<glm::vec3>& now = scratchNow;
     if(!ragdoll::skinnedVertices(ent, now, nullptr, true))
@@ -283,7 +370,7 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
         const entity_t* e = entityOf(ent, nullptr);
         if(!e || !anchor::posedVertices(*e, 0.f, scratchRest, now))
         {
-            return -1;
+            return false;
         }
         float m[16];
         render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
@@ -292,6 +379,13 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
             p = bytePoint(m, p);
         }
     }
+    return !now.empty();
+}
+
+// The vertex of scratchNow (posedNow) nearest `at`; -1 if none within `reach`.
+[[nodiscard]] int nearestVertex(const glm::vec3& at, float reach)
+{
+    const za::Vector<glm::vec3>& now = scratchNow;
     int best = -1;
     float bestD = 1e30f;
     for(za::SizeT i = 0; i < now.size(); i++)
@@ -353,12 +447,39 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
 void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float reach = 24.f)
 {
     const entity_t* e = entityOf(ent, nullptr);
-    if(!e)
+    if(!e || !posedNow(ent))
     {
         return;
     }
-    const int v = nearestVertex(ent, at, reach);
-    if(v < 0)
+    const int v = nearestVertex(at, reach);
+    // Where the hit's line meets the model as drawn: its triangle (the wound's and the dent's own point).
+    const glm::vec3 way = glm::length(dir) > 0.01f ? glm::normalize(dir) : glm::vec3{0.f, 0.f, -1.f};
+    const aliashdr_t* hdr = quakeHeader(ownModel(*e));
+    int tri = -1;
+    glm::vec3 hit{0.f}, hitN{0.f};
+    if(hdr)
+    {
+        const auto* base = reinterpret_cast<const byte*>(hdr);
+        const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+        const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+        scratchTris.clear();
+        bool fits = true;
+        for(int i = 0; i + 2 < hdr->numindexes && fits; i += 3)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                const za::SizeT vi = mesh[indexes[i + k]].vertindex;
+                fits = fits && vi < scratchNow.size();
+                scratchTris.pushBack(fits ? scratchNow[vi] : glm::vec3{0.f});
+            }
+        }
+        tri = fits ? wounds::strikeTriangles(scratchTris, at, way, hit, hitN) : -1;
+        if(tri >= 0 && glm::distance(hit, at) > reach)
+        {
+            tri = -1;
+        }
+    }
+    if(tri < 0 && v < 0)
     {
         return;
     }
@@ -373,7 +494,34 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     s.emitting = true;
     s.ent = ent;
     s.model = ownModel(*e);
-    s.vertex = v;
+    s.oldVertex = v;
+    if(tri >= 0)
+    {
+        const auto* base = reinterpret_cast<const byte*>(hdr);
+        const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+        const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+        const auto* rest = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes); // pose 0
+        for(int k = 0; k < 3; k++)
+        {
+            s.corner[k] = mesh[indexes[tri + k]].vertindex;
+            const trivertx_t& t = rest[s.corner[k]];
+            s.restC[k] = glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+                t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+        }
+        const za::SizeT t0 = static_cast<za::SizeT>(tri);
+        (void)geom::closestOnTriangle(hit, scratchTris[t0], scratchTris[t0 + 1], scratchTris[t0 + 2], &s.bary);
+        s.restN = outward(s.restC[0], s.restC[1], s.restC[2]);
+        s.onTriangle = true;
+    }
+    else
+    {
+        s.corner[0] = s.corner[1] = s.corner[2] = v;
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        s.thkFreq[i] = i == 0 ? rnd(0.55f, 0.9f) : i == 1 ? rnd(1.3f, 2.1f) : rnd(2.9f, 4.4f);
+        s.thkPhase[i] = rnd(0.f, 1.f);
+    }
     // It pours back toward the shot (the hole faces it) and out from the body's middle, a little up.
     glm::vec3 radial = at - glm::vec3{e->origin[0], e->origin[1], at.z};
     radial = glm::length(radial) > 0.1f ? glm::normalize(radial) : glm::vec3{0.f};
@@ -422,14 +570,32 @@ void traceArc(Stream& s, const glm::vec3& v0)
     const float g = gravity();
     glm::vec3 prev = s.wound;
     s.lands = false;
+    s.landsOnThing = false;
     s.landTime = arcStep * arcSteps;
+    // (The things in its way through the local server: monsters, props, doors; never its own body nor you.)
+    const edict_t* you = sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr;
     for(int i = 1; i <= arcSteps; i++)
     {
         const float t = arcStep * static_cast<float>(i);
         const glm::vec3 p = s.wound + v0 * t + glm::vec3{0.f, 0.f, -0.5f * g * t * t};
         glm::vec3 where, n;
-        float f;
-        if(decals::trace(prev, p, where, n, f))
+        float f = 1.f;
+        const bool world = decals::trace(prev, p, where, n, f);
+        const glm::vec3 to = world ? where : p;
+        if(you)
+        {
+            const za::Optional<trace_t> tr = worldtrace::move(prev, glm::vec3{0.f}, glm::vec3{0.f}, to, MOVE_NORMAL, s.ent);
+            if(tr && tr->fraction < 1.f && !tr->startsolid && tr->ent && tr->ent != sv.qcvm.edicts && tr->ent != you)
+            {
+                s.lands = true;
+                s.landsOnThing = true;
+                s.landTime = t - arcStep * (1.f - tr->fraction * f);
+                s.land = worldtrace::endPos(*tr);
+                s.landN = worldtrace::normal(*tr);
+                return;
+            }
+        }
+        if(world)
         {
             s.lands = true;
             s.landTime = t - arcStep * (1.f - f);
@@ -438,6 +604,100 @@ void traceArc(Stream& s, const glm::vec3& v0)
             return;
         }
         prev = p;
+    }
+}
+
+// Its thickness now (times its width) at age `t`: a swell and a thinning, unevenly (vr_gore_streams_thickness_var,
+// _rate); `n` the swell's -1..1.
+[[nodiscard]] float thickness(const Stream& s, float t, float& n)
+{
+    n = 0.f;
+    const float amount = za::clamp(vr_gore_streams_thickness_var.value, 0.f, 1.f);
+    if(amount <= 0.f)
+    {
+        return 1.f;
+    }
+    const float rate = za::clamp(vr_gore_streams_thickness_rate.value, 0.f, 10.f);
+    auto wave = [&](int i) { return za::sin((t * rate * s.thkFreq[i] + s.thkPhase[i]) * 6.2831853f); };
+    n = 0.5f * wave(0) + 0.3f * wave(1) + 0.2f * wave(2);
+    return za::max(0.08f, 1.f + amount * n);
+}
+
+// The base drop size (vr_gore_streams_spurt_size).
+[[nodiscard]] float dropSize()
+{
+    return za::clamp(vr_gore_streams_spurt_size.value, 0.02f, 3.f);
+}
+
+// Small drops spurting from the wound in a cone round its way out (vr_gore_streams_spurt*): `axis` and `speed` the
+// stream's as it leaves, `bodyVel` the body's.
+void spurt(Stream& s, float dt, float strength, const glm::vec3& axis, float speed, const glm::vec3& bodyVel)
+{
+    if(!vr_gore_streams_spurts.value)
+    {
+        s.spurtAcc = 0.f;
+        return;
+    }
+    s.spurtAcc += dt * za::clamp(vr_gore_streams_spurt_rate.value, 0.f, 1000.f) * za::min(strength, 1.3f);
+    const int n = za::min(maxDropsAFrame, static_cast<int>(s.spurtAcc));
+    s.spurtAcc = za::min(s.spurtAcc - static_cast<float>(n), 1.f);
+    const float cone = za::clamp(vr_gore_streams_spurt_cone.value, 0.f, 90.f);
+    const float k = za::clamp(vr_gore_streams_spurt_speed.value, 0.f, 4.f);
+    const float life = za::clamp(vr_gore_streams_spurt_life.value, 0.02f, 5.f);
+    const float outliers = za::clamp(vr_gore_streams_spurt_outliers.value, 0.f, 1.f);
+    const float outlierLife = za::clamp(vr_gore_streams_spurt_outlier_life.value, 0.02f, 10.f);
+    const float floorZ = s.lands && s.landN.z > 0.6f && !s.landsOnThing ? s.land.z + 0.2f : s.wound.z - 512.f;
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 d = inCone(axis, cone);
+        float sp = speed * k * rnd(0.45f, 1.3f);
+        float l = life * rnd(0.5f, 1.5f);
+        float size = dropSize() * rnd(0.6f, 1.4f);
+        if(rnd(0.f, 1.f) < outliers) // (a few fly further and last)
+        {
+            l = outlierLife * rnd(0.7f, 1.3f);
+            sp *= rnd(1.f, 1.4f);
+            size *= 1.25f;
+        }
+        particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel * 0.7f, size, l, s.color, floorZ);
+        spurtsMade++;
+    }
+}
+
+// Drops splashing away where it lands (vr_gore_streams_splash): `vin` the stream's velocity as it gets there.
+void splash(Stream& s, float dt, float strength, const glm::vec3& vin, float width)
+{
+    const float amount = za::clamp(vr_gore_streams_splash.value, 0.f, 10.f);
+    if(amount <= 0.f || !s.lands || inLiquid(s.land + s.landN * 2.f))
+    {
+        s.splashAcc = 0.f;
+        return;
+    }
+    s.splashAcc += dt * splashRate * amount * za::min(strength, 1.3f);
+    const int n = za::min(maxDropsAFrame, static_cast<int>(s.splashAcc));
+    s.splashAcc = za::min(s.splashAcc - static_cast<float>(n), 1.f);
+    if(n <= 0)
+    {
+        return;
+    }
+    const glm::vec3 nrm = s.landN;
+    glm::vec3 u, w;
+    across(nrm, u, w);
+    const float into = za::fabs(glm::dot(vin, nrm));
+    const glm::vec3 along = vin - nrm * glm::dot(vin, nrm);
+    const float speed = za::min(glm::length(vin), 300.f);
+    const float size = dropSize() * za::clamp(vr_gore_streams_splash_size.value, 0.f, 4.f);
+    const float floorZ = nrm.z > 0.6f ? s.land.z - 0.3f : s.land.z - 512.f;
+    const float outliers = za::clamp(vr_gore_streams_spurt_outliers.value, 0.f, 1.f);
+    for(int i = 0; i < n && size > 0.f; i++)
+    {
+        const float a = rnd(0.f, 6.2831853f);
+        const glm::vec3 side = u * za::cos(a) + w * za::sin(a);
+        const glm::vec3 vel = nrm * (rnd(0.12f, 0.4f) * za::min(into, 300.f) + rnd(8.f, 20.f)) + along * rnd(0.1f, 0.35f) +
+                              side * speed * rnd(0.08f, 0.35f);
+        const float l = rnd(0.12f, 0.32f) * (rnd(0.f, 1.f) < outliers ? 2.f : 1.f);
+        particles::bloodDroplet(s.land + nrm * 0.35f + side * rnd(0.f, width), vel, size * rnd(0.5f, 1.2f), l, s.color, floorZ);
+        splashesMade++;
     }
 }
 
@@ -451,7 +711,7 @@ void paint(Stream& s, float strength)
     }
     const float size = za::clamp(vr_gore_size.value, 0.25f, 4.f) * za::clamp(vr_gore_streams_pool.value, 0.f, 4.f);
     particles::bloodSpecks(s.land, s.landN, 1, s.color);
-    if(size <= 0.f)
+    if(size <= 0.f || s.landsOnThing) // (no pools on a monster or a prop: its splash only)
     {
         return;
     }
@@ -529,9 +789,16 @@ void update(Stream& s, float dt)
             const float l = glm::length(bodyVel);
             bodyVel *= l > 400.f ? 400.f / l : 1.f;
         }
-        const float speed =
-            za::clamp(vr_gore_streams_speed.value, 0.f, 400.f) * s.power * s.speedMul * (0.35f + 0.9f * strength);
-        const glm::vec3 v0 = wobbled(s, age) * speed + bodyVel * 0.7f;
+        // Its thickness swells and thins as it pours (and so along it as it falls): a gush comes out a little faster.
+        float swell = 0.f;
+        const float thick = thickness(s, age, swell);
+        const float thickAmount = za::clamp(vr_gore_streams_thickness_var.value, 0.f, 1.f);
+        const float speed = za::clamp(vr_gore_streams_speed.value, 0.f, 400.f) * s.power * s.speedMul *
+                            (0.35f + 0.9f * strength) * (1.f + 0.2f * thickAmount * swell);
+        const glm::vec3 out = wobbled(s, age);
+        const glm::vec3 v0 = out * speed + bodyVel * 0.7f;
+        s.lastV0 = v0;
+        s.lastStrength = strength;
         if(cl.time >= s.nextArc || cl.time < s.nextArc - 1.0)
         {
             s.nextArc = cl.time + arcInterval;
@@ -542,7 +809,8 @@ void update(Stream& s, float dt)
         s.emitAcc += dt * emitRate;
         const int n = za::min(8, static_cast<int>(s.emitAcc));
         s.emitAcc = za::min(s.emitAcc - static_cast<float>(n), 1.f);
-        const float width = za::clamp(vr_gore_streams_width.value, 0.05f, 4.f) * s.power * (0.45f + 0.55f * za::min(1.f, strength));
+        const float width =
+            za::clamp(vr_gore_streams_width.value, 0.05f, 4.f) * s.power * (0.45f + 0.55f * za::min(1.f, strength)) * thick;
         for(int k = 0; k < n; k++)
         {
             const float back = n > 1 ? static_cast<float>(n - 1 - k) / static_cast<float>(n) : 0.f;
@@ -553,10 +821,11 @@ void update(Stream& s, float dt)
             p.vel = v0;
             p.age = back * dt;
             p.life = s.landTime;
-            p.width = width;
+            p.width = width * (1.f + thickAmount * rnd(-0.12f, 0.12f)); // (an uneven edge)
             p.speed0 = za::max(10.f, glm::length(v0));
             p.pos += p.vel * p.age;
         }
+        spurt(s, dt, strength, out, speed, bodyVel);
         if(cl.time >= s.nextPaint)
         {
             s.nextPaint = cl.time + paintInterval;
@@ -567,6 +836,13 @@ void update(Stream& s, float dt)
         }
         s.lastWound = s.wound;
         s.hasLast = true;
+    }
+    // Where it lands, while it gets there (the last of it too, after it stopped pouring).
+    if(s.lands && s.count > 0 && (!s.emitting || age > s.landTime))
+    {
+        const glm::vec3 vin = s.lastV0 + glm::vec3{0.f, 0.f, -gravity() * s.landTime};
+        const float w = za::clamp(vr_gore_streams_width.value, 0.05f, 4.f) * s.power;
+        splash(s, dt, s.emitting ? s.lastStrength : s.lastStrength * 0.5f, vin, w);
     }
 
     // The chain falls.
@@ -654,16 +930,24 @@ void frame()
     }
     pendingCount = 0;
     const float dt = static_cast<float>(za::clamp(dtd, 0.0, 0.1));
+    const double t0 = Sys_DoubleTime();
+    bool any = false;
     for(Stream& s : streams)
     {
         if(s.used)
         {
+            any = true;
             update(s, dt);
             if(s.used)
             {
                 draw(s);
             }
         }
+    }
+    if(any)
+    {
+        busySeconds += Sys_DoubleTime() - t0;
+        busyFrames++;
     }
 }
 
@@ -677,18 +961,98 @@ void clear()
     }
     pendingCount = 0;
     lastTime = -1.0;
+    spurtsMade = splashesMade = 0;
 }
 
 void count()
 {
     int live = 0, pouring = 0, points = 0;
+    float thin = 1e30f, thick = 0.f;
     for(const Stream& s : streams)
     {
         live += s.used ? 1 : 0;
         pouring += s.used && s.emitting ? 1 : 0;
         points += s.used ? s.count : 0;
+        for(int k = 0; s.used && k < s.count; k++)
+        {
+            const float w = s.pts[(s.head - k + maxPoints) % maxPoints].width;
+            thin = za::min(thin, w);
+            thick = za::max(thick, w);
+        }
     }
-    Con_Printf("bloodstreams: %d (%d pouring), %d points\n", live, pouring, points);
+    Con_Printf("bloodstreams: %d (%d pouring), %d points (%.2f-%.2f wide as they left), %d spurt and %d splash drops so far\n",
+        live, pouring, points, points ? thin : 0.f, thick, spurtsMade, splashesMade);
+    Con_Printf("bloodstreams: %.1f us a frame (over the %d frames with any since the last count)\n",
+        busyFrames ? busySeconds * 1e6 / busyFrames : 0.0, busyFrames);
+    busySeconds = 0.0;
+    busyFrames = 0;
+}
+
+void forget(int ent, bool drop)
+{
+    for(Stream& s : streams)
+    {
+        if(s.used && s.ent == ent)
+        {
+            s.emitting = false; // (what is falling lands)
+            if(drop)
+            {
+                s.used = false;
+                s.count = 0;
+            }
+        }
+    }
+    int kept = 0;
+    for(int i = 0; i < pendingCount; i++)
+    {
+        if(pending[i].ent != ent)
+        {
+            pending[kept++] = pending[i];
+        }
+    }
+    pendingCount = kept;
+}
+
+void info_f()
+{
+    int shown = 0;
+    for(const Stream& s : streams)
+    {
+        if(!s.used || !s.emitting)
+        {
+            continue;
+        }
+        const entity_t* e = entityOf(s.ent, s.model);
+        if(!e)
+        {
+            continue;
+        }
+        // The dented surface at the wound (its start without the inset), and where the vertex nearest the hit is drawn
+        // (the binding before: its rest place, no dent).
+        const glm::vec3 surf = s.wound + s.surfN * surfaceInset;
+        glm::vec3 old = surf;
+        if(s.oldVertex >= 0)
+        {
+            glm::quat rot;
+            float m[16]{};
+            const bool rag = s.pose == Pose::Ragdoll;
+            if(!rag)
+            {
+                render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+            }
+            if(!vertexNow(s, *e, rag, m, s.oldVertex, old, rot))
+            {
+                old = surf;
+            }
+        }
+        Con_Printf("stream %d: entity %d %s, %s, on %s; dent %.2f deep there; start %.2f out of it (%.2f from it); "
+                   "the nearest vertex's %.2f out (%.2f from it); lands %s\n",
+            static_cast<int>(&s - streams), s.ent, s.model ? s.model->name : "?", s.pose == Pose::Ragdoll ? "ragdoll" : "animated",
+            s.onTriangle ? "its struck triangle" : "a vertex", s.push, glm::dot(s.wound - surf, s.surfN), glm::distance(s.wound, surf),
+            glm::dot(old - surf, s.surfN), glm::distance(old, surf), !s.lands ? "nowhere" : s.landsOnThing ? "on a thing" : "on the world");
+        shown++;
+    }
+    Con_Printf("vr_gore_streams_info: %d pouring\n", shown);
 }
 
 void test_f()

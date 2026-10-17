@@ -45,6 +45,20 @@ float(entity e) VR_Wound_Takes =
     return (e.flags & (FL_MONSTER | FL_CLIENT)) && !VR_Dummy_Clean(e);
 };
 
+// A hit's wound (VR_Wound_Hit, VR_Wound_Pellet): as VR_Wound_Takes, and a clean training dummy's too while its dents
+// or blood streams are on (vr_dummy_dents, vr_dummy_streams), sent marked QVR_WOUND_CLEAN (the engine paints nothing
+// then: the dent and the stream alone, each with its toggle).
+float QVR_WOUND_CLEAN = 64; // added to the kind
+float(entity e) VR_Wound_TakesHit =
+{
+    return VR_Wound_Takes(e) ||
+           (VR_Dummy_Clean(e) && (cvar_hget(cvarh_vr_dummy_dents) || cvar_hget(cvarh_vr_dummy_streams)));
+};
+float(entity e) VR_Wound_CleanFlag =
+{
+    return VR_Dummy_Clean(e) ? QVR_WOUND_CLEAN : 0;
+};
+
 // The height of the surface of the liquid `e` is in (it is, waterlevel > 0), or over its top when it is under.
 float(entity e) VR_Wound_LiquidTop =
 {
@@ -60,19 +74,19 @@ float(entity e) VR_Wound_LiquidTop =
 // Each pellet of a shotgun blast that struck `e` (TraceAttack): where, going which way.
 void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 {
-    if(!VR_Wound_Takes(e) || !e.takedamage)
+    if(!VR_Wound_TakesHit(e) || !e.takedamage)
     {
         return;
     }
     vr_wound_sent++;
-    woundevent(e, at, normalize(dir), QVR_WOUND_SHOT, damage, 1);
+    woundevent(e, at, normalize(dir), QVR_WOUND_SHOT + VR_Wound_CleanFlag(e), damage, 1);
 };
 
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
     // (A fire paints its own burns, under its flames: vr_burning.qc.)
-    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
+    if(take <= 0 || !VR_Wound_TakesHit(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
        VR_HitBloodless())
     {
         return;
@@ -81,6 +95,10 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     if(inflictor == world)
     {
+        if(VR_Dummy_Clean(targ))
+        {
+            return; // (no dent nor stream from a liquid)
+        }
         // The liquid it is in: burnt by lava, eaten by slime (drowning, falls: nothing to see).
         float level = VR_Wound_Level(targ);
         if(level > 0 && (vr_wound_liquid == CONTENT_LAVA || vr_wound_liquid == CONTENT_SLIME))
@@ -172,7 +190,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     }
     vr_wound_sent++;
     vr_wound_lastkind = kind + extra * 0.5; // (the dents' tests: vr_dents_test.qc)
-    woundevent(targ, org, normalize(dir), kind, min(255, take), extra);
+    woundevent(targ, org, normalize(dir), kind + VR_Wound_CleanFlag(targ), min(255, take), extra);
 };
 
 // StartFrame: every monster and player in a liquid, four times a second: how high it comes up them (wet under it;

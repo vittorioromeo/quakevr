@@ -13,7 +13,7 @@ namespace qvr::worldtrace
 {
 
 za::Optional<trace_t> move(
-    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type)
+    const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
 {
     if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
     {
@@ -22,6 +22,7 @@ za::Optional<trace_t> move(
 
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
+    edict_t* passEdict = pass > 0 && pass < qcvm->num_edicts ? EDICT_NUM(pass) : svs.clients[0].edict;
 
     vec3_t a{start.x, start.y, start.z};
     vec3_t b{end.x, end.y, end.z};
@@ -30,7 +31,7 @@ za::Optional<trace_t> move(
     trace_t tr;
     if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(svs.clients[0].edict, a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
     {
-        tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, svs.clients[0].edict);
+        tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, passEdict);
     }
 
     PR_PopQCVM(oldvm);
