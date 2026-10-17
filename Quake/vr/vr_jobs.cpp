@@ -54,6 +54,12 @@ bool detail::Job::claimAndRun() noexcept
         return false;
     }
     QVR_TRACY_SCOPE(scope, "Job execute");
+#ifdef QVR_TRACY
+    if(tracyFile)
+    {
+        VR_TracyJobText(tracyFrom, tracyFile, tracyLine); // where it was posted (the viewer groups by it: Find Zone)
+    }
+#endif
     execute();
     counters.tasks.fetchAddRelaxed(1u);
     phase.storeRelease(2);
@@ -135,9 +141,21 @@ Task::~Task()
     wait();
 }
 
+#ifdef QVR_TRACY
+void detail::Job::note(const char* file, unsigned line) noexcept
+{
+    tracyFrom = VR_TracyCurrentName();
+    tracyFile = file;
+    tracyLine = line;
+}
+
+void Task::post(Pool& pool, void (*fn)(void*), void* context, const std::source_location& where)
+#else
 void Task::post(Pool& pool, void (*fn)(void*), void* context)
+#endif
 {
     ZA_ASSERT(job->phase.loadAcquire() == 2);
+    QVR_JOBS_NOTE(job);
     job->fn = fn;
     job->context = context;
     job->phase.storeRelease(0);
@@ -220,6 +238,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
         // The same chunks, in order, on this thread.
         counters.serialLoops.fetchAddRelaxed(1u);
         counters.chunksCaller.fetchAddRelaxed(chunks);
+        QVR_TRACY_SCOPE(serialScope, "Job serial chunks"); // (the work itself, apart from the dispatch's self time)
         for(za::SizeT begin = 0; begin < count; begin += chunk)
         {
             body(begin, za::min(begin + chunk, count));

@@ -41,7 +41,10 @@ Existing `vr_profile`, panel, CSV captures and benchmark commands remain functio
 |---|---|---|
 | `vr_tracy_status` | command | Connection, nesting depth, drops, GPU pending queries and context generation |
 | `vr_tracy_gpu` | 1 | Enable GPU zones; 0 keeps CPU tracing and drains pending GPU timestamps |
-| `vr_tracy_gpu_detail` | 0 | 0: whole 3D, eyes, shadow maps and window view; 1: every existing GPU scope |
+| `vr_tracy_gpu_detail` | 0 | 0: whole 3D, eyes (and the single-pass multiview pass), shadow maps and window view; 1: every GPU scope, and the draws split where one call drew several passes (see "Full capture") |
+| `vr_tracy_render_detail` | 0 | Per-model draw steps (r_alias.c: `alias model`, `alias frame`, `alias light point/finish`, `alias vr instance`, `alias smooth`, `alias motion`, `alias shadow model`): a few zones a model an eye |
+| `vr_tracy_physics_detail` | 0 | A zone per server edict a tick, by its movetype (sv_phys.c) |
+| `vr_tracy_preset full\|off` | command | Every detail cvar for a full capture, or all back to the defaults (Debug > Profiling and Memory: "Tracy Full Capture Preset") |
 | `vr_tracy_qc_detail` | 0 | QC zones in server/client VMs (see "QC zones"): 0 off (coarse `QC VM` only); 1 every QC function; 2 + builtins except the trivial ones; 3 every builtin too |
 | `vr_tracy_memory_detail` | 0 | Live baseline and allocation/free/reset events for Zone, Hunk and Cache |
 | `vr_tracy_test_memory` | command | Realloc, forced cache relocation, hunk reset, detail changes and independent byte/count checks |
@@ -114,6 +117,65 @@ The capture checker verifies engine CPU scopes, both GPU eyes, valid GPU duratio
 For headless kit tests, `run.sh --exclusive <name> -Tracy ...` selects the separate build while preserving run slots.
 Use `--exclusive` for timing comparisons. A capture taken during shutdown can contain truncated final zones;
 compare completed zones and warm frames. Use the viewer for frame, thread, call-tree and GPU timeline analysis.
+
+## Full capture (`vr_tracy_preset full`)
+
+One command sets every detail cvar for a capture meant to name where all the time goes; `vr_tracy_preset off` puts
+them back to their defaults. Both are on Debug > Profiling and Memory ("Tracy Full Capture Preset", "Tracy Detail Off
+(Defaults)"); `vr_tracy_status` prints the levels.
+
+| cvar | full | what it adds |
+|---|---|---|
+| `vr_tracy_gpu` | 1 | GPU zones at all |
+| `vr_tracy_gpu_detail` | 1 | every pass its own GPU zone, per eye (below) |
+| `vr_tracy_qc_detail` | 1 | every QuakeC function call (2 adds the costlier builtins; see "QC zones") |
+| `vr_tracy_physics_detail` | 1 | each server edict's physics by movetype |
+| `vr_tracy_render_detail` | 1 | each alias model's draw steps |
+| `vr_tracy_memory_detail` | **0** | left off: its allocation events cost about 5 ms of CPU a frame in a fight (`combat_48` busy p50 7.4 against 2.5 ms); turn it on by hand for an allocation capture, never a timing one |
+
+Overhead, 2026-10-17 (Release-Tracy, `combat_48` 900 frames at 90 Hz paced, 2048 eyes, exclusive, connected
+`tracy-capture`, the mock headset): CPU busy p50 / p95 / mean **2.49 / 3.78 / 2.61 ms** at the defaults against
+**2.40 / 3.94 / 2.53 ms** with `vr_tracy_preset full`; GPU eyes 4.73 against 4.77 ms. That is within the run-to-run noise
+(+-0.3 ms). The capture is about 3 times larger: 30 against 11 MB for the 25 s run.
+
+Steps for a VR capture:
+
+1. Build **Release-Tracy** (`./Misc/quakevr/build_tracy.ps1`) and start its `ironwail.exe` as usual (one Tracy game at a time).
+2. Start the capture before the game, or attach: `tracy-capture.exe -a 127.0.0.1 -o quakevr.tracy` (or the viewer's Connect).
+3. In the console (or Debug > Profiling and Memory): `vr_profile 0; vr_tracy_preset full`. Load the map after it, so the capture context records the levels and the load is covered.
+4. Play (a 60 s fight is plenty). Quit or stop the capture; `vr_tracy_preset off` restores the defaults.
+5. Export as usual (`tracy-csvexport -u -p`, `-g`).
+
+GPU zones with `vr_tracy_gpu_detail 1`, under `eye L`/`eye R` (or `eyes: single pass`):
+
+| Pass | Zone(s) |
+|---|---|
+| depth pre-pass (world and brush models) | `depth prepass` (inside `world` / `brush entities`) |
+| world opaque, parallax, PBR, shadows, **carved decals** | `shading: opaque (parallax, carved decals)`; fences `shading: fences`, sky layers `shading: sky` |
+| world against brush entities | `world`, `brush entities` (split only in this mode: the brush entities then miss the world's pre-pass, so the world shades a few more pixels) |
+| alias models | opaque pass: `alias: world models` (monsters, items, gibs) and `alias: player models` (hands, body, gloves, held and holstered gear); translucent: `alias`; `view model`, `sprite models` |
+| water, sky, particles | `water` (opaque and translucent), `sky`, `particles` (classic), `vr particles`, `sprites`, `half size`, `vr scene distances` |
+| decals | `decals` (the stuck decals), `permanent decals bake`, `permdecal quads/clears/table`, `wounds`, `blob shadows` |
+| lights and shadows | `lights` (clustering), `shadow maps` > `map light world`, `atlas clear`, `dlight shadows`, `portal light shadows`, `map light shadows` |
+| TAA, render scale, post | `taa`, `taa mask/resolve/apply`, `resolve/warp`, `postprocess`, `bloom`, `upscale`, `refraction resolve`, `heat haze`, `haze` |
+| mirror, window, UI | `mirror`, `window view`, `spectator`, `ui`, `hud panel`, `menu panels`, `hidden area`, `portal`, the gadget's zones |
+| runtime | `xr acquire`, `xr release`, `xr submit` (the GPU between the eyes: the runtime's work on our context and its waits) |
+
+The carved decals' parallax march has no pass of its own: it runs in the world's opaque shader. Measure it by A/B
+(`vr_decal_carve 0`) in the same scene. Blood streams draw as particles, so they are in `vr particles`, and gore draws
+as alias models and particles.
+
+CPU additions: `console command` (the command in its text: `map`, `exec`, a cvar), `spawn: ...` (SV_SpawnServerRun's
+steps), `model metadata and file`, `load alias/brush/sprite model`, `alias replacement md3/md5`, `frame setup: ...`,
+`alias flush`, the Box3D sync and pre-step steps, `particle light: lightmap pass`, `text3d layout`,
+`shadow alias layered draw`, `Job serial chunks`, and every OpenXR call (`xrWaitFrame`, `xrBeginFrame`,
+`xrSyncActions`, `xrLocateViews`, `xrAcquireSwapchainImage`, `xrWaitSwapchainImage`, `xrReleaseSwapchainImage`,
+`xrEndFrame`; the mock headset has none of them). Each `Job execute` carries its poster in its text
+(`<posting zone> @ file:line`): group by it in Find Zone ("user text").
+
+Plots added: `Frame CPU busy ms` and `Frame period ms` (the always-on phase timers' last frame), `GPU eyes ms` (the
+newest read back, a few frames late), `Render scale` and `Eye render width`, `Process working set bytes` and
+`Process private bytes` (every 60 frames).
 
 ## Coverage and integration API
 

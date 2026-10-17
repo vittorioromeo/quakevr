@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -1219,6 +1220,70 @@ R_DrawEntitiesOnList
 =============
 */
 static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
+#ifdef QVR_TRACY
+static entity_t *r_zoned_world[MAX_VISEDICTS], *r_zoned_player[MAX_VISEDICTS]; // QVR: R_DrawAliasModelsZoned's parts
+#endif
+
+/*
+=============
+R_DrawBrushModelsZoned -- QVR
+
+R_DrawBrushModels, in profiling builds with vr_tracy_gpu_detail split into the world and the brush entities, each its
+own GPU zone (drawn as one batch otherwise: the same draws, in the same order). Split, the brush entities' depth is not
+in the world's depth pre-pass, so the world shades a few more pixels than unsplit: a detail capture's cost.
+=============
+*/
+static void R_DrawBrushModelsZoned (entity_t **ents, int count)
+{
+	if (!vr_tracy_gpu_zones || count < 2 || ents[0] != &cl_entities[0])
+	{
+		R_DrawBrushModels (ents, count);
+		return;
+	}
+	VR_TracyBegin ("world", 1);
+	R_DrawBrushModels (ents, 1);
+	VR_TracyEnd ();
+	VR_TracyBegin ("brush entities", 1);
+	R_DrawBrushModels (ents + 1, count - 1);
+	VR_TracyEnd ();
+}
+
+/*
+=============
+R_DrawAliasModelsZoned -- QVR
+
+R_DrawAliasModels, in profiling builds with vr_tracy_gpu_detail (the opaque pass only: the translucent one keeps its
+sorted order) split into the monsters and the rest of the world's models, then the player's own (the hands, the body,
+the gloves, what is held and holstered: VR_IsViewEntity), each its own GPU zone. Each part keeps its order.
+=============
+*/
+static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapass)
+{
+#ifndef QVR_TRACY
+	(void)alphapass;
+	R_DrawAliasModels (ents, count);
+#else
+	int i, world = 0, player = 0;
+	if (!vr_tracy_gpu_zones || alphapass || count < 2)
+	{
+		R_DrawAliasModels (ents, count);
+		return;
+	}
+	for (i = 0; i < count; i++) // (copied: the sorted list is the other passes' too)
+	{
+		if (VR_IsViewEntity (ents[i]))
+			r_zoned_player[player++] = ents[i];
+		else
+			r_zoned_world[world++] = ents[i];
+	}
+	VR_TracyBegin ("alias: world models", 1);
+	R_DrawAliasModels (r_zoned_world, world);
+	VR_TracyEnd ();
+	VR_TracyBegin ("alias: player models", 1);
+	R_DrawAliasModels (r_zoned_player, player);
+	VR_TracyEnd ();
+#endif
+}
 
 void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 {
@@ -1233,7 +1298,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	// world, brush models and the alias models away from the eyes; an eye's own view after it (2) the rest
 	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
 	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
-		R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
+		R_DrawBrushModelsZoned (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("alias"); // QVR: profile
 	if (stereophase) // QVR: the alias models each pass takes
@@ -1242,10 +1307,10 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 		for (i = 0; i < count; i++)
 			if (!VR_StereoSingleTakesAlias (entlist[ofs[2*mod_alias ] + i]) == (stereophase == 2))
 				r_stereo_alias[n++] = entlist[ofs[2*mod_alias ] + i];
-		R_DrawAliasModels (r_stereo_alias, n);
+		R_DrawAliasModelsZoned (r_stereo_alias, n, alphapass);
 	}
 	else
-	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
+	R_DrawAliasModelsZoned (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ], alphapass);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("sprite models"); // QVR: profile
 	if (!alphapass && stereophase != 1) // QVR: (per eye)

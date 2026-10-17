@@ -5,6 +5,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
+#include "vr_tracy.h"
 #include "vr_units.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -2935,25 +2936,29 @@ void lightParticles()
     // else in the same pass (splitLightWork).
     const za::SizeT work = static_cast<za::SizeT>(lightStats.lit) * static_cast<za::SizeT>(frameLightCount) + 4 * lightStats.reached;
     const bool split = jobs::workers() > 0 && work >= splitLightWork;
-    for(za::SizeT i = 0; i < pool.size(); i++)
     {
-        Particle& p = pool[i];
-        if(p.lighting == Lighting::Auto)
+        // (profiling builds: on this thread, every particle's lightmap light; the dynamic lights too unless split)
+        QVR_TRACY_SCOPE(zoneLightmap, "particle light: lightmap pass");
+        for(za::SizeT i = 0; i < pool.size(); i++)
         {
-            p.lighting = classify(p);
+            Particle& p = pool[i];
+            if(p.lighting == Lighting::Auto)
+            {
+                p.lighting = classify(p);
+            }
+            if(!on || p.lighting == Lighting::Emissive)
+            {
+                st.emissive += p.lighting == Lighting::Emissive ? 1 : 0;
+                lightOf[i] = glm::vec3{1.f};
+                continue;
+            }
+            lightmapOf(p, i, st);
+            if(!split)
+            {
+                lightOf[i] = litLight(p, lf, st.reached);
+            }
+            st.lit++;
         }
-        if(!on || p.lighting == Lighting::Emissive)
-        {
-            st.emissive += p.lighting == Lighting::Emissive ? 1 : 0;
-            lightOf[i] = glm::vec3{1.f};
-            continue;
-        }
-        lightmapOf(p, i, st);
-        if(!split)
-        {
-            lightOf[i] = litLight(p, lf, st.reached);
-        }
-        st.lit++;
     }
     if(split)
     {
