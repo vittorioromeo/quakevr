@@ -22,6 +22,16 @@ target_compile_definitions(ironwail PRIVATE ZA_STATIC)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../VERSION" QVR_VERSION LIMIT_COUNT 1)
 string(STRIP "${QVR_VERSION}" QVR_VERSION)
 target_compile_definitions(ironwail PRIVATE "QVR_VERSION=\"${QVR_VERSION}\"")
+# The build number and date (qvr_buildinfo.cmake: qvr_buildver.h, rewritten only when its text changes, before every build).
+set(QVR_GEN_DIR "${CMAKE_BINARY_DIR}/qvr_gen")
+add_custom_target(qvr_buildinfo ALL
+	COMMAND "${CMAKE_COMMAND}" "-DQVR_REPO=${CMAKE_CURRENT_LIST_DIR}/../.." "-DQVR_OUT=${QVR_GEN_DIR}/qvr_buildver.h"
+		-P "${CMAKE_CURRENT_LIST_DIR}/qvr_buildinfo.cmake"
+	BYPRODUCTS "${QVR_GEN_DIR}/qvr_buildver.h"
+	COMMENT "Quake VR build number"
+	VERBATIM)
+add_dependencies(ironwail qvr_buildinfo)
+target_include_directories(ironwail PRIVATE "${QVR_GEN_DIR}")
 # OpenXR: the vendored Windows loader. The backend's graphics binding is OpenGL on Windows (WGL)
 # only, so elsewhere the build has the mock backend alone until it gets a GLX/EGL binding.
 if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)

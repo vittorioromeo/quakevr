@@ -439,6 +439,7 @@ void Host_Version_f (void)
 	Con_Printf ("QuakeSpasm " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("Ironwail   " IRONWAIL_VER_STRING "\n");
 	Con_Printf ("Quake VR   %s\n", VR_BuildVersion ()); // QVR
+	Con_Printf ("QVR build  %s\n", VR_BuildInfo ()); // QVR
 	Con_Printf ("Exe        " __TIME__ " " __DATE__ "\n");
 	Con_Printf ("SDL        " Q_SDL_COMPILED_VERSION_STRING " (compiled)\n");
 	Con_Printf ("           %d.%d.%d (linked)\n", sdl_linked.major, sdl_linked.minor, sdl_linked.patch);
@@ -1721,6 +1722,7 @@ void Host_Init (void)
 	VR_Init (); // QVR
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
+	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 

@@ -35,6 +35,9 @@ void printRecordingButton();
 // The top of the headset's bottom left rows (menu y: the Recording button's, or OBS's above it; far below the menu
 // without the VR menu style): the column's banner ends above it (vr_menubrand.cpp).
 [[nodiscard]] float cornerRowsTop();
+// The top of what sits in the canvas's bottom left corner: those rows, or a flat screen's Recording box (menu y; far
+// below the menu when neither is shown): the build label (vr_menubrand.cpp) goes above it.
+[[nodiscard]] float cornerLabelBottom();
 // Whether the menus' mouse spot (m_mousex, m_mousey) is a pointer there: the laser on the panel in the headset (the VR
 // menu style), the desktop mouse on a flat screen (ui_mouse; to light something up, `hover`: once it has moved over the
 // menus).
