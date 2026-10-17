@@ -191,8 +191,11 @@ const DefaultChange defaultChanges[] = {
     {146, &vr_legsweep_min_slender, "4"},           // 2
     {146, &vr_legsweep_topple, "200"},              // 180
     {146, &vr_legsweep_feet, "0.5"},                // 0.4
+    // 147: the firing range's kinds' limbs made at its load, not in play (ROUND22.md, "Mid-game model loads"): ten
+    // ~8 ms frames for each kind a dispenser or a dummy first makes.
+    {147, &vr_limbs_prebuild, "1"},                 // 2
 };
-constexpr int configVersion = 146;
+constexpr int configVersion = 147;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

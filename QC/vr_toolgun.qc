@@ -15,6 +15,9 @@ void() VR_Toolgun_Precache =
     precache_model("progs/flame.mdl");
     precache_model("progs/flame2.mdl");
     precache_model("progs/vrtorch.mdl");
+    // (the Fire tab's candle and lantern, where their pak is: small, loaded at their first spawn otherwise, a 3-50 ms frame)
+    if(VR_Has("progs/candle.mdl")) { precache_model("progs/candle.mdl"); }
+    if(VR_Has("progs/lantern.mdl")) { precache_model("progs/lantern.mdl"); }
     precache_sound("vr/torch_pull.wav");
     precache_sound("vr/torch_out.wav");
     precache_sound("vr/torch_light.wav");

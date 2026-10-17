@@ -47,7 +47,8 @@ the pool on a miss, so a first pickup in play is a hit (ROUND22.md, "Held guns' 
 `vr_cache_info` (Debug > Profiling and Memory > Cache Info): per product its build's files and size on disk, and this
 session's reads (MB, ms), misses, writes, rejected files and checks; then the warm-up's progress. A miss while a map
 is in play (not during a load) counts as "in play" and, with `developer 1`, prints `cache miss in play: <product>
-<what>`: a first use the loads didn't prepare. (A load's occlusion bakes finish on their task after the load, so the
+<what>`: a first use the loads didn't prepare. Its last line counts the models loaded from their files in play
+("models loaded in play"; `developer 1`: `model loaded in play: <name>, <ms>`), each a frame's hitch. (A load's occlusion bakes finish on their task after the load, so the
 VR-derived models' bakes show there on a first visit.)
 
 ## The warm-up

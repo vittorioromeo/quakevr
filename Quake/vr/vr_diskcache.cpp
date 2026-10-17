@@ -58,6 +58,16 @@ Counts counts[static_cast<int>(Product::Count)];
 
 std::atomic<bool> playing{false};
 
+// Models loaded from their files while a map is in play (VR_NoteModelLoad: the main thread's): a first use the map's
+// load didn't precache, its load the frame's hitch. vr_cache_info counts them; developer 1 prints each.
+struct ModelLoadsInPlay
+{
+    long long count{0};
+    double ms{0.0};
+    double worstMs{0.0};
+};
+ModelLoadsInPlay modelLoadsInPlay;
+
 // The folders made ready this session (prepare), by their whole path: any thread.
 za::AtomicMutex preparedLock;
 za::Vector<za::String> prepared;
@@ -405,6 +415,8 @@ void info_f()
             c.rejected.load(), c.same.load(), c.differed.load());
     }
     Con_Printf("  all: %lld files, %.1f MB\n", allFiles, static_cast<double>(allBytes) / 1048576.0);
+    Con_Printf("  models loaded in play: %lld (%.1f ms, the worst %.1f ms)\n", modelLoadsInPlay.count,
+        modelLoadsInPlay.ms, modelLoadsInPlay.worstMs);
     warmup::printProgress();
 }
 
@@ -439,6 +451,19 @@ extern "C" void VR_NormalCacheStore(const char* build, unsigned long long key, c
 {
     qvr::diskcache::write(Product::NormalMaps, build, key, "nrm", normalMagic, static_cast<unsigned>(width),
         static_cast<unsigned>(height), rgba, static_cast<size_t>(width) * height * 4);
+}
+
+extern "C" void VR_NoteModelLoad(const char* name, double seconds)
+{
+    if(!qvr::diskcache::inPlay())
+    {
+        return;
+    }
+    const double ms = seconds * 1000.0;
+    ++modelLoadsInPlay.count;
+    modelLoadsInPlay.ms += ms;
+    modelLoadsInPlay.worstMs = ms > modelLoadsInPlay.worstMs ? ms : modelLoadsInPlay.worstMs;
+    Con_DPrintf("model loaded in play: %s, %.1f ms\n", name, ms);
 }
 
 // The files still being written finished (VR_Shutdown, before the pool goes).
