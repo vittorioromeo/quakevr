@@ -12162,3 +12162,9 @@ screenshot of start (fixed frames, dither, entities, particles and dynamic light
 as before.
 
 To try in VR: nothing should look or feel different. The Debug menu's Profiling pages lose the rows named above.
+
+
+## Auto-collect into the palm; his head and loot beam values as defaults (worktree `tghost`, branch `agent/palmdefaults`, 2026-10-17)
+
+- Auto-collect (vr_carry_autocollect) shrank towards the hand's origin (`s.pos[hand]`), a little above the palm. `targetOf` in vr_collectfx.cpp now uses `hands::palmPoint(s, hand)`, the palm centre that grips and holsters use. holsteritems_test.sh auto and collectfx_test.sh pass; no mid-shrink screenshot taken.
+- configVersion 154, his values from quakevr/ironwail.cfg promoted (old default -> new; only configs still at the old default move): vr_body_head_side 0 -> 1.75, vr_body_head_sink 4.5 -> 9, vr_lootbeam_opacity 0.5 -> 0.15, vr_lootbeam_length 1.2 -> 1.5, vr_lootbeam_thickness 0.06 -> 0.03, vr_lootbeam_far 0 -> 12. The rest of vr_body_head_* and vr_lootbeam* already equalled the defaults.
