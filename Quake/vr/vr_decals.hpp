@@ -96,6 +96,12 @@ void count_f();
 // vr_decal_stress [count 1..64] [size]: deterministic floor splatters ahead, for profiling.
 void stress_f();
 
+// vr_decal_carve_test [lattice 1..64]: carved marks on the surface the view's middle looks at, as each weapon makes them
+// (vr_decal_carve): pellets, nails, super nails, lava nails and a blast's crater; with a count, that many in a lattice of
+// pellets, nails and super nails 12 units apart, continued by the next call (for profiling). vr_decal_carve_test look
+// head|graze [dist]: the view moved to look at the last ones laid, head-on or at 15 degrees over their surface.
+void carveTest_f();
+
 // vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line from x y z along dx dy dz (512
 // units) meets the world or a brush model, as a hit lays it (tests: the same place each run).
 void at_f();

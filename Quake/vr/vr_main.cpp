@@ -2045,6 +2045,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
+    Cmd_AddCommand("vr_decal_carve_test", decals::carveTest_f);
     Cmd_AddCommand("vr_decal_at", decals::at_f);
     Cmd_AddCommand("vr_permdecal_info", permdecals::info_f);
     Cmd_AddCommand("vr_limits", limits::command_f);

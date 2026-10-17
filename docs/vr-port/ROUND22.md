@@ -10516,3 +10516,51 @@ break-free beyond the lift's timer. No recorder or eval hooks, beyond the `strug
 5. Drag one by an arm: its legs go stiff.
 6. Turn on Show Struggle to see the weights blend as you lift, lower and drag. If a move is too much or too little,
    tune the Struggle sliders; Tires After and Bursts change its character.
+
+## Carved bullet holes and blast craters (worktree `gorefx`, branch `agent/carveddecals`, 2026-10-17)
+
+His request: bullet holes and explosion marks on walls and floors should look carved, each still one decal, its fragment
+shader carving it by parallax occlusion against a procedural crater (a raised rim, a dark inner hole, normals the
+world's light shapes); look only; per impact kind, scaled with damage; settings next to the decals'; cheap.
+
+How (`vr_decals.cpp`, `vr_glsl.h` `CarveHeight` / `CarveAt` / `QVR_WORLD_FS_CARVE`):
+
+- Each mark carries a crater (`Decal::carve`, the shader's `Decal.carve`, 96-byte records now): depth in units, radius,
+  rim height over depth, dark core and shape (0 a pit: a bowl; 1 a nail's hole: steep walls; 2 a blast's crater: wide,
+  smooth). The radius is ragged by three harmonics of the angle made from the direction (no `atan`), turned per mark.
+- The world's solid shader (marks on the world, `vr_decals_world 1` only; none with the meshes) runs `CarveAt` before
+  its textures are read: the same decal grid bucket as `DecalsAt`; flat marks are skipped on one read (`carve.x 0`);
+  a mark is skipped when the eye's ray from its rim's top to its floor passes 1.6 radii off. The ray is marched down
+  in steps (as many as the ray crosses pixels / 2 + 2, 3 at least, `vr_decal_carve_steps` at most) and refined
+  between the last two. Where it hits, the textures (`puv`), the marks' own atlas and the permanent layer are read
+  (as the parallax mapping moves them: stereo depth in VR), the colour darkened by depth and the core, and the normal
+  (two more height reads) bent: the baked light shaded from where it comes (the deluxemap's direction, else the mark's
+  `v`, turned to the light that reaches it as the chips always were), then `bumped` for the dynamic lights and sheen.
+  Depth flattens with distance (from half `vr_decal_carve_fade`), as the mark spans under 3 pixels' worth of radius,
+  and as it fades out: no pop.
+- Kinds (`impactShape`): `TE_GUNSHOT` pellets (enforcers', AD's too): 6.5 units, a pit 0.9 deep; `TE_SPIKE` nails: a
+  narrow hole 1.7 deep; `TE_SUPERSPIKE` 9 units, 2.2 deep; a lava nail (`progs/lspike.mdl` seen near the hit) 9.5 / 11
+  units, 2-2.4 deep; scrag and death knight spikes like nails; melee blows (the QC's puffs and sparks) a shallow pit;
+  `TE_EXPLOSION` / `TE_EXPLOSION2` and the QC's explosions a 52-unit scorch with a crater 4 deep, rim 0.4; the lightning
+  gun's and lava's scorches stay flat. Size and depth grow with the square root of the weapon's damage cvar over its
+  shipped value (0.6-1.8; `vr_dmg_shotgun`, `_nail`, `_super_nail`, `_lava_nail`, `_rocket`). `VR_DecalTempEntity`
+  now takes `QVR_DECAL_TE_*` (cl_tent.c).
+- The permanent layer keeps no depth: the newest `vr_decal_carve_max` carved marks stay live (not baked when they
+  settle), until 6 s before their `vr_decal_life`; older ones bake flat as before. With carving off, marks bake as
+  before and are laid at their old sizes.
+
+Settings (Gore page, under Marks, after Decal Lifetime; no migration): `vr_decal_carve` 1, `vr_decal_carve_depth` 1,
+`vr_decal_carve_size` 1 (new marks), `vr_decal_carve_rim` 1, `vr_decal_carve_steps` 16, `vr_decal_carve_fade` 1024,
+`vr_decal_carve_max` 256. Debug menu: Carved Marks (`vr_decal_carve_test`: one of each where you look), Carved Marks:
+192 (`vr_decal_carve_test 64` x3, a lattice), Look Grazing (`vr_decal_carve_test look graze 64`). `vr_decal_count`
+prints the carved ones by shape.
+
+Measured (mock, 2048 x 2048 eyes, `--exclusive`, start map floor, 189 marks in view, `vr_profile_report`): the world's
+GPU time 1.018 / 1.007 ms carved vs 0.816 flat (`vr_decal_carve_depth 0`): +0.19 ms for both eyes; the frame's GPU
+2.34 vs 2.17 ms. CPU: no change a frame (world 0.017 ms both; the records are rebuilt only when marks come or go, 16
+bytes more each). No draw calls added. Screenshots (start map, the alcove wall and the hall floor, head-on and at 15
+degrees, carved and flat; also retro textures off, fog, single-pass stereo): carving shows in each.
+
+Not done / to try in VR: the depth and rim at arm's length and at grazing angles (the texture inside a hole moves with
+the eyes); a dense shotgun pattern (a 32-unit spot lists at most `vr_decal_bucket_max` 24 marks); the mock could not be
+made to fire the nailguns, so the nail and lava nail kinds were checked through `vr_decal_carve_test` only.

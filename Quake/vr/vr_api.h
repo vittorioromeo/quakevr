@@ -315,7 +315,8 @@ void VR_ParseEntityUpdate (int num, int bits);			// CL_ParseUpdate, after the fi
 int VR_ParseServerMessage (int cmd);					// unknown svc: nonzero if handled
 int VR_ParseBeamEntity (int ent);						// CL_ParseBeam: beam key for an entity
 enum { QVR_DLIGHT_MUZZLE, QVR_DLIGHT_ROCKET, QVR_DLIGHT_EXPLOSION };
-void VR_DecalTempEntity (int scorch, const float *pos);	// cl_tent.c: a wall hit (0) or an explosion (1) leaves a mark
+enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DECAL_TE_SUPERSPIKE, QVR_DECAL_TE_MONSTERSPIKE };
+void VR_DecalTempEntity (int what, const float *pos);	// cl_tent.c: a wall hit or an explosion (QVR_DECAL_TE_*) leaves a mark, carved as what made it
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
 void VR_ExplosionDebrisTrail (int ent);					// CL_RelinkEntities, an entity without a trail of Quake's: an explosion's chunk's fire trail (vr_explosiondebris.cpp)
 int VR_GrenadeTrail (int ent);						// CL_RelinkEntities: whether a grenade model smokes (not a hand grenade with its pin in: vr_grenade.qc)

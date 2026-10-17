@@ -1138,6 +1138,7 @@ void R_SetupView (void)
 
 	R_SetFrustum ();
 	VR_DecalsFrame (r_framedata.decalclock); // QVR: the decals on the world (vr/vr_decals.cpp)
+	VR_DecalCarveFrame (r_framedata.decalcarve); // QVR: ... carved (vr/vr_decals.cpp)
 	VR_PermDecalsFrame (r_framedata.permdecals); // QVR: and those baked for good (vr/vr_permdecals.cpp)
 
 	VR_ProfileBegin ("mark surfaces"); // QVR: profile

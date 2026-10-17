@@ -131,7 +131,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (0, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 20, 30);
 		VR_ProjectileImpactLight (0, pos); // QVR: a green flash
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
@@ -141,7 +141,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (0, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_MONSTERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 226, 20);
 		VR_ProjectileImpactLight (1, pos); // QVR: a fiery flash
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
@@ -151,7 +151,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (0, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_SPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 10);
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -170,7 +170,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (0, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
 		if ( rand() % 5 )
@@ -191,7 +191,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (0, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_GUNSHOT, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
 		break;
 
@@ -199,7 +199,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (1, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
 		R_ParticleExplosion (pos);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
@@ -257,7 +257,7 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		VR_DecalTempEntity (1, pos); // QVR: a mark
+		VR_DecalTempEntity (QVR_DECAL_TE_EXPLOSION, pos); // QVR: a mark
 		colorStart = MSG_ReadByte ();
 		colorLength = MSG_ReadByte ();
 		R_ParticleExplosion2 (pos, colorStart, colorLength);

@@ -830,8 +830,12 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	if (ParallaxDist != 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo; nearer: raised)\n"
 "		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
+QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters move where the textures are read, as parallax does
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
+"	const bool carve_on = false;\n"
+"	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
+"	const float carve_dark = 1.;\n"
 "#endif\n"
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none)
 "	bool rl_lightmapped = (in_flags & CF_NOLIGHTMAP) == 0u;\n" // QVR: retro lighting (vr_retrolight.h): the face's texel grid (its lightmap's, less 8)

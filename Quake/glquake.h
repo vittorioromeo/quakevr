@@ -475,6 +475,7 @@ typedef struct gpuframedata_s {
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
 	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
+	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
