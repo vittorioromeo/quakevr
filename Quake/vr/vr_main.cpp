@@ -41,6 +41,7 @@
 #include "vr_bodytrack.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
@@ -2043,6 +2044,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
+    Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
     Cmd_AddCommand("vr_decal_carve_test", decals::carveTest_f);

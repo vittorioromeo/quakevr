@@ -19,6 +19,7 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -724,6 +725,34 @@ void mockHandTo_f()
             Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
             return;
         }
+        moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "zone") || !q_strcasecmp(Cmd_Argv(2), "zonegrip")))
+    {
+        // At zone `index`'s holster as drawn (zones::Zone: the holsters 0..5 as above, 6 the ammo pouch, 7 the grenade
+        // pouch; its model's origin, the loops), `out` `outwards` `up` units off it in its frame; "zonegrip": the grip of
+        // the gun the hand holds there instead (vr_holster_zones tests).
+        const hands::State& st = hands::current();
+        const glm::vec3 off{Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f,
+            Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f};
+        glm::vec3 target;
+        if(!zones::drawnPoint(st, Q_atoi(Cmd_Argv(3)), off, target))
+        {
+            Con_Printf("vr_mock_hand_to: no zone %s\n", Cmd_Argv(3));
+            return;
+        }
+        glm::vec3 handle, tip;
+        if(!q_strcasecmp(Cmd_Argv(2), "zonegrip"))
+        {
+            if(!view::heldWeaponLine(hand, handle, tip))
+            {
+                Con_Printf("vr_mock_hand_to: no gun in that hand\n");
+                return;
+            }
+            target += st.pos[hand] - handle;
+        }
+        Con_Printf("vr_mock_hand_to: %s %s: %.1f %.1f %.1f\n", Cmd_Argv(2), Cmd_Argv(3), target.x, target.y, target.z);
         moveHandTo(hand, target);
         return;
     }
