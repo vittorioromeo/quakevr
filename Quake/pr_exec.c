@@ -268,7 +268,22 @@ the builtins it calls, its QuakeC callees out) and its calls; each builtin's sel
 converted with the wall clock between the reset and the print. Off: one test a call.
 ============
 */
+#if defined(_WIN32)
 #include <intrin.h>
+#define QCPROF_TICKS() __rdtsc ()
+#elif defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>
+#define QCPROF_TICKS() __rdtsc ()
+#else // no TSC (ARM): the monotonic clock in nanoseconds (the print converts ticks by the wall clock all the same)
+#include <time.h>
+static inline unsigned long long QCProf_Ticks (void)
+{
+	struct timespec ts;
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	return (unsigned long long)ts.tv_sec * 1000000000ull + (unsigned long long)ts.tv_nsec;
+}
+#define QCPROF_TICKS() QCProf_Ticks ()
+#endif
 
 cvar_t vr_qcprofile = {"vr_qcprofile", "0", CVAR_NONE};
 
@@ -304,7 +319,7 @@ static void QCProf_Reset (void)
 	}
 	memset (qcprof.pairs, 0, sizeof (qcprof.pairs));
 	qcprof.stack[0].child = 0;
-	qcprof.reset_tsc = __rdtsc ();
+	qcprof.reset_tsc = QCPROF_TICKS ();
 	qcprof.reset_time = Sys_DoubleTime ();
 	qcprof.reset_frame = host_framecount;
 }
@@ -390,7 +405,7 @@ void PR_ProfileQC_f (void)
 		QCProf_Reset ();
 		return;
 	}
-	ticks = __rdtsc () - qcprof.reset_tsc;
+	ticks = QCPROF_TICKS () - qcprof.reset_tsc;
 	secs = Sys_DoubleTime () - qcprof.reset_time;
 	frames = host_framecount - qcprof.reset_frame;
 	if (frames < 1)
@@ -510,7 +525,7 @@ static int PR_EnterFunction (dfunction_t *f)
 	VR_TracyQC(f);
 	if (qcprof.active) // QVR: vr_qcprofile
 	{
-		qcprof.stack[qcvm->depth].t0 = __rdtsc ();
+		qcprof.stack[qcvm->depth].t0 = QCPROF_TICKS ();
 		qcprof.stack[qcvm->depth].child = 0;
 	}
 	return f->first_statement - 1;	// offset the s++
@@ -540,7 +555,7 @@ static int PR_LeaveFunction (void)
 	if (qcprof.active) // QVR: vr_qcprofile
 	{
 		const int fn = (int)(qcvm->xfunction - qcvm->functions);
-		const unsigned long long dt = __rdtsc () - qcprof.stack[qcvm->depth].t0;
+		const unsigned long long dt = QCPROF_TICKS () - qcprof.stack[qcvm->depth].t0;
 		qcprof.incl[fn] += dt;
 		qcprof.self[fn] += dt - qcprof.stack[qcvm->depth].child;
 		qcprof.calls[fn]++;
@@ -895,10 +910,10 @@ static void PR_ExecuteProgramRun (func_t fnum)
 			VR_TracyQC(newf);
 			if (qcprof.active) // QVR: vr_qcprofile: the builtin's own time (QuakeC it calls out), in its caller's self too
 			{
-				const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = __rdtsc ();
+				const unsigned long long child0 = qcprof.stack[qcvm->depth].child, t0 = QCPROF_TICKS ();
 				qcvm->builtins[i]();
 				{
-					const unsigned long long dt = __rdtsc () - t0;
+					const unsigned long long dt = QCPROF_TICKS () - t0;
 					const int fn = (int)(newf - qcvm->functions);
 					const unsigned long long self = dt - (qcprof.stack[qcvm->depth].child - child0);
 					qcprof.self[fn] += self;

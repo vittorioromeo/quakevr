@@ -235,6 +235,7 @@ void useValidationLayer()
     q_snprintf(line, sizeof(line), "XR_API_LAYER_PATH: %s (the OpenXR core validation layer: openxr_validation.log)\n", joined);
     writeSummaryLine(line);
 }
+#endif
 
 // The run's own logs (vr_runlogs.cpp: console.log, openxr_debug.log, system.txt) and the runtimes' (written during the
 // run), gl_startup.log and qvr_openxr.txt, copied into the folder.
@@ -248,7 +249,6 @@ void copyLogs()
     }
     runlogs::copyRuntimeLogs(diag.dir, diag.began, writeSummaryLine);
 }
-#endif
 
 void writeIdSummary(FILE* f, const IdCount* ids, unsigned total, const char* what)
 {
@@ -378,22 +378,11 @@ extern "C" void VR_DiagnosticsEnd(int crashed)
     writeIdSummary(diag.gl, diag.glIds, diag.glTotal, "GL debug");
     writeSummaryLine(va("Ended: %s, %.0f s after the start\n", crashed ? "a crash (crash/ has the report)" : "a quit or an error",
         difftime(time(nullptr), diag.began)));
-#ifdef _WIN32
     copyLogs();
-#endif
     if(!crashed)
     {
         Con_Printf("Diagnostics: everything is in %s\n", diag.dir);
-#ifdef _WIN32
-        if(!getenv("QVR_NO_ERROR_DIALOG") && !getenv("QVR_TEST_HIDDEN"))
-        {
-            char full[MAX_PATH];
-            if(GetFullPathNameA(diag.dir, sizeof(full), full, nullptr))
-            {
-                ShellExecuteA(nullptr, "open", full, nullptr, nullptr, SW_SHOWNORMAL);
-            }
-        }
-#endif
+        runlogs::openFolder(diag.dir); // (Explorer, xdg-open; not in a test run)
     }
 }
 

@@ -12329,3 +12329,30 @@ new `PRE=` env for extra commands). `magchain_test.sh` held calm as before: slow
 Decisions: points on the world are dragged as magchain2 had them, not left still (that cut a corner). The snap's 10 %
 residual is kept, as an offset rather than a kick. To try in VR: hold a bound gun and stick-walk, strafe, turn and stop:
 only a slight sway. Locomotion Sway 1 for the old swing to compare, 0 for none.
+
+## Native Linux build (worktree `fastship`, branch `agent/linux`, 2026-10-17)
+
+Why: a player tried Proton; wineopenxr rejects the WGL binding (`XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR`, "Unhandled
+graphics binding type 1000023000"), so VR on Linux needs a native build. Details, build steps and what is stubbed:
+`docs/vr-port/LINUX.md`.
+
+- Compile (clang 23, WSL2 Arch): 3 fixes in our code (`pr_exec.c`'s `intrin.h`/`__rdtsc`: `x86intrin.h`, the monotonic
+  clock on ARM; `vr_relight_process.cpp` missing `stdlib.h`; mimalloc's own mangled `operator new/delete` collided
+  with `vr_alloccount.cpp`'s: renamed away by compile definitions on its `static.c`, `vr.cmake`). gcc 16 is not
+  supported: two errors inside vendored Zancle (`__decay` in signatures, an eager defaulted `operator==`).
+- Ported: crash reports (signal handlers + `backtrace`/`dladdr`, report in `<game>/crash/`, `qvr_crash.txt` in test
+  runs; Sys_Error reports and names it in its dialog), run logs and the `bugreport` zip (`vr_runlogs.cpp`, POSIX file
+  calls, `/etc/os-release`), diagnostics' log copies, folder opening by `xdg-open` (`runlogs::openFolder`), RenderDoc
+  (`dlopen RTLD_NOLOAD`), OpenXR runtime detection (`active_runtime.json` in the XDG dirs, `/usr/share/openxr/1`,
+  `/proc/*/comm`).
+- VR: the OpenXR backend builds on Linux with the system loader (`pkg-config openxr`, option `QVR_OPENXR`, default
+  ON) and binds SDL's GLX context with `XrGraphicsBindingOpenGLXlibKHR` (`vr_xr_glx.cpp`: the X11/GLX headers kept out
+  of the backend). No EGL/Wayland binding: X11 or XWayland only.
+- Verified in WSL (kit `linux/`, logs in `kit/linux/logs/fastship-wsl/`): e1m1 on the mock headset under Xvfb+llvmpipe
+  (exit 0, screenshot correct); `vr_crash_test av` writes the report with the stack (exit 139); `bugreport` writes the
+  zip; against Monado 25.1.0 (built from source: Arch has it in the AUR only) with the simulated HMD and the null
+  compositor: instance, GLX session, 5 swapchains, IDLE -> READY -> SYNCHRONIZED -> VISIBLE -> FOCUSED, then 82 s of
+  frames rendered and submitted (7-8 fps on llvmpipe/lavapipe, 320x240 eyes), a clean quit. Windows Release rebuilt
+  (0 warnings) and its e1m1 smoke unchanged (run logs, system.txt as before).
+- To test on a real Linux PC with a headset (Monado/WiVRn/SteamVR): build per LINUX.md, `vr_backend openxr`, check
+  `qvr_openxr.txt` for the session states and the "GL interop" line. Nobody has run a real headset on it yet.

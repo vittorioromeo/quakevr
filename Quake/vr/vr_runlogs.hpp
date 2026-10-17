@@ -23,6 +23,9 @@ void copyRuntimeLogs(const char* dir, time_t since, LineFn line);
 // A file of the run's folder (console.log, openxr_debug.log: flushed first) copied into `dir`.
 void copyRunFile(const char* name, const char* dir);
 
+// A folder opened in the desktop's file manager (Explorer; xdg-open elsewhere); nothing in an automated test run.
+void openFolder(const char* path);
+
 // The OpenXR debug messages so far (vr_diagnostics_status).
 [[nodiscard]] unsigned xrMessages();
 

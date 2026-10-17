@@ -19,6 +19,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 namespace qvr::renderdoc
@@ -98,7 +100,6 @@ State rd;
 
 void look()
 {
-#ifdef _WIN32
     if(rd.api)
     {
         return;
@@ -109,13 +110,23 @@ void look()
         return;
     }
     rd.nextLook = now + 1.0;
+    using GetApiFn = int(QVR_RDC_CC*)(int, void**);
+#ifdef _WIN32
     HMODULE dll = GetModuleHandleA("renderdoc.dll"); // (never LoadLibrary: only what RenderDoc itself put here)
     if(!dll)
     {
         return;
     }
-    using GetApiFn = int(QVR_RDC_CC*)(int, void**);
     const FARPROC proc = GetProcAddress(dll, "RENDERDOC_GetAPI");
+#else
+    // Linux: librenderdoc.so only if RenderDoc put it here (RTLD_NOLOAD: never loaded from here).
+    void* dll = dlopen("librenderdoc.so", RTLD_NOW | RTLD_NOLOAD);
+    if(!dll)
+    {
+        return;
+    }
+    void* const proc = dlsym(dll, "RENDERDOC_GetAPI");
+#endif
     if(!proc)
     {
         return;
@@ -133,7 +144,6 @@ void look()
             return;
         }
     }
-#endif
 }
 
 void finish(const char* why)

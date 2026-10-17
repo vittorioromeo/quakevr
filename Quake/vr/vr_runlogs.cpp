@@ -37,11 +37,24 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
+#else
+#include <dirent.h>
+#include <limits.h>
+#include <pthread.h>
+#include <spawn.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char** environ;
 #endif
 
 using namespace qvr;
 
 extern "C" char com_gamedir[];
+#ifndef _WIN32
+extern "C" char com_cmdline[]; // (common.c: the command line, as one line)
+#endif
 extern "C" void LOG_OpenRun(const char* path);
 extern "C" void LOG_Flush(void);
 
@@ -77,6 +90,8 @@ struct State
     IdCount xrIds[idSlots]{};
 #ifdef _WIN32
     SRWLOCK lock = SRWLOCK_INIT; // the messenger is called from the runtime's threads too
+#else
+    pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 };
 State logs;
@@ -85,6 +100,8 @@ void lock()
 {
 #ifdef _WIN32
     AcquireSRWLockExclusive(&logs.lock);
+#else
+    pthread_mutex_lock(&logs.lock);
 #endif
 }
 
@@ -92,6 +109,8 @@ void unlock()
 {
 #ifdef _WIN32
     ReleaseSRWLockExclusive(&logs.lock);
+#else
+    pthread_mutex_unlock(&logs.lock);
 #endif
 }
 
@@ -226,17 +245,6 @@ char* readShared(const char* path, size_t* size, time_t* written)
     return data;
 }
 
-bool writeWhole(const char* path, const char* data, size_t size)
-{
-    FILE* f = fopen(path, "wb");
-    if(!f)
-    {
-        return false;
-    }
-    const bool ok = fwrite(data, 1, size, f) == size;
-    return fclose(f) == 0 && ok;
-}
-
 time_t writtenAt(const char* path)
 {
     WIN32_FILE_ATTRIBUTE_DATA data;
@@ -246,6 +254,109 @@ time_t writtenAt(const char* path)
 bool exists(const char* path)
 {
     return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+}
+
+void removeFile(const char* path)
+{
+    DeleteFileA(path);
+}
+
+void removeDir(const char* path)
+{
+    RemoveDirectoryA(path);
+}
+
+// A path made full (the working directory's), or as it is.
+const char* fullPathOf(const char* path, char* full, size_t size)
+{
+    return GetFullPathNameA(path, static_cast<DWORD>(size), full, nullptr) ? full : path;
+}
+
+const char* commandLine()
+{
+    return GetCommandLineA();
+}
+#else // POSIX (Linux)
+void makeDir(const char* path)
+{
+    mkdir(path, 0755); // (no Sys_mkdir: its failure is a Sys_Error, and the crash reporter calls here)
+}
+
+// A file read whole while others may write it (a runtime's open log): its last fileCap bytes; malloc'd (null: none).
+char* readShared(const char* path, size_t* size, time_t* written)
+{
+    *size = 0;
+    FILE* f = fopen(path, "rb");
+    if(!f)
+    {
+        return nullptr;
+    }
+    struct stat st{};
+    fstat(fileno(f), &st);
+    if(written)
+    {
+        *written = st.st_mtime;
+    }
+    const uint64_t total = static_cast<uint64_t>(st.st_size);
+    const uint64_t take = total > fileCap ? fileCap : total;
+    if(total > take)
+    {
+        fseeko(f, static_cast<off_t>(total - take), SEEK_SET);
+    }
+    char* data = static_cast<char*>(malloc(static_cast<size_t>(take) + 1));
+    const size_t done = data ? fread(data, 1, static_cast<size_t>(take), f) : 0;
+    fclose(f);
+    *size = done;
+    return data;
+}
+
+time_t writtenAt(const char* path)
+{
+    struct stat st{};
+    return stat(path, &st) == 0 ? st.st_mtime : 0;
+}
+
+bool exists(const char* path)
+{
+    return access(path, F_OK) == 0;
+}
+
+void removeFile(const char* path)
+{
+    unlink(path);
+}
+
+void removeDir(const char* path)
+{
+    rmdir(path);
+}
+
+const char* fullPathOf(const char* path, char* full, size_t size)
+{
+    char resolved[PATH_MAX];
+    if(realpath(path, resolved))
+    {
+        q_strlcpy(full, resolved, size);
+        return full;
+    }
+    return path;
+}
+
+const char* commandLine()
+{
+    return com_cmdline;
+}
+#endif
+
+bool writeWhole(const char* path, const char* data, size_t size)
+{
+    FILE* f = fopen(path, "wb");
+    if(!f)
+    {
+        return false;
+    }
+    const bool ok = fwrite(data, 1, size, f) == size;
+    return fclose(f) == 0 && ok;
 }
 
 // A folder's entries' names (files or folders), sorted.
@@ -263,6 +374,26 @@ int compareNames(const void* a, const void* b)
 void listNames(const char* dir, bool folders, Names& out)
 {
     out.count = 0;
+#ifndef _WIN32
+    DIR* d = opendir(dir);
+    if(!d)
+    {
+        return;
+    }
+    while(const dirent* e = readdir(d))
+    {
+        char path[1200];
+        q_snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+        struct stat st{};
+        const bool folder = stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+        if(folder == folders && strcmp(e->d_name, ".") && strcmp(e->d_name, "..") && out.count < maxNames &&
+            strlen(e->d_name) < nameSize)
+        {
+            q_strlcpy(out.name[out.count++], e->d_name, nameSize);
+        }
+    }
+    closedir(d);
+#else
     char pattern[1200];
     q_snprintf(pattern, sizeof(pattern), "%s/*", dir);
     WIN32_FIND_DATAA fd;
@@ -281,6 +412,7 @@ void listNames(const char* dir, bool folders, Names& out)
         }
     } while(FindNextFileA(h, &fd));
     FindClose(h);
+#endif
     qsort(out.name, static_cast<size_t>(out.count), nameSize, compareNames);
 }
 
@@ -308,16 +440,16 @@ void removeRun(const char* dir)
     for(int i = 0; i < files.count; i++)
     {
         q_snprintf(path, sizeof(path), "%s/%s", dir, files.name[i]);
-        DeleteFileA(path);
+        removeFile(path);
     }
     q_snprintf(path, sizeof(path), "%s/runtime", dir);
     listNames(path, false, files);
     for(int i = 0; i < files.count; i++)
     {
-        DeleteFileA(va("%s/%s", path, files.name[i]));
+        removeFile(va("%s/%s", path, files.name[i]));
     }
-    RemoveDirectoryA(path);
-    RemoveDirectoryA(dir);
+    removeDir(path);
+    removeDir(dir);
 }
 
 // The logs copied at an incident and put in the bug report, besides the run's own.
@@ -344,6 +476,15 @@ int sources(Source* out, int max)
     };
     add(va("%s/crash/gl_startup.log", com_gamedir), "gl_startup.log", true, false);
     add(xrruntime::logPath(), "qvr_openxr.txt", false, false);
+#ifndef _WIN32
+    // SteamVR for Linux: under ~/.local/share/Steam (Monado logs to its own stdout: nothing to copy).
+    if(const char* home = getenv("HOME"))
+    {
+        add(va("%s/.local/share/Steam/logs/vrserver.txt", home), "steamvr_vrserver.txt", false, true);
+        add(va("%s/.local/share/Steam/logs/vrcompositor.txt", home), "steamvr_vrcompositor.txt", false, true);
+        add(va("%s/.local/share/Steam/logs/vrclient_ironwail.txt", home), "steamvr_vrclient_ironwail.txt", false, true);
+    }
+#else
     // SteamVR: under Steam's folder (the registry's SteamPath).
     char steam[MAX_PATH] = "";
     DWORD size = sizeof(steam);
@@ -362,6 +503,7 @@ int sources(Source* out, int max)
         add(va("%s\\Virtual Desktop\\OpenXR.log", programData), "vdxr_OpenXR.log", false, true);
         add(va("%s\\Virtual Desktop\\StreamerLog.txt", programData), "vd_StreamerLog.txt", false, true);
     }
+#endif
     return n;
 }
 
@@ -398,6 +540,24 @@ void openFolder(const char* path, bool select)
     {
         return; // (an automated test run: no Explorer)
     }
+#ifndef _WIN32
+    // The desktop's file manager (xdg-open), on the folder (a file's: its folder; xdg-open selects nothing).
+    char full[PATH_MAX];
+    q_strlcpy(full, fullPathOf(path, full, sizeof(full)), sizeof(full));
+    if(select)
+    {
+        if(char* slash = strrchr(full, '/'))
+        {
+            *slash = 0;
+        }
+    }
+    char* const argv[] = {const_cast<char*>("xdg-open"), full, nullptr};
+    pid_t pid = 0;
+    if(posix_spawnp(&pid, "xdg-open", nullptr, nullptr, argv, environ) != 0)
+    {
+        Con_Printf("Open it from %s (xdg-open is not there)\n", full);
+    }
+#else
     char full[MAX_PATH];
     if(GetFullPathNameA(path, sizeof(full), full, nullptr))
     {
@@ -414,9 +574,41 @@ void openFolder(const char* path, bool select)
             ShellExecuteA(nullptr, "open", full, nullptr, nullptr, SW_SHOWNORMAL);
         }
     }
+#endif
 }
 
-const char* windowsVersion()
+#ifndef _WIN32
+constexpr const char* osLabel = "Linux";
+
+// "Arch Linux (Linux 6.6.87 x86_64)": /etc/os-release's PRETTY_NAME and uname's.
+const char* osVersion()
+{
+    char pretty[128] = "unknown";
+    if(FILE* f = fopen("/etc/os-release", "rb"))
+    {
+        char line[256];
+        while(fgets(line, sizeof(line), f))
+        {
+            if(!strncmp(line, "PRETTY_NAME=", 12))
+            {
+                const char* v = line + 12 + (line[12] == '"');
+                q_strlcpy(pretty, v, sizeof(pretty));
+                pretty[strcspn(pretty, "\"\r\n")] = 0;
+            }
+        }
+        fclose(f);
+    }
+    utsname u{};
+    if(uname(&u) != 0)
+    {
+        return va("%s", pretty);
+    }
+    return va("%s (%s %s %s)", pretty, u.sysname, u.release, u.machine);
+}
+#else
+constexpr const char* osLabel = "Windows";
+
+const char* osVersion()
 {
     using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
     OSVERSIONINFOW v{};
@@ -429,6 +621,7 @@ const char* windowsVersion()
     }
     return va("%lu.%lu build %lu", v.dwMajorVersion, v.dwMinorVersion, v.dwBuildNumber);
 }
+#endif
 
 // A zip of stored files (no compression; no zip64: each file within fileCap, the whole within 4 GB).
 struct ZipEntry
@@ -630,7 +823,7 @@ bool makeReport(bool lastRun, char* out, size_t outSize)
     summary += va("Quake VR: Unleashed bug report, made %s %s\n", stamp,
         lastRun ? "with -bugreport (the last run's logs; the game not started)" : "in the game (this run's logs)");
     summary += va("Build: %s\n", VR_BuildInfo());
-    summary += va("Windows: %s\n", windowsVersion());
+    summary += va("%s: %s\n", osLabel, osVersion());
     summary += va("Game folder: %s\n", com_gamedir);
     if(!lastRun)
     {
@@ -738,8 +931,8 @@ void bugreport_f()
         Con_Warning("Bug report: not made: %s\n", path);
         return;
     }
-    char full[MAX_PATH];
-    const char* shown = GetFullPathNameA(path, sizeof(full), full, nullptr) ? full : path;
+    char full[1200];
+    const char* shown = fullPathOf(path, full, sizeof(full));
     Con_Printf("\x02" "Bug report saved: %s\n", shown);
     Con_Printf("Attach it to your bug report, with what you were doing (it has this run's and the last run's logs).\n");
     SCR_CenterPrintFor(va("Bug report saved:\n%s", shown), 6.f);
@@ -755,13 +948,14 @@ void bugreport_f()
     {
         openFolder(path, true);
     }
+#ifdef _WIN32
     else if(!getenv("QVR_NO_ERROR_DIALOG") && !getenv("QVR_TEST_HIDDEN"))
     {
         MessageBoxA(nullptr, va("No bug report could be made:\n%s", path), "Quake VR: Unleashed - Bug Report", MB_OK | MB_ICONWARNING);
     }
+#endif
     exit(ok ? 0 : 1);
 }
-#endif
 
 void openXrLog()
 {
@@ -862,23 +1056,16 @@ void append(const char* name, const char* text)
 
 void copyRuntimeLogs(const char* dir, time_t since, LineFn line)
 {
-#ifdef _WIN32
     Source list[16];
     const int n = sources(list, 16);
     for(int i = 0; i < n; i++)
     {
         copyIn(list[i], dir, since, line);
     }
-#else
-    (void)dir;
-    (void)since;
-    (void)line;
-#endif
 }
 
 void copyRunFile(const char* name, const char* dir)
 {
-#ifdef _WIN32
     if(!logs.dir[0])
     {
         return;
@@ -889,15 +1076,16 @@ void copyRunFile(const char* name, const char* dir)
     s.name = name;
     s.always = true;
     copyIn(s, dir, 0, nullptr);
-#else
-    (void)name;
-    (void)dir;
-#endif
 }
 
 unsigned xrMessages()
 {
     return logs.xrTotal;
+}
+
+void openFolder(const char* path)
+{
+    ::openFolder(path, false);
 }
 
 } // namespace qvr::runlogs
@@ -910,7 +1098,6 @@ extern "C" void VR_LogsBegin(void)
         return;
     }
     logs.begun = true;
-#ifdef _WIN32
     if(COM_CheckParm("-bugreport"))
     {
         reportAndExit();
@@ -943,12 +1130,9 @@ extern "C" void VR_LogsBegin(void)
     q_snprintf(path, sizeof(path), "%s/console.log", logs.dir);
     LOG_OpenRun(path);
     systemLine(va("Quake VR: Unleashed %s, run of %s\n", VR_BuildInfo(), logs.stamp));
-    systemLine(va("Command line: %s\n", GetCommandLineA()));
-    systemLine(va("Windows: %s\n", windowsVersion()));
+    systemLine(va("Command line: %s\n", commandLine()));
+    systemLine(va("%s: %s\n", osLabel, osVersion()));
     systemLine(va("Game folder: %s\n", com_gamedir));
-#else
-    LOG_OpenRun(nullptr);
-#endif
 }
 
 extern "C" void VR_LogsEnd(void)
@@ -987,12 +1171,10 @@ extern "C" void VR_LogsIncident(const char* what)
     stampOf(now, when, sizeof(when));
     q_snprintf(line, sizeof(line), "%s incident: %s; the runtimes' logs copied into runtime/:\n", when, what ? what : "?");
     systemLine(line);
-#ifdef _WIN32
     char dir[1200];
     q_snprintf(dir, sizeof(dir), "%s/runtime", logs.dir);
     makeDir(dir);
     runlogs::copyRuntimeLogs(dir, logs.began, systemLine);
-#endif
 }
 
 // (From any thread: a runtime calls its messenger from its own.)
@@ -1029,8 +1211,6 @@ extern "C" void VR_DiagnosticsNote(const char* line)
 
 extern "C" void VR_LogsInit(void)
 {
-#ifdef _WIN32
     Cmd_AddCommand("bugreport", bugreport_f);
-#endif
     Cmd_AddCommand("vr_logs_status", runlogsStatus_f);
 }

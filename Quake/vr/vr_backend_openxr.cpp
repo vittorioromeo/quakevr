@@ -27,10 +27,24 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+#ifdef _WIN32
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 
 #define XR_USE_PLATFORM_WIN32
+#else
+// Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR). Its X11/GLX types declared as Xlib.h and glx.h have them
+// (without those headers' macros here: vr_xr_glx.cpp has them).
+#include "vr_xr_glx.hpp"
+#include <pthread.h>
+#include <unistd.h>
+typedef unsigned long XID;
+typedef struct _XDisplay Display;
+typedef XID GLXDrawable;
+typedef struct __GLXcontextRec* GLXContext;
+typedef struct __GLXFBConfigRec* GLXFBConfig;
+#define XR_USE_PLATFORM_XLIB
+#endif
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
@@ -52,6 +66,24 @@ namespace
 // GL images as made once its D3D11 images are, and reads the first of none. The D3D11 images are fetched before the
 // image structs' type is checked, so an earlier call that failed that check (an API layer's, enumerating the game's
 // swapchain as D3D11 or Vulkan ones) leaves the swapchain in that state (ROUND22.md, "VDXR swapchain crash").
+#ifndef _WIN32
+// Linux: no structured exceptions; a crash inside the runtime is the crash handler's (vr_crash.cpp): never caught here.
+struct Fault
+{
+    unsigned code{0};
+};
+
+template <typename Call>
+XrResult guardedCall(Call& call, Fault&)
+{
+    return call();
+}
+
+void describeFault(const Fault& fault, char* out, size_t size)
+{
+    q_snprintf(out, size, "fault %u", fault.code);
+}
+#else
 struct Fault
 {
     DWORD code{0};
@@ -128,6 +160,7 @@ void describeFault(const Fault& fault, char* out, size_t size)
             static_cast<unsigned long long>(offset));
     }
 }
+#endif // _WIN32
 
 // The debug messenger (any thread; every run, vr_diagnostics_xr): the message to the run's openxr_debug.log
 // (vr_runlogs.cpp, rate-limited).
@@ -710,8 +743,12 @@ private:
     za::Vector<int64_t> offeredFormats;           // xrEnumerateSwapchainFormats' (createSwapchain checks against it)
     uint32_t maxImageWidth{0};                    // the system's largest swapchain image (0: not known)
     uint32_t maxImageHeight{0};
+#ifdef _WIN32
     HDC glDC{nullptr};                            // the game's GL context, as bound to the session
     HGLRC glRC{nullptr};
+#else
+    xrglx::Binding glx;                           // the game's GLX context, as bound to the session
+#endif
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
@@ -848,9 +885,17 @@ private:
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock()
     {
+#ifdef _WIN32
         SYSTEMTIME t;
         GetLocalTime(&t);
         return va("%02d:%02d:%02d.%03d", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+#else
+        timespec ts{};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        tm local{};
+        localtime_r(&ts.tv_sec, &local);
+        return va("%02d:%02d:%02d.%03ld", local.tm_hour, local.tm_min, local.tm_sec, ts.tv_nsec / 1000000);
+#endif
     }
 
     [[nodiscard]] static const char* stateName(XrSessionState state)
@@ -1002,11 +1047,13 @@ private:
             runtime[0] ? runtime : "the runtime", what, text);
         VR_GLStep("OpenXR: %s crashed: %s (caught)", what, text);
         // The runtime may have left its own GL context current (VDXR switches to the game's around its GL calls).
+#ifdef _WIN32
         if(glRC && wglGetCurrentContext() != glRC)
         {
             const BOOL made = wglMakeCurrent(glDC, glRC);
             xrruntime::warn("OpenXR: the game's GL context made current again after the crash: %s\n", made ? "done" : "FAILED");
         }
+#endif
         return XR_ERROR_RUNTIME_FAILURE;
     }
 
@@ -1044,7 +1091,11 @@ private:
         if(vr_xr_test_drop_context.value != 0.f) // (the test of contextReady: no context current, once)
         {
             Cvar_SetValueQuick(&vr_xr_test_drop_context, 0.f);
+#ifdef _WIN32
             wglMakeCurrent(nullptr, nullptr);
+#else
+            xrglx::release();
+#endif
         }
         if(!contextReady(what))
         {
@@ -1599,7 +1650,11 @@ private:
             int tries = 1;
             while(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && Sys_DoubleTime() - begin < vr_xr_steamvr_wait.value)
             {
+#ifdef _WIN32
                 Sleep(250);
+#else
+                usleep(250 * 1000);
+#endif
                 result = xrGetSystem(instance, &info, &systemId);
                 tries++;
             }
@@ -1643,6 +1698,47 @@ private:
     // its DC still its window's. Logged with both handles; made current again when it isn't; false (the call not made,
     // the start fails) when that fails or the window is gone. (1.0.1: two runtimes, VDXR and SteamVR, died in the first
     // swapchain on one player's PC: a runtime's GL calls without the game's context read null function pointers.)
+#ifndef _WIN32
+    // Linux: the same with GLX (the context and its drawable, the window's).
+    bool contextReady(const char* what)
+    {
+        xrglx::Binding now;
+        const char* why = "";
+        const bool any = xrglx::current(now, &why);
+        xrruntime::logLine(va("%s OpenXR: %s: GLX context %p, drawable 0x%lx current on thread %lu (the session's: %p, 0x%lx)\n",
+            wallClock(), what, now.context, now.drawable, static_cast<unsigned long>(pthread_self()), glx.context, glx.drawable));
+        if(!glx.context || !glx.drawable)
+        {
+            xrruntime::warn("OpenXR: %s not called: no GLX context bound to the session (%s)\n", what, any ? "" : why);
+            return false;
+        }
+        if(now.context == glx.context && now.drawable == glx.drawable)
+        {
+            return true;
+        }
+        const bool made = xrglx::makeCurrent(glx);
+        xrruntime::warn("OpenXR: %s: the game's GLX context wasn't current on this thread (%p instead of %p): made current "
+                        "again: %s\n",
+            what, now.context, glx.context, made ? "done" : "FAILED: the call not made");
+        return made;
+    }
+
+    // What the GL driver offers a runtime that shares its Vulkan images with the game (Monado's GL client:
+    // GL_EXT_memory_object_fd and GL_EXT_semaphore_fd), logged before the session.
+    void logGlInterop()
+    {
+        constexpr const char* names[] = {"glCreateMemoryObjectsEXT", "glImportMemoryFdEXT", "glTextureStorageMem2DEXT",
+            "glImportSemaphoreFdEXT"};
+        za::String text;
+        for(const char* name : names)
+        {
+            text += va("%s%s %s", text.empty() ? "" : ", ", name, xrglx::proc(name) ? "yes" : "NO");
+        }
+        const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+        const bool fd = extensions ? strstr(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
+        xrruntime::logLine(va("OpenXR: GL interop: %s%s\n", text.cStr(), fd ? "" : " (GL_EXT_memory_object_fd not listed)"));
+    }
+#else
     bool contextReady(const char* what)
     {
         const HGLRC rc = wglGetCurrentContext();
@@ -1692,20 +1788,46 @@ private:
             xrruntime::warn("OpenXR: the GL driver lacks GL_EXT_memory_object_win32, which VDXR's OpenGL path needs\n");
         }
     }
+#endif
 
     bool createSession()
     {
+#ifdef _WIN32
         XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
         binding.hDC = wglGetCurrentDC();
         binding.hGLRC = wglGetCurrentContext();
         glDC = binding.hDC;
         glRC = binding.hGLRC;
+        void* const boundContext = static_cast<void*>(glRC);
         logGlInterop();
         step("xrCreateSession (OpenGL: hDC %p, hGLRC %p)", static_cast<void*>(glDC), static_cast<void*>(glRC));
-        // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
-        if(static_cast<void*>(SDL_GL_GetCurrentContext()) != static_cast<void*>(glRC))
+#else
+        // Linux: SDL's GLX context and its window's drawable (XR_KHR_opengl_enable's Xlib binding).
+        const char* why = "";
+        if(!xrglx::current(glx, &why))
         {
-            xrruntime::warn("OpenXR: the current GL context %p is not SDL's (%p)\n", static_cast<void*>(glRC),
+            xrruntime::warn("OpenXR: xrCreateSession not called: %s\n", why);
+            return false;
+        }
+        if(why[0])
+        {
+            xrruntime::warn("OpenXR: %s\n", why);
+        }
+        XrGraphicsBindingOpenGLXlibKHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
+        binding.xDisplay = static_cast<Display*>(glx.display);
+        binding.visualid = glx.visualId;
+        binding.glxFBConfig = static_cast<GLXFBConfig>(glx.fbConfig);
+        binding.glxDrawable = glx.drawable;
+        binding.glxContext = static_cast<GLXContext>(glx.context);
+        void* const boundContext = glx.context;
+        logGlInterop();
+        step("xrCreateSession (OpenGL, Xlib: display %p, drawable 0x%lx, GLX context %p, FBConfig %p, visual 0x%x)",
+            glx.display, glx.drawable, glx.context, glx.fbConfig, glx.visualId);
+#endif
+        // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
+        if(static_cast<void*>(SDL_GL_GetCurrentContext()) != boundContext)
+        {
+            xrruntime::warn("OpenXR: the current GL context %p is not SDL's (%p)\n", boundContext,
                 static_cast<void*>(SDL_GL_GetCurrentContext()));
         }
         if(!contextReady("xrCreateSession"))
