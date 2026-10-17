@@ -1601,12 +1601,13 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     const glm::vec3 k{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     const glm::vec3 o{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 now = anchor::posedAnchor(gun.ent, mount->anchor, gun.zeroBlend) * k + o;
-    const glm::vec3 rest = anchor::posedAnchor(gun.ent, mount->anchor, 1.f) * k + o;
-    const glm::vec3 kick = view::modelPoint(gun, now) - view::modelPoint(gun, rest);
+    const glm::vec3 rest = gun.zeroBlend == 1.f ? now : anchor::posedAnchor(gun.ent, mount->anchor, 1.f) * k + o;
+    const view::ModelSpace gunSpace{gun}; // (the gun's points below: its matrix made once)
+    const glm::vec3 kick = gunSpace.point(now) - gunSpace.point(rest);
     // The weapon's Scale applies about each model's own bounds' corner (its header's origin: vr_render.cpp applyPost),
     // which the magazine's model doesn't share with the gun's: the point that is the gun's model-space origin drawn where
     // the gun draws it (the rest follows: the two differ by a move only).
-    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
+    const glm::vec3 corner = gunSpace.point(glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
     for(int i = 0; i < 3; i++)
     {
         mag.ent.origin[i] += kick[i] + corner[i];
@@ -1632,7 +1633,7 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
         mag.ent.angles[1] = turned.y;
         mag.ent.angles[2] = turned.z;
     }
-    const glm::vec3 to = view::modelPoint(gun, mount->seat + move) + kick - view::modelPoint(mag, mount->seat);
+    const glm::vec3 to = gunSpace.point(mount->seat + move) + kick - view::modelPoint(mag, mount->seat);
     for(int i = 0; i < 3; i++)
     {
         mag.ent.origin[i] += to[i];
@@ -1908,9 +1909,10 @@ void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* m
     part.ent.model = model;
     part.lastModel = gun.ent.model;
     // (The Scale applies about each model's own header origin: the same here, but as setMagazine does.)
-    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(part, glm::vec3{0.f});
-    const glm::vec3 slide =
-        back != 0.f ? view::modelPoint(gun, glm::vec3{-back, 0.f, 0.f}) - view::modelPoint(gun, glm::vec3{0.f}) : glm::vec3{0.f};
+    const view::ModelSpace gunSpace{gun};
+    const glm::vec3 gunOrigin = gunSpace.point(glm::vec3{0.f});
+    const glm::vec3 corner = gunOrigin - view::modelPoint(part, glm::vec3{0.f});
+    const glm::vec3 slide = back != 0.f ? gunSpace.point(glm::vec3{-back, 0.f, 0.f}) - gunOrigin : glm::vec3{0.f};
     for(int i = 0; i < 3; i++)
     {
         part.ent.origin[i] += corner[i] + slide[i];
@@ -2251,16 +2253,18 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     const view::ViewEntity& base = entities.hand[hand][FingerBase];
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
-        hp.wrist = view::modelPoint(base, handWrist);
+        const view::ModelSpace space{base}; // (its matrix made once for the points)
+        hp.wrist = space.point(handWrist);
         // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
-        hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
-        hp.back = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
-        hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
+        const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
+        hp.up = glm::normalize(alongZ - hp.wrist);
+        hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
+        hp.forward = glm::normalize(alongX - hp.wrist);
         if(rigHands[hand].drawn) // (its size: the bare forearms' ends fit round it, avatar.cpp)
         {
-            hp.unit = {glm::distance(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}), hp.wrist),
-                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
-                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}), hp.wrist)};
+            hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
+                glm::distance(alongZ, hp.wrist)};
         }
     }
     else
@@ -3516,23 +3520,36 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
     return true;
 }
 
-glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
+ModelSpace::ModelSpace(const ViewEntity& ve) : origin_{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}
 {
     const entity_t& e = ve.ent;
-    if(!e.model || e.model->type != mod_alias)
+    alias_ = e.model && e.model->type == mod_alias;
+    if(!alias_)
     {
-        return {e.origin[0], e.origin[1], e.origin[2]};
+        return;
     }
-
-    float m[16];
-    render::anchorMatrix(ve, glm::vec3{0.f}, m);
-
-    // anchorMatrix ends with the model's own scale and origin: undo them for a point in model space.
+    render::anchorMatrix(ve, glm::vec3{0.f}, m_);
+    // anchorMatrix ends with the model's own scale and origin: undone for a point in model space (point).
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
-    const glm::vec3 v{(point.x - hdr->scale_origin[0]) / hdr->scale[0], (point.y - hdr->scale_origin[1]) / hdr->scale[1],
-        (point.z - hdr->scale_origin[2]) / hdr->scale[2]};
+    scaleOrigin_ = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    scale_ = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+}
+
+glm::vec3 ModelSpace::point(const glm::vec3& p) const
+{
+    if(!alias_)
+    {
+        return origin_;
+    }
+    const float* m = m_;
+    const glm::vec3 v{(p.x - scaleOrigin_.x) / scale_.x, (p.y - scaleOrigin_.y) / scale_.y, (p.z - scaleOrigin_.z) / scale_.z};
     return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
         m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+}
+
+glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
+{
+    return ModelSpace{ve}.point(point);
 }
 
 namespace

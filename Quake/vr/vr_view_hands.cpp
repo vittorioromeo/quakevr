@@ -905,6 +905,21 @@ void rigShifts(qmodel_t* model, int hand, handrig::Pose& pose)
                         vec3Of(handrig::data::fingerBindShift[f]);
     }
 }
+
+// emptyHandSpheres' posed spheres, per hand, open and closed (the pose they were posed at, the rig's generation).
+struct PosedSpheresMemo
+{
+    bool valid = false;
+    unsigned generation = 0;
+    handrig::Pose pose;
+    za::Vector<glm::vec4> spheres;
+};
+struct PosedSpheresCache
+{
+    za::Array<PosedSpheresMemo, 4> memos; // [hand * 2 + fist] (released whole: not valid)
+    auto members() { return mem::list(memos); }
+};
+mem::Cache<PosedSpheresCache> posedSpheresMemo{"view posed spheres", mem::GameDirChange | mem::ModelReload};
 } // namespace
 
 // The empty hand at the controller's pose (setupHand's: turned by the fist's angle offsets), open (`fist` false) or closed
@@ -936,8 +951,17 @@ bool emptyHandSpheres(const hands::State& s, int hand, bool fist, za::Vector<glm
     const glm::mat4 rig = rigPlacement(hand, s.pos[hand], handRot, mirrored, nullptr);
     const float unit = glm::length(glm::vec3{rig[0]});
     const glm::mat3 toHand = glm::transpose(held::axesFromAngles(&s.rot[hand][0], true));
-    za::Vector<glm::vec4>& spheres = scratch.handSpheres;
-    grasp::posedSpheres(pose, spheres);
+    // The posed spheres (rig space) are the pose's and the rig's alone: the open and the closed hand's kept from the last
+    // frame while both are the same (the settings unchanged), not posed again four times a frame.
+    PosedSpheresMemo& memo = posedSpheresMemo.memos[static_cast<za::SizeT>(hand * 2 + (fist ? 1 : 0))];
+    if(!memo.valid || memo.generation != handrig::generation() || memcmp(&memo.pose, &pose, sizeof(pose)) != 0)
+    {
+        grasp::posedSpheres(pose, memo.spheres);
+        memo.valid = true;
+        memo.generation = handrig::generation();
+        memo.pose = pose;
+    }
+    const za::Vector<glm::vec4>& spheres = memo.spheres;
     for(const glm::vec4& sp : spheres)
     {
         const glm::vec3 w{rig * glm::vec4{glm::vec3{sp}, 1.f}};
