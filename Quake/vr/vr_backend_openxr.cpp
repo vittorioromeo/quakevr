@@ -366,7 +366,7 @@ public:
         XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
         syncInfo.countActiveActionSets = 1;
         syncInfo.activeActionSets = &active;
-        xrSyncActions(session, &syncInfo);
+        QVR_TRACY_CALL("xrSyncActions", xrSyncActions(session, &syncInfo));
         timeCall(CallSync, t0);
 
         const XrTime time = frameState.predictedDisplayTime;
@@ -383,8 +383,10 @@ public:
         {
             v = XrView{XR_TYPE_VIEW};
         }
+        XrResult located = XR_SUCCESS;
+        QVR_TRACY_CALL("xrLocateViews", located = xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views));
         const bool viewsOk =
-            check(xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views), "xrLocateViews") &&
+            check(located, "xrLocateViews") &&
             viewCount == 2 &&
             (viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
 
@@ -558,7 +560,9 @@ public:
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
-        check(xrEndFrame(session, &endInfo), "xrEndFrame");
+        XrResult ended = XR_SUCCESS;
+        QVR_TRACY_CALL("xrEndFrame", ended = xrEndFrame(session, &endInfo));
+        check(ended, "xrEndFrame");
         timeCall(CallEnd, t0);
         timing.frames++;
     }
@@ -1109,7 +1113,8 @@ private:
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
         double t0 = Sys_DoubleTime();
-        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index);
+        XrResult acquired = XR_SUCCESS;
+        QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index));
         timeCall(CallAcquire, t0);
         if(!check(acquired, "xrAcquireSwapchainImage"))
         {
@@ -1119,7 +1124,8 @@ private:
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
         t0 = Sys_DoubleTime();
-        const XrResult waited = xrWaitSwapchainImage(sc.handle, &waitInfo);
+        XrResult waited = XR_SUCCESS;
+        QVR_TRACY_CALL("xrWaitSwapchainImage", waited = xrWaitSwapchainImage(sc.handle, &waitInfo));
         timeCall(CallWaitImage, t0);
         if(!check(waited, "xrWaitSwapchainImage"))
         {
@@ -1133,7 +1139,9 @@ private:
     bool releaseImage(const Swapchain& sc) const
     {
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        return check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        XrResult released = XR_SUCCESS;
+        QVR_TRACY_CALL("xrReleaseSwapchainImage", released = xrReleaseSwapchainImage(sc.handle, &releaseInfo));
+        return check(released, "xrReleaseSwapchainImage");
     }
 
     static void destroySpace(XrSpace& space)

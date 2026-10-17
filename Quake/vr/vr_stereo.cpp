@@ -888,6 +888,9 @@ extern "C" int VR_RenderView()
     const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
+    // (profiling builds: the eyes' drawn width over the image's, vr_render_scale's result, and the width itself)
+    VR_TracyPlot("Render scale", static_cast<double>(width) / imageWidth);
+    VR_TracyPlot("Eye render width", width);
 
     stereo::ensureSceneTargets(stereo::eyeTargets, width, height, temporal::eyeFsaa(vid_fsaa.value)); // (no MSAA under TAA)
     if(stereo::resampling)

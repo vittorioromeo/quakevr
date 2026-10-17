@@ -2,6 +2,7 @@
 
 #include "vr_diskcache.hpp"
 #include "vr_warmup.hpp"
+#include "vr_tracy.h"
 #include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
@@ -2155,45 +2156,63 @@ extern "C" void VR_BeginFrame()
     {
         sessionEnded();
     }
-    if(state->backend)
     {
-        motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
-        // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
-        angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
-        timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
+        QVR_TRACY_SCOPE(zoneTracking, "frame setup: tracking"); // (profiling builds only)
+        if(state->backend)
+        {
+            motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
+            // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
+            angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
+            timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
+        }
     }
-    runtimeMenuFrame(); // the runtime's menu pausing the game (before the server's frame)
+    {
+        QVR_TRACY_SCOPE(zoneRuntimeMenu, "frame setup: runtime menu"); // (profiling builds only)
+        runtimeMenuFrame(); // the runtime's menu pausing the game (before the server's frame)
+    }
 
-    sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
-    lines::clear(); // queued anew every frame (teleport aim, crosshairs)
-    text3d::clear();
-    voicenotes::frame(); // after the clear: its indicator is queued anew each frame
-    tips::frame();       // a tip due, the one showing (vr_tips)
-    highlights::frame(); // the game's clock against realtime, a multi-kill's end
-    motion::frame();     // the motion recorder's indicator, likewise
-    posing::frame();     // the weapon posing mode's text, likewise
-    sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
-    bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
-    stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
-    setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
-    worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
-    loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
-    retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
-    configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
-    memLogFrame();
-    profile::overlay();  // the profiler's panel (vr_profile_overlay)
-    throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
-    input::update(state->tracking.input); // releases held keys when VR is off
-    doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
-    bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
-    gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
-    flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
-    flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
+    {
+        QVR_TRACY_SCOPE(zoneCountsAndTexts, "frame setup: counts and texts"); // (profiling builds only)
+        sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
+        lines::clear(); // queued anew every frame (teleport aim, crosshairs)
+        text3d::clear();
+        voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+        tips::frame();       // a tip due, the one showing (vr_tips)
+        highlights::frame(); // the game's clock against realtime, a multi-kill's end
+        motion::frame();     // the motion recorder's indicator, likewise
+        posing::frame();     // the weapon posing mode's text, likewise
+        sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
+        bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+        stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
+        setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+        worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
+        loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
+        retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
+    }
+    {
+        QVR_TRACY_SCOPE(zoneConfigMemoryLogOverlay, "frame setup: config, memory log, overlay"); // (profiling builds only)
+        configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
+        memLogFrame();
+        profile::overlay();  // the profiler's panel (vr_profile_overlay)
+    }
+    {
+        QVR_TRACY_SCOPE(zoneInputAndGadgets, "frame setup: input and gadgets"); // (profiling builds only)
+        throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
+        input::update(state->tracking.input); // releases held keys when VR is off
+        doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
+        bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
+        gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
+        flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
+        flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
+    }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
-    input::roomscaleJump(hands::current());
-    toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
-    brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
+    {
+        QVR_TRACY_SCOPE(zoneToolgunAndBrushes, "frame setup: toolgun and brushes"); // (profiling builds only)
+        input::roomscaleJump(hands::current());
+        toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+        brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
+    }
 }
 
 extern "C" int VR_RuntimeMenuPause()

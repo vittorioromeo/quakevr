@@ -30,6 +30,24 @@
 #include "vr_particles.hpp"
 extern "C" int r_numactiveparticles;
 extern "C" int vr_tracy_physics_zones = 0;
+extern "C" int vr_tracy_render_zones = 0;
+extern "C" int vr_tracy_gpu_zones = 0;
+#ifdef _WIN32
+// GetProcessMemoryInfo (kernel32's K32 export), declared here rather than through <windows.h> (as vr_main.cpp's).
+namespace
+{
+struct ProcessMemoryCounters
+{
+    unsigned long cb;
+    unsigned long pageFaultCount;
+    size_t peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage, quotaPeakNonPagedPoolUsage,
+        quotaNonPagedPoolUsage, pagefileUsage, peakPagefileUsage, privateUsage;
+};
+}
+extern "C" __declspec(dllimport) void* __stdcall GetCurrentProcess();
+extern "C" __declspec(dllimport) int __stdcall K32GetProcessMemoryInfo(void* process, ProcessMemoryCounters* counters,
+    unsigned long size);
+#endif
 extern "C" void Memory_TracyPlots(void);
 extern "C" double TexMgr_TracyBytes(void);
 extern "C" void Memory_TracySnapshot(void);
@@ -47,6 +65,7 @@ struct Open
 {
     TracyCZoneCtx cpu{};
     uint64_t connection{};
+    const char* name{}; // a persistent name (VR_TracyCurrentName), null for VR_TracyBeginAt's
     bool gpu{};
 };
 struct Thread
@@ -77,6 +96,8 @@ cvar_t memoryDetail = {"vr_tracy_memory_detail", "0", CVAR_NONE};
 // SV_Physics's zone per edict (sv_phys.c SV_PHYS_ZONE): two or three per edict a tick inflate "Server physics" by
 // about 0.1 ms, so off by default (the player's own "SV edict client" and its hooks are always zoned).
 cvar_t physicsDetail = {"vr_tracy_physics_detail", "0", CVAR_NONE};
+// Per-entity render steps (r_alias.c: each model's frame, light, instance; a few zones a model an eye): off by default.
+cvar_t renderDetail = {"vr_tracy_render_detail", "0", CVAR_NONE};
 struct Allocation { unsigned long long bytes; int pool, end; };
 std::unordered_map<const void*, Allocation> allocations;
 constexpr const char* poolNames[] = {"Zone", "Hunk", "Cache"};
@@ -246,7 +267,7 @@ void gpuConnect(uint64_t session)
 }
 bool coarse(const char* name)
 {
-    return std::strcmp(name, "eye L") == 0 || std::strcmp(name, "eye R") == 0 ||
+    return std::strcmp(name, "eye L") == 0 || std::strcmp(name, "eye R") == 0 || std::strcmp(name, "eyes: single pass") == 0 ||
         std::strcmp(name, "window view") == 0 || std::strcmp(name, "shadow maps") == 0 || std::strcmp(name, "3D") == 0;
 }
 void status()
@@ -255,6 +276,37 @@ void status()
         TracyCIsConnected ? "connected" : "waiting on localhost:8086", thread.depth,
         dropped.load(std::memory_order_relaxed), forceClosed, gpuReady ? "ready" : "idle", gpuDetail.value,
         pending, contextSerial);
+    Con_Printf("  detail: gpu %s, gpu_detail %s, qc %s, physics %s, render %s, memory %s (vr_tracy_preset full|off)\n",
+        gpuEnabled.string, gpuDetail.string, qcDetail.string, physicsDetail.string, renderDetail.string, memoryDetail.string);
+}
+// vr_tracy_preset full|off: every detail cvar for a full capture (TRACY.md, "Full capture"), or back to the defaults.
+struct PresetValue
+{
+    cvar_t* var;
+    float full;
+};
+// Memory detail stays off: its allocation events cost about 5 ms of CPU a frame in a fight (combat_48: busy p50 7.4 ms
+// against 2.5; ROUND22.md, "Tracy coverage"). Turn it on by hand for an allocation capture, not a timing one.
+const PresetValue presetValues[] = {{&gpuEnabled, 1.f}, {&gpuDetail, 1.f}, {&qcDetail, 1.f}, {&physicsDetail, 1.f},
+    {&renderDetail, 1.f}, {&memoryDetail, 0.f}};
+void preset()
+{
+    const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const bool full = q_strcasecmp(which, "full") == 0;
+    if(!full && q_strcasecmp(which, "off") != 0)
+    {
+        Con_Printf("vr_tracy_preset full: every timing detail on (GPU passes, QC functions, physics per edict, render "
+                   "steps; memory events off: they cost ~5 ms a frame); vr_tracy_preset off: the defaults\n");
+        status();
+        return;
+    }
+    for(const PresetValue& p : presetValues)
+        if(full) Cvar_SetValueQuick(p.var, p.full);
+        else Cvar_SetQuick(p.var, p.var->default_string);
+    Con_Printf("Tracy detail preset: %s\n", full ? "full" : "off (defaults)");
+    if(const auto* profile = Cvar_FindVar("vr_profile"); full && profile && profile->value != 0.f)
+        Con_Printf("  vr_profile is %s: set it to 0 for a capture (it times the same scopes again)\n", profile->string);
+    status();
 }
 void memoryTest()
 {
@@ -320,7 +372,9 @@ extern "C" void VR_TracyInit()
     Cvar_RegisterVariable(&qcDetail);
     Cvar_RegisterVariable(&memoryDetail);
     Cvar_RegisterVariable(&physicsDetail);
+    Cvar_RegisterVariable(&renderDetail);
     Cmd_AddCommand("vr_tracy_status", status);
+    Cmd_AddCommand("vr_tracy_preset", preset);
     Cmd_AddCommand("vr_tracy_test_memory", memoryTest);
     Cmd_AddCommand("vr_tracy_test_error", abortTest);
     Cmd_AddCommand("vr_tracy_test_stack", stackTest);
@@ -346,6 +400,23 @@ extern "C" void VR_TracyText(const char* text)
         }
     }
 }
+extern "C" const char* VR_TracyCurrentName()
+{
+    if(!TracyCIsConnected) return nullptr;
+    for(unsigned d = thread.depth; d > 0; --d)
+        if(thread.stack[d - 1].name) return thread.stack[d - 1].name;
+    return nullptr;
+}
+extern "C" void VR_TracyJobText(const char* from, const char* file, unsigned line)
+{
+    if(!TracyCIsConnected || !thread.depth || !thread.stack[thread.depth - 1].cpu.active) return;
+    const char* base = file;
+    for(const char* c = file; *c; ++c)
+        if(*c == '/' || *c == '\\') base = c + 1;
+    char text[256];
+    const int length = q_snprintf(text, sizeof(text), "%s @ %s:%u", from ? from : "(no zone)", base, line);
+    ___tracy_emit_zone_text(thread.stack[thread.depth - 1].cpu, text, length < 0 ? 0 : std::min<size_t>(static_cast<size_t>(length), sizeof(text) - 1));
+}
 extern "C" void VR_TracyBegin(const char* name, int gpu)
 {
     if(thread.depth == maxDepth)
@@ -356,6 +427,7 @@ extern "C" void VR_TracyBegin(const char* name, int gpu)
     }
     Open& o = thread.stack[thread.depth++];
     o = {};
+    o.name = name;
     if(!TracyCIsConnected) return;
     const auto* s = source(name);
     if(!s) return;
@@ -416,6 +488,8 @@ extern "C" void VR_TracyFrame()
     abortedByError = false;
     VR_TracyAbort();
     vr_tracy_physics_zones = physicsDetail.value != 0.f;
+    vr_tracy_render_zones = renderDetail.value != 0.f;
+    vr_tracy_gpu_zones = TracyCIsConnected && gpuReady && gpuEnabled.value != 0.f && gpuDetail.value != 0.f;
     TracyCFrameMark;
     memorySync();
     if(TracyCIsConnected)
@@ -434,6 +508,20 @@ extern "C" void VR_TracyFrame()
         VR_TracyPlot("Alias triangles", vr_profcounts.aliastris);
         VR_TracyPlot("Particles", r_numactiveparticles + qvr::particles::liveCount());
         VR_TracyPlot("Decals", qvr::decals::liveCount());
+        // The always-on phase timers' last frame (vr_profile.hpp FrameSample): the CPU work (the host frame less the
+        // runtime's and the swap's waits) and the eyes' GPU time, which is read back a few frames late (the newest known).
+        qvr::profile::FrameSample sample;
+        if(qvr::profile::frameSample(0, sample))
+        {
+            VR_TracyPlot("Frame CPU busy ms", sample.cpuMs);
+            VR_TracyPlot("Frame period ms", sample.periodMs);
+        }
+        for(int back = 0; back < 8 && qvr::profile::frameSample(back, sample); ++back)
+            if(sample.gpuMs >= 0.f)
+            {
+                VR_TracyPlot("GPU eyes ms", sample.gpuMs);
+                break;
+            }
         const auto session = tracy::GetProfiler().ConnectionId();
         if(metadataSession != session || std::strcmp(metadataMap, cl.mapname) != 0)
         {
@@ -453,7 +541,7 @@ extern "C" void VR_TracyFrame()
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
                     VR_TracyText(value);
                 }
-            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail", "vr_tracy_physics_detail"})
+            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu", "vr_tracy_gpu_detail", "vr_tracy_physics_detail", "vr_tracy_render_detail", "vr_profile"})
                 if(const auto* v = Cvar_FindVar(name))
                 {
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
@@ -478,6 +566,15 @@ extern "C" void VR_TracyFrame()
     {
         Memory_TracyPlots();
         qvr::ragdoll::tracyPlots();
+#ifdef _WIN32
+        ProcessMemoryCounters pmc{};
+        pmc.cb = sizeof(pmc);
+        if(K32GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
+        {
+            VR_TracyPlot("Process working set bytes", static_cast<double>(pmc.workingSetSize));
+            VR_TracyPlot("Process private bytes", static_cast<double>(pmc.privateUsage));
+        }
+#endif
         VR_TracyPlot("Texture RGBA estimate bytes", TexMgr_TracyBytes());
         const auto totals = qvr::mem::totals();
         VR_TracyPlot("VR scratch bytes", static_cast<double>(totals.scratchBytes));
@@ -557,6 +654,7 @@ void beginStatic(const ___tracy_source_location_data* data, [[maybe_unused]] boo
     if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }
     Open& o = thread.stack[thread.depth++];
     o = {};
+    o.name = data->name;
     if(!TracyCIsConnected) return;
 #ifdef TRACY_CALLSTACK
     o.cpu = stack ? ___tracy_emit_zone_begin_callstack(data, TRACY_CALLSTACK, 1) : ___tracy_emit_zone_begin(data, 1);
