@@ -1372,7 +1372,8 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
 // ---- Get-ups ----
 constexpr float riseTurnRate = 9.f; // rad/s per radian its pelvis is turned off the get-up's
 constexpr float riseTurnMost = 4.f; // rad/s
-constexpr float riseLost = 1.f;     // m: its pelvis this far off the get-up's once pulled in: it lets go// Pulled into the get-up's first frame where it will stand (its pin's pull and its muscles rising over the
+constexpr float riseLost = 1.f;     // m: its pelvis this far off the get-up's once pulled in: it lets go
+// Pulled into the get-up's first frame where it will stand (its pin's pull and its muscles rising over the
 // preparation), then the get-up played by its body, its pelvis pinned to the clip's (risen by the pin, its weight held
 // up), held at its last frame: done.
 void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)

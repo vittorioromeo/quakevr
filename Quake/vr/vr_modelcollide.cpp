@@ -1152,7 +1152,6 @@ void updatePhase(const hands::State& s, int hand, float dt)
 
 glm::vec3 drawn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 glm::vec3 pressed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a weapon pressed against the prop in the other hand (held::drawnPush)
-Result last[2];
 int appliedFrame = -1;
 double lastTime = -1.0;
 
@@ -1211,7 +1210,6 @@ void beginView(hands::State& s)
             {
                 drawn[hand] = glm::vec3{0.f};
             }
-            last[hand] = res;
             if(vr_debug_model_collide.value >= 1.f && (res.blocked || glm::length(drawn[hand]) > 0.f))
             {
                 const Stats& st = res.stats;
@@ -1357,7 +1355,6 @@ void reset()
         phaseLeft[hand] = releaseLeft[hand] = 0.f;
         phasing[hand] = false;
         recorded[hand] = Recorded{};
-        last[hand] = Result{};
     }
     posedCache.clear();
     // The models' triangles and samples too, made again as needed: a brush submodel's slot and name (*N) are the next

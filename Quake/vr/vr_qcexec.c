@@ -199,7 +199,7 @@ static void QCExec_FabsThenTrace (void)
 // on. For comparing the loops' results, errors (runaway: ad_mathlib_fast_pow 2 1e39) and traces.
 static void QCExec_Run_f (void)
 {
-	int a = 1, i, nargs;
+	int a = 1, i, nargs, swapped = 0;
 	qboolean trace = false;
 	dfunction_t *f;
 	double p0;
@@ -230,11 +230,12 @@ static void QCExec_Run_f (void)
 				qcexec_fabs_num = pr_builtindefs[i].number;
 				qcexec_fabs = qcvm->builtins[qcexec_fabs_num];
 				qcvm->builtins[qcexec_fabs_num] = QCExec_FabsThenTrace;
+				swapped = 1;
 				break;
 			}
 	p0 = QCExec_TotalProfile ();
 	PR_ExecuteProgramRun ((func_t)(f - qcvm->functions));
-	if (trace && qcvm->builtins[qcexec_fabs_num] == QCExec_FabsThenTrace)
+	if (swapped && qcvm->builtins[qcexec_fabs_num] == QCExec_FabsThenTrace)
 		qcvm->builtins[qcexec_fabs_num] = qcexec_fabs; // (it never called fabs)
 	qcvm->trace = false;
 	Con_Printf ("vr_qcexec_run: loop %d: %s returned %g %g %g (%08x %08x %08x), %.0f statements\n", (int)vr_qcexec.value,

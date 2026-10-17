@@ -595,7 +595,8 @@ void applySettings(const Take& take, bool melee)
     {
         if(!za::anyOf(list.begin(), list.end(), [&](const auto& kv) { return kv.first == name; }))
         {
-            list.emplaceBack(name, Cvar_FindVar(name) ? Cvar_FindVar(name)->default_string : "0");
+            const cvar_t* var = Cvar_FindVar(name);
+            list.emplaceBack(name, var ? var->default_string : "0");
         }
     }
     if(melee)

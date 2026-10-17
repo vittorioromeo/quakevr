@@ -53,7 +53,6 @@ namespace qvr::hull::detail
 using PlaneIndex = ankerl::unordered_dense::map<long long, za::Vector<int>>;
 inline constexpr float minWidth = 8.f, maxWidth = 32.f;
 
-// A brush's face, outward: inside is dot(normal, p) < dist.
 // A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
 // brushes grows with the box (grows 1); a recovered clip brush's face (see recoverClips) is already grown by Quake's
 // 32 box and shrinks back with a narrower one if it faces the open (grows 1, dist less Quake's box), else stays but for

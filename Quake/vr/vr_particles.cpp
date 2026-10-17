@@ -54,6 +54,14 @@ namespace qvr::retrolight
 
 namespace qvr::particles
 {
+
+NearLimits nearLimits()
+{
+    const float cm = units::metresToUnits() * 0.01f;
+    const float cull = za::max(0.f, vr_particle_near_cull.value) * cm;
+    return {cull, za::max(cull, za::max(0.f, vr_particle_near_fade.value) * cm)};
+}
+
 namespace
 {
 
@@ -3165,9 +3173,7 @@ void buildLying()
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
     // Near the eye as the others (the particle vertex shader): faded from vr_particle_near_fade to _near_cull, none nearer.
-    const float cm = units::metresToUnits() * 0.01f;
-    const float cull = za::max(0.f, vr_particle_near_cull.value) * cm;
-    const float fadeFrom = za::max(cull, za::max(0.f, vr_particle_near_fade.value) * cm);
+    const auto [cull, fadeFrom] = nearLimits();
     for(const za::U32 i : lying)
     {
         Particle& p = pool[i];
@@ -3246,7 +3252,7 @@ struct DrawnLimits
 };
 [[nodiscard]] DrawnLimits drawnLimits(float viewHeight)
 {
-    const float cull = za::max(0.f, vr_particle_near_cull.value) * units::metresToUnits() * 0.01f;
+    const float cull = nearLimits().cull;
     return {cull * cull, za::clamp(vr_particle_max_screen.value, 0.f, 4.f) * 0.5f * viewHeight};
 }
 // A particle's half size on the screen as drawn, `w` from the eye along the view.

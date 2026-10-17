@@ -19,6 +19,14 @@
 namespace qvr::particles
 {
 
+// Near the eye (vr_particle_near_cull, vr_particle_near_fade; units): a particle nearer than `cull` is not drawn, one
+// nearer than `fade` fades. The CPU culls and the vertex shader fades by the same two.
+struct NearLimits
+{
+    float cull, fade;
+};
+[[nodiscard]] NearLimits nearLimits();
+
 // The QC's particle2 presets (QC/vr_defs.qc QVR_PARTICLE_PRESET_*), and the engine's own.
 enum class Preset : int
 {

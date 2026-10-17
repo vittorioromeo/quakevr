@@ -498,7 +498,7 @@ void shortlist(const Grid& g, const Region& r, za::Array<Candidate, 3 * shortlis
         Candidate best[shortlisted];
         int kept = 0;
         Box above;
-        for(int k = n - 1; k >= 3; k--) // the cut between slices k - 1 and k: at least two cells each side
+        for(int k = n - 1; k >= 3; k--) // the cut between slices k - 1 and k: at least three slices below it, two from k up
         {
             above.add(slices[axis][static_cast<size_t>(k)]);
             if(n - k < 2)

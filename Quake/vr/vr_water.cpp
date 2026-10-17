@@ -2081,6 +2081,13 @@ extern "C" void VR_WaterMeshBind(void)
     GL_VertexAttribPointerFunc(4, 1, GL_FLOAT, GL_FALSE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, pin)));
 }
 
+// Water, slime or lava, or one of the currents (the contents a leaf or a point is in).
+[[nodiscard]] static bool isLiquidContents(int c)
+{
+    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
+           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
+}
+
 // Quake BSP has no separate teleport medium: the *teleport brush is stored as water.
 // Recognise its own leaves/faces, retaining actual pools (including mixed liquid/teleport leaves).
 extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
@@ -2101,15 +2108,12 @@ extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
         for(int a = 0; a < 3; a++) { within &= point[a] >= surface.mins[a]-2.f && point[a] <= surface.maxs[a]+2.f; }
         if(within) { return 1; }
     }
-    const int c = leaf->contents;
-    return tele && !liquid && (c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
-        (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN));
+    return tele && !liquid && isLiquidContents(leaf->contents);
 }
 
 extern "C" int VR_LiquidContents(qmodel_t* model, const float* point, int contents)
 {
-    if(contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA ||
-       (contents <= CONTENTS_CURRENT_0 && contents >= CONTENTS_CURRENT_DOWN))
+    if(isLiquidContents(contents))
     {
         return VR_NoLiquidEffects(model, point) ? CONTENTS_EMPTY : contents;
     }

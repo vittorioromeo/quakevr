@@ -262,14 +262,8 @@ namespace qvr::animsmooth::detail
     }
     return m;
 }
-} // namespace qvr::animsmooth::detail
-namespace
-{
 
 // The model's rig data (B), made when first needed and again when vr_anim_smooth_rig_error changes; false: no rig.
-} // namespace
-namespace qvr::animsmooth::detail
-{
 bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
 {
     const float error = za::max(vr_anim_smooth_rig_error.value, 0.01f);
@@ -574,15 +568,9 @@ namespace qvr::animsmooth::detail
 {
     return hdr->frames[za::clamp(frame, 0, hdr->numframes - 1)].firstpose;
 }
-} // namespace qvr::animsmooth::detail
-namespace
-{
 
 // The swings of `m`'s bones between poses `poses` along `s`, into `out` (3 rows a bone, `stride` rows apart; all zeros
 // for a bone not swung): false if none swings (`out` then untouched); `now`, if given, the bones' motion along `s`.
-} // namespace
-namespace qvr::animsmooth::detail
-{
 bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, glm::vec4* out, int stride,
     rigpose::Rigid* nowOut)
 {

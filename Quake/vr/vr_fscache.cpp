@@ -267,7 +267,6 @@ extern "C" void VR_FileCacheEnable(int on)
         owner = za::ThisThread::getId();
     }
     enabled.storeSeqCst(on != 0);
-    dirs.clear();
     takePending(); // (all listed afresh from now on: what was asked before is in the new listings)
     dirs.clear();
     clearMisses();

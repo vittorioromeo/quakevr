@@ -257,6 +257,7 @@ constexpr za::SizeT maxSamples = 256;
     return s;
 }
 
+// (The cache is keyed on the model alone: bladeOf gives one blade a model, so `blade` is implied by it.)
 [[nodiscard]] const za::Vector<Sample>& samplesOf(const qmodel_t* model, const Blade& blade)
 {
     za::Vector<Sample>& out = cache.samples;

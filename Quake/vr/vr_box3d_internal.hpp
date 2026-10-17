@@ -974,7 +974,6 @@ constexpr float corpseStep = 16.f;   // units: a corpse a player or monster step
 [[nodiscard]] bool deadMonster(edict_t* ent);
 [[nodiscard]] bool knockedDown(edict_t* ent);
 
-[[nodiscard]] glm::vec3 ownMotion(int num); // (below)
 void watchCorpses();
 [[nodiscard]] glm::vec3 ownMotion(int num);
 [[nodiscard]] glm::vec3 deathMotion(int num);

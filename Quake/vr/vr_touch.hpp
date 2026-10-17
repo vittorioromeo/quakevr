@@ -146,7 +146,7 @@ private:
     Contact c;
     glm::vec2 size{320.f, 200.f};
     float alpha{1.f};
-    int activeId{-1};   // the widget the touch began on (-1 none; 0 none of them: loose)
+    mutable int activeId{-1}; // the widget the touch began on (-1 none; 0 none of them: loose)
     int seen{-1};       // the contact's serial last begun with
     bool fresh{false};  // this frame's contact is new
     void add(const Drawn& d);

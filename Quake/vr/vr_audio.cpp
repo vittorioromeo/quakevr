@@ -1486,6 +1486,14 @@ void ensure()
         (Sys_DoubleTime() - start) * 1000.0);
 }
 
+constexpr int chanWeapon = 1;  // QC CHAN_WEAPON: the main hand's gun
+constexpr int chanWeapon2 = 5; // QC CHAN_WEAPON2: the off hand's gun
+
+[[nodiscard]] bool isWeaponChannel(int c)
+{
+    return c == chanWeapon || c == chanWeapon2;
+}
+
 // The hand of one of the player's hand channels: the weapon channels (QC VRGetGunChannel: CHAN_WEAPON the main hand,
 // CHAN_WEAPON2 the off hand; from the muzzle) and the hands' own (VRGetHandChannel: CHAN_HAND, CHAN_HAND2, protocol.h
 // SND_CHAN_HAND; any free one, from the hand: a parry, a reload, a holster). -1 for the player's other channels.
@@ -1496,7 +1504,7 @@ int handOf(const channel_t* ch)
         return -1;
     }
     const int c = ch->entchannel;
-    if(c != 1 && c != 5 && c != SND_CHAN_HAND && c != SND_CHAN_HAND2)
+    if(!isWeaponChannel(c) && c != SND_CHAN_HAND && c != SND_CHAN_HAND2)
     {
         return -1;
     }
@@ -1504,14 +1512,14 @@ int handOf(const channel_t* ch)
     {
         return -1;
     }
-    return c == 5 || c == SND_CHAN_HAND2 ? HAND_OFF : HAND_MAIN;
+    return c == chanWeapon2 || c == SND_CHAN_HAND2 ? HAND_OFF : HAND_MAIN;
 }
 
 // Where a hand channel's sound plays from: a weapon channel's from the muzzle (or the hand), a hand's own from the hand.
 glm::vec3 handSoundAt(const channel_t* ch, int hand)
 {
     const hands::State& hs = hands::current();
-    const bool weapon = ch->entchannel == 1 || ch->entchannel == 5;
+    const bool weapon = isWeaponChannel(ch->entchannel);
     return weapon && hs.muzzleValid[hand] ? hs.muzzle[hand] : hs.pos[hand];
 }
 

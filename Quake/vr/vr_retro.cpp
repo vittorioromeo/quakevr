@@ -653,9 +653,9 @@ struct Hit
         {
             hit.any = true;
             hit.distance = planeDistance(s, start, dir);
-            hit.texture = textureKeyName(w->textures[s->texinfo->texnum]->name);
-            hit.modelCategory = Category::World;
             const char* texture = w->textures[s->texinfo->texnum]->name;
+            hit.texture = textureKeyName(texture);
+            hit.modelCategory = Category::World;
             hit.textureCategory = texture[0] == '*' && strncmp(texture, "*teleport", 9) != 0 ? Category::Liquids : Category::World;
         }
     }

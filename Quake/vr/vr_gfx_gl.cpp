@@ -9,6 +9,7 @@
 #include "vr_retro.h"
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
+#include "vr_particles.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -1577,9 +1578,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1iFunc(15, 0);
     {
         // Near the eye: faded from vr_particle_near_fade cm to vr_particle_near_cull, none nearer; vr_particle_max_screen.
-        const float cm = units::metresToUnits() * 0.01f;
-        const float cull = za::max(0.f, vr_particle_near_cull.value) * cm;
-        const float fade = za::max(cull, za::max(0.f, vr_particle_near_fade.value) * cm);
+        const auto [cull, fade] = particles::nearLimits();
         GL_Uniform3fFunc(90, fade, cull, za::clamp(vr_particle_max_screen.value, 0.f, 4.f));
         GL_Uniform2fFunc(91, split.viewWidth, split.viewHeight);
     }

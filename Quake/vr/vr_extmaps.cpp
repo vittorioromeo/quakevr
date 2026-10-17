@@ -229,11 +229,11 @@ void readMat(const char* base, Material& mat)
             }
             else if(!strcmp(key, "specularity"))
             {
-                mat.specularity = static_cast<float>(atof(value));
+                mat.specularity = Q_atof(value);
             }
             else if(!strcmp(key, "hardness"))
             {
-                mat.hardness = static_cast<float>(atof(value));
+                mat.hardness = Q_atof(value);
             }
         }
         line = next;

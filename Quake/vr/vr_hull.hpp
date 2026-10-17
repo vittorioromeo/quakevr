@@ -55,8 +55,6 @@ void afterLoad();
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
 
-// A player's box as a shot, a missile or another point-sized move meets it (vr_hull_hit_width): true if narrowed, filled
-// in. Monsters' melee, splash damage and their sight don't use it (distances and nomonsters traces).
 // A monster's corners for SV_CheckBottom (vr_mhull_ledges): absMins..absMaxs narrowed to its width; true if narrowed.
 [[nodiscard]] bool footprint(const edict_t* ent, float* absMins, float* absMaxs);
 

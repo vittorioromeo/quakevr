@@ -425,7 +425,8 @@ void buildQcLoops()
                 continue;
             }
             if(modelOf[static_cast<size_t>(g)] >= 0)
-            {                addUnique(models, modelOf[static_cast<size_t>(g)]);
+            {
+                addUnique(models, modelOf[static_cast<size_t>(g)]);
             }
             if(stateFuncOf[static_cast<size_t>(g)] >= 0)
             {
