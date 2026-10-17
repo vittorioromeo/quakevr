@@ -1975,7 +1975,7 @@ void retroAllUncheckCategories()
         slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").extend().help("Glow of white and pale lights (lamps, flashes), times Bloom."),
         slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").extend().help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
         slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").extend().help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
-        toggle("Bloom: Fast", "vr_bloom_fast").help("Adds the glow with one texture read a pixel instead of four, its smoothing done on the small glow image: about 0.03 ms a frame cheaper at 2048 x 2048 eyes (some 0.08 ms at your headset's), the halos' edges up to 3% different. Off: as before."),
+        toggle("Bloom: Fast", "vr_bloom_fast").help("On: a cheaper glow: three glow sizes instead of four (the widest folded into the next) and the glow added with one texture read a pixel instead of four. About 0.035 ms an eye cheaper at 2784 x 2784 (a quarter of the post-processing and bloom), halo edges and lava at most about 20/255 different. Off: as before, for comparison."),
         header("Tone and Colour"),
         toggle("Tone Mapping", "vr_tonemap").help("Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's."),
         slider("Exposure", "vr_exposure", 0.5f, 2.f, 0.05f, "%.2f").extend().help("Brightness before tone mapping (1: as Quake)."),

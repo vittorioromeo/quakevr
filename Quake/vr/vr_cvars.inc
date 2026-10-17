@@ -2111,7 +2111,7 @@ QVR_CVAR(vr_body_blood_floor, "1", CVAR_ARCHIVE)       // while wounded, blood d
 QVR_CVAR(vr_bloom, "0.08", CVAR_ARCHIVE)                // glow around bright things (lamps, glowing panels, flashes): its strength (0 off)
 QVR_CVAR(vr_bloom_threshold, "0.9", CVAR_ARCHIVE)      // how bright a thing must be to glow (0..1)
 QVR_CVAR(vr_bloom_radius, "1", CVAR_ARCHIVE)           // how wide the glow spreads
-QVR_CVAR(vr_bloom_fast, "0", CVAR_ARCHIVE)             // 1: the glow added by one texture tap a pixel instead of four (cheaper; halos differ slightly)
+QVR_CVAR(vr_bloom_fast, "1", CVAR_ARCHIVE)             // 1: the cheaper glow (three levels, not four; added by one texture tap a pixel instead of four; halos differ slightly); 0: as before
 QVR_CVAR(vr_flash_scale, "1.65", CVAR_ARCHIVE)            // muzzle flashes' light: size over the falloff's own (Quake's or DarkPlaces')
 QVR_CVAR(vr_explosion_light_scale, "1.5", CVAR_ARCHIVE)  // explosions' and rockets' light: size over the falloff's own
 QVR_CVAR(vr_colored_lights, "1", CVAR_ARCHIVE)         // muzzle flashes, rockets and explosions coloured (warm; the lightning gun blue)

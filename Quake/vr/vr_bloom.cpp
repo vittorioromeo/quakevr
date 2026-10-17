@@ -27,8 +27,10 @@ struct Target
 
 // The chain: down[0] the bright pass at a quarter of the scene, down[1..3] an eighth, a sixteenth,
 // a thirty-second; up[2..0] back up to a quarter, each the level below it spread out plus its own
-// down level; mean: how much of the view glows, one texel.
+// down level; mean: how much of the view glows, one texel. vr_bloom_fast stops at the sixteenth
+// (fastLevels), which takes the thirty-second's weight too.
 constexpr int levels = 4;
+constexpr int fastLevels = 3;
 // One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size.
 struct Chain
 {
@@ -49,6 +51,10 @@ bool resultValid = false;
 
 // How much each level adds: the quarter a tight halo, the smaller ones a wide soft glow.
 constexpr float levelWeight[levels] = {0.5f, 0.8f, 1.f, 0.4f};
+
+// vr_profile_detail 2: each pass timed apart.
+constexpr const char* downNames[levels] = {"", "bloom down 1", "bloom down 2", "bloom down 3"};
+constexpr const char* upNames[levels - 1] = {"bloom up 0", "bloom up 1", "bloom up 2"};
 
 constexpr const char* fullscreenVs = R"(#version 430
 void main()
@@ -236,12 +242,31 @@ void pass(const Target& target, GLuint prog, GLuint source, float a, float b, fl
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-// vr_bloom_fast: the side weight of the blur the last level takes for the eyes' one tap (GL_PostProcess), 0 off.
-// The four taps' kernel (a texel's centre weighs 1/2 wherever the pixel lies in it, its neighbours the rest by
-// distance) is matched closest, in squares, by a [0.2, 0.6, 0.2] blur followed by the bilinear tap.
-[[nodiscard]] float fastSoft()
+// vr_bloom_fast: the blur the last level takes for the eyes' one tap (GL_PostProcess), its side weight. The four
+// taps' kernel (a texel's centre weighs 1/2 wherever the pixel lies in it, its neighbours the rest by distance) is
+// matched closest, in squares, by a [0.2, 0.6, 0.2] blur followed by the bilinear tap.
+constexpr float oneTapSoft = 0.2f;
+
+// vr_profile_detail 2: each pass of the chain timed apart (Debug > Profiling).
+bool detailScopes = false;
+
+// This eye's glow is added by one tap (vr_bloom_fast), for GL_PostProcess and the window's mirror.
+bool resultOneTap = false;
+
+void scopeBegin(const char* name)
 {
-    return vr_bloom_fast.value > 0.f ? 0.2f : 0.f;
+    if(detailScopes)
+    {
+        profile::begin(name, true);
+    }
+}
+
+void scopeEnd()
+{
+    if(detailScopes)
+    {
+        profile::end();
+    }
 }
 
 } // namespace
@@ -255,15 +280,20 @@ void apply(GLuint sceneTex, int width, int height)
     {
         return;
     }
+    // vr_bloom_fast (ROUND22.md, "Cheaper bloom"): three levels instead of four (two passes fewer), the glow added by
+    // one tap a pixel instead of four. 0: the chain as before.
+    const bool fastChain = vr_bloom_fast.value > 0.f;
+    const int used = fastChain ? fastLevels : levels;
+
     Chain& chain = chains[stereo::isSpectator() ? 1 : 0];
     Target* const down = chain.down;
     Target* const up = chain.up;
     Target& mean = chain.mean;
-    for(int l = 0; l < levels; l++)
+    for(int l = 0; l < used; l++)
     {
         const int w = za::max(1, width >> (2 + l));
         const int h = za::max(1, height >> (2 + l));
-        if(!ensure(down[l], w, h, "vr bloom down") || (l < levels - 1 && !ensure(up[l], w, h, "vr bloom up")))
+        if(!ensure(down[l], w, h, "vr bloom down") || (l < used - 1 && !ensure(up[l], w, h, "vr bloom up")))
         {
             return;
         }
@@ -273,44 +303,55 @@ void apply(GLuint sceneTex, int width, int height)
         return;
     }
 
+    detailScopes = vr_profile_detail.value >= 2.f;
     GL_BeginGroup("VR bloom");
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 
     const float threshold = za::clamp(vr_bloom_threshold.value, 0.f, 0.99f);
     const float spread = za::clamp(vr_bloom_radius.value, 0.25f, 4.f);
 
+    scopeBegin("bloom bright");
     GL_UseProgram(brightProgram);
     GL_Uniform2fFunc(1, za::max(0.f, vr_bloom_white.value), za::max(0.f, vr_bloom_color.value));
     pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
-    for(int l = 1; l < levels; l++)
+    scopeEnd();
+    for(int l = 1; l < used; l++)
     {
         const Target& source = down[l - 1];
+        scopeBegin(downNames[l]);
         pass(down[l], downProgram, source.tex, spread, 0.f, 1.f / source.width, 1.f / source.height);
+        scopeEnd();
     }
-    pass(mean, meanProgram, down[levels - 1].tex, 0.f, 0.f, 0.f, 0.f, false);
+    scopeBegin("bloom mean");
+    pass(mean, meanProgram, down[used - 1].tex, 0.f, 0.f, 0.f, 0.f, false);
+    scopeEnd();
 
     GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, mean.tex);
-    for(int l = levels - 2; l >= 0; l--)
+    // The smallest level has no up level of its own: it comes in by its weight in the first up pass (without the
+    // thirty-second, the sixteenth takes its weight too).
+    const float smallestWeight = levelWeight[used - 1] + (used < levels ? levelWeight[levels - 1] : 0.f);
+    for(int l = used - 2; l >= 0; l--)
     {
-        // The smallest level has no up level of its own: it comes in by its weight here.
-        const bool first = l == levels - 2;
-        const Target& smaller = first ? down[levels - 1] : up[l + 1];
+        const bool first = l == used - 2;
+        const Target& smaller = first ? down[used - 1] : up[l + 1];
         GL_UseProgram(upProgram);
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, down[l].tex);
-        GL_Uniform3fFunc(1, first ? levelWeight[levels - 1] : 1.f, l == 0 ? strength : 0.f,
-            za::max(0.f, vr_bloom_adapt.value));
-        GL_Uniform1fFunc(2, l == 0 ? fastSoft() : 0.f);
+        GL_Uniform3fFunc(1, first ? smallestWeight : 1.f, l == 0 ? strength : 0.f, za::max(0.f, vr_bloom_adapt.value));
+        GL_Uniform1fFunc(2, l == 0 && fastChain ? oneTapSoft : 0.f);
+        scopeBegin(upNames[l]);
         pass(up[l], upProgram, smaller.tex, spread, levelWeight[l], 1.f / smaller.width, 1.f / smaller.height);
+        scopeEnd();
     }
 
     resultTex = up[0].tex;
+    resultOneTap = fastChain;
     resultValid = true;
     GL_EndGroup();
 }
 
 bool fast()
 {
-    return fastSoft() > 0.f;
+    return resultOneTap;
 }
 
 bool result(unsigned& texture)

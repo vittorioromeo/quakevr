@@ -12162,3 +12162,72 @@ screenshot of start (fixed frames, dither, entities, particles and dynamic light
 as before.
 
 To try in VR: nothing should look or feel different. The Debug menu's Profiling pages lose the rows named above.
+
+## Cheaper bloom (worktree `goreflesh`, branch `agent/cheapbloom`, 2026-10-17)
+
+`kit/scratch/tracy_gpu1.md` put "Post: postprocess + bloom" at 0.14 ms an eye in VR. Goal: the same look, cheaper.
+
+**Where the time goes** (mock headset, 2784 x 2784 an eye, start map, `vr_profile 1; vr_profile_gpu 1`, 3 x 300 frames
+a variant, medians, ms an eye; the per-pass rows with `vr_profile_detail 2`, which itself adds about 0.011):
+
+| step | target (format, size at 2784) | ms |
+| --- | --- | --- |
+| bright pass (4 nearest texels of each 4 x 4 block of the RGBA16F scene) | R11F_G11F_B10F, 696² | 0.032 |
+| down 1 / 2 / 3 (dual filter) | R11G11B10, 348² / 174² / 87² | 0.005 / 0.004 / 0.004 |
+| mean (64 taps, one texel) | R11G11B10, 1 x 1 | 0.005 |
+| up 2 / 1 / 0 (3 x 3 tent + own level) | R11G11B10, 174² / 348² / 696² | 0.0045 / 0.005 / 0.008 |
+| chain total (no per-pass scopes) | | 0.065 |
+| post-process (tone, grade, gamma, dither, water, the bloom's 4 taps), full size into the eye image | | 0.078 |
+
+The chain already had every candidate of the brief but one: it starts at a quarter, uses the dual filter and tent (no
+separable Gaussians), R11G11B10 targets, the bright pass is the first downsample, the composite is in the post pass and
+`vr_bloom 0` skips it. What is left is fixed per-pass cost: every small pass costs 4-5 µs whatever its size (the GPU
+drains between dependent passes), and the bright pass reads the whole scene.
+
+**What changed:** `vr_bloom_fast` (archived, now default **1**; Graphics > Post-processing > Bloom: Fast) is the cheaper
+chain; 0 is the old one exactly, for the A/B.
+- three levels instead of four: the thirty-second (87² at 2784) is gone and the sixteenth takes its weight (1.0 + 0.4):
+  two passes fewer;
+- the glow added by one bilinear tap instead of four (round 21's one-tap option, its smoothing in the last up pass).
+
+| ms an eye | old (`vr_bloom_fast 0`) | fast | bloom off |
+| --- | --- | --- | --- |
+| bloom chain | 0.065 | 0.059 | 0.001 |
+| post-process | 0.078 | 0.049 | 0.059 |
+| **post + bloom** | **0.143** | **0.108 (-0.035, -25 %)** | |
+
+About 0.07 ms a frame for both eyes; the eye total moved by -0.03 ms an eye in the same runs.
+
+**Image check** (2048 x 2048 eye images, game paused, `vr_dither 0`, old / old again / fast in one run; 8-bit, the
+largest channel delta; SSIM on luma, 8 x 8 windows):
+
+| scene | old vs old again | fast vs old |
+| --- | --- | --- |
+| start (lamps, the lava pit) | max 1 | max 18, 0.69 % of pixels > 2, 0.006 % > 8, SSIM 0.99984 |
+| e1m7 lava (`setpos -50 48 20`) | max 5 | max 16, 2.6 % > 2, 0.06 % > 8, SSIM 0.99981 |
+| e1m1 start (lamps) | max 1 | max 10, 0.07 % > 2, SSIM 0.99982 |
+| e2m1 start (dark, nothing over the threshold) | 0 | 0 |
+| vrfiringrange (lit doors, panels; moving things) | max 139 (motion), 0.38 % > 2 | max 137, 1.1 % > 2, SSIM 0.9997 |
+
+The differences sit on halo edges (a faint ring a few pixels wide where the widest level used to reach) and as fine
+speckle on the lava where the one tap smooths differently; side by side they can't be told apart. The muzzle flash and
+explosion shots did not happen: the mock's `+attack` fired nothing in these runs (the same images as without). They go
+through the same passes as the lamps.
+
+**Tried, not kept:**
+- the bright pass reading the 2 x 2 texels side by side at the block's centre instead of four spread one texel apart:
+  -0.010 ms, but the glow weaker and different on textured bright surfaces (lava: max 69, 4 % of pixels > 8). The
+  spread texels touch every memory tile of the scene; side by side (0.022) or one texel (0.018) touch fewer;
+- the mean worked out by the first up pass's first fragment (image store; one pass fewer): no gain (0.0645 -> 0.064),
+  the one fragment's 64 taps cost what the pass did;
+- the post-process (0.05 with the one tap) is bandwidth: the RGBA16F scene read and the eye image written at full size.
+  `vr_tonemap 2` (R11G11B10 scene) would halve the read, but changes the scene's precision for everything.
+
+**Profiling aid:** `vr_profile_detail 2` times each bloom pass apart (`bloom bright`, `bloom down N`, `bloom mean`,
+`bloom up N`).
+
+**Your config:** `ironwail.cfg` has `vr_bloom_fast "0"` saved (the old default), so you keep the old chain until you turn
+Bloom: Fast on.
+
+To try in VR: Graphics > Post-processing > Bloom: Fast on and off, looking at lamps, lava, a rocket's explosion and the
+muzzle flash; the halos should look the same.
