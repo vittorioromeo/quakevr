@@ -138,7 +138,7 @@ struct GunNow
         {
             return false;
         }
-        out = s.pos[hand];
+        out = hands::palmPoint(s, hand); // (the palm's centre, as grips and holsters use, not the hand's origin)
         return true;
     }
     if(hotspot == body::HS_AMMO_POUCH)
