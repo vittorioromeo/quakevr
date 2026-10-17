@@ -3352,6 +3352,11 @@ void bareLight(const entity_t* e, float lightcolor[3])
     }
 }
 
+bool keepsBareLight(const entity_t* e)
+{
+    return drawnBare && e == &entities.body.ent;
+}
+
 void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4])
 {
     if(e == &entities.body.ent)

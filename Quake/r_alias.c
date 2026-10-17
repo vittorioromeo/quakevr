@@ -1230,6 +1230,334 @@ static int R_AliasPrefetch (entity_t **ents, int count)
 	return count;
 }
 
+/*
+=================
+R_AliasPosedBox -- QVR
+
+The IK-posed skeletal models (VR_AliasBonePoses: your body, its mirror image, the jointed hands, the ragdolls) were
+never culled: their bones place them, past the model's bounds (a ragdoll's model says +-64). Their box: each bone's
+box round the vertices it moves (in the bind pose, kept by model: R_AliasBoneBoxes) through the bone's matrix, all
+together, then through the model's. A vertex is a blend of its bones' places with weights that sum to one, each of
+them inside its bone's box so moved: inside their union. The cull (R_AliasCullPosed) is the eyes' (R_CullBox) and the
+layered shadow faces' (R_AliasFacesOf); vr_alias_cull_posed 0 culls none, as before.
+=================
+*/
+#define ALIASBONEBOX_CACHE		16
+#define ALIASBONEBOX_SAMPLES	16	// vertices a surface for the signature
+typedef struct {
+	const aliashdr_t	*hdr;	// NULL: free
+	int			numbones;
+	int			numverts;
+	unsigned	sig;		// a sample of the vertices (a ragdoll's model made again where another one was)
+	float		*box;		// numbones x 6: mins, maxs (mins above maxs: no vertex on it)
+} aliasbonebox_t;
+static aliasbonebox_t	aliasboneboxes[ALIASBONEBOX_CACHE];
+static int				aliasboneboxnext;
+
+static unsigned R_AliasBoneBoxSig (const aliashdr_t *hdr, int *numverts)
+{
+	unsigned h = 2166136261u;
+	*numverts = 0;
+	for (; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		int step = hdr->numverts_vbo / ALIASBONEBOX_SAMPLES + 1, v;
+		size_t i;
+		for (v = 0; v < hdr->numverts_vbo; v += step)
+		{
+			const byte *p = (const byte *) &verts[v];
+			for (i = 0; i < sizeof (iqmvert_t); i++)
+				h = (h ^ p[i]) * 16777619u;
+		}
+		*numverts += hdr->numverts_vbo;
+	}
+	return h;
+}
+
+static const float *R_AliasBoneBoxes (const aliashdr_t *mainhdr)
+{
+	const aliashdr_t *hdr;
+	aliasbonebox_t *c;
+	float *box;
+	int numverts, i, v, k;
+	unsigned sig = R_AliasBoneBoxSig (mainhdr, &numverts);
+	for (i = 0; i < ALIASBONEBOX_CACHE; i++)
+	{
+		c = &aliasboneboxes[i];
+		if (c->hdr == mainhdr && c->numbones == mainhdr->numbones && c->numverts == numverts && c->sig == sig)
+			return c->box;
+	}
+	if (mainhdr->numbones <= 0)
+		return NULL;
+	c = &aliasboneboxes[aliasboneboxnext];
+	aliasboneboxnext = (aliasboneboxnext + 1) % ALIASBONEBOX_CACHE;
+	c->hdr = NULL;
+	box = (float *) realloc (c->box, sizeof (float) * 6 * mainhdr->numbones);
+	if (!box)
+		return NULL;
+	c->box = box;
+	for (i = 0; i < mainhdr->numbones; i++)
+	{
+		box[6 * i + 0] = box[6 * i + 1] = box[6 * i + 2] = 1e30f;
+		box[6 * i + 3] = box[6 * i + 4] = box[6 * i + 5] = -1e30f;
+	}
+	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		for (v = 0; v < hdr->numverts_vbo; v++)
+			for (k = 0; k < 4; k++)
+			{
+				float *b;
+				if (!verts[v].weight[k])
+					continue;
+				if (verts[v].idx[k] >= mainhdr->numbones)
+					return NULL; // (left free)
+				b = box + 6 * verts[v].idx[k];
+				for (i = 0; i < 3; i++)
+				{
+					b[i] = q_min (b[i], verts[v].xyz[i]);
+					b[3 + i] = q_max (b[3 + i], verts[v].xyz[i]);
+				}
+			}
+	}
+	c->hdr = mainhdr;
+	c->numbones = mainhdr->numbones;
+	c->numverts = numverts;
+	c->sig = sig;
+	return box;
+}
+
+// the box lo..hi through a 4x4 matrix (columns: m[0..3] the first)
+static void R_AliasBoxThrough4 (const float m[16], const vec3_t lo, const vec3_t hi, vec3_t mins, vec3_t maxs)
+{
+	int i;
+	vec3_t c, ext;
+	for (i = 0; i < 3; i++)
+	{
+		c[i] = (lo[i] + hi[i]) * 0.5f;
+		ext[i] = (hi[i] - lo[i]) * 0.5f;
+	}
+	for (i = 0; i < 3; i++)
+	{
+		float wc = m[i] * c[0] + m[4 + i] * c[1] + m[8 + i] * c[2] + m[12 + i];
+		float we = fabs (m[i]) * ext[0] + fabs (m[4 + i]) * ext[1] + fabs (m[8 + i]) * ext[2];
+		mins[i] = wc - we;
+		maxs[i] = wc + we;
+	}
+}
+
+// e's world box as posed (model_matrix: its vertices' to the world); false: none (not posed, or not known)
+static qboolean R_AliasPosedBox (entity_t *e, aliashdr_t *hdr, const float model_matrix[16], vec3_t mins, vec3_t maxs)
+{
+	const float *bones = NULL, *box;
+	vec3_t lo = {1e30f, 1e30f, 1e30f}, hi = {-1e30f, -1e30f, -1e30f};
+	int numbones, b, i;
+	if (hdr->poseverttype != PV_IQM)
+		return false;
+	numbones = aliasdepth ? VR_AliasShadowBonePoses (e, &bones) : VR_AliasBonePoses (e, &bones);
+	if (!bones || numbones < hdr->numbones || !(box = R_AliasBoneBoxes (hdr)))
+		return false;
+	for (b = 0; b < hdr->numbones; b++)
+	{
+		const float *bb = box + 6 * b, *m = bones + 12 * b; // (3x4, by rows)
+		vec3_t c, ext;
+		if (bb[0] > bb[3])
+			continue;
+		for (i = 0; i < 3; i++)
+		{
+			c[i] = (bb[i] + bb[3 + i]) * 0.5f;
+			ext[i] = (bb[3 + i] - bb[i]) * 0.5f;
+		}
+		for (i = 0; i < 3; i++)
+		{
+			const float *r = m + 4 * i;
+			float pc = r[0] * c[0] + r[1] * c[1] + r[2] * c[2] + r[3];
+			float pe = fabs (r[0]) * ext[0] + fabs (r[1]) * ext[1] + fabs (r[2]) * ext[2];
+			lo[i] = q_min (lo[i], pc - pe);
+			hi[i] = q_max (hi[i], pc + pe);
+		}
+	}
+	if (lo[0] > hi[0])
+		return false;
+	R_AliasBoxThrough4 (model_matrix, lo, hi, mins, maxs);
+	for (i = 0; i < 3; i++) // (the weights' bytes need not sum to exactly one)
+	{
+		mins[i] -= 1.f;
+		maxs[i] += 1.f;
+	}
+	return true;
+}
+
+// which of `faces` (the layered shadow faces, aliasfacebuf.viewproj) the box reaches: outside none of a face's four sides
+static unsigned char R_AliasFacesOf (unsigned char faces, const vec3_t mins, const vec3_t maxs)
+{
+	unsigned char out = 0;
+	int f, k;
+	for (f = 0; f < 6; f++)
+	{
+		const float *m = aliasfacebuf.viewproj[f];
+		int outside[4] = {0, 0, 0, 0};
+		if (!(faces & (1u << f)))
+			continue;
+		for (k = 0; k < 8; k++)
+		{
+			float p[3], x, y, w;
+			p[0] = (k & 1) ? maxs[0] : mins[0];
+			p[1] = (k & 2) ? maxs[1] : mins[1];
+			p[2] = (k & 4) ? maxs[2] : mins[2];
+			x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
+			y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
+			w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+			outside[0] += x < -w;
+			outside[1] += x > w;
+			outside[2] += y < -w;
+			outside[3] += y > w;
+		}
+		if (outside[0] < 8 && outside[1] < 8 && outside[2] < 8 && outside[3] < 8)
+			out |= (unsigned char) (1u << f);
+	}
+	return out;
+}
+
+// vr_alias_cull_posed 2: e culled (from the eye's frustum, or from the layered faces `faces`) skinned again as the shader
+// does it, its vertices through model_matrix: whether any lies where its box said none does (on the inner side of every
+// side of the frustum or of a culled face: the box was wholly outside one of them, so all its vertices should be)
+static qboolean R_AliasPosedWrong (entity_t *e, aliashdr_t *mainhdr, const float model_matrix[16], unsigned char faces)
+{
+	const float *bones = NULL;
+	const aliashdr_t *hdr;
+	unsigned char inside[7][4];
+	int numbones = aliasdepth ? VR_AliasShadowBonePoses (e, &bones) : VR_AliasBonePoses (e, &bones);
+	int f, v, k, i;
+	if (!bones || numbones < mainhdr->numbones)
+		return false;
+	memset (inside, 0, sizeof (inside));
+	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface ((aliashdr_t *) hdr))
+	{
+		const iqmvert_t *verts = (const iqmvert_t *) ((const byte *) hdr + hdr->vertexes);
+		for (v = 0; v < hdr->numverts_vbo; v++)
+		{
+			float m[12], pos[3], world[3];
+			memset (m, 0, sizeof (m));
+			for (k = 0; k < 4; k++)
+				if (verts[v].weight[k] && verts[v].idx[k] < numbones)
+					for (i = 0; i < 12; i++)
+						m[i] += bones[12 * verts[v].idx[k] + i] * (verts[v].weight[k] / 255.f);
+			for (i = 0; i < 3; i++)
+				pos[i] = m[4 * i] * verts[v].xyz[0] + m[4 * i + 1] * verts[v].xyz[1] + m[4 * i + 2] * verts[v].xyz[2] + m[4 * i + 3];
+			for (i = 0; i < 3; i++)
+				world[i] = model_matrix[i] * pos[0] + model_matrix[4 + i] * pos[1] + model_matrix[8 + i] * pos[2] + model_matrix[12 + i];
+			if (!aliasfaces)
+			{
+				for (i = 0; i < 4; i++)
+					inside[6][i] |= DotProduct (frustum[i].normal, world) >= frustum[i].dist;
+				continue;
+			}
+			for (f = 0; f < 6; f++)
+			{
+				const float *c = aliasfacebuf.viewproj[f];
+				float x, y, w;
+				if (!(faces & (1u << f)))
+					continue;
+				x = c[0] * world[0] + c[4] * world[1] + c[8] * world[2] + c[12];
+				y = c[1] * world[0] + c[5] * world[1] + c[9] * world[2] + c[13];
+				w = c[3] * world[0] + c[7] * world[1] + c[11] * world[2] + c[15];
+				inside[f][0] |= x >= -w;
+				inside[f][1] |= x <= w;
+				inside[f][2] |= y >= -w;
+				inside[f][3] |= y <= w;
+			}
+		}
+	}
+	for (f = 0; f < 7; f++)
+		if (inside[f][0] && inside[f][1] && inside[f][2] && inside[f][3])
+			return true;
+	return false;
+}
+
+// vr_alias_cull_stats: the alias draws' culls since the last call, by model (R_AliasCullStats)
+#define ALIASCULL_MODELS 48
+typedef struct {
+	const qmodel_t	*model;
+	int		drawn[2];		// eyes, shadow faces: tested (a face each, layered)
+	int		culled[2];		// ... culled
+	int		posed;			// posed draws (eyes and faces)
+	int		repeats;		// the same entity again in one eye's view (R_RenderView)
+	int		wrong;			// vr_alias_cull_posed 2: culled with a vertex inside (none expected)
+	double	tris[2];		// triangles submitted (eyes, shadow faces)
+} aliascullstat_t;
+static aliascullstat_t	aliascullstats[ALIASCULL_MODELS];
+static int				aliascullframe0, aliascullview0;
+static struct { const entity_t *ent; int frame; } aliascullseen[256];
+
+static aliascullstat_t *R_AliasCullStat (const qmodel_t *model)
+{
+	int i;
+	for (i = 0; i < ALIASCULL_MODELS; i++)
+	{
+		if (aliascullstats[i].model == model)
+			return &aliascullstats[i];
+		if (!aliascullstats[i].model)
+		{
+			aliascullstats[i].model = model;
+			return &aliascullstats[i];
+		}
+	}
+	return NULL;
+}
+
+static int R_AliasFaceCount (unsigned faces)
+{
+	int n = 0;
+	for (; faces; faces &= faces - 1u)
+		n++;
+	return n;
+}
+
+static void R_AliasCullCount (const entity_t *e, aliashdr_t *hdr, int depth, int tested, int culled, qboolean posed, qboolean wrong)
+{
+	aliascullstat_t *s = R_AliasCullStat (e->model);
+	if (!s)
+		return;
+	for (; hdr && tested > culled; hdr = Mod_NextSurface (hdr))
+		s->tris[depth] += (double) hdr->numtris * (tested - culled);
+	s->wrong += wrong;
+	s->drawn[depth] += tested;
+	s->culled[depth] += culled;
+	s->posed += posed ? tested : 0;
+	if (!depth && tested > culled)
+	{
+		int slot = (int) (((uintptr_t) e >> 4) & 255);
+		if (aliascullseen[slot].ent == e && aliascullseen[slot].frame == r_framecount)
+			s->repeats++;
+		aliascullseen[slot].ent = e;
+		aliascullseen[slot].frame = r_framecount;
+	}
+}
+
+void R_AliasCullStats (void)
+{
+	int i, frames = q_max (host_framecount - aliascullframe0, 1), views = r_framecount - aliascullview0;
+	int sum[6] = {0, 0, 0, 0, 0, 0};
+	double tris[2] = {0, 0};
+	Con_Printf ("vr_alias_cull_stats over %d frames, %d views (vr_alias_cull_posed %d), a frame: eyes drawn/culled, shadow faces drawn/culled, posed, repeats; wrongly culled in all\n",
+		frames, views, VR_AliasCullPosedOn (NULL, 0));
+	for (i = 0; i < ALIASCULL_MODELS && aliascullstats[i].model; i++)
+	{
+		const aliascullstat_t *s = &aliascullstats[i];
+		Con_Printf ("  %-28s %6.1f %6.1f  %6.1f %6.1f  %5.1f %4.1f\n", s->model->name, s->drawn[0] / (float) frames,
+			s->culled[0] / (float) frames, s->drawn[1] / (float) frames, s->culled[1] / (float) frames, s->posed / (float) frames,
+			s->repeats / (float) frames);
+		sum[0] += s->drawn[0]; sum[1] += s->culled[0]; sum[2] += s->drawn[1]; sum[3] += s->culled[1]; sum[4] += s->repeats; sum[5] += s->wrong; tris[0] += s->tris[0]; tris[1] += s->tris[1];
+	}
+	Con_Printf ("  %-28s %6.1f %6.1f  %6.1f %6.1f        %4.1f; wrong %d\n", "all", sum[0] / (float) frames, sum[1] / (float) frames,
+		sum[2] / (float) frames, sum[3] / (float) frames, sum[4] / (float) frames, sum[5]);
+	Con_Printf ("  triangles a frame: eyes %.0f, shadow faces %.0f\n", tris[0] / frames, tris[1] / frames);
+	memset (aliascullstats, 0, sizeof (aliascullstats));
+	aliascullframe0 = host_framecount;
+	aliascullview0 = r_framecount;
+}
+
 static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 {
 	aliashdr_t	*paliashdr, *hdr;
@@ -1245,6 +1573,8 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	aliaseyeentry_t	*eye; // QVR: its set-up in the first eye's scene (R_AliasEyeSlot)
 	qboolean	eyefound, eyekeep, eyeuse, eyecheck;
 	int			smoothbefore;
+	qboolean	posed; // QVR: IK-posed (VR_AliasBonePoses)
+	unsigned char	facemask; // QVR: layered: the faces it is drawn into
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -1309,7 +1639,35 @@ transformed:
 	if (mode == ALIAS_DEPTH)
 		aliasdepthmisses++;
 cull:
-	if (!portal_split && !VR_AliasBonePoses (e, NULL) && !aliasfaces && R_CullModelForEntity(e)) // QVR: layered: the caller culled it by face
+	posed = VR_AliasBonePoses (e, NULL) != 0; // QVR
+	facemask = aliasfaces ? *aliasfaces : 0;
+	if (mode == ALIAS_STANDARD || mode == ALIAS_DEPTH) // QVR: the posed by their bones' box (R_AliasPosedBox)
+	{
+		int tested = aliasfaces ? R_AliasFaceCount (facemask) : 1, culled = 0, cullmode = 0;
+		qboolean wrong = false;
+		vec3_t pmins, pmaxs;
+		if (portal_split)
+			;
+		else if (!posed)
+			culled = !aliasfaces && R_CullModelForEntity (e); // (layered: the caller culled it by face)
+		else if ((cullmode = VR_AliasCullPosedOn (e, mode == ALIAS_DEPTH)) && R_AliasPosedBox (e, paliashdr, model_matrix, pmins, pmaxs))
+		{
+			unsigned char before = facemask;
+			if (aliasfaces)
+			{
+				facemask = R_AliasFacesOf (facemask, pmins, pmaxs);
+				culled = tested - R_AliasFaceCount (facemask);
+			}
+			else
+				culled = R_CullBox (pmins, pmaxs);
+			if (cullmode == 2 && culled)
+				wrong = R_AliasPosedWrong (e, paliashdr, model_matrix, (unsigned char) (before & ~facemask));
+		}
+		R_AliasCullCount (e, paliashdr, mode == ALIAS_DEPTH, tested, culled, posed, wrong);
+		if (culled == tested)
+			return;
+	}
+	else if (!portal_split && !posed && !aliasfaces && R_CullModelForEntity(e))
 		return;
 
 	//
@@ -1371,7 +1729,7 @@ cull:
 		aliasnear = nearflags; // QVR
 	}
 
-	aliasinstfaces[ibuf.count] = aliasfaces ? *aliasfaces : 0; // QVR: layered shadow casters: its faces
+	aliasinstfaces[ibuf.count] = facemask; // QVR: layered shadow casters: its faces (a posed one's: those its box reaches)
 	instance = &ibuf.inst[ibuf.count++];
 
 	if (cached && cachehit && cached->instok) // QVR: the pass's first set-up of it (vr_shadow_setup_share), its swing rows added to this batch

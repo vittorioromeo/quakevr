@@ -2708,6 +2708,7 @@ void lighting::init()
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
     Cmd_AddCommand("vr_alias_eye_cache_stats", eyeCacheStats_f);
+    Cmd_AddCommand("vr_alias_cull_stats", R_AliasCullStats);
     Cmd_AddCommand("vr_shadow_caster_stats", casterStats_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();

@@ -222,6 +222,13 @@ extern "C" int VR_AliasMirrored(const entity_t* e)
     return ve && ve->mirrored;
 }
 
+extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
+{
+    // (your body's light is kept as it is drawn in an eye, for the bare hands: drawn there whatever its box)
+    const int mode = CLAMP(0, static_cast<int>(vr_alias_cull_posed.value), 2);
+    return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
+}
+
 extern "C" int VR_IsViewEntity(const entity_t* e)
 {
     return view::find(e) != nullptr;
