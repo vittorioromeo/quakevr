@@ -9995,3 +9995,54 @@ For him in VR: Body Tracking on, Elbows 1, Elbow Fit 1. Raise the elbows high an
 the chest, and check the debug view: the orange/drawn elbow should sit on the purple tracked one. Then watch the arms
 for odd stretching. If a bone looks too long or short, lower Elbow Fit, or calibrate the arms (Body Calibration) so
 our lengths match his. `vr_bodytrack_stats` prints the cm error.
+
+## The free hand out of a held prop (worktree `tghost`, branch `agent/gripfit2`, 2026-10-17)
+
+His voice note (2026-10-17): with a crate in one hand, pushing the other hand deep into it and gripping held the crate
+from the inside. He asked for the free hand to be stopped from going into the held prop at all. Hitting it, throwing it
+and gripping it with both hands still work.
+
+- **Drawn** (`vr_view_hands.cpp`, `pushAgainst`, against a prop held alone): before, the free hand and the prop were
+  each pushed back by half the depth, at most `vr_hand_collide` (5 cm), and past that the hand sank in. Now, with
+  `vr_hand_collide_props_keep_out 1` (archived, the default; Physics menu, after Empty Hand Stops Off It: "Empty Hand
+  Stays Out of Held Props"), the hand is held out by the whole depth and rests on the surface however deep the real hand
+  goes. The prop is not pushed back, so the hand holding it no longer moves and then springs back on a two-hand grab.
+  Two cases needed new code. A point that goes in further than the search reaches in one frame is found by the way in
+  from where it was last drawn. A point that was held out last frame and is now deeper than the search reaches keeps
+  the face it went in by. Weapons are unchanged: the hand still sinks in past the push.
+- **The grab** (`vr_carry2h.cpp`, `serverPlace` with grab, listen server, own player only): the hand taking hold of
+  what the other hand holds is moved by `view::heldOutOf` (how far its drawn hand is off the controller, relative to the
+  prop as drawn). Its grip is recorded there, at the surface, so the grip fit finds nothing to fix. It keeps that offset
+  for the rest of the hold as `Hold::reach` (in the controller's frame). `carry2h::reached` applies it in `solve`, in
+  `detached` and in the client's drawn hands (`held.cpp`), so the drawn hand stays on its grip on the outside. When the
+  other hand lets go, `keep` puts the prop on this hand's real controller, so the hand ends up at the surface (the prop
+  jumps by the reach).
+- **Not changed**: the server's hand positions, so melee hits on the held prop and the throw estimates are the real
+  hands', as before. With the setting off, or with no free hand against the prop, every path matches the old one bit for
+  bit (the reach is zero; `reached` returns the controller as it is).
+
+Tests (headless, e1m1, `scratch/ko_test.sh` and `scratch/ko_side.sh`; distances from `vr_debug_hand_collide`, overlaps
+from `vr_grip_fit_drawn` 40 frames after the grab):
+
+| case | off (0) | on (1) |
+| --- | --- | --- |
+| crate on top of the off hand, main hand put in its middle: drawn palm or knuckles to the surface | -7.2 cm (in) | +1.0 cm (the margin) |
+| hands on opposite sides, main hand 27 cm in, then gripped: the main drawn hand in the crate | 153/172 points, 15.0 cm | 0 points |
+| the same: the grip fit at the grab | overlap 1055 cm, moved 6.2 cm | overlap 0, not moved |
+| the same: each hand off its grip in the hold | 11.8 / 17.4 cm | 0.7 / 0.7 cm |
+| the same: the off hand's fingers (3.3 cm before the grab) | 3.33 cm | 3.38 cm |
+
+One-hand grip fit cases (`gf2_test.sh`'s six) with the setting on and off: identical where the grab is clear (crate
+top, barrel rim, health boxes). The deep cases (crate deep, explosive box deep) differ by about as much as two runs of
+the same setting differ (1535 against 1524 cm overlap). `vr_physics_hash` (sv_random_seed 7, vr_fixed_frames 1) is
+f5fe01204d9519b5 either way. Melee eval: 168/177, the 3 known bash-damage canary differences.
+
+Open: if the free hand is pushed in under the holding hand's grip (off hand on the lid, main hand into the crate's side
+just below it), the reached grip lands about 13 cm from the other grip. The two-hand turn from such a short line then
+wants about 28 degrees more than the prop's angles keep, and the off hand is drawn 10 cm into the crate, against 0.4 cm
+with the setting off. The two-hand hold is touchy with grips this close together even without this change.
+
+For him in VR: hold a crate in one hand and push the other hand deep into it. The hand should stop on the surface and
+the fingers rest on it. Grip there: the hand should hold the outside, and the crate should not jump. Carry it and turn
+it with both hands, then let go with the first hand. The crate moves onto the second hand, which stays at the surface.
+Also punch the held crate with the free hand (it should still be hit) and throw it with both hands.

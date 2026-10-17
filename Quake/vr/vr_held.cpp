@@ -1953,7 +1953,8 @@ void bothFrame(const hands::State& s, int ent)
     for(int h = 0; h < 2; h++)
     {
         const carry2h::Frame grip = carry2h::onGrip(both.hold, both.object, h);
-        glm::vec3 off = grip.pos - hands[h].pos;
+        const glm::vec3 from = carry2h::reached(both.hold, hands[h], h).pos; // (a hand held out of it: from its reach)
+        glm::vec3 off = grip.pos - from;
         const float length = glm::length(off);
         if(length > drift)
         {
@@ -1966,7 +1967,7 @@ void bothFrame(const hands::State& s, int ent)
         }
         const float angle = glm::angle(turn);
         const float share = drift <= 0.f ? 0.f : angle > mostHandTurn ? mostHandTurn / angle : 1.f;
-        both.drawn[h] = {hands[h].pos + off,
+        both.drawn[h] = {from + off,
             glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, share) * hands[h].rot)};
     }
 }

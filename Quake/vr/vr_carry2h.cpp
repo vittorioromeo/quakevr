@@ -13,6 +13,7 @@
 #include "vr_portals.hpp"
 #include "vr_server.hpp"
 #include "vr_move.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -84,8 +85,19 @@ Hold record(const Frame& object, const Frame hands[2])
     return h;
 }
 
-Frame solve(const Hold& hold, const Frame hands[2])
+Frame reached(const Hold& hold, const Frame& at, int hand)
 {
+    if(hold.reach[hand] == glm::vec3{0.f})
+    {
+        return at;
+    }
+    return {at.pos + at.rot * hold.reach[hand], at.rot};
+}
+
+Frame solve(const Hold& hold, const Frame controllers[2])
+{
+    // (Each hand where it holds it from: its reach.)
+    const Frame hands[2]{reached(hold, controllers[0], 0), reached(hold, controllers[1], 1)};
     // The turn each hand alone would give it, averaged.
     const glm::quat a = hands[0].rot * hold.inHand[0];
     glm::quat b = hands[1].rot * hold.inHand[1];
@@ -260,12 +272,37 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     const auto it = holds.find(num);
     if(grab || it == holds.end())
     {
+        // The hand taking hold of what the other holds alone, drawn held out of it at its surface
+        // (vr_hand_collide_props_keep_out; a listen server's own player): it takes it there, not where the real hand is
+        // in it, and holds it from there (Hold::reach).
+        glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+        if(grab && cls.state != ca_dedicated && NUM_FOR_EDICT(player) == 1)
+        {
+            const int first = grip::serverHand(num);
+            for(int h = 0; h < 2; h++)
+            {
+                const glm::vec3 out = h != first ? view::heldOutOf(h, num) : glm::vec3{0.f};
+                if(out == glm::vec3{0.f})
+                {
+                    continue;
+                }
+                if(vr_debug_carry.value || developer.value)
+                {
+                    Con_Printf("carry2h: %s hand takes it held out of it at its surface, %.1f cm off the controller\n",
+                        h ? "main" : "off", static_cast<double>(glm::length(out) / units::metresToUnits() * 100.f));
+                }
+                hands[h].pos += out;
+                reach[h] = glm::inverse(hands[h].rot) * out;
+            }
+        }
         Hold& hold = holds[num];
         hold = record({origin, fromAngles(ent->v.angles, brush)}, hands);
         if(grab)
         {
             fitGrip(ent, player, hold, {origin, fromAngles(ent->v.angles, brush)}, hands);
         }
+        hold.reach[0] = reach[0];
+        hold.reach[1] = reach[1];
         watches.erase(num);
         letGo.erase(num); // (in both hands again)
         return origin;
@@ -587,7 +624,7 @@ int detached(edict_t* ent, edict_t* player)
     float moved[2];
     for(int h = 0; h < 2; h++)
     {
-        hand[h] = foldedHand(player, h).pos;
+        hand[h] = reached(it->second, foldedHand(player, h), h).pos; // (where it holds it from)
         const float distance = glm::distance(hand[h], onGrip(it->second, object, h).pos);
         // Where the hand was (from the body: walking doesn't count) when it was last on its grip.
         if(distance <= drift || !w.valid[h])
