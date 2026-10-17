@@ -621,6 +621,14 @@ QVR_CVAR(vr_xr_test_vd_runtime, "", CVAR_NONE)
 // Eye image size: the runtime's recommended size (SteamVR's supersampling included) times this,
 // per side (0.5 .. 1.5; pixels go with its square), within the runtime's largest.
 QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)
+// Dynamic resolution (vr_dynres.cpp, round 22): the eyes' scale lowered while their GPU time is over the budget, raised
+// back slowly; with headroom it stays at the ceiling (Render Scale: as without it).
+QVR_CVAR(vr_dynres, "1", CVAR_ARCHIVE)            // 0 off, 1 on with a headset, 2 the mock headset too (tests)
+QVR_CVAR(vr_dynres_target, "0.85", CVAR_ARCHIVE)  // ... the budget: this share of the headset's display period (0.3-1) for the eyes' GPU time
+QVR_CVAR(vr_dynres_min, "0.6", CVAR_ARCHIVE)      // ... the lowest scale it goes to
+QVR_CVAR(vr_dynres_max, "-1", CVAR_ARCHIVE)       // ... the highest (its ceiling); below 0: vr_render_scale
+QVR_CVAR(vr_dynres_log, "0", CVAR_NONE)           // ... 1: a console line at each change (Debug > Profiling); 2: also the scale and the eyes' GPU time twice a second
+QVR_CVAR(vr_dynres_test_load, "0", CVAR_NONE)     // ... an artificial GPU cost in each eye, units of work a pixel (Debug > Profiling; 0 none; negative: that load for one frame, a spike)
 // Leave out the pixels the lenses never show (the runtime's hidden area, XR_KHR_visibility_mask):
 // filled black and at the near plane before the scene, so the scene's shaders skip them.
 QVR_CVAR(vr_visibility_mask, "1", CVAR_ARCHIVE)

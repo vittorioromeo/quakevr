@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
+#include "vr_dynres.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
@@ -885,6 +886,7 @@ extern "C" int VR_RenderView()
         return 0;
     }
     const EyeSizes sizes = be->eyeSizes();
+    dynres::beginFrame(); // (the scale this frame is drawn at, for its GPU time read back later)
     const int width = scaledEyeSize(imageWidth, sizes.maxWidth);
     const int height = scaledEyeSize(imageHeight, sizes.maxHeight);
     stereo::resampling = width != imageWidth || height != imageHeight || upscale::sharpenAtNative();
@@ -1004,6 +1006,7 @@ extern "C" int VR_RenderView()
         temporal::endEye();
         stereosingle::endEye();
         R_AliasEyeCacheBegin(0);
+        dynres::testLoad(eye, framebufs.composite.fbo, width, height); // (vr_dynres_test_load: Debug > Profiling)
         {
             QVR_TRACY_SCOPE(zoneFoveated, "eye: foveated end"); // (profiling builds only: the eye's own steps)
             foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)

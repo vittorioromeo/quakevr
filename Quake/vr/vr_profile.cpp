@@ -15,6 +15,7 @@
 #include "vr_files.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_dynres.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -307,6 +308,7 @@ bool resolvePhases(PhaseGpuSlot& s)
     {
         history[s.sample].gpuMs = static_cast<float>(eyes);
     }
+    dynres::gpuFrame(s.serial, eyes); // dynamic resolution's input (vr_dynres.cpp)
     s.pending = false;
     return true;
 }
@@ -915,6 +917,11 @@ void noteDisplayPeriod(double ms)
 double displayPeriodMs()
 {
     return displayPeriod;
+}
+
+unsigned long long nextFrameSerial()
+{
+    return static_cast<unsigned long long>(frameSerial) + 1;
 }
 
 bool frameSample(int back, FrameSample& out)

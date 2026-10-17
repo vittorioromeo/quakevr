@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_diskcache.hpp"
+#include "vr_dynres.hpp"
 #include "vr_warmup.hpp"
 #include "vr_tracy.h"
 #include "vr_temporal.hpp"
@@ -1732,6 +1733,10 @@ void statusLines(za::Vector<za::String>& out)
     usage(gpu, sizeof(gpu), "GPU", timed && rate.gpuMs > 0.f ? rate.gpuMs : -1.f); // (only the eyes are timed: VR)
     q_snprintf(line, sizeof(line), "%.0f fps  %s  %s", static_cast<double>(fps), cpu, gpu);
     out.pushBack(za::String{line});
+    if(dynres::statusLine(line, static_cast<int>(sizeof(line))))
+    {
+        out.pushBack(za::String{line});
+    }
 
     // The memory: the process's (its working set) and the GPU's (used of total: NVIDIA's; free only: AMD's).
     auto& sampledAt = statusSample.sampledAt;
@@ -1790,7 +1795,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
+    const float scale = dynres::scale(); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
     int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {
