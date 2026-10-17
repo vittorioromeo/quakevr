@@ -41,6 +41,7 @@
 #include "vr_sightalign.hpp"
 #include "vr_setup.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_checklist.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"

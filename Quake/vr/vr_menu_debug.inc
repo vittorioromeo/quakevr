@@ -120,6 +120,10 @@ za::Vector<Item> pageDebugViews()
                   "posed without the tracking (orange: while they are drawn, the body ignores the tracking); or both "
                   "over each other, to compare."),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
+        command("Print Body Tracking Stats", "vr_bodytrack_stats")
+            .help("vr_bodytrack_stats: the body's errors against the tracked one since the last reset, and how far the "
+                  "arms stretch while the elbows are fitted (1: the calibrated arm fits the tracked one)."),
+        command("Reset Body Tracking Stats", "vr_bodytrack_stats reset"),
         cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),

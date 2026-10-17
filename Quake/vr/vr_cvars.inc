@@ -1400,6 +1400,10 @@ QVR_CVAR(vr_bodytrack_synth_elbows, "0", CVAR_NONE)   // how far the elbows wing
 QVR_CVAR(vr_bodytrack_synth_knees, "0", CVAR_NONE)    // degrees the knees turn out (the generated legs)
 QVR_CVAR(vr_bodytrack_synth_confidence, "1", CVAR_NONE) // the confidence it reports
 QVR_CVAR(vr_bodytrack_synth_active, "1", CVAR_NONE)   // isActive (0: tracking lost)
+QVR_CVAR(vr_bodytrack_synth_shoulders, "1", CVAR_NONE) // its shoulders' width, times the usual (22% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_upper_arm, "1", CVAR_NONE) // its upper arms' length, times the usual (17.5% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_forearm, "1", CVAR_NONE)  // its forearms' length, times the usual (16% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_wrist, "0", CVAR_NONE)    // cm its wrists are behind the drawn ones, along the controller (the controller-to-wrist offset)
 QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
@@ -1585,6 +1589,12 @@ QVR_CVAR(vr_body_shoulder_forward, "", CVAR_NONE)
 QVR_CVAR(vr_bodycal_seated, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_preview, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_undo, "", CVAR_ARCHIVE)
+// Body Calibration with body tracking (vr_bodycal.cpp, "Body tracking's measurements"): where tracking data comes in
+// during the poses, the tracked shoulders' width and the arm bones' lengths are blended into the measurements by
+// vr_bodycal_track_weight (0: ours alone, 1: the tracking's; the headset may scale its skeleton to your height, so not
+// all of it), the torso, the legs and the controller-to-wrist offset shown beside them.
+QVR_CVAR(vr_bodycal_track, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_track_weight, "0.5", CVAR_ARCHIVE)
 // VR Calibration (vr_setup.hpp), tests: a motion take of raw tracking played (vr_motion_play ... watch noplace) from the
 // body step's first frame, the synthetic person doing the poses (TESTING.md, "Body calibration"). Not saved.
 QVR_CVAR(vr_setup_test_take, "", CVAR_NONE)

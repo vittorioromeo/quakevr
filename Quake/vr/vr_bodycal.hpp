@@ -19,6 +19,10 @@
 // measured). Apply keeps them, and the preview shows them; only the first Apply (from the default body, which they were
 // made for) sets them to 0. Undo puts back the measurements and the tweaks from before.
 //
+// With body tracking (vr_bodycal_track), the tracked joints recorded with the poses measure the arm bones and the
+// shoulders' width too, blended into ours by vr_bodycal_track_weight where they agree (ROUND22.md, "Body Calibration
+// with body tracking").
+//
 // Each session's samples are saved (bodycal/<date>.txt in the game folder); vr_bodycal_refit fits one again.
 
 #pragma once
