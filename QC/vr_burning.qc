@@ -1183,7 +1183,10 @@ void() VR_Burn_MapFrame =
         {
             vector o = vr_fire_spot[i];
             float kind = vr_fire_spot_large[i]; // cache both: the scalar array getter clobbers vector call arguments
-            VR_Burn_MapContact(p, world, o, kind);
+            if(kind != 3) // (a candle: nails only)
+            {
+                VR_Burn_MapContact(p, world, o, kind);
+            }
         }
         entity t;
         for(t = find(world, classname, "light_torch_small_walltorch"); t;
@@ -1280,8 +1283,123 @@ entity() VR_Burn_LitTorches =
     return torches;
 };
 
-// Nail `n` going a..b: through a torch's flame (within vr_burn_nail_reach), a lava nail.
-void(entity n, entity xTorches, vector a, vector b) VR_Burn_NailCheck =
+.entity burn_fnext; // the other fires with an entity, this frame (VR_Burn_OtherFires)
+
+// The fires with an entity other than the torches, chained through burn_fnext: the toolgun's flames, the lava balls
+// in flight, and (vr_burn_nail_burning) each burning thing's fire.
+entity() VR_Burn_OtherFires =
+{
+    entity fires = world;
+    entity t;
+    for(t = findflags(world, vr_flameprop, 3); t; t = findflags(t, vr_flameprop, 3))
+    {
+        t.burn_fnext = fires;
+        fires = t;
+    }
+    for(t = find(world, classname, "fireball"); t; t = find(t, classname, "fireball"))
+    {
+        if(t.model != "") // (misc_fireball's spawner, in the lava, has no model)
+        {
+            t.burn_fnext = fires;
+            fires = t;
+        }
+    }
+    if(cvar_hget(cvarh_vr_burn_nail_burning))
+    {
+        for(t = find(world, classname, "vr_burn"); t; t = find(t, classname, "vr_burn"))
+        {
+            if(t.enemy != world && t.enemy.burn_fire == t && t.enemy.modelindex)
+            {
+                t.burn_fnext = fires;
+                fires = t;
+            }
+        }
+    }
+    return fires;
+};
+
+// How near segments p1..q1 and p2..q2 come (their nearest points' distance).
+float(vector p1, vector q1, vector p2, vector q2) VR_Burn_SegSegDist =
+{
+    vector d1 = q1 - p1;
+    vector d2 = q2 - p2;
+    vector r = p1 - p2;
+    float a = d1 * d1;
+    float e = d2 * d2;
+    float f = d2 * r;
+    float s = 0;
+    float t = 0;
+    if(a <= 0.0001 && e <= 0.0001)
+    {
+        return vlen(r);
+    }
+    if(a <= 0.0001)
+    {
+        t = min(1, max(0, f / e));
+    }
+    else
+    {
+        float c = d1 * r;
+        if(e <= 0.0001)
+        {
+            s = min(1, max(0, -c / a));
+        }
+        else
+        {
+            float b = d1 * d2;
+            float denom = a * e - b * b;
+            s = denom > 0 ? min(1, max(0, (b * f - c * e) / denom)) : 0;
+            t = (b * s + f) / e;
+            if(t < 0)
+            {
+                t = 0;
+                s = min(1, max(0, -c / a));
+            }
+            else if(t > 1)
+            {
+                t = 1;
+                s = min(1, max(0, (b - c) / a));
+            }
+        }
+    }
+    return vlen((p1 + d1 * s) - (p2 + d2 * t));
+};
+
+// The fire volumes nails catch in (VR_Burn_NailCheck), by the flame's kind (the fire spots' vr_fire_spot_large; the
+// toolgun's flames map to them): an upright capsule from vr_fv_lo to vr_fv_hi over the flame's origin, vr_fv_r round
+// its axis. Sized to the flame as drawn (flame2.mdl's small ball about 6 wide to 16 over its origin, the large one, a
+// brazier's, 13 wide to 39; a wall torch's head; a candle's wick), a little more all round. VR_BURN_FV_CULL: the farthest
+// any volume's point is from its origin's middle (the cheap first test).
+vector vr_fv_lo;
+vector vr_fv_hi;
+float vr_fv_r;
+float VR_BURN_FV_CULL = 34;
+
+void(float xKind) VR_Burn_FireVolume =
+{
+    if(xKind == 1)      { vr_fv_lo = '0 0 -6'; vr_fv_hi = '0 0 32'; vr_fv_r = 12; } // a large flame, a brazier's
+    else if(xKind == 2) { vr_fv_lo = '0 0 1';  vr_fv_hi = '0 0 16'; vr_fv_r = 6; }  // a wall torch's
+    else if(xKind == 3) { vr_fv_lo = '0 0 6';  vr_fv_hi = '0 0 13'; vr_fv_r = 4; }  // a candle's
+    else                { vr_fv_lo = '0 0 -6'; vr_fv_hi = '0 0 12'; vr_fv_r = 8; }  // a small flame
+};
+
+// Whether a..b (its middle `mid`, half its length `half`) passes through the flame of kind `xKind` at `o`.
+float(float xKind, vector o, vector a, vector b, vector mid, float half) VR_Burn_NailInFire =
+{
+    vector d = o + '0 0 13' - mid;
+    float cull = half + VR_BURN_FV_CULL;
+    if(d * d > cull * cull)
+    {
+        return FALSE;
+    }
+    VR_Burn_FireVolume(xKind);
+    return VR_Burn_SegSegDist(a, b, o + vr_fv_lo, o + vr_fv_hi) <= vr_fv_r;
+};
+
+// Nail `n` going a..b through a fire, a lava nail: a lit torch's flame (xTorches: within vr_burn_nail_reach), the map's
+// flames (its fire spots: flames, braziers, static wall torches, candles; id's, the expansions', MG's, AD's), the
+// toolgun's flames, a lava ball, and with vr_burn_nail_burning a burning body's or crate's flames (not yours): xFires.
+void(entity n, entity xTorches, entity xFires, vector a, vector b) VR_Burn_NailCheck =
 {
     float reach = max(0, cvar_hget(cvarh_vr_burn_nail_reach));
     entity t = xTorches;
@@ -1295,6 +1413,65 @@ void(entity n, entity xTorches, vector a, vector b) VR_Burn_NailCheck =
         }
         t = t.burn_tnext;
     }
+    vector mid = (a + b) * 0.5;
+    float half = vlen(b - a) * 0.5;
+    float i;
+    for(i = 0; i < vr_fire_spots; i++)
+    {
+        vector o = vr_fire_spot[i];
+        float kind = vr_fire_spot_large[i]; // (one array read a statement: the getters clobber vector arguments)
+        if(VR_Burn_NailInFire(kind, o, a, b, mid, half))
+        {
+            VR_Burn_NailToLava(n, o + (vr_fv_lo + vr_fv_hi) * 0.5, n); // (the fizz on the nail: a static flame has no entity)
+            return;
+        }
+    }
+    for(t = xFires; t; t = t.burn_fnext)
+    {
+        if(t.vr_flameprop)
+        {
+            float pk = t.vr_flameprop == 3 ? 3 : (t.vr_flameprop == 2 ? 1 : 0);
+            if(VR_Burn_NailInFire(pk, t.origin, a, b, mid, half))
+            {
+                VR_Burn_NailToLava(n, t.origin + (vr_fv_lo + vr_fv_hi) * 0.5, t);
+                return;
+            }
+            continue;
+        }
+        if(t.classname == "fireball")
+        {
+            if(VR_WallTorch_SegmentDist(t.origin, a, b) <= 10)
+            {
+                VR_Burn_NailToLava(n, t.origin, t);
+                return;
+            }
+            continue;
+        }
+        entity v = t.enemy; // a fire burning v (VR_Burn_OtherFires)
+        if(v == n.owner)
+        {
+            continue;
+        }
+        // Its flames: an upright capsule through its box's middle, as wide as the box's narrower side.
+        vector c = (v.absmin + v.absmax) * 0.5;
+        float r = min(v.absmax_x - v.absmin_x, v.absmax_y - v.absmin_y) * 0.5 + 2;
+        float up = (v.absmax_z - v.absmin_z) * 0.5;
+        vector dc = c - mid;
+        float cull = half + up + r;
+        if(dc * dc > cull * cull)
+        {
+            continue;
+        }
+        vector lo = c;
+        vector hi = c;
+        lo_z = v.absmin_z + min(r, up);
+        hi_z = v.absmax_z - min(r, up);
+        if(VR_Burn_SegSegDist(a, b, lo, hi) <= r)
+        {
+            VR_Burn_NailToLava(n, c, v);
+            return;
+        }
+    }
 };
 
 // A nail just fired (W_FireSpikes, W_FireSuperSpikes): its first two frames' way, before any frame's check (a torch
@@ -1305,11 +1482,7 @@ void(entity n) VR_Burn_NailLaunched =
     {
         return;
     }
-    entity torches = VR_Burn_LitTorches();
-    if(torches != world)
-    {
-        VR_Burn_NailCheck(n, torches, n.origin, n.origin + n.velocity * frametime * 2);
-    }
+    VR_Burn_NailCheck(n, VR_Burn_LitTorches(), VR_Burn_OtherFires(), n.origin, n.origin + n.velocity * frametime * 2);
 };
 
 // Wood in lava (NOTES.md start_2026-10-07_23-42-39; vr_burn_lava): a crate, a barrel or a piece of one whose bottom is
@@ -1492,14 +1665,11 @@ void() VR_Burn_NailFrame =
         return;
     }
     entity torches = VR_Burn_LitTorches();
-    if(torches == world)
-    {
-        return;
-    }
+    entity fires = VR_Burn_OtherFires();
     while(n)
     {
         entity next = find(n, classname, "spike");
-        VR_Burn_NailCheck(n, torches, n.origin - n.velocity * frametime, n.origin + n.velocity * frametime);
+        VR_Burn_NailCheck(n, torches, fires, n.origin - n.velocity * frametime, n.origin + n.velocity * frametime);
         n = next;
     }
 };
@@ -1511,4 +1681,5 @@ void() VR_Burn_NailFrame =
 // hand's nailgun; 6: a nail shot through the flame of the lit torch nearest the player (from 48 units before it, along
 // the player's line to it); 7: where that flame is (the console); 8: the nearest crate smashed (as by your blow: plain
 // pieces); 9: the nearest crate burnt through now (lit if it isn't: charred pieces); 10: the pieces lying about (the
-// console: how many, charred, burning); 11: a lava nail of yours at the nearest piece (from above it).
+// console: how many, charred, burning); 11: a lava nail of yours at the nearest piece (from above it); 12: a nail shot
+// through the nearest of the map's flames (a fire spot: flame, brazier, static wall torch, candle), level, from 64 before.

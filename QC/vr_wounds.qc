@@ -11,7 +11,10 @@
 
 float QVR_WOUND_SHOT  = 1; // a bullet or a pellet (extra: pellets in one event)
 float QVR_WOUND_NAIL  = 2; // a nail or a small missile
-float QVR_WOUND_MELEE = 3; // a blade, a fist, a bite, a claw (dir: the blow's way)
+float QVR_WOUND_MELEE = 3; // a blade, a fist, a bite, a claw (dir: the blow's way; extra: 1 blunt, + one of these:)
+float QVR_WOUND_MELEE_BLADE = 2;  // a blade in your hand (the engine's bloodstream::Melee * 2: its stream's chance,
+float QVR_WOUND_MELEE_BLUNT = 4;  // a blunt blow in your hand              vr_gore_streams_melee_blade, _blunt,
+float QVR_WOUND_MELEE_THROWN = 6; // a blade you threw                       _thrown_blade)
 float QVR_WOUND_BLAST = 4; // an explosion (org: its centre)
 float QVR_WOUND_BURN  = 5; // fire: a lava ball, a lava nail, a laser bolt, a fire's flame (extra 1: a burn alone, no wound under it)
 float QVR_WOUND_ZAP   = 6; // lightning
@@ -137,6 +140,10 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     {
         kind = QVR_WOUND_MELEE;
         extra = (sk == QVR_SGIB_BLUNT || sk == QVR_SGIB_PROPS); // a punch, a pommel, a gun, a brick in the fist
+        if(vr_hitkind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
+        {
+            extra += extra ? QVR_WOUND_MELEE_BLUNT : QVR_WOUND_MELEE_BLADE; // your hand's blow: its blood stream's chance
+        }
     }
     else if((sk == QVR_SGIB_PROPS && !(inflictor.vr_deflect_time > 0)) || sk == QVR_SGIB_BLADES)
     {
@@ -144,6 +151,10 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         // a hand's with it, not a nail's (a thrown blade cuts).
         kind = QVR_WOUND_MELEE;
         extra = (sk == QVR_SGIB_PROPS);
+        if(sk == QVR_SGIB_BLADES && (attacker.flags & FL_CLIENT))
+        {
+            extra += QVR_WOUND_MELEE_THROWN; // a blade you threw: its blood stream's chance
+        }
     }
     else if(vr_hitkind == QVR_HITKIND_SHOT)
     {
@@ -189,7 +200,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         dir = '0 0 -1';
     }
     vr_wound_sent++;
-    vr_wound_lastkind = kind + extra * 0.5; // (the dents' tests: vr_dents_test.qc)
+    vr_wound_lastkind = kind + (extra & 1) * 0.5; // (the dents' tests: vr_dents_test.qc)
     woundevent(targ, org, normalize(dir), kind + VR_Wound_CleanFlag(targ), min(255, take), extra);
 };
 

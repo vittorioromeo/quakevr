@@ -39,6 +39,10 @@ vector() VR_HotBlade_TestFlame =
     {
         float kind = vr_fire_spot_large[i]; // (one array read a statement: the getters clobber each other)
         vector o = vr_fire_spot[i];
+        if(kind == 3)
+        {
+            continue; // (a candle: nails only)
+        }
         o = o + (kind == 1 ? '0 0 18' : '0 0 8');
         if(vlen(o - tip) < bestD)
         {

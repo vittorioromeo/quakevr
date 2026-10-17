@@ -27,8 +27,17 @@ namespace qvr::bloodstream
 {
 
 // A wound arrived (QVR_SVC_WOUND, vr_wounds.cpp): entity `ent` struck at `at` (the world) going `dir`, by `kind`
-// (QVR_WOUND_*), `amount` its damage. Shots and nails may start a stream (vr_gore_streams_chance); handled next frame.
-void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int amount);
+// (QVR_WOUND_*), `amount` its damage. Shots and nails may start a stream (vr_gore_streams_chance), and so may your
+// melee (`melee`, from a melee wound's extra byte: vr_gore_streams_melee_blade, _melee_blunt, _thrown_blade); handled
+// next frame.
+enum Melee : int
+{
+    MeleeNone = 0,  // not yours (a monster's claw, a decapitation's cuts) or not a weapon's (a bash, a headbutt)
+    MeleeBlade = 1, // a blade in your hand: the axe, the sword, the chainsaw
+    MeleeBlunt = 2, // a blunt blow in your hand: the crowbar, a punch, a pommel, a gun, a thing in the fist
+    MeleeThrown = 3 // a blade you threw
+};
+void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int amount, int melee);
 
 // Once a frame, after the view's entities and the ragdolls are posed (vr_view.cpp): the streams moved, drawn, painted.
 void frame();
