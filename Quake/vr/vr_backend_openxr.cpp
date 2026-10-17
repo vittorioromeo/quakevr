@@ -129,7 +129,8 @@ void describeFault(const Fault& fault, char* out, size_t size)
     }
 }
 
-// Diagnostics mode's messenger (any thread): the message to openxr_debug.log (vr_diagnostics.cpp).
+// The debug messenger (any thread; every run, vr_diagnostics_xr): the message to the run's openxr_debug.log
+// (vr_runlogs.cpp, rate-limited).
 XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT severity, XrDebugUtilsMessageTypeFlagsEXT,
     const XrDebugUtilsMessengerCallbackDataEXT* data, void*)
 {
@@ -198,6 +199,7 @@ public:
                 Con_Printf("VR: %svr_xr_api_layers 0 turns off the OpenXR API layers installed (overlays, toolkits); "
                            "qvr_openxr.txt has the details\n",
                     vdxr ? "set Virtual Desktop's OpenXR runtime to SteamVR (the Streamer's settings), or " : "");
+                VR_LogsIncident(va("%s crashed (%s), caught", runtime[0] ? runtime : attempt.label.cStr(), faultText));
             }
             stop(); // (all of it: the next runtime starts from nothing)
             resetRuntimeState();
@@ -1444,8 +1446,8 @@ private:
             {
                 extensions.pushBack(body);
             }
-            // Diagnostics mode: the loader's and the runtime's own messages (openxr_debug.log).
-            if(VR_DiagnosticsOn() && vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
+            // The loader's and the runtime's own messages (every run: logs/<date>_<time>/openxr_debug.log).
+            if(vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
             {
                 extensions.pushBack(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
                 debugUtils = true;
@@ -1494,7 +1496,8 @@ private:
         // The messenger chained to the instance's creation (the loader's and the runtime's messages while it is made),
         // then one of its own for the instance's life (createDebugMessenger).
         XrDebugUtilsMessengerCreateInfoEXT messengerInfo{XR_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-        messengerInfo.messageSeverities = XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        // (Verbose only in diagnostics mode: a runtime's per-call chatter.)
+        messengerInfo.messageSeverities = (VR_DiagnosticsOn() ? XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT : 0) |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -1518,7 +1521,7 @@ private:
         XrResult created = xrCreateInstance(&info, &instance);
         if(XR_FAILED(created) && (debugUtils || !layers.empty()))
         {
-            // Diagnostics mode must not cost the VR start: again without the messenger and the validation layer.
+            // The logs must not cost the VR start: again without the messenger and the validation layer.
             VR_DiagnosticsNote(va("xrCreateInstance failed (%d) with the debug messenger/validation layer (instance %p left): "
                                   "again without\n",
                 static_cast<int>(created), static_cast<void*>(instance)));
@@ -1527,7 +1530,7 @@ private:
                 xrDestroyInstance(instance); // (the loader's own failure after the runtime's instance was made)
                 instance = XR_NULL_HANDLE;
             }
-            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with diagnostics' debug messenger: again without it\n",
+            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with the debug messenger: again without it\n",
                 static_cast<int>(created));
             debugUtils = false;
             za::Vector<const char*> kept;
@@ -1570,6 +1573,8 @@ private:
         // The crash report's VR line from here: which runtime, and what sits between it and the game.
         const za::String around = xrruntime::layersAndOverlays();
         xrruntime::logLine(va("OpenXR: %s\n", around.cStr()));
+        VR_LogsSystemLine(va("VR: OpenXR %s (%s); %s\n", runtime[0] ? runtime : "a runtime without a name",
+            currentAttempt.label.cStr(), around.cStr())); // (the run's system.txt: vr_runlogs.cpp)
         q_snprintf(crashBase, sizeof(crashBase), "OpenXR %s (%s); %s", runtime[0] ? runtime : "a runtime without a name",
             currentAttempt.label.cStr(), around.cStr());
         VR_SetCrashVr(crashBase);

@@ -1222,6 +1222,9 @@ runtimes (`vr_xr_test_runtimes`, manifests, comma-separated), the active one (`v
 processes (`vr_xr_test_processes`, e.g. `VirtualDesktop.Streamer.exe,vrserver.exe`) from those cvars, never the
 registry, and never loads the real system runtime. `vr_xr_test_fail <parts of manifests or labels, or *>` fails those
 attempts at once (also with real runtimes: `vr_xr_test_fail virtualdesktop` shows the fallback past VDXR).
+`vr_xr_test_layers <manifest.json,...>` (with `vr_xr_test 1`) are the implicit API layers the game reads instead of the
+registry's: the known-incompatible skip (`vr_xr_skip_incompatible_layers`, ROUND22.md, "Always-on logs and the bug
+report") is tested with fake manifests, or with a real one given there (the loader still reads the registry's).
 `bash Misc/quakevr/fakexr/build.sh <worktree>` builds a fake runtime DLL (no headset: `xrGetSystem` fails) into
 `scratch/fakexr`, one copy per runtime with a manifest named as the real one's; `FAKEXR_LOG` logs each copy's loads and
 unloads, `FAKEXR_FAIL_INSTANCE=fakexr_steam` fails one's `xrCreateInstance`. `bash Misc/quakevr/xr_runtime_test.sh

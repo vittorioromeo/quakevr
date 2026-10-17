@@ -817,6 +817,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_diagnostics, from the next start (as -diagnostics or the Diagnostics shortcut): a debug GL context and "
                   "its messages, the OpenXR debug messenger, what is said to a debugger, the console, the crash report and "
                   "the runtimes' logs, all in quakevr/diagnostics/<date>_<time>. Slower: for a bug report only."),
+        command("Run Logs Status", "vr_logs_status")
+            .help("vr_logs_status: this run's logs folder (quakevr/logs/<date>_<time>, every run, the last 5 kept) and its "
+                  "OpenXR debug messages so far. bugreport zips them (Options > Create Bug Report)."),
         command("Diagnostics Status", "vr_diagnostics_status")
             .help("vr_diagnostics_status: whether this run is in diagnostics mode, its folder and the messages so far."),
         toggle("OpenXR Validation Layer", vr_diagnostics_xr_validation)
@@ -832,6 +835,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
                   "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "
                   "vr_xr_runtime_explain lists them, and the other programs' DLLs in the game."),
+        toggle("Skip Incompatible API Layers", vr_xr_skip_incompatible_layers)
+            .help("vr_xr_skip_incompatible_layers, from the next VR start: the implicit OpenXR API layers known not to "
+                  "work with this OpenGL game (OBS's OpenXR mirror: Direct3D only) are turned off by their own switch, "
+                  "each said in the console and qvr_openxr.txt. Off: allowed."),
     };
 }
 
