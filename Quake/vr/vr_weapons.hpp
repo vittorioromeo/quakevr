@@ -7,7 +7,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 32;
+inline constexpr int numSlots = 33;
 
 enum class Key : int
 {

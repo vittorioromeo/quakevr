@@ -8,7 +8,8 @@
 // puffs, blood and decals; AD's projectile pellets where its rules apply), the pyro his
 // flamethrower (a stream of flames: each flame's damage, and what it touches set on fire: Quake VR's burning) and the
 // fumigator his poison sprayer (a stream of poison: each puff's damage, and what it touches poisoned for a while). AD's
-// plain soldier and enforcer drop Quake VR's grunt's burst rifle and enforcer's laser rifle (their own kinds of gun).
+// plain soldier and enforcer drop Quake VR's grunt's burst rifle and enforcer's laser rifle (their own kinds of gun). The
+// crossbow knight drops its crossbow (WID_ADCROSSBOW: AD's w_dcrossbow.mdl; AD's bolts, vr_adgun_crossbow_*; vr_ad_test 93).
 //
 // The player's use only: every number is a setting (vr_adgun_<gun>_<what>: VR Settings > Combat > Enemy Weapons >
 // Arcane Dimensions' Guns), each gun's rounds and time between shots, the plasma guns' damage, blast and speed, the
@@ -51,6 +52,7 @@ float(float t) VR_ADGun_ForClass =
     else if(t == ad_CT_MONCENTURION)   { wid = WID_ADCENTURION; }
     else if(t == ad_CT_MONPYRO)        { wid = WID_ADPYRO; }
     else if(t == ad_CT_MONFUMIGATOR)   { wid = WID_ADFUMIGATOR; }
+    else if(t == ad_CT_MONDCROSS)      { wid = WID_ADCROSSBOW; }   // (the crossbow knight: AD's w_dcrossbow.mdl)
     else if(t == ad_CT_MONARMY)        { wid = WID_GRUNTGUN; }  // (AD's plain soldier: the grunt's own kind of gun)
     else if(t == ad_CT_MONENFORCER)    { wid = WID_ENFRIFLE; }  // (AD's plain enforcer: the enforcer's laser rifle)
     return wid;
@@ -97,6 +99,10 @@ void() AD_WeaponsOnDemand =
     precache_sound("enforcer/pyro_flameoff.wav");
     precache_sound("enforcer/fum_poisonon.wav");
     precache_sound("enforcer/fum_poisonoff.wav");
+    precache_sound("weapons/crossbow_fire.wav"); // (the crossbow knight's crossbow: its shot and its bolts' hits)
+    precache_sound("weapons/bolt_hit1.wav");
+    precache_sound("weapons/bolt_hit4.wav");
+    precache_model(ad_MODEL_PROJ_BOLT1);
 };
 
 // func_weapon_grabbable (a map's or the toolgun's) laying one of AD's soldiers' guns (`wid`): its model made and its
@@ -138,6 +144,10 @@ void() VR_ADGun_Drop =
         return;
     }
     VR_DropEnemyGun(wid);
+    if(wid == WID_ADCROSSBOW)
+    {
+        self.ad_gib1mdl = ad_string_null; // (its crossbow fell as ours: AD's gibs throw no second one)
+    }
     if(cvar("developer"))
     {
         dprint(sprintf("adgun: %s drops its %s (%g in it)\n", self.classname,
@@ -265,6 +275,66 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
     m.vr_adgun_dmg = VR_ADGun_Value(xWid, "damage");
     m.vr_adgun_splash = VR_ADGun_Value(xWid, "splash");
     VR_ShotLaunched(m, xHand); // (its muzzle's crackle: ad_launch_plasma's VR_ADGun_BoltFx, as the monsters')
+    VRGunHaptic(xHand, 0.3, 60, 0.7);
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The crossbow knight's crossbow
+
+// Its bolt (AD's, launched as the knight's: its model, speed and flight) strikes: Quake VR's damage (vr_adgun_crossbow_damage,
+// positional: a head more), taken by AD's monsters as nails; AD's bolt sounds. Bare minimum (ROUND22 "AD crossbow"): it
+// does not stick where it lands.
+void() VR_ADGun_BoltTouch =
+{
+    if(self.ad_touchedvoid || other == self.owner || other.solid == SOLID_TRIGGER || VR_OwnerSpared(other))
+    {
+        return;
+    }
+    if(pointcontents(self.origin) == CONTENT_SKY)
+    {
+        remove(self);
+        return;
+    }
+    vector dir = normalize(self.velocity);
+    VR_ShotPush_Laser(other, self.origin, dir);
+    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
+    sound(self, CHAN_WEAPON, random() < 0.3 ? "weapons/bolt_hit1.wav" : "weapons/bolt_hit4.wav", 1, ATTN_NORM);
+    if(other.takedamage)
+    {
+        float before = other.health;
+        float dmg = self.vr_adgun_dmg * PositionalDamageFactor(PositionalDamage(other, trace_endpos, dir));
+        spawn_touchblood(dmg);
+        vr_ad_ammo = AD_AMMO_NAILS;
+        T_Damage(other, self, self.owner, dmg);
+        vr_ad_ammo = 0;
+        vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("adgun: crossbow bolt hit %s for %g (health %g -> %g)\n", other.classname, dmg, before,
+                other.health));
+        }
+    }
+    else
+    {
+        particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 4);
+    }
+    ad_entity_remove(self, 1);
+};
+
+void(float xHand) VR_ADGun_FireCrossbow =
+{
+    sound(self, VRGetGunChannel(xHand), "weapons/crossbow_fire.wav", 1, ATTN_NORM);
+    self.punchangle_x = -1;
+    vector dir = VRGetWeaponFireRotFwd(xHand);
+    float speed = max(100, VR_ADGun_Value(WID_ADCROSSBOW, "speed"));
+    ad_launch_projectile(VRGetMuzzlePos(xHand), dir, ad_CT_PROJ_BOLT1, speed);
+    entity m = ad_newmis;
+    m.touch = VR_ADGun_BoltTouch;
+    m.velocity = dir * speed + vrProjectileVelocity(xHand, 0.4);
+    m.angles = vectoangles(m.velocity);
+    m.vr_adgun_wid = WID_ADCROSSBOW;
+    m.vr_adgun_dmg = VR_ADGun_Value(WID_ADCROSSBOW, "damage");
+    VR_ShotLaunched(m, xHand);
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };
 
@@ -531,8 +601,11 @@ float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinish
     SuperDamageSound();
     makevectors(VRGetWeaponFireRot(xHand));
     self.show_hostile = time + 1; // wake monsters up
-    VR_Stealth_Shot(self, xWeapon == WID_ADDEFENDER ? WID_SUPER_SHOTGUN : (xWeapon == WID_ADGRENADE ? WID_GRENADE_LAUNCHER :
-        WID_ROCKET_LAUNCHER)); // QVR: heard (vr_stealth.qc)
+    float heardAs = WID_ROCKET_LAUNCHER;
+    if(xWeapon == WID_ADDEFENDER)       { heardAs = WID_SUPER_SHOTGUN; }
+    else if(xWeapon == WID_ADGRENADE)   { heardAs = WID_GRENADE_LAUNCHER; }
+    else if(xWeapon == WID_ADCROSSBOW)  { heardAs = WID_NAILGUN; } // (a crossbow: as quiet as the nailgun)
+    VR_Stealth_Shot(self, heardAs); // QVR: heard (vr_stealth.qc)
     VRSetWeaponClip(xHand, VRGetWeaponClip(xHand) - 1);
     float stream = (xWeapon == WID_ADPYRO || xWeapon == WID_ADFUMIGATOR);
     if(!stream)
@@ -542,6 +615,7 @@ float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinish
     if(xWeapon == WID_ADROCKET)          { VR_ADGun_FireRocket(xHand); }
     else if(xWeapon == WID_ADGRENADE)    { VR_ADGun_FireGrenade(xHand); }
     else if(xWeapon == WID_ADDEFENDER)   { VR_ADGun_FireDefender(xHand); }
+    else if(xWeapon == WID_ADCROSSBOW)   { VR_ADGun_FireCrossbow(xHand); }
     else if(stream)                      { VR_ADGun_FireFlame(xHand, xWeapon); }
     else                                 { VR_ADGun_FirePlasma(xHand, xWeapon); }
     if(!stream)
