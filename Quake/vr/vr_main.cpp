@@ -2051,6 +2051,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
+    Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);
     Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);

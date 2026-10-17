@@ -1815,6 +1815,12 @@ QVR_CVAR(vr_particle_halfres_upsample, "1", CVAR_ARCHIVE) // particles at half r
 QVR_CVAR(vr_particle_halfres_force, "0", CVAR_NONE) // tests: particles at half resolution (when allowed: vr_particle_halfres, vr_particle_retro_halfres) in every frame with some in view, however few (0: from a view and a half of them)
 QVR_CVAR(vr_particle_freeze, "0", CVAR_NONE) // debug: freeze particle simulation for same-state render comparisons
 QVR_CVAR(vr_particle_trim, "0", CVAR_ARCHIVE) // opt-in conservative transparent-margin geometry; 0: full quads
+QVR_CVAR(vr_particle_near_fade, "30", CVAR_ARCHIVE) // cm from the eye at which particles start fading out (to nothing at vr_particle_near_cull; 0: no fade)
+QVR_CVAR(vr_particle_near_cull, "10", CVAR_ARCHIVE) // cm: particles nearer the eye than this are not drawn (0: all drawn)
+QVR_CVAR(vr_particle_max_screen, "0.15", CVAR_ARCHIVE) // the largest a particle is drawn, as a fraction of the view's height across: a larger one shrunk round its centre (0: no cap)
+QVR_CVAR(vr_debug_particle_waste, "0", CVAR_NONE) // debug: count the particles' shaded fragments that show nothing (vr_particle_waste_report); slows the draw
+QVR_CVAR(vr_debug_particle_waste_alpha, "0.02", CVAR_NONE) // debug: a fragment fainter than this (its largest premultiplied channel) counts as nearly transparent
+QVR_CVAR(vr_debug_particle_waste_big, "0.05", CVAR_NONE) // debug: a particle whose quad covers this fraction of the view or more is counted as big
 QVR_CVAR(vr_particle_saturate, "1", CVAR_ARCHIVE) // particles composited in reverse order ("under") into a target of their own, the pixels already opaque skipped by the earlier ones, then blended over the scene: the same image, less fill (0: each blended into the scene in turn)
 QVR_CVAR(vr_particle_saturate_batches, "8", CVAR_NONE) // tests: front-to-back batches (opaque pixels marked between them)
 QVR_CVAR(vr_particle_saturate_cover, "10", CVAR_NONE) // tests: from how many views of particles (their squares clipped to the screen, not what the scene hides) they are composited in reverse order (0: always)

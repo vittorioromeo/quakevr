@@ -3026,6 +3026,52 @@ void lightReport_f()
     lightTraceSum = lightLitSum = 0;
 }
 
+constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "blood", "blood mist", "lightning",
+    "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire"};
+
+// vr_particle_waste_report: the fragments the particles shaded since the last report (vr_debug_particle_waste 1), and
+// how many showed nothing (under half a level of 255) or next to nothing (under vr_debug_particle_waste_alpha), by
+// atlas cell, for all of them and for the big ones (covering vr_debug_particle_waste_big of the view or more).
+void wasteReport_f()
+{
+    za::U32 counts[gfx::particleWasteSlots * 3]{};
+    if(!gfx::readParticleWaste({counts, gfx::particleWasteSlots * 3}))
+    {
+        Con_Printf("vr_particle_waste_report: nothing counted (set vr_debug_particle_waste 1, with particles in view)\n");
+        return;
+    }
+    const auto line = [](const char* name, double shaded, double visible, double strong) {
+        if(shaded <= 0.0)
+        {
+            return;
+        }
+        Con_Printf("  %-12s %10.0f shaded, %5.1f%% invisible, %5.1f%% faint (%5.1f%% wasted)\n", name, shaded,
+            100.0 * (shaded - visible) / shaded, 100.0 * (visible - strong) / shaded, 100.0 * (shaded - strong) / shaded);
+    };
+    for(int big = 0; big < 3; big++)
+    {
+        // 0 every one, 1 the small, 2 the big
+        double total[3] = {};
+        Con_Printf("particle waste, %s (faint: under %g):\n", big == 0 ? "all" : big == 1 ? "small" : "big",
+            vr_debug_particle_waste_alpha.value);
+        for(int cell = 0; cell < CellCount; cell++)
+        {
+            double c[3] = {};
+            for(int b = 0; b < 2; b++)
+            {
+                if(big != 0 && b != big - 1)
+                {
+                    continue;
+                }
+                for(int k = 0; k < 3; k++) c[k] += counts[(cell * 2 + b) * 3 + k];
+            }
+            line(cellNames[cell], c[0], c[1], c[2]);
+            for(int k = 0; k < 3; k++) total[k] += c[k];
+        }
+        line("total", total[0], total[1], total[2]);
+    }
+}
+
 // The frame's particles for the GPU (gfx::ParticleInstance, one record each, made and uploaded once a frame and drawn
 // in both eyes: the quads are made in the vertex shader from each eye's camera), and a splash's rings and foam lying on
 // the waves (lyingVertices, made on the CPU for each view: only those in its frustum, R_CullBox on a box round each,
@@ -3081,6 +3127,7 @@ void buildInstances()
         q.uv = cellUv[p.cell];
         q.flat = p.flat ? 1.f : 0.f;
         q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
+        q.kind = static_cast<float>(p.cell);
         trim |= cellTrim[p.cell];
     }
     instanceCount = static_cast<za::SizeT>(out - instances.data());
@@ -3099,9 +3146,24 @@ void buildLying()
     }
     glm::vec3 eye, right, up;
     gfx::sceneCamera(eye, right, up);
+    // Near the eye as the others (the particle vertex shader): faded from vr_particle_near_fade to _near_cull, none nearer.
+    const float cm = units::metresToUnits() * 0.01f;
+    const float cull = za::max(0.f, vr_particle_near_cull.value) * cm;
+    const float fadeFrom = za::max(cull, za::max(0.f, vr_particle_near_fade.value) * cm);
     for(const za::U32 i : lying)
     {
         Particle& p = pool[i];
+        const float eyeDistance = glm::distance(p.org, eye);
+        if(eyeDistance < cull)
+        {
+            continue;
+        }
+        float nearFade = 1.f;
+        if(eyeDistance < fadeFrom)
+        {
+            const float f = za::clamp((eyeDistance - cull) / za::max(fadeFrom - cull, 1e-3f), 0.f, 1.f);
+            nearFade = f * f * (3.f - 2.f * f);
+        }
         const float reach = 1.5f * p.scale + 64.f;
         vec3_t mins = {p.org.x - reach, p.org.y - reach, p.org.z - reach};
         vec3_t maxs = {p.org.x + reach, p.org.y + reach, p.org.z + reach};
@@ -3134,7 +3196,7 @@ void buildLying()
             }
         }
         const float a = za::min(p.color.a, 1.f);
-        const glm::vec4 color{glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a};
+        const glm::vec4 color = glm::vec4{glm::vec3{p.color} * lightOf[i] * a, p.additive ? 0.f : a} * nearFade;
         lieOnLiquid(p, r, u, cellUv[p.cell], color, eye);
     }
 }
@@ -3315,7 +3377,8 @@ extern "C" void VR_DrawSceneTranslucent()
     // (Quake's projection: its rows swapped about, as R_DrawParticles reads it: 1 / tan(fov y / 2) at [2][1].)
     const gfx::ParticleSplit split{za::abs(r_matproj[2 * 4 + 1]) * 0.5f * static_cast<float>(viewport[3]),
         retroSet > 0 ? za::max(0.f, vr_particle_retro_halfres_pixels.value) :
-                       za::max(0.f, vr_particle_halfres_pixels.value)};
+                       za::max(0.f, vr_particle_halfres_pixels.value),
+        static_cast<float>(viewport[2]), static_cast<float>(viewport[3])};
     const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
     // Retro: not in the frames composited in reverse order (vr_particle_saturate: the densest, from 10 views of
     // particles), where skipping what is hidden costs less than all of them at half size (particles_dense: 8 against

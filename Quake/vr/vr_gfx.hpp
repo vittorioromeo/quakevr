@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
@@ -132,7 +133,8 @@ struct ParticleInstance
     glm::vec4 uv;
     float flat; // 1: lying on the horizontal plane
     float cell; // atlas cell for conservative support bounds; -1: full support
-    float pad[2];
+    float kind; // its atlas cell always (vr_debug_particle_waste's count by texture)
+    float pad;
 };
 static_assert(sizeof(ParticleInstance) == 96);
 
@@ -160,7 +162,12 @@ struct ParticleSplit
 {
     float pixelScale{0.f};
     float largePixels{0.f};
+    float viewWidth{0.f}, viewHeight{0.f}; // the scene's viewport in its pixels (as pixelScale's): the size cap's, the waste count's big ones
 };
+// vr_debug_particle_waste: the counts since the last call (then cleared), particleWasteSlots x 3 (shaded, visible,
+// more than faint), a slot per atlas cell and size (cell * 2, + 1 if big). False if nothing was counted yet.
+constexpr int particleWasteSlots = 64;
+[[nodiscard]] bool readParticleWaste(za::Span<za::U32> counts);
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
 // `reverse` (vr_particle_saturate): composited in reverse order into a target of their own, the pixels already opaque
 // skipped by the ones under them, then blended over the scene (the same image, less fill), when the scene's target
