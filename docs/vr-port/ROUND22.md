@@ -12185,3 +12185,45 @@ Mock run after the game closed (e1m1, vr_lootbeam_test 12, debug on, all categor
 
 - Auto-collect (vr_carry_autocollect) shrank towards the hand's origin (`s.pos[hand]`), a little above the palm. `targetOf` in vr_collectfx.cpp now uses `hands::palmPoint(s, hand)`, the palm centre that grips and holsters use. holsteritems_test.sh auto and collectfx_test.sh pass; no mid-shrink screenshot taken.
 - configVersion 154, his values from quakevr/ironwail.cfg promoted (old default -> new; only configs still at the old default move): vr_body_head_side 0 -> 1.75, vr_body_head_sink 4.5 -> 9, vr_lootbeam_opacity 0.5 -> 0.15, vr_lootbeam_length 1.2 -> 1.5, vr_lootbeam_thickness 0.06 -> 0.03, vr_lootbeam_far 0 -> 12. The rest of vr_body_head_* and vr_lootbeam* already equalled the defaults.
+## Your body's depth first: each pixel of it shaded once (worktree `dequant`, branch `agent/bodyrender`, 2026-10-17)
+
+From qvr-kit scratch/tracy_gpu1.md item 4 (M1) and the perfshadow2 zones. The body is `progs/vrbody_bare.mdl` (an MDL posed
+by bones).
+
+Profile (Release-Tracy, mock at `vr_mock_eye_size 2784; vr_restart`, `vr_tracy_gpu_detail 1`, hip1m1, hands out; GPU ms a
+frame, both eyes): `player: body` looking down 50 degrees 0.43-0.46, straight down 1.01, ahead 0.003, up 40 0.004; the menu
+body clone's `player: mirror image` 0.36 (1024: 0.11). The vertex side costs almost nothing: drawn wholly off-screen
+(up 40) the body costs 0.004, so skinning once a frame for both eyes and the shadows, a lower-detail body, or culling it
+off-screen (the bare-hands light exception; tried as `vr_body_cull_lit`, then removed) would each save at most 0.002 ms an
+eye. The cost is fragments. Features off one at a time (looking down 50): retro textures -0.04, dynamic AO -0.025, dynamic
+lights -0.015; rim light, wounds and normal maps within noise. None dominates: the cost is the uber-shader's base cost per
+pixel. The cut is in overdraw: about 40 % of the body's shading was pixels drawn over again (the forearms over the torso
+and legs, the legs over each other).
+
+`vr_body_prepass` (default 1; Debug > Profiling and Memory > *Body Depth Pre-pass*; r_alias.c R_FlushAliasInstances): your
+body's batch and its mirror image's are drawn first with `glprogs.alias_depth` (no fragment shader, colour writes off, the
+same instances), then shaded with depth writes off. The alias vertex shader's `gl_Position` is now `invariant`, so both
+give the same depths. The pre-pass is skipped in the multiview pass and for holey or translucent skins. Its GPU zone,
+`body depth prepass`, sits inside the body's. 0 draws the body as before.
+
+Measured (2784 an eye; ms a frame, both eyes, off / on):
+
+| | `player: body` (or mirror image) | of it the pre-pass | eye L; eye R |
+|---|---|---|---|
+| straight down | 1.011 / 0.710 | 0.242 | 2.148 / 1.998; 2.076 / 1.932 |
+| down 50 | 0.456 / 0.339 (second run 0.431 / 0.355) | 0.095 | 1.987 / 1.901; 1.914 / 1.831 |
+| ahead | 0.0025 / 0.0047 | 0.001 | the same |
+| menu mirror image | 0.363 / 0.315 | 0.029 | 2.122 / 2.093; 2.066 / 2.032 |
+
+So -0.15 ms an eye looking straight down, -0.04 to -0.06 at 50 degrees, -0.025 at the mirror, +0.001 looking ahead. CPU:
+one more draw call an eye (`eye L` 294 / 294 us, within noise). Visual check: paused eye shots (1440, hip1m1: down 60
+and 89, two third-person cameras, the menu clone), taken off, off again, then on. In every scene the off/on pair differs
+no more than the off/off pair: the paused body still moves a little. Down 89, repeated: off/off 184k pixels, max 142;
+on/on 87k, max 106; off/on 140k, max 58, and 69k, max 48. No holes: a depth mismatch would show the world through the body.
+
+Not done, because measured not worth it: skinning reuse, a body LOD and the off-screen cull. A possible next step: the
+pre-pass itself costs a quarter of the body's time looking straight down (the depth-only raster of a large area).
+Ordering the body's triangles arms first at load would get most of the overdraw saving without it.
+
+To try in VR: nothing should look different. Look down at your body and toggle Body Depth Pre-pass: no flicker, no holes
+or z-fighting on the arms, legs or the gloves' cuffs. Check the same in the menu's body mirror.

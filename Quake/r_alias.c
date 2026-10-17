@@ -845,6 +845,26 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (!translucent)
 		GL_SetState (opaque_state);
 	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
+	if (!translucent && !aliasdepth && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
+	{ // QVR: your body's depth first (vr_body_prepass): its opaque skins with no fragment shader, the same instances and
+	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
+		VR_GPUZoneBegin ("body depth prepass");
+		GL_UseProgram (glprogs.alias_depth[poseverttype]);
+		VR_AliasShadowClip (); // (its own program's plane, the same as the shading's)
+		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+		{
+			skinnum = ibuf.ent->skinnum;
+			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+			if (!hdr->gltextures[skinnum][anim] || (hdr->gltextures[skinnum][anim]->flags & TEXPREF_ALPHAPIXELS))
+				continue;
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+		}
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_SetState (opaque_state | GLS_NO_ZWRITE);
+		VR_GPUZoneEnd ();
+	}
 	if (!notex)
 		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
