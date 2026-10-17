@@ -250,15 +250,15 @@ const DefaultChange defaultChanges[] = {
     {151, &vr_bodytrack_legs, "0"},                     // 1
     // 152: retro particles at half resolution by default (GPU: blood bursts +1.8 ms; renumber at merge).
     {152, &vr_particle_retro_halfres, "0"},             // 1
-    // 158: his ammo pouch zone and magnetic holster chain offsets (2026-10-17: "I've tweaked the ammo pouch zones again";
+    // 153: his ammo pouch zone and magnetic holster chain offsets (2026-10-17: "I've tweaked the ammo pouch zones again";
     // "the magnetic holster chain offsets: make those the new defaults"; renumber at merge).
-    {158, &vr_holster_zone_ammo_x, "-1"},               // -0.5
-    {158, &vr_holster_zone_ammo_depth, "0.15"},         // 0.2
-    {158, &vr_holster_zone_ammo_height, "0.95"},        // 1.125
-    {158, &vr_magholster_chain_x, "0"},                 // -2
-    {158, &vr_magholster_chain_y, "0"},                 // -0.75
+    {153, &vr_holster_zone_ammo_x, "-1"},               // -0.5
+    {153, &vr_holster_zone_ammo_depth, "0.15"},         // 0.2
+    {153, &vr_holster_zone_ammo_height, "0.95"},        // 1.125
+    {153, &vr_magholster_chain_x, "0"},                 // -2
+    {153, &vr_magholster_chain_y, "0"},                 // -0.75
 };
-constexpr int configVersion = 158;
+constexpr int configVersion = 153;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
