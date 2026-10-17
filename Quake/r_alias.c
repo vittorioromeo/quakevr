@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_alias.c -- alias model rendering
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 extern cvar_t gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale, cl_gun_x, cl_gun_y, cl_gun_z;
@@ -622,6 +623,7 @@ R_FlushAliasInstances
 */
 void R_FlushAliasInstances (qboolean showtris)
 {
+	VR_TRACY_SCOPE ("alias flush"); // QVR: the batch's upload and draw (profiling builds)
 	extern cvar_t r_softemu_mdl_warp;
 	qmodel_t* model;
 	aliashdr_t* mainhdr, *hdr;
@@ -1020,7 +1022,7 @@ static void R_AliasTransform (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *le
 {
 	float fovscale = 1.0f;
 
-	R_SetupAliasFrame (e, paliashdr, lerpdata);
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias frame", R_SetupAliasFrame (e, paliashdr, lerpdata)); // QVR: (vr_tracy_render_detail)
 	R_SetupEntityTransform (e, lerpdata);
 
 	if (lerpdata->pose1 == lerpdata->pose2)
@@ -1229,16 +1231,16 @@ cull:
 	else if (eyeuse && eye->lit) // QVR: the light at its origin as the first eye found it, the rest this eye's
 	{
 		VectorCopy (eye->light, lightcolor);
-		R_AliasLightFinish (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e)); // QVR: (vr_tracy_render_detail)
 	}
 	else
 	{
-		R_AliasLightPoint (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light point", R_AliasLightPoint (e));
 		if (eyekeep)
 			VectorCopy (lightcolor, eye->light);
 		else if (eyecheck && eye->lit)
 			R_AliasEyeCompare (lightcolor, eye->light, sizeof (vec3_t), AEYE_BAD_LIGHT);
-		R_AliasLightFinish (e);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias light finish", R_AliasLightFinish (e));
 	}
 
 	//
@@ -1322,9 +1324,9 @@ cull:
 		memcpy (cached->model_matrix, model_matrix, sizeof (model_matrix));
 		cached->gen = aliasdepthgen;
 	}
-	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
 	smoothbefore = ibuf.count == 1 ? 0 : VR_AnimSmoothRows (0); // (a batch's first instance starts its rows)
-	R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0); // QVR: r_lerpmodels 3
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias smooth", R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0)); // QVR: r_lerpmodels 3
 	if (eyekeep || (eyecheck && eye->lit && eye->vrok)) // QVR: kept for the second eye, or compared with what was
 	{
 		int rows = VR_AnimSmoothRows (0) - smoothbefore;
@@ -1363,7 +1365,7 @@ cull:
 		}
 	}
 instanced:
-	VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion); // QVR: its previous frame's positions
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias motion", VR_TemporalAliasMotion (e, totalverts, mode == ALIAS_STANDARD, instance->motion)); // QVR: its previous frame's positions
 	if (mode == ALIAS_STANDARD)
 		VR_DebugAliasPose (e, paliashdr, lerpdata.pose1, lerpdata.pose2, lerpdata.blend, model_matrix); // QVR: vr_debug_pose_check
 	if (portal_split)
@@ -1521,7 +1523,7 @@ void R_DrawAliasModels (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 	{
 		aliasprecur = i < pre && aliaspre[i].ent == ents[i] ? &aliaspre[i] : NULL; // QVR
-		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
 	}
 	aliasprecur = NULL; // QVR
 	if (pre)
@@ -1543,7 +1545,7 @@ void R_DrawAliasModelsDepth (entity_t **ents, int count)
 	int i;
 	aliasdepth = true;
 	for (i = 0; i < count; i++)
-		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias shadow model", R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH)); // QVR: (vr_tracy_render_detail)
 	R_FlushAliasInstances (false);
 	aliasdepth = false;
 }
@@ -1566,7 +1568,7 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 	for (i = 0; i < count; i++)
 	{
 		aliasfaces = &faces[i];
-		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias shadow model", R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH)); // QVR: (vr_tracy_render_detail)
 	}
 	R_FlushAliasInstances (false);
 	aliasfaces = NULL;

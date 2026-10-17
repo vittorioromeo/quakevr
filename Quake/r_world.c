@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -709,19 +710,26 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
 	if (pass == BP_SOLID && !translucent)
 	{
+		VR_TracyBegin ("depth prepass", 1); // QVR: (profiling builds: a GPU zone with vr_tracy_gpu_detail)
 		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 		R_FlushBModelCalls ();
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		R_ResetBModelCalls (program);
+		VR_TracyEnd ();
 	}
 
+	// QVR: the shading (profiling builds: a GPU zone with vr_tracy_gpu_detail): the opaque pass's holds the parallax,
+	// the carved decals' march, the bumps, the PBR and the lights' shadows, all in the one world shader
+	VR_TracyBegin (pass == BP_SOLID ? (translucent ? "shading: translucent" : "shading: opaque (parallax, carved decals)") :
+		pass == BP_ALPHATEST ? "shading: fences" : pass == BP_SHOWTRIS ? "shading: showtris" : "shading: sky", 1);
 	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 
 	VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
 	R_FlushBModelCalls ();
 	VR_TemporalMotionWrites (0); // QVR
+	VR_TracyEnd (); // QVR
 	glDisable (GL_CLIP_DISTANCE1);
 	if (a2c) // QVR
 	{
