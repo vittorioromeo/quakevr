@@ -11713,3 +11713,74 @@ and the copy pass (MSAA: per sample, or a resolve that matches the depth's), the
 
 To try in VR: Debug > Views > Parallax Conservative Depth, off and on. Expect no difference in frame time or picture
 on his NVIDIA card. Debug > Profiling and Memory > World Fragment Counts shows the counts.
+
+
+## Always-on logs and the bug report (worktree `dequant`, branch `agent/diagdefault`, 2026-10-17)
+
+Why: a 1.0.1 player's "startup crash" was VDXR crashing in `xrEnumerateSwapchainImages` under the implicit API layer
+OBSMirror (`XR_APILAYER_NOVENDOR_OBSMirror`, Direct3D only). The game caught it and played flat; the cause was in
+`qvr_openxr.txt` and the console, but he sent only `gl_startup.log`.
+
+What every run keeps now (`Quake/vr/vr_runlogs.cpp`): `quakevr/logs/<date>_<time>/`, the newest 5 runs (older run
+folders, named by their time only, removed as a run starts; anything else in `logs/` is left alone):
+- `console.log` from the first line. The console log is buffered now (`console.c`: 64 KB, written a second after the
+  last write by `LOG_Tick` in `Host_Frame`, on a full buffer, `LOG_Close`, `exit()`, the crash reporter's `LOG_Flush`,
+  a VR start's failure, a bug report); lines before the filesystem wait in the buffer. `-condebug`'s `qconsole.log`
+  gets the same lines, buffered too.
+- `system.txt`: the build, the command line, Windows' version, the GPU and driver, each VR start's runtime with its API
+  layers and overlays, the incidents.
+- `qvr_openxr.txt`: the run's copy of the VR starts' log (each line also goes to `<game folder>/qvr_openxr.txt`).
+- `openxr_debug.log`: the `XR_EXT_debug_utils` messenger, on by default now (`vr_diagnostics_xr 1`; info, warnings and
+  errors; verbose only in diagnostics mode), each message id's first 10 then every 100th, 20000 lines at most, a
+  summary by id at the quit.
+- `runtime/`: at an incident (a VR start failed, a crash inside the runtime caught, the game crashed: the crash
+  reporter calls it), VDXR's `OpenXR.log`, the Streamer's log, SteamVR's logs (written during the run), `gl_startup.log`
+  and `qvr_openxr.txt`, copied (read shared: a runtime may have its log open).
+Diagnostics mode keeps the rest (the debug GL context, the validation layer, `XR_LOADER_DEBUG=all`, `debug_output.log`)
+and copies the run's `console.log`, `openxr_debug.log` and `system.txt` into its folder at the end (it no longer
+reopens the console log itself).
+
+The bug report: `bugreport`, Options > Create Bug Report, VR Settings > Headset > Create Bug Report (all detail
+levels), and `-bugreport`: the installer's new Start menu shortcut "Quake VR Unleashed (Create Bug Report)", which
+makes it from the last run and exits before anything else starts (no window, no run folder). It writes
+`quakevr/bugreports/<date>_<time>.zip` and opens Explorer on it (not in test runs): the newest two runs' folders, the
+crash reports and dumps since, `gl_startup.log`, `ironwail.cfg` and `autoexec.cfg`, the runtimes' logs written since
+(`runtime_now/`), the newest diagnostics folder since, and `summary.txt` (build, Windows, the OpenXR status, the API
+layers and overlays, the newest run's `system.txt`, the file list). The zip is stored, not compressed: the tree's miniz
+is cut down to reading, so `vr_runlogs.cpp` writes the zip itself (local headers, central directory, its own CRC-32);
+each file at most its last 64 MB. After a VR start's failure the console says how to make one, and a centre message
+("VR didn't start: playing flat. A bug report can be made with Options > Create Bug Report") shows 8 s.
+
+Known-incompatible layers: `vr_xr_skip_incompatible_layers 1` (default, archived; Debug > Startup > Skip
+Incompatible API Layers): before each `xrCreateInstance`, the implicit layers in `incompatibleLayers`
+(`vr_xr_runtime.cpp`; only `XR_APILAYER_NOVENDOR_OBSMirror` so far, matched by the manifest's `name`, any case) get
+their manifest's `disable_environment` variable set, each one said in the console and `qvr_openxr.txt`; a layer without
+that variable is said and left on; 0 allows them (said too). `applyLayerSwitch` now clears what the game set before
+and sets what `vr_xr_api_layers` and the skip want, so the two cvars can't undo each other. `vr_xr_runtime_explain`
+shows such a layer as "ON now; skipped at each VR start", then "off (... set by vr_xr_skip_incompatible_layers 1)".
+Test aid: `vr_xr_test_layers <manifests>` (with `vr_xr_test 1`) replaces the registry's list.
+
+Verified (headless):
+- Frame cost: mock headset, e1m1, 10 s, `--exclusive`: CPU busy 0.517 ms against origin/next's 0.522 (frame 4.006 vs
+  4.013, capped). The fake runtime with a headset (`FAKEXR_HEADSET`): messenger on 0.626 ms CPU busy, off 0.961 (noise:
+  the off run had a 146 ms hitch); the fake runtime's 3 messages logged.
+- Rolling: 6 old fake run folders plus one real: after a run, 5 run folders left, the 3 oldest gone with their
+  `runtime/`, a `not_a_run/` folder kept.
+- `bugreport` in the game and `-bugreport` from the kit: valid zips (Python's `testzip`), the second with the last two
+  runs and no new run folder.
+- `vr_crash_test`: the crashed run's `console.log` has the lines up to the crash and the report's head; its
+  `runtime/` has the copies, `system.txt` the incident.
+- Layers: fake manifests (OBSMirror with a switch: skipped, the variable set; one in lower case without a switch: said,
+  left on; an unknown one: untouched; `vr_xr_skip_incompatible_layers 0`: allowed, the variable cleared). On this PC's
+  real OBSMirror manifest (`DISABLE_XR_APILAYER_NOVENDOR_OBSMirror`), with the fake runtime and `-diagnostics`: the
+  loader's own layer list leaves OBSMirror out with the skip, lists it with 0.
+- The installer's self-tests: 37/37 (the shortcut counts raised by one; "reinstall from scratch" failed once with
+  access denied in the full run and passed alone).
+
+Not tested: a real runtime start with OBSMirror skipped (no headset session here); the messenger's cost with a chatty
+real runtime (VDXR, SteamVR); Explorer opening (test runs skip it); the Options row and the Headset row by clicking
+(both run `bugreport`).
+
+To try in VR: Options > Create Bug Report and VR Settings > Headset > Create Bug Report (a centre message names the zip;
+Explorer opens on the desktop); the Start menu shortcut after installing. With OBS's OpenXR mirror installed, the
+console at the VR start says it was skipped.
