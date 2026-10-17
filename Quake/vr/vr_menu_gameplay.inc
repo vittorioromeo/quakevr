@@ -82,6 +82,11 @@
             .help("Debug: each melee monster after you (within 600 units) draws on the floor its arc and reach as they "
                   "are now (a fan; its sweeping blows' wider fan once it has swung one), red with you inside it (its blow "
                   "would land), orange inside only a sweeping blow's, green outside. Its kind, arc and reach above it."),
+        toggle("Show Aim Cones", vr_enemy_aim_show)
+            .help("Debug: each ranged monster after you (within 1000 units) draws its aim cone ahead of it, red with you "
+                  "inside (its shot comes straight at you), green outside, and its fire cone past it, orange with you "
+                  "there (it fires at once, bent toward you only as far as its aim cone). Outside both it waits, turning. "
+                  "Its kind and cones above it."),
         header("Arc"),
         slider("Arc Angle", vr_enemy_melee_arc_angle, 30.f, 120.f, 5.f, "%.0f deg")
             .help("How far to each side of its facing a grunt-sized monster's blow reaches (a knight, a death knight)."),
@@ -105,6 +110,28 @@
             .help("A monster attacking you in melee (a knight's swing and its run past you, an ogre's chainsaw, a "
                   "fiend's claws) is kept this far from your head, pushed back smoothly, so it never fills your view and "
                   "you can parry. Its blows still reach you. 0: off (it charges in until your bodies meet)."),
+        header("Ranged Aim"),
+        toggle("Ranged Aim Cone", vr_enemy_aim_cone)
+            .help("A monster's ranged shot (a grunt's, an enforcer's laser, an ogre's grenade, a scrag's spit) leaves along "
+                  "its facing, bent toward you at most its aim cone, so circling or sidestepping a monster still turning "
+                  "makes it miss. With you far outside its fire cone, it waits a moment, turning, before it fires. Up "
+                  "and down it still aims at you. Homing shots and bosses are left alone. Off: Quake's shots, straight "
+                  "at you whatever way it faces."),
+        slider("Aim Cone", vr_enemy_aim_angle, 5.f, 60.f, 1.f, "%.0f deg")
+            .help("How far to each side of its facing a shot may bend toward you (hitscan and fast shots: a grunt's, an "
+                  "enforcer's; lobbed and slow ones times Lobbed and Slow)."),
+        slider("Fire Cone", vr_enemy_aim_fire, 10.f, 120.f, 5.f, "%.0f deg")
+            .help("You inside this cone ahead of it, it fires at once (bent at most its aim cone); outside it, it waits for "
+                  "itself to turn, up to Max Delay. Times the kind's multiplier too."),
+        slider("Max Delay", vr_enemy_aim_delay, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("How long a shot waits at most with you outside its fire cone, the monster turning after you meanwhile. "
+                  "Then it fires anyway, bent toward you at most its aim cone. 0: no wait."),
+        slider("Hitscan and Fast", vr_enemy_aim_narrow, 0.25f, 4.f, 0.05f, "x%.2f")
+            .help("Both cones' multiplier for hitscan and fast shots (grunts, enforcers, gremlins, scourges, the "
+                  "expansions' gunners)."),
+        slider("Lobbed and Slow", vr_enemy_aim_wide, 0.25f, 4.f, 0.05f, "x%.2f")
+            .help("Both cones' multiplier for lobbed and slow shots (an ogre's grenade, a zombie's flesh, a scrag's spit, "
+                  "a death knight's magic): they are easier to see coming, so they may bend further."),
     };
 }
 

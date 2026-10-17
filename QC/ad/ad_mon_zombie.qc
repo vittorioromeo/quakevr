@@ -164,7 +164,9 @@ void() ad_zombie_atta10	=[	$atta10,	ad_zombie_atta11	] {ad_ai_face();
 void() ad_zombie_atta11	=[	$atta11,	ad_zombie_atta12	] {ad_ai_face();
 	self.ad_attack_speed = ad_SPEED_ZOMBFLESH + (ad_skill * ad_SPEED_ZOMBIESKILL);
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed); };
-void() ad_zombie_atta12	=[	$atta12,	ad_zombie_atta13	] {ad_ai_face();
+void() ad_zombie_atta12	=[	$atta12,	ad_zombie_atta13	] {
+	if (VR_AimCone_Wait(ad_zombie_atta12, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_ai_face();
 	ad_ZombieThrowFlesh('8 12 28');};
 void() ad_zombie_atta13	=[	$atta13,	ad_zombie_run1	] {};
 
@@ -183,7 +185,9 @@ void() ad_zombie_attb11	=[	$attb11,	ad_zombie_attb12	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(ad_ELEV_DEFAULT, self.origin, self.enemy.origin, ad_SPEED_ZOMBFLESH); };
 void() ad_zombie_attb12	=[	$attb12,	ad_zombie_attb13	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_ZOMBFLESH); };
-void() ad_zombie_attb13	=[	$attb13,	ad_zombie_attb14	] {ad_ai_face();
+void() ad_zombie_attb13	=[	$attb13,	ad_zombie_attb14	] {
+	if (VR_AimCone_Wait(ad_zombie_attb13, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_ai_face();
 	ad_ZombieThrowFlesh('6 -6 26');};
 void() ad_zombie_attb14	=[	$attb13,	ad_zombie_run1	] {};
 
@@ -200,7 +204,9 @@ void() ad_zombie_attc9		=[	$attc9,		ad_zombie_attc10	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(ad_ELEV_DEFAULT, self.origin, self.enemy.origin, ad_SPEED_ZOMBFLESH); };
 void() ad_zombie_attc10	=[	$attc10,	ad_zombie_attc11	] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_ZOMBFLESH); };
-void() ad_zombie_attc11	=[	$attc11,	ad_zombie_attc12	] {ad_ai_face();
+void() ad_zombie_attc11	=[	$attc11,	ad_zombie_attc12	] {
+	if (VR_AimCone_Wait(ad_zombie_attc11, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_ai_face();
 	ad_ZombieThrowFlesh('18 13 24');};
 void() ad_zombie_attc12	=[	$attc12,	ad_zombie_run1		] {};
 

@@ -102,6 +102,8 @@ void()	ad_garg_run10	=[	$fly19,	ad_garg_run1	] {ad_ai_run(8);};
 //============================================================================
 void() ad_garg_fbthrow =
 {
+	if (VR_AimCone_Wait(ad_garg_fbthrow, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir;
 	
 	makevectors (self.angles);

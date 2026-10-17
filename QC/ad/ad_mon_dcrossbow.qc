@@ -299,6 +299,8 @@ void()	ad_dcrossbow_stop7 =[	$tstop7,	ad_dcrossbow_run1 ] {self.ad_weaponstate =
 //===========================================================================
 void() ad_dcrossbow_shot =
 {
+	if (VR_AimCone_Wait(ad_dcrossbow_shot, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local	vector ad_org, ad_dir;
 
 	if (!self.enemy) return;

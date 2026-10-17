@@ -232,6 +232,7 @@ void(float ad_bullet_count, vector ad_bullet_spread, float ad_bullet_type) ad_La
 		// fire somewhat behind the player, so a dodging player is harder to hit
 		ad_bullet_dir = self.enemy.origin - self.enemy.velocity*0.2;
 		ad_bullet_dir = normalize (ad_bullet_dir - self.origin);
+		ad_bullet_dir = VR_AimCone_Bend(ad_bullet_dir, VR_AIM_NARROW); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	}
 
 	// Setup particle emitter/tracer shot (true aim)
@@ -414,6 +415,7 @@ void() ad_Touch_PlasmaProjectile =
 //----------------------------------------------------------------------
 void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_launch_plasma =
 {
+	ad_dir = VR_AimCone_Bend(ad_dir, VR_AIM_NARROW); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	ad_newmis = spawn ();
 	ad_newmis.owner = self;
 	ad_newmis.classname = "proj_plasma";	// obj name, not really used anymore
@@ -835,6 +837,7 @@ void() ad_Touch_Projectile =
 //----------------------------------------------------------------------
 void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_launch_projectile =
 {
+	ad_dir = VR_AimCone_Bend(ad_dir, VR_AIM_NARROW); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	ad_newmis = spawn ();
 	ad_newmis.owner = self;
 	ad_newmis.classname = "proj_nail";		// obj name, not really used anymore
@@ -1503,6 +1506,7 @@ void() ad_Steer_LimitedMissile =
 //----------------------------------------------------------------------
 void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type, float ad_proj_speed) ad_Launch_Missile =
 {
+	ad_dir = VR_AimCone_Bend(ad_dir, VR_AIM_NARROW); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	// Check if there is space to spawn entity
 	if (ad_entity_pcontent(ad_org)) return;
 	
@@ -1888,6 +1892,7 @@ void() ad_Touch_ShellCasing;
 //----------------------------------------------------------------------
 void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type) ad_Launch_Grenade =
 {
+	ad_dir = VR_AimCone_Bend(ad_dir, VR_AIM_WIDE); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)
 	// Check if there is space to spawn entity
 	if (ad_entity_pcontent(ad_org)) return;
 	

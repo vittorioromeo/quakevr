@@ -257,6 +257,8 @@ void()	ad_dlord_magica4 =[ $magica4, ad_dlord_magica5 ] {ad_ai_face();};
 void()	ad_dlord_magica5 =[ $magica5, ad_dlord_magica6 ] {ad_ai_face();};
 void()	ad_dlord_magica6 =[ $magica6, ad_dlord_magica7 ] {ad_ai_face();};
 void()	ad_dlord_magica7 =[ $magica7, ad_dlord_magica8 ] {
+	if (VR_AimCone_Wait(ad_dlord_magica7, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	sound(self, ad_CHAN_AUTO, "weapons/lstart.wav", 1, ad_ATTN_NORM);
 	ad_dlord_lightning(40);};
 void()	ad_dlord_magica8 =[ $magica8, ad_dlord_magica9 ] {ad_dlord_lightning(25);};
@@ -350,6 +352,8 @@ void() ad_dlord_magicb6 = [ $magicb6, ad_dlord_magicb7 ] {ad_ai_trackenemy();};
 void() ad_dlord_magicb7 = [ $magicb7, ad_dlord_magicb8 ] {ad_ai_trackenemy();};
 void() ad_dlord_magicb8 = [ $magicb8, ad_dlord_magicb9 ] {ad_ai_trackenemy();};
 void() ad_dlord_magicb9 = [ $magicb9, ad_dlord_magicb10] {
+	if (VR_AimCone_Wait(ad_dlord_magicb9, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	// Is the enemy active and self alive?
 	if (self.enemy && self.health > 0) {
 		ad_dlord_attackb();	// Fire projectile

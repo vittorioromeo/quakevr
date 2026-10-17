@@ -87,6 +87,12 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_pyro.qc pyroflame_spawn: Quake VR: the pyro's flames look like the player's
   lights.qc setup_light_sound: Quake VR: a torch made live by the toolgun keeps its sound
   lights.qc setup_light_static: Quake VR: a torch made live by the toolgun is not made static
+  ai_projectiles.qc launch_plasma: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc launch_projectile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Missile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Grenade: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Shells: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  weapons.qc FireBullets: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEESIDE,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
@@ -111,4 +117,39 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_xmas_santa.qc: if (!ai_checkmelee(MONAI_MELEESANTA,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   mon_xmas_snowman.qc: if (!ai_checkmelee(MONAI_MELEESNOWMAN,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_checkattack.qc: 21 melee launches behind VR_MeleeArc_Launch
+  mon_soldier.qc army_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_fire_rocket: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_plasma_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_grenade_atk5: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_enforcer.qc enforcer_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc defender_ssg: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc eliminator_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc def_atkgl6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_centurion.qc cent_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_ogre.qc OgreFireNails: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_ogre.qc ogre_shoot4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_dknight.qc dknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_gargoyle.qc garg_fbthrow: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_drole.qc drole_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dguardquoth.qc dguardq_fireball: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_golem.qc golem_magic13: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_wizard.qc Wiz_FastFire: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_shambler.qc sham_lightning: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dcrossbow.qc dcrossbow_shot: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_eel.qc eel_plasma: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_jim.qc jim_laser: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_jim.qc jim_rocket: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_gaunt.qc gaunt_plasma: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_zombie.qc zombie_atta12: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_zombie.qc zombie_attb13: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_zombie.qc zombie_attc11: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_spider.qc spider_spit8: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_swampling.qc swampling_spit4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_voreling.qc voreling_spit4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_minotaur.qc mino_magic8: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_skullwiz.qc skullw_attack6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_scorpion.qc pinch_tail7: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_dlord.qc dlord_magica7: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dlord.qc dlord_magicb9: aim cone wait (VR_AimCone_Wait, NARROW)
   ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)

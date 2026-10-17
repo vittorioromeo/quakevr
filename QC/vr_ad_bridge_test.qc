@@ -120,6 +120,18 @@ float(entity e) AD_HasMelee =
     return AD_Run(e) && e.ad_th_melee;
 };
 
+// One of AD's monsters with a ranged attack (Show Aim Cones: vr_aimcone.qc VR_AimCone_ShowFrame).
+float(entity e) AD_HasMissile =
+{
+    return AD_Run(e) && e.ad_th_missile;
+};
+
+// One of AD's bosses (the aim cone leaves their shots alone: vr_aimcone.qc VR_AimCone_Kind).
+float(entity e) AD_IsBoss =
+{
+    return AD_Run(e) && e.ad_bossflag;
+};
+
 // Wakes one of AD's monsters (self) to hunt `p`, by AD's own AI. TRUE: it was one.
 float(entity p) AD_TestWake =
 {

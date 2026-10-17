@@ -443,6 +443,8 @@ void() ad_mino_magic6 =[ $magic11, ad_mino_magic7 ] {ad_minotaur_hands('16 -36 7
 void() ad_mino_magic7 =[ $magic13, ad_mino_magic8 ] {ad_minotaur_hands('36 -20 56','24 32 68',5);};
 
 void() ad_mino_magic8 =[ $magic15, ad_mino_magic9 ] {
+	if (VR_AimCone_Wait(ad_mino_magic8, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	sound (self, ad_CHAN_WEAPON, "minotaur/bolt_fire.wav", 1, ad_ATTN_NORM);
 	ad_minotaur_hands('40 -3 46','40 1 44',6);ad_minotaur_fire('40 0 45',-2);};
 void() ad_mino_magic9 =[ $magic17, ad_mino_magic10 ] {ad_ai_back(8);

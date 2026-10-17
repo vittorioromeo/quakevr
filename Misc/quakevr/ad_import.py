@@ -371,6 +371,58 @@ ARC_HITS = [
 ]
 ARC_LAUNCHES = 21  # ai_checkattack.qc's `self.th_melee ();` calls, each behind VR_MeleeArc_Launch (it turns first)
 
+# Ranged aim cone (vr_aimcone.qc; ROUND22.md, "Ranged aim cone"): AD's launchers bend a monster's shot toward the player
+# at most its aim cone off its facing (VR_AimCone_Bend: its shooter's facing; the player's, traps' and monster-on-monster
+# shots untouched; bosses none by ad_bossflag), and its main ranged attacks wait, turning, with the player far off its
+# facing (AIM_WAITS: VR_AimCone_Wait at the start of the fire function or the shot's frame). Homing missiles
+# (Launch_HomingMissile: the vore's, the sergeant's) are left alone.
+QVR_NAMES |= {"VR_AimCone_Bend", "VR_AimCone_Wait", "VR_AIM_NARROW", "VR_AIM_WIDE"}
+_AIM = Q + ": aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone"
+_BEND = "\t%s = VR_AimCone_Bend(%s, VR_AIM_%s); // AD support: aim cone: bent to the shooter's facing (vr_aimcone.qc)\n"
+FUNC_PATCHES += [
+    ("ai_projectiles.qc", func, old, _BEND % (var, var, kind) + old, _AIM)
+    for func, old, var, kind in (
+        ("launch_plasma", "\tnewmis = spawn ();\n", "dir", "NARROW"),
+        ("launch_projectile", "\tnewmis = spawn ();\n", "dir", "NARROW"),
+        ("Launch_Missile", "\t// Check if there is space to spawn entity\n", "dir", "NARROW"),
+        ("Launch_Grenade", "\t// Check if there is space to spawn entity\n", "dir", "WIDE"))  # (its dir: a velocity)
+] + [
+    ("ai_projectiles.qc", "Launch_Shells", "\t\tbullet_dir = normalize (bullet_dir - self.origin);\n",
+     "\t\tbullet_dir = normalize (bullet_dir - self.origin);\n\t" + _BEND % ("bullet_dir", "bullet_dir", "NARROW"), _AIM),
+    ("weapons.qc", "FireBullets", "\t\t\tdir = normalize (dir - src);\n\t\t}\n",
+     "\t\t\tdir = normalize (dir - src);\n\t\t}\n\t" + _BEND % ("dir", "dir", "NARROW"), _AIM),
+]
+# (file, function: a fire function with no arguments or the shot's frame, its kind): VR_AimCone_Wait at its start.
+AIM_WAITS = [
+    ("mon_soldier.qc", "army_fire", "NARROW"), ("mon_soldier.qc", "army_fire_rocket", "NARROW"),
+    ("mon_soldier.qc", "army_plasma_fire", "NARROW"), ("mon_soldier.qc", "army_grenade_atk5", "WIDE"),
+    ("mon_enforcer.qc", "enforcer_fire", "NARROW"), ("mon_enforcer.qc", "defender_ssg", "NARROW"),
+    ("mon_enforcer.qc", "eliminator_fire", "NARROW"), ("mon_enforcer.qc", "def_atkgl6", "WIDE"),
+    ("mon_centurion.qc", "cent_fire", "NARROW"), ("mon_ogre.qc", "OgreFireNails", "NARROW"),
+    ("mon_ogre.qc", "ogre_shoot4", "WIDE"), ("mon_hknight.qc", "hknight_magicc6", "WIDE"),
+    ("mon_dknight.qc", "dknight_magicc6", "WIDE"), ("mon_gargoyle.qc", "garg_fbthrow", "NARROW"),
+    ("mon_drole.qc", "drole_fire", "NARROW"), ("mon_dguardquoth.qc", "dguardq_fireball", "NARROW"),
+    ("mon_golem.qc", "golem_magic13", "WIDE"), ("mon_wizard.qc", "Wiz_FastFire", "WIDE"),
+    ("mon_shambler.qc", "sham_lightning", "NARROW"), ("mon_dcrossbow.qc", "dcrossbow_shot", "NARROW"),
+    ("mon_eel.qc", "eel_plasma", "NARROW"), ("mon_jim.qc", "jim_laser", "NARROW"), ("mon_jim.qc", "jim_rocket", "NARROW"),
+    ("mon_gaunt.qc", "gaunt_plasma", "NARROW"), ("mon_zombie.qc", "zombie_atta12", "WIDE"),
+    ("mon_zombie.qc", "zombie_attb13", "WIDE"), ("mon_zombie.qc", "zombie_attc11", "WIDE"),
+    ("mon_spider.qc", "spider_spit8", "WIDE"), ("mon_swampling.qc", "swampling_spit4", "WIDE"),
+    ("mon_voreling.qc", "voreling_spit4", "WIDE"), ("mon_minotaur.qc", "mino_magic8", "NARROW"),
+    ("mon_skullwiz.qc", "skullw_attack6", "WIDE"), ("mon_scorpion.qc", "pinch_tail7", "WIDE"),
+    ("mon_dlord.qc", "dlord_magica7", "NARROW"), ("mon_dlord.qc", "dlord_magicb9", "NARROW"),
+]
+
+
+def aim_wait_patch(text, fn, func, kind):
+    """VR_AimCone_Wait(func, kind) first in func's body (a function's `= {` or a frame's `= [...] {`). Exactly once."""
+    hits = list(re.finditer(r"(?m)^[^\n]*\b" + re.escape(func) + r"\s*=\s*(?:\[[^\]\n]*\]\s*)?\{", text))
+    if len(hits) != 1:
+        sys.exit("ad_import: aim cone wait for %s %s matches %d functions, not 1" % (fn, func, len(hits)))
+    at = hits[0].end()
+    return (text[:at] + "\n\tif (VR_AimCone_Wait(%s, VR_AIM_%s)) return; // AD support: aim cone: far off its facing it "
+            "waits, turning (vr_aimcone.qc)\n" % (func, kind) + text[at:])
+
 
 def line_patch(text, fn, needle, edit, mark, count=1):
     """Every line of text holding needle: edit(line), right-stripped, plus mark. Exactly count lines."""
@@ -773,6 +825,8 @@ def main():
         src[fn] = line_patch(src[fn], fn, needle, lambda l: l.replace(
             needle, needle.replace(call, "(%s && VR_MeleeArc_Hits(%s))" % (call, side))),
             " // AD support: melee arc (fight.qc VR_MeleeArc_Hits)")
+    for fn, func, kind in AIM_WAITS:
+        src[fn] = aim_wait_patch(src[fn], fn, func, kind)
     src["ai_checkattack.qc"] = line_patch(
         src["ai_checkattack.qc"], "ai_checkattack.qc", "self.th_melee ();",
         lambda l: l.replace("self.th_melee ();", "if (VR_MeleeArc_Launch()) self.th_melee ();"),
@@ -1008,7 +1062,8 @@ def main():
     ] + ["  %s: %s" % (p[0], p[4]) for p in PATCHES if p[4].startswith(B) or p[4].startswith(Q)] + [
         "  %s %s: %s" % (p[0], p[1], p[4]) for p in FUNC_PATCHES] + [
         "  %s: %s: melee arc hit test (VR_MeleeArc_Hits(%s))" % (fn, needle, side) for fn, needle, side in ARC_HITS] + [
-        "  ai_checkattack.qc: %d melee launches behind VR_MeleeArc_Launch" % ARC_LAUNCHES]
+        "  ai_checkattack.qc: %d melee launches behind VR_MeleeArc_Launch" % ARC_LAUNCHES] + [
+        "  %s %s: aim cone wait (VR_AimCone_Wait, %s)" % (fn, func, kind) for fn, func, kind in AIM_WAITS]
     report.append("  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, "
                   "Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)")
     with open(os.path.join(OUT, "AD_IMPORT.txt"), "w", encoding="latin1", newline="\n") as f:

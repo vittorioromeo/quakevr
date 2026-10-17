@@ -322,3 +322,13 @@
 .float vr_melee_wide_seen;  // QC's: it struck a sweeping blow (its wide arc shown from then)
 .float vr_melee_turn_time;  // QC's: the frame (time) of its last swing turn (fight.qc VR_MeleeArc_TurnBegin), and its
 .float vr_melee_turn_yaw0;  // facing before that frame's first turn: a frame's turns held together, however many calls
+.float vr_aim_cone;    // Show Aim Cones (vr_enemy_aim_show; vr_aimcone.qc VR_AimCone_ShowFrame, set each frame it is shown, at
+.float vr_aim_fire;    // vr_aim_shown): a ranged monster's aim cone and fire cone (degrees each side of its facing); while
+.float vr_aim_shown;   // a shot waits for it to turn, vr_aim_holding is when the wait began (0: none); the engine draws
+.float vr_aim_holding; // them (vr_bodycontact.cpp aimConeDraw)
+.void() vr_aim_fn;     // QC's (vr_aimcone.qc VR_AimCone_Wait): a waiting shot's function (called when the wait ends), the
+.void() vr_aim_next;   // think it had (its next frame) and how long until it (seconds), the wait's kind of shot, when
+.float vr_aim_step;    // the last wait ended (none again for a second: one wait an attack) and the frame (time) a wait
+.float vr_aim_kind;    // ended in (its shot fires then, unheld)
+.float vr_aim_ended;
+.float vr_aim_go;

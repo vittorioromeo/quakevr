@@ -67,6 +67,8 @@ float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets; /
 float(entity e) AD_TestWaiting;      // vr_test_monsters: one of AD's monsters waiting for its trigger
 float(entity p) AD_TestWake;         // vr_test_monsters: AD's monster (self) hunts p; TRUE: it was one
 float(entity e) AD_HasMelee;         // Show Melee Arcs (fight.qc): one of AD's monsters with a melee attack
+float(entity e) AD_HasMissile;       // Show Aim Cones (vr_aimcone.qc): one of AD's monsters with a ranged attack
+float(entity e) AD_IsBoss;           // the aim cone (vr_aimcone.qc): one of AD's bosses (its shots left alone)
 // AD's weapon upgrades (decision 10): every question goes through AD_WeaponUpgraded(player, weapon record, bit).
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
 float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)

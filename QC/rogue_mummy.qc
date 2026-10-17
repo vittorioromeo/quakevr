@@ -178,6 +178,7 @@ void(vector st) mummyFireGrenade =
     missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     missile.avelocity = '3000 1000 2000';
 

@@ -249,6 +249,7 @@ void() morph_attack =
 void() morph_fire =
 {
     vector org, dir;
+    if(VR_AimCone_Wait(morph_fire, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
 
     ai_face();
 

@@ -205,6 +205,8 @@ void()	ad_jim_run1	=[	$idle1,	ad_jim_run1 ] {
 //======================================================================
 void() ad_jim_laser =
 {
+	if (VR_AimCone_Wait(ad_jim_laser, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir, ad_vec;
 
 	if (!self.enemy) return;
@@ -233,6 +235,8 @@ void() ad_jim_laser =
 //----------------------------------------------------------------------
 void() ad_jim_rocket =
 {
+	if (VR_AimCone_Wait(ad_jim_rocket, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir, ad_vec;
 	
 	if (!self.enemy) return;
