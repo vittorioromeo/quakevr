@@ -733,6 +733,7 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
 struct ToolbarLayout
 {
     static constexpr float corner = 4.f;    // true pixels from the panel's edges
+    static constexpr float labelReserve = 8.f; // the build label's line at the very bottom (vr_menubrand.cpp: its 5 px and a gap), under the corner buttons
     static constexpr float rowCorner = corner; // the row's from the canvas's top edge (as the status box's and the version
                                                // box's from theirs)
     // The headset's column (and the bottom left corner's rows: OBS's, the spectator camera's switch) large for the
@@ -830,7 +831,7 @@ struct ToolbarLayout
         // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
         // Normal panels keep the author's large targets; constrained panels fit the column as a whole.
         const int bottomRow = cornerTopRow();
-        const float reserve = ToolbarLayout::corner + 2.f * ToolbarLayout::half +
+        const float reserve = ToolbarLayout::corner + ToolbarLayout::labelReserve + 2.f * ToolbarLayout::half +
                               bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
         const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
         const float height = toolsShown() * (2.f * ToolbarLayout::half + ToolbarLayout::gap) - ToolbarLayout::gap;
@@ -1009,7 +1010,7 @@ constexpr float bannerTextX = ToolbarLayout::pad + 6.f + ToolbarLayout::labelGap
     float textX = bannerTextX)
 {
     BannerLayout b;
-    b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half + static_cast<float>(row) * (2.f * ToolbarLayout::half +
+    b.yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::labelReserve + ToolbarLayout::half + static_cast<float>(row) * (2.f * ToolbarLayout::half +
                                                                                                     ToolbarLayout::gap)) /
                           l.k;
     float width = 0.f;
@@ -1129,7 +1130,7 @@ void placeFlatRecording(const ToolbarLayout& l)
     f.x0 = l.left + FlatRecording::corner;
     f.x1 = f.x0 + FlatRecording::pad + FlatRecording::size * static_cast<float>(strlen(FlatRecording::text)) +
            FlatRecording::pad;
-    f.y1 = l.bottom - FlatRecording::corner / l.k;
+    f.y1 = l.bottom - (FlatRecording::corner + ToolbarLayout::labelReserve) / l.k;
     f.y0 = f.y1 - (FlatRecording::pad + FlatRecording::size + FlatRecording::pad) / l.k;
     f.contentLeft = menu::contentLeftBelow(f.y0 - FlatRecording::gap / l.k);
     float bx0, bx1, by0, by1;

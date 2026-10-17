@@ -336,6 +336,7 @@ constexpr float versionGapAbove = 4.f; // and of what it draws above it (true pi
 constexpr float buildInfoSizeHeadset = 5.f; // the build text's glyphs in the bottom left corner (true pixels)
 constexpr float buildInfoSizeFlat = 5.f;
 constexpr float buildInfoGap = 3.f; // clear of the corner's buttons below it (true pixels)
+static_assert(versionCorner + buildInfoSizeHeadset + buildInfoGap == 12.f, "ToolbarLayout::corner + labelReserve (vr_menuui.cpp)");
 constexpr double linkFeedback = 3.0;  // seconds the link says it opened the page
 constexpr double linkRepeat = 1.5;     // seconds a second press does nothing (a double click, both triggers)
 
@@ -711,8 +712,8 @@ void drawBuildInfo()
     Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
     const float size = qvr::menuui::active() ? buildInfoSizeHeadset : buildInfoSizeFlat; // true pixels
     const float k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // (as versionBox)
-    // Above what sits in that corner (the Recording button, the spectator camera's switch, OBS's row), a little clear of it.
-    const float bottomEdge = za::fmin(bottom - versionCorner / k, qvr::menuui::cornerLabelBottom() - buildInfoGap / k);
+    // At the very bottom, under what sits in that corner (the buttons keep ToolbarLayout::labelReserve clear of it).
+    const float bottomEdge = bottom - versionCorner / k;
     const float x = left + versionCorner;
     const float ym = bottomEdge - size * 0.5f / k;
     const float width = size * static_cast<float>(strlen(VR_BuildInfo()));
