@@ -10481,7 +10481,7 @@ than it turns. 2.5 s, health held at 1000. The grunt (burst rifle: two `ai_face`
 | 64 u, 60 deg | 41 | 21 | 0.30 s | 0 |
 | cone off, 60 / 90 deg | - | - | - | 2 / 4 |
 
-Inside the cone the shot is Quake's own (unbent, same hits). At 60 deg, once each: enforcer waited 0.3 s, bent 61;
+Melee eval: 168/177, the 3 known bash-damage canary diffs. Inside the cone the shot is Quake's own (unbent, same hits). At 60 deg, once each: enforcer waited 0.3 s, bent 61;
 ogre (wide) bent 1; scrag bent 25 (inside its 80 deg fire cone: no wait); hell knight 12 shots, bent 32; shambler waited
 0.3 s, bent 41; scourge bent 24; Guardian waited 0.3 s, bent 38; mummy bent 16; MG3 ranged knight bent 1, orb waited
 0.3 s, bent 37, infected enforcer waited, bent 61; vore, Wrath, super shambler untouched (0 shots weighed). AD (start
