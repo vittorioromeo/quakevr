@@ -103,6 +103,15 @@ float VR_HANDJUMP_MAIN = 8;
 float VR_MELEE_WALL_DOWN = -0.35;  // a point going down more steeply than this (sine) doesn't strike a floor (reaching for a holster),
 float VR_MELEE_FLOOR = 0.7;        // (a surface facing up: its normal's z at least this)
 float VR_MELEE_WALL_INTO = 0.25;   // and strikes a wall only going into it (cosine to its normal: a chop, not a reach grazing it)
+float VR_MELEE_FLOOR_AHEAD = 0.35; // m: but the floor this far ahead of the head (a chop at the ground, not a reach by the hip)
+float VR_MELEE_WALL_ENTRY = 0.5;   // a part strikes a wall going into it at this share of the least speed at least (m/s along
+                                   // its normal, now or a pose before: VR_Melee_WallInto); slower, a brush (round 22 meleewall)
+                                   // for vr_melee_wall_hold after it the hand's parts still at (in) that wall land a blow there
+                                   // (VR_Melee_WallHeld): on
+float VR_MELEE_WALL_SAME = 0.7;    // the same surface (cosine of the normals),
+float VR_MELEE_WALL_LEAVE = 0.5;   // not moving out of it (cosine of their way to its normal at most)
+float VR_MELEE_WALL_AGAIN = 0.35;  // s: a hand strikes a wall again only this long after its last blow on one (the wall stops the hand,
+                                   // which re-arms it at once: VR_Melee_Rearm; it bounced off and struck twice)
 float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel strike,
 float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle's end,
 float VR_MELEE_POMMEL_CROWBAR = 0.6; // the crowbar's chisel end (a steel bar's end: as a sword's pommel),
@@ -219,7 +228,16 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_vnear;      // and their velocities (m/s, play space)
 .vector mh_vgrip;
 .vector mh_vfar;
-.float mh_free;        // a weapon carried off its handle: laid out along all of it (VR_Melee_FreeLayout), with
+.vector mh_vnear_last; // and a pose before (VR_Melee_WallInto)
+.vector mh_vgrip_last;
+.vector mh_vfar_last;
+.float mh_wall_time;   // when a part last went into a wall hard enough to strike it (VR_Melee_WallEntered),
+.vector mh_wall_n;     // and its normal,
+.vector mh_wall_vnear; // and the line's velocities it came in at (VR_Melee_WallDecide)
+.vector mh_wall_vgrip;
+.vector mh_wall_vfar;
+.float mh_wall_blow;   // when its last blow on a wall landed (VR_MELEE_WALL_AGAIN)
+.float mh_free;      // a weapon carried off its handle: laid out along all of it (VR_Melee_FreeLayout), with
 .float mh_free_hs;     // the hand's share of the way from its near end to its tip,
 .float mh_free_tip;    // the far end its tip (else its near end),
 .float mh_free_gw;     // the hand's half width (a share of its length),
@@ -1112,6 +1130,9 @@ float(float xHand, entity b) VR_Melee_Track =
     // fresh blow, a butt strike).
     float jumped = FALSE;
     vector vgripOwn = '0 0 0';
+    b.mh_vnear_last = b.mh_vnear;
+    b.mh_vgrip_last = b.mh_vgrip;
+    b.mh_vfar_last = b.mh_vfar;
     if(same)
     {
         // A jump (a teleport, the play space re-based) is faster than a hand goes.
@@ -1624,23 +1645,165 @@ void(float xHand, entity b) VR_Melee_Rearm =
     }
 };
 
-// Whether a point swept from `xP0` to `xP1` strikes the wall (world, brush) it meets, whose normal is `xNormal`: not
-// going down steeply onto a floor (a hand reaching for a holster), nor down past a wall, grazing it; a blow chopped
-// down into a wall does.
-float(vector xP0, vector xP1, vector xNormal) VR_Melee_WallTaken =
+// Whether a point swept from `xP0` to `xP1` strikes the wall (world, brush) it meets at `xAt`, whose normal is
+// `xNormal`: not going down steeply onto the floor by the body (a hand reaching for a holster: a chop at the ground
+// ahead does, VR_MELEE_FLOOR_AHEAD), nor down past a wall, grazing it; a blow chopped down into a wall does.
+float vr_melee_wallwin; // vr_melee_wall_hold (s; 0: a wall struck only in the frame a part crosses it, as before)
+float(vector xP0, vector xP1, vector xNormal, vector xAt) VR_Melee_WallTaken =
 {
     vector d = normalize(xP1 - xP0);
     if(d_z >= VR_MELEE_WALL_DOWN)
     {
         return TRUE;
     }
-    float taken = xNormal_z < VR_MELEE_FLOOR && d * xNormal <= -VR_MELEE_WALL_INTO;
+    float taken;
+    if(vr_melee_wallwin <= 0 && xNormal_z >= VR_MELEE_FLOOR)
+    {
+        taken = FALSE;
+    }
+    else if(xNormal_z >= VR_MELEE_FLOOR)
+    {
+        vector off = xAt - VRGetHeadPos(self);
+        off_z = 0;
+        taken = off * VRForwardOf('0 1 0' * self.v_viewangle_y) >= VR_MELEE_FLOOR_AHEAD * VRMetersToUnits();
+    }
+    else
+    {
+        taken = d * xNormal <= -VR_MELEE_WALL_INTO;
+    }
     if(cvar("developer") >= 2)
     {
         dprint(sprintf("melee debug: going down at %.2f onto a surface facing %v (into it %.2f): %s\n", d_z, xNormal,
             -(d * xNormal), taken ? "strikes" : "passes"));
     }
     return taken;
+};
+
+// The speed (m/s) point `xI` of `b`, swept from `xP0` to `xP1`, goes into a surface facing `xNormal` (world): now (the
+// line's velocity, or the sweep's in the world), or a pose before, the most. The hand's slide (vr_handpose.cpp) holds a
+// weapon off the wall it meets, along its surface, so the pose it arrives in keeps little of the speed it came in at;
+// a pose whose line jumped (VR_Melee_Track: a grip taken) has no velocity.
+float(entity b, float xI, vector xP0, vector xP1, vector xNormal) VR_Melee_WallInto =
+{
+    vector nrm = VR_Blow_ToPlaySpace(xNormal);
+    float f = vr_mpt_f[xI];
+    vector before = b.mh_vgrip_last + (b.mh_vfar_last - b.mh_vgrip_last) * f;
+    if(f < 0 && !b.mh_free)
+    {
+        before = b.mh_vnear_last;
+    }
+    float swept = 0;
+    if(b.mh_dt > 0)
+    {
+        swept = (xP1 - xP0) * xNormal / (b.mh_dt * VRMetersToUnits());
+    }
+    return min(min(VR_Melee_PointVel(b, f) * nrm, before * nrm), swept) * -1;
+};
+
+// Whether point `xI` of `b`, swept from `xP0` to `xP1`, goes into the wall it met (VR_Melee_WallTaken) at `xAt`, facing
+// `xNormal`, hard enough to strike it (VR_MELEE_WALL_ENTRY; a brush along it doesn't): then the hand may land a blow on
+// that wall for vr_melee_wall_hold (VR_Melee_WallHeld).
+float(entity b, float xI, vector xP0, vector xP1, vector xNormal, vector xAt) VR_Melee_WallEntered =
+{
+    if(!VR_Melee_WallTaken(xP0, xP1, xNormal, xAt))
+    {
+        return FALSE;
+    }
+    float into = VR_Melee_WallInto(b, xI, xP0, xP1, xNormal);
+    if(vr_melee_wallwin <= 0)
+    {
+        return TRUE;
+    }
+    if(into < VR_MELEE_WALL_ENTRY * VR_Melee_MinSpeedOf(b))
+    {
+        if(cvar("developer") >= 2)
+        {
+            dprint(sprintf("melee debug: %s brushes a wall, into it at %.1f m/s\n", vr_mpt_name[xI], into));
+        }
+        return FALSE;
+    }
+    // The motion it came in at: this pose's, or the one before if faster (the slide slowed the hand meeting the wall);
+    // going on into it (another of its parts, the next pose), the fastest since it met it.
+    float again = VR_PlayerTime() - b.mh_wall_time <= vr_melee_wallwin;
+    b.mh_wall_time = VR_PlayerTime();
+    b.mh_wall_n = xNormal;
+    if(again && vlen(b.mh_wall_vgrip) >= max(vlen(b.mh_vgrip), vlen(b.mh_vgrip_last)))
+    {
+        return TRUE;
+    }
+    b.mh_wall_vnear = b.mh_vnear;
+    b.mh_wall_vgrip = b.mh_vgrip;
+    b.mh_wall_vfar = b.mh_vfar;
+    if(vlen(b.mh_vgrip_last) > vlen(b.mh_vgrip))
+    {
+        b.mh_wall_vnear = b.mh_vnear_last;
+        b.mh_wall_vgrip = b.mh_vgrip_last;
+        b.mh_wall_vfar = b.mh_vfar_last;
+    }
+    return TRUE;
+};
+
+// VR_Melee_Decide for a blow of `xHand` on a wall with point `xI`: at the speeds the hand came into it at
+// (VR_Melee_WallEntered), not those the wall left it: held off by the hand's slide (vr_handpose.cpp), the weapon and the
+// hand slow down on it, and a swing decided a frame or two after it met the wall was taken for a slow one.
+float(float xHand, entity b, float xI) VR_Melee_WallDecide =
+{
+    vector vnear = b.mh_vnear;
+    vector vgrip = b.mh_vgrip;
+    vector vfar = b.mh_vfar;
+    if(vr_melee_wallwin <= 0)
+    {
+        return VR_Melee_Decide(xHand, b, xI, vr_mpt_kind[xI]);
+    }
+    if(vlen(b.mh_wall_vgrip) > vlen(vgrip))
+    {
+        b.mh_vnear = b.mh_wall_vnear;
+        b.mh_vgrip = b.mh_wall_vgrip;
+        b.mh_vfar = b.mh_wall_vfar;
+    }
+    if(cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: a wall met %.2f s ago, come in at grip %.1f m/s (now %.1f)\n",
+            VR_PlayerTime() - b.mh_wall_time, vlen(b.mh_wall_vgrip), vlen(vgrip)));
+    }
+    float landed = VR_Melee_Decide(xHand, b, xI, vr_mpt_kind[xI]);
+    b.mh_vnear = vnear;
+    b.mh_vgrip = vgrip;
+    b.mh_vfar = vfar;
+    return landed;
+};
+
+// Whether point `xI` of `b` (swept from `xP0` to `xP1`, `xR` thick) is still at the wall a part of the hand went into
+// (VR_Melee_WallEntered) within vr_melee_wall_hold: in it (behind its surface, seen from the grip), or held off it by
+// the hand's slide within `xR` and a unit, and not leaving it. The contact in the trace_ globals (fraction 1). A wall
+// gave a blow one frame, the one the point crossed its surface: a blow decided a frame late (the wrist not yet up to
+// speed: VR_Melee_WristMoved) never landed, while one in a monster's box is decided again every frame it is in it.
+float(entity b, float xI, vector xP0, vector xP1, float xR) VR_Melee_WallHeld =
+{
+    if(vr_melee_wallwin <= 0 || vr_mpt_kind[xI] == VR_MPT_GRIP || VR_PlayerTime() - b.mh_wall_time > vr_melee_wallwin ||
+       normalize(xP1 - xP0) * b.mh_wall_n > VR_MELEE_WALL_LEAVE)
+    {
+        return FALSE;
+    }
+    traceline(b.mh_grip, xP1, TRUE, self);
+    if(trace_startsolid || trace_fraction >= 1)
+    {
+        if(trace_startsolid)
+        {
+            return FALSE; // (the hand itself in it)
+        }
+        traceline(xP1, xP1 - b.mh_wall_n * (xR + 1), TRUE, self);
+        if(trace_startsolid || trace_fraction >= 1)
+        {
+            return FALSE;
+        }
+    }
+    if(trace_plane_normal * b.mh_wall_n < VR_MELEE_WALL_SAME || VR_Blow_Strikable(trace_ent))
+    {
+        return FALSE;
+    }
+    trace_fraction = 1;
+    return TRUE;
 };
 
 // Sweeps the points of `xHand` from the last pose to this one (VR_Melee_Track) and decides the blow: the contact to
@@ -1683,6 +1846,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         return FALSE;
     }
     VR_Melee_LayoutOf(b); // (this hand's: the globals hold the last hand tracked)
+    vr_melee_wallwin = cvar_hget(cvarh_vr_melee_wall_hold);
     float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
     vector hand = b.mh_grip;
 
@@ -1709,7 +1873,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
     // Walls and brush entities (a line each, exact against the BSP; it finds monsters too). A striking point strikes a
     // wall within `r` past its sweep, as it does a monster's box widened by `r`: the hand and what it holds are stopped
     // short of walls (vr_handpose.cpp: the far end, a blade's tip or an axe's head, a unit off), so an axe swung into a
-    // wall never reached it, while a fist's knuckles, 4 units ahead of the stopped hand, went in.
+    // wall never reached it, while a fist's knuckles, 4 units ahead of the stopped hand, went in. Held off it, the hand
+    // slows down at once: the wall is struck over the frames it stays against it (vr_melee_wall_hold, VR_Melee_WallHeld),
+    // at the speed it came in at (VR_Melee_WallDecide), as a monster's box is over the frames a blow is in it.
     for(i = 0; i < n; ++i)
     {
         p0 = b.mh_pp[i];
@@ -1733,11 +1899,18 @@ float(float xHand, entity b) VR_Melee_Sweep =
             }
             trace_fraction = past ? 1 : 2; // (a wall within reach past the sweep's end: there)
         }
+        // Nothing met on the way (or the sweep starts in a wall): a point still at, or in, the wall a part of this hand
+        // went into a moment ago (VR_Melee_WallHeld) lands there, a frame later, as one through a monster's box does.
+        float held = FALSE;
         if(trace_startsolid || trace_fraction > 1)
         {
-            continue;
+            if(!VR_Melee_WallHeld(b, i, p0, p1, r))
+            {
+                continue;
+            }
+            held = TRUE;
         }
-        if(VR_Blow_Strikable(trace_ent))
+        if(!held && VR_Blow_Strikable(trace_ent))
         {
             if(trace_ent == b.mh_hit_ent)
             {
@@ -1762,7 +1935,8 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 hiltAt = trace_endpos;
             }
         }
-        else if(trace_fraction < wallT && vr_mpt_kind[i] != VR_MPT_GRIP && VR_Melee_WallTaken(p0, p1, trace_plane_normal))
+        else if(trace_fraction < wallT && vr_mpt_kind[i] != VR_MPT_GRIP &&
+                (held || VR_Melee_WallEntered(b, i, p0, p1, trace_plane_normal, trace_endpos)))
         {
             wallT = trace_fraction;
             wallI = i;
@@ -1928,7 +2102,8 @@ float(float xHand, entity b) VR_Melee_Sweep =
         return b.mh_c_ent.takedamage && VR_Melee_Armed(xHand, b, b.mh_c_ent);
     }
     if(edgeI < 0 && hiltI < 0 && wallI >= 0 && !VRGetMeleeHitSoundPlayed(xHand) &&
-       VR_Melee_Decide(xHand, b, wallI, vr_mpt_kind[wallI]) && VR_Melee_SlapLands(b, wallEnt))
+       (vr_melee_wallwin <= 0 || VR_PlayerTime() - b.mh_wall_blow >= VR_MELEE_WALL_AGAIN) &&
+       VR_Melee_WallDecide(xHand, b, wallI) && VR_Melee_SlapLands(b, wallEnt))
     {
         b.mh_c_ent = wallEnt;
         b.mh_c_pos = wallAt;
@@ -3357,7 +3532,12 @@ void(float xHand) VR_Melee_Landed =
         v = b.mh_vgrip;
     }
     b.mh_hit_dir = normalize(v);
-    string what = sprintf("%s, hand %g, %s (%s) with %s", VR_Melee_Category(b.mh_kind, b.mh_thing), xHand,
+    b.mh_wall_time = -1; // (a blow landed: the wall it went into gives no more, VR_Melee_WallHeld; only a new one)
+    if(!b.mh_c_ent.takedamage && !b.mh_c_gib)
+    {
+        b.mh_wall_blow = VR_PlayerTime();
+    }
+    string what =sprintf("%s, hand %g, %s (%s) with %s", VR_Melee_Category(b.mh_kind, b.mh_thing), xHand,
         VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_way, b.mh_part);
     VR_Melee_Event(sprintf("%s, %.1f m/s, x%.2f, %s", what, b.mh_speed, b.mh_strength,
         b.mh_c_gib ? "a gib" : (b.mh_c_ent.takedamage ? b.mh_c_ent.classname : "a wall")));

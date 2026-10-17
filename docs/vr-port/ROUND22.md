@@ -11488,3 +11488,67 @@ lit room: the shadows the same). With a Release-Tracy capture, the `player: *` G
   700-particle bursts.
 - Mock screenshots (480x270, `scratch/half0.png` off, `half1.png` forced on, same commands): no halos visible at that
   size; particle states differ between runs, so no pixel diff.
+## Melee on walls and floors: struck over the frames the weapon stays there (worktree `fastship`, branch `agent/meleewall`, 2026-10-17)
+
+His note: melee blows rarely register on walls and floors, the weapon "just glances off", while enemies and things
+register reliably.
+
+Why (reproduced in the mock: his own axe and sword takes replayed at vrfiringrange's north wall, the wall placed at the
+dummy's front and 8, 16, 24 units nearer, and lowered 0.9 m at the floor; the same swings with the crowbar and the
+shotgun):
+
+- **The hand's slide stops the weapon, and the melee judged the blow on what the wall left of it.** `vr_handpose.cpp`
+  holds a weapon (and its hand) off the wall it meets, sliding along it. A wall had one chance at a blow: the frame a
+  part crossed its surface (or came within 3 units of it along its sweep). In that frame `VR_Melee_Decide` often said
+  no for reasons of history (the wrist's 0.12 s average not up yet early in the swing, the run), and in the next frames
+  the parts were in or held at the wall, which the sweep skipped (a trace starting in solid), with the hand's speed
+  already cut (an axe's grip 8.9 m/s coming in, 3.6 the frame it arrived). An enemy's box gets the blow decided again
+  every frame the weapon is in it (and Swing Through Enemies lets the drawn hand follow the real one there), so enemies
+  register and walls don't. The deeper the swing went into the wall, the worse (the axe 10/14 at the dummy's front,
+  3-7/14 deeper).
+- **The floor:** a point going down more steeply than 20 degrees never struck a floor (`VR_MELEE_WALL_DOWN`, for a hand
+  reaching to the hip holster), and a chop at the ground always goes down steeply.
+- Not the cause: Box3D (the weapon bodies push props only, not the world), the cooldowns (`time >= xInMelee`), or the
+  tip-only tracing (every point is swept).
+
+What changed (`QC/vr_melee.qc`, `VR_Melee_Sweep` and new `VR_Melee_WallEntered`, `VR_Melee_WallInto`,
+`VR_Melee_WallHeld`, `VR_Melee_WallDecide`):
+
+- A part that goes into a wall (or the floor) at half the least speed or more along its normal (1.6 m/s at Swing Speed
+  3.2; this pose's velocity, the sweep's or the pose before's, the most: the slide cuts the arriving pose's) opens a
+  window, **`vr_melee_wall_hold` (0.2 s; VR Settings > Melee, "Wall Hit Window")**: while the hand's parts stay at that
+  wall (in it, seen from the grip, or within 4 units off it) and aren't leaving it, the blow is decided there each
+  frame, at the velocities the hand came in at. Slower than that along the normal, a brush: no blow, as before for
+  slow touches (a fast swing along a wall's face, its tip just touching it, is a brush now; it struck before).
+- The floor is struck going down steeply when the contact is 0.35 m or more ahead of the head (not by the hip).
+- A hand strikes a wall again only 0.35 s after its last wall blow (the wall stopping the hand re-armed it at once,
+  and a swing bounced off for a second thunk).
+- `vr_melee_wall_hold 0`: everything as before (one frame, no floor chops, no brush rule, no re-hit wait).
+- Enemies: untouched (the wall branch only runs when no box target is struck).
+
+Numbers (mock, hits of takes; his takes with their recorded speeds and arcs, src = the takes' weapon):
+
+| weapon (takes) | wall at dummy front +0/8/16/24 units, before | after | 10 units past it (near-miss), before / after | floor, before / after | dummy |
+|---|---|---|---|---|---|
+| axe (his 14 axe takes) | 27/56 | 45/56 | 6/14 / 6/14 | 1/14 / 5/14 | 11/14 |
+| sword (his 19 sword takes) | 51/76 | 61/76 | 18/19 / 16/19 | 3/19 / 10/19 | 19/19 |
+| crowbar (the axe takes) | 34/56 | 51/56 | 11/14 / 11/14 | 2/14 / 5/14 | - |
+| shotgun (gun bash; the axe takes) | 32/56 | 51/56 | 7/14 / 7/14 | 1/14 / 8/14 | - |
+
+The floor's are of every take lowered 0.9 m (many never reach it). Takes with two wall blows (of 70): axe 0 -> 2, sword
+16 -> 16 (of 76/95), crowbar 8 -> 13, shotgun 3 -> 16: a take often strikes the wall again later in its motion
+(follow-through, recovery) more than 0.35 s on; not looked into further. The sword lost 3 of its 19 at the deepest wall (24
+units): one-frame hits of the old rule as the blade crept into the wall slowly at the start (0.1 m/s along its normal)
+or jumped there on the two-hand grip, now brushes. eval.sh: 168/177, the same 6 diffs from the baseline with
+`vr_melee_wall_hold` 0 and 0.2 (parry bash 6 -> 3 and 10 -> 5, damage numbers already on next).
+
+Synthetic swings (`motion_synth.py` style, scratch only) weren't usable for rates: their controller turns about itself,
+not the wrist, so the wrist test fails them early in the swing on enemies too.
+
+Test in VR:
+
+- [ ] Axe, sword, crowbar and a gun swung into a wall from close and from arm's length, hard: each a thunk, sparks and
+  a mark, once.
+- [ ] Chops at the floor ahead (kneel or bend): they register; reaching down to a hip holster with a weapon doesn't.
+- [ ] A weapon dragged lightly along a wall, or rested against it and wiggled: no thunks.
+- [ ] Wall Hit Window 0 for comparison (the old behaviour).

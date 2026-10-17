@@ -159,6 +159,7 @@ float cvarh_vr_melee_dmg_max;
 float cvarh_vr_melee_slap;
 float cvarh_vr_melee_slap_mult;
 float cvarh_vr_melee_wrist_speed;
+float cvarh_vr_melee_wall_hold;
 float cvarh_vr_melee_pommel_wait;
 float cvarh_vr_melee_butt_run;
 float cvarh_vr_positional_damage;
@@ -1033,6 +1034,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_melee_positional);
     VR_CVAR_HMAKE(vr_hit_head_priority);
     VR_CVAR_HMAKE(vr_melee_wrist_speed);
+    VR_CVAR_HMAKE(vr_melee_wall_hold);
     VR_CVAR_HMAKE(vr_melee_pommel_wait);
     VR_CVAR_HMAKE(vr_melee_butt_run);
     VR_CVAR_HMAKE(vr_positional_damage);
