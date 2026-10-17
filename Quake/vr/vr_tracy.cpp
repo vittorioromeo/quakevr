@@ -285,16 +285,18 @@ struct PresetValue
     cvar_t* var;
     float full;
 };
+// Memory detail stays off: its allocation events cost about 5 ms of CPU a frame in a fight (combat_48: busy p50 7.4 ms
+// against 2.5; ROUND22.md, "Tracy coverage"). Turn it on by hand for an allocation capture, not a timing one.
 const PresetValue presetValues[] = {{&gpuEnabled, 1.f}, {&gpuDetail, 1.f}, {&qcDetail, 1.f}, {&physicsDetail, 1.f},
-    {&renderDetail, 1.f}, {&memoryDetail, 1.f}};
+    {&renderDetail, 1.f}, {&memoryDetail, 0.f}};
 void preset()
 {
     const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     const bool full = q_strcasecmp(which, "full") == 0;
     if(!full && q_strcasecmp(which, "off") != 0)
     {
-        Con_Printf("vr_tracy_preset full: every Tracy detail on (GPU passes, QC functions, physics per edict, render steps, "
-                   "memory events); vr_tracy_preset off: the defaults\n");
+        Con_Printf("vr_tracy_preset full: every timing detail on (GPU passes, QC functions, physics per edict, render "
+                   "steps; memory events off: they cost ~5 ms a frame); vr_tracy_preset off: the defaults\n");
         status();
         return;
     }

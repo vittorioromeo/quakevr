@@ -11094,3 +11094,65 @@ same settings differ by 16% of the pixels (the lava's light flickers), so cross-
 To try in VR: nothing should look different. In a fight with rockets and in the start hall, Debug > Profiling and
 Memory > Keep Light Casters off and on: the shadows of rockets and explosions the same; the
 `dlight world casters` row in the profiler drops to near zero.
+
+
+## Tracy coverage for the next VR capture (worktree `dequant`, branch `agent/tracycover`, 2026-10-17)
+
+Goal: before his next profiling run, every pass with its own GPU zone (`vr_tracy_gpu_detail 1`), no CPU parent zone with
+more than about 50 us a frame or 2 ms in a hitch unaccounted for, the plots checked, and one command for a full capture.
+TRACY.md, "Full capture", has the zones, the plots and his steps.
+
+**One command:** `vr_profile 0; vr_tracy_preset full` (Debug > Profiling and Memory > Tracy Full Capture Preset);
+`vr_tracy_preset off` resets. Full sets `vr_tracy_gpu 1`, `vr_tracy_gpu_detail 1`, `vr_tracy_qc_detail 1`,
+`vr_tracy_physics_detail 1` and the new `vr_tracy_render_detail 1`; it leaves `vr_tracy_memory_detail` at 0 (below).
+
+What changed (Tracy builds only; normal builds compile every hook out, and the split draws are `#ifdef QVR_TRACY` or
+behind `vr_tracy_gpu_zones`, which is a constant 0 there):
+- GPU: `depth prepass` and `shading: opaque (parallax, carved decals)` / `fences` / `sky` (r_world.c); with detail,
+  `world` against `brush entities` and, in the opaque pass, `alias: world models` against `alias: player models`
+  (gl_rmain.c); `eyes: single pass` is now a coarse zone like the eyes. The carved decals and the parallax share the
+  world shader, so they have no pass of their own: measure them by A/B (`vr_decal_carve 0`). Blood streams draw as
+  particles, gore as models and particles.
+- CPU: `console command` (its name in the text), `spawn: ...`, `model metadata and file`, `load alias/brush/sprite
+  model`, `alias replacement md3/md5`, `frame setup: ...`, `alias flush`, `brush program and instance fill`, `brush state
+  and instances upload`, the Box3D sync and pre-step calls, `particle light: lightmap pass`, `text3d layout`, `shadow alias
+  layered draw`, `Job serial chunks`; every OpenXR call (`xrSyncActions`, `xrLocateViews`, `xrEndFrame`,
+  `xrAcquireSwapchainImage`, `xrWaitSwapchainImage`, `xrReleaseSwapchainImage`; `xrWaitFrame` and `xrBeginFrame` had
+  zones); `vr_tracy_render_detail` gates a model's draw steps (r_alias.c). Each `Job execute` is named in its text by its
+  poster (`<posting zone> @ file:line`, from `std::source_location` in `jobs::async` and `Task::post`).
+- Plots: `Frame CPU busy ms`, `Frame period ms`, `GPU eyes ms`, `Render scale`, `Eye render width`, `Process working set
+  bytes`, `Process private bytes`. Checked in the captures: draw calls (303 mean), alias triangles (184k, no longer
+  garbage), particles, decals, PVS leaves, entities, ragdolls and the memory plots all carry values; the display-period
+  plots are 0/-1 under the mock, as documented.
+
+Measured: headless Release-Tracy, `combat_48` (48 monsters, 900 frames at 90 Hz paced, 2048 eyes, exclusive) followed
+by a load of e1m1, `tracy-capture` connected from the start (so the vrfiringrange load is in it too). Self time is a
+zone's time less its children's, on the main thread.
+
+| Fight, main thread | before | after, defaults | after, full preset |
+|---|---|---|---|
+| parents with > 50 us/frame untimed | 8: `alias` 0.351, `QC VM` 0.267, `particle light` 0.113, `box3d water and hits` 0.099, `shadow alias draw` 0.068, `vr opaque (text3d)` 0.067, `box3d sync` 0.059, `Server physics` 0.056 | 5: `alias` 0.308, `QC VM` 0.266 and `Server physics` 0.055 (detail-gated), `box3d before step` 0.088, `shadow alias layered draw` 0.053 | 3: `alias model` 0.186 (R_DrawAliasModel_Real's own code, 478 calls), `box3d before step` 0.089 and `alias vr instance` 0.087 (one loop, one function: named) |
+| instances with > 2 ms untimed | 0 | 1 | 0 |
+
+The loads (vrfiringrange, 1.7 s window): 21 parent instances with more than 2 ms untimed before, 18 after. Named now:
+`Model preparation` (21.4 ms untimed, now 0.15), `alias replacements` (20.3 ms: the md5 parse, `alias replacement md5`),
+`map spawn` (18.8 ms: `spawn: load progs` 15 ms, entities, the VR hooks), `commands` (16.7 ms: `console command`),
+`box3d` (2.5 ms). Still a large single body, each a named zone: the world's first draw (1.9-3.8 s headless, in
+`brush program and instance fill`: R_ChooseBModelProgram's first use, probably the driver compiling the world program),
+`load brush model` 21-23 ms (Mod_LoadBrushModel's lumps), `alias replacement md5` 20 ms, `particle atlas` 17-20 ms,
+`shadow maps` 17-19 ms (the first frame), `console command` (the map command's own) 17 ms, `spawn: load progs` 15 ms,
+`map load` (cl_parse) 10 ms, `lights` 7 ms, `gadget screen` 7 ms, `alias skin normal maps` 5-12 ms, `Texture preparation`
+5 ms. Zone those bodies when a load capture points at them.
+
+Overhead (Release-Tracy, connected, the same run): CPU busy p50 / p95 2.49 / 3.78 ms at the defaults, 2.40 / 3.94 and
+2.39 / 3.98 with the full preset (two runs); GPU eyes 4.73 against 4.77 / 4.74 ms: within the noise (+-0.3 ms). With
+`vr_tracy_memory_detail 1` too: **7.42 / 13.06 ms** (server 6.2 ms a frame, `box3d publish bodies` 3 ms): its
+allocation events cost about 5 ms a frame in a fight, so the preset leaves it off (a follow-up: why each Zone/Hunk
+event costs that much). The capture is 30 MB for the 25 s run against 11 MB.
+
+A finding in passing: with GPU detail, `atlas clear` takes 1.09 ms of the 1.13 ms of `shadow maps` on the GPU in
+`combat_48` (the mock's 2048 eyes, RTX 4090).
+
+To do in VR: build Release-Tracy, start `tracy-capture -a 127.0.0.1 -o quakevr.tracy`, then in the game
+`vr_profile 0; vr_tracy_preset full`, load the map, fight for about 60 s, quit. Check that `eye L`/`eye R` hold the pass
+zones and that the OpenXR calls show (the mock has none).

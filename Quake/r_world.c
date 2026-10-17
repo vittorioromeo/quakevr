@@ -611,6 +611,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		count = countof(bmodel_instances);
 	}
 
+	VR_TracyBegin ("brush program and instance fill", 0); // QVR: (profiling builds)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	switch (pass)
 	{
@@ -672,9 +673,11 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	}
 
 
+	VR_TracyEnd (); // QVR
 	if (!totalinst)
 		return;
 
+	VR_TracyBegin ("brush state and instances upload", 0); // QVR: (profiling builds; a first use's program link shows here)
 	if (pass <= BP_ALPHATEST || pass == BP_SHOWTRIS)
 		glEnable (GL_CLIP_DISTANCE1);
 	// setup state
@@ -704,6 +707,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * totalinst);
+	VR_TracyEnd (); // QVR
 
 	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading
 	// (parallax, bumps, the lights' shadows) runs once a pixel, for the nearest surface only, not for the ones drawn

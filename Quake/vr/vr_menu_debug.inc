@@ -393,7 +393,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
         command("Tracy Full Capture Preset", "vr_tracy_preset full")
             .help("Every Tracy detail on for a full capture: GPU passes, QuakeC functions, physics per edict, render "
-                  "steps per model, memory events (docs/vr-port/TRACY.md, \"Full capture\")."),
+                  "steps per model; memory events off (docs/vr-port/TRACY.md, \"Full capture\")."),
         command("Tracy Detail Off (Defaults)", "vr_tracy_preset off").help("Every Tracy detail cvar back to its default."),
         command("Tracy GPU Detail On", "vr_tracy_gpu_detail 1")
             .help("A GPU zone for every pass, per eye: depth pre-pass, world, brush entities, models, water, sky, "
