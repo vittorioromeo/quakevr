@@ -559,6 +559,17 @@ QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
 // Debug: each VR frame's end waits this many ms inside the timed end call (OpenXR's xrEndFrame, the mock's), as a runtime
 // holding the frames would (vr_xr_stall.cpp's held-frames lines: the test of them); 0 never.
 QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
+// 1: after both eyes' draws the frame is flushed and work that reads no head or hand pose (the particles' step, the
+// music's stream) runs before the end call (xrEndFrame), while the GPU finishes the frame: Virtual Desktop's OpenGL path
+// waits for the GPU inside xrEndFrame. Only while it fits in the GPU's tail the last frames' GPU timestamps foretell; the
+// rest after, as with 0 (vr_xr_overlap.cpp; vr_xr_overlap_report).
+QVR_CVAR(vr_xr_overlap, "1", CVAR_ARCHIVE)
+// Debug: this many ms of busy CPU work a frame that reads no pose (vr_xr_overlap's test): before the end call while it
+// fits in the GPU's tail (vr_xr_overlap 1), else after it (0: none).
+QVR_CVAR(vr_debug_xr_overlap_work_ms, "0", CVAR_NONE)
+// Mock backend: 1 makes its end call wait for the GPU to finish the frame (glFinish), as Virtual Desktop's OpenGL path's
+// xrEndFrame does (vr_xr_overlap's tests); 0 (the default): it returns at once.
+QVR_CVAR(vr_mock_end_gpu_wait, "0", CVAR_NONE)
 // While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).

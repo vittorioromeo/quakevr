@@ -110,6 +110,7 @@
 #include "vr_propthink.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
+#include "vr_xr_overlap.hpp"
 #include "vr_xr_runtime.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
@@ -1953,6 +1954,7 @@ extern "C" void VR_Init()
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
     servertick::registerCommands(); // vr_server_thread_check, vr_server_thread_report (vr_servertick.cpp)
+    xroverlap::registerCommands();  // vr_xr_overlap_report (vr_xr_overlap.cpp)
     animsmooth::registerCommands();
     mdldequant::registerCommands();
     Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
