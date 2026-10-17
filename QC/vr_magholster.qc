@@ -61,6 +61,28 @@ float(float s) VR_MagHolster_Hotspot =
     return s < 4 ? s + QVR_HS_LEFT_SHOULDER_HOLSTER : s + QVR_HS_LEFT_SHOULDER_HOLSTER + 1;
 };
 
+// A holster's hotspot as its slot (VR_MagHolster_Hotspot's inverse), -1 not one.
+float(float hs) VR_MagHolster_SlotOf =
+{
+    if(hs >= QVR_HS_LEFT_SHOULDER_HOLSTER && hs < QVR_HS_LEFT_SHOULDER_HOLSTER + 4) { return hs - QVR_HS_LEFT_SHOULDER_HOLSTER; }
+    if(hs == QVR_HS_LEFT_SHOULDER_HOLSTER + 5 || hs == QVR_HS_LEFT_SHOULDER_HOLSTER + 6) { return hs - QVR_HS_LEFT_SHOULDER_HOLSTER - 1; }
+    return -1;
+};
+
+// `ent`'s weapon `inst` drawn from holster hotspot `hs` by `xHand`: bound there, the chain paid out over the holster's own
+// sound (the tether heard: make_magholster_sounds.py).
+void(entity ent, float xHand, float hs, entity inst) VR_MagHolster_DrawSound =
+{
+    float s = VR_MagHolster_SlotOf(hs);
+    float dv = min(1, cvar_hget(cvarh_vr_magholster_draw_volume));
+    if(s < 0 || !inst || !inst.wi_uid || VR_MagHolster_Bound(ent, s) != inst.wi_uid || dv <= 0)
+    {
+        return;
+    }
+    VR_SoundVaried(ent, CHAN_AUTO, "vr/magholster_draw.wav", dv, ATTN_NORM);
+    dprint(sprintf("magholster: weapon %g drawn from holster %g: the chain's sound\n", inst.wi_uid, s));
+};
+
 float(float s) VR_MagHolster_Bit =
 {
     return s == 0 ? 1 : (s == 1 ? 2 : (s == 2 ? 4 : (s == 3 ? 8 : (s == 4 ? 16 : 32))));
@@ -183,6 +205,12 @@ void(entity e, float s, string why) VR_MagHolster_Launch =
     e.touch = SUB_Null; // (it hurts nothing on the way, you least of all; a hand still catches it: its handtouch)
     e.throwhit = QVR_THROWHIT_HIT;
     self.vr_mag_flying = self.vr_mag_flying | VR_MagHolster_Bit(s);
+    // The reel winding its chain back in at the holster (make_magholster_sounds.py; the holster's click as it lands).
+    float zv = min(1, cvar_hget(cvarh_vr_magholster_zip_volume));
+    if(zv > 0)
+    {
+        VR_SoundVaried(self, CHAN_AUTO, "vr/magholster_zip.wav", zv, ATTN_NORM);
+    }
     dprint(sprintf("magholster: weapon %g (%s) flies home to holster %g (%s), %.2f m away, %.2f s out of the hands\n",
         e.weaponinst.wi_uid, e.netname, s, why, vlen(e.origin - VR_MagHolster_Home(self, s)) / VRMetersToUnits(),
         time - e.vr_mag_since));

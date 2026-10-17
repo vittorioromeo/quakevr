@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_lighting.hpp"
+#include "vr_tracy.h"
 #include "vr_brushes.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
@@ -800,8 +801,8 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         profile::end();
         if(!cs.faceCasters.empty())
         {
-            R_DrawAliasModelsDepthLayered(cs.faceCasters.data(), cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()),
-                &vps[0][0][0]);
+            QVR_TRACY_CALL("shadow alias layered draw", R_DrawAliasModelsDepthLayered(cs.faceCasters.data(),
+                cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()), &vps[0][0][0]));
         }
         // The holey ones a face at a time (glViewport sets every viewport: after the layered draws).
         for(int face = 0; face < numViews && !cs.holey.empty(); face++)

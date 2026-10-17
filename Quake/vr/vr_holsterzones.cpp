@@ -18,7 +18,7 @@ namespace qvr::zones
 namespace
 {
 
-constexpr int MAX_SAMPLES = 5;
+constexpr int MAX_SAMPLES = 6;
 
 // What vr_view.cpp drew last for each zone (publish): its frame, the model's origin in it from the pivot.
 struct Drawn
@@ -242,6 +242,14 @@ int pick(const hands::State& s, int hand, const body::HolsterPositions& holsters
         h.sample[h.samples++] = handle;
         h.sample[h.samples++] = glm::mix(handle, tip, 1.f / 3.f);
         h.sample[h.samples++] = glm::mix(handle, tip, 0.5f);
+        // And the hand holding it, as drawn (its palm): a hand in a holster while its gun's points were not let the gun
+        // fall (2026-10-17). Tested for the holsters only, as the gun's points (the pouches still take the hand alone,
+        // and no gun).
+        glm::vec3 palm;
+        if(vr_holster_zone_hand_point.value != 0.f && view::heldHandPoint(hand, palm))
+        {
+            h.sample[h.samples++] = palm;
+        }
     }
 
     const float hyst = za::max(0.f, vr_holster_zone_hysteresis.value);
@@ -315,6 +323,24 @@ bool drawnPoint(const hands::State& s, int zone, const glm::vec3& offset, glm::v
     glm::vec3 o, side, up, at;
     frameOf(s, zone, pivot, o, side, up, at);
     out = at + o * offset.x + side * offset.y + up * offset.z;
+    return true;
+}
+
+bool boxMiddle(const hands::State& s, int zone, glm::vec3& out)
+{
+    if(zone < 0 || zone >= ZoneCount)
+    {
+        return false;
+    }
+    const body::HolsterPositions holsters = body::holsterPositions(s);
+    const glm::vec3 grenade = body::pouchEnabled() ? body::pouchPosition(s) : glm::vec3{0.f};
+    const glm::vec3 ammo = body::ammoPouchEnabled() ? body::ammoPouchPosition(s) : glm::vec3{0.f};
+    glm::vec3 pivot;
+    if(!pivotOf(zone, holsters, body::pouchEnabled() ? &grenade : nullptr, body::ammoPouchEnabled() ? &ammo : nullptr, pivot))
+    {
+        return false;
+    }
+    out = zoneBox(s, zone, pivot).centre;
     return true;
 }
 

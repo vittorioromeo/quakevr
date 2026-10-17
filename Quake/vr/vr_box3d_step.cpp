@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_tracy.h"
 // vr_box3d_step.cpp -- the step: before it (spin align, lifts, liquids, slides), after it (sounds, falls, impacts,
 // touches) and VR_PhysicsFrameEnd.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -1164,27 +1165,27 @@ extern "C" void VR_PhysicsFrameEnd(void)
     updateSettings();
     {
         QVR_PROFILE("box3d sync");
-        syncEntities(dt);
-        syncHands(dt);
-        syncRagdollGrabs(dt);
+        QVR_TRACY_CALL("box3d sync entities", syncEntities(dt));
+        QVR_TRACY_CALL("box3d sync hands", syncHands(dt));
+        QVR_TRACY_CALL("box3d sync ragdoll grabs", syncRagdollGrabs(dt));
         if(!world->ragdollsInside.empty())
         {
             pruneRagdollsInside();
         }
-        noteThrows();
-        syncReach(dt);
-        syncPortalCopies(dt);
-        syncToolJoints();
+        QVR_TRACY_CALL("box3d note throws", noteThrows());
+        QVR_TRACY_CALL("box3d sync reach", syncReach(dt));
+        QVR_TRACY_CALL("box3d sync portal copies", syncPortalCopies(dt));
+        QVR_TRACY_CALL("box3d sync tool joints", syncToolJoints());
     }
     const double tSync = Sys_DoubleTime();
     {
         QVR_PROFILE("box3d water and hits");
-        beforeStep(dt);
-        ragdollsInLiquids(dt);
-        beforeStanding();
-        shoveBumped(dt);
-        nudgeWalkedRagdolls(dt);
-        unstickProps();
+        QVR_TRACY_CALL("box3d before step", beforeStep(dt));
+        QVR_TRACY_CALL("box3d ragdolls in liquids", ragdollsInLiquids(dt));
+        QVR_TRACY_CALL("box3d before standing", beforeStanding());
+        QVR_TRACY_CALL("box3d shove bumped", shoveBumped(dt));
+        QVR_TRACY_CALL("box3d nudge walked ragdolls", nudgeWalkedRagdolls(dt));
+        QVR_TRACY_CALL("box3d unstick props", unstickProps());
     }
     const double t1 = Sys_DoubleTime();
     const int awakeBefore = b3World_GetAwakeBodyCount(world->id);

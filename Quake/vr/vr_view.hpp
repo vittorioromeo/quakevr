@@ -247,6 +247,10 @@ struct WeaponHotspot
 // body). False if it holds none (or a fist).
 [[nodiscard]] bool heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip);
 
+// The middle of the palm of `hand` as drawn last holding a weapon (the holster zones' hand point: the hand can be in
+// a holster's box while its gun's grip and body are not). False if it holds none.
+[[nodiscard]] bool heldHandPoint(int hand, glm::vec3& out);
+
 // The butt of the weapon `hand` holds, as drawn last: the middle of its drawn points within a unit of its rearmost end
 // along its line from the muzzle to the handle (a stock's heel, a pistol grip's base). The wrist gadget's screen tap
 // (vr_bullettime_tap_butt). False if it holds none (or a fist).

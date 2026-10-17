@@ -464,16 +464,24 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 // load the file
 //
 	t0 = Sys_DoubleTime (); // QVR: a load while a map is in play counted (VR_NoteModelLoad: vr_cache_info)
+	VR_TracyBegin ("model metadata and file", 0); // QVR: (profiling builds)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
+	{
+		VR_TracyEnd (); // QVR
 		return mod;
+	}
 	if (VR_RuntimeBrushModel (mod)) // QVR: a box made in the game (vr/vr_brushes.cpp)
+	{
+		VR_TracyEnd (); // QVR
 		return mod;
+	}
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	derived = buf != NULL; // QVR
 	if (!buf)
 		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
+	VR_TracyEnd (); // QVR
 	if (!buf)
 	{
 		if (crash)
@@ -504,11 +512,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
+		VR_TracyBegin ("load alias model", 0); // QVR: (profiling builds)
 		VR_TIMED ("alias models (.mdl) loaded", Mod_LoadAliasModel (mod, buf)); // QVR: load timing (vr_startup_times)
+		VR_TracyEnd (); // QVR
 		break;
 
 	case IDSPRITEHEADER:
+		VR_TracyBegin ("load sprite model", 0); // QVR: (profiling builds)
 		Mod_LoadSpriteModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 
 	case MD3_IDENT:
@@ -531,7 +543,9 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		break;
 
 	default:
+		VR_TracyBegin ("load brush model", 0); // QVR: (profiling builds)
 		Mod_LoadBrushModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 	}
 	if (mod->type != mod_alias) // QVR: its data on the hunk: kept there, if loaded inside a temporary allocation (zone.c)
@@ -3567,6 +3581,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			 */
 		};
 		int num_loaders = sizeof (loaders) / sizeof (loaders[0]);
+		qboolean loaded; // QVR
 
 
 		for (int iter = 0; iter < num_loaders; iter++) {
@@ -3584,7 +3599,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 				break;
 			}
 
-			if (loaders[iter].load_func (mod, path)) {
+			VR_TracyBegin (loaders[iter].load_func == (ModelLoadFunc)loadMd3Replacement ? "alias replacement md3" : "alias replacement md5", 0); // QVR
+			loaded = loaders[iter].load_func (mod, path);
+			VR_TracyEnd (); // QVR
+			if (loaded) {
 				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
 				return;
 			}
@@ -4731,7 +4749,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
 		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
-		if (VR_RangerHeadMesh (fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
+		if (VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
 		{
 			surf->numverts_vbo = surf->numverts;
 			surf->numtris = surf->numindexes / 3;

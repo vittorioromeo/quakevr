@@ -9984,6 +9984,40 @@ with the option off) show his face and helmet, the neck going into his head, not
 For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
 height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
 and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.
+
+## The ranger's head: sliders (worktree `tghost`, branch `agent/rangerhead2`, 2026-10-17)
+
+His note: the head looks too small, the neck too long, the place not quite right; he wants sliders for its offset,
+orientation and size, a way to push it down over the neck, on their own page, with the body clone shown meanwhile.
+
+**Settings** (archived, new: no migration), applied live (`vr_rangerhead.cpp`): `vr_body_head_forward`, `_side`
+(right +), `_up` (cm on the model, -10..10), `_pitch` (chin down +), `_yaw` (left +), `_roll` (tilted right +)
+(degrees, -45..45), `_size` (times the first version's, 0.5..2, default **1.3**) and `_sink` (cm, 0..12, default
+**4.5**). He is turned and sized about the bottom of his head, then moved (the sink lowers him). The neck's top ring
+(the placeholder's jaw, inside his head) follows him across and up, and down with the sink, but never lower than
+0.1 units above the neck's next ring (0.56 units, about 2 cm, on the shipped bodies). Past that his head covers the
+neck. The mesh read places him by them (so a reload keeps them). A change rewrites his vertices in every loaded body
+model's cached mesh, with his normals recomputed as `MD5_ComputeNormals` does, and uploads its vertex buffer again
+(`GLMesh_LoadVertexBuffer`). A model flushed from the cache is placed as it loads. `VR_RangerHeadMesh` now takes the
+`qmodel_t`. `vr_body_head_info` prints his span, the neck's top and the pivot for each placed mesh.
+
+**Defaults** from front and side shots (`vr_mock_camera 0 1.6 -0.8 5 180` and `0.8 1.6 0 5 80`) at 1/0, 1.2/3,
+1.3/4.5 and 1.4/6. At 1.3/4.5 the head is 7 x 7 x 6.2 units (27 x 27 x 24 cm) and the neck shows about half what it
+did. At 1.4/6 the neck was nearly gone and the head looked oversized.
+
+**Menu**: Player Appearance > *Ranger Head* (a page, replacing the toggle row there): *Use the Ranger's Head*
+(the toggle, still at the next start), Size, Neck Sink, Forward, Right, Up, Pitch, Yaw, Roll, *Preview Distance*
+and *Preview Side* (the body clone's `vr_menu_body_clone_distance`/`_side`, also in Debug > Views), *Reset Head
+Placement*. The page always shows the body clone (`menu::bodyClonePage`): on while it is open, off on leaving
+(`vr_menu_body_clone_info`). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**Verified** (mock, `map start`, `menu_vr 188`, eye shots): the clone's head at the defaults, then at size 2 / sink
+12 / forward 10 / pitch 45, at size 0.5 / up 10 / right 10 / yaw 45 / roll 45, and at size 1.6 / back 10 / left 10 /
+pitch, yaw, roll -45, each changed live in one run (`scratch/rh_menu.png`, `rh_cam2.png` the default comparison).
+
+For him in VR: Appearance > Ranger Head, with the clone beside the menu. Set size and sink first, then the place.
+Check from the side that the head is not too far forward or back over the neck. If the neck's top ever shows through
+the head at large sinks or turns, note the values.
 ## UI batch (voice notes 2026-10-17)
 
 - Menu panel grip drag: vr_menu_grab_dist_max default 200 -> 600 cm (push it away as well as pull it near).
@@ -11095,6 +11129,123 @@ To try in VR: nothing should look different. In a fight with rockets and in the 
 Memory > Keep Light Casters off and on: the shadows of rockets and explosions the same; the
 `dlight world casters` row in the profiler drops to near zero.
 
+
+## Tracy coverage for the next VR capture (worktree `dequant`, branch `agent/tracycover`, 2026-10-17)
+
+Goal: before his next profiling run, every pass with its own GPU zone (`vr_tracy_gpu_detail 1`), no CPU parent zone with
+more than about 50 us a frame or 2 ms in a hitch unaccounted for, the plots checked, and one command for a full capture.
+TRACY.md, "Full capture", has the zones, the plots and his steps.
+
+**One command:** `vr_profile 0; vr_tracy_preset full` (Debug > Profiling and Memory > Tracy Full Capture Preset);
+`vr_tracy_preset off` resets. Full sets `vr_tracy_gpu 1`, `vr_tracy_gpu_detail 1`, `vr_tracy_qc_detail 1`,
+`vr_tracy_physics_detail 1` and the new `vr_tracy_render_detail 1`; it leaves `vr_tracy_memory_detail` at 0 (below).
+
+What changed (Tracy builds only; normal builds compile every hook out, and the split draws are `#ifdef QVR_TRACY` or
+behind `vr_tracy_gpu_zones`, which is a constant 0 there):
+- GPU: `depth prepass` and `shading: opaque (parallax, carved decals)` / `fences` / `sky` (r_world.c); with detail,
+  `world` against `brush entities` and, in the opaque pass, `alias: world models` against `alias: player models`
+  (gl_rmain.c); `eyes: single pass` is now a coarse zone like the eyes. The carved decals and the parallax share the
+  world shader, so they have no pass of their own: measure them by A/B (`vr_decal_carve 0`). Blood streams draw as
+  particles, gore as models and particles.
+- CPU: `console command` (its name in the text), `spawn: ...`, `model metadata and file`, `load alias/brush/sprite
+  model`, `alias replacement md3/md5`, `frame setup: ...`, `alias flush`, `brush program and instance fill`, `brush state
+  and instances upload`, the Box3D sync and pre-step calls, `particle light: lightmap pass`, `text3d layout`, `shadow alias
+  layered draw`, `Job serial chunks`; every OpenXR call (`xrSyncActions`, `xrLocateViews`, `xrEndFrame`,
+  `xrAcquireSwapchainImage`, `xrWaitSwapchainImage`, `xrReleaseSwapchainImage`; `xrWaitFrame` and `xrBeginFrame` had
+  zones); `vr_tracy_render_detail` gates a model's draw steps (r_alias.c). Each `Job execute` is named in its text by its
+  poster (`<posting zone> @ file:line`, from `std::source_location` in `jobs::async` and `Task::post`).
+- Plots: `Frame CPU busy ms`, `Frame period ms`, `GPU eyes ms`, `Render scale`, `Eye render width`, `Process working set
+  bytes`, `Process private bytes`. Checked in the captures: draw calls (303 mean), alias triangles (184k, no longer
+  garbage), particles, decals, PVS leaves, entities, ragdolls and the memory plots all carry values; the display-period
+  plots are 0/-1 under the mock, as documented.
+
+Measured: headless Release-Tracy, `combat_48` (48 monsters, 900 frames at 90 Hz paced, 2048 eyes, exclusive) followed
+by a load of e1m1, `tracy-capture` connected from the start (so the vrfiringrange load is in it too). Self time is a
+zone's time less its children's, on the main thread.
+
+| Fight, main thread | before | after, defaults | after, full preset |
+|---|---|---|---|
+| parents with > 50 us/frame untimed | 8: `alias` 0.351, `QC VM` 0.267, `particle light` 0.113, `box3d water and hits` 0.099, `shadow alias draw` 0.068, `vr opaque (text3d)` 0.067, `box3d sync` 0.059, `Server physics` 0.056 | 5: `alias` 0.308, `QC VM` 0.266 and `Server physics` 0.055 (detail-gated), `box3d before step` 0.088, `shadow alias layered draw` 0.053 | 3: `alias model` 0.186 (R_DrawAliasModel_Real's own code, 478 calls), `box3d before step` 0.089 and `alias vr instance` 0.087 (one loop, one function: named) |
+| instances with > 2 ms untimed | 0 | 1 | 0 |
+
+The loads (vrfiringrange, 1.7 s window): 21 parent instances with more than 2 ms untimed before, 18 after. Named now:
+`Model preparation` (21.4 ms untimed, now 0.15), `alias replacements` (20.3 ms: the md5 parse, `alias replacement md5`),
+`map spawn` (18.8 ms: `spawn: load progs` 15 ms, entities, the VR hooks), `commands` (16.7 ms: `console command`),
+`box3d` (2.5 ms). Still a large single body, each a named zone: the world's first draw (1.9-3.8 s headless, in
+`brush program and instance fill`: R_ChooseBModelProgram's first use, probably the driver compiling the world program),
+`load brush model` 21-23 ms (Mod_LoadBrushModel's lumps), `alias replacement md5` 20 ms, `particle atlas` 17-20 ms,
+`shadow maps` 17-19 ms (the first frame), `console command` (the map command's own) 17 ms, `spawn: load progs` 15 ms,
+`map load` (cl_parse) 10 ms, `lights` 7 ms, `gadget screen` 7 ms, `alias skin normal maps` 5-12 ms, `Texture preparation`
+5 ms. Zone those bodies when a load capture points at them.
+
+Overhead (Release-Tracy, connected, the same run): CPU busy p50 / p95 2.49 / 3.78 ms at the defaults, 2.40 / 3.94 and
+2.39 / 3.98 with the full preset (two runs); GPU eyes 4.73 against 4.77 / 4.74 ms: within the noise (+-0.3 ms). With
+`vr_tracy_memory_detail 1` too: **7.42 / 13.06 ms** (server 6.2 ms a frame, `box3d publish bodies` 3 ms): its
+allocation events cost about 5 ms a frame in a fight, so the preset leaves it off (a follow-up: why each Zone/Hunk
+event costs that much). The capture is 30 MB for the 25 s run against 11 MB.
+
+A finding in passing: with GPU detail, `atlas clear` takes 1.09 ms of the 1.13 ms of `shadow maps` on the GPU in
+`combat_48` (the mock's 2048 eyes, RTX 4090).
+
+To do in VR: build Release-Tracy, start `tracy-capture -a 127.0.0.1 -o quakevr.tracy`, then in the game
+`vr_profile 0; vr_tracy_preset full`, load the map, fight for about 60 s, quit. Check that `eye L`/`eye R` hold the pass
+zones and that the OpenXR calls show (the mock has none).
+
+## His settings, third pass (config 148)
+
+Twelve more of his saved values became defaults (vr_cvars.inc, migration 148; list in the worktree scratch/defaults3.md): leg sweep speed 3.25 (flag: was to be about 1.5), topple 200, feet 0.5, carve depth 0.75 / rim 1.25 / kept 128, dummy dies off, enemy swing turn 6, knockdown keep max 7, mirror hides head text, parallax plane 1, relight reload off. Personal, holster, gore stream and doubtful ones skipped. Checked: build, menu paths 0 missing, fresh start takes them, eval passes.
+
+## Magnetic holsters: chain origin, long throws, sounds, the hand point; his holster values (worktree `permdecals`, branch `agent/holsters3`, 2026-10-17)
+
+His voice notes (2026-10-17), six items:
+
+- **Chain origin** (Immersion > Weapons and Holsters > Magnetic Holsters > Chain Origin): the chains' end at the holster
+  moved in the body's frame, units forward, outwards (the left holsters' to the left), up: `vr_magholster_chain_x/y/z`
+  for every holster plus each kind's own (`vr_magholster_chain_hip_*`, `_upper_*` (Chest), `_shoulder_*`), all 0.
+  While one of them is chosen in the menu, every holster's chain origin is marked by an orange point, bound or not.
+- **Long throws** (`vr_magholster_chain_lod` 5 m, "Full Chain Up To"): the tether no longer fades out past the return
+  distance or 6 m (that fade, at 4-4.5 m with the default Return Beyond 4 m, was the chain disappearing); it is drawn
+  however far the weapon is. Up to 5 m the links as before; beyond, a plain thin tube (9 rings, 4 sides, no
+  simulation; lit at its ends and middle, a little rust) sagging as a chain of the same 1% slack would (a parabola,
+  `L * sqrt(3 * 0.01 / 8)`), so the switch does not jump; back to links 0.25 m nearer (no flicker at the edge). 0: always
+  a line. `vr_magholster_info` says `tether chain N links` or `tether line`. Left as it was: a weapon the server does not
+  send (out of sight behind walls, out of the PVS) is unseen, so neither chain nor line is drawn to it.
+- **Zip** (`vr_magholster_zip_volume` 0.5): a bound weapon setting off home plays `sound/vr/magholster_zip.wav` at you
+  (the holster): a spring reel winding the chain in, a ratchet's ticks speeding up over a rising whirr, 0.42 s (the
+  flight's 0.4 s), the holster's click as it lands. Synthesised by `Misc/quakevr/make_magholster_sounds.py` (numpy:
+  `py -3.13`).
+- **Draw sound** (`vr_magholster_draw_volume` 0.5): drawing a bound weapon from its holster plays
+  `sound/vr/magholster_draw.wav` over the holster's own sound: a few light link clinks and the reel's slow ticks, the
+  chain paid out (QC `VR_MagHolster_DrawSound`, from `VRDrawHolsterWeapon`).
+- **Hand point** (`vr_holster_zone_hand_point` 1; Holster Zones > Hand Point): a hand holding a gun is tested at its
+  palm as drawn too (`view::heldHandPoint`: the jointed hand's palm middle, else 3 units on from the wrist), beside the
+  gun's grip and body. The palm of a gun held muzzle down sits about 5 units above its handle: with his thin hip zone a
+  palm 3 units in from the drawn holster held the gun (depth 0.95) where its points alone dropped it (1.17). The pouch
+  rule is unchanged: the pouches take an empty hand's point alone, a gun goes to no pouch (its load point scored for
+  the ammo pouch only, never picked), so the palm can only put a gun in a holster.
+- **His values as defaults** (config 149; only values still at the old defaults move): `vr_holster_zone_scale` 1 → 0.95;
+  hip `_y` 0 → -2.25, `_z` -2 → -2.25, `_depth` 0.6 → 0.15; upper `_x` 0 → -3.75, `_y` 0 → 3.25, `_z` -2 → -0.75,
+  `_height` 1.1 → 0.7; shoulder `_x` 0 → -2.5, `_y` 0 → 1, `_z` 0 → -0.5, `_depth`/`_width`/`_height` 0.9 → 0.5; ammo
+  `_x` 0 → -1, `_depth` 1 → 0.15, `_width` 0.8 → 0.75, `_height` 1 → 0.95; `vr_shoulder_holster_thresh` 7.8 → 7. Every
+  other holster, pouch and magnetic holster setting in his config was already at its default.
+
+His zones are moved off the reach points: a hand at a hip's or the ammo pouch's reach point (`body::holsterPosition`)
+is no longer in its box, nor one at a chest holster's model origin (just outside, 1.01). So the mock's
+`vr_mock_hand_to <hand> holster <n>`, `grenadepouch` and `ammopouch` now go to the zone's box middle while the zones are
+on (the reach point with the old spheres), and `zonebox <i>` and `zonepalm <i> <out> <side> <up>` are new.
+
+Tests: `Misc/quakevr/holsterzones_test.sh` (updated for his zones: drawn from the drawn hip holster; 4 units in drops;
+the hand point cases; the empty hand at each box's middle): 13/13 PASS. `Misc/quakevr/magchain_lod_test.sh` (new):
+3.5 m links (379), Full Chain Up To 0 a line, 9.5 m a line, Full Chain Up To 12 links (620), the origin sliders move
+the chain end (19.3 → 26.0 cm off the reach point): 5/5 PASS; `shot`: `scratch/magchain_lod.png`, the chain at 3 m and
+the line at 10 m. `holsters2_test.sh land noland rebind` as before (home 2.91 s; 3.94 m off in the air; only 5 bound);
+`reload/pouch_test.sh` all PASS. `magholster_test.sh time/catch` toss the gun 20+ m with its strong toss and Land First
+1 s now outlasts their waits (no flight printed); walk and busy as described.
+
+To try in VR: bind a gun, throw it far down a corridor: the chain stays, links near, a thin line far (Full Chain Up To);
+let it come home: the zip; draw it again: the chain's sound over the holster's. Chain Origin sliders with a bound gun
+out: the orange points show where each holster's chain starts. Holster a gun with your hand deep in the holster but the
+gun sticking out: it should stay in.
 
 ## Blood streams smoothed; his stream and bleeding values; marks on the firing range's targets (worktree `gorefx`, branch `agent/bloodstream3`, 2026-10-17)
 

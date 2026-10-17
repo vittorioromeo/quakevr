@@ -194,6 +194,41 @@ const DefaultChange defaultChanges[] = {
     // 147: the firing range's kinds' limbs made at its load, not in play (ROUND22.md, "Mid-game model loads"): ten
     // ~8 ms frames for each kind a dispenser or a dummy first makes.
     {147, &vr_limbs_prebuild, "1"},                 // 2
+    // 148: more of his values (2026-10-17: "I've also tweaked more settings (e.g. leg sweep values), make those the
+    // defaults too"; ROUND22.md, "His settings, third pass"). A config at the old defaults takes them.
+    {148, &vr_decal_carve_depth, "1"},       // 0.75
+    {148, &vr_decal_carve_max, "256"},       // 128
+    {148, &vr_decal_carve_rim, "1"},         // 1.25
+    {148, &vr_dummy_gib, "1"},               // 0
+    {148, &vr_enemy_melee_turn, "4"},        // 6
+    {148, &vr_knockdown_keep_max, "6.5"},    // 7
+    {148, &vr_legsweep_feet, "0.4"},         // 0.5
+    {148, &vr_legsweep_speed, "1.5"},        // 3.25
+    {148, &vr_legsweep_topple, "180"},       // 200
+    {148, &vr_mirror_hide_hud_text, "0"},    // 1
+    {148, &vr_parallax_plane, "0"},          // 1
+    {148, &vr_relight_reload, "1"},          // 0
+    // 149: his holster zones, positions, sizes and depths (2026-10-17: "I've tweaked all the holster positions and
+    // sizes and depths. Make all the values the new defaults"), and the shoulder holsters' reach.
+    {149, &vr_holster_zone_scale, "1"},                  // 0.95
+    {149, &vr_holster_zone_hip_y, "0"},                  // -2.25
+    {149, &vr_holster_zone_hip_z, "-2"},                 // -2.25
+    {149, &vr_holster_zone_hip_depth, "0.6"},            // 0.15
+    {149, &vr_holster_zone_upper_x, "0"},                // -3.75
+    {149, &vr_holster_zone_upper_y, "0"},                // 3.25
+    {149, &vr_holster_zone_upper_z, "-2"},               // -0.75
+    {149, &vr_holster_zone_upper_height, "1.1"},         // 0.7
+    {149, &vr_holster_zone_shoulder_x, "0"},             // -2.5
+    {149, &vr_holster_zone_shoulder_y, "0"},             // 1
+    {149, &vr_holster_zone_shoulder_z, "0"},             // -0.5
+    {149, &vr_holster_zone_shoulder_depth, "0.9"},       // 0.5
+    {149, &vr_holster_zone_shoulder_width, "0.9"},       // 0.5
+    {149, &vr_holster_zone_shoulder_height, "0.9"},      // 0.5
+    {149, &vr_holster_zone_ammo_x, "0"},                 // -1
+    {149, &vr_holster_zone_ammo_depth, "1"},             // 0.15
+    {149, &vr_holster_zone_ammo_width, "0.8"},           // 0.75
+    {149, &vr_holster_zone_ammo_height, "1"},            // 0.95
+    {149, &vr_shoulder_holster_thresh, "7.8"},           // 7
     // 150: his blood streams' and his own bleeding's values (2026-10-17: "I've tweaked some of the blood spurts and
     // waterfall settings. Make those the new defaults"; "increased the blood dripping rate and size for the player").
     {150, &vr_gore_streams_width, "0.75"},              // 1

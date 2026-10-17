@@ -8,13 +8,16 @@
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_lines.hpp"
 #include "vr_mem.hpp"
+#include "vr_menu.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -30,8 +33,9 @@ constexpr float stubLength = 0.045f;   // and off its holster while it is away
 constexpr float tetherSlack = 0.01f;   // the tether's length over the straight line, a share of it
 constexpr float tetherExtra = 0.12f;   // metres more close by (its sag in a hand), none from tetherTautAt on
 constexpr float tetherTautAt = 2.f;    // metres
-constexpr float tetherReach = 6.f;     // metres: the most it pays out (the return distance's when nearer)
-constexpr float tetherFade = 0.5f;     // metres past that over which it fades out
+constexpr float lineHysteresis = 0.25f; // metres: a tether drawn as a line goes back to links this much nearer
+constexpr int lineRings = 9;            // the line's: its sag as the chain's (a parabola)
+constexpr int lineSides = 4;
 const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f});
 const glm::vec3 down{0.f, 0.f, -1.f};
 
@@ -86,7 +90,10 @@ struct Slot
     coil::Cord cords[ChainCount];
     gfx::TubeBatch batch[ChainCount];
     int sides[ChainCount]{};
-    float fade[ChainCount]{1.f, 1.f, 1.f}; // its opacity's share (the tether's past its reach)
+    // The tether past vr_magholster_chain_lod: a plain line from `home` to `gun` (its cord hidden), sagging `sag` metres
+    // at its middle as the chain would.
+    bool line{false};
+    float sag{0.f};
 };
 Slot slots[numSlots];
 int builtFrame = -1;
@@ -233,6 +240,69 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
     cord.update(at + down * (length * m2u), down, at, down, chainStyle(length), body, true);
 }
 
+// The chains' end at holster `slot` moved by vr_magholster_chain_x/y/z and its kind's (units in the body's frame:
+// forward, outwards, up).
+[[nodiscard]] glm::vec3 originOffset(const hands::State& s, int slot)
+{
+    const bool hip = slot == body::LeftHip || slot == body::RightHip;
+    const bool upper = slot == body::LeftUpper || slot == body::RightUpper;
+    const cvar_t& kx = hip ? vr_magholster_chain_hip_x : upper ? vr_magholster_chain_upper_x : vr_magholster_chain_shoulder_x;
+    const cvar_t& ky = hip ? vr_magholster_chain_hip_y : upper ? vr_magholster_chain_upper_y : vr_magholster_chain_shoulder_y;
+    const cvar_t& kz = hip ? vr_magholster_chain_hip_z : upper ? vr_magholster_chain_upper_z : vr_magholster_chain_shoulder_z;
+    const glm::vec3 off{vr_magholster_chain_x.value + kx.value, vr_magholster_chain_y.value + ky.value,
+        vr_magholster_chain_z.value + kz.value};
+    if(off == glm::vec3{0.f})
+    {
+        return off;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    const bool left = slot == body::LeftHip || slot == body::LeftUpper || slot == body::LeftShoulder;
+    return fwd * off.x + (left ? -right : right) * off.y + up * off.z;
+}
+
+[[nodiscard]] bool tweakingOrigin()
+{
+    const cvar_t* chosen = menu::selectedSetting();
+    return chosen && !q_strncasecmp(chosen->name, "vr_magholster_chain_", 20) && chosen != &vr_magholster_chain_size &&
+           chosen != &vr_magholster_chain_alpha && chosen != &vr_magholster_chain_lod && chosen != &vr_magholster_chain_log;
+}
+
+// A far tether's line (vr_magholster_chain_lod): a thin plain tube from the holster to the weapon, sagging as the chain
+// would, lit at its ends and middle; no links, no simulation.
+void buildLine(const Slot& c, za::Vector<gfx::TubeRing>& out)
+{
+    const float m2u = units::metresToUnits();
+    const coil::Style style = chainStyle(1.f);
+    const float radius = 0.5f * style.linkWidth * m2u;
+    const glm::vec3 light[3] = {coil::lightAt(c.home), coil::lightAt(0.5f * (c.home + c.gun) + down * (c.sag * m2u)),
+        coil::lightAt(c.gun)};
+    out.clear();
+    glm::vec3 prev = c.home;
+    for(int r = 0; r < lineRings; r++)
+    {
+        const float t = static_cast<float>(r) / static_cast<float>(lineRings - 1);
+        const glm::vec3 p = glm::mix(c.home, c.gun, t) + down * (4.f * t * (1.f - t) * c.sag * m2u);
+        const float tn = static_cast<float>(r + 1) / static_cast<float>(lineRings - 1);
+        const glm::vec3 next = r + 1 < lineRings ? glm::mix(c.home, c.gun, tn) + down * (4.f * tn * (1.f - tn) * c.sag * m2u)
+                                                 : p + (p - prev);
+        glm::vec3 along = next - (r > 0 ? prev : p);
+        along = glm::length(along) > 1e-6f ? glm::normalize(along) : glm::vec3{1.f, 0.f, 0.f};
+        const glm::vec3 ref = za::abs(along.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+        const glm::vec3 across = glm::normalize(glm::cross(ref, along));
+        const glm::vec3 ambient = t < 0.5f ? glm::mix(light[0], light[1], 2.f * t) : glm::mix(light[1], light[2], 2.f * t - 1.f);
+        gfx::TubeRing ring{};
+        ring.mid = glm::vec4{p, radius};
+        ring.across = glm::vec4{across, 0.f};
+        ring.along = glm::vec4{along, 0.f};
+        ring.ambient = glm::vec4{ambient, 0.4f}; // (some rust: duller, its sheen less, as the links' mix reads from afar)
+        ring.lamp = glm::vec4{0.f};
+        ring.lampDir = glm::vec4{0.f, 0.f, 1.f, 0.f};
+        out.pushBack(ring);
+        prev = p;
+    }
+}
+
 // vr_magholster_chain_log: each chain's nodes off its anchor (its second end) the last two frames, for its movement
 // and jerk (the second difference: a calm chain's is small, a jittering one's large).
 constexpr int logNodes = 16;
@@ -288,6 +358,7 @@ void hideSlot(Slot& c)
         cord.hide();
     }
     c.where = Where::None;
+    c.line = false;
 }
 
 // vr_magholster_info: each holster's binding, where its weapon is, its chains.
@@ -325,8 +396,9 @@ void info_f()
             Con_Printf(" (entity %d, %.2f m from its holster)", c.entity, glm::distance(c.gun, c.home) / m2u);
         }
         Con_Printf("; lanyard %s %d links, stub %s, tether %s %d links %.2f m\n", c.cords[Lanyard].visible() ? "on" : "off",
-            c.cords[Lanyard].links(), c.cords[Stub].visible() ? "on" : "off", c.cords[Tether].visible() ? "on" : "off",
-            c.cords[Tether].links(), c.cords[Tether].length());
+            c.cords[Lanyard].links(), c.cords[Stub].visible() ? "on" : "off",
+            c.line ? "line" : c.cords[Tether].visible() ? "chain" : "off", c.line ? 0 : c.cords[Tether].links(),
+            c.line ? glm::distance(c.home, c.gun) / m2u : c.cords[Tether].length());
     }
 }
 
@@ -414,6 +486,7 @@ void setupView(const hands::State& s)
         {
             c.home = c.reach;
         }
+        c.home += originOffset(s, i);
         const Where was = c.where;
         const int wasHolster = c.holster, wasHand = c.hand, wasEntity = c.entity;
         locate(c);
@@ -452,15 +525,24 @@ void setupView(const hands::State& s)
         }
 
         // The tether, from the holster to the weapon wherever it is seen away from it (in a hand, another holster, lying
-        // about, flying back): paid out of the holster, slack close by, nearly taut far off; faded out past the return
-        // distance (vr_magholster_return_distance, else tetherReach) and gone beyond.
+        // about, flying back): paid out of the holster, slack close by, nearly taut far off; however far (2026-10-17: "never
+        // let it disappear"), past vr_magholster_chain_lod a plain line sagging as the chain would (cheap), no links.
         const bool away = c.where != Where::None && !(c.where == Where::Holster && c.holster == i);
         const float metres = glm::distance(c.home, c.gun) / m2u;
-        const float reach = vr_magholster_return_distance.value > 0.f ? za::min(vr_magholster_return_distance.value, tetherReach)
-                                                                      : tetherReach;
-        c.fade[Tether] = za::clamp(1.f - (metres - reach) / tetherFade, 0.f, 1.f);
-        const bool tether = tethers && away && c.fade[Tether] > 0.f;
-        if(tether)
+        const bool tether = tethers && away;
+        const float lod = za::max(0.f, vr_magholster_chain_lod.value);
+        const bool wasLine = c.line;
+        c.line = tether && (lod <= 0.f || metres > (c.line ? lod - lineHysteresis : lod));
+        if(c.line != wasLine && vr_magholster_chain_log.value != 0.f)
+        {
+            Con_Printf("magchain %d tether %s at %.2f m\n", i, c.line ? "a line" : "links", metres);
+        }
+        if(c.line)
+        {
+            c.sag = metres * glm::sqrt(3.f * tetherSlack / 8.f); // (a parabola's of that slack)
+            c.cords[Tether].hide();
+        }
+        else if(tether)
         {
             const float length = metres * (1.f + tetherSlack) + tetherExtra * za::clamp(1.f - metres / tetherTautAt, 0.f, 1.f);
             // (Its links grow when the most links (vr_coil.cpp: 640) would not reach.)
@@ -482,6 +564,23 @@ void setupView(const hands::State& s)
         else
         {
             c.cords[Stub].hide();
+        }
+    }
+    // A Chain Origin setting chosen (Immersion > Magnetic Holsters): every holster's chain origin marked, bound or not.
+    if(inGame() && s.valid && tweakingOrigin())
+    {
+        if(!homesKnown)
+        {
+            homes = body::holsterPositions(s);
+        }
+        for(int i = 0; i < numSlots; i++)
+        {
+            glm::vec3 at;
+            if(!view::holsterPoint(i, at))
+            {
+                at = homes[static_cast<za::SizeT>(i)];
+            }
+            lines::point(at + originOffset(s, i), 0.6f, glm::vec4{1.f, 0.55f, 0.1f, 1.f});
         }
     }
     if(vr_magholster_chain_log.value != 0.f && vr_gametime != chainLogTime)
@@ -512,7 +611,8 @@ void drawOpaque()
         for(int k = 0; k < ChainCount; k++)
         {
             coil::Cord& cord = c.cords[k];
-            if(!cord.visible())
+            const bool asLine = k == Tether && c.line;
+            if(!cord.visible() && !asLine)
             {
                 continue;
             }
@@ -520,14 +620,31 @@ void drawOpaque()
             {
                 QVR_PROFILE("magnetic holsters build");
                 const hands::State& s = hands::current();
-                c.batch[k] = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), scratch.rings, c.sides[k])
-                                 ? gfx::uploadTube(scratch.rings)
-                                 : gfx::TubeBatch{};
+                if(asLine)
+                {
+                    buildLine(c, scratch.rings);
+                    c.sides[k] = lineSides;
+                    c.batch[k] = gfx::uploadTube(scratch.rings);
+                }
+                else
+                {
+                    c.batch[k] = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), scratch.rings, c.sides[k])
+                                     ? gfx::uploadTube(scratch.rings)
+                                     : gfx::TubeBatch{};
+                }
             }
             if(c.batch[k].count)
             {
                 QVR_GPU_PROFILE("magnetic holsters draw");
-                gfx::drawTube(c.batch[k], c.sides[k], cord.albedo(), keyLight, cord.rust(), cord.flat(), alpha * c.fade[k]);
+                if(asLine)
+                {
+                    const coil::Style style = chainStyle(1.f);
+                    gfx::drawTube(c.batch[k], c.sides[k], style.albedo, keyLight, style.rust, false, alpha);
+                }
+                else
+                {
+                    gfx::drawTube(c.batch[k], c.sides[k], cord.albedo(), keyLight, cord.rust(), cord.flat(), alpha);
+                }
             }
         }
     }
