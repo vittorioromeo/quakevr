@@ -1162,8 +1162,8 @@ void bakeEarly(const Decal& d)
 
 // Mark `d` (its triangles `tris`) into the ring: the oldest go first if it is full (as many as vr_decal_max, lowered,
 // leaves no room for), the ring made `max` long if that changed; into the ring's next slot, its triangles into the
-// buffer the slot's last mark had.
-void pushDecal(const Decal& d, const za::Vector<Corner>& tris, int max)
+// buffer the slot's last mark had. `d` is moved in (its own vectors are not copied): `tris` may be its own triangles.
+void pushDecal(Decal&& d, const za::Vector<Corner>& tris, int max)
 {
     while(decals.size() >= static_cast<za::SizeT>(max))
     {
@@ -1177,13 +1177,20 @@ void pushDecal(const Decal& d, const za::Vector<Corner>& tris, int max)
     Decal& slot = decals.pushBack();
     za::Vector<Corner> buffer = ZA_MOVE(slot.tris);
     za::Vector<za::U32> bucketBuffer = ZA_MOVE(slot.buckets);
-    slot = d;
+    const bool ownTris = &tris == &d.tris;
+    if(!ownTris)
+    {
+        buffer.assignRange(tris.begin(), tris.end());
+    }
+    slot = ZA_MOVE(d);
     slot.staticAt = -1;
-    slot.tris = ZA_MOVE(buffer);
+    if(!ownTris)
+    {
+        slot.tris = ZA_MOVE(buffer); // (its triangles kept as moved in otherwise)
+    }
     slot.buckets = ZA_MOVE(bucketBuffer);
     slot.buckets.clear();
     slot.bucketsMask = 0;
-    slot.tris.assignRange(tris.begin(), tris.end());
     dropCount += isDrop(slot);
     worldDirty = true; // (`vertices`, made each frame, take it in the next one: in both eyes together)
 }
@@ -1233,13 +1240,13 @@ void showRecord()
         clipToWorld(d, d.normal, d.depth, tris, d.brush);
         if(!tris.empty())
         {
-            pushDecal(d, tris, max);
+            pushDecal(ZA_MOVE(d), tris, max);
             shown++;
         }
     }
     for(Decal& d : liveKept)
     {
-        pushDecal(d, d.tris, max);
+        pushDecal(ZA_MOVE(d), d.tris, max);
     }
     liveKept.clear();
     Con_DPrintf("decals: %d of the permanent layer's %d newest marks shown live (vr_permdecals 0)\n", shown,
@@ -1354,7 +1361,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
             }
         }
     }
-    pushDecal(d, tris, max);
+    pushDecal(ZA_MOVE(d), tris, max);
     return true;
 }
 

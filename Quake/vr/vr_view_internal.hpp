@@ -480,7 +480,9 @@ struct ViewModelEntry
     qmodel_t* model;
     int generation;
 };
-inline ViewModelEntry viewModels[64]{};
+// 256 entries in pairs (two ways): a name goes in its hashed slot or the slot beside it, so two names that hash alike
+// don't push each other out every frame.
+inline ViewModelEntry viewModels[256]{};
 
 // The bare forearms' skin at the wrist turned to the hand's (view::skinTint): make_vrbody.py's "wrist tint", the jointed
 // hand's clean skin round its wrist over the arms' skin (progs/vrbody_00_00.tga) there, channel by channel.

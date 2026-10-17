@@ -55,6 +55,8 @@ za::Array<cvar_t, numSlots * numKeys> cvars{};
 // Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
 // vr_wofs_id_NN cvar changes.
 ankerl::unordered_dense::map<const qmodel_t*, int> slotCache;
+// A part drawn on its gun (slotForPart) with no slot of its own -> its gun's slot, likewise.
+ankerl::unordered_dense::map<const qmodel_t*, int> partSlotCache;
 int fistCache = -2;
 
 // Counts the changes to the settings (settingsGeneration).
@@ -72,6 +74,7 @@ ankerl::unordered_dense::map<const qmodel_t*, TransformMemo> transformCache;
 void onIdChanged(cvar_t* /* var */)
 {
     slotCache.clear();
+    partSlotCache.clear();
     fistCache = -2;
     transformCache.clear();
     generation++;
@@ -579,18 +582,29 @@ void printSlot(int slot, Part part)
 int slotForPart(const qmodel_t* model)
 {
     int slot = slotForModel(model);
+    if(slot >= 0 || !model)
+    {
+        return slot;
+    }
+    if(const auto it = partSlotCache.find(model); it != partSlotCache.end())
+    {
+        return it->second;
+    }
     // A part drawn on its gun, made in the gun's model space (make_mags.py's magazine and well; the shotgun's auto pump's
     // parts, vr_view.cpp setupPumps; the super shotgun's two, open: make_ssg_open.py): the gun's slot.
     for(const char* prefix : {"progs/vr_mag_on_", "progs/vr_magwell_on_", "progs/vr_pump_on_", "progs/vr_pumpbody_on_",
              "progs/vr_ssg_frame_on_", "progs/vr_ssg_barrels_on_"})
     {
-        if(slot < 0 && model && !strncmp(model->name, prefix, strlen(prefix)))
+        const size_t length = strlen(prefix);
+        if(!strncmp(model->name, prefix, length))
         {
             char gun[MAX_QPATH];
-            q_snprintf(gun, sizeof(gun), "progs/%s", model->name + strlen(prefix));
+            q_snprintf(gun, sizeof(gun), "progs/%s", model->name + length);
             slot = slotForName(gun);
+            break; // (the prefixes don't overlap)
         }
     }
+    partSlotCache.emplace(model, slot);
     return slot;
 }
 

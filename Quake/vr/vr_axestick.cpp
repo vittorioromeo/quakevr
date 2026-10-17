@@ -605,7 +605,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     {
         return false;
     }
-    const func_t stuckFn = findFunction("VR_AxeStick_Stuck");
+    const func_t stuckFn = bindings().AxeStick_Stuck;
     if(!stuckFn)
     {
         return false; // (progs without the feature)

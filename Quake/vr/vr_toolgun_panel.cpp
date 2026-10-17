@@ -645,23 +645,30 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
     return clicked;
 }
 
-void spawnPage(Ui& ui)
+// The Spawn tab's grid for its section (spawnPage): made again only when the section (or the list's size) changes, not
+// each frame. The list is fixed (vr_toolgun.cpp spawnables); whether an entry is available is asked as it is drawn.
+struct SpawnGrid
 {
-    const float gap = 4.f;
-    // The tabs.
-    const float tw = (panelWidth - pad * 2.f - gap * (sectionCount - 1)) / sectionCount;
-    for(int i = 0; i < sectionCount; i++)
+    int section{-1};
+    int count{-1}; // toolgun::spawnableCount() it was made for
+    int perPage{0};
+    za::InPlaceVector<int, maxEntries> entries; // spawnable index, -1: an empty cell
+    za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
+};
+SpawnGrid spawnGridMade;
+
+const SpawnGrid& spawnGrid(int perPage)
+{
+    SpawnGrid& g = spawnGridMade;
+    if(g.section == ps.section && g.count == toolgun::spawnableCount() && g.perPage == perPage)
     {
-        const Rect r{pad + i * (tw + gap), 47.f, pad + i * (tw + gap) + tw, 60.f};
-        if(button(ui, r, sections[i], ps.section == i, 6.f))
-        {
-            ps.section = i;
-        }
+        return g;
     }
-    // The section's entries, a page of them: id's and Quake VR's own first, then each pack's (the Scourge of Armagon's,
-    // the Dissolution of Eternity's, the Machine packs', ...: toolgun::spawnablePack) as a group of its own from a fresh
-    // page, in the list's order, Arcane Dimensions' last (-1: an empty cell).
-    constexpr int perPage = gridColumns * gridRows;
+    g.section = ps.section;
+    g.count = toolgun::spawnableCount();
+    g.perPage = perPage;
+    g.entries.clear();
+    g.groupPages.clear();
     const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]); };
     za::InPlaceVector<const char*, maxPacks> packs;
     packs.pushBack("");
@@ -679,8 +686,7 @@ void spawnPage(Ui& ui)
         }
     }
     packs.pushBack("AD");
-    za::InPlaceVector<int, maxEntries> entries;
-    za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
+    za::InPlaceVector<int, maxEntries>& entries = g.entries;
     for(int k = 0; k < static_cast<int>(packs.size()); k++)
     {
         bool first = true;
@@ -696,7 +702,7 @@ void spawnPage(Ui& ui)
             }
             if(first)
             {
-                groupPages.pushBack(static_cast<int>(entries.size()) / perPage);
+                g.groupPages.pushBack(static_cast<int>(entries.size()) / perPage);
             }
             first = false;
             if(entries.size() < entries.capacity())
@@ -705,6 +711,29 @@ void spawnPage(Ui& ui)
             }
         }
     }
+    return g;
+}
+
+void spawnPage(Ui& ui)
+{
+    const float gap = 4.f;
+    // The tabs.
+    const float tw = (panelWidth - pad * 2.f - gap * (sectionCount - 1)) / sectionCount;
+    for(int i = 0; i < sectionCount; i++)
+    {
+        const Rect r{pad + i * (tw + gap), 47.f, pad + i * (tw + gap) + tw, 60.f};
+        if(button(ui, r, sections[i], ps.section == i, 6.f))
+        {
+            ps.section = i;
+        }
+    }
+    // The section's entries, a page of them: id's and Quake VR's own first, then each pack's (the Scourge of Armagon's,
+    // the Dissolution of Eternity's, the Machine packs', ...: toolgun::spawnablePack) as a group of its own from a fresh
+    // page, in the list's order, Arcane Dimensions' last (-1: an empty cell).
+    constexpr int perPage = gridColumns * gridRows;
+    const SpawnGrid& grid = spawnGrid(perPage);
+    const za::InPlaceVector<int, maxEntries>& entries = grid.entries;
+    const za::InPlaceVector<int, maxPacks>& groupPages = grid.groupPages;
     const int pages = za::max(1, (static_cast<int>(entries.size()) + perPage - 1) / perPage);
     int& page = ps.gridPage[ps.section];
     page = za::clamp(page, 0, pages - 1);

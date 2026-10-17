@@ -269,6 +269,7 @@ void Simulation::releaseScene()
         sa->iplInstancedMeshRelease(&in.mesh);
     }
     instances.clear();
+    instanceAt.clear();
     for(SubScene& sub : subScenes)
     {
         if(sub.mesh)
@@ -442,6 +443,19 @@ void Simulation::dropScene()
     releaseScene();
 }
 
+void Simulation::indexInstances()
+{
+    za::fill(instanceAt.begin(), instanceAt.end(), 0);
+    for(za::SizeT i = 0; i < instances.size(); i++)
+    {
+        const int key = instances[i].key;
+        if(key >= 0 && static_cast<za::SizeT>(key) < instanceAt.size())
+        {
+            instanceAt[static_cast<za::SizeT>(key)] = static_cast<int>(i + 1);
+        }
+    }
+}
+
 void Simulation::beginInstances()
 {
     for(Instance& in : instances)
@@ -478,7 +492,19 @@ void Simulation::placeInstance(int key, int sub, const IPLMatrix4x4& transform, 
         return;
     }
     // (Changes are applied by applyInstances: a simulation may be running now.)
-    auto it = za::findIf(instances.begin(), instances.end(), [&](const Instance& in) { return in.key == key; });
+    constexpr int maxIndexed = 1 << 16;
+    const bool indexed = key >= 0 && key < maxIndexed;
+    const za::SizeT at = indexed ? static_cast<za::SizeT>(key) : 0;
+    auto it = instances.end();
+    if(indexed && at < instanceAt.size() && instanceAt[at] > 0 &&
+        instances[static_cast<za::SizeT>(instanceAt[at] - 1)].key == key)
+    {
+        it = instances.begin() + (instanceAt[at] - 1);
+    }
+    else
+    {
+        it = za::findIf(instances.begin(), instances.end(), [&](const Instance& in) { return in.key == key; });
+    }
     if(it == instances.end())
     {
         Instance in;
@@ -487,6 +513,14 @@ void Simulation::placeInstance(int key, int sub, const IPLMatrix4x4& transform, 
         in.transform = transform;
         instances.pushBack(in);
         it = instances.end() - 1;
+        if(indexed)
+        {
+            if(instanceAt.size() <= at)
+            {
+                instanceAt.resize(at + 1, 0);
+            }
+            instanceAt[at] = static_cast<int>(instances.size());
+        }
     }
     it->wanted = true;
     if(it->sub != sub)
@@ -543,7 +577,12 @@ void Simulation::applyInstances()
         }
         in.moved = false;
     }
+    const za::SizeT before = instances.size();
     za::vectorEraseIf(instances, [](const Instance& in) { return !in.wanted; });
+    if(instances.size() != before)
+    {
+        indexInstances();
+    }
     if(dirty)
     {
         sa->iplSceneCommit(scene);
