@@ -3533,10 +3533,22 @@ QVR_CVAR(vr_magholster_return_time, "3", CVAR_ARCHIVE)      // seconds out of th
 QVR_CVAR(vr_magholster_return_distance, "4", CVAR_ARCHIVE)  // metres from its holster before it comes back (0: never by distance)
 QVR_CVAR(vr_magholster_flight_time, "0.4", CVAR_ARCHIVE)    // seconds its flight back takes
 QVR_CVAR(vr_magholster_land_time, "1", CVAR_ARCHIVE)        // seconds a thrown or dropped weapon must lie still on the ground (or stuck in a wall) before either return may bring it back: a throw is let finish, never called back mid-air (0: off, it may turn back in the air)
-QVR_CVAR(vr_magholster_style, "1", CVAR_ARCHIVE)          // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too, however far: a plain line past vr_magholster_chain_lod), 2 both, 3 none
+QVR_CVAR(vr_magholster_style, "1", CVAR_ARCHIVE)          // the chain shown: 0 a lanyard (a short chain hanging off the bound weapon, a stub of it at the empty holster), 1 a tether (from the holster to the weapon whenever it is out of it, held too, however far: past vr_magholster_chain_lod along it a plain line), 2 both, 3 none
 QVR_CVAR(vr_magholster_chain_size, "0.6", CVAR_ARCHIVE)     // its links' size, times the flashlight chain's (1.6 cm links of 4 mm bar)
 QVR_CVAR(vr_magholster_chain_alpha, "1", CVAR_ARCHIVE)      // its opacity (below 1: see-through)
-QVR_CVAR(vr_magholster_chain_lod, "5", CVAR_ARCHIVE)        // metres: a tether longer than this is drawn as a plain thin line straight to the weapon (cheap), not links (0: always a line)
+QVR_CVAR(vr_magholster_chain_lod, "5", CVAR_ARCHIVE)        // metres along the tether from the holster drawn as links; on from there to the weapon a plain thin line along the same curve (cheap; 0: all a line)
+// The tether as a chain of points lying on and wrapping round the world (2026-10-17: "goes through the floor and walls
+// too easily"): the grappling hook rope's steps (vr_verlet.cpp), client-side only; its links drawn along it.
+QVR_CVAR(vr_magholster_chain_sim, "1", CVAR_ARCHIVE)        // 1: the tether a chain of points that collides with the world; 0: the old 12-point chain (through the world)
+QVR_CVAR(vr_magholster_chain_spacing, "0.25", CVAR_ARCHIVE) // metres between its points (finer: truer on edges and the floor, more work; a long tether's farther apart: vr_magholster_chain_points at most)
+QVR_CVAR(vr_magholster_chain_points, "40", CVAR_ARCHIVE)    // the most pieces it has (4 .. 256)
+QVR_CVAR(vr_magholster_chain_iterations, "12", CVAR_ARCHIVE) // passes a frame holding its pieces to their length (more: less stretch, more work; 1 .. 64)
+QVR_CVAR(vr_magholster_chain_stiffness, "1", CVAR_ARCHIVE)  // the share of a piece's stretch each pass takes out (0.05 .. 1; lower: stretchier, softer)
+QVR_CVAR(vr_magholster_chain_collide, "1", CVAR_ARCHIVE)    // 1: its points and pieces kept out of the world (traced); 0: through it (cheaper)
+QVR_CVAR(vr_magholster_chain_radius, "0.75", CVAR_ARCHIVE)  // units its points keep off what they lie on
+QVR_CVAR(vr_magholster_chain_drag, "2", CVAR_ARCHIVE)       // a second: its speed lost to the air (it settles from a swing)
+QVR_CVAR(vr_magholster_chain_slide, "0.6", CVAR_ARCHIVE)    // the share of its speed along a surface a point keeps where it touches it (lower: rougher floor)
+QVR_CVAR(vr_magholster_chain_carry, "1", CVAR_ARCHIVE)      // the share of your movement that carries the chain along near the holster (none of it at the weapon; 0: it is only pulled)
 QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
 // The chains' end at the holster (2026-10-17: "still a little off"), units in the body's frame: forward, outwards (the
 // left holsters' to the left), up; every holster's (_x/_y/_z), plus each kind's own.

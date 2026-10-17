@@ -2,7 +2,8 @@
 # magchain_lod_test.sh <agent> [shot] -- ROUND22.md, "Magnetic holsters: chain origin, long throws, sounds, the hand
 # point". The shotgun bound to the right hip holster (slot 3), drawn, dropped at your feet (it never comes back:
 # vr_magholster_return_time 0, _distance 0), then you walk away from it: at about 3 m the tether is links ("tether
-# chain"), at about 10 m a plain line ("tether line"), never gone; Full Chain Up To (vr_magholster_chain_lod) 12 at 10
+# chain"), at about 10 m links 5 m along it then a plain line on ("tether chain N links ... + line M m"; before the
+# partial LOD all a line), never gone; Full Chain Up To (vr_magholster_chain_lod) 12 at 10
 # m: links again; 0: a line at 3 m. The chain origin sliders (vr_magholster_chain_x/y/z and the hips') move the chain's
 # end: "chain end ... off the reach point" changes. "shot": the tether seen from behind you at 3 m and 10 m
 # (scratch/magchain_lod.png). Prints PASS/FAIL; exits 1 on a failure.
@@ -32,7 +33,7 @@ check() { # $1 line number, $2 regex, $3 what
 }
 check 1 "tether chain [1-9]" "about 3 m: links"
 check 2 "tether line" "about 3 m, Full Chain Up To 0: a line"
-check 3 "tether line" "about 10 m: a line (never gone)"
+check 3 "tether chain [1-9][0-9]* links .* + line [1-9]" "about 10 m: links, then a line (never gone)"
 check 4 "tether chain [1-9]" "about 10 m, Full Chain Up To 12: links"
 E1=$(echo "$L" | sed -n 4p | sed 's/.*chain end \([0-9.]*\) cm.*/\1/'); E2=$(echo "$L" | sed -n 5p | sed 's/.*chain end \([0-9.]*\) cm.*/\1/')
 if [ "$E1" != "$E2" ] && [ -n "$E2" ]; then r=PASS; else r=FAIL; fail=1; fi
