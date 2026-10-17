@@ -1059,7 +1059,9 @@ za::Vector<Item> pageDebugTools()
                   "(no damage): their dents and blood streams (at Stream Chance; the dummy's with Dummy Dents and Dummy Blood Streams)."),
         command("Blood Streams: Where They Start", "vr_gore_streams_info")
             .help("vr_gore_streams_info: each stream pouring, how far its start is from the dented surface at its wound, and how far "
-                  "the vertex nearest the hit (the binding before) is (console)."),
+                  "the vertex nearest the hit (the binding before) is; and the worst stretch drawn since the last time (a piece's "
+                  "length over its length as poured: about 1 smooth, high a ribbon), the pieces faded and broken for it, the cuts "
+                  "where the wound jumped (console)."),
         command("Clear the Dummy's Dents and Streams", "vr_dummy_gore_reset")
             .help("vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds gone at once."),
         command("Shocked Bodies", "vr_shock_info; vr_shock_ragdoll_check")

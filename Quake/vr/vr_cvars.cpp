@@ -229,8 +229,25 @@ const DefaultChange defaultChanges[] = {
     {149, &vr_holster_zone_ammo_width, "0.8"},           // 0.75
     {149, &vr_holster_zone_ammo_height, "1"},            // 0.95
     {149, &vr_shoulder_holster_thresh, "7.8"},           // 7
+    // 150: his blood streams' and his own bleeding's values (2026-10-17: "I've tweaked some of the blood spurts and
+    // waterfall settings. Make those the new defaults"; "increased the blood dripping rate and size for the player").
+    {150, &vr_gore_streams_width, "0.75"},              // 1
+    {150, &vr_gore_streams_speed_var, "0.3"},           // 0.5
+    {150, &vr_gore_streams_wobble, "10"},               // 15
+    {150, &vr_gore_streams_thickness_var, "0.55"},      // 0.85
+    {150, &vr_gore_streams_thickness_rate, "1.1"},      // 1.3
+    {150, &vr_gore_streams_spurt_rate, "40"},           // 70
+    {150, &vr_gore_streams_spurt_cone, "30"},           // 15
+    {150, &vr_gore_streams_spurt_speed, "0.8"},         // 1.35
+    {150, &vr_gore_streams_spurt_life, "0.2"},          // 0.4
+    {150, &vr_gore_streams_spurt_outlier_life, "0.7"},  // 1.15
+    {150, &vr_gore_streams_spurt_size, "0.3"},          // 0.525
+    {150, &vr_gore_streams_splash_size, "1"},           // 1.25
+    {150, &vr_body_blood, "1"},                         // 1.25
+    {150, &vr_body_blood_amount, "1"},                  // 1.25
+    {150, &vr_body_blood_mark_size, "1"},               // 1.5
 };
-constexpr int configVersion = 149;
+constexpr int configVersion = 150;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

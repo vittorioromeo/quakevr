@@ -1331,7 +1331,7 @@ QVR_CVAR(vr_pent_glow, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_pent_glow_light, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_suit_glow, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_suit_glow_light, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_body_blood, "1", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
+QVR_CVAR(vr_body_blood, "1.25", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
 QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
@@ -1883,7 +1883,8 @@ QVR_CVAR(vr_decal_melee_slash_depth, "1", CVAR_ARCHIVE) // ... a blade's groove'
 QVR_CVAR(vr_decal_melee_slash_length, "1", CVAR_ARCHIVE) // ... its length (0.5-2)
 QVR_CVAR(vr_decal_melee_slash_width, "1", CVAR_ARCHIVE)  // ... and width (0.5-2)
 QVR_CVAR(vr_decal_melee_prop_speed, "7", CVAR_ARCHIVE)   // ... a prop (crate, rock, brick, weapon) dents the level hitting it this fast or faster (m/s: a hard throw; 0: never)
-QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)           // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, the newest vr_decal_max live; the others kept, shown again when on: PERM_DECALS.md "On and off")
+QVR_CVAR(vr_decal_entities, "1", CVAR_ARCHIVE)       // marks (shots, blows, blood) on brush entities of their own files (the firing range's targets: its spawn buttons and panels), and on the map's doors and lifts with vr_permdecals 0: live, moving with them, the newest 128 (flat: no carved relief)
+QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)         // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, the newest vr_decal_max live; the others kept, shown again when on: PERM_DECALS.md "On and off")
 QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
 QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
 QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side of each of its layers (1024-8192; 4096: 16384 pages of 30 x 30 texels a layer, 85 MB with its mips; made again, what was baked baked again, when changed)
@@ -1909,25 +1910,28 @@ QVR_CVAR(vr_gore_streams_per_body, "4", CVAR_ARCHIVE)   // most on one body (a n
 QVR_CVAR(vr_gore_streams_max, "24", CVAR_ARCHIVE)       // most in all (0-64)
 QVR_CVAR(vr_gore_streams_time, "7", CVAR_ARCHIVE)       // seconds one pours, about (weakening all along)
 QVR_CVAR(vr_gore_streams_speed, "50", CVAR_ARCHIVE)     // units/s it leaves the wound at, at its strongest
-QVR_CVAR(vr_gore_streams_width, "0.75", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
+QVR_CVAR(vr_gore_streams_width, "1", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
 QVR_CVAR(vr_gore_streams_pool, "1", CVAR_ARCHIVE)       // the pools it spreads where it lands: their size (0: no marks)
 QVR_CVAR(vr_gore_streams_pools, "4", CVAR_ARCHIVE)      // most pools one stream spreads (a new one each time it moves on)
 QVR_CVAR(vr_gore_streams_spread, "35", CVAR_ARCHIVE)    // degrees: each stream's way out turned at random up to this far from the wound's (one shotgun blast's streams diverge)
-QVR_CVAR(vr_gore_streams_speed_var, "0.3", CVAR_ARCHIVE) // each stream's force times a random 1 +- this (0: all alike)
-QVR_CVAR(vr_gore_streams_wobble, "10", CVAR_ARCHIVE)    // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
+QVR_CVAR(vr_gore_streams_speed_var, "0.5", CVAR_ARCHIVE) // each stream's force times a random 1 +- this (0: all alike)
+QVR_CVAR(vr_gore_streams_wobble, "15", CVAR_ARCHIVE)    // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
 QVR_CVAR(vr_gore_streams_wobble_rate, "0.7", CVAR_ARCHIVE) // how fast it wanders (about this many swings a second)
-QVR_CVAR(vr_gore_streams_thickness_var, "0.55", CVAR_ARCHIVE) // how much its thickness varies as it pours (and so along it): 0 steady, 1 from a trickle to double
-QVR_CVAR(vr_gore_streams_thickness_rate, "1.1", CVAR_ARCHIVE) // how fast its thickness changes (about this many swells a second)
+QVR_CVAR(vr_gore_streams_thickness_var, "0.85", CVAR_ARCHIVE) // how much its thickness varies as it pours (and so along it): 0 steady, 1 from a trickle to double
+QVR_CVAR(vr_gore_streams_thickness_rate, "1.3", CVAR_ARCHIVE) // how fast its thickness changes (about this many swells a second)
 QVR_CVAR(vr_gore_streams_spurts, "1", CVAR_ARCHIVE)      // small drops spurting from the wound in a cone as it pours
-QVR_CVAR(vr_gore_streams_spurt_rate, "40", CVAR_ARCHIVE) // drops a second at its strongest (fewer as it weakens)
-QVR_CVAR(vr_gore_streams_spurt_cone, "30", CVAR_ARCHIVE) // degrees round its way out they spurt in
-QVR_CVAR(vr_gore_streams_spurt_speed, "0.8", CVAR_ARCHIVE) // their speed, times the stream's
-QVR_CVAR(vr_gore_streams_spurt_life, "0.2", CVAR_ARCHIVE) // seconds they live (fading all along), about
+QVR_CVAR(vr_gore_streams_spurt_rate, "70", CVAR_ARCHIVE) // drops a second at its strongest (fewer as it weakens)
+QVR_CVAR(vr_gore_streams_spurt_cone, "15", CVAR_ARCHIVE) // degrees round its way out they spurt in
+QVR_CVAR(vr_gore_streams_spurt_speed, "1.35", CVAR_ARCHIVE) // their speed, times the stream's
+QVR_CVAR(vr_gore_streams_spurt_life, "0.4", CVAR_ARCHIVE) // seconds they live (fading all along), about
 QVR_CVAR(vr_gore_streams_spurt_outliers, "0.12", CVAR_ARCHIVE) // the share of them that live longer,
-QVR_CVAR(vr_gore_streams_spurt_outlier_life, "0.7", CVAR_ARCHIVE) // this many seconds, about
-QVR_CVAR(vr_gore_streams_spurt_size, "0.3", CVAR_ARCHIVE) // units across, about (1 unit: 3.8 cm)
+QVR_CVAR(vr_gore_streams_spurt_outlier_life, "1.15", CVAR_ARCHIVE) // this many seconds, about
+QVR_CVAR(vr_gore_streams_spurt_size, "0.525", CVAR_ARCHIVE) // units across, about (1 unit: 3.8 cm)
 QVR_CVAR(vr_gore_streams_splash, "1", CVAR_ARCHIVE)      // drops splashing away where it lands (the world, a prop, a monster): how many (0 none; 1 about 45 a second at its strongest)
-QVR_CVAR(vr_gore_streams_splash_size, "1", CVAR_ARCHIVE) // their size, times the spurts'
+QVR_CVAR(vr_gore_streams_splash_size, "1.25", CVAR_ARCHIVE) // their size, times the spurts'
+QVR_CVAR(vr_gore_streams_smooth, "0.25", CVAR_ARCHIVE)    // seconds the body's motion at the wound, and its way out, are smoothed over: the animation's jumps don't fling it into ribbons (0: none)
+QVR_CVAR(vr_gore_streams_inherit, "0.35", CVAR_ARCHIVE)   // the share of the body's (smoothed) motion it and its spurts take (0.7 before; 1 as a real one)
+QVR_CVAR(vr_gore_streams_break, "4", CVAR_ARCHIVE)        // a piece of it stretched to this many times its length as poured breaks off (fading from half that), and it is cut where the wound jumps (0: never)
 // Back-splatter (vr_gore.cpp): thin long streaks thrown onto what is behind a monster hit, along the shot's line.
 QVR_CVAR(vr_gore_backsplatter, "1", CVAR_ARCHIVE)       // how many (0 none)
 QVR_CVAR(vr_gore_backsplatter_reach, "1", CVAR_ARCHIVE) // how far they fly (times the hit's own: a shotgun's close, big hits far)
@@ -2050,9 +2054,9 @@ QVR_CVAR(vr_smallgibs_test_crowd, "0", CVAR_NONE)          // test 14: grunts (0
 QVR_CVAR(vr_smallgibs_test_blasts, "0", CVAR_NONE)         // test 14: blasts in the one frame (0: 1)
 QVR_CVAR(vr_smallgibs_test_hand, "0", CVAR_NONE)           // test 13: the melee and chainsaw ones at the main hand, put in the body (the mock)
 QVR_CVAR(vr_smallgibs_test_dist, "0", CVAR_NONE)           // test 15: units from the wall ahead (0: 64)
-QVR_CVAR(vr_body_blood_amount, "1", CVAR_ARCHIVE)      // how big the drops from your wounds are, and how much they splash
+QVR_CVAR(vr_body_blood_amount, "1.25", CVAR_ARCHIVE)      // how big the drops from your wounds are, and how much they splash
 QVR_CVAR(vr_body_blood_marks, "1", CVAR_ARCHIVE)       // the chance a drop from your wounds marks the floor (0..1)
-QVR_CVAR(vr_body_blood_mark_size, "1", CVAR_ARCHIVE)   // how big those marks are
+QVR_CVAR(vr_body_blood_mark_size, "1.5", CVAR_ARCHIVE)   // how big those marks are
 QVR_CVAR(vr_body_blood_floor, "1", CVAR_ARCHIVE)       // while wounded, blood drips round your feet (from the body), marking the floor: how often (0 none)
 QVR_CVAR(vr_bloom, "0.08", CVAR_ARCHIVE)                // glow around bright things (lamps, glowing panels, flashes): its strength (0 off)
 QVR_CVAR(vr_bloom_threshold, "0.9", CVAR_ARCHIVE)      // how bright a thing must be to glow (0..1)

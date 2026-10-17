@@ -11246,3 +11246,54 @@ To try in VR: bind a gun, throw it far down a corridor: the chain stays, links n
 let it come home: the zip; draw it again: the chain's sound over the holster's. Chain Origin sliders with a bound gun
 out: the orange points show where each holster's chain starts. Holster a gun with your hand deep in the holster but the
 gun sticking out: it should stay in.
+
+## Blood streams smoothed; his stream and bleeding values; marks on the firing range's targets (worktree `gorefx`, branch `agent/bloodstream3`, 2026-10-17)
+
+**His values as defaults** (config version 150; only values still at the old defaults move): `vr_gore_streams_width`
+0.75 -> 1, `_speed_var` 0.3 -> 0.5, `_wobble` 10 -> 15, `_thickness_var` 0.55 -> 0.85, `_thickness_rate` 1.1 -> 1.3,
+`_spurt_rate` 40 -> 70, `_spurt_cone` 30 -> 15, `_spurt_speed` 0.8 -> 1.35, `_spurt_life` 0.2 -> 0.4,
+`_spurt_outlier_life` 0.7 -> 1.15, `_spurt_size` 0.3 -> 0.525, `_splash_size` 1 -> 1.25; his own bleeding
+`vr_body_blood` 1 -> 1.25, `vr_body_blood_amount` 1 -> 1.25, `vr_body_blood_mark_size` 1 -> 1.5. The others in his
+config were the defaults already.
+
+**Streams flung into ribbons** ("as the enemy moves or animates, the velocity and size of the waterfall change too
+abruptly"). Causes and fixes:
+- The wound was placed on the model at the entity's last message's origin and angles (`e->origin`), while a stepping
+  monster is drawn lerped along its step (`r_lerpmove`): a running grunt's origin jumps 8-15 units every 0.1 s, so the
+  wound jumped ahead of the drawn body ten times a second and the stream's points were spread along the jumps. Now
+  `render::drawnPlace` / `drawnEntityMatrix` (vr_render.cpp, the same lerp as R_SetupEntityTransform and
+  vr_modelcollide's) place it where the body is drawn; the triangle search at a hit uses it too (the shots' per-poly
+  hits are against the drawn model already).
+- Each point took 0.7 of the raw frame-to-frame motion of the wound (animation frames, steps), so neighbouring points
+  left with very different velocities and flew apart. Now that motion is clamped (400 u/s), low-passed over
+  `vr_gore_streams_smooth` (0.25 s; its way out too, so a turn swings it rather than snaps it), and only
+  `vr_gore_streams_inherit` (0.35) of it taken, by the stream and its spurts.
+- Kept continuous: each piece's stretch is its length over its length as poured (plus gravity's spread);
+  `vr_gore_streams_break` (4) fades a piece from half that and drops it past it; the wound jumping in a frame (more
+  than 6 units and 400 u/s: an unlerped animation snap, a teleport) cuts the stream there instead of drawing it along
+  the jump (points not interpolated across it). `smooth 0; inherit 0.7; break 0` is the old behaviour.
+- Menu: Gore > Stream Smoothing, Stream Body Motion, Stream Break Stretch. `vr_gore_streams_info` (Debug > Blood
+  Streams: Where They Start) also prints the worst stretch since the last call, the pieces faded/broken and the cuts.
+
+Measured (`scratch/stretch_test.sh`: e1m1, a grunt spawned 160 ahead attacking and running, 4 streams, two 120-frame
+windows): before (old settings, old placement): stretch max 7.4 / 8.5, longest piece 92.7 / 99.8 units; old settings
+with the drawn placement: 6.1 / 12.0, 52.8 / 106.4 units; now: 1.03 / 0.93, 11.0 / 7.7 units, nothing faded or
+broken, 4 / 0 cuts (40 a window before the drawn placement).
+
+**Marks on brush targets** (`vr_decal_entities` 1, Gore > Marks on Moving Brushes). The firing range's targets are
+`func_button`s with `maps/vr_spawnbutton.bsp` on `func_wall`s with `maps/vr_spawnpanel.bsp`: brush models of their own
+files, one model for 13 entities. The permanent layer (vr_permdecals) lays its pages out on a model's faces, so it
+leaves those models out (a mark would show on all 13), and the live marks are the static world's: the decal traces
+didn't even see them. Now a mark (shots' chips, blows, blood, the streams' landings) whose surface is such an entity
+(or a map's own `*n` door or lift with the permanent layer off) is cut out of that entity's faces in its own space
+(VR_BModelMatrix's inverse), kept in a ring of 128, and drawn each frame where the entity is drawn (a pressed button
+carries it in). Not on the items' boxes (`maps/b_*`), nor on the runtime brushes. Flat: the carved relief is the
+world's shader's, which can't follow an entity; the chips' baked relief shows. With the permanent layer on they stay
+(to the cap); off they fade with vr_decal_life. Checked with `scratch/target_test.sh` (vrfiringrange, `vr_decal_at`
+lines at the first spawn button and its panel): 5 marks laid on entities 164/165, 33 vertices drawn, the blood
+visible across the button and panel in the mock screenshot; `vr_decal_count` prints the count. The press moving it
+was not run headless (the same matrix the permanent layer's door marks use).
+
+To try in VR: shoot grunts and let them chase you with streams pouring: no ribbons or strings whipping round them,
+the stream following the body softly. The firing range: shoot a spawn button and its panel (chips, blood), punch one;
+the marks stay on the button as it presses in. Gore > Stream Smoothing / Body Motion to taste.

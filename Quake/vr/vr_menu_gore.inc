@@ -390,6 +390,15 @@
                   "steady trickle (0: even; 1: from a thread to twice as thick) (vr_gore_streams_thickness_var)."),
         slider("Stream Thickness Rate", vr_gore_streams_thickness_rate, 0.f, 4.f, 0.1f, "%.1f Hz").extend(0.f, 10.f)
             .help("How fast it swells and thins: about this many swells a second, unevenly (vr_gore_streams_thickness_rate)."),
+        slider("Stream Smoothing", vr_gore_streams_smooth, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 2.f)
+            .help("The body's motion at the wound, and the stream's way out, smoothed over about this long, so the "
+                  "monster's animation and turns don't fling it about in ribbons (0: none) (vr_gore_streams_smooth)."),
+        slider("Stream Body Motion", vr_gore_streams_inherit, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.5f)
+            .help("How much of the body's (smoothed) motion the stream and its spurts take: 1 as a real one, less to keep "
+                  "it steady as the monster moves (vr_gore_streams_inherit)."),
+        slider("Stream Break Stretch", vr_gore_streams_break, 0.f, 10.f, 0.5f, "%.1fx").extend(0.f, 100.f)
+            .help("A piece of the stream stretched this many times its length as poured breaks off, fading from half that; "
+                  "and it is cut where the wound jumps (0: never) (vr_gore_streams_break)."),
         toggle("Stream Spurts", vr_gore_streams_spurts)
             .help("Small drops spurting from the wound in a cone as it pours, most fading fast, a few flying further "
                   "(vr_gore_streams_spurts)."),
@@ -583,6 +592,8 @@
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
         toggle("Permanent Decals", vr_permdecals)
             .help("Marks stay for good, baked into the walls, floors, doors and lifts they land on: as many as you like at no extra cost a frame. Off: only the newest Max Decals show, each for its Decal Lifetime, as without it; the others are kept and come back when it is on again."),
+        toggle("Marks on Moving Brushes", vr_decal_entities)
+            .help("Shots, blows and blood mark the brush things with models of their own (the firing range's targets: its spawn buttons and panels), and doors and lifts with Permanent Decals off: moving with them, the newest 128, flat (vr_decal_entities)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (512 shipped)."),
         slider("Decals Piled in One Spot", vr_decal_bucket_max, 8.f, 255.f, 8.f, "%.0f")
             .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (24 shipped, 255 the most)."),
