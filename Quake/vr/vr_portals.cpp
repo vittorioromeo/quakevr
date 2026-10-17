@@ -338,7 +338,12 @@ void build()
                 d = t;
             }
         }
-        if(!d)
+        // A destination that moves (end's misc_teleporttrain, the spiked ball one rides into Shub-Niggurath to telefrag
+        // her) is no gate: its point is the train's at build time (the map's load, or a save's), so the walk carried the
+        // player there and the view showed it, and a ball inside Shub left no room to walk out. Quake's teleport takes
+        // him, reading where the train is as he touches the trigger.
+        if(!d || d->v.movetype != static_cast<float>(MOVETYPE_NONE) || d->v.velocity[0] != 0.f || d->v.velocity[1] != 0.f ||
+            d->v.velocity[2] != 0.f)
         {
             continue;
         }

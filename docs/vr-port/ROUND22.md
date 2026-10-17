@@ -1891,3 +1891,25 @@ units, a second after the map starts; harmless here.)
 
 For him in VR: MG3 map8, walk into the altar room before any sacrifice (no lightning, no rune); kill the two vores on the
 pedestals together (rockets), then punch or cut the corpses.
+
+## Shub-Niggurath: the teleporter to the spiked ball after a load (1.0.1 and beta report, 2026-10-17, worktree `fastship`, branch `agent/shubtele`)
+
+Report: in end, the teleporter that leads to the spiked ball (`misc_teleporttrain`, which you ride into Shub to telefrag
+her, the only way to kill her) stays where the ball was at the last load, and walking into it fails, so the campaign
+cannot be finished. Cause (`Quake/vr/vr_portals.cpp`, `build`, in 1.0.1, 1.1.0-beta1 and next): the VR gate code builds
+each `trigger_teleport`'s gate once per map load or game load and caches its destination's origin. For end's gate that
+is the moving ball: `vr_portals_info` showed `t33 cached destination` = the ball at the save. `portal_handles` then kept
+Quake's `teleport_touch` (which reads the target's origin at the touch) out, and the walk held the player at the gate's
+face because his body had no room at the stale point. Nothing about it is saved, so the `_x` save-field skip fixed on
+next (2aefe6ff9) is unrelated. Fix: a gate whose destination can move (movetype not `MOVETYPE_NONE`, or a velocity) is
+not built, so Quake's teleport takes the player at the ball's current position, in VR and flat. Across every base-game
+pak only end has one: the other teleporters with non-`info_teleport_destination` targets point at three `info_null`s
+(start, e4m5, e4m8: static, unchanged); MG1, MG3 and Dopa have none. That gate now shows the plain teleporter texture,
+with no view through it.
+
+Test: `python Misc/quakevr/shub_telefrag_test.py <agent>` (flat: `-ExtraArgs "+vr_enabled 0"`) starts the ball, saves,
+loads, then walks into the gate every 2 s (god mode) until Shub dies. Before: cached destination (-329 1034 96) = the
+ball at the save, all 30 attempts held at the gate, Shub at 40000. After: 9 exits on the ball (24-52 units from it), the
+10th telefrags Shub (health -99, the finale). Flat: 18 exits on the ball, Shub dead on the 19th.
+
+For him in VR: end, let the ball start, save, load, and step into the teleporter as the ball goes into Shub: she dies.
