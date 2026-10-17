@@ -143,7 +143,17 @@ if (QVR_MIMALLOC)
 	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
 	else()
-		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS MI_MALLOC_OVERRIDE
+		# gcc/clang: mimalloc's override also defines the C++ operators, by their mangled names (alloc-override.c),
+		# which collide with vr_alloccount.cpp's (counted, then malloc: mimalloc's all the same): renamed away here.
+		set(QVR_MI_CXX_OPS _Znwm _Znam _Znwj _Znaj _ZdlPv _ZdaPv _ZdlPvm _ZdaPvm)
+		foreach(op _Znwm _Znam _Znwj _Znaj)
+			list(APPEND QVR_MI_CXX_OPS ${op}RKSt9nothrow_t ${op}St11align_val_t ${op}St11align_val_tRKSt9nothrow_t)
+		endforeach()
+		foreach(op _ZdlPv _ZdaPv)
+			list(APPEND QVR_MI_CXX_OPS ${op}RKSt9nothrow_t ${op}St11align_val_t ${op}St11align_val_tRKSt9nothrow_t ${op}mSt11align_val_t)
+		endforeach()
+		list(TRANSFORM QVR_MI_CXX_OPS REPLACE "^(.+)$" "\\1=qvr_mimalloc_unused\\1")
+		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS "MI_MALLOC_OVERRIDE;${QVR_MI_CXX_OPS}"
 			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
 	endif()
 endif()

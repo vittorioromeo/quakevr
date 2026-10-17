@@ -10,6 +10,11 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
+#else
+#include <dirent.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 #include <ctype.h>
@@ -43,6 +48,13 @@ struct Known
     const char* usualPlace;
 };
 
+#ifndef _WIN32
+// Linux: SteamVR's runtime (Monado, WiVRn and the rest: Other, found as the active runtime).
+constexpr Known known[] = {
+    {Kind::SteamVR, "SteamVR", "steamxr_linux64.json", {"vrserver", "vrcompositor"}, "running",
+        "~/.steam/steam/steamapps/common/SteamVR/steamxr_linux64.json"},
+};
+#else
 constexpr Known known[] = {
     {Kind::VirtualDesktop, "Virtual Desktop (VDXR)", "virtualdesktop-openxr.json", {"virtualdesktop.streamer.exe", nullptr},
         "Streamer running", "C:\\Program Files\\Virtual Desktop Streamer\\OpenXR\\virtualdesktop-openxr.json"},
@@ -51,6 +63,7 @@ constexpr Known known[] = {
     {Kind::Meta, "Meta (Oculus)", "oculus_openxr_64.json", {"ovrserver_x64.exe", nullptr}, "OVRServer running",
         "C:\\Program Files\\Oculus\\Support\\oculus-runtime\\oculus_openxr_64.json"},
 };
+#endif
 
 [[nodiscard]] const Known* knownOf(Kind kind)
 {
@@ -116,8 +129,8 @@ constexpr Known known[] = {
     const DWORD attributes = GetFileAttributesA(path);
     return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    (void)path;
-    return false;
+    struct stat st{};
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 #endif
 }
 
@@ -366,6 +379,85 @@ struct Environment
         }
         CloseHandle(snapshot);
     }
+#else
+    // Linux (the loader's search, OpenXR loader spec "Linux active runtime location"): active_runtime.json in
+    // $XDG_CONFIG_HOME (~/.config), then each of $XDG_CONFIG_DIRS (/etc/xdg), then /etc; usually a symlink to the
+    // runtime's manifest, named by its target. Available: the manifests in /usr/share/openxr/1 and
+    // /usr/local/share/openxr/1 (where the runtimes install theirs: there is no registry of them).
+    char path[PATH_MAX];
+    za::Vector<za::String> configDirs;
+    const char* home = getenv("HOME");
+    const char* configHome = getenv("XDG_CONFIG_HOME");
+    if(configHome && configHome[0])
+    {
+        configDirs.pushBack(za::String{configHome});
+    }
+    else if(home)
+    {
+        configDirs.pushBack(za::String{va("%s/.config", home)});
+    }
+    const char* xdgDirs = getenv("XDG_CONFIG_DIRS");
+    for(const za::String& d : splitList(xdgDirs && xdgDirs[0] ? xdgDirs : "/etc/xdg"))
+    {
+        configDirs.pushBack(d);
+    }
+    configDirs.pushBack(za::String{"/etc"});
+    for(const za::String& d : configDirs)
+    {
+        const char* file = va("%s/openxr/1/active_runtime.json", d.cStr());
+        if(fileExists(file))
+        {
+            env.active = realpath(file, path) ? path : file;
+            break;
+        }
+    }
+    for(const char* dir : {"/usr/share/openxr/1", "/usr/local/share/openxr/1"})
+    {
+        if(DIR* d = opendir(dir))
+        {
+            while(const dirent* e = readdir(d))
+            {
+                const size_t n = strlen(e->d_name);
+                if(n > 5 && !strcmp(e->d_name + n - 5, ".json") && strcmp(e->d_name, "active_runtime.json"))
+                {
+                    env.available.pushBack(za::String{va("%s/%s", dir, e->d_name)});
+                }
+            }
+            closedir(d);
+        }
+    }
+    // The known runtimes' processes: /proc/<pid>/comm (the executable's name, at most 15 characters).
+    if(DIR* proc = opendir("/proc"))
+    {
+        while(const dirent* e = readdir(proc))
+        {
+            if(e->d_name[0] < '0' || e->d_name[0] > '9')
+            {
+                continue;
+            }
+            char comm[64] = "";
+            if(FILE* f = fopen(va("/proc/%s/comm", e->d_name), "rb"))
+            {
+                if(!fgets(comm, sizeof(comm), f))
+                {
+                    comm[0] = 0;
+                }
+                fclose(f);
+            }
+            comm[strcspn(comm, "\r\n")] = 0;
+            for(const Known& k : known)
+            {
+                for(const char* process : k.processes)
+                {
+                    if(process && comm[0] && !strcmp(comm, process))
+                    {
+                        env.processes.pushBack(za::String{process});
+                    }
+                }
+            }
+        }
+        closedir(proc);
+    }
 #endif
     return env;
 }
@@ -436,9 +528,17 @@ struct Installed
             {
                 listed = listed || i.kind == k.kind;
             }
-            if(!listed && fileExists(k.usualPlace))
+#ifndef _WIN32
+            // (Linux: the usual place under the home folder)
+            const char* home = getenv("HOME");
+            const za::String place = k.usualPlace[0] == '~' && home ? za::String{home} + (k.usualPlace + 1)
+                                                                    : za::String{k.usualPlace};
+#else
+            const za::String place{k.usualPlace};
+#endif
+            if(!listed && fileExists(place.cStr()))
             {
-                add(k.usualPlace);
+                add(place.cStr());
             }
         }
     }
@@ -1320,6 +1420,15 @@ void use(const Plan& plan, const Attempt& attempt)
 #ifdef _WIN32
     setEnv("XR_RUNTIME_JSON", value);
     applyLayerSwitch(implicitLayers());
+#else
+    if(value)
+    {
+        setenv("XR_RUNTIME_JSON", value, 1);
+    }
+    else
+    {
+        unsetenv("XR_RUNTIME_JSON");
+    }
 #endif
     note("OpenXR: trying %s (%s): %s\n", attempt.label.cStr(), attempt.reason.cStr(),
         value ? value : "the system's active runtime");

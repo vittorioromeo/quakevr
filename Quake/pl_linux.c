@@ -89,8 +89,19 @@ char *PL_GetClipboardData (void)
 	return data;
 }
 
+static char error_text[2048]; // QVR: the message with its crash report's path
+
 void PL_ErrorDialog (const char *errorMsg)
 {
+	if (VR_ErrorDialogSuppressed (errorMsg)) // QVR: automated test runs quit on an error instead of waiting on a dialog
+		return;
+	if (VR_LastCrashReport ()[0]) // QVR: where its report is (Sys_ReportError, VR_ErrorReport)
+	{
+		q_snprintf (error_text, sizeof (error_text),
+			"%s\n\nA crash report was saved:\n%s\n\nPlease attach it to your bug report, with what you were doing.",
+			errorMsg, VR_LastCrashReport ());
+		errorMsg = error_text;
+	}
 	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake VR: Unleashed - Error", errorMsg, NULL);
 }
 
