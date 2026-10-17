@@ -11421,3 +11421,48 @@ distance is already in it; fewer steps would show. A lower dynamic scale lowers 
 To try in VR (on by default with a headset): his 4090 should stay at his Render Scale (the status box line at x1.00); a
 heavy fight may dip it. Debug > Profiling > Artificial GPU Load 100-200 to watch it drop and come back; look for a hitch
 at each change (the targets remade) and the TAA history resetting.
+
+## Work under xrEndFrame's GPU wait (worktree `dequant`, branch `agent/xroverlap`, 2026-10-17)
+
+Tracy C1 (approved): with Virtual Desktop's OpenGL path xrEndFrame waits until the GPU has finished the frame, so the
+main thread idled there for the GPU's tail (p50 0.59 ms; in late frames as long as the GPU frame). `vr_xr_overlap` 1
+(default; vr_xr_overlap.cpp): after both eyes' draws and the mirror, a timestamp query and glFlush, then work that reads
+no head or hand pose runs before xrEndFrame; what does not fit runs at its usual place after it (host.c
+`VR_XrOverlapLate`, so with 0 or no VR nothing changes). Moved: `CL_RunParticles` (not while the window's spectator
+camera is on: it draws them after the end call) and `BGM_Update` (the music stream; still before `S_Update`), plus
+`vr_debug_xr_overlap_work_ms` (busy CPU work, the test). Only the screen update of the host frame's own screen phase
+overlaps (`VR_XrOverlapArm` around it), never a loading plaque's.
+
+Left after the end call, on purpose: `S_Update` (its listener is the head's pose), the server tick (it reads the hands
+through the move; the deferred tick of `vr_server_thread_check 2` too) and the next frame's set-up (after the pose
+sample). The bookkeeping (`VR_ProfileFrame`, Tracy's frame mark) defines the frame's edges, so it stays.
+
+Latency guard: the tail foretold is the lesser of two lower bounds: the eyes' GPU time (the always-on `eye L` + `eye R`
+phase timestamps dynres reads; the least of the last 4 read back) less the CPU time since the first eye began (the GPU
+cannot run a command before it is issued), and the least of the last 4 tails measured. Of it 0.8 is spent; a task runs
+only if the time since the flush plus its foretold cost (a moving average of its runs) fits. The tail is measured from
+the query read back a few frames later, against the flush's CPU time; the GL clock is tied to the CPU's once a second
+as the screen update starts (`glGetInteger64v(GL_TIMESTAMP)` costs 0.5-1.4 ms after the eyes, NVIDIA's threaded driver
+draining its queue; 0.011 ms there). Its own cost: 0.002 ms a frame. Tracy: zone `xr overlap`, plots `XR overlap ms`,
+`XR overlap estimate ms`, `XR overlap GPU tail ms`, `XR overlap estimate error ms`. `vr_xr_overlap_report` (Debug >
+Profiling, with the toggle and Test Work Under xrEndFrame): the estimate, the tail, the error, frames whose work
+outlasted the tail, xrEndFrame's time, how many end calls returned with the GPU's end (VD's waiting), late frames, each
+task's place.
+
+The mock has no blocking runtime: `vr_mock_end_gpu_wait 1` makes its end call glFinish, as VD's does. Measured (mock
+1024², e1m1, fixed frames, `vr_dynres_test_load`, 400 frames each, exclusive):
+- Fast mode, load 120 (GPU tail 7.3 ms): test work 2 ms: frame 10.14 -> 8.19 ms, xrEndFrame 7.31 -> 5.34; 4 ms:
+  12.23 -> 8.29, xrEndFrame 7.38 -> 3.48; 8 ms (over the budget): deferred, 16.71 against 16.75. 0 ms: 8.44 either way.
+  Main-thread busy time the same on and off (the work moves, it is not removed).
+- Real time at 90 fps, load 160 (tail 9.4 ms): late frames (over 1.25 frames) with 3 ms: 62 -> 7 of 400; 5 ms: 400 -> 5;
+  9 ms: deferred, 400 either way; 0 ms: 4 and 4.
+- The estimate was under the measured tail in every frame (0 over), by 0.74-1.0 ms (conservative); no frame's work
+  outlasted the tail.
+- With his real work the gain is small: the particles' step and the music stream are about 0 ms on the mock (no music in
+  the tests); hip1m1's particles a few hundredths. The mechanism is the gain's place for later pose-free work.
+
+Not verified without VR: that VD's xrEndFrame shrinks by the work moved (the report's "waited for the GPU" count and
+the `xr submit` zone should show it), the error of the bound on his GPU, and the real tasks' costs in a fight with music.
+
+To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
+hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".

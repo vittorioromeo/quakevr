@@ -387,6 +387,17 @@ za::Vector<Item> pageDebugProfiling()
                   "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "
                   "program, the session's state, the frame times), written once when it starts and once when it ends. "
                   "Turn it off at once in the headset: the view stutters."),
+        toggle("Work Under xrEndFrame's GPU Wait", vr_xr_overlap)
+            .help("vr_xr_overlap: after both eyes the frame is flushed, and work that reads no pose (the particles' step, "
+                  "the music's stream) runs while the GPU finishes it, before xrEndFrame (Virtual Desktop's waits for the "
+                  "GPU there), as far as it fits in the GPU time the last frames foretell; the rest after. Off: all after."),
+        cycle("Test Work Under xrEndFrame", vr_debug_xr_overlap_work_ms, {{0.f, "Off"}, {0.5f, "0.5 ms"}, {1.f, "1 ms"}, {2.f, "2 ms"}, {4.f, "4 ms"}})
+            .help("vr_debug_xr_overlap_work_ms: this much busy CPU work a frame that reads no pose: before xrEndFrame "
+                  "while it fits in the GPU's tail (Work Under xrEndFrame's GPU Wait), else after it. With an "
+                  "Artificial GPU Load the frame time should not grow while it fits."),
+        command("xrEndFrame Overlap Report", "vr_xr_overlap_report")
+            .help("vr_xr_overlap_report: since the last (console): the GPU's tail foretold and measured, the error, the "
+                  "work run before xrEndFrame and how often it outlasted the tail, xrEndFrame's time, each task's place."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),

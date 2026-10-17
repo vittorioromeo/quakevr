@@ -1740,6 +1740,10 @@ public:
         frameBegun = false;
         // vr_debug_frame_stall_ms: the held frames' test (vr_xr_stall.cpp), the end timed as OpenXR's xrEndFrame
         const double t0 = Sys_DoubleTime();
+        if(rendered && vr_mock_end_gpu_wait.value > 0.f)
+        {
+            glFinish(); // as Virtual Desktop's OpenGL path's xrEndFrame: the frame's GPU work done (vr_xr_overlap's tests)
+        }
         xrstall::debugStall();
         xrstall::frame(0.0, (Sys_DoubleTime() - t0) * 1000.0, 0.0, "MOCK");
         if(!rendered && lastHead.valid)

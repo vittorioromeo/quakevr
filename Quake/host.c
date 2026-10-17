@@ -1592,12 +1592,15 @@ void _Host_Frame (double time)
 	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
 	VR_ServerTickPhase ("screen"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("screen"); // QVR: profile
+	VR_XrOverlapArm (1); // QVR: vr_xr_overlap: this screen update's eyes run the tasks below before xrEndFrame, if they fit
 	SCR_UpdateScreen ();
+	VR_XrOverlapArm (0); // QVR
 	VR_ProfileEnd (); // QVR
 
 	VR_ServerTickPhase ("particles"); // QVR: vr_server_thread_check
 	VR_ProfileBegin ("run particles"); // QVR: profile
-	CL_RunParticles (); //johnfitz -- seperated from rendering
+	VR_XrOverlapLate (VR_XROVERLAP_PARTICLES); // QVR: CL_RunParticles, unless it ran under xrEndFrame's GPU wait
+	VR_XrOverlapLate (VR_XROVERLAP_TEST); // QVR: vr_debug_xr_overlap_work_ms
 	VR_ProfileEnd (); // QVR
 
 	if (vrdefer) // QVR: vr_server_thread_check 2: the frame's tick, then the client's read of it, after the screen
@@ -1630,7 +1633,7 @@ void _Host_Frame (double time)
 
 // update audio
 	VR_ProfileBegin ("sound"); // QVR: profile
-	BGM_Update();	// adds music raw samples and/or advances midi driver
+	VR_XrOverlapLate (VR_XROVERLAP_MUSIC); // QVR: BGM_Update (adds music raw samples and/or advances midi driver), unless it ran under xrEndFrame's wait
 	if (cls.signon == SIGNONS)
 	{
 		S_Update (r_origin, vpn, vright, vup);
