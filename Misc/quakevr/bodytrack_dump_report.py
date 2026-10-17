@@ -50,25 +50,47 @@ def main(path):
     print("weights: torso %s" % stats([float(r["w_torso"]) for r in rows]))
     for side, ctrl in (("l", "controller_off"), ("r", "controller_main")):
         print("\narm %s (weight %s)" % (side.upper(), stats([float(r["w_arm_" + side]) for r in rows])))
+        gates = {}
+        for r in rows:
+            g = r.get("gate_" + side, "?")
+            gates[g] = gates.get(g, 0) + 1
+        print("  tracking on, or why not: " + ", ".join("%s %.0f%%" % (g, 100.0 * c / len(rows)) for g, c in gates.items()))
         cm = lambda r, v: v * 100.0 / max(float(r["m2u"]), 1e-3)
         out = {k: [] for k in ("miss", "wrist", "shoulder", "ours_ctrl", "theirs_ctrl", "t_upper", "t_fore", "share_u",
                                "share_f", "along")}
         limits = {k: 0 for k in ("turn", "clav", "upper", "fore")}
         fitted = 0
+        wrist_from = {}
+        wrist_joint, twist_joint = (19, 12) if side == "l" else (45, 17)
         for r in rows:
             aw, ae, ash = vec(r, "av_wrist_" + side), vec(r, "av_elbow_" + side), vec(r, "av_shoulder_" + side)
-            tw, te, tsh = vec(r, "tw_wrist_" + side), vec(r, "tw_elbow_" + side), vec(r, "tw_shoulder_" + side)
+            te, tsh = vec(r, "tw_elbow_" + side), vec(r, "tw_shoulder_" + side)
+            # The tracked wrist: the hand's wrist joint when valid, else the forearm's twist joint by it (Virtual
+            # Desktop sends no hand joints with controllers), else none.
+            if int(r["raw%d_flags" % wrist_joint]) & 1:
+                tw, source = vec(r, "tw_wrist_" + side), "wrist joint"
+            elif ("tw_twist_%s_x" % side) in r and int(r["raw%d_flags" % twist_joint]) & 1:
+                tw, source = vec(r, "tw_twist_" + side), "twist joint"
+            else:
+                tw, source = None, "none valid"
+            wrist_from[source] = wrist_from.get(source, 0) + 1
             c = vec(r, ctrl)
             out["miss"].append(cm(r, dist(ae, te)))
-            out["wrist"].append(cm(r, dist(aw, tw)))
             out["shoulder"].append(cm(r, dist(ash, tsh)))
             out["ours_ctrl"].append(cm(r, dist(aw, c)))
-            out["theirs_ctrl"].append(cm(r, dist(tw, c)))
             out["t_upper"].append(cm(r, dist(tsh, te)))
-            out["t_fore"].append(cm(r, dist(te, tw)))
-            # The tracked wrist from ours along the controller's forward (+ ahead of ours).
-            fwd = forward(float(r[ctrl + "_pitch"]), float(r[ctrl + "_yaw"]))
-            out["along"].append(cm(r, sum(x * y for x, y in zip(sub(tw, aw), fwd))))
+            if tw is not None:
+                out["wrist"].append(cm(r, dist(aw, tw)))
+                out["theirs_ctrl"].append(cm(r, dist(tw, c)))
+                out["t_fore"].append(cm(r, dist(te, tw)))
+                # The tracked wrist from ours along the controller's forward (+ ahead of ours).
+                fwd = forward(float(r[ctrl + "_pitch"]), float(r[ctrl + "_yaw"]))
+                out["along"].append(cm(r, sum(x * y for x, y in zip(sub(tw, aw), fwd))))
+            rise_t = (te[2] - tsh[2]) * 100.0 / max(float(r["m2u"]), 1e-3)
+            out.setdefault("rise_t", []).append(rise_t)
+            out.setdefault("rise_o", []).append((ae[2] - tsh[2]) * 100.0 / max(float(r["m2u"]), 1e-3))
+            if rise_t > 0.0:
+                out.setdefault("miss_raised", []).append(cm(r, dist(ae, te)))
             if float(r["fit_%s_w" % side]) > 0.0:
                 fitted += 1
                 out["share_u"].append(float(r["fit_%s_upper_share" % side]))
@@ -76,6 +98,10 @@ def main(path):
                 for k in limits:
                     limits[k] += int(r["fit_%s_%s" % (side, k)])
         print("  elbow miss (ours to tracked)      %s" % stats(out["miss"]))
+        print("    with the elbow over the shoulder %s (%d frames)" % (stats(out.get("miss_raised", [])),
+                                                                   len(out.get("miss_raised", []))))
+        print("  elbow over the tracked shoulder: tracked %s; ours %s" % (stats(out["rise_t"]), stats(out["rise_o"])))
+        print("  tracked wrist from: " + ", ".join("%s %d" % kv for kv in wrist_from.items()))
         print("  wrist, tracked from ours          %s" % stats(out["wrist"]))
         print("    along the controller (+ ahead)  %s" % stats(out["along"]))
         print("  shoulder, tracked from ours       %s" % stats(out["shoulder"]))

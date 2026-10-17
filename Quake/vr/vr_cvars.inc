@@ -1395,7 +1395,7 @@ QVR_CVAR(vr_bodytrack_arm_fit, "1", CVAR_ARCHIVE)     // with it, how far the el
 QVR_CVAR(vr_bodytrack_arm_fit_stretch, "1.5", CVAR_ARCHIVE) // how far that fit may lengthen the collarbone and the arm's bones (and 1 / it shorten them) to put the shoulder and the elbow on the tracked ones (1 .. 3; was 1.25)
 QVR_CVAR(vr_bodytrack_legs, "0", CVAR_ARCHIVE)        // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
 QVR_CVAR(vr_bodytrack_legs_walk, "1", CVAR_ARCHIVE)   // walking, running or in the air the gait drives the legs over the tracked ones (by the walk's amount); standing still the tracked legs show (0: tracked legs always)
-QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses
+QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses (vr_bodytrack_stats' "gate" line: when it did)
 QVR_CVAR(vr_bodytrack_smooth, "0.04", CVAR_ARCHIVE)   // seconds the tracked joints are smoothed over (0: raw)
 QVR_CVAR(vr_bodytrack_fade, "0.25", CVAR_ARCHIVE)     // seconds a region's tracking eases in or out (lost, low confidence, switched)
 QVR_CVAR(vr_bodytrack_debug, "0", CVAR_NONE)          // Debug: the tracked skeleton drawn (1 on the body, 2 beside it: 60 cm to the right)
@@ -1407,6 +1407,10 @@ QVR_CVAR(vr_bodytrack_synth_twist, "0", CVAR_NONE)    // degrees the chest turns
 QVR_CVAR(vr_bodytrack_synth_crouch, "0", CVAR_NONE)   // metres the hips go down (knees bent)
 QVR_CVAR(vr_bodytrack_synth_neck, "0", CVAR_NONE)     // degrees the neck bends forward (the head forward and down, the spine upright)
 QVR_CVAR(vr_bodytrack_synth_elbows, "0", CVAR_NONE)   // how far the elbows wing out (0 hanging under the arm, 1 out to the sides)
+QVR_CVAR(vr_bodytrack_synth_elbows_up, "0", CVAR_NONE) // and how far they are raised: added to their bend's direction as up (1: up as far as out; negative: down)
+QVR_CVAR(vr_bodytrack_synth_hands, "0", CVAR_NONE)    // its hands' joints (the wrists) valid: 0 none, as Virtual Desktop sends with controllers (the forearms' twist joints by the wrists are)
+QVR_CVAR(vr_bodytrack_synth_tracked, "0", CVAR_NONE)  // its body's joints flagged tracked (seen): 0 the head only, as Virtual Desktop flags them (the rest valid)
+QVR_CVAR(vr_bodytrack_replay, "", CVAR_NONE)          // the mock replays this vr_bodytrack_dump CSV (in the game folder) frame by frame, looping: the head, the controllers and the tracked joints as recorded ("" none)
 QVR_CVAR(vr_bodytrack_synth_shoulder_forward, "0.04", CVAR_NONE) // metres its shoulders sit ahead of where its chest puts them
 QVR_CVAR(vr_bodytrack_synth_knees, "0", CVAR_NONE)    // degrees the knees turn out (the generated legs)
 QVR_CVAR(vr_bodytrack_synth_confidence, "1", CVAR_NONE) // the confidence it reports

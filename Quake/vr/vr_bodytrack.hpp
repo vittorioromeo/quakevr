@@ -31,10 +31,12 @@ enum Joint : int
     Neck = 6,
     Head = 7,
     ArmUpperL = 10, // the shoulder (the upper arm's root)
-    ArmLowerL = 11, // the elbow
-    WristL = 19,
+    ArmLowerL = 11,   // the elbow
+    WristTwistL = 12, // the forearm's twist joint, by the wrist (valid without the hand's joints)
+    WristL = 19,      // (the hand's: Virtual Desktop sends no hand joints with controllers)
     ArmUpperR = 15,
     ArmLowerR = 16,
+    WristTwistR = 17,
     WristR = 45,
     UpperLegL = 70, // the hip joint
     LowerLegL = 71, // the knee
@@ -82,6 +84,8 @@ void submit(const Raw& raw);
 
 // The mock (vr_backend_mock.cpp, after its head and hands are set): with vr_bodytrack_synth, a synthetic body (leans,
 // twist, crouch, neck bend, elbows) that also moves the head as that body carries it, submitted as a source would.
+// With vr_bodytrack_replay, instead: a recorded dump's frames (vr_bodytrack_dump), the head, the controllers and the
+// tracked joints as they were.
 void synthesize(TrackingState& t);
 
 // hands.cpp, once a frame in VR after the head is placed: the joints into the world as the hands are (`base` the world
@@ -148,8 +152,9 @@ struct Posed
 void posed(const Posed& p);
 
 // Body Calibration's samples (vr_bodycal.cpp): this frame's joints in the world (the placed, smoothed ones), when the
-// source is live and active. Each joint's weight: the source's confidence, times 1 for a joint the headset sees and
-// GUESSED_WEIGHT for one it only infers (Quest 3's generated legs: a weak prior); 0 not valid.
+// source is live and active. Each joint's weight: the source's confidence, times 1 for the upper body's (valid: Virtual
+// Desktop flags none of it tracked) and a leg's flagged tracked, GUESSED_WEIGHT for a leg's only inferred (Quest 3's
+// generated legs: a weak prior); 0 not valid. The wrists fall back to the forearms' twist joints.
 enum CalJoint : int
 {
     CalShoulderL,
