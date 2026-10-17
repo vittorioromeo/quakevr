@@ -29,6 +29,7 @@ int VR_TracyCheckPool(int pool, unsigned long long count, unsigned long long byt
 void VR_TracyBoxAlloc(const void *ptr, unsigned long long bytes);
 void VR_TracyBoxFree(const void *ptr);
 void VR_TracyAllocationWindow(int enter);
+extern int vr_tracy_physics_zones; // vr_tracy_physics_detail, latched at each frame: SV_Physics's per-edict zones
 #else
 static inline void VR_TracyInit(void) {}
 static inline void VR_TracyBegin(const char *name, int gpu) {(void)name; (void)gpu;}

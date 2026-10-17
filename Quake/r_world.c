@@ -101,6 +101,10 @@ static void R_MarkVisSurfaces (byte* vis)
 	GL_UseProgram (glprogs.cull_mark);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, vis, vissize, &buf, &ofs);
+#ifdef QVR_TRACY
+	for (i = 0; i < (cl.worldmodel->numleafs + 7) >> 3; i++) // QVR: profile (the Tracy plot: the leaves this view's PVS holds)
+		vr_profcounts.worldleaves += __builtin_popcount (vis[i]);
+#endif
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 3, buf, (GLintptr)ofs, vissize);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 4, gl_bmodel_marksurf_buffer, 0, gl_bmodel_marksurf_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_surf_buffer, 0, cl.worldmodel->numsurfaces * sizeof(bmodel_gpu_surf_t));

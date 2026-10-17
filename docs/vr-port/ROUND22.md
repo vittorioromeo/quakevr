@@ -10819,3 +10819,45 @@ haptics and recoil.
 
 To try in VR: kill a crossbow knight (ad_tfuma, or the toolgun), pick up its crossbow in either hand, fire, holster it
 and throw it; then set its hold in Weapon Offsets (slot 33).
+## Tracy: the player's physics zoned, per-edict zones optional, frame plots fixed (worktree `fastship`, branch `agent/perfhitch`, 2026-10-17)
+
+The capture of 2026-10-17 (C6 in qvr-kit's tracy_20261017.md) had two hitches in vrfiringrange, 345.5 and 358.2 s of
+capture B: `SV edict client` 57 ms then 29 ms in the next frame, both times, with nothing zoned below it. Its raw zones
+say more than the summary did: PlayerPreThink, the hand touches and the climb ran as in any frame (the first 0.05 ms);
+then the QC calls a normal frame makes 5 microseconds apart (the touches and impacts of the player's move and link)
+came 2.1 or 4.2 ms apart, about 27 of them in the first frame and 14 in the second, and PlayerPostThink at the end as
+usual. So each step of the player's move after the special move (a move trace, an impact, a link's touches, or Quake's
+SV_TryUnstick round them, which can make about 40 traces) cost about 2 ms instead of microseconds. The frames also had
+50 and 85 decal adds and Box3D bullet bodies (fast gibs or props), so a blast in a pile of gibs or props round the player
+is the likely scene.
+
+Not reproduced headlessly: SNG, rocket and shotgun spam into a crowd (2549 ticks), gibs and boxes piled on the player,
+walking (vr_mock_walk_to) through 20 gibbed bodies, blasts (impulse 221) among them, room-scale head moves, and
+vr_unstick's searches (vr_stuck_test into the floor and walls: at most 0.44 ms). The worst `SV edict client` tick in any
+of them was 0.75 ms outside PlayerPostThink's own QC (a monster spawn's model load in QC, 15 ms, is C7's). So no fix yet:
+instead, every part of the player's physics now has its own zone, so the next capture names it.
+
+- Zones, always on in the Tracy builds (a player's only, a few a tick): `SV client climb prethink`, `foegrab prethink`,
+  `PlayerPreThink`, `premove`, `special move`, `check stuck`, `walk move`, `try unstick`, `roomscale move`, `link`,
+  `before postthink`, `PlayerPostThink`, `after postthink`; inside the move, `SV client move trace` (each SV_FlyMove
+  trace) and `SV client impact`; in VR_TouchLinks, `VR touch links` and a `VR hand touch` per thing a hand touches.
+- `vr_tracy_physics_detail` (0, Debug > Profiling: Tracy Physics Detail On / Off): SV_Physics's zone per edict a tick
+  (`SV edict toss`, `none`, `VR begin`, ...). Off, `Server physics` no longer carries about 530 zones a tick. The
+  player's `SV edict client` stays zoned.
+- Plots: `Alias triangles` was Ironwail's rs_aliaspolys, cleared only under r_speeds (so it counted up for ever and
+  wrapped: about -1.1e9); now vr_profcounts.aliastris, cleared each frame. `World polygons` (rs_brushpolys) and `Sky
+  polygons` are never counted by Ironwail (the GPU culls the world): replaced by `World PVS leaves` (each view's PVS,
+  summed; counted only in the Tracy builds). `Particles` was Ironwail's own particles only (none in Quake VR): now those
+  plus Quake VR's; a `Decals` plot is new.
+
+Verified (vrfiringrange, a crowd of 8 shot with rockets, the super nailgun and both shotguns twice, `vr_fixed_frames 1`,
+seeds 7, 2530 ticks; scratch/hitch.sh): Release-Tracy `Server physics` mean 0.408 ms with the detail off, 0.425 ms on
+(+0.017 ms; Release-TracyFull adds an 8-deep call stack to each zone, so far more there, as the capture's 0.1 ms
+showed). `vr_physics_hash` e603e5023575815c on origin/next's Release and on this branch's Release and Release-Tracy
+(detail off and on). `vr_bench_statehash` is the same on this branch's Release and Release-Tracy (2092c6147c3dcc84) but
+differs from origin/next's (65badf4034f2c0c4) in five fields only: `modelindex`, `classname`, `model`, `netname`,
+`vr_corpse_model` (string offsets and model indices; every other field's hash, the edict count and the time agree).
+eval.sh 168/177.
+
+To try in VR: take a Release-Tracy capture in vrfiringrange with a big gib pile round you (rockets into a crowd), walk
+and lean into the pile; any long `SV edict client` now shows which child zone holds the time.

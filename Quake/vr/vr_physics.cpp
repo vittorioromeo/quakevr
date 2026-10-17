@@ -20,6 +20,7 @@
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -1962,6 +1963,13 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
     return !thingSplash(ent, at, entering);
 }
 
+#ifdef QVR_TRACY
+namespace
+{
+constexpr vr_tracy_loc touchLinksZone{"VR touch links", "QVR", __FILE__, __LINE__, 0}; // a player's only
+} // namespace
+#endif
+
 extern "C" int VR_TouchLinks(edict_t* ent)
 {
     if(!active())
@@ -1974,12 +1982,17 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     // touchable one is linked: only SOLID_NOT isn't), found down the area nodes rather than by a scan
     // of every edict for every mover, and taken in edict order as that scan did (touch functions may
     // relink, hence the copy).
+    const bool client = isClient(ent);
+#ifdef QVR_TRACY
+    // A player's (a few a tick): the touches round his body and hands, zoned (the C6 hitches: ROUND22.md).
+    const vr_tracy_loc* const zone = client ? &touchLinksZone : nullptr;
+    if(zone) VR_TracyBeginLoc(zone);
+#endif
     const int mark = Hunk_LowMark();
     const int space = qcvm->num_edicts * 3;
     edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
     int found = 0;
 
-    const bool client = isClient(ent);
     SV_AreaEdictsUnordered(ent->v.absmin, ent->v.absmax, list, &found, space);
     if(client)
     {
@@ -2022,11 +2035,15 @@ extern "C" int VR_TouchLinks(edict_t* ent)
         touch(ent, target);
         if(client && !target->free)
         {
+            QVR_TRACY_SCOPE(handZone, "VR hand touch");
             handTouch(ent, target);
         }
     }
 
     Hunk_FreeToLowMark(mark);
+#ifdef QVR_TRACY
+    if(zone) VR_TracyEnd();
+#endif
     return 1;
 }
 

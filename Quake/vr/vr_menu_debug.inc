@@ -400,6 +400,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Tracy QC Detail Off", "vr_tracy_qc_detail 0"),
         command("Tracy Memory Detail On", "vr_tracy_memory_detail 1").help("Snapshot and allocation events for Zone, Hunk and Cache."),
         command("Tracy Memory Detail Off", "vr_tracy_memory_detail 0"),
+        command("Tracy Physics Detail On", "vr_tracy_physics_detail 1")
+            .help("A zone per server edict a tick, by its movetype: names what each costs, but inflates Server physics "
+                  "by about 0.1 ms. The player's own physics is zoned always."),
+        command("Tracy Physics Detail Off", "vr_tracy_physics_detail 0"),
 #else
         command("Tracy Build Info", "echo Tracy requires the optional Release-Tracy build")
             .help("Build with Misc/quakevr/build_tracy.ps1 for external CPU/GPU captures. Normal builds compile Tracy out."),

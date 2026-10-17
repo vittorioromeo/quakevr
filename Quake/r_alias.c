@@ -1143,6 +1143,7 @@ cull:
 	// set up lighting
 	//
 	rs_aliaspolys += paliashdr->numtris;
+	vr_profcounts.aliastris += paliashdr->numtris; // QVR: profile (the Tracy plot: rs_aliaspolys is cleared only under r_speeds)
 	if (mode == ALIAS_DEPTH) // QVR: a shadow map's caster: its depth only (none of the light it gets)
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.f;
 	else if (eyeuse && eye->lit) // QVR: the light at its origin as the first eye found it, the rest this eye's
