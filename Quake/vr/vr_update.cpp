@@ -363,7 +363,7 @@ void writeCache(const za::String& feeds, const Result& r)
         }
         n++;
     });
-    if(n < 4 || lines[0] != za::String{cacheMagic} || lines[1].size() < 1)
+    if(n < 4 || lines[0] != za::String{cacheMagic} || lines[1].size() < 1 || lines[2].size() < 1)
     {
         note = "unreadable (left alone; the next answer replaces it)";
         return false;

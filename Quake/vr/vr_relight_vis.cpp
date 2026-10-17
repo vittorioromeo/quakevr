@@ -280,7 +280,8 @@ Liquids liquids(const unsigned char* d, za::SizeT size)
         if(contents == contentsWater)
         {
             const int first = u16(d, size, leafAt(i) + 20), count = u16(d, size, leafAt(i) + 22);
-            for(int j = 0; j < count && !kind; j++)
+            // (within the marksurfaces lump: a corrupt leaf's first/count must not read its neighbour's bytes)
+            for(int j = 0; j < count && !kind && static_cast<za::SizeT>(first + j + 1) * 2 <= mLen; j++)
             {
                 const int face = u16(d, size, mOfs + static_cast<za::SizeT>(first + j) * 2);
                 kind = static_cast<za::SizeT>(face) < numFaces ? faceKind[static_cast<za::SizeT>(face)] : 0;

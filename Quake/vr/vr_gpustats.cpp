@@ -79,10 +79,15 @@ struct Nvml
         const auto get = [&](const char* name) { return reinterpret_cast<void*>(GetProcAddress(dll, name)); };
         const auto init = reinterpret_cast<int (*)()>(get("nvmlInit_v2"));
         const auto byIndex = reinterpret_cast<int (*)(unsigned int, NvmlDevice*)>(get("nvmlDeviceGetHandleByIndex_v2"));
-        if(!init || !byIndex || init() != 0 || byIndex(0, &device) != 0)
+        if(!init || !byIndex || init() != 0)
         {
             FreeLibrary(dll);
             dll = nullptr;
+            return false;
+        }
+        if(byIndex(0, &device) != 0)
+        {
+            close(); // (initialised: shut NVML down too)
             return false;
         }
         getClockInfo = reinterpret_cast<decltype(getClockInfo)>(get("nvmlDeviceGetClockInfo"));

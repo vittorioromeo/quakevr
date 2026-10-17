@@ -330,7 +330,7 @@ namespace
             }
             at += d.advance * scale;
         }
-        s.removePrefix(length);
+        s.removePrefix(length > 0 ? length : 1); // (no glyph matched: length 0; skip the character, never loop forever)
     }
     return at - static_cast<float>(x);
 }

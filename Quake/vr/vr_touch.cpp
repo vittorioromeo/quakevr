@@ -61,7 +61,7 @@ State state;
     out.up = z.up;
     out.normal = z.normal;
     out.halfSize = z.halfSize;
-    return true;
+    return out.halfSize.x > 0.f && out.halfSize.y > 0.f; // (viewFrame divides by it)
 }
 
 void buzz(int hand, float amplitude)

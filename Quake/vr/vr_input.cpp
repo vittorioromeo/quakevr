@@ -792,8 +792,8 @@ bool primaryHeld(int hand)
 // analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
-// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing it up or down while
-// pushing forward swims up or down (from the old engine's VR_Move).
+// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing what
+// steers (the head in mode 1, else that hand) up or down while pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
     if(moveAxes == glm::vec2{0.f})
@@ -809,10 +809,10 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     float side = moveAxes.x;
 
     const int mode = static_cast<int>(vr_movement_mode.value);
+    // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers).
+    const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
     if(s.valid && mode != 1)
     {
-        // 2 the left hand, 3 the right hand; 0 the moving stick's.
-        const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
         glm::vec3 lfwd, lright, lup;
         hands::angleVectors(s.rot[hand], lfwd, lright, lup);
 
@@ -845,7 +845,9 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
     if(s.valid)
     {
-        *upmove += cl_upspeed.value * moveAxes.y * hands::forward(s.rot[hands::moveHand()]).z * speedScale;
+        // Swimming up or down follows what steers: the head (mode 1) or the steering hand.
+        const glm::vec3 steerFwd = mode == 1 ? hands::forward(s.headAngles) : hands::forward(s.rot[hand]);
+        *upmove += cl_upspeed.value * moveAxes.y * steerFwd.z * speedScale;
     }
 }
 

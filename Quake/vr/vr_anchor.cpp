@@ -116,7 +116,7 @@ struct Mesh
     }
 
     int ofs = headerSize;
-    for(int i = 0; i < numskins && ofs + 4 <= size; i++)
+    for(int i = 0; i < numskins && ofs >= 0 && ofs + 4 <= size; i++)
     {
         const int type = readInt(ofs);
         ofs += 4;
@@ -126,8 +126,15 @@ struct Mesh
         }
         else
         {
+            if(ofs + 4 > size)
+            {
+                ofs = -1;
+                break;
+            }
             const int groupSkins = readInt(ofs);
-            ofs += 4 + groupSkins * 4 + groupSkins * skinsize;
+            // (a negative or huge count from a corrupt .mdl: rejected below, never read before or past `data`)
+            const long long next = ofs + 4 + static_cast<long long>(groupSkins) * (4 + static_cast<long long>(skinsize));
+            ofs = groupSkins < 0 || next > size ? -1 : static_cast<int>(next);
         }
     }
 

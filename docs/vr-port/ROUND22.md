@@ -12359,3 +12359,29 @@ graphics binding type 1000023000"), so VR on Linux needs a native build. Details
 
 ## Sweep batch D (QuakeC)
 Cvar handles for the per-frame reads (vr_climb in AD, carry x6, melee wrist x5, vr_campaign), duplicate vr_climb handle removed; MGH_PowerupFrame walks only entities flagged MGH_expiring (findflags, like MG_WorldFrame); reload round ammo test before distance; burning any-fire lookup once per frame; cleanups (duplicate grapple/knockdown blocks, empty loops, dead var, scene-clean nextent after removal). Physics hash unchanged, eval 168/177.
+## Code sweep batch A: bug fixes (worktree `dequant`, branch `agent/sweepA`, 2026-10-18)
+
+The 2026-10-18 sweep's batch A (ids from the kit's `scratch/sweep/all_findings.md`), each re-checked against the code
+first, each fix minimal:
+- **Swimming up or down now follows what steers (13.2, his call).** With `vr_movement_mode 1` (head) it follows where
+  the head looks (it followed the moving stick's hand before); with 2/3 the steering hand (left/right); with 0 the
+  moving stick's hand, as before. Speed and scale unchanged. Mock check (noclip, head level, left hand up, right hand
+  level, stick forward): modes 0 and 2 the same climb, mode 3 the right hand's, mode 1 flat; head 30 degrees up in mode 1
+  climbs.
+- Linux/portability: VDXR picked on Linux no longer dereferences null (23.1); `graphicsModules*` only on Windows
+  (23.2); `__rdtsc` in the fast QC loop's builtin profiling replaced by `QCPROF_TICKS()` (17.1); `waitpid() < 0` no
+  longer reports a motion child's exit code 0 (16.1); no overlapping `q_strlcpy` in the Linux folder opener (19.6).
+- Bounds and overflows: .mdl skin group counts (04.1, `vr_anchor`), Doom's calloc (04.4), the limb model blood hash in
+  unsigned math (13.4, same output), the update cache's timestamp line (21.3), marksurface reads within their lump
+  (19.7, `vr_relight_vis`), `vr_tracy` map-name buffer as long as `cl.mapname` (21.1).
+- Behaviour: blood streaks lie in the wall plane (11.1: the tangent's sign; floor wall-runs are skipped); the pusher-mass
+  dedupe holds 32 bodies (06.1, was 8); `vr_memstats`' largest sets scan every set (14.1); NVML is shut down when the
+  device lookup fails (11.5); the config merge and `vr_defaults.cfg` use `Sys_fopen` (09.5, non-ASCII folders); a
+  zero-size gadget screen gives no touch surface (21.2); the big font skips an unmatched character (06.5); a failed
+  high-resolution timer falls back to SDL_Delay instead of a busy-wait (20.3); the bug report never overwrites
+  `<stamp>_9.zip` (19.4); the Windows folder test needs the trailing `\` (23.4).
+- Not done here: 18.6 and 21.5 (batches B and C own those files).
+
+Verified: Windows Release 0 warnings; WSL Arch clang build 0 errors (2 warnings, both in external zancle/mimalloc);
+e1m1 smoke clean; `vr_physics_hash` (e1m1, sv_random_seed 7, vr_fixed_frames 1, 400 frames) f5fe01204d9519b5 before
+and after; eval.sh 168/177.
