@@ -557,9 +557,13 @@ constexpr float brushReach = 24.f;
 // (its hand, and a prop with it, moved by the model collision next frame); the hand is tested against the thing where it
 // would be without it. A buzz in both hands as they meet. The fingers rest on it (setupRigHand). `part`: a part drawn
 // on it as its own model, solid with it (a weapon's seated magazine: vr_reload_mag_collide), moving with it: each point
-// held out of whichever of the two it is in (or nearer), its plane kept in the thing's frame all the same.
+// held out of whichever of the two it is in (or nearer), its plane kept in the thing's frame all the same. `keepOut` (a
+// prop held alone, vr_hand_collide_props_keep_out): the hand never sinks in; past the push it is drawn held out by the
+// rest, resting on the surface however deep the real hand is (a point deeper than the search reaches keeps the face it
+// went in by), and its grab there takes the prop at the surface (heldOutOf, vr_carry2h.cpp).
 void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool againstMirrored, float most,
-    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt, const entity_t* part = nullptr, bool partMirrored = false)
+    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt, const entity_t* part = nullptr, bool partMirrored = false,
+    bool keepOut = false)
 {
     const float u = 0.01f * units::metresToUnits();
     const float margin = za::clamp(vr_hand_collide_props_margin.value, 0.f, 10.f) * u;
@@ -623,11 +627,20 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             // nearest face's side.
             const auto probe = [&](const grasp::Shape& sh, const glm::mat4& shToWorld, float& pd, glm::vec3& pat,
                                    glm::vec3& pn, bool& pin) {
-                if(!grasp::signedDistance(sh, shToWorld, points[i], reach, pd, pat, pn))
+                const bool within = grasp::signedDistance(sh, shToWorld, points[i], reach, pd, pat, pn);
+                // (Kept out: a point gone in further than the search reaches since last frame, from where it was
+                // drawn, outside, is in by the face the way in meets.)
+                const bool farIn = !within && keepOut && rh.propDrawnValid[i] &&
+                                   glm::distance(glm::vec3{toWorld * glm::vec4{rh.propDrawn[i], 1.f}}, points[i]) > reach;
+                if(!within && !farIn)
                 {
                     return false;
                 }
-                pin = pd < 0.f;
+                pin = within && pd < 0.f;
+                if(!within)
+                {
+                    pd = -reach;
+                }
                 if(rh.propDrawnValid[i])
                 {
                     const glm::vec3 from{toWorld * glm::vec4{rh.propDrawn[i], 1.f}};
@@ -641,7 +654,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
                         pn = hn;
                     }
                 }
-                return true;
+                return within || pin;
             };
             if(!tested[i])
             {
@@ -661,6 +674,20 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
                     at = pat;
                     n = pn;
                     in = pin;
+                }
+            }
+            if(!found && keepOut && rh.propPlaneValid[i])
+            {
+                // Kept out, held out last frame and now deeper than the search reaches: still by that face.
+                const glm::vec3 keptAt{toWorld * glm::vec4{rh.propPlaneAt[i], 1.f}};
+                const glm::vec3 keptN = glm::normalize(normalToWorld * rh.propPlaneN[i]);
+                if(glm::dot(keptN, points[i] - keptAt) < margin)
+                {
+                    found = true;
+                    in = true;
+                    at = keptAt;
+                    n = keptN;
+                    d = glm::dot(keptN, points[i] - keptAt);
                 }
             }
             if(!found)
@@ -728,13 +755,15 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         {
             rh.propPlaneValid[i] = planeMade[i];
         }
-        // Each moved back by half, at most `most`; deeper, the hand in it by the rest.
+        // Each moved back by half, at most `most`; deeper, the hand in it by the rest. Kept out: the hand alone held out
+        // by all of it, the prop not pressed back (a pressed prop moves the hand holding it, vr_modelcollide.cpp, and that
+        // hand sprang back as the free hand took hold too, turning the two-handed hold off both grips).
         const float depth = glm::length(move);
         if(depth > 1e-4f)
         {
             const float each = za::fmin(depth * 0.5f, most);
-            target = move * (each / depth);
-            press = -target;
+            press = keepOut ? glm::vec3{0.f} : -move * (each / depth);
+            target = keepOut ? move : -press;
         }
         // Where each point is drawn (held out, or where it is), in the thing's frame: next frame's way in (off the thing
         // as drawn, pressed back, as off it unpressed).
@@ -843,7 +872,7 @@ void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool
     {
         // (Its hand pressed back as a weapon's is: the model collision moves that hand, and the prop with it.)
         pushAgainst(rh, hand, free, cl_entities[prop], false, za::fmax(vr_hand_collide.value, 0.f) * u, pos, handRot,
-            mirrored, dt);
+            mirrored, dt, nullptr, false, vr_hand_collide_props_keep_out.value != 0.f);
     }
     else
     {

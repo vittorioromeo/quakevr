@@ -38,9 +38,16 @@ struct Hold
     glm::vec3 grip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's grip, in the object's frame (from its origin)
     glm::vec3 axis{1.f, 0.f, 0.f}; // from the off hand's grip to the main hand's, in the object's frame (unit)
     float span{0.f};               // the grips' distance (world units)
+    // Where each hand holds it from, off its controller, in the controller's frame (world units): a hand that took it
+    // drawn held out of it at its surface while the real hand was in it (vr_hand_collide_props_keep_out) keeps that
+    // reach, so the grip stays at the surface; zero otherwise.
+    glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 [[nodiscard]] Hold record(const Frame& object, const Frame hands[2]);
+
+// Hand `hand`'s controller pose `at` moved by its reach (Hold::reach): where it holds the object from.
+[[nodiscard]] Frame reached(const Hold& hold, const Frame& at, int hand);
 
 // The object's pose for the hands at `hands`.
 [[nodiscard]] Frame solve(const Hold& hold, const Frame hands[2]);
