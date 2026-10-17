@@ -1,7 +1,7 @@
 // The aim cone test (vr_test_aimcone; Debug > Tests > Holding Enemies; Misc/quakevr/aim_cone_test.sh; ROUND22.md,
 // "Ranged aim cone"): the request is D * 1000 + A (A alone: D 300). The nearest live monster is set D units from the
 // player, facing him and after him, and its ranged attack starts at once (its th_missile; AD's by AD's). Until it has
-// fought 2.5 seconds he is held A degrees to its right of its facing each frame, plus its own turn speed (yaw_speed: a
+// fought 2.5 seconds it is turned each frame so he is A degrees to its right, plus its own turn speed (yaw_speed: a
 // frame's ai_face turns that much before its shot), so each shot finds him about A degrees off: circling it faster than
 // it turns. His health is held at 1000 and every loss counted as a hit; then one "aimcone: result" line: the shots
 // weighed (VR_AimCone_Bend), the first's time, its angle off and how far it was bent, the waits and their length.
@@ -18,14 +18,11 @@ float vr_act_first_off;
 float vr_act_first_bent;
 float vr_act_waits0;     // vr_aimcone_waits at the start
 
-// He is held `angle` degrees to m's right of its facing, plus m's turn speed, `dist` away (level).
+// He is held `angle` degrees to m's right of its facing, plus m's turn speed: m is turned (moving him round it would
+// put him in walls, and Quake's unstick would put him back).
 void(entity m, entity p, float angle, float dist) VR_AimConeTest_Place =
 {
-    makevectors('0 1 0' * (m.angles_y - angle - m.yaw_speed));
-    vector o = m.origin + v_forward * dist;
-    o_z = p.origin_z;
-    setorigin(p, o);
-    p.velocity = '0 0 0';
+    m.angles_y = anglemod(vectoyaw(p.origin - m.origin) + angle + m.yaw_speed);
 };
 
 void(entity p, float request) VR_AimConeTest_Start =

@@ -400,6 +400,7 @@ AIM_WAITS = [
     ("mon_enforcer.qc", "eliminator_fire", "NARROW"), ("mon_enforcer.qc", "def_atkgl6", "WIDE"),
     ("mon_centurion.qc", "cent_fire", "NARROW"), ("mon_ogre.qc", "OgreFireNails", "NARROW"),
     ("mon_ogre.qc", "ogre_shoot4", "WIDE"), ("mon_hknight.qc", "hknight_magicc6", "WIDE"),
+    ("mon_hknight.qc", "hknight_magica7", "WIDE"), ("mon_hknight.qc", "hknight_magicb7", "WIDE"),
     ("mon_dknight.qc", "dknight_magicc6", "WIDE"), ("mon_gargoyle.qc", "garg_fbthrow", "NARROW"),
     ("mon_drole.qc", "drole_fire", "NARROW"), ("mon_dguardquoth.qc", "dguardq_fireball", "NARROW"),
     ("mon_golem.qc", "golem_magic13", "WIDE"), ("mon_wizard.qc", "Wiz_FastFire", "WIDE"),

@@ -129,6 +129,8 @@ Reviewed patches: 10 precedence, 36 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_ogre.qc OgreFireNails: aim cone wait (VR_AimCone_Wait, NARROW)
   mon_ogre.qc ogre_shoot4: aim cone wait (VR_AimCone_Wait, WIDE)
   mon_hknight.qc hknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magica7: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magicb7: aim cone wait (VR_AimCone_Wait, WIDE)
   mon_dknight.qc dknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
   mon_gargoyle.qc garg_fbthrow: aim cone wait (VR_AimCone_Wait, NARROW)
   mon_drole.qc drole_fire: aim cone wait (VR_AimCone_Wait, NARROW)

@@ -48,8 +48,13 @@ float(entity m, float site) VR_AimCone_Kind =
     {
         return VR_AIM_NONE;
     }
+    // An ogre's grenades; MG3's rocket ogre's rockets and AD's ogre's nails by their shot's kind.
+    if(c == "monster_ogre" || c == "monster_ogre_marksman")
+    {
+        return (m.vr_mg3_mon || AD_Run(m)) ? site : VR_AIM_WIDE;
+    }
     // Lobbed and slow (AD's too: its launchers' kind is by the shot, a spike or a missile, so slow spikes go here).
-    if(c == "monster_ogre" || c == "monster_ogre_marksman" || c == "monster_zombie" || c == "monster_mummy" ||
+    if(c == "monster_zombie" || c == "monster_mummy" ||
         c == "monster_wizard" || c == "monster_hell_knight" || c == "monster_hell_pointknight" ||
         c == "monster_ranged_knight" || c == "monster_dknight" || c == "monster_death_knight" ||
         c == "monster_dknightghost" || c == "monster_golem" || c == "monster_skullwiz" || c == "monster_wraith")

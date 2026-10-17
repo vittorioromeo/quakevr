@@ -270,7 +270,9 @@ void()	ad_hknight_magica3 =[	$magica3,	ad_hknight_magica4	] {ad_ai_face();};
 void()	ad_hknight_magica4 =[	$magica4,	ad_hknight_magica5	] {ad_ai_face();};
 void()	ad_hknight_magica5 =[	$magica5,	ad_hknight_magica6	] {ad_ai_face();};
 void()	ad_hknight_magica6 =[	$magica6,	ad_hknight_magica7	] {ad_ai_face();};
-void()	ad_hknight_magica7 =[	$magica7,	ad_hknight_magica8	] {ad_hknight_shot(-2);};
+void()	ad_hknight_magica7 =[	$magica7,	ad_hknight_magica8	] {
+	if (VR_AimCone_Wait(ad_hknight_magica7, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_hknight_shot(-2);};
 void()	ad_hknight_magica8 =[	$magica8,	ad_hknight_magica9	] {ad_hknight_shot(-1);};
 void()	ad_hknight_magica9 =[	$magica9,	ad_hknight_magica10] {ad_hknight_shot(0);};
 void()	ad_hknight_magica10 =[	$magica10,	ad_hknight_magica11] {ad_hknight_shot(1);};
@@ -287,7 +289,9 @@ void()	ad_hknight_magicb3 =[	$magicb3,	ad_hknight_magicb4	] {ad_ai_face();};
 void()	ad_hknight_magicb4 =[	$magicb4,	ad_hknight_magicb5	] {ad_ai_face();};
 void()	ad_hknight_magicb5 =[	$magicb5,	ad_hknight_magicb6	] {ad_ai_face();};
 void()	ad_hknight_magicb6 =[	$magicb6,	ad_hknight_magicb7	] {ad_ai_face();};
-void()	ad_hknight_magicb7 =[	$magicb7,	ad_hknight_magicb8	] {ad_hknight_shot(-2);};
+void()	ad_hknight_magicb7 =[	$magicb7,	ad_hknight_magicb8	] {
+	if (VR_AimCone_Wait(ad_hknight_magicb7, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_hknight_shot(-2);};
 void()	ad_hknight_magicb8 =[	$magicb8,	ad_hknight_magicb9	] {ad_hknight_shot(-1);};
 void()	ad_hknight_magicb9 =[	$magicb9,	ad_hknight_magicb10] {ad_hknight_shot(0);};
 void()	ad_hknight_magicb10 =[	$magicb10,	ad_hknight_magicb11] {ad_hknight_shot(1);};
