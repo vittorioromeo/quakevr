@@ -102,10 +102,10 @@ Not ogres, zombies, fiends, shamblers or vores. Health is its full health, used 
   position. `vr_struggle_status hurt <n>` takes health from the held ones, for the death fallback test.
 - `vr_struggle_force 1`: every living knockdown of a struggling class struggles as if held at its chest where it lies,
   for the cost with many.
-- `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legdrag, headdrag, armdrag (each also with the
+- `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legdrag (INFO: the mock cannot take a lying leg), headdrag, armdrag (each also with the
   struggle off) and dead.
 
 ## Cost
 
-Measured in ROUND22.md: about 0.01 ms per struggling enemy per frame. The floor rays run every 3rd frame. There is no
+Measured in ROUND22.md: about 0.004 ms per struggling enemy per frame for the layer (0.01 ms for its whole drive). The floor rays run every 3rd frame. There is no
 allocation and no per-frame string work; the class list is parsed only when it changes.

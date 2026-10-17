@@ -10083,3 +10083,98 @@ Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 
 In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
 hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
 sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
+
+## Struggling in the hands: held living knockdowns fight the hold (worktree `permdecals`, branch `agent/struggle`, 2026-10-17)
+
+His note: lifted or held living humanoids (active ragdolls) feel static, with no resistance. They should struggle, and
+the struggle should depend on the hold. Held by the torso or lifted: swat at you, reach to break free, legs flailing.
+By the head: arms at the holding hand. Lifted by the legs: crunch up and reach for you. Dragged by the legs: belly
+down, arms ahead clawing. Dragged by an arm: legs stiffen. All of it should blend dynamically with what the player
+does, the body's state and the surroundings.
+
+**One layer** (design: docs/vr-port/STRUGGLE.md; `vr_ragstruggle.cpp`, `vr_box3d_struggle.cpp`):
+`box3d::livingStruggle` sees a living knockdown of a struggling class held by a player's hand, with nothing else
+leading its body, and begins the drive and `ragactive::beginStruggle`. Each frame the context has these parts:
+- what each hand holds (torso or shoulder, head, legs, arm), and the hold's lag
+- the floor under its pelvis, chest and head (every 3rd frame), its drag speed and direction
+- belly down or head down
+- your head, feet and hands
+- its health and a hit's flinch
+From the context, seven behaviours get eased weights: Swat, Pry, Crunch, Claw, Brace, Kick, Thrash. Each gives the
+limbs reach goals, the torso and head bends, and channel strengths. Goals are the weighted means of each limb's
+behaviours, so a change of hold blends. The goals at you or your hands track them live. Each enemy has its own
+rhythm (seeded rate, phases, favourite arm, aim wander), effort (ramp in, bursts and lulls, fatigue, flinch, health,
+class strength) and a grip guard.
+
+A lifted one's flail stays as a flag, and the struggle stands in for its thrash. With a struggle, a held torso part no
+longer slackens the whole upper body: before, a chest hold left the arms and head limp. Only the held part and what
+hangs from it are slack. The joints between it and the torso keep Held Limb Keeps (0.5). The crunch adds an internal
+pull: chest and head up, held thighs down, net zero on the hold. The claw adds a capped torque towards belly down.
+Released, dead, in a liquid or switched off: the strengths fade over 0.35 s and the drive ends as before.
+
+**Settings** (Combat > Holding Enemies > Struggle, a new page, linked from the Holding Enemies page above Lift; all
+archived, new, no migration):
+
+| cvar | default | row |
+|---|---|---|
+| `vr_struggle` | 1 | Struggle |
+| `vr_struggle_strength` | 1 | Strength |
+| `vr_struggle_speed` | 1 | Speed |
+| `vr_struggle_swat` | 1 | Swat at You |
+| `vr_struggle_pry` | 1 | Pry at Your Hand |
+| `vr_struggle_crunch` | 1 | Crunch Up |
+| `vr_struggle_claw` | 1 | Claw the Floor |
+| `vr_struggle_brace` | 1 | Brace Its Legs |
+| `vr_struggle_flail` | 0.5 | Flail |
+| `vr_struggle_variation` | 0.5 | Variation |
+| `vr_struggle_bursts` | 0.5 | Bursts |
+| `vr_struggle_fatigue` | 12 s | Tires After |
+| `vr_struggle_tired` | 0.35 | Effort When Tired |
+| `vr_struggle_blend` | 0.25 s | Blend Time |
+| `vr_struggle_held_share` | 0.5 | Held Limb Keeps |
+| `vr_struggle_grip_guard` | 6 units | Grip Guard |
+| `vr_struggle_debug` | 0 | Show Struggle (also Debug > Tests > Holding Enemies, with Struggle Status and Every Downed One Struggles) |
+| `vr_struggle_classes` | grunt, enforcer, knight, death knight, AD soldiers and knights | console: `classname:strength:speed:health` |
+| `vr_struggle_force` | 0 | tests |
+
+**Verified** (`Misc/quakevr/foegrab/struggle_test.py permdecals`: each case with the struggle on and off, measures from
+`vr_struggle_status` every 0.3 s, over the later two thirds):
+
+| case | leads | the move, on (off) | the hold's lag mean/most, units, on (off) |
+|---|---|---|---|
+| lift (hands at its shoulders) | swat 1.00, kick 0.5, thrash 0.5 | an arm 19.2 units from your head at the nearest (38.6) | 2.9/4.4 (2.8/4.2) |
+| leglift (by its shins) | crunch 0.98 | its head 18.5 under its pelvis (23.4): it folds up; waist bend varies run to run | 2.8/3.8 (2.6/3.4) |
+| headdrag (one hand on its head, you walk back at 30 u/s) | pry 1.00, brace 0.14 | its nearest forearm 13.9-25.4 from the holding hand (23.2-31.0) | 4.1-19.2/7.9-42.5 (4.4-16.2/17.1-53.3) |
+| armdrag (its right forearm) | pry 0.80, brace 0.18 | legs straight 0.72 (0.68-0.70) | 22/54-56 (21/46-53) |
+| dead (head held, its health taken at 2.5 s) | - | "struggle ends after 2.35 s (dead)", strengths fade out | - |
+
+- The lift's swat leads 1.00 with kicks and thrash under it. Pry and brace mix while dragged by the head or an arm.
+- The hold's lag is unchanged within run-to-run noise. The drags' large lags are the drag's own: the hold's spring
+  behind a body on the floor, off as much as on.
+- **Not verified headlessly: dragged by the legs.** The mock hand put on a lying grunt's shin or thigh lands 7-9 units
+  off it (its legs lie at your feet after the walk up), so no hold is taken. The two-hand leg pull's soft hold (0.3
+  body weights a hand, even at 1) does not drag it on the floor: its hands lag 35-70 units and let go. In that case
+  the body lay with its legs raised, and the context read half lifted and head down: crunch 0.5 and claw 0.2 blended,
+  as meant for that pose. The case stays in the script as INFO.
+- **Off against the base build** (`scratch/hash_run.sh`, ragtrace every 6th frame, time-aligned pelvis paths): this
+  build with `vr_struggle 0` and no status calls against the base (20e824d18), 1.0 units mean apart on the lift. Base
+  against base is 1.4 units, but runs fall into two trajectories 7 units apart, either build. The headless lift is not
+  bit-deterministic run to run, so no hash can match. With the feature off, the code paths are the old ones
+  (`s.struggle.on` false everywhere; `livingStruggle` not called).
+- **Cost** (`--exclusive`, `vr_struggle_force 1`, two downed grunts struggling): 0.0037 ms a struggle a frame for the
+  layer. The whole drive is 0.010 ms a ragdoll-frame.
+- Melee eval 168/177, the three known parry bash differences.
+
+**Not done:** standing enemies held by `foegrab` are animated monsters, not ragdolls, so they do not struggle. No
+break-free beyond the lift's timer. No recorder or eval hooks, beyond the `struggle:` trace lines
+(`vr_struggle_debug 2`) and `vr_struggle_status`.
+
+**In VR:**
+1. Throw a grunt (two hands, held on) or lift one: it should swat at your face and hands, kick, and twist.
+2. Grab a downed one by the head: its hands go to yours and tug.
+3. Lift one by the shins: it folds up towards you.
+4. Drag one by the legs on the floor: it should roll belly down and claw ahead. This is the case to check, since it
+   was not verified headlessly.
+5. Drag one by an arm: its legs go stiff.
+6. Turn on Show Struggle to see the weights blend as you lift, lower and drag. If a move is too much or too little,
+   tune the Struggle sliders; Tires After and Bursts change its character.
