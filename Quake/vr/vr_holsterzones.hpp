@@ -43,6 +43,10 @@ void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::
 // mock hands' tests (vr_mock_hand_to <hand> zone). False for no such zone, or a pouch not there.
 [[nodiscard]] bool drawnPoint(const hands::State& s, int zone, const glm::vec3& offset, glm::vec3& out);
 
+// `boxMiddle`: the zone's box's middle instead (its offsets, vr_holster_zone_<kind>_x/y/z, applied; vr_mock_hand_to
+// <hand> zonebox).
+[[nodiscard]] bool boxMiddle(const hands::State& s, int zone, glm::vec3& out);
+
 // The wireframes (vr_holster_zones_show): idle grey, occupied blue, a candidate (a point of the hand's in it, not the
 // deepest) yellow, the one a hand is at green (holding a gun: where it would go); the hands' points as dots.
 void queueDebug(const hands::State& s);

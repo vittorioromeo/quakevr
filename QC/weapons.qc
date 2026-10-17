@@ -1266,6 +1266,8 @@ void() W_Precache =
     precache_sound("weapons/holster1.wav");
     precache_sound("vr/flashlight_attach.wav"); // (a magnetic holster bound, unbound: vr_magholster.qc)
     precache_sound("vr/flashlight_detach.wav");
+    precache_sound("vr/magholster_zip.wav"); // (a bound weapon reeled home, drawn: vr_magholster.qc)
+    precache_sound("vr/magholster_draw.wav");
     precache_sound("vr/blade_sizzle.wav"); // incandescent blades (vr_hotblade.qc)
     precache_sound("vr/blade_hot.wav");
     precache_sound("vr/blade_quench.wav");
@@ -5837,6 +5839,8 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
     W_SetCurrentAmmo();
 };
 
+void(entity ent, float xHand, float hs, entity inst) VR_MagHolster_DrawSound; // (vr_magholster.qc)
+
 // The weapon in holster `xHotspot` drawn into the empty `xHand`: immersive, the holster's (its record with it: its
 // magazine, its id), the holster empty; a quick slot, a copy (WeaponInst_Clone), the holster keeping its own. (`self`
 // is `ent`: the holster's getters are self's.)
@@ -5845,6 +5849,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
     float wid = getHolsterWeapon(xHotspot);
     entity holstered = VRGetEntHolsterWeaponInst(ent, xHotspot);
     VR_SoundVaried(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
+    VR_MagHolster_DrawSound(ent, xHand, xHotspot, holstered); // (bound: the chain heard too)
     VRSetEntWeapon(ent, xHand, wid);
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)

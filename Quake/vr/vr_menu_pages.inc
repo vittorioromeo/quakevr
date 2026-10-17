@@ -662,6 +662,37 @@ void resetHandMoves()
             .help("Its links' size, times the flashlight chain's (1.6 cm links)."),
         slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below 1 the chain is see-through (0: not drawn)."),
+        slider("Full Chain Up To", vr_magholster_chain_lod, 0.f, 15.f, 0.5f, "%.1f m").extend(0.f, 100.f)
+            .help("A tether longer than this is drawn as a plain thin line to the weapon (cheaper); it never disappears, "
+                  "however far the weapon goes (0: always a line)."),
+        slider("Zip Volume", vr_magholster_zip_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bound weapon flying home: the reel's zip as it winds the chain back in (0: none)."),
+        slider("Draw Sound Volume", vr_magholster_draw_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A bound weapon drawn from its holster: the chain paid out, heard over the holster's own sound (0: none)."),
+        header("Chain Origin"),
+        slider("All Forward", vr_magholster_chain_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("Where the chain leaves every holster: units forward (the body's frame). Added to each kind's below."),
+        slider("All Outwards", vr_magholster_chain_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("Units outwards (away from the body's middle: the left holsters' to the left)."),
+        slider("All Up", vr_magholster_chain_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f).help("Units up."),
+        slider("Hip Forward", vr_magholster_chain_hip_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units forward."),
+        slider("Hip Outwards", vr_magholster_chain_hip_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units outwards."),
+        slider("Hip Up", vr_magholster_chain_hip_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The hip holsters' chain origin: units up."),
+        slider("Chest Forward", vr_magholster_chain_upper_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units forward."),
+        slider("Chest Outwards", vr_magholster_chain_upper_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units outwards."),
+        slider("Chest Up", vr_magholster_chain_upper_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The upper (chest) holsters' chain origin: units up."),
+        slider("Shoulder Forward", vr_magholster_chain_shoulder_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units forward."),
+        slider("Shoulder Outwards", vr_magholster_chain_shoulder_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units outwards."),
+        slider("Shoulder Up", vr_magholster_chain_shoulder_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
+            .help("The shoulder holsters' chain origin: units up."),
         header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
         slider("Shell Casing Life", "vr_shells_life", 5.f, 120.f, 5.f, "%.0f s").extend().help("How long spent shells lie on the floor before fading out."),
@@ -1992,6 +2023,10 @@ void retroAllUncheckCategories()
         slider("Hysteresis", vr_holster_zone_hysteresis, 0.f, 0.5f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("The zone a hand is at keeps it this much (a share of its size) further out, and wins over another until "
                   "that one is this much deeper: no flicker between two that touch."),
+        toggle("Hand Point", vr_holster_zone_hand_point)
+            .help("A hand holding a gun is tested at its palm as drawn too, beside the gun's grip and body: the hand in a "
+                  "holster puts the gun in it even when the gun's points are not (the holsters only: the pouches take an "
+                  "empty hand alone)."),
     };
     const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
                           cvar_t& width, cvar_t& height) {
