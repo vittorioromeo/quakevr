@@ -631,20 +631,21 @@ struct TestSprite
 };
 TestSprite testSprite;
 
-// vr_particle_test <preset> [count]: a particle2 preset 64 units in front of the view (tuning); a splash (14) where
-// the view first meets a liquid's surface, if it does within 2048 units (going that way).
+// vr_particle_test <preset> [count] [distance]: a particle2 preset `distance` units in front of the view (64; tuning,
+// and bursts in your face for the near fade); a splash (14) where the view first meets a liquid's surface, if it does
+// within 2048 units (going that way).
 void particleTest_f()
 {
     if(Cmd_Argc() < 2 || cls.state != ca_connected)
     {
-        Con_Printf("usage: vr_particle_test <preset 0..11 | quake> [count]\n");
+        Con_Printf("usage: vr_particle_test <preset 0..11 | quake> [count] [distance]\n");
         return;
     }
     vec3_t fwd, right, up;
     AngleVectors(r_refdef.viewangles, fwd, right, up);
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const glm::vec3 f{fwd[0], fwd[1], fwd[2]};
-    glm::vec3 org = eye + f * 64.f;
+    glm::vec3 org = eye + f * (Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 64.f);
     if(!q_strcasecmp(Cmd_Argv(1), "quake"))
     {
         vec3_t o{org.x, org.y, org.z};

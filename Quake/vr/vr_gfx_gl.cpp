@@ -9,6 +9,7 @@
 #include "vr_retro.h"
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
+#include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -97,6 +98,17 @@ in float soft;
 in float viewDepth;
 in vec3 worldPos;
 out vec4 result;
+#ifdef PARTICLE_WASTE
+// vr_debug_particle_waste: each slot's fragments shaded, visible, and more than faint (readParticleWaste). Early tests
+// declared, as the plain shader gets them (no depth written): only the fragments it would shade are counted.
+layout(early_fragment_tests) in;
+layout(std430, binding = 13) buffer ParticleWaste
+{
+    uint wasteCounts[];
+};
+layout(location = 93) uniform float WasteFaint;
+flat in int wasteSlot;
+#endif
 #if RETRO
 layout(location = 9) uniform int RetroSet; // retro textures' set (vr_retro.h; 0 none): blocks in world units
 #endif
@@ -310,6 +322,9 @@ vec4 hologram()
 }
 void main()
 {
+#ifdef PARTICLE_WASTE
+    atomicAdd(wasteCounts[wasteSlot * 3], 1u);
+#endif
 #if MODE == 2
     // Derivatives before any discard. Half-resolution has no hardware scene-depth test;
     // reject covered fragments before their retro texture/palette work.
@@ -377,7 +392,7 @@ void main()
 #else
     result = color;
 #endif
-#if BLENDED
+#if BLENDED && !defined(PARTICLE_WASTE)
     if(result == vec4(0.0))
         discard;
 #endif
@@ -400,6 +415,14 @@ void main()
         float f = clamp((texelFetch(SceneDistances, p, 0).r - viewDepth) / soft, 0.0, 1.0);
         result *= f * f * (3.0 - 2.0 * f);
     }
+#endif
+#ifdef PARTICLE_WASTE
+    // What it adds over the scene (premultiplied): at most its largest channel.
+    float shown = max(max(result.r, result.g), max(result.b, result.a));
+    if(shown >= 0.5 / 255.0)
+        atomicAdd(wasteCounts[wasteSlot * 3 + 1], 1u);
+    if(shown >= WasteFaint)
+        atomicAdd(wasteCounts[wasteSlot * 3 + 2], 1u);
 #endif
 }
 )";
@@ -444,6 +467,14 @@ layout(location = 14) uniform vec2 Trim; // enable, world block size (0 plain)
 layout(location = 20) uniform vec4 Support[16]; // guarded base-level support in atlas UVs
 #endif
 layout(location = 12) uniform float LargePixels;  // large: half across at least this many of them
+// Near the eye (vr_particle_near_fade, _near_cull): x fading from this far (units), y nothing nearer; z: none larger
+// across than this part of the view's height (vr_particle_max_screen, 0 no cap), shrunk round its centre.
+layout(location = 90) uniform vec3 NearFade;
+layout(location = 91) uniform vec2 ViewSize;      // the scene's viewport, in PixelScale's pixels
+#ifdef PARTICLE_WASTE
+layout(location = 92) uniform float WasteBig;     // vr_debug_particle_waste_big: big from this part of the view
+flat out int wasteSlot;
+#endif
 struct Particle
 {
     vec4 orgHalf;   // org, half size
@@ -511,10 +542,45 @@ void main()
             u *= k;
         }
     }
+    // Faded out near the eye (premultiplied: all four), none at all nearer than NearFade.y.
+    vec4 tint = p.color;
+    float eyeDistance = distance(org, Eye);
+    bool gone = eyeDistance < NearFade.y;
+    if(!gone && eyeDistance < NearFade.x)
+    {
+        float f = clamp((eyeDistance - NearFade.y) / max(NearFade.x - NearFade.y, 1e-3), 0.0, 1.0);
+        tint *= f * f * (3.0 - 2.0 * f);
+    }
+    // No larger than NearFade.z of the view's height across (its half: half of that), about its centre.
+    vec4 centre = MVP * vec4(o, 1.0);
+    float halfPixels = max(length(r), length(u)) * PixelScale; // at distance 1
+    if(NearFade.z > 0.0 && centre.w > 0.0 && halfPixels > NearFade.z * 0.5 * ViewSize.y * centre.w)
+    {
+        float k = NearFade.z * 0.5 * ViewSize.y * centre.w / halfPixels;
+        r *= k;
+        u *= k;
+    }
+#ifdef PARTICLE_WASTE
+    {
+        float across = PixelScale / max(centre.w, 1e-4);
+        bool big = centre.w > 0.0 && 4.0 * length(r) * length(u) * across * across >= WasteBig * ViewSize.x * ViewSize.y;
+        wasteSlot = clamp(int(p.flags.z), 0, 31) * 2 + (big ? 1 : 0);
+    }
+#endif
+    if(gone)
+    {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // nothing: its six corners at one point, outside the view
+        uv = vec2(0.0);
+        color = vec4(0.0);
+        soft = 0.0;
+        worldPos = o;
+        viewDepth = 0.0;
+        return;
+    }
     if(Pass != 0)
     {
         // Large or small by its size in the scene's pixels (the same in both passes: each drawn in one).
-        vec4 mid = MVP * vec4(o, 1.0);
+        vec4 mid = centre;
         bool large = mid.w > 0.0 && max(length(r), length(u)) * PixelScale >= LargePixels * mid.w;
         if(large != (Pass == 2))
         {
@@ -586,7 +652,7 @@ void main()
 #endif
     vec3 pos = o + u * sg.x + r * sg.y;
     uv = sampleUV;
-    color = p.color;
+    color = tint;
     soft = p.csSoft.z;
     worldPos = pos;
     gl_Position = MVP * vec4(pos, 1.0);
@@ -597,8 +663,12 @@ void main()
 glm::vec4 particleSupport[16]{};
 glm::vec2 particleAtlasSize{1.f};
 
-GLuint particleProgram[11]{}; // 0 plain, 1 reference, 2 plain half, 3/4 general fast full/half, 5/6 centre-near full/half
-bool particleProgramFailed[11]{};
+// [waste: vr_debug_particle_waste's counting variants][0 plain, 1 reference, 2 plain half, 3/4 general fast full/half,
+// 5/6 centre-near full/half, 7-10 trimmed]
+GLuint particleProgram[2][11]{};
+bool particleProgramFailed[2][11]{};
+GLuint particleWasteBuffer = 0; // vr_debug_particle_waste's counts (particleWasteSlots x 3), made on its first draw
+bool particleWasteCounted = false; // drawn into since the last readParticleWaste
 
 // drawParticlesHalf's: its target (two, for the eyes' size and the spectator camera's), and the pass blending it into
 // the scene.
@@ -1251,6 +1321,36 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool t
 
 namespace
 {
+using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
+GetBufferSubDataFn particleWasteGet = nullptr; // (readParticleWaste: looked up on its first use)
+} // namespace
+
+bool readParticleWaste(za::Span<za::U32> counts)
+{
+    if(!particleWasteBuffer || !particleWasteCounted || counts.size() < static_cast<za::SizeT>(particleWasteSlots * 3))
+    {
+        return false;
+    }
+    if(!particleWasteGet)
+    {
+        particleWasteGet = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
+    }
+    if(!particleWasteGet)
+    {
+        return false;
+    }
+    const auto bytes = static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32));
+    GL_MemoryBarrierFunc(GL_BUFFER_UPDATE_BARRIER_BIT);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, particleWasteBuffer);
+    particleWasteGet(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data());
+    const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, bytes, zero.data());
+    particleWasteCounted = false;
+    return true;
+}
+
+namespace
+{
 
 // Lazy, bounded variants: reference, general fast and centre-near fast retro, plus nonretro full/half.
 [[nodiscard]] GLuint particleProgramFor(int which)
@@ -1258,12 +1358,18 @@ namespace
     const int variant = which;
     constexpr int base[11] = {0, 1, 2, 3, 4, 5, 6, 0, 2, 5, 6};
     which = base[variant];
-    GLuint& program = particleProgram[variant];
-    if(!program && !particleProgramFailed[variant])
+    const int waste = vr_debug_particle_waste.value != 0.f ? 1 : 0;
+    GLuint& program = particleProgram[waste][variant];
+    if(!program && !particleProgramFailed[waste][variant])
     {
         za::String fs = fragmentFor(static_cast<int>(Shade::Texture), true, which == 1 || which >= 3);
         za::String vs = particleVertexShader;
         if(variant >= 7) vs.insert(vs.find('\n') + 1, "#define PARTICLE_TRIM 1\n");
+        if(waste)
+        {
+            fs.insert(fs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
+            vs.insert(vs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
+        }
         if(which >= 3)
         {
             fs.insert(fs.find('\n') + 1, "#define PARTICLE_RETRO_GRID 1\n");
@@ -1282,7 +1388,7 @@ namespace
             which == 2 ? "vr particles (half size)" : which == 3 ? "vr particles (retro fast)" :
             which == 4 ? "vr particles (retro fast half size)" : which == 5 ? "vr particles (retro centre near)" :
             "vr particles (retro centre near half size)");
-        particleProgramFailed[variant] = !program;
+        particleProgramFailed[waste][variant] = !program;
     }
     return program;
 }
@@ -1470,6 +1576,30 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1fFunc(12, split.largePixels);
     GL_Uniform1iFunc(15, 0);
     {
+        // Near the eye: faded from vr_particle_near_fade cm to vr_particle_near_cull, none nearer; vr_particle_max_screen.
+        const float cm = units::metresToUnits() * 0.01f;
+        const float cull = za::max(0.f, vr_particle_near_cull.value) * cm;
+        const float fade = za::max(cull, za::max(0.f, vr_particle_near_fade.value) * cm);
+        GL_Uniform3fFunc(90, fade, cull, za::clamp(vr_particle_max_screen.value, 0.f, 4.f));
+        GL_Uniform2fFunc(91, split.viewWidth, split.viewHeight);
+    }
+    bool waste = false;
+    for(const GLuint p : particleProgram[1]) waste |= p != 0 && p == program;
+    if(waste)
+    {
+        if(!particleWasteBuffer)
+        {
+            const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
+            particleWasteBuffer = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_READ, "vr particle waste",
+                zero.size() * sizeof(za::U32), zero.data());
+        }
+        GL_Uniform1fFunc(92, za::max(0.f, vr_debug_particle_waste_big.value));
+        GL_Uniform1fFunc(93, za::max(0.f, vr_debug_particle_waste_alpha.value));
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 13, particleWasteBuffer, 0,
+            static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32)));
+        particleWasteCounted = true;
+    }
+    {
         // The teleporters shown in this view: what is behind one, through its aperture, is hidden (the fragment shader).
         float plane[8][4], lo[8][4], hi[8][4];
         VR_PortalFrameData(plane, lo, hi);
@@ -1484,8 +1614,11 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             GL_Uniform4fvFunc(82, count, &hi[0][0]);
         }
     }
-    const bool trimmed = program == particleProgram[7] || program == particleProgram[8] ||
-        program == particleProgram[9] || program == particleProgram[10];
+    bool trimmed = false;
+    for(const auto& row : particleProgram)
+    {
+        trimmed |= program == row[7] || program == row[8] || program == row[9] || program == row[10];
+    }
     if(trimmed)
     {
         unsigned trimColor = 0, trimDepth = 0;

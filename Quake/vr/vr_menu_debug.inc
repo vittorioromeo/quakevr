@@ -631,9 +631,19 @@ za::Vector<Item> pageDebugProfiling()
                   "after each (more: earlier skipping, more marks). 1: nothing skipped."),
         cycle("Opaque At", vr_particle_saturate_opacity, {{0.99f, "99%"}, {0.999f, "99.9%"}, {1.f, "Never (no skipping)"}})
             .help("vr_particle_saturate_opacity: how opaque a pixel must be for the particles under it to be skipped."),
+        toggle("Count Wasted Particle Fill", vr_debug_particle_waste)
+            .help("vr_debug_particle_waste: the particles' shader counts the fragments it shades and those that show "
+                  "nothing or next to nothing (slower while on). Print with Particle Fill Waste Report."),
+        command("Particle Fill Waste Report", "vr_particle_waste_report")
+            .help("vr_particle_waste_report: since the last report, the particles' shaded fragments and the share that "
+                  "were invisible or faint, by texture, for all of them and for the big ones (console)."),
         toggle("Freeze Particles", vr_particle_freeze)
             .help("vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
                   "frame."),
+        toggle("Half-Res In Densest Frames", vr_particle_halfres_dense)
+            .help("vr_particle_halfres_dense: half resolution (when allowed) also in the densest frames, those Skip "
+                  "Hidden Particles composites in reverse order. Off: retro particles there at full resolution, as "
+                  "before."),
         toggle("Half-Res Particles Always", vr_particle_halfres_force)
             .help("vr_particle_halfres_force: the particles drawn at half resolution in every frame with some in view "
                   "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "

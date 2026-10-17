@@ -154,6 +154,8 @@ void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count);
 void mistTest_f();
 // vr_particle_light_report: the last frame's lit particles (vr_particle_light), their mean light and colour, its cost.
 void lightReport_f();
+// vr_particle_waste_report: the shaded fragments that showed (next to) nothing since the last (vr_debug_particle_waste).
+void wasteReport_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)
