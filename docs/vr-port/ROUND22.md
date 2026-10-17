@@ -11157,6 +11157,6 @@ To do in VR: build Release-Tracy, start `tracy-capture -a 127.0.0.1 -o quakevr.t
 `vr_profile 0; vr_tracy_preset full`, load the map, fight for about 60 s, quit. Check that `eye L`/`eye R` hold the pass
 zones and that the OpenXR calls show (the mock has none).
 
-## His settings, third pass (config 151)
+## His settings, third pass (config 148)
 
-Twelve more of his saved values became defaults (vr_cvars.inc, migration 151; list in the worktree scratch/defaults3.md): leg sweep speed 3.25 (flag: was to be about 1.5), topple 200, feet 0.5, carve depth 0.75 / rim 1.25 / kept 128, dummy dies off, enemy swing turn 6, knockdown keep max 7, mirror hides head text, parallax plane 1, relight reload off. Personal, holster, gore stream and doubtful ones skipped. Checked: build, menu paths 0 missing, fresh start takes them, eval passes.
+Twelve more of his saved values became defaults (vr_cvars.inc, migration 148; list in the worktree scratch/defaults3.md): leg sweep speed 3.25 (flag: was to be about 1.5), topple 200, feet 0.5, carve depth 0.75 / rim 1.25 / kept 128, dummy dies off, enemy swing turn 6, knockdown keep max 7, mirror hides head text, parallax plane 1, relight reload off. Personal, holster, gore stream and doubtful ones skipped. Checked: build, menu paths 0 missing, fresh start takes them, eval passes.
