@@ -4047,3 +4047,34 @@ QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and th
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
 QVR_CVAR(vr_knockdown_keep_max, "7", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer
+
+// Loot beams (vr_lootbeams.cpp; ROUND22.md, "Loot beams"): a soft pillar of light rising from things lying about to pick
+// up, as Diablo's and Path of Exile's, so they stand out among the corpses and gibs. Not while held, holstered, carried
+// or flying: it fades in once the thing has come to rest.
+QVR_CVAR(vr_lootbeams, "1", CVAR_ARCHIVE)               // on (the categories below choose what has one)
+QVR_CVAR(vr_lootbeam_weapons, "1", CVAR_ARCHIVE)        // weapons lying about: dropped, thrown, a map's (the expansions' and Arcane Dimensions' too)
+QVR_CVAR(vr_lootbeam_mags, "1", CVAR_ARCHIVE)           // magazines dropped, fuller than vr_lootbeam_mag_min
+QVR_CVAR(vr_lootbeam_ammo, "0", CVAR_ARCHIVE)           // ammo boxes
+QVR_CVAR(vr_lootbeam_health, "0", CVAR_ARCHIVE)         // health boxes
+QVR_CVAR(vr_lootbeam_armor, "0", CVAR_ARCHIVE)          // armour
+QVR_CVAR(vr_lootbeam_powerups, "0", CVAR_ARCHIVE)       // power-ups (quad, pentagram, ring, suit; the expansions')
+QVR_CVAR(vr_lootbeam_keys, "0", CVAR_ARCHIVE)           // keys and runes
+QVR_CVAR(vr_lootbeam_backpacks, "0", CVAR_ARCHIVE)      // backpacks
+QVR_CVAR(vr_lootbeam_mag_min, "0.25", CVAR_ARCHIVE)     // a magazine's beam only fuller than this share of its rounds (0..1; 0: any not empty)
+QVR_CVAR(vr_lootbeam_opacity, "0.5", CVAR_ARCHIVE)      // its brightness (0..1)
+QVR_CVAR(vr_lootbeam_length, "1.2", CVAR_ARCHIVE)       // metres it rises from the thing's middle
+QVR_CVAR(vr_lootbeam_thickness, "0.06", CVAR_ARCHIVE)   // metres across its bright core (its soft glow three times that)
+QVR_CVAR(vr_lootbeam_saturation, "0.75", CVAR_ARCHIVE)  // its colours' saturation (0 white)
+QVR_CVAR(vr_lootbeam_hue_weapons, "40", CVAR_ARCHIVE)   // each category's hue (degrees): weapons gold
+QVR_CVAR(vr_lootbeam_hue_mags, "190", CVAR_ARCHIVE)     // ... magazines cyan
+QVR_CVAR(vr_lootbeam_hue_ammo, "55", CVAR_ARCHIVE)      // ... ammo yellow
+QVR_CVAR(vr_lootbeam_hue_health, "0", CVAR_ARCHIVE)     // ... health red
+QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
+QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
+QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
+QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
+QVR_CVAR(vr_lootbeam_settle, "0.3", CVAR_ARCHIVE)       // seconds a thing must lie still (within a few units) before its beam shows
+QVR_CVAR(vr_lootbeam_near, "0.5", CVAR_ARCHIVE)         // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)
+QVR_CVAR(vr_lootbeam_far, "0", CVAR_ARCHIVE)            // metres beyond which it fades out (over the last quarter; 0: never)
+QVR_CVAR(vr_lootbeam_debug, "0", CVAR_NONE)             // a console line a second: the beams drawn by category, and the things skipped (held, moving, an empty magazine)

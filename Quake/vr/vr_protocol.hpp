@@ -21,7 +21,8 @@ inline constexpr int U_QVR_SCALE = 1 << 24;        // 3 floats
 inline constexpr int U_QVR_SCALEORIGIN = 1 << 25;  // 3 coords
 inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
-inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255)
+inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255);
+                                                   // id 0: not a weapon prop, the byte its loot beam's (vr_server.cpp lootByte)
 inline constexpr int U_QVR_SPIN = 1 << 29;         // no data: drawn spinning as an EF_ROTATE pickup (a weapon pickup drawn as its prop)
 inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop with no magazine in (QC QVR_WPNFLAG_NOMAG: immersive reloading)
 // The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare

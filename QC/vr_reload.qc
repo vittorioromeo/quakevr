@@ -50,6 +50,7 @@
 
 // (.vr_ammo_aid, .vr_ammo_count, .vr_ammo_front, .vr_ammo_born: vr_fields.qc)
 .float vr_ammo_wid;      // a magazine: the gun it fits (WID_*; 0 a shell)
+.float vr_ammo_cap;      // and the rounds it holds full (VR_Reload_SetModel; the engine sends how full it is: its loot beam)
 .float vr_ammo_fresh;    // a magazine just pulled out of its gun (or dropped, knocked out; the super shotgun's live shells
                          // thrown out): it goes in again only once it has left the well
 .float vr_ammo_fresh_at;   // and when it came out (vr_reload_eject_cooldown),
@@ -425,6 +426,7 @@ void(entity r) VR_Reload_SetModel =
     if(r.vr_ammo_wid)
     {
         setmodel(r, VR_Reload_MagModel(r.vr_ammo_wid));
+        r.vr_ammo_cap = WeaponIdToBaseClipSize(r.vr_ammo_wid); // (how full it is, for its loot beam: vr_lootbeams.cpp)
         float k = propvalue(r, "size"); // (its prop slot's Size, as drawn: the model's own bounds were twice the drawn magazine)
         if(k <= 0)
         {

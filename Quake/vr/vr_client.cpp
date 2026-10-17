@@ -893,7 +893,10 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     const int uidBits = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
     data.weaponUid = uidBits & 0xFFFFFF;
     data.hotGlow = static_cast<float>((uidBits >> 24) & 127) / 127.f; // an incandescent blade's (vr_hotblade.cpp)
-    data.clip = (bits & U_QVR_WEAPONUID) ? MSG_ReadByte() : -1;
+    const int clipByte = (bits & U_QVR_WEAPONUID) ? MSG_ReadByte() : -1;
+    // Weapon id 0: not a weapon prop, the byte its loot beam's (a magazine's fullness, carried: vr_server.cpp lootByte).
+    data.clip = data.weaponUid != 0 ? clipByte : -1;
+    data.loot = data.weaponUid == 0 ? clipByte : -1;
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
     data.ssgLoaded = data.ssgOpen ? MSG_ReadByte() : 0;

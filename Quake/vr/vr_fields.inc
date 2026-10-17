@@ -50,6 +50,10 @@ QVR_FIELD(offloadportface)
 QVR_FIELD(vr_ammo_pass) // a loose round passing through a player's guns to their ports: the hands (vr_reload.qc; vr_box3d.cpp reachSkips)
 QVR_FIELD(vr_ammo_passer) // and the player
 QVR_FIELD(vr_ammo_passgun) // a loose round passing through a gun lying about to its port: that gun (vr_reload.qc VR_Reload_PropsFrame; vr_box3d.cpp preSolve)
+QVR_FIELD(vr_ammo_wid)   // a magazine: the gun it fits (vr_reload.qc; 0 not one): its loot beam's fullness (vr_server.cpp, U_QVR_WEAPONUID)
+QVR_FIELD(vr_ammo_count) // and its rounds
+QVR_FIELD(vr_ammo_cap)   // and the rounds it holds full (0: unknown, an older save's)
+QVR_FIELD(carry_player)  // a box or round carried in a hand (vr_carry.qc): who carries it (no loot beam while carried)
 QVR_FIELD(magboxpos) // the main hand's gun's attached magazine, a box: its middle and half-axes (vr_reload.qc)
 QVR_FIELD(magboxx)
 QVR_FIELD(magboxy)

@@ -1396,6 +1396,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsTeleporters();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
+[[nodiscard]] za::Vector<Item> pageGraphicsLootBeams();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetroLight();
 [[nodiscard]] za::Vector<Item> pageGraphicsRelighting();
@@ -1429,6 +1430,7 @@ void resetHandMoves()
         open("Teleporters", pageIndex(pageGraphicsTeleporters)),
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
+        open("Loot Beams", pageIndex(pageGraphicsLootBeams)).help("A soft pillar of light over weapons, magazines and (if you want) other things to pick up lying about, so they stand out among corpses and gibs."),
         open("Retro Textures", pageIndex(pageGraphicsRetro)),
         open("Retro Lighting", pageIndex(pageGraphicsRetroLight)),
         open("Particles", pageIndex(pageParticleSettings)),
@@ -1868,6 +1870,42 @@ void retroAllUncheckCategories()
     items.pushBack(action("Uncheck All Categories", retroAllUncheckCategories));
     items.pushBack(action("Apply to Checked Categories", retro::allApplyNow).help("As at the top."));
     return items;
+}
+
+// Graphics > Loot Beams (vr_lootbeams.cpp): pillars of light over things to pick up.
+[[nodiscard]] za::Vector<Item> pageGraphicsLootBeams()
+{
+    return {
+        toggle("Loot Beams", "vr_lootbeams").help("A soft pillar of light rising from things lying about to pick up, as in Diablo or Path of Exile, so loot stands out among corpses and gibs. Never while held, holstered or flying: it fades in once the thing comes to rest. Which things: below."),
+        header("What Has One"),
+        toggle("Weapons", "vr_lootbeam_weapons").help("Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too)."),
+        toggle("Magazines", "vr_lootbeam_mags").help("Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness)."),
+        slider("Magazine Fullness", "vr_lootbeam_mag_min", 0.f, 1.f, 0.05f, "%.2f").help("A magazine has a beam only when fuller than this share of its rounds. 0: any magazine not empty."),
+        toggle("Ammo Boxes", "vr_lootbeam_ammo"),
+        toggle("Health Boxes", "vr_lootbeam_health"),
+        toggle("Armour", "vr_lootbeam_armor"),
+        toggle("Power-ups", "vr_lootbeam_powerups").help("Quad damage, the pentagram, the ring, the suit, and the mission packs' power-ups."),
+        toggle("Keys and Runes", "vr_lootbeam_keys"),
+        toggle("Backpacks", "vr_lootbeam_backpacks"),
+        header("Look"),
+        slider("Opacity", "vr_lootbeam_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How bright the beams are."),
+        slider("Length", "vr_lootbeam_length", 0.2f, 4.f, 0.1f, "%.1f m").help("How high a beam rises from the thing's middle."),
+        slider("Thickness", "vr_lootbeam_thickness", 0.01f, 0.3f, 0.01f, "%.2f m").help("How wide its bright core is; its soft glow is three times as wide."),
+        slider("Colourfulness", "vr_lootbeam_saturation", 0.f, 1.f, 0.05f, "%.2f").help("0: all white."),
+        slider("Fade In", "vr_lootbeam_fade_in", 0.f, 2.f, 0.1f, "%.1f s").help("How long a beam takes to appear once the thing has come to rest."),
+        slider("Rest Before Showing", "vr_lootbeam_settle", 0.f, 2.f, 0.1f, "%.1f s").help("How long a thing must lie still before its beam fades in."),
+        slider("Fade Up Close", "vr_lootbeam_near", 0.f, 2.f, 0.1f, "%.1f m").help("A beam fades out as your head comes this close to it (across the floor), so it is not in your face as you pick the thing up. 0: never."),
+        slider("Fade Far Away", "vr_lootbeam_far", 0.f, 60.f, 1.f, "%.0f m").help("Beams farther than this fade out. 0: never."),
+        header("Colours"),
+        slider("Weapons Hue", "vr_lootbeam_hue_weapons", 0.f, 355.f, 5.f, "%.0f").help("Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet."),
+        slider("Magazines Hue", "vr_lootbeam_hue_mags", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Ammo Boxes Hue", "vr_lootbeam_hue_ammo", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Health Boxes Hue", "vr_lootbeam_hue_health", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Armour Hue", "vr_lootbeam_hue_armor", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Power-ups Hue", "vr_lootbeam_hue_powerups", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Keys and Runes Hue", "vr_lootbeam_hue_keys", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Backpacks Hue", "vr_lootbeam_hue_backpacks", 0.f, 355.f, 5.f, "%.0f"),
+    };
 }
 
 // Graphics: water, slime and lava.

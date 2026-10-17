@@ -12087,3 +12087,39 @@ Not run headlessly: the burning-body and lava-ball volumes, the toolgun's flames
 
 To try in VR: on map6 (Dawn of the Machine) shoot the nailgun through the braziers: lava nails, with a fizz. Swing the
 sword or axe into a grunt: a blood stream every blow; the crowbar or a punch about every other; throw the axe into one.
+## Loot beams (voice notes 2026-10-17, worktree `fastship`, branch `agent/lootbeams`)
+
+"A little pillar of light, like Diablo or Path of Exile", over things lying about to pick up (`vr_lootbeams.cpp`):
+Graphics > Loot Beams. Master `vr_lootbeams` 1; per category `vr_lootbeam_<weapons|mags|ammo|health|armor|powerups|
+keys|backpacks>` (weapons and magazines 1, the rest 0); `vr_lootbeam_opacity` 0.5, `_length` 1.2 m (from the thing's
+middle up), `_thickness` 0.06 m (the core; a glow 3x as wide), `_mag_min` 0.25 (a magazine's beam only fuller than
+that share), `_saturation` 0.75 and a hue each (`vr_lootbeam_hue_<category>`: weapons gold 40, magazines cyan 190,
+ammo 55, health 0, armour 120, power-ups 285, keys and runes 225, backpacks 25), `_fade_in` 0.5 s after `_settle`
+0.3 s at rest, `_near` 0.5 m (fades as your head comes near, not in your face as you bend to take it), `_far` 0 (off).
+
+- What: weapons are any weapon prop (the networked weapon id: dropped, thrown, enemies' dropped guns, AD's guns and the
+  crossbow), a pickup drawn as its prop (U_QVR_SPIN) or a `g_` model; magazines `progs/vr_mag_*`; ammo and health the
+  `maps/b_*` boxes (not the explosive ones); armour, keys (and the runes `end1-4`), backpacks, power-ups (id's and the
+  mission packs') by model name. Never: players, what the view draws (held, holstered), gibs, heads, ragdolls.
+- Rest: a thing that moved more than 4 units in the last `_settle` seconds (thrown, falling, a gun flying home to its
+  magnetic holster) has none; it fades in once it lies still, out in 0.1 s when it moves again. A thing coming into view
+  fades in as well.
+- Server side: a carried thing (`carry_player`) and a magazine's fullness go with U_QVR_WEAPONUID for things that aren't
+  weapon props (weapon id 0, the clip's byte: bit 7 carried, bits 0-6 the percent, 127 not a magazine; `lootByte` in
+  vr_server.cpp). QC keeps a magazine's capacity in `.vr_ammo_cap` (VR_Reload_SetModel); an older save's magazines,
+  without it, count as full when not empty. The protocol's bits are full, hence the reuse of the weapon-id field.
+- Drawn in the translucent pass after the tracers, every beam of a view in one draw (SoftEdge, additive, depth-tested):
+  two shells turned to the eye about the vertical plus a flare at the base, 42 vertices a beam.
+- Debug > Tests > Loot Beams: Lay Out Loot (`vr_lootbeam_test 24 18`: things in rows ahead, full and nearly empty nailgun
+  magazines among them, and gibs), Report (`vr_lootbeams_report`: each beam, the server's byte, its carrier in a local
+  game), Debug Lines (`vr_lootbeam_debug`).
+
+Verified (mock): e1m1, `vr_lootbeam_test 24 18`: 7 weapons and the full magazine lit, the nearly empty one skipped
+(`empty mags 1`); every category on: 14 beams, colours as above, among gibs and a corpse (screenshots). Cost, 56 things
+and 30 gibs (about 33 beams in view), `--exclusive`, vr_profile: the `vr particles` scope that holds it 0.05 ms CPU on,
+0.03 off (both eyes and the once-a-frame search: ~0.02 ms); GPU 0.00 on and off (under the timer's 0.01 ms). Not
+verified: a box in a hand losing its beam through the server's carried bit (the mock test hand holds the shotgun);
+the same byte carries the magazines' fullness, which works; a moving hand's box has none by the moving rule anyway.
+
+For him in VR: drop and throw guns, pull magazines out full and empty, kill things among gibs; check the beam's look
+(Graphics > Loot Beams), that a thing in the hand never glows, and whether 0.5 m Fade Up Close feels right.
