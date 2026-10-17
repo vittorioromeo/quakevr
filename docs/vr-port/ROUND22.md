@@ -11452,7 +11452,7 @@ task's place.
 The mock has no blocking runtime: `vr_mock_end_gpu_wait 1` makes its end call glFinish, as VD's does. Measured (mock
 1024², e1m1, fixed frames, `vr_dynres_test_load`, 400 frames each, exclusive):
 - Fast mode, load 120 (GPU tail 7.3 ms): test work 2 ms: frame 10.14 -> 8.19 ms, xrEndFrame 7.31 -> 5.34; 4 ms:
-  12.23 -> 8.29, xrEndFrame 7.38 -> 3.48; 8 ms (over the budget): deferred, 16.71 against 16.75. 0 ms: 8.44 either way.
+  12.23 -> 8.29, xrEndFrame 7.38 -> 3.48; 8 ms (over the budget): deferred, 16.71 against 16.75.
   Main-thread busy time the same on and off (the work moves, it is not removed).
 - Real time at 90 fps, load 160 (tail 9.4 ms): late frames (over 1.25 frames) with 3 ms: 62 -> 7 of 400; 5 ms: 400 -> 5;
   9 ms: deferred, 400 either way; 0 ms: 4 and 4.
