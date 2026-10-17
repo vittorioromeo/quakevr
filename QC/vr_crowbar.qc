@@ -98,7 +98,8 @@ void(float xHand) W_CrowbarMelee =
         return;
     }
 
-    // A wall: steel ringing and sparks.
+    // A wall: steel ringing and sparks, a dent (vr_decal_melee).
+    VR_Melee_WallMark(xHand, xdmg, TRUE);
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);

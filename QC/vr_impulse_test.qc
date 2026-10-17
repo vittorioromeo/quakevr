@@ -83,6 +83,22 @@ float() VR_TestImpulse =
         VR_Chainsaw_TakeNearest();
     }
 
+    if(self.impulse == 126 || self.impulse == 127) // QVR test: a sword's blade (126) or a crowbar (127) in the main hand strikes the wall or floor the view looks at, swung across it (VR_Melee_WallMark: the melee marks, vr_decal_melee)
+    {
+        makevectors(self.v_angle);
+        vector eye = self.origin + self.view_ofs;
+        entity b = VR_Blow(cVR_MainHand);
+        b.mh_thing = self.impulse == 126 ? VR_MTHING_SWORD : VR_MTHING_CROWBAR;
+        b.mh_kind = VR_MKIND_SLASH;
+        b.mh_c_blunt = FALSE;
+        vector across = v_right;
+        traceline(eye, eye + v_forward * 512, TRUE, self);
+        v_forward = across;
+        VRSetMeleeHitSoundPlayed(cVR_MainHand, FALSE);
+        VR_Melee_WallMark(cVR_MainHand, 20, FALSE);
+        bprint(sprintf("melee mark test: the main hand's thing %g struck %v (normal %v)\n", b.mh_thing, trace_endpos, trace_plane_normal));
+    }
+
     if(self.impulse == 216) // QVR test: the crowbar lying nearest you into an empty hand
     {
         VR_Crowbar_TakeNearest();

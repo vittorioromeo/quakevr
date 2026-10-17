@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_decals.hpp"
 
 namespace box3d::detail
 {
@@ -692,6 +693,14 @@ void soundHits(const b3ContactEvents& events)
                 continue;
             }
             physsound::hit(a, s.sound, b3Body_GetMass(s.body), e.approachSpeed, at);
+            // A hard prop's hard hit on the static world dents it (vr_decal_melee_prop_speed: a throw's; the normal out of
+            // the world, from A to B the event's).
+            if(b == 0 && (s.sound == physsound::Material::Wood || s.sound == physsound::Material::Metal ||
+                             s.sound == physsound::Material::Stone || s.sound == physsound::Material::Brick))
+            {
+                const glm::vec3 n{static_cast<float>(e.normal.x), static_cast<float>(e.normal.y), static_cast<float>(e.normal.z)};
+                decals::propHit(at, side ? n : -n, e.approachSpeed, b3Body_GetMass(s.body));
+            }
         }
     }
 }

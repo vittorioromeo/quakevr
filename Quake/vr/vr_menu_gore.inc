@@ -601,6 +601,20 @@
             .help("How far off holes and craters stop looking carved (they flatten from half as far; 1024 shipped)."),
         slider("Carved Marks Kept", vr_decal_carve_max, 32.f, 1024.f, 32.f, "%.0f")
             .help("How many of the newest holes and craters stay carved; with Permanent Decals the older ones stay, flat (256 shipped)."),
+        cycle("Carve Style", vr_decal_carve_style, {{-1.f, "Auto"}, {0.f, "Smooth"}, {1.f, "Retro"}, {2.f, "Faceted"}})
+            .help("How holes, craters, dents and grooves are carved. Smooth: round and smooth. Retro: pixelated like the walls, block by block on the wall's own texels, their depth in steps. Faceted: low-poly, flat sides (8 round, 3 rings out). Auto, as shipped: Retro on walls with Retro Textures' blocks, else Smooth."),
+        toggle("Melee Marks", vr_decal_melee)
+            .help("Melee blows on walls and floors carve their own marks (needs Carved Holes and Craters): blunt ones (the crowbar, a gun's butt or barrel, a pommel, Mjolnir, a wall torch, a fist holding a prop, a prop thrown hard) leave shallow round dents, blades (a sword, an axe, the chainsaw's bar) grooves along the swing, deepest in the middle; harder blows bigger and deeper. A bare fist leaves none. Off: the old shallow pits."),
+        slider("Blunt Dent Depth", vr_decal_melee_blunt_depth, 0.25f, 4.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How deep blunt blows' dents look (1 shipped: shallower than a pellet's pit; 0 a scuff only)."),
+        slider("Blunt Dent Size", vr_decal_melee_blunt_size, 0.5f, 2.f, 0.1f, "%.1fx")
+            .help("How wide the dents made from now on are (1 shipped)."),
+        slider("Slash Depth", vr_decal_melee_slash_depth, 0.25f, 4.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How deep blades' grooves look (1 shipped; 0 a scuff only)."),
+        slider("Slash Length", vr_decal_melee_slash_length, 0.5f, 2.f, 0.1f, "%.1fx")
+            .help("How long the grooves made from now on are (1 shipped)."),
+        slider("Slash Width", vr_decal_melee_slash_width, 0.5f, 2.f, 0.1f, "%.1fx")
+            .help("How wide the grooves made from now on are (1 shipped)."),
         toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),
     };

@@ -1198,6 +1198,7 @@ void(float xHand) HIP_FireMjolnir =
         // hit wall
         if(trace_fraction != 1.0)
         {
+            VR_Melee_WallMark(xHand, xdmg, TRUE); // a hammer's dent (vr_decal_melee)
             if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
             {
                 HIP_FireMjolnirLightning(xHand, org);
@@ -1351,6 +1352,7 @@ void(float xHand) W_FireAxe =
     if(!bleed)
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop, its handle's dent (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
@@ -1401,6 +1403,7 @@ void(float xHand) W_GunMelee =
     else
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, TRUE); // a gun's dent (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
@@ -1453,7 +1456,8 @@ void(float xHand) W_SwordMelee =
         return;
     }
 
-    // A wall: a clang and sparks.
+    // A wall: a clang and sparks, its blade's groove (its pommel's dent: vr_decal_melee).
+    VR_Melee_WallMark(xHand, xdmg, FALSE);
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
@@ -1499,7 +1503,8 @@ void(float xHand) W_ChainsawMelee =
         return;
     }
 
-    // A wall: a clang and sparks.
+    // A wall: a clang and sparks, its bar's groove (its engine's dent: vr_decal_melee).
+    VR_Melee_WallMark(xHand, xdmg, FALSE);
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
@@ -1582,6 +1587,7 @@ void(float xHand) W_FistMelee =
     else
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, TRUE); // a held prop's dent; a bare fist none (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
