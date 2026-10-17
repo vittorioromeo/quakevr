@@ -335,6 +335,7 @@ void R_Init (void)
 	cmd_function_t *cmd;
 
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
+	Cmd_AddCommand ("vr_world_fragments", R_WorldFragments_f); // QVR: (r_world.c)
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
 	cmd = Cmd_AddCommand ("r_showbboxes_filter", R_ShowbboxesFilter_f);
 	if (cmd)

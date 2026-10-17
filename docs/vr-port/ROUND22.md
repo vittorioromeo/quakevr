@@ -11660,3 +11660,56 @@ hold and `xrEndFrame Overlap Report` show the work before the end call and "past
 - Buttons: bottom-left corner row above OBS/Recording (only when attached AND Menu Detail Developer); Debug > Profiling and Memory (always listed; says "not attached" when not); toolgun panel More page (when attached; delay cycles 0/1/3 s).
 - Frame boundary: `GL_EndRendering` presents the desktop window once per game frame after `VR_RenderView` rendered both eyes, so a capture holds both eyes. `VR_RenderDocPresented` counts the presents. The unfocused mirror (`vr_mirror_unfocused_hz`) and unpaced test frames skip presents, which delays a capture.
 - Not verified under renderdoccmd: the author's game was running when the work was done.
+## Conservative depth for the parallax depth write (worktree `goreflesh`, branch `agent/consdepth`, 2026-10-17)
+
+Why: the RenderDoc flatscreen captures (finding F1) showed the world's shading pass running its shader on 1.16-2.15x
+the pixels it keeps, because the depth-writing programs (`vr_parallax_depth_write`, `PDO 1`) declare `depth_any`.
+His choice, option A: declare conservative depth so the driver can keep early or coarse depth rejection.
+
+What changed:
+- `vr_parallax_conservative_depth` (default 1, not archived; Debug > Views > Parallax Conservative Depth). The
+  programs then declare their depth never nearer than the surface's: `depth_less` (the engine uses reversed depth,
+  `REVERSED_Z`, where nearer is larger), `depth_greater` without it. `QVR_PDO_CLAMP` in the shading pass holds that
+  (a no-op wherever nothing is raised, so the depth written is the same).
+- **Which passes:** the depth pre-pass (`world_depth_pdo[1]`) always: its bound is the surface's depth or further at
+  every `vr_parallax_plane`. The shading pass (`world_pdo[1]`, `world_pdo_decal_retro[1]`, made when first needed) only
+  at `vr_parallax_plane 0`. **The brief had the plane backwards:** 1, the default since config 148, puts the polygon at
+  the relief's bottom with the relief raised over it, so those hits are nearer than the polygon; 0 is the carved-in
+  one. At the default the shading pass keeps `depth_any` (`r_world.c: R_PdoConservative`).
+- No other world or brush path writes `gl_FragDepth`: the carved decals, water, alias models and the alpha-tested and
+  OIT world don't.
+- `vr_world_fragments [passes]` (Debug > Profiling and Memory > World Fragment Counts): over the next 16 opaque world
+  passes it prints the fragments the pre-pass and the shading pass ran the shader on (`GL_FRAGMENT_SHADER_INVOCATIONS`)
+  and the shading pass's kept samples (`GL_SAMPLES_PASSED`). It reads each pass's queries at once, so it stalls: use
+  it for counts, not times.
+
+**Measured: no gain on this NVIDIA driver** (RTX 4090, 617.42). The shader ran on exactly the same fragments with
+`depth_less` as with `depth_any`, in both passes, flat and mock VR, start and hip1m1, 3 views each, planes 0 and 1:
+- **Flat** (960x540, 4x MSAA): shaded 239,400 / 520,193 / 520,312 / 624,475 / 628,514 / 633,164 per pass, identical
+  to the fragment, setting on or off. The pre-pass shaded the same number as the shading pass every time.
+- **Mock VR** (2048 eyes, its default foveation): 225,561 / 403,059 / 405,300 / 456,542 / 471,601 / 474,938, also
+  identical.
+- The counter does see early rejection: `vr_parallax_depth_write 0` at start's spawn facing yaw 0 drops the shading
+  pass from 633,164 to 540,596 fragments (518,400 pixels). That 15 % is what option A was meant to win back.
+- GPU `world+brush` (vr_bench, exclusive, 90 frames x 2 alternating reps, medians): flat 0.13-0.31 ms, every
+  difference within ±4 % with random sign; mock VR 0.24-0.64 ms, ±2-13 % with random sign (the reps themselves
+  differ that much).
+- ROUND21 had already timed `depth_less`, `depth_any` and `depth_greater` alike. These counts show why: this driver
+  turns early depth rejection off for any shader that writes `gl_FragDepth`, whatever the layout. The setting stays
+  in (default 1) since it costs nothing and may help on other vendors' GPUs, whose drivers may honour the layout (not tested here).
+
+**Picture:** paused eyeshots and flat screenshots with the setting off and on differ by 0-5 pixels of 1 level, the
+same as two shots with the same setting (start and hip1m1, plane 0).
+
+**Option B, the fallback** (no `gl_FragDepth` in the shading pass): the shading pass keeps the pre-pass's depth (its
+far bound, a few units deeper than the hit) with depth writes off. Early-Z comes back: the 15-22 % extra fragments
+above, about 0.1-0.3 ms an eye at his resolution. The cost is that every pass after it sees the bound, not the hit:
+soft particles, scene distances, water and the decals. To keep the hit's depth exact as well, the shading pass would
+write it to an extra R32F target, and one full-screen pass would copy it into the depth buffer (that pass writes
+`gl_FragDepth`, but its shader is trivial). Effort: about a day. That covers the `world_pdo` programs' extra output
+and the copy pass (MSAA: per sample, or a resolve that matches the depth's), the foveated-shading interaction
+(coarse pixels write one value, as now), the portal/mirror/envmap views that draw the world, and a check that
+`vr_parallax_debug` and the props meeting carved walls look the same.
+
+To try in VR: Debug > Views > Parallax Conservative Depth, off and on. Expect no difference in frame time or picture
+on his NVIDIA card. Debug > Profiling and Memory > World Fragment Counts shows the counts.

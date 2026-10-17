@@ -213,6 +213,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
                   "(Parallax Surface Level); dark blue: the surface's own depth."),
+        toggle("Parallax Conservative Depth", "vr_parallax_conservative_depth")
+            .help("vr_parallax_conservative_depth (A/B for speed; the picture is the same): Parallax Depth Write tells the "
+                  "GPU its depth is never nearer than the wall, so hidden pixels may be skipped before shading. The world "
+                  "pass only at Parallax Surface Level 0 (nothing raised), its depth pre-pass always."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
@@ -463,6 +467,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Tracy Build Info", "echo Tracy requires the optional Release-Tracy build")
             .help("Build with Misc/quakevr/build_tracy.ps1 for external CPU/GPU captures. Normal builds compile Tracy out."),
 #endif
+        command("World Fragment Counts", "vr_world_fragments")
+            .help("vr_world_fragments [passes]: over the next 16 opaque world passes, the pixels its depth pre-pass and its "
+                  "shading run the shader on, and those the shading keeps, in the console (shaded/kept: the work spent on "
+                  "hidden pixels; Parallax Conservative Depth on the Views page is the A/B)."),
         command("Print Report", "vr_profile_report")
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")

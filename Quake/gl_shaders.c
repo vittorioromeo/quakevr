@@ -569,8 +569,8 @@ void GL_CreateShaders (void)
 			for (mode = 0; mode < 3; mode++)
 				glprogs.world[oit][dither][mode] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world|OIT %d; DITHER %d; MODE %d%s", oit, dither, mode,
 					mode == WORLDSHADER_SOLID ? "; NO_DECAL_RETRO 1" : ""); // QVR: the decals' retro textures' code: GL_WorldDecalRetroProgram's
-	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
-		glprogs.world_pdo[dither] = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID);
+	for (dither = 0; dither < 3; dither++) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write); the conservative ones when first needed
+		GL_WorldPdoProgram (dither, false);
 
 	for (dither = 0; dither < 2; dither++)
 	{
@@ -587,7 +587,8 @@ void GL_CreateShaders (void)
 	}
 	glprogs.skystencil = GL_CreateProgram (skystencil_vertex_shader, NULL, "sky stencil");
 	glprogs.world_depth = GL_CreateProgram (world_vertex_shader, NULL, "world depth|OIT 0; DITHER 0; MODE %d", WORLDSHADER_SOLID); // QVR
-	glprogs.world_depth_pdo = GL_CreateProgram (world_vertex_shader, world_depth_fragment_shader, "world depth pdo|OIT 0; DITHER 0; MODE %d; PDO 1", WORLDSHADER_SOLID); // QVR: pixel depth offset (vr_parallax_depth_write)
+	for (mode = 0; mode < 2; mode++) // QVR: pixel depth offset (vr_parallax_depth_write); 1: conservative depth (vr_parallax_conservative_depth)
+		glprogs.world_depth_pdo[mode] = GL_CreateProgram (world_vertex_shader, world_depth_fragment_shader, "world depth pdo|OIT 0; DITHER 0; MODE %d; PDO 1; PDO_CONS %d", WORLDSHADER_SOLID, mode);
 
 	int poseverttype;
 	for (oit = 0; oit < 2; oit++)
@@ -625,16 +626,34 @@ first time it is needed. The others go without it (NO_DECAL_RETRO): its mere pre
 quarter (PERF_DECISIONS.md 15), and making these at the start would add to every start's shaders.
 =============
 */
-GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo)
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo, qboolean cons)
 {
-	GLuint *program = pdo ? &glprogs.world_pdo_decal_retro[dither] : &glprogs.world_decal_retro[oit][dither];
+	GLuint *program = pdo ? &glprogs.world_pdo_decal_retro[cons ? 1 : 0][dither] : &glprogs.world_decal_retro[oit][dither];
 	if (!*program)
 	{
 		if (pdo)
-			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo decal retro|OIT 0; DITHER %d; MODE %d; PDO 1", dither, WORLDSHADER_SOLID);
+			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo decal retro|OIT 0; DITHER %d; MODE %d; PDO 1; PDO_CONS %d", dither, WORLDSHADER_SOLID, cons ? 1 : 0);
 		else
 			*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world decal retro|OIT %d; DITHER %d; MODE %d", oit, dither, WORLDSHADER_SOLID);
 	}
+	return *program;
+}
+
+/*
+=============
+GL_WorldPdoProgram
+
+QVR: the opaque world's program writing its parallax hits' depth (vr_parallax_depth_write), without the decals' retro
+code. cons: it declares the depth it writes never nearer than the surface's (vr_parallax_conservative_depth, only
+where no relief is raised: vr_parallax_plane 0), so the driver may still reject hidden pixels before shading them;
+made the first time it is needed (the depth_any ones at the start, as before).
+=============
+*/
+GLuint GL_WorldPdoProgram (int dither, qboolean cons)
+{
+	GLuint *program = &glprogs.world_pdo[cons ? 1 : 0][dither];
+	if (!*program)
+		*program = GL_CreateProgram (world_vertex_shader, world_fragment_shader, "world pdo|OIT 0; DITHER %d; MODE %d; PDO 1; PDO_CONS %d; NO_DECAL_RETRO 1", dither, WORLDSHADER_SOLID, cons ? 1 : 0);
 	return *program;
 }
 
