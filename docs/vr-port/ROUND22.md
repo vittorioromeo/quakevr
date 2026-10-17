@@ -10566,8 +10566,14 @@ and the elbows within 1 cm.
   16 cm on average.
 - (The capture is his, not committed: `quakevr/bodytrack_dump*.csv` is ignored.)
 
-Not changed: Min Confidence (his capture's confidence never left 1.0). Body Calibration weighs a joint not flagged
-tracked at 0.2 (`GUESSED_WEIGHT`), and through Virtual Desktop that is every arm and leg joint.
+- With the old gating (the wrist joint required) the same test fails every check. In the face sweep the right elbow is
+  40 to 10.5 cm off at weight 0. In the replay the elbows are off L 6.5 and R 18.6 cm, with the arms on in 0 of 2.
+
+Body Calibration's samples now take the upper body's valid joints (the shoulders, elbows, wrists or twist joints, hips
+and neck) at full weight. Virtual Desktop flags none of them tracked, so before this every one weighed `GUESSED_WEIGHT`
+(0.2). The legs stay a weak prior unless flagged tracked.
+
+Not changed: Min Confidence (his capture's confidence never left 1.0).
 
 For him in VR: the same pose, with Skeleton Bones at **Body Over Tracked**. The yellow elbow should now follow the
 magenta one up and out, and the magenta forearm now shows. Then Print Body Tracking Stats: the gate line should say
