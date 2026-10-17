@@ -3252,6 +3252,48 @@ const ViewEntity* find(const entity_t* e)
     return &ve->ent == e ? ve : nullptr;
 }
 
+int drawGroup(const entity_t* e)
+{
+    const auto* first = reinterpret_cast<const unsigned char*>(&entities);
+    const auto* p = reinterpret_cast<const unsigned char*>(e);
+    if(p < first || p >= first + sizeof(entities))
+    {
+        return find(e) ? VR_DRAW_MIRROR : -1; // the body's mirror image, or not a view entity
+    }
+    struct Range
+    {
+        size_t first, count;
+        int group;
+    };
+#define QVR_DRAW_RANGE(member, group) \
+    Range{offsetof(Entities, member) / sizeof(ViewEntity), sizeof(Entities::member) / sizeof(ViewEntity), group}
+    static constexpr Range ranges[] = {QVR_DRAW_RANGE(weapon, VR_DRAW_HELD), QVR_DRAW_RANGE(weaponMorph, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(hand, VR_DRAW_HANDS), QVR_DRAW_RANGE(holster, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(holsterSlot, VR_DRAW_HOLSTERED),
+        QVR_DRAW_RANGE(holsterButton, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldButton, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(holsterFrontButton, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldFrontButton, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
+        QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
+        QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchGrenade, VR_DRAW_WORN),
+        QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(well, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterWell, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldWell, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(ssgBarrels, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterSsgFrame, VR_DRAW_HOLSTERED),
+        QVR_DRAW_RANGE(holsterSsgBarrels, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldSsgFrame, VR_DRAW_LYING),
+        QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER)};
+#undef QVR_DRAW_RANGE
+    const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
+    for(const Range& r : ranges)
+    {
+        if(index >= r.first && index < r.first + r.count)
+        {
+            return r.group;
+        }
+    }
+    return VR_DRAW_OTHER;
+}
+
 const entity_t* cloneSource(const entity_t* e)
 {
     const auto* clone = reinterpret_cast<const unsigned char*>(clones);

@@ -1576,6 +1576,10 @@ void eyeCacheStats_f()
         static_cast<double>(vr_alias_eye_cache.value), s[0], s[1], s[2]);
     Con_Printf("  checked %d: differ lerp %d, matrix %d, light %d, counts %d, instance %d, smooth rows %d\n", s[3], s[4],
         s[5], s[6], s[7], s[8], s[9]);
+    int taken = 0, checked = 0, bad = 0;
+    R_AliasDepthShareStats(&taken, &checked, &bad);
+    Con_Printf("  first eye (vr_shadow_setup_share %g): %d transforms from the shadow pass, %d checked, %d differ\n",
+        static_cast<double>(vr_shadow_setup_share.value), taken, checked, bad);
 }
 
 // vr_shadow_caster_stats: since the last call, the dynamic lights' world caster sets kept and collected
@@ -1918,6 +1922,7 @@ extern "C" void VR_RenderShadowMaps(void)
     // Everything drawn into the atlases (twice by vr_shadow_layered_check).
     const auto renderAll = [&]()
     {
+        R_AliasDepthShare(setupCacheOn ? static_cast<int>(vr_shadow_setup_share.value) : 0); // (the check's off way: as before)
         R_AliasDepthCacheBegin(setupCacheOn); // each caster set up once in this pass (r_alias.c)
         facesDrawn = 0;
         modelsDrawn = 0;

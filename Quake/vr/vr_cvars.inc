@@ -559,6 +559,17 @@ QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
 // Debug: each VR frame's end waits this many ms inside the timed end call (OpenXR's xrEndFrame, the mock's), as a runtime
 // holding the frames would (vr_xr_stall.cpp's held-frames lines: the test of them); 0 never.
 QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
+// 1: after both eyes' draws the frame is flushed and work that reads no head or hand pose (the particles' step, the
+// music's stream) runs before the end call (xrEndFrame), while the GPU finishes the frame: Virtual Desktop's OpenGL path
+// waits for the GPU inside xrEndFrame. Only while it fits in the GPU's tail the last frames' GPU timestamps foretell; the
+// rest after, as with 0 (vr_xr_overlap.cpp; vr_xr_overlap_report).
+QVR_CVAR(vr_xr_overlap, "1", CVAR_ARCHIVE)
+// Debug: this many ms of busy CPU work a frame that reads no pose (vr_xr_overlap's test): before the end call while it
+// fits in the GPU's tail (vr_xr_overlap 1), else after it (0: none).
+QVR_CVAR(vr_debug_xr_overlap_work_ms, "0", CVAR_NONE)
+// Mock backend: 1 makes its end call wait for the GPU to finish the frame (glFinish), as Virtual Desktop's OpenGL path's
+// xrEndFrame does (vr_xr_overlap's tests); 0 (the default): it returns at once.
+QVR_CVAR(vr_mock_end_gpu_wait, "0", CVAR_NONE)
 // While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
@@ -583,6 +594,12 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Shadow Caster Set-up Shared: 1 each animated shadow caster's whole instance (pose, matrix,
+// zero blend, swing rows) made once for the frame's shadow lights and copied into the others' batches, its depth draws
+// with no textures bound (no fragment shader reads them), and the first eye's scene taking the shadow pass's lerp and
+// matrices for the same models (r_alias.c R_AliasTransformShared); 0 as before (only the lerp and the matrix shared by the
+// lights); 2 also the first eye's worked out again and compared (vr_alias_eye_cache_stats). The same images either way.
+QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Model Light Probes Ahead: 1 a batch of models' ambient probes (vr_model_ambient_dir's
 // rays and the light they read) worked out on the job pool before the batch is drawn, taken where their inputs come
 // out the same (vr_ambient.cpp, "Ahead"); 0 on the main thread in the draw; 2 ahead and worked out again in the draw,
@@ -704,6 +721,7 @@ QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle'
 QVR_CVAR(vr_melee_phase, "1", CVAR_ARCHIVE)          // 1: on (the author's, 2026-10-07); 0: the hand is drawn stopped at a monster however fast it goes (as before)
 QVR_CVAR(vr_melee_phase_speed, "4", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (the author's 4; 2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
 QVR_CVAR(vr_melee_phase_time, "0.2", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
+QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
 QVR_CVAR(vr_gunyaw, "0", CVAR_ARCHIVE)
@@ -1803,7 +1821,7 @@ QVR_CVAR(vr_particle_saturate_cover, "10", CVAR_NONE) // tests: from how many vi
 QVR_CVAR(vr_particle_saturate_growth, "1", CVAR_NONE) // tests: each batch this many times the one before (1: all the same size)
 QVR_CVAR(vr_particle_saturate_opacity, "0.999", CVAR_NONE) // tests: a pixel this opaque skips the particles behind it (1: none skipped)
 QVR_CVAR(vr_particle_retro_fast, "1", CVAR_ARCHIVE) // full resolution: derive the retro grid per vertex; 0: original fragment path for comparison (retro half always uses fast shaders)
-QVR_CVAR(vr_particle_retro_halfres, "0", CVAR_ARCHIVE) // opt-in half resolution for heavy retro particles; preserves palette/grid, softer edges
+QVR_CVAR(vr_particle_retro_halfres, "1", CVAR_ARCHIVE) // half resolution for heavy retro particles (blended in by depth: vr_particle_halfres_upsample); softer edges; 0: always full size
 QVR_CVAR(vr_particle_retro_halfres_pixels, "0", CVAR_ARCHIVE) // minimum projected half-size for the retro half-resolution pass; smaller particles stay crisp but draw over the larger ones (0: all, in their order)
 QVR_CVAR(vr_blob_shadows, "2", CVAR_ARCHIVE)          // blob shadows (dark discs under things): 0 off, 1 always, 2 only without real shadows
 QVR_CVAR(vr_player_shadows, "3", CVAR_ARCHIVE)

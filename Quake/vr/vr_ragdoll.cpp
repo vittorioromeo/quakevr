@@ -1832,6 +1832,11 @@ template <typename Rots, typename Poss>
 
 [[nodiscard]] const Swapped* swappedOf(const entity_t* e)
 {
+    if(draw.swapped.empty() || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
+    {
+        return nullptr; // not a client entity (the view entities, the static and temporary ones): none of them (the
+                        // shadow casters and the alias batches ask for every model, several times a light)
+    }
     for(const Swapped& s : draw.swapped)
     {
         if(&cl_entities[s.num] == e)

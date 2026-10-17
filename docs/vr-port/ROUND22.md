@@ -11476,3 +11476,178 @@ To check by hand:
 Decision: the alias "world models / player models" split stays Tracy-only, because it reorders the opaque alias
 draws. The brush "world / brush entities" split also stays Tracy-only, because it costs the world pre-pass coverage.
 In captures each alias model still has its own group (its name).
+
+## Shadow casters set up once a frame; the player's models' GPU parts (worktree `gorefx`, branch `agent/perfshadow2`, 2026-10-17)
+
+From qvr-kit scratch/tracy_gpu1.md, items 3 (S1) and 4 (M1).
+
+Shadow casters (`vr_shadow_setup_share`, default 1, Debug > Profiling and Memory > Shadow Caster Set-up Shared; r_alias.c).
+The per-pass cache (2026-10-08) kept only each caster's lerp and matrix: every other light still made its instance again
+(the depth-only data, the zero blend, the motion slots, r_lerpmodels 3's swing rows) and its flush bound all the
+fragment shader's textures (normal map, skin mask, glove paint, env cube, wounds, retro table) for a program with no
+fragment shader. Now: the first light's whole instance and its swing rows are kept (VR_AnimSmoothKeep, as the second eye's
+cache does) and copied into the other lights' batches; the opaque casters' flushes bind no textures; and the first eye's
+scene (R_DrawAliasModel_Real and R_AliasPrefetch) takes the shadow pass's lerp and matrices for the same entities
+(R_AliasTransformShared; R_AliasTransform is the same for a light and an eye; never cl.viewent nor while the drawn moves
+are logged). `vr_ragdoll.cpp swappedOf` returns at once for an entity outside cl_entities (the view entities): the casters
+and the batches asked VR_AliasBonePoses for every model several times a light, a scan of every ragdoll each time. 2 works
+the first eye's set-ups out again and compares (`vr_alias_eye_cache_stats` prints taken, checked, differing); 0 as before.
+Measured (Release-Tracy, default zones, GPU detail on, mock looking 50 degrees down at the body, 800 fixed frames; us a
+frame, 0 then 1):
+
+| | hip1m1 start | start |
+|---|---|---|
+| `shadow alias draw` | 30.4 / 21.4 | 65.4 / 57.5 |
+| its flushes | 15.3 / 8.2 | 27.8 / 19.3 |
+| `eye L` (CPU) | 300 / 272 | 488 / 473 |
+
+The eyes' first flush now binds the textures the shadow pass used to leave bound (hip1m1 `alias flush` outside the shadow
+pass 8.0 / 11.6), counted in `eye L` above. The VR capture's 2.3 us a caster (hip1m1 after fights, about 150 casters) is
+not reproduced by the mock (0.4-0.9 us): ragdolls and more lights there; the swappedOf change is aimed at the first.
+Checks: `vr_shadow_setup_share 2` on hip1m1 and start, 300 frames each: 44,726 first-eye set-ups compared, 0 differ;
+`vr_shadow_layered_check 20 cache` (as before against shared): 0 texels differ in both atlases on both maps; paused
+screenshots (hip1m1, the body in view) off/off 787 pixels differ by 1, off/on 1523 by 1 (none by more). `vr_physics_hash`
+is not repeatable here between two runs of the same settings (start 300 frames: a4192e19 then 86e7680b, both off), so it
+says nothing either way; the change is render-only.
+
+The player's models on the GPU (profiling builds, `vr_tracy_gpu_detail 1`): `alias: player models` now holds a zone per
+part, each run of one part in the drawn order (so the same draws and order as unzoned): `player: hands`, `body`, `held`,
+`holstered`, `worn` (gadget, flashlight, pouches), `lying gear` (the parts of the weapons lying about), `mirror image`,
+`other` (VR_ViewEntityGroup, vr_view.cpp drawGroup). The gloves are no models of their own: the hands' and the body's
+shading. Mock (hip1m1 start, start; both eyes, ms a frame): body **0.142 / 0.140-0.157**, worn 0.024 / 0.045-0.052,
+holstered 0.008 / 0.011-0.013, hands 0.004 / 0.001 (nothing held). The body is about 70% of it. Not done yet: the cut
+itself. Notes for it: the world's pre-pass gains nothing from the player's models drawn first while
+vr_parallax_depth_write is on (its shader writes gl_FragDepth: every fragment shaded, vr_glsl.h QVR_PARALLAX_DEPTH_OUT);
+a depth pre-pass of the body alone (its own overdraw: arms over the torso) needs `invariant gl_Position` in the alias
+vertex shader, so that the alias_depth program's depths equal the shading one's.
+
+To try in VR: nothing should look different (Shadow Caster Set-up Shared off and on, near monsters and your body in a
+lit room: the shadows the same). With a Release-Tracy capture, the `player: *` GPU zones tell which part costs there.
+## Retro particles at half resolution by default (worktree `tghost`, 2026-10-17)
+
+- `vr_particle_retro_halfres` now defaults to 1 (config version 153, renumber at merge; only a saved 0 moves). Edges:
+  the depth-aware upsample (`vr_particle_halfres_upsample 1`, bilateral on the scene's depth) already exists and is
+  on, so no further mitigation was added. Look for: a thin bright/dark fringe where smoke or fire meets a wall edge
+  or a monster's silhouette, blockiness (2x2 pixels) on the soft edges of big particles, and (retro) the block grid
+  misaligned with the world grid. `vr_particle_halfres_upsample 2` paints in green the pixels that took a texel by its
+  distance.
+- Measured (Release-Tracy, `vr_tracy_preset full`, mock headset, GPU zone `vr particles`, ms per frame in 0.5 s
+  bins, `vr_retro 1`): a close blood burst (`vr_particle_test 1 700` every 3 frames) peaks 1.28-1.48 ms at full
+  size; with the half path forced (`vr_particle_halfres_force 1`) 0.40-0.45 ms. Explosions (`vr_particle_test 2 300`
+  plus `quake`): 0.55-0.68 against 0.23-0.25 forced. About -65% when the half path runs.
+- BUT unforced, the half path hardly ever runs in these bursts: it needs 1.5 views of large particles, and the
+  heavy frames are the ones in `reverseOrderThisFrame` (`vr_particle_saturate_cover` 10 views), which deliberately
+  stay at full size for retro (PERF_DECISIONS item 5: half size cost 25 against 8 ms there). Lowering the entry
+  threshold to 0.05 views changed nothing (tried, reverted), so the saturate gate is what holds it. The default
+  alone will not deliver the expected 1.0-1.4 ms; the open design question is saturate vs half size for
+  700-particle bursts.
+- Mock screenshots (480x270, `scratch/half0.png` off, `half1.png` forced on, same commands): no halos visible at that
+  size; particle states differ between runs, so no pixel diff.
+## Melee on walls and floors: struck over the frames the weapon stays there (worktree `fastship`, branch `agent/meleewall`, 2026-10-17)
+
+His note: melee blows rarely register on walls and floors, the weapon "just glances off", while enemies and things
+register reliably.
+
+Why (reproduced in the mock: his own axe and sword takes replayed at vrfiringrange's north wall, the wall placed at the
+dummy's front and 8, 16, 24 units nearer, and lowered 0.9 m at the floor; the same swings with the crowbar and the
+shotgun):
+
+- **The hand's slide stops the weapon, and the melee judged the blow on what the wall left of it.** `vr_handpose.cpp`
+  holds a weapon (and its hand) off the wall it meets, sliding along it. A wall had one chance at a blow: the frame a
+  part crossed its surface (or came within 3 units of it along its sweep). In that frame `VR_Melee_Decide` often said
+  no for reasons of history (the wrist's 0.12 s average not up yet early in the swing, the run), and in the next frames
+  the parts were in or held at the wall, which the sweep skipped (a trace starting in solid), with the hand's speed
+  already cut (an axe's grip 8.9 m/s coming in, 3.6 the frame it arrived). An enemy's box gets the blow decided again
+  every frame the weapon is in it (and Swing Through Enemies lets the drawn hand follow the real one there), so enemies
+  register and walls don't. The deeper the swing went into the wall, the worse (the axe 10/14 at the dummy's front,
+  3-7/14 deeper).
+- **The floor:** a point going down more steeply than 20 degrees never struck a floor (`VR_MELEE_WALL_DOWN`, for a hand
+  reaching to the hip holster), and a chop at the ground always goes down steeply.
+- Not the cause: Box3D (the weapon bodies push props only, not the world), the cooldowns (`time >= xInMelee`), or the
+  tip-only tracing (every point is swept).
+
+What changed (`QC/vr_melee.qc`, `VR_Melee_Sweep` and new `VR_Melee_WallEntered`, `VR_Melee_WallInto`,
+`VR_Melee_WallHeld`, `VR_Melee_WallDecide`):
+
+- A part that goes into a wall (or the floor) at half the least speed or more along its normal (1.6 m/s at Swing Speed
+  3.2; this pose's velocity, the sweep's or the pose before's, the most: the slide cuts the arriving pose's) opens a
+  window, **`vr_melee_wall_hold` (0.2 s; VR Settings > Melee, "Wall Hit Window")**: while the hand's parts stay at that
+  wall (in it, seen from the grip, or within 4 units off it) and aren't leaving it, the blow is decided there each
+  frame, at the velocities the hand came in at. Slower than that along the normal, a brush: no blow, as before for
+  slow touches (a fast swing along a wall's face, its tip just touching it, is a brush now; it struck before).
+- The floor is struck going down steeply when the contact is 0.35 m or more ahead of the head (not by the hip).
+- A hand strikes a wall again only 0.35 s after its last wall blow (the wall stopping the hand re-armed it at once,
+  and a swing bounced off for a second thunk).
+- `vr_melee_wall_hold 0`: everything as before (one frame, no floor chops, no brush rule, no re-hit wait).
+- Enemies: untouched (the wall branch only runs when no box target is struck).
+
+Numbers (mock, hits of takes; his takes with their recorded speeds and arcs, src = the takes' weapon):
+
+| weapon (takes) | wall at dummy front +0/8/16/24 units, before | after | 10 units past it (near-miss), before / after | floor, before / after | dummy |
+|---|---|---|---|---|---|
+| axe (his 14 axe takes) | 27/56 | 45/56 | 6/14 / 6/14 | 1/14 / 5/14 | 11/14 |
+| sword (his 19 sword takes) | 51/76 | 61/76 | 18/19 / 16/19 | 3/19 / 10/19 | 19/19 |
+| crowbar (the axe takes) | 34/56 | 51/56 | 11/14 / 11/14 | 2/14 / 5/14 | - |
+| shotgun (gun bash; the axe takes) | 32/56 | 51/56 | 7/14 / 7/14 | 1/14 / 8/14 | - |
+
+The floor's are of every take lowered 0.9 m (many never reach it). Takes with two wall blows (of 70): axe 0 -> 2, sword
+16 -> 16 (of 76/95), crowbar 8 -> 13, shotgun 3 -> 16: a take often strikes the wall again later in its motion
+(follow-through, recovery) more than 0.35 s on; not looked into further. The sword lost 3 of its 19 at the deepest wall (24
+units): one-frame hits of the old rule as the blade crept into the wall slowly at the start (0.1 m/s along its normal)
+or jumped there on the two-hand grip, now brushes. eval.sh: 168/177, the same 6 diffs from the baseline with
+`vr_melee_wall_hold` 0 and 0.2 (parry bash 6 -> 3 and 10 -> 5, damage numbers already on next).
+
+Synthetic swings (`motion_synth.py` style, scratch only) weren't usable for rates: their controller turns about itself,
+not the wrist, so the wrist test fails them early in the swing on enemies too.
+
+Test in VR:
+
+- [ ] Axe, sword, crowbar and a gun swung into a wall from close and from arm's length, hard: each a thunk, sparks and
+  a mark, once.
+- [ ] Chops at the floor ahead (kneel or bend): they register; reaching down to a hip holster with a weapon doesn't.
+- [ ] A weapon dragged lightly along a wall, or rested against it and wiggled: no thunks.
+- [ ] Wall Hit Window 0 for comparison (the old behaviour).
+## Work under xrEndFrame's GPU wait (worktree `dequant`, branch `agent/xroverlap`, 2026-10-17)
+
+Tracy C1 (approved): with Virtual Desktop's OpenGL path xrEndFrame waits until the GPU has finished the frame, so the
+main thread idled there for the GPU's tail (p50 0.59 ms; in late frames as long as the GPU frame). `vr_xr_overlap` 1
+(default; vr_xr_overlap.cpp): after both eyes' draws and the mirror, a timestamp query and glFlush, then work that reads
+no head or hand pose runs before xrEndFrame; what does not fit runs at its usual place after it (host.c
+`VR_XrOverlapLate`, so with 0 or no VR nothing changes). Moved: `CL_RunParticles` (not while the window's spectator
+camera is on: it draws them after the end call) and `BGM_Update` (the music stream; still before `S_Update`), plus
+`vr_debug_xr_overlap_work_ms` (busy CPU work, the test). Only the screen update of the host frame's own screen phase
+overlaps (`VR_XrOverlapArm` around it), never a loading plaque's.
+
+Left after the end call, on purpose: `S_Update` (its listener is the head's pose), the server tick (it reads the hands
+through the move; the deferred tick of `vr_server_thread_check 2` too) and the next frame's set-up (after the pose
+sample). The bookkeeping (`VR_ProfileFrame`, Tracy's frame mark) defines the frame's edges, so it stays.
+
+Latency guard: the tail foretold is the lesser of two lower bounds: the eyes' GPU time (the always-on `eye L` + `eye R`
+phase timestamps dynres reads; the least of the last 4 read back) less the CPU time since the first eye began (the GPU
+cannot run a command before it is issued), and the least of the last 4 tails measured. Of it 0.8 is spent; a task runs
+only if the time since the flush plus its foretold cost (a moving average of its runs) fits. The tail is measured from
+the query read back a few frames later, against the flush's CPU time; the GL clock is tied to the CPU's once a second
+as the screen update starts (`glGetInteger64v(GL_TIMESTAMP)` costs 0.5-1.4 ms after the eyes, NVIDIA's threaded driver
+draining its queue; 0.011 ms there). Its own cost: 0.002 ms a frame. Tracy: zone `xr overlap`, plots `XR overlap ms`,
+`XR overlap estimate ms`, `XR overlap GPU tail ms`, `XR overlap estimate error ms`. `vr_xr_overlap_report` (Debug >
+Profiling, with the toggle and Test Work Under xrEndFrame): the estimate, the tail, the error, frames whose work
+outlasted the tail, xrEndFrame's time, how many end calls returned with the GPU's end (VD's waiting), late frames, each
+task's place.
+
+The mock has no blocking runtime: `vr_mock_end_gpu_wait 1` makes its end call glFinish, as VD's does. Measured (mock
+1024², e1m1, fixed frames, `vr_dynres_test_load`, 400 frames each, exclusive):
+- Fast mode, load 120 (GPU tail 7.3 ms): test work 2 ms: frame 10.14 -> 8.19 ms, xrEndFrame 7.31 -> 5.34; 4 ms:
+  12.23 -> 8.29, xrEndFrame 7.38 -> 3.48; 8 ms (over the budget): deferred, 16.71 against 16.75.
+  Main-thread busy time the same on and off (the work moves, it is not removed).
+- Real time at 90 fps, load 160 (tail 9.4 ms): late frames (over 1.25 frames) with 3 ms: 62 -> 7 of 400; 5 ms: 400 -> 5;
+  9 ms: deferred, 400 either way; 0 ms: 4 and 4.
+- The estimate was under the measured tail in every frame (0 over), by 0.74-1.0 ms (conservative); no frame's work
+  outlasted the tail.
+- With his real work the gain is small: the particles' step and the music stream are about 0 ms on the mock (no music in
+  the tests); hip1m1's particles a few hundredths. The mechanism is the gain's place for later pose-free work.
+
+Not verified without VR: that VD's xrEndFrame shrinks by the work moved (the report's "waited for the GPU" count and
+the `xr submit` zone should show it), the error of the bound on his GPU, and the real tasks' costs in a fight with music.
+
+To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
+hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".

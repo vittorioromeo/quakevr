@@ -1222,6 +1222,9 @@ R_DrawEntitiesOnList
 static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
 #ifdef QVR_TRACY
 static entity_t *r_zoned_world[MAX_VISEDICTS], *r_zoned_player[MAX_VISEDICTS]; // QVR: R_DrawAliasModelsZoned's parts
+static const char *const r_zoned_player_parts[VR_DRAW_GROUPS] = { // QVR: the player's models' GPU sub-zones (VR_DRAW_*)
+	"player: hands", "player: body", "player: held", "player: holstered", "player: worn", "player: lying gear",
+	"player: mirror image", "player: other"};
 #endif
 
 /*
@@ -1280,7 +1283,16 @@ static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapa
 	R_DrawAliasModels (r_zoned_world, world);
 	VR_GPUZoneEnd ();
 	VR_GPUZoneBegin ("alias: player models");
-	R_DrawAliasModels (r_zoned_player, player);
+	for (i = 0; i < player; ) // its parts (VR_ViewEntityGroup), each run of one a zone of its own, in the drawn order
+	{
+		int group = VR_ViewEntityGroup (r_zoned_player[i]), j;
+		for (j = i + 1; j < player && VR_ViewEntityGroup (r_zoned_player[j]) == group; j++)
+			;
+		VR_GPUZoneBegin (r_zoned_player_parts[group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER]);
+		R_DrawAliasModels (r_zoned_player + i, j - i);
+		VR_GPUZoneEnd ();
+		i = j;
+	}
 	VR_GPUZoneEnd ();
 #endif
 }

@@ -40,6 +40,7 @@
 #include "vr_upscale.hpp"
 #include "vr_water.hpp"
 #include "vr_window.hpp"
+#include "vr_xr_overlap.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -949,6 +950,7 @@ extern "C" int VR_RenderView()
     // vr_xr_late_acquire: only once the scene is drawn (it writes into the eye's own targets), so the runtime's wait
     // for the image overlaps the scene's drawing.
     const bool lateAcquire = vr_xr_late_acquire.value != 0.f;
+    xroverlap::eyesBegin(); // (vr_xr_overlap's estimate: the eyes' GPU time less the CPU's since)
 
     // Single-pass stereo (vr_stereo_single.cpp, vr_stereo_single): both eyes' views set up first and the passes ported so
     // far drawn once into both; each eye below draws the rest of its scene from its layer.
@@ -1089,15 +1091,22 @@ extern "C" int VR_RenderView()
     R_AliasEyeCacheEnd();
     stereosingle::endFrame();
 
+    // vr_xr_overlap: the frame flushed, and work that reads no pose run while the GPU finishes it (VD's xrEndFrame
+    // waits for the GPU), as far as it fits in the GPU's tail foretold (vr_xr_overlap.cpp).
+    const bool spectator = window::view() == window::View::Spectator && eyesRendered == 2;
+    xroverlap::beforeEnd(eyesRendered == 2, spectator);
+
     // Both eyes, or no projection layer at all (an eye's image could not be acquired).
+    const double endStart = profile::nowSeconds();
     profile::begin("xr submit", true); // xrEndFrame
     be->endFrame(eyesRendered == 2);
     profile::end();
+    xroverlap::afterEnd(eyesRendered == 2, (profile::nowSeconds() - endStart) * 1000.0);
     bench::submitted();
     loading::submitted(eyesRendered == 2); // (the level change's notice was in them: vr_loading.cpp)
 
     // The window's spectator camera, once the headset has its images: it does not delay them.
-    if(window::view() == window::View::Spectator && eyesRendered == 2)
+    if(spectator)
     {
         stereo::renderSpectator(windowTarget, windowWidth, windowHeight);
     }

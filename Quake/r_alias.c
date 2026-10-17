@@ -106,21 +106,37 @@ static struct {
 // (its gun offsets follow the camera's axes).
 #define ALIASDEPTH_CACHE_SIZE	4096	// a power of two
 #define ALIASDEPTH_CACHE_PROBES	16
+// vr_shadow_setup_share (R_AliasDepthShare) 1 or 2 also keeps each caster's whole instance (its pose, matrix, zero
+// blend, depth-only data, motion slots: the same for every light) and its swing rows (r_lerpmodels 3), copied into the
+// other lights' batches; and the first eye's scene takes the pass's lerp and matrices for the same entities instead of
+// setting them up again (R_AliasTransformShared: R_AliasTransform is the same for a light and an eye; 2 sets them up
+// anyway and compares). 0: only the lerp and the matrix, as before.
 typedef struct {
 	const entity_t	*ent;
 	const qmodel_t	*model;
 	int			frame;
 	int			gen;
-	short		pose1, pose2;
-	float		blend;
 	int			totalverts;
 	int			zeroblend;
+	lerpdata_t	lerpdata;
 	float		model_matrix[16];
+	float		bounds_matrix[16];
+	int			instok;		// inst and the swing rows kept (vr_shadow_setup_share)
+	int			smoothfirst;	// its swing rows: where they are kept (VR_AnimSmoothKeep), how many, where they were in the batch
+	int			smoothrows;
+	int			smoothat;
+	aliasinstance_t	inst;
 } aliasdepthentry_t;
 static aliasdepthentry_t	aliasdepthcache[ALIASDEPTH_CACHE_SIZE];
 static int					aliasdepthgen; // the pass's (0: none)
 static int					aliasdepthgens; // the last pass's
 static int					aliasdepthhits, aliasdepthmisses; // the last passes' (R_AliasDepthCacheStats)
+static int					aliasdepthshare; // vr_shadow_setup_share: 0 off, 1 on, 2 the first eye's checked
+static int					aliasdepthkeep; // this pass keeps the casters' swing rows (none of the eyes' kept ones to clear)
+static int					aliasdepthlast; // the frame's last pass's gen, for the first eye (R_AliasTransformShared); 0 none
+static int					aliaseyemode; // (the eyes' cache's, below)
+enum { ADS_TAKEN, ADS_CHECKED, ADS_BAD, ADS_NUMSTATS };
+static int					aliasdepthsharestats[ADS_NUMSTATS];
 
 /*
 =================
@@ -137,11 +153,32 @@ void R_AliasDepthCacheBegin (qboolean on)
 		aliasdepthgens = 1;
 	}
 	aliasdepthgen = on ? aliasdepthgens : 0;
+	aliasdepthlast = 0;
+	// the swing rows are kept in the store the eyes' cache keeps its own in (cleared as the first eye begins): kept here
+	// only outside the eyes' modes (then cleared here: none kept), or in the first eye's (whose clearing came first)
+	aliasdepthkeep = aliasdepthgen && aliasdepthshare && (aliaseyemode == 0 || aliaseyemode == 1);
+	if (aliasdepthkeep && aliaseyemode == 0)
+		VR_AnimSmoothKeepClear ();
 }
 
 void R_AliasDepthCacheEnd (void)
 {
+	aliasdepthlast = aliasdepthshare ? aliasdepthgen : 0;
 	aliasdepthgen = 0;
+	aliasdepthkeep = 0;
+}
+
+void R_AliasDepthShare (int mode)
+{
+	aliasdepthshare = mode < 0 ? 0 : mode > 2 ? 2 : mode;
+}
+
+void R_AliasDepthShareStats (int *taken, int *checked, int *bad)
+{
+	*taken = aliasdepthsharestats[ADS_TAKEN];
+	*checked = aliasdepthsharestats[ADS_CHECKED];
+	*bad = aliasdepthsharestats[ADS_BAD];
+	memset (aliasdepthsharestats, 0, sizeof (aliasdepthsharestats));
 }
 
 void R_AliasDepthCacheStats (int *hits, int *misses)
@@ -216,7 +253,8 @@ typedef struct {
 static aliaseyeentry_t	aliaseyecache[ALIASEYE_CACHE_SIZE];
 static int				aliaseyegen;	// the frame's (0: none)
 static int				aliaseyegens;	// the last frame's
-static int				aliaseyemode;	// 0 off, 1 the first eye (kept), 2 the second (reused), 3 the second (checked)
+// aliaseyemode (declared above, with the shadow casters' cache): 0 off, 1 the first eye (kept), 2 the second (reused), 3
+// the second (checked)
 
 // vr_alias_eye_cache_stats: what the second eyes found since the last call; the check's mismatches by part
 enum { AEYE_HIT, AEYE_TRANSFORM_ONLY, AEYE_MISS, AEYE_CHECKED, AEYE_BAD_LERP, AEYE_BAD_MATRIX, AEYE_BAD_LIGHT,
@@ -242,6 +280,7 @@ void R_AliasEyeCacheEnd (void)
 {
 	aliaseyemode = 0;
 	aliaseyegen = 0;
+	aliasdepthlast = 0; // QVR: (the frame's shadow casters' set-ups: R_AliasTransformShared)
 }
 
 void R_AliasEyeCacheStats (int *out, int count)
@@ -630,6 +669,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	qboolean	alphatest, translucent, oit;
 	qboolean	a2c; // QVR
 	qboolean	layered; // QVR: into all their faces at once (aliasfaces)
+	qboolean	depthonly, notex; // QVR: a caster without a fragment shader; and so no textures bound for it
 	int			drawcount; // QVR: instances drawn (layered: an instance once per face)
 	int			i, f; // QVR
 	int			totalverts;
@@ -691,9 +731,12 @@ void R_FlushAliasInstances (qboolean showtris)
 		mode = r_softemu_mdl_warp.value > 0.f ? ALIASSHADER_NOPERSP : ALIASSHADER_STANDARD;
 		break;
 	}
-	GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
-	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	depthonly = aliasdepth && !alphatest && !translucent; // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
+	if (depthonly)
 		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
+	else
+		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+	notex = depthonly && aliasdepthshare; // QVR: none of the fragment shader's textures bound (vr_shadow_setup_share)
 	if (layered) // QVR: the faces' view-projections and the draws (holey skins are drawn a face at a time: vr_lighting.cpp)
 	{
 		GLuint		facebuf;
@@ -776,10 +819,13 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, model->meshvbo, mainhdr->vbofracofs, sizeof (unsigned) * totalverts * mainhdr->numposes);
 	VR_AnimSmoothBind (ibuf.ent, 0); // QVR: r_lerpmodels 3's swings (the model's rig: its rest pose, the instances' bones)
 	VR_DentBind (); // QVR: the flesh dents (Dents: vr/vr_dents.cpp)
-	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
-	GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
-	GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
-	GL_BindNative (GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, VR_WoundBloodTexture ()); // QVR: the blood on them not yours (WoundBloodFine)
+	if (!notex) // QVR: (the fragment shader's only)
+	{
+		GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
+		GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
+		GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
+		GL_BindNative (GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, VR_WoundBloodTexture ()); // QVR: the blood on them not yours (WoundBloodFine)
+	}
 
 	if (poseverttype == PV_IQM)
 	{
@@ -797,7 +843,8 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (!translucent)
 		GL_SetState (opaque_state);
 	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
-	VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
+	if (!notex)
+		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
 	{
@@ -814,6 +861,12 @@ void R_FlushAliasInstances (qboolean showtris)
 
 		if (!translucent && (textures[0]->flags & TEXPREF_ALPHAPIXELS))
 		{
+			continue;
+		}
+		if (notex) // QVR: (no fragment shader to read them)
+		{
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+			rs_aliaspasses += hdr->numtris * drawcount;
 			continue;
 		}
 		textures[1] = hdr->fbtextures[skinnum][anim];
@@ -856,6 +909,12 @@ void R_FlushAliasInstances (qboolean showtris)
 				continue;
 			}
 			VR_TemporalMotionWrites (0); // QVR: (not blended into the motion target)
+			if (notex) // QVR: (no fragment shader to read them)
+			{
+				GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+				rs_aliaspasses += hdr->numtris * drawcount;
+				continue;
+			}
 
 			textures[1] = hdr->fbtextures[skinnum][anim];
 			if (hdr == mainhdr && ibuf.ent->colormap != vid.colormap && !gl_nocolors.value)
@@ -1057,6 +1116,56 @@ static void R_AliasTransform (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *le
 
 /*
 =================
+R_AliasTransformShared -- QVR
+
+R_AliasTransform in the first eye's scene (vr_shadow_setup_share): the lerp and matrices this frame's shadow pass set up
+for the same entity (its model and frame unchanged) instead of working them out again; 2 works them out and compares
+(vr_alias_eye_cache_stats prints how many were taken, checked and differed). Never cl.viewent (as the casters' cache),
+nor while the drawn moves are logged (their order kept).
+=================
+*/
+static const aliasdepthentry_t *R_AliasDepthFind (const entity_t *e)
+{
+	uint64_t h;
+	int i;
+	if (!aliasdepthlast || aliaseyemode != 1 || e == &cl.viewent || VR_DebugDrawnOn ())
+		return NULL;
+	h = ((uint64_t) (uintptr_t) e >> 4) * 0x9E3779B97F4A7C15ull;
+	h >>= 64 - 12;
+	for (i = 0; i < ALIASDEPTH_CACHE_PROBES; i++)
+	{
+		const aliasdepthentry_t *s = &aliasdepthcache[(h + i) & (ALIASDEPTH_CACHE_SIZE - 1)];
+		if (s->gen != aliasdepthlast) // (as R_AliasDepthSlot: the first free slot ends the search)
+			return NULL;
+		if (s->ent == e)
+			return s->model == e->model && s->frame == e->frame ? s : NULL;
+	}
+	return NULL;
+}
+
+static void R_AliasTransformShared (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata, float model_matrix[16], float bounds_matrix[16])
+{
+	const aliasdepthentry_t *s = R_AliasDepthFind (e);
+	if (s && aliasdepthshare == 1)
+	{
+		*lerpdata = s->lerpdata;
+		memcpy (model_matrix, s->model_matrix, sizeof (s->model_matrix));
+		memcpy (bounds_matrix, s->bounds_matrix, sizeof (s->bounds_matrix));
+		aliasdepthsharestats[ADS_TAKEN]++;
+		return;
+	}
+	R_AliasTransform (e, paliashdr, lerpdata, model_matrix, bounds_matrix);
+	if (s)
+	{
+		aliasdepthsharestats[ADS_CHECKED]++;
+		if ((memcmp (lerpdata, &s->lerpdata, sizeof (*lerpdata)) || memcmp (model_matrix, s->model_matrix, sizeof (s->model_matrix)) ||
+			memcmp (bounds_matrix, s->bounds_matrix, sizeof (s->bounds_matrix))) && aliasdepthsharestats[ADS_BAD]++ < 8)
+			Con_Printf ("vr_shadow_setup_share check: %s's set-up differs from the shadow pass's\n", e->model->name);
+	}
+}
+
+/*
+=================
 R_AliasPrefetch -- QVR
 
 A batch's models in view and lit this frame for the first time, when enough of them are likely due new light probes
@@ -1114,7 +1223,7 @@ static int R_AliasPrefetch (entity_t **ents, int count)
 		if (!e)
 			continue;
 		hdr = (aliashdr_t *) Mod_Extradata (e->model);
-		R_AliasTransform (e, hdr, &aliaspre[i].lerpdata, aliaspre[i].model_matrix, aliaspre[i].bounds_matrix);
+		R_AliasTransformShared (e, hdr, &aliaspre[i].lerpdata, aliaspre[i].model_matrix, aliaspre[i].bounds_matrix); // QVR: (the shadow pass's, vr_shadow_setup_share)
 		VR_AliasAmbientPrefetchAdd (e, aliaspre[i].model_matrix, hdr);
 	}
 	VR_AliasAmbientPrefetchRun ();
@@ -1160,10 +1269,9 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	cached = mode == ALIAS_DEPTH ? R_AliasDepthSlot (e, &cachehit) : NULL;
 	if (cached && cachehit)
 	{
-		lerpdata.pose1 = cached->pose1;
-		lerpdata.pose2 = cached->pose2;
-		lerpdata.blend = cached->blend;
+		lerpdata = cached->lerpdata;
 		memcpy (model_matrix, cached->model_matrix, sizeof (model_matrix));
+		memcpy (bounds_matrix, cached->bounds_matrix, sizeof (bounds_matrix));
 		portal_split = 0;
 		aliasdepthhits++;
 		goto cull;
@@ -1176,7 +1284,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		memcpy (bounds_matrix, aliasprecur->bounds_matrix, sizeof (bounds_matrix));
 	}
 	else
-		R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix);
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias transform", mode == ALIAS_STANDARD ? R_AliasTransformShared (e, paliashdr, &lerpdata, model_matrix, bounds_matrix) : R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix)); // QVR: (vr_tracy_render_detail; the first eye: the shadow pass's)
 	if (eyekeep) // QVR: kept for the second eye
 	{
 		eye->ent = e;
@@ -1266,6 +1374,21 @@ cull:
 	aliasinstfaces[ibuf.count] = aliasfaces ? *aliasfaces : 0; // QVR: layered shadow casters: its faces
 	instance = &ibuf.inst[ibuf.count++];
 
+	if (cached && cachehit && cached->instok) // QVR: the pass's first set-up of it (vr_shadow_setup_share), its swing rows added to this batch
+	{
+		int at, shift;
+		*instance = cached->inst;
+		at = VR_AnimSmoothReplay (0, cached->smoothfirst, cached->smoothrows, ibuf.count == 1);
+		shift = at - cached->smoothat;
+		if (instance->vr.smooth[2] > 0)
+			instance->vr.smooth[2] += shift;
+		else if (instance->vr.smooth[2] < 0)
+			instance->vr.smooth[2] -= shift;
+		if (instance->vr.smooth[3] >= 2)
+			instance->vr.smooth[3] += shift;
+		return; // (a caster: no gates, no pose check)
+	}
+
 	MatrixTranspose4x3 (model_matrix, instance->worldmatrix);
 
 	instance->lightcolor[0] = lightcolor[0];
@@ -1310,23 +1433,38 @@ cull:
 			instance->vr.smooth[3] += shift;
 		goto instanced;
 	}
-	instance->padding = cached && cachehit ? cached->zeroblend : VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
+	if (cached && cachehit) // QVR
+		instance->padding = cached->zeroblend;
+	else
+		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias zero blend", instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts)); // QVR: (vr_tracy_render_detail)
 	if (cached && !cachehit) // QVR: kept for the pass's other lights
 	{
 		cached->ent = e;
 		cached->model = e->model;
 		cached->frame = e->frame;
-		cached->pose1 = lerpdata.pose1;
-		cached->pose2 = lerpdata.pose2;
-		cached->blend = lerpdata.blend;
+		cached->lerpdata = lerpdata;
 		cached->totalverts = totalverts;
 		cached->zeroblend = instance->padding;
 		memcpy (cached->model_matrix, model_matrix, sizeof (model_matrix));
+		memcpy (cached->bounds_matrix, bounds_matrix, sizeof (bounds_matrix));
+		cached->instok = 0; // (below, once its instance is made)
 		cached->gen = aliasdepthgen;
 	}
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
 	smoothbefore = ibuf.count == 1 ? 0 : VR_AnimSmoothRows (0); // (a batch's first instance starts its rows)
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias smooth", R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0)); // QVR: r_lerpmodels 3
+	if (cached && !cachehit && aliasdepthkeep) // QVR: its swing rows kept for the pass's other lights (vr_shadow_setup_share)
+	{
+		cached->smoothrows = VR_AnimSmoothRows (0) - smoothbefore;
+		cached->smoothfirst = VR_AnimSmoothKeep (0, smoothbefore, cached->smoothrows);
+		cached->smoothat = smoothbefore;
+		if (cached->smoothfirst >= 0)
+		{
+			VR_TemporalAliasMotion (e, totalverts, 0, instance->motion); // (a caster's: none; done here for the copy)
+			cached->inst = *instance;
+			cached->instok = 1;
+		}
+	}
 	if (eyekeep || (eyecheck && eye->lit && eye->vrok)) // QVR: kept for the second eye, or compared with what was
 	{
 		int rows = VR_AnimSmoothRows (0) - smoothbefore;
