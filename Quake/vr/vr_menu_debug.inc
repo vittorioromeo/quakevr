@@ -609,6 +609,14 @@ za::Vector<Item> pageDebugProfiling()
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
+        cycle("Server Tick Thread Audit", vr_server_thread_check, {{0.f, "Off"}, {1.f, "Note"}, {2.f, "Note, Threaded Order"}})
+            .help("vr_server_thread_check: notes where the drawing touches the server's state and the server the client's "
+                  "(what a server tick on a worker would race). Threaded Order also runs the tick after the screen, on the "
+                  "main thread (the world drawn a tick late, the server's results the same). For testing; the sites with "
+                  "Server Tick Thread Report."),
+        command("Server Tick Thread Report", "vr_server_thread_report")
+            .help("vr_server_thread_report: the sites the audit found (console), most frequent first; RACE marks those a "
+                  "threaded tick would overlap."),
         toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
             .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "

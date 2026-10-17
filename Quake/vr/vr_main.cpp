@@ -152,6 +152,10 @@
 using namespace qvr;
 
 extern "C" void TexMgr_MemStats(int* count, int* normalmaps, double* megabytes); // gl_texmgr.c
+namespace qvr::servertick
+{
+void registerCommands(); // vr_server_thread_check, vr_server_thread_report (vr_servertick.cpp)
+} // namespace qvr::servertick
 namespace qvr::gfx
 {
 extern int targetsMade; // vr_gfx_gl.cpp
@@ -1943,6 +1947,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
+    servertick::registerCommands(); // vr_server_thread_check, vr_server_thread_report (vr_servertick.cpp)
     animsmooth::registerCommands();
     mdldequant::registerCommands();
     Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)

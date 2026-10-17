@@ -1637,6 +1637,7 @@ void drop(const glm::vec3& org, float size)
 
 bool place(Mark mark, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o)
 {
+    VR_CLIENT_ACCESS("decal place"); // vr_server_thread_check
     constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch};
     return vr_decals.value && cl.worldmodel && add(kinds[static_cast<int>(mark)], where, normal, size, o);
 }

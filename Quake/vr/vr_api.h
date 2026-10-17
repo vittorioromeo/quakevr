@@ -363,6 +363,16 @@ void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearSta
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+// vr_servertick.cpp: the audit for a server tick on a worker (vr_server_thread_check; docs/vr-port/SERVER_THREAD.md)
+extern int vr_servertick_checking;
+void VR_ServerTickPhase (const char *phase);			// _Host_Frame: the frame's phase (input, commands, screen, ...)
+void VR_ServerTickBegin (void);							// _Host_Frame: around Host_ServerFrame
+void VR_ServerTickEnd (void);
+void VR_ServerAccess (const char *what);				// the server's state touched (the main thread outside the tick: noted)
+void VR_ClientAccess (const char *what);				// the client's state touched (inside the tick: noted)
+int VR_ServerTickDefer (int ticks);						// vr_server_thread_check 2: this frame's tick after the screen
+#define VR_SERVER_ACCESS(what) do { if (vr_servertick_checking) VR_ServerAccess (what); } while (0)
+#define VR_CLIENT_ACCESS(what) do { if (vr_servertick_checking) VR_ClientAccess (what); } while (0)
 void VR_WriteRecentPrecaches (struct sizebuf_s *msg);	// SV_SendClientDatagram: late precaches before their use
 // The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
 void VR_BroadcastClear (void);							// SV_ClearDatagram: clears sv.datagram
