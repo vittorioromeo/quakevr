@@ -4365,6 +4365,7 @@ extern "C" void VR_SetupViewEntities()
     {
         if(s.valid)
         {
+            QVR_PROFILE("view eye");
             applyEyeView(s);
         }
         // Both eyes see the same entities: the second eye keeps what the first one set up.
@@ -4388,7 +4389,11 @@ extern "C" void VR_SetupViewEntities()
         return;
     }
 
-    updateFingerFrames();
+    // (The steps' zones, "view ...": docs/vr-port/ROUND22.md, "View entities: zones and trims".)
+    {
+        QVR_PROFILE("view finger frames");
+        updateFingerFrames();
+    }
 
     // The hands as the game reads them, before the view moves the drawn ones (below): what lights the flashlight up.
     flashlight::noteGameHands(s);
@@ -4407,6 +4412,7 @@ extern "C" void VR_SetupViewEntities()
     glm::vec3 knockPos[2], knockAngles[2], shakePos[2], shakeAngles[2];
     for(int hand = 0; hand < 2; hand++)
     {
+        QVR_PROFILE("view shakes");
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
         fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
         glm::vec3 painPos, painAngles;
@@ -4432,8 +4438,12 @@ extern "C" void VR_SetupViewEntities()
     // posing: the floating weapon stays where it floats).
     if(!posingNow)
     {
-        modelcollide::beginView(s);
+        {
+            QVR_PROFILE("view model collide");
+            modelcollide::beginView(s);
+        }
         // And out of each other, the arms, the gadget and the body (vr_body_collide): drawn only, as above.
+        QVR_PROFILE("view self collide");
         selfcollide::beginView(s);
     }
 
@@ -4453,87 +4463,143 @@ extern "C" void VR_SetupViewEntities()
     }
     else
     {
-        updateGroundSpots(s); // (before the weapons: a carry taken by a hotspot now is drawn so this frame)
-        setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
-        setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
-            cl.stats[STAT_QVR_WEAPONFRAME2]);
-        setupHeldMagazines(); // (before the hands: a hand holding one wraps it)
-        setupGhosts();
-        updateFreeSpots(s); // (after the weapons: where an empty hand is on the other's, for the next frame's grip)
+        {
+            QVR_PROFILE("view ground spots");
+            updateGroundSpots(s); // (before the weapons: a carry taken by a hotspot now is drawn so this frame)
+        }
+        {
+            QVR_PROFILE("view weapons");
+            setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
+            setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
+                cl.stats[STAT_QVR_WEAPONFRAME2]);
+        }
+        {
+            QVR_PROFILE("view held mags");
+            setupHeldMagazines(); // (before the hands: a hand holding one wraps it)
+            setupGhosts();
+        }
+        {
+            QVR_PROFILE("view free spots");
+            updateFreeSpots(s); // (after the weapons: where an empty hand is on the other's, for the next frame's grip)
+        }
 
         setupHand(s, HAND_MAIN);
         setupHand(s, HAND_OFF);
+        QVR_PROFILE("view hotspots");
         showHotspots();
     }
-    for(int hand = 0; hand < 2; hand++)
     {
-        updateFist(s, hand);
-        updateGripFrame(s, hand);
+        QVR_PROFILE("view fists");
+        for(int hand = 0; hand < 2; hand++)
+        {
+            updateFist(s, hand);
+            updateGripFrame(s, hand);
+        }
     }
-    drawTuningAids(s, !posingNow);
-    if(!posingNow)
     {
-        sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
-    }
-    bodycal::viewFrame(s); // Body Calibration: its samples
-    held::drawCarryProbes();
-    if(vr_debug_physics_shapes.value)
-    {
-        box3d::debugDraw();
-    }
-    else
-    {
-        box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
-    }
-    ledges::debugDraw(); // vr_debug_ledges
-    hitmodel::debugDraw(); // vr_debug_hits
-    hitmodel::zonesDraw(); // vr_debug_hitzones
-    rope::debugDraw();     // vr_debug_rope
-    foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
-    foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
-    box3d::struggleDraw(s.head);    // vr_struggle_debug
-    bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
-    bodycontact::aimConeDraw(s.head);  // vr_enemy_aim_show
-    if(vr_debug_hand_bones.value)
-    {
-        drawHandBones();
+        QVR_PROFILE("view debug draws");
+        drawTuningAids(s, !posingNow);
+        if(!posingNow)
+        {
+            sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
+        }
+        bodycal::viewFrame(s); // Body Calibration: its samples
+        held::drawCarryProbes();
+        if(vr_debug_physics_shapes.value)
+        {
+            box3d::debugDraw();
+        }
+        else
+        {
+            box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
+        }
+        ledges::debugDraw(); // vr_debug_ledges
+        hitmodel::debugDraw(); // vr_debug_hits
+        hitmodel::zonesDraw(); // vr_debug_hitzones
+        rope::debugDraw();     // vr_debug_rope
+        foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
+        foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
+        box3d::struggleDraw(s.head);    // vr_struggle_debug
+        bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
+        bodycontact::aimConeDraw(s.head);  // vr_enemy_aim_show
+        if(vr_debug_hand_bones.value)
+        {
+            drawHandBones();
+        }
     }
     // The guns not in a hand (holstered, lying round) show their screens (queued once a frame).
     int& idleTextFrame = oncePerFrame.idleTexts;
     const bool idleTexts = idleTextFrame != host_framecount;
     idleTextFrame = host_framecount;
-    setupHolsters(s, idleTexts);
-    setupWorldWeapons(s, idleTexts);
-    setupBody(s);
-    powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
-    setupPauldrons();
-    setupGadget(s);
-    VR_PrecacheSkinMasks();
-    gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
-    flashlight::setupView(s, entities.flashlight);
-    chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
-    setupSawHandle();
-    setupPouch(s);
-    setupAmmoPouch(s);
-    dripBlood(s);
-    shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
-    smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
-    comfortfade::frame(); // the view back from black after a scripted teleport (vr_comfortfade)
-    setupButton(HAND_MAIN);
-    setupButton(HAND_OFF);
-    setupFrontButton(HAND_MAIN);
-    setupFrontButton(HAND_OFF);
+    {
+        QVR_PROFILE("view holsters");
+        setupHolsters(s, idleTexts);
+    }
+    {
+        QVR_PROFILE("view world weapons");
+        setupWorldWeapons(s, idleTexts);
+    }
+    {
+        QVR_PROFILE("view body");
+        setupBody(s);
+    }
+    {
+        QVR_PROFILE("view powerups pauldrons");
+        powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
+        setupPauldrons();
+    }
+    {
+        QVR_PROFILE("view gadget");
+        setupGadget(s);
+    }
+    {
+        QVR_PROFILE("view skin masks");
+        VR_PrecacheSkinMasks();
+    }
+    {
+        QVR_PROFILE("view gadget touches");
+        gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
+    }
+    {
+        QVR_PROFILE("view gear");
+        flashlight::setupView(s, entities.flashlight);
+        chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
+        setupSawHandle();
+        setupPouch(s);
+        setupAmmoPouch(s);
+    }
+    {
+        QVR_PROFILE("view blood shock smoke");
+        dripBlood(s);
+        shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
+        smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
+        comfortfade::frame(); // the view back from black after a scripted teleport (vr_comfortfade)
+    }
+    {
+        QVR_PROFILE("view buttons");
+        setupButton(HAND_MAIN);
+        setupButton(HAND_OFF);
+        setupFrontButton(HAND_MAIN);
+        setupFrontButton(HAND_OFF);
+    }
     if(deathview::immersive())
     {
         // Dead, the view in the ragdoll's head (vr_death_view 2): the hands and the gear not drawn (they stay where you
         // stand, far from the body).
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
     }
-    cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
-    magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
+    {
+        QVR_PROFILE("view cords chains");
+        cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
+        magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
+    }
     if(!posingNow)
     {
-        selfcollide::endView(s, selfCollideDrawn(s));
+        {
+            QVR_PROFILE("view self collide end");
+            selfcollide::endView(s, selfCollideDrawn(s));
+        }
+        QVR_PROFILE("view model collide end");
         const entity_t* const drawnWeapons[2]{&entities.weapon[HAND_OFF].ent, &entities.weapon[HAND_MAIN].ent};
         const bool drawnMirrored[2]{entities.weapon[HAND_OFF].mirrored, entities.weapon[HAND_MAIN].mirrored};
         modelcollide::endView(s, drawnWeapons, drawnMirrored); // the game reads the tracked hands and muzzles
@@ -4594,6 +4660,7 @@ extern "C" void VR_SetupViewEntities()
     }
     else if(vrActive())
     {
+        QVR_PROFILE("view weapon buttons");
         pressWeaponButtons(s);
     }
     for(int hand = 0; hand < 2; hand++)
@@ -4613,11 +4680,14 @@ extern "C" void VR_SetupViewEntities()
         });
     }
 
-    setupMagazines();
-    setupPumps();
-    setupSsgParts();
-    setupWorldSsgs();
-    patchModelFlags();
+    {
+        QVR_PROFILE("view weapon parts");
+        setupMagazines();
+        setupPumps();
+        setupSsgParts();
+        setupWorldSsgs();
+        patchModelFlags();
+    }
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
     if(lastAddedFrame == host_framecount)
@@ -4627,36 +4697,46 @@ extern "C" void VR_SetupViewEntities()
     lastAddedFrame = host_framecount;
 
     // The muzzle flashes on the weapons as drawn now (vr_weaponfx.cpp).
-    weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
-
-    glm::mat4 mirror;
-    const bool cloned = bodyclone::mirror(mirror);
-    int clonesDrawn = 0;
-    forEachEntity([&](view::ViewEntity& ve) {
-        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
-           cl_numvisedicts < MAX_VISEDICTS)
-        {
-            cl_visedicts[cl_numvisedicts++] = &ve.ent;
-            if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
-            {
-                cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
-                clonesDrawn++;
-            }
-        }
-    });
-    if(cloned)
     {
-        const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
-        bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
+        QVR_PROFILE("view muzzle flashes");
+        weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
     }
 
-    // Spent casings thrown out of the weapons (vr_shells.cpp).
-    shells::frame(entities.weapon);
-    collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
-    explosiondebris::frame();
-    fireparticles::frame();
-    bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
+    {
+        QVR_PROFILE("view add entities");
+        glm::mat4 mirror;
+        const bool cloned = bodyclone::mirror(mirror);
+        int clonesDrawn = 0;
+        forEachEntity([&](view::ViewEntity& ve) {
+            if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
+               cl_numvisedicts < MAX_VISEDICTS)
+            {
+                cl_visedicts[cl_numvisedicts++] = &ve.ent;
+                if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
+                {
+                    cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
+                    clonesDrawn++;
+                }
+            }
+        });
+        if(cloned)
+        {
+            const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
+            bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
+        }
+    }
+
+    {
+        QVR_PROFILE("view effects");
+        // Spent casings thrown out of the weapons (vr_shells.cpp).
+        shells::frame(entities.weapon);
+        collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
+        explosiondebris::frame();
+        fireparticles::frame();
+        bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
+    }
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
+    QVR_PROFILE("view wounds");
     wounds::frame();
 }
