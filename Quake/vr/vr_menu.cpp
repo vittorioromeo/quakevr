@@ -1992,6 +1992,7 @@ const Page pages[] = {
     {"Ranger Head", pageVrsRangerHead, pageVrsAppearance, LevelStandard}, // (ROUND22.md, "The ranger's head: sliders")
     {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
     {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
+    {"Graphics - Loot Beams", pageGraphicsLootBeams, pageGraphics}, // (vr_lootbeams.cpp)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

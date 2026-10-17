@@ -920,6 +920,32 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
 }
 
+namespace
+{
+// What a thing that is not a weapon prop tells its loot beam (vr_lootbeams.cpp), sent with U_QVR_WEAPONUID and weapon id
+// 0 (the clip's byte): bit 7 carried in a hand (no beam), bits 0-6 a magazine's fullness in percent (127: not a
+// magazine). -1: nothing to tell (not carried, not a magazine), nothing sent.
+[[nodiscard]] int lootByte(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    const bool carried = f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0;
+    const float wid = fieldFloatOr(ent, f.vr_ammo_wid, 0.f);
+    if(!carried && wid == 0.f)
+    {
+        return -1;
+    }
+    int full = 127;
+    if(wid != 0.f)
+    {
+        const float count = fieldFloatOr(ent, f.vr_ammo_count, 0.f);
+        const float cap = fieldFloatOr(ent, f.vr_ammo_cap, 0.f);
+        const float share = cap > 0.f ? count / cap : (count > 0.f ? 1.f : 0.f); // (an older save's: no capacity)
+        full = CLAMP(0, static_cast<int>(share * 100.f + 0.5f), 100);
+    }
+    return (carried ? 0x80 : 0) | full;
+}
+} // namespace
+
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
     if(!vrProtocol())
@@ -962,6 +988,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
             bits |= U_QVR_SSGOPEN; // a super shotgun broken open (the client draws it open, its chambers loaded)
         }
     }
+    else if(NUM_FOR_EDICT(ent) > svs.maxclients && lootByte(ent) >= 0)
+    {
+        bits |= U_QVR_WEAPONUID; // weapon id 0: a magazine's fullness or a carried thing, for its loot beam (lootByte)
+    }
     return bits;
 }
 
@@ -997,6 +1027,13 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         edict_t* const inst = weaponInst(ent, f.weaponinst);
+        if(weaponUid(inst) == 0)
+        {
+            // Not a weapon prop: id 0, then the loot beam's byte (lootByte).
+            MSG_WriteLong(msg, 0);
+            MSG_WriteByte(msg, za::max(lootByte(ent), 0));
+            return;
+        }
         // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
         // vr_hotblade.cpp draws it; 0 in older demos).
         const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);

@@ -47,6 +47,7 @@
 #include "vr_hotblade.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
+#include "vr_lootbeams.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
@@ -2005,6 +2006,7 @@ extern "C" void VR_Init()
     inputlag::registerCommands();
     voicenotes::init();
     highlights::init();
+    lootbeams::init();
     cleanskins::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
