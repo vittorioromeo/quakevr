@@ -250,6 +250,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_c_pos;
 .vector mh_c_dir;
 .vector mh_c_normal;
+.float mh_c_blunt;      // a wall's: struck by a blunt part (not VR_MPT_EDGE: a pommel, a butt, a handle; VR_Melee_WallMark)
 .float mh_c_gib;        // it is a loose gib or head (it bursts: gone by VR_Melee_Landed)
 // The stance and the push (VR_Bash).
 .float mh_stance;      // 0: none, 1: a weapon across, 2: an open palm facing ahead
@@ -1933,6 +1934,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_c_pos = wallAt;
         b.mh_c_dir = normalize(b.mh_cp[wallI] - b.mh_pp[wallI]);
         b.mh_c_normal = wallNormal;
+        b.mh_c_blunt = vr_mpt_kind[wallI] != VR_MPT_EDGE;
         return TRUE;
     }
     return FALSE;
@@ -3359,4 +3361,46 @@ void(float xHand) VR_Melee_Landed =
         VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_way, b.mh_part);
     VR_Melee_Event(sprintf("%s, %.1f m/s, x%.2f, %s", what, b.mh_speed, b.mh_strength,
         b.mh_c_gib ? "a gib" : (b.mh_c_ent.takedamage ? b.mh_c_ent.classname : "a wall")));
+};
+
+// The engine's melee marks (vr/vr_decals.hpp EventMeleeMark; vr_decal_melee): a particle2 preset past the gore's.
+float QVR_DECAL_MELEEMARK = 43;
+
+// A melee blow of `xHand` struck a wall or the floor (the weapons' wall branches, weapons.qc and the others; the trace_
+// globals and v_forward as VRDoMeleeAttackTracelineFor left them), dealing `xDmg` had it been something that bleeds:
+// the mark it carves, once a blow (before its hit sound is played). Blunt (`xBlunt`, or a blunt part: a pommel, a
+// handle, a gun, the crowbar, a club, a fist holding a prop) a round dent; a blade (a sword's, an axe's head, the
+// chainsaw's bar) a groove along the swing on the surface, or, driven straight in, along the blade (its edge's line);
+// a stab's point a short one. A bare fist leaves none.
+void(float xHand, float xDmg, float xBlunt) VR_Melee_WallMark =
+{
+    if(VRGetMeleeHitSoundPlayed(xHand) || trace_fraction >= 1 || trace_ent.takedamage)
+    {
+        return;
+    }
+    float tracked = VRHandsTracked(self) && self.ishuman;
+    entity b = VR_Blow(xHand);
+    float thing = tracked ? b.mh_thing : VR_Melee_Thing(self, xHand);
+    float kind = tracked ? b.mh_kind : VR_MKIND_SLASH;
+    if(thing == VR_MTHING_NONE || (thing == VR_MTHING_FIST && VR_Carry_Held(self, xHand) == world))
+    {
+        return;
+    }
+    float blade = !xBlunt && !(tracked && b.mh_c_blunt) && (kind == VR_MKIND_SLASH || kind == VR_MKIND_STAB) &&
+                  (thing == VR_MTHING_SWORD || thing == VR_MTHING_AXE || thing == VR_MTHING_SAW);
+    vector n = trace_plane_normal;
+    vector way = normalize(v_forward);
+    float mark = 0;
+    if(blade)
+    {
+        mark = kind == VR_MKIND_STAB ? 2 : (thing == VR_MTHING_AXE ? 3 : 1);
+        vector t = way - n * (way * n);
+        if(vlen(t) < 0.35 && tracked)
+        {
+            vector ax = b.mh_far - b.mh_grip; // (straight in: the edge's line, along the blade)
+            t = ax - n * (ax * n);
+        }
+        way = normalize(t);
+    }
+    particle2(trace_endpos + n * 2, way * 7, QVR_DECAL_MELEEMARK, min(999, max(1, rint(xDmg * 4))) + 1000 * mark);
 };

@@ -165,6 +165,7 @@ void(float xHand) W_SuperAxeMelee =
     }
 
     MG3_SuperAxe_EndChain(self); // a wall or the air: the chain ends (MG3: last_mjolnir_hit = world)
+    VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop (vr_decal_melee)
     if(trace_fraction != 1.0 && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);

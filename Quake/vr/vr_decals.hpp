@@ -31,6 +31,18 @@ namespace qvr::decals
 // A Quake VR particle effect at `org` along `dir` (may be zero).
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count);
 
+// The melee marks' event (vr_decal_melee), a particle2 preset past the gore's (vr_gore.hpp's 40-42): `org` 2 units out
+// from the surface struck, `dir` (times 7) a blunt blow's way into it, or the line a blade cut along; `count` the blow's
+// damage x 4 + 1000 x its kind (0 blunt, 1 a slash, 2 a stab, 3 an axe's chop). QC: VR_Melee_WallMark (vr_melee.qc).
+inline constexpr int EventMeleeMark = 43;
+
+// A particle2 message (parseParticle2): true if it was the melee marks' event (its mark laid, or none).
+bool meleeEvent(const glm::vec3& org, const glm::vec3& dir, int preset, int count);
+
+// Server side: a prop (Box3D's, vr_box3d_step.cpp) of `mass` kg hit the static world at `at` (normal `normal`, out of
+// it) at `speed` m/s: at vr_decal_melee_prop_speed or faster, a blunt dent's event sent to every client.
+void propHit(const glm::vec3& at, const glm::vec3& normal, float speed, float mass);
+
 // A small drop of blood on the floor (or a gentle slope) just below `org`, `size` units across.
 void drop(const glm::vec3& org, float size);
 
@@ -100,6 +112,9 @@ void stress_f();
 // (vr_decal_carve): pellets, nails, super nails, lava nails and a blast's crater; with a count, that many in a lattice of
 // pellets, nails and super nails 12 units apart, continued by the next call (for profiling). vr_decal_carve_test look
 // head|graze [dist]: the view moved to look at the last ones laid, head-on or at 15 degrees over their surface.
+// vr_decal_carve_test melee [lattice 1..64]: the melee marks (vr_decal_melee): blunt dents of 10, 20 and 40 damage,
+// slashes across, slanting and up, a chop and a stab; with a count, a lattice of dents and slashes 20 units apart;
+// melee blunt: the three dents in a row; melee slash: one slash (close-ups).
 void carveTest_f();
 
 // vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size]: a mark where the line from x y z along dx dy dz (512

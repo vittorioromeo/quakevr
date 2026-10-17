@@ -821,6 +821,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	// QVR: parallax occlusion mapping (vr_parallax) moves where the textures are read; their mip level is still\n"
 "	// the surface's (the moved coordinates jump where the height field hides itself)\n"
 "	vec2 puv = uv;\n"
+"	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
 "	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (vr_parallax_plane)\n"
@@ -837,7 +838,6 @@ QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters m
 "	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
 "	const float carve_dark = 1.;\n"
 "#endif\n"
-"	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none)
 "	bool rl_lightmapped = (in_flags & CF_NOLIGHTMAP) == 0u;\n" // QVR: retro lighting (vr_retrolight.h): the face's texel grid (its lightmap's, less 8)
 "	if (RetroLight[2].w > 0.)\n"
 "	{\n"

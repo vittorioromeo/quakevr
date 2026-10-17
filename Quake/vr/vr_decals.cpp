@@ -13,6 +13,7 @@
 #include "vr_modellight.hpp"
 #include "vr_permdecals.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
 #include "vr_retro.hpp"
 #include "vr_stereo.hpp"
 #include "vr_ring.hpp"
@@ -60,18 +61,26 @@ enum Kind : int
     Streak,   // runs of blood down a wall, from a blot at the cell's -x end to +x (down)
     Pool,     // a pool of blood, thick and dark
     Splotch,  // a gib's splat: a big blot with spikes and drops all round
+    // The melee marks' (vr_decal_melee): a blunt blow's dent, a blade's groove (stretched along it), carved
+    Scuff,    // the surface crushed a little darker in the middle, its dust lighter round it
     KindCount
 };
 
+// The gore's own kinds (Splatter to Splotch): big, drawn by goreTexel.
+[[nodiscard]] constexpr bool goreKind(int kind)
+{
+    return kind >= Splatter && kind <= Splotch;
+}
+
 // The atlas: 8 x 4 cells of 256 texels (2048 x 1024 RGBA, mipmapped: 11 MB). Blood splats 0-5,
-// drops 6-7, scorches 8-10, chips 11-15, splatters 16-19, streaks 20-22, pools 23-25, splotches 26-28.
+// drops 6-7, scorches 8-10, chips 11-15, splatters 16-19, streaks 20-22, pools 23-25, splotches 26-28, scuffs 29-30.
 constexpr int cellSize = 256;
 constexpr int cellsPerRow = 8;
 constexpr int cellRows = 4;
 constexpr int atlasWidth = cellSize * cellsPerRow;
 constexpr int atlasHeight = cellSize * cellRows;
-constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26};
-constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3};
+constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26, 29};
+constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3, 2};
 // Every kind has cells, contiguous, and they all fit in the atlas (buildAtlas writes each cell's texels; a cell past the
 // last row would write past the image).
 constexpr bool atlasCellsValid()
@@ -388,6 +397,17 @@ void cellTexel(Kind kind, int seed, const za::Vector<Blob>& blobs, glm::vec2 p, 
     }
 }
 
+// A melee mark's scuff (Scuff; its carving does the rest): the surface crushed a little darker in the middle, dust a
+// little lighter round it, mottled; nothing past its edge (what the surface is multiplied by).
+[[nodiscard]] glm::vec3 scuffTexel(int seed, glm::vec2 p)
+{
+    const float r = glm::length(p);
+    const float grain = 0.6f * noise(p * 9.f, seed) + 0.4f * noise(p * 23.f, seed + 1);
+    const float crush = smoothstep(0.55f, 0.f, r) * (0.08f + 0.1f * grain);
+    const float dust = smoothstep(0.85f, 0.5f, r) * smoothstep(0.15f, 0.5f, r) * 0.08f * grain;
+    return glm::vec3{1.f - crush + dust};
+}
+
 // ---- The gore's marks: shapes by their signed distance (cell units, < 0 inside) ------------------
 
 struct Ellipse
@@ -666,7 +686,7 @@ jobs::Site atlasSite{"decal atlas"}; // (its parallelFor: vr_jobs_sites)
             }
 
             // The gore's shapes.
-            const GoreShape gore = kind >= Splatter ? goreShape(static_cast<Kind>(kind)) : GoreShape{};
+            const GoreShape gore = goreKind(kind) ? goreShape(static_cast<Kind>(kind)) : GoreShape{};
 
             const int ox = (cell % cellsPerRow) * cellSize, oy = (cell / cellsPerRow) * cellSize;
             for(int y = 0; y < cellSize; y++)
@@ -679,9 +699,13 @@ jobs::Site atlasSite{"decal atlas"}; // (its parallelFor: vr_jobs_sites)
                     {
                         f = chipTexel(seed, chip, p);
                     }
-                    else if(kind >= Splatter)
+                    else if(goreKind(kind))
                     {
                         f = goreTexel(static_cast<Kind>(kind), seed, gore, p);
+                    }
+                    else if(kind == Scuff)
+                    {
+                        f = scuffTexel(seed, p);
                     }
                     else
                     {
@@ -1125,13 +1149,15 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     const glm::vec3 t1 = glm::cross(n, t0);
     const float ang = static_cast<float>(rand() % 6283) * 0.001f;
     glm::vec3 u = (t0 * za::cos(ang) + t1 * za::sin(ang));
-    // Turned along `along` on the surface, if given (a spray's way, a run's down).
+    // Turned along `along` on the surface, if given (a spray's way, a run's down, a blade's groove).
+    bool along = false;
     if(const glm::vec3 a = o.along - n * glm::dot(o.along, n); glm::length(a) > 0.1f * glm::length(o.along) && glm::length(a) > 1e-4f)
     {
         u = glm::normalize(a);
+        along = true;
     }
     glm::vec3 v = glm::cross(n, u);
-    if(kind == Hole || carve.x > 0.f)
+    if((kind == Hole || carve.x > 0.f) && !along)
     {
         // Its relief lit from where the light comes from (v: the cell's lit side; a carved crater's guess at where the
         // baked light comes from, CarveAt); mirrored at random for variety (the light stays).
@@ -1144,7 +1170,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     // Laid on the world's faces under it, cut where they end (an edge, a corner): over a wall's
     // panels and recesses, the floor of an alcove, the steps of a stair. A run down a wall keeps
     // its top where it is.
-    const bool big = kind >= Splatter;
+    const bool big = goreKind(kind);
     const float halfV = size * 0.5f, halfU = halfV * za::max(0.25f, o.aspect);
     Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + rand() % cellCount[kind],
         cl.time + o.delay};
@@ -1242,12 +1268,39 @@ struct ImpactShape
     return {Hole, 6.5f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, nullptr, 1.f};
 }
 
+// The melee marks laid lately (meleeEvent): the same blow's Quake effect (a gunshot's puff, sparks) leaves no pit of its
+// own next to one, nor does the same blow (a held prop's knock: its physics hit too) a second mark.
+struct RecentMelee
+{
+    glm::vec3 at{0.f};
+    double time = -1.0;
+};
+constexpr int recentMeleeCount = 8;
+RecentMelee recentMelee[recentMeleeCount];
+int recentMeleeNext = 0;
+
+[[nodiscard]] bool meleeMarkNear(const glm::vec3& at, float within, double since)
+{
+    for(const RecentMelee& r : recentMelee)
+    {
+        if(r.time >= 0.0 && cl.time >= r.time && cl.time - r.time <= since && glm::distance(r.at, at) < within)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // A mark of `what` laid at `where` (normal `normal`): carved, unless it is off (vr_decal_carve 0: Quake VR's flat marks,
 // their sizes as before carving).
 bool impactMark(Impact what, const glm::vec3& where, const glm::vec3& normal)
 {
     const ImpactShape s = impactShape(what);
     const bool carving = vr_decal_carve.value != 0.f;
+    if((what == Impact::Pellet || what == Impact::Blow) && meleeMarkNear(where, 10.f, 0.25))
+    {
+        return false; // a melee blow's own mark is there (meleeEvent)
+    }
     if(!carving)
     {
         const float size = s.kind == Scorch ? random(44.f, 60.f) : what == Impact::Blow ? random(6.f, 8.f) : random(5.5f, 7.5f);
@@ -1269,6 +1322,41 @@ void impactAt(Impact what, const glm::vec3& org, const glm::vec3& dir)
     {
         (void)impactMark(what, where, normal);
     }
+}
+
+// ---- Melee marks (vr_decal_melee) ---------------------------------------------------------------
+
+// What a melee blow on the world leaves (the QC's VR_Melee_WallMark; a prop's hard hit, sendMeleeMark).
+enum class MeleeMark
+{
+    Blunt, // a round dent: the crowbar, a gun, a pommel, Mjolnir, a club, a fist holding a prop, a thrown prop
+    Slash, // a long groove along the swing: a sword's blade, the chainsaw's bar
+    Stab,  // a short one: a blade's point driven in
+    Chop   // a shorter, wider and deeper one: an axe's head
+};
+
+// A melee blow's mark at `where` on the surface of normal `normal`: a dent, or a blade's groove along `line` (on the
+// surface; none or straight in: any way), both bigger and deeper with the blow's `damage` (as its square root, 1 at 20).
+bool meleeMark(MeleeMark kind, const glm::vec3& where, const glm::vec3& normal, const glm::vec3& line, float damage)
+{
+    const float grows = za::clamp(za::sqrt(za::max(damage, 1.f) / 20.f), 0.6f, 1.8f);
+    MarkOptions o;
+    if(kind == MeleeMark::Blunt)
+    {
+        // Shallow and round (a pellet's pit is 0.9 deep, 6.5 wide): its radius 0.48 of the mark's half size.
+        const float size = (12.f + random(-1.f, 1.f)) * grows * za::clamp(vr_decal_melee_blunt_size.value, 0.5f, 2.f);
+        const float depth = 0.6f * grows * za::clamp(vr_decal_melee_blunt_depth.value, 0.f, 4.f);
+        return add(Scuff, where, normal, size, o, glm::vec4{depth, 0.48f, 0.25f, 2.f * 3.f});
+    }
+    // The groove 0.6 of the mark's width across and of its length along, its length over its width the mark's aspect.
+    const float width = (kind == MeleeMark::Chop ? 5.f : 3.6f) * za::sqrt(grows) * za::clamp(vr_decal_melee_slash_width.value, 0.5f, 2.f);
+    const float length = (kind == MeleeMark::Stab ? 7.f : kind == MeleeMark::Chop ? 15.f : 26.f) * grows *
+                         za::clamp(vr_decal_melee_slash_length.value, 0.5f, 2.f) * random(0.85f, 1.15f);
+    const float depth = (kind == MeleeMark::Chop ? 1.1f : kind == MeleeMark::Stab ? 1.f : 0.8f) * grows *
+                        za::clamp(vr_decal_melee_slash_depth.value, 0.f, 4.f);
+    o.along = line;
+    o.aspect = za::max(1.f, length / width);
+    return add(Scuff, where, normal, width, o, glm::vec4{depth, 0.6f, 0.2f, 2.f * 4.f});
 }
 
 // A nail's hit at `pos` from Dissolution of Eternity's lava nailguns: a lava nail (progs/lspike.mdl) seen near it in
@@ -1434,6 +1522,54 @@ void chip(const glm::vec3& org)
         }
         (void)impactMark(Impact::Pellet, where, normal);
     }
+}
+
+bool meleeEvent(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
+{
+    if(preset != EventMeleeMark)
+    {
+        return false;
+    }
+    if(!vr_decals.value || !vr_decal_melee.value || !vr_decal_carve.value || !cl.worldmodel)
+    {
+        return true; // (the blow's Quake effect leaves its pit, as before)
+    }
+    const int kind = za::clamp(count / 1000, 0, 3);
+    const float damage = static_cast<float>(count % 1000) * 0.25f;
+    const glm::vec3 d = glm::dot(dir, dir) > 1e-4f ? glm::normalize(dir) : glm::vec3{0.f};
+    glm::vec3 where, normal;
+    if(!nearest(org, 8.f, kind == 0 ? d : glm::vec3{0.f}, where, normal) || meleeMarkNear(where, 6.f, 0.15))
+    {
+        return true;
+    }
+    recentMelee[recentMeleeNext] = {where, cl.time};
+    recentMeleeNext = (recentMeleeNext + 1) % recentMeleeCount;
+    (void)meleeMark(static_cast<MeleeMark>(kind), where, normal, kind == 0 ? glm::vec3{0.f} : d, damage);
+    return true;
+}
+
+void propHit(const glm::vec3& at, const glm::vec3& normal, float speed, float mass)
+{
+    const float least = vr_decal_melee_prop_speed.value;
+    if(least <= 0.f || speed < least || !sv.active || sv.datagram.cursize > MAX_DATAGRAM - 24)
+    {
+        return;
+    }
+    // As a blow's damage: 20 for a 10 kg crate at 10 m/s, with the speed and the weight's cube root.
+    const float damage = 20.f * (speed / 10.f) * za::clamp(za::pow(za::max(mass, 0.1f) / 10.f, 1.f / 3.f), 0.5f, 1.6f);
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_PARTICLE2);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, at[i] + normal[i] * 2.f, sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&sv.datagram, CLAMP(-127, static_cast<int>(-normal[i] * 7.f * 16.f), 127));
+    }
+    MSG_WriteByte(&sv.datagram, EventMeleeMark);
+    MSG_WriteShort(&sv.datagram, CLAMP(1, static_cast<int>(damage * 4.f + 0.5f), 999)); // (kind 0: a dent)
+    VR_BroadcastMessageEnd();
 }
 
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
@@ -2117,7 +2253,8 @@ void carveTest_f()
         return;
     }
 
-    const int lattice = za::clamp(atoi(what), 0, 64);
+    const bool melee = !q_strcasecmp(what, "melee"); // (the melee marks: vr_decal_melee)
+    const int lattice = melee ? 0 : za::clamp(atoi(what), 0, 64);
     glm::vec3 centre, n;
     float fraction;
     if(!hitWorld(eye, eye + f * 1024.f, centre, n, fraction))
@@ -2140,7 +2277,11 @@ void carveTest_f()
         return hitWorld(p + n * 8.f, p - n * 16.f, where, normal, fr) && impactMark(kind, where, normal);
     };
     int made = 0;
-    if(!q_strcasecmp(what, "blast"))
+    if(melee)
+    {
+        // (below)
+    }
+    else if(!q_strcasecmp(what, "blast"))
     {
         made += at(Impact::Blast, 0.f, 0.f); // (one blast's crater in the middle)
     }
@@ -2174,6 +2315,56 @@ void carveTest_f()
         made += at(Impact::LavaNail, -32.f, -14.f);
         made += at(Impact::LavaSuperNail, -16.f, -14.f);
         made += at(Impact::Blast, 40.f, 0.f);
+    }
+    if(melee)
+    {
+        const auto blow = [&](MeleeMark kind, float a, float b, const glm::vec3& line, float damage) {
+            const glm::vec3 p = centre + across * a + upward * b;
+            glm::vec3 where, normal;
+            float fr;
+            return hitWorld(p + n * 8.f, p - n * 16.f, where, normal, fr) && meleeMark(kind, where, normal, line, damage);
+        };
+        const char* only = Cmd_Argc() > 2 ? Cmd_Argv(2) : "";
+        const int count = za::clamp(atoi(only), 0, 64);
+        if(!q_strcasecmp(only, "blunt"))
+        {
+            // Dents of 10, 20 and 40 damage in a row (close-ups).
+            for(int i = 0; i < 3; i++)
+            {
+                made += blow(MeleeMark::Blunt, -14.f + 13.f * static_cast<float>(i) + 2.f * static_cast<float>(i * i), 0.f,
+                    glm::vec3{0.f}, 10.f * static_cast<float>(1 << i));
+            }
+        }
+        else if(!q_strcasecmp(only, "slash"))
+        {
+            made += blow(MeleeMark::Slash, 0.f, 0.f, across + upward * 0.3f, 20.f); // one slash (close-ups)
+        }
+        else if(count > 0)
+        {
+            // A lattice of dents and slashes 20 units apart, 8 across, continued by the next call.
+            for(int i = 0; i < count; i++, carveTestSerial++)
+            {
+                const float a = 20.f * (static_cast<float>(carveTestSerial % 8u) - 3.5f);
+                const float b = 20.f * (static_cast<float>(carveTestSerial / 8u % 8u) - 3.5f);
+                made += carveTestSerial % 2u ? blow(MeleeMark::Slash, a, b, across + upward * 0.4f, 20.f) :
+                                               blow(MeleeMark::Blunt, a, b, glm::vec3{0.f}, 20.f);
+            }
+        }
+        else
+        {
+            // Dents of 10, 20 and 40 damage over a slash across (20), a slanting one and an axe's chop (30) under it, a
+            // stab and a slash up at the sides.
+            for(int i = 0; i < 3; i++)
+            {
+                made += blow(MeleeMark::Blunt, -16.f + 15.f * static_cast<float>(i) + 2.f * static_cast<float>(i * i), 14.f,
+                    glm::vec3{0.f}, 10.f * static_cast<float>(1 << i));
+            }
+            made += blow(MeleeMark::Slash, 0.f, 0.f, across, 20.f);
+            made += blow(MeleeMark::Slash, -10.f, -14.f, across + upward, 20.f);
+            made += blow(MeleeMark::Chop, 12.f, -14.f, across, 30.f);
+            made += blow(MeleeMark::Stab, -26.f, 2.f, upward, 20.f);
+            made += blow(MeleeMark::Slash, 28.f, -4.f, upward, 20.f);
+        }
     }
     Con_Printf("vr_decal_carve_test: %d marks laid round %.1f %.1f %.1f (normal %.2f %.2f %.2f), %.0f units ahead of %.1f %.1f "
                "%.1f along %.2f %.2f %.2f\n",
@@ -2269,7 +2460,7 @@ void count_f()
         }
         kinds[kind]++;
     }
-    int showing = 0, onBrushes = 0, carved = 0, nailShaped = 0, craters = 0;
+    int showing = 0, onBrushes = 0, carved = 0, nailShaped = 0, craters = 0, dents = 0, grooves = 0;
     for(za::SizeT k = 0; k < decals.size(); k++)
     {
         const Decal& d = decals[k];
@@ -2277,13 +2468,18 @@ void count_f()
         onBrushes += !d.tris.empty() && d.brush != 0 ? 1 : 0;
         carved += d.carve.x > 0.f ? 1 : 0;
         nailShaped += d.carve.x > 0.f && d.carve.w >= 2.f && d.carve.w < 4.f ? 1 : 0;
-        craters += d.carve.x > 0.f && d.carve.w >= 4.f ? 1 : 0;
+        craters += d.carve.x > 0.f && d.carve.w >= 4.f && d.carve.w < 6.f ? 1 : 0;
+        dents += d.carve.x > 0.f && d.carve.w >= 6.f && d.carve.w < 8.f ? 1 : 0;
+        grooves += d.carve.x > 0.f && d.carve.w >= 8.f ? 1 : 0;
     }
-    Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
+    Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches, %d "
+               "scuffs\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
-        kinds[Streak], kinds[Pool], kinds[Splotch]);
-    Con_Printf("%d carved (vr_decal_carve %g): %d pits, %d nail holes, %d blast craters\n", carved, vr_decal_carve.value,
-        carved - nailShaped - craters, nailShaped, craters);
+        kinds[Streak], kinds[Pool], kinds[Splotch], kinds[Scuff]);
+    Con_Printf("%d carved (vr_decal_carve %g, style %g): %d pits, %d nail holes, %d blast craters, %d melee dents, %d "
+               "blade grooves\n",
+        carved, vr_decal_carve.value, vr_decal_carve_style.value, carved - nailShaped - craters - dents - grooves,
+        nailShaped, craters, dents, grooves);
     Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
         static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
@@ -2712,14 +2908,16 @@ extern "C" void VR_DecalsFrame(float clock[4])
 }
 
 // R_SetupView: the carved marks' settings (DecalCarve, vr_glsl.h's CarveAt): the depth's multiplier (0: off, flat), the
-// rim's, the most steps a ray takes, the distance past which they are flat.
+// rim's, the most steps a ray takes + 128 x the style (vr_decal_carve_style: 0 smooth, 1 retro, 2 faceted, 3 retro on
+// retro textures' blocks, else smooth), the distance past which they are flat.
 extern "C" void VR_DecalCarveFrame(float out[4])
 {
     using namespace qvr;
     const bool on = vr_decal_carve.value != 0.f && vr_decals.value != 0.f && vr_decals_world.value != 0.f;
     out[0] = on ? za::clamp(vr_decal_carve_depth.value, 0.f, 4.f) : 0.f;
     out[1] = za::clamp(vr_decal_carve_rim.value, 0.f, 4.f);
-    out[2] = za::clamp(za::floor(vr_decal_carve_steps.value), 4.f, 64.f);
+    const float style = vr_decal_carve_style.value < 0.f ? 3.f : za::clamp(za::floor(vr_decal_carve_style.value), 0.f, 2.f);
+    out[2] = za::clamp(za::floor(vr_decal_carve_steps.value), 4.f, 64.f) + 128.f * style;
     out[3] = za::max(vr_decal_carve_fade.value, 16.f);
 }
 

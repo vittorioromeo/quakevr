@@ -908,6 +908,7 @@ float(float xHand) VR_WallTorch_Melee =
     }
     vector org = trace_endpos - v_forward * 4;
     float lit = t.wt_fire > 0;
+    VR_Melee_WallMark(xHand, xdmg, TRUE); // a club's dent on a wall (none on what bleeds; vr_decal_melee)
     float first = VRGetMeleeHitSoundPlayed(xHand) == FALSE;
     if(first)
     {

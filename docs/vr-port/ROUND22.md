@@ -10819,3 +10819,57 @@ haptics and recoil.
 
 To try in VR: kill a crossbow knight (ad_tfuma, or the toolgun), pick up its crossbow in either hand, fire, holster it
 and throw it; then set its hold in Weapon Offsets (slot 33).
+
+## Melee marks: blunt dents, blade grooves, carve styles (worktree `gorefx`, branch `agent/meleedents`, 2026-10-17)
+
+His request: blunt melee hits on walls and floors (crowbar, gun butts, fists with props, thrown props) leave shallow round
+dents; sword and axe slashes leave grooves along the swing, tapering at the ends (a pommel's hit is blunt); both scaled
+by damage. And less detail: a retro-quantized carve and a faceted low-poly one, as a Carve Style setting.
+
+How:
+
+- QC (`vr_melee.qc` `VR_Melee_WallMark`, called first in each weapon's wall branch: axe, sword, chainsaw, gun bash, fist,
+  Mjolnir, crowbar, MG3's super axe, the wall torch): once a blow (before its hit sound), a particle2 event 43
+  (`decals::EventMeleeMark`) 2 units out from the surface, `dir` the blow's way into it (blunt) or the cut's line,
+  `count` damage x 4 + 1000 x kind. A blade: the sword, an axe's head (a chop), the chainsaw's bar, a slash or a stab,
+  struck by a `VR_MPT_EDGE` point (the wall contact keeps it: `mh_c_blunt`); everything else blunt (pommels, handles,
+  butts, guns, the crowbar, Mjolnir, clubs, a fist holding a prop). A bare fist leaves none. The cut's line is the
+  swing projected on the surface; driven straight in (under 0.35 of it along the surface) the blade's own line (its
+  edge). Flat-screen swings: the weapon's kind only.
+- Thrown props (`vr_box3d_step.cpp` `soundHits` -> `decals::propHit`, server side): a wooden, metal, stone or brick
+  prop hitting the static world at `vr_decal_melee_prop_speed` (7 m/s) or faster sends the same event (a dent; damage
+  20 for 10 kg at 10 m/s, with the speed and the mass's cube root).
+- Client (`vr_decals.cpp` `meleeEvent` / `meleeMark`): a new decal kind `Scuff` (2 atlas cells, 29-30: crushed a
+  little darker, dust round it) carved as shape 3 (a dent: a smooth bowl, half the ragging, a low rim; 12 units, 0.6
+  deep at 20 damage, as the square root of damage / 20, 0.6-1.8) or shape 4 (a groove: along the mark's u, its length
+  over its width the mark's aspect, a rounded V across, depth and width tapering to the ends; a slash 26 x 3.6 units
+  0.8 deep, a chop 15 x 5 x 1.1, a stab 7 long). The same blow's Quake puff/sparks (`TE_GUNSHOT`, sparks) leave no pit
+  within 10 units for 0.25 s; two events within 6 units in 0.15 s make one mark.
+- Carve styles (`vr_glsl.h` `CarveHeight` / `CarveSample` / `CarveSnap`, every carved mark, the bullet holes too):
+  Smooth as before. Retro: the height read at the middle of the wall's texel block the point is in (the retro set's
+  blocks, else the texture's texels: the mark's u, v mapped to the texture's blocks through the surface's derivatives),
+  in steps of a quarter of its depth, its normal the smooth one at the block's middle, the ray's hit not refined (block
+  walls stay sharp); only where a block spans 1.5 pixels or more. Faceted: 8 sides (a polygon through the ragged edge's
+  corners) and 3 rings out, linear across each (flat facets); a groove's V straight, its taper in 3 steps. The style
+  rides in `DecalCarve.z` (+128 x style). `RetroBegin` now runs before the carve in the world shader (the Auto style
+  and the blocks need it).
+
+Settings (Gore > Marks, after Carved Marks Kept; new cvars, no migration): Carve Style `vr_decal_carve_style` -1 (Auto:
+Retro on retro textures' blocks, else Smooth; 0 Smooth, 1 Retro, 2 Faceted), Melee Marks `vr_decal_melee` 1, Blunt
+Dent Depth / Size `vr_decal_melee_blunt_depth` / `_size` 1, Slash Depth / Length / Width `vr_decal_melee_slash_depth` /
+`_length` / `_width` 1; `vr_decal_melee_prop_speed` 7 (cvar only). Debug menu: Melee Marks (`vr_decal_carve_test
+melee`: dents of 10/20/40 damage, slashes across, slanting and up, a chop, a stab), Melee Marks: 128 (a lattice);
+`vr_decal_carve_test melee blunt|slash` for close-ups. Test impulses 126 / 127: a sword's slash / a crowbar's dent where
+the view looks, through the QC (`vr_impulse_test.qc`). `vr_decal_count` lists dents and grooves.
+
+Verified (mock): impulse 126 -> 1 blade groove, 127 -> 1 melee dent (the QC's event end to end). Screenshots of dents
+and slashes head-on and grazing in each style on the start map's hall floor and an alcove wall: grooves read clearly,
+Retro pixelated block by block, Faceted angular; dents are subtle head-on in the floor's baked light, clear at grazing.
+Cost (2048 x 2048 eyes, `--exclusive`, 120 dents and grooves in view): the world's GPU 0.992 / 1.004 / 1.011 ms
+(smooth / retro / faceted) vs 0.776 flat: +0.22 ms for both eyes, the styles within 0.02 ms of each other.
+
+Not done / to try in VR: the mock's swings never reached a wall (`vr_mock_swing` struck nothing here), so a real blow's
+classification (a sword's edge vs its pommel, an axe's head vs its handle, a chop driven straight in taking the blade's
+line) and thrown props' dents were not seen in game: swing each weapon at a wall, pommel-strike one, punch a wall with a
+crate in hand and bare-fisted (no mark), throw a crate and a rock hard at a wall; look at each Carve Style on stone,
+metal and wood, close and grazing. The dents' depth (0.6 at 20 damage) may want to be deeper to read head-on.

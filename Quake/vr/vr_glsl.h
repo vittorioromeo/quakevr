@@ -1407,20 +1407,76 @@ LIQUID_SWELL \
 "	return duvdx * ((sx * yy - sy * xy) / det) + duvdy * ((sy * xx - sx * xy) / det);\n" \
 "}\n" \
 "\n" \
-"// QVR: the carved decals (vr_decal_carve): a hole or crater's height over the surface at q (in units, about its middle,\n" \
-"// along its u and v), k: its radius, depth, rim's height and shape (0 a pit: a bowl; 1 a nail's hole: steep walls; 2 a\n" \
-"// blast's crater: wide and smooth); rot turns its ragged edge (each mark's own). Ragged by a few harmonics of the angle,\n" \
-"// made from the direction itself (no atan).\n" \
-"float CarveHeight(vec2 q, vec4 k, vec2 rot)\n" \
+"// QVR: the carved decals (vr_decal_carve). A round mark's ragged edge: its radius's factor along dir (a few harmonics of\n" \
+"// the angle, made from the direction itself: no atan), turned by rot (each mark's own), `amount` of it.\n" \
+"float CarveRag(vec2 dir, vec2 rot, float amount)\n" \
 "{\n" \
+"	float c = dir.x * rot.x - dir.y * rot.y, s = dir.x * rot.y + dir.y * rot.x;\n" \
+"	return 1.0 + amount * (0.08 * (4.0 * c * c * c - 3.0 * c) + 0.06 * (2.0 * c * s) + 0.04 * (3.0 * s - 4.0 * s * s * s));\n" \
+"}\n" \
+"// A round mark's height at x (its radius 1): k.y its depth, k.z its rim's height, k.w its shape (0 a pit: a bowl; 1 a\n" \
+"// nail's hole: steep walls; 2 a blast's crater: wide and smooth; 3 a blunt blow's dent: shallow, rounded).\n" \
+"float CarveProfile(float x, vec4 k)\n" \
+"{\n" \
+"	float x2 = x * x, b = max(1.0 - x2, 0.0);\n" \
+"	float bowl = k.w < 0.5 ? b : k.w < 1.5 ? sqrt(max(1.0 - x2 * x2, 0.0)) : k.w < 2.5 ? b * (1.0 - 0.35 * x2) : b * sqrt(b);\n" \
+"	float rr = (x - 1.0) / (k.w > 2.5 ? 0.4 : k.w > 1.5 ? 0.35 : 0.25);\n" \
+"	return -k.y * bowl + k.z * exp(-rr * rr);\n" \
+"}\n" \
+"// A blade's groove (shape 4) at q: along u its length (k.x * e each way), across v its width (k.x each way), its depth\n" \
+"// and width tapering to its ends, a rounded V across. facet: a straight V, the taper in 3 steps each way.\n" \
+"float CarveGroove(vec2 q, vec4 k, float e, bool facet)\n" \
+"{\n" \
+"	float xs = abs(q.x) / (k.x * e), ta;\n" \
+"	if (facet)\n" \
+"	{\n" \
+"		float xf = xs * 3.0, x0 = floor(xf) * (1.0 / 3.0), x1 = x0 + 1.0 / 3.0;\n" \
+"		ta = mix(sqrt(max(1.0 - x0 * x0, 0.0)), sqrt(max(1.0 - x1 * x1, 0.0)), fract(xf));\n" \
+"	}\n" \
+"	else\n" \
+"		ta = sqrt(max(1.0 - xs * xs, 0.0));\n" \
+"	float yn = abs(q.y) / (k.x * (0.3 + 0.7 * ta));\n" \
+"	float v = max(1.0 - yn, 0.0);\n" \
+"	v = facet ? v : v * (2.0 - v);\n" \
+"	float rr = (yn - 1.0) / 0.35;\n" \
+"	return (-k.y * v + k.z * exp(-rr * rr)) * ta;\n" \
+"}\n" \
+"// A carved mark's height over the surface at q (in units, about its middle, along its u and v), k: its radius (a\n" \
+"// groove's half width), depth, rim's height and shape (CarveProfile's, 4 a groove e times as long as wide); rot turns its\n" \
+"// ragged edge. facet (vr_decal_carve_style 2): low-poly, flat facets: 8 sides round, 3 rings out (a polygon's corners on\n" \
+"// the ragged edge, the height linear across each ring of each side).\n" \
+"float CarveHeight(vec2 q, vec4 k, vec2 rot, float e, bool facet)\n" \
+"{\n" \
+"	if (k.w > 3.5)\n" \
+"		return CarveGroove(q, k, e, facet);\n" \
+"	float amount = k.w > 2.5 ? 0.5 : 1.0;\n" \
+"	if (facet)\n" \
+"	{\n" \
+"		const float sec = 0.78539816;\n" \
+"		float i0 = floor(atan(q.y, q.x == 0.0 && q.y == 0.0 ? 1.0 : q.x) / sec) * sec;\n" \
+"		vec2 d0 = vec2(cos(i0), sin(i0)), d1 = vec2(d0.x - d0.y, d0.x + d0.y) * 0.70710678; // (the next corner: 45 degrees on)\n" \
+"		vec2 v0 = d0 * (k.x * CarveRag(d0, rot, amount)), v1 = d1 * (k.x * CarveRag(d1, rot, amount));\n" \
+"		float x = (q.x * (v1.y - v0.y) + q.y * (v0.x - v1.x)) / (v0.x * v1.y - v0.y * v1.x); // q = a v0 + b v1: x = a + b\n" \
+"		float xf = x * 3.0, x0 = floor(xf) * (1.0 / 3.0);\n" \
+"		return mix(CarveProfile(x0, k), CarveProfile(x0 + 1.0 / 3.0, k), fract(xf));\n" \
+"	}\n" \
 "	float r = length(q);\n" \
 "	vec2 dir = r > 1e-4 ? q / r : vec2(1.0, 0.0);\n" \
-"	float c = dir.x * rot.x - dir.y * rot.y, s = dir.x * rot.y + dir.y * rot.x;\n" \
-"	float rag = 1.0 + 0.08 * (4.0 * c * c * c - 3.0 * c) + 0.06 * (2.0 * c * s) + 0.04 * (3.0 * s - 4.0 * s * s * s);\n" \
-"	float x = r / (k.x * rag), x2 = x * x;\n" \
-"	float bowl = k.w < 0.5 ? max(1.0 - x2, 0.0) : k.w < 1.5 ? sqrt(max(1.0 - x2 * x2, 0.0)) : max(1.0 - x2, 0.0) * (1.0 - 0.35 * x2);\n" \
-"	float rr = (x - 1.0) / (k.w > 1.5 ? 0.35 : 0.25);\n" \
-"	return -k.y * bowl + k.z * exp(-rr * rr);\n" \
+"	return CarveProfile(r / (k.x * CarveRag(dir, rot, amount)), k);\n" \
+"}\n" \
+"// The retro style (vr_decal_carve_style 1): q moved to the middle of the wall's texel block it is in (toB: the mark's\n" \
+"// u, v to the texture's blocks; b0: the blocks at its middle; fromB back).\n" \
+"vec2 CarveSnap(vec2 q, bool snap, mat2 toB, mat2 fromB, vec2 b0)\n" \
+"{\n" \
+"	return snap ? fromB * (floor(toB * q + b0) + 0.5 - b0) : q;\n" \
+"}\n" \
+"// The height the ray meets: snapped, a block's height is its middle's, in steps of a quarter of the depth.\n" \
+"float CarveSample(vec2 q, vec4 k, vec2 rot, float e, bool facet, bool snap, mat2 toB, mat2 fromB, vec2 b0)\n" \
+"{\n" \
+"	if (!snap)\n" \
+"		return CarveHeight(q, k, rot, e, facet);\n" \
+"	float st = max(k.y * 0.25, 0.05);\n" \
+"	return floor(CarveHeight(CarveSnap(q, true, toB, fromB, b0), k, rot, e, false) / st + 0.5) * st;\n" \
 "}\n" \
 "\n" \
 "// The first carved decal at p (where the parallax mapping put the surface; q its own point, facing its normal, dpdx and\n" \
@@ -1429,8 +1485,10 @@ LIQUID_SWELL \
 "// off, 3 at least, DecalCarve.z at most). shift: how far along the surface the hit is from p; bend: its normal there\n" \
 "// less the decal's; dark: its colour's factor (deeper darker, its core darker still); light: where the baked light is\n" \
 "// guessed to come from (its v: turned towards the light that reaches it, vr_decals.cpp). Flat (false): none here,\n" \
-"// beyond DecalCarve.w, or one spanning a pixel or two (it flattens as it shrinks, and as it fades out).\n" \
-"bool CarveAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy, out vec3 shift, out vec3 bend, out float dark, out vec3 light)\n" \
+"// beyond DecalCarve.w, or one spanning a pixel or two (it flattens as it shrinks, and as it fades out). tuv: the\n" \
+"// texture's coordinates at p, duvdx and duvdy their derivatives, grid: its texel blocks across it (the retro style's;\n" \
+"// DecalCarve.z's 128s: the style, 0 smooth, 1 retro, 2 faceted, 3 retro on retro textures' blocks, else smooth).\n" \
+"bool CarveAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy, vec2 tuv, vec2 duvdx, vec2 duvdy, vec2 grid, out vec3 shift, out vec3 bend, out float dark, out vec3 light)\n" \
 "{\n" \
 "	shift = vec3(0.0);\n" \
 "	bend = vec3(0.0);\n" \
@@ -1450,6 +1508,10 @@ LIQUID_SWELL \
 "		return false;\n" \
 "	vec3 view = eye / max(dist, 1e-3);\n" \
 "	float foot = max(max(length(dpdx), length(dpdy)), 1e-4); // units a pixel\n" \
+"	float style = floor(DecalCarve.z * (1.0 / 128.0)), maxSteps = DecalCarve.z - 128.0 * style;\n" \
+"	if (style > 2.5)\n" \
+"		style = Retro > 0 && RetroP0.w > 0.0 && RetroFar < 1.0 ? 1.0 : 0.0;\n" \
+"	bool facet = style > 1.5, retro = style > 0.5 && style < 1.5 && grid.x > 0.0 && grid.y > 0.0;\n" \
 "	for (uint k = 0u; k < count; k++)\n" \
 "	{\n" \
 "		uint at = DecalGrid[first + k];\n" \
@@ -1463,11 +1525,13 @@ LIQUID_SWELL \
 "		vec3 off = p - c4.xyz;\n" \
 "		vec2 q0 = vec2(dot(off, u4.xyz), dot(off, v4.xyz));\n" \
 "		float R = cv.y;\n" \
+"		float el = cv.w > 7.5 ? max(u4.w / max(v4.w, 1e-3), 1.0) : 1.0; // a groove's length over its width\n" \
+"		vec2 sc = vec2(1.0 / el, 1.0), q0s = q0 * sc;\n" \
 "		float age = DecalClock.x - Decals[at].time.x;\n" \
 "		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
 "		float strength = fade * a * smoothstep(1.0, 3.0, R / foot); // (flattening far off, small on the screen, fading out)\n" \
 "		float D = cv.x * DecalCarve.x * strength;\n" \
-"		if (age < 0.0 || D < 0.02 || dot(q0, q0) > R * R * 9.0)\n" \
+"		if (age < 0.0 || D < 0.02 || dot(q0s, q0s) > R * R * 9.0)\n" \
 "			continue;\n" \
 "		float rimH = D * cv.z * DecalCarve.y;\n" \
 "		float shape = floor(cv.w * 0.5);\n" \
@@ -1477,35 +1541,52 @@ LIQUID_SWELL \
 "		vec2 slope = vec2(dot(view, u4.xyz), dot(view, v4.xyz)) / -vz; // along it per unit down\n" \
 "		// the ray from the rim's top to the floor: missing the crater and its rim (1.6 radii), flat here\n" \
 "		vec2 ra = q0 - slope * rimH, rb = q0 + slope * D, ab = rb - ra;\n" \
-"		vec2 near = ra + ab * clamp(-dot(ra, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);\n" \
+"		vec2 near = (ra + ab * clamp(-dot(ra, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0)) * sc;\n" \
 "		if (dot(near, near) > R * R * 2.56)\n" \
 "			continue;\n" \
 "		float ang = fract(sin(dot(c4.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;\n" \
 "		vec2 rot = vec2(cos(ang), sin(ang));\n" \
-"		float steps = clamp(ceil(length(ab) / foot * 0.5) + 2.0, 3.0, max(DecalCarve.z, 3.0));\n" \
+"		// The retro style: the heights block by block, the wall's texel blocks (a block a pixel and a half wide or more)\n" \
+"		bool snap = false;\n" \
+"		mat2 toB = mat2(1.0), fromB = mat2(1.0);\n" \
+"		vec2 b0 = vec2(0.0);\n" \
+"		if (retro)\n" \
+"		{\n" \
+"			toB = mat2(WorldShiftUV(u4.xyz, duvdx, duvdy, dpdx, dpdy) * grid, WorldShiftUV(v4.xyz, duvdx, duvdy, dpdx, dpdy) * grid);\n" \
+"			float bd = abs(determinant(toB));\n" \
+"			snap = bd > 1e-8 && inversesqrt(bd) > foot * 1.5;\n" \
+"			if (snap)\n" \
+"			{\n" \
+"				fromB = inverse(toB);\n" \
+"				b0 = tuv * grid - toB * q0;\n" \
+"			}\n" \
+"		}\n" \
+"		float steps = clamp(ceil(length(ab) / foot * 0.5) + 2.0, 3.0, max(maxSteps, 3.0));\n" \
 "		float ds = (D + rimH) / steps;\n" \
-"		float s0 = -rimH, g0 = s0 + CarveHeight(ra, kk, rot), s1 = s0, g1 = g0; // g: the ray's depth past the surface's\n" \
+"		float s0 = -rimH, g0 = s0 + CarveSample(ra, kk, rot, el, facet, snap, toB, fromB, b0), s1 = s0, g1 = g0; // g: the ray's depth past the surface's\n" \
 "		for (float i = 1.0; i <= steps; i += 1.0)\n" \
 "		{\n" \
 "			s1 = -rimH + ds * i;\n" \
-"			g1 = s1 + CarveHeight(q0 + slope * s1, kk, rot);\n" \
+"			g1 = s1 + CarveSample(q0 + slope * s1, kk, rot, el, facet, snap, toB, fromB, b0);\n" \
 "			if (g1 >= 0.0)\n" \
 "				break;\n" \
 "			s0 = s1;\n" \
 "			g0 = g1;\n" \
 "		}\n" \
-"		float sh = g1 > g0 ? mix(s0, s1, clamp(-g0 / (g1 - g0), 0.0, 1.0)) : s1;\n" \
+"		float sh = g1 > g0 && !snap ? mix(s0, s1, clamp(-g0 / (g1 - g0), 0.0, 1.0)) : s1;\n" \
 "		vec2 qh = q0 + slope * sh;\n" \
+"		vec2 qn = CarveSnap(qh, snap, toB, fromB, b0); // (snapped: the block's normal, its middle's)\n" \
 "		float e = max(R * 0.06, 0.02);\n" \
-"		float hh = CarveHeight(qh, kk, rot);\n" \
-"		vec2 g = vec2(CarveHeight(qh + vec2(e, 0.0), kk, rot) - hh, CarveHeight(qh + vec2(0.0, e), kk, rot) - hh) / e;\n" \
+"		float h0 = CarveHeight(qn, kk, rot, el, facet);\n" \
+"		float hh = snap ? CarveSample(qh, kk, rot, el, facet, snap, toB, fromB, b0) : h0;\n" \
+"		vec2 g = vec2(CarveHeight(qn + vec2(e, 0.0), kk, rot, el, facet) - h0, CarveHeight(qn + vec2(0.0, e), kk, rot, el, facet) - h0) / e;\n" \
 "		bend = normalize(n - u4.xyz * g.x - v4.xyz * g.y) - n;\n" \
 "		shift = u4.xyz * (qh.x - q0.x) + v4.xyz * (qh.y - q0.y);\n" \
 "		float deep = clamp(-hh / D, 0.0, 1.0);\n" \
 "		float core = cv.w - 2.0 * shape;\n" \
 "		dark = 1.0 - 0.45 * deep * deep;\n" \
 "		if (core > 0.0)\n" \
-"			dark *= mix(0.22, 1.0, smoothstep(core * 0.55, core, length(qh) / R));\n" \
+"			dark *= mix(0.22, 1.0, smoothstep(core * 0.55, core, length(qn) / R));\n" \
 "		dark = mix(1.0, dark, strength);\n" \
 "		light = normalize(n * 0.6 + v4.xyz * 0.8);\n" \
 "		return true;\n" \
@@ -1706,7 +1787,8 @@ LIQUID_SWELL \
 "	{\n" \
 "		vec3 carve_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
 "		vec3 carve_shift;\n" \
-"		carve_on = CarveAt(carve_pos, in_pos, facing, dpdx, dpdy, carve_shift, carve_bend, carve_dark, carve_light);\n" \
+"		vec2 carve_grid = Retro > 0 && RetroP0.w > 0.0 ? RetroGrid : in_retro.xy; // (the retro style's blocks: the retro textures', else the texels)\n" \
+"		carve_on = CarveAt(carve_pos, in_pos, facing, dpdx, dpdy, puv, duvdx, duvdy, carve_grid, carve_shift, carve_bend, carve_dark, carve_light);\n" \
 "		if (carve_on)\n" \
 "		{\n" \
 "			puv += WorldShiftUV(carve_shift, duvdx, duvdy, dpdx, dpdy);\n" \

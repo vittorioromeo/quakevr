@@ -527,9 +527,9 @@ void parseParticle2()
 
     const glm::vec3 o{org[0], org[1], org[2]};
     const glm::vec3 d{dir[0], dir[1], dir[2]};
-    if(gore::event(o, d, static_cast<int>(preset), count))
+    if(gore::event(o, d, static_cast<int>(preset), count) || decals::meleeEvent(o, d, static_cast<int>(preset), count))
     {
-        return; // the gore's (vr_gore.cpp): marks only
+        return; // the gore's (vr_gore.cpp), a melee blow's mark (vr_decals.cpp): marks only
     }
     decals::fromEffect(o, d, preset, count);
     // Route an explosion through its one common entry point, including the particle-off fallback.
