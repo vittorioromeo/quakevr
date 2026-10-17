@@ -6,7 +6,10 @@
 // A hand's hotspot (body::updateHotspots) is the zone it is deepest in: the held gun's grip and body (its handle, the
 // way to its muzzle, the muzzle) for the holsters, the hand for the pouches, which only a hand without a gun can have
 // (a gun goes to a holster; the pouches give and take rounds, magazines and grenades). The zone a hand had keeps it
-// while within vr_holster_zone_hysteresis more of its size, and wins until another is that much deeper.
+// while within vr_holster_zone_hysteresis more of its size, and wins until another is that much deeper. A hand carrying
+// an ammo box, a health box or a backpack (STAT_QVR_CARRYITEM) has every box vr_holster_zone_item_<kind> times larger
+// about its middle; a hand without a gun also has a sphere of vr_holster_zone_handle_radius round each holstered gun's
+// grip as drawn (publishGrip) as that holster's zone.
 // vr_holster_zones 0: the old spheres (body.cpp's hotspot: the hand's distance over the reach). vr_holster_zones_show:
 // every zone as a wireframe (Debug > Views; Immersion > Holster Zones).
 
@@ -44,8 +47,15 @@ void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::
 [[nodiscard]] bool drawnPoint(const hands::State& s, int zone, const glm::vec3& offset, glm::vec3& out);
 
 // `boxMiddle`: the zone's box's middle instead (its offsets, vr_holster_zone_<kind>_x/y/z, applied; vr_mock_hand_to
-// <hand> zonebox).
-[[nodiscard]] bool boxMiddle(const hands::State& s, int zone, glm::vec3& out);
+// <hand> zonebox), plus `offset` along its axes (out, side, up).
+[[nodiscard]] bool boxMiddle(const hands::State& s, int zone, glm::vec3& out, const glm::vec3& offset = glm::vec3{0.f});
+
+// The holstered gun's grip as drawn in holster `zone` (publishGrip; vr_mock_hand_to <hand> zonehandle). False: none.
+[[nodiscard]] bool gripPoint(const hands::State& s, int zone, glm::vec3& out);
+
+// The holstered gun's grip as drawn (its model's origin: where the hand holding it is), after the holster's publish:
+// a sphere of vr_holster_zone_handle_radius round it is that holster's zone too, for a hand without a gun.
+void publishGrip(int zone, const glm::vec3& grip);
 
 // The wireframes (vr_holster_zones_show): idle grey, occupied blue, a candidate (a point of the hand's in it, not the
 // deepest) yellow, the one a hand is at green (holding a gun: where it would go); the hands' points as dots.

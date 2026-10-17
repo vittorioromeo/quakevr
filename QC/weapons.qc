@@ -6063,6 +6063,7 @@ void() W_Frame =
     VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);
+    VR_Carry_ItemsFrame(); // (the hands carrying a thing to put away: their zones larger, STAT_QVR_CARRYITEM)
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
     VR_AI_TestFrame();

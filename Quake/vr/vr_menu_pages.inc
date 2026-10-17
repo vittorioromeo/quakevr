@@ -2031,9 +2031,12 @@ void retroAllUncheckCategories()
             .help("A hand holding a gun is tested at its palm as drawn too, beside the gun's grip and body: the hand in a "
                   "holster puts the gun in it even when the gun's points are not (the holsters only: the pouches take an "
                   "empty hand alone)."),
+        slider("Handle Radius", vr_holster_zone_handle_radius, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
+            .help("A hand reaching for a holstered gun: a ball this many units round its grip as drawn is that holster's "
+                  "zone too, so a handle standing out of the box (the shoulders') can be taken. 0: the box alone."),
     };
     const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
-                          cvar_t& width, cvar_t& height) {
+                          cvar_t& width, cvar_t& height, cvar_t& item) {
         items.pushBack(header(title));
         items.pushBack(slider("Reach", reach, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
                 .help("Its size (units; its Threshold elsewhere): the box's half depth, width and height are this times "
@@ -2050,19 +2053,22 @@ void retroAllUncheckCategories()
                 .help("Units outwards, away from the body's middle (negative: towards it), mirrored for the left ones; the "
                       "pouches: to the right."));
         items.pushBack(slider("Move Up", z, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f).help("Units up (negative: down)."));
+        items.pushBack(slider("Item Size", item, 1.f, 3.f, 0.05f, "%.2fx").extend(0.25f, 5.f)
+                .help("Carrying an ammo box, a health box or a backpack to put away: the box this much larger about its "
+                      "middle (a gun, a key or a grenade: as set above). 1: no larger."));
     };
     kind("Hip Holsters", vr_hip_holster_thresh, vr_holster_zone_hip_x, vr_holster_zone_hip_y, vr_holster_zone_hip_z,
-        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height);
+        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height, vr_holster_zone_item_hip);
     kind("Chest Holsters", vr_upper_holster_thresh, vr_holster_zone_upper_x, vr_holster_zone_upper_y,
-        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height);
+        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height, vr_holster_zone_item_upper);
     kind("Shoulder Holsters", vr_shoulder_holster_thresh, vr_holster_zone_shoulder_x, vr_holster_zone_shoulder_y,
         vr_holster_zone_shoulder_z, vr_holster_zone_shoulder_depth, vr_holster_zone_shoulder_width,
-        vr_holster_zone_shoulder_height);
+        vr_holster_zone_shoulder_height, vr_holster_zone_item_shoulder);
     kind("Ammo Pouch", vr_ammo_pouch_thresh, vr_holster_zone_ammo_x, vr_holster_zone_ammo_y, vr_holster_zone_ammo_z,
-        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height);
+        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height, vr_holster_zone_item_ammo);
     kind("Grenade Pouch", vr_grenade_pouch_thresh, vr_holster_zone_grenade_x, vr_holster_zone_grenade_y,
         vr_holster_zone_grenade_z, vr_holster_zone_grenade_depth, vr_holster_zone_grenade_width,
-        vr_holster_zone_grenade_height);
+        vr_holster_zone_grenade_height, vr_holster_zone_item_grenade);
     return items;
 }
 

@@ -451,6 +451,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.throwhit = QVR_THROWHIT_HIT;
     xBox.owner = xPlayer;
     xBox.carry_2h = FALSE;
+    xBox.carry_autotried = FALSE; // (vr_carry_autocollect: tried once a carry)
     VR_Carry_SetHeld(xPlayer, xHand, xBox);
 
     entity oldSelf = self;
@@ -1127,13 +1128,58 @@ void(float xHand, entity e, float hotspot) VR_CollectFx_Send =
         hotspot = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
     }
     if(e != vr_cfx_ent || !vr_cfx_model ||
-       !(isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH))
+       !(isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH ||
+         hotspot == QVR_CFX_INTO_HAND))
     {
         return;
     }
     collectfx(xHand, e, hotspot, vr_cfx_model, vr_cfx_org, vr_cfx_ang);
     vr_cfx_ent = world;
 };
+
+float(entity e) VR_Reload_IsAmmoBox; // (vr_reload.qc)
+
+// Whether `e` is a thing to put away (2026-10-17): an ammo box, a health box, a backpack (`xBackpack`); not armour, a
+// key, a grenade, a gib or a prop. A hand carrying one has larger zones (STAT_QVR_CARRYITEM: vr_holster_zone_item_*).
+float(entity e, float xBackpack) VR_Carry_IsCollectable =
+{
+    if(e == world || e.model == string_null || e.vr_wearable || e.vr_pickup_obj || e.vr_gib)
+    {
+        return FALSE;
+    }
+    if(e.carry_use == BackpackTouch)
+    {
+        return xBackpack;
+    }
+    return VR_Reload_IsAmmoBox(e) || e.classname == "item_health" || e.carry_use == health_touch ||
+           e.carry_use == MGH_horde_health_touch;
+};
+
+// The hands carrying one, alone (held in both is never put away), for the engine (.vr_carry_items: STAT_QVR_CARRYITEM).
+void() VR_Carry_ItemsFrame =
+{
+    entity a = self.offhand_held;
+    entity b = self.mainhand_held;
+    self.vr_carry_items = ((a != b && VR_Carry_IsCollectable(a, TRUE)) ? 1 : 0) +
+                          ((a != b && VR_Carry_IsCollectable(b, TRUE)) ? 2 : 0);
+};
+
+// Full up of what `xBox` gives (a box put away, or taken at once, and still there): a dull knock on a stuffed pack and a
+// haptic tick (vr_carry_full_cue), so it is not taken for a miss of the holster. Once a second at most.
+void(float xHand, entity xBox) VR_Carry_FullCue =
+{
+    dprint(sprintf("carry: full up (%s, hand %g)\n", xBox.classname, xHand));
+    if(!cvar_hget(cvarh_vr_carry_full_cue) || time < self.vr_carry_fullcue)
+    {
+        return;
+    }
+    self.vr_carry_fullcue = time + 0.4;
+    sound(self, VRGetHandChannel(xHand), "vr/pack_full.wav", 0.9, ATTN_NORM);
+    haptic(xHand, 0.0, 0.06, 40, 0.9);
+};
+
+// Set round VR_Carry_Take: where its put-away transition goes (QVR_HS_*, QVR_CFX_INTO_HAND; 0: the hand's hotspot).
+nosave float vr_carry_take_into;
 
 // Take it: its own pickup, as if the carrying hand had touched it the old way. Taken at a holster or pouch, it is drawn
 // going in (VR_CollectFx_Send).
@@ -1160,8 +1206,32 @@ void(float xHand, entity xBox) VR_Carry_Take =
     {
         VR_Carry_SetHeld(self, xHand, world);
         xBox.carry_player = world; // (a deathmatch item comes back: carried by no one)
-        VR_CollectFx_Send(xHand, xBox, 0);
+        VR_CollectFx_Send(xHand, xBox, vr_carry_take_into);
     }
+};
+
+// vr_carry_autocollect (2026-10-17: "auto-collect ammo boxes and health boxes as soon as they're grabbed"): a box just
+// taken in one hand (a grip, a force grab's catch) is taken at once, drawn shrinking into the hand; full up, the full cue
+// and it stays held (to put away later, or throw). Once a carry (.carry_autotried, cleared by VR_Carry_Start). TRUE:
+// taken.
+float(float xHand, entity xBox) VR_Carry_AutoCollect =
+{
+    float mode = cvar_hget(cvarh_vr_carry_autocollect);
+    if(!mode || xBox.carry_autotried || xBox.carry_2h || !VR_Carry_IsCollectable(xBox, mode >= 2))
+    {
+        return FALSE;
+    }
+    xBox.carry_autotried = TRUE;
+    vr_carry_take_into = QVR_CFX_INTO_HAND;
+    VR_Carry_Take(xHand, xBox);
+    vr_carry_take_into = 0;
+    if(xBox.model == string_null)
+    {
+        dprint(sprintf("carry: taken at once (hand %g)\n", xHand));
+        return TRUE;
+    }
+    VR_Carry_FullCue(xHand, xBox);
+    return FALSE;
 };
 
 // Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one), or at the grenade pouch at the small
@@ -1201,6 +1271,12 @@ void(float xHand) VR_Carry_HandFrame =
 
     VR_Carry_KeepAlive(box);
     portal_carry(box, self, xHand, FALSE); // also before a release in this frame
+
+    // Taken at once as it is gripped (vr_carry_autocollect)?
+    if(VR_Carry_AutoCollect(xHand, box))
+    {
+        return;
+    }
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
@@ -1254,6 +1330,8 @@ void(float xHand) VR_Carry_HandFrame =
             {
                 return;
             }
+            // Full up: it drops there, with the full cue (not a miss of the holster: 2026-10-17).
+            VR_Carry_FullCue(xHand, box);
             VR_Carry_SetHeld(self, xHand, world);
             VR_Carry_Loose(box);
             box.velocity = '0 0 0';
@@ -1281,6 +1359,7 @@ void(float xHand) VR_Carry_HandFrame =
         {
             return; // taken (VR_Carry_Take let go of it)
         }
+        VR_Carry_FullCue(xHand, box); // (full up: still held)
     }
     box.carry_trigger = trigger;
 
