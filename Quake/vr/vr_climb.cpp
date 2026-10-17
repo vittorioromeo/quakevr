@@ -405,6 +405,37 @@ struct Scored
     glm::vec3 at;
 };
 
+// A candidate's place (placeOf) as a box in a ledge's frame: along the ledge from its end `a`, across it (out), and
+// up from its lip's height; the place's depth in is taken where the hand's hold is (it varies along a ledge only where
+// the top does).
+struct Frame
+{
+    glm::vec3 origin, along, out;
+
+    [[nodiscard]] glm::vec3 to(const glm::vec3& p) const
+    {
+        const glm::vec3 d = p - origin;
+        return {glm::dot(d, along), glm::dot(d, out), d.z};
+    }
+    [[nodiscard]] glm::vec3 from(const glm::vec3& q) const
+    {
+        return origin + along * q.x + out * q.y + glm::vec3{0.f, 0.f, q.z};
+    }
+};
+
+struct Box
+{
+    glm::vec3 lo, hi;
+};
+
+// A candidate's frame and box (freePoint: each made once per search, not once per candidate checked against it).
+struct FrameBox
+{
+    Frame f{};
+    Box b{};
+    bool made{false};
+};
+
 // The hold search's buffers (the server's frame: the main thread).
 struct ClimbScratch
 {
@@ -414,9 +445,10 @@ struct ClimbScratch
     za::Vector<edict_t*> movers;        // the brush models round it (findHold)
     za::Vector<const Candidate*> order; // those the hand is at, the first taken first (findHold)
     za::Vector<Scored> scored;          // the lenient ones (findHold)
+    za::Vector<FrameBox> frameBoxes;    // the found ones' frames and boxes, by index (findHold, freePoint)
     ledges::Map props;                  // the props' ledges round the hand as they lie now (gather),
     za::Vector<int> propNums;           // and each one's prop
-    auto members() { return qvr::mem::list(nearby, areaEdicts, found, movers, order, scored, props, propNums); }
+    auto members() { return qvr::mem::list(nearby, areaEdicts, found, movers, order, scored, frameBoxes, props, propNums); }
 };
 mem::Scratch<ClimbScratch> scratch{"climb"};
 
@@ -575,29 +607,6 @@ enum class Check
     return Check::ok;
 }
 
-// A candidate's place (placeOf) as a box in a ledge's frame: along the ledge from its end `a`, across it (out), and
-// up from its lip's height; the place's depth in is taken where the hand's hold is (it varies along a ledge only where
-// the top does).
-struct Frame
-{
-    glm::vec3 origin, along, out;
-
-    [[nodiscard]] glm::vec3 to(const glm::vec3& p) const
-    {
-        const glm::vec3 d = p - origin;
-        return {glm::dot(d, along), glm::dot(d, out), d.z};
-    }
-    [[nodiscard]] glm::vec3 from(const glm::vec3& q) const
-    {
-        return origin + along * q.x + out * q.y + glm::vec3{0.f, 0.f, q.z};
-    }
-};
-
-struct Box
-{
-    glm::vec3 lo, hi;
-};
-
 [[nodiscard]] Frame frameOf(const Candidate& c)
 {
     const ledges::Edge& e = c.ledge();
@@ -617,8 +626,8 @@ struct Box
 // takenBefore), nearest the hand: the place less the others' places that come first, as boxes in `c`'s frame (those
 // square or parallel to it: rungs above and below, a rung's front and its ends, a thin wall's two sides; any other is
 // only checked at the point found). False: nowhere.
-[[nodiscard]] bool freePoint(const Candidate& c, const za::Vector<Candidate>& all, const glm::vec3& hand, const glm::vec2& toBody,
-    glm::vec3& point)
+[[nodiscard]] bool freePoint(const Candidate& c, const za::Vector<Candidate>& all, za::Vector<FrameBox>& frameBoxes,
+    const glm::vec3& hand, const glm::vec2& toBody, glm::vec3& point)
 {
     const ledges::Edge& e = c.ledge();
     const Frame f = frameOf(c);
@@ -647,8 +656,13 @@ struct Box
             {
                 continue;
             }
-            const Frame kf = frameOf(k);
-            const Box kb = boxOf(k);
+            FrameBox& fb = frameBoxes[static_cast<za::SizeT>(&k - &all[0])];
+            if(!fb.made)
+            {
+                fb = FrameBox{frameOf(k), boxOf(k), true};
+            }
+            const Frame& kf = fb.f;
+            const Box& kb = fb.b;
             Box b{glm::vec3{1e9f}, glm::vec3{-1e9f}};
             for(int i = 0; i < 8; i++)
             {
@@ -898,6 +912,9 @@ constexpr float ladderRungDepth = 32.f;
     const float lenientReach = za::hypot(za::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
     za::Vector<Scored>& scored = scratch.scored;
     scored.clear();
+    za::Vector<FrameBox>& frameBoxes = scratch.frameBoxes;
+    frameBoxes.clear();
+    frameBoxes.resize(found.size());
     for(const Candidate& c : found)
     {
         if(c.place.dist <= 1e-3f)
@@ -908,7 +925,7 @@ constexpr float ladderRungDepth = 32.f;
         // Where in its place the hand would take it (not where another ledge comes first: the near side of a thin
         // wall, a rung's front at its end, the rung above), nearest the hand; the hold is there along the ledge.
         glm::vec3 at;
-        if(!freePoint(c, found, hand, toBody, at) || glm::distance(at, hand) > radius + 1e-3f)
+        if(!freePoint(c, found, frameBoxes, hand, toBody, at) || glm::distance(at, hand) > radius + 1e-3f)
         {
             st.hidden++;
             continue;

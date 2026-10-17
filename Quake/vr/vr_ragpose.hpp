@@ -56,14 +56,21 @@ namespace qvr::ragpose
 
 // Bone `b`'s transform (rest -> pose, model space) a share `t` of the way from pose `a` to pose `b2`: its turn blended
 // the short way (normalised lerp: frames are close), its place lerped.
-inline void bonePoseLerp(const ragdoll::Rig& rig, int a, int b2, float t, int b, glm::quat& rot, glm::vec3& pos)
+// (Also the two poses' own turns, `ra` and `rb`: a caller that wants them too doesn't look them up again.)
+inline void bonePoseLerp(const ragdoll::Rig& rig, int a, int b2, float t, int b, glm::quat& rot, glm::vec3& pos,
+    glm::quat& ra, glm::quat& rb)
 {
-    glm::quat ra, rb;
     glm::vec3 pa, pb;
     ragdoll::bonePose(rig, a, b, ra, pa);
     ragdoll::bonePose(rig, b2, b, rb, pb);
     rot = glm::normalize(ra * (1.f - t) + nearTo(rb, ra) * t);
     pos = pa + (pb - pa) * t;
+}
+
+inline void bonePoseLerp(const ragdoll::Rig& rig, int a, int b2, float t, int b, glm::quat& rot, glm::vec3& pos)
+{
+    glm::quat ra, rb;
+    bonePoseLerp(rig, a, b2, t, b, rot, pos, ra, rb);
 }
 
 // A joint's rotation (the child's turn in its parent's rest space) as Box3D's target: frame B relative to frame A.
