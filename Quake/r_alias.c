@@ -1010,11 +1010,119 @@ static void R_AliasSmoothInstance (const entity_t *e, const aliashdr_t *hdr, con
 R_DrawAliasModel_Real
 =================
 */
+/*
+=================
+R_AliasTransform -- QVR: (from R_DrawAliasModel_Real) the lerp and the model's matrices: model_matrix with its
+vertices' scale, bounds_matrix without
+=================
+*/
+static void R_AliasTransform (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata, float model_matrix[16], float bounds_matrix[16])
+{
+	float fovscale = 1.0f;
+
+	R_SetupAliasFrame (e, paliashdr, lerpdata);
+	R_SetupEntityTransform (e, lerpdata);
+
+	if (lerpdata->pose1 == lerpdata->pose2)
+		lerpdata->blend = 0.f;
+
+	//
+	// viewmodel adjustments (position, fov distortion correction)
+	//
+	if (e == &cl.viewent)
+	{
+		if (r_refdef.basefov > 90.f && cl_gun_fovscale.value)
+		{
+			fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
+			fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+		}
+
+		VectorMA (lerpdata->origin, cl_gun_x.value * paliashdr->scale[0] * fovscale,	vright,	lerpdata->origin);
+		VectorMA (lerpdata->origin, cl_gun_y.value * paliashdr->scale[1] * fovscale,	vup,	lerpdata->origin);
+		VectorMA (lerpdata->origin, cl_gun_z.value * paliashdr->scale[2],			vpn,	lerpdata->origin);
+	}
+
+	//
+	// transform it
+	//
+	R_EntityMatrix (model_matrix, lerpdata->origin, lerpdata->angles, e->scale);
+	VR_AliasPreTransform (e, model_matrix); // QVR
+	memcpy (bounds_matrix, model_matrix, sizeof (float[16]));
+	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
+	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
+	VR_AliasPostTransform (e, model_matrix); // QVR
+}
+
+/*
+=================
+R_AliasPrefetch -- QVR
+
+A batch's models in view and lit this frame for the first time, when enough of them are likely due new light probes
+(VR_AliasAmbientPrefetchWorth: a few traces): their transforms set up (kept in aliaspre for the draw, which takes them
+instead of setting them up itself) and their ambient light probes worked out on the job pool before any is drawn
+(vr/vr_ambient.cpp "Ahead", vr_model_ambient_prefetch); the draw takes the probes' results where its inputs come out
+the same. Only the first eye's own scene (the second eye's and the views through gates find nearly all worked out),
+not while the drawn moves are logged (their order kept).
+=================
+*/
+typedef struct {
+	const entity_t	*ent;		// null: not set up here
+	lerpdata_t	lerpdata;
+	float		model_matrix[16];
+	float		bounds_matrix[16];
+} aliaspre_t;
+static aliaspre_t	*aliaspre;	// by the batch's index
+static int			aliasprecap;
+static const aliaspre_t	*aliasprecur;	// the entity being drawn's (null: none)
+
+static int R_AliasPrefetch (entity_t **ents, int count)
+{
+	int i, likely = 0;
+	if (count < 2 || aliaseyemode >= 2 || aliasfaces || r_fullbright_cheatsafe || r_lightmap_cheatsafe || VR_DebugDrawnOn () ||
+		VR_PortalDrawing () || !VR_AliasAmbientPrefetchOn ())
+		return 0;
+	if (aliasprecap < count)
+	{
+		aliaspre_t *grown = (aliaspre_t *) realloc (aliaspre, sizeof (aliaspre_t) * count);
+		if (!grown)
+			return 0;
+		aliaspre = grown;
+		aliasprecap = count;
+	}
+	// the models in view whose light is not worked out yet this frame, and how many of them are likely traced
+	for (i = 0; i < count; i++)
+	{
+		entity_t *e = ents[i];
+		int wanted;
+		aliaspre[i].ent = NULL;
+		if (!e->model || e->model->type != mod_alias || ENTALPHA_DECODE (e->alpha) == 0)
+			continue;
+		wanted = VR_AliasAmbientWanted (e);
+		if (!wanted || (!VR_AliasBonePoses (e, NULL) && R_CullModelForEntity (e))) // (as the draw culls; one through a gate: without)
+			continue;
+		aliaspre[i].ent = e;
+		likely += wanted == 2;
+	}
+	if (!VR_AliasAmbientPrefetchWorth (likely)) // too little to pay for the pool: all of it in the draw, as before
+		return 0;
+	for (i = 0; i < count; i++)
+	{
+		entity_t *e = (entity_t *) aliaspre[i].ent;
+		aliashdr_t *hdr;
+		if (!e)
+			continue;
+		hdr = (aliashdr_t *) Mod_Extradata (e->model);
+		R_AliasTransform (e, hdr, &aliaspre[i].lerpdata, aliaspre[i].model_matrix, aliaspre[i].bounds_matrix);
+		VR_AliasAmbientPrefetchAdd (e, aliaspre[i].model_matrix, hdr);
+	}
+	VR_AliasAmbientPrefetchRun ();
+	return count;
+}
+
 static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 {
 	aliashdr_t	*paliashdr, *hdr;
 	lerpdata_t	lerpdata;
-	float		fovscale = 1.0f;
 	float		model_matrix[16], bounds_matrix[16], mapped_matrix[16];
 	float		source_clip[4], destination_clip[4];
 	int		portal_split;
@@ -1059,42 +1167,14 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		goto cull;
 	}
 
-	R_SetupAliasFrame (e, paliashdr, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
-
-	if (lerpdata.pose1 == lerpdata.pose2)
-		lerpdata.blend = 0.f;
-
-	//
-	// viewmodel adjustments (position, fov distortion correction)
-	//
-	if (e == &cl.viewent)
+	if (mode == ALIAS_STANDARD && aliasprecur && aliasprecur->ent == e) // QVR: set up already by R_AliasPrefetch
 	{
-		if (r_refdef.basefov > 90.f && cl_gun_fovscale.value)
-		{
-			fovscale = tan (r_refdef.basefov * (0.5f * M_PI / 180.f));
-			fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
-		}
-
-		VectorMA (lerpdata.origin, cl_gun_x.value * paliashdr->scale[0] * fovscale,	vright,	lerpdata.origin);
-		VectorMA (lerpdata.origin, cl_gun_y.value * paliashdr->scale[1] * fovscale,	vup,	lerpdata.origin);
-		VectorMA (lerpdata.origin, cl_gun_z.value * paliashdr->scale[2],			vpn,	lerpdata.origin);
+		lerpdata = aliasprecur->lerpdata;
+		memcpy (model_matrix, aliasprecur->model_matrix, sizeof (model_matrix));
+		memcpy (bounds_matrix, aliasprecur->bounds_matrix, sizeof (bounds_matrix));
 	}
-
-	//
-	// cull it
-	//
-
-
-	//
-	// transform it
-	//
-	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
-	VR_AliasPreTransform (e, model_matrix); // QVR
-	memcpy (bounds_matrix, model_matrix, sizeof (bounds_matrix));
-	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
-	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
-	VR_AliasPostTransform (e, model_matrix); // QVR
+	else
+		R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix);
 	if (eyekeep) // QVR: kept for the second eye
 	{
 		eye->ent = e;
@@ -1436,9 +1516,15 @@ R_DrawAliasModels
 */
 void R_DrawAliasModels (entity_t **ents, int count)
 {
-	int i;
+	int i, pre = R_AliasPrefetch (ents, count); // QVR
 	for (i = 0; i < count; i++)
+	{
+		aliasprecur = i < pre && aliaspre[i].ent == ents[i] ? &aliaspre[i] : NULL; // QVR
 		R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD);
+	}
+	aliasprecur = NULL; // QVR
+	if (pre)
+		VR_AliasAmbientPrefetchEnd (); // QVR
 	R_FlushAliasInstances (false);
 	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }
