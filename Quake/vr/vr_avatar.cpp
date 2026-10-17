@@ -560,6 +560,15 @@ ArmCostTrace costTrace;
         return c;
     };
 
+    // A swing's cost is at least its own term (the wrist's strain and the lift's are never negative): a swing whose own
+    // term is no less than the best cost so far cannot beat it, and is not tried (the same result, far fewer tries while
+    // the wrist is within its reach). The same expression as cost's: rounding keeps the sum no less than it.
+    const bool prune = strainWeight >= 0.f;
+    const auto swingAlone = [&](float swivel) {
+        const float s = swivel / glm::radians(45.f);
+        return swingWeight * s * s;
+    };
+
     // The least cost within `reach` steps of `step` from `from`, then finer about it, and last the least of the
     // parabola through it and its neighbours (so that the elbow moves smoothly as the hand does).
     const auto search = [&](float from, float step, int reach, float& found) {
@@ -571,7 +580,7 @@ ArmCostTrace costTrace;
             for(int i = -reach; i <= reach; i++)
             {
                 const float swivel = at + step * static_cast<float>(i);
-                if(i == 0 || za::abs(swivel) > most)
+                if(i == 0 || za::abs(swivel) > most || (prune && swingAlone(swivel) >= bestCost))
                 {
                     continue;
                 }

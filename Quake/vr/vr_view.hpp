@@ -117,6 +117,22 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // World position of a point given in `ve`'s model space (as its frames' vertices).
 [[nodiscard]] glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);
 
+// modelPoint's transform made once, for several points of the same entity as it is now (the same results, without making
+// its matrix again for each): ModelSpace m{ve}; m.point(p).
+class ModelSpace
+{
+public:
+    explicit ModelSpace(const ViewEntity& ve);
+    [[nodiscard]] glm::vec3 point(const glm::vec3& p) const;
+
+private:
+    float m_[16]{};
+    glm::vec3 origin_;           // (not an alias model: its origin for every point)
+    glm::vec3 scaleOrigin_{0.f}; // the model's header's
+    glm::vec3 scale_{1.f};
+    bool alias_ = false;
+};
+
 // QVR flashlight on guns (round 20): the gun drawn in `hand` this frame, for what clips onto it: its
 // model, the pose it is drawn from (the hand's; for a gun carried by its foregrip, the hand's that let
 // it go) and its muzzle. False when the hand holds no gun (empty, or nothing drawn).

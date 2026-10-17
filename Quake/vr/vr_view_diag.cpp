@@ -664,6 +664,16 @@ namespace
     return glm::dot(v.pos - palmMid, palmWay) >= 0.f ? HandPart::Palm : HandPart::Back;
 }
 
+// drawnHandSurface's parts of the jointed hand's vertices (restPart: the rig's at rest), for the rig's generation.
+struct HandPartsCache
+{
+    bool made = false;
+    unsigned generation = 0;
+    za::Vector<HandPart> parts;
+    auto members() { return mem::list(made, generation, parts); }
+};
+mem::Cache<HandPartsCache> handPartsCache{"view hand parts", mem::GameDirChange | mem::ModelReload};
+
 } // namespace
 
 bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>* parts)
@@ -689,27 +699,39 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
         }
         if(parts)
         {
-            const handrig::Rig& rig = handrig::rig();
-            glm::vec3 palmMid{0.f}, sphereMid{0.f};
-            int n = 0;
-            for(const handrig::Vertex& v : rig.vertices)
+            // Each vertex's part is the rig's at rest: found once per rig (its generation), not every frame.
+            HandPartsCache& c = handPartsCache;
+            if(!c.made || c.generation != handrig::generation() || c.parts.size() != posed.size())
             {
-                if(mainJoint(v) == 0)
+                c.made = true;
+                c.generation = handrig::generation();
+                c.parts.clear();
+                const handrig::Rig& rig = handrig::rig();
+                glm::vec3 palmMid{0.f}, sphereMid{0.f};
+                int n = 0;
+                for(const handrig::Vertex& v : rig.vertices)
                 {
-                    palmMid += v.pos;
-                    n++;
+                    if(mainJoint(v) == 0)
+                    {
+                        palmMid += v.pos;
+                        n++;
+                    }
+                }
+                palmMid /= static_cast<float>(za::max(n, 1));
+                for(const handrig::Sphere& sp : rig.palmSpheres)
+                {
+                    sphereMid += sp.c;
+                }
+                sphereMid /= static_cast<float>(za::max(static_cast<int>(rig.palmSpheres.size()), 1));
+                const glm::vec3 palmWay = sphereMid - palmMid;
+                for(size_t i = 0; i < posed.size(); i++)
+                {
+                    c.parts.pushBack(i < rig.vertices.size() ? restPart(rig.vertices[i], palmMid, palmWay) : HandPart::Hand);
                 }
             }
-            palmMid /= static_cast<float>(za::max(n, 1));
-            for(const handrig::Sphere& sp : rig.palmSpheres)
+            for(const HandPart p : c.parts)
             {
-                sphereMid += sp.c;
-            }
-            sphereMid /= static_cast<float>(za::max(static_cast<int>(rig.palmSpheres.size()), 1));
-            const glm::vec3 palmWay = sphereMid - palmMid;
-            for(size_t i = 0; i < posed.size(); i++)
-            {
-                parts->pushBack(i < rig.vertices.size() ? restPart(rig.vertices[i], palmMid, palmWay) : HandPart::Hand);
+                parts->pushBack(p);
             }
         }
         return !out.empty();

@@ -1601,12 +1601,13 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     const glm::vec3 k{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     const glm::vec3 o{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 now = anchor::posedAnchor(gun.ent, mount->anchor, gun.zeroBlend) * k + o;
-    const glm::vec3 rest = anchor::posedAnchor(gun.ent, mount->anchor, 1.f) * k + o;
-    const glm::vec3 kick = view::modelPoint(gun, now) - view::modelPoint(gun, rest);
+    const glm::vec3 rest = gun.zeroBlend == 1.f ? now : anchor::posedAnchor(gun.ent, mount->anchor, 1.f) * k + o;
+    const view::ModelSpace gunSpace{gun}; // (the gun's points below: its matrix made once)
+    const glm::vec3 kick = gunSpace.point(now) - gunSpace.point(rest);
     // The weapon's Scale applies about each model's own bounds' corner (its header's origin: vr_render.cpp applyPost),
     // which the magazine's model doesn't share with the gun's: the point that is the gun's model-space origin drawn where
     // the gun draws it (the rest follows: the two differ by a move only).
-    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
+    const glm::vec3 corner = gunSpace.point(glm::vec3{0.f}) - view::modelPoint(mag, glm::vec3{0.f});
     for(int i = 0; i < 3; i++)
     {
         mag.ent.origin[i] += kick[i] + corner[i];
@@ -1632,7 +1633,7 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
         mag.ent.angles[1] = turned.y;
         mag.ent.angles[2] = turned.z;
     }
-    const glm::vec3 to = view::modelPoint(gun, mount->seat + move) + kick - view::modelPoint(mag, mount->seat);
+    const glm::vec3 to = gunSpace.point(mount->seat + move) + kick - view::modelPoint(mag, mount->seat);
     for(int i = 0; i < 3; i++)
     {
         mag.ent.origin[i] += to[i];
@@ -1908,9 +1909,10 @@ void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* m
     part.ent.model = model;
     part.lastModel = gun.ent.model;
     // (The Scale applies about each model's own header origin: the same here, but as setMagazine does.)
-    const glm::vec3 corner = view::modelPoint(gun, glm::vec3{0.f}) - view::modelPoint(part, glm::vec3{0.f});
-    const glm::vec3 slide =
-        back != 0.f ? view::modelPoint(gun, glm::vec3{-back, 0.f, 0.f}) - view::modelPoint(gun, glm::vec3{0.f}) : glm::vec3{0.f};
+    const view::ModelSpace gunSpace{gun};
+    const glm::vec3 gunOrigin = gunSpace.point(glm::vec3{0.f});
+    const glm::vec3 corner = gunOrigin - view::modelPoint(part, glm::vec3{0.f});
+    const glm::vec3 slide = back != 0.f ? gunSpace.point(glm::vec3{-back, 0.f, 0.f}) - gunOrigin : glm::vec3{0.f};
     for(int i = 0; i < 3; i++)
     {
         part.ent.origin[i] += corner[i] + slide[i];
@@ -2251,16 +2253,18 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     const view::ViewEntity& base = entities.hand[hand][FingerBase];
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
-        hp.wrist = view::modelPoint(base, handWrist);
+        const view::ModelSpace space{base}; // (its matrix made once for the points)
+        hp.wrist = space.point(handWrist);
         // hand_base.mdl: +x towards the fingers, +z the index finger's side, +y the palm's.
-        hp.up = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}) - hp.wrist);
-        hp.back = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
-        hp.forward = glm::normalize(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}) - hp.wrist);
+        const glm::vec3 alongX = space.point(handWrist + glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec3 alongZ = space.point(handWrist + glm::vec3{0.f, 0.f, 1.f});
+        hp.up = glm::normalize(alongZ - hp.wrist);
+        hp.back = glm::normalize(space.point(handWrist + glm::vec3{0.f, -1.f, 0.f}) - hp.wrist);
+        hp.forward = glm::normalize(alongX - hp.wrist);
         if(rigHands[hand].drawn) // (its size: the bare forearms' ends fit round it, avatar.cpp)
         {
-            hp.unit = {glm::distance(view::modelPoint(base, handWrist + glm::vec3{1.f, 0.f, 0.f}), hp.wrist),
-                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
-                glm::distance(view::modelPoint(base, handWrist + glm::vec3{0.f, 0.f, 1.f}), hp.wrist)};
+            hp.unit = {glm::distance(alongX, hp.wrist), glm::distance(space.point(handWrist + glm::vec3{0.f, 1.f, 0.f}), hp.wrist),
+                glm::distance(alongZ, hp.wrist)};
         }
     }
     else
@@ -3516,23 +3520,36 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
     return true;
 }
 
-glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
+ModelSpace::ModelSpace(const ViewEntity& ve) : origin_{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]}
 {
     const entity_t& e = ve.ent;
-    if(!e.model || e.model->type != mod_alias)
+    alias_ = e.model && e.model->type == mod_alias;
+    if(!alias_)
     {
-        return {e.origin[0], e.origin[1], e.origin[2]};
+        return;
     }
-
-    float m[16];
-    render::anchorMatrix(ve, glm::vec3{0.f}, m);
-
-    // anchorMatrix ends with the model's own scale and origin: undo them for a point in model space.
+    render::anchorMatrix(ve, glm::vec3{0.f}, m_);
+    // anchorMatrix ends with the model's own scale and origin: undone for a point in model space (point).
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
-    const glm::vec3 v{(point.x - hdr->scale_origin[0]) / hdr->scale[0], (point.y - hdr->scale_origin[1]) / hdr->scale[1],
-        (point.z - hdr->scale_origin[2]) / hdr->scale[2]};
+    scaleOrigin_ = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    scale_ = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+}
+
+glm::vec3 ModelSpace::point(const glm::vec3& p) const
+{
+    if(!alias_)
+    {
+        return origin_;
+    }
+    const float* m = m_;
+    const glm::vec3 v{(p.x - scaleOrigin_.x) / scale_.x, (p.y - scaleOrigin_.y) / scale_.y, (p.z - scaleOrigin_.z) / scale_.z};
     return {m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
         m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
+}
+
+glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point)
+{
+    return ModelSpace{ve}.point(point);
 }
 
 namespace
@@ -4365,6 +4382,7 @@ extern "C" void VR_SetupViewEntities()
     {
         if(s.valid)
         {
+            QVR_PROFILE("view eye");
             applyEyeView(s);
         }
         // Both eyes see the same entities: the second eye keeps what the first one set up.
@@ -4388,7 +4406,11 @@ extern "C" void VR_SetupViewEntities()
         return;
     }
 
-    updateFingerFrames();
+    // (The steps' zones, "view ...": docs/vr-port/ROUND22.md, "View entities: zones and trims".)
+    {
+        QVR_PROFILE("view finger frames");
+        updateFingerFrames();
+    }
 
     // The hands as the game reads them, before the view moves the drawn ones (below): what lights the flashlight up.
     flashlight::noteGameHands(s);
@@ -4407,6 +4429,7 @@ extern "C" void VR_SetupViewEntities()
     glm::vec3 knockPos[2], knockAngles[2], shakePos[2], shakeAngles[2];
     for(int hand = 0; hand < 2; hand++)
     {
+        QVR_PROFILE("view shakes");
         impactOffset(hand, knockPos[hand], knockAngles[hand]);
         fatigue::shake(hand, shakePos[hand], shakeAngles[hand]);
         glm::vec3 painPos, painAngles;
@@ -4432,8 +4455,12 @@ extern "C" void VR_SetupViewEntities()
     // posing: the floating weapon stays where it floats).
     if(!posingNow)
     {
-        modelcollide::beginView(s);
+        {
+            QVR_PROFILE("view model collide");
+            modelcollide::beginView(s);
+        }
         // And out of each other, the arms, the gadget and the body (vr_body_collide): drawn only, as above.
+        QVR_PROFILE("view self collide");
         selfcollide::beginView(s);
     }
 
@@ -4453,87 +4480,143 @@ extern "C" void VR_SetupViewEntities()
     }
     else
     {
-        updateGroundSpots(s); // (before the weapons: a carry taken by a hotspot now is drawn so this frame)
-        setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
-        setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
-            cl.stats[STAT_QVR_WEAPONFRAME2]);
-        setupHeldMagazines(); // (before the hands: a hand holding one wraps it)
-        setupGhosts();
-        updateFreeSpots(s); // (after the weapons: where an empty hand is on the other's, for the next frame's grip)
+        {
+            QVR_PROFILE("view ground spots");
+            updateGroundSpots(s); // (before the weapons: a carry taken by a hotspot now is drawn so this frame)
+        }
+        {
+            QVR_PROFILE("view weapons");
+            setupWeapon(s, HAND_MAIN, precachedModel(cl.stats[STAT_WEAPON]), cl.stats[STAT_WEAPONFRAME]);
+            setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
+                cl.stats[STAT_QVR_WEAPONFRAME2]);
+        }
+        {
+            QVR_PROFILE("view held mags");
+            setupHeldMagazines(); // (before the hands: a hand holding one wraps it)
+            setupGhosts();
+        }
+        {
+            QVR_PROFILE("view free spots");
+            updateFreeSpots(s); // (after the weapons: where an empty hand is on the other's, for the next frame's grip)
+        }
 
         setupHand(s, HAND_MAIN);
         setupHand(s, HAND_OFF);
+        QVR_PROFILE("view hotspots");
         showHotspots();
     }
-    for(int hand = 0; hand < 2; hand++)
     {
-        updateFist(s, hand);
-        updateGripFrame(s, hand);
+        QVR_PROFILE("view fists");
+        for(int hand = 0; hand < 2; hand++)
+        {
+            updateFist(s, hand);
+            updateGripFrame(s, hand);
+        }
     }
-    drawTuningAids(s, !posingNow);
-    if(!posingNow)
     {
-        sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
-    }
-    bodycal::viewFrame(s); // Body Calibration: its samples
-    held::drawCarryProbes();
-    if(vr_debug_physics_shapes.value)
-    {
-        box3d::debugDraw();
-    }
-    else
-    {
-        box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
-    }
-    ledges::debugDraw(); // vr_debug_ledges
-    hitmodel::debugDraw(); // vr_debug_hits
-    hitmodel::zonesDraw(); // vr_debug_hitzones
-    rope::debugDraw();     // vr_debug_rope
-    foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
-    foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
-    box3d::struggleDraw(s.head);    // vr_struggle_debug
-    bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
-    bodycontact::aimConeDraw(s.head);  // vr_enemy_aim_show
-    if(vr_debug_hand_bones.value)
-    {
-        drawHandBones();
+        QVR_PROFILE("view debug draws");
+        drawTuningAids(s, !posingNow);
+        if(!posingNow)
+        {
+            sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
+        }
+        bodycal::viewFrame(s); // Body Calibration: its samples
+        held::drawCarryProbes();
+        if(vr_debug_physics_shapes.value)
+        {
+            box3d::debugDraw();
+        }
+        else
+        {
+            box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
+        }
+        ledges::debugDraw(); // vr_debug_ledges
+        hitmodel::debugDraw(); // vr_debug_hits
+        hitmodel::zonesDraw(); // vr_debug_hitzones
+        rope::debugDraw();     // vr_debug_rope
+        foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
+        foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
+        box3d::struggleDraw(s.head);    // vr_struggle_debug
+        bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
+        bodycontact::aimConeDraw(s.head);  // vr_enemy_aim_show
+        if(vr_debug_hand_bones.value)
+        {
+            drawHandBones();
+        }
     }
     // The guns not in a hand (holstered, lying round) show their screens (queued once a frame).
     int& idleTextFrame = oncePerFrame.idleTexts;
     const bool idleTexts = idleTextFrame != host_framecount;
     idleTextFrame = host_framecount;
-    setupHolsters(s, idleTexts);
-    setupWorldWeapons(s, idleTexts);
-    setupBody(s);
-    powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
-    setupPauldrons();
-    setupGadget(s);
-    VR_PrecacheSkinMasks();
-    gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
-    flashlight::setupView(s, entities.flashlight);
-    chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
-    setupSawHandle();
-    setupPouch(s);
-    setupAmmoPouch(s);
-    dripBlood(s);
-    shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
-    smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
-    comfortfade::frame(); // the view back from black after a scripted teleport (vr_comfortfade)
-    setupButton(HAND_MAIN);
-    setupButton(HAND_OFF);
-    setupFrontButton(HAND_MAIN);
-    setupFrontButton(HAND_OFF);
+    {
+        QVR_PROFILE("view holsters");
+        setupHolsters(s, idleTexts);
+    }
+    {
+        QVR_PROFILE("view world weapons");
+        setupWorldWeapons(s, idleTexts);
+    }
+    {
+        QVR_PROFILE("view body");
+        setupBody(s);
+    }
+    {
+        QVR_PROFILE("view powerups pauldrons");
+        powerupGlow(s); // the power-ups' glows and lights (Quad, pentagram, biosuit)
+        setupPauldrons();
+    }
+    {
+        QVR_PROFILE("view gadget");
+        setupGadget(s);
+    }
+    {
+        QVR_PROFILE("view skin masks");
+        VR_PrecacheSkinMasks();
+    }
+    {
+        QVR_PROFILE("view gadget touches");
+        gadgetTouches(s, posingNow); // the screen tap and the side button, against the gadget and hands just drawn
+    }
+    {
+        QVR_PROFILE("view gear");
+        flashlight::setupView(s, entities.flashlight);
+        chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
+        setupSawHandle();
+        setupPouch(s);
+        setupAmmoPouch(s);
+    }
+    {
+        QVR_PROFILE("view blood shock smoke");
+        dripBlood(s);
+        shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)
+        smoulder::frame(); // smoke off the bodies the lightning struck or fire burnt (vr_smoulder)
+        comfortfade::frame(); // the view back from black after a scripted teleport (vr_comfortfade)
+    }
+    {
+        QVR_PROFILE("view buttons");
+        setupButton(HAND_MAIN);
+        setupButton(HAND_OFF);
+        setupFrontButton(HAND_MAIN);
+        setupFrontButton(HAND_OFF);
+    }
     if(deathview::immersive())
     {
         // Dead, the view in the ragdoll's head (vr_death_view 2): the hands and the gear not drawn (they stay where you
         // stand, far from the body).
         forEachEntity([](view::ViewEntity& ve) { ve.visible = false; });
     }
-    cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
-    magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
+    {
+        QVR_PROFILE("view cords chains");
+        cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
+        magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
+    }
     if(!posingNow)
     {
-        selfcollide::endView(s, selfCollideDrawn(s));
+        {
+            QVR_PROFILE("view self collide end");
+            selfcollide::endView(s, selfCollideDrawn(s));
+        }
+        QVR_PROFILE("view model collide end");
         const entity_t* const drawnWeapons[2]{&entities.weapon[HAND_OFF].ent, &entities.weapon[HAND_MAIN].ent};
         const bool drawnMirrored[2]{entities.weapon[HAND_OFF].mirrored, entities.weapon[HAND_MAIN].mirrored};
         modelcollide::endView(s, drawnWeapons, drawnMirrored); // the game reads the tracked hands and muzzles
@@ -4594,6 +4677,7 @@ extern "C" void VR_SetupViewEntities()
     }
     else if(vrActive())
     {
+        QVR_PROFILE("view weapon buttons");
         pressWeaponButtons(s);
     }
     for(int hand = 0; hand < 2; hand++)
@@ -4613,11 +4697,14 @@ extern "C" void VR_SetupViewEntities()
         });
     }
 
-    setupMagazines();
-    setupPumps();
-    setupSsgParts();
-    setupWorldSsgs();
-    patchModelFlags();
+    {
+        QVR_PROFILE("view weapon parts");
+        setupMagazines();
+        setupPumps();
+        setupSsgParts();
+        setupWorldSsgs();
+        patchModelFlags();
+    }
 
     // The screen may be redrawn more than once per frame (a modal dialog); add the entities only once.
     if(lastAddedFrame == host_framecount)
@@ -4627,36 +4714,46 @@ extern "C" void VR_SetupViewEntities()
     lastAddedFrame = host_framecount;
 
     // The muzzle flashes on the weapons as drawn now (vr_weaponfx.cpp).
-    weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
-
-    glm::mat4 mirror;
-    const bool cloned = bodyclone::mirror(mirror);
-    int clonesDrawn = 0;
-    forEachEntity([&](view::ViewEntity& ve) {
-        if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
-           cl_numvisedicts < MAX_VISEDICTS)
-        {
-            cl_visedicts[cl_numvisedicts++] = &ve.ent;
-            if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
-            {
-                cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
-                clonesDrawn++;
-            }
-        }
-    });
-    if(cloned)
     {
-        const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
-        bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
+        QVR_PROFILE("view muzzle flashes");
+        weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
     }
 
-    // Spent casings thrown out of the weapons (vr_shells.cpp).
-    shells::frame(entities.weapon);
-    collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
-    explosiondebris::frame();
-    fireparticles::frame();
-    bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
+    {
+        QVR_PROFILE("view add entities");
+        glm::mat4 mirror;
+        const bool cloned = bodyclone::mirror(mirror);
+        int clonesDrawn = 0;
+        forEachEntity([&](view::ViewEntity& ve) {
+            if(ve.visible && ve.ent.model && !hiddenForShot(ve) && !drawnAsPump(ve) && !drawnInParts(ve) &&
+               cl_numvisedicts < MAX_VISEDICTS)
+            {
+                cl_visedicts[cl_numvisedicts++] = &ve.ent;
+                if(cloned && worn(ve) && cl_numvisedicts < MAX_VISEDICTS)
+                {
+                    cl_visedicts[cl_numvisedicts++] = &addClone(ve, mirror).ent;
+                    clonesDrawn++;
+                }
+            }
+        });
+        if(cloned)
+        {
+            const view::ViewEntity& body = clones[&entities.body - reinterpret_cast<view::ViewEntity*>(&entities)];
+            bodyclone::noteDrawn(clonesDrawn, entities.body.visible, {body.ent.origin[0], body.ent.origin[1], body.ent.origin[2]});
+        }
+    }
+
+    {
+        QVR_PROFILE("view effects");
+        // Spent casings thrown out of the weapons (vr_shells.cpp).
+        shells::frame(entities.weapon);
+        collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
+        explosiondebris::frame();
+        fireparticles::frame();
+        bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
+    }
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
+    QVR_PROFILE("view wounds");
     wounds::frame();
 }
