@@ -76,6 +76,10 @@
             .help("How far the elbows go onto your tracked elbows themselves, not only round to their side: the shoulders "
                   "follow your tracked shoulders and the arm's bones lengthen or shorten a little to put the elbow there. "
                   "0: the swing only (the arm keeps its own shape)."),
+        slider("Elbow Fit Stretch", vr_bodytrack_arm_fit_stretch, 1.f, 2.f, 0.05f, "%.2f")
+            .help("How far Elbow Fit may lengthen the collarbone and the arm's bones (and shorten them by as much) to put "
+                  "the shoulder and the elbow on your tracked ones: the headset's skeleton is not the body's. Lower it if "
+                  "the arms look stretched; at a limit the elbow stays short of the tracked one."),
         slider("Legs", vr_bodytrack_legs, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the tracked legs (Quest 3 guesses them from your upper body: generated legs). Climbing "
                   "and swimming feet keep theirs."),

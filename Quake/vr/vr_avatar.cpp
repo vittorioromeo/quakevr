@@ -775,10 +775,14 @@ struct ArmEase
 ArmEase armEase;
 
 // Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
-// tracked shoulder, and each arm bone keeps within these shares of its length to reach the tracked elbow.
-constexpr float trackedShoulderTurn = 35.f;
-constexpr float trackedBoneShort = 0.8f;
-constexpr float trackedBoneLong = 1.25f;
+// tracked shoulder, and it and each arm bone keep within 1 / vr_bodytrack_arm_fit_stretch to vr_bodytrack_arm_fit_stretch
+// of their lengths to reach the tracked shoulder and elbow (ROUND22.md, "Elbow fit on real data": Meta's skeleton is
+// its own, wider and longer-armed than ours, and its wrists are not ours: 0.8 to 1.25 left the elbow 7 to 12 cm off).
+constexpr float trackedShoulderTurn = 60.f;
+[[nodiscard]] float trackedBoneLong()
+{
+    return CLAMP(1.f, vr_bodytrack_arm_fit_stretch.value, 3.f);
+}
 
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
@@ -831,14 +835,17 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     glm::vec3 trackedShoulder{0.f};
     glm::vec3 trackedElbow{0.f};
     float trackedFit = 0.f;
+    bodytrack::ArmFit fitReport; // (vr_bodytrack_stats, vr_bodytrack_dump)
     if(easeWrists && bodytrack::trackedArm(side, trackedShoulder, trackedElbow, trackedFit))
     {
+        fitReport.weight = trackedFit;
         const glm::vec3 from = safeNormalize(c.rot * localOffset(upper), lateral);
         const glm::vec3 to = trackedShoulder - c.pos;
         const glm::vec3 axis = glm::cross(from, to);
         if(glm::length(to) > 1e-4f && glm::length(axis) > 1e-6f)
         {
             const float angle = glm::acos(CLAMP(-1.f, glm::dot(from, glm::normalize(to)), 1.f));
+            fitReport.turnLimited = angle > glm::radians(trackedShoulderTurn);
             const float turn = za::min(angle, glm::radians(trackedShoulderTurn)) * trackedFit;
             c.rot = glm::mat3_cast(glm::angleAxis(turn, glm::normalize(axis))) * c.rot;
         }
@@ -849,7 +856,9 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const glm::vec3 fixedPart = c.pos + c.rot * glm::vec3{0.f, o.y, o.z};
         if(const float l2 = glm::dot(along, along); l2 > 1e-8f)
         {
-            const float s = CLAMP(trackedBoneShort, glm::dot(trackedShoulder - fixedPart, along) / l2, trackedBoneLong);
+            const float want = glm::dot(trackedShoulder - fixedPart, along) / l2;
+            const float s = CLAMP(1.f / trackedBoneLong(), want, trackedBoneLong());
+            fitReport.clavicleClamped = s != want;
             c.stretch = glm::mix(1.f, s, trackedFit);
         }
     }
@@ -1002,13 +1011,17 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 
     // Body tracking (vr_bodytrack_arm_fit): the elbow onto the tracked elbow itself (the swivel above took it only to its
     // side, on our arm's lengths from our shoulder): the upper arm and forearm take the lengths that put it there (each
-    // from trackedBoneShort to trackedBoneLong of its own), the hand still on the controller. Last, over the guesses and
+    // within trackedBoneLong's shares of its own), the hand still on the controller. Last, over the guesses and
     // the torso's push: the tracked elbow is where the real one is.
     if(trackedFit > 0.f)
     {
         const glm::vec3 target = glm::mix(elbow, trackedElbow, trackedFit);
-        float fa = CLAMP(a * trackedBoneShort, glm::distance(target, u.pos), a * trackedBoneLong);
-        float fl = CLAMP(l * trackedBoneShort, glm::distance(wrist, target), l * trackedBoneLong);
+        const float wantA = glm::distance(target, u.pos), wantL = glm::distance(wrist, target);
+        const float longest = trackedBoneLong();
+        float fa = CLAMP(a / longest, wantA, a * longest);
+        float fl = CLAMP(l / longest, wantL, l * longest);
+        fitReport.upperClamped = fa != wantA;
+        fitReport.foreClamped = fl != wantL;
         const float reach = za::min(glm::distance(wrist, u.pos), a + l); // (as far as the arm reached before)
         if(fa + fl < reach)
         {
@@ -1019,8 +1032,15 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         glm::vec3 fitBend;
         elbow = twoBone(u.pos, wrist, fa, fl, target - u.pos, bend, fitBend);
         bend = fitBend;
+        fitReport.upperShare = fa / za::max(1e-4f, a);
+        fitReport.foreShare = fl / za::max(1e-4f, l);
+        fitReport.miss = glm::distance(elbow, trackedElbow);
         a = fa;
         l = fl;
+    }
+    if(easeWrists)
+    {
+        bodytrack::armFitted(side, fitReport);
     }
 
     if(easeWrists && vr_debug_arm.value != 0.f)

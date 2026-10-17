@@ -115,11 +115,20 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Tracked Skeleton", vr_bodytrack_debug, {{0.f, "Off"}, {1.f, "On the Body"}, {2.f, "Beside the Body"}})
             .help("Body tracking: the headset's tracked skeleton drawn (cyan: seen, magenta: guessed by the headset, as "
                   "Quest 3's legs), on your body or beside it."),
-        cycle("Skeleton Bones", vr_bodytrack_debug_bones, {{0.f, "Tracked"}, {1.f, "Untracked (Our IK)"}, {2.f, "Both Overlapped"}})
+        cycle("Skeleton Bones", vr_bodytrack_debug_bones,
+            {{0.f, "Tracked"}, {1.f, "Untracked (Our IK)"}, {2.f, "Both Overlapped"}, {3.f, "Body Over Tracked"}})
             .help("Which bones Show Tracked Skeleton draws: the headset's tracked ones (cyan, magenta); our IK's, the body "
                   "posed without the tracking (orange: while they are drawn, the body ignores the tracking); or both "
-                  "over each other, to compare."),
+                  "over each other, to compare. Body Over Tracked: the body's own bones as posed with the tracking "
+                  "(yellow) over the tracked ones: the yellow elbow should sit on the magenta one."),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
+        command("Print Body Tracking Stats", "vr_bodytrack_stats")
+            .help("Since the last reset: the errors against the tracked body, and per arm the elbow fit (its weight, how "
+                  "often it met a limit, the bones' stretch) and how far the tracked wrist and shoulder are from ours."),
+        command("Reset Body Tracking Stats", "vr_bodytrack_stats reset"),
+        command("Record Body Tracking (10 s)", "vr_bodytrack_dump 10")
+            .help("Writes 10 seconds of the raw tracked joints, the weights, the elbow fit and the body's joints to "
+                  "bodytrack_dump.csv in the game folder (Misc/quakevr/bodytrack_dump_report.py sums it up)."),
         cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),

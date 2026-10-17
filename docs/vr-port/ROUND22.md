@@ -10136,3 +10136,71 @@ diffs; neck snap 6/6, 0/6 false.
 In VR: walk into a grunt's legs with the shotgun low (no sweep), brush them (none), then sweep hard (down). Try the super
 shotgun, the nailgun and the lightning gun. Set Least Speed back from 8 (1.5, or higher for a harder sweep). Grab a
 grunt's shins from behind and pull: on its face; from its side: over its other side.
+
+## Elbow fit on real data: the synthetic body made Meta-like, the fit's limits, a dump (worktree `goreflesh`, branch `agent/elbowfix`, 2026-10-17)
+
+His report: with Skeleton Bones = Tracked, Elbow Fit 1, Elbows 1 and min confidence 0 (Quest 3 through Virtual
+Desktop), the body's elbow is still far from the tracked (purple) one, though `elbowtrack` measured 0.00 cm on the mock.
+
+**Why the mock said 0.00**: the synthetic body put its wrists at the avatar's own last posed wrists and its shoulders
+and arm lengths in our proportions, so the tracked elbow was always reachable with our bones. Real data has Meta's
+skeleton (its own width and arm lengths) and Meta's wrists, which are not ours.
+
+**The synthetic body is now Meta-like** (`vr_bodytrack_synth 1`): its arms and shoulders `vr_bodytrack_synth_arm_scale`
+(1.1) times its body's proportions, the shoulders `vr_bodytrack_synth_shoulder_forward` (0.04 m) ahead, the wrists
+`vr_bodytrack_synth_wrist` (0.08 m) behind the controller's grip (< 0: the old self-check at our posed wrists), the
+elbows by its own bones. On the mock our drawn wrist is 17 cm from the controller's origin; the synthetic one, 8.
+
+**Reproduced** (`scratch/elbow_real.sh`, e1m1, elbow position error in cm, both arms):
+
+| Pose | default body, before | stressed body (1.2, 0.08 m, 0.12 m), before | default, after | stressed, after |
+| --- | --- | --- | --- | --- |
+| Hands at the sides | 0.00 | 0.00 | 0.00 | 0.00 |
+| Elbows winged, hands before the chest | 3.4 | 10.8 | 0.00 | 0.00 |
+| Hands over the head, elbows out | 2.9 | 9.1 | 0.00 | 0.00 |
+| Arms across the chest | 0.00 | 2.0-2.2 | 0.00 | 0.00 |
+| Aiming forward, off hand nearer | 6.8 / 2.6 | 12.3 / 8.4 | 0.00 | 4.5 / 2.6 |
+
+Cause: the fit's limits. Each bone was held within 0.8 to 1.25 of its length and the collarbone turned at most 35
+degrees. The new stats show the upper arm at its limit in the winged and high poses, and both bones at it when aiming.
+Meta's longer upper arm, from a shoulder ahead of ours, needs 1.26 to 1.46 of ours. Our wrist sits 9 to 11 cm from
+Meta's, so the forearm needs up to 1.42.
+
+**Fix**: new `vr_bodytrack_arm_fit_stretch` (1.5; Body > Body Tracking > Elbow Fit Stretch, 1 .. 2). The collarbone and
+each arm bone may take 1/1.5 to 1.5 of their lengths, and the collarbone turns up to 60 degrees. Lower the setting if the
+arms look stretched: at the limit the elbow stops short of the tracked one.
+
+**Ruled out in the code**:
+- The body is located in the same XrSpace as the head and the controllers (`worldSpace`, at the predicted display time).
+  It goes to the world through the same mapping: floor below the head, m2u and the play space's turn.
+- The debug skeleton is drawn from the same `st.world` that the fit takes.
+- The joint indices match openxr.h (full-body set: 10/11/19 left, 15/16/45 right).
+- Nothing after `solveArm` in `pose()` moves the arm's bones. `solveArms` (the wrist gadget) never fits.
+- The weights drop only when the tracking isn't good (stale, inactive, under confidence) or an arm joint isn't valid.
+  They also drop with Skeleton Bones at Untracked or Both, where the body ignores the tracking by design: the orange
+  bones there are the untracked IK, which is expected to miss the purple ones.
+
+**Still possible on his data, most likely first** (the new stats or a dump tell which):
+1. A wider gap than the stressed body's: Meta's wrist far from ours (the hand's calibration, a weapon's grip) or its
+   shoulders far from ours. The stats line shows "wrist off" and "shoulder off" in cm, and the limits each arm met.
+2. A two-handed hold: the off hand is on the gun, not where the controller is, so its forearm can't reach Meta's elbow.
+3. Motion: the tracked joints are smoothed over 0.04 s and the body may lag the predicted controllers.
+
+**Diagnostics**:
+- `vr_bodytrack_stats` adds a line per arm: the fit weight applied, its frames off and exact, how often each limit was
+  met (turn, clavicle, upper, fore), the bones' mean stretch, and the tracked wrist and shoulder from ours (cm).
+- New Skeleton Bones option, **Body Over Tracked** (`vr_bodytrack_debug_bones 3`): the body's own bones as posed with
+  the tracking (yellow) over the tracked ones. The yellow elbow should sit on the purple one.
+- `vr_bodytrack_dump <seconds> [file]` (Debug > Record Body Tracking (10 s)) writes one CSV row per posed frame to the
+  game folder (`bodytrack_dump.csv`, git-ignored). Each row has the raw joints of all 84 (flags and the tracking-space
+  position), the place() mapping, the weights, each arm's fit (weight, limits, shares, miss), the body's joints, the
+  eyes, and the controllers' positions and angles.
+- `Misc/quakevr/bodytrack_dump_report.py <csv>` sums a dump up: per arm the elbow's miss, wrist and shoulder gaps, our
+  wrist and Meta's from the controller, Meta's bone lengths, the shares taken and the limits met. It also gives the
+  tracked head joint from the eyes, a check that the spaces line up.
+
+For him in VR: Debug > Show Tracked Skeleton On the Body, Skeleton Bones **Body Over Tracked**. Wing the elbows, raise
+them, aim, and cross the arms: the yellow elbow should sit on the purple one. If it doesn't, stand still in the bad pose
+(and then hold a two-handed gun too), Debug > Reset Body Tracking Stats, then Record Body Tracking (10 s) and Print Body
+Tracking Stats. Send `quakevr/bodytrack_dump.csv` and the stats lines. If the arms look stretched, lower Elbow Fit
+Stretch.
