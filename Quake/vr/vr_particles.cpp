@@ -3220,6 +3220,30 @@ extern "C" float VR_SoftSpriteFade(float radius)
 namespace qvr::particles
 {
 
+// The near fade's and the size cap's limits as the particle vertex shader applies them (vr_gfx_gl.cpp): none within
+// `cull2` (squared) of the eye, none more than `capHalf` pixels from middle to edge (0: no cap).
+struct DrawnLimits
+{
+    float cull2, capHalf;
+};
+[[nodiscard]] DrawnLimits drawnLimits(float viewHeight)
+{
+    const float cull = za::max(0.f, vr_particle_near_cull.value) * units::metresToUnits() * 0.01f;
+    return {cull * cull, za::clamp(vr_particle_max_screen.value, 0.f, 4.f) * 0.5f * viewHeight};
+}
+// A particle's half size on the screen as drawn, `w` from the eye along the view.
+[[nodiscard]] float drawnHalf(const gfx::ParticleInstance& q, const glm::vec3& eye, float w, float pixelScale,
+    const DrawnLimits& lim)
+{
+    const glm::vec3 d = q.org - eye;
+    if(glm::dot(d, d) < lim.cull2)
+    {
+        return 0.f;
+    }
+    const float half = q.half * pixelScale / w;
+    return lim.capHalf > 0.f ? za::min(half, lim.capHalf) : half;
+}
+
 // How much of the view this frame's large particles cover (split: which are large), in views: roughly, by each one's
 // middle (not its streak), each at most the whole view.
 [[nodiscard]] float largeCover(const gfx::ParticleSplit& split, const int viewport[4])
@@ -3233,6 +3257,7 @@ namespace qvr::particles
         return 0.f;
     }
     float area = 0.f;
+    const DrawnLimits lim = drawnLimits(static_cast<float>(viewport[3]));
     for(za::SizeT i = 0; i < instanceCount; i++)
     {
         const gfx::ParticleInstance& q = instances[i];
@@ -3241,8 +3266,8 @@ namespace qvr::particles
         {
             continue;
         }
-        const float half = q.half * split.pixelScale / w;
-        if(half >= split.largePixels)
+        const float half = drawnHalf(q, eye, w, split.pixelScale, lim);
+        if(half > 0.f && half >= split.largePixels)
         {
             area += za::min(4.f * half * half, screen);
         }
@@ -3277,6 +3302,9 @@ int halfResFrame = -1;
         return 0.f;
     }
     const glm::mat4 mvp = gfx::sceneViewProjection();
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const DrawnLimits lim = drawnLimits(height);
     float area = 0.f;
     for(za::SizeT i = 0; i < instanceCount; i++)
     {
@@ -3286,7 +3314,7 @@ int halfResFrame = -1;
         {
             continue;
         }
-        const float half = q.half * pixelScale / clip.w;
+        const float half = drawnHalf(q, eye, clip.w, pixelScale, lim);
         const float x = (clip.x / clip.w * 0.5f + 0.5f) * width, y = (clip.y / clip.w * 0.5f + 0.5f) * height;
         const float across = za::min(x + half, width) - za::max(x - half, 0.f);
         const float down = za::min(y + half, height) - za::max(y - half, 0.f);
