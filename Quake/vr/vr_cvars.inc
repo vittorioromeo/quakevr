@@ -1880,6 +1880,7 @@ QVR_CVAR(vr_retrolight_shadow_steps, "0", CVAR_ARCHIVE)     // shadows' darkness
 QVR_CVAR(vr_retrolight_shadow_block, "0.5", CVAR_ARCHIVE)     // shadows looked up on a grid of blocks this many texels (0: per pixel; 0.25, 0.5, 1, 2, 4, 8, 16)
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
+QVR_CVAR(vr_gl_markers, "1", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)

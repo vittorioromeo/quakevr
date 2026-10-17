@@ -11422,6 +11422,61 @@ To try in VR (on by default with a headset): his 4090 should stay at his Render 
 heavy fight may dip it. Debug > Profiling > Artificial GPU Load 100-200 to watch it drop and come back; look for a hitch
 at each change (the targets remade) and the TAA history resetting.
 
+## RenderDoc: the flatscreen captures, and GL debug groups (worktree `goreflesh`, branch `agent/glmarkers`, 2026-10-17)
+
+**The flatscreen captures** (11 frames, 1080p) were read with RenderDoc 1.46's Python. The findings are in
+`qvr-kit/scratch/renderdoc_flat.md`; the scripts are in `goreflesh/scratch/rdc/`. The main ones, all measured counts:
+- The opaque world shades 1.16-2.15x the pixels it keeps, because `vr_parallax_depth_write`'s `gl_FragDepth` turns
+  early-Z off.
+- A retro particle burst shades 4.5-7.2 screens of fragments in one draw.
+- About 60 % of the opaque alias draws pass no samples. That's the player's skeletal gear (leg holster, pauldrons,
+  holstered weapons), which skips the frustum cull.
+- The shadow casters are 74-92 % of the frame's primitives.
+- The shadow atlases (256 + 96 MB) are 5-6 % used.
+
+The captures had no debug groups, hence:
+
+**GL debug groups for frame debuggers.** New cvar `vr_gl_markers`, default 1: 0 off, 1 on, 2 only with a debugger,
+RenderDoc or Nsight in the process. `-glmarkers`/`-gldebug` still force it on. It is latched each frame.
+- Every GPU profile scope (`QVR_GPU_PROFILE`, `VR_ProfileBeginGPU`, `profile::begin(name, true)`) is also a
+  `glPushDebugGroup` of the same name: eye L/R, scene, depth prepass, the shading passes, shadow maps (atlas clear,
+  dlight, map light, portal), lights, particles, water, sky, translucent, view model, decals and the permanent layer,
+  wounds, TAA (mask, resolve, apply), upscale, post-processing, bloom, mirror, gadget screen, hud panel, ui, menu
+  panels, 2D, xr submit and acquire.
+- Ironwail's own `GL_BeginGroup` groups (per alias model, sprites, sky, OIT resolve...) now follow the cvar instead of
+  `-glmarkers` alone.
+- The world's compute dispatches have their own groups: `cs: clear indirect draws`, `cs: cull and mark world surfaces`,
+  `cs: gather indirect draws`, `cs: palette lut`.
+- The Tracy-only split zones use `VR_GPUZoneBegin/End` (vr_profile.h): one name for the Tracy zone and the group.
+
+The groups sit on a 64-bit stack in `vr_profile.cpp` (each scope pops only what its begin pushed). A frame's start
+closes what a Host_Error or a modal dialog left open. Labels were already given at creation for textures, programs,
+buffers and most FBOs. The missing ones are added through `GL_LabelNewFramebuffer`: half composite, vr copy, vr canvas,
+the eye target, the portal view array, resample, single pass stereo, wound slots and the permanent decals' read FBO.
+The global VAO and the TAA zero UBO are labelled too.
+
+Debug > Profiling: "GL Debug Groups" (the cycle) and "GL Debug Groups Report". `vr_gl_markers_report` prints the last
+frame's group count and depth, the scopes left open, and the GL's group stack depth.
+
+Measured (mock, e1m1, 250 fps, alternating 21 s windows, `--exclusive`):
+- 200 groups a frame, nested 10 deep, the stack back to 1 at each report.
+- CPU busy 0.47/0.48/0.54 ms off against 0.49/0.52/0.53 on (about +0.015 ms, inside the run's 0.07 ms drift).
+- GPU 1.03/0.99/1.20 against 1.04/1.09/1.08 (the same).
+- `-gldebug` with the cvar switched 0/1/2: no GL errors.
+
+**Not verified: the names inside a RenderDoc capture.** Launching the game under RenderDoc from a script was refused by
+the session's permissions.
+
+To check by hand:
+1. Start `qrenderdoc` and launch the game from it, flatscreen or VR, with `vr_gl_markers 1` (the default).
+2. Capture a frame. The Event Browser should show the scopes above as a tree, starting with `eye L` > `scene` >
+   `depth prepass`.
+3. Take the VR captures with this build (`renderdoc_flat.md`, section 4, says what to look for).
+
+Decision: the alias "world models / player models" split stays Tracy-only, because it reorders the opaque alias
+draws. The brush "world / brush entities" split also stays Tracy-only, because it costs the world pre-pass coverage.
+In captures each alias model still has its own group (its name).
+
 ## Shadow casters set up once a frame; the player's models' GPU parts (worktree `gorefx`, branch `agent/perfshadow2`, 2026-10-17)
 
 From qvr-kit scratch/tracy_gpu1.md, items 3 (S1) and 4 (M1).

@@ -1243,12 +1243,12 @@ static void R_DrawBrushModelsZoned (entity_t **ents, int count)
 		R_DrawBrushModels (ents, count);
 		return;
 	}
-	VR_TracyBegin ("world", 1);
+	VR_GPUZoneBegin ("world");
 	R_DrawBrushModels (ents, 1);
-	VR_TracyEnd ();
-	VR_TracyBegin ("brush entities", 1);
+	VR_GPUZoneEnd ();
+	VR_GPUZoneBegin ("brush entities");
 	R_DrawBrushModels (ents + 1, count - 1);
-	VR_TracyEnd ();
+	VR_GPUZoneEnd ();
 }
 
 /*
@@ -1279,21 +1279,21 @@ static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapa
 		else
 			r_zoned_world[world++] = ents[i];
 	}
-	VR_TracyBegin ("alias: world models", 1);
+	VR_GPUZoneBegin ("alias: world models");
 	R_DrawAliasModels (r_zoned_world, world);
-	VR_TracyEnd ();
-	VR_TracyBegin ("alias: player models", 1);
+	VR_GPUZoneEnd ();
+	VR_GPUZoneBegin ("alias: player models");
 	for (i = 0; i < player; ) // its parts (VR_ViewEntityGroup), each run of one a zone of its own, in the drawn order
 	{
 		int group = VR_ViewEntityGroup (r_zoned_player[i]), j;
 		for (j = i + 1; j < player && VR_ViewEntityGroup (r_zoned_player[j]) == group; j++)
 			;
-		VR_TracyBegin (r_zoned_player_parts[group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER], 1);
+		VR_GPUZoneBegin (r_zoned_player_parts[group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER]);
 		R_DrawAliasModels (r_zoned_player + i, j - i);
-		VR_TracyEnd ();
+		VR_GPUZoneEnd ();
 		i = j;
 	}
-	VR_TracyEnd ();
+	VR_GPUZoneEnd ();
 #endif
 }
 

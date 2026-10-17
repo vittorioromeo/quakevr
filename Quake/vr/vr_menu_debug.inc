@@ -412,6 +412,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_dynres: 2 runs it on the mock headset too (tests); 1, the default, only with a real headset."),
         toggle("Dynamic Resolution Log", vr_dynres_log)
             .help("vr_dynres_log: a console line at each scale change, with the eyes' GPU time and the budget."),
+        cycle("GL Debug Groups", vr_gl_markers, {{0.f, "Off"}, {1.f, "On"}, {2.f, "With a Debugger"}})
+            .help("vr_gl_markers: each GPU profile scope (eye L/R, depth prepass, shadow maps, post, 2D, xr submit...) "
+                  "named as a GL debug group, so RenderDoc and Nsight captures show the passes. With a Debugger: only "
+                  "when one (or RenderDoc, Nsight) is in the process. Their count with GL Debug Groups Report."),
+        command("GL Debug Groups Report", "vr_gl_markers_report")
+            .help("vr_gl_markers_report: the last frame's debug groups (console): how many were opened, the deepest "
+                  "nesting, and whether the GL's group stack was back to empty at the frame's start."),
 #ifdef QVR_TRACY
         command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
         command("Tracy Full Capture Preset", "vr_tracy_preset full")

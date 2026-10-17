@@ -186,6 +186,7 @@ bool makeFbo(GLuint& fbo, const GLuint* colors, int count, GLuint depth, int sam
     const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
     GL_GenFramebuffersFunc(1, &fbo);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
+    GL_ObjectLabelFunc(GL_FRAMEBUFFER, fbo, -1, "single pass stereo");
     GLenum buffers[2] = {};
     for(int i = 0; i < count; i++)
     {
@@ -249,6 +250,7 @@ bool ensureTargets(int width, int height, int samples)
     const GLuint bound = GL_BoundDrawFramebuffer();
     GL_GenFramebuffersFunc(1, &state.fboMulti);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, state.fboMulti);
+    GL_ObjectLabelFunc(GL_FRAMEBUFFER, state.fboMulti, -1, "single pass stereo multiview");
     state.multiview(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, state.color, 0, 0, 2);
     state.multiview(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, state.depth, 0, 0, 2);
     bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;

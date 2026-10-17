@@ -263,6 +263,7 @@ void GL_CheckBoundFramebuffers (const char *where); // vr_debug_glstate: the sha
 
 void GL_BeginGroup (const char *name);
 void GL_EndGroup (void);
+void GL_LabelNewFramebuffer (GLuint fbo, const char *name); // QVR: a just-made framebuffer's debug label
 
 //==============================================================================
 

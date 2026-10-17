@@ -114,6 +114,7 @@ int Sys_FileType (const char *path);
  * returns FS_ENT_NONE (0) if no such file or directory is present. */
 
 qboolean Sys_IsDebuggerPresent (void);
+qboolean Sys_GraphicsDebuggerPresent (void); // QVR: RenderDoc or Nsight Graphics in the process (Windows)
 
 void *Sys_LoadLibrary (const char *path);
 void *Sys_GetLibraryFunction (void *lib, const char *func);
