@@ -454,6 +454,40 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
     return out;
 }
 
+// The ranger's head on the body placed live (vr_rangerhead.cpp; ROUND22.md, "The ranger's head: sliders"), the body
+// clone (vr_bodyclone.cpp) shown while the page is.
+[[nodiscard]] za::Vector<Item> pageVrsRangerHead()
+{
+    return {
+        toggle("Use the Ranger's Head", vr_body_ranger_head)
+            .help("The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
+                  "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
+                  "Takes effect at the next start; the rows below apply at once."),
+        header("Size and Neck"),
+        slider("Size", vr_body_head_size, 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("How big the head is (1 the first version's size, a little small)."),
+        slider("Neck Sink", vr_body_head_sink, 0.f, 12.f, 0.5f, "%.1f cm")
+            .help("Lowers the head over the neck, and the neck's top with it, so less of the neck shows."),
+        header("Position"),
+        slider("Forward", vr_body_head_forward, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head forward (back below zero)."),
+        slider("Right", vr_body_head_side, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head to its right (left below zero)."),
+        slider("Up", vr_body_head_up, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head up (down below zero), the neck's top with it."),
+        header("Orientation"),
+        slider("Pitch", vr_body_head_pitch, -45.f, 45.f, 1.f, "%.0f deg").help("Tips the chin down (up below zero), about the bottom of the head."),
+        slider("Yaw", vr_body_head_yaw, -45.f, 45.f, 1.f, "%.0f deg").help("Turns the head to its left (right below zero)."),
+        slider("Roll", vr_body_head_roll, -45.f, 45.f, 1.f, "%.0f deg").help("Tilts the head to its right (left below zero)."),
+        header("Preview"),
+        slider("Preview Distance", vr_menu_body_clone_distance, 0.5f, 5.f, 0.1f, "%.1f m")
+            .help("How far off the mirror image of your body is drawn while this page (or a page placing what you wear) is open."),
+        cycle("Preview Side", vr_menu_body_clone_side, {{0.f, "Away From Main Hand"}, {1.f, "Left"}, {2.f, "Right"}, {3.f, "Ahead"}})
+            .help("Where the mirror image stands, beside the menu panel or straight ahead behind it."),
+        command("Reset Head Placement",
+            "vr_body_head_size 1.3; vr_body_head_sink 4.5; vr_body_head_forward 0; vr_body_head_side 0; vr_body_head_up 0; "
+            "vr_body_head_pitch 0; vr_body_head_yaw 0; vr_body_head_roll 0")
+            .help("Back to the shipped size, sink and place."),
+    };
+}
+
 // How you look: every cosmetic setting of the body and the hands, any combination of them (ROUND22.md, "Gloves;
 // Player Appearance"). Their one home: the Body pages link here.
 [[nodiscard]] za::Vector<Item> pageVrsAppearance()
@@ -462,10 +496,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         header("Body"),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
             .help("The shape of the body you see."),
-        toggle("Ranger Head", vr_body_ranger_head)
-            .help("The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
-                  "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
-                  "Takes effect at the next start."),
+        open("Ranger Head", pageIndex(pageVrsRangerHead))
+            .help("The Quake ranger's head on your body (on or off), its size, place and turn, and how far it sinks over "
+                  "the neck, with a mirror image of your body beside the menu while the page is open."),
         slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
             .help("Darken or lighten the skin on your hands and arms (and the fingertips out of fingerless gloves). Zero "
                   "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours."),

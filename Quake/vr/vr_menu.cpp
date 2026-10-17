@@ -508,6 +508,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageVrsHud();
 [[nodiscard]] za::Vector<Item> pageVrsAppearance();
+[[nodiscard]] za::Vector<Item> pageVrsRangerHead();
 [[nodiscard]] za::Vector<Item> pageColours();
 [[nodiscard]] za::Vector<Item> pageBulletTime();
 [[nodiscard]] za::Vector<Item> pageStamina();
@@ -1976,6 +1977,7 @@ const Page pages[] = {
     {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
     {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
     {"VR Settings - Player Appearance", pageVrsAppearance, pageMain, LevelStandard}, // (ROUND22.md, "Gloves; Player Appearance")
+    {"Ranger Head", pageVrsRangerHead, pageVrsAppearance, LevelStandard}, // (ROUND22.md, "The ranger's head: sliders")
     {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
     {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
 };
@@ -5521,7 +5523,8 @@ bool qvr::menu::bodyClonePage()
         return false;
     }
     const PageBuilder b = pages[ui().page].build;
-    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || ui().bodyCloneLatch == ui().page)
+    if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
+        ui().bodyCloneLatch == ui().page)
     {
         return true;
     }

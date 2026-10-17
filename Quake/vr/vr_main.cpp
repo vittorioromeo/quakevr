@@ -122,6 +122,7 @@
 #include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
+#include "vr_rangerhead.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_brushes.hpp"
 
@@ -1990,6 +1991,8 @@ extern "C" void VR_Init()
     voicenotes::init();
     highlights::init();
     cleanskins::init();
+    rangerhead::init();
+    Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
     mdldequant::init();
     posing::init();
     sightalign::init();

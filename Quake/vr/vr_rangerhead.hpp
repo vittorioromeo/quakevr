@@ -19,6 +19,17 @@
 // Taken once a session, the option latched then (the skins are painted once): a change shows at the next start. No
 // ranger found, or one unlike Quake's: the placeholder head, as with the option off. ROUND22.md, "The ranger's head".
 
+// Placed live by vr_body_head_* (Appearance > Ranger Head): turned, sized and moved about the bottom of his head, the
+// neck's top sunk with him; each body mesh's vertices and vertex buffer rewritten as a setting changes.
+
 #pragma once
 
 // VR_RangerHeadMesh and VR_RangerHeadImage (gl_model.c, image.c) are declared in vr_api_render.h.
+
+namespace qvr::rangerhead
+{
+
+void init();   // the vr_body_head_* callbacks
+void info_f(); // vr_body_head_info: the option, the meshes placed, where his head and the neck's top are
+
+} // namespace qvr::rangerhead
