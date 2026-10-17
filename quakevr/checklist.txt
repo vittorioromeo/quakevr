@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD crossbow tuning: kill a crossbow knight, take its crossbow: tune the hold under Weapon Offsets slot 33 (it floats off the hand), the feel of firing and reloading; tell me what's broken
 Shub (end): once the ball moves, save and load, step into the teleporter as the ball reaches Shub: she dies
 Holsters: shells box to a hip slightly short of a gun's spot (goes in); put away shells when full (pat, tick); draw a holstered gun by its handle; magnetic binding survives a level change
 Magnetic chain: throw a bound gun across the floor and round a corner: lies on the floor, wraps the corner, links near, thin line far; swing the held gun fast and check the chain
