@@ -151,10 +151,10 @@ float(entity xPlayer, float xHand, entity xBox) VR_Carry_BodyPushes =
     }
     if(VRIsHandWeaponless(xPlayer, xHand))
     {
-        return cvar("vr_box3d_hand_props") && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl" &&
+        return cvar_hget(cvarh_vr_box3d_hand_props) && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl" &&
                xBox.model != "progs/proxbomb.mdl";
     }
-    return cvar("vr_box3d_weapon_push") != 0;
+    return cvar_hget(cvarh_vr_box3d_weapon_push) != 0;
 };
 
 // A map's pickup still hanging in the air where it spins (items.qc, VR_PickupObj_Place): not yet knocked loose or taken.
@@ -329,10 +329,10 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     // A solid prop (an explosive box) poked by a gun (or a hand without its body: vr_box3d_hand_push 0): pushed where the
     // hand is, so pushed high it tips over, low it slides (Box3D); by the hand's or the gun's mass, so a flick barely moves
     // a heavy box (ROUND21.md, "Pushes by mass").
-    float pushMass = cvar("vr_box3d_hand_mass");
+    float pushMass = cvar_hget(cvarh_vr_box3d_hand_mass);
     if(!VRIsHandWeaponless(xPlayer, xHand))
     {
-        pushMass = max(0, cvar("vr_box3d_weapon_arm_mass")) +
+        pushMass = max(0, cvar_hget(cvarh_vr_box3d_weapon_arm_mass)) +
                    weaponvalue(WeaponIdToModel(VRGetEntWeapon(xPlayer, xHand), VRGetEntWeaponFlags(xPlayer, xHand)), "w_mass");
     }
     if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v, pushMass))
@@ -1165,7 +1165,7 @@ void() VR_Carry_ItemsFrame =
 };
 
 // Full up of what `xBox` gives (a box put away, or taken at once, and still there): a dull knock on a stuffed pack and a
-// haptic tick (vr_carry_full_cue), so it is not taken for a miss of the holster. Once a second at most.
+// haptic tick (vr_carry_full_cue), so it is not taken for a miss of the holster. At most once per 0.4 s.
 void(float xHand, entity xBox) VR_Carry_FullCue =
 {
     dprint(sprintf("carry: full up (%s, hand %g)\n", xBox.classname, xHand));
@@ -1726,7 +1726,7 @@ void() VR_Carry_TwoHandFrame =
         VR_Carry_Release(cVR_MainHand, box);
         return;
     }
-    if(cvar("vr_carry_two_hands_solid") && time >= self.carry_teleported)
+    if(cvar_hget(cvarh_vr_carry_two_hands_solid) && time >= self.carry_teleported)
     {
         if(frametime > 0)
         {
@@ -1897,7 +1897,7 @@ void() VR_Carry_Handtouch =
     }
 
     // A solid prop (an explosive box) is pushed by the hand's own body in the physics (vr_box3d_hand_push): no nudge.
-    if(self.vr_rigid == 2 && cvar("vr_box3d_hand_push"))
+    if(self.vr_rigid == 2 && cvar_hget(cvarh_vr_box3d_hand_push))
     {
         return;
     }

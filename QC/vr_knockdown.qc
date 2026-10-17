@@ -225,6 +225,19 @@ void() VR_Knockdown_FastForwardDeath =
     }
 };
 
+// The training dummy (self) is up: no AI, back to its training pose (the caller sets the next think).
+void() VR_Knockdown_EaseDummy =
+{
+    self.think = vr_dummy_think;
+    self.movetype = MOVETYPE_NONE;
+    self.vr_dummy_painframe = 0;
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
+            time - self.vr_kd_since));
+    }
+};
+
 // Getting up, a death backwards (self): a frame back each step to its first, then it runs.
 void() VR_Knockdown_Reverse =
 {
@@ -239,14 +252,7 @@ void() VR_Knockdown_Reverse =
         self.nextthink = time + 0.1;
         if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose; VR_Knockdown_Stand)
         {
-            self.think = vr_dummy_think;
-            self.movetype = MOVETYPE_NONE;
-            self.vr_dummy_painframe = 0;
-            if(cvar_hget(cvarh_vr_knockdown_debug))
-            {
-                dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
-                    time - self.vr_kd_since));
-            }
+            VR_Knockdown_EaseDummy();
             return;
         }
         if(self.vr_ad_mon)
@@ -281,15 +287,8 @@ void() VR_Knockdown_Step =
         self.vr_knockdown = 0; // (its run goes on at its own pace)
         if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose)
         {
-            self.think = vr_dummy_think;
-            self.movetype = MOVETYPE_NONE;
-            self.vr_dummy_painframe = 0;
+            VR_Knockdown_EaseDummy();
             self.nextthink = time + 0.05;
-            if(cvar_hget(cvarh_vr_knockdown_debug))
-            {
-                dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
-                    time - self.vr_kd_since));
-            }
         }
         return;
     }

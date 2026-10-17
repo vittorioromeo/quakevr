@@ -466,7 +466,6 @@ void() trigger_bloodynightmare_relay = {
 void() MG3_BossEnding = {
     entity p = find(world, classname, "player");
     if(!coop && p && p.health <= 0) { dprint("MG3_BossEnding: the player is dead, no completion\n"); return; }
-    p = find(world, classname, "player");
     while(p) {
         p.ammo_shells = 25; p.ammo_nails = 0; p.ammo_rockets = 0; p.ammo_cells = 0;
         p.armortype = 0; p.armorvalue = 0;

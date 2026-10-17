@@ -220,7 +220,6 @@ void(float xWhat, float xCountOnly) VR_Scene_Clean =
     entity e = nextent(world);
     while(e)
     {
-        entity n = nextent(e);
         float kind = VR_Scene_Kind(e);
         if(kind)
         {
@@ -249,7 +248,7 @@ void(float xWhat, float xCountOnly) VR_Scene_Clean =
                 }
             }
         }
-        e = n;
+        e = nextent(e); // (after the removal: it may free other entities; nextent skips them)
     }
     sprint(self, sprintf("scene%s: gibs %g (heads %g), limbs %g, small gibs %g (brains %g), ", xCountOnly ? "" : " before",
                          gibs, heads, limbs, sgibs, brains));

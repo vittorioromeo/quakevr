@@ -130,6 +130,6 @@ void(entity t) VR_Shock_Killed =
     bodyshockdeath(t, left);
     vr_shock_carried++;
     t.vr_shock_until = time + left;
-    t.vr_shock_len = time + left - t.vr_shock_bolt;
+    t.vr_shock_len = cvar("vr_shock_death_time"); // (= time + left - bolt)
     VR_Shock_Crackle(t);
 };
