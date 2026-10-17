@@ -10516,3 +10516,59 @@ break-free beyond the lift's timer. No recorder or eval hooks, beyond the `strug
 5. Drag one by an arm: its legs go stiff.
 6. Turn on Show Struggle to see the weights blend as you lift, lower and drag. If a move is too much or too little,
    tune the Struggle sliders; Tires After and Bursts change its character.
+
+## Elbow fit: no hand joints through Virtual Desktop (worktree `goreflesh`, branch `agent/elbowfix2`, 2026-10-17)
+
+His report (after `elbowfix`): with the right hand in front of the face and the elbow raised above the shoulder and
+flared out, the tracked elbow was right but ours sat low and in front of the chest. Ours dropped as soon as the real one
+rose above the shoulder.
+
+**His capture** (`vr_bodytrack_dump`, 10 s of that pose, 1175 frames, `bodytrack_dump_report.py`) settled it:
+- Confidence was 1.00 in every frame, active, fresh.
+- **Every hand joint (18-69, the wrists 19 and 45 among them) had no flags at all.** Virtual Desktop sends no hand joints
+  with controllers. The arms' other joints (shoulders, elbows, the forearms' twist joints 12 and 17) were valid but not
+  flagged tracked, and only the head was flagged tracked.
+- An arm's tracking required its wrist joint valid, so **both arms' weights were 0 throughout**: no swivel and no fit,
+  ever, in VR. That covers the first report too ("a little below"). With nothing from the tracking, the guess folds a
+  hand held at the face (the tuck), and the elbow went down to the chest. While the elbow was over the shoulder, ours
+  missed the tracked one by 23 cm on average (28 cm at most). The tracked elbow was up to 8.6 cm above the shoulder;
+  ours stayed 16 cm below it.
+- The synthetic body had always flagged its wrists valid, which is why the mock never showed this.
+
+**Fix**:
+- An arm takes the tracking with its shoulder and elbow valid; the fit uses nothing else. The swivel's tracked wrist is
+  the wrist joint, else the forearm's twist joint (`WristTwistL/R`, by the wrist: 23 of his 25 cm forearm), else ours.
+- The stats measure an arm with its shoulder and elbow valid, not only with its wrist.
+- The debug skeleton draws the forearm to the twist joint (it drew no forearm before).
+- Body Calibration's samples (`bodytrack::sample`) fall back to the twist joint for the wrist: its arm samples were all
+  left out through Virtual Desktop.
+
+**Synthetic body as Virtual Desktop sends it** (defaults): `vr_bodytrack_synth_hands` 0 (no hand joints) and
+`vr_bodytrack_synth_tracked` 0 (only the head flagged tracked, the rest valid). The forearm's twist joint sits at 0.92
+of the forearm. New `vr_bodytrack_synth_elbows_up` raises the elbows (added to their bend's direction as up).
+
+**Replay**: `vr_bodytrack_replay <csv>` (a dump in the game folder, "" off) makes the mock play a dump frame by frame,
+looping: its head, its controllers (positions and angles mapped back through the recorded play-space mapping) and the
+raw joints. Dumps now also have the head's angles (replayed when present; older dumps keep the mock's head) and the
+twist joints' world positions. The report says where each tracked wrist came from, the elbow's height over the tracked
+shoulder (tracked and ours), and the miss while the elbow is over the shoulder.
+
+**Diagnostics**: `vr_bodytrack_stats` adds a "gate" line per arm (the shares of frames on, stale, inactive, under the
+confidence, debug bones, joints not valid) with the confidence's mean and minimum, and "elbow rise" (tracked and ours,
+cm) to the fit line. Dumps add `gate_l`, `gate_r`.
+
+**Test**: `Misc/quakevr/bodytrack_elbow_test.sh <agent> [capture.csv]`. The synthetic face pose has the right hand
+before the face and the elbow flared, swept from below the shoulder (`_elbows_up` -0.6) to well above it (1.5); each
+step wants the fit weight 1 and the elbow within 1 cm. With a capture, it replays it once through and wants both arms on
+and the elbows within 1 cm.
+- Now: every height 0.00 cm at weight 1.00.
+- His capture replayed: elbows off L 0.02, R 0.01 cm on average, both arms on 100%. Before, his own dump: weights 0, R
+  16 cm on average.
+- (The capture is his, not committed: `quakevr/bodytrack_dump*.csv` is ignored.)
+
+Not changed: Min Confidence (his capture's confidence never left 1.0). Body Calibration weighs a joint not flagged
+tracked at 0.2 (`GUESSED_WEIGHT`), and through Virtual Desktop that is every arm and leg joint.
+
+For him in VR: the same pose, with Skeleton Bones at **Body Over Tracked**. The yellow elbow should now follow the
+magenta one up and out, and the magenta forearm now shows. Then Print Body Tracking Stats: the gate line should say
+"on 100%".
