@@ -1912,4 +1912,7 @@ loads, then walks into the gate every 2 s (god mode) until Shub dies. Before: ca
 ball at the save, all 30 attempts held at the gate, Shub at 40000. After: 9 exits on the ball (24-52 units from it), the
 10th telefrags Shub (health -99, the finale). Flat: 18 exits on the ball, Shub dead on the 19th.
 
+`origin/next` has the same bug. The commit cherry-picks onto it (`agent/shubtele-next`, only this note's end-of-file
+append conflicted): built, the test passes the same (Shub dead on the 10th attempt).
+
 For him in VR: end, let the ball start, save, load, and step into the teleporter as the ball goes into Shub: she dies.
