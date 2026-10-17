@@ -12012,3 +12012,42 @@ real runtime (VDXR, SteamVR); Explorer opening (test runs skip it); the Options 
 To try in VR: Options > Create Bug Report and VR Settings > Headset > Create Bug Report (a centre message names the zip;
 Explorer opens on the desktop); the Start menu shortcut after installing. With OBS's OpenXR mirror installed, the
 console at the VR start says it was skipped.
+
+## Removed perf attempts (worktree `dequant`, branch `agent/perfrevert`, 2026-10-17)
+
+The author prefers removing performance attempts that did not pay off to keeping their code. Removed, with their cvars,
+Debug menu rows, commands and code paths (about 1400 lines; the sections above stay as the record of what was tried):
+
+- **Parallax conservative depth** ("Conservative depth for the parallax depth write", option A): `vr_parallax_conservative_depth`,
+  the `PDO_CONS` program variants (`world_pdo`, `world_pdo_decal_retro` and `world_depth_pdo` are single again),
+  `QVR_PDO_CLAMP`, `R_PdoConservative`, `GL_WorldPdoProgram`. Why: his NVIDIA driver shaded the same fragments either
+  way (pre-pass and shading pass), and GPU `world+brush` moved only within the noise. Kept: `vr_world_fragments`
+  (Debug > Profiling and Memory > World Fragment Counts); its line no longer prints the conservative flags.
+- **Work under xrEndFrame's GPU wait** (`agent/xroverlap`): `vr_xr_overlap`, `vr_xr_overlap_report`,
+  `vr_debug_xr_overlap_work_ms`, `vr_mock_end_gpu_wait` (nothing else used it), vr_xr_overlap.cpp/.hpp with their Tracy
+  plots, and the hooks in host.c: `CL_RunParticles` and `BGM_Update` are called directly again. Why: the real tasks it
+  moved (the particles' step, the music stream) cost about 0 ms; the gain was only the synthetic test work's.
+- **Model light probes ahead** (`agent/perfdraw`): `vr_model_ambient_prefetch`, `R_AliasPrefetch` and the `aliaspre`
+  hand-off in the draw, vr_ambient.cpp's ahead work (`prefetch*`, `wanted`, the `Ahead` records) and the
+  `VR_AliasAmbientPrefetch*` calls. Why: about even on the mock (0.041 against 0.031 + 0.006 ms, alias +0.005), and no
+  batch on the start map reached the threshold. Kept: `R_AliasTransform` and `R_AliasTransformShared` (the shadow
+  pass's shared set-up, `vr_shadow_setup_share`: the draw now calls it itself, as the prefetch did).
+- **Water faces once a frame** (`agent/perfdraw`): `vr_water_pick_once`, vr_water.cpp's `facesInPvs`. Why: the pick was
+  0.004-0.005 ms a frame; nothing measurable.
+- **The server-thread audit** (`agent/servertick`): `vr_server_thread_check`, `vr_server_thread_report`,
+  vr_servertick.cpp, the `VR_SERVER_ACCESS`/`VR_CLIENT_ACCESS` check points (cmd.c, console.c, cvar.c, pr_edict.c,
+  r_part.c, snd_dma.c, world.c, vr_decals.cpp, vr_particles.cpp) and host.c's phases and threaded-order path. The
+  threaded server is shelved; docs/vr-port/SERVER_THREAD.md stays as the design and is marked SHELVED.
+
+Kept as they are: single-pass stereo, half-res particles, kept light casters (`vr_shadow_caster_cache`) and the rest.
+The removed names are in vr_cvars.cpp's `retiredCvars`, so a config that still sets `vr_xr_overlap` (the one archived
+among them) prints nothing (a developer line only). PERF_DECISIONS.md, "Removed attempts (2026-10-17)".
+
+Verified: Release and Release-Tracy build with 0 warnings; `vr_menu_path_check maps/vrcalibration.map`: 6 found, 0
+missing; a config with all seven names: no "Unknown command"; e1m1 smoke run clean; `vr_physics_hash` (e1m1,
+sv_random_seed 7, vr_fixed_frames 1, a pile of 6 props, 400 frames) f5fe01204d9519b5 before and after; a paused
+screenshot of start (fixed frames, dither, entities, particles and dynamic lights off) against origin/next 686106f68:
+1 pixel by 1 level (two runs of the same build differ by 3 pixels by 1 level); eval.sh full 168/177 (canary 36/45),
+as before.
+
+To try in VR: nothing should look or feel different. The Debug menu's Profiling pages lose the rows named above.

@@ -565,6 +565,15 @@ constexpr const char* retiredCvars[] = {
     "vr_prop_think_native",
     "vr_hull_method",
     "vr_decap_pop_chance", // (a switch: off, every headshot kill popped)
+    // 2026-10-17: perf attempts that did not pay off, removed (ROUND22.md, "Removed perf attempts"); vr_xr_overlap was
+    // archived, the rest only set by hand
+    "vr_xr_overlap",
+    "vr_debug_xr_overlap_work_ms",
+    "vr_mock_end_gpu_wait",
+    "vr_parallax_conservative_depth",
+    "vr_model_ambient_prefetch",
+    "vr_water_pick_once",
+    "vr_server_thread_check",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
