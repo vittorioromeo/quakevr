@@ -10,6 +10,7 @@
 
 #include "vr_bodytrack.hpp"
 #include "vr_backend.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -78,6 +79,9 @@ struct Stats
     double hold{0.0};                       // the lean detection's hold
     double jumpMax{0.0};                    // cm a joint moved against the top of the neck in one frame, at most
     double weightTorso{0.0}, weightArm{0.0}, weightLeg{0.0}, legApplied{0.0};
+    double fitShoulder[2]{}, fitUpper[2]{}, fitFore[2]{}; // the arms' stretch (posed): shoulders off cm, bones' shares
+    double fitMax[2]{};                                   // the most a bone's share was off 1
+    int fitFrames[2]{};
     glm::vec3 last[10]{};
     bool haveLast{false};
 };
@@ -275,6 +279,15 @@ void status_f()
     Con_Printf("bodytrack: weights torso %.2f arms %.2f %.2f legs %.2f %.2f; %.1f us a frame%s%s\n", st.torso, st.arm[0],
         st.arm[1], st.leg[0], st.leg[1], st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0,
         b.error[0] ? "; last error " : "", b.error);
+    if(st.placed && st.m2u > 0.f)
+    {
+        const auto cm = [](int a, int b) { return glm::distance(st.world[a], st.world[b]) * 100.f / st.m2u; };
+        Con_Printf("bodytrack: lengths cm: upper arm L %.1f R %.1f, forearm L %.1f R %.1f, shoulders apart %.1f, hips to neck "
+                   "%.1f, legs L %.1f R %.1f\n",
+            cm(ArmUpperL, ArmLowerL), cm(ArmUpperR, ArmLowerR), cm(ArmLowerL, WristL), cm(ArmLowerR, WristR),
+            cm(ArmUpperL, ArmUpperR), cm(Hips, Neck), cm(UpperLegL, LowerLegL) + cm(LowerLegL, AnkleL),
+            cm(UpperLegR, LowerLegR) + cm(LowerLegR, AnkleR));
+    }
 }
 
 void stats_f()
@@ -301,7 +314,20 @@ void stats_f()
     Con_Printf("btstats %s: elbow off L %.2f (max %.2f) R %.2f (max %.2f) cm from the tracked\n", label,
         s.elbowCm[0] / za::max(1, s.elbowCmFrames[0]), s.elbowCmMax[0], s.elbowCm[1] / za::max(1, s.elbowCmFrames[1]),
         s.elbowCmMax[1]);
+    // The arms' stretch while fitted (1: the arm as calibrated fits the tracked one as it is).
+    const double fl = za::max(1, s.fitFrames[0]), fr = za::max(1, s.fitFrames[1]);
+    Con_Printf("btstats %s: fit stretch L upper %.3f fore %.3f (max off %.3f) shoulder off %.2f cm R upper %.3f fore %.3f "
+               "(max off %.3f) shoulder off %.2f cm, %d %d frames\n",
+        label, s.fitUpper[0] / fl, s.fitFore[0] / fl, s.fitMax[0], s.fitShoulder[0] / fl, s.fitUpper[1] / fr,
+        s.fitFore[1] / fr, s.fitMax[1], s.fitShoulder[1] / fr, s.fitFrames[0], s.fitFrames[1]);
 }
+
+[[nodiscard]] bool sourceLive()
+{
+    return st.submitted >= 0.0 && Sys_DoubleTime() - st.submitted < SUBMIT_STALE;
+}
+
+char availabilityBuf[160];
 
 } // namespace
 
@@ -550,6 +576,29 @@ void posed(const Posed& p)
     }
     s.haveLast = true;
 
+    // The arms' stretch (Elbow Fit's, and any reach's): each drawn bone's length over the calibrated one (Body
+    // Calibration's, the tweaks on), and the drawn shoulders from the tracked ones; while the elbows are fitted.
+    if(bodycal::calibrated() && st.m2u > 0.f)
+    {
+        const float upperCm = bodycal::measuredArmCm(0) + bodycal::armTweakCm(0);
+        const float foreCm = bodycal::measuredArmCm(1) + bodycal::armTweakCm(1);
+        for(int side = 0; side < 2; side++)
+        {
+            if(st.arm[side] * za::clamp(vr_bodytrack_arm_fit.value, 0.f, 1.f) <= 0.f || upperCm <= 1.f || foreCm <= 1.f)
+            {
+                continue;
+            }
+            const float k = 100.f / st.m2u;
+            const float u = glm::distance(p.shoulder[side], p.elbow[side]) * k / upperCm;
+            const float f = glm::distance(p.elbow[side], p.wrist[side]) * k / foreCm;
+            s.fitShoulder[side] += glm::distance(p.shoulder[side], st.world[armUpper(side)]) * k;
+            s.fitUpper[side] += u;
+            s.fitFore[side] += f;
+            s.fitMax[side] = za::max(s.fitMax[side], static_cast<double>(za::max(za::fabs(u - 1.f), za::fabs(f - 1.f))));
+            s.fitFrames[side]++;
+        }
+    }
+
     // The errors: against the tracked body (the synthetic one's is exact).
     if(!valid(Hips) || !valid(Neck))
     {
@@ -610,6 +659,62 @@ void posed(const Posed& p)
     }
 }
 
+bool available()
+{
+    return sourceLive() && st.raw.active && st.placed;
+}
+
+bool sample(Sample& out)
+{
+    out = Sample{};
+    if(!available())
+    {
+        return false;
+    }
+    static constexpr int joints[CalJointCount] = {ArmUpperL, ArmUpperR, ArmLowerL, ArmLowerR, WristL, WristR, Hips, Neck,
+        UpperLegL, UpperLegR, LowerLegL, LowerLegR, AnkleL, AnkleR};
+    const float conf = za::clamp(st.raw.confidence, 0.f, 1.f);
+    bool any = false;
+    for(int i = 0; i < CalJointCount; i++)
+    {
+        const int j = joints[i];
+        out.pos[i] = st.world[j];
+        out.weight[i] = valid(j) ? conf * ((st.raw.flags[j] & POS_TRACKED) ? 1.f : GUESSED_WEIGHT) : 0.f;
+        any = any || out.weight[i] > 0.f;
+    }
+    return any;
+}
+
+const char* availabilityLine()
+{
+    const BackendStatus& b = backend;
+    static constexpr const char* fidelity[] = {"fidelity unknown", "low fidelity", "high fidelity"};
+    if(available())
+    {
+        const bool synth = vr_bodytrack_synth.value != 0.f;
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Available (%s, %s)",
+            synth ? "synthetic" : b.fullBodySet ? "full body" : "upper body", fidelity[za::clamp(st.raw.fidelity, 0, 2)]);
+    }
+    else if(sourceLive())
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (tracking lost)");
+    }
+    else if(b.trackerCreated)
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (no data yet%s)",
+            b.error[0] ? ": see vr_bodytrack_status" : "");
+    }
+    else if(b.fbExtension && !b.systemSupports)
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (headset doesn't offer it)");
+    }
+    else
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (enable in Virtual Desktop)");
+    }
+    return availabilityBuf;
+}
+
 void synthesize(TrackingState& t)
 {
     if(vr_bodytrack_synth.value == 0.f)
@@ -663,7 +768,8 @@ void synthesize(TrackingState& t)
     for(int side = 0; side < 2; side++)
     {
         const float sgn = side == 0 ? -1.f : 1.f;
-        const glm::vec3 shoulder = hips + up * (0.8f * spineLen) + chest * (r * (sgn * 0.11f * eye) + u * (0.03f * eye));
+        const float halfWidth = 0.11f * eye * za::max(0.1f, vr_bodytrack_synth_shoulders.value);
+        const glm::vec3 shoulder = hips + up * (0.8f * spineLen) + chest * (r * (sgn * halfWidth) + u * (0.03f * eye));
         set(armUpper(side), shoulder, true);
         const Pose& hand = t.hands[side == 0 ? HAND_OFF : HAND_MAIN];
         glm::vec3 w = hand.valid ? hand.position : shoulder - u * (0.3f * eye);
@@ -672,9 +778,15 @@ void synthesize(TrackingState& t)
             const glm::vec3 q = hands::rotateYaw((st.posedWrist[side] - st.placeBase) / st.m2u, -st.placeYaw);
             w = glm::vec3{-q.y, q.z, -q.x} + st.placeFloor; // (quakeFromTracking undone)
         }
+        if(hand.valid && vr_bodytrack_synth_wrist.value != 0.f)
+        {
+            w += hand.orientation * glm::vec3{0.f, 0.f, vr_bodytrack_synth_wrist.value * 0.01f}; // (behind: +z)
+        }
         set(wrist(side), w, true);
         const glm::vec3 pole = glm::mix(-u - f * 0.3f, chest * (r * sgn) - u * 0.2f, out);
-        set(armLower(side), twoBone(shoulder, w, 0.175f * eye, 0.16f * eye, pole), true);
+        set(armLower(side), twoBone(shoulder, w, 0.175f * eye * za::max(0.1f, vr_bodytrack_synth_upper_arm.value),
+                                0.16f * eye * za::max(0.1f, vr_bodytrack_synth_forearm.value), pole),
+            true);
 
         // The legs (generated: valid, not tracked): the feet under the hips, the knees forward, turned out.
         const glm::vec3 hip = hips + r * (sgn * 0.055f * eye) - u * (0.03f * eye);

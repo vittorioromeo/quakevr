@@ -10266,3 +10266,53 @@ In VR: shotgun a grunt up close and watch where each stream starts: in the crate
 from the hole and splashing where it lands; its thickness swelling and thinning down its length. Shoot one standing over
 a crate or another monster: the stream should splash on it. At the firing range, Dummy Bleeds off, Dummy Dents and Dummy
 Blood Streams on: shoot the dummy, then Clear the Dummy's Dents and Streams.
+## Body Calibration with body tracking (worktree `dequant`, branch `agent/fbtcalib`, 2026-10-17)
+
+Body Calibration records body tracking's joints with every pose where the headset sends them (`bodytrack::sample`:
+the placed, smoothed joints; each joint's weight the source's confidence, times 1 seen and `GUESSED_WEIGHT` 0.2 for
+an inferred one, as Quest 3's generated legs). A held pose averages them over its capture; the session file gets a
+`t` line after each `r` (older builds skip it), so `vr_bodycal_refit` takes them too.
+
+- Measured (vr_bodycal.cpp `measureTracking`): the upper arm (tracked shoulder to tracked elbow), the forearm (tracked
+  elbow to the drawn wrist, as ours is: what Elbow Fit makes it; also to the tracked wrist), the shoulders apart (and
+  against our model's shoulders in the same poses), the hips to the neck, the legs (shown only: a weak prior's weight,
+  never applied), and the tracked wrist from the drawn one along the controller (forward, left, up). Each is a robust
+  weighted mean: the samples weighted by their joints' weights (a held pose's capture as 20 frames, the moves at most
+  240 frames a step), those more than 3 x 1.48 MAD off the weighted median dropped; an arm sample whose tracked wrist is
+  more than 15 cm off the drawn one is left out.
+- Blended (`vr_bodycal_track` 1, `vr_bodycal_track_weight` 0.5): the upper arm, the forearm and the shoulders' width
+  (as `vr_bodycal_shoulders_out`, by the model's slope) go that share towards the tracked ones; the rest of the fit as
+  it was. A sanity check against ours (real VR may have a space, scale or wrist mismatch): a tracked length within 15%
+  of ours takes the whole weight, 30% or more off none (eased between); the page then says "up to N% (some off ours)"
+  or "too far off ours, not used". Without tracking samples the result is as before.
+- Page: Body Calibration, under Position: the data line, **Use Body Tracking**, **Body Tracking Weight**; the result
+  adds "Body tracking: N% blended in", the tracked arms and shoulders, the torso and the wrists' offset.
+  `vr_bodycal_print` adds `bodycal track:` lines (each length, ours, the blend each took).
+- Body > Body Tracking starts with **Body Tracking Data: Available (full body|upper body|synthetic, high|low fidelity)**
+  or **Not available (enable in Virtual Desktop | tracking lost | no data yet | headset doesn't offer it)**.
+- Debug: `vr_bodytrack_status` prints the tracked lengths; `vr_bodytrack_stats` adds `fit stretch`: each drawn arm bone
+  over the calibrated one (the tweaks on) and the drawn shoulder from the tracked one, while the elbows are fitted
+  (Debug > Print / Reset Body Tracking Stats). Measured in `bodytrack::posed`; nothing changed in solveArm.
+- Synthetic source: `vr_bodytrack_synth_shoulders`, `_upper_arm`, `_forearm` (times its proportions), `_wrist` (cm its
+  wrists sit behind the drawn ones along the controller).
+
+Test: the author's session `2026-09-29_01-52-37` with synthetic tracking added by a scratch script (upper 29, forearm
+22.5, shoulders 33 cm apart, wrists 2 cm behind, 5% of the elbows thrown up to 15 cm off, 0.5 cm noise); ours from the
+controllers: upper 26.15, forearm 24.83, shoulders 29.4 apart. Measured: upper 29.08, forearm 23.57 to the drawn wrist
+(22.65 to the tracked one), wrists 2.0 cm behind, legs 75.5 (75.8 made), torso 54.7, 9% of the weight dropped. At 38 cm
+apart (+29%) the sanity check left the width out. Then the live mock synth with the same lengths, four held arm poses,
+560 frames each (`fit stretch`, both arms alike):
+
+| calibration (upper / forearm cm) | upper stretch | forearm stretch | shoulder off |
+|---|---|---|---|
+| without tracking (26.2 / 24.8) | 1.091 | 0.953 | 0.08 cm |
+| weight 0.5 (27.6 / 24.2) | 1.035 | 0.975 | 0.00 |
+| weight 1 (29.1 / 23.6) | 0.982 | 0.998 | 0.00 |
+
+The reach from the controllers stays (left, right 50.9, 51.1 cm); `vr_bodycal_shoulders_out` -0.0336 went to -0.0237
+(0.5) and -0.0137 (1): the shoulders 1.9 and 3.7 cm wider in all.
+
+In VR: with Virtual Desktop's body tracking on, Body > Body Tracking should say Available (full body, high fidelity).
+Run Body Calibration; the result's "Body tracking" lines show the tracked arms against ours. Apply, then Debug > Reset
+Body Tracking Stats, move the arms a while and Print Body Tracking Stats: `fit stretch` should be near 1. If the tracked
+lengths are far off ours (the Elbow Fit mismatch being fixed separately), the page says so and leaves them out.
