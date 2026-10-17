@@ -337,5 +337,5 @@ void(float s) VR_AD_SetSkill =
 // Climbing and Hand-Climbed Ladders both on); otherwise AD's own jump/velocity climb keeps every ladder climbable.
 float(entity p) VR_AD_LadderManual =
 {
-    return VRHandsTracked(p) && cvar("vr_climb") && cvar("vr_climb_ladders");
+    return VRHandsTracked(p) && cvar_hget(cvarh_vr_climb) && cvar("vr_climb_ladders");
 };

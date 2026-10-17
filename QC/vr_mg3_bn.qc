@@ -78,8 +78,8 @@ float(vector dir) MG3_ShalSteer =
     {
         if(cur != self)
         {
-            float d2 = vlen(cur.origin - self.origin);
-            if(d2 < dist) { dist = d2; nearest = cur; }
+            float d = vlen(cur.origin - self.origin);
+            if(d < dist) { dist = d; nearest = cur; }
         }
         cur = find(cur, classname, "shal_missile");
     }

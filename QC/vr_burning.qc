@@ -1157,13 +1157,20 @@ void(entity p, entity source, vector o, float kind) VR_Burn_MapContact =
 void() VR_Burn_MapFrame =
 {
     entity p;
+    float anyFire = -1; // (any fire in the map: looked up once per frame, for the first player that needs it)
     for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
     {
-        if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)) &&
-           (vr_fire_spots > 0 || find(world, classname, "light_torch_small_walltorch") != world ||
-            findflags(world, vr_flameprop, 3) != world))
+        if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)))
         {
-            mapflametouch(p, '0 0 0', '0 0 0', -1, 63); // keep the body's shapes through the 0.1 s polling gap
+            if(anyFire < 0)
+            {
+                anyFire = (vr_fire_spots > 0 || find(world, classname, "light_torch_small_walltorch") != world ||
+                           findflags(world, vr_flameprop, 3) != world);
+            }
+            if(anyFire)
+            {
+                mapflametouch(p, '0 0 0', '0 0 0', -1, 63); // keep the body's shapes through the 0.1 s polling gap
+            }
         }
         if(!p.ishuman || time < p.burn_map_next)
         {
@@ -1230,7 +1237,7 @@ void() VR_Burn_MapFrame =
             vr_burn_out = '0 0 0';
             p.burn_map_on = need;
         }
-        else if(p.ishuman && cvar_hget(cvarh_vr_burn_self_haptic) > 0)
+        else if(cvar_hget(cvarh_vr_burn_self_haptic) > 0)
         {
             float k = need > 0 ? p.burn_map_on / need : 1;
             float buzz = max(0, cvar_hget(cvarh_vr_burn_self_haptic));

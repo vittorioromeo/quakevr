@@ -165,12 +165,7 @@ void() MG_T_Shake =
 		if (!(self.spawnflags & MG_SILENT_SHAKE))
 			sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
 
-		t = find( world, classname, "player" );
-		while (t)
-		{
-			// No reset of player view or tracking angles in VR.
-			t = find( t, classname, "player" );
-		}
+		// (No reset of player view or tracking angles in VR.)
 		return;
 	}
 

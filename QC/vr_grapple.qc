@@ -700,10 +700,6 @@ float(entity h) VR_Grapple_FindGun =
     {
         return FALSE;
     }
-    if(gg_where == GW_NONE)
-    {
-        return FALSE;
-    }
     return TRUE;
 };
 

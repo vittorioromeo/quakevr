@@ -2648,6 +2648,10 @@ void(entity g, entity r) VR_Reload_PropRound =
     {
         return; // (just out of a held gun: not into one lying under it at once)
     }
+    if(VR_Reload_PropAmmoFor(g) != r.vr_ammo_aid)
+    {
+        return; // (the wrong ammo: VR_Reload_PropTakes below would say no; skips the distance work)
+    }
     float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
     d = VR_Reload_LooseDist(r, port);
     float side = (VR_Reload_RoundRef(r) - port) * g.loadportface;

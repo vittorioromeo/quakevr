@@ -98,14 +98,12 @@ void() MG3_SZombie_Raise =
         return;
 
     count = 0;
-    float total = 0;
     e = find(world, classname, "info_szombie_spawn");
     if(!e)
         return; // (no spawn points: none raised)
     while(e)
     {
         if(e.wait && (e.wait < time)) count++;
-        total++;
         e = find(e, classname, "info_szombie_spawn");
     }
     if(count == 0)

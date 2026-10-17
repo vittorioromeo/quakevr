@@ -12356,3 +12356,6 @@ graphics binding type 1000023000"), so VR on Linux needs a native build. Details
   (0 warnings) and its e1m1 smoke unchanged (run logs, system.txt as before).
 - To test on a real Linux PC with a headset (Monado/WiVRn/SteamVR): build per LINUX.md, `vr_backend openxr`, check
   `qvr_openxr.txt` for the session states and the "GL interop" line. Nobody has run a real headset on it yet.
+
+## Sweep batch D (QuakeC)
+Cvar handles for the per-frame reads (vr_climb in AD, carry x6, melee wrist x5, vr_campaign), duplicate vr_climb handle removed; MGH_PowerupFrame walks only entities flagged MGH_expiring (findflags, like MG_WorldFrame); reload round ammo test before distance; burning any-fire lookup once per frame; cleanups (duplicate grapple/knockdown blocks, empty loops, dead var, scene-clean nextent after removal). Physics hash unchanged, eval 168/177.
