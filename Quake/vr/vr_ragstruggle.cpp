@@ -286,8 +286,8 @@ void sense(State& s, const Parts& p, const Context& c)
         g.dragWay = lv / speed;
     }
     const glm::quat qc = rotOf(p, chest);
-    g.prone = smooth01((-(qc * ax).z - 0.1f) / 0.6f);
-    g.inverted = smooth01((-(qc * az).z + 0.1f) / 0.6f);
+    g.prone = smooth01((-(qc * ax).z - 0.3f) / 0.5f);
+    g.inverted = smooth01((-(qc * az).z - 0.3f) / 0.5f);
     if(g.frame % senseEvery == 0 && c.floorBelow)
     {
         float on = 0.f;
@@ -919,11 +919,14 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
         k[static_cast<int>(Channel::Torso)] += behaviourData[b].torso * w;
         k[static_cast<int>(Channel::Head)] += behaviourData[b].head * w;
     }
-    const float scale = g.effort * g.guard * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
+    const float scale = g.effort * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
     const float most[channelCount] = {1.4f, 1.2f, 1.4f, 0.9f}; // (Legs, Torso, Arms, Head)
     for(int ch = 0; ch < channelCount; ch++)
     {
-        const float v = za::clamp(k[ch], 0.f, most[ch]) * scale;
+        // (Its legs keep half against the guard: bracing and kicking on the floor resist a drag by friction, the drag's
+        // own lag is no reason to give that up; the hold's let-go stays the hold's.)
+        const float guard = ch == static_cast<int>(Channel::Legs) ? za::max(g.guard, 0.5f) : g.guard;
+        const float v = za::clamp(k[ch], 0.f, most[ch]) * scale * guard;
         s.fade[static_cast<za::SizeT>(ch)] = Fade{v, v, t, t};
     }
     g.armsNow = s.fade[static_cast<za::SizeT>(Channel::Arms)].from;

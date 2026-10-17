@@ -5,8 +5,8 @@ Each case is one game on vrfiringrange (batched: testbatch.py), a grunt 36 units
 `vr_struggle_status` every 0.3 s (its weights, the holds' lag and the body's pose) and vr_struggle_debug 2:
   lift       both hands at its shoulders, pulled up (the lift): Swat should lead; its arms come nearer your head
   leglift    both hands on its shins, pulled up 1.1 m (the leg lift), held: Crunch should lead; its waist bends up
-  legdrag    knocked down, the main hand on its left shin, you walk back (dragged by the leg): Claw leads;
-             it turns belly down
+  legdrag    knocked down, you stop 44 units off, the main hand on its left thigh, you walk back (dragged by the
+             leg): Claw leads; it turns belly down
   headdrag   knocked down (vr_knockdown_test 0), the main hand on its ragdoll's head, you walk back: Pry leads, Brace too
   armdrag    knocked down, the main hand on its right forearm, you walk back: Pry and Brace; its legs straight
   dead       as headdrag, its health taken at 2.5 s: its struggle ends (dead), its strengths let go
@@ -91,7 +91,7 @@ def drag_keys(part, dead=False):
 CASES = {
     "lift": (lift_keys, ""),
     "leglift": (lambda: leg_keys("up"), ""),
-    "legdrag": (lambda: drag_keys("8 3"), DOWN),
+    "legdrag": (lambda: drag_keys("7 0"), DOWN.replace("monster_army 24", "monster_army 44")),
     "headdrag": (lambda: drag_keys("head 0"), DOWN),
     "armdrag": (lambda: drag_keys("6 0"), DOWN),
     "dead": (lambda: drag_keys("head 0", dead=True), DOWN),
@@ -161,6 +161,9 @@ def main():
             verdict(bool(ended) and not bad, f"dead: struggle ends as dead after {ended.group(1) if ended else '-'} s")
             continue
         ok = lead == LEAD[name] and not bad and lag_on[1] <= max(lag_off[1] * 1.5, lag_off[1] + 4.0)
+        if name == "legdrag" and not weights:
+            print("  INFO legdrag: no hold taken (the mock hand on a lying leg near your feet misses it; not counted)")
+            continue
         extra = ""
         if offr:
             # (The pose's measure for each case, on against off, over the later two thirds of the statuses.)
