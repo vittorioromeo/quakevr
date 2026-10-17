@@ -264,6 +264,7 @@ void wallSmoke(float& owed, const glm::vec3& origin, float dt, const glm::vec3& 
 // fire (its origin is where it started, else).
 void crackles()
 {
+    S_MixJoin(); // (the pool's mix done first: S_MixKick)
     for(int i = NUM_AMBIENTS; i < total_channels; i++)
     {
         channel_t& ch = snd_channels[i];

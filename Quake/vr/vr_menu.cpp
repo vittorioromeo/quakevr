@@ -86,6 +86,7 @@ extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
 extern qboolean keydown[MAX_KEYS]; // keys.c
 extern cvar_t ui_mouse_sound; // menu.c
 extern cvar_t vr_zone_threadcheck; // zone.c
+extern cvar_t snd_mixasync; // snd_dma.c
 const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
 void M_Main_RowsExtent(float* left, float* right); // menu.c: its rows' ends as last drawn (menu_vr pos)
 void M_Main_RowsSpan(float* top, float* bottom, float* canvasTop, float* canvasBottom); // menu.c: its top, its last

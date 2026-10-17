@@ -935,6 +935,12 @@ double nowSeconds()
 void begin(const char* name, bool gpu)
 {
     VR_TracyBegin(name, gpu);
+    if(!VR_OnMainThread())
+    {
+        // A scope on the thread pool (the sound mix: S_MixKick): Tracy's alone (each thread has its own); the tree, the
+        // phases and their GPU queries are the main thread's.
+        return;
+    }
     beginPhase(name, gpu);
     if(!active)
     {
@@ -1002,6 +1008,10 @@ void endScope()
 void end()
 {
     VR_TracyEnd();
+    if(!VR_OnMainThread())
+    {
+        return; // (as begin)
+    }
     endPhase();
     endScope();
 }

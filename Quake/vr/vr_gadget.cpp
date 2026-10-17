@@ -2279,6 +2279,7 @@ void setPose(const Pose& pose)
     if((realtime - lastChime < 3.0 || realtime - tapFx.soundAt < 1.0) && pose.valid)
     {
         const glm::vec3 c = screenCentre();
+        S_MixJoin(); // (the pool's mix done first: S_MixKick)
         for(int i = NUM_AMBIENTS; i < total_channels && i < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; i++)
         {
             channel_t& ch = snd_channels[i];

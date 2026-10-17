@@ -560,6 +560,8 @@ void VR_SndBypass (portable_samplepair_t *buffer, int count);	// S_PaintChannels
 float VR_SndFullBandAt (const short *data, int length, int loopstart, double pos);	// SND_PaintChannelRate, vr_snd_fullband 2: a band-limited copy between its samples (windowed sinc)
 void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loopstart, int fracstep, short *out, int outcount);	// S_LoadSound: the sound resampled band-limited (ResampleSfx's timing: `fracstep`/256 of its samples an output sample)
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
+int VR_SndJobPost (void (*fn) (void *));			// S_MixKick: fn on the game's thread pool (one at a time); 0 without a pool (not posted)
+void VR_SndJobWait (void);							// S_MixJoin: the posted fn done (run here if no worker has started it)
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 

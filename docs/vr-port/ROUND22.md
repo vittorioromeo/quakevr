@@ -10788,3 +10788,58 @@ in flight, probably; not measured further.
 
 To try in VR: the firing range, a dispenser's ogre or knight: no stutter when it appears or when it is first gibbed; the
 range's load a little longer.
+
+## Sound mix off the render path (worktree `dequant`, branch `agent/perfaudio`, 2026-10-17)
+
+Tracy C4 (the kit's `scratch/tracy_20261017.md`): R_RenderScene's `S_ExtraUpdate` painted the mix-ahead in the middle of
+eye L, the spatial audio's voices with their parallel dispatch and join included: 0.2-0.3 ms of the main thread.
+
+The fix: a job kicked early, joined late (`snd_mixasync`, default 1; Debug > Threads > Sound Mix on the Pool, and Sound
+Mix Stats). Host_Frame posts that paint (`S_Update_`, unchanged) to the game's thread pool right before the screen update
+(`S_MixKick`, a `jobs::Task`: vr_audio.cpp `VR_SndJobPost`), once the frame's sounds are started; it runs while the
+frame renders and is joined (`S_MixJoin`) by the first thing that touches the sound after it: in practice BGM_Update,
+just before S_Update. R_RenderScene's call is a kick too (a no-op while one is posted); with `snd_mixasync 0` it is the
+old S_ExtraUpdate there, and nothing is posted (the reference). The SDL callback model is the same: the job takes
+`SDL_LockAudio` around its paint as the main thread did, and the paint's target (the device's position plus
+`_snd_mixahead`) is the same, so the latency is too.
+
+What the job may touch, and how the main thread keeps off it while it runs:
+- **Every sound entry point joins first**: S_StartSound(Pitch), S_StopSound, S_StopAllSounds, S_StaticSound,
+  S_LocalSound, S_ClearBuffer, S_RawSamples, S_Update, S_ExtraUpdate, S_Block/UnblockSound, S_TouchSound,
+  S_PrecacheSound, S_Shutdown, the volume and filter cvars' callbacks, `soundlist`, `soundinfo`; BGM_Update (it reads
+  `paintedtime`); and the VR code that reads or moves `snd_channels` directly (bullet time's off sound, the wrist Doom's
+  channels, the gadget's chime, the wall torches' crackle, the profiler's channel count).
+- **The cache**: Cache_Alloc, Cache_Free, Cache_Flush(Except) and Cache_FreeLow (every hunk allocation: it moves the
+  cache) join first, so a sound's samples never move or go while the job reads them. Off the main thread S_LoadSound
+  only looks (`Cache_Peek`, new: no LRU move, no load); the kick first runs S_LoadSound on the main thread for every
+  playing channel (they are all loaded: S_StartSound), which keeps them at the LRU's head as the paint used to.
+- **The lowpass's scratch** (snd_mix.c S_ApplyFilter, `sndspeed 11025`) was a hunk allocation per call: now a heap buffer
+  kept between calls. `vr_zone_threadcheck 1` found it (a crash on the worker); with it fixed the check stays quiet
+  through combat sounds, bursts and two map changes.
+- **The profiler**: a `QVR_PROFILE` scope off the main thread (the spatial mix's own) is Tracy's alone; the in-engine tree
+  and phases are the main thread's (vr_profile.cpp begin/end).
+
+`snd_mixstats [reset]` prints the posted mixes and their time on the pool, the joins' cost and where they happened
+(`S_MixJoin` is a macro with `__FILE__`/`__LINE__`), the paints, the **underruns** (a paint that found the device past
+what was painted: it played stale samples) and the least lead (painted ahead of the device at a paint's start).
+
+Verified (headless, `-Sound -RealTime`, `host_maxfps 90`, vrfiringrange with `vr_snd_bench_spawn 24` and
+`vr_snd_bench 8 combat 30`, 8 s of `vr_profile_report`):
+
+| | `snd_mixasync 0` (as before) | 1 |
+|---|---|---|
+| main thread busy (frame less waiting) | 1.439 ms | 1.165 ms (-0.27) |
+| client > sound | 0.331 ms | 0.031 ms |
+| render | 0.479 ms | 0.467 ms |
+| the job on the pool | - | 0.30 ms a frame |
+| joins | - | 0.004 ms each (2 % waited over 50 us; all at BGM_Update) |
+| underruns over the window / least lead | 0 / 76.8 ms | 0 / 76.8 ms |
+
+A 6 s `vr_snd_capture` of the looping sounds, each way: rms -10.5 / -10.5 dB, left -10.7 / -10.6, right -10.3 / -10.3,
+below 500 Hz -14.9 / -14.8, above 4 kHz -59.3 / -59.3; the largest sample step 7272 / 7264, no flat runs (no dropouts).
+Not bit-compared: two real-time runs never start the sounds at the same sample; each paint is the same code on the same
+state (the spatial mix's results do not depend on the thread: vr_jobs.hpp), so the samples are the same for the same
+start. Underruns rise by one at each map load, either way (the load's long frame).
+
+To try in VR: combat in the firing range and a loud map (a grenade fight): no crackle, no dropouts; Sound Mix Stats
+after a minute: 0 underruns outside map loads, the joins near 0 ms. The Tracy capture's `sound` should be about 0.03 ms.
