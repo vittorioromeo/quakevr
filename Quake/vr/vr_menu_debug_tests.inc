@@ -529,6 +529,16 @@ za::Vector<Item> pageDebugTests()
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
         header("Holding Enemies"),
+        cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
+            .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "
+                  "weights, effort, fatigue, what you hold, the hold's lag); Panel and Log also prints `struggle:` lines "
+                  "(Combat > Holding Enemies > Struggle)."),
+        command("Struggle Status", "vr_struggle_status")
+            .help("vr_struggle_status: each struggling enemy's weights and measures, the struggles' cost since the last "
+                  "call (ms a frame), and the ragdolls' positions' hash."),
+        toggle("Every Downed One Struggles", vr_struggle_force)
+            .help("vr_struggle_force: every knocked-down humanoid struggles as if held by its chest where it lies (to see "
+                  "the moves, and their cost with many)."),
         command("Nearest Body Contact", "vr_body_contact_status")
             .help("vr_body_contact_status: the live monster nearest you, how far (origins, level), how deep your two "
                   "bodies overlap (> 0) by Body Inset, whether a hand holds it (Step In)."),

@@ -4458,6 +4458,7 @@ extern "C" void VR_SetupViewEntities()
     rope::debugDraw();     // vr_debug_rope
     foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
     foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
+    box3d::struggleDraw(s.head);    // vr_struggle_debug
     bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
     if(vr_debug_hand_bones.value)
     {

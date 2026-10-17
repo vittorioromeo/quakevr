@@ -2682,6 +2682,28 @@ QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling gr
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
+// Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding
+// Enemies > Struggle): a living knocked-down humanoid a player's hand holds (lifted, dragged, by its head, legs or arms)
+// fights the hold, its behaviours blended by what holds it and where it is.
+QVR_CVAR(vr_struggle, "1", CVAR_ARCHIVE)                // 1: held living knockdowns struggle; 0: as before (a lifted one flails, a dragged one lies limp)
+QVR_CVAR(vr_struggle_strength, "1", CVAR_ARCHIVE)       // times every struggling muscle (0..2)
+QVR_CVAR(vr_struggle_swat, "1", CVAR_ARCHIVE)           // held by the torso or a shoulder: its arms swing at your head and the holding hand (0..2; 0 never)
+QVR_CVAR(vr_struggle_pry, "1", CVAR_ARCHIVE)            // a hold its free hands reach (its head, an arm): they grab at the holding hand and tug (0..2)
+QVR_CVAR(vr_struggle_crunch, "1", CVAR_ARCHIVE)         // lifted by the legs: it bends up at the waist, reaching for you (0..2)
+QVR_CVAR(vr_struggle_claw, "1", CVAR_ARCHIVE)           // held by the legs on the floor: it turns belly down and claws ahead (0..2)
+QVR_CVAR(vr_struggle_brace, "1", CVAR_ARCHIVE)          // dragged by an arm or the head: its legs stiffen, heels dug in (0..2)
+QVR_CVAR(vr_struggle_flail, "0.5", CVAR_ARCHIVE)        // its free legs' kicks and its torso's and head's thrashing (0..2)
+QVR_CVAR(vr_struggle_speed, "1", CVAR_ARCHIVE)          // times the rate of its moves (0.3..2)
+QVR_CVAR(vr_struggle_variation, "0.5", CVAR_ARCHIVE)    // how much each enemy's rhythm, favourite arm and aim differ from another's (0..1)
+QVR_CVAR(vr_struggle_fatigue, "12", CVAR_ARCHIVE)       // s of struggling until it is worn out (0: never tires)
+QVR_CVAR(vr_struggle_tired, "0.35", CVAR_ARCHIVE)       // its effort left when worn out (0..1)
+QVR_CVAR(vr_struggle_bursts, "0.5", CVAR_ARCHIVE)       // how much it struggles in bursts (fits of effort, then a lull; 0: steady)
+QVR_CVAR(vr_struggle_blend, "0.25", CVAR_ARCHIVE)       // s: its behaviours' weights ease to a change in how it is held this fast
+QVR_CVAR(vr_struggle_held_share, "0.5", CVAR_ARCHIVE)   // the joints above a held part in its limb (the hip of a held shin) keep this share of their strength
+QVR_CVAR(vr_struggle_grip_guard, "6", CVAR_ARCHIVE)     // units: a held point this far from the hand (the hold lagging) eases the struggle, to a quarter at 2.5 times it (0: never)
+QVR_CVAR(vr_struggle_classes, "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120", CVAR_ARCHIVE) // the classes that struggle: classname[:strength[:speed[:health]]] (health: its full health, for its effort; never ogres, zombies, fiends)
+QVR_CVAR(vr_struggle_debug, "0", CVAR_NONE)             // 1: a panel over each struggling enemy (its behaviours' weights, effort, fatigue, what holds it, the grip's lag); 2: also a `struggle:` line 4 times a second (Debug > Tests > Holding Enemies)
+QVR_CVAR(vr_struggle_force, "0", CVAR_NONE)             // tests: every living knockdown of a struggling class struggles as if held by the chest where it lies (the cost with many: vr_struggle_status)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
 QVR_CVAR(vr_hit_react, "1", CVAR_ARCHIVE)             // a living monster struck flinches where it was struck (its AI untouched): 1 its rig's bones kicked round their joints (the head snaps, an arm swings, a leg's knee buckles; a model with no rig tilted whole), 2 every model tilted whole, 0 off. The server's sends the blows and slows the steps (vr_hit_react_slow); each client draws by its own
 QVR_CVAR(vr_hit_react_strength, "1", CVAR_ARCHIVE)    // times the kicks' size (0..3)

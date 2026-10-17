@@ -131,6 +131,8 @@ void blast(const glm::vec3& at, float damage);
 void debugDraw();
 // vr_ragdoll_active_debug: the active ragdolls' targets (vr_ragactive.hpp debugDraw): drawn with or without the shapes.
 void activeRagdollDraw();
+// vr_struggle_debug: a panel over each struggling enemy (vr_box3d_struggle.cpp), turned to `eye` (world units).
+void struggleDraw(const glm::vec3& eye);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);

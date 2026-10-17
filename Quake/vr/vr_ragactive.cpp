@@ -3193,6 +3193,7 @@ void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& ori
 
 void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
 {
+    s.struggle.on = false; // (it leads from here: a struggle gives way)
     const ragdoll::Rig& rig = *p.rig;
     if(di.death < 0 || di.death >= rig.deaths)
     {
@@ -3310,6 +3311,7 @@ bool liquidPending(const State& s, double now)
 
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 {
+    s.struggle.on = false; // (it leads from here: a struggle gives way)
     const ragdoll::Rig& rig = *p.rig;
     const float t = static_cast<float>(now - s.begun);
     Stagger& g = s.stagger;
@@ -3389,6 +3391,7 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,
     float legsHold)
 {
+    s.struggle.on = false; // (it leads from here: a struggle gives way)
     const float t = static_cast<float>(now - s.begun);
     Fall& f = s.fall;
     f = Fall{};
@@ -3431,6 +3434,7 @@ void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, f
 
 void beginRise(State& s, const Parts& p, const RiseInfo& info, double now)
 {
+    s.struggle.on = false; // (it leads from here: a struggle gives way)
     const float t0 = static_cast<float>(now - s.begun);
     const float prep = za::max(info.prep, 0.1f);
     const float fps = za::max(info.fps, 1.f);
@@ -3518,6 +3522,7 @@ void weaken(State& s, float keep)
 
 bool beginLivingSwim(State& s, const Parts& p, const Context& c)
 {
+    s.struggle.on = false; // (it leads from here: a struggle gives way)
     if(!p.rig || !c.liquidAt || !liquidsOn() || s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on)
     {
         return false;
@@ -3657,11 +3662,15 @@ void drive(State& s, const Parts& p, const Context& c)
     const ragdoll::Rig& rig = *p.rig;
     const float t = static_cast<float>(c.now - s.begun);
     // A limb a hand holds: no strength (the hand's pull isn't fought), easing back over half a second once let go of.
-    const uint32_t held = heldLimbs(rig, p.count, c.held | (c.now < s.slackUntil ? s.slack : 0u));
+    // (Struggling: only the held part and what hangs from it; the joints above it in its limb kept at a share.)
+    uint32_t partly = 0u;
+    const uint32_t slackNow = c.held | (c.now < s.slackUntil ? s.slack : 0u);
+    const uint32_t held = s.struggle.on ? struggleSlack(rig, p.count, slackNow, partly) : heldLimbs(rig, p.count, slackNow);
+    const float share = za::clamp(vr_struggle_held_share.value, 0.f, 1.f);
     for(int b = 0; b < p.count; b++)
     {
         float& k = s.partScale[static_cast<za::SizeT>(b)];
-        k = (held & (1u << b)) ? 0.f : za::min(1.f, k + c.dt * 2.f);
+        k = (held & (1u << b)) ? 0.f : (partly & (1u << b)) ? za::min(share, k + c.dt * 2.f) : za::min(1.f, k + c.dt * 2.f);
     }
     // The clip's pose: each joint's target its turn there (none: as it is now).
     ClipPose pose;
@@ -3710,7 +3719,13 @@ void drive(State& s, const Parts& p, const Context& c)
     // Integration (stages 2-5): who leads the limbs. A swim (a death in a liquid) leads every limb; else a
     // dismemberment (above), a stagger, a fall or a get-up (stage 2); else what is round him (envFrame, below; it stands
     // down for all of these).
-    swimFrame(s, p, c, t); // (it begins one too)
+    // A struggle in a player's hands (vr_struggle) leads a lifted one's flail (it stands for it), and stands down in a
+    // liquid (the box3d side stops wanting it there).
+    const bool struggles = s.struggle.on && struggleFrame(s, p, c, t);
+    if(!(struggles && s.swim.liquid == Liquid::Air))
+    {
+        swimFrame(s, p, c, t); // (it begins one too)
+    }
     const bool swimming = s.swim.liquid != Liquid::None;
     if(s.stagger.on && !swimming)
     {
@@ -3731,7 +3746,7 @@ void drive(State& s, const Parts& p, const Context& c)
     // The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
     // are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
     // too, last frame's goal first, its blend compounded).
-    const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on);
+    const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on || struggles);
     const uint8_t envOwns = envLeads ? s.env.reached : 0;
     for(int limb = 0; limb < limbCount; limb++)
     {
@@ -3758,7 +3773,8 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         // (what is round him waits, its holds let go)
         envStandDown(s, c,
-            swimming        ? "swimming"
+            struggles       ? "struggling"
+            : swimming      ? "swimming"
             : s.dismember.on ? "dismembered"
             : s.rise.on      ? "getting up"
             : s.fall.on      ? "falling"
@@ -3910,7 +3926,8 @@ void drive(State& s, const Parts& p, const Context& c)
             }
         }
     }
-    const bool crawlPending = (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on;
+    const bool crawlPending =
+        (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on || s.struggle.on;
     if(any || crawlPending)
     {
         b3Body_SetAwake(p.body[0], true);
@@ -4062,6 +4079,7 @@ void struck(State& s, const Parts& p, b3BodyId part)
     {
         return;
     }
+    s.struggle.struck = s.struggle.on; // (a struggle flinches: struggleFrame)
     for(int arm = 0; arm < 2; arm++)
     {
         for(int j = 0; j < 2; j++)

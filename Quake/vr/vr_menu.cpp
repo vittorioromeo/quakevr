@@ -852,6 +852,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies();
+[[nodiscard]] za::Vector<Item> pageHoldingStruggle();
 [[nodiscard]] za::Vector<Item> pageEnemyMelee();
 [[nodiscard]] za::Vector<Item> pageSound();
 
@@ -1952,6 +1953,7 @@ const Page pages[] = {
     {"Stealth AI Tests", pageStealthTests, pageDebugAutomation, LevelDeveloper},
     {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
     {"Holding Enemies", pageHoldingEnemies, pageCombat},
+    {"Holding Enemies - Struggle", pageHoldingStruggle, pageHoldingEnemies},
     {"Enemy Melee", pageEnemyMelee, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
     {"Doom", pageDoom, pageGadget, LevelStandard},
