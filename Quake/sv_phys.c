@@ -24,6 +24,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "vr/vr_tracy.h"
 
+// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds): the player's physics, a few a tick
+#define SV_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
+
 /*
 
 
@@ -263,6 +266,14 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		for (i=0 ; i<3 ; i++)
 			end[i] = ent->v.origin[i] + time_left * ent->v.velocity[i];
 
+#ifdef QVR_TRACY
+		if (NUM_FOR_EDICT (ent) <= svs.maxclients) // QVR: a player's move traces, zoned (the C6 hitches: ROUND22.md)
+		{
+			VR_TRACY_SCOPE ("SV client move trace");
+			trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
+		}
+		else
+#endif
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, false, ent);
 		VR_WalkMoveDebug (ent, "  bump", &trace); // QVR: vr_debug_walkmove
 
@@ -307,6 +318,14 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 //
 // run the impact function
 //
+#ifdef QVR_TRACY
+		if (NUM_FOR_EDICT (ent) <= svs.maxclients) // QVR: a player's impacts, zoned (QC and the VR hooks round it)
+		{
+			VR_TRACY_SCOPE ("SV client impact");
+			SV_Impact (ent, trace.ent);
+		}
+		else
+#endif
 		SV_Impact (ent, trace.ent);
 		if (ent->free)
 			break;		// removed by the impact function
@@ -949,7 +968,7 @@ void SV_WalkMove (edict_t *ent)
 		if ( fabs(oldorg[1] - ent->v.origin[1]) < 0.03125
 		&& fabs(oldorg[0] - ent->v.origin[0]) < 0.03125 )
 		{	// stepping up didn't make any progress
-			clip = SV_TryUnstick (ent, oldvel);
+			SV_ZONE ("SV client try unstick", clip = SV_TryUnstick (ent, oldvel)); // QVR: (zone)
 		}
 	}
 
@@ -989,9 +1008,6 @@ SV_Physics_Client
 Player character actions
 ================
 */
-// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds): the player's hooks, a few a tick
-#define SV_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
-
 void SV_Physics_Client (edict_t	*ent, int num)
 {
 	qboolean wasunderwater, forceunderwater;
