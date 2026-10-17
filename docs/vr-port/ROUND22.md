@@ -11298,6 +11298,30 @@ To try in VR: shoot grunts and let them chase you with streams pouring: no ribbo
 the stream following the body softly. The firing range: shoot a spawn button and its panel (chips, blood), punch one;
 the marks stay on the button as it presses in. Gore > Stream Smoothing / Body Motion to taste.
 
+## Server tick on a worker: the audit first (worktree `permdecals`, branch `agent/servertick`, 2026-10-17)
+
+The approved "server/physics tick on worker threads" (C2, tracy_gpu1.md item 7: 1.0-1.07 ms a frame on hip1m1;
+combat_48 0.96 ms of 3.66 ms main-thread CPU). Design and plan: [SERVER_THREAD.md](SERVER_THREAD.md). Only the whole
+tick beside the drawing of the previous snapshot (option a) gets the ~1 ms; the Box3D step as a job (b) changes the
+order of QuakeC's touches and saves ~0.1 ms; nothing per-edict (c) is self-contained. Threading is **not** shipped:
+the drawing reads the server's state in at least seven places, and the threaded order changes one server field.
+
+Shipped: `vr_server_thread_check` (0 default; Debug > Profiling: Server Tick Thread Audit, Server Tick Thread Report).
+1 notes every switch into the server's VM and every SV_Move/PointContents/Link/Unlink from the main thread outside
+the tick, and every sound, particle, decal, cvar set, queued command or console line from inside it, by phase and
+caller (`vr_server_thread_report`, RACE where a threaded tick would overlap). 2 also runs one-tick frames in the
+threaded order on the main thread (screen, then the tick, then the read), to test that the server's results stay.
+Off, the choke points test one int.
+
+Found (scratch/audit.sh, fixed frames, seed 7, 48 monsters on vrfiringrange, 16 on hip1m1, 600 ticks): nothing from
+inside the tick touches the client; the drawing switches into the server's VM about 400k times on the range (portal
+gates per model per eye: VR_PortalAlias in R_DrawAliasModel_Real, brush props, the shadow maps' portal lights) and
+at view entities, modelcollide, the flashlight, and bloodstream's SV_Move traces. Check 0 and 1 give the same
+hashes; check 2 keeps `vr_physics_hash` but changes `vr_bench_statehash` in `ammopouchpos_y/z` only (the pouch's rounds
+are placed in the drawing and sent with the move). The plan's steps (a page-protection audit for kept pointers, the
+pouch moved to the send, a client-side snapshot at the read, host_frametime split, the console queued, then
+`vr_server_thread` with fences) are in SERVER_THREAD.md. eval.sh: melee skipped (archived takes), neck snaps 6/6.
+
 ## Build number and date
 
 `VR_BuildInfo()` (vr_crash.cpp) says `1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05`: the version (no `-dev` from the
