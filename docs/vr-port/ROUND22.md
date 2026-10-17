@@ -10048,3 +10048,83 @@ Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 
 In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
 hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
 sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
+
+## Blood streams: on the wound, spurts, splashes, an uneven flow; the dummy's dents and streams (worktree `gorefx`, branch `agent/bloodstream2`, 2026-10-17)
+
+His notes: the stream's start sometimes sits a little off the model, detached from the wound (the dents?); small, frequent
+drops spurting at the start in a cone (short-lived, fading, a few living longer); small drops splashing where it lands
+(the floor, a wall, a prop, another monster); a thickness that varies over time and along the stream, not a "hole in a
+bucket"; all of it in the gore settings; the firing range's dummy with dents and streams each on its own toggle, and a
+reset.
+
+**Why it sat off the wound.** A stream was bound to the model's vertex nearest the wound event's point (within 24 units)
+and drawn there as posed, without its dent. Two errors: Quake's meshes are coarse, so that vertex was 1.8-4.7 units from
+where the hit's line met the model on an ogre, more on a ragdoll, whose event point is often inside it
+(7-22 units); and that vertex is drawn pushed in by its dent (the vertex shader's push) while the stream started at its
+undented place: as far out of the drawn surface as the dent is deep there (0.3-3 units here).
+
+**Fix** (`vr_bloodstream.cpp`'s start and locate): the stream is bound where the hit's line meets the model as drawn, by
+the wounds' own strike (`wounds::strikeTriangles`, the one the wound paint and the dent use): the struck triangle's three
+corners (.mdl vertices) and the point's barycentrics. Each frame the corners are posed as drawn (the animated frame
+through the entity's matrix, or the ragdoll's bodies), each pushed in along the drawn triangle's normal by the dents'
+push at its rest point (`dents::pushAt`: the shader's DentDepth on the CPU, the same rows and scales), and the start is
+that point, 0.15 units under the surface. Where no triangle is found it falls back to the nearest vertex as before.
+`vr_gore_streams_info` (Debug > Gore Tests: Blood Streams: Where They Start) prints each pouring stream's binding, the
+dent's depth there, its start's distance from the dented surface, and the nearest vertex's (the old binding).
+
+Measured (`scratch/bs2_origin.sh`: five pellets, `vr_dents_test 6`, into a frozen ogre, then its ragdoll):
+
+| | the old binding (the nearest vertex) | now |
+|---|---|---|
+| alive | 0.3 / 1.1 / 1.8 / 3.1 units out of the dented surface, 1.8-4.7 from the wound point | 0.15 under it, at the wound point (dents 0.3-1.8 deep there) |
+| ragdoll | 7-22 units from it | 0.15 under it (dents up to 2.8 deep); one of four on a vertex (no triangle met), as before |
+
+**Spurts** (`vr_gore_streams_spurt*`): while it pours, `_rate` (40) drops a second at its strongest (times the flow) leave
+the wound in a cone of `_cone` (30 degrees) round its way out (its wobble too), at `_speed` (0.8) times the stream's speed
+(0.45-1.3 of it) plus the body's motion; they live `_life` (0.2 s, 0.5-1.5 of it), fading and shrinking all along;
+`_outliers` (0.12) of them fly a little faster and live `_outlier_life` (0.7 s); `_size` (0.3 units, 0.6-1.4 of it).
+**Splash** (`vr_gore_streams_splash`, 1: about 45 a second at its strongest; `_splash_size` 1 times the spurts' size):
+where it lands, while it gets there (and the last of it after it stops), drops thrown off the surface (0.12-0.4 of the
+stream's speed into it, plus some of its speed along it, out sideways), living 0.12-0.32 s (the outliers twice that),
+round where it lands within its width. Both are pooled particles (`particles::bloodDroplet`: Custom, fading, the
+stream's lit colour), at most 12 of each a stream a frame.
+
+**Where it lands** now counts the things in the way too: each landing arc step also runs a point trace through the
+local server (`worldtrace::move`, new `pass` argument: the stream's own body passed over; you skipped), so a stream
+falling on a monster, a prop or a door stops and splashes there (no pools painted on them). Not hosting: the world
+alone, as before. (A monster's box, not its model: on a monster the splash is at its box.)
+
+**Thickness** (`vr_gore_streams_thickness_var` 0.55, `_rate` 1.1 Hz): its width times 1 + var x (three sines a stream,
+0.55-0.9, 1.3-2.1 and 2.9-4.4 times the rate, random phases; at least 0.08), each point keeping the width it left with
+(so the swells travel down it) with a +-12% x var jitter (an uneven edge); a swell leaves 20% x var faster.
+
+**The dummy** (QC `vr_wounds.qc`, `vr_wounds.cpp`): `vr_dummy_dents` and `vr_dummy_streams` (both 0) make a clean
+training dummy (Dummy Bleeds off) send its hits' wounds anyway, marked `QVR_WOUND_CLEAN` (64 added to the kind): the
+engine paints nothing for them; it dents (`dentOnly`: shots, pellets, nails, blows, blasts) with `vr_dummy_dents` and may
+pour (at Stream Chance) with `vr_dummy_streams`. A bleeding dummy dents and pours as a grunt, as before.
+`vr_dummy_gore_reset` clears every training dummy's dents, streams (at once) and painted wounds. A removed entity's
+streams now stop too (QVR_SVC_WOUNDCLEAR).
+
+**Settings.** Gore > Blood Streams, Back-splatter and Teeth: Stream Thickness Variation, Stream Thickness Rate, Stream
+Spurts, Spurt Rate, Spurt Cone, Spurt Speed, Spurt Lifetime, Spurt Outliers, Spurt Outlier Lifetime, Spurt Size, Stream
+Splash, Splash Size. Gore > Training Dummy: Dummy Dents, Dummy Blood Streams, Clear the Dummy's Dents and Streams.
+Debug > Gore Tests: Shotgun Pellets into the Nearest (`vr_dents_test 6`: five pellets' wound events, no damage), Blood
+Streams: Where They Start, Clear the Dummy's Dents and Streams. New cvars only (no default changed: no migration).
+
+**Checked** (headless): the table above; the dummy (`scratch/bs2_dummy.sh`, firing range, Dummy Bleeds off, five pellets
+each time): both on 5 dents and 4 streams (per body's cap); reset 0 and 0; dents alone 5 and 0; streams alone 0 and 4;
+both off no wound event sent. Screenshots: the dummy's streams leave from inside its dent's crater; three streams on a
+grunt in the test hall with spurts, splash and the swell (`scratch/bs2_pair.sh`: off, then on). `vr_decal_count` now
+prints the points' width range (16 streams: 0.59-0.80 with the variation off, 0.27-1.12 on) and the drops thrown.
+Cost (`scratch/bs2_cost.sh`, exclusive, 16 streams pouring, about 250 fps): the streams' own time 9.6 us a frame with
+the spurts, splash and swell off, 11.9 us on (with the new things trace in both); the particles' CPU 0.048 -> 0.053 ms,
+GPU 0.102 -> 0.109 ms, at about 270 spurt and 300 splash drops a second. No allocations a frame (fixed storage, the
+binding's scratch vectors grown once, the particles' reserved pool).
+
+Open: a pellet that strikes a grunt's gun (in front of his chest) binds the stream to the gun's triangle (the old
+vertex binding could too); the dents skip non-flesh triangles, the streams don't yet.
+
+In VR: shotgun a grunt up close and watch where each stream starts: in the crater, not beside it; the drops spurting
+from the hole and splashing where it lands; its thickness swelling and thinning down its length. Shoot one standing over
+a crate or another monster: the stream should splash on it. At the firing range, Dummy Bleeds off, Dummy Dents and Dummy
+Blood Streams on: shoot the dummy, then Clear the Dummy's Dents and Streams.

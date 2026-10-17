@@ -39,6 +39,11 @@ inline constexpr int kindBlunt = 6; // a blunt blow (a melee wound event's extra
 void struck(const entity_s* e, za::Span<const glm::vec3> tris, const glm::vec3& at, const glm::vec3& n, const glm::vec3& way,
     int kind, float amount);
 
+// How far the dents of `e` push its surface in at rest point `p` (its model's pose 0, units) whose rest normal is `rn`:
+// the vertex shader's push (DentDepth), on the CPU (0: none). What is drawn at a wound sits on the dented surface
+// (vr_bloodstream.cpp).
+[[nodiscard]] float pushAt(const entity_s* e, const glm::vec3& p, const glm::vec3& rn);
+
 // The entity was removed on the server (its slot's next one starts clean).
 void forget(const entity_s* e);
 

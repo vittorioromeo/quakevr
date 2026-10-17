@@ -673,6 +673,8 @@ float cvarh_vr_dummy_attack_reach;
 float cvarh_vr_dummy_attack_damage;
 float cvarh_vr_dummy_attack_windup;
 float cvarh_vr_dummy_gore;
+float cvarh_vr_dummy_dents;
+float cvarh_vr_dummy_streams;
 float cvarh_vr_dummy_gib;
 float cvarh_vr_dummy_gib_respawn;
 float cvarh_vr_dummy_type;
@@ -1539,6 +1541,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_dummy_attack_damage);
     VR_CVAR_HMAKE(vr_dummy_attack_windup);
     VR_CVAR_HMAKE(vr_dummy_gore);
+    VR_CVAR_HMAKE(vr_dummy_dents);
+    VR_CVAR_HMAKE(vr_dummy_streams);
     VR_CVAR_HMAKE(vr_dummy_gib);
     VR_CVAR_HMAKE(vr_dummy_gib_respawn);
     VR_CVAR_HMAKE(vr_dummy_type);
