@@ -26,6 +26,8 @@ ai.qc
 combat.qc
 combat_test.qc
 fight.qc
+// Monsters' ranged shots bent to an aim cone off their facing (after fight.qc; the monsters' files and AD's call it).
+vr_aimcone.qc
 items.qc
 subs.qc
 
@@ -150,6 +152,7 @@ vr_mg_horde_test.qc
 vr_mg3_test.qc
 vr_monsters_test.qc
 vr_meleearc_test.qc
+vr_aimcone_test.qc
 vr_mg3_weapons_test.qc
 
 orig_mon_boss.qc

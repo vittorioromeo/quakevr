@@ -143,6 +143,7 @@ void(float xOffset, float xVariant) rknight_shot =
     {
         return;
     }
+    vec = VR_AimCone_Bend(vec, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     entity newmis = launch_spike(org, vec);
     newmis.classname = "knightspike";
     setmodel(newmis, MG3_DIAMOND_MDL);
@@ -337,7 +338,9 @@ void() rknight_magica4 =[ $magica4, rknight_magica5 ] {ai_face();};
 void() rknight_magica5 =[ $magica5, rknight_magica6 ] {ai_face();};
 void() rknight_magica6 =[ $magica6, rknight_magica7 ] {ai_face();};
 void() rknight_magica7 =[ $magica7, rknight_magica8 ] {ai_face();};
-void() rknight_magica8 =[ $magica8, rknight_magica9 ] {ai_face(); rknight_shot(1.5, 1);};
+void() rknight_magica8 =[ $magica8, rknight_magica9 ] {
+    if(VR_AimCone_Wait(rknight_magica8, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+ai_face(); rknight_shot(1.5, 1);};
 void() rknight_magica9 =[ $magica9, rknight_magica10 ] {ai_face(); rknight_shot(0.5, 1);};
 void() rknight_magica10 =[ $magica10, rknight_magica11 ] {ai_face(); rknight_shot(-0.5, 1);};
 void() rknight_magica11 =[ $magica11, rknight_magica12 ] {ai_face(); rknight_shot(-1.5, 1);};
@@ -351,7 +354,9 @@ void() rknight_magicb3 =[ $magicb3, rknight_magicb4 ] {ai_face();};
 void() rknight_magicb4 =[ $magicb4, rknight_magicb5 ] {ai_face();};
 void() rknight_magicb5 =[ $magicb5, rknight_magicb6 ] {ai_face();};
 void() rknight_magicb6 =[ $magicb6, rknight_magicb7 ] {ai_face(); self.ammo_nails = floor(random() * 8 + 0.5);};
-void() rknight_magicb7 =[ $magicb7, rknight_magicb8 ] {ai_face(); rknight_shot(-2, 2);};
+void() rknight_magicb7 =[ $magicb7, rknight_magicb8 ] {
+    if(VR_AimCone_Wait(rknight_magicb7, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+ai_face(); rknight_shot(-2, 2);};
 void() rknight_magicb8 =[ $magicb8, rknight_magicb9 ] {ai_face(); rknight_shot(-1, 2);};
 void() rknight_magicb9 =[ $magicb9, rknight_magicb10 ] {ai_face(); rknight_shot(0, 2);};
 void() rknight_magicb10 =[ $magicb10, rknight_magicb11 ] {ai_face(); rknight_shot(1, 2);};
@@ -373,7 +378,9 @@ void() rknight_magicc2 =[ $magicc2, rknight_magicc3 ] {ai_face();};
 void() rknight_magicc3 =[ $magicc3, rknight_magicc4 ] {ai_face();};
 void() rknight_magicc4 =[ $magicc4, rknight_magicc5 ] {ai_face();};
 void() rknight_magicc5 =[ $magicc5, rknight_magicc6 ] {ai_face();};
-void() rknight_magicc6 =[ $magicc6, rknight_magicc7 ] {rknight_shot(-2, 0);};
+void() rknight_magicc6 =[ $magicc6, rknight_magicc7 ] {
+    if(VR_AimCone_Wait(rknight_magicc6, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+rknight_shot(-2, 0);};
 void() rknight_magicc7 =[ $magicc7, rknight_magicc8 ] {rknight_shot(-1, 0);};
 void() rknight_magicc8 =[ $magicc8, rknight_magicc9 ] {rknight_shot(0, 0);};
 void() rknight_magicc9 =[ $magicc9, rknight_magicc10 ] {rknight_shot(1, 0);};

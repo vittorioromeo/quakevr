@@ -570,7 +570,97 @@ void arcFan(const glm::vec3& c, float from, float to, float radius, const glm::v
     }
 }
 
+// Show Aim Cones (vr_enemy_aim_show): the ranged monsters QC's VR_AimCone_ShowFrame set this frame (vr_aimcone.qc),
+// gathered on the server (aimConeGather) and drawn with the view (aimConeDraw).
+constexpr int maxAimShows = 24;
+struct AimShow
+{
+    glm::vec3 mid{0.f}; // its box's middle
+    float top = 0.f;    // its box's top
+    float yaw = 0.f;    // its facing (degrees)
+    float cone = 0.f;   // its aim cone, degrees each side
+    float fire = 0.f;   // its fire cone
+    float off = 0.f;    // its enemy's angle off its facing (degrees, level)
+    float dist = 0.f;   // ... and how far (level)
+    bool holding = false; // a shot of its waits for it to turn
+    char name[24] = "";
+};
+struct AimShows
+{
+    AimShow rows[maxAimShows];
+    int count = 0;
+};
+AimShows aimShows;
+
+void aimConeGather()
+{
+    aimShows.count = 0;
+    const int shownOfs = progs::fields().vr_aim_shown;
+    if(vr_enemy_aim_show.value == 0.f || shownOfs < 0)
+    {
+        return;
+    }
+    const float now = static_cast<float>(qcvm->time);
+    for(int e = svs.maxclients + 1; e < qcvm->num_edicts && aimShows.count < maxAimShows; ++e)
+    {
+        edict_t* m = EDICT_NUM(e);
+        if(m->free || !isMonster(m) || m->v.health <= 0.f)
+        {
+            continue;
+        }
+        const float shown = progs::fieldFloatOr(m, shownOfs, 0.f);
+        edict_t* p = PROG_TO_EDICT(m->v.enemy);
+        if(shown <= 0.f || now - shown > arcShownRecent || p == sv.qcvm.edicts)
+        {
+            continue;
+        }
+        AimShow& r = aimShows.rows[aimShows.count++];
+        r.mid = 0.5f * (vec(m->v.absmin) + vec(m->v.absmax));
+        r.top = m->v.absmax[2];
+        r.yaw = m->v.angles[1];
+        r.cone = progs::fieldFloatOr(m, progs::fields().vr_aim_cone, 0.f);
+        r.fire = progs::fieldFloatOr(m, progs::fields().vr_aim_fire, 0.f);
+        r.holding = progs::fieldFloatOr(m, progs::fields().vr_aim_holding, 0.f) > 0.f;
+        const glm::vec2 to{p->v.origin[0] - m->v.origin[0], p->v.origin[1] - m->v.origin[1]};
+        r.dist = glm::length(to);
+        float off = r.dist > 0.01f ? glm::degrees(za::atan2(to.y, to.x)) - r.yaw : 0.f;
+        r.off = za::abs(off - 360.f * za::round(off / 360.f));
+        q_strlcpy(r.name, PR_GetString(m->v.classname), sizeof(r.name));
+    }
+}
+
 } // namespace
+
+// Each ranged monster's cones at its middle, level, as long as its enemy is far (100..400 units): the fire cone past the
+// aim cone on each side (orange with its enemy there: it fires at once, bent; faint else), the aim cone (red with its
+// enemy inside: its shot goes straight at him; else green: outside both, it waits, turning). Its numbers above it.
+void qvr::bodycontact::aimConeDraw(const glm::vec3& eye)
+{
+    const glm::vec4 red{1.f, 0.15f, 0.15f, 0.95f};
+    const glm::vec4 orange{1.f, 0.55f, 0.1f, 0.95f};
+    const glm::vec4 green{0.2f, 1.f, 0.3f, 0.9f};
+    for(int i = 0; i < aimShows.count; ++i)
+    {
+        const AimShow& r = aimShows.rows[i];
+        const float len = za::clamp(r.dist, 100.f, 400.f);
+        const bool inCone = r.off <= r.cone;
+        const bool inFire = r.off <= r.fire;
+        if(r.fire > r.cone)
+        {
+            const glm::vec4 w = inFire && !inCone ? orange : glm::vec4{orange.r, orange.g, orange.b, 0.4f};
+            arcFan(r.mid, r.yaw + r.cone, r.yaw + r.fire, len, w, true);
+            arcFan(r.mid, r.yaw - r.fire, r.yaw - r.cone, len, w, true);
+        }
+        arcFan(r.mid, r.yaw - r.cone, r.yaw + r.cone, len, inCone ? red : green, true);
+        char text[112];
+        q_snprintf(text, sizeof(text), "%s\naim %.0f fire %.0f%s\nyou %.0f deg %.0f u", r.name,
+            static_cast<double>(r.cone), static_cast<double>(r.fire), r.holding ? " (waiting)" : "",
+            static_cast<double>(r.off), static_cast<double>(r.dist));
+        const glm::vec3 at{r.mid.x, r.mid.y, r.top + 22.f};
+        const glm::vec3 toText = at - eye;
+        text3d::queueOverlay(text, at, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.06f);
+    }
+}
 
 void qvr::bodycontact::meleeArcDraw(const glm::vec3& eye)
 {
@@ -616,9 +706,11 @@ void qvr::bodycontact::serverFrame()
     if(!sv.active || qcvm != &sv.qcvm)
     {
         arcShows.count = 0;
+        aimShows.count = 0;
         return;
     }
     meleeArcGather();
+    aimConeGather();
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     if(dt <= 0.f)
     {

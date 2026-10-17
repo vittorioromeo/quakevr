@@ -277,6 +277,8 @@ void() ad_sham_remove_attachment =
 //======================================================================
 void() ad_sham_lightning =
 {
+	if (VR_AimCone_Wait(ad_sham_lightning, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir;
 	if (self.health < 1) return;
 	

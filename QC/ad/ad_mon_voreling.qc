@@ -164,7 +164,9 @@ void()	ad_voreling_spit2 = [ $pain2, ad_voreling_spit3 ] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_VORELING); };
 void()	ad_voreling_spit3 = [ $bite1, ad_voreling_spit4 ] {ad_ai_face();
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, ad_SPEED_VORELING); };
-void()	ad_voreling_spit4 = [ $bite2, ad_voreling_spit5 ] {ad_voreling_spitacid(-0.1);};
+void()	ad_voreling_spit4 = [ $bite2, ad_voreling_spit5 ] {
+	if (VR_AimCone_Wait(ad_voreling_spit4, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_voreling_spitacid(-0.1);};
 void()	ad_voreling_spit5 = [ $bite3, ad_voreling_spit6 ] {ad_voreling_spitacid(0);};
 void()	ad_voreling_spit6 = [ $bite4, ad_voreling_spit7 ] {ad_voreling_spitacid(0.1);};
 void()	ad_voreling_spit7 = [ $bite5, ad_voreling_spit8 ] {};

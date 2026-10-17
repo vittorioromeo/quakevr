@@ -575,6 +575,7 @@ void() StartFrame =
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
     VR_MeleeArc_ShowFrame(); // QVR: Show Melee Arcs: the arcs and reaches the engine draws (fight.qc)
+    VR_AimCone_ShowFrame(); // QVR: Show Aim Cones: the ranged monsters' cones the engine draws (vr_aimcone.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
@@ -588,6 +589,7 @@ void() StartFrame =
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
+    VR_AimConeTest_Frame(); // vr_test_aimcone (vr_aimcone_test.qc)
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)

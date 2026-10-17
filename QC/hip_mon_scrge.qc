@@ -94,7 +94,7 @@ void(float ox) SCOURGE_FireSpikes =
     vector src = self.origin - '0 0 19' + v_right*ox + v_forward*14;
     if(!VR_AI_ShotReady(src)) { return; }
     vector vec = (VR_AI_Origin(self.enemy) + (200*v_forward)) - src;
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
     launch_spike(src, vec);
 

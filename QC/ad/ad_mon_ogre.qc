@@ -162,6 +162,8 @@ void() ad_ogre_melee =
 ======================================================================*/
 void() ad_OgreFireNails =
 {
+	if (VR_AimCone_Wait(ad_OgreFireNails, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir, ad_vec;
 	local float ad_loopvar;
 	
@@ -205,6 +207,8 @@ void() ad_ogre_shoot3 =[ $shoot2, ad_ogre_shoot4 ] {
 	self.ad_attack_elev = ad_SUB_Elevation(self.ad_attack_elev, self.origin, self.enemy.origin, self.ad_attack_speed);
 };
 void() ad_ogre_shoot4 =[ $shoot3, ad_ogre_shoot5 ] {
+	if (VR_AimCone_Wait(ad_ogre_shoot4, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	ad_ai_face();
 	ad_MonsterFireGrenade(self.origin, self.enemy.origin);
 };

@@ -708,7 +708,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
 {
     sound(self, CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
 
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: a monster's bent to its facing's aim cone (vr_aimcone.qc)
 
     entity newmis;
     newmis = spawn();
@@ -2110,6 +2110,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);
     else
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
+    dir = VR_AimCone_Bend(dir, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
     if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)

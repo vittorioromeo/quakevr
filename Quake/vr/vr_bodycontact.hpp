@@ -35,4 +35,9 @@ void serverFrame();
 // green: outside), its numbers above it facing `eye`. The view's (vr_view.cpp), from what serverFrame gathered.
 void meleeArcDraw(const glm::vec3& eye);
 
+// Show Aim Cones (vr_enemy_aim_show): each ranged monster after a player that QC (vr_aimcone.qc VR_AimCone_ShowFrame)
+// set this frame: its aim cone (red: its enemy inside; green: outside) and fire cone past it (orange: its enemy there)
+// at its middle, its numbers above it facing `eye`. The view's (vr_view.cpp), from what serverFrame gathered.
+void aimConeDraw(const glm::vec3& eye);
+
 } // namespace qvr::bodycontact

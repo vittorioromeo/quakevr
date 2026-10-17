@@ -189,6 +189,7 @@ void() Wiz_FastFire =
     vector vec;
     vector dst;
     entity newmis;
+    if(VR_AimCone_Wait(Wiz_FastFire, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
 
     if(!VR_AI_ShotReady(self.origin)) { remove(self); return; }
     if(self.owner.health > 0)
@@ -198,7 +199,7 @@ void() Wiz_FastFire =
         makevectors(self.enemy.angles);
         dst = VR_AI_Origin(self.enemy) - 13*self.movedir;
 
-        vec = normalize(dst - self.origin);
+        vec = VR_AimCone_Bend(normalize(dst - self.origin), VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
         sound(self, CHAN_WEAPON, "wizard/wattack.wav", 1, ATTN_NORM);
         newmis = launch_spike (self.origin, vec);
         newmis.velocity = vec*AD_MonsterSpeed(600, AD_PROJ_WIZARD); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)

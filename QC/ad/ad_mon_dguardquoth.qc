@@ -201,6 +201,8 @@ void() ad_dguardq_char_b6 = [ $char_b6, ad_dguardq_run1 ] {ad_ai_charge(20); ad_
 //============================================================================
 void() ad_dguardq_fireball =
 {
+	if (VR_AimCone_Wait(ad_dguardq_fireball, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir, ad_vec;
 	
 	if (!self.enemy) return;

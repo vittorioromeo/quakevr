@@ -186,6 +186,8 @@ void() ad_gaunt_run20 = [ $hover20, ad_gaunt_run1 ] {ad_ai_run(8);};
 //============================================================================
 void() ad_gaunt_plasma =
 {
+	if (VR_AimCone_Wait(ad_gaunt_plasma, VR_AIM_NARROW)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+
 	local vector ad_org, ad_dir;
 
 	self.effects = self.effects | ad_EF_MUZZLEFLASH;

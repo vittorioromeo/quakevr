@@ -10564,3 +10564,74 @@ degrees, carved and flat; also retro textures off, fog, single-pass stereo): car
 Not done / to try in VR: the depth and rim at arm's length and at grazing angles (the texture inside a hole moves with
 the eyes); a dense shotgun pattern (a 32-unit spot lists at most `vr_decal_bucket_max` 24 marks); the mock could not be
 made to fire the nailguns, so the nail and lava nail kinds were checked through `vr_decal_carve_test` only.
+
+## Ranged aim cone: monsters' shots along their facing (worktree `dequant`, branch `agent/aimcone`, 2026-10-17)
+
+Approved design. Quake's monsters start a ranged attack facing the player within about 45 degrees (`FacingIdeal`) and
+turn at `yaw_speed` during it, but each shot is aimed straight at him whatever their facing: circling or sidestepping a
+grunt still turning, its shot hit from 60 degrees or more off its facing. The ranged counterpart of the melee arc.
+
+What changed (`QC/vr_aimcone.qc`, one helper pair used by every ranged attack):
+
+- `VR_AimCone_Bend(dir, kind)`: against a player, a shot's way (a direction or a velocity: a lob's upward part kept) is
+  turned about the vertical to at most the aim cone off the shooter's facing (`vr_enemy_aim_angle` 20 each side, times
+  the kind's multiplier); pitch is free. Inside the cone it is returned untouched (Quake's shot exactly). The shooter is
+  `self`, or a shot-maker's monster owner (the scrag's spit makers).
+- `VR_AimCone_Wait(fn, kind)` at the shot (first in the shot's frame, or in a fire function with no arguments): with the
+  player outside the fire cone (`vr_enemy_aim_fire` 40, times the multiplier) the frame is held (`VR_AimCone_HoldThink`,
+  each 0.1 s: the monster turns at its own speed, as its frames do), until he is inside it or `vr_enemy_aim_delay`
+  (0.3 s) is up; then `fn` runs again and the shot is made, bent. It never fires wild. One wait an attack: a shot within
+  a second of a wait's end fires at once (a death knight's six-shot fan, a grunt's burst wait once).
+- Kinds (`VR_AimCone_Kind`, by classname, else the site's): narrow (`vr_enemy_aim_narrow` x1: hitscan and fast: grunt,
+  enforcer, shambler's lightning, gremlin, scourge, Guardian (morph), MG3's rocket ogre and orb, AD's soldiers,
+  enforcers, centurions, ogre nails, gargoyles, droles...), wide (`vr_enemy_aim_wide` x2, aim 40 / fire 80: lobbed and
+  slow: ogre and zombie and mummy grenades, scrag spit, death knight and MG3 ranged knight magic, AD's golem rocks,
+  skull wizards, wraiths, spiders' acid). None: homing shots (vore/Shalrath, Wrath, AD's sergeant: never hooked) and
+  bosses (Chthon, Shub, Armagon, the dragon, Overlord, the Lava Man, MG3's super shambler and Shub's eyes/seekers, AD's
+  `bossflag` bosses).
+- Shared helpers bend centrally: `EnemyFireBullets` (after its crate and portal aims), `LaunchLaser`, `HIP_LaunchLaser`;
+  the rest at their site (hell knight, scrag, zombie, ogre after `VR_Lob_Aim`, shambler, scourge, gremlin rocket, nails,
+  lightning and grenade, mummy, MG3 rocket ogre, ranged knight, orb). Waits: grunt `army_atk5`, enforcer
+  `enforcer_fire`, ogre `ogre_nail4`, hell knight `hknight_magicc6`, scrag `Wiz_FastFire`, zombie's three throws,
+  shambler `sham_magic5` (its shot frames don't turn), Guardian `morph_fire`, ranged knight's three fans, orb
+  `orb_fast4`. Bend only: scourge and gremlin (they fire in `th_missile` itself, after `FacingIdeal`), mummy.
+- AD (`Misc/quakevr/ad_import.py`, `// AD support` markers): its launchers bend (`launch_plasma`, `launch_projectile`,
+  `Launch_Missile`, `Launch_Shells`, `FireBullets` narrow; `Launch_Grenade` wide; `Launch_HomingMissile` left alone);
+  `AIM_WAITS` puts the wait first in 37 fire functions or shot frames (soldier variants, enforcer variants, centurion,
+  ogre, hell knight's three fans, death knight, gargoyle, drole, quoth guard, golem, scrag, shambler, crossbow knight,
+  eel, Jim, gaunt, zombie, spider, swampling, voreling, minotaur, skull wizard, scorpion, death lord). `--check` clean.
+- Menu: Combat > Enemy Melee gets Show Aim Cones beside Show Melee Arcs and a Ranged Aim section (Ranged Aim Cone,
+  Aim Cone, Fire Cone, Max Delay, Hitscan and Fast, Lobbed and Slow). The page keeps its name (a rename would move the
+  calibration boards' and help texts' paths; the author may rename it Enemy Attacks). Debug > Tests > Holding Enemies:
+  Log Aim Cone (`vr_enemy_aim_debug`), Show Aim Cones, Aim Cone: You 60 Deg Off (`vr_test_aimcone 300060`).
+- Show Aim Cones (`vr_enemy_aim_show`; `VR_AimCone_ShowFrame`, engine `bodycontact::aimConeDraw`): each ranged monster
+  after you within 1000 units draws at its middle its aim cone (red with you inside, else green) and the fire cone past
+  it (orange with you there), as long as you are far (100..400 units); its kind's cones and "(waiting)" above it.
+
+Test (`Misc/quakevr/aim_cone_test.sh <worktree> [id|ad] "<vr_test_spawn kinds>" "<requests>"`; `vr_test_aimcone
+D*1000+A`): the nearest monster D units away starts its ranged attack and is turned each frame so the player is A
+degrees off its facing plus its turn speed (a frame's `ai_face` turns that much before the shot): circling it faster
+than it turns. 2.5 s, health held at 1000. The grunt (burst rifle: two `ai_face`s before its first round):
+
+| request | shot off | bent | waited | hits |
+|---|---|---|---|---|
+| 300 u, 0 deg | 1 | 0 | - | 3 |
+| 300 u, 30 deg | 11 | 0 | - | 2 |
+| 300 u, 60 deg | 41 | 21 | 0.30 s | 0 |
+| 300 u, 90 deg | 71 | 51 | 0.30 s | 0 |
+| 64 u, 10 deg | 1 | 0 | - | 7 |
+| 64 u, 60 deg | 41 | 21 | 0.30 s | 0 |
+| cone off, 60 / 90 deg | - | - | - | 2 / 4 |
+
+Melee eval: 168/177, the 3 known bash-damage canary diffs. Inside the cone the shot is Quake's own (unbent, same hits). At 60 deg, once each: enforcer waited 0.3 s, bent 61;
+ogre (wide) bent 1; scrag bent 25 (inside its 80 deg fire cone: no wait); hell knight 12 shots, bent 32; shambler waited
+0.3 s, bent 41; scourge bent 24; Guardian waited 0.3 s, bent 38; mummy bent 16; MG3 ranged knight bent 1, orb waited
+0.3 s, bent 37, infected enforcer waited, bent 61; vore, Wrath, super shambler untouched (0 shots weighed). AD (start
+map, its own monsters): soldier waited, bent 20, 0 hits (6 hits at 0 deg); enforcer waited, bent 60; ogre bent 20;
+scrag bent 25; hell knight bent 52 (him at its 80 deg fire cone's edge: no wait; its fan's -12 deg shot 92 off), at 90
+deg waited 0.3 s, bent 82; shambler waited, bent 40; zombie bent 17; vore untouched. The gremlin was not
+weighed (it spawns with no gun to fire).
+
+For him in VR: Combat > Enemy Melee > Show Aim Cones on; circle a grunt or an enforcer fast at mid range: its shots
+should miss once you are past its red cone, and with you far round it it pauses before firing. Ogres and scrags bend
+further (Lobbed and Slow). Tune Aim Cone, Fire Cone and Max Delay there.

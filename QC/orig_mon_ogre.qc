@@ -162,6 +162,7 @@ void() OgreFireGrenade =
     }
 
     missile.avelocity = '300 300 300';
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     missile.angles = vectoangles(missile.velocity);
 
     // set missile duration
@@ -336,6 +337,8 @@ void() ogre_nail2    =[    $shoot2,        ogre_nail3    ] {ai_face();};
 void() ogre_nail3    =[    $shoot2,        ogre_nail4    ] {ai_face();};
 void() ogre_nail4    =[    $shoot3,        ogre_nail5    ]
 {
+    if(VR_AimCone_Wait(ogre_nail4, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+
     ai_face();
     if(self.vr_mg3_mon) // QVR: MG3's rocket ogre: a volley of rockets (vr_mg3_ogre.qc), aiming again for the next
     {

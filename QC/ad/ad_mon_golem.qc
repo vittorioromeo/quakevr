@@ -396,7 +396,9 @@ void() ad_golem_magic9 = [ $magic9, ad_golem_magic10 ] {ad_golem_magtime();ad_ai
 void() ad_golem_magic10 = [ $magic10, ad_golem_magic11 ] {ad_golem_magtime();};
 void() ad_golem_magic11 = [ $magic11, ad_golem_magic12 ] {ad_golem_magtime();ad_ai_face();};
 void() ad_golem_magic12 = [ $magic12, ad_golem_magic13 ] {ad_golem_magtime();};
-void() ad_golem_magic13 = [ $magic13, ad_golem_magic14 ] {ad_golem_magtime();ad_golem_rockstorm();};
+void() ad_golem_magic13 = [ $magic13, ad_golem_magic14 ] {
+	if (VR_AimCone_Wait(ad_golem_magic13, VR_AIM_WIDE)) return; // AD support: aim cone: far off its facing it waits, turning (vr_aimcone.qc)
+ad_golem_magtime();ad_golem_rockstorm();};
 void() ad_golem_magic14 = [ $magic14, ad_golem_magic15 ] {ad_golem_magtime();};
 void() ad_golem_magic15 = [ $magic15, ad_golem_magic16 ] {ad_golem_magtime();ad_golem_rockstorm();};
 void() ad_golem_magic16 = [ $magic16, ad_golem_magic17 ] {ad_golem_magtime();};

@@ -562,6 +562,16 @@ za::Vector<Item> pageDebugTests()
         command("Melee Arc: You Step Aside", "vr_test_meleearc 3")
             .help("As Faces You, and as its attack starts you are moved to its side (100 degrees off its facing): "
                   "with Melee Arc its swing misses."),
+        toggle("Log Aim Cone", vr_enemy_aim_debug)
+            .help("Prints each monster shot at you: its angle off the monster's facing, its aim and fire cones (Combat > "
+                  "Enemy Melee > Ranged Aim), how long it waited and how far it was bent."),
+        toggle("Show Aim Cones", vr_enemy_aim_show)
+            .help("Each ranged monster after you draws its aim cone (red with you inside) and fire cone (orange) ahead of "
+                  "it (Combat > Enemy Melee > Show Aim Cones)."),
+        command("Aim Cone: You 60 Deg Off", "vr_test_aimcone 300060")
+            .help("Sets the nearest monster 300 units away after you and starts its ranged attack; until it ends you are "
+                  "held 60 degrees off its facing (circling it faster than it turns). Prints each shot (bent, waited) "
+                  "and its hits on you. Other angles and distances: vr_test_aimcone <distance * 1000 + degrees>."),
         command("Who Is Held?", "vr_foegrab_status")
             .help("vr_foegrab_status: each hand holding an enemy, its hold, how firmly the enemy is held in all, how far "
                   "the hand is from the spot it holds (Combat > Holding Enemies); an enemy held on as a ragdoll after a "
