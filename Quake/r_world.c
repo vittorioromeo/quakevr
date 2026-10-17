@@ -551,6 +551,20 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 /*
 =============
+R_PdoConservative
+
+QVR: whether the shading pass's depth-writing programs declare conservative depth (vr_parallax_conservative_depth):
+only when no relief is raised over the surface (vr_parallax_plane 0), so every depth they write is the surface's or
+further (the shaders clamp it so). The pre-pass's bound is always further: its programs only need the setting.
+=============
+*/
+static qboolean R_PdoConservative (void)
+{
+	return r_framedata.parallax3[1] > 0.f && r_framedata.parallax3[0] <= 0.f;
+}
+
+/*
+=============
 R_ChooseBModelProgram
 =============
 */
@@ -574,9 +588,9 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		break;
 	}
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
-		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
+		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit, pdo && R_PdoConservative ());
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
-		return glprogs.world_pdo[dither];
+		return GL_WorldPdoProgram (dither, R_PdoConservative ());
 	return glprogs.world[oit][dither][alphatest];
 }
 
@@ -721,7 +735,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass == BP_SOLID && !translucent)
 	{
 		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
-		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
+		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo[r_framedata.parallax3[1] > 0.f ? 1 : 0] : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write; conservative depth: vr_parallax_conservative_depth)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 		R_FlushBModelCalls ();

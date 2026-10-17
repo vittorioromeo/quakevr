@@ -2350,6 +2350,8 @@ extern "C" void VR_PushMapLights(void)
     // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
     // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
     r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
+    // Their depth declared never nearer than the surface's (conservative depth; r_world.c: R_PdoConservative).
+    r_framedata.parallax3[1] = vr_parallax_conservative_depth.value != 0.f ? 1.f : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

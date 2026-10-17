@@ -127,7 +127,7 @@ QVR_TONE_GLSL
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
-"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
+"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); y the CPU's (vr_parallax_conservative_depth: r_world.c); zw unused\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
@@ -767,13 +767,29 @@ QVR_ZFIX_FUNCTION \
 // vr_parallax_plane raises the relief over the surface, so depth_any (it was depth_less with reversed depth,
 // depth_greater without, before the plane, round 22). The driver measured here (NVIDIA, 2026-10) shades every fragment
 // of such a shader either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
+// PDO_CONS 1 (vr_parallax_conservative_depth, round 22; r_world.c: the pre-pass always, the shading pass only at
+// vr_parallax_plane 0): the depth written is never nearer than the surface's, declared (depth_less with reversed depth,
+// depth_greater without), so the driver may keep rejecting hidden pixels before shading them; QVR_PDO_CLAMP holds the
+// promise (the same depth wherever nothing is raised).
 #define QVR_PARALLAX_DEPTH_OUT \
 "#ifndef PDO\n"\
 "	#define PDO 0\n"\
 "#endif\n"\
+"#ifndef PDO_CONS\n"\
+"	#define PDO_CONS 0\n"\
+"#endif\n"\
 "#if PDO\n"\
 "	#define QVR_PDO 1\n"\
-"	layout(depth_any) out float gl_FragDepth;\n"\
+"	#if PDO_CONS && REVERSED_Z\n"\
+"		layout(depth_less) out float gl_FragDepth;\n"\
+"		#define QVR_PDO_CLAMP(d) min(d, gl_FragCoord.z)\n"\
+"	#elif PDO_CONS\n"\
+"		layout(depth_greater) out float gl_FragDepth;\n"\
+"		#define QVR_PDO_CLAMP(d) max(d, gl_FragCoord.z)\n"\
+"	#else\n"\
+"		layout(depth_any) out float gl_FragDepth;\n"\
+"		#define QVR_PDO_CLAMP(d) (d)\n"\
+"	#endif\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
 "#endif\n"

@@ -213,6 +213,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
                   "(Parallax Surface Level); dark blue: the surface's own depth."),
+        toggle("Parallax Conservative Depth", "vr_parallax_conservative_depth")
+            .help("vr_parallax_conservative_depth (A/B for speed; the picture is the same): Parallax Depth Write tells the "
+                  "GPU its depth is never nearer than the wall, so hidden pixels may be skipped before shading. The world "
+                  "pass only at Parallax Surface Level 0 (nothing raised), its depth pre-pass always."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
