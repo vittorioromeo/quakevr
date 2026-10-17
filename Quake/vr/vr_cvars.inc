@@ -1334,13 +1334,13 @@ QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the 
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
 QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)
-QVR_CVAR(vr_body_head_side, "0", CVAR_ARCHIVE)        // cm to the right (-10 to 10)
+QVR_CVAR(vr_body_head_side, "1.75", CVAR_ARCHIVE)        // cm to the right (-10 to 10)
 QVR_CVAR(vr_body_head_up, "0", CVAR_ARCHIVE)          // cm up (-10 to 10)
 QVR_CVAR(vr_body_head_pitch, "0", CVAR_ARCHIVE)       // degrees, chin down (-45 to 45)
 QVR_CVAR(vr_body_head_yaw, "0", CVAR_ARCHIVE)         // degrees, turned left (-45 to 45)
 QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (-45 to 45)
 QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
-QVR_CVAR(vr_body_head_sink, "4.5", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
+QVR_CVAR(vr_body_head_sink, "9", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands (vr_hand_rig 1): 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
 QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
@@ -4039,9 +4039,9 @@ QVR_CVAR(vr_lootbeam_powerups, "0", CVAR_ARCHIVE)       // power-ups (quad, pent
 QVR_CVAR(vr_lootbeam_keys, "0", CVAR_ARCHIVE)           // keys and runes
 QVR_CVAR(vr_lootbeam_backpacks, "0", CVAR_ARCHIVE)      // backpacks
 QVR_CVAR(vr_lootbeam_mag_min, "0.25", CVAR_ARCHIVE)     // a magazine's beam only fuller than this share of its rounds (0..1; 0: any not empty)
-QVR_CVAR(vr_lootbeam_opacity, "0.5", CVAR_ARCHIVE)      // its brightness (0..1)
-QVR_CVAR(vr_lootbeam_length, "1.2", CVAR_ARCHIVE)       // metres it rises from the thing's middle
-QVR_CVAR(vr_lootbeam_thickness, "0.06", CVAR_ARCHIVE)   // metres across its bright core (its soft glow three times that)
+QVR_CVAR(vr_lootbeam_opacity, "0.15", CVAR_ARCHIVE)      // its brightness (0..1)
+QVR_CVAR(vr_lootbeam_length, "1.5", CVAR_ARCHIVE)       // metres it rises from the thing's middle
+QVR_CVAR(vr_lootbeam_thickness, "0.03", CVAR_ARCHIVE)   // metres across its bright core (its soft glow three times that)
 QVR_CVAR(vr_lootbeam_saturation, "0.75", CVAR_ARCHIVE)  // its colours' saturation (0 white)
 QVR_CVAR(vr_lootbeam_hue_weapons, "40", CVAR_ARCHIVE)   // each category's hue (degrees): weapons gold
 QVR_CVAR(vr_lootbeam_hue_mags, "190", CVAR_ARCHIVE)     // ... magazines cyan
@@ -4054,5 +4054,5 @@ QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
 QVR_CVAR(vr_lootbeam_settle, "0.3", CVAR_ARCHIVE)       // seconds a thing must lie still (within a few units) before its beam shows
 QVR_CVAR(vr_lootbeam_near, "0.5", CVAR_ARCHIVE)         // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)
-QVR_CVAR(vr_lootbeam_far, "0", CVAR_ARCHIVE)            // metres beyond which it fades out (over the last quarter; 0: never)
+QVR_CVAR(vr_lootbeam_far, "12", CVAR_ARCHIVE)            // metres beyond which it fades out (over the last quarter; 0: never)
 QVR_CVAR(vr_lootbeam_debug, "0", CVAR_NONE)             // a console line a second: the beams drawn by category, and the things skipped (held, moving, an empty magazine)

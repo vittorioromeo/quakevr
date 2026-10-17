@@ -257,8 +257,15 @@ const DefaultChange defaultChanges[] = {
     {153, &vr_holster_zone_ammo_height, "0.95"},        // 1.125
     {153, &vr_magholster_chain_x, "0"},                 // -2
     {153, &vr_magholster_chain_y, "0"},                 // -0.75
+    // 154: his player head and loot beam values (2026-10-17: "make all of those the defaults").
+    {154, &vr_body_head_side, "0"},                     // 1.75
+    {154, &vr_body_head_sink, "4.5"},                   // 9
+    {154, &vr_lootbeam_opacity, "0.5"},                 // 0.15
+    {154, &vr_lootbeam_length, "1.2"},                  // 1.5
+    {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
+    {154, &vr_lootbeam_far, "0"},                       // 12
 };
-constexpr int configVersion = 153;
+constexpr int configVersion = 154;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
