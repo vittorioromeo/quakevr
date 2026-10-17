@@ -26,17 +26,4 @@ void onGameDirChanged();
 
 void entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled, float out[6][4]);
 
-// A batch of models' probes worked out ahead on the pool (vr_model_ambient_prefetch; r_alias.c R_DrawAliasModels): the
-// rays traced and their light read before the batch is drawn, taken by entityCube where its inputs come out the same
-// (the same results as without). prefetchOn: whether to (the cube on, the world's cache set up); wanted(e): its cube not
-// yet worked out this frame (1; 2: and likely traced again, a guess without its matrix); prefetchWorth: whether a
-// batch's likely traces pay for the pool; prefetchAdd for each such entity drawn lit, with the matrix it is drawn with;
-// prefetchRun before the batch; prefetchEnd after it.
-[[nodiscard]] bool prefetchOn();
-[[nodiscard]] int wanted(const entity_t* e);
-[[nodiscard]] bool prefetchWorth(int likelyTraces);
-void prefetchAdd(const entity_t* e, const float modelMatrix[16], const void* aliashdr);
-void prefetchRun();
-void prefetchEnd();
-
 } // namespace qvr::ambient

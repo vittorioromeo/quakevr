@@ -526,7 +526,6 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 
 void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation, float pitch)
 {
-	VR_CLIENT_ACCESS ("S_StartSound"); // QVR: vr_server_thread_check
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	channel_t	*target_chan, *check;
 	sfxcache_t	*sc;

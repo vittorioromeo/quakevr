@@ -475,7 +475,7 @@ typedef struct gpuframedata_s {
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
-	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); y 1: the depth-writing programs may declare conservative depth (vr_parallax_conservative_depth; read by r_world.c only); zw unused
+	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
 	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
 } gpuframedata_t;
 
@@ -596,13 +596,13 @@ typedef struct glprogs_s {
 
 	/* 3d */
 	GLuint		world[2][3][3];		// [OIT][standard/dithered/banded][solid/alpha test/water]
-	GLuint		world_pdo[2][3];		// QVR: [depth_any/conservative][standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write; conservative: never nearer, vr_parallax_conservative_depth, made when first needed: GL_WorldPdoProgram)
+	GLuint		world_pdo[3];		// QVR: [standard/dithered/banded] solid, not OIT, writing the parallax hits' depth (vr_parallax_depth_write)
 	GLuint		world_decal_retro[2][3];	// QVR: [OIT][standard/dithered/banded] solid, with the decals' retro textures' code (world[][][solid] and world_pdo go without it, NO_DECAL_RETRO): made when first needed (GL_WorldDecalRetroProgram)
-	GLuint		world_pdo_decal_retro[2][3];	// QVR: [depth_any/conservative][standard/dithered/banded] world_pdo's, the same
+	GLuint		world_pdo_decal_retro[3];	// QVR: [standard/dithered/banded] world_pdo's, the same
 	GLuint		water[2][2];		// [OIT][dither]
 	GLuint		skystencil;
 	GLuint		world_depth;		// QVR: the opaque world's depth pre-pass (r_world.c)
-	GLuint		world_depth_pdo[2];	// QVR: ... bounding its parallax hits' depth (vr_parallax_depth_write): [depth_any/conservative] (its bound is never nearer than the surface)
+	GLuint		world_depth_pdo;	// QVR: ... bounding its parallax hits' depth (vr_parallax_depth_write)
 	GLuint		skylayers[2];		// [dither]
 	GLuint		skycubemap[2][2];	// [anim][dither]
 	GLuint		skyboxside[2];		// [dither]
@@ -630,8 +630,7 @@ void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
-GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo, qboolean cons); // QVR
-GLuint GL_WorldPdoProgram (int dither, qboolean cons); // QVR
+GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
 void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
 void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)

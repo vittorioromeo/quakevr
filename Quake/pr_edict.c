@@ -1660,8 +1660,6 @@ THREAD_LOCAL globalvars_t	*pr_global_struct;
 
 void PR_SwitchQCVM(qcvm_t *nvm)
 {
-	if (nvm == &sv.qcvm)
-		VR_SERVER_ACCESS ("server VM"); // QVR: vr_server_thread_check
 	if (qcvm && nvm)
 		Sys_Error("PR_SwitchQCVM: A qcvm was already active");
 	qcvm = nvm;

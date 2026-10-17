@@ -326,7 +326,6 @@ SV_UnlinkEdict
 */
 void SV_UnlinkEdict (edict_t *ent)
 {
-	VR_SERVER_ACCESS ("SV_UnlinkEdict"); // QVR: vr_server_thread_check
 	if (!ent->area.prev)
 		return;		// not linked in anywhere
 	RemoveLink (&ent->area);
@@ -610,7 +609,6 @@ SV_LinkEdict
 void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 {
 	areanode_t	*node;
-	VR_SERVER_ACCESS ("SV_LinkEdict"); // QVR: vr_server_thread_check
 
 	if (ent->area.prev)
 		SV_UnlinkEdict (ent);	// unlink from old position
@@ -741,7 +739,6 @@ SV_PointContents
 int SV_PointContents (vec3_t p)
 {
 	int		cont;
-	VR_SERVER_ACCESS ("SV_PointContents"); // QVR: vr_server_thread_check
 
 	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
@@ -1311,7 +1308,6 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
 {
 	trace_t trace;
-	VR_SERVER_ACCESS ("SV_Move"); // QVR: vr_server_thread_check
 	++vr_profcounts.traces; // QVR: profile (the rest in SV_MoveRun)
 	if (VR_PortalBodyMove (passedict, start, mins, maxs, end, type, &trace))
 		return trace;

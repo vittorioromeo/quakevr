@@ -568,17 +568,6 @@ QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
 // Debug: each VR frame's end waits this many ms inside the timed end call (OpenXR's xrEndFrame, the mock's), as a runtime
 // holding the frames would (vr_xr_stall.cpp's held-frames lines: the test of them); 0 never.
 QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
-// 1: after both eyes' draws the frame is flushed and work that reads no head or hand pose (the particles' step, the
-// music's stream) runs before the end call (xrEndFrame), while the GPU finishes the frame: Virtual Desktop's OpenGL path
-// waits for the GPU inside xrEndFrame. Only while it fits in the GPU's tail the last frames' GPU timestamps foretell; the
-// rest after, as with 0 (vr_xr_overlap.cpp; vr_xr_overlap_report).
-QVR_CVAR(vr_xr_overlap, "1", CVAR_ARCHIVE)
-// Debug: this many ms of busy CPU work a frame that reads no pose (vr_xr_overlap's test): before the end call while it
-// fits in the GPU's tail (vr_xr_overlap 1), else after it (0: none).
-QVR_CVAR(vr_debug_xr_overlap_work_ms, "0", CVAR_NONE)
-// Mock backend: 1 makes its end call wait for the GPU to finish the frame (glFinish), as Virtual Desktop's OpenGL path's
-// xrEndFrame does (vr_xr_overlap's tests); 0 (the default): it returns at once.
-QVR_CVAR(vr_mock_end_gpu_wait, "0", CVAR_NONE)
 // While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
@@ -614,20 +603,11 @@ QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // into every view and face, as before; 2 as 1, each one culled skinned again on the CPU and checked to be wholly outside
 // (vr_alias_cull_stats prints the culls by model and any wrongly culled).
 QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Model Light Probes Ahead: 1 a batch of models' ambient probes (vr_model_ambient_dir's
-// rays and the light they read) worked out on the job pool before the batch is drawn, taken where their inputs come
-// out the same (vr_ambient.cpp, "Ahead"); 0 on the main thread in the draw; 2 ahead and worked out again in the draw,
-// compared (vr_model_ambient_show prints how many differed: none expected). The same images either way.
-QVR_CVAR(vr_model_ambient_prefetch, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
 // collected for every light every frame. The same images either way.
 QVR_CVAR(vr_shadow_caster_cache, "1", CVAR_NONE)
-// Debug > Profiling and Memory > Water Faces Once a Frame: 1 the geometric waves' faces in the view's PVS found once a
-// frame for both eyes (while their PVS are the same: vr_water.cpp markMesh), each eye testing only those against its
-// own frustum and side; 0 every face tested in each eye. The same images either way.
-QVR_CVAR(vr_water_pick_once, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Single-Pass Stereo: 1 the opaque world, brush models and the alias models other than
 // the view entities drawn once for both eyes (GL_OVR_multiview2, vr_stereo_single.cpp, docs/vr-port/STEREO.md), the
 // rest per eye from a copy of its layer; 0 every pass per eye. Off by itself with MSAA or without the extension.
@@ -2199,7 +2179,6 @@ QVR_CVAR(vr_parallax_refine, "4", CVAR_ARCHIVE)        // round 21: steps refini
 QVR_CVAR(vr_parallax_grazing, "90", CVAR_ARCHIVE)      // round 21: the angle off the surface's normal, in degrees, where parallax has faded out at grazing angles (over the 12 before it; 90, the default: no fade; 86 before config 89; the old look 83)
 QVR_CVAR(vr_parallax_depth_write, "1", CVAR_ARCHIVE)  // round 21: the carved surfaces' depth is where the view meets the relief (pixel depth offset): models, hands, particles and liquids meet sunken parts where they really are (on, the default since config 89; 0: the flat surface's; on costs 0.1-0.6 ms a frame: ROUND21.md)
 QVR_CVAR(vr_parallax_plane, "1", CVAR_ARCHIVE)        // round 22: where the world's surfaces (and brush models', item boxes') sit in their parallax relief, 0..1: 0 at its top (carved down from the surface, as before), 0.5 its middle, 1 its bottom (raised over it), never below a texture's average height (a flat texture or one mostly at the top isn't raised), so props resting on a floor sit in the relief instead of on top of it (raised parts hide a prop's bottom edge only with vr_parallax_depth_write)
-QVR_CVAR(vr_parallax_conservative_depth, "1", CVAR_NONE) // round 22: vr_parallax_depth_write's programs declare their depth never nearer than the surface's (conservative depth, depth_less/depth_greater), so the driver may still reject hidden pixels before shading them: the depth pre-pass always, the world's shading pass only at vr_parallax_plane 0 (raised relief is nearer); the same picture and depth either way (0: depth_any, as before; Debug menu, an A/B)
 QVR_CVAR(vr_parallax_debug, "0", CVAR_NONE)           // 1: the world drawn as the depth its parallax writes (vr_parallax_depth_write): red how deep below the surface, green how high over it (vr_parallax_plane), dark blue the surface's own (Debug menu)
 QVR_CVAR(vr_parallax_items, "1.5", CVAR_ARCHIVE)      // parallax depth of the ammo and health boxes, in their own units (scaled with the box; 0 off)
 QVR_CVAR(vr_detail, "0", CVAR_ARCHIVE)                 // (off by default: the author, 2026-10-07) detail textures: a fine grain (stone, metal, wood, grime...) over the world's textures close by (vr_detail.cpp)
@@ -3460,8 +3439,7 @@ QVR_CVAR(vr_hand_fit_resolve, "0.3", CVAR_ARCHIVE)     // cm (and that many time
 QVR_CVAR(vr_debug_grasp, "0", CVAR_NONE)               // print each grasp solve (1), and each finger's stops (2)
 QVR_CVAR(vr_debug_grasp_trace, "0", CVAR_NONE)         // write the drawn hand's joints every frame to grasp_trace.txt in the game folder: 1 the main hand, 2 the off hand, 3 both
 QVR_CVAR(vr_jobs_threads, "0", CVAR_NONE)             // the game's thread pool (vr_jobs.hpp): its workers (0: the hardware's threads less one, at most 31); changed, the pool is made again
-QVR_CVAR(vr_server_thread_check, "0", CVAR_NONE)     // the audit for a server tick on a worker (vr_servertick.cpp, docs/vr-port/SERVER_THREAD.md): 1 note the server's state touched from the main thread outside the tick and the client's from inside it (vr_server_thread_report); 2 and run the tick after the screen (the threaded order, on the main thread: the server's hashes must not change)
-QVR_CVAR(vr_jobs_parallel, "1", CVAR_NONE)           // parallelFor (the grasp solve, the liquids' volume, the occlusion bakes) split between the pool's threads; 0: the calling thread runs every chunk (the single-threaded reference: the same results)
+QVR_CVAR(vr_jobs_parallel, "1", CVAR_NONE)            // parallelFor (the grasp solve, the liquids' volume, the occlusion bakes) split between the pool's threads; 0: the calling thread runs every chunk (the single-threaded reference: the same results)
 QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
 // Reloading (docs/vr-port/RELOAD.md): 0 off (the guns fire from the reserve); 1 a gun held at any holster reloads, 2 at
 // the hip holsters (manual-simple); 3 manual-immersive (shipped; vr_cfg_version 97 gives it to configs with the old default
