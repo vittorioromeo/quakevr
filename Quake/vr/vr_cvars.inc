@@ -1303,18 +1303,31 @@ QVR_CVAR(vr_holster_zone_shoulder_z, "-0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_shoulder_depth, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_shoulder_width, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_shoulder_height, "0.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_x, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_x, "-0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_depth, "0.15", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_depth, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_width, "0.75", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_height, "0.95", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_height, "1.125", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_depth, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_width, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_height, "1", CVAR_ARCHIVE)
+// A hand carrying a thing to put away (an ammo box, a health box, a backpack: STAT_QVR_CARRYITEM, QC VR_Carry_IsCollectable)
+// has each kind's zone this much larger about its middle (2026-10-17: "I drop a lot of items I want to collect"); not
+// a gun, a key, a grenade or anything else held. The ammo pouch's is for an ammo box (it takes those; anything else
+// let go of there goes into the pack too). 1: as a gun's.
+QVR_CVAR(vr_holster_zone_item_hip, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_upper, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_shoulder, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_ammo, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_grenade, "1.5", CVAR_ARCHIVE)
+// An empty hand reaching for a holstered gun: a sphere of this radius (units) round its grip as drawn is that holster's
+// zone too (2026-10-17: "some weapons' handles pop out of the shoulder, and grabbing the holstered weapon by the handle
+// fails"). 0: the box alone.
+QVR_CVAR(vr_holster_zone_handle_radius, "3", CVAR_ARCHIVE)
 // A hand grenade's turn in the hand as it is taken from the pouch (vr_grip.cpp serverFromPouch): on top of its grip
 // (Held Object Offsets), about its middle, in the hand's frame (pitch up, yaw left, roll right; mirrored for the left hand).
 QVR_CVAR(vr_grenade_pouch_hold_pitch, "90", CVAR_ARCHIVE)
@@ -2449,6 +2462,8 @@ QVR_CVAR(vr_adgun_bolt_fx, "1", CVAR_ARCHIVE) // AD support: AD's plasma rifles'
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
 QVR_CVAR(vr_carry_take, "0", CVAR_ARCHIVE)            // taking a carried box: 0 let go of it at a holster, 1 the trigger, 2 either
+QVR_CVAR(vr_carry_autocollect, "0", CVAR_ARCHIVE)     // an ammo or health box taken in a hand (a grip, a force grab's catch) is taken at once, drawn shrinking into the hand (full up: the "full" cue, still held); 2 a backpack too; 0 off
+QVR_CVAR(vr_carry_full_cue, "1", CVAR_ARCHIVE)        // a box put away at a holster or pouch (or taken at once: vr_carry_autocollect) while you are full up of it: a "full" knock and a haptic tick (it drops there); 0 silent
 QVR_CVAR(vr_collect_fx, "1", CVAR_ARCHIVE)            // what a hand puts away at a holster or pouch (a box, a key, a power-up, a round, a grenade) is drawn shrinking into it (visual only: vr_collectfx.cpp)
 QVR_CVAR(vr_collect_fx_time, "0.25", CVAR_ARCHIVE)     // with it: seconds it takes to go in (game time: slowed in bullet time)
 QVR_CVAR(vr_collect_fx_size, "0.2", CVAR_ARCHIVE)      // with it: its size when it is gone (of its own)
@@ -3506,8 +3521,8 @@ QVR_CVAR(vr_magholster_chain_lod, "5", CVAR_ARCHIVE)        // metres: a tether 
 QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
 // The chains' end at the holster (2026-10-17: "still a little off"), units in the body's frame: forward, outwards (the
 // left holsters' to the left), up; every holster's (_x/_y/_z), plus each kind's own.
-QVR_CVAR(vr_magholster_chain_x, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_magholster_chain_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_magholster_chain_x, "-2", CVAR_ARCHIVE)
+QVR_CVAR(vr_magholster_chain_y, "-0.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_magholster_chain_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_magholster_chain_hip_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_magholster_chain_hip_y, "0", CVAR_ARCHIVE)

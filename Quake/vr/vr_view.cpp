@@ -1524,6 +1524,14 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         const int slot = weapons::slotForModel(model);
         idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], entities.holsterFrontButton[h], clip,
             queueTexts && model != nullptr);
+        if(model && slot >= 0 && slot != weapons::fistSlot() && occupied && !posedHere && !previewHere &&
+            vr_body_debug.value < 2.f)
+        {
+            // Its grip as drawn (where the hand holding it is drawn on it: Hand Anchor and Offset) is the zone's too
+            // (its handle sphere, vr_holster_zone_handle_radius).
+            zones::publishGrip(stat, view::anchorPosition(ve, weapons::anchor(slot, Key::HandAnchor),
+                                         weapons::vec(slot, Key::HandOffsetX, Key::HandOffsetY, Key::HandOffsetZ)));
+        }
         highlight(entities.holsterButton[h], hover);
         highlight(entities.holsterFrontButton[h], hover);
         if(model && slot >= 0 && emissive::isLavaGun(model))

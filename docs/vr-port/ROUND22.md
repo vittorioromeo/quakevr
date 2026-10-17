@@ -11713,3 +11713,58 @@ and the copy pass (MSAA: per sample, or a resolve that matches the depth's), the
 
 To try in VR: Debug > Views > Parallax Conservative Depth, off and on. Expect no difference in frame time or picture
 on his NVIDIA card. Debug > Profiling and Memory > World Fragment Counts shows the counts.
+
+## Holsters: items' zones, the full cue, auto-collect, handle spheres (worktree `goreflesh`, branch `agent/holsters4`, 2026-10-17)
+
+His voice notes of 2026-10-17 (items 1-6).
+
+1. Item zones. Nothing like it existed (only `vr_holster_zone_scale`, every zone for everything, and the per-kind
+   sizes). Now `vr_holster_zone_item_hip/upper/shoulder/ammo/grenade` (default 1.5, Immersion > Holster Zones > each
+   kind's Item Size): a hand carrying an ammo box, a health box or a backpack has that kind's box that much larger about
+   its middle; a gun, a key, a rune, a grenade, armour, a gib or a prop: as before. The QC tells the engine
+   (`.vr_carry_items`, `VR_Carry_ItemsFrame` in W_Frame, from `VR_Carry_IsCollectable`; a two-handed carry never counts:
+   it is never put away) through `STAT_QVR_CARRYITEM` (bit 0 off hand, 1 main); `zones::pick` scales the boxes, the
+   wireframes show the larger ones while a hand carries one, `vr_holster_zones_report` prints `item 0/1` per hand and
+   `item xN` per zone. The pouch: its zone is the ammo kind's, also larger for health boxes and backpacks (let go there,
+   an ammo box goes into the pouch, anything else into the pack, as before); deepest still wins, so the larger hips and
+   pouch share the belt by depth.
+2. Full cue (`vr_carry_full_cue` 1, Physics > Carrying Boxes > Full Cue): a box let go at a holster or the ammo pouch
+   (or taken by the trigger, or auto-collected) while full up of it plays `vr/pack_full.wav` (new, `make_sounds.py`
+   `pack_full`: a dull falling double pat on a stuffed pack, unlike the reload's metal knocks) at the hand, with a short
+   heavy tick (0.06 s, 40 Hz, 0.9), at most every 0.4 s. At a holster or the pouch it still drops there: kept in an
+   open hand would need a hold with no grip; it lies at your feet to take later. By the trigger or auto-collect it stays
+   held (the hand still grips it). `developer 1` prints `carry: full up`.
+3. Auto-collect (`vr_carry_autocollect` 0 off, 1 ammo and health boxes, 2 backpacks too; Physics > Carrying Boxes):
+   a box newly in one hand (a grip, a force grab's catch: both go through VR_Carry_Start) is taken on its first held
+   frame (`VR_Carry_AutoCollect`, once a carry: `.carry_autotried`), drawn shrinking into the hand (collect fx's new
+   `QVR_CFX_INTO_HAND` 242, `collectfx::intoHandHotspot`: the hand's point the target). Full up: the cue, still held.
+4. His values: `vr_holster_zone_ammo_x` -1 → -0.5, `_depth` 0.15 → 0.2, `_height` 0.95 → 1.125 (width 0.75 and the
+   grenade pouch's were his already); `vr_magholster_chain_x` 0 → -2, `_y` 0 → -0.75 (the per-kind chain offsets were
+   0, his too). Migration 158 (renumber at merge). Not promoted: his `vr_magholster_chain_lod` 10 (default 5; not an
+   offset).
+5. Handle spheres (`vr_holster_zone_handle_radius` 3 units, Holster Zones > Handle Radius; 0 off): a hand without a gun
+   is also at a holster within that radius of its holstered gun's grip as drawn (the Hand Anchor and Offset on the
+   holstered model: where the hand is drawn on it; `zones::publishGrip` from vr_view.cpp's setupHolsters, kept in the
+   holster's frame like its loops), however far that stands out of the box; drawn as three rings with the wireframes;
+   the report prints each grip and its depth in the box. Only for drawn guns (a pair hidden by
+   `vr_holster_weapons_draw_*` has none: his shoulder pair is hidden).
+6. Bindings across levels: they already went through `parm73` (VR_MagHolster_EncodeParms/DecodeParms) and the player's
+   fields in saves; checked, no change needed. New `magholster_test.sh level`: bound, drawn and held through
+   changelevel e1m2, a save and a load there and changelevel e1m3: holster 3's binding to weapon 4 every time, then
+   tossed and called home: "home in holster 3".
+
+Mock: `vr_mock_hand_to <hand> zonebox <z> <out> <side> <up>` (offsets along the box's axes) and `zonehandle <z> <d>` (the
+holstered gun's grip, `d` units further from the box's middle).
+
+Tests: new `Misc/quakevr/holsteritems_test.sh <agent> [item full auto handle]`, 9/9 PASS: item (the box 4.5 units
+sideways out of the right hip's middle, its half depth 3.6: x1.5 hotspot 6 and taken, x1 not), full (100 shells, at the
+hip and at the pouch: cue, not taken), auto (taken at once, into hotspot 242; full: cue, still held; off: held), handle
+(the shotgun in the right shoulder, the off hand 4 units beyond its grip, depth 1.29 in the box: radius 5 at it and
+draws it, 0 not). `holsterzones_test.sh` 13/13, `reload/pouch_test.sh` all PASS, `collectfx_test.sh` 9/9,
+`magholster_test.sh save` and `level` as described (`time` as before: no flight within its wait, the known long toss).
+The auto case puts the box into the gripping hand by `vr_test_spawn_hold` (VR_Carry_Start, the grip's and the force
+grab's path); a mock grip on a floor box did not take it (the hand at its corner).
+
+To try in VR: carry a shells box to a hip holster a little short of where a gun goes: it goes in (Show Zones: the boxes
+grow while you carry it). At full shells, put one away: the dull double pat and a tick, it drops. Turn on Auto-Collect:
+grip or force-grab a box, it shrinks into the hand. Reach for a holstered gun's handle: it draws.

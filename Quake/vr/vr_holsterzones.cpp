@@ -27,6 +27,9 @@ struct Drawn
     glm::vec3 atLocal{0.f}; // the model's origin from the pivot, in the frame (out, side, up)
     bool occupied{false};
     int frame{-100}; // host_framecount when published
+    glm::vec3 pivot{0.f};     // the pivot it was published with
+    glm::vec3 gripLocal{0.f}; // the holstered gun's grip as drawn (its model's origin), from the pivot in the frame
+    int gripFrame{-100};      // host_framecount when published (publishGrip)
 };
 
 // Each hand's last pick (the hysteresis, the wireframes, the report): its points, how deep each was in each zone.
@@ -34,6 +37,7 @@ struct HandPick
 {
     int zone{-1};
     bool gun{false};
+    bool item{false}; // carrying a thing to put away (STAT_QVR_CARRYITEM): the zones vr_holster_zone_item_* larger
     int samples{0};
     glm::vec3 sample[MAX_SAMPLES]{};
     float ratio[ZoneCount]{};
@@ -121,7 +125,38 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     }
 }
 
-[[nodiscard]] Box zoneBox(const hands::State& s, int zone, const glm::vec3& pivot)
+// A hand carrying an ammo box, a health box or a backpack: its zones' size, times (vr_holster_zone_item_*).
+[[nodiscard]] float itemScale(int zone)
+{
+    const cvar_t& c = zone == body::LeftHip || zone == body::RightHip           ? vr_holster_zone_item_hip
+                      : zone == body::LeftUpper || zone == body::RightUpper     ? vr_holster_zone_item_upper
+                      : zone == body::LeftShoulder || zone == body::RightShoulder ? vr_holster_zone_item_shoulder
+                      : zone == ZoneAmmoPouch                                   ? vr_holster_zone_item_ammo
+                                                                                : vr_holster_zone_item_grenade;
+    return za::max(0.05f, c.value);
+}
+
+[[nodiscard]] bool carriesItem(int hand)
+{
+    return (cl.stats[protocol::STAT_QVR_CARRYITEM] & (1 << hand)) != 0; // (bit 0 the off hand, HAND_OFF)
+}
+
+// The holstered gun's grip as drawn (publishGrip), placed with its holster's frame now; false: none drawn there.
+[[nodiscard]] bool gripOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3& grip)
+{
+    if(zone >= body::HolsterCount || zoneState.drawn[zone].gripFrame < host_framecount - 2)
+    {
+        return false;
+    }
+    glm::vec3 out, side, up, at;
+    frameOf(s, zone, pivot, out, side, up, at);
+    const glm::vec3& g = zoneState.drawn[zone].gripLocal;
+    grip = pivot + out * g.x + side * g.y + up * g.z;
+    return true;
+}
+
+// `scale`: the box's size, times, about its middle (a hand carrying an item: itemScale).
+[[nodiscard]] Box zoneBox(const hands::State& s, int zone, const glm::vec3& pivot, float scale = 1.f)
 {
     glm::vec3 out, side, up, at;
     frameOf(s, zone, pivot, out, side, up, at);
@@ -140,8 +175,9 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, bodyUp);
     const glm::vec3 outwards = leftSide(zone) ? -right : right;
     b.centre = (at + pivot) * 0.5f + fwd * k.x->value + outwards * k.y->value + bodyUp * k.z->value;
-    b.half = glm::max(glm::vec3{0.25f}, reach * glm::vec3{k.depth->value, k.width->value, k.height->value}) +
-             stretch * 0.5f;
+    b.half = (glm::max(glm::vec3{0.25f}, reach * glm::vec3{k.depth->value, k.width->value, k.height->value}) +
+                 stretch * 0.5f) *
+             scale;
     return b;
 }
 
@@ -218,7 +254,24 @@ void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::
     const glm::vec3 v = at - pivot;
     d.atLocal = {glm::dot(v, out), glm::dot(v, side), glm::dot(v, up)};
     d.occupied = occupied;
+    d.pivot = pivot;
     d.frame = host_framecount;
+}
+
+void publishGrip(int zone, const glm::vec3& grip)
+{
+    if(zone < 0 || zone >= body::HolsterCount)
+    {
+        return;
+    }
+    Drawn& d = zoneState.drawn[zone];
+    if(d.frame != host_framecount)
+    {
+        return; // (after its publish: the same pivot and frame)
+    }
+    const glm::vec3 v = grip - d.pivot;
+    d.gripLocal = {glm::dot(v, d.out), glm::dot(v, d.side), glm::dot(v, d.up)};
+    d.gripFrame = host_framecount;
 }
 
 bool enabled()
@@ -232,6 +285,7 @@ int pick(const hands::State& s, int hand, const body::HolsterPositions& holsters
     HandPick& h = zoneState.hands[hand];
     const int last = h.frame >= host_framecount - 2 ? h.zone : -1;
     h.gun = holdsGun(hand);
+    h.item = !h.gun && carriesItem(hand);
     h.samples = 0;
     h.sample[h.samples++] = s.pos[hand];
     // A gun: its grip (the handle as drawn), and its body a third and half the way to its muzzle (what goes in a holster;
@@ -263,7 +317,8 @@ int pick(const hands::State& s, int hand, const body::HolsterPositions& holsters
         {
             continue;
         }
-        const Box b = zoneBox(s, z, pivot);
+        // Carrying an item to put away: larger (vr_holster_zone_item_*).
+        const Box b = zoneBox(s, z, pivot, h.item ? itemScale(z) : 1.f);
         // The pouches give and take rounds, magazines and grenades: only the hand's own point, and only without a gun,
         // but for the ammo pouch's reloading (vr_reload.qc VR_Reload_PouchFrame: the gun's load point in it), which
         // the holsters win only when deeper.
@@ -274,6 +329,14 @@ int pick(const hands::State& s, int hand, const body::HolsterPositions& holsters
             for(int i = 0; i < h.samples; i++)
             {
                 r = za::min(r, ratioIn(b, h.sample[i]));
+            }
+            // A hand without a gun at the holstered gun's grip (vr_holster_zone_handle_radius): a sphere round it,
+            // however far it stands out of the box (the shoulders' handles).
+            glm::vec3 grip;
+            const float radius = vr_holster_zone_handle_radius.value;
+            if(!h.gun && radius > 0.f && gripOf(s, z, pivot, grip))
+            {
+                r = za::min(r, glm::distance(h.sample[0], grip) / radius);
             }
         }
         else if(!h.gun)
@@ -326,7 +389,7 @@ bool drawnPoint(const hands::State& s, int zone, const glm::vec3& offset, glm::v
     return true;
 }
 
-bool boxMiddle(const hands::State& s, int zone, glm::vec3& out)
+bool boxMiddle(const hands::State& s, int zone, glm::vec3& out, const glm::vec3& offset)
 {
     if(zone < 0 || zone >= ZoneCount)
     {
@@ -340,8 +403,18 @@ bool boxMiddle(const hands::State& s, int zone, glm::vec3& out)
     {
         return false;
     }
-    out = zoneBox(s, zone, pivot).centre;
+    const Box b = zoneBox(s, zone, pivot);
+    out = b.centre + b.axis[0] * offset.x + b.axis[1] * offset.y + b.axis[2] * offset.z;
     return true;
+}
+
+bool gripPoint(const hands::State& s, int zone, glm::vec3& out)
+{
+    if(zone < 0 || zone >= body::HolsterCount)
+    {
+        return false;
+    }
+    return gripOf(s, zone, body::holsterPositions(s)[zone], out);
 }
 
 void queueDebug(const hands::State& s)
@@ -367,7 +440,7 @@ void queueDebug(const hands::State& s)
         {
             continue;
         }
-        bool at = false, inside = false;
+        bool at = false, inside = false, item = false;
         for(int hand = 0; hand < HAND_COUNT; hand++)
         {
             const HandPick& h = zoneState.hands[hand];
@@ -377,11 +450,32 @@ void queueDebug(const hands::State& s)
             }
             at = at || h.zone == z;
             inside = inside || (h.ratio[z] >= 0.f && h.ratio[z] <= 1.f);
+            item = item || h.item;
         }
         const bool full = zoneState.drawn[z].occupied && zoneState.drawn[z].frame >= host_framecount - 2;
         const glm::vec4& color = at ? accept : inside ? candidate : full ? occupied : idle;
-        edges(zoneBox(s, z, pivot), color, at ? 0.2f : 0.12f);
+        // (A hand carrying an item: its larger boxes, vr_holster_zone_item_*.)
+        edges(zoneBox(s, z, pivot, item ? itemScale(z) : 1.f), color, at ? 0.2f : 0.12f);
         lines::point(pivot, 0.6f, color);
+        // The holstered gun's grip sphere (vr_holster_zone_handle_radius): three rings.
+        glm::vec3 grip;
+        const float radius = vr_holster_zone_handle_radius.value;
+        if(radius > 0.f && gripOf(s, z, pivot, grip))
+        {
+            const Drawn& d = zoneState.drawn[z];
+            const glm::vec3 axes[3][2] = {{d.out, d.side}, {d.side, d.up}, {d.up, d.out}};
+            constexpr int segments = 16;
+            for(const auto& a : axes)
+            {
+                for(int i = 0; i < segments; i++)
+                {
+                    const float t0 = 6.2831853f * static_cast<float>(i) / segments;
+                    const float t1 = 6.2831853f * static_cast<float>(i + 1) / segments;
+                    lines::line(grip + radius * (a[0] * std::cos(t0) + a[1] * std::sin(t0)),
+                        grip + radius * (a[0] * std::cos(t1) + a[1] * std::sin(t1)), 0.08f, color, color);
+                }
+            }
+        }
     }
     for(int hand = 0; hand < HAND_COUNT; hand++)
     {
@@ -424,15 +518,23 @@ void report_f()
         const Box b = zoneBox(s, z, pivot);
         const glm::vec3 p = rel(pivot), c = rel(b.centre);
         const Drawn& d = zoneState.drawn[z];
-        Con_Printf("zone %s: pivot %.1f %.1f %.1f middle %.1f %.1f %.1f half %.1f %.1f %.1f drawn %d at %.1f %.1f %.1f%s\n",
+        Con_Printf("zone %s: pivot %.1f %.1f %.1f middle %.1f %.1f %.1f half %.1f %.1f %.1f drawn %d at %.1f %.1f %.1f%s",
             zoneNames[z], p.x, p.y, p.z, c.x, c.y, c.z, b.half.x, b.half.y, b.half.z, d.frame >= host_framecount - 2 ? 1 : 0,
             d.atLocal.x, d.atLocal.y, d.atLocal.z, d.occupied ? " (a gun in it)" : "");
+        glm::vec3 grip;
+        if(gripOf(s, z, pivot, grip))
+        {
+            const glm::vec3 g = rel(grip);
+            Con_Printf(" grip %.1f %.1f %.1f (%.1f off the box: %.2f)", g.x, g.y, g.z, glm::distance(grip, b.centre),
+                ratioIn(b, grip));
+        }
+        Con_Printf(" item x%.2f\n", itemScale(z));
     }
     for(int hand = 0; hand < HAND_COUNT; hand++)
     {
         const HandPick& h = zoneState.hands[hand];
-        Con_Printf("zone hand %s: hotspot %d zone %s gun %d points", hand == HAND_MAIN ? "main" : "off", s.hotspot[hand],
-            h.zone >= 0 ? zoneNames[h.zone] : "none", h.gun ? 1 : 0);
+        Con_Printf("zone hand %s: hotspot %d zone %s gun %d item %d points", hand == HAND_MAIN ? "main" : "off",
+            s.hotspot[hand], h.zone >= 0 ? zoneNames[h.zone] : "none", h.gun ? 1 : 0, h.item ? 1 : 0);
         for(int i = 0; i < h.samples; i++)
         {
             const glm::vec3 v = rel(h.sample[i]);

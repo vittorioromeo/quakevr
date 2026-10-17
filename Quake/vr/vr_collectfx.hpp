@@ -22,6 +22,9 @@ namespace qvr::collectfx
 // server::sendCollectSeen, from a hand or a loose round by contact alike).
 inline constexpr int intoGunHotspot = 240;
 inline constexpr int intoPropHotspot = 241;
+// QVR_CFX_INTO_HAND: into the hand that took it (vr_carry_autocollect: a box taken at once as it is gripped), as into a
+// holster, the hand its target.
+inline constexpr int intoHandHotspot = 242;
 
 // QVR_SVC_COLLECT: [byte hand][byte hotspot][short entity][short modelindex][float3 origin][float3 angles].
 void parse();

@@ -159,7 +159,11 @@ enum Stat : int
     STAT_QVR_HOTBLADEHOLSTER,
     // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp): 6, each holster's bound weapon's id (0: none bound).
     STAT_QVR_MAGBIND0,
-    STAT_QVR_END = STAT_QVR_MAGBIND0 + 6
+    // The hands carrying a thing to put away (QC .vr_carry_items, VR_Carry_IsCollectable: an ammo box, a health box, a
+    // backpack): bit 0 the off hand, 1 the main. Their zones are larger (vr_holster_zone_item_*; vr_holsterzones.cpp).
+    STAT_QVR_CARRYITEM = STAT_QVR_MAGBIND0 + 6,
+    STAT_QVR_END
+
 };
 
 inline constexpr int numHolsters = 6;

@@ -731,21 +731,32 @@ void mockHandTo_f()
     }
     if(hand >= 0 && Cmd_Argc() >= 4 &&
         (!q_strcasecmp(Cmd_Argv(2), "zone") || !q_strcasecmp(Cmd_Argv(2), "zonegrip") ||
-            !q_strcasecmp(Cmd_Argv(2), "zonepalm") || !q_strcasecmp(Cmd_Argv(2), "zonebox")))
+            !q_strcasecmp(Cmd_Argv(2), "zonepalm") || !q_strcasecmp(Cmd_Argv(2), "zonebox") ||
+            !q_strcasecmp(Cmd_Argv(2), "zonehandle")))
     {
         // At zone `index`'s holster as drawn (zones::Zone: the holsters 0..5 as above, 6 the ammo pouch, 7 the grenade
         // pouch; its model's origin, the loops), `out` `outwards` `up` units off it in its frame; "zonegrip": the grip of
         // the gun the hand holds there instead, "zonepalm" its palm (vr_holster_zones tests); "zonebox": the hand at the
-        // zone's box's middle.
+        // zone's box's middle, plus `out` `side` `up` along its axes; "zonehandle": at the holstered gun's grip as drawn,
+        // `out` units further from the box's middle.
         const hands::State& st = hands::current();
         const glm::vec3 off{Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f,
             Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f};
         glm::vec3 target;
+        const int zone = Q_atoi(Cmd_Argv(3));
         const bool box = !q_strcasecmp(Cmd_Argv(2), "zonebox");
-        if(box ? !zones::boxMiddle(st, Q_atoi(Cmd_Argv(3)), target) : !zones::drawnPoint(st, Q_atoi(Cmd_Argv(3)), off, target))
+        const bool atHandle = !q_strcasecmp(Cmd_Argv(2), "zonehandle");
+        glm::vec3 mid;
+        if(atHandle ? !(zones::gripPoint(st, zone, target) && zones::boxMiddle(st, zone, mid))
+            : box ? !zones::boxMiddle(st, zone, target, off)
+                  : !zones::drawnPoint(st, zone, off, target))
         {
-            Con_Printf("vr_mock_hand_to: no zone %s\n", Cmd_Argv(3));
+            Con_Printf("vr_mock_hand_to: no zone %s%s\n", Cmd_Argv(3), atHandle ? " (or no gun holstered there)" : "");
             return;
+        }
+        if(atHandle && glm::distance(target, mid) > 1e-4f)
+        {
+            target += glm::normalize(target - mid) * off.x;
         }
         glm::vec3 handle, tip;
         if(!q_strcasecmp(Cmd_Argv(2), "zonegrip"))

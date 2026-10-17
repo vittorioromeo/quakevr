@@ -126,11 +126,20 @@ struct GunNow
 }
 
 // Where the thing goes: the holster's or pouch's point on the body (the hand's hotspot when it let go), as drawn.
-[[nodiscard]] bool targetOf(const hands::State& s, int hotspot, glm::vec3& out)
+[[nodiscard]] bool targetOf(const hands::State& s, int hand, int hotspot, glm::vec3& out)
 {
     if(!s.valid)
     {
         return false;
+    }
+    if(hotspot == collectfx::intoHandHotspot) // (vr_carry_autocollect: into the hand that took it)
+    {
+        if(hand < 0 || hand >= HAND_COUNT)
+        {
+            return false;
+        }
+        out = s.pos[hand];
+        return true;
     }
     if(hotspot == body::HS_AMMO_POUCH)
     {
@@ -366,7 +375,7 @@ void frame(const hands::State& s)
 
         // The target as drawn now (none: shrinks where it was); the start kept from it, so it follows the body.
         glm::vec3 target;
-        const bool hasTarget = targetOf(s, it.hotspot, target);
+        const bool hasTarget = targetOf(s, it.hand, it.hotspot, target);
         if(!hasTarget)
         {
             target = it.from;

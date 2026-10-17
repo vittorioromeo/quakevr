@@ -217,6 +217,12 @@
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: touching takes it."),
         cycle("Take a Box", vr_carry_take, {{0.f, "At a holster"}, {1.f, "Trigger"}, {2.f, "Either"}})
             .help("At a holster: let go of it at a hip or shoulder holster to put it in your pack."),
+        cycle("Auto-Collect", vr_carry_autocollect, {{0.f, "Off"}, {1.f, "Ammo and Health"}, {2.f, "And Backpacks"}})
+            .help("An ammo or health box (and a backpack) is taken the moment a hand grips it or a force grab brings it "
+                  "in, seen shrinking into the hand. Full up of it: the full cue, and it stays in the hand."),
+        toggle("Full Cue", vr_carry_full_cue)
+            .help("A box put away (or taken at once) while you are full up of it: a dull knock and a tick in the hand, "
+                  "so it is not taken for a miss of the holster. It drops there."),
         toggle("Put-Away Transition", vr_collect_fx)
             .help("What you put away (a box or backpack at a holster, a key, a rune or a power-up, an ammo box or a round "
                   "at the ammo pouch, a grenade at its pouch) is seen shrinking into the holster or pouch, following you, "

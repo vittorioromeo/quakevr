@@ -186,6 +186,8 @@ float cvarh_vr_parry_stagger_frames;
 float cvarh_vr_parry_stagger_sway;
 float cvarh_vr_carry;
 float cvarh_vr_carry_take;
+float cvarh_vr_carry_autocollect;
+float cvarh_vr_carry_full_cue;
 float cvarh_vr_carry_two_hands;
 float cvarh_vr_throw_2h_window;
 float cvarh_vr_armor_wear;
@@ -1059,6 +1061,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_parry_stagger_sway);
     VR_CVAR_HMAKE(vr_carry);
     VR_CVAR_HMAKE(vr_carry_take);
+    VR_CVAR_HMAKE(vr_carry_autocollect);
+    VR_CVAR_HMAKE(vr_carry_full_cue);
     VR_CVAR_HMAKE(vr_carry_two_hands);
     VR_CVAR_HMAKE(vr_throw_2h_window);
     VR_CVAR_HMAKE(vr_armor_wear);

@@ -123,6 +123,7 @@ void() VR_Reload_Precache =
     precache_sound("vr/reload_empty.wav");    // the pouch found empty
     precache_sound("vr/reload_blocked.wav");  // a shell held to a full shotgun: the gate won't open
     precache_sound("vr/reload_full.wav");     // the last shell in: the tube full
+    precache_sound("vr/pack_full.wav");       // a box put away while full up of it (vr_carry.qc VR_Carry_FullCue)
     precache_sound("vr/reload_ssg_open.wav");  // the super shotgun broken open (make_reload_ssg_sounds.py),
     precache_sound("vr/reload_ssg_eject.wav"); // its shells thrown out (make_sounds.py),
     precache_sound("vr/reload_ssg_close.wav"); // and snapped shut
@@ -1224,6 +1225,7 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
         VR_Reload_Log(sprintf("an ammo box into the pouch (hand %g)", xHand));
         return TRUE;
     }
+    VR_Carry_FullCue(xHand, box); // (full up: it drops there, not a miss of the pouch)
     VR_Carry_SetHeld(self, xHand, world);
     VR_Carry_Loose(box);
     box.velocity = '0 0 0';

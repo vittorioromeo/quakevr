@@ -880,6 +880,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     };
     statsi[STAT_QVR_CARRYMAIN] = carried(f.mainhand_held);
     statsi[STAT_QVR_CARRYOFF] = carried(f.offhand_held);
+    statsi[STAT_QVR_CARRYITEM] = static_cast<int>(fieldFloatOr(ent, f.vr_carry_items, 0.f)); // (their zones: vr_holsterzones.cpp)
 
     for(int i = 0; i < numHolsters; i++)
     {
