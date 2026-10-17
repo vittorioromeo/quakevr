@@ -11468,3 +11468,23 @@ vertex shader, so that the alias_depth program's depths equal the shading one's.
 
 To try in VR: nothing should look different (Shadow Caster Set-up Shared off and on, near monsters and your body in a
 lit room: the shadows the same). With a Release-Tracy capture, the `player: *` GPU zones tell which part costs there.
+## Retro particles at half resolution by default (worktree `tghost`, 2026-10-17)
+
+- `vr_particle_retro_halfres` now defaults to 1 (config version 153, renumber at merge; only a saved 0 moves). Edges:
+  the depth-aware upsample (`vr_particle_halfres_upsample 1`, bilateral on the scene's depth) already exists and is
+  on, so no further mitigation was added. Look for: a thin bright/dark fringe where smoke or fire meets a wall edge
+  or a monster's silhouette, blockiness (2x2 pixels) on the soft edges of big particles, and (retro) the block grid
+  misaligned with the world grid. `vr_particle_halfres_upsample 2` paints in green the pixels that took a texel by its
+  distance.
+- Measured (Release-Tracy, `vr_tracy_preset full`, mock headset, GPU zone `vr particles`, ms per frame in 0.5 s
+  bins, `vr_retro 1`): a close blood burst (`vr_particle_test 1 700` every 3 frames) peaks 1.28-1.48 ms at full
+  size; with the half path forced (`vr_particle_halfres_force 1`) 0.40-0.45 ms. Explosions (`vr_particle_test 2 300`
+  plus `quake`): 0.55-0.68 against 0.23-0.25 forced. About -65% when the half path runs.
+- BUT unforced, the half path hardly ever runs in these bursts: it needs 1.5 views of large particles, and the
+  heavy frames are the ones in `reverseOrderThisFrame` (`vr_particle_saturate_cover` 10 views), which deliberately
+  stay at full size for retro (PERF_DECISIONS item 5: half size cost 25 against 8 ms there). Lowering the entry
+  threshold to 0.05 views changed nothing (tried, reverted), so the saturate gate is what holds it. The default
+  alone will not deliver the expected 1.0-1.4 ms; the open design question is saturate vs half size for
+  700-particle bursts.
+- Mock screenshots (480x270, `scratch/half0.png` off, `half1.png` forced on, same commands): no halos visible at that
+  size; particle states differ between runs, so no pixel diff.
