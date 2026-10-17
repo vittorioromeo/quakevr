@@ -12163,7 +12163,6 @@ as before.
 
 To try in VR: nothing should look or feel different. The Debug menu's Profiling pages lose the rows named above.
 
-<<<<<<< HEAD
 ## Cheaper bloom (worktree `goreflesh`, branch `agent/cheapbloom`, 2026-10-17)
 
 `kit/scratch/tracy_gpu1.md` put "Post: postprocess + bloom" at 0.14 ms an eye in VR. Goal: the same look, cheaper.
@@ -12232,7 +12231,6 @@ Bloom: Fast on.
 
 To try in VR: Graphics > Post-processing > Bloom: Fast on and off, looking at lamps, lava, a rocket's explosion and the
 muzzle flash; the halos should look the same.
-=======
 
 ## Loot beams centred on the drawn thing (agent/lootcenter)
 
@@ -12297,4 +12295,3 @@ Ordering the body's triangles arms first at load would get most of the overdraw 
 
 To try in VR: nothing should look different. Look down at your body and toggle Body Depth Pre-pass: no flicker, no holes
 or z-fighting on the arms, legs or the gloves' cuffs. Check the same in the menu's body mirror.
->>>>>>> origin/next
