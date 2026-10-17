@@ -770,7 +770,8 @@ QVR_ZFIX_FUNCTION \
 // PDO_CONS 1 (vr_parallax_conservative_depth, round 22; r_world.c: the pre-pass always, the shading pass only at
 // vr_parallax_plane 0): the depth written is never nearer than the surface's, declared (depth_less with reversed depth,
 // depth_greater without), so the driver may keep rejecting hidden pixels before shading them; QVR_PDO_CLAMP holds the
-// promise (the same depth wherever nothing is raised).
+// promise (the same depth wherever nothing is raised). This NVIDIA driver doesn't: the same fragments shaded to the
+// one, either pass (vr_world_fragments; ROUND22.md, "Conservative depth for the parallax depth write").
 #define QVR_PARALLAX_DEPTH_OUT \
 "#ifndef PDO\n"\
 "	#define PDO 0\n"\

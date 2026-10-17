@@ -632,6 +632,7 @@ void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo, qboolean cons); // QVR
 GLuint GL_WorldPdoProgram (int dither, qboolean cons); // QVR
+void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
 extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
 void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)
 void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); // QVR: the current eye's, from r_refdef
