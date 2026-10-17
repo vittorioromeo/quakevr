@@ -10861,3 +10861,62 @@ eval.sh 168/177.
 
 To try in VR: take a Release-Tracy capture in vrfiringrange with a big gib pile round you (rockets into a crowd), walk
 and lean into the pile; any long `SV edict client` now shows which child zone holds the time.
+
+## View entities: zones and trims (worktree `fastship`, branch `agent/perfview`, 2026-10-17)
+
+The Tracy report's C5 (scratch/tracy_20261017.md): `view entities` (VR_SetupViewEntities) cost 0.27-0.30 ms a frame, its
+self time mostly not zoned.
+
+Zones (QVR_PROFILE, so vr_profile and Tracy both see them): each step of VR_SetupViewEntities is a `view ...` zone:
+eye, finger frames, shakes, model collide, self collide, ground spots, weapons, held mags, free spots, hotspots, fists,
+debug draws, holsters, world weapons, body, powerups pauldrons, gadget, skin masks, gadget touches, gear, blood shock
+smoke, buttons, cords chains, self collide end, model collide end, weapon buttons, weapon parts, muzzle flashes, add
+entities, effects, wounds. (The hands keep `hand`, `rig hand`, `hand walls`; the body `avatar IK`.) What is left in
+`view entities`' self time is about 5 us.
+
+Measured (Release-Tracy, the mock, fast mode, 1500 warm frames after 300; us a frame, mean), zones-only build -> trims:
+
+| zone | vrfiringrange | start |
+|---|---|---|
+| view entities | 182.9 -> 169.0 | 160.8 -> 144.4 |
+| view body (avatar IK) | 43.1 -> 36.5 | 46.7 -> 38.3 |
+| view world weapons | 19.9 -> 18.7 | (none) |
+| view gadget touches | 12.7 -> 11.3 | 12.7 -> 11.5 |
+| hand (both; rig hand 10-13) | 12.6 -> 12.8 | 15.4 -> 15.2 |
+| view fists | 11.3 -> 7.4 | 11.7 -> 7.7 |
+| view weapon parts | 10.6 -> ~8 | (small) |
+| view holsters, model collide, self collide, gear, effects | 9, 8, 5+5, 5.5, 5 (unchanged) | the same |
+
+(Run to run, a zone moves by 1-3 us: a second capture of the trims gave -17.3 us in the firing range.) Temporary finer
+zones found the cost inside: the arms' IK is almost all `easeWrist` (about 216 swing costs a frame), the world weapons'
+time their buttons and ammo screens (`idleAttachments`, 37 calls a frame in the firing range's rack), the gadget touches'
+the screen tap's striking points (the drawn hand's vertices skinned every frame), the fists' the posed grasp spheres
+(four a frame), the weapon parts' the magazines' model points.
+
+Trims (all exact: the same results bit for bit):
+- easeWrist (vr_avatar.cpp): a swing whose own cost term (`swingWeight * s * s`, the same expression) is no less than the
+  best cost so far is not tried: the strain and lift terms are never negative, so it could not win (rounding keeps the
+  sum no less than the term). The parabola and the final cost are as before.
+- emptyHandSpheres (vr_view_hands.cpp): the posed spheres (rig space) are the pose's and the rig's alone: kept per hand,
+  open and closed, keyed by the pose's bytes and the rig's generation (a mem::Cache).
+- drawnHandSurface (vr_view_diag.cpp): each vertex's part (palm, back, fingers...) is the rig's at rest: found once per
+  rig generation, not every frame.
+- view::ModelSpace (vr_view.hpp): modelPoint's matrix made once for several points of one entity (setMagazine,
+  setGunPart, drawnHand), and setMagazine's rest anchor not looked up again when the gun is at rest (zeroBlend 1).
+
+Verified: a temporary build ran the old and new paths side by side and compared the results bit for bit, with the hands
+in six poses (strained by the face, crossed, behind) in the firing range (reload mode 3, guns lying about) and the start
+map: easeWrist 0/8982 mismatches, posed spheres 0/17964, model points 0/148014, hand parts 0/4491, rest anchors 0/25776
+(scratch/perf/abcheck.patch). Screenshots and the physics hash cannot be compared bit for bit in the firing range: the
+same build gives different shots (up to 900 pixels of a tile more than 8 levels off, the rack's props and the lone
+grunt) and a different `vr_physics_hash` (82 bodies) on every run. Final against the zones-only build: every tile within
+that run-to-run noise (tile 3, the strained hand, 29 pixels against the noise's 87); the hands', weapons', body's and
+gadget's entities in `vr_dumpview` the same to the dump's 3 decimals (only the rack's guns' parts differ, as between two
+runs of one build).
+
+Left, larger than what was trimmed (for a later pass, each a design choice): the arms' easeWrist (27-30 us: a coarser
+search, or the elbow kept from last frame while the wrist is within its reach); the world guns' idle buttons and screens
+(19 us in the firing range: kept while a gun lies still); the screen tap's skinned hand vertices (8 us: tested only with
+the hand near the gadget's screen); the rig hand (10-13 us).
+
+To try in VR: nothing should look or feel different. A Release-Tracy capture now names each step under `view entities`.
