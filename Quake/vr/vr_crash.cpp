@@ -33,6 +33,25 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #define QVR_BUILD_VERSION QVR_VERSION "-dev (unknown build)"
 #endif
 
+// The build number and date (qvr_buildver.h; vr.cmake and vr.mk write the same): the commit count, "1.1.0-dev build 4321
+// (abc1234+dirty) 2026-10-17 14:05". Without git, number 0 and the compiler's date.
+#ifndef QVR_BUILD_NUMBER
+#define QVR_BUILD_NUMBER 0
+#endif
+#ifndef QVR_BUILD_INFO
+#define QVR_BUILD_INFO QVR_VERSION "-dev build 0 (unknown) " __DATE__ " " __TIME__
+#endif
+
+extern "C" const char *VR_BuildInfo (void)
+{
+	return QVR_BUILD_INFO;
+}
+
+extern "C" int VR_BuildNumber (void)
+{
+	return QVR_BUILD_NUMBER;
+}
+
 extern "C" const char *VR_BuildVersion (void)
 {
 	return QVR_BUILD_VERSION;

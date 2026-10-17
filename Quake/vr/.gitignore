@@ -1,3 +1,5 @@
 # The Makefile builds' objects (vr.mk)
 *.o
 *.d
+/qvr_buildver.h
+/qvr_buildver.tmp

@@ -333,7 +333,9 @@ constexpr float versionCorner = 4.f; // the box from the canvas's right and bott
 constexpr float versionPad = 4.f;    // its lines from its edges (true pixels; the status box's: vr_menuui.cpp, StatusMetrics)
 constexpr float versionGap = 8.f;    // clear of what the menu draws beside it (menu x) and of the status box (true pixels)
 constexpr float versionGapAbove = 4.f; // and of what it draws above it (true pixels; a VR page's help box ends 4 above its bottom)
-constexpr double linkFeedback = 3.0;   // seconds the link says it opened the page
+constexpr float buildInfoSizeHeadset = 5.f; // the build text's glyphs in the bottom left corner (true pixels)
+constexpr float buildInfoSizeFlat = 4.f;
+constexpr double linkFeedback = 3.0;  // seconds the link says it opened the page
 constexpr double linkRepeat = 1.5;     // seconds a second press does nothing (a double click, both triggers)
 
 // The label as last placed, for menu_vr pos and the link's presses.
@@ -698,6 +700,21 @@ void drawUpdateNotice(const VersionBox& b)
     drawSmall(nameX, nb.rowY[1], size, name, n.hot);
 }
 
+// The build (VR_BuildInfo: "1.1.0 build 4321 (abc1234) 2026-10-17 14:05") small and faint in the canvas's bottom left
+// corner, for a bug report or a screenshot to name it.
+void drawBuildInfo()
+{
+    drawtransform_t t;
+    Draw_GetCanvasTransform(CANVAS_MENU, &t);
+    float left, top, right, bottom;
+    Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
+    const float size = qvr::menuui::active() ? buildInfoSizeHeadset : buildInfoSizeFlat; // true pixels
+    const float k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // (as versionBox)
+    pushFaded(0.5f);
+    drawSmall(left + versionCorner, bottom - (versionCorner + size * 0.5f) / k, size, VR_BuildInfo());
+    GL_PopCanvasColor();
+}
+
 } // namespace
 
 extern "C" void VR_MenuDrawVersion()
@@ -717,6 +734,7 @@ extern "C" void VR_MenuDrawVersion()
         v.leftOut = "not the menu canvas";
         return;
     }
+    drawBuildInfo();
     const VersionBox b = versionBox(v.text, sizeof(v.text));
     const float size = b.size, k = b.k;
     v.x0 = b.x0;
