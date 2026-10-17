@@ -12162,3 +12162,20 @@ screenshot of start (fixed frames, dither, entities, particles and dynamic light
 as before.
 
 To try in VR: nothing should look or feel different. The Debug menu's Profiling pages lose the rows named above.
+
+
+## Loot beams centred on the drawn thing (agent/lootcenter)
+
+"The new loot beams are completely off centre." The beam's origin was the middle of the model header's raw
+`mins`/`maxs` (the file's bounds, unscaled), turned with the entity's angles. It ignored what is drawn on top of that:
+the weapon props' own model scale and offset (`weapons::modelTransform`), a prop's Size, the networked
+`model_scale`/`model_scale_origin`/`model_offset`, and Ironwail's entity scale. Now `lootbeams::place` takes
+`held::drawnBox` (the box grips, collisions and `drawnCentre` use), turns it with the entity's drawn (lerped) origin and
+angles (`held::axesFromAngles`, so tipped-over and rotated items work), and puts the beam's foot under the middle of
+that box at its lowest corner, so the pillar rises from where the item lies; the flare sits at the box's middle.
+`vr_lootbeam_debug 1` now also draws each beam's drawn bounds (yellow), the entity origin (red cross) and the beam's foot
+(green cross), through walls; the once-a-second console line is unchanged.
+
+Verified: builds, 0 warnings. NOT verified in a run: the author's game (C:\OHWorkspace\quakevr-iw) was running the whole
+time, so no mock launch was allowed and there are no before/after screenshots. To check: `vr_lootbeam_debug 1;
+vr_lootbeam_test 24 18`, with the ammo, health and backpack categories on, from above and the side.

@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_held.hpp"
 #include "vr_mem.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_portals.hpp"
@@ -71,7 +72,10 @@ struct Track
 // This frame's beams.
 struct Beam
 {
-    glm::vec3 base;  // the thing's middle
+    glm::vec3 base;   // the foot of its beam: under the middle of the thing's drawn bounds, at their lowest point
+    glm::vec3 middle; // the middle of the drawn bounds (the flare)
+    glm::vec3 corners[8]; // the drawn bounds' corners (vr_lootbeam_debug)
+    glm::vec3 origin;     // the entity's origin (vr_lootbeam_debug)
     glm::vec3 color;
     float alpha;     // its fade (0..1)
     int num;         // its entity (vr_lootbeams_report)
@@ -171,16 +175,32 @@ State state;
     return Category::None;
 }
 
-// The middle of `e`'s model's bounds, turned with it.
-[[nodiscard]] glm::vec3 middleOf(const entity_t& e)
+// Where `e` visibly is, in `b`: the bounds of its model as drawn (held::drawnBox: its pose, the networked scale and
+// offset, the weapon prop's own scale and offset, a prop's Size, Ironwail's scale), turned with the entity's drawn
+// (lerped) origin and angles. `b.middle` is their middle; `b.base` is under it, at their lowest corner, so the beam
+// rises from where the thing lies. Without a drawn box (a sprite): the origin.
+void place(const entity_t& e, int num, Beam& b)
 {
-    const glm::vec3 local = (glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]} +
-                                glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]}) * 0.5f;
-    vec3_t angles = {e.angles[0], e.angles[1], e.angles[2]};
-    vec3_t f, r, u;
-    AngleVectors(angles, f, r, u);
-    return glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + glm::vec3{f[0], f[1], f[2]} * local.x -
-           glm::vec3{r[0], r[1], r[2]} * local.y + glm::vec3{u[0], u[1], u[2]} * local.z;
+    b.origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    glm::vec3 lo, hi;
+    if(!held::drawnBox(num, lo, hi))
+    {
+        b.base = b.middle = b.origin;
+        for(glm::vec3& c : b.corners)
+        {
+            c = b.origin;
+        }
+        return;
+    }
+    const glm::mat3 axes = held::axesFromAngles(e.angles, e.model->type == mod_brush);
+    float lowest = 1e30f;
+    for(int i = 0; i < 8; i++)
+    {
+        b.corners[i] = b.origin + axes * glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z};
+        lowest = za::min(lowest, b.corners[i].z);
+    }
+    b.middle = b.origin + axes * ((lo + hi) * 0.5f);
+    b.base = glm::vec3{b.middle.x, b.middle.y, lowest};
 }
 
 // Once a frame: the things to pick up in view, whether each rests (its fade).
@@ -264,7 +284,13 @@ void update()
             continue;
         }
         const float hue = categoryHue[static_cast<int>(c)]->value;
-        s.beams.pushBack(Beam{middleOf(*e), hsv(hue, saturation, 1.f), t.alpha, num, c});
+        Beam b{};
+        place(*e, num, b);
+        b.color = hsv(hue, saturation, 1.f);
+        b.alpha = t.alpha;
+        b.num = num;
+        b.category = c;
+        s.beams.pushBack(b);
         state.counts.drawn[static_cast<int>(c)]++;
     }
 
@@ -288,8 +314,8 @@ void pushQuad(za::Vector<gfx::Vertex>& out, const glm::vec3 (&p)[4], const glm::
 }
 
 // A beam's vertices for the view at `eye` (camera `right`, `up`): two shells turned towards the eye about the vertical
-// (the core and a glow three times as wide and dimmer), each fading in from just under the thing's middle, brightest a
-// little above it, then fading out up its length; and a flare at its base.
+// (the core and a glow three times as wide and dimmer), each fading in from just under the beam's foot (the lowest point of the thing's drawn bounds), brightest a
+// little above it, then fading out up its length; and a flare round the middle of the bounds.
 void appendBeam(za::Vector<gfx::Vertex>& out, const Beam& b, const glm::vec3& eye, const glm::vec3& right,
     const glm::vec3& up, float length, float half, float opacity, float m2u)
 {
@@ -338,10 +364,49 @@ void appendBeam(za::Vector<gfx::Vertex>& out, const Beam& b, const glm::vec3& ey
     const glm::vec3 rx = right * r;
     const glm::vec3 ry = up * r;
     const glm::vec4 fc{b.color, 0.6f * fade};
-    const glm::vec3 p[4]{b.base - rx - ry, b.base - rx + ry, b.base + rx + ry, b.base + rx - ry};
+    const glm::vec3 p[4]{b.middle - rx - ry, b.middle - rx + ry, b.middle + rx + ry, b.middle + rx - ry};
     const glm::vec2 uv[4]{{-1.f, -1.f}, {-1.f, 1.f}, {1.f, 1.f}, {1.f, -1.f}};
     const glm::vec4 c[4]{fc, fc, fc, fc};
     pushQuad(out, p, uv, c);
+}
+
+// A line from `a` to `b` as a thin quad facing the eye.
+void appendLine(za::Vector<gfx::Vertex>& out, const glm::vec3& a, const glm::vec3& b, const glm::vec3& eye,
+    float half, const glm::vec4& color)
+{
+    const glm::vec3 d = b - a;
+    glm::vec3 side = glm::cross(d, eye - (a + b) * 0.5f);
+    if(glm::length(side) < 1e-4f)
+    {
+        return;
+    }
+    side = glm::normalize(side) * half;
+    const glm::vec3 p[4]{a - side, b - side, b + side, a + side};
+    const glm::vec2 uv[4]{{0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}};
+    const glm::vec4 c[4]{color, color, color, color};
+    pushQuad(out, p, uv, c);
+}
+
+// vr_lootbeam_debug: each beam's drawn bounds (yellow), its entity's origin (red cross) and the beam's foot (green cross).
+void appendDebug(za::Vector<gfx::Vertex>& out, const Beam& b, const glm::vec3& eye)
+{
+    constexpr float half = 0.35f;
+    constexpr int edges[12][2] = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+    for(const auto& ed : edges)
+    {
+        appendLine(out, b.corners[ed[0]], b.corners[ed[1]], eye, half, glm::vec4{1.f, 0.9f, 0.1f, 1.f});
+    }
+    const auto cross = [&](const glm::vec3& at, const glm::vec4& col)
+    {
+        for(int ax = 0; ax < 3; ax++)
+        {
+            glm::vec3 d{0.f};
+            d[ax] = 3.f;
+            appendLine(out, at - d, at + d, eye, half, col);
+        }
+    };
+    cross(b.origin, glm::vec4{1.f, 0.1f, 0.1f, 1.f});
+    cross(b.base, glm::vec4{0.1f, 1.f, 0.1f, 1.f});
 }
 
 // vr_lootbeams_report: this frame's beams (entity, category, model, fade, where) and the counts.
@@ -528,12 +593,24 @@ void drawTranslucent()
     {
         appendBeam(out, b, eye, right, up, length, half, opacity, m2u);
     }
-    if(out.empty())
+    if(!out.empty())
     {
-        return;
+        gfx::draw(out, gfx::sceneViewProjection(),
+            gfx::State{.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false});
     }
-    gfx::draw(out, gfx::sceneViewProjection(),
-        gfx::State{.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = true, .depthWrite = false});
+    if(vr_lootbeam_debug.value != 0.f)
+    {
+        out.clear();
+        for(const Beam& b : s.beams)
+        {
+            appendDebug(out, b, eye);
+        }
+        if(!out.empty())
+        {
+            gfx::draw(out, gfx::sceneViewProjection(),
+                gfx::State{.shade = gfx::Shade::Color, .blend = gfx::Blend::Additive, .depthTest = false, .depthWrite = false});
+        }
+    }
 }
 
 } // namespace qvr::lootbeams
