@@ -264,8 +264,10 @@ const DefaultChange defaultChanges[] = {
     {154, &vr_lootbeam_length, "1.2"},                  // 1.5
     {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
     {154, &vr_lootbeam_far, "0"},                       // 12
+    // 155: the cheaper bloom chain by default (2026-10-17).
+    {155, &vr_bloom_fast, "0"},                         // 1
 };
-constexpr int configVersion = 154;
+constexpr int configVersion = 155;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
