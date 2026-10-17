@@ -21,6 +21,7 @@ void VR_TracyQC(const void *function); // a dfunction_t of the running qcvm (fun
 void VR_TracyQCEnd(void);
 void VR_TracyDisplay(double ms, int missed);
 void VR_TracyPlot(const char *name, double value);
+void VR_TracyMessage(const char *text, unsigned length); // copied; on the timeline (vr_xr_stall.cpp's held frames)
 int VR_TracyConnected(void);
 void VR_TracyAlloc(const void *ptr, unsigned long long bytes, int pool, int end);
 void VR_TracyFree(const void *ptr);
@@ -53,6 +54,7 @@ static inline void VR_TracyQC(const void *function) {(void)function;}
 static inline void VR_TracyQCEnd(void) {}
 static inline void VR_TracyDisplay(double ms, int missed) {(void)ms; (void)missed;}
 static inline void VR_TracyPlot(const char *name, double value) {(void)name; (void)value;}
+static inline void VR_TracyMessage(const char *text, unsigned length) {(void)text; (void)length;}
 static inline int VR_TracyConnected(void) {return 0;}
 static inline void VR_TracyAlloc(const void *ptr, unsigned long long bytes, int pool, int end) {(void)ptr; (void)bytes; (void)pool; (void)end;}
 static inline void VR_TracyFree(const void *ptr) {(void)ptr;}
@@ -74,6 +76,7 @@ static inline void VR_TracyAllocationWindow(int enter) {(void)enter;}
 #define VR_TracyQCEnd() ((void)0)
 #define VR_TracyDisplay(ms, missed) ((void)0)
 #define VR_TracyPlot(name, value) ((void)0)
+#define VR_TracyMessage(text, length) ((void)0)
 #define VR_TracyAlloc(ptr, bytes, pool, end) ((void)0)
 #define VR_TracyFree(ptr) ((void)0)
 #define VR_TracyHunkReset(mark) ((void)0)

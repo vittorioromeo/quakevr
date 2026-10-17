@@ -7,6 +7,7 @@
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
 #include "vr_tracy.h"
+#include "vr_xr_stall.hpp"
 #include "vr_touch.hpp"
 #include "vr_body.hpp"
 #include "vr_bodytrack.hpp"
@@ -1737,6 +1738,10 @@ public:
     void endFrame(bool rendered) override
     {
         frameBegun = false;
+        // vr_debug_frame_stall_ms: the held frames' test (vr_xr_stall.cpp), the end timed as OpenXR's xrEndFrame
+        const double t0 = Sys_DoubleTime();
+        xrstall::debugStall();
+        xrstall::frame(0.0, (Sys_DoubleTime() - t0) * 1000.0, 0.0, "MOCK");
         if(!rendered && lastHead.valid)
         {
             if(!panelShown && realtime - panelLastShown > 1.0)

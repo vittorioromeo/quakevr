@@ -1344,7 +1344,9 @@ void SV_Physics (void)
 	pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
 	pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
 	pr_global_struct->time = qcvm->time;
-	PR_ExecuteProgram (pr_global_struct->StartFrame);
+	// QVR: "Server physics" split into its three parts (profiling builds), so that its own time is only the few
+	// statements between them (Tracy qvr_gpu1: 0.27 ms a frame of self time was unattributed)
+	SV_ZONE ("SV StartFrame", PR_ExecuteProgram (pr_global_struct->StartFrame));
 
 //SV_CheckAllEnts ();
 
@@ -1358,6 +1360,10 @@ void SV_Physics (void)
 	else
 	  entity_cap = qcvm->num_edicts;
 
+	{ // QVR: the edicts' loop in a zone of its own: its own time is the loop's (reading every edict, the sendinterval) and,
+	  // with vr_tracy_physics_detail 1, the per-edict zones' own cost
+	VR_TRACY_SCOPE ("SV edicts");
+	VR_TracyText (va ("%d edicts", entity_cap));
 	//for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
 	for (i=0 ; i<entity_cap ; i++, ent = NEXT_EDICT(ent))
 	{
@@ -1366,7 +1372,7 @@ void SV_Physics (void)
 
 		if (pr_global_struct->force_retouch)
 		{
-			SV_LinkEdict (ent, true);	// force retouch even for stationary
+			SV_PHYS_ZONE ("SV edict retouch", SV_LinkEdict (ent, true));	// force retouch even for stationary
 		}
 
 		if (i > svs.maxclients && VR_MonsterFrozen (ent))
@@ -1407,9 +1413,10 @@ void SV_Physics (void)
 		}
 	//johnfitz
 	}
+	} // QVR: ("SV edicts")
 
 	if (!sv_freezenonclients.value)
-		VR_PhysicsFrameEnd (); // QVR: the rigid bodies' world steps (Box3D)
+		SV_ZONE ("SV physics frame end", VR_PhysicsFrameEnd ()); // QVR: the rigid bodies' world steps (Box3D)
 
 	if (pr_global_struct->force_retouch)
 		pr_global_struct->force_retouch--;

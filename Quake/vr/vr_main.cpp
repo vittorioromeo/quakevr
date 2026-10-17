@@ -1879,6 +1879,7 @@ extern "C" void VR_NewMap()
     step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
+    step("cords", gfx::prepareTube); // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)

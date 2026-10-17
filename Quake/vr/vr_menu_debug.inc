@@ -382,6 +382,11 @@ za::Vector<Item> pageDebugProfiling()
                   "program's: the menus' warning in the top right corner; in VR the mirror presented only "
                   "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
                   "background sleep."),
+        cycle("Simulate Held Frames", vr_debug_frame_stall_ms, {{0.f, "Off"}, {40.f, "40 ms a Frame"}, {100.f, "100 ms a Frame"}})
+            .help("vr_debug_frame_stall_ms: each frame's end waits this long, as if the runtime held the frames (the "
+                  "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "
+                  "program, the session's state, the frame times), written once when it starts and once when it ends. "
+                  "Turn it off at once in the headset: the view stutters."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),

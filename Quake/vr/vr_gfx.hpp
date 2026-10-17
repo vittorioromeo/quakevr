@@ -204,6 +204,8 @@ struct TubeBatch
 // holsters' chains: vr_magholster_chain_alpha).
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key,
     const glm::vec3& rust = glm::vec3{0.f}, bool flat = false, float alpha = 1.f);
+// In a map's load (VR_NewMap): the tube's program made and drawn once, not at a cord's first frame in play.
+void prepareTube();
 
 // A model's mesh bent along a curve, copy after copy (the grappling hook's rope, vr_rope.cpp: Rogue's chain links laid
 // end to end along the hanging rope, each bent with it, so that it is drawn in one piece): made on the GPU from one
