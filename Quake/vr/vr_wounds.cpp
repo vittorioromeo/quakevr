@@ -413,6 +413,7 @@ bool ensureTexture()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, 0);
     GL_GenFramebuffersFunc(1, &fbo);
+    GL_LabelNewFramebuffer(fbo, "wound slots");
     layers = want;
     fineSize = wantFine;
     allocatedOwnRes = wantOwn;

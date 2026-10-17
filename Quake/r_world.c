@@ -94,10 +94,12 @@ static void R_MarkVisSurfaces (byte* vis)
 	COMPILE_TIME_ASSERT (vis_alignment_must_be_multiple_of_uint, (VIS_ALIGN & 3) == 0);
 	vissize = (vissize + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // round up
 
+	GL_BeginGroup ("cs: clear indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.clear_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, cl.worldmodel->texofs[TEXTYPE_COUNT] * sizeof(bmodel_draw_indirect_t));
 	GL_DispatchComputeFunc ((cl.worldmodel->texofs[TEXTYPE_COUNT] + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_SHADER_STORAGE_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_UseProgram (glprogs.cull_mark);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
@@ -112,8 +114,10 @@ static void R_MarkVisSurfaces (byte* vis)
 	GL_Upload (GL_UNIFORM_BUFFER, &frame, sizeof(frame), &buf, &ofs);
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr)ofs, sizeof(frame));
 
+	GL_BeginGroup ("cs: cull and mark world surfaces"); // QVR: (vr_gl_markers)
 	GL_DispatchComputeFunc ((nummark + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT | GL_ELEMENT_ARRAY_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_EndGroup ();
 }
@@ -409,6 +413,7 @@ static void R_FlushBModelCalls (void)
 
 	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
+	GL_BeginGroup ("cs: gather indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
@@ -416,6 +421,7 @@ static void R_FlushBModelCalls (void)
 	GL_BindBufferRange  (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_call_remap[0]) * num_bmodel_calls);
 	GL_DispatchComputeFunc ((num_bmodel_calls + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_UseProgram (bmodel_batch_program);
 	VR_RetroBind (QVR_RETRO_LUT_UNIT_WORLD); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
@@ -714,26 +720,26 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
 	if (pass == BP_SOLID && !translucent)
 	{
-		VR_TracyBegin ("depth prepass", 1); // QVR: (profiling builds: a GPU zone with vr_tracy_gpu_detail)
+		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
 		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 		R_FlushBModelCalls ();
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		R_ResetBModelCalls (program);
-		VR_TracyEnd ();
+		VR_GPUZoneEnd ();
 	}
 
 	// QVR: the shading (profiling builds: a GPU zone with vr_tracy_gpu_detail): the opaque pass's holds the parallax,
 	// the carved decals' march, the bumps, the PBR and the lights' shadows, all in the one world shader
-	VR_TracyBegin (pass == BP_SOLID ? (translucent ? "shading: translucent" : "shading: opaque (parallax, carved decals)") :
-		pass == BP_ALPHATEST ? "shading: fences" : pass == BP_SHOWTRIS ? "shading: showtris" : "shading: sky", 1);
+	VR_GPUZoneBegin (pass == BP_SOLID ? (translucent ? "shading: translucent" : "shading: opaque (parallax, carved decals)") :
+		pass == BP_ALPHATEST ? "shading: fences" : pass == BP_SHOWTRIS ? "shading: showtris" : "shading: sky");
 	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 
 	VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
 	R_FlushBModelCalls ();
 	VR_TemporalMotionWrites (0); // QVR
-	VR_TracyEnd (); // QVR
+	VR_GPUZoneEnd (); // QVR
 	glDisable (GL_CLIP_DISTANCE1);
 	if (a2c) // QVR
 	{

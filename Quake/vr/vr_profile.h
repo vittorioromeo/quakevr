@@ -35,6 +35,15 @@ void VR_ProfileBegin (const char *name);	// a CPU scope
 void VR_ProfileBeginGPU (const char *name);	// a CPU and GPU scope (the main thread, with the GL context)
 void VR_ProfileEnd (void);					// ends the innermost scope
 
+// GL debug groups (vr_gl_markers, latched at each frame's start into vr_gl_markers_on): every GPU scope is also one,
+// named as its profile scope; these open one alone (the main thread; balanced as scopes, each pops what its begin
+// pushed). VR_GPUZoneBegin/End: the profiling builds' own Tracy GPU zone (vr_tracy.h) and the debug group, one name.
+extern int vr_gl_markers_on;
+void VR_GLMarkerBegin (const char *name);
+void VR_GLMarkerEnd (void);
+#define VR_GPUZoneBegin(name) (VR_TracyBegin (name, 1), VR_GLMarkerBegin (name))
+#define VR_GPUZoneEnd() (VR_GLMarkerEnd (), VR_TracyEnd ())
+
 // Latched at each frame's start: whether the profiler collects this frame (vr_profile, the panel or the CSV capture),
 // and whether it also times every trace and builtin call (vr_profile_detail 2). The hot paths (each QuakeC call, each
 // trace) test these before calling in: with profiling off they cost a load and a branch.

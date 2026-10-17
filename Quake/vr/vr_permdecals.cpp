@@ -961,6 +961,7 @@ void syncTexture()
     {
         GL_GenFramebuffersFunc(1, &atlas.fbo);
         GL_GenFramebuffersFunc(1, &atlas.readFbo);
+        GL_LabelNewFramebuffer(atlas.readFbo, "vr permanent decals read");
     }
     if(atlas.texture && atlas.textureSize == atlas.size)
     {

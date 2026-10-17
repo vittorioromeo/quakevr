@@ -1547,6 +1547,7 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             return false;
         }
         GL_GenFramebuffersFunc(1, &halfCompositeFbo);
+        GL_LabelNewFramebuffer(halfCompositeFbo, "half composite");
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, halfCompositeFbo);
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
@@ -1929,6 +1930,7 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps, const cha
     if(!fbo)
     {
         GL_GenFramebuffersFunc(1, &fbo);
+        GL_LabelNewFramebuffer(fbo, "vr canvas");
     }
 
     glGenTextures(1, &texture);
@@ -2082,6 +2084,7 @@ void copy(const Target& target, Texture image)
     if(!copyFbo)
     {
         GL_GenFramebuffersFunc(1, &copyFbo);
+        GL_LabelNewFramebuffer(copyFbo, "vr copy");
     }
 
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copyFbo);

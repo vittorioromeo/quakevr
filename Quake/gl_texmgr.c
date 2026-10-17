@@ -2611,6 +2611,7 @@ void GLPalette_UpdateLookupTable (void)
 	memcpy (cached_palette, d_8to24table, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();
 
+	GL_BeginGroup ("cs: palette lut"); // QVR: (vr_gl_markers)
 	GL_UseProgramFunc (glprogs.palette_init[metric]);
 	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
@@ -2623,6 +2624,7 @@ void GLPalette_UpdateLookupTable (void)
 	}
 
 	GL_MemoryBarrierFunc (GL_TEXTURE_FETCH_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 }
 
 /*

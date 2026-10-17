@@ -119,6 +119,7 @@ void ensureResampleTarget(int width, int height)
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
     GL_GenFramebuffersFunc(1, &resampleFbo);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, resampleFbo);
+    GL_ObjectLabelFunc(GL_FRAMEBUFFER, resampleFbo, -1, "vr resample");
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resampleTex, 0);
     resampleWidth = width;
     resampleHeight = height;
@@ -186,6 +187,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
     if(!targetFbo)
     {
         GL_GenFramebuffersFunc(1, &targetFbo);
+        GL_LabelNewFramebuffer(targetFbo, "vr eye target");
     }
 }
 
@@ -618,7 +620,7 @@ void renderPortal(int width, int height, int depth)
         glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         target.layers[slot] = layers;
     }
-    if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); }
+    if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); GL_LabelNewFramebuffer(target.fbo, "portal view array"); }
     framebufs = target.scene.fb;
     r_refdef.scale = za::clamp(savedView.scale * portals::scaleAt(depth), 1, za::max(vid.maxscale, 1));
     const int layer = portals::layer(depth);

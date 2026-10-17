@@ -597,6 +597,7 @@ void bindZeroBlock()
         const TemporalBlock zero{};
         GL_GenBuffersFunc(1, &state.zeroUbo);
         GL_BindBuffer(GL_UNIFORM_BUFFER, state.zeroUbo);
+        GL_ObjectLabelFunc(GL_BUFFER, state.zeroUbo, -1, "taa zero ubo");
         GL_BufferDataFunc(GL_UNIFORM_BUFFER, sizeof(zero), &zero, GL_STATIC_DRAW);
         GL_BindBuffer(GL_UNIFORM_BUFFER, 0);
     }
