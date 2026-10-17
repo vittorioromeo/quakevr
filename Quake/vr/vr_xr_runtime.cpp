@@ -750,9 +750,10 @@ void logText(const char* text, bool always = false)
                 manifest = i.manifest;
             }
         }
-        if(manifest.empty() && !env.test)
+        const Known* k = knownOf(kind); // null for VDXR on Linux (known[] has only SteamVR there)
+        if(manifest.empty() && !env.test && k)
         {
-            manifest = knownOf(kind)->usualPlace;
+            manifest = k->usualPlace;
         }
     }
     else if(mode == 3)
@@ -1082,6 +1083,10 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 {
     char windows[MAX_PATH] = "";
     GetWindowsDirectoryA(windows, sizeof(windows));
+    if(windows[0] && windows[strlen(windows) - 1] != '\\')
+    {
+        q_strlcat(windows, "\\", sizeof(windows)); // "C:\Windows\" so "C:\WindowsApps\..." is not a system DLL
+    }
     char exeDir[MAX_PATH] = "";
     GetModuleFileNameA(nullptr, exeDir, sizeof(exeDir));
     if(char* slash = strrchr(exeDir, '\\'))
@@ -1136,9 +1141,11 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 // through NVIDIA's GL/D3D interop) and unloads it with itself; NVIDIA's OpenGL driver thread then reads d3d11.dll's
 // memory and the game crashes (the author's crashes of 2026-10-09 switching from VDXR: an access violation in
 // nvapi64_impl.dll called from nvoglv64.dll's thread, reading the unloaded d3d11.dll's memory).
+#ifdef _WIN32
 constexpr const char* graphicsModules[] = {"d3d11.dll", "dxgi.dll", "d3d12.dll", "vulkan-1.dll"};
 constexpr size_t graphicsModuleCount = sizeof(graphicsModules) / sizeof(graphicsModules[0]);
 bool graphicsModuleKept[graphicsModuleCount] = {};
+#endif
 
 // What Auto sees and the order it would try the runtimes in (vr_xr_runtime_explain; the log of each start).
 void describe()

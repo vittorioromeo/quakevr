@@ -380,7 +380,7 @@ struct Built
             {
                 for(int x = 0; x < skinW; x++)
                 {
-                    const unsigned h = static_cast<unsigned>(x * 73856093) ^ static_cast<unsigned>(y * 19349663);
+                    const unsigned h = static_cast<unsigned>(x) * 73856093u ^ static_cast<unsigned>(y) * 19349663u;
                     f.pushBack(reds[(h >> 3) & 3u]);
                 }
             }

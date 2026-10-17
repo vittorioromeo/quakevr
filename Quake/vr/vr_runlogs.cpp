@@ -543,7 +543,10 @@ void openFolder(const char* path, bool select)
 #ifndef _WIN32
     // The desktop's file manager (xdg-open), on the folder (a file's: its folder; xdg-open selects nothing).
     char full[PATH_MAX];
-    q_strlcpy(full, fullPathOf(path, full, sizeof(full)), sizeof(full));
+    if(const char* resolved = fullPathOf(path, full, sizeof(full)); resolved != full)
+    {
+        q_strlcpy(full, resolved, sizeof(full)); // (never onto itself: overlapping strlcpy is undefined)
+    }
     if(select)
     {
         if(char* slash = strrchr(full, '/'))
@@ -812,7 +815,7 @@ bool makeReport(bool lastRun, char* out, size_t outSize)
         q_snprintf(out, outSize, "%s/%s_%d.zip", reports, stamp, n);
     }
     Zip z;
-    z.f = fopen(out, "wb");
+    z.f = exists(out) ? nullptr : fopen(out, "wb"); // (.zip through _9.zip all taken: never overwrite one)
     if(!z.f)
     {
         q_snprintf(out, outSize, "%s/%s.zip can't be written", reports, stamp);

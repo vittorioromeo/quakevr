@@ -83,9 +83,23 @@ void printLargest(int count)
     };
     Row rows[64];
     int n = 0;
-    for(Registration* r = Registration::first(); r && n < 64; r = r->next())
+    for(Registration* r = Registration::first(); r; r = r->next()) // every set (about 100): keep the 64 largest
     {
-        rows[n++] = {r, r->bytes()};
+        const Row row{r, r->bytes()};
+        if(n < 64)
+        {
+            rows[n++] = row;
+            continue;
+        }
+        int smallest = 0;
+        for(int i = 1; i < n; i++)
+        {
+            smallest = rows[i].bytes < rows[smallest].bytes ? i : smallest;
+        }
+        if(row.bytes > rows[smallest].bytes)
+        {
+            rows[smallest] = row;
+        }
     }
     za::quickSort(rows, rows + n, [](const Row& a, const Row& b) { return a.bytes > b.bytes; });
     for(int i = 0; i < n && i < count && rows[i].bytes > 0; i++)

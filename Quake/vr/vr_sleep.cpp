@@ -82,7 +82,7 @@ extern "C" int VR_HiResSleepUntil(double endtime, double* now)
         const double asked = endtime - *now - hr.estimate;
         if(!hiResSleep(asked))
         {
-            break;
+            return 0; // the timer failed: SDL_Delay's sleeps cover the rest (not the caller's busy-wait)
         }
         *now = Sys_DoubleTime();
 

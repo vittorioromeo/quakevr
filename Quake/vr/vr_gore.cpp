@@ -216,7 +216,7 @@ void drip(Source& s)
 // goes (to the floor), showing after `delay`, running down over a few seconds.
 void streak(const glm::vec3& where, const glm::vec3& n, float width, float delay)
 {
-    glm::vec3 down = glm::vec3{0.f, 0.f, -1.f} - n * n.z;
+    glm::vec3 down = glm::vec3{0.f, 0.f, -1.f} + n * n.z; // straight down projected into the wall's plane
     if(glm::length(down) < 0.5f || width < 2.f)
     {
         return;

@@ -779,7 +779,7 @@ void limitPushes(float dt)
         float pusher = 0.f, strongest = 0.f;
         bool full = false;
         glm::vec3 normal{0.f};
-        za::Array<b3BodyId, 8> counted;
+        za::Array<b3BodyId, 32> counted; // (two players' hands, reach and body are already 8; held props add more)
         size_t countedN = 0;
         for(int c = 0; c < count && !full; c++)
         {

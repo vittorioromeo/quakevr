@@ -305,7 +305,7 @@ ConfigTrack configTrack;
 [[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
 {
     ankerl::unordered_dense::map<za::String, za::String> settings;
-    FILE* f = fopen(path, "rb");
+    FILE* f = Sys_fopen(path, "rb"); // (UTF-8 path: a non-ASCII game folder)
     if(!f)
     {
         return settings;
@@ -482,7 +482,7 @@ const CompiledDefault compiledDefaults[] = {
 void saveDefaults_f()
 {
     const char* path = va("%s/vr_defaults.cfg", com_gamedir);
-    FILE* f = fopen(path, "wb");
+    FILE* f = Sys_fopen(path, "wb");
     if(!f)
     {
         Con_Printf("vr_savedefaults: can't write %s\n", path);

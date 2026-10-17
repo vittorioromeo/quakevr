@@ -145,7 +145,7 @@ unsigned resourceFrame{};
 double displayPeriodMs{};
 int missedDisplayPeriods{-1};
 uint64_t metadataSession{};
-char metadataMap[64]{};
+char metadataMap[sizeof(cl.mapname)]{}; // (as long as the map name: a longer one never compares equal)
 thread_local bool qcOpen[1024]{};
 thread_local unsigned qcDepth{}, qcOverflow{};
 void memorySync()
