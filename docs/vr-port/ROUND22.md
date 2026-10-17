@@ -11095,56 +11095,54 @@ To try in VR: nothing should look different. In a fight with rockets and in the 
 Memory > Keep Light Casters off and on: the shadows of rockets and explosions the same; the
 `dlight world casters` row in the profiler drops to near zero.
 
-## Every hit dents (worktree `gorefx`, branch `agent/dentsall`, 2026-10-17)
 
-His notes (NOTES.md 2026-10-17): props (a brick or a rock swung or thrown) left no dent; melee on ragdolls left none, any
-weapon; a sword held by its blade and swung pommel first did no damage to a ragdoll on the ground. Every hit should dent
-as the same damage would a living one, and a hilt or pommel should be a blunt hit like any other.
+## Blood streams smoothed; his stream and bleeding values; marks on the firing range's targets (worktree `gorefx`, branch `agent/bloodstream3`, 2026-10-17)
 
-Causes:
+**His values as defaults** (config version 150; only values still at the old defaults move): `vr_gore_streams_width`
+0.75 -> 1, `_speed_var` 0.3 -> 0.5, `_wobble` 10 -> 15, `_thickness_var` 0.55 -> 0.85, `_thickness_rate` 1.1 -> 1.3,
+`_spurt_rate` 40 -> 70, `_spurt_cone` 30 -> 15, `_spurt_speed` 0.8 -> 1.35, `_spurt_life` 0.2 -> 0.4,
+`_spurt_outlier_life` 0.7 -> 1.15, `_spurt_size` 0.3 -> 0.525, `_splash_size` 1 -> 1.25; his own bleeding
+`vr_body_blood` 1 -> 1.25, `vr_body_blood_amount` 1 -> 1.25, `vr_body_blood_mark_size` 1 -> 1.5. The others in his
+config were the defaults already.
 
-- **A corpse's hits never sent a wound.** `T_DamageImpl` hands a corpse's (or a dying body's) damage to
-  `VR_Corpse_Damage` and returns before its own `VR_Wound_Hit`, so only a shotgun's pellets (`VR_Wound_Pellet`, sent as
-  they strike) painted and dented a ragdoll: no blade, blunt blow, nail, thrown thing or blast did.
-- **A thrown or flung prop was a nail.** `VR_Wound_Hit` worked the kind out from the inflictor: a brick (hit kind none,
-  not a monster) fell through to `QVR_WOUND_NAIL`, the smallest dent (r 2.4-3.6). A thrown blade was a nail too.
-- **The ragdoll strike traced the hand to the muzzle only** (`VR_Corpse_StrikeFrame`): a pommel behind the hand, a sword
-  carried by its blade (its hilt the far end), a club's head never met a corpse. The living's blows (`VR_Melee_Line`,
-  round 21) already strike with all of it.
+**Streams flung into ribbons** ("as the enemy moves or animates, the velocity and size of the waterfall change too
+abruptly"). Causes and fixes:
+- The wound was placed on the model at the entity's last message's origin and angles (`e->origin`), while a stepping
+  monster is drawn lerped along its step (`r_lerpmove`): a running grunt's origin jumps 8-15 units every 0.1 s, so the
+  wound jumped ahead of the drawn body ten times a second and the stream's points were spread along the jumps. Now
+  `render::drawnPlace` / `drawnEntityMatrix` (vr_render.cpp, the same lerp as R_SetupEntityTransform and
+  vr_modelcollide's) place it where the body is drawn; the triangle search at a hit uses it too (the shots' per-poly
+  hits are against the drawn model already).
+- Each point took 0.7 of the raw frame-to-frame motion of the wound (animation frames, steps), so neighbouring points
+  left with very different velocities and flew apart. Now that motion is clamped (400 u/s), low-passed over
+  `vr_gore_streams_smooth` (0.25 s; its way out too, so a turn swings it rather than snaps it), and only
+  `vr_gore_streams_inherit` (0.35) of it taken, by the stream and its spurts.
+- Kept continuous: each piece's stretch is its length over its length as poured (plus gravity's spread);
+  `vr_gore_streams_break` (4) fades a piece from half that and drops it past it; the wound jumping in a frame (more
+  than 6 units and 400 u/s: an unlerped animation snap, a teleport) cuts the stream there instead of drawing it along
+  the jump (points not interpolated across it). `smooth 0; inherit 0.7; break 0` is the old behaviour.
+- Menu: Gore > Stream Smoothing, Stream Body Motion, Stream Break Stretch. `vr_gore_streams_info` (Debug > Blood
+  Streams: Where They Start) also prints the worst stretch since the last call, the pieces faded/broken and the cuts.
 
-Fixes:
+Measured (`scratch/stretch_test.sh`: e1m1, a grunt spawned 160 ahead attacking and running, 4 streams, two 120-frame
+windows): before (old settings, old placement): stretch max 7.4 / 8.5, longest piece 92.7 / 99.8 units; old settings
+with the drawn placement: 6.1 / 12.0, 52.8 / 106.4 units; now: 1.03 / 0.93, 11.0 / 7.7 units, nothing faded or
+broken, 4 / 0 cuts (40 a window before the drawn placement).
 
-- `VR_Corpse_Damage` (combat.qc) sends the hit's wound first (`VR_Wound_Hit`, its damage after Quad, before the
-  positional factor is taken back out: the same blow's wound as on the living). Fire's are still the flames' own.
-- `VR_Wound_Hit` (vr_wounds.qc) asks `VR_SmallGib_Kind` what struck: thrown or flung props (bricks, rocks, crates, gibs)
-  and thrown weapons are melee wounds (a thrown blade cuts); a blunt melee blow (a punch, a pommel or hilt, a gun, the
-  crowbar, Mjolnir, a prop in the fist, a thrown prop) sends extra 1. A batted-back projectile keeps its own kind.
-- Engine: a blunt melee wound (extra 1) is rounder (stretch 1-1.4, was 1.8-2.6) and its dent is the new
-  `dents::kindBlunt` (vr_dents.hpp): a round crater, r 3.4 + 0.035 x damage (at most 5.5), depth 1.5-2, stretch 1-1.3
-  (a cut stays r 3 + 0.03 x damage, drawn out 2.2-3x along the swing). Scaled by damage as before.
-- `VR_Corpse_StrikeFrame` traces what the hand holds along its melee line (`VR_Corpse_StrikeLine` / `_StrikeAlong`,
-  vr_melee.qc: from the hand out to its far end and back to its near end, 4 units ahead along the swing), and a sword's
-  or an axe's struck part is told by `VR_Melee_PartAt`: its pommel, hilt, guard or handle is a blunt blow
-  (`vr_melee_blunt`: corpse damage kind blunt, a round dent; no beheading cut). Its damage and the rest moved into
-  `VR_Corpse_Struck`, unchanged. `developer 2` prints "corpse strike: ... with the pommel (-0.25 of the way ...), blunt".
+**Marks on brush targets** (`vr_decal_entities` 1, Gore > Marks on Moving Brushes). The firing range's targets are
+`func_button`s with `maps/vr_spawnbutton.bsp` on `func_wall`s with `maps/vr_spawnpanel.bsp`: brush models of their own
+files, one model for 13 entities. The permanent layer (vr_permdecals) lays its pages out on a model's faces, so it
+leaves those models out (a mark would show on all 13), and the live marks are the static world's: the decal traces
+didn't even see them. Now a mark (shots' chips, blows, blood, the streams' landings) whose surface is such an entity
+(or a map's own `*n` door or lift with the permanent layer off) is cut out of that entity's faces in its own space
+(VR_BModelMatrix's inverse), kept in a ring of 128, and drawn each frame where the entity is drawn (a pressed button
+carries it in). Not on the items' boxes (`maps/b_*`), nor on the runtime brushes. Flat: the carved relief is the
+world's shader's, which can't follow an entity; the chips' baked relief shows. With the permanent layer on they stay
+(to the cap); off they fade with vr_decal_life. Checked with `scratch/target_test.sh` (vrfiringrange, `vr_decal_at`
+lines at the first spawn button and its panel): 5 marks laid on entities 164/165, 33 vertices drawn, the blood
+visible across the button and panel in the mock screenshot; `vr_decal_count` prints the count. The press moving it
+was not run headless (the same matrix the permanent layer's door marks use).
 
-Test: `vr_dents_test <n>` (vr_dents_test.qc; Debug > Gore Tests: Throw a Brick at the Nearest, Pommel Strike the Nearest
-Corpse) strikes the nearest monster or corpse: 1 a thrown brick (its touch), 2 a hand's blow with what you hold, 3 a
-pommel strike, 4 a sword by its blade pommel first into a corpse (the ragdoll strike's own path, its line laid out), 5
-by its handle, blade first; it prints the wound sent. `scratch/dentsall.sh <worktree> [monster]` (an ogre, alive then its
-ragdoll; `vr_wounds_debug 1`):
-
-| path | alive | ragdoll |
-|---|---|---|
-| thrown brick | melee, blunt; dent kind 6 r 4.9 | melee, blunt; kind 6 r 4.2 (before: no wound) |
-| fist blow | melee, blunt; kind 6 r 4.4 | melee, blunt; kind 6 r 4.5 (before: none) |
-| pommel strike | melee, blunt; kind 6 r 4.1 | melee, blunt; kind 6 r 4.1 (before: none) |
-| sword slash | melee, a cut; kind 3 r 3.8 stretch 2.5 | (the same function; the test's sword was dropped by then) |
-| sword by its blade, pommel first | (the living's line, round 21) | struck with the pommel (-0.25), blunt; kind 6 r 5.7 (before: no contact) |
-| sword by its handle, blade first | | struck with the blade (0.90), not blunt |
-
-Melee eval (eval.sh): 168/177, the 3 known bash-damage canary differences (6 -> 3), nothing else.
-
-In VR: throw a brick or a rock at a grunt, and hit one with a brick in the fist: a round dent where it struck. Kill one and
-hit the ragdoll with the sword, the axe, a fist, a brick, and a thrown brick: each leaves a wound and a dent. Hold the
-sword by its blade and club a ragdoll on the floor with the hilt: it takes damage (corpse damage, a round dent, a knock).
+To try in VR: shoot grunts and let them chase you with streams pouring: no ribbons or strings whipping round them,
+the stream following the body softly. The firing range: shoot a spawn button and its panel (chips, blood), punch one;
+the marks stay on the button as it presses in. Gore > Stream Smoothing / Body Motion to taste.
