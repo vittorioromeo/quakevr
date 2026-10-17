@@ -12356,3 +12356,38 @@ graphics binding type 1000023000"), so VR on Linux needs a native build. Details
   (0 warnings) and its e1m1 smoke unchanged (run logs, system.txt as before).
 - To test on a real Linux PC with a headset (Monado/WiVRn/SteamVR): build per LINUX.md, `vr_backend openxr`, check
   `qvr_openxr.txt` for the session states and the "GL interop" line. Nobody has run a real headset on it yet.
+
+## Code sweep, batch B: physics, ragdoll and animation hot paths (worktree `goreflesh`, branch `agent/sweepB`, 2026-10-18)
+
+The sweep's batch B (`kit/scratch/sweep/SWEEP.md`), each finding checked again before the change; all held. Same
+results by construction except 18.6:
+
+- 07.1 `feedRagdoll`: the struggle's joint friction (`tune`, a class-table scan) once per ragdoll, not once per bone.
+  07.2 `blastRagdoll`: the class's Blast tune once per blast, not per part.
+- 18.1 `swapModels`: each published ragdoll keeps its skinned model (`Published::skinned`), checked before each use the
+  way `view::viewModel` checks (not `needload`, alias data still cached, its name `<model>#rag`), else `Mod_ForName`
+  again (which reloads it after `Mod_ClearAll`, an eviction or a campaign switch's reused slot). No name built and no
+  model-table scan per drawn ragdoll per frame.
+- 18.6 (a bug) `catchUpAO`: the once-a-second look for baked occlusion is per skinned model (`aoLooks`), so one
+  model's look no longer holds back the others' (N unbaked models were picked up one a second).
+- 18.3 `skinnedVertices`: a cut bone's neck once per bone, not per vertex. 18.8 `clipPose`: the endpoint turns from
+  `bonePoseLerp` (a new overload returns them), not looked up again. 18.4 `envFrame`: one `floorBelow` a frame (the
+  sense block's and the tumble's).
+- 19.1 `swings` (r_lerpmodels 3): `rigpose::alongSlots` takes the four poses' keys already made (`keys[slot][bone]`);
+  the pose-indexed `along` overload is unchanged. 19.2 `percentile` (self-collision weapon caps): `za::nthElement`
+  instead of a full sort (the same value).
+- 08.2 `findHold`/`freePoint`: each found ledge's frame and box (its `sampleAt`) made once per search, lazily
+  (`ClimbScratch::frameBoxes`), not once per candidate checked against it.
+- 12.2 `surfaceFit`: only the triangles whose x/z box (plus a unit) overlaps the fist cells' are kept before the slide
+  (the probes move along y alone; the rest fail the barycentric test anyway), the order kept.
+
+Checks: `vr_physics_hash` on vrfiringrange with 16 grunts blasted to ragdolls (`sv_random_seed 12345`,
+`host_framerate 1/72`, `vr_fixed_frames 1`: deterministic run to run) identical at both points (279 bodies
+109972ccdbc60cfb, 190 bodies f75631303ea224d0); its paused screenshot within the run-to-run noise (3.3-4.0k pixels >8
+off of 259k against two baseline runs; the two baseline runs 3.1k apart). The carry fit (`vr_debug_throw 1`, a box
+of shells taken: 7.3 cm) and the carry checks identical. animsmooth_test, slopes_test, held_over_props_test,
+env_test, decap_test: the same verdicts (their numbers vary run to run on the same build). Melee eval 168/177 (the
+same known bash damage-number differences from the baseline).
+Timing, `bench.sh ragdolls_32_active` (exclusive, 3 reps, 90 Hz paced): the client read phase 0.119 -> 0.070 ms (the
+skinned model lookups), CPU busy p50 2.43 -> 2.36-2.40 ms; server and SV_Physics unchanged within noise (1.02 ms).
+Two of the three baseline reps ran with another game on the machine (their numbers higher), so the before is one rep.
