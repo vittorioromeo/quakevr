@@ -11028,3 +11028,69 @@ search, or the elbow kept from last frame while the wrist is within its reach); 
 the hand near the gadget's screen); the rig hand (10-13 us).
 
 To try in VR: nothing should look or feel different. A Release-Tracy capture now names each step under `view entities`.
+## Draw costs: model light probes ahead, kept light casters, water faces once a frame (worktree `goreflesh`, branch `agent/perfdraw`, 2026-10-17)
+
+From the Tracy capture's list (qvr-kit scratch/tracy_20261017.md, C3 and C8). Every part is a pure reuse of work whose
+inputs come out the same, so the images, the server state and the physics are the same; each has a Debug > Profiling
+and Memory toggle for A/B runs.
+
+Model light probes ahead (C3, `vr_model_ambient_prefetch`, default 1; vr_ambient.cpp "Ahead", r_alias.c
+R_AliasPrefetch). Before the first eye's own models are drawn, R_DrawAliasModels counts the models in view whose
+ambient cube is not worked out yet this frame and guesses how many are due a new trace (no matrix yet: the point last
+found moved as the entity's origin did). From 8 likely traces up, it sets up those models' transforms (kept for the
+draw, which takes them instead of setting them up itself: R_AliasTransform, split out of R_DrawAliasModel_Real) and
+works out their probes on the job pool in one parallelFor: openPoint, traceProbe and shade() for the probes whose
+shading is stale. ambient::entityCube keeps every decision (which entity is due, the frame's budgets, the easing) in
+the draw's order and takes a result only where its inputs are the same (the same centre and anchor, the same trace
+point, the same probe at fresh light styles and settings); otherwise it works it out as before. `vr_model_ambient_prefetch
+2` works everything out again in the draw and compares; `vr_model_ambient_show` prints how many results came from ahead,
+were checked, differed, and the traces done in the draw. Not in the second eye's scenes (vr_alias_eye_cache) or the
+views through gates (the first eye's own scene finds nearly all), nor while the drawn moves are logged.
+Measured: vrfiringrange, 4 monsters, noclip at speed 800 (the most traces a mock run gives: 4.5 a frame), 1100 fixed
+frames, exclusive: `model ambient` 0.041 ms a frame, now 0.031 plus 0.006 for the work ahead, `alias` self +0.005 (the
+count's look-ups): about even. The start map: no batch reaches 8 likely traces (0 results ahead), unchanged. The
+threshold is where it pays: a batch of 4 likely traces broke even (helpers wake 20-40 us after the post, a trace is
+7-10 us); a map's first frames, a teleport, a crowd moving trace 10-24 in a frame. The mock's ambient cost is 0.02-0.04
+ms a frame against the capture's 0.2-0.38 (alias self included, which this does not touch); if a headset capture shows
+`model ambient` well above 0.05 ms, the next step is to post the work before the world is drawn and collect it at the
+models (the job then needs its own copies of the cached entries it reads).
+Check: `vr_model_ambient_prefetch 2`, vrfiringrange with 3 grunts, walking forward and back 600 frames: 46131 results
+from ahead, 46131 checked, 0 differed.
+
+Kept light casters (C8, `vr_shadow_caster_cache`, default 1; vr_lighting.cpp collectWorldCached). Each dynamic light's
+world shadow casters (the BSP walk, `dlight world casters`) are kept by cl_dlights slot while the light's sphere (its
+centre and reach; a spot's cone bounds) stays inside the sphere they were collected for, in the same world. A light
+seen for the first time is collected exactly; one that moved or grew out of its sphere is collected 24 units wider, so
+that the next frames' moves stay inside. The wider set only adds surfaces wholly outside the light's sphere: they lie
+beyond anything the light reaches, and not between the light and a receiver inside it (the sphere is convex and holds
+the light), so the shading is the same. `vr_shadow_layered_check 20 casters` draws the frame's shadow atlas both ways
+and compares texels: the static atlas 0 texels differ; the dynamic one differs only in texels where the wider set
+drew a surface past the light's reach (start: 13148 texels of 8192x8192, depth at most 0.0074, i.e. 134 units out
+along the face; firing range 544). `vr_shadow_caster_cache 2` collects the wider set every frame (the check's second
+way); `vr_shadow_caster_stats` prints kept and collected. Start map: 58135 kept, 97 collected over 1500 frames.
+
+Water faces once a frame (C8, `vr_water_pick_once`, default 1; vr_water.cpp facesInPvs, markMeshInPvs). The geometric
+waves' faces in the view's PVS are found once a frame (the leaves loop) and kept while the next view's PVS is the same
+(the second eye, nearly always: compared byte by byte); each eye then tests only those faces against its own side,
+frustum and distance, with the same marks and ranges as before. The pick was 0.004-0.005 ms a frame in both mock scenes
+(little water in view), so no measurable change there; the capture's 0.047 ms an eye was elsewhere on the start map.
+
+Timings (vr_profile, fixed frames, exclusive runs, all three off then on; ms a frame, both eyes and the gate views):
+
+| | start: off | start: on | range at speed: off | range at speed: on |
+|---|---|---|---|---|
+| dlight world casters | 0.080 | 0.003 | 0.015 | 0.001 |
+| shadow maps | 0.390 | 0.312 | 0.064 | 0.048 |
+| model ambient (+ ahead) | 0.019 | 0.019 | 0.041 | 0.037 |
+| alias | 0.695 | 0.684 | 0.128 | 0.130 |
+| eye L / eye R | 0.921 / 0.574 | 0.872 / 0.531 | 0.485 / 0.084 | 0.472 / 0.083 |
+
+The same: `vr_physics_hash` (start 04159987a87d3c8a, range ec951f84a0ae3f69) and `vr_bench_statehash` (e09b09a3619792ad,
+ed47ec0a0b7e92ae) equal off and on. Images: the start map paused (`pause`, so the frame holds still), the three off,
+off again, on, the checks (prefetch 2, casters 2), off: every pair within the off/off noise (max 1 outside the
+crucified zombie that sways while paused, which differs in every pair, off/off too). Without `pause` two runs of the
+same settings differ by 16% of the pixels (the lava's light flickers), so cross-run screenshots are no check here.
+
+To try in VR: nothing should look different. In a fight with rockets and in the start hall, Debug > Profiling and
+Memory > Keep Light Casters off and on: the shadows of rockets and explosions the same; the
+`dlight world casters` row in the profiler drops to near zero.

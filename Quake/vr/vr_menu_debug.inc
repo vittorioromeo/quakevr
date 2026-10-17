@@ -482,6 +482,25 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected)."),
+        cycle("Model Light Probes Ahead", vr_model_ambient_prefetch, {{0.f, "In the Draw"}, {1.f, "Ahead"}, {2.f, "Checked"}})
+            .help("vr_model_ambient_prefetch: the models' light probes (the rays round each model and the light they "
+                  "read) worked out on the job threads before the models are drawn (Ahead), on the main thread as each "
+                  "is drawn (In the Draw), or both and compared (Checked: vr_model_ambient_show prints how many "
+                  "differed). The same images either way."),
+        toggle("Keep Light Casters", vr_shadow_caster_cache)
+            .help("vr_shadow_caster_cache: each dynamic light's world shadow casters kept between frames while it stays "
+                  "where they were collected for (a moving light's collected a little wider); off: collected again every "
+                  "frame. The same images either way."),
+        command("Check Kept Light Casters", "vr_shadow_layered_check 20 casters")
+            .help("vr_shadow_layered_check 20 casters: this frame's shadow maps drawn with each dynamic light's exact world "
+                  "casters, then with the wider set kept for a moving light, 20 times each, timed, then read back and "
+                  "compared texel by texel, in the console. Stand where shadows are."),
+        command("Light Caster Stats", "vr_shadow_caster_stats")
+            .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
+                  "in the console."),
+        toggle("Water Faces Once a Frame", vr_water_pick_once)
+            .help("vr_water_pick_once: the waves' faces in view found once a frame for both eyes, each eye testing only "
+                  "those against its own view; off: every face tested in each eye. The same images either way."),
         toggle("Single-Pass Stereo (Experimental)", vr_stereo_single)
             .help("vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
                   "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "

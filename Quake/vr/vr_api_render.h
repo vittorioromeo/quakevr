@@ -174,6 +174,12 @@ void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // e
 void VR_AliasLightOrigin (const struct entity_s *e, float origin[3]);		// R_SetupAliasLighting: where the light is sampled
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
 void VR_AliasAmbient (const struct entity_s *e, const float matrix[16], const void *aliashdr, int enabled, float cube[24]); // instance: the light around it, 6 faces (vr_ambient.cpp)
+int VR_AliasAmbientPrefetchOn (void);			// R_DrawAliasModels: a batch's ambient probes worked out ahead on the pool (vr_model_ambient_prefetch)
+int VR_AliasAmbientWanted (const struct entity_s *e);	// ... e's not worked out yet this frame (2: and likely traced)
+int VR_AliasAmbientPrefetchWorth (int likelytraces);	// ... whether a batch with that many likely traces is worth it
+void VR_AliasAmbientPrefetchAdd (const struct entity_s *e, const float matrix[16], const void *aliashdr); // ... e drawn with this matrix
+void VR_AliasAmbientPrefetchRun (void);			// ... before the batch is drawn
+void VR_AliasAmbientPrefetchEnd (void);			// ... after it
 void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim light, reflections' strength and blur (vr_envmap.cpp)
 unsigned VR_EnvCubeTexture (void);							// the reflections' cube map (0: none yet; vr_envmap.cpp)
 unsigned VR_WaterCubeTexture (void);						// the water's reflections' cube map (0: none this frame; vr_envmap.cpp)

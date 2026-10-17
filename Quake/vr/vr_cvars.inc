@@ -580,6 +580,20 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Model Light Probes Ahead: 1 a batch of models' ambient probes (vr_model_ambient_dir's
+// rays and the light they read) worked out on the job pool before the batch is drawn, taken where their inputs come
+// out the same (vr_ambient.cpp, "Ahead"); 0 on the main thread in the draw; 2 ahead and worked out again in the draw,
+// compared (vr_model_ambient_show prints how many differed: none expected). The same images either way.
+QVR_CVAR(vr_model_ambient_prefetch, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
+// while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
+// collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
+// collected for every light every frame. The same images either way.
+QVR_CVAR(vr_shadow_caster_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Water Faces Once a Frame: 1 the geometric waves' faces in the view's PVS found once a
+// frame for both eyes (while their PVS are the same: vr_water.cpp markMesh), each eye testing only those against its
+// own frustum and side; 0 every face tested in each eye. The same images either way.
+QVR_CVAR(vr_water_pick_once, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Single-Pass Stereo: 1 the opaque world, brush models and the alias models other than
 // the view entities drawn once for both eyes (GL_OVR_multiview2, vr_stereo_single.cpp, docs/vr-port/STEREO.md), the
 // rest per eye from a copy of its layer; 0 every pass per eye. Off by itself with MSAA or without the extension.
