@@ -50,6 +50,7 @@
 /wounds/
 /*_trace.txt
 /weight_test.csv
+/bodytrack_dump*.csv
 /decal_atlas.png
 /grasp_dump.obj
 /qconsole.log

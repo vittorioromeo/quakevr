@@ -121,6 +121,17 @@ void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wrist, gl
 // upper arm and forearm take the lengths that put the elbow on the tracked one. False (weight 0) when not.
 bool trackedArm(int side, glm::vec3& shoulder, glm::vec3& elbow, float& weight);
 
+// solveArm's fit of the drawn arm, as it went (vr_bodytrack_stats, vr_bodytrack_dump): the weight it took, whether the
+// shoulder's turn met its limit, the clavicle's or a bone's length its clamp, and the elbow's miss (world units).
+struct ArmFit
+{
+    float weight{0.f};
+    bool turnLimited{false}, clavicleClamped{false}, upperClamped{false}, foreClamped{false};
+    float upperShare{1.f}, foreShare{1.f}; // the bones' lengths taken, as shares of their own
+    float miss{0.f};
+};
+void armFitted(int side, const ArmFit& fit);
+
 // solveLeg: the foot's target and the knee's direction towards the tracked leg's, scaled to the avatar's leg (`hip`, its
 // `reach`), by the leg weight times `keep` (1 less what climbing and swimming take).
 void leg(int side, const glm::vec3& hip, float reach, float floorZ, float keep, glm::vec3& target, glm::vec3& kneeDir);
@@ -170,6 +181,6 @@ struct Sample
 [[nodiscard]] bool available();
 [[nodiscard]] const char* availabilityLine();
 
-void registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
+void registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats, vr_bodytrack_dump
 
 } // namespace qvr::bodytrack

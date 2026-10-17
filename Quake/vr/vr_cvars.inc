@@ -1383,13 +1383,14 @@ QVR_CVAR(vr_bodytrack, "1", CVAR_ARCHIVE)             // Body > Body Tracking: t
 QVR_CVAR(vr_bodytrack_torso, "1", CVAR_ARCHIVE)       // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
 QVR_CVAR(vr_bodytrack_arms, "1", CVAR_ARCHIVE)        // the arms' share: the elbows swing to the tracked ones' side (the hands stay on the controllers) (0 .. 1)
 QVR_CVAR(vr_bodytrack_arm_fit, "1", CVAR_ARCHIVE)     // with it, how far the elbow goes onto the tracked elbow itself, not only to its side: the shoulder turned towards the tracked one, the arm's bones lengthened or shortened to put the elbow there (0: the swivel only, as before; 0 .. 1)
+QVR_CVAR(vr_bodytrack_arm_fit_stretch, "1.5", CVAR_ARCHIVE) // how far that fit may lengthen the collarbone and the arm's bones (and 1 / it shorten them) to put the shoulder and the elbow on the tracked ones (1 .. 3; was 1.25)
 QVR_CVAR(vr_bodytrack_legs, "0", CVAR_ARCHIVE)        // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
 QVR_CVAR(vr_bodytrack_legs_walk, "1", CVAR_ARCHIVE)   // walking, running or in the air the gait drives the legs over the tracked ones (by the walk's amount); standing still the tracked legs show (0: tracked legs always)
 QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses
 QVR_CVAR(vr_bodytrack_smooth, "0.04", CVAR_ARCHIVE)   // seconds the tracked joints are smoothed over (0: raw)
 QVR_CVAR(vr_bodytrack_fade, "0.25", CVAR_ARCHIVE)     // seconds a region's tracking eases in or out (lost, low confidence, switched)
 QVR_CVAR(vr_bodytrack_debug, "0", CVAR_NONE)          // Debug: the tracked skeleton drawn (1 on the body, 2 beside it: 60 cm to the right)
-QVR_CVAR(vr_bodytrack_debug_bones, "0", CVAR_NONE)    // which bones vr_bodytrack_debug draws: 0 the tracked (cyan, magenta), 1 our IK's untracked (orange: the avatar ignores the tracking meanwhile), 2 both overlapped
+QVR_CVAR(vr_bodytrack_debug_bones, "0", CVAR_NONE)    // which bones vr_bodytrack_debug draws: 0 the tracked (cyan, magenta), 1 our IK's untracked (orange: the avatar ignores the tracking meanwhile), 2 both overlapped, 3 the avatar's bones as posed with the tracking (yellow) over the tracked
 QVR_CVAR(vr_bodytrack_synth, "0", CVAR_NONE)          // the mock headset's synthetic tracked body (vr_bodytrack_synth_*): it moves the head as it leans; 0 none (as today)
 QVR_CVAR(vr_bodytrack_synth_pitch, "0", CVAR_NONE)    // degrees the synthetic spine tilts forward about the hips
 QVR_CVAR(vr_bodytrack_synth_roll, "0", CVAR_NONE)     // degrees it tilts to the right
@@ -1397,13 +1398,15 @@ QVR_CVAR(vr_bodytrack_synth_twist, "0", CVAR_NONE)    // degrees the chest turns
 QVR_CVAR(vr_bodytrack_synth_crouch, "0", CVAR_NONE)   // metres the hips go down (knees bent)
 QVR_CVAR(vr_bodytrack_synth_neck, "0", CVAR_NONE)     // degrees the neck bends forward (the head forward and down, the spine upright)
 QVR_CVAR(vr_bodytrack_synth_elbows, "0", CVAR_NONE)   // how far the elbows wing out (0 hanging under the arm, 1 out to the sides)
+QVR_CVAR(vr_bodytrack_synth_shoulder_forward, "0.04", CVAR_NONE) // metres its shoulders sit ahead of where its chest puts them
 QVR_CVAR(vr_bodytrack_synth_knees, "0", CVAR_NONE)    // degrees the knees turn out (the generated legs)
 QVR_CVAR(vr_bodytrack_synth_confidence, "1", CVAR_NONE) // the confidence it reports
 QVR_CVAR(vr_bodytrack_synth_active, "1", CVAR_NONE)   // isActive (0: tracking lost)
-QVR_CVAR(vr_bodytrack_synth_shoulders, "1", CVAR_NONE) // its shoulders' width, times the usual (22% of the eye height)
-QVR_CVAR(vr_bodytrack_synth_upper_arm, "1", CVAR_NONE) // its upper arms' length, times the usual (17.5% of the eye height)
-QVR_CVAR(vr_bodytrack_synth_forearm, "1", CVAR_NONE)  // its forearms' length, times the usual (16% of the eye height)
-QVR_CVAR(vr_bodytrack_synth_wrist, "0", CVAR_NONE)    // cm its wrists are behind the drawn ones, along the controller (the controller-to-wrist offset)
+QVR_CVAR(vr_bodytrack_synth_shoulders, "1.1", CVAR_NONE) // its shoulders' width, times the usual (22% of the eye height; 1.1: Meta's skeleton is not the avatar's)
+QVR_CVAR(vr_bodytrack_synth_upper_arm, "1.1", CVAR_NONE) // its upper arms' length, times the usual (17.5% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_forearm, "1.1", CVAR_NONE)  // its forearms' length, times the usual (16% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_wrist, "8", CVAR_NONE)    // cm its wrists are behind vr_bodytrack_synth_wrist_from's point, along the controller (the controller-to-wrist offset)
+QVR_CVAR(vr_bodytrack_synth_wrist_from, "1", CVAR_NONE) // where its wrists are measured from: 1 the controller's grip (where Meta puts them), 0 the avatar's last posed wrists (with _wrist 0, _shoulders, _upper_arm and _forearm 1 and _shoulder_forward 0: a self-check)
 QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel

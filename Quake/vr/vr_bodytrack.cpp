@@ -58,10 +58,23 @@ struct State
     int placeCalls{0};
     glm::vec3 placeBase{0.f}, placeFloor{0.f}; // place()'s mapping, the last (the synthetic body's way back)
     float placeYaw{0.f};
-    glm::vec3 posedWrist[2]{}; // the avatar's wrists last posed (world; the synthetic body's wrists)
+    glm::vec3 posedWrist[2]{}; // the avatar's wrists last posed (world; vr_bodytrack_synth_wrist < 0)
     bool havePosedWrist{false};
+    ArmFit fit[2]{};           // solveArm's last fit of each arm (armFitted)
 };
 State st;
+
+// vr_bodytrack_dump: a CSV row a posed frame (the raw joints, the weights, the fit, the avatar's joints) until `until`
+// (the wall clock).
+struct Dump
+{
+    FILE* file{nullptr};
+    double until{0.0};
+    int rows{0};
+    int frame{-1};
+    char path[MAX_OSPATH]{};
+};
+Dump dump;
 
 // vr_bodytrack_stats: each posed frame's errors against the tracked body, and the largest jump.
 struct Stats
@@ -82,6 +95,12 @@ struct Stats
     double fitShoulder[2]{}, fitUpper[2]{}, fitFore[2]{}; // the arms' stretch (posed): shoulders off cm, bones' shares
     double fitMax[2]{};                                   // the most a bone's share was off 1
     int fitFrames[2]{};
+    // The elbow fit per arm as solveArm went (armFitted): the weight it took, its frames off (weight 0), exact (nothing
+    // at a limit) and at each limit, the bones' shares taken; the tracked wrist and shoulder from the avatar's (cm).
+    double fitApplied[2]{};
+    int armFrames[2]{}, armOff[2]{}, armExact[2]{}, armTurn[2]{}, armClavicle[2]{}, limUpper[2]{}, limFore[2]{};
+    double armUpperShare[2]{}, armForeShare[2]{};
+    double wristCm[2]{}, wristCmMax[2]{}, shoulderCm[2]{};
     glm::vec3 last[10]{};
     bool haveLast{false};
 };
@@ -200,20 +219,22 @@ constexpr int ankle(int side) { return side == 0 ? AnkleL : AnkleR; }
     return root + dir * (a * cosA) + bend * (a * sinA);
 }
 
-// vr_bodytrack_debug_bones 1 or 2 (with vr_bodytrack_debug on): our IK's bones drawn, the avatar untracked.
+// vr_bodytrack_debug_bones 1 or 2 (with vr_bodytrack_debug on): our IK's bones drawn, the avatar untracked (3: the
+// avatar's bones as posed with the tracking, over the tracked ones).
 [[nodiscard]] bool debugUntracked()
 {
-    return vr_bodytrack_debug.value != 0.f && vr_bodytrack_debug_bones.value >= 1.f;
+    const float bones = vr_bodytrack_debug_bones.value;
+    return vr_bodytrack_debug.value != 0.f && (bones == 1.f || bones == 2.f);
 }
 
-// Our IK's bones (the avatar as posed): orange, the spine from the pelvis to the top of the neck.
-void drawOurs(const Posed& p, const glm::vec3& offset)
+// The avatar's bones as posed (our IK's untracked, orange; or with the tracking, yellow), the spine from the pelvis to
+// the top of the neck.
+void drawOurs(const Posed& p, const glm::vec3& offset, const glm::vec4& colour)
 {
-    constexpr glm::vec4 ORANGE{1.f, 0.6f, 0.1f, 0.9f};
-    const auto bone = [&](const glm::vec3& a, const glm::vec3& b) { lines::line(a + offset, b + offset, 0.3f, ORANGE, ORANGE); };
+    const auto bone = [&](const glm::vec3& a, const glm::vec3& b) { lines::line(a + offset, b + offset, 0.3f, colour, colour); };
     bone(p.pelvis, p.top);
-    lines::point(p.pelvis + offset, 1.f, ORANGE);
-    lines::point(p.top + offset, 1.f, ORANGE);
+    lines::point(p.pelvis + offset, 1.f, colour);
+    lines::point(p.top + offset, 1.f, colour);
     for(int side = 0; side < 2; side++)
     {
         bone(p.top, p.shoulder[side]);
@@ -224,7 +245,7 @@ void drawOurs(const Posed& p, const glm::vec3& offset)
         bone(p.knee[side], p.ankle[side]);
         for(const glm::vec3& j : {p.elbow[side], p.wrist[side], p.knee[side], p.ankle[side]})
         {
-            lines::point(j + offset, 1.f, ORANGE);
+            lines::point(j + offset, 1.f, colour);
         }
     }
 }
@@ -320,6 +341,125 @@ void stats_f()
                "(max off %.3f) shoulder off %.2f cm, %d %d frames\n",
         label, s.fitUpper[0] / fl, s.fitFore[0] / fl, s.fitMax[0], s.fitShoulder[0] / fl, s.fitUpper[1] / fr,
         s.fitFore[1] / fr, s.fitMax[1], s.fitShoulder[1] / fr, s.fitFrames[0], s.fitFrames[1]);
+    for(int side = 0; side < 2; side++)
+    {
+        const double f = za::max(1, s.armFrames[side]);
+        const double on = za::max(1, s.armFrames[side] - s.armOff[side]);
+        Con_Printf("btstats %s: fit %s w %.2f off %.0f%% exact %.0f%% limits turn %.0f%% clavicle %.0f%% upper %.0f%% fore "
+                   "%.0f%% (bones x%.2f x%.2f) wrist off %.1f (max %.1f) shoulder off %.1f cm\n",
+            label, side == 0 ? "L" : "R", s.fitApplied[side] / f, 100.0 * s.armOff[side] / f, 100.0 * s.armExact[side] / f,
+            100.0 * s.armTurn[side] / f, 100.0 * s.armClavicle[side] / f, 100.0 * s.limUpper[side] / f,
+            100.0 * s.limFore[side] / f, s.armUpperShare[side] / on, s.armForeShare[side] / on, s.wristCm[side] / f,
+            s.wristCmMax[side], s.shoulderCm[side] / f);
+    }
+}
+
+// vr_bodytrack_dump <seconds> [file]: the CSV's header (one row a posed frame follows: dumpRow).
+void dumpHeader(FILE* f)
+{
+    fprintf(f, "frame,time,fresh,active,confidence,fidelity,calibration,m2u,base_x,base_y,base_z,floor_x,floor_y,floor_z,"
+               "turn_yaw,w_torso,w_arm_l,w_arm_r");
+    for(const char* side : {"l", "r"})
+    {
+        fprintf(f, ",fit_%s_w,fit_%s_turn,fit_%s_clav,fit_%s_upper,fit_%s_fore,fit_%s_upper_share,fit_%s_fore_share,"
+                   "fit_%s_miss_cm",
+            side, side, side, side, side, side, side, side);
+    }
+    const auto xyz = [&](const char* name) { fprintf(f, ",%s_x,%s_y,%s_z", name, name, name); };
+    for(const char* name : {"av_pelvis", "av_top", "av_shoulder_l", "av_elbow_l", "av_wrist_l", "av_shoulder_r",
+            "av_elbow_r", "av_wrist_r", "head", "controller_off", "controller_main"})
+    {
+        xyz(name);
+    }
+    fprintf(f, ",controller_off_pitch,controller_off_yaw,controller_off_roll,controller_main_pitch,controller_main_yaw,"
+               "controller_main_roll");
+    for(const char* name : {"tw_hips", "tw_chest", "tw_neck", "tw_head", "tw_shoulder_l", "tw_elbow_l", "tw_wrist_l",
+            "tw_shoulder_r", "tw_elbow_r", "tw_wrist_r"})
+    {
+        xyz(name);
+    }
+    for(int j = 0; j < JointCount; j++)
+    {
+        fprintf(f, ",raw%d_flags,raw%d_x,raw%d_y,raw%d_z", j, j, j, j);
+    }
+    fprintf(f, "\n");
+}
+
+void dumpRow(const Posed& p)
+{
+    FILE* f = dump.file;
+    const Raw& r = st.raw;
+    const double now = Sys_DoubleTime();
+    fprintf(f, "%d,%.4f,%d,%d,%.3f,%d,%d,%.3f,%.2f,%.2f,%.2f,%.4f,%.4f,%.4f,%.2f,%.3f,%.3f,%.3f", host_framecount, vr_gametime,
+        now - st.submitted < SUBMIT_STALE ? 1 : 0, r.active ? 1 : 0, r.confidence, r.fidelity, r.calibration, st.m2u,
+        st.placeBase.x, st.placeBase.y, st.placeBase.z, st.placeFloor.x, st.placeFloor.y, st.placeFloor.z, st.placeYaw,
+        st.torso, st.arm[0], st.arm[1]);
+    for(const ArmFit& a : st.fit)
+    {
+        fprintf(f, ",%.3f,%d,%d,%d,%d,%.3f,%.3f,%.2f", a.weight, a.turnLimited ? 1 : 0, a.clavicleClamped ? 1 : 0,
+            a.upperClamped ? 1 : 0, a.foreClamped ? 1 : 0, a.upperShare, a.foreShare, a.miss * 100.f / za::max(st.m2u, 1e-3f));
+    }
+    const auto xyz = [&](const glm::vec3& v) { fprintf(f, ",%.2f,%.2f,%.2f", v.x, v.y, v.z); };
+    const hands::State& hs = hands::current();
+    for(const glm::vec3& v : {p.pelvis, p.top, p.shoulder[0], p.elbow[0], p.wrist[0], p.shoulder[1], p.elbow[1], p.wrist[1],
+            hs.head, hs.controllerPos[HAND_OFF], hs.controllerPos[HAND_MAIN]})
+    {
+        xyz(v);
+    }
+    xyz(hs.controllerRot[HAND_OFF]);
+    xyz(hs.controllerRot[HAND_MAIN]);
+    for(int j : {Hips, Chest, Neck, Head, ArmUpperL, ArmLowerL, WristL, ArmUpperR, ArmLowerR, WristR})
+    {
+        xyz(st.world[j]);
+    }
+    for(int j = 0; j < JointCount; j++)
+    {
+        fprintf(f, ",%u,%.4f,%.4f,%.4f", r.flags[j], r.pos[j].x, r.pos[j].y, r.pos[j].z);
+    }
+    fprintf(f, "\n");
+    if(++dump.rows % 64 == 0)
+    {
+        fflush(f); // (a crash or a quit keeps what was recorded)
+    }
+    if(now >= dump.until)
+    {
+        fclose(f);
+        dump.file = nullptr;
+        Con_Printf("vr_bodytrack_dump: %d frames to %s\n", dump.rows, dump.path);
+    }
+}
+
+void dump_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_bodytrack_dump <seconds> [file]: each frame's raw tracked joints (the tracking space, metres), the "
+                   "weights, the elbow fit and the avatar's joints (the world) to a CSV in the game folder\n");
+        return;
+    }
+    if(dump.file)
+    {
+        fclose(dump.file);
+        dump.file = nullptr;
+        Con_Printf("vr_bodytrack_dump: %d frames to %s (stopped)\n", dump.rows, dump.path);
+    }
+    const double seconds = za::clamp(atof(Cmd_Argv(1)), 0.0, 600.0);
+    if(seconds <= 0.0)
+    {
+        return;
+    }
+    q_snprintf(dump.path, sizeof(dump.path), "%s/%s", com_gamedir, Cmd_Argc() >= 3 ? Cmd_Argv(2) : "bodytrack_dump.csv");
+    dump.file = fopen(dump.path, "wb");
+    if(!dump.file)
+    {
+        Con_Printf("vr_bodytrack_dump: can't write %s\n", dump.path);
+        return;
+    }
+    dumpHeader(dump.file);
+    dump.until = Sys_DoubleTime() + seconds;
+    dump.rows = 0;
+    dump.frame = -1;
+    Con_Printf("vr_bodytrack_dump: %.1f s to %s%s\n", seconds, dump.path, st.submitted < 0.0 ? " (no body tracking source yet)" : "");
 }
 
 [[nodiscard]] bool sourceLive()
@@ -498,6 +638,11 @@ void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wristPos,
     bend = q * bend;
 }
 
+void armFitted(int side, const ArmFit& fit)
+{
+    st.fit[side & 1] = fit;
+}
+
 bool trackedArm(int side, glm::vec3& shoulder, glm::vec3& elbow, float& weight)
 {
     weight = st.arm[side & 1] * za::clamp(vr_bodytrack_arm_fit.value, 0.f, 1.f);
@@ -544,6 +689,11 @@ void posed(const Posed& p)
     st.posedWrist[0] = p.wrist[0];
     st.posedWrist[1] = p.wrist[1];
     st.havePosedWrist = true;
+    if(dump.file && dump.frame != host_framecount)
+    {
+        dump.frame = host_framecount;
+        dumpRow(p);
+    }
     if(vr_bodytrack_debug.value != 0.f && debugFrame != host_framecount)
     {
         debugFrame = host_framecount;
@@ -556,7 +706,8 @@ void posed(const Posed& p)
         }
         if(bones >= 1)
         {
-            drawOurs(p, offset); // our IK's, untracked
+            // Our IK's, untracked (orange); or the avatar's with the tracking (3: yellow).
+            drawOurs(p, offset, bones >= 3 ? glm::vec4{1.f, 1.f, 0.1f, 0.9f} : glm::vec4{1.f, 0.6f, 0.1f, 0.9f});
         }
     }
 
@@ -643,6 +794,30 @@ void posed(const Posed& p)
             s.elbowCm[side] += cm;
             s.elbowCmMax[side] = za::max(s.elbowCmMax[side], cm);
             s.elbowCmFrames[side]++;
+
+            // The fit as it went, and how far the tracked wrist and shoulder are from ours.
+            const ArmFit& fit = st.fit[side];
+            s.armFrames[side]++;
+            s.fitApplied[side] += fit.weight;
+            if(fit.weight <= 0.f)
+            {
+                s.armOff[side]++;
+            }
+            else
+            {
+                s.armExact[side] += !fit.turnLimited && !fit.clavicleClamped && !fit.upperClamped && !fit.foreClamped ? 1 : 0;
+                s.armTurn[side] += fit.turnLimited ? 1 : 0;
+                s.armClavicle[side] += fit.clavicleClamped ? 1 : 0;
+                s.limUpper[side] += fit.upperClamped ? 1 : 0;
+                s.limFore[side] += fit.foreClamped ? 1 : 0;
+                s.armUpperShare[side] += fit.upperShare;
+                s.armForeShare[side] += fit.foreShare;
+            }
+            const double toCm = 100.0 / za::max(st.m2u, 1e-3f);
+            const double wristCm = glm::distance(p.wrist[side], st.world[wrist(side)]) * toCm;
+            s.wristCm[side] += wristCm;
+            s.wristCmMax[side] = za::max(s.wristCmMax[side], wristCm);
+            s.shoulderCm[side] += glm::distance(p.shoulder[side], ts) * toCm;
         }
         if(valid(upperLeg(side)) && valid(lowerLeg(side)) && valid(ankle(side)))
         {
@@ -761,19 +936,24 @@ void synthesize(TrackingState& t)
     t.head.position = eyes;
     t.head.orientation = head * t.head.orientation;
 
-    // The arms: the shoulders on the chest, the wrists where the avatar's were last posed (a tracked wrist is the real
-    // one, behind the controller; before the first pose, or without one, the controllers), the elbows bent towards the
-    // pole.
+    // The arms, as Meta's are: its own skeleton (vr_bodytrack_synth_shoulders, _upper_arm, _forearm times this body's
+    // proportions: wider shoulders, longer arms than the avatar's), the shoulders off ours
+    // (vr_bodytrack_synth_shoulder_forward), the wrists where it puts them: vr_bodytrack_synth_wrist cm behind the
+    // controller's grip (vr_bodytrack_synth_wrist_from 1), or behind the avatar's last posed wrists (0: with the other
+    // settings at 1 and 0, a self-check only), along the controller; the elbows by its own bones, bent towards the pole.
     const float out = za::clamp(vr_bodytrack_synth_elbows.value, 0.f, 1.f);
+    const bool fromGrip = vr_bodytrack_synth_wrist_from.value != 0.f;
     for(int side = 0; side < 2; side++)
     {
         const float sgn = side == 0 ? -1.f : 1.f;
         const float halfWidth = 0.11f * eye * za::max(0.1f, vr_bodytrack_synth_shoulders.value);
-        const glm::vec3 shoulder = hips + up * (0.8f * spineLen) + chest * (r * (sgn * halfWidth) + u * (0.03f * eye));
+        const glm::vec3 shoulder = hips + up * (0.8f * spineLen) +
+                                   chest * (r * (sgn * halfWidth) + u * (0.03f * eye) +
+                                               f * vr_bodytrack_synth_shoulder_forward.value);
         set(armUpper(side), shoulder, true);
         const Pose& hand = t.hands[side == 0 ? HAND_OFF : HAND_MAIN];
         glm::vec3 w = hand.valid ? hand.position : shoulder - u * (0.3f * eye);
-        if(hand.valid && st.havePosedWrist && st.m2u > 0.f)
+        if(!fromGrip && hand.valid && st.havePosedWrist && st.m2u > 0.f)
         {
             const glm::vec3 q = hands::rotateYaw((st.posedWrist[side] - st.placeBase) / st.m2u, -st.placeYaw);
             w = glm::vec3{-q.y, q.z, -q.x} + st.placeFloor; // (quakeFromTracking undone)
@@ -805,6 +985,7 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_bodytrack_status", status_f);
     Cmd_AddCommand("vr_bodytrack_stats", stats_f);
+    Cmd_AddCommand("vr_bodytrack_dump", dump_f);
 }
 
 } // namespace qvr::bodytrack
