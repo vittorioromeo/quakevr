@@ -23,7 +23,7 @@ QVR_CVAR(vr_enemy_melee_arc_wide, "20", CVAR_ARCHIVE)   // Combat > Enemy Melee 
 QVR_CVAR(vr_enemy_melee_arc_size, "0.1", CVAR_ARCHIVE)  // Combat > Enemy Melee > Arc Growth with Size: share more Arc Angle per grunt width more of the monster's width (an ogre 40 units: 65 x 1.067 = 69 deg; a shambler 64: 76 deg); 0: the same for all (fight.qc VR_MeleeArc_Angle)
 QVR_CVAR(vr_enemy_melee_reach_size, "0.1", CVAR_ARCHIVE) // Combat > Enemy Melee > Reach Growth with Size: share more reach (Quake's own: 60 a knight's sword, 100 an ogre's chainsaw) per grunt width more (an ogre: 107, a shambler 117); 0: Quake's for all (fight.qc VR_MeleeReach)
 QVR_CVAR(vr_enemy_melee_kind, "1", CVAR_ARCHIVE)       // Combat > Enemy Melee > Kind Multipliers: each kind's own arc and reach multipliers (fight.qc VR_MeleeArc_Kind: a knight's arc 0.85, every other 1); 0: size alone
-QVR_CVAR(vr_enemy_melee_turn, "4", CVAR_ARCHIVE)        // Combat > Enemy Melee > Swing Turn: degrees a frame (10 a second) a monster turns after you while swinging (its own speed if lower; 0: its own speed)
+QVR_CVAR(vr_enemy_melee_turn, "6", CVAR_ARCHIVE)        // Combat > Enemy Melee > Swing Turn: degrees a frame (10 a second) a monster turns after you while swinging (its own speed if lower; 0: its own speed)
 QVR_CVAR(vr_enemy_melee_arc_show, "0", CVAR_NONE)      // Combat > Enemy Melee > Show Melee Arcs (and Debug > Tests > Holding Enemies): each melee monster after you within 600 units draws its arc (its sweeping blows' too once seen) and reach on the floor, red with you inside, green outside, orange inside a sweeping blow's only; 2: also printed once a second (meleearc: show) (fight.qc VR_MeleeArc_ShowFrame, vr_bodycontact.cpp meleeArcDraw)
 QVR_CVAR(vr_enemy_melee_arc_debug, "0", CVAR_NONE)      // Debug > Tests > Holding Enemies > Log Melee Arc: each monster blow's angle off its facing, its arc and reach, and whether it landed, printed (meleearc:)
 QVR_CVAR(vr_test_aimcone, "0", CVAR_NONE)               // the aim cone test (vr_aimcone_test.qc; Debug > Tests > Holding Enemies): distance * 1000 + degrees (300060: 300 units, 60 deg; degrees alone: 300 units): the nearest monster set that far from you, after you, its ranged attack started, and you held that many degrees off its facing (to its right) until the attack ends; then one "aimcone: result" line (shots, waits, bends, hits)
@@ -462,7 +462,7 @@ QVR_CVAR(vr_window_hud_spectator, "0", CVAR_ARCHIVE)
 // The head-locked text (centre prints, notify lines: pickups, messages) out of the window's view, for recording; the
 // headset still shows it. The spectator camera's (on: trailers) and the mirror's (Left Eye, Smoothed Mirror; off).
 QVR_CVAR(vr_spectator_hide_hud_text, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mirror_hide_hud_text, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_mirror_hide_hud_text, "1", CVAR_ARCHIVE)
 // Recording mode: no tips (vr_tips.cpp), no messages on the wrist gadget (its log and hologram: vr_gadget.cpp) and no
 // head-locked text (centre prints, notify lines: vr_stereo.cpp), in the headset too: clean takes. The player's switch (Graphics > Recording), and the map's (QC sets it at every map
 // load: 1 in the trailer scene, info_vr_trailer; 0 elsewhere). Either one turns it on: qvr::recordingClean().
@@ -1720,7 +1720,7 @@ QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // the least light anywhere
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
-QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
+QVR_CVAR(vr_relight_reload, "0", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
 // Many maps at once (vr_relight_batch; Graphics > Relighting, Many Maps).
 QVR_CVAR(vr_relight_batch_set, "1", CVAR_ARCHIVE)     // the maps Relight These Maps takes: 0 the map in play, 1 its episode, 2 its game, 3 the Map Library's, 4 every map
 QVR_CVAR(vr_relight_batch_episode, "0", CVAR_ARCHIVE) // the episode: 0 the map in play's, 1..4 id's E1..E4 (5: dopa's E5)
@@ -1858,12 +1858,12 @@ QVR_CVAR(vr_decal_bucket_max, "24", CVAR_ARCHIVE)     // how many marks one 32-u
 QVR_CVAR(vr_decal_life, "240", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
 QVR_CVAR(vr_decals_world, "1", CVAR_ARCHIVE)         // the marks drawn in the world's own shader, on its texture under its light and following its parallax relief (0: as meshes over it)
 QVR_CVAR(vr_decal_carve, "1", CVAR_ARCHIVE)          // bullet and nail holes and blast craters carved into the surface (parallax occlusion in the world's shader against a crater's height; vr_decals_world 1 only; 0: flat)
-QVR_CVAR(vr_decal_carve_depth, "1", CVAR_ARCHIVE)    // ... how deep, times each kind's own (0.25-4)
+QVR_CVAR(vr_decal_carve_depth, "0.75", CVAR_ARCHIVE)    // ... how deep, times each kind's own (0.25-4)
 QVR_CVAR(vr_decal_carve_size, "1", CVAR_ARCHIVE)     // ... how wide the holes and craters made from now on are, times each kind's own (0.5-2)
-QVR_CVAR(vr_decal_carve_rim, "1", CVAR_ARCHIVE)      // ... how high their raised rim is, times each kind's own (0 none)
+QVR_CVAR(vr_decal_carve_rim, "1.25", CVAR_ARCHIVE)      // ... how high their raised rim is, times each kind's own (0 none)
 QVR_CVAR(vr_decal_carve_steps, "16", CVAR_ARCHIVE)   // ... the most steps a pixel's ray takes into one (4-64; fewer where it spans few pixels)
 QVR_CVAR(vr_decal_carve_fade, "1024", CVAR_ARCHIVE)  // ... units from the eye past which they are flat (flattening from half as far)
-QVR_CVAR(vr_decal_carve_max, "256", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (with vr_permdecals the older are baked flat into the layer)
+QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (with vr_permdecals the older are baked flat into the layer)
 QVR_CVAR(vr_decal_carve_style, "-1", CVAR_ARCHIVE)   // ... how they are carved: 0 smooth, 1 retro (blocky: the wall's texel blocks, the depth in steps), 2 faceted (low-poly: 8 flat sides, 3 rings); -1: retro on retro textures' blocks, else smooth
 QVR_CVAR(vr_decal_melee, "1", CVAR_ARCHIVE)          // melee blows on walls and floors carve their own marks (vr_decal_carve on): blunt ones (the crowbar, a gun's butt or barrel, a pommel, Mjolnir, a club, a fist holding a prop, a prop hitting hard) round dents, blades (a sword's, an axe's, the chainsaw's bar) grooves along the swing; both scaled by the blow's damage (0: the old shallow pits)
 QVR_CVAR(vr_decal_melee_blunt_depth, "1", CVAR_ARCHIVE) // ... a blunt dent's depth, times its own (0.25-4; shallower than a pellet's pit)
@@ -2117,7 +2117,7 @@ QVR_CVAR(vr_parallax_steps, "16", CVAR_ARCHIVE)        // the steps it takes alo
 QVR_CVAR(vr_parallax_refine, "4", CVAR_ARCHIVE)        // round 21: steps refining where a ray meets the relief, after the walk (0 none: stairs; 1 the old look; more: smooth relief at grazing angles, no swimming)
 QVR_CVAR(vr_parallax_grazing, "90", CVAR_ARCHIVE)      // round 21: the angle off the surface's normal, in degrees, where parallax has faded out at grazing angles (over the 12 before it; 90, the default: no fade; 86 before config 89; the old look 83)
 QVR_CVAR(vr_parallax_depth_write, "1", CVAR_ARCHIVE)  // round 21: the carved surfaces' depth is where the view meets the relief (pixel depth offset): models, hands, particles and liquids meet sunken parts where they really are (on, the default since config 89; 0: the flat surface's; on costs 0.1-0.6 ms a frame: ROUND21.md)
-QVR_CVAR(vr_parallax_plane, "0", CVAR_ARCHIVE)        // round 22: where the world's surfaces (and brush models', item boxes') sit in their parallax relief, 0..1: 0 at its top (carved down from the surface, as before), 0.5 its middle, 1 its bottom (raised over it), never below a texture's average height (a flat texture or one mostly at the top isn't raised), so props resting on a floor sit in the relief instead of on top of it (raised parts hide a prop's bottom edge only with vr_parallax_depth_write)
+QVR_CVAR(vr_parallax_plane, "1", CVAR_ARCHIVE)        // round 22: where the world's surfaces (and brush models', item boxes') sit in their parallax relief, 0..1: 0 at its top (carved down from the surface, as before), 0.5 its middle, 1 its bottom (raised over it), never below a texture's average height (a flat texture or one mostly at the top isn't raised), so props resting on a floor sit in the relief instead of on top of it (raised parts hide a prop's bottom edge only with vr_parallax_depth_write)
 QVR_CVAR(vr_parallax_debug, "0", CVAR_NONE)            // 1: the world drawn as the depth its parallax writes (vr_parallax_depth_write): red how deep below the surface, green how high over it (vr_parallax_plane), dark blue the surface's own (Debug menu)
 QVR_CVAR(vr_parallax_items, "1.5", CVAR_ARCHIVE)      // parallax depth of the ammo and health boxes, in their own units (scaled with the box; 0 off)
 QVR_CVAR(vr_detail, "0", CVAR_ARCHIVE)                 // (off by default: the author, 2026-10-07) detail textures: a fine grain (stone, metal, wood, grime...) over the world's textures close by (vr_detail.cpp)
@@ -2620,11 +2620,11 @@ QVR_CVAR(vr_knockdown_shove_max_spin, "300", CVAR_ARCHIVE) // deg/s: it never tu
 QVR_CVAR(vr_legsweep, "1", CVAR_ARCHIVE)                // Combat > Knockdowns > Leg Sweep: a staff-like thing in a hand (a long gun, a crowbar, a sword's hilt, a plank) swept level and fast through a humanoid's lower legs knocks it down, its feet sliding along the sweep, its body toppling over the other way (vr_legsweep.cpp)
 QVR_CVAR(vr_legsweep_min_length, "35", CVAR_ARCHIVE)     // cm: the least length of a staff-like thing (its drawn shape along its long axis: vr_legsweep_table; the nailgun 47, a brick 20)
 QVR_CVAR(vr_legsweep_min_slender, "2", CVAR_ARCHIVE)     // the least slenderness of a staff-like thing: its length over its typical cross-section (a weapon: the median of its drawn slices, so a gun is measured by its barrel, not its grip; a prop: its box. A crate about 1, a brick 2, the lightning gun 2.6)
-QVR_CVAR(vr_legsweep_speed, "1.5", CVAR_ARCHIVE)         // m/s: the least level speed of the part that meets the legs, swung (its move in your own frame: walking or turning with it held still is none), held over its stroke (0.08 s) (a heavier humanoid needs more: vr_legsweep_heavy)
+QVR_CVAR(vr_legsweep_speed, "3.25", CVAR_ARCHIVE)         // m/s: the least level speed of the part that meets the legs, swung (its move in your own frame: walking or turning with it held still is none), held over its stroke (0.08 s) (a heavier humanoid needs more: vr_legsweep_heavy)
 QVR_CVAR(vr_legsweep_heavy, "100", CVAR_ARCHIVE)         // kg: a humanoid heavier than this needs a faster sweep, the least speed times the cube root of its mass over this; 0: all alike
 QVR_CVAR(vr_legsweep_damage, "5", CVAR_ARCHIVE)          // the damage a sweep deals once it is down
-QVR_CVAR(vr_legsweep_topple, "180", CVAR_ARCHIVE)        // deg/s: how fast its body turns over about its feet, against the sweep (its top's speed)
-QVR_CVAR(vr_legsweep_feet, "0.4", CVAR_ARCHIVE)          // its feet slide along the sweep at this share of the sweep's speed
+QVR_CVAR(vr_legsweep_topple, "200", CVAR_ARCHIVE)        // deg/s: how fast its body turns over about its feet, against the sweep (its top's speed)
+QVR_CVAR(vr_legsweep_feet, "0.5", CVAR_ARCHIVE)          // its feet slide along the sweep at this share of the sweep's speed
 QVR_CVAR(vr_legsweep_align, "45", CVAR_ARCHIVE)          // degrees: a sweep within this of its own facing's axes (forward, back, its sides) falls straight along that axis (from its side: forward or backward, as the swing goes); 0: as swept
 QVR_CVAR(vr_legsweep_legs, "0.5", CVAR_ARCHIVE)          // s: swept (or its legs pulled) to fall backward, its legs stay straight this long (its knees do not fold under it, its feet stay where they slid); 0: they give at once
 QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)            // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
@@ -3029,7 +3029,7 @@ QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the te
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
 QVR_CVAR(vr_dummy_dents, "0", CVAR_ARCHIVE)              // a clean training dummy (vr_dummy_gore 0) is dented where it is hit all the same (no wounds painted); a bleeding one is dented as a grunt anyway
 QVR_CVAR(vr_dummy_streams, "0", CVAR_ARCHIVE)            // a clean training dummy pours blood streams from its bullet holes all the same (vr_dummy_gore 1: as a grunt anyway)
-QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
+QVR_CVAR(vr_dummy_gib, "0", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
 QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel; Dawn of the Machine's: 19 rocket ogre, 20 demo dog, 21 ranged knight): its model, box, hit zones, head, gore and death
 QVR_CVAR(vr_dummy_health, "-1", CVAR_ARCHIVE)            // the training dummy's full health (below 1: its enemy's own, a grunt's 30); what its hits take away, shown over it, and what kills it (vr_dummy_gib)
@@ -3928,4 +3928,4 @@ QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // how far the arms trai
 QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and the breathing (0..2): the hands' own idle motion
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
-QVR_CVAR(vr_knockdown_keep_max, "6.5", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer
+QVR_CVAR(vr_knockdown_keep_max, "7", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer
