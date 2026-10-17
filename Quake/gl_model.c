@@ -439,6 +439,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	byte	*buf;
 	int		mod_type;
 	qboolean	derived, recorded; // QVR
+	double		t0; // QVR
 
 	if (!mod->needload)
 	{
@@ -462,6 +463,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	t0 = Sys_DoubleTime (); // QVR: a load while a map is in play counted (VR_NoteModelLoad: vr_cache_info)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
@@ -538,6 +540,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		VR_ModelSourcesEnd (mod); // QVR
 
 	VR_HeapFree (buf);
+	VR_NoteModelLoad (mod->name, Sys_DoubleTime () - t0); // QVR
 
 	return mod;
 }

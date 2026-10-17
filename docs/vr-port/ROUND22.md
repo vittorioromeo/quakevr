@@ -10742,3 +10742,49 @@ shot` (from in front, nothing held; the gun held 2 units in, its zone green).
 
 To try in VR: put a gun in each hip holster right by the pouch, and take a shell from the pouch with the other hand
 close to a holstered gun; Show Holster Zones while doing it; chest and shoulder holsters as before.
+
+## Mid-game model loads (worktree `dequant`, branch `agent/perfload`, 2026-10-17)
+
+Tracy C7 (the kit's `scratch/tracy_20261017.md`): on the firing range, 25-44 ms frames at a model's first appearance in
+play (a `disk cache read` of 28.6 ms, `alias skin normal maps` 8 ms). What loads in play, found with a new count: every
+model loaded from its file while a map is in play goes to `vr_cache_info` ("models loaded in play: N (ms, the worst)";
+Debug > Profiling and Memory > Cache Info), and with `developer 1` each prints `model loaded in play: <name>, <ms>`
+(gl_model.c Mod_LoadModel, vr_diskcache.cpp VR_NoteModelLoad).
+
+What the firing range loaded in play (single actions, one at a time; `vr_test_spawn` 0-17 alive, dead, gibbed, and each id
+toolgun entry 0-51):
+- **The limb models of each kind a dispenser or a dummy first makes**: the kinds are probed at the load (their models
+  precached), but with `vr_limbs_prebuild 1` their limbs were built on the pool at the first spawn and precached one a
+  frame (limbmodel::spawnFrame): an ogre's ten limbs, ten frames of 8-9 ms each in the headless run (cache hits; the
+  disk reads were 0.3 ms of each, so his 28.6 ms read was a cold file). The kind's first gibbing before they were done
+  loaded the rest in that one frame (33-50 ms).
+- **The toolgun's candle and lantern** (Fire tab; the other id entries are the map's own there): 3 ms each with a warm
+  disk, 47-55 ms when many loads come together. Now precached with the toolgun's (QC VR_Toolgun_Precache, where the
+  files are).
+- Nothing else among the id entries, the drops (grunt, enforcer) and the gibs and teeth (precached with every map).
+
+The fix: **`vr_limbs_prebuild` 2 is the default** (vr_cfg_version 147 moves configs at 1): the probed kinds' limbs are
+made at the map's load with the map's own. Only maps with probes of pass 2 pay (the dispensers', dummies' kinds and
+`vr_probe_test_spawn`'s); other maps' loads are unchanged (pass 1, the monsters waiting for a trigger, was already
+prebuilt).
+
+Verified (headless, `bash Misc/quakevr/perfload_test.sh <agent> [1|2]`: an ogre, then a knight from the debug spawner, then the candle and
+lantern, the profiler's hitch log at 0.5 budgets):
+
+| | before (`vr_limbs_prebuild 1`) | after (2) |
+|---|---|---|
+| models loaded in play | 18 (113.5 ms, worst 8.9 ms) | 0 |
+| frames over 5.6 ms after the ogre's spawn | 11 (7.5-10.0 ms, "server other" 6-8.5) | 1 (7.3 ms: its spawn frame, "models" 5.9, both runs) |
+| frames over 5.6 ms after the knight's | 2 | 1 (the spawn frame) and two window-swap frames |
+| vrfiringrange load (warm cache) | 1177 ms | 1360 ms (+183: 162 limbs of 22 kinds, 196 ms) |
+
+A reload of the firing range in the same session: 188 ms against 406 ms. A first-ever session (empty cache) makes the
+limbs' normal maps, bakes and poses at that load instead of in play (the setting's old note: +0.5 s once).
+
+Not done (open): a disk-cache read or a normal map made in play is still on the main thread; what is left in play is a
+kind no load can know (AD's and MG3's spawners, the toolgun's monsters that are not the map's, `vr_test_spawn`'s), still
+one limb a frame. A limb's load costs 4-9 ms in play against 1.2 ms at a load (the same files): the GL uploads with frames
+in flight, probably; not measured further.
+
+To try in VR: the firing range, a dispenser's ogre or knight: no stutter when it appears or when it is first gibbed; the
+range's load a little longer.
