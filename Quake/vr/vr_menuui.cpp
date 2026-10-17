@@ -45,6 +45,7 @@
 #include "vr_menuui.hpp"
 #include "vr_menupaint.hpp"
 #include "vr_obs.hpp"
+#include "vr_renderdoc.hpp"
 #include "vr_panel.hpp"
 #include "vr_stereo.hpp"
 #include "vr_protocol.hpp"
@@ -616,6 +617,18 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
     return menu::developerLevel() ? ToolCount : ToolToolgun;
 }
 
+// The Capture Frame button (vr_renderdoc.cpp): only at Menu Detail: Developer, and only while RenderDoc is attached.
+[[nodiscard]] bool renderdocShown()
+{
+    return menu::developerLevel() && qvr::renderdoc::attached();
+}
+
+// The bottom left corner's top row: 1 the Recording button, 2 OBS's row while it shows, the RenderDoc button above them.
+[[nodiscard]] int cornerTopRow()
+{
+    return (qvr::obs::banner().shown ? 2 : 1) + (renderdocShown() ? 1 : 0);
+}
+
 // New Panel only in the headset (its panels are): on a flat screen's row it is left out, the buttons after it a place
 // nearer (toolSlot).
 [[nodiscard]] bool toolHidden(int tool)
@@ -816,7 +829,7 @@ struct ToolbarLayout
     {
         // Keep every shortcut above Recording/OBS even with Menu Height and Row Spacing at their smallest.
         // Normal panels keep the author's large targets; constrained panels fit the column as a whole.
-        const int bottomRow = qvr::obs::banner().shown ? 2 : 1;
+        const int bottomRow = cornerTopRow();
         const float reserve = ToolbarLayout::corner + 2.f * ToolbarLayout::half +
                               bottomRow * (2.f * ToolbarLayout::half + ToolbarLayout::gap) + ToolbarLayout::gap;
         const float room = (l.bottom - l.top) * l.k - ToolbarLayout::corner - reserve;
@@ -841,6 +854,7 @@ struct Toolbar
     int focused{-1};   // the button the sticks selected (-1: the menu has the selection)
     bool bannerHovered{false}; // the spectator camera's switch under the laser
     bool obsHovered{false};    // OBS's row above it (vr_obs.cpp)
+    bool renderdocHovered{false}; // the RenderDoc button above that (vr_renderdoc.cpp)
     bool recordingHovered{false}; // the Recording button (between them in the headset; on a flat screen, the mouse)
     bool linkHovered{false};   // the version box's Ko-fi link under the laser
     int focusMenu{m_none};
@@ -1066,6 +1080,27 @@ constexpr int obsRow = 2;
     const qvr::obs::Banner o = qvr::obs::banner();
     const ToolbarLayout l = toolbarLayout();
     return o.shown && cornerRowAt(l, obsBannerLayout(l, o), obsRow, x, y);
+}
+
+// The RenderDoc button (Capture Frame), above OBS's row while it shows, else above the Recording button.
+[[nodiscard]] int renderdocRow()
+{
+    return qvr::obs::banner().shown ? obsRow + 1 : obsRow;
+}
+constexpr float renderdocTextX = ToolbarLayout::pad + 6.f + ToolbarLayout::labelGap;
+[[nodiscard]] BannerLayout renderdocBannerLayout(const ToolbarLayout& l)
+{
+    const char* const texts[2]{"RenderDoc: Capture Frame", "Capture Frame"};
+    return bannerRowLayout(l, texts, renderdocRow(), renderdocTextX);
+}
+[[nodiscard]] bool renderdocAt(float x, float y)
+{
+    if(!renderdocShown())
+    {
+        return false;
+    }
+    const ToolbarLayout l = toolbarLayout();
+    return cornerRowAt(l, renderdocBannerLayout(l), renderdocRow(), x, y);
 }
 
 // A flat screen's Recording button (VR off, with the corner's buttons: vr_menu_flat_shortcuts), for the desktop mouse:
@@ -1365,6 +1400,7 @@ bool pointTo(int hand)
     };
     light(bannerAt(m_mousex, m_mousey), tb().bannerHovered);
     light(obsBannerAt(m_mousex, m_mousey), tb().obsHovered);
+    light(renderdocAt(m_mousex, m_mousey), tb().renderdocHovered);
     light(recordingAt(m_mousex, m_mousey), tb().recordingHovered);
     light(versionLinkAt(m_mousex, m_mousey), tb().linkHovered);
     return true;
@@ -1402,7 +1438,7 @@ void update(const hands::State& s)
             // Nothing lit under a laser on a panel no laser is on.
             Toolbar& t = toolbars[i];
             t.hovered = -1;
-            t.bannerHovered = t.obsHovered = t.recordingHovered = t.linkHovered = false;
+            t.bannerHovered = t.obsHovered = t.renderdocHovered = t.recordingHovered = t.linkHovered = false;
         }
     }
 
@@ -1717,7 +1753,7 @@ float cornerRowsTop()
         return 1e9f;
     }
     const ToolbarLayout l = toolbarLayout();
-    const int top = qvr::obs::banner().shown ? obsRow : recordingRow;
+    const int top = cornerTopRow();
     return bannerRowLayout(l, {"", ""}, top).yc - ToolbarLayout::half / l.k;
 }
 
@@ -2791,6 +2827,22 @@ extern "C" void VR_MenuDrawOverlay()
             }
             top.yc = ob.yc; // (as wide as the Recording button still)
         }
+        // The RenderDoc button above them (Developer, RenderDoc attached): a capture of the next frame.
+        if(renderdocShown())
+        {
+            const BannerLayout db = renderdocBannerLayout(l);
+            const bool dbHot = tb().renderdocHovered;
+            p.rounded(db.x0, db.x1, db.yc, ToolbarLayout::half, 3.f, dbHot ? colors::highlightEdge : colors::boxBorder);
+            p.rounded(db.x0 + 1.f, db.x1 - 1.f, db.yc, ToolbarLayout::half - 1.f, 2.f,
+                dbHot ? colors::buttonHover : colors::boxFill);
+            p.disc(db.x0 + bannerLightX, db.yc, 2.5f, dbHot ? colors::thumb : colors::fill);
+            float dx = db.x0 + renderdocTextX;
+            for(const char* c = db.text; *c; c++, dx += 8.f)
+            {
+                Draw_CharacterEx(dx, db.yc - 4.f, 8.f, 8.f, dbHot ? *c : (*c | 128));
+            }
+            top.yc = db.yc;
+        }
         if(menu::currentInstance() == 0)
         {
             placePreview(l, top); // (on the first panel only)
@@ -2848,6 +2900,15 @@ extern "C" int VR_MenuKey(int key, int repeat)
         tb().focused = -1;
         haptic(pointingHand, 0.02f, 0.3f);
         menu::jumpToRecording();
+        return 1;
+    }
+    if(key == K_MOUSE1 && !repeat && renderdocAt(m_mousex, m_mousey))
+    {
+        tb().focused = -1;
+        if(qvr::renderdoc::captureFromCvars())
+        {
+            haptic(pointingHand, 0.02f, 0.3f);
+        }
         return 1;
     }
     if(key == K_MOUSE1 && !repeat && obsBannerAt(m_mousex, m_mousey))
