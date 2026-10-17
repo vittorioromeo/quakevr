@@ -14,7 +14,7 @@
 # EXCLUSIVE=1: each run alone (for timings). Prints PASS/FAIL; exits 1 on a failure.
 AGENT=$1; shift; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 CASES=${*:-floor toss corner lod time}
-P="map e1m1;wait60;developer 1;god;notarget;vr_magholster_return_time 0;vr_magholster_return_distance 0;vr_magholster_land_time 0;"
+P="${PRE}map e1m1;wait60;developer 1;god;notarget;vr_magholster_return_time 0;vr_magholster_return_distance 0;vr_magholster_land_time 0;"
 BIND="vr_mock_hand_to off holster 3;wait5;vr_mock_button off stickclick 1;wait3;vr_mock_button off stickclick 0;wait3;"
 DRAW="vr_mock_hand_to main holster 3;wait5;+grabright;vr_mock_button main grip 1;wait10;"
 DROP="vr_mock_hand_glide 0.4;vr_mock_hand_to main by 20 0 15;wait90;vr_mock_hand_glide 0;-grabright;vr_mock_button main grip 0;wait60;vr_mock_hand main 0.3 1.0 -0.2 0 0 0;"

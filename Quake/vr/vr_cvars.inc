@@ -3536,7 +3536,8 @@ QVR_CVAR(vr_magholster_chain_radius, "0.75", CVAR_ARCHIVE)  // units its points 
 QVR_CVAR(vr_magholster_chain_drag, "2", CVAR_ARCHIVE)       // a second: its speed lost to the air (it settles from a swing)
 QVR_CVAR(vr_magholster_chain_slide, "0.6", CVAR_ARCHIVE)    // the share of its speed along a surface a point keeps where it touches it (lower: rougher floor)
 QVR_CVAR(vr_magholster_chain_carry, "1", CVAR_ARCHIVE)      // the share of your movement that carries the chain along near the holster (none of it at the weapon; 0: it is only pulled)
-QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)          // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
+QVR_CVAR(vr_magholster_chain_sway, "0.1", CVAR_ARCHIVE)     // the share of the stick's walk and turn (artificial movement) the chain lags behind and swings from (0: carried along whole, still to you; 1: as before, all of it)
+QVR_CVAR(vr_magholster_chain_log, "0", CVAR_NONE)         // 1: prints each chain's state every frame (magchain: its springs' worst stretch from relaxed, its nodes' most movement and jerk off its anchor, mm; tests)
 // The chains' end at the holster (2026-10-17: "still a little off"), units in the body's frame: forward, outwards (the
 // left holsters' to the left), up; every holster's (_x/_y/_z), plus each kind's own.
 QVR_CVAR(vr_magholster_chain_x, "-2", CVAR_ARCHIVE)

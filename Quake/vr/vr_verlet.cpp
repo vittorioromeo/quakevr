@@ -52,9 +52,22 @@ void holdLengths(glm::vec3* p, const char* pinned, za::SizeT n, const float* res
 }
 
 void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* pinned, za::SizeT n, float rad, float slide,
-    int* traces)
+    int* traces, char* touching)
 {
     int count = 0;
+    const auto touch = [&](za::SizeT i) {
+        if(touching)
+        {
+            touching[i] = 1;
+        }
+    };
+    if(touching)
+    {
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            touching[i] = 0;
+        }
+    }
     const auto trace = [&](const glm::vec3& a, const glm::vec3& b) {
         count++;
         return worldtrace::world(a, b);
@@ -79,6 +92,7 @@ void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* p
             {
                 return;
             }
+            touch(i);
             const glm::vec3 on = worldtrace::endPos(down) + nrm * rad;
             const float up = glm::dot(on - p[i], nrm);
             if(up <= 0.f || trace(p[i], on).fraction < 1.f)
@@ -106,6 +120,7 @@ void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* p
             }
             continue;
         }
+        touch(i);
         const glm::vec3 nrm = worldtrace::normal(tr);
         const glm::vec3 at = worldtrace::endPos(tr) + nrm * rad;
         glm::vec3 rest = to - at;
@@ -155,6 +170,7 @@ void collide(glm::vec3* p, glm::vec3* prev, const glm::vec3* from, const char* p
                 {
                     p[j] = to;
                     prev[j] += nrm * under; // (no speed from it)
+                    touch(j);
                 }
             }
         }

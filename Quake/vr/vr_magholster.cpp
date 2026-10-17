@@ -87,6 +87,11 @@ struct TetherSim
     float lastDt{0.f};
     double time{-1.0};             // vr_gametime of its last step
     glm::vec3 lastHome{0.f};
+    glm::vec3 lastSpaceOrigin{0.f}; // the play space last step (hands::State::spaceOrigin, turnYaw): the stick's moves
+    float lastSpaceYaw{0.f};
+    za::Vector<char> touching;      // each point left lying on or stopped by the world last step (not carried)
+    za::Vector<glm::vec3> logged[2]; // vr_magholster_chain_log: its points in the play space the last two steps
+    int loggedSteps{0};
     int traces{0};                 // the last step's world traces
     float ms{0.f};                 // its steps' time, eased (vr_magholster_info)
 };
@@ -102,6 +107,7 @@ struct Slot
     glm::vec3 home{0.f};  // the chains' end at the holster (view::holsterPoint)
     glm::vec3 reach{0.f}; // the holster's reach point (body::holsterPositions: where the hand goes, where it flies to)
     glm::vec3 lastRel{0.f}; // the weapon's point off its holster last frame
+    float lastTurnYaw{0.f}; // and the play space's turn then (hands::State::turnYaw)
     coil::Cord cords[ChainCount];
     gfx::TubeBatch batch[ChainCount];
     int sides[ChainCount]{};
@@ -298,7 +304,45 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
 // (vr_magholster_chain_carry), falling, slowed by the air (_drag), held to their spacing (_iterations, _stiffness) and
 // out of the world (_collide, _radius, _slide): vr_verlet.hpp, the grappling hook rope's steps. Afresh (straight) when
 // first seen, after a pause, or when an end jumps.
-void stepTether(Slot& c, float length)
+// vr_magholster_chain_log: the simulated tether's points in the play space (what you see of it as you walk and turn
+// with the sticks), "magsway <slot> move <mm> jerk <mm> mid <x y z mm> n <points>": their most movement there a step,
+// their most jerk (the second difference), and the middle point off the holster's end (turned with the play space).
+void logSway(Slot& c, const hands::State& s)
+{
+    TetherSim& t = c.sim;
+    const za::SizeT n = t.p.size();
+    const float mm = 1000.f / units::metresToUnits();
+    if(t.logged[0].size() != n || t.logged[1].size() != n)
+    {
+        t.loggedSteps = 0;
+    }
+    float move = 0.f, jerk = 0.f;
+    za::Vector<glm::vec3>& local = scratch.resampled;
+    local.clear();
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const glm::vec3 q = hands::rotateYaw(t.p[i] - s.spaceOrigin, -s.turnYaw);
+        local.pushBack(q);
+        if(t.loggedSteps >= 1)
+        {
+            move = za::max(move, glm::distance(q, t.logged[0][i]) * mm);
+        }
+        if(t.loggedSteps >= 2)
+        {
+            jerk = za::max(jerk, glm::length(q - 2.f * t.logged[0][i] + t.logged[1][i]) * mm);
+        }
+    }
+    const glm::vec3 mid = (local[n / 2] - local[0]) * mm;
+    const glm::vec3 home = local[0] * mm, gun = local[n - 1] * mm;
+    Con_Printf("magsway %d move %.1f jerk %.1f mid %.0f %.0f %.0f n %d home %.0f %.0f %.0f gun %.0f %.0f %.0f\n",
+        static_cast<int>(&c - slots), move, jerk, mid.x, mid.y, mid.z, static_cast<int>(n), home.x, home.y, home.z, gun.x,
+        gun.y, gun.z);
+    t.logged[1] = t.logged[0];
+    t.logged[0] = local;
+    t.loggedSteps++;
+}
+
+void stepTether(Slot& c, float length, const hands::State& s)
 {
     TetherSim& t = c.sim;
     const double started = Sys_DoubleTime();
@@ -321,6 +365,10 @@ void stepTether(Slot& c, float length)
         t.prev = t.p;
         t.lastDt = 0.f;
         t.lastHome = c.home;
+        t.lastSpaceOrigin = s.spaceOrigin;
+        t.lastSpaceYaw = s.turnYaw;
+        t.touching.clear();
+        t.loggedSteps = 0;
     }
     else if(t.p.size() != n)
     {
@@ -347,17 +395,40 @@ void stepTether(Slot& c, float length)
     }
     const float dt = fresh ? 1.f / 90.f : static_cast<float>(za::clamp(now - t.time, 1.0 / 500.0, 1.0 / 20.0));
 
-    // The body's movement carries the chain near the holster along (none of it at the weapon): walking with it hanging
-    // off the hip does not drag it out behind.
-    const glm::vec3 carry = (c.home - t.lastHome) * za::clamp(vr_magholster_chain_carry.value, 0.f, 1.f);
-    if(carry != glm::vec3{0.f})
+    // The stick's walk and turn (the play space's own move since the last step: not the real body's in the room) carry
+    // the free points along whole but vr_magholster_chain_sway of it, their speed turned with it (2026-10-17: "it
+    // should have a very slight wobble, but right now it goes all over the place"): along the chain from the holster to
+    // a weapon on the body (in a hand, a holster), less and less to one lying about.
+    const float share = 1.f - za::clamp(vr_magholster_chain_sway.value, 0.f, 1.f);
+    const float turned = s.turnYaw - t.lastSpaceYaw;
+    const auto moved = [&](const glm::vec3& x) { return s.spaceOrigin + hands::rotateYaw(x - t.lastSpaceOrigin, turned); };
+    const bool onBody = c.where == Where::Hand || c.where == Where::Holster;
+    if(t.touching.size() != n)
     {
-        for(za::SizeT i = 1; i + 1 < n; i++)
+        t.touching.clear();
+        t.touching.resize(n, 0);
+    }
+    // And the rest of the holster's move (the real body's; all of it with Locomotion Sway 1, as before) carries the
+    // chain near it along (none of it at the weapon): walking with it hanging off the hip does not drag it out behind.
+    // A point lying on the world is not carried by the stick's moves but dragged as before, by all of the holster's
+    // move (the chain drawn round a corner as magchain2 had it: left where it lay, pulled only, a piece cut the corner).
+    const float carryShare = za::clamp(vr_magholster_chain_carry.value, 0.f, 1.f);
+    const glm::vec3 homeMove = c.home - t.lastHome;
+    const glm::vec3 carry = (homeMove - (moved(t.lastHome) - t.lastHome) * share) * carryShare;
+    const bool locomoted = share > 0.f && (s.spaceOrigin != t.lastSpaceOrigin || turned != 0.f);
+    for(za::SizeT i = 1; i + 1 < n; i++)
+    {
+        const float along = static_cast<float>(i) / static_cast<float>(pieces);
+        glm::vec3 move = homeMove * carryShare * (1.f - along);
+        if(locomoted && !t.touching[i])
         {
-            const glm::vec3 move = carry * (1.f - static_cast<float>(i) / static_cast<float>(pieces));
-            t.p[i] += move;
-            t.prev[i] += move;
+            const float k = share * (onBody ? 1.f : 1.f - along);
+            t.p[i] += (moved(t.p[i]) - t.p[i]) * k;
+            t.prev[i] += (moved(t.prev[i]) - t.prev[i]) * k;
+            move = carry * (1.f - along);
         }
+        t.p[i] += move;
+        t.prev[i] += move;
     }
     verlet::fall(t.p.data(), t.prev.data(), pinned.data(), n, dt, t.lastDt, za::clamp(vr_magholster_chain_drag.value, 0.f, 20.f),
         9.81f * m2u);
@@ -369,11 +440,22 @@ void stepTether(Slot& c, float length)
     if(vr_magholster_chain_collide.value != 0.f)
     {
         verlet::collide(t.p.data(), t.prev.data(), from.data(), pinned.data(), n, za::clamp(vr_magholster_chain_radius.value, 0.05f, 8.f),
-            za::clamp(vr_magholster_chain_slide.value, 0.f, 1.f), &t.traces);
+            za::clamp(vr_magholster_chain_slide.value, 0.f, 1.f), &t.traces, t.touching.data());
+    }
+    else
+    {
+        t.touching.clear();
+        t.touching.resize(n, 0);
     }
     t.lastDt = dt;
     t.time = now;
     t.lastHome = c.home;
+    t.lastSpaceOrigin = s.spaceOrigin;
+    t.lastSpaceYaw = s.turnYaw;
+    if(vr_magholster_chain_log.value != 0.f)
+    {
+        logSway(c, s);
+    }
     const float ms = static_cast<float>((Sys_DoubleTime() - started) * 1000.0);
     t.ms = t.ms > 0.f ? glm::mix(t.ms, ms, 0.05f) : ms;
 }
@@ -611,17 +693,28 @@ void setupView(const hands::State& s)
 
         // A jump of the weapon about the body (a teleported hand, the drawn gun's pose eased in): the lanyard and the
         // tether afresh, not whirled out.
+        // (The tether's turned with the play space: a snap turn swings the weapon and the holster round together, and
+        // stepTether carries its chain round with them, not a jump.)
         const glm::vec3 rel = c.gun - c.home;
-        if(c.where != Where::World && glm::distance(rel, c.lastRel) > 0.15f * m2u)
+        const glm::vec3 lastRel = hands::rotateYaw(c.lastRel, s.turnYaw - c.lastTurnYaw);
+        const bool jumped = glm::distance(rel, c.lastRel) > 0.15f * m2u;
+        const bool carried = vr_magholster_chain_sim.value != 0.f && vr_magholster_chain_sway.value < 1.f;
+        const bool tetherJumped = carried ? glm::distance(rel, lastRel) > 0.15f * m2u : jumped;
+        if(c.where != Where::World && (jumped || tetherJumped))
         {
             c.cords[Lanyard].hide();
-            c.cords[Tether].hide();
+            if(tetherJumped)
+            {
+                c.cords[Tether].hide();
+            }
             if(vr_magholster_chain_log.value != 0.f)
             {
-                Con_Printf("magchain %d jump %.2f m: the chains afresh\n", i, glm::distance(rel, c.lastRel) / m2u);
+                Con_Printf("magchain %d jump %.2f m: %s afresh\n", i, glm::distance(rel, c.lastRel) / m2u,
+                    tetherJumped ? "the chains" : "the lanyard");
             }
         }
         c.lastRel = rel;
+        c.lastTurnYaw = s.turnYaw;
 
         // The lanyard, off the weapon wherever it is seen: swung as a hand moves it about the body; carried whole by a
         // weapon lying about or flying (its few springs would let a thrown one's stretch out behind it).
@@ -651,7 +744,7 @@ void setupView(const hands::State& s)
             if(vr_magholster_chain_sim.value != 0.f)
             {
                 QVR_PROFILE("magnetic holsters tether sim");
-                stepTether(c, length * m2u);
+                stepTether(c, length * m2u, s);
                 c.cords[Tether].shape(c.sim.p.data(), c.sim.p.size(), style);
             }
             else
