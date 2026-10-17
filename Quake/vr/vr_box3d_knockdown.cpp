@@ -170,6 +170,7 @@ namespace
 // (a swimmer's goal: livingSwim), vr_knockdown_water_search: shallow water's bottom or the bank (a get-up searching that
 // far stood up on the bank it had been carried from, 190 units off). `anywhere` (QC: no such place for a while): the box
 // clear at the body or around it, floor or none (it stands up in the liquid, a walking monster again, and sinks).
+bool standSpotLifts = false; // (set by a flinch's hand-back only: flinchHandBack)
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
     const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere)
 {
@@ -310,7 +311,14 @@ namespace
         }
         vec3_t o{c.x, c.y, tr.endpos[2] - mins.z + 0.25f};
         vec3_t lo{mins.x, mins.y, mins.z}, hi{maxs.x, maxs.y, maxs.z};
-        const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+        trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+        // (A flinch's hand-back on a slope or a stair's edge: its box lifted clear of the floor's high side, up to a
+        // stair, as a walking monster's box rests there.)
+        for(float lift = 4.f; standSpotLifts && (box.startsolid || box.allsolid) && lift <= 18.f; lift += 4.f)
+        {
+            o[2] = tr.endpos[2] - mins.z + 0.25f + lift;
+            box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+        }
         if(box.startsolid || box.allsolid)
         {
             return false;
@@ -742,6 +750,350 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
+// ---- Flinch (vr_flinch; QC vr_flinch.qc; docs/vr-port/FLINCH.md) ----
+namespace
+{
+// What the flinches did since the last vr_flinch_status.
+struct FlinchStats
+{
+    int begun{0}, downAtOnce{0}, recovered{0}, toppled{0}, refused{0}, noRoom{0};
+    double switchMs{0.0}, switchMost{0.0}; // its switch-in: the query to the drive begun (its ragdoll made between)
+    int switches{0};
+    float popMean{0.f}, popMost{0.f};      // units: its pose's gap from the frame it is handed back in (means summed; most)
+    float recoverSum{0.f}, recoverMost{0.f}; // s: struck to handed back
+};
+FlinchStats flinchStats;
+// The query's time and its entity (its switch-in's cost from there).
+double flinchQueryAt = 0.0;
+int flinchQueryNum = 0;
+
+// Whether `name` is a word of `list` (space-separated), or the list is "*".
+[[nodiscard]] bool flinchListed(const char* list, const char* name)
+{
+    if(!list || !*list || !name || !*name)
+    {
+        return false;
+    }
+    if(list[0] == '*' && list[1] == '\0')
+    {
+        return true;
+    }
+    const size_t n = strlen(name);
+    for(const char* p = strstr(list, name); p; p = strstr(p + 1, name))
+    {
+        if((p == list || p[-1] == ' ') && (p[n] == '\0' || p[n] == ' '))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Units to the nearest living player.
+[[nodiscard]] float flinchNearestPlayer(const edict_t* ent)
+{
+    float best = 1e30f;
+    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    {
+        const edict_t* pl = EDICT_NUM(i);
+        if(!pl->free && pl->v.health > 0.f)
+        {
+            best = za::min(best, glm::distance(vec(pl->v.origin), vec(ent->v.origin)));
+        }
+    }
+    return best;
+}
+
+[[nodiscard]] int flinchingNow()
+{
+    int n = 0;
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        const ragactive::Stagger& g = r.active.stagger;
+        n += r.active.on && g.on && g.flinch && g.outcome == ragactive::Outcome::Going ? 1 : 0;
+    }
+    return n;
+}
+
+// Whether frame `frame`'s name begins with one of `prefixes` (null-ended).
+[[nodiscard]] bool frameNamed(const qmodel_t* model, int frame, const char* const* prefixes)
+{
+    const auto* hdr = model ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model))) : nullptr;
+    if(!hdr || frame < 0 || frame >= hdr->numframes)
+    {
+        return false;
+    }
+    for(const char* const* p = prefixes; *p; p++)
+    {
+        if(!strncmp(hdr->frames[frame].name, *p, strlen(*p)))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+constexpr const char* flinchAttackFrames[] = {"shoot", "attack", "atta", "magic", "char_", "slice", "smash", "w_att", "swing",
+    "lunge", "fire", nullptr};
+constexpr const char* flinchBackFrames[] = {"stand", "run", nullptr};
+
+// The floor under its feet uneven (a slope, stairs, an edge): four rays round its origin disagree in height by more
+// than a quarter of a stair, or meet floor steeper than about 10 degrees, or none.
+[[nodiscard]] bool flinchUneven(edict_t* ent)
+{
+    const glm::vec3 o = vec(ent->v.origin);
+    const float footZ = o.z + ent->v.mins[2];
+    constexpr float spread = 12.f; // units
+    float lo = 1e30f, hi = -1e30f;
+    for(int i = 0; i < 4; i++)
+    {
+        const float a = 1.5707963f * static_cast<float>(i);
+        vec3_t start{o.x + spread * za::cos(a), o.y + spread * za::sin(a), footZ + 8.f};
+        vec3_t end{start[0], start[1], footZ - 24.f};
+        const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, ent);
+        if(tr.fraction >= 1.f || tr.allsolid || tr.plane.normal[2] < 0.985f)
+        {
+            return true;
+        }
+        lo = za::min(lo, tr.endpos[2]);
+        hi = za::max(hi, tr.endpos[2]);
+    }
+    return hi - lo > 4.f;
+}
+
+// Its pose's gap from frame `frame` turned `yaw` standing at `spot` (units: the most and the mean over its vertices).
+void flinchPoseGap(const RagdollBodies& r, int frame, float yaw, const glm::vec3& spot, float& most, float& mean)
+{
+    const int pose = ragdoll::poseOfFrame(r.rig->model, frame);
+    const glm::quat turn = glm::angleAxis(yaw, glm::vec3{0.f, 0.f, 1.f});
+    float sum = 0.f;
+    int n = 0;
+    most = 0.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        const b3WorldTransform xf = b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]);
+        const glm::quat br = fromB3(xf.q);
+        const glm::vec3 bp = world->toU(xf.p);
+        glm::quat ar;
+        glm::vec3 ap;
+        animatedBone(*r.rig, pose, b, turn, spot, r.scale, ar, ap);
+        for(const glm::vec3& v : r.rig->bones[b].points)
+        {
+            const float d = glm::distance(br * (v * r.scale) + bp, ar * (v * r.scale) + ap);
+            most = za::max(most, d);
+            sum += d;
+            n++;
+        }
+    }
+    mean = n > 0 ? sum / static_cast<float>(n) : 0.f;
+}
+
+// A flinch recovered (ragdollStaggered): handed back in the stand or run frame nearest its pose (fitted: its turn and
+// place, its origin where its body stands), blended over vr_flinch_blend.
+int flinchHandBack(edict_t* ent, RagdollBodies& r, const glm::vec3& mins, const glm::vec3& maxs)
+{
+    ragactive::State& a = r.active;
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(r.rig->model)));
+    int best = -1;
+    float bestErr = 1e30f, bestYaw = 0.f;
+    glm::vec3 bestAt{0.f};
+    const int frames = hdr ? hdr->numframes : 0;
+    const auto consider = [&](int f) {
+        if(f < 0 || f >= frames || ragdoll::deathProgress(*r.rig, f) >= 0.f)
+        {
+            return;
+        }
+        float yaw = 0.f;
+        glm::vec3 at{0.f};
+        const float err = fitFrame(r, f, yaw, at);
+        if(err < bestErr)
+        {
+            bestErr = err;
+            best = f;
+            bestYaw = yaw;
+            bestAt = at;
+        }
+    };
+    // The candidates: its stand and run frames by name (models that name them), its stand cycle (every class's first
+    // eight frames), and the frames round the one it was struck in (its run, its attack).
+    for(int f = 0; f < frames; f++)
+    {
+        if(f < 8 || frameNamed(r.rig->model, f, flinchBackFrames))
+        {
+            consider(f);
+        }
+    }
+    for(int d = -3; d <= 3 && a.stagger.struck >= 8; d++)
+    {
+        consider(a.stagger.struck + d);
+    }
+    if(best < 0)
+    {
+        best = static_cast<int>(za::max(ragactive::clipFrame(a, qcvm->time), 0.f) + 0.5f);
+        bestErr = fitFrame(r, best, bestYaw, bestAt);
+    }
+    const b3WorldTransform pelvis = b3Body_GetTransform(r.body[0]);
+    const glm::vec3 from = fromB3(pelvis.q) * (r.rig->bones[0].pivot * r.scale) + world->toU(pelvis.p);
+    glm::vec3 spot{0.f};
+    standSpotLifts = true;
+    const bool room = bestErr < 1e29f && standSpot(ent, from, bestAt, mins, maxs, 24.f, spot);
+    standSpotLifts = false;
+    if(room)
+    {
+        float most = 0.f, mean = 0.f;
+        flinchPoseGap(r, best, bestYaw, spot, most, mean);
+        const float took = static_cast<float>(qcvm->time - a.begun);
+        flinchStats.recovered++;
+        flinchStats.popMean += mean;
+        flinchStats.popMost = za::max(flinchStats.popMost, most);
+        flinchStats.recoverSum += took;
+        flinchStats.recoverMost = za::max(flinchStats.recoverMost, took);
+        // (Longer for a wider gap: 0.7x for none, 1.4x from 6 units mean.)
+        const float blend = za::max(vr_flinch_blend.value, 0.f) * za::clamp(0.7f + mean / 8.5f, 0.7f, 1.4f);
+        if(vr_flinch_debug.value)
+        {
+            Con_Printf("flinch: %d %s back in frame %d (%s) after %.2f s: its pose %.1f units from it at most, %.1f mean; "
+                       "blended over %.2f s\n",
+                r.num, PR_GetString(ent->v.classname), best, hdr ? hdr->frames[best].name : "?", took, most, mean,
+                blend);
+        }
+        handBack(ent, r, best, bestYaw, spot, blend, "recovered from a flinch");
+        return 2;
+    }
+    r.staggerStuck = r.staggerStuck < 0.0 ? qcvm->time : r.staggerStuck;
+    if(qcvm->time - r.staggerStuck > 0.5)
+    {
+        ragactive::lapse(a, activeParts(r), qcvm->time);
+        flinchStats.toppled++;
+        return 0;
+    }
+    return 1;
+}
+} // namespace
+
+float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse, int mode)
+{
+    if(!ent || !world || vr_flinch.value == 0.f || !ragdollCanStagger(ent) ||
+        !flinchListed(vr_flinch_classes.string, PR_GetString(ent->v.classname)))
+    {
+        return mode == 2 ? 0.f : -1.f;
+    }
+    if(mode == 2)
+    {
+        return 1.f;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    const float mass = za::max(tune(ent, Tune::Mass), 1.f);
+    if(mode == 0)
+    {
+        // The budget: flinching at once, the range, room for one more ragdoll (-2: none, a corpse may go for it).
+        const bool busy = flinchingNow() >= static_cast<int>(za::max(vr_flinch_max.value, 0.f));
+        const bool tooFar = flinchNearestPlayer(ent) > za::max(vr_flinch_range.value, 0.f);
+        const bool full = ragdollCount() >= static_cast<int>(za::max(vr_ragdoll_max.value, 0.f));
+        if(busy || tooFar)
+        {
+            flinchStats.refused++;
+            if(vr_flinch_debug.value >= 2.f)
+            {
+                Con_Printf("flinch: %d %s refused (%s)\n", num, PR_GetString(ent->v.classname), busy ? "budget" : "far");
+            }
+            return -1.f;
+        }
+        float dv = glm::length(glm::vec2{impulse}) / mass;
+        // (Its attack frames guarded: the hit counts as much less.)
+        if(vr_flinch_attack_guard.value > 1.f && frameNamed(modelOf(ent), static_cast<int>(ent->v.frame), flinchAttackFrames))
+        {
+            dv /= vr_flinch_attack_guard.value;
+        }
+        flinchQueryAt = Sys_DoubleTime();
+        flinchQueryNum = num;
+        if(full)
+        {
+            flinchStats.noRoom++;
+            return -2.f - dv; // (QC: -2 - its speed)
+        }
+        return dv;
+    }
+    // Begin: its ragdoll just made (QC VR_Knockdown_Start).
+    RagdollBodies* rp = ragdollOf(num);
+    if(!rp || !rp->rig)
+    {
+        return 0.f;
+    }
+    RagdollBodies& r = *rp;
+    const bool uneven = flinchUneven(ent);
+    beginLiving(r, ent);
+    ragactive::FlinchInfo fi;
+    fi.at = glmv(world->toM(at));
+    fi.impulse = impulse;
+    fi.local = za::clamp(vr_flinch_local.value, 0.f, 1.f);
+    fi.topple = za::max(vr_flinch_topple.value, 0.1f) * (uneven ? za::clamp(vr_flinch_uneven.value, 0.05f, 1.f) : 1.f);
+    fi.first = 0; // (its stand frame: the classes' first)
+    fi.most = za::max(vr_flinch_most.value, 0.3f);
+    fi.footR = za::max(vr_flinch_foot.value, 0.01f);
+    ragactive::beginFlinch(r.active, activeParts(r), fi, qcvm->time);
+    r.active.stagger.struck = static_cast<int>(ent->v.frame);
+    r.staggerStuck = -1.0;
+    const ragactive::Stagger& g = r.active.stagger;
+    const bool down = g.dv >= 1.5f * fi.topple;
+    if(down)
+    {
+        startFall(ent, r, g.dir, 0u, 0.f, false);
+        flinchStats.downAtOnce++;
+    }
+    flinchStats.begun++;
+    if(flinchQueryNum == num)
+    {
+        const double ms = (Sys_DoubleTime() - flinchQueryAt) * 1000.0;
+        flinchStats.switchMs += ms;
+        flinchStats.switchMost = za::max(flinchStats.switchMost, ms);
+        flinchStats.switches++;
+        flinchQueryNum = 0;
+    }
+    if(vr_flinch_debug.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("flinch: %d %s struck (%.0f N s, %.2f m/s of %.0f kg%s): balance %.2f, %s; carried %.0f units over %.2f s\n",
+            num, PR_GetString(ent->v.classname), glm::length(impulse), g.dv, mass, uneven ? ", uneven floor" : "", g.balance,
+            down ? "down at once" : g.giveAfter >= 0 ? "gives way after its steps" : "means to recover",
+            g.travel * world->m2u, g.time);
+    }
+    return down ? 2.f : 1.f;
+}
+
+void flinchStatus_f()
+{
+    if(!world)
+    {
+        return;
+    }
+    FlinchStats& f = flinchStats;
+    Con_Printf("flinch status: %d begun (%d down at once), %d recovered, %d toppled, %d refused, %d with no room; %d now; "
+               "switch-in %.3f ms mean, %.3f most; recovered after %.2f s mean, %.2f most; hand-back gap %.1f units mean, "
+               "%.1f most\n",
+        f.begun, f.downAtOnce, f.recovered, f.toppled, f.refused, f.noRoom, flinchingNow(),
+        f.switches > 0 ? f.switchMs / f.switches : 0.0, f.switchMost, f.recovered > 0 ? f.recoverSum / f.recovered : 0.f,
+        f.recoverMost, f.recovered > 0 ? f.popMean / f.recovered : 0.f, f.popMost);
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        const ragactive::Stagger& g = r.active.stagger;
+        if(r.active.on && g.on && g.flinch)
+        {
+            Con_Printf("  %d: %.2f s, %s, dv %.2f m/s, balance %.2f, lean %.0f, margin %.0f units, speed %.2f, tilt %.0f, "
+                       "ground %d, failed %u, %d steps\n",
+                r.num, qcvm->time - r.active.begun,
+                g.outcome == ragactive::Outcome::Going ? "going" : g.outcome == ragactive::Outcome::Recovered ? "recovered" : "fell",
+                g.dv, g.balance, g.lean, g.margin * world->m2u, g.speedNow, g.tilt, g.ground ? 1 : 0, g.failed, g.steps);
+        }
+    }
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        f = FlinchStats{};
+    }
+}
+
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
@@ -792,11 +1144,20 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
     }
     if(!a.on || !a.stagger.on || a.stagger.outcome == ragactive::Outcome::Fell)
     {
+        if(a.stagger.flinch && a.stagger.outcome == ragactive::Outcome::Fell)
+        {
+            a.stagger.flinch = false; // (counted once: the QC asks no more)
+            flinchStats.toppled++;
+        }
         return 0;
     }
     if(a.stagger.outcome == ragactive::Outcome::Going)
     {
         return 1;
+    }
+    if(a.stagger.flinch)
+    {
+        return flinchHandBack(ent, r, mins, maxs);
     }
     // Recovered: standing where its body stands, in the frame its joints hold (fitted: its turn and place), if it fits.
     const int frame = static_cast<int>(za::max(ragactive::clipFrame(a, qcvm->time), 0.f) + 0.5f);

@@ -336,6 +336,14 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagg
 float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
 void(float xMode) VR_HitStagger_Test;
+// The flinch (vr_flinch.qc).
+float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Hit;
+float(entity e) VR_Flinch_PainOff;
+float(entity e) VR_Flinch_Owns;
+float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_Flinch_Melee;
+float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw;
+void() VR_Flinch_Frame;
+entity vr_fl_thrown; // a thrown prop dealing its damage (vr_carry.qc): the flinch waits for VR_HitStagger_Throw
 // Impacts and manhandling (vr_ragimpact.qc): when it was last staggered (a shove, an unbalancing hit, a stagger
 // recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
 .float vr_kd_shaken;
@@ -1715,7 +1723,14 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
     }
 
-    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
+    // VR: the flinch (vr_flinch.qc): a hit past its threshold makes it an active ragdoll a moment; else the small
+    // hit reaction (vr_hitreact.qc).
+    float flinched = VR_Flinch_Hit(targ, inflictor, attacker, take);
+    if(!flinched)
+    {
+        VR_HitReact_Hit(targ, inflictor, attacker, take);
+    }
+    float painOff = !flinched && VR_Flinch_PainOff(targ);
 
     // react to the damage
     oldself = self;
@@ -1759,6 +1774,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             self.pain_finished = time + 5;
     }
 
+    if(painOff && !self.vr_knockdown && self.health > 0)
+    {
+        self.frame = kdFrame; // (vr_flinch_pain 0: its pain's sound, not its frames)
+        self.think = kdThink;
+        self.nextthink = kdNext;
+    }
     if(kdState && self.health > 0)
     {
         self.frame = kdFrame;
