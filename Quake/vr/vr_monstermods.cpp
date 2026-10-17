@@ -245,7 +245,8 @@ const KnownSword knownSwords[] = {
 // What a monster's model drops (the log's name for it).
 [[nodiscard]] const char* droppedName(const char* model)
 {
-    switch(qvr::modelmeta::identifyPath(model))
+    const auto id = qvr::modelmeta::identifyPath(model);
+    switch(id)
     {
     case qvr::modelmeta::Id::AdSoldier: return "burst rifle";                                  // AD support
     case qvr::modelmeta::Id::AdEnforcer: return "gun and muzzle effect";                       // AD support
@@ -254,7 +255,6 @@ const KnownSword knownSwords[] = {
     case qvr::modelmeta::Id::AdFumigator: return "gun, muzzle effect and hose";                // AD support
     default: break;
     }
-    const auto id = qvr::modelmeta::identifyPath(model);
     if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket)
     {
         return "chainsaw";

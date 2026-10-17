@@ -12443,3 +12443,7 @@ The code sweep's Batch C (scratch/sweep/SWEEP.md ids), the same results with les
   `vr_physics_hash` (props piled and blasted, `sv_random_seed 7`) and `vr_physics_mtbench 200 200` identical;
   `vr_menu_path_check` 0 missing; judo_test.py lift 0 fails (as before); axe sticks still caught (12 throws: 42-75% either build, run to run);
   eval 168/177.
+
+## Sweep batch E (C++ cleanups)
+
+Done: 07.4, 08.6 (comment), 10.1 (first dirs.clear() only; takePending kept), 05.8, 10.6, 11.6, 11.8, 13.10, 13.11, 13.12, 14.8, 15.6, 15.7, 15.8, 16.2 (identify once; the duplicated vertex lists left), 16.6 (particles::nearLimits), 16.9, 04.8, 05.7, 05.9 (documented), 18.11, 20.10, 22.4, 17.6, 19.9, 21.11. Skipped: 19.6 (already fixed in the code). No behaviour change.

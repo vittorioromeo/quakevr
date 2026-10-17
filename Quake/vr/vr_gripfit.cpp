@@ -259,10 +259,6 @@ glm::vec3 run(const Inputs& in, Overlap& before, Overlap& after, int& directions
 {
     za::Array<float, maxPlanes> weights{};
     const int planes = in.hulls > 0 ? in.hullEnds[in.hulls - 1] : 0;
-    for(int j = 0; j < planes; j++)
-    {
-        weights[j] = 0.f;
-    }
     before = overlap(in, glm::vec3{0.f}, weights.data());
     after = before;
     directions = measured = 0;

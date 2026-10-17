@@ -61,6 +61,14 @@ namespace qvr
 namespace
 {
 
+// Reads away the GL errors left pending (at most 16): the runtime's own GL calls check glGetError.
+void drainGlErrors()
+{
+    for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
+    {
+    }
+}
+
 // A crash inside the runtime, caught where the game calls it (vr_xr_guard 1): 1.0.0 died in VDXR 1.1.0's
 // xrEnumerateSwapchainImages, a null read (virtualdesktop-openxr.dll+0x9a668): its OpenGL path takes the swapchain's
 // GL images as made once its D3D11 images are, and reads the first of none. The D3D11 images are fetched before the
@@ -1103,9 +1111,7 @@ private:
         }
         // SteamVR checks glGetError after its own GL calls in here: an error the engine left
         // pending fails the swapchain ("SXR_GL_CHECK ... glGenTextures", GL_INVALID_VALUE).
-        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
-        {
-        }
+        drainGlErrors();
         const XrSession s = session;
         XrSwapchain handle = XR_NULL_HANDLE;
         const XrResult created = guarded(what, [s, &info, &handle] { return xrCreateSwapchain(s, &info, &handle); });
@@ -1155,9 +1161,7 @@ private:
         {
             GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
         }
-        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
-        {
-        }
+        drainGlErrors();
         xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
             glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
         return true;

@@ -2474,13 +2474,10 @@ void drawScreen()
     {
         // Doom's: its own CRT strength (vr_doom_crt, half the HUD's: a picture, not text), a scanline a pixel, no glow.
         const float dk = za::clamp(k * vr_doom_crt.value * 0.5f, 0.f, 2.f);
-        glm::vec3 corner2;
-        glm::vec2 size2;
-        screenRect(corner2, size2);
         gfx::draw(quad, gfx::sceneViewProjection(),
             {.shade = gfx::Shade::Screen, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true,
                 .params = {time, dk, za::min(g, tap), 0.f},
-                .screen = {200.f * size2.x / size2.y, 200.f, 1.f}, .trueColor = true},
+                .screen = {200.f * size.x / size.y, 200.f, 1.f}, .trueColor = true},
             doomTexture);
         return;
     }

@@ -62,7 +62,6 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
-#include "Zancle/Math/Sqrt.hpp"
 
 #include <string.h>
 

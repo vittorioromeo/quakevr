@@ -1398,15 +1398,17 @@ extern "C" void VR_DrawSceneOpaque()
             }
         }
         if(!portals::viewing())
-        for(const Queued& q : queuedTexts())
         {
-            if(q.overlay)
+            for(const Queued& q : queuedTexts())
             {
-                layoutOverlay(q);
-            }
-            else
-            {
-                layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+                if(q.overlay)
+                {
+                    layoutOverlay(q);
+                }
+                else
+                {
+                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+                }
             }
         }
 

@@ -9,21 +9,9 @@
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 
-#include "Zancle/Algorithm/Count.hpp"
-#include "Zancle/Algorithm/Sort.hpp"
-#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
-#include "Zancle/Base/SizeT.hpp"
-#include "Zancle/Chrono/Clock.hpp"
-#include "Zancle/Chrono/Time.hpp"
-#include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
-#include "Zancle/Container/AnkerlUnorderedDense.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/Sin.hpp"
-#include "Zancle/String/String.hpp"
-#include "Zancle/String/ToString.hpp"
 
 namespace qvr::jobs
 {
