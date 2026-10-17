@@ -11651,3 +11651,12 @@ the `xr submit` zone should show it), the error of the bound on his GPU, and the
 
 To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
 hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".
+
+## RenderDoc Capture Frame button (agent/rdcbutton)
+
+- `vr_renderdoc.cpp`: detects RenderDoc through `GetModuleHandleA("renderdoc.dll")` (never loaded by us) and `RENDERDOC_GetAPI` (1.1.2, else 1.1.0, else 1.0.0); the API struct is declared locally (Windows only).
+- Capture: `vr_renderdoc_capture [frames] [delay]` (TriggerCapture, or TriggerMultiFrameCapture for frames > 1). After the delay the menu is closed (and the toolgun panel hidden) for two frames when `vr_renderdoc_hide_menu 1`, the capture is triggered, and on completion the menu reopens on the same page and a centre-print toast shows the file path. `vr_renderdoc_status`: attached, API, capture count, last path (GetCapture), template, window presents against game frames.
+- Cvars: `vr_renderdoc_delay` (0), `vr_renderdoc_frames` (1), `vr_renderdoc_hide_menu` (1), all archived.
+- Buttons: bottom-left corner row above OBS/Recording (only when attached AND Menu Detail Developer); Debug > Profiling and Memory (always listed; says "not attached" when not); toolgun panel More page (when attached; delay cycles 0/1/3 s).
+- Frame boundary: `GL_EndRendering` presents the desktop window once per game frame after `VR_RenderView` rendered both eyes, so a capture holds both eyes. `VR_RenderDocPresented` counts the presents. The unfocused mirror (`vr_mirror_unfocused_hz`) and unpaced test frames skip presents, which delays a capture.
+- Not verified under renderdoccmd: the author's game was running when the work was done.

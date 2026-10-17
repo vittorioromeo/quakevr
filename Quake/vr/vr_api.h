@@ -63,6 +63,7 @@ void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entiti
 int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
 							// ten a second: a present waits for the display's refresh, the bulk of such a frame)
+void VR_RenderDocPresented (void);	// GL_EndRendering, after the desktop window's present (RenderDoc's frame boundary; vr_renderdoc_status counts them)
 void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
 							// dialog (the runtime paces it); zero without one (the loop sleeps)

@@ -1516,6 +1516,7 @@ void GL_EndRendering (void)
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		SDL_GL_SwapWindow(draw_context);
+		VR_RenderDocPresented (); // QVR: the frame boundary RenderDoc sees
 	}
 }
 

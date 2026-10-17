@@ -369,6 +369,20 @@ za::Vector<Item> pageDebugProfiling()
         cycle("Hitch Log", vr_profile_hitch, {{0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"}})
             .help("While the profiler runs (the panel, a capture), frames that take this long go to the console and "
                   "quakevr/profile/hitches_<date>_<time>.csv, with what took their time."),
+        command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
+            .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
+                  "the frame), after the delay below; the console and a message show the file's path. Only when the game "
+                  "runs under RenderDoc (launched from it): else the console says so. The corner's Capture Frame button "
+                  "and the toolgun panel's More page do the same."),
+        cycle("Capture Delay", vr_renderdoc_delay, {{0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"}})
+            .help("vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position."),
+        cycle("Capture Frames", vr_renderdoc_frames, {{1.f, "1 Frame"}, {2.f, "2 Frames"}, {5.f, "5 Frames"}})
+            .help("vr_renderdoc_frames: frames in the button's capture (one file)."),
+        toggle("Hide Menu While Capturing", vr_renderdoc_hide_menu)
+            .help("vr_renderdoc_hide_menu: the menu is closed (and the toolgun panel hidden) for the captured frame, the menu "
+                  "reopened on the same page after."),
+        command("RenderDoc Status", "vr_renderdoc_status")
+            .help("vr_renderdoc_status: whether RenderDoc is attached, the captures taken and the last file's path."),
         toggle("OpenXR Timing Log", vr_xr_log_timing)
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
                   "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
