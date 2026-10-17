@@ -2971,6 +2971,7 @@ Variable sized repeatable trigger. Must be targeted at one or more entities. If 
 	spawnflags(flags) =
 	[
 		1 : "Not touchable" : 0
+		2 : "Trigger first" : 0
 	]
 	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
 ]

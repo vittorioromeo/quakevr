@@ -7,6 +7,7 @@ void() trigger_reactivate =
 
 float    SPAWNFLAG_NOMESSAGE = 1;
 float    SPAWNFLAG_NOTOUCH = 1;
+const float SPAWNFLAG_TRIGGER_FIRST = 2; // Dimension and Dawn of the Machine's trigger_multiple and trigger_once (upstream name)
 
 // the wait time has passed, so set back up for another activation
 void() multi_wait =
@@ -143,6 +144,17 @@ void() trigger_multiple =
     {
         precache_sound("misc/trigger1.wav");
         self.noise = "misc/trigger1.wav";
+    }
+
+    // VR: Dimension and Dawn of the Machine's SPAWNFLAG_TRIGGER_FIRST (2; upstream quakec_mg1 triggers.qc): nothing
+    // until its first use, which makes it the trigger (touchable from then on; that use fires nothing). Missing, The
+    // Sacrifice's (MG3 map8) altar room trigger brought the Rune of Sacrifice with no sacrifice made (ROUND22.md).
+    if((MG1_Campaign() || MG3_Campaign()) && (self.spawnflags & SPAWNFLAG_TRIGGER_FIRST))
+    {
+        self.spawnflags = self.spawnflags - SPAWNFLAG_TRIGGER_FIRST;
+        self.sounds = 0; // (its noise is precached: not again outside the spawn functions)
+        self.use = trigger_multiple;
+        return;
     }
 
     if(!self.wait)
