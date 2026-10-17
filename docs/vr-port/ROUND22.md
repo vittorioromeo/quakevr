@@ -11194,3 +11194,55 @@ zones and that the OpenXR calls show (the mock has none).
 ## His settings, third pass (config 148)
 
 Twelve more of his saved values became defaults (vr_cvars.inc, migration 148; list in the worktree scratch/defaults3.md): leg sweep speed 3.25 (flag: was to be about 1.5), topple 200, feet 0.5, carve depth 0.75 / rim 1.25 / kept 128, dummy dies off, enemy swing turn 6, knockdown keep max 7, mirror hides head text, parallax plane 1, relight reload off. Personal, holster, gore stream and doubtful ones skipped. Checked: build, menu paths 0 missing, fresh start takes them, eval passes.
+
+## Magnetic holsters: chain origin, long throws, sounds, the hand point; his holster values (worktree `permdecals`, branch `agent/holsters3`, 2026-10-17)
+
+His voice notes (2026-10-17), six items:
+
+- **Chain origin** (Immersion > Weapons and Holsters > Magnetic Holsters > Chain Origin): the chains' end at the holster
+  moved in the body's frame, units forward, outwards (the left holsters' to the left), up: `vr_magholster_chain_x/y/z`
+  for every holster plus each kind's own (`vr_magholster_chain_hip_*`, `_upper_*` (Chest), `_shoulder_*`), all 0.
+  While one of them is chosen in the menu, every holster's chain origin is marked by an orange point, bound or not.
+- **Long throws** (`vr_magholster_chain_lod` 5 m, "Full Chain Up To"): the tether no longer fades out past the return
+  distance or 6 m (that fade, at 4-4.5 m with the default Return Beyond 4 m, was the chain disappearing); it is drawn
+  however far the weapon is. Up to 5 m the links as before; beyond, a plain thin tube (9 rings, 4 sides, no
+  simulation; lit at its ends and middle, a little rust) sagging as a chain of the same 1% slack would (a parabola,
+  `L * sqrt(3 * 0.01 / 8)`), so the switch does not jump; back to links 0.25 m nearer (no flicker at the edge). 0: always
+  a line. `vr_magholster_info` says `tether chain N links` or `tether line`. Left as it was: a weapon the server does not
+  send (out of sight behind walls, out of the PVS) is unseen, so neither chain nor line is drawn to it.
+- **Zip** (`vr_magholster_zip_volume` 0.5): a bound weapon setting off home plays `sound/vr/magholster_zip.wav` at you
+  (the holster): a spring reel winding the chain in, a ratchet's ticks speeding up over a rising whirr, 0.42 s (the
+  flight's 0.4 s), the holster's click as it lands. Synthesised by `Misc/quakevr/make_magholster_sounds.py` (numpy:
+  `py -3.13`).
+- **Draw sound** (`vr_magholster_draw_volume` 0.5): drawing a bound weapon from its holster plays
+  `sound/vr/magholster_draw.wav` over the holster's own sound: a few light link clinks and the reel's slow ticks, the
+  chain paid out (QC `VR_MagHolster_DrawSound`, from `VRDrawHolsterWeapon`).
+- **Hand point** (`vr_holster_zone_hand_point` 1; Holster Zones > Hand Point): a hand holding a gun is tested at its
+  palm as drawn too (`view::heldHandPoint`: the jointed hand's palm middle, else 3 units on from the wrist), beside the
+  gun's grip and body. The palm of a gun held muzzle down sits about 5 units above its handle: with his thin hip zone a
+  palm 3 units in from the drawn holster held the gun (depth 0.95) where its points alone dropped it (1.17). The pouch
+  rule is unchanged: the pouches take an empty hand's point alone, a gun goes to no pouch (its load point scored for
+  the ammo pouch only, never picked), so the palm can only put a gun in a holster.
+- **His values as defaults** (config 149; only values still at the old defaults move): `vr_holster_zone_scale` 1 → 0.95;
+  hip `_y` 0 → -2.25, `_z` -2 → -2.25, `_depth` 0.6 → 0.15; upper `_x` 0 → -3.75, `_y` 0 → 3.25, `_z` -2 → -0.75,
+  `_height` 1.1 → 0.7; shoulder `_x` 0 → -2.5, `_y` 0 → 1, `_z` 0 → -0.5, `_depth`/`_width`/`_height` 0.9 → 0.5; ammo
+  `_x` 0 → -1, `_depth` 1 → 0.15, `_width` 0.8 → 0.75, `_height` 1 → 0.95; `vr_shoulder_holster_thresh` 7.8 → 7. Every
+  other holster, pouch and magnetic holster setting in his config was already at its default.
+
+His zones are moved off the reach points: a hand at a hip's or the ammo pouch's reach point (`body::holsterPosition`)
+is no longer in its box, nor one at a chest holster's model origin (just outside, 1.01). So the mock's
+`vr_mock_hand_to <hand> holster <n>`, `grenadepouch` and `ammopouch` now go to the zone's box middle while the zones are
+on (the reach point with the old spheres), and `zonebox <i>` and `zonepalm <i> <out> <side> <up>` are new.
+
+Tests: `Misc/quakevr/holsterzones_test.sh` (updated for his zones: drawn from the drawn hip holster; 4 units in drops;
+the hand point cases; the empty hand at each box's middle): 13/13 PASS. `Misc/quakevr/magchain_lod_test.sh` (new):
+3.5 m links (379), Full Chain Up To 0 a line, 9.5 m a line, Full Chain Up To 12 links (620), the origin sliders move
+the chain end (19.3 → 26.0 cm off the reach point): 5/5 PASS; `shot`: `scratch/magchain_lod.png`, the chain at 3 m and
+the line at 10 m. `holsters2_test.sh land noland rebind` as before (home 2.91 s; 3.94 m off in the air; only 5 bound);
+`reload/pouch_test.sh` all PASS. `magholster_test.sh time/catch` toss the gun 20+ m with its strong toss and Land First
+1 s now outlasts their waits (no flight printed); walk and busy as described.
+
+To try in VR: bind a gun, throw it far down a corridor: the chain stays, links near, a thin line far (Full Chain Up To);
+let it come home: the zip; draw it again: the chain's sound over the holster's. Chain Origin sliders with a bound gun
+out: the orange points show where each holster's chain starts. Holster a gun with your hand deep in the holster but the
+gun sticking out: it should stay in.

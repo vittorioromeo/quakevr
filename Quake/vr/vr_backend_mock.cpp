@@ -728,16 +728,20 @@ void mockHandTo_f()
         moveHandTo(hand, target);
         return;
     }
-    if(hand >= 0 && Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "zone") || !q_strcasecmp(Cmd_Argv(2), "zonegrip")))
+    if(hand >= 0 && Cmd_Argc() >= 4 &&
+        (!q_strcasecmp(Cmd_Argv(2), "zone") || !q_strcasecmp(Cmd_Argv(2), "zonegrip") ||
+            !q_strcasecmp(Cmd_Argv(2), "zonepalm") || !q_strcasecmp(Cmd_Argv(2), "zonebox")))
     {
         // At zone `index`'s holster as drawn (zones::Zone: the holsters 0..5 as above, 6 the ammo pouch, 7 the grenade
         // pouch; its model's origin, the loops), `out` `outwards` `up` units off it in its frame; "zonegrip": the grip of
-        // the gun the hand holds there instead (vr_holster_zones tests).
+        // the gun the hand holds there instead, "zonepalm" its palm (vr_holster_zones tests); "zonebox": the hand at the
+        // zone's box's middle.
         const hands::State& st = hands::current();
         const glm::vec3 off{Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f,
             Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f};
         glm::vec3 target;
-        if(!zones::drawnPoint(st, Q_atoi(Cmd_Argv(3)), off, target))
+        const bool box = !q_strcasecmp(Cmd_Argv(2), "zonebox");
+        if(box ? !zones::boxMiddle(st, Q_atoi(Cmd_Argv(3)), target) : !zones::drawnPoint(st, Q_atoi(Cmd_Argv(3)), off, target))
         {
             Con_Printf("vr_mock_hand_to: no zone %s\n", Cmd_Argv(3));
             return;
@@ -751,6 +755,16 @@ void mockHandTo_f()
                 return;
             }
             target += st.pos[hand] - handle;
+        }
+        glm::vec3 palm;
+        if(!q_strcasecmp(Cmd_Argv(2), "zonepalm")) // (the palm of the hand holding a gun: the zones' hand point)
+        {
+            if(!view::heldHandPoint(hand, palm))
+            {
+                Con_Printf("vr_mock_hand_to: no gun in that hand\n");
+                return;
+            }
+            target += st.pos[hand] - palm;
         }
         Con_Printf("vr_mock_hand_to: %s %s: %.1f %.1f %.1f\n", Cmd_Argv(2), Cmd_Argv(3), target.x, target.y, target.z);
         moveHandTo(hand, target);
@@ -781,6 +795,13 @@ void mockHandTo_f()
                 return;
             }
             target = body::holsterPosition(st, static_cast<body::Holster>(h));
+        }
+        // With the zones (vr_holster_zones 1): their box's middle (his zones, 2026-10-17, are moved off the reach points;
+        // a hand there is no longer in some of them).
+        glm::vec3 mid;
+        if(zones::enabled() && zones::boxMiddle(st, Cmd_Argc() == 3 ? zones::ZoneGrenadePouch : Q_atoi(Cmd_Argv(3)), mid))
+        {
+            target = mid;
         }
         Con_Printf("vr_mock_hand_to: %s: %.1f %.1f %.1f\n", Cmd_Argv(2), target.x, target.y, target.z);
         moveHandTo(hand, target);
@@ -823,6 +844,11 @@ void mockHandTo_f()
                 return;
             }
             target = body::ammoPouchPosition(st);
+            glm::vec3 mid; // (the zones': their box's middle, as the holsters')
+            if(zones::enabled() && zones::boxMiddle(st, zones::ZoneAmmoPouch, mid))
+            {
+                target = mid;
+            }
             Con_Printf("vr_mock_hand_to: the ammo pouch: %.1f %.1f %.1f\n", target.x, target.y, target.z);
         }
         else

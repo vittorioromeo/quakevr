@@ -2375,3 +2375,25 @@ void holdFloating(hands::State& s, const posing::Session& ps)
     wholeTurn[wh] = glm::mat3{1.f};
 }
 } // namespace view_detail
+
+bool view::heldHandPoint(int hand, glm::vec3& out)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const view::ViewEntity& w = entities.weapon[hand];
+    const view::ViewEntity& base = entities.hand[hand][FingerBase];
+    if(!w.visible || !w.ent.model || !base.ent.model)
+    {
+        return false;
+    }
+    if(rigHands[hand].drawn)
+    {
+        out = view::ModelSpace{base}.point(grasp::palmCentre());
+        return true;
+    }
+    const avatar::HandPose hp = drawnHand(hands::current(), hand);
+    out = hp.wrist + hp.forward * 3.f; // (hand_base.mdl's palm: about 3 units on from its wrist)
+    return true;
+}
