@@ -3430,11 +3430,11 @@ extern "C" void VR_DrawSceneTranslucent()
                        za::max(0.f, vr_particle_halfres_pixels.value),
         static_cast<float>(viewport[2]), static_cast<float>(viewport[3])};
     const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
-    // Retro: not in the frames composited in reverse order (vr_particle_saturate: the densest, from 10 views of
-    // particles), where skipping what is hidden costs less than all of them at half size (particles_dense: 8 against
-    // 25 ms of GPU a frame, BENCHMARKS.md "Half-resolution retro particles").
+    // Retro, vr_particle_halfres_dense 0: not in the frames composited in reverse order (vr_particle_saturate: the
+    // densest, from 10 views of particles), as before 2026-10-17 (then 8 against 25 ms of GPU at half size; today's
+    // code at 2784 an eye: 1.4 against 5.0 ms, ROUND22.md "Half resolution in the densest frames").
     const bool saturated = retroSet > 0 && inView && vr_particle_halfres_force.value == 0.f &&
-                           reverseOrderThisFrame(split.pixelScale, viewport);
+                           vr_particle_halfres_dense.value == 0.f && reverseOrderThisFrame(split.pixelScale, viewport);
     const bool half = inView && allowHalf && !saturated &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
 

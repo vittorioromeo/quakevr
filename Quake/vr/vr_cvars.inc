@@ -1812,6 +1812,7 @@ QVR_CVAR(vr_soft_particles_scale, "1", CVAR_ARCHIVE)  // how close to the scene 
 QVR_CVAR(vr_particle_halfres, "1", CVAR_ARCHIVE)      // with many large particles in view (smoke, fire and blood near you, over a screen and a half of them), all of them drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer (0: always at full resolution)
 QVR_CVAR(vr_particle_halfres_pixels, "0", CVAR_NONE)  // tests: only those this many pixels or more from middle to edge at half resolution, the others over them at full (0: all of them, in their order)
 QVR_CVAR(vr_particle_halfres_upsample, "1", CVAR_ARCHIVE) // particles at half resolution blended in by the scene's depth: each pixel takes the half-size texels at its own distance (no gaps or halos round edges in front of smoke); 0: filtered (bilinear), as before
+QVR_CVAR(vr_particle_halfres_dense, "1", CVAR_ARCHIVE) // half resolution (when allowed) also in the densest frames, those composited in reverse order (vr_particle_saturate); 0: retro particles there at full resolution, in reverse order, as before
 QVR_CVAR(vr_particle_halfres_force, "0", CVAR_NONE) // tests: particles at half resolution (when allowed: vr_particle_halfres, vr_particle_retro_halfres) in every frame with some in view, however few (0: from a view and a half of them)
 QVR_CVAR(vr_particle_freeze, "0", CVAR_NONE) // debug: freeze particle simulation for same-state render comparisons
 QVR_CVAR(vr_particle_trim, "0", CVAR_ARCHIVE) // opt-in conservative transparent-margin geometry; 0: full quads
