@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
+#include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
@@ -32,6 +33,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
 
@@ -42,6 +44,10 @@ namespace
 
 // The vr_decal_stress command's lattice permutation counter (stress_f): file scope, not a function-local static.
 unsigned stressSerial = 0;
+// The vr_decal_carve_test command's lattice place counter (carveTest_f), and its last marks' middle, surface normal and
+// way across (for its look).
+unsigned carveTestSerial = 0;
+glm::vec3 carveTestCentre{0.f}, carveTestNormal{0.f}, carveTestAcross{0.f};
 
 enum Kind : int
 {
@@ -123,6 +129,9 @@ struct Decal
     int brush = 0; // the runtime brush (vr_brushes.cpp) it lies on, by id (0: none; -1: more than one)
     bool permTried = false; // baked into the permanent layer and found no face there (vr_permdecals: it stays live)
     bool fromLayer = false; // one of the permanent layer's, shown live while it is off (showRecord: dropped when on)
+    // Carved (vr_decal_carve; the shader's Decal.carve): its crater's depth in units (0: flat), radius in units, rim's
+    // height over its depth, dark core's part of the radius + 2 x its shape (0 a pit, 1 a nail's hole, 2 a blast's).
+    glm::vec4 carve{0.f};
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -1080,7 +1089,10 @@ void showRecord()
         static_cast<int>(recordShown.size()));
 }
 
-bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
+// `carve`: carved (vr_decal_carve) as {its crater's depth in units (0 flat), radius over the mark's half size, rim's
+// height over its depth, core + 2 x shape} (Decal::carve).
+bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {},
+    const glm::vec4& carve = glm::vec4{0.f})
 {
     QVR_PROFILE("decal add");
     const int max = static_cast<int>(vr_decal_max.value);
@@ -1119,10 +1131,10 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         u = glm::normalize(a);
     }
     glm::vec3 v = glm::cross(n, u);
-    if(kind == Hole)
+    if(kind == Hole || carve.x > 0.f)
     {
-        // Its relief lit from where the light comes from (v: the cell's lit side); mirrored at
-        // random for variety (the light stays).
+        // Its relief lit from where the light comes from (v: the cell's lit side; a carved crater's guess at where the
+        // baked light comes from, CarveAt); mirrored at random for variety (the light stays).
         if(const glm::vec3 lit = lightAlong(where, n); glm::dot(lit, lit) > 0.f)
         {
             v = lit;
@@ -1142,6 +1154,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     d.darken = za::clamp(o.darken, 0.f, 0.9f);
     d.normal = n;
     d.depth = big ? za::clamp(halfV * 0.35f, 4.f, 12.f) : 3.f;
+    d.carve = carve.x > 0.f ? glm::vec4{carve.x, carve.y * halfV, carve.z, carve.w} : glm::vec4{0.f};
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
     // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked when it shows (at once,
@@ -1183,6 +1196,95 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
 [[nodiscard]] float random(float lo, float hi)
 {
     return lo + (hi - lo) * static_cast<float>(rand() % 1000) * 0.001f;
+}
+
+// ---- Carved holes and craters (vr_decal_carve) -------------------------------------------------
+
+// What hit the wall, as the carved marks tell them apart (Quake's temp entities, VR_DecalTempEntity; the QC's effects,
+// fromEffect). The expansions' and Arcane Dimensions' weapons send the same ones.
+enum class Impact
+{
+    Pellet,        // a shotgun's pellet, an enforcer's or a gunner's bullet (TE_GUNSHOT)
+    Nail,          // a nail (TE_SPIKE)
+    SuperNail,     // a super nail (TE_SUPERSPIKE)
+    LavaNail,      // Dissolution of Eternity's lava nails (TE_SPIKE, TE_SUPERSPIKE from a progs/lspike.mdl)
+    LavaSuperNail,
+    MonsterSpike,  // a scrag's or a death knight's (TE_WIZSPIKE, TE_KNIGHTSPIKE)
+    Blow,          // a melee blow, a stuck axe, the grapple (the QC's bullet puffs and sparks)
+    Blast          // a rocket's, a grenade's (TE_EXPLOSION, TE_EXPLOSION2, the QC's explosions)
+};
+
+// Each's mark: its kind, size (and +- at random), its crater (depth in units, radius over the mark's half size, rim's
+// height over its depth, dark core's part of the radius, shape: 0 a pit, 1 a nail's hole, 2 a blast's), and the damage
+// cvar it grows with (as its square root, from that cvar's shipped value; none: nullptr).
+struct ImpactShape
+{
+    Kind kind;
+    float size, jitter;
+    float depth, radius, rim, core, shape;
+    const cvar_t* damage;
+    float shipped;
+};
+
+[[nodiscard]] ImpactShape impactShape(Impact what)
+{
+    switch(what)
+    {
+        case Impact::Pellet: return {Hole, 6.5f, 1.f, 0.9f, 0.46f, 0.32f, 0.3f, 0.f, &vr_dmg_shotgun, 4.f};
+        case Impact::Nail: return {Hole, 7.f, 0.8f, 1.7f, 0.3f, 0.25f, 0.5f, 1.f, &vr_dmg_nail, 9.f};
+        case Impact::SuperNail: return {Hole, 9.f, 1.f, 2.2f, 0.34f, 0.25f, 0.5f, 1.f, &vr_dmg_super_nail, 18.f};
+        case Impact::LavaNail: return {Hole, 9.5f, 1.f, 2.f, 0.36f, 0.3f, 0.45f, 1.f, &vr_dmg_lava_nail, 15.f};
+        case Impact::LavaSuperNail: return {Hole, 11.f, 1.f, 2.4f, 0.37f, 0.3f, 0.45f, 1.f, &vr_dmg_lava_nail, 15.f};
+        case Impact::MonsterSpike: return {Hole, 8.f, 1.f, 1.6f, 0.34f, 0.25f, 0.45f, 1.f, nullptr, 1.f};
+        case Impact::Blow: return {Hole, 7.f, 1.f, 0.6f, 0.42f, 0.35f, 0.2f, 0.f, nullptr, 1.f};
+        case Impact::Blast: return {Scorch, 52.f, 8.f, 4.f, 0.46f, 0.4f, 0.f, 2.f, &vr_dmg_rocket, 100.f};
+    }
+    return {Hole, 6.5f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, nullptr, 1.f};
+}
+
+// A mark of `what` laid at `where` (normal `normal`): carved, unless it is off (vr_decal_carve 0: Quake VR's flat marks,
+// their sizes as before carving).
+bool impactMark(Impact what, const glm::vec3& where, const glm::vec3& normal)
+{
+    const ImpactShape s = impactShape(what);
+    const bool carving = vr_decal_carve.value != 0.f;
+    if(!carving)
+    {
+        const float size = s.kind == Scorch ? random(44.f, 60.f) : what == Impact::Blow ? random(6.f, 8.f) : random(5.5f, 7.5f);
+        return add(s.kind, where, normal, size);
+    }
+    const float grows = s.damage ? za::clamp(za::sqrt(za::max(s.damage->value, 0.f) / s.shipped), 0.6f, 1.8f) : 1.f;
+    const float wide = za::clamp(vr_decal_carve_size.value, 0.5f, 2.f);
+    const float size = (s.size + random(-s.jitter, s.jitter)) * grows * wide;
+    return add(s.kind, where, normal, size, {}, glm::vec4{s.depth * grows, s.radius, s.rim, s.core + 2.f * s.shape});
+}
+
+// Where `what` at `org` (going along `dir`, may be zero) marks the world: a hit's on the surface nearest it, a blast's
+// below it (else nearest).
+void impactAt(Impact what, const glm::vec3& org, const glm::vec3& dir)
+{
+    glm::vec3 where, normal;
+    const glm::vec3 back = glm::dot(dir, dir) > 1e-4f ? -glm::normalize(dir) : glm::vec3{0.f};
+    if(what == Impact::Blast ? nearest(org, 64.f, glm::vec3{0, 0, -1}, where, normal) : nearest(org, 6.f, back, where, normal))
+    {
+        (void)impactMark(what, where, normal);
+    }
+}
+
+// A nail's hit at `pos` from Dissolution of Eternity's lava nailguns: a lava nail (progs/lspike.mdl) seen near it in
+// the last updates (the nail goes in the message that brings its hit).
+[[nodiscard]] bool lavaNailNear(const glm::vec3& pos)
+{
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(e.model && e.msgtime >= cl.mtime[1] - 0.001 && !q_strcasecmp(e.model->name, "progs/lspike.mdl") &&
+            glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, pos) < 160.f)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ---- Gibs' blood (VR_GibTrail) ----------------------------------------------------------------
@@ -1330,7 +1432,7 @@ void chip(const glm::vec3& org)
             where = w;
             normal = n;
         }
-        add(Hole, where, normal, random(5.5f, 7.5f));
+        (void)impactMark(Impact::Pellet, where, normal);
     }
 }
 
@@ -1362,19 +1464,11 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
             }
             break;
         }
-        case Preset::BulletPuff: // a chip where it hit
+        case Preset::BulletPuff: // a chip where it hit (the QC's: a melee blow, a stuck axe, the grapple)
         case Preset::Sparks:     // a melee blow on a wall
-            if(nearest(org, 6.f, back, where, normal))
-            {
-                add(Hole, where, normal, preset == Preset::BulletPuff ? random(5.5f, 7.5f) : random(6.f, 8.f));
-            }
+            impactAt(Impact::Blow, org, dir);
             break;
-        case Preset::Explosion:
-            if(nearest(org, 64.f, glm::vec3{0, 0, -1}, where, normal))
-            {
-                add(Scorch, where, normal, random(44.f, 60.f));
-            }
-            break;
+        case Preset::Explosion: impactAt(Impact::Blast, org, glm::vec3{0.f}); break;
         case Preset::Lightning:
         case Preset::LavaSpike:
             if(nearest(org, 10.f, back, where, normal))
@@ -1455,8 +1549,9 @@ struct WorldDecal
     glm::vec4 v;      // a unit, w half its width
     glm::vec4 n;      // its surface's normal, w its depth
     glm::vec4 time;   // when it shows (on worldClock's), grow, growFrom, darken (+2: from its start)
+    glm::vec4 carve;  // Decal::carve
 };
-static_assert(sizeof(WorldDecal) == 80);
+static_assert(sizeof(WorldDecal) == 96);
 static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHeight == 1024,
     "QVR_DECAL_FUNCTIONS (vr_glsl.h) has the atlas's layout");
 
@@ -1566,6 +1661,7 @@ void buildWorld()
             w.v = {hv > 0.f ? d.v / hv : glm::vec3{0.f}, za::max(hv, 1e-3f)};
             w.n = {d.normal, d.depth};
             w.time = {static_cast<float>(d.born - worldClock), d.grow, d.growFrom, d.darken + (d.fromStart ? 2.f : 0.f)};
+            w.carve = d.carve;
             worldDecals.pushBack(w);
         }
     }
@@ -1718,6 +1814,19 @@ void bakeSettled()
         const za::SizeT n = decals.size();
         bakedNow.assign(n, 0);
         za::SizeT gone = 0;
+        // Carved marks (vr_decal_carve) stay live, the newest vr_decal_carve_max of them (the layer keeps no depth), until
+        // they are older or would start to fade out (vr_decal_life): then baked flat as the others.
+        const bool carving = vr_decal_carve.value != 0.f && onWorld();
+        const int carveMax = za::max(0, static_cast<int>(vr_decal_carve_max.value));
+        int carvedLeft = 0; // the carved marks from here on, this one too
+        if(carving)
+        {
+            for(za::SizeT i = 0; i < n; i++)
+            {
+                carvedLeft += decals[i].carve.x > 0.f && !decals[i].fromLayer ? 1 : 0;
+            }
+        }
+        const double carveUntil = static_cast<double>(za::max(10.f, vr_decal_life.value)) - 6.0;
         for(za::SizeT i = 0; i < n; i++)
         {
             Decal& d = decals[i];
@@ -1725,6 +1834,11 @@ void bakeSettled()
             {
                 bakedNow[i] = 1; // (in the layer already)
                 gone++;
+                continue;
+            }
+            const bool carved = carving && d.carve.x > 0.f;
+            if(carved && carvedLeft-- <= carveMax && cl.time - d.born < carveUntil)
+            {
                 continue;
             }
             const double settled =
@@ -1956,6 +2070,116 @@ int stressMarks(int count, float size, Stress kind)
     return made;
 }
 
+void carveTest_f()
+{
+    if(!cl.worldmodel)
+    {
+        Con_Printf("vr_decal_carve_test: enter a map first\n");
+        return;
+    }
+    // The head (in VR; else the view as last drawn).
+    const hands::State& hs = hands::current();
+    glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, f, r, u;
+    if(hs.valid)
+    {
+        eye = hs.head;
+        hands::angleVectors(hs.headAngles, f, r, u);
+    }
+    else
+    {
+        vec3_t forward, right, up;
+        AngleVectors(r_refdef.viewangles, forward, right, up);
+        f = {forward[0], forward[1], forward[2]};
+    }
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+
+    // The view moved to look at the last marks laid: head-on from `dist` along their surface's normal, or grazing (15
+    // degrees over it, from their left), through setpos (and the mock headset's look, vr_mock_look).
+    if(!q_strcasecmp(what, "look"))
+    {
+        if(glm::dot(carveTestNormal, carveTestNormal) == 0.f || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
+        {
+            Con_Printf("vr_decal_carve_test look head|graze [dist]: lay some first\n");
+            return;
+        }
+        const bool graze = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "graze");
+        const float dist = Cmd_Argc() > 3 ? za::clamp(Q_atof(Cmd_Argv(3)), 8.f, 1024.f) : 40.f;
+        const glm::vec3 n = carveTestNormal, side = carveTestAcross;
+        constexpr float s15 = 0.258819f, c15 = 0.965926f;
+        // (head-on: 10 degrees from the normal, so that a floor's view keeps its yaw)
+        const glm::vec3 to = carveTestCentre + (graze ? n * s15 - side * c15 : glm::normalize(n - side * 0.176f)) * dist;
+        const glm::vec3 d = glm::normalize(carveTestCentre - to);
+        const float yaw = za::atan2(d.y, d.x) * (180.f / 3.14159265f);
+        const float pitch = -za::atan2(d.z, glm::length(glm::vec2{d.x, d.y})) * (180.f / 3.14159265f);
+        const auto& e = cl_entities[cl.viewentity];
+        const glm::vec3 o = to - (eye - glm::vec3{e.origin[0], e.origin[1], e.origin[2]}); // (the eye's height over it)
+        Cbuf_InsertText(va("vr_mock_look %.2f 0; setpos %.2f %.2f %.2f 0 %.2f 0\n", pitch, o.x, o.y, o.z, yaw));
+        return;
+    }
+
+    const int lattice = za::clamp(atoi(what), 0, 64);
+    glm::vec3 centre, n;
+    float fraction;
+    if(!hitWorld(eye, eye + f * 1024.f, centre, n, fraction))
+    {
+        Con_Printf("vr_decal_carve_test: no surface ahead\n");
+        return;
+    }
+    // On the surface: `up` its upward way (a floor's: away from the eye), `across` to the right.
+    glm::vec3 upward = za::fabs(n.z) < 0.7f ? glm::vec3{0.f, 0.f, 1.f} : f;
+    upward = glm::normalize(upward - n * glm::dot(upward, n));
+    const glm::vec3 across = glm::cross(upward, n);
+    carveTestCentre = centre;
+    carveTestNormal = n;
+    carveTestAcross = across;
+    srand(carveTestSerial * 2654435761u + 7u);
+    const auto at = [&](Impact kind, float a, float b) {
+        const glm::vec3 p = centre + across * a + upward * b;
+        glm::vec3 where, normal;
+        float fr;
+        return hitWorld(p + n * 8.f, p - n * 16.f, where, normal, fr) && impactMark(kind, where, normal);
+    };
+    int made = 0;
+    if(!q_strcasecmp(what, "blast"))
+    {
+        made += at(Impact::Blast, 0.f, 0.f); // (one blast's crater in the middle)
+    }
+    else if(lattice > 0)
+    {
+        // A lattice 12 units apart, 16 across, pellets, nails and super nails in turn, continued by the next call (each
+        // call 64 at most: add's limit a frame).
+        constexpr Impact kinds[] = {Impact::Pellet, Impact::Nail, Impact::SuperNail};
+        for(int i = 0; i < lattice; i++, carveTestSerial++)
+        {
+            const float a = 12.f * (static_cast<float>(carveTestSerial % 16u) - 7.5f);
+            const float b = 12.f * (static_cast<float>(carveTestSerial / 16u) - 6.f);
+            made += at(kinds[carveTestSerial % 3u], a, b);
+        }
+    }
+    else
+    {
+        // Pellets in a row, nails and super nails under them, lava nails under those, a blast's crater to the right.
+        for(int i = 0; i < 5; i++)
+        {
+            made += at(Impact::Pellet, -36.f + 9.f * static_cast<float>(i), 14.f);
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            made += at(Impact::Nail, -36.f + 10.f * static_cast<float>(i), 0.f);
+        }
+        for(int i = 0; i < 2; i++)
+        {
+            made += at(Impact::SuperNail, -4.f + 12.f * static_cast<float>(i), 0.f);
+        }
+        made += at(Impact::LavaNail, -32.f, -14.f);
+        made += at(Impact::LavaSuperNail, -16.f, -14.f);
+        made += at(Impact::Blast, 40.f, 0.f);
+    }
+    Con_Printf("vr_decal_carve_test: %d marks laid round %.1f %.1f %.1f (normal %.2f %.2f %.2f), %.0f units ahead of %.1f %.1f "
+               "%.1f along %.2f %.2f %.2f\n",
+        made, centre.x, centre.y, centre.z, n.x, n.y, n.z, fraction * 1024.f, eye.x, eye.y, eye.z, f.x, f.y, f.z);
+}
+
 void stress_f()
 {
     if(!cl.worldmodel || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
@@ -2045,15 +2269,21 @@ void count_f()
         }
         kinds[kind]++;
     }
-    int showing = 0, onBrushes = 0;
+    int showing = 0, onBrushes = 0, carved = 0, nailShaped = 0, craters = 0;
     for(za::SizeT k = 0; k < decals.size(); k++)
     {
-        showing += decals[k].tris.empty() ? 0 : 1;
-        onBrushes += !decals[k].tris.empty() && decals[k].brush != 0 ? 1 : 0;
+        const Decal& d = decals[k];
+        showing += d.tris.empty() ? 0 : 1;
+        onBrushes += !d.tris.empty() && d.brush != 0 ? 1 : 0;
+        carved += d.carve.x > 0.f ? 1 : 0;
+        nailShaped += d.carve.x > 0.f && d.carve.w >= 2.f && d.carve.w < 4.f ? 1 : 0;
+        craters += d.carve.x > 0.f && d.carve.w >= 4.f ? 1 : 0;
     }
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
         kinds[Streak], kinds[Pool], kinds[Splotch]);
+    Con_Printf("%d carved (vr_decal_carve %g): %d pits, %d nail holes, %d blast craters\n", carved, vr_decal_carve.value,
+        carved - nailShaped - craters, nailShaped, craters);
     Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
         static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
@@ -2262,12 +2492,25 @@ void limbTrail(int key, const glm::vec3& at)
 
 } // namespace qvr::decals
 
-// cl_tent.c: Quake's own wall hits and explosions.
-extern "C" void VR_DecalTempEntity(int scorch, const float* pos)
+// cl_tent.c: Quake's own wall hits and explosions (vr_api.h's QVR_DECAL_TE_*), each its own carved mark.
+extern "C" void VR_DecalTempEntity(int what, const float* pos)
 {
-    using qvr::particles::Preset;
-    qvr::decals::fromEffect(
-        {pos[0], pos[1], pos[2]}, glm::vec3{0.f}, scorch ? Preset::Explosion : Preset::BulletPuff, 1);
+    using namespace qvr::decals;
+    if(!qvr::vr_decals.value || !cl.worldmodel)
+    {
+        return;
+    }
+    const glm::vec3 p{pos[0], pos[1], pos[2]};
+    Impact impact = Impact::Pellet;
+    switch(what)
+    {
+        case QVR_DECAL_TE_EXPLOSION: impact = Impact::Blast; break;
+        case QVR_DECAL_TE_SPIKE: impact = lavaNailNear(p) ? Impact::LavaNail : Impact::Nail; break;
+        case QVR_DECAL_TE_SUPERSPIKE: impact = lavaNailNear(p) ? Impact::LavaSuperNail : Impact::SuperNail; break;
+        case QVR_DECAL_TE_MONSTERSPIKE: impact = Impact::MonsterSpike; break;
+        default: break;
+    }
+    impactAt(impact, p, glm::vec3{0.f});
 }
 
 // CL_RelinkEntities, every frame for each entity: Hipnotic's bullet holes (progs/s_bullet.spr, the
@@ -2466,6 +2709,18 @@ extern "C" void VR_DecalsFrame(float clock[4])
     clock[1] = static_cast<float>(life);
     clock[2] = 1.f;
     clock[3] = static_cast<float>(retro::categorySet(retro::Category::Decals)); // their retro set (0 none)
+}
+
+// R_SetupView: the carved marks' settings (DecalCarve, vr_glsl.h's CarveAt): the depth's multiplier (0: off, flat), the
+// rim's, the most steps a ray takes, the distance past which they are flat.
+extern "C" void VR_DecalCarveFrame(float out[4])
+{
+    using namespace qvr;
+    const bool on = vr_decal_carve.value != 0.f && vr_decals.value != 0.f && vr_decals_world.value != 0.f;
+    out[0] = on ? za::clamp(vr_decal_carve_depth.value, 0.f, 4.f) : 0.f;
+    out[1] = za::clamp(vr_decal_carve_rim.value, 0.f, 4.f);
+    out[2] = za::clamp(za::floor(vr_decal_carve_steps.value), 4.f, 64.f);
+    out[3] = za::max(vr_decal_carve_fade.value, 16.f);
 }
 
 // R_DrawBrushModels_Real: the marks (3), their grid (4) and the atlas (unit 14) for the world's shader.

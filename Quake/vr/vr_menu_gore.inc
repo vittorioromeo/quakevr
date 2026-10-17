@@ -587,6 +587,20 @@
         slider("Decals Piled in One Spot", vr_decal_bucket_max, 8.f, 255.f, 8.f, "%.0f")
             .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (24 shipped, 255 the most)."),
         slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s").extend(),
+        toggle("Carved Holes and Craters", vr_decal_carve)
+            .help("Bullet, nail and blast marks carved into walls and floors: a pit, hole or crater with a raised rim and a dark middle, its texture seen deeper in and lit by the world's light. Pellets leave small pits, nails narrow deeper holes (the super nailgun's and lava nails' larger), rockets and grenades wide shallow craters, the lightning gun a scorch only. Look only: nothing to bump into."),
+        slider("Carved Depth", vr_decal_carve_depth, 0.25f, 4.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How deep the holes and craters look (1 shipped: shallow)."),
+        slider("Carved Size", vr_decal_carve_size, 0.5f, 2.f, 0.1f, "%.1fx")
+            .help("How wide the holes and craters made from now on are (1 shipped)."),
+        slider("Carved Rim", vr_decal_carve_rim, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
+            .help("How high the broken rim round each hole and crater stands (0 none)."),
+        slider("Carving Quality", vr_decal_carve_steps, 4.f, 64.f, 4.f, "%.0f steps")
+            .help("The most steps a pixel's look into a hole takes (fewer where it is small on the screen): more are smoother at grazing angles and cost more GPU time where many are in view (16 shipped)."),
+        slider("Carving Distance", vr_decal_carve_fade, 128.f, 4096.f, 128.f, "%.0f")
+            .help("How far off holes and craters stop looking carved (they flatten from half as far; 1024 shipped)."),
+        slider("Carved Marks Kept", vr_decal_carve_max, 32.f, 1024.f, 32.f, "%.0f")
+            .help("How many of the newest holes and craters stay carved; with Permanent Decals the older ones stay, flat (256 shipped)."),
         toggle("Gib Blood", vr_gib_blood).help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
         slider("Gib Blood Trail", vr_gib_blood_trail, 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),
     };

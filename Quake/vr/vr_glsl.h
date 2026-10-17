@@ -127,7 +127,8 @@ QVR_TONE_GLSL
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
-"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n"
+"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
+"	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
 // view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
@@ -1373,6 +1374,7 @@ LIQUID_SWELL \
 "	vec4	v; // xyz its width's way, w half its width\n" \
 "	vec4	n; // xyz the normal of the surface it was laid on, w how far from its plane a surface takes it\n" \
 "	vec4	time; // x when it shows (DecalClock.x's clock), y seconds it spreads over (0: at once), z from this part of its size, w how much darker it gets (+2: spreading from its -u end, a run)\n" \
+"	vec4	carve; // x its crater's depth in units (0: flat), y its radius, z its rim's height over its depth, w its dark core's part of the radius + 2 x its shape (0 a pit, 1 a nail's hole, 2 a blast's crater)\n" \
 "};\n" \
 "layout(std430, binding=3) restrict readonly buffer DecalBuffer\n" \
 "{\n" \
@@ -1393,6 +1395,122 @@ LIQUID_SWELL \
 "	float a = (duv.x * duvdy.y - duv.y * duvdy.x) / det;\n" \
 "	float b = (duvdx.x * duv.y - duvdx.y * duv.x) / det;\n" \
 "	return dpdx * a + dpdy * b;\n" \
+"}\n" \
+"// ... and back: a move along the surface (in the world) as one of its texture coordinates (none if the frame is flat).\n" \
+"vec2 WorldShiftUV(vec3 s, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	float xx = dot(dpdx, dpdx), xy = dot(dpdx, dpdy), yy = dot(dpdy, dpdy);\n" \
+"	float det = xx * yy - xy * xy;\n" \
+"	if (abs(det) < 1e-20)\n" \
+"		return vec2(0.0);\n" \
+"	float sx = dot(dpdx, s), sy = dot(dpdy, s);\n" \
+"	return duvdx * ((sx * yy - sy * xy) / det) + duvdy * ((sy * xx - sx * xy) / det);\n" \
+"}\n" \
+"\n" \
+"// QVR: the carved decals (vr_decal_carve): a hole or crater's height over the surface at q (in units, about its middle,\n" \
+"// along its u and v), k: its radius, depth, rim's height and shape (0 a pit: a bowl; 1 a nail's hole: steep walls; 2 a\n" \
+"// blast's crater: wide and smooth); rot turns its ragged edge (each mark's own). Ragged by a few harmonics of the angle,\n" \
+"// made from the direction itself (no atan).\n" \
+"float CarveHeight(vec2 q, vec4 k, vec2 rot)\n" \
+"{\n" \
+"	float r = length(q);\n" \
+"	vec2 dir = r > 1e-4 ? q / r : vec2(1.0, 0.0);\n" \
+"	float c = dir.x * rot.x - dir.y * rot.y, s = dir.x * rot.y + dir.y * rot.x;\n" \
+"	float rag = 1.0 + 0.08 * (4.0 * c * c * c - 3.0 * c) + 0.06 * (2.0 * c * s) + 0.04 * (3.0 * s - 4.0 * s * s * s);\n" \
+"	float x = r / (k.x * rag), x2 = x * x;\n" \
+"	float bowl = k.w < 0.5 ? max(1.0 - x2, 0.0) : k.w < 1.5 ? sqrt(max(1.0 - x2 * x2, 0.0)) : max(1.0 - x2, 0.0) * (1.0 - 0.35 * x2);\n" \
+"	float rr = (x - 1.0) / (k.w > 1.5 ? 0.35 : 0.25);\n" \
+"	return -k.y * bowl + k.z * exp(-rr * rr);\n" \
+"}\n" \
+"\n" \
+"// The first carved decal at p (where the parallax mapping put the surface; q its own point, facing its normal, dpdx and\n" \
+"// dpdy its derivatives across the screen): the eye's ray marched into its crater (parallax occlusion: steps down from\n" \
+"// its rim's top to its floor, the hit refined between the last two), as many steps as the ray crosses pixels (fewer far\n" \
+"// off, 3 at least, DecalCarve.z at most). shift: how far along the surface the hit is from p; bend: its normal there\n" \
+"// less the decal's; dark: its colour's factor (deeper darker, its core darker still); light: where the baked light is\n" \
+"// guessed to come from (its v: turned towards the light that reaches it, vr_decals.cpp). Flat (false): none here,\n" \
+"// beyond DecalCarve.w, or one spanning a pixel or two (it flattens as it shrinks, and as it fades out).\n" \
+"bool CarveAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy, out vec3 shift, out vec3 bend, out float dark, out vec3 light)\n" \
+"{\n" \
+"	shift = vec3(0.0);\n" \
+"	bend = vec3(0.0);\n" \
+"	dark = 1.0;\n" \
+"	light = facing;\n" \
+"	ivec3 c = ivec3(floor(p * (1.0 / 32.0)));\n" \
+"	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);\n" \
+"	uint mask = DecalGrid[0];\n" \
+"	uint bucket = DecalGrid[1u + (h & mask)];\n" \
+"	uint first = 2u + mask + (bucket >> 8), count = bucket & 255u;\n" \
+"	if (count == 0u)\n" \
+"		return false;\n" \
+"	vec3 eye = p - EyePos;\n" \
+"	float dist = length(eye);\n" \
+"	float fade = 1.0 - smoothstep(0.5 * DecalCarve.w, DecalCarve.w, dist);\n" \
+"	if (fade <= 0.0)\n" \
+"		return false;\n" \
+"	vec3 view = eye / max(dist, 1e-3);\n" \
+"	float foot = max(max(length(dpdx), length(dpdy)), 1e-4); // units a pixel\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		uint at = DecalGrid[first + k];\n" \
+"		vec4 cv = Decals[at].carve;\n" \
+"		if (cv.x <= 0.0) // flat (blood, a scorch of lightning): the early way out\n" \
+"			continue;\n" \
+"		vec4 n4 = Decals[at].n, c4 = Decals[at].centre;\n" \
+"		if (dot(facing, n4.xyz) < 0.5 || abs(dot(c4.xyz - q, facing)) > n4.w)\n" \
+"			continue;\n" \
+"		vec4 u4 = Decals[at].u, v4 = Decals[at].v;\n" \
+"		vec3 off = p - c4.xyz;\n" \
+"		vec2 q0 = vec2(dot(off, u4.xyz), dot(off, v4.xyz));\n" \
+"		float R = cv.y;\n" \
+"		float age = DecalClock.x - Decals[at].time.x;\n" \
+"		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
+"		float strength = fade * a * smoothstep(1.0, 3.0, R / foot); // (flattening far off, small on the screen, fading out)\n" \
+"		float D = cv.x * DecalCarve.x * strength;\n" \
+"		if (age < 0.0 || D < 0.02 || dot(q0, q0) > R * R * 9.0)\n" \
+"			continue;\n" \
+"		float rimH = D * cv.z * DecalCarve.y;\n" \
+"		float shape = floor(cv.w * 0.5);\n" \
+"		vec4 kk = vec4(R, D, rimH, shape);\n" \
+"		vec3 n = n4.xyz;\n" \
+"		float vz = min(dot(view, n), -0.12); // into it (grazing rays: their reach bounded)\n" \
+"		vec2 slope = vec2(dot(view, u4.xyz), dot(view, v4.xyz)) / -vz; // along it per unit down\n" \
+"		// the ray from the rim's top to the floor: missing the crater and its rim (1.6 radii), flat here\n" \
+"		vec2 ra = q0 - slope * rimH, rb = q0 + slope * D, ab = rb - ra;\n" \
+"		vec2 near = ra + ab * clamp(-dot(ra, ab) / max(dot(ab, ab), 1e-8), 0.0, 1.0);\n" \
+"		if (dot(near, near) > R * R * 2.56)\n" \
+"			continue;\n" \
+"		float ang = fract(sin(dot(c4.xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;\n" \
+"		vec2 rot = vec2(cos(ang), sin(ang));\n" \
+"		float steps = clamp(ceil(length(ab) / foot * 0.5) + 2.0, 3.0, max(DecalCarve.z, 3.0));\n" \
+"		float ds = (D + rimH) / steps;\n" \
+"		float s0 = -rimH, g0 = s0 + CarveHeight(ra, kk, rot), s1 = s0, g1 = g0; // g: the ray's depth past the surface's\n" \
+"		for (float i = 1.0; i <= steps; i += 1.0)\n" \
+"		{\n" \
+"			s1 = -rimH + ds * i;\n" \
+"			g1 = s1 + CarveHeight(q0 + slope * s1, kk, rot);\n" \
+"			if (g1 >= 0.0)\n" \
+"				break;\n" \
+"			s0 = s1;\n" \
+"			g0 = g1;\n" \
+"		}\n" \
+"		float sh = g1 > g0 ? mix(s0, s1, clamp(-g0 / (g1 - g0), 0.0, 1.0)) : s1;\n" \
+"		vec2 qh = q0 + slope * sh;\n" \
+"		float e = max(R * 0.06, 0.02);\n" \
+"		float hh = CarveHeight(qh, kk, rot);\n" \
+"		vec2 g = vec2(CarveHeight(qh + vec2(e, 0.0), kk, rot) - hh, CarveHeight(qh + vec2(0.0, e), kk, rot) - hh) / e;\n" \
+"		bend = normalize(n - u4.xyz * g.x - v4.xyz * g.y) - n;\n" \
+"		shift = u4.xyz * (qh.x - q0.x) + v4.xyz * (qh.y - q0.y);\n" \
+"		float deep = clamp(-hh / D, 0.0, 1.0);\n" \
+"		float core = cv.w - 2.0 * shape;\n" \
+"		dark = 1.0 - 0.45 * deep * deep;\n" \
+"		if (core > 0.0)\n" \
+"			dark *= mix(0.22, 1.0, smoothstep(core * 0.55, core, length(qh) / R));\n" \
+"		dark = mix(1.0, dark, strength);\n" \
+"		light = normalize(n * 0.6 + v4.xyz * 0.8);\n" \
+"		return true;\n" \
+"	}\n" \
+"	return false;\n" \
 "}\n" \
 "\n" \
 "// The decals' colour on the texture at p (where the parallax mapping put it; q: the surface's own point there, facing\n" \
@@ -1576,6 +1694,26 @@ LIQUID_SWELL \
 "layout(location=21) in vec2 in_grime; // QVR: the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS)\n" \
 "layout(location=22) flat in vec2 in_grimepages; // QVR\n"
 
+// QVR: the carved decals (QVR_DECAL_FUNCTIONS' CarveAt; the solid world's, before its textures are read): where a
+// crater's floor or wall is seen through the pixel the textures are read from instead (puv moved on, as the parallax
+// mapping moves it: the decals and the permanent layer then follow it as they follow that), its normal bent for the
+// lights (QVR_WORLD_FS_LIGHT), its colour darkened (QVR_WORLD_FS_DECALS).
+#define QVR_WORLD_FS_CARVE \
+"	bool carve_on = false;\n" \
+"	vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n" \
+"	float carve_dark = 1.;\n" \
+"	if (DecalCarve.x > 0.0 && DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
+"	{\n" \
+"		vec3 carve_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
+"		vec3 carve_shift;\n" \
+"		carve_on = CarveAt(carve_pos, in_pos, facing, dpdx, dpdy, carve_shift, carve_bend, carve_dark, carve_light);\n" \
+"		if (carve_on)\n" \
+"		{\n" \
+"			puv += WorldShiftUV(carve_shift, duvdx, duvdy, dpdx, dpdy);\n" \
+"			parallax = true;\n" \
+"		}\n" \
+"	}\n"
+
 // QVR: the decals on the world's own surfaces (QVR_DECAL_FUNCTIONS) on its texture, before its light: the world's
 // instance only (Instance.retro.w, R_InitBModelInstance), not brush models (the meshes were laid on the world alone);
 // its fullbrights and sheen covered as much. Then the permanent decals' layer (QVR_PERMDECAL_FUNCTIONS), the world's
@@ -1583,13 +1721,16 @@ LIQUID_SWELL \
 // texture to)
 #define QVR_WORLD_FS_DECALS \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
-"	vec3 decal_mod = vec3(1.0);\n" \
+"	vec3 decal_mod = vec3(carve_dark); // (1: not carved here, QVR_WORLD_FS_CARVE)\n" \
+"	result.rgb *= carve_dark;\n" \
+"	fullbright *= carve_dark;\n" \
 "	if (DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
 "	{\n" \
 "		vec3 decal_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
-"		decal_mod = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
-"		result.rgb *= decal_mod;\n" \
-"		fullbright *= decal_mod;\n" \
+"		vec3 marks = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
+"		result.rgb *= marks;\n" \
+"		fullbright *= marks;\n" \
+"		decal_mod *= marks;\n" \
 "	}\n" \
 "	vec2 grime_dx = dFdx(in_grime), grime_dy = dFdy(in_grime);\n" \
 "	if (PermDecals.x > 0.0 && in_grimepages.y > 4096.5)\n" \
@@ -1741,6 +1882,15 @@ QVR_PERMDECAL_FUNCTIONS \
 "				total_light *= BakedBump(facing, bumped, dpdx, dpdy, lum, dlum); // guessed from where it brightens\n" \
 "			}\n" \
 "		}\n" \
+"	}\n" \
+"	if (carve_on) // QVR: a carved decal's crater (QVR_WORLD_FS_CARVE) in the baked light, from where it comes (deluxemaps), else\n" \
+"	{ // from its side towards the light that reaches it; then its normal for the dynamic lights and the sheen\n" \
+"		vec3 carve_n = normalize(facing + carve_bend);\n" \
+"		vec4 carve_lux = (ShadowFlags & 128u) != 0u ? LuxDirection(lmuv, facing, duvdx, duvdy, dpdx, dpdy) : vec4(0.);\n" \
+"		vec3 carve_l = carve_lux.w > 0. ? LuxLight(facing, carve_lux.xyz) : carve_light;\n" \
+"		float carve_f = max(dot(carve_n, carve_l), 0.0) / max(dot(facing, carve_l), 0.2);\n" \
+"		total_light *= mix(1.0, clamp(carve_f, 0.15, 1.8), 0.85);\n" \
+"		bumped = normalize(bumped + carve_bend);\n" \
 "	}\n" \
 "	total_light *= LiquidCaustics(in_pos, facing); // QVR: under water (vr_water_caustics)\n" \
 "	total_light *= DynamicAO(in_pos, AONormal(facing, luxdir), in_aoself, in_coord, in_depth); // QVR: what moves darkens the baked light near it (vr/vr_ao.cpp)\n" \
