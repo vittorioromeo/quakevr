@@ -536,6 +536,10 @@ za::Vector<Item> pageDebugProfiling()
                   "eye's view and each shadow map face their bones' box does not reach (On), or drawn into all of them "
                   "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
                   "(Checked: see Model Cull Stats). The same images either way."),
+        cycle("Body Depth Pre-pass", vr_body_prepass, {{0.f, "Off"}, {1.f, "On"}})
+            .help("vr_body_prepass: your body and its mirror image drawn into the eye's depth first, then shaded once a "
+                  "pixel (On), or shaded as drawn, the arms over the torso shaded twice (Off, as before). The same image "
+                  "either way."),
         command("Model Cull Stats", "vr_alias_cull_stats")
             .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
                   "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),

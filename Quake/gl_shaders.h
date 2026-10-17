@@ -1422,6 +1422,7 @@ ALIAS_INSTANCE_BUFFER
 "#else\n"
 "#define ALIAS_INSTANCE_ID gl_InstanceID\n"
 "#endif\n"
+"invariant gl_Position; // QVR: your body's depth pre-pass (glprogs.alias_depth, vr_body_prepass) gives the very same depths\n"
 "\n"
 "struct PoseVertex\n"
 "{\n"

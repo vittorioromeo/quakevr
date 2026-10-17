@@ -603,6 +603,11 @@ QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // into every view and face, as before; 2 as 1, each one culled skinned again on the CPU and checked to be wholly outside
 // (vr_alias_cull_stats prints the culls by model and any wrongly culled).
 QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Body Depth Pre-pass: 1 your body (and its mirror image) drawn into the eye's depth first
+// without a fragment shader (glprogs.alias_depth; the alias vertex shader's gl_Position is invariant), then shaded with
+// the depth it left, so each pixel of it is shaded once (the arms over the torso, the legs over each other); 0 as before.
+// The same image either way.
+QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set

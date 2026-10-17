@@ -229,6 +229,16 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
     return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
 }
 
+extern "C" int VR_AliasDepthPrepass(const entity_t* e)
+{
+    if(vr_body_prepass.value == 0.f)
+    {
+        return 0;
+    }
+    const int group = VR_ViewEntityGroup(e);
+    return group == VR_DRAW_BODY || group == VR_DRAW_MIRROR;
+}
+
 extern "C" int VR_IsViewEntity(const entity_t* e)
 {
     return view::find(e) != nullptr;

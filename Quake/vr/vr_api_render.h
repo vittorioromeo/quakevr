@@ -207,6 +207,7 @@ void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 int VR_AliasShadowBonePoses (const struct entity_s *e, const float **matrices); // as VR_AliasBonePoses, for the shadow maps: your body with its head (vr_shadow_head)
 int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
+int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image: vr_body_prepass)
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
 void VR_AliasWoundPaintSide (const struct entity_s *e, int side, float out[4]);	// R_PaintAliasWounds: its woundside, painting side `side` alone (-1: all of it)
 void VR_BrushWound (const struct entity_s *e, float wound[4], float box[4]);	// R_InitBModelInstance: a held prop's blood (vr_wounds.cpp): its box mask's layer + 1 (0 none), size in texels, opacity; its box's centre, 1 / its largest side
