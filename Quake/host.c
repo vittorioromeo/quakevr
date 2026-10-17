@@ -1571,6 +1571,8 @@ void _Host_Frame (double time)
 	if (host_speeds.value)
 		time2 = Sys_DoubleTime ();
 
+	S_MixKick (false); // QVR: the frame's sounds started: their mix on the thread pool while the screen updates (R_RenderScene's
+	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
 	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
 	VR_ProfileEnd (); // QVR

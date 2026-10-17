@@ -846,6 +846,7 @@ Throw things out until the hunk can be expanded to the given point
 */
 void Cache_FreeLow (int new_low_hunk)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*c;
 	hunkseg_t		*seg;
 	int				ofs;
@@ -977,6 +978,7 @@ Throw everything out, so new data will be demand cached
 */
 void Cache_Flush (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	while (cache_head.next != &cache_head)
 		Cache_Free ( cache_head.next->user, true); // reclaim the space //johnfitz -- added second argument
 }
@@ -988,6 +990,7 @@ Cache_FlushExcept -- QVR: Cache_Flush, but the entries `keep` accepts stay (a ca
 */
 void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c))
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*cs, *next;
 
 	for (cs = cache_head.next; cs != &cache_head; cs = next)
@@ -1048,6 +1051,7 @@ Frees the memory and removes it from the LRU list
 */
 void Cache_Free (cache_user_t *c, qboolean freetextures) //johnfitz -- added second argument
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 
@@ -1099,11 +1103,23 @@ void *Cache_Check (cache_user_t *c)
 
 /*
 ==============
+Cache_Peek -- QVR: the data, or NULL; the LRU left alone, so any thread may (the sound mix on the thread pool, S_MixKick:
+the main thread frees, moves or allocates only after joining it)
+==============
+*/
+void *Cache_Peek (const cache_user_t *c)
+{
+	return c->data;
+}
+
+/*
+==============
 Cache_Alloc
 ==============
 */
 void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 

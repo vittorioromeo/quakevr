@@ -750,6 +750,7 @@ void sampleCounts()
     {
         c.beams += b.model && b.endtime >= cl.time ? 1.0 : 0.0;
     }
+    S_MixJoin(); // (the pool's mix done first: S_MixKick)
     for(int i = 0; i < MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS && i < total_channels; i++)
     {
         c.channels += snd_channels[i].sfx ? 1.0 : 0.0;

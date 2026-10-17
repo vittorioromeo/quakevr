@@ -2067,7 +2067,7 @@ void R_RenderScene (void)
 	VR_ProfileEnd (); // QVR
 
 	VR_ProfileBegin ("sound mix"); // QVR: profile
-	S_ExtraUpdate (); // don't let sound get messed up if going slow
+	S_MixKick (true); // don't let sound get messed up if going slow -- QVR: on the thread pool, joined by S_Update (snd_mixasync)
 	VR_ProfileEnd (); // QVR
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities

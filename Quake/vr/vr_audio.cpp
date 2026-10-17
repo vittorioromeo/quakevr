@@ -2762,7 +2762,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
             releaseVoice(v);
             continue;
         }
-        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Check(&ch->sfx->cache));
+        // (a look, from any thread: S_MixKick's mix on the pool; selectVoices's S_LoadSound moved it up the LRU)
+        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Peek(&ch->sfx->cache));
         const double pos = L.mixer.position(v);
         ch->pos = static_cast<int>(pos);
         const int length = sc ? sc->length : ch->pos;
@@ -2784,6 +2785,36 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     L.mixMs += (ms - L.mixMs) * 0.05;
     bench::add(bench::Spatial, benchStart);
+}
+
+namespace
+{
+
+// The render's mix on the pool (snd_dma.c S_MixKick .. S_MixJoin; ROUND22.md, "Sound mix off the render path").
+jobs::Task mixTask;
+bool mixPosted = false;
+
+} // namespace
+
+extern "C" int VR_SndJobPost(void (*fn)(void*))
+{
+    jobs::Pool* p = jobs::pool();
+    if(!p || mixPosted)
+    {
+        return 0;
+    }
+    mixTask.post(*p, fn, nullptr);
+    mixPosted = true;
+    return 1;
+}
+
+extern "C" void VR_SndJobWait(void)
+{
+    if(mixPosted)
+    {
+        mixTask.wait();
+        mixPosted = false;
+    }
 }
 
 namespace
