@@ -448,6 +448,80 @@ struct Guard
     glm::vec3 threat{0.f}; // world, metres: where the blow comes from
 };
 
+// ---- Struggling in the hands (vr_struggle; vr_ragstruggle.cpp; docs/vr-port/STRUGGLE.md) ----
+// A living knockdown a player's hand holds (lifted, dragged, held by the head, the legs or an arm) fights the hold: a
+// layer of behaviours, each giving its limbs' reaches, its torso's and head's bends and their strengths, blended by
+// weights from what holds it and where it is (sensed each frame), smoothed, with each enemy's own rhythm, effort,
+// bursts and fatigue.
+enum class Behaviour : uint8_t
+{
+    Swat,   // held by the torso or a shoulder: an arm swings at the player's head or the holding hand, the other reaches
+    Pry,    // a hold its free hands can reach (its head, an arm, its collar): they go to the holding hand and tug at it
+    Crunch, // lifted by the legs, hanging: it bends at the waist up towards the player, its arms reaching for him
+    Claw,   // held by the legs on the floor (dragged): it turns belly down, its arms stretched ahead, clawing the floor
+    Brace,  // dragged on the floor by an arm or the head: its legs stiffen, its heels dig in
+    Kick,   // its free legs kick about (more off the floor)
+    Thrash  // its torso and head twist and toss (the flail's)
+};
+inline constexpr int behaviourCount = 7;
+[[nodiscard]] const char* behaviourName(int b);
+
+// One hand's hold as the struggle sees it: the part, the hand (world, metres: the hold's anchor) and the held point on
+// the part now (world, metres; the two apart: the hold's lag).
+struct StruggleHold
+{
+    int part{-1};
+    int hand{0};
+    glm::vec3 at{0.f}, grip{0.f};
+};
+
+// What the struggle needs of the world each frame (vr_box3d_struggle.cpp fills it in; Context::struggle).
+struct StruggleInput
+{
+    bool want{false}; // held by a player's hand, alive, of a class that struggles, nothing else leading its body
+    int holds{0};
+    za::Array<StruggleHold, 2> hold{};
+    glm::vec3 eye{0.f}, feet{0.f}; // the holding player's head and feet (world, metres)
+    float health{1.f};             // its health over its class's (0..1)
+    float strength{1.f}, speed{1.f}; // its class's (vr_struggle_classes)
+};
+
+struct Struggle
+{
+    bool on{false};
+    double from{0.0};   // when it began
+    uint32_t seed{0};
+    // Its own rhythm (seeded: vr_struggle_variation): its rate's factor, each limb's phase (rad), its favourite arm.
+    float rate{1.f};
+    za::Array<float, limbCount> phase{};
+    int favourite{0};
+    // The behaviours' weights (smoothed) and what they make for now (the context's).
+    za::Array<float, behaviourCount> weight{}, want{};
+    // Effort (0..1.4): its ramp in, its bursts, its fatigue (0..1, building while it struggles), a flinch from a hit.
+    float effort{0.f}, fatigue{0.f};
+    double burstFrom{-1.0}, burstUntil{-1.0}, nextBurst{0.0};
+    uint32_t bursts{0};
+    bool struck{false};
+    double hitAt{-1e9};
+    double endedAt{-1.0}; // its last struggle's end (a new one carries its fatigue on, recovering meanwhile)
+    // Sensed (the floor every few frames): its parts on the floor (0..1), off it (lift), its drag (0..1, by its speed on
+    // the floor) and way (level, unit), how belly down it lies (0..1), how head down it hangs (0..1); the floor under
+    // its pelvis (world, metres; -1e30 none).
+    int frame{0};
+    float contact{0.f}, lift{0.f}, drag{0.f}, prone{0.f}, inverted{0.f};
+    float floor{-1e30f};
+    glm::vec3 dragWay{0.f};
+    // What holds it (0..1 each): its torso or a shoulder, its head, its legs, its arms (below the shoulder).
+    float heldTorso{0.f}, heldHead{0.f}, heldLegs{0.f}, heldArms{0.f};
+    // The holds' lag (units: the worst hand's held point from it) and the guard that eases the struggle as it grows.
+    float gripError{0.f}, gripErrorMost{0.f}, guard{1.f};
+    float rollTorque{0.f}; // N m: the last frame's turn towards belly down (Claw)
+    // The traces (each frame): its nearest free hand from what it goes for (units: the player's head, a holding hand),
+    // its waist's bend (deg: its chest's up against its pelvis's, forward positive), its legs' straightness (each foot's
+    // distance from its hip over the leg's length, the mean), the arms' and legs' strength now.
+    float handGap{0.f}, bend{0.f}, straight{0.f}, armsNow{0.f}, legsNow{0.f};
+};
+
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
 struct State
 {
@@ -491,6 +565,8 @@ struct State
     Climb climb;
     // Its head guarded from a blow (vr_ragdoll_active_guard).
     Guard guard;
+    // Struggling in a player's hands (vr_struggle).
+    Struggle struggle;
 };
 
 // What the drive needs of the world each frame.
@@ -521,6 +597,8 @@ struct Context
     uint64_t othersMask{0};
     bool (*graspable)(int num){nullptr};
     bool grabSure{false}; // its chance made sure (a test's: vr_ragdoll_act grab)
+    // Its struggle in a player's hands (vr_struggle; null: none wanted, a struggle going ends).
+    const StruggleInput* struggle{nullptr};
 };
 
 // The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's
@@ -656,5 +734,20 @@ void costSince(double& ms, int& frames, int& driven);
 
 // Its part `part` struck (a shot, a blow: box3d::push): a hand holding on there (or its forearm) lets go.
 void struck(State& s, const Parts& p, b3BodyId part);
+
+// ---- Struggling in the hands (vr_ragstruggle.cpp) ----
+// A struggle begun (the drive on: a living knockdown held, c.struggle wanting it): whatever led its body before gives
+// way (a fall landed, a flail), its rhythm seeded. drive() runs it from here (struggleFrame) until c.struggle stops
+// wanting it, then its strengths fade out over a moment and the drive ends as usual.
+void beginStruggle(State& s, const Parts& p, const Context& c);
+[[nodiscard]] bool struggling(const State& s);
+// Each frame while it struggles (drive(), after the swim): the weights, the limbs' reaches, the torso's and head's
+// targets, the channels' strengths. False: it ended (c.struggle stopped wanting it).
+bool struggleFrame(State& s, const Parts& p, const Context& c, float t);
+// The parts its holds leave slack while it struggles: the held part and what hangs from it (a torso part alone), and
+// the joints above it in its limb at vr_struggle_held_share (`partly`).
+[[nodiscard]] uint32_t struggleSlack(const ragdoll::Rig& rig, int count, uint32_t held, uint32_t& partly);
+// The struggle's cost: milliseconds over the frames since the last call, and how many struggles.
+void struggleCostSince(double& ms, int& frames, int& count);
 
 } // namespace qvr::ragactive

@@ -1553,10 +1553,16 @@ void driveActive(Slot& s, float dt)
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const int every = static_cast<int>(vr_ragdoll_active_trace.value);
     const bool trace = every > 0 && static_cast<int>(qcvm->time * 72.0 + 0.5) % every == 0;
+    // Its struggle in a player's hands (vr_struggle): what holds it, its drive begun (c.struggle below).
+    ragactive::StruggleInput struggleIn;
     if(vr_ragdoll_active.value != 0.f)
     {
         livingSwim(r);
         livingClimb(r, dt);
+        if(vr_struggle.value != 0.f || r.active.struggle.on)
+        {
+            livingStruggle(r, struggleIn);
+        }
     }
     if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {
@@ -1642,6 +1648,7 @@ void driveActive(Slot& s, float dt)
     // Others to grab falling (vr_ragdoll_active_grab): monsters' boxes, ragdolls' and corpses' parts.
     c.othersMask = vr_ragdoll_active_grab.value > 0.f ? catActor | catCorpse : 0u;
     c.graspable = activeGraspable;
+    c.struggle = &struggleIn;
     if(const ragtest::Force* f = ragtest::forced(r.num); f && f->grab)
     {
         c.grabSure = true; // (a test's: its chance made sure)

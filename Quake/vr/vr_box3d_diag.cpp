@@ -1754,6 +1754,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
         Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
+        Cmd_AddCommand("vr_struggle_status", struggleStatus_f);
         Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_frametime", frametime_f);

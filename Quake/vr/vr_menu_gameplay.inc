@@ -108,6 +108,59 @@
     };
 }
 
+// Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md): Combat > Holding
+// Enemies > Struggle.
+[[nodiscard]] za::Vector<Item> pageHoldingStruggle()
+{
+    return {
+        toggle("Struggle", vr_struggle)
+            .help("A knocked-down humanoid you hold (lifted, dragged, by its head, its legs or an arm) fights your hold, "
+                  "blending its moves by how you hold it and where it is: held by the body it swats at you, held by the "
+                  "head it pries at your hand, hung by the legs it bends up and reaches for you, dragged by the legs it "
+                  "turns belly down and claws at the floor, dragged by an arm its legs stiffen. Off: a lifted one flails, "
+                  "a dragged one lies limp, as before."),
+        slider("Strength", vr_struggle_strength, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Times every struggling muscle."),
+        slider("Speed", vr_struggle_speed, 0.3f, 2.f, 0.05f, "%.2f").help("Times the rate of its swings, tugs and kicks."),
+        header("Behaviours"),
+        slider("Swat at You", vr_struggle_swat, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Held by the body or a shoulder: an arm winds up and swings at your head or the hand holding it, the "
+                  "other reaching. 0: never."),
+        slider("Pry at Your Hand", vr_struggle_pry, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Held by the head or an arm: its free hands go to the hand holding it and tug at it."),
+        slider("Crunch Up", vr_struggle_crunch, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Lifted by the legs, hanging head down: it bends up at the waist and reaches for you."),
+        slider("Claw the Floor", vr_struggle_claw, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Held or dragged by the legs on the floor: it turns belly down and stretches its arms ahead, clawing."),
+        slider("Brace Its Legs", vr_struggle_brace, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Dragged on the floor by an arm or its head: its legs stiffen, heels dug in."),
+        slider("Flail", vr_struggle_flail, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Its free legs' kicks and its body's and head's thrashing, under the moves above (more off the floor)."),
+        header("Character"),
+        slider("Variation", vr_struggle_variation, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much each enemy's rhythm, favourite arm and aim differ from another's. 0: all alike."),
+        slider("Bursts", vr_struggle_bursts, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Struggling in fits: bursts of effort, quicker and harder, then a lull. 0: steady."),
+        slider("Tires After", vr_struggle_fatigue, 0.f, 60.f, 1.f, "%.0f s")
+            .help("Seconds of struggling until it is worn out. 0: it never tires."),
+        slider("Effort When Tired", vr_struggle_tired, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Its effort left once worn out."),
+        slider("Blend Time", vr_struggle_blend, 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("How quickly it changes from one struggle to the next as your hold changes (lifted, put down, dragged)."),
+        header("The Hold"),
+        slider("Held Limb Keeps", vr_struggle_held_share, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The joints above the part you hold in its limb (the hip of a shin you hold) keep this share of their "
+                  "strength: it bends at the hip against you. 0: the held limb hangs slack."),
+        slider("Grip Guard", vr_struggle_grip_guard, 0.f, 20.f, 0.5f, "%.1f units")
+            .help("The spot you hold this far from your hand (the hold lagging) eases its struggle, to a quarter at 2.5 "
+                  "times it: it never tears out of your hand by struggling. 0: no guard."),
+        toggle("Show Struggle", vr_struggle_debug)
+            .help("A panel over each struggling enemy: its behaviours' weights, its effort and fatigue, what you hold, "
+                  "how much lies on the floor, its drag, which way up it is, the hold's lag. Also Debug > Tests > "
+                  "Holding Enemies."),
+    };
+}
+
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; ROUND21.md, "Holding enemies"): an empty hand holds on to a living
 // monster, slows it and drags it a little.
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies()
@@ -228,6 +281,8 @@
             .help("Which grunt the throw makes: the same choices as climbing's Mantle Grunt Sound. The deeper ones are "
                   "Quake's played slower. Hear it with Hear Throw Grunt."),
         command("Hear Throw Grunt", "vr_foegrab_throw_grunt_test").help("Plays the throw's grunt as set, at full volume."),
+        open("Struggle", pageIndex(pageHoldingStruggle))
+            .help("How a knocked-down humanoid you hold fights your hold: its moves, their strength, its fits and fatigue."),
         header("Lift"),
         toggle("Lift", vr_foegrab_lift)
             .help("Walk up close to a humanoid (a grunt, an enforcer, a zombie, a knight, a death knight, Arcane Dimensions' "

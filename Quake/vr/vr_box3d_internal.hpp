@@ -1165,6 +1165,10 @@ using LiquidFn = ragactive::Liquid (*)(const glm::vec3&);
 [[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
     const glm::vec3& maxs, float range, glm::vec3& out, bool anywhere); // (below)
 void driveActive(Slot& s, float dt);
+// A living knockdown's struggle in a player's hands (vr_struggle; vr_box3d_struggle.cpp): `in` filled in (what holds it,
+// its class's profile; in.want false: none), its drive and its struggle begun when it should (driveActive, each frame).
+void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in);
+void struggleStatus_f(); // vr_struggle_status
 [[nodiscard]] float shockLeft(edict_t* ent);
 void shockRagdoll(edict_t* ent, Slot& s, float dt);
 void writeRagdoll(edict_t* ent, Slot& s);
