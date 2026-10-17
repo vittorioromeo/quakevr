@@ -1853,3 +1853,41 @@ no warning; the palace's ammo boxes come back drawn and `SOLID_NOT_BUT_TOUCHABLE
 
 For him in VR: MG3 map6, press the button that opens the palace barriers, let the fight run; take one of the ammo
 boxes that appear there.
+
+## The Sacrifice: a crash when its two vores die, and the rune with no sacrifice (1.0.1 report, 2026-10-17, worktree `fastship`, branch `agent/crash2`)
+
+Report (1.0.1, `76e28be1`; RTX 3070, Virtual Desktop's OpenXR, GL safe mode on): "The crash happens when two vores are
+killed" in Dawn of the Machine's (MG3) `map8`, The Sacrifice, with `Sys_Error: Trigger in clipping list`; and "the Rune
+of Sacrifice spawns without fulfilling any preconditions".
+
+**The crash: the Matriarch's bug, already fixed for 1.1.0.** The report's stack ran from the player's touch (hand or
+body, `VR_TouchLinks`) killing a monster, through the limb cut (`ragdollcutlimb`: its ragdoll made, `blastRagdoll`
+throwing it with a recent blast), to a trace (`SV_Move`) that met a trigger in the solid list. The two vores on the
+pedestals (`second_room_shalrath_death_02_counter`) bring two `item_spikes` (MG3's SPAWNED flag, targetname
+`second_room_shalrath_death_02`) when both are dead: the same mistake as The Matriarch of Decay's (above), an item a
+trigger brings linked as a solid with `SOLID_TRIGGER`. Reproduced headless with 1.1.0's matriarch fix reverted: the
+second vore's death is `Sys_Error: Trigger in clipping list`, the report's frames to the offset (`SV_ClipToLinks+0x9ab`,
+`blastRagdoll`); with only the engine's safety net, its warning names edicts 808 and 809, the two `item_spikes`
+(`maps/b_nail0.bsp`). With the fix: no warning. Test: `vr_mg3_test 300+k` kills a map's k-th `monster_` by a blast at
+its middle (gore, limb cuts, ragdoll) and traces in the same frame; `bash Misc/quakevr/mg3_kill_test.sh <agent> [map]
+[k...]` (default map8's vores, 55 56) fails on a crash, an error or the trigger warning.
+
+**The rune: Dimension and Dawn of the Machine's `SPAWNFLAG_TRIGGER_FIRST`.** The rune (`item_sigil` 136: rune 4, hidden
+until used) comes from the altar's chain: eight victims (`misc_sacrifice` → `sacrifice_0N` relays) count down
+`trigger_sacrifice_counter` `human_killed`, which uses `trigger_once` `rune_trigger` (spawnflags 2, a box over the
+whole altar room), whose touch then runs the lightning, the altar's sacrifice and the rune. Upstream (quakec_mg1
+`triggers.qc`, `defs.qc`: `SPAWNFLAG_TRIGGER_FIRST = 2`) a trigger with that flag is nothing until its first use, which
+makes it the trigger; our `trigger_multiple` never had it, so walking into the altar room brought the rune at once.
+map8 has three more such chains (`second_room_reinforcement_01`, the secret ambush's `..._trigger_activate_01/02`),
+each firing early the same way. Fix (`QC/triggers.qc`, MG1 and MG3 campaigns only: id1's rerelease and Dopa have no such
+flag): the flag is cleared and `use` waits for `trigger_multiple`. Test: `vr_mg3_test 23` prints the runes and
+waiting triggers, `24` makes the sacrifices (every victim but the altar's used); `bash Misc/quakevr/mg3_rune_test.sh
+<agent>` stands in the room 12 s (rune must stay hidden), makes the sacrifices, stands again (rune must come). Before:
+the rune there with no sacrifice. After: PASS. (Side note from the log: `vr_unstick` moves the hanging victims, 22-24
+units, a second after the map starts; harmless here.)
+
+`origin/next`: the crash fix is there (the matriarch port); the rune bug too. Both commits cherry-pick cleanly onto it
+(`agent/crash2-next`): built, both tests PASS.
+
+For him in VR: MG3 map8, walk into the altar room before any sacrifice (no lightning, no rune); kill the two vores on the
+pedestals together (rockets), then punch or cut the corpses.
