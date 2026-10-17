@@ -2,6 +2,46 @@
 
 Items the author approved or asked about, not yet started. Each has a note on where it came from.
 
+## The 1.1.0 plan (agreed 2026-10-17)
+
+**Before 1.1.0:**
+- His VR test pass of the 2026-10-17 ships (checklist top, tracker v7), then a fresh VR Tracy capture
+  (`vr_tracy_preset full`) and a VR RenderDoc capture (passes now named) to confirm the perf work on real hardware.
+- Decisions still his: the particle size cap default (0.15 vs 0.3), Auto-Collect as default, shadow atlas VRAM
+  (352 MB, about 5% used: shrink or grow on demand; matters on 8 GB cards).
+- Open issues to clear: crowbar/shotgun double wall hits (meleewall); dragging an enemy by the legs unverified, leg
+  holds may be too soft to drag (struggle); close two-hand crate grips pull one hand in (gripfit2); AD crossbow hold
+  floats (tune slot 33); `weapons::value` ignores an inheriting slot's own defaults (likely the AD soldier guns,
+  slots 28-32); chain stretch on fast swings (magchain2); stiff neck after a save load; flame crackle lost on load;
+  AD ogre smash too wide; the Italian player's startup crash (waiting on his beta2 bug report).
+- Release: a beta2 feedback window, then merge next into vr-ironwail and release 1.1.0 as Latest. If 1.1.0 is more
+  than about a week away, a 1.0.2 from vr-ironwail with just the Matriarch/Sacrifice/Shub fixes.
+
+**After 1.1.0, in this order** (pure refactors; waiting avoids conflicts with beta fixes and the Steam Frame branches,
+and keeps refactor risk away from a release):
+1. Formatting: clang-format (Zancle configs) on all first-party code, `// clang-format off/on` around hand-aligned
+   tables, then clang-tidy fixes; one commit listed in `.git-blame-ignore-revs`. Never Ironwail's code.
+2. Ironwail extraction: about 1,600 lines of VR code moved out of Ironwail files into `Quake/vr/` (pure moves), the VR
+   main menu out of `menu.c`, the VR heap macro remap, `IRONWAIL_DIFF.md` refreshed.
+3. Monster setup and weapon-id tables: `VR_MonsterSetup` and the `WeaponIdTo*` branch chains become data tables.
+Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
+
+**Later, lower priority:**
+- Parallax option B (about a day; recovers about 15% wasted world shading, roughly 0.05-0.15 ms per eye net; extra
+  depth copy pass and buffer; correctness risk for depth readers). Only if world shading stays the top GPU cost.
+- Physics world built once per map (about 33 ms per load; props would keep their spawn-frame bodies). Cleanup only.
+- Body triangles reordered arms-first (most of the pre-pass gain without the pass).
+- View-entity leftovers (easeWrist 27-30 us, lying guns' buttons 19 us, tap verts 8 us, rig hand 10-13 us).
+- Mid-game limb loads still on the main thread for unpredictable spawns (4-9 ms vs 1.2 ms at load).
+- The "2D" pass in VR (0.18-0.2 ms) and the gadget screen's p95 spikes; empty OIT clears and sky draw.
+- Tracy GPU zones lost after toggling GPU detail mid-run.
+- About 55 test registrations left in `vr_main.cpp` (diag moves).
+- Expansion textures missing reliefs: generate them like AD's.
+- Foveation check (what `vr_foveated` does; NVIDIA shading-rate in GL) and a rendering-abstraction audit (GL calls
+  per file) before any Vulkan decision; vkQuake (GPL-2.0) as the backend reference.
+- Linux (WSL native build in progress), Steam Frame branches with kblood, standalone Quest (single-pass stereo kept
+  for it).
+
 ## Next round (approved)
 
 ### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
