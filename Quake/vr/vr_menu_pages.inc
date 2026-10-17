@@ -664,12 +664,37 @@ void resetHandMoves()
         slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below 1 the chain is see-through (0: not drawn)."),
         slider("Full Chain Up To", vr_magholster_chain_lod, 0.f, 15.f, 0.5f, "%.1f m").extend(0.f, 100.f)
-            .help("A tether longer than this is drawn as a plain thin line to the weapon (cheaper); it never disappears, "
-                  "however far the weapon goes (0: always a line)."),
+            .help("The tether is drawn as links this far along it from the holster, then as a plain thin line on to the "
+                  "weapon along the same curve (cheaper, unnoticeable far off); it never disappears, however far the "
+                  "weapon goes (0: all a line)."),
         slider("Zip Volume", vr_magholster_zip_volume, 0.f, 1.f, 0.05f, "%.2f")
             .help("A bound weapon flying home: the reel's zip as it winds the chain back in (0: none)."),
         slider("Draw Sound Volume", vr_magholster_draw_volume, 0.f, 1.f, 0.05f, "%.2f")
             .help("A bound weapon drawn from its holster: the chain paid out, heard over the holster's own sound (0: none)."),
+        header("Chain Physics"),
+        toggle("Simulated Chain", vr_magholster_chain_sim)
+            .help("On: the tether is a chain of points that hangs, lies on the floor and wraps round walls, never through "
+                  "them (the grappling hook rope's physics, coarser). Off: the old simple chain, through the world."),
+        toggle("Chain Collision", vr_magholster_chain_collide)
+            .help("The chain's points and pieces kept out of the world (off: cheaper, through it)."),
+        slider("Chain Point Spacing", vr_magholster_chain_spacing, 0.05f, 1.f, 0.05f, "%.2f m").extend(0.02f, 4.f)
+            .help("Metres between the chain's simulated points (finer: truer on edges and the floor, more work). A long "
+                  "tether's are farther apart (Chain Most Points)."),
+        slider("Chain Most Points", vr_magholster_chain_points, 4.f, 128.f, 4.f, "%.0f").extend(4.f, 256.f)
+            .help("The most pieces the chain has, however long."),
+        slider("Chain Iterations", vr_magholster_chain_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
+            .help("Passes a frame holding the pieces to their length (more: less stretch, more work)."),
+        slider("Chain Stiffness", vr_magholster_chain_stiffness, 0.05f, 1.f, 0.05f, "%.2f")
+            .help("The share of each piece's stretch a pass takes out (lower: stretchier, softer)."),
+        slider("Chain Thickness", vr_magholster_chain_radius, 0.05f, 4.f, 0.05f, "%.2f").extend(0.05f, 8.f)
+            .help("Units the chain's points keep off what they lie on."),
+        slider("Chain Air Drag", vr_magholster_chain_drag, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 20.f)
+            .help("Its speed lost to the air a second (higher: it settles from a swing sooner)."),
+        slider("Chain Floor Slide", vr_magholster_chain_slide, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of its speed along a surface a point keeps where it touches it (lower: a rougher floor)."),
+        slider("Chain Carry", vr_magholster_chain_carry, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much your own movement carries the chain along near the holster (none of it at the weapon; 0: it is "
+                  "only pulled)."),
         header("Chain Origin"),
         slider("All Forward", vr_magholster_chain_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
             .help("Where the chain leaves every holster: units forward (the body's frame). Added to each kind's below."),

@@ -115,6 +115,7 @@ constexpr Def defs[] = {
     {"wound paint", Render, "wounds"},
     {"flashlight cord", Render, "flashlight cord|flashlight cord draw"},
     {"grapple rope", Render, "grapple rope|grapple rope upload|grapple rope draw"}, // vr_rope.cpp: its curve (made with the temp entities), its links bent on the GPU
+    {"magholster chains", Render, "magnetic holsters|magnetic holsters tether sim|magnetic holsters build|magnetic holsters draw"}, // vr_magholster.cpp: the chains' simulation (the tether's world traces), their links built and drawn
     {"mirror/spectator", Render, "mirror|spectator|window view"},
     {"render other", Render, "screen|3D|eye L|eye R|scene|scene setup|setup view|hidden area"},
     {"map loading", Misc, "map spawn|map load"},

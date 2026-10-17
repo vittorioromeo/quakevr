@@ -11860,3 +11860,48 @@ enemy into an active ragdoll; a fresh map from the levels menu worked again.
 
 To try in VR: start e1m1, save (or wait for the autosave), die and respawn, then shove a grunt: it staggers. Saves made
 before this build still carry no chance; make a new one.
+
+## Magnetic holster tether: physics, partial LOD (worktree `permdecals`, branch `agent/magchain2`, 2026-10-17)
+
+His voice note: Full Chain Up To turned the whole chain into a line, he meant only the part past the threshold; and the
+chain went through floors and walls too easily, especially a long one through the floor: segments like the grappling
+hook rope's, coarser, colliding with the world, reusing its code, everything customizable.
+
+- **Shared rope steps** (`vr_verlet.hpp/.cpp`, new): the grappling hook's drawn rope's Verlet fall, its pull-only
+  length passes, its world collision (points traced from where they were, slid along, settled on the floor; pieces
+  through the world pushed out) and `resample`, moved out of `vr_rope.cpp` `stepChain` unchanged (a `stiffness` factor
+  added, 1 for the rope). The rope's dump before/after: 0 points inside the world, 0 pieces through it (the runs are
+  not bit-identical run to run).
+- **The tether simulated** (`vr_magholster.cpp` `stepTether`, client-side only): points `vr_magholster_chain_spacing`
+  0.25 m apart (10 pieces at least, `vr_magholster_chain_points` 40 at most: a 20 m throw's 0.5 m apart), pinned at
+  the holster and the weapon, `_iterations` 12, `_stiffness` 1, `_collide` 1, `_radius` 0.75 units, `_drag` 2 /s,
+  `_slide` 0.6, `_carry` 1 (the body's movement carries the chain near the holster, none of it at the weapon);
+  `vr_magholster_chain_sim` 0 is the old 12-point chain. Its length as before (straight distance + 1 %, more close
+  by). The links are drawn along the simulated points (`coil::Cord::shape`: a Cord's line given, any number of nodes).
+  Immersion > Magnetic Holsters > Chain Physics: a row for each.
+- **Partial LOD** (`coil::Cord::build`'s `linksUpTo` and `tail`): links up to `vr_magholster_chain_lod` (5 m) along
+  the chain from the holster, then a plain thin line along the same curve to the weapon, starting inside the last link
+  drawn (no gap). 0: all a line. The old straight sagging line (`buildLine`) is gone.
+- `vr_magholster_info` prints `tether chain N links L m + line M m` and a `magholster <n> tether:` line (simulated or
+  old, nodes, pieces through the world, worst piece off its length, traces, the step's ms eased). Profiler system
+  **magholster chains** (the chains' setup, build, draw).
+
+Tests: `Misc/quakevr/magchain_sim_test.sh` (new; each case seen simulated, then with the old chain, same camera):
+floor (dropped, walked 6.4 m away) pieces through the world 0 vs old 4-6; toss (21 m down the corridor) 0 vs 4-5;
+corner (dropped at the start, walked up the corridor and west into the room past the corner, 18 m) 0 vs 7: the old
+chain cuts straight through the step and the wall, the new one runs round on the floor (`scratch/magchain_corner.png`,
+`_floor.png`, `_toss.png`); lod 2 m at 6.5 m: 210 links + 4.5 m line, 0: all a line, 30: 607 links
+(`scratch/magchain_lod.png`: the links off the hip, then the thin line on). Timing (`EXCLUSIVE=1 ... time`, 6-13 m
+off): the sim step 0.010 ms (27 points, 78 traces), 0.012 + 0.017 ms with two chains; the magholster chains system
+0.157 ms CPU a frame with one chain, 0.319 ms with two (nearly all the 520 links' rings up to 5 m: a chain under 5 m
+cost that before too), GPU 0.002 / 0.005 ms. `magchain_lod_test.sh` updated (at 10 m: links then a line): 5/5 PASS.
+`magchain_test.sh` (held, the tether's frame-to-frame calm), new vs old: slow jerk max 3.3 vs 20.2 mm, fast jerk p95
+29 vs 72 mm (31 vs 53 spazzes), still 14.7 vs 110 mm; the pull-only pieces bunch when the hand comes back (worst piece
+off its length 89 % fast, a squeeze, vs 29 %). `magholster_test.sh busy walk` as before.
+
+Decisions: the chain's length stays the straight distance's (no reel-out round corners: wrapped round one it is a
+little stretched); the flight home goes through walls while the chain's points do not (stretched for its 0.4 s).
+
+To try in VR: throw a bound gun across the floor and round a corner: the chain lies on the floor and goes round the
+corner, links near you and a thin line on past Full Chain Up To. Chain Physics rows to tune it (Simulated Chain off
+for the old one to compare).
