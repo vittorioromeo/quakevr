@@ -583,6 +583,12 @@ QVR_CVAR(vr_xr_late_acquire, "1", CVAR_ARCHIVE)
 // light at its origin, instance data; r_alias.c R_AliasEyeSlot) made in the first eye's scene and reused by the
 // second's; 0 made again for each eye; 2 made again and compared with the first eye's (vr_alias_eye_cache_stats)
 QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Shadow Caster Set-up Shared: 1 each animated shadow caster's whole instance (pose, matrix,
+// zero blend, swing rows) made once for the frame's shadow lights and copied into the others' batches, its depth draws
+// with no textures bound (no fragment shader reads them), and the first eye's scene taking the shadow pass's lerp and
+// matrices for the same models (r_alias.c R_AliasTransformShared); 0 as before (only the lerp and the matrix shared by the
+// lights); 2 also the first eye's worked out again and compared (vr_alias_eye_cache_stats). The same images either way.
+QVR_CVAR(vr_shadow_setup_share, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Model Light Probes Ahead: 1 a batch of models' ambient probes (vr_model_ambient_dir's
 // rays and the light they read) worked out on the job pool before the batch is drawn, taken where their inputs come
 // out the same (vr_ambient.cpp, "Ahead"); 0 on the main thread in the draw; 2 ahead and worked out again in the draw,

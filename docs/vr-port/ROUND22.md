@@ -11421,3 +11421,50 @@ distance is already in it; fewer steps would show. A lower dynamic scale lowers 
 To try in VR (on by default with a headset): his 4090 should stay at his Render Scale (the status box line at x1.00); a
 heavy fight may dip it. Debug > Profiling > Artificial GPU Load 100-200 to watch it drop and come back; look for a hitch
 at each change (the targets remade) and the TAA history resetting.
+
+## Shadow casters set up once a frame; the player's models' GPU parts (worktree `gorefx`, branch `agent/perfshadow2`, 2026-10-17)
+
+From qvr-kit scratch/tracy_gpu1.md, items 3 (S1) and 4 (M1).
+
+Shadow casters (`vr_shadow_setup_share`, default 1, Debug > Profiling and Memory > Shadow Caster Set-up Shared; r_alias.c).
+The per-pass cache (2026-10-08) kept only each caster's lerp and matrix: every other light still made its instance again
+(the depth-only data, the zero blend, the motion slots, r_lerpmodels 3's swing rows) and its flush bound all the
+fragment shader's textures (normal map, skin mask, glove paint, env cube, wounds, retro table) for a program with no
+fragment shader. Now: the first light's whole instance and its swing rows are kept (VR_AnimSmoothKeep, as the second eye's
+cache does) and copied into the other lights' batches; the opaque casters' flushes bind no textures; and the first eye's
+scene (R_DrawAliasModel_Real and R_AliasPrefetch) takes the shadow pass's lerp and matrices for the same entities
+(R_AliasTransformShared; R_AliasTransform is the same for a light and an eye; never cl.viewent nor while the drawn moves
+are logged). `vr_ragdoll.cpp swappedOf` returns at once for an entity outside cl_entities (the view entities): the casters
+and the batches asked VR_AliasBonePoses for every model several times a light, a scan of every ragdoll each time. 2 works
+the first eye's set-ups out again and compares (`vr_alias_eye_cache_stats` prints taken, checked, differing); 0 as before.
+Measured (Release-Tracy, default zones, GPU detail on, mock looking 50 degrees down at the body, 800 fixed frames; us a
+frame, 0 then 1):
+
+| | hip1m1 start | start |
+|---|---|---|
+| `shadow alias draw` | 30.4 / 21.4 | 65.4 / 57.5 |
+| its flushes | 15.3 / 8.2 | 27.8 / 19.3 |
+| `eye L` (CPU) | 300 / 272 | 488 / 473 |
+
+The eyes' first flush now binds the textures the shadow pass used to leave bound (hip1m1 `alias flush` outside the shadow
+pass 8.0 / 11.6), counted in `eye L` above. The VR capture's 2.3 us a caster (hip1m1 after fights, about 150 casters) is
+not reproduced by the mock (0.4-0.9 us): ragdolls and more lights there; the swappedOf change is aimed at the first.
+Checks: `vr_shadow_setup_share 2` on hip1m1 and start, 300 frames each: 44,726 first-eye set-ups compared, 0 differ;
+`vr_shadow_layered_check 20 cache` (as before against shared): 0 texels differ in both atlases on both maps; paused
+screenshots (hip1m1, the body in view) off/off 787 pixels differ by 1, off/on 1523 by 1 (none by more). `vr_physics_hash`
+is not repeatable here between two runs of the same settings (start 300 frames: a4192e19 then 86e7680b, both off), so it
+says nothing either way; the change is render-only.
+
+The player's models on the GPU (profiling builds, `vr_tracy_gpu_detail 1`): `alias: player models` now holds a zone per
+part, each run of one part in the drawn order (so the same draws and order as unzoned): `player: hands`, `body`, `held`,
+`holstered`, `worn` (gadget, flashlight, pouches), `lying gear` (the parts of the weapons lying about), `mirror image`,
+`other` (VR_ViewEntityGroup, vr_view.cpp drawGroup). The gloves are no models of their own: the hands' and the body's
+shading. Mock (hip1m1 start, start; both eyes, ms a frame): body **0.142 / 0.140-0.157**, worn 0.024 / 0.045-0.052,
+holstered 0.008 / 0.011-0.013, hands 0.004 / 0.001 (nothing held). The body is about 70% of it. Not done yet: the cut
+itself. Notes for it: the world's pre-pass gains nothing from the player's models drawn first while
+vr_parallax_depth_write is on (its shader writes gl_FragDepth: every fragment shaded, vr_glsl.h QVR_PARALLAX_DEPTH_OUT);
+a depth pre-pass of the body alone (its own overdraw: arms over the torso) needs `invariant gl_Position` in the alias
+vertex shader, so that the alias_depth program's depths equal the shading one's.
+
+To try in VR: nothing should look different (Shadow Caster Set-up Shared off and on, near monsters and your body in a
+lit room: the shadows the same). With a Release-Tracy capture, the `player: *` GPU zones tell which part costs there.

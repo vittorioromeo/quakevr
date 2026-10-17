@@ -105,6 +105,12 @@ int VR_MenuCanvas (float *scalex, float *scaley);		// Draw_GetCanvasTransform, C
 // Entities (gl_rmain.c, r_alias.c, r_world.c).
 int VR_HideViewModel (void);							// R_IsViewModelVisible: VR draws its own weapons
 int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimum light
+// The view entities' parts (gl_rmain.c R_DrawAliasModelsZoned: a GPU zone each in profiling builds): the hands (the
+// gloves are their own and the body's shading, not models of their own), the body (its pauldrons), what the hands hold
+// (the guns and their parts, buttons, muzzle flashes), the holsters and what is in them, what is worn (the gadget, the
+// flashlight, the pouches), the weapons lying about's parts, the body's mirror image, the rest (the grunts' flashes).
+enum { VR_DRAW_HANDS, VR_DRAW_BODY, VR_DRAW_HELD, VR_DRAW_HOLSTERED, VR_DRAW_WORN, VR_DRAW_LYING, VR_DRAW_MIRROR, VR_DRAW_OTHER, VR_DRAW_GROUPS };
+int VR_ViewEntityGroup (const struct entity_s *e);	// -1: not a view entity
 int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
 int VR_AliasNearEye (const struct entity_s *e, const float matrix[16], const void *aliashdr); // R_DrawAliasModel: a held item at the eyes: 1 depth clamp, 2 both sides (vr_nearclip_held)
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
