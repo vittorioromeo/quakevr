@@ -546,6 +546,14 @@ za::Vector<Item> pageDebugProfiling()
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
                   "Set-up Shared)."),
+        cycle("Cull Posed Models", vr_alias_cull_posed, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"}})
+            .help("vr_alias_cull_posed: your body, its mirror image, the jointed hands and the ragdolls left out of each "
+                  "eye's view and each shadow map face their bones' box does not reach (On), or drawn into all of them "
+                  "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
+                  "(Checked: see Model Cull Stats). The same images either way."),
+        command("Model Cull Stats", "vr_alias_cull_stats")
+            .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
+                  "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),
         cycle("Shadow Caster Set-up Shared", vr_shadow_setup_share, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"}})
             .help("vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
                   "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
