@@ -556,6 +556,9 @@ QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
 // Debug: 1 the game acts as if its desktop window had lost the keyboard's focus (another program's window in front):
 // the menus' warning, the flat screen's background sleep, the mirror's presents (vr_mirror_unfocused_hz); 0 the window says.
 QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
+// Debug: each VR frame's end waits this many ms inside the timed end call (OpenXR's xrEndFrame, the mock's), as a runtime
+// holding the frames would (vr_xr_stall.cpp's held-frames lines: the test of them); 0 never.
+QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
 // While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).

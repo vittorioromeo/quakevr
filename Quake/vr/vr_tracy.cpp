@@ -631,6 +631,10 @@ extern "C" void VR_TracyPlot(const char* name, double value)
 {
     if(TracyCIsConnected) ___tracy_emit_plot(name, value);
 }
+extern "C" void VR_TracyMessage(const char* text, unsigned length)
+{
+    if(TracyCIsConnected) TracyMessage(text, length);
+}
 extern "C" void VR_TracyBeginAt(const char* name, const char* file, unsigned line)
 {
     if(thread.depth == maxDepth) { ++thread.overflow; dropped.fetch_add(1, std::memory_order_relaxed); return; }

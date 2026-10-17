@@ -813,6 +813,23 @@ void main()
 
 GLuint tubeProgram = 0;
 bool tubeProgramFailed = false;
+bool tubeFirstDrawn = false; // (prepareTube: drawn once in the load; developer 1 prints the first draw's time)
+bool tubeWarming = false;
+
+// The tube's program, compiled at its first use (prepareTube: in the map's load). False if it failed.
+bool ensureTubeProgram()
+{
+    if(!tubeProgram && !tubeProgramFailed)
+    {
+        const double start = Sys_DoubleTime();
+        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
+                                     "\n#define BLENDED 0\n" + fragmentShader;
+        tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
+        tubeProgramFailed = !tubeProgram;
+        Con_DPrintf("VR: tube: program made in %.2f ms\n", (Sys_DoubleTime() - start) * 1000.0);
+    }
+    return tubeProgram != 0;
+}
 
 // The bent mesh (BentDraw, drawBent): gl_VertexID's copy and mesh vertex; the curve's sample at its arc length by a
 // binary search (the samples' pos.w), interpolated, extrapolated along the end segments past the ends.
@@ -1695,17 +1712,11 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
         return;
     }
     checkUploadFrame("tube", batch.serial);
-    if(!tubeProgram && !tubeProgramFailed)
-    {
-        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n" + fragmentShader;
-        tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
-        tubeProgramFailed = !tubeProgram;
-    }
-    if(!tubeProgram)
+    if(!ensureTubeProgram())
     {
         return;
     }
+    const double firstStart = tubeFirstDrawn ? 0.0 : Sys_DoubleTime(); // (developer 1: the first draw's CPU time)
     GL_UseProgram(tubeProgram);
     const bool blended = alpha < 1.f;
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | (blended ? GLS_BLEND_ALPHA | GLS_NO_ZWRITE : GLS_BLEND_OPAQUE));
@@ -1733,6 +1744,31 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
+    if(!tubeFirstDrawn)
+    {
+        tubeFirstDrawn = true;
+        Con_DPrintf("VR: tube: first draw %.2f ms (%s)\n", (Sys_DoubleTime() - firstStart) * 1000.0,
+            tubeWarming ? "the load's warm-up" : "in play");
+    }
+}
+
+void prepareTube()
+{
+    // The cords' program (the torch's, the chainsaw's, the cells', the holsters' chains) made and drawn once in the load:
+    // its first use in play cost a 25.6 ms frame (Tracy qvr_gpu1: "flashlight cord draw", the compile and the driver's
+    // first draw). The draw is two rings of radius 0: no pixel.
+    if(!ensureTubeProgram() || tubeFirstDrawn)
+    {
+        return;
+    }
+    TubeRing rings[2]{};
+    rings[0].along = rings[1].along = glm::vec4{0.f, 0.f, 1.f, 0.f};
+    rings[0].across = rings[1].across = glm::vec4{1.f, 0.f, 0.f, 0.f};
+    rings[1].mid = glm::vec4{0.f, 0.f, 1.f, 0.f};
+    const TubeBatch batch = uploadTube(rings);
+    tubeWarming = true;
+    drawTube(batch, 3, glm::vec3{0.f}, glm::vec3{0.f, 0.f, 1.f});
+    tubeWarming = false;
 }
 
 BentBatch uploadBent(za::Span<const glm::vec4> data)

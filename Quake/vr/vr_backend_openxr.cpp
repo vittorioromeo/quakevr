@@ -18,6 +18,7 @@
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
+#include "vr_xr_stall.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -339,9 +340,9 @@ public:
         profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
         t0 = Sys_DoubleTime();
         const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
-        timeCall(CallWait, t0);
+        frameWaitMs = timeCall(CallWait, t0);
         profile::end();
-        if(!check(waited, "xrWaitFrame"))
+        if(!checkFrameCall(waited, "xrWaitFrame"))
         {
             return true;
         }
@@ -560,11 +561,16 @@ public:
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
+        xrstall::debugStall(); // (vr_debug_frame_stall_ms: as if the runtime held the frame)
         XrResult ended = XR_SUCCESS;
         QVR_TRACY_CALL("xrEndFrame", ended = xrEndFrame(session, &endInfo));
-        check(ended, "xrEndFrame");
-        timeCall(CallEnd, t0);
+        checkFrameCall(ended, "xrEndFrame");
+        const double endMs = timeCall(CallEnd, t0);
         timing.frames++;
+        // Held frames (the runtime holding them, as at the 2026-10-17 drop): said once as they start and end.
+        xrstall::frame(frameWaitMs, endMs, static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6,
+            stateName(sessionState));
+        frameWaitMs = 0.0;
     }
 
     [[nodiscard]] unsigned acquirePanelImage(int width, int height) override
@@ -750,13 +756,31 @@ private:
     };
     Timing timing;
 
-    void timeCall(Call call, double since)
+    double timeCall(Call call, double since)
     {
         CallTime& c = timing.calls[call];
         const double ms = (Sys_DoubleTime() - since) * 1000.0;
         c.sum += ms;
         c.max = za::max(c.max, ms);
         c.count++;
+        return ms;
+    }
+    double frameWaitMs{0.0}; // this frame's xrWaitFrame (xrstall::frame)
+
+    // check's, for xrWaitFrame and xrEndFrame: each failure timestamped in the log and Tracy, repeats folded.
+    bool checkFrameCall(XrResult result, const char* what) const
+    {
+        if(XR_SUCCEEDED(result))
+        {
+            return true;
+        }
+        char text[XR_MAX_RESULT_STRING_SIZE] = "";
+        if(instance != XR_NULL_HANDLE)
+        {
+            xrResultToString(instance, result, text);
+        }
+        xrstall::callFailed(what, static_cast<int>(result), text);
+        return false;
     }
 
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
@@ -2352,7 +2376,7 @@ private:
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                     sessionState = changed.state;
                     noteState(stateName(sessionState));
-                    xrruntime::logLine(va("%s session %s%s\n", wallClock(), stateName(sessionState),
+                    xrstall::note(va("%s session %s%s\n", wallClock(), stateName(sessionState), // (Tracy too)
                         sessionState == XR_SESSION_STATE_VISIBLE
                             ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
                                                               "shown again, not rendered; vr_xr_unfocused 1)"
