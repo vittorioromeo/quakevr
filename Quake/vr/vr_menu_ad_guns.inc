@@ -3,7 +3,7 @@
 
 // AD support: Arcane Dimensions' armed soldiers' own guns, dropped as they die (QC vr_ad_enemyguns.qc): every number of
 // your use of them, to balance them (the monsters' own attacks stay Arcane Dimensions'). Their placement in the hand is
-// the Weapon Offsets' (slots 28-32: inheriting the grunts' and the enforcers' guns').
+// the Weapon Offsets' (slots 28-32: inheriting the grunts' and the enforcers' guns'; the crossbow knight's crossbow 33).
 [[nodiscard]] za::Vector<Item> pageAdGuns()
 {
     return {
@@ -65,6 +65,13 @@
         slider("Reach", "vr_adgun_fumigator_range", 64.f, 800.f, 8.f, "%.0f units").extend(32.f, 2000.f),
         slider("Fuel", "vr_adgun_fumigator_fuel", 10.f, 400.f, 10.f, "%.0f puffs").extend(1.f, 2000.f),
         slider("Time Between Puffs", "vr_adgun_fumigator_rate", 0.05f, 0.5f, 0.01f, "%.2f s").extend(0.05f, 2.f),
+        header("Crossbow Knight's Crossbow"),
+        slider("Bolt Damage", "vr_adgun_crossbow_damage", 1.f, 60.f, 1.f, "%.0f").extend(0.f, 200.f)
+            .help("A bolt's damage (Arcane Dimensions' crossbow knight's bolt: 15). A head more, as every shot."),
+        slider("Bolt Speed", "vr_adgun_crossbow_speed", 200.f, 2000.f, 25.f, "%.0f u/s").extend(100.f, 4000.f),
+        slider("Bolts", "vr_adgun_crossbow_ammo", 1.f, 30.f, 1.f, "%.0f").extend(1.f, 100.f)
+            .help("The bolts the crossbow holds as the knight drops it: its own, never refilled."),
+        slider("Time Between Shots", "vr_adgun_crossbow_refire", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f),
         header("Flamethrowers' Look"),
         slider("AD's Flames Opacity", "vr_adgun_stream_alpha", 0.1f, 1.f, 0.05f, "%.2f")
             .help("How opaque AD's own flame and poison sprites are (the pyros' and fumigators', theirs and yours). 1: AD's."),

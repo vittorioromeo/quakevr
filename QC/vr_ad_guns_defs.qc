@@ -1,5 +1,5 @@
-// vr_ad_guns_defs.qc -- AD support: Arcane Dimensions' armed soldiers' own guns (WID_ADROCKET..WID_ADFUMIGATOR,
-// vr_defs.qc): what the weapon tables (vr_weaponutil.qc) answer for them. Early: those tables come before AD's files.
+// vr_ad_guns_defs.qc -- AD support: Arcane Dimensions' armed soldiers' own guns (WID_ADROCKET..WID_ADFUMIGATOR, and the
+// crossbow knight's crossbow WID_ADCROSSBOW; vr_defs.qc): what the weapon tables (vr_weaponutil.qc) answer for them. Early: those tables come before AD's files.
 // Their firing, drops and projectiles are vr_ad_enemyguns.qc's (after AD's files: it uses AD's names).
 //
 // Each is a single-use enemy weapon as the grunts' burst rifle is (vr_enemyguns.qc): its clip is its only ammo (AID_NONE:
@@ -15,7 +15,7 @@
 
 float(float wid) VR_IsADGun =
 {
-    return wid >= WID_ADROCKET && wid <= WID_ADFUMIGATOR;
+    return wid >= WID_ADROCKET && wid <= WID_ADCROSSBOW;
 };
 
 // VR_Pack_WeaponAvailable: AD's soldiers' guns are carried (kept, given) only while AD's data is loaded (their models
@@ -35,6 +35,7 @@ string(float wid) VR_ADGun_Key =
     if(wid == WID_ADELIMINATOR) { return "eliminator"; }
     if(wid == WID_ADCENTURION)  { return "centurion"; }
     if(wid == WID_ADPYRO)       { return "pyro"; }
+    if(wid == WID_ADCROSSBOW)   { return "crossbow"; }
     return "fumigator";
 };
 
@@ -53,6 +54,7 @@ string(float wid) VR_ADGun_Name =
     if(wid == WID_ADELIMINATOR) { return "Eliminator's Plasma Gun"; }
     if(wid == WID_ADCENTURION)  { return "Centurion's Plasma Gun"; }
     if(wid == WID_ADPYRO)       { return "Pyro's Flamethrower"; }
+    if(wid == WID_ADCROSSBOW)   { return "Crossbow Knight's Crossbow"; }
     return "Fumigator's Poison Sprayer";
 };
 
@@ -78,6 +80,7 @@ string(float wid) VR_ADGun_Model =
     if(wid == WID_ADELIMINATOR) { return "progs/mon_enforcer.mdl#gun6"; }
     if(wid == WID_ADCENTURION)  { return "progs/mon_centurion.mdl#gun0"; }
     if(wid == WID_ADPYRO)       { return "progs/mon_pyro.mdl#gun0"; }
+    if(wid == WID_ADCROSSBOW)   { return "progs/w_dcrossbow.mdl"; } // (AD's own: the crossbow its gibs throw, as it is)
     return "progs/mon_fumigator.mdl#gun0";
 };
 

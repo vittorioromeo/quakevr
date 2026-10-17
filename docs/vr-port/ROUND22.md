@@ -10742,3 +10742,35 @@ shot` (from in front, nothing held; the gun held 2 units in, its zone green).
 
 To try in VR: put a gun in each hip holster right by the pouch, and take a shell from the pouch with the other hand
 close to a holstered gun; Show Holster Zones while doing it; chest and shoulder holsters as before.
+
+## AD crossbow: the crossbow knight's crossbow, a weapon (worktree `gorefx`, branch `agent/adcrossbow`, 2026-10-17)
+
+His ask: the crossbow AD's crossbow knight drops usable as a weapon. Bare minimum; feel and looks later.
+
+- **A ninth AD gun**, the soldiers' guns' way (single use, decision: its own bolts, AID_NONE, never refilled; empty it
+  clicks and is a club): WID_ADCROSSBOW 28 (WID_LAST 28), IID_ADCROSSBOW 58, Hipnotic item bit 20; `VR_IsADGun` covers
+  it, so the tables, carrying, holsters, throws, level changes and saves are the existing plumbing's. Dropped by
+  `ad_CT_MONDCROSS` in `VR_ADGun_Drop` (any death; AD's gibs then throw no second crossbow: its `ad_gib1mdl` cleared).
+- **Model**: AD's own `progs/w_dcrossbow.mdl` (its gib) as it is; without AD's data, the enforcer's rifle stands in.
+- **Shot**: AD's bolt (`ad_launch_projectile` `ad_CT_PROJ_BOLT1`: its model and flight) with our touch
+  (`VR_ADGun_BoltTouch`): Quake VR's damage, positional, taken by AD's monsters as nails; AD's bolt hit sounds; heard as
+  the nailgun. Settings (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns, "Crossbow Knight's
+  Crossbow"): `vr_adgun_crossbow_damage` 15 (AD's bolt), `_speed` 700 (the knight's on normal skill), `_ammo` 10 bolts,
+  `_refire` 1 s (the knight reloads in 2).
+- **Hold**: weapon slot 33 (`weapons::numSlots` 32 -> 33), the enforcer rifle's settings copied with Yaw 90 (the model's
+  front is -y) and its own anchors. Not tuned: headless shots show it off the hand. Seen, not fixed: an inheriting
+  slot's own `QVR_WEAPON_DEFAULT`s give way to its parent's (`weapons::value` inherits while a value is its default),
+  so slots 28-32's own OffsetY/Hotspot Y defaults are likely dead.
+- **Tests**: `vr_ad_test 93` (a crossbow knight near you: `vr_test_spawn 202; impulse 241`) kills it, finds its drop
+  (w_dcrossbow.mdl, 10 bolts), takes it into the main hand, fires at a target 64 ahead (15 dealt, 10 -> 9), holsters it
+  at the left hip (holster 28, its model, 9 bolts), draws it into the off hand and fires (15 dealt, 9 -> 8): all PASS
+  in e1m1. `vr_ad_test 94` prints both hands' muzzle from the hand. `vr_ad_test 70` (now 9 guns, with `vr_mock_hand
+  main 0.25 1.20 -0.40 70 0 0`): 9/9 PASS (the crossbow 24, a head). `ad_import.py --check`: 0 of 142 differ.
+
+Left for "feel and looks later": the hold (slot 33's offsets, or a re-laid model as vr_adguns.cpp makes the soldiers'),
+the corpse still holding its crossbow (hide its vertices as `vr_monstermods.cpp` does for the soldiers), bolts that stick
+where they land (AD's do), a reload feel and sounds, the toolgun/Debug spawner tile for it (`ad_monsters_gen.py` GUNS),
+haptics and recoil.
+
+To try in VR: kill a crossbow knight (ad_tfuma, or the toolgun), pick up its crossbow in either hand, fire, holster it
+and throw it; then set its hold in Weapon Offsets (slot 33).

@@ -74,7 +74,7 @@ void() VR_ADGun_TestThink =
     if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
     vr_adgun_test_index = vr_adgun_test_index + 1;
     vr_adgun_test_step = 0;
-    if(vr_adgun_test_index > WID_ADFUMIGATOR - WID_ADROCKET)
+    if(vr_adgun_test_index > WID_ADCROSSBOW - WID_ADROCKET)
     {
         bprint(sprintf("adgun test: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
         cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
@@ -218,8 +218,180 @@ void() VR_ADGun_ShotsTestThink =
     self.nextthink = time + 0.5;
 };
 
+// vr_ad_test 93 (ROUND22 "AD crossbow"): the crossbow knight's crossbow, end to end. A crossbow knight near you (the
+// toolgun's or `vr_test_spawn 202; impulse 241`) is killed (T_Damage, its own death: it drops its crossbow), the drop
+// taken into your main hand and fired at a target ahead (the bolt's damage), holstered at the left hip, drawn into the
+// off hand and fired again (its bolts its own: one less each). One "adxb:" line a step, then PASS or FAIL.
+float vr_adxb_step;
+float vr_adxb_ok;
+float vr_adxb_grip;
+float vr_adxb_clip; // the rounds in it before the step's shot
+
+void(entity p, float xHand) VR_ADXbow_Target =
+{
+    VR_ADGun_TestPlace(p, 64);
+    entity was = self;
+    self = p;
+    vector at = VRGetMuzzlePos(xHand) + VRGetWeaponFireRotFwd(xHand) * 64; // (short of the knight's corpse, 150 ahead)
+    self = was;
+    setorigin(vr_adgun_test_target, at - '0 0 4');
+    vr_adgun_test_target.health = 100000;
+    vr_adgun_hits = 0;
+};
+
+void(string xWhat, float xOk) VR_ADXbow_Report =
+{
+    bprint(sprintf("adxb: %s: %s\n", xWhat, xOk ? "PASS" : "FAIL"));
+    vr_adxb_ok = (vr_adxb_ok && xOk);
+};
+
+// The hold of what `xHand` holds (vr_ad_test 94: both hands'): its muzzle from the hand along the gun's aim's axes
+// (ahead along the shot, right, up).
+void(entity p, float xHand) VR_ADXbow_Hold =
+{
+    entity was = self;
+    self = p;
+    vector toMuzzle = VRGetMuzzlePos(xHand) - VRGetHandPos(xHand);
+    makevectors(VRGetWeaponFireRot(xHand));
+    self = was;
+    bprint(sprintf("adxb: hold (hand %g, weapon %g): muzzle %.1f ahead of the hand along the shot, %.1f right, %.1f up\n",
+        xHand, VRGetEntWeapon(p, xHand), toMuzzle * v_forward, toMuzzle * v_right, toMuzzle * v_up));
+};
+
+void() VR_ADXbow_Think =
+{
+    entity p = self.owner;
+    entity was = self;
+    float hit;
+    if(vr_adxb_step == 0)
+    {
+        entity k = world;
+        for(entity m = nextent(world); m; m = nextent(m))
+        {
+            if(m.ad_classtype == ad_CT_MONDCROSS && m.health > 0 && (!k || vlen(m.origin - p.origin) < vlen(k.origin - p.origin)))
+            {
+                k = m;
+            }
+        }
+        VR_ADXbow_Report("a living crossbow knight near you", k != world);
+        if(!k)
+        {
+            remove(self);
+            return;
+        }
+        T_Damage(k, p, p, k.health + 5);
+        VR_ADXbow_Report(sprintf("killed (health %g)", k.health), k.health <= 0);
+        vr_adxb_step = 1;
+        self.nextthink = time + 1.5; // (the drop lands)
+        return;
+    }
+    if(vr_adxb_step == 1)
+    {
+        entity w = world;
+        for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+        {
+            if(t.weapon == WID_ADCROSSBOW)
+            {
+                w = t;
+            }
+        }
+        VR_ADXbow_Report(sprintf("its crossbow lying (%s, %g bolts)", w ? w.model : "none", w ? w.weaponinst.wi_clip : 0),
+            w != world && w.modelindex > 0 && w.weaponinst.wi_clip == VR_ADGun_ClipSize(WID_ADCROSSBOW));
+        if(!w)
+        {
+            remove(self);
+            return;
+        }
+        VR_ADWeapons_Take(p, w);
+        VR_ADXbow_Report(sprintf("taken into the main hand (weapon %g, model %s)", VRGetEntWeapon(p, cVR_MainHand),
+            p.weaponmodel), VRGetEntWeapon(p, cVR_MainHand) == WID_ADCROSSBOW);
+        VR_ADXbow_Target(p, cVR_MainHand);
+        vr_adxb_clip = VRGetEntWeaponClip(p, cVR_MainHand);
+        self = p;
+        self.attack_finished = 0;
+        W_AttackImpl(cVR_MainHand, WID_ADCROSSBOW, self.weaponflags, 0, &self.weapon, &self.attack_finished); // (the trigger)
+        self = was;
+        vr_adxb_step = 2;
+        self.nextthink = time + 1;
+        return;
+    }
+    if(vr_adxb_step == 2)
+    {
+        hit = 100000 - vr_adgun_test_target.health;
+        VR_ADXbow_Report(sprintf("main hand fired: bolts %g -> %g, the target took %g", vr_adxb_clip,
+            VRGetEntWeaponClip(p, cVR_MainHand), hit), hit > 0 && VRGetEntWeaponClip(p, cVR_MainHand) == vr_adxb_clip - 1);
+        vr_adxb_clip = VRGetEntWeaponClip(p, cVR_MainHand);
+        self = p;
+        // (the left hip emptied first: a start's axe there)
+        setHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER, WID_FIST);
+        setHolsterWeaponModel(QVR_HS_LEFT_HIP_HOLSTER, WeaponIdToModel(WID_FIST, 0));
+        setHolsterWeaponFlags(QVR_HS_LEFT_HIP_HOLSTER, 0);
+        VRSetEntHolsterWeaponInst(p, QVR_HS_LEFT_HIP_HOLSTER, world);
+        float freeHip = (getHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER) == WID_FIST);
+        if(freeHip)
+        {
+            VRHolsterHandWeapon(p, cVR_MainHand, QVR_HS_LEFT_HIP_HOLSTER);
+        }
+        float inHolster = getHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER);
+        entity hinst = VRGetEntHolsterWeaponInst(p, QVR_HS_LEFT_HIP_HOLSTER);
+        self = was;
+        VR_ADXbow_Report(sprintf("holstered at the left hip (holster %g, model %s, %g bolts; hand %g)", inHolster,
+            p.holsterweaponmodel2, hinst ? hinst.wi_clip : -1, VRGetEntWeapon(p, cVR_MainHand)),
+            freeHip && inHolster == WID_ADCROSSBOW && p.holsterweaponmodel2 == WeaponIdToModel(WID_ADCROSSBOW, 0) &&
+            hinst.wi_clip == vr_adxb_clip && VRGetEntWeapon(p, cVR_MainHand) == WID_FIST);
+        self = p;
+        VRSetHandEmpty(p, cVR_OffHand);
+        VRDrawHolsterWeapon(p, cVR_OffHand, QVR_HS_LEFT_HIP_HOLSTER);
+        self = was;
+        VR_ADXbow_Report(sprintf("drawn into the off hand (weapon %g, %g bolts)", VRGetEntWeapon(p, cVR_OffHand),
+            VRGetEntWeaponClip(p, cVR_OffHand)), VRGetEntWeapon(p, cVR_OffHand) == WID_ADCROSSBOW &&
+            VRGetEntWeaponClip(p, cVR_OffHand) == vr_adxb_clip);
+        VR_ADXbow_Target(p, cVR_OffHand);
+        self = p;
+        VR_EnemyGun_Attack(cVR_OffHand, WID_ADCROSSBOW, 0, &self.attack_finished);
+        self = was;
+        vr_adxb_step = 3;
+        self.nextthink = time + 1;
+        return;
+    }
+    hit = 100000 - vr_adgun_test_target.health;
+    VR_ADXbow_Report(sprintf("off hand fired: bolts %g -> %g, the target took %g", vr_adxb_clip,
+        VRGetEntWeaponClip(p, cVR_OffHand), hit), hit > 0 && VRGetEntWeaponClip(p, cVR_OffHand) == vr_adxb_clip - 1);
+    VR_ADXbow_Hold(p, cVR_OffHand);
+    bprint(sprintf("adxb: crossbow test %s\n", vr_adxb_ok ? "PASS" : "FAIL"));
+    cvar_set("vr_weapon_grip_mode", ftos(vr_adxb_grip));
+    remove(vr_adgun_test_target);
+    vr_adgun_test_target = world;
+    remove(self);
+};
+
 void(float request, entity p) AD_GunTest =
 {
+    if(request == 94)
+    {
+        VR_ADXbow_Hold(p, cVR_MainHand);
+        VR_ADXbow_Hold(p, cVR_OffHand);
+        return;
+    }
+    if(request == 93)
+    {
+        if(!cvar("vr_ad_mounted"))
+        {
+            bprint("adxb: Arcane Dimensions' data is not loaded\n");
+            return;
+        }
+        AD_WeaponsOnDemand();
+        entity xb = spawn();
+        xb.classname = "vr_adxb_test";
+        xb.owner = p;
+        vr_adxb_step = 0;
+        vr_adxb_ok = TRUE;
+        vr_adxb_grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1"); // (the gun stays in a hand not gripping; as it was again at the end)
+        xb.think = VR_ADXbow_Think;
+        xb.nextthink = time + 0.1;
+        return;
+    }
     if(request == 81 || request == 82)
     {
         // 81: each AD weapon made ahead (the spawner's 309..319), taken into the main hand and fired once.

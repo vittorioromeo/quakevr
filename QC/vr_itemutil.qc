@@ -25,7 +25,7 @@ void(string xFnName, float xItemId) VR_ItemUtil_Impl_PrintInvalidItemCategory =
 
 // Indexed by item id (IID_*, vr_defs.qc): its bit, and which of .items, .hipnotic_items and
 // .rogue_items holds it (tables: an array accessor's few comparisons, not a chain of 43).
-float vr_itemutil_flag[58] =
+float vr_itemutil_flag[59] =
 {
     0, // 0 IID_NONE
     IT_ARMOR1, // 1 IID_ARMOR1
@@ -84,10 +84,11 @@ float vr_itemutil_flag[58] =
     HIP_IT_ADELIMINATOR, // 54 IID_ADELIMINATOR
     HIP_IT_ADCENTURION, // 55 IID_ADCENTURION
     HIP_IT_ADPYRO, // 56 IID_ADPYRO
-    HIP_IT_ADFUMIGATOR // 57 IID_ADFUMIGATOR
+    HIP_IT_ADFUMIGATOR, // 57 IID_ADFUMIGATOR
+    HIP_IT_ADCROSSBOW // 58 IID_ADCROSSBOW
 };
 
-float vr_itemutil_category[58] =
+float vr_itemutil_category[59] =
 {
     IID_CATEGORY_INVALID, // 0 IID_NONE
     IID_CATEGORY_ITEMS, // 1 IID_ARMOR1
@@ -146,7 +147,8 @@ float vr_itemutil_category[58] =
     IID_CATEGORY_HIPNOTIC_ITEMS, // 54 IID_ADELIMINATOR
     IID_CATEGORY_HIPNOTIC_ITEMS, // 55 IID_ADCENTURION
     IID_CATEGORY_HIPNOTIC_ITEMS, // 56 IID_ADPYRO
-    IID_CATEGORY_HIPNOTIC_ITEMS // 57 IID_ADFUMIGATOR
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 57 IID_ADFUMIGATOR
+    IID_CATEGORY_HIPNOTIC_ITEMS // 58 IID_ADCROSSBOW
 };
 
 float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
