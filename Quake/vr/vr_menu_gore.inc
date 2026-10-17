@@ -385,6 +385,33 @@
             .help("How far each stream's way out wanders as it pours: slow noise (0: steady) (vr_gore_streams_wobble)."),
         slider("Stream Wobble Rate", vr_gore_streams_wobble_rate, 0.f, 3.f, 0.05f, "%.2f Hz").extend(0.f, 10.f)
             .help("How fast it wanders: about this many swings a second (vr_gore_streams_wobble_rate)."),
+        slider("Stream Thickness Variation", vr_gore_streams_thickness_var, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much its thickness swells and thins as it pours, and so along it as it falls: an uneven flow, not a "
+                  "steady trickle (0: even; 1: from a thread to twice as thick) (vr_gore_streams_thickness_var)."),
+        slider("Stream Thickness Rate", vr_gore_streams_thickness_rate, 0.f, 4.f, 0.1f, "%.1f Hz").extend(0.f, 10.f)
+            .help("How fast it swells and thins: about this many swells a second, unevenly (vr_gore_streams_thickness_rate)."),
+        toggle("Stream Spurts", vr_gore_streams_spurts)
+            .help("Small drops spurting from the wound in a cone as it pours, most fading fast, a few flying further "
+                  "(vr_gore_streams_spurts)."),
+        slider("Spurt Rate", vr_gore_streams_spurt_rate, 0.f, 150.f, 5.f, "%.0f /s").extend(0.f, 1000.f)
+            .help("Drops a second at its strongest; fewer as it weakens (vr_gore_streams_spurt_rate)."),
+        slider("Spurt Cone", vr_gore_streams_spurt_cone, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("How far round its way out they spurt (vr_gore_streams_spurt_cone)."),
+        slider("Spurt Speed", vr_gore_streams_spurt_speed, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("Their speed, times the stream's (vr_gore_streams_spurt_speed)."),
+        slider("Spurt Lifetime", vr_gore_streams_spurt_life, 0.05f, 1.f, 0.05f, "%.2f s").extend(0.02f, 5.f)
+            .help("About how long most live, fading all along (vr_gore_streams_spurt_life)."),
+        slider("Spurt Outliers", vr_gore_streams_spurt_outliers, 0.f, 1.f, 0.02f, "%.2f")
+            .help("The share of them that fly further and live longer (vr_gore_streams_spurt_outliers)."),
+        slider("Spurt Outlier Lifetime", vr_gore_streams_spurt_outlier_life, 0.1f, 3.f, 0.05f, "%.2f s").extend(0.02f, 10.f)
+            .help("About how long those live (vr_gore_streams_spurt_outlier_life)."),
+        slider("Spurt Size", vr_gore_streams_spurt_size, 0.05f, 1.f, 0.01f, "%.2f units").extend(0.02f, 3.f)
+            .help("About how big the drops are (1 unit: 3.8 cm) (vr_gore_streams_spurt_size)."),
+        slider("Stream Splash", vr_gore_streams_splash, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("Drops splashing away where it lands: on the floor, a wall, a prop or a monster: how many (0 none) "
+                  "(vr_gore_streams_splash)."),
+        slider("Splash Size", vr_gore_streams_splash_size, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 4.f)
+            .help("Their size, times the spurts' (vr_gore_streams_splash_size)."),
         slider("Back-splatter", vr_gore_backsplatter, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 4.f)
             .help("Thin long streaks thrown along the shot's line onto what is behind a monster hit: how many (0 none) "
                   "(vr_gore_backsplatter)."),
@@ -535,6 +562,12 @@
             .help("The enemy the training dummy stands as: its model, size, hit zones, the head it loses, its blood, gore and death are that monster's own. It stays still, takes no harm and reports every hit. The mission packs' with the pack installed."),
         toggle("Dummy Bleeds", vr_dummy_gore)
             .help("The firing range's training dummy bleeds as its enemy: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
+        toggle("Dummy Dents", vr_dummy_dents)
+            .help("A clean training dummy (Dummy Bleeds off) is dented where it is hit all the same, with nothing else painted: for trying the dents. One that bleeds is dented as its enemy anyway (vr_dummy_dents)."),
+        toggle("Dummy Blood Streams", vr_dummy_streams)
+            .help("A clean training dummy pours blood streams from its bullet holes all the same (at Stream Chance): for trying the streams. One that bleeds pours them as its enemy anyway (vr_dummy_streams)."),
+        command("Clear the Dummy's Dents and Streams", "vr_dummy_gore_reset")
+            .help("vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds gone at once."),
         toggle("Dummy Dies", vr_dummy_gib)
             .help("The hit that takes the last of its health (Dummy Health) kills the training dummy as its enemy: beheaded, its head popped, dying, lying as a ragdoll or gibbed exactly as that monster would be. Then it stands again. No loot. Off: it stays at 0 health (\"would kill\"). On as shipped."),
         slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)

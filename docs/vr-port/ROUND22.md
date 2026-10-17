@@ -10146,10 +10146,11 @@ Desktop), the body's elbow is still far from the tracked (purple) one, though `e
 and arm lengths in our proportions, so the tracked elbow was always reachable with our bones. Real data has Meta's
 skeleton (its own width and arm lengths) and Meta's wrists, which are not ours.
 
-**The synthetic body is now Meta-like** (`vr_bodytrack_synth 1`): its arms and shoulders `vr_bodytrack_synth_arm_scale`
-(1.1) times its body's proportions, the shoulders `vr_bodytrack_synth_shoulder_forward` (0.04 m) ahead, the wrists
-`vr_bodytrack_synth_wrist` (0.08 m) behind the controller's grip (< 0: the old self-check at our posed wrists), the
-elbows by its own bones. On the mock our drawn wrist is 17 cm from the controller's origin; the synthetic one, 8.
+**The synthetic body is now Meta-like** (`vr_bodytrack_synth 1`): its shoulders' width, upper arms and forearms
+`vr_bodytrack_synth_shoulders`, `_upper_arm`, `_forearm` (`fbtcalib`'s, now 1.1 by default) times its body's
+proportions, the shoulders `vr_bodytrack_synth_shoulder_forward` (0.04 m) ahead, the wrists `vr_bodytrack_synth_wrist`
+(now 8 cm) behind the controller's grip (new `vr_bodytrack_synth_wrist_from` 1; 0: behind our posed wrists, as
+`fbtcalib`'s tests had it; with the rest at 1 and 0, the old self-check), the elbows by its own bones. On the mock our drawn wrist is 17 cm from the controller's origin; the synthetic one, 8.
 
 **Reproduced** (`scratch/elbow_real.sh`, e1m1, elbow position error in cm, both arms):
 
@@ -10204,3 +10205,220 @@ them, aim, and cross the arms: the yellow elbow should sit on the purple one. If
 (and then hold a two-handed gun too), Debug > Reset Body Tracking Stats, then Record Body Tracking (10 s) and Print Body
 Tracking Stats. Send `quakevr/bodytrack_dump.csv` and the stats lines. If the arms look stretched, lower Elbow Fit
 Stretch.
+
+## The free hand out of a held prop (worktree `tghost`, branch `agent/gripfit2`, 2026-10-17)
+
+His voice note (2026-10-17): with a crate in one hand, pushing the other hand deep into it and gripping held the crate
+from the inside. He asked for the free hand to be stopped from going into the held prop at all. Hitting it, throwing it
+and gripping it with both hands still work.
+
+- **Drawn** (`vr_view_hands.cpp`, `pushAgainst`, against a prop held alone): before, the free hand and the prop were
+  each pushed back by half the depth, at most `vr_hand_collide` (5 cm), and past that the hand sank in. Now, with
+  `vr_hand_collide_props_keep_out 1` (archived, the default; Physics menu, after Empty Hand Stops Off It: "Empty Hand
+  Stays Out of Held Props"), the hand is held out by the whole depth and rests on the surface however deep the real hand
+  goes. The prop is not pushed back, so the hand holding it no longer moves and then springs back on a two-hand grab.
+  Two cases needed new code. A point that goes in further than the search reaches in one frame is found by the way in
+  from where it was last drawn. A point that was held out last frame and is now deeper than the search reaches keeps
+  the face it went in by. Weapons are unchanged: the hand still sinks in past the push.
+- **The grab** (`vr_carry2h.cpp`, `serverPlace` with grab, listen server, own player only): the hand taking hold of
+  what the other hand holds is moved by `view::heldOutOf` (how far its drawn hand is off the controller, relative to the
+  prop as drawn). Its grip is recorded there, at the surface, so the grip fit finds nothing to fix. It keeps that offset
+  for the rest of the hold as `Hold::reach` (in the controller's frame). `carry2h::reached` applies it in `solve`, in
+  `detached` and in the client's drawn hands (`held.cpp`), so the drawn hand stays on its grip on the outside. When the
+  other hand lets go, `keep` puts the prop on this hand's real controller, so the hand ends up at the surface (the prop
+  jumps by the reach).
+- **Not changed**: the server's hand positions, so melee hits on the held prop and the throw estimates are the real
+  hands', as before. With the setting off, or with no free hand against the prop, every path matches the old one bit for
+  bit (the reach is zero; `reached` returns the controller as it is).
+
+Tests (headless, e1m1, `scratch/ko_test.sh` and `scratch/ko_side.sh`; distances from `vr_debug_hand_collide`, overlaps
+from `vr_grip_fit_drawn` 40 frames after the grab):
+
+| case | off (0) | on (1) |
+| --- | --- | --- |
+| crate on top of the off hand, main hand put in its middle: drawn palm or knuckles to the surface | -7.2 cm (in) | +1.0 cm (the margin) |
+| hands on opposite sides, main hand 27 cm in, then gripped: the main drawn hand in the crate | 153/172 points, 15.0 cm | 0 points |
+| the same: the grip fit at the grab | overlap 1055 cm, moved 6.2 cm | overlap 0, not moved |
+| the same: each hand off its grip in the hold | 11.8 / 17.4 cm | 0.7 / 0.7 cm |
+| the same: the off hand's fingers (3.3 cm before the grab) | 3.33 cm | 3.38 cm |
+
+One-hand grip fit cases (`gf2_test.sh`'s six) with the setting on and off: identical where the grab is clear (crate
+top, barrel rim, health boxes). The deep cases (crate deep, explosive box deep) differ by about as much as two runs of
+the same setting differ (1535 against 1524 cm overlap). `vr_physics_hash` (sv_random_seed 7, vr_fixed_frames 1) is
+f5fe01204d9519b5 either way. Melee eval: 168/177, the 3 known bash-damage canary differences.
+
+Open: if the free hand is pushed in under the holding hand's grip (off hand on the lid, main hand into the crate's side
+just below it), the reached grip lands about 13 cm from the other grip. The two-hand turn from such a short line then
+wants about 28 degrees more than the prop's angles keep, and the off hand is drawn 10 cm into the crate, against 0.4 cm
+with the setting off. The two-hand hold is touchy with grips this close together even without this change.
+
+For him in VR: hold a crate in one hand and push the other hand deep into it. The hand should stop on the surface and
+the fingers rest on it. Grip there: the hand should hold the outside, and the crate should not jump. Carry it and turn
+it with both hands, then let go with the first hand. The crate moves onto the second hand, which stays at the surface.
+Also punch the held crate with the free hand (it should still be hit) and throw it with both hands.
+## Blood streams: on the wound, spurts, splashes, an uneven flow; the dummy's dents and streams (worktree `gorefx`, branch `agent/bloodstream2`, 2026-10-17)
+
+His notes: the stream's start sometimes sits a little off the model, detached from the wound (the dents?); small, frequent
+drops spurting at the start in a cone (short-lived, fading, a few living longer); small drops splashing where it lands
+(the floor, a wall, a prop, another monster); a thickness that varies over time and along the stream, not a "hole in a
+bucket"; all of it in the gore settings; the firing range's dummy with dents and streams each on its own toggle, and a
+reset.
+
+**Why it sat off the wound.** A stream was bound to the model's vertex nearest the wound event's point (within 24 units)
+and drawn there as posed, without its dent. Two errors: Quake's meshes are coarse, so that vertex was 1.8-4.7 units from
+where the hit's line met the model on an ogre, more on a ragdoll, whose event point is often inside it
+(7-22 units); and that vertex is drawn pushed in by its dent (the vertex shader's push) while the stream started at its
+undented place: as far out of the drawn surface as the dent is deep there (0.3-3 units here).
+
+**Fix** (`vr_bloodstream.cpp`'s start and locate): the stream is bound where the hit's line meets the model as drawn, by
+the wounds' own strike (`wounds::strikeTriangles`, the one the wound paint and the dent use): the struck triangle's three
+corners (.mdl vertices) and the point's barycentrics. Each frame the corners are posed as drawn (the animated frame
+through the entity's matrix, or the ragdoll's bodies), each pushed in along the drawn triangle's normal by the dents'
+push at its rest point (`dents::pushAt`: the shader's DentDepth on the CPU, the same rows and scales), and the start is
+that point, 0.15 units under the surface. Where no triangle is found it falls back to the nearest vertex as before.
+`vr_gore_streams_info` (Debug > Gore Tests: Blood Streams: Where They Start) prints each pouring stream's binding, the
+dent's depth there, its start's distance from the dented surface, and the nearest vertex's (the old binding).
+
+Measured (`scratch/bs2_origin.sh`: five pellets, `vr_dents_test 6`, into a frozen ogre, then its ragdoll):
+
+| | the old binding (the nearest vertex) | now |
+|---|---|---|
+| alive | 0.3 / 1.1 / 1.8 / 3.1 units out of the dented surface, 1.8-4.7 from the wound point | 0.15 under it, at the wound point (dents 0.3-1.8 deep there) |
+| ragdoll | 7-22 units from it | 0.15 under it (dents up to 2.8 deep); one of four on a vertex (no triangle met), as before |
+
+**Spurts** (`vr_gore_streams_spurt*`): while it pours, `_rate` (40) drops a second at its strongest (times the flow) leave
+the wound in a cone of `_cone` (30 degrees) round its way out (its wobble too), at `_speed` (0.8) times the stream's speed
+(0.45-1.3 of it) plus the body's motion; they live `_life` (0.2 s, 0.5-1.5 of it), fading and shrinking all along;
+`_outliers` (0.12) of them fly a little faster and live `_outlier_life` (0.7 s); `_size` (0.3 units, 0.6-1.4 of it).
+**Splash** (`vr_gore_streams_splash`, 1: about 45 a second at its strongest; `_splash_size` 1 times the spurts' size):
+where it lands, while it gets there (and the last of it after it stops), drops thrown off the surface (0.12-0.4 of the
+stream's speed into it, plus some of its speed along it, out sideways), living 0.12-0.32 s (the outliers twice that),
+round where it lands within its width. Both are pooled particles (`particles::bloodDroplet`: Custom, fading, the
+stream's lit colour), at most 12 of each a stream a frame.
+
+**Where it lands** now counts the things in the way too: each landing arc step also runs a point trace through the
+local server (`worldtrace::move`, new `pass` argument: the stream's own body passed over; you skipped), so a stream
+falling on a monster, a prop or a door stops and splashes there (no pools painted on them). Not hosting: the world
+alone, as before. (A monster's box, not its model: on a monster the splash is at its box.)
+
+**Thickness** (`vr_gore_streams_thickness_var` 0.55, `_rate` 1.1 Hz): its width times 1 + var x (three sines a stream,
+0.55-0.9, 1.3-2.1 and 2.9-4.4 times the rate, random phases; at least 0.08), each point keeping the width it left with
+(so the swells travel down it) with a +-12% x var jitter (an uneven edge); a swell leaves 20% x var faster.
+
+**The dummy** (QC `vr_wounds.qc`, `vr_wounds.cpp`): `vr_dummy_dents` and `vr_dummy_streams` (both 0) make a clean
+training dummy (Dummy Bleeds off) send its hits' wounds anyway, marked `QVR_WOUND_CLEAN` (64 added to the kind): the
+engine paints nothing for them; it dents (`dentOnly`: shots, pellets, nails, blows, blasts) with `vr_dummy_dents` and may
+pour (at Stream Chance) with `vr_dummy_streams`. A bleeding dummy dents and pours as a grunt, as before.
+`vr_dummy_gore_reset` clears every training dummy's dents, streams (at once) and painted wounds. A removed entity's
+streams now stop too (QVR_SVC_WOUNDCLEAR).
+
+**Settings.** Gore > Blood Streams, Back-splatter and Teeth: Stream Thickness Variation, Stream Thickness Rate, Stream
+Spurts, Spurt Rate, Spurt Cone, Spurt Speed, Spurt Lifetime, Spurt Outliers, Spurt Outlier Lifetime, Spurt Size, Stream
+Splash, Splash Size. Gore > Training Dummy: Dummy Dents, Dummy Blood Streams, Clear the Dummy's Dents and Streams.
+Debug > Gore Tests: Shotgun Pellets into the Nearest (`vr_dents_test 6`: five pellets' wound events, no damage), Blood
+Streams: Where They Start, Clear the Dummy's Dents and Streams. New cvars only (no default changed: no migration).
+
+**Checked** (headless): the table above; the dummy (`scratch/bs2_dummy.sh`, firing range, Dummy Bleeds off, five pellets
+each time): both on 5 dents and 4 streams (per body's cap); reset 0 and 0; dents alone 5 and 0; streams alone 0 and 4;
+both off no wound event sent. Screenshots: the dummy's streams leave from inside its dent's crater; three streams on a
+grunt in the test hall with spurts, splash and the swell (`scratch/bs2_pair.sh`: off, then on). `vr_decal_count` now
+prints the points' width range (16 streams: 0.59-0.80 with the variation off, 0.27-1.12 on) and the drops thrown.
+Cost (`scratch/bs2_cost.sh`, exclusive, 16 streams pouring, about 250 fps): the streams' own time 9.6 us a frame with
+the spurts, splash and swell off, 11.9 us on (with the new things trace in both); the particles' CPU 0.048 -> 0.053 ms,
+GPU 0.102 -> 0.109 ms, at about 270 spurt and 300 splash drops a second. No allocations a frame (fixed storage, the
+binding's scratch vectors grown once, the particles' reserved pool).
+
+Open: a pellet that strikes a grunt's gun (in front of his chest) binds the stream to the gun's triangle (the old
+vertex binding could too); the dents skip non-flesh triangles, the streams don't yet.
+
+In VR: shotgun a grunt up close and watch where each stream starts: in the crater, not beside it; the drops spurting
+from the hole and splashing where it lands; its thickness swelling and thinning down its length. Shoot one standing over
+a crate or another monster: the stream should splash on it. At the firing range, Dummy Bleeds off, Dummy Dents and Dummy
+Blood Streams on: shoot the dummy, then Clear the Dummy's Dents and Streams.
+## Body Calibration with body tracking (worktree `dequant`, branch `agent/fbtcalib`, 2026-10-17)
+
+Body Calibration records body tracking's joints with every pose where the headset sends them (`bodytrack::sample`:
+the placed, smoothed joints; each joint's weight the source's confidence, times 1 seen and `GUESSED_WEIGHT` 0.2 for
+an inferred one, as Quest 3's generated legs). A held pose averages them over its capture; the session file gets a
+`t` line after each `r` (older builds skip it), so `vr_bodycal_refit` takes them too.
+
+- Measured (vr_bodycal.cpp `measureTracking`): the upper arm (tracked shoulder to tracked elbow), the forearm (tracked
+  elbow to the drawn wrist, as ours is: what Elbow Fit makes it; also to the tracked wrist), the shoulders apart (and
+  against our model's shoulders in the same poses), the hips to the neck, the legs (shown only: a weak prior's weight,
+  never applied), and the tracked wrist from the drawn one along the controller (forward, left, up). Each is a robust
+  weighted mean: the samples weighted by their joints' weights (a held pose's capture as 20 frames, the moves at most
+  240 frames a step), those more than 3 x 1.48 MAD off the weighted median dropped; an arm sample whose tracked wrist is
+  more than 15 cm off the drawn one is left out.
+- Blended (`vr_bodycal_track` 1, `vr_bodycal_track_weight` 0.5): the upper arm, the forearm and the shoulders' width
+  (as `vr_bodycal_shoulders_out`, by the model's slope) go that share towards the tracked ones; the rest of the fit as
+  it was. A sanity check against ours (real VR may have a space, scale or wrist mismatch): a tracked length within 15%
+  of ours takes the whole weight, 30% or more off none (eased between); the page then says "up to N% (some off ours)"
+  or "too far off ours, not used". Without tracking samples the result is as before.
+- Page: Body Calibration, under Position: the data line, **Use Body Tracking**, **Body Tracking Weight**; the result
+  adds "Body tracking: N% blended in", the tracked arms and shoulders, the torso and the wrists' offset.
+  `vr_bodycal_print` adds `bodycal track:` lines (each length, ours, the blend each took).
+- Body > Body Tracking starts with **Body Tracking Data: Available (full body|upper body|synthetic, high|low fidelity)**
+  or **Not available (enable in Virtual Desktop | tracking lost | no data yet | headset doesn't offer it)**.
+- Debug: `vr_bodytrack_status` prints the tracked lengths; `vr_bodytrack_stats` adds `fit stretch`: each drawn arm bone
+  over the calibrated one (the tweaks on) and the drawn shoulder from the tracked one, while the elbows are fitted
+  (Debug > Print / Reset Body Tracking Stats). Measured in `bodytrack::posed`; nothing changed in solveArm.
+- Synthetic source: `vr_bodytrack_synth_shoulders`, `_upper_arm`, `_forearm` (times its proportions), `_wrist` (cm its
+  wrists sit behind the drawn ones along the controller).
+
+Test: the author's session `2026-09-29_01-52-37` with synthetic tracking added by a scratch script (upper 29, forearm
+22.5, shoulders 33 cm apart, wrists 2 cm behind, 5% of the elbows thrown up to 15 cm off, 0.5 cm noise); ours from the
+controllers: upper 26.15, forearm 24.83, shoulders 29.4 apart. Measured: upper 29.08, forearm 23.57 to the drawn wrist
+(22.65 to the tracked one), wrists 2.0 cm behind, legs 75.5 (75.8 made), torso 54.7, 9% of the weight dropped. At 38 cm
+apart (+29%) the sanity check left the width out. Then the live mock synth with the same lengths, four held arm poses,
+560 frames each (`fit stretch`, both arms alike):
+
+| calibration (upper / forearm cm) | upper stretch | forearm stretch | shoulder off |
+|---|---|---|---|
+| without tracking (26.2 / 24.8) | 1.091 | 0.953 | 0.08 cm |
+| weight 0.5 (27.6 / 24.2) | 1.035 | 0.975 | 0.00 |
+| weight 1 (29.1 / 23.6) | 0.982 | 0.998 | 0.00 |
+
+The reach from the controllers stays (left, right 50.9, 51.1 cm); `vr_bodycal_shoulders_out` -0.0336 went to -0.0237
+(0.5) and -0.0137 (1): the shoulders 1.9 and 3.7 cm wider in all.
+
+In VR: with Virtual Desktop's body tracking on, Body > Body Tracking should say Available (full body, high fidelity).
+Run Body Calibration; the result's "Body tracking" lines show the tracked arms against ours. Apply, then Debug > Reset
+Body Tracking Stats, move the arms a while and Print Body Tracking Stats: `fit stretch` should be near 1. If the tracked
+lengths are far off ours (the Elbow Fit mismatch being fixed separately), the page says so and leaves them out.
+## The Sacrifice: a crash when its two vores die, and the rune with no sacrifice (1.0.1 report, 2026-10-17, worktree `fastship`, branch `agent/crash2`)
+
+Report (1.0.1, `76e28be1`; RTX 3070, Virtual Desktop's OpenXR, GL safe mode on): "The crash happens when two vores are
+killed" in Dawn of the Machine's (MG3) `map8`, The Sacrifice, with `Sys_Error: Trigger in clipping list`; and "the Rune
+of Sacrifice spawns without fulfilling any preconditions".
+
+**The crash: the Matriarch's bug, already fixed for 1.1.0.** The report's stack ran from the player's touch (hand or
+body, `VR_TouchLinks`) killing a monster, through the limb cut (`ragdollcutlimb`: its ragdoll made, `blastRagdoll`
+throwing it with a recent blast), to a trace (`SV_Move`) that met a trigger in the solid list. The two vores on the
+pedestals (`second_room_shalrath_death_02_counter`) bring two `item_spikes` (MG3's SPAWNED flag, targetname
+`second_room_shalrath_death_02`) when both are dead: the same mistake as The Matriarch of Decay's (above), an item a
+trigger brings linked as a solid with `SOLID_TRIGGER`. Reproduced headless with 1.1.0's matriarch fix reverted: the
+second vore's death is `Sys_Error: Trigger in clipping list`, the report's frames to the offset (`SV_ClipToLinks+0x9ab`,
+`blastRagdoll`); with only the engine's safety net, its warning names edicts 808 and 809, the two `item_spikes`
+(`maps/b_nail0.bsp`). With the fix: no warning. Test: `vr_mg3_test 300+k` kills a map's k-th `monster_` by a blast at
+its middle (gore, limb cuts, ragdoll) and traces in the same frame; `bash Misc/quakevr/mg3_kill_test.sh <agent> [map]
+[k...]` (default map8's vores, 55 56) fails on a crash, an error or the trigger warning.
+
+**The rune: Dimension and Dawn of the Machine's `SPAWNFLAG_TRIGGER_FIRST`.** The rune (`item_sigil` 136: rune 4, hidden
+until used) comes from the altar's chain: eight victims (`misc_sacrifice` → `sacrifice_0N` relays) count down
+`trigger_sacrifice_counter` `human_killed`, which uses `trigger_once` `rune_trigger` (spawnflags 2, a box over the
+whole altar room), whose touch then runs the lightning, the altar's sacrifice and the rune. Upstream (quakec_mg1
+`triggers.qc`, `defs.qc`: `SPAWNFLAG_TRIGGER_FIRST = 2`) a trigger with that flag is nothing until its first use, which
+makes it the trigger; our `trigger_multiple` never had it, so walking into the altar room brought the rune at once.
+map8 has three more such chains (`second_room_reinforcement_01`, the secret ambush's `..._trigger_activate_01/02`),
+each firing early the same way. Fix (`QC/triggers.qc`, MG1 and MG3 campaigns only: id1's rerelease and Dopa have no such
+flag): the flag is cleared and `use` waits for `trigger_multiple`. Test: `vr_mg3_test 23` prints the runes and
+waiting triggers, `24` makes the sacrifices (every victim but the altar's used); `bash Misc/quakevr/mg3_rune_test.sh
+<agent>` stands in the room 12 s (rune must stay hidden), makes the sacrifices, stands again (rune must come). Before:
+the rune there with no sacrifice. After: PASS. (Side note from the log: `vr_unstick` moves the hanging victims, 22-24
+units, a second after the map starts; harmless here.)
+
+`origin/next`: the crash fix is there (the matriarch port); the rune bug too. Both commits cherry-pick cleanly onto it
+(`agent/crash2-next`): built, both tests PASS.
+
+For him in VR: MG3 map8, walk into the altar room before any sacrifice (no lightning, no rune); kill the two vores on the
+pedestals together (rockets), then punch or cut the corpses.

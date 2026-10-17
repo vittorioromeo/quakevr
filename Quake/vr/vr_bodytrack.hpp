@@ -147,6 +147,40 @@ struct Posed
 };
 void posed(const Posed& p);
 
+// Body Calibration's samples (vr_bodycal.cpp): this frame's joints in the world (the placed, smoothed ones), when the
+// source is live and active. Each joint's weight: the source's confidence, times 1 for a joint the headset sees and
+// GUESSED_WEIGHT for one it only infers (Quest 3's generated legs: a weak prior); 0 not valid.
+enum CalJoint : int
+{
+    CalShoulderL,
+    CalShoulderR,
+    CalElbowL,
+    CalElbowR,
+    CalWristL,
+    CalWristR,
+    CalHips,
+    CalNeck,
+    CalHipL,
+    CalHipR,
+    CalKneeL,
+    CalKneeR,
+    CalAnkleL,
+    CalAnkleR,
+    CalJointCount
+};
+inline constexpr float GUESSED_WEIGHT = 0.2f;
+struct Sample
+{
+    glm::vec3 pos[CalJointCount]{};
+    float weight[CalJointCount]{};
+};
+[[nodiscard]] bool sample(Sample& out);
+
+// Whether tracking data comes in now (the source live and active), and the Body page's line saying so (with the
+// extensions and the fidelity).
+[[nodiscard]] bool available();
+[[nodiscard]] const char* availabilityLine();
+
 void registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats, vr_bodytrack_dump
 
 } // namespace qvr::bodytrack

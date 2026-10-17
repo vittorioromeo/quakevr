@@ -1,6 +1,12 @@
 // vr_menu_body.inc -- the body pages: Body, Crouch, Arms, Body Calibration, the Flashlight pages. Part of vr_menu.cpp
 // (included where it was: the same translation unit, so its anonymous namespace).
 
+// Whether body tracking data comes in now (Body > Body Tracking, Body Calibration).
+const char* bodytrackAvailability(int)
+{
+    return bodytrack::availabilityLine();
+}
+
 [[nodiscard]] za::Vector<Item> pageBody()
 {
     return {
@@ -63,6 +69,7 @@
                   "round the line from the shoulder to the wrist."),
         // Body tracking (vr_bodytrack.cpp): Quest 3 through Virtual Desktop (XR_FB_body_tracking).
         header("Body Tracking"),
+        infoLine(bodytrackAvailability, 0),
         toggle("Body Tracking", vr_bodytrack)
             .help("Where the headset tracks your body (Quest 3 through Virtual Desktop: allow Movement Tracking), your "
                   "tracked torso, elbows and (if you like) legs are blended into the body; where it is lost or unsure, "
@@ -454,7 +461,16 @@ const char* bodycalIntro(int i)
     za::Vector<Item> list{infoLine(bodycalIntro, 0), infoLine(bodycalIntro, 1), infoLine(bodycalIntro, 2),
         cycle("Position", vr_bodycal_seated, {{0.f, "Standing"}, {1.f, "Seated"}})
             .help("Seated, the height stays as it is (set it standing: Set Height Now); the arms and shoulders are measured "
-                  "the same.")};
+                  "the same."),
+        infoLine(bodytrackAvailability, 0),
+        toggle("Use Body Tracking", vr_bodycal_track)
+            .help("Where body tracking data comes in during the poses (Quest 3 through Virtual Desktop), your tracked "
+                  "shoulders' width and arm bones are blended into the measurements, so that the tracked elbows fit the "
+                  "arm without stretching it. A tracked length far off ours is left out. Taken at the next calibration, "
+                  "or a refit."),
+        slider("Body Tracking Weight", vr_bodycal_track_weight, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of the tracked lengths goes into the measurements (0: ours alone, 1: the tracking's). The "
+                  "headset may scale its skeleton to your height, so ours (from the controllers) keep a share.")};
     if(bodycal::phase() == bodycal::Phase::Result)
     {
         if(bodycal::trusted())

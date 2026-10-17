@@ -8,6 +8,8 @@
 //   4  a sword held by its blade swung pommel first into it (a corpse: VR_Corpse_StrikeAlong + VR_Corpse_Struck, the
 //      ragdoll strike's own path; the line laid from its pommel inside the body out towards you)
 //   5  the same sword held by its handle, its blade into it (a cut, not blunt)
+//   6  five shotgun pellets round that point (VR_Wound_Pellet: the wound events alone, no damage): their dents, and their
+//      blood streams (vr_gore_streams_chance)
 
 entity vr_dtest_target;
 vector vr_dtest_at;
@@ -126,6 +128,20 @@ void() VR_DentsTest_Frame =
         }
         vr_melee_blunt = FALSE;
         VR_ClearHitKind();
+    }
+    else if(n == 6)
+    {
+        // Five pellets round the point (the wound events alone: no damage), a blast's spread up close.
+        what = "five shotgun pellets";
+        vector side = '0 0 0';
+        side_x = vr_dtest_dir_y;
+        side_y = -vr_dtest_dir_x;
+        side = normalize(side);
+        for(float i = 0; i < 5; i++)
+        {
+            vector off = side * ((i - 2) * 3) + '0 0 1' * (i * 1.5 - 3);
+            VR_Wound_Pellet(m, vr_dtest_at + off, vr_dtest_dir, 4);
+        }
     }
     else if(n == 4 || n == 5)
     {

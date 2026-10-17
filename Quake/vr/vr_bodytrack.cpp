@@ -10,6 +10,7 @@
 
 #include "vr_bodytrack.hpp"
 #include "vr_backend.hpp"
+#include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -91,11 +92,14 @@ struct Stats
     double hold{0.0};                       // the lean detection's hold
     double jumpMax{0.0};                    // cm a joint moved against the top of the neck in one frame, at most
     double weightTorso{0.0}, weightArm{0.0}, weightLeg{0.0}, legApplied{0.0};
-    // The elbow fit per arm (solveArm, armFitted): the weight it took, its frames off (weight 0), exact (nothing at a
-    // limit) and at each limit, the bones' shares taken; the tracked wrist and shoulder from the avatar's (cm).
-    double fitWeight[2]{};
-    int fitFrames[2]{}, fitOff[2]{}, fitExact[2]{}, fitTurn[2]{}, fitClavicle[2]{}, fitUpper[2]{}, fitFore[2]{};
-    double fitUpperShare[2]{}, fitForeShare[2]{};
+    double fitShoulder[2]{}, fitUpper[2]{}, fitFore[2]{}; // the arms' stretch (posed): shoulders off cm, bones' shares
+    double fitMax[2]{};                                   // the most a bone's share was off 1
+    int fitFrames[2]{};
+    // The elbow fit per arm as solveArm went (armFitted): the weight it took, its frames off (weight 0), exact (nothing
+    // at a limit) and at each limit, the bones' shares taken; the tracked wrist and shoulder from the avatar's (cm).
+    double fitApplied[2]{};
+    int armFrames[2]{}, armOff[2]{}, armExact[2]{}, armTurn[2]{}, armClavicle[2]{}, limUpper[2]{}, limFore[2]{};
+    double armUpperShare[2]{}, armForeShare[2]{};
     double wristCm[2]{}, wristCmMax[2]{}, shoulderCm[2]{};
     glm::vec3 last[10]{};
     bool haveLast{false};
@@ -296,6 +300,15 @@ void status_f()
     Con_Printf("bodytrack: weights torso %.2f arms %.2f %.2f legs %.2f %.2f; %.1f us a frame%s%s\n", st.torso, st.arm[0],
         st.arm[1], st.leg[0], st.leg[1], st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0,
         b.error[0] ? "; last error " : "", b.error);
+    if(st.placed && st.m2u > 0.f)
+    {
+        const auto cm = [](int a, int b) { return glm::distance(st.world[a], st.world[b]) * 100.f / st.m2u; };
+        Con_Printf("bodytrack: lengths cm: upper arm L %.1f R %.1f, forearm L %.1f R %.1f, shoulders apart %.1f, hips to neck "
+                   "%.1f, legs L %.1f R %.1f\n",
+            cm(ArmUpperL, ArmLowerL), cm(ArmUpperR, ArmLowerR), cm(ArmLowerL, WristL), cm(ArmLowerR, WristR),
+            cm(ArmUpperL, ArmUpperR), cm(Hips, Neck), cm(UpperLegL, LowerLegL) + cm(LowerLegL, AnkleL),
+            cm(UpperLegR, LowerLegR) + cm(LowerLegR, AnkleR));
+    }
 }
 
 void stats_f()
@@ -322,15 +335,21 @@ void stats_f()
     Con_Printf("btstats %s: elbow off L %.2f (max %.2f) R %.2f (max %.2f) cm from the tracked\n", label,
         s.elbowCm[0] / za::max(1, s.elbowCmFrames[0]), s.elbowCmMax[0], s.elbowCm[1] / za::max(1, s.elbowCmFrames[1]),
         s.elbowCmMax[1]);
+    // The arms' stretch while fitted (1: the arm as calibrated fits the tracked one as it is).
+    const double fl = za::max(1, s.fitFrames[0]), fr = za::max(1, s.fitFrames[1]);
+    Con_Printf("btstats %s: fit stretch L upper %.3f fore %.3f (max off %.3f) shoulder off %.2f cm R upper %.3f fore %.3f "
+               "(max off %.3f) shoulder off %.2f cm, %d %d frames\n",
+        label, s.fitUpper[0] / fl, s.fitFore[0] / fl, s.fitMax[0], s.fitShoulder[0] / fl, s.fitUpper[1] / fr,
+        s.fitFore[1] / fr, s.fitMax[1], s.fitShoulder[1] / fr, s.fitFrames[0], s.fitFrames[1]);
     for(int side = 0; side < 2; side++)
     {
-        const double f = za::max(1, s.fitFrames[side]);
-        const double on = za::max(1, s.fitFrames[side] - s.fitOff[side]);
+        const double f = za::max(1, s.armFrames[side]);
+        const double on = za::max(1, s.armFrames[side] - s.armOff[side]);
         Con_Printf("btstats %s: fit %s w %.2f off %.0f%% exact %.0f%% limits turn %.0f%% clavicle %.0f%% upper %.0f%% fore "
                    "%.0f%% (bones x%.2f x%.2f) wrist off %.1f (max %.1f) shoulder off %.1f cm\n",
-            label, side == 0 ? "L" : "R", s.fitWeight[side] / f, 100.0 * s.fitOff[side] / f, 100.0 * s.fitExact[side] / f,
-            100.0 * s.fitTurn[side] / f, 100.0 * s.fitClavicle[side] / f, 100.0 * s.fitUpper[side] / f,
-            100.0 * s.fitFore[side] / f, s.fitUpperShare[side] / on, s.fitForeShare[side] / on, s.wristCm[side] / f,
+            label, side == 0 ? "L" : "R", s.fitApplied[side] / f, 100.0 * s.armOff[side] / f, 100.0 * s.armExact[side] / f,
+            100.0 * s.armTurn[side] / f, 100.0 * s.armClavicle[side] / f, 100.0 * s.limUpper[side] / f,
+            100.0 * s.limFore[side] / f, s.armUpperShare[side] / on, s.armForeShare[side] / on, s.wristCm[side] / f,
             s.wristCmMax[side], s.shoulderCm[side] / f);
     }
 }
@@ -442,6 +461,13 @@ void dump_f()
     dump.frame = -1;
     Con_Printf("vr_bodytrack_dump: %.1f s to %s%s\n", seconds, dump.path, st.submitted < 0.0 ? " (no body tracking source yet)" : "");
 }
+
+[[nodiscard]] bool sourceLive()
+{
+    return st.submitted >= 0.0 && Sys_DoubleTime() - st.submitted < SUBMIT_STALE;
+}
+
+char availabilityBuf[160];
 
 } // namespace
 
@@ -701,6 +727,29 @@ void posed(const Posed& p)
     }
     s.haveLast = true;
 
+    // The arms' stretch (Elbow Fit's, and any reach's): each drawn bone's length over the calibrated one (Body
+    // Calibration's, the tweaks on), and the drawn shoulders from the tracked ones; while the elbows are fitted.
+    if(bodycal::calibrated() && st.m2u > 0.f)
+    {
+        const float upperCm = bodycal::measuredArmCm(0) + bodycal::armTweakCm(0);
+        const float foreCm = bodycal::measuredArmCm(1) + bodycal::armTweakCm(1);
+        for(int side = 0; side < 2; side++)
+        {
+            if(st.arm[side] * za::clamp(vr_bodytrack_arm_fit.value, 0.f, 1.f) <= 0.f || upperCm <= 1.f || foreCm <= 1.f)
+            {
+                continue;
+            }
+            const float k = 100.f / st.m2u;
+            const float u = glm::distance(p.shoulder[side], p.elbow[side]) * k / upperCm;
+            const float f = glm::distance(p.elbow[side], p.wrist[side]) * k / foreCm;
+            s.fitShoulder[side] += glm::distance(p.shoulder[side], st.world[armUpper(side)]) * k;
+            s.fitUpper[side] += u;
+            s.fitFore[side] += f;
+            s.fitMax[side] = za::max(s.fitMax[side], static_cast<double>(za::max(za::fabs(u - 1.f), za::fabs(f - 1.f))));
+            s.fitFrames[side]++;
+        }
+    }
+
     // The errors: against the tracked body (the synthetic one's is exact).
     if(!valid(Hips) || !valid(Neck))
     {
@@ -748,21 +797,21 @@ void posed(const Posed& p)
 
             // The fit as it went, and how far the tracked wrist and shoulder are from ours.
             const ArmFit& fit = st.fit[side];
-            s.fitFrames[side]++;
-            s.fitWeight[side] += fit.weight;
+            s.armFrames[side]++;
+            s.fitApplied[side] += fit.weight;
             if(fit.weight <= 0.f)
             {
-                s.fitOff[side]++;
+                s.armOff[side]++;
             }
             else
             {
-                s.fitExact[side] += !fit.turnLimited && !fit.clavicleClamped && !fit.upperClamped && !fit.foreClamped ? 1 : 0;
-                s.fitTurn[side] += fit.turnLimited ? 1 : 0;
-                s.fitClavicle[side] += fit.clavicleClamped ? 1 : 0;
-                s.fitUpper[side] += fit.upperClamped ? 1 : 0;
-                s.fitFore[side] += fit.foreClamped ? 1 : 0;
-                s.fitUpperShare[side] += fit.upperShare;
-                s.fitForeShare[side] += fit.foreShare;
+                s.armExact[side] += !fit.turnLimited && !fit.clavicleClamped && !fit.upperClamped && !fit.foreClamped ? 1 : 0;
+                s.armTurn[side] += fit.turnLimited ? 1 : 0;
+                s.armClavicle[side] += fit.clavicleClamped ? 1 : 0;
+                s.limUpper[side] += fit.upperClamped ? 1 : 0;
+                s.limFore[side] += fit.foreClamped ? 1 : 0;
+                s.armUpperShare[side] += fit.upperShare;
+                s.armForeShare[side] += fit.foreShare;
             }
             const double toCm = 100.0 / za::max(st.m2u, 1e-3f);
             const double wristCm = glm::distance(p.wrist[side], st.world[wrist(side)]) * toCm;
@@ -783,6 +832,62 @@ void posed(const Posed& p)
             }
         }
     }
+}
+
+bool available()
+{
+    return sourceLive() && st.raw.active && st.placed;
+}
+
+bool sample(Sample& out)
+{
+    out = Sample{};
+    if(!available())
+    {
+        return false;
+    }
+    static constexpr int joints[CalJointCount] = {ArmUpperL, ArmUpperR, ArmLowerL, ArmLowerR, WristL, WristR, Hips, Neck,
+        UpperLegL, UpperLegR, LowerLegL, LowerLegR, AnkleL, AnkleR};
+    const float conf = za::clamp(st.raw.confidence, 0.f, 1.f);
+    bool any = false;
+    for(int i = 0; i < CalJointCount; i++)
+    {
+        const int j = joints[i];
+        out.pos[i] = st.world[j];
+        out.weight[i] = valid(j) ? conf * ((st.raw.flags[j] & POS_TRACKED) ? 1.f : GUESSED_WEIGHT) : 0.f;
+        any = any || out.weight[i] > 0.f;
+    }
+    return any;
+}
+
+const char* availabilityLine()
+{
+    const BackendStatus& b = backend;
+    static constexpr const char* fidelity[] = {"fidelity unknown", "low fidelity", "high fidelity"};
+    if(available())
+    {
+        const bool synth = vr_bodytrack_synth.value != 0.f;
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Available (%s, %s)",
+            synth ? "synthetic" : b.fullBodySet ? "full body" : "upper body", fidelity[za::clamp(st.raw.fidelity, 0, 2)]);
+    }
+    else if(sourceLive())
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (tracking lost)");
+    }
+    else if(b.trackerCreated)
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (no data yet%s)",
+            b.error[0] ? ": see vr_bodytrack_status" : "");
+    }
+    else if(b.fbExtension && !b.systemSupports)
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (headset doesn't offer it)");
+    }
+    else
+    {
+        q_snprintf(availabilityBuf, sizeof(availabilityBuf), "Body Tracking Data: Not available (enable in Virtual Desktop)");
+    }
+    return availabilityBuf;
 }
 
 void synthesize(TrackingState& t)
@@ -831,31 +936,37 @@ void synthesize(TrackingState& t)
     t.head.position = eyes;
     t.head.orientation = head * t.head.orientation;
 
-    // The arms, as Meta's are: its own skeleton (vr_bodytrack_synth_arm_scale times this body's proportions: wider
-    // shoulders, longer arms than the avatar's), the shoulders off ours (vr_bodytrack_synth_shoulder_forward), the
-    // wrists where it puts them, behind the controller's grip (vr_bodytrack_synth_wrist metres along it; < 0: where the
-    // avatar's were last posed, a self-check only), the elbows by its own bones, bent towards the pole.
+    // The arms, as Meta's are: its own skeleton (vr_bodytrack_synth_shoulders, _upper_arm, _forearm times this body's
+    // proportions: wider shoulders, longer arms than the avatar's), the shoulders off ours
+    // (vr_bodytrack_synth_shoulder_forward), the wrists where it puts them: vr_bodytrack_synth_wrist cm behind the
+    // controller's grip (vr_bodytrack_synth_wrist_from 1), or behind the avatar's last posed wrists (0: with the other
+    // settings at 1 and 0, a self-check only), along the controller; the elbows by its own bones, bent towards the pole.
     const float out = za::clamp(vr_bodytrack_synth_elbows.value, 0.f, 1.f);
-    const float armScale = za::clamp(vr_bodytrack_synth_arm_scale.value, 0.5f, 2.f);
-    const float wristBack = vr_bodytrack_synth_wrist.value;
+    const bool fromGrip = vr_bodytrack_synth_wrist_from.value != 0.f;
     for(int side = 0; side < 2; side++)
     {
         const float sgn = side == 0 ? -1.f : 1.f;
+        const float halfWidth = 0.11f * eye * za::max(0.1f, vr_bodytrack_synth_shoulders.value);
         const glm::vec3 shoulder = hips + up * (0.8f * spineLen) +
-                                   chest * (r * (sgn * 0.11f * eye * armScale) + u * (0.03f * eye) +
+                                   chest * (r * (sgn * halfWidth) + u * (0.03f * eye) +
                                                f * vr_bodytrack_synth_shoulder_forward.value);
         set(armUpper(side), shoulder, true);
         const Pose& hand = t.hands[side == 0 ? HAND_OFF : HAND_MAIN];
-        glm::vec3 w = hand.valid ? hand.position + hand.orientation * glm::vec3{0.f, 0.f, za::max(0.f, wristBack)}
-                                 : shoulder - u * (0.3f * eye);
-        if(wristBack < 0.f && hand.valid && st.havePosedWrist && st.m2u > 0.f)
+        glm::vec3 w = hand.valid ? hand.position : shoulder - u * (0.3f * eye);
+        if(!fromGrip && hand.valid && st.havePosedWrist && st.m2u > 0.f)
         {
             const glm::vec3 q = hands::rotateYaw((st.posedWrist[side] - st.placeBase) / st.m2u, -st.placeYaw);
             w = glm::vec3{-q.y, q.z, -q.x} + st.placeFloor; // (quakeFromTracking undone)
         }
+        if(hand.valid && vr_bodytrack_synth_wrist.value != 0.f)
+        {
+            w += hand.orientation * glm::vec3{0.f, 0.f, vr_bodytrack_synth_wrist.value * 0.01f}; // (behind: +z)
+        }
         set(wrist(side), w, true);
         const glm::vec3 pole = glm::mix(-u - f * 0.3f, chest * (r * sgn) - u * 0.2f, out);
-        set(armLower(side), twoBone(shoulder, w, 0.175f * eye * armScale, 0.16f * eye * armScale, pole), true);
+        set(armLower(side), twoBone(shoulder, w, 0.175f * eye * za::max(0.1f, vr_bodytrack_synth_upper_arm.value),
+                                0.16f * eye * za::max(0.1f, vr_bodytrack_synth_forearm.value), pole),
+            true);
 
         // The legs (generated: valid, not tracked): the feet under the hips, the knees forward, turned out.
         const glm::vec3 hip = hips + r * (sgn * 0.055f * eye) - u * (0.03f * eye);

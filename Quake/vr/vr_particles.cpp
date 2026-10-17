@@ -1952,6 +1952,30 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
     }
 }
 
+void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ)
+{
+    if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas())
+    {
+        return;
+    }
+    Particle p;
+    p.cell = CellCircle;
+    p.color = glm::vec4{color, 0.9f};
+    p.scale = size;
+    p.type = Custom;
+    p.fade = -0.9f / za::max(life, 0.02f); // (gone as it dies)
+    p.grow = -0.4f * size / za::max(life, 0.02f);
+    p.drag = 0.6f;
+    p.streak = 0.012f; // (drawn out a little along its flight)
+    p.lighting = Lighting::Emissive; // (its colour lit already: the stream's, which it leaves)
+    p.acc = gravity(1.f);
+    p.org = org;
+    p.vel = vel;
+    p.die = cl.time + life;
+    p.floor = floorZ;
+    pool.pushBack(p);
+}
+
 // A fire model's emission burst: its world-axis upward velocity does not invert with a held torch.
 int fireSource(const glm::vec3& at, float sourceScale)
 {

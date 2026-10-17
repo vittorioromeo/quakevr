@@ -288,6 +288,12 @@ struct DrawnWeapon
 // weapon hand by it (vr_modelcollide.cpp, with held::drawnPush).
 [[nodiscard]] glm::vec3 handPress(int hand);
 
+// The free `hand` drawn held out of the prop `ent` (an entity number) the other hand holds alone, last frame's
+// (vr_hand_collide_props_keep_out): how far it is drawn moved off its tracked place, relative to the prop as drawn (the
+// hand's push less the prop's press; world units). Zero when it is not against it. The second hand's grab of that prop
+// (vr_carry2h.cpp) takes it there, at the surface, not where the real hand is in it.
+[[nodiscard]] glm::vec3 heldOutOf(int hand, int ent);
+
 
 // vr_hotspots_check: the migrated hotspots against the old two-handed grips, every slot, either hand.
 void hotspotsCheck_f();

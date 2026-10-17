@@ -739,6 +739,21 @@ glm::vec3 handPress(int hand)
     return hand == 0 || hand == 1 ? weaponPressed[hand] : glm::vec3{0.f};
 }
 
+glm::vec3 heldOutOf(int hand, int ent)
+{
+    if((hand != 0 && hand != 1) || ent <= 0 || ent >= cl_max_edicts || !vr_hand_collide_props_keep_out.value ||
+        held::heldAlone(1 - hand) != ent)
+    {
+        return glm::vec3{0.f};
+    }
+    const RigHand& rh = rigHands[hand];
+    if(rh.propAgainst != &cl_entities[ent] || !rh.weaponTouching)
+    {
+        return glm::vec3{0.f};
+    }
+    return rh.pushed - weaponPressed[1 - hand]; // (the hand off the prop as drawn: each moved apart)
+}
+
 WeaponHotspot weaponHotspot(int hand, int index)
 {
     if(hand < 0 || hand > 1 || index < 0 || index >= weapons::maxHotspots || !entities.weapon[hand].visible)

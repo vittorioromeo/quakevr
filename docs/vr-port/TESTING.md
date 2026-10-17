@@ -471,7 +471,10 @@ Body calibration (ROUND21.md, "Body calibration"): `vr_bodycal standing` runs it
 doing its poses is a take of raw tracking played alongside: `vr_motion_play <take> watch noplace`, then
 `vr_bodycal standing` in the same frame (a one-off script made them, not kept); `vr_bodycal_print`
 prints the result. `vr_bodycal_refit <file>` fits a saved session (`quakevr/bodycal/`) again; `vr_bodycal_debug`
-prints the empty hands' wrists.
+prints the empty hands' wrists. With body tracking (ROUND22.md, "Body Calibration with body tracking"): a session's
+`t` lines are its tracked joints (a scratch script can add synthetic ones to a saved session for a refit); with
+`vr_bodytrack_synth_upper_arm`, `_forearm`, `_shoulders`, `_wrist` setting the live synthetic body's lengths,
+`vr_bodytrack_stats reset`, held `vr_mock_hand` poses, then `vr_bodytrack_stats` print the arms' `fit stretch`.
 VR Calibration (ROUND21.md, "VR Calibration"): the main menu opens on Select Campaign; `vr_mock_key uparrow` four times
 puts the cursor on VR CALIBRATION (three: VR Tutorial, two: VR Hub, one: VR Settings; `togglemenu; wait30;
 vr_mock_stick main 0 1; wait10; vr_mock_stick main 0 0` moves it one up too), `vr_test_modal_answer 1` answers the next confirmation dialog

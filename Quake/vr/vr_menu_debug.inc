@@ -123,8 +123,9 @@ za::Vector<Item> pageDebugViews()
                   "(yellow) over the tracked ones: the yellow elbow should sit on the magenta one."),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
         command("Print Body Tracking Stats", "vr_bodytrack_stats")
-            .help("Since the last reset: the errors against the tracked body, and per arm the elbow fit (its weight, how "
-                  "often it met a limit, the bones' stretch) and how far the tracked wrist and shoulder are from ours."),
+            .help("vr_bodytrack_stats: the body's errors against the tracked one since the last reset, how far the arms "
+                  "stretch while the elbows are fitted (1: the calibrated arm fits the tracked one), and per arm the elbow "
+                  "fit (its weight, how often it met a limit) and how far the tracked wrist and shoulder are from ours."),
         command("Reset Body Tracking Stats", "vr_bodytrack_stats reset"),
         command("Record Body Tracking (10 s)", "vr_bodytrack_dump 10")
             .help("Writes 10 seconds of the raw tracked joints, the weights, the elbow fit and the body's joints to "
@@ -1000,6 +1001,14 @@ za::Vector<Item> pageDebugTools()
         command("Pommel Strike the Nearest Corpse", "vr_dents_test 4; vr_gore_dents_info")
             .help("vr_dents_test 4: a sword held by its blade swung pommel first into the nearest corpse or ragdoll, as the ragdoll "
                   "strike's path has it: its damage, a wound and a round blunt dent; vr_gore_dents_info the dents (console)."),
+        command("Shotgun Pellets into the Nearest", "vr_dents_test 6")
+            .help("vr_dents_test 6: five pellets' wounds round where you look at the nearest monster, corpse or training dummy "
+                  "(no damage): their dents and blood streams (at Stream Chance; the dummy's with Dummy Dents and Dummy Blood Streams)."),
+        command("Blood Streams: Where They Start", "vr_gore_streams_info")
+            .help("vr_gore_streams_info: each stream pouring, how far its start is from the dented surface at its wound, and how far "
+                  "the vertex nearest the hit (the binding before) is (console)."),
+        command("Clear the Dummy's Dents and Streams", "vr_dummy_gore_reset")
+            .help("vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds gone at once."),
         command("Shocked Bodies", "vr_shock_info; vr_shock_ragdoll_check")
             .help("vr_shock_info: the bodies with arcs on them (kind 3 a hit's, 4 lasting; the arcs drawn; next frame: how far off the "
                   "skin they lie, bodyshock-arcs); vr_shock_ragdoll_check: each "

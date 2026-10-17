@@ -1398,12 +1398,15 @@ QVR_CVAR(vr_bodytrack_synth_twist, "0", CVAR_NONE)    // degrees the chest turns
 QVR_CVAR(vr_bodytrack_synth_crouch, "0", CVAR_NONE)   // metres the hips go down (knees bent)
 QVR_CVAR(vr_bodytrack_synth_neck, "0", CVAR_NONE)     // degrees the neck bends forward (the head forward and down, the spine upright)
 QVR_CVAR(vr_bodytrack_synth_elbows, "0", CVAR_NONE)   // how far the elbows wing out (0 hanging under the arm, 1 out to the sides)
-QVR_CVAR(vr_bodytrack_synth_arm_scale, "1.1", CVAR_NONE) // its arms' and shoulders' size against its own body's proportions (Meta's skeleton is not the avatar's)
 QVR_CVAR(vr_bodytrack_synth_shoulder_forward, "0.04", CVAR_NONE) // metres its shoulders sit ahead of where its chest puts them
-QVR_CVAR(vr_bodytrack_synth_wrist, "0.08", CVAR_NONE) // metres behind the controller's grip its wrists are (where Meta puts them; < 0: at the avatar's last posed wrists, a self-check)
 QVR_CVAR(vr_bodytrack_synth_knees, "0", CVAR_NONE)    // degrees the knees turn out (the generated legs)
 QVR_CVAR(vr_bodytrack_synth_confidence, "1", CVAR_NONE) // the confidence it reports
 QVR_CVAR(vr_bodytrack_synth_active, "1", CVAR_NONE)   // isActive (0: tracking lost)
+QVR_CVAR(vr_bodytrack_synth_shoulders, "1.1", CVAR_NONE) // its shoulders' width, times the usual (22% of the eye height; 1.1: Meta's skeleton is not the avatar's)
+QVR_CVAR(vr_bodytrack_synth_upper_arm, "1.1", CVAR_NONE) // its upper arms' length, times the usual (17.5% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_forearm, "1.1", CVAR_NONE)  // its forearms' length, times the usual (16% of the eye height)
+QVR_CVAR(vr_bodytrack_synth_wrist, "8", CVAR_NONE)    // cm its wrists are behind vr_bodytrack_synth_wrist_from's point, along the controller (the controller-to-wrist offset)
+QVR_CVAR(vr_bodytrack_synth_wrist_from, "1", CVAR_NONE) // where its wrists are measured from: 1 the controller's grip (where Meta puts them), 0 the avatar's last posed wrists (with _wrist 0, _shoulders, _upper_arm and _forearm 1 and _shoulder_forward 0: a self-check)
 QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
@@ -1589,6 +1592,12 @@ QVR_CVAR(vr_body_shoulder_forward, "", CVAR_NONE)
 QVR_CVAR(vr_bodycal_seated, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_preview, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_bodycal_undo, "", CVAR_ARCHIVE)
+// Body Calibration with body tracking (vr_bodycal.cpp, "Body tracking's measurements"): where tracking data comes in
+// during the poses, the tracked shoulders' width and the arm bones' lengths are blended into the measurements by
+// vr_bodycal_track_weight (0: ours alone, 1: the tracking's; the headset may scale its skeleton to your height, so not
+// all of it), the torso, the legs and the controller-to-wrist offset shown beside them.
+QVR_CVAR(vr_bodycal_track, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_bodycal_track_weight, "0.5", CVAR_ARCHIVE)
 // VR Calibration (vr_setup.hpp), tests: a motion take of raw tracking played (vr_motion_play ... watch noplace) from the
 // body step's first frame, the synthetic person doing the poses (TESTING.md, "Body calibration"). Not saved.
 QVR_CVAR(vr_setup_test_take, "", CVAR_NONE)
@@ -1813,6 +1822,18 @@ QVR_CVAR(vr_gore_streams_spread, "35", CVAR_ARCHIVE)    // degrees: each stream'
 QVR_CVAR(vr_gore_streams_speed_var, "0.3", CVAR_ARCHIVE) // each stream's force times a random 1 +- this (0: all alike)
 QVR_CVAR(vr_gore_streams_wobble, "10", CVAR_ARCHIVE)    // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
 QVR_CVAR(vr_gore_streams_wobble_rate, "0.7", CVAR_ARCHIVE) // how fast it wanders (about this many swings a second)
+QVR_CVAR(vr_gore_streams_thickness_var, "0.55", CVAR_ARCHIVE) // how much its thickness varies as it pours (and so along it): 0 steady, 1 from a trickle to double
+QVR_CVAR(vr_gore_streams_thickness_rate, "1.1", CVAR_ARCHIVE) // how fast its thickness changes (about this many swells a second)
+QVR_CVAR(vr_gore_streams_spurts, "1", CVAR_ARCHIVE)      // small drops spurting from the wound in a cone as it pours
+QVR_CVAR(vr_gore_streams_spurt_rate, "40", CVAR_ARCHIVE) // drops a second at its strongest (fewer as it weakens)
+QVR_CVAR(vr_gore_streams_spurt_cone, "30", CVAR_ARCHIVE) // degrees round its way out they spurt in
+QVR_CVAR(vr_gore_streams_spurt_speed, "0.8", CVAR_ARCHIVE) // their speed, times the stream's
+QVR_CVAR(vr_gore_streams_spurt_life, "0.2", CVAR_ARCHIVE) // seconds they live (fading all along), about
+QVR_CVAR(vr_gore_streams_spurt_outliers, "0.12", CVAR_ARCHIVE) // the share of them that live longer,
+QVR_CVAR(vr_gore_streams_spurt_outlier_life, "0.7", CVAR_ARCHIVE) // this many seconds, about
+QVR_CVAR(vr_gore_streams_spurt_size, "0.3", CVAR_ARCHIVE) // units across, about (1 unit: 3.8 cm)
+QVR_CVAR(vr_gore_streams_splash, "1", CVAR_ARCHIVE)      // drops splashing away where it lands (the world, a prop, a monster): how many (0 none; 1 about 45 a second at its strongest)
+QVR_CVAR(vr_gore_streams_splash_size, "1", CVAR_ARCHIVE) // their size, times the spurts'
 // Back-splatter (vr_gore.cpp): thin long streaks thrown onto what is behind a monster hit, along the shot's line.
 QVR_CVAR(vr_gore_backsplatter, "1", CVAR_ARCHIVE)       // how many (0 none)
 QVR_CVAR(vr_gore_backsplatter_reach, "1", CVAR_ARCHIVE) // how far they fly (times the hit's own: a shotgun's close, big hits far)
@@ -2628,7 +2649,7 @@ QVR_CVAR(vr_gore_test_crowd, "0", CVAR_NONE) // units: above 0, vr_limb_test and
 QVR_CVAR(vr_test_monsters, "0", CVAR_NONE) // the QC acts on every monster of the map at once, once (vr_monsters_test.qc; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count scenarios): 1 report, 2 wake them all, 3 kill them all, 4 bring in the deferred ones, 5 the hit probe of the nearest monster
 QVR_CVAR(vr_dummy_test, "0", CVAR_NONE)               // the QC runs training dummy test n on the nearest training dummy (vr_dummy.qc; Debug > Gore Tests)
 QVR_CVAR(vr_shock_hit_test, "0", CVAR_NONE)          // the QC strikes the nearest monster or corpse ahead with a lightning bolt of this much damage (-1: just enough to kill), once (vr_shock.qc; Debug > Gore Tests)
-QVR_CVAR(vr_dents_test, "0", CVAR_NONE)              // the QC strikes the nearest monster or corpse as one damage path does (1 a thrown brick, 2 a hand's blow, 3 a pommel strike, 4 a sword by its blade pommel first into a corpse, 5 by its handle), once; prints the wound it sent (vr_dents_test.qc; Debug > Gore Tests)
+QVR_CVAR(vr_dents_test, "0", CVAR_NONE)              // the QC strikes the nearest monster or corpse as one damage path does (1 a thrown brick, 2 a hand's blow, 3 a pommel strike, 4 a sword by its blade pommel first into a corpse, 5 by its handle, 6 five shotgun pellets: their wounds alone), once; prints the wound it sent (vr_dents_test.qc; Debug > Gore Tests)
 QVR_CVAR(vr_decap_poptest_dist, "10", CVAR_NONE)       // vr_decap_test 41..46 (head pop chance): shot from this many player lengths (56 units) off
 QVR_CVAR(vr_decap_poptest_n, "200", CVAR_NONE)         // vr_decap_test 45, 46: blasts fired
 QVR_CVAR(vr_decap_poptest_wid, "10", CVAR_NONE)        // vr_decap_test 47: the weapon thrown (QC WID_*: 10 the rocket launcher)
@@ -2897,6 +2918,8 @@ QVR_CVAR(vr_dummy_attack_reach, "80", CVAR_ARCHIVE)      // units (origin to ori
 QVR_CVAR(vr_dummy_attack_damage, "10", CVAR_ARCHIVE)     // a blow's damage, before a parry (as a monster's blow: armour, god mode and the parry apply)
 QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the tell: a sound, the rifle raised, a glow) before each blow
 QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
+QVR_CVAR(vr_dummy_dents, "0", CVAR_ARCHIVE)              // a clean training dummy (vr_dummy_gore 0) is dented where it is hit all the same (no wounds painted); a bleeding one is dented as a grunt anyway
+QVR_CVAR(vr_dummy_streams, "0", CVAR_ARCHIVE)            // a clean training dummy pours blood streams from its bullet holes all the same (vr_dummy_gore 1: as a grunt anyway)
 QVR_CVAR(vr_dummy_gib, "1", CVAR_ARCHIVE)                // the training dummy dies as its enemy (a grunt) once its hits take the last of its health (vr_dummy_health): beheaded, popped, gibbed (below -35) as one; it stands again after vr_dummy_gib_respawn
 QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
 QVR_CVAR(vr_dummy_type, "0", CVAR_ARCHIVE)              // the enemy the training dummy stands as (vr_dummy_types.qc: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 fiend, 6 shambler, 7 zombie, 8 vore, 9 scrag, 10 rottweiler, 11 spawn, 12 rotfish, 13 gremlin, 14 centroid, 15 mummy, 16 wrath, 17 overlord, 18 electric eel; Dawn of the Machine's: 19 rocket ogre, 20 demo dog, 21 ranged knight): its model, box, hit zones, head, gore and death
@@ -3233,6 +3256,7 @@ QVR_CVAR(vr_test_throw_up_speed, "10", CVAR_NONE)    // impulse 222 (tests): the
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and what the other hand holds (its weapon, or the prop it holds alone) are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that thing (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
+QVR_CVAR(vr_hand_collide_props_keep_out, "1", CVAR_ARCHIVE) // with it: a free hand pushed into the prop the other hand holds alone never sinks in: past the push it is drawn resting on the surface however deep, and its grab of that prop (taking it in both hands) takes it there, outside, not where the real hand is in it (ROUND22.md, "The free hand out of a held prop"); melee and throws are the real hand's (0: it sinks in past vr_hand_collide, as a weapon)
 QVR_CVAR(vr_hand_collide_props_margin, "1", CVAR_ARCHIVE) // cm off the surface of the prop or the weapon the other hand holds the free hand's palm and knuckles stop (0..2: the drawn skin about at it)
 QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off
 QVR_CVAR(vr_body_collide_pass, "0.7", CVAR_ARCHIVE)  // pushed this share of the way through what stops it (the whole hand or weapon), it lets go and passes through (1: only once all the way through; held out at most this times 15 cm)

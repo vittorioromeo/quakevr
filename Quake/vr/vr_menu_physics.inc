@@ -330,6 +330,11 @@
         slider("Empty Hand Stops Off It", vr_hand_collide_props_margin, 0.f, 3.f, 0.25f, "%.2f cm")
             .help("How far off the surface of what the other hand holds the empty hand's palm and knuckles stop: about 1 cm "
                   "keeps the skin at the surface."),
+        toggle("Empty Hand Stays Out of Held Props", vr_hand_collide_props_keep_out)
+            .help("With Empty Hand Against Held Things: an empty hand pushed into a prop your other hand holds is drawn "
+                  "resting on its surface however deep you push, and gripping it there takes it in both hands from the "
+                  "outside. Hitting it and throwing it are your real hand's. Off: past the push the hand sinks in, as "
+                  "with a weapon."),
         toggle("Fingers Rest on Held Things", vr_hand_collide_fingers)
             .help("With Empty Hand Against Held Things: the empty hand's fingers rest on what the other hand holds or bend "
                   "out of it, instead of the whole hand being pushed by its fingertips."),

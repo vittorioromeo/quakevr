@@ -14,6 +14,7 @@
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_held.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -944,15 +945,18 @@ bool surfaceOf(const entity_t& e, int num, Surface& out)
 
 // The point on the model a blow at `org` going `dir` struck: the front face the line through it meets nearest to it
 // (64 units either side), else the front-facing triangle nearest the line. Its outward normal too.
-bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+// (strikeTriangles: the struck triangle's first corner too.)
+bool strikeTris(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal,
+    int& tri)
 {
+    tri = -1;
     const glm::vec3 a0 = org - dir * 64.f;
     const glm::vec3 d = dir * 128.f;
     float bestT = 1e30f;
-    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
     {
-        const glm::vec3& a = s.tris[i];
-        const glm::vec3 e1 = s.tris[i + 1] - a, e2 = s.tris[i + 2] - a;
+        const glm::vec3& a = tris[i];
+        const glm::vec3 e1 = tris[i + 1] - a, e2 = tris[i + 2] - a;
         const glm::vec3 pv = glm::cross(d, e2);
         const float det = glm::dot(e1, pv);
         if(det >= -1e-9f) // not going into its front
@@ -981,7 +985,8 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
         {
             bestT = t;
             at = a0 + d * t;
-            normal = outward(a, s.tris[i + 1], s.tris[i + 2]);
+            normal = outward(a, tris[i + 1], tris[i + 2]);
+            tri = static_cast<int>(i);
         }
     }
     if(bestT < 1e29f)
@@ -990,14 +995,14 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
     }
     // Missed (the box was struck, not the model): the facing triangle nearest the line.
     float best = 1e30f;
-    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
     {
-        const glm::vec3 n = outward(s.tris[i], s.tris[i + 1], s.tris[i + 2]);
+        const glm::vec3 n = outward(tris[i], tris[i + 1], tris[i + 2]);
         if(glm::dot(n, dir) > -0.2f)
         {
             continue;
         }
-        const glm::vec3 c = (s.tris[i] + s.tris[i + 1] + s.tris[i + 2]) / 3.f;
+        const glm::vec3 c = (tris[i] + tris[i + 1] + tris[i + 2]) / 3.f;
         const glm::vec3 rel = c - org;
         const float along = glm::dot(rel, dir);
         const float off = glm::length(rel - dir * along) + za::fabs(along) * 0.25f;
@@ -1006,9 +1011,20 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
             best = off;
             at = c;
             normal = n;
+            tri = static_cast<int>(i);
         }
     }
+    if(best >= 24.f)
+    {
+        tri = -1;
+    }
     return best < 24.f;
+}
+
+bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+{
+    int tri;
+    return strikeTris(s.tris, org, dir, at, normal, tri);
 }
 
 // A point on a model's surface and the surface's outward normal there.
@@ -1157,8 +1173,40 @@ void bridgeOwnWound(entity_t* source, const za::Vector<Splat>& splats)
 namespace
 {
 
+// A clean training dummy's wound (vr_dummy_gore off): nothing painted; dented where it struck with vr_dummy_dents.
+void dentOnly(const Target& t, const Event& ev)
+{
+    Surface surf;
+    if(!vr_dummy_dents.value || t.view || !surfaceOf(*t.ent, t.num, surf))
+    {
+        return;
+    }
+    const glm::vec3 dir = glm::length(ev.dir) > 0.1f ? glm::normalize(ev.dir) : glm::vec3{0.f, 0.f, -1.f};
+    if(ev.kind == KindBlast)
+    {
+        dents::struck(t.ent, surf.tris, ev.org, glm::vec3{0.f}, dir, dents::kindBlast, static_cast<float>(ev.amount));
+        return;
+    }
+    if(ev.kind != KindShot && ev.kind != KindNail && ev.kind != KindMelee)
+    {
+        return;
+    }
+    glm::vec3 at, n;
+    if(strike(surf, ev.org, dir, at, n))
+    {
+        const bool blunt = ev.kind == KindMelee && ev.extra == 1;
+        dents::struck(t.ent, surf.tris, at, n, dir, blunt ? dents::kindBlunt : ev.kind,
+            static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
+    }
+}
+
 void wound(const Target& t, const Event& ev)
 {
+    if(ev.clean)
+    {
+        dentOnly(t, ev);
+        return;
+    }
     const int layer = acquire(t.ent, t.view, true);
     if(layer < 0)
     {
@@ -3023,6 +3071,8 @@ void drips(double now)
     }
 }
 
+constexpr int cleanFlag = 64; // QC vr_wounds.qc QVR_WOUND_CLEAN, added to the kind
+
 } // namespace
 
 void parseEvent()
@@ -3040,12 +3090,18 @@ void parseEvent()
     ev.kind = MSG_ReadByte();
     ev.amount = MSG_ReadByte();
     ev.extra = MSG_ReadByte();
+    ev.clean = (ev.kind & cleanFlag) != 0; // (QC QVR_WOUND_CLEAN: a clean training dummy's, for its dents and streams)
+    ev.kind &= ~cleanFlag;
     if(vr_wounds_debug.value >= 2)
     {
-        Con_Printf("wounds: received kind %d on %d\n", ev.kind, ev.num);
+        Con_Printf("wounds: received kind %d on %d%s\n", ev.kind, ev.num, ev.clean ? " (clean dummy)" : "");
     }
-    // A bullet hole may pour (vr_bloodstream.cpp; whether the wounds are painted or not).
-    bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount);
+    // A bullet hole may pour (vr_bloodstream.cpp; whether the wounds are painted or not; a clean dummy's with
+    // vr_dummy_streams).
+    if(!ev.clean || vr_dummy_streams.value)
+    {
+        bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount);
+    }
     if(enabled() && events.size() < 512)
     {
         events.pushBack(ev);
@@ -3061,10 +3117,49 @@ void parseClear()
     {
         Con_Printf("wounds: received clear on %d\n", ev.num);
     }
+    bloodstream::forget(ev.num); // (its streams stop: what is falling lands)
     if(enabled() && events.size() < 512)
     {
         events.pushBack(ev);
     }
+}
+
+int strikeTriangles(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+{
+    int tri = -1;
+    return strikeTris(tris, org, dir, at, normal, tri) ? tri : -1;
+}
+
+void dummyReset_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_dummy_gore_reset: not hosting a game\n");
+        return;
+    }
+    int found = 0;
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    for(int i = 1; i < qcvm->num_edicts && i < cl_max_edicts; i++)
+    {
+        edict_t* ed = EDICT_NUM(i);
+        if(ed->free || !progs::isTrainingDummy(ed))
+        {
+            continue;
+        }
+        found++;
+        dents::forget(&cl_entities[i]);
+        bloodstream::forget(i, true);
+        if(enabled() && events.size() < 512) // its painted wounds too (as if removed)
+        {
+            Event ev;
+            ev.num = i;
+            ev.kind = KindClear;
+            events.pushBack(ev);
+        }
+    }
+    PR_PopQCVM(oldvm);
+    Con_Printf("vr_dummy_gore_reset: %d training %s cleared (dents, blood streams, wounds)\n", found, found == 1 ? "dummy" : "dummies");
 }
 
 void burst(const float org[3], float size)
