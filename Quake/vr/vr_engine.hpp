@@ -91,6 +91,11 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 void R_AliasDepthCacheBegin (qboolean on); // r_alias.c: a pass over the shadow maps' lights: each caster set up once in it
 void R_AliasDepthCacheEnd (void);
 void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups reused and made since the last call
+// r_alias.c (vr_shadow_setup_share): 1 the casters' whole instances shared by the pass's lights, their depth draws without
+// textures, the first eye's transforms taken from the pass; 2 the same, the first eye's worked out again and compared;
+// 0 neither. Stats: the first eyes' transforms taken, checked and found different since the last call.
+void R_AliasDepthShare (int mode);
+void R_AliasDepthShareStats (int *taken, int *checked, int *bad);
 // r_alias.c (vr_alias_eye_cache): the eyes' scenes: 1 the first (each model's set-up kept), 2 the second (reused), 3 the
 // second (made again and compared), 0 neither (between the eyes); End: the frame's eyes done (what was kept forgotten);
 // the second eyes' counts since the last call (hit, transform only, miss, checked, then the check's mismatches: lerp,

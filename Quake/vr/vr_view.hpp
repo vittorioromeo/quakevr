@@ -59,6 +59,9 @@ struct ViewEntity
 void bareLight(const entity_t* e, float lightcolor[3]);
 void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 
+// Which of the view entities' parts `e` is (VR_DRAW_HANDS ... VR_DRAW_OTHER, vr_api_render.h); -1 not a view entity.
+[[nodiscard]] int drawGroup(const entity_t* e);
+
 // The view entity a copy in the body's mirror image (vr_bodyclone.cpp) is of; null if `e` is not one. (find() gives the
 // copy's own ViewEntity: its place, turn and mirroring the image's.)
 [[nodiscard]] const entity_t* cloneSource(const entity_t* e);

@@ -227,6 +227,11 @@ extern "C" int VR_IsViewEntity(const entity_t* e)
     return view::find(e) != nullptr;
 }
 
+extern "C" int VR_ViewEntityGroup(const entity_t* e)
+{
+    return view::drawGroup(e);
+}
+
 // What you hold, right at the eyes (vr_nearclip_held): 1 its parts nearer than the near plane are drawn at it (depth
 // clamp) rather than cut away, which showed the world through a shouldered gun; 2 also both sides of it while the eye
 // is inside its bounds, so a gun pushed into the face blocks the view with its inside. `matrix` maps its vertices to

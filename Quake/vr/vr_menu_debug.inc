@@ -492,7 +492,14 @@ za::Vector<Item> pageDebugProfiling()
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
-                  "expected)."),
+                  "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
+                  "Set-up Shared)."),
+        cycle("Shadow Caster Set-up Shared", vr_shadow_setup_share, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"}})
+            .help("vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
+                  "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
+                  "shadow pass's pose and transform for the same models (On); only the pose and transform shared by the "
+                  "lights (Off); or On with the first eye's worked out again and compared (Checked: see Model Set-up "
+                  "Stats). The same images either way."),
         cycle("Model Light Probes Ahead", vr_model_ambient_prefetch, {{0.f, "In the Draw"}, {1.f, "Ahead"}, {2.f, "Checked"}})
             .help("vr_model_ambient_prefetch: the models' light probes (the rays round each model and the light they "
                   "read) worked out on the job threads before the models are drawn (Ahead), on the main thread as each "
