@@ -989,9 +989,13 @@ SV_Physics_Client
 Player character actions
 ================
 */
+// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds): the player's hooks, a few a tick
+#define SV_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
+
 void SV_Physics_Client (edict_t	*ent, int num)
 {
 	qboolean wasunderwater, forceunderwater;
+	int special; // QVR
 
 	if ( ! svs.clients[num-1].active )
 		return;		// unconnected slot
@@ -1001,20 +1005,21 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
-	VR_ClimbPreThink (ent); // QVR: ledge holds (vr_climb)
-	VR_FoeGrabPreThink (ent); // QVR: holds on enemies (vr_foegrab)
-	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
+	SV_ZONE ("SV client climb prethink", VR_ClimbPreThink (ent)); // QVR: ledge holds (vr_climb)
+	SV_ZONE ("SV client foegrab prethink", VR_FoeGrabPreThink (ent)); // QVR: holds on enemies (vr_foegrab)
+	SV_ZONE ("SV client PlayerPreThink", PR_ExecuteProgram (pr_global_struct->PlayerPreThink));
 
 //
 // do a move
 //
 	SV_CheckVelocity (ent);
-	VR_ClientPreMove (ent); // QVR: hand and weapon touches
+	SV_ZONE ("SV client premove", VR_ClientPreMove (ent)); // QVR: hand and weapon touches
 
 //
 // decide which move function to call
 //
-	switch (VR_ClientSpecialMove (ent)) // QVR: a teleport, hanging from a ledge, mantling
+	SV_ZONE ("SV client special move", special = VR_ClientSpecialMove (ent)); // QVR
+	switch (special) // QVR: a teleport, hanging from a ledge, mantling
 	{								// QVR
 	case -1:						// QVR
 		return;						// QVR
@@ -1039,8 +1044,8 @@ void SV_Physics_Client (edict_t	*ent, int num)
 			SV_AddGravity (ent);
 			VR_GroundGravity (ent, nogravity); // QVR: on a walkable slope, only its part into it (vr_slope_walk)
 		}
-		SV_CheckStuck (ent);
-		SV_WalkMove (ent);
+		SV_ZONE ("SV client check stuck", SV_CheckStuck (ent)); // QVR: (zones)
+		SV_ZONE ("SV client walk move", SV_WalkMove (ent));
 		break;
 
 	case MOVETYPE_TOSS:
@@ -1064,21 +1069,21 @@ void SV_Physics_Client (edict_t	*ent, int num)
 	default:
 		Sys_Error ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
 	}
-	VR_ClientRoomscaleMove (ent); // QVR
+	SV_ZONE ("SV client roomscale move", VR_ClientRoomscaleMove (ent)); // QVR
 
 postthink: // QVR
 //
 // call standard player post-think
 //
-	SV_LinkEdict (ent, true);
+	SV_ZONE ("SV client link", SV_LinkEdict (ent, true)); // QVR: (zone)
 
 	wasunderwater = ent->v.waterlevel >= 3;
 
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
-	VR_BeforePlayerPostThink (ent); // QVR: a mod's shots start at the gun (compatibility mode)
-	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
-	VR_AfterPlayerPostThink (ent); // QVR
+	SV_ZONE ("SV client before postthink", VR_BeforePlayerPostThink (ent)); // QVR: a mod's shots start at the gun (compatibility mode)
+	SV_ZONE ("SV client PlayerPostThink", PR_ExecuteProgram (pr_global_struct->PlayerPostThink));
+	SV_ZONE ("SV client after postthink", VR_AfterPlayerPostThink (ent)); // QVR
 
 	forceunderwater = !wasunderwater && ent->v.waterlevel >= 3;
 	if (forceunderwater != ent->forcewater)
@@ -1303,8 +1308,13 @@ SV_Physics
 
 ================
 */
-// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds)
-#define SV_PHYS_ZONE(name, call) do { VR_TRACY_SCOPE (name); call; } while (0)
+// QVR: `call` in a profiling zone of its own (Release-Tracy; nothing in other builds), with vr_tracy_physics_detail 1
+// only: two or three zones per edict a tick inflate "Server physics" by about 0.1 ms. The player's is always zoned.
+#ifdef QVR_TRACY
+#define SV_PHYS_ZONE(name, call) do { if (vr_tracy_physics_zones) { VR_TRACY_SCOPE (name); call; } else { call; } } while (0)
+#else
+#define SV_PHYS_ZONE(name, call) do { call; } while (0)
+#endif
 
 void SV_Physics (void)
 {
@@ -1349,7 +1359,7 @@ void SV_Physics (void)
 		// QVR: each edict's part in a zone of its own (profiling builds only: SV_PHYS_ZONE), by its movetype
 		SV_PHYS_ZONE ("SV edict VR begin", vrworld = VR_PhysicsEntityBegin (ent, i)); // QVR: slow motion's Sandevistan: the player and its missiles in its own time
 		if (i > 0 && i <= svs.maxclients)
-			SV_PHYS_ZONE ("SV edict client", SV_Physics_Client (ent, i));
+			SV_ZONE ("SV edict client", SV_Physics_Client (ent, i)); // (always: one per player)
 		else if (ent->v.movetype == MOVETYPE_PUSH)
 			SV_PHYS_ZONE ("SV edict push", SV_Physics_Pusher (ent));
 		else if (ent->v.movetype == MOVETYPE_NONE)

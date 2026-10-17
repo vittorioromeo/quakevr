@@ -26,8 +26,10 @@
 #include "vr_backend.hpp"
 #include "vr_main.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_decals.hpp"
+#include "vr_particles.hpp"
 extern "C" int r_numactiveparticles;
-extern "C" int rs_brushpolys, rs_aliaspolys, rs_skypolys;
+extern "C" int vr_tracy_physics_zones = 0;
 extern "C" void Memory_TracyPlots(void);
 extern "C" double TexMgr_TracyBytes(void);
 extern "C" void Memory_TracySnapshot(void);
@@ -72,6 +74,9 @@ uint64_t connection{};
 bool gpuReady{};
 cvar_t qcDetail = {"vr_tracy_qc_detail", "0", CVAR_NONE};
 cvar_t memoryDetail = {"vr_tracy_memory_detail", "0", CVAR_NONE};
+// SV_Physics's zone per edict (sv_phys.c SV_PHYS_ZONE): two or three per edict a tick inflate "Server physics" by
+// about 0.1 ms, so off by default (the player's own "SV edict client" and its hooks are always zoned).
+cvar_t physicsDetail = {"vr_tracy_physics_detail", "0", CVAR_NONE};
 struct Allocation { unsigned long long bytes; int pool, end; };
 std::unordered_map<const void*, Allocation> allocations;
 constexpr const char* poolNames[] = {"Zone", "Hunk", "Cache"};
@@ -314,6 +319,7 @@ extern "C" void VR_TracyInit()
     Cvar_RegisterVariable(&gpuDetail);
     Cvar_RegisterVariable(&qcDetail);
     Cvar_RegisterVariable(&memoryDetail);
+    Cvar_RegisterVariable(&physicsDetail);
     Cmd_AddCommand("vr_tracy_status", status);
     Cmd_AddCommand("vr_tracy_test_memory", memoryTest);
     Cmd_AddCommand("vr_tracy_test_error", abortTest);
@@ -409,6 +415,7 @@ extern "C" void VR_TracyFrame()
     if(thread.depth || thread.overflow) { if(!abortedByError) ++forceClosed; }
     abortedByError = false;
     VR_TracyAbort();
+    vr_tracy_physics_zones = physicsDetail.value != 0.f;
     TracyCFrameMark;
     memorySync();
     if(TracyCIsConnected)
@@ -421,10 +428,12 @@ extern "C" void VR_TracyFrame()
         VR_TracyPlot("VR display period ms", displayPeriodMs);
         VR_TracyPlot("VR missed display periods", missedDisplayPeriods);
         VR_TracyPlot("Draw calls", vr_profcounts.drawcalls);
-        VR_TracyPlot("World polygons", rs_brushpolys);
-        VR_TracyPlot("Alias triangles", rs_aliaspolys);
-        VR_TracyPlot("Sky polygons", rs_skypolys);
-        VR_TracyPlot("Particles", r_numactiveparticles);
+        // The last frame's counts (vr_profcounts: cleared after this, at VR_ProfileFrame). Ironwail's rs_brushpolys and
+        // rs_skypolys are never counted (the GPU culls the world), and rs_aliaspolys only under r_speeds.
+        VR_TracyPlot("World PVS leaves", vr_profcounts.worldleaves);
+        VR_TracyPlot("Alias triangles", vr_profcounts.aliastris);
+        VR_TracyPlot("Particles", r_numactiveparticles + qvr::particles::liveCount());
+        VR_TracyPlot("Decals", qvr::decals::liveCount());
         const auto session = tracy::GetProfiler().ConnectionId();
         if(metadataSession != session || std::strcmp(metadataMap, cl.mapname) != 0)
         {
@@ -444,7 +453,7 @@ extern "C" void VR_TracyFrame()
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);
                     VR_TracyText(value);
                 }
-            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail"})
+            for(const char* name : {"vr_ragdolls", "vr_jobs_threads", "vr_tracy_qc_detail", "vr_tracy_memory_detail", "vr_tracy_gpu_detail", "vr_tracy_physics_detail"})
                 if(const auto* v = Cvar_FindVar(name))
                 {
                     q_snprintf(value, sizeof(value), "%s=%s", name, v->string);

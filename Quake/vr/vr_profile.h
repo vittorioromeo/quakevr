@@ -49,6 +49,8 @@ typedef struct
 	int hullchecks;	// hull traces (SV_ClipMoveToEntity, the VR code's own traces against the world)
 	int drawcalls;	// OpenGL draw calls (glDraw*, one per multi-draw)
 	int aliasdrawn;	// alias models drawn: instances, in every view (the shadow maps draw theirs apart, uncounted)
+	int aliastris;	// their triangles, every view and pass (rs_aliaspolys counts only under r_speeds, never cleared else)
+	int worldleaves;	// world leaves in each view's PVS, summed (the GPU culls the world's surfaces: no CPU polygon count)
 } vr_profcounts_t;
 extern vr_profcounts_t vr_profcounts;
 
