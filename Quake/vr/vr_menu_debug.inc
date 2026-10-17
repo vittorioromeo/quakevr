@@ -67,6 +67,13 @@ za::Vector<Item> pageDebugViews()
         toggle("Show Physics Shapes", vr_debug_physics_shapes)
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
+        toggle("Show Holster Zones", vr_holster_zones_show)
+            .help("vr_holster_zones_show: every holster's and pouch's zone as a box: grey idle, blue with a gun in it, yellow "
+                  "a candidate (a hand or its gun in it, another deeper), green where a hand is (holding a gun: where it "
+                  "goes when let go); white dots: the hand and its gun's grip and body. Sizes: Immersion > Holster Zones."),
+        command("Print Holster Zones", "vr_holster_zones_report")
+            .help("vr_holster_zones_report: each zone's middle and size (units from the eyes) and how deep each hand's "
+                  "points are in each (under 1: inside), the old spheres' share beside."),
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
             .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
                   "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "

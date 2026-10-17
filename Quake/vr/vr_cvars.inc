@@ -1226,6 +1226,47 @@ QVR_CVAR(vr_grenade_pouch_thresh, "7", CVAR_ARCHIVE)  // units a hand must be wi
 QVR_CVAR(vr_grenade_pouch_pitch, "0", CVAR_ARCHIVE)  // degrees: its top away from the back (the holsters' axes)
 QVR_CVAR(vr_grenade_pouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grenade_pouch_roll, "0", CVAR_ARCHIVE)
+// The holsters' and pouches' zones (vr_holsterzones.hpp; ROUND22.md, "Holster zones: boxes where they are drawn"): 1 an
+// oriented box at each as drawn, a gun's grip and body tested, a gun never taken by a pouch; 0 the old spheres round each
+// reach point, the hand alone (any hand at the ammo pouch's sphere got it, a gun let go there fell). The box's half
+// sizes are the reach (the Threshold sliders, vr_*_thresh) times _depth (out of the body), _width (along it), _height
+// (up), times vr_holster_zone_scale, stretched to take in both the holster as drawn (its model's origin, the loops; the
+// pouches' back) and its reach point; _x/_y/_z move it from midway between them (units, in the body's frame: forward,
+// outwards mirrored for the left ones (the pouches: right), up). Immersion > Holster Zones.
+QVR_CVAR(vr_holster_zones, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zones_show, "0", CVAR_NONE)          // 1: every zone as a wireframe (grey idle, blue a gun in it, yellow a candidate, green where a hand is: holding a gun, where it goes)
+QVR_CVAR(vr_holster_zone_scale, "1", CVAR_ARCHIVE)       // every zone's size, times
+QVR_CVAR(vr_holster_zone_hysteresis, "0.15", CVAR_ARCHIVE) // the zone a hand is at keeps it this much (a share of its size) further out, and wins until another is this much deeper
+QVR_CVAR(vr_holster_zone_hip_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_z, "-2", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_depth, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_width, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_height, "1.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_z, "-2", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_depth, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_width, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_height, "1.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_depth, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_width, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_height, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_depth, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_width, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_height, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_depth, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_width, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_height, "1", CVAR_ARCHIVE)
 // A hand grenade's turn in the hand as it is taken from the pouch (vr_grip.cpp serverFromPouch): on top of its grip
 // (Held Object Offsets), about its middle, in the hand's frame (pitch up, yaw left, roll right; mirrored for the left hand).
 QVR_CVAR(vr_grenade_pouch_hold_pitch, "90", CVAR_ARCHIVE)

@@ -10696,3 +10696,49 @@ Not changed: Min Confidence (his capture's confidence never left 1.0).
 For him in VR: the same pose, with Skeleton Bones at **Body Over Tracked**. The yellow elbow should now follow the
 magenta one up and out, and the magenta forearm now shows. Then Print Body Tracking Stats: the gate line should say
 "on 100%".
+## Holster zones: boxes where they are drawn (worktree `gorefx`, branch `agent/holsterzones`, 2026-10-17)
+
+The author: a gun put in a hip holster close to the ammo pouch fell on the ground although it looked in; he had to go
+further out. He asked for a 3D wireframe view of the hitboxes, tweakable zones and a better system.
+
+The cause (measured, `vr_holster_zones_report`, mock, default body): a holster's hotspot was a sphere round its reach
+point (`vr_hip_holster_thresh` 6.5) tested at the hand alone. With the body drawn, the hip holster model and its gun sit
+on the side of the hips (`holsterOnBody`: the plate pulled back onto the body, then the 40 degree yaw), 5.5 units in
+from that point, towards the ammo pouch. The drawn holster was on the sphere's edge (0.93 of its reach), and the half of
+it nearer the middle was outside it: 1 unit in from the drawn holster the hand had no holster (`HS_MAINHAND_2H_GRAB`),
+2 and 3 units in it was in the ammo pouch's sphere (`HS_AMMO_POUCH`, `vr_ammo_pouch_thresh` 5); `VRLetGoDropsAt` drops
+a gun let go at either. The pouch also had no notion of what the hand held.
+
+The zones (vr_holsterzones.cpp; `body::hotspot` asks them first): each holster and pouch an oriented box in the frame
+it is drawn in (vr_view.cpp publishes the turned frame and the model's origin every frame: the holsters' loops, the
+pouches' backs; not drawn, the body's frame at the reach point). The box takes in both the drawn holster and its reach
+point (stretched from one to the other), half sizes the reach (the existing Threshold sliders) times
+`vr_holster_zone_<kind>_depth/width/height`, times `vr_holster_zone_scale`, moved by `_x/_y/_z` (body frame: forward,
+outwards, up). A hand's points: its own; holding a gun also the gun's handle as drawn and a third and half of the way
+to its muzzle (`view::heldWeaponLine`). Its zone is the one the deepest point is in (normalized: the largest of the
+box axes' shares, under 1 inside), the one it had keeping it to `vr_holster_zone_hysteresis` (0.15) further out and
+winning until another is that much deeper. A hand holding a gun has only the holsters, but for the ammo pouch's load
+point rule: its gun's load point deeper in the ammo pouch than any holster point gives no holster (pouch reloading's
+"the holster wins" check, VR_Reload_PouchFrame, unchanged). The pouches go to the hand's own point, without a gun.
+Highlight and haptics: as before off the hotspot (the holster lights up; QC's `VRHolsterHaptic`, Holster Haptics:
+Once, buzzes a gun-holding hand reaching an empty holster), now where it is drawn. `vr_holster_zones 0`: the old
+spheres exactly.
+
+Settings (no default changed, no migration): `vr_holster_zones` 1, `vr_holster_zone_scale` 1,
+`vr_holster_zone_hysteresis` 0.15; per kind (hip, upper, shoulder, ammo, grenade) `_x/_y/_z` (hip and upper z -2, else
+0), `_depth/_width/_height` (hip 0.6/0.55/1.1, upper 0.6/0.6/1.1, shoulder 0.9 each, ammo 1/0.8/1, grenade 1 each).
+Menus: Immersion > Weapons and Holsters > Holster Zones (the mode, Show Zones, Size, Hysteresis, then each kind's Reach,
+Depth, Width, Height, Move Forward/Outwards/Up; the wireframes also show while one of its rows is chosen); Debug >
+Views > Show Holster Zones (`vr_holster_zones_show`: grey idle, blue a gun in it, yellow a candidate, green where a
+hand is) and Print Holster Zones (`vr_holster_zones_report`). Mock: `vr_mock_hand_to <hand> zone|zonegrip <index>
+[<out> <side> <up>]` (the hand, or its gun's grip, at a zone's drawn holster).
+
+Verified: Misc/quakevr/holsterzones_test.sh (a gun drawn from the right hip, muzzle down, its grip at the drawn holster
+and moved in towards the pouch, let go): old spheres IN at the drawn holster, DROP 1, 2, 3 units in (no hotspot, then
+the ammo pouch's); zones IN from 2 units out to 3 units in and 2 units back, DROP at the pouch itself (7 in); the empty
+hand at every holster's and pouch's reach point gets its hotspot. Misc/quakevr/reload/pouch_test.sh: all 24 PASS
+(pouch reloading, the round from the pouch, "the holster wins" by the hip). Screenshots: `holsterzones_test.sh <agent>
+shot` (from in front, nothing held; the gun held 2 units in, its zone green).
+
+To try in VR: put a gun in each hip holster right by the pouch, and take a shell from the pouch with the other hand
+close to a holstered gun; Show Holster Zones while doing it; chest and shoulder holsters as before.

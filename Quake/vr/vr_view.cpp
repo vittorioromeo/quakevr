@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view_internal.hpp"
+#include "vr_holsterzones.hpp"
 
 namespace view_detail
 {
@@ -515,6 +516,24 @@ bool view::carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip)
     }
     handle = carriedInHand[hand][0];
     tip = carriedInHand[hand][1];
+    return true;
+}
+
+bool view::heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const view::ViewEntity& w = entities.weapon[hand];
+    const int slot = weapons::slotForModel(w.ent.model);
+    if(!w.visible || !w.ent.model || w.ent.model->type != mod_alias || slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    handle = drawnAs[hand].pos;
+    tip = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     return true;
 }
 
@@ -1444,6 +1463,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         const int stat = static_cast<int>(bodyHolster[h]);
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
+        const bool occupied = model != nullptr && !isHandModel(model);
         int clip = cl.stats[STAT_QVR_HOLSTERWEAPONCLIP0 + stat];
         const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
                                           : h == LeftUpper || h == RightUpper ? weapons::HolsterKind::Upper
@@ -1470,6 +1490,11 @@ void setupHolsters(const hands::State& s, bool queueTexts)
             model = nullptr;
         }
         const glm::vec3 loops = pose.weaponPos; // (the holster itself, before its gun's own offset)
+        if(!posedHere && vr_body_debug.value < 2.f)
+        {
+            // Its zone (vr_holsterzones.hpp) where it is drawn: the turned frame, the loops.
+            zones::publish(stat, pos, frame.out, frame.side, frame.up, loops, occupied);
+        }
         if(!posedHere)
         {
             poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
@@ -1545,6 +1570,10 @@ void setupPouch(const hands::State& s)
     HolsterPose pose{at - frame.out * clearance, aliasAngles(frame.out, frame.up), at, glm::vec3{0.f}};
     turnHolster(pose, at, frame,
         {vr_grenade_pouch_pitch.value, vr_grenade_pouch_yaw.value, vr_grenade_pouch_roll.value});
+    if(vr_body_debug.value < 2.f)
+    {
+        zones::publish(zones::ZoneGrenadePouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);
+    }
     place(ve, model, pose.slotPos, pose.slotAngles, cl.stats[STAT_ROCKETS] >= 1 ? 0 : 1, false);
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
 }
@@ -2062,6 +2091,10 @@ void setupAmmoPouch(const hands::State& s)
         glm::vec3{vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value} +
             glm::vec3{vr_ammo_pouch_crouch_pitch.value, vr_ammo_pouch_crouch_yaw.value, vr_ammo_pouch_crouch_roll.value} *
                 avatar::crouchPoseShare(s)); // (crouched: its crouched turn on top)
+    if(vr_body_debug.value < 2.f)
+    {
+        zones::publish(zones::ZoneAmmoPouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);
+    }
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.ent.skinnum = (cl.stats[protocol::STAT_QVR_POUCHKIND] & 8) ? 1 : 0;
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};

@@ -517,6 +517,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDoom();
 [[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
+[[nodiscard]] za::Vector<Item> pageHolsterZones();
 [[nodiscard]] za::Vector<Item> pageClimbing();
 [[nodiscard]] za::Vector<Item> pageRecording();
 
@@ -1975,6 +1976,7 @@ const Page pages[] = {
     {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
     {"VR Settings - Player Appearance", pageVrsAppearance, pageMain, LevelStandard}, // (ROUND22.md, "Gloves; Player Appearance")
     {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
+    {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

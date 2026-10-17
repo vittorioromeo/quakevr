@@ -227,6 +227,10 @@ struct WeaponHotspot
 // held). False if it has none.
 [[nodiscard]] bool heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out);
 
+// The weapon `hand` holds, as drawn last: its handle's place and its muzzle's anchor (the holster zones: its grip and
+// body). False if it holds none (or a fist).
+[[nodiscard]] bool heldWeaponLine(int hand, glm::vec3& handle, glm::vec3& tip);
+
 // The butt of the weapon `hand` holds, as drawn last: the middle of its drawn points within a unit of its rearmost end
 // along its line from the muzzle to the handle (a stock's heel, a pistol grip's base). The wrist gadget's screen tap
 // (vr_bullettime_tap_butt). False if it holds none (or a fist).

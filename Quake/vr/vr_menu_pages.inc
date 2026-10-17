@@ -625,6 +625,9 @@ void resetHandMoves()
         header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
         cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}, {3.f, "Immersive"}}).help("Weapons have magazines. All Holsters, Hip Holsters: a gun held at a holster reloads. Immersive: the shotgun is loaded by hand, a shell at a time from the ammo pouch on your belt; the other guns reload at the hip holsters (Weapons > Reloading). Reloading only works with 'immersive' weapon mode."),
+        open("Holster Zones", pageIndex(pageHolsterZones))
+            .help("Where a hand (and the gun it holds) is at a holster or a pouch: a box at each, as drawn, their sizes and "
+                  "places, and a wireframe of them."),
         cycle("Holster Haptics", "vr_holster_haptics", {{0.f, "Off"}, {1.f, "Continuous"}, {2.f, "Once"}}).help("Haptic feedback when hovering a usable holster slot."),
         slider("Holster Haptic Time", "vr_holster_haptic_time", 0.05f, 0.6f, 0.05f, "%.2f s").extend().help("How long the buzz lasts as a hand reaches a holster (Holster Haptics: Once)."),
         slider("Draw Blend Time", "vr_weapon_draw_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun drawn from a holster eases from its holstered pose into your hand over this time, turning the shortest way (0: at once). It fires at once: only its look eases."),
@@ -1969,6 +1972,59 @@ void retroAllUncheckCategories()
         slider("Upper Yaw", "vr_upper_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Upper Roll", "vr_upper_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
     };
+}
+
+// Immersion > Holster Zones (vr_holsterzones.hpp): the boxes where a hand, and the gun it holds, is at a holster or a
+// pouch; each kind's place and shape, its size from its reach (the Threshold sliders, here too).
+[[nodiscard]] za::Vector<Item> pageHolsterZones()
+{
+    za::Vector<Item> items{
+        cycle("Zones", vr_holster_zones, {{1.f, "Boxes"}, {0.f, "Old Spheres"}})
+            .help("Boxes: a box at each holster and pouch where it is drawn; a gun goes in a holster when its grip or body is "
+                  "in the box, the one it is deepest in, and a pouch never takes a gun (it gives and takes rounds, "
+                  "magazines and grenades). Old Spheres: a ball round each, the hand alone (a gun let go by the ammo pouch "
+                  "fell there)."),
+        toggle("Show Zones", vr_holster_zones_show)
+            .help("Every zone as a wireframe: grey idle, blue with a gun in it, yellow a candidate, green where a hand is "
+                  "(holding a gun: where it goes when let go). Also on Debug > Views."),
+        slider("Size", vr_holster_zone_scale, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Every zone's size, times."),
+        slider("Hysteresis", vr_holster_zone_hysteresis, 0.f, 0.5f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("The zone a hand is at keeps it this much (a share of its size) further out, and wins over another until "
+                  "that one is this much deeper: no flicker between two that touch."),
+    };
+    const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
+                          cvar_t& width, cvar_t& height) {
+        items.pushBack(header(title));
+        items.pushBack(slider("Reach", reach, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
+                .help("Its size (units; its Threshold elsewhere): the box's half depth, width and height are this times "
+                      "the three below, stretched to take in both the holster as drawn and its reach point."));
+        items.pushBack(slider("Depth", depth, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f)
+                .help("Out of the body's surface there (the hips': sideways), turned as the holster is."));
+        items.pushBack(slider("Width", width, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f)
+                .help("Along the body's surface there (the hips': front to back)."));
+        items.pushBack(slider("Height", height, 0.1f, 3.f, 0.05f, "%.2fx").extend(0.02f, 10.f).help("Up and down."));
+        items.pushBack(slider("Move Forward", x, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f)
+                .help("Units forward (negative: back), from midway between the holster as drawn and its reach point (the "
+                      "box takes in both)."));
+        items.pushBack(slider("Move Outwards", y, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f)
+                .help("Units outwards, away from the body's middle (negative: towards it), mirrored for the left ones; the "
+                      "pouches: to the right."));
+        items.pushBack(slider("Move Up", z, -15.f, 15.f, 0.25f, "%.2f").extend(-50.f, 50.f).help("Units up (negative: down)."));
+    };
+    kind("Hip Holsters", vr_hip_holster_thresh, vr_holster_zone_hip_x, vr_holster_zone_hip_y, vr_holster_zone_hip_z,
+        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height);
+    kind("Chest Holsters", vr_upper_holster_thresh, vr_holster_zone_upper_x, vr_holster_zone_upper_y,
+        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height);
+    kind("Shoulder Holsters", vr_shoulder_holster_thresh, vr_holster_zone_shoulder_x, vr_holster_zone_shoulder_y,
+        vr_holster_zone_shoulder_z, vr_holster_zone_shoulder_depth, vr_holster_zone_shoulder_width,
+        vr_holster_zone_shoulder_height);
+    kind("Ammo Pouch", vr_ammo_pouch_thresh, vr_holster_zone_ammo_x, vr_holster_zone_ammo_y, vr_holster_zone_ammo_z,
+        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height);
+    kind("Grenade Pouch", vr_grenade_pouch_thresh, vr_holster_zone_grenade_x, vr_holster_zone_grenade_y,
+        vr_holster_zone_grenade_z, vr_holster_zone_grenade_depth, vr_holster_zone_grenade_width,
+        vr_holster_zone_grenade_height);
+    return items;
 }
 
 // Split from Hotspots: the hip holsters and their slots' models.

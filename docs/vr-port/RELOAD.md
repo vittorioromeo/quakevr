@@ -14,7 +14,8 @@ gun's port are, as drawn) and draws.
 - **Client (engine).**
   - The front pouch's place (vr_body.cpp `ammoPouchPosition`, like `pouchPosition`: on the front of the belt between
     the hip holsters, carried by the pelvis, `vr_ammo_pouch_x/y/z`) and the hotspot `HS_AMMO_POUCH` (12) when a hand
-    is within `vr_ammo_pouch_thresh` (the hotspot competition as the holsters': the one the hand is most within).
+    is in its zone (`vr_holster_zones`, ROUND22.md "Holster zones": a box sized from `vr_ammo_pouch_thresh`, the zone
+    the hand is deepest in; never a hand holding a gun, which goes to a holster).
     Every place that lists hotspots learns it (vr_climb.cpp, vr_flashlight.cpp, vr_selfcollide.cpp; QC
     `VRLetGoDropsAt`, the unholster ignore list, `VR_Carry_AtHolster`).
   - Its drawing (vr_view.cpp `setupAmmoPouch`: `progs/vrpouch_ammo.mdl`, turned by `vr_ammo_pouch_pitch/yaw/roll`,
