@@ -45,6 +45,7 @@ struct Published
     uint32_t cut{0}; // the bones cut off (its head: ROUND21.md, "Decapitation"), drawn at the neck
     float scale{1.f};
     bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
+    qmodel_t* skinned{nullptr}; // its skinned model as last found (skinnedOf: checked before each use, found again if stale)
     za::Array<glm::quat, maxBones> rot{};
     za::Array<glm::vec3, maxBones> pos{};
     // The step before (drawn between the two, as the client lerps a prop between the server's last two messages), and

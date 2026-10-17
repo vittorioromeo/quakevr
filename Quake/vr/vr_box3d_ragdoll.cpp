@@ -1199,6 +1199,7 @@ void feedRagdoll(edict_t* ent, Slot& s)
         const float pause = za::clamp(vr_knockdown_wiggle_pause.value, 0.f, 5.f);
         const float burst = pause == 0.f ? 1.f : za::max(0.f, za::sin(t * 6.2831853f / (pause + 1.f)));
         const float k = r.scale / world->m2u; // rest units -> metres
+        const float friction = tune(ent, Tune::JointFriction); // (one class lookup, not one per bone)
         for(int b = 1; b < r.count; ++b)
         {
             const ragdoll::Bone& bone = r.rig->bones[b];
@@ -1237,7 +1238,7 @@ void feedRagdoll(edict_t* ent, Slot& s)
             const glm::vec3 speed = glmv(b3Body_GetAngularVelocity(body)) - glmv(b3Body_GetAngularVelocity(parent));
             glm::vec3 torque = inertia * (error * (omega * omega) - speed * (1.6f * omega));
             const float magnitude = glm::length(torque);
-            const float limit = tune(ent, Tune::JointFriction) * 1.8f + m * 9.8f * length * 1.5f * strength;
+            const float limit = friction * 1.8f + m * 9.8f * length * 1.5f * strength;
             if(magnitude > limit) { torque *= limit / magnitude; }
             b3Body_ApplyTorque(body, b3v(torque), true);
             b3Body_ApplyTorque(parent, b3v(-torque), true);

@@ -1066,6 +1066,28 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
             }
         }
     }
+    // Only the triangles over the cells (x, z) count (a Surface's probes move along y alone): the rest dropped, the order
+    // kept (a unit's margin: one the barycentric test would turn down anyway), so each probe tests a few, not all.
+    glm::vec2 cellLo{1e30f}, cellHi{-1e30f};
+    for(const glm::vec4& c : cells)
+    {
+        cellLo = glm::min(cellLo, glm::vec2{c.x, c.z});
+        cellHi = glm::max(cellHi, glm::vec2{c.x, c.z});
+    }
+    constexpr float cullMargin = 1.f; // units
+    za::SizeT kept = 0;
+    for(za::SizeT i = 0; i < triangles.size(); i++)
+    {
+        const Triangle& t = triangles[i];
+        const float x0 = za::min(t.p[0].x, za::min(t.p[1].x, t.p[2].x)), x1 = za::max(t.p[0].x, za::max(t.p[1].x, t.p[2].x));
+        const float z0 = za::min(t.p[0].z, za::min(t.p[1].z, t.p[2].z)), z1 = za::max(t.p[0].z, za::max(t.p[1].z, t.p[2].z));
+        if(x1 < cellLo.x - cullMargin || x0 > cellHi.x + cullMargin || z1 < cellLo.y - cullMargin || z0 > cellHi.y + cullMargin)
+        {
+            continue;
+        }
+        triangles[kept++] = t;
+    }
+    triangles.resize(kept);
     const handfit::Group all{0, static_cast<int>(cells.size()), 1};
     const handfit::Slide fit = handfit::slide(handfit::Shape::ofSurface(triangles.data(), static_cast<int>(triangles.size())),
         handfit::Probes{cells.data(), &all, 1}, glm::vec3{0.f, -1.f, 0.f}, 0.f);

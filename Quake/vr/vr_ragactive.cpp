@@ -196,10 +196,7 @@ void clipPose(const State& s, const Parts& p, double now, ClipPose& out)
     for(int b = 0; b < p.count; b++)
     {
         const auto i = static_cast<za::SizeT>(b);
-        ragpose::bonePoseLerp(rig, pa, pb, frac, b, out.rot[i], out.pos[i]);
-        glm::vec3 unused;
-        ragdoll::bonePose(rig, pa, b, ra[i], unused);
-        ragdoll::bonePose(rig, pb, b, rb[i], unused);
+        ragpose::bonePoseLerp(rig, pa, pb, frac, b, out.rot[i], out.pos[i], ra[i], rb[i]);
     }
     for(int b = 0; b < p.count; b++)
     {
@@ -2804,6 +2801,8 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             pushPart(p, 0, to * f);
         }
     }
+    // The floor under his pelvis (one query a frame: the sense's and the tumble's below).
+    const float under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
     // Sense: every few frames.
     if((brace || lean || ledge || grab) && e.frame % envEvery == 1)
     {
@@ -2812,7 +2811,6 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         const bool reaching = e.hand[0].mode == Grip::Catch || e.hand[1].mode == Grip::Catch;
         // (Still up, for a lean: his chest an arm's length over the floor at least, his pelvis not far over it: on his
         // feet, not falling past a wall.)
-        const float under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
         const bool upright = chestAt.z - under > 0.9f * L && pelvis.z - under < 1.6f * L;
         // Another monster near a hand as he falls (the first second of his death): he grabs at it.
         if(grab && speed > 0.8f && !holding && !reaching && t < 1.2f && findGrab(s, p, c, chestAt, v, L))
@@ -2873,7 +2871,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         busy = busy || (h.mode != Grip::None && h.mode != Grip::Curl);
     }
     // (Off the floor: not the spin of a body settling or thrown down at its death.)
-    const bool airborne = pelvis.z - (c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f) > 0.8f * L;
+    const bool airborne = pelvis.z - under > 0.8f * L;
     const float curlWant = brace && !busy && airborne && t > 0.3f && glm::length(w) > 5.f && speed > 2.f ? 0.8f : 0.f;
     e.curl += (curlWant - e.curl) * (1.f - za::exp(-c.dt / 0.15f));
     e.curl = e.curl < 0.01f && curlWant == 0.f ? 0.f : e.curl;

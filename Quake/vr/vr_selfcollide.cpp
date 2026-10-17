@@ -20,6 +20,7 @@
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
@@ -240,7 +241,7 @@ float percentile(za::Vector<float>& v, float q)
         return 0.f;
     }
     const za::SizeT i = za::min(v.size() - 1, static_cast<za::SizeT>(q * static_cast<float>(v.size() - 1) + 0.5f));
-    za::quickSort(v.begin(), v.end()); // (sorted whole: v[i] is std::nth_element's, the same value)
+    za::nthElement(v.begin(), v.begin() + i, v.end()); // (v[i] as a full sort would have it)
     return v[i];
 }
 

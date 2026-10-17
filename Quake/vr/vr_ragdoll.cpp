@@ -1670,17 +1670,36 @@ bool fillAO(const Rig& rig, iqmvert_t* verts, int numVerts)
 }
 
 // The skinned model `skinned` of `rig` given its occlusion once it is baked (made before it was: the map's first ragdoll
-// as the map starts), looked for at most once a second.
-double aoLookedAt = -1.0;
+// as the map starts), looked for at most once a second for each model (one model's look doesn't hold back another's).
+struct AOLook
+{
+    const qmodel_t* skinned{nullptr};
+    double at{-1.0};
+};
+za::Vector<AOLook> aoLooks; // (one per skinned model looked for)
 void catchUpAO(qmodel_t* skinned, const Rig& rig)
 {
     auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(skinned));
     auto* verts = hdr ? reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(hdr) + hdr->vertexes) : nullptr;
-    if(!verts || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0 || (realtime - aoLookedAt < 1.0 && realtime >= aoLookedAt))
+    if(!verts || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0)
     {
         return;
     }
-    aoLookedAt = realtime;
+    AOLook* look = nullptr;
+    for(AOLook& l : aoLooks)
+    {
+        look = l.skinned == skinned ? &l : look;
+    }
+    if(!look)
+    {
+        aoLooks.pushBack(AOLook{skinned, -1.0});
+        look = &aoLooks.back();
+    }
+    if(realtime - look->at < 1.0 && realtime >= look->at)
+    {
+        return;
+    }
+    look->at = realtime;
     if(fillAO(rig, verts, hdr->numverts_vbo))
     {
         GLMesh_DeleteVertexBuffer(skinned);
@@ -2353,6 +2372,28 @@ void watchGetup(int num, double from, double until)
     getupPoints.step.clear();
 }
 
+namespace
+{
+// The skinned model ("<model>#rag") of `p`: the one found last while it still is (loaded, its data still cached, its
+// name; view::viewModel's check: Mod_ClearAll, an evicted alias, a campaign switch's reused slot), else Mod_ForName's
+// (which loads it again). No name built and no model-table scan per drawn ragdoll per frame.
+[[nodiscard]] qmodel_t* skinnedOf(Published& p)
+{
+    const char* base = p.rig->model->name;
+    const size_t len = strlen(base);
+    qmodel_t* m = p.skinned;
+    if(m && !m->needload && m->type == mod_alias && Cache_Check(&m->cache) && !strncmp(m->name, base, len) &&
+       !strcmp(m->name + len, skinnedSuffix))
+    {
+        return m;
+    }
+    char name[MAX_QPATH];
+    q_snprintf(name, sizeof(name), "%s%s", base, skinnedSuffix);
+    p.skinned = Mod_ForName(name, false);
+    return p.skinned;
+}
+} // namespace
+
 void swapModels()
 {
     draw.swapped.clear();
@@ -2363,15 +2404,13 @@ void swapModels()
     recordMotion();
     for(int num = 1; num < static_cast<int>(draw.byNum.size()) && num < cl.num_entities; num++)
     {
-        const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+        Published& p = draw.byNum[static_cast<za::SizeT>(num)];
         entity_t* e = &cl_entities[num];
         if(!p.rig || e->model != p.rig->model)
         {
             continue; // (the client shows something else: a head, a gib, nothing yet)
         }
-        char name[MAX_QPATH];
-        q_snprintf(name, sizeof(name), "%s%s", p.rig->model->name, skinnedSuffix);
-        qmodel_t* skinned = Mod_ForName(name, false);
+        qmodel_t* skinned = skinnedOf(p);
         if(!skinned || skinned->type != mod_alias)
         {
             continue;
@@ -2553,6 +2592,14 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     {
         normals->resize(static_cast<za::SizeT>(rig.numVerts));
     }
+    za::Array<Neck, maxBones> necks{}; // (each cut bone's, once: not once per vertex)
+    for(int b = 0; b < p.bodies && p.cut; b++)
+    {
+        if(p.cut & (1u << b))
+        {
+            necks[static_cast<za::SizeT>(b)] = neckOf(p, b, rots, poss);
+        }
+    }
     for(int v = 0; v < rig.numVerts; v++)
     {
         const trivertx_t& t = tv[v]; // the rest pose (0)
@@ -2560,11 +2607,7 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
             t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
         const int b = rig.vertBone[static_cast<za::SizeT>(v)];
         const bool cut = b < p.bodies && (p.cut & (1u << b)); // (its head cut off: at the neck)
-        Neck neck;
-        if(cut)
-        {
-            neck = neckOf(p, b, rots, poss);
-        }
+        const Neck& neck = necks[static_cast<za::SizeT>(cut ? b : 0)];
         out[static_cast<za::SizeT>(v)] = cut ? neck.at + neck.rot * ((r - neck.pivot) * (p.scale * neckShrink))
                                          : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)]
                                                         : poss[0];

@@ -613,7 +613,7 @@ bool swings(const SmoothModel& m, const int poses[4], const rigpose::Spline& s, 
         return false;
     }
     rigpose::Rigid now[ragdoll::maxBones];
-    rigpose::along(rig, poses, s, still, now);
+    rigpose::alongSlots(rig, keys, s, still, now); // (the keys made above: not looked up again per bone)
     if(nowOut)
     {
         memcpy(static_cast<void*>(nowOut), now, sizeof(rigpose::Rigid) * static_cast<size_t>(rig.numBones));

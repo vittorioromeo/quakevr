@@ -55,5 +55,7 @@ struct Spline
 void along(const ragdoll::Rig& rig, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
 // ... with the bones' keys from `keys` ([pose * numBones + bone]; nullptr: key()'s).
 void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const Spline& s, uint32_t alone, Rigid* out);
+// ... with the keys by slot: `keys[i][bone]` bone's key in the i-th of the four poses (a caller's own, made already).
+void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out);
 
 } // namespace qvr::rigpose

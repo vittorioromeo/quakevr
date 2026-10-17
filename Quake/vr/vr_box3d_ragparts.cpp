@@ -24,6 +24,7 @@ void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage)
     {
         total += partCut(r, b) ? 0.f : b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
     }
+    const float strength = za::max(tune(EDICT_NUM(r.num), Tune::Blast), 0.f); // (one class lookup per blast)
     for(int b = 0; b < r.count; b++)
     {
         if(partCut(r, b))
@@ -48,7 +49,7 @@ void blastRagdoll(RagdollBodies& r, const glm::vec3& at, float damage)
         }
         glm::vec3 dir = distance > 0.01f ? (centre - at) / distance : glm::vec3{0.f, 0.f, 1.f};
         dir = glm::normalize(dir + glm::vec3{0.f, 0.f, 0.35f});
-        const float speed = za::max(tune(EDICT_NUM(r.num), Tune::Blast), 0.f) *
+        const float speed = strength *
                             za::min(4.f * points * CLAMP(0.5f, za::sqrt(referenceMass / za::max(total, 1e-3f)), 2.f), 600.f);
         b3Body_ApplyLinearImpulse(body, world->toM(dir * (speed * b3Body_GetMass(body))), b3Body_GetWorldCenter(body), true);
         if(vr_debug_ragdoll.value)
