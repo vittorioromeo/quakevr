@@ -139,12 +139,12 @@ namespace qvr::render
 namespace
 {
 
-void entityMatrixWith(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, const client::EntityVr* net,
-    float out[16])
+void entityMatrixAt(const entity_t& e, const float* at, const float* turn, bool mirrored, int scale, const glm::vec3& extra,
+    const client::EntityVr* net, float out[16])
 {
     vec3_t origin, angles; // R_EntityMatrix takes them non-const
-    VectorCopy(e.origin, origin);
-    VectorCopy(e.angles, angles);
+    VectorCopy(at, origin);
+    VectorCopy(turn, angles);
     R_EntityMatrix(out, origin, angles, static_cast<unsigned char>(scale));
     applyPre(&e, mirrored, &extra, net, out);
 
@@ -155,7 +155,52 @@ void entityMatrixWith(const entity_t& e, bool mirrored, int scale, const glm::ve
     applyPost(&e, net, out);
 }
 
+void entityMatrixWith(const entity_t& e, bool mirrored, int scale, const glm::vec3& extra, const client::EntityVr* net,
+    float out[16])
+{
+    entityMatrixAt(e, e.origin, e.angles, mirrored, scale, extra, net, out);
+}
+
 } // namespace
+
+void drawnPlace(const entity_t& e, glm::vec3& origin, glm::vec3& angles)
+{
+    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
+    if(!r_lerpmove.value || !(e.lerpflags & LERP_MOVESTEP) || (e.lerpflags & LERP_RESETMOVE))
+    {
+        return;
+    }
+    const glm::vec3 current{e.currentorigin[0], e.currentorigin[1], e.currentorigin[2]};
+    const glm::vec3 currentAngles{e.currentangles[0], e.currentangles[1], e.currentangles[2]};
+    if(current != origin || currentAngles != angles)
+    {
+        vec3_t startOrigin, startAngles;
+        R_MoveLerpStart(&e, startOrigin, startAngles); // a move starting this frame: at its start (where the last is drawn)
+        origin = glm::vec3{startOrigin[0], startOrigin[1], startOrigin[2]};
+        angles = glm::vec3{startAngles[0], startAngles[1], startAngles[2]};
+        return;
+    }
+    const float blend = R_MoveLerpBlend(&e);
+    const glm::vec3 previous{e.previousorigin[0], e.previousorigin[1], e.previousorigin[2]};
+    const glm::vec3 previousAngles{e.previousangles[0], e.previousangles[1], e.previousangles[2]};
+    origin = previous + (current - previous) * blend;
+    glm::vec3 d = currentAngles - previousAngles;
+    for(int i = 0; i < 3; i++)
+    {
+        d[i] = d[i] > 180.f ? d[i] - 360.f : d[i] < -180.f ? d[i] + 360.f : d[i];
+    }
+    angles = previousAngles + d * blend;
+}
+
+void drawnEntityMatrix(const entity_t& e, int scale, float out[16])
+{
+    glm::vec3 origin, angles;
+    drawnPlace(e, origin, angles);
+    const float at[3] = {origin.x, origin.y, origin.z};
+    const float turn[3] = {angles.x, angles.y, angles.z};
+    entityMatrixAt(e, at, turn, false, scale, glm::vec3{0.f}, networkData(&e), out);
+}
 
 void anchorMatrix(const view::ViewEntity& ve, const glm::vec3& extra, float out[16])
 {

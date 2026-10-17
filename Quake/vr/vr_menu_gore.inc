@@ -390,6 +390,15 @@
                   "steady trickle (0: even; 1: from a thread to twice as thick) (vr_gore_streams_thickness_var)."),
         slider("Stream Thickness Rate", vr_gore_streams_thickness_rate, 0.f, 4.f, 0.1f, "%.1f Hz").extend(0.f, 10.f)
             .help("How fast it swells and thins: about this many swells a second, unevenly (vr_gore_streams_thickness_rate)."),
+        slider("Stream Smoothing", vr_gore_streams_smooth, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 2.f)
+            .help("The body's motion at the wound, and the stream's way out, smoothed over about this long, so the "
+                  "monster's animation and turns don't fling it about in ribbons (0: none) (vr_gore_streams_smooth)."),
+        slider("Stream Body Motion", vr_gore_streams_inherit, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.5f)
+            .help("How much of the body's (smoothed) motion the stream and its spurts take: 1 as a real one, less to keep "
+                  "it steady as the monster moves (vr_gore_streams_inherit)."),
+        slider("Stream Break Stretch", vr_gore_streams_break, 0.f, 10.f, 0.5f, "%.1fx").extend(0.f, 100.f)
+            .help("A piece of the stream stretched this many times its length as poured breaks off, fading from half that; "
+                  "and it is cut where the wound jumps (0: never) (vr_gore_streams_break)."),
         toggle("Stream Spurts", vr_gore_streams_spurts)
             .help("Small drops spurting from the wound in a cone as it pours, most fading fast, a few flying further "
                   "(vr_gore_streams_spurts)."),

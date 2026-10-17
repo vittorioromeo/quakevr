@@ -21,6 +21,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -62,6 +63,8 @@ struct Point
     float age = 0.f, life = 0.f;
     float width = 0.f; // as it left the wound
     float speed0 = 1.f; // its speed then (the taper: thinner as it speeds up)
+    float birthSep = 0.f; // how far from the point before it, as it left (the stretch: vr_gore_streams_break)
+    bool cut = false;     // not joined to the point before it (the wound jumped)
 };
 
 enum class Pose : za::U8
@@ -92,6 +95,10 @@ struct Stream
     glm::vec3 outWorld{1.f, 0.f, 0.f};
     glm::vec3 wound{0.f}, lastWound{0.f};
     bool hasLast = false;
+    // The body's motion there and the way out, smoothed (vr_gore_streams_smooth): the animation's frame-to-frame jumps
+    // don't fling it.
+    glm::vec3 smoothVel{0.f};
+    glm::vec3 smoothOut{0.f}; // (zero: not yet)
     double start = 0.0;
     float duration = 6.f;
     float power = 1.f;  // how hard it pours (the hit's damage)
@@ -133,6 +140,17 @@ lightcache_t light{}; // lightColor's lookup
 int spurtsMade = 0, splashesMade = 0; // drops thrown since the map began (vr_decal_count)
 double busySeconds = 0.0; // the streams' own time (moving, tracing, drawing, throwing drops) since the last count,
 int busyFrames = 0;       // over these frames with any (vr_decal_count)
+// The worst stretch drawn since the last vr_gore_streams_info: a piece's length over its length as poured (and as
+// gravity spreads it), and in units; the pieces broken or faded for it, and the wound's jumps that cut it.
+struct StretchStats
+{
+    float maxRatio = 0.f, maxLength = 0.f;
+    int segments = 0, faded = 0, broken = 0, cuts = 0;
+};
+StretchStats stretch;
+constexpr float jumpDist = 6.f;      // units the wound moves in a frame at least, and
+constexpr float jumpSpeed = 400.f;   // as fast as this at least: a jump (a new frame, a turn), not its motion
+constexpr float maxBodySpeed = 400.f; // the body's motion it takes at most (units/s)
 
 // Wounds received this frame, started in frame() (the entities posed then).
 struct Pending
@@ -322,13 +340,16 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
         {
             return false; // (a ragdoll no more: removed, gibbed)
         }
+        // (As drawn: a running monster's place and turn along its step, not the last message's, 10-15 units ahead.)
+        glm::vec3 drawnAt, drawnTurn;
+        render::drawnPlace(*e, drawnAt, drawnTurn);
         if(s.pose != Pose::Animated)
         {
-            s.outLocal = yawTurn(s.outWorld, -e->angles[1]);
+            s.outLocal = yawTurn(s.outWorld, -drawnTurn.y);
             s.pose = Pose::Animated;
         }
-        s.outWorld = yawTurn(s.outLocal, e->angles[1]);
-        render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+        s.outWorld = yawTurn(s.outLocal, drawnTurn.y);
+        render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
         p[0] = bytePoint(m, anchor::posedVertex(*e, s.corner[0], 0.f));
     }
     if(!s.onTriangle)
@@ -373,7 +394,7 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
             return false;
         }
         float m[16];
-        render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+        render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
         for(glm::vec3& p : now)
         {
             p = bytePoint(m, p);
@@ -523,7 +544,9 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
         s.thkPhase[i] = rnd(0.f, 1.f);
     }
     // It pours back toward the shot (the hole faces it) and out from the body's middle, a little up.
-    glm::vec3 radial = at - glm::vec3{e->origin[0], e->origin[1], at.z};
+    glm::vec3 drawnAt, drawnTurn;
+    render::drawnPlace(*e, drawnAt, drawnTurn);
+    glm::vec3 radial = at - glm::vec3{drawnAt.x, drawnAt.y, at.z};
     radial = glm::length(radial) > 0.1f ? glm::normalize(radial) : glm::vec3{0.f};
     const glm::vec3 back = glm::length(dir) > 0.01f ? -glm::normalize(dir) : radial;
     glm::vec3 out = back * 0.6f + radial * 0.6f + glm::vec3{rnd(-0.2f, 0.2f), rnd(-0.2f, 0.2f), rnd(0.05f, 0.3f)};
@@ -630,7 +653,7 @@ void traceArc(Stream& s, const glm::vec3& v0)
 }
 
 // Small drops spurting from the wound in a cone round its way out (vr_gore_streams_spurt*): `axis` and `speed` the
-// stream's as it leaves, `bodyVel` the body's.
+// stream's as it leaves, `bodyVel` the body's motion they take (smoothed, vr_gore_streams_inherit of it).
 void spurt(Stream& s, float dt, float strength, const glm::vec3& axis, float speed, const glm::vec3& bodyVel)
 {
     if(!vr_gore_streams_spurts.value)
@@ -659,7 +682,7 @@ void spurt(Stream& s, float dt, float strength, const glm::vec3& axis, float spe
             sp *= rnd(1.f, 1.4f);
             size *= 1.25f;
         }
-        particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel * 0.7f, size, l, s.color, floorZ);
+        particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel, size, l, s.color, floorZ);
         spurtsMade++;
     }
 }
@@ -782,21 +805,43 @@ void update(Stream& s, float dt)
     }
     if(s.emitting)
     {
-        glm::vec3 bodyVel{0.f};
+        // The body's motion at the wound: clamped, low-passed over vr_gore_streams_smooth (the animation moves it in
+        // jumps, a new velocity each frame of it), and only vr_gore_streams_inherit of it taken.
+        const float smooth = za::clamp(vr_gore_streams_smooth.value, 0.f, 2.f);
+        const float follow = smooth > 0.f && dt > 0.f ? 1.f - za::exp(-dt / smooth) : 1.f;
+        const float breakAt = za::clamp(vr_gore_streams_break.value, 0.f, 100.f);
+        bool jumped = false;
         if(s.hasLast && dt > 0.f)
         {
-            bodyVel = (s.wound - s.lastWound) / dt;
-            const float l = glm::length(bodyVel);
-            bodyVel *= l > 400.f ? 400.f / l : 1.f;
+            const glm::vec3 moved = s.wound - s.lastWound;
+            const float d = glm::length(moved);
+            jumped = breakAt > 0.f && d > za::max(jumpDist, jumpSpeed * dt);
+            glm::vec3 raw = jumped ? s.smoothVel : moved / dt; // (a jump is not a motion: kept as it was)
+            const float l = glm::length(raw);
+            raw *= l > maxBodySpeed ? maxBodySpeed / l : 1.f;
+            s.smoothVel += (raw - s.smoothVel) * follow;
         }
+        const glm::vec3 bodyVel = s.smoothVel * za::clamp(vr_gore_streams_inherit.value, 0.f, 1.5f);
         // Its thickness swells and thins as it pours (and so along it as it falls): a gush comes out a little faster.
         float swell = 0.f;
         const float thick = thickness(s, age, swell);
         const float thickAmount = za::clamp(vr_gore_streams_thickness_var.value, 0.f, 1.f);
         const float speed = za::clamp(vr_gore_streams_speed.value, 0.f, 400.f) * s.power * s.speedMul *
                             (0.35f + 0.9f * strength) * (1.f + 0.2f * thickAmount * swell);
-        const glm::vec3 out = wobbled(s, age);
-        const glm::vec3 v0 = out * speed + bodyVel * 0.7f;
+        // Its way out, turned with the body (and wandering), smoothed as the motion is: a turn or a new frame of the
+        // animation swings it, not snaps it.
+        const glm::vec3 aim = wobbled(s, age);
+        if(glm::dot(s.smoothOut, s.smoothOut) < 0.25f || follow >= 1.f)
+        {
+            s.smoothOut = aim;
+        }
+        else
+        {
+            const glm::vec3 m = s.smoothOut + (aim - s.smoothOut) * follow;
+            s.smoothOut = glm::length(m) > 0.01f ? glm::normalize(m) : aim;
+        }
+        const glm::vec3 out = s.smoothOut;
+        const glm::vec3 v0 = out * speed + bodyVel;
         s.lastV0 = v0;
         s.lastStrength = strength;
         if(cl.time >= s.nextArc || cl.time < s.nextArc - 1.0)
@@ -807,13 +852,20 @@ void update(Stream& s, float dt)
         }
         // New points: from where the wound was over the frame (an even chain however fast the frames).
         s.emitAcc += dt * emitRate;
-        const int n = za::min(8, static_cast<int>(s.emitAcc));
-        s.emitAcc = za::min(s.emitAcc - static_cast<float>(n), 1.f);
         const float width =
             za::clamp(vr_gore_streams_width.value, 0.05f, 4.f) * s.power * (0.45f + 0.55f * za::min(1.f, strength)) * thick;
+        if(jumped && s.count > 0)
+        {
+            s.emitAcc = za::max(s.emitAcc, 1.f); // (a point at once where the wound is now, the stream cut there)
+            stretch.cuts++;
+        }
+        const int n = za::min(8, static_cast<int>(s.emitAcc));
+        s.emitAcc = za::min(s.emitAcc - static_cast<float>(n), 1.f);
         for(int k = 0; k < n; k++)
         {
-            const float back = n > 1 ? static_cast<float>(n - 1 - k) / static_cast<float>(n) : 0.f;
+            // (Not along the jump: the wound was never in between.)
+            const float back = n > 1 && !jumped ? static_cast<float>(n - 1 - k) / static_cast<float>(n) : 0.f;
+            const Point* older = s.count > 0 ? &s.pts[s.head] : nullptr;
             s.head = (s.head + 1) % maxPoints;
             s.count = za::min(s.count + 1, maxPoints);
             Point& p = s.pts[s.head];
@@ -824,6 +876,8 @@ void update(Stream& s, float dt)
             p.width = width * (1.f + thickAmount * rnd(-0.12f, 0.12f)); // (an uneven edge)
             p.speed0 = za::max(10.f, glm::length(v0));
             p.pos += p.vel * p.age;
+            p.cut = jumped && k == 0;
+            p.birthSep = older && older != &p ? glm::distance(p.pos, older->pos) : 0.f;
         }
         spurt(s, dt, strength, out, speed, bodyVel);
         if(cl.time >= s.nextPaint)
@@ -867,6 +921,8 @@ void update(Stream& s, float dt)
 void draw(const Stream& s)
 {
     const glm::vec4 c{s.color, 0.95f};
+    const float breakAt = za::clamp(vr_gore_streams_break.value, 0.f, 100.f);
+    const float g = gravity();
     const Point* newer = nullptr;
     for(int k = 0; k < s.count; k++)
     {
@@ -878,9 +934,32 @@ void draw(const Stream& s)
         }
         const float taper = za::clamp(za::sqrt(p.speed0 / za::max(1.f, glm::length(p.vel))), 0.35f, 1.f);
         const float w = p.width * taper;
-        if(newer)
+        if(newer && newer->cut)
         {
-            lines::sceneLine(newer->pos, p.pos, w, c, c);
+            // (The wound jumped there: not joined.)
+        }
+        else if(newer)
+        {
+            // Its stretch: the piece's length over its length as poured, as gravity spreads it (the older point
+            // falling faster all along); pieces of it poured at a different motion of the body fly apart, a ribbon.
+            const float len = glm::distance(newer->pos, p.pos);
+            const float spread = g * za::max(0.f, p.age - newer->age) * newer->age;
+            const float ratio = len / (newer->birthSep + spread + 1.f);
+            stretch.segments++;
+            stretch.maxRatio = za::max(stretch.maxRatio, ratio);
+            stretch.maxLength = za::max(stretch.maxLength, len);
+            float fade = 1.f;
+            if(breakAt > 0.f && ratio > 0.5f * breakAt)
+            {
+                fade = za::clamp((breakAt - ratio) / (0.5f * breakAt), 0.f, 1.f);
+                stretch.faded += fade > 0.f;
+                stretch.broken += fade <= 0.f;
+            }
+            if(fade > 0.f)
+            {
+                const glm::vec4 cf{s.color, 0.95f * fade};
+                lines::sceneLine(newer->pos, p.pos, w * (0.5f + 0.5f * fade), cf, cf);
+            }
         }
         else if(k == 0 && s.emitting)
         {
@@ -1038,7 +1117,7 @@ void info_f()
             const bool rag = s.pose == Pose::Ragdoll;
             if(!rag)
             {
-                render::entityMatrix(*e, false, e->scale ? e->scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+                render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
             }
             if(!vertexNow(s, *e, rag, m, s.oldVertex, old, rot))
             {
@@ -1053,6 +1132,11 @@ void info_f()
         shown++;
     }
     Con_Printf("vr_gore_streams_info: %d pouring\n", shown);
+    // Since the last: the worst stretch drawn (ROUND22.md, "Blood streams: smoothed"), then counted afresh.
+    Con_Printf("vr_gore_streams_info: stretch max %.2f (%.1f units at most) over %d pieces drawn; %d faded, %d broken, "
+               "%d cuts at the wound's jumps\n",
+        stretch.maxRatio, stretch.maxLength, stretch.segments, stretch.faded, stretch.broken, stretch.cuts);
+    stretch = StretchStats{};
 }
 
 void test_f()
