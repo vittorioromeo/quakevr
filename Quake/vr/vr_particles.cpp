@@ -1791,7 +1791,6 @@ void electricTrail(const glm::vec3& from, const glm::vec3& to)
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
-    VR_CLIENT_ACCESS("vr particles spawn"); // vr_server_thread_check
     QVR_PROFILE("particle spawn");
     // The splash's ripples on the liquid (vr_water_ripples, vr_water.cpp), with Quake VR's particles or without.
     glm::vec3 surface{0.f};

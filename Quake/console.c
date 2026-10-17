@@ -1412,7 +1412,6 @@ void Con_Printf (const char *fmt, ...)
 	va_list		argptr;
 	char		msg[MAXPRINTMSG];
 	static qboolean	inupdate;
-	VR_CLIENT_ACCESS ("Con_Printf"); // QVR: vr_server_thread_check
 
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof(msg), fmt, argptr);

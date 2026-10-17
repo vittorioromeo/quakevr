@@ -213,10 +213,6 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
                   "(Parallax Surface Level); dark blue: the surface's own depth."),
-        toggle("Parallax Conservative Depth", "vr_parallax_conservative_depth")
-            .help("vr_parallax_conservative_depth (A/B for speed; the picture is the same): Parallax Depth Write tells the "
-                  "GPU its depth is never nearer than the wall, so hidden pixels may be skipped before shading. The world "
-                  "pass only at Parallax Surface Level 0 (nothing raised), its depth pre-pass always."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
@@ -405,17 +401,6 @@ za::Vector<Item> pageDebugProfiling()
                   "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "
                   "program, the session's state, the frame times), written once when it starts and once when it ends. "
                   "Turn it off at once in the headset: the view stutters."),
-        toggle("Work Under xrEndFrame's GPU Wait", vr_xr_overlap)
-            .help("vr_xr_overlap: after both eyes the frame is flushed, and work that reads no pose (the particles' step, "
-                  "the music's stream) runs while the GPU finishes it, before xrEndFrame (Virtual Desktop's waits for the "
-                  "GPU there), as far as it fits in the GPU time the last frames foretell; the rest after. Off: all after."),
-        cycle("Test Work Under xrEndFrame", vr_debug_xr_overlap_work_ms, {{0.f, "Off"}, {0.5f, "0.5 ms"}, {1.f, "1 ms"}, {2.f, "2 ms"}, {4.f, "4 ms"}})
-            .help("vr_debug_xr_overlap_work_ms: this much busy CPU work a frame that reads no pose: before xrEndFrame "
-                  "while it fits in the GPU's tail (Work Under xrEndFrame's GPU Wait), else after it. With an "
-                  "Artificial GPU Load the frame time should not grow while it fits."),
-        command("xrEndFrame Overlap Report", "vr_xr_overlap_report")
-            .help("vr_xr_overlap_report: since the last (console): the GPU's tail foretold and measured, the error, the "
-                  "work run before xrEndFrame and how often it outlasted the tail, xrEndFrame's time, each task's place."),
         cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
             .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
                   "split QuakeC's time."),
@@ -560,11 +545,6 @@ za::Vector<Item> pageDebugProfiling()
                   "shadow pass's pose and transform for the same models (On); only the pose and transform shared by the "
                   "lights (Off); or On with the first eye's worked out again and compared (Checked: see Model Set-up "
                   "Stats). The same images either way."),
-        cycle("Model Light Probes Ahead", vr_model_ambient_prefetch, {{0.f, "In the Draw"}, {1.f, "Ahead"}, {2.f, "Checked"}})
-            .help("vr_model_ambient_prefetch: the models' light probes (the rays round each model and the light they "
-                  "read) worked out on the job threads before the models are drawn (Ahead), on the main thread as each "
-                  "is drawn (In the Draw), or both and compared (Checked: vr_model_ambient_show prints how many "
-                  "differed). The same images either way."),
         toggle("Keep Light Casters", vr_shadow_caster_cache)
             .help("vr_shadow_caster_cache: each dynamic light's world shadow casters kept between frames while it stays "
                   "where they were collected for (a moving light's collected a little wider); off: collected again every "
@@ -576,9 +556,6 @@ za::Vector<Item> pageDebugProfiling()
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),
-        toggle("Water Faces Once a Frame", vr_water_pick_once)
-            .help("vr_water_pick_once: the waves' faces in view found once a frame for both eyes, each eye testing only "
-                  "those against its own view; off: every face tested in each eye. The same images either way."),
         toggle("Single-Pass Stereo (Experimental)", vr_stereo_single)
             .help("vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
                   "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "
@@ -681,14 +658,6 @@ za::Vector<Item> pageDebugProfiling()
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
-        cycle("Server Tick Thread Audit", vr_server_thread_check, {{0.f, "Off"}, {1.f, "Note"}, {2.f, "Note, Threaded Order"}})
-            .help("vr_server_thread_check: notes where the drawing touches the server's state and the server the client's "
-                  "(what a server tick on a worker would race). Threaded Order also runs the tick after the screen, on the "
-                  "main thread (the world drawn a tick late, the server's results the same). For testing; the sites with "
-                  "Server Tick Thread Report."),
-        command("Server Tick Thread Report", "vr_server_thread_report")
-            .help("vr_server_thread_report: the sites the audit found (console), most frequent first; RACE marks those a "
-                  "threaded tick would overlap."),
         toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
             .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "

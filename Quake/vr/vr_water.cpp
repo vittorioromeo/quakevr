@@ -19,8 +19,6 @@
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
-#include "Zancle/Base/Memcmp.hpp"
-#include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -1422,119 +1420,6 @@ bool ensureMesh()
     return mesh.vbo != 0 && !mesh.faces.empty();
 }
 
-// The mesh's faces in a view's PVS (vr_water_pick_once): found once a frame for both eyes, and again only for a view
-// whose PVS differs (another leaf, a view through a teleporter) or a mesh built again.
-struct PvsFaces
-{
-    int frame = -1;                  // host_framecount
-    const MeshFace* faces = nullptr; // the mesh's they index (built again: other)
-    za::SizeT numFaces = 0;
-    bool all = false;                // vis null: every face
-    za::Vector<byte> vis;            // the PVS they were found in
-    za::Vector<int> seen;            // the faces in it, in order
-};
-PvsFaces pvsFaces;
-
-// The faces in `vis` (null: all), from pvsFaces when found in the same PVS this frame.
-const za::Vector<int>& facesInPvs(const byte* vis)
-{
-    PvsFaces& p = pvsFaces;
-    const za::SizeT visBytes = static_cast<za::SizeT>((mesh.model->numleafs + 7) >> 3);
-    const bool same = p.frame == host_framecount && p.faces == mesh.faces.data() && p.numFaces == mesh.faces.size() &&
-                      p.all == (vis == nullptr) && (vis == nullptr || (p.vis.size() == visBytes && ZA_MEMCMP(p.vis.data(), vis, visBytes) == 0));
-    if(same)
-    {
-        return p.seen;
-    }
-    p.frame = host_framecount;
-    p.faces = mesh.faces.data();
-    p.numFaces = mesh.faces.size();
-    p.all = vis == nullptr;
-    p.vis.clear();
-    if(vis)
-    {
-        p.vis.resize(visBytes, 0);
-        ZA_MEMCPY(p.vis.data(), vis, visBytes);
-    }
-    p.seen.clear();
-    for(za::SizeT n = 0; n < mesh.faces.size(); n++)
-    {
-        const MeshFace& f = mesh.faces[n];
-        bool seen = vis == nullptr;
-        for(int i = 0; i < f.numLeaves && !seen; i++)
-        {
-            const int l = mesh.leaves[static_cast<za::SizeT>(f.firstLeaf + i)] - 1;
-            seen = (vis[l >> 3] & (1 << (l & 7))) != 0;
-        }
-        if(seen)
-        {
-            p.seen.pushBack(static_cast<int>(n));
-        }
-    }
-    return p.seen;
-}
-
-// markMesh's pick over the faces in the PVS (facesInPvs): the same tests, ranges and marks as over every face.
-void markMeshInPvs(const za::Vector<int>& seen)
-{
-    mesh.framecount = r_framecount;
-    mesh.ranges.clear();
-    const za::SizeT numtex = static_cast<za::SizeT>(mesh.model->numtextures);
-    mesh.texBegin.clear();
-    mesh.texBegin.resize(numtex, 0);
-    mesh.texEnd.clear();
-    mesh.texEnd.resize(numtex, 0);
-    const float* eye = r_refdef.vieworg;
-    int lastTex = -1;
-    for(const int index : seen)
-    {
-        MeshFace& f = mesh.faces[static_cast<za::SizeT>(index)];
-        if(f.texnum != lastTex)
-        {
-            if(lastTex >= 0)
-            {
-                mesh.texEnd[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
-            }
-            lastTex = f.texnum;
-            mesh.texBegin[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
-        }
-        if(eye[0] * f.normal[0] + eye[1] * f.normal[1] + eye[2] * f.normal[2] - f.dist < -2.f * kMaxSwell)
-        {
-            continue;
-        }
-        f.pvsFrame = r_framecount;
-        vec3_t mins, maxs;
-        float d2 = 0.f;
-        for(int a = 0; a < 3; a++)
-        {
-            mins[a] = f.mins[a] - kMaxSwell;
-            maxs[a] = f.maxs[a] + kMaxSwell;
-            const float d = za::max(f.mins[a] - eye[a], 0.f, eye[a] - f.maxs[a]);
-            d2 += d * d;
-        }
-        if(R_CullBox(mins, maxs))
-        {
-            continue;
-        }
-        const bool flat = d2 > (kFadeEnd + 16.f) * (kFadeEnd + 16.f);
-        const unsigned first = flat ? f.flat : f.full, count = flat ? f.flatCount : f.fullCount;
-        const za::SizeT n = mesh.ranges.size();
-        if(n > static_cast<za::SizeT>(mesh.texBegin[static_cast<za::SizeT>(lastTex)]) && mesh.ranges[n - 2] + mesh.ranges[n - 1] == first)
-        {
-            mesh.ranges[n - 1] += count;
-        }
-        else
-        {
-            mesh.ranges.pushBack(first);
-            mesh.ranges.pushBack(count);
-        }
-    }
-    if(lastTex >= 0)
-    {
-        mesh.texEnd[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
-    }
-}
-
 // This view's faces of the mesh: in the PVS, the frustum and seen from their side; cut near the eye, flat past it.
 void markMesh(const byte* vis)
 {
@@ -1542,11 +1427,6 @@ void markMesh(const byte* vis)
     mesh.framecount = -1;
     if(!ensureMesh())
     {
-        return;
-    }
-    if(vr_water_pick_once.value > 0.f)
-    {
-        markMeshInPvs(facesInPvs(vis));
         return;
     }
     mesh.framecount = r_framecount;

@@ -509,7 +509,6 @@ void Cvar_Reset (const char *name)
 
 void Cvar_SetQuick (cvar_t *var, const char *value)
 {
-	VR_CLIENT_ACCESS ("Cvar_SetQuick"); // QVR: vr_server_thread_check
 	if (var->flags & (CVAR_ROM|CVAR_LOCKED))
 		return;
 	if (!(var->flags & CVAR_REGISTERED))

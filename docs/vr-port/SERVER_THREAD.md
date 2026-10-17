@@ -1,8 +1,13 @@
 # The server tick on a worker thread: design, audit and plan
 
-Status (2026-10-17, branch `agent/servertick`): **audit shipped, threading not shipped.** This page holds the design
-the audit supports, what the audit found, and the steps left. The tool is `vr_server_thread_check` (vr_servertick.cpp,
-Debug > Profiling: Server Tick Thread Audit / Report).
+**SHELVED (2026-10-17).** The threading is not being pursued, and the audit tool was removed with the other perf
+attempts that did not pay off (branch `agent/perfrevert`; ROUND22.md, "Removed perf attempts"). This page stays as the
+design and the audit's findings, should the work be taken up again; `vr_server_thread_check`, vr_servertick.cpp and
+their check points below are in git history (merge bdd2d27d2), not in the code.
+
+Status before the shelving (2026-10-17, branch `agent/servertick`): **audit shipped, threading not shipped.** This
+page holds the design the audit supports, what the audit found, and the steps left. The tool was
+`vr_server_thread_check` (vr_servertick.cpp, Debug > Profiling: Server Tick Thread Audit / Report).
 
 ## The cost and the gain
 

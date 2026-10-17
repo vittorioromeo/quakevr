@@ -551,26 +551,12 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 /*
 =============
-R_PdoConservative
-
-QVR: whether the shading pass's depth-writing programs declare conservative depth (vr_parallax_conservative_depth):
-only when no relief is raised over the surface (vr_parallax_plane 0), so every depth they write is the surface's or
-further (the shaders clamp it so). The pre-pass's bound is always further: its programs only need the setting.
-=============
-*/
-static qboolean R_PdoConservative (void)
-{
-	return r_framedata.parallax3[1] > 0.f && r_framedata.parallax3[0] <= 0.f;
-}
-
-/*
-=============
 R_WorldFragments_f
 
 QVR: vr_world_fragments [passes] (a debug tool: Debug > Profiling and Memory): over the next passes (16) of the opaque
 world and brush models, the fragments their depth pre-pass and their shading pass run the fragment shader on
 (pipeline statistics), and the shading pass's kept ones (samples passed): shaded over kept is the shading wasted on
-hidden pixels (whether the depth-writing programs still reject them early: vr_parallax_conservative_depth). Each
+hidden pixels (whether the depth-writing programs still reject them early: vr_parallax_depth_write). Each
 pass's counts are read at once (a stall: for measuring counts, not times).
 =============
 */
@@ -621,9 +607,9 @@ static void R_WorldFragmentsEnd (qboolean shading)
 	worldfragments.passes++;
 	if (--worldfragments.left > 0)
 		return;
-	Con_Printf ("vr_world_fragments: %d passes (pdo %d, conservative: pre-pass %d, shading %d): a pass's pre-pass shaded %.0f, "
+	Con_Printf ("vr_world_fragments: %d passes (pdo %d): a pass's pre-pass shaded %.0f, "
 		"shading shaded %.0f, kept %.0f: shaded/kept %.3f\n", worldfragments.passes, r_framedata.parallax2[3] > 0.f ? 1 : 0,
-		r_framedata.parallax3[1] > 0.f ? 1 : 0, R_PdoConservative () ? 1 : 0, worldfragments.prepass / worldfragments.passes,
+		worldfragments.prepass / worldfragments.passes,
 		worldfragments.shaded / worldfragments.passes, worldfragments.kept / worldfragments.passes,
 		worldfragments.shaded / q_max (worldfragments.kept, 1.0));
 	GL_DeleteQueriesFunc (2, worldfragments.queries);
@@ -655,9 +641,9 @@ static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean 
 		break;
 	}
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
-		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit, pdo && R_PdoConservative ());
+		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
-		return GL_WorldPdoProgram (dither, R_PdoConservative ());
+		return glprogs.world_pdo[dither];
 	return glprogs.world[oit][dither][alphatest];
 }
 
@@ -802,7 +788,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass == BP_SOLID && !translucent)
 	{
 		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
-		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo[r_framedata.parallax3[1] > 0.f ? 1 : 0] : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write; conservative depth: vr_parallax_conservative_depth)
+		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_WorldFragmentsBegin (false); // QVR: (vr_world_fragments)
 		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);

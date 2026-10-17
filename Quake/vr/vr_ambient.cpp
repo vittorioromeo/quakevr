@@ -4,7 +4,6 @@
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
-#include "vr_jobs.hpp"
 #include "vr_lighting.hpp"
 #include "vr_profile.hpp"
 
@@ -379,8 +378,6 @@ struct Cached
     // the same point (the world does not move).
     glm::vec3 centerAsked{0.f}, anchorAsked{0.f}, openAt{0.f};
     bool openValid{false};
-    int aheadFrame{-1}; // host_framecount it was last worked out ahead (prefetchAdd)
-    glm::vec3 originAsked{0.f}; // the entity's origin when centerAsked was (wanted's guess at the point now)
 };
 
 // Whether `m` holds shade(probe) as it would be now: the same settings, its light styles at the same values.
@@ -419,73 +416,9 @@ const Cube& shadeMemo(ShadeMemo& m, const Probe& probe)
     return m.cube;
 }
 
-// Whether two probes hit the same: their shade() is the same at the same light styles and settings.
-[[nodiscard]] bool sameProbe(const Probe& a, const Probe& b)
-{
-    if(a.animated != b.animated || a.numStyles != b.numStyles)
-    {
-        return false;
-    }
-    for(int i = 0; i < NUM_RAYS; i++)
-    {
-        const Hit& x = a.hits[i];
-        const Hit& y = b.hits[i];
-        if(x.kind != y.kind || x.surf != y.surf || x.ds != y.ds || x.dt != y.dt)
-        {
-            return false;
-        }
-    }
-    for(int k = 0; k < a.numStyles; k++)
-    {
-        if(a.styles[k] != b.styles[k])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-// An entity's probe work for this frame, done ahead on the pool before a batch of models is drawn (ambient::prefetch,
-// vr_model_ambient_prefetch): openPoint, traceProbe and shade() are pure functions of their inputs (the world, which
-// does not move, the light styles and the settings), so entityCube takes a result from here only when its inputs come
-// out the same as the ones it was worked out from, and works it out itself otherwise: the same results either way.
-// Its decisions (which entity is due, the budgets, the easing) stay in entityCube, in the draw's order.
-constexpr int MAX_AHEAD_SHADES = 3; // the new probe's, the current one's, the previous one's
-// A batch's likely traces (wanted's guess) from which it is worked out ahead: a trace is about 10 us, the rest a
-// fraction of one; the pool's helpers cost a few us to post and wake 20-40 us later (vr_jobs.hpp), so fewer are
-// quicker in the draw (measured: 4 a batch broke even; ROUND22.md "Model light probes ahead"). Most frames trace one or
-// two; a map's start, a teleport or a crowd on the move trace a dozen or more.
-constexpr int MIN_TRACES_AHEAD = 8;
-struct Ahead
-{
-    const entity_t* e{nullptr};
-    bool view{false};
-    glm::vec3 center{0.f}, anchor{0.f}; // the inputs: modelCenter, the anchor
-    glm::vec3 open{0.f};                // openPoint(center, anchor)
-    bool traced{false};                 // whether it was due a trace from `open`
-    Probe probe;                        // traceProbe(open)
-    double traceSeconds{0.0};
-    int numShaded{0};
-    Probe shadedProbe[MAX_AHEAD_SHADES]; // shade() of the probes whose memos were stale
-    ShadeMemo shaded[MAX_AHEAD_SHADES];
-};
-
 const qmodel_t* loadedWorld = nullptr;
 int loadedGeneration = -1;
 ankerl::unordered_dense::map<const entity_t*, Cached> cache;
-za::Vector<Ahead> ahead; // this batch's: the first aheadCount (prefetchAdd .. prefetchEnd; kept, not made again)
-za::SizeT aheadCount = 0;
-ankerl::unordered_dense::map<const entity_t*, za::SizeT> aheadIndex;
-// The entities without a cache entry worked out ahead this frame (those with one: Cached::aheadFrame).
-ankerl::unordered_dense::map<const entity_t*, int> aheadSeen;
-int aheadSeenFrame = -1;
-jobs::Site aheadSite{"model ambient prefetch"};
-// vr_model_ambient_show's counts since the last: results taken from ahead, and (vr_model_ambient_prefetch 2) the ones
-// that differed from the ones worked out again (none expected).
-long long aheadUsed = 0;
-long long aheadChecked = 0;
-long long aheadDiffered = 0;
-long long tracedInDraw = 0; // the traces not taken from ahead
 Eviction eviction;
 int budgetFrame = -1;
 int tracedThisFrame = 0;
@@ -549,141 +482,6 @@ void setOff(float out[6][4])
     out[1][3] = 1.f; // the directional shading kept whole
 }
 
-// Staggered between entities, so that they don't all come due in the same frame.
-double staggerOf(const entity_t* e)
-{
-    return static_cast<double>(reinterpret_cast<za::UIntPtrT>(e) % 97) * 0.005;
-}
-
-// On the pool (prefetch): what entityCube will likely work out for a.e this frame, from its cached state as it is now
-// (only read: the main thread waits for the call).
-void workAhead(Ahead& a)
-{
-    const auto it = cache.find(a.e);
-    const Cached* c = it != cache.end() ? &it->second : nullptr;
-    a.open = c && c->openValid && c->centerAsked == a.center && c->anchorAsked == a.anchor ? c->openAt
-                                                                                           : openPoint(a.center, a.anchor);
-    const glm::vec3& p = a.open;
-    const bool fresh = !c || c->tracedAt < 0.0;
-    const float moved = fresh ? 0.f : glm::distance(p, c->samplePos);
-    const bool due = fresh || moved > (a.view ? MOVE_UNITS_VIEW : MOVE_UNITS) ||
-                     realtime - c->tracedAt > REFRESH_SECONDS + staggerOf(a.e);
-    a.traced = due && (fresh || p != c->samplePos); // (the budget aside: entityCube's)
-    a.numShaded = 0;
-    const auto shadeAhead = [&a](const Probe& probe) {
-        a.shadedProbe[a.numShaded] = probe;
-        ShadeMemo& m = a.shaded[a.numShaded++];
-        m.valid = false;
-        shadeMemo(m, probe);
-    };
-    if(a.traced)
-    {
-        const za::Clock clock;
-        traceProbe(p, a.probe);
-        a.traceSeconds = static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e6;
-        shadeAhead(a.probe);
-    }
-    if(c && c->tracedAt >= 0.0)
-    {
-        const bool teleport = fresh || moved > 128.f;
-        // The current probe: still current, or the previous one from this trace on.
-        if((!a.traced || (!teleport && c->blend >= 0.5f)) && !shadeFresh(c->currentShaded, c->current))
-        {
-            shadeAhead(c->current);
-        }
-        if((a.traced ? !teleport && c->blend < 0.5f : c->blend < 1.f) && !shadeFresh(c->previousShaded, c->previous))
-        {
-            shadeAhead(c->previous);
-        }
-    }
-}
-
-// This frame's work ahead for e (null: none).
-const Ahead* aheadFor(const entity_t* e)
-{
-    if(aheadCount == 0)
-    {
-        return nullptr;
-    }
-    const auto it = aheadIndex.find(e);
-    return it != aheadIndex.end() && it->second < aheadCount ? &ahead[it->second] : nullptr;
-}
-
-[[nodiscard]] bool checkAhead() { return vr_model_ambient_prefetch.value >= 2.f; }
-
-void noteAhead(bool same)
-{
-    aheadUsed++;
-    if(checkAhead())
-    {
-        aheadChecked++;
-        aheadDiffered += same ? 0 : 1;
-    }
-}
-
-// openPoint(center, anchor), from the work ahead when it was worked out from the same.
-glm::vec3 openPointAhead(const glm::vec3& center, const glm::vec3& anchor, const Ahead* a)
-{
-    if(a && a->center == center && a->anchor == anchor)
-    {
-        noteAhead(!checkAhead() || openPoint(center, anchor) == a->open);
-        return a->open;
-    }
-    return openPoint(center, anchor);
-}
-
-// traceProbe(p, out), from the work ahead when it traced from the same point; the seconds it took.
-double traceProbeAhead(const glm::vec3& p, Probe& out, const Ahead* a)
-{
-    if(a && a->traced && a->open == p)
-    {
-        out = a->probe;
-        if(checkAhead())
-        {
-            Probe again;
-            traceProbe(p, again);
-            noteAhead(sameProbe(again, out));
-        }
-        else
-        {
-            noteAhead(true);
-        }
-        return a->traceSeconds;
-    }
-    tracedInDraw++;
-    const za::Clock clock;
-    traceProbe(p, out);
-    return static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e6;
-}
-
-// shadeMemo(m, probe), its shading taken from the work ahead when that was of the same probe and is fresh.
-const Cube& shadeMemoAhead(ShadeMemo& m, const Probe& probe, const Ahead* a)
-{
-    if(a && !shadeFresh(m, probe))
-    {
-        for(int k = 0; k < a->numShaded; k++)
-        {
-            if(shadeFresh(a->shaded[k], probe) && sameProbe(a->shadedProbe[k], probe))
-            {
-                m = a->shaded[k];
-                bool same = true;
-                if(checkAhead())
-                {
-                    Cube again{};
-                    shade(probe, again);
-                    for(int f = 0; f < 6; f++)
-                    {
-                        same = same && again[f] == m.cube[f];
-                    }
-                }
-                noteAhead(same);
-                return m.cube;
-            }
-        }
-    }
-    return shadeMemo(m, probe);
-}
-
 } // namespace
 
 namespace
@@ -711,10 +509,6 @@ void show_f()
     Con_Printf("AMB %lld samples, %.1f us each (%d rays), %d entities cached\n", samplesTaken,
                samplesTaken ? sampleSeconds * 1e6 / static_cast<double>(samplesTaken) : 0.0, NUM_RAYS,
                static_cast<int>(cache.size()));
-    Con_Printf("AMB prefetch (vr_model_ambient_prefetch %g): %lld results taken from it, %lld checked, %lld differed; "
-               "%lld traced in the draw\n",
-        static_cast<double>(vr_model_ambient_prefetch.value), aheadUsed, aheadChecked, aheadDiffered, tracedInDraw);
-    aheadUsed = aheadChecked = aheadDiffered = tracedInDraw = 0;
     static constexpr const char* names[6] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
     for(size_t i = 0; i < nearest.size() && i < 6; i++)
     {
@@ -769,23 +563,22 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
     {
         Cached& c = *entry;
         QVR_PROFILE("model ambient");
-        const Ahead* a = aheadFor(e);
         const bool view = e == &cl.viewent || VR_IsViewEntity(e);
         const glm::vec3 anchor = view ? glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}
                                       : glm::vec3{e->origin[0], e->origin[1], e->origin[2] + 8.f};
         const glm::vec3 center = modelCenter(e, modelMatrix, static_cast<const aliashdr_t*>(aliashdr));
-        c.originAsked = glm::vec3{e->origin[0], e->origin[1], e->origin[2]};
         if(!c.openValid || center != c.centerAsked || anchor != c.anchorAsked)
         {
             c.centerAsked = center;
             c.anchorAsked = anchor;
-            c.openAt = openPointAhead(center, anchor, a);
+            c.openAt = openPoint(center, anchor);
             c.openValid = true;
         }
         const glm::vec3 p = c.openAt;
         const bool fresh = c.tracedAt < 0.0;
         const float moved = fresh ? 0.f : glm::distance(p, c.samplePos);
-        const double stagger = staggerOf(e);
+        // Staggered between entities, so that they don't all come due in the same frame.
+        const double stagger = static_cast<double>(reinterpret_cast<za::UIntPtrT>(e) % 97) * 0.005;
         const bool due = fresh || moved > (view ? MOVE_UNITS_VIEW : MOVE_UNITS) ||
                          realtime - c.tracedAt > REFRESH_SECONDS + stagger;
         const bool allowed = fresh ? freshThisFrame < MAX_FRESH_PER_FRAME
@@ -799,10 +592,10 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         }
         else if(due && allowed)
         {
-            double seconds = 0.0;
+            const za::Clock clock;
             if(fresh || moved > 128.f) // new, or teleported: no easing from where it was
             {
-                seconds = traceProbeAhead(p, c.current, a);
+                traceProbe(p, c.current);
                 c.currentShaded.valid = false;
                 c.blend = 1.f;
             }
@@ -813,11 +606,11 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
                     c.previous = c.current;
                     c.previousShaded = c.currentShaded;
                 }
-                seconds = traceProbeAhead(p, c.current, a);
+                traceProbe(p, c.current);
                 c.currentShaded.valid = false;
                 c.blend = 0.f;
             }
-            sampleSeconds += seconds;
+            sampleSeconds += static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e6;
             samplesTaken++;
             c.samplePos = p;
             c.tracedAt = realtime;
@@ -840,11 +633,11 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
                (c.blend < 1.f && c.previous.animated) || settings != c.settings)
             {
                 c.settings = settings;
-                const Cube& now = shadeMemoAhead(c.currentShaded, c.current, a);
+                const Cube& now = shadeMemo(c.currentShaded, c.current);
                 za::copy(now, now + 6, c.cube); // (a Cube's six faces)
                 if(c.blend < 1.f)
                 {
-                    const Cube& older = shadeMemoAhead(c.previousShaded, c.previous, a);
+                    const Cube& older = shadeMemo(c.previousShaded, c.previous);
                     for(int f = 0; f < 6; f++)
                     {
                         c.cube[f] = glm::mix(older[f], c.cube[f], c.blend);
@@ -887,133 +680,8 @@ extern "C" void VR_AliasAmbient(const entity_t* e, const float matrix[16], const
     ambient::entityCube(e, matrix, aliashdr, enabled != 0, reinterpret_cast<float(*)[4]>(out));
 }
 
-bool ambient::prefetchOn()
-{
-    return vr_model_ambient_prefetch.value > 0.f && vr_model_ambient_dir.value != 0.f && cl.worldmodel &&
-           cl.worldmodel->lightdata && cl.worldmodel == loadedWorld && worldGeneration() == loadedGeneration;
-}
-
-int ambient::wanted(const entity_t* e)
-{
-    if(!e || !e->model || (e->model->flags & MOD_FBRIGHTHACK))
-    {
-        return 0;
-    }
-    // Not again for a later batch this frame (worked out ahead for an earlier one, its draw culled it or let it be).
-    const auto it = cache.find(e);
-    if(it == cache.end())
-    {
-        if(aheadSeenFrame != host_framecount)
-        {
-            aheadSeen.clear();
-            aheadSeenFrame = host_framecount;
-        }
-        return aheadSeen.find(e) == aheadSeen.end() ? 2 : 0; // (new: traced)
-    }
-    const Cached& c = it->second;
-    if(c.frame == host_framecount || c.aheadFrame == host_framecount)
-    {
-        return 0;
-    }
-    if(c.tracedAt < 0.0 || !c.openValid)
-    {
-        return 2;
-    }
-    // Likely due a trace (a guess, without its matrix: the point last found moved as the entity's origin did since).
-    const bool view = e == &cl.viewent || VR_IsViewEntity(e);
-    const glm::vec3 p = c.openAt + glm::vec3{e->origin[0], e->origin[1], e->origin[2]} - c.originAsked;
-    return glm::distance(p, c.samplePos) > (view ? MOVE_UNITS_VIEW : MOVE_UNITS) ||
-                   realtime - c.tracedAt > REFRESH_SECONDS + staggerOf(e)
-               ? 2
-               : 1;
-}
-
-bool ambient::prefetchWorth(int likelyTraces)
-{
-    return likelyTraces >= MIN_TRACES_AHEAD;
-}
-
-void ambient::prefetchAdd(const entity_t* e, const float modelMatrix[16], const void* aliashdr)
-{
-    if(aheadCount == ahead.size())
-    {
-        ahead.emplaceBack();
-    }
-    const za::SizeT index = aheadCount++;
-    Ahead& a = ahead[index]; // (its probes written only where used)
-    a.e = e;
-    a.view = e == &cl.viewent || VR_IsViewEntity(e);
-    a.anchor = a.view ? glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}
-                      : glm::vec3{e->origin[0], e->origin[1], e->origin[2] + 8.f};
-    a.center = modelCenter(e, modelMatrix, static_cast<const aliashdr_t*>(aliashdr));
-    a.traced = false;
-    a.numShaded = 0;
-    aheadIndex[e] = index;
-    const auto it = cache.find(e);
-    if(it == cache.end())
-    {
-        aheadSeen[e] = 1;
-    }
-    else
-    {
-        it->second.aheadFrame = host_framecount;
-    }
-}
-
-void ambient::prefetchRun()
-{
-    if(aheadCount == 0)
-    {
-        return;
-    }
-    QVR_PROFILE("model ambient prefetch");
-    jobs::parallelFor(aheadSite, aheadCount, 1, [](za::SizeT begin, za::SizeT end) {
-        for(za::SizeT i = begin; i < end; i++)
-        {
-            workAhead(ahead[i]);
-        }
-    });
-}
-
-void ambient::prefetchEnd()
-{
-    aheadCount = 0;
-    aheadIndex.clear();
-}
-
-extern "C" int VR_AliasAmbientPrefetchOn(void)
-{
-    return ambient::prefetchOn() ? 1 : 0;
-}
-
-extern "C" int VR_AliasAmbientWanted(const entity_t* e)
-{
-    return ambient::wanted(e);
-}
-
-extern "C" int VR_AliasAmbientPrefetchWorth(int likelyTraces)
-{
-    return ambient::prefetchWorth(likelyTraces) ? 1 : 0;
-}
-
-extern "C" void VR_AliasAmbientPrefetchAdd(const entity_t* e, const float matrix[16], const void* aliashdr)
-{
-    ambient::prefetchAdd(e, matrix, aliashdr);
-}
-
-extern "C" void VR_AliasAmbientPrefetchRun(void)
-{
-    ambient::prefetchRun();
-}
-
-extern "C" void VR_AliasAmbientPrefetchEnd(void)
-{
-    ambient::prefetchEnd();
-}
-
 void ambient::onGameDirChanged()
 {
-    prefetchEnd();
     cache.clear();
     eviction = {};
     loadedWorld = nullptr;

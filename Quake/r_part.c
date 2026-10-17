@@ -75,7 +75,6 @@ R_AllocParticle
 */
 particle_t *R_AllocParticle (void)
 {
-	VR_CLIENT_ACCESS ("R_AllocParticle"); // QVR: vr_server_thread_check
 	if (r_numactiveparticles < r_numparticles)
 	{
 		particle_t *p = &particles[r_numactiveparticles++];

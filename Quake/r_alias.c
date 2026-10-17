@@ -1168,72 +1168,6 @@ static void R_AliasTransformShared (entity_t *e, aliashdr_t *paliashdr, lerpdata
 
 /*
 =================
-R_AliasPrefetch -- QVR
-
-A batch's models in view and lit this frame for the first time, when enough of them are likely due new light probes
-(VR_AliasAmbientPrefetchWorth: a few traces): their transforms set up (kept in aliaspre for the draw, which takes them
-instead of setting them up itself) and their ambient light probes worked out on the job pool before any is drawn
-(vr/vr_ambient.cpp "Ahead", vr_model_ambient_prefetch); the draw takes the probes' results where its inputs come out
-the same. Only the first eye's own scene (the second eye's and the views through gates find nearly all worked out),
-not while the drawn moves are logged (their order kept).
-=================
-*/
-typedef struct {
-	const entity_t	*ent;		// null: not set up here
-	lerpdata_t	lerpdata;
-	float		model_matrix[16];
-	float		bounds_matrix[16];
-} aliaspre_t;
-static aliaspre_t	*aliaspre;	// by the batch's index
-static int			aliasprecap;
-static const aliaspre_t	*aliasprecur;	// the entity being drawn's (null: none)
-
-static int R_AliasPrefetch (entity_t **ents, int count)
-{
-	int i, likely = 0;
-	if (count < 2 || aliaseyemode >= 2 || aliasfaces || r_fullbright_cheatsafe || r_lightmap_cheatsafe || VR_DebugDrawnOn () ||
-		VR_PortalDrawing () || !VR_AliasAmbientPrefetchOn ())
-		return 0;
-	if (aliasprecap < count)
-	{
-		aliaspre_t *grown = (aliaspre_t *) realloc (aliaspre, sizeof (aliaspre_t) * count);
-		if (!grown)
-			return 0;
-		aliaspre = grown;
-		aliasprecap = count;
-	}
-	// the models in view whose light is not worked out yet this frame, and how many of them are likely traced
-	for (i = 0; i < count; i++)
-	{
-		entity_t *e = ents[i];
-		int wanted;
-		aliaspre[i].ent = NULL;
-		if (!e->model || e->model->type != mod_alias || ENTALPHA_DECODE (e->alpha) == 0)
-			continue;
-		wanted = VR_AliasAmbientWanted (e);
-		if (!wanted || (!VR_AliasBonePoses (e, NULL) && R_CullModelForEntity (e))) // (as the draw culls; one through a gate: without)
-			continue;
-		aliaspre[i].ent = e;
-		likely += wanted == 2;
-	}
-	if (!VR_AliasAmbientPrefetchWorth (likely)) // too little to pay for the pool: all of it in the draw, as before
-		return 0;
-	for (i = 0; i < count; i++)
-	{
-		entity_t *e = (entity_t *) aliaspre[i].ent;
-		aliashdr_t *hdr;
-		if (!e)
-			continue;
-		hdr = (aliashdr_t *) Mod_Extradata (e->model);
-		R_AliasTransformShared (e, hdr, &aliaspre[i].lerpdata, aliaspre[i].model_matrix, aliaspre[i].bounds_matrix); // QVR: (the shadow pass's, vr_shadow_setup_share)
-		VR_AliasAmbientPrefetchAdd (e, aliaspre[i].model_matrix, hdr);
-	}
-	VR_AliasAmbientPrefetchRun ();
-	return count;
-}
-
-/*
-=================
 R_AliasPosedBox -- QVR
 
 The IK-posed skeletal models (VR_AliasBonePoses: your body, its mirror image, the jointed hands, the ragdolls) were
@@ -1637,14 +1571,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		goto cull;
 	}
 
-	if (mode == ALIAS_STANDARD && aliasprecur && aliasprecur->ent == e) // QVR: set up already by R_AliasPrefetch
-	{
-		lerpdata = aliasprecur->lerpdata;
-		memcpy (model_matrix, aliasprecur->model_matrix, sizeof (model_matrix));
-		memcpy (bounds_matrix, aliasprecur->bounds_matrix, sizeof (bounds_matrix));
-	}
-	else
-		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias transform", mode == ALIAS_STANDARD ? R_AliasTransformShared (e, paliashdr, &lerpdata, model_matrix, bounds_matrix) : R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix)); // QVR: (vr_tracy_render_detail; the first eye: the shadow pass's)
+	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias transform", mode == ALIAS_STANDARD ? R_AliasTransformShared (e, paliashdr, &lerpdata, model_matrix, bounds_matrix) : R_AliasTransform (e, paliashdr, &lerpdata, model_matrix, bounds_matrix)); // QVR: (vr_tracy_render_detail; the first eye: the shadow pass's)
 	if (eyekeep) // QVR: kept for the second eye
 	{
 		eye->ent = e;
@@ -2049,15 +1976,9 @@ R_DrawAliasModels
 */
 void R_DrawAliasModels (entity_t **ents, int count)
 {
-	int i, pre = R_AliasPrefetch (ents, count); // QVR
+	int i;
 	for (i = 0; i < count; i++)
-	{
-		aliasprecur = i < pre && aliaspre[i].ent == ents[i] ? &aliaspre[i] : NULL; // QVR
 		VR_TRACY_DETAIL (vr_tracy_render_zones, "alias model", R_DrawAliasModel_Real (ents[i], ALIAS_STANDARD)); // QVR: (vr_tracy_render_detail)
-	}
-	aliasprecur = NULL; // QVR
-	if (pre)
-		VR_AliasAmbientPrefetchEnd (); // QVR
 	R_FlushAliasInstances (false);
 	VR_TemporalMotionWrites (0); // QVR: on through the models' batches (switching the draw buffers a batch cost GPU time)
 }
