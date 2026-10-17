@@ -628,7 +628,215 @@ enum class Kind
     return Kind::None;
 }
 
+// --- Placed live (vr_body_head_*: Appearance > Ranger Head) ---------------------------------------------------------
+// Each body mesh given his head keeps where it put him (the first version's place: `grow`, `sink`); the settings turn
+// and size him about the bottom of his head and move him, the neck's top ring with him (across, and down with the sink
+// no lower than the neck below it). Applied as the mesh is read and again, in the model's own vertices and its vertex
+// buffer, whenever a setting changes.
+
+constexpr float unitsPerCm = 0.2625f; // the body's 26.25 units a metre
+constexpr float ringClearance = 0.1f; // the neck's top ring kept this far above the neck's next ring
+
+struct Pose
+{
+    glm::mat3 turn{1.f};
+    float size{1.f};
+    glm::vec3 move{0.f}; // his (the sink's part in it)
+    float upUnits{0.f};
+    float sinkUnits{0.f};
+};
+
+// About axis 0 (X, forward), 1 (Y, left) or 2 (Z, up), right-handed.
+[[nodiscard]] glm::mat3 axisTurn(int axis, float degrees)
+{
+    const float c = glm::cos(glm::radians(degrees));
+    const float s = glm::sin(glm::radians(degrees));
+    const int a = (axis + 1) % 3;
+    const int b = (axis + 2) % 3;
+    glm::mat3 m{1.f};
+    m[a][a] = c;
+    m[a][b] = s;
+    m[b][a] = -s;
+    m[b][b] = c;
+    return m;
+}
+
+[[nodiscard]] Pose pose()
+{
+    Pose q;
+    // Yaw about Z (turned left), pitch about Y (X to -Z: the chin down), roll about X (Y to Z: tilted right).
+    q.turn = axisTurn(2, za::clamp(vr_body_head_yaw.value, -45.f, 45.f)) * axisTurn(1, za::clamp(vr_body_head_pitch.value, -45.f, 45.f)) *
+             axisTurn(0, za::clamp(vr_body_head_roll.value, -45.f, 45.f));
+    q.size = za::clamp(vr_body_head_size.value, 0.5f, 2.f);
+    q.upUnits = za::clamp(vr_body_head_up.value, -10.f, 10.f) * unitsPerCm;
+    q.sinkUnits = za::clamp(vr_body_head_sink.value, 0.f, 12.f) * unitsPerCm;
+    q.move = glm::vec3{za::clamp(vr_body_head_forward.value, -10.f, 10.f) * unitsPerCm,
+        -za::clamp(vr_body_head_side.value, -10.f, 10.f) * unitsPerCm, q.upUnits - q.sinkUnits};
+    return q;
+}
+
+struct Placed
+{
+    qmodel_t* mod{nullptr};
+    char name[MAX_QPATH]{};
+    int meshVerts{0}; // the mesh's vertex count (which of the model's meshes)
+    int first{0};     // his first vertex in it
+    bool flip{false}; // his triangles turned over in it
+    float scale{1.f}; // the first version's place: ranger.pos * scale + offset
+    glm::vec3 offset{0.f};
+    glm::vec3 pivot{0.f};    // there, the bottom of his head at its middle
+    float ringDropMax{0.f};  // how far the neck's top ring may go down
+    za::Vector<unsigned short> ring; // the neck's top ring's vertices (the placeholder's jaw, narrowed)
+    za::Vector<glm::vec3> ringBase;  // and where they were
+};
+za::Vector<Placed> placed;
+
+[[nodiscard]] glm::vec3 headPoint(const Placed& p, const Pose& q, size_t i)
+{
+    const glm::vec3 base = ranger.pos[i] * p.scale + p.offset;
+    return p.pivot + q.turn * ((base - p.pivot) * q.size) + q.move;
+}
+
+// His vertices and the neck's top ring placed by `q` in `v` (the mesh's); his normals too (as MD5_ComputeNormals:
+// the faces' d2 x d1 summed at each place, his copies at one place, his seam, welded) unless the loader makes them.
+void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, bool normals)
+{
+    const size_t n = ranger.pos.size();
+    for(size_t i = 0; i < n; i++)
+    {
+        const glm::vec3 x = headPoint(p, q, i);
+        for(int k = 0; k < 3; k++)
+        {
+            v[static_cast<size_t>(p.first) + i].xyz[k] = x[k];
+        }
+    }
+    const float dz = za::max(q.upUnits - q.sinkUnits, -p.ringDropMax);
+    for(size_t k = 0; k < p.ring.size(); k++)
+    {
+        const glm::vec3 x = p.ringBase[k] + glm::vec3{q.move.x, q.move.y, dz};
+        for(int a = 0; a < 3; a++)
+        {
+            v[p.ring[k]].xyz[a] = x[a];
+        }
+    }
+    if(!normals)
+    {
+        return;
+    }
+    iqmvert_t* h = v + p.first;
+    const auto at = [&](size_t i) { return glm::vec3{h[i].xyz[0], h[i].xyz[1], h[i].xyz[2]}; };
+    za::Vector<unsigned short> weld;
+    weld.resize(n);
+    for(size_t i = 0; i < n; i++)
+    {
+        weld[i] = static_cast<unsigned short>(i);
+        for(size_t j = 0; j < i; j++)
+        {
+            if(at(j) == at(i))
+            {
+                weld[i] = weld[j];
+                break;
+            }
+        }
+    }
+    za::Vector<glm::vec3> sum;
+    sum.resize(n, glm::vec3{0.f});
+    for(size_t t = 0; t + 2 < ranger.tris.size(); t += 3)
+    {
+        const size_t i0 = weld[ranger.tris[t]];
+        const size_t i1 = weld[ranger.tris[t + (p.flip ? 2 : 1)]];
+        const size_t i2 = weld[ranger.tris[t + (p.flip ? 1 : 2)]];
+        const glm::vec3 face = glm::cross(at(i2) - at(i0), at(i1) - at(i0));
+        sum[i0] += face;
+        sum[i1] += face;
+        sum[i2] += face;
+    }
+    for(size_t i = 0; i < n; i++)
+    {
+        const glm::vec3 s = sum[weld[i]];
+        const float len = glm::length(s);
+        const glm::vec3 nrm = len > 1e-12f ? s / len : glm::vec3{0.f, 0.f, 1.f};
+        for(int k = 0; k < 3; k++)
+        {
+            h[i].norm[k] = static_cast<int8_t>(static_cast<int>(nrm[k] * 127.f));
+        }
+        h[i].norm[3] = 0;
+    }
+}
+
+// A vr_body_head_* setting changed: every body loaded with his head placed again, its vertex buffer uploaded again (a
+// model flushed from the cache is placed as it loads again).
+void onPoseChanged(cvar_t*)
+{
+    if(!ranger.on || !ranger.ok)
+    {
+        return;
+    }
+    const Pose q = pose();
+    for(const Placed& p : placed)
+    {
+        if(!p.mod || p.mod->type != mod_alias || strcmp(p.mod->name, p.name))
+        {
+            continue;
+        }
+        auto* hdr = static_cast<aliashdr_t*>(Cache_Check(&p.mod->cache));
+        if(!hdr)
+        {
+            continue;
+        }
+        bool found = false;
+        for(aliashdr_t* s = hdr; s; s = Mod_NextSurface(s))
+        {
+            if(s->poseverttype == aliashdr_t::PV_IQM && s->numverts == p.meshVerts)
+            {
+                writeHead(p, q, reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(s) + s->vertexes), true);
+                found = true;
+            }
+        }
+        if(found)
+        {
+            GLMesh_LoadVertexBuffer(p.mod, hdr);
+        }
+    }
+}
+
 } // namespace
+
+void qvr::rangerhead::init()
+{
+    cvar_t* const settings[] = {&vr_body_head_forward, &vr_body_head_side, &vr_body_head_up, &vr_body_head_pitch,
+        &vr_body_head_yaw, &vr_body_head_roll, &vr_body_head_size, &vr_body_head_sink};
+    for(cvar_t* c : settings)
+    {
+        Cvar_SetCallback(c, onPoseChanged);
+    }
+}
+
+void qvr::rangerhead::info_f()
+{
+    const Pose q = pose();
+    Con_Printf("rangerhead: %s, %d meshes placed; size %.2f, moved %.2f %.2f %.2f units, sink %.2f\n",
+        !ranger.on ? "off" : ranger.ok ? "on" : "no ranger", static_cast<int>(placed.size()), q.size, q.move.x, q.move.y,
+        q.move.z, q.sinkUnits);
+    for(const Placed& p : placed)
+    {
+        const glm::vec3 top = headPoint(p, q, 0);
+        float crown = top.z;
+        float bottom = top.z;
+        for(size_t i = 0; i < ranger.pos.size(); i++)
+        {
+            crown = za::max(crown, headPoint(p, q, i).z);
+            bottom = za::min(bottom, headPoint(p, q, i).z);
+        }
+        float ringZ = p.ringBase.empty() ? 0.f : p.ringBase[0].z;
+        for(const glm::vec3& r : p.ringBase)
+        {
+            ringZ = za::min(ringZ, r.z);
+        }
+        Con_Printf("  %s: head %.2f..%.2f, neck top %.2f (down at most %.2f), pivot %.2f\n", p.name, bottom, crown,
+            ringZ + za::max(q.upUnits - q.sinkUnits, -p.ringDropMax), p.ringDropMax, p.pivot.z);
+    }
+}
 
 /*
 ===============
@@ -637,8 +845,8 @@ the body's (shader "vrbody") with vr_body_ranger_head, its placeholder head's tr
 (vr_rangerhead.hpp). The new arrays are the hunk's; 1 if it changed them.
 ===============
 */
-extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const void* bonesIn, int numBones, void** verts,
-    int* numVerts, unsigned short** indexes, int* numIndexes)
+extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shader, const void* bonesIn, int numBones,
+    void** verts, int* numVerts, unsigned short** indexes, int* numIndexes)
 {
     if(!VR_MD5SharedSkins(shader) || !active())
     {
@@ -788,6 +996,43 @@ extern "C" int VR_RangerHeadMesh(const char* model, const char* shader, const vo
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 2 : 1)]);
         outIdx[o++] = static_cast<unsigned short>(nv + ranger.tris[t + (flip ? 1 : 2)]);
     }
+
+    // Kept to be placed again live (vr_body_head_*), and placed now by them (the loader then makes the normals).
+    Placed* p = nullptr;
+    for(Placed& e : placed)
+    {
+        if(e.mod == mod && e.meshVerts == static_cast<int>(total))
+        {
+            p = &e;
+        }
+    }
+    if(!p)
+    {
+        p = &placed.emplaceBack();
+    }
+    p->mod = static_cast<qmodel_t*>(mod);
+    q_strlcpy(p->name, p->mod ? p->mod->name : model, sizeof(p->name));
+    p->meshVerts = static_cast<int>(total);
+    p->first = nv;
+    p->flip = flip;
+    p->scale = scale;
+    p->offset = offset;
+    p->pivot = glm::vec3{centre.x, centre.y, ranger.mins.z * scale + offset.z};
+    p->ring.clear();
+    p->ringBase.clear();
+    float ringZ = 0.f;
+    for(int i = 0; i < nv; i++)
+    {
+        if(moved[i])
+        {
+            ringZ = p->ring.empty() ? out[i].xyz[2] : za::min(ringZ, out[i].xyz[2]);
+            p->ring.pushBack(static_cast<unsigned short>(i));
+            p->ringBase.pushBack(glm::vec3{out[i].xyz[0], out[i].xyz[1], out[i].xyz[2]});
+        }
+    }
+    p->ringDropMax = neckCount ? za::max(0.f, ringZ - neckMaxs.z - ringClearance) : 0.f;
+    writeHead(*p, pose(), out, false);
+
     Con_DPrintf("%s: the ranger's head (%d triangles for the placeholder's %d; scaled %.3f, %.2f x %.2f x %.2f units, "
                 "crown %.2f for %.2f%s)\n",
         model, static_cast<int>(ranger.tris.size() / 3), (ni - kept) / 3, scale, (ranger.maxs.x - ranger.mins.x) * scale,

@@ -9984,6 +9984,40 @@ with the option off) show his face and helmet, the neck going into his head, not
 For him in VR: the mirror (and Debug > body preview) from the front, side and back. Check the head's size and
 height against your own (the eyes about 3.5 cm lower than the placeholder's), the neck seam when looking up and down
 and turning the head, and that nothing of it shows in your own view when you look down, lean or crouch.
+
+## The ranger's head: sliders (worktree `tghost`, branch `agent/rangerhead2`, 2026-10-17)
+
+His note: the head looks too small, the neck too long, the place not quite right; he wants sliders for its offset,
+orientation and size, a way to push it down over the neck, on their own page, with the body clone shown meanwhile.
+
+**Settings** (archived, new: no migration), applied live (`vr_rangerhead.cpp`): `vr_body_head_forward`, `_side`
+(right +), `_up` (cm on the model, -10..10), `_pitch` (chin down +), `_yaw` (left +), `_roll` (tilted right +)
+(degrees, -45..45), `_size` (times the first version's, 0.5..2, default **1.3**) and `_sink` (cm, 0..12, default
+**4.5**). He is turned and sized about the bottom of his head, then moved (the sink lowers him). The neck's top ring
+(the placeholder's jaw, inside his head) follows him across and up, and down with the sink, but never lower than
+0.1 units above the neck's next ring (0.56 units, about 2 cm, on the shipped bodies). Past that his head covers the
+neck. The mesh read places him by them (so a reload keeps them). A change rewrites his vertices in every loaded body
+model's cached mesh, with his normals recomputed as `MD5_ComputeNormals` does, and uploads its vertex buffer again
+(`GLMesh_LoadVertexBuffer`). A model flushed from the cache is placed as it loads. `VR_RangerHeadMesh` now takes the
+`qmodel_t`. `vr_body_head_info` prints his span, the neck's top and the pivot for each placed mesh.
+
+**Defaults** from front and side shots (`vr_mock_camera 0 1.6 -0.8 5 180` and `0.8 1.6 0 5 80`) at 1/0, 1.2/3,
+1.3/4.5 and 1.4/6. At 1.3/4.5 the head is 7 x 7 x 6.2 units (27 x 27 x 24 cm) and the neck shows about half what it
+did. At 1.4/6 the neck was nearly gone and the head looked oversized.
+
+**Menu**: Player Appearance > *Ranger Head* (a page, replacing the toggle row there): *Use the Ranger's Head*
+(the toggle, still at the next start), Size, Neck Sink, Forward, Right, Up, Pitch, Yaw, Roll, *Preview Distance*
+and *Preview Side* (the body clone's `vr_menu_body_clone_distance`/`_side`, also in Debug > Views), *Reset Head
+Placement*. The page always shows the body clone (`menu::bodyClonePage`): on while it is open, off on leaving
+(`vr_menu_body_clone_info`). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**Verified** (mock, `map start`, `menu_vr 188`, eye shots): the clone's head at the defaults, then at size 2 / sink
+12 / forward 10 / pitch 45, at size 0.5 / up 10 / right 10 / yaw 45 / roll 45, and at size 1.6 / back 10 / left 10 /
+pitch, yaw, roll -45, each changed live in one run (`scratch/rh_menu.png`, `rh_cam2.png` the default comparison).
+
+For him in VR: Appearance > Ranger Head, with the clone beside the menu. Set size and sink first, then the place.
+Check from the side that the head is not too far forward or back over the neck. If the neck's top ever shows through
+the head at large sinks or turns, note the values.
 ## UI batch (voice notes 2026-10-17)
 
 - Menu panel grip drag: vr_menu_grab_dist_max default 200 -> 600 cm (push it away as well as pull it near).

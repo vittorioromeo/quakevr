@@ -4749,7 +4749,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
 		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
-		if (VR_RangerHeadMesh (fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
+		if (VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
 		{
 			surf->numverts_vbo = surf->numverts;
 			surf->numtris = surf->numindexes / 3;

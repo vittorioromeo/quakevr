@@ -1291,6 +1291,16 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
 QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the Quake ranger's, from your progs/player.mdl (vr_rangerhead.cpp), 0 the placeholder; at the next start
+// The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
+// about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
+QVR_CVAR(vr_body_head_forward, "0", CVAR_ARCHIVE)     // cm forward (-10 to 10)
+QVR_CVAR(vr_body_head_side, "0", CVAR_ARCHIVE)        // cm to the right (-10 to 10)
+QVR_CVAR(vr_body_head_up, "0", CVAR_ARCHIVE)          // cm up (-10 to 10)
+QVR_CVAR(vr_body_head_pitch, "0", CVAR_ARCHIVE)       // degrees, chin down (-45 to 45)
+QVR_CVAR(vr_body_head_yaw, "0", CVAR_ARCHIVE)         // degrees, turned left (-45 to 45)
+QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (-45 to 45)
+QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
+QVR_CVAR(vr_body_head_sink, "4.5", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
 QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands (vr_hand_rig 1): 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
 QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
