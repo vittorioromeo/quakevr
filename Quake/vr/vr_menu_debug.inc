@@ -394,6 +394,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("How often the profiler times the GPU: each timed frame stalls it a little. Off: CPU times only."),
         slider("Report Interval", vr_profile_interval, 0.f, 30.f, 1.f, "%.0f s")
             .help("Performance Profile (Graphics): seconds between its reports in the console and its CSV. 0: only on Dump Profile."),
+        slider("Artificial GPU Load", vr_dynres_test_load, 0.f, 200.f, 5.f, "%.0f")
+            .help("vr_dynres_test_load: extra GPU work in every pixel of each eye (it changes nothing seen), to watch "
+                  "Dynamic Resolution drop the scale and raise it back (the status box's Dynamic res line). 0: none."),
+        cycle("Dynamic Resolution", vr_dynres, {{0.f, "Off"}, {1.f, "Headset Only"}, {2.f, "Mock Headset Too"}})
+            .help("vr_dynres: 2 runs it on the mock headset too (tests); 1, the default, only with a real headset."),
+        toggle("Dynamic Resolution Log", vr_dynres_log)
+            .help("vr_dynres_log: a console line at each scale change, with the eyes' GPU time and the budget."),
 #ifdef QVR_TRACY
         command("Tracy Status", "vr_tracy_status").help("Connection, nesting, dropped zones and GPU query state."),
         command("Tracy Full Capture Preset", "vr_tracy_preset full")

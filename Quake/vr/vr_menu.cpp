@@ -328,6 +328,18 @@ void restartVr()
     return i;
 }
 
+// Dynamic resolution's ceiling (vr_dynres_max), its leftmost step below 0: Render Scale's (the default).
+[[nodiscard]] Item dynresMaxSlider()
+{
+    Item i = slider("Dynamic Highest Scale", vr_dynres_max, 0.45f, 1.5f, 0.05f, "%.2f")
+                 .extend(0.45f, 2.f)
+                 .help("The highest scale Dynamic Resolution goes to, with headroom. Render Scale: yours (the default), so "
+                       "with headroom nothing changes; above it, sharper while the graphics card keeps up.");
+    i.negativeLabel = "Render Scale";
+    i.negativeStart = 0.5f;
+    return i;
+}
+
 // Rocks and bricks in a multiplayer map (vr_debris_mp_max), its leftmost step -1: as many as in single player (Most in a
 // Map, the default: the author's, 2026-10-06).
 [[nodiscard]] Item debrisMultiplayerSlider()

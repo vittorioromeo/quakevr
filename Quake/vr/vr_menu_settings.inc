@@ -357,6 +357,16 @@ za::Vector<Item> pageMain()
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
                   "blurrier."),
+        toggle("Dynamic Resolution", vr_dynres)
+            .help("When the graphics card can't keep up with the headset, the eyes are drawn smaller for a while (down to "
+                  "Dynamic Lowest Scale) and upscaled, instead of missing frames; back up slowly once it can. With "
+                  "headroom it stays at Render Scale: nothing changes."),
+        slider("Dynamic GPU Budget", vr_dynres_target, 0.5f, 1.f, 0.05f, "%.2f").advanced()
+            .help("The share of each headset frame the eyes' GPU time may take before the scale drops (0.85: 85 %; the "
+                  "rest is left for the headset's runtime and the window). Lower: drops sooner, steadier."),
+        slider("Dynamic Lowest Scale", vr_dynres_min, 0.4f, 1.f, 0.05f, "%.2f").extend(0.25f, 2.f)
+            .help("The lowest scale Dynamic Resolution goes to under load (times the headset's resolution)."),
+        dynresMaxSlider().advanced(),
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
             .help("Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
                   "keep it sharper than Bilinear."),
@@ -639,6 +649,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
+        toggle("Dynamic Resolution", vr_dynres)
+            .help("When the graphics card can't keep up with the headset, the eyes are drawn smaller for a while (down to "
+                  "Dynamic Lowest Scale: VR Settings > Display and Graphics) and upscaled, instead of missing frames; back up "
+                  "slowly once it can. With headroom it stays at Render Scale."),
         cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
             .help("Below Render Scale 1: how the eyes are enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) keep edges and text sharper than bilinear, near the lens centre."),
         slider("Sharpness", vr_upscale_sharpness, 0.f, 1.f, 0.05f, "%.2f")

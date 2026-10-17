@@ -11392,3 +11392,32 @@ To try in VR: take the torch off the belt in a fresh map, and the first frame sh
 slow frames again, the qvr_openxr.txt lines starting `held frames` say what had the foreground and what the runtime was
 doing. Debug > Profiling and Memory > Simulate Held Frames shows what the lines look like, but turn it off at once,
 because the view stutters.
+## Dynamic resolution (worktree `goreflesh`, branch `agent/dynres`, 2026-10-17)
+
+Tracy G1: a 3060-class GPU (about 11-13 ms of eyes) can't hold 90 Hz. `vr_dynres` (vr_dynres.cpp; on by default with a
+headset, 2 the mock too) drives the eyes' scale from their GPU time (`eye L` + `eye R`, the always-on phase timestamps,
+read back 2-5 frames late, each read against the scale its frame was drawn at: pixels go with its square). Budget:
+`vr_dynres_target` 0.85 of the display period (the mock's: 90 Hz). Scales in buckets of 0.05 down from the ceiling
+(`vr_dynres_max` -1: Render Scale, so with headroom nothing changes) to `vr_dynres_min` 0.6; the eye targets are remade
+only when the bucket changes, as the Render Scale slider remakes them, and resampled by the existing upscaler (TAA's
+when on). Down: two frames in a row over the budget drop it at once to the bucket predicted within 95 % of it. Up: one
+bucket at a time once the slow average (and the last two frames) predict the next within 85 %, a second after a drop,
+half a second between rises. The 30 frames after VR starts or after a gap over 0.1 s (a load) are not read. Status box:
+a `Dynamic res x0.85 of 1.00, GPU 6.1 of 7.9 ms` line; Tracy: `Dynres scale`, `Dynres budget ms` (and `Render scale`).
+Settings: VR Settings > Display and Graphics (Dynamic Resolution, Dynamic Lowest Scale; advanced: Dynamic GPU Budget,
+Dynamic Highest Scale) and the Headset page's toggle. Debug > Profiling: Artificial GPU Load (`vr_dynres_test_load`: a
+full-view pass that changes no pixel, 64 loop iterations a pixel a unit; negative: one frame of it), the mock option and
+`vr_dynres_log` (2: also twice a second).
+
+Checked (mock 1024², e1m1, `vr_dynres 2`, budget 9.44 ms): idle 0.8-1.3 ms, 600 frames at 1.00, no change. Three
+one-frame spikes of 53-76 ms (load -1000): no change. A 30-frame fight (load 400, 22.6 ms at 1.00): straight to 0.60,
+then back to 1.00 at 0.05 a half second once it ended. Load 250 held (13.9 ms at 0.95): to 0.75, then 0.70 and 0.65 as
+the unscaled part showed (7.7 ms there, steady), never rising under the load (no pumping); load 0: back to 1.00 in 4 s.
+
+Not done: a distance LOD for the carve and parallax marches. Both already cap their steps at the pixels (texels at the
+mip read) the ray crosses (vr_glsl.h ParallaxUV; the carve's `length(ab) / foot`) and fade out past their distances, so
+distance is already in it; fewer steps would show. A lower dynamic scale lowers their steps through the same cap.
+
+To try in VR (on by default with a headset): his 4090 should stay at his Render Scale (the status box line at x1.00); a
+heavy fight may dip it. Debug > Profiling > Artificial GPU Load 100-200 to watch it drop and come back; look for a hitch
+at each change (the targets remade) and the TAA history resetting.
