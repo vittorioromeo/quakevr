@@ -122,6 +122,8 @@ typedef struct {
 	float		model_matrix[16];
 	float		bounds_matrix[16];
 	int			instok;		// inst and the swing rows kept (vr_shadow_setup_share)
+	const float	*boxbones;	// a posed caster's box (R_AliasPosedBox) and the bone matrices it is of (NULL: none)
+	vec3_t		boxmins, boxmaxs;
 	int			smoothfirst;	// its swing rows: where they are kept (VR_AnimSmoothKeep), how many, where they were in the batch
 	int			smoothrows;
 	int			smoothat;
@@ -1249,6 +1251,7 @@ typedef struct {
 	int			numbones;
 	int			numverts;
 	unsigned	sig;		// a sample of the vertices (a ragdoll's model made again where another one was)
+	int			frame;		// host_framecount when the signature last matched (checked once a frame)
 	float		*box;		// numbones x 6: mins, maxs (mins above maxs: no vertex on it)
 } aliasbonebox_t;
 static aliasbonebox_t	aliasboneboxes[ALIASBONEBOX_CACHE];
@@ -1280,12 +1283,22 @@ static const float *R_AliasBoneBoxes (const aliashdr_t *mainhdr)
 	aliasbonebox_t *c;
 	float *box;
 	int numverts, i, v, k;
-	unsigned sig = R_AliasBoneBoxSig (mainhdr, &numverts);
+	unsigned sig;
+	for (i = 0; i < ALIASBONEBOX_CACHE; i++)
+	{
+		c = &aliasboneboxes[i];
+		if (c->hdr == mainhdr && c->numbones == mainhdr->numbones && c->frame == host_framecount)
+			return c->box;
+	}
+	sig = R_AliasBoneBoxSig (mainhdr, &numverts);
 	for (i = 0; i < ALIASBONEBOX_CACHE; i++)
 	{
 		c = &aliasboneboxes[i];
 		if (c->hdr == mainhdr && c->numbones == mainhdr->numbones && c->numverts == numverts && c->sig == sig)
+		{
+			c->frame = host_framecount;
 			return c->box;
+		}
 	}
 	if (mainhdr->numbones <= 0)
 		return NULL;
@@ -1324,6 +1337,7 @@ static const float *R_AliasBoneBoxes (const aliashdr_t *mainhdr)
 	c->numbones = mainhdr->numbones;
 	c->numverts = numverts;
 	c->sig = sig;
+	c->frame = host_framecount;
 	return box;
 }
 
@@ -1347,14 +1361,24 @@ static void R_AliasBoxThrough4 (const float m[16], const vec3_t lo, const vec3_t
 }
 
 // e's world box as posed (model_matrix: its vertices' to the world); false: none (not posed, or not known)
-static qboolean R_AliasPosedBox (entity_t *e, aliashdr_t *hdr, const float model_matrix[16], vec3_t mins, vec3_t maxs)
+// (cached: the shadow pass's entry for e, set up by an earlier light: its box taken while of the same bone matrices)
+static qboolean R_AliasPosedBox (entity_t *e, aliashdr_t *hdr, const float model_matrix[16], vec3_t mins, vec3_t maxs,
+	aliasdepthentry_t *cached, qboolean cachehit)
 {
 	const float *bones = NULL, *box;
 	vec3_t lo = {1e30f, 1e30f, 1e30f}, hi = {-1e30f, -1e30f, -1e30f};
 	int numbones, b, i;
+	if (cached)
+		cached->boxbones = cachehit ? cached->boxbones : NULL;
 	if (hdr->poseverttype != PV_IQM)
 		return false;
 	numbones = aliasdepth ? VR_AliasShadowBonePoses (e, &bones) : VR_AliasBonePoses (e, &bones);
+	if (cached && cachehit && bones && cached->boxbones == bones)
+	{
+		VectorCopy (cached->boxmins, mins);
+		VectorCopy (cached->boxmaxs, maxs);
+		return true;
+	}
 	if (!bones || numbones < hdr->numbones || !(box = R_AliasBoneBoxes (hdr)))
 		return false;
 	for (b = 0; b < hdr->numbones; b++)
@@ -1384,6 +1408,12 @@ static qboolean R_AliasPosedBox (entity_t *e, aliashdr_t *hdr, const float model
 	{
 		mins[i] -= 1.f;
 		maxs[i] += 1.f;
+	}
+	if (cached)
+	{
+		cached->boxbones = bones;
+		VectorCopy (mins, cached->boxmins);
+		VectorCopy (maxs, cached->boxmaxs);
 	}
 	return true;
 }
@@ -1641,6 +1671,8 @@ transformed:
 cull:
 	posed = VR_AliasBonePoses (e, NULL) != 0; // QVR
 	facemask = aliasfaces ? *aliasfaces : 0;
+	if (cached && !cachehit)
+		cached->boxbones = NULL; // (a new entry: no box yet)
 	if (mode == ALIAS_STANDARD || mode == ALIAS_DEPTH) // QVR: the posed by their bones' box (R_AliasPosedBox)
 	{
 		int tested = aliasfaces ? R_AliasFaceCount (facemask) : 1, culled = 0, cullmode = 0;
@@ -1650,7 +1682,7 @@ cull:
 			;
 		else if (!posed)
 			culled = !aliasfaces && R_CullModelForEntity (e); // (layered: the caller culled it by face)
-		else if ((cullmode = VR_AliasCullPosedOn (e, mode == ALIAS_DEPTH)) && R_AliasPosedBox (e, paliashdr, model_matrix, pmins, pmaxs))
+		else if ((cullmode = VR_AliasCullPosedOn (e, mode == ALIAS_DEPTH)) && R_AliasPosedBox (e, paliashdr, model_matrix, pmins, pmaxs, cached, cachehit))
 		{
 			unsigned char before = facemask;
 			if (aliasfaces)
@@ -1806,6 +1838,8 @@ cull:
 		memcpy (cached->model_matrix, model_matrix, sizeof (model_matrix));
 		memcpy (cached->bounds_matrix, bounds_matrix, sizeof (bounds_matrix));
 		cached->instok = 0; // (below, once its instance is made)
+		if (!posed)
+			cached->boxbones = NULL; // (a posed one's: kept at the cull)
 		cached->gen = aliasdepthgen;
 	}
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR

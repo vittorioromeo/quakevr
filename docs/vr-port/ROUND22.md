@@ -11596,3 +11596,66 @@ the `xr submit` zone should show it), the error of the bound on his GPU, and the
 
 To try in VR: Debug > Profiling > Test Work Under xrEndFrame 2 ms with the toggle on and off; on, the frame rate should
 hold and `xrEndFrame Overlap Report` show the work before the end call and "past the tail 0 frames".
+
+
+## Posed models culled by their bones' box: the eyes and each shadow face (worktree `gorefx`, branch `agent/cullgear`, 2026-10-17)
+
+From qvr-kit scratch/renderdoc_flat.md, findings F3 and F4.
+
+What was unculled: only the IK-posed models (VR_AliasBonePoses: your body, its mirror image, the jointed hands, the
+ragdolls). r_alias.c skipped R_CullModelForEntity for them (their bones place them past the model's bounds; a ragdoll's
+model says +-64), and vr_lighting.cpp gave them every face of every light they were near. The worn gear (leg holsters,
+pauldrons, pouches, gadget, holstered guns) is not posed and was already culled by its box: `vr_alias_cull_stats` on
+start looking ahead, a view: 4 leg holsters drawn, 3.5 culled; pauldrons 2 of 2 culled (flat screen: 4 holsters, 3.5
+culled). The leg holster "drawn 3-4 times a frame" is the four leg holster slots (hips and uppers, left and right): four
+entities, no duplicate (the stats' "repeats", the same entity twice in one view, are 0 everywhere). The RenderDoc
+zero-sample holster draws that remain are inside the frustum (occluded by the leg or the body), not a missing cull.
+
+The box (`R_AliasPosedBox`): for each bone, the bind-pose box of the vertices it weights (R_AliasBoneBoxes, kept for 16
+models, keyed by the header, vertex and bone counts and a sample of the vertices, checked once a frame), through the
+bone's skinning matrix, all of them together, then through the model matrix, plus 1 unit. A vertex is a blend of its
+bones' places with weights summing to one, each inside its bone's moved box: inside the union. Eyes: R_CullBox. Layered
+shadows: the box against each face's four sides in clip space (R_AliasFacesOf), the instance's face mask narrowed to
+the faces it reaches (vr_lighting.cpp's per-face cull for the others is unchanged: they were culled already). Face at a
+time: the face's frustum. The shadow pass's per-pass entry (vr_shadow_setup_share's cache) keeps the box and the bone
+matrices it is of, so later lights reuse it (your body's shadow matrices differ by the light: vr_shadow_head). Never
+culled: your body in the eyes while its bare forearms lend the hands its light (view::keepsBareLight; the default
+build), so the hands' shading never changes as the body leaves the view.
+
+Settings (Debug > Profiling and Memory): `vr_alias_cull_posed` 1 (*Cull Posed Models*; 0 as before; 2 *Checked*: each
+cull checked by skinning the model on the CPU, any vertex left inside counted as wrong); `vr_alias_cull_stats` (*Model
+Cull Stats*): by model, the draws and culls a frame in the eyes and the shadow faces, the posed ones, repeats, wrong, and
+the triangles submitted.
+
+Measured (Release-Tracy, default zones, mock looking 50 degrees down at the body, hands out, 600 frames; 0 then 1):
+
+| | start | hip1m1 |
+|---|---|---|
+| shadow-face triangles a frame | 298,255 / 103,581 (-65 %) | 173,580 / 75,228 (-57 %) |
+| shadow faces drawn / culled a frame | 158.8 / 48.0 culled (of 157.8) | 79 / 26 culled |
+| eye triangles a frame | 58,511 / 58,510 | 48,936 / 48,936 |
+| GPU shadow maps ms | 0.062 / 0.050 | 0.044 / 0.038 |
+| GPU eyes L+R ms | 1.029 / 0.981 | 0.921 / 0.937 |
+| CPU `eye L` / `eye R` us | 535 / 484, 117 / 97 | 296 / 296, 48 / 49 |
+| CPU `shadow alias draw` us | 66.7 / 69.5 | 24.3 / 27.2 |
+
+All triangles submitted (eyes and shadows): start -55 %, hip1m1 -44 %. The GPU gain is the shadow maps' 6-12 us; the eyes
+and CPU moves are within run-to-run noise (a disturbed hip1m1 run measured `eye L` 2.2 ms; repeated). The layered
+shadows draw a posed caster once whatever its faces, so the CPU cost the finding pointed at (`alias shadow model`) is
+not cut by this; the box costs about 1 us a posed caster a pass. In this pose the eyes cull nothing more: the body is
+kept (bare forearms) and the hands are in view; looking up or away the hands go (start looking ahead: hands 12 of 16
+draws culled a frame).
+
+Checks: `vr_alias_cull_posed 2`, 10 scenes on start (looking down 60 and 89, 30/40, up 40; four `vr_mock_camera`
+third-person views, front, back, far front and from below; the menu's body clone with `vr_menu_body_clone 2`, two
+angles): 0 wrong. Fixed-frame eye shots of the same scenes, off and on in separate runs (`vr_fixed_frames 1`, seeds):
+every image identical up to the runs' noise (at most a few pixels by 1; two cull-off runs differ from each other by
+more than off and on do). Shadow atlases at fixed frames (start, hip1m1; `vr_shadow_layered_check 1`): the same hashes
+off and on (fc4d3114, b08dc24c; 38ce68fe, 3d2086c4). `vr_shadow_layered_check 20` and `20 cache`: 0 texels differ on
+start and hip1m1. Side note: the headless Release mock runs R_SetupView 8 times a host frame (4 flat), the Tracy
+captures 2; `vr_alias_cull_stats` divides by host frames and prints the view count.
+
+To try in VR: nothing should look different. Look up and around with the hands low, at your body's shadow near a
+torch, and at the body clone on a VR page: no part of the body, the hands or a ragdoll should pop in or out at the view's
+edges or in shadows. Cull Posed Models Off/On in Debug > Profiling and Memory to compare; Checked with Model Cull Stats
+should say wrong 0.
