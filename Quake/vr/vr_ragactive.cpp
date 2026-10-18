@@ -345,6 +345,19 @@ void reachTargets(const State& s, const Parts& p, int limb, za::Array<glm::quat,
     return f > -1e29f ? f : fallback;
 }
 
+// The floor under `q` (level), traced down from `top` to `bottom` (vr_flinch 2: from its pelvis's height, the real
+// floor under a foot: a stair's step below a hanging foot, not missed; a foot by a riser, not traced from inside the
+// step above).
+[[nodiscard]] float floorUnder(const Context& c, const glm::vec3& q, float top, float bottom, float fallback)
+{
+    if(!c.floorBelow)
+    {
+        return fallback;
+    }
+    const float f = c.floorBelow(glm::vec3{q.x, q.y, top}, za::max(top - bottom, 0.01f));
+    return f > -1e29f ? f : fallback;
+}
+
 // A frame of rolling over: the whole body turned as one at rollRate (`sign`) about level `axis` (along its spine)
 // through the edge it rolls over (on the floor, on the side going down: the floor holds that side up and takes the
 // turn), eased: its parts' spin about it and their motion round it.
@@ -1270,7 +1283,8 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
             continue;
         }
         const glm::vec3 f = limbEnd(s, p, leg);
-        const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
+        const float len = limbLength(s, p, leg);
+        const float floor = floorUnder(c, f, za::max(pelvis.z, f.z + 0.1f), f.z - 2.f * len, f.z - g.footGap[i]);
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
         // stand frame's feet level.)
         if(first)
@@ -1280,7 +1294,6 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
             whole++;
         }
         gapNow[i] = f.z - floor - g.footGap[i];
-        const float len = limbLength(s, p, leg);
         if(leg != g.stepLeg && gapNow[i] < legsBears * len)
         {
             g.bearAt[static_cast<za::SizeT>(n++)] = f;
