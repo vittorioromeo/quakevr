@@ -144,7 +144,7 @@ constexpr Spawnable spawnables[] = {
     {"Weapons", "Grenade Launcher", "func_weapon_grabbable", "progs/v_rock.mdl", 8.f, "weapon", 8.f, 0, false},
     {"Weapons", "Rocket Launcher", "func_weapon_grabbable", "progs/v_rock2.mdl", 8.f, "weapon", 10.f, 0, false},
     {"Weapons", "Thunderbolt", "func_weapon_grabbable", "progs/v_light.mdl", 8.f, "weapon", 11.f, 0, false},
-    {"Weapons", "Grunt's Shotgun", "func_weapon_grabbable", "progs/v_gruntgun.mdl", 8.f, "weapon", 15.f, 0, false},
+    {"Weapons", "Grunt Burst Rifle", "func_weapon_grabbable", "progs/v_gruntgun.mdl", 8.f, "weapon", 15.f, 0, false},
     {"Weapons", "Enforcer's Rifle", "func_weapon_grabbable", "progs/v_enfrifle.mdl", 8.f, "weapon", 16.f, 0, false},
     {"Weapons", "Chainsaw", "func_weapon_grabbable", "progs/v_chainsaw.mdl", 8.f, "weapon", 14.f, 0, false},
     {"Weapons", "Toolgun", "func_weapon_grabbable", "progs/v_toolgun.mdl", 8.f, "weapon", 19.f, 0, false},

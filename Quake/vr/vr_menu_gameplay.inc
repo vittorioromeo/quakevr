@@ -924,6 +924,40 @@
         slider("Enforcer's Laser Rifle", vr_enfrifle_damage, 1.f, 60.f, 1.f, "%.0f a shot").extend()
             .help("Enforcers always drop their laser rifle: it fires the enforcer's laser (the enforcer's: 15). As your "
                   "nails, it strikes corpses, gibs, props and breakables too."),
+        // AD support: Arcane Dimensions' weapons (QC vr_ad_bridge.qc, vr_ad_enemyguns.qc, vr_ad_melee.qc): the upgrades
+        // you find, the soldiers' guns and the melee monsters' weapons they drop (their other numbers: Arcane
+        // Dimensions' Guns).
+        header("Arcane Dimensions"),
+        slider("Shadow Axe", vr_dmg_ad_shadowaxe, 1.f, 150.f, 1.f, "%.0f").extend()
+            .help("Arcane Dimensions' axe upgrade: a blow (AD's 35, the axe's 20), before its speed and weight. It gibs "
+                  "a zombie in pain for good and chops bodies on the floor."),
+        slider("Widowmaker", vr_dmg_ad_widowmaker, 0.5f, 20.f, 0.5f, "%.1f a pellet").extend()
+            .help("Arcane Dimensions' super shotgun upgrade: each pellet of a shot that takes a third shell (without "
+                  "one it fires as the Double Shotgun)."),
+        slider("Widowmaker Pellets", vr_ad_widowmaker_pellets, 1.f, 40.f, 1.f, "%.0f").extend(1.f, 100.f)
+            .help("Its pellets a shot (AD's 21; the Double Shotgun's 14)."),
+        slider("Plasma Gun", vr_dmg_ad_plasmagun, 5.f, 300.f, 5.f, "%.0f").extend()
+            .help("Arcane Dimensions' lightning gun upgrade: a bolt's direct hit (AD's 45; a map can set its own), a "
+                  "cell a bolt, 5 a second."),
+        slider("Plasma Gun Blast", vr_dmg_ad_plasmagun_splash, 0.f, 200.f, 5.f, "%.0f").extend().help("AD's 20. 0: none."),
+        slider("Plasma Gun Bolt Speed", vr_ad_plasmagun_speed, 200.f, 2500.f, 25.f, "%.0f u/s").extend(100.f, 5000.f),
+        slider("Plasma Soldier's Rifle", "vr_adgun_plasma_damage", 0.f, 100.f, 1.f, "%.0f a bolt").extend(0.f, 500.f)
+            .help("The plasma soldier's dropped rifle (its blast, speed, bolts: Arcane Dimensions' Guns)."),
+        slider("Centurion's Plasma Gun", "vr_adgun_centurion_damage", 0.f, 100.f, 1.f, "%.0f a bolt").extend(0.f, 500.f)
+            .help("The centurion's and the eliminator's dropped plasma gun."),
+        slider("Defender's Shotgun", "vr_adgun_defender_damage", 0.f, 20.f, 0.5f, "%.1f a pellet").extend(0.f, 100.f),
+        slider("Pyro's Flamethrower", "vr_adgun_pyro_damage", 0.f, 30.f, 0.5f, "%.1f a flame").extend(0.f, 200.f)
+            .help("Each flame's damage to what it touches; what it touches burns (Arcane Dimensions' Guns)."),
+        slider("Fumigator's Poison Sprayer", "vr_adgun_fumigator_damage", 0.f, 30.f, 0.5f, "%.1f a puff").extend(0.f, 200.f)
+            .help("Each puff's damage; its poison: Arcane Dimensions' Guns."),
+        slider("Crossbow Knight's Crossbow", "vr_adgun_crossbow_damage", 1.f, 60.f, 1.f, "%.0f a bolt").extend(0.f, 200.f),
+        slider("Melee Monsters' Swords", "vr_admelee_sword_damage", 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The death fury's, death knight's, zombie knight's and death guard's dropped swords: times the "
+                  "Knight's Sword's."),
+        slider("Hunter Ogres' Hammer and Mace", "vr_admelee_heavy_damage", 0.25f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Held in both hands, times the Knight's Sword's (one hand's share: Arcane Dimensions' Guns)."),
+        open("Arcane Dimensions' Guns", pageIndex(pageAdGuns))
+            .help("The soldiers' guns' every number: rounds, rate, speed, blast, fuel, reach, poison."),
         header("Thrown"),
         slider("All Throws", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
             .help("Every throw's damage times this: thrown weapons (from 20 for a gun to 60 for a sword at full speed, "

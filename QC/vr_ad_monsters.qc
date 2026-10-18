@@ -695,12 +695,10 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 313) { return "progs/mon_soldier.mdl"; }
     if(choice == 314) { return "progs/mon_soldier.mdl"; }
     if(choice == 315) { return "progs/mon_enforcer.mdl"; }
-    if(choice == 316) { return "progs/mon_enforcer.mdl"; }
     if(choice == 317) { return "progs/mon_centurion.mdl"; }
     if(choice == 318) { return "progs/mon_pyro.mdl"; }
     if(choice == 319) { return "progs/mon_fumigator.mdl"; }
     if(choice == 325) { return "progs/w_dcrossbow.mdl"; }
-    if(choice == 326) { return "progs/mon_freddie.mdl"; }
     if(choice == 340) { return "progs/w_dfurysword1.mdl"; }
     if(choice == 341) { return "progs/w_dknightsword.mdl"; }
     if(choice == 342) { return "progs/w_zombiesword.mdl"; }
@@ -803,12 +801,10 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 313) { self.classname = "func_weapon_grabbable"; self.weapon = 21; func_weapon_grabbable(); }
     else if(choice == 314) { self.classname = "func_weapon_grabbable"; self.weapon = 22; func_weapon_grabbable(); }
     else if(choice == 315) { self.classname = "func_weapon_grabbable"; self.weapon = 23; func_weapon_grabbable(); }
-    else if(choice == 316) { self.classname = "func_weapon_grabbable"; self.weapon = 24; func_weapon_grabbable(); }
     else if(choice == 317) { self.classname = "func_weapon_grabbable"; self.weapon = 25; func_weapon_grabbable(); }
     else if(choice == 318) { self.classname = "func_weapon_grabbable"; self.weapon = 26; func_weapon_grabbable(); }
     else if(choice == 319) { self.classname = "func_weapon_grabbable"; self.weapon = 27; func_weapon_grabbable(); }
     else if(choice == 325) { self.classname = "func_weapon_grabbable"; self.weapon = 28; func_weapon_grabbable(); }
-    else if(choice == 326) { self.classname = "func_weapon_grabbable"; self.weapon = 7; func_weapon_grabbable(); }
     else if(choice == 340) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 256; func_weapon_grabbable(); }
     else if(choice == 341) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 512; func_weapon_grabbable(); }
     else if(choice == 342) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 768; func_weapon_grabbable(); }
