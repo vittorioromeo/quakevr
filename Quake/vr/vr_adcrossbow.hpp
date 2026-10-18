@@ -31,6 +31,11 @@ inline constexpr const char* frameNames[addedFrames] = {"xbow_loose", "xbow_snap
 // QVR_SVC_FIRED for the player's hand `hand` (vr_weaponfx.cpp playerFired).
 void fired(int hand);
 
+// Where hand `hand`'s shot leaves from: its crossbow's bolt's middle as drawn, from the muzzle in the shot's frame
+// (forward, right, up), as of the last frame drawn; zero (the muzzle) without one. Sent with the move (VrMove::launchOfs
+// -> QC .launchofs, .offlaunchofs), so the shot follows the bolt however the crossbow is posed.
+[[nodiscard]] glm::vec3 launchOffset(int hand);
+
 // Every frame, the guns placed: the hands' crossbows' frames and their bolts.
 void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2]);
 

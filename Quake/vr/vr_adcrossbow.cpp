@@ -62,6 +62,8 @@ struct Hand
     double shotAt{-1.0};
     bool held{false}; // drawn holding the crossbow last frame
     glm::vec3 centre{0.f}, fwd{0.f}, up{0.f}; // its bolt's place last frame (drawn or not: vr_adgun_crossbow_info)
+    glm::vec3 launch{0.f};                    // and its middle from the muzzle in the shot's frame (zero: not held)
+    glm::vec3 firedCentre{0.f}, firedFwd{0.f}; // the bolt as the last shot left (vr_adgun_crossbow_info)
 };
 Hand handState[2];
 
@@ -143,20 +145,27 @@ struct Look
     return l;
 }
 
-// The bolt's place on the gun `w` (drawn): where its middle is, which way it points and its up.
-void boltPose(const view::ViewEntity& w, glm::vec3& centre, glm::vec3& fwd, glm::vec3& up)
+// The bolt's place on hand `hand`'s gun `w` (drawn): where its middle is, which way it points and its up. Its back on the
+// string; along the shot (the way the projectile flies: the default hold's shot runs along the rail to 0.3 degrees; a
+// hold re-posed off it shows the bolt off the rail rather than a shot leaving at another angle than the bolt lay).
+void boltPose(int hand, const view::ViewEntity& w, glm::vec3& centre, glm::vec3& fwd, glm::vec3& up)
 {
     const glm::vec3 at = view::modelPoint(w, nock);
     fwd = glm::normalize(view::modelPoint(w, nock + railAhead) - at + glm::vec3{1e-6f});
+    const int slot = weapons::heldSlot(hand);
+    if(slot >= 0)
+    {
+        glm::vec3 r, u;
+        hands::angleVectors(weapons::shotAngles(hands::current().rot[hand], slot, hand == HAND_OFF), fwd, r, u);
+    }
     up = view::modelPoint(w, nock + railUp) - at;
     up = glm::normalize(up - fwd * glm::dot(up, fwd) + glm::vec3{0.f, 0.f, 1e-6f});
     centre = at + fwd * boltBack;
 }
 
-void placeBolt(view::ViewEntity& b, const view::ViewEntity& w, qmodel_t* model, float t)
+void placeBolt(view::ViewEntity& b, const view::ViewEntity& w, qmodel_t* model, float t, const glm::vec3& centre,
+    const glm::vec3& fwd, const glm::vec3& up)
 {
-    glm::vec3 centre, fwd, up;
-    boltPose(w, centre, fwd, up);
     const glm::vec3 a = hands::anglesFromVectors(fwd, up);
     entity_t& e = b.ent;
     if(model != b.lastModel)
@@ -206,15 +215,33 @@ void info_f()
         {
             continue;
         }
-        // The bolt's middle from the muzzle, in the shot's frame (QC VR_ADGun_FireCrossbow launches from there).
+        // The bolt's middle from the muzzle, in the shot's frame (sent: QC VR_ADGun_FireCrossbow launches from there).
         glm::vec3 f, r, u;
         hands::angleVectors(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF), f, r, u);
-        const glm::vec3 d = h.centre - s.muzzle[hand];
         Con_Printf("  bolt middle %.2f %.2f %.2f, muzzle %.2f %.2f %.2f: from the muzzle %.3f forward %.3f right %.3f up; "
                    "bolt to shot %.2f deg\n",
-            h.centre.x, h.centre.y, h.centre.z, s.muzzle[hand].x, s.muzzle[hand].y, s.muzzle[hand].z, glm::dot(d, f),
-            glm::dot(d, r), glm::dot(d, u), glm::degrees(za::acos(za::clamp(glm::dot(h.fwd, f), -1.f, 1.f))));
+            h.centre.x, h.centre.y, h.centre.z, s.muzzle[hand].x, s.muzzle[hand].y, s.muzzle[hand].z, h.launch.x,
+            h.launch.y, h.launch.z, glm::degrees(za::acos(za::clamp(glm::dot(h.fwd, f), -1.f, 1.f))));
+        if(h.shotAt >= 0.0)
+        {
+            Con_Printf("  last shot: bolt middle %.2f %.2f %.2f, way %.4f %.4f %.4f\n", h.firedCentre.x, h.firedCentre.y,
+                h.firedCentre.z, h.firedFwd.x, h.firedFwd.y, h.firedFwd.z);
+        }
     }
+}
+
+// The bolt's middle from the hand's muzzle, in its shot's frame (forward, right, up).
+[[nodiscard]] glm::vec3 offsetFromMuzzle(int hand, const glm::vec3& centre)
+{
+    hands::State& s = hands::current();
+    if(!s.muzzleValid[hand])
+    {
+        return glm::vec3{0.f};
+    }
+    glm::vec3 f, r, u;
+    hands::angleVectors(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF), f, r, u);
+    const glm::vec3 d = centre - s.muzzle[hand];
+    return {glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)};
 }
 
 } // namespace
@@ -250,7 +277,14 @@ void fired(int hand)
     if(hand >= 0 && hand < 2 && handState[hand].held)
     {
         handState[hand].shotAt = cl.time;
+        handState[hand].firedCentre = handState[hand].centre;
+        handState[hand].firedFwd = handState[hand].fwd;
     }
+}
+
+glm::vec3 launchOffset(int hand)
+{
+    return hand >= 0 && hand < 2 && handState[hand].held ? handState[hand].launch : glm::vec3{0.f};
 }
 
 void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
@@ -289,7 +323,8 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
         w.poseFrame[1] = l.b;
         w.poseBlend = l.blend;
         w.zeroBlend = 0.f; // (the slot's blend towards frame 0 would damp the string)
-        boltPose(w, h.centre, h.fwd, h.up);
+        boltPose(hand, w, h.centre, h.fwd, h.up);
+        h.launch = offsetFromMuzzle(hand, h.centre);
         if(l.bolt < 0.f)
         {
             continue;
@@ -297,7 +332,7 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
         boltModel = boltModel ? boltModel : view::viewModel(boltModelName);
         if(boltModel && boltModel->type == mod_alias)
         {
-            placeBolt(b, w, boltModel, l.bolt);
+            placeBolt(b, w, boltModel, l.bolt, h.centre, h.fwd, h.up);
         }
     }
 }

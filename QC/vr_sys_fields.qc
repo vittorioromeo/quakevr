@@ -230,6 +230,10 @@
 // shotgun's breech back from the barrels, a well down from the gun
 .vector loadportface;
 .vector offloadportface;
+// Where a held gun's projectile leaves from, from its muzzle along the shot (forward, right, up: the shot's frame, so a
+// portal's turn changes nothing; zero: the muzzle): the AD crossbow's bolt as drawn in its groove (vr_adcrossbow.cpp).
+.vector launchofs;
+.vector offlaunchofs;
 // The magazine attached to each held (or carried) gun, as drawn (the engine; vr_reload.qc): a box, its middle and its three
 // half-axes (the first from the middle up to its feed end, in the well); the axes all zero: none.
 .vector magboxpos;

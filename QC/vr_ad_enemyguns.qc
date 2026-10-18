@@ -376,11 +376,8 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
 // ---------------------------------------------------------------------------------------------------------------------
 // The crossbow knight's crossbow
 
-// The bolt in its groove (vr_adcrossbow.cpp, vr_adgun_crossbow_anim): its middle from the muzzle in the shot's frame, as
-// slot 32's default hold places them (vr_adgun_crossbow_info prints them; the bolt lies along the shot to 0.3 degrees),
-// and its drawn size (the engine's boltScale).
-#define VR_ADXBOW_GROOVE_FWD -10.47
-#define VR_ADXBOW_GROOVE_UP 1.5
+// The bolt in its groove (vr_adcrossbow.cpp, vr_adgun_crossbow_anim): its drawn size (the engine's boltScale). Where it
+// lies comes with each move (.launchofs, .offlaunchofs).
 #define VR_ADXBOW_BOLT_SCALE 0.75
 
 // Its bolt (AD's, launched as the knight's: its model, speed and flight) strikes: Quake VR's damage (vr_adgun_crossbow_damage,
@@ -430,14 +427,15 @@ void(float xHand) VR_ADGun_FireCrossbow =
     vector dir = VRGetWeaponFireRotFwd(xHand);
     float speed = max(100, VR_ADGun_Value(WID_ADCROSSBOW, "speed"));
     vector org = VRGetMuzzlePos(xHand);
+    vector ofs = VR_IMPL_SELECT(xHand, self.offlaunchofs, self.launchofs);
     float drawn = 1;
-    if(cvar("vr_adgun_crossbow_anim"))
+    if(cvar("vr_adgun_crossbow_anim") && ofs != '0 0 0')
     {
-        // The bolt the client draws in the crossbow's groove (vr_adcrossbow.cpp) is the one that leaves: from its middle
-        // (behind the muzzle along the shot, a little over it: as the turned model and its default hold lay it) at its
-        // size. Not through a wall (the muzzle then).
+        // The bolt the client draws in the crossbow's groove, along the shot (vr_adcrossbow.cpp), is the one that leaves:
+        // from its middle as drawn (.launchofs: from the muzzle in the shot's frame, however the crossbow is posed), at
+        // its size. Not through a wall (the muzzle then).
         makevectors(VRGetWeaponFireRot(xHand));
-        vector groove = org + v_forward * VR_ADXBOW_GROOVE_FWD + v_up * VR_ADXBOW_GROOVE_UP;
+        vector groove = org + v_forward * ofs_x + v_right * ofs_y + v_up * ofs_z;
         traceline(org, groove, TRUE, self);
         if(trace_fraction == 1 && !trace_startsolid)
         {
@@ -448,6 +446,10 @@ void(float xHand) VR_ADGun_FireCrossbow =
     ad_launch_projectile(org, dir, ad_CT_PROJ_BOLT1, speed);
     entity m = ad_newmis;
     m.scale = drawn;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("adgun: crossbow bolt launched at %v way %v (from the muzzle %v)\n", org, dir, ofs));
+    }
     m.touch = VR_ADGun_BoltTouch;
     m.velocity = dir * speed + vrProjectileVelocity(xHand, 0.4);
     m.angles = vectoangles(m.velocity);
