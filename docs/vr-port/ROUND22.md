@@ -13659,3 +13659,33 @@ back still on the string): it flies the way it lay. `vr_debug_shots 1` prints `a
 `vr_adgun_crossbow_info` the bolt as the last shot left. Checked (`scratch/xbpose.sh`, off hand): default pose launch
 vs drawn bolt 0.035 u, 0.00 deg; re-posed (pitch 15, yaw 10, scale 0.9, z 2; offset now -13.8 -3.9 -3.1) 0.035 u,
 0.00 deg; `vr_ad_test 93` PASS.
+
+## Swing sounds by speed (worktree `fastship`, branch `agent/swoosh`, 2026-10-18)
+
+- **Before:** a fist's, slap's or melee weapon's whoosh played only as a blow landed (`VR_Melee_Whoosh`), always at 1.
+- **Now** (`vr_melee_swish` 1; QC `vr_melee.qc` "Swing sounds by speed"): every motion of a fist, open hand or melee
+  weapon is measured as a share of the speed its blow would land at (`VR_Melee_LandNeed`, the hand's and blow's own;
+  a weapon's far end counted at 1/3 of its speed, so a wrist-whipped blade counts). Under `vr_melee_swish_min` (0.5):
+  silent. Up to 1: a soft swish (the same samples), at most `vr_melee_swish_sub` (0.45), smoothstep from the least
+  share, up to 6% lower the softer, played at the motion's fastest (its four-pose mean slowed to 90% of its peak). A
+  blow: as before, as it lands, at 1 up to `vr_melee_swish_gain` (1.6) at `vr_melee_swish_full` (2.2) times its landing
+  speed (this pose's or the last's share), up to 6% higher. Per hand: once a motion (re-armed once the part slows under
+  0.35 of its landing speed), soft ones 0.2 s apart at least; none under water or while pushing (bash, shove). Guns keep
+  the blow's whoosh only, at 1. Menu: Combat > Melee > Swing Sounds (5 rows).
+- **Louder than full:** QC `sound()`'s volume may now go to 4: `SV_WriteSound` sends a volume over 255 as a short
+  (`SND_LOUD`, protocol.h; clamped to 255 in NetQuake's protocol), the client's channel keeps `master_vol` over 255,
+  and the 8-bit and band-limited mixers (and the spatial audio's shadow mix) skip their 255 cap for such a channel only
+  (static sounds combined over 255 are still capped as before).
+- **Checks:** 29 takes replayed (`developer 1` prints `melee swish:` lines): punches land at 1.37-1.48 of their
+  landing speed (volume 1.13-1.21), the slap 1.79 (1.44), a backswing cut 2.13 (1.59), overhead cuts 1.88-2.35
+  (1.49-1.6), a weak one 1.03 (1.0); the "no hit" waves and wiggles play soft swishes 0.07-0.45. Synthetic closed-fist punches (0.8 m,
+  `vr_mock_play`): 1 and 2 m/s silent, 2.7 m/s a soft 0.06, 3.3-7.3 m/s blows at 1.06-1.6 (10 m/s 1.48: its first
+  pose read low); `snd_show 2` L+R 29 (0.06), ~225 (0.45), ~503 (1.0), 532 (1.06), 610 (1.21), 707 (1.41), 800 (1.6):
+  the engine plays them over full. `eval.sh --full` 168/177 (its 4 differences from
+  the baseline are older: the bash damage default 10 -> 5, a stab replayed at 15.9 with `vr_melee_swish 0` too).
+- **Mock caveat:** where the 90 Hz poses beat against the server's ticks, a steady motion reads double one pose in four
+  (a soft swish was fired just before the blow by such a dip): soft swishes use the four-pose mean. The melee model
+  itself lands mock punches on those spikes (a steady 0.77 of the landing speed landed a blow): not changed here.
+- **For VR:** slow arm moves silent; a brisk wave or a wind-up a soft whoosh; a punch or cut a clear step louder; a
+  very fast punch or full cut louder than before and a touch higher. Waving a sword or axe about now whooshes softly
+  each stroke (0.2 s apart at most): if too busy, raise Heard From or lower Short of a Blow.

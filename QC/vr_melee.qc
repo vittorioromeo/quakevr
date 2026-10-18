@@ -2293,6 +2293,165 @@ float(float xHand, entity b, vector xVel) VR_Melee_LandNeed =
 
 float vr_melee_whoosh_alt; // the swish played last (VR_Melee_Whoosh): the knights' two swings taken in turn
 
+// ----------------------------------------------------------------------------
+// Swing sounds by speed (vr_melee_swish; docs/vr-port/ROUND22.md, "Swing sounds by speed")
+//
+// Any motion of a fist, an open hand or a melee weapon that moves air whooshes, by its speed as a share of the speed its
+// blow would land at (VR_Swish_Share: VR_Melee_LandNeed, the hand's and the blow's way; a weapon's far end, which the
+// wrist whips round, counted at 1 / VR_MELEE_TIP_SLASH of its speed). Under vr_melee_swish_min: silent. Up to the
+// landing speed: softly, at most vr_melee_swish_sub, as the motion is at its fastest (it slowed to VR_SWISH_PEAK_FALL of
+// it: VR_Swish_Frame), a little lower the softer. A blow (VR_Melee_Whoosh, as it lands, as before) at 1, up to
+// vr_melee_swish_gain at vr_melee_swish_full times its landing speed (louder than full: protocol.h SND_LOUD), a little
+// higher too. Once a motion: again once the part slowed under VR_SWISH_REARM of the least share, a soft one not within
+// VR_SWISH_COOLDOWN of the hand's last. A gun keeps its blow's whoosh only, at 1 (waved, aimed and reloaded all the time).
+float VR_SWISH_PEAK_FALL = 0.9; // a soft swish plays once the motion slowed to this share of its fastest
+float VR_SWISH_REARM = 0.7;     // and the next once the part slowed under this share of vr_melee_swish_min
+float VR_SWISH_COOLDOWN = 0.2;  // s: a soft swish not sooner than this after the hand's last (a wave back and forth)
+float VR_SWISH_LEAST = 0.04;    // volume: a softer swish isn't played
+float VR_SWISH_PITCH = 6;       // percent: higher at a blow's most gain, lower at the softest swish
+// (A blow's volume is by its speed as it lands, not a guess at its fastest to come: the author's takes of 2026-10-12
+// land their punches at 1.37-1.6 times the landing speed and go 1.63-1.72 at most, his overhead cuts 1.9-2.7 and
+// 2.4-3.1 (the far end's), but the frames' rise as they land, 0.3-0.8 a frame, foretells it at 2.6-5.9.) Its speed is
+// this pose's or the last's, the faster, as the blow's own is a pose's (its four poses' mean lags: 0.85 for a punch
+// landing at 1.43). A soft swish's is the mean of the last four poses' (VR_Swish_Mean): a swing's speed jumps from pose
+// to pose (the takes' 0.66, 1.24, 1.16; where the frames beat, a mock punch at a steady 0.77 of its landing speed reads
+// 1.23, 0.62, 0.62, 0.62), and such a dip is no slowing down (it played a soft swish just before the blow).
+
+.float mh_sw_h1, mh_sw_h2, mh_sw_h3; // the shares of the three poses before
+.float mh_sw_armed; // a soft swish may play (VR_Swish_Frame: the part slowed since the last)
+.float mh_sw_peak;  // the motion's fastest share of its landing speed since
+.float mh_sw_time;  // the hand's last swish (its own time: VR_Blow's mh_time)
+.float mh_sw_blown; // the motion was a blow (its fastest is printed as the part slows: developer 1)
+float vr_swish_blew; // VR_Melee_Whoosh played a blow's whoosh for the hand this frame (VR_Swish_Frame)
+float vr_swish_chan; // VR_Swish_Sample's channel
+
+float(float t) VR_Swish_Ease =
+{
+    t = clamp(t, 0, 1);
+    return t * t * (3 - 2 * t);
+};
+
+// How fast `xHand`'s striking part goes, as a share of the speed its blow would land at.
+float(float xHand, entity b) VR_Swish_Share =
+{
+    float need = VR_Melee_LandNeed(xHand, b, b.mh_vgrip);
+    if(need <= 0)
+    {
+        return 0;
+    }
+    float s = vlen(b.mh_vgrip);
+    if(b.mh_thing != VR_MTHING_FIST && b.mh_thing != VR_MTHING_GUN)
+    {
+        s = max(s, vlen(b.mh_vfar) / VR_MELEE_TIP_SLASH);
+    }
+    return s / need;
+};
+
+// That share over the last four poses (the frames' beat evened out).
+float(float xHand, entity b) VR_Swish_Mean =
+{
+    return (VR_Swish_Share(xHand, b) + b.mh_sw_h1 + b.mh_sw_h2 + b.mh_sw_h3) * 0.25;
+};
+
+// The swish of what `xHand` swings, the knights' two swings (or a slap's two) in turn, its channel in vr_swish_chan.
+string(float xHand, entity b, float slap) VR_Swish_Sample =
+{
+    vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+    vr_swish_chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
+    if(slap)
+    {
+        return vr_melee_whoosh_alt ? "vr/slap_whoosh2.wav" : "vr/slap_whoosh1.wav";
+    }
+    if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
+       b.mh_thing == VR_MTHING_CROWBAR)
+    {
+        if(b.mh_thing == VR_MTHING_SAW)
+        {
+            vr_swish_chan = VRGetHandChannel(xHand); // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
+        }
+        return "weapons/ax1.wav";
+    }
+    return vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
+};
+
+// Plays `s` at `vol` (over 1: louder than full), `more` percent higher (and a little higher or lower each time).
+void(string s, float chan, float vol, float more) VR_Swish_Play =
+{
+    if(vol == 1 && more == 0)
+    {
+        VR_SoundVaried(self, chan, s, 1, ATTN_NORM);
+        return;
+    }
+    float j = clamp(cvar_hget(cvarh_vr_snd_pitch_jitter), 0, 25);
+    sound_pitch(self, chan, s, clamp(vol, 0, 4), ATTN_NORM, 100 + more + crandom() * j);
+};
+
+// A blow's whoosh (VR_Melee_Whoosh): louder and a little higher the faster it lands.
+void(float xHand, entity b, string s) VR_Swish_Blow =
+{
+    vr_swish_blew = TRUE;
+    if(!cvar_hget(cvarh_vr_melee_swish) || b.mh_thing == VR_MTHING_GUN)
+    {
+        VR_Swish_Play(s, vr_swish_chan, 1, 0);
+        return;
+    }
+    float x = max(VR_Swish_Share(xHand, b), b.mh_sw_h1); // (this pose's or the last: VR_Swish_Mean lags a blow)
+    float u = VR_Swish_Ease((x - 1) / (max(1.05, cvar_hget(cvarh_vr_melee_swish_full)) - 1));
+    float vol = 1 + (clamp(cvar_hget(cvarh_vr_melee_swish_gain), 1, 4) - 1) * u;
+    dprint(sprintf("melee swish: blow, hand %g, %.2f of its landing speed, volume %.2f, %s\n", xHand, x, vol, s));
+    VR_Swish_Play(s, vr_swish_chan, vol, VR_SWISH_PITCH * u);
+};
+
+// Every pose of `xHand` after VR_Melee_Whoosh: a soft swish for a motion short of a blow, at its fastest.
+void(float xHand, entity b) VR_Swish_Frame =
+{
+    float x = VR_Swish_Mean(xHand, b);
+    b.mh_sw_h3 = b.mh_sw_h2;
+    b.mh_sw_h2 = b.mh_sw_h1;
+    b.mh_sw_h1 = VR_Swish_Share(xHand, b);    float blew = vr_swish_blew;
+    vr_swish_blew = FALSE;
+    float least = clamp(cvar_hget(cvarh_vr_melee_swish_min), 0.05, 0.95);
+    if(x < least * VR_SWISH_REARM)
+    {
+        if(b.mh_sw_blown)
+        {
+            dprint(sprintf("melee swish: the blow's motion, hand %g, went %.2f of its landing speed at most\n", xHand,
+                b.mh_sw_peak));
+        }
+        b.mh_sw_armed = TRUE;
+        b.mh_sw_blown = FALSE;
+        b.mh_sw_peak = 0;
+    }
+    b.mh_sw_peak = max(b.mh_sw_peak, x);
+    if(blew)
+    {
+        b.mh_sw_armed = FALSE;
+        b.mh_sw_blown = TRUE;
+        b.mh_sw_time = b.mh_time;
+        return;
+    }
+    if(!b.mh_sw_armed || !cvar_hget(cvarh_vr_melee_swish) || b.mh_thing == VR_MTHING_GUN || b.mh_pushing)
+    {
+        return;
+    }
+    if(b.mh_sw_peak < least || x > b.mh_sw_peak * VR_SWISH_PEAK_FALL)
+    {
+        return;
+    }
+    b.mh_sw_armed = FALSE; // (once a motion)
+    float t = VR_Swish_Ease((min(1, b.mh_sw_peak) - least) / (1 - least));
+    float vol = clamp(cvar_hget(cvarh_vr_melee_swish_sub), 0, 1) * t;
+    if(vol < VR_SWISH_LEAST || b.mh_time - b.mh_sw_time < VR_SWISH_COOLDOWN || VR_Melee_HandUnderwater(b))
+    {
+        return;
+    }
+    b.mh_sw_time = b.mh_time;
+    string s = VR_Swish_Sample(xHand, b, b.mh_thing == VR_MTHING_FIST && !VR_Melee_ClosedFist(xHand));
+    dprint(sprintf("melee swish: soft, hand %g, %.2f of its landing speed at most, volume %.2f, %s\n", xHand,
+        b.mh_sw_peak, vol, s));
+    VR_Swish_Play(s, vr_swish_chan, vol, -VR_SWISH_PITCH * (1 - t));
+};
+
 // The weapon's whoosh as `xHand`'s striking part gets going as a blow would (once a motion): as fast as a blow needs,
 // come from some way off (and a fist closed). The motion recorder's "stroke". A blade's, a fist's or a gun's swish is the
 // knights' two swings in turn (knight/sword1, sword2), as their own attacks pick them: not one recording every time; an
@@ -2349,38 +2508,29 @@ void(float xHand, entity b) VR_Melee_Whoosh =
         kind = VR_MKIND_PUNCH;
     }
     VR_Motion_Event("stroke", VR_Melee_Category(kind, b.mh_thing), xHand, vlen(b.mh_vfar), b.mh_far, world, "");
-    vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
-    string s = vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
-    float chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
+    if(!slap && b.mh_thing == VR_MTHING_GUN && b.mh_vfar_z < -0.6 * vlen(b.mh_vfar))
+    {
+        vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+        return; // a gun swung down: reaching for a holster to reload is fast too
+    }
+    if(!slap && b.mh_thing == VR_MTHING_FIST && VR_Melee_OpenHand(xHand))
+    {
+        vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
+        return; // (an open hand that doesn't slap: VR_Swish_Frame's soft swish)
+    }
+    string s = VR_Swish_Sample(xHand, b, slap);
     if(slap)
     {
-        s = vr_melee_whoosh_alt ? "vr/slap_whoosh2.wav" : "vr/slap_whoosh1.wav";
         dprint(sprintf("melee sound: %s (a slap's whoosh, %.1f m/s, lands from %.1f)\n", s, vlen(b.mh_vgrip),
             VR_Melee_LandNeed(xHand, b, b.mh_vgrip)));
     }
-    else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
-       b.mh_thing == VR_MTHING_CROWBAR)
-    {
-        s = "weapons/ax1.wav";
-        if(b.mh_thing == VR_MTHING_SAW)
-        {
-            chan = VRGetHandChannel(xHand); // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
-        }
-    }
-    else if(b.mh_thing == VR_MTHING_GUN && b.mh_vfar_z < -0.6 * vlen(b.mh_vfar))
-    {
-        return; // a gun swung down: reaching for a holster to reload is fast too
-    }
-    else if(b.mh_thing == VR_MTHING_FIST && VR_Melee_OpenHand(xHand))
-    {
-        return;
-    }
     if(VR_Melee_HandUnderwater(b))
     {
+        vr_swish_blew = TRUE;
         dprint(sprintf("melee sound: none (%s under water)\n", s));
         return; // no air to swish: the swing (a punch, a weapon) still counts
     }
-    VR_SoundVaried(self, chan, s, 1, ATTN_NORM); // (a little higher or lower each time)
+    VR_Swish_Blow(xHand, b, s); // (louder the faster; a little higher or lower each time)
 };
 
 // ----------------------------------------------------------------------------
@@ -3480,6 +3630,7 @@ float(float xHand) VR_Melee_Strike =
         return FALSE; // a two-handed throw's follow-through, not a blow (vr_throw_2h_nomelee)
     }
     VR_Melee_Whoosh(xHand, b);
+    VR_Swish_Frame(xHand, b); // (swings short of a blow: vr_melee_swish)
     if(b.mh_pushing)
     {
         return FALSE; // a bash's push

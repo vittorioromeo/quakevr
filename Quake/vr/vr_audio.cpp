@@ -3672,9 +3672,10 @@ void shadowRender(Shadow& sh, int count)
             continue;
         }
         const bool wide = sc->width == 2;
+        const bool uncapped = wide || ch->master_vol > 255; // (louder than full: SND_LOUD, as SND_PaintChannelFrom8)
         const short* full = fullBand == 2 ? fullBandData(sc) : nullptr; // (as SND_PaintChannelFull)
-        const float lv = static_cast<float>(wide ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
-        const float rv = static_cast<float>(wide ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
+        const float lv = static_cast<float>(uncapped ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
+        const float rv = static_cast<float>(uncapped ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
         const int loop = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : -1;
         for(int i = 0; i < count; i++)
         {

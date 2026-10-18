@@ -133,6 +133,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	SND_PITCH		(1<<5)
 #define	SND_PITCH_MIN		0.25f
 #define	SND_PITCH_MAX		4.f
+// QVR: a sound louder than full volume (QC sound()'s volume over 1, up to SND_VOLUME_MAX / 255: a fast blow's whoosh,
+// QC vr_melee.qc VR_Swish): its volume a short, not a byte (with SND_VOLUME). Clamped to 255 in NetQuake's protocol.
+#define	SND_LOUD		(1<<6)
+#define	SND_VOLUME_MAX		1020
 
 //johnfitz -- PROTOCOL_FITZQUAKE -- flags for entity baseline messages
 #define B_LARGEMODEL	(1<<0)	// modelindex is short instead of byte
