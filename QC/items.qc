@@ -1699,19 +1699,34 @@ void() key_touch =
 };
 
 
+// A key's look and sound (self): its own "worldtype" if it has one, as Arcane Dimensions' keys read it (1 runic, 2 base:
+// the keycards, 3 medieval), else the map's (0 medieval, 1 runic, 2 base). The toolgun's spawn panel lists each.
+float() VR_KeyStyle =
+{
+    if(self.worldtype == 3)
+    {
+        return 0;
+    }
+    if(self.worldtype == 1 || self.worldtype == 2)
+    {
+        return self.worldtype;
+    }
+    return world.worldtype;
+};
+
 void() key_setsounds =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_sound("misc/medkey.wav");
         self.noise = "misc/medkey.wav";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_sound("misc/runekey.wav");
         self.noise = "misc/runekey.wav";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_sound2("misc/basekey.wav");
         self.noise = "misc/basekey.wav";
@@ -1731,19 +1746,19 @@ following:
 
 void() item_key1 =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_model("progs/w_s_key.mdl");
         setmodel(self, "progs/w_s_key.mdl");
         self.netname = "silver key";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_model("progs/m_s_key.mdl");
         setmodel(self, "progs/m_s_key.mdl");
         self.netname = "silver runekey";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_model2("progs/b_s_key.mdl");
         setmodel(self, "progs/b_s_key.mdl");
@@ -1773,19 +1788,19 @@ following:
 
 void() item_key2 =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_model("progs/w_g_key.mdl");
         setmodel(self, "progs/w_g_key.mdl");
         self.netname = "gold key";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_model("progs/m_g_key.mdl");
         setmodel(self, "progs/m_g_key.mdl");
         self.netname = "gold runekey";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_model2("progs/b_g_key.mdl");
         setmodel(self, "progs/b_g_key.mdl");

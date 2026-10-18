@@ -986,8 +986,10 @@ carries "AD support". `ad_import.py` has 9 more reviewed bridge patches (17 in a
 - **AD's own entities outside AD's rules** (decision 16; `vr_ad.cpp everywhereClasses`, `vr_ad_everywhere` 1, VR
   Settings > Combat > Arcane Dimensions: Its Content in Every Map): the seven new artifacts (`item_artifact_airtank`,
   `_blastbelt`, `_jumpboots`, `_lavashield`, `_nail_piercer`, `_sharp_shooter`, `_tomeofpower`, and Quoth's names
-  `_cross`, `_trinity`), the custom pickups that override none of ours (`item_keyx`, `item_custom`, `item_healthvial`,
-  `item_healthgem`) and the ladders (`trigger_ladder`) spawn as AD's entities (AD's spawn and touch) in any map: from
+  `_cross`, `_trinity`), the custom pickups that override none of ours (`item_keyx`, `item_custom`) and the ladders
+  (`trigger_ladder`) spawn as AD's entities (AD's spawn and touch; a hand's touch too: QC `VR_AD_BackpackRestore`) in
+  any map; the health vials and gems (`item_healthvial`, `item_healthgem`) are Quake VR's health boxes with AD's look
+  (QC `vr_ad_items.qc`: force-grabbable, taken at a holster, Quake VR's heal; ROUND22.md "AD health vials"): from
   the map, the toolgun's or `vr_physics_spawn`'s spawn (`box3d::spawnClass` resolves AD's names as `ED_LoadFromFile`).
   The first one of a map runs AD's reduced world setup (QC `VR_AD_WorldOnDemand`: AD's defaults for the globals its
   items, ladders and debuffs read, a few sounds; nothing of AD's world itself: its gravity, fog, particles and light

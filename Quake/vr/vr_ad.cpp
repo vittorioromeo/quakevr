@@ -78,7 +78,8 @@ constexpr const char* everywhereClasses[] = {
 #undef QVR_AD_SPAWN
     "item_artifact_airtank", "item_artifact_blastbelt", "item_artifact_cross", "item_artifact_jumpboots",
     "item_artifact_lavashield", "item_artifact_nail_piercer", "item_artifact_sharp_shooter", "item_artifact_tomeofpower",
-    "item_artifact_trinity", "item_custom", "item_healthgem", "item_healthvial", "item_keyx", "trigger_ladder",
+    "item_artifact_trinity", "item_custom", "item_keyx", "trigger_ladder",
+    // (the health vials and gems are Quake VR's pickups with AD's look: QC vr_ad_items.qc item_healthvial)
 };
 
 // AD's worldspawn keys (section 6): each one present is a signal.

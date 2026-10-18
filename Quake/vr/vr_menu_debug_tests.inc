@@ -363,6 +363,11 @@ za::Vector<Item> pageDebugTests()
                   "axe's own blows: a zombie in pain gibbed for good, the knight's long pain, a downed zombie chopped by a "
                   "swing, a trigger's upgrade_axe key, the blow's 35. The console prints each (adshadowaxe:). Then the "
                   "Shadow Axe stays in your main hand and one zombie is left: knock it down and chop it."),
+        adSpawnRow(307, command("Arcane Dimensions: Health Vials Test", "vr_ad_test 142; wait; vr_ad_test 143; vr_physics_spawn item_healthvial 64 -24; vr_physics_spawn item_healthgem 64 24")) // AD support
+            .help("A health vial and a gem are force-grabbed into your main hand and put in the shoulder holster (each "
+                  "heals 2-5), and AD's own vial's heal is checked (it once left you at 0 health, unable to act); "
+                  "adhealth: lines in the console. Then a shotgun in your main hand and two vials ahead: force grab "
+                  "them, and shoot and jump."),
         adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
             .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
                   "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
