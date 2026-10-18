@@ -164,7 +164,7 @@ const char* sightAlignLine(int i)
 
 const char* sightAlignNone()
 {
-    return "No sights: a melee weapon";
+    return "No sights: a melee weapon, or a gun without a sight line";
 }
 
 void weaponOffsetsPoseWeapon()

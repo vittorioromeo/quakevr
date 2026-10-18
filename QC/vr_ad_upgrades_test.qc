@@ -148,11 +148,24 @@ void() AD_ShadowAxeTestRun =
         down && keptByAxe && vr_adsa_z3.ad_bodyonflr != ad_MON_ONFLR && AD_ShadowAxeGone(vr_adsa_z3),
         sprintf("down %g, the axe left it %g, health %g", down, keptByAxe, vr_adsa_z3.health));
 
-    // The triggers' upgrade_axe key (triggers_states.qc's hook): the Shadow Axe carried, then not.
+    // The triggers' upgrade_axe key (triggers_states.qc's hook): the Shadow Axe carried, then not (the holsters' own
+    // Shadow Axes set aside meanwhile: Arcane Dimensions: Shadow Axe in Hand holsters one).
+    float holstered[8];
+    for(float i = 1; i < 8; i++)
+    {
+        entity inst = AD_CarriedInst(p, i);
+        holstered[i] = inst != world ? (inst.wi_adup & ad_IT_UPGRADE_AXE) : 0;
+        if(inst != world) { inst.wi_adup = inst.wi_adup - holstered[i]; }
+    }
     AD_ShadowAxeGive(p, TRUE);
     float carried = VR_AD_HasUpgrade(p, ad_IT_UPGRADE_AXE);
     AD_ShadowAxeGive(p, FALSE);
     float notCarried = VR_AD_HasUpgrade(p, ad_IT_UPGRADE_AXE);
+    for(float j = 1; j < 8; j++)
+    {
+        entity back = AD_CarriedInst(p, j);
+        if(back != world) { back.wi_adup = back.wi_adup | holstered[j]; }
+    }
     AD_ShadowAxeCheck("a trigger's upgrade_axe key: the Shadow Axe carried", carried && !notCarried,
         sprintf("carried %g, without it %g", carried, notCarried));
 

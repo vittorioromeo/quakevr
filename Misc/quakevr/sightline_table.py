@@ -83,6 +83,7 @@ for g,((xr,zr),(xf,zf)) in sights.items():
 # once on AD 1.80 patch 1's): its rail falls 0.1935 per unit (z 3.43 - 0.1935 x, x 0..21.5), the string's latch stands
 # 0.9 over it at x 6.5 (3.08): the line along the rail, 0.05 over the latch (its rear sight), from over the fist to x 26.
 out.append('{"progs/w_dcrossbow.mdl#gun0", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},')
+out.append('{"progs/w_dcrossbow.mdl#gun", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},')  # (its slot's ID: the same model)
 HEAD+='''
 // The grunts' burst gun and the enforcers' rifle: their modelled sights (make_enemyguns.py), the rifle's zeroed at 10 m.
 // AD support: AD's crossbow (turned, vr_adguns.cpp): along its rail, just over the string's latch (measured on AD 1.80p1).'''
