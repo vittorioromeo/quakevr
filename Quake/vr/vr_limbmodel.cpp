@@ -36,6 +36,31 @@ constexpr int maxSkinHeight = 480;    // Mod_LoadAliasModel's MAX_LBM_HEIGHT
 // Blood reds (0..255) the strip is painted with: the palette's nearest (its ordinary colours, not the fullbright).
 constexpr float bloodReds[4][3] = {{96.f, 8.f, 4.f}, {124.f, 14.f, 8.f}, {72.f, 4.f, 2.f}, {148.f, 24.f, 12.f}};
 
+// A monster's gear left off its limbs' models (a piece of its own: no triangle crosses to the flesh), as its cut limb
+// drops a weapon of ours in its place: AD's Freddie's super nailgun, its five barrels on his left forearm (QC
+// vr_ad_enemyguns.qc VR_ADGun_LimbCut drops Quake VR's super nailgun; the corpse loses them with the limb).
+struct LeftOff
+{
+    const char* model;
+    int numVerts;
+    int first, last;
+};
+constexpr LeftOff leftOff[] = {
+    {"progs/mon_freddie.mdl", 660, 88, 182}, // AD support
+};
+
+[[nodiscard]] bool isLeftOff(const ragdoll::Rig& rig, int v)
+{
+    for(const LeftOff& l : leftOff)
+    {
+        if(rig.model && rig.numVerts == l.numVerts && v >= l.first && v <= l.last && !strcmp(rig.model->name, l.model))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] int rd(const byte* b, size_t at)
 {
     int v;
@@ -214,7 +239,9 @@ struct Built
     }
 
     const uint32_t bones = ragdoll::limbBones(rig, bone) & (only ? only : ~0u);
-    const auto onLimb = [&](int v) { return v >= 0 && v < numVerts && (bones & (1u << rig.vertBone[static_cast<za::SizeT>(v)])) != 0; };
+    const auto onLimb = [&](int v) {
+        return v >= 0 && v < numVerts && (bones & (1u << rig.vertBone[static_cast<za::SizeT>(v)])) != 0 && !isLeftOff(rig, v);
+    };
     const auto posOf = [&](int v) {
         const byte* t = src + poseAt + static_cast<size_t>(v) * 4;
         return glm::vec3{t[0], t[1], t[2]} * scale + origin;
@@ -564,9 +591,42 @@ bool available(const char* base, int bone, uint32_t only)
     // (A triangle wholly on the bones: build's own ones; vertices alone are not enough, the centroid's tail's first
     // bone, its tip cut off, has none: its model would not load, a Host_Error at its precache.)
     const uint32_t bones = ragdoll::limbBones(*rig, bone) & (only ? only : ~0u);
+    bool any = false;
     for(const uint32_t t : rig->triBones)
     {
-        if(t && !(t & ~bones))
+        any = any || (t && !(t & ~bones));
+    }
+    if(!any)
+    {
+        return false;
+    }
+    // A monster with gear left off its limbs (leftOff): the triangles themselves, the gear's not counted (Freddie's gun
+    // forearm is little but the gun: none of its own, no piece; his super nailgun drops instead, QC VR_ADGun_LimbCut).
+    bool leftOffModel = false;
+    for(const LeftOff& l : leftOff)
+    {
+        leftOffModel = leftOffModel || (rig->model && rig->numVerts == l.numVerts && !strcmp(rig->model->name, l.model));
+    }
+    if(!leftOffModel)
+    {
+        return true;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig->model)));
+    if(!hdr || hdr->numverts != rig->numVerts)
+    {
+        return true;
+    }
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        bool own = true;
+        for(int k = 0; k < 3 && own; k++)
+        {
+            const int v = desc[idx[i + k]].vertindex;
+            own = (bones & (1u << rig->vertBone[static_cast<za::SizeT>(v)])) != 0 && !isLeftOff(*rig, v);
+        }
+        if(own)
         {
             return true;
         }

@@ -9,6 +9,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_adguns.hpp"
+#include "vr_adweapons.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
@@ -1956,6 +1957,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
     Cmd_AddCommand("vr_adgun_variants", adguns::variants_f); // AD support: the AD guns as our burst rifle's variants (vr_adgunart.cpp)
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
+    Cmd_AddCommand("vr_adweapon_models", adweapons::info_f); // AD support: AD's upgraded weapons' VR models (vr_adweapons.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();

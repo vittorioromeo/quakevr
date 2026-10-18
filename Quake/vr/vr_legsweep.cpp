@@ -172,7 +172,7 @@ State state;
 [[nodiscard]] float edgeShare(const qmodel_t* model)
 {
     using modelmeta::Id;
-    if(modelmeta::is(model, Id::VAxe) || modelmeta::is(model, Id::Mg3SuperAxe))
+    if(modelmeta::is(model, Id::VAxe) || modelmeta::is(model, Id::Mg3SuperAxe) || modelmeta::is(model, Id::AdVrAxe)) // (AD support)
     {
         return 0.6f; // the head
     }

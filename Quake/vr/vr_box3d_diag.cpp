@@ -882,7 +882,11 @@ void ragdollList_f()
         }
         for(const World::RagdollGrab& g : world->ragdollGrabs)
         {
-            if(g.num == r.num)
+            if(g.num == r.num && g.player == 0)
+            {
+                Con_Printf("  held by the physgun: part %d (%s)\n", g.part, r.rig->bones[g.part].name);
+            }
+            else if(g.num == r.num)
             {
                 Con_Printf("  held by client %d's %s hand: part %d (%s), %.1f units from the hand\n",
                     g.player, g.hand ? "main" : "off", g.part, r.rig->bones[g.part].name, grabReach(g.player, g.hand));
@@ -1755,6 +1759,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_struggle_status", struggleStatus_f);
+        Cmd_AddCommand("vr_flinch_status", qvr::box3d::flinchStatus_f);
         Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_frametime", frametime_f);

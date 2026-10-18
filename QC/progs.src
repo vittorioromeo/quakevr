@@ -287,6 +287,7 @@ vr_knockdown_test.qc
 // Hits that unbalance: strong throws and blows stagger monsters as shoves do (after the knockdowns: it uses them).
 vr_hitstagger.qc
 vr_hitstagger_test.qc
+vr_flinch.qc
 vr_foegrab_throw.qc
 vr_legsweep.qc
 // Impacts (ragdolls struck on the level, landing crush) and manhandling (after the knockdowns and the limbs: it uses them).

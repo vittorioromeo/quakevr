@@ -12566,6 +12566,226 @@ opening is the forearm cuff). Not done (open): the leather's own detail to the p
 creases, a grain normal map: `make_glove_paint.py`). For him in VR: the thickness (1.5-3 mm), the edge's darkness
 and its shadow, the fingers bending with the glove on (fist, point).
 
+## Flinch: hits as brief active ragdolls (worktree `fastship`, branch `agent/flinch`, 2026-10-18)
+
+The author's idea: every attack briefly turns the enemy into an active ragdoll with a natural flinch and recovery, then
+it blends back into its Quake animation. This is phase 1. The design is in docs/vr-port/FLINCH.md. `vr_flinch 1` (the
+new default) against `0` (exactly the old reactions) is the A/B. Combat > Flinch has every setting. The Debug > Tests
+"Flinch" rows hold the overlay, the status and the tests.
+
+- **How:** the shove's stagger reused. The hit's impulse goes into the knockdown's ragdoll, made from the current pose
+  (0.35 at the point, the rest as travel along the hit). Capture steps are taken only while the capture point is off
+  the support, and the arms wheel as strongly as the hit. The recovery test: the centre of mass over the feet's discs and
+  strip, under 0.35 m/s, pelvis and chest within 22 degrees of the stand frame, firm ground under both feet. Past the
+  balance's edge (2 m/s, x0.65 on uneven floor) it falls after a step or two, at 1.5x at once. The hand-back is in the
+  best-fitting stand, run or struck-near frame, its origin and yaw from the body, blended 0.15-0.3 s by the gap.
+- **Measured** (headless; `scratch/fl_terrain.sh`, `fl_classes.sh`, `fl_crowd.sh` in the worktree, not committed):
+  - Grunt, flat floor, slope and stairs. A shotgun blast (0.37-0.52 m/s) and a 30-damage blow (0.8-1.1 m/s) recover
+    in 0.32 s with 0 steps on all three.
+  - A point-blank super shotgun (2.08 m/s) and a 60-damage blast 48 units away (2.25 m/s): on the flat it falls after
+    its steps; on the slope and stairs it goes down at once.
+  - Knight, death knight and ogre recover from the shotgun, the super shotgun (the ogre's 0.83 m/s in 1.4 s, 4 steps)
+    and the blow. The enforcer shuffles 8-9 steps and settles at about 2.1 s (rough).
+  - Crowd: ten grunts, one shotgun blast each in one frame. 6 flinch (the budget), 4 refused (small reaction), all 6
+    recovered in 0.34 s. The drive costs 0.0063 ms per flinching grunt per frame. Server physics went from 0.14 ms to
+    0.21 ms a frame mean (p99 0.49).
+  - Switch-in: 0.13-0.24 ms (rigs cached per class: no pool needed).
+  - Hand-back gap (the pop metric, mean vertex distance from the chosen frame): 0.3-0.4 units for a shotgun flinch on
+    the flat, 3.3 for a blow, 5.4 on the slope, 16 on the stairs (rough: the feet are on two steps, the frame has them
+    level).
+  - eval.sh --full: 168/177 with `vr_flinch 1` and with `vr_flinch 0`, and the same verdicts and events per take. Both
+    show the same 5 diffs against the kit's baseline (the bash and stab damage values, already on next). Only the
+    replay's hand_error_u column differs between runs.
+  - Physics hash: physbench (`PB_CRATES=0`, single-threaded too) gives a different hash and body count on two identical
+    `vr_flinch 0` runs (80-84 bodies), so it cannot show "unchanged" here. Every new path is gated on `vr_flinch` (QC
+    `VR_Flinch_On`, `ragdollFlinch`'s first check, `Stagger::flinch`, `standSpotLifts`). `wheel` defaults to 1. The hit
+    reaction's split into `VR_HitReact_Where`/`_Slow` keeps its order.
+- **Rough:**
+  - The enforcer's long shuffle.
+  - The stairs hand-back gap.
+  - The test hits use 1 damage, with the impulse taken from the nominal damage (`vr_fl_test_damage`). Real weapons go
+    through the same `T_DamageDeal` path but were not fired by the mock in this round.
+  - Zombies and the mummy are left out by default (`vr_flinch_classes "* -monster_zombie -monster_zombiek
+    -monster_mummy"`).
+- **Map:** vrtesthall gains a 22-degree slope (x -240..-80, y 460..620), recompiled.
+
+## AD crossbow: turned to face +x; Freddie's super nailgun (worktree `tghost`, branch `agent/adcrossbow2`, 2026-10-18)
+
+His notes: (1) the crossbow, posed in Weapon Offsets, turned the wrong way: flicking the wrist up and down felt like yaw,
+not roll; different axes acted than on our other weapons. (2) Freddie's super nailgun on his arm: cutting that arm off
+should make the gun available.
+
+**Crossbow, cause**: AD's `progs/w_dcrossbow.mdl` (its gib) lies flat with its front at -y and the bow across x; slot 33
+used it as it is with Yaw 90. The slot's Pitch/Yaw/Roll are Quake angles applied in the model's own frame
+(`axes(hand) * axes(pitch, yaw, roll)`, yaw outermost), so with Yaw 90 a Pitch turned it about its stock (a roll) and a
+Roll about the bow (a pitch); `vr_gunmodelpitch` (7) tilted it sideways too. Its box and hull are clean (stock 40 units
+along y, bow 34 across x, no stray geometry; only the header's radius was 39.9 against a true 27).
+
+- **Fix**: `vr_adguns.cpp` `turnedModels`: "progs/w_dcrossbow.mdl#gun0" is AD's file turned a quarter about z (front +x,
+  bow across y), the tiller behind the bow (its old Hand Anchor, `0 8 3`) the origin; lossless (x and y swap their
+  packing scales; every vertex where it was), normals and frame boxes turned, the radius measured. QC's model
+  (`VR_ADGun_Model`) and slot 33's ID (`progs/w_dcrossbow.mdl#gun`) name it. `vr_adgun_models` lists it: box -11.97
+  -16.93 -3.48 .. 27.97 16.93 4.48.
+- **His pose kept**: his config's slot 33 (Pitch -18.54, Yaw 98.05, Roll -11.55, Scale 0.621, Offset 10.53 8.66 -3.29)
+  converted exactly to the turned model (the same place in the hand; checked on a vertex to 1e-5) and made the default:
+  Pitch -18.3135, Yaw 5.7092, Roll 11.7704, Offset -1.5229 10.5289 -0.2907, Scale 0.621. Anchors turned with it (muzzle
+  `28 0 -2.5`, hand `0 0 0`, two-handed hand `20 0 -2`, button `0 0 0`, text `2 0 6`). Hotspot 1 (the other hand's
+  grip, copied from the rifle) lay 12 units off the crossbow's left side: now under the fore-stock behind the bow
+  (model `13 0 -0.5`: Hotspot1 `3.5375 -6.4157 -1.6298`); the unused hotspots 2-3 turned. `vr_wofs_version` 44 resets
+  slot 33 once (an old config's sideways values would turn it wrong).
+- **Found on the way, fixed**: anchors on any model made from another's file ("#gun": the AD soldiers' guns too) all sat
+  on its first vertex: `vr_anchor.cpp` `loadMesh` read the mesh with `COM_LoadMallocFile`, and no file has such a name.
+  It now asks `adguns::derivedFile` first. So the AD guns' muzzles (slots 28-32's anchors, measured for those models)
+  are where they were meant to be for the first time; `vr_ad_test 70` still 9/9.
+- **Checked** (headless; the scratch scripts not committed: three anchors' world points under each angle +20, rotation from
+  their differences): crossbow (off hand, mirrored back) pitch about (0.10 -0.995 0), yaw about (0 0 1), roll about
+  (0.97 0.10 -0.20) (its barrel, as posed); the shotgun (main hand, e1m1 facing +y): pitch about its sideways axis,
+  yaw about up, roll about its barrel. The same axes. `vr_ad_test 93` (crossbow end to end) PASS; `vr_ad_test 70`
+  9/9 PASS.
+
+**Freddie's super nailgun**: his gun is his left forearm (`mon_freddie.mdl`: five barrels, vertices 88..182, on rig bone
+4 `forearm_l`; AD fires his nails from his left). `VR_Limb_Cut` (every cut or pop: blades, blunt, bullets, blasts,
+thrown things, corpses) now calls `VR_ADGun_LimbCut(e, bones taken)` (`vr_ad_enemyguns.qc`): a Freddie losing bone 4
+(the forearm, or the whole arm) drops Quake VR's super nailgun where the piece was, turned and moving as it, loaded as a
+dropped enemy gun is (`WeaponInst_New(WeaponIdToBaseClipSize)`: a full clip, 36), unless `vr_adgun_drops` 0. The
+barrels are left off his limbs' models (`vr_limbmodel.cpp` `leftOff`); his forearm is little but the gun, so it has no
+piece of its own (`available` counts triangles without the barrels): the stump bleeds and the SNG falls; a shoulder cut
+throws the upper arm without the gun. His corpse loses the barrels with the limb (the cut bones' vertices).
+
+- **Toolgun / Debug**: Debug > AD Monsters > Soldiers' Guns: "Crossbow Knight's Crossbow, End to End" (`vr_ad_test 93`)
+  and "Freddie's Gun Arm Cut Off" (`vr_ad_test 95`). Toolgun Weapons (`ad_monsters_gen.py` GUNS): 325 "AD Crossbow
+  Knight's Crossbow", 326 "AD Freddie's Super Nailgun" (both spawn: checked).
+- **Test** `vr_ad_test 95` (a Freddie near you: `vr_test_spawn 234; impulse 241`): killed, bone 4 cut, "a super nailgun
+  dropped (1)", it lies (v_nail2, 36 in it), taken into the main hand (weapon 7): PASS. Shot:
+  the corpse down, the SNG in hand (36/36).
+- `ad_import.py --check`: 0 of 142 differ.
+
+Left: the bolt sticking where it lands, reload feel, haptics (as before). With `vr_adgun_drops` 0 his cut arm still loses
+its barrels (the limb models are built once). A Freddie-derived SNG model was not made (the normal one drops).
+
+To try in VR: pick up a crossbow (ad_tfuma, or toolgun 325): it should sit as he posed it; then nudge Pitch, Yaw and
+Roll in Weapon Offsets (slot 33): each should turn it as it turns the shotgun. Cut a Freddie's left arm (a blade on the
+corpse, or `vr_ad_test 95`): a super nailgun falls there; take it.
+## The physgun on ragdolls (worktree `gorefx`, branch `agent/physgunrag`, 2026-10-18)
+
+His note: "The physgun toolgun doesn't work properly on ragdolls: rather than moving them naturally, they jitter and
+seem to teleport around."
+
+**Cause.** The physgun moved a ragdoll as it moves a monster: its entity's origin and angles set every frame (and
+FL_ONGROUND, a zero velocity). A ragdoll's entity is written back from its pelvis after every Box3D step
+(writeRagdoll), and feedRagdoll takes an origin moved more than 32 units from the body as a QC teleport: every part
+`b3Body_SetTransform`ed by the difference. So the body sagged or lagged behind the beam's point until it was 32 units
+off, then jumped there whole, frame after frame: the jitter and the teleports.
+
+**Fix** (vr_toolgun.cpp `dragStart`, `dragFrame`, `dragEnd`; vr_box3d_ragparts.cpp, "The physgun's hold"; box3d's
+`physgunRagdollGrab`, `physgunRagdollMove`, `physgunRagdollRelease`, `physgunRagdollPoints`): a ragdoll is held as a
+hand holds a limb. The beam is ray-cast against the ragdoll's parts' shapes (the first it meets; none: the part nearest
+the box's point, at its surface); a kinematic anchor sits at that point and a motor joint pulls the part's point to it,
+linear only (the part turns freely about it: the body hangs from that point and swings), critically damped, its most
+pull `vr_toolgun_physgun_ragdoll_force` (4) times the ragdoll's weight. Each step the anchor is driven to the beam's
+point (`b3Body_SetTargetTransform`: a velocity, never set). Box3D's soft spring is as stiff as for the part's own mass,
+so a forearm (2 of a grunt's 80 kg) held at 6 Hz hung 66 units behind its target, 41 when still: its rate is raised by
+the root of the body's mass over the part's (as 6 Hz on the whole body; at most 30 Hz). The entity is left alone; the
+sticks move the point (aside, up, nearer and farther), nothing turns it; let go, the part keeps at least the beam's
+swing along it (capped at 1000 u/s, as before). The hold is a `World::RagdollGrab` of player 0 (no hand): an active
+ragdoll's drive gives that part no strength as for a hand's hold, and a knocked-down one held far from its spot slumps
+rather than getting up; the struggles, the hands' drawing and QC's `ragdollheld` pass it by; `vr_ragdoll_list 1` says
+"held by the physgun". The hold ends when the ragdoll goes (it gets up, is removed, the world is made again) and the
+physgun lets go. Props and standing monsters are dragged as before. `vr_toolgun_physgun_ragdoll 0` is the old way.
+
+Test aids: `vr_mock_hand_aim <hand> ragdoll <part>` keeps the hand aimed at that part's middle of the ragdoll nearest
+the player (-1 the nearest part, -2 its head); `vr_toolgun_status` prints a held ragdoll's part and root
+(`toolgun: rag ...`). `python Misc/quakevr/toolgun_physgun_ragdoll_test.py <agent> [--old] [--parts <part>] [--knock]`:
+vrfiringrange, a grunt killed (`--knock`: knocked down alive), his gun cleared, the physgun on part `part`, the off
+stick moving the target 64 u/s aside, then up, then 256 u/s back, then still (180 frames of 14 ms).
+
+| grunt, part | mode | held part jitter, RMS (worst) | root jitter | biggest jump a frame: part / root / target | held point behind its target, most / at the end |
+|---|---|---|---|---|---|
+| chest (dead) | before | 19.4 (68.5) | 19.6 (69.7) | 35.7 / 41.3 / 4.2 | - |
+| chest (dead) | after | 0.36 (1.16) | 0.29 (0.91) | 4.4 / 4.4 / 4.3 | 13.5 / 5.9 |
+| forearm (dead) | before | 16.5 (40.9) | 16.6 (41.8) | 35.0 / 35.0 / 4.2 | - |
+| forearm (dead) | after | 2.49 (10.3) | 0.40 (1.35) | 9.0 / 6.0 / 4.2 | 15.9 / 0.2 |
+| chest (knocked down, alive) | after | 0.44 (1.86) | 0.40 (1.10) | 4.4 / 4.5 / 4.3 | 7.5 / 5.3 |
+
+(Jitter: the second difference of the part's place frame to frame, units. Before, the old way grabs the part nearest
+the box's point, not the one aimed at: the jumps are the 32-unit teleports. After, the forearm's jitter is its own
+swing about the held point as the body is dragged by it; the target's own steps alternate 3.1 and 4.1 units a frame at
+256 u/s.) `Misc/quakevr/toolgun_panel_test.sh` (a crate held, rolled, turned and snapped; a grunt held and turned):
+PASS.
+
+In VR: grab a corpse's chest, then an arm or a leg, swing it about and throw it; grab a knocked-down grunt; a crate
+and a standing monster as before.
+
+
+## AD's weapons as VR models: the Shadow Axe, the Widowmaker, the Plasma Gun (worktree `dequant`, branch `agent/adweapons`, 2026-10-18)
+
+His voice note: VR-friendly models of AD's three upgraded player weapons from AD's view models (no holes, a handle,
+proper dimensions, AD's look), used held, holstered, dropped and spawned by the toolgun instead of the placeholders
+(our axe, super shotgun, lightning gun).
+
+### The models (engine `vr_adweapons.cpp`, new)
+
+- Made as they load from the player's own AD files, as the soldiers' guns are (nothing of AD's written or shipped):
+  `"<AD view model>#vr"` through `VR_DerivedModelFile`. AD's model is found by walking the search paths for the release
+  measured (vertex/triangle/skin counts), so AD's `progs/v_plasma.mdl` is found although Rogue's name shadows it.
+  Another release, or no AD: our own weapon's model under the name (a stand-in, never a failed load).
+- Each laid in the frame of the Quake VR weapon it upgrades and packed from that model's corner, so its weapon slot
+  inherits everything (Offsets, hand, hotspots, holsters, mass): slots 33-35 (`vr_wofs_*_34..36`, `numSlots` 36),
+  InheritFrom the axe, the super shotgun, the lightning gun; own anchors only (hand as the parent's, the muzzle the gun's
+  front middle / the blade edge's top, the other hand's on the axe's handle below the head and on the guns' barrels).
+  - **Shadow Axe** (`v_shadaxe3.mdl` frame0): the arm and hand cut off (the welded piece of vertex 257); the handle's
+    axis onto our axe's handle, the blade out the same way, 0.85 of its size (blade 12.6 units out, the handle as thick
+    as ours); AD's banded handle end is where the hand closes. Its own edge in `vr_axestick.cpp`'s table (sticking);
+    `hotblade`, `legsweep`, melee phasing and "no sights" treat it as the axe (`modelmeta::Id::AdVrAxe`).
+  - **Widowmaker** (`v_shot3.mdl` fire1: a three-barrel shell open below and behind, tilted 4.5 degrees): levelled,
+    1.85x (25.5 units), the breech at the super shotgun's receiver; our super shotgun's own grip, trigger guard and
+    trigger grafted on (their pieces of `v_shot2.mdl` and their texels copied under AD's skin); the open bottom fanned
+    flat from its middle.
+  - **Plasma Gun** (`v_plasma.mdl` base1): AD's thin pistol grip, trigger and the stock's bar off; the lightning gun's
+    grip, guard and trigger grafted on where AD's grip was; cut just behind the hand (x -5.55 in our frame): the stock
+    would sit in the forearm in VR, and the lightning gun's corner had to hold.
+  - Every remaining hole (open bottoms, backs, the cut, the coil tube's ends) closed by a fan of dark triangles (palette
+    2); topology welded at 0.05 so the rounding's hairline cracks close too. 9 identical frames (animation frame numbers
+    stay valid); normals recomputed.
+- `vr_adweapon_models`: per model its triangles, AD's taken off / our grip put on, holes closed, open edges left (0 for
+  all three), box, whether the corner held, the muzzle (and the axe's blade edge). Now: axe 180 triangles, Widowmaker
+  518, Plasma Gun 532; each 0 open edges, corner kept. (The prototype that measured them rendered and hole-checked with
+  `check_mdl_holes.py`: all three "ok".)
+
+### Wiring (QC `vr_ad_bridge.qc`, `weapons.qc`)
+
+- `AD_WeaponModel(wid, flags, inst)`: the upgrade's VR model when the record has the upgrade where upgrades play (and
+  not Rogue's plasma ammo), else `WeaponIdToModel`. Used for dropped/thrown weapons and holstering;
+  `AD_SyncWeaponModels` (AD_PlayerPostThink, every frame while AD's data is there) keeps the hands' and holsters' model
+  strings right (swaps only between the plain and the upgraded model: an upgrade given, a load, a scope change), and
+  precaches them (`nosave` bits: a loaded game precaches again). The upgrade pickups (toolgun's AD Shadow Axe /
+  Widowmaker / Plasma Gun, map items) draw the VR model when pickups are drawn as weapons (`vr_pickup_prop_models`).
+- `vr_anchor.cpp`: anchors on derived models bind on the made file (adcrossbow2's fix for "#gun" widened at the merge
+  to every "#" name, so the "#vr" models' muzzles are right too).
+
+### Checked (headless)
+
+- `vr_adweapon_models`: numbers above. `vr_ad_test 96` (toolgun's spawn path, 309-311): each pickup's model is its
+  `#vr` model; `97`/`98`/`99`: the weapon in the main hand and the other two in the hip holsters, all `#vr`; `100` drops
+  the main hand's: the Widowmaker dropped as `v_shot3.mdl#vr`. With `vr_ad_upgrades 0` all go back to the plain models.
+- Grip fit: `vr_hotspot_fit` gives the same hand place on each AD model as on its plain parent (axe 7.88 0.91 4.92,
+  SSG 7.29 0.71 4.64 vs Widowmaker the same grip, LG / Plasma 3.87 0.21 5.43) and the same hotspots; the gripped hand
+  closes the same way (screenshots side by side).
+- `ad_import.py --check --release`: 0 of 142 files differ. Build: QC 0 warnings.
+- Screenshots (scratch, not committed): `scratch/adw_held.png` (each held, side and three-quarter), `adw_grip.png`
+  (gripped, AD model left, plain parent right, per weapon), `adw_holster.png` (hips), `adw_dropped.png` (the
+  Widowmaker dropped, mid-fall; the toolgun-spawned pickups ahead).
+- Debug menu (Tests, Arcane Dimensions): "Upgraded Weapons Ahead" (`vr_ad_test 96`), "Shadow Axe / Widowmaker /
+  Plasma Gun in Hand" (97-99).
+
+### For VR
+
+- Hold each (Debug > Tests > Arcane Dimensions > ... in Hand): the hand on the grip, the look, size; the muzzles (the
+  Widowmaker's is about 2 model units off-centre to the right after the inherited muzzle offset); the off hand on the
+  barrels (TwoH anchors guessed). Swing the Shadow Axe (sticking, glow). Holster and drop them.
+- Not done: the lightning gun's magazine (`vr_view.cpp`'s `VLight` mount) isn't drawn on the Plasma Gun; the
+  Widowmaker reloads at the hip, so the super shotgun's opening isn't needed. The toolgun's catalogue icons stay AD's
+  pickup models.
 
 ## AD guns as burst rifle variants; the flamethrowers' tank and hose (2026-10-18, worktree `goreflesh`, branch `agent/adgunvariants`)
 

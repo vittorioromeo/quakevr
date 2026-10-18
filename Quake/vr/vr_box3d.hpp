@@ -277,6 +277,13 @@ bool ragdollFlail(edict_t* ent, bool on);
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
+// A flinch (vr_flinch; QC vr_flinch.qc; docs/vr-port/FLINCH.md), a hit of `impulse` (N s, world) at `at` (units). Mode
+// 0: whether it may flinch now: the level change of speed it would give its body (m/s; its attack frames guarded: less),
+// -1 not (not of a flinching class, it can't stagger, past the budget or the range), -2 - that speed with no room for one
+// more ragdoll. Mode 1 (its knockdown's ragdoll just made): the flinch begun, 1 (2: down at once), 0 not. Mode 2: whether
+// its class flinches at all (1, 0).
+float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse, int mode);
+void flinchStatus_f(); // vr_flinch_status [reset]
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
 // ragdoll.
@@ -342,6 +349,17 @@ bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
+// The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll; vr_box3d_ragparts.cpp, "The physgun's
+// hold"): a spring from the beam's point to the part of edict `num`'s ragdoll the beam from `from` along `dir` (unit)
+// meets first within `range` units (none: the part nearest `fallback`), at that point; the part and the distance along the
+// beam to it out. False: not a ragdoll. Move: its target each frame (units); false, the hold is over (the ragdoll gone,
+// the part cut off, the world made again). Release: let go, the part keeps at least `velocity` (units/s) along it.
+// Points (tests): the held point and the ragdoll's root part's middle now (units); false: none held.
+bool physgunRagdollGrab(int num, const glm::vec3& from, const glm::vec3& dir, float range, const glm::vec3& fallback, int& part,
+    float& distance);
+bool physgunRagdollMove(const glm::vec3& target);
+void physgunRagdollRelease(const glm::vec3& velocity);
+bool physgunRagdollPoints(glm::vec3& grip, glm::vec3& root);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);
 [[nodiscard]] float ragdollHandReach(edict_t* player, int hand);

@@ -357,6 +357,7 @@ void() AD_PlayerPostThink =
         return;
     }
     AD_ArtifactsTick(); // (any map: AD's artifacts' time, the HUD's readings; vr_ad_items.qc)
+    AD_SyncWeaponModels(self); // (any map: the upgraded weapons' models)
     if(!AD_Rules())
     {
         AD_DebuffsTick(); // (any map: AD's poison and bleeding; vr_ad_player.qc)
@@ -977,6 +978,88 @@ float(float xWid) AD_UpgradeFor =
     return 0;
 };
 
+// AD's upgraded weapons drawn as themselves: their VR models, made from the player's own AD view models as they load
+// (engine vr_adweapons.cpp: "<AD view model>#vr", laid as the Quake VR weapon they upgrade, whose settings slots 33-35
+// inherit), never written anywhere. A weapon whose record has its upgrade (where the upgrades play) is drawn with it in
+// the hands, the holsters and on the ground, and the upgrade's pickup too (with vr_pickup_prop_models). Rogue's plasma
+// gun (the lightning gun's secondary ammo) keeps its own. Without AD's model the engine makes Quake VR's weapon instead.
+string(float xWid) AD_VRModelName =
+{
+    if(xWid == WID_AXE) return "progs/v_shadaxe3.mdl#vr";
+    if(xWid == WID_SUPER_SHOTGUN) return "progs/v_shot3.mdl#vr";
+    if(xWid == WID_LIGHTNING) return "progs/v_plasma.mdl#vr";
+    return "";
+};
+
+nosave float ad_vrmodels_made; // the models precached this server (bits 1 2 4; setmodel precaches: a hand's or a
+                               // holster's model string needs it too). Not saved: a loaded game precaches them again.
+
+void(string xModel) AD_EnsureVRModel =
+{
+    float bit = 0;
+    if(xModel == "progs/v_shadaxe3.mdl#vr") bit = 1;
+    if(xModel == "progs/v_shot3.mdl#vr") bit = 2;
+    if(xModel == "progs/v_plasma.mdl#vr") bit = 4;
+    if(!bit || (ad_vrmodels_made & bit))
+    {
+        return;
+    }
+    ad_vrmodels_made = ad_vrmodels_made | bit;
+    entity e = spawn();
+    setmodel(e, xModel);
+    remove(e);
+};
+
+// The model a weapon of kind `xWid` with flags `xFlags` and record `xInst` is drawn with (WeaponIdToModel's, or its
+// upgrade's AD VR model).
+string(float xWid, float xFlags, entity xInst) AD_WeaponModel =
+{
+    float up = AD_UpgradeFor(xWid);
+    if(up && vr_ad_data && AD_WeaponUpgraded(world, xInst, up) &&
+       !VRHasBit(VR_Pack_WeaponFlags(xWid, xFlags), QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    {
+        string m = AD_VRModelName(xWid);
+        AD_EnsureVRModel(m);
+        return m;
+    }
+    return WeaponIdToModel(xWid, xFlags);
+};
+
+// One hand's or holster's model string kept as its weapon's: switched only between the plain and the upgraded model
+// (an empty one, a hidden hand's, or another's left as it is).
+string(float xWid, float xFlags, entity xInst, string xNow) AD_SyncModel =
+{
+    if(!AD_UpgradeFor(xWid))
+    {
+        return xNow;
+    }
+    string vr = AD_VRModelName(xWid);
+    if(xNow == vr)
+    {
+        AD_EnsureVRModel(vr); // (a loaded game's)
+    }
+    string want = AD_WeaponModel(xWid, xFlags, xInst);
+    if(xNow == want || (xNow != vr && xNow != WeaponIdToModel(xWid, xFlags)))
+    {
+        return xNow;
+    }
+    return want;
+};
+
+// AD_PlayerPostThink: `p`'s hands' and holsters' models as their weapons' records say (an upgrade given, a weapon moved
+// from hand to holster, a game loaded, the upgrades' scope changed).
+void(entity p) AD_SyncWeaponModels =
+{
+    p.weaponmodel = AD_SyncModel(p.weapon, p.weaponflags, p.weaponinst, p.weaponmodel);
+    p.weaponmodel2 = AD_SyncModel(p.weapon2, p.weaponflags2, p.weaponinst2, p.weaponmodel2);
+    p.holsterweaponmodel0 = AD_SyncModel(p.holsterweapon0, p.holsterweaponflags0, p.holsterweaponinst0, p.holsterweaponmodel0);
+    p.holsterweaponmodel1 = AD_SyncModel(p.holsterweapon1, p.holsterweaponflags1, p.holsterweaponinst1, p.holsterweaponmodel1);
+    p.holsterweaponmodel2 = AD_SyncModel(p.holsterweapon2, p.holsterweaponflags2, p.holsterweaponinst2, p.holsterweaponmodel2);
+    p.holsterweaponmodel3 = AD_SyncModel(p.holsterweapon3, p.holsterweaponflags3, p.holsterweaponinst3, p.holsterweaponmodel3);
+    p.holsterweaponmodel4 = AD_SyncModel(p.holsterweapon4, p.holsterweaponflags4, p.holsterweaponinst4, p.holsterweaponmodel4);
+    p.holsterweaponmodel5 = AD_SyncModel(p.holsterweapon5, p.holsterweaponflags5, p.holsterweaponinst5, p.holsterweaponmodel5);
+};
+
 // weapon_touch, the weapon of `xPickup` (an upgrade's pickup) just given to `p`'s hand `xHand`: its upgrade on it.
 void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
 {
@@ -1158,6 +1241,11 @@ void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string x
     impl_weapon_item(xModel, xWeaponId);
     self.vr_ad_upgrade = xUpgrade;
     self.netname = xName;
+    if(self.vr_pickup_spin && vr_ad_data) // (drawn as the weapon: vr_pickup_prop_models) the upgraded weapon's own model
+    {
+        setmodel(self, AD_VRModelName(xWeaponId));
+        VR_WeaponPickup_Centre();
+    }
 };
 
 
@@ -1167,7 +1255,10 @@ Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every
 void() weapon_upgrade_axe =
 {
     AD_UpgradeItem(ad_MODEL_GWEAP_UPAXE, "weapon_axe", WID_AXE, ad_IT_UPGRADE_AXE, "Shadow Axe");
-    self.skin = 4; // (AD's Shadow Axe skin)
+    if(!self.vr_pickup_spin)
+    {
+        self.skin = 4; // (AD's Shadow Axe skin, of its pickup model)
+    }
 };
 
 /*QUAKED weapon_hammer (0 .5 .8) (-16 -16 0) (16 16 56)

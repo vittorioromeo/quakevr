@@ -46,6 +46,33 @@ constexpr Gun guns[] = {
     {modelmeta::Id::AdFumigator, 277, 530, {{17, 32}, {1, 0}}, "attack5", 46.f, -9.f, {-16.397949f, -7.5f, -4.6f}},
 };
 
+// AD's own weapon models, whole, laid as our guns are (ROUND22 "AD crossbow: turned to face +x"): AD's crossbow
+// knight's crossbow (progs/w_dcrossbow.mdl, its gib) lies flat with its front at -y and the bow across x. As it was,
+// its weapon slot needed a Yaw of 90, and every Pitch and Roll then turned it about the wrong axis (its own: the
+// slot's angles are applied in the model's frame), so it felt different in the hand from every other gun. Turned a
+// quarter about z (its front +x, the bow across y, up z), the tiller behind the bow (`pivot`, in its own space) its
+// origin; nothing else changed (every vertex exactly where it was, re-packed losslessly: x and y swap their scales).
+struct Turned
+{
+    const char* model;
+    float pivot[3];
+};
+constexpr Turned turnedModels[] = {
+    {"progs/w_dcrossbow.mdl", {0.f, 8.f, 3.f}},
+};
+
+[[nodiscard]] const Turned* turnedOf(const char* base)
+{
+    for(const Turned& t : turnedModels)
+    {
+        if(!strcmp(t.model, base))
+        {
+            return &t;
+        }
+    }
+    return nullptr;
+}
+
 [[nodiscard]] int rd(const byte* b, size_t at)
 {
     int v;
@@ -446,6 +473,150 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
 namespace
 {
 
+// A model of turnedModels turned (its file copied; the header's scale, corner, radius and eye, and each frame's box and
+// vertices rewritten: x' = pivot.y - y, y' = x - pivot.x, z' = z - pivot.z).
+[[nodiscard]] bool turn(const Turned& t, const byte* src, size_t size, Built& out, const char*& why)
+{
+    if(size < headerSize || rd(src, 0) != IDPOLYHEADER || rd(src, 4) != ALIAS_VERSION)
+    {
+        why = "not an alias model";
+        return false;
+    }
+    const int numSkins = rd(src, 48), skinW = rd(src, 52), skinH = rd(src, 56);
+    const int numVerts = rd(src, 60), numTris = rd(src, 64), numFrames = rd(src, 68);
+    if(numSkins < 1 || skinW <= 0 || skinH <= 0 || numVerts <= 0 || numTris <= 0 || numFrames <= 0)
+    {
+        why = "bad header";
+        return false;
+    }
+    const glm::vec3 scale{rdf(src, 8), rdf(src, 12), rdf(src, 16)};
+    const glm::vec3 origin{rdf(src, 20), rdf(src, 24), rdf(src, 28)};
+    const glm::vec3 c{t.pivot[0], t.pivot[1], t.pivot[2]};
+    const glm::vec3 scale2{scale.y, scale.x, scale.z};
+    const glm::vec3 origin2{c.y - origin.y - 255.f * scale.y, origin.x - c.x, origin.z - c.z};
+    const glm::vec3 eye{rdf(src, 36), rdf(src, 40), rdf(src, 44)};
+
+    out.file.clear();
+    out.file.emplaceBackRange(src, size);
+    byte* f = out.file.data();
+    const auto setf = [&](size_t at, float v) {
+        const float le = LittleFloat(v);
+        memcpy(f + at, &le, 4);
+    };
+    for(int i = 0; i < 3; i++)
+    {
+        setf(8 + static_cast<size_t>(i) * 4, scale2[i]);
+        setf(20 + static_cast<size_t>(i) * 4, origin2[i]);
+    }
+    setf(36, c.y - eye.y);
+    setf(40, eye.x - c.x);
+    setf(44, eye.z - c.z);
+
+    const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
+    size_t at = headerSize;
+    for(int s = 0; s < numSkins; s++)
+    {
+        if(at + 8 > size)
+        {
+            why = "truncated (skins)";
+            return false;
+        }
+        if(rd(src, at) == 0)
+        {
+            at += 4 + skinBytes;
+        }
+        else
+        {
+            const int n = za::max(rd(src, at + 4), 1);
+            at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
+        }
+    }
+    at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
+
+    const auto turnBox = [&](size_t minAt) { // a box's bboxmin and bboxmax
+        byte* lo = f + minAt;
+        byte* hi = f + minAt + 4;
+        const byte loX = lo[0], loY = lo[1], hiX = hi[0], hiY = hi[1];
+        lo[0] = static_cast<byte>(255 - hiY);
+        hi[0] = static_cast<byte>(255 - loY);
+        lo[1] = loX;
+        hi[1] = hiX;
+    };
+    float radius = 0.f;
+    out.lo = glm::vec3{1e30f};
+    out.hi = glm::vec3{-1e30f};
+    size_t firstPose = 0;
+    for(int fr = 0; fr < numFrames; fr++)
+    {
+        if(at + 4 > size)
+        {
+            why = "truncated (frames)";
+            return false;
+        }
+        const int type = rd(src, at);
+        at += 4;
+        int members = 1;
+        if(type != 0)
+        {
+            if(at + 12 > size)
+            {
+                why = "truncated (frame group)";
+                return false;
+            }
+            members = za::max(rd(src, at), 1);
+            turnBox(at + 4);
+            at += 4 + 8 + static_cast<size_t>(members) * 4;
+        }
+        for(int m = 0; m < members; m++)
+        {
+            const size_t vertsAt = at + 24;
+            if(vertsAt + static_cast<size_t>(numVerts) * 4 > size)
+            {
+                why = "truncated (frame)";
+                return false;
+            }
+            turnBox(at);
+            firstPose = firstPose ? firstPose : vertsAt;
+            for(int v = 0; v < numVerts; v++)
+            {
+                byte* b = f + vertsAt + static_cast<size_t>(v) * 4;
+                const byte x = b[0], y = b[1], n = b[3];
+                b[0] = static_cast<byte>(255 - y);
+                b[1] = x;
+                if(n < NUMVERTEXNORMALS)
+                {
+                    b[3] = nearestNormal(glm::vec3{-r_avertexnormals[n][1], r_avertexnormals[n][0], r_avertexnormals[n][2]});
+                }
+                const glm::vec3 p = glm::vec3{b[0], b[1], b[2]} * scale2 + origin2;
+                radius = za::max(radius, glm::length(p));
+                out.lo = glm::min(out.lo, p);
+                out.hi = glm::max(out.hi, p);
+            }
+            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+        }
+    }
+    setf(32, radius);
+
+    // Its front end's middle (the muzzle) in its first pose.
+    out.muzzle = glm::vec3{0.f};
+    int tip = 0;
+    for(int v = 0; v < numVerts; v++)
+    {
+        const byte* b = f + firstPose + static_cast<size_t>(v) * 4;
+        const glm::vec3 p = glm::vec3{b[0], b[1], b[2]} * scale2 + origin2;
+        if(p.x > out.hi.x - 1.f)
+        {
+            out.muzzle += p;
+            tip++;
+        }
+    }
+    out.muzzle /= static_cast<float>(za::max(tip, 1));
+    out.cornerKept = true;
+    out.verts = numVerts;
+    out.tris = numTris;
+    return true;
+}
+
 [[nodiscard]] bool buildNamed(const char* name, unsigned int* path_id, Built& out, const char*& why)
 {
     char base[MAX_QPATH];
@@ -455,7 +626,8 @@ namespace
         why = "not a gun model";
         return false;
     }
-    if(!gunOf(base))
+    const Turned* turned = turnedOf(base);
+    if(!gunOf(base) && !turned)
     {
         why = "not an AD soldier's model";
         return false;
@@ -468,7 +640,7 @@ namespace
         return false;
     }
     const size_t size = static_cast<size_t>(com_filesize);
-    const bool ok = build(base, skin, src, size, out, why);
+    const bool ok = turned ? turn(*turned, src, size, out, why) : build(base, skin, src, size, out, why);
     VR_HeapFree(src);
     if(path_id)
     {
@@ -537,7 +709,7 @@ bool slotNames(const char* id, const char* name)
 void info_f()
 {
     static constexpr const char* names[] = {"progs/mon_soldier.mdl#gun4", "progs/mon_enforcer.mdl#gun3", "progs/mon_centurion.mdl#gun0",
-        "progs/mon_pyro.mdl#gun0", "progs/mon_fumigator.mdl#gun0"};
+        "progs/mon_pyro.mdl#gun0", "progs/mon_fumigator.mdl#gun0", "progs/w_dcrossbow.mdl#gun0"};
     for(const char* name : names)
     {
         Built b;

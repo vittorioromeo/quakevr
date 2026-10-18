@@ -73,6 +73,7 @@ float(entity e) AD_IsBoss;           // the aim cone (vr_aimcone.qc): one of AD'
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
 float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)
 float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
+string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
 float(entity xInst) AD_Widowmaker;   // vr_reload.qc: the super shotgun of record xInst is the Widowmaker (reloaded at the hip)
 float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
 void(float xHand) AD_FirePlasma;     // W_Attack: its bolt

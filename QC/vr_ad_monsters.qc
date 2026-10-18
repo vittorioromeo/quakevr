@@ -669,6 +669,8 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 317) { return "progs/mon_centurion.mdl"; }
     if(choice == 318) { return "progs/mon_pyro.mdl"; }
     if(choice == 319) { return "progs/mon_fumigator.mdl"; }
+    if(choice == 325) { return "progs/w_dcrossbow.mdl"; }
+    if(choice == 326) { return "progs/mon_freddie.mdl"; }
     return "";
 };
 
@@ -768,6 +770,8 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 317) { self.classname = "func_weapon_grabbable"; self.weapon = 25; func_weapon_grabbable(); }
     else if(choice == 318) { self.classname = "func_weapon_grabbable"; self.weapon = 26; func_weapon_grabbable(); }
     else if(choice == 319) { self.classname = "func_weapon_grabbable"; self.weapon = 27; func_weapon_grabbable(); }
+    else if(choice == 325) { self.classname = "func_weapon_grabbable"; self.weapon = 28; func_weapon_grabbable(); }
+    else if(choice == 326) { self.classname = "func_weapon_grabbable"; self.weapon = 7; func_weapon_grabbable(); }
     else
     {
         dprint(sprintf("admon: no AD monster %g\n", choice));

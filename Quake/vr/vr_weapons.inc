@@ -2906,13 +2906,43 @@ QVR_WEAPON_DEFAULT(31, HandAnchor, "2.4953 -3.1017 11.5991")
 QVR_WEAPON_DEFAULT(31, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
 QVR_WEAPON_DEFAULT(31, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
 QVR_WEAPON_DEFAULT(31, WpnTextAnchor, "-1.2426 0.1134 13.5556")
-// AD support: the crossbow knight's crossbow (QC vr_ad_enemyguns.qc WID_ADCROSSBOW): AD's own progs/w_dcrossbow.mdl as it
-// is (its gib), lying flat: the bow across x, the front at -y, the butt at +y, up +z (z 0..7.5). Bare minimum (ROUND22
-// "AD crossbow"): the enforcer's rifle's settings (slot 23) copied, not inherited (an inheriting slot's defaults
-// give way to its parent's unless marked QVR_WEAPON_OWN), turned a quarter (Yaw 90: -y forward), the hand at the tiller behind the
-// bow, the muzzle at the groove's front. Not yet tuned (the headless hold looked off the hand): to be laid as our guns
-// are (vr_adguns.cpp's way: barrel +x, the hand at the origin) and tuned in VR later.
-QVR_WEAPON_DEFAULT(32, ID, "progs/w_dcrossbow.mdl")
+// AD support: Arcane Dimensions' upgraded weapons (QC vr_ad_bridge.qc: the Shadow Axe, the Widowmaker, the Plasma
+// Gun), their VR models made from AD's view models as they load (vr_adweapons.cpp: "<AD view model>#vr"), laid in the
+// frame of the Quake VR weapon they upgrade and packed from its model's corner, so they inherit its settings: the
+// axe's (slot 0: the handle on its handle, the blade out the same way), the super shotgun's (slot 2: its own grip,
+// guard and trigger on), the lightning gun's (slot 7: likewise). Their anchors are their own: the hand's as their
+// parent's (the same grip); the muzzle the gun's front end's middle, the axe's the blade edge's top
+// (vr_adweapon_models prints them); the other hand's on the axe's handle below the head, on the guns' barrels.
+QVR_WEAPON_DEFAULT(33, ID, "progs/v_shadaxe3.mdl#vr")
+QVR_WEAPON_DEFAULT(33, InheritFrom, "1")
+QVR_WEAPON_DEFAULT(33, HandAnchor, "-0.8655 0.0053 -2.9694")
+QVR_WEAPON_DEFAULT(33, MuzzleAnchor, "22.11 -0.04 26.36")
+QVR_WEAPON_DEFAULT(33, TwoHHandAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(33, WpnButtonAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(33, WpnTextAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(34, ID, "progs/v_shot3.mdl#vr")
+QVR_WEAPON_DEFAULT(34, InheritFrom, "3")
+QVR_WEAPON_DEFAULT(34, HandAnchor, "5.0979 -0.0482 0.7118")
+QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "25.2759 0.0029 5.3727")
+QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "22 -3.1209 3.7164")
+QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "11.6867 1.4881 5.4412")
+QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "11.6867 1.4881 5.4412")
+QVR_WEAPON_DEFAULT(35, ID, "progs/v_plasma.mdl#vr")
+QVR_WEAPON_DEFAULT(35, InheritFrom, "8")
+QVR_WEAPON_DEFAULT(35, HandAnchor, "-2.7194 -1.5656 10.8636")
+QVR_WEAPON_DEFAULT(35, MuzzleAnchor, "31.8792 0.0195 10.3979")
+QVR_WEAPON_DEFAULT(35, TwoHHandAnchor, "24 -3 6.5")
+QVR_WEAPON_DEFAULT(35, WpnButtonAnchor, "-2.7194 -1.5656 10.8636")
+QVR_WEAPON_DEFAULT(35, WpnTextAnchor, "-2.7194 -1.5656 10.8636")
+// AD support: the crossbow knight's crossbow (QC vr_ad_enemyguns.qc WID_ADCROSSBOW): AD's own progs/w_dcrossbow.mdl (its
+// gib) turned to face +x as our guns do (vr_adguns.cpp turnedModels: "progs/w_dcrossbow.mdl#gun0"; the stock along x
+// -12..28, the bow across y +-16.9, z -3.5..4.5, the tiller behind the bow at the origin), so no Yaw 90 and its Pitch,
+// Yaw and Roll turn it as every gun's do (ROUND22 "AD crossbow: turned to face +x"). The enforcer's rifle's settings
+// (slot 23) copied; the pose his (2026-10-18: Pitch -18.5, Yaw 98.05, Roll -11.55, Scale 0.621, Offset 10.53 8.66
+// -3.29 on the sideways model), converted exactly to the turned one (the same place in the hand); the anchors and the
+// unused hotspots 2-3 turned with it; hotspot 1 (the other hand's grip) under the fore-stock, behind the bow (model
+// 13 0 -0.5; the rifle's copied one lay 12 units off its left side).
+QVR_WEAPON_DEFAULT(32, ID, "progs/w_dcrossbow.mdl#gun")
 QVR_WEAPON_DEFAULT(32, TwoHDisplayMode, "1")
 QVR_WEAPON_DEFAULT(32, TwoHFixedHandPitch, "0.0")
 QVR_WEAPON_DEFAULT(32, TwoHFixedHandRoll, "0.0")
@@ -2942,9 +2972,9 @@ QVR_WEAPON_DEFAULT(32, Length, "0.0")
 QVR_WEAPON_DEFAULT(32, MuzzleOffsetX, "0.0")
 QVR_WEAPON_DEFAULT(32, MuzzleOffsetY, "0.0")
 QVR_WEAPON_DEFAULT(32, MuzzleOffsetZ, "0.0")
-QVR_WEAPON_DEFAULT(32, Pitch, "0.0")
-QVR_WEAPON_DEFAULT(32, Roll, "0.0")
-QVR_WEAPON_DEFAULT(32, Scale, "0.4")
+QVR_WEAPON_DEFAULT(32, Pitch, "-18.3135")
+QVR_WEAPON_DEFAULT(32, Roll, "11.7704")
+QVR_WEAPON_DEFAULT(32, Scale, "0.621")
 QVR_WEAPON_DEFAULT(32, WpnButtonPitch, "0.0")
 QVR_WEAPON_DEFAULT(32, WpnButtonRoll, "0.0")
 QVR_WEAPON_DEFAULT(32, WpnButtonX, "0.0")
@@ -2960,15 +2990,15 @@ QVR_WEAPON_DEFAULT(32, WpnTextY, "0.0")
 QVR_WEAPON_DEFAULT(32, WpnTextYaw, "0.0")
 QVR_WEAPON_DEFAULT(32, WpnTextZ, "0.55")
 QVR_WEAPON_DEFAULT(32, WpnTextMode, "0")
-QVR_WEAPON_DEFAULT(32, OffsetX, "8.1")
-QVR_WEAPON_DEFAULT(32, OffsetY, "3.6")
-QVR_WEAPON_DEFAULT(32, OffsetZ, "-0.1")
+QVR_WEAPON_DEFAULT(32, OffsetX, "-1.5229")
+QVR_WEAPON_DEFAULT(32, OffsetY, "10.5289")
+QVR_WEAPON_DEFAULT(32, OffsetZ, "-0.2907")
 QVR_WEAPON_DEFAULT(32, ZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(32, TwoHZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(32, Hotspot1Type, "1")
-QVR_WEAPON_DEFAULT(32, Hotspot1X, "1.209839")
-QVR_WEAPON_DEFAULT(32, Hotspot1Y, "-1.791626")
-QVR_WEAPON_DEFAULT(32, Hotspot1Z, "-1.168732")
+QVR_WEAPON_DEFAULT(32, Hotspot1X, "3.5375")
+QVR_WEAPON_DEFAULT(32, Hotspot1Y, "-6.4157")
+QVR_WEAPON_DEFAULT(32, Hotspot1Z, "-1.6298")
 QVR_WEAPON_DEFAULT(32, Mass, "6")
 QVR_WEAPON_DEFAULT(32, Balance, "25")
 QVR_WEAPON_DEFAULT(32, Span, "70")
@@ -2976,12 +3006,12 @@ QVR_WEAPON_DEFAULT(32, ShotPitch, "7")
 QVR_WEAPON_DEFAULT(32, Recoil, "1")
 QVR_WEAPON_DEFAULT(32, RecoilStrength, "0.5")
 QVR_WEAPON_DEFAULT(32, Flash, "1")
-QVR_WEAPON_DEFAULT(32, Hotspot2X, "1.238281")
-QVR_WEAPON_DEFAULT(32, Hotspot2Y, "-1.868408")
-QVR_WEAPON_DEFAULT(32, Hotspot2Z, "-1.081261")
-QVR_WEAPON_DEFAULT(32, Hotspot3X, "1.523438")
-QVR_WEAPON_DEFAULT(32, Hotspot3Y, "-1.640106")
-QVR_WEAPON_DEFAULT(32, Hotspot3Z, "-1.511944")
+QVR_WEAPON_DEFAULT(32, Hotspot2X, "-5.2667")
+QVR_WEAPON_DEFAULT(32, Hotspot2Y, "1.2383")
+QVR_WEAPON_DEFAULT(32, Hotspot2Z, "-4.0813")
+QVR_WEAPON_DEFAULT(32, Hotspot3X, "-5.495")
+QVR_WEAPON_DEFAULT(32, Hotspot3Y, "1.5234")
+QVR_WEAPON_DEFAULT(32, Hotspot3Z, "-4.5119")
 QVR_WEAPON_DEFAULT(32, Hotspot1Pitch, "-12.044699")
 QVR_WEAPON_DEFAULT(32, Hotspot1Yaw, "-29.349245")
 QVR_WEAPON_DEFAULT(32, Hotspot1Roll, "-76.402451")
@@ -3000,12 +3030,12 @@ QVR_WEAPON_DEFAULT(32, UpperHolsterY, "3.5")
 QVR_WEAPON_DEFAULT(32, UpperHolsterZ, "-1")
 QVR_WEAPON_DEFAULT(32, UpperHolsterYaw, "20")
 QVR_WEAPON_DEFAULT(32, UpperHolsterRoll, "25")
-QVR_WEAPON_DEFAULT(32, Yaw, "90")
-QVR_WEAPON_DEFAULT(32, MuzzleAnchor, "0 -20 0.5")
-QVR_WEAPON_DEFAULT(32, HandAnchor, "0 8 3")
-QVR_WEAPON_DEFAULT(32, TwoHHandAnchor, "0 -12 1")
-QVR_WEAPON_DEFAULT(32, WpnButtonAnchor, "0 8 3")
-QVR_WEAPON_DEFAULT(32, WpnTextAnchor, "0 6 9")
+QVR_WEAPON_DEFAULT(32, Yaw, "5.7092")
+QVR_WEAPON_DEFAULT(32, MuzzleAnchor, "28 0 -2.5")
+QVR_WEAPON_DEFAULT(32, HandAnchor, "0 0 0")
+QVR_WEAPON_DEFAULT(32, TwoHHandAnchor, "20 0 -2")
+QVR_WEAPON_DEFAULT(32, WpnButtonAnchor, "0 0 0")
+QVR_WEAPON_DEFAULT(32, WpnTextAnchor, "2 0 6")
 #endif
 
 

@@ -135,10 +135,10 @@ namespace
 // its slot's default, that vertex's point (convertAnchors). 42: the toolgun's muzzle (slot 26) on its lens's front middle
 // (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a corner of the lens's back, was about 1 cm off), where
 // the config still held the old point. 43: slots 27-31 (AD support: Arcane Dimensions' soldiers' guns, vr_adguns.cpp;
-// unused placeholders before). 44: slots 27-31 again (the AD guns now our burst rifle's variants, vr_adguns.cpp: their
-// IDs and anchors). A first start (no saved config) takes this version as it is: its settings are these
-// defaults (markCurrent).
-constexpr int settingsVersion = 44;
+// unused placeholders before). 44: slot 33 (the AD crossbow) on its model turned to face +x (vr_adguns.cpp
+// turnedModels): the sideways model's offsets would turn it wrong; his pose converted is its default. 45: slots 27-31 again (the AD guns now our burst rifle's
+// variants, vr_adgunart.cpp: their IDs and anchors). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 45;
 
 void resetSlot(int slot)
 {
@@ -185,13 +185,19 @@ void takeToolgunMuzzle()
     }
 }
 
-// AD support: the AD soldiers' guns (43; unused placeholders before; 44: made from our burst rifle, vr_adguns.cpp).
+// AD support: the AD soldiers' guns (43; unused placeholders before; 45: made from our burst rifle, vr_adgunart.cpp).
 void takeAdGuns()
 {
     for(int slot = 27; slot <= 31; slot++)
     {
         resetSlot(slot);
     }
+}
+
+// AD support: the AD crossbow's slot (44) to its defaults, on the model turned to face +x.
+void takeAdCrossbow()
+{
+    resetSlot(32);
 }
 
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
@@ -204,7 +210,8 @@ constexpr Step steps[] = {
     {41, convertAnchors},
     {42, takeToolgunMuzzle},
     {43, takeAdGuns},
-    {44, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
+    {44, takeAdCrossbow},
+    {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

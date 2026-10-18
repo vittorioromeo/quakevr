@@ -126,6 +126,7 @@ float(entity e) VR_PlacedCorpse_Near =
 
 // Room for one more ragdoll (vr_ragdoll_max): the oldest dead ragdoll goes first, else the oldest knocked-down monster
 // (but `xFor`) is killed and goes. FALSE: none can.
+float vr_kd_room_dead_only; // (VR_Flinch_Room: only a dead body goes)
 float(entity xFor) VR_Knockdown_MakeRoom =
 {
     float most = cvar("vr_ragdoll_max");
@@ -183,7 +184,7 @@ float(entity xFor) VR_Knockdown_MakeRoom =
                 VR_Knockdown_RemoveBody(dead);
             }
         }
-        else if(alive != world)
+        else if(alive != world && !vr_kd_room_dead_only) // (a flinch's room: never a living one killed)
         {
             if(cvar_hget(cvarh_vr_knockdown_debug))
             {
