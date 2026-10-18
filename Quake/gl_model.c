@@ -3472,8 +3472,11 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 		{
 			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer); // QVR: the jointed hand's file checked first
+			char* extended = result ? VR_ModelReplacementExtend (mod->name, md5buffer) : NULL; // QVR: the gloves' shells added
 			double t1 = Sys_DoubleTime ();
-			result = result && Mod_LoadMD5MeshModel (mod, md5buffer);
+			result = result && Mod_LoadMD5MeshModel (mod, extended ? extended : md5buffer);
+			if (extended)
+				VR_HeapFree (extended);
 			VR_TimeAdd ("    md5: the VR check", t1 - t0);
 			VR_TimeAdd ("    md5: loaded", Sys_DoubleTime () - t1);
 			VR_HeapFree (md5buffer);
@@ -4749,7 +4752,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
 		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
-		if (VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes))
+		if (m == 0 && VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (not the gloves' cuff shell after it: VR_ModelReplacementExtend)
 		{
 			surf->numverts_vbo = surf->numverts;
 			surf->numtris = surf->numindexes / 3;

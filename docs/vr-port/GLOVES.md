@@ -26,6 +26,13 @@ What the shader adds on its own regardless: the hem's rolled, rubbed edge round 
 bare forearm's cuff, a very fine grain for close up, and the sheen. Where a fingerless glove leaves the fingertips bare,
 the painted layer is simply not used.
 
+## Thickness
+
+The glove is its own layer over the hand (`vr_glove_thickness`, 2 mm; Player Appearance > Glove Thickness; 0 paints
+it on the skin only): the engine builds it as the hand loads from the hand's mesh and the skin mask's G/B (and, with
+bare forearms, the cuff from its rows), so an edited hand or mask gets a matching layer at the next load
+(`vr_hand_reload` or a map change). Nothing to edit for it; ROUND22.md, "Glove depth".
+
 ## Seeing an edit in the game
 
 Save the file, then either change map (each map load reads the files again) or press **Debug > Rebuild and Reload >

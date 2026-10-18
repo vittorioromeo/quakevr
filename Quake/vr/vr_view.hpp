@@ -46,6 +46,8 @@ struct ViewEntity
 // over the forearm's end in its skin (x below this u, from v y, its hem to v z, below v w; zero: none). The kind as
 // skinTone's, zero when nothing of a glove is drawn on `e`.
 [[nodiscard]] int gloveLook(const entity_t* e, float glove[4], float cuff[4]);
+// That cuff's place in the bare-forearmed body's skin (as gloveLook's `cuff`; vr_handrig.cpp's cuff shell too).
+void gloveCuffRange(float cuff[4]);
 // The kind (as skinTone's) when `e` reads its skin mask (a skin tone or a glove on it), else zero.
 [[nodiscard]] int skinMaskWanted(const entity_t* e);
 // A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your

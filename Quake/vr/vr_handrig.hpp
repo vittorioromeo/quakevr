@@ -57,6 +57,10 @@ inline constexpr int jointsPerFinger = 3;
 inline constexpr const char* modelName = "progs/hand_rig.mdl";
 inline constexpr const char* meshFile = "progs/hand_rig.md5mesh";
 inline constexpr const char* animFile = "progs/hand_rig.md5anim";
+// Rig space's units a millimetre (make_vrbody.py HAND_UNIT: 12.86 mm a hand unit at the default sizes), and the
+// body's (Quake units: 38.1 mm at vr_world_scale 1): the gloves' shells' thickness (vr_glove_thickness).
+inline constexpr float rigUnitsPerMm = 1.f / 12.86f;
+inline constexpr float bodyUnitsPerMm = 1.f / 38.1f;
 
 // A rigid transform of rig space.
 struct Rigid
@@ -138,6 +142,10 @@ void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger
 
 // Every vertex of the mesh (rig().vertices) where the pose puts it (the GPU's blend, on the CPU).
 void vertices(const Posed& posed, za::Vector<glm::vec3>& out);
+
+// The gloves' shells a model was given as it loaded (vr_glove_thickness; vr_handrig.cpp gloveShells), its surfaces
+// after its first: the jointed hand's 2 (fingerless, full), a bare-forearmed body's 1 (the cuff); else 0.
+[[nodiscard]] int gloveShellSurfaces(const char* modelName);
 
 // Skinning matrices (3x4 row-major, as bonepose_t) for progs/hand_rig.md5mesh's joints.
 void skin(const Posed& posed, float out[data::numJoints * 12]);

@@ -1381,6 +1381,7 @@ NOISE_FUNCTIONS
 "	vec4	GloveCuff; // QVR: ... a bare forearm's cuff: x below this u, from v y, its hem to v z, below v w (zero: none)\n"\
 "	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
 "	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
+"	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\
@@ -1538,6 +1539,13 @@ QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded 
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
 QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
 QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where the blows struck
+"	if (inst.GloveShell.x > 0.0 && in_uv.x >= 1.5) // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells): its u + 2 (1 +\n"
+"	{ // 15 times its share of the thickness): pushed out along its normal by that share; u 2 along for the fragments\n"
+"		float mark = floor(in_uv.x * 0.5);\n"
+"		out_texcoord.x = in_uv.x - 2.0 * mark + 2.0;\n"
+"		vec3 sn = mix(pose1.nor, pose2.nor, inst.Blend);\n"
+"		lerpedPos += sn * (inversesqrt(max(dot(sn, sn), 1e-8)) * inst.GloveShell.x * (mark - 1.0) * (1.0 / 15.0));\n"
+"	}\n"
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
@@ -1619,6 +1627,9 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "{\n"
 "	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
 "	vec2 uv = in_texcoord;\n"
+"	bool gloveShell = uv.x >= 1.5 && instances[in_instance].GloveShell.x > 0.0; // QVR: a glove's shell (its u 2 along)\n"
+"	if (gloveShell)\n"
+"		uv.x -= 2.0;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
 "	vec3 drdx = dFdx(in_restpos), drdy = dFdy(in_restpos); // QVR: the rest pose's, for the flesh dents' bowls (DentBump)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"

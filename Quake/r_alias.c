@@ -852,7 +852,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 		VR_AliasShadowClip (); // (its own program's plane, the same as the shading's)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+		for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr)) // QVR: a glove's shell first
 		{
 			skinnum = ibuf.ent->skinnum;
 			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
@@ -874,7 +874,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		glEnable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 
-	for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+	for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr)) // QVR: a glove's shell first
 	{
 		skinnum = ibuf.ent->skinnum;
 		if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
@@ -919,7 +919,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	{
 		GL_SetState (transparent_state);
 
-		for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+		for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr)) // QVR: a glove's shell first
 		{
 			skinnum = ibuf.ent->skinnum;
 			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
