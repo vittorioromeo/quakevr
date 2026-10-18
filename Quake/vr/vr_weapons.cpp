@@ -144,9 +144,15 @@ namespace
 // inherit, and the old models' anchors). 48: no AD weapon inherits (round 22, adnoinherit): slots 27-31, 33-35 own what
 // they inherited (their defaults the parents', vr_weapons.inc QVR_WEAPON_UNINHERITED; a config's inherited values made
 // theirs, so a Shadow Axe tuned on the axe's slot keeps it); the plain axe back to its size before adweapons2 (where the
-// config holds the Shadow Axe's size adweapons2 put there); the AD crossbow (slot 32) his. A first start (no saved
-// config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 48;
+// config holds the Shadow Axe's size adweapons2 put there); the AD crossbow (slot 32) his. 49: the AD melee weapons'
+// tips (slots 40-44) on their models made anew (vr_admelee.cpp: the fury's sword and the hammer turned half round),
+// where the config still held the old tip. A first start (no saved config) takes this version as it is: its settings
+// are these defaults (markCurrent).
+constexpr int settingsVersion = 49;
+
+// The AD melee weapons' tips (slots 40-44) before 49.
+constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
+    "34.8005 -0.1473 91.7639", "35.565 -0.2178 93.7812", "18.6015 -0.0368 92.3618"};
 
 // AD support: the AD weapons that inherited another slot's settings until 48, and from which.
 struct Uninherited
@@ -319,6 +325,19 @@ void takeUninherited()
     }
 }
 
+// AD support: the AD melee weapons' tips (49) on their models made anew, where the config holds the old tip.
+void takeAdMeleeTips()
+{
+    for(int slot = 40; slot <= 44; slot++)
+    {
+        cvar_t& var = cvarAt(slot, Key::MuzzleAnchor);
+        if(!strcmp(var.string, oldAdMeleeTips[slot - 40]))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -334,6 +353,7 @@ constexpr Step steps[] = {
     {46, takeAdHeavyBalance},
     {47, takeAdUpgrades},
     {48, takeUninherited},
+    {49, takeAdMeleeTips},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
