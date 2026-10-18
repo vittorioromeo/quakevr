@@ -2589,6 +2589,7 @@ void lighting::applyPreset(int preset)
     Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
     Cvar_SetQuick(&vr_lavagun_light, preset >= 1 ? vr_lavagun_light.default_string : "0"); // the lava guns' glow (vr_emissive.cpp): Low and up
     Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
+    Cvar_SetQuick(&vr_flame_lights, preset >= 2 ? vr_flame_lights.default_string : preset == 1 ? "1" : "0"); // the flamethrowers' (vr_emissive.cpp)
     Cvar_SetQuick(&vr_torch_lights, preset >= 2 ? vr_torch_lights.default_string : preset == 1 ? "4" : "0"); // torches' flicker
     look(vr_weapon_screen_light, 0.f);
     look(vr_gadget_light, 0.f);

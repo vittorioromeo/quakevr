@@ -54,7 +54,8 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
     {"monster_army_grenade", true}, {"monster_army_plasma", true}, {"monster_army_rocket", true},
     {"monster_defender", true}, {"monster_eliminator", true}, {"monster_pyro", true}, {"monster_fumigator", true},
     {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
-    {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}};
+    {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}, {"monster_death_lord", true},
+    {"monster_death_guard", true}, {"monster_deflector", true}, {"monster_ogre_flak", true}};
 } // namespace
 
 [[nodiscard]] const ActiveClass* activeClassOf(const edict_t* ent)

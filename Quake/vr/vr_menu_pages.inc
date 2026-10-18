@@ -1471,6 +1471,8 @@ void resetHandMoves()
         slider("Lava Gun Light Flicker", "vr_lavagun_light_flicker", 0.f, 1.f, 0.05f, "%.2f").help("How much the lava guns' glow flickers (0 steady)."),
         slider("Lava Gun Light at Rest", "vr_lavagun_light_idle", 0.f, 1.f, 0.05f, "%.2fx").help("Lava guns in your holsters or lying on the floor glow too, this much of a held one's (0 not)."),
         slider("Lightning Beam Lights", "vr_beam_lights", 0.f, 12.f, 1.f, "%.0f").extend().help("Lightning beams light the room along their length with this many flickering lights (0 off)."),
+        slider("Flamethrower Lights", "vr_flame_lights", 0.f, 8.f, 1.f, "%.0f").extend().help("Flamethrowers' streams (your pyro gun, pyro monsters) light the room: their flames gathered into at most this many flickering lights, all streams together (0 off)."),
+        slider("Flamethrower Light Size", "vr_flame_light_scale", 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far the flamethrowers' light reaches."),
         slider("Lightning Arcs", "vr_beam_arcs", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Quad Damage's electric arcs crackle along the lightning's beams (the lightning gun, shamblers, Chthon): how many (1: one every 24 units or so; 0 off)."),
         slider("Lightning Arc Spread", "vr_beam_arcs_spread", 2.f, 32.f, 1.f, "%.0f").extend().help("How far the arcs reach from the beam, units."),
         slider("Lightning Arc Width", "vr_beam_arcs_width", 0.5f, 4.f, 0.1f, "%.1fx").extend().help("How thick the arcs are, times Quad Damage's on the arms."),

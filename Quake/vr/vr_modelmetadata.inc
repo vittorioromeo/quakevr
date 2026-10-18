@@ -71,6 +71,7 @@ QVR_MODEL_ID(Mg3ShamblerBlood, "owned/mg3/progs/shambler_blood.mdl")
 QVR_MODEL_ID(Legholster, "progs/legholster.mdl")
 QVR_MODEL_ID(Vrflashlight, "progs/vrflashlight.mdl")
 QVR_MODEL_ID(BulletDecal, "progs/s_bullet.spr")
+QVR_MODEL_ID(BurstFlame, "progs/s_burst_flame.spr")
 QVR_MODEL_ID(Boss, "progs/boss.mdl")
 
 QVR_MODEL_ID(VrCrate1, "progs/vr_crate1.mdl")

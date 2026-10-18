@@ -13241,6 +13241,77 @@ feet, and no global spring. Design and causes: FLINCH.md, "Balance from the legs
   only the grunt was measured (the other classes, AD's, the enforcer's odd poses: not yet).
 - **Frame strips** (side view, a shot every 7 frames): `scratch/fl4_strip_<case>_<terrain>[_old].png`.
 
+## Flamethrowers light the room (worktree `goreflesh`, branch `agent/flamelight`, 2026-10-18)
+
+Before: no light at all from a flamethrower's stream (the player's AD pyro gun, the pyro monsters): AD's flame sprites
+(`progs/s_burst_flame.spr`) and our fire particles, nothing lit. Now (vr_emissive.cpp, `VR_FlameLights`, called after
+`VR_TorchLights` in CL_ReadFromServer): each frame `VR_ProjectileLight` gathers the flame sprites drawn (a young flame
+weighs more), they are clustered (a flame joins the nearest cluster within 72 units; clusters within 288 merged, nearest
+first, down to the cap; more still: the heaviest and nearest kept), and each cluster is one light at its weighted
+centre (put back in the open along a trace from its first flame), as bright as its flames' weight (four fresh flames a
+full light), as wide as they are spread (160 + 1.2 x spread, at most 320). The lights are slots kept from frame to frame:
+a cluster takes the nearest light within 160 units, which follows it smoothly; a light swells in within a tenth of a
+second and dies down in about a third when its stream stops; a fast torch-like flicker. Unshadowed (no shadow tiles),
+coloured, through `setGlow` (both falloffs, so Quake's lighting look too); models are lit as by any dynamic light. The
+fumigator's poison and the smoke under water make no light.
+
+Settings: `vr_flame_lights` (3; how many lights for all the streams together, 0 off; the lighting presets: Low 1,
+Medium and up 3), `vr_flame_light_scale` (1, their reach); Light Sources rows "Flamethrower Lights" and "Flamethrower
+Light Size"; Debug: "Flame Lights Info" (`vr_flame_lights_info`: flames, clusters, each light's place, level, reach).
+
+Cost (`--exclusive -RealTime`, `vr_profile_report`, a pyro monster streaming at a wall, 7 flames in the air): CPU no
+change measurable (the client's other time 0.027-0.029 ms either way); GPU world 0.404 -> 0.421 ms with the stream's 2
+lights. The naive way (a light a flame; a test build with no clustering): 8 lights, GPU world 0.365 -> 0.389 ms, and 8
+of the 64 dynamic light slots per stream (three pyros: 24) against 2-3 for all the streams here. Scripts (scratch):
+`flamelight.sh` (the player's gun, on/off screenshots), `flamemon.sh` (a pyro monster), `flameprof.sh`,
+`flamemonprof.sh`; screenshots `fl1.png`, `fm2.png`.
+
+### For VR
+
+The player's pyro gun in a dark corridor and a pyro monster's stream: the light's brightness and colour (too strong?
+`vr_flame_light_scale`), whether it pops or lags when sweeping the stream, and the light on your own hands and gun.
+
+## AD rigs: the rest of AD's humanoids (worktree `gorefx`, branch `agent/adrigs2`, 2026-10-18)
+
+The AD monsters left without a seed table ("AD rigs: no ragdoll after the weapon drops"), decided one by one:
+
+- **Rigged** (vr_ad_rigs.inc; measured with rig.py on AD's pak0, `RIG_PAK=... rig.py mon_<name> 18`, then
+  `mon_<name>_bones.json`, in Misc/quakevr/ragdoll):
+  - AD's knight (`mon_knight.mdl`, id's mesh, 268 vertices; bones 0.79): its sword loose (rig.py KNOWN now has it, as
+    vr_monstermods.cpp hides it). Waist and left knee by hand; the pelvis's and thighs' centres moved so the hip
+    clusters go to the thighs.
+  - AD's ogre (`mon_ogre.mdl`, id's, 169 vertices; bones 0.98): the nail, flak and marksman ogres. The chainsaw part of
+    the right forearm (he keeps it); knees by hand (the fit put them at the feet).
+  - The death lord and Quoth's death guard: id's hell knight's mesh (nearest-vertex distance to `mon_hknight.mdl`
+    0.06-0.19 units in every frame compared; the guard lacks some plates) and frames: `adHknightSeeds`, no new table.
+  - The deflector (`mon_deflector.mdl`, 267 vertices: the enforcer's body 61-221 by index, its own gun, pack and three
+    field rings): measured (bones 1.17). Its muzzle effect (0-16) and the field rings (222-266, tucked in its chest but
+    in its field frames: they took 9 of 18 clusters) hidden in its deaths (vr_monstermods.cpp), so they are the loose
+    specks the ragdoll hides; it keeps its gun, a bone of its own (`gun`) on the right hand (its motion fits neither
+    forearm: rms 2.3 on the right one; pivot at the right fist). Knees as the enforcer's.
+- **No rig**: the fishing ogre (never dies as itself: hurt, it wakes as AD's ogre; the ghost one takes no damage); the
+  floyd (its frame 0 is its skin's layout, not a pose, and a rig is measured in frame 0: it needs a rest-frame field
+  first; it also explodes when rolling or gibbed); the boil, jim, the lost soul and the sentinel (they die exploding);
+  the wraith (its death ends in an explosion and it is hidden).
+- QC vr_ad_monsters.qc: head zones, corpse health and knockdowns (their deaths backwards) for AD's knight, ogre, death
+  lord, Quoth death guard and deflector (they had none of Quake VR's treatment). Engine: `activeClasses` gains
+  `monster_death_lord`, `monster_death_guard`, `monster_deflector`, `monster_ogre_flak`; `vr_ad_monsters.cpp` aliases the
+  deflector to the enforcer and the flak ogre to the ogre; `vr_foegrab_lift_classes` gains the death guard, death lord
+  and deflector (config version 157 migrates the old default; ogres stay unliftable).
+- Debug spawner: 261 "AD's Knight" (`monster_knight`, AD maps only: Quake VR's classname).
+
+Tests: `vr_ragdoll_info` on each (all derive; the deflector's loose bone 62 vertices hidden in its 25 death poses);
+`vr_test_spawn 261/253/259/258/255; impulse 241; vr_test_kill 1` in ad_dm1: five ragdolls, lying
+(`vr_corpse_poses`). `ad_active_test.py gorefx 261 253 259 258 255 250` (now with these and AD's hell knight; the AD-map
+ones in AD's `start`): shove, get-up and neck snap pass for all but the death guard's get-up ("no room to get up within
+48 units": in `start` the second one spawns onto the first's corpse; the death lord, the same mesh and seeds, and the
+hell knight in vrfiringrange get up). The ogre's neck is not snapped by design.
+
+### For VR
+
+AD's knight, nail ogre, death lord, Quoth death guard and deflector (the debug spawner; the knight 261, death lord 259
+and death guard 258 only in an AD map): their ragdolls on death, shoves and get-ups, lifting and the
+neck snap (not the ogre). The deflector's gun swinging on its right hand in its ragdoll.
 ## Flinch: `vr_flinch 2` on stairs, more steps (worktree `fastship`, branch `agent/flinch5`, 2026-10-18): not landed
 
 The goal was making `vr_flinch 2` good enough to be the default. It is not: `vr_flinch` stays 1 and `vr_flinch 2` is

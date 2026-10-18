@@ -2142,6 +2142,8 @@ QVR_CVAR(vr_lavagun_light_radius, "72", CVAR_ARCHIVE)  // how far that light rea
 QVR_CVAR(vr_lavagun_light_flicker, "0.35", CVAR_ARCHIVE) // how much it flickers (0 steady, 1 a lot)
 QVR_CVAR(vr_lavagun_light_idle, "0.4", CVAR_ARCHIVE)   // the same guns in holsters or lying on the floor, dimmer: their brightness over a held one's (0 none)
 QVR_CVAR(vr_beam_lights, "6", CVAR_ARCHIVE)          // the lightning (gun, shambler, Chthon) lights the room along its beam: how many lights per beam, unshadowed (0 off)
+QVR_CVAR(vr_flame_lights, "3", CVAR_ARCHIVE)         // the flamethrowers' streams (AD's pyro gun, pyro monsters) light the room: their flames gathered into at most this many smoothed, flickering lights, all streams together, unshadowed (0 off; vr_emissive.cpp)
+QVR_CVAR(vr_flame_light_scale, "1", CVAR_ARCHIVE)    // those lights' reach, over their own (0 off)
 // Quad Damage's electric arcs (vr_shock.cpp) crackling along the lightning's beams (gun, shambler, Chthon) round Quake's
 // bolt models (NOTES.md vrfiringrange_2026-10-02_01-11-17).
 QVR_CVAR(vr_beam_arcs, "1", CVAR_ARCHIVE)            // how many: 1 about one every 24 units of beam (0 off)
@@ -3336,7 +3338,7 @@ QVR_CVAR(vr_foegrab_lift_time, "3.5", CVAR_ARCHIVE)          // s: held up this 
 QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand holds the lifted ragdoll with, a share of its weight (two at 1.2 carry it, flailing, a hand on a forearm: 0.75 let an enforcer sag to the floor)
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
 QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
-QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
+QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_death_guard monster_death_lord monster_deflector monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
 // Leg grabs (vr_foegrab.cpp legCheck; ROUND22.md, "Leg grabs"): both hands holding a humanoid's legs (one leg with both,
 // or one each), below the knees: pulled towards you, it topples (its feet slide to you, its body falls away: the leg
 // sweep's fall); pulled up, it is lifted by the legs, head down (the lift's: carried, thrown, it breaks free).

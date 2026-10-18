@@ -223,6 +223,33 @@ void() VR_AD_MonsterSetup =
         VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 33, 7, cvarh_vr_corpse_health_hellknight);
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 53, 42, 62, 54);
     }
+    // The death lord and Quoth's death guard (progs/mon_dlord.mdl, mon_dguardq.mdl: id's hell knight's mesh and frames;
+    // deaths 42-53, 54-62): the hell knight's head zone.
+    else if(t == ad_CT_MONDLORD || t == ad_CT_MONDGUARDQ)
+    {
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 33, 7, cvarh_vr_corpse_health_hellknight);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 53, 42, 62, 54);
+    }
+    // AD's knight (progs/mon_knight.mdl, id's: deaths 66-75, 76-86). Head: its rig's head cluster (3.0 -0.1 22.1, z 17-27;
+    // headfit.py takes its raised sword).
+    else if(t == ad_CT_MONKNIGHT)
+    {
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 3, 22, 5.5, cvarh_vr_corpse_health_knight);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_knight, 75, 66, 86, 76);
+    }
+    // AD's ogres, the nail, flak and marksman ones (progs/mon_ogre.mdl, id's: deaths 112-125, 126-135). Head: its rig's
+    // head cluster (11.5 -2.7 28.4), headfit.py mon_ogre 23 2 (9.8 -3.1 29.2).
+    else if(t == ad_CT_MONOGRE)
+    {
+        VR_AD_Mon(VR_ADM_MELEE, 10.5, 28.5, 7.5, cvarh_vr_corpse_health_ogre);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 125, 112, 135, 126);
+    }
+    // The deflector (progs/mon_deflector.mdl: id's enforcer's body; deaths 51-64, 65-75): the enforcer's head zone.
+    else if(t == ad_CT_MONDEFLECTOR)
+    {
+        VR_AD_Mon(VR_ADM_ARMOUR, -4, 29, 6, cvarh_vr_corpse_health_enforcer);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_enforcer, 64, 51, 75, 65);
+    }
     // The ones that burst or shrink away at death (no ragdoll, no corpse): the wraith (its head zone: its rig's head
     // cluster, -1.1 -0.1 36.0), the lost soul and the skull wizard's skulls, the boil, Jim and his rocket brother; and the
     // fishing ogres, sitting scenery (their heads: -8.7 0.8 28.9).
@@ -646,6 +673,7 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 258) { return "progs/mon_dguardq.mdl"; }
     if(choice == 259) { return "progs/mon_dlord.mdl"; }
     if(choice == 260) { return "progs/mon_sentinel.mdl"; }
+    if(choice == 261) { return "progs/mon_knight.mdl"; }
     if(choice == 300) { return "progs/artifact_tome.mdl"; }
     if(choice == 301) { return "progs/artifact_sharp.mdl"; }
     if(choice == 302) { return "progs/artifact_piercer.mdl"; }
@@ -693,7 +721,7 @@ float(float choice) VR_AD_DispenserSpawn =
         remove(self);
         return TRUE;
     }
-    if(!AD_Rules() && (choice == 258 || choice == 259 || choice == 260 || choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
+    if(!AD_Rules() && (choice == 258 || choice == 259 || choice == 260 || choice == 261 || choice == 320 || choice == 321 || choice == 322 || choice == 323 || choice == 324)) // (only in an AD map: QVR_AD_SPAWN_MAP)
     {
         remove(self);
         return TRUE;
@@ -753,6 +781,7 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 258) { self.classname = "monster_death_guard"; ad_monster_death_guard(); }
     else if(choice == 259) { self.classname = "monster_death_lord"; ad_monster_death_lord(); }
     else if(choice == 260) { self.classname = "monster_sentinel"; ad_monster_sentinel(); }
+    else if(choice == 261) { self.classname = "monster_knight"; ad_monster_knight(); }
     else if(choice == 300) { self.classname = "item_artifact_tomeofpower"; ad_item_artifact_tomeofpower(); }
     else if(choice == 301) { self.classname = "item_artifact_sharp_shooter"; ad_item_artifact_sharp_shooter(); }
     else if(choice == 302) { self.classname = "item_artifact_nail_piercer"; ad_item_artifact_nail_piercer(); }

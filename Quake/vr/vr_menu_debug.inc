@@ -54,6 +54,9 @@ za::Vector<Item> pageDebugViews()
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
+        command("Flame Lights Info", "vr_flame_lights_info")
+            .help("vr_flame_lights_info: the flamethrowers' stream lights now (Graphics' Flamethrower Lights): how many "
+                  "flames were drawn last frame, the clusters they made, and each light's place, level and reach."),
         command("Light Probe", "vr_light_probe")
             .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
                   "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "

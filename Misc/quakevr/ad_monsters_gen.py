@@ -71,6 +71,8 @@ MONSTERS = [
     (258, "monster_death_guard", "progs/mon_dguardq.mdl", "A Quoth Death Guard", "", MAPS_ONLY),
     (259, "monster_death_lord", "progs/mon_dlord.mdl", "A Death Lord", "", MAPS_ONLY),
     (260, "monster_sentinel", "progs/mon_sentinel.mdl", "A Sentinel", "", MAPS_ONLY),
+    # AD's knight (id's model; AD's maps' monster_knight): Quake VR's classname, so only in AD's maps
+    (261, "monster_knight", "progs/mon_knight.mdl", "AD's Knight", "", MAPS_ONLY),
 ]
 
 
