@@ -26,6 +26,9 @@ The flinch reuses the shove's stagger (KNOCKDOWNS.md, ROUND22 "Active ragdolls: 
    then polls `ragdollstaggered` as it does for a shove's stagger: 2 means recovered (back on its AI), 0 means it fell (a
    knockdown).
 
+AD's monsters take damage in AD's own `ad_T_Damage`: its bridge (`VR_AD_Hit`, vr_ad_bridge.qc) calls
+`VR_Flinch_Hit` the same way, and AD's pain then gives way to the flinch as it does to a knockdown.
+
 ## Impact model
 
 | hit | impulse (kg m/s) | where |
@@ -69,8 +72,9 @@ the floor under it is uneven (four rays round its origin: a slope steeper than a
 
 Every frame, from `vr_flinch_recover_min` (0.25 s):
 
-- its centre of mass is over its feet's support: each foot a disc of Foot Support (0.18 m at a 0.75 m leg, scaled by
-  its legs), and the strip between them;
+- its centre of mass is over its feet's support, reckoned round where its stand frame's own centre of mass stands
+  over its feet (`supportOffset`: an enforcer leans over his rifle): each foot a disc of Foot Support (0.18 m, larger for legs longer than
+  0.75 m), and the strip between them;
 - its middle's level speed is under 0.35 m/s;
 - its pelvis and chest are tilted at most 22 degrees off how its stand frame holds them;
 - no step is under way;
