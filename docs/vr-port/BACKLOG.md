@@ -164,6 +164,20 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Multiplayer update (after 1.1; the author, 2026-10-18)
+Reference: https://github.com/ObeseCatLord/Quakespasm-VR (vkQuake-based VR port, GPL-2.0-or-later: code can be
+borrowed with its copyright headers kept and credit; per-file notices; its `Quake/ice` is QSS-M-derived with its own notices).
+- Co-op rules: a "streamlined" mode (ammo respawn, shared keys, no friendly fire, teleport to a teammate) with the classic
+  rules selectable (theirs: `coop_inventory_policy.h`, `sv_main.c`, `sv_coop_classic`). Check docs/vr-port/MULTIPLAYER.md first.
+- Router-friendly joining: ICE/WebRTC NAT traversal and room links (theirs: `Quake/ice/*`, `docs/ice-transport.md`;
+  needs GnuTLS/OpenSSL).
+- Voice chat: Opus with voice activity detection, jitter buffer, voices placed in 3D (theirs: `voice.c`,
+  `voice_jitter.c`, `voice_vad.c`, `voice_protocol.h`).
+- Synchronisation of our VR systems for other players: physics props and ragdolls (box3d state or authoritative server
+  sim + client smoothing), active ragdolls/flinch, held objects and two-hand grips, body IK pose (head, hands, body
+  tracking), player body customisation (ranger head, gloves, appearance settings), holsters/magazines, gore and decals.
+- Their prediction work (shared `pmove.c`, CSQC prediction, `predictive-*` docs) as a reference for movement feel.
+
 ### Box3D upgrade (the author, 2026-10-18)
 Vendored `Quake/vr/external/box3d` is at upstream 5d83df83 (2026-10-07); upstream is 4 commits ahead (audit 2026-10-18).
 Take them as one update per the README procedure (keep the QVR `mesh_contact.c` pre-solve patch and the Tracy zones in
