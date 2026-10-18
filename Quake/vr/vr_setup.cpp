@@ -394,8 +394,8 @@ void begin(bool welcome)
         flow.ghostHidden = 0;
     }
     enter(welcome ? Step::Welcome : Step::Intro);
-    Con_Printf(inRoom() ? "VR Calibration: starting (height, body); the menu button pauses it\n"
-                        : "VR Calibration: starting (height, body); the menu button stops it\n");
+    Con_Printf(inRoom() ? "VR Calibration: starting (body); the menu button pauses it\n"
+                        : "VR Calibration: starting (body); the menu button stops it\n");
 }
 
 void finish()
@@ -411,6 +411,22 @@ void finish()
                    "counted)\n", flow.ghostSeen ? "shown" : "never shown", flow.ghostShown, flow.ghostHidden);
     }
     saveConfigNow();
+}
+
+void startBody();
+
+// The intro over. Standing: straight to Body Calibration, whose first pose (Stand Tall) measures the height itself; the
+// separate height step asked for the same pose twice. Seated: Body Calibration has no such pose, so the height step.
+void afterIntro()
+{
+    if(seated())
+    {
+        enter(Step::Height);
+        return;
+    }
+    const hands::State& s = hands::current();
+    flow.ghostYaw = s.valid ? s.headAngles.y : flow.ghostYaw; // the intro's ghost stands where the head looks now
+    startBody();
 }
 
 void startBody()
@@ -625,13 +641,13 @@ void flowFrame()
                 bodycal::drawStandingGhost(hs.headAngles.y);
             }
             const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
-            text += "Your height, then your body.\n\n";
+            text += seated() ? "Your height, then your body.\n\n" : "Your body, in a few poses.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
             text += inRoom() ? "Playing seated? Open the menu: set\nPosition to Seated, then close it.\n\n" : "\n";
             text += va("starting in %d", za::max(left, 1));
             if(now - flow.start >= introSeconds)
             {
-                enter(Step::Height);
+                afterIntro();
             }
             break;
         }
@@ -731,7 +747,7 @@ void skip_f()
     switch(flow.step)
     {
         case Step::Welcome: enter(Step::Intro); break;
-        case Step::Intro: enter(Step::Height); break;
+        case Step::Intro: afterIntro(); break;
         case Step::Height: startBody(); break;
         case Step::Body:
             bodycal::stop(); // its result, if any, is left to its page

@@ -13390,3 +13390,7 @@ Grunt, recovered/8 (flat shotgun 64, flat blow, flat uppercut, slope blow, stair
 - **Melee:** `eval.sh --full` with `vr_flinch 0`: 168/177 (unchanged).
 - **Next:** the second step's runaway on flat (why a step landing short of a running capture point never catches it)
   before more steps; the enforcer's mode 2; on stairs, a test hit along the rise as well as across it.
+
+### VR Calibration: height step dropped when standing (calibstep)
+
+The intro ("Stand up straight and look ahead, hold still") and Body Calibration step 1 (Stand Tall) both measured the eye height standing. Standing now goes intro -> Body Calibration straight (no separate HEIGHT step); Stand Tall says "Hold still." too and judges its pose at the height held. Seated keeps the HEIGHT step (Body Calibration has no Stand Tall then). The data is unchanged: Stand Tall's capture and vr_height_calibration on Apply are the same code; a body result that is not applied no longer leaves the intro's height behind.
