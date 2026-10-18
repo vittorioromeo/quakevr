@@ -1285,7 +1285,7 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         }
         const glm::vec3 f = limbEnd(s, p, leg);
         const float len = limbLength(s, p, leg);
-        const float floor = floorUnder(c, f, za::max(pelvis.z, f.z + 0.1f), f.z - 2.f * len, f.z - g.footGap[i]);
+        const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
         // stand frame's feet level.)
         if(first)
