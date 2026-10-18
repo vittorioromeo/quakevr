@@ -149,11 +149,17 @@ typedef struct vraliasinstance_s
 	float		glovecuff[4]; // ... a bare forearm's cuff in the body's skin: below u x, from v y, its hem to v z, below v w (zero: none)
 	float		dent[4]; // flesh dents (vr_dents.cpp): its rows' first in the dent buffer, their count (0 none), xy of its pose's origin in units
 	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
+	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn)
 } vraliasinstance_t;
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);
+// R_FlushAliasInstances' surfaces in their order: a jointed hand's glove shell first (vr_handrig.cpp gloveShells: the
+// one vr_gloves wears, if any; over the hand, it hides its pixels before they are shaded), then the hand; the other
+// models' as they are.
+void *VR_AliasSurfaceFirst (const struct entity_s *e, void *mainhdr); // (aliashdr_t)
+void *VR_AliasSurfaceNext (const struct entity_s *e, void *mainhdr, void *hdr);
 // The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none)
 void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[2]);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),

@@ -268,7 +268,7 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
         return false;
     }
     const int bone = rig->vertBone[static_cast<za::SizeT>(v)];
-    if(bone != 0 && !ragdoll::drawnPart(ent, bone, rot, pos, scale))
+    if(!ragdoll::partShown(ent, bone) || (bone != 0 && !ragdoll::drawnPart(ent, bone, rot, pos, scale)))
     {
         return false;
     }
@@ -309,6 +309,106 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
     return hdr;
 }
 
+// The stream bound to the triangle of .mdl vertices `c` (header `hdr`) at barycentrics `bary`: its corners' rest places
+// (the dents').
+void bindCorners(Stream& s, const aliashdr_t& hdr, const int c[3], const glm::vec3& bary)
+{
+    const auto* rest = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(&hdr) + hdr.vertexes); // pose 0
+    for(int k = 0; k < 3; k++)
+    {
+        s.corner[k] = c[k];
+        const trivertx_t& t = rest[c[k]];
+        s.restC[k] = glm::vec3{t.v[0] * hdr.scale[0] + hdr.scale_origin[0], t.v[1] * hdr.scale[1] + hdr.scale_origin[1],
+            t.v[2] * hdr.scale[2] + hdr.scale_origin[2]};
+    }
+    s.bary = bary;
+    s.restN = outward(s.restC[0], s.restC[1], s.restC[2]);
+    s.onTriangle = true;
+}
+
+// Whether the stream's corners are all on parts its ragdoll (`rig`) draws.
+[[nodiscard]] bool cornersShown(const Stream& s, const ragdoll::Rig& rig)
+{
+    for(int k = 0; k < (s.onTriangle ? 3 : 1); k++)
+    {
+        const za::SizeT v = static_cast<za::SizeT>(s.corner[k]);
+        if(s.corner[k] < 0 || v >= rig.vertBone.size() || !ragdoll::partShown(s.ent, rig.vertBone[v]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Its body a ragdoll (`rig`) that doesn't draw the part its wound was on: bound afresh to the nearest of the ragdoll's
+// drawn surface (a triangle on parts shown) to where it pours from, within rebindReach; false if none is (it stops: what
+// is falling lands). Counted in vr_gore_streams_info.
+constexpr float rebindReach = 32.f;
+int rebinds = 0, unbound = 0; // since the map began
+[[nodiscard]] bool rebind(Stream& s, const ragdoll::Rig& rig)
+{
+    const aliashdr_t* hdr = quakeHeader(rig.model);
+    if(!hdr || !ragdoll::skinnedVertices(s.ent, scratchNow, nullptr, true))
+    {
+        unbound++;
+        return false;
+    }
+    bool shown[ragdoll::maxBones];
+    for(int b = 0; b < ragdoll::maxBones; b++)
+    {
+        shown[b] = b < rig.numBones && ragdoll::partShown(s.ent, b);
+    }
+    const auto* base = reinterpret_cast<const byte*>(hdr);
+    const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
+    const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
+    const glm::vec3 from = s.wound;
+    float bestD = rebindReach;
+    int best[3] = {-1, -1, -1};
+    glm::vec3 bestBary{1.f, 0.f, 0.f};
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        int c[3];
+        bool on = true;
+        for(int k = 0; k < 3 && on; k++)
+        {
+            c[k] = mesh[indexes[i + k]].vertindex;
+            const za::SizeT v = static_cast<za::SizeT>(c[k]);
+            on = v < scratchNow.size() && v < rig.vertBone.size() && rig.vertBone[v] < ragdoll::maxBones && shown[rig.vertBone[v]];
+        }
+        if(!on || c[0] == c[1] || c[1] == c[2] || c[0] == c[2])
+        {
+            continue;
+        }
+        glm::vec3 bary;
+        const glm::vec3 q = geom::closestOnTriangle(from, scratchNow[static_cast<za::SizeT>(c[0])],
+            scratchNow[static_cast<za::SizeT>(c[1])], scratchNow[static_cast<za::SizeT>(c[2])], &bary);
+        const float d = glm::distance(q, from);
+        if(d < bestD)
+        {
+            bestD = d;
+            bestBary = bary;
+            for(int k = 0; k < 3; k++)
+            {
+                best[k] = c[k];
+            }
+        }
+    }
+    if(best[0] < 0)
+    {
+        unbound++;
+        return false;
+    }
+    bindCorners(s, *hdr, best, bestBary);
+    s.pose = Pose::None; // (its way out taken afresh in the new part's frame: locate)
+    rebinds++;
+    if(developer.value)
+    {
+        Con_Printf("bloodstream %d: entity %d's wound bound afresh to its ragdoll, %.1f units off\n",
+            static_cast<int>(&s - streams), s.ent, bestD);
+    }
+    return true;
+}
+
 // Vertex `v` of the stream's body as drawn now (a ragdoll's, else the animated model's through matrix `m`); for a
 // ragdoll its bone's turn too.
 [[nodiscard]] bool vertexNow(const Stream& s, const entity_t& e, bool rag, const float m[16], int v, glm::vec3& at, glm::quat& rot)
@@ -333,7 +433,22 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
     glm::quat rot;
     glm::vec3 p[3];
     float m[16]{};
+    // A ragdoll now (its pelvis drawn): a wound on a part it doesn't draw (the gun he dropped, its head cut off) bound
+    // afresh to its body, or stopped. (It was posed as the animated corpse, left where he died: ROUND22.md, "Blood
+    // streams follow the ragdoll".)
+    const ragdoll::Rig* rig = nullptr;
+    glm::vec3 pos0;
+    float scale0;
+    const bool ragNow = ragdoll::drawnPart(s.ent, 0, rot, pos0, scale0, &rig) && rig;
+    if(ragNow && !cornersShown(s, *rig) && !rebind(s, *rig))
+    {
+        return false;
+    }
     const bool rag = ragdollVertex(s.ent, s.corner[0], p[0], rot);
+    if(ragNow && !rag)
+    {
+        return false;
+    }
     if(rag)
     {
         if(s.pose != Pose::Ragdoll)
@@ -530,18 +645,15 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
         const auto* base = reinterpret_cast<const byte*>(hdr);
         const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
         const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-        const auto* rest = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes); // pose 0
+        int c[3];
         for(int k = 0; k < 3; k++)
         {
-            s.corner[k] = mesh[indexes[tri + k]].vertindex;
-            const trivertx_t& t = rest[s.corner[k]];
-            s.restC[k] = glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
-                t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+            c[k] = mesh[indexes[tri + k]].vertindex;
         }
         const za::SizeT t0 = static_cast<za::SizeT>(tri);
-        (void)geom::closestOnTriangle(hit, scratchTris[t0], scratchTris[t0 + 1], scratchTris[t0 + 2], &s.bary);
-        s.restN = outward(s.restC[0], s.restC[1], s.restC[2]);
-        s.onTriangle = true;
+        glm::vec3 bary;
+        (void)geom::closestOnTriangle(hit, scratchTris[t0], scratchTris[t0 + 1], scratchTris[t0 + 2], &bary);
+        bindCorners(s, *hdr, c, bary);
     }
     else
     {
@@ -1068,6 +1180,7 @@ void clear()
     lastTime = -1.0;
     spurtsMade = splashesMade = 0;
     meleeTally = {};
+    rebinds = unbound = 0;
 }
 
 void count()
@@ -1154,14 +1267,20 @@ void info_f()
                 old = surf;
             }
         }
+        // How far its start is from the body as drawn now (its nearest vertex: a stream left behind is far).
+        const int nv = posedNow(s.ent) ? nearestVertex(s.wound, 1e6f) : -1;
+        const float off = nv >= 0 ? glm::distance(scratchNow[static_cast<za::SizeT>(nv)], s.wound) : -1.f;
         Con_Printf("stream %d: entity %d %s, %s, on %s; dent %.2f deep there; start %.2f out of it (%.2f from it); "
-                   "the nearest vertex's %.2f out (%.2f from it); lands %s\n",
+                   "the nearest vertex's %.2f out (%.2f from it); the body drawn %.1f from its start; lands %s\n",
             static_cast<int>(&s - streams), s.ent, s.model ? s.model->name : "?", s.pose == Pose::Ragdoll ? "ragdoll" : "animated",
             s.onTriangle ? "its struck triangle" : "a vertex", s.push, glm::dot(s.wound - surf, s.surfN), glm::distance(s.wound, surf),
-            glm::dot(old - surf, s.surfN), glm::distance(old, surf), !s.lands ? "nowhere" : s.landsOnThing ? "on a thing" : "on the world");
+            glm::dot(old - surf, s.surfN), glm::distance(old, surf), off,
+            !s.lands ? "nowhere" : s.landsOnThing ? "on a thing" : "on the world");
         shown++;
     }
-    Con_Printf("vr_gore_streams_info: %d pouring\n", shown);
+    Con_Printf("vr_gore_streams_info: %d pouring; since the map began %d bound afresh to a ragdoll, %d stopped (no body "
+               "near)\n",
+        shown, rebinds, unbound);
     // Since the last: the worst stretch drawn (ROUND22.md, "Blood streams: smoothed"), then counted afresh.
     Con_Printf("vr_gore_streams_info: stretch max %.2f (%.1f units at most) over %d pieces drawn; %d faded, %d broken, "
                "%d cuts at the wound's jumps\n",

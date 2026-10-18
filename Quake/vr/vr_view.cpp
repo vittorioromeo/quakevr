@@ -3518,19 +3518,24 @@ int gloveLook(const entity_t* e, float glove[4], float cuff[4])
             glove[3] = 0.f; // the bracers cover the wrist: nothing of the glove on the body
             return 0;
         }
-        // The cuff over a bare forearm's end: the arms' skin block (make_vrbody.py: its rings 1/9 of the block's height
-        // apart, the forearm's last 0.14 m over 2 of them, the wrist at lipVpos and the lip over the hand at 1) from
-        // cuffBack metres behind the wrist to the lip, a hem cuffHem wide along its edge.
-        constexpr float cuffBack = 0.045f, cuffHem = 0.006f;
-        constexpr float pad = bodybare::skinPad, blockV = bodybare::skinBlockV - 2.f * pad;
-        constexpr float perMetre = 2.f / 0.14f / 9.f; // the block's v (0..1) a metre along the forearm's end
-        const float start = bodybare::lipVpos - cuffBack * perMetre;
-        cuff[0] = bodybare::skinBlockU;
-        cuff[1] = pad + blockV * start;
-        cuff[2] = pad + blockV * (start + cuffHem * perMetre);
-        cuff[3] = bodybare::skinBlockV;
+        gloveCuffRange(cuff);
     }
     return kind;
+}
+
+void gloveCuffRange(float cuff[4])
+{
+    // The cuff over a bare forearm's end: the arms' skin block (make_vrbody.py: its rings 1/9 of the block's height
+    // apart, the forearm's last 0.14 m over 2 of them, the wrist at lipVpos and the lip over the hand at 1) from
+    // cuffBack metres behind the wrist to the lip, a hem cuffHem wide along its edge.
+    constexpr float cuffBack = 0.045f, cuffHem = 0.006f;
+    constexpr float pad = bodybare::skinPad, blockV = bodybare::skinBlockV - 2.f * pad;
+    constexpr float perMetre = 2.f / 0.14f / 9.f; // the block's v (0..1) a metre along the forearm's end
+    const float start = bodybare::lipVpos - cuffBack * perMetre;
+    cuff[0] = bodybare::skinBlockU;
+    cuff[1] = pad + blockV * start;
+    cuff[2] = pad + blockV * (start + cuffHem * perMetre);
+    cuff[3] = bodybare::skinBlockV;
 }
 
 int skinMaskWanted(const entity_t* e)

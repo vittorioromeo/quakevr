@@ -15,6 +15,7 @@
 #include "vr_client.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_handrig.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_hitreact.hpp"
@@ -332,6 +333,47 @@ extern "C" int VR_AliasZeroBlend(const entity_t* e, const void* aliashdr, int to
     return static_cast<int>(static_cast<unsigned>(blend) << 24 | static_cast<unsigned>(pose));
 }
 
+namespace
+{
+
+// The gloves' shells `e`'s model has (vr_handrig.cpp gloveShells: surfaces after its first; 0 none).
+[[nodiscard]] int gloveShells(const entity_t* e)
+{
+    return e->model && e->model->type == mod_alias ? handrig::gloveShellSurfaces(e->model->name) : 0;
+}
+
+// The shell drawn on `e` (its surface's number: 1 the hand's fingerless, 2 its full, 1 a bare forearm's cuff), or 0:
+// no gloves, vr_glove_thickness 0, or nothing of them on `e` (the bracers over the wrist).
+[[nodiscard]] int gloveShellWorn(const entity_t* e)
+{
+    const int shells = vr_glove_thickness.value > 0.f ? gloveShells(e) : 0;
+    float glove[4], cuff[4];
+    const int kind = shells ? view::gloveLook(e, glove, cuff) : 0;
+    return kind == 1 && shells == 2 ? static_cast<int>(glove[3]) : kind == 2 && shells == 1 && cuff[0] > 0.f ? 1 : 0;
+}
+
+} // namespace
+
+extern "C" void* VR_AliasSurfaceFirst(const entity_t* e, void* mainhdr)
+{
+    auto* hdr = static_cast<aliashdr_t*>(mainhdr);
+    for(int i = gloveShells(e) ? gloveShellWorn(e) : 0; i > 0; i--)
+    {
+        hdr = Mod_NextSurface(hdr);
+    }
+    return hdr;
+}
+
+extern "C" void* VR_AliasSurfaceNext(const entity_t* e, void* mainhdr, void* hdr)
+{
+    auto* main = static_cast<aliashdr_t*>(mainhdr);
+    if(!gloveShells(e))
+    {
+        return Mod_NextSurface(static_cast<aliashdr_t*>(hdr));
+    }
+    return hdr != main ? main : nullptr; // the shell, then the model's own (one) mesh
+}
+
 // R_DrawAliasModel_Real: the instance's Quake VR data (vraliasinstance_t). kind 1: drawn as usual; 0: r_showtris or
 // r_showbboxes' skeletons; 2: a shadow map's caster, depth only: nothing of the light, glows or surface (all zero).
 extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], const void* aliashdr, int kind,
@@ -339,13 +381,19 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
 {
     out->portalclip[0] = out->portalclip[1] = out->portalclip[2] = 0.f;
     out->portalclip[3] = 1.f;
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    // a glove's shell's thickness (vr_glove_thickness, mm), in the hand's model units (its casters' too)
+    const float shell = gloveShellWorn(e) ? CLAMP(0.f, vr_glove_thickness.value, 4.f) *
+            (gloveShells(e) == 2 ? handrig::rigUnitsPerMm : handrig::bodyUnitsPerMm) : 0.f;
     if(kind == 2)
     {
         ZA_MEMSET(out, 0, sizeof(*out));
         out->portalclip[3] = 1.f;
+        out->gloveshell[0] = shell;
         return;
     }
-    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    out->gloveshell[0] = shell;
+    out->gloveshell[1] = out->gloveshell[2] = out->gloveshell[3] = 0.f;
     const bool standard = kind == 1;
     const bool lit = standard && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe;
     VR_AliasLightDir(e, out->lightdir);

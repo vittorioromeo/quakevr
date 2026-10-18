@@ -72,6 +72,13 @@ float(float dist) VR_HitReact_Dist =
     return dist * scale;
 };
 
+// (VR_HitReact_Where's answer: below.)
+vector vr_hr_at;
+vector vr_hr_dir;
+float vr_hr_part;
+void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Slow;
+void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where;
+
 // A living monster struck by `take` (T_DamageDeal, after the blow, before its pain): the blow sent, its steps slowed.
 void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit =
 {
@@ -85,7 +92,68 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
     {
         return;
     }
+    VR_HitReact_Where(targ, inflictor, attacker);
+    vector at = vr_hr_at;
+    vector dir = vr_hr_dir;
+    float part = vr_hr_part;
+    float share = take / max(targ.max_health, 1);
+    share = min(max(share, 0), 1);
+    hitreact(targ, at, dir, part, min(255, take), share);
+    VR_HitReact_Slow(targ, at, dir, part, share);
+};
 
+// The slow-down after a blow: the stronger of what is left of the last one and this one's.
+void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Slow =
+{
+    // (an older leg hit's hitch not taken yet (pain frames ran through its window) goes: a leg hit below sets its own)
+    targ.vr_hr_hitch = '0 0 0';
+    float s = min(1, 1.4 * sqrt(share)) * cvar_hget(cvarh_vr_hit_react_slow);
+    if(s <= 0)
+    {
+        return;
+    }
+    float slow = 1 - 0.35 * s;
+    float dur = 0.3;
+    if(part == 3)
+    {
+        slow = 1 - 0.6 * s;
+        dur = 0.5;
+        // the leg gives: a hitch towards its side of the shot's line
+        vector side = at - targ.origin;
+        vector flat = dir;
+        flat_z = 0;
+        side_z = 0;
+        if(flat != '0 0 0')
+        {
+            flat = normalize(flat);
+            side = side - flat * (side * flat);
+        }
+        if(side != '0 0 0')
+        {
+            targ.vr_hr_hitch = normalize(side) * (4 * s) + flat * (2 * s);
+        }
+    }
+    else if(part == 2)
+    {
+        slow = 1 - 0.15 * s;
+        dur = 0.25;
+    }
+    float now = VR_HitReact_Scale(targ);
+    targ.vr_hr_slow = min(now, slow);
+    targ.vr_hr_start = time;
+    targ.vr_hr_until = time + dur;
+    if(cvar_hget(cvarh_vr_hit_react_debug))
+    {
+        dprint(sprintf("hitslow: %s part %g share %.2f: steps x %.2f for %.2f s\n", targ.classname, part, share,
+            targ.vr_hr_slow, dur));
+    }
+};
+
+// Where a blow struck `targ` and which way it went (vr_hr_at, vr_hr_dir: unit) and its part (vr_hr_part: 0 the body,
+// 1 the head, 2 a limb, 3 a leg, -1 unknown), from the hit's globals (its pellets, its kind, the point PositionalDamage
+// found) or the inflictor's and attacker's places. (The small reaction's and the flinch's: vr_flinch.qc.)
+void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
+{
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     vector at = '0 0 0';
     vector dir = vr_hitdir;
@@ -153,54 +221,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
     {
         dir = mid - (attacker.absmin + attacker.absmax) * 0.5;
     }
-    dir = normalize(dir);
-    float share = take / max(targ.max_health, 1);
-    share = min(max(share, 0), 1);
-    hitreact(targ, at, dir, part, min(255, take), share);
-    // (an older leg hit's hitch not taken yet (pain frames ran through its window) goes: a leg hit below sets its own)
-    targ.vr_hr_hitch = '0 0 0';
-
-    // The slow-down: the stronger of what is left of the last one and this one's
-    float s = min(1, 1.4 * sqrt(share)) * cvar_hget(cvarh_vr_hit_react_slow);
-    if(s <= 0)
-    {
-        return;
-    }
-    float slow = 1 - 0.35 * s;
-    float dur = 0.3;
-    if(part == 3)
-    {
-        slow = 1 - 0.6 * s;
-        dur = 0.5;
-        // the leg gives: a hitch towards its side of the shot's line
-        vector side = at - targ.origin;
-        vector flat = dir;
-        flat_z = 0;
-        side_z = 0;
-        if(flat != '0 0 0')
-        {
-            flat = normalize(flat);
-            side = side - flat * (side * flat);
-        }
-        if(side != '0 0 0')
-        {
-            targ.vr_hr_hitch = normalize(side) * (4 * s) + flat * (2 * s);
-        }
-    }
-    else if(part == 2)
-    {
-        slow = 1 - 0.15 * s;
-        dur = 0.25;
-    }
-    float now = VR_HitReact_Scale(targ);
-    targ.vr_hr_slow = min(now, slow);
-    targ.vr_hr_start = time;
-    targ.vr_hr_until = time + dur;
-    if(cvar_hget(cvarh_vr_hit_react_debug))
-    {
-        dprint(sprintf("hitslow: %s part %g share %.2f: steps x %.2f for %.2f s\n", targ.classname, part, share,
-            targ.vr_hr_slow, dur));
-    }
+    vr_hr_at = at;
+    vr_hr_dir = normalize(dir);
+    vr_hr_part = part;
 };
 
 // Test aid `vr_test_hit <n>` (console; Misc/quakevr/ragdoll/hitreact_test.sh): the live monster nearest the player

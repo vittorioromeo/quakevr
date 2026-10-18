@@ -80,7 +80,7 @@ string(float wid) VR_ADGun_Model =
     if(wid == WID_ADELIMINATOR) { return "progs/mon_enforcer.mdl#gun6"; }
     if(wid == WID_ADCENTURION)  { return "progs/mon_centurion.mdl#gun0"; }
     if(wid == WID_ADPYRO)       { return "progs/mon_pyro.mdl#gun0"; }
-    if(wid == WID_ADCROSSBOW)   { return "progs/w_dcrossbow.mdl"; } // (AD's own: the crossbow its gibs throw, as it is)
+    if(wid == WID_ADCROSSBOW)   { return "progs/w_dcrossbow.mdl#gun0"; } // (AD's own, its gibs': turned to face +x, vr_adguns.cpp)
     return "progs/mon_fumigator.mdl#gun0";
 };
 
@@ -98,6 +98,7 @@ float(float wid) VR_ADGun_ClipSize =
 float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack: TRUE fired
 void(float xHand) VR_ADGun_Frame;   // VR_EnemyGuns_Frame: a hand's flamethrower stream's end
 void() VR_ADGun_Drop;               // VR_AD_Dying: self, an armed AD soldier, drops its own gun
+void(entity e, float xTakes) VR_ADGun_LimbCut; // VR_Limb_Cut: a limb cut off or popped (the bones it took): Freddie's gun falls
 void(float xClass) VR_ADGun_Prepare; // VR_AD_MonsterSetup: an armed AD soldier's gun model made and precached now
 void(float wid) VR_ADGun_Placed;     // VR_WeaponGrabbable_Make: one of these guns laid (a map's, the toolgun's)
 void(float request, entity p) AD_GunTest; // vr_ad_test 70..89: the AD soldiers' guns' tests

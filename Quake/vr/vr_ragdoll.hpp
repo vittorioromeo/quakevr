@@ -173,6 +173,9 @@ void motionTest_f();
 // now (between its last two steps, moved with the holding hands: what is drawn this frame): p_world = rot * (scale *
 // p_rest) + pos; its rig. False: none, or hidden.
 bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig = nullptr);
+// Whether part `part` of edict `num`'s ragdoll is drawn with its body: false for a hidden bone (the gun he dropped) and
+// a cut-off one (its vertices drawn at the neck), or no ragdoll (the blood streams' rebinding: vr_bloodstream.cpp).
+[[nodiscard]] bool partShown(int num, int part);
 // The .mdl's triangles with a corner on bone `bone` (its rest pose, model units: three points each), the limb a hand
 // closes round (all its corners carried with that bone: across a joint, a little off where the next bone bends).
 void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);

@@ -423,6 +423,79 @@
     };
 }
 
+// Flinch (QC vr_flinch.qc; vr_box3d_knockdown.cpp ragdollFlinch, vr_ragactive.cpp beginFlinch; docs/vr-port/FLINCH.md):
+// Combat > Flinch.
+[[nodiscard]] za::Vector<Item> pageFlinch()
+{
+    return {
+        toggle("Flinch", vr_flinch)
+            .help("Every hit strong enough briefly makes a humanoid an active ragdoll: the hit's force goes into its body "
+                  "at the point struck, it steps back along it and balances with its arms and torso, then blends back into "
+                  "its animation once balanced, or topples into a knockdown and gets up. Off: the small hit reactions, "
+                  "Quake's pains and Hits Unbalance exactly as before."),
+        header("Safeguards"),
+        slider("Least Hit", vr_flinch_min, 0.f, 2.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
+            .help("A hit giving its body less change of speed than this only plays the small hit reaction (a shotgun's 6 "
+                  "pellets close: about 0.6 m/s on a grunt; a nail 0.15)."),
+        slider("Cooldown", vr_flinch_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("After a flinch begins, none again for this long (no stun-lock): the small reaction meanwhile."),
+        slider("Guard Attacks", vr_flinch_attack_guard, 1.f, 5.f, 0.25f, "%.2fx").extend(1.f, 100.f)
+            .help("While it attacks, the Least Hit times this: only big hits interrupt its attack. 1: no protection."),
+        toggle("Pains on Small Hits", vr_flinch_pain)
+            .help("A hit too small to flinch still plays Quake's pain animation. Off: only its sound and the small reaction "
+                  "(a flinch never plays it)."),
+        slider("Most at Once", vr_flinch_max, 0.f, 16.f, 1.f, "%.0f")
+            .help("Flinching at once at most; past it the small reaction (each also needs room under Max Ragdolls: a dead "
+                  "body may go for it, never a living knockdown)."),
+        slider("Range", vr_flinch_range, 256.f, 4096.f, 128.f, "%.0f units")
+            .help("Farther from every player than this, the small reaction."),
+        header("Balance"),
+        slider("Topple Speed", vr_flinch_topple, 0.5f, 6.f, 0.1f, "%.1f m/s").extend(0.1f, 20.f)
+            .help("The change of speed at its balance's edge: past it, it takes a step or two and falls; past 1.5 times "
+                  "it, it goes down at once. Heavier monsters (an ogre) get less from the same hit."),
+        slider("On Slopes and Stairs", vr_flinch_uneven, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Standing on a slope, stairs or an edge, Topple Speed times this: small hits make it fall there."),
+        slider("Jolt at the Point", vr_flinch_local, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a hit given at the point struck (its head, torso or a limb jolts); the rest moves its whole "
+                  "body, which steps along it."),
+        slider("Foot Support", vr_flinch_foot, 0.04f, 0.3f, 0.01f, "%.2f m")
+            .help("How far round each foot its centre of mass may be and still count as balanced."),
+        slider("Most Time", vr_flinch_most, 0.5f, 4.f, 0.1f, "%.1f s")
+            .help("Not balanced by then, it topples into a knockdown."),
+        slider("Least Time", vr_flinch_recover_min, 0.f, 1.f, 0.05f, "%.2f s").help("A flinch lasts at least this."),
+        slider("Steady For", vr_flinch_recover_hold, 0.f, 0.5f, 0.02f, "%.2f s")
+            .help("The recovery test holds this long before it is handed back."),
+        slider("Recover Below Speed", vr_flinch_recover_speed, 0.05f, 2.f, 0.05f, "%.2f m/s")
+            .help("Its centre of mass moving slower than this to recover."),
+        slider("Recover Below Tilt", vr_flinch_recover_tilt, 2.f, 45.f, 1.f, "%.0f deg")
+            .help("Its spine tilted at most this much more than as it stood."),
+        slider("Firm Ground Slope", vr_flinch_recover_slope, 5.f, 60.f, 1.f, "%.0f deg")
+            .help("Each foot on ground no steeper than this to recover."),
+        slider("Blend Back", vr_flinch_blend, 0.05f, 0.6f, 0.01f, "%.2f s")
+            .help("Recovered, its ragdoll blends into the animation (the stand or run frame nearest its pose) over this."),
+        header("Hit Strength"),
+        slider("Shotgun Pellet", vr_flinch_shotgun, 0.f, 30.f, 0.5f, "%.1f kg m/s").extend(0.f, 200.f)
+            .help("The impulse of each shotgun pellet that hits (its 6: 42 kg m/s close)."),
+        slider("Super Shotgun Pellet", vr_flinch_ssg, 0.f, 40.f, 0.5f, "%.1f kg m/s").extend(0.f, 200.f)
+            .help("Each super shotgun pellet's (its 14: 168 kg m/s close, enough to knock a grunt over)."),
+        slider("Shotguns Full Within", vr_flinch_shot_near, 0.f, 512.f, 16.f, "%.0f units")
+            .help("Shotguns hit at full strength this close..."),
+        slider("Shotguns Weak From", vr_flinch_shot_far, 128.f, 4096.f, 64.f, "%.0f units")
+            .help("...easing to Far Share from here on."),
+        slider("Far Share", vr_flinch_shot_far_share, 0.f, 1.f, 0.05f, "%.2f").help("Shotguns' strength far off."),
+        slider("Nails", vr_flinch_nail, 0.f, 10.f, 0.1f, "%.1f per damage")
+            .help("Nails and missiles' own hits: kg m/s per damage (a nail's 9, a super nail's 18). Quick hits add up."),
+        slider("Other Shots", vr_flinch_shot_other, 0.f, 10.f, 0.1f, "%.1f per damage")
+            .help("Lightning and monsters' shots and blows: kg m/s per damage."),
+        slider("Melee", vr_flinch_melee, 0.f, 10.f, 0.1f, "%.1f per damage")
+            .help("A melee blow: kg m/s per damage (its speed, weapon and zone are in its damage). A head blow jolts the head."),
+        slider("Throws", vr_flinch_throw, 0.f, 3.f, 0.05f, "%.2fx")
+            .help("A thrown prop or weapon: its momentum (mass times speed) times this."),
+        slider("Blasts", vr_flinch_blast, 0.f, 10.f, 0.1f, "%.1f per damage")
+            .help("An explosion: kg m/s per damage, pushing its whole body away from it."),
+    };
+}
+
 // Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp, "Knockdowns"; docs/vr-port/KNOCKDOWNS.md): a shove can
 // knock a monster down as a ragdoll, alive; it gets up after a while.
 [[nodiscard]] za::Vector<Item> pageKnockdowns()

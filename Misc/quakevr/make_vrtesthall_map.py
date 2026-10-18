@@ -99,6 +99,24 @@ for k in range(12):
 for i, h in enumerate((32, 48, 72)):
     B.append(box(-32 + 80 * i, 352, 0, 32 + 80 * i, 416, h, "qvr_wall", "qvr_floor"))
 
+
+def ramp(x0, y0, x1, y1, h, tex, top):
+    """A wedge on the floor (z 0) rising along +y from nothing at y0 to h at y1 (its top the slope)."""
+    L = y1 - y0
+    return "\n".join([
+        "{",
+        f"( {x0} {y0} 0 ) ( {x0} {y0+1} 0 ) ( {x0} {y0} 1 ) {tex} [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x0} {y0} 0 ) ( {x0+1} {y0} 0 ) ( {x0} {y0+1} 0 ) {tex} [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x0} {y0} 0 ) ( {x0} {y0+L} {h} ) ( {x0+1} {y0} 0 ) {top} [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x1} {y1} {h} ) ( {x1+1} {y1} {h} ) ( {x1} {y1} {h+1} ) {tex} [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x1} {y1} {h} ) ( {x1} {y1} {h+1} ) ( {x1} {y1+1} {h} ) {tex} [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        "}"])
+
+
+# ---- a slope (22 degrees: 64 units up over 160) north of the mantle blocks' west end, for the flinch tests
+# (vr_flinch: a hit on a slope topples sooner; FLINCH.md)
+B.append(ramp(-240, 460, -80, 620, 64, "qvr_wall", "qvr_floor"))
+
 # ---- things to pick up: a table in the north-west
 B.append(box(-448, 352, 0, -320, 416, 32, "qvr_trim", "qvr_panel"))
 

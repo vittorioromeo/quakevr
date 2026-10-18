@@ -345,14 +345,14 @@ za::Vector<Item> pageDebugTests()
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")) // AD support
             .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
                   "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
-        adSpawnRow(309, command("Arcane Dimensions: Upgraded Weapons Ahead", "vr_ad_test 95")) // AD support
+        adSpawnRow(309, command("Arcane Dimensions: Upgraded Weapons Ahead", "vr_ad_test 96")) // AD support
             .help("The Shadow Axe, the Widowmaker and the Plasma Gun pickups ahead of you, as the toolgun makes them: "
                   "drawn as their VR models (made from your AD's own view models)."),
-        adSpawnRow(309, command("Arcane Dimensions: Shadow Axe in Hand", "vr_ad_test 96")) // AD support
+        adSpawnRow(309, command("Arcane Dimensions: Shadow Axe in Hand", "vr_ad_test 97")) // AD support
             .help("The Shadow Axe in your main hand, the Widowmaker and the Plasma Gun in the hip holsters."),
-        adSpawnRow(310, command("Arcane Dimensions: Widowmaker in Hand", "vr_ad_test 97")) // AD support
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker in Hand", "vr_ad_test 98")) // AD support
             .help("The Widowmaker in your main hand, the Shadow Axe and the Plasma Gun in the hip holsters."),
-        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun in Hand", "vr_ad_test 98")) // AD support
+        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun in Hand", "vr_ad_test 99")) // AD support
             .help("The Plasma Gun in your main hand, the Shadow Axe and the Widowmaker in the hip holsters."),
         adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
             .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
@@ -545,6 +545,21 @@ za::Vector<Item> pageDebugTests()
             .help("Developer 1: a real dragon tail hit and two same-frame follow-ups, then its route recovery. Needs Dissolution of Eternity; grants 500 health. Hold a guard to test the parry: a melee weapon level across in front (a crowbar or sword held up like a gun is no guard), its grip held."),
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
+        header("Flinch"),
+        cycle("Show Flinch", "vr_flinch_debug", {{0.f, "Off"}, {1.f, "Overlay and Log"}, {2.f, "Also Refusals"}})
+            .help("vr_flinch_debug: over each flinching enemy the hit (a white arrow), its centre of mass over the floor "
+                  "and its feet's support (yellow: balancing, green: steady, cyan: recovered, red: toppled); `flinch:` "
+                  "lines for each hit, recovery and topple (Combat > Flinch)."),
+        command("Flinch Status", "vr_flinch_status")
+            .help("vr_flinch_status: flinches begun, recovered and toppled since the last call, their switch-in cost, "
+                  "recovery time and hand-back gap, and each flinching enemy's balance."),
+        command("Shotgun the Nearest", "vr_flinch_test 1").help("vr_flinch_test 1: a shotgun blast (6 pellets) on the live monster nearest you, from where you stand (1 damage)."),
+        command("Super Shotgun the Nearest", "vr_flinch_test 2").help("vr_flinch_test 2: a super shotgun blast (14 pellets), 1 damage."),
+        command("Nail the Nearest", "vr_flinch_test 4").help("vr_flinch_test 4: a super nail (3: a nail)."),
+        command("Strike the Nearest", "vr_flinch_test 5").help("vr_flinch_test 5: a 30-damage melee blow to its body (6: to its head), 1 damage dealt."),
+        command("Blast Before the Nearest", "vr_flinch_test 7").help("vr_flinch_test 7: a 60-damage blast 48 units before it, 1 damage dealt."),
+        command("Throw at the Nearest", "vr_flinch_test 8").help("vr_flinch_test 8: a 12 kg crate at 10 m/s."),
+        command("Ten Grunts Ahead", "vr_flinch_test 21").help("vr_flinch_test 21: ten grunts in two rows 160 units ahead (then 9: a shotgun blast on each)."),
         header("Holding Enemies"),
         cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "

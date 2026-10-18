@@ -309,6 +309,7 @@ float() VR_Limb_GibsWanted;
 float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
 void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow; // (vr_teeth.qc)
 void() VR_Teeth_Test;
+void(entity c, float xHand, vector xAt, vector xDir, float xSpeed, float xDamage) VR_Teeth_CorpseBlow;
 void(entity targ) VR_Decap_After;
 
 // Knockdowns (vr_knockdown.qc): a shove knocked it down, a ragdoll while alive (the engine's vr_box3d.cpp, "Knockdowns").
@@ -336,6 +337,14 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagg
 float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
 void(float xMode) VR_HitStagger_Test;
+// The flinch (vr_flinch.qc).
+float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Hit;
+float(entity e) VR_Flinch_PainOff;
+float(entity e) VR_Flinch_Owns;
+float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_Flinch_Melee;
+float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw;
+void() VR_Flinch_Frame;
+entity vr_fl_thrown; // a thrown prop dealing its damage (vr_carry.qc): the flinch waits for VR_HitStagger_Throw
 // Impacts and manhandling (vr_ragimpact.qc): when it was last staggered (a shove, an unbalancing hit, a stagger
 // recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
 .float vr_kd_shaken;
@@ -952,6 +961,7 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     {
         dmg = dmg * 1.5;
     }
+    VR_Teeth_CorpseBlow(c, xHand, at, dir, speed, dmg); // VR: a punch to its ragdoll's face knocks teeth out (vr_teeth.qc)
     VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
     haptic(xHand, 0.0, 0.1, 60, 0.7);
@@ -1715,7 +1725,14 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
     }
 
-    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
+    // VR: the flinch (vr_flinch.qc): a hit past its threshold makes it an active ragdoll a moment; else the small
+    // hit reaction (vr_hitreact.qc).
+    float flinched = VR_Flinch_Hit(targ, inflictor, attacker, take);
+    if(!flinched)
+    {
+        VR_HitReact_Hit(targ, inflictor, attacker, take);
+    }
+    float painOff = !flinched && VR_Flinch_PainOff(targ);
 
     // react to the damage
     oldself = self;
@@ -1759,6 +1776,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             self.pain_finished = time + 5;
     }
 
+    if(painOff && !self.vr_knockdown && self.health > 0)
+    {
+        self.frame = kdFrame; // (vr_flinch_pain 0: its pain's sound, not its frames)
+        self.think = kdThink;
+        self.nextthink = kdNext;
+    }
     if(kdState && self.health > 0)
     {
         self.frame = kdFrame;

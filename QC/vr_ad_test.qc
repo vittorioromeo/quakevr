@@ -54,7 +54,7 @@ void() AD_MenuAmmoReport =
 void(float request, entity p) AD_RulesTest =
 {
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
-    if(request >= 70 && (request <= 90 || (request >= 92 && request <= 99))) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (93, 94: the crossbow; 95-99: the upgraded weapons' VR models)
+    if(request >= 70 && (request <= 90 || (request >= 92 && request <= 100))) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (93, 94: the crossbow; 95: Freddie's super nailgun; 96-100: the upgraded weapons' VR models)
 
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;

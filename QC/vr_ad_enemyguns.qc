@@ -155,6 +155,35 @@ void() VR_ADGun_Drop =
     }
 };
 
+// Freddie's gun arm: his rig's left forearm (vr_ad_rigs.inc adFreddieSeeds: bone 4, forearm_l), the super nailgun's
+// five barrels on it (mon_freddie.mdl vertices 88..182: the engine leaves them off his limbs' models, vr_limbmodel.cpp).
+float VR_AD_FREDDIE_GUNBONE = 4;
+float vr_adgun_freddie_drops; // the super nailguns his cut arms dropped (the tests)
+
+// `e`'s limb just cut off or popped (VR_Limb_Cut; `xTakes` the bones it took): Freddie's gun arm (the forearm, or the
+// whole arm) drops the super nailgun on it as Quake VR's, loaded as a dropped enemy gun is (VR_DropEnemyGun: a full
+// clip), where the piece was, turned and moving as it (his gun's barrels along his model's +x, as the nailgun's).
+void(entity e, float xTakes) VR_ADGun_LimbCut =
+{
+    if(e.ad_classtype != ad_CT_MONFREDDIE || !(xTakes & VR_Limb_Bit(VR_AD_FREDDIE_GUNBONE)) || !cvar("vr_adgun_drops"))
+    {
+        return;
+    }
+    vector at = ragdollcut(e, 0);
+    vector vel = ragdollcut(e, 2);
+    entity g = CreateThrownWeapon(e, WID_SUPER_NAILGUN, 0, WeaponInst_New(WeaponIdToBaseClipSize(WID_SUPER_NAILGUN)),
+        at, ragdollcut(e, 1), vel, randomVec(60),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(WID_SUPER_NAILGUN));
+    if(g != world)
+    {
+        vr_adgun_freddie_drops++;
+    }
+    dprint(sprintf("adgun: %s's gun arm off: a super nailgun (%g in it) at %v\n", e.classname,
+        WeaponIdToBaseClipSize(WID_SUPER_NAILGUN), at));
+};
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Rockets and grenades
 

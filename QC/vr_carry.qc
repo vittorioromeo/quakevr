@@ -992,7 +992,9 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     float pop = VR_Dismember_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
     vector flight = self.velocity;
     entity struck = other;
+    vr_fl_thrown = self; // (the flinch: VR_HitStagger_Throw's, not the damage's; vr_flinch.qc)
     VR_Decap_Damage(other, self, attacker, dmg, pop);
+    vr_fl_thrown = world;
     // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
     if(struck.health > 0 && attacker != world)
     {

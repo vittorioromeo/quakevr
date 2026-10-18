@@ -1755,6 +1755,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_struggle_status", struggleStatus_f);
+        Cmd_AddCommand("vr_flinch_status", qvr::box3d::flinchStatus_f);
         Cmd_AddCommand("vr_physics_hull_stats", hullStats_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_frametime", frametime_f);
