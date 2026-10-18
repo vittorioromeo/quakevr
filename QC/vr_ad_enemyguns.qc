@@ -558,6 +558,8 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     float poison = (xWid == WID_ADFUMIGATOR);
     if(!VR_ADGun_GetStream(xHand))
     {
+        // (Its sounds, on and off, precached as the stream starts: a gun from wherever, in any map or a loaded game.)
+        AD_WeaponsOnDemand();
         sound(self, VRGetGunChannel(xHand), poison ? "enforcer/fum_poisonon.wav" : "enforcer/pyro_flameon.wav", 1, ATTN_NORM);
     }
     VR_ADGun_SetStream(xHand, time);
