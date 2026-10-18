@@ -428,8 +428,10 @@
 [[nodiscard]] za::Vector<Item> pageFlinch()
 {
     return {
-        toggle("Flinch", vr_flinch)
-            .help("Every hit strong enough briefly makes a humanoid an active ragdoll: the hit's force goes into its body "
+        cycle("Flinch", "vr_flinch", {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, Leg Balance"}})
+            .help("Leg Balance (new): no pin holding its pelvis; it bears its weight only on its feet and keeps its balance "
+                  "by stepping where its momentum will carry it. "
+                  "Every hit strong enough briefly makes a humanoid an active ragdoll: the hit's force goes into its body "
                   "at the point struck, it steps back along it and balances with its arms and torso, then blends back into "
                   "its animation once balanced, or topples into a knockdown and gets up. Off: the small hit reactions, "
                   "Quake's pains and Hits Unbalance exactly as before."),
@@ -458,6 +460,11 @@
         slider("Jolt at the Point", vr_flinch_local, 0.f, 1.f, 0.05f, "%.2f")
             .help("The share of a hit given at the point struck (its head, torso or a limb jolts); the rest moves its whole "
                   "body, which steps along it."),
+        slider("Leg Balance: Push", vr_flinch_legs_push, 0.5f, 5.f, 0.1f, "%.1fx").extend(0.f, 20.f)
+            .help("Flinch Leg Balance: the hit's push on its body times this (its balance and topple are reckoned without "
+                  "it). More: more and longer steps back."),
+        slider("Leg Balance: Upright", vr_flinch_legs_upright, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("Flinch Leg Balance: how firmly its hips and ankles turn it back upright over its feet."),
         slider("Foot Support", vr_flinch_foot, 0.04f, 0.3f, 0.01f, "%.2f m")
             .help("How far round each foot its centre of mass may be and still count as balanced."),
         slider("Most Time", vr_flinch_most, 0.5f, 4.f, 0.1f, "%.1f s")

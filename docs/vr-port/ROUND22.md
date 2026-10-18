@@ -13039,3 +13039,36 @@ The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_*
 - Fresh hits are unchanged (0.32-0.38 s, 0-1 steps). `vr_flinch 0` takes none of these paths (the new QC field is only
   read by the flinch).
 - eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs).
+
+## Flinch: balance from the legs, `vr_flinch 2` (worktree `fastship`, branch `agent/flinch4`, 2026-10-18)
+
+His VR notes on `vr_flinch 1`: a shotgun to the chest froze it with its feet glued while its body wobbled back; a
+medium blow wobbled its whole ragdoll on stuck legs; an uppercut floated it, then sprang it back. He wants Euphoria-style
+balance from the legs: a bend at the hit, then steps (backpedal, sidestep) driven by the centre of mass against the
+feet, and no global spring. Design and causes: FLINCH.md, "Balance from the legs".
+
+- **Causes:** the pelvis pin (an anchor on the stand pose's pelvis, height included, up to 2 weights at 5 Hz, carried a
+  fixed short way: 2 units for a shotgun, 5 for a blow), the lift of 0.6-0.95 g on every part, and `turnWhole`. With
+  the pin carrying it, the capture point never left the feet: no step, ever (0 steps in every case below).
+- **`vr_flinch 2`:** no pin, no lift; weight borne only through feet on the floor (a push, never a pull); centre of
+  pressure kept within the feet's soles; capture-point steps with the swing foot carried to its spot; momentum-keeping
+  upright. `vr_flinch 1` and `0` are unchanged (every new path is gated on `Stagger::legs`). `vr_flinch` stays 1:
+  the stairs are not good enough yet (below). New settings: `vr_flinch_legs_push` 2.5, `vr_flinch_legs_upright` 1.
+- **Measured** (headless, vrtesthall, a grunt hit along +y, 8 runs a case, spot and stand phase jittered;
+  `scratch/fl4_suite.py`, not committed). Recovered/8, mean steps, their mean cosine along the hit, the most rise of
+  the centre of mass (units), recovery time (s):
+
+  | case | `vr_flinch 1` | `vr_flinch 2` |
+  |---|---|---|
+  | flat, shotgun 64 / 192 units | 8, 0 steps, rise 0.7, 0.32 s | 8, 1 step (1.00 along, 15 units), rise 0.4, 0.37 s |
+  | flat, 30-damage blow | 8, 0 steps, 0.32 s | 8, 1 step (1.00, 21 units), 0.50 s |
+  | flat, uppercut (35, to the chin) | 8, 0 steps, rise 0.9, 0.32 s | 8, 1 step (1.00), rise 4.8 (falls back), 0.39 s |
+  | slope, shotgun | 8, 0 steps, 0.32 s | 8, 0 steps, 0.32 s |
+  | slope, blow / uppercut | 8, 0 steps | 8, 1 step (1.00), 0.43 / 0.49 s |
+  | stairs, shotgun | 8, 0 steps, 0.32 s | **0**: 4 steps against the hit (-0.1), falls |
+  | stairs, blow / uppercut | 8 / 8 | **2 / 0** (2 steps, 0.8 along), falls |
+
+- **Rough:** the stairs (its steps there wander and it falls from a shotgun); one step where he wants "a few" (a
+  longer backpedal needs a shorter stride, which then fell behind its capture point and toppled after 5-9 steps);
+  only the grunt was measured (the other classes, AD's, the enforcer's odd poses: not yet).
+- **Frame strips** (side view, a shot every 7 frames): `scratch/fl4_strip_<case>_<terrain>[_old].png`.

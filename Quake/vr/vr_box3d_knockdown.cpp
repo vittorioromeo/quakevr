@@ -1087,6 +1087,8 @@ float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse,
     fi.most = za::max(vr_flinch_most.value, 0.3f);
     // (Its feet's support by its size: Foot Support at a grunt's 0.75 m leg; an ogre's wider.)
     fi.footR = za::max(vr_flinch_foot.value, 0.01f) * za::clamp(ragactive::legLength(r.active, activeParts(r)) / 0.75f, 1.f, 2.f);
+    fi.legs = vr_flinch.value >= 1.5f;
+    fi.push = za::max(vr_flinch_legs_push.value, 0.f);
     ragactive::beginFlinch(r.active, activeParts(r), fi, qcvm->time);
     r.active.stagger.struck = static_cast<int>(ent->v.frame);
     r.staggerStuck = -1.0;
