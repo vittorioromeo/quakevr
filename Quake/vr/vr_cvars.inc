@@ -4012,6 +4012,8 @@ QVR_CVAR(vr_toolgun_menu_forward, "2", CVAR_ARCHIVE)  // ... and this many ahead
 QVR_CVAR(vr_toolgun_menu_tilt, "20", CVAR_ARCHIVE)    // ... leaning back from upright by this many degrees
 QVR_CVAR(vr_toolgun_laser_size, "0.3", CVAR_ARCHIVE)  // ... the other hand's laser at it: its width and its spot, times the menus' laser's
 QVR_CVAR(vr_toolgun_physgun_wrist, "1", CVAR_ARCHIVE) // the physgun turns what it holds as the gun's hand turns (and the body: it keeps its way to you); 0: only the sticks turn it
+QVR_CVAR(vr_toolgun_physgun_ragdoll, "1", CVAR_ARCHIVE) // the physgun holds a ragdoll by a spring on the part it hit (the body hangs and swings); 0: its entity dragged, as before (jittery)
+QVR_CVAR(vr_toolgun_physgun_ragdoll_force, "4", CVAR_ARCHIVE) // ... that spring's most pull, times the ragdoll's weight
 QVR_CVAR(vr_toolgun_snap, "15", CVAR_ARCHIVE)         // X/A held, what the physgun holds turns in steps of this many degrees (its angles snapped); 0: never
 QVR_CVAR(vr_toolgun_screen_scale, "0.02", CVAR_ARCHIVE) // the gun's screen (the tool's name): its letters' size (a character 8 times this, units); 0: none
 QVR_CVAR(vr_toolgun_screen_up, "3.2", CVAR_ARCHIVE)     // ... how far over the hand (units)

@@ -1081,6 +1081,7 @@ struct MockAim
 {
     bool on{false};
     bool monster{false};
+    int part{-4}; // "ragdoll <part>": the middle of that part of the ragdoll nearest the player (-1 nearest, -2 its head)
     glm::vec3 point{0.f};
 };
 MockAim mockAim[HAND_COUNT];
@@ -1088,14 +1089,16 @@ MockAim mockAim[HAND_COUNT];
 void mockHandAim_f()
 {
     const int hand = Cmd_Argc() >= 3 ? mockHand(Cmd_Argv(1)) : -1;
-    if(hand < 0 || hand >= HAND_COUNT || (Cmd_Argc() != 3 && Cmd_Argc() != 5))
+    const bool ragdoll = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
+    if(hand < 0 || hand >= HAND_COUNT || (Cmd_Argc() != 3 && Cmd_Argc() != 5 && !ragdoll))
     {
-        Con_Printf("vr_mock_hand_aim <main|off> <x> <y> <z> | monster | off\n");
+        Con_Printf("vr_mock_hand_aim <main|off> <x> <y> <z> | monster | ragdoll <part> | off\n");
         return;
     }
     MockAim& a = mockAim[hand];
     a.on = q_strcasecmp(Cmd_Argv(2), "off") != 0;
     a.monster = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "monster");
+    a.part = ragdoll ? Q_atoi(Cmd_Argv(3)) : -4;
     if(Cmd_Argc() == 5)
     {
         a.point = {Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
@@ -1133,6 +1136,22 @@ bool nearestMonster(glm::vec3& out)
     return best < 1e29f;
 }
 
+// The middle of part `part` of the ragdoll nearest the player (vr_mock_hand_aim's "ragdoll"; false: none).
+bool ragdollPartTarget(int part, glm::vec3& out)
+{
+    if(!sv.active)
+    {
+        return false;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const edict_t* player = EDICT_NUM(1);
+    const bool found = box3d::ragdollPartCentre(glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
+                           part, out) != 0;
+    PR_PopQCVM(oldVm);
+    return found;
+}
+
 // A frame of vr_mock_hand_aim: the hand's orientation turned (most of the way) from its aim last frame to the target.
 void aimFrame()
 {
@@ -1145,7 +1164,7 @@ void aimFrame()
     {
         MockAim& a = mockAim[h];
         glm::vec3 target = a.point;
-        if(!a.on || (a.monster && !nearestMonster(target)))
+        if(!a.on || (a.monster && !nearestMonster(target)) || (a.part > -4 && !ragdollPartTarget(a.part, target)))
         {
             continue;
         }

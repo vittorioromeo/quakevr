@@ -687,6 +687,9 @@ struct World
         float force{-1.f};
         float hertz{0.f};
         float stuck{0.f};
+        // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
+        // anchor is driven to (units).
+        glm::vec3 target{0.f};
     };
     za::Vector<RagdollGrab> ragdollGrabs;
     // Ragdolls made in each other (two grunts dying on one spot, vr_ragdoll_collide_each): they pass through each other
