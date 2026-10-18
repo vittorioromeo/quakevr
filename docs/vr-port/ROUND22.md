@@ -12447,3 +12447,33 @@ The code sweep's Batch C (scratch/sweep/SWEEP.md ids), the same results with les
 ## Sweep batch E (C++ cleanups)
 
 Done: 07.4, 08.6 (comment), 10.1 (first dirs.clear() only; takePending kept), 05.8, 10.6, 11.6, 11.8, 13.10, 13.11, 13.12, 14.8, 15.6, 15.7, 15.8, 16.2 (identify once; the duplicated vertex lists left), 16.6 (particles::nearLimits), 16.9, 04.8, 05.7, 05.9 (documented), 18.11, 20.10, 22.4, 17.6, 19.9, 21.11. Skipped: 19.6 (already fixed in the code). No behaviour change.
+
+## Blood streams follow the ragdoll; teeth from ragdolls (worktree `gorefx`, branch `agent/goreload`, 2026-10-18)
+
+Voice notes 2026-10-18: "one of the blood spurts from before it was killed floats in midair", and "teeth ... don't seem
+to work on a ragdoll".
+
+**Blood streams follow the ragdoll** (vr_bloodstream.cpp `locate`, `rebind`; vr_ragdoll.cpp `partShown`): a stream
+bound to a triangle on a part the ragdoll doesn't draw (the grunt's shotgun, which he holds across his chest and drops
+as he dies: a hidden bone; or a head cut off) failed the ragdoll lookup and fell back to the animated corpse's pose,
+left where he died, so it kept pouring from that spot while the body fell away. Now, once the body is a ragdoll (its
+pelvis drawn), a stream whose corners aren't all on parts shown is bound afresh to the nearest point of the ragdoll's
+drawn surface to where it pours from (a triangle with every corner on a shown part, within 32 units; its way out taken
+in the new part's frame), or it stops (what is falling still lands). A ragdoll never falls back to the animated pose.
+`vr_gore_streams_info` now prints each stream's distance to the body as drawn ("the body drawn N from its start") and
+the rebinds and stops since the map began; `developer 1` prints each rebind.
+- Test (vrfiringrange, a grunt at 90, `vr_gore_stream_test 3`, `vr_test_kill 1`, `vr_gore_streams_info` over 4 s):
+  before, one of the three stayed "animated" and drifted 6.7-15.7 units from the falling body; after, all three are
+  "ragdoll", 0.1-2.0 units from it, one bound afresh 19.4 units from the gun.
+
+**Teeth from ragdolls** (vr_teeth.qc `VR_Teeth_CorpseBlow`, `VR_Teeth_OnFace`, `VR_Teeth_Hard`; combat.qc
+`VR_Corpse_Struck`): a corpse blow (a fist, or with `vr_teeth_blunt` a gun's butt, a crowbar, a club, a pommel; never
+a slap) on a humanoid ragdoll's head part (`ragdollhead`), not from behind its face, knocks teeth out by the same rule
+as a live punch (`vr_teeth_hardness`, `_per_hit`; the hardness from the blow's speed and its corpse damage). The face
+on a ragdoll is its head part's: the part's middle (`ragdollcut 6`) and the rest pose's forward, side and up turned with
+it (`ragdollpoint`), so a body lying face down gives no teeth to a blow from above. The budget is the same entity's
+`.vr_teeth_lost` (a corpse is the monster's own edict), so the living one's count goes on and a saved game keeps it.
+A knocked-down live one (a ragdoll) is struck on its head part the same way. `impulse 198` on a dead monster strikes its
+ragdoll's mouth through VR_Corpse_Struck (the main hand).
+- Test (vrfiringrange, a grunt at 60, `vr_teeth_per_hit 3; vr_teeth_per_enemy 8; vr_decap 0; vr_corpse_nogib 2`):
+  alive 3 (3 lost), killed, its ragdoll 3 (6 lost), saved and loaded, its ragdoll 2 (8: the cap), then 0 and 0.

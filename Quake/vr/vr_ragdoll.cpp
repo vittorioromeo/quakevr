@@ -2641,6 +2641,16 @@ bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, 
     return true;
 }
 
+bool partShown(int num, int part)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()))
+    {
+        return false;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    return p.rig && part >= 0 && part < p.bodies && !(p.cut & (1u << part));
+}
+
 void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
 {
     out.clear();
