@@ -72,6 +72,10 @@ float(entity e) AD_IsBoss;           // the aim cone (vr_aimcone.qc): one of AD'
 // AD's weapon upgrades (decision 10): every question goes through AD_WeaponUpgraded(player, weapon record, bit).
 float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
 float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)
+void(float xHand, entity xVictim) AD_AxeMark; // W_FireAxe: AD's mark of the axe that hit (.ad_axhitme: 2 the Shadow Axe)
+void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe chops the bodies lying on the floor
+float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
+void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
 float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
 float(entity xInst) AD_Widowmaker;   // vr_reload.qc: the super shotgun of record xInst is the Widowmaker (reloaded at the hip)
@@ -123,6 +127,8 @@ void() AD_LoadedGame;          // OnLoadGame: the loaded game's choice
 
 // AD's side: the reviewed patches of Misc/quakevr/ad_import.py call these (never renamed).
 float() VR_AD_Extensions;
+float() VR_AD_ShadowAxeHit;                  // monsters.qc's pain check: a Shadow Axe's blow (vr_ad_bridge.qc)
+float(entity p, float xBit) VR_AD_HasUpgrade; // triggers_states.qc's upgrade_* keys: p carries the upgrade
 void(float a) VR_AD_WaterAlpha;
 float(entity client, float density, vector colour) VR_AD_Fog;
 float(entity targ, entity inflictor, entity attacker, float damage, float checkarmor) VR_AD_DamageOurs;

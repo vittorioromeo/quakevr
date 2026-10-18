@@ -156,6 +156,10 @@ constexpr MagMount magMounts[] = {
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
     {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
+    // AD support: AD's Plasma Gun (vr_adweapons.cpp): the lightning gun's cell and well turned out of its inner side (+y),
+    // into the receiver made there; it pops out sideways (QC VR_Reload_MagOutWay: the way the well faces).
+    {modelmeta::Id::AdVrPlasma, "progs/vr_mag_on_v_plasma.mdl#vr", "11.6 1.5 4.5", "progs/vr_magwell_on_v_plasma.mdl#vr",
+        {11.6f, 1.5f, 4.5f}, {11.6f, 5.1f, 4.5f}, QVR_WELL_OFFSETS(light), 2},
 };
 #undef QVR_WELL_OFFSETS
 } // namespace

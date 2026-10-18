@@ -354,6 +354,15 @@ za::Vector<Item> pageDebugTests()
             .help("The Widowmaker in your main hand, the Shadow Axe and the Plasma Gun in the hip holsters."),
         adSpawnRow(311, command("Arcane Dimensions: Plasma Gun in Hand", "vr_ad_test 99")) // AD support
             .help("The Plasma Gun in your main hand, the Shadow Axe and the Widowmaker in the hip holsters."),
+        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun Cell Test", "vr_ad_test 141")) // AD support
+            .help("The Plasma Gun in your off hand, your main hand free: its cell's well on the gun's inner side is "
+                  "found, the cell pops out sideways, and a cell from your pouch brought to the well goes in (adplasma: "
+                  "lines in the console). Then eject it (B/Y) and reload it by hand."),
+        adSpawnRow(309, command("Arcane Dimensions: Shadow Axe Rules Test", "vr_ad_test 140")) // AD support
+            .help("Three AD zombies and an AD knight ahead; two seconds on, AD's Shadow Axe rules are checked through your "
+                  "axe's own blows: a zombie in pain gibbed for good, the knight's long pain, a downed zombie chopped by a "
+                  "swing, a trigger's upgrade_axe key, the blow's 35. The console prints each (adshadowaxe:). Then the "
+                  "Shadow Axe stays in your main hand and one zombie is left: knock it down and chop it."),
         adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
             .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
                   "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "

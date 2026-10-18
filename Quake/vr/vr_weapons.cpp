@@ -138,9 +138,12 @@ namespace
 // unused placeholders before). 44: slot 33 (the AD crossbow) on its model turned to face +x (vr_adguns.cpp
 // turnedModels): the sideways model's offsets would turn it wrong; his pose converted is its default. 45: slots 27-31 again (the AD guns now our burst rifle's
 // variants, vr_adgunart.cpp: their IDs and anchors). 46: the AD hunter ogres' hammer and mace (slots 44-45) head-heavy
-// (their centre of mass 35 and 30 cm ahead of the grip, was 15), where the config still held 15. A first start (no saved
+// (their centre of mass 35 and 30 cm ahead of the grip, was 15), where the config still held 15. 47: AD's Widowmaker and
+// Plasma Gun (slots 34-35, vr_adweapons.cpp) remade: the Widowmaker's anchors, front handle hotspot and weight, the Plasma
+// Gun's button off and its kick and flash: both slots to their defaults (their own values were the placeholders that
+// inherit, and the old models' anchors). A first start (no saved
 // config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 46;
+constexpr int settingsVersion = 47;
 
 void resetSlot(int slot)
 {
@@ -215,6 +218,13 @@ void takeAdHeavyBalance()
     }
 }
 
+// AD support: the Widowmaker's and the Plasma Gun's slots (47) to their defaults, on the remade models.
+void takeAdUpgrades()
+{
+    resetSlot(34);
+    resetSlot(35);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -228,6 +238,7 @@ constexpr Step steps[] = {
     {44, takeAdCrossbow},
     {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
     {46, takeAdHeavyBalance},
+    {47, takeAdUpgrades},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

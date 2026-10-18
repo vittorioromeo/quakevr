@@ -13141,3 +13141,70 @@ knight, death lord, Quoth death guard, boil, deflector, floyd, jim, lost soul, s
 
 Tests: the sweep (every AD model above rigs, the rig cache off); `vr_test_spawn 208/213; impulse 241; vr_test_kill 1` in
 ad_dm1: both ragdolls (12 parts, lying, `vr_corpse_poses`), the dropped hammer beside them.
+## AD's upgraded weapons, second pass: his VR notes (worktree `dequant`, branch `agent/adweapons2`, 2026-10-18)
+
+### Plasma Gun
+
+- **Its cell on the inner side.** A receiver block made on the +y side (towards the body held in the right hand,
+  mirrored in the left; `vr_adweapons.cpp plasmaParts`, AD's riveted panel and plate texels). The lightning gun's
+  attached cell and well (make_mags.py's, in v_light.mdl's space) turned a quarter about x and moved there, as
+  `progs/vr_mag_on_v_plasma.mdl#vr` / `progs/vr_magwell_on_v_plasma.mdl#vr` (named as the Plasma Gun's parts:
+  `slotForPart` gives them its Scale and offsets): `vr_view.cpp magMounts` and `loadPorts` entries for `AdVrPlasma`
+  (seat 11.6 1.5 4.5, the cell's middle 3.6 further out). The cell box's axis gives the way out, so the button and the
+  pull pop it out sideways (QC `VR_Reload_MagOutWay`).
+- **No ammo switch.** AD's Plasma Gun fires cells only (AD's `W_FirePlasma`: `ammo_cells - 1`): slot 35 own
+  `WpnButtonMode 0`; `ToggleSecondaryAmmo` refuses it.
+- **The stock's cut** is capped with AD's end-plate texels laid flat (Recipe `cutCap`), not the dark fan.
+- **Firing**: slot 35 own Recoil 1 (0.6, 0.12 s) and Flash 1 (0.7); QC `AD_FirePlasma` adds blue-white sparks and a wisp
+  at the muzzle.
+
+### Widowmaker
+
+AD's view model is a shell of three half barrels (open below and at the muzzle: the holes he saw). Every part is now
+made in AD's texels (`widowmakerParts`): a receiver (x -2..12.5, vented sides, band along the top, breech plate behind),
+three whole barrels to x 44 (radius 1.6, AD's strips mirrored round them, brakes on the last 7, black bores 3 deep, two
+bands each), a mount and a front handle under them at x 24..31 (the super shotgun's grip again, 0.88 its size). The rear
+handle is the super shotgun's grafted grip (the hand where the super shotgun's is). Slot 34: muzzle `44 0 6.8`, the other
+hand's anchor on the front handle, the ammo screen on the receiver's top, hotspot 1 the front handle (model 31 0 3.3: the
+main hand's controller point from the rear handle carried over; pitch 7), Mass 6, Balance 22, Span 75. Made parts:
+`extrude` (a convex section along x, flat faces or one rounded surface), `barrel`; smoothing groups (`Out::group`) keep
+flat faces flat (the holes' fans too).
+
+### Shadow Axe
+
+- His enlargement went to the axe's slot (the Shadow Axe inherits it: the menu edits the parent): slot 0 Scale 0.36,
+  Offset Y 0.84, Z -0.6 promoted (both axes draw so, as in his game).
+- AD's QC gates on the Shadow Axe in five places; each now works through our axe: the blow's 35 (`AD_AxeScale`, as
+  before); the mark (`AD_AxeMark` in `W_FireAxe`: `.axhitme` 2) that gibs a zombie in pain for good (`ad_zombie_pain`,
+  `ad_zombiek_pain`) and gives the long pain (`ad_monster_pain_check`, through the import hook `VR_AD_ShadowAxeHit`: AD
+  asked the player's `.moditems`, which never holds the upgrades here); the bodies on the floor chopped
+  (`AD_ShadowAxeChop` from `VR_Melee_Strike`: the blade's swept points through the body's box, AD's
+  `ad_monster_flrbody_gib`); the triggers' `upgrade_axe/ssg/lg` keys (import hook `VR_AD_HasUpgrade`: a carried
+  weapon's upgrade). `ad_import.py --check`: 0 of 142 differ.
+
+### AD crossbow
+
+His tuned pose (Pitch 3.80, Yaw -7.24, Roll 3.03, Scale 0.741, Offset 5.52 4.00 -0.91) and hotspot 2 promoted. "No
+sights: a melee weapon" came from it having no sight line: `vr_sightalign_table.inc` now has one along its rail, just
+over the string's latch (-10.95 degrees from the model's x; measured on AD 1.80p1's model, `sightline_table.py`), so
+Align Sights to My Aim works; Muzzle and Shot Pitch/Yaw were already there.
+
+### Settings
+
+`vr_wofs_version` 47: slots 34-35 to their defaults (his config held only the old placeholders and anchors).
+
+### Checked (headless)
+
+- `vr_adweapon_models`: Shadow Axe 180 triangles, Widowmaker 1132 (922 made), Plasma Gun 548; 0 open edges each,
+  corners kept.
+- `vr_ad_test 140` (Debug > Tests > Arcane Dimensions: Shadow Axe Rules Test): 6 PASS. `vr_ad_test 141` (Plasma Gun Cell
+  Test): its well found, the cell leaves along the left hand's right (1.00), ejects, a pouch cell at the load point goes
+  in: 4 PASS. `vr_ad_test 84` with the Plasma Gun: fires, `weaponfx fired ... slot 35 recoil 1 flash 1`.
+- Screenshots (scratch): `look1.png`, `plasma2.png`, `final.png` (the Plasma Gun, its side cell, its back), `ww2.png` (the
+  Widowmaker, one hand), `ww3.png` (both hands: the other hand at hotspot 1).
+
+### For VR
+
+The Widowmaker held with two hands (the front handle's hotspot angles are a guess: pitch 7); its look (all dark, as
+AD's skin). The Plasma Gun's cell: eject, pull, reload by hand; the receiver's size. Align the crossbow's sights. The
+Shadow Axe on AD zombies (knock one down, chop it).
