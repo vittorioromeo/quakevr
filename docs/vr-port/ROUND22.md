@@ -12485,3 +12485,16 @@ behind the hips the same on you (`scratch/zd_player.png`). `vr_menu_path_check m
 orange on you and on the clone. Grip inside one and move the hand: the box (and its pair) follows, the Move sliders
 too. Grip it with the other hand as well and spread the hands: it grows. Switch *Drag* off when done (or restart).
 *Show Item Boxes*: the magenta boxes for carried ammo and health. VR Settings > Holster Calibration > *Auto-Collect*.
+## AD crossbow knight: corpse and ragdoll without the crossbow (worktree `tghost`, branch `agent/xbowcorpse`, 2026-10-18)
+
+His ask: the dead model and ragdoll still had the crossbow; it looked cloned beside the dropped pickup. Done as the
+soldiers: `vr_monstermods.cpp` `knownSwords` has an `AdDcrossbow` row (1120 vertices, 874 triangles): vertices 772..1119
+(the rigid crossbow piece found by connectivity and constant mutual distances over the 256 frames; bow, string, bolt),
+collapsed onto the hilt in the death frames 225..255 (the rig's death range in `vr_ad_rigs.inc`), so the dead pose and the
+ragdoll (which skins from those frames) hold none. `droppedName` says "crossbow".
+
+**Not verified by screenshots**: his game was running the whole time (no launch allowed), so only the build ran (0 errors).
+`Misc/quakevr/xbow_corpse_test.sh <tag>` takes the dead-pose and ragdoll shots (`xbow_<tag>_dead.png`, `_rag.png`) once the
+game is closed. To check: that nothing but the crossbow vanished (hands, bowstring) and the range covers the whole death.
+
+**Verified (2026-10-18, after his game closed; needs `ad` junctioned into the base: qbase/ad)**: `Misc/quakevr/xbow_corpse_test.sh <tag>` (ad_tfuma, r_fullbright, one kill, four shots): the log says "crossbow (348 vertices) hidden in 31 death frames"; in the shots the body flies/falls with empty hands and the crossbow lies on the floor as the pickup; no hand or arm vanished, so the range 772..1119 stays. Shots: scratch/xbow_k_fb.png (not committed). The ragdoll is the same frames.
