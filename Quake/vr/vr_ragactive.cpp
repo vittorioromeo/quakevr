@@ -1210,6 +1210,7 @@ constexpr float legsOvershoot = 0.1f;   // of its leg: a step lands this far pas
 constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this far (level) from its hip then
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
+constexpr float legsSwingClear = 0.08f; // of its leg: a stepping foot kept this far over the floor on its way
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1747,7 +1748,16 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             if(g.legs)
             {
                 const float u2 = za::min(u + c.dt / za::max(g.stepTime, 0.05f), 1.f);
-                const glm::vec3 next = glm::mix(g.stepA, g.stepB, smooth01(u2)) + up * (0.12f * len * za::sin(3.14159265f * u2));
+                glm::vec3 next = glm::mix(g.stepA, g.stepB, smooth01(u2)) + up * (0.12f * len * za::sin(3.14159265f * u2));
+                // (Over the floor on its way, clear of it: a step up lifts over the riser, not through it, and its carry
+                // does not shove the body through the contact; at its end it comes down onto its spot.)
+                const float under = floorUnder(c, next, za::max(pelvis.z, next.z + 0.1f), next.z - len, -1e30f);
+                if(under > -1e29f && u2 < 1.f)
+                {
+                    const float clear = under + za::min(g.footGap[i], 0.f) + legsSwingClear * len * (1.f - smooth01((u2 - 0.8f) / 0.2f));
+                    next.z = za::max(next.z, clear);
+                    r.goal.z = za::max(r.goal.z, clear);
+                }
                 glm::vec3 want = (next - limbEnd(s, p, leg)) / za::max(c.dt, 1e-3f);
                 if(const float l = glm::length(want); l > legsSwingMost)
                 {
