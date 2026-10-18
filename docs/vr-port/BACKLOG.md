@@ -164,6 +164,22 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Box3D upgrade (the author, 2026-10-18)
+Vendored `Quake/vr/external/box3d` is at upstream 5d83df83 (2026-10-07); upstream is 4 commits ahead (audit 2026-10-18).
+Take them as one update per the README procedure (keep the QVR `mesh_contact.c` pre-solve patch and the Tracy zones in
+`core.h`; neither file is touched upstream):
+- a2e4816b "Fixes for #175": contact recycling cache invalidation, sphere-sphere / capsule-sphere speculative early-out. Bug fixes, low risk.
+- 0cfc475b "Solver stuff (#189)": joint (revolute/spherical/motor/weld) and wide contact solver refactor; changes results.
+- efca0c18 "Gyro tolerance (#191)": gyroscopic torque only for anisotropic bodies (`isotropicInertiaTolerance` 0.2);
+  our throw-spin alignment relies on it: set the tolerance to 0 in vr_box3d.cpp until judged in VR.
+- After: physics regression, mtbench world hash (SSE2 == AVX2; expect new hashes), throw-spin test, flinch suite. Do it
+  when no flinch/ragdoll tuning is in flight.
+
+### Seated play: holsters and pouches (the author, 2026-10-18)
+The holster/pouch zones (hip, upper, shoulder, ammo, grenade, magholster, item pouches) are placed for standing play and
+don't suit seated play. Needs a seated layout: zones relative to the seated body (chair, thighs, chest), reachable
+without leaning, chosen automatically from the seated calibration (vr_setup seated flow) with its own defaults.
+
 ### Performance
 
 - **Optimise decals** (PERF_DECISIONS.md 15): in a rocket fight (`play_e1m1_lights`) ~900 marks are 1.34 ms of the
