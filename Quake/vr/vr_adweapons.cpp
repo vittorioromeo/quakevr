@@ -5,7 +5,9 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
 #include <stdio.h>
@@ -29,6 +31,19 @@ struct Source
     int numVerts, numTris, skinW, skinH;
 };
 
+// A rectangle of the made skin's texels (AD's skin is its first rows), laid on a face: s across it and t along the
+// weapon's x (swap: s along x, t across).
+struct Rect
+{
+    float s0, t0, s1, t1;
+    bool swap;
+};
+constexpr Rect noRect{0.f, 0.f, 0.f, 0.f, false};
+
+struct Parts;
+void widowmakerParts(Parts& p);
+void plasmaParts(Parts& p);
+
 // One weapon: AD's view model in one pose (`frame`), its pieces holding `drop` taken off, laid into the Quake VR weapon's
 // frame (src axis/up -> dst axis/up, scaled by k, srcPivot onto dstPivot), cut to dot(clipN, p) >= clipD, the Quake VR
 // model's pieces holding `graftSeeds` put on as they are, the holes closed (the loop whose middle is within 3 units of
@@ -51,6 +66,9 @@ struct Recipe
     bool apex;
     glm::vec3 apexNear, apexAt;
     const char* standIn;
+    bool takeSource;        // AD's triangles laid in (the Widowmaker: only its skin; every part made)
+    Rect cutCap;            // the cut's cap: these texels laid flat on it (noRect: the dark fan)
+    void (*parts)(Parts&);  // the parts made of simple shapes in AD's texels (null: none)
 };
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
@@ -71,16 +89,33 @@ const Recipe recipes[] = {
     {"progs/v_shadaxe3.mdl#vr", {"progs/v_shadaxe3.mdl", 281, 292, 512, 128}, "frame0", {0.5949f, 0.2699f, 0.7571f},
         {0.6493f, 0.3939f, -0.6506f}, {0.3419f, 0.f, 0.9397f}, {0.9398f, 0.f, -0.3417f}, 0.85f, {16.1405f, -23.6240f, -36.1937f},
         {0.3710f, 0.04f, -3.0802f}, {257, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {nullptr, 0, 0, 0, 0}, {-1, -1, -1},
-        {-2.997f, -1.6813f, -3.9006f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_axe.mdl"},
+        {-2.997f, -1.6813f, -3.9006f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_axe.mdl", true, noRect, nullptr},
     {"progs/v_shot3.mdl#vr", {"progs/v_shot3.mdl", 206, 238, 256, 256}, "fire1", {12.85f, 0.f, -1.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.85f, {2.57f, 0.f, -8.6f}, {1.2f, 0.f, 2.8f}, {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f,
-        {"progs/v_shot2.mdl", 1207, 983, 512, 146}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, true, {13.84f, 0.f, 4.97f},
-        {13.5f, 0.f, 3.f}, "progs/v_shot2.mdl"},
+        {"progs/v_shot2.mdl", 1207, 983, 512, 146}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", false, noRect, widowmakerParts},
     {"progs/v_plasma.mdl#vr", {"progs/v_plasma.mdl", 786, 427, 128, 128}, "base1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.55f,
         {"progs/v_light.mdl", 1358, 865, 512, 178}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_light.mdl"},
+        {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts},
 };
+
+// The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
+// hangs below its seat) turned a quarter about x so that it stands out of the gun's inner side (+y: towards the body
+// held in the right hand; mirrored in the left), its seat moved into the receiver made on that side (plasmaParts). Named
+// as the parts of "progs/v_plasma.mdl#vr" (vr_weapons.cpp slotForPart: the Plasma Gun's slot, its Scale and offsets;
+// vr_view.cpp magMounts, loadPorts).
+struct SidePart
+{
+    const char* name;
+    const char* from;
+};
+constexpr SidePart sideParts[] = {
+    {"progs/vr_mag_on_v_plasma.mdl#vr", "progs/vr_mag_on_v_light.mdl"},
+    {"progs/vr_magwell_on_v_plasma.mdl#vr", "progs/vr_magwell_on_v_light.mdl"},
+};
+constexpr glm::vec3 lightSeat{11.6f, 0.f, 3.f};  // the lightning gun's (vr_view.cpp magMounts)
+constexpr glm::vec3 plasmaSeat{11.6f, 1.5f, 4.5f}; // the cell's top, inside the gun; its middle 3.6 further out (+y)
 
 [[nodiscard]] int rd(const byte* b, size_t at)
 {
@@ -342,19 +377,29 @@ struct Mesh
     return in;
 }
 
-// The model being made: positions, texels (absolute: no seams), triangles (clockwise from outside, as Quake's).
+// The model being made: positions, texels (absolute: no seams), triangles (clockwise from outside, as Quake's), and each
+// vertex's smoothing group (its normal is the surface's of the vertices at its place in its group: 0 AD's and the grafted
+// parts', one each for a made part's flat faces and its rounded sides, and for each hole's fan).
 struct Out
 {
     za::Vector<glm::vec3> pos;
     za::Vector<int> s, t;
+    za::Vector<int> group;
     za::Vector<int> tris;
+    int groups{1};
 
-    int vert(const glm::vec3& p, int ss, int tt)
+    int vert(const glm::vec3& p, int ss, int tt, int g = 0)
     {
         pos.pushBack(p);
         s.pushBack(ss);
         t.pushBack(tt);
+        group.pushBack(g);
         return static_cast<int>(pos.size()) - 1;
+    }
+
+    int newGroup()
+    {
+        return groups++;
     }
 };
 
@@ -406,7 +451,7 @@ void clip(Out& out, const glm::vec3& n, float d, za::SizeT first)
         const float da = dist(a), db = dist(b), k = da / (da - db);
         const int v = out.vert(out.pos[a] + (out.pos[b] - out.pos[a]) * k,
             out.s[a] + static_cast<int>(static_cast<float>(out.s[b] - out.s[a]) * k + 0.5f),
-            out.t[a] + static_cast<int>(static_cast<float>(out.t[b] - out.t[a]) * k + 0.5f));
+            out.t[a] + static_cast<int>(static_cast<float>(out.t[b] - out.t[a]) * k + 0.5f), out.group[a]);
         cuts[key] = v;
         return v;
     };
@@ -601,11 +646,31 @@ int seal(Out& out, const Recipe& r, int capS, int capT)
         }
         middle /= static_cast<float>(loop.size());
         const glm::vec3 apex = r.apex && glm::length(middle - r.apexNear) < 3.f ? r.apexAt : middle;
-        const int a = out.vert(apex, capS, capT);
+        // The cut's cap (every corner on the cutting plane): the recipe's texels laid flat on it (y across, z up).
+        bool onCut = r.clip && r.cutCap.s1 > r.cutCap.s0;
+        glm::vec2 lo{1e30f}, hi{-1e30f};
+        for(const int v : loop)
+        {
+            onCut = onCut && za::abs(glm::dot(r.clipN, out.pos[v]) - r.clipD) < 0.01f;
+            lo = glm::min(lo, glm::vec2{out.pos[v].y, out.pos[v].z});
+            hi = glm::max(hi, glm::vec2{out.pos[v].y, out.pos[v].z});
+        }
+        const auto texel = [&](const glm::vec3& p, int axis) {
+            if(!onCut)
+            {
+                return axis == 0 ? capS : capT;
+            }
+            const glm::vec2 f = (glm::vec2{p.y, p.z} - lo) / glm::max(hi - lo, glm::vec2{1e-3f});
+            return axis == 0 ? static_cast<int>(r.cutCap.s0 + (r.cutCap.s1 - r.cutCap.s0) * f.x + 0.5f)
+                             : static_cast<int>(r.cutCap.t1 - (r.cutCap.t1 - r.cutCap.t0) * f.y + 0.5f);
+        };
+        const int g = out.newGroup(); // (flat: never smoothed with the surface round it)
+        const int a = out.vert(apex, texel(apex, 0), texel(apex, 1), g);
         const za::SizeT first = out.pos.size();
         for(const int v : loop)
         {
-            out.vert(out.pos[v], capS, capT);
+            const glm::vec3 p = out.pos[v];
+            out.vert(p, texel(p, 0), texel(p, 1), g);
         }
         for(za::SizeT i = 0; i < loop.size(); i++)
         {
@@ -636,7 +701,7 @@ int seal(Out& out, const Recipe& r, int capS, int capT)
 struct Built
 {
     za::Vector<byte> file;
-    int verts{0}, tris{0}, sealed{0}, openAfter{0}, grafted{0}, dropped{0};
+    int verts{0}, tris{0}, sealed{0}, openAfter{0}, grafted{0}, dropped{0}, made{0};
     glm::vec3 lo{0.f}, hi{0.f};
     bool cornerKept{false};
     glm::vec3 muzzle{0.f};          // a gun's: the middle of its front end; the axe's: the blade edge's top
@@ -661,6 +726,246 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
     x = glm::normalize(axis);
     z = glm::normalize(up - x * glm::dot(up, x));
     y = glm::cross(z, x);
+}
+
+// What a recipe's made parts are laid with: the model being made, the Quake VR model the grip came from (its pieces laid
+// again: take) and its texels' move, the dark texels (the caps' grey, the bores' black), and the muzzle they make.
+struct Parts
+{
+    Out& o;
+    const Mesh& graft;
+    int graftDs, graftDt;
+    int capS, capT, boreS, boreT;
+    glm::vec3 muzzle{0.f};
+    bool muzzleSet{false};
+};
+
+[[nodiscard]] int texel(float v)
+{
+    return static_cast<int>(v + 0.5f);
+}
+
+// One triangle, turned to face `outward` (clockwise seen from there).
+void face(Out& o, int a, int b, int c, const glm::vec3& outward)
+{
+    const glm::vec3 n = glm::cross(o.pos[c] - o.pos[a], o.pos[b] - o.pos[a]);
+    const bool keep = glm::dot(n, outward) >= 0.f;
+    o.tris.pushBack(a);
+    o.tris.pushBack(keep ? b : c);
+    o.tris.pushBack(keep ? c : b);
+}
+
+// The texel of `r` at the share `across` of its width and `along` of its length (swapped: the other way).
+[[nodiscard]] glm::ivec2 texelOf(const Rect& r, float across, float along)
+{
+    const float u = r.swap ? along : across, v = r.swap ? across : along;
+    return {texel(r.s0 + (r.s1 - r.s0) * u), texel(r.t0 + (r.t1 - r.t0) * v)};
+}
+
+// A flat end at `x` of the convex section `sec` (y z), facing `dir` (-1 or 1 along x): fanned from its middle, `r`'s
+// texels laid on it (y across, z up).
+void cap(Out& o, const za::Vector<glm::vec2>& sec, float x, float dir, const Rect& r)
+{
+    glm::vec2 mid{0.f}, lo{1e30f}, hi{-1e30f};
+    for(const glm::vec2& q : sec)
+    {
+        mid += q;
+        lo = glm::min(lo, q);
+        hi = glm::max(hi, q);
+    }
+    mid /= static_cast<float>(sec.size());
+    const glm::vec2 size = glm::max(hi - lo, glm::vec2{1e-3f});
+    const int g = o.newGroup();
+    const auto vert = [&](const glm::vec2& q) {
+        const glm::vec2 f = (q - lo) / size;
+        const glm::ivec2 st = texelOf(Rect{r.s0, r.t0, r.s1, r.t1, false}, f.x, 1.f - f.y);
+        return o.vert(glm::vec3{x, q.x, q.y}, st.x, st.y, g);
+    };
+    const int c = vert(mid);
+    za::Vector<int> ring;
+    for(const glm::vec2& q : sec)
+    {
+        ring.pushBack(vert(q));
+    }
+    for(za::SizeT i = 0; i < ring.size(); i++)
+    {
+        face(o, c, ring[i], ring[(i + 1) % ring.size()], glm::vec3{dir, 0.f, 0.f});
+    }
+}
+
+// The convex section `sec` (y z, in order round it) from x0 to x1. Each side flat with its own of `faces` (nFaces 1: the
+// same for all) across it (perFace); else one rounded surface: the rect's s by the way round (mirror: across it over half
+// the way, back over the other), t along x. Its ends closed flat with end0, end1 (null: left open).
+void extrude(Out& o, const za::Vector<glm::vec2>& sec, float x0, float x1, const Rect* faces, int nFaces, bool perFace, bool mirror,
+    const Rect* end0, const Rect* end1)
+{
+    const za::SizeT n = sec.size();
+    glm::vec2 mid{0.f};
+    za::Vector<float> along;
+    float perimeter = 0.f;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        mid += sec[i];
+        along.pushBack(perimeter);
+        perimeter += glm::length(sec[(i + 1) % n] - sec[i]);
+    }
+    mid /= static_cast<float>(n);
+    const auto share = [&](za::SizeT i) {
+        const float f = i >= n ? 1.f : along[i] / perimeter;
+        return mirror ? 1.f - za::abs(2.f * f - 1.f) : f;
+    };
+    const int rounded = o.newGroup();
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const Rect& r = faces[nFaces == 1 ? 0 : static_cast<int>(i) % nFaces];
+        const glm::vec2 a = sec[i], b = sec[(i + 1) % n];
+        const float ua = perFace ? 0.f : share(i), ub = perFace ? 1.f : share(i + 1);
+        const int g = perFace ? o.newGroup() : rounded;
+        const glm::ivec2 a0 = texelOf(r, ua, 0.f), a1 = texelOf(r, ua, 1.f), b0 = texelOf(r, ub, 0.f), b1 = texelOf(r, ub, 1.f);
+        const int va0 = o.vert({x0, a.x, a.y}, a0.x, a0.y, g), va1 = o.vert({x1, a.x, a.y}, a1.x, a1.y, g);
+        const int vb0 = o.vert({x0, b.x, b.y}, b0.x, b0.y, g), vb1 = o.vert({x1, b.x, b.y}, b1.x, b1.y, g);
+        const glm::vec2 out = (a + b) * 0.5f - mid;
+        face(o, va0, va1, vb1, glm::vec3{0.f, out.x, out.y});
+        face(o, va0, vb1, vb0, glm::vec3{0.f, out.x, out.y});
+    }
+    if(end0)
+    {
+        cap(o, sec, x0, -1.f, *end0);
+    }
+    if(end1)
+    {
+        cap(o, sec, x1, 1.f, *end1);
+    }
+}
+
+constexpr int roundSides = 14;
+
+// A circle round `c` (y z): from its -y side over its top and round (a strip mirrored on it has its middle on top).
+[[nodiscard]] za::Vector<glm::vec2> circle(const glm::vec2& c, float r)
+{
+    za::Vector<glm::vec2> pts;
+    for(int k = 0; k < roundSides; k++)
+    {
+        const float a = 3.14159265f * (1.f - 2.f * static_cast<float>(k) / static_cast<float>(roundSides));
+        pts.pushBack(c + glm::vec2{za::cos(a), za::sin(a)} * r);
+    }
+    return pts;
+}
+
+// A barrel along x from x0 to x1 round `c` (y z), radius r: `body` up to its brake (the last brakeLen), `brake` there (each
+// strip across its top half and back under it), its breech closed with `breech`; at the muzzle a flat ring in to the bore
+// (radius rin), the bore `depth` deep, black.
+void barrel(Parts& p, const glm::vec2& c, float r, float rin, float x0, float x1, float brakeLen, float depth, const Rect& body,
+    const Rect& brake, const Rect& breech)
+{
+    Out& o = p.o;
+    const za::Vector<glm::vec2> outer = circle(c, r), inner = circle(c, rin);
+    extrude(o, outer, x0, x1 - brakeLen, &body, 1, false, true, &breech, nullptr);
+    extrude(o, outer, x1 - brakeLen, x1, &brake, 1, false, true, nullptr, nullptr);
+    const int ring = o.newGroup(), bore = o.newGroup(), bottom = o.newGroup();
+    const za::SizeT n = outer.size();
+    za::Vector<int> rim, mouth, deep;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        rim.pushBack(o.vert({x1, outer[i].x, outer[i].y}, p.capS, p.capT, ring));
+        mouth.pushBack(o.vert({x1, inner[i].x, inner[i].y}, p.capS, p.capT, ring));
+    }
+    za::Vector<int> wallTop, wallDeep;
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        wallTop.pushBack(o.vert({x1, inner[i].x, inner[i].y}, p.boreS, p.boreT, bore));
+        wallDeep.pushBack(o.vert({x1 - depth, inner[i].x, inner[i].y}, p.boreS, p.boreT, bore));
+        deep.pushBack(o.vert({x1 - depth, inner[i].x, inner[i].y}, p.boreS, p.boreT, bottom));
+    }
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        const za::SizeT j = (i + 1) % n;
+        face(o, rim[i], rim[j], mouth[j], glm::vec3{1.f, 0.f, 0.f});
+        face(o, rim[i], mouth[j], mouth[i], glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec2 in = c - (inner[i] + inner[j]) * 0.5f; // (the bore's wall faces its axis)
+        face(o, wallTop[i], wallTop[j], wallDeep[j], glm::vec3{0.f, in.x, in.y});
+        face(o, wallTop[i], wallDeep[j], wallDeep[i], glm::vec3{0.f, in.x, in.y});
+    }
+    const int middle = o.vert({x1 - depth, c.x, c.y}, p.boreS, p.boreT, bottom);
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        face(o, middle, deep[i], deep[(i + 1) % n], glm::vec3{1.f, 0.f, 0.f});
+    }
+}
+
+// The Widowmaker as a big two-handed gun (his note 2026-10-18: AD's view model is a shell of three half barrels, open
+// below and at the muzzle; it read as a pistol): every part made, in AD's own texels (v_shot3.mdl's 256x256 skin), in the
+// super shotgun's frame, its grip where the super shotgun's is (the rear handle: grafted with the trigger guard and the
+// trigger, so the hand holds it as the super shotgun). Behind the barrels a receiver (x -2..12.5, 7.2 wide, 7.4 tall, its
+// top's edges cut: AD's vented brake block on its sides, AD's band along its top, the breech plate's ring on its back);
+// three whole barrels (radius 1.6: one on top, two below it, as AD's) to x 44, AD's barrel strips on them and its brakes on
+// their last 7 units, their bores black, two of AD's bands round each; under them at x 24..31 a mount and the front handle
+// (the super shotgun's grip again, 0.88 its size: the other hand's, vr_weapons.inc slot 34's hotspot). Everything above the
+// super shotgun's corner (z -4.24: the settings scale about it).
+void widowmakerParts(Parts& p)
+{
+    Out& o = p.o;
+    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
+    const Rect dark{cs, ct, cs, ct, false};
+    const Rect strips[3] = {{56.f, 125.f, 81.f, 255.f, false}, {25.f, 125.f, 50.f, 255.f, false}, {86.f, 125.f, 111.f, 255.f, false}};
+    const Rect brakes[3] = {{56.f, 82.f, 81.f, 124.f, false}, {25.f, 82.f, 50.f, 124.f, false}, {86.f, 82.f, 111.f, 124.f, false}};
+    const Rect band{2.f, 1.f, 130.f, 11.f, false};
+    const Rect bandAlong{2.f, 1.f, 130.f, 11.f, true};
+    const Rect vents{128.f, 132.f, 168.f, 176.f, false};
+    const Rect breechPlate{118.f, 35.f, 158.f, 75.f, false};
+    const Rect underside{28.f, 140.f, 46.f, 250.f, false};
+
+    const za::Vector<glm::vec2> receiver{{-3.6f, 3.f}, {3.6f, 3.f}, {3.6f, 9.2f}, {2.4f, 10.4f}, {-2.4f, 10.4f}, {-3.6f, 9.2f}};
+    const Rect receiverFaces[6] = {underside, vents, bandAlong, bandAlong, bandAlong, vents};
+    extrude(o, receiver, -2.f, 12.5f, receiverFaces, 6, true, false, &breechPlate, &dark);
+
+    const glm::vec2 centres[3] = {{0.f, 8.6f}, {-1.85f, 5.9f}, {1.85f, 5.9f}};
+    for(int i = 0; i < 3; i++)
+    {
+        barrel(p, centres[i], 1.6f, 1.f, 11.5f, 44.f, 7.f, 3.f, strips[i], brakes[i], dark);
+        for(const float x : {18.f, 29.5f})
+        {
+            extrude(o, circle(centres[i], 1.9f), x, x + 1.6f, &band, 1, false, false, &dark, &dark);
+        }
+    }
+
+    const za::Vector<glm::vec2> mount{{-1.5f, 3.f}, {1.5f, 3.f}, {1.5f, 5.8f}, {-1.5f, 5.8f}};
+    const Rect mountFaces[4] = {underside, bandAlong, bandAlong, bandAlong};
+    extrude(o, mount, 24.f, 31.f, mountFaces, 4, true, false, &dark, &dark);
+    const int gripSeed[3] = {151, -1, -1};
+    const za::Vector<bool> grip = piecesOf(p.graft, gripSeed);
+    const glm::vec3 top{3.3f, 0.f, 4.55f}, to{27.5f, 0.f, 3.2f};
+    take(o, p.graft, grip, true, [&](const glm::vec3& q) { return to + (q - top) * 0.88f; }, p.graftDs, p.graftDt);
+
+    p.muzzle = glm::vec3{44.f, 0.f, (8.6f + 5.9f * 2.f) / 3.f};
+    p.muzzleSet = true;
+}
+
+// The Plasma Gun's cell receiver (his note 2026-10-18: the cell on the inner side, not below as the lightning gun's): a
+// block on its +y side round the cell's way out (plasmaSeat: the cell 3.7 along x, 3.2 tall, turned out of it), AD's
+// texels (v_plasma.mdl's 128x128 skin): the riveted panel outside, the rusty plate round it.
+void plasmaParts(Parts& p)
+{
+    const Rect panel{32.f, 47.f, 64.f, 64.f, false};
+    const Rect plate{33.f, 1.f, 64.f, 12.f, true};
+    const za::Vector<glm::vec2> block{{2.9f, plasmaSeat.z - 2.f}, {4.6f, plasmaSeat.z - 2.f}, {4.6f, plasmaSeat.z + 2.f},
+        {2.9f, plasmaSeat.z + 2.f}};
+    const Rect faces[4] = {plate, panel, plate, plate};
+    extrude(p.o, block, plasmaSeat.x - 2.3f, plasmaSeat.x + 2.4f, faces, 4, true, false, &plate, &plate);
+}
+
+// The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
+[[nodiscard]] za::Vector<int> weldGrouped(const za::Vector<glm::vec3>& pos, const za::Vector<int>& group)
+{
+    ankerl::unordered_dense::map<uint64_t, int> at;
+    za::Vector<int> w;
+    for(za::SizeT i = 0; i < pos.size(); i++)
+    {
+        const auto q = [&](float x) { return static_cast<uint64_t>(static_cast<int64_t>(x * 1000.f + (x < 0.f ? -0.5f : 0.5f)) & 0x3ffff); };
+        const uint64_t key = q(pos[i].x) | (q(pos[i].y) << 18) | (q(pos[i].z) << 36) | (static_cast<uint64_t>(group[i] & 0x3ff) << 54);
+        w.pushBack(at.try_emplace(key, static_cast<int>(i)).first->second);
+    }
+    return w;
 }
 
 [[nodiscard]] bool build(const Recipe& r, Built& out, const char*& why, unsigned int* pathId)
@@ -723,10 +1028,13 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
         return r.dstPivot + (dx * glm::dot(d, sx) + dy * glm::dot(d, sy) + dz * glm::dot(d, sz)) * r.k;
     };
     Out o;
-    take(o, src, dropped, false, lay, 0, 0);
-    if(r.clip)
+    if(r.takeSource)
     {
-        clip(o, r.clipN, r.clipD, 0);
+        take(o, src, dropped, false, lay, 0, 0);
+        if(r.clip)
+        {
+            clip(o, r.clipN, r.clipD, 0);
+        }
     }
     const za::SizeT adTris = o.tris.size();
     if(r.graft.path)
@@ -739,6 +1047,20 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
     {
         out.dropped += d;
     }
+    // The bores' black: a few texels of the cap rows' corner (the dark grey's are at their other end).
+    for(int y = skinH - capRows; y < skinH; y++)
+    {
+        for(int x = 0; x < 3; x++)
+        {
+            skin[static_cast<za::SizeT>(y) * static_cast<za::SizeT>(skinW) + static_cast<za::SizeT>(x)] = 0;
+        }
+    }
+    Parts parts{o, graft, -rx0, src.skinH - ry0, skinW - 2, skinH - 2, 1, skinH - 2};
+    if(r.parts)
+    {
+        r.parts(parts);
+    }
+    out.made = static_cast<int>(o.tris.size() / 3) - static_cast<int>(adTris / 3) - out.grafted;
     out.sealed = seal(o, r, skinW - 2, skinH - 2);
     {
         za::Vector<int> w = weldNear(o.pos, capWeld);
@@ -753,12 +1075,12 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
     {
         if(used[v] < 0)
         {
-            used[v] = c.vert(o.pos[v], o.s[v], o.t[v]);
+            used[v] = c.vert(o.pos[v], o.s[v], o.t[v], o.group[v]);
         }
         v = used[v];
     }
     c.tris = o.tris;
-    const za::Vector<int> w = weldExact(c.pos);
+    const za::Vector<int> w = weldGrouped(c.pos, c.group);
     za::Vector<glm::vec3> normal(c.pos.size(), glm::vec3{0.f});
     for(za::SizeT i = 0; i + 2 < c.tris.size(); i += 3)
     {
@@ -824,6 +1146,10 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
         }
     }
     out.muzzle = axe ? out.edgeHi : out.muzzle / static_cast<float>(za::max(count, 1));
+    if(parts.muzzleSet)
+    {
+        out.muzzle = parts.muzzle; // (its made barrels' front's middle)
+    }
 
     za::Vector<byte>& f = out.file;
     f.clear();
@@ -894,10 +1220,112 @@ void basis(const glm::vec3& axis, const glm::vec3& up, glm::vec3& x, glm::vec3& 
     return true;
 }
 
+void setf(byte* f, size_t at, float v)
+{
+    const float le = LittleFloat(v);
+    memcpy(f + at, &le, 4);
+}
+
+// A side part (sideParts): the file of its source turned a quarter about x round lightSeat (its -z becomes +y: x' = x,
+// y' = seat'.y - (z - seat.z), z' = seat'.z + (y - seat.y)) and lightSeat moved onto plasmaSeat; exact (the packed
+// bytes: y' = 255 - z, z' = y, their scales swapped), its normals turned with it. Null: not found or not a model.
+[[nodiscard]] byte* sideFile(const SidePart& part, unsigned int* path_id)
+{
+    const char* name = part.name;
+    const char* base = part.from;
+    byte* f = COM_LoadMallocFile(base, path_id);
+    if(!f)
+    {
+        return nullptr;
+    }
+    const size_t size = static_cast<size_t>(com_filesize);
+    if(size < headerSize || rd(f, 0) != IDPOLYHEADER || rd(f, 4) != ALIAS_VERSION)
+    {
+        VR_HeapFree(f);
+        return nullptr;
+    }
+    const int numSkins = rd(f, 48), skinW = rd(f, 52), skinH = rd(f, 56), numVerts = rd(f, 60), numTris = rd(f, 64),
+              numFrames = rd(f, 68);
+    const glm::vec3 scale{rdf(f, 8), rdf(f, 12), rdf(f, 16)}, origin{rdf(f, 20), rdf(f, 24), rdf(f, 28)};
+    const glm::vec3 eye{rdf(f, 36), rdf(f, 40), rdf(f, 44)};
+    const glm::vec3 p = lightSeat, s = plasmaSeat;
+    const glm::vec3 scale2{scale.x, scale.z, scale.y};
+    const glm::vec3 origin2{origin.x - p.x + s.x, s.y + p.z - origin.z - 255.f * scale.z, origin.y - p.y + s.z};
+    for(int i = 0; i < 3; i++)
+    {
+        setf(f, 8 + static_cast<size_t>(i) * 4, scale2[i]);
+        setf(f, 20 + static_cast<size_t>(i) * 4, origin2[i]);
+    }
+    setf(f, 36, eye.x - p.x + s.x);
+    setf(f, 40, s.y - (eye.z - p.z));
+    setf(f, 44, s.z + (eye.y - p.y));
+    const size_t skinBytes = static_cast<size_t>(za::max(skinW, 0)) * static_cast<size_t>(za::max(skinH, 0));
+    size_t at = headerSize;
+    for(int k = 0; k < numSkins && at + 8 <= size; k++)
+    {
+        at += rd(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<size_t>(za::max(rd(f, at + 4), 1)) * (4 + skinBytes);
+    }
+    at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
+    const auto turnBox = [&](size_t boxAt) {
+        byte* lo = f + boxAt;
+        byte* hi = f + boxAt + 4;
+        const byte loY = lo[1], loZ = lo[2], hiY = hi[1], hiZ = hi[2];
+        lo[1] = static_cast<byte>(255 - hiZ);
+        hi[1] = static_cast<byte>(255 - loZ);
+        lo[2] = loY;
+        hi[2] = hiY;
+    };
+    float radius = 0.f;
+    for(int fr = 0; fr < numFrames && at + 4 <= size; fr++)
+    {
+        const int type = rd(f, at);
+        at += 4;
+        int members = 1;
+        if(type != 0)
+        {
+            members = za::max(rd(f, at), 1);
+            turnBox(at + 4);
+            at += 4 + 8 + static_cast<size_t>(members) * 4;
+        }
+        for(int m = 0; m < members; m++)
+        {
+            const size_t vertsAt = at + 24;
+            if(vertsAt + static_cast<size_t>(numVerts) * 4 > size)
+            {
+                VR_HeapFree(f);
+                return nullptr;
+            }
+            turnBox(at);
+            for(int v = 0; v < numVerts; v++)
+            {
+                byte* b = f + vertsAt + static_cast<size_t>(v) * 4;
+                const byte y = b[1], z = b[2];
+                b[1] = static_cast<byte>(255 - z);
+                b[2] = y;
+                const int ni = za::min(static_cast<int>(b[3]), NUMVERTEXNORMALS - 1);
+                b[3] = nearestNormal(glm::vec3{r_avertexnormals[ni][0], -r_avertexnormals[ni][2], r_avertexnormals[ni][1]});
+                const glm::vec3 q{b[0] * scale2.x + origin2.x, b[1] * scale2.y + origin2.y, b[2] * scale2.z + origin2.z};
+                radius = za::max(radius, glm::length(q));
+            }
+            at = vertsAt + static_cast<size_t>(numVerts) * 4;
+        }
+    }
+    setf(f, 32, radius);
+    Con_DPrintf("AD weapon model: %s made (%s turned out of the Plasma Gun's side)\n", name, base);
+    return f;
+}
+
 } // namespace
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
+    for(const SidePart& part : sideParts)
+    {
+        if(!q_strcasecmp(name, part.name))
+        {
+            return sideFile(part, path_id);
+        }
+    }
     const Recipe* r = strstr(name, suffix) ? recipeOf(name) : nullptr;
     if(!r)
     {
@@ -929,9 +1357,9 @@ void info_f()
             Con_Printf("%s: %s\n", r.name, why);
             continue;
         }
-        Con_Printf("%s: %d triangles, %d vertices (%d of AD's off, %d of Quake VR's grip on), %d holes closed, %d open edges left, "
-                   "box %.2f %.2f %.2f .. %.2f %.2f %.2f%s, muzzle %.4f %.4f %.4f\n",
-            r.name, b.tris, b.verts, b.dropped, b.grafted, b.sealed, b.openAfter, b.lo.x, b.lo.y, b.lo.z, b.hi.x, b.hi.y, b.hi.z,
+        Con_Printf("%s: %d triangles, %d vertices (%d of AD's off, %d of Quake VR's grip on, %d made), %d holes closed, %d open "
+                   "edges left, box %.2f %.2f %.2f .. %.2f %.2f %.2f%s, muzzle %.4f %.4f %.4f\n",
+            r.name, b.tris, b.verts, b.dropped, b.grafted, b.made, b.sealed, b.openAfter, b.lo.x, b.lo.y, b.lo.z, b.hi.x, b.hi.y, b.hi.z,
             b.cornerKept ? "" : " (its corner moved: past the settings')", b.muzzle.x, b.muzzle.y, b.muzzle.z);
         if(!r.graft.path)
         {

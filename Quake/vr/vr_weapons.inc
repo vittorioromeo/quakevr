@@ -2923,10 +2923,24 @@ QVR_WEAPON_DEFAULT(33, WpnTextAnchor, "4.65 0 8.67")
 QVR_WEAPON_DEFAULT(34, ID, "progs/v_shot3.mdl#vr")
 QVR_WEAPON_DEFAULT(34, InheritFrom, "3")
 QVR_WEAPON_DEFAULT(34, HandAnchor, "5.0979 -0.0482 0.7118")
-QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "25.2759 0.0029 5.3727")
-QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "22 -3.1209 3.7164")
-QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "11.6867 1.4881 5.4412")
-QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "11.6867 1.4881 5.4412")
+// Round 22 (adweapons2): the Widowmaker made a big two-handed gun (vr_adweapons.cpp widowmakerParts: a receiver, three
+// whole barrels to x 44, a front handle under them at x 24..31). The muzzle the barrels' front middle; the other hand's
+// anchor on the front handle (where the main hand's is on the rear one, the handle 0.88 its size); the ammo screen on the
+// receiver's top. Hotspot 1 (the super shotgun's fore-end beside its barrel) the front handle: the other hand's controller
+// where the main hand's is from the rear handle (vr_hotspot_fit: model 7.29 0.71 4.64 -> 31 0 3.3; settings' frame:
+// corner + Scale 0.48 x (point - corner)). Heavier and longer than the super shotgun (Weight).
+QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "44 0 6.8")
+QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "29.08 -0.04 -0.18")
+QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "12 0.85 10")
+QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "12 0.85 10")
+QVR_WEAPON_DEFAULT(34, Hotspot1Type, "1")
+QVR_WEAPON_DEFAULT(34, Hotspot1X, "6.78")
+QVR_WEAPON_DEFAULT(34, Hotspot1Y, "-2.4406")
+QVR_WEAPON_DEFAULT(34, Hotspot1Z, "-0.6209")
+QVR_WEAPON_DEFAULT(34, Hotspot1Pitch, "7")
+QVR_WEAPON_DEFAULT(34, Mass, "6")
+QVR_WEAPON_DEFAULT(34, Balance, "22")
+QVR_WEAPON_DEFAULT(34, Span, "75")
 QVR_WEAPON_DEFAULT(35, ID, "progs/v_plasma.mdl#vr")
 QVR_WEAPON_DEFAULT(35, InheritFrom, "8")
 QVR_WEAPON_DEFAULT(35, HandAnchor, "-2.7194 -1.5656 10.8636")
@@ -3568,6 +3582,17 @@ QVR_WEAPON_DEFAULT(45, Hotspot1Z, "-13.6382")
 // slot's default of the key its own, never its parent's. Without it every default of an inheriting slot is a
 // placeholder that gives way to the parent's value (ROUND21: "own" is what differs from the default), as before.
 // (The AD guns of slots 27-31 are the burst rifle's own shape now.)
+// AD's Widowmaker (slot 34, the super shotgun's child): its front handle (hotspot 1), its weight.
+QVR_WEAPON_OWN(34, Hotspot1Type)
+QVR_WEAPON_OWN(34, Hotspot1X)
+QVR_WEAPON_OWN(34, Hotspot1Y)
+QVR_WEAPON_OWN(34, Hotspot1Z)
+QVR_WEAPON_OWN(34, Hotspot1Pitch)
+QVR_WEAPON_OWN(34, Hotspot1Yaw)
+QVR_WEAPON_OWN(34, Hotspot1Roll)
+QVR_WEAPON_OWN(34, Mass)
+QVR_WEAPON_OWN(34, Balance)
+QVR_WEAPON_OWN(34, Span)
 // AD's Plasma Gun (slot 35, the lightning gun's child): no button, its own kick and flash.
 QVR_WEAPON_OWN(35, WpnButtonMode)
 QVR_WEAPON_OWN(35, Recoil)

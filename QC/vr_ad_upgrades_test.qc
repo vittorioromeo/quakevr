@@ -1,4 +1,7 @@
-// vr_ad_shadowaxe_test.qc -- vr_ad_test 140 (Debug > Tests > Arcane Dimensions: Shadow Axe Rules): AD's rules that gate on
+// vr_ad_upgrades_test.qc -- AD's upgraded weapons' rules through our weapons, in any map while AD's data is installed:
+// 140 the Shadow Axe's, 141 the Plasma Gun's cell (one "adplasma:" line per check).
+//
+// 140 (Debug > Tests > Arcane Dimensions: Shadow Axe Rules Test): AD's rules that gate on
 // the Shadow Axe, through our VR axe's own path, in any map while AD's data is installed. AD's QC asks the Shadow Axe in
 // five places: its blow (35 for the axe's 20: AD_AxeScale), the mark it leaves (.axhitme 2: a zombie in pain gibbed for
 // good, ad_zombie_pain; a monster's long pain, ad_monster_pain_check), the bodies lying on the floor it chops
@@ -13,6 +16,13 @@ float vr_adsa_pass, vr_adsa_fail;
 void(string xWhat, float xOk, string xGot) AD_ShadowAxeCheck =
 {
     bprint(sprintf("adshadowaxe: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
+    if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
+    else { vr_adsa_fail = vr_adsa_fail + 1; }
+};
+
+void(string xWhat, float xOk, string xGot) AD_PlasmaCheck =
+{
+    bprint(sprintf("adplasma: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
     if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
     else { vr_adsa_fail = vr_adsa_fail + 1; }
 };
@@ -152,8 +162,71 @@ void() AD_ShadowAxeTestRun =
     remove(self);
 };
 
-void(float request, entity p) AD_ShadowAxeTest =
+// 141, two steps (the engine reports the drawn gun's well a frame on): the Plasma Gun in the off hand, the main hand free.
+// Its cell's well (the engine's load point and the attached cell's box: vr_view.cpp magMounts, loadPorts: AdVrPlasma) is
+// found; the way the cell leaves is out of the gun's inner side (the left hand's right: the model mirrored), not down; the
+// cell ejected (as its button does); a cell taken from the pouch and brought to the load point goes in.
+void() AD_PlasmaCellTestRun =
 {
+    entity p = self.owner;
+    entity os = self;
+    self = p;
+    float h = cVR_OffHand;
+    vr_adsa_pass = 0;
+    vr_adsa_fail = 0;
+    float found = p.offloadportpos != '0 0 0' && VR_Reload_HasMagBox(p, h);
+    AD_PlasmaCheck("its cell's well is found", found && p.weaponmodel2 == "progs/v_plasma.mdl#vr",
+        sprintf("load point %v, box %g, model %s", p.offloadportpos, VR_Reload_HasMagBox(p, h), p.weaponmodel2));
+    vector out = VR_Reload_MagOutWay(p, h);
+    makevectors(VRGetEntHandRot(p, h));
+    float side = out * v_right, down = out * v_up * -1, ahead = out * v_forward;
+    AD_PlasmaCheck("the cell leaves out of its inner side", side > 0.8,
+        sprintf("right %.2f, down %.2f, ahead %.2f", side, down, ahead));
+    float was = VR_Reload_MagIn(p, h);
+    entity cell = world;
+    if(was)
+    {
+        cell = VR_Reload_Eject(p, h, out * 40, -1, "test 141");
+    }
+    AD_PlasmaCheck("the cell ejected", was && !VR_Reload_MagIn(p, h) && cell != world, sprintf("was in %g", was));
+    VR_Reload_PlayerFrame();
+    VR_Reload_Take(cVR_MainHand);
+    entity r = VR_Carry_Held(p, cVR_MainHand);
+    if(r != world)
+    {
+        setorigin(r, r.origin + p.offloadportpos - VR_Reload_RoundRef(r));
+        r.vr_ammo_fresh = FALSE;
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+    }
+    AD_PlasmaCheck("a cell brought to its load point goes in", r != world && VR_Reload_MagIn(p, h),
+        sprintf("taken %g", r != world));
+    bprint(sprintf("adplasma: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    self = os;
+    remove(self);
+};
+
+void(float request, entity p) AD_UpgradesTest =
+{
+    if(request == 141)
+    {
+        entity os = self;
+        self = p;
+        VR_WeaponUtil_EntAddWeapon(p, WID_LIGHTNING);
+        VRGiveEntWeapon(p, cVR_OffHand, WID_LIGHTNING, 0, WeaponIdToBaseClipSize(WID_LIGHTNING));
+        p.weaponinst2.wi_adup = ad_IT_UPGRADE_LG;
+        p.weaponmodel2 = WeaponIdToModel(WID_LIGHTNING, 0); // (AD_SyncWeaponModels: the upgraded one)
+        VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        p.ammo_cells = 100;
+        AD_SyncWeaponModels(p);
+        self = os;
+        entity t = spawn();
+        t.classname = "vr_adsa_timer";
+        t.owner = p;
+        t.think = AD_PlasmaCellTestRun;
+        t.nextthink = time + 0.5;
+        bprint("adplasma: the Plasma Gun in the off hand; the checks in 0.5 s\n");
+        return;
+    }
     if(request != 140)
     {
         return;

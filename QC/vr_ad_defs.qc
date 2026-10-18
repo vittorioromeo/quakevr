@@ -75,7 +75,7 @@ float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the 
 void(float xHand, entity xVictim) AD_AxeMark; // W_FireAxe: AD's mark of the axe that hit (.ad_axhitme: 2 the Shadow Axe)
 void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe chops the bodies lying on the floor
 float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
-void(float request, entity p) AD_ShadowAxeTest; // vr_ad_test 140 (vr_ad_shadowaxe_test.qc)
+void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
 float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
 float(entity xInst) AD_Widowmaker;   // vr_reload.qc: the super shotgun of record xInst is the Widowmaker (reloaded at the hip)

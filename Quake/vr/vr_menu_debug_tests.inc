@@ -354,6 +354,10 @@ za::Vector<Item> pageDebugTests()
             .help("The Widowmaker in your main hand, the Shadow Axe and the Plasma Gun in the hip holsters."),
         adSpawnRow(311, command("Arcane Dimensions: Plasma Gun in Hand", "vr_ad_test 99")) // AD support
             .help("The Plasma Gun in your main hand, the Shadow Axe and the Widowmaker in the hip holsters."),
+        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun Cell Test", "vr_ad_test 141")) // AD support
+            .help("The Plasma Gun in your off hand, your main hand free: its cell's well on the gun's inner side is "
+                  "found, the cell pops out sideways, and a cell from your pouch brought to the well goes in (adplasma: "
+                  "lines in the console). Then eject it (B/Y) and reload it by hand."),
         adSpawnRow(309, command("Arcane Dimensions: Shadow Axe Rules Test", "vr_ad_test 140")) // AD support
             .help("Three AD zombies and an AD knight ahead; two seconds on, AD's Shadow Axe rules are checked through your "
                   "axe's own blows: a zombie in pain gibbed for good, the knight's long pain, a downed zombie chopped by a "
