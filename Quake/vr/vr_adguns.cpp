@@ -481,6 +481,10 @@ namespace
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
+    if(strstr(name, variantSuffix))
+    {
+        return variantFile(name, path_id); // (our burst rifle's variants: vr_adgunart.cpp)
+    }
     if(!strstr(name, suffix))
     {
         return nullptr;
@@ -508,6 +512,19 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 
 bool slotNames(const char* id, const char* name)
 {
+    // Our burst rifle's variants: "<base>#adv<digits>" names each variant listed ("#adv" alone: all of them).
+    if(const char* v = strstr(name, variantSuffix))
+    {
+        const char* own = strstr(id, variantSuffix);
+        const size_t n = static_cast<size_t>(v - name) + strlen(variantSuffix);
+        if(!own || static_cast<size_t>(own - id) + strlen(variantSuffix) != n || strncmp(id, name, n) != 0)
+        {
+            return false;
+        }
+        const char digit = name[n];
+        const char* listed = id + n;
+        return digit >= '0' && digit <= '9' && name[n + 1] == 0 && (!listed[0] || strchr(listed, digit) != nullptr);
+    }
     const char* gun = strstr(name, suffix);
     if(!gun)
     {

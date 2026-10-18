@@ -80,6 +80,17 @@
             .help("The AD pyro, fumigator or plasma soldier nearest you fires once at the monster or body nearest it (its "
                   "flames, poison, electric bolt: their effects as the guns' you carry). Press again for a stream."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
+        command("Gun Variants", "vr_adgun_variants")
+            .help("The soldiers' guns as our burst rifle's variants (the models they drop now): each one's triangles, "
+                  "box (whether the rifle's corner held: the burst rifle's weapon settings hold them) and time to make."),
+        command("Hold the Flamethrower", "vr_weapon_grip_mode 1; vr_ad_test 79")
+            .help("The pyro's flamethrower in your main hand: its fuel tank on your back, the hose to the gun (VR Settings > "
+                  "Combat > Enemy Weapons > Arcane Dimensions' Guns > Fuel Tank and Hose)."),
+        command("Hold the Poison Sprayer", "vr_weapon_grip_mode 1; vr_ad_test 80")
+            .help("The fumigator's poison sprayer in your main hand, its green tank and hose."),
+        command("Fuel Hose Info", "vr_adgun_hose_info")
+            .help("vr_adgun_hose_info: in the console, each hand's hose (its gun, its ends, its length, how low it hangs), "
+                  "its rings drawn (and in the body's mirror image) and its cost a frame."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),
         command("Arm for a Level Change", "vr_ad_test 87")

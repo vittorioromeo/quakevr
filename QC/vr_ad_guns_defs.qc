@@ -7,11 +7,9 @@
 // setting, vr_adgun_<gun>_<what> (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns), for balancing: the
 // monsters' own attacks are AD's and unchanged.
 //
-// Their models are AD's own monsters' guns, cut out of AD's monster models where they are installed (the engine's
-// vr_adguns.cpp: "<monster model>#gun<skin>", the gun of the soldier's kind in that soldier's skin; nothing of AD's is in
-// Quake VR's files). Without AD's data Quake VR's own enemy guns stand in for guns made then (a saved game loaded
-// elsewhere keeps the "#gun" names in its precache list: the engine loads the stand-in's file under such a name, as it
-// does for an AD release whose models differ from the measured one: vr_adguns.cpp derivedFile).
+// Their models are variants of Quake VR's burst rifle (the engine's vr_adgunart.cpp: "progs/v_gruntgun.mdl#adv<n>", made
+// from our own v_gruntgun.mdl as it loads, each gun with its own add-ons and skin; the crossbow is AD's own). The older
+// models cut out of AD's monsters ("<monster model>#gun<skin>", vr_adguns.cpp) still load for a saved game naming them.
 
 float(float wid) VR_IsADGun =
 {
@@ -58,30 +56,22 @@ string(float wid) VR_ADGun_Name =
     return "Fumigator's Poison Sprayer";
 };
 
-// The soldiers' (AD's mon_soldier.mdl: Quake VR's grunt's mesh) and the enforcers' kinds (the rest): which of Quake VR's
-// own enemy guns stands in without AD's data.
-float(float wid) VR_ADGun_SoldierKind =
-{
-    return wid == WID_ADROCKET || wid == WID_ADGRENADE || wid == WID_ADPLASMA;
-};
-
-// Its model: the gun of the soldier who drops it, in his skin (the first of his kind's pair or three; vr_adguns.cpp makes
-// it from AD's model), or Quake VR's stand-in without AD's data.
+// Its model: our burst rifle's variant for that gun (the engine's vr_adgunart.cpp makes "progs/v_gruntgun.mdl#adv<n>",
+// n its place from WID_ADROCKET, from Quake VR's own v_gruntgun.mdl and v_rock.mdl as it loads: each gun its own add-ons
+// and skin). The older "<monster model>#gun<skin>" models cut from AD's monsters (vr_adguns.cpp) still load for saved
+// games that name them. The crossbow is AD's own.
 string(float wid) VR_ADGun_Model =
 {
-    if(!cvar("vr_ad_mounted"))
-    {
-        return VR_ADGun_SoldierKind(wid) ? "progs/v_gruntgun.mdl" : "progs/v_enfrifle.mdl";
-    }
-    if(wid == WID_ADROCKET)     { return "progs/mon_soldier.mdl#gun4"; }
-    if(wid == WID_ADGRENADE)    { return "progs/mon_soldier.mdl#gun6"; }
-    if(wid == WID_ADPLASMA)     { return "progs/mon_soldier.mdl#gun8"; }
-    if(wid == WID_ADDEFENDER)   { return "progs/mon_enforcer.mdl#gun3"; }
-    if(wid == WID_ADELIMINATOR) { return "progs/mon_enforcer.mdl#gun6"; }
-    if(wid == WID_ADCENTURION)  { return "progs/mon_centurion.mdl#gun0"; }
-    if(wid == WID_ADPYRO)       { return "progs/mon_pyro.mdl#gun0"; }
+    // (constants: the precache keeps the string)
+    if(wid == WID_ADROCKET)     { return "progs/v_gruntgun.mdl#adv0"; }
+    if(wid == WID_ADGRENADE)    { return "progs/v_gruntgun.mdl#adv1"; }
+    if(wid == WID_ADPLASMA)     { return "progs/v_gruntgun.mdl#adv2"; }
+    if(wid == WID_ADDEFENDER)   { return "progs/v_gruntgun.mdl#adv3"; }
+    if(wid == WID_ADELIMINATOR) { return "progs/v_gruntgun.mdl#adv4"; }
+    if(wid == WID_ADCENTURION)  { return "progs/v_gruntgun.mdl#adv5"; }
+    if(wid == WID_ADPYRO)       { return "progs/v_gruntgun.mdl#adv6"; }
     if(wid == WID_ADCROSSBOW)   { return "progs/w_dcrossbow.mdl"; } // (AD's own: the crossbow its gibs throw, as it is)
-    return "progs/mon_fumigator.mdl#gun0";
+    return "progs/v_gruntgun.mdl#adv7";
 };
 
 // A full clip: the rounds (or the flamethrowers' fuel, a tick's worth a unit) it holds as it drops.

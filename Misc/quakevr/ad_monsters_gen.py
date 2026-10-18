@@ -100,16 +100,16 @@ MAP_ITEMS = [
 ]
 
 # AD's soldiers' own guns (QC vr_ad_enemyguns.qc, WID 20..27) as func_weapon_grabbable: spawner number, menu name, weapon
-# id, the gun's model (made from the monster's: vr_adguns.cpp), the monster's model (the spawner's "installed" check).
+# id, the gun's model (our burst rifle's variant: vr_adgunart.cpp), the monster's model (the spawner's "installed" check).
 GUNS = [
-    (312, "AD Rocket Launcher", 20, "progs/mon_soldier.mdl#gun4", "progs/mon_soldier.mdl"),
-    (313, "AD Grenade Launcher", 21, "progs/mon_soldier.mdl#gun6", "progs/mon_soldier.mdl"),
-    (314, "AD Plasma Rifle", 22, "progs/mon_soldier.mdl#gun8", "progs/mon_soldier.mdl"),
-    (315, "AD Defender's Shotgun", 23, "progs/mon_enforcer.mdl#gun3", "progs/mon_enforcer.mdl"),
-    (316, "AD Eliminator's Plasma Gun", 24, "progs/mon_enforcer.mdl#gun6", "progs/mon_enforcer.mdl"),
-    (317, "AD Centurion's Plasma Gun", 25, "progs/mon_centurion.mdl#gun0", "progs/mon_centurion.mdl"),
-    (318, "AD Flamethrower", 26, "progs/mon_pyro.mdl#gun0", "progs/mon_pyro.mdl"),
-    (319, "AD Poison Sprayer", 27, "progs/mon_fumigator.mdl#gun0", "progs/mon_fumigator.mdl"),
+    (312, "AD Rocket Launcher", 20, "progs/v_gruntgun.mdl#adv0", "progs/mon_soldier.mdl"),
+    (313, "AD Grenade Launcher", 21, "progs/v_gruntgun.mdl#adv1", "progs/mon_soldier.mdl"),
+    (314, "AD Plasma Rifle", 22, "progs/v_gruntgun.mdl#adv2", "progs/mon_soldier.mdl"),
+    (315, "AD Defender's Shotgun", 23, "progs/v_gruntgun.mdl#adv3", "progs/mon_enforcer.mdl"),
+    (316, "AD Eliminator's Plasma Gun", 24, "progs/v_gruntgun.mdl#adv4", "progs/mon_enforcer.mdl"),
+    (317, "AD Centurion's Plasma Gun", 25, "progs/v_gruntgun.mdl#adv5", "progs/mon_centurion.mdl"),
+    (318, "AD Flamethrower", 26, "progs/v_gruntgun.mdl#adv6", "progs/mon_pyro.mdl"),
+    (319, "AD Poison Sprayer", 27, "progs/v_gruntgun.mdl#adv7", "progs/mon_fumigator.mdl"),
 ]
 
 

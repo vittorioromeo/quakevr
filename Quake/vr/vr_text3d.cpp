@@ -8,6 +8,7 @@
 #include "vr_shadows.hpp"
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"
@@ -1350,6 +1351,7 @@ extern "C" void VR_DrawSceneOpaque()
     flashlight::drawOpaque(); // the flashlight's cord (vr_flashlight.cpp)
     chainsaw::drawOpaque();   // the chainsaw's starter cord and its handle in the hand (vr_chainsaw.cpp)
     cellcord::drawOpaque();   // the cell cords (vr_cellcord.cpp)
+    adtank::drawOpaque();     // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
     magholster::drawOpaque(); // the magnetic holsters' chains (vr_magholster.cpp)
     rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
 
