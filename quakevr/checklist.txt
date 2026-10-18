@@ -19,6 +19,10 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD crossbow axes: take a crossbow knight's crossbow: your tuned pose is now the default (slot 33 reset once), axes and hotspot 1 right; AD soldier guns: hold and fire, muzzles now on the real points
+Freddie: cut his gun arm off: drops a normal super nailgun (36 nails)
+AD weapons VR models (AD upgrades on): Shadow Axe, Widowmaker, Plasma Gun look and size in the hand; Shadow Axe sticks and glows; Widowmaker muzzle centred?; off-hand two-hand grips; holster and drop each (vr_ad_test 97-100 to test quickly)
+Physgun on ragdolls: grab a corpse by the chest, then an arm or leg: smooth, hangs and swings from that point, throw it; a knocked-down grunt; crates and standing monsters as before (vr_toolgun_physgun_ragdoll 0 = old)
 Flinch A/B (vr_flinch 1 new default / 0 old; Combat > Flinch; Debug > Tests > Flinch overlay): shotgun, super shotgun, melee on grunts on flat floor, the vrtesthall slope and stairs: steps and recovers or topples; hand-back smooth? 0.6 s cooldown vs groups OK? point-blank super shotgun always knocks a grunt down: wanted?
 Gloves thickness (Player Appearance > Glove Thickness 1.5-3 mm): fingerless edge stands off the fingers with a dark rim; bend fingers (fist, point); cuff step on bare forearms
 AD crossbow tuning: kill a crossbow knight, take its crossbow: tune the hold under Weapon Offsets slot 33 (it floats off the hand), the feel of firing and reloading; tell me what's broken
