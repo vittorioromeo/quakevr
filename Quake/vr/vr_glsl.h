@@ -3063,8 +3063,17 @@ QVR_DENT_FUNCTIONS \
 "			mask.a = mx.a = my.a = 0.5; // plain leather\n" \
 "			gpaint = 0.0; // (the hand's painted layer only)\n" \
 "		}\n" \
+"		if (gloveShell && mask.r > 0.5) // a glove's shell (vr_handrig.cpp gloveShells): leather all of it (its cut and its wall\n" \
+"			cover = 1.0; // just off the mask's edge too: no skin-coloured lip), but where the skin's own blood shows through\n" \
 "		cover *= step(0.5, glove.w);\n" \
 "		vec3 toned = tone.w > 0.0 ? result.rgb * mix(vec3(1.0), tone.rgb, mask.r * (1.0 - cover)) : result.rgb;\n" \
+"		if (!gloveShell && instances[in_instance].GloveShell.x > 0.0) // the skin by a glove's shell's edge in its shadow\n" \
+"		{ // (~2.5 mm: the mask's coarser mip; a cuff's by its row)\n" \
+"			vec2 gl = textureLod(SkinMaskTex, uv, 2.0).gb;\n" \
+"			float near = cuff.x > 0.0 && uv.x < cuff.x && uv.y < cuff.w ? 1.0 - clamp((cuff.y - uv.y) / 0.0015, 0.0, 1.0) :\n" \
+"				smoothstep(0.0, 0.3, gmode > 1.5 ? gl.y : gl.x);\n" \
+"			toned *= 1.0 - 0.45 * near * (1.0 - cover);\n" \
+"		}\n" \
 "		vec3 leather = glove.rgb;\n" \
 "		if (cover > 0.0) // its own relief, none of the skin's painted detail (GloveLeather)\n" \
 "		{\n" \
@@ -3120,6 +3129,14 @@ QVR_DENT_FUNCTIONS \
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
 "	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead\n" \
 "		bumped = WoundBump(normalize(mix(bumped, n, leatherCover)), leatherSlope * leatherCover, duvdx, duvdy, dpdx, dpdy);\n" \
+"	if (gloveShell) // QVR: a glove's shell's wall (vr_handrig.cpp gloveShells; its vertices' normals the skin's): lit as\n" \
+"	{ // the side it is (the facet's normal), darker (the leather's cut edge)\n" \
+"		vec3 ng = normalize(cross(dpdx, dpdy));\n" \
+"		ng = dot(ng, in_pos) > 0.0 ? -ng : ng;\n" \
+"		float wall = smoothstep(0.55, 0.8, 1.0 - abs(dot(ng, n)));\n" \
+"		bumped = normalize(mix(bumped, ng, wall));\n" \
+"		result.rgb *= 1.0 - 0.3 * wall;\n" \
+"	}\n" \
 "	if (wounds.flatten > 0.) // QVR: blood and water fill the bumps\n" \
 "		bumped = normalize(mix(bumped, n, wounds.flatten));\n" \
 "	if (wounds.slope != vec2(0.)) // QVR: your own wounds' relief (the fine masks): char crusted, blood sunk in\n" \

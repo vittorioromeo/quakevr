@@ -533,6 +533,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How strong the colour is: 0 grey, black or white leather; 1 the purest."),
         slider("Glove Lightness", vr_glove_lightness, 0.f, 1.f, 0.05f, "%.2f")
             .help("0 black, 0.5 the colour at its fullest, 1 white. The hand's own creases and knuckles shade it."),
+        slider("Glove Thickness", vr_glove_thickness, 0.f, 4.f, 0.25f, "%.2f mm")
+            .help("How thick the leather is: the glove is its own layer over the hand, bending with the fingers, its "
+                  "edge a step down to the skin. 0: painted on the skin only (no layer of its own)."),
         toggle("Worn Leather", vr_glove_paint)
             .help("The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
                   "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather."),

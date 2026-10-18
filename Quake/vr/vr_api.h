@@ -234,6 +234,7 @@ void VR_GLSafeInit (void);	// VR_Init: vr_glsafe_retry, vr_glsafe_status
 unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth);	// vr_crash.cpp: the caller's stack as one line ("fn (file.c:12) < caller ..."); a hash of it (0: none; not Windows)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)
+char *VR_ModelReplacementExtend (const char *name, const char *md5mesh); // ... then the file to load instead (VR_HeapFree it), or NULL: the jointed hand's with its gloves' shells (vr_handrig.cpp gloveShells)
 void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stverts, const dtriangle_t *tris, trivertx_t **poses); // Mod_LoadAliasModel, after the frames
 
 // Server QuakeC (pr_edict.c, pr_cmds.c, sv_main.c, host_cmd.c).

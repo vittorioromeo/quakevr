@@ -12527,3 +12527,41 @@ A knocked-down live one (a ragdoll) is struck on its head part the same way. `im
 ragdoll's mouth through VR_Corpse_Struck (the main hand).
 - Test (vrfiringrange, a grunt at 60, `vr_teeth_per_hit 3; vr_teeth_per_enemy 8; vr_decap 0; vr_corpse_nogib 2`):
   alive 3 (3 lost), killed, its ragdoll 3 (6 lost), saved and loaded, its ragdoll 2 (8: the cap), then 0 and 0.
+
+## Glove depth: the gloves' shells (worktree `goreflesh`, branch `agent/glovedepth`, 2026-10-18)
+
+His note: the glove read as tattooed on the hand, no thickness. **The glove is now a layer of its own**: as the
+jointed hand's model loads (`VR_ModelReplacementExtend`, after `VR_ModelReplacementOk`), `vr_handrig.cpp gloveShells`
+builds two extra meshes from whatever hand the file has (Blender edits too) and skin 0's mask: for the fingerless
+glove (mask G) and the full one (B) the hand's triangles the glove covers, cut along the mask's edge (the cut found by
+reading the mask along each crossed edge, the same cut for both sides of a texture seam) and a wall along the cut down
+to the skin. Their vertices carry the hand's own weights (a cut's vertex its edge's ends' blended), so they bend with
+the fingers; none of it is in the rig (grasp, hand-fit, collisions: the hand's mesh only). A bare-forearmed body
+(`vrbody*_bare`) gets one more: the glove's cuff over the forearm (`view::gloveCuffRange`'s rows), cut at its edge.
+The models with shells are noted by name (`handrig::gloveShellSurfaces`).
+
+As written the shells lie on the skin; the alias vertex shader pushes each vertex out along its normal by its share
+of the thickness, marked in its u (`u + 2 (1 + 15 share)`: 1 on the shell, 0 at the wall's foot, tapered near open
+mesh edges; the hand's mesh is closed, so the hand's shells are pushed everywhere) when the instance's new
+`GloveShell.x` (the thickness in model units) is set; the fragment shader takes the 2 off u again. On a shell the
+leather covers it all (no skin-coloured lip where the cut runs just past the mask's edge) except where a damaged skin's
+blood shows; its wall is lit by its facet's normal (the vertices' normals are the skin's) and darkened as a cut edge;
+the skin round a shell's edge gets a ~2.5 mm contact shadow (the mask's mip 2; a cuff's by its row). Draw order
+(`VR_AliasSurfaceFirst/Next` in R_FlushAliasInstances' three loops): the worn shell first, then the model's own
+mesh, so the skin under the glove fails the depth test before it is shaded; the shell not worn is skipped (shadow
+casters too). The ranger head's swap only touches a body's first mesh now.
+
+**New setting** `vr_glove_thickness` 2 (mm, 0..4; VR Settings > Player Appearance > Glove Thickness; 0: painted
+on the skin only, as before). New cvar only, no migration.
+
+Cost: built at load in ~3 ms (the hand: 656 triangles; fingerless shell 592 of them 160 its wall, full 656); per frame
+one extra draw per hand (and for the body with bare forearms), a few hundred triangles each, drawn in front of what it
+hides (no extra shaded pixels under it).
+
+Tested (headless, e1m1, 1440 eyes, `scratch/gs_shots.sh`: both gloves x open, fist, point x thickness 0 / 2 x two
+cameras; sheets `scratch/gsB_fl.png`, `scratch/gsB_fl_zoom.png`, `scratch/gsB_full.png`): the fingerless glove's
+edge now stands off the fingers with a dark rim and a shadow on the skin below it; the cuff's edge on the bare
+forearm shows as a step with its shadow; the full glove is the hand 2 mm fuller (no edges on the hand itself: its
+opening is the forearm cuff). Not done (open): the leather's own detail to the pauldrons' level (stitching, seams,
+creases, a grain normal map: `make_glove_paint.py`). For him in VR: the thickness (1.5-3 mm), the edge's darkness
+and its shadow, the fingers bending with the glove on (fist, point).
