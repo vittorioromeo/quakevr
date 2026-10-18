@@ -828,6 +828,17 @@ are physics objects: carried by hand, taken at a holster or by walking over them
 	]
 ]
 
+@PointClass color(76 76 255) size(-8 -8 0, 8 8 32) =
+	item_healthgem : "The health vial's old name (Arcane Dimensions)."
+[
+]
+
+@PointClass color(76 76 255) size(-8 -8 0, 8 8 32) =
+	item_healthvial : "2-5 health (Arcane Dimensions; needs its data)."
+[
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+]
+
 @PointClass color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/horn.mdl" }) =
 	item_hornofconjuring : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 

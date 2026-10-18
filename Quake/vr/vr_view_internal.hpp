@@ -347,6 +347,7 @@ struct Entities
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
     view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
     view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
+    view::ViewEntity adBolt[2]; // AD support: the bolts in the hands' crossbows' grooves (vr_adcrossbow.cpp)
 };
 
 inline Entities entities;
@@ -474,6 +475,10 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.enemyFlash)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.adBolt)
     {
         f(ve);
     }

@@ -109,12 +109,13 @@ void(string mdl, string name, float defheight) MG3_DraughtSpawn = {
 A ring that moves the player who touches it by "height" (default -2048: down), or with OVERRIDE_DEST to its target
 teleport destination (Dawn of the Machine; needs its model).
 */
-void() item_draught_insight = { MG3_DraughtSpawn("progs/gold_ring.mdl", "$mg3_qc_ring_of_insight", -2048); };
+// (Its model on the search path, else read in place from the owned pack, as the shards: the toolgun's in any map.)
+void() item_draught_insight = { MG3_DraughtSpawn(VR_ModelOr("progs/gold_ring.mdl", "owned/mg3/progs/gold_ring.mdl"), "$mg3_qc_ring_of_insight", -2048); };
 /*QUAKED item_draught_stupor (0 .5 .8) (0 0 0) (32 32 32) OVERRIDE_DEST
 A ring that moves the player who touches it by "height" (default 2048: up), or with OVERRIDE_DEST to its target
 teleport destination (Dawn of the Machine; needs its model).
 */
-void() item_draught_stupor = { MG3_DraughtSpawn("progs/onyx_ring.mdl", "$mg3_qc_ring_of_oblivion", 2048); };
+void() item_draught_stupor = { MG3_DraughtSpawn(VR_ModelOr("progs/onyx_ring.mdl", "owned/mg3/progs/onyx_ring.mdl"), "$mg3_qc_ring_of_oblivion", 2048); };
 
 // ----------------------------------------------------------------------------
 // The lava suit: 30 seconds without lava or slime damage (and without drowning). Taken by powerup_touch (items.qc),

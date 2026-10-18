@@ -149,7 +149,7 @@ typedef struct vraliasinstance_s
 	float		glovecuff[4]; // ... a bare forearm's cuff in the body's skin: below u x, from v y, its hem to v z, below v w (zero: none)
 	float		dent[4]; // flesh dents (vr_dents.cpp): its rows' first in the dent buffer, their count (0 none), xy of its pose's origin in units
 	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
-	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none)
+	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none); [2] the wet coat's strength (VR_AliasWetCoat; 0 dry), [3] 1: all of it wet (else where its wound mask is)
 } vraliasinstance_t;
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
@@ -182,6 +182,7 @@ void VR_MdlDequantCompute (const char *model, const void *aliashdr, unsigned *ou
 int VR_MdlDequantOn (void); // GLMesh_LoadVertexBuffer: vr_mdl_dequant (0: the offsets uploaded as zero, the stored bytes drawn)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
+void VR_AliasPoseOverride (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // end of R_SetupAliasFrame: a view entity drawn as two frames blended (vr_adcrossbow.cpp)
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightOrigin (const struct entity_s *e, float origin[3]);		// R_SetupAliasLighting: where the light is sampled
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
@@ -215,6 +216,7 @@ int VR_AliasShadowBonePoses (const struct entity_s *e, const float **matrices); 
 int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
 int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image: vr_body_prepass)
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
+void VR_AliasWetCoat (const struct entity_s *e, float out[2]);	// instance: its wet coat (vr_wounds.cpp wetCoat, vr_wounds_wet_coat): strength (0 dry), 1 all of it (else where its mask is wet)
 void VR_AliasWoundPaintSide (const struct entity_s *e, int side, float out[4]);	// R_PaintAliasWounds: its woundside, painting side `side` alone (-1: all of it)
 void VR_BrushWound (const struct entity_s *e, float wound[4], float box[4]);	// R_InitBModelInstance: a held prop's blood (vr_wounds.cpp): its box mask's layer + 1 (0 none), size in texels, opacity; its box's centre, 1 / its largest side
 unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)

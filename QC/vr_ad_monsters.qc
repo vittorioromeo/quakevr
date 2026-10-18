@@ -787,8 +787,8 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 304) { self.classname = "item_artifact_lavashield"; ad_item_artifact_lavashield(); }
     else if(choice == 305) { self.classname = "item_artifact_blastbelt"; ad_item_artifact_blastbelt(); }
     else if(choice == 306) { self.classname = "item_artifact_jumpboots"; ad_item_artifact_jumpboots(); }
-    else if(choice == 307) { self.classname = "item_healthvial"; ad_item_healthvial(); }
-    else if(choice == 308) { self.classname = "item_healthgem"; ad_item_healthgem(); }
+    else if(choice == 307) { self.classname = "item_healthvial"; item_healthvial(); }
+    else if(choice == 308) { self.classname = "item_healthgem"; item_healthgem(); }
     else if(choice == 309) { self.classname = "weapon_upgrade_axe"; weapon_upgrade_axe(); }
     else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; weapon_upgrade_ssg(); }
     else if(choice == 311) { self.classname = "weapon_upgrade_lg"; weapon_upgrade_lg(); }

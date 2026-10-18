@@ -421,9 +421,10 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     }
     VR_AliasAO(e, out->ao); // dynamic ambient occlusion (vr_ao.cpp)
     out->ao[2] = VR_ModelNormalMapScale(authored); // how much its normal map bends the normal (authored ones their own strength)
-    if(standard) // wounds painted on it (vr_wounds.cpp)
+    if(standard) // wounds painted on it (vr_wounds.cpp), and its wet coat
     {
         VR_AliasWound(e, out->wound, out->woundside);
+        VR_AliasWetCoat(e, &out->gloveshell[2]);
     }
     else
     {

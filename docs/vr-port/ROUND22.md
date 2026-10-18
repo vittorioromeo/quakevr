@@ -13572,3 +13572,81 @@ Pellets (the new cvar), Widowmaker Fire Rate.
 2 s fires 8 (0.25 s), the reserve untouched; 8 `shells out` lines along the model's +y -0.84 (the side opposite the port),
 up 0.50. `vr_ad_test 141` 4/4 PASS with the seat moved. `vr_adweapon_models`: Widowmaker 1228 triangles, Plasma Gun 612,
 0 open edges. Migration 50 from a config holding the old grips: hotspot 1 type 3 at 2.97, hotspot 2 type 0.
+
+## Wet from liquids: fixed, and an even wet coat (worktree `fastship`, branch `agent/wetcoat`, 2026-10-18)
+
+- **Regression:** since the glove shells (cf2ee0477, "Glove depth"), `progs/hand_rig.mdl` and `progs/vrbody_bare.mdl`
+  load with extra surfaces (the shells after the first), and the wound masks' `regionOf` refused any model with a second
+  surface: your hands and body got no mask, so no wetness, no drips, and no painted blood or burns on you either (the
+  liquid events still came: `vr_wounds_debug 1`). `regionOf` now takes a model whose extra surfaces are glove shells
+  (`handrig::gloveShellSurfaces`; they share the skin's layout at u + 2 and read the first surface's mask).
+- **New look:** no dither for wetness. Where a mask is wet at all (b > ~0.01), an even coat: the look 30% darker (lit
+  texels, not fullbrights), the bumps filled 35%, a glossy film in the model's own light (tight highlight, a broad one,
+  a little Fresnel; no dynamic light). Its strength is per model (`vr_wounds_wet_coat`, 1, Gore > Wounds on Models >
+  Wet Sheen, 0..2) times smoothstep(0, 0.75, the drying left): full for the first ~7 s, gone at 28 s. Monsters get it
+  too. A weapon (or a carried prop) in a hand whose wrist went under the surface takes it all over; the hands drip only
+  when they went under. Instance data: `GloveShell.zw` (`VR_AliasWetCoat`). `vr_wounds_info` prints a `wet:` line.
+- **Checks:** `scratch/wet_test.sh` (vrfiringrange: spawn, the pool at 612 474 -180, back): before the fix 0 masks,
+  after it 3 (hands, body), coat 1.0 just out, 0.51 at ~17 s, weapon (crowbar, main hand) the same. Off hand's back,
+  mean RGB 254 214 157 dry, 242 177 134 just out, 254 204 153 half dry (overexposed spot). GPU (`--exclusive`,
+  4 s each, wet, hands + crowbar + body in view): models 0.178 / 0.174 / 0.174 ms coat on / off / on: no measurable cost.
+- **For VR:** swim, climb out: hands, forearms, gloves and the weapon darker and glossy, evenly, drips from the hands,
+  fading over ~25 s; wade knee-deep: only the legs/body below the line, hands dry and not dripping. Wet Sheen slider.
+## AD health vials, AD pickups by hand, every item in the toolgun (worktree `goreflesh`, branch `agent/aditems`, 2026-10-18)
+
+- **The lockout after a vial**: AD's heal (`ad_T_Heal`: its vials, gems, `trigger_heal`) caps the health at the player's
+  `ad_mega_health`, which only AD's own player setup sets: 0 on ours, so a vial left the player alive at 0 health,
+  unable to attack, use or jump. `AD_PlayerPostThink` now gives it Quake VR's cap (`VR_MegaHealthCap`) while it is 0 (an
+  AD `trigger_maxhp` still sets its own). No QC/ad change.
+- **Health vials and gems** (`item_healthvial`, `item_healthgem`): now Quake VR's health boxes with AD's look
+  (`vr_ad_items.qc`, as the MG3 shards are Quake VR's armour): AD's model and sound, 2-5 health (or `healamount`), placed
+  by `StartItem` (an AD map's STARTOFF kept), a force-grabbable object at the boxes' scale
+  (`vr_forcegrabbable_health_boxes`, `vr_forcegrabbable_box_scale`), taken at a holster, with the trigger or by walking
+  into it, Quake VR's heal. Only with AD's model; outside AD maps only with `vr_ad_everywhere`. Off `everywhereClasses`
+  (no longer AD entities, nor AD signals: 0 placed in AD's maps). Not done: AD's item respawn for them (as `item_health`
+  in AD maps).
+- **AD's own pickups by hand**: the artifacts, the Tome, the custom keys and items (AD's entities) get `ad_item_touch` as
+  their handtouch (`VR_AD_BackpackRestore`, AD's restore hook): a hand takes them as it takes Quake VR's powerups. Like
+  Quake VR's powerups they are not force-grabbable.
+- **Keys**: `item_key1`/`item_key2` read their own `worldtype` as AD's keys do (1 runic, 2 base, 3 medieval; else the
+  map's: `VR_KeyStyle`), so AD maps' key overrides work and the toolgun lists Silver/Gold Key, Runekey and Keycard.
+- **Toolgun catalogue** (`vr_toolgun_packs.inc`): + the runekeys and keycards, DoE Vengeance Sphere and Random Powerup
+  (deathmatch-only in a map; the toolgun's now spawn anywhere: `vr_spawn_live`), MG3 Draughts of Insight and Stupor
+  (read from the owned pack too). `Misc/quakevr/toolgun_catalogue.py <worktree>` dumps the Items tab against id1's item classnames
+  (none missing) and every QC `item_` spawn function: unlisted only CTF flags, `item_armorinv` (alias), MG3's hell
+  knight's head (it turns Bloody Nightmare on), Rogue's time machine and core (the finale's scenery) and helpers.
+  AD's custom keys and items need a model key (`mdl`), so they stay map-only.
+- Test: `vr_ad_test 142`, a frame later `143`, then `+attack`/`+jump`, then `144` (Debug > Tests > Arcane Dimensions:
+  Health Vials Test). vrfiringrange: cap 0 -> 250; vial and gem force-grabbable, caught in the hand, taken at the
+  shoulder holster 50 -> 54 and 53; AD's own vial 50 -> 53 (was 0); then the shotgun's clip 8 -> 0, the jump rose 24.6,
+  health 100, alive. (Use vrfiringrange: in e1m1's start the second pickup, 48 units ahead, falls out of the level.)
+  `vr_toolgun_spawn_test` 184-189, 202-206, 118-119 in vrfiringrange: all spawned and alive, the keys' models
+  m_s_key/b_s_key as listed.
+## AD crossbow: the bolt laid and fired, the bow animated (worktree `gorefx`, branch `agent/xbowanim`, 2026-10-18)
+
+His notes: the bolt appears out of nowhere; it should sit on the crossbow (morphing in as it is ready, as our ammo
+morph), leave from there; the string and limbs should snap and be drawn back.
+
+- **Bolt** (`vr_adcrossbow.cpp`, view entity `adBolt[2]`): AD's `progs/proj_bolt1.mdl` in the groove of the held
+  crossbow, its back on the string at the latch (turned model `6.9 0 rail+0.8`), along the rail; at 0.75 (the knight's
+  bolt to his crossbow; ours at Scale 0.741). Gone at the shot (QVR_SVC_FIRED); the next morphs in with the ammo morph's
+  shader (yellow seam, kind 1) over 55-95% of `vr_adgun_crossbow_refire`; none once empty.
+- **The shot leaves from it**: QC `VR_ADGun_FireCrossbow` launches from the bolt's middle (`VR_ADXBOW_GROOVE_FWD` -10.47,
+  `_UP` 1.5 from the muzzle in the shot's frame: measured by `vr_adgun_crossbow_info`, the bolt lies along the shot to
+  0.31 degrees, right offset -0.1) unless a wall is between, and sets the projectile's `scale` 0.75. Valid for slot 32's
+  default hold (his): a re-posed crossbow moves the drawn bolt, not these constants.
+- **String and limbs**: `vr_adguns.cpp` adds two frames to the turned model (AD 1.80p1's: 296 vertices, 196 triangles;
+  another release gets none): `xbow_loose` (limb tips 2 units forward, the string straight between them) and
+  `xbow_snap` (tips 3.2, the string bowed 1.6 past). The limbs bend quadratically with |y| (past the stock's 2.6); the
+  string's vertices 218..235 follow their ends and straighten. The view sets `ViewEntity::poseFrame`/`poseBlend` and
+  `r_alias.c` `VR_AliasPoseOverride` draws those two frames blended (the GPU's lerp; the anchors still read frame 0;
+  the slot's zero blend off while held). A shot: snap to `xbow_snap` in 30 ms, a damped wobble about `xbow_loose`,
+  drawn back (smoothstep) over 30-65% of the refire time.
+- **Settings**: `vr_adgun_crossbow_anim` 1 (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns, "Bolt Laid and String
+  Animated"; 0: as before, the added frames never shown). Debug > AD Monsters: "Crossbow's Bolt and String Info"
+  (`vr_adgun_crossbow_info`), "Crossbow Held After a Shot" (`vr_adgun_crossbow_anim_at`, -1 off).
+- **Checked** (headless, ad_tfuma, `scratch/xbanim.sh`): `vr_ad_test 93` PASS; frame strips `scratch/xbstrip.png` (from
+  above: 0..2 s after a shot), `xbfire.png` (a real off-hand shot frame by frame: the groove bolt, then the projectile
+  just ahead of it at the same height, then the morph-in).
+
+For VR: the bolt's size and height in the groove, the snap and the wobble, the draw-back timing.

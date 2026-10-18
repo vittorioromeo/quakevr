@@ -51,8 +51,84 @@ void() AD_MenuAmmoReport =
     remove(self);
 };
 
+// vr_ad_test 142-144: AD's health vials and gems (vr_ad_items.qc item_healthvial). 142: the player's AD megahealth cap
+// cleared (as before AD_PlayerPostThink set it). 143, a frame later: the cap back; each pickup spawned ahead is a
+// force-grabbable health box, a force grab's catch puts it in the main hand, let go of at the shoulder holster it heals
+// (2-5); AD's own vial entity's heal (AD's touch, ad_T_Heal) heals too (it left 0 health); then a shotgun in the main
+// hand, its magazine and the player's height noted. 144, after the script's +attack and +jump: they still work (the
+// magazine emptier, the player higher). One "adhealth:" line each.
+float vr_ad_test_clip, vr_ad_test_z;
+void(float request, entity p) AD_HealthItemsTest =
+{
+    entity os = self, oo = other;
+    if(request == 142)
+    {
+        p.ad_mega_health = 0;
+        bprint(sprintf("adhealth: cap cleared %g health %g\n", p.ad_mega_health, p.health));
+        return;
+    }
+    if(request == 144)
+    {
+        float clip = VRGetEntWeaponClip(p, cVR_MainHand);
+        bprint(sprintf("adhealth: after attack and jump: clip %g -> %g (fired %g), rose %g, health %g dead %g\n",
+            vr_ad_test_clip, clip, clip < vr_ad_test_clip, p.origin_z - vr_ad_test_z, p.health, p.deadflag));
+        return;
+    }
+    bprint(sprintf("adhealth: cap now %g (Quake VR's %g)\n", p.ad_mega_health, VR_MegaHealthCap(p)));
+    makevectors(p.angles);
+    float savedbits = p.vrbits0, savedhotspot = p.mainhand_hotspot, savedflags = p.flags;
+    p.flags -= p.flags & FL_NOTARGET;
+    p.vrbits0 |= QVR_VRBITS0_HANDSTRACKED;
+    float k = 0;
+    while(k < 2)
+    {
+        entity e = spawn();
+        e.classname = k == 0 ? "item_healthvial" : "item_healthgem";
+        setorigin(e, p.origin + v_forward * 48);
+        self = e;
+        if(k == 0) item_healthvial(); else item_healthgem();
+        VRPlaceItemNow();
+        self = p;
+        float eligible = VR_Forcegrab_IsEligible(e);
+        float amount = e.healamount;
+        p.health = 50;
+        setorigin(e, VRGetEntHandPos(p, cVR_MainHand));
+        p.touchinghand = cVR_MainHand;
+        VRSetMainHandGrabbingBit(p, TRUE); VRSetMainHandPrevGrabbingBit(p, FALSE);
+        forcegrabCatching = TRUE;
+        self = e; other = p; e.handtouch();
+        forcegrabCatching = FALSE;
+        float held = VR_Carry_Held(p, cVR_MainHand) == e;
+        VRSetMainHandGrabbingBit(p, FALSE);
+        p.mainhand_hotspot = QVR_HS_RIGHT_SHOULDER_HOLSTER;
+        self = p; VR_Carry_HandFrame(cVR_MainHand);
+        bprint(sprintf("adhealth: %s grabbable %g eligible %g held %g -> health %g (+%g) taken %g\n",
+            e.classname, (e.flags & FL_FORCEGRABBABLE) != 0, eligible, held,
+            p.health, amount, e.model == string_null));
+        k = k + 1;
+    }
+    p.mainhand_hotspot = savedhotspot;
+    p.vrbits0 = savedbits;
+    p.flags = savedflags;
+    // AD's own vial (AD's spawn and touch): its heal no longer leaves 0 health.
+    entity a = AD_TestSpawn("item_healthvial", ad_item_healthvial, p.origin + v_forward * 48);
+    p.health = 50;
+    AD_TestTouch(a, p);
+    bprint(sprintf("adhealth: AD's own vial: health %g (+%g)\n", p.health, a.healamount));
+    remove(a);
+    p.health = 100;
+    self = p;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, WeaponIdToBaseClipSize(WID_SHOTGUN));
+    W_SetCurrentAmmoFor(cVR_MainHand);
+    vr_ad_test_clip = VRGetEntWeaponClip(p, cVR_MainHand);
+    vr_ad_test_z = p.origin_z;
+    bprint(sprintf("adhealth: shotgun clip %g at height %g\n", vr_ad_test_clip, vr_ad_test_z));
+    self = os; other = oo;
+};
+
 void(float request, entity p) AD_RulesTest =
 {
+    if(request >= 142 && request <= 144) { AD_HealthItemsTest(request, p); return; } // AD's health vials and gems
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
     if(request >= 70 && (request <= 90 || (request >= 92 && request <= 100))) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (93, 94: the crossbow; 95: Freddie's super nailgun; 96-100: the upgraded weapons' VR models)
     if(request >= 110 && request <= 125) { AD_MeleeTest(request, p); return; } // AD melee weapons: vr_ad_melee.qc

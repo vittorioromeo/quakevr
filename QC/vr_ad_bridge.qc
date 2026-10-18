@@ -363,6 +363,13 @@ void() AD_PlayerPostThink =
     {
         return;
     }
+    // AD's heal (its health vials, gems, trigger_heal: ad_T_Heal) caps the health at AD's megahealth maximum, which AD's
+    // own player setup gives and ours never did: 0 healed the player to 0 health, alive but unable to act. Quake VR's
+    // cap, unless an AD trigger_maxhp set its own.
+    if(self.ad_mega_health <= 0)
+    {
+        self.ad_mega_health = VR_MegaHealthCap(self);
+    }
     AD_ArtifactsTick(); // (any map: AD's artifacts' time, the HUD's readings; vr_ad_items.qc)
     AD_SyncWeaponModels(self); // (any map: the upgraded weapons' models)
     if(!AD_Rules())

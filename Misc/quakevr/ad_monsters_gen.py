@@ -157,7 +157,8 @@ def main():
     for i, (n, c, m, *_) in enumerate(MONSTERS):
         qc.append('    %sif(choice == %d) { self.classname = "%s"; ad_%s(); }' % ("" if i == 0 else "else ", n, c, c))
     for n, section, label, c, m, lift, rules in ITEMS:
-        fn = c if section == "Weapons" else "ad_" + c
+        # (the upgrades and the health vials are Quake VR's pickups with AD's look: vr_ad_items.qc item_healthvial)
+        fn = c if section == "Weapons" or c in ("item_healthvial", "item_healthgem") else "ad_" + c
         call = '%s();' % fn  # (an upgrade's pickup removes itself outside Weapon Upgrades' scope: AD_UpgradeItem)
         qc.append('    else if(choice == %d) { self.classname = "%s"; %s }' % (n, c, call))
     for n, section, label, c, m, lift, key, value, skin in MAP_ITEMS:
