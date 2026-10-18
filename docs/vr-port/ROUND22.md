@@ -13394,3 +13394,44 @@ Grunt, recovered/8 (flat shotgun 64, flat blow, flat uppercut, slope blow, stair
 ### VR Calibration: height step dropped when standing (calibstep)
 
 The intro ("Stand up straight and look ahead, hold still") and Body Calibration step 1 (Stand Tall) both measured the eye height standing. Standing now goes intro -> Body Calibration straight (no separate HEIGHT step); Stand Tall says "Hold still." too and judges its pose at the height held. Seated keeps the HEIGHT step (Body Calibration has no Stand Tall then). The data is unchanged: Stand Tall's capture and vr_height_calibration on Apply are the same code; a body result that is not applied no longer leaves the intro's height behind.
+## Flinch: `vr_flinch 2` across classes (worktree `fastship`, branch `agent/flinch7`, 2026-10-18)
+
+His direction: the enforcer must regain balance on flat ground; a general solution for most humanoids, not per-class
+hacks; on stairs a strong shotgun may fell it, light blows must not. Suite: `scratch/fl7_suite.py <label> <mode>`
+(`FL7_CLASS=all` runs grunt, enforcer, knight, death knight in one batch; `FL7_CASES` picks cases; new `stairs/sg192`, a
+shotgun from 192 units, as the light stairs hit: nails do not flinch anything). `vr_flinch` stays 1 (below).
+
+Recovered/8: flat shotgun 64, flat blow, flat uppercut, slope blow, stairs shotgun 64, stairs blow, stairs shotgun 192:
+
+| step | grunt | enforcer | knight | death knight | kept |
+|---|---|---|---|---|---|
+| `vr_flinch 1` | 8 8 8 8 8 8 8 | 8 8 8 8 8 6 8 | 8 8 8 8 8 8 8 | 8 8 8 8 8 8 8 | |
+| `vr_flinch 2` baseline | 8 8 8 8 0 2 0 | 0 0 8 0 0 0 0 | 8 8 8 8 6 6 6 | 8 8 8 8 0 0 0 | |
+| 1 jolt cap | 8 8 8 8 0 2 0 | 8 8 8 6 0 0 0 | 8 8 8 8 6 6 6 | 8 8 8 8 0 0 0 | yes |
+| 2 hanging foot bears (to a leg) | 8 8 8 8 0 2 0 | 8 8 8 7 4 5 4 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | yes |
+| 3 planted foot's floor traced once | 8 8 8 8 8 8 8 | 8 8 8 5 6 4 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 3 8 | yes |
+| 4 step only past both feet on the floor | 8 8 8 8 8 8 8 | 8 8 8 4 6 6 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | no |
+| 5 ground test traced from the pelvis | 8 8 8 8 8 8 8 | 8 8 8 6 6 6 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | no (no effect) |
+| 6 landing drawn back onto floor | 8 8 8 8 8 8 8 | 8 8 8 8 6 8 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 7 8 | yes |
+| 7 landing height traced from the pelvis | 8 8 8 8 8 8 7 | 8 8 8 7 6 7 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 6 8 | no |
+
+- **The enforcer's cause** (`vr_flinch_debug 5`, every part's speed on its first frames): not its lean (its stand
+  frame's centre of mass 3.7 units over its feet, `supportOffset`, was already the reference for its capture point,
+  its centre of pressure and its steps). The shotgun's jolt (its local share, on the part nearest the hit) landed on its
+  pelvis, 6 kg under a 57 kg chest: 7 m/s against 0.8 for the rest. The pelvis dragged both legs along the hit, the
+  bearing foot slid 21 units in 0.15 s and the body jackknifed and fell back against the hit (its steps "against the
+  hit" were catching that). Capped at 1.5x the upper body's change of speed (the rest over the upper body by mass): a
+  rule by mass, not by class. The grunt's and knight's chest jolts are 1.2x and 1.4x (untouched); the death knight's
+  pelvis was 3.4x.
+- **Stairs, steps 2-3:** a foot struck hanging (a stance wider than a stair) no longer reads as "in the air" (its gap
+  was capped at 0.3 m); a planted foot's floor no longer flickers between two steps as it shifts by an edge.
+- **Step 6:** a death knight's sidestep landed over the stairs' open side and stood (its foot bearing where it was
+  put) but never passed the recovery test's ground rays (no floor within 0.75 m), toppling at 2 s.
+- **Ogre** (flat blow, slope blow, stairs blow): 8 8 6(+2 no flinch), the same as `vr_flinch 1` (stairs blow was 0).
+  A shotgun and an uppercut do not flinch it in either mode. The zombie does not flinch in either mode.
+- **Left:** the enforcer on stairs from the spot 12 units left of the middle (2 of 8 in both shotgun cases): its left
+  foot ends over the stairs' side trim with no floor in the ground test's reach and it topples at 2 s, balanced;
+  `vr_flinch 1` recovers there. The death knight's stairs blow, 7/8.
+- **Default:** not switched. Mode 2 equals mode 1 on flat and slope for every class measured, but the enforcer's light
+  stairs hit is 6/8 against 8/8.
+- **Melee:** `eval.sh --full` with `vr_flinch 0`: 168/177 (unchanged).
