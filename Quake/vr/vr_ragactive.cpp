@@ -1211,6 +1211,7 @@ constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
 constexpr float legsSwingClear = 0.08f; // of its leg: a stepping foot kept this far over the floor on its way
+constexpr float legsHang = 1.f;         // of its leg: a foot struck hanging this far over its floor bears where it stood
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1290,7 +1291,7 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         // stand frame's feet level.)
         if(first)
         {
-            g.footGap[i] = za::clamp(f.z - floor, -0.25f, 0.3f);
+            g.footGap[i] = za::clamp(f.z - floor, -0.25f, za::max(0.3f, legsHang * len));
             feetEnd += f.z;
             whole++;
         }
