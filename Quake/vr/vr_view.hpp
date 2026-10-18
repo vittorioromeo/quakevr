@@ -23,6 +23,8 @@ struct ViewEntity
     bool mirrored{false};  // left-hand versions of right-hand models
     float zeroBlend{0.f};  // blend of the animation towards frame 0 (weapons)
     float morph{0.f};      // a gun morphing into its other ammo's model: + coming in, - going out (VR_AliasMorph)
+    int poseFrame[2]{-1, -1}; // drawn as these two frames blended, poseBlend of the second (-1: its own frame's blend;
+    float poseBlend{0.f};     // the AD crossbow's string and limbs: vr_adcrossbow.cpp, VR_AliasPoseOverride)
     bool lightMultiply{false};
     glm::vec3 lightMod{1.f};
     glm::vec3 lightShift{0.f}; // the light sampled this far from the origin (a climbing hand: vr_climb.cpp drawnHand)

@@ -2,6 +2,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_adcrossbow.hpp"
 
 namespace view_detail
 {
@@ -3299,7 +3300,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(holsterSsgBarrels, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldSsgFrame, VR_DRAW_LYING),
         QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
         QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
-        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER)};
+        QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD)};
 #undef QVR_DRAW_RANGE
     const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
     for(const Range& r : ranges)
@@ -4779,6 +4780,7 @@ extern "C" void VR_SetupViewEntities()
         QVR_PROFILE("view weapon parts");
         setupMagazines();
         setupPumps();
+        adcrossbow::frame(entities.weapon, entities.adBolt); // AD support: the crossbow's string and bolt
         setupSsgParts();
         setupWorldSsgs();
         patchModelFlags();

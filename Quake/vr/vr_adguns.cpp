@@ -1,10 +1,12 @@
 // vr_adguns.cpp -- see vr_adguns.hpp.
 
 #include "vr_adguns.hpp"
+#include "vr_adcrossbow.hpp"
 #include "vr_modelmetadata.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
@@ -52,13 +54,15 @@ constexpr Gun guns[] = {
 // slot's angles are applied in the model's frame), so it felt different in the hand from every other gun. Turned a
 // quarter about z (its front +x, the bow across y, up z), the tiller behind the bow (`pivot`, in its own space) its
 // origin; nothing else changed (every vertex exactly where it was, re-packed losslessly: x and y swap their scales).
+// The crossbow gets two more frames, its string and limbs as a shot looses them (vr_adcrossbow.cpp: `bow`).
 struct Turned
 {
     const char* model;
     float pivot[3];
+    bool bow;
 };
 constexpr Turned turnedModels[] = {
-    {"progs/w_dcrossbow.mdl", {0.f, 8.f, 3.f}},
+    {"progs/w_dcrossbow.mdl", {0.f, 8.f, 3.f}, true},
 };
 
 [[nodiscard]] const Turned* turnedOf(const char* base)
@@ -611,6 +615,48 @@ namespace
         }
     }
     out.muzzle /= static_cast<float>(za::max(tip, 1));
+
+    // The bow's frames (vr_adcrossbow.cpp), after the file's (the frames are its last part): its first pose's vertices
+    // moved, packed as it is (clamped to its box's bytes), the normals kept.
+    if(t.bow && numFrames == 1 && at == size && adcrossbow::knownModel(numVerts, numTris))
+    {
+        za::Vector<byte> pose;
+        pose.emplaceBackRange(f + firstPose, static_cast<size_t>(numVerts) * 4);
+        for(int k = 1; k <= adcrossbow::addedFrames; k++)
+        {
+            byte lo[4] = {255, 255, 255, 0}, hi[4] = {0, 0, 0, 0};
+            za::Vector<byte> verts;
+            for(int v = 0; v < numVerts; v++)
+            {
+                const byte* b = pose.data() + static_cast<size_t>(v) * 4;
+                const glm::vec3 p = adcrossbow::framePoint(k, v, glm::vec3{b[0], b[1], b[2]} * scale2 + origin2);
+                byte q[4] = {0, 0, 0, b[3]};
+                for(int i = 0; i < 3; i++)
+                {
+                    const float s = (p[i] - origin2[i]) / scale2[i];
+                    q[i] = static_cast<byte>(za::clamp(static_cast<int>(s + 0.5f), 0, 255));
+                    lo[i] = za::min(lo[i], q[i]);
+                    hi[i] = za::max(hi[i], q[i]);
+                }
+                const glm::vec3 r = glm::vec3{q[0], q[1], q[2]} * scale2 + origin2;
+                radius = za::max(radius, glm::length(r));
+                out.lo = glm::min(out.lo, r);
+                out.hi = glm::max(out.hi, r);
+                verts.emplaceBackRange(q, 4);
+            }
+            put(out.file, 0); // a single frame
+            out.file.emplaceBackRange(lo, 4);
+            out.file.emplaceBackRange(hi, 4);
+            char name[16] = {};
+            q_strlcpy(name, adcrossbow::frameNames[k - 1], sizeof(name));
+            out.file.emplaceBackRange(reinterpret_cast<const byte*>(name), sizeof(name));
+            out.file.emplaceBackRange(verts.data(), verts.size());
+        }
+        f = out.file.data();
+        const int frames = LittleLong(1 + adcrossbow::addedFrames);
+        memcpy(f + 68, &frames, 4);
+        setf(32, radius);
+    }
     out.cornerKept = true;
     out.verts = numVerts;
     out.tris = numTris;

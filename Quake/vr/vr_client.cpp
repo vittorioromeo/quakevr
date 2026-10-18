@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
@@ -855,6 +856,7 @@ extern "C" void VR_OnClientClearState()
     blood::clear();
     deathview::clear();
     weaponfx::clear();
+    adcrossbow::clear(); // AD support
     bttrails::clear();
     wounds::clear();
     rope::forget();

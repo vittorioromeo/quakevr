@@ -82,6 +82,12 @@
         command("Crossbow Knight's Crossbow, End to End", "vr_ad_test 93")
             .help("Destructive: the crossbow knight nearest you killed, its crossbow taken, fired, holstered, drawn into "
                   "the other hand and fired (adxb: lines)."),
+        command("Crossbow's Bolt and String Info", "vr_adgun_crossbow_info")
+            .help("For each hand holding the crossbow: its last shot, bolts left, and the bolt in its groove from the "
+                  "muzzle along the shot (where the shot leaves from: QC's VR_ADXBOW_GROOVE_*)."),
+        slider("Crossbow Held After a Shot", "vr_adgun_crossbow_anim_at", -1.f, 2.5f, 0.01f, "%.2f s")
+            .help("Holds the crossbows in your hands this long after a shot, loaded: the string's snap, the limbs' "
+                  "wobble, the draw and the next bolt's morph, frame by frame. -1: as they are."),
         command("Freddie's Gun Arm Cut Off", "vr_ad_test 95")
             .help("Destructive: the Freddie nearest you killed and his gun arm cut off: a super nailgun of ours drops "
                   "there, loaded, and goes into your main hand (adfred: lines)."),
