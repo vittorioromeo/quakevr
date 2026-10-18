@@ -639,6 +639,7 @@ void info_f()
                 vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
         }
     }
+    wetInfo();
 }
 
 void registerDiagCommands()

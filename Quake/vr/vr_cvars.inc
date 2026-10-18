@@ -1394,6 +1394,7 @@ QVR_CVAR(vr_body_blood, "1.25", CVAR_ARCHIVE)            // the wounded arms and
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
 QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
+QVR_CVAR(vr_wounds_wet_coat, "1", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
 QVR_CVAR(vr_wounds_pool, "128", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_body_res, "1024", CVAR_ARCHIVE) // body-only minimum wound detail; tall arm atlas: 1024 gives 256x1024 (~hand density), 0 opts out
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'

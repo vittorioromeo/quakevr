@@ -2721,7 +2721,7 @@ SPECULAR_AA_FUNCTIONS
 "{\n" \
 "	float blood;   // covered by blood (0 or 1)\n" \
 "	float burn;	// charred\n" \
-"	float wet;	 // wet\n" \
+"	float wet;	 // the wet coat's strength (0 dry .. 2)\n" \
 "	vec3 look;	 // the texel's colour with them\n" \
 "	float gloss;   // a wet sheen's strength\n" \
 "	float flatten; // how much of the normal map's bumps they hide\n" \
@@ -2773,7 +2773,9 @@ SPECULAR_AA_FUNCTIONS
 "Wounds WoundsAt(vec2 uv, vec3 skin)\n" \
 "{\n" \
 "	Wounds w;\n" \
-"	w.blood = 0.0; w.burn = 0.0; w.wet = 0.0; w.look = skin; w.gloss = 0.0; w.flatten = 0.0; w.glow = vec3(0.0); w.slope = vec2(0.0);\n" \
+"	// the wet coat (vr/vr_wounds.cpp wetCoat): GloveShell.z its strength, all of it (w 1: a weapon) or where the mask is wet\n" \
+"	float coat = instances[in_instance].GloveShell.z;\n" \
+"	w.blood = 0.0; w.burn = 0.0; w.wet = instances[in_instance].GloveShell.w > 0.5 ? coat : 0.0; w.look = skin; w.gloss = 0.0; w.flatten = 0.0; w.glow = vec3(0.0); w.slope = vec2(0.0);\n" \
 "	vec4 wi = instances[in_instance].Wound; // x its layer + 1 (0 none; negative: -(its layer + 1) in the fine masks), yz its size in texels, w the time\n" \
 "	if (abs(wi.x) < 0.5)\n" \
 "		return w;\n" \
@@ -2788,7 +2790,7 @@ SPECULAR_AA_FUNCTIONS
 "			return w;\n" \
 "		w.burn = smoothstep(0.16, 0.44, m.g);\n" \
 "		w.blood = smoothstep(0.2, 0.44, m.r);\n" \
-"		w.wet = smoothstep(0.06, 0.46, m.b);\n" \
+"		w.wet = max(w.wet, coat * smoothstep(0.004, 0.03, m.b)); // (wet at all: the coat's even, drying as a whole)\n" \
 "		h = WoundNoise(uv * 128.0);\n" \
 "		spot = smoothstep(0.7, 0.78, WoundNoise(uv * 420.0 + 7.7));\n" \
 "		flick = WoundNoise(uv * 160.0 + floor(wi.w * 7.0) * 1.37);\n" \
@@ -2819,7 +2821,7 @@ SPECULAR_AA_FUNCTIONS
 "		h = WoundHash(t);\n" \
 "		w.burn = step(0.16 + 0.28 * d, m.g);\n" \
 "		w.blood = step(0.2 + 0.24 * d, m.r);\n" \
-"		w.wet = step(0.06 + 0.4 * d, m.b);\n" \
+"		w.wet = max(w.wet, coat * step(0.008, m.b)); // (wet at all, no dither: the coat's even)\n" \
 "		spot = step(0.85, h);\n" \
 "		flick = WoundHash(t + floor(wi.w * 7.0) * 1.37);\n" \
 "		soft = 0.0;\n" \
@@ -2833,27 +2835,27 @@ SPECULAR_AA_FUNCTIONS
 "		: m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87., 0., 0.) / 255.0;\n" \
 "	vec3 c = mix(skin, charred, w.burn);\n" \
 "	c = mix(c, red * (0.75 + 0.5 * lum), w.blood * instances[in_instance].WoundSide.w); // a little of the skin's shading through it; the skin itself as much as vr_wounds_blood_alpha leaves\n" \
-"	c *= 1.0 - 0.5 * w.wet; // wet: darker\n" \
-"	w.look = c;\n" \
+"	w.look = c; // (wet: darkened over the whole look after, QVR_ALIAS_FS_LIGHT)\n" \
 "	w.gloss = w.blood * 0.55 * instances[in_instance].WoundSide.w;\n" \
-"	w.flatten = max(w.blood * 0.75 * instances[in_instance].WoundSide.w, w.wet * 0.5);\n" \
+"	w.flatten = w.blood * 0.75 * instances[in_instance].WoundSide.w;\n" \
 "	// embers: a fresh burn glows in its cracks, flickering (Quake's fullbright oranges, 232..236)\n" \
 "	if (m.a > 0.0 && w.burn > 0.0)\n" \
 "		w.glow = spot * step(0.6, m.g) * step(flick, m.a) * mix(vec3(183., 51., 15.), vec3(219., 127., 59.), flick) / 255.0 * (0.8 * m.a);\n" \
 "	return w;\n" \
 "}\n" \
 "\n" \
-"// QVR: a wound's wet sheen (blood, water) in the model's own light, from its direction: a tight highlight, and a little\n" \
-"// at grazing angles.\n" \
+"// QVR: a wound's wet sheen (blood, water) in the model's own light, from its direction (no dynamic light): a tight\n" \
+"// highlight, and a little at grazing angles; the wet coat's a thin film's, glossier and wider.\n" \
 "vec3 WoundSheen(Wounds w, vec3 n)\n" \
 "{\n" \
 "	if (w.gloss <= 0.0 && w.wet <= 0.0)\n" \
 "		return vec3(0.0);\n" \
 "	vec3 v = normalize(-in_pos);\n" \
 "	vec3 l = normalize(in_bumplight.xyz);\n" \
-"	float s = pow(max(dot(n, normalize(l + v)), 0.0), 48.0);\n" \
+"	float ndh = max(dot(n, normalize(l + v)), 0.0);\n" \
+"	float s = pow(ndh, 48.0);\n" \
 "	float f = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);\n" \
-"	return min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (pow(max(dot(n, normalize(l + v)), 0.0), 24.0) * 0.15 + f * 0.05));\n" \
+"	return min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (s * 0.35 + pow(ndh, 12.0) * 0.08 + f * 0.12));\n" \
 "}\n" \
 "\n" \
 "// QVR: the normal n tilted by a relief's slope along the skin (WoundsAt's slope: units a uv unit), from the derivatives\n" \
@@ -3050,7 +3052,7 @@ QVR_DENT_FUNCTIONS \
 "	float leatherCover = 0.0, leatherGloss = 0.0;\n" \
 "	if (tone.w > 0.0 || glove.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
-"		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w) * (1.0 - 0.5 * wounds.wet);\n" \
+"		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w);\n" \
 "		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
 "		float gmode = mod(glove.w, 4.0), gpaint = floor(glove.w * 0.25); // Glove.w: the channel, 4 times the painted layer's (vr_render.cpp glovePaintFlags)\n" \
 "		float gm = gmode > 1.5 ? mask.b : gmode > 0.5 ? mask.g : 0.0; // make_skin_masks.py: 0.55 at the edge, 1 a hem inside\n" \
@@ -3109,6 +3111,15 @@ QVR_DENT_FUNCTIONS \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
+"	if (wounds.wet > 0.0) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker, evenly\n" \
+"	{ // (not a fullbright texel's: unlit)\n" \
+"		float wetDark = 0.3 * min(wounds.wet, 2.0);\n" \
+"#if !ALPHATEST\n" \
+"		wetDark *= result.a;\n" \
+"#endif\n" \
+"		result.rgb *= 1.0 - wetDark;\n" \
+"		wounds.flatten = max(wounds.flatten, 0.35 * min(wounds.wet, 1.0)); // the film fills the bumps a little\n" \
+"	}\n" \
 "	Dented dent = DentsAt(); // QVR: flesh dents (vr/vr_dents.cpp): raw flesh in the crater, a bloody rim round it\n" \
 "	if (dent.cover + dent.rim > 0.0)\n" \
 "	{\n" \
