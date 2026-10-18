@@ -419,6 +419,9 @@ struct Stagger
     glm::vec3 impulse{0.f};   // N s, world: the hit (the overlay's arrow)
     glm::vec3 hitAt{0.f};     // world, metres
     float footR{0.12f};       // m: each foot's support (a disc this wide round its end)
+    // Its stance's own centre of mass from between its feet (level, world, metres: its stand frame's; an enforcer
+    // leans over his rifle, its middle well ahead of its ankles): its support is reckoned round it.
+    glm::vec3 supportOffset{0.f};
     int struck{-1};           // the frame it was drawn in when struck (a hand-back's candidates: round it)
 };
 
@@ -605,6 +608,9 @@ struct Context
     // The world (and the movers) along `from` -> `to` (world, metres): the share of the way to the first hit (1 none),
     // where it hit and its normal.
     float (*rayHit)(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, glm::vec3& normal){nullptr};
+    // Quake's own world (its hull, the brush models; a map's geometry the physics world lacks: AD's maps) along
+    // `from` -> `to` (world, metres): the share of the way to the first hit (1 none) and the floor's normal up there.
+    float (*traceHit)(const glm::vec3& from, const glm::vec3& to, float& normalUp){nullptr};
     int num{0};       // its entity (the traces)
     double born{0.0}; // when its ragdoll was made (the traces' time)
     bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)

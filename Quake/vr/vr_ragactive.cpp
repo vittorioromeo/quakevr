@@ -1095,7 +1095,7 @@ constexpr float staggerUprightMost = 4.f; // rad/s
             foot[static_cast<za::SizeT>(n++)] = glm::vec2{f.x, f.y};
         }
     }
-    const glm::vec2 m{com.x, com.y};
+    const glm::vec2 m{com.x - g.supportOffset.x, com.y - g.supportOffset.y}; // (its stance's own lean aside)
     float d = 1e30f;
     if(n == 2)
     {
@@ -1154,6 +1154,13 @@ constexpr float staggerUprightMost = 4.f; // rad/s
                 share = z > -1e29f ? (f.z + above - z) / (above + below) : 1.f;
                 normal = up;
             }
+            // (Neither saw it: Quake's own world, as its box stands on it.)
+            if(share >= 1.f && c.traceHit)
+            {
+                float normalUp = 1.f;
+                share = c.traceHit(f + up * above, f - up * below, normalUp);
+                normal = glm::vec3{0.f, 0.f, normalUp};
+            }
             if(share >= 1.f || normal.z < flattest)
             {
                 g.groundShare = share;
@@ -1192,6 +1199,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         feet++;
     }
     support = feet > 0 ? support / static_cast<float>(feet) : pelvis;
+    support += g.flinch ? g.supportOffset : glm::vec3{0.f}; // (a flinch: where its stance's middle stands)
     footZ = feet > 0 ? footZ : pelvis.z - g.height;
     g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));    g.leanMost = za::max(g.leanMost, g.lean);
     // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
@@ -1223,7 +1231,12 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         // a base: its level motion times the square root of its height over g, ahead of it).
         // (Beaten, its steps taken: no more, it gives way below. Steady, its backpedal's steps taken and still leaning: a
         // few more to catch itself.)
-        const int stepsCap = g.giveAfter >= 0 ? g.giveAfter : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0);
+        // (A flinch steps only while its capture point is off its support (below): a few more to come to rest over its
+        // feet, not left standing split and off them once its backpedal's are spent.)
+        constexpr int flinchExtraSteps = 4;
+        const int stepsCap = g.giveAfter >= 0 ? g.giveAfter
+                                              : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0) +
+                                                    (g.flinch ? flinchExtraSteps : 0);
         if(g.stepLeg < 0 && g.steps < stepsCap)
         {
             const float h = za::max(com.z - footZ, 0.1f);
@@ -1252,7 +1265,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             // them, it stands; a shove's stagger backpedals on.)
             if(g.flinch && best >= 0)
             {
-                const glm::vec2 a{g.planted[0].x, g.planted[0].y}, b{g.planted[1].x, g.planted[1].y}, q{then.x, then.y};
+                const glm::vec2 a{g.planted[0].x, g.planted[0].y}, b{g.planted[1].x, g.planted[1].y}, q{then.x - g.supportOffset.x, then.y - g.supportOffset.y};
                 const glm::vec2 ab = b - a;
                 const float l2 = glm::dot(ab, ab);
                 const float u = l2 > 1e-8f ? za::clamp(glm::dot(q - a, ab) / l2, 0.f, 1.f) : 0.f;
@@ -1395,7 +1408,8 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         const float a = 2.f * 3.14159265f * staggerWheel * t + (arm == 0 ? 0.f : 3.14159265f);
         r.goal = shoulder + ahead * (0.5f * len) + left * ((arm == 0 ? 0.35f : -0.35f) * len) +
                  (ahead * za::cos(a) + up * za::sin(a)) * (0.2f * len);
-        r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance)) * g.wheel;
+        r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance)) * g.wheel *
+                   (g.flinch ? 1.f - smooth01((t - 0.12f) / 0.2f) : 1.f); // (a flinch's arms out a moment, then back)
         r.strength = 0.7f;
     }
     // The feet: planted, or the one stepping lifted along its way.
@@ -3598,6 +3612,46 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
     g.impulse = info.impulse;
     g.hitAt = info.at;
     g.footR = za::max(info.footR, 0.01f);
+    // Its stance frame's centre of mass from its feet's middle (model space: each part's mass at its centre as the
+    // frame poses it), turned as it stands.
+    {
+        const int pose = ragdoll::poseOfFrame(s.model, info.first);
+        const auto partAt = [&](int b, const glm::vec3& local, glm::quat& q, glm::vec3& t) {
+            ragdoll::bonePose(*p.rig, pose, b, q, t);
+            return q * local + t * p.k;
+        };
+        glm::vec3 com{0.f}, feet{0.f};
+        float mass = 0.f;
+        int n = 0;
+        for(int b = 0; b < p.count; b++)
+        {
+            if(cut(p, b) || p.rig->bones[b].joint == ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            glm::quat q;
+            glm::vec3 t;
+            const float m = b3Body_GetMass(p.body[b]);
+            com += partAt(b, glmv(b3Body_GetLocalCenter(p.body[b])), q, t) * m;
+            mass += m;
+        }
+        for(int leg = 2; leg < 4; leg++)
+        {
+            const int lo = s.chain[static_cast<za::SizeT>(leg)][1];
+            if(limbWhole(s, p, leg) && lo >= 0)
+            {
+                glm::quat q;
+                glm::vec3 t;
+                feet += partAt(lo, p.rig->bones[lo].end * p.k, q, t);
+                n++;
+            }
+        }
+        if(mass > 0.f && n > 0)
+        {
+            const glm::vec3 off = com / mass - feet / static_cast<float>(n);
+            g.supportOffset = level(s.turn * glm::vec3{off.x, off.y, 0.f});
+        }
+    }
     g.wheel = za::clamp(dv / topple, 0.1f, 1.f);
     // Its torso and head back to their tone once its travel is mostly done: its spine straightened over its feet (the
     // recovery test's tilt), not left bent as the hit left it.
