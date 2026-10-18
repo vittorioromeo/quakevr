@@ -90,6 +90,10 @@ budget, the topple speeds and the hand-back, and replaces those three:
 
 - No pin and no lift. The hit's whole impulse goes into the body (the jolt at the point; the rest on the parts above
   its legs), times `vr_flinch_legs_push` (2.5: a shotgun backs it a step; its balance and topple use the real one).
+  The struck part's jolt is at most 1.5x the upper body's change of speed (`flinchJoltMost`; the rest goes over the
+  upper body by mass): an enforcer's pelvis (6 kg under a 57 kg chest) struck by a shotgun took 7 m/s, dragged both
+  legs along the hit (the bearing foot slid 21 units in 0.15 s, the body jackknifed and fell back against the hit).
+  The grunt's and knight's chest jolts are under the cap (1.2x, 1.4x); the death knight's pelvis (3.4x) is capped.
 - Its weight is borne only through feet on the floor (a foot's end within 0.15 leg of its floor as it stood; with none,
   its lowest within 0.4 leg unless its pelvis is going up): a push up its legs holding its pelvis as high over its feet as
   it stood (3 Hz, critically damped, up to 1.6 weights, never pulling down). Struck up, it falls back at once.
@@ -103,7 +107,8 @@ budget, the topple speeds and the hand-back, and replaces those three:
   under its way (traced from the pelvis's height: a step up lifts over the riser, not through it) until the last fifth.
 - Bearing legs follow their planted foot (their reach, tone 0.5) and their hips turn the pelvis upright; the upright
   turn (`turnUpper`, 8 rad/s per rad, at most 4, `vr_flinch_legs_upright`) keeps the body's momentum.
-- `vr_flinch_debug 4` prints a `legs:` line per frame; every flinch prints a `result` line (steps, their mean cosine
+- `vr_flinch_debug 4` prints a `legs:` line per frame (with the pelvis, centre of mass and both feet along the hit)
+  and a `step:` line per step; 5 adds every part's place, speed and mass for its first 0.06 s; every flinch prints a `result` line (steps, their mean cosine
   along the hit, the way stepped, the centre of mass's rise).
 
 ## Recovery test
