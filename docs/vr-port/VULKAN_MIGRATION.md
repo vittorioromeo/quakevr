@@ -98,7 +98,7 @@ Whole-repo scale: ~278k lines in `Quake/vr/`. Of that, files that touch GL are a
 
 - `vr_backend_openxr.cpp` (2582): runtime selection, WGL graphics binding `XrGraphicsBindingOpenGLWin32KHR`
   (`XR_KHR_opengl_enable`), swapchain images as GL textures, visibility mask (`XR_KHR_visibility_mask`, l.959+, used by
-  `vr_visibility_mask`), `xrEndFrame`. `vr_xr_glx.cpp` (74): the Linux GLX binding. `vr_backend_mock.cpp` (1941):
+  `vr_visibility_mask`), `xrEndFrame`. `vr_xr_linuxgl.cpp`: the Linux GLX and EGL bindings. `vr_backend_mock.cpp` (1941):
   headless mock whose "eye images" are GL textures (the kit's tests depend on it; a Vulkan backend needs a mock too).
 - Visibility mask draws a hidden-area stencil/depth in the eye pass (also in `vr_stereo*`, see `vr_backend_mock.cpp`
   l.1743 for the test mask).

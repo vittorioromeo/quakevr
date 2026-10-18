@@ -54,6 +54,28 @@ constexpr Known known[] = {
     {Kind::SteamVR, "SteamVR", "steamxr_linux64.json", {"vrserver", "vrcompositor"}, "running",
         "~/.steam/steam/steamapps/common/SteamVR/steamxr_linux64.json"},
 };
+
+// The game's architecture as the OpenXR loader names it (manifests' <name>.<arch>.json, active_runtime.<arch>.json),
+// with its ELF class and machine (e_machine).
+#if defined(__x86_64__)
+constexpr const char* ourArch = "x86_64";
+constexpr int ourElfMachine = 62; // EM_X86_64
+#elif defined(__i386__)
+constexpr const char* ourArch = "i686";
+constexpr int ourElfMachine = 3; // EM_386
+#elif defined(__aarch64__)
+constexpr const char* ourArch = "aarch64";
+constexpr int ourElfMachine = 183; // EM_AARCH64
+#elif defined(__arm__)
+constexpr const char* ourArch = "armv7a-vfp";
+constexpr int ourElfMachine = 40; // EM_ARM
+#else
+constexpr const char* ourArch = "unknown";
+constexpr int ourElfMachine = 0; // (not checked)
+#endif
+// The loader spec's architecture names.
+constexpr const char* loaderArches[] = {"x86_64", "i686", "aarch64", "armv7a-vfp", "armv5te", "mips64", "mips", "ppc64",
+    "ppc64el", "s390x", "hppa", "alpha", "ia64", "m68k", "riscv64", "sparc64"};
 #else
 constexpr Known known[] = {
     {Kind::VirtualDesktop, "Virtual Desktop (VDXR)", "virtualdesktop-openxr.json", {"virtualdesktop.streamer.exe", nullptr},
@@ -402,9 +424,11 @@ struct Environment
         configDirs.pushBack(d);
     }
     configDirs.pushBack(za::String{"/etc"});
+    // (In each folder the loader reads active_runtime.<arch>.json first, then active_runtime.json: loader 1.0.29+.)
     for(const za::String& d : configDirs)
     {
-        const char* file = va("%s/openxr/1/active_runtime.json", d.cStr());
+        const char* archFile = va("%s/openxr/1/active_runtime.%s.json", d.cStr(), ourArch);
+        const char* file = fileExists(archFile) ? archFile : va("%s/openxr/1/active_runtime.json", d.cStr());
         if(fileExists(file))
         {
             env.active = realpath(file, path) ? path : file;
@@ -418,7 +442,7 @@ struct Environment
             while(const dirent* e = readdir(d))
             {
                 const size_t n = strlen(e->d_name);
-                if(n > 5 && !strcmp(e->d_name + n - 5, ".json") && strcmp(e->d_name, "active_runtime.json"))
+                if(n > 5 && !strcmp(e->d_name + n - 5, ".json") && strncmp(e->d_name, "active_runtime.", 15))
                 {
                     env.available.pushBack(za::String{va("%s/%s", dir, e->d_name)});
                 }
@@ -490,8 +514,14 @@ struct Installed
     Kind kind;
     bool active;
     const char* running; // its app's process, or null
-    bool exists;
+    bool exists;         // (false too for another architecture's)
+    za::String foreign;  // why it is another architecture's ("" when it is ours: Linux)
 };
+
+// Linux: why a runtime manifest is for another architecture than the game's ("" when it is ours or unknown): its name's
+// architecture (openxr_wivrn.i686.json, the loader spec's <name>.<arch>.json) or its library's ELF class and machine.
+// The loader skips those; tried, they fail (XR_ERROR_RUNTIME_UNAVAILABLE). (Windows: "".)
+[[nodiscard]] za::String foreignArch(const char* manifest);
 
 [[nodiscard]] za::Vector<Installed> installedRuntimes(const Environment& env)
 {
@@ -509,8 +539,10 @@ struct Installed
             }
         }
         const Kind kind = kindOf(manifest);
+        za::String foreign = foreignArch(manifest);
+        const bool exists = fileExists(manifest) && foreign.empty();
         list.pushBack(Installed{za::String{manifest}, kind, !env.active.empty() && sameFile(manifest, env.active.cStr()),
-            runningProcess(env, kind), fileExists(manifest)});
+            runningProcess(env, kind), exists, static_cast<za::String&&>(foreign)});
     };
     for(const za::String& m : env.available)
     {
@@ -643,6 +675,7 @@ struct State
     za::String status;    // statusLine()
     bool logging = false; // since the backend's first start: lines go to the log too
     bool logStarted = false;
+    za::String videoNote; // what beforeVideoInit did (Linux), in each start's log
 };
 State state;
 
@@ -1212,7 +1245,9 @@ void describe()
         const bool idleSteamVR = vr_xr_runtime.value == 4.f && i.exists && i.kind == Kind::SteamVR && !i.running &&
                                  !i.active && !planned;
         note("  installed: %s%s%s%s\n", labelOf(i.manifest.cStr()).cStr(), i.active ? ", the system's active" : "",
-            i.exists ? "" : ", NOT FOUND (left out)",
+            i.exists              ? ""
+            : !i.foreign.empty() ? va(", %s: left out", i.foreign.cStr())
+                                 : ", NOT FOUND (left out)",
             idleSteamVR ? ", not running: left out (it would start SteamVR; vr_xr_runtime_fallback 2 tries it)" : "");
         note("     %s\n", i.manifest.cStr());
     }
@@ -1289,6 +1324,65 @@ void explain_f()
     return library;
 }
 
+za::String foreignArch(const char* manifest)
+{
+#ifdef _WIN32
+    (void)manifest;
+    return za::String{};
+#else
+    // Its name: <name>.<arch>.json.
+    const char* name = fileName(manifest);
+    const size_t n = strlen(name);
+    if(n > 5 && !q_strcasecmp(name + n - 5, ".json"))
+    {
+        const char* end = name + n - 5;
+        const char* dot = end;
+        while(dot > name && dot[-1] != '.')
+        {
+            dot--;
+        }
+        if(dot > name)
+        {
+            const za::String suffix{dot, static_cast<za::SizeT>(end - dot)};
+            for(const char* arch : loaderArches)
+            {
+                if(suffix == za::StringView{arch} && strcmp(arch, ourArch) != 0)
+                {
+                    return za::String{va("for %s (the game is %s)", arch, ourArch)};
+                }
+            }
+        }
+    }
+    // Its library's ELF header: class (byte 4: 1 32-bit, 2 64-bit) and machine (bytes 18-19, little-endian).
+    const za::String library = libraryOf(manifest);
+    FILE* f = library.empty() ? nullptr : fopen(library.cStr(), "rb");
+    if(!f)
+    {
+        return za::String{};
+    }
+    unsigned char header[20] = {};
+    const size_t got = fread(header, 1, sizeof(header), f);
+    fclose(f);
+    if(got < sizeof(header) || header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F')
+    {
+        return za::String{};
+    }
+    const int bits = header[4] == 1 ? 32 : header[4] == 2 ? 64 : 0;
+    const int machine = header[18] | (header[19] << 8);
+    if(bits && bits != static_cast<int>(sizeof(void*) * 8))
+    {
+        return za::String{va("its library is %d-bit (the game is %d-bit): %s", bits, static_cast<int>(sizeof(void*) * 8),
+            library.cStr())};
+    }
+    if(ourElfMachine && header[5] == 1 && machine != ourElfMachine)
+    {
+        return za::String{va("its library is for another CPU (ELF machine %d, the game's %d): %s", machine, ourElfMachine,
+            library.cStr())};
+    }
+    return za::String{};
+#endif
+}
+
 } // namespace
 
 const char* logPath()
@@ -1322,6 +1416,10 @@ void beginLog()
         args += com_argv[i];
     }
     logText(va("command line: %s\n", args.cStr()));
+    if(!state.videoNote.empty())
+    {
+        logText(state.videoNote.cStr());
+    }
     const char* env = getenv("XR_RUNTIME_JSON");
     logText(va("XR_RUNTIME_JSON now (the game's last attempt's, or the starting one): %s\n", env && env[0] ? env : "not set"));
     describe();
@@ -1402,6 +1500,51 @@ void keepGraphicsModules()
 bool isSteamVR(const Attempt& attempt)
 {
     return !attempt.manifest.empty() && kindOf(attempt.manifest.cStr()) == Kind::SteamVR;
+}
+
+void beforeVideoInit()
+{
+#ifndef _WIN32
+    auto set = [](const char* name) {
+        const char* v = getenv(name);
+        return v && v[0];
+    };
+    const char* why = nullptr;
+    if(set("SDL_VIDEODRIVER") || set("SDL_VIDEO_DRIVER") || set("SDL_VIDEO_X11_FORCE_EGL") || set("SDL_VIDEO_FORCE_EGL"))
+    {
+        why = "the player's SDL variables kept";
+    }
+    else if(!set("DISPLAY"))
+    {
+        why = "no X server (DISPLAY not set): SDL's choice kept";
+    }
+    if(!why)
+    {
+        const Environment env = environment();
+        const Plan p = makePlan(env, installedRuntimes(env));
+        bool steam = false;
+        for(const Attempt& a : p.attempts)
+        {
+            const bool loaderSteam = a.manifest.empty() && !env.active.empty() && kindOf(env.active.cStr()) == Kind::SteamVR;
+            steam = steam || isSteamVR(a) || loaderSteam;
+        }
+        if(steam)
+        {
+            setenv("SDL_VIDEODRIVER", "x11", 1);
+            setenv("SDL_VIDEO_DRIVER", "x11", 1);
+            setenv("SDL_VIDEO_X11_FORCE_EGL", "0", 1);
+            setenv("SDL_VIDEO_FORCE_EGL", "0", 1);
+            why = "SDL asked for X11 with GLX (SDL_VIDEODRIVER=x11, SDL_VIDEO_X11_FORCE_EGL=0): the start may try SteamVR, "
+                  "whose OpenXR binds GLX contexts only";
+        }
+        else
+        {
+            why = "SDL's choice kept (no SteamVR in the plan: an EGL context binds with XR_MNDX_egl_enable)";
+        }
+    }
+    state.videoNote = va("OpenXR: before video init: %s\n", why);
+    Con_Printf("%s", state.videoNote.cStr());
+#endif
 }
 
 void registerCommands()

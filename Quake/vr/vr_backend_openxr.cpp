@@ -33,9 +33,10 @@
 
 #define XR_USE_PLATFORM_WIN32
 #else
-// Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR). Its X11/GLX types declared as Xlib.h and glx.h have them
-// (without those headers' macros here: vr_xr_glx.cpp has them).
-#include "vr_xr_glx.hpp"
+// Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR) or the EGL one (XrGraphicsBindingEGLMNDX). Their X11, GLX
+// and EGL types declared as Xlib.h, glx.h and egl.h have them (without those headers' macros here:
+// vr_xr_linuxgl.cpp has them).
+#include "vr_xr_linuxgl.hpp"
 #include <pthread.h>
 #include <unistd.h>
 typedef unsigned long XID;
@@ -43,7 +44,11 @@ typedef struct _XDisplay Display;
 typedef XID GLXDrawable;
 typedef struct __GLXcontextRec* GLXContext;
 typedef struct __GLXFBConfigRec* GLXFBConfig;
+typedef void* EGLDisplay;
+typedef void* EGLConfig;
+typedef void* EGLContext;
 #define XR_USE_PLATFORM_XLIB
+#define XR_USE_PLATFORM_EGL
 #endif
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
@@ -755,7 +760,8 @@ private:
     HDC glDC{nullptr};                            // the game's GL context, as bound to the session
     HGLRC glRC{nullptr};
 #else
-    xrglx::Binding glx;                           // the game's GLX context, as bound to the session
+    xrgl::Binding glctx;                          // the game's GLX or EGL context, as bound to the session
+    bool eglExtension{false};                     // XR_MNDX_egl_enable enabled (the EGL binding possible)
 #endif
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
@@ -1102,7 +1108,7 @@ private:
 #ifdef _WIN32
             wglMakeCurrent(nullptr, nullptr);
 #else
-            xrglx::release();
+            xrgl::release();
 #endif
         }
         if(!contextReady(what))
@@ -1444,6 +1450,9 @@ private:
         stateTrailText[0] = '\0';
         endReason = SessionEnd::Lost;
         visibilityMaskExtension = false;
+#ifndef _WIN32
+        eglExtension = false;
+#endif
         for(bool& v : vendorProfile)
         {
             v = false;
@@ -1490,6 +1499,15 @@ private:
                     xrruntime::logLine(va("OpenXR: the %s controller profile enabled (vr_xr_vendor_profiles)\n", vendorExtensions[v]));
                 }
             }
+#ifndef _WIN32
+            // Linux: the EGL binding, for an EGL context (SDL's Wayland driver, or X11 on EGL): Monado and WiVRn
+            // have it, SteamVR doesn't (createSession).
+            if(!strcmp(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
+            {
+                extensions.pushBack(XR_MNDX_EGL_ENABLE_EXTENSION_NAME);
+                eglExtension = true;
+            }
+#endif
             // The lenses' hidden area (vr_visibility_mask).
             if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
             {
@@ -1703,27 +1721,31 @@ private:
     // the start fails) when that fails or the window is gone. (1.0.1: two runtimes, VDXR and SteamVR, died in the first
     // swapchain on one player's PC: a runtime's GL calls without the game's context read null function pointers.)
 #ifndef _WIN32
-    // Linux: the same with GLX (the context and its drawable, the window's).
+    // Linux: the same with GLX (the context and its drawable, the window's) or EGL (the context and its surfaces).
     bool contextReady(const char* what)
     {
-        xrglx::Binding now;
         const char* why = "";
-        const bool any = xrglx::current(now, &why);
-        xrruntime::logLine(va("%s OpenXR: %s: GLX context %p, drawable 0x%lx current on thread %lu (the session's: %p, 0x%lx)\n",
-            wallClock(), what, now.context, now.drawable, static_cast<unsigned long>(pthread_self()), glx.context, glx.drawable));
-        if(!glx.context || !glx.drawable)
+        const xrgl::Binding now = xrgl::current(&why);
+        const void* nowSurface = now.api == xrgl::Api::Egl ? now.eglDraw : reinterpret_cast<const void*>(now.drawable);
+        const void* boundSurface = glctx.api == xrgl::Api::Egl ? glctx.eglDraw : reinterpret_cast<const void*>(glctx.drawable);
+        xrruntime::logLine(va("%s OpenXR: %s: %s context %p, surface %p current on thread %lu (the session's: %s %p, %p)\n",
+            wallClock(), what, xrgl::apiName(now.api), now.context, nowSurface, static_cast<unsigned long>(pthread_self()),
+            xrgl::apiName(glctx.api), glctx.context, boundSurface));
+        if(!glctx.context || (glctx.api == xrgl::Api::Glx && !glctx.drawable))
         {
-            xrruntime::warn("OpenXR: %s not called: no GLX context bound to the session (%s)\n", what, any ? "" : why);
+            xrruntime::warn("OpenXR: %s not called: no GL context bound to the session (%s)\n", what,
+                now.api != xrgl::Api::None ? "" : why);
             return false;
         }
-        if(now.context == glx.context && now.drawable == glx.drawable)
+        if(xrgl::same(now, glctx))
         {
             return true;
         }
-        const bool made = xrglx::makeCurrent(glx);
-        xrruntime::warn("OpenXR: %s: the game's GLX context wasn't current on this thread (%p instead of %p): made current "
-                        "again: %s\n",
-            what, now.context, glx.context, made ? "done" : "FAILED: the call not made");
+        const bool made = xrgl::makeCurrent(glctx);
+        xrruntime::warn("OpenXR: %s: the game's %s context wasn't current on this thread (%s %p instead of %p): made "
+                        "current again: %s\n",
+            what, xrgl::apiName(glctx.api), xrgl::apiName(now.api), now.context, glctx.context,
+            made ? "done" : "FAILED: the call not made");
         return made;
     }
 
@@ -1736,7 +1758,7 @@ private:
         za::String text;
         for(const char* name : names)
         {
-            text += va("%s%s %s", text.empty() ? "" : ", ", name, xrglx::proc(name) ? "yes" : "NO");
+            text += va("%s%s %s", text.empty() ? "" : ", ", name, xrgl::proc(glctx.api, name) ? "yes" : "NO");
         }
         const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
         const bool fd = extensions ? strstr(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
@@ -1806,27 +1828,63 @@ private:
         logGlInterop();
         step("xrCreateSession (OpenGL: hDC %p, hGLRC %p)", static_cast<void*>(glDC), static_cast<void*>(glRC));
 #else
-        // Linux: SDL's GLX context and its window's drawable (XR_KHR_opengl_enable's Xlib binding).
+        // Linux: SDL's context, GLX (XR_KHR_opengl_enable's Xlib binding: the context and its window's drawable) or
+        // EGL (XR_MNDX_egl_enable: the display, config and context; SDL's Wayland driver, or X11 on EGL).
+        const char* driver = SDL_GetCurrentVideoDriver();
+        driver = driver ? driver : "none";
         const char* why = "";
-        if(!xrglx::current(glx, &why))
+        glctx = xrgl::current(&why);
+        if(glctx.api == xrgl::Api::None)
         {
-            xrruntime::warn("OpenXR: xrCreateSession not called: %s\n", why);
+            xrruntime::warn("OpenXR: xrCreateSession not called: %s (SDL video driver %s)\n", why, driver);
+            return false;
+        }
+        if(glctx.api == xrgl::Api::Egl && !eglExtension)
+        {
+            xrruntime::warn("OpenXR: xrCreateSession not called: SDL's GL context is EGL (SDL video driver %s) and %s "
+                            "doesn't offer XR_MNDX_egl_enable (the EGL binding; it has the GLX one only): run with "
+                            "SDL_VIDEODRIVER=x11 SDL_VIDEO_X11_FORCE_EGL=0 (X11 or XWayland: GLX), or with a runtime that "
+                            "has it (Monado, WiVRn)\n",
+                driver, runtime[0] ? runtime : "the runtime");
+            glctx = xrgl::Binding{};
             return false;
         }
         if(why[0])
         {
             xrruntime::warn("OpenXR: %s\n", why);
         }
-        XrGraphicsBindingOpenGLXlibKHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
-        binding.xDisplay = static_cast<Display*>(glx.display);
-        binding.visualid = glx.visualId;
-        binding.glxFBConfig = static_cast<GLXFBConfig>(glx.fbConfig);
-        binding.glxDrawable = glx.drawable;
-        binding.glxContext = static_cast<GLXContext>(glx.context);
-        void* const boundContext = glx.context;
-        logGlInterop();
-        step("xrCreateSession (OpenGL, Xlib: display %p, drawable 0x%lx, GLX context %p, FBConfig %p, visual 0x%x)",
-            glx.display, glx.drawable, glx.context, glx.fbConfig, glx.visualId);
+        XrGraphicsBindingOpenGLXlibKHR glxBinding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
+        XrGraphicsBindingEGLMNDX eglBinding{XR_TYPE_GRAPHICS_BINDING_EGL_MNDX};
+        const void* binding = nullptr;
+        const char* bindingName = "";
+        if(glctx.api == xrgl::Api::Glx)
+        {
+            glxBinding.xDisplay = static_cast<Display*>(glctx.display);
+            glxBinding.visualid = glctx.visualId;
+            glxBinding.glxFBConfig = static_cast<GLXFBConfig>(glctx.fbConfig);
+            glxBinding.glxDrawable = glctx.drawable;
+            glxBinding.glxContext = static_cast<GLXContext>(glctx.context);
+            binding = &glxBinding;
+            bindingName = "xrCreateSession (GLX binding, XR_KHR_opengl_enable)";
+            logGlInterop();
+            step("xrCreateSession (OpenGL, GLX binding XrGraphicsBindingOpenGLXlibKHR: SDL video driver %s; display %p, "
+                 "drawable 0x%lx, GLX context %p, FBConfig %p, visual 0x%x)",
+                driver, glctx.display, glctx.drawable, glctx.context, glctx.fbConfig, glctx.visualId);
+        }
+        else
+        {
+            eglBinding.getProcAddress = reinterpret_cast<PFN_xrEglGetProcAddressMNDX>(xrgl::eglGetProcAddressFn());
+            eglBinding.display = glctx.eglDisplay;
+            eglBinding.config = glctx.eglConfig;
+            eglBinding.context = glctx.context;
+            binding = &eglBinding;
+            bindingName = "xrCreateSession (EGL binding, XR_MNDX_egl_enable)";
+            logGlInterop();
+            step("xrCreateSession (OpenGL, EGL binding XrGraphicsBindingEGLMNDX: SDL video driver %s, %s; display %p, "
+                 "config %p, context %p, surface %p)",
+                driver, xrgl::eglDescription(glctx), glctx.eglDisplay, glctx.eglConfig, glctx.context, glctx.eglDraw);
+        }
+        void* const boundContext = glctx.context;
 #endif
         // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
         if(static_cast<void*>(SDL_GL_GetCurrentContext()) != boundContext)
@@ -1840,13 +1898,18 @@ private:
         }
 
         XrSessionCreateInfo info{XR_TYPE_SESSION_CREATE_INFO};
+#ifdef _WIN32
         info.next = &binding;
+        const char* const bindingName = "xrCreateSession";
+#else
+        info.next = binding;
+#endif
         info.systemId = systemId;
         const XrInstance inst = instance;
         XrSession made = XR_NULL_HANDLE;
         const XrResult created = guarded("xrCreateSession", [inst, &info, &made] { return xrCreateSession(inst, &info, &made); });
         session = made;
-        if(runtimeFaulted || !check(created, "xrCreateSession"))
+        if(runtimeFaulted || !check(created, bindingName))
         {
             return false;
         }

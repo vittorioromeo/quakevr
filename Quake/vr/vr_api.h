@@ -48,6 +48,8 @@ int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).
 void VR_Init (void);		// after SV_Init (also on dedicated servers): registers cvars and commands
+void VR_BeforeVideoInit (void);	// Linux, VID_Init before SDL's video init: SDL asked for X11/GLX when the OpenXR
+								// runtime needs it (SteamVR: vr/vr_xr_runtime.hpp, beforeVideoInit)
 void VR_NewMap (void);		// R_NewMap: a map loaded (the per-map data rebuilt, even for the same model)
 void VR_Shutdown (void);	// client shutdown, before video shutdown
 void VR_StopDownloads (void);	// Host_Shutdown, before NET_Shutdown (curl_global_cleanup): the map index's and the
