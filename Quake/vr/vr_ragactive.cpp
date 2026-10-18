@@ -345,6 +345,19 @@ void reachTargets(const State& s, const Parts& p, int limb, za::Array<glm::quat,
     return f > -1e29f ? f : fallback;
 }
 
+// The floor under `q` (level), traced down from `top` to `bottom` (vr_flinch 2: from its pelvis's height, the real
+// floor under a foot: a stair's step below a hanging foot, not missed; a foot by a riser, not traced from inside the
+// step above).
+[[nodiscard]] float floorUnder(const Context& c, const glm::vec3& q, float top, float bottom, float fallback)
+{
+    if(!c.floorBelow)
+    {
+        return fallback;
+    }
+    const float f = c.floorBelow(glm::vec3{q.x, q.y, top}, za::max(top - bottom, 0.01f));
+    return f > -1e29f ? f : fallback;
+}
+
 // A frame of rolling over: the whole body turned as one at rollRate (`sign`) about level `axis` (along its spine)
 // through the edge it rolls over (on the floor, on the side going down: the floor holds that side up and takes the
 // turn), eased: its parts' spin about it and their motion round it.
@@ -1197,6 +1210,7 @@ constexpr float legsOvershoot = 0.1f;   // of its leg: a step lands this far pas
 constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this far (level) from its hip then
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
+constexpr float legsSwingClear = 0.08f; // of its leg: a stepping foot kept this far over the floor on its way
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1270,6 +1284,7 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
             continue;
         }
         const glm::vec3 f = limbEnd(s, p, leg);
+        const float len = limbLength(s, p, leg);
         const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
         // stand frame's feet level.)
@@ -1280,7 +1295,6 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
             whole++;
         }
         gapNow[i] = f.z - floor - g.footGap[i];
-        const float len = limbLength(s, p, leg);
         if(leg != g.stepLeg && gapNow[i] < legsBears * len)
         {
             g.bearAt[static_cast<za::SizeT>(n++)] = f;
@@ -1734,7 +1748,16 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             if(g.legs)
             {
                 const float u2 = za::min(u + c.dt / za::max(g.stepTime, 0.05f), 1.f);
-                const glm::vec3 next = glm::mix(g.stepA, g.stepB, smooth01(u2)) + up * (0.12f * len * za::sin(3.14159265f * u2));
+                glm::vec3 next = glm::mix(g.stepA, g.stepB, smooth01(u2)) + up * (0.12f * len * za::sin(3.14159265f * u2));
+                // (Over the floor on its way, clear of it: a step up lifts over the riser, not through it, and its carry
+                // does not shove the body through the contact; at its end it comes down onto its spot.)
+                const float under = floorUnder(c, next, za::max(pelvis.z, next.z + 0.1f), next.z - len, -1e30f);
+                if(under > -1e29f && u2 < 1.f)
+                {
+                    const float clear = under + za::min(g.footGap[i], 0.f) + legsSwingClear * len * (1.f - smooth01((u2 - 0.8f) / 0.2f));
+                    next.z = za::max(next.z, clear);
+                    r.goal.z = za::max(r.goal.z, clear);
+                }
                 glm::vec3 want = (next - limbEnd(s, p, leg)) / za::max(c.dt, 1e-3f);
                 if(const float l = glm::length(want); l > legsSwingMost)
                 {
