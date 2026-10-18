@@ -339,6 +339,7 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
         e.solid = SOLID_NOT; // (a dead monster to the engine: its ragdoll)
     }
     float pop = VR_Decap_IsPop(xHow);
+    float cutBefore = ragdolllimbs(e, 2); // (its bones cut off so far: what this cut takes, VR_ADGun_LimbCut)
     float settle = xLive ? max(0, cvar_hget(cvarh_vr_limbs_body_speed)) : 1;
     if(pop && !xLive)
     {
@@ -368,6 +369,8 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
             VR_Decap_HowName(xHow), vlen(xVel) / VRMetersToUnits(), m, vlen(ragdollcut(e, 2))));
     }
     VR_Limb_Stump(e, xBone, xVel, pop);
+    float cutNow = ragdolllimbs(e, 2);
+    VR_ADGun_LimbCut(e, cutNow - (cutNow & cutBefore)); // (AD support: Freddie's gun arm drops its super nailgun)
     return TRUE;
 };
 

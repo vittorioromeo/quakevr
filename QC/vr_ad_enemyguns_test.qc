@@ -365,8 +365,98 @@ void() VR_ADXbow_Think =
     remove(self);
 };
 
+// vr_ad_test 95 (ROUND22 "Freddie's super nailgun"): a Freddie near you (the toolgun's or `vr_test_spawn 234; impulse
+// 241`) is killed and his gun arm (the left forearm) cut off: a super nailgun of ours lies where it was, loaded as a
+// dropped enemy gun (a full clip), and is taken into your main hand. "adfred:" lines, then PASS or FAIL.
+float vr_adfred_step;
+float vr_adfred_ok;
+float vr_adfred_drops;
+
+void(string xWhat, float xOk) VR_ADFred_Report =
+{
+    bprint(sprintf("adfred: %s: %s\n", xWhat, xOk ? "PASS" : "FAIL"));
+    vr_adfred_ok = (vr_adfred_ok && xOk);
+};
+
+void() VR_ADFred_Think =
+{
+    entity p = self.owner;
+    if(vr_adfred_step == 0)
+    {
+        entity k = world;
+        for(entity m = nextent(world); m; m = nextent(m))
+        {
+            if(m.ad_classtype == ad_CT_MONFREDDIE && m.health > 0 && (!k || vlen(m.origin - p.origin) < vlen(k.origin - p.origin)))
+            {
+                k = m;
+            }
+        }
+        VR_ADFred_Report("a living Freddie near you", k != world);
+        if(!k)
+        {
+            remove(self);
+            return;
+        }
+        k.health = 1; // (killed, not gibbed: a body to cut)
+        T_Damage(k, p, p, 5);
+        VR_ADFred_Report(sprintf("killed (health %g)", k.health), k.health <= 0);
+        self.enemy = k;
+        vr_adfred_step = 1;
+        self.nextthink = time + 0.3;
+        return;
+    }
+    if(vr_adfred_step == 1)
+    {
+        vr_adfred_drops = vr_adgun_freddie_drops;
+        vr_limb_last = world;
+        float cut = VR_Limb_Cut(self.enemy, p, '0 -200 100', QVR_DECAP_SWING, VR_AD_FREDDIE_GUNBONE, FALSE);
+        VR_ADFred_Report(sprintf("his gun arm (bone %g) cut off: %s", VR_AD_FREDDIE_GUNBONE,
+            vr_limb_last ? vr_limb_last.model : "no piece"), cut);
+        VR_ADFred_Report(sprintf("a super nailgun dropped (%g)", vr_adgun_freddie_drops - vr_adfred_drops),
+            vr_adgun_freddie_drops == vr_adfred_drops + 1);
+        vr_adfred_step = 2;
+        self.nextthink = time + 1.5; // (the drop lands)
+        return;
+    }
+    entity w = world;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        if(t.weapon == WID_SUPER_NAILGUN)
+        {
+            w = t;
+        }
+    }
+    VR_ADFred_Report(sprintf("it lies (%s, %g in it, %.0f from his body)", w ? w.model : "none", w ? w.weaponinst.wi_clip : 0,
+        w ? vlen(w.origin - self.enemy.origin) : -1),
+        w != world && w.modelindex > 0 && w.weaponinst.wi_clip == WeaponIdToBaseClipSize(WID_SUPER_NAILGUN));
+    if(w)
+    {
+        VR_ADWeapons_Take(p, w);
+        VR_ADFred_Report(sprintf("taken into the main hand (weapon %g)", VRGetEntWeapon(p, cVR_MainHand)),
+            VRGetEntWeapon(p, cVR_MainHand) == WID_SUPER_NAILGUN);
+    }
+    bprint(sprintf("adfred: Freddie's super nailgun test %s\n", vr_adfred_ok ? "PASS" : "FAIL"));
+    remove(self);
+};
+
 void(float request, entity p) AD_GunTest =
 {
+    if(request == 95)
+    {
+        if(!cvar("vr_ad_mounted"))
+        {
+            bprint("adfred: Arcane Dimensions' data is not loaded\n");
+            return;
+        }
+        entity fr = spawn();
+        fr.classname = "vr_adfred_test";
+        fr.owner = p;
+        vr_adfred_step = 0;
+        vr_adfred_ok = TRUE;
+        fr.think = VR_ADFred_Think;
+        fr.nextthink = time + 0.1;
+        return;
+    }
     if(request == 94)
     {
         VR_ADXbow_Hold(p, cVR_MainHand);
