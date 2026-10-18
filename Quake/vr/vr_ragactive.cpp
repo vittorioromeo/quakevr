@@ -3635,6 +3635,7 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
             com += partAt(b, glmv(b3Body_GetLocalCenter(p.body[b])), q, t) * m;
             mass += m;
         }
+        za::Array<glm::vec3, 2> foot{};
         for(int leg = 2; leg < 4; leg++)
         {
             const int lo = s.chain[static_cast<za::SizeT>(leg)][1];
@@ -3642,7 +3643,8 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
             {
                 glm::quat q;
                 glm::vec3 t;
-                feet += partAt(lo, p.rig->bones[lo].end * p.k, q, t);
+                foot[static_cast<za::SizeT>(leg - 2)] = partAt(lo, p.rig->bones[lo].end * p.k, q, t);
+                feet += foot[static_cast<za::SizeT>(leg - 2)];
                 n++;
             }
         }
@@ -3650,6 +3652,24 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
         {
             const glm::vec3 off = com / mass - feet / static_cast<float>(n);
             g.supportOffset = level(s.turn * glm::vec3{off.x, off.y, 0.f});
+        }
+        // Its steps land its feet where its stance frame has them round its middle, not where they stood when struck:
+        // struck mid-stride or in an attack (a wide or split stance, its middle well off its feet), stepping to keep
+        // that stance would leave its middle as far off its support after every step (a shuffle till it topples).
+        if(mass > 0.f && n == 2)
+        {
+            for(za::SizeT i = 0; i < 2; i++)
+            {
+                const glm::vec3 d = foot[i] - com / mass;
+                g.stance[i] = level(s.turn * glm::vec3{d.x, d.y, 0.f});
+            }
+        }
+        if(vr_flinch_debug.value >= 3.f)
+        {
+            const glm::vec3 offNow = level(massCentre(p) - 0.5f * (g.planted[0] + g.planted[1]));
+            Con_Printf("flinch: struck with its feet %.1f units apart, its middle %.1f off them (its stand frame's %.1f)\n",
+                glm::length(level(g.planted[1] - g.planted[0])) * p.m2u, glm::length(offNow) * p.m2u,
+                glm::length(g.supportOffset) * p.m2u);
         }
     }
     g.wheel = za::clamp(dv / topple, 0.1f, 1.f);
@@ -4050,6 +4070,31 @@ void drive(State& s, const Parts& p, const Context& c)
             s.animTarget[i] = glm::normalize(glm::inverse(bodyRot(p, parent)) * bodyRot(p, b));
         }
         s.target[i] = s.animTarget[i];
+    }
+    // A flinch's torso and head brought back to its stance (their motors turning them towards it as their tone comes
+    // back, flinchStraighten of the way a second), not held still: a still clip's motor holds any bend up to twice its
+    // weight's torque, so a torso struck bent (an attack's aim, the enforcer's 23-35 degrees) stayed so, its spring too
+    // weak to pull it through, and it never passed the recovery test's tilt.
+    if(s.stagger.on && s.stagger.flinch && pose.valid)
+    {
+        constexpr float flinchStraighten = 4.f, flinchStraightenMost = 3.f; // 1/s; rad/s
+        for(int b = 1; b < p.count; b++)
+        {
+            const int parent = rig.bones[b].parent;
+            const Channel ch = channelOf(rig.bones[b]);
+            if(parent < 0 || cut(p, b) || cut(p, parent) || (ch != Channel::Torso && ch != Channel::Head))
+            {
+                continue;
+            }
+            const Fade& f = s.fade[static_cast<za::SizeT>(ch)];
+            const float w = f.t1 > f.t0 ? za::clamp((t - f.t0) / (f.t1 - f.t0), 0.f, 1.f) : 1.f;
+            const auto i = static_cast<za::SizeT>(b);
+            const glm::quat rel = glm::normalize(glm::inverse(bodyRot(p, parent)) * bodyRot(p, b));
+            glm::vec3 v = ragpose::rotationVector(s.animTarget[i] * glm::inverse(rel)) * (flinchStraighten * w);
+            const float vl = glm::length(v);
+            v = vl > flinchStraightenMost ? v * (flinchStraightenMost / vl) : v;
+            spin[i] += v;
+        }
     }
     // Integration (stages 2-5): a dismemberment is a death's (cutReaction needs one), a stagger, a fall or a get-up a
     // living monster's; should one be cut while still in those (killed in a stagger, then cut), the death leads: they

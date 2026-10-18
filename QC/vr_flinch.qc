@@ -19,6 +19,7 @@
 .float vr_fl_next;      // when it may flinch again (vr_flinch_cooldown)
 .vector vr_fl_acc;      // the hits' impulses summed (N s, world), fading
 .float vr_fl_acc_time;  // when last added to
+float vr_fl_after_damage; // VR_Flinch_Try from a blow or a throw (after its damage, its pain played): made in its frame before
 float VR_FL_FADE = 0.2; // s: the summed impulse's half-life
 float vr_fl_test_damage; // a test's (VR_Flinch_Test): the impulse reckoned from this damage (0: the damage dealt)
 float vr_fl_test_weapon; // a test's weapon, plus 1 (WID_* + 1; 0: the attacker's)
@@ -149,8 +150,16 @@ float(entity e, entity xBy, vector xAt, vector xDir, float xImpulse, string xWha
     {
         return FALSE;
     }
+    // (A blow or a throw comes after its damage, its pain's first frame already set: its body is made as it stood when
+    // struck. A pain's frame bends it (the enforcer's paind1: its chest 35 degrees over), and it may not straighten.)
+    float painFrame = e.frame;
+    if(vr_fl_after_damage && e.vr_fl_prepain_time == time)
+    {
+        e.frame = e.vr_fl_prepain;
+    }
     if(!VR_Knockdown_Start(e))
     {
+        e.frame = painFrame;
         return FALSE;
     }
     float r = ragdollflinch(e, xAt, acc, 1);
@@ -217,14 +226,20 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_Flinch_M
         }
     }
     vector dir = vr_hitdir != '0 0 0' ? vr_hitdir : xDir;
-    return VR_Flinch_Try(e, xBy, at, dir, dmg * max(0, cvar_hget(cvarh_vr_flinch_melee)), xHead ? "a blow to the head" : "a blow");
+    vr_fl_after_damage = TRUE;
+    float r = VR_Flinch_Try(e, xBy, at, dir, dmg * max(0, cvar_hget(cvarh_vr_flinch_melee)), xHead ? "a blow to the head" : "a blow");
+    vr_fl_after_damage = FALSE;
+    return r;
 };
 
 // A thrown prop or weapon (VR_HitStagger_Throw, after its damage): its momentum (kg m/s) times vr_flinch_throw.
 float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw =
 {
-    return VR_Flinch_Try(e, xBy, (e.absmin + e.absmax) * 0.5, xDir, xMomentum * max(0, cvar_hget(cvarh_vr_flinch_throw)),
+    vr_fl_after_damage = TRUE;
+    float r = VR_Flinch_Try(e, xBy, (e.absmin + e.absmax) * 0.5, xDir, xMomentum * max(0, cvar_hget(cvarh_vr_flinch_throw)),
         sprintf("a throw (%.0f kg m/s)", xMomentum));
+    vr_fl_after_damage = FALSE;
+    return r;
 };
 
 // ----------------------------------------------------------------------------

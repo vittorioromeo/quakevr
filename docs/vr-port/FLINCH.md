@@ -53,13 +53,22 @@ made in about 0.15-0.24 ms (the query to the drive begun, measured in `vr_flinch
 `vr_flinch_local` share of the impulse (0.35) goes onto the part nearest the point (`b3Body_ApplyLinearImpulse` at the
 point). The rest becomes the stagger's travel: its pin's first speed is that share of the change of speed.
 
+A blow or a throw reaches the flinch after its damage, when its pain has already set the pain's first frame. The body
+is made in the frame it had when the damage met it (`vr_fl_prepain`, set in `T_Damage`), not in the pain's: the
+enforcer's `paind1` bends its chest 35 degrees over, and it never straightened.
+
 ## Balance controller
 
 This is the stagger's (`staggerFrame`). The pelvis is pinned and carried along the hit, easing out. The muscles hold
 up its weight, and the whole body turns upright (`turnWhole`). The feet stay planted, and the arms wheel as strongly as
 the hit (`wheel`: the change of speed over Topple Speed). The torso and head come back to full tone once the travel is
-half done, which straightens the spine. A flinch takes a capture step only while its capture point (its middle plus its
-level speed times sqrt(height / g)) is off its feet's support. A shove's stagger backpedals regardless.
+half done, which straightens the spine: as their tone comes back, their joints' motors turn them towards the stand
+frame (4 of the way a second, at most 3 rad/s; `drive`). Held still, a motor keeps any bend up to twice its weight's
+torque, so a torso struck bent (an attack's aim) stayed bent and failed the tilt test. A flinch takes a capture step only while its capture point (its middle plus its
+level speed times sqrt(height / g)) is off its feet's support. A shove's stagger backpedals regardless. A flinch's
+steps put each foot where its stand frame has it round its middle (`Stagger::stance`, from the stand frame in
+`beginFlinch`), not where it stood when struck: struck mid-stride or in an attack frame (its middle up to 9 units off its
+feet), keeping that stance would leave it as far off its support after every step.
 
 Balance is 1 - 0.5 x the change of speed / Topple Speed (2.0 m/s). Topple Speed is times `vr_flinch_uneven` (0.65) when
 the floor under it is uneven (four rays round its origin: a slope steeper than about 10 degrees, stairs, an edge).

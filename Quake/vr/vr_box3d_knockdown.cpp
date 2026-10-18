@@ -1090,6 +1090,12 @@ float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse,
     ragactive::beginFlinch(r.active, activeParts(r), fi, qcvm->time);
     r.active.stagger.struck = static_cast<int>(ent->v.frame);
     r.staggerStuck = -1.0;
+    if(vr_flinch_debug.value >= 3.f)
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(r.rig->model)));
+        const int f = static_cast<int>(ent->v.frame);
+        Con_Printf("flinch: %d struck in frame %d (%s)\n", num, f, hdr && f >= 0 && f < hdr->numframes ? hdr->frames[f].name : "?");
+    }
     const ragactive::Stagger& g = r.active.stagger;
     const bool down = g.dv >= 1.5f * fi.topple;
     if(down)

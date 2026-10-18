@@ -338,6 +338,8 @@ float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
 void(float xMode) VR_HitStagger_Test;
 // The flinch (vr_flinch.qc).
+.float vr_fl_prepain;      // its frame as a hit's damage met it, before its pain (a blow's or a throw's flinch: made in it)
+.float vr_fl_prepain_time; // when
 float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Hit;
 float(entity e) VR_Flinch_PainOff;
 float(entity e) VR_Flinch_Owns;
@@ -1741,6 +1743,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // get-up playing on); down, each hit keeps it down a little longer.
     float kdState = self.vr_knockdown;
     float kdFrame = self.frame;
+    self.vr_fl_prepain = self.frame;
+    self.vr_fl_prepain_time = time;
     void() kdThink = self.think;
     float kdNext = self.nextthink;
 
