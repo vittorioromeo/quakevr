@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46
 Flinch polish (vr_flinch 1): enforcers under fire settle in 1-2 steps (no long shuffle); AD maps: soldiers, death knights, guards, fury, pyro, fumigator flinch and recover; a grunt flinched on stairs rises into place over ~0.44 s instead of popping
 Glove leather relief (Player Appearance > Gloves > Leather Relief, vr_glove_relief 0-2, default 1): stitches, seams, knuckle/joint/palm creases catch the light like the bracers; grain too coarse up close? try 0.5-1.5
 AD soldier gun variants (AD on): kill each AD gun soldier, look at its rifle up close: each cue reads (rocket tube, grenade drum, plasma tubes, eliminator coils, centurion drum, defender pump, pyro nozzle/canister, fumigator sprayer); rocket tube/grenade body over the sights?
