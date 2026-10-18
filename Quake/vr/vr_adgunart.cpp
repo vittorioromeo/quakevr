@@ -33,11 +33,36 @@ constexpr float pi = 3.14159265f;
 const glm::vec3 corner{-29.9f, -6.170675f, -4.6f}; // v_gruntgun.mdl's scale_origin
 constexpr float muzzleX = 33.1f;                   // the add-ons stop short of the muzzle (slot 21's MuzzleAnchor x 33.15)
 
-// The fuelled guns' canister under the receiver, ahead of the grip, and the hose's inlet at its back end.
+// The fuelled guns' canister under the receiver, ahead of the grip; the hose's inlet under the receiver between the grip
+// (x -3.4 .. 2.6) and the stock (back from x -14), its pipe's end and the way the hose leaves it (down and back); the
+// pyro's pilot light's tip.
 const glm::vec3 canisterBack{5.f, 0.f, 3.4f}, canisterFront{12.f, 0.f, 3.4f};
 constexpr float canisterRadius = 1.9f;
-const glm::vec3 inletAt{3.2f, 0.f, 2.4f};
-const glm::vec3 inletDir{-0.45f, 0.f, -0.89f};
+const glm::vec3 inletBoss{-6.4f, 0.f, 3.f};
+const glm::vec3 inletAt{-7.3f, 0.f, 1.15f};
+const glm::vec3 inletDir{-0.42f, 0.f, -0.91f};
+const glm::vec3 pilotAt{31.2f, 0.f, 5.6f};
+
+// Each variant's firing feel (vr_adguns.hpp FireFeel), in WID order. Slot 21's recoil (1, 0.12 s; a kick tops out at 2.5)
+// and flash (0.06 s) scaled:
+// the launchers kick hard and long and blast smoke and sparks (the rocket's back-blast out of its exhaust bell, x -5.6
+// z 17.5), the shotgun kicks and flashes wide, the plasma guns kick little, their flashes and lights their colour.
+constexpr const char* flashBase = "progs/vr_muzzleflash.mdl";
+constexpr const char* plasmaFlash = "progs/vr_muzzleflash.mdl#adf2";
+constexpr const char* eliminatorFlash = "progs/vr_muzzleflash.mdl#adf4";
+constexpr const char* centurionFlash = "progs/vr_muzzleflash.mdl#adf5";
+const glm::vec3 plasmaColour{0.4f, 0.62f, 1.f}, eliminatorColour{0.66f, 0.42f, 1.f}, centurionColour{0.3f, 0.9f, 1.f};
+const FireFeel fireFeels[variantCount] = {
+    {2.5f, 2.5f, 1.9f, 1.6f, nullptr, glm::vec3{1.f, 0.55f, 0.25f}, 1.5f, FireFeel::Rocket, glm::vec3{1.f, 0.6f, 0.2f}, true,
+        glm::vec3{-5.6f, 0.f, 17.5f}, glm::vec3{-1.f, 0.f, 0.f}},
+    {2.f, 2.f, 1.35f, 1.3f, nullptr, glm::vec3{1.f, 0.6f, 0.3f}, 1.2f, FireFeel::Grenade, glm::vec3{1.f, 0.7f, 0.35f}},
+    {0.8f, 1.f, 0.9f, 1.f, plasmaFlash, plasmaColour, 1.f, FireFeel::Electric, plasmaColour},
+    {1.8f, 1.6f, 1.5f, 1.1f, nullptr, glm::vec3{1.f, 0.8f, 0.55f}, 1.2f, FireFeel::Shotgun, glm::vec3{1.f, 0.75f, 0.4f}},
+    {0.7f, 1.f, 0.85f, 1.f, eliminatorFlash, eliminatorColour, 1.f, FireFeel::Electric, eliminatorColour},
+    {1.f, 1.1f, 1.f, 1.f, centurionFlash, centurionColour, 1.1f, FireFeel::Electric, centurionColour},
+    {},
+    {},
+};
 
 [[nodiscard]] int rd(const byte* b, size_t at)
 {
@@ -273,6 +298,24 @@ private:
 
     za::Vector<short> memo_;
 };
+
+// The fullbright colour (224..254) nearest `c`, however far (a flash's colours glow).
+[[nodiscard]] byte nearestBright(const glm::vec3& c)
+{
+    int pick = 254;
+    float dist = 1e9f;
+    for(int i = 224; i <= 254; i++)
+    {
+        const glm::vec3 d = palette(i) - c;
+        const float e = d.r * d.r * 0.3f + d.g * d.g * 0.59f + d.b * d.b * 0.11f;
+        if(e < dist)
+        {
+            dist = e;
+            pick = i;
+        }
+    }
+    return static_cast<byte>(pick);
+}
 
 // What is made: the mesh, the skin, the atlas of the add-ons' rectangles in the rows below the rifle's.
 struct Build
@@ -694,10 +737,11 @@ void decalSides(Build& b, const Mdl& m, const glm::vec3& lo, const glm::vec3& hi
 // ---- The grenade launcher's barrel and drum, from our v_rock.mdl -----------------------------------------------------
 
 // Its parts (connected pieces of its mesh) that make its barrel and drum (the body and its six bolts: not the grip, the
-// trigger, the sights), scaled by `k` and moved by `offset`, over the rifle; its skin pasted at half size (lifted a
-// little: its dark greys read black) into the rows from `skinRow` (its texels' coordinates halved: its seam's half
-// width with them).
-void graftLauncher(Build& b, const Mdl& g, float k, const glm::vec3& offset, int skinRow)
+// trigger, the sights), the triangles of them whose corners `want(p)` keeps (its model's place), each corner put where
+// `place(p)` says, over the rifle; its skin pasted at half size (lifted a little: its dark greys read black) into the
+// rows from `skinRow` (its texels' coordinates halved: its seam's half width with them).
+template <typename W, typename P>
+void graftLauncher(Build& b, const Mdl& g, W&& want, P&& place, int skinRow)
 {
     const int halfW = g.skinW / 2, halfH = g.skinH / 2;
     for(int y = 0; y < halfH && skinRow + y < b.skinH; y++)
@@ -758,7 +802,7 @@ void graftLauncher(Build& b, const Mdl& g, float k, const glm::vec3& offset, int
     }
     const auto kept = [&](int v) {
         const za::SizeT r = static_cast<za::SizeT>(root(v));
-        return count[r] >= 8 && lo[r].x >= -4.5f && hi[r].z >= 6.f;
+        return count[r] >= 8 && lo[r].x >= -4.5f && hi[r].z >= 6.f && want(g.pos(v));
     };
     za::Vector<int> map(static_cast<za::SizeT>(g.numVerts), -1);
     for(int t = 0; t < g.numTris; t++)
@@ -782,7 +826,7 @@ void graftLauncher(Build& b, const Mdl& g, float k, const glm::vec3& offset, int
             if(m < 0)
             {
                 Vert out;
-                out.p = g.pos(v[c]) * k + offset;
+                out.p = place(g.pos(v[c]));
                 out.n = g.normal(v[c]);
                 out.seam = g.st(v[c], 0) != 0 ? 1 : 0;
                 out.s = za::clamp(g.st(v[c], 1) / 2, 0, b.skinW - 1);
@@ -811,60 +855,110 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             decalSides(b, m, glm::vec3{12.5f, lo.y, 6.f}, glm::vec3{23.5f, hi.y, 12.5f},
                 [](float u, float v) { return rockets(u, v, 6.5f, olive * 0.8f); });
             decalSides(b, m, glm::vec3{-8.f, lo.y, 11.f}, glm::vec3{-4.f, hi.y, 14.5f}, [](float u, float v) { return stripes(u, v, 0.8f); });
-            // The launch tube over the rifle, on two mounts; its rear an exhaust's bell, dark and sooty inside; a warhead's
-            // nose in its mouth.
-            const float z = 17.3f, r = 2.4f;
-            const Rect tubeR = tubeRect(b, r, 33.f, 1.5f);
-            paintRect(b, tubeR, 2.f * pi * r, 33.f, [](float u, float v) {
-                if(v > 28.f && v < 29.6f)
+            // The muzzle a wide launch tube round the barrel (Vittorio, 2026-10-18: "the rockets come out of it"), dark
+            // inside, a warhead's red nose waiting in its mouth, a steel ring at the lip.
+            const float mz = 8.08f, mr = 3.45f, m0 = 23.5f, m1 = muzzleX - 0.1f;
+            const Rect tubeR = tubeRect(b, mr, m1 - m0, 1.5f);
+            paintRect(b, tubeR, 2.f * pi * mr, m1 - m0, [](float u, float v) {
+                if(v > 6.4f && v < 7.6f)
                 {
                     return stripes(u, v, 0.7f);
                 }
-                const float circ = 2.f * pi * 2.4f, side = fractf((u + 2.6f) / (circ * 0.5f)) * circ * 0.5f;
-                if(side < 5.2f && v > 4.f && v < 26.f)
+                const float circ = 2.f * pi * 3.45f, side = fractf((u + 3.3f) / (circ * 0.5f)) * circ * 0.5f;
+                if(side < 4.4f && v > 0.6f && v < 6.f)
                 {
-                    return rockets(v, side, 5.2f, olive);
+                    return rockets(v, side, 4.4f, olive);
                 }
-                return paint(olive);
+                return paint(olive * 1.35f);
             });
-            tube(b, glm::vec3{-6.f, 0.f, z}, glm::vec3{27.f, 0.f, z}, r, r, 12, tubeR, false, false);
+            tube(b, glm::vec3{m0, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr, mr, 14, tubeR, true, false);
             Rect inner;
             (void)b.alloc(16, 8, inner);
             paintRect(b, inner, 1.f, 1.f, [](float, float v) { return paint(black * (1.f + v)); });
-            tube(b, glm::vec3{-6.f, 0.f, z}, glm::vec3{27.f, 0.f, z}, r * 0.86f, r * 0.86f, 12, inner, false, false, true);
-            Rect bell;
-            (void)b.alloc(32, 8, bell);
-            paintRect(b, bell, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(darkSteel, copper * 0.6f, v) * (0.8f + 0.4f * fractf(u * 6.f))); });
-            tube(b, glm::vec3{-6.f, 0.f, z}, glm::vec3{-10.5f, 0.f, z}, r * 1.02f, r * 1.45f, 12, bell, false, false);
-            tube(b, glm::vec3{-6.f, 0.f, z}, glm::vec3{-10.5f, 0.f, z}, r * 0.86f, r * 1.35f, 12, inner, false, false, true);
+            tube(b, glm::vec3{m0 + 1.f, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr * 0.84f, mr * 0.84f, 14, inner, false, false, true);
             Rect ring;
             (void)b.alloc(32, 4, ring);
             paintRect(b, ring, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
-            tube(b, glm::vec3{26.f, 0.f, z}, glm::vec3{28.f, 0.f, z}, r * 1.12f, r * 1.12f, 12, ring, false, false);
-            tube(b, glm::vec3{-6.6f, 0.f, z}, glm::vec3{-5.f, 0.f, z}, r * 1.12f, r * 1.12f, 12, ring, false, false);
+            tube(b, glm::vec3{m1 - 1.f, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr * 1.1f, mr * 1.1f, 14, ring, false, false);
+            tube(b, glm::vec3{m0, 0.f, mz}, glm::vec3{m0 + 0.8f, 0.f, mz}, mr * 1.08f, mr * 1.08f, 14, ring, false, false);
             Rect nose;
             (void)b.alloc(16, 6, nose);
             paintRect(b, nose, 1.f, 1.f, [](float, float v) { return paint(v < 0.5f ? red : red * 0.7f); });
-            tube(b, glm::vec3{24.5f, 0.f, z}, glm::vec3{27.6f, 0.f, z}, r * 0.8f, 0.25f, 10, nose, true, true);
+            tube(b, glm::vec3{m1 - 4.2f, 0.f, mz}, glm::vec3{m1 - 1.4f, 0.f, mz}, mr * 0.76f, 0.3f, 12, nose, true, true);
+            // The exhaust: a short pipe rising out of the gun's top near the muzzle, then straight back over the receiver,
+            // a flared bell at its rear (sooty inside) where the launch gases leave.
+            const float er = 1.75f, ez = 17.5f, bend = 14.f, rear = -1.5f;
+            Rect pipe;
+            (void)b.alloc(24, 32, pipe);
+            paintRect(b, pipe, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(darkSteel, copper * 0.55f, v * v) * (0.85f + 0.3f * fractf(u * 5.f))); });
+            tube(b, glm::vec3{21.5f, 0.f, 12.4f}, glm::vec3{bend, 0.f, ez}, er, er, 12, pipe, false, false);
+            tube(b, glm::vec3{bend + 0.6f, 0.f, ez}, glm::vec3{rear, 0.f, ez}, er, er, 12, pipe, false, false);
+            tube(b, glm::vec3{bend + 0.9f, 0.f, ez}, glm::vec3{bend - 0.9f, 0.f, ez}, er * 1.18f, er * 1.18f, 12, ring, true, true);
+            Rect bell;
+            (void)b.alloc(32, 8, bell);
+            paintRect(b, bell, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(copper * 0.55f, darkSteel * 0.7f, v) * (0.8f + 0.4f * fractf(u * 6.f))); });
+            tube(b, glm::vec3{rear, 0.f, ez}, glm::vec3{rear - 4.f, 0.f, ez}, er * 1.02f, er * 1.6f, 12, bell, false, false);
+            tube(b, glm::vec3{rear + 3.f, 0.f, ez}, glm::vec3{rear - 4.f, 0.f, ez}, er * 0.8f, er * 1.48f, 12, inner, false, false, true);
+            tube(b, glm::vec3{rear + 0.4f, 0.f, ez}, glm::vec3{rear - 0.6f, 0.f, ez}, er * 1.15f, er * 1.15f, 12, ring, false, false);
             Rect mount;
             (void)b.alloc(8, 8, mount);
             paintRect(b, mount, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
-            box(b, glm::vec3{0.f, 0.f, 14.6f}, glm::vec3{1.6f, 1.1f, 1.f}, mount);
-            box(b, glm::vec3{19.f, 0.f, 14.6f}, glm::vec3{1.6f, 1.1f, 1.f}, mount);
+            box(b, glm::vec3{5.f, 0.f, 15.f}, glm::vec3{1.4f, 0.9f, 0.9f}, mount);
             break;
         }
         case Grenade:
         {
             recolour(b, Theme{steel, 0.35f});
             decalSides(b, m, glm::vec3{12.5f, lo.y, 11.5f}, glm::vec3{23.5f, hi.y, 13.f}, [](float u, float v) { return stripes(u, v, 0.7f); });
+            const float mz = 8.08f;
             if(launcher)
             {
-                // Its barrel and drum (x -4 .. 31.4, z -0.8 .. 9.6) laid along the top of the rifle at 0.8: x 1.8 .. 30.1,
-                // z 14 .. 22.3.
+                // The muzzle our grenade launcher's (Vittorio, 2026-10-18): its hexagonal barrel from the drum's face to its
+                // mouth (x 18.3 .. 31.4, its bore round z 5.92; not the drum behind it), shortened to x 23 .. 33 and at
+                // 0.92 across, round the rifle's barrel.
                 const int row = b.atlasY;
                 b.atlasY += launcher->skinH / 2 + 1;
-                graftLauncher(b, *launcher, 0.8f, glm::vec3{5.f, 0.f, 14.6f}, row);
+                const float sx = (muzzleX - 0.1f - 23.f) / (31.4f - 18.3f);
+                graftLauncher(b, *launcher, [](const glm::vec3& p) { return p.x >= 18.f; },
+                    [sx, mz](const glm::vec3& p) { return glm::vec3{muzzleX - 0.1f - (31.4f - p.x) * sx, p.y * 0.92f, mz + (p.z - 5.92f) * 0.92f}; },
+                    row);
             }
+            // The magazine on top: an open-sided steel box of grenades lying across it, a chute feeding the gun from its
+            // front.
+            Rect frame, nade, chute;
+            (void)b.alloc(16, 16, frame);
+            paintRect(b, frame, 1.f, 1.f, [](float u, float v) { return paint(darkSteel * (0.9f + 0.25f * fractf((u + v) * 3.f))); });
+            const float bx0 = -3.6f, bx1 = 10.6f, by = 2.9f, bz0 = 14.4f, bz1 = 19.8f, cx = 0.5f * (bx0 + bx1), hx = 0.5f * (bx1 - bx0);
+            box(b, glm::vec3{cx, 0.f, bz0 + 0.4f}, glm::vec3{hx, by, 0.4f}, frame);
+            box(b, glm::vec3{cx, 0.f, bz1 - 0.3f}, glm::vec3{hx, by, 0.3f}, frame);
+            box(b, glm::vec3{bx0 + 0.3f, 0.f, 0.5f * (bz0 + bz1)}, glm::vec3{0.3f, by, 0.5f * (bz1 - bz0)}, frame);
+            box(b, glm::vec3{bx1 - 0.3f, 0.f, 0.5f * (bz0 + bz1)}, glm::vec3{0.3f, by, 0.5f * (bz1 - bz0)}, frame);
+            for(const float s : {-1.f, 1.f})
+            {
+                box(b, glm::vec3{cx, s * (by - 0.1f), 17.1f}, glm::vec3{hx, 0.14f, 0.3f}, frame);
+            }
+            (void)b.alloc(32, 16, nade);
+            paintRect(b, nade, 1.f, 1.f, [](float u, float v) {
+                if(v < 0.1f || v > 0.9f)
+                {
+                    return paint(brass * 0.8f);
+                }
+                if(v > 0.44f && v < 0.56f)
+                {
+                    return paint(red);
+                }
+                return paint(fractf(u * 6.f) < 0.15f || fractf(v * 5.f) < 0.15f ? poisonDark * 0.7f : glm::vec3{0.2f, 0.25f, 0.13f});
+            });
+            for(int k = 0; k < 4; k++)
+            {
+                const float x = -1.5f + 3.3f * static_cast<float>(k);
+                tube(b, glm::vec3{x, -2.45f, 16.9f}, glm::vec3{x, 2.45f, 16.9f}, 1.5f, 1.5f, 10, nade, false, false);
+                tube(b, glm::vec3{x, -2.45f, 16.9f}, glm::vec3{x, -2.75f, 16.9f}, 1.5f, 0.9f, 10, nade, false, true);
+                tube(b, glm::vec3{x, 2.45f, 16.9f}, glm::vec3{x, 2.75f, 16.9f}, 1.5f, 0.9f, 10, nade, false, true);
+            }
+            (void)b.alloc(16, 16, chute);
+            paintRect(b, chute, 1.f, 1.f, [](float u, float) { return paint(fractf(u * 4.f) < 0.5f ? darkSteel : steel * 0.7f); });
+            tube(b, glm::vec3{bx1 - 0.4f, 0.f, 16.2f}, glm::vec3{14.f, 0.f, 13.6f}, 1.5f, 1.4f, 10, chute, true, false);
             break;
         }
         case Plasma:
@@ -996,7 +1090,10 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             tube(b, canisterBack, canisterFront, canisterRadius, canisterRadius, 12, canR, true, true);
             (void)b.alloc(16, 8, inR);
             paintRect(b, inR, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
-            tube(b, inletAt, canisterBack + glm::vec3{0.8f, 0.f, -1.f}, 0.55f, 0.55f, 8, inR, true, false);
+            // The hose's inlet: a boss under the receiver between the grip and the stock, a short pipe out of it, down and
+            // back (Vittorio, 2026-10-18: not from the trigger).
+            box(b, inletBoss, glm::vec3{1.4f, 1.15f, 0.55f}, inR);
+            tube(b, inletBoss + glm::vec3{0.f, 0.f, 0.2f}, inletAt, 0.62f, 0.55f, 8, inR, false, true);
             (void)b.alloc(32, 10, nozR);
             paintRect(b, nozR, 1.f, 1.f, [pyro](float u, float v) {
                 if(v > 0.85f)
@@ -1007,14 +1104,11 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             });
             if(pyro)
             {
-                // The nozzle's flared bell round the barrel's end; a pilot light under it.
+                // The nozzle's flared bell round the barrel's end; a pilot light's pipe under it (its flame particles out of
+                // its tip: vr_adtank.cpp, pilotAt).
                 tube(b, glm::vec3{28.5f, 0.f, 8.1f}, glm::vec3{muzzleX - 0.1f, 0.f, 8.1f}, 1.3f, 2.1f, 12, nozR, false, false);
                 tube(b, glm::vec3{28.5f, 0.f, 8.1f}, glm::vec3{muzzleX - 0.1f, 0.f, 8.1f}, 1.1f, 1.85f, 12, inR, false, false, true);
-                tube(b, glm::vec3{26.f, 0.f, 5.6f}, glm::vec3{31.f, 0.f, 5.6f}, 0.5f, 0.5f, 8, inR, true, false);
-                Rect flame;
-                (void)b.alloc(16, 8, flame);
-                paintRect(b, flame, 1.f, 1.f, [](float, float v) { return paint(v < 0.5f ? glm::vec3{0.5f, 0.7f, 1.f} : flameYellow, true); });
-                tube(b, glm::vec3{31.f, 0.f, 5.6f}, glm::vec3{32.6f, 0.f, 5.6f}, 0.4f, 0.05f, 8, flame, false, true);
+                tube(b, glm::vec3{26.f, 0.f, pilotAt.z}, glm::vec3{pilotAt.x - 0.2f, 0.f, pilotAt.z}, 0.5f, 0.5f, 8, inR, true, false);
             }
             else
             {
@@ -1240,6 +1334,55 @@ bool hoseInlet(int variant, glm::vec3& at, glm::vec3& dir)
     at = inletAt;
     dir = glm::normalize(inletDir);
     return true;
+}
+
+bool pilotLight(int variant, glm::vec3& at)
+{
+    at = pilotAt;
+    return variant == Pyro;
+}
+
+const FireFeel& fireFeel(int variant)
+{
+    return variant >= 0 && variant < variantCount ? fireFeels[variant] : fireFeels[Pyro];
+}
+
+byte* flashFile(const char* name, unsigned int* path_id)
+{
+    const char* at = name ? strstr(name, flashSuffix) : nullptr;
+    if(!at)
+    {
+        return nullptr;
+    }
+    const char* d = at + strlen(flashSuffix);
+    const int variant = d[0] >= '0' && d[0] < '0' + variantCount && d[1] == 0 ? d[0] - '0' : -1;
+    byte* src = COM_LoadMallocFile(VR_ModelFile(flashBase), path_id);
+    if(!src || variant < 0)
+    {
+        return src;
+    }
+    Mdl m;
+    const char* why = "";
+    if(!readMdl(src, static_cast<size_t>(com_filesize), m, why))
+    {
+        return src;
+    }
+    // Each texel's light kept, its colour the gun's (white at its hottest), the nearest fullbright colour.
+    const glm::vec3 tint = fireFeel(variant).colour;
+    byte* skin = src + (m.skin - src);
+    for(int i = 0; i < m.skinW * m.skinH; i++)
+    {
+        const byte px = skin[i];
+        if(px == 255)
+        {
+            continue;
+        }
+        const glm::vec3 c = palette(px);
+        const float lum = za::clamp(c.r * 0.3f + c.g * 0.59f + c.b * 0.11f, 0.f, 1.f);
+        skin[i] = nearestBright(glm::mix(tint, glm::vec3{1.f}, lum * lum * lum * 0.7f) * za::min(1.f, 0.3f + lum));
+    }
+    Con_DPrintf("AD gun flash: %s made\n", name);
+    return src;
 }
 
 void variants_f()

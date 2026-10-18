@@ -13039,3 +13039,45 @@ The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_*
 - Fresh hits are unchanged (0.32-0.38 s, 0-1 steps). `vr_flinch 0` takes none of these paths (the new QC field is only
   read by the flinch).
 - eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs).
+
+## AD gun variants, second pass: his VR notes (2026-10-18, worktree `goreflesh`, branch `agent/adgunvariants2`)
+
+- **Rocket** (`vr_adgunart.cpp`): the muzzle is now a wide launch tube round the barrel (x 23.5..33, radius 3.45, olive,
+  rocket icons, a hazard band, a steel lip, dark inside, a red warhead nose in its mouth). The old top tube is now only
+  an exhaust: a pipe rising out of the magazine box's top near the muzzle (x 21.5, z 12.4) to a joint ring at x 14,
+  straight back at z 17.5 to x -1.5, then the flared bell (sooty inside) to x -5.5; one mount.
+- **Grenade**: the grafted launcher on top is gone. The muzzle is our `v_rock.mdl`'s hexagonal barrel (its body's
+  triangles from the drum's face forward, x >= 18), shortened to x 23..33 and at 0.92 across, its bore on the rifle's
+  barrel (`graftLauncher` now takes a filter and a placement). On top: an open-sided steel magazine box (x -3.6..10.6)
+  holding four grenades lying across it, with a chute from its front into the gun.
+- **Flamethrower and poison sprayer**: the hose inlet moved from the trigger to under the receiver between the grip and
+  the stock (a boss at x -6.4, its pipe's end at -7.3 1.15, leaving down and back). `hoseInlet` gives the new place, so
+  `vr_adtank.cpp`'s hose follows.
+- **Pilot light**: the modelled flame cone is gone. The pilot pipe stays, and its tip (31.2 0 5.6, `adguns::pilotLight`)
+  gives off a small continuous particle stream while the pyro's gun is held (`vr_adtank.cpp` pilotFlames). That is about
+  34 a second: small yellow tongues of flame, blue ones at the tip, now and then a spark (`particles::hotTrail`). It
+  is paced by game time, with nothing while paused or under water. `vr_adgun_hose_info` prints the count.
+- **Firing feel** (`adguns::FireFeel`, `fireFeel(variant)`): slot 21's recoil (1, 0.12 s) and flash (0.06 s) are
+  scaled per variant in `vr_weaponfx.cpp` playerFired/frame:
+  - rocket: recoil x2.5, time x2.5, flash x1.9
+  - grenade: recoil x2, time x2, flash x1.35
+  - defender: recoil x1.8, time x1.6, flash x1.5
+  - plasma, eliminator, centurion: recoil x0.8, x0.7 and x1
+  Each shot also throws particles at the drawn muzzle (`adGunBurst`):
+  - launchers: a smoke cloud and a spark shower; the rocket also a back-blast out of its exhaust bell (flame tongues,
+    sparks, smoke)
+  - shotgun: burning-powder sparks
+  - plasma guns: sparks in their colour
+  The muzzle flash's light (`VR_TuneDlight`) takes each variant's colour and reach (orange, 1.5x for the rocket). The
+  plasma guns' flashes are copies of our flash model, recoloured to their tint as they load
+  ("progs/vr_muzzleflash.mdl#adf2/4/5", `adguns::flashFile`). Quake's fullbright palette has no violet, so the
+  eliminator's flash is pale blue; its light is violet.
+- **Checked** (headless): `vr_ad_test 70` 9/9 PASS, `71` 8/8 PASS; every variant keeps the settings' corner
+  (`vr_adgun_variants`); `vr_debug_weaponfx 1` shows each variant's scaled recoil and flash, and its burst. Screenshots in
+  the worktree's `scratch/`:
+  - `adgun_variants2_held.png`: all eight, side view
+  - `rg_zoom.png`, `view2_zoom.png`, `view3_zoom.png`: rocket and grenade, side and 3/4 front
+  - `pf_zoom.png`: the pyro's and fumigator's hoses leaving behind the grip
+  - `fire3.png`, `fire5_zoom.png`: each variant firing: flashes, lights, the rocket's back-blast
+- **For him in VR**: the rocket tube's and the grenade muzzle's size; the exhaust over the sights; the pilot stream's
+  subtlety; whether the recoil scales feel right (rocket and grenade near the cap of 2.5).

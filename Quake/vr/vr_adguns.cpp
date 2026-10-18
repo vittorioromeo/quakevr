@@ -653,6 +653,10 @@ namespace
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
+    if(strstr(name, flashSuffix))
+    {
+        return flashFile(name, path_id); // (the plasma guns' flashes: vr_adgunart.cpp)
+    }
     if(strstr(name, variantSuffix))
     {
         return variantFile(name, path_id); // (our burst rifle's variants: vr_adgunart.cpp)
