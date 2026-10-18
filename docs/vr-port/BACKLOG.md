@@ -164,6 +164,11 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Zombies stuck knocked down (the author, 2026-10-19)
+Zombies knocked down the stock Quake way (zombie "lie down" frames, not an active ragdoll) can stay in that state and
+become invincible. Plan: drop the stock knockdown state and always knock zombies down as an active ragdoll (they get up
+through our get-up path; gibbing rules unchanged). Check other monsters with a stock fake-death/lie-down state too.
+
 ### Dual-wield parry: crossed swords (the author, 2026-10-18)
 With a sword in each hand (e.g. the Death Fury's pair), crossing the two blades in front of the body should be a valid
 parry pose; today it isn't recognised. Later, after the AD melee work.
