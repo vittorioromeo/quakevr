@@ -349,6 +349,82 @@ void() VR_ADMelee_Think =
     self.nextthink = time + 0.3; // (the hands' new weapons placed: their tips)
 };
 
+// A hand's or a holster's weapon told: its kind and model; TRUE if it is an AD melee weapon on its own model.
+float(string xWhere, float wid, float xFlags, string xModel) VR_ADMelee_Carried =
+{
+    float k = wid == WID_SWORD ? VR_ADMelee_Kind(xFlags) : 0;
+    float ok = k > 0 && xModel == VR_ADMelee_Model(k);
+    bprint(sprintf("admelee: %s: weapon %g, kind %g, model %s%s\n", xWhere, wid, k, xModel, ok ? " (its own)" : ""));
+    return ok;
+};
+
+// `vr_ad_test 123` (the toolgun's path): the nearest AD melee weapon lying about (the toolgun's Weapons tab, a drop) is
+// taken into the main hand, holstered at the left hip and drawn into the off hand (`125`: holstered at the right hip and
+// kept there). `124`: what is carried now (after a save's load or a level change: the kinds kept, each on its own model).
+// (Set vr_weapon_grip_mode 1 first: the mock's hands don't grip, and would drop what they hold.)
+void(entity p, float xKeep) VR_ADMelee_TakeNearest =
+{
+    entity best = world;
+    float bestD = 1000;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.classname == "thrown_weapon" && e.weapon == WID_SWORD && VR_ADMelee_Kind(e.weaponflags) > 0 &&
+           vlen(e.origin - p.origin) < bestD)
+        {
+            best = e;
+            bestD = vlen(e.origin - p.origin);
+        }
+    }
+    if(!best)
+    {
+        bprint("admelee: no AD melee weapon lying near you: FAIL\n");
+        return;
+    }
+    float flags = best.weaponflags;
+    float ok = VR_ADMelee_Carried(sprintf("lying (%s)", best.classname), best.weapon, best.weaponflags, best.model);
+    VR_ADMelee_Take(p, best, cVR_MainHand);
+    ok = (VR_ADMelee_Carried("main hand", VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeaponFlags(p, cVR_MainHand),
+        p.weaponmodel) && ok);
+    entity was = self;
+    float hs = xKeep ? QVR_HS_RIGHT_HIP_HOLSTER : QVR_HS_LEFT_HIP_HOLSTER;
+    self = p;
+    setHolsterWeapon(hs, WID_FIST);
+    setHolsterWeaponModel(hs, WeaponIdToModel(WID_FIST, 0));
+    setHolsterWeaponFlags(hs, 0);
+    VRSetEntHolsterWeaponInst(p, hs, world);
+    VRHolsterHandWeapon(p, cVR_MainHand, hs);
+    float kept = getHolsterWeaponFlags(hs);
+    self = was;
+    if(xKeep)
+    {
+        bprint(sprintf("admelee: %s taken, holstered at the right hip (kind %g): %s\n", WeaponNameOf(WID_SWORD, flags),
+            VR_ADMelee_Kind(kept), (ok && kept == flags) ? "PASS" : "FAIL"));
+        return;
+    }
+    ok = (VR_ADMelee_Carried("left hip holster", p.holsterweapon2, p.holsterweaponflags2, p.holsterweaponmodel2) && ok);
+    self = p;
+    VRSetHandEmpty(p, cVR_OffHand);
+    VRDrawHolsterWeapon(p, cVR_OffHand, QVR_HS_LEFT_HIP_HOLSTER);
+    self = was;
+    ok = (VR_ADMelee_Carried("off hand (drawn)", VRGetEntWeapon(p, cVR_OffHand), VRGetEntWeaponFlags(p, cVR_OffHand),
+        p.weaponmodel2) && VRGetEntWeaponFlags(p, cVR_OffHand) == flags && ok);
+    bprint(sprintf("admelee: %s taken, holstered, drawn: %s\n", WeaponNameOf(WID_SWORD, flags), ok ? "PASS" : "FAIL"));
+};
+
+void(entity p) VR_ADMelee_ReportCarried =
+{
+    float n = 0;
+    n = n + VR_ADMelee_Carried("main hand", p.weapon, p.weaponflags, p.weaponmodel);
+    n = n + VR_ADMelee_Carried("off hand", p.weapon2, p.weaponflags2, p.weaponmodel2);
+    n = n + VR_ADMelee_Carried("holster 0", p.holsterweapon0, p.holsterweaponflags0, p.holsterweaponmodel0);
+    n = n + VR_ADMelee_Carried("holster 1", p.holsterweapon1, p.holsterweaponflags1, p.holsterweaponmodel1);
+    n = n + VR_ADMelee_Carried("holster 2", p.holsterweapon2, p.holsterweaponflags2, p.holsterweaponmodel2);
+    n = n + VR_ADMelee_Carried("holster 3", p.holsterweapon3, p.holsterweaponflags3, p.holsterweaponmodel3);
+    n = n + VR_ADMelee_Carried("holster 4", p.holsterweapon4, p.holsterweaponflags4, p.holsterweaponmodel4);
+    n = n + VR_ADMelee_Carried("holster 5", p.holsterweapon5, p.holsterweaponflags5, p.holsterweaponmodel5);
+    bprint(sprintf("admelee: carried AD melee weapons on their own models: %g\n", n));
+};
+
 void(float request, entity p) AD_MeleeTest =
 {
     if(!cvar("vr_ad_mounted"))
@@ -356,6 +432,8 @@ void(float request, entity p) AD_MeleeTest =
         bprint("admelee: Arcane Dimensions' data is not loaded\n");
         return;
     }
+    if(request == 123 || request == 125) { VR_ADMelee_TakeNearest(p, request == 125); return; }
+    if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
     if(request >= 116 && request <= 119)
     {
         float a = request == 116 ? VR_ADMELEE_FURY : (request == 117 ? VR_ADMELEE_DKNIGHT : (request == 118 ?
