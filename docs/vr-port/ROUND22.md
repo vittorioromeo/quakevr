@@ -12459,3 +12459,5 @@ ragdoll (which skins from those frames) hold none. `droppedName` says "crossbow"
 **Not verified by screenshots**: his game was running the whole time (no launch allowed), so only the build ran (0 errors).
 `Misc/quakevr/xbow_corpse_test.sh <tag>` takes the dead-pose and ragdoll shots (`xbow_<tag>_dead.png`, `_rag.png`) once the
 game is closed. To check: that nothing but the crossbow vanished (hands, bowstring) and the range covers the whole death.
+
+**Verified (2026-10-18, after his game closed; needs `ad` junctioned into the base: qbase/ad)**: `Misc/quakevr/xbow_corpse_test.sh <tag>` (ad_tfuma, r_fullbright, one kill, four shots): the log says "crossbow (348 vertices) hidden in 31 death frames"; in the shots the body flies/falls with empty hands and the crossbow lies on the floor as the pickup; no hand or arm vanished, so the range 772..1119 stays. Shots: scratch/xbow_k_fb.png (not committed). The ragdoll is the same frames.
