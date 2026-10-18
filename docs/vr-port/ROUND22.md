@@ -13010,6 +13010,26 @@ ours). Not the justice knight (its flat sword has no gib model of AD's to make i
 (hell knight, death lord, Quoth death guard): PASS, with 110-115 again; 93 (crossbow) PASS alone (run after the
 melee tests in one map its bolt hit the bodies left about), 97 its `#vr` models.
 
+### "They look like normal swords" (worktree `gorefx`, branch `agent/admelee2`, 2026-10-18)
+
+His session (log 2026-10-18_11-47-57) made them from the toolgun's Weapons tab, not from kills. The tab's AD rows made a
+`func_weapon_grabbable` with only `weapon 13`: no weapon flags, so no kind, so Quake VR's own knight's sword (its model,
+its damage, its weight). The kills' drops were right all along (his Steam AD 1.80p1 paks have every gib: `vr_admelee_models`
+makes all six). Fixed:
+- The toolgun's spawn rows carry weapon flags (`Spawnable::weaponFlags`, `box3d::spawnClass(..., weaponFlags)`;
+  `ad_monsters_gen.py` emits `QVR_AD_GUN(label, model, wid, choice, flags)`); a weapon picked with the toolgun keeps its
+  sword kind (bits 8-10 only: the rest is the picked one's state).
+- Loading a save with an AD melee weapon (or an AD gun) in a hand or holster was a crash (`SV_ModelIndex: model
+  progs/w_ogreham.mdl#melee not precached`: the load rebinds `.modelindex` values, not the hands' model names).
+  `OnLoadGame` makes and precaches them again (`VR_ADGun_EnsureCarried`, `VR_ADMelee_EnsureCarried`).
+- The hammer and the mace head-heavy: Balance 35 and 30 cm (was 15; slots 44-45, cvars `_45`/`_46`), `vr_wofs_version`
+  46 moves a config still at 15. Dropped the slots' dead first copies of Hotspot1 (the knight sword's, overridden).
+- Tests: `vr_ad_test 123` the nearest lying one taken, holstered at the left hip, drawn into the off hand; `125`
+  holstered at the right hip and kept; `124` what is carried (kind and model of each hand and holster). Toolgun fury
+  sword (125) and hammer (123), save, load, `changelevel e1m2`: both carried on their own models each time. 110, 112,
+  114, 115 PASS again. Screenshots of each pair held beside its monster: `scratch/admelee_held.png` (`scratch/shots.sh`).
+- Seen, not fixed: the hunter ogres get no ragdoll ("bone hand_r got 0 vertices"), with `vr_admelee_drops 0` too.
+
 ## Flinch: the odd-pose shuffle (worktree `fastship`, branch `agent/flinch3`, 2026-10-18)
 
 The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_* 0.5`) in vrtesthall, 12 runs a class.

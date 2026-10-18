@@ -43,7 +43,7 @@
 #include "vr_ad_spawnitems.inc"
 #undef QVR_AD_SPAWN_MAP
 #undef QVR_AD_SPAWN
-#define QVR_AD_GUN(label, model, wid, choice) \
+#define QVR_AD_GUN(label, model, wid, choice, flags) \
     items.pushBack(adSpawnRow(choice, command(label, "vr_test_spawn " #choice "; vr_test_spawn_dist 64; impulse 241")));
 #include "vr_ad_spawnguns.inc"
 #undef QVR_AD_GUN

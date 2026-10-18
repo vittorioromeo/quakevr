@@ -87,6 +87,7 @@ struct Spawnable
     const char* probe{nullptr}; // the file `needs` 1 looks for (nullptr: the model)
     const char* pack{nullptr};  // the pack's group on the panel, from a fresh page (nullptr: id's and Quake VR's own)
     int frame{0};               // the ghost's frame (a placed corpse's)
+    float weaponFlags{0.f};     // func_weapon_grabbable's "weaponflags" (AD support: an AD melee weapon's kind)
 };
 
 // AD's backpacks: the toolgun makes them in any map (his decision; vr_ad.cpp VR_AD_ToolgunSpawnsOutside), a map's own
@@ -109,8 +110,10 @@ constexpr Spawnable spawnables[] = {
     {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
 #define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
     {section, label, classname, model, lift, key, value, skin, false, true, false, choice, false, adBackpack(classname) ? 0 : 2}, // AD: its maps only
-#define QVR_AD_GUN(label, model, wid, choice) \
-    {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice}, // AD support
+// (an AD melee weapon's kind is its weapon flags: without them it is Quake VR's plain knight's sword)
+#define QVR_AD_GUN(label, model, wid, choice, flags) \
+    {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice, false, 0, \
+        nullptr, nullptr, 0, flags}, // AD support
 
     {"Monsters", "Grunt", "monster_army", "progs/soldier.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Enforcer", "monster_enforcer", "progs/enforcer.mdl", 24.f, nullptr, 0.f, 0, false},
@@ -219,6 +222,7 @@ struct Selection
     int frame{0};
     bool setModel{false};
     bool wall{false}; // hung on the wall aimed at (Spawnable::wall)
+    float weaponFlags{0.f}; // a weapon's flags (Spawnable::weaponFlags; a picked weapon's kept ones)
 };
 
 // Where the gun points this frame.
@@ -307,6 +311,7 @@ GhostHold ghostHold;
 
 // The ghost's turn for a degree of the gun hand's way (ghostHoldFrame).
 constexpr float ghostTurnRate = 2.f;
+constexpr int swordKindBits = 1792; // AD support: QC QVR_WPNFLAG_SWORD_KIND (an AD melee weapon's kind)
 
 struct ToolgunState
 {
@@ -431,6 +436,7 @@ void select(int i)
     sel.frame = s.frame;
     sel.setModel = s.setModel;
     sel.wall = s.wall;
+    sel.weaponFlags = s.weaponFlags;
     tg.picking = false;
 }
 
@@ -620,6 +626,13 @@ void pick(int num)
         copyText(sel.key, sizeof(sel.key), "weapon");
         sel.value = static_cast<float>(wid);
         sel.lift = 8.f;
+        // AD support: an AD melee weapon's kind (QC vr_ad_guns_defs.qc: the sword's weapon flags, bits 8-10) kept;
+        // the rest of its flags are the one picked's state (a new one is made, loaded).
+        const int flagsOfs = ED_FindFieldOffset("weaponflags");
+        if(flagsOfs >= 0)
+        {
+            sel.weaponFlags = static_cast<float>(static_cast<int>(fieldFloat(e, flagsOfs)) & swordKindBits);
+        }
     }
     else if(!qvr::progs::findFunction(cls))
     {
@@ -757,7 +770,7 @@ void probeLook()
     }
     look.tries++;
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
-        sel.key[0] ? sel.key : nullptr, sel.value, true);
+        sel.key[0] ? sel.key : nullptr, sel.value, true, sel.weaponFlags);
     if(!e)
     {
         return;
@@ -789,7 +802,7 @@ void spawnHere()
     const Selection& sel = tg.sel;
     if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
-        sel.key[0] ? sel.key : nullptr, sel.value);
+        sel.key[0] ? sel.key : nullptr, sel.value, false, sel.weaponFlags);
     if(e)
     {
         const glm::vec3 off = fieldVec(e, fields().model_offset);
@@ -2199,7 +2212,7 @@ void spawnTrace_f()
     const glm::vec3 at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f,
         player->v.origin[2] + player->v.mins[2] + s.lift + 1.f};
     edict_t* e = box3d::spawnClass(s.classname, at, glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f},
-        s.setModel ? s.model : nullptr, s.key, s.value);
+        s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
     if(!e)
     {
         Con_Printf("spawntrace: %d %s failed\n", i, s.label);
@@ -2247,7 +2260,8 @@ void spawnTest_f()
         const float a = glm::radians(yaw + 360.f * static_cast<float>(i - first) / static_cast<float>(count));
         const glm::vec3 at = feet + glm::vec3{za::cos(a) * 160.f, za::sin(a) * 160.f, s.lift + 1.f};
         const glm::vec3 angles{0.f, glm::degrees(a) + 180.f, 0.f};
-        edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value);
+        edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value, false,
+            s.weaponFlags);
         if(e)
         {
             const SvVmScope vm;

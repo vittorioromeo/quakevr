@@ -81,7 +81,7 @@ void reset()
 // The toolgun's pins and joints (vr_toolgun.cpp).
 
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
-    const char* key, float value, bool probe)
+    const char* key, float value, bool probe, float weaponFlags)
 {
     if(!sv.active)
     {
@@ -130,6 +130,14 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
         if(ofs >= 0)
         {
             fieldFloat(e, ofs) = value; // (func_weapon_grabbable's weapon, spawnflags)
+        }
+    }
+    if(weaponFlags != 0.f) // (func_weapon_grabbable's weapon flags: AD support, an AD melee weapon's kind)
+    {
+        const int ofs = ED_FindFieldOffset("weaponflags");
+        if(ofs >= 0)
+        {
+            fieldFloat(e, ofs) = weaponFlags;
         }
     }
     VR_EdictIndex_Touch(e); // (the edict index: a classname set in C)
