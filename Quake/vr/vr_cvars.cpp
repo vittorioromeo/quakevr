@@ -266,8 +266,36 @@ const DefaultChange defaultChanges[] = {
     {154, &vr_lootbeam_far, "0"},                       // 12
     // 155: the cheaper bloom chain by default (2026-10-17).
     {155, &vr_bloom_fast, "0"},                         // 1
+    // 156: the author's holster zones, thresholds, glove thickness and relief (his config of 2026-10-18).
+    {156, &vr_glove_relief, "1"},
+    {156, &vr_glove_thickness, "2"},
+    {156, &vr_holster_zone_ammo_height, "1.125"},
+    {156, &vr_holster_zone_ammo_x, "-0.5"},
+    {156, &vr_holster_zone_ammo_z, "0"},
+    {156, &vr_holster_zone_grenade_depth, "1"},
+    {156, &vr_holster_zone_hip_depth, "0.15"},
+    {156, &vr_holster_zone_hip_height, "1.1"},
+    {156, &vr_holster_zone_hip_width, "0.55"},
+    {156, &vr_holster_zone_hip_x, "0"},
+    {156, &vr_holster_zone_hip_y, "-2.25"},
+    {156, &vr_holster_zone_hip_z, "-2.25"},
+    {156, &vr_holster_zone_item_hip, "1.5"},
+    {156, &vr_holster_zone_item_shoulder, "1.5"},
+    {156, &vr_holster_zone_item_upper, "1.5"},
+    {156, &vr_holster_zone_shoulder_height, "0.5"},
+    {156, &vr_holster_zone_shoulder_x, "-2.5"},
+    {156, &vr_holster_zone_shoulder_y, "1"},
+    {156, &vr_holster_zone_shoulder_z, "-0.5"},
+    {156, &vr_holster_zone_upper_depth, "0.6"},
+    {156, &vr_holster_zone_upper_height, "0.7"},
+    {156, &vr_holster_zone_upper_width, "0.6"},
+    {156, &vr_holster_zone_upper_x, "-3.75"},
+    {156, &vr_holster_zone_upper_y, "3.25"},
+    {156, &vr_holster_zone_upper_z, "-0.75"},
+    {156, &vr_shoulder_holster_thresh, "7"},
+    {156, &vr_upper_holster_thresh, "6.5"},
 };
-constexpr int configVersion = 155;
+constexpr int configVersion = 156;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
