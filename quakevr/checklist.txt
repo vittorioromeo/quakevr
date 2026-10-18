@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Linux (for the Wayland player): VR now binds EGL contexts (XR_MNDX_egl_enable: WiVRn, Monado) and skips 32-bit runtime manifests; nothing to test on Windows
 Widowmaker auto shotgun: hold the trigger (0.25 s refire), side shell port by the rear handle takes a handful of 4 at once, tube 16, spent shells out the other side; port radius OK? your grip 1 is default
 Plasma Gun: cell pokes out a bit more; with the cell out, a real pocket with dark walls
 Swing sounds by speed (Combat > Melee > Swing Sounds): slow moves silent, brisk wave a soft whoosh, punch/cut clearly louder, very fast punch louder than before; sword/axe strokes whoosh softly (too busy? raise Heard From)
