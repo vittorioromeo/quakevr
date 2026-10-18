@@ -569,6 +569,9 @@ za::Vector<Item> pageDebugTests()
         command("Blast Before the Nearest", "vr_flinch_test 7").help("vr_flinch_test 7: a 60-damage blast 48 units before it, 1 damage dealt."),
         command("Throw at the Nearest", "vr_flinch_test 8").help("vr_flinch_test 8: a 12 kg crate at 10 m/s."),
         command("Ten Grunts Ahead", "vr_flinch_test 21").help("vr_flinch_test 21: ten grunts in two rows 160 units ahead (then 9: a shotgun blast on each)."),
+        cycle("Test Monster", "vr_flinch_test_class",
+            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Ogre"}, {5.f, "Zombie"}})
+            .help("vr_flinch_test_class: the monster Ten Grunts Ahead (vr_flinch_test 21) and vr_flinch_test 20 put down."),
         header("Holding Enemies"),
         cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "

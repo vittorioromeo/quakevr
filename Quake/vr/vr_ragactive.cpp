@@ -1197,16 +1197,6 @@ constexpr float legsOvershoot = 0.1f;   // of its leg: a step lands this far pas
 constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this far (level) from its hip then
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
-constexpr float legsSlip = 0.8f;        // the feet's grip on the floor (friction): the floor's level push at most this x its push up
-constexpr float legsGrip = 0.5f;        // of the way, a frame: a bearing foot's end held on its spot (friction, not a spring)
-constexpr float legsComfy = 0.45f;      // of its leg: a capture step longer than this is cut short (more steps follow) ...
-constexpr float legsConverge = 0.72f;   // ... to no less than this of it (shorter, the next would have to be longer: it
-                                        // falls behind; FLINCH.md, "Balance from the legs")
-constexpr float legsReplan = 0.6f;      // of a step's time: till then its spot follows its capture point
-constexpr float legsClose = 0.3f;       // of its leg: a foot this far from where its stance has it, still: a closing step
-constexpr float legsStepUp = 0.45f;    // of its leg: a step lands at most this far above its other foot's floor ...
-constexpr float legsStepDown = 0.6f;   // ... or below it
-constexpr float legsEdge = 0.6f;       // of Foot Support: a landing spot's floor sampled this far round it (a stair's edge)
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1219,98 +1209,6 @@ constexpr float legsEdge = 0.6f;       // of Foot Support: a landing spot's floo
     const float l = glm::length(d);
     past = za::max(l - r, 0.f);
     return l > r ? on + d * (r / l) : q;
-}
-
-// The floor under level point q (metres), traced from `top` (its pelvis's height: open air; a ray from a foot's height
-// starts inside the step above it and misses) down to `bottom`; `fallback` with none.
-[[nodiscard]] float floorUnder(const Context& c, const glm::vec3& q, float top, float bottom, float fallback)
-{
-    if(!c.floorBelow)
-    {
-        return fallback;
-    }
-    const float f = c.floorBelow(glm::vec3{q.x, q.y, top}, za::max(top - bottom, 0.01f));
-    return f > -1e29f ? f : fallback;
-}
-
-// Where a step lands (vr_flinch 2): its floor traced there (a stair's step, a slope), the foot's end its standing foot's
-// height over it. A spot on a stair's edge (its floor round it uneven), or lower than its leg reaches (`lowest`), moves to
-// the nearest whole, reachable one within three of the foot's radius (its sole on one step, not over a riser), else the
-// first on the way back to `toward` (its other foot); with none, it lands where it is (it may slip off or hang: a missed
-// step).
-[[nodiscard]] glm::vec3 footSpot(const Stagger& g, const Context& c, const glm::vec3& want, float len, float top, float lowest,
-    const glm::vec3& toward)
-{
-    const float r = legsEdge * g.footR;
-    const float bottom = top - 3.f * len;
-    const auto good = [&](const glm::vec3& q, float& z) {
-        z = floorUnder(c, q, top, bottom, bottom);
-        float lo = z, hi = z;
-        for(int k = 0; k < 4; k++)
-        {
-            const float a = 1.5707963f * static_cast<float>(k);
-            const float f = floorUnder(c, q + glm::vec3{za::cos(a) * r, za::sin(a) * r, 0.f}, top, bottom, bottom);
-            lo = za::min(lo, f);
-            hi = za::max(hi, f);
-        }
-        // (Within a step up or down of its other foot's floor: a grunt's leg is about 20 units, a stair's rise 16; its feet
-        // then share a step, its stance narrowed to it, not split over two.)
-        const float ref = toward.z - g.restGap;
-        return hi - lo < 0.08f * len && z >= lowest && z < ref + legsStepUp * len && z > ref - legsStepDown * len;
-    };
-    float z = 0.f;
-    glm::vec3 at{want.x, want.y, 0.f};
-    if(!good(at, z))
-    {
-        float best = 1e30f, bz = z;
-        glm::vec3 bestAt = at;
-        for(int ring = 1; ring <= 3 && best > 1e29f; ring++)
-        {
-            for(int k = 0; k < 8; k++)
-            {
-                const float a = 0.7853982f * static_cast<float>(k);
-                const glm::vec3 q = at + glm::vec3{za::cos(a), za::sin(a), 0.f} * (r * static_cast<float>(ring));
-                float qz = 0.f;
-                // (Of the good spots, the nearest; then the higher: a step's top, not the one below.)
-                if(good(q, qz) && static_cast<float>(ring) - 0.01f * (qz - z) < best)
-                {
-                    best = static_cast<float>(ring) - 0.01f * (qz - z);
-                    bestAt = q;
-                    bz = qz;
-                }
-            }
-        }
-        // (None: the first good one on the way back to its other foot: a shorter step onto the step it stands on, not
-        // down a flight it cannot reach.)
-        const glm::vec3 back = level(toward) - at;
-        const int n = za::min(static_cast<int>(glm::length(back) / za::max(r, 0.01f)), 12);
-        for(int k = 1; k <= n && best > 1e29f; k++)
-        {
-            const glm::vec3 q = at + back * (static_cast<float>(k) / static_cast<float>(n + 1));
-            float qz = 0.f;
-            if(good(q, qz))
-            {
-                best = 0.f;
-                bestAt = q;
-                bz = qz;
-            }
-        }
-        at = bestAt;
-        z = bz;
-    }
-    return glm::vec3{at.x, at.y, z + g.restGap};
-}
-
-// A vr_flinch 2 step's foot at `u` (0..1) of its way: lifted clear of the step it goes up onto before it gets there, kept
-// up till it is past the edge of one it goes down to (a straight way with a little arc went through a stair's riser).
-[[nodiscard]] glm::vec3 swingAt(const Stagger& g, float len, float u)
-{
-    const float rise = g.stepB.z - g.stepA.z;
-    const float h = smooth01((u - 0.1f) / 0.9f);
-    const float v = rise > 0.f ? smooth01(u / 0.5f) : smooth01((u - 0.4f) / 0.6f);
-    const glm::vec3 at = glm::mix(g.stepA, g.stepB, h);
-    return glm::vec3{at.x, at.y,
-        glm::mix(g.stepA.z, g.stepB.z, v) + (0.12f * len + 0.3f * za::abs(rise)) * za::sin(3.14159265f * u)};
 }
 
 // turnWhole's turn on all but its legs' parts (`legs`, bits): its legs are left to its feet (their reaches).
@@ -1360,7 +1258,9 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
     const bool first = g.pelvisOver < 0.f;
     float baseSum = 0.f, feetEnd = 0.f;
-    za::Array<float, 2> gapNow{}, floors{};
+    za::Array<float, 2> gapNow{};
+    float lowGap = 1e30f, lowBase = 0.f;
+    glm::vec3 lowAt{0.f};
     int n = 0, whole = 0;
     for(int leg = 2; leg < 4; leg++)
     {
@@ -1370,62 +1270,36 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
             continue;
         }
         const glm::vec3 f = limbEnd(s, p, leg);
-        // (Under its planted spot, not its end: a held foot's end slips a little over a stair's edge.)
-        const glm::vec3 at = leg == g.stepLeg ? f : glm::vec3{g.planted[i].x, g.planted[i].y, f.z};
-        floors[i] = floorUnder(c, at, pelvis.z, f.z - 1.5f * limbLength(s, p, leg), f.z - g.footGap[i]);
+        const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
-        // stand frame's feet level; on stairs its lower foot over the step below, its stand frame's feet level.)
+        // stand frame's feet level.)
         if(first)
         {
-            g.footGap[i] = za::clamp(f.z - floors[i], -0.25f, 0.3f);
+            g.footGap[i] = za::clamp(f.z - floor, -0.25f, 0.3f);
             feetEnd += f.z;
             whole++;
         }
-    }
-    // (Every foot's end as high over its floor as the one it stood on: the other, hanging over a step below, is put down,
-    // its leg reaching for it.)
-    if(first && whole > 0)
-    {
-        g.restGap = za::min(limbWhole(s, p, 2) ? g.footGap[0] : 1e3f, limbWhole(s, p, 3) ? g.footGap[1] : 1e3f);
-        g.restGap = g.restGap > 0.05f ? 0.f : g.restGap; // (both hanging, a stair's edge under its box: its soles' height)
-        for(int leg = 2; leg < 4; leg++)
-        {
-            const auto i = static_cast<za::SizeT>(leg - 2);
-            if(vr_flinch_debug.value >= 4.f)
-            {
-                const glm::vec3 f = limbEnd(s, p, leg) * p.m2u;
-                Con_Printf("legs: %d foot %d at %.1f %.1f %.1f, floor %.1f, leg %.1f units (%.1f units a metre)\n", c.num, leg,
-                    f.x, f.y, f.z, floors[i] * p.m2u, limbLength(s, p, leg) * p.m2u, p.m2u);
-            }
-            // (A foot near its floor keeps its own: its pelvis's hold over its feet reckoned as it stood, an offset of a
-            // few centimetres a push of a whole weight.)
-            g.footGap[i] = g.footGap[i] <= g.restGap + 0.1f ? g.footGap[i] : g.restGap;
-            // (Within its reach; past it, it hangs and is put down elsewhere: legsStep.)
-            const float drop = g.planted[i].z - (floors[i] + g.footGap[i]);
-            g.planted[i].z -= drop > 0.f && drop < legsLow * limbLength(s, p, leg) ? drop : 0.f;
-        }
-    }
-    const bool rising = glmv(b3Body_GetLinearVelocity(p.body[0])).z > 0.3f;
-    for(int leg = 2; leg < 4; leg++)
-    {
-        const auto i = static_cast<za::SizeT>(leg - 2);
-        g.bears[i] = false;
-        if(!limbWhole(s, p, leg))
-        {
-            continue;
-        }
-        const glm::vec3 f = limbEnd(s, p, leg);
-        const float floor = floors[i];
         gapNow[i] = f.z - floor - g.footGap[i];
         const float len = limbLength(s, p, leg);
-        // (Within Bears of its floor; or within Low and its pelvis not going up (struck up, a jump): a shin's tilt as
-        // its middle runs on over the foot lifts the foot's end.)
-        if(leg != g.stepLeg && (gapNow[i] < legsBears * len || (gapNow[i] < legsLow * len && !rising && (!(static_cast<int>(vr_flinch_legs_off.value) & 4) || pelvis.z < floor + g.footGap[i] + g.pelvisOver + 0.05f))))
+        if(leg != g.stepLeg && gapNow[i] < legsBears * len)
         {
-            g.bears[i] = true;
-            g.bearAt[static_cast<za::SizeT>(n++)] = glm::vec3{g.planted[i].x, g.planted[i].y, f.z};
+            g.bearAt[static_cast<za::SizeT>(n++)] = f;
             baseSum += floor + g.footGap[i];
         }
+        // (None within that: its lowest foot not stepping still bears unless its pelvis is going up (struck up, a
+        // jump): a shin's tilt as its middle runs on over the foot lifts the foot's end.)
+        else if(leg != g.stepLeg && gapNow[i] < legsLow * len && gapNow[i] < lowGap)
+        {
+            lowGap = gapNow[i];
+            lowAt = f;
+            lowBase = floor + g.footGap[i];
+        }
+    }
+    if(n == 0 && lowGap < 1e29f && glmv(b3Body_GetLinearVelocity(p.body[0])).z < 0.3f &&
+       pelvis.z < lowBase + g.pelvisOver + 0.05f)
+    {
+        g.bearAt[static_cast<za::SizeT>(n++)] = lowAt;
+        baseSum = lowBase;
     }
     if(first)
     {
@@ -1438,8 +1312,9 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     {
         if(vr_flinch_debug.value >= 4.f)
         {
-            Con_Printf("legs: %d %.2f air: pelvis %.1f over, feet %.1f %.1f up, st %d/%d, lean %.0f\n", c.num,
-                static_cast<float>(c.now - s.begun), (pelvis.z - g.pelvis0.z) * p.m2u, gapNow[0] * p.m2u,
+            Con_Printf("legs: %d %.2f s, in the air: its pelvis %.1f over as it stood, feet %.1f %.1f up, step %d (%d done), "
+                       "lean %.0f\n",
+                c.num, static_cast<float>(c.now - s.begun), (pelvis.z - g.pelvis0.z) * p.m2u, gapNow[0] * p.m2u,
                 gapNow[1] * p.m2u, g.stepLeg, g.steps, g.lean);
         }
         return; // (in the air: gravity alone)
@@ -1451,17 +1326,13 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     const float vz = glmv(b3Body_GetLinearVelocity(p.body[0])).z;
     const float push = za::clamp(1.f + (w * w * (baseZ + g.pelvisOver - pelvis.z) - 2.f * w * vz) / gz, 0.f, legsPushMost);
     // Its centre of pressure: towards drawing its capture point back over its feet, kept within their soles.
-    const float h = za::max(com.z - baseZ, 0.3f);
+    const float h = za::max(com.z - baseZ, 0.2f);
     const float omega = za::sqrt(gz / h);
     const glm::vec2 off{g.supportOffset.x, g.supportOffset.y}; // (its stance's own lean aside)
     const glm::vec2 x = glm::vec2{com.x, com.y} - off;
     const glm::vec2 xi = x + glm::vec2{comVel.x, comVel.y} / omega;
     const glm::vec2 a{g.bearAt[0].x, g.bearAt[0].y};
-    // (A foot being put down or closing its stance, not catching it: its weight shifted over to where it lands as it
-    // goes, not toppled off the one foot meanwhile.)
-    const glm::vec2 b = n == 2                                 ? glm::vec2{g.bearAt[1].x, g.bearAt[1].y}
-                        : g.stepLeg >= 0 && g.closing && n == 1 ? glm::vec2{g.stepB.x, g.stepB.y}
-                                                                : a;
+    const glm::vec2 b = n == 2 ? glm::vec2{g.bearAt[1].x, g.bearAt[1].y} : a;
     const float r = legsCop * g.footR;
     float past = 0.f;
     (void)inCapsule(xi, a, b, r, past);
@@ -1469,13 +1340,8 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     g.capture = glm::vec3{xi.x + off.x, xi.y + off.y, 0.f};
     float unused = 0.f;
     const glm::vec2 cop = inCapsule(xi + (xi - 0.5f * (a + b)) * legsDrawn, a, b, r, unused);
-    // (Its whole body's: on the parts its legs bear, by their mass. The floor's push along its legs, level: as strong as
-    // their push up, at most the feet's grip's (past it they slip): it topples, not skates.)
-    glm::vec2 acc = (x - cop) * (omega * omega * ((static_cast<int>(vr_flinch_legs_off.value) & 64) ? 1.f : za::min(push, 1.2f))) * (za::max(s.totalMass, g.upperMass) / g.upperMass);
-    if(const float l = glm::length(acc), most = legsSlip * gz * za::min(push, 1.f); l > most)
-    {
-        acc *= most / l;
-    }
+    // (Its whole body's: on the parts its legs bear, by their mass.)
+    const glm::vec2 acc = (x - cop) * (omega * omega) * (za::max(s.totalMass, g.upperMass) / g.upperMass);
     for(int b2 = 0; b2 < p.count; b2++)
     {
         if(cut(p, b2) || (g.legParts & (1u << b2)))
@@ -1487,22 +1353,18 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     }
     if(vr_flinch_debug.value >= 4.f)
     {
-        // (Short lines: the console wraps long ones. Along / aside the hit, units, from its middle.)
-        const glm::vec2 dir{g.dir.x, g.dir.y}, side{-g.dir.y, g.dir.x};
-        const auto al = [&](const glm::vec2& v) { return glm::dot(v, dir) * p.m2u; };
-        const auto as = [&](const glm::vec2& v) { return glm::dot(v, side) * p.m2u; };
-        Con_Printf("legs: %d %.2f b%d push %.2f up %.1f v %.2f/%.2f cap %.1f/%.1f past %.1f cop %.1f/%.1f st %d/%d\n",
-            c.num, static_cast<float>(c.now - s.begun), n, push, (com.z - baseZ) * p.m2u,
-            glm::dot(glm::vec2{comVel.x, comVel.y}, dir), glm::dot(glm::vec2{comVel.x, comVel.y}, side), al(xi - x),
-            as(xi - x), past * p.m2u, al(cop - x), as(cop - x), g.stepLeg, g.steps);
-        for(int leg = 2; leg < 4; leg++)
-        {
-            const glm::vec3 f = limbEnd(s, p, leg);
-            const glm::vec2 fl = glm::vec2{f.x, f.y} - x;
-            Con_Printf("legs: %d  foot %d at %.1f/%.1f z %.1f gap %.1f floor %.1f\n", c.num, leg, al(fl), as(fl),
-                (f.z - com.z) * p.m2u, gapNow[static_cast<za::SizeT>(leg - 2)] * p.m2u,
-                (floorAt(c, f, 0.3f, f.z) - g.comZ0) * p.m2u);
-        }
+        const glm::vec2 mid = 0.5f * (a + b);
+        const glm::vec2 dir{g.dir.x, g.dir.y};
+        Con_Printf("legs: %d %.2f s, %d bearing, push %.2f, middle %.1f along %.1f up, speed %.2f along, capture %.1f along "
+                   "(%.1f past), pressure %.1f along, feet %.1f apart along %.1f, step %d (%d done), lean %.0f, legs %x, "
+                   "pose %d, off upright %.0f deg\n",
+            c.num, static_cast<float>(c.now - s.begun), n, push, glm::dot(x - mid, dir) * p.m2u, (com.z - baseZ) * p.m2u,
+            glm::dot(glm::vec2{comVel.x, comVel.y}, dir), glm::dot(xi - mid, dir) * p.m2u, past * p.m2u,
+            glm::dot(cop - mid, dir) * p.m2u, glm::length(b - a) * p.m2u, glm::dot(b - a, dir) * p.m2u, g.stepLeg, g.steps,
+            g.lean, g.legParts, pose.valid ? 1 : 0,
+            pose.valid ? glm::degrees(glm::length(ragpose::rotationVector(glm::normalize(s.turn * pose.rot[0]) *
+                                                                          glm::inverse(bodyRot(p, 0)))))
+                       : -1.f);
     }
     // Upright over its feet, as its hips and ankles hold it: the less, the farther its capture point is past their reach.
     if(pose.valid)
@@ -1522,180 +1384,6 @@ void flinchResult(const Stagger& g, const Parts& p, const Context& c, float t, c
                    "legs %d\n",
             c.num, what, t, g.steps, g.steps > 0 ? g.stepAlong / static_cast<float>(g.steps) : 0.f, g.stepWay * p.m2u,
             g.riseMost * p.m2u, g.legs ? 1 : 0);
-    }
-}
-
-// vr_flinch 2's steps (staggerFrame; FLINCH.md, "Balance from the legs"):
-// - a capture step once its capture point is past its bearing feet's reach for its centre of pressure (and it moves, or
-//   is past Foot Support): the foot put where its capture point will be as it lands (its middle running on over the
-//   other foot meanwhile), cut short past Comfy so that a stronger hit takes more steps, but never so short that the next
-//   would have to be longer (Converge: it would fall behind);
-// - a step under way follows its capture point for its first part (Replan), on to its floor there (footSpot);
-// - nearly still, its capture point over its feet, but its feet split (a backpedal's long step, a sidestep): the foot
-//   farther from where its stance has it closes the stance.
-void legsStep(Stagger& g, const State& s, const Parts& p, const Context& c, const glm::vec3& com, const glm::vec3& comVel,
-    const glm::vec3& pelvis, float footZ, int stepsCap)
-{
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    const float speed = glm::length(level(comVel));
-    const float omega = za::sqrt(za::max(c.gravity, 1.f) / za::max(com.z - footZ, 0.1f));
-    const glm::vec3 left = s.turn * glm::vec3{0.f, 1.f, 0.f};
-    const glm::vec3 middle = level(com - g.supportOffset);
-    // Its stance's split: each foot from where its stance has it round its middle (of its leg).
-    g.split = 0.f;
-    int farLeg = -1;
-    for(int leg = 2; leg < 4; leg++)
-    {
-        const auto i = static_cast<za::SizeT>(leg - 2);
-        if(limbWhole(s, p, leg) && leg != g.stepLeg)
-        {
-            const float d = glm::length(level(g.planted[i]) - (middle + g.stance[i])) / za::max(limbLength(s, p, leg), 0.05f);
-            if(d > g.split)
-            {
-                g.split = d;
-                farLeg = leg;
-            }
-        }
-    }
-    const auto otherFoot = [&](int leg) {
-        return limbWhole(s, p, 5 - leg) ? g.planted[static_cast<za::SizeT>(3 - leg)]
-                                        : glm::vec3{middle.x, middle.y, g.planted[static_cast<za::SizeT>(leg - 2)].z};
-    };
-    // A capture step's spot for `leg` landing in `left` s, the other foot bearing meanwhile: where its capture point
-    // will be then (past it a little, half its stance's width aside), cut short past Comfy; within its stride of its hip.
-    const auto spotFor = [&](int leg, float timeLeft, glm::vec3& m) {
-        const auto i = static_cast<za::SizeT>(leg - 2);
-        const int other = 5 - leg;
-        const bool two = limbWhole(s, p, other);
-        const glm::vec3 stand = two ? level(g.planted[static_cast<za::SizeT>(other - 2)]) : middle;
-        const glm::vec3 now = level(g.capture - g.supportOffset);
-        const glm::vec3 then = stand + (now - stand) * za::exp(omega * timeLeft);
-        const glm::vec3 run = then - stand;
-        const float rl = glm::length(run);
-        m = rl > 1e-3f ? run / rl : g.dir;
-        const glm::vec3 side = g.stance[i] - m * glm::dot(g.stance[i], m);
-        const float len = limbLength(s, p, leg);
-        const float along = rl + legsOvershoot * len;
-        const float cut = along > legsComfy * len && !(static_cast<int>(vr_flinch_legs_off.value) & 16) ? za::max(legsComfy * len, legsConverge * along) : along;
-        glm::vec3 to = stand + m * cut + side * 0.5f;
-        const glm::vec3 hipThen = level(pelvis) + level(comVel) * timeLeft;
-        const glm::vec3 off = to - hipThen;
-        if(const float offL = glm::length(off); offL > legsStride * len)
-        {
-            to = hipThen + off * (legsStride * len / offL);
-        }
-        return to;
-    };
-    // A step under way follows its capture point a while (a capture step's).
-    if(g.stepLeg >= 0)
-    {
-        const float u = static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f);
-        if(!g.closing && u < legsReplan && !(static_cast<int>(vr_flinch_legs_off.value) & 8))
-        {
-            glm::vec3 m{0.f};
-            const glm::vec3 to = spotFor(g.stepLeg, g.stepTime * (1.f - u), m);
-            const float len = limbLength(s, p, g.stepLeg);
-            g.stepB = glm::mix(g.stepB, footSpot(g, c, to, len, pelvis.z, pelvis.z - g.pelvisOver - 0.3f * len - g.restGap,
-                                            otherFoot(g.stepLeg)), 0.5f);
-        }
-        return;
-    }
-    if(g.steps >= stepsCap || g.bearing == 0)
-    {
-        return;
-    }
-    // A foot off the floor while the other bears (hanging over a stair's step below as struck, or left behind) is put
-    // down where its leg reaches it (footSpot), unless its pelvis is going up (struck up).
-    int hanging = -1;
-    for(int leg = 2; leg < 4; leg++)
-    {
-        const auto i = static_cast<za::SizeT>(leg - 2);
-        const int other = 5 - leg;
-        if(limbWhole(s, p, leg) && !g.bears[i] && limbWhole(s, p, other) && g.bears[static_cast<za::SizeT>(other - 2)])
-        {
-            hanging = leg;
-        }
-    }
-    const bool capture = g.captureOff > legsStepPast && (speed > legsStepSpeed || g.captureOff > g.footR);
-    // (Only as struck: a foot left behind by a step lifts its heel, it is not hanging.)
-    const bool settle = !capture && hanging >= 0 && glmv(b3Body_GetLinearVelocity(p.body[0])).z < 0.3f && g.steps == 0 &&
-                        static_cast<float>(c.now - s.begun) < 0.4f;
-    const bool closing = !capture && !settle && g.bearing == 2 && farLeg >= 0 && g.split > legsClose && speed < 0.5f && !(static_cast<int>(vr_flinch_legs_off.value) & 32);
-    if(!capture && !closing && !settle)
-    {
-        return;
-    }
-    // (Quicker steps the faster it goes, and the farther it leans.)
-    float stepTime = za::clamp(staggerStepTime - 0.05f * speed - 0.004f * za::max(g.lean - staggerSteady, 0.f),
-        staggerStepQuickest, staggerStepTime);
-    int best = -1;
-    glm::vec3 bestTo{0.f};
-    if(settle)
-    {
-        best = hanging;
-        bestTo = level(g.planted[static_cast<za::SizeT>(hanging - 2)]);
-        stepTime = staggerStepQuickest;
-    }
-    else if(closing)
-    {
-        best = farLeg;
-        bestTo = middle + g.stance[static_cast<za::SizeT>(farLeg - 2)];
-        stepTime = staggerStepTime;
-    }
-    else
-    {
-        // Each foot's capture step, the other bearing meanwhile. Not across the other foot (a sidestep, not a cross-over);
-        // of those, the foot farther from its spot (a backpedal's feet take turns), the leading foot first (a sidestep:
-        // the foot on the side it goes).
-        float bestD = -1e30f;
-        for(int leg = 2; leg < 4; leg++)
-        {
-            const auto i = static_cast<za::SizeT>(leg - 2);
-            const int other = 5 - leg;
-            const bool two = limbWhole(s, p, other);
-            if(!limbWhole(s, p, leg) || (two && !g.bears[static_cast<za::SizeT>(other - 2)] && g.bears[i]))
-            {
-                continue; // (its other foot not on the floor: this one stays)
-            }
-            glm::vec3 m{0.f};
-            const glm::vec3 to = spotFor(leg, stepTime, m);
-            const float len = limbLength(s, p, leg);
-            const glm::vec3 otherAt = level(g.planted[static_cast<za::SizeT>(two ? other - 2 : leg - 2)]);
-            const float was = glm::dot(level(g.planted[i]) - otherAt, left);
-            const bool crosses = two && was * glm::dot(to - otherAt, left) < 0.f &&
-                                 za::abs(glm::dot(to - otherAt, left)) > 0.05f * len;
-            const float sl = glm::length(g.stance[i]);
-            const float lead = sl > 1e-3f ? glm::dot(g.stance[i] / sl, m) : 0.f;
-            const float d = glm::length(level(g.planted[i]) - to) + 0.3f * len * lead - (crosses ? 1e3f : 0.f);
-            if(d > bestD)
-            {
-                bestD = d;
-                best = leg;
-                bestTo = to;
-            }
-        }
-    }
-    if(best < 0)
-    {
-        return;
-    }
-    const auto i = static_cast<za::SizeT>(best - 2);
-    const float len = limbLength(s, p, best);
-    const glm::vec3 from = g.planted[i];
-    const glm::vec3 to = footSpot(g, c, bestTo, len, pelvis.z, pelvis.z - g.pelvisOver - 0.3f * len - g.restGap,
-        otherFoot(best));
-    g.stepLeg = best;
-    g.closing = closing || settle;
-    g.stepFrom = c.now;
-    g.stepTime = stepTime;
-    g.stepA = from;
-    g.stepB = to;
-    if(vr_flinch_debug.value >= 4.f)
-    {
-        const glm::vec3 w = (to - from) * p.m2u;
-        Con_Printf("legs: %d %s %d: %.1f along %.1f aside %.1f up in %.2f s\n", c.num,
-            settle ? "settle" : closing ? "close" : "step", best,
-            glm::dot(w, g.dir), glm::dot(w, glm::cross(up, g.dir)), w.z, stepTime);
     }
 }
 
@@ -1765,10 +1453,75 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         const int stepsCap = g.giveAfter >= 0 ? g.giveAfter
                                               : g.stepsMost + (g.lean > staggerSteady ? staggerCatchSteps : 0) +
                                                     (g.flinch ? flinchExtraSteps : 0);
-        // vr_flinch 2: its own steps (legsStep).
-        if(g.legs)
+        // vr_flinch 2: a step once its capture point is past its bearing feet's reach for its centre of pressure, the
+        // foot put where its stance has it round where its capture point will be as it lands (its middle running on
+        // over the other foot meanwhile), within its stride.
+        // (Nearly still and only a little past: its ankles settle it; no stepping in place.)
+        if(g.legs && g.stepLeg < 0 && g.steps < stepsCap && g.bearing > 0 && g.captureOff > legsStepPast &&
+           (glm::length(level(comVel)) > legsStepSpeed || g.captureOff > g.footR))
         {
-            legsStep(g, s, p, c, com, comVel, pelvis, footZ, stepsCap);
+            const float h = za::max(com.z - footZ, 0.1f);
+            const float omega = za::sqrt(za::max(c.gravity, 1.f) / h);
+            const float stepTime = za::clamp(staggerStepTime - 0.03f * glm::length(level(comVel)) -
+                                                 0.004f * za::max(g.lean - staggerSteady, 0.f),
+                staggerStepQuickest, staggerStepTime);
+            // Each foot's step: to its capture point as it lands (past it a little, half its stance's width aside),
+            // the other foot bearing meanwhile. Not across the other foot (a sidestep, not a cross-over); of those, the
+            // foot farther from its spot (a backpedal's feet take turns).
+            const glm::vec3 left = s.turn * glm::vec3{0.f, 1.f, 0.f};
+            int best = -1;
+            float bestD = -1.f;
+            glm::vec3 bestTo{0.f};
+            for(int leg = 2; leg < 4; leg++)
+            {
+                const auto i = static_cast<za::SizeT>(leg - 2);
+                if(!limbWhole(s, p, leg))
+                {
+                    continue;
+                }
+                const int other = 5 - leg;
+                const bool two = limbWhole(s, p, other);
+                const glm::vec3 otherAt = level(g.planted[static_cast<za::SizeT>(two ? other - 2 : i)]);
+                const glm::vec3 stand = two ? otherAt : level(com - g.supportOffset);
+                const glm::vec3 now = level(g.capture - g.supportOffset);
+                const glm::vec3 then = stand + (now - stand) * za::exp(omega * stepTime);
+                const glm::vec3 run = then - stand;
+                const float rl = glm::length(run);
+                const glm::vec3 m = rl > 1e-3f ? run / rl : g.dir;
+                const glm::vec3 side = g.stance[i] - m * glm::dot(g.stance[i], m);
+                const float len = limbLength(s, p, leg);
+                const glm::vec3 to = then + m * (legsOvershoot * len) + side * 0.5f;
+                const float was = glm::dot(level(g.planted[i]) - otherAt, left);
+                const bool crosses = two && was * glm::dot(to - otherAt, left) < 0.f &&
+                                     za::abs(glm::dot(to - otherAt, left)) > 0.05f * len;
+                const float d = glm::length(level(g.planted[i]) - to) - (crosses ? 1e3f : 0.f);
+                if(d > bestD)
+                {
+                    bestD = d;
+                    best = leg;
+                    bestTo = to;
+                }
+            }
+            if(best >= 0)
+            {
+                const auto i = static_cast<za::SizeT>(best - 2);
+                const float len = limbLength(s, p, best);
+                glm::vec3 to = bestTo;
+                const glm::vec3 hipThen = level(pelvis) + level(comVel) * stepTime;
+                const glm::vec3 off = to - hipThen;
+                const float offL = glm::length(off);
+                if(offL > legsStride * len)
+                {
+                    to = hipThen + off * (legsStride * len / offL);
+                }
+                const glm::vec3 from = g.planted[i];
+                to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
+                g.stepLeg = best;
+                g.stepFrom = c.now;
+                g.stepTime = stepTime;
+                g.stepA = g.planted[i];
+                g.stepB = to;
+            }
         }
         if(!g.legs && g.stepLeg < 0 && g.steps < stepsCap)
         {
@@ -1862,9 +1615,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         {
             // A flinch: handed back only once balanced (the recovery test held a moment), else over at its most.
             // (Beaten, past its balance's edge: no recovery; it gives way after its steps, above.)
-            // (vr_flinch 2: not with its feet split while it has steps left: it closes its stance first, legsStep.)
-            const bool steady = flinchSteady(g, s, p, c, com, comVel, pose) && t >= g.flinchMin && g.giveAfter < 0 &&
-                                !(g.legs && g.split > legsClose && g.steps < stepsCap);
+            const bool steady = flinchSteady(g, s, p, c, com, comVel, pose) && t >= g.flinchMin && g.giveAfter < 0;
             g.stableFor = steady ? g.stableFor + c.dt : 0.f;
             // At its most, settled though the strict test never held (its middle a little off its feet's support, a
             // bigger rig's stance): still, its middle over its feet within the stagger's steady lean, not bent far, on
@@ -1973,50 +1724,31 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         r.from = pose.valid ? glm::normalize(s.turn * pose.rot[0]) : r.from;
         g.planted[i] = leg == g.stepLeg || g.legs ? g.planted[i] : limbEnd(s, p, leg);
         r.goal = g.planted[i];
-        // (vr_flinch 2: a bearing foot's end kept on its spot, as the floor's friction would: its shin pivots about it as
-        // its body runs on over it, not sliding off a stair's step.)
-        if(g.legs && leg != g.stepLeg && g.bears[i] && g.outcome != Outcome::Fell && !(static_cast<int>(vr_flinch_legs_off.value) & 1))
-        {
-            const int lo = s.chain[static_cast<za::SizeT>(leg)][1];
-            const glm::vec3 end = limbEnd(s, p, leg);
-            const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[lo]));
-            const glm::vec3 vEnd = v + glm::cross(glmv(b3Body_GetAngularVelocity(p.body[lo])),
-                                                  end - glmv(b3Body_GetWorldCenter(p.body[lo])));
-            glm::vec3 want = level(g.planted[i] - end) / 0.06f;
-            if(const float l = glm::length(want); l > 1.f)
-            {
-                want *= 1.f / l;
-            }
-            b3Body_SetLinearVelocity(p.body[lo], b3v(v + (want - level(vEnd)) * legsGrip));
-        }
         if(leg == g.stepLeg)
         {
             const float len = limbLength(s, p, leg);
             const float u = za::clamp(static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f), 0.f, 1.f);
-            r.goal = g.legs ? swingAt(g, len, u)
-                            : glm::mix(g.stepA, g.stepB, smooth01(u)) + up * (0.12f * len * za::sin(3.14159265f * u));
+            r.goal = glm::mix(g.stepA, g.stepB, smooth01(u)) + up * (0.12f * len * za::sin(3.14159265f * u));
             // (vr_flinch 2: the foot carried along its way, its shin and thigh moved with it: its joints' springs alone
             // left it short of its spot, and a step that lands short catches nothing.)
             if(g.legs)
             {
                 const float u2 = za::min(u + c.dt / za::max(g.stepTime, 0.05f), 1.f);
-                const glm::vec3 next = swingAt(g, len, u2);
+                const glm::vec3 next = glm::mix(g.stepA, g.stepB, smooth01(u2)) + up * (0.12f * len * za::sin(3.14159265f * u2));
                 glm::vec3 want = (next - limbEnd(s, p, leg)) / za::max(c.dt, 1e-3f);
                 if(const float l = glm::length(want); l > legsSwingMost)
                 {
                     want *= legsSwingMost / l;
                 }
-                // (Its hip's doing: the leg's push back on its body, its whole body's motion kept; with its other foot
-                // on the floor, that foot's grip takes the level part of it.)
+                // (Its hip's doing: the leg's push back on its body, its whole body's motion kept.)
                 glm::vec3 moved{0.f};
-                const bool held = g.bears[static_cast<za::SizeT>(3 - leg)] && !(static_cast<int>(vr_flinch_legs_off.value) & 2);
                 for(int j = 0; j < 2; j++)
                 {
                     const int b = s.chain[static_cast<za::SizeT>(leg)][static_cast<za::SizeT>(j)];
                     const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[b]));
                     const glm::vec3 dv = (want * (j == 0 ? 0.5f : 1.f) - v) * legsSwingGrip;
                     b3Body_SetLinearVelocity(p.body[b], b3v(v + dv));
-                    moved += (held ? glm::vec3{0.f, 0.f, dv.z} : dv) * b3Body_GetMass(p.body[b]);
+                    moved += dv * b3Body_GetMass(p.body[b]);
                 }
                 for(int b = 0; b < p.count; b++)
                 {
@@ -2030,8 +1762,6 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             {
                 g.planted[i] = g.stepB;
                 g.stepLeg = -1;
-                g.closing = false;
-                g.bears[i] = g.legs; // (landed: it bears from now; legsStep's next step is the other foot's)
                 g.steps++;
                 const glm::vec3 way = level(g.stepB - g.stepA);
                 const float wl = glm::length(way);

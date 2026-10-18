@@ -251,7 +251,8 @@ float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw =
 //   blow (30 damage), 6 a blow to the head (30), 7 a blast 48 units before it (60 damage), 8 a 12 kg crate at 10 m/s;
 //   9 a shotgun blast on every live monster within 1024 units (the crowd); 10 an uppercut (35 damage to the chin);
 //   vr_flinch_test_yaw: the hits' way (the test grunt faces it); vr_flinch_test_dist: the shotguns' falloff distance;
-//   20 a grunt put at vr_flinch_test_x, _y, _z facing him; 21 ten grunts in two rows of five 160 units ahead.
+//   20 a grunt put at vr_flinch_test_x, _y, _z facing him; 21 ten grunts in two rows of five 160 units ahead
+//   (vr_flinch_test_class: the monster, 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 zombie).
 // ----------------------------------------------------------------------------
 
 entity(entity pl) VR_Flinch_TestTarget =
