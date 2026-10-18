@@ -594,6 +594,200 @@ void releaseRagdoll(edict_t* player, int hand, const glm::vec3& velocity)
             glm::length(glmv(b3Body_GetLinearVelocity(part))) * world->m2u, speed * world->m2u);
     }
 }
+// ---- The physgun's hold (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll) ----
+// The toolgun's physgun drags a ragdoll as a hand holds a limb, not by its entity's origin (moved, the body would be
+// set there whole each frame it strayed 32 units from it: feedRagdoll's teleport, the jitter and jumps of his note
+// 2026-10-18): a kinematic anchor at the beam's point, driven to it each step (b3Body_SetTargetTransform: a velocity,
+// never set), and a motor joint from it to the point of the part the beam met. Its spring is linear only (at most
+// vr_toolgun_physgun_ragdoll_force times the ragdoll's weight): the part turns freely about that point, the rest of the
+// body hangs from it and swings. Its hold is a RagdollGrab of player 0 (no hand): an active ragdoll's drive gives that
+// part no strength as for a hand's; the struggles, the hands' drawing and QC's ragdollheld pass it by. At most one.
+
+constexpr float physgunHertz = 6.f;      // the spring's rate (Hz), critically damped, as on the whole body's mass
+constexpr float physgunHertzMost = 30.f; // (Box3D's substeps at 288 Hz: well under a quarter of that)
+
+[[nodiscard]] int physgunIndex()
+{
+    for(int i = 0; i < static_cast<int>(world->ragdollGrabs.size()); i++)
+    {
+        if(world->ragdollGrabs[static_cast<za::SizeT>(i)].player == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+[[nodiscard]] float ragdollMass(const RagdollBodies& r)
+{
+    float mass = 0.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        mass += partCut(r, b) ? 0.f : b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
+    }
+    return mass;
+}
+
+// The spring's most force on `r` (N).
+[[nodiscard]] float physgunForce(const RagdollBodies& r)
+{
+    return ragdollMass(r) * za::max(-b3World_GetGravity(world->id).z, 1.f) *
+           za::max(vr_toolgun_physgun_ragdoll_force.value, 0.f);
+}
+
+// The spring's rate on part `part` of `r` (Hz). Box3D's soft spring is as stiff as for the part's own mass: a forearm
+// (2 of a grunt's 80 kg) at physgunHertz hung 40 units under its target with the body on it. Its rate is raised by the
+// root of the body's mass over the part's, so it pulls as on the whole body at physgunHertz (at most physgunHertzMost).
+[[nodiscard]] float physgunSpringHertz(const RagdollBodies& r, int part)
+{
+    const float own = za::max(b3Body_GetMass(r.body[static_cast<za::SizeT>(part)]), 0.01f);
+    return za::min(physgunHertz * za::sqrt(za::max(ragdollMass(r) / own, 1.f)), physgunHertzMost);
+}
+
+// Before the step: the anchor to its target. False: the hold is over (the ragdoll gone, its part cut off).
+[[nodiscard]] bool physgunFrame(World::RagdollGrab& g, float dt)
+{
+    const RagdollBodies* r = ragdollOf(g.num);
+    if(!r || g.part < 0 || g.part >= r->count || partCut(*r, g.part) || B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) ||
+        B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
+    {
+        return false;
+    }
+    b3MotorJoint_SetMaxSpringForce(g.joint, physgunForce(*r));
+    b3MotorJoint_SetLinearHertz(g.joint, physgunSpringHertz(*r, g.part)); // (a part cut off: lighter)
+    b3Body_SetTargetTransform(g.anchor, b3WorldTransform{world->toM(g.target), b3Quat_identity}, za::max(dt, 1e-4f), true);
+    for(int b = 0; b < r->count; b++)
+    {
+        b3Body_SetAwake(r->body[static_cast<za::SizeT>(b)], true);
+    }
+    return true;
+}
+
+// The part of `r` the beam from `from` along `dir` (unit) meets first within `range` units, and the point (metres);
+// -1 if none.
+[[nodiscard]] int physgunRay(const RagdollBodies& r, const glm::vec3& from, const glm::vec3& dir, float range, b3Vec3& point)
+{
+    int best = -1;
+    float nearest = 1.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(partCut(r, b))
+        {
+            continue;
+        }
+        za::Array<b3ShapeId, maxBodyShapes> shapes;
+        const int n = b3Body_GetShapes(r.body[static_cast<za::SizeT>(b)], shapes.data(), static_cast<int>(shapes.size()));
+        for(int i = 0; i < n; i++)
+        {
+            const b3WorldCastOutput out = b3Shape_RayCast(shapes[i], world->toM(from), world->toM(dir * range));
+            if(out.hit && out.fraction < nearest)
+            {
+                nearest = out.fraction;
+                best = b;
+                point = out.point;
+            }
+        }
+    }
+    return best;
+}
+
+bool physgunGrab(int num, const glm::vec3& from, const glm::vec3& dir, float range, const glm::vec3& fallback, int& partOut,
+    float& distance)
+{
+    RagdollBodies* r = ragdollOf(num);
+    if(!r || r->count <= 0)
+    {
+        return false;
+    }
+    if(const int old = physgunIndex(); old >= 0)
+    {
+        endGrab(old);
+    }
+    b3Vec3 point{};
+    int part = physgunRay(*r, from, dir, range, point);
+    if(part < 0)
+    {
+        // (Its box met, not a part: the part nearest that point, held at its surface's point nearest it.)
+        float d = 0.f;
+        part = nearestPart(*r, fallback, d);
+        if(part < 0)
+        {
+            return false;
+        }
+        (void)b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(part)], &point, world->toM(fallback));
+    }
+    const glm::vec3 grip = world->toU(point);
+    const b3BodyId body = r->body[static_cast<za::SizeT>(part)];
+    World::RagdollGrab g;
+    g.player = 0;
+    g.hand = -1;
+    g.num = num;
+    g.part = part;
+    g.target = grip;
+    b3BodyDef def = b3DefaultBodyDef();
+    def.type = b3_kinematicBody;
+    def.position = point;
+    g.anchor = b3CreateBody(world->id, &def);
+    b3MotorJointDef jd = b3DefaultMotorJointDef();
+    jd.base.bodyIdA = g.anchor;
+    jd.base.bodyIdB = body;
+    jd.base.localFrameA = b3Transform{b3Vec3_zero, b3Quat_identity};
+    jd.base.localFrameB = b3Transform{b3Body_GetLocalPoint(body, point), b3Quat_identity};
+    jd.base.collideConnected = false;
+    jd.linearVelocity = b3Vec3_zero;
+    jd.angularVelocity = b3Vec3_zero;
+    jd.maxVelocityForce = 0.f;
+    jd.maxVelocityTorque = 0.f;
+    jd.linearHertz = physgunSpringHertz(*r, part);
+    jd.linearDampingRatio = 1.f;
+    jd.maxSpringForce = physgunForce(*r);
+    jd.angularHertz = 0.f; // (no turn: it hangs from the point)
+    jd.maxSpringTorque = 0.f;
+    g.joint = b3CreateMotorJoint(world->id, &jd);
+    world->ragdollGrabs.pushBack(g);
+    for(int b = 0; b < r->count; b++)
+    {
+        b3Body_SetAwake(r->body[static_cast<za::SizeT>(b)], true);
+    }
+    partOut = part;
+    distance = glm::dot(grip - from, dir);
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d part %d (%s) taken by the physgun %.0f units off\n", num, part, r->rig->bones[part].name, distance);
+    }
+    return true;
+}
+
+void physgunRelease(const glm::vec3& velocity)
+{
+    const int index = physgunIndex();
+    if(index < 0)
+    {
+        return;
+    }
+    const World::RagdollGrab g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
+    endGrab(index);
+    const RagdollBodies* r = ragdollOf(g.num);
+    if(!r || g.part >= r->count || partCut(*r, g.part))
+    {
+        return;
+    }
+    // (As a hand's throw: its speed along the beam's swing at least that.)
+    const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
+    const glm::vec3 v = glmv(world->toM(velocity));
+    const glm::vec3 now = glmv(b3Body_GetLinearVelocity(part));
+    const float speed = glm::length(v);
+    if(speed > 0.01f)
+    {
+        const glm::vec3 way = v / speed;
+        const float along = glm::dot(now, way);
+        if(along < speed)
+        {
+            b3Body_SetLinearVelocity(part, b3v(now + way * (speed - along)));
+        }
+    }
+    b3Body_SetAwake(part, true);
+}
 } // namespace
 
 // Before the step: each hold's body to its hand (a hold whose limb stays far from the hand is let go of: QC sees it
@@ -603,6 +797,14 @@ void syncRagdollGrabs(float dt)
     for(int i = static_cast<int>(world->ragdollGrabs.size()) - 1; i >= 0; i--)
     {
         World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(i)];
+        if(g.player == 0)
+        {
+            if(!physgunFrame(g, dt))
+            {
+                endGrab(i);
+            }
+            continue;
+        }
         edict_t* player = g.player < qcvm->num_edicts ? EDICT_NUM(g.player) : nullptr;
         const RagdollBodies* r = ragdollOf(g.num);
         if(!player || player->free || player->v.health <= 0.f || !svs.clients[g.player - 1].active || !r || g.part >= r->count ||
@@ -768,6 +970,45 @@ void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity)
     {
         releaseRagdoll(player, hand, velocity);
     }
+}
+
+bool physgunRagdollGrab(int num, const glm::vec3& from, const glm::vec3& dir, float range, const glm::vec3& fallback, int& part,
+    float& distance)
+{
+    return world && physgunGrab(num, from, dir, range, fallback, part, distance);
+}
+
+bool physgunRagdollMove(const glm::vec3& target)
+{
+    const int index = world ? physgunIndex() : -1;
+    if(index < 0)
+    {
+        return false;
+    }
+    world->ragdollGrabs[static_cast<za::SizeT>(index)].target = target;
+    return true;
+}
+
+void physgunRagdollRelease(const glm::vec3& velocity)
+{
+    if(world)
+    {
+        physgunRelease(velocity);
+    }
+}
+
+bool physgunRagdollPoints(glm::vec3& grip, glm::vec3& root)
+{
+    const int index = world ? physgunIndex() : -1;
+    const World::RagdollGrab* g = index >= 0 ? &world->ragdollGrabs[static_cast<za::SizeT>(index)] : nullptr;
+    const RagdollBodies* r = g ? ragdollOf(g->num) : nullptr;
+    if(!r || g->part >= r->count || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint))
+    {
+        return false;
+    }
+    grip = world->toU(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(g->part)], b3Joint_GetLocalFrameB(g->joint).p));
+    root = world->toU(b3Body_GetWorldCenter(r->body[0]));
+    return true;
 }
 
 int ragdollHeld(edict_t* player, int hand)

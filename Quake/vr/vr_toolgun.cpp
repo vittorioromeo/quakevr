@@ -239,6 +239,12 @@ struct Drag
 {
     int num{0};
     bool prop{false};      // a rigid prop: pinned while held (its body follows)
+    // A ragdoll (vr_toolgun_physgun_ragdoll): held by a spring on its part `part` the beam hit (box3d's
+    // physgunRagdollGrab), its entity left alone; the sticks move it, nothing turns it. Else (0) its entity moved, as a
+    // monster's (the old way: its body set where the entity is whenever it strays, a jump; tests).
+    bool ragdoll{false};
+    int part{-1};
+    double since{0.0};     // (tests) when it was taken (vr_toolgun_status: its time)
     float distance{0.f};   // along the beam to the grab point
     glm::vec3 offset{0.f}; // the entity's origin from the grab point, as taken
     glm::vec3 angles{0.f}; // its angles as taken
@@ -844,9 +850,25 @@ void dragStart(int num)
     d.handYaw = tg.handRot.y;
     d.handTurn = 0.f;
     d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
+    d.since = qcvm->time;
     if(d.prop)
     {
         box3d::setPinned(num, true);
+    }
+    else if(box3d::isRagdoll(num))
+    {
+        d.part = box3d::ragdollBone(num, grab); // (the old way's: the part nearest, for vr_toolgun_status)
+        float along = 0.f;
+        if(vr_toolgun_physgun_ragdoll.value != 0.f &&
+            box3d::physgunRagdollGrab(num, tg.aim.from, tg.aim.dir, tg.aim.worldDistance, grab, d.part, along))
+        {
+            d.ragdoll = true;
+            d.distance = za::max(along, 16.f);
+            d.last = tg.aim.from + tg.aim.dir * d.distance;
+        }
+        Con_Printf("toolgun: physgun holds %d %s's ragdoll by part %d %s at %.0f units\n", num, PR_GetString(e->v.classname),
+            d.part, d.ragdoll ? "on a spring" : "by its origin", d.distance);
+        return;
     }
     Con_Printf("toolgun: physgun holds %d %s at %.0f units\n", num, PR_GetString(e->v.classname), d.distance);
 }
@@ -860,6 +882,17 @@ void dragEnd(bool freeze)
         return;
     }
     edict_t* e = EDICT_NUM(d.num);
+    if(d.ragdoll)
+    {
+        // Let go: the spring gone, the held part keeps the beam's swing (its entity was never moved).
+        glm::vec3 v = d.velocity;
+        const float speed = glm::length(v);
+        v *= speed > 1000.f ? 1000.f / speed : 1.f;
+        box3d::physgunRagdollRelease(v);
+        Con_Printf("toolgun: physgun let go of %d %s's ragdoll at %.0f u/s\n", d.num, PR_GetString(e->v.classname), glm::length(v));
+        d = {};
+        return;
+    }
     e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) & ~FL_ONGROUND);
     if(d.prop && freeze)
     {
@@ -904,6 +937,28 @@ void dragFrame(float dt)
     glm::vec3 fwd, right;
     levelAxes(tg.aim.dir, fwd, right);
     const glm::vec3 grab = tg.aim.from + tg.aim.dir * za::max(d.distance, 16.f);
+    const auto follow = [dt](const glm::vec3& to) {
+        Drag& d = tg.drag;
+        if(dt > 0.f)
+        {
+            const glm::vec3 v = (to - d.last) / dt;
+            d.velocity += (v - d.velocity) * za::min(1.f, dt * 12.f);
+        }
+        d.last = to;
+    };
+    if(d.ragdoll)
+    {
+        // A ragdoll: its spring's target the beam's point (the sticks' moves on it); nothing turns it.
+        const glm::vec3 to = grab + right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
+        if(!box3d::physgunRagdollMove(to))
+        {
+            Con_Printf("toolgun: physgun lost %d (its ragdoll gone)\n", d.num);
+            d = {};
+            return;
+        }
+        follow(to);
+        return;
+    }
     // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees; let go, the snap is kept (baked into the turn).
     const float step = tg.adjust ? vr_toolgun_snap.value : 0.f;
     if(step <= 0.f && d.snapped)
@@ -979,12 +1034,7 @@ void dragFrame(float dt)
         e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) | FL_ONGROUND); // (held up: no fall while held)
     }
     SV_LinkEdict(e, false);
-    if(dt > 0.f)
-    {
-        const glm::vec3 v = (to - d.last) / dt;
-        d.velocity += (v - d.velocity) * za::min(1.f, dt * 12.f);
-    }
-    d.last = to;
+    follow(to);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2354,6 +2404,18 @@ void status_f()
         edict_t* e = EDICT_NUM(tg.drag.num);
         Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f), angles %.1f %.1f %.1f\n", tg.drag.num,
             e->v.origin[0], e->v.origin[1], e->v.origin[2], tg.drag.distance, e->v.angles[0], e->v.angles[1], e->v.angles[2]);
+        if(tg.drag.part >= 0)
+        {
+            // (A ragdoll's held part's and root part's places, either way it is held: the physgun ragdoll test's jitter.)
+            const glm::vec3 p = box3d::ragdollPoint(tg.drag.num, tg.drag.part, glm::vec3{0.f}, true);
+            const glm::vec3 root = box3d::ragdollPoint(tg.drag.num, 0, glm::vec3{0.f}, true);
+            const glm::vec3& to = tg.drag.last;
+            glm::vec3 grip{0.f}, r0{0.f};
+            const float lag = tg.drag.ragdoll && box3d::physgunRagdollPoints(grip, r0) ? glm::distance(grip, to) : -1.f;
+            Con_Printf("toolgun: rag %s %.3f %d %.2f %.2f %.2f r %.2f %.2f %.2f g %.2f %.2f %.2f e %.1f\n",
+                tg.drag.ragdoll ? "spring" : "origin", qcvm->time - tg.drag.since, tg.drag.part, p.x, p.y, p.z, root.x, root.y,
+                root.z, to.x, to.y, to.z, lag);
+        }
     }
     if(tg.gizmo.num)
     {

@@ -92,7 +92,10 @@ walk with one and turn with the other as ever, and its ghost is held by the hand
   it more (no button; you neither walk nor turn until you let go), and A / X held snaps its angles to
   `vr_toolgun_snap` degree steps (15; the snapped angles stay when A / X is let go). A monster or a pickup only turns about the up
   axis, as the hand's way turns. The other hand's trigger freezes a prop where it is (it stays, others land on it); grab
-  a frozen prop again and it falls when let go. Unfreeze Everything.
+  a frozen prop again and it falls when let go. Unfreeze Everything. A ragdoll (a corpse, a knocked-down monster) is
+  held by a spring on the part the beam hit, at that point (`vr_toolgun_physgun_ragdoll`, its pull
+  `vr_toolgun_physgun_ragdoll_force` times its weight): the rest of the body hangs from it and swings; the sticks move
+  it, nothing turns it; let go, the part keeps the beam's swing.
 - **Scale.** A physics prop's box is drawn with handles: cyan on its faces, white on its corners. Aim at one (it turns
   orange), hold the trigger and pull or push: the prop grows or shrinks about its middle. Proportional on (the default)
   scales it whole; off, a face handle stretches it along that face's axis alone (corners always whole). A / X held, the
@@ -130,6 +133,8 @@ walk with one and turn with the other as ever, and its ghost is held by the hand
 | `vr_toolgun_menu_up`, `_forward`, `_tilt` | 4, 2, 20 | the panel's bottom edge over the controller, ahead of it, its lean back (degrees) |
 | `vr_toolgun_laser_size` | 0.3 | the other hand's laser at the panel: its width and its spot, times the menus' laser's |
 | `vr_toolgun_physgun_wrist` | 1 | what the physgun holds turns with the hand (0: only the sticks turn it) |
+| `vr_toolgun_physgun_ragdoll` | 1 | a ragdoll held by a spring on the part hit (0: its entity dragged, the old jittery way) |
+| `vr_toolgun_physgun_ragdoll_force` | 4 | that spring's most pull, times the ragdoll's weight |
 | `vr_toolgun_snap` | 15 | A / X held, what the physgun holds turns in steps of this many degrees (0 never) |
 | `vr_toolgun_screen_scale`, `_up` | 0.02, 3.2 | the gun's little screen (the tool's name): its letters, its height over the hand; 0 none |
 

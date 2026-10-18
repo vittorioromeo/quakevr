@@ -12666,3 +12666,52 @@ its barrels (the limb models are built once). A Freddie-derived SNG model was no
 To try in VR: pick up a crossbow (ad_tfuma, or toolgun 325): it should sit as he posed it; then nudge Pitch, Yaw and
 Roll in Weapon Offsets (slot 33): each should turn it as it turns the shotgun. Cut a Freddie's left arm (a blade on the
 corpse, or `vr_ad_test 95`): a super nailgun falls there; take it.
+## The physgun on ragdolls (worktree `gorefx`, branch `agent/physgunrag`, 2026-10-18)
+
+His note: "The physgun toolgun doesn't work properly on ragdolls: rather than moving them naturally, they jitter and
+seem to teleport around."
+
+**Cause.** The physgun moved a ragdoll as it moves a monster: its entity's origin and angles set every frame (and
+FL_ONGROUND, a zero velocity). A ragdoll's entity is written back from its pelvis after every Box3D step
+(writeRagdoll), and feedRagdoll takes an origin moved more than 32 units from the body as a QC teleport: every part
+`b3Body_SetTransform`ed by the difference. So the body sagged or lagged behind the beam's point until it was 32 units
+off, then jumped there whole, frame after frame: the jitter and the teleports.
+
+**Fix** (vr_toolgun.cpp `dragStart`, `dragFrame`, `dragEnd`; vr_box3d_ragparts.cpp, "The physgun's hold"; box3d's
+`physgunRagdollGrab`, `physgunRagdollMove`, `physgunRagdollRelease`, `physgunRagdollPoints`): a ragdoll is held as a
+hand holds a limb. The beam is ray-cast against the ragdoll's parts' shapes (the first it meets; none: the part nearest
+the box's point, at its surface); a kinematic anchor sits at that point and a motor joint pulls the part's point to it,
+linear only (the part turns freely about it: the body hangs from that point and swings), critically damped, its most
+pull `vr_toolgun_physgun_ragdoll_force` (4) times the ragdoll's weight. Each step the anchor is driven to the beam's
+point (`b3Body_SetTargetTransform`: a velocity, never set). Box3D's soft spring is as stiff as for the part's own mass,
+so a forearm (2 of a grunt's 80 kg) held at 6 Hz hung 66 units behind its target, 41 when still: its rate is raised by
+the root of the body's mass over the part's (as 6 Hz on the whole body; at most 30 Hz). The entity is left alone; the
+sticks move the point (aside, up, nearer and farther), nothing turns it; let go, the part keeps at least the beam's
+swing along it (capped at 1000 u/s, as before). The hold is a `World::RagdollGrab` of player 0 (no hand): an active
+ragdoll's drive gives that part no strength as for a hand's hold, and a knocked-down one held far from its spot slumps
+rather than getting up; the struggles, the hands' drawing and QC's `ragdollheld` pass it by; `vr_ragdoll_list 1` says
+"held by the physgun". The hold ends when the ragdoll goes (it gets up, is removed, the world is made again) and the
+physgun lets go. Props and standing monsters are dragged as before. `vr_toolgun_physgun_ragdoll 0` is the old way.
+
+Test aids: `vr_mock_hand_aim <hand> ragdoll <part>` keeps the hand aimed at that part's middle of the ragdoll nearest
+the player (-1 the nearest part, -2 its head); `vr_toolgun_status` prints a held ragdoll's part and root
+(`toolgun: rag ...`). `python Misc/quakevr/toolgun_physgun_ragdoll_test.py <agent> [--old] [--parts <part>] [--knock]`:
+vrfiringrange, a grunt killed (`--knock`: knocked down alive), his gun cleared, the physgun on part `part`, the off
+stick moving the target 64 u/s aside, then up, then 256 u/s back, then still (180 frames of 14 ms).
+
+| grunt, part | mode | held part jitter, RMS (worst) | root jitter | biggest jump a frame: part / root / target | held point behind its target, most / at the end |
+|---|---|---|---|---|---|
+| chest (dead) | before | 19.4 (68.5) | 19.6 (69.7) | 35.7 / 41.3 / 4.2 | - |
+| chest (dead) | after | 0.36 (1.16) | 0.29 (0.91) | 4.4 / 4.4 / 4.3 | 13.5 / 5.9 |
+| forearm (dead) | before | 16.5 (40.9) | 16.6 (41.8) | 35.0 / 35.0 / 4.2 | - |
+| forearm (dead) | after | 2.49 (10.3) | 0.40 (1.35) | 9.0 / 6.0 / 4.2 | 15.9 / 0.2 |
+| chest (knocked down, alive) | after | 0.44 (1.86) | 0.40 (1.10) | 4.4 / 4.5 / 4.3 | 7.5 / 5.3 |
+
+(Jitter: the second difference of the part's place frame to frame, units. Before, the old way grabs the part nearest
+the box's point, not the one aimed at: the jumps are the 32-unit teleports. After, the forearm's jitter is its own
+swing about the held point as the body is dragged by it; the target's own steps alternate 3.1 and 4.1 units a frame at
+256 u/s.) `Misc/quakevr/toolgun_panel_test.sh` (a crate held, rolled, turned and snapped; a grunt held and turned):
+PASS.
+
+In VR: grab a corpse's chest, then an arm or a leg, swing it about and throw it; grab a knocked-down grunt; a crate
+and a standing monster as before.

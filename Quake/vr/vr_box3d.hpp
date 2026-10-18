@@ -349,6 +349,17 @@ bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
+// The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll; vr_box3d_ragparts.cpp, "The physgun's
+// hold"): a spring from the beam's point to the part of edict `num`'s ragdoll the beam from `from` along `dir` (unit)
+// meets first within `range` units (none: the part nearest `fallback`), at that point; the part and the distance along the
+// beam to it out. False: not a ragdoll. Move: its target each frame (units); false, the hold is over (the ragdoll gone,
+// the part cut off, the world made again). Release: let go, the part keeps at least `velocity` (units/s) along it.
+// Points (tests): the held point and the ragdoll's root part's middle now (units); false: none held.
+bool physgunRagdollGrab(int num, const glm::vec3& from, const glm::vec3& dir, float range, const glm::vec3& fallback, int& part,
+    float& distance);
+bool physgunRagdollMove(const glm::vec3& target);
+void physgunRagdollRelease(const glm::vec3& velocity);
+bool physgunRagdollPoints(glm::vec3& grip, glm::vec3& root);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);
 [[nodiscard]] float ragdollHandReach(edict_t* player, int hand);
