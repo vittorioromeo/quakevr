@@ -181,6 +181,11 @@ float(entity e, entity xBy, vector xAt, vector xDir, float xImpulse, string xWha
 // T_DamageDeal's (before the small reaction): a shot, a nail, a missile or a blast. TRUE if it flinches.
 float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Hit =
 {
+    if(cvar_hget(cvarh_vr_flinch_debug) >= 3)
+    {
+        dprint(sprintf("flinch hit: %s take %g kind %g pellets %g flags %g health %g down %g\n", targ.classname, take, vr_hitkind,
+            vr_hitpellets, targ.flags & FL_MONSTER, targ.health, targ.vr_knockdown));
+    }
     if(take <= 0 || !VR_Flinch_On() || !(targ.flags & FL_MONSTER) || targ.health <= 0 || targ.vr_knockdown ||
        vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" || inflictor == world || attacker == world)
     {
@@ -259,6 +264,10 @@ void(entity pl, vector at) VR_Flinch_TestSpawn =
     m.angles = '0 1 0' * vectoyaw(pl.origin - at);
     m.classname = "monster_army";
     monster_army();
+    if(cvar("vr_flinch_test_health") > 0)
+    {
+        m.health = cvar("vr_flinch_test_health"); // (a test of real weapons' impulses: it lives through them)
+    }
     self = oldSelf;
 };
 
@@ -267,7 +276,9 @@ void(entity pl, entity best, float xMode) VR_Flinch_TestHit =
 {
     vector eye = pl.origin + pl.view_ofs;
     vector chest = (best.absmin + best.absmax) * 0.5 + '0 0 6';
-    vector dir = normalize(chest - eye);
+    vector dir = chest - eye;
+    dir_z = 0; // (level: a test's hit from above or below pushes it along the floor all the same)
+    dir = normalize(dir);
     float pellets = cvar("vr_flinch_test_pellets");
     entity oldSelf = self;
     self = pl;

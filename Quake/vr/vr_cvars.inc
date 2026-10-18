@@ -2694,7 +2694,7 @@ QVR_CVAR(vr_flinch_recover_tilt, "22", CVAR_ARCHIVE)      // deg: its spine tilt
 QVR_CVAR(vr_flinch_recover_slope, "35", CVAR_ARCHIVE)     // deg: each foot on ground no steeper
 QVR_CVAR(vr_flinch_foot, "0.18", CVAR_ARCHIVE)            // m: each foot's support round its end (its middle over the two and the strip between)
 QVR_CVAR(vr_flinch_blend, "0.22", CVAR_ARCHIVE)           // s: recovered, its ragdoll blends into the animation (its nearest stand or run frame) over this
-QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal
+QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal; 3: also every hit reaching it and why a class cannot
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
@@ -2920,6 +2920,7 @@ QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling gr
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
 QVR_CVAR(vr_flinch_test, "0", CVAR_NONE)              // a flinch test on the live monster nearest you (QC vr_flinch.qc: 1 shotgun, 2 super shotgun, 3 nail, 4 super nail, 5 blow, 6 head blow, 7 blast, 8 throw, 9 crowd; 20 a grunt at vr_flinch_test_x _y _z, 21 ten grunts ahead)
 QVR_CVAR(vr_flinch_test_pellets, "0", CVAR_NONE)      // the test blasts' pellets that hit (0: 6, the super shotgun's 14)
+QVR_CVAR(vr_flinch_test_health, "0", CVAR_NONE)       // vr_flinch_test 20's grunt's health (0: its own; a real weapons test's, to live through the shots)
 QVR_CVAR(vr_flinch_test_x, "0", CVAR_NONE)            // where vr_flinch_test 20 puts a grunt (units)
 QVR_CVAR(vr_flinch_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_flinch_test_z, "0", CVAR_NONE)

@@ -89,6 +89,13 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     VR_Gore_Hit(targ, inflictor, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, take);
     VR_Wound_Hit(targ, inflictor, attacker, take);
+    // VR: the flinch (vr_flinch.qc): a shot, a nail, a blast past its threshold makes it an active ragdoll a moment;
+    // begun, AD's pain below gives way to it as to a knockdown (VR_AD_PainDown). (A melee blow's and a throw's come
+    // after the damage: VR_HitStagger_Melee, _Throw.)
+    if(targ.health > 0 && VR_Flinch_Hit(targ, inflictor, attacker, take))
+    {
+        VR_AD_KdSave(targ, inflictor);
+    }
 };
 
 // A path_corner of AD's touched by one of our monsters: ours (t_movetarget) moves it on. TRUE: done.

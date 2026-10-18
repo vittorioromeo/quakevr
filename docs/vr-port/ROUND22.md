@@ -12886,3 +12886,78 @@ to a small tank on the back (over the shoulder or below the hip, visible in the 
   with Body Clone While Tweaking).
 - **Not done**: the hose doesn't collide with the world or the arms (the torso only); one-frame models (no firing
   animation, as AD's cut guns); a gun's add-ons don't change its mass or balance (the rifle's).
+## Flinch polish: the enforcer, stairs, AD's humanoids, real weapons (worktree `fastship`, branch `agent/flinch2`, 2026-10-18)
+
+- **Enforcer shuffle: fixed.**
+  - Why: its stand frame leans over its rifle. Its centre of mass sits about 3.7 units ahead of its ankles, and its
+    short legs (about 0.59 m) shrank its feet's support to 4.5 units, where a grunt's is 5.8. So the recovery test and
+    the capture-step gate kept finding it off its support, and it shuffled 8-9 steps until the 2 s settle.
+  - Now:
+    - `beginFlinch` reckons the stance frame's own centre of mass from its feet's middle (`Stagger::supportOffset`,
+      model space turned as it stands). The support, the lean and the capture-step gate all measure round it.
+    - Foot Support scales only up with leg length (`clamp(leg / 0.75, 1, 2)`).
+    - A flinch may take 4 more corrective steps once its backpedal's are spent.
+  - The enforcer now recovers in 0.32-0.52 s (1-2 steps) from a shotgun, a super shotgun or a blow, as the grunt does.
+- **Hand-back:**
+  - Pain frames are no longer candidates (an enforcer had been handed back in `painc4`).
+  - The arms' wheeling fades out after 0.12-0.32 s, so they are back by the hand-back.
+  - Gaps (mean vertex distance; the vertical part in brackets):
+
+    | case | gap |
+    |---|---|
+    | shotgun, flat floor | 0.3-0.4 units |
+    | blow, flat floor | 2.6-3.2 units |
+    | slope | 3.3 units (-3.2) for a shot, 5.3-6.3 for a blow |
+    | stairs | 15.9-16.1 units (-15.7 to -15.9) |
+
+  - The stairs gap is nearly all vertical. On these 16x16 stairs any monster box rests on the stair above (its 32-unit
+    box always spans two), while the body stands with a foot on the stair below. No stand spot at the body's own height
+    exists within 24 units; the hand-back now tries both the plain spot and the lifted one and keeps the smaller gap.
+    It is the same 16 units every walking monster's model floats at there.
+  - So the blend now also scales by the vertical gap, up to 2x (0.44 s): the root rises into the box over the blend
+    instead of popping.
+- **AD's humanoids:**
+  - Shots, nails and blasts never reached the flinch for AD's monsters: they take damage in AD's own `ad_T_Damage`.
+    `VR_AD_Hit` (vr_ad_bridge.qc) now calls `VR_Flinch_Hit`, then `VR_AD_KdSave`, so AD's pain gives way to the
+    flinch as it does to a knockdown. Blows and throws already came through `VR_HitStagger_*`.
+  - Tested in AD's start map (dispenser numbers):
+
+    | choice | monster | flinches and recovers |
+    |---|---|---|
+    | 200 | death knight | yes |
+    | 205 | guard | yes |
+    | 211, 223, 227 | AD's soldiers (rocket, grenade, plasma) | yes |
+    | 212, 217 | AD's enforcer variants | yes |
+    | 216 | fury | yes |
+    | 225 | sergeant | yes |
+    | 232 | pyro | yes |
+    | 235 | fumigator | yes |
+
+  - Every class recovers in 0.32-0.62 s; the point-blank super shotgun knocks them over, as designed. One 212 blow
+    settled at 2.0 s.
+  - The crossbow knight (202) cannot ragdoll at all (`canRagdoll` 0): it keeps the old reactions.
+- **Firm ground on AD maps:** the recovery test's ground check falls back to Quake's own trace (`Context::traceHit`).
+  Neither the physics world's ray nor its floor saw AD's start map floor, and a still soldier toppled on "ground".
+- **Real weapons through the mock** (impulse 154/155/156, the hand aimed level, `+attack`, at a grunt with 300 health):
+
+  | weapon | distance | pellets hit | impulse | expected | change of speed |
+  |---|---|---|---|---|---|
+  | shotgun | 64 | 6 | 42 N s | 6 x 7 | 0.52 m/s |
+  | shotgun | 192 | 6 | 40 N s | x0.95 falloff | |
+  | shotgun | 512 | 4 | 19 N s | 4 x 7 x 0.68 | under the threshold |
+  | super shotgun | 64 | 9 of 14 (the spread) | 108 N s | | 1.35 m/s |
+  | super shotgun | 192 | 6 | 69 N s | 6 x 12 x 0.96 | |
+  | super shotgun | 512 | 9 | 74 N s | 9 x 12 x 0.68 | |
+
+  - Nailgun: 20 N s a nail (Quake VR's nails deal more than Quake's 9). One nail is under the threshold; two in quick
+    succession sum to 31 N s, 0.39 m/s, and it flinches.
+  - Melee, his recorded takes replayed where you stand: an overhead punch to the head, 26 damage, 79 N s (= 3 x
+    damage; only 0.34 m/s of it level, since it comes down from above); a two-handed stab, 23.6 damage, 71 N s,
+    0.74 m/s. The hook punch take missed at 32 and 48 units.
+  - Every impulse matches the design's formula and falloff.
+- **Still rough:** a blow landing soon after a knockdown and get-up (the monster's pose odd: an attack frame, a wide
+  stance) still sometimes shuffles 8-11 steps and topples at 2.0-2.3 s, about 1 run in 2 of the shotgun, super
+  shotgun, blow sequence, for the grunt and the enforcer alike. Fresh hits do not.
+- `vr_flinch_debug 3` also prints every hit that reaches the flinch and why a class cannot flinch.
+  `vr_flinch_test_health` gives the test grunt more health, for the real weapons test.
+- eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs from the baseline).
