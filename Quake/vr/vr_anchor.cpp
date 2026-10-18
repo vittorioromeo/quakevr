@@ -73,7 +73,13 @@ struct Mesh
     out.rest.clear();
     out.bindings.clear();
 
-    byte* data = COM_LoadMallocFile(modelName, nullptr);
+    // (a model made as it loads, "<model>#<what>": its made file, as Mod_LoadModel has it; AD support: the AD guns' and
+    // upgraded weapons' anchors bound on them, not on their first vertex)
+    byte* data = strchr(modelName, '#') ? VR_DerivedModelFile(modelName, nullptr) : nullptr;
+    if(!data)
+    {
+        data = COM_LoadMallocFile(modelName, nullptr);
+    }
     if(!data)
     {
         return false;

@@ -135,7 +135,7 @@ za::FastNonCryptoRng rng{0x407B1ADEu}; // a fixed seed: the same embers every ru
 [[nodiscard]] float bladeShare(const qmodel_t* model)
 {
     using modelmeta::Id;
-    if(modelmeta::is(model, Id::VAxe) || modelmeta::is(model, Id::Mg3SuperAxe))
+    if(modelmeta::is(model, Id::VAxe) || modelmeta::is(model, Id::Mg3SuperAxe) || modelmeta::is(model, Id::AdVrAxe)) // (AD support)
     {
         return 0.6f; // the head (the Shadow Axe is the axe's model)
     }

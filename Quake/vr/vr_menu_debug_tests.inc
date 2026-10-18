@@ -345,6 +345,15 @@ za::Vector<Item> pageDebugTests()
         adSpawnRow(310, command("Arcane Dimensions: Widowmaker Pickup Ahead", "vr_ad_test 5")) // AD support
             .help("In an Arcane Dimensions map: a Widowmaker pickup (AD's upgrade) appears ahead of you, to take with a "
                   "hand. Arcane Dimensions: Upgrades Report then says whether you have the upgrade."),
+        adSpawnRow(309, command("Arcane Dimensions: Upgraded Weapons Ahead", "vr_ad_test 95")) // AD support
+            .help("The Shadow Axe, the Widowmaker and the Plasma Gun pickups ahead of you, as the toolgun makes them: "
+                  "drawn as their VR models (made from your AD's own view models)."),
+        adSpawnRow(309, command("Arcane Dimensions: Shadow Axe in Hand", "vr_ad_test 96")) // AD support
+            .help("The Shadow Axe in your main hand, the Widowmaker and the Plasma Gun in the hip holsters."),
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker in Hand", "vr_ad_test 97")) // AD support
+            .help("The Widowmaker in your main hand, the Shadow Axe and the Plasma Gun in the hip holsters."),
+        adSpawnRow(311, command("Arcane Dimensions: Plasma Gun in Hand", "vr_ad_test 98")) // AD support
+            .help("The Plasma Gun in your main hand, the Shadow Axe and the Widowmaker in the hip holsters."),
         adSpawnRow(300, command("Arcane Dimensions: Artifacts Ahead", "vr_physics_spawn item_artifact_jumpboots 64 -48; vr_physics_spawn item_artifact_blastbelt 64 0; vr_physics_spawn item_artifact_sharp_shooter 64 48; vr_physics_spawn item_artifact_lavashield 112 -24; vr_physics_spawn item_artifact_airtank 112 24")) // AD support
             .help("Any map, with Arcane Dimensions' data installed: its Jump Boots, Blast Belt, Sharp Shooter, Lava Shield "
                   "and Air Tank ahead of you, to walk into (the wrist gadget shows each one held and the soonest one's "
