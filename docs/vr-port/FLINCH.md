@@ -94,6 +94,9 @@ budget, the topple speeds and the hand-back, and replaces those three:
   upper body by mass): an enforcer's pelvis (6 kg under a 57 kg chest) struck by a shotgun took 7 m/s, dragged both
   legs along the hit (the bearing foot slid 21 units in 0.15 s, the body jackknifed and fell back against the hit).
   The grunt's and knight's chest jolts are under the cap (1.2x, 1.4x); the death knight's pelvis (3.4x) is capped.
+- Each planted foot's floor is traced once (as it stood, or as it landed), not every frame: a foot by a stair's edge,
+  traced again as it shifted a unit, read the step below and stopped bearing at once. A foot struck hanging (a stance
+  wider than a stair, one foot over the step below) bears where it stood, up to a leg over its floor (was 0.3 m).
 - Its weight is borne only through feet on the floor (a foot's end within 0.15 leg of its floor as it stood; with none,
   its lowest within 0.4 leg unless its pelvis is going up): a push up its legs holding its pelvis as high over its feet as
   it stood (3 Hz, critically damped, up to 1.6 weights, never pulling down). Struck up, it falls back at once.
@@ -102,7 +105,9 @@ budget, the topple speeds and the hand-back, and replaces those three:
   cannot (an inverted pendulum's acceleration on the parts above the legs).
 - A step once the capture point is 6 cm past that reach (and it moves faster than 0.25 m/s, or is past Foot Support):
   the foot lands where the capture point will be as it lands (it grows over the other foot meanwhile), 0.1 leg past
-  it, half its stance's width aside, within 0.75 leg of the hip, never across the other foot. The swing foot is carried
+  it, half its stance's width aside, within 0.75 leg of the hip, never across the other foot, drawn back towards the
+  hip (3/4, 1/2, 1/4 of the way) until there is floor within a leg under it (a sidestep off a stair's open side). The
+  swing foot is carried
   along its arc (its hip's push back on the body kept: the body's momentum is unchanged), kept 0.08 leg over the floor
   under its way (traced from the pelvis's height: a step up lifts over the riser, not through it) until the last fifth.
 - Bearing legs follow their planted foot (their reach, tone 0.5) and their hips turn the pelvis upright; the upright
