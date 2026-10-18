@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD melee from the toolgun (the cause of "plain swords": toolgun rows had no weapon kind): spawn each AD melee weapon from the Weapons tab: own model; hammer and mace head-heavy, one hand slow and weak, two hands full; holster, draw, save, load, change level (was a crash)
 Your holster and glove values are now defaults (config 156, 27 cvars incl. glove thickness 2.25, relief 1.25, shoulder/upper holster thresholds 7.5/5.9): quick look at hip, upper, shoulder, ammo, grenade zones on a fresh config
 AD grunt guns round 2: rocket wide launch tube + slanted exhaust with rear bell (back-blast on fire); grenade hex muzzle + 4-grenade feed box; flamethrower/sprayer hose leaves under the gun between grip and stock; pyro pilot light particles (subtle enough?); per-variant recoil/flash/particles (rocket and grenade near the cap)
 Flinch odd poses: punch or stab grunts and enforcers while they shoot at you and right after one gets up: quick 1-2 step recovery, torso straightens back smoothly (not stiff or snapping), no pain-frame pop at the start of a blow's flinch
