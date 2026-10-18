@@ -2401,8 +2401,13 @@ QVR_CVAR(vr_superaxe_burst_window, "1.5", CVAR_ARCHIVE) // s: a second Super Axe
 // AD support: Arcane Dimensions' player weapon upgrades (QC vr_ad_bridge.qc; Weapon Damage > Arcane Dimensions), AD's
 // numbers as shipped.
 QVR_CVAR(vr_dmg_ad_shadowaxe, "35", CVAR_ARCHIVE)     // the Shadow Axe's blow (AD's 35, the axe's 20), before its speed and weight
-QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet (a shot with its third shell)
-QVR_CVAR(vr_ad_widowmaker_pellets, "21", CVAR_ARCHIVE) // ... its pellets (AD's 21; the super shotgun's 14)
+QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet
+// The Widowmaker as an auto shotgun (his VR notes 2026-10-18; QC AD_FireWidowmaker): a shell a shot from its tube, fired
+// while the trigger is held; its tube loaded by hand a handful at a time at the port on its receiver's inner side.
+QVR_CVAR(vr_ad_widowmaker_shot_pellets, "7", CVAR_ARCHIVE) // its pellets a shot (a shell; AD's 21 were three shells' worth)
+QVR_CVAR(vr_ad_widowmaker_refire, "0.25", CVAR_ARCHIVE)    // s between its shots, the trigger held (the super shotgun's 0.7)
+QVR_CVAR(vr_ad_widowmaker_tube, "16", CVAR_ARCHIVE)        // the shells its tube holds
+QVR_CVAR(vr_ad_widowmaker_handful, "4", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit)
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
@@ -3543,6 +3548,8 @@ QVR_CVAR(vr_reload_mode_gl, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_prox, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_rl, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_light, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mode_widow, "-1", CVAR_ARCHIVE)    // AD support: the Widowmaker's (the super shotgun with AD's upgrade)
+QVR_CVAR(vr_reload_mode_adplasma, "-1", CVAR_ARCHIVE) // AD support: the Plasma Gun's (the thunderbolt with AD's upgrade)
 // The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
 // hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
@@ -3697,6 +3704,12 @@ QVR_CVAR(vr_reload_port_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_x, "0", CVAR_ARCHIVE)    // the super shotgun's: its breech face's middle, between the chambers (turned with the barrels, open)
 QVR_CVAR(vr_reload_port_sshot_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_widow_x, "0", CVAR_ARCHIVE)    // AD support: the Widowmaker's shell port, on its receiver's inner side
+QVR_CVAR(vr_reload_port_widow_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_widow_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_adplasma_x, "0", CVAR_ARCHIVE) // AD support: the Plasma Gun's cell well, on its inner side
+QVR_CVAR(vr_reload_port_adplasma_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_adplasma_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
 QVR_CVAR(vr_reload_port_shot_radius, "1.6", CVAR_ARCHIVE)
@@ -3704,6 +3717,8 @@ QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
+QVR_CVAR(vr_reload_port_widow_radius, "2.5", CVAR_ARCHIVE)   // (a handful's middle)
+QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).
 QVR_CVAR(vr_reload_mag_nail_x, "0", CVAR_ARCHIVE)
@@ -3815,6 +3830,12 @@ QVR_CVAR(vr_reload_well_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_light_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_light_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_light_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_adplasma_x, "0", CVAR_ARCHIVE) // AD support: the Plasma Gun's (its cell's receiver on its inner side)
+QVR_CVAR(vr_reload_well_adplasma_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_adplasma_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_adplasma_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_adplasma_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_adplasma_roll, "0", CVAR_ARCHIVE)
 // The other hand holding a gun's attached magazine (the two-handed grip on it; vr_view.cpp magazine grips), per magazine:
 // its drawn pose moved (x y z, units: in the gun's aim frame, mirrored for the main hand) and turned (pitch yaw roll,
 // degrees) once its grip channel lies along the magazine where it holds it (visual only); its fingers fitted round the

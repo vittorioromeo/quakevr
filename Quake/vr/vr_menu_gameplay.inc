@@ -932,10 +932,11 @@
             .help("Arcane Dimensions' axe upgrade: a blow (AD's 35, the axe's 20), before its speed and weight. It gibs "
                   "a zombie in pain for good and chops bodies on the floor."),
         slider("Widowmaker", vr_dmg_ad_widowmaker, 0.5f, 20.f, 0.5f, "%.1f a pellet").extend()
-            .help("Arcane Dimensions' super shotgun upgrade: each pellet of a shot that takes a third shell (without "
-                  "one it fires as the Double Shotgun)."),
-        slider("Widowmaker Pellets", vr_ad_widowmaker_pellets, 1.f, 40.f, 1.f, "%.0f").extend(1.f, 100.f)
-            .help("Its pellets a shot (AD's 21; the Double Shotgun's 14)."),
+            .help("Arcane Dimensions' super shotgun upgrade, here an auto shotgun with a tube: each pellet of a shot."),
+        slider("Widowmaker Pellets", vr_ad_widowmaker_shot_pellets, 1.f, 40.f, 1.f, "%.0f").extend(1.f, 100.f)
+            .help("Its pellets a shot, a shell each (the Double Shotgun's 7 a shell; AD's 21 took three shells)."),
+        slider("Widowmaker Fire Rate", vr_ad_widowmaker_refire, 0.05f, 1.f, 0.05f, "%.2f s").extend(0.02f, 3.f)
+            .help("Seconds between its shots while the trigger is held (the Double Shotgun's 0.7)."),
         slider("Plasma Gun", vr_dmg_ad_plasmagun, 5.f, 300.f, 5.f, "%.0f").extend()
             .help("Arcane Dimensions' lightning gun upgrade: a bolt's direct hit (AD's 45; a map can set its own), a "
                   "cell a bolt, 5 a second."),

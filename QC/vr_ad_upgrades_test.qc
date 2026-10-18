@@ -218,8 +218,119 @@ void() AD_PlasmaCellTestRun =
     remove(self);
 };
 
+// 142 (Debug > Tests > Arcane Dimensions: Widowmaker Tube Test): the Widowmaker in the off hand, empty, the main hand
+// free. Its shell port (vr_view_internal.hpp loadPorts: AdVrWidowmaker, on the receiver's inner side) is found; it loads by
+// hand; its tube holds vr_ad_widowmaker_tube; a pouch handful is vr_ad_widowmaker_handful shells, all going in at the
+// port, until the tube is full; then the trigger held two seconds (W_OffHandAttack each frame its shot is due) fires a
+// shell every vr_ad_widowmaker_refire. (Its spent shells' way out: the engine's "shells out" lines, vr_debug_weaponfx 1.)
+float vr_adwm_tube, vr_adwm_end, vr_adwm_reserve;
+void(string xWhat, float xOk, string xGot) AD_WidowCheck =
+{
+    bprint(sprintf("adwidow: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
+    if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
+    else { vr_adsa_fail = vr_adsa_fail + 1; }
+};
+
+void() AD_WidowFireRun =
+{
+    entity p = self.owner;
+    entity os = self;
+    if(time < vr_adwm_end)
+    {
+        self = p;
+        if(time >= p.offhand_attack_finished)
+        {
+            W_OffHandAttack();
+        }
+        self = os;
+        self.nextthink = time + 0.01;
+        return;
+    }
+    float shots = vr_adwm_tube - VRGetEntWeaponClip(p, cVR_OffHand);
+    float rate = max(0.02, cvar("vr_ad_widowmaker_refire"));
+    float expect = ceil(2 / rate);
+    AD_WidowCheck("full auto: the trigger held 2 s fires a shell each refire", shots >= expect - 1 && shots <= expect + 1,
+        sprintf("%g shots, %g expected at %g s; %g left in the tube", shots, expect, rate, VRGetEntWeaponClip(p, cVR_OffHand)));
+    AD_WidowCheck("its shots come from the tube, not the reserve", p.ammo_shells == vr_adwm_reserve,
+        sprintf("reserve %g, was %g", p.ammo_shells, vr_adwm_reserve));
+    bprint(sprintf("adwidow: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    remove(self);
+};
+
+void() AD_WidowTubeTestRun =
+{
+    entity p = self.owner;
+    entity os = self;
+    self = p;
+    float h = cVR_OffHand;
+    vr_adsa_pass = 0;
+    vr_adsa_fail = 0;
+    AD_WidowCheck("its shell port is found", p.offloadportpos != '0 0 0' && p.weaponmodel2 == "progs/v_shot3.mdl#vr",
+        sprintf("load point %v, model %s", p.offloadportpos, p.weaponmodel2));
+    AD_WidowCheck("it loads by hand (never broken open)", VR_Reload_ManualInHand(p, h) && !VR_Reload_SsgBreaks(p, h),
+        sprintf("manual %g", VR_Reload_ManualInHand(p, h)));
+    vr_adwm_tube = VR_ClipSizeIn(p, h);
+    AD_WidowCheck("its tube's size", vr_adwm_tube == rint(cvar("vr_ad_widowmaker_tube")), sprintf("%g", vr_adwm_tube));
+    float handful = rint(cvar("vr_ad_widowmaker_handful"));
+    float loads = 0, first = -1, lastClip = 0, steps = 0;
+    for(float i = 0; i < 12 && VRGetEntWeaponClip(p, h) < vr_adwm_tube; i++)
+    {
+        VR_Reload_PlayerFrame();
+        VR_Reload_Take(cVR_MainHand);
+        entity r = VR_Carry_Held(p, cVR_MainHand);
+        if(r == world)
+        {
+            break;
+        }
+        if(first < 0)
+        {
+            first = r.vr_ammo_count;
+        }
+        setorigin(r, r.origin + p.offloadportpos - VR_Reload_RoundRef(r));
+        r.vr_ammo_fresh = FALSE;
+        float was = VRGetEntWeaponClip(p, h);
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        if(VRGetEntWeaponClip(p, h) > was)
+        {
+            loads = loads + 1;
+            steps = max(steps, VRGetEntWeaponClip(p, h) - was);
+        }
+        lastClip = VRGetEntWeaponClip(p, h);
+    }
+    AD_WidowCheck("the pouch gives a handful for it", first == handful, sprintf("%g shells, a handful %g", first, handful));
+    AD_WidowCheck("a handful at its port goes in at once", steps == handful, sprintf("most in one insert %g", steps));
+    AD_WidowCheck("its tube fills", lastClip == vr_adwm_tube && loads == ceil(vr_adwm_tube / handful),
+        sprintf("%g of %g after %g inserts", lastClip, vr_adwm_tube, loads));
+    vr_adwm_tube = VRGetEntWeaponClip(p, h);
+    vr_adwm_reserve = p.ammo_shells;
+    self = os;
+    vr_adwm_end = time + 2;
+    self.think = AD_WidowFireRun;
+    self.nextthink = time + 0.01;
+};
+
 void(float request, entity p) AD_UpgradesTest =
 {
+    if(request == 142)
+    {
+        entity os2 = self;
+        self = p;
+        VR_WeaponUtil_EntAddWeapon(p, WID_SUPER_SHOTGUN);
+        VRGiveEntWeapon(p, cVR_OffHand, WID_SUPER_SHOTGUN, 0, 0);
+        p.weaponinst2.wi_adup = ad_IT_UPGRADE_SSG;
+        p.weaponmodel2 = WeaponIdToModel(WID_SUPER_SHOTGUN, 0);
+        VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+        p.ammo_shells = 100;
+        AD_SyncWeaponModels(p);
+        self = os2;
+        entity t2 = spawn();
+        t2.classname = "vr_adsa_timer";
+        t2.owner = p;
+        t2.think = AD_WidowTubeTestRun;
+        t2.nextthink = time + 0.5;
+        bprint("adwidow: the Widowmaker in the off hand, empty; the checks in 0.5 s\n");
+        return;
+    }
     if(request == 141)
     {
         entity os = self;

@@ -506,24 +506,30 @@ float(entity ent) VRIsWeaponReloadingEnabled =
 }
 
 // The same of the weapon `wid` alone (its own reloading mode: the Per-Weapon Reload Overrides).
-float(entity ent, float wid) VRIsWeaponReloadingEnabledForWeapon =
+// (Its record `inst`: AD support: the Widowmaker's and the Plasma Gun's own modes; world: not known.)
+float(entity ent, float wid, entity inst) VRIsWeaponReloadingEnabledForInst =
 {
     return VRIsWeaponReloadingEnabled(ent) &&
            WeaponIdToSupportsReload(wid) &&
-           VR_Reload_ModeOf(wid) != QVR_RELOADMODE_NONE;
+           VR_Reload_ModeOfInst(wid, inst) != QVR_RELOADMODE_NONE;
+}
+
+float(entity ent, float wid) VRIsWeaponReloadingEnabledForWeapon =
+{
+    return VRIsWeaponReloadingEnabledForInst(ent, wid, world);
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabledForWeapon(ent, VRGetWeapon(xHand));
+           VRIsWeaponReloadingEnabledForInst(ent, VRGetWeapon(xHand), VRGetEntWeaponInst(ent, xHand));
 }
 
+// (Not the Widowmaker: a super shotgun that never breaks open.)
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
-    return ent.ishuman &&
-           VRIsWeaponReloadingEnabledForWeapon(ent, VRGetWeapon(xHand)) &&
-           WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
+    return VRIsWeaponReloadingEnabledFor(ent, xHand) &&
+           WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand)) && !AD_WidowmakerIn(ent, xHand);
 }
 
 // A missile's touch (self the missile): whether it leaves `xOther` alone as its owner (Quake: never on the one who fired

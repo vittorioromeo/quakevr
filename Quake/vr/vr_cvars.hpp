@@ -32,7 +32,8 @@ extern cvar_t vr_backend;
 {
     int best = static_cast<int>(vr_reload_mode.value);
     for(const cvar_t* gun : {&vr_reload_mode_shot, &vr_reload_mode_sshot, &vr_reload_mode_nail, &vr_reload_mode_snail,
-            &vr_reload_mode_gl, &vr_reload_mode_prox, &vr_reload_mode_rl, &vr_reload_mode_light})
+            &vr_reload_mode_gl, &vr_reload_mode_prox, &vr_reload_mode_rl, &vr_reload_mode_light, &vr_reload_mode_widow,
+            &vr_reload_mode_adplasma})
     {
         best = static_cast<int>(gun->value) > best ? static_cast<int>(gun->value) : best;
     }

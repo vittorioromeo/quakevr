@@ -193,6 +193,7 @@ struct LoadPort
     bool magazine;      // a magazine's well (the pull's reach too); else a shell port
     bool front = false; // a launcher's muzzle (front loaded: a round goes in butt first, back along the barrel)
     float depth = 0.f;  // and how far in a round slides (model units: view::loadPath)
+    bool side = false;  // a shell port on the gun's inner side (+y; mirrored in the off hand): its opening faces out there
 };
 constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::VShot, {13.6f, 0.f, 0.3f}, {&vr_reload_port_shot_x, &vr_reload_port_shot_y, &vr_reload_port_shot_z},
@@ -216,8 +217,14 @@ constexpr LoadPort loadPorts[] = {
     {modelmeta::Id::VPlasma, {11.6f, 0.f, 3.f},
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
     // AD support: AD's Plasma Gun: its cell's well on its inner side (vr_adweapons.cpp plasmaSeat; vr_view.cpp magMounts).
-    {modelmeta::Id::AdVrPlasma, {11.6f, 1.5f, 4.5f},
-        {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
+    {modelmeta::Id::AdVrPlasma, {11.6f, 2.1f, 4.5f},
+        {&vr_reload_port_adplasma_x, &vr_reload_port_adplasma_y, &vr_reload_port_adplasma_z}, &vr_reload_port_adplasma_radius,
+        true},
+    // AD support: the Widowmaker's shell port (his VR notes 2026-10-18), on its receiver's inner side by the rear handle
+    // (vr_adweapons.cpp widowmakerParts: the opening's middle, on the side's face): a handful held there goes into its tube.
+    {modelmeta::Id::AdVrWidowmaker, {6.5f, 3.6f, 5.6f},
+        {&vr_reload_port_widow_x, &vr_reload_port_widow_y, &vr_reload_port_widow_z}, &vr_reload_port_widow_radius, false,
+        false, 0.f, true},
     // The launchers' muzzles (front loaded; QC vr_reload.qc, "Front-loaded launchers"): the middle of the barrel's mouth
     // (measured on the models: the grenade launcher's hexagonal barrel ends at x 31.4, its middle 5.9 up; the rocket
     // launcher's tube at x 56.1, 4.55 up), the way in back along the barrel (-x), the opening facing forward.

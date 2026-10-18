@@ -146,9 +146,10 @@ namespace
 // theirs, so a Shadow Axe tuned on the axe's slot keeps it); the plain axe back to its size before adweapons2 (where the
 // config holds the Shadow Axe's size adweapons2 put there); the AD crossbow (slot 32) his. 49: the AD melee weapons'
 // tips (slots 40-44) on their models made anew (vr_admelee.cpp: the fury's sword and the hammer turned half round),
-// where the config still held the old tip. A first start (no saved config) takes this version as it is: its settings
+// where the config still held the old tip. 50: the Widowmaker's grips his (slot 34: hotspot 1 a cup round the rear
+// handle, hotspot 2 off; takeWidowmakerGrips). A first start (no saved config) takes this version as it is: its settings
 // are these defaults (markCurrent).
-constexpr int settingsVersion = 49;
+constexpr int settingsVersion = 50;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -338,6 +339,35 @@ void takeAdMeleeTips()
     }
 }
 
+// AD support: the Widowmaker's grips (50): his hotspot 1 (a cup round the rear handle) and hotspot 2 off, where the
+// config still holds the defaults before (hotspot 1 the front handle's grip; hotspot 2 the super shotgun's cup, or the
+// super shotgun's own hotspot 2 that 48 gave it). Hotspot 1 as a whole: only a config holding all of the old one.
+constexpr OldValue widowmakerGrip1Before50[] = {{34, Key::Hotspot1Type, 1.f}, {34, Key::Hotspot1X, 6.78f},
+    {34, Key::Hotspot1Y, -2.4406f}, {34, Key::Hotspot1Z, -0.6209f}, {34, Key::Hotspot1Pitch, 7.f}, {34, Key::Hotspot1Yaw, 0.f},
+    {34, Key::Hotspot1Roll, 0.f}};
+
+void takeWidowmakerGrips()
+{
+    bool old1 = true;
+    for(const OldValue& o : widowmakerGrip1Before50)
+    {
+        old1 = old1 && fabsf(cvarAt(o.slot, o.key).value - o.value) < 1e-4f;
+    }
+    if(old1)
+    {
+        for(const OldValue& o : widowmakerGrip1Before50)
+        {
+            cvar_t& var = cvarAt(o.slot, o.key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    cvar_t& hs2 = cvarAt(34, Key::Hotspot2Type);
+    if(hs2.value == 3.f || hs2.value == cvarAt(2, Key::Hotspot2Type).value)
+    {
+        Cvar_SetQuick(&hs2, hs2.default_string);
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -354,6 +384,7 @@ constexpr Step steps[] = {
     {47, takeAdUpgrades},
     {48, takeUninherited},
     {49, takeAdMeleeTips},
+    {50, takeWidowmakerGrips},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

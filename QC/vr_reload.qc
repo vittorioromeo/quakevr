@@ -150,6 +150,12 @@ float(float xWeapon) VR_Reload_ImmersiveFor =
     return VR_Reload_ModeOf(xWeapon) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
 };
 
+// The same of the gun `xWeapon` of record `xInst` (AD support: the Widowmaker's and the Plasma Gun's own modes).
+float(float xWeapon, entity xInst) VR_Reload_ImmersiveForInst =
+{
+    return VR_Reload_ModeOfInst(xWeapon, xInst) == QVR_RELOADMODE_IMMERSIVE && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE;
+};
+
 // Whether `xWeapon` takes magazines (immersive reloading's phase 2).
 float(float xWeapon) VR_Reload_UsesMag =
 {
@@ -167,8 +173,9 @@ float(float xWeapon) VR_Reload_IsFront =
 // flick reload for it.
 float(float xWeapon, entity xInst) VR_Reload_ManualForInst =
 {
-    return VR_Reload_ImmersiveFor(xWeapon) && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) || VR_Reload_IsFront(xWeapon) ||
-        (xWeapon == WID_SUPER_SHOTGUN && cvar_hget(cvarh_vr_reload_ssg_break) && !AD_Widowmaker(xInst))); // (AD support: the Widowmaker reloads at the hip)
+    // (AD support: the Widowmaker's tube loads a handful at a time at its port, as the shotgun's: never broken open.)
+    return VR_Reload_ImmersiveForInst(xWeapon, xInst) && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) ||
+        VR_Reload_IsFront(xWeapon) || (xWeapon == WID_SUPER_SHOTGUN && (AD_Widowmaker(xInst) || cvar_hget(cvarh_vr_reload_ssg_break))));
 };
 
 // The same of a weapon whose record isn't known (a plain one: not the Widowmaker).
@@ -187,7 +194,13 @@ float(entity p, float xHand) VR_Reload_ManualInHand =
 float(entity p, float xHand) VR_Reload_SsgIsOpen =
 {
     return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(p, xHand) &&
-           (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_SSG_OPEN);
+           (VRGetEntWeaponFlags(p, xHand) & QVR_WPNFLAG_SSG_OPEN) && !AD_WidowmakerIn(p, xHand);
+};
+
+// Whether the gun in `xHand` of `p` is a super shotgun that breaks open to load (immersive; not the Widowmaker).
+float(entity p, float xHand) VR_Reload_SsgBreaks =
+{
+    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(p, xHand) && !AD_WidowmakerIn(p, xHand);
 };
 
 // How many spent shells the super shotgun with flags `xFlags` has in its barrels.
@@ -200,7 +213,7 @@ float(float xFlags) VR_Reload_SsgSpentOf =
 // reloading their shells stay in, spent (thrown out as it is broken open).
 void(float xHand, float xCount) VR_Reload_SsgFired =
 {
-    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualInHand(self, xHand))
+    if(!VR_Reload_SsgBreaks(self, xHand))
     {
         return;
     }
@@ -230,7 +243,8 @@ float(entity p, float xHand) VR_Reload_MagIn =
 {
     float w = VRGetEntWeapon(p, xHand);
     float f = VRGetEntWeaponFlags(p, xHand);
-    return p.ishuman && VR_Reload_ImmersiveFor(w) && VR_Reload_UsesMag(w) && !(f & QVR_WPNFLAG_NOMAG);
+    return p.ishuman && VR_Reload_ImmersiveForInst(w, VRGetEntWeaponInst(p, xHand)) && VR_Reload_UsesMag(w) &&
+           !(f & QVR_WPNFLAG_NOMAG);
 };
 
 // The ammo whose rounds the pouch gives for the gun `p` holds in `xHand` (by its handle or carried), if it loads by hand;
@@ -917,6 +931,26 @@ float(float xWeapon) VR_Reload_PortRadius =
     return cvar_hget(cvarh_vr_reload_port_shot_radius);
 };
 
+// The same of the gun `xWeapon` of record `xInst` (AD support: the Widowmaker's port, the Plasma Gun's well: their own).
+float(float xWeapon, entity xInst) VR_Reload_PortRadiusOf =
+{
+    if(xWeapon == WID_SUPER_SHOTGUN && AD_Widowmaker(xInst))
+    {
+        return cvar_hget(cvarh_vr_reload_port_widow_radius);
+    }
+    if(xWeapon == WID_LIGHTNING && AD_PlasmaGunInst(xInst))
+    {
+        return cvar_hget(cvarh_vr_reload_port_adplasma_radius);
+    }
+    return VR_Reload_PortRadius(xWeapon);
+};
+
+// The same of the gun `p` holds in `xHand`.
+float(entity p, float xHand) VR_Reload_PortRadiusIn =
+{
+    return VR_Reload_PortRadiusOf(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
+};
+
 // A magazine's own radius round its reference point (vr_reload_mag_<kind>_radius; 0: a shell).
 float(float xWid) VR_Reload_MagRadius =
 {
@@ -1140,8 +1174,14 @@ void(float xHand) VR_Reload_Take =
         return;
     }
     // (The super shotgun in the other hand: always a taped pair, its two chambers loaded at once.)
-    float ssg = VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand));
+    float ssg = VR_Reload_SsgBreaks(self, VRGetOtherHand(xHand));
     float n = ((cvar_hget(cvarh_vr_reload_shell_pairs) || ssg) && have >= 2) ? 2 : 1;
+    if(AD_WidowmakerIn(self, VRGetOtherHand(xHand)) && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand)))
+    {
+        // (AD support: the Widowmaker's tube: a handful, all into its port at once; no more than it has room for.)
+        float widowRoom = VR_ClipSizeIn(self, VRGetOtherHand(xHand)) - VRGetEntWeaponClip(self, VRGetOtherHand(xHand));
+        n = max(1, min(have, min(max(1, widowRoom), max(1, rint(cvar_hget(cvarh_vr_ad_widowmaker_handful))))));
+    }
     if(ssg)
     {
         // (One chamber free, the other loaded, or a spent shell in it: a single shell; a pair only for two.)
@@ -1180,8 +1220,9 @@ void(float xHand) VR_Reload_Take =
     }
     VR_Reload_Sound(self, VRGetHandChannel(xHand), "vr/reload_pouch.wav", 0.9);
     VR_Reload_Haptic(self, xHand, 0.07, 120, 0.7);
-    VR_Reload_Log(sprintf("%s taken from the pouch by hand %g: %g left", (w || front) ? VR_Reload_Desc(r) : (n >= 2 ?
-        "a taped pair" : "a shell"), xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
+    VR_Reload_Log(sprintf("%s taken from the pouch by hand %g: %g left", (w || front) ? VR_Reload_Desc(r) : (n > 2 ?
+        sprintf("a handful of %g shells", n) : (n == 2 ? "a taped pair" : "a shell")), xHand,
+        VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
 };
 
 // `xHand` of self lets go of `r` (VR_Carry_HandFrame, before its own let-go): a round at the pouch goes back (TRUE);
@@ -1704,8 +1745,7 @@ void(float xHand) VR_Reload_SsgFrame =
     self.vr_ssg_pry = (self.vr_ssg_pry - (self.vr_ssg_pry & bit)) | (pry ? bit : 0);
     self.vr_ssg_sec = (self.vr_ssg_sec - (self.vr_ssg_sec & bit)) | (sec ? bit : 0);
     float f = VRGetEntWeaponFlags(self, xHand);
-    if(VRGetEntWeapon(self, xHand) != WID_SUPER_SHOTGUN || !VR_Reload_ManualInHand(self, xHand) || self.health <= 0 ||
-       !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
+    if(!VR_Reload_SsgBreaks(self, xHand) || self.health <= 0 || !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
     {
         self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
         return;
@@ -1896,8 +1936,9 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
     float xHand = VRGetOtherHand(gunHand);
     float w = VRGetEntWeapon(self, gunHand);
     float clip = VRGetEntWeaponClip(self, gunHand);
-    float room = WeaponIdToBaseClipSize(w) - clip;
-    if(w == WID_SUPER_SHOTGUN && !VR_Reload_SsgIsOpen(self, gunHand))
+    float size = VR_ClipSizeIn(self, gunHand); // (AD support: the Widowmaker's tube)
+    float room = size - clip;
+    if(VR_Reload_SsgBreaks(self, gunHand) && !VR_Reload_SsgIsOpen(self, gunHand))
     {
         if(!r.vr_ammo_full)
         {
@@ -1936,9 +1977,9 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
     }
     VR_Reload_Haptic(self, gunHand, 0.08, 70, 0.7);  // the gun taking it
     VR_Reload_Log(sprintf("%g into the gun (hand %g%s): its magazine %g of %g, %g in the reserve", n, gunHand,
-        xHeld ? "" : ", a loose round by contact", clip + n, WeaponIdToBaseClipSize(w),
+        xHeld ? "" : ", a loose round by contact", clip + n, size,
         VR_AmmoUtil_GetAmmoCountByAmmoId(self, r.vr_ammo_aid)));
-    if(clip + n >= WeaponIdToBaseClipSize(w))
+    if(clip + n >= size)
     {
         // The last one in: the tube full (a heavier knock, a second buzz).
         VR_Reload_Sound(self, CHAN_AUTO, "vr/reload_full.wav", 1);
@@ -1996,7 +2037,7 @@ float(float xHand, entity r) VR_Reload_HeldFrame =
     }
     vector port = gunHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
     float d = vlen(VR_Reload_RoundRef(r) - port);
-    float leniency = VR_Reload_PortRadius(VRGetEntWeapon(self, gunHand)) + VR_Reload_MagRadius(r.vr_ammo_wid);
+    float leniency = VR_Reload_PortRadiusIn(self, gunHand) + VR_Reload_MagRadius(r.vr_ammo_wid);
     if(cvar_hget(cvarh_vr_reload_debug) >= 2)
     {
         dprint(sprintf("reload: a held round %.1f units from the port (leniency %g): at %v, the port %v\n", d,
@@ -2075,8 +2116,8 @@ float(float xGunHand, entity r) VR_Reload_LooseFits =
             return FALSE;
         }
     }
-    else if(VR_Reload_UsesMag(w) || VRGetEntWeaponClip(self, xGunHand) >= WeaponIdToBaseClipSize(w) ||
-            (w == WID_SUPER_SHOTGUN && !VR_Reload_SsgIsOpen(self, xGunHand)))
+    else if(VR_Reload_UsesMag(w) || VRGetEntWeaponClip(self, xGunHand) >= VR_ClipSizeIn(self, xGunHand) ||
+            (VR_Reload_SsgBreaks(self, xGunHand) && !VR_Reload_SsgIsOpen(self, xGunHand)))
     {
         return FALSE;
     }
@@ -2132,7 +2173,7 @@ float(entity r) VR_Reload_FreshLeft =
         if(VR_Reload_AmmoFor(self, h) >= 0)
         {
             vector port = h == cVR_MainHand ? self.loadportpos : self.offloadportpos;
-            float margin = VR_Reload_PortRadius(VRGetEntWeapon(self, h)) + VR_Reload_MagRadius(r.vr_ammo_wid) + 2 * lenient +
+            float margin = VR_Reload_PortRadiusIn(self, h) + VR_Reload_MagRadius(r.vr_ammo_wid) + 2 * lenient +
                            max(0, cvar_hget(cvarh_vr_reload_reinsert_clearance));
             if(vlen(VR_Reload_RoundRef(r) - port) <= margin)
             {
@@ -2161,7 +2202,7 @@ void(float xHand) VR_Reload_LooseFrame =
     self.vr_ammo_passing = self.vr_ammo_passing - (self.vr_ammo_passing & bit);
     vector port = xHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
     vector face = xHand == cVR_MainHand ? self.loadportface : self.offloadportface;
-    float radius = VR_Reload_PortRadius(VRGetEntWeapon(self, xHand));
+    float radius = VR_Reload_PortRadiusIn(self, xHand);
     float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
     entity r = VR_Reload_NextRound(world);
     while(r)
@@ -2361,7 +2402,8 @@ void(float xHand) VR_Reload_PouchFrame =
     {
         return;
     }
-    float ssg = w == WID_SUPER_SHOTGUN;
+    float ssg = VR_Reload_SsgBreaks(self, xHand);
+    float widow = AD_WidowmakerIn(self, xHand); // (AD support: its tube, a handful a touch)
     float mag = VR_Reload_UsesMag(w);
     float debug = cvar_hget(cvarh_vr_reload_debug);
     float hs = xHand == cVR_MainHand ? self.mainhand_hotspot : self.offhand_hotspot;
@@ -2384,7 +2426,8 @@ void(float xHand) VR_Reload_PouchFrame =
         return;
     }
     float clip = VRGetEntWeaponClip(self, xHand);
-    float room = WeaponIdToBaseClipSize(w) - clip;
+    float size = VR_ClipSizeIn(self, xHand);
+    float room = size - clip;
     if((ssg && !VR_Reload_SsgIsOpen(self, xHand)) || (!mag && room <= 0))
     {
         return; // (shut, or full: nothing)
@@ -2427,7 +2470,7 @@ void(float xHand) VR_Reload_PouchFrame =
     }
     // Shells: the shotgun one a touch, the super shotgun its empty chambers; into the gun as one pushed into its port
     // (VR_Reload_LoadInto's sound and buzz; drawn sliding in from the pouch: vr_collectfx.cpp's "into the gun").
-    float n = ssg ? min(room, have) : 1;
+    float n = ssg ? min(room, have) : (widow ? min(min(room, have), max(1, rint(cvar_hget(cvarh_vr_ad_widowmaker_handful)))) : 1);
     VR_AmmoUtil_DelAmmoCountByAmmoId(self, aid, n);
     VRSetEntWeaponClip(self, xHand, clip + n);
     VR_Reload_AmmoChanged(self);
@@ -2442,8 +2485,8 @@ void(float xHand) VR_Reload_PouchFrame =
     collectfx(VRGetOtherHand(xHand), world, QVR_CFX_INTO_GUN, t.modelindex, top, vectoangles(self.ammopouchz * -1));
     remove(t);
     VR_Reload_Log(sprintf("%g into the gun (hand %g) from the pouch: its magazine %g of %g, %g in the reserve", n, xHand,
-        clip + n, WeaponIdToBaseClipSize(w), VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
-    if(clip + n >= WeaponIdToBaseClipSize(w))
+        clip + n, size, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid)));
+    if(clip + n >= size)
     {
         VR_Reload_Sound(self, CHAN_AUTO, "vr/reload_full.wav", 1);
         VR_Reload_Haptic(self, xHand, 0.14, 50, 0.9);
@@ -2505,11 +2548,11 @@ float(entity g, entity r) VR_Reload_PropRoom =
     {
         return (g.weaponflags & QVR_WPNFLAG_NOMAG) != 0;
     }
-    if(w == WID_SUPER_SHOTGUN && !(g.weaponflags & QVR_WPNFLAG_SSG_OPEN))
+    if(w == WID_SUPER_SHOTGUN && !(g.weaponflags & QVR_WPNFLAG_SSG_OPEN) && !AD_Widowmaker(g.weaponinst))
     {
         return FALSE;
     }
-    return g.weaponinst.wi_clip < WeaponIdToBaseClipSize(w);
+    return g.weaponinst.wi_clip < VR_ClipSizeOf(w, g.weaponinst);
 };
 
 // Whether `r` lies the way it goes into the gun lying as `g` (its .loadportaxis): a launcher's round butt first within
@@ -2562,13 +2605,13 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
     else
     {
         float clip = g.weaponinst.wi_clip;
-        n = min(n, WeaponIdToBaseClipSize(w) - clip);
+        n = min(n, VR_ClipSizeOf(w, g.weaponinst) - clip);
         g.weaponinst.wi_clip = clip + n;
         r.vr_ammo_count = r.vr_ammo_count - n;
         VR_Reload_Sound(g, CHAN_AUTO, VR_Reload_ShellInSound(), 1);
         VR_Reload_Log(sprintf("%g into the %s lying about (%s): its magazine %g of %g", n, g.netname, how, clip + n,
-            WeaponIdToBaseClipSize(w)));
-        if(clip + n >= WeaponIdToBaseClipSize(w))
+            VR_ClipSizeOf(w, g.weaponinst)));
+        if(clip + n >= VR_ClipSizeOf(w, g.weaponinst))
         {
             VR_Reload_Sound(g, CHAN_AUTO, "vr/reload_full.wav", 1);
         }
@@ -2600,7 +2643,7 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
 void(entity g, entity r) VR_Reload_PropRound =
 {
     vector port = g.loadportpos;
-    float radius = VR_Reload_PortRadius(g.weapon);
+    float radius = VR_Reload_PortRadiusOf(g.weapon, g.weaponinst);
     float within = radius + VR_Reload_MagRadius(r.vr_ammo_wid);
     float d;
     if(r.carry_player)

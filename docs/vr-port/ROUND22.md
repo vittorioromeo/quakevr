@@ -13527,3 +13527,48 @@ Axe size onto slot 0, so the plain axe grew too).
 His `ironwail.cfg` compared with the shipped defaults: the holster zones (all `vr_holster_zone_*`, hip/shoulder/upper
 thresholds) and glove thickness / relief already matched (config 156 and earlier). Promoted, with migration 158:
 `vr_grenade_pouch_thresh` 7 -> 5.5, `vr_flame_lights` 3 -> 4, `vr_flame_light_scale` 1 -> 2.5.
+
+## Widowmaker auto shotgun, Plasma Gun cell hole (worktree `dequant`, branch `agent/widowmaker2`, 2026-10-18)
+
+### Widowmaker
+
+- **An auto shotgun with a tube** (his VR notes): no more super shotgun behaviour. QC `AD_FireWidowmaker`: a shell a shot
+  from its tube, `vr_ad_widowmaker_shot_pellets` 7 pellets (each `vr_dmg_ad_widowmaker` 4; AD's 21 were three shells'
+  worth), fired again every `vr_ad_widowmaker_refire` 0.25 s while the trigger is held (the super shotgun 0.7). Its spent
+  shell leaves at once by the ejection slot on the receiver's outer side (`vr_shells.cpp`: `AdVrWidowmaker`, -y, out and
+  up). `vr_ad_widowmaker_pellets` (21, three shells a shot) is gone.
+- **Its tube** holds `vr_ad_widowmaker_tube` 16 (`VR_ClipSizeOf`/`VR_ClipSizeIn`: the clip size of a weapon of record
+  `inst`, used wherever a hand's or a lying gun's magazine size counts: counter, holster reload, pouch, lying guns,
+  cheats). A pickup still comes with the super shotgun's 2 loaded (the size is the kind's there).
+- **Loading by hand** (Immersive): its shell port on the receiver's inner side (+y; mirrored in the left hand), by the
+  rear handle (`widowmakerParts`: a dark opening x 2.6..10.4, z 4.5..6.7, framed by a rim 0.5 proud; `loadPorts` entry
+  `AdVrWidowmaker` at 6.5 3.6 5.6, a new `side` port: its opening faces +y, the insert path in through the gate then
+  forward). The pouch gives a handful (`vr_ad_widowmaker_handful` 4, no more than the tube has room for), drawn as the
+  taped pair (no free prop slot for a strip model: all 64 are taken in his config), all going in at once. At the pouch
+  its port takes a handful a touch. Never broken open (`VR_Reload_SsgBreaks`: the super shotgun's open/close, flick and
+  chambers skip it).
+- **Grips**: his hotspot 1 (a cup round the rear handle, 2.97 -1.90 -2.03, 12.33 -8.38 -0.62) and hotspot 2 off promoted,
+  `vr_wofs_version` 50 (`takeWidowmakerGrips`: hotspot 1 where the config holds all of the old front-handle grip;
+  hotspot 2 where it holds the super shotgun's cup or 3). The port is above the handles: nothing moved.
+
+### Plasma Gun
+
+- Its cell seated 0.6 further out (`plasmaSeat` y 1.5 -> 2.1: the cell, its collar, the load point and the box).
+- A real hole: the receiver block is now a frame (x 9.1..14.2, z 2.4..6.6) round a pocket 3.9 x 3.5, its inner faces and
+  its floor (y 2.95) dark; the collar sits at its bottom.
+
+### Reload menu
+
+Per-Weapon Reload Overrides: `vr_reload_mode_widow`, `vr_reload_mode_adplasma` (-1: the global mode; QC
+`VR_Reload_ModeOfInst`: the super shotgun and the thunderbolt with AD's upgrade). Pages Reloading > Widowmaker (tube,
+handful, fire rate, `vr_reload_port_widow_*` with radius 2.5) and Plasma Gun (`vr_reload_port_adplasma_*`, radius 1.5;
+`vr_reload_well_adplasma_*`; the cell itself stays the thunderbolt's). Weapon Damage > Arcane Dimensions: Widowmaker
+Pellets (the new cvar), Widowmaker Fire Rate.
+
+### Checked (headless)
+
+`vr_ad_test 142` (new: Debug > Tests > Arcane Dimensions: Widowmaker Tube Test) 8/8 PASS: port found on
+`v_shot3.mdl#vr`, loads by hand, tube 16, a pouch handful of 4, 4 in one insert, full after 4 inserts, the trigger held
+2 s fires 8 (0.25 s), the reserve untouched; 8 `shells out` lines along the model's +y -0.84 (the side opposite the port),
+up 0.50. `vr_ad_test 141` 4/4 PASS with the seat moved. `vr_adweapon_models`: Widowmaker 1228 triangles, Plasma Gun 612,
+0 open edges. Migration 50 from a config holding the old grips: hotspot 1 type 3 at 2.97, hotspot 2 type 0.

@@ -1132,6 +1132,67 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Widowmaker (AD support: the super shotgun with AD's upgrade; QC vr_ad_bridge.qc AD_FireWidowmaker):
+// an auto shotgun, its tube loaded by the handful at the shell port on its receiver's inner side.
+[[nodiscard]] za::Vector<Item> pageReloadWidowmaker()
+{
+    return {
+        header("Tube"),
+        slider("Tube Size", "vr_ad_widowmaker_tube", 2.f, 40.f, 1.f, "%.0f shells").extend(2.f, 100.f)
+            .help("The shells its tube holds (a new size counts from its next load)."),
+        slider("Shells a Handful", "vr_ad_widowmaker_handful", 1.f, 8.f, 1.f, "%.0f").extend(1.f, 20.f)
+            .help("The shells the ammo pouch gives a hand for it (drawn as the taped pair): all go into its port at once, as "
+                  "many as fit. Its port at the pouch takes as many a touch."),
+        slider("Fire Rate", "vr_ad_widowmaker_refire", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.02f, 3.f)
+            .help("Seconds between its shots while the trigger is held: a shell each, its spent shell out of the other side."),
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
+        slider("Port X", "vr_reload_port_widow_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Widowmaker port's load point forward (the gun's model units; negative: the other way)."),
+        slider("Port Y", "vr_reload_port_widow_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Widowmaker port's load point left (the gun's model units; negative: the other way)."),
+        slider("Port Z", "vr_reload_port_widow_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Widowmaker port's load point up (the gun's model units; negative: the other way)."),
+        slider("Port Radius", "vr_reload_port_widow_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the Widowmaker port's load point a held handful's middle must come to go in."),
+    };
+}
+
+// Weapons > Reloading > Plasma Gun (AD support: the thunderbolt with AD's upgrade): its cell's well on its inner side.
+[[nodiscard]] za::Vector<Item> pageReloadPlasmaGun()
+{
+    return {
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue), to tune the offsets live."),
+        slider("Well X", "vr_reload_port_adplasma_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Plasma Gun well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Well Y", "vr_reload_port_adplasma_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Plasma Gun well's load point left (the gun's model units; negative: the other way)."),
+        slider("Well Z", "vr_reload_port_adplasma_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the Plasma Gun well's load point up (the gun's model units; negative: the other way)."),
+        slider("Well Radius", "vr_reload_port_adplasma_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the Plasma Gun well's load point a held cell's reference point must come to go in (within this plus the cell's own radius)."),
+        header("Receiver (looks only)"),
+        slider("Receiver X", "vr_reload_well_adplasma_x", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the Plasma Gun's cell collar (drawn on the gun) forward (the gun's model units; looks only)."),
+        slider("Receiver Y", "vr_reload_well_adplasma_y", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the Plasma Gun's cell collar left (the gun's model units; looks only)."),
+        slider("Receiver Z", "vr_reload_well_adplasma_z", -6.f, 6.f, 0.05f, "%.2f").extend()
+            .help("Moves the Plasma Gun's cell collar up (the gun's model units; looks only)."),
+        slider("Receiver Pitch", "vr_reload_well_adplasma_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
+        slider("Receiver Yaw", "vr_reload_well_adplasma_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
+        slider("Receiver Roll", "vr_reload_well_adplasma_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
+            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
+        open("The Cell, Holding It, Pulling It: Thunderbolt", pageIndex(pageReloadThunderbolt))
+            .help("The cell is the thunderbolt's: its top, its sparks and smoke, the hand holding it and the pull are there."),
+    };
+}
+
 // Weapons > Reloading > Launchers: the grenade, proximity and rocket launchers loaded at the muzzle (QC vr_reload.qc,
 // "Front-loaded launchers"), each muzzle's load point.
 [[nodiscard]] za::Vector<Item> pageReloadLaunchers()
@@ -1238,6 +1299,8 @@ void resetHandMoves()
         mode("Grenade Launcher", "vr_reload_mode_gl"),
         mode("Rocket Launcher", "vr_reload_mode_rl"),
         mode("Thunderbolt", "vr_reload_mode_light"),
+        mode("Widowmaker (Arcane Dimensions)", "vr_reload_mode_widow"),
+        mode("Plasma Gun (Arcane Dimensions)", "vr_reload_mode_adplasma"),
     };
     // (Hipnotic's proximity gun only where Hipnotic is installed.)
     const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
@@ -1271,6 +1334,8 @@ void resetHandMoves()
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
         open("Launchers", pageIndex(pageReloadLaunchers)).help("The grenade, proximity and rocket launchers loaded at the muzzle: on or off, the round's angle, each muzzle's load point."),
+        open("Widowmaker (Arcane Dimensions)", pageIndex(pageReloadWidowmaker)).help("Its tube, the handful of shells the pouch gives for it, its fire rate, its shell port's load point."),
+        open("Plasma Gun (Arcane Dimensions)", pageIndex(pageReloadPlasmaGun)).help("Its cell's well on its inner side: the load point and the receiver (the cell itself: the Thunderbolt's page)."),
         header("Cell Cords"),
         toggle("Laser Cannon Cord", "vr_cellcord_laser")
             .help("The laser cannon held, a coiled cord (the flashlight's Coiled) from its bottom into a cell in the ammo "
