@@ -12715,3 +12715,74 @@ PASS.
 
 In VR: grab a corpse's chest, then an arm or a leg, swing it about and throw it; grab a knocked-down grunt; a crate
 and a standing monster as before.
+
+
+## AD's weapons as VR models: the Shadow Axe, the Widowmaker, the Plasma Gun (worktree `dequant`, branch `agent/adweapons`, 2026-10-18)
+
+His voice note: VR-friendly models of AD's three upgraded player weapons from AD's view models (no holes, a handle,
+proper dimensions, AD's look), used held, holstered, dropped and spawned by the toolgun instead of the placeholders
+(our axe, super shotgun, lightning gun).
+
+### The models (engine `vr_adweapons.cpp`, new)
+
+- Made as they load from the player's own AD files, as the soldiers' guns are (nothing of AD's written or shipped):
+  `"<AD view model>#vr"` through `VR_DerivedModelFile`. AD's model is found by walking the search paths for the release
+  measured (vertex/triangle/skin counts), so AD's `progs/v_plasma.mdl` is found although Rogue's name shadows it.
+  Another release, or no AD: our own weapon's model under the name (a stand-in, never a failed load).
+- Each laid in the frame of the Quake VR weapon it upgrades and packed from that model's corner, so its weapon slot
+  inherits everything (Offsets, hand, hotspots, holsters, mass): slots 33-35 (`vr_wofs_*_34..36`, `numSlots` 36),
+  InheritFrom the axe, the super shotgun, the lightning gun; own anchors only (hand as the parent's, the muzzle the gun's
+  front middle / the blade edge's top, the other hand's on the axe's handle below the head and on the guns' barrels).
+  - **Shadow Axe** (`v_shadaxe3.mdl` frame0): the arm and hand cut off (the welded piece of vertex 257); the handle's
+    axis onto our axe's handle, the blade out the same way, 0.85 of its size (blade 12.6 units out, the handle as thick
+    as ours); AD's banded handle end is where the hand closes. Its own edge in `vr_axestick.cpp`'s table (sticking);
+    `hotblade`, `legsweep`, melee phasing and "no sights" treat it as the axe (`modelmeta::Id::AdVrAxe`).
+  - **Widowmaker** (`v_shot3.mdl` fire1: a three-barrel shell open below and behind, tilted 4.5 degrees): levelled,
+    1.85x (25.5 units), the breech at the super shotgun's receiver; our super shotgun's own grip, trigger guard and
+    trigger grafted on (their pieces of `v_shot2.mdl` and their texels copied under AD's skin); the open bottom fanned
+    flat from its middle.
+  - **Plasma Gun** (`v_plasma.mdl` base1): AD's thin pistol grip, trigger and the stock's bar off; the lightning gun's
+    grip, guard and trigger grafted on where AD's grip was; cut just behind the hand (x -5.55 in our frame): the stock
+    would sit in the forearm in VR, and the lightning gun's corner had to hold.
+  - Every remaining hole (open bottoms, backs, the cut, the coil tube's ends) closed by a fan of dark triangles (palette
+    2); topology welded at 0.05 so the rounding's hairline cracks close too. 9 identical frames (animation frame numbers
+    stay valid); normals recomputed.
+- `vr_adweapon_models`: per model its triangles, AD's taken off / our grip put on, holes closed, open edges left (0 for
+  all three), box, whether the corner held, the muzzle (and the axe's blade edge). Now: axe 180 triangles, Widowmaker
+  518, Plasma Gun 532; each 0 open edges, corner kept. (The prototype that measured them rendered and hole-checked with
+  `check_mdl_holes.py`: all three "ok".)
+
+### Wiring (QC `vr_ad_bridge.qc`, `weapons.qc`)
+
+- `AD_WeaponModel(wid, flags, inst)`: the upgrade's VR model when the record has the upgrade where upgrades play (and
+  not Rogue's plasma ammo), else `WeaponIdToModel`. Used for dropped/thrown weapons and holstering;
+  `AD_SyncWeaponModels` (AD_PlayerPostThink, every frame while AD's data is there) keeps the hands' and holsters' model
+  strings right (swaps only between the plain and the upgraded model: an upgrade given, a load, a scope change), and
+  precaches them (`nosave` bits: a loaded game precaches again). The upgrade pickups (toolgun's AD Shadow Axe /
+  Widowmaker / Plasma Gun, map items) draw the VR model when pickups are drawn as weapons (`vr_pickup_prop_models`).
+- `vr_anchor.cpp`: anchors on derived models bind on the made file (adcrossbow2's fix for "#gun" widened at the merge
+  to every "#" name, so the "#vr" models' muzzles are right too).
+
+### Checked (headless)
+
+- `vr_adweapon_models`: numbers above. `vr_ad_test 96` (toolgun's spawn path, 309-311): each pickup's model is its
+  `#vr` model; `97`/`98`/`99`: the weapon in the main hand and the other two in the hip holsters, all `#vr`; `100` drops
+  the main hand's: the Widowmaker dropped as `v_shot3.mdl#vr`. With `vr_ad_upgrades 0` all go back to the plain models.
+- Grip fit: `vr_hotspot_fit` gives the same hand place on each AD model as on its plain parent (axe 7.88 0.91 4.92,
+  SSG 7.29 0.71 4.64 vs Widowmaker the same grip, LG / Plasma 3.87 0.21 5.43) and the same hotspots; the gripped hand
+  closes the same way (screenshots side by side).
+- `ad_import.py --check --release`: 0 of 142 files differ. Build: QC 0 warnings.
+- Screenshots (scratch, not committed): `scratch/adw_held.png` (each held, side and three-quarter), `adw_grip.png`
+  (gripped, AD model left, plain parent right, per weapon), `adw_holster.png` (hips), `adw_dropped.png` (the
+  Widowmaker dropped, mid-fall; the toolgun-spawned pickups ahead).
+- Debug menu (Tests, Arcane Dimensions): "Upgraded Weapons Ahead" (`vr_ad_test 96`), "Shadow Axe / Widowmaker /
+  Plasma Gun in Hand" (97-99).
+
+### For VR
+
+- Hold each (Debug > Tests > Arcane Dimensions > ... in Hand): the hand on the grip, the look, size; the muzzles (the
+  Widowmaker's is about 2 model units off-centre to the right after the inherited muzzle offset); the off hand on the
+  barrels (TwoH anchors guessed). Swing the Shadow Axe (sticking, glow). Holster and drop them.
+- Not done: the lightning gun's magazine (`vr_view.cpp`'s `VLight` mount) isn't drawn on the Plasma Gun; the
+  Widowmaker reloads at the hip, so the super shotgun's opening isn't needed. The toolgun's catalogue icons stay AD's
+  pickup models.

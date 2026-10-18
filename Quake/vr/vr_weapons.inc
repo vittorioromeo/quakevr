@@ -2923,6 +2923,34 @@ QVR_WEAPON_DEFAULT(31, HandAnchor, "23 0 3.15")
 QVR_WEAPON_DEFAULT(31, TwoHHandAnchor, "23 0 3.15")
 QVR_WEAPON_DEFAULT(31, WpnButtonAnchor, "23 0 3.15")
 QVR_WEAPON_DEFAULT(31, WpnTextAnchor, "2 0 8.75")
+// AD support: Arcane Dimensions' upgraded weapons (QC vr_ad_bridge.qc: the Shadow Axe, the Widowmaker, the Plasma
+// Gun), their VR models made from AD's view models as they load (vr_adweapons.cpp: "<AD view model>#vr"), laid in the
+// frame of the Quake VR weapon they upgrade and packed from its model's corner, so they inherit its settings: the
+// axe's (slot 0: the handle on its handle, the blade out the same way), the super shotgun's (slot 2: its own grip,
+// guard and trigger on), the lightning gun's (slot 7: likewise). Their anchors are their own: the hand's as their
+// parent's (the same grip); the muzzle the gun's front end's middle, the axe's the blade edge's top
+// (vr_adweapon_models prints them); the other hand's on the axe's handle below the head, on the guns' barrels.
+QVR_WEAPON_DEFAULT(33, ID, "progs/v_shadaxe3.mdl#vr")
+QVR_WEAPON_DEFAULT(33, InheritFrom, "1")
+QVR_WEAPON_DEFAULT(33, HandAnchor, "-0.8655 0.0053 -2.9694")
+QVR_WEAPON_DEFAULT(33, MuzzleAnchor, "22.11 -0.04 26.36")
+QVR_WEAPON_DEFAULT(33, TwoHHandAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(33, WpnButtonAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(33, WpnTextAnchor, "4.65 0 8.67")
+QVR_WEAPON_DEFAULT(34, ID, "progs/v_shot3.mdl#vr")
+QVR_WEAPON_DEFAULT(34, InheritFrom, "3")
+QVR_WEAPON_DEFAULT(34, HandAnchor, "5.0979 -0.0482 0.7118")
+QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "25.2759 0.0029 5.3727")
+QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "22 -3.1209 3.7164")
+QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "11.6867 1.4881 5.4412")
+QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "11.6867 1.4881 5.4412")
+QVR_WEAPON_DEFAULT(35, ID, "progs/v_plasma.mdl#vr")
+QVR_WEAPON_DEFAULT(35, InheritFrom, "8")
+QVR_WEAPON_DEFAULT(35, HandAnchor, "-2.7194 -1.5656 10.8636")
+QVR_WEAPON_DEFAULT(35, MuzzleAnchor, "31.8792 0.0195 10.3979")
+QVR_WEAPON_DEFAULT(35, TwoHHandAnchor, "24 -3 6.5")
+QVR_WEAPON_DEFAULT(35, WpnButtonAnchor, "-2.7194 -1.5656 10.8636")
+QVR_WEAPON_DEFAULT(35, WpnTextAnchor, "-2.7194 -1.5656 10.8636")
 // AD support: the crossbow knight's crossbow (QC vr_ad_enemyguns.qc WID_ADCROSSBOW): AD's own progs/w_dcrossbow.mdl (its
 // gib) turned to face +x as our guns do (vr_adguns.cpp turnedModels: "progs/w_dcrossbow.mdl#gun0"; the stock along x
 // -12..28, the bow across y +-16.9, z -3.5..4.5, the tiller behind the bow at the origin), so no Yaw 90 and its Pitch,
