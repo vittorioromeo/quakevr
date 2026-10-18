@@ -309,6 +309,7 @@ float() VR_Limb_GibsWanted;
 float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
 void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow; // (vr_teeth.qc)
 void() VR_Teeth_Test;
+void(entity c, float xHand, vector xAt, vector xDir, float xSpeed, float xDamage) VR_Teeth_CorpseBlow;
 void(entity targ) VR_Decap_After;
 
 // Knockdowns (vr_knockdown.qc): a shove knocked it down, a ragdoll while alive (the engine's vr_box3d.cpp, "Knockdowns").
@@ -952,6 +953,7 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     {
         dmg = dmg * 1.5;
     }
+    VR_Teeth_CorpseBlow(c, xHand, at, dir, speed, dmg); // VR: a punch to its ragdoll's face knocks teeth out (vr_teeth.qc)
     VR_SoundVaried(self, VRGetHandChannel(xHand), VRIsHandWeaponless(self, xHand) ? "fisthit.wav" : "player/axhit2.wav", 0.8, ATTN_NORM);
     VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), c);
     haptic(xHand, 0.0, 0.1, 60, 0.7);

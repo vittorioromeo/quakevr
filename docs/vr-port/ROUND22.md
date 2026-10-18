@@ -12498,3 +12498,32 @@ ragdoll (which skins from those frames) hold none. `droppedName` says "crossbow"
 game is closed. To check: that nothing but the crossbow vanished (hands, bowstring) and the range covers the whole death.
 
 **Verified (2026-10-18, after his game closed; needs `ad` junctioned into the base: qbase/ad)**: `Misc/quakevr/xbow_corpse_test.sh <tag>` (ad_tfuma, r_fullbright, one kill, four shots): the log says "crossbow (348 vertices) hidden in 31 death frames"; in the shots the body flies/falls with empty hands and the crossbow lies on the floor as the pickup; no hand or arm vanished, so the range 772..1119 stays. Shots: scratch/xbow_k_fb.png (not committed). The ragdoll is the same frames.
+## Blood streams follow the ragdoll; teeth from ragdolls (worktree `gorefx`, branch `agent/goreload`, 2026-10-18)
+
+Voice notes 2026-10-18: "one of the blood spurts from before it was killed floats in midair", and "teeth ... don't seem
+to work on a ragdoll".
+
+**Blood streams follow the ragdoll** (vr_bloodstream.cpp `locate`, `rebind`; vr_ragdoll.cpp `partShown`): a stream
+bound to a triangle on a part the ragdoll doesn't draw (the grunt's shotgun, which he holds across his chest and drops
+as he dies: a hidden bone; or a head cut off) failed the ragdoll lookup and fell back to the animated corpse's pose,
+left where he died, so it kept pouring from that spot while the body fell away. Now, once the body is a ragdoll (its
+pelvis drawn), a stream whose corners aren't all on parts shown is bound afresh to the nearest point of the ragdoll's
+drawn surface to where it pours from (a triangle with every corner on a shown part, within 32 units; its way out taken
+in the new part's frame), or it stops (what is falling still lands). A ragdoll never falls back to the animated pose.
+`vr_gore_streams_info` now prints each stream's distance to the body as drawn ("the body drawn N from its start") and
+the rebinds and stops since the map began; `developer 1` prints each rebind.
+- Test (vrfiringrange, a grunt at 90, `vr_gore_stream_test 3`, `vr_test_kill 1`, `vr_gore_streams_info` over 4 s):
+  before, one of the three stayed "animated" and drifted 6.7-15.7 units from the falling body; after, all three are
+  "ragdoll", 0.1-2.0 units from it, one bound afresh 19.4 units from the gun.
+
+**Teeth from ragdolls** (vr_teeth.qc `VR_Teeth_CorpseBlow`, `VR_Teeth_OnFace`, `VR_Teeth_Hard`; combat.qc
+`VR_Corpse_Struck`): a corpse blow (a fist, or with `vr_teeth_blunt` a gun's butt, a crowbar, a club, a pommel; never
+a slap) on a humanoid ragdoll's head part (`ragdollhead`), not from behind its face, knocks teeth out by the same rule
+as a live punch (`vr_teeth_hardness`, `_per_hit`; the hardness from the blow's speed and its corpse damage). The face
+on a ragdoll is its head part's: the part's middle (`ragdollcut 6`) and the rest pose's forward, side and up turned with
+it (`ragdollpoint`), so a body lying face down gives no teeth to a blow from above. The budget is the same entity's
+`.vr_teeth_lost` (a corpse is the monster's own edict), so the living one's count goes on and a saved game keeps it.
+A knocked-down live one (a ragdoll) is struck on its head part the same way. `impulse 198` on a dead monster strikes its
+ragdoll's mouth through VR_Corpse_Struck (the main hand).
+- Test (vrfiringrange, a grunt at 60, `vr_teeth_per_hit 3; vr_teeth_per_enemy 8; vr_decap 0; vr_corpse_nogib 2`):
+  alive 3 (3 lost), killed, its ragdoll 3 (6 lost), saved and loaded, its ragdoll 2 (8: the cap), then 0 and 0.
