@@ -13240,3 +13240,33 @@ feet, and no global spring. Design and causes: FLINCH.md, "Balance from the legs
   longer backpedal needs a shorter stride, which then fell behind its capture point and toppled after 5-9 steps);
   only the grunt was measured (the other classes, AD's, the enforcer's odd poses: not yet).
 - **Frame strips** (side view, a shot every 7 frames): `scratch/fl4_strip_<case>_<terrain>[_old].png`.
+
+## Flamethrowers light the room (worktree `goreflesh`, branch `agent/flamelight`, 2026-10-18)
+
+Before: no light at all from a flamethrower's stream (the player's AD pyro gun, the pyro monsters): AD's flame sprites
+(`progs/s_burst_flame.spr`) and our fire particles, nothing lit. Now (vr_emissive.cpp, `VR_FlameLights`, called after
+`VR_TorchLights` in CL_ReadFromServer): each frame `VR_ProjectileLight` gathers the flame sprites drawn (a young flame
+weighs more), they are clustered (a flame joins the nearest cluster within 72 units; clusters within 288 merged, nearest
+first, down to the cap; more still: the heaviest and nearest kept), and each cluster is one light at its weighted
+centre (put back in the open along a trace from its first flame), as bright as its flames' weight (four fresh flames a
+full light), as wide as they are spread (160 + 1.2 x spread, at most 320). The lights are slots kept from frame to frame:
+a cluster takes the nearest light within 160 units, which follows it smoothly; a light swells in within a tenth of a
+second and dies down in about a third when its stream stops; a fast torch-like flicker. Unshadowed (no shadow tiles),
+coloured, through `setGlow` (both falloffs, so Quake's lighting look too); models are lit as by any dynamic light. The
+fumigator's poison and the smoke under water make no light.
+
+Settings: `vr_flame_lights` (3; how many lights for all the streams together, 0 off; the lighting presets: Low 1,
+Medium and up 3), `vr_flame_light_scale` (1, their reach); Light Sources rows "Flamethrower Lights" and "Flamethrower
+Light Size"; Debug: "Flame Lights Info" (`vr_flame_lights_info`: flames, clusters, each light's place, level, reach).
+
+Cost (`--exclusive -RealTime`, `vr_profile_report`, a pyro monster streaming at a wall, 7 flames in the air): CPU no
+change measurable (the client's other time 0.027-0.029 ms either way); GPU world 0.404 -> 0.421 ms with the stream's 2
+lights. The naive way (a light a flame; a test build with no clustering): 8 lights, GPU world 0.365 -> 0.389 ms, and 8
+of the 64 dynamic light slots per stream (three pyros: 24) against 2-3 for all the streams here. Scripts (scratch):
+`flamelight.sh` (the player's gun, on/off screenshots), `flamemon.sh` (a pyro monster), `flameprof.sh`,
+`flamemonprof.sh`; screenshots `fl1.png`, `fm2.png`.
+
+### For VR
+
+The player's pyro gun in a dark corridor and a pyro monster's stream: the light's brightness and colour (too strong?
+`vr_flame_light_scale`), whether it pops or lags when sweeping the stream, and the light on your own hands and gun.

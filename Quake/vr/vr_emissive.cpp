@@ -25,6 +25,7 @@
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -438,7 +439,278 @@ struct EmissiveScratch
 };
 mem::Scratch<EmissiveScratch> scratch{"emissive"};
 
+// ---- Flamethrowers' streams (vr_flame_lights) ------------------------------------------------
+// A stream is a dozen or more of AD's flame sprites (progs/s_burst_flame.spr: the player's pyro gun, the pyro monsters')
+// in the air at once. Not a light each: each frame the flames drawn are gathered into clusters (near ones together, a
+// young flame weighing more than an old one), at most vr_flame_lights of them, each a light at its flames' centre, as
+// bright as it has flames and as wide as they are spread. The lights are smoothed from frame to frame (each follows its
+// cluster, swells in fast and dies down slower when the stream stops) and flicker.
+
+constexpr Glow streamFlame{{1.7f, 0.85f, 0.3f}, 160.f}; // AD's flame sprite's orange; the reach of a cluster's light
+constexpr int maxFlamePuffs = 128;   // the flames gathered a frame (more: the rest not counted)
+constexpr int maxFlameClusters = 24; // before they are merged down to vr_flame_lights
+constexpr int maxFlameLights = 8;
+constexpr int flameLightKey = -0x5900; // - the light's slot
+constexpr float flameJoin = 72.f;      // a flame joins a cluster whose centre is this near
+constexpr float flameMerge = 288.f;    // clusters this near are merged when there are too many (farther: the least kept out)
+constexpr float flameFollow = 160.f;   // a light follows a cluster this near it (farther: another light)
+
+struct FlamePuff
+{
+    glm::vec3 pos;
+    float weight;
+};
+FlamePuff flamePuffs[maxFlamePuffs]; // this frame's, from VR_ProjectileLight (VR_FlameLights uses them up)
+int flamePuffCount = 0;
+
+struct FlameCluster
+{
+    glm::vec3 sum{0.f};  // the flames' weighted positions
+    glm::vec3 seed{0.f}; // its first flame (in the open: the light is not put past a wall from it)
+    float sum2 = 0.f;    // their weighted squared lengths (the spread)
+    float weight = 0.f;
+    float score = 0.f; // weight over distance from the eye (the ones kept)
+    [[nodiscard]] glm::vec3 centre() const { return sum / weight; }
+};
+
+struct FlameLight
+{
+    bool live = false;
+    glm::vec3 pos{0.f};
+    float level = 0.f;  // 0..1, smoothed
+    float radius = 0.f; // smoothed
+    float target = 0.f; // this frame's level to go to
+    float targetRadius = 0.f;
+};
+FlameLight flameLights[maxFlameLights];
+double flameLastTime = 0.0;
+bool flameInfoRegistered = false; // vr_flame_lights_info (registered on the first VR_FlameLights)
+int flameInfoPuffs = 0;           // last frame's flames and clusters (vr_flame_lights_info)
+int flameInfoClusters = 0;
+
+void flameLightsInfo_f()
+{
+    int live = 0;
+    for(const FlameLight& l : flameLights)
+    {
+        live += l.live ? 1 : 0;
+    }
+    Con_Printf("flame lights: %d flames, %d clusters, %d lights live (vr_flame_lights %g)\n", flameInfoPuffs, flameInfoClusters,
+        live, static_cast<double>(vr_flame_lights.value));
+    for(int k = 0; k < maxFlameLights; k++)
+    {
+        const FlameLight& l = flameLights[k];
+        if(l.live)
+        {
+            Con_Printf("  %d: at %.0f %.0f %.0f level %.2f radius %.0f\n", k, static_cast<double>(l.pos.x),
+                static_cast<double>(l.pos.y), static_cast<double>(l.pos.z), static_cast<double>(l.level),
+                static_cast<double>(l.radius));
+        }
+    }
+}
+
+void killFlameLight(int k)
+{
+    if(flameLights[k].live)
+    {
+        killDlight(flameLightKey - k);
+    }
+    flameLights[k] = FlameLight{};
+}
+
 } // namespace
+
+// Each client frame, after the entities: the flamethrowers' streams' lights (see above), from the flames
+// VR_ProjectileLight gathered.
+extern "C" void VR_FlameLights(void)
+{
+    QVR_PROFILE("flame lights");
+    if(!flameInfoRegistered)
+    {
+        flameInfoRegistered = true;
+        Cmd_AddCommand("vr_flame_lights_info", flameLightsInfo_f);
+    }
+    const int count = flamePuffCount;
+    flamePuffCount = 0;
+    const int cap = za::clamp(static_cast<int>(vr_flame_lights.value), 0, maxFlameLights);
+    if(cls.state != ca_connected || cap == 0 || cl.time < flameLastTime)
+    {
+        for(int k = 0; k < maxFlameLights; k++)
+        {
+            killFlameLight(k);
+        }
+        flameLastTime = cl.time;
+        flameInfoPuffs = flameInfoClusters = 0;
+        return;
+    }
+    const float dt = static_cast<float>(za::clamp(cl.time - flameLastTime, 0.0, 0.1));
+    flameLastTime = cl.time;
+
+    // The clusters: each flame joins the nearest within flameJoin (none: a cluster of its own, or the nearest when full).
+    FlameCluster clusters[maxFlameClusters];
+    int n = 0;
+    for(int i = 0; i < count; i++)
+    {
+        const FlamePuff& p = flamePuffs[i];
+        int best = -1;
+        float bestD2 = 0.f;
+        for(int c = 0; c < n; c++)
+        {
+            const glm::vec3 d = clusters[c].centre() - p.pos;
+            const float d2 = glm::dot(d, d);
+            if(best < 0 || d2 < bestD2)
+            {
+                best = c;
+                bestD2 = d2;
+            }
+        }
+        if(best < 0 || (bestD2 > flameJoin * flameJoin && n < maxFlameClusters))
+        {
+            best = n++;
+            clusters[best].seed = p.pos;
+        }
+        FlameCluster& c = clusters[best];
+        c.sum += p.pos * p.weight;
+        c.sum2 += glm::dot(p.pos, p.pos) * p.weight;
+        c.weight += p.weight;
+    }
+    // Merged, the nearest two at a time, down to the cap (not across a room: two pyros apart keep their own).
+    while(n > cap)
+    {
+        int a = -1;
+        int b = -1;
+        float bestD2 = flameMerge * flameMerge;
+        for(int i = 0; i < n; i++)
+        {
+            for(int j = i + 1; j < n; j++)
+            {
+                const glm::vec3 d = clusters[i].centre() - clusters[j].centre();
+                const float d2 = glm::dot(d, d);
+                if(d2 < bestD2)
+                {
+                    a = i;
+                    b = j;
+                    bestD2 = d2;
+                }
+            }
+        }
+        if(a < 0)
+        {
+            break;
+        }
+        FlameCluster& ca = clusters[a];
+        const FlameCluster& cb = clusters[b];
+        if(cb.weight > ca.weight)
+        {
+            ca.seed = cb.seed;
+        }
+        ca.sum += cb.sum;
+        ca.sum2 += cb.sum2;
+        ca.weight += cb.weight;
+        clusters[b] = clusters[--n];
+    }
+    // Still too many: the heaviest and nearest kept.
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    for(int c = 0; c < n; c++)
+    {
+        clusters[c].score = clusters[c].weight / (1.f + glm::distance(clusters[c].centre(), eye) / 512.f);
+    }
+    za::insertionSort(clusters, clusters + n, [](const FlameCluster& x, const FlameCluster& y) { return x.score > y.score; });
+    n = za::min(n, cap);
+    flameInfoPuffs = count;
+    flameInfoClusters = n;
+
+    // Each cluster to the light nearest it (within flameFollow), or a light out now; the lights left die down.
+    for(FlameLight& l : flameLights)
+    {
+        l.target = 0.f;
+    }
+    bool taken[maxFlameLights] = {};
+    for(int c = 0; c < n; c++)
+    {
+        const FlameCluster& cu = clusters[c];
+        glm::vec3 at = cu.centre();
+        const float spread = za::sqrt(za::max(0.f, cu.sum2 / cu.weight - glm::dot(at, at)));
+        // (From its first flame: a stream bending round a corner keeps its light in the open.)
+        const trace_t tr = worldtrace::world(cu.seed, at, false);
+        if(tr.fraction < 1.f && !tr.startsolid)
+        {
+            at = glm::mix(cu.seed, at, za::max(0.f, tr.fraction - 0.1f));
+        }
+        int best = -1;
+        float bestD2 = flameFollow * flameFollow;
+        for(int k = 0; k < cap; k++)
+        {
+            const FlameLight& l = flameLights[k];
+            const glm::vec3 d = l.pos - at;
+            if(l.live && !taken[k] && glm::dot(d, d) < bestD2)
+            {
+                best = k;
+                bestD2 = glm::dot(d, d);
+            }
+        }
+        if(best < 0)
+        {
+            for(int k = 0; k < cap && best < 0; k++)
+            {
+                if(!flameLights[k].live)
+                {
+                    best = k;
+                }
+            }
+        }
+        if(best < 0)
+        {
+            continue;
+        }
+        taken[best] = true;
+        FlameLight& l = flameLights[best];
+        // Four fresh flames make a full light; a few old ones a dim one.
+        l.target = za::clamp(za::sqrt(cu.weight / 4.f), 0.f, 1.25f);
+        l.targetRadius = za::min(streamFlame.radius + spread * 1.2f, 2.f * streamFlame.radius);
+        if(!l.live)
+        {
+            l.live = true;
+            l.pos = at;
+            l.level = 0.f;
+            l.radius = l.targetRadius;
+        }
+        else
+        {
+            l.pos = glm::mix(l.pos, at, 1.f - za::exp(-dt * 14.f));
+        }
+    }
+
+    const float scale = za::max(0.f, vr_flame_light_scale.value);
+    for(int k = 0; k < maxFlameLights; k++)
+    {
+        FlameLight& l = flameLights[k];
+        if(!l.live)
+        {
+            continue;
+        }
+        const float rate = l.target > l.level ? 16.f : 6.f; // (in within a tenth of a second, out in about a third)
+        l.level += (l.target - l.level) * (1.f - za::exp(-dt * rate));
+        if(l.target > 0.f)
+        {
+            l.radius += (l.targetRadius - l.radius) * (1.f - za::exp(-dt * 10.f));
+        }
+        if(k >= cap || (l.target <= 0.f && l.level < 0.03f) || scale <= 0.f)
+        {
+            killFlameLight(k);
+            continue;
+        }
+        // A roaring jet's flicker: faster than a torch's.
+        const float flicker = torchFlicker(cl.time * 1.6, 0xF1A3u + static_cast<unsigned>(k) * 7u);
+        dlight_t* dl = CL_AllocDlight(flameLightKey - k);
+        dl->origin[0] = l.pos.x;
+        dl->origin[1] = l.pos.y;
+        dl->origin[2] = l.pos.z;
+        dl->die = static_cast<float>(cl.time + 0.1);
+        const float level = za::clamp(l.level * (1.f + 0.2f * flicker), 0.f, 1.5f);
+        setGlow(dl, streamFlame.color * level, l.radius * scale * (0.55f + 0.45f * za::min(level, 1.f)) * (1.f + 0.05f * flicker), 0.f);
+    }
+}
 
 // Each frame a glowing projectile is relinked: its light where it is drawn, lasting until the next
 // frame's (a hell knight's flame flickers a little).
@@ -456,6 +728,16 @@ extern "C" void VR_ProjectileLight(int ent)
         if(scale > 0.f)
         {
             lavaNailLight(ent, e, scale);
+        }
+        return;
+    }
+    if(modelmeta::is(e.model, modelmeta::Id::BurstFlame))
+    {
+        // A flamethrower's flame: gathered for its stream's lights (VR_FlameLights), a young one weighing more.
+        if(flamePuffCount < maxFlamePuffs && vr_flame_lights.value > 0.f)
+        {
+            flamePuffs[flamePuffCount++] = FlamePuff{glm::vec3{e.origin[0], e.origin[1], e.origin[2]},
+                za::clamp(1.f - static_cast<float>(e.frame) * 0.12f, 0.25f, 1.f)};
         }
         return;
     }

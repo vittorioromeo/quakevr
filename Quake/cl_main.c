@@ -846,6 +846,7 @@ int CL_ReadFromServer (void)
 	VR_WallTorchFlames (); // QVR: taken wall torches' flames (vr_walltorch.cpp)
 	VR_TestEffects (); // QVR: vr_particle_test quake's sprite (vr_client.cpp)
 	VR_TorchLights (); // QVR: torches and flames flicker light onto the room
+	VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
 
 //johnfitz -- devstats
 
