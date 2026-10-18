@@ -1211,6 +1211,10 @@ constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
 constexpr float legsSwingClear = 0.08f; // of its leg: a stepping foot kept this far over the floor on its way
+constexpr float legsHang = 0.3f;        // of its leg: a foot this much higher over its floor than the other hangs
+constexpr float legsSettleTime = 0.15f; // s: a hanging foot's step down
+constexpr int legsSettleTries = 8;      // spots tried on its way to the other foot
+constexpr float legsSettleReach = 0.1f; // of its leg: a spot this much farther from its pelvis than its other foot it reaches
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1276,6 +1280,42 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
     float lowGap = 1e30f, lowBase = 0.f;
     glm::vec3 lowAt{0.f};
     int n = 0, whole = 0;
+    // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its stand
+    // frame's feet level. A foot far higher over its floor than the other (on a stair, its box on the step above, the
+    // foot over the step below) hangs: its gap is the other's, and it is put down first, staggerFrame.)
+    if(first)
+    {
+        za::Array<float, 2> raw{1e30f, 1e30f};
+        float lowest = 1e30f;
+        for(int leg = 2; leg < 4; leg++)
+        {
+            if(limbWhole(s, p, leg))
+            {
+                const glm::vec3 f = limbEnd(s, p, leg);
+                const float len = limbLength(s, p, leg);
+                raw[static_cast<za::SizeT>(leg - 2)] = f.z - floorUnder(c, f, za::max(pelvis.z, f.z + 0.1f), f.z - 2.f * len, f.z);
+                lowest = za::min(lowest, raw[static_cast<za::SizeT>(leg - 2)]);
+            }
+        }
+        g.hangLeg = -1;
+        g.settling = false;
+        for(int leg = 2; leg < 4; leg++)
+        {
+            const auto i = static_cast<za::SizeT>(leg - 2);
+            if(raw[i] > 1e29f)
+            {
+                continue;
+            }
+            const bool hangs = raw[static_cast<za::SizeT>(3 - leg)] < 1e29f && raw[i] - lowest > legsHang * limbLength(s, p, leg);
+            g.footGap[i] = za::clamp(hangs ? lowest : raw[i], -0.25f, 0.3f);
+            g.hangLeg = hangs ? leg : g.hangLeg;
+        }
+        if(vr_flinch_debug.value >= 4.f)
+        {
+            Con_Printf("legs: %d struck: its feet's ends %.1f %.1f units over their floor, its pelvis %.1f over them\n", c.num,
+                raw[0] * p.m2u, raw[1] * p.m2u, (pelvis.z - lowest) * p.m2u);
+        }
+    }
     for(int leg = 2; leg < 4; leg++)
     {
         const auto i = static_cast<za::SizeT>(leg - 2);
@@ -1286,11 +1326,8 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         const glm::vec3 f = limbEnd(s, p, leg);
         const float len = limbLength(s, p, leg);
         const float floor = floorUnder(c, f, za::max(pelvis.z, f.z + 0.1f), f.z - 2.f * len, f.z - g.footGap[i]);
-        // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
-        // stand frame's feet level.)
         if(first)
         {
-            g.footGap[i] = za::clamp(f.z - floor, -0.25f, 0.3f);
             feetEnd += f.z;
             whole++;
         }
@@ -1334,7 +1371,19 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         return; // (in the air: gravity alone)
     }
     const float gz = za::max(c.gravity, 1.f);
-    const float baseZ = baseSum / static_cast<float>(n);
+    // (A step down (a stair): its pelvis sinks as the foot goes, its standing knee bending, for the foot to reach its
+    // spot.)
+    const float sink = g.stepLeg >= 0 ? smooth01(static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f)) : 0.f;
+    const float baseZ = baseSum / static_cast<float>(n) -
+                        sink * za::max(baseSum / static_cast<float>(n) - (g.stepLeg >= 0 ? g.stepB.z : 0.f), 0.f);
+    // (A hanging foot going onto its step (staggerFrame: Quake's box on the step's edge, the foot over the step below)
+    // holds its side meanwhile, as on the edge, for its centre of pressure: its middle, between its feet, not left to fall
+    // off its one bearing foot towards it.)
+    if(g.settling && g.stepLeg >= 0 && n == 1)
+    {
+        g.bearAt[1] = limbEnd(s, p, g.stepLeg);
+        n = 2;
+    }
     // Its legs' push: holding its pelvis as high over its feet as it stood (critically damped), never pulling it down.
     const float w = 2.f * 3.14159265f * legsHertz;
     const float vz = glmv(b3Body_GetLinearVelocity(p.body[0])).z;
@@ -1387,6 +1436,35 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         const float k = za::max(vr_flinch_legs_upright.value, 0.f);
         turnUpper(p, c, 0u, glm::normalize(s.turn * pose.rot[0]), legsUpright * k * s.base, legsUprightMost * k, hold);
     }
+}
+
+// Where a foot can stand near `want` (level; vr_flinch 2): the first spot on the way from it to its other foot
+// (`otherEnd`) whose floor (traced from its pelvis's height) its leg reaches from `hip` (its pelvis sinking by half the
+// drop below the other foot: legsBalance's base is both feet's) and is whole round it (its sole on one step, not over a
+// riser's edge). `to`: that spot, its end `gap` over the floor. False: none (`to` left).
+[[nodiscard]] bool footSpot(const Stagger& g, const Context& c, float gap, float len, const glm::vec3& want,
+    const glm::vec3& otherEnd, const glm::vec3& hip, glm::vec3& to)
+{
+    const glm::vec3 way = level(otherEnd) - level(want);
+    const float wl = glm::length(way);
+    const glm::vec3 dir = wl > 1e-3f ? way / wl : g.dir;
+    const float top = za::max(hip.z, otherEnd.z + 0.1f), bottom = otherEnd.z - 2.f * len;
+    const float reach = glm::length(otherEnd - hip) + legsSettleReach * len;
+    for(int k = 0; k < legsSettleTries; k++)
+    {
+        const glm::vec3 q = level(want) + way * (0.6f * static_cast<float>(k) / static_cast<float>(legsSettleTries));
+        const float z = floorUnder(c, q, top, bottom, -1e30f);
+        const float zA = floorUnder(c, q + dir * (0.5f * g.footR), top, bottom, -1e30f);
+        const float zB = floorUnder(c, q - dir * (0.5f * g.footR), top, bottom, -1e30f);
+        const glm::vec3 spot{q.x, q.y, z + gap};
+        if(z > -1e29f && za::abs(zA - z) < 0.1f * len && za::abs(zB - z) < 0.1f * len &&
+           glm::length(spot - (hip - glm::vec3{0.f, 0.f, za::max(otherEnd.z - spot.z, 0.f)})) < reach)
+        {
+            to = spot;
+            return true;
+        }
+    }
+    return false;
 }
 
 // A flinch's measures as it ends (vr_flinch_debug): the `flinch: <num> result` line (the tests' scripts read it).
@@ -1470,6 +1548,33 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         // vr_flinch 2: a step once its capture point is past its bearing feet's reach for its centre of pressure, the
         // foot put where its stance has it round where its capture point will be as it lands (its middle running on
         // over the other foot meanwhile), within its stride.
+        // (A foot hanging as it was struck (over a stair's step below) is put down first, straight down onto its floor.)
+        if(g.legs && g.stepLeg < 0 && g.hangLeg >= 0 && g.bearing > 0 && limbWhole(s, p, g.hangLeg))
+        {
+            const auto i = static_cast<za::SizeT>(g.hangLeg - 2);
+            const float len = limbLength(s, p, g.hangLeg);
+            const glm::vec3 from = g.planted[i];
+            glm::vec3 to = from;
+            const glm::vec3 otherEnd = g.planted[static_cast<za::SizeT>(3 - g.hangLeg)];
+            const bool found = footSpot(g, c, g.footGap[i], len, from, otherEnd, pelvis, to);
+            if(vr_flinch_debug.value >= 4.f)
+            {
+                Con_Printf("legs: %d its foot %d hangs %.1f units over its floor: %s, %.1f units on, %.1f down\n", c.num,
+                    g.hangLeg, (from.z - floorUnder(c, from, pelvis.z, from.z - 2.f * len, from.z)) * p.m2u,
+                    found ? "put down" : "no spot", glm::length(level(to - from)) * p.m2u, (from.z - to.z) * p.m2u);
+            }
+            if(found)
+            {
+                g.stepLeg = g.hangLeg;
+                g.stepFrom = c.now;
+                g.stepTime = legsSettleTime;
+                g.stepA = from;
+                g.stepB = to;
+                g.settling = true;
+            }
+            g.hangLeg = -1;
+        }
+        g.hangLeg = g.legs && g.stepLeg < 0 ? g.hangLeg : -1;
         // (Nearly still and only a little past: its ankles settle it; no stepping in place.)
         if(g.legs && g.stepLeg < 0 && g.steps < stepsCap && g.bearing > 0 && g.captureOff > legsStepPast &&
            (glm::length(level(comVel)) > legsStepSpeed || g.captureOff > g.footR))
@@ -1529,7 +1634,19 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     to = hipThen + off * (legsStride * len / offL);
                 }
                 const glm::vec3 from = g.planted[i];
-                to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
+                // (On a floor its leg reaches, its sole whole on it: on stairs, not two steps down nor over a riser's
+                // edge; else as high over the floor there as it is here.)
+                glm::vec3 spot = to;
+                if(limbWhole(s, p, 5 - best) &&
+                   footSpot(g, c, g.footGap[i], len, to, g.planted[static_cast<za::SizeT>(3 - best)],
+                       glm::vec3{hipThen.x, hipThen.y, pelvis.z}, spot))
+                {
+                    to = spot;
+                }
+                else
+                {
+                    to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
+                }
                 g.stepLeg = best;
                 g.stepFrom = c.now;
                 g.stepTime = stepTime;
@@ -1754,7 +1871,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                 const float under = floorUnder(c, next, za::max(pelvis.z, next.z + 0.1f), next.z - len, -1e30f);
                 if(under > -1e29f && u2 < 1.f)
                 {
-                    const float clear = under + za::min(g.footGap[i], 0.f) + legsSwingClear * len * (1.f - smooth01((u2 - 0.8f) / 0.2f));
+                    const float clear = under + g.footGap[i] + legsSwingClear * len * (1.f - smooth01((u2 - 0.8f) / 0.2f));
                     next.z = za::max(next.z, clear);
                     r.goal.z = za::max(r.goal.z, clear);
                 }
@@ -1780,10 +1897,20 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                         b3Body_SetLinearVelocity(p.body[b], b3v(glmv(b3Body_GetLinearVelocity(p.body[b])) - moved / g.upperMass));
                     }
                 }
+                if(vr_flinch_debug.value >= 4.f)
+                {
+                    const glm::vec3 e = limbEnd(s, p, leg);
+                    const glm::vec3 kick = moved / g.upperMass;
+                    Con_Printf("swing: %d leg %d u %.2f, its end %.1f off its way (%.1f up), %.1f over its spot; want %.2f "
+                               "m/s (%.2f up), body given %.2f m/s (%.2f up), pelvis going %.2f up\n",
+                        c.num, leg, u, glm::length(e - next) * p.m2u, (e.z - next.z) * p.m2u, (e.z - g.stepB.z) * p.m2u,
+                        glm::length(want), want.z, glm::length(kick), -kick.z, glmv(b3Body_GetLinearVelocity(p.body[0])).z);
+                }
             }
             if(u >= 1.f)
             {
                 g.planted[i] = g.stepB;
+                g.settling = false;
                 g.stepLeg = -1;
                 g.steps++;
                 const glm::vec3 way = level(g.stepB - g.stepA);
@@ -4062,6 +4189,8 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
         g.upperMass = za::max(upper, 1.f);
         g.overFloor = 0.f;
         g.pelvisOver = -1.f; // (measured on its first frame: staggerFrame, over the floor)
+        g.hangLeg = -1;
+        g.settling = false;
         s.fade[static_cast<za::SizeT>(Channel::Legs)] = Fade{legsStance, legsStance, 0.f, 0.f}; // (a step's leg: its reach's)
         const glm::vec3 rest = info.impulse * ((1.f - local) * za::max(info.push, 0.f));
         for(int b = 0; b < p.count; b++)
