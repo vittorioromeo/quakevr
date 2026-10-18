@@ -67,6 +67,9 @@
         slider("Bolts", "vr_adgun_crossbow_ammo", 1.f, 30.f, 1.f, "%.0f").extend(1.f, 100.f)
             .help("The bolts the crossbow holds as the knight drops it: its own, never refilled."),
         slider("Time Between Shots", "vr_adgun_crossbow_refire", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f),
+        toggle("Bolt Laid and String Animated", "vr_adgun_crossbow_anim")
+            .help("A bolt lies in the groove while the crossbow is ready (morphing in after a shot) and is the one that "
+                  "flies; the string snaps forward and the limbs flex, then it is drawn back for the next."),
         header("Melee Monsters' Weapons"),
         toggle("Melee Monsters Drop Their Weapons", "vr_admelee_drops")
             .help("The death fury drops its two swords, the death knight, zombie knight and death guard their swords, "

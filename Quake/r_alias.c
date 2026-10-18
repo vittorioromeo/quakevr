@@ -450,6 +450,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 		lerpdata->pose2 = posenum;
 	}
 	VR_AnimSmoothPinned (e, paliashdr, &lerpdata->pose1, &lerpdata->pose2, &lerpdata->blend); // QVR: vr_anim_smooth_pin
+	VR_AliasPoseOverride (e, paliashdr, &lerpdata->pose1, &lerpdata->pose2, &lerpdata->blend); // QVR: the AD crossbow's string (vr_adcrossbow.cpp)
 }
 
 /*

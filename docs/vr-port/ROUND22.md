@@ -13527,3 +13527,32 @@ Axe size onto slot 0, so the plain axe grew too).
 His `ironwail.cfg` compared with the shipped defaults: the holster zones (all `vr_holster_zone_*`, hip/shoulder/upper
 thresholds) and glove thickness / relief already matched (config 156 and earlier). Promoted, with migration 158:
 `vr_grenade_pouch_thresh` 7 -> 5.5, `vr_flame_lights` 3 -> 4, `vr_flame_light_scale` 1 -> 2.5.
+
+## AD crossbow: the bolt laid and fired, the bow animated (worktree `gorefx`, branch `agent/xbowanim`, 2026-10-18)
+
+His notes: the bolt appears out of nowhere; it should sit on the crossbow (morphing in as it is ready, as our ammo
+morph), leave from there; the string and limbs should snap and be drawn back.
+
+- **Bolt** (`vr_adcrossbow.cpp`, view entity `adBolt[2]`): AD's `progs/proj_bolt1.mdl` in the groove of the held
+  crossbow, its back on the string at the latch (turned model `6.9 0 rail+0.8`), along the rail; at 0.75 (the knight's
+  bolt to his crossbow; ours at Scale 0.741). Gone at the shot (QVR_SVC_FIRED); the next morphs in with the ammo morph's
+  shader (yellow seam, kind 1) over 55-95% of `vr_adgun_crossbow_refire`; none once empty.
+- **The shot leaves from it**: QC `VR_ADGun_FireCrossbow` launches from the bolt's middle (`VR_ADXBOW_GROOVE_FWD` -10.47,
+  `_UP` 1.5 from the muzzle in the shot's frame: measured by `vr_adgun_crossbow_info`, the bolt lies along the shot to
+  0.31 degrees, right offset -0.1) unless a wall is between, and sets the projectile's `scale` 0.75. Valid for slot 32's
+  default hold (his): a re-posed crossbow moves the drawn bolt, not these constants.
+- **String and limbs**: `vr_adguns.cpp` adds two frames to the turned model (AD 1.80p1's: 296 vertices, 196 triangles;
+  another release gets none): `xbow_loose` (limb tips 2 units forward, the string straight between them) and
+  `xbow_snap` (tips 3.2, the string bowed 1.6 past). The limbs bend quadratically with |y| (past the stock's 2.6); the
+  string's vertices 218..235 follow their ends and straighten. The view sets `ViewEntity::poseFrame`/`poseBlend` and
+  `r_alias.c` `VR_AliasPoseOverride` draws those two frames blended (the GPU's lerp; the anchors still read frame 0;
+  the slot's zero blend off while held). A shot: snap to `xbow_snap` in 30 ms, a damped wobble about `xbow_loose`,
+  drawn back (smoothstep) over 30-65% of the refire time.
+- **Settings**: `vr_adgun_crossbow_anim` 1 (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns, "Bolt Laid and String
+  Animated"; 0: as before, the added frames never shown). Debug > AD Monsters: "Crossbow's Bolt and String Info"
+  (`vr_adgun_crossbow_info`), "Crossbow Held After a Shot" (`vr_adgun_crossbow_anim_at`, -1 off).
+- **Checked** (headless, ad_tfuma, `scratch/xbanim.sh`): `vr_ad_test 93` PASS; frame strips `scratch/xbstrip.png` (from
+  above: 0..2 s after a shot), `xbfire.png` (a real off-hand shot frame by frame: the groove bolt, then the projectile
+  just ahead of it at the same height, then the morph-in).
+
+For VR: the bolt's size and height in the groove, the snap and the wobble, the draw-back timing.

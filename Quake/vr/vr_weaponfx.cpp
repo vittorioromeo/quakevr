@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
+#include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_autopump.hpp"
 #include "vr_bttrails.hpp"
@@ -239,6 +240,7 @@ void playerFired(int hand)
     {
         autopump::fired(hand); // (the shotgun's auto pump: vr_autopump.cpp)
     }
+    adcrossbow::fired(hand); // AD support: the crossbow's string and bolt (vr_adcrossbow.cpp: if it is one)
     HandFx& h = handFx[hand];
     if(h.slot != slot)
     {

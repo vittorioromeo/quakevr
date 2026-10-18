@@ -9,6 +9,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
+#include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_render.hpp"
@@ -1956,6 +1957,7 @@ extern "C" void VR_Init()
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
+    adcrossbow::registerCommands(); // AD support: vr_adgun_crossbow_info (vr_adcrossbow.cpp)
     Cmd_AddCommand("vr_admelee_models", admelee::info_f); // AD support: the AD melee weapons' models (vr_admelee.cpp)
     Cmd_AddCommand("vr_adgun_variants", adguns::variants_f); // AD support: the AD guns as our burst rifle's variants (vr_adgunart.cpp)
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
