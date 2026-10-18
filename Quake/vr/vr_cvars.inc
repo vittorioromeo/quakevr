@@ -713,6 +713,13 @@ QVR_CVAR(vr_melee_speed, "3.2", CVAR_ARCHIVE)          // m/s the striking hand 
 QVR_CVAR(vr_melee_punch_mult, "1.25", CVAR_ARCHIVE)   // damage of every punch (a fist's base damage times this)
 QVR_CVAR(vr_melee_slap, "1", CVAR_ARCHIVE)          // 1: an open hand swung across (not pushed out: that is a shove) slaps (QC vr_melee.qc VR_Melee_Slaps); 0: an open hand never strikes
 QVR_CVAR(vr_melee_slap_mult, "0.5", CVAR_ARCHIVE)    // a slap's damage, times a punch's (no head pops, cut limbs, small gibs or blood)
+// Swing sounds by speed (QC vr_melee.qc VR_Swish): a fist's, open hand's or melee weapon's whoosh for any motion that moves
+// air, its volume by its speed as a share of the speed its blow would land at (the melee model's own, per hand and blow).
+QVR_CVAR(vr_melee_swish, "1", CVAR_ARCHIVE)          // 1: swings short of a blow whoosh softly, fast blows louder than full; 0: only a blow whooshes, at full volume (as before)
+QVR_CVAR(vr_melee_swish_min, "0.5", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
+QVR_CVAR(vr_melee_swish_sub, "0.45", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
+QVR_CVAR(vr_melee_swish_full, "2.2", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
+QVR_CVAR(vr_melee_swish_gain, "1.6", CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
 QVR_CVAR(vr_melee_wrist_speed, "1.1", CVAR_ARCHIVE)   // m/s the hand itself (its wrist: the hand's turn taken out) must have moved on average over the last 0.12 s to hit (a punch twice this): a wiggle flicks the tip fast but barely moves the wrist (QC vr_melee.qc)
 QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle's end's, a gun butt's) touch waits for the blade or head to reach the same thing, so a cut from close by is a cut; only pommel strikes wait (QC vr_melee.qc)
 // Melee phasing (Combat > Melee; vr_modelcollide.cpp; ROUND21.md, "Melee phasing"): while a hand swings fast its fist and

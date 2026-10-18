@@ -155,7 +155,9 @@ void CL_ParseStartSoundPacket(void)
 
 	field_mask = MSG_ReadByte();
 
-	if (field_mask & SND_VOLUME)
+	if (field_mask & SND_LOUD) // QVR: louder than full (protocol.h)
+		volume = (unsigned short) MSG_ReadShort ();
+	else if (field_mask & SND_VOLUME)
 		volume = MSG_ReadByte ();
 	else
 		volume = DEFAULT_SOUND_PACKET_VOLUME;

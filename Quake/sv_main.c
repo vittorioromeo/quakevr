@@ -277,8 +277,12 @@ qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int
 		return false;
 
 	field_mask = 0;
+	if (volume > 255 && sv.protocol == PROTOCOL_NETQUAKE)
+		volume = 255; // (QVR: SND_LOUD isn't NetQuake's)
 	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
 		field_mask |= SND_VOLUME;
+	if (volume > 255) // QVR: louder than full (SND_LOUD): the volume a short
+		field_mask |= SND_LOUD;
 	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
 		field_mask |= SND_ATTENUATION;
 
@@ -311,7 +315,9 @@ qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int
 
 	MSG_WriteByte (buf, svc_sound);
 	MSG_WriteByte (buf, field_mask);
-	if (field_mask & SND_VOLUME)
+	if (field_mask & SND_LOUD)
+		MSG_WriteShort (buf, volume);
+	else if (field_mask & SND_VOLUME)
 		MSG_WriteByte (buf, volume);
 	if (field_mask & SND_ATTENUATION)
 		MSG_WriteByte (buf, attenuation*64);
@@ -349,7 +355,7 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	int			i;
 	vec3_t		origin;
 
-	if (volume < 0 || volume > 255)
+	if (volume < 0 || volume > SND_VOLUME_MAX) // QVR: over 255 louder than full (SND_LOUD)
 		Host_Error ("SV_StartSound: volume = %i", volume);
 
 	if (attenuation < 0 || attenuation > 4)

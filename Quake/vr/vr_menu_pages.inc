@@ -496,6 +496,12 @@ void resetHandMoves()
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
         open("Incandescent Blades", pageIndex(pageHotBlades))
             .help("A melee weapon held in a flame or lava glows red-hot: harder blows that set what they strike on fire."),
+        header("Swing Sounds"),
+        toggle("Whoosh by Speed", "vr_melee_swish").help("Every swing of a fist, an open hand or a melee weapon that moves air whooshes, louder the faster: softly short of a blow, a blow at full volume, the fastest blows louder still and a little higher. Off: only a blow whooshes, always at full volume. A gun's swing whooshes only as a blow."),
+        slider("Heard From", "vr_melee_swish_min", 0.2f, 0.9f, 0.05f, "%.2fx").extend(0.05f, 0.95f).help("The slowest swing heard, as a share of the speed its blow would land at (slower: silent)."),
+        slider("Short of a Blow", "vr_melee_swish_sub", 0.f, 1.f, 0.05f, "%.2f").help("Volume of the loudest swing that is not a blow, just under the speed it would land at (a blow is 1). Lower: the step to a blow stands out more."),
+        slider("Loudest Blow At", "vr_melee_swish_full", 1.2f, 3.f, 0.05f, "%.2fx").extend(1.05f, 5.f).help("The speed, times the blow's landing speed, at which its whoosh is loudest (Loudest Blow)."),
+        slider("Loudest Blow", "vr_melee_swish_gain", 1.f, 2.5f, 0.05f, "%.2fx").extend(1.f, 4.f).help("Volume of the fastest blows' whoosh, times full volume (1: every blow at full volume)."),
         header("Swing Through Enemies"),
         toggle("Swing Through Enemies", "vr_melee_phase").help("While your hand swings fast, your fist and the weapon in it pass through enemies instead of being drawn stopped at their bodies (Hands Stop at Models). Walls and things lying about still stop them. The blow is tested where your real hand goes either way: this shows the swing where it is tested. After the swing the hand is eased back out of the enemy. Off: stopped at enemies however fast (as before)."),
         slider("Swing Through Speed", "vr_melee_phase_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows."),
