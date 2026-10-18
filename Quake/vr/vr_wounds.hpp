@@ -9,10 +9,12 @@
 // splats paint at the model's surface there -- by distance in the world, so a wound goes across the skin's seams as it
 // goes across the model (r_alias.c's R_PaintAliasWounds, gl_shaders.h's wound_paint_fragment_shader). The model's
 // shader reads the mask at its skin's texels and shows it with an ordered dither (gl_shaders.h's WoundsAt): chunky,
-// sharp-edged marks in Quake's palette colours; blood and water shine and fill the normal map's bumps; fresh burns
-// glow in their cracks.
+// sharp-edged marks in Quake's palette colours; blood shines and fills the normal map's bumps; fresh burns glow in
+// their cracks. Wetness is not dithered: where the mask is wet at all, an even coat (vr_wounds_wet_coat: darker, a
+// glossy film in the model's own light) whose strength is the model's, fading as it dries; a weapon or prop in a hand
+// that went under the surface takes it all over (wetCoat).
 //
-// Wetness dries in about 25 seconds (dripping while wet), from the waterline down; embers cool in a few seconds; blood
+// Wetness dries in about 28 seconds (dripping while wet), from the waterline down; embers cool in a few seconds; blood
 // and char stay (on corpses for good). The player's own body and jointed hands take the wounds where the blow came
 // from, instead of the wound skins (the armour skins stay), and heal: blood and char fade as health comes back, and all
 // of it goes on respawning. A new map starts clean, as does a loaded game (the masks are the client's only).

@@ -459,6 +459,8 @@
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
         toggle("Burns", vr_wounds_burns).help("Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment."),
         toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry in about 25 seconds."),
+        slider("Wet Sheen", vr_wounds_wet_coat, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How strongly wet skin, gloves and weapons look: a little darker and glossy, all over where the liquid came, fading as they dry (0: no wet look, the drips stay)."),
         cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
             .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
         cycle("Your Wounds' Detail", vr_wounds_own_res,

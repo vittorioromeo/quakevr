@@ -13527,3 +13527,23 @@ Axe size onto slot 0, so the plain axe grew too).
 His `ironwail.cfg` compared with the shipped defaults: the holster zones (all `vr_holster_zone_*`, hip/shoulder/upper
 thresholds) and glove thickness / relief already matched (config 156 and earlier). Promoted, with migration 158:
 `vr_grenade_pouch_thresh` 7 -> 5.5, `vr_flame_lights` 3 -> 4, `vr_flame_light_scale` 1 -> 2.5.
+
+## Wet from liquids: fixed, and an even wet coat (worktree `fastship`, branch `agent/wetcoat`, 2026-10-18)
+
+- **Regression:** since the glove shells (cf2ee0477, "Glove depth"), `progs/hand_rig.mdl` and `progs/vrbody_bare.mdl`
+  load with extra surfaces (the shells after the first), and the wound masks' `regionOf` refused any model with a second
+  surface: your hands and body got no mask, so no wetness, no drips, and no painted blood or burns on you either (the
+  liquid events still came: `vr_wounds_debug 1`). `regionOf` now takes a model whose extra surfaces are glove shells
+  (`handrig::gloveShellSurfaces`; they share the skin's layout at u + 2 and read the first surface's mask).
+- **New look:** no dither for wetness. Where a mask is wet at all (b > ~0.01), an even coat: the look 30% darker (lit
+  texels, not fullbrights), the bumps filled 35%, a glossy film in the model's own light (tight highlight, a broad one,
+  a little Fresnel; no dynamic light). Its strength is per model (`vr_wounds_wet_coat`, 1, Gore > Wounds on Models >
+  Wet Sheen, 0..2) times smoothstep(0, 0.75, the drying left): full for the first ~7 s, gone at 28 s. Monsters get it
+  too. A weapon (or a carried prop) in a hand whose wrist went under the surface takes it all over; the hands drip only
+  when they went under. Instance data: `GloveShell.zw` (`VR_AliasWetCoat`). `vr_wounds_info` prints a `wet:` line.
+- **Checks:** `scratch/wet_test.sh` (vrfiringrange: spawn, the pool at 612 474 -180, back): before the fix 0 masks,
+  after it 3 (hands, body), coat 1.0 just out, 0.51 at ~17 s, weapon (crowbar, main hand) the same. Off hand's back,
+  mean RGB 254 214 157 dry, 242 177 134 just out, 254 204 153 half dry (overexposed spot). GPU (`--exclusive`,
+  4 s each, wet, hands + crowbar + body in view): models 0.178 / 0.174 / 0.174 ms coat on / off / on: no measurable cost.
+- **For VR:** swim, climb out: hands, forearms, gloves and the weapon darker and glossy, evenly, drips from the hands,
+  fading over ~25 s; wade knee-deep: only the legs/body below the line, hands dry and not dripping. Wet Sheen slider.

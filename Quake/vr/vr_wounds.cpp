@@ -14,6 +14,7 @@
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_held.hpp"
+#include "vr_handrig.hpp"
 #include "vr_progs.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
@@ -69,6 +70,8 @@ za::U32 rng = 0x9e3779b9u;
 bool painting = false;
 bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet as last seen
 bool bloodOnly = false;           // re-opening the player's wounds (reopen): their blood only, no char, no heat
+float handWetLeft[2]{};           // seconds each hand's weapon may still be drying: the hand was under the liquid's surface
+                                  // (the weapons have no wetness of their own in a mask: wetCoat)
 
 // Blood on your weapons (vr_gore_gear) goes with the weapon: its id (QC vr_weaponinst.qc; a hand's STAT_QVR_WEAPONUID*, a
 // weapon prop's U_QVR_WEAPONUID) keys its mask, put each frame on whatever shows that id (gearFrame), kept (parked,
@@ -659,7 +662,9 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
         return false;
     }
     auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(!hdr || Mod_NextSurface(hdr) || hdr->numskins <= 0)
+    // One surface, or the jointed hand's and bare forearms' glove shells after it (vr_handrig.cpp gloveShells: the
+    // skin's layout, u + 2; only the first surface is painted, the shells read its mask).
+    if(!hdr || (Mod_NextSurface(hdr) && !handrig::gloveShellSurfaces(model->name)) || hdr->numskins <= 0)
     {
         return false;
     }
@@ -1455,6 +1460,16 @@ void apply(const Event& ev)
         entity_t* own[3]{};
         view::woundTargets(own);
         caps = playerCapsules(own);
+        if(ev.kind == KindLiquid && ev.extra != 2 && vr_wounds_wet.value) // a hand under the surface: what it holds wet too
+        {
+            for(int hand = 0; hand < 2; hand++)
+            {
+                if(own[1 + hand] && own[1 + hand]->origin[2] < ev.org.z)
+                {
+                    handWetLeft[hand] = dryTime;
+                }
+            }
+        }
         if(vr_wounds_debug.value >= 2)
         {
             for(const Capsule& c : caps)
@@ -2890,6 +2905,10 @@ void steps(float dt)
 {
     // Drying: 1/255 of the wetness a step (dryTime from soaked); embers cooling; the player's heal.
     const int n = za::max(1, static_cast<int>(dt / tick + 0.5f));
+    for(float& left : handWetLeft)
+    {
+        left = za::max(0.f, left - dt);
+    }
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
@@ -2961,6 +2980,10 @@ void playerState()
         return;
     }
     forgetPlayerWounds(respawned ? 1.f : za::clamp(heal, 0.f, 1.f));
+    if(respawned)
+    {
+        handWetLeft[0] = handWetLeft[1] = 0.f;
+    }
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
@@ -3033,7 +3056,10 @@ void drips(double now)
         if(m.view)
         {
             // A hand (the body is under the view: its drips are the hands')
-            if(modelmeta::has(m.ent->model, modelmeta::Trait::Body))
+            entity_t* own[3]{};
+            view::woundTargets(own);
+            const int hand = m.ent == own[1] ? 0 : m.ent == own[2] ? 1 : -1;
+            if(hand < 0 || handWetLeft[hand] <= 0.f) // (only a hand that went under the surface)
             {
                 continue;
             }
@@ -3279,6 +3305,7 @@ void clear()
     playerHealth = -1000;
     playerWounds.clear();
     heldGib[0] = heldGib[1] = 0;
+    handWetLeft[0] = handWetLeft[1] = 0.f;
     lastWash = -1e9;
     reopenPending = false;
     reopenStart = -1.0;
@@ -3425,6 +3452,59 @@ int aliasMask(const entity_t* e, const entity_t*& key, const entity_t*& gun)
     return sameLayout(m.model, key->model) && (!gun || readsAsGun(e, gun)) ? it->second : -1;
 }
 
+// The wet coat on `e` (vr_wounds_wet_coat; the alias shader's GloveShell.zw): its strength, from soaked (1, times the
+// cvar) to dry (0), lingering a while before it fades; `whole` when it covers all of `e` (a weapon in a hand that went
+// under the surface), else only where its mask is wet (under the waterline it was in).
+float wetCoat(const entity_t* e, bool& whole)
+{
+    whole = false;
+    const float strength = vr_wounds_wet.value ? za::clamp(vr_wounds_wet_coat.value, 0.f, 2.f) : 0.f;
+    if(strength <= 0.f)
+    {
+        return 0.f;
+    }
+    const auto curve = [&](float left) { return strength * glm::smoothstep(0.f, 0.75f, za::clamp(left / dryTime, 0.f, 1.f)); };
+    const entity_t* part = view::gunPartSource(e);
+    bool weapon = false;
+    const int hand = view::handOf(part ? part : e, weapon);
+    if(hand >= 0 && weapon)
+    {
+        whole = true;
+        return curve(handWetLeft[hand]);
+    }
+    for(int h = 0; h < 2; h++) // a prop carried in a wet hand
+    {
+        if(handWetLeft[h] > 0.f && e == gearOf(h))
+        {
+            whole = true;
+            return curve(handWetLeft[h]);
+        }
+    }
+    if(maskOf.empty())
+    {
+        return 0.f;
+    }
+    const entity_t* key = e;
+    const entity_t* gun = nullptr;
+    const int layer = aliasMask(e, key, gun);
+    return layer >= 0 ? curve(masks[static_cast<za::SizeT>(layer)].wetLeft) : 0.f;
+}
+
+} // namespace
+
+void detail::wetInfo()
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    bool whole = false;
+    const auto coatOf = [&](const entity_t* e) { return e ? wetCoat(e, whole) : -1.f; };
+    Con_Printf("wet: coat body %.3f hands %.3f %.3f, their weapons %.3f %.3f (%.1f %.1f s left)\n", coatOf(own[0]), coatOf(own[1]),
+        coatOf(own[2]), coatOf(gearOf(0)), coatOf(gearOf(1)), static_cast<double>(handWetLeft[0]), static_cast<double>(handWetLeft[1]));
+}
+
+namespace
+{
+
 } // namespace
 } // namespace qvr::wounds
 
@@ -3461,6 +3541,13 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
     {
         side[2] = -static_cast<float>(m.otherSlot + 1); // (chunky, yours: the blood on it not yours, its bloodArray layer)
     }
+}
+
+extern "C" void VR_AliasWetCoat(const entity_t* e, float out[2])
+{
+    bool whole = false;
+    out[0] = qvr::wounds::wetCoat(e, whole);
+    out[1] = whole && out[0] > 0.f ? 1.f : 0.f;
 }
 
 extern "C" void VR_BrushWound(const entity_t* e, float wound[4], float box[4])
