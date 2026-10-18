@@ -1551,6 +1551,17 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     to = hipThen + off * (legsStride * len / offL);
                 }
                 const glm::vec3 from = g.planted[i];
+                // (Onto a floor within its leg's reach under it: a sidestep off a stair's open side drawn back in towards
+                // its hip, not put down on air.)
+                for(const float k : {1.f, 0.75f, 0.5f, 0.25f})
+                {
+                    const glm::vec3 q = hipThen + (level(to) - hipThen) * k;
+                    if(floorUnder(c, glm::vec3{q.x, q.y, from.z}, pelvis.z, from.z - len, -1e30f) > -1e29f)
+                    {
+                        to = glm::vec3{q.x, q.y, to.z};
+                        break;
+                    }
+                }
                 to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
                 g.stepLeg = best;
                 g.stepFrom = c.now;
