@@ -283,8 +283,37 @@ void(entity pl, vector at) VR_Flinch_TestSpawn =
     {
         m.angles = '0 1 0' * (cvar("vr_flinch_test_yaw") + 180); // (facing where the test hits come from)
     }
-    m.classname = "monster_army";
-    monster_army();
+    float k = cvar("vr_flinch_test_class"); // (0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 zombie)
+    if(k == 1)
+    {
+        m.classname = "monster_enforcer";
+        monster_enforcer();
+    }
+    else if(k == 2)
+    {
+        m.classname = "monster_knight";
+        monster_knight();
+    }
+    else if(k == 3)
+    {
+        m.classname = "monster_hell_knight";
+        monster_hell_knight();
+    }
+    else if(k == 4)
+    {
+        m.classname = "monster_ogre";
+        monster_ogre();
+    }
+    else if(k == 5)
+    {
+        m.classname = "monster_zombie";
+        monster_zombie();
+    }
+    else
+    {
+        m.classname = "monster_army";
+        monster_army();
+    }
     if(cvar("vr_flinch_test_health") > 0)
     {
         m.health = cvar("vr_flinch_test_health"); // (a test of real weapons' impulses: it lives through them)

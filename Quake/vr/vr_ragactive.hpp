@@ -441,6 +441,10 @@ struct Stagger
     glm::vec3 capture{0.f};   // its capture point (level, world, metres) this frame
     float captureOff{0.f};    // m: how far it lies past its feet's reach for its centre of pressure (0: within)
     za::Array<glm::vec3, 2> bearAt{}; // the bearing feet's ends (world, metres)
+    za::Array<bool, 2> bears{};       // each foot bearing now (its grip on the floor: legsGrip)
+    float restGap{0.f};       // m: its standing foot's end over its floor as struck (every landing's height over its floor)
+    bool closing{false};      // the step under way closes its stance (its feet split): not a capture step
+    float split{0.f};         // m: its feet's farthest from where its stance has them round its middle (legsClose)
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
