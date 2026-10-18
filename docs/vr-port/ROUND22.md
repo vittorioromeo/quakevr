@@ -13488,3 +13488,9 @@ Axe size onto slot 0, so the plain axe grew too).
   0.34 / 0.8 / -0.4) and the crossbow (his values); the rest differ only in InheritFrom. His config migrated: slot 0 back,
   the Shadow Axe 0.36 / 0.84 / -0.6, his Widowmaker and fury sword values kept. `vr_ad_test 70` 9/9 PASS, `93` PASS,
   97-99 the `#vr` models in hand and holsters; `100` prints no drop, the same on the base build (not this change).
+
+## Defaults from his retuned config (config 158)
+
+His `ironwail.cfg` compared with the shipped defaults: the holster zones (all `vr_holster_zone_*`, hip/shoulder/upper
+thresholds) and glove thickness / relief already matched (config 156 and earlier). Promoted, with migration 158:
+`vr_grenade_pouch_thresh` 7 -> 5.5, `vr_flame_lights` 3 -> 4, `vr_flame_light_scale` 1 -> 2.5.
