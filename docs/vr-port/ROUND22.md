@@ -13312,3 +13312,36 @@ hell knight in vrfiringrange get up). The ogre's neck is not snapped by design.
 AD's knight, nail ogre, death lord, Quoth death guard and deflector (the debug spawner; the knight 261, death lord 259
 and death guard 258 only in an AD map): their ragdolls on death, shoves and get-ups, lifting and the
 neck snap (not the ogre). The deflector's gun swinging on its right hand in its ragdoll.
+## Flinch: `vr_flinch 2` on stairs, more steps (worktree `fastship`, branch `agent/flinch5`, 2026-10-18): not landed
+
+The goal was making `vr_flinch 2` good enough to be the default. It is not: `vr_flinch` stays 1 and `vr_flinch 2` is
+unchanged from `agent/flinch4`. The attempt is kept in the branch's history (commit "Flinch WIP ...", reverted in the
+next one) for whoever picks it up.
+
+- **Why the stairs fail** (measured with `vr_flinch_debug 4` and a floor probe; vrtesthall's stairs are 16 units high
+  and 16 deep, 45 degrees; a grunt's legs are 17.7 and 21.7 units, 31.5 units a metre):
+  - A grunt put on them stands with its box on the step above and its feet hanging: one 4.5 units over its step, the
+    other 20 units over the step below (its stance, 15 units, is wider than a step). `vr_flinch 1`'s pin hides this;
+    with no pin it starts unsupported, falls onto one foot and off the step's edge.
+  - `floorAt` traced from 0.3 m above a foot: it missed a floor 20 units down (the far foot read as standing on air,
+    its fallback) and starts inside the step above for a foot next to a riser (no hit). A trace from the pelvis's
+    height down is right (`floorUnder` in the WIP).
+  - A step's way (a straight line with an arc of 0.12 leg) goes through a riser when it steps up; the foot's carry
+    then pushes the body sideways at up to 7 m/s through the contact.
+- **What the WIP tried:** a common rest gap and hanging feet put down where they can reach (a settle step); feet held
+  on their spot by a friction-like grip; landing spots traced from the pelvis, moved off stair edges and kept within
+  0.45 leg up / 0.6 leg down of the other foot (so both share a step); a swing that lifts clear of the step first;
+  the floor's level push scaled by the legs' push and capped at 0.8 g (grip); capture steps cut to max(0.45 leg,
+  0.72 x the full step) so a stronger hit takes 2-4 steps, re-planned over the first 60% of a step; closing steps
+  for split stances; the leading foot first for side hits.
+- **Result:** worse everywhere. Flat recovery fell from 8/8 to 0-2/8 with ~11 steps (stepping in place, the centre of
+  mass rising up to 15 units); stairs 0-2/8 (was 0-2/8). Switching each new part off in turn (a temporary bitmask)
+  did not bring flat back, so the regression is in the unswitchable parts (the bearing rules, the rest gap, the
+  landing height, the settle step or the swing path); not found within the round's budget.
+- **Kept:** `vr_flinch_test_class` (0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 zombie) for
+  `vr_flinch_test 20` and `21`, with a Debug > Tests > Flinch row "Test Monster". Checked: an enforcer from it
+  flinches and recovers (`vr_flinch 1`, a shotgun, 0.38 s).
+- **Next:** start from `agent/flinch4`'s code and take one change at a time with the 8-run suite after each
+  (`scratch/fl5_suite.py`, `FL5_CLASS`, `FL5_ONLY`): first `floorUnder` alone, then the swing path, then the settle step
+  for hanging feet; the stairs test may also want a gentler flight (a 45-degree, 16-deep stair asks a grunt to stand
+  across two steps 80% of its leg apart).

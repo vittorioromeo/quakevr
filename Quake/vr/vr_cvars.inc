@@ -2934,6 +2934,7 @@ QVR_CVAR(vr_flinch_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_flinch_test_z, "0", CVAR_NONE)
 QVR_CVAR(vr_flinch_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0): a side view of them
 QVR_CVAR(vr_flinch_test_dist, "0", CVAR_NONE)         // units: the test shotgun blasts' distance for their falloff (0: the player's)
+QVR_CVAR(vr_flinch_test_class, "0", CVAR_NONE)       // vr_flinch_test 20 and 21's monster: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 zombie
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding
