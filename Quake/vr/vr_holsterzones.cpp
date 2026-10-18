@@ -2,14 +2,18 @@
 
 #include "vr_holsterzones.hpp"
 #include "vr_backend.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_lines.hpp"
+#include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
 
@@ -44,10 +48,27 @@ struct HandPick
     int frame{-100};
 };
 
+// A hand dragging a zone (vr_holster_zone_<kind>_drag): where it took hold, in the body's frame from the zone's pivot
+// (forward, outwards, up), and the kind's offsets then; the second hand on the same kind resizes it instead (the hands'
+// spread then, and the kind's depth, width and height).
+struct Drag
+{
+    int zone{-1};
+    bool resize{false};
+    glm::vec3 handStart{0.f};
+    glm::vec3 offsetStart{0.f};
+    float spreadStart{1.f};
+    glm::vec3 sizeStart{1.f};
+};
+
 struct State
 {
     Drawn drawn[ZoneCount];
     HandPick hands[HAND_COUNT];
+    Drag drag[HAND_COUNT];
+    // This frame's wireframes also go on the body's mirror image (vr_bodyclone.cpp) through this, while it is drawn.
+    bool cloned{false};
+    glm::mat4 mirror{1.f};
 };
 State zoneState;
 
@@ -62,7 +83,7 @@ struct Box
 // A kind's settings: hip, upper, shoulder, ammo pouch, grenade pouch.
 struct Kind
 {
-    const cvar_t *x, *y, *z, *depth, *width, *height, *reach;
+    cvar_t *x, *y, *z, *depth, *width, *height, *reach, *drag;
 };
 
 [[nodiscard]] Kind kindOf(int zone)
@@ -72,25 +93,43 @@ struct Kind
         case body::LeftHip:
         case body::RightHip:
             return {&vr_holster_zone_hip_x, &vr_holster_zone_hip_y, &vr_holster_zone_hip_z, &vr_holster_zone_hip_depth,
-                &vr_holster_zone_hip_width, &vr_holster_zone_hip_height, &vr_hip_holster_thresh};
+                &vr_holster_zone_hip_width, &vr_holster_zone_hip_height, &vr_hip_holster_thresh,
+                &vr_holster_zone_hip_drag};
         case body::LeftUpper:
         case body::RightUpper:
             return {&vr_holster_zone_upper_x, &vr_holster_zone_upper_y, &vr_holster_zone_upper_z,
                 &vr_holster_zone_upper_depth, &vr_holster_zone_upper_width, &vr_holster_zone_upper_height,
-                &vr_upper_holster_thresh};
+                &vr_upper_holster_thresh, &vr_holster_zone_upper_drag};
         case body::LeftShoulder:
         case body::RightShoulder:
             return {&vr_holster_zone_shoulder_x, &vr_holster_zone_shoulder_y, &vr_holster_zone_shoulder_z,
                 &vr_holster_zone_shoulder_depth, &vr_holster_zone_shoulder_width, &vr_holster_zone_shoulder_height,
-                &vr_shoulder_holster_thresh};
+                &vr_shoulder_holster_thresh, &vr_holster_zone_shoulder_drag};
         case ZoneAmmoPouch:
             return {&vr_holster_zone_ammo_x, &vr_holster_zone_ammo_y, &vr_holster_zone_ammo_z,
                 &vr_holster_zone_ammo_depth, &vr_holster_zone_ammo_width, &vr_holster_zone_ammo_height,
-                &vr_ammo_pouch_thresh};
+                &vr_ammo_pouch_thresh, &vr_holster_zone_ammo_drag};
         default:
             return {&vr_holster_zone_grenade_x, &vr_holster_zone_grenade_y, &vr_holster_zone_grenade_z,
                 &vr_holster_zone_grenade_depth, &vr_holster_zone_grenade_width, &vr_holster_zone_grenade_height,
-                &vr_grenade_pouch_thresh};
+                &vr_grenade_pouch_thresh, &vr_holster_zone_grenade_drag};
+    }
+}
+
+// The kind a zone is of (its mirrored pair shares its settings): 0 hips, 1 chest, 2 shoulders, 3 ammo pouch, 4 grenade
+// pouch.
+[[nodiscard]] int kindIndex(int zone)
+{
+    switch(zone)
+    {
+        case body::LeftHip:
+        case body::RightHip: return 0;
+        case body::LeftUpper:
+        case body::RightUpper: return 1;
+        case body::LeftShoulder:
+        case body::RightShoulder: return 2;
+        case ZoneAmmoPouch: return 3;
+        default: return 4;
     }
 }
 
@@ -215,6 +254,26 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     return p != nullptr;
 }
 
+// A wireframe's line and dot: on the body, and on its mirror image while it is drawn (State::cloned).
+void line(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& color)
+{
+    lines::line(a, b, width, color, color);
+    if(zoneState.cloned)
+    {
+        lines::line(glm::vec3{zoneState.mirror * glm::vec4{a, 1.f}}, glm::vec3{zoneState.mirror * glm::vec4{b, 1.f}},
+            width, color, color);
+    }
+}
+
+void dot(const glm::vec3& p, float size, const glm::vec4& color)
+{
+    lines::point(p, size, color);
+    if(zoneState.cloned)
+    {
+        lines::point(glm::vec3{zoneState.mirror * glm::vec4{p, 1.f}}, size, color);
+    }
+}
+
 void edges(const Box& b, const glm::vec4& color, float width)
 {
     glm::vec3 c[8];
@@ -229,9 +288,60 @@ void edges(const Box& b, const glm::vec4& color, float width)
         {
             if(!(i & bit))
             {
-                lines::line(c[i], c[i | bit], width, color, color);
+                line(c[i], c[i | bit], width, color);
             }
         }
+    }
+}
+
+// Zone `zone`'s pivot this frame (false: a pouch not there).
+[[nodiscard]] bool pivotNow(const hands::State& s, int zone, glm::vec3& out)
+{
+    if(zone < body::HolsterCount)
+    {
+        out = body::holsterPositions(s)[zone];
+        return true;
+    }
+    if(zone == ZoneAmmoPouch ? !body::ammoPouchEnabled() : !body::pouchEnabled())
+    {
+        return false;
+    }
+    out = zone == ZoneAmmoPouch ? body::ammoPouchPosition(s) : body::pouchPosition(s);
+    return true;
+}
+
+// `p` from zone `zone`'s pivot in the body's frame as its offsets are (forward, outwards: mirrored for the left ones,
+// up).
+[[nodiscard]] glm::vec3 bodyLocal(const hands::State& s, int zone, const glm::vec3& pivot, const glm::vec3& p)
+{
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    const glm::vec3 d = p - pivot;
+    return {glm::dot(d, fwd), glm::dot(d, leftSide(zone) ? -right : right), glm::dot(d, up)};
+}
+
+[[nodiscard]] bool anyDrag()
+{
+    return vr_holster_zone_hip_drag.value != 0.f || vr_holster_zone_upper_drag.value != 0.f ||
+           vr_holster_zone_shoulder_drag.value != 0.f || vr_holster_zone_ammo_drag.value != 0.f ||
+           vr_holster_zone_grenade_drag.value != 0.f;
+}
+
+void dragHaptic(int hand)
+{
+    if(Backend* be = backend(); be && !vr_disablehaptics.value)
+    {
+        be->haptic(hand, 0.03f, 200.f, 0.3f);
+    }
+}
+
+// A dragged value, to `step` and within the menu's extended range; set only when it changes.
+void setSnapped(cvar_t* c, float v, float step, float lo, float hi)
+{
+    v = za::clamp(std::round(v / step) * step, lo, hi);
+    if(c->value != v)
+    {
+        Cvar_SetValueQuick(c, v);
     }
 }
 
@@ -417,12 +527,99 @@ bool gripPoint(const hands::State& s, int zone, glm::vec3& out)
     return gripOf(s, zone, body::holsterPositions(s)[zone], out);
 }
 
+bool dragGrip(int hand, bool down)
+{
+    if(hand < 0 || hand >= HAND_COUNT)
+    {
+        return false;
+    }
+    Drag& d = zoneState.drag[hand];
+    if(!down)
+    {
+        return za::exchange(d.zone, -1) >= 0; // (the press was not the game's: nor is its release)
+    }
+    const hands::State& s = hands::current();
+    if(!enabled() || !anyDrag() || !s.valid || d.zone >= 0)
+    {
+        return false;
+    }
+    int best = -1;
+    float bestRatio = 0.f;
+    glm::vec3 bestPivot{0.f};
+    for(int z = 0; z < ZoneCount; z++)
+    {
+        glm::vec3 pivot;
+        if(kindOf(z).drag->value == 0.f || !pivotNow(s, z, pivot))
+        {
+            continue;
+        }
+        const float r = ratioIn(zoneBox(s, z, pivot), s.pos[hand]);
+        if(r <= 1.f && (best < 0 || r < bestRatio))
+        {
+            best = z;
+            bestRatio = r;
+            bestPivot = pivot;
+        }
+    }
+    if(best < 0)
+    {
+        return false;
+    }
+    const Kind k = kindOf(best);
+    const Drag& other = zoneState.drag[1 - hand];
+    d.zone = best;
+    d.resize = other.zone >= 0 && !other.resize && kindIndex(other.zone) == kindIndex(best);
+    d.handStart = bodyLocal(s, best, bestPivot, s.pos[hand]);
+    d.offsetStart = {k.x->value, k.y->value, k.z->value};
+    d.spreadStart = za::max(0.5f, glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]));
+    d.sizeStart = {k.depth->value, k.width->value, k.height->value};
+    dragHaptic(hand);
+    return true;
+}
+
+void dragFrame()
+{
+    const hands::State& s = hands::current();
+    for(int hand = 0; hand < HAND_COUNT; hand++)
+    {
+        const Drag& d = zoneState.drag[hand];
+        glm::vec3 pivot;
+        if(d.zone < 0 || !s.valid || kindOf(d.zone).drag->value == 0.f || !pivotNow(s, d.zone, pivot))
+        {
+            continue; // (switched off while held: kept still until the grip lets go)
+        }
+        const Kind k = kindOf(d.zone);
+        if(d.resize)
+        {
+            const Drag& other = zoneState.drag[1 - hand];
+            if(other.zone < 0 || kindIndex(other.zone) != kindIndex(d.zone))
+            {
+                continue; // (the hand that moved it let go: the size stays)
+            }
+            const float f = glm::distance(s.pos[HAND_OFF], s.pos[HAND_MAIN]) / d.spreadStart;
+            setSnapped(k.depth, d.sizeStart.x * f, 0.01f, 0.02f, 10.f);
+            setSnapped(k.width, d.sizeStart.y * f, 0.01f, 0.02f, 10.f);
+            setSnapped(k.height, d.sizeStart.z * f, 0.01f, 0.02f, 10.f);
+            continue;
+        }
+        const glm::vec3 off = d.offsetStart + bodyLocal(s, d.zone, pivot, s.pos[hand]) - d.handStart;
+        setSnapped(k.x, off.x, 0.05f, -50.f, 50.f);
+        setSnapped(k.y, off.y, 0.05f, -50.f, 50.f);
+        setSnapped(k.z, off.z, 0.05f, -50.f, 50.f);
+    }
+}
+
 void queueDebug(const hands::State& s)
 {
-    // Shown, or while Immersion > Holster Zones has one of its settings chosen.
+    // Shown, or while Immersion > Holster Zones has one of its settings chosen, or a kind is dragged by hand; on the
+    // body's mirror image too while it is drawn (vr_bodyclone.cpp).
+    zoneState.cloned = bodyclone::mirror(zoneState.mirror);
     const cvar_t* chosen = menu::selectedSetting();
     const bool tweaking = chosen && !q_strncasecmp(chosen->name, "vr_holster_zone", 15);
-    if((!vr_holster_zones_show.value && !tweaking) || !s.valid)
+    // The item-sized boxes (vr_holster_zones_show_items), or while an Item Size is chosen.
+    const bool items = vr_holster_zones_show_items.value != 0.f ||
+                       (chosen && !q_strncasecmp(chosen->name, "vr_holster_zone_item_", 21));
+    if((!vr_holster_zones_show.value && !tweaking && !items && !anyDrag()) || !s.valid)
     {
         return;
     }
@@ -433,6 +630,8 @@ void queueDebug(const hands::State& s)
     const glm::vec3 ammo = withAmmo ? body::ammoPouchPosition(s) : glm::vec3{0.f};
     const glm::vec4 idle{0.65f, 0.65f, 0.65f, 0.6f}, occupied{0.3f, 0.6f, 1.f, 0.85f}, candidate{1.f, 0.85f, 0.15f, 0.9f},
         accept{0.2f, 1.f, 0.3f, 1.f};
+    // A kind dragged by hand (vr_holster_zone_<kind>_drag): orange, cyan while held; the item-sized boxes magenta.
+    const glm::vec4 draggable{1.f, 0.5f, 0.1f, 0.85f}, held{0.2f, 1.f, 1.f, 1.f}, itemBox{1.f, 0.25f, 0.9f, 0.8f};
     for(int z = 0; z < ZoneCount; z++)
     {
         glm::vec3 pivot;
@@ -453,10 +652,21 @@ void queueDebug(const hands::State& s)
             item = item || h.item;
         }
         const bool full = zoneState.drawn[z].occupied && zoneState.drawn[z].frame >= host_framecount - 2;
-        const glm::vec4& color = at ? accept : inside ? candidate : full ? occupied : idle;
+        const bool dragged = zoneState.drag[HAND_OFF].zone == z || zoneState.drag[HAND_MAIN].zone == z;
+        const bool canDrag = kindOf(z).drag->value != 0.f;
+        const glm::vec4& color = dragged ? held
+                                 : at    ? accept
+                                 : inside ? candidate
+                                 : canDrag ? draggable
+                                 : full    ? occupied
+                                           : idle;
         // (A hand carrying an item: its larger boxes, vr_holster_zone_item_*.)
-        edges(zoneBox(s, z, pivot, item ? itemScale(z) : 1.f), color, at ? 0.2f : 0.12f);
-        lines::point(pivot, 0.6f, color);
+        edges(zoneBox(s, z, pivot, item ? itemScale(z) : 1.f), color, at || dragged ? 0.2f : 0.12f);
+        if(items && itemScale(z) != 1.f)
+        {
+            edges(zoneBox(s, z, pivot, itemScale(z)), itemBox, 0.08f);
+        }
+        dot(pivot, 0.6f, color);
         // The holstered gun's grip sphere (vr_holster_zone_handle_radius): three rings.
         glm::vec3 grip;
         const float radius = vr_holster_zone_handle_radius.value;
@@ -471,8 +681,8 @@ void queueDebug(const hands::State& s)
                 {
                     const float t0 = 6.2831853f * static_cast<float>(i) / segments;
                     const float t1 = 6.2831853f * static_cast<float>(i + 1) / segments;
-                    lines::line(grip + radius * (a[0] * std::cos(t0) + a[1] * std::sin(t0)),
-                        grip + radius * (a[0] * std::cos(t1) + a[1] * std::sin(t1)), 0.08f, color, color);
+                    line(grip + radius * (a[0] * std::cos(t0) + a[1] * std::sin(t0)),
+                        grip + radius * (a[0] * std::cos(t1) + a[1] * std::sin(t1)), 0.08f, color);
                 }
             }
         }
@@ -482,7 +692,7 @@ void queueDebug(const hands::State& s)
         const HandPick& h = zoneState.hands[hand];
         for(int i = 0; i < h.samples && h.frame >= host_framecount - 2; i++)
         {
-            lines::point(h.sample[i], i == 0 ? 0.8f : 0.5f, glm::vec4{1.f, 1.f, 1.f, 0.9f});
+            dot(h.sample[i], i == 0 ? 0.8f : 0.5f, glm::vec4{1.f, 1.f, 1.f, 0.9f});
         }
     }
 }

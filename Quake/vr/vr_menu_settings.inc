@@ -124,6 +124,12 @@ za::Vector<Item> pageMain()
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
                   "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
                   "> Body and Display."),
+        // (2026-10-18: "Auto-collect works. It shouldn't be the default, but it should be an option in the basic VR
+        // settings"; also Physics > Carrying Boxes.)
+        cycle("Auto-Collect", vr_carry_autocollect, {{0.f, "Off"}, {1.f, "Ammo and Health"}, {2.f, "And Backpacks"}})
+            .help("Off: a box you grip is put away at a holster (let go of it there). Ammo and Health: an ammo or health "
+                  "box is taken the moment a hand grips it or a force grab brings it in, seen shrinking into the hand "
+                  "(full up of it: it stays in the hand). And Backpacks: a backpack too."),
     };
 }
 

@@ -12447,3 +12447,41 @@ The code sweep's Batch C (scratch/sweep/SWEEP.md ids), the same results with les
 ## Sweep batch E (C++ cleanups)
 
 Done: 07.4, 08.6 (comment), 10.1 (first dirs.clear() only; takePending kept), 05.8, 10.6, 11.6, 11.8, 13.10, 13.11, 13.12, 14.8, 15.6, 15.7, 15.8, 16.2 (identify once; the duplicated vertex lists left), 16.6 (particles::nearLimits), 16.9, 04.8, 05.7, 05.9 (documented), 18.11, 20.10, 22.4, 17.6, 19.9, 21.11. Skipped: 19.6 (already fixed in the code). No behaviour change.
+
+## Holster zones: dragged by hand, on the clone (worktree `dequant`, branch `agent/zonedrag`, 2026-10-18)
+
+Voice notes 2026-10-18: "Setting the holster zones with the sliders is cumbersome. Let me selectively drag the holster
+zones"; "Display the zones on the clone dummy too"; "Add an option to view the item holster boxes as well"; "Auto-collect
+... should be an option in the basic VR settings".
+
+- **Drag** (vr_holsterzones.cpp `dragGrip`/`dragFrame`, hooked in vr_input.cpp before the chainsaw's and the menu
+  panel's grips): `vr_holster_zone_<hip|upper|shoulder|ammo|grenade>_drag` (0, not archived: off on the next start),
+  a *Drag* toggle at the top of each kind on Immersion > Holster Zones. While on, a grip with the hand inside one of
+  that kind's boxes takes hold of it (a haptic tick); the press and its release never reach the game (no gun drawn or
+  put away there). The hand's move from where it took hold, in the body's frame from the zone's pivot (forward,
+  outwards, up; mirrored for the left ones), is added to the kind's `_x/_y/_z` (0.05 steps, -50..50), so both of the
+  pair move, as with the sliders. The other hand gripping the same kind while it is held resizes it: its depth, width
+  and height times the hands' spread over the spread when it took hold (0.01 steps, 0.02..10). The body's yaw follows
+  the hands, so a hand reaching across the body turns the frame a little: the zone stays under the hand in the world.
+- **Colours:** a kind switched to dragging orange, cyan (thicker) while held; the rest as before.
+- **On the clone:** every zone line and dot (boxes, grip rings, the hands' points) is also drawn through
+  `bodyclone::mirror` while the clone is shown. The Holster Zones page always shows the clone (`bodyClonePage`), and
+  any `vr_holster_zone*` row on another page latches it (`tweaksBody`).
+- **Item boxes:** `vr_holster_zones_show_items` (0, not archived; Holster Zones > *Show Item Boxes*, Debug > Views >
+  *Show Holster Item Boxes*) draws each zone's item-sized box (`vr_holster_zone_item_*`, a scale of 1 skipped) in
+  magenta beside the normal one, on you and on the clone; also while an *Item Size* row is chosen. It shows the zones
+  on its own.
+- **Auto-Collect** (`vr_carry_autocollect`, still 0) also on VR Settings - Holster Calibration, last row.
+
+**Tests:** `Misc/quakevr/zonedrag_test.sh dequant` (e1m1, mock hands, one run): the main hand gripping in the right hip
+zone and moved by a world offset: the offsets moved 2.00 3.00 4.00, the hand 2.00 3.00 4.00 in the body's frame; the
+off hand gripping too, its spread 2 → 4 units: depth 0.15 → 0.3, width 0.55 → 1.1, height 1.1 → 2.2; the left hip
+dragged by the off hand: x +3.65 / y -1.00 for the hand's forward +3.70 / right +0.90 (outwards -0.90); with the drag
+off a grip and a move leave the offsets alone. Eye shots (`vr_eyeshot 1`, `menu_vr 190`, `vr_mock_look 30 65`): the
+clone with its hip zones orange, the others grey, then the magenta item boxes (`scratch/zd_clone2.png`); the camera
+behind the hips the same on you (`scratch/zd_player.png`). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**In the headset:** Immersion > Weapons and Holsters > Holster Zones, *Drag* on under Hip Holsters: the hip boxes turn
+orange on you and on the clone. Grip inside one and move the hand: the box (and its pair) follows, the Move sliders
+too. Grip it with the other hand as well and spread the hands: it grows. Switch *Drag* off when done (or restart).
+*Show Item Boxes*: the magenta boxes for carried ammo and health. VR Settings > Holster Calibration > *Auto-Collect*.
