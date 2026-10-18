@@ -358,7 +358,7 @@ za::Vector<Item> pageDebugTests()
             .help("The Plasma Gun in your off hand, your main hand free: its cell's well on the gun's inner side is "
                   "found, the cell pops out sideways, and a cell from your pouch brought to the well goes in (adplasma: "
                   "lines in the console). Then eject it (B/Y) and reload it by hand."),
-        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Tube Test", "vr_ad_test 142")) // AD support
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Tube Test", "vr_ad_test 149")) // AD support
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "
                   "seconds (adwidow: lines in the console). Then load it and fire it yourself."),

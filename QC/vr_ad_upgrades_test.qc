@@ -218,7 +218,7 @@ void() AD_PlasmaCellTestRun =
     remove(self);
 };
 
-// 142 (Debug > Tests > Arcane Dimensions: Widowmaker Tube Test): the Widowmaker in the off hand, empty, the main hand
+// 149 (Debug > Tests > Arcane Dimensions: Widowmaker Tube Test): the Widowmaker in the off hand, empty, the main hand
 // free. Its shell port (vr_view_internal.hpp loadPorts: AdVrWidowmaker, on the receiver's inner side) is found; it loads by
 // hand; its tube holds vr_ad_widowmaker_tube; a pouch handful is vr_ad_widowmaker_handful shells, all going in at the
 // port, until the tube is full; then the trigger held two seconds (W_OffHandAttack each frame its shot is due) fires a
@@ -311,7 +311,7 @@ void() AD_WidowTubeTestRun =
 
 void(float request, entity p) AD_UpgradesTest =
 {
-    if(request == 142)
+    if(request == 149)
     {
         entity os2 = self;
         self = p;

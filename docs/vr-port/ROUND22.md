@@ -13567,7 +13567,7 @@ Pellets (the new cvar), Widowmaker Fire Rate.
 
 ### Checked (headless)
 
-`vr_ad_test 142` (new: Debug > Tests > Arcane Dimensions: Widowmaker Tube Test) 8/8 PASS: port found on
+`vr_ad_test 149` (new: Debug > Tests > Arcane Dimensions: Widowmaker Tube Test) 8/8 PASS: port found on
 `v_shot3.mdl#vr`, loads by hand, tube 16, a pouch handful of 4, 4 in one insert, full after 4 inserts, the trigger held
 2 s fires 8 (0.25 s), the reserve untouched; 8 `shells out` lines along the model's +y -0.84 (the side opposite the port),
 up 0.50. `vr_ad_test 141` 4/4 PASS with the seat moved. `vr_adweapon_models`: Widowmaker 1228 triangles, Plasma Gun 612,
