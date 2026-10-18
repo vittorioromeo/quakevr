@@ -99,7 +99,8 @@ budget, the topple speeds and the hand-back, and replaces those three:
 - A step once the capture point is 6 cm past that reach (and it moves faster than 0.25 m/s, or is past Foot Support):
   the foot lands where the capture point will be as it lands (it grows over the other foot meanwhile), 0.1 leg past
   it, half its stance's width aside, within 0.75 leg of the hip, never across the other foot. The swing foot is carried
-  along its arc (its hip's push back on the body kept: the body's momentum is unchanged).
+  along its arc (its hip's push back on the body kept: the body's momentum is unchanged), kept 0.08 leg over the floor
+  under its way (traced from the pelvis's height: a step up lifts over the riser, not through it) until the last fifth.
 - Bearing legs follow their planted foot (their reach, tone 0.5) and their hips turn the pelvis upright; the upright
   turn (`turnUpper`, 8 rad/s per rad, at most 4, `vr_flinch_legs_upright`) keeps the body's momentum.
 - `vr_flinch_debug 4` prints a `legs:` line per frame; every flinch prints a `result` line (steps, their mean cosine

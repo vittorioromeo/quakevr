@@ -13345,3 +13345,48 @@ next one) for whoever picks it up.
   (`scratch/fl5_suite.py`, `FL5_CLASS`, `FL5_ONLY`): first `floorUnder` alone, then the swing path, then the settle step
   for hanging feet; the stairs test may also want a gentler flight (a 45-degree, 16-deep stair asks a grunt to stand
   across two steps 80% of its leg apart).
+
+## Flinch: `vr_flinch 2`, one change at a time (worktree `fastship`, branch `agent/flinch6`, 2026-10-18)
+
+The method flinch5 asked for: a fast suite first (`scratch/fl6_suite.py <label> <mode>`, `FL6_CLASS`, `FL6_ONLY`; 6 cases
+x 8 runs, spot and stand phase jittered, ~40 s; `scratch/fl6_table.txt` has every summary), then one change at a time,
+kept only if flat stays 8/8 and nothing regresses. `vr_flinch` stays 1: mode 2 is below mode 1 on the stairs (and for
+the enforcer everywhere).
+
+Grunt, recovered/8 (flat shotgun 64, flat blow, flat uppercut, slope blow, stairs shotgun, stairs blow):
+
+| step | flat sg64 | flat blow | flat upper | slope blow | stairs sg64 | stairs blow | kept |
+|---|---|---|---|---|---|---|---|
+| `vr_flinch 1` | 8 | 8 | 8 | 8 | 8 | 8 | |
+| `vr_flinch 2` baseline | 8 (1 step) | 8 (1) | 8 (1) | 8 (1) | 0 (3.9, along -0.10) | 2 | |
+| 1 `floorUnder` for the bearing feet | 8 | 8 | 8 | 8 | 0 (2.5, +0.19) | 2 | no (knight stairs 6/8 -> 4/8) |
+| 2 swing kept 0.08 leg over the floor | 8 | 8 | 8 | 8 | 0 (4.0) | 2 | yes |
+| 3 hanging foot put down first (6 variants) | 8 | 8 | 8 | 8 | 0-1 | 0 | no |
+| 4 first steps cut short, re-planned (4 variants) | 8 | 0-2 | 0-8 | 2-8 | 0 | 1-6 | no |
+
+- **Step 1:** right for the grunt, but the knight on stairs fell more: the old trace (from 0.3 m over the foot) missed
+  the floor under a hanging foot and fell back to "standing", so the hanging foot bore and held it up. Undone for the
+  bearing feet; `floorUnder` stays for step 2.
+- **Step 3, why the stairs fail** (`vr_flinch_debug 4` and `swing:` lines, now gone): on vrtesthall's stairs the hit
+  (+y) runs across them; the grunt's feet are side by side along the rise (x), one on its step, the other 20 units
+  over the step below. Its legs (about 20 units, its pelvis 20 over its feet) cannot reach 15.5 units lower, so a
+  straight-down settle never bears. Moved onto the same step (8 units in) it bears, and with the settling foot held as
+  an edge meanwhile the capture point stays within 2 units; but the next capture step then aims a stair or two down
+  (33 units) out of reach, and the swing's carry, unable to follow, shoves the body up through the leg (the pelvis 3-5
+  units over its stand height with the legs' push at 0) and it falls off its foot. Sinking the pelvis for a step down
+  (at once: it free-falls; over the step: no better) and reachable landing spots did not bring a stairs run back.
+  Kept in history: "Flinch WIP (not kept): hanging feet ..." and its revert.
+- **Step 4:** a step cut short lands short of the capture point; once a second step is needed it runs away (7-8 steps,
+  200 units, falls) on flat, even with only the first step cut and the rest full and re-planned. Bimodal: a run takes
+  1 step and recovers or runs away. On the stairs it helped (blow 2 -> 6 with every step cut to 0.6). Easing the carry
+  off a stuck foot (off its way by 0.2 leg) broke flat blows (0/8): a fast step's foot lags that much. Kept in history
+  as "Flinch WIP (not kept): first capture steps ..." and its revert.
+- **Step 5** (sidesteps): not started (budget).
+- **Other classes** (final code, recovered/8 in the six cases, `vr_flinch 2` / `vr_flinch 1`):
+  - enforcer: 0 0 8 0 0 0 / 8 8 8 8 8 6. Mode 2 was already so before this round (0/8 flat shotgun, its steps against
+    the hit, along -0.54): its lean over its rifle (`supportOffset`) wants a look first.
+  - knight: 8 8 8 8 6 6 / 8 8 8 8 8 8 (with step 1: stairs 4 4).
+  - ogre: a shotgun 64 and an uppercut do not flinch it (both modes); blows 8 8, stairs blow 0 (+2 none) / 6.
+- **Melee:** `eval.sh --full` with `vr_flinch 0`: 168/177 (unchanged).
+- **Next:** the second step's runaway on flat (why a step landing short of a running capture point never catches it)
+  before more steps; the enforcer's mode 2; on stairs, a test hit along the rise as well as across it.
