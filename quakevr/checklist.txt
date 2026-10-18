@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD weapons no longer inherit settings: plain axe back to its old smaller size, Shadow Axe keeps your size; crossbow feels as you tuned it (your 12 values are now defaults); nothing else should change
 AD guns round 3: flamethrower and poison sprayer hose goes round your forearm (across the body, low at the hip); empty flamethrower: pilot light out; Eliminator gone (eliminators drop the Centurion gun); Freddie drops the normal super nailgun; "Grunt Burst Rifle" tooltip; Weapon Damage > Arcane Dimensions sliders
 Flinch Leg Balance round 3 (vr_flinch 2, default still 1): shoot an enforcer and a death knight in the belly (legs used to kick out): steps and recovers; anything standing on stairs; knights, ogres too
 AD ragdolls part 2: AD knight, AD ogre (nail/flak/marksman), death lord, Quoth death guard, deflector now ragdoll: kill, shove, get-up, lift and neck snap (not the ogre's neck); deflector's gun swings on its hand
