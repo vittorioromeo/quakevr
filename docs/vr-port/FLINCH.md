@@ -77,6 +77,34 @@ the floor under it is uneven (four rays round its origin: a slope steeper than a
 - Past it: it takes a step or two, then falls (no recovery).
 - At 1.5 x Topple Speed or more: it goes down at once.
 
+## Balance from the legs (`vr_flinch 2`)
+
+The author's VR notes on `vr_flinch 1`: struck, it froze with its feet glued and its body wobbling back into place,
+and an uppercut floated it, then sprang it back. The causes were the pin (a kinematic anchor on the entity's stand
+pelvis, 3D, carried along a fixed short way: a spring of up to 2 body weights at 5 Hz, height included), the support
+(a lift of 0.6-0.95 g on every part: gravity all but gone) and `turnWhole` (every part's velocity turned about the
+pelvis, a hand of God). With the pin carrying the pelvis, the capture point never left the feet, so it never stepped.
+
+`vr_flinch 2` (Combat > Flinch, "On, Leg Balance"; `legsBalance` in vr_ragactive.cpp) keeps the recovery test, the
+budget, the topple speeds and the hand-back, and replaces those three:
+
+- No pin and no lift. The hit's whole impulse goes into the body (the jolt at the point; the rest on the parts above
+  its legs), times `vr_flinch_legs_push` (2.5: a shotgun backs it a step; its balance and topple use the real one).
+- Its weight is borne only through feet on the floor (a foot's end within 0.15 leg of its floor as it stood; with none,
+  its lowest within 0.4 leg unless its pelvis is going up): a push up its legs holding its pelvis as high over its feet as
+  it stood (3 Hz, critically damped, up to 1.6 weights, never pulling down). Struck up, it falls back at once.
+- Its centre of pressure (where the floor pushes back) is kept within its bearing feet's soles (0.6 Foot Support round
+  each, and the strip between): within them it draws its capture point back over its feet (the ankles), past them it
+  cannot (an inverted pendulum's acceleration on the parts above the legs).
+- A step once the capture point is 6 cm past that reach (and it moves faster than 0.25 m/s, or is past Foot Support):
+  the foot lands where the capture point will be as it lands (it grows over the other foot meanwhile), 0.1 leg past
+  it, half its stance's width aside, within 0.75 leg of the hip, never across the other foot. The swing foot is carried
+  along its arc (its hip's push back on the body kept: the body's momentum is unchanged).
+- Bearing legs follow their planted foot (their reach, tone 0.5) and their hips turn the pelvis upright; the upright
+  turn (`turnUpper`, 8 rad/s per rad, at most 4, `vr_flinch_legs_upright`) keeps the body's momentum.
+- `vr_flinch_debug 4` prints a `legs:` line per frame; every flinch prints a `result` line (steps, their mean cosine
+  along the hit, the way stepped, the centre of mass's rise).
+
 ## Recovery test
 
 Every frame, from `vr_flinch_recover_min` (0.25 s):
@@ -132,7 +160,10 @@ and in the `flinch: ... back in frame` lines.
   - `2` also prints the refusals.
 - `vr_flinch_status [reset]`: counts, switch-in cost, recovery time, hand-back gap, and each flinching enemy's balance.
 - `vr_flinch_test <n>`:
-  - 1-9: shotgun, super shotgun, nail, super nail, blow, head blow, blast, throw, crowd;
+  - 1-9: shotgun, super shotgun, nail, super nail, blow, head blow, blast, throw, crowd; 10 an uppercut (35 damage
+    to the chin, mostly up);
+  - `vr_flinch_test_yaw` (a set way, the test grunt facing it: a side view), `vr_flinch_test_dist` (the shotguns'
+    falloff distance);
   - 20: a grunt at `vr_flinch_test_x/_y/_z`;
   - 21: ten grunts ahead.
 - The test room is `vrtesthall`: flat floor, a 22-degree slope (x -240..-80, y 460..620) and the stairs (x 96..288,

@@ -2669,7 +2669,7 @@ QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalanc
 // docs/vr-port/FLINCH.md; Combat > Flinch): every hit past a threshold briefly makes a humanoid an active ragdoll that
 // takes the hit's impulse, steps and balances, then blends back into its animation once balanced, or topples into a
 // knockdown. 0: the hit reactions, pains and Hits Unbalance exactly as before.
-QVR_CVAR(vr_flinch, "1", CVAR_ARCHIVE)                    // 1 the flinch (shots, nails, melee, throws, blasts); 0 the old reactions
+QVR_CVAR(vr_flinch, "1", CVAR_ARCHIVE)                    // 1 the flinch (shots, nails, melee, throws, blasts); 2 the same balanced by its legs (no pin); 0 the old reactions
 QVR_CVAR(vr_flinch_classes, "* -monster_zombie -monster_zombiek -monster_mummy", CVAR_ARCHIVE) // the classnames that flinch (space-separated; "*" every one that can stagger as a ragdoll, "-name" not that one: the zombies keep their own falls)
 QVR_CVAR(vr_flinch_min, "0.3", CVAR_ARCHIVE)              // m/s: a hit giving its body less change of speed only plays the small hit reaction
 QVR_CVAR(vr_flinch_cooldown, "0.6", CVAR_ARCHIVE)         // s after a flinch began before another can (no stun-lock; the small reaction meanwhile)
@@ -2696,7 +2696,9 @@ QVR_CVAR(vr_flinch_recover_hold, "0.08", CVAR_ARCHIVE)    // s: the recovery tes
 QVR_CVAR(vr_flinch_recover_speed, "0.35", CVAR_ARCHIVE)   // m/s: its middle's level speed at most to recover
 QVR_CVAR(vr_flinch_recover_tilt, "22", CVAR_ARCHIVE)      // deg: its spine tilted at most this more than as it stood
 QVR_CVAR(vr_flinch_recover_slope, "35", CVAR_ARCHIVE)     // deg: each foot on ground no steeper
-QVR_CVAR(vr_flinch_foot, "0.18", CVAR_ARCHIVE)            // m: each foot's support round its end (its middle over the two and the strip between)
+QVR_CVAR(vr_flinch_legs_push, "2.5", CVAR_ARCHIVE)       // vr_flinch 2: the hit's impulse on its body times this (its balance and topple reckoned without it)
+QVR_CVAR(vr_flinch_legs_upright, "1", CVAR_ARCHIVE)      // vr_flinch 2: its hips' and ankles' hold on its upright, times this
+QVR_CVAR(vr_flinch_foot, "0.18", CVAR_ARCHIVE)        // m: each foot's support round its end (its middle over the two and the strip between)
 QVR_CVAR(vr_flinch_blend, "0.22", CVAR_ARCHIVE)           // s: recovered, its ragdoll blends into the animation (its nearest stand or run frame) over this
 QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal; 3: also every hit reaching it and why a class cannot
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
@@ -2928,6 +2930,8 @@ QVR_CVAR(vr_flinch_test_health, "0", CVAR_NONE)       // vr_flinch_test 20's gru
 QVR_CVAR(vr_flinch_test_x, "0", CVAR_NONE)            // where vr_flinch_test 20 puts a grunt (units)
 QVR_CVAR(vr_flinch_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_flinch_test_z, "0", CVAR_NONE)
+QVR_CVAR(vr_flinch_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0): a side view of them
+QVR_CVAR(vr_flinch_test_dist, "0", CVAR_NONE)         // units: the test shotgun blasts' distance for their falloff (0: the player's)
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding

@@ -23,6 +23,7 @@ float vr_fl_after_damage; // VR_Flinch_Try from a blow or a throw (after its dam
 float VR_FL_FADE = 0.2; // s: the summed impulse's half-life
 float vr_fl_test_damage; // a test's (VR_Flinch_Test): the impulse reckoned from this damage (0: the damage dealt)
 float vr_fl_test_weapon; // a test's weapon, plus 1 (WID_* + 1; 0: the attacker's)
+float vr_fl_test_dist; // a test's shotgun distance for its falloff (vr_flinch_test_dist; 0: the attacker's)
 
 float() VR_Flinch_On =
 {
@@ -70,7 +71,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Impu
         float hand = vr_hithand >= 0 ? vr_hithand : cVR_MainHand;
         float w = vr_fl_test_weapon > 0 ? vr_fl_test_weapon - 1 : VRGetEntWeapon(attacker, hand);
         float pellets = vr_hitpellets > 0 ? vr_hitpellets : 1;
-        float fall = VR_Flinch_ShotFalloff(vlen(vr_hr_at - (attacker.origin + attacker.view_ofs)));
+        float fall = VR_Flinch_ShotFalloff(vr_fl_test_dist > 0 ? vr_fl_test_dist : vlen(vr_hr_at - (attacker.origin + attacker.view_ofs)));
         if(w == WID_SHOTGUN || w == WID_GRUNTGUN)
         {
             return pellets * max(0, cvar_hget(cvarh_vr_flinch_shotgun)) * fall;
@@ -248,7 +249,8 @@ float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw =
 // the weapon's), from where he stands:
 //   1 a shotgun blast (vr_flinch_test_pellets pellets, 6), 2 a super shotgun's (14), 3 a nail, 4 a super nail, 5 a melee
 //   blow (30 damage), 6 a blow to the head (30), 7 a blast 48 units before it (60 damage), 8 a 12 kg crate at 10 m/s;
-//   9 a shotgun blast on every live monster within 1024 units (the crowd);
+//   9 a shotgun blast on every live monster within 1024 units (the crowd); 10 an uppercut (35 damage to the chin);
+//   vr_flinch_test_yaw: the hits' way (the test grunt faces it); vr_flinch_test_dist: the shotguns' falloff distance;
 //   20 a grunt put at vr_flinch_test_x, _y, _z facing him; 21 ten grunts in two rows of five 160 units ahead.
 // ----------------------------------------------------------------------------
 
@@ -277,6 +279,10 @@ void(entity pl, vector at) VR_Flinch_TestSpawn =
     self = m;
     setorigin(m, at);
     m.angles = '0 1 0' * vectoyaw(pl.origin - at);
+    if(cvar("vr_flinch_test_yaw") != 0)
+    {
+        m.angles = '0 1 0' * (cvar("vr_flinch_test_yaw") + 180); // (facing where the test hits come from)
+    }
     m.classname = "monster_army";
     monster_army();
     if(cvar("vr_flinch_test_health") > 0)
@@ -294,6 +300,12 @@ void(entity pl, entity best, float xMode) VR_Flinch_TestHit =
     vector dir = chest - eye;
     dir_z = 0; // (level: a test's hit from above or below pushes it along the floor all the same)
     dir = normalize(dir);
+    float yaw = cvar("vr_flinch_test_yaw");
+    if(yaw != 0)
+    {
+        dir = '1 0 0' * cos(yaw * 0.0174533) + '0 1 0' * sin(yaw * 0.0174533); // (a set way: a side view of it)
+    }
+    vr_fl_test_dist = cvar("vr_flinch_test_dist");
     float pellets = cvar("vr_flinch_test_pellets");
     entity oldSelf = self;
     self = pl;
@@ -320,8 +332,16 @@ void(entity pl, entity best, float xMode) VR_Flinch_TestHit =
     else if(xMode == 5 || xMode == 6)
     {
         vector at = xMode == 6 ? chest + '0 0 1' * (best.absmax_z - 6 - chest_z) : chest;
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - eye));
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, yaw != 0 ? dir : normalize(at - eye));
         vr_fl_test_damage = 30;
+        T_Damage_VRMelee(best, pl, pl, 1);
+    }
+    else if(xMode == 10)
+    {
+        // An uppercut: 35 damage to the chin, mostly upward.
+        vector chin = chest + '0 0 1' * (best.absmax_z - 12 - chest_z) - dir * 6;
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, chin, normalize(dir * 0.4 + '0 0 0.92'));
+        vr_fl_test_damage = 35;
         T_Damage_VRMelee(best, pl, pl, 1);
     }
     else if(xMode == 7)
@@ -343,6 +363,7 @@ void(entity pl, entity best, float xMode) VR_Flinch_TestHit =
     }
     VR_ClearHitKind();
     vr_fl_test_damage = 0;
+    vr_fl_test_dist = 0;
     self = oldSelf;
 };
 

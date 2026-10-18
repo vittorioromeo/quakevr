@@ -122,6 +122,10 @@ struct Reach
     glm::vec3 goal{0.f};
     float weight{0.f};
     float strength{0.f};
+    // Its limb's turns reckoned from this turn of the part it hangs from, not that part's own (`upright`: a flinch's
+    // bearing leg, vr_flinch 2: its hip's spring turns its pelvis upright over the planted foot).
+    bool upright{false};
+    glm::quat from{1.f, 0.f, 0.f, 0.f};
 };
 
 // A monster losing limbs as he dies (cutReaction; vr_ragactive.cpp, "Dismemberment"; vr_ragdoll_active_dismember): his
@@ -423,6 +427,20 @@ struct Stagger
     // leans over his rifle, its middle well ahead of its ankles): its support is reckoned round it.
     glm::vec3 supportOffset{0.f};
     int struck{-1};           // the frame it was drawn in when struck (a hand-back's candidates: round it)
+    // Measures (the `flinch: ... result` line): its centre of mass's height as struck and its rise over it at most (m),
+    // its steps' level way summed (m) and their share along the hit summed (each step's cosine).
+    float comZ0{0.f}, riseMost{0.f}, stepWay{0.f}, stepAlong{0.f};
+    // vr_flinch 2: balanced by its legs (FLINCH.md, "Balance from the legs"): no pin, its weight borne only through feet
+    // on the floor, its centre of pressure kept within them, capture steps.
+    bool legs{false};
+    uint32_t legParts{0};     // its legs' parts (bits): no support or balance force on them
+    float upperMass{1.f};     // kg: the rest
+    float pelvisOver{0.f};    // m: its pelvis over its feet's ends as it stood
+    za::Array<float, 2> footGap{}; // m: each foot's end over its floor as it stood (below it: negative)
+    int bearing{0};           // feet on the floor now
+    glm::vec3 capture{0.f};   // its capture point (level, world, metres) this frame
+    float captureOff{0.f};    // m: how far it lies past its feet's reach for its centre of pressure (0: within)
+    za::Array<glm::vec3, 2> bearAt{}; // the bearing feet's ends (world, metres)
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
@@ -681,6 +699,8 @@ struct FlinchInfo
     int first{0};
     float most{1.6f};     // s: not steady by then, it topples
     float footR{0.12f};   // m
+    bool legs{false};     // vr_flinch 2: balanced by its legs (Stagger::legs)
+    float push{1.f};      // ... the impulse given its body times this (vr_flinch_legs_push; its balance reckoned without)
 };
 // Its legs' mean length (m; its drive begun), 0.75 if it has none.
 [[nodiscard]] float legLength(const State& s, const Parts& p);
