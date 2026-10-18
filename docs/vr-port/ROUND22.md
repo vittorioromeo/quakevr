@@ -13081,3 +13081,15 @@ The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_*
   - `fire3.png`, `fire5_zoom.png`: each variant firing: flashes, lights, the rocket's back-blast
 - **For him in VR**: the rocket tube's and the grenade muzzle's size; the exhaust over the sights; the pilot stream's
   subtlety; whether the recoil scales feel right (rocket and grenade near the cap of 2.5).
+
+### His holster zones, thresholds and glove look are the defaults (config version 156)
+
+From his `quakevr/ironwail.cfg` of 2026-10-18; `vr_cvars.inc` defaults changed, and a config still at the old default takes
+the new one (`defaultChanges`, 156). Old -> new: vr_glove_relief 1 -> 1.25; vr_glove_thickness 2 -> 2.25;
+vr_holster_zone_ammo_height 1.125 -> 0.8, ammo_x -0.5 -> 0.2, ammo_z 0 -> 2.2; grenade_depth 1 -> 0.85;
+hip_depth 0.15 -> 0.05, hip_height 1.1 -> 0.7, hip_width 0.55 -> 0.5, hip_x 0 -> -0.9, hip_y -2.25 -> -2.75,
+hip_z -2.25 -> -2.35; item_hip 1.5 -> 1.75, item_shoulder 1.5 -> 2.5, item_upper 1.5 -> 1.75;
+shoulder_height 0.5 -> 0.55, shoulder_x -2.5 -> -2.75, shoulder_y 1 -> 2.05, shoulder_z -0.5 -> -2.3;
+upper_depth 0.6 -> 0.3, upper_height 0.7 -> 0.6, upper_width 0.6 -> 0.4, upper_x -3.75 -> -2.35, upper_y 3.25 -> 0.75,
+upper_z -0.75 -> 1.4; vr_shoulder_holster_thresh 7 -> 7.5; vr_upper_holster_thresh 6.5 -> 5.9. Weapon offsets
+(vr_wofs_*) and his other glove values were left out.
