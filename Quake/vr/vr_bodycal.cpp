@@ -84,7 +84,7 @@ struct StepInfo
 };
 
 constexpr StepInfo steps[StepCount] = {
-    {"stand", "Stand Tall", "Stand up straight, look ahead.\nArms straight down at your sides,\nshoulders relaxed.",
+    {"stand", "Stand Tall", "Stand up straight, look ahead.\nArms straight down at your sides,\nshoulders relaxed. Hold still.",
         "Your eye height, and how high your shoulders are over your straight arms.", Kind::Static, 0.f},
     {"tpose", "T-Pose", "Arms straight out to the sides,\nlevel with your shoulders,\npalms down. Look ahead.",
         "Your arms' reach to the sides: how far apart your shoulders are.", Kind::Static, 0.f},
@@ -2200,8 +2200,11 @@ bool begin(za::Vector<int> todo, int returnPage)
 // Why the pose held isn't the step's (empty: it is), from the averaged frame.
 [[nodiscard]] za::String wrongPose(int step, const Raw& r)
 {
-    const Local l = toLocal(r, ses.yaw, ses.eyeHeight);
-    Settings now = current(ses.eyeHeight);
+    // Stand Tall is the first measurement of the height (VR Calibration has no height step before it): its pose is
+    // judged at the height held, not the setting's.
+    const float eyeH = step == Stand && r.headHeight > 0.5f ? r.headHeight : ses.eyeHeight;
+    const Local l = toLocal(r, ses.yaw, eyeH);
+    Settings now = current(eyeH);
     const avatar::ShoulderModel m = modelOf(now);
     const float reach = now.upper + now.fore;
     const char* sides[2] = {"left", "right"};
