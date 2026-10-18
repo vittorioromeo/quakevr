@@ -43,7 +43,9 @@ constexpr ClassAlias classAliases[] = {
     {"monster_pyro", "monster_enforcer"},
     {"monster_fumigator", "monster_enforcer"},
     {"monster_seeker", "monster_enforcer"},
+    {"monster_deflector", "monster_enforcer"},
     // Ogres
+    {"monster_ogre_flak", "monster_ogre"},
     {"monster_hogre", "monster_ogre"},
     {"monster_hogremac", "monster_ogre"},
     {"monster_hogreham", "monster_ogre"},

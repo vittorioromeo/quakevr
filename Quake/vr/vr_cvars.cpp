@@ -294,8 +294,15 @@ const DefaultChange defaultChanges[] = {
     {156, &vr_holster_zone_upper_z, "-0.75"},
     {156, &vr_shoulder_holster_thresh, "7"},
     {156, &vr_upper_holster_thresh, "6.5"},
+    // 157: AD's death guard (Quoth's), death lord and deflector are humanoids for the lift and the neck snap, now that
+    // they have ragdolls (ROUND22.md, "AD rigs: the rest of AD's humanoids").
+    {157, &vr_foegrab_lift_classes,
+        "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
+        "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator "
+        "monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant "
+        "monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected"},
 };
-constexpr int configVersion = 156;
+constexpr int configVersion = 157;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

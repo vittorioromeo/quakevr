@@ -173,6 +173,7 @@
         adSpawnRow(258, command("A Quoth Death Guard Ahead", "vr_test_spawn 258; vr_test_spawn_dist 128; impulse 241")),
         adSpawnRow(259, command("A Death Lord Ahead", "vr_test_spawn 259; vr_test_spawn_dist 128; impulse 241")),
         adSpawnRow(260, command("A Sentinel Ahead", "vr_test_spawn 260; vr_test_spawn_dist 128; impulse 241")),
+        adSpawnRow(261, command("AD's Knight Ahead", "vr_test_spawn 261; vr_test_spawn_dist 128; impulse 241")),
         // ad_monsters_gen.py: end
     });
 }
