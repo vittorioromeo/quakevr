@@ -185,6 +185,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags)) { return VR_ADMelee_Model(VR_ADMelee_Kind(xWeaponFlags)); } // AD
     if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
     if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
     if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }

@@ -485,6 +485,12 @@ float(float xFlags) VR_Grapple_StripTag =
     return VR_Grapple_WithTag(xFlags, 0);
 };
 
+// ... a weapon `wid`'s: a grapple's (another weapon's bits there are its own: an AD sword's kind, vr_ad_guns_defs.qc).
+float(float wid, float xFlags) VR_Grapple_StripTagOf =
+{
+    return wid == WID_GRAPPLE ? VR_Grapple_StripTag(xFlags) : xFlags;
+};
+
 // The hook of the tag (world: none, the gun is ready).
 entity(float xTag) VR_Grapple_HookOf =
 {

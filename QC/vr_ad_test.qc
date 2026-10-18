@@ -55,6 +55,7 @@ void(float request, entity p) AD_RulesTest =
 {
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
     if(request >= 70 && (request <= 90 || (request >= 92 && request <= 95))) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (93, 94: the crossbow; 95: Freddie's super nailgun)
+    if(request >= 110 && request <= 119) { AD_MeleeTest(request, p); return; } // AD melee weapons: vr_ad_melee.qc
 
     makevectors(p.angles);
     vector ahead = p.origin + v_forward * 64;

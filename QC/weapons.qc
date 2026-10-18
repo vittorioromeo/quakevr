@@ -1425,11 +1425,23 @@ W_FistMelee
 ================
 */
 // A knight's sword (WID_SWORD): the axe's swing, longer and harder (vr_sword_damage_mult); the
-// hell knight's (weaponflags) harder still.
+// hell knight's (weaponflags) harder still. AD support: AD's melee monsters' weapons (their kind in the weapon flags:
+// vr_ad_guns_defs.qc) their own (vr_admelee_sword_damage; the hammer and the mace vr_admelee_heavy_damage in both hands,
+// vr_admelee_heavy_1h of it in one; blunt: a club's knock, client.qc's vr_melee_blunt).
 void(float xHand) W_SwordMelee =
 {
     float xdmg = VRMeleeDmg(xHand, 20) * cvar_hget(cvarh_vr_sword_damage_mult);
-    if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    float kind = VR_ADMelee_Kind(VRGetWeaponFlags(xHand));
+    if(VR_ADMelee_Heavy(kind))
+    {
+        float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
+        xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar("vr_admelee_heavy_1h"));
+    }
+    else if(kind)
+    {
+        xdmg = xdmg * cvar("vr_admelee_sword_damage");
+    }
+    else if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
     {
         xdmg = xdmg * 1.25;
     }
@@ -1453,6 +1465,10 @@ void(float xHand) W_SwordMelee =
         {
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
+            if(VR_ADMelee_Heavy(kind))
+            {
+                VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim); // (a hammer's, a mace's weight: the chainsaw's)
+            }
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;

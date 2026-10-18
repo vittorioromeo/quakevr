@@ -239,6 +239,35 @@ const KnownSword knownSwords[] = {
          za::iota(v.begin(), v.end(), 772);
          return v;
      }(), 225, 255},
+    // AD's melee monsters (their weapons, rigid pieces in the hand, found moving with it in every frame alive; hidden in
+    // their deaths, the rigs' frames: vr_ad_rigs.inc; QC VR_ADMelee_Drop drops them, vr_admelee.cpp makes them): the death
+    // fury's two swords (1240..1307 and 1308..1375), the death knight's, the death guard's sword (deaths A-D), the
+    // hunter ogres' hammer and mace. (The zombie knight's falls are its knockdown's too: it keeps its blade lying.)
+    {qvr::modelmeta::Id::AdDfury, 1376, 1070, [] {
+         za::Vector<int> v(136);
+         za::iota(v.begin(), v.end(), 1240);
+         return v;
+     }(), 224, 254},
+    {qvr::modelmeta::Id::AdDknight, 911, 802, [] {
+         za::Vector<int> v(41);
+         za::iota(v.begin(), v.end(), 870);
+         return v;
+     }(), 212, 243},
+    {qvr::modelmeta::Id::AdDguard, 585, 564, [] {
+         za::Vector<int> v(41);
+         za::iota(v.begin(), v.end(), 544);
+         return v;
+     }(), 195, 255},
+    {qvr::modelmeta::Id::AdHogreham, 1306, 1012, [] {
+         za::Vector<int> v(273);
+         za::iota(v.begin(), v.end(), 210);
+         return v;
+     }(), 137, 160},
+    {qvr::modelmeta::Id::AdHogremac, 1224, 1002, [] {
+         za::Vector<int> v(191);
+         za::iota(v.begin(), v.end(), 216);
+         return v;
+     }(), 132, 155},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
     {qvr::modelmeta::Id::Grem, 123, 245, [] {
@@ -256,6 +285,11 @@ const KnownSword knownSwords[] = {
     switch(id)
     {
     case qvr::modelmeta::Id::AdDcrossbow: return "crossbow";                                   // AD support
+    case qvr::modelmeta::Id::AdDfury: return "two swords";                                     // AD support
+    case qvr::modelmeta::Id::AdDknight:                                                        // AD support
+    case qvr::modelmeta::Id::AdDguard: return "sword";                                         // AD support
+    case qvr::modelmeta::Id::AdHogreham: return "hammer";                                      // AD support
+    case qvr::modelmeta::Id::AdHogremac: return "mace";                                        // AD support
     case qvr::modelmeta::Id::AdSoldier: return "burst rifle";                                 // AD support
     case qvr::modelmeta::Id::AdEnforcer: return "gun and muzzle effect";                       // AD support
     case qvr::modelmeta::Id::AdCenturion: return "gun, muzzle effect and hover board";         // AD support
@@ -471,7 +505,10 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     // the rocket ogre: MG3's; Arcane Dimensions' armed monsters: AD's.
     const bool adKnown = id == qvr::modelmeta::Id::AdSoldier || id == qvr::modelmeta::Id::AdEnforcer || // AD support
                          id == qvr::modelmeta::Id::AdCenturion || id == qvr::modelmeta::Id::AdPyro ||  // AD support
-                         id == qvr::modelmeta::Id::AdFumigator || id == qvr::modelmeta::Id::AdDcrossbow; // AD support
+                         id == qvr::modelmeta::Id::AdFumigator || id == qvr::modelmeta::Id::AdDcrossbow || // AD support
+                         id == qvr::modelmeta::Id::AdDfury || id == qvr::modelmeta::Id::AdDknight ||    // AD support
+                         id == qvr::modelmeta::Id::AdDguard || id == qvr::modelmeta::Id::AdHogreham ||  // AD support
+                         id == qvr::modelmeta::Id::AdHogremac;                                          // AD support
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
                            id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
                            id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;

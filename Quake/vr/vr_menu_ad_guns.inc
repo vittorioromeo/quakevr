@@ -72,6 +72,17 @@
         slider("Bolts", "vr_adgun_crossbow_ammo", 1.f, 30.f, 1.f, "%.0f").extend(1.f, 100.f)
             .help("The bolts the crossbow holds as the knight drops it: its own, never refilled."),
         slider("Time Between Shots", "vr_adgun_crossbow_refire", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f),
+        header("Melee Monsters' Weapons"),
+        toggle("Melee Monsters Drop Their Weapons", "vr_admelee_drops")
+            .help("The death fury drops its two swords, the death knight, zombie knight and death guard their swords, "
+                  "the hunter ogres their hammer and mace: yours to swing (Weapon Offsets slots 41-46)."),
+        slider("Sword Damage", "vr_admelee_sword_damage", 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Their swords' blows, times the knight's sword's (the hell knight's: 1.25)."),
+        slider("Hammer and Mace Damage", "vr_admelee_heavy_damage", 0.25f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The hunter ogres' hammer's and mace's blows held in both hands, times the knight's sword's."),
+        slider("One Hand's Share", "vr_admelee_heavy_1h", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The hammer and the mace held in one hand: this share of their damage (their weight also swings "
+                  "them slowly in one hand; two hands swing them faster)."),
         header("Flamethrowers' Look"),
         slider("AD's Flames Opacity", "vr_adgun_stream_alpha", 0.1f, 1.f, 0.05f, "%.2f")
             .help("How opaque AD's own flame and poison sprites are (the pyros' and fumigators', theirs and yours). 1: AD's."),

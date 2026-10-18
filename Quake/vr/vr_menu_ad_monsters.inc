@@ -86,6 +86,15 @@
             .help("Destructive: the Freddie nearest you killed and his gun arm cut off: a super nailgun of ours drops "
                   "there, loaded, and goes into your main hand (adfred: lines)."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
+        command("Melee Weapons Dropped: Death Fury", "vr_ad_test 110")
+            .help("Destructive: the death fury nearest you killed; its two swords lie, go into both hands and strike a "
+                  "target, one hand and two (admelee: lines). 111-115 (console): the death knight, zombie knight, death "
+                  "guard, the hammer's and the mace's hunter ogres."),
+        command("Melee Weapons: Fury's Swords in Hand", "vr_ad_test 116")
+            .help("Both hands get the death fury's swords. 117: the death knight's and zombie knight's; 118: the death "
+                  "guard's and the hammer; 119: the mace alone (console)."),
+        command("Melee Weapon Models", "vr_admelee_models")
+            .help("The melee weapons made from AD's weapon models: triangles, box, tip."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),
         command("Arm for a Level Change", "vr_ad_test 87")

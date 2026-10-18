@@ -8,6 +8,7 @@
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
+#include "vr_admelee.hpp"
 #include "vr_adguns.hpp"
 #include "vr_render.hpp"
 #include "vr_bullettime.hpp"
@@ -1953,6 +1954,7 @@ extern "C" void VR_Init()
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
+    Cmd_AddCommand("vr_admelee_models", admelee::info_f); // AD support: the AD melee weapons' models (vr_admelee.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
