@@ -1381,7 +1381,7 @@ NOISE_FUNCTIONS
 "	vec4	GloveCuff; // QVR: ... a bare forearm's cuff: x below this u, from v y, its hem to v z, below v w (zero: none)\n"\
 "	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
 "	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
-"	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn)\n"\
+"	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn); y the painted leather's relief's strength (vr_glove_relief)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\
@@ -1606,7 +1606,7 @@ NOISE_FUNCTIONS
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
 "layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
 "layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
-"layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief (0.5 flat)\n"
+"layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief, made a normal map as it loaded (vr_render.cpp gloveHeightToNormals)\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"

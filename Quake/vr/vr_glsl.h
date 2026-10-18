@@ -2933,6 +2933,18 @@ SPECULAR_AA_FUNCTIONS
 "	return min(in_color.rgb, vec3(1.0)) * k * (s * 0.12 + f * 0.05);\n" \
 "}\n" \
 "\n" \
+"// QVR: a glove's painted relief (vr_glove_relief): its normal map (vr_render.cpp gloveHeightToNormals; green up, z kept:\n" \
+"// a mip's averaged normal) on n, in the frame BumpedNormalK uses, but read smooth as its paint is (no retro blocks)\n" \
+"vec3 GloveBump(vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n" \
+"{\n" \
+"	vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);\n" \
+"	vec3 t = r1 * duvdx.x + r2 * duvdy.x, b = r1 * duvdx.y + r2 * duvdy.y;\n" \
+"	t *= inversesqrt(max(dot(t, t), 1e-24));\n" \
+"	b *= inversesqrt(max(dot(b, b), 1e-24));\n" \
+"	vec3 s = textureGrad(GloveHeightTex, uv, duvdx, duvdy).xyz * 2.0 - 1.0;\n" \
+"	return normalize((t * s.x - b * s.y) * strength + n * max(s.z, 0.05));\n" \
+"}\n" \
+"\n" \
 "bool Morph(out vec3 seam)\n" \
 "{\n" \
 "	seam = vec3(0.0);\n" \
@@ -3079,28 +3091,18 @@ QVR_DENT_FUNCTIONS \
 "		{\n" \
 "			vec3 paint = vec3(0.5);\n" \
 "			float wear = 0.0;\n" \
-"			vec2 paintSlope = vec2(0.0);\n" \
 "			if (gpaint > 0.5) // QVR: its painted leather (vr_glove_paint; make_glove_paint.py): RGB its detail times the colour\n" \
-"			{ // (0.5 as it is), A its wear; its relief in place of the mask's seams (the painted ones over them)\n" \
+"			{ // (0.5 as it is), A its wear; its relief (the normal map below) in place of the mask's seams (the painted ones over them)\n" \
 "				vec4 gp = textureGrad(GloveTex, uv, duvdx, duvdy);\n" \
 "				paint = gp.rgb;\n" \
 "				wear = max(gp.a, 0.4 * (1.0 - hem)); // (the hem's edge rubbed too)\n" \
 "				mask.a = mx.a = my.a = 0.5;\n" \
-"				if (gpaint > 1.5)\n" \
-"				{\n" \
-"					vec2 hs = vec2(textureSize(GloveHeightTex, 0));\n" \
-"					float h0 = textureGrad(GloveHeightTex, uv, duvdx, duvdy).r;\n" \
-"					float hx = textureGrad(GloveHeightTex, uv + vec2(1.0 / hs.x, 0.0), duvdx, duvdy).r;\n" \
-"					float hy = textureGrad(GloveHeightTex, uv + vec2(0.0, 1.0 / hs.y), duvdx, duvdy).r;\n" \
-"					paintSlope = 2.0 * vec2(hx - h0, hy - h0) * hs / ts.x; // (GloveLeather's units: a mask texel's)\n" \
-"				}\n" \
 "			}\n" \
 "			// worn: paler, greyer, matte (a black glove's scuffs grey, a brown one's tan)\n" \
 "			float lum = dot(glove.rgb, vec3(0.299, 0.587, 0.114));\n" \
 "			vec3 worn = mix(vec3(lum), glove.rgb, 0.45) * 1.6 + vec3(0.075, 0.068, 0.06);\n" \
 "			leather = mix(glove.rgb, worn, wear) * paint * 2.0;\n" \
 "			leather *= GloveLeather(uv, duvdx, duvdy, ts, mask.a, mx.a, my.a, hem, dhem, gpaint > 0.5, leatherSlope, leatherGloss);\n" \
-"			leatherSlope += paintSlope;\n" \
 "			leatherGloss *= 1.0 - 0.7 * wear;\n" \
 "			leatherCover = cover * skinShare;\n" \
 "		}\n" \
@@ -3127,8 +3129,12 @@ QVR_DENT_FUNCTIONS \
 "	vec3 n = normalize(in_nor);\n" \
 "	float bumpk = instances[in_instance].AO.z; // QVR: its normal map's strength: a made one's LightTweak.w, an authored one's own (vr_normalmap_authored)\n" \
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
-"	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead\n" \
-"		bumped = WoundBump(normalize(mix(bumped, n, leatherCover)), leatherSlope * leatherCover, duvdx, duvdy, dpdx, dpdy);\n" \
+"	if (leatherCover > 0.) // QVR: a glove's leather: the skin's bumps (creases, nails) under it gone, its own relief instead:\n" \
+"	{ // its painted relief's normal map (vr_glove_relief; vr_render.cpp gloveHeightToNormals: one tap, mipmapped) and its grain\n" \
+"		float relief = instances[in_instance].GloveShell.y;\n" \
+"		vec3 lb = relief > 0.0 ? GloveBump(uv, duvdx, duvdy, dpdx, dpdy, n, relief) : n;\n" \
+"		bumped = WoundBump(normalize(mix(bumped, lb, leatherCover)), leatherSlope * leatherCover, duvdx, duvdy, dpdx, dpdy);\n" \
+"	}\n" \
 "	if (gloveShell) // QVR: a glove's shell's wall (vr_handrig.cpp gloveShells; its vertices' normals the skin's): lit as\n" \
 "	{ // the side it is (the facet's normal), darker (the leather's cut edge)\n" \
 "		vec3 ng = normalize(cross(dpdx, dpdy));\n" \
