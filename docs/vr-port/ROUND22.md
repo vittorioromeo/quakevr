@@ -13689,3 +13689,25 @@ vs drawn bolt 0.035 u, 0.00 deg; re-posed (pitch 15, yaw 10, scale 0.9, z 2; off
 - **For VR:** slow arm moves silent; a brisk wave or a wind-up a soft whoosh; a punch or cut a clear step louder; a
   very fast punch or full cut louder than before and a touch higher. Waving a sword or axe about now whooshes softly
   each stroke (0.2 s apart at most): if too busy, raise Heard From or lower Short of a Blow.
+
+## Linux: the EGL binding, foreign-architecture manifests (worktree `goreflesh`, branch `agent/lineegl`, 2026-10-19)
+
+- **Report:** a CachyOS player (NVIDIA RTX 5060 Ti, WiVRn 26.9, Quest 2; build 7258): "xrCreateSession not called: no
+  GLX context current", then `openxr_wivrn.i686.json` tried and failed (-51). SDL had made an EGL context: Arch's
+  `sdl2` is sdl2-compat on SDL3, which prefers Wayland on a Wayland desktop (EGL there); the game bound GLX only.
+- **Now** (`vr_xr_linuxgl.cpp`, was `vr_xr_glx.cpp`): the session binds SDL's current context, GLX
+  (`XrGraphicsBindingOpenGLXlibKHR`) or EGL (`XrGraphicsBindingEGLMNDX`, `XR_MNDX_egl_enable`, enabled when offered:
+  Monado, WiVRn). libEGL is found in the process with `dlopen(RTLD_NOLOAD)`: no EGL headers or link. The step line
+  names the binding, the SDL video driver and (EGL) the EGL version and vendor; a failed `xrCreateSession` names the
+  binding; an EGL context with a runtime lacking the extension stops with a warning naming `SDL_VIDEODRIVER=x11
+  SDL_VIDEO_X11_FORCE_EGL=0`. `contextReady` checks and restores either kind.
+- **SteamVR** (no EGL binding): before SDL's video init (`VR_BeforeVideoInit`, `xrruntime::beforeVideoInit`; the
+  config's `vr_xr_runtime*` and the `vr_xr_test*` command-line values read first), when the plan has SteamVR, `DISPLAY`
+  is set and no SDL video/EGL variable is, SDL is asked for X11/GLX (SDL2's and SDL3's variable names).
+- **Architectures:** a manifest named `<name>.<arch>.json` for another arch, or whose library's ELF class/machine isn't
+  the game's, is left out of Auto ("for i686 (the game is x86_64): left out"); `active_runtime.<arch>.json` is read
+  before `active_runtime.json`, as the loader does.
+- **Checks (WSL Arch, llvmpipe, Monado simulated HMD):** GLX on Xvfb, EGL on Xvfb (`SDL_VIDEO_X11_FORCE_EGL=1`) and EGL
+  on WSLg Wayland (`SDL_VIDEODRIVER=wayland`) each reach FOCUSED and render (17-23 `xr` frame lines in 150 waits);
+  `vr_xr_test` plans: SteamVR active -> SDL asked for X11, WiVRn active -> kept, `openxr_wivrn.i686.json` left out.
+  Windows build and mock smoke unchanged. Not tested: NVIDIA's EGL, WiVRn itself, a runtime without the EGL extension.

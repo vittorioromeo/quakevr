@@ -88,4 +88,11 @@ void keepGraphicsModules();
 // The attempt is SteamVR's (its manifest steamxr_win64.json).
 [[nodiscard]] bool isSteamVR(const Attempt& attempt);
 
+// Linux, before SDL's video init (VID_Init; the config's vr_xr_runtime* read first): when a runtime the start would try
+// is SteamVR (whose OpenXR has the GLX binding only, no XR_MNDX_egl_enable), an X server is there (DISPLAY: X11 or
+// XWayland) and the player set no SDL video driver or EGL variable, SDL is asked for X11 with GLX (SDL_VIDEODRIVER=x11,
+// SDL_VIDEO_X11_FORCE_EGL=0, and SDL3's SDL_VIDEO_DRIVER, SDL_VIDEO_FORCE_EGL for sdl2-compat). What it did goes to the
+// console and each start's log. Other runtimes bind SDL's context whichever it is (GLX, or EGL with XR_MNDX_egl_enable).
+void beforeVideoInit();
+
 } // namespace qvr::xrruntime
