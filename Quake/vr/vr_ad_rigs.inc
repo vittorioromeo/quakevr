@@ -42,7 +42,8 @@ constexpr Seed adZombiekSeeds[] = {
 };
 
 // AD's crossbow knight (progs/mon_dcrossbow.mdl: 1120 vertices; 24 clusters, bones 0.88): the crossbow in the right
-// hand (its pivot at the wrist and its middle the bow's, set by hand: the left hand holds its front).
+// hand (its pivot at the wrist, set by hand: the left hand holds its front). The crossbow is loose (dropped in his
+// deaths: vr_monstermods.cpp), so the hand's middle is the fist's (it was the bow's: no cluster went to it).
 constexpr Seed adDcrossbowSeeds[] = {
     {"pelvis", -1, Joint::Root, {1.7f, -0.5f, 0.7f}, {1.7f, -0.5f, 0.7f}, {2.f, 0.9f, 9.4f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {0.4f, -4.4f, 17.6f}, {2.f, 0.9f, 9.4f}, {5.f, -1.1f, 18.8f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -51,7 +52,7 @@ constexpr Seed adDcrossbowSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {10.2f, -1.8f, 1.3f}, {10.9f, 4.f, 9.f}, {9.4f, -7.5f, -6.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-7.2f, -9.9f, 13.8f}, {-3.f, -7.6f, 18.5f}, {-4.4f, -13.f, 8.f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {0.2f, -10.5f, 6.3f}, {-4.4f, -13.f, 8.f}, {2.5f, -10.f, 5.f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"hand_r", 6, Joint::Ball, {17.f, -5.f, -4.f}, {2.5f, -10.f, 5.f}, {27.1f, -17.1f, -1.6f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"hand_r", 6, Joint::Ball, {3.5f, -7.5f, -2.5f}, {2.5f, -10.f, 5.f}, {27.1f, -17.1f, -1.6f}, 0.f, 40.f, 30.f, 0.f, {}},
     {"thigh_l", 0, Joint::Ball, {4.9f, 3.4f, -7.7f}, {1.3f, 2.6f, -0.4f}, {3.6f, 3.5f, -16.f}, 3.5f, 70.f, 30.f, 0.f, {}},
     {"shin_l", 8, Joint::Hinge, {6.3f, 5.f, -22.2f}, {3.6f, 3.5f, -16.f}, {5.7f, 4.7f, -21.f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
     {"thigh_r", 0, Joint::Ball, {1.f, -6.9f, -7.2f}, {0.4f, -2.f, 1.5f}, {1.f, -5.4f, -15.6f}, 3.5f, 70.f, 30.f, 0.f, {}},
@@ -75,7 +76,8 @@ constexpr Seed adHogreSeeds[] = {
     {"shin_r", 10, Joint::Hinge, {3.6f, -8.4f, -22.3f}, {0.6f, -4.8f, -19.7f}, {1.3f, -5.7f, -20.3f}, 3.5f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
-// AD's death guard (progs/mon_dguard.mdl: 585 vertices; 24 clusters, bones 0.72): the sword in the right hand.
+// AD's death guard (progs/mon_dguard.mdl: 585 vertices; 24 clusters, bones 0.72): the sword in the right hand, loose
+// (dropped in its deaths: vr_monstermods.cpp): the hand bone the fist (vr_ragdoll.cpp adoptPastPivot).
 constexpr Seed adDguardSeeds[] = {
     {"pelvis", -1, Joint::Root, {2.1f, -0.5f, 0.8f}, {2.1f, -0.5f, 0.8f}, {1.4f, -0.1f, 8.1f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {3.3f, -0.2f, 15.4f}, {1.4f, -0.1f, 8.1f}, {5.5f, -0.1f, 19.4f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -92,7 +94,7 @@ constexpr Seed adDguardSeeds[] = {
 };
 
 // AD's hunter ogre, the mace's (progs/mon_hogremac.mdl: 1224 vertices; 24 clusters, bones 1.09): the mace in the right
-// hand.
+// hand, loose (dropped in his deaths: vr_monstermods.cpp): the hand bone the fist (vr_ragdoll.cpp adoptPastPivot).
 constexpr Seed adHogremacSeeds[] = {
     {"pelvis", -1, Joint::Root, {1.2f, 0.6f, 6.f}, {1.2f, 0.6f, 6.f}, {2.1f, 0.7f, 14.1f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {7.4f, -0.5f, 23.f}, {2.1f, 0.7f, 14.1f}, {5.7f, -0.1f, 23.7f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -137,7 +139,8 @@ constexpr Seed adSkullwizSeeds[] = {
 };
 
 // AD's hunter ogre, the hammer's (progs/mon_hogreham.mdl: 1306 vertices; 24 clusters, bones 1.30): the hammer on his
-// shoulder in the right hand.
+// shoulder in the right hand, loose (dropped in his deaths: vr_monstermods.cpp): the hand bone the fist
+// (vr_ragdoll.cpp adoptPastPivot).
 constexpr Seed adHogrehamSeeds[] = {
     {"pelvis", -1, Joint::Root, {-0.3f, -0.5f, 6.6f}, {-0.3f, -0.5f, 6.6f}, {-0.2f, 0.2f, 13.9f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {3.5f, 0.f, 25.1f}, {-0.2f, 0.2f, 13.9f}, {1.2f, 2.1f, 22.f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -299,7 +302,7 @@ constexpr Seed adScorpionSeeds[] = {
 };
 
 // AD's stone golem (progs/mon_golem.mdl: 427 vertices, 105 units tall; 24 clusters, bones 1.90); hips and knees set
-// by hand. The ice golem's mesh is the same.
+// by hand. The ice golem's mesh is the same x1.5 (adIcegolemSeeds).
 constexpr Seed adGolemSeeds[] = {
     {"pelvis", -1, Joint::Root, {3.4f, -0.1f, 34.4f}, {3.4f, -0.1f, 34.4f}, {2.1f, -0.1f, 41.5f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {6.7f, 2.2f, 61.7f}, {2.1f, -0.1f, 41.5f}, {7.f, -1.6f, 66.f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -312,6 +315,23 @@ constexpr Seed adGolemSeeds[] = {
     {"shin_l", 7, Joint::Hinge, {14.5f, 11.f, -17.7f}, {16.f, 10.f, -2.f}, {14.9f, 8.9f, -19.7f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
     {"thigh_r", 0, Joint::Ball, {1.4f, -14.7f, 10.4f}, {3.f, -8.f, 26.f}, {-6.f, -17.f, -2.f}, 6.f, 70.f, 30.f, 0.f, {}},
     {"shin_r", 9, Joint::Hinge, {-15.1f, -19.7f, -17.3f}, {-6.f, -17.f, -2.f}, {-16.1f, -19.6f, -20.3f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// AD's ice golem (progs/mon_bossicegolem.mdl): the golem's mesh x1.5, 12.3 units up (its vertices against the golem's
+// in four frames, least squares: x1.499, within 1.2 units), so the golem's seeds so scaled (the golem's own put its
+// pelvis's middle in his thighs: no cluster went to it).
+constexpr Seed adIcegolemSeeds[] = {
+    {"pelvis", -1, Joint::Root, {5.2f, -0.2f, 63.8f}, {5.2f, -0.2f, 63.8f}, {3.2f, -0.2f, 74.5f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {10.1f, 3.3f, 104.7f}, {3.2f, -0.2f, 74.5f}, {10.6f, -2.4f, 111.2f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {15.4f, -0.8f, 122.6f}, {10.6f, -2.4f, 111.2f}, {20.2f, 0.7f, 134.1f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {4.7f, 37.2f, 85.7f}, {7.7f, 30.9f, 100.4f}, {11.9f, 36.4f, 83.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {34.7f, 34.9f, 74.f}, {11.9f, 36.4f, 83.5f}, {57.6f, 33.4f, 64.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {2.9f, -36.1f, 92.3f}, {10.4f, -25.f, 108.2f}, {6.1f, -41.7f, 82.f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {26.f, -42.7f, 64.3f}, {6.1f, -41.7f, 82.f}, {45.8f, -43.9f, 46.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {27.1f, 13.8f, 33.4f}, {12.1f, 12.f, 51.2f}, {24.1f, 15.f, 9.3f}, 9.f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {21.8f, 16.5f, -14.3f}, {24.1f, 15.f, 9.3f}, {22.4f, 13.3f, -17.3f}, 7.5f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {2.2f, -22.f, 27.8f}, {4.6f, -12.f, 51.2f}, {-8.9f, -25.5f, 9.3f}, 9.f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-22.5f, -29.5f, -13.7f}, {-8.9f, -25.5f, 9.3f}, {-24.f, -29.4f, -18.2f}, 7.5f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
 // AD's death sergeant (progs/mon_dsergeant.mdl: 1265 vertices; 24 clusters, bones 1.10): the flail's handle in the
@@ -540,9 +560,9 @@ QVR_AD_RIG(AdVorelingp, 80, adSwamplingSeeds, 2, 58, 64, 63, 70, 18)
 QVR_AD_RIG(AdCenturion, 284, adCenturionSeeds, 2, 18, 32, 31, 42, 18)
 QVR_AD_RIG(AdDrole, 204, adDroleSeeds, 1, 169, 0, 194, 0, 18)
 QVR_AD_RIG(AdScorpion, 267, adScorpionSeeds, 1, 74, 0, 94, 0, 18)
-// The golem's mesh is the ice golem's too (progs/mon_bossicegolem.mdl, the same frames).
+// The golem's mesh is the ice golem's too (progs/mon_bossicegolem.mdl, the same frames, x1.5: its own seeds).
 QVR_AD_RIG(AdGolem, 427, adGolemSeeds, 1, 157, 0, 178, 0, 24)
-QVR_AD_RIG(AdIcegolem, 427, adGolemSeeds, 1, 157, 0, 178, 0, 24)
+QVR_AD_RIG(AdIcegolem, 427, adIcegolemSeeds, 1, 157, 0, 178, 0, 24)
 QVR_AD_RIG(AdDsergeant, 1265, adDsergeantSeeds, 2, 223, 235, 234, 254, 24)
 // The bog lord: the shambler's mesh x1.3, his frames (seedscale: the shambler's seeds scaled, 6.7 units up).
 QVR_AD_RIG(AdBoglord, 648, adBoglordSeeds, 1, 83, 0, 93, 0, 24)

@@ -924,6 +924,52 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
     return za::sqrt(total / static_cast<float>(za::max<za::SizeT>(reps.size(), 1) * static_cast<za::SizeT>(m.np)));
 }
 
+// derive's bones no motion cluster went to: each one its parent's vertices (labelled) past its pivot, on the side away
+// from the parent's pivot, when that leaves both 3 or more (else it stays empty: no ragdoll).
+void adoptPastPivot(const Mesh& m, const za::Vector<int>& moving, const SeedTable& table, za::Vector<int>& label)
+{
+    za::Vector<int> count(static_cast<za::SizeT>(table.count), 0);
+    for(const int v : moving)
+    {
+        const int l = label[static_cast<za::SizeT>(v)];
+        count[static_cast<za::SizeT>(l)] += l >= 0 && l < table.count ? 1 : 0;
+    }
+    for(int b = 0; b < table.count; b++)
+    {
+        const Seed& s = table.seeds[b];
+        if(count[static_cast<za::SizeT>(b)] > 0 || s.parent < 0)
+        {
+            continue;
+        }
+        const glm::vec3 axis = s.pivot - table.seeds[s.parent].pivot;
+        if(glm::dot(axis, axis) < 1e-6f)
+        {
+            continue;
+        }
+        const auto past = [&](int v) {
+            return label[static_cast<za::SizeT>(v)] == s.parent && glm::dot(m.at(0, v) - s.pivot, axis) > 0.f;
+        };
+        int n = 0;
+        for(const int v : moving)
+        {
+            n += past(v) ? 1 : 0;
+        }
+        if(n < 3 || count[static_cast<za::SizeT>(s.parent)] - n < 3)
+        {
+            continue;
+        }
+        for(const int v : moving)
+        {
+            if(past(v))
+            {
+                label[static_cast<za::SizeT>(v)] = b;
+            }
+        }
+        count[static_cast<za::SizeT>(s.parent)] -= n;
+        count[static_cast<za::SizeT>(b)] += n;
+    }
+}
+
 // What derive has to say, said by the main thread after it (the rigs are made on the pool: warmRigs).
 struct DeriveLog
 {
@@ -1182,6 +1228,10 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             label[static_cast<za::SizeT>(v)] = table.count;
         }
     }
+    // A bone no cluster went to (its seed's middle in the weapon its hand held when the table was measured, the weapon
+    // since loose: the hunter ogres' and the death guard's hands, the death knight's sword hand): its parent's
+    // vertices past its pivot (away from the parent's), the motions' refining then moving the boundary.
+    adoptPastPivot(m, moving, table, label);
     rig.boneRms = refine(m, moving, label, table.count, 40, t);
     const int numBones = table.count + (loosePieces.empty() ? 0 : 1);
     for(int b = 0; b < table.count; b++)

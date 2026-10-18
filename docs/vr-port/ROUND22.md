@@ -13113,3 +13113,31 @@ shoulder_height 0.5 -> 0.55, shoulder_x -2.5 -> -2.75, shoulder_y 1 -> 2.05, sho
 upper_depth 0.6 -> 0.3, upper_height 0.7 -> 0.6, upper_width 0.6 -> 0.4, upper_x -3.75 -> -2.35, upper_y 3.25 -> 0.75,
 upper_z -0.75 -> 1.4; vr_shoulder_holster_thresh 7 -> 7.5; vr_upper_holster_thresh 6.5 -> 5.9. Weapon offsets
 (vr_wofs_*) and his other glove values were left out.
+
+## AD rigs: no ragdoll after the weapon drops (worktree `gorefx`, branch `agent/hunterrag`, 2026-10-18)
+
+The hammer's and the mace's hunter ogres had no ragdoll (`ragdoll: progs/mon_hogreham.mdl: bone hand_r got 0
+vertices: no ragdoll`, with any `vr_admelee_drops`). Cause: "AD melee monsters drop their weapons" made their weapons
+loose pieces (vr_monstermods.cpp collapses them in the death frames at load, whatever the cvar), and their seed tables
+were measured with the weapon in the hand: `hand_r`'s middle sat in the hammer, so with the hammer left out no motion
+cluster was nearest it (the fist's cluster went to the forearm). The same in the sweep of every AD monster model
+(`vr_ragdoll_info progs/mon_*.mdl` with `-game ad`): the death guard's and the crossbow knight's `hand_r`, the death
+fury's `forearm_l`, the death knight's and AD's hell knight's `forearm_r` (their sword hands), and the ice golem's
+`pelvis`.
+
+- vr_ragdoll.cpp `adoptPastPivot`: a bone no cluster went to takes its parent's vertices past its pivot (on the side
+  away from the parent's pivot), then refine moves the boundary by the motions; only when both keep 3 or more (else no
+  ragdoll, as before). Only bones that failed before change: the working rigs are the same. Hand bones now: hammer and
+  mace ogres 33 vertices, death guard 32; the fury's left forearm 34, the death knight's right 32, the hell knight's 12.
+- The crossbow knight: its fist is not its forearm's (the left hand's and the chest's clusters hold it), so its
+  `hand_r` middle moved from the bow to the fist (3.5 -7.5 -2.5): 22 vertices.
+- The ice golem is the golem's mesh x1.5, 12.3 units up (least squares over four frames, within 1.2 units): its own
+  seeds, the golem's so scaled (`adIcegolemSeeds`).
+- vr_dents.cpp: the crossbow knight's, the two hunter ogres' and the death guard's `hand_r` are flesh now (the fist;
+  the weapons are loose, found by themselves).
+
+Still no ragdoll (no seed table, not the 0-vertex failure): AD's own ogre (`mon_ogre.mdl`, the nail ogre), fishing ogre,
+knight, death lord, Quoth death guard, boil, deflector, floyd, jim, lost soul, sentinel, wraith.
+
+Tests: the sweep (every AD model above rigs, the rig cache off); `vr_test_spawn 208/213; impulse 241; vr_test_kill 1` in
+ad_dm1: both ragdolls (12 parts, lying, `vr_corpse_poses`), the dropped hammer beside them.
