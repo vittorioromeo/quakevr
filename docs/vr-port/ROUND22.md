@@ -13394,3 +13394,29 @@ Grunt, recovered/8 (flat shotgun 64, flat blow, flat uppercut, slope blow, stair
 ### VR Calibration: height step dropped when standing (calibstep)
 
 The intro ("Stand up straight and look ahead, hold still") and Body Calibration step 1 (Stand Tall) both measured the eye height standing. Standing now goes intro -> Body Calibration straight (no separate HEIGHT step); Stand Tall says "Hold still." too and judges its pose at the height held. Seated keeps the HEIGHT step (Body Calibration has no Stand Tall then). The data is unchanged: Stand Tall's capture and vr_height_calibration on Apply are the same code; a body result that is not applied no longer leaves the intro's height behind.
+
+## AD weapons inherit no weapon settings (worktree `dequant`, branch `agent/adnoinherit`, 2026-10-18)
+
+His decision: an AD weapon must not take its settings from another slot (tuning the Shadow Axe wrote the axe's slot:
+posing or the Weapon Offsets page of an inheriting weapon edit the parent's cvars; adweapons2 then promoted his Shadow
+Axe size onto slot 0, so the plain axe grew too).
+
+- **Defaults:** slots 27-31 (AD soldiers' guns, were InheritFrom 22), 33 (Shadow Axe, from 1), 34 (Widowmaker, from 3),
+  35 (Plasma Gun, from 8) no longer inherit; every value they took from the parent is now their own default
+  (`QVR_WEAPON_UNINHERITED` lines in vr_weapons.inc, generated from `vr_wofs_dump` of the effective values: 48 per AD
+  gun, 36 / 35 / 52 for the upgrades). The QVR_WEAPON_OWN marks of 34-35 went with it. Slot 0 (axe) back to its values
+  before adweapons2: Scale 0.34, Offset Y 0.8, Z -0.4; the Shadow Axe keeps 0.36 / 0.84 / -0.6. The AD crossbow (32,
+  never inherited) takes his tuned values from his config (Pitch 1.9, Yaw 0.2, Roll 3.05, Shot Pitch -2.01, Shot Yaw
+  0.47, Mass 10.65, Balance 36, recoil 1.2 / 0.325 s, no flash, Stock Pitch 10, Torch Forward -0.1315).
+- **Migration (vr_wofs_version 48, takeUninherited):** a slot still inheriting its old parent copies the parent's value
+  for each key whose config value is still the old placeholder default (the defaults before 48 are read in a first pass
+  of vr_weapons.inc that skips the UNINHERITED lines), then InheritFrom 0. A slot the player made stop inheriting (his
+  34 and 35) keeps its values. Then slot 0's three keys and the crossbow's twelve take the new defaults where the config
+  holds the old ones. The other inheriting slots (11-15, 25) are untouched.
+- **Debug:** `vr_wofs_dump` (Debug > "Weapon Settings Inheritance"): the slots that inherit; `vr_wofs_dump <slot> ...`
+  every value a slot uses, `<-n` where it comes from slot n.
+- **Checked (headless):** effective values of slots 0, 2, 7, 21, 22, 27-35, 40-45, before and after, with every default
+  (`resetall`), with the kit baseline config (v43) and with a copy of his config (v47): only slot 0 changes (back to
+  0.34 / 0.8 / -0.4) and the crossbow (his values); the rest differ only in InheritFrom. His config migrated: slot 0 back,
+  the Shadow Axe 0.36 / 0.84 / -0.6, his Widowmaker and fury sword values kept. `vr_ad_test 70` 9/9 PASS, `93` PASS,
+  97-99 the `#vr` models in hand and holsters; `100` prints no drop, the same on the base build (not this change).
