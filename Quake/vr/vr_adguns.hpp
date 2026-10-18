@@ -47,7 +47,7 @@ void info_f();
 
 // The guns as variants of our burst rifle (vr_adgunart.cpp; ROUND22.md, "AD guns as burst rifle variants"):
 // "progs/v_gruntgun.mdl#adv<n>", n the gun (WID_ADROCKET's order: 0 rocket, 1 grenade, 2 plasma, 3 defender,
-// 4 eliminator, 5 centurion, 6 pyro, 7 fumigator). Made as they load from Quake VR's v_gruntgun.mdl (its frame, grip and
+// 4 the eliminator's (gone: an older save's "#adv4" is the centurion's, variantOf), 5 centurion, 6 pyro, 7 fumigator). Made as they load from Quake VR's v_gruntgun.mdl (its frame, grip and
 // scale_origin, so slot 21's weapon settings hold them all) with each gun's own add-ons (a launch tube at the muzzle and
 // an exhaust, the grenade launcher's muzzle from our v_rock.mdl and a grenade magazine, cathode tubes and coils, a pump
 // and a shell carrier, a nozzle and a fuel canister) and its own skin (the rifle's recoloured, its add-ons' and decals painted: rockets, lightning,
@@ -61,13 +61,13 @@ enum Variant : int
     Grenade,
     Plasma,
     Defender,
-    Eliminator,
+    EliminatorLegacy, // (Vittorio, 2026-10-18: the same gun as the centurion's as the player's; its slot kept, read as Centurion)
     Centurion,
     Pyro,
     Fumigator
 };
 
-// The variant a model name is (-1: not one).
+// The variant a model name is (-1: not one; the eliminator's old "#adv4" the centurion's).
 [[nodiscard]] int variantOf(const char* name);
 
 // Mod_LoadModel: a variant's .mdl file (VR_HeapMalloc), or null (not a variant's name). Without its sources' files: the

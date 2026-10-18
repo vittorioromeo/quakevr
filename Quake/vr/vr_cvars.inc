@@ -2398,6 +2398,14 @@ QVR_CVAR(vr_dmg_chainsaw_swing, "22", CVAR_ARCHIVE)  // an ogre's chainsaw swung
 QVR_CVAR(vr_dmg_mjolnir, "25", CVAR_ARCHIVE)         // Mjolnir's blow
 QVR_CVAR(vr_dmg_superaxe, "40", CVAR_ARCHIVE)        // Dawn of the Machine's Super Axe: a blow (QC vr_mg3_weapons.qc; zombies x3, a kill x2)
 QVR_CVAR(vr_superaxe_burst_window, "1.5", CVAR_ARCHIVE) // s: a second Super Axe blow on the same monster within it fires the lightning burst (MG3's 0.5)
+// AD support: Arcane Dimensions' player weapon upgrades (QC vr_ad_bridge.qc; Weapon Damage > Arcane Dimensions), AD's
+// numbers as shipped.
+QVR_CVAR(vr_dmg_ad_shadowaxe, "35", CVAR_ARCHIVE)     // the Shadow Axe's blow (AD's 35, the axe's 20), before its speed and weight
+QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet (a shot with its third shell)
+QVR_CVAR(vr_ad_widowmaker_pellets, "21", CVAR_ARCHIVE) // ... its pellets (AD's 21; the super shotgun's 14)
+QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
+QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
+QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
 QVR_CVAR(vr_chainsaw_damage, "100", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling
@@ -2441,6 +2449,7 @@ QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the cor
 QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
 QVR_CVAR(vr_adgun_hose, "1", CVAR_ARCHIVE) // AD support: holding the pyro's flamethrower or the fumigator's poison sprayer, a small fuel tank on your back and a hose from it to the gun (vr_adtank.cpp); 0: none
 QVR_CVAR(vr_adgun_hose_route, "0", CVAR_ARCHIVE) // ... the hose's way from the tank to the gun, on the gun's hand's side: 0 through a clip at the hip, 1 over the shoulder
+QVR_CVAR(vr_adgun_hose_arms, "1", CVAR_ARCHIVE) // ... kept out of the drawn arms (capsules round the upper arm and forearm, vr_adtank.cpp); 0 through them
 QVR_CVAR(vr_adgun_tank_x, "-9", CVAR_ARCHIVE) // ... the tank's middle carried by the chest (body anchor units: forward, as the holsters' offsets)
 QVR_CVAR(vr_adgun_tank_y, "0", CVAR_ARCHIVE)  // ... right
 QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibration)
@@ -2458,12 +2467,7 @@ QVR_CVAR(vr_adgun_defender_pellets, "10", CVAR_ARCHIVE) // ... the pellets of a 
 QVR_CVAR(vr_adgun_defender_spread, "0.18", CVAR_ARCHIVE) // ... how wide they spread (across; half as much up and down: AD's 0.18 by 0.1)
 QVR_CVAR(vr_adgun_defender_ammo, "8", CVAR_ARCHIVE) // ... the shots it holds
 QVR_CVAR(vr_adgun_defender_refire, "0.9", CVAR_ARCHIVE) // ... seconds from a shot to the next
-QVR_CVAR(vr_adgun_eliminator_damage, "18", CVAR_ARCHIVE) // the eliminator's dropped plasma gun: a bolt's hit
-QVR_CVAR(vr_adgun_eliminator_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none)
-QVR_CVAR(vr_adgun_eliminator_speed, "900", CVAR_ARCHIVE) // ... its bolts' speed (AD's eliminator's: 600)
-QVR_CVAR(vr_adgun_eliminator_ammo, "30", CVAR_ARCHIVE) // ... the bolts it holds
-QVR_CVAR(vr_adgun_eliminator_refire, "0.25", CVAR_ARCHIVE) // ... seconds from a bolt to the next
-QVR_CVAR(vr_adgun_centurion_damage, "18", CVAR_ARCHIVE) // the centurion's dropped plasma gun: a bolt's hit
+QVR_CVAR(vr_adgun_centurion_damage, "18", CVAR_ARCHIVE) // the centurion's (and the eliminator's) dropped plasma gun: a bolt's hit
 QVR_CVAR(vr_adgun_centurion_splash, "15", CVAR_ARCHIVE) // ... its small blast (0: none)
 QVR_CVAR(vr_adgun_centurion_speed, "900", CVAR_ARCHIVE) // ... its bolts' speed (AD's centurion's: 600)
 QVR_CVAR(vr_adgun_centurion_ammo, "30", CVAR_ARCHIVE) // ... the bolts it holds

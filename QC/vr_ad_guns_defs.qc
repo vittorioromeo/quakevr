@@ -30,8 +30,7 @@ string(float wid) VR_ADGun_Key =
     if(wid == WID_ADGRENADE)    { return "grenade"; }
     if(wid == WID_ADPLASMA)     { return "plasma"; }
     if(wid == WID_ADDEFENDER)   { return "defender"; }
-    if(wid == WID_ADELIMINATOR) { return "eliminator"; }
-    if(wid == WID_ADCENTURION)  { return "centurion"; }
+    if(wid == WID_ADCENTURION || wid == WID_ADELIMINATOR) { return "centurion"; } // (the eliminator's: VR_ADGun_LegacyIds)
     if(wid == WID_ADPYRO)       { return "pyro"; }
     if(wid == WID_ADCROSSBOW)   { return "crossbow"; }
     return "fumigator";
@@ -49,8 +48,7 @@ string(float wid) VR_ADGun_Name =
     if(wid == WID_ADGRENADE)    { return "Grenade Soldier's Launcher"; }
     if(wid == WID_ADPLASMA)     { return "Plasma Soldier's Rifle"; }
     if(wid == WID_ADDEFENDER)   { return "Defender's Shotgun"; }
-    if(wid == WID_ADELIMINATOR) { return "Eliminator's Plasma Gun"; }
-    if(wid == WID_ADCENTURION)  { return "Centurion's Plasma Gun"; }
+    if(wid == WID_ADCENTURION || wid == WID_ADELIMINATOR) { return "Centurion's Plasma Gun"; }
     if(wid == WID_ADPYRO)       { return "Pyro's Flamethrower"; }
     if(wid == WID_ADCROSSBOW)   { return "Crossbow Knight's Crossbow"; }
     return "Fumigator's Poison Sprayer";
@@ -67,8 +65,7 @@ string(float wid) VR_ADGun_Model =
     if(wid == WID_ADGRENADE)    { return "progs/v_gruntgun.mdl#adv1"; }
     if(wid == WID_ADPLASMA)     { return "progs/v_gruntgun.mdl#adv2"; }
     if(wid == WID_ADDEFENDER)   { return "progs/v_gruntgun.mdl#adv3"; }
-    if(wid == WID_ADELIMINATOR) { return "progs/v_gruntgun.mdl#adv4"; }
-    if(wid == WID_ADCENTURION)  { return "progs/v_gruntgun.mdl#adv5"; }
+    if(wid == WID_ADCENTURION || wid == WID_ADELIMINATOR) { return "progs/v_gruntgun.mdl#adv5"; }
     if(wid == WID_ADPYRO)       { return "progs/v_gruntgun.mdl#adv6"; }
     if(wid == WID_ADCROSSBOW)   { return "progs/w_dcrossbow.mdl#gun0"; } // (AD's own, its gibs': turned to face +x, vr_adguns.cpp)
     return "progs/v_gruntgun.mdl#adv7";

@@ -49,16 +49,15 @@ const glm::vec3 pilotAt{31.2f, 0.f, 5.6f};
 // z 17.5), the shotgun kicks and flashes wide, the plasma guns kick little, their flashes and lights their colour.
 constexpr const char* flashBase = "progs/vr_muzzleflash.mdl";
 constexpr const char* plasmaFlash = "progs/vr_muzzleflash.mdl#adf2";
-constexpr const char* eliminatorFlash = "progs/vr_muzzleflash.mdl#adf4";
 constexpr const char* centurionFlash = "progs/vr_muzzleflash.mdl#adf5";
-const glm::vec3 plasmaColour{0.4f, 0.62f, 1.f}, eliminatorColour{0.66f, 0.42f, 1.f}, centurionColour{0.3f, 0.9f, 1.f};
+const glm::vec3 plasmaColour{0.4f, 0.62f, 1.f}, centurionColour{0.3f, 0.9f, 1.f};
 const FireFeel fireFeels[variantCount] = {
     {2.5f, 2.5f, 1.9f, 1.6f, nullptr, glm::vec3{1.f, 0.55f, 0.25f}, 1.5f, FireFeel::Rocket, glm::vec3{1.f, 0.6f, 0.2f}, true,
         glm::vec3{-5.6f, 0.f, 17.5f}, glm::vec3{-1.f, 0.f, 0.f}},
     {2.f, 2.f, 1.35f, 1.3f, nullptr, glm::vec3{1.f, 0.6f, 0.3f}, 1.2f, FireFeel::Grenade, glm::vec3{1.f, 0.7f, 0.35f}},
     {0.8f, 1.f, 0.9f, 1.f, plasmaFlash, plasmaColour, 1.f, FireFeel::Electric, plasmaColour},
     {1.8f, 1.6f, 1.5f, 1.1f, nullptr, glm::vec3{1.f, 0.8f, 0.55f}, 1.2f, FireFeel::Shotgun, glm::vec3{1.f, 0.75f, 0.4f}},
-    {0.7f, 1.f, 0.85f, 1.f, eliminatorFlash, eliminatorColour, 1.f, FireFeel::Electric, eliminatorColour},
+    {1.f, 1.1f, 1.f, 1.f, centurionFlash, centurionColour, 1.1f, FireFeel::Electric, centurionColour}, // (the eliminator's: the centurion's)
     {1.f, 1.1f, 1.f, 1.f, centurionFlash, centurionColour, 1.1f, FireFeel::Electric, centurionColour},
     {},
     {},
@@ -962,32 +961,14 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             break;
         }
         case Plasma:
-        case Eliminator:
         case Centurion:
         {
-            const glm::vec3 tint = variant == Plasma ? glm::vec3{0.32f, 0.5f, 1.f}
-                                   : variant == Eliminator ? glm::vec3{0.45f, 0.38f, 1.f}
-                                                           : glm::vec3{0.3f, 0.72f, 1.f};
+            const glm::vec3 tint = variant == Plasma ? glm::vec3{0.32f, 0.5f, 1.f} : glm::vec3{0.3f, 0.72f, 1.f};
             recolour(b, Theme{tint, 0.85f});
             const glm::vec3 ground = tint * 0.32f;
-            if(variant == Eliminator)
-            {
-                // The eliminator's: a bank of glowing cells (bars in a grid), not lightning.
-                decalSides(b, m, glm::vec3{12.5f, lo.y, 3.f}, glm::vec3{23.5f, hi.y, 13.5f}, [ground](float u, float v) {
-                    const float cu = fractf(u / 1.6f), cv = fractf(v / 3.4f);
-                    if(cu > 0.25f && cu < 0.75f && cv > 0.15f && cv < 0.85f)
-                    {
-                        return paint(cu > 0.4f && cu < 0.6f ? glm::vec3{0.9f, 0.85f, 1.f} : glm::vec3{0.6f, 0.5f, 1.f}, true);
-                    }
-                    return paint(ground);
-                });
-            }
-            else
-            {
-                decalSides(b, m, glm::vec3{12.5f, lo.y, 3.f}, glm::vec3{23.5f, hi.y, 13.5f}, [ground, variant](float u, float v) {
-                    return lightning(u, v, 10.5f, variant == Centurion ? 3 : 2, ground, static_cast<float>(variant));
-                });
-            }
+            decalSides(b, m, glm::vec3{12.5f, lo.y, 3.f}, glm::vec3{23.5f, hi.y, 13.5f}, [ground, variant](float u, float v) {
+                return lightning(u, v, 10.5f, variant == Centurion ? 3 : 2, ground, static_cast<float>(variant));
+            });
             Rect glassR, capR;
             (void)b.alloc(32, 24, glassR);
             paintRect(b, glassR, 6.f, 18.f, [variant](float u, float v) {
@@ -1011,16 +992,6 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
                     tube(b, glm::vec3{25.5f, y, 9.6f}, glm::vec3{26.5f, y, 9.6f}, 1.25f, 1.25f, 10, capR, true, true);
                     tube(b, glm::vec3{31.6f, y, 9.6f}, glm::vec3{32.6f, y, 9.6f}, 1.25f, 1.25f, 10, capR, true, true);
                 }
-            }
-            else if(variant == Eliminator)
-            {
-                // Coils round the barrel, a glowing tube under it.
-                for(int k = 0; k < 3; k++)
-                {
-                    const float x = 30.6f + 0.85f * static_cast<float>(k);
-                    tube(b, glm::vec3{x, 0.f, 8.1f}, glm::vec3{x + 0.55f, 0.f, 8.1f}, 1.7f, 1.7f, 12, capR, true, true);
-                }
-                tube(b, glm::vec3{24.f, 0.f, 5.5f}, glm::vec3{31.5f, 0.f, 5.5f}, 0.8f, 0.8f, 10, glassR, true, true);
             }
             else
             {
@@ -1298,7 +1269,8 @@ int variantOf(const char* name)
         return -1;
     }
     const char* d = at + strlen(variantSuffix);
-    return d[0] >= '0' && d[0] < '0' + variantCount && d[1] == 0 ? d[0] - '0' : -1;
+    const int v = d[0] >= '0' && d[0] < '0' + variantCount && d[1] == 0 ? d[0] - '0' : -1;
+    return v == EliminatorLegacy ? Centurion : v; // (an older save's eliminator's gun: the centurion's, its twin)
 }
 
 byte* variantFile(const char* name, unsigned int* path_id)
@@ -1391,6 +1363,10 @@ void variants_f()
         "pyro", "fumigator"};
     for(int v = 0; v < variantCount; v++)
     {
+        if(v == EliminatorLegacy)
+        {
+            continue; // (the centurion's)
+        }
         Built b;
         const char* why = "";
         const double t0 = Sys_DoubleTime();

@@ -13435,3 +13435,30 @@ Recovered/8: flat shotgun 64, flat blow, flat uppercut, slope blow, stairs shotg
 - **Default:** not switched. Mode 2 equals mode 1 on flat and slope for every class measured, but the enforcer's light
   stairs hit is 6/8 against 8/8.
 - **Melee:** `eval.sh --full` with `vr_flinch 0`: 168/177 (unchanged).
+
+## AD guns: hose round the arms, empty pilot light, one centurion gun, Weapon Damage rows (worktree `goreflesh`, branch `agent/adguns3`, 2026-10-18)
+
+- **Hose and arms** (`vr_adtank.cpp`, `vr_adgun_hose_arms` 1): each hose segment kept out of the drawn arms, six
+  capsules from `avatar::skeleton` (upper arm 5.6 cm, forearm 5 then 3.6 cm, as `vr_selfcollide.cpp`, plus the hose's
+  1.1 cm), a segment-capsule push split between its free ends after the torso's in each of the 3 passes; a segment
+  whose held end (the gun's stub) is the deepest is left. `vr_adgun_hose_info` prints each hand's depth in the arms
+  (now, deepest, mean since the last print). `scratch/hosearms.sh`, five poses, 315 steps each, mean depth off -> on:
+  0 -> 0, 2.23 -> 0, 2.66 -> 0.09, 0.69 -> 0, 3.13 -> 0.17 cm; the step 0.009 -> 0.013 ms a frame. Debug > Tests >
+  Arcane Dimensions Monsters: Fuel Hose Avoids the Arms.
+- **Empty flamethrower**: no pilot light once its fuel (the hand's clip stat) is 0 (`scratch/pilot.sh`: 56 particles
+  fuelled, 68 -> 68 once spent).
+- **Eliminator = centurion**: the eliminator drops the centurion's plasma gun; WID 24 stays reserved. An older save's
+  WID 24 (hands, holsters, lying about) is made 25 with its model on load (`VR_ADGun_LegacyWorld`, OnLoadGame;
+  `VR_ADGun_LegacyIds` in `VR_ADGun_EnsureCarried`, so level parms too), and the engine reads "#adv4" as the
+  centurion's (`variantOf`). The eliminator's art, cvars (`vr_adgun_eliminator_*`), menu rows and toolgun slot 316 are
+  gone. `vr_ad_test 70` skips it (8/8), `71` checks an old eliminator gun's remap (9/9).
+- **Freddie's super nailgun**: toolgun slot 326 dropped (it was weapon 7, the plain super nailgun; the arm cut's 36
+  nails unchanged).
+- **Grunt Burst Rifle**: the toolgun's and `WeaponIdToWeaponName`'s name (was "Grunt's Shotgun").
+- **Weapon Damage > Arcane Dimensions**: new `vr_dmg_ad_shadowaxe` 35, `vr_dmg_ad_widowmaker` 4 (a pellet),
+  `vr_ad_widowmaker_pellets` 21, `vr_dmg_ad_plasmagun` 45, `vr_dmg_ad_plasmagun_splash` 20, `vr_ad_plasmagun_speed` 900
+  (AD's numbers; a map's worldspawn `plasmagun_dmg` still wins), and the soldiers' guns' and melee drops' damage rows
+  (their `vr_adgun_*`/`vr_admelee_*`), with a link to Arcane Dimensions' Guns. `AD_ShadowAxeIn` now answers "is it the
+  Shadow Axe" (was `AD_AxeScale > 1`).
+- Weapon Offsets slot 28 still names "#adv34" (another worker owns the slots): an un-remapped "#adv4" would sit as the
+  defender's; every path above renames it to "#adv5".

@@ -1167,10 +1167,17 @@ float(float xHand, float xBit) AD_HandUpgraded =
     return AD_WeaponUpgraded(self, VRGetEntWeaponInst(self, xHand), xBit);
 };
 
-// W_FireAxe's blow of the axe in `xHand`: the Shadow Axe's (AD's 35 for the axe's 20).
+// The axe in `xHand` is the Shadow Axe (Evil: AD's Shadow Axe in any map).
+float(float xHand) AD_ShadowAxeIn =
+{
+    return AD_HandUpgraded(xHand, ad_IT_UPGRADE_AXE) || AD_Evil();
+};
+
+// W_FireAxe's blow of the axe in `xHand`, times the axe's (Weapon Damage): the Shadow Axe's vr_dmg_ad_shadowaxe (AD's 35
+// for the axe's 20).
 float(float xHand) AD_AxeScale =
 {
-    return (AD_HandUpgraded(xHand, ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
+    return AD_ShadowAxeIn(xHand) ? max(0, cvar("vr_dmg_ad_shadowaxe")) / max(1, cvar_hget(cvarh_vr_dmg_axe)) : 1;
 };
 
 // W_FireAxe's blow of the axe in `xHand` on `xVictim`, before its damage: AD's mark of the axe that hit it (AD's W_FireAxe:
@@ -1179,7 +1186,7 @@ float(float xHand) AD_AxeScale =
 // VR_AD_ShadowAxeHit: the upgrade is the weapon's here, not the player's).
 void(float xHand, entity xVictim) AD_AxeMark =
 {
-    xVictim.ad_axhitme = AD_AxeScale(xHand) > 1 ? 2 : 1;
+    xVictim.ad_axhitme = AD_ShadowAxeIn(xHand) ? 2 : 1;
 };
 
 // ad_monster_pain_check's question (an import hook): the blow that hurts self came from a Shadow Axe (AD_AxeMark's 2).
@@ -1223,7 +1230,7 @@ float(entity p, float xBit) VR_AD_HasUpgrade =
 // (the blow `b`'s, this frame) pass through the body's box, grown 12 units (16 more below: AD lowers it to the floor).
 void(float xHand, entity b) AD_ShadowAxeChop =
 {
-    if(VRGetWeapon(xHand) != WID_AXE || AD_AxeScale(xHand) <= 1 || b.mh_n <= 0)
+    if(VRGetWeapon(xHand) != WID_AXE || !AD_ShadowAxeIn(xHand) || b.mh_n <= 0)
     {
         return;
     }
@@ -1249,8 +1256,8 @@ void(float xHand, entity b) AD_ShadowAxeChop =
     }
 };
 
-// W_FireSuperShotgun's pellets from `xHand`: the Widowmaker's 21 when a third shell is in the reserve (taken), else
-// `pellets`.
+// W_FireSuperShotgun's pellets from `xHand`: the Widowmaker's (vr_ad_widowmaker_pellets, AD's 21, each
+// vr_dmg_ad_widowmaker: the pellet damage set here) when a third shell is in the reserve (taken), else `pellets`.
 float(float xHand, float pellets) AD_WidowmakerPellets =
 {
     if(!AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG) || self.ammo_shells < 1)
@@ -1258,7 +1265,8 @@ float(float xHand, float pellets) AD_WidowmakerPellets =
         return pellets;
     }
     self.ammo_shells = self.ammo_shells - 1;
-    return pellets * ad_QUANTITY_WM / ad_QUANTITY_SSG;
+    vr_pellet_damage = max(0, cvar("vr_dmg_ad_widowmaker"));
+    return max(1, rint(cvar("vr_ad_widowmaker_pellets")));
 };
 
 // Whether the super shotgun of record `xInst` (world: not known, a plain one) is the Widowmaker: reloaded at the hip (the
@@ -1289,7 +1297,13 @@ void(float xHand) AD_FirePlasma =
     sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
     self.punchangle_x = -2;
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
-    ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, ad_SPEED_PLAYPLASMA);
+    if(ad_CheckZeroVector(world.ad_plasmagun_dmg)) // (Weapon Damage's, unless the map sets its own: AD's worldspawn key)
+    {
+        ad_map_plasmagundmg_x = max(0, cvar("vr_dmg_ad_plasmagun"));
+        ad_map_plasmagundmg_y = 0;
+        ad_map_plasmagundmg_z = max(0, cvar("vr_dmg_ad_plasmagun_splash"));
+    }
+    ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, max(100, cvar("vr_ad_plasmagun_speed")));
     VR_DamageCredit_FromHand(ad_newmis, self, xHand);
     // At the muzzle: blue-white sparks and a wisp (its kick and flash: weaponfired, slot 35's Effects in vr_weapons.inc).
     particle2(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand) * 40, QVR_PARTICLE_PRESET_CONTACTSPARKS, 5);
