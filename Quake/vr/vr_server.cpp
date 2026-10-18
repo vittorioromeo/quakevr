@@ -717,6 +717,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         setFieldVec(ent, h ? f.loadportpos : f.offloadportpos, port.position);
         setFieldVec(ent, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
         setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
+        setFieldVec(ent, h ? f.launchofs : f.offlaunchofs, move.launchOfs[h]); // (the shot's frame: no turn)
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
     setAmmoPouch(ent, move.ammoPouch);

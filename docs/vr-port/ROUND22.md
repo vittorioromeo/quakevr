@@ -13605,3 +13605,12 @@ morph), leave from there; the string and limbs should snap and be drawn back.
   just ahead of it at the same height, then the morph-in).
 
 For VR: the bolt's size and height in the groove, the snap and the wobble, the draw-back timing.
+
+**Follow-up (branch `agent/xbowanim2`)**: the launch point follows the drawn bolt however slot 32 is posed. The client
+sends each hand's bolt middle from its muzzle in the shot's frame with the move (`VrMove::launchOfs`, zero without a
+crossbow; `adcrossbow::launchOffset`) into QC `.launchofs` / `.offlaunchofs` (rotation-free: a portal's turn changes
+nothing); `VR_ADGun_FireCrossbow` launches from there (the fixed -10.47/1.5 gone). The bolt is drawn along the shot (its
+back still on the string): it flies the way it lay. `vr_debug_shots 1` prints `adgun: crossbow bolt launched at ...`;
+`vr_adgun_crossbow_info` the bolt as the last shot left. Checked (`scratch/xbpose.sh`, off hand): default pose launch
+vs drawn bolt 0.035 u, 0.00 deg; re-posed (pitch 15, yaw 10, scale 0.9, z 2; offset now -13.8 -3.9 -3.1) 0.035 u,
+0.00 deg; `vr_ad_test 93` PASS.

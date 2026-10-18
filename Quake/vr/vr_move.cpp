@@ -87,6 +87,8 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.loadPortAxis[1]);
     writeVec3(buf, move.loadPortFace[0]);
     writeVec3(buf, move.loadPortFace[1]);
+    writeVec3(buf, move.launchOfs[0]);
+    writeVec3(buf, move.launchOfs[1]);
     for(const auto& box : move.magBox)
     {
         for(const glm::vec3& v : box)
@@ -152,6 +154,8 @@ za::Optional<VrMove> readVrMove()
     move.loadPortAxis[1] = in.vec3();
     move.loadPortFace[0] = in.vec3();
     move.loadPortFace[1] = in.vec3();
+    move.launchOfs[0] = in.vec3();
+    move.launchOfs[1] = in.vec3();
     for(auto& box : move.magBox)
     {
         for(glm::vec3& v : box)

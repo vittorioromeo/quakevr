@@ -47,6 +47,8 @@ QVR_FIELD(loadportaxis) // the way a round lies going in at each gun's port (vr_
 QVR_FIELD(offloadportaxis)
 QVR_FIELD(loadportface) // and the way its opening faces
 QVR_FIELD(offloadportface)
+QVR_FIELD(launchofs) // where a held gun's projectile leaves from, from its muzzle in the shot's frame (vr_adcrossbow.cpp)
+QVR_FIELD(offlaunchofs)
 QVR_FIELD(vr_ammo_pass) // a loose round passing through a player's guns to their ports: the hands (vr_reload.qc; vr_box3d.cpp reachSkips)
 QVR_FIELD(vr_ammo_passer) // and the player
 QVR_FIELD(vr_ammo_passgun) // a loose round passing through a gun lying about to its port: that gun (vr_reload.qc VR_Reload_PropsFrame; vr_box3d.cpp preSolve)

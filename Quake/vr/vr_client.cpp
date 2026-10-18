@@ -342,6 +342,7 @@ VrMove unposed;
         move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
         move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
         move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
+        move.launchOfs[h] = adcrossbow::launchOffset(h); // (the AD crossbow's bolt as drawn; zero: the muzzle)
         // Its magazine's box the same way (none: all zero).
         for(int i = 0; i < 4; i++)
         {
@@ -456,6 +457,7 @@ VrMove unposed;
             move.loadPort[h] = unposed.loadPort[h] + walked;
             move.loadPortAxis[h] = unposed.loadPortAxis[h];
             move.loadPortFace[h] = unposed.loadPortFace[h];
+            move.launchOfs[h] = unposed.launchOfs[h];
             for(int i = 0; i < 4; i++)
             {
                 move.magBox[h][i] = unposed.magBox[h][i];
