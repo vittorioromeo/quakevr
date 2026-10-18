@@ -1366,6 +1366,7 @@ QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1
 QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
 QVR_CVAR(vr_glove_thickness, "2", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
+QVR_CVAR(vr_glove_relief, "1", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
@@ -2436,6 +2437,11 @@ QVR_CVAR(vr_enemygun_spent_shake, "0.3", CVAR_ARCHIVE)   // model units the spen
 QVR_CVAR(vr_enemygun_spent_haptics, "0.35", CVAR_ARCHIVE) // and how hard it buzzes in the hand then (0: not at all)
 QVR_CVAR(vr_enemygun_spent_volume, "0.5", CVAR_ARCHIVE) // the volume of the corpses' crackle (misc/power.wav) as it starts (0: silent)
 QVR_CVAR(vr_adgun_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' armed soldiers drop their own guns as they die (QC vr_ad_enemyguns.qc; the plain soldier and enforcer Quake VR's burst rifle and laser rifle); 0: none
+QVR_CVAR(vr_adgun_hose, "1", CVAR_ARCHIVE) // AD support: holding the pyro's flamethrower or the fumigator's poison sprayer, a small fuel tank on your back and a hose from it to the gun (vr_adtank.cpp); 0: none
+QVR_CVAR(vr_adgun_hose_route, "0", CVAR_ARCHIVE) // ... the hose's way from the tank to the gun, on the gun's hand's side: 0 through a clip at the hip, 1 over the shoulder
+QVR_CVAR(vr_adgun_tank_x, "-9", CVAR_ARCHIVE) // ... the tank's middle carried by the chest (body anchor units: forward, as the holsters' offsets)
+QVR_CVAR(vr_adgun_tank_y, "0", CVAR_ARCHIVE)  // ... right
+QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibration)
 QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
 QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // the grenade soldier's dropped launcher (Quake VR's grenades: vr_dmg_grenade): the grenades it holds
@@ -2692,7 +2698,7 @@ QVR_CVAR(vr_flinch_recover_tilt, "22", CVAR_ARCHIVE)      // deg: its spine tilt
 QVR_CVAR(vr_flinch_recover_slope, "35", CVAR_ARCHIVE)     // deg: each foot on ground no steeper
 QVR_CVAR(vr_flinch_foot, "0.18", CVAR_ARCHIVE)            // m: each foot's support round its end (its middle over the two and the strip between)
 QVR_CVAR(vr_flinch_blend, "0.22", CVAR_ARCHIVE)           // s: recovered, its ragdoll blends into the animation (its nearest stand or run frame) over this
-QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal
+QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal; 3: also every hit reaching it and why a class cannot
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
@@ -2918,6 +2924,7 @@ QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling gr
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
 QVR_CVAR(vr_flinch_test, "0", CVAR_NONE)              // a flinch test on the live monster nearest you (QC vr_flinch.qc: 1 shotgun, 2 super shotgun, 3 nail, 4 super nail, 5 blow, 6 head blow, 7 blast, 8 throw, 9 crowd; 20 a grunt at vr_flinch_test_x _y _z, 21 ten grunts ahead)
 QVR_CVAR(vr_flinch_test_pellets, "0", CVAR_NONE)      // the test blasts' pellets that hit (0: 6, the super shotgun's 14)
+QVR_CVAR(vr_flinch_test_health, "0", CVAR_NONE)       // vr_flinch_test 20's grunt's health (0: its own; a real weapons test's, to live through the shots)
 QVR_CVAR(vr_flinch_test_x, "0", CVAR_NONE)            // where vr_flinch_test 20 puts a grunt (units)
 QVR_CVAR(vr_flinch_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_flinch_test_z, "0", CVAR_NONE)

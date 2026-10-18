@@ -1076,7 +1076,7 @@ bool phasing[2]{false, false};
 // The melee weapons' models (QC WeaponIdToModel: the axe, Mjolnir and MG3's Super Axe, the knights' swords, the
 // chainsaw, the crowbar): they phase with vr_melee_phase alone; a gun or a held prop also needs vr_melee_phase_hold.
 constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl",
-    "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl"};
+    "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl", "progs/v_shadaxe3.mdl#vr" /* AD support: the Shadow Axe */};
 
 [[nodiscard]] bool meleeModel(const qmodel_t* model)
 {

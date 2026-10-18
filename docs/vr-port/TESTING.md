@@ -1295,6 +1295,13 @@ fifth, uncounted line: AD's old grenade model for comparison); `73`..`80` put on
 `vr_weapon_grip_mode 1`); `vr_adgun_models` prints the gun models made from AD's monsters (box, muzzle). Real drops:
 `vr_test_spawn_dead 1; vr_test_spawn 211; impulse 241` (227, 223, 212, 217, 220, 232, 235: the grenade and plasma
 soldiers, defender, eliminator, centurion, pyro, fumigator), `developer 1` prints `adgun: ... drops its ...`.
+The guns are our burst rifle's variants (2026-10-18, ROUND22.md "AD guns as burst rifle variants"): `vr_adgun_variants`
+prints each one made (triangles, box, time); held side views `vr_mock_camera -0.42 1.3 -0.62 3 -90` after `vr_ad_test
+73`..`80` (main hand at `0.15 1.25 -0.45 70 0 0`); dropped: the toolgun's spawner `vr_test_spawn 312`..`319;
+vr_test_spawn_dist <d>; impulse 241`. The flamethrowers' tank and hose: `vr_ad_test 79` or `80`, `vr_mock_camera 0.25
+1.55 1.05 12 0` (behind), `vr_adgun_hose_route 1` (over the shoulder), `vr_adgun_hose_info` (its ends, length, rings,
+the mirror image's rings with `vr_menu_body_clone 2; menu_vr`, its cost a frame); scripts `scratch/held.sh`,
+`tank.sh`, `drop.sh` of worktree goreflesh (agent/adgunvariants).
 Upgrades: `vr_ad_upgrades 2; vr_ad_test 5` (a Widowmaker pickup ahead), take it, `vr_ad_test 6` (each hand's upgrade
 code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older game's player-wide upgrades moved onto
 the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky

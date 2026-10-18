@@ -441,6 +441,63 @@ void() VR_ADFred_Think =
 
 void(float request, entity p) AD_GunTest =
 {
+    if(request >= 96 && request <= 100)
+    {
+        // AD's upgraded weapons' VR models (vr_adweapons.cpp; ROUND22.md "AD's weapons as VR models"): 96 the three
+        // upgrades' pickups made ahead in a row, as the toolgun makes them (309 the Shadow Axe, 310 the Widowmaker, 311
+        // the Plasma Gun); 97, 98, 99 the Shadow Axe, the Widowmaker or the Plasma Gun taken into the main hand, the other
+        // two in the hip holsters (left, right); 100 the main hand's weapon dropped ahead. Each prints the models drawn.
+        if(request == 96)
+        {
+            for(float u = 309; u <= 311; u++)
+            {
+                entity pk = VR_ADWeapons_Make(p, u, 64 + (u - 309) * 28);
+                bprint(sprintf("adweapons-vr: %g %s model %s\n", u, pk != world ? pk.netname : "(not made)", pk != world ? pk.model : ""));
+            }
+            return;
+        }
+        if(request == 100)
+        {
+            float dw = VRGetEntWeapon(p, cVR_MainHand);
+            entity os99 = self;
+            self = p;
+            DropWeaponInHand(p, cVR_MainHand, dw, VRGetEntWeaponFlags(p, cVR_MainHand));
+            self = os99;
+            for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+            {
+                if(t.weapon == dw && t.vr_drop_born == time)
+                {
+                    bprint(sprintf("adweapons-vr: dropped %s model %s\n", WeaponIdToWeaponName(t.weapon), t.model));
+                }
+            }
+            return;
+        }
+        // (given as a cheat gives them: each its own record, upgraded; the hand's model swapped by AD_SyncWeaponModels)
+        float wids[3];
+        wids[0] = WID_AXE; wids[1] = WID_SUPER_SHOTGUN; wids[2] = WID_LIGHTNING;
+        float held = request - 97;
+        float slot = 2;
+        for(float k = 0; k < 3; k++)
+        {
+            float wk = wids[k];
+            entity inst = WeaponInst_New(WeaponIdToBaseClipSize(wk));
+            inst.wi_adup = AD_UpgradeFor(wk);
+            if(k == held)
+            {
+                VRGiveEntWeapon(p, cVR_MainHand, wk, 0, WeaponIdToBaseClipSize(wk));
+                p.weaponinst.wi_adup = AD_UpgradeFor(wk);
+                p.weaponmodel = WeaponIdToModel(wk, 0);
+                continue;
+            }
+            if(slot == 2) { p.holsterweapon2 = wk; p.holsterweaponflags2 = 0; p.holsterweaponinst2 = inst; p.holsterweaponmodel2 = WeaponIdToModel(wk, 0); }
+            else          { p.holsterweapon3 = wk; p.holsterweaponflags3 = 0; p.holsterweaponinst3 = inst; p.holsterweaponmodel3 = WeaponIdToModel(wk, 0); }
+            slot = 3;
+        }
+        AD_SyncWeaponModels(p);
+        bprint(sprintf("adweapons-vr: main %s (%g) %s; hips %s %s\n", WeaponIdToWeaponName(p.weapon), AD_UpgradeCode(p.weaponinst),
+            p.weaponmodel, p.holsterweaponmodel2, p.holsterweaponmodel3));
+        return;
+    }
     if(request == 95)
     {
         if(!cvar("vr_ad_mounted"))

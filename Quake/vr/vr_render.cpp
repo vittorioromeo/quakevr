@@ -458,7 +458,9 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         (void)view::gloveLook(e, out->glove, out->glovecuff);
         if(out->glove[3] > 0.f) // its painted leather (vr_glove_paint): Glove.w's 4s
         {
-            out->glove[3] += 4.f * static_cast<float>(render::glovePaintFlags(e));
+            const int paint = render::glovePaintFlags(e);
+            out->glove[3] += 4.f * static_cast<float>(paint);
+            out->gloveshell[1] = paint == 2 ? CLAMP(0.f, vr_glove_relief.value, 2.f) : 0.f; // its relief's normal map's strength
         }
     }
     if(out->glow[0] > 3.5f) // an incandescent blade glows on its blade only (vr_hotblade.cpp)
@@ -733,7 +735,7 @@ struct GloveLayer
 {
     bool looked{false};
     gltexture_t* paint{nullptr}; // (null: no painted layer: the shader's leather alone)
-    gltexture_t* height{nullptr}; // (null: none: flat)
+    gltexture_t* height{nullptr}; // its relief, made a normal map (gloveHeightToNormals; null: none: flat)
 };
 struct GloveLayers
 {
@@ -744,9 +746,50 @@ struct GloveLayers
 };
 GloveLayers gloveLayers;
 
-// The texture of the first of these files found (loaded now unless it is already), or null.
+// The relief's height map (_glove_height, make_glove_paint.py): its R the height, 128 flat, 0..255 this many mm; at
+// 1024 x 1024 this many texels a mm (the skin's 1.5 twice). Its slopes are steepened by gloveReliefGain, as the bracers'
+// and pauldrons' baked relief is (normalbody.py, normaltiles.py: their stitches and seams deeper than real ones).
+static constexpr float gloveHeightRangeMm = 2.5f;
+static constexpr float gloveTexelsPerMm = 3.f;
+static constexpr float gloveReliefGain = 2.f;
+
+// A glove's height map (RGBA, as read) made its normal map in place, as normalbake.py height_to_tangent bakes the
+// models': tangent space, x along u, y up the image (green up), RGB the unit normal (z kept: the mips' shorter normals
+// widen the sheen, SpecularAA), A 255. Mipmapped, its far look is the average of its bumps (the shader's old taps of
+// the heights a texel apart lost the slopes on coarser mips). ~4 ms at 1024 x 1024, at each read only.
+void gloveHeightToNormals(byte* rgba, int width, int height)
+{
+    byte* h = static_cast<byte*>(Hunk_AllocNoFill(width * height)); // (freed with the image: the caller's mark)
+    for(int i = 0; i < width * height; i++)
+    {
+        h[i] = rgba[i * 4];
+    }
+    // a step of one level over the two texels of a central difference, as a slope (mm a mm)
+    const float k = gloveReliefGain * gloveHeightRangeMm / 255.f * gloveTexelsPerMm * (static_cast<float>(width) / 1024.f) * 0.5f;
+    for(int y = 0; y < height; y++)
+    {
+        const byte* up = h + q_max(y - 1, 0) * width;
+        const byte* row = h + y * width;
+        const byte* down = h + q_min(y + 1, height - 1) * width;
+        for(int x = 0; x < width; x++)
+        {
+            const float sx = (row[q_min(x + 1, width - 1)] - row[q_max(x - 1, 0)]) * k; // dh/du
+            const float sy = (down[x] - up[x]) * k; // dh down the image: -dh/d(up)
+            const float inv = 1.f / sqrtf(sx * sx + sy * sy + 1.f);
+            byte* out = rgba + (y * width + x) * 4;
+            out[0] = static_cast<byte>((-sx * inv * 0.5f + 0.5f) * 255.f + 0.5f);
+            out[1] = static_cast<byte>((sy * inv * 0.5f + 0.5f) * 255.f + 0.5f);
+            out[2] = static_cast<byte>((inv * 0.5f + 0.5f) * 255.f + 0.5f);
+            out[3] = 255;
+        }
+    }
+}
+
+// The texture of the first of these files found (loaded now unless it is already), or null. The height map
+// (_glove_height) is made a normal map as it loads (gloveHeightToNormals).
 [[nodiscard]] gltexture_t* gloveTexture(int skin, const char* suffix)
 {
+    const bool relief = !q_strcasecmp(suffix, "glove_height");
     for(const int s : {skin, 0})
     {
         char path[MAX_QPATH];
@@ -759,13 +802,32 @@ GloveLayers gloveLayers;
         int width, height;
         enum srcformat format;
         byte* pixels = Image_LoadImage(path, &width, &height, &format);
+        if(pixels && relief && format != SRC_RGBA)
+        {
+            Con_Printf("glove paint: %s is not RGBA as read: no relief\n", path);
+            pixels = nullptr;
+        }
+        const double t0 = Sys_DoubleTime();
+        if(pixels && relief)
+        {
+            gloveHeightToNormals(pixels, width, height);
+        }
+        const double made = (Sys_DoubleTime() - t0) * 1000.0;
         gltexture_t* texture = pixels ? TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
-                                            TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA)
+                                            TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA |
+                                                (relief ? TEXPREF_UNCOMPRESSED : TEXPREF_NONE))
                                       : nullptr;
         Hunk_FreeToLowMark(mark);
         if(texture)
         {
-            Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
+            if(relief)
+            {
+                Con_DPrintf("glove paint: %s read (%d x %d), its normal map made in %.1f ms\n", path, width, height, made);
+            }
+            else
+            {
+                Con_DPrintf("glove paint: %s read (%d x %d)\n", path, width, height);
+            }
         }
         if(texture || s == 0)
         {

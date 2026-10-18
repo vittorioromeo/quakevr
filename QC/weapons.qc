@@ -5108,7 +5108,7 @@ void MakeThrown(entity newmis,
     tmp_bounds_y = tmp;
     tmp_bounds_z = tmp;
 
-    setmodel(newmis, WeaponIdToModel(xWeapon, xWeaponFlags));
+    setmodel(newmis, AD_WeaponModel(xWeapon, xWeaponFlags, newmis.weaponinst)); // (AD support: an upgraded one's own)
     setsize(newmis, -tmp_bounds, tmp_bounds);
     setorigin(newmis, xOrigin);
 
@@ -5570,7 +5570,7 @@ VRPutWeaponInHolster =
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
     setHolsterWeapon(xHotspot, xWeapon);
-    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
+    setHolsterWeaponModel(xHotspot, AD_WeaponModel(xWeapon, xWeaponFlags, xInst)); // (AD support: an upgraded one's own)
     setHolsterWeaponFlags(xHotspot, xWeaponFlags);
     VRSetEntHolsterWeaponInst(self, xHotspot, xInst);
 }

@@ -4681,6 +4681,7 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view cords chains");
         cellcord::setupView(s); // the cell cords, from the laser cannon and the hammers to the pouch (vr_cellcord.cpp)
+        adtank::setupView(s); // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
         magholster::setupView(s); // the magnetic holsters' chains (vr_magholster.cpp)
     }
     if(!posingNow)

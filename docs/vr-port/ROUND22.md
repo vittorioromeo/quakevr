@@ -12716,6 +12716,251 @@ PASS.
 In VR: grab a corpse's chest, then an arm or a leg, swing it about and throw it; grab a knocked-down grunt; a crate
 and a standing monster as before.
 
+
+## AD's weapons as VR models: the Shadow Axe, the Widowmaker, the Plasma Gun (worktree `dequant`, branch `agent/adweapons`, 2026-10-18)
+
+His voice note: VR-friendly models of AD's three upgraded player weapons from AD's view models (no holes, a handle,
+proper dimensions, AD's look), used held, holstered, dropped and spawned by the toolgun instead of the placeholders
+(our axe, super shotgun, lightning gun).
+
+### The models (engine `vr_adweapons.cpp`, new)
+
+- Made as they load from the player's own AD files, as the soldiers' guns are (nothing of AD's written or shipped):
+  `"<AD view model>#vr"` through `VR_DerivedModelFile`. AD's model is found by walking the search paths for the release
+  measured (vertex/triangle/skin counts), so AD's `progs/v_plasma.mdl` is found although Rogue's name shadows it.
+  Another release, or no AD: our own weapon's model under the name (a stand-in, never a failed load).
+- Each laid in the frame of the Quake VR weapon it upgrades and packed from that model's corner, so its weapon slot
+  inherits everything (Offsets, hand, hotspots, holsters, mass): slots 33-35 (`vr_wofs_*_34..36`, `numSlots` 36),
+  InheritFrom the axe, the super shotgun, the lightning gun; own anchors only (hand as the parent's, the muzzle the gun's
+  front middle / the blade edge's top, the other hand's on the axe's handle below the head and on the guns' barrels).
+  - **Shadow Axe** (`v_shadaxe3.mdl` frame0): the arm and hand cut off (the welded piece of vertex 257); the handle's
+    axis onto our axe's handle, the blade out the same way, 0.85 of its size (blade 12.6 units out, the handle as thick
+    as ours); AD's banded handle end is where the hand closes. Its own edge in `vr_axestick.cpp`'s table (sticking);
+    `hotblade`, `legsweep`, melee phasing and "no sights" treat it as the axe (`modelmeta::Id::AdVrAxe`).
+  - **Widowmaker** (`v_shot3.mdl` fire1: a three-barrel shell open below and behind, tilted 4.5 degrees): levelled,
+    1.85x (25.5 units), the breech at the super shotgun's receiver; our super shotgun's own grip, trigger guard and
+    trigger grafted on (their pieces of `v_shot2.mdl` and their texels copied under AD's skin); the open bottom fanned
+    flat from its middle.
+  - **Plasma Gun** (`v_plasma.mdl` base1): AD's thin pistol grip, trigger and the stock's bar off; the lightning gun's
+    grip, guard and trigger grafted on where AD's grip was; cut just behind the hand (x -5.55 in our frame): the stock
+    would sit in the forearm in VR, and the lightning gun's corner had to hold.
+  - Every remaining hole (open bottoms, backs, the cut, the coil tube's ends) closed by a fan of dark triangles (palette
+    2); topology welded at 0.05 so the rounding's hairline cracks close too. 9 identical frames (animation frame numbers
+    stay valid); normals recomputed.
+- `vr_adweapon_models`: per model its triangles, AD's taken off / our grip put on, holes closed, open edges left (0 for
+  all three), box, whether the corner held, the muzzle (and the axe's blade edge). Now: axe 180 triangles, Widowmaker
+  518, Plasma Gun 532; each 0 open edges, corner kept. (The prototype that measured them rendered and hole-checked with
+  `check_mdl_holes.py`: all three "ok".)
+
+### Wiring (QC `vr_ad_bridge.qc`, `weapons.qc`)
+
+- `AD_WeaponModel(wid, flags, inst)`: the upgrade's VR model when the record has the upgrade where upgrades play (and
+  not Rogue's plasma ammo), else `WeaponIdToModel`. Used for dropped/thrown weapons and holstering;
+  `AD_SyncWeaponModels` (AD_PlayerPostThink, every frame while AD's data is there) keeps the hands' and holsters' model
+  strings right (swaps only between the plain and the upgraded model: an upgrade given, a load, a scope change), and
+  precaches them (`nosave` bits: a loaded game precaches again). The upgrade pickups (toolgun's AD Shadow Axe /
+  Widowmaker / Plasma Gun, map items) draw the VR model when pickups are drawn as weapons (`vr_pickup_prop_models`).
+- `vr_anchor.cpp`: anchors on derived models bind on the made file (adcrossbow2's fix for "#gun" widened at the merge
+  to every "#" name, so the "#vr" models' muzzles are right too).
+
+### Checked (headless)
+
+- `vr_adweapon_models`: numbers above. `vr_ad_test 96` (toolgun's spawn path, 309-311): each pickup's model is its
+  `#vr` model; `97`/`98`/`99`: the weapon in the main hand and the other two in the hip holsters, all `#vr`; `100` drops
+  the main hand's: the Widowmaker dropped as `v_shot3.mdl#vr`. With `vr_ad_upgrades 0` all go back to the plain models.
+- Grip fit: `vr_hotspot_fit` gives the same hand place on each AD model as on its plain parent (axe 7.88 0.91 4.92,
+  SSG 7.29 0.71 4.64 vs Widowmaker the same grip, LG / Plasma 3.87 0.21 5.43) and the same hotspots; the gripped hand
+  closes the same way (screenshots side by side).
+- `ad_import.py --check --release`: 0 of 142 files differ. Build: QC 0 warnings.
+- Screenshots (scratch, not committed): `scratch/adw_held.png` (each held, side and three-quarter), `adw_grip.png`
+  (gripped, AD model left, plain parent right, per weapon), `adw_holster.png` (hips), `adw_dropped.png` (the
+  Widowmaker dropped, mid-fall; the toolgun-spawned pickups ahead).
+- Debug menu (Tests, Arcane Dimensions): "Upgraded Weapons Ahead" (`vr_ad_test 96`), "Shadow Axe / Widowmaker /
+  Plasma Gun in Hand" (97-99).
+
+### For VR
+
+- Hold each (Debug > Tests > Arcane Dimensions > ... in Hand): the hand on the grip, the look, size; the muzzles (the
+  Widowmaker's is about 2 model units off-centre to the right after the inherited muzzle offset); the off hand on the
+  barrels (TwoH anchors guessed). Swing the Shadow Axe (sticking, glow). Holster and drop them.
+- Not done: the lightning gun's magazine (`vr_view.cpp`'s `VLight` mount) isn't drawn on the Plasma Gun; the
+  Widowmaker reloads at the hip, so the super shotgun's opening isn't needed. The toolgun's catalogue icons stay AD's
+  pickup models.
+
+## Glove leather: relief to the bracers' level (worktree `dequant`, branch `agent/gloveleather`, 2026-10-18)
+
+His note (and Glove depth's open item): the gloves' leather wants the pauldrons' and bracers' detail: stitching along
+the seams, creases at the knuckles, finger joints and palm, a leather grain normal map.
+
+- **Why it read flat.** The painted layer (`make_glove_paint.py`) already had stitches, creases and grain, but its
+  relief was physical (0.1-0.3 mm) and the shader took its slope from three taps of the heights a texel apart: on a
+  coarser mip those taps lose the slope (and at a distance alias into a checkered pattern on the palm). The bracers'
+  and pauldrons' relief is a baked, mipmapped normal map with exaggerated stitches and quilted forms
+  (`normalbody.py stitch_row`, `normaltiles.py`).
+- **Engine.** `_glove_height` is now made a tangent-space normal map as it is read (`vr_render.cpp
+  gloveHeightToNormals`, as `normalbake.py height_to_tangent` bakes the models': x along u, green up, z kept; 0..255 =
+  2.5 mm, 3 texels a mm, slopes x2 as the bracers'; 3.5-3.8 ms at each read, uncompressed, mipmapped). The shader reads
+  it with one tap (`vr_glsl.h GloveBump`: BumpedNormalK's frame, smooth, no retro blocks: the paint is not blocked
+  either) in place of the three height taps; the skin's normal map under the leather is replaced by it, the shader's
+  own fine grain on top as before. Strength: new `vr_glove_relief` (1; 0 flat .. 2; VR Settings > Player Appearance >
+  Gloves > "Leather Relief"), in the instance's `GloveShell.y`. Per frame: 2 texture taps fewer per gloved pixel.
+- **Content** (`make_glove_paint.py`, regenerated; `HEIGHT_MM` 2.5 matches the engine): seams' grooves deeper with the
+  panels either side pulled into them over ~5 mm (padded, as the bracers' quilted rows), stitches raised 0.45 mm with
+  needle holes sunk; the three stitched points down the back a raised cord in a channel; the finger joints' wrinkles
+  and the leather bunched between them, the palm-side folds deeper with puffed leather either side, the creases behind
+  the knuckles with ridges between; the palm's folds deeper; the pebble grain softer, the crease network and a soft
+  unevenness of the hide stronger. Colour and wear as before (the stitches' thread a little less pale: the relief
+  carries them now).
+- **Docs.** `GLOVES.md`: the height's range, the normal map made from it, `vr_glove_relief`.
+
+Tested (headless, vrfiringrange, 1440 eyes, fingerless brown, bracers on; `scratch/gl_shots.sh`): sheets
+`scratch/final_back.png` (back: open, fist, point; before top, after bottom), `scratch/final_palm.png` (palm side),
+`scratch/new5_both.png` (both hands with the bracers), `scratch/new3_zoom.png` (1:1 back, before/after). After: the
+stitched points read as raised cords in channels, the knuckle creases and joints' wrinkles shade, the palm's folds
+show, the grain reads as pebbled leather; the palm's old checkered aliasing is gone. `vr_glove_relief` 0/1,
+`vr_gloves_reload`, full gloves, paint off, e1m2: no errors; the map made again at each read.
+
+For him in VR: the relief's depth (`vr_glove_relief`, 0.5-1.5), the grain's coarseness up close (`grain()` in the
+generator), whether the padded panels between the seams read on the fingers' sides.
+## AD guns as burst rifle variants; the flamethrowers' tank and hose (2026-10-18, worktree `goreflesh`, branch `agent/adgunvariants`)
+
+His voice notes (2026-10-18): the AD soldiers' guns are all variations of the grunt's burst rifle: our burst rifle as
+the base, each with its own cue in geometry and texture; the flamethrower and the poison sprayer with a simulated hose
+to a small tank on the back (over the shoulder or below the hip, visible in the mirror); every variant in the toolgun.
+
+- **The models** (`vr_adgunart.cpp`, new): "progs/v_gruntgun.mdl#adv<n>" (n: 0 rocket, 1 grenade, 2 plasma, 3 defender,
+  4 eliminator, 5 centurion, 6 pyro, 7 fumigator), made as they load from our own `v_gruntgun.mdl` (its triangles,
+  skin coordinates and frame 0 kept; nothing written anywhere; about 1 ms each). The skin grows 160 rows for the
+  add-ons; the rifle's texels are recoloured per gun (their light kept: a palette remap) and decals painted where its
+  sides face (each texel's place found through its triangle); the add-ons are tubes and boxes with painted surfaces.
+  Every add-on stays inside the rifle's packing corner (scale_origin x -29.9, y -6.17, z -4.6: `vr_adgun_variants`
+  says "corner moved" otherwise) and short of its muzzle, so slot 21's settings hold every variant as the rifle:
+  - rocket: olive; a launch tube on two mounts over the rifle, its rear an exhaust bell (sooty inside), a warhead in
+    its mouth, rocket icons and a hazard band on the tube, rockets painted on the magazine box;
+  - grenade: our `v_rock.mdl`'s barrel and drum (its connected pieces, the grip and trigger left out) at 0.8 on top, its
+    own skin pasted at half size (lifted: its blue-greys read black); hazard stripes on the box;
+  - plasma (blue): two cathode tubes in copper rings beside the barrel, lightning on the box's sides;
+  - eliminator (violet): three copper coils on the barrel's end, a glowing tube under it, a bank of glowing cells;
+  - centurion (cyan): a banded glass capacitor drum on top, two cathode spikes standing on the box, three bolts of
+    lightning;
+  - defender: gunmetal; a magazine tube and a ribbed wooden pump under the barrel, shell carriers on both sides of the
+    receiver, rows of shells on the box;
+  - pyro: red-orange; a flared nozzle and a pilot light, a fuel canister under the receiver (its hose's inlet behind),
+    flames up the box's sides, hazard stripes;
+  - fumigator: green; a flat spray head, the same canister, poison bubbles, hazard stripes.
+- **Wired**: QC `VR_ADGun_Model` names them (AD's data still needed to carry the guns: their sounds and sprites); the
+  toolgun's AD guns and the AD monsters' spawner (`vr_ad_spawnguns.inc`, `ad_monsters_gen.py`); slots 27-31 (Weapon
+  Offsets 28-32) by the monster that drops them ("#adv012", "#adv34", "#adv5", "#adv6", "#adv7": `adguns::slotNames`
+  reads a slot's ID "#adv<digits>" as the variants listed), each inheriting slot 21 (the burst rifle) and repeating its
+  anchors; `vr_wofs_version` 45 resets those five slots once (44 is the crossbow's). The older models cut from AD's monsters
+  ("<monster>.mdl#gun<skin>") still load for a saved game naming them (held without a slot's settings).
+- **`weapons::value` and an inheriting slot's own defaults** (the reported bug): every default of an inheriting slot
+  gave way to its parent's, so slots 28-31's own Offset Y and hotspots (the enforcer-mesh guns' wider corner) were
+  never used. ROUND21's design keeps "own = differs from the default" (the lava nailguns' old values are placeholders),
+  so the fix is explicit: `QVR_WEAPON_OWN(slot, key)` in `vr_weapons.inc` marks a default as the slot's own
+  (`ownDefaults`; `value`, `ownerSlot` and `stopInheriting` share `takesParents`). No slot needs one now (the variants
+  are the burst rifle's own shape); checked: the variants hold exactly as the rifle (inheritance through the new path).
+- **The tank and hose** (`vr_adtank.cpp`, new): holding the pyro's or the fumigator's gun, a 27 cm tank (red or green, a
+  hazard band, a valve) stands on the middle of the back, carried by the chest (`vr_adgun_tank_x/y/z` -9 0 8; two such
+  guns: two tanks side by side), and a hose (2.2 cm) runs from its bottom to the gun's canister: 26 Verlet points
+  (`vr_verlet.cpp`'s fall and holdLengths) pinned at the tank, at a clip and at the gun (with a stub at each end), the
+  clip at the gun hand's hip (`vr_adgun_hose_route` 0) or on its shoulder (1); the piece to the gun pays out as the gun
+  moves away (its rest 1.15 times the distance, at least 30 cm), the body's movement carries the free points, the torso
+  (an elliptic cylinder) pushes them out. Drawn as the flashlight's plain cord (`coil::Cord::shape`, `gfx::drawTube`) and
+  the tank as a tube of rings, both again reflected in the body's mirror image (`bodyclone::mirror`). `vr_adgun_hose`
+  1 (0: none). VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns: Fuel Tank and Hose, Hose Route, Tank
+  Forward, Tank Up. Debug > Tests > Arcane Dimensions Monsters: Gun Variants (`vr_adgun_variants`), Hold the
+  Flamethrower / Poison Sprayer, Fuel Hose Info (`vr_adgun_hose_info`).
+- **Cost**: 0.006-0.009 ms a frame stepping one hose, 0.010-0.012 ms building its rings and the tank's (151 + 18 rings,
+  mirror included); nothing without such a gun in hand.
+- **Checked** (headless, AD linked into the kit base): `vr_ad_test 70` 9/9 PASS (every gun fired with its variant model),
+  `vr_ad_test 71` 8/8 PASS (each dropped with its variant model and clip); `ad_import.py --check --release` 0 of 142
+  differ; QC 0 warnings. Screenshots in the worktree's `scratch/`: `adgun_variants_held.png` (the eight held, side
+  view, in WID order), `adgun_variants_dropped.png` (the eight dropped round the player, from above, fullbright),
+  `adgun_hose_tank.png` (the pyro's tank and hose from behind and the side, aiming up, walking, over the shoulder, the
+  fumigator's), `adgun_hose_mirror.png` (the body's mirror image holding the flamethrower: the hose in it;
+  `vr_adgun_hose_info`: 151 and 18 rings drawn reflected).
+- **For him in VR**: each variant's look up close (the cues readable? the grenade launcher's grafted body big
+  enough?), the hold (the burst rifle's: the rocket tube and the grenade body sit over the sights); the hose's way
+  (hip or shoulder) while aiming, walking, crouching, and the tank's place (Tank Forward/Up); the mirror (a body page
+  with Body Clone While Tweaking).
+- **Not done**: the hose doesn't collide with the world or the arms (the torso only); one-frame models (no firing
+  animation, as AD's cut guns); a gun's add-ons don't change its mass or balance (the rifle's).
+## Flinch polish: the enforcer, stairs, AD's humanoids, real weapons (worktree `fastship`, branch `agent/flinch2`, 2026-10-18)
+
+- **Enforcer shuffle: fixed.**
+  - Why: its stand frame leans over its rifle. Its centre of mass sits about 3.7 units ahead of its ankles, and its
+    short legs (about 0.59 m) shrank its feet's support to 4.5 units, where a grunt's is 5.8. So the recovery test and
+    the capture-step gate kept finding it off its support, and it shuffled 8-9 steps until the 2 s settle.
+  - Now:
+    - `beginFlinch` reckons the stance frame's own centre of mass from its feet's middle (`Stagger::supportOffset`,
+      model space turned as it stands). The support, the lean and the capture-step gate all measure round it.
+    - Foot Support scales only up with leg length (`clamp(leg / 0.75, 1, 2)`).
+    - A flinch may take 4 more corrective steps once its backpedal's are spent.
+  - The enforcer now recovers in 0.32-0.52 s (1-2 steps) from a shotgun, a super shotgun or a blow, as the grunt does.
+- **Hand-back:**
+  - Pain frames are no longer candidates (an enforcer had been handed back in `painc4`).
+  - The arms' wheeling fades out after 0.12-0.32 s, so they are back by the hand-back.
+  - Gaps (mean vertex distance; the vertical part in brackets):
+
+    | case | gap |
+    |---|---|
+    | shotgun, flat floor | 0.3-0.4 units |
+    | blow, flat floor | 2.6-3.2 units |
+    | slope | 3.3 units (-3.2) for a shot, 5.3-6.3 for a blow |
+    | stairs | 15.9-16.1 units (-15.7 to -15.9) |
+
+  - The stairs gap is nearly all vertical. On these 16x16 stairs any monster box rests on the stair above (its 32-unit
+    box always spans two), while the body stands with a foot on the stair below. No stand spot at the body's own height
+    exists within 24 units; the hand-back now tries both the plain spot and the lifted one and keeps the smaller gap.
+    It is the same 16 units every walking monster's model floats at there.
+  - So the blend now also scales by the vertical gap, up to 2x (0.44 s): the root rises into the box over the blend
+    instead of popping.
+- **AD's humanoids:**
+  - Shots, nails and blasts never reached the flinch for AD's monsters: they take damage in AD's own `ad_T_Damage`.
+    `VR_AD_Hit` (vr_ad_bridge.qc) now calls `VR_Flinch_Hit`, then `VR_AD_KdSave`, so AD's pain gives way to the
+    flinch as it does to a knockdown. Blows and throws already came through `VR_HitStagger_*`.
+  - Tested in AD's start map (dispenser numbers):
+
+    | choice | monster | flinches and recovers |
+    |---|---|---|
+    | 200 | death knight | yes |
+    | 205 | guard | yes |
+    | 211, 223, 227 | AD's soldiers (rocket, grenade, plasma) | yes |
+    | 212, 217 | AD's enforcer variants | yes |
+    | 216 | fury | yes |
+    | 225 | sergeant | yes |
+    | 232 | pyro | yes |
+    | 235 | fumigator | yes |
+
+  - Every class recovers in 0.32-0.62 s; the point-blank super shotgun knocks them over, as designed. One 212 blow
+    settled at 2.0 s.
+  - The crossbow knight (202) cannot ragdoll at all (`canRagdoll` 0): it keeps the old reactions.
+- **Firm ground on AD maps:** the recovery test's ground check falls back to Quake's own trace (`Context::traceHit`).
+  Neither the physics world's ray nor its floor saw AD's start map floor, and a still soldier toppled on "ground".
+- **Real weapons through the mock** (impulse 154/155/156, the hand aimed level, `+attack`, at a grunt with 300 health):
+
+  | weapon | distance | pellets hit | impulse | expected | change of speed |
+  |---|---|---|---|---|---|
+  | shotgun | 64 | 6 | 42 N s | 6 x 7 | 0.52 m/s |
+  | shotgun | 192 | 6 | 40 N s | x0.95 falloff | |
+  | shotgun | 512 | 4 | 19 N s | 4 x 7 x 0.68 | under the threshold |
+  | super shotgun | 64 | 9 of 14 (the spread) | 108 N s | | 1.35 m/s |
+  | super shotgun | 192 | 6 | 69 N s | 6 x 12 x 0.96 | |
+  | super shotgun | 512 | 9 | 74 N s | 9 x 12 x 0.68 | |
+
+  - Nailgun: 20 N s a nail (Quake VR's nails deal more than Quake's 9). One nail is under the threshold; two in quick
+    succession sum to 31 N s, 0.39 m/s, and it flinches.
+  - Melee, his recorded takes replayed where you stand: an overhead punch to the head, 26 damage, 79 N s (= 3 x
+    damage; only 0.34 m/s of it level, since it comes down from above); a two-handed stab, 23.6 damage, 71 N s,
+    0.74 m/s. The hook punch take missed at 32 and 48 units.
+  - Every impulse matches the design's formula and falloff.
+- **Still rough:** a blow landing soon after a knockdown and get-up (the monster's pose odd: an attack frame, a wide
+  stance) still sometimes shuffles 8-11 steps and topples at 2.0-2.3 s, about 1 run in 2 of the shotgun, super
+  shotgun, blow sequence, for the grunt and the enforcer alike. Fresh hits do not.
+- `vr_flinch_debug 3` also prints every hit that reaches the flinch and why a class cannot flinch.
+  `vr_flinch_test_health` gives the test grunt more health, for the real weapons test.
+- eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs from the baseline).
 ## AD melee monsters drop their weapons (worktree `gorefx`, branch `agent/admelee`, 2026-10-18)
 
 Arcane Dimensions' melee monsters drop their weapons as Quake VR's knights drop their swords (QC `vr_ad_melee.qc`,

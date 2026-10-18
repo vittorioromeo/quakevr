@@ -72,6 +72,11 @@ const Blade blades[] = {
     {modelmeta::Id::VAxe,
         {{{{20.13f, -0.12f, 15.81f}, {24.18f, -0.10f, 27.30f}, axeOut}, {{-3.00f, -0.10f, 24.50f}, {1.27f, -0.07f, 35.52f}, -axeOut}}},
         {10.79f, 0.f, 25.58f}, {0.2f, 0.f, -3.55f}},
+    // AD support: the Shadow Axe (vr_adweapons.cpp, laid on the axe's handle; vr_adweapon_models prints its edge): one
+    // bit, its crescent's edge from 17.08 to 22.11 out (its two edges the same).
+    {modelmeta::Id::AdVrAxe,
+        {{{{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}, {{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}}},
+        {9.71f, 0.f, 22.58f}, {0.2f, 0.f, -3.55f}},
 };
 
 // The kinds of thing it is in (.vr_stick_kind).

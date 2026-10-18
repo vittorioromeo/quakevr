@@ -30,6 +30,7 @@ PROGS = HERE.parent.parent / 'quakevr/progs'
 SCALE = 2  # texels to the skin's (512: 1.5 a mm) -> 3 a mm
 OUT = PROGS / 'hand_rig_00_00_glove.png'
 OUT_H = PROGS / 'hand_rig_00_00_glove_height.png'
+HEIGHT_MM = 2.5  # the height map's full range (0..255), mm: vr_render.cpp gloveHeightRangeMm (it makes it a normal map)
 
 
 # ---- noise (hashed lattices, deterministic) -------------------------------------------------------------------------
@@ -147,17 +148,20 @@ def sew(pt, d, run, w, groove=True):
     if groove:
         g = band(d, SEAM * 1.3) * w
         pt.shade *= 1 - 0.45 * g
-        pt.height -= 0.35 * g
+        pt.height -= 0.5 * g
         lip = (band(np.abs(d) - SEAM * 1.6, SEAM * 0.9)) * w  # the leather rolled up either side, rubbed
-        pt.height += 0.12 * lip
+        pt.height += 0.2 * lip
         pt.wear = np.maximum(pt.wear, 0.22 * lip)
+        # the panels either side pulled down into the seam over a few mm: padded between the seams, as the bracers'
+        # quilted rows (normalbody.py stitch_row)
+        pt.height -= 0.35 * band(d, 0.45) * w
     th, holes = stitches(pt, d, run, w)
     pt.shade *= 1 - 0.35 * holes
-    pt.height -= 0.12 * holes
-    pt.shade = pt.shade * (1 - th) + 1.45 * th
+    pt.height -= 0.3 * holes
+    pt.shade = pt.shade * (1 - th) + 1.35 * th
     pt.tint = pt.tint * (1 - th[:, None]) + np.array([1.03, 1.0, 0.94]) * th[:, None]
     pt.wear = np.maximum(pt.wear, 0.55 * th)
-    pt.height += 0.22 * th
+    pt.height += 0.45 * th
 
 
 def scuffed(p, patch, base, extra):
@@ -194,18 +198,19 @@ def finger_joints(rig, name, p, n, pt, seed):
         wr = sum(band(dd - c, 0.035) * h for c, h in ((-0.42, 0.5), (-0.24, 0.8), (-0.08, 1.0), (0.08, 0.9), (0.24, 0.6)))
         wr *= back * smooth(1.0, 0.35, np.abs(lateral)) * s
         pt.shade *= 1 - 0.32 * wr
-        pt.height -= 0.22 * wr
-        ridges = sum(band(dd - c, 0.06) for c in (-0.33, -0.16, 0.0, 0.16)) * back * near * s
+        pt.height -= 0.4 * wr
+        ridges = sum(band(dd - c, 0.07) for c in (-0.33, -0.16, 0.0, 0.16)) * back * near * s
         pt.wear = np.maximum(pt.wear, 0.3 * ridges * patch)
-        pt.height += 0.08 * ridges
-        # the palm side's fold: deep, dark, a second fainter one beside it
+        pt.height += 0.25 * ridges  # the leather bunched up between them
+        # the palm side's fold: deep, dark, a second fainter one beside it, the leather puffed either side
         fold = (band(a + 0.02 + 0.03 * wob, 0.05) + 0.5 * band(a - 0.16 + 0.03 * wob, 0.035)) * front
         pt.shade *= 1 - 0.35 * fold
-        pt.height -= 0.35 * fold
+        pt.height -= 0.55 * fold
+        pt.height += 0.2 * (band(a + 0.12 + 0.03 * wob, 0.09) + band(a - 0.08 + 0.03 * wob, 0.07)) * front
     # the palm side's fold at the finger's root (the palm's crease under it)
     root = band(along - 0.12 + 0.04 * wob, 0.05) * (seg == 0) * front
     pt.shade *= 1 - 0.35 * root
-    pt.height -= 0.25 * root
+    pt.height -= 0.45 * root
     # the tip worn all round, more at its very end
     tipness = np.where(seg == 2, smooth(0.45 * lengths[2], 1.0 * lengths[2], along), 0.0)
     pt.wear = np.maximum(pt.wear, tipness * (0.25 + 0.4 * smooth(0.3, 0.8, patch)))
@@ -236,22 +241,25 @@ def palm_marks(rig, p, n, pt, seed):
         pt.shade *= 1 - 0.12 * np.exp(-((d - 0.95) / 0.3) ** 2) * back
     # the leather creased across the back behind the knuckles, as a fist pulls it
     dk = x - knuckles + 0.45 + 0.08 * wob
-    cr = sum(band(dk + c, 0.04) * h for c, h in ((0.0, 1.0), (0.22, 0.7), (0.45, 0.45))) * back
+    cr = sum(band(dk + c, 0.05) * h for c, h in ((0.0, 1.0), (0.22, 0.7), (0.45, 0.45))) * back
     pt.shade *= 1 - 0.25 * cr
-    pt.height -= 0.18 * cr
-    # three stitched points down the back, between the tendons, from the wrist to short of the knuckles
+    pt.height -= 0.4 * cr
+    # the leather bunched up between those creases
+    pt.height += 0.18 * sum(band(dk + c, 0.08) * h for c, h in ((0.11, 1.0), (0.33, 0.6))) * back
+    # three stitched points down the back, between the tendons, from the wrist to short of the knuckles: a raised cord
+    # in a channel, the leather between them padded (as the bracers' quilted rows)
     for uc in (0.27, 0.5, 0.74):
         d = (u - uc) * width
         span = smooth(-3.6, -3.1, x) * smooth(knuckles - 1.0, knuckles - 1.6, x) * back
         ridge = band(d, 0.09) * span
-        pt.height += 0.2 * ridge
+        pt.height += 0.3 * ridge - 0.35 * band(d, 0.5) * span
         pt.shade *= 1 + 0.05 * ridge
         pt.wear = np.maximum(pt.wear, 0.15 * ridge)
         th, holes = stitches(pt, d, x, span, offset=0.075, step=0.2, slant=0.0)
         pt.shade *= 1 - 0.3 * holes
-        pt.shade = pt.shade * (1 - th) + 1.3 * th
+        pt.shade = pt.shade * (1 - th) + 1.2 * th
         pt.wear = np.maximum(pt.wear, 0.4 * th)
-        pt.height += 0.15 * th
+        pt.height += 0.35 * th - 0.25 * holes
     # the palm's folds (as the skin's: the heart line under the fingers, the head line across, the life line round
     # the thumb's ball), the wrist's
     heart = knuckles - 1.7 - 0.5 * np.clip(u - 0.1, 0, 1)
@@ -261,7 +269,7 @@ def palm_marks(rig, p, n, pt, seed):
              + 0.9 * band(u - life_u + 0.01 * wob, 0.025) * (x < 2.0) * (x > -3.3)) * front
     folds = np.clip(folds, 0, 1)
     pt.shade *= 1 - 0.3 * folds
-    pt.height -= 0.3 * folds
+    pt.height -= 0.5 * folds
     # the grip: the pads under the fingers and the heel rubbed (a little paler, grime in between)
     pads = (np.exp(-((x - knuckles + 0.9) / 0.6) ** 2) + np.exp(-((x + 2.6) / 1.0) ** 2) * 0.8) * front
     pt.wear = np.maximum(pt.wear, 0.3 * pads * smooth(0.3, 0.8, patch))
@@ -275,12 +283,13 @@ def grain(p, pt):
     peb = smooth(0.0, 0.4, e)  # 0 in a crevice, 1 on a pebble's rounded top
     pt.shade *= 0.85 + 0.15 * peb
     pt.shade *= 0.97 + 0.06 * tone
-    pt.height += 0.12 * peb
+    pt.height += 0.055 * peb
     e2, _ = worley(p * np.array([1.0, 1.0, 1.6]), 0.55, 23)
     net = 1 - smooth(0.0, 0.18, e2 + 0.04 * value_noise(p, 0.12, 27))
     net *= smooth(-0.1, 0.5, value_noise(p, 0.8, 29))  # in places only
     pt.shade *= 1 - 0.12 * net
-    pt.height -= 0.08 * net
+    pt.height -= 0.12 * net
+    pt.height += 0.12 * fbm(p, 0.9, 43, 2)  # the hide's own soft unevenness
     mot = fbm(p, 1.2, 31, 3)
     pt.shade *= 1 + 0.09 * mot
     pt.tint *= (1 + np.outer(fbm(p, 2.0, 37, 2), [0.03, 0.0, -0.04]))
@@ -376,7 +385,7 @@ def main():
     rgb = np.stack([spread(rgb[..., c], covered, 6) for c in range(3)], -1)
     rgb[~covered & ~(spread(covered * 1.0, covered, 6) > 0)] = 0.5
     wear = np.clip(spread(wear, covered, 6), 0, 1)
-    h = np.clip(0.5 + 0.6 * spread(height, covered, 6), 0, 1)
+    h = np.clip(0.5 + spread(height, covered, 6) / HEIGHT_MM, 0, 1)
     pad = spread(covered * 1.0, covered, 6) > 0
     wear[~pad] = 0
     h[~pad] = 0.5

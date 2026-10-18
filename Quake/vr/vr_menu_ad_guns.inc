@@ -3,7 +3,7 @@
 
 // AD support: Arcane Dimensions' armed soldiers' own guns, dropped as they die (QC vr_ad_enemyguns.qc): every number of
 // your use of them, to balance them (the monsters' own attacks stay Arcane Dimensions'). Their placement in the hand is
-// the Weapon Offsets' (slots 28-32: inheriting the grunts' and the enforcers' guns'; the crossbow knight's crossbow 33).
+// the Weapon Offsets' (slots 28-32: our burst rifle's variants, inheriting its slot 22; the crossbow knight's crossbow 33).
 [[nodiscard]] za::Vector<Item> pageAdGuns()
 {
     return {
@@ -89,6 +89,16 @@
         slider("Our Fire With Them", "vr_adgun_stream_fire", 0.f, 6.f, 1.f, "%.0f")
             .help("Tongues of the torches' fire (green: poison) carried with each of AD's flames, a tenth of a second, "
                   "and green smoke puffing off a poisoned body. 0: AD's alone."),
+        toggle("Fuel Tank and Hose", "vr_adgun_hose")
+            .help("Holding the pyro's flamethrower or the fumigator's poison sprayer: a small fuel tank on your back and "
+                  "a hose from it to the gun, swinging as you move (seen in the body's mirror image too). Off: none."),
+        cycle("Hose Route", vr_adgun_hose_route, {{0.f, "Hip"}, {1.f, "Shoulder"}})
+            .help("The hose's way from the tank to the gun, on the gun's hand's side: through a clip at the hip, or "
+                  "over the shoulder."),
+        slider("Tank Forward", "vr_adgun_tank_x", -20.f, 5.f, 0.5f, "%.1f").extend(-40.f, 20.f)
+            .help("The tank's place on your back (carried by the chest): forward (more negative: further behind)."),
+        slider("Tank Up", "vr_adgun_tank_z", -5.f, 15.f, 0.5f, "%.1f").extend(-20.f, 30.f)
+            .help("The tank's height on your back (times your height calibration)."),
         toggle("Electric Bolts", "vr_adgun_bolt_fx")
             .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
                   "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),
