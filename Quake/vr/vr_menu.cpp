@@ -1964,6 +1964,8 @@ const Page pages[] = {
     {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
+    {"Reloading - Widowmaker", pageReloadWidowmaker, pageReloading},  // AD support
+    {"Reloading - Plasma Gun", pageReloadPlasmaGun, pageReloading},   // AD support
     {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
     {"Per-Weapon Reload Overrides", pageReloadOverrides, pageReloading},
     {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)

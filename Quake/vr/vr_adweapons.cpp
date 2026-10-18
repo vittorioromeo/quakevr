@@ -115,7 +115,9 @@ constexpr SidePart sideParts[] = {
     {"progs/vr_magwell_on_v_plasma.mdl#vr", "progs/vr_magwell_on_v_light.mdl"},
 };
 constexpr glm::vec3 lightSeat{11.6f, 0.f, 3.f};  // the lightning gun's (vr_view.cpp magMounts)
-constexpr glm::vec3 plasmaSeat{11.6f, 1.5f, 4.5f}; // the cell's top, inside the gun; its middle 3.6 further out (+y)
+// The cell's top, inside the gun; its middle 3.6 further out (+y). (His notes 2026-10-18: 0.6 further out than it was,
+// so that it shows a little more; vr_view.cpp magMounts, vr_view_internal.hpp loadPorts.)
+constexpr glm::vec3 plasmaSeat{11.6f, 2.1f, 4.5f};
 
 [[nodiscard]] int rd(const byte* b, size_t at)
 {
@@ -838,6 +840,13 @@ void extrude(Out& o, const za::Vector<glm::vec2>& sec, float x0, float x1, const
     }
 }
 
+// A box from `lo` to `hi`: its sides `faces` (as extrude's section's edges: -z, +y, +z, -y), its ends end0 (-x), end1 (+x).
+void box(Out& o, const glm::vec3& lo, const glm::vec3& hi, const Rect (&faces)[4], const Rect& end0, const Rect& end1)
+{
+    const za::Vector<glm::vec2> sec{{lo.y, lo.z}, {hi.y, lo.z}, {hi.y, hi.z}, {lo.y, hi.z}};
+    extrude(o, sec, lo.x, hi.x, faces, 4, true, false, &end0, &end1);
+}
+
 constexpr int roundSides = 14;
 
 // A circle round `c` (y z): from its -y side over its top and round (a strip mirrored on it has its middle on top).
@@ -919,6 +928,20 @@ void widowmakerParts(Parts& p)
     const Rect receiverFaces[6] = {underside, vents, bandAlong, bandAlong, bandAlong, vents};
     extrude(o, receiver, -2.f, 12.5f, receiverFaces, 6, true, false, &breechPlate, &dark);
 
+    // The shell port (his VR notes 2026-10-18: an auto shotgun loaded on the inner side, +y, by the rear handle;
+    // vr_view_internal.hpp loadPorts: its middle 6.5 3.6 5.6): a dark opening on the receiver's side, framed by a raised
+    // rim 0.5 proud (AD's band), its inner faces dark. Its spent shells leave by the slot on the other side (vr_shells.cpp).
+    const Rect rimFaces[4] = {bandAlong, bandAlong, bandAlong, bandAlong};
+    const Rect rimTop[4] = {dark, bandAlong, bandAlong, bandAlong};   // (its underside faces the opening)
+    const Rect rimBottom[4] = {bandAlong, bandAlong, dark, bandAlong}; // (its top faces it)
+    constexpr float px0 = 2.6f, px1 = 10.4f, pz0 = 4.5f, pz1 = 6.7f, rim = 0.4f, side = 3.6f, proud = 0.5f;
+    box(o, {px0, side - 0.3f, pz0}, {px1, side + 0.05f, pz1}, {dark, dark, dark, dark}, dark, dark);
+    box(o, {px0 - rim, side - 0.1f, pz1}, {px1 + rim, side + proud, pz1 + rim}, rimTop, bandAlong, bandAlong);
+    box(o, {px0 - rim, side - 0.1f, pz0 - rim}, {px1 + rim, side + proud, pz0}, rimBottom, bandAlong, bandAlong);
+    box(o, {px0 - rim, side - 0.1f, pz0}, {px0, side + proud, pz1}, rimFaces, bandAlong, dark);
+    box(o, {px1, side - 0.1f, pz0}, {px1 + rim, side + proud, pz1}, rimFaces, dark, bandAlong);
+    box(o, {5.f, -side - 0.05f, 7.f}, {9.5f, -side + 0.3f, 8.4f}, {dark, dark, dark, dark}, dark, dark); // (the ejection slot)
+
     const glm::vec2 centres[3] = {{0.f, 8.6f}, {-1.85f, 5.9f}, {1.85f, 5.9f}};
     for(int i = 0; i < 3; i++)
     {
@@ -944,14 +967,27 @@ void widowmakerParts(Parts& p)
 // The Plasma Gun's cell receiver (his note 2026-10-18: the cell on the inner side, not below as the lightning gun's): a
 // block on its +y side round the cell's way out (plasmaSeat: the cell 3.7 along x, 3.2 tall, turned out of it), AD's
 // texels (v_plasma.mdl's 128x128 skin): the riveted panel outside, the rusty plate round it.
+// His second notes (2026-10-18): a real hole where the cell goes, seen with it out (it was flat): the block is a frame
+// round a pocket a little bigger than the cell (3.9 along x, 3.5 tall), its inner faces and its floor (y 2.95, just
+// inside the gun's side) dark.
 void plasmaParts(Parts& p)
 {
+    Out& o = p.o;
+    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
+    const Rect dark{cs, ct, cs, ct, false};
     const Rect panel{32.f, 47.f, 64.f, 64.f, false};
     const Rect plate{33.f, 1.f, 64.f, 12.f, true};
-    const za::Vector<glm::vec2> block{{2.9f, plasmaSeat.z - 2.f}, {4.6f, plasmaSeat.z - 2.f}, {4.6f, plasmaSeat.z + 2.f},
-        {2.9f, plasmaSeat.z + 2.f}};
-    const Rect faces[4] = {plate, panel, plate, plate};
-    extrude(p.o, block, plasmaSeat.x - 2.3f, plasmaSeat.x + 2.4f, faces, 4, true, false, &plate, &plate);
+    const float x = plasmaSeat.x, z = plasmaSeat.z, y0 = 2.9f, y1 = 4.6f;
+    const float bx0 = x - 2.5f, bx1 = x + 2.6f, bz0 = z - 2.1f, bz1 = z + 2.1f; // (the block)
+    const float hx0 = x - 1.95f, hx1 = x + 1.95f, hz0 = z - 1.75f, hz1 = z + 1.75f; // (its hole)
+    const Rect sides[4] = {plate, panel, plate, plate};
+    const Rect below[4] = {plate, panel, dark, plate}; // (its top faces the hole)
+    const Rect above[4] = {dark, panel, plate, plate}; // (its underside faces it)
+    box(o, {bx0, y0, bz0}, {hx0, y1, bz1}, sides, plate, dark);
+    box(o, {hx1, y0, bz0}, {bx1, y1, bz1}, sides, dark, plate);
+    box(o, {hx0, y0, bz0}, {hx1, y1, hz0}, below, plate, plate);
+    box(o, {hx0, y0, hz1}, {hx1, y1, bz1}, above, plate, plate);
+    box(o, {hx0, y0 - 0.4f, hz0}, {hx1, y0 + 0.05f, hz1}, {dark, dark, dark, dark}, dark, dark); // (its floor)
 }
 
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).

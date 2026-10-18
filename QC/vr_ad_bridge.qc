@@ -1263,24 +1263,49 @@ void(float xHand, entity b) AD_ShadowAxeChop =
     }
 };
 
-// W_FireSuperShotgun's pellets from `xHand`: the Widowmaker's (vr_ad_widowmaker_pellets, AD's 21, each
-// vr_dmg_ad_widowmaker: the pellet damage set here) when a third shell is in the reserve (taken), else `pellets`.
-float(float xHand, float pellets) AD_WidowmakerPellets =
+// The Widowmaker as an auto shotgun (his VR notes 2026-10-18; AD's fired three shells at once, the super shotgun's
+// two and one from the reserve): from `xHand`, a shell from its tube (vr_reload.qc: loaded by hand a handful at a time
+// at the port on its receiver's inner side) of vr_ad_widowmaker_shot_pellets pellets, each vr_dmg_ad_widowmaker; W_Attack
+// fires it again every vr_ad_widowmaker_refire while the trigger is held. Its spent shell out of the receiver's other
+// side, as the shotgun's (vr_shells.cpp: its port).
+void(float xHand) AD_FireWidowmaker =
 {
-    if(!AD_HandUpgraded(xHand, ad_IT_UPGRADE_SSG) || self.ammo_shells < 1)
-    {
-        return pellets;
-    }
-    self.ammo_shells = self.ammo_shells - 1;
+    sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
+    self.punchangle_x = -3;
+    delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
     vr_pellet_damage = max(0, cvar("vr_dmg_ad_widowmaker"));
-    return max(1, rint(cvar("vr_ad_widowmaker_pellets")));
+    vr_decap_weapon = QVR_DECAP_SSG; // (head pops)
+    FireBullets(xHand, max(1, rint(cvar_hget(cvarh_vr_ad_widowmaker_shot_pellets))), VRGetWeaponFireRotFwd(xHand),
+        '0.045 0.03 0');
+    vr_decap_weapon = 0;
+    vr_pellet_damage = 0;
+    weaponfired(self, xHand); // (its drawn kick and muzzle flash: vr_weaponfx.cpp)
+    VRGunHaptic(xHand, 0.4, 75, 0.9);
+    ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, 1, 0.12, 0);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("widowmaker: hand %g fired, %g in its tube\n", xHand, VRGetEntWeaponClip(self, xHand)));
+    }
 };
 
-// Whether the super shotgun of record `xInst` (world: not known, a plain one) is the Widowmaker: reloaded at the hip (the
-// simple reload), never broken open (vr_reload.qc VR_Reload_ManualForInst).
+// Whether the super shotgun of record `xInst` (world: not known, a plain one) is the Widowmaker: its tube
+// (VR_ClipSizeOf), loaded at its port (vr_reload.qc), never broken open.
 float(entity xInst) AD_Widowmaker =
 {
     return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_SSG);
+};
+
+// The same of the gun `p` holds in `xHand`.
+float(entity p, float xHand) AD_WidowmakerIn =
+{
+    return VRGetEntWeapon(p, xHand) == WID_SUPER_SHOTGUN && AD_Widowmaker(VRGetEntWeaponInst(p, xHand));
+};
+
+// Whether the lightning gun of record `xInst` is the Plasma Gun (its own reloading mode: vr_reload_mode_adplasma).
+float(entity xInst) AD_PlasmaGunInst =
+{
+    return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_LG);
 };
 
 // Whether the lightning gun in `xHand` with flags `xFlags` is AD's Plasma Gun (not Rogue's plasma, its secondary ammo).

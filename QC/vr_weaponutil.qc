@@ -523,6 +523,18 @@ float(float wid) VR_Reload_ModeOf =
     return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
 }
 
+// The same of the weapon `wid` whose record is `inst` (world: not known): AD support: the Widowmaker and the Plasma Gun
+// (the super shotgun and the thunderbolt with AD's upgrade) have their own (vr_reload_mode_widow, _adplasma; -1 the
+// global, not their plain guns').
+float(float wid, entity inst) VR_Reload_ModeOfInst =
+{
+    float own = -1;
+    if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst))    { own = cvar_hget(cvarh_vr_reload_mode_widow); }
+    else if(wid == WID_LIGHTNING && AD_PlasmaGunInst(inst)) { own = cvar_hget(cvarh_vr_reload_mode_adplasma); }
+    else                                                    { return VR_Reload_ModeOf(wid); }
+    return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
+}
+
 // The highest reloading mode of any gun (the global mode and every override): whether the pouch, the magazines and the
 // rest of the immersive reloading's furniture are wanted at all.
 float() VR_Reload_BestMode =
@@ -536,6 +548,8 @@ float() VR_Reload_BestMode =
     best = max(best, cvar_hget(cvarh_vr_reload_mode_prox));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_rl));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_light));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_widow));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_adplasma));
     return best;
 }
 
@@ -595,4 +609,21 @@ float(float wid) WeaponIdToBaseClipSize =
 
     ASSERT(FALSE);
     return -1;
+}
+
+// The magazine size of the weapon `wid` whose record is `inst` (world: not known, a plain one): AD support: the
+// Widowmaker's tube (vr_ad_widowmaker_tube), else its kind's.
+float(float wid, entity inst) VR_ClipSizeOf =
+{
+    if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst))
+    {
+        return max(2, rint(cvar_hget(cvarh_vr_ad_widowmaker_tube)));
+    }
+    return WeaponIdToBaseClipSize(wid);
+}
+
+// The same of the weapon `p` holds in `xHand`.
+float(entity p, float xHand) VR_ClipSizeIn =
+{
+    return VR_ClipSizeOf(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 }

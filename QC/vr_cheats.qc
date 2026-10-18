@@ -77,7 +77,7 @@ void(float xHand) VR_Cheat_FillClip =
     {
         return;
     }
-    float size = WeaponIdToBaseClipSize(VRGetWeapon(xHand));
+    float size = VR_ClipSizeIn(self, xHand); // (AD support: the Widowmaker's tube)
     if(size > 0 && VRGetWeaponClip(xHand) < size)
     {
         VRSetWeaponClip(xHand, size);

@@ -49,7 +49,7 @@ void(float xHand, float xAid) updateAmmoCounter =
     else
     {
         VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
-        VRSetWeaponClipSize(xHand, WeaponIdToBaseClipSize(VRGetWeapon(xHand)));
+        VRSetWeaponClipSize(xHand, VR_ClipSizeIn(self, xHand)); // (AD support: the Widowmaker's tube)
     }
 }
 
@@ -2217,7 +2217,7 @@ void(float xHand) W_FireSuperShotgun =
     }
     else
     {
-        FireBullets(xHand, AD_WidowmakerPellets(xHand, 14), dir, '0.035 0.025 0'); // AD support: the Widowmaker's 21 (vr_ad_bridge.qc)
+        FireBullets(xHand, 14, dir, '0.035 0.025 0');
     }
     vr_decap_weapon = 0;
     vr_pellet_damage = 0;
@@ -3471,6 +3471,14 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         W_FireShotgun(xHand);
         *xOutAttackFinished = time + RuneApplyHell(MG3_BloodyShotgunRefire(0.5), self); // (Dawn of the Machine's bloody one: 0.28)
     }
+    else if(xWeapon == WID_SUPER_SHOTGUN && AD_WidowmakerIn(self, xHand))
+    {
+        // AD support: the Widowmaker, an auto shotgun: a shell a shot, again while the trigger is held (vr_ad_bridge.qc).
+        SuperDamageSound();
+        player_shot1(xHand);
+        AD_FireWidowmaker(xHand);
+        *xOutAttackFinished = time + RuneApplyHell(max(0.02, cvar_hget(cvarh_vr_ad_widowmaker_refire)), self);
+    }
     else if(xWeapon == WID_SUPER_SHOTGUN)
     {
         SuperDamageSound();
@@ -4575,9 +4583,9 @@ void(float xHolster, float v) setHolsterWeaponFlags =
     bprint("\n");
 }
 
-float(float xHotspot, float xWeapon) isReloadHolsterHotspot =
+float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 {
-    float mode = VR_Reload_ModeOf(xWeapon); // (the weapon's own override, else the global)
+    float mode = VR_Reload_ModeOfInst(xWeapon, xInst); // (the weapon's own override, else the global)
     if(mode == QVR_RELOADMODE_ALLHOLSTERS)
     {
         return TRUE;
@@ -5589,7 +5597,7 @@ VRReloadWeapon =
     VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
-    float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - clip;
+    float missingAmmo = VR_ClipSizeIn(entPlayer, xHand) - clip;
     float remainingAmmo = VR_AmmoUtil_GetAmmoCountByAmmoId(entPlayer, ammoId);
     float clampedMissingAmmo = clamp(missingAmmo, 0, remainingAmmo);
 
@@ -5598,7 +5606,7 @@ VRReloadWeapon =
 
     // The super shotgun, broken open, throws out its spent shells: flung by a flick reload
     // (vr_shells.cpp).
-    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0)
+    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0 && !AD_WidowmakerIn(entPlayer, xHand)) // (the Widowmaker's go as it fires)
     {
         entity oself = self;
         self = entPlayer;
@@ -5625,7 +5633,7 @@ void(entity entPlayer, float xHand, float xWeapon, float xWeaponFlags)
 VRTryReloadWeapon =
 {
     if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualForInst(xWeapon, VRGetEntWeaponInst(entPlayer, xHand)) &&
-       (VRGetEntWeaponClip(entPlayer, xHand) < WeaponIdToBaseClipSize(xWeapon)) &&
+       (VRGetEntWeaponClip(entPlayer, xHand) < VR_ClipSizeIn(entPlayer, xHand)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
         VRReloadWeapon(entPlayer, xHand, xWeapon, xWeaponFlags);
@@ -6007,7 +6015,7 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot, xWeapon) && !carried)
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot, xWeapon, VRGetEntWeaponInst(ent, xHand)) && !carried)
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags);
             }

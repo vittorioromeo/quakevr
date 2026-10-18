@@ -76,10 +76,12 @@ void(float xHand, entity xVictim) AD_AxeMark; // W_FireAxe: AD's mark of the axe
 void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe chops the bodies lying on the floor
 float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
 void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
-float(float xHand, float pellets) AD_WidowmakerPellets; // W_FireSuperShotgun: the Widowmaker's 21 (a reserve shell taken), or pellets
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
-float(entity xInst) AD_Widowmaker;   // vr_reload.qc: the super shotgun of record xInst is the Widowmaker (reloaded at the hip)
+float(entity xInst) AD_Widowmaker;   // the super shotgun of record xInst is the Widowmaker (its tube, its port: vr_reload.qc)
+float(entity p, float xHand) AD_WidowmakerIn; // the same of the gun p holds in xHand
+void(float xHand) AD_FireWidowmaker; // W_Attack: its shot (a shell from its tube)
 float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
+float(entity xInst) AD_PlasmaGunInst; // the lightning gun of record xInst is the Plasma Gun (its reload override)
 void(float xHand) AD_FirePlasma;     // W_Attack: its bolt
 void(entity xPickup, entity p, float xHand) AD_UpgradeGiven; // weapon_touch: its weapon given to p's hand xHand: the upgrade on it
 float(entity p) AD_PackWeaponUpgrades;   // SetChangeParms: the upgrades of p's weapons (hands, holsters) as one parm

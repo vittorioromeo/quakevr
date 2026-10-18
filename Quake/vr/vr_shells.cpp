@@ -77,6 +77,10 @@ constexpr Weapon weaponTable[] = {
         "14.372 -1.7654 6.1451"},
     {modelmeta::Id::VShot2, 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
         1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, "11.6867 1.5246 7.4443"},
+    // AD support: the Widowmaker's ejection slot (vr_adweapons.cpp widowmakerParts), on the receiver's outer side (-y),
+    // opposite its shell port: out sideways and up, onto the ground (as the shotgun's).
+    {modelmeta::Id::AdVrWidowmaker, 1, {{7.25f, -3.9f, 7.7f}}, {{-0.25f, -1.f, 0.6f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
+        "12.5 -3.6 9.2"},
 };
 
 // The casings' models (the QC's `kind`).
@@ -388,6 +392,12 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         const glm::vec3 left = glm::normalize(glm::cross(up, fwd));
         up = glm::cross(fwd, left);
         const glm::vec3 dir = worldDir(ve, at, portDir);
+        if(vr_debug_weaponfx.value)
+        {
+            // (Its way out along the model's +y, as drawn: mirrored in the off hand. A side port's load point faces +y.)
+            Con_Printf("shells out hand %d: along the model's +y %.2f, up %.2f\n", p.hand,
+                glm::dot(dir, worldDir(ve, at, {0.f, 1.f, 0.f})), glm::dot(dir, up));
+        }
 
         Shell& s = newShell();
         s = Shell{};

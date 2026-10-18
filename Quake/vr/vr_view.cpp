@@ -158,9 +158,10 @@ constexpr MagMount magMounts[] = {
     {modelmeta::Id::VPlasma, "progs/vr_mag_on_v_plasma.mdl", "7.0097 0.5622 3.9392", "progs/vr_magwell_on_v_plasma.mdl", {11.6f, 0.f, 3.f},
         {11.6f, 0.f, -0.6f}, QVR_WELL_OFFSETS(light), 2},
     // AD support: AD's Plasma Gun (vr_adweapons.cpp): the lightning gun's cell and well turned out of its inner side (+y),
-    // into the receiver made there; it pops out sideways (QC VR_Reload_MagOutWay: the way the well faces).
+    // into the receiver made there; it pops out sideways (QC VR_Reload_MagOutWay: the way the well faces). Seated 0.6 further
+    // out than the lightning gun's would be (his VR notes 2026-10-18: it shows a little more; vr_adweapons.cpp plasmaSeat).
     {modelmeta::Id::AdVrPlasma, "progs/vr_mag_on_v_plasma.mdl#vr", "11.6 1.5 4.5", "progs/vr_magwell_on_v_plasma.mdl#vr",
-        {11.6f, 1.5f, 4.5f}, {11.6f, 5.1f, 4.5f}, QVR_WELL_OFFSETS(light), 2},
+        {11.6f, 2.1f, 4.5f}, {11.6f, 5.7f, 4.5f}, QVR_WELL_OFFSETS(adplasma), 2},
 };
 #undef QVR_WELL_OFFSETS
 } // namespace
@@ -3163,6 +3164,14 @@ bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::v
             end = port + along * 2.2f;
             return true;
         }
+        if(lp.side)
+        {
+            // A side port (AD's Widowmaker): in through its gate, then forward into the tube.
+            port = at;
+            deep = at - glm::vec3{0.f, 1.4f, 0.f};
+            end = deep + glm::vec3{2.5f, 0.f, 0.f};
+            return true;
+        }
         if(lp.front)
         {
             // A launcher: back into the barrel from its muzzle, the round's middle the round's half length and more in.
@@ -3217,7 +3226,8 @@ bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec
         {
             way = glm::normalize(mount->seat - mount->centre);
         }
-        const glm::vec3 out = port.front ? way : port.magazine || ssg ? -way : glm::vec3{0.f, 0.f, -1.f};
+        const glm::vec3 out = port.side ? glm::vec3{0.f, 1.f, 0.f} : port.front ? way : port.magazine || ssg ? -way :
+            glm::vec3{0.f, 0.f, -1.f};
         at = ssg ? ssgTurn(point, ssgOpen) : point;
         axis = ssg ? ssgTurn(way, ssgOpen, false) : way;
         face = ssg ? ssgTurn(out, ssgOpen, false) : out;
