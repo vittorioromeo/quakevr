@@ -1286,7 +1286,13 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         }
         const glm::vec3 f = limbEnd(s, p, leg);
         const float len = limbLength(s, p, leg);
-        const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
+        // (A planted foot's floor traced once, as it stood or as it landed: a foot by a step's edge, traced again as it
+        // shifts a unit, read the step below and stopped bearing at once.)
+        if(leg == g.stepLeg || g.footFloor[i] < -1e29f)
+        {
+            g.footFloor[i] = leg == g.stepLeg ? -1e30f : floorAt(c, f, 0.3f, f.z - g.footGap[i]);
+        }
+        const float floor = leg == g.stepLeg ? floorAt(c, f, 0.3f, f.z - g.footGap[i]) : g.footFloor[i];
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
         // stand frame's feet level.)
         if(first)
