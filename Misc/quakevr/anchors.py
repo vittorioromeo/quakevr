@@ -224,7 +224,7 @@ def _read(rel):
     return open(os.path.join(ROOT, rel), encoding="utf-8").read()
 
 
-INC_RE = re.compile(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)')
+INC_RE = re.compile(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)')
 MAG_RE = re.compile(r'"progs/vr_mag_on_(v_\w+\.mdl)", "([^"]*)",')
 SHELL_RE = re.compile(r'\{modelmeta::Id::(\w+), .*?,\s+"([^"]*)"\},[ 	]*$', re.S | re.M)
 MONSTER_RE = re.compile(r'constexpr const char\* (soldier|enforcer)(Muzzle|Rear)\[\] = \{(.*?)\};', re.S)

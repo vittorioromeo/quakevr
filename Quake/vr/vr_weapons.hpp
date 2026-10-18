@@ -158,6 +158,10 @@ void setHotspot(int slot, int index, const Hotspot& h);
 [[nodiscard]] bool inheritable(Key key);
 void stopInheriting(int slot);
 
+// vr_wofs_dump [slot ...] (slots as vr_weapons.inc numbers them, from 0): every key's value the game uses for each slot
+// listed, with the slot it comes from where inherited; with none, the slots that inherit and from which (Debug menu).
+void dump_f();
+
 // The direction a weapon's shots go (its projectiles and beams too): the hand's aim `aimRot` (Quake angles) turned by the
 // slot's Shot Pitch (up) and Shot Yaw (left), in the aim's own frame, the yaw mirrored for a weapon held `mirrored` (the
 // off hand). `aimRot` itself for no slot or the empty hand, or with both 0. Nothing drawn moves with it.

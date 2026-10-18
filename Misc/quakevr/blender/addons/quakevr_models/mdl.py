@@ -258,7 +258,7 @@ def weapon_anchors(root, model_name):
     inc = os.path.join(root, "Quake", "vr", "vr_weapons.inc")
     slots = {}
     with open(inc) as f:
-        for s, k, v in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', f.read()):
+        for s, k, v in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', f.read()):
             slots.setdefault(int(s), {})[k] = v
     for slot in sorted(slots):
         keys = slots[slot]
@@ -297,7 +297,7 @@ def weapon_slots(root, model_name):
         return []
     slots = {}
     with open(os.path.join(root, "Quake", "vr", "vr_weapons.inc")) as f:
-        for s, k, v in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', f.read()):
+        for s, k, v in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', f.read()):
             slots.setdefault(int(s), {})[k] = v
     out = []
     for slot in sorted(slots):

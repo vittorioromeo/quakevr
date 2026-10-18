@@ -141,9 +141,63 @@ namespace
 // (their centre of mass 35 and 30 cm ahead of the grip, was 15), where the config still held 15. 47: AD's Widowmaker and
 // Plasma Gun (slots 34-35, vr_adweapons.cpp) remade: the Widowmaker's anchors, front handle hotspot and weight, the Plasma
 // Gun's button off and its kick and flash: both slots to their defaults (their own values were the placeholders that
-// inherit, and the old models' anchors). A first start (no saved
+// inherit, and the old models' anchors). 48: no AD weapon inherits (round 22, adnoinherit): slots 27-31, 33-35 own what
+// they inherited (their defaults the parents', vr_weapons.inc QVR_WEAPON_UNINHERITED; a config's inherited values made
+// theirs, so a Shadow Axe tuned on the axe's slot keeps it); the plain axe back to its size before adweapons2 (where the
+// config holds the Shadow Axe's size adweapons2 put there); the AD crossbow (slot 32) his. A first start (no saved
 // config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 47;
+constexpr int settingsVersion = 48;
+
+// AD support: the AD weapons that inherited another slot's settings until 48, and from which.
+struct Uninherited
+{
+    int slot;
+    int from;
+};
+constexpr Uninherited uninherited[] = {{27, 21}, {28, 21}, {29, 21}, {30, 21}, {31, 21}, {33, 0}, {34, 2}, {35, 7}};
+constexpr int numUninherited = sizeof(uninherited) / sizeof(uninherited[0]);
+
+// Their defaults before 48 (registerCvars: vr_weapons.inc without its QVR_WEAPON_UNINHERITED lines): a config's value
+// that is still one of these was a placeholder that gave way to the parent's.
+za::Array<const char*, numUninherited * numKeys> oldDefaults{};
+
+// Their defaults that were their own then (vr_weapons.inc QVR_WEAPON_OWN until 48): never the parent's.
+struct SlotKey
+{
+    int slot;
+    Key key;
+};
+constexpr SlotKey ownBefore48[] = {{34, Key::Hotspot1Type}, {34, Key::Hotspot1X}, {34, Key::Hotspot1Y}, {34, Key::Hotspot1Z},
+    {34, Key::Hotspot1Pitch}, {34, Key::Hotspot1Yaw}, {34, Key::Hotspot1Roll}, {34, Key::Mass}, {34, Key::Balance},
+    {34, Key::Span}, {35, Key::WpnButtonMode}, {35, Key::Recoil}, {35, Key::RecoilStrength}, {35, Key::RecoilTime},
+    {35, Key::Flash}, {35, Key::FlashSize}};
+
+[[nodiscard]] bool ownBefore(int slot, Key key)
+{
+    for(const SlotKey& sk : ownBefore48)
+    {
+        if(sk.slot == slot && sk.key == key)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// A slot's keys whose default changed, with the default before: a config still holding that one takes the new.
+struct OldValue
+{
+    int slot;
+    Key key;
+    float value;
+};
+constexpr OldValue changedIn48[] = {
+    // The plain axe: the Shadow Axe's size adweapons2 had put on its slot.
+    {0, Key::Scale, 0.36f}, {0, Key::OffsetY, 0.84f}, {0, Key::OffsetZ, -0.6f},
+    // The AD crossbow: the defaults before his tweaks.
+    {32, Key::Pitch, 3.801594f}, {32, Key::Roll, 3.026701f}, {32, Key::Yaw, -7.244246f}, {32, Key::ShotPitch, 7.f},
+    {32, Key::ShotYaw, 0.f}, {32, Key::Mass, 6.f}, {32, Key::Balance, 25.f}, {32, Key::RecoilStrength, 0.5f},
+    {32, Key::RecoilTime, 0.15f}, {32, Key::Flash, 1.f}, {32, Key::StockPitch, 0.f}, {32, Key::TorchForward, 0.f}};
 
 void resetSlot(int slot)
 {
@@ -225,6 +279,46 @@ void takeAdUpgrades()
     resetSlot(35);
 }
 
+// AD support (48): the AD weapons inherit no more. A slot still inheriting its old parent takes each value it took from
+// it (the parent's, where its own was the old placeholder default), then inherits nothing; one the player made stop
+// inheriting, or inherit another, keeps its values. Then the plain axe's and the crossbow's changed defaults, where the
+// config holds the old ones. (The parents first: the Shadow Axe takes the axe's slot's size before the axe gets back its own.)
+void takeUninherited()
+{
+    for(int i = 0; i < numUninherited; i++)
+    {
+        const Uninherited& u = uninherited[i];
+        cvar_t& inherit = cvarAt(u.slot, Key::InheritFrom);
+        if(static_cast<int>(inherit.value) - 1 != u.from)
+        {
+            continue;
+        }
+        int taken = 0;
+        for(int k = 0; k < numKeys; k++)
+        {
+            const Key key = static_cast<Key>(k);
+            cvar_t& var = cvarAt(u.slot, key);
+            const char* old = oldDefaults[i * numKeys + k];
+            if(!inheritable(key) || ownBefore(u.slot, key) || !old || strcmp(var.string, old) != 0)
+            {
+                continue;
+            }
+            Cvar_SetQuick(&var, cvarAt(ownerSlot(u.from, key), key).string);
+            taken++;
+        }
+        Cvar_SetQuick(&inherit, inherit.default_string);
+        Con_DPrintf("Weapon settings: slot %d took %d values it inherited from slot %d\n", u.slot, taken, u.from);
+    }
+    for(const OldValue& o : changedIn48)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-5f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -239,6 +333,7 @@ constexpr Step steps[] = {
     {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
     {46, takeAdHeavyBalance},
     {47, takeAdUpgrades},
+    {48, takeUninherited},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -327,9 +422,26 @@ void registerCvars()
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
+#define QVR_WEAPON_UNINHERITED(slot, key, value)
 #define QVR_WEAPON_OWN(slot, key) ownDefaults[(slot) * numKeys + static_cast<int>(Key::key)] = true;
 #include "vr_weapons.inc"
 #undef QVR_WEAPON_OWN
+#undef QVR_WEAPON_UNINHERITED
+#undef QVR_WEAPON_DEFAULT
+
+    // The AD weapons' defaults before vr_wofs_version 48 (takeUninherited), then the values they inherited until then,
+    // their own defaults now (the second pass reads only those).
+    for(int i = 0; i < numUninherited; i++)
+    {
+        for(int key = 0; key < numKeys; key++)
+        {
+            oldDefaults[i * numKeys + key] = cvarAt(uninherited[i].slot, static_cast<Key>(key)).string;
+        }
+    }
+#define QVR_WEAPON_DEFAULT(slot, key, value)
+#define QVR_WEAPON_UNINHERITED(slot, key, value) cvarAt(slot, Key::key).string = value;
+#include "vr_weapons.inc"
+#undef QVR_WEAPON_UNINHERITED
 #undef QVR_WEAPON_DEFAULT
 
     for(cvar_t& var : cvars)
@@ -816,6 +928,49 @@ void stopInheriting(int slot)
         }
     }
     Cvar_SetValueQuick(&cvarAt(slot, Key::InheritFrom), 0.f);
+}
+
+void dump_f()
+{
+    migrate(); // the config's settings as the game takes them
+    if(Cmd_Argc() < 2)
+    {
+        int n = 0;
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            const int from = inheritsFrom(slot);
+            if(from >= 0)
+            {
+                Con_Printf("wofs slot %d (%s) inherits slot %d (%s)\n", slot, cvarAt(slot, Key::ID).string, from,
+                    cvarAt(from, Key::ID).string);
+                n++;
+            }
+        }
+        Con_Printf("wofs: %d slots inherit (vr_wofs_dump <slot> ... prints a slot's values)\n", n);
+        return;
+    }
+    for(int arg = 1; arg < Cmd_Argc(); arg++)
+    {
+        const int slot = Q_atoi(Cmd_Argv(arg));
+        if(slot < 0 || slot >= numSlots)
+        {
+            continue;
+        }
+        for(int k = 0; k < numKeys; k++)
+        {
+            const Key key = static_cast<Key>(k);
+            const int owner = ownerSlot(slot, key);
+            if(owner == slot)
+            {
+                Con_Printf("wofs %d %s \"%s\"\n", slot, keyNames[k], cvarAt(slot, key).string);
+            }
+            else
+            {
+                Con_Printf("wofs %d %s \"%s\" <-%d (own \"%s\")\n", slot, keyNames[k], cvarAt(owner, key).string, owner,
+                    cvarAt(slot, key).string);
+            }
+        }
+    }
 }
 
 glm::vec3 vec(int slot, Key x, Key y, Key z)

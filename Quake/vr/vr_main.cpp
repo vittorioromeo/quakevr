@@ -1960,6 +1960,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_adgun_variants", adguns::variants_f); // AD support: the AD guns as our burst rifle's variants (vr_adgunart.cpp)
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
     Cmd_AddCommand("vr_adweapon_models", adweapons::info_f); // AD support: AD's upgraded weapons' VR models (vr_adweapons.cpp)
+    Cmd_AddCommand("vr_wofs_dump", weapons::dump_f); // the weapon settings in use, per slot (vr_weapons.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
     jobs::registerCommands();
