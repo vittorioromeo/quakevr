@@ -1234,12 +1234,12 @@ QVR_CVAR(vr_show_shoulder_holsters, "0", CVAR_NONE)
 QVR_CVAR(vr_shoulder_holster_offset_x, "-0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_offset_y, "2.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_offset_z, "-0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_thresh, "7", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_thresh, "7.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_upper_holsters, "0", CVAR_NONE)
 QVR_CVAR(vr_upper_holster_offset_x, "-4.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_y, "7.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_upper_holster_offset_z, "8.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_thresh, "6.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_thresh, "5.9", CVAR_ARCHIVE)
 // Each pair's holstered guns drawn (1) or not (0; vr_view.cpp setupHolsters): not drawn anywhere (the eyes, the desktop
 // window, the body clone), their screens, buttons, magazines and lava glow with them; still taken and put away there as
 // ever (the reach, the haptics, the sounds). The shoulder pair (on the back, the highest) hidden by default: in the way
@@ -1283,43 +1283,43 @@ QVR_CVAR(vr_holster_zones_show, "0", CVAR_NONE)          // 1: every zone as a w
 QVR_CVAR(vr_holster_zone_scale, "0.95", CVAR_ARCHIVE)       // every zone's size, times
 QVR_CVAR(vr_holster_zone_hysteresis, "0.15", CVAR_ARCHIVE) // the zone a hand is at keeps it this much (a share of its size) further out, and wins until another is this much deeper
 QVR_CVAR(vr_holster_zone_hand_point, "1", CVAR_ARCHIVE)  // 1: a hand holding a gun is tested at its palm as drawn too, beside the gun's grip and body (the holsters only; the pouches take an empty hand alone)
-QVR_CVAR(vr_holster_zone_hip_x, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_hip_y, "-2.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_hip_z, "-2.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_hip_depth, "0.15", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_hip_width, "0.55", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_hip_height, "1.1", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_x, "-3.75", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_y, "3.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_z, "-0.75", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_depth, "0.6", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_width, "0.6", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_upper_height, "0.7", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_shoulder_x, "-2.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_shoulder_y, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_shoulder_z, "-0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_x, "-0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_y, "-2.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_z, "-2.35", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_depth, "0.05", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_width, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_hip_height, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_x, "-2.35", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_y, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_z, "1.4", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_depth, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_width, "0.4", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_upper_height, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_x, "-2.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_y, "2.05", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_z, "-2.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_shoulder_depth, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_shoulder_width, "0.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_shoulder_height, "0.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_x, "-0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_shoulder_height, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_x, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_z, "2.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_depth, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_ammo_width, "0.75", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_ammo_height, "1.125", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_ammo_height, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_grenade_depth, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_grenade_depth, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_width, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_grenade_height, "1", CVAR_ARCHIVE)
 // A hand carrying a thing to put away (an ammo box, a health box, a backpack: STAT_QVR_CARRYITEM, QC VR_Carry_IsCollectable)
 // has each kind's zone this much larger about its middle (2026-10-17: "I drop a lot of items I want to collect"); not
 // a gun, a key, a grenade or anything else held. The ammo pouch's is for an ammo box (it takes those; anything else
 // let go of there goes into the pack too). 1: as a gun's.
-QVR_CVAR(vr_holster_zone_item_hip, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_item_upper, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_zone_item_shoulder, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_hip, "1.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_upper, "1.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_zone_item_shoulder, "2.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_item_ammo, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_item_grenade, "1.5", CVAR_ARCHIVE)
 // 1: the zones view also draws each zone's box as for a hand carrying an item (vr_holster_zone_item_*), in magenta, on
@@ -1364,9 +1364,9 @@ QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed h
 QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
 QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1),
 QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
-QVR_CVAR(vr_glove_thickness, "2", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
+QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
-QVR_CVAR(vr_glove_relief, "1", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
+QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)

@@ -201,6 +201,10 @@ void() OnLoadGame =
         p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
         p.vr_weapon_load_main = VRGetEntWeaponInst(p, cVR_MainHand);
         p.vr_weapon_load_off = VRGetEntWeaponInst(p, cVR_OffHand);
+        // AD support: the AD weapons in its hands and holsters made and precached again (precached late in the saved
+        // game; the hands' model fields name them, which the load's model rebinding doesn't cover: SV_ModelIndex fails)
+        VR_ADGun_EnsureCarried(p);
+        VR_ADMelee_EnsureCarried(p);
         p = find(p, classname, "player");
     }
 }

@@ -3,6 +3,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
+#include "vr_adguns.hpp"
 #include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_chainsaw.hpp"
@@ -1117,6 +1118,13 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
     else if(strstr(n, "v_rock") || strstr(n, "v_prox") || strstr(n, "v_multi"))
     {
         color(1.f, 0.55f, 0.3f);
+    }
+    else if(const int v = adguns::variantOf(n); v >= 0) // AD support: an AD soldier's gun's own (vr_adguns.hpp FireFeel)
+    {
+        const adguns::FireFeel& feel = adguns::fireFeel(v);
+        color(feel.light.r, feel.light.g, feel.light.b);
+        dl->radius *= feel.lightRadius;
+        dl->decay *= feel.lightRadius;
     }
 }
 

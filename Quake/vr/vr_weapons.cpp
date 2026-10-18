@@ -137,8 +137,10 @@ namespace
 // the config still held the old point. 43: slots 27-31 (AD support: Arcane Dimensions' soldiers' guns, vr_adguns.cpp;
 // unused placeholders before). 44: slot 33 (the AD crossbow) on its model turned to face +x (vr_adguns.cpp
 // turnedModels): the sideways model's offsets would turn it wrong; his pose converted is its default. 45: slots 27-31 again (the AD guns now our burst rifle's
-// variants, vr_adgunart.cpp: their IDs and anchors). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 45;
+// variants, vr_adgunart.cpp: their IDs and anchors). 46: the AD hunter ogres' hammer and mace (slots 44-45) head-heavy
+// (their centre of mass 35 and 30 cm ahead of the grip, was 15), where the config still held 15. A first start (no saved
+// config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 46;
 
 void resetSlot(int slot)
 {
@@ -200,6 +202,19 @@ void takeAdCrossbow()
     resetSlot(32);
 }
 
+// AD support: the hammer's and the mace's balance (46), where the config holds the old default.
+void takeAdHeavyBalance()
+{
+    for(int slot = 44; slot <= 45; slot++)
+    {
+        cvar_t& var = cvarAt(slot, Key::Balance);
+        if(var.value == 15.f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -212,6 +227,7 @@ constexpr Step steps[] = {
     {43, takeAdGuns},
     {44, takeAdCrossbow},
     {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
+    {46, takeAdHeavyBalance},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

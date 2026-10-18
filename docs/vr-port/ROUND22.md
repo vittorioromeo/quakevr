@@ -13010,6 +13010,26 @@ ours). Not the justice knight (its flat sword has no gib model of AD's to make i
 (hell knight, death lord, Quoth death guard): PASS, with 110-115 again; 93 (crossbow) PASS alone (run after the
 melee tests in one map its bolt hit the bodies left about), 97 its `#vr` models.
 
+### "They look like normal swords" (worktree `gorefx`, branch `agent/admelee2`, 2026-10-18)
+
+His session (log 2026-10-18_11-47-57) made them from the toolgun's Weapons tab, not from kills. The tab's AD rows made a
+`func_weapon_grabbable` with only `weapon 13`: no weapon flags, so no kind, so Quake VR's own knight's sword (its model,
+its damage, its weight). The kills' drops were right all along (his Steam AD 1.80p1 paks have every gib: `vr_admelee_models`
+makes all six). Fixed:
+- The toolgun's spawn rows carry weapon flags (`Spawnable::weaponFlags`, `box3d::spawnClass(..., weaponFlags)`;
+  `ad_monsters_gen.py` emits `QVR_AD_GUN(label, model, wid, choice, flags)`); a weapon picked with the toolgun keeps its
+  sword kind (bits 8-10 only: the rest is the picked one's state).
+- Loading a save with an AD melee weapon (or an AD gun) in a hand or holster was a crash (`SV_ModelIndex: model
+  progs/w_ogreham.mdl#melee not precached`: the load rebinds `.modelindex` values, not the hands' model names).
+  `OnLoadGame` makes and precaches them again (`VR_ADGun_EnsureCarried`, `VR_ADMelee_EnsureCarried`).
+- The hammer and the mace head-heavy: Balance 35 and 30 cm (was 15; slots 44-45, cvars `_45`/`_46`), `vr_wofs_version`
+  46 moves a config still at 15. Dropped the slots' dead first copies of Hotspot1 (the knight sword's, overridden).
+- Tests: `vr_ad_test 123` the nearest lying one taken, holstered at the left hip, drawn into the off hand; `125`
+  holstered at the right hip and kept; `124` what is carried (kind and model of each hand and holster). Toolgun fury
+  sword (125) and hammer (123), save, load, `changelevel e1m2`: both carried on their own models each time. 110, 112,
+  114, 115 PASS again. Screenshots of each pair held beside its monster: `scratch/admelee_held.png` (`scratch/shots.sh`).
+- Seen, not fixed: the hunter ogres get no ragdoll ("bone hand_r got 0 vertices"), with `vr_admelee_drops 0` too.
+
 ## Flinch: the odd-pose shuffle (worktree `fastship`, branch `agent/flinch3`, 2026-10-18)
 
 The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_* 0.5`) in vrtesthall, 12 runs a class.
@@ -13039,3 +13059,57 @@ The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_*
 - Fresh hits are unchanged (0.32-0.38 s, 0-1 steps). `vr_flinch 0` takes none of these paths (the new QC field is only
   read by the flinch).
 - eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs).
+
+## AD gun variants, second pass: his VR notes (2026-10-18, worktree `goreflesh`, branch `agent/adgunvariants2`)
+
+- **Rocket** (`vr_adgunart.cpp`): the muzzle is now a wide launch tube round the barrel (x 23.5..33, radius 3.45, olive,
+  rocket icons, a hazard band, a steel lip, dark inside, a red warhead nose in its mouth). The old top tube is now only
+  an exhaust: a pipe rising out of the magazine box's top near the muzzle (x 21.5, z 12.4) to a joint ring at x 14,
+  straight back at z 17.5 to x -1.5, then the flared bell (sooty inside) to x -5.5; one mount.
+- **Grenade**: the grafted launcher on top is gone. The muzzle is our `v_rock.mdl`'s hexagonal barrel (its body's
+  triangles from the drum's face forward, x >= 18), shortened to x 23..33 and at 0.92 across, its bore on the rifle's
+  barrel (`graftLauncher` now takes a filter and a placement). On top: an open-sided steel magazine box (x -3.6..10.6)
+  holding four grenades lying across it, with a chute from its front into the gun.
+- **Flamethrower and poison sprayer**: the hose inlet moved from the trigger to under the receiver between the grip and
+  the stock (a boss at x -6.4, its pipe's end at -7.3 1.15, leaving down and back). `hoseInlet` gives the new place, so
+  `vr_adtank.cpp`'s hose follows.
+- **Pilot light**: the modelled flame cone is gone. The pilot pipe stays, and its tip (31.2 0 5.6, `adguns::pilotLight`)
+  gives off a small continuous particle stream while the pyro's gun is held (`vr_adtank.cpp` pilotFlames). That is about
+  34 a second: small yellow tongues of flame, blue ones at the tip, now and then a spark (`particles::hotTrail`). It
+  is paced by game time, with nothing while paused or under water. `vr_adgun_hose_info` prints the count.
+- **Firing feel** (`adguns::FireFeel`, `fireFeel(variant)`): slot 21's recoil (1, 0.12 s) and flash (0.06 s) are
+  scaled per variant in `vr_weaponfx.cpp` playerFired/frame:
+  - rocket: recoil x2.5, time x2.5, flash x1.9
+  - grenade: recoil x2, time x2, flash x1.35
+  - defender: recoil x1.8, time x1.6, flash x1.5
+  - plasma, eliminator, centurion: recoil x0.8, x0.7 and x1
+  Each shot also throws particles at the drawn muzzle (`adGunBurst`):
+  - launchers: a smoke cloud and a spark shower; the rocket also a back-blast out of its exhaust bell (flame tongues,
+    sparks, smoke)
+  - shotgun: burning-powder sparks
+  - plasma guns: sparks in their colour
+  The muzzle flash's light (`VR_TuneDlight`) takes each variant's colour and reach (orange, 1.5x for the rocket). The
+  plasma guns' flashes are copies of our flash model, recoloured to their tint as they load
+  ("progs/vr_muzzleflash.mdl#adf2/4/5", `adguns::flashFile`). Quake's fullbright palette has no violet, so the
+  eliminator's flash is pale blue; its light is violet.
+- **Checked** (headless): `vr_ad_test 70` 9/9 PASS, `71` 8/8 PASS; every variant keeps the settings' corner
+  (`vr_adgun_variants`); `vr_debug_weaponfx 1` shows each variant's scaled recoil and flash, and its burst. Screenshots in
+  the worktree's `scratch/`:
+  - `adgun_variants2_held.png`: all eight, side view
+  - `rg_zoom.png`, `view2_zoom.png`, `view3_zoom.png`: rocket and grenade, side and 3/4 front
+  - `pf_zoom.png`: the pyro's and fumigator's hoses leaving behind the grip
+  - `fire3.png`, `fire5_zoom.png`: each variant firing: flashes, lights, the rocket's back-blast
+- **For him in VR**: the rocket tube's and the grenade muzzle's size; the exhaust over the sights; the pilot stream's
+  subtlety; whether the recoil scales feel right (rocket and grenade near the cap of 2.5).
+
+### His holster zones, thresholds and glove look are the defaults (config version 156)
+
+From his `quakevr/ironwail.cfg` of 2026-10-18; `vr_cvars.inc` defaults changed, and a config still at the old default takes
+the new one (`defaultChanges`, 156). Old -> new: vr_glove_relief 1 -> 1.25; vr_glove_thickness 2 -> 2.25;
+vr_holster_zone_ammo_height 1.125 -> 0.8, ammo_x -0.5 -> 0.2, ammo_z 0 -> 2.2; grenade_depth 1 -> 0.85;
+hip_depth 0.15 -> 0.05, hip_height 1.1 -> 0.7, hip_width 0.55 -> 0.5, hip_x 0 -> -0.9, hip_y -2.25 -> -2.75,
+hip_z -2.25 -> -2.35; item_hip 1.5 -> 1.75, item_shoulder 1.5 -> 2.5, item_upper 1.5 -> 1.75;
+shoulder_height 0.5 -> 0.55, shoulder_x -2.5 -> -2.75, shoulder_y 1 -> 2.05, shoulder_z -0.5 -> -2.3;
+upper_depth 0.6 -> 0.3, upper_height 0.7 -> 0.6, upper_width 0.6 -> 0.4, upper_x -3.75 -> -2.35, upper_y 3.25 -> 0.75,
+upper_z -0.75 -> 1.4; vr_shoulder_holster_thresh 7 -> 7.5; vr_upper_holster_thresh 6.5 -> 5.9. Weapon offsets
+(vr_wofs_*) and his other glove values were left out.
