@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD ragdolls part 2: AD knight, AD ogre (nail/flak/marksman), death lord, Quoth death guard, deflector now ragdoll: kill, shove, get-up, lift and neck snap (not the ogre's neck); deflector's gun swings on its hand
 Flamethrower lights (Light Sources > Flamethrower Lights 3, Size): AD pyro gun and pyro monsters light walls, floor, your hands and gun orange; too strong? pops or lags when sweeping the stream?
 Flinch Leg Balance (Combat > Flinch: "On, Leg Balance", vr_flinch 2; default still 1): shotgun to the chest and medium blows on flat ground: steps back instead of freezing? uppercuts: no float/spring back; try Leg Balance: Push; don't judge stairs yet (round 2 in progress)
 AD weapons round 2: Widowmaker two-hander (front handle hotspot angle a guess; very dark skin); Plasma Gun side cell: eject and reload, receiver size; no ammo button; muzzle sparks/recoil; crossbow Align Sights now works (will change your Shot Pitch +7 vs rail -11); Shadow Axe chops downed AD zombies (your axe size now default for both axes)
