@@ -30,11 +30,11 @@ string(entity inflictor, entity attacker) VR_Highlight_Weapon =
     float hand = vr_hithand >= 0 ? vr_hithand : cVR_MainHand;
     if(vr_hitkind == QVR_HITKIND_HEADBUTT) { return "headbutt"; }
     if(vr_hitkind == QVR_HITKIND_SHOVE)    { return "shove"; }
-    if(vr_hitkind == QVR_HITKIND_BASH)     { return sprintf("%s bash", WeaponIdToWeaponName(VRGetEntWeapon(attacker, hand))); }
+    if(vr_hitkind == QVR_HITKIND_BASH)     { return sprintf("%s bash", WeaponNameOf(VRGetEntWeapon(attacker, hand), VRGetEntWeaponFlags(attacker, hand))); }
     if(vr_hitkind == QVR_HITKIND_SPLASH)   { return "discharge"; }
     if(vr_hitkind == QVR_HITKIND_SHOT && vr_hitweapon != "") { return vr_hitweapon; }
     if(vr_hitkind == QVR_HITKIND_BLEED)    { return "bleeding"; }
-    return WeaponIdToWeaponName(VRGetEntWeapon(attacker, hand));
+    return WeaponNameOf(VRGetEntWeapon(attacker, hand), VRGetEntWeaponFlags(attacker, hand));
 };
 
 // T_Damage, a blow about to kill `targ`: its score as a moment (0: not one), its detail in vr_hl_what. The kill is
@@ -136,7 +136,7 @@ void(entity p, entity attacker, float hand) VR_Highlight_Parry =
     string how = "crossed arms";
     if(hand >= 0)
     {
-        how = sprintf("%s, %s", WeaponIdToWeaponName(VRGetEntWeapon(p, hand)), VR_Dummy_HandName(hand));
+        how = sprintf("%s, %s", WeaponNameOf(VRGetEntWeapon(p, hand), VRGetEntWeaponFlags(p, hand)), VR_Dummy_HandName(hand));
     }
     highlight(attacker.vr_eshove_striking ? "shoveparry" : "parry", 0, attacker, how, 0);
 };

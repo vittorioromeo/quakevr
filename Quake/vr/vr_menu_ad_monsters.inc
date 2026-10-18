@@ -100,7 +100,8 @@
         command("Melee Weapons Dropped: Death Fury", "vr_ad_test 110")
             .help("Destructive: the death fury nearest you killed; its two swords lie, go into both hands and strike a "
                   "target, one hand and two (admelee: lines). 111-115 (console): the death knight, zombie knight, death "
-                  "guard, the hammer's and the mace's hunter ogres."),
+                  "guard, the hammer's and the mace's hunter ogres; 120-122: AD's hell knight, the death lord, "
+                  "Quoth's death guard (Quake VR's hell knight's sword)."),
         command("Melee Weapons: Fury's Swords in Hand", "vr_ad_test 116")
             .help("Both hands get the death fury's swords. 117: the death knight's and zombie knight's; 118: the death "
                   "guard's and the hammer; 119: the mace and the knight's own sword (console)."),

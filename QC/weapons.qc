@@ -5086,7 +5086,7 @@ void MakeThrown(entity newmis,
     newmis.handtouch = wpnthrow_handtouch;
 
     newmis.classname = "thrown_weapon";
-    newmis.netname = WeaponIdToWeaponName(xWeapon);
+    newmis.netname = WeaponNameOf(xWeapon, xWeaponFlags);
 
     newmis.avelocity = xAVel;
 

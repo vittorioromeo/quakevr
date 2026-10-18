@@ -11,7 +11,9 @@
 // `vr_ad_test 110`..`115` (the fury, the death knight, the zombie knight, the death guard, the hammer's ogre, the mace's):
 // the nearest such monster (the toolgun's, or `vr_test_spawn <n>; impulse 241`) is killed; its weapon (the fury's two)
 // lies, is taken (the fury's into both hands) and swung once with one hand and once with two at a target. "admelee:"
-// lines, then PASS or FAIL. `116`..`119`: two of them put in your hands (to look at them; 119 the mace and the knight's own sword).
+// lines, then PASS or FAIL. `120`..`122`: AD's hell knight, the death lord, Quoth's death guard (they drop Quake VR's
+// hell knight's sword; AD's knight its knight's sword: VR_ADMelee_KnightSwordOf). `116`..`119`: two of them put in
+// your hands (to look at them; 119 the mace and the knight's own sword).
 
 float vr_admelee_dropped; // the weapons the monsters dropped (the tests)
 
@@ -87,10 +89,39 @@ void(float xKind, float xSide) VR_ADMelee_DropOne =
     }
 };
 
+// AD's other sword users drop Quake VR's own knight's sword (AD's knight: 1) or hell knight's (2: AD's hell knight, the
+// death lord, Quoth's death guard; their meshes id's and Quoth's hell knight's); 0: none.
+float(float t) VR_ADMelee_KnightSwordOf =
+{
+    if(t == ad_CT_MONKNIGHT) { return 1; }
+    if(t == ad_CT_MONHELLK || t == ad_CT_MONDLORD || t == ad_CT_MONDGUARDQ) { return 2; }
+    return 0;
+};
+
 void() VR_ADMelee_Drop =
 {
+    if(!cvar("vr_admelee_drops"))
+    {
+        return;
+    }
+    float ks = VR_ADMelee_KnightSwordOf(self.ad_classtype);
+    if(ks)
+    {
+        VR_DropKnightSword(ks == 2);
+        vr_admelee_dropped++;
+        if(self.ad_classtype == ad_CT_MONDLORD)
+        {
+            self.ad_gib2mdl = ad_string_null; // (the death lord's sword is its second gib, its head the first)
+        }
+        else
+        {
+            self.ad_gib1mdl = ad_string_null;
+        }
+        dprint(sprintf("admelee: %s drops a %s\n", self.classname, ks == 2 ? "hell knight's sword" : "knight's sword"));
+        return;
+    }
     float kind = VR_ADMelee_ForClass(self.ad_classtype);
-    if(!kind || !cvar("vr_admelee_drops"))
+    if(!kind)
     {
         return;
     }
@@ -109,7 +140,8 @@ void() VR_ADMelee_Drop =
 
 float vr_admelee_step;
 float vr_admelee_ok;
-float vr_admelee_kind;
+float vr_admelee_class; // the monster class tested
+float vr_admelee_flags; // and the weapon flags of the sword it drops
 float vr_admelee_count; // the drops seen before the kill
 float vr_admelee_grip;  // vr_weapon_grip_mode before the test
 
@@ -210,28 +242,28 @@ void() VR_ADMelee_Finish =
     float reach = vlen(VRGetMuzzlePos(cVR_MainHand) - VRGetHandPos(cVR_MainHand));
     self = was;
     VR_ADMelee_Report(sprintf("held a moment on (%s, its tip %.1f from the hand)", p.weaponmodel, reach),
-        p.weaponmodel == VR_ADMelee_Model(vr_admelee_kind) && reach > 15);
+        p.weaponmodel == WeaponIdToModel(WID_SWORD, vr_admelee_flags) && reach > 15);
     VR_ADMelee_Hold(p, cVR_MainHand);
-    if(vr_admelee_kind == VR_ADMELEE_FURY)
+    if(VR_ADMelee_Kind(vr_admelee_flags) == VR_ADMELEE_FURY)
     {
         VR_ADMelee_Hold(p, cVR_OffHand);
     }
     cvar_set("vr_weapon_grip_mode", ftos(vr_admelee_grip));
-    bprint(sprintf("admelee: %s test %s\n", VR_ADMelee_Name(vr_admelee_kind), vr_admelee_ok ? "PASS" : "FAIL"));
+    bprint(sprintf("admelee: %s test %s\n", WeaponNameOf(WID_SWORD, vr_admelee_flags), vr_admelee_ok ? "PASS" : "FAIL"));
     remove(self);
 };
 
 void() VR_ADMelee_Think =
 {
     entity p = self.owner;
-    float k = vr_admelee_kind;
+    float k = VR_ADMelee_Kind(vr_admelee_flags);
     float want = k == VR_ADMELEE_FURY ? 2 : 1;
     if(vr_admelee_step == 0)
     {
         entity m = world;
         for(entity e = nextent(world); e; e = nextent(e))
         {
-            if(e.ad_classtype == VR_ADMelee_ClassOf(k) && e.health > 0 &&
+            if(e.ad_classtype == vr_admelee_class && e.health > 0 &&
                (!m || vlen(e.origin - p.origin) < vlen(m.origin - p.origin)))
             {
                 m = e;
@@ -248,7 +280,8 @@ void() VR_ADMelee_Think =
         VR_ADMelee_Report(sprintf("killed (health %g); dropped %g", m.health, vr_admelee_dropped - vr_admelee_count),
             m.health <= 0 && vr_admelee_dropped - vr_admelee_count == want);
         VR_ADMelee_Report(sprintf("AD's gibs throw none (gib1 '%s', gib2 '%s')", m.ad_gib1mdl, m.ad_gib2mdl),
-            m.ad_gib1mdl == ad_string_null && (want == 1 || m.ad_gib2mdl == ad_string_null));
+            (vr_admelee_class == ad_CT_MONDLORD) ? (m.ad_gib2mdl == ad_string_null) :
+                (m.ad_gib1mdl == ad_string_null && (want == 1 || m.ad_gib2mdl == ad_string_null)));
         vr_admelee_step = 1;
         self.nextthink = time + 1.5; // (the drop lands)
         return;
@@ -258,15 +291,16 @@ void() VR_ADMelee_Think =
     float n = 0;
     for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
     {
-        if(t.weapon == WID_SWORD && VR_ADMelee_Kind(t.weaponflags) == k)
+        if(t.weapon == WID_SWORD && t.weaponflags == vr_admelee_flags)
         {
             n++;
             w2 = w1;
             w1 = t;
         }
     }
-    VR_ADMelee_Report(sprintf("its %s lying (%g, %s, model index %g)", VR_ADMelee_Name(k), n, w1 ? w1.model : "none",
-        w1 ? w1.modelindex : 0), n >= want && w1.modelindex > 0 && w1.model == VR_ADMelee_Model(k));
+    VR_ADMelee_Report(sprintf("its %s lying (%g, %s, model index %g, named %s)", WeaponNameOf(WID_SWORD, vr_admelee_flags), n,
+        w1 ? w1.model : "none", w1 ? w1.modelindex : 0, w1 ? w1.netname : "-"), n >= want && w1.modelindex > 0 &&
+        w1.model == WeaponIdToModel(WID_SWORD, vr_admelee_flags) && w1.netname == WeaponNameOf(WID_SWORD, vr_admelee_flags));
     if(!w1)
     {
         remove(self);
@@ -276,7 +310,8 @@ void() VR_ADMelee_Think =
     VR_ADMelee_Take(p, w1, cVR_MainHand);
     VR_ADMelee_Report(sprintf("taken into the main hand (weapon %g, kind %g, model %s)", VRGetEntWeapon(p, cVR_MainHand),
         VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand)), p.weaponmodel),
-        VRGetEntWeapon(p, cVR_MainHand) == WID_SWORD && VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand)) == k);
+        VRGetEntWeapon(p, cVR_MainHand) == WID_SWORD &&
+        (VRGetEntWeaponFlags(p, cVR_MainHand) & (QVR_WPNFLAG_SWORD_KIND | QVR_WPNFLAG_USE_SECONDARY_AMMO)) == vr_admelee_flags);
     float thing = VR_Melee_Thing(p, cVR_MainHand);
     VR_ADMelee_Report(sprintf("strikes as %s", thing == VR_MTHING_AXE ? "a head (blunt)" : "a sword"),
         thing == (VR_ADMelee_Heavy(k) ? VR_MTHING_AXE : VR_MTHING_SWORD));
@@ -321,7 +356,7 @@ void(float request, entity p) AD_MeleeTest =
         bprint("admelee: Arcane Dimensions' data is not loaded\n");
         return;
     }
-    if(request >= 116)
+    if(request >= 116 && request <= 119)
     {
         float a = request == 116 ? VR_ADMELEE_FURY : (request == 117 ? VR_ADMELEE_DKNIGHT : (request == 118 ?
             VR_ADMELEE_DGUARD : VR_ADMELEE_MACE));
@@ -348,7 +383,16 @@ void(float request, entity p) AD_MeleeTest =
     entity t = spawn();
     t.classname = "vr_admelee_test";
     t.owner = p;
-    vr_admelee_kind = request - 109;
+    if(request >= 120)
+    {
+        vr_admelee_class = request == 120 ? ad_CT_MONHELLK : (request == 121 ? ad_CT_MONDLORD : ad_CT_MONDGUARDQ);
+        vr_admelee_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (Quake VR's hell knight's sword)
+    }
+    else
+    {
+        vr_admelee_class = VR_ADMelee_ClassOf(request - 109);
+        vr_admelee_flags = VR_ADMelee_Flags(request - 109);
+    }
     vr_admelee_step = 0;
     vr_admelee_ok = TRUE;
     vr_admelee_grip = cvar("vr_weapon_grip_mode");

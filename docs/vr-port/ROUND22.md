@@ -12999,3 +12999,13 @@ In VR: kill each of them and take the weapon; dual-wield the fury's swords; swin
 (slow, weak) and two; check the hands' grip on each (slots 41-46: tune in Weapon Offsets) and that their corpses hold
 nothing; look at the zombie knight's sword's hilt (AD's `w_zombiesword` gib is the knight sword's shape with the zombie
 skin: no hilt was added).
+
+After next's merge (adweapons, adgunvariants: slots 33-35 and 27-31 theirs, 36-39 unused, ours 40-45 unchanged): the
+weapons have their own names (`WeaponNameOf(wid, flags)`: the thrown weapon's `netname`, the highlights and the
+dummy's log; the hell knight's sword "Hell Knight's Sword"). AD's other sword users drop Quake VR's swords
+(`VR_ADMelee_KnightSwordOf`): AD's knight the knight's, AD's hell knight, the death lord and Quoth's death guard the
+hell knight's (AD's gib of it not thrown); hidden in their death frames (`vr_monstermods.cpp`, new model ids AdKnight,
+AdDlord, AdDguardq). The drop is called before `VR_AD_Dying`'s `vr_ad_mon` check (Quoth's two aren't set up as
+ours). Not the justice knight (its flat sword has no gib model of AD's to make it from). `vr_ad_test 120`-`122`
+(hell knight, death lord, Quoth death guard): PASS, with 110-115 again; 93 (crossbow) PASS alone (run after the
+melee tests in one map its bolt hit the bodies left about), 97 its `#vr` models.

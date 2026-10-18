@@ -149,7 +149,7 @@ void() VR_ADMelee_Drop;                          // VR_AD_Dying: self, an AD mel
 void(float xClass) VR_ADMelee_Prepare;           // VR_AD_MonsterSetup: its weapons' models made and precached now
 void(float wid, float xFlags) VR_ADMelee_Placed; // a sword of a kind laid or carried: its model made and precached
 void(entity p) VR_ADMelee_EnsureCarried;         // DecodeLevelParms: p's carried ones made and precached
-void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..119: the AD melee weapons' tests
+void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests
 
 // vr_ad_enemyguns.qc (after AD's files) defines these.
 float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack: TRUE fired

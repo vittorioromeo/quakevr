@@ -421,6 +421,23 @@ float(float wid) WeaponIdToInitialAmmoCount =
     return -1;
 }
 
+string(float wid) WeaponIdToWeaponName;
+
+// Its name as this one is (its flags: AD support, an AD melee monster's weapon of the knight's sword's id has its own:
+// vr_ad_guns_defs.qc).
+string(float wid, float xWeaponFlags) WeaponNameOf =
+{
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags))
+    {
+        return VR_ADMelee_Name(VR_ADMelee_Kind(xWeaponFlags));
+    }
+    if(wid == WID_SWORD && (xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    {
+        return "Hell Knight's Sword";
+    }
+    return WeaponIdToWeaponName(wid);
+};
+
 string(float wid) WeaponIdToWeaponName =
 {
     if(wid == WID_FIST)             { return "Fist"; }

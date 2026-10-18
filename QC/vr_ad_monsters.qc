@@ -437,6 +437,7 @@ void(entity attacker) VR_AD_Dying =
 {
     vr_ad_kd_down = FALSE;
     vr_ad_hl_score = 0;
+    VR_ADMelee_Drop(); // its own weapons, a melee monster's (vr_ad_melee.qc; Quoth's too, not set up as ours)
     if(!self.vr_ad_mon)
     {
         return;
@@ -445,7 +446,6 @@ void(entity attacker) VR_AD_Dying =
     vr_ad_hl_what = vr_hl_what;
     VR_Stealth_Died(self);
     VR_ADGun_Drop(); // its own gun, an armed soldier's (vr_ad_enemyguns.qc)
-    VR_ADMelee_Drop(); // its own weapons, a melee monster's (vr_ad_melee.qc)
     self.vr_ai_gate = 0;
     VR_Parry_Unsway(self);
     VR_Corpse_DieWhole(self);
