@@ -19,6 +19,7 @@
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
 #include "vr_autopump.hpp"
+#include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"

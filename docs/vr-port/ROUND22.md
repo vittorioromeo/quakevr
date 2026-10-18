@@ -12822,3 +12822,67 @@ show, the grain reads as pebbled leather; the palm's old checkered aliasing is g
 
 For him in VR: the relief's depth (`vr_glove_relief`, 0.5-1.5), the grain's coarseness up close (`grain()` in the
 generator), whether the padded panels between the seams read on the fingers' sides.
+## AD guns as burst rifle variants; the flamethrowers' tank and hose (2026-10-18, worktree `goreflesh`, branch `agent/adgunvariants`)
+
+His voice notes (2026-10-18): the AD soldiers' guns are all variations of the grunt's burst rifle: our burst rifle as
+the base, each with its own cue in geometry and texture; the flamethrower and the poison sprayer with a simulated hose
+to a small tank on the back (over the shoulder or below the hip, visible in the mirror); every variant in the toolgun.
+
+- **The models** (`vr_adgunart.cpp`, new): "progs/v_gruntgun.mdl#adv<n>" (n: 0 rocket, 1 grenade, 2 plasma, 3 defender,
+  4 eliminator, 5 centurion, 6 pyro, 7 fumigator), made as they load from our own `v_gruntgun.mdl` (its triangles,
+  skin coordinates and frame 0 kept; nothing written anywhere; about 1 ms each). The skin grows 160 rows for the
+  add-ons; the rifle's texels are recoloured per gun (their light kept: a palette remap) and decals painted where its
+  sides face (each texel's place found through its triangle); the add-ons are tubes and boxes with painted surfaces.
+  Every add-on stays inside the rifle's packing corner (scale_origin x -29.9, y -6.17, z -4.6: `vr_adgun_variants`
+  says "corner moved" otherwise) and short of its muzzle, so slot 21's settings hold every variant as the rifle:
+  - rocket: olive; a launch tube on two mounts over the rifle, its rear an exhaust bell (sooty inside), a warhead in
+    its mouth, rocket icons and a hazard band on the tube, rockets painted on the magazine box;
+  - grenade: our `v_rock.mdl`'s barrel and drum (its connected pieces, the grip and trigger left out) at 0.8 on top, its
+    own skin pasted at half size (lifted: its blue-greys read black); hazard stripes on the box;
+  - plasma (blue): two cathode tubes in copper rings beside the barrel, lightning on the box's sides;
+  - eliminator (violet): three copper coils on the barrel's end, a glowing tube under it, a bank of glowing cells;
+  - centurion (cyan): a banded glass capacitor drum on top, two cathode spikes standing on the box, three bolts of
+    lightning;
+  - defender: gunmetal; a magazine tube and a ribbed wooden pump under the barrel, shell carriers on both sides of the
+    receiver, rows of shells on the box;
+  - pyro: red-orange; a flared nozzle and a pilot light, a fuel canister under the receiver (its hose's inlet behind),
+    flames up the box's sides, hazard stripes;
+  - fumigator: green; a flat spray head, the same canister, poison bubbles, hazard stripes.
+- **Wired**: QC `VR_ADGun_Model` names them (AD's data still needed to carry the guns: their sounds and sprites); the
+  toolgun's AD guns and the AD monsters' spawner (`vr_ad_spawnguns.inc`, `ad_monsters_gen.py`); slots 27-31 (Weapon
+  Offsets 28-32) by the monster that drops them ("#adv012", "#adv34", "#adv5", "#adv6", "#adv7": `adguns::slotNames`
+  reads a slot's ID "#adv<digits>" as the variants listed), each inheriting slot 21 (the burst rifle) and repeating its
+  anchors; `vr_wofs_version` 45 resets those five slots once (44 is the crossbow's). The older models cut from AD's monsters
+  ("<monster>.mdl#gun<skin>") still load for a saved game naming them (held without a slot's settings).
+- **`weapons::value` and an inheriting slot's own defaults** (the reported bug): every default of an inheriting slot
+  gave way to its parent's, so slots 28-31's own Offset Y and hotspots (the enforcer-mesh guns' wider corner) were
+  never used. ROUND21's design keeps "own = differs from the default" (the lava nailguns' old values are placeholders),
+  so the fix is explicit: `QVR_WEAPON_OWN(slot, key)` in `vr_weapons.inc` marks a default as the slot's own
+  (`ownDefaults`; `value`, `ownerSlot` and `stopInheriting` share `takesParents`). No slot needs one now (the variants
+  are the burst rifle's own shape); checked: the variants hold exactly as the rifle (inheritance through the new path).
+- **The tank and hose** (`vr_adtank.cpp`, new): holding the pyro's or the fumigator's gun, a 27 cm tank (red or green, a
+  hazard band, a valve) stands on the middle of the back, carried by the chest (`vr_adgun_tank_x/y/z` -9 0 8; two such
+  guns: two tanks side by side), and a hose (2.2 cm) runs from its bottom to the gun's canister: 26 Verlet points
+  (`vr_verlet.cpp`'s fall and holdLengths) pinned at the tank, at a clip and at the gun (with a stub at each end), the
+  clip at the gun hand's hip (`vr_adgun_hose_route` 0) or on its shoulder (1); the piece to the gun pays out as the gun
+  moves away (its rest 1.15 times the distance, at least 30 cm), the body's movement carries the free points, the torso
+  (an elliptic cylinder) pushes them out. Drawn as the flashlight's plain cord (`coil::Cord::shape`, `gfx::drawTube`) and
+  the tank as a tube of rings, both again reflected in the body's mirror image (`bodyclone::mirror`). `vr_adgun_hose`
+  1 (0: none). VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns: Fuel Tank and Hose, Hose Route, Tank
+  Forward, Tank Up. Debug > Tests > Arcane Dimensions Monsters: Gun Variants (`vr_adgun_variants`), Hold the
+  Flamethrower / Poison Sprayer, Fuel Hose Info (`vr_adgun_hose_info`).
+- **Cost**: 0.006-0.009 ms a frame stepping one hose, 0.010-0.012 ms building its rings and the tank's (151 + 18 rings,
+  mirror included); nothing without such a gun in hand.
+- **Checked** (headless, AD linked into the kit base): `vr_ad_test 70` 9/9 PASS (every gun fired with its variant model),
+  `vr_ad_test 71` 8/8 PASS (each dropped with its variant model and clip); `ad_import.py --check --release` 0 of 142
+  differ; QC 0 warnings. Screenshots in the worktree's `scratch/`: `adgun_variants_held.png` (the eight held, side
+  view, in WID order), `adgun_variants_dropped.png` (the eight dropped round the player, from above, fullbright),
+  `adgun_hose_tank.png` (the pyro's tank and hose from behind and the side, aiming up, walking, over the shoulder, the
+  fumigator's), `adgun_hose_mirror.png` (the body's mirror image holding the flamethrower: the hose in it;
+  `vr_adgun_hose_info`: 151 and 18 rings drawn reflected).
+- **For him in VR**: each variant's look up close (the cues readable? the grenade launcher's grafted body big
+  enough?), the hold (the burst rifle's: the rocket tube and the grenade body sit over the sights); the hose's way
+  (hip or shoulder) while aiming, walking, crouching, and the tank's place (Tank Forward/Up); the mirror (a body page
+  with Body Clone While Tweaking).
+- **Not done**: the hose doesn't collide with the world or the arms (the torso only); one-frame models (no firing
+  animation, as AD's cut guns); a gun's add-ons don't change its mass or balance (the rifle's).

@@ -2864,65 +2864,48 @@ QVR_WEAPON_DEFAULT(26, RecoilTime, "0.12")
 QVR_WEAPON_DEFAULT(26, Flash, "0")
 QVR_WEAPON_DEFAULT(26, TracerChance, "0")
 QVR_WEAPON_DEFAULT(26, StockPitch, "0")
-// AD support: Arcane Dimensions' armed soldiers' guns (QC vr_ad_enemyguns.qc; vr_wofs_version 43; unused placeholders
-// before), made from AD's monster models as they load (vr_adguns.cpp: "<monster model>#gun<skin>"; a slot's ID without
-// the skin names every skin's gun: weapons::slotForModel). Laid as Quake VR's enemy guns lie (the barrel along +x, the
-// hand's place at the origin), each inherits their settings: the soldier's gun slot 21's (v_gruntgun.mdl: the same
-// scale_origin, so the same Offsets and hotspots hold it); the enforcer's, the centurion's, the pyro's and the
-// fumigator's slot 22's (v_enfrifle.mdl), packed from a corner 1.41 units further out on y (wider guns), so their Offset Y
-// is the rifle's plus 0.6 * 1.41 and their hotspots' y the rifle's less it. Their anchors are their own (vr_adgun_models
-// prints the muzzle: the middle of the gun's front end); the foregrip anchor halfway along the barrel's underside.
-QVR_WEAPON_DEFAULT(27, ID, "progs/mon_soldier.mdl#gun")
+// AD support: Arcane Dimensions' armed soldiers' guns (QC vr_ad_enemyguns.qc; vr_wofs_version 43, 45; unused
+// placeholders before 43): variants of Quake VR's burst rifle (v_gruntgun.mdl, slot 21), each with its own add-ons and
+// skin, made as they load (vr_adguns.cpp: "progs/v_gruntgun.mdl#adv<n>", n the gun: 0 rocket, 1 grenade, 2 plasma,
+// 3 defender, 4 eliminator, 5 centurion, 6 pyro, 7 fumigator; a slot's ID "#adv<digits>" names each gun listed:
+// weapons::slotForModel). The burst rifle's own frame, scale_origin and grip: each slot inherits slot 21's settings
+// (InheritFrom 22) and repeats its anchors (they never inherit). By the AD monster that drops them: the soldiers' three,
+// the enforcers' two, the centurion's, the pyro's, the fumigator's.
+QVR_WEAPON_DEFAULT(27, ID, "progs/v_gruntgun.mdl#adv012")
 QVR_WEAPON_DEFAULT(27, InheritFrom, "22")
-QVR_WEAPON_DEFAULT(27, MuzzleAnchor, "33.2729 0.012 1.9617")
-QVR_WEAPON_DEFAULT(27, HandAnchor, "15.08 0 3.15")
-QVR_WEAPON_DEFAULT(27, TwoHHandAnchor, "15.08 0 3.15")
-QVR_WEAPON_DEFAULT(27, WpnButtonAnchor, "15.08 0 3.15")
-QVR_WEAPON_DEFAULT(27, WpnTextAnchor, "0 0 8.4")
-QVR_WEAPON_DEFAULT(28, ID, "progs/mon_enforcer.mdl#gun")
-QVR_WEAPON_DEFAULT(28, InheritFrom, "23")
-QVR_WEAPON_DEFAULT(28, OffsetY, "4.446")
-QVR_WEAPON_DEFAULT(28, Hotspot1Y, "-2.637656")
-QVR_WEAPON_DEFAULT(28, Hotspot2Y, "-2.714438")
-QVR_WEAPON_DEFAULT(28, Hotspot3Y, "-2.486136")
-QVR_WEAPON_DEFAULT(28, MuzzleAnchor, "36.5778 -0.0045 2.7404")
-QVR_WEAPON_DEFAULT(28, HandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(28, TwoHHandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(28, WpnButtonAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(28, WpnTextAnchor, "2 0 8.75")
-QVR_WEAPON_DEFAULT(29, ID, "progs/mon_centurion.mdl#gun")
-QVR_WEAPON_DEFAULT(29, InheritFrom, "23")
-QVR_WEAPON_DEFAULT(29, OffsetY, "4.446")
-QVR_WEAPON_DEFAULT(29, Hotspot1Y, "-2.637656")
-QVR_WEAPON_DEFAULT(29, Hotspot2Y, "-2.714438")
-QVR_WEAPON_DEFAULT(29, Hotspot3Y, "-2.486136")
-QVR_WEAPON_DEFAULT(29, MuzzleAnchor, "36.4906 0.047 2.6007")
-QVR_WEAPON_DEFAULT(29, HandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(29, TwoHHandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(29, WpnButtonAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(29, WpnTextAnchor, "2 0 8.75")
-QVR_WEAPON_DEFAULT(30, ID, "progs/mon_pyro.mdl#gun")
-QVR_WEAPON_DEFAULT(30, InheritFrom, "23")
-QVR_WEAPON_DEFAULT(30, OffsetY, "4.446")
-QVR_WEAPON_DEFAULT(30, Hotspot1Y, "-2.637656")
-QVR_WEAPON_DEFAULT(30, Hotspot2Y, "-2.714438")
-QVR_WEAPON_DEFAULT(30, Hotspot3Y, "-2.486136")
-QVR_WEAPON_DEFAULT(30, MuzzleAnchor, "36.61 0.0482 2.8751")
-QVR_WEAPON_DEFAULT(30, HandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(30, TwoHHandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(30, WpnButtonAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(30, WpnTextAnchor, "2 0 8.75")
-QVR_WEAPON_DEFAULT(31, ID, "progs/mon_fumigator.mdl#gun")
-QVR_WEAPON_DEFAULT(31, InheritFrom, "23")
-QVR_WEAPON_DEFAULT(31, OffsetY, "4.446")
-QVR_WEAPON_DEFAULT(31, Hotspot1Y, "-2.637656")
-QVR_WEAPON_DEFAULT(31, Hotspot2Y, "-2.714438")
-QVR_WEAPON_DEFAULT(31, Hotspot3Y, "-2.486136")
-QVR_WEAPON_DEFAULT(31, MuzzleAnchor, "36.61 0.0482 2.8751")
-QVR_WEAPON_DEFAULT(31, HandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(31, TwoHHandAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(31, WpnButtonAnchor, "23 0 3.15")
-QVR_WEAPON_DEFAULT(31, WpnTextAnchor, "2 0 8.75")
+QVR_WEAPON_DEFAULT(27, MuzzleAnchor, "33.1463 0.0159 8.0776")
+QVR_WEAPON_DEFAULT(27, HandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(27, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(27, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(27, WpnTextAnchor, "-1.2426 0.1134 13.5556")
+QVR_WEAPON_DEFAULT(28, ID, "progs/v_gruntgun.mdl#adv34")
+QVR_WEAPON_DEFAULT(28, InheritFrom, "22")
+QVR_WEAPON_DEFAULT(28, MuzzleAnchor, "33.1463 0.0159 8.0776")
+QVR_WEAPON_DEFAULT(28, HandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(28, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(28, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(28, WpnTextAnchor, "-1.2426 0.1134 13.5556")
+QVR_WEAPON_DEFAULT(29, ID, "progs/v_gruntgun.mdl#adv5")
+QVR_WEAPON_DEFAULT(29, InheritFrom, "22")
+QVR_WEAPON_DEFAULT(29, MuzzleAnchor, "33.1463 0.0159 8.0776")
+QVR_WEAPON_DEFAULT(29, HandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(29, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(29, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(29, WpnTextAnchor, "-1.2426 0.1134 13.5556")
+QVR_WEAPON_DEFAULT(30, ID, "progs/v_gruntgun.mdl#adv6")
+QVR_WEAPON_DEFAULT(30, InheritFrom, "22")
+QVR_WEAPON_DEFAULT(30, MuzzleAnchor, "33.1463 0.0159 8.0776")
+QVR_WEAPON_DEFAULT(30, HandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(30, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(30, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(30, WpnTextAnchor, "-1.2426 0.1134 13.5556")
+QVR_WEAPON_DEFAULT(31, ID, "progs/v_gruntgun.mdl#adv7")
+QVR_WEAPON_DEFAULT(31, InheritFrom, "22")
+QVR_WEAPON_DEFAULT(31, MuzzleAnchor, "33.1463 0.0159 8.0776")
+QVR_WEAPON_DEFAULT(31, HandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(31, TwoHHandAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(31, WpnButtonAnchor, "2.4953 -3.1017 11.5991")
+QVR_WEAPON_DEFAULT(31, WpnTextAnchor, "-1.2426 0.1134 13.5556")
 // AD support: Arcane Dimensions' upgraded weapons (QC vr_ad_bridge.qc: the Shadow Axe, the Widowmaker, the Plasma
 // Gun), their VR models made from AD's view models as they load (vr_adweapons.cpp: "<AD view model>#vr"), laid in the
 // frame of the Quake VR weapon they upgrade and packed from its model's corner, so they inherit its settings: the
@@ -3053,4 +3036,12 @@ QVR_WEAPON_DEFAULT(32, HandAnchor, "0 0 0")
 QVR_WEAPON_DEFAULT(32, TwoHHandAnchor, "20 0 -2")
 QVR_WEAPON_DEFAULT(32, WpnButtonAnchor, "0 0 0")
 QVR_WEAPON_DEFAULT(32, WpnTextAnchor, "2 0 6")
+#endif
+
+
+#ifdef QVR_WEAPON_OWN
+// An inheriting slot's defaults that are its own (vr_weapons.cpp ownDefaults): QVR_WEAPON_OWN(slot, key) keeps that
+// slot's default of the key its own, never its parent's. Without it every default of an inheriting slot is a
+// placeholder that gives way to the parent's value (ROUND21: "own" is what differs from the default), as before.
+// (None yet: the AD guns of slots 27-31 are the burst rifle's own shape now.)
 #endif

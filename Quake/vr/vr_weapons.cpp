@@ -52,6 +52,23 @@ za::Array<cvar_t, numSlots * numKeys> cvars{};
     return cvars[slot * numKeys + static_cast<int>(key)];
 }
 
+// An inheriting slot's defaults its own (vr_weapons.inc QVR_WEAPON_OWN): at its default such a key is still the slot's,
+// never its parent's. Every other default of an inheriting slot is a placeholder that gives way to the parent's (an own
+// value is one that differs from the default: ROUND21's design).
+za::Array<bool, numSlots * numKeys> ownDefaults{};
+
+// Whether `slot`'s value of `key` gives way to its parent's (the slot inherits it, the value is the default, and the
+// default is not marked the slot's own).
+[[nodiscard]] bool takesParents(int slot, Key key, int from)
+{
+    if(from < 0)
+    {
+        return false;
+    }
+    const cvar_t& own = cvarAt(slot, key);
+    return !strcmp(own.string, own.default_string) && !ownDefaults[slot * numKeys + static_cast<int>(key)];
+}
+
 // Model -> slot, and the fist's slot (-2: not looked up yet), found again whenever a
 // vr_wofs_id_NN cvar changes.
 ankerl::unordered_dense::map<const qmodel_t*, int> slotCache;
@@ -119,9 +136,9 @@ namespace
 // (`15.4 0.0064 5.7941`, make_toolgun.py's point; the old one, a corner of the lens's back, was about 1 cm off), where
 // the config still held the old point. 43: slots 27-31 (AD support: Arcane Dimensions' soldiers' guns, vr_adguns.cpp;
 // unused placeholders before). 44: slot 33 (the AD crossbow) on its model turned to face +x (vr_adguns.cpp
-// turnedModels): the sideways model's offsets would turn it wrong; his pose converted is its default. A first start (no
-// saved config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 44;
+// turnedModels): the sideways model's offsets would turn it wrong; his pose converted is its default. 45: slots 27-31 again (the AD guns now our burst rifle's
+// variants, vr_adgunart.cpp: their IDs and anchors). A first start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 45;
 
 void resetSlot(int slot)
 {
@@ -168,7 +185,7 @@ void takeToolgunMuzzle()
     }
 }
 
-// AD support: the AD soldiers' guns (43; unused placeholders before).
+// AD support: the AD soldiers' guns (43; unused placeholders before; 45: made from our burst rifle, vr_adgunart.cpp).
 void takeAdGuns()
 {
     for(int slot = 27; slot <= 31; slot++)
@@ -194,6 +211,7 @@ constexpr Step steps[] = {
     {42, takeToolgunMuzzle},
     {43, takeAdGuns},
     {44, takeAdCrossbow},
+    {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -282,7 +300,9 @@ void registerCvars()
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
+#define QVR_WEAPON_OWN(slot, key) ownDefaults[(slot) * numKeys + static_cast<int>(Key::key)] = true;
 #include "vr_weapons.inc"
+#undef QVR_WEAPON_OWN
 #undef QVR_WEAPON_DEFAULT
 
     for(cvar_t& var : cvars)
@@ -480,9 +500,8 @@ int ownerSlot(int slot, Key key)
 {
     for(int depth = 0; depth < 4 && slot >= 0 && inheritable(key); depth++)
     {
-        const cvar_t& own = cvarAt(slot, key);
         const int from = inheritsFrom(slot);
-        if(from < 0 || strcmp(own.string, own.default_string) != 0)
+        if(!takesParents(slot, key, from))
         {
             break;
         }
@@ -745,18 +764,9 @@ float value(int slot, Key key)
     {
         return 0.f;
     }
-    // Inherited (a chain of at most a few: no loops) where this slot's own is its default.
-    for(int depth = 0; depth < 4 && inheritable(key); depth++)
-    {
-        const cvar_t& own = cvarAt(slot, key);
-        const int from = inheritsFrom(slot);
-        if(from < 0 || strcmp(own.string, own.default_string) != 0)
-        {
-            break;
-        }
-        slot = from;
-    }
-    return cvarAt(slot, key).value;
+    // Inherited (a chain of at most a few: no loops) where this slot's own is its default and that default is not
+    // marked its own (QVR_WEAPON_OWN: an inheriting slot's own defaults were ignored before, its parent's taken).
+    return cvarAt(ownerSlot(slot, key), key).value;
 }
 
 void stopInheriting(int slot)
@@ -773,8 +783,7 @@ void stopInheriting(int slot)
     }
     for(int key = 0; key < numKeys; key++)
     {
-        const cvar_t& own = cvarAt(slot, static_cast<Key>(key));
-        if(inheritable(static_cast<Key>(key)) && !strcmp(own.string, own.default_string))
+        if(inheritable(static_cast<Key>(key)) && takesParents(slot, static_cast<Key>(key), inheritsFrom(slot)))
         {
             Cvar_SetValueQuick(&cvarAt(slot, static_cast<Key>(key)), values[key]);
         }
