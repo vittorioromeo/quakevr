@@ -34,6 +34,7 @@ void() VR_AD_MonsterSetup =
     float t = self.ad_classtype;
     self.vr_ad_mon = 0;
     VR_ADGun_Prepare(t); // (an armed soldier's gun: made and precached as it spawns, not at its death: vr_ad_enemyguns.qc)
+    VR_ADMelee_Prepare(t); // (a melee monster's weapons likewise: vr_ad_melee.qc)
     // Death knight (progs/mon_dknight.mdl: deaths 212-223, 224-243). Head zone: headfit.py mon_dknight 27 1 7 (middle
     // 6.5 0.3 31.3, radius 7.3; its rig's head 8.2 -0.3 32.3).
     if(t == ad_CT_MONDKNIGHT)
@@ -436,6 +437,7 @@ void(entity attacker) VR_AD_Dying =
 {
     vr_ad_kd_down = FALSE;
     vr_ad_hl_score = 0;
+    VR_ADMelee_Drop(); // its own weapons, a melee monster's (vr_ad_melee.qc; Quoth's too, not set up as ours)
     if(!self.vr_ad_mon)
     {
         return;
@@ -671,6 +673,12 @@ string(float choice) VR_AD_DispenserModel =
     if(choice == 319) { return "progs/mon_fumigator.mdl"; }
     if(choice == 325) { return "progs/w_dcrossbow.mdl"; }
     if(choice == 326) { return "progs/mon_freddie.mdl"; }
+    if(choice == 340) { return "progs/w_dfurysword1.mdl"; }
+    if(choice == 341) { return "progs/w_dknightsword.mdl"; }
+    if(choice == 342) { return "progs/w_zombiesword.mdl"; }
+    if(choice == 343) { return "progs/w_dguardsword.mdl"; }
+    if(choice == 344) { return "progs/w_ogreham.mdl"; }
+    if(choice == 345) { return "progs/w_ogremac.mdl"; }
     return "";
 };
 
@@ -772,6 +780,12 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 319) { self.classname = "func_weapon_grabbable"; self.weapon = 27; func_weapon_grabbable(); }
     else if(choice == 325) { self.classname = "func_weapon_grabbable"; self.weapon = 28; func_weapon_grabbable(); }
     else if(choice == 326) { self.classname = "func_weapon_grabbable"; self.weapon = 7; func_weapon_grabbable(); }
+    else if(choice == 340) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 256; func_weapon_grabbable(); }
+    else if(choice == 341) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 512; func_weapon_grabbable(); }
+    else if(choice == 342) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 768; func_weapon_grabbable(); }
+    else if(choice == 343) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1024; func_weapon_grabbable(); }
+    else if(choice == 344) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1280; func_weapon_grabbable(); }
+    else if(choice == 345) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1536; func_weapon_grabbable(); }
     else
     {
         dprint(sprintf("admon: no AD monster %g\n", choice));

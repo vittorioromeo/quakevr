@@ -141,7 +141,8 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     {
         vr_dummy_colour = orange;
         string bash = sprintf("bash with the %s, %s",
-                       WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
+                       WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand),
+                           VRGetEntWeaponFlags(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
                        vr_bash_both ? "two hands" : "one hand");
         bash = vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
         return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", bash, vr_bash_exhaust_dmg,
@@ -204,7 +205,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         string weapon = vr_hitweapon;
         if(weapon == "")
         {
-            weapon = vr_hithand >= 0 ? WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand)) : "hitscan";
+            weapon = vr_hithand >= 0 ? WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand), VRGetEntWeaponFlags(attacker, vr_hithand)) : "hitscan";
         }
         return sprintf("weapon fire: %s", weapon);
     }

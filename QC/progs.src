@@ -469,6 +469,8 @@ vr_ad_stealth.qc
 // The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
 vr_ad_enemyguns.qc
 vr_ad_enemyguns_test.qc
+// AD's melee monsters' weapons: dropped (VR_AD_Dying), their tests (after the guns' test harness: its target).
+vr_ad_melee.qc
 // The held guns' models the map can give (the engine prepares their convex pieces at load).
 vr_gunprep.qc
 vr_ad_monsters_test.qc

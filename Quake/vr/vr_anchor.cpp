@@ -1,7 +1,6 @@
 #include "vr_alloccount.h"
 // vr_anchor.cpp -- see vr_anchor.hpp.
 
-#include "vr_adguns.hpp"
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_mdldequant.hpp"

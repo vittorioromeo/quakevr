@@ -12961,3 +12961,51 @@ to a small tank on the back (over the shoulder or below the hip, visible in the 
 - `vr_flinch_debug 3` also prints every hit that reaches the flinch and why a class cannot flinch.
   `vr_flinch_test_health` gives the test grunt more health, for the real weapons test.
 - eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs from the baseline).
+## AD melee monsters drop their weapons (worktree `gorefx`, branch `agent/admelee`, 2026-10-18)
+
+Arcane Dimensions' melee monsters drop their weapons as Quake VR's knights drop their swords (QC `vr_ad_melee.qc`,
+from `VR_AD_Dying`; `vr_admelee_drops`): the death fury its two swords (one per hand: dual-wield), the death knight, the
+zombie knight and the death guard their swords, the hunter ogres their hammer and mace. AD's gibs throw no second one
+(`ad_gib1mdl`/`ad_gib2mdl` cleared). Each is the knight's sword, `WID_SWORD`, with a kind in its weapon flags (bits 8-10,
+`QVR_WPNFLAG_SWORD_KIND`, `vr_ad_guns_defs.qc`): no new weapon id, item bit or ammo; it holsters, throws and parries as
+the knight's sword. Those bits are the grapple's hook tag's, so `DecodeLevelParms` now strips the tag from a grapple
+only (`VR_Grapple_StripTagOf`): a sword keeps its kind across a level change.
+
+- Models (`vr_admelee.cpp`, `"<AD weapon model>#melee"` through `VR_DerivedModelFile`): AD's own weapon gibs
+  (`w_dfurysword1`, `w_dknightsword`, `w_zombiesword`, `w_dguardsword`, `w_ogreham`, `w_ogremac`), rotated, scaled 2.6x
+  and re-packed so they lie exactly as `v_ksword.mdl` does (the hand at its grip, the blade or handle along its line,
+  the guard or the head's width along its guard). Nothing of AD's is written; without AD the knight's sword stands in.
+  `vr_admelee_models` prints them. `vr_anchor.cpp` reads any `#` model through `VR_DerivedModelFile` (it read only
+  `#gun` before).
+- Weapon slots 41-46 (0-based 40-45; `numSlots` 46, 34-40 unused for the parallel adweapons work): slot 19's settings
+  with each one's tip, second hand and mass (swords 3.5-4.5 kg, hammer 12, mace 11). No config migration (new cvars).
+- Heavy (hammer, mace): their mass makes the spring swing them slowly in one hand, faster in two (`vr_weight_spring_2h`);
+  damage `vr_admelee_heavy_damage` (1.6x the knight's sword) in two hands, `vr_admelee_heavy_1h` (0.5) of it in one.
+  They strike as an axe's head that cuts nothing off (`VR_Melee_Thing`: no beheading or limb cuts) and blunt
+  (`vr_melee_blunt`: blunt sounds, dents, small gibs; the chainsaw's blunt hit layer). AD swords:
+  `vr_admelee_sword_damage` (1.25, the hell knight's). VR Settings > Combat > Enemy Weapons > AD's Guns: "Melee Monsters'
+  Weapons".
+- Corpses and ragdolls hold none (`vr_monstermods.cpp`: the weapon's vertices, rigid in the hand in every frame alive,
+  collapsed in the rigs' death frames): fury 1240-1375 (both swords), death knight 870-910, death guard 544-584 (deaths
+  A-D, 195-255), hammer ogre 210-482, mace ogre 216-406. Not the zombie knight: its fall frames are its knockdown's too
+  (it gets up); killed for good its body keeps its blade (open question).
+- Toolgun: Weapons tab, AD group, choices 340-345 (`ad_monsters_gen.py` GUNS rows now take weapon flags).
+- Tests: `vr_ad_test 110`..`115` (fury, death knight, zombie knight, death guard, hammer ogre, mace ogre): killed, the
+  drop lies, taken (the fury's into both hands), struck one-handed and two-handed, held a moment on: all PASS (swords
+  31 = 31; hammer 23 / 46, mace 22 / 44: the 0.5 share). `116`..`119` put two in your hands (to look at them); Debug
+  menu rows on the AD Monsters page.
+
+In VR: kill each of them and take the weapon; dual-wield the fury's swords; swing the hammer and the mace with one hand
+(slow, weak) and two; check the hands' grip on each (slots 41-46: tune in Weapon Offsets) and that their corpses hold
+nothing; look at the zombie knight's sword's hilt (AD's `w_zombiesword` gib is the knight sword's shape with the zombie
+skin: no hilt was added).
+
+After next's merge (adweapons, adgunvariants: slots 33-35 and 27-31 theirs, 36-39 unused, ours 40-45 unchanged): the
+weapons have their own names (`WeaponNameOf(wid, flags)`: the thrown weapon's `netname`, the highlights and the
+dummy's log; the hell knight's sword "Hell Knight's Sword"). AD's other sword users drop Quake VR's swords
+(`VR_ADMelee_KnightSwordOf`): AD's knight the knight's, AD's hell knight, the death lord and Quoth's death guard the
+hell knight's (AD's gib of it not thrown); hidden in their death frames (`vr_monstermods.cpp`, new model ids AdKnight,
+AdDlord, AdDguardq). The drop is called before `VR_AD_Dying`'s `vr_ad_mon` check (Quoth's two aren't set up as
+ours). Not the justice knight (its flat sword has no gib model of AD's to make it from). `vr_ad_test 120`-`122`
+(hell knight, death lord, Quoth death guard): PASS, with 110-115 again; 93 (crossbow) PASS alone (run after the
+melee tests in one map its bolt hit the bodies left about), 97 its `#vr` models.

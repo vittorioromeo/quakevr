@@ -456,7 +456,9 @@ float(entity p, float xHand) VR_Melee_Thing =
     }
     if(wid == WID_SWORD)
     {
-        return VR_MTHING_SWORD;
+        // AD support: the hunter ogres' hammer and mace strike with their heads, as an axe's (cutting nothing off, as
+        // Mjolnir: vr_decap.qc VR_Decap_Blade; vr_ad_guns_defs.qc).
+        return VR_ADMelee_Heavy(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) ? VR_MTHING_AXE : VR_MTHING_SWORD;
     }
     if(wid == WID_CROWBAR)
     {

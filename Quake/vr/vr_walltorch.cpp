@@ -5,6 +5,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_limbmodel.hpp"
+#include "vr_admelee.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
 
@@ -437,6 +438,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         return limb;
     }
     if(byte* gun = adguns::derivedFile(name, path_id)) { return gun; } // AD support: an AD soldier's gun (vr_adguns.cpp)
+    if(byte* melee = admelee::derivedFile(name, path_id)) { return melee; } // AD support: an AD melee weapon (vr_admelee.cpp)
     if(byte* weapon = adweapons::derivedFile(name, path_id)) { return weapon; } // AD support: AD's upgraded weapons (vr_adweapons.cpp)
     const auto id = modelmeta::identifyPath(name);
     if(id == modelmeta::Id::Vrtorch)

@@ -457,14 +457,17 @@ void() DecodeLevelParms =
     // (A gun carried by its foregrip is held normally in a new level: the client's pose is gone.)
     // (Nor a grappling hook's tag: its hook stayed in the last level.)
     // (Nor a chainsaw's running engine: it starts again with its cord.)
-    self.weaponflags = VR_Grapple_StripTag(parm23 - (parm23 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
-    self.weaponflags2 = VR_Grapple_StripTag(parm24 - (parm24 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
-    self.holsterweaponflags0 = VR_Grapple_StripTag(parm25);
-    self.holsterweaponflags1 = VR_Grapple_StripTag(parm26);
-    self.holsterweaponflags2 = VR_Grapple_StripTag(parm27);
-    self.holsterweaponflags3 = VR_Grapple_StripTag(parm28);
-    self.holsterweaponflags4 = VR_Grapple_StripTag(parm29);
-    self.holsterweaponflags5 = VR_Grapple_StripTag(parm30);
+    // (A grapple's only: those bits are an AD sword's kind, vr_ad_guns_defs.qc.)
+    float handOnly = QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE;
+    self.weaponflags = VR_Grapple_StripTagOf(self.weapon, parm23 - (parm23 & handOnly));
+    self.weaponflags2 = VR_Grapple_StripTagOf(self.weapon2, parm24 - (parm24 & handOnly));
+    self.holsterweaponflags0 = VR_Grapple_StripTagOf(self.holsterweapon0, parm25);
+    self.holsterweaponflags1 = VR_Grapple_StripTagOf(self.holsterweapon1, parm26);
+    self.holsterweaponflags2 = VR_Grapple_StripTagOf(self.holsterweapon2, parm27);
+    self.holsterweaponflags3 = VR_Grapple_StripTagOf(self.holsterweapon3, parm28);
+    self.holsterweaponflags4 = VR_Grapple_StripTagOf(self.holsterweapon4, parm29);
+    self.holsterweaponflags5 = VR_Grapple_StripTagOf(self.holsterweapon5, parm30);
+    VR_ADMelee_EnsureCarried(self); // AD support: AD melee weapons carried here precached (vr_ad_melee.qc)
 };
 
 /*
@@ -3006,7 +3009,9 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         else
         {
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-            vr_melee_blunt = b.mh_kind == VR_MKIND_POMMEL; // its own sound (VR_Melee_HitSound)
+            vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
+                             ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
+                              VR_ADMelee_Heavy(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
             vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
             vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
             if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))

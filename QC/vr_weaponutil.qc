@@ -185,6 +185,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags)) { return VR_ADMelee_Model(VR_ADMelee_Kind(xWeaponFlags)); } // AD
     if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
     if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
     if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }
@@ -419,6 +420,23 @@ float(float wid) WeaponIdToInitialAmmoCount =
     ASSERT(FALSE);
     return -1;
 }
+
+string(float wid) WeaponIdToWeaponName;
+
+// Its name as this one is (its flags: AD support, an AD melee monster's weapon of the knight's sword's id has its own:
+// vr_ad_guns_defs.qc).
+string(float wid, float xWeaponFlags) WeaponNameOf =
+{
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags))
+    {
+        return VR_ADMelee_Name(VR_ADMelee_Kind(xWeaponFlags));
+    }
+    if(wid == WID_SWORD && (xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    {
+        return "Hell Knight's Sword";
+    }
+    return WeaponIdToWeaponName(wid);
+};
 
 string(float wid) WeaponIdToWeaponName =
 {
