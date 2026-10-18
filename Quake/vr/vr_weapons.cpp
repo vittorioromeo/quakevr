@@ -141,9 +141,14 @@ namespace
 // (their centre of mass 35 and 30 cm ahead of the grip, was 15), where the config still held 15. 47: AD's Widowmaker and
 // Plasma Gun (slots 34-35, vr_adweapons.cpp) remade: the Widowmaker's anchors, front handle hotspot and weight, the Plasma
 // Gun's button off and its kick and flash: both slots to their defaults (their own values were the placeholders that
-// inherit, and the old models' anchors). A first start (no saved
-// config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 47;
+// inherit, and the old models' anchors). 48: the AD melee weapons' tips (slots 40-44) on their models made anew
+// (vr_admelee.cpp: the fury's sword and the hammer turned half round), where the config still held the old tip. A first
+// start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 48;
+
+// The AD melee weapons' tips (slots 40-44) before 48.
+constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
+    "34.8005 -0.1473 91.7639", "35.565 -0.2178 93.7812", "18.6015 -0.0368 92.3618"};
 
 void resetSlot(int slot)
 {
@@ -225,6 +230,19 @@ void takeAdUpgrades()
     resetSlot(35);
 }
 
+// AD support: the AD melee weapons' tips (48) on their models made anew, where the config holds the old tip.
+void takeAdMeleeTips()
+{
+    for(int slot = 40; slot <= 44; slot++)
+    {
+        cvar_t& var = cvarAt(slot, Key::MuzzleAnchor);
+        if(!strcmp(var.string, oldAdMeleeTips[slot - 40]))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -239,6 +257,7 @@ constexpr Step steps[] = {
     {45, takeAdGuns}, // (the AD guns made from our burst rifle: their slots' IDs and anchors)
     {46, takeAdHeavyBalance},
     {47, takeAdUpgrades},
+    {48, takeAdMeleeTips},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

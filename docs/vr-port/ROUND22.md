@@ -13394,3 +13394,35 @@ Grunt, recovered/8 (flat shotgun 64, flat blow, flat uppercut, slope blow, stair
 ### VR Calibration: height step dropped when standing (calibstep)
 
 The intro ("Stand up straight and look ahead, hold still") and Body Calibration step 1 (Stand Tall) both measured the eye height standing. Standing now goes intro -> Body Calibration straight (no separate HEIGHT step); Stand Tall says "Hold still." too and judges its pose at the height held. Seated keeps the HEIGHT step (Body Calibration has no Stand Tall then). The data is unchanged: Stand Tall's capture and vr_height_calibration on Apply are the same code; a body result that is not applied no longer leaves the intro's height behind.
+
+## AD melee weapons made anew for VR (worktree `gorefx`, branch `agent/admelee3`, 2026-10-18)
+
+His VR notes: the fury's sword faced the wrong way and read as a thick metal rod; the other three swords as chunky;
+the hammer's spiky side faced the player; the hammer's and mace's handles and guards chunky (their heads fine).
+`vr_admelee.cpp` no longer lays AD's gib as it is: it builds the weapon (in AD's units, the weapon's own frame at the
+hand, then laid as the knight's sword as before):
+- **Swords:** a blade along AD's blade's spine (Hermite through measured points; the fury's curved): six-sided
+  (flat, edges bevelled), half-thickness 0.26-0.32 (AD's was 1-1.5), half-width 1.35-1.95 (AD's 1.5-2.5), the point
+  an ogive; a crossguard bar (eight-sided, a wider middle the blade goes through, finials, its ends curled a little
+  towards the blade; the fury's leans as AD's did); a turned pommel, a wrapped grip (radius 0.58-0.62, AD's 1.5) and a
+  ferrule. Same pommel, guard and tip places as AD's.
+- **Hammer, mace:** AD's head kept as it is (its triangles beyond the handle's top; the hole where AD's shaft went in
+  and the open bases of its spikes closed: AD's hammer had 12 open edges, the mace 16); the handle turned anew along
+  AD's (the hammer's straightened from its end to the head): pommel, wrapped grip (radius 0.9-0.97), a chamfered
+  collar (its guard) just above the hand, a slimmer shaft flaring into the head.
+- **Skin:** AD's skins kept. A sword's surfaces take AD's skin where AD's model had that part (each column of the new
+  surface from one island of AD's skin, the nearest of AD's triangles facing as it does; the blade looked up across
+  AD's wider blade, so its whole pattern, the fury's runes, spans ours); the heavy handles' parts from their strips of
+  AD's skin (along, round).
+- **Flipped:** the fury's swords and the hammer are turned half round the handle (`Weapon::flip`): the curve and the
+  spike the other way.
+- 1000-1060 triangles a sword, 720 the heavies; `vr_admelee_models` now prints open edges (0 on all six), edges of
+  3+ triangles (0) and the winding (all outward). MuzzleAnchor of slots 40-44 (0-based) moved to the new tips (the
+  fury's and the hammer's to the other side); hand and second-hand anchors unchanged (on the handle's line).
+  `vr_wofs_version` 48 (`takeAdMeleeTips`) moves a config still holding an old tip (checked: a config at 47 with the
+  old tips takes the new ones, a value of its own is kept).
+- Tests: `vr_ad_test 110`..`115` PASS (swords 31 / 31, hammer 23 / 46, mace 22 / 44). Held side by side old (left)
+  and new (right): `scratch/admelee3_old_vs_new.png` (`scratch/am3_shots.sh`, `vr_ad_test 116`..`119`).
+
+In VR: hold each sword close (the blade's thinness edge-on, the guard and pommel); the fury's curve now the other way;
+the hammer's spike away from you; the hammer's and mace's collar just above the main hand.
