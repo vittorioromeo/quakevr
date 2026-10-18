@@ -19,6 +19,9 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Widowmaker auto shotgun: hold the trigger (0.25 s refire), side shell port by the rear handle takes a handful of 4 at once, tube 16, spent shells out the other side; port radius OK? your grip 1 is default
+Plasma Gun: cell pokes out a bit more; with the cell out, a real pocket with dark walls
+Swing sounds by speed (Combat > Melee > Swing Sounds): slow moves silent, brisk wave a soft whoosh, punch/cut clearly louder, very fast punch louder than before; sword/axe strokes whoosh softly (too busy? raise Heard From)
 AD crossbow firing: a bolt sits in the groove and is the one that flies; next bolt morphs in like the rocket ammo; string snaps and limbs flex, then draw back; judge bolt size/height, snap strength, draw-back timing (AD Guns > crossbow Animation toggle)
 AD health vials and gems: force grab into the hand, holster or walk into them: heal, and you can still attack and jump after (was the lockout: health capped at 0); AD artifacts taken by hand (Debug "Artifacts Ahead"); toolgun keycards and runekeys open doors; DoE Vengeance Sphere, MG3 draughts in the toolgun
 Wet from liquids is back (glove shells had broken the masks: also your painted blood/burns): swim and climb out: hands, gloves, forearms and weapon evenly darker and glossy, drip, fade over ~25 s; wade knee-deep: only below the line; Gore > Wounds on Models > Wet Sheen slider
