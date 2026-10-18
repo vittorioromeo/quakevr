@@ -13462,3 +13462,34 @@ Recovered/8: flat shotgun 64, flat blow, flat uppercut, slope blow, stairs shotg
   Shadow Axe" (was `AD_AxeScale > 1`).
 - Weapon Offsets slot 28 still names "#adv34" (another worker owns the slots): an un-remapped "#adv4" would sit as the
   defender's; every path above renames it to "#adv5".
+
+## AD health vials, AD pickups by hand, every item in the toolgun (worktree `goreflesh`, branch `agent/aditems`, 2026-10-18)
+
+- **The lockout after a vial**: AD's heal (`ad_T_Heal`: its vials, gems, `trigger_heal`) caps the health at the player's
+  `ad_mega_health`, which only AD's own player setup sets: 0 on ours, so a vial left the player alive at 0 health,
+  unable to attack, use or jump. `AD_PlayerPostThink` now gives it Quake VR's cap (`VR_MegaHealthCap`) while it is 0 (an
+  AD `trigger_maxhp` still sets its own). No QC/ad change.
+- **Health vials and gems** (`item_healthvial`, `item_healthgem`): now Quake VR's health boxes with AD's look
+  (`vr_ad_items.qc`, as the MG3 shards are Quake VR's armour): AD's model and sound, 2-5 health (or `healamount`), placed
+  by `StartItem` (an AD map's STARTOFF kept), a force-grabbable object at the boxes' scale
+  (`vr_forcegrabbable_health_boxes`, `vr_forcegrabbable_box_scale`), taken at a holster, with the trigger or by walking
+  into it, Quake VR's heal. Only with AD's model; outside AD maps only with `vr_ad_everywhere`. Off `everywhereClasses`
+  (no longer AD entities, nor AD signals: 0 placed in AD's maps). Not done: AD's item respawn for them (as `item_health`
+  in AD maps).
+- **AD's own pickups by hand**: the artifacts, the Tome, the custom keys and items (AD's entities) get `ad_item_touch` as
+  their handtouch (`VR_AD_BackpackRestore`, AD's restore hook): a hand takes them as it takes Quake VR's powerups. Like
+  Quake VR's powerups they are not force-grabbable.
+- **Keys**: `item_key1`/`item_key2` read their own `worldtype` as AD's keys do (1 runic, 2 base, 3 medieval; else the
+  map's: `VR_KeyStyle`), so AD maps' key overrides work and the toolgun lists Silver/Gold Key, Runekey and Keycard.
+- **Toolgun catalogue** (`vr_toolgun_packs.inc`): + the runekeys and keycards, DoE Vengeance Sphere and Random Powerup
+  (deathmatch-only in a map; the toolgun's now spawn anywhere: `vr_spawn_live`), MG3 Draughts of Insight and Stupor
+  (read from the owned pack too). `Misc/quakevr/toolgun_catalogue.py <worktree>` dumps the Items tab against id1's item classnames
+  (none missing) and every QC `item_` spawn function: unlisted only CTF flags, `item_armorinv` (alias), MG3's hell
+  knight's head (it turns Bloody Nightmare on), Rogue's time machine and core (the finale's scenery) and helpers.
+  AD's custom keys and items need a model key (`mdl`), so they stay map-only.
+- Test: `vr_ad_test 142`, a frame later `143`, then `+attack`/`+jump`, then `144` (Debug > Tests > Arcane Dimensions:
+  Health Vials Test). vrfiringrange: cap 0 -> 250; vial and gem force-grabbable, caught in the hand, taken at the
+  shoulder holster 50 -> 54 and 53; AD's own vial 50 -> 53 (was 0); then the shotgun's clip 8 -> 0, the jump rose 24.6,
+  health 100, alive. (Use vrfiringrange: in e1m1's start the second pickup, 48 units ahead, falls out of the level.)
+  `vr_toolgun_spawn_test` 184-189, 202-206, 118-119 in vrfiringrange: all spawned and alive, the keys' models
+  m_s_key/b_s_key as listed.

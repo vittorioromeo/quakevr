@@ -139,7 +139,7 @@ void() item_sphere =
 {
     if(!VR_Pack_RequireSpawn(VR_Has4("progs/sphere.mdl", "sound/sphere/sphere.wav", "", ""), "Rogue")) { return; }
 
-    if(!deathmatch)
+    if(!deathmatch && !vr_spawn_live) // VR: a map's in deathmatch only; the toolgun's anywhere
     {
         remove(self);
         return;

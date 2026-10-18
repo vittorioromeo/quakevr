@@ -3,9 +3,10 @@
 // vr_ad_defs.qc, each call there marked "AD support".
 //
 // While AD's data is installed (VR_Pack_AD, and its folder mounted: vr_ad_mounted), the AD-only classnames of the
-// engine's list (vr_ad.cpp everywhereClasses: the seven new artifacts and their Quoth aliases, the custom keys, health
-// vials and gems, custom items, the ladders) spawn in any map as AD's own entities (their spawn, their touch), after
-// AD's reduced world setup (VR_AD_WorldOnDemand). AD's other pickups that would override one of Quake VR's or its rules
+// engine's list (vr_ad.cpp everywhereClasses: the seven new artifacts and their Quoth aliases, the custom keys, custom
+// items, the ladders) spawn in any map as AD's own entities (their spawn, their touch; a hand's touch too:
+// VR_AD_BackpackRestore), after AD's reduced world setup (VR_AD_WorldOnDemand); the health vials are Quake VR's
+// (item_healthvial). AD's other pickups that would override one of Quake VR's or its rules
 // (the backpacks: Quake's backpack) only in AD maps (vr_ad_everywhere 0: all of them only there).
 //
 // Their effects are Quake VR's player's, wherever they were taken (AD's player code never runs on him):
@@ -51,6 +52,42 @@ void() VR_AD_WorldOnDemand =
     precache_sound(ad_SOUND_ARTJUMPBOOTS3C);
     dprint("VR: Arcane Dimensions' entities in this map: AD's reduced world setup\n");
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// AD's health vials (and gems, their old name): Quake VR's health pickups with AD's look, as Dawn of the Machine's armour
+// shards are Quake VR's armour (vr_mg3_items.qc). AD's own entity floated untouched by the hands and the force grab, and
+// its heal (ad_T_Heal, capped by an AD field our player lacked) left the player at 0 health, alive but unable to act. As
+// a health box (item_health): placed by StartItem (an AD map's STARTOFF kept: AD_ItemStartOff), a force-grabbable
+// object at the boxes' scale (AfterPlacementHealthBox: vr_forcegrabbable_health_boxes), taken by a hand or by walking
+// into it (health_touch: Quake VR's T_Heal). 2-5 health as AD's (a map's "healamount" else), up to the maximum. Only
+// with AD's model on the search path; outside AD's maps only with vr_ad_everywhere (decision 16).
+/*QUAKED item_healthvial (0.3 0.3 1) (-8 -8 0) (8 8 32)
+2-5 health (Arcane Dimensions; needs its data).
+*/
+void() item_healthvial =
+{
+    if(!AD_Rules() && cvar("vr_ad_everywhere") == 0)
+    {
+        remove(self);
+        return;
+    }
+    if(!VR_Pack_RequireSpawn(VR_Has(ad_MODEL_HEAL5), "Arcane Dimensions")) return;
+    self.noise = VR_Has("sound/items/health0.wav") ? ad_SOUND_HEAL05 : "items/r_item1.wav"; // (AD's own sound)
+    precache_model(ad_MODEL_HEAL5);
+    precache_sound(self.noise);
+    setmodel(self, ad_MODEL_HEAL5);
+    if(self.healamount < 1) self.healamount = rint(2 + random() * 3);
+    self.healtype = 0; // (not a megahealth: up to the maximum)
+    self.handtouch = health_touch;
+    setsize(self, '-8 -8 0', '8 8 32');
+    StartItem();
+    self.think2 = AfterPlacementHealthBox;
+    self.nextthink2 = time + 0.75;
+};
+/*QUAKED item_healthgem (0.3 0.3 1) (-8 -8 0) (8 8 32)
+The health vial's old name (Arcane Dimensions).
+*/
+void() item_healthgem = { item_healthvial(); };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The artifacts' effects
@@ -478,9 +515,20 @@ void(entity bag) VR_AD_BackpackSetup =
     }
     self = os;
 };
+// AD's ad_item_restore (a reviewed patch, ad_import.py), each time one of AD's own items is placed or comes back: a
+// backpack becomes a Quake VR object (above); AD's other pickups that run on AD's code (the artifacts, the Tome of Power,
+// the custom keys and items) are taken by a hand too, as Quake VR's powerups are (their handtouch; AD's touch already
+// takes them by walking into them). TRUE: a backpack (AD's own restore skipped).
 float() VR_AD_BackpackRestore =
 {
-    if(self.ad_touch2 != ad_BackpackTouch) return FALSE;
+    if(self.ad_touch2 != ad_BackpackTouch)
+    {
+        if((self.flags & ad_FL_ITEM) && self.ad_classgroup != ad_CG_WEAPON && self.ad_touch2)
+        {
+            self.handtouch = ad_item_touch;
+        }
+        return FALSE;
+    }
     VR_AD_BackpackSetup(self);
     return TRUE;
 };
