@@ -48,9 +48,9 @@ void info_f();
 // The guns as variants of our burst rifle (vr_adgunart.cpp; ROUND22.md, "AD guns as burst rifle variants"):
 // "progs/v_gruntgun.mdl#adv<n>", n the gun (WID_ADROCKET's order: 0 rocket, 1 grenade, 2 plasma, 3 defender,
 // 4 eliminator, 5 centurion, 6 pyro, 7 fumigator). Made as they load from Quake VR's v_gruntgun.mdl (its frame, grip and
-// scale_origin, so slot 21's weapon settings hold them all) with each gun's own add-ons (a launch tube and its exhaust, the
-// grenade launcher's barrel and drum from our v_rock.mdl, cathode tubes and coils, a pump and a shell carrier, a nozzle
-// and a fuel canister) and its own skin (the rifle's recoloured, its add-ons' and decals painted: rockets, lightning,
+// scale_origin, so slot 21's weapon settings hold them all) with each gun's own add-ons (a launch tube at the muzzle and
+// an exhaust, the grenade launcher's muzzle from our v_rock.mdl and a grenade magazine, cathode tubes and coils, a pump
+// and a shell carrier, a nozzle and a fuel canister) and its own skin (the rifle's recoloured, its add-ons' and decals painted: rockets, lightning,
 // hazard stripes, flames, poison). Nothing written anywhere. The QC (VR_ADGun_Model) names these; the older
 // "<monster model>#gun<skin>" guns above still load (saved games).
 inline constexpr const char* variantSuffix = "#adv";
@@ -74,9 +74,44 @@ enum Variant : int
 // burst rifle's own file.
 [[nodiscard]] byte* variantFile(const char* name, unsigned int* path_id);
 
-// A fuelled variant's (the pyro's, the fumigator's) hose inlet in its model (the fuel canister's back end, low) and the
-// way the hose leaves it (model space). False for the others.
+// A fuelled variant's (the pyro's, the fumigator's) hose inlet in its model (a pipe under the receiver between the grip
+// and the stock) and the way the hose leaves it (model space: down and back). False for the others.
 [[nodiscard]] bool hoseInlet(int variant, glm::vec3& at, glm::vec3& dir);
+
+// The pyro's pilot light's tip in its model (vr_adtank.cpp: its small flame's particles); false for the others.
+[[nodiscard]] bool pilotLight(int variant, glm::vec3& at);
+
+// A variant's firing feel (Vittorio, 2026-10-18: each fires as what it is): slot 21's recoil and muzzle flash (every
+// variant's weapon settings) scaled (vr_weaponfx.cpp), the flash's model (null: the shared one; the plasma guns' a copy
+// of it in their colour), its light's colour and reach (vr_client.cpp VR_TuneDlight), and what leaves the gun with a
+// shot (vr_weaponfx.cpp): `burst` particles at the muzzle in `colour`, and for the rocket a back-blast out of its exhaust
+// (`exhaust`, `exhaustDir`: model space).
+struct FireFeel
+{
+    enum Burst : int
+    {
+        None,
+        Rocket,
+        Grenade,
+        Electric,
+        Shotgun
+    };
+    float recoil{1.f}, recoilTime{1.f};
+    float flash{1.f}, flashTime{1.f};
+    const char* flashModel{nullptr};
+    glm::vec3 light{1.f, 0.85f, 0.6f};
+    float lightRadius{1.f};
+    Burst burst{None};
+    glm::vec3 colour{1.f};
+    bool backBlast{false};
+    glm::vec3 exhaust{0.f}, exhaustDir{-1.f, 0.f, 0.f};
+};
+[[nodiscard]] const FireFeel& fireFeel(int variant);
+
+// The plasma guns' muzzle flashes: "progs/vr_muzzleflash.mdl#adf<n>" (n the variant): our flash's model with its skin
+// in that gun's colour (its fullbright colours), made as it loads; null for any other name.
+inline constexpr const char* flashSuffix = "#adf";
+[[nodiscard]] byte* flashFile(const char* name, unsigned int* path_id);
 
 // vr_adgun_variants: each variant made now (triangles, vertices, its box, whether the settings' corner held, the time).
 void variants_f();

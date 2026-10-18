@@ -10,6 +10,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
+#include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
@@ -65,6 +66,70 @@ Hose hoses[2];
 
 // The body's frame this frame (forward, right; up the world's).
 glm::vec3 bodyFwd{1.f, 0.f, 0.f}, bodyRight{0.f, -1.f, 0.f};
+
+// The pyro's pilot light (Vittorio, 2026-10-18: a small subtle continuous stream, not a modelled flame): each hand's
+// particles owed (fractions carried over frames), the game time it last ran, and the count made (vr_adgun_hose_info).
+struct Pilot
+{
+    float owed{0.f};
+    double time{-1.0};
+    int made{0};
+};
+Pilot pilots[2];
+constexpr float pilotRate = 34.f; // particles a second: about 3 in 4 small yellow tongues, the rest blue at the tip; a spark
+
+// Visual randomness (no sequence that matters): 0..1.
+unsigned pilotSeed = 0x9E3779B9u;
+[[nodiscard]] float pilotRandom()
+{
+    pilotSeed = pilotSeed * 1664525u + 1013904223u;
+    return static_cast<float>(pilotSeed >> 8) / static_cast<float>(1u << 24);
+}
+
+// `ve` (the pyro's gun, held in hand `i`) burning its pilot light this frame: small flames off its pilot pipe's tip,
+// drifting forward and up, now and then a spark. None while paused or under water.
+void pilotFlames(int i, const view::ViewEntity* ve)
+{
+    Pilot& p = pilots[i];
+    glm::vec3 tipModel;
+    if(!ve || !ve->ent.model || !adguns::pilotLight(adguns::variantOf(ve->ent.model->name), tipModel) || !cl.worldmodel)
+    {
+        p.time = -1.0;
+        return;
+    }
+    const double now = vr_gametime;
+    const float dt = p.time < 0.0 ? 0.f : static_cast<float>(za::clamp(now - p.time, 0.0, 0.1));
+    p.time = now;
+    const glm::vec3 tip = view::modelPoint(*ve, tipModel);
+    const glm::vec3 ahead = view::modelPoint(*ve, tipModel + glm::vec3{1.f, 0.f, 0.f}) - tip;
+    glm::vec3 probe = tip;
+    if(glm::length(ahead) < 1e-6f || Mod_PointInLeaf(&probe.x, cl.worldmodel)->contents <= CONTENTS_WATER)
+    {
+        return;
+    }
+    const glm::vec3 fwd = glm::normalize(ahead);
+    p.owed += dt * pilotRate;
+    const glm::vec3 blue{0.42f, 0.62f, 1.f}, yellow{1.f, 0.86f, 0.32f};
+    while(p.owed >= 1.f)
+    {
+        p.owed -= 1.f;
+        p.made++;
+        const float r = pilotRandom();
+        const glm::vec3 wobble{pilotRandom() - 0.5f, pilotRandom() - 0.5f, pilotRandom() - 0.5f};
+        if(r < 0.08f)
+        {
+            particles::hotTrail(tip, fwd * 30.f + wobble * 30.f + glm::vec3{0.f, 0.f, 12.f}, yellow, 0.8f, 0.3f, true);
+        }
+        else if(r < 0.32f)
+        {
+            particles::hotTrail(tip + fwd * 0.2f, fwd * 4.f + wobble * 2.f, blue, 0.45f, 0.12f, false);
+        }
+        else
+        {
+            particles::hotTrail(tip + fwd * 0.5f, fwd * 9.f + wobble * 4.f + glm::vec3{0.f, 0.f, 5.f}, yellow, 0.5f, 0.2f, false);
+        }
+    }
+}
 
 // The cost (vr_adgun_hose_info): the last setup's seconds, smoothed.
 double setupCost = 0.0;
@@ -168,6 +233,7 @@ void info_f()
                "rings, %.1f units a metre\n",
         vr_adgun_hose.value, vr_adgun_hose_route.value != 0.f ? "shoulder" : "hip", vr_adgun_tank_x.value, vr_adgun_tank_y.value,
         vr_adgun_tank_z.value, setupCost * 1000.0, setupHoses, buildCost * 1000.0, units::metresToUnits());
+    Con_Printf("adgun pilot light: %d and %d particles made (main, off hand)\n", pilots[HAND_MAIN].made, pilots[1 - HAND_MAIN].made);
     for(int i = 0; i < 2; i++)
     {
         const Hose& h = hoses[i];
@@ -205,7 +271,12 @@ void setupView(const hands::State& s)
 {
     QVR_PROFILE("ad hoses");
     const double t0 = Sys_DoubleTime();
-    const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid && vr_adgun_hose.value != 0.f;
+    const bool living = cl.stats[STAT_HEALTH] > 0 && !cl.intermission && s.valid;
+    for(int h = 0; h < 2; h++)
+    {
+        pilotFlames(h, living ? view::heldWeapon(h) : nullptr);
+    }
+    const bool alive = living && vr_adgun_hose.value != 0.f;
     int want[2]{-1, -1};
     const view::ViewEntity* ve[2]{nullptr, nullptr};
     for(int h = 0; h < 2; h++)
