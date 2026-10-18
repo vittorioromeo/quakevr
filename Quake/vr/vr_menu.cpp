@@ -867,6 +867,7 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
+[[nodiscard]] za::Vector<Item> pageFlinch();
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies();
 [[nodiscard]] za::Vector<Item> pageHoldingStruggle();
 [[nodiscard]] za::Vector<Item> pageEnemyMelee();
@@ -1993,6 +1994,7 @@ const Page pages[] = {
     {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
     {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
     {"Graphics - Loot Beams", pageGraphicsLootBeams, pageGraphics}, // (vr_lootbeams.cpp)
+    {"Flinch", pageFlinch, pageCombat}, // (QC vr_flinch.qc; docs/vr-port/FLINCH.md)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

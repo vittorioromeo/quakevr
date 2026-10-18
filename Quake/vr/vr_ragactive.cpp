@@ -1070,6 +1070,105 @@ constexpr float staggerUprightMost = 4.f; // rad/s
     return 1.f - (1.f - u) * (1.f - u);
 }
 
+// Its spine's tilt off the vertical (deg): its pelvis's middle to its chest's.
+[[nodiscard]] float spineTilt(const Parts& p)
+{
+    const glm::vec3 spine = glmv(b3Body_GetWorldCenter(p.body[chestOf(p)])) - glmv(b3Body_GetWorldCenter(p.body[0]));
+    return glm::degrees(za::atan2(glm::length(level(spine)), za::max(spine.z, 1e-3f)));
+}
+
+// A flinch's recovery test (vr_flinch; FLINCH.md, "Recovery test"): its middle over its feet's support (each foot a
+// disc of footR round its end, and the strip between them), its middle nearly still, its spine nearly as upright as it
+// stood when struck, no step under way, and (asked last: two rays) each foot on firm ground no steeper than
+// vr_flinch_recover_slope. Fills in g's measures; true if all hold.
+[[nodiscard]] bool flinchSteady(Stagger& g, const State& s, const Parts& p, const Context& c, const glm::vec3& com,
+    const glm::vec3& comVel, const ClipPose& pose)
+{
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    za::Array<glm::vec2, 2> foot{};
+    int n = 0;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        if(limbWhole(s, p, leg))
+        {
+            const glm::vec3 f = limbEnd(s, p, leg);
+            foot[static_cast<za::SizeT>(n++)] = glm::vec2{f.x, f.y};
+        }
+    }
+    const glm::vec2 m{com.x, com.y};
+    float d = 1e30f;
+    if(n == 2)
+    {
+        const glm::vec2 ab = foot[1] - foot[0];
+        const float l2 = glm::dot(ab, ab);
+        const float u = l2 > 1e-8f ? za::clamp(glm::dot(m - foot[0], ab) / l2, 0.f, 1.f) : 0.f;
+        d = glm::length(m - (foot[0] + ab * u));
+    }
+    else if(n == 1)
+    {
+        d = glm::length(m - foot[0]);
+    }
+    g.margin = g.footR - d;
+    g.speedNow = glm::length(level(comVel));
+    // Its pelvis's and chest's tilt off how its stance frame holds them (their up as the frame has it; the yaw aside).
+    g.tilt = 0.f;
+    for(const int b : {0, chestOf(p)})
+    {
+        if(!pose.valid)
+        {
+            g.tilt = za::max(spineTilt(p) - g.tilt0, 0.f);
+            break;
+        }
+        const glm::vec3 local = glm::inverse(glm::normalize(s.turn * pose.rot[static_cast<za::SizeT>(b)])) * up;
+        const glm::vec3 now = bodyRot(p, b) * local;
+        g.tilt = za::max(g.tilt, glm::degrees(za::acos(za::clamp(now.z, -1.f, 1.f))));
+    }
+    g.failed = 0u;
+    g.failed |= g.margin < 0.f ? 1u : 0u;
+    g.failed |= g.speedNow > za::max(vr_flinch_recover_speed.value, 0.01f) ? 2u : 0u;
+    g.failed |= g.tilt > za::max(vr_flinch_recover_tilt.value, 1.f) ? 4u : 0u;
+    g.failed |= g.stepLeg >= 0 ? 16u : 0u;
+    if(g.failed == 0u && c.rayHit)
+    {
+        const float flattest = za::cos(glm::radians(za::clamp(vr_flinch_recover_slope.value, 0.f, 89.f)));
+        // Each foot over floor within a stair and a half (its end over a stair's edge, its sole on the stair above),
+        // none steeper than the slope allowed, and one of them on it (within flinchFirm).
+        constexpr float above = 0.08f, below = 0.75f, flinchFirm = 0.3f; // m
+        g.ground = true;
+        bool firm = false;
+        for(int leg = 2; leg < 4; leg++)
+        {
+            if(!limbWhole(s, p, leg))
+            {
+                continue;
+            }
+            const glm::vec3 f = limbEnd(s, p, leg);
+            glm::vec3 at{0.f}, normal{0.f};
+            // (From just over it: under a stair's riser.)
+            float share = c.rayHit(f + up * above, f - up * below, at, normal);
+            // (The physics world's floor missed (a thin brush): the floor's own height below, level enough for all we
+            // know.)
+            if(share >= 1.f && c.floorBelow)
+            {
+                const float z = c.floorBelow(f + up * above, above + below);
+                share = z > -1e29f ? (f.z + above - z) / (above + below) : 1.f;
+                normal = up;
+            }
+            if(share >= 1.f || normal.z < flattest)
+            {
+                g.groundShare = share;
+                g.groundAt = f;
+                g.groundUp = normal.z;
+            }
+            g.ground = g.ground && share < 1.f && normal.z >= flattest;
+            firm = firm || (share < 1.f && share * (above + below) - above <= flinchFirm);
+        }
+        g.ground = g.ground && firm;
+        g.failed |= g.ground ? 0u : 8u;
+    }
+    return g.failed == 0u;
+}
+
 void staggerFrame(State& s, const Parts& p, const Context& c, float t, const ClipPose& pose)
 {
     Stagger& g = s.stagger;
@@ -1149,6 +1248,16 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     best = leg;
                 }
             }
+            // (A flinch steps only while its capture point is off its feet's support: once it would come to rest over
+            // them, it stands; a shove's stagger backpedals on.)
+            if(g.flinch && best >= 0)
+            {
+                const glm::vec2 a{g.planted[0].x, g.planted[0].y}, b{g.planted[1].x, g.planted[1].y}, q{then.x, then.y};
+                const glm::vec2 ab = b - a;
+                const float l2 = glm::dot(ab, ab);
+                const float u = l2 > 1e-8f ? za::clamp(glm::dot(q - a, ab) / l2, 0.f, 1.f) : 0.f;
+                best = glm::length(q - (a + ab * u)) > g.footR ? best : -1;
+            }
             if(best >= 0 && bestD > staggerStepAt * (g.lean > staggerSteady ? 0.6f : 1.f) * limbLength(s, p, best))
             {
                 const auto i = static_cast<za::SizeT>(best - 2);
@@ -1202,7 +1311,56 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
             return;
         }
-        if((t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) || t > g.time + staggerMost)
+        if(g.flinch)
+        {
+            // A flinch: handed back only once balanced (the recovery test held a moment), else over at its most.
+            // (Beaten, past its balance's edge: no recovery; it gives way after its steps, above.)
+            const bool steady = flinchSteady(g, s, p, c, com, comVel, pose) && t >= g.flinchMin && g.giveAfter < 0;
+            g.stableFor = steady ? g.stableFor + c.dt : 0.f;
+            // At its most, settled though the strict test never held (its middle a little off its feet's support, a
+            // bigger rig's stance): still, its middle over its feet within the stagger's steady lean, not bent far, on
+            // firm ground, no step under way: it stands. (Else it topples, below.)
+            const bool settled = t > g.flinchMost && g.giveAfter < 0 && g.stepLeg < 0 &&
+                                 g.speedNow <= za::max(vr_flinch_recover_speed.value, 0.01f) &&
+                                 g.lean < staggerSteady * 1.5f && g.tilt < 1.5f * za::max(vr_flinch_recover_tilt.value, 1.f) &&
+                                 (g.failed & 8u) == 0u;
+            // (A step under way at its most: it lands first, a moment more.)
+            const bool landing = t > g.flinchMost && g.stepLeg >= 0 && t < g.flinchMost + 0.3f;
+            if((g.stableFor >= za::max(vr_flinch_recover_hold.value, 0.f) && steady) || settled)
+            {
+                g.outcome = Outcome::Recovered;
+                g.decided = c.now;
+                if(vr_flinch_debug.value || vr_knockdown_debug.value)
+                {
+                    Con_Printf("flinch: %d recovered at %.2f s%s: margin %.0f units, speed %.2f m/s, tilt %.0f deg, %d steps, "
+                               "moved %.0f units\n",
+                        c.num, t, steady ? "" : " (settled)", g.margin * p.m2u, g.speedNow, g.tilt, g.steps, glm::length(level(pelvis - g.pelvis0)) * p.m2u);
+                }
+            }
+            else if(t > g.flinchMost && !landing)
+            {
+                g.outcome = Outcome::Fell;
+                g.decided = c.now;
+                if(vr_flinch_debug.value || vr_knockdown_debug.value)
+                {
+                    Con_Printf("flinch: %d toppled at %.2f s, never steady (failed %s%s%s%s%s): margin %.0f units, speed %.2f "
+                               "m/s, tilt %.0f deg, %d steps\n",
+                        c.num, t, (g.failed & 1u) ? "support " : "", (g.failed & 2u) ? "speed " : "",
+                        (g.failed & 4u) ? "tilt " : "", (g.failed & 8u) ? "ground " : "", (g.failed & 16u) ? "stepping" : "",
+                        g.margin * p.m2u, g.speedNow, g.tilt, g.steps);
+                    if(g.failed & 8u)
+                    {
+                        Con_Printf("flinch: %d its ground: ray share %.2f, normal up %.2f, the foot at %.0f %.0f %.0f (its "
+                                   "pelvis %.0f %.0f %.0f)\n",
+                            c.num, g.groundShare, g.groundUp, g.groundAt.x * p.m2u, g.groundAt.y * p.m2u,
+                            g.groundAt.z * p.m2u, pelvis.x * p.m2u, pelvis.y * p.m2u, pelvis.z * p.m2u);
+                    }
+                }
+                beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
+                return;
+            }
+        }
+        else if((t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) || t > g.time + staggerMost)
         {
             g.outcome = Outcome::Recovered;
             g.decided = c.now;
@@ -1237,7 +1395,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         const float a = 2.f * 3.14159265f * staggerWheel * t + (arm == 0 ? 0.f : 3.14159265f);
         r.goal = shoulder + ahead * (0.5f * len) + left * ((arm == 0 ? 0.35f : -0.35f) * len) +
                  (ahead * za::cos(a) + up * za::sin(a)) * (0.2f * len);
-        r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance));
+        r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance)) * g.wheel;
         r.strength = 0.7f;
     }
     // The feet: planted, or the one stepping lifted along its way.
@@ -3385,6 +3543,151 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     }
     s.on = true;
     (void)t;
+}
+
+float legLength(const State& s, const Parts& p)
+{
+    float sum = 0.f;
+    int n = 0;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        if(limbWhole(s, p, leg))
+        {
+            sum += limbLength(s, p, leg);
+            n++;
+        }
+    }
+    return n > 0 ? sum / static_cast<float>(n) : 0.75f;
+}
+
+float flinchSpeed(const State& s, const Parts& p, const glm::vec3& impulse)
+{
+    float mass = s.totalMass;
+    if(mass <= 0.f)
+    {
+        for(int b = 0; b < p.count; b++)
+        {
+            mass += cut(p, b) ? 0.f : b3Body_GetMass(p.body[b]);
+        }
+    }
+    return glm::length(level(impulse)) / za::max(mass, 1.f);
+}
+
+void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
+{
+    const float dv = flinchSpeed(s, p, info.impulse);
+    const float local = za::clamp(info.local, 0.f, 1.f);
+    const float topple = za::max(info.topple, 0.1f);
+    const float tilt0 = spineTilt(p); // (as it stood, before the push)
+    // The whole body's share as a stagger's travel: its pin's first speed (beginStagger: 2 travel / time, its time 0.4 +
+    // 0.3 travel) this share of the change of speed.
+    const float v0 = za::min(dv * (1.f - local), 6.f);
+    StaggerInfo si;
+    si.dir = info.impulse;
+    si.travel = 0.4f * v0 / za::max(2.f - 0.3f * v0, 0.2f);
+    si.push = 0.f;
+    si.balance = za::clamp(1.f - 0.5f * dv / topple, 0.f, 1.f);
+    si.first = si.last = info.first;
+    beginStagger(s, p, si, now);
+    Stagger& g = s.stagger;
+    g.flinch = true;
+    g.flinchMin = za::max(vr_flinch_recover_min.value, 0.f);
+    g.flinchMost = za::max(info.most, g.flinchMin + 0.1f);
+    g.tilt0 = tilt0;
+    g.dv = dv;
+    g.impulse = info.impulse;
+    g.hitAt = info.at;
+    g.footR = za::max(info.footR, 0.01f);
+    g.wheel = za::clamp(dv / topple, 0.1f, 1.f);
+    // Its torso and head back to their tone once its travel is mostly done: its spine straightened over its feet (the
+    // recovery test's tilt), not left bent as the hit left it.
+    {
+        const float t0 = static_cast<float>(now - s.begun);
+        const auto torso = static_cast<za::SizeT>(Channel::Torso), head = static_cast<za::SizeT>(Channel::Head);
+        s.fade[torso] = Fade{s.fade[torso].from, 1.f, t0 + 0.5f * g.time, t0 + g.time + 0.2f};
+        s.fade[head] = Fade{s.fade[head].from, 1.f, t0 + 0.5f * g.time, t0 + g.time + 0.2f};
+    }
+    // Beaten (past its edge): it gives way after a step or two (a shove's stagger: three or four).
+    g.giveAfter = g.balance < 0.5f ? za::min(1 + static_cast<int>(g.balance * 4.f), g.stepsMost) : -1;
+    // The jolt: its share at the point, on the part nearest it.
+    if(local > 0.f)
+    {
+        int best = -1;
+        float bestD = 1e30f;
+        for(int b = 0; b < p.count; b++)
+        {
+            if(cut(p, b))
+            {
+                continue;
+            }
+            const float d = glm::distance(glmv(b3Body_GetWorldCenter(p.body[b])), info.at);
+            if(d < bestD)
+            {
+                bestD = d;
+                best = b;
+            }
+        }
+        if(best >= 0)
+        {
+            b3Body_ApplyLinearImpulse(p.body[best], b3v(info.impulse * local), b3v(info.at), true);
+        }
+    }
+}
+
+void flinchDraw(const State& s, const Parts& p, double now)
+{
+    const Stagger& g = s.stagger;
+    if(!s.on || !g.flinch || !p.rig)
+    {
+        return;
+    }
+    const float u = p.m2u;
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    // Its state: going (yellow), steady now (green), recovered (cyan), fallen (red).
+    const glm::vec4 colour = g.outcome == Outcome::Fell        ? glm::vec4{1.f, 0.2f, 0.2f, 1.f}
+                             : g.outcome == Outcome::Recovered ? glm::vec4{0.2f, 0.9f, 1.f, 1.f}
+                             : g.failed == 0u                  ? glm::vec4{0.2f, 1.f, 0.3f, 1.f}
+                                                               : glm::vec4{1.f, 0.85f, 0.1f, 1.f};
+    // The hit: an arrow from the point along the impulse, 1 unit per 4 N s (eased out over a second).
+    const float age = static_cast<float>(now - s.begun);
+    if(age < 1.f)
+    {
+        const glm::vec4 white{1.f, 1.f, 1.f, 1.f - age};
+        const glm::vec3 a = g.hitAt * u, b = a + g.impulse * 0.25f;
+        lines::line(a - (b - a), a, 0.5f, white, white);
+        lines::point(a, 1.5f, white);
+    }
+    // Its middle (a point over the floor, a line down to it) and its feet's support (each foot's disc, the strip).
+    glm::vec3 vel{0.f};
+    const glm::vec3 com = massCentre(p, &vel);
+    za::Array<glm::vec3, 2> foot{};
+    int n = 0;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        if(limbWhole(s, p, leg))
+        {
+            foot[static_cast<za::SizeT>(n++)] = limbEnd(s, p, leg);
+        }
+    }
+    const float floorZ = n > 0 ? za::min(foot[0].z, foot[static_cast<za::SizeT>(n - 1)].z) : com.z - 1.f;
+    lines::point(com * u, 2.f, colour);
+    lines::line(com * u, glm::vec3{com.x, com.y, floorZ} * u, 0.3f, colour, colour);
+    constexpr int sides = 12;
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 c = foot[static_cast<za::SizeT>(i)] * u;
+        const float r = g.footR * u;
+        for(int k = 0; k < sides; k++)
+        {
+            const float a0 = 6.2831853f * static_cast<float>(k) / sides, a1 = 6.2831853f * static_cast<float>(k + 1) / sides;
+            lines::line(c + r * glm::vec3{za::cos(a0), za::sin(a0), 0.f}, c + r * glm::vec3{za::cos(a1), za::sin(a1), 0.f},
+                0.25f, colour, colour);
+        }
+    }
+    if(n == 2)
+    {
+        lines::line(foot[0] * u + up * 0.5f, foot[1] * u + up * 0.5f, 0.25f, colour, colour);
+    }
 }
 
 void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,

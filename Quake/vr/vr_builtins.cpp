@@ -1634,6 +1634,18 @@ void PF_ragdollstagger()
                               : 0.f;
 }
 
+// float ragdollflinch(entity e, vector at, vector impulse, float mode): a flinch (vr_flinch; QC vr_flinch.qc): a hit of
+// `impulse` (N s, world) at `at` (units). Mode 0 the change of speed it gives its body (m/s; -1 it can't flinch now, -2 -
+// that speed with no room for a ragdoll), 1 begun on its knockdown's ragdoll (1; 2 down at once; 0 not), 2 its class
+// flinches (box3d::ragdollFlinch).
+void PF_ragdollflinch()
+{
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* j = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollFlinch(G_EDICT(OFS_PARM0), glm::vec3{a[0], a[1], a[2]}, glm::vec3{j[0], j[1], j[2]},
+        static_cast<int>(G_FLOAT(OFS_PARM3)));
+}
+
 // float ragdollstaggered(entity e, vector mins, vector maxs): e's stagger: 1 going, 0 fallen (down now), 2 recovered (up
 // where it stands, its box mins..maxs, handed back to its animation: .vr_knockdown 2).
 void PF_ragdollstaggered()
@@ -2450,6 +2462,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollguard", PF_ragdollguard},
     {"ragdollstagger", PF_ragdollstagger},
     {"ragdollstaggered", PF_ragdollstaggered},
+    {"ragdollflinch", PF_ragdollflinch},
     {"ragdollrelease", PF_ragdollrelease},
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},
