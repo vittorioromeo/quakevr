@@ -96,7 +96,11 @@
             .help("The fumigator's poison sprayer in your main hand, its green tank and hose."),
         command("Fuel Hose Info", "vr_adgun_hose_info")
             .help("vr_adgun_hose_info: in the console, each hand's hose (its gun, its ends, its length, how low it hangs), "
-                  "its rings drawn (and in the body's mirror image) and its cost a frame."),
+                  "its rings drawn (and in the body's mirror image), its cost a frame, and how deep it has lain in your "
+                  "arms since the last time (the arms' capsules)."),
+        toggle("Fuel Hose Avoids the Arms", "vr_adgun_hose_arms")
+            .help("The hose kept out of your drawn arms (the upper arm and forearm as capsules), going round them. Off: "
+                  "it passes through them (to compare; Fuel Hose Info measures how deep)."),
         command("Melee Weapons Dropped: Death Fury", "vr_ad_test 110")
             .help("Destructive: the death fury nearest you killed; its two swords lie, go into both hands and strike a "
                   "target, one hand and two (admelee: lines). 111-115 (console): the death knight, zombie knight, death "

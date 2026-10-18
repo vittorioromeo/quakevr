@@ -19,7 +19,9 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
-Calibration (standing): no separate "stand up straight" height step: goes intro -> Body Calibration Stand Tall (1 of 7); height still right after a fresh calibration; seated keeps its height step
+AD weapons no longer inherit settings: plain axe back to its old smaller size, Shadow Axe keeps your size; crossbow feels as you tuned it (your 12 values are now defaults); nothing else should change
+AD guns round 3: flamethrower and poison sprayer hose goes round your forearm (across the body, low at the hip); empty flamethrower: pilot light out; Eliminator gone (eliminators drop the Centurion gun); Freddie drops the normal super nailgun; "Grunt Burst Rifle" tooltip; Weapon Damage > Arcane Dimensions sliders
+Flinch Leg Balance round 3 (vr_flinch 2, default still 1): shoot an enforcer and a death knight in the belly (legs used to kick out): steps and recovers; anything standing on stairs; knights, ogres too
 AD ragdolls part 2: AD knight, AD ogre (nail/flak/marksman), death lord, Quoth death guard, deflector now ragdoll: kill, shove, get-up, lift and neck snap (not the ogre's neck); deflector's gun swings on its hand
 Flamethrower lights (Light Sources > Flamethrower Lights 3, Size): AD pyro gun and pyro monsters light walls, floor, your hands and gun orange; too strong? pops or lags when sweeping the stream?
 Flinch Leg Balance (Combat > Flinch: "On, Leg Balance", vr_flinch 2; default still 1): shotgun to the chest and medium blows on flat ground: steps back instead of freezing? uppercuts: no float/spring back; try Leg Balance: Push; don't judge stairs yet (round 2 in progress)

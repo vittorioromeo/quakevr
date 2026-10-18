@@ -48,8 +48,8 @@ float(float t) VR_ADGun_ForClass =
     else if(t == ad_CT_MONARMYGRENADE) { wid = WID_ADGRENADE; }
     else if(t == ad_CT_MONARMYPLASMA)  { wid = WID_ADPLASMA; }
     else if(t == ad_CT_MONDEFENDER)    { wid = WID_ADDEFENDER; }
-    else if(t == ad_CT_MONELIMATOR)    { wid = WID_ADELIMINATOR; }
-    else if(t == ad_CT_MONCENTURION)   { wid = WID_ADCENTURION; }
+    // (the eliminator's and the centurion's plasma guns are one gun as the player's: Vittorio, 2026-10-18)
+    else if(t == ad_CT_MONELIMATOR || t == ad_CT_MONCENTURION) { wid = WID_ADCENTURION; }
     else if(t == ad_CT_MONPYRO)        { wid = WID_ADPYRO; }
     else if(t == ad_CT_MONFUMIGATOR)   { wid = WID_ADFUMIGATOR; }
     else if(t == ad_CT_MONDCROSS)      { wid = WID_ADCROSSBOW; }   // (the crossbow knight: AD's w_dcrossbow.mdl)
@@ -119,8 +119,75 @@ void(float wid) VR_ADGun_Placed =
 // DecodeLevelParms: p's carried guns (hands, holsters) brought from the last level: their models made and precached and
 // their sounds precached in this one, which may have no such soldier (or vr_adgun_drops off): the hands' and holsters'
 // models are sent by their precache index (SV_ModelIndex fails on one not precached).
+// An older save's (or its level parms') eliminator's plasma gun (WID_ADELIMINATOR, gone: Vittorio, 2026-10-18, the same
+// gun as the centurion's): the centurion's, with its model. A slot's model left empty if it was (a hidden hand's).
+string(float xWid, string xModel) VR_ADGun_LegacyModel =
+{
+    if(xWid != WID_ADELIMINATOR || xModel == "")
+    {
+        return xModel;
+    }
+    return VR_ADGun_Model(WID_ADCENTURION);
+};
+
+float(float xWid) VR_ADGun_LegacyId =
+{
+    return xWid == WID_ADELIMINATOR ? WID_ADCENTURION : xWid;
+};
+
+// `p`'s hands and holsters.
+void(entity p) VR_ADGun_LegacyIds =
+{
+    p.weaponmodel = VR_ADGun_LegacyModel(p.weapon, p.weaponmodel);
+    p.weapon = VR_ADGun_LegacyId(p.weapon);
+    p.weaponmodel2 = VR_ADGun_LegacyModel(p.weapon2, p.weaponmodel2);
+    p.weapon2 = VR_ADGun_LegacyId(p.weapon2);
+    p.holsterweaponmodel0 = VR_ADGun_LegacyModel(p.holsterweapon0, p.holsterweaponmodel0);
+    p.holsterweapon0 = VR_ADGun_LegacyId(p.holsterweapon0);
+    p.holsterweaponmodel1 = VR_ADGun_LegacyModel(p.holsterweapon1, p.holsterweaponmodel1);
+    p.holsterweapon1 = VR_ADGun_LegacyId(p.holsterweapon1);
+    p.holsterweaponmodel2 = VR_ADGun_LegacyModel(p.holsterweapon2, p.holsterweaponmodel2);
+    p.holsterweapon2 = VR_ADGun_LegacyId(p.holsterweapon2);
+    p.holsterweaponmodel3 = VR_ADGun_LegacyModel(p.holsterweapon3, p.holsterweaponmodel3);
+    p.holsterweapon3 = VR_ADGun_LegacyId(p.holsterweapon3);
+    p.holsterweaponmodel4 = VR_ADGun_LegacyModel(p.holsterweapon4, p.holsterweaponmodel4);
+    p.holsterweapon4 = VR_ADGun_LegacyId(p.holsterweapon4);
+    p.holsterweaponmodel5 = VR_ADGun_LegacyModel(p.holsterweapon5, p.holsterweaponmodel5);
+    p.holsterweapon5 = VR_ADGun_LegacyId(p.holsterweapon5);
+};
+
+// OnLoadGame: the guns lying about (thrown or dropped, a map's or the toolgun's func_weapon_grabbable not yet made)
+// and the players'. Returns how many were changed (vr_ad_test 71).
+float() VR_ADGun_LegacyWorld =
+{
+    float n = 0;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(e.classname == "player")
+        {
+            float before = (e.weapon == WID_ADELIMINATOR) + (e.weapon2 == WID_ADELIMINATOR);
+            VR_ADGun_LegacyIds(e);
+            n += before;
+        }
+        else if(e.weapon == WID_ADELIMINATOR && (e.classname == "thrown_weapon" || e.classname == "func_weapon_grabbable"))
+        {
+            e.weapon = WID_ADCENTURION;
+            if(e.model != "")
+            {
+                vector mn = e.mins, mx = e.maxs;
+                VR_ADGun_Ensure(WID_ADCENTURION);
+                setmodel(e, VR_ADGun_Model(WID_ADCENTURION));
+                setsize(e, mn, mx);
+            }
+            n++;
+        }
+    }
+    return n;
+};
+
 void(entity p) VR_ADGun_EnsureCarried =
 {
+    VR_ADGun_LegacyIds(p); // (an older save's eliminator's gun)
     VR_ADGun_Placed(p.weapon);
     VR_ADGun_Placed(p.weapon2);
     VR_ADGun_Placed(p.holsterweapon0);
@@ -291,8 +358,7 @@ void(float xHand, float xWid) VR_ADGun_FirePlasma =
     sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
     self.punchangle_x = -1;
     float kind = ad_CT_MONARMYPLASMA;
-    if(xWid == WID_ADELIMINATOR) { kind = ad_CT_MONELIMATOR; }
-    else if(xWid == WID_ADCENTURION) { kind = ad_CT_MONCENTURION; }
+    if(xWid == WID_ADCENTURION || xWid == WID_ADELIMINATOR) { kind = ad_CT_MONCENTURION; }
     vector dir = VRGetWeaponFireRotFwd(xHand);
     float speed = max(100, VR_ADGun_Value(xWid, "speed"));
     ad_launch_plasma(VRGetMuzzlePos(xHand), dir, kind, speed);

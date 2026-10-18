@@ -142,7 +142,7 @@ def prepare(normal, alt, hand_vertex):
 
 def slot_defaults():
     slots = {}
-    for slot, key, value in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
+    for slot, key, value in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
         slots.setdefault(int(slot), {})[key] = value
     return slots
 

@@ -85,6 +85,7 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven; // weapon_touch: it
 float(entity p) AD_PackWeaponUpgrades;   // SetChangeParms: the upgrades of p's weapons (hands, holsters) as one parm
 void(entity p, float xPacked) AD_UnpackWeaponUpgrades; // DecodeLevelParms: ... back on the weapons carried
 void(entity p) VR_ADGun_EnsureCarried;   // DecodeLevelParms: AD soldiers' guns carried from the last level precached
+float() VR_ADGun_LegacyWorld;            // OnLoadGame: an older save's eliminator's guns the centurion's (vr_ad_enemyguns.qc)
 void(entity p) AD_UpgradesToWeapons;     // PutClientInServer, OnLoadGame: a player's own upgrades (before 2026-10-12) onto his weapons
 float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
 void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map

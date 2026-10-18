@@ -1211,6 +1211,7 @@ constexpr float legsStride = 0.75f;     // of its leg: a step lands at most this
 constexpr float legsSwingMost = 8.f;    // m/s: a stepping foot carried at most this fast
 constexpr float legsSwingGrip = 0.6f;   // of the way to that, a frame
 constexpr float legsSwingClear = 0.08f; // of its leg: a stepping foot kept this far over the floor on its way
+constexpr float legsHang = 1.f;         // of its leg: a foot struck hanging this far over its floor bears where it stood
 
 // The point within the capsule round segment a..b of radius r nearest q (level); `past`: how far q lies outside it.
 [[nodiscard]] glm::vec2 inCapsule(const glm::vec2& q, const glm::vec2& a, const glm::vec2& b, float r, float& past)
@@ -1285,12 +1286,18 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         }
         const glm::vec3 f = limbEnd(s, p, leg);
         const float len = limbLength(s, p, leg);
-        const float floor = floorAt(c, f, 0.3f, f.z - g.footGap[i]);
+        // (A planted foot's floor traced once, as it stood or as it landed: a foot by a step's edge, traced again as it
+        // shifts a unit, read the step below and stopped bearing at once.)
+        if(leg == g.stepLeg || g.footFloor[i] < -1e29f)
+        {
+            g.footFloor[i] = leg == g.stepLeg ? -1e30f : floorAt(c, f, 0.3f, f.z - g.footGap[i]);
+        }
+        const float floor = leg == g.stepLeg ? floorAt(c, f, 0.3f, f.z - g.footGap[i]) : g.footFloor[i];
         // (As it stood: an ogre's foot's end 8 units below its sole; on a slope its downhill foot over the floor, its
         // stand frame's feet level.)
         if(first)
         {
-            g.footGap[i] = za::clamp(f.z - floor, -0.25f, 0.3f);
+            g.footGap[i] = za::clamp(f.z - floor, -0.25f, za::max(0.3f, legsHang * len));
             feetEnd += f.z;
             whole++;
         }
@@ -1371,14 +1378,29 @@ void legsBalance(Stagger& g, const State& s, const Parts& p, const Context& c, c
         const glm::vec2 dir{g.dir.x, g.dir.y};
         Con_Printf("legs: %d %.2f s, %d bearing, push %.2f, middle %.1f along %.1f up, speed %.2f along, capture %.1f along "
                    "(%.1f past), pressure %.1f along, feet %.1f apart along %.1f, step %d (%d done), lean %.0f, legs %x, "
-                   "pose %d, off upright %.0f deg\n",
+                   "pose %d, off upright %.0f deg; at %.1f, com %.1f, foot %.1f %.1f\n",
             c.num, static_cast<float>(c.now - s.begun), n, push, glm::dot(x - mid, dir) * p.m2u, (com.z - baseZ) * p.m2u,
             glm::dot(glm::vec2{comVel.x, comVel.y}, dir), glm::dot(xi - mid, dir) * p.m2u, past * p.m2u,
             glm::dot(cop - mid, dir) * p.m2u, glm::length(b - a) * p.m2u, glm::dot(b - a, dir) * p.m2u, g.stepLeg, g.steps,
             g.lean, g.legParts, pose.valid ? 1 : 0,
             pose.valid ? glm::degrees(glm::length(ragpose::rotationVector(glm::normalize(s.turn * pose.rot[0]) *
                                                                           glm::inverse(bodyRot(p, 0)))))
-                       : -1.f);
+                       : -1.f,
+            glm::dot(glm::vec2{pelvis.x, pelvis.y}, dir) * p.m2u, glm::dot(glm::vec2{com.x, com.y}, dir) * p.m2u,
+            glm::dot(glm::vec2{limbEnd(s, p, 2).x, limbEnd(s, p, 2).y}, dir) * p.m2u,
+            glm::dot(glm::vec2{limbEnd(s, p, 3).x, limbEnd(s, p, 3).y}, dir) * p.m2u);
+        if(vr_flinch_debug.value >= 5.f && c.now - s.begun < 0.06)
+        {
+            for(int b2 = 0; b2 < p.count; b2++)
+            {
+                const glm::vec3 v = glmv(b3Body_GetLinearVelocity(p.body[b2]));
+                const glm::vec3 at = glmv(b3Body_GetWorldCenter(p.body[b2]));
+                Con_Printf("legs: body %d (%s) parent %d at %.1f along %.1f up, v %.2f along %.2f up, mass %.1f%s\n", b2,
+                    p.rig->bones[b2].name, p.rig->bones[b2].parent, glm::dot(glm::vec2{at.x, at.y}, dir) * p.m2u,
+                    at.z * p.m2u, glm::dot(glm::vec2{v.x, v.y}, dir), v.z, b3Body_GetMass(p.body[b2]),
+                    (g.legParts & (1u << b2)) ? " leg" : "");
+            }
+        }
     }
     // Upright over its feet, as its hips and ankles hold it: the less, the farther its capture point is past their reach.
     if(pose.valid)
@@ -1529,12 +1551,31 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                     to = hipThen + off * (legsStride * len / offL);
                 }
                 const glm::vec3 from = g.planted[i];
+                // (Onto a floor within its leg's reach under it: a sidestep off a stair's open side drawn back in towards
+                // its hip, not put down on air.)
+                for(const float k : {1.f, 0.75f, 0.5f, 0.25f})
+                {
+                    const glm::vec3 q = hipThen + (level(to) - hipThen) * k;
+                    if(floorUnder(c, glm::vec3{q.x, q.y, from.z}, pelvis.z, from.z - len, -1e30f) > -1e29f)
+                    {
+                        to = glm::vec3{q.x, q.y, to.z};
+                        break;
+                    }
+                }
                 to.z = from.z + floorAt(c, glm::vec3{to.x, to.y, from.z}, len, from.z) - floorAt(c, from, len, from.z);
                 g.stepLeg = best;
                 g.stepFrom = c.now;
                 g.stepTime = stepTime;
                 g.stepA = g.planted[i];
                 g.stepB = to;
+                if(vr_flinch_debug.value >= 4.f)
+                {
+                    const glm::vec3 d = level(g.dir);
+                    Con_Printf("step: %d leg %d %.2f s, from %.1f to %.1f along (%.1f aside), capture %.1f along, com %.1f\n",
+                        c.num, best, static_cast<float>(c.now - s.begun), glm::dot(from, d) * p.m2u, glm::dot(to, d) * p.m2u,
+                        glm::dot(to - from, glm::cross(up, d)) * p.m2u, glm::dot(g.capture, d) * p.m2u,
+                        glm::dot(com, d) * p.m2u);
+                }
             }
         }
         if(!g.legs && g.stepLeg < 0 && g.steps < stepsCap)
@@ -3939,6 +3980,8 @@ float flinchSpeed(const State& s, const Parts& p, const glm::vec3& impulse)
     return glm::length(level(impulse)) / za::max(mass, 1.f);
 }
 
+constexpr float flinchJoltMost = 1.5f; // vr_flinch 2: a struck part's jolt, at most this times its upper body's share's
+
 void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
 {
     const float dv = flinchSpeed(s, p, info.impulse);
@@ -4101,8 +4144,29 @@ void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now)
         }
         if(best >= 0)
         {
-            b3Body_ApplyLinearImpulse(p.body[best], b3v(info.impulse * (local * (info.legs ? za::max(info.push, 0.f) : 1.f))),
-                b3v(info.at), true);
+            glm::vec3 jolt = info.impulse * (local * (info.legs ? za::max(info.push, 0.f) : 1.f));
+            // (vr_flinch 2: its part's jolt at most flinchJoltMost times its upper body's share's change of speed, the
+            // rest over that upper body by mass: a light part struck (an enforcer's 6 kg pelvis, a death knight's) would
+            // otherwise take several m/s and drag its legs out from under it, its feet kicked along the hit.)
+            if(info.legs && (g.legParts & (1u << best)) == 0u)
+            {
+                const float m = b3Body_GetMass(p.body[best]);
+                const float restDv = (1.f - local) * za::max(info.push, 0.f) * glm::length(info.impulse) / g.upperMass;
+                const float most = flinchJoltMost * za::max(restDv, 0.05f) * m;
+                if(const float l = glm::length(jolt); l > most)
+                {
+                    const glm::vec3 over = jolt * (1.f - most / l);
+                    jolt -= over;
+                    for(int b = 0; b < p.count; b++)
+                    {
+                        if(!cut(p, b) && (g.legParts & (1u << b)) == 0u)
+                        {
+                            b3Body_ApplyLinearImpulseToCenter(p.body[b], b3v(over * (b3Body_GetMass(p.body[b]) / g.upperMass)), true);
+                        }
+                    }
+                }
+            }
+            b3Body_ApplyLinearImpulse(p.body[best], b3v(jolt), b3v(info.at), true);
         }
     }
 }

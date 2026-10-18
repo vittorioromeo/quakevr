@@ -73,6 +73,10 @@ void() VR_ADGun_TestThink =
         vr_adgun_test_clip, clip, dealt, vr_adgun_hits, ok ? "PASS" : "FAIL"));
     if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
     vr_adgun_test_index = vr_adgun_test_index + 1;
+    if(WID_ADROCKET + vr_adgun_test_index == WID_ADELIMINATOR)
+    {
+        vr_adgun_test_index = vr_adgun_test_index + 1; // (gone: the centurion's)
+    }
     vr_adgun_test_step = 0;
     if(vr_adgun_test_index > WID_ADCROSSBOW - WID_ADROCKET)
     {
@@ -779,6 +783,23 @@ void(float request, entity p) AD_GunTest =
             if(ok) { pass++; } else { fail++; }
         }
         remove(s);
+        // An older save's eliminator's plasma gun lying about (weapon 24, its old model): the centurion's on load.
+        {
+            entity old = spawn();
+            old.classname = "thrown_weapon";
+            old.weapon = WID_ADELIMINATOR;
+            setorigin(old, p.origin + v_forward * 64);
+            precache_model("progs/v_gruntgun.mdl#adv4"); // (the old name: the engine makes the centurion's)
+            setmodel(old, "progs/v_gruntgun.mdl#adv4");
+            setsize(old, '-4 -4 -4', '4 4 4');
+            float changed = VR_ADGun_LegacyWorld();
+            float okOld = old.weapon == WID_ADCENTURION && old.model == WeaponIdToModel(WID_ADCENTURION, 0) && old.size == '8 8 8' &&
+                          VR_ADGun_ForClass(ad_CT_MONELIMATOR) == WID_ADCENTURION;
+            bprint(sprintf("adgun drop: an older save's eliminator's gun: weapon %g, %s, %g changed: %s\n", old.weapon, old.model,
+                changed, okOld ? "PASS" : "FAIL"));
+            if(okOld) { pass++; } else { fail++; }
+            remove(old);
+        }
         bprint(sprintf("adgun drop: %g passed, %g failed\n", pass, fail));
         return;
     }

@@ -190,6 +190,9 @@ za::Vector<Item> pageDebugViews()
         command("Cell Cord Info", "vr_cellcord_info")
             .help("vr_cellcord_info: in the console, the cell cords (Weapons > Reloading > Cell Cords): each one's weapon, "
                   "its ends (the weapon's bottom, the pouch's cell), loose or plugged in, its length and rings."),
+        command("Weapon Settings Inheritance", "vr_wofs_dump")
+            .help("vr_wofs_dump: in the console, the weapon slots that inherit another's settings, and from which; "
+                  "vr_wofs_dump <slot> ... prints every value a slot uses (\"<-n\": slot n's)."),
         command("Magnetic Holsters Info", "vr_magholster_info")
             .help("vr_magholster_info: in the console, each holster's bound weapon (Immersion > Magnetic Holsters): where it "
                   "is (holstered, held, away and how far), its chains and their links."),

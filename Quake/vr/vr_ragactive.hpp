@@ -437,6 +437,7 @@ struct Stagger
     float upperMass{1.f};     // kg: the rest
     float pelvisOver{0.f};    // m: its pelvis over its feet's ends as it stood
     za::Array<float, 2> footGap{}; // m: each foot's end over its floor as it stood (below it: negative)
+    za::Array<float, 2> footFloor{-1e30f, -1e30f}; // m: each planted foot's floor (traced as it stood or landed)
     int bearing{0};           // feet on the floor now
     glm::vec3 capture{0.f};   // its capture point (level, world, metres) this frame
     float captureOff{0.f};    // m: how far it lies past its feet's reach for its centre of pressure (0: within)

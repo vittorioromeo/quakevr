@@ -455,7 +455,7 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
     if(wid == WID_SWORD)            { return "Knight's Sword"; }
     if(wid == WID_CHAINSAW)         { return "Ogre's Chainsaw"; }
-    if(wid == WID_GRUNTGUN)         { return "Grunt's Shotgun"; }
+    if(wid == WID_GRUNTGUN)         { return "Grunt Burst Rifle"; } // (our edited grunt's gun: a 3-round burst)
     if(wid == WID_ENFRIFLE)         { return "Enforcer's Laser Rifle"; }
     if(wid == WID_CROWBAR)          { return "Crowbar"; }
     if(wid == WID_SUPERAXE)         { return "Super Axe"; }

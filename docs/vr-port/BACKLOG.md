@@ -164,6 +164,10 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Dual-wield parry: crossed swords (the author, 2026-10-18)
+With a sword in each hand (e.g. the Death Fury's pair), crossing the two blades in front of the body should be a valid
+parry pose; today it isn't recognised. Later, after the AD melee work.
+
 ### Multiplayer update (after 1.1; the author, 2026-10-18)
 Reference: https://github.com/ObeseCatLord/Quakespasm-VR (vkQuake-based VR port, GPL-2.0-or-later: code can be
 borrowed with its copyright headers kept and credit; per-file notices; its `Quake/ice` is QSS-M-derived with its own notices).

@@ -13419,10 +13419,105 @@ hand, then laid as the knight's sword as before):
 - 1000-1060 triangles a sword, 720 the heavies; `vr_admelee_models` now prints open edges (0 on all six), edges of
   3+ triangles (0) and the winding (all outward). MuzzleAnchor of slots 40-44 (0-based) moved to the new tips (the
   fury's and the hammer's to the other side); hand and second-hand anchors unchanged (on the handle's line).
-  `vr_wofs_version` 48 (`takeAdMeleeTips`) moves a config still holding an old tip (checked: a config at 47 with the
-  old tips takes the new ones, a value of its own is kept).
+  `vr_wofs_version` 49 (`takeAdMeleeTips`, after adnoinherit's 48) moves a config still holding an old tip (checked: a config at 47 with the
+  old tips, at 49, takes the new ones, a value of its own is kept).
 - Tests: `vr_ad_test 110`..`115` PASS (swords 31 / 31, hammer 23 / 46, mace 22 / 44). Held side by side old (left)
   and new (right): `scratch/admelee3_old_vs_new.png` (`scratch/am3_shots.sh`, `vr_ad_test 116`..`119`).
 
 In VR: hold each sword close (the blade's thinness edge-on, the guard and pommel); the fury's curve now the other way;
 the hammer's spike away from you; the hammer's and mace's collar just above the main hand.
+
+## Flinch: `vr_flinch 2` across classes (worktree `fastship`, branch `agent/flinch7`, 2026-10-18)
+
+His direction: the enforcer must regain balance on flat ground; a general solution for most humanoids, not per-class
+hacks; on stairs a strong shotgun may fell it, light blows must not. Suite: `scratch/fl7_suite.py <label> <mode>`
+(`FL7_CLASS=all` runs grunt, enforcer, knight, death knight in one batch; `FL7_CASES` picks cases; new `stairs/sg192`, a
+shotgun from 192 units, as the light stairs hit: nails do not flinch anything). `vr_flinch` stays 1 (below).
+
+Recovered/8: flat shotgun 64, flat blow, flat uppercut, slope blow, stairs shotgun 64, stairs blow, stairs shotgun 192:
+
+| step | grunt | enforcer | knight | death knight | kept |
+|---|---|---|---|---|---|
+| `vr_flinch 1` | 8 8 8 8 8 8 8 | 8 8 8 8 8 6 8 | 8 8 8 8 8 8 8 | 8 8 8 8 8 8 8 | |
+| `vr_flinch 2` baseline | 8 8 8 8 0 2 0 | 0 0 8 0 0 0 0 | 8 8 8 8 6 6 6 | 8 8 8 8 0 0 0 | |
+| 1 jolt cap | 8 8 8 8 0 2 0 | 8 8 8 6 0 0 0 | 8 8 8 8 6 6 6 | 8 8 8 8 0 0 0 | yes |
+| 2 hanging foot bears (to a leg) | 8 8 8 8 0 2 0 | 8 8 8 7 4 5 4 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | yes |
+| 3 planted foot's floor traced once | 8 8 8 8 8 8 8 | 8 8 8 5 6 4 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 3 8 | yes |
+| 4 step only past both feet on the floor | 8 8 8 8 8 8 8 | 8 8 8 4 6 6 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | no |
+| 5 ground test traced from the pelvis | 8 8 8 8 8 8 8 | 8 8 8 6 6 6 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 1 8 | no (no effect) |
+| 6 landing drawn back onto floor | 8 8 8 8 8 8 8 | 8 8 8 8 6 8 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 7 8 | yes |
+| 7 landing height traced from the pelvis | 8 8 8 8 8 8 7 | 8 8 8 7 6 7 6 | 8 8 8 8 8 8 8 | 8 8 8 8 8 6 8 | no |
+
+- **The enforcer's cause** (`vr_flinch_debug 5`, every part's speed on its first frames): not its lean (its stand
+  frame's centre of mass 3.7 units over its feet, `supportOffset`, was already the reference for its capture point,
+  its centre of pressure and its steps). The shotgun's jolt (its local share, on the part nearest the hit) landed on its
+  pelvis, 6 kg under a 57 kg chest: 7 m/s against 0.8 for the rest. The pelvis dragged both legs along the hit, the
+  bearing foot slid 21 units in 0.15 s and the body jackknifed and fell back against the hit (its steps "against the
+  hit" were catching that). Capped at 1.5x the upper body's change of speed (the rest over the upper body by mass): a
+  rule by mass, not by class. The grunt's and knight's chest jolts are 1.2x and 1.4x (untouched); the death knight's
+  pelvis was 3.4x.
+- **Stairs, steps 2-3:** a foot struck hanging (a stance wider than a stair) no longer reads as "in the air" (its gap
+  was capped at 0.3 m); a planted foot's floor no longer flickers between two steps as it shifts by an edge.
+- **Step 6:** a death knight's sidestep landed over the stairs' open side and stood (its foot bearing where it was
+  put) but never passed the recovery test's ground rays (no floor within 0.75 m), toppling at 2 s.
+- **Ogre** (flat blow, slope blow, stairs blow): 8 8 6(+2 no flinch), the same as `vr_flinch 1` (stairs blow was 0).
+  A shotgun and an uppercut do not flinch it in either mode. The zombie does not flinch in either mode.
+- **Left:** the enforcer on stairs from the spot 12 units left of the middle (2 of 8 in both shotgun cases): its left
+  foot ends over the stairs' side trim with no floor in the ground test's reach and it topples at 2 s, balanced;
+  `vr_flinch 1` recovers there. The death knight's stairs blow, 7/8.
+- **Default:** not switched. Mode 2 equals mode 1 on flat and slope for every class measured, but the enforcer's light
+  stairs hit is 6/8 against 8/8.
+- **Melee:** `eval.sh --full` with `vr_flinch 0`: 168/177 (unchanged).
+
+## AD guns: hose round the arms, empty pilot light, one centurion gun, Weapon Damage rows (worktree `goreflesh`, branch `agent/adguns3`, 2026-10-18)
+
+- **Hose and arms** (`vr_adtank.cpp`, `vr_adgun_hose_arms` 1): each hose segment kept out of the drawn arms, six
+  capsules from `avatar::skeleton` (upper arm 5.6 cm, forearm 5 then 3.6 cm, as `vr_selfcollide.cpp`, plus the hose's
+  1.1 cm), a segment-capsule push split between its free ends after the torso's in each of the 3 passes; a segment
+  whose held end (the gun's stub) is the deepest is left. `vr_adgun_hose_info` prints each hand's depth in the arms
+  (now, deepest, mean since the last print). `scratch/hosearms.sh`, five poses, 315 steps each, mean depth off -> on:
+  0 -> 0, 2.23 -> 0, 2.66 -> 0.09, 0.69 -> 0, 3.13 -> 0.17 cm; the step 0.009 -> 0.013 ms a frame. Debug > Tests >
+  Arcane Dimensions Monsters: Fuel Hose Avoids the Arms.
+- **Empty flamethrower**: no pilot light once its fuel (the hand's clip stat) is 0 (`scratch/pilot.sh`: 56 particles
+  fuelled, 68 -> 68 once spent).
+- **Eliminator = centurion**: the eliminator drops the centurion's plasma gun; WID 24 stays reserved. An older save's
+  WID 24 (hands, holsters, lying about) is made 25 with its model on load (`VR_ADGun_LegacyWorld`, OnLoadGame;
+  `VR_ADGun_LegacyIds` in `VR_ADGun_EnsureCarried`, so level parms too), and the engine reads "#adv4" as the
+  centurion's (`variantOf`). The eliminator's art, cvars (`vr_adgun_eliminator_*`), menu rows and toolgun slot 316 are
+  gone. `vr_ad_test 70` skips it (8/8), `71` checks an old eliminator gun's remap (9/9).
+- **Freddie's super nailgun**: toolgun slot 326 dropped (it was weapon 7, the plain super nailgun; the arm cut's 36
+  nails unchanged).
+- **Grunt Burst Rifle**: the toolgun's and `WeaponIdToWeaponName`'s name (was "Grunt's Shotgun").
+- **Weapon Damage > Arcane Dimensions**: new `vr_dmg_ad_shadowaxe` 35, `vr_dmg_ad_widowmaker` 4 (a pellet),
+  `vr_ad_widowmaker_pellets` 21, `vr_dmg_ad_plasmagun` 45, `vr_dmg_ad_plasmagun_splash` 20, `vr_ad_plasmagun_speed` 900
+  (AD's numbers; a map's worldspawn `plasmagun_dmg` still wins), and the soldiers' guns' and melee drops' damage rows
+  (their `vr_adgun_*`/`vr_admelee_*`), with a link to Arcane Dimensions' Guns. `AD_ShadowAxeIn` now answers "is it the
+  Shadow Axe" (was `AD_AxeScale > 1`).
+- Weapon Offsets slot 28 still names "#adv34" (another worker owns the slots): an un-remapped "#adv4" would sit as the
+  defender's; every path above renames it to "#adv5".
+
+## AD weapons inherit no weapon settings (worktree `dequant`, branch `agent/adnoinherit`, 2026-10-18)
+
+His decision: an AD weapon must not take its settings from another slot (tuning the Shadow Axe wrote the axe's slot:
+posing or the Weapon Offsets page of an inheriting weapon edit the parent's cvars; adweapons2 then promoted his Shadow
+Axe size onto slot 0, so the plain axe grew too).
+
+- **Defaults:** slots 27-31 (AD soldiers' guns, were InheritFrom 22), 33 (Shadow Axe, from 1), 34 (Widowmaker, from 3),
+  35 (Plasma Gun, from 8) no longer inherit; every value they took from the parent is now their own default
+  (`QVR_WEAPON_UNINHERITED` lines in vr_weapons.inc, generated from `vr_wofs_dump` of the effective values: 48 per AD
+  gun, 36 / 35 / 52 for the upgrades). The QVR_WEAPON_OWN marks of 34-35 went with it. Slot 0 (axe) back to its values
+  before adweapons2: Scale 0.34, Offset Y 0.8, Z -0.4; the Shadow Axe keeps 0.36 / 0.84 / -0.6. The AD crossbow (32,
+  never inherited) takes his tuned values from his config (Pitch 1.9, Yaw 0.2, Roll 3.05, Shot Pitch -2.01, Shot Yaw
+  0.47, Mass 10.65, Balance 36, recoil 1.2 / 0.325 s, no flash, Stock Pitch 10, Torch Forward -0.1315).
+- **Migration (vr_wofs_version 48, takeUninherited):** a slot still inheriting its old parent copies the parent's value
+  for each key whose config value is still the old placeholder default (the defaults before 48 are read in a first pass
+  of vr_weapons.inc that skips the UNINHERITED lines), then InheritFrom 0. A slot the player made stop inheriting (his
+  34 and 35) keeps its values. Then slot 0's three keys and the crossbow's twelve take the new defaults where the config
+  holds the old ones. The other inheriting slots (11-15, 25) are untouched.
+- **Debug:** `vr_wofs_dump` (Debug > "Weapon Settings Inheritance"): the slots that inherit; `vr_wofs_dump <slot> ...`
+  every value a slot uses, `<-n` where it comes from slot n.
+- **Checked (headless):** effective values of slots 0, 2, 7, 21, 22, 27-35, 40-45, before and after, with every default
+  (`resetall`), with the kit baseline config (v43) and with a copy of his config (v47): only slot 0 changes (back to
+  0.34 / 0.8 / -0.4) and the crossbow (his values); the rest differ only in InheritFrom. His config migrated: slot 0 back,
+  the Shadow Axe 0.36 / 0.84 / -0.6, his Widowmaker and fury sword values kept. `vr_ad_test 70` 9/9 PASS, `93` PASS,
+  97-99 the `#vr` models in hand and holsters; `100` prints no drop, the same on the base build (not this change).

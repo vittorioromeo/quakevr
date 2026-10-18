@@ -3,6 +3,7 @@
 #include "vr_adtank.hpp"
 
 #include "vr_adguns.hpp"
+#include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
 #include "vr_bodyclone.hpp"
@@ -12,6 +13,7 @@
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
@@ -87,12 +89,15 @@ unsigned pilotSeed = 0x9E3779B9u;
 }
 
 // `ve` (the pyro's gun, held in hand `i`) burning its pilot light this frame: small flames off its pilot pipe's tip,
-// drifting forward and up, now and then a spark. None while paused or under water.
+// drifting forward and up, now and then a spark. None while paused or under water, nor with its fuel gone (Vittorio,
+// 2026-10-18: the empty gun's tell; its clip is its fuel).
 void pilotFlames(int i, const view::ViewEntity* ve)
 {
     Pilot& p = pilots[i];
     glm::vec3 tipModel;
-    if(!ve || !ve->ent.model || !adguns::pilotLight(adguns::variantOf(ve->ent.model->name), tipModel) || !cl.worldmodel)
+    const int fuel = cl.stats[i == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+    if(!ve || !ve->ent.model || !adguns::pilotLight(adguns::variantOf(ve->ent.model->name), tipModel) || !cl.worldmodel ||
+        fuel <= 0)
     {
         p.time = -1.0;
         return;
@@ -172,6 +177,175 @@ void pushOutOfTorso(glm::vec3& p, const glm::vec3& axis, float bottom, float top
     p.y = axis.y + out.y;
 }
 
+// The drawn body's arms as capsules (Vittorio, 2026-10-18: the hose went through the arms), from the body as last posed
+// (avatar::skeleton; sized as vr_selfcollide.cpp's: the upper arm, the forearm's thick half and its bracer), the hose's
+// radius added. Each hose segment is kept out of them as the torso keeps its points out (vr_adgun_hose_arms), and how
+// deep the hose lies in them is measured either way (vr_adgun_hose_info).
+struct ArmCapsule
+{
+    glm::vec3 a{0.f}, b{0.f};
+    float r{0.f};
+};
+constexpr int armCapsuleCount = 6;
+ArmCapsule armCaps[armCapsuleCount];
+int armCapCount = 0;
+
+// Each hose's depth in the arms after its step (units), its segments in them, the steps measured.
+struct ArmMetric
+{
+    float worst{0.f};    // this step's deepest segment
+    int inside{0};       // ... its segments in an arm
+    float peak{0.f};     // the deepest since vr_adgun_hose_info last printed
+    double sum{0.0};     // ... the steps' worst, summed (the mean)
+    int steps{0};
+};
+ArmMetric armMetrics[2];
+
+void gatherArms()
+{
+    armCapCount = 0;
+    avatar::Skeleton sk;
+    if(!avatar::skeleton(sk))
+    {
+        return;
+    }
+    const float k = sk.m2w;
+    for(int h = 0; h < 2; h++)
+    {
+        const glm::vec3 mid = glm::mix(sk.elbow[h], sk.wrist[h], 0.45f);
+        armCaps[armCapCount++] = {sk.shoulder[h], sk.elbow[h], (0.056f + hoseRadius) * k};
+        armCaps[armCapCount++] = {sk.elbow[h], mid, (0.05f + hoseRadius) * k};
+        armCaps[armCapCount++] = {mid, sk.wrist[h], (0.036f + hoseRadius) * k};
+    }
+}
+
+// The closest points of segments p0-p1 and q0-q1: their shares along each (s on p, t on q). Ericson's.
+void closestSegments(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& q0, const glm::vec3& q1, float& s, float& t)
+{
+    const glm::vec3 d1 = p1 - p0, d2 = q1 - q0, r = p0 - q0;
+    const float a = glm::dot(d1, d1), e = glm::dot(d2, d2), f = glm::dot(d2, r);
+    if(a <= 1e-8f && e <= 1e-8f)
+    {
+        s = t = 0.f;
+        return;
+    }
+    if(a <= 1e-8f)
+    {
+        s = 0.f;
+        t = za::clamp(f / e, 0.f, 1.f);
+        return;
+    }
+    const float c = glm::dot(d1, r);
+    if(e <= 1e-8f)
+    {
+        t = 0.f;
+        s = za::clamp(-c / a, 0.f, 1.f);
+        return;
+    }
+    const float b = glm::dot(d1, d2), denom = a * e - b * b;
+    s = denom > 1e-8f ? za::clamp((b * f - c * e) / denom, 0.f, 1.f) : 0.f;
+    t = (b * s + f) / e;
+    if(t < 0.f)
+    {
+        t = 0.f;
+        s = za::clamp(-c / a, 0.f, 1.f);
+    }
+    else if(t > 1.f)
+    {
+        t = 1.f;
+        s = za::clamp((b - c) / a, 0.f, 1.f);
+    }
+}
+
+// How deep segment p0-p1 lies in capsule `c` (0: not in it), the way out of it at its deepest and its share there.
+[[nodiscard]] float depthIn(const ArmCapsule& c, const glm::vec3& p0, const glm::vec3& p1, glm::vec3& out, float& s)
+{
+    float t;
+    closestSegments(p0, p1, c.a, c.b, s, t);
+    const glm::vec3 onHose = glm::mix(p0, p1, s), onArm = glm::mix(c.a, c.b, t);
+    const glm::vec3 d = onHose - onArm;
+    const float dist = glm::length(d);
+    if(dist >= c.r)
+    {
+        return 0.f;
+    }
+    out = dist > 1e-5f ? d / dist : bodyRight;
+    return c.r - dist;
+}
+
+// The hose's points (`pinned` held) pushed out of the arms: each segment in an arm moved out along the way out at its
+// deepest, split between its free ends by their shares (a segment whose held end is in the arm is left: the gun's own
+// hand holds it there).
+void pushOutOfArms(glm::vec3* p, const char* pinned, int n)
+{
+    for(int k = 0; k + 1 < n; k++)
+    {
+        const bool f0 = !pinned[k], f1 = !pinned[k + 1];
+        if(!f0 && !f1)
+        {
+            continue;
+        }
+        for(int c = 0; c < armCapCount; c++)
+        {
+            glm::vec3 out;
+            float s;
+            const float depth = depthIn(armCaps[c], p[k], p[k + 1], out, s);
+            if(depth <= 0.f)
+            {
+                continue;
+            }
+            const float w0 = f0 ? 1.f - s : 0.f, w1 = f1 ? s : 0.f;
+            const float inv = w0 * w0 + w1 * w1;
+            if(inv < 0.05f)
+            {
+                continue; // (its held end's the deepest: in the holding hand's arm)
+            }
+            const float lambda = depth / inv;
+            p[k] += out * (lambda * w0);
+            p[k + 1] += out * (lambda * w1);
+        }
+    }
+}
+
+// The step's depth of the hose in the arms (its segments with a free end).
+void measureArms(int hand, const glm::vec3* p, const char* pinned, int n)
+{
+    ArmMetric& m = armMetrics[hand];
+    m.worst = 0.f;
+    m.inside = 0;
+    if(armCapCount == 0)
+    {
+        return;
+    }
+    for(int k = 0; k + 1 < n; k++)
+    {
+        if(pinned[k] && pinned[k + 1])
+        {
+            continue;
+        }
+        float deepest = 0.f;
+        for(int c = 0; c < armCapCount; c++)
+        {
+            glm::vec3 out;
+            float s;
+            const float d = depthIn(armCaps[c], p[k], p[k + 1], out, s);
+            const bool heldEnd = (pinned[k] && s < 0.2f) || (pinned[k + 1] && s > 0.8f);
+            if(!heldEnd)
+            {
+                deepest = za::max(deepest, d);
+            }
+        }
+        if(deepest > 0.f)
+        {
+            m.inside++;
+            m.worst = za::max(m.worst, deepest);
+        }
+    }
+    m.peak = za::max(m.peak, m.worst);
+    m.sum += m.worst;
+    m.steps++;
+}
+
 void hide(Hose& h)
 {
     h.live = false;
@@ -234,6 +408,16 @@ void info_f()
         vr_adgun_hose.value, vr_adgun_hose_route.value != 0.f ? "shoulder" : "hip", vr_adgun_tank_x.value, vr_adgun_tank_y.value,
         vr_adgun_tank_z.value, setupCost * 1000.0, setupHoses, buildCost * 1000.0, units::metresToUnits());
     Con_Printf("adgun pilot light: %d and %d particles made (main, off hand)\n", pilots[HAND_MAIN].made, pilots[1 - HAND_MAIN].made);
+    const float u2cm = 100.f / units::metresToUnits();
+    Con_Printf("adgun hose arms: %s, %d arm capsules\n", vr_adgun_hose_arms.value != 0.f ? "kept out" : "not collided", armCapCount);
+    for(int i = 0; i < 2; i++)
+    {
+        ArmMetric& m = armMetrics[i];
+        Con_Printf("adgun hose arms %s: now %.2f cm deep (%d segments in), deepest %.2f cm, mean %.2f cm over %d steps\n",
+            i == HAND_MAIN ? "main" : "off", m.worst * u2cm, m.inside, m.peak * u2cm,
+            m.steps ? static_cast<float>(m.sum / m.steps) * u2cm : 0.f, m.steps);
+        m = ArmMetric{};
+    }
     for(int i = 0; i < 2; i++)
     {
         const Hose& h = hoses[i];
@@ -308,6 +492,8 @@ void setupView(const hands::State& s)
     const glm::vec3 centre = body::chestAnchor(s, glm::vec3{vr_adgun_tank_x.value, vr_adgun_tank_y.value, vr_adgun_tank_z.value});
     const glm::vec3 torso = centre + bodyFwd * (0.15f * m2u);
     const bool shoulder = vr_adgun_hose_route.value != 0.f;
+    const bool armsCollide = vr_adgun_hose_arms.value != 0.f;
+    gatherArms();
     setupHoses = 0;
     for(int i = 0; i < 2; i++)
     {
@@ -403,7 +589,12 @@ void setupView(const hands::State& s)
                         (0.2f + hoseRadius) * m2u, (0.14f + hoseRadius) * m2u);
                 }
             }
+            if(armsCollide)
+            {
+                pushOutOfArms(h.p.data(), pinned.data(), nodes);
+            }
         }
+        measureArms(i, h.p.data(), pinned.data(), nodes);
         h.lastDt = dt;
         h.time = vr_gametime;
         h.lastTank = h.tank;

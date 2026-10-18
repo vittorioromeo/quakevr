@@ -193,6 +193,7 @@ void() OnLoadGame =
     VR_CVars_InitAllHandles();
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
     AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)
+    VR_ADGun_LegacyWorld(); // AD support: an older save's eliminator's plasma guns the centurion's (vr_ad_enemyguns.qc)
     // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
     // restored in the hands, starting in game time (the server stays paused until the client is ready).
     entity p = find(world, classname, "player");
