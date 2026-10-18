@@ -12961,3 +12961,33 @@ to a small tank on the back (over the shoulder or below the hip, visible in the 
 - `vr_flinch_debug 3` also prints every hit that reaches the flinch and why a class cannot flinch.
   `vr_flinch_test_health` gives the test grunt more health, for the real weapons test.
 - eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs from the baseline).
+
+## Flinch: the odd-pose shuffle (worktree `fastship`, branch `agent/flinch3`, 2026-10-18)
+
+The shotgun, super shotgun, blow sequence (fl_classes.sh's, `vr_knockdown_time_* 0.5`) in vrtesthall, 12 runs a class.
+`vr_flinch_debug 3` now also prints the frame it was struck in and its stance (feet apart, its middle off them).
+
+- **Why:** not the get-up itself. Three things, all about the pose it was struck in:
+  - **Its steps kept the struck stance.** `beginStagger` took each foot's place round its middle from the pose as
+    struck. Struck in an attack frame, the grunt's middle stood 9 units off its feet the wrong way (its stand frame:
+    2.4), so after every step it was as far off its support: 11 steps, toppled at 2.31 s. A flinch's stance now comes
+    from its stand frame (`beginFlinch`).
+  - **A blow's body was made in its pain frame.** A blow reaches the flinch after its damage, its pain's first frame
+    already set. The enforcer's `paind1` bends its chest 35 degrees over, and it stayed so (`painc1`: 20 degrees, 1.0 s).
+    T_Damage now keeps the frame it had (`vr_fl_prepain`), and a blow's or a throw's flinch is made in it.
+  - **A bent torso stayed bent.** With a still clip a joint's motor holds any bend up to twice its weight's torque; the
+    spring alone could not pull an attack frame's aim (23-29 degrees) back, so the enforcer failed the tilt test and
+    stood until the 2 s settle. A flinch's torso and head motors now turn towards the stand frame as their tone comes
+    back (4/s of the way, at most 3 rad/s).
+- **Numbers** (recovered at, steps; the third hit unless said):
+
+  | | before | after |
+  |---|---|---|
+  | grunt | 8 of 12 at 0.32 s (0-1 steps); 4 toppled at 2.31 s after 11 steps | 12 of 12 at 0.32-0.38 s, 0-1 steps |
+  | enforcer | 4 at 0.32 s; 6 at 0.95-1.40 s (3-6 steps); 2 toppled at 2.0 s | 8 at 0.32-0.45 s; 3 at 0.83-0.87 s (1-2 steps); 1 at 1.25 s (4) |
+  | enforcer, 2nd hit (super shotgun) | 3 of 12 at 2.0-2.1 s (2-9 steps) | all 0.45-0.76 s, 0-2 steps |
+  | enforcer, a blow alone | painc1 1.0 s (4 steps), paind1 toppled at 2.0 s | 0.32 s (6 of 6) |
+
+- Fresh hits are unchanged (0.32-0.38 s, 0-1 steps). `vr_flinch 0` takes none of these paths (the new QC field is only
+  read by the flinch).
+- eval.sh --full with `vr_flinch 0`: 168/177 (the same 5 known diffs).
