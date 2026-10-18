@@ -2646,7 +2646,7 @@ QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalanc
 // takes the hit's impulse, steps and balances, then blends back into its animation once balanced, or topples into a
 // knockdown. 0: the hit reactions, pains and Hits Unbalance exactly as before.
 QVR_CVAR(vr_flinch, "1", CVAR_ARCHIVE)                    // 1 the flinch (shots, nails, melee, throws, blasts); 0 the old reactions
-QVR_CVAR(vr_flinch_classes, "*", CVAR_ARCHIVE)            // the classnames that flinch (space-separated; "*": every one that can stagger as a ragdoll)
+QVR_CVAR(vr_flinch_classes, "* -monster_zombie -monster_zombiek -monster_mummy", CVAR_ARCHIVE) // the classnames that flinch (space-separated; "*" every one that can stagger as a ragdoll, "-name" not that one: the zombies keep their own falls)
 QVR_CVAR(vr_flinch_min, "0.3", CVAR_ARCHIVE)              // m/s: a hit giving its body less change of speed only plays the small hit reaction
 QVR_CVAR(vr_flinch_cooldown, "0.6", CVAR_ARCHIVE)         // s after a flinch began before another can (no stun-lock; the small reaction meanwhile)
 QVR_CVAR(vr_flinch_attack_guard, "1", CVAR_ARCHIVE)       // in its attack frames the threshold times this (1: no protection; 3: only big hits interrupt)

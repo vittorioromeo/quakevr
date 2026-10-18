@@ -676,6 +676,8 @@ struct FlinchInfo
     float most{1.6f};     // s: not steady by then, it topples
     float footR{0.12f};   // m
 };
+// Its legs' mean length (m; its drive begun), 0.75 if it has none.
+[[nodiscard]] float legLength(const State& s, const Parts& p);
 // The whole body's level change of speed (m/s) a hit's impulse gives it.
 [[nodiscard]] float flinchSpeed(const State& s, const Parts& p, const glm::vec3& impulse);
 void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now);

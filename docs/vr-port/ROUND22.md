@@ -12359,3 +12359,46 @@ graphics binding type 1000023000"), so VR on Linux needs a native build. Details
 
 ## Sweep batch D (QuakeC)
 Cvar handles for the per-frame reads (vr_climb in AD, carry x6, melee wrist x5, vr_campaign), duplicate vr_climb handle removed; MGH_PowerupFrame walks only entities flagged MGH_expiring (findflags, like MG_WorldFrame); reload round ammo test before distance; burning any-fire lookup once per frame; cleanups (duplicate grapple/knockdown blocks, empty loops, dead var, scene-clean nextent after removal). Physics hash unchanged, eval 168/177.
+
+## Flinch: hits as brief active ragdolls (worktree `fastship`, branch `agent/flinch`, 2026-10-18)
+
+The author's idea: every attack briefly turns the enemy into an active ragdoll with a natural flinch and recovery, then
+it blends back into its Quake animation. This is phase 1. The design is in docs/vr-port/FLINCH.md. `vr_flinch 1` (the
+new default) against `0` (exactly the old reactions) is the A/B. Combat > Flinch has every setting. The Debug > Tests
+"Flinch" rows hold the overlay, the status and the tests.
+
+- **How:** the shove's stagger reused. The hit's impulse goes into the knockdown's ragdoll, made from the current pose
+  (0.35 at the point, the rest as travel along the hit). Capture steps are taken only while the capture point is off
+  the support, and the arms wheel as strongly as the hit. The recovery test: the centre of mass over the feet's discs and
+  strip, under 0.35 m/s, pelvis and chest within 22 degrees of the stand frame, firm ground under both feet. Past the
+  balance's edge (2 m/s, x0.65 on uneven floor) it falls after a step or two, at 1.5x at once. The hand-back is in the
+  best-fitting stand, run or struck-near frame, its origin and yaw from the body, blended 0.15-0.3 s by the gap.
+- **Measured** (headless; `scratch/fl_terrain.sh`, `fl_classes.sh`, `fl_crowd.sh` in the worktree, not committed):
+  - Grunt, flat floor, slope and stairs. A shotgun blast (0.37-0.52 m/s) and a 30-damage blow (0.8-1.1 m/s) recover
+    in 0.32 s with 0 steps on all three.
+  - A point-blank super shotgun (2.08 m/s) and a 60-damage blast 48 units away (2.25 m/s): on the flat it falls after
+    its steps; on the slope and stairs it goes down at once.
+  - Knight, death knight and ogre recover from the shotgun, the super shotgun (the ogre's 0.83 m/s in 1.4 s, 4 steps)
+    and the blow. The enforcer shuffles 8-9 steps and settles at about 2.1 s (rough).
+  - Crowd: ten grunts, one shotgun blast each in one frame. 6 flinch (the budget), 4 refused (small reaction), all 6
+    recovered in 0.34 s. The drive costs 0.0063 ms per flinching grunt per frame. Server physics went from 0.14 ms to
+    0.21 ms a frame mean (p99 0.49).
+  - Switch-in: 0.13-0.24 ms (rigs cached per class: no pool needed).
+  - Hand-back gap (the pop metric, mean vertex distance from the chosen frame): 0.3-0.4 units for a shotgun flinch on
+    the flat, 3.3 for a blow, 5.4 on the slope, 16 on the stairs (rough: the feet are on two steps, the frame has them
+    level).
+  - eval.sh --full: 168/177 with `vr_flinch 1` and with `vr_flinch 0`, and the same verdicts and events per take. Both
+    show the same 5 diffs against the kit's baseline (the bash and stab damage values, already on next). Only the
+    replay's hand_error_u column differs between runs.
+  - Physics hash: physbench (`PB_CRATES=0`, single-threaded too) gives a different hash and body count on two identical
+    `vr_flinch 0` runs (80-84 bodies), so it cannot show "unchanged" here. Every new path is gated on `vr_flinch` (QC
+    `VR_Flinch_On`, `ragdollFlinch`'s first check, `Stagger::flinch`, `standSpotLifts`). `wheel` defaults to 1. The hit
+    reaction's split into `VR_HitReact_Where`/`_Slow` keeps its order.
+- **Rough:**
+  - The enforcer's long shuffle.
+  - The stairs hand-back gap.
+  - The test hits use 1 damage, with the impulse taken from the nominal damage (`vr_fl_test_damage`). Real weapons go
+    through the same `T_DamageDeal` path but were not fired by the mock in this round.
+  - Zombies and the mummy are left out by default (`vr_flinch_classes "* -monster_zombie -monster_zombiek
+    -monster_mummy"`).
+- **Map:** vrtesthall gains a 22-degree slope (x -240..-80, y 460..620), recompiled.

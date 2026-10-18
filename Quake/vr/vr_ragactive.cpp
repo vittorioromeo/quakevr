@@ -1320,18 +1320,27 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             // (Beaten, past its balance's edge: no recovery; it gives way after its steps, above.)
             const bool steady = flinchSteady(g, s, p, c, com, comVel, pose) && t >= g.flinchMin && g.giveAfter < 0;
             g.stableFor = steady ? g.stableFor + c.dt : 0.f;
-            if(g.stableFor >= za::max(vr_flinch_recover_hold.value, 0.f) && steady)
+            // At its most, settled though the strict test never held (its middle a little off its feet's support, a
+            // bigger rig's stance): still, its middle over its feet within the stagger's steady lean, not bent far, on
+            // firm ground, no step under way: it stands. (Else it topples, below.)
+            const bool settled = t > g.flinchMost && g.giveAfter < 0 && g.stepLeg < 0 &&
+                                 g.speedNow <= za::max(vr_flinch_recover_speed.value, 0.01f) &&
+                                 g.lean < staggerSteady * 1.5f && g.tilt < 1.5f * za::max(vr_flinch_recover_tilt.value, 1.f) &&
+                                 (g.failed & 8u) == 0u;
+            // (A step under way at its most: it lands first, a moment more.)
+            const bool landing = t > g.flinchMost && g.stepLeg >= 0 && t < g.flinchMost + 0.3f;
+            if((g.stableFor >= za::max(vr_flinch_recover_hold.value, 0.f) && steady) || settled)
             {
                 g.outcome = Outcome::Recovered;
                 g.decided = c.now;
                 if(vr_flinch_debug.value || vr_knockdown_debug.value)
                 {
-                    Con_Printf("flinch: %d recovered at %.2f s: margin %.0f units, speed %.2f m/s, tilt %.0f deg, %d steps, "
+                    Con_Printf("flinch: %d recovered at %.2f s%s: margin %.0f units, speed %.2f m/s, tilt %.0f deg, %d steps, "
                                "moved %.0f units\n",
-                        c.num, t, g.margin * p.m2u, g.speedNow, g.tilt, g.steps, glm::length(level(pelvis - g.pelvis0)) * p.m2u);
+                        c.num, t, steady ? "" : " (settled)", g.margin * p.m2u, g.speedNow, g.tilt, g.steps, glm::length(level(pelvis - g.pelvis0)) * p.m2u);
                 }
             }
-            else if(t > g.flinchMost)
+            else if(t > g.flinchMost && !landing)
             {
                 g.outcome = Outcome::Fell;
                 g.decided = c.now;
@@ -3535,6 +3544,21 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     }
     s.on = true;
     (void)t;
+}
+
+float legLength(const State& s, const Parts& p)
+{
+    float sum = 0.f;
+    int n = 0;
+    for(int leg = 2; leg < 4; leg++)
+    {
+        if(limbWhole(s, p, leg))
+        {
+            sum += limbLength(s, p, leg);
+            n++;
+        }
+    }
+    return n > 0 ? sum / static_cast<float>(n) : 0.75f;
 }
 
 float flinchSpeed(const State& s, const Parts& p, const glm::vec3& impulse)

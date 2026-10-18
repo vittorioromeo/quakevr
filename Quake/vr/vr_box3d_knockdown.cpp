@@ -767,26 +767,43 @@ FlinchStats flinchStats;
 double flinchQueryAt = 0.0;
 int flinchQueryNum = 0;
 
-// Whether `name` is a word of `list` (space-separated), or the list is "*".
+// Whether `list` (space-separated words) takes `name`: a word "*" takes every name, a word `name` takes it, a word
+// "-name" leaves it out (over both).
 [[nodiscard]] bool flinchListed(const char* list, const char* name)
 {
     if(!list || !*list || !name || !*name)
     {
         return false;
     }
-    if(list[0] == '*' && list[1] == '\0')
-    {
-        return true;
-    }
     const size_t n = strlen(name);
-    for(const char* p = strstr(list, name); p; p = strstr(p + 1, name))
+    bool all = false, named = false;
+    for(const char* p = list; *p;)
     {
-        if((p == list || p[-1] == ' ') && (p[n] == '\0' || p[n] == ' '))
+        while(*p == ' ')
         {
-            return true;
+            p++;
         }
+        const char* e = p;
+        while(*e && *e != ' ')
+        {
+            e++;
+        }
+        const size_t len = static_cast<size_t>(e - p);
+        if(len == 1 && *p == '*')
+        {
+            all = true;
+        }
+        else if(len == n + 1 && *p == '-' && !strncmp(p + 1, name, n))
+        {
+            return false;
+        }
+        else if(len == n && !strncmp(p, name, n))
+        {
+            named = true;
+        }
+        p = e;
     }
-    return false;
+    return all || named;
 }
 
 // Units to the nearest living player.
@@ -1033,7 +1050,8 @@ float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse,
     fi.topple = za::max(vr_flinch_topple.value, 0.1f) * (uneven ? za::clamp(vr_flinch_uneven.value, 0.05f, 1.f) : 1.f);
     fi.first = 0; // (its stand frame: the classes' first)
     fi.most = za::max(vr_flinch_most.value, 0.3f);
-    fi.footR = za::max(vr_flinch_foot.value, 0.01f);
+    // (Its feet's support by its size: Foot Support at a grunt's 0.75 m leg; an ogre's wider.)
+    fi.footR = za::max(vr_flinch_foot.value, 0.01f) * za::clamp(ragactive::legLength(r.active, activeParts(r)) / 0.75f, 0.7f, 2.f);
     ragactive::beginFlinch(r.active, activeParts(r), fi, qcvm->time);
     r.active.stagger.struck = static_cast<int>(ent->v.frame);
     r.staggerStuck = -1.0;
@@ -1065,10 +1083,11 @@ float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse,
 
 void flinchStatus_f()
 {
-    if(!world)
+    if(!sv.active || !world)
     {
         return;
     }
+    const VmScope vm; // (the console's: the server's VM for its time)
     FlinchStats& f = flinchStats;
     Con_Printf("flinch status: %d begun (%d down at once), %d recovered, %d toppled, %d refused, %d with no room; %d now; "
                "switch-in %.3f ms mean, %.3f most; recovered after %.2f s mean, %.2f most; hand-back gap %.1f units mean, "
