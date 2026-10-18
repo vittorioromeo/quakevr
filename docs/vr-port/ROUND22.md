@@ -12817,7 +12817,7 @@ to a small tank on the back (over the shoulder or below the hip, visible in the 
   toolgun's AD guns and the AD monsters' spawner (`vr_ad_spawnguns.inc`, `ad_monsters_gen.py`); slots 27-31 (Weapon
   Offsets 28-32) by the monster that drops them ("#adv012", "#adv34", "#adv5", "#adv6", "#adv7": `adguns::slotNames`
   reads a slot's ID "#adv<digits>" as the variants listed), each inheriting slot 21 (the burst rifle) and repeating its
-  anchors; `vr_wofs_version` 44 resets those five slots once. The older models cut from AD's monsters
+  anchors; `vr_wofs_version` 45 resets those five slots once (44 is the crossbow's). The older models cut from AD's monsters
   ("<monster>.mdl#gun<skin>") still load for a saved game naming them (held without a slot's settings).
 - **`weapons::value` and an inheriting slot's own defaults** (the reported bug): every default of an inheriting slot
   gave way to its parent's, so slots 28-31's own Offset Y and hotspots (the enforcer-mesh guns' wider corner) were

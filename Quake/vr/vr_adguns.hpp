@@ -5,7 +5,7 @@
 // "<monster model>#gun<skin>" (progs/mon_soldier.mdl#gun4): the gun's triangles (the vertices vr_monstermods.cpp hides
 // in the soldier's deaths) as its firing frame has them, laid as Quake VR's enemy guns are (make_enemyguns.py): the
 // barrel along +x, up +z, the hand's place at the origin, scaled to a weapon's length; packed from the corner of the
-// Quake VR gun whose weapon settings it inherited (vr_weapons.inc slots 27-31 until vr_wofs_version 44: now the variants'). Its one skin the
+// Quake VR gun whose weapon settings it inherited (vr_weapons.inc slots 27-31 until vr_wofs_version 45: now the variants'). Its one skin the
 // monster's <skin> (the soldier of that kind's). One frame, no effects.
 //
 // "<AD weapon model>#gun0" (progs/w_dcrossbow.mdl#gun0, the crossbow knight's crossbow): one of AD's own weapon models

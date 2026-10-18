@@ -2864,7 +2864,7 @@ QVR_WEAPON_DEFAULT(26, RecoilTime, "0.12")
 QVR_WEAPON_DEFAULT(26, Flash, "0")
 QVR_WEAPON_DEFAULT(26, TracerChance, "0")
 QVR_WEAPON_DEFAULT(26, StockPitch, "0")
-// AD support: Arcane Dimensions' armed soldiers' guns (QC vr_ad_enemyguns.qc; vr_wofs_version 43, 44; unused
+// AD support: Arcane Dimensions' armed soldiers' guns (QC vr_ad_enemyguns.qc; vr_wofs_version 43, 45; unused
 // placeholders before 43): variants of Quake VR's burst rifle (v_gruntgun.mdl, slot 21), each with its own add-ons and
 // skin, made as they load (vr_adguns.cpp: "progs/v_gruntgun.mdl#adv<n>", n the gun: 0 rocket, 1 grenade, 2 plasma,
 // 3 defender, 4 eliminator, 5 centurion, 6 pyro, 7 fumigator; a slot's ID "#adv<digits>" names each gun listed:
