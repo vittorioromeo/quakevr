@@ -12786,3 +12786,39 @@ proper dimensions, AD's look), used held, holstered, dropped and spawned by the 
 - Not done: the lightning gun's magazine (`vr_view.cpp`'s `VLight` mount) isn't drawn on the Plasma Gun; the
   Widowmaker reloads at the hip, so the super shotgun's opening isn't needed. The toolgun's catalogue icons stay AD's
   pickup models.
+
+## Glove leather: relief to the bracers' level (worktree `dequant`, branch `agent/gloveleather`, 2026-10-18)
+
+His note (and Glove depth's open item): the gloves' leather wants the pauldrons' and bracers' detail: stitching along
+the seams, creases at the knuckles, finger joints and palm, a leather grain normal map.
+
+- **Why it read flat.** The painted layer (`make_glove_paint.py`) already had stitches, creases and grain, but its
+  relief was physical (0.1-0.3 mm) and the shader took its slope from three taps of the heights a texel apart: on a
+  coarser mip those taps lose the slope (and at a distance alias into a checkered pattern on the palm). The bracers'
+  and pauldrons' relief is a baked, mipmapped normal map with exaggerated stitches and quilted forms
+  (`normalbody.py stitch_row`, `normaltiles.py`).
+- **Engine.** `_glove_height` is now made a tangent-space normal map as it is read (`vr_render.cpp
+  gloveHeightToNormals`, as `normalbake.py height_to_tangent` bakes the models': x along u, green up, z kept; 0..255 =
+  2.5 mm, 3 texels a mm, slopes x2 as the bracers'; 3.5-3.8 ms at each read, uncompressed, mipmapped). The shader reads
+  it with one tap (`vr_glsl.h GloveBump`: BumpedNormalK's frame, smooth, no retro blocks: the paint is not blocked
+  either) in place of the three height taps; the skin's normal map under the leather is replaced by it, the shader's
+  own fine grain on top as before. Strength: new `vr_glove_relief` (1; 0 flat .. 2; VR Settings > Player Appearance >
+  Gloves > "Leather Relief"), in the instance's `GloveShell.y`. Per frame: 2 texture taps fewer per gloved pixel.
+- **Content** (`make_glove_paint.py`, regenerated; `HEIGHT_MM` 2.5 matches the engine): seams' grooves deeper with the
+  panels either side pulled into them over ~5 mm (padded, as the bracers' quilted rows), stitches raised 0.45 mm with
+  needle holes sunk; the three stitched points down the back a raised cord in a channel; the finger joints' wrinkles
+  and the leather bunched between them, the palm-side folds deeper with puffed leather either side, the creases behind
+  the knuckles with ridges between; the palm's folds deeper; the pebble grain softer, the crease network and a soft
+  unevenness of the hide stronger. Colour and wear as before (the stitches' thread a little less pale: the relief
+  carries them now).
+- **Docs.** `GLOVES.md`: the height's range, the normal map made from it, `vr_glove_relief`.
+
+Tested (headless, vrfiringrange, 1440 eyes, fingerless brown, bracers on; `scratch/gl_shots.sh`): sheets
+`scratch/final_back.png` (back: open, fist, point; before top, after bottom), `scratch/final_palm.png` (palm side),
+`scratch/new5_both.png` (both hands with the bracers), `scratch/new3_zoom.png` (1:1 back, before/after). After: the
+stitched points read as raised cords in channels, the knuckle creases and joints' wrinkles shade, the palm's folds
+show, the grain reads as pebbled leather; the palm's old checkered aliasing is gone. `vr_glove_relief` 0/1,
+`vr_gloves_reload`, full gloves, paint off, e1m2: no errors; the map made again at each read.
+
+For him in VR: the relief's depth (`vr_glove_relief`, 0.5-1.5), the grain's coarseness up close (`grain()` in the
+generator), whether the padded panels between the seams read on the fingers' sides.

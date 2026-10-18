@@ -539,6 +539,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         toggle("Worn Leather", vr_glove_paint)
             .help("The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
                   "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather."),
+        slider("Leather Relief", vr_glove_relief, 0.f, 2.f, 0.1f, "%.1f")
+            .help("How deep the worn leather's relief is in the light: raised stitches in their grooves, the padded "
+                  "panels between seams, the creases over the knuckles and joints, the grain. 1 matches the bracers "
+                  "and pauldrons; 0 flat."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
