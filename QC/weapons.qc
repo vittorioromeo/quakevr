@@ -1331,6 +1331,7 @@ void(float xHand) W_FireAxe =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        AD_AxeMark(xHand, trace_ent); // AD support: the Shadow Axe's mark, for AD's monsters (vr_ad_bridge.qc)
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
 
         // HONEY
@@ -4058,6 +4059,10 @@ void(float xHand) ToggleSecondaryAmmo =
        (weapon != WID_SWORD && !VR_Pack_WeaponFlags(weapon, QVR_WPNFLAG_USE_SECONDARY_AMMO))) // (its secondary's projectile not here)
     {
         return;
+    }
+    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
+    {
+        return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
     }
 
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.

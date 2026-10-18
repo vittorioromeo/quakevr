@@ -1173,6 +1173,82 @@ float(float xHand) AD_AxeScale =
     return (AD_HandUpgraded(xHand, ad_IT_UPGRADE_AXE) || AD_Evil()) ? ad_DAMAGE_PLAYAXE2 / ad_DAMAGE_PLAYAXE1 : 1; // (Evil: AD's Shadow Axe in any map)
 };
 
+// W_FireAxe's blow of the axe in `xHand` on `xVictim`, before its damage: AD's mark of the axe that hit it (AD's W_FireAxe:
+// .axhitme 2 the Shadow Axe, 1 the axe), which AD's monsters read as they take it: a zombie in pain hit by the Shadow Axe
+// is gibbed for good (ad_zombie_pain, ad_zombiek_pain), a monster goes into its long pain (ad_monster_pain_check, through
+// VR_AD_ShadowAxeHit: the upgrade is the weapon's here, not the player's).
+void(float xHand, entity xVictim) AD_AxeMark =
+{
+    xVictim.ad_axhitme = AD_AxeScale(xHand) > 1 ? 2 : 1;
+};
+
+// ad_monster_pain_check's question (an import hook): the blow that hurts self came from a Shadow Axe (AD_AxeMark's 2).
+// AD asks its attacker's .moditems, which never holds the upgrades here (AD_UpgradesToWeapons: they are the weapons').
+float() VR_AD_ShadowAxeHit =
+{
+    return self.ad_axhitme == 2;
+};
+
+// Whether `p` carries a weapon with AD's upgrade `xBit` (a hand's or a holster's record), or has it as AD's own player
+// (.moditems: an older game's, a monster's): AD's triggers' upgrade_axe/ssg/lg keys ask it (VR_AD_HasUpgrade, a hook).
+float(entity p, float xBit) AD_CarriesUpgrade =
+{
+    if(p.ad_moditems & xBit)
+    {
+        return TRUE;
+    }
+    if(!(p.flags & FL_CLIENT))
+    {
+        return FALSE;
+    }
+    for(float i = 0; i < 8; i++)
+    {
+        entity inst = AD_CarriedInst(p, i);
+        if(inst != world && (inst.wi_adup & xBit))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
+float(entity p, float xBit) VR_AD_HasUpgrade =
+{
+    return AD_CarriesUpgrade(p, xBit);
+};
+
+// The Shadow Axe's chop of the bodies lying on the floor (AD's W_FireAxe: a body marked ad_MON_ONFLR within 64 units in
+// front of the player, ad_monster_flrbody_gib: a downed zombie for good, a dead monster's body in pieces). Here the blade
+// must reach it: a blow of the Shadow Axe in `xHand` (VR_Melee_Strike: a fresh, fast enough motion) whose swept points
+// (the blow `b`'s, this frame) pass through the body's box, grown 12 units (16 more below: AD lowers it to the floor).
+void(float xHand, entity b) AD_ShadowAxeChop =
+{
+    if(VRGetWeapon(xHand) != WID_AXE || AD_AxeScale(xHand) <= 1 || b.mh_n <= 0)
+    {
+        return;
+    }
+    entity body = find(world, ad_bodyonflr, ad_MON_ONFLR);
+    while(body)
+    {
+        entity next = find(body, ad_bodyonflr, ad_MON_ONFLR);
+        vector lo = body.origin + body.mins - '12 12 28';
+        vector hi = body.origin + body.maxs + '12 12 12';
+        float hit = FALSE;
+        for(float i = 0; i < b.mh_n && !hit; i++)
+        {
+            hit = VR_SegmentBox(b.mh_pp[i], b.mh_cp[i], lo, hi) >= 0;
+        }
+        if(hit)
+        {
+            dprint(sprintf("VR: the Shadow Axe chops %s's body\n", body.classname));
+            body.origin = body.origin - '0 0 16'; // (AD's: closer to the floor)
+            ad_monster_flrbody_gib(body, ad_DAMAGE_PLAYAXE2);
+            VRMeleeHapticByHand(xHand);
+        }
+        body = next;
+    }
+};
+
 // W_FireSuperShotgun's pellets from `xHand`: the Widowmaker's 21 when a third shell is in the reserve (taken), else
 // `pellets`.
 float(float xHand, float pellets) AD_WidowmakerPellets =
@@ -1215,6 +1291,9 @@ void(float xHand) AD_FirePlasma =
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
     ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, ad_SPEED_PLAYPLASMA);
     VR_DamageCredit_FromHand(ad_newmis, self, xHand);
+    // At the muzzle: blue-white sparks and a wisp (its kick and flash: weaponfired, slot 35's Effects in vr_weapons.inc).
+    particle2(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand) * 40, QVR_PARTICLE_PRESET_CONTACTSPARKS, 5);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     weaponfired(self, xHand);
     VRGunHaptic(xHand, 0.3, 60, 0.7);
 };

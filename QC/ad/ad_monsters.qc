@@ -567,7 +567,7 @@ void(entity ad_attacker, float ad_damage) ad_monster_pain_check =
 	// already dying, don't go into pain frame
 	if (self.health < 1) self.ad_pain_check = 0;
 	// The new axe forces monsters into long pain animations (if they exist)
-	else if (ad_attacker.ad_moditems & ad_IT_UPGRADE_AXE && self.ad_axhitme > 0 && self.ad_pain_longanim) self.ad_pain_check = 2;
+	else if ((ad_attacker.ad_moditems & ad_IT_UPGRADE_AXE || VR_AD_ShadowAxeHit()) && self.ad_axhitme > 0 && self.ad_pain_longanim) self.ad_pain_check = 2;
 	// always go into pain frame if it has been a while (first hit = pain)
 	else if (time - self.ad_pain_finstate > ad_PAIN_ALWAY) self.ad_pain_check = 1;
 	// Dangerous liquids should kill the monster and keeping them in

@@ -188,6 +188,18 @@ PATCHES = [
     ("misc_camera.qc", "\tstuffcmd(targ, \"v_cshift \");\n",
      "\tif (VR_AD_Tint(targ, cs_col, cs_den, 1)) return;\n\tstuffcmd(targ, \"v_cshift \");\n",
      1, B + ": the cinematic camera's fades (VR_AD_Tint, not scaled by Screen Tints)"),
+    # The Shadow Axe, the Widowmaker and the Plasma Gun are upgrades of a weapon here (its record's), never the player's
+    # .moditems (vr_ad_bridge.qc AD_UpgradesToWeapons): AD's two questions of the player's .moditems that gate on them.
+    ("monsters.qc", "\telse if (attacker.moditems & IT_UPGRADE_AXE && self.axhitme > 0 && self.pain_longanim) self.pain_check = 2;",
+     "\telse if ((attacker.moditems & IT_UPGRADE_AXE || VR_AD_ShadowAxeHit()) && self.axhitme > 0 && self.pain_longanim) self.pain_check = 2;",
+     1, B + ": the Shadow Axe's long pain, from the blow's mark (AD_AxeMark: the axe's upgrade is its own)"),
+    ("triggers_states.qc", "\t\tif (self.upgrade_axe && !(self.bmodel_act.moditems & IT_UPGRADE_AXE)) return;\n"
+     "\t\tif (self.upgrade_ssg && !(self.bmodel_act.moditems & IT_UPGRADE_SSG) ) return;\n"
+     "\t\tif (self.upgrade_lg && !(self.bmodel_act.moditems & IT_UPGRADE_LG) ) return;",
+     "\t\tif (self.upgrade_axe && !VR_AD_HasUpgrade(self.bmodel_act, IT_UPGRADE_AXE)) return;\n"
+     "\t\tif (self.upgrade_ssg && !VR_AD_HasUpgrade(self.bmodel_act, IT_UPGRADE_SSG)) return;\n"
+     "\t\tif (self.upgrade_lg && !VR_AD_HasUpgrade(self.bmodel_act, IT_UPGRADE_LG)) return;",
+     1, B + ": a trigger's upgrade_axe/ssg/lg keys: an upgraded weapon carried (VR_AD_HasUpgrade)"),
 ]
 # The monsters' hooks (P2, ARCANE_DIMENSIONS.md section 17): AD's monsters get Quake VR's treatment (QC/vr_ad_monsters.qc;
 # their declarations in QC/vr_ad_mondefs.qc). Applied after the bridge's (the T_Damage line is the bridge's patched one).

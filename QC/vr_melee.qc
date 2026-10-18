@@ -3484,6 +3484,7 @@ float(float xHand) VR_Melee_Strike =
     {
         return FALSE; // a bash's push
     }
+    AD_ShadowAxeChop(xHand, b); // AD support: the Shadow Axe chops the bodies lying on the floor (vr_ad_bridge.qc)
     float struck = VR_Melee_Sweep(xHand, b);
     b.mh_c_gib = FALSE;
     if(struck && b.mh_c_ent.vr_gib)

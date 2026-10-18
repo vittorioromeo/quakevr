@@ -16,3 +16,5 @@
 {"progs/v_laserg.mdl", {50.00f, 0.f, -7.86f}, {105.17f, 0.f, -7.86f}},
 {"progs/v_gruntgun.mdl", {-3.50f, 0.f, 14.350f}, {22.40f, 0.f, 14.450f}},
 {"progs/v_enfrifle.mdl", {6.30f, 0.f, 10.660f}, {23.00f, 0.f, 10.523f}},
+// AD support: AD's crossbow (turned, vr_adguns.cpp): along its rail, just over the string's latch (measured on AD 1.80p1).
+{"progs/w_dcrossbow.mdl#gun0", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},

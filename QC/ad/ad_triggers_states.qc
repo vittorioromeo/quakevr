@@ -133,9 +133,9 @@ void() ad_trigger_bmodel_fire =
 	// Howver it seems someone did use it! - ad_magna
 	//----------------------------------------------------------------------
 	if ( self.ad_bmodel_act.flags & ad_FL_CLIENT ) {
-		if (self.ad_upgrade_axe && !(self.ad_bmodel_act.ad_moditems & ad_IT_UPGRADE_AXE)) return;
-		if (self.ad_upgrade_ssg && !(self.ad_bmodel_act.ad_moditems & ad_IT_UPGRADE_SSG) ) return;
-		if (self.ad_upgrade_lg && !(self.ad_bmodel_act.ad_moditems & ad_IT_UPGRADE_LG) ) return;
+		if (self.ad_upgrade_axe && !VR_AD_HasUpgrade(self.ad_bmodel_act, ad_IT_UPGRADE_AXE)) return;
+		if (self.ad_upgrade_ssg && !VR_AD_HasUpgrade(self.ad_bmodel_act, ad_IT_UPGRADE_SSG)) return;
+		if (self.ad_upgrade_lg && !VR_AD_HasUpgrade(self.ad_bmodel_act, ad_IT_UPGRADE_LG)) return;
 	}
 	
 	// Trigger secrets only work for players
