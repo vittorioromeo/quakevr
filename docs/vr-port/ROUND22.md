@@ -12498,3 +12498,61 @@ ragdoll (which skins from those frames) hold none. `droppedName` says "crossbow"
 game is closed. To check: that nothing but the crossbow vanished (hands, bowstring) and the range covers the whole death.
 
 **Verified (2026-10-18, after his game closed; needs `ad` junctioned into the base: qbase/ad)**: `Misc/quakevr/xbow_corpse_test.sh <tag>` (ad_tfuma, r_fullbright, one kill, four shots): the log says "crossbow (348 vertices) hidden in 31 death frames"; in the shots the body flies/falls with empty hands and the crossbow lies on the floor as the pickup; no hand or arm vanished, so the range 772..1119 stays. Shots: scratch/xbow_k_fb.png (not committed). The ragdoll is the same frames.
+
+## AD crossbow: turned to face +x; Freddie's super nailgun (worktree `tghost`, branch `agent/adcrossbow2`, 2026-10-18)
+
+His notes: (1) the crossbow, posed in Weapon Offsets, turned the wrong way: flicking the wrist up and down felt like yaw,
+not roll; different axes acted than on our other weapons. (2) Freddie's super nailgun on his arm: cutting that arm off
+should make the gun available.
+
+**Crossbow, cause**: AD's `progs/w_dcrossbow.mdl` (its gib) lies flat with its front at -y and the bow across x; slot 33
+used it as it is with Yaw 90. The slot's Pitch/Yaw/Roll are Quake angles applied in the model's own frame
+(`axes(hand) * axes(pitch, yaw, roll)`, yaw outermost), so with Yaw 90 a Pitch turned it about its stock (a roll) and a
+Roll about the bow (a pitch); `vr_gunmodelpitch` (7) tilted it sideways too. Its box and hull are clean (stock 40 units
+along y, bow 34 across x, no stray geometry; only the header's radius was 39.9 against a true 27).
+
+- **Fix**: `vr_adguns.cpp` `turnedModels`: "progs/w_dcrossbow.mdl#gun0" is AD's file turned a quarter about z (front +x,
+  bow across y), the tiller behind the bow (its old Hand Anchor, `0 8 3`) the origin; lossless (x and y swap their
+  packing scales; every vertex where it was), normals and frame boxes turned, the radius measured. QC's model
+  (`VR_ADGun_Model`) and slot 33's ID (`progs/w_dcrossbow.mdl#gun`) name it. `vr_adgun_models` lists it: box -11.97
+  -16.93 -3.48 .. 27.97 16.93 4.48.
+- **His pose kept**: his config's slot 33 (Pitch -18.54, Yaw 98.05, Roll -11.55, Scale 0.621, Offset 10.53 8.66 -3.29)
+  converted exactly to the turned model (the same place in the hand; checked on a vertex to 1e-5) and made the default:
+  Pitch -18.3135, Yaw 5.7092, Roll 11.7704, Offset -1.5229 10.5289 -0.2907, Scale 0.621. Anchors turned with it (muzzle
+  `28 0 -2.5`, hand `0 0 0`, two-handed hand `20 0 -2`, button `0 0 0`, text `2 0 6`). Hotspot 1 (the other hand's
+  grip, copied from the rifle) lay 12 units off the crossbow's left side: now under the fore-stock behind the bow
+  (model `13 0 -0.5`: Hotspot1 `3.5375 -6.4157 -1.6298`); the unused hotspots 2-3 turned. `vr_wofs_version` 44 resets
+  slot 33 once (an old config's sideways values would turn it wrong).
+- **Found on the way, fixed**: anchors on any model made from another's file ("#gun": the AD soldiers' guns too) all sat
+  on its first vertex: `vr_anchor.cpp` `loadMesh` read the mesh with `COM_LoadMallocFile`, and no file has such a name.
+  It now asks `adguns::derivedFile` first. So the AD guns' muzzles (slots 28-32's anchors, measured for those models)
+  are where they were meant to be for the first time; `vr_ad_test 70` still 9/9.
+- **Checked** (headless; the scratch scripts not committed: three anchors' world points under each angle +20, rotation from
+  their differences): crossbow (off hand, mirrored back) pitch about (0.10 -0.995 0), yaw about (0 0 1), roll about
+  (0.97 0.10 -0.20) (its barrel, as posed); the shotgun (main hand, e1m1 facing +y): pitch about its sideways axis,
+  yaw about up, roll about its barrel. The same axes. `vr_ad_test 93` (crossbow end to end) PASS; `vr_ad_test 70`
+  9/9 PASS.
+
+**Freddie's super nailgun**: his gun is his left forearm (`mon_freddie.mdl`: five barrels, vertices 88..182, on rig bone
+4 `forearm_l`; AD fires his nails from his left). `VR_Limb_Cut` (every cut or pop: blades, blunt, bullets, blasts,
+thrown things, corpses) now calls `VR_ADGun_LimbCut(e, bones taken)` (`vr_ad_enemyguns.qc`): a Freddie losing bone 4
+(the forearm, or the whole arm) drops Quake VR's super nailgun where the piece was, turned and moving as it, loaded as a
+dropped enemy gun is (`WeaponInst_New(WeaponIdToBaseClipSize)`: a full clip, 36), unless `vr_adgun_drops` 0. The
+barrels are left off his limbs' models (`vr_limbmodel.cpp` `leftOff`); his forearm is little but the gun, so it has no
+piece of its own (`available` counts triangles without the barrels): the stump bleeds and the SNG falls; a shoulder cut
+throws the upper arm without the gun. His corpse loses the barrels with the limb (the cut bones' vertices).
+
+- **Toolgun / Debug**: Debug > AD Monsters > Soldiers' Guns: "Crossbow Knight's Crossbow, End to End" (`vr_ad_test 93`)
+  and "Freddie's Gun Arm Cut Off" (`vr_ad_test 95`). Toolgun Weapons (`ad_monsters_gen.py` GUNS): 325 "AD Crossbow
+  Knight's Crossbow", 326 "AD Freddie's Super Nailgun" (both spawn: checked).
+- **Test** `vr_ad_test 95` (a Freddie near you: `vr_test_spawn 234; impulse 241`): killed, bone 4 cut, "a super nailgun
+  dropped (1)", it lies (v_nail2, 36 in it), taken into the main hand (weapon 7): PASS. Shot:
+  the corpse down, the SNG in hand (36/36).
+- `ad_import.py --check`: 0 of 142 differ.
+
+Left: the bolt sticking where it lands, reload feel, haptics (as before). With `vr_adgun_drops` 0 his cut arm still loses
+its barrels (the limb models are built once). A Freddie-derived SNG model was not made (the normal one drops).
+
+To try in VR: pick up a crossbow (ad_tfuma, or toolgun 325): it should sit as he posed it; then nudge Pitch, Yaw and
+Roll in Weapon Offsets (slot 33): each should turn it as it turns the shotgun. Cut a Freddie's left arm (a blade on the
+corpse, or `vr_ad_test 95`): a super nailgun falls there; take it.

@@ -1,6 +1,7 @@
 #include "vr_alloccount.h"
 // vr_anchor.cpp -- see vr_anchor.hpp.
 
+#include "vr_adguns.hpp"
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_mdldequant.hpp"
@@ -73,7 +74,13 @@ struct Mesh
     out.rest.clear();
     out.bindings.clear();
 
-    byte* data = COM_LoadMallocFile(modelName, nullptr);
+    // A model made from another's file (an AD gun, "<model>#gun<n>": vr_adguns.cpp) as Mod_LoadModel loads it: no file
+    // has its name, so its anchors all sat on its first vertex (the AD guns' muzzles; ROUND22 "AD crossbow: turned").
+    byte* data = adguns::derivedFile(modelName, nullptr); // (AD support)
+    if(!data)
+    {
+        data = COM_LoadMallocFile(modelName, nullptr);
+    }
     if(!data)
     {
         return false;

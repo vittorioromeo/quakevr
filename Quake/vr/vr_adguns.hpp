@@ -7,6 +7,10 @@
 // barrel along +x, up +z, the hand's place at the origin, scaled to a weapon's length; packed from the corner of the
 // Quake VR gun whose weapon settings it inherits (vr_weapons.inc, slots 27-31), so they hold it. Its one skin the
 // monster's <skin> (the soldier of that kind's). One frame, no effects.
+//
+// "<AD weapon model>#gun0" (progs/w_dcrossbow.mdl#gun0, the crossbow knight's crossbow): one of AD's own weapon models
+// authored sideways, whole and unscaled, turned a quarter about z to face +x as our guns do (vr_adguns.cpp
+// turnedModels), so its weapon slot's offsets turn it about the same axes as every other gun's.
 
 #pragma once
 

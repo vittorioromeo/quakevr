@@ -79,6 +79,12 @@
         command("Make the Nearest Shooter Fire", "vr_ad_test 92")
             .help("The AD pyro, fumigator or plasma soldier nearest you fires once at the monster or body nearest it (its "
                   "flames, poison, electric bolt: their effects as the guns' you carry). Press again for a stream."),
+        command("Crossbow Knight's Crossbow, End to End", "vr_ad_test 93")
+            .help("Destructive: the crossbow knight nearest you killed, its crossbow taken, fired, holstered, drawn into "
+                  "the other hand and fired (adxb: lines)."),
+        command("Freddie's Gun Arm Cut Off", "vr_ad_test 95")
+            .help("Destructive: the Freddie nearest you killed and his gun arm cut off: a super nailgun of ours drops "
+                  "there, loaded, and goes into your main hand (adfred: lines)."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),
