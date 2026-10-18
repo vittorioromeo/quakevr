@@ -67,7 +67,8 @@ struct Flesh
 
 // Rig bones that are a weapon, not flesh, though they stay in the hand as the body dies (a loose piece and a dropped one
 // are found by themselves): id's ogre's left hand is his grenade launcher; AD's weapon hands, each bone the weapon
-// with the hand round its grip (vr_ad_rigs.inc), and the death sergeant's flail.
+// with the hand round its grip (vr_ad_rigs.inc), and the death sergeant's flail. (The crossbow knight's, the mace's
+// and the hammer's hunter ogres' and the death guard's weapons are loose, dropped: their hand bones only the fist.)
 struct NotFleshBone
 {
     modelmeta::Id model;
@@ -75,11 +76,7 @@ struct NotFleshBone
 };
 constexpr NotFleshBone notFleshBones[] = {
     {modelmeta::Id::Ogre, "hand_l"},
-    {modelmeta::Id::AdDcrossbow, "hand_r"},
     {modelmeta::Id::AdHogre, "hand_r"},
-    {modelmeta::Id::AdHogremac, "hand_r"},
-    {modelmeta::Id::AdHogreham, "hand_r"},
-    {modelmeta::Id::AdDguard, "hand_r"},
     {modelmeta::Id::AdJustice, "hand_r"},
     {modelmeta::Id::AdJudge, "hand_r"},
     {modelmeta::Id::AdDsergeant, "hand_r"},
