@@ -2088,7 +2088,11 @@ void retroAllUncheckCategories()
                   "fell there)."),
         toggle("Show Zones", vr_holster_zones_show)
             .help("Every zone as a wireframe: grey idle, blue with a gun in it, yellow a candidate, green where a hand is "
-                  "(holding a gun: where it goes when let go). Also on Debug > Views."),
+                  "(holding a gun: where it goes when let go). Also on Debug > Views. On the body's clone beside the "
+                  "menu too."),
+        toggle("Show Item Boxes", vr_holster_zones_show_items)
+            .help("Each zone's box as for a hand carrying an ammo box, a health box or a backpack (its Item Size below), "
+                  "in magenta, on you and on the clone. Also while an Item Size is chosen."),
         slider("Size", vr_holster_zone_scale, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
             .help("Every zone's size, times."),
         slider("Hysteresis", vr_holster_zone_hysteresis, 0.f, 0.5f, 0.05f, "%.2f").extend(0.f, 1.f)
@@ -2103,8 +2107,13 @@ void retroAllUncheckCategories()
                   "zone too, so a handle standing out of the box (the shoulders') can be taken. 0: the box alone."),
     };
     const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
-                          cvar_t& width, cvar_t& height, cvar_t& item) {
+                          cvar_t& width, cvar_t& height, cvar_t& item, cvar_t& drag) {
         items.pushBack(header(title));
+        items.pushBack(toggle("Drag", drag)
+                .help("On: grip inside one of these zones (orange; cyan while held) and move the hand to move it there, "
+                      "both of the pair (its Move sliders below follow). Grip it with the other hand too and spread or "
+                      "close the hands to resize it. The grip draws no gun there while this is on. Off again on the "
+                      "next start."));
         items.pushBack(slider("Reach", reach, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
                 .help("Its size (units; its Threshold elsewhere): the box's half depth, width and height are this times "
                       "the three below, stretched to take in both the holster as drawn and its reach point."));
@@ -2125,17 +2134,20 @@ void retroAllUncheckCategories()
                       "middle (a gun, a key or a grenade: as set above). 1: no larger."));
     };
     kind("Hip Holsters", vr_hip_holster_thresh, vr_holster_zone_hip_x, vr_holster_zone_hip_y, vr_holster_zone_hip_z,
-        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height, vr_holster_zone_item_hip);
+        vr_holster_zone_hip_depth, vr_holster_zone_hip_width, vr_holster_zone_hip_height, vr_holster_zone_item_hip,
+        vr_holster_zone_hip_drag);
     kind("Chest Holsters", vr_upper_holster_thresh, vr_holster_zone_upper_x, vr_holster_zone_upper_y,
-        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height, vr_holster_zone_item_upper);
+        vr_holster_zone_upper_z, vr_holster_zone_upper_depth, vr_holster_zone_upper_width, vr_holster_zone_upper_height,
+        vr_holster_zone_item_upper, vr_holster_zone_upper_drag);
     kind("Shoulder Holsters", vr_shoulder_holster_thresh, vr_holster_zone_shoulder_x, vr_holster_zone_shoulder_y,
         vr_holster_zone_shoulder_z, vr_holster_zone_shoulder_depth, vr_holster_zone_shoulder_width,
-        vr_holster_zone_shoulder_height, vr_holster_zone_item_shoulder);
+        vr_holster_zone_shoulder_height, vr_holster_zone_item_shoulder, vr_holster_zone_shoulder_drag);
     kind("Ammo Pouch", vr_ammo_pouch_thresh, vr_holster_zone_ammo_x, vr_holster_zone_ammo_y, vr_holster_zone_ammo_z,
-        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height, vr_holster_zone_item_ammo);
+        vr_holster_zone_ammo_depth, vr_holster_zone_ammo_width, vr_holster_zone_ammo_height, vr_holster_zone_item_ammo,
+        vr_holster_zone_ammo_drag);
     kind("Grenade Pouch", vr_grenade_pouch_thresh, vr_holster_zone_grenade_x, vr_holster_zone_grenade_y,
         vr_holster_zone_grenade_z, vr_holster_zone_grenade_depth, vr_holster_zone_grenade_width,
-        vr_holster_zone_grenade_height, vr_holster_zone_item_grenade);
+        vr_holster_zone_grenade_height, vr_holster_zone_item_grenade, vr_holster_zone_grenade_drag);
     return items;
 }
 

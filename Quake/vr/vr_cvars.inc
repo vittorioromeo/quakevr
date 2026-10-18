@@ -1322,6 +1322,19 @@ QVR_CVAR(vr_holster_zone_item_upper, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_item_shoulder, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_item_ammo, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_zone_item_grenade, "1.5", CVAR_ARCHIVE)
+// 1: the zones view also draws each zone's box as for a hand carrying an item (vr_holster_zone_item_*), in magenta, on
+// the body and on its clone (2026-10-18: "so I can see how big the collision box for items is"). Shown on its own too.
+QVR_CVAR(vr_holster_zones_show_items, "0", CVAR_NONE)
+// 1: that kind's zones are dragged by hand (2026-10-18: "turn the switch on, then drag the zone into the right place"):
+// a grip inside one of its wireframes takes hold of it, the hand's moves in the body's frame move it (its
+// vr_holster_zone_<kind>_x/y/z: forward, outwards, up; mirrored for the left ones, as the sliders); the other hand
+// gripping it too resizes it (its depth, width and height together, by the hands' spread). The grip never reaches the
+// game there (no gun drawn or put away). Not saved: off again on the next start.
+QVR_CVAR(vr_holster_zone_hip_drag, "0", CVAR_NONE)
+QVR_CVAR(vr_holster_zone_upper_drag, "0", CVAR_NONE)
+QVR_CVAR(vr_holster_zone_shoulder_drag, "0", CVAR_NONE)
+QVR_CVAR(vr_holster_zone_ammo_drag, "0", CVAR_NONE)
+QVR_CVAR(vr_holster_zone_grenade_drag, "0", CVAR_NONE)
 // An empty hand reaching for a holstered gun: a sphere of this radius (units) round its grip as drawn is that holster's
 // zone too (2026-10-17: "some weapons' handles pop out of the shoulder, and grabbing the holstered weapon by the handle
 // fails"). 0: the box alone.

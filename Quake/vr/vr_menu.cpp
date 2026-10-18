@@ -5504,7 +5504,7 @@ namespace
 {
     constexpr const char* prefixes[] = {"vr_menu_holster_", "vr_hip_offset_", "vr_hip_holster_", "vr_shoulder_holster_",
         "vr_upper_holster_", "vr_leg_holster_", "vr_grenade_pouch", "vr_ammo_pouch", "vr_flashlight_head",
-        "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron"};
+        "vr_shoulder_offset_", "vr_virtual_stock", "vr_body_pauldron", "vr_holster_zone"};
     constexpr const char* names[] = {"vr_show_hip_holsters", "vr_show_shoulder_holsters", "vr_show_upper_holsters",
         "vr_show_grenade_pouch", "vr_show_flashlight_zones", "vr_show_virtual_stock", "vr_flashlight_forward",
         "vr_flashlight_up", "vr_flashlight_out", "vr_flashlight_tilt", "vr_gadget_scale", "vr_gadget_x", "vr_gadget_y",
@@ -5537,7 +5537,7 @@ bool qvr::menu::bodyClonePage()
     }
     const PageBuilder b = pages[ui().page].build;
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
-        ui().bodyCloneLatch == ui().page)
+        b == pageHolsterZones || ui().bodyCloneLatch == ui().page)
     {
         return true;
     }

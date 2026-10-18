@@ -57,8 +57,18 @@ void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::
 // a sphere of vr_holster_zone_handle_radius round it is that holster's zone too, for a hand without a gun.
 void publishGrip(int zone, const glm::vec3& grip);
 
+// Dragging a zone by hand (vr_holster_zone_<kind>_drag; ROUND22.md, "Holster zones: dragged by hand, on the clone"):
+// a grip pressed with the hand inside a zone of a kind switched on takes hold of it (true: the press, and later its
+// release, are not the game's); the second hand on the same kind resizes it instead. dragFrame (once a frame, after
+// the buttons) moves the held kind's offsets (vr_holster_zone_<kind>_x/y/z) with the hand in the body's frame, or
+// its depth, width and height with the hands' spread.
+[[nodiscard]] bool dragGrip(int hand, bool down);
+void dragFrame();
+
 // The wireframes (vr_holster_zones_show): idle grey, occupied blue, a candidate (a point of the hand's in it, not the
-// deepest) yellow, the one a hand is at green (holding a gun: where it would go); the hands' points as dots.
+// deepest) yellow, the one a hand is at green (holding a gun: where it would go); the hands' points as dots. A kind
+// switched to dragging orange, cyan while held; vr_holster_zones_show_items: the item-sized boxes too, magenta. All on
+// the body's mirror image too while it is drawn (vr_bodyclone.cpp).
 void queueDebug(const hands::State& s);
 
 // vr_holster_zones_report: each zone (its middle in the body's frame from the eyes, its size) and each hand's points and

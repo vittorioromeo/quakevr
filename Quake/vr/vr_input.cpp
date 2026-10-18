@@ -28,6 +28,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_toolgun.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -623,6 +624,13 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "bullet time");
                     continue;
                 }
+                // A grip in a holster zone switched to dragging takes hold of it (vr_holster_zone_<kind>_drag): never the
+                // game's (no gun drawn or put away there).
+                if(b.button == &HandInput::grip && zones::dragGrip(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "a holster zone's drag");
+                    continue;
+                }
                 // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).
                 if(b.button == &HandInput::grip && chainsaw::grip(h, now))
                 {
@@ -687,6 +695,7 @@ void update(const InputState& tracked)
     // A grip pressed on the way to the flashlight takes it as the hand comes to rest there: the game saw the press,
     // it sees the grip let go now (the release is the flashlight's).
     flashlight::lateGrips();
+    zones::dragFrame(); // (a holster zone held by a hand follows it)
     for(int g = 0; g < HAND_COUNT; g++)
     {
         if(flashlight::tookGrip(g))

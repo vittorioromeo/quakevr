@@ -71,6 +71,9 @@ za::Vector<Item> pageDebugViews()
             .help("vr_holster_zones_show: every holster's and pouch's zone as a box: grey idle, blue with a gun in it, yellow "
                   "a candidate (a hand or its gun in it, another deeper), green where a hand is (holding a gun: where it "
                   "goes when let go); white dots: the hand and its gun's grip and body. Sizes: Immersion > Holster Zones."),
+        toggle("Show Holster Item Boxes", vr_holster_zones_show_items)
+            .help("vr_holster_zones_show_items: each zone's box as for a hand carrying an ammo box, a health box or a "
+                  "backpack (vr_holster_zone_item_*), magenta, on you and on the menu's body clone."),
         command("Print Holster Zones", "vr_holster_zones_report")
             .help("vr_holster_zones_report: each zone's middle and size (units from the eyes) and how deep each hand's "
                   "points are in each (under 1: inside), the old spheres' share beside."),
