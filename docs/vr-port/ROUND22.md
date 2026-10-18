@@ -13208,3 +13208,45 @@ Align Sights to My Aim works; Muzzle and Shot Pitch/Yaw were already there.
 The Widowmaker held with two hands (the front handle's hotspot angles are a guess: pitch 7); its look (all dark, as
 AD's skin). The Plasma Gun's cell: eject, pull, reload by hand; the receiver's size. Align the crossbow's sights. The
 Shadow Axe on AD zombies (knock one down, chop it).
+
+## AD rigs: the rest of AD's humanoids (worktree `gorefx`, branch `agent/adrigs2`, 2026-10-18)
+
+The AD monsters left without a seed table ("AD rigs: no ragdoll after the weapon drops"), decided one by one:
+
+- **Rigged** (vr_ad_rigs.inc; measured with rig.py on AD's pak0, `RIG_PAK=... rig.py mon_<name> 18`, then
+  `mon_<name>_bones.json`, in Misc/quakevr/ragdoll):
+  - AD's knight (`mon_knight.mdl`, id's mesh, 268 vertices; bones 0.79): its sword loose (rig.py KNOWN now has it, as
+    vr_monstermods.cpp hides it). Waist and left knee by hand; the pelvis's and thighs' centres moved so the hip
+    clusters go to the thighs.
+  - AD's ogre (`mon_ogre.mdl`, id's, 169 vertices; bones 0.98): the nail, flak and marksman ogres. The chainsaw part of
+    the right forearm (he keeps it); knees by hand (the fit put them at the feet).
+  - The death lord and Quoth's death guard: id's hell knight's mesh (nearest-vertex distance to `mon_hknight.mdl`
+    0.06-0.19 units in every frame compared; the guard lacks some plates) and frames: `adHknightSeeds`, no new table.
+  - The deflector (`mon_deflector.mdl`, 267 vertices: the enforcer's body 61-221 by index, its own gun, pack and three
+    field rings): measured (bones 1.17). Its muzzle effect (0-16) and the field rings (222-266, tucked in its chest but
+    in its field frames: they took 9 of 18 clusters) hidden in its deaths (vr_monstermods.cpp), so they are the loose
+    specks the ragdoll hides; it keeps its gun, a bone of its own (`gun`) on the right hand (its motion fits neither
+    forearm: rms 2.3 on the right one; pivot at the right fist). Knees as the enforcer's.
+- **No rig**: the fishing ogre (never dies as itself: hurt, it wakes as AD's ogre; the ghost one takes no damage); the
+  floyd (its frame 0 is its skin's layout, not a pose, and a rig is measured in frame 0: it needs a rest-frame field
+  first; it also explodes when rolling or gibbed); the boil, jim, the lost soul and the sentinel (they die exploding);
+  the wraith (its death ends in an explosion and it is hidden).
+- QC vr_ad_monsters.qc: head zones, corpse health and knockdowns (their deaths backwards) for AD's knight, ogre, death
+  lord, Quoth death guard and deflector (they had none of Quake VR's treatment). Engine: `activeClasses` gains
+  `monster_death_lord`, `monster_death_guard`, `monster_deflector`, `monster_ogre_flak`; `vr_ad_monsters.cpp` aliases the
+  deflector to the enforcer and the flak ogre to the ogre; `vr_foegrab_lift_classes` gains the death guard, death lord
+  and deflector (config version 157 migrates the old default; ogres stay unliftable).
+- Debug spawner: 261 "AD's Knight" (`monster_knight`, AD maps only: Quake VR's classname).
+
+Tests: `vr_ragdoll_info` on each (all derive; the deflector's loose bone 62 vertices hidden in its 25 death poses);
+`vr_test_spawn 261/253/259/258/255; impulse 241; vr_test_kill 1` in ad_dm1: five ragdolls, lying
+(`vr_corpse_poses`). `ad_active_test.py gorefx 261 253 259 258 255 250` (now with these and AD's hell knight; the AD-map
+ones in AD's `start`): shove, get-up and neck snap pass for all but the death guard's get-up ("no room to get up within
+48 units": in `start` the second one spawns onto the first's corpse; the death lord, the same mesh and seeds, and the
+hell knight in vrfiringrange get up). The ogre's neck is not snapped by design.
+
+### For VR
+
+AD's knight, nail ogre, death lord, Quoth death guard and deflector (the debug spawner; the knight 261, death lord 259
+and death guard 258 only in an AD map): their ragdolls on death, shoves and get-ups, lifting and the
+neck snap (not the ogre). The deflector's gun swinging on its right hand in its ragdoll.

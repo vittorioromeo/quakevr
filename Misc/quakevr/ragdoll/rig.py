@@ -37,6 +37,8 @@ KNOWN = {
     'mon_centurion': (list(range(17)) + list(range(45, 61)) + list(range(222, 284)), (18, 42)),
     'mon_pyro': (list(range(33)) + list(range(194, 226)), (41, 65)),
     'mon_fumigator': (list(range(33)) + list(range(194, 226)), (41, 65)),
+    'mon_knight': (list(range(247, 268)), (66, 86)),  # (AD's knight: id's mesh, its sword dropped)
+    'mon_deflector': (list(range(17)) + list(range(222, 267)), (51, 75)),  # (its muzzle effect and field rings)
 }
 
 # The models whose every piece but the body is loose (vr_ragdoll.cpp SeedTable::looseWeapons: hidden in the ragdoll):

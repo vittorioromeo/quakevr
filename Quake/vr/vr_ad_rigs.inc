@@ -518,6 +518,60 @@ constexpr Seed adWizardSeeds[] = {
     {"tail3", 6, Joint::Ball, {-39.6f, -1.8f, -14.f}, {-33.8f, 0.6f, -17.5f}, {-45.4f, -4.2f, -10.6f}, 2.f, 40.f, 20.f, 0.f, {}},
 };
 
+// AD's knight, id's model (progs/mon_knight.mdl: 268 vertices, 163 frames; 18 clusters, bones 0.79:
+// mon_knight_bones.json): the sword loose (dropped in his deaths: vr_monstermods.cpp). The waist and the left knee set by
+// hand; the pelvis's and thighs' centres moved so the hips' clusters go to the thighs.
+constexpr Seed adKnightSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.5f, 0.f, 4.f}, {0.5f, 0.f, 4.f}, {0.f, 0.f, 7.5f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {0.4f, -0.2f, 15.1f}, {0.f, 0.f, 7.5f}, {1.1f, 0.1f, 18.8f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {3.f, -0.1f, 22.1f}, {1.1f, 0.1f, 18.8f}, {4.8f, -0.3f, 25.3f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-5.5f, 7.7f, 9.7f}, {-1.2f, 5.7f, 14.9f}, {-4.f, 10.2f, 5.8f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {-0.9f, 11.5f, 1.1f}, {-4.f, 10.2f, 5.8f}, {2.2f, 12.8f, -3.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {2.6f, -10.1f, 8.8f}, {3.f, -6.9f, 14.1f}, {7.f, -10.8f, 3.7f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {10.3f, -9.3f, 2.2f}, {7.f, -10.8f, 3.7f}, {13.6f, -7.8f, 0.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-1.3f, 5.2f, -7.f}, {-0.3f, 3.6f, -0.6f}, {-3.5f, 5.f, -13.f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-6.5f, 6.3f, -19.9f}, {-3.5f, 5.f, -13.f}, {-7.4f, 7.f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {4.5f, -5.2f, -6.f}, {-0.2f, -4.6f, 0.f}, {8.9f, -5.9f, -10.3f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {8.3f, -6.1f, -19.5f}, {8.9f, -5.9f, -10.3f}, {8.2f, -6.1f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// AD's ogre, id's model (progs/mon_ogre.mdl: 169 vertices, 147 frames; 18 clusters, bones 0.98: mon_ogre_bones.json):
+// the nail ogre and the rest of AD's ogres (the fishing ogre turns into it as it wakes). The chainsaw in the right hand is
+// part of its forearm (it keeps it); knees set by hand (low-poly legs: the fit put them at the feet).
+constexpr Seed adOgreSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.9f, -0.4f, 6.9f}, {0.9f, -0.4f, 6.9f}, {0.4f, 0.3f, 10.5f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {4.5f, -2.3f, 22.3f}, {0.4f, 0.3f, 10.5f}, {8.6f, -2.3f, 24.9f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {11.5f, -2.7f, 28.4f}, {8.6f, -2.3f, 24.9f}, {14.3f, -3.1f, 31.9f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {7.2f, 16.f, 17.2f}, {6.4f, 11.3f, 22.4f}, {7.9f, 18.7f, 9.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {14.2f, 18.4f, 0.1f}, {7.9f, 18.7f, 9.5f}, {20.5f, 18.1f, -9.3f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {2.1f, -19.1f, 14.9f}, {3.3f, -16.5f, 20.7f}, {1.8f, -22.7f, 3.f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {-11.9f, -23.1f, -8.1f}, {1.8f, -22.7f, 3.f}, {-25.7f, -23.5f, -19.1f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {3.6f, 8.4f, -8.4f}, {2.3f, 9.9f, 0.5f}, {3.f, 9.6f, -14.5f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {3.4f, 10.2f, -21.7f}, {3.f, 9.6f, -14.5f}, {3.4f, 10.2f, -20.4f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {2.3f, -10.4f, -8.6f}, {3.4f, -13.2f, -0.2f}, {2.8f, -11.f, -14.5f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {1.f, -12.5f, -21.6f}, {2.8f, -11.f, -14.5f}, {1.f, -12.5f, -19.9f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// AD's deflector (progs/mon_deflector.mdl: 267 vertices; id's enforcer's body, 61-221, with a gun, a pack and field
+// rings of its own; 18 clusters, bones 1.17: mon_deflector_bones.json): its muzzle effect and three field rings (tucked in
+// its chest but in its field frames) hidden on death (vr_monstermods.cpp). The gun a bone of its own on the right hand
+// (it moves on it, the left hand on its front); the knees as the enforcer's (set by hand); the pelvis's, chest's and
+// head's centres moved so the waist's and the back pack's clusters go to the chest.
+constexpr Seed adDeflectorSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-6.3f, -0.4f, 1.5f}, {-6.3f, -0.4f, 4.5f}, {-6.2f, 0.5f, 8.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-9.5f, -1.5f, 20.f}, {-6.2f, 0.5f, 8.f}, {-5.5f, -1.2f, 25.1f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {0.f, -0.5f, 30.f}, {-5.5f, -1.2f, 25.1f}, {-2.3f, -1.4f, 31.4f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-5.9f, 13.1f, 17.5f}, {-6.5f, 9.3f, 21.8f}, {-4.f, 13.5f, 12.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {3.8f, 12.7f, 13.4f}, {-4.f, 13.5f, 12.9f}, {11.6f, 12.f, 13.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-2.6f, -16.4f, 16.6f}, {-6.5f, -12.8f, 21.7f}, {1.f, -15.9f, 12.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {3.5f, -7.3f, 11.4f}, {1.f, -15.9f, 12.9f}, {3.6f, -7.7f, 14.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"gun", 6, Joint::Ball, {4.5f, 9.5f, 16.1f}, {3.6f, -7.7f, 14.7f}, {5.3f, 26.8f, 17.6f}, 0.f, 25.f, 15.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {-3.8f, 5.9f, -10.7f}, {-4.8f, 2.8f, -5.3f}, {-4.5f, 7.f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 8, Joint::Hinge, {-2.8f, 8.f, -22.3f}, {-4.5f, 7.f, -16.f}, {-4.9f, 8.1f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-4.3f, -7.7f, -10.6f}, {-3.7f, -8.3f, -5.f}, {-4.5f, -8.5f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 10, Joint::Hinge, {-4.f, -9.7f, -22.2f}, {-4.5f, -8.5f, -16.f}, {-5.2f, -9.2f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 #else
 
 // A row: the model's id, its vertex count, its seeds, its death animations (1 or 2: first and last frames of each), its
@@ -586,6 +640,16 @@ QVR_AD_RIG(AdJudge, 1016, adJudgeSeeds, 2, 112, 103, 121, 111, 24)
 QVR_AD_RIG(AdNour, 224, adNourSeeds, 1, 39, 0, 47, 0, 18)
 // AD's scrag is id's model (progs/mon_wizard.mdl: 80 vertices; Quake VR's own wizard.mdl is another mesh).
 QVR_AD_RIG(AdWizard, 80, adWizardSeeds, 1, 46, 0, 53, 0, 18)
+QVR_AD_RIG(AdKnight, 268, adKnightSeeds, 2, 66, 76, 75, 86, 18)
+QVR_AD_RIG(AdOgre, 169, adOgreSeeds, 2, 112, 126, 125, 135, 18)
+// The death lord and Quoth's death guard: id's hell knight's mesh (within 0.2 units in every frame; AD's frame list,
+// the death guard without some of its plates), his seeds; their swords loose (dropped in their deaths).
+QVR_AD_RIG(AdDlord, 245, adHknightSeeds, 2, 42, 54, 53, 62, 18)
+QVR_AD_RIG(AdDguardq, 176, adHknightSeeds, 2, 42, 54, 53, 62, 18)
+QVR_AD_RIG(AdDeflector, 267, adDeflectorSeeds, 2, 51, 65, 64, 75, 18)
+// No rig (no ragdoll): the fishing ogre (it never dies as itself: hurt, it wakes as AD's ogre, above), the floyd (its
+// frame 0 is its skin's layout, not a pose: the rest pose a rig is measured in; it explodes when rolling or gibbed), and
+// those that die exploding or vanish: the boil, jim, the lost soul, the sentinel, the wraith (hidden after its death).
 #undef QVR_AD_RIG
 #undef QVR_AD_RIG_PIECES
 

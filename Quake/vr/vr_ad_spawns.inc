@@ -55,3 +55,4 @@ QVR_AD_SPAWN("Monsters", "AD Vermis (a Boss)", "ad_monster_vermis", "progs/mon_b
 QVR_AD_SPAWN_MAP("Monsters", "AD Quoth Death Guard", "ad_monster_death_guard", "progs/mon_dguardq.mdl", 24.f, 258, nullptr, 0.f, 0)
 QVR_AD_SPAWN_MAP("Monsters", "AD Death Lord", "ad_monster_death_lord", "progs/mon_dlord.mdl", 24.f, 259, nullptr, 0.f, 0)
 QVR_AD_SPAWN_MAP("Monsters", "AD Sentinel", "ad_monster_sentinel", "progs/mon_sentinel.mdl", 24.f, 260, nullptr, 0.f, 0)
+QVR_AD_SPAWN_MAP("Monsters", "AD's Knight", "ad_monster_knight", "progs/mon_knight.mdl", 24.f, 261, nullptr, 0.f, 0)

@@ -291,6 +291,15 @@ const KnownSword knownSwords[] = {
          za::iota(v.begin(), v.end(), 0);
          return v;
      }(), 42, 62},
+    // AD's deflector: its muzzle effect (0..16, as the enforcer's) and its three field rings (222..266, tucked in its
+    // chest but in its field frames), hidden in its deaths (51..75, the rig's: vr_ad_rigs.inc), so its ragdoll holds
+    // none (specks: Rig::hideLoose). It keeps its gun.
+    {qvr::modelmeta::Id::AdDeflector, 267, 514, [] {
+         za::Vector<int> v;
+         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
+         for(int i = 222; i <= 266; i++) { v.pushBack(i); }
+         return v;
+     }(), 51, 75},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
     {qvr::modelmeta::Id::Grem, 123, 245, [] {
@@ -318,6 +327,7 @@ const KnownSword knownSwords[] = {
     case qvr::modelmeta::Id::AdCenturion: return "gun, muzzle effect and hover board";         // AD support
     case qvr::modelmeta::Id::AdPyro:                                                           // AD support
     case qvr::modelmeta::Id::AdFumigator: return "gun, muzzle effect and hose";                // AD support
+    case qvr::modelmeta::Id::AdDeflector: return "muzzle effect and field rings";              // AD support
     default: break;
     }
     if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket)
@@ -533,7 +543,7 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
                          id == qvr::modelmeta::Id::AdDguard || id == qvr::modelmeta::Id::AdHogreham ||  // AD support
                          id == qvr::modelmeta::Id::AdHogremac || id == qvr::modelmeta::Id::AdKnight || // AD support
                          id == qvr::modelmeta::Id::AdHknight || id == qvr::modelmeta::Id::AdDlord ||    // AD support
-                         id == qvr::modelmeta::Id::AdDguardq;                                           // AD support
+                         id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector;  // AD support
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
                            id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
                            id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;
