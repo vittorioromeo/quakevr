@@ -2,9 +2,15 @@
 
 #include "vr_adweapons.hpp"
 
+#include "vr_backend.hpp"
+#include "vr_client.hpp"
+#include "vr_cvars.hpp"
+#include "vr_hands.hpp"
+
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -23,6 +29,13 @@ constexpr int frameCount = 9;  // the Quake VR weapons' (their animations' frame
 constexpr byte capColour = 2;  // the holes' fans: Quake's palette's dark grey (as the guns' dark metal)
 constexpr int capRows = 4;     // its texels, under everything else in the skin
 constexpr float capWeld = 0.05f; // the holes found on the surface welded this close (the rounding's hairline cracks closed)
+constexpr int noteBins = 8;      // vr_adweapon_models: a made part's top in this many slices along x (Parts::note)
+// The Widowmaker's turning barrels (his third notes, 2026-10-19: a Gatling auto shotgun): their axis (y 0, z spinZ, along
+// x), the barrels' centres spinR from it; spinPoses frames after the still ones, a whole turn (each barrel its own
+// texels), spinStep degrees apart (the frames blended between: 0.7% in at the middle, unseen).
+constexpr float spinZ = 6.8f, spinR = 2.f;
+constexpr int spinPoses = 27;
+constexpr float spinStep = 360.f / static_cast<float>(spinPoses);
 
 // A source model as measured (another release: not made).
 struct Source
@@ -69,6 +82,8 @@ struct Recipe
     bool takeSource;        // AD's triangles laid in (the Widowmaker: only its skin; every part made)
     Rect cutCap;            // the cut's cap: these texels laid flat on it (noRect: the dark fan)
     void (*parts)(Parts&);  // the parts made of simple shapes in AD's texels (null: none)
+    int liftSeed;           // a grafted piece (its vertex; -1 none) moved by `lift` onto the body
+    glm::vec3 lift;
 };
 
 // The measurements (taken on AD 1.80 patch 1's models; ROUND22.md "AD's weapons as VR models"):
@@ -84,20 +99,22 @@ struct Recipe
 // - The Plasma Gun (v_plasma.mdl, base1: level, centred): as it is, its pistol grip, trigger and stock's bar (the pieces
 //   of vertices 78, 711, 409) off, the grip's place (-9 0 -13) onto the lightning gun's grip (-0.5 0 4.5), cut just
 //   behind the hand (x -5.55: the stock out, the lightning gun's corner kept); the lightning gun's grip, trigger guard and
-//   trigger (v_light.mdl's pieces of vertices 234, 403, 493).
+//   trigger (v_light.mdl's pieces of vertices 234, 403, 493), the trigger 0.6 up (his notes 2026-10-19: it hung 0.48 below
+//   the body, detached; vr_adweapon_models prints each grafted piece's least gap up to the body).
 const Recipe recipes[] = {
     {"progs/v_shadaxe3.mdl#vr", {"progs/v_shadaxe3.mdl", 281, 292, 512, 128}, "frame0", {0.5949f, 0.2699f, 0.7571f},
         {0.6493f, 0.3939f, -0.6506f}, {0.3419f, 0.f, 0.9397f}, {0.9398f, 0.f, -0.3417f}, 0.85f, {16.1405f, -23.6240f, -36.1937f},
         {0.3710f, 0.04f, -3.0802f}, {257, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f, {nullptr, 0, 0, 0, 0}, {-1, -1, -1},
-        {-2.997f, -1.6813f, -3.9006f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_axe.mdl", true, noRect, nullptr},
+        {-2.997f, -1.6813f, -3.9006f}, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}, "progs/v_axe.mdl", true, noRect, nullptr, -1,
+        {0.f, 0.f, 0.f}},
     {"progs/v_shot3.mdl#vr", {"progs/v_shot3.mdl", 206, 238, 256, 256}, "fire1", {12.85f, 0.f, -1.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.85f, {2.57f, 0.f, -8.6f}, {1.2f, 0.f, 2.8f}, {-1, -1, -1}, false, {0.f, 0.f, 0.f}, 0.f,
         {"progs/v_shot2.mdl", 1207, 983, 512, 146}, {151, 241, 281}, {-15.5775f, -4.6938f, -4.2402f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", false, noRect, widowmakerParts},
+        {0.f, 0.f, 0.f}, "progs/v_shot2.mdl", false, noRect, widowmakerParts, -1, {0.f, 0.f, 0.f}},
     {"progs/v_plasma.mdl#vr", {"progs/v_plasma.mdl", 786, 427, 128, 128}, "base1", {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f},
         {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}, 1.f, {-9.f, 0.f, -13.f}, {-0.5f, 0.f, 4.5f}, {78, 711, 409}, true, {1.f, 0.f, 0.f}, -5.55f,
         {"progs/v_light.mdl", 1358, 865, 512, 178}, {234, 403, 493}, {-5.6211f, -9.3429f, -6.0018f}, false, {0.f, 0.f, 0.f},
-        {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts},
+        {0.f, 0.f, 0.f}, "progs/v_light.mdl", true, {1.f, 74.f, 31.f, 97.f, false}, plasmaParts, 493, {0.f, 0.f, 0.6f}},
 };
 
 // The Plasma Gun's cell (the lightning gun's magazine and well, made by make_mags.py in v_light.mdl's space: the cell
@@ -388,7 +405,9 @@ struct Out
     za::Vector<int> s, t;
     za::Vector<int> group;
     za::Vector<int> tris;
+    za::Vector<bool> spins; // a vertex of the part that turns about spinAxis in the spin frames (the Widowmaker's barrels)
     int groups{1};
+    bool spinning{false};   // the vertices made now are of it
 
     int vert(const glm::vec3& p, int ss, int tt, int g = 0)
     {
@@ -396,6 +415,7 @@ struct Out
         s.pushBack(ss);
         t.pushBack(tt);
         group.pushBack(g);
+        spins.pushBack(spinning);
         return static_cast<int>(pos.size()) - 1;
     }
 
@@ -708,6 +728,13 @@ struct Built
     bool cornerKept{false};
     glm::vec3 muzzle{0.f};          // a gun's: the middle of its front end; the axe's: the blade edge's top
     glm::vec3 edgeLo{0.f}, edgeHi{0.f}; // the axe's blade edge's ends (vr_axestick.cpp's table)
+    glm::vec3 seedLo[3]{}, seedHi[3]{};  // each grafted piece's box (Recipe::graftSeeds; empty: none)
+    float adAbove[3]{};                  // and the body's surface straight over its top (1e30: none)
+    float adGap[3]{};                    // the least gap up to it
+    const char* noteName{nullptr};       // a made part's box (Parts::note)
+    glm::vec3 noteLo{0.f}, noteHi{0.f};
+    float noteTop[noteBins]{};
+    int spinVerts{0};                    // the vertices turned in the spin frames (spinFrames)
 };
 
 [[nodiscard]] const Recipe* recipeOf(const char* name)
@@ -740,7 +767,35 @@ struct Parts
     int capS, capT, boreS, boreT;
     glm::vec3 muzzle{0.f};
     bool muzzleSet{false};
+    // A made part's box and the made model's surface over its top (vr_adweapon_models: how it meets what is above it).
+    const char* noteName{nullptr};
+    glm::vec3 noteLo{0.f}, noteHi{0.f};
+    float noteTop[noteBins]{};
 };
+
+// The box of the vertices from `from` on as the part `name` (Parts::note*).
+void note(Parts& p, const Out& o, za::SizeT from, const char* name)
+{
+    p.noteName = name;
+    p.noteLo = glm::vec3{1e30f};
+    p.noteHi = glm::vec3{-1e30f};
+    for(za::SizeT i = from; i < o.pos.size(); i++)
+    {
+        p.noteLo = glm::min(p.noteLo, o.pos[i]);
+        p.noteHi = glm::max(p.noteHi, o.pos[i]);
+    }
+    // Its top's height along x (its vertices' highest in each of noteBins slices of its box).
+    for(int k = 0; k < noteBins; k++)
+    {
+        p.noteTop[k] = -1e30f;
+    }
+    for(za::SizeT i = from; i < o.pos.size(); i++)
+    {
+        const float f = (o.pos[i].x - p.noteLo.x) / za::max(p.noteHi.x - p.noteLo.x, 1e-3f);
+        const int k = za::min(noteBins - 1, static_cast<int>(f * noteBins));
+        p.noteTop[k] = za::max(p.noteTop[k], o.pos[i].z);
+    }
+}
 
 [[nodiscard]] int texel(float v)
 {
@@ -931,10 +986,12 @@ void widowmakerParts(Parts& p)
     // The shell port (his VR notes 2026-10-18: an auto shotgun loaded on the inner side, +y, by the rear handle;
     // vr_view_internal.hpp loadPorts: its middle 6.5 3.6 5.6): a dark opening on the receiver's side, framed by a raised
     // rim 0.5 proud (AD's band), its inner faces dark. Its spent shells leave by the slot on the other side (vr_shells.cpp).
+    // His third notes (2026-10-19): half the size (it was x 2.6..10.4, z 4.5..6.7, its rim 0.4 wide, 0.5 proud), about
+    // the same middle; vr_reload_port_widow_radius halved with it (1.25).
     const Rect rimFaces[4] = {bandAlong, bandAlong, bandAlong, bandAlong};
     const Rect rimTop[4] = {dark, bandAlong, bandAlong, bandAlong};   // (its underside faces the opening)
     const Rect rimBottom[4] = {bandAlong, bandAlong, dark, bandAlong}; // (its top faces it)
-    constexpr float px0 = 2.6f, px1 = 10.4f, pz0 = 4.5f, pz1 = 6.7f, rim = 0.4f, side = 3.6f, proud = 0.5f;
+    constexpr float px0 = 4.55f, px1 = 8.45f, pz0 = 5.05f, pz1 = 6.15f, rim = 0.2f, side = 3.6f, proud = 0.25f;
     box(o, {px0, side - 0.3f, pz0}, {px1, side + 0.05f, pz1}, {dark, dark, dark, dark}, dark, dark);
     box(o, {px0 - rim, side - 0.1f, pz1}, {px1 + rim, side + proud, pz1 + rim}, rimTop, bandAlong, bandAlong);
     box(o, {px0 - rim, side - 0.1f, pz0 - rim}, {px1 + rim, side + proud, pz0}, rimBottom, bandAlong, bandAlong);
@@ -942,7 +999,10 @@ void widowmakerParts(Parts& p)
     box(o, {px1, side - 0.1f, pz0}, {px1 + rim, side + proud, pz1}, rimFaces, dark, bandAlong);
     box(o, {5.f, -side - 0.05f, 7.f}, {9.5f, -side + 0.3f, 8.4f}, {dark, dark, dark, dark}, dark, dark); // (the ejection slot)
 
-    const glm::vec2 centres[3] = {{0.f, 8.6f}, {-1.85f, 5.9f}, {1.85f, 5.9f}};
+    // The barrels (his third notes: a Gatling auto shotgun): an even triangle round the spin axis (y 0, z spinZ; they were
+    // at 0 8.6 and +-1.85 5.9), turned about it in the spin frames (spinFrames): the barrel on top fires.
+    o.spinning = true;
+    const glm::vec2 centres[3] = {{0.f, spinZ + spinR}, {-0.8660254f * spinR, spinZ - 0.5f * spinR}, {0.8660254f * spinR, spinZ - 0.5f * spinR}};
     for(int i = 0; i < 3; i++)
     {
         barrel(p, centres[i], 1.6f, 1.f, 11.5f, 44.f, 7.f, 3.f, strips[i], brakes[i], dark);
@@ -951,16 +1011,33 @@ void widowmakerParts(Parts& p)
             extrude(o, circle(centres[i], 1.9f), x, x + 1.6f, &band, 1, false, false, &dark, &dark);
         }
     }
+    o.spinning = false;
+    // The muzzle's mark: a speck (two faces back to back, 0.12 across) at the top barrel's bore's middle in the muzzle's
+    // plane, still in the spin frames. The muzzle anchor (44 0 8.8) binds to the nearest triangle (vr_anchor.hpp): the
+    // bore's middle is open, so it was the mouth's edge, a unit to the side.
+    {
+        const int g = o.newGroup();
+        const glm::vec3 mark{44.f, 0.f, spinZ + spinR};
+        const int a = o.vert(mark + glm::vec3{0.f, -0.06f, -0.04f}, p.boreS, p.boreT, g);
+        const int b = o.vert(mark + glm::vec3{0.f, 0.06f, -0.04f}, p.boreS, p.boreT, g);
+        const int c = o.vert(mark + glm::vec3{0.f, 0.f, 0.07f}, p.boreS, p.boreT, g);
+        face(o, a, b, c, glm::vec3{1.f, 0.f, 0.f});
+        face(o, a, b, c, glm::vec3{-1.f, 0.f, 0.f});
+    }
 
-    const za::Vector<glm::vec2> mount{{-1.5f, 3.f}, {1.5f, 3.f}, {1.5f, 5.8f}, {-1.5f, 5.8f}};
+    // (Its bottom at 2.3, was 3: the front handle's top slants down to 2.56 at its back, a gap under the mount his third
+    // notes saw; vr_adweapon_models prints the handle's top along x.)
+    const za::Vector<glm::vec2> mount{{-1.5f, 2.3f}, {1.5f, 2.3f}, {1.5f, 5.8f}, {-1.5f, 5.8f}};
     const Rect mountFaces[4] = {underside, bandAlong, bandAlong, bandAlong};
     extrude(o, mount, 24.f, 31.f, mountFaces, 4, true, false, &dark, &dark);
     const int gripSeed[3] = {151, -1, -1};
     const za::Vector<bool> grip = piecesOf(p.graft, gripSeed);
     const glm::vec3 top{3.3f, 0.f, 4.55f}, to{27.5f, 0.f, 3.2f};
+    const za::SizeT handleFrom = o.pos.size();
     take(o, p.graft, grip, true, [&](const glm::vec3& q) { return to + (q - top) * 0.88f; }, p.graftDs, p.graftDt);
+    note(p, o, handleFrom, "front handle");
 
-    p.muzzle = glm::vec3{44.f, 0.f, (8.6f + 5.9f * 2.f) / 3.f};
+    p.muzzle = glm::vec3{44.f, 0.f, spinZ + spinR}; // (the top barrel's: vr_weapons.inc slot 34's MuzzleAnchor)
     p.muzzleSet = true;
 }
 
@@ -968,13 +1045,15 @@ void widowmakerParts(Parts& p)
 // block on its +y side round the cell's way out (plasmaSeat: the cell 3.7 along x, 3.2 tall, turned out of it), AD's
 // texels (v_plasma.mdl's 128x128 skin): the riveted panel outside, the rusty plate round it.
 // His second notes (2026-10-18): a real hole where the cell goes, seen with it out (it was flat): the block is a frame
-// round a pocket a little bigger than the cell (3.9 along x, 3.5 tall), its inner faces and its floor (y 2.95, just
-// inside the gun's side) dark.
+// round a pocket a little bigger than the cell (3.9 along x, 3.5 tall), its inner faces and its floor dark.
 void plasmaParts(Parts& p)
 {
+    // His third notes (2026-10-19): the hole's inside darker than the gun outside, so that it reads as going in: black
+    // (the bores' texels), not the caps' dark grey; its floor over the gun's own side (y 3.25 there: it was 2.95, under
+    // AD's riveted panel, which showed through the hole as the outside does).
     Out& o = p.o;
-    const float cs = static_cast<float>(p.capS), ct = static_cast<float>(p.capT);
-    const Rect dark{cs, ct, cs, ct, false};
+    const float bs = static_cast<float>(p.boreS), bt = static_cast<float>(p.boreT);
+    const Rect dark{bs, bt, bs, bt, false};
     const Rect panel{32.f, 47.f, 64.f, 64.f, false};
     const Rect plate{33.f, 1.f, 64.f, 12.f, true};
     const float x = plasmaSeat.x, z = plasmaSeat.z, y0 = 2.9f, y1 = 4.6f;
@@ -987,7 +1066,35 @@ void plasmaParts(Parts& p)
     box(o, {hx1, y0, bz0}, {bx1, y1, bz1}, sides, dark, plate);
     box(o, {hx0, y0, bz0}, {hx1, y1, hz0}, below, plate, plate);
     box(o, {hx0, y0, hz1}, {hx1, y1, bz1}, above, plate, plate);
-    box(o, {hx0, y0 - 0.4f, hz0}, {hx1, y0 + 0.05f, hz1}, {dark, dark, dark, dark}, dark, dark); // (its floor)
+    // Its floor (his third notes: the gun's own side showed through the hole, its riveted panel as outside): just over
+    // the gun's surface met looking in at the hole (the highest of a grid of rays in along -y), black.
+    float floorY = y0;
+    for(int i = 0; i <= 6; i++)
+    {
+        for(int j = 0; j <= 6; j++)
+        {
+            const float qx = hx0 + (hx1 - hx0) * static_cast<float>(i) / 6.f, qz = hz0 + (hz1 - hz0) * static_cast<float>(j) / 6.f;
+            for(za::SizeT t = 0; t + 2 < o.tris.size(); t += 3)
+            {
+                const glm::vec3 &a = o.pos[o.tris[t]], &b = o.pos[o.tris[t + 1]], &e = o.pos[o.tris[t + 2]];
+                const float den = (b.z - e.z) * (a.x - e.x) + (e.x - b.x) * (a.z - e.z);
+                if(za::abs(den) < 1e-9f)
+                {
+                    continue;
+                }
+                const float u = ((b.z - e.z) * (qx - e.x) + (e.x - b.x) * (qz - e.z)) / den;
+                const float v = ((e.z - a.z) * (qx - e.x) + (a.x - e.x) * (qz - e.z)) / den;
+                const float y = u * a.y + v * b.y + (1.f - u - v) * e.y;
+                if(u >= 0.f && v >= 0.f && u + v <= 1.f && y < y1 - 0.5f)
+                {
+                    floorY = za::max(floorY, y);
+                }
+            }
+        }
+    }
+    const za::SizeT floorFrom = o.pos.size();
+    box(o, {hx0, floorY - 0.4f, hz0}, {hx1, floorY + 0.05f, hz1}, {dark, dark, dark, dark}, dark, dark);
+    note(p, o, floorFrom, "cell pocket's floor");
 }
 
 // The vertices' welding for their normals: at one place (to a 0.001 grid) and in one smoothing group (Out::group).
@@ -1073,10 +1180,53 @@ void plasmaParts(Parts& p)
         }
     }
     const za::SizeT adTris = o.tris.size();
+    const za::SizeT adPos = o.pos.size();
     if(r.graft.path)
     {
-        take(o, graft, grafted, true, [](const glm::vec3& p) { return p; }, -rx0, src.skinH - ry0);
+        // The piece of r.liftSeed moved by r.lift (the Plasma Gun's trigger up onto its body), the others as they are.
+        const int liftSeeds[3] = {r.liftSeed, -1, -1};
+        const za::Vector<bool> lifted = piecesOf(graft, liftSeeds);
+        za::Vector<bool> still = grafted;
+        for(za::SizeT t = 0; t < still.size(); t++)
+        {
+            still[t] = still[t] && !lifted[t];
+        }
+        take(o, graft, still, true, [](const glm::vec3& p) { return p; }, -rx0, src.skinH - ry0);
+        take(o, graft, lifted, true, [&](const glm::vec3& p) { return p + r.lift; }, -rx0, src.skinH - ry0);
     }
+    // Each grafted piece's box (as laid) and the body's surface over its top (vr_adweapon_models: how it meets the body).
+    za::Vector<glm::vec3> tops[3];
+    for(int k = 0; k < 3; k++)
+    {
+        out.seedLo[k] = glm::vec3{1e30f};
+        out.seedHi[k] = glm::vec3{-1e30f};
+        out.adAbove[k] = 1e30f;
+        if(!r.graft.path || r.graftSeeds[k] < 0)
+        {
+            continue;
+        }
+        const int one[3] = {r.graftSeeds[k], -1, -1};
+        const za::Vector<bool> piece = piecesOf(graft, one);
+        const glm::vec3 move = r.graftSeeds[k] == r.liftSeed ? r.lift : glm::vec3{0.f};
+        for(za::SizeT t = 0; t < piece.size(); t++)
+        {
+            for(int c = 0; c < 3 && piece[t]; c++)
+            {
+                const glm::vec3 q = graft.pos[graft.tris[t * 4 + 1 + c]] + move;
+                out.seedLo[k] = glm::min(out.seedLo[k], q);
+                out.seedHi[k] = glm::max(out.seedHi[k], q);
+            }
+        }
+        for(za::SizeT t = 0; t < piece.size(); t++)
+        {
+            for(int c = 0; c < 3 && piece[t]; c++)
+            {
+                tops[k].pushBack(graft.pos[graft.tris[t * 4 + 1 + c]] + move);
+            }
+        }
+    }
+    (void)adPos;
+    const za::SizeT graftEnd = o.tris.size();
     out.grafted = static_cast<int>((o.tris.size() - adTris) / 3);
     out.dropped = 0;
     for(const bool d : dropped)
@@ -1096,8 +1246,47 @@ void plasmaParts(Parts& p)
     {
         r.parts(parts);
     }
+    out.noteName = parts.noteName;
+    out.noteLo = parts.noteLo;
+    out.noteHi = parts.noteHi;
+    memcpy(out.noteTop, parts.noteTop, sizeof(out.noteTop));
     out.made = static_cast<int>(o.tris.size() / 3) - static_cast<int>(adTris / 3) - out.grafted;
     out.sealed = seal(o, r, skinW - 2, skinH - 2);
+    // Straight up from each grafted piece's vertices within 0.3 of its top: the first triangle met that is not a grafted
+    // piece's (AD's, a made part, a hole's fan): the least gap's height.
+    for(int k = 0; k < 3; k++)
+    {
+        float best = 1e30f;
+        for(const glm::vec3& q : tops[k])
+        {
+            if(q.z < out.seedHi[k].z - 0.3f)
+            {
+                continue;
+            }
+            for(za::SizeT i = 0; i + 2 < o.tris.size(); i += 3)
+            {
+                if(i >= adTris && i < graftEnd)
+                {
+                    continue;
+                }
+                const glm::vec3 &a = o.pos[o.tris[i]], &b = o.pos[o.tris[i + 1]], &e = o.pos[o.tris[i + 2]];
+                const float den = (b.y - e.y) * (a.x - e.x) + (e.x - b.x) * (a.y - e.y);
+                if(za::abs(den) < 1e-9f)
+                {
+                    continue;
+                }
+                const float u = ((b.y - e.y) * (q.x - e.x) + (e.x - b.x) * (q.y - e.y)) / den;
+                const float v = ((e.y - a.y) * (q.x - e.x) + (a.x - e.x) * (q.y - e.y)) / den;
+                const float z = u * a.z + v * b.z + (1.f - u - v) * e.z;
+                if(u >= 0.f && v >= 0.f && u + v <= 1.f && z >= q.z - 0.05f && z - q.z < best)
+                {
+                    best = z - q.z;
+                    out.adAbove[k] = z;
+                    out.adGap[k] = z - q.z;
+                }
+            }
+        }
+    }
     {
         za::Vector<int> w = weldNear(o.pos, capWeld);
         Out copy = o;
@@ -1111,6 +1300,7 @@ void plasmaParts(Parts& p)
     {
         if(used[v] < 0)
         {
+            c.spinning = o.spins[v];
             used[v] = c.vert(o.pos[v], o.s[v], o.t[v], o.group[v]);
         }
         v = used[v];
@@ -1128,12 +1318,34 @@ void plasmaParts(Parts& p)
         }
     }
 
+    // The spin frames (a model with a turning part: spinPoses after the frameCount still ones): its vertices and normals
+    // turned about the spin axis, pose k by k of spinStep degrees, clockwise seen from behind (+x ahead, +y left).
+    for(const bool sp : c.spins)
+    {
+        out.spinVerts += sp ? 1 : 0;
+    }
+    const int poses = frameCount + (out.spinVerts > 0 ? spinPoses : 0);
+    const auto posed = [&](int pose, za::SizeT i, const glm::vec3& v, bool point) {
+        if(pose < frameCount || !c.spins[i])
+        {
+            return v;
+        }
+        const float a = -glm::radians(spinStep * static_cast<float>(pose - frameCount));
+        const float ca = za::cos(a), sa = za::sin(a);
+        const float y = v.y, z = point ? v.z - spinZ : v.z;
+        return glm::vec3{v.x, y * ca - z * sa, (point ? spinZ : 0.f) + y * sa + z * ca};
+    };
+
     // Packed from the Quake VR model's corner (a vertex past it: the corner moved, placement off).
     glm::vec3 lo{1e30f}, hi{-1e30f};
-    for(const glm::vec3& p : c.pos)
+    for(int pose = 0; pose < poses; pose += pose < frameCount ? frameCount : 1)
     {
-        lo = glm::min(lo, p);
-        hi = glm::max(hi, p);
+        for(za::SizeT i = 0; i < c.pos.size(); i++)
+        {
+            const glm::vec3 p = posed(pose, i, c.pos[i], true);
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
     }
     out.cornerKept = lo.x >= r.corner.x - 1e-4f && lo.y >= r.corner.y - 1e-4f && lo.z >= r.corner.z - 1e-4f;
     lo = glm::min(lo, r.corner);
@@ -1206,7 +1418,7 @@ void plasmaParts(Parts& p)
     put(f, skinH);
     put(f, static_cast<int>(c.pos.size()));
     put(f, static_cast<int>(c.tris.size() / 3));
-    put(f, frameCount);
+    put(f, poses);
     put(f, 0); // synctype
     put(f, 0); // flags
     putf(f, 1.f);
@@ -1226,28 +1438,46 @@ void plasmaParts(Parts& p)
         put(f, c.tris[i + 2]);
     }
     za::Vector<byte> packed;
-    byte bmin[4] = {255, 255, 255, 0}, bmax[4] = {0, 0, 0, 0};
-    for(za::SizeT i = 0; i < c.pos.size(); i++)
+    byte bmin[4], bmax[4];
+    for(int frame = 0; frame < poses; frame++)
     {
-        byte b[4];
-        for(int k = 0; k < 3; k++)
+        if(frame == 0 || frame >= frameCount) // (the still frames: one pose)
         {
-            const float q = (c.pos[i][k] - lo[k]) / pack[k];
-            b[k] = static_cast<byte>(za::max(0, za::min(255, static_cast<int>(q + 0.5f))));
-            bmin[k] = za::min(bmin[k], b[k]);
-            bmax[k] = za::max(bmax[k], b[k]);
+            packed.clear();
+            for(int k = 0; k < 3; k++)
+            {
+                bmin[k] = 255;
+                bmax[k] = 0;
+            }
+            bmin[3] = bmax[3] = 0;
+            for(za::SizeT i = 0; i < c.pos.size(); i++)
+            {
+                byte b[4];
+                const glm::vec3 p = posed(frame, i, c.pos[i], true);
+                for(int k = 0; k < 3; k++)
+                {
+                    const float q = (p[k] - lo[k]) / pack[k];
+                    b[k] = static_cast<byte>(za::max(0, za::min(255, static_cast<int>(q + 0.5f))));
+                    bmin[k] = za::min(bmin[k], b[k]);
+                    bmax[k] = za::max(bmax[k], b[k]);
+                }
+                const glm::vec3 n = posed(frame, i, normal[w[i]], false);
+                b[3] = nearestNormal(glm::length(n) > 1e-12f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f});
+                packed.emplaceBackRange(b, 4);
+            }
         }
-        const glm::vec3 n = normal[w[i]];
-        b[3] = nearestNormal(glm::length(n) > 1e-12f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f});
-        packed.emplaceBackRange(b, 4);
-    }
-    for(int frame = 0; frame < frameCount; frame++)
-    {
         put(f, 0); // a single frame
         f.emplaceBackRange(bmin, 4);
         f.emplaceBackRange(bmax, 4);
         char name[16] = {};
-        q_snprintf(name, sizeof(name), "vr%d", frame);
+        if(frame < frameCount)
+        {
+            q_snprintf(name, sizeof(name), "vr%d", frame);
+        }
+        else
+        {
+            q_snprintf(name, sizeof(name), "spin%d", frame - frameCount);
+        }
         f.emplaceBackRange(reinterpret_cast<const byte*>(name), 16);
         f.emplaceBackRange(packed.data(), packed.size());
     }
@@ -1351,7 +1581,190 @@ void setf(byte* f, size_t at, float v)
     return f;
 }
 
+// A hand's Widowmaker barrels (spinFrame): their turn (degrees, 0..360: 0 the model's own, a barrel on top each 120),
+// speed (degrees a second), and, coasting down, the ease from where they were (p0, at speed v0, at t0) to a barrel on top
+// (p1) in `ease` seconds (a cubic: v0 at its start, still at its end).
+struct Spin
+{
+    float phase{0.f}, speed{0.f};
+    bool coasting{false};
+    float p0{0.f}, p1{0.f}, v0{0.f}, ease{0.f};
+    double t0{0.0};
+    double lastShot{-1.0}, lastTime{-1.0};
+    bool held{false};
+    glm::vec3 topFront{0.f}, axisFront{0.f}; // as drawn last: the top barrel's front middle, the spin axis's front (info)
+};
+Spin spins[2];
+
+// The made Widowmaker (its spin frames), checked once a model.
+struct SpinModel
+{
+    const qmodel_t* model{nullptr};
+    bool spins{false};
+};
+SpinModel spinModel;
+
+constexpr const char* widowmakerName = "progs/v_shot3.mdl#vr";
+
+[[nodiscard]] bool spinsBarrels(const qmodel_t* m)
+{
+    if(!m || m->type != mod_alias)
+    {
+        return false;
+    }
+    if(m != spinModel.model)
+    {
+        spinModel.model = m;
+        spinModel.spins = false;
+        if(!q_strcasecmp(m->name, widowmakerName))
+        {
+            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
+            spinModel.spins = hdr && hdr->numframes == frameCount + spinPoses && !strcmp(hdr->frames[frameCount].name, "spin0");
+        }
+    }
+    return spinModel.spins;
+}
+
+// The barrels' fastest: a barrel a shot.
+[[nodiscard]] float spinTop()
+{
+    return 120.f / za::max(vr_ad_widowmaker_refire.value, 0.05f) * za::max(vr_ad_widowmaker_spin.value, 0.f);
+}
+
+void advance(Spin& s, int hand, float dt)
+{
+    const float top = spinTop();
+    const float refire = za::max(vr_ad_widowmaker_refire.value, 0.05f);
+    const bool driven = top > 0.f && (client::attacking(hand) || (s.lastShot >= 0.0 && cl.time - s.lastShot < refire * 1.25));
+    if(driven)
+    {
+        s.coasting = false;
+        s.speed = za::min(top, s.speed + top / za::max(vr_ad_widowmaker_spinup.value, 0.01f) * dt);
+        s.phase += s.speed * dt;
+    }
+    else if(s.speed > 0.f || s.coasting)
+    {
+        if(!s.coasting)
+        {
+            // The stop planned: the next barrel on top past the coast at the nominal rate (top over _spindown s), eased
+            // there from this speed (as long as a steady slowing would take; at least a short settle).
+            const float rate = za::max(top, 120.f) / za::max(vr_ad_widowmaker_spindown.value, 0.05f);
+            const float coast = s.speed * s.speed / (2.f * rate);
+            s.p0 = s.phase;
+            s.p1 = 120.f * static_cast<float>(static_cast<int>((s.phase + coast) / 120.f + 0.999f));
+            s.p1 = za::max(s.p1, s.p0);
+            s.v0 = s.speed;
+            const float d = s.p1 - s.p0;
+            s.ease = d <= 1e-3f ? 0.f : za::min(2.f * d / za::max(s.v0, 1e-3f), za::max(vr_ad_widowmaker_spindown.value, 0.3f));
+            s.ease = za::max(s.ease, d > 1e-3f ? 0.15f : 0.f);
+            s.ease = za::min(s.ease, d > 1e-3f ? 3.f * d / za::max(s.v0, 1e-3f) : 0.f); // (never past it)
+            s.t0 = cl.time;
+            s.coasting = true;
+        }
+        const float u = s.ease > 0.f ? za::min(1.f, static_cast<float>(cl.time - s.t0) / s.ease) : 1.f;
+        const float d = s.p1 - s.p0, m = s.v0 * s.ease;
+        s.phase = s.p0 + d * (3.f * u * u - 2.f * u * u * u) + m * (u - 2.f * u * u + u * u * u);
+        s.speed = s.ease > 0.f ? (d * (6.f * u - 6.f * u * u) + m * (1.f - 4.f * u + 3.f * u * u)) / s.ease : 0.f;
+        if(u >= 1.f)
+        {
+            s.phase = s.p1;
+            s.speed = 0.f;
+            s.coasting = false;
+        }
+    }
+    if(s.phase >= 360.f)
+    {
+        s.phase -= 360.f;
+        s.p0 -= 360.f;
+        s.p1 -= 360.f;
+    }
+}
+
 } // namespace
+
+void fired(int hand)
+{
+    if(hand == HAND_MAIN || hand == HAND_OFF)
+    {
+        spins[hand].lastShot = cl.time;
+    }
+}
+
+void spinFrame(view::ViewEntity (&weapons)[2])
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        view::ViewEntity& w = weapons[hand];
+        Spin& s = spins[hand];
+        if(!w.visible || !spinsBarrels(w.ent.model))
+        {
+            s = Spin{};
+            continue;
+        }
+        const float dt = s.held && s.lastTime >= 0.0 ? za::clamp(static_cast<float>(cl.time - s.lastTime), 0.f, 0.1f) : 0.f;
+        s.held = true;
+        s.lastTime = cl.time;
+        advance(s, hand, dt);
+        float at = vr_ad_widowmaker_spin_at.value >= 0.f ? vr_ad_widowmaker_spin_at.value : s.phase;
+        at -= 360.f * static_cast<float>(static_cast<int>(at / 360.f));
+        const float k = at / spinStep;
+        const int i = static_cast<int>(k);
+        w.poseFrame[0] = frameCount + i % spinPoses;
+        w.poseFrame[1] = frameCount + (i + 1) % spinPoses;
+        w.poseBlend = k - static_cast<float>(i);
+        w.zeroBlend = 0.f; // (the slot's blend towards frame 0 would pull the barrels back)
+        if(vr_debug_weaponfx.value)
+        {
+            s.topFront = view::modelPoint(w, glm::vec3{44.f, 0.f, spinZ + spinR});
+            s.axisFront = view::modelPoint(w, glm::vec3{44.f, 0.f, spinZ});
+        }
+    }
+}
+
+void clear()
+{
+    for(Spin& s : spins)
+    {
+        s = Spin{};
+    }
+    spinModel = SpinModel{};
+}
+
+void spinInfo_f()
+{
+    hands::State& hs = hands::current();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const Spin& s = spins[hand];
+        if(!s.held)
+        {
+            Con_Printf("widowmaker spin hand %d: not held (or no spin frames)\n", hand);
+            continue;
+        }
+        const float k = s.phase / spinStep;
+        Con_Printf("widowmaker spin hand %d: turn %.1f deg, speed %.0f deg/s (top %.0f)%s, frames %d %d blend %.2f, trigger %d, "
+                   "last shot %.2f s ago\n",
+            hand, s.phase, s.speed, spinTop(), s.coasting ? ", coasting" : "", frameCount + static_cast<int>(k) % spinPoses,
+            frameCount + (static_cast<int>(k) + 1) % spinPoses, k - static_cast<float>(static_cast<int>(k)),
+            client::attacking(hand) ? 1 : 0, s.lastShot < 0.0 ? -1.0 : cl.time - s.lastShot);
+        if(hs.muzzleValid[hand])
+        {
+            Con_Printf("  muzzle %.2f %.2f %.2f\n", hs.muzzle[hand].x, hs.muzzle[hand].y, hs.muzzle[hand].z);
+        }
+        if(vr_debug_weaponfx.value)
+        {
+            Con_Printf("  drawn: the top barrel's front %.2f %.2f %.2f (from the muzzle %.2f), the barrels' middle %.2f %.2f %.2f "
+                       "(%.2f)\n",
+                s.topFront.x, s.topFront.y, s.topFront.z, glm::distance(s.topFront, hs.muzzle[hand]), s.axisFront.x,
+                s.axisFront.y, s.axisFront.z, glm::distance(s.axisFront, hs.muzzle[hand]));
+        }
+    }
+}
+
+void registerCommands()
+{
+    Cmd_AddCommand("vr_ad_widowmaker_spin_info", spinInfo_f);
+}
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
@@ -1400,6 +1813,32 @@ void info_f()
         if(!r.graft.path)
         {
             Con_Printf("  blade edge %.2f %.2f %.2f .. %.2f %.2f %.2f\n", b.edgeLo.x, b.edgeLo.y, b.edgeLo.z, b.edgeHi.x, b.edgeHi.y, b.edgeHi.z);
+        }
+        for(int k = 0; k < 3; k++)
+        {
+            if(r.graft.path && r.graftSeeds[k] >= 0 && b.seedLo[k].x <= b.seedHi[k].x)
+            {
+                Con_Printf("  grafted piece of vertex %d%s: box %.2f %.2f %.2f .. %.2f %.2f %.2f, AD's surface straight over its "
+                           "top %s\n",
+                    r.graftSeeds[k], r.graftSeeds[k] == r.liftSeed ? " (lifted)" : "", b.seedLo[k].x, b.seedLo[k].y,
+                    b.seedLo[k].z, b.seedHi[k].x, b.seedHi[k].y, b.seedHi[k].z,
+                    b.adAbove[k] < 1e29f ? va("at z %.2f (the least gap %.2f)", b.adAbove[k], b.adGap[k]) : "none");
+            }
+        }
+        if(b.noteName)
+        {
+            Con_Printf("  %s: box %.2f %.2f %.2f .. %.2f %.2f %.2f; its top along x:", b.noteName, b.noteLo.x, b.noteLo.y,
+                b.noteLo.z, b.noteHi.x, b.noteHi.y, b.noteHi.z);
+            for(const float z : b.noteTop)
+            {
+                Con_Printf(z > -1e29f ? " %.2f" : " -", z);
+            }
+            Con_Printf("\n");
+        }
+        if(b.spinVerts > 0)
+        {
+            Con_Printf("  spin frames: %d of %d vertices turned, %d frames after the %d still ones\n", b.spinVerts, b.verts,
+                spinPoses, frameCount);
         }
     }
 }

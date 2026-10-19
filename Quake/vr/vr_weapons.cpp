@@ -147,9 +147,11 @@ namespace
 // config holds the Shadow Axe's size adweapons2 put there); the AD crossbow (slot 32) his. 49: the AD melee weapons'
 // tips (slots 40-44) on their models made anew (vr_admelee.cpp: the fury's sword and the hammer turned half round),
 // where the config still held the old tip. 50: the Widowmaker's grips his (slot 34: hotspot 1 a cup round the rear
-// handle, hotspot 2 off; takeWidowmakerGrips). A first start (no saved config) takes this version as it is: its settings
-// are these defaults (markCurrent).
-constexpr int settingsVersion = 50;
+// handle, hotspot 2 off; takeWidowmakerGrips). 51: the Widowmaker's muzzle (slot 34) on its top barrel's front (its
+// barrels turn as a Gatling's, vr_adweapons.cpp; it was their middle, 44 0 6.8), where the config still held the old one,
+// and its muzzle offsets none where it held the super shotgun's (takeWidowmakerMuzzle). A first start (no saved config) takes this version as it is: its settings are these defaults
+// (markCurrent).
+constexpr int settingsVersion = 51;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -368,6 +370,33 @@ void takeWidowmakerGrips()
     }
 }
 
+// AD support: the Widowmaker's muzzle on its top barrel's front (51), where the config holds the barrels' middle, and no
+// muzzle offset where it holds the super shotgun's (0.5 0.35 -0.7, inherited until 48: they put the shot 0.6 off it).
+constexpr OldValue widowmakerMuzzleOffsetsBefore51[] = {{34, Key::MuzzleOffsetX, 0.499997f}, {34, Key::MuzzleOffsetY, 0.35f},
+    {34, Key::MuzzleOffsetZ, -0.7f}};
+
+void takeWidowmakerMuzzle()
+{
+    cvar_t& var = cvarAt(34, Key::MuzzleAnchor);
+    if(!strcmp(var.string, "44 0 6.8"))
+    {
+        Cvar_SetQuick(&var, var.default_string);
+    }
+    bool old = true;
+    for(const OldValue& o : widowmakerMuzzleOffsetsBefore51)
+    {
+        old = old && fabsf(cvarAt(o.slot, o.key).value - o.value) < 1e-4f;
+    }
+    for(const OldValue& o : widowmakerMuzzleOffsetsBefore51)
+    {
+        if(old)
+        {
+            cvar_t& offset = cvarAt(o.slot, o.key);
+            Cvar_SetQuick(&offset, offset.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -385,6 +414,7 @@ constexpr Step steps[] = {
     {48, takeUninherited},
     {49, takeAdMeleeTips},
     {50, takeWidowmakerGrips},
+    {51, takeWidowmakerMuzzle},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

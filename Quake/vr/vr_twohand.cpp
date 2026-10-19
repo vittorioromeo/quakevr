@@ -858,9 +858,31 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     transition(aimTransition[holding], shouldAim[holding], 5.f);
 
     const float t = aimTransition[holding];
-    if(t <= 0.f || cup)
+    const bool cupStock = cup && vr_2h_cup_stock.value != 0.f;
+    if(t <= 0.f || (cup && !cupStock))
     {
         stockTransition[holding] = 0.f;
+        return;
+    }
+    if(cup)
+    {
+        // A cup with the virtual stock (his notes 2026-10-19: the Widowmaker's): the hands don't aim it, the shoulder
+        // does as far as the stock is engaged: the holding hand's aim turned towards the line from the shoulder through
+        // the hands (vr_2h_virtual_stock_factor of the way), the slot's stock turn on top.
+        const float k = t * stockTransition[holding];
+        if(k <= 0.f)
+        {
+            return;
+        }
+        const glm::vec3 shoulderLine = safeNormalize((holdingPos + helpingPos) * 0.5f - shoulder);
+        const glm::vec3 cupDir = safeNormalize(glm::mix(origDir, shoulderLine, k * vr_2h_virtual_stock_factor.value));
+        glm::vec3 turn = glm::vec3{-1.f, 1.f, 1.f} * weapons::vec(slot, Key::StockPitch, Key::StockYaw, Key::StockRoll) * k;
+        if(holding == HAND_OFF) // mirrored
+        {
+            turn.y = -turn.y;
+            turn.z = -turn.z;
+        }
+        s.rot[holding] = hands::anglesFromVectors(cupDir, up) + turn;
         return;
     }
 

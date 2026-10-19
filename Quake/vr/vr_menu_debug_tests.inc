@@ -362,6 +362,12 @@ za::Vector<Item> pageDebugTests()
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "
                   "seconds (adwidow: lines in the console). Then load it and fire it yourself."),
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Barrels Info", "vr_ad_widowmaker_spin_info")) // AD support
+            .help("Each hand's Widowmaker barrels: their turn, speed and the frames drawn, the trigger and the last shot, "
+                  "the muzzle (the top barrel's front) in the world."),
+        adSpawnRow(310, slider("Arcane Dimensions: Widowmaker Barrels Held At", "vr_ad_widowmaker_spin_at", -1.f, 360.f, 5.f, "%.0f deg")) // AD support
+            .help("Debug: the Widowmakers in the hands drawn with their barrels turned this far (for pictures); -1 as "
+                  "they are, turning with the trigger."),
         adSpawnRow(309, command("Arcane Dimensions: Shadow Axe Rules Test", "vr_ad_test 140")) // AD support
             .help("Three AD zombies and an AD knight ahead; two seconds on, AD's Shadow Axe rules are checked through your "
                   "axe's own blows: a zombie in pain gibbed for good, the knight's long pain, a downed zombie chopped by a "

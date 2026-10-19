@@ -70,6 +70,8 @@
         toggle("Bolt Laid and String Animated", "vr_adgun_crossbow_anim")
             .help("A bolt lies in the groove while the crossbow is ready (morphing in after a shot) and is the one that "
                   "flies; the string snaps forward and the limbs flex, then it is drawn back for the next."),
+        slider("Next Bolt's Sound", "vr_adgun_crossbow_bolt_sound", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The soft shimmer as the next bolt morphs into the groove: its volume (0: none)."),
         header("Melee Monsters' Weapons"),
         toggle("Melee Monsters Drop Their Weapons", "vr_admelee_drops")
             .help("The death fury drops its two swords, the death knight, zombie knight and death guard their swords, "

@@ -13689,3 +13689,64 @@ vs drawn bolt 0.035 u, 0.00 deg; re-posed (pitch 15, yaw 10, scale 0.9, z 2; off
 - **For VR:** slow arm moves silent; a brisk wave or a wind-up a soft whoosh; a punch or cut a clear step louder; a
   very fast punch or full cut louder than before and a touch higher. Waving a sword or axe about now whooshes softly
   each stroke (0.2 s apart at most): if too busy, raise Heard From or lower Short of a Blow.
+
+## Widowmaker Gatling, cup stock, Plasma Gun hole and trigger, crossbow bolt sound (worktree `dequant`, branch `agent/widowmaker3`, 2026-10-19)
+
+His VR notes on the AD weapons (`vr_adweapons.cpp` unless said).
+
+- **Shell port half the size**: opening x 4.55..8.45, z 5.05..6.15 (was 2.6..10.4, 4.5..6.7), rim 0.2 wide, 0.25 proud;
+  the same middle (`loadPorts` 6.5 3.6 5.6 unchanged); `vr_reload_port_widow_radius` 2.5 -> 1.25.
+- **Two shells a handful**: `vr_ad_widowmaker_handful` 4 -> 2 (his). His other Widowmaker values were the defaults
+  already. `vr_cfg_version` 159 moves both where a config holds the old defaults.
+- **Cup hotspots take the virtual stock** (`vr_twohand.cpp` applyHotspots): a cup returned before the stock was looked
+  at, so the Widowmaker's cup (its hotspot 1) never shouldered. Now (`vr_2h_cup_stock` 1, Weapon Offsets > Virtual
+  Stock: "Cup Grips Take the Stock") with the holding hand at the shoulder the aim turns towards the line from the
+  shoulder through the two hands (Stock Factor of the way), plus the slot's Stock Pitch/Yaw/Roll; 0 restores "a cup
+  never aims". A global setting rather than a per-hotspot one (the cup is the only grip that skipped it).
+- **Front handle gap**: the handle's top slants down to z 2.56 at its back, under the mount's bottom (3): the mount now
+  reaches down to 2.3. `vr_adweapon_models` prints the handle's top along x, and each grafted piece's least gap up to the
+  body (a ray straight up from its top).
+- **Gatling barrels**: the three barrels an even triangle about a spin axis (y 0, z 6.8; their centres 2 from it: top
+  0 8.8, bottoms +-1.73 5.8). The model gets 27 spin frames after its nine still ones (a whole turn, 13.3 degrees apart:
+  each barrel keeps its own texels), only the barrels and their bands turned (`Out::spins`); `spinFrame` draws a held
+  Widowmaker as two of them blended (`ViewEntity::poseFrame`, `VR_AliasPoseOverride`, as the AD crossbow), its zero
+  blend off. Speed: up to a barrel a shot (120 degrees each `vr_ad_widowmaker_refire`, 480 deg/s at 0.25 s) times
+  `vr_ad_widowmaker_spin` (1), reached in `vr_ad_widowmaker_spinup` (0.2 s) while the trigger is held (`client::attacking`)
+  or it fired within 1.25 refires; let go, it coasts (a cubic ease) to the next barrel on top in about
+  `vr_ad_widowmaker_spindown` (0.9 s). The anchors still read the still frames: the muzzle stays on the top. Reloading >
+  Widowmaker: Barrel Spin, Spin Up, Spin Down. Debug > Tests: "Widowmaker Barrels Info" (`vr_ad_widowmaker_spin_info`;
+  with `vr_debug_weaponfx 1` also the drawn top barrel's front and the barrels' middle against the muzzle) and "Widowmaker
+  Barrels Held At" (`vr_ad_widowmaker_spin_at`, degrees, -1 off).
+- **The top barrel fires**: muzzle anchor `44 0 8.8` (was `44 0 6.8`, the barrels' middle) and no muzzle offset (the
+  super shotgun's 0.5 0.35 -0.7, inherited until 48). An anchor binds to the nearest triangle and the bore's middle is
+  open (it bound to the mouth's edge, 0.5 off): a speck of two back-to-back faces (0.12 across, black, still) marks the
+  bore's middle. `vr_wofs_version` 51 (`takeWidowmakerMuzzle`): the anchor where a config holds the old one, the offsets
+  where it holds all three old ones.
+- **Its own sound**: `vr/widowmaker_shot.wav` (was `weapons/shotgn2.wav`), synthesized by
+  `Misc/quakevr/make_adweapon_sounds.py` (noise and sines, nothing recorded: no credit needed): a short dry punch, then
+  the action's two clacks (75 and 115 ms), a short tail. Precached in `AD_WorldSpawn` (every map).
+- **Plasma Gun hole**: its inside black (the bores' texels, not the caps' grey), and its floor raised over the gun's own
+  side (y 3.25, was 2.95: AD's riveted side panel lay over the floor and showed through the hole as the outside does).
+  The floor's height is found by rays in at the hole (`vr_adweapon_models`: "cell pocket's floor").
+- **Plasma Gun trigger**: the grafted trigger (v_light.mdl's piece of vertex 493) 0.6 up (`Recipe::liftSeed`, `lift`):
+  it hung 0.48 below the body.
+- **Crossbow**: the next bolt's soft shimmer as it starts to morph in (0.55 of the refire after a shot),
+  `vr/xbow_bolt_in.wav` (the same script: a rising three-partial tone with a tremolo and a little air, 0.45 s), from
+  the groove, `vr_adgun_crossbow_bolt_sound` 0.35 (its volume; Arcane Dimensions' Guns: "Next Bolt's Sound"). With
+  `vr_debug_weaponfx 1`: `crossbow hand N: bolt morphs in 0.552 s after the shot`.
+
+### Checked (headless; scripts `scratch/wm3/*.sh`)
+
+`vr_adweapon_models`: Widowmaker 1230 triangles (the speck 2), Plasma Gun 612, 0 open edges each; the trigger's least gap
+0.48 -> inside the body; spin frames: 1110 of the Widowmaker's vertices turned. `vr_ad_test 149` 8/8 PASS (handful 2,
+tube full after 8 inserts, 8 shots in 2 s): the barrels at 480 deg/s while firing, at rest after at 120 (a barrel on
+top); each shot from the client's muzzle, 0.00 from the drawn top barrel's front (the barrels' middle 1.09 off).
+`vr_ad_test 141` 4/4 PASS, `vr_ad_test 93` PASS. Cup stock (`cupstock.sh`: the off hand on hotspot 1 by
+`vr_mock_hand_to off heldspot 0`, `vr_virtual_stock_thresh 1000`): "virtual stock 1.00", the aim off the controller's
+(62.7 83.5 vs 70 90), Stock Pitch 10 turns it 10 up; `vr_2h_cup_stock 0`: stock 0, the controller's aim. Migration from
+a config at 158/50 holding the old values: handful 2, radius 1.25, muzzle `44 0 8.8`, offsets 0. Pictures:
+`scratch/wm3_handle2_crop.png` (handle meeting the mount, the small port), `wm3_front.png` (barrels at 0, 50, 100
+degrees), `wm3_plasma3_crop.png` (the black hole), `wm3_trigger.png`.
+
+For VR: the spin's speed and coast; the sound against the other shotguns; the cup with the stock (Stock Factor, the
+stock turn); the port's size with the handful of 2; the crossbow's shimmer volume.

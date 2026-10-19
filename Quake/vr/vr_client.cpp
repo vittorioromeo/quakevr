@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_adcrossbow.hpp"
+#include "vr_adweapons.hpp"
 #include "vr_adguns.hpp"
 #include "vr_blood.hpp"
 #include "vr_bttrails.hpp"
@@ -68,6 +69,8 @@
 
 using namespace qvr;
 using namespace qvr::protocol;
+
+extern "C" kbutton_t in_attack; // cl_input.c: +attack (the main hand's trigger)
 
 namespace
 {
@@ -772,6 +775,11 @@ bool grabbing(int hand)
     return gripping(hand);
 }
 
+bool attacking(int hand)
+{
+    return hand == HAND_MAIN ? (in_attack.state & 1) != 0 : offhandAttack;
+}
+
 const EntityVr* entityVr(int num)
 {
     if(!vrProtocol() || num < 0 || num >= static_cast<int>(entityData.size()))
@@ -859,6 +867,7 @@ extern "C" void VR_OnClientClearState()
     deathview::clear();
     weaponfx::clear();
     adcrossbow::clear(); // AD support
+    adweapons::clear();  // AD support
     bttrails::clear();
     wounds::clear();
     rope::forget();
