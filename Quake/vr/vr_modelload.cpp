@@ -355,7 +355,7 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 {
 	aliashdr_t *pheader = (aliashdr_t *) hdr;
 	double	t0 = Sys_DoubleTime (); // load timing (vr_startup_times)
-	int		i, j, n, w = pheader->skinwidth, h = pheader->skinheight, mark;
+	int		i, j, n, w = pheader->skinwidth, h = pheader->skinheight, mark, relief;
 	byte	*mask = NULL;
 
 	if (!numskinnormalmaps)
@@ -384,15 +384,22 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 	}
 	else
 		VR_SetHeightMask (mask, w, h);
+	// a weapon made from another model's file: its relief made from its skin, as our weapons' are baked (vr_skinrelief.cpp;
+	// its first frame, after the triangles in the file, gives its units per texel)
+	relief = VR_SkinReliefWanted (loadmodel->name) ? NORMALMAP_RELIEF : 0;
+	if (relief)
+		VR_SkinReliefBegin (pheader, verts, tris, tris + pheader->numtris);
 	for (i = 0; i < numskinnormalmaps; i++)
 	{
 		char shared[MAX_QPATH];
 		q_snprintf (shared, sizeof (shared), "%s_0", loadmodel->name); // skin 0's (every skin has the same coordinates)
 		VR_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, strcmp (shared, skinnormalmaps[i].name) ? shared : NULL,
-			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
+			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN | relief);
 		if (skinnormalmaps[i].owned)
 			VR_HeapFree (skinnormalmaps[i].data);
 	}
+	if (relief)
+		VR_SkinReliefEnd ();
 	VR_SetHeightMask (NULL, 0, 0);
 	numskinnormalmaps = 0;
 	Hunk_FreeToLowMark (mark);

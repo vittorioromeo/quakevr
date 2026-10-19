@@ -1528,6 +1528,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		}
 	}
 
+	if (normalmap_kind[glt - gltextures_base] & NORMALMAP_RELIEF) // QVR: a derived weapon's relief, made from its skin (vr/vr_skinrelief.cpp)
+		data = (unsigned *) VR_SkinRelief (glt, (byte *) data);
+
 	// mipmap down
 	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
 	mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);

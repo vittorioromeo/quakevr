@@ -2306,6 +2306,7 @@ QVR_CVAR(vr_normalmap_baked, "1", CVAR_ARCHIVE)        // how much the bumps sha
 QVR_CVAR(vr_deluxemap, "1", CVAR_ARCHIVE)             // the map light's real directions (the relit map's .lux, deluxemaps) for its bumps and sheen (0: guessed from where the lightmap brightens)
 QVR_CVAR(vr_normalmap_models, "1.5", CVAR_ARCHIVE)       // how much the bumps shade models' own light, from its direction (times vr_normalmap_baked; held weapons less; 0: only dynamic lights)
 QVR_CVAR(vr_normalmap_authored, "1", CVAR_ARCHIVE)     // round 21: how strongly authored normal maps (a model skin's *_norm or *_bump file) bend models' normals: 1 as authored; held weapons and hands too (not halved)
+QVR_CVAR(vr_weapon_relief, "1", CVAR_ARCHIVE)          // weapons made from other models as they load (AD's #vr, #gun, #melee; our rifle's #adv variants): 1 their relief made from the skin like our baked weapons' (vr_skinrelief.cpp, drawn as authored), 0 the plain made map; on their next load (a restart)
 QVR_CVAR(vr_parallax, "1", CVAR_ARCHIVE)               // parallax occlusion mapping on the world: its dark parts sunk in, seen round from the side (needs vr_normalmaps)
 QVR_CVAR(vr_parallax_depth, "2.5", CVAR_ARCHIVE)       // how deep, in units, the darkest parts of a texture sink below its brightest
 QVR_CVAR(vr_parallax_distance, "1024", CVAR_ARCHIVE)   // how far it reaches, in units (it fades out over the last quarter; 512 before config 89)
