@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
 Thrown bodies and tackles (Ragdoll Triggers > Thrown Bodies / Tackles): throw or swing bodies at grunts (topple), ogres (short stagger), shamblers (nothing); sprint into grunts and ogres in guard, crossed hands, palm forward, shoving: tackles; a gun aimed two-handed while running never tackles
 Brain chunks: pop heads (Gore Tests > Brain Chunks Ahead): folds, gloss in light and shade, pick one up and shake/drop it (jiggle); Gore > Small Gibs > Brain Chunk Gloss / Jiggle
 Leg sweep direction: sweep a grunt's shins left to right with the nailgun or sword: does it topple away from the sweep, or backward (the test sees a 15-30 unit backward lean)? wanted or not?
