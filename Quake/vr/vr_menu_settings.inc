@@ -554,6 +554,22 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
         slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f)
             .help("Their size (scaled with the build too). Their fit: Advanced VR Options > Body > Arms and Pauldrons."),
+        header("Ghost Hands"),
+        cycle("Ghost Hands", vr_ghost_hands, {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Hands and Forearms"}})
+            .help("A see-through copy of each hand where your real hand is, whenever the game draws your hand elsewhere: a "
+                  "heavy weapon lagging or drooping, a two-handed grip aiming it, a wall stopping it. It fades out as "
+                  "the drawn hand comes back to yours."),
+        cycle("Ghost Which Hands", vr_ghost_hands_which, {{0.f, "Both"}, {1.f, "Off Hand Only"}})
+            .help("Both hands, or only the off hand (the one that steadies a weapon in two hands)."),
+        slider("Ghost Opacity", vr_ghost_hands_alpha, 0.05f, 1.f, 0.05f, "%.2f"),
+        slider("Ghost Lightness", vr_ghost_hands_lightness, 0.25f, 3.f, 0.05f, "%.2fx")
+            .help("Times the light on the ghost: brighter stands out from your drawn hand."),
+        slider("Ghost Tint", vr_ghost_hands_tint, 0.f, 1.f, 0.05f, "%.2f").help("0: the hand's own colours; 1: a cold blue."),
+        slider("Ghost Hidden Within", vr_ghost_hands_fade_from, 0.f, 20.f, 0.5f, "%.1f cm")
+            .help("No ghost while the drawn hand is this close to your real one (its grip, and a point 15 cm ahead of "
+                  "it: a turn counts too)."),
+        slider("Ghost Fade-In Range", vr_ghost_hands_fade_range, 0.5f, 30.f, 0.5f, "%.1f cm")
+            .help("And it fades in over this much further apart."),
     };
 }
 

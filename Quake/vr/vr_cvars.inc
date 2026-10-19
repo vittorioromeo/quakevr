@@ -1101,7 +1101,14 @@ QVR_CVAR(vr_heavy_auto_full, "20", CVAR_ARCHIVE)           // kg: and this heavy
 QVR_CVAR(vr_heavy_struggle, "1", CVAR_ARCHIVE)             // one-handed struggle: 0 off, 1 full (times the Heft)
 QVR_CVAR(vr_heavy_struggle_stiffness, "0.25", CVAR_ARCHIVE) // the wrist's stiffness on it at Heft 1 in one hand, times (lower: lags further, slower back)
 QVR_CVAR(vr_heavy_struggle_damping, "0.5", CVAR_ARCHIVE)    // its damping at Heft 1 in one hand, times (lower: springier, overshoots)
-QVR_CVAR(vr_heavy_damping_min, "0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
+QVR_CVAR(vr_ghost_hands, "0", CVAR_ARCHIVE)                // Ghost Hands: each hand also drawn translucent at its real controller (the drawn one held off it: heavy weapons, a two-handed grip, walls): 0 off, 1 hands, 2 hands and forearms
+QVR_CVAR(vr_ghost_hands_which, "0", CVAR_ARCHIVE)          // 0 both hands, 1 the off hand only
+QVR_CVAR(vr_ghost_hands_alpha, "0.35", CVAR_ARCHIVE)       // their opacity (0..1)
+QVR_CVAR(vr_ghost_hands_lightness, "1.6", CVAR_ARCHIVE)    // times the light on them (brighter: stands out from the drawn hand)
+QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own colours .. 1 a cold blue
+QVR_CVAR(vr_ghost_hands_fade_from, "2", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
+QVR_CVAR(vr_ghost_hands_fade_range, "4", CVAR_ARCHIVE)     // cm: and it fades in over this much further
+QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_heavy_droop, "1", CVAR_ARCHIVE)               // 1: heavy weapons droop held in one hand
 QVR_CVAR(vr_heavy_droop_deg, "9", CVAR_ARCHIVE)            // degrees the barrel (head) sags at Heft 1 in one hand (times the weapon's Droop x)
 QVR_CVAR(vr_heavy_recoil, "1", CVAR_ARCHIVE)               // 1: heavy weapons fired in one hand kick up (the aim with them)

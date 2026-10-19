@@ -181,7 +181,7 @@ int handBonePoses(const entity_t* e, const float** matrices)
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        if(rigHands[hand].drawn && e == &entities.hand[hand][FingerBase].ent)
+        if(rigHands[hand].drawn && (e == &entities.hand[hand][FingerBase].ent || e == &entities.ghostHand[hand].ent))
         {
             if(matrices)
             {
