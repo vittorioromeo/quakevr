@@ -14625,3 +14625,18 @@ The toolgun's Widowmaker (`toolgun_upgrade_ssg`, a func_weapon_grabbable): its r
 clip (2) before its upgrade was set; `VR_WeaponGrabbable_Make` now gives it `VR_ClipSizeOf` (the tube, 16).
 `vr_ad_test 148`: "comes loaded: PASS (16 of 16)"; the map pickup's (`vr_ad_test 149`'s last check) passes too (its
 other checks fail in the plain headless run: no manual reloading there).
+
+### Body shields
+
+A corpse (or a knocked-down monster) held in one hand or two already stops monsters' hitscan and projectiles: their
+traces (MOVE_HITGIBS | MOVE_HITMODEL) and missiles meet its drawn ragdoll, which takes the damage, the blood, the wounds
+and limb pops (a held shin shot off drops the body). Held up against you, though, the body lies inside your own hit box,
+whose face a shot meets first: `VR_BodyShield_Take` (weapons.qc; FireBulletsImpl for monsters' pellets, VR_Proj_Begin
+for their projectiles) looks for the held body's shape along the shot up to your middle and gives it the hit. Checks
+(`scratch/shield.sh` of worktree fastship: a grunt corpse taken with `vr_mock_hand_to ... ragdoll near`, held up with
+`vr_mock_hand`; `vr_knockdown_test 26` holds the nearest grunt or enforcer still, `27` fires its own shot at you, `28`
+one aimed through the held body, `25` prints your health and what you hold): e1m1, one hand, a grunt's 20 rounds: 8 on
+the body, 5 on you (over it at the head, beside it), 7 wide; vrtesthall, two hands, 15 rounds through the body: 15 on
+it; enforcer lasers through it: on it (two limb pops, then it fell). The shield code's own case (the body wholly inside
+your box) did not come up in these poses (`vr_debug_shots 2` prints its looks). Open: after the off hand takes a
+ragdoll first, its QC `offhand_held` reads empty while the engine says the hand holds it.
