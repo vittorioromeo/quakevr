@@ -22,9 +22,12 @@ float vr_hitkind;     // QVR_HITKIND_*
 // The blow being dealt draws no blood (ROUND22.md, "Shoves, slaps and bashes draw no blood"): a shove, a weapon's bash
 // (a parry bash) or a slap keep their damage, knockback and stagger, but spray no blood, paint no wound, send no gore
 // and tear no small gibs (VR_Gore_Hit, VR_Wound_Hit, VR_SmallGib_Hit, VR_Bash_Hit).
+// vr_hit_nobleed: set around a flame's, a poison's or a fire's T_Damage (the AD flamethrower's and poison sprayer's
+// streams, the poison they leave, burning: vr_ad_enemyguns.qc, vr_burning.qc): it burns or poisons, it does not bleed.
+float vr_hit_nobleed;
 float() VR_HitBloodless =
 {
-    return vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
+    return vr_hit_nobleed || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
            (vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap);
 };
 float vr_hithand;     // the hand that struck or fired (-1: unknown)

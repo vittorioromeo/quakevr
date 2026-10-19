@@ -107,7 +107,9 @@ float(entity xFire, entity xVictim) AD_BurnHurt =
         float type = xVictim.armortype;
         xVictim.armortype = 0;
         VR_SetHitKind(QVR_HITKIND_NONE, -1, xFire.burn_flames.origin, '0 0 -1');
+        vr_hit_nobleed = TRUE; // (fire: no blood)
         T_Damage(xVictim, xFire, xFire.owner, ad_DEBUFF_BURN_DMG);
+        vr_hit_nobleed = FALSE;
         VR_ClearHitKind();
         if(xVictim.armortype == 0)
         {

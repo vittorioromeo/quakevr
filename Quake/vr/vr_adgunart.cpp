@@ -11,12 +11,14 @@
 
 #include "vr_adguns.hpp"
 
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,8 +40,8 @@ constexpr float muzzleX = 33.1f;                   // the add-ons stop short of 
 // pyro's pilot light's tip.
 const glm::vec3 canisterBack{5.f, 0.f, 3.4f}, canisterFront{12.f, 0.f, 3.4f};
 constexpr float canisterRadius = 1.9f;
-const glm::vec3 inletBoss{-6.4f, 0.f, 3.f};
-const glm::vec3 inletAt{-7.3f, 0.f, 1.15f};
+const glm::vec3 inletBoss{-11.5f, 0.f, 4.25f}; // (Vittorio, 2026-10-19: back near the stock; the underside z 4.4 there)
+const glm::vec3 inletAt{-12.4f, 0.f, 2.25f};
 const glm::vec3 inletDir{-0.42f, 0.f, -0.91f};
 const glm::vec3 pilotAt{31.2f, 0.f, 5.6f};
 
@@ -210,6 +212,12 @@ struct Tri
 {
     int front{1};
     int v[3]{0, 0, 0};
+    bool inner{false}; // an inner wall's (facing a part's axis: meshStats)
+};
+struct MeshStats
+{
+    int tris{0}, open{0}, doubled{0}, inward{0}, inner{0};
+    bool verbose{false}; // (asked: each open or doubled edge printed)
 };
 struct Rect
 {
@@ -327,6 +335,7 @@ struct Build
     Quantizer quantize;
     float winding{1.f}; // the rifle's: its triangles' corners' order (+1: a, b, c turn about the outward normal)
     int atlasX{0}, atlasY{0}, atlasRow{0};
+    bool inner{false}; // the triangles made now are an inner wall's (Tri::inner)
 
     [[nodiscard]] bool alloc(int w, int h, Rect& r)
     {
@@ -378,6 +387,7 @@ struct Build
         t.v[0] = a;
         t.v[1] = flip ? c : b;
         t.v[2] = flip ? b : c;
+        t.inner = inner;
         tris.pushBack(t);
     }
 };
@@ -431,6 +441,7 @@ void tube(Build& b, const glm::vec3& a, const glm::vec3& c, float ra, float rc, 
                 static_cast<float>(r.y) + (end ? static_cast<float>(r.h - 1) : 0.f));
         }
     }
+    b.inner = inside;
     for(int k = 0; k < sides; k++)
     {
         const int a0 = first + k, a1 = first + k + 1, c0 = first + sides + 1 + k, c1 = first + sides + 2 + k;
@@ -439,6 +450,7 @@ void tube(Build& b, const glm::vec3& a, const glm::vec3& c, float ra, float rc, 
         b.tri(a0, a1, c1, out);
         b.tri(a0, c1, c0, out);
     }
+    b.inner = false;
     for(int end = 0; end < 2; end++)
     {
         if(!(end ? capC : capA))
@@ -462,6 +474,88 @@ void tube(Build& b, const glm::vec3& a, const glm::vec3& c, float ra, float rc, 
             b.tri(mid, ring + k, ring + k + 1, out);
         }
     }
+}
+
+// A part turned about the line from `a` along `d` (a unit direction): its profile's corners (s along the line, r out
+// from it) joined in order, each segment a band round it (a disc's fan where r is 0) painted with its first corner's rect
+// (u round it, v along the segment). Each faces the profile's left: a profile from the line out, along and back in to
+// it is a closed shell, outside and in (a hollow tube's outer wall, lips and bore all facing out of its metal: seen from
+// anywhere, inside or out, never through).
+struct Turn
+{
+    float s{0.f}, r{0.f};
+    const Rect* rect{nullptr};
+};
+void lathe(Build& b, const glm::vec3& a, const glm::vec3& d, const Turn* profile, int n, int sides)
+{
+    glm::vec3 e1, e2;
+    across(d, e1, e2);
+    for(int i = 0; i + 1 < n; i++)
+    {
+        const Turn& p0 = profile[i];
+        const Turn& p1 = profile[i + 1];
+        const float ds = p1.s - p0.s, dr = p1.r - p0.r, len = sqrtf(ds * ds + dr * dr);
+        if(len < 1e-4f || !p0.rect)
+        {
+            continue;
+        }
+        const Rect& r = *p0.rect;
+        const float ns = -dr / len, nr = ds / len; // (the profile's left)
+        const int first = static_cast<int>(b.verts.size());
+        for(int end = 0; end < 2; end++)
+        {
+            const Turn& p = end ? p1 : p0;
+            for(int k = 0; k <= sides; k++)
+            {
+                const float ang = 2.f * pi * static_cast<float>(k) / static_cast<float>(sides);
+                const glm::vec3 radial = e1 * cosf(ang) + e2 * sinf(ang);
+                b.vertex(a + d * p.s + radial * p.r, d * ns + radial * nr,
+                    static_cast<float>(r.x) + static_cast<float>(r.w - 1) * static_cast<float>(k) / static_cast<float>(sides),
+                    static_cast<float>(r.y) + (end ? static_cast<float>(r.h - 1) : 0.f));
+            }
+        }
+        b.inner = nr < -0.5f;
+        for(int k = 0; k < sides; k++)
+        {
+            const int a0 = first + k, a1 = first + k + 1, c0 = first + sides + 1 + k, c1 = first + sides + 2 + k;
+            const float ang = 2.f * pi * (static_cast<float>(k) + 0.5f) / static_cast<float>(sides);
+            const glm::vec3 out = d * ns + (e1 * cosf(ang) + e2 * sinf(ang)) * nr;
+            if(p0.r > 1e-4f)
+            {
+                b.tri(a0, a1, c1, out);
+            }
+            if(p1.r > 1e-4f)
+            {
+                b.tri(a0, c1, c0, out);
+            }
+        }
+        b.inner = false;
+    }
+}
+
+// The rifle's own triangles wholly inside the cylinder round the line y 0, z `z` from x `x0` to `x1` (radius `r`)
+// dropped: its barrel inside a launcher's barrel (not seen down its bore).
+void dropRifleInside(Build& b, float x0, float x1, float z, float r)
+{
+    za::Vector<Tri> kept;
+    int base = 0;
+    for(za::SizeT i = 0; i < b.tris.size(); i++)
+    {
+        const Tri& t = b.tris[i];
+        bool inside = static_cast<int>(i) < b.baseTris;
+        for(int c = 0; c < 3 && inside; c++)
+        {
+            const glm::vec3& p = b.verts[static_cast<za::SizeT>(t.v[c])].p;
+            inside = p.x >= x0 && p.x <= x1 && p.y * p.y + (p.z - z) * (p.z - z) <= r * r;
+        }
+        if(!inside)
+        {
+            kept.pushBack(t);
+            base += static_cast<int>(i) < b.baseTris ? 1 : 0;
+        }
+    }
+    b.tris = static_cast<za::Vector<Tri>&&>(kept);
+    b.baseTris = base;
 }
 
 // A box (centre, half sizes), every face the whole rect.
@@ -839,6 +933,61 @@ void graftLauncher(Build& b, const Mdl& g, W&& want, P&& place, int skinRow)
     }
 }
 
+// The grafted launcher barrel's bottom (its vertices from `firstVert`), its keel left off: a flat quad across its sides'
+// lower edges (the lowest of its corners within its sides, |y| under 3.45: not the wider collar's), from the back of
+// them to the front on each side.
+void closeLauncherBottom(Build& b, za::SizeT firstVert)
+{
+    float zb = 1e9f;
+    for(za::SizeT i = firstVert; i < b.verts.size(); i++)
+    {
+        if(za::abs(b.verts[i].p.y) < 3.45f)
+        {
+            zb = za::min(zb, b.verts[i].p.z);
+        }
+    }
+    int corner[2][2] = {{-1, -1}, {-1, -1}}; // [side y- / y+][back / front]
+    for(za::SizeT i = firstVert; i < b.verts.size(); i++)
+    {
+        const glm::vec3& p = b.verts[i].p;
+        if(za::abs(p.z - zb) > 0.05f || za::abs(p.y) >= 3.45f || za::abs(p.y) < 2.5f)
+        {
+            continue;
+        }
+        int* c = corner[p.y > 0.f ? 1 : 0];
+        if(c[0] < 0 || p.x < b.verts[static_cast<za::SizeT>(c[0])].p.x)
+        {
+            c[0] = static_cast<int>(i);
+        }
+        if(c[1] < 0 || p.x > b.verts[static_cast<za::SizeT>(c[1])].p.x)
+        {
+            c[1] = static_cast<int>(i);
+        }
+    }
+    if(corner[0][0] < 0 || corner[1][0] < 0)
+    {
+        return;
+    }
+    // (painted the launcher's blue steel, its skin's lighter band down the middle as its keel had)
+    Rect plate;
+    (void)b.alloc(8, 4, plate);
+    paintRect(b, plate, 1.f, 1.f, [](float u, float) { return paint(glm::vec3{0.34f, 0.38f, 0.6f} * (za::abs(u - 0.5f) < 0.2f ? 1.3f : 1.f)); });
+    int q[4];
+    const int order[4][2] = {{0, 0}, {0, 1}, {1, 1}, {1, 0}};
+    for(int k = 0; k < 4; k++)
+    {
+        Vert v = b.verts[static_cast<za::SizeT>(corner[order[k][0]][order[k][1]])];
+        v.n = glm::vec3{0.f, 0.f, -1.f};
+        v.s = plate.x + (order[k][0] ? plate.w - 1 : 0); // (u across it, y- to y+)
+        v.t = plate.y + (order[k][1] ? plate.h - 1 : 0);
+        v.seam = 0;
+        b.verts.pushBack(v);
+        q[k] = static_cast<int>(b.verts.size()) - 1;
+    }
+    b.tri(q[0], q[1], q[2], glm::vec3{0.f, 0.f, -1.f});
+    b.tri(q[0], q[2], q[3], glm::vec3{0.f, 0.f, -1.f});
+}
+
 // ---- The variants ----------------------------------------------------------------------------------------------------
 
 // Each gun's add-ons and paint. The rifle (model units): the stock x -29..-14, the receiver x -8..12 (its top z 14.4),
@@ -870,16 +1019,20 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
                 }
                 return paint(olive * 1.35f);
             });
-            tube(b, glm::vec3{m0, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr, mr, 14, tubeR, true, false);
             Rect inner;
             (void)b.alloc(16, 8, inner);
             paintRect(b, inner, 1.f, 1.f, [](float, float v) { return paint(black * (1.f + v)); });
-            tube(b, glm::vec3{m0 + 1.f, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr * 0.84f, mr * 0.84f, 14, inner, false, false, true);
             Rect ring;
             (void)b.alloc(32, 4, ring);
             paintRect(b, ring, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
-            tube(b, glm::vec3{m1 - 1.f, 0.f, mz}, glm::vec3{m1, 0.f, mz}, mr * 1.1f, mr * 1.1f, 14, ring, false, false);
-            tube(b, glm::vec3{m0, 0.f, mz}, glm::vec3{m0 + 0.8f, 0.f, mz}, mr * 1.08f, mr * 1.08f, 14, ring, false, false);
+            // One hollow tube (Vittorio, 2026-10-19: no rifle barrel inside it, nor see-through at its lip): its back, the
+            // back ring, the tube, the lip's ring and the lip, the bore back to its floor (each facing out of its metal).
+            dropRifleInside(b, m0, muzzleX + 1.f, mz, mr);
+            const float ml = m1 - m0;
+            const Turn launch[] = {{0.f, 0.f, &ring}, {0.f, mr * 1.08f, &ring}, {0.8f, mr * 1.08f, &ring}, {0.8f, mr, &tubeR},
+                {ml - 1.f, mr, &ring}, {ml - 1.f, mr * 1.1f, &ring}, {ml, mr * 1.1f, &ring}, {ml, mr * 0.84f, &inner},
+                {1.f, mr * 0.84f, &inner}, {1.f, 0.f, nullptr}};
+            lathe(b, glm::vec3{m0, 0.f, mz}, glm::vec3{1.f, 0.f, 0.f}, launch, static_cast<int>(sizeof(launch) / sizeof(launch[0])), 14);
             Rect nose;
             (void)b.alloc(16, 6, nose);
             paintRect(b, nose, 1.f, 1.f, [](float, float v) { return paint(v < 0.5f ? red : red * 0.7f); });
@@ -890,15 +1043,22 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             Rect pipe;
             (void)b.alloc(24, 32, pipe);
             paintRect(b, pipe, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(darkSteel, copper * 0.55f, v * v) * (0.85f + 0.3f * fractf(u * 5.f))); });
-            tube(b, glm::vec3{21.5f, 0.f, 12.4f}, glm::vec3{bend, 0.f, ez}, er, er, 12, pipe, false, false);
-            tube(b, glm::vec3{bend + 0.6f, 0.f, ez}, glm::vec3{rear, 0.f, ez}, er, er, 12, pipe, false, false);
-            tube(b, glm::vec3{bend + 0.9f, 0.f, ez}, glm::vec3{bend - 0.9f, 0.f, ez}, er * 1.18f, er * 1.18f, 12, ring, true, true);
-            Rect bell;
+            tube(b, glm::vec3{21.5f, 0.f, 12.4f}, glm::vec3{bend, 0.f, ez}, er, er, 12, pipe, true, true); // (its ends in the gun, the collar)
+            Rect bell, soot;
             (void)b.alloc(32, 8, bell);
             paintRect(b, bell, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(copper * 0.55f, darkSteel * 0.7f, v) * (0.8f + 0.4f * fractf(u * 6.f))); });
-            tube(b, glm::vec3{rear, 0.f, ez}, glm::vec3{rear - 4.f, 0.f, ez}, er * 1.02f, er * 1.6f, 12, bell, false, false);
-            tube(b, glm::vec3{rear + 3.f, 0.f, ez}, glm::vec3{rear - 4.f, 0.f, ez}, er * 0.8f, er * 1.48f, 12, inner, false, false, true);
-            tube(b, glm::vec3{rear + 0.4f, 0.f, ez}, glm::vec3{rear - 0.6f, 0.f, ez}, er * 1.15f, er * 1.15f, 12, ring, false, false);
+            (void)b.alloc(24, 16, soot);
+            paintRect(b, soot, 1.f, 1.f, [](float u, float v) { return paint(glm::mix(copper * 0.55f, darkSteel * 1.1f, v) * (0.75f + 0.35f * fractf(u * 6.f))); });
+            // Back from the collar at the bend (along -x): the collar, the pipe, the ring, the flared bell and its lip, then
+            // its inside (Vittorio, 2026-10-19: an empty pipe, walled inside and out): the bell's, the pipe's sooty bore,
+            // closed at the collar.
+            const float el = bend + 0.9f - rear, bellAt = er * 1.02f + er * 0.58f * 0.6f / 4.f;
+            const Turn exhaust[] = {{0.f, 0.f, &ring}, {0.f, er * 1.18f, &ring}, {1.8f, er * 1.18f, &ring}, {1.8f, er, &pipe},
+                {el - 0.4f, er, &ring}, {el - 0.4f, er * 1.15f, &ring}, {el + 0.6f, er * 1.15f, &ring}, {el + 0.6f, bellAt, &bell},
+                {el + 4.f, er * 1.6f, &ring}, {el + 4.f, er * 1.48f, &soot}, {el - 3.f, er * 0.8f, &soot}, {1.8f, er * 0.8f, &soot},
+                {1.8f, 0.f, nullptr}};
+            lathe(b, glm::vec3{bend + 0.9f, 0.f, ez}, glm::vec3{-1.f, 0.f, 0.f}, exhaust,
+                static_cast<int>(sizeof(exhaust) / sizeof(exhaust[0])), 12);
             Rect mount;
             (void)b.alloc(8, 8, mount);
             paintRect(b, mount, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
@@ -914,13 +1074,19 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             {
                 // The muzzle our grenade launcher's (Vittorio, 2026-10-18): its hexagonal barrel from the drum's face to its
                 // mouth (x 18.3 .. 31.4, its bore round z 5.92; not the drum behind it), shortened to x 23 .. 33 and at
-                // 0.92 across, round the rifle's barrel.
+                // 0.92 across, where the rifle's barrel was.
                 const int row = b.atlasY;
                 b.atlasY += launcher->skinH / 2 + 1;
+                // Not its keel under the barrel (below its z 2: cut short at the drum and squeezed, it was a twisted, gaping
+                // wedge under the muzzle; Vittorio, 2026-10-19): the barrel's bottom closed flat across its sides' lower
+                // edges instead, and the rifle's barrel inside it gone (only the launcher's muzzle).
                 const float sx = (muzzleX - 0.1f - 23.f) / (31.4f - 18.3f);
-                graftLauncher(b, *launcher, [](const glm::vec3& p) { return p.x >= 18.f; },
+                const za::SizeT firstVert = b.verts.size();
+                graftLauncher(b, *launcher, [](const glm::vec3& p) { return p.x >= 18.f && p.z >= 2.f; },
                     [sx, mz](const glm::vec3& p) { return glm::vec3{muzzleX - 0.1f - (31.4f - p.x) * sx, p.y * 0.92f, mz + (p.z - 5.92f) * 0.92f}; },
                     row);
+                dropRifleInside(b, 23.f, muzzleX + 1.f, mz, 3.3f);
+                closeLauncherBottom(b, firstVert);
             }
             // The magazine on top: an open-sided steel box of grenades lying across it, a chute feeding the gun from its
             // front.
@@ -957,7 +1123,7 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             }
             (void)b.alloc(16, 16, chute);
             paintRect(b, chute, 1.f, 1.f, [](float u, float) { return paint(fractf(u * 4.f) < 0.5f ? darkSteel : steel * 0.7f); });
-            tube(b, glm::vec3{bx1 - 0.4f, 0.f, 16.2f}, glm::vec3{14.f, 0.f, 13.6f}, 1.5f, 1.4f, 10, chute, true, false);
+            tube(b, glm::vec3{bx1 - 0.4f, 0.f, 16.2f}, glm::vec3{14.f, 0.f, 13.6f}, 1.5f, 1.4f, 10, chute, true, true);
             break;
         }
         case Plasma:
@@ -1003,9 +1169,9 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
                 }
                 for(const float x : {19.5f, 22.5f})
                 {
-                    tube(b, glm::vec3{x, 0.f, 14.f}, glm::vec3{x, 0.f, 17.f}, 0.75f, 0.75f, 8, glassR, false, false);
+                    tube(b, glm::vec3{x, 0.f, 14.f}, glm::vec3{x, 0.f, 17.f}, 0.75f, 0.75f, 8, glassR, true, false);
                     tube(b, glm::vec3{x, 0.f, 17.f}, glm::vec3{x, 0.f, 18.2f}, 0.75f, 0.15f, 8, glassR, false, true);
-                    tube(b, glm::vec3{x, 0.f, 13.9f}, glm::vec3{x, 0.f, 14.8f}, 1.05f, 1.05f, 8, capR, false, true);
+                    tube(b, glm::vec3{x, 0.f, 13.9f}, glm::vec3{x, 0.f, 14.8f}, 1.05f, 1.05f, 8, capR, true, true);
                 }
             }
             break;
@@ -1018,7 +1184,7 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             Rect magR, pumpR, carrier;
             (void)b.alloc(16, 16, magR);
             paintRect(b, magR, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
-            tube(b, glm::vec3{24.f, 0.f, 5.6f}, glm::vec3{32.4f, 0.f, 5.6f}, 0.95f, 0.95f, 10, magR, false, true);
+            tube(b, glm::vec3{24.f, 0.f, 5.6f}, glm::vec3{32.4f, 0.f, 5.6f}, 0.95f, 0.95f, 10, magR, true, true);
             (void)b.alloc(32, 16, pumpR);
             paintRect(b, pumpR, 1.f, 8.f, [](float, float v) { return paint(fractf(v) < 0.3f ? wood * 0.8f : wood * 1.45f); });
             box(b, glm::vec3{27.5f, 0.f, 5.3f}, glm::vec3{2.5f, 1.55f, 1.35f}, pumpR);
@@ -1062,9 +1228,9 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             (void)b.alloc(16, 8, inR);
             paintRect(b, inR, 1.f, 1.f, [](float, float) { return paint(darkSteel); });
             // The hose's inlet: a boss under the receiver between the grip and the stock, a short pipe out of it, down and
-            // back (Vittorio, 2026-10-18: not from the trigger).
-            box(b, inletBoss, glm::vec3{1.4f, 1.15f, 0.55f}, inR);
-            tube(b, inletBoss + glm::vec3{0.f, 0.f, 0.2f}, inletAt, 0.62f, 0.55f, 8, inR, false, true);
+            // back (Vittorio, 2026-10-18: not from the trigger; 2026-10-19: further back, almost at the stock).
+            box(b, inletBoss, glm::vec3{1.4f, 1.15f, 0.7f}, inR);
+            tube(b, inletBoss + glm::vec3{0.f, 0.f, 0.2f}, inletAt, 0.62f, 0.55f, 8, inR, true, true);
             (void)b.alloc(32, 10, nozR);
             paintRect(b, nozR, 1.f, 1.f, [pyro](float u, float v) {
                 if(v > 0.85f)
@@ -1077,15 +1243,20 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
             {
                 // The nozzle's flared bell round the barrel's end; a pilot light's pipe under it (its flame particles out of
                 // its tip: vr_adtank.cpp, pilotAt).
-                tube(b, glm::vec3{28.5f, 0.f, 8.1f}, glm::vec3{muzzleX - 0.1f, 0.f, 8.1f}, 1.3f, 2.1f, 12, nozR, false, false);
-                tube(b, glm::vec3{28.5f, 0.f, 8.1f}, glm::vec3{muzzleX - 0.1f, 0.f, 8.1f}, 1.1f, 1.85f, 12, inR, false, false, true);
-                tube(b, glm::vec3{26.f, 0.f, pilotAt.z}, glm::vec3{pilotAt.x - 0.2f, 0.f, pilotAt.z}, 0.5f, 0.5f, 8, inR, true, false);
+                // (Each hollow, closed: its back, the bell, its lip, its inside to a floor; the pilot's pipe the same.)
+                const float nl = muzzleX - 0.1f - 28.5f, pl = pilotAt.x - 0.2f - 26.f;
+                const Turn nozzle[] = {{0.f, 0.f, &nozR}, {0.f, 1.3f, &nozR}, {nl, 2.1f, &nozR}, {nl, 1.85f, &inR},
+                    {0.3f, 1.1f + 0.75f * 0.3f / nl, &inR}, {0.3f, 0.f, nullptr}};
+                lathe(b, glm::vec3{28.5f, 0.f, 8.1f}, glm::vec3{1.f, 0.f, 0.f}, nozzle, static_cast<int>(sizeof(nozzle) / sizeof(nozzle[0])), 12);
+                const Turn pilot[] = {{0.f, 0.f, &inR}, {0.f, 0.5f, &inR}, {pl, 0.5f, &inR}, {pl, 0.3f, &inR}, {pl - 0.6f, 0.3f, &inR},
+                    {pl - 0.6f, 0.f, nullptr}};
+                lathe(b, glm::vec3{26.f, 0.f, pilotAt.z}, glm::vec3{1.f, 0.f, 0.f}, pilot, static_cast<int>(sizeof(pilot) / sizeof(pilot[0])), 8);
             }
             else
             {
                 // A wide flat spray head on the barrel's end, its slot dark.
                 box(b, glm::vec3{31.f, 0.f, 8.1f}, glm::vec3{1.9f, 2.2f, 0.85f}, nozR);
-                tube(b, glm::vec3{27.5f, 0.f, 8.1f}, glm::vec3{29.2f, 0.f, 8.1f}, 1.25f, 1.25f, 10, nozR, false, false);
+                tube(b, glm::vec3{27.5f, 0.f, 8.1f}, glm::vec3{29.2f, 0.f, 8.1f}, 1.25f, 1.25f, 10, nozR, true, true);
             }
             break;
         }
@@ -1093,8 +1264,96 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
     }
 }
 
+// The add-ons' mesh checked (vr_adgun_variants): their corners welded by place (a 1/64 unit grid), each edge's
+// triangles counted. `open`: edges one triangle has (a hole, a part's open end: see-through from where its far side is
+// culled); `doubled`: edges two triangles run the same way (a neighbour wound the other way: one of them faces in);
+// `inward`: triangles whose corners' normals point against their face (wound the wrong way for their shading);
+// `inner`: triangles facing a part's axis (bores, bells' insides: the inner walls).
+void meshStats(const Build& b, MeshStats& s, bool verbose)
+{
+    s = MeshStats{};
+    s.verbose = verbose;
+    struct Edge
+    {
+        int64_t a{0}, c{0};
+    };
+    za::Vector<Edge> edges;
+    const auto key = [&](int v) {
+        const glm::vec3 p = b.verts[static_cast<za::SizeT>(v)].p * 64.f;
+        const int64_t x = static_cast<int64_t>(lroundf(p.x)) + (1 << 20), y = static_cast<int64_t>(lroundf(p.y)) + (1 << 20),
+                      z = static_cast<int64_t>(lroundf(p.z)) + (1 << 20);
+        return (x << 42) | (y << 21) | z;
+    };
+    for(za::SizeT i = static_cast<za::SizeT>(b.baseTris); i < b.tris.size(); i++)
+    {
+        const Tri& t = b.tris[i];
+        s.tris++;
+        const glm::vec3& pa = b.verts[static_cast<za::SizeT>(t.v[0])].p;
+        const glm::vec3 g = glm::cross(b.verts[static_cast<za::SizeT>(t.v[1])].p - pa, b.verts[static_cast<za::SizeT>(t.v[2])].p - pa) * b.winding;
+        const glm::vec3 n = b.verts[static_cast<za::SizeT>(t.v[0])].n + b.verts[static_cast<za::SizeT>(t.v[1])].n + b.verts[static_cast<za::SizeT>(t.v[2])].n;
+        s.inward += glm::dot(g, n) < 0.f ? 1 : 0;
+        if(verbose && glm::dot(g, n) < 0.f)
+        {
+            const glm::vec3 c = (pa + b.verts[static_cast<za::SizeT>(t.v[1])].p + b.verts[static_cast<za::SizeT>(t.v[2])].p) / 3.f;
+            Con_Printf("  wound inward: triangle at %.2f %.2f %.2f\n", c.x, c.y, c.z);
+        }
+        s.inner += t.inner ? 1 : 0;
+        for(int k = 0; k < 3; k++)
+        {
+            const int64_t ka = key(t.v[k]), kc = key(t.v[(k + 1) % 3]);
+            if(ka != kc)
+            {
+                edges.pushBack(Edge{ka, kc});
+            }
+        }
+    }
+    // Each edge, its way: the same way twice is doubled; one with no partner either way is open.
+    za::quickSort(edges.begin(), edges.end(), [](const Edge& x, const Edge& y) { return x.a != y.a ? x.a < y.a : x.c < y.c; });
+    const auto count = [&](int64_t a, int64_t c) {
+        // (binary search: the first at or past (a, c))
+        za::SizeT lo = 0, hi = edges.size();
+        while(lo < hi)
+        {
+            const za::SizeT mid = (lo + hi) / 2;
+            const Edge& e = edges[mid];
+            if(e.a < a || (e.a == a && e.c < c))
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+        int n = 0;
+        while(lo < edges.size() && edges[lo].a == a && edges[lo].c == c)
+        {
+            n++;
+            lo++;
+        }
+        return n;
+    };
+    const auto at = [](int64_t k) {
+        const auto axis = [](int64_t v) { return static_cast<float>(v - (1 << 20)) / 64.f; };
+        return glm::vec3{axis((k >> 42) & 0x1fffff), axis((k >> 21) & 0x1fffff), axis(k & 0x1fffff)};
+    };
+    for(za::SizeT i = 0; i < edges.size(); i++)
+    {
+        const Edge& e = edges[i];
+        const bool doubled = i > 0 && edges[i - 1].a == e.a && edges[i - 1].c == e.c;
+        const bool open = !doubled && count(e.c, e.a) == 0 && count(e.a, e.c) == 1;
+        s.doubled += doubled ? 1 : 0;
+        s.open += open ? 1 : 0;
+        if(verbose && (open || doubled))
+        {
+            const glm::vec3 p = at(e.a), q = at(e.c);
+            Con_Printf("  %s edge %.2f %.2f %.2f .. %.2f %.2f %.2f\n", open ? "open" : "doubled", p.x, p.y, p.z, q.x, q.y, q.z);
+        }
+    }
+}
+
 [[nodiscard]] bool makeVariant(int variant, const byte* src, size_t size, const byte* rockSrc, size_t rockSize, Built& out,
-    const char*& why)
+    const char*& why, MeshStats* stats)
 {
     Mdl m;
     if(!readMdl(src, size, m, why))
@@ -1149,6 +1408,10 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
     b.winding = sense >= 0.f ? 1.f : -1.f;
 
     dress(b, m, variant, haveRock ? &rock : nullptr);
+    if(stats)
+    {
+        meshStats(b, *stats, stats->verbose);
+    }
 
     // Packed from the rifle's corner (its settings' scale_origin) whenever no add-on goes past it.
     glm::vec3 lo = corner, hi{-1e30f};
@@ -1228,7 +1491,7 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
     return true;
 }
 
-[[nodiscard]] bool buildVariant(int variant, unsigned int* path_id, Built& out, const char*& why)
+[[nodiscard]] bool buildVariant(int variant, unsigned int* path_id, Built& out, const char*& why, MeshStats* stats = nullptr)
 {
     unsigned int pathId = 0;
     byte* src = COM_LoadMallocFile(VR_ModelFile(baseModel), &pathId);
@@ -1246,7 +1509,7 @@ void dress(Build& b, const Mdl& m, int variant, const Mdl* launcher)
         rock = COM_LoadMallocFile(VR_ModelFile(launcherModel), &rockPath);
         rockSize = rock ? static_cast<size_t>(com_filesize) : 0;
     }
-    const bool ok = makeVariant(variant, src, size, rock, rockSize, out, why);
+    const bool ok = makeVariant(variant, src, size, rock, rockSize, out, why, stats);
     VR_HeapFree(src);
     if(rock)
     {
@@ -1368,9 +1631,11 @@ void variants_f()
             continue; // (the centurion's)
         }
         Built b;
+        MeshStats s;
+        s.verbose = Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) != 0; // (vr_adgun_variants 1: each open or doubled edge)
         const char* why = "";
         const double t0 = Sys_DoubleTime();
-        if(!buildVariant(v, nullptr, b, why))
+        if(!buildVariant(v, nullptr, b, why, &s))
         {
             Con_Printf("adv%d %s: %s\n", v, names[v], why);
             continue;
@@ -1378,6 +1643,9 @@ void variants_f()
         Con_Printf("adv%d %s: %d triangles, %d vertices, box %.2f %.2f %.2f .. %.2f %.2f %.2f%s, %.1f ms\n", v, names[v], b.tris,
             b.verts, b.lo.x, b.lo.y, b.lo.z, b.hi.x, b.hi.y, b.hi.z, b.cornerKept ? "" : " (its corner moved: past the settings')",
             (Sys_DoubleTime() - t0) * 1000.0);
+        // (the add-ons' mesh: meshStats; the grenade launcher's grafted barrel counted with them)
+        Con_Printf("adv%d %s add-ons: %d triangles, %d open edges, %d doubled edges, %d wound inward, %d inner faces\n", v,
+            names[v], s.tris, s.open, s.doubled, s.inward, s.inner);
     }
 }
 

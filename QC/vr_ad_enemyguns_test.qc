@@ -90,6 +90,124 @@ void() VR_ADGun_TestThink =
     self.nextthink = time + 0.3;
 };
 
+// vr_ad_test 91: the flamethrower (phase 0) and the poison sprayer (1) fired from the main hand at the monster nearest
+// you (its health raised, held ahead of the muzzle; each new flame's or puff's touch on it called, as its flight into it
+// would: test 70 aims the streams): what it took, the gore, wounds and blood sent (none: fire and
+// poison do not bleed), and what it is left with (burning; poisoned). Phase 2 a shot's damage on it (the counters'
+// control: it does bleed).
+entity vr_adgun_t73_mon;
+float vr_adgun_t73_phase;
+float vr_adgun_t73_gore, vr_adgun_t73_wound, vr_adgun_t73_blood, vr_adgun_t73_health;
+
+void(entity p) VR_ADGun_FxTestPlace =
+{
+    entity m = vr_adgun_t73_mon;
+    entity oldSelf = self;
+    self = p;
+    vector at = VRGetMuzzlePos(cVR_MainHand) + VRGetWeaponFireRotFwd(cVR_MainHand) * 70;
+    self = oldSelf;
+    setorigin(m, at - '0 0 8');
+    m.velocity = '0 0 0';
+};
+
+void() VR_ADGun_FxTestThink =
+{
+    entity p = self.owner;
+    entity m = vr_adgun_t73_mon;
+    entity oldSelf = self;
+    float ph = vr_adgun_t73_phase;
+    float wid = ph == 0 ? WID_ADPYRO : WID_ADFUMIGATOR;
+    if(m == world || m.health <= 0)
+    {
+        bprint("adgun fx: the monster is gone: FAIL\n");
+        vr_adgun_test_fail++;
+        remove(self);
+        return;
+    }
+    if(vr_adgun_test_step == 0)
+    {
+        m.health = 2000;
+        vr_adgun_t73_health = m.health;
+        vr_adgun_t73_gore = vr_gore_sent;
+        vr_adgun_t73_wound = vr_wound_sent;
+        vr_adgun_t73_blood = vr_blood_sent;
+        if(ph < 2)
+        {
+            self = p;
+            VR_ADGun_Ensure(wid);
+            VR_WeaponUtil_EntAddWeapon(self, wid);
+            VRGiveEntWeapon(self, cVR_MainHand, wid, 0, WeaponIdToBaseClipSize(wid));
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            self = oldSelf;
+        }
+    }
+    VR_ADGun_FxTestPlace(p);
+    if(vr_adgun_test_step <= 5)
+    {
+        if(ph < 2)
+        {
+            self = p;
+            VR_EnemyGun_Attack(cVR_MainHand, wid, 0, &self.attack_finished);
+            // Its new flame (or puff) meets the monster: its touch, as its flight's into it would be.
+            entity fl = world;
+            for(entity f2 = find(world, classname, "vr_adflame"); f2; f2 = find(f2, classname, "vr_adflame"))
+            {
+                if(f2.owner == p && f2.cnt == 0 && f2.vr_adgun_wid == wid)
+                {
+                    fl = f2;
+                }
+            }
+            if(fl != world)
+            {
+                setorigin(fl, (m.absmin + m.absmax) * 0.5);
+                self = fl;
+                other = m;
+                VR_ADGun_FlameTouch();
+            }
+            self = oldSelf;
+        }
+        else if(vr_adgun_test_step == 0)
+        {
+            vector mid = (m.absmin + m.absmax) * 0.5;
+            VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, mid, '1 0 0');
+            T_Damage(m, p, p, 10);
+            VR_ClearHitKind();
+        }
+    }
+    vr_adgun_test_step = vr_adgun_test_step + 1;
+    if(vr_adgun_test_step < 20)
+    {
+        self.nextthink = time + 0.1;
+        return;
+    }
+    float gore = vr_gore_sent - vr_adgun_t73_gore, wound = vr_wound_sent - vr_adgun_t73_wound;
+    float blood = vr_blood_sent - vr_adgun_t73_blood, dealt = vr_adgun_t73_health - m.health;
+    float burning = (m.burn_fire != world), poisoned = (m.vr_adpoison != world);
+    float ok = (dealt > 0);
+    if(ph < 2)
+    {
+        ok = (ok && gore == 0 && wound == 0 && blood == 0 && (ph == 0 ? burning : poisoned));
+    }
+    else
+    {
+        ok = (ok && gore > 0 && wound > 0);
+    }
+    bprint(sprintf("adgun fx: %s on %s: dealt %g, gore %g, wounds %g, blood %g, ", ph < 2 ? VR_ADGun_Name(wid) : "a shot (control)",
+        m.classname, dealt, gore, wound, blood));
+    bprint(sprintf("burning %g, poisoned %g: %s\n", burning, poisoned, ok ? "PASS" : "FAIL"));
+    if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+    vr_adgun_test_step = 0;
+    vr_adgun_t73_phase = ph + 1;
+    if(vr_adgun_t73_phase > 2)
+    {
+        bprint(sprintf("adgun fx: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
+        remove(self);
+        return;
+    }
+    self.nextthink = time + 0.3;
+};
+
 void() VR_ADGun_ShotsTestThink =
 {
     entity p = self.owner;
@@ -857,6 +975,43 @@ void(float request, entity p) AD_GunTest =
         bprint(sprintf("adgun standin: %s index %g size %v: %s\n", g.model, g.modelindex, g.size,
             (g.modelindex > 0 && vlen(g.size) > 0) ? "PASS" : "FAIL"));
         remove(g);
+        return;
+    }
+    if(request == 91)
+    {
+        if(!cvar("vr_ad_mounted"))
+        {
+            bprint("adgun fx: Arcane Dimensions' data is not loaded\n");
+            return;
+        }
+        AD_WeaponsOnDemand();
+        entity m73 = world;
+        float d73 = 1024;
+        for(entity e73 = findflags(world, flags, FL_MONSTER); e73; e73 = findflags(e73, flags, FL_MONSTER))
+        {
+            if(e73.health > 0 && !VR_IsDummy(e73) && vlen(e73.origin - p.origin) < d73)
+            {
+                m73 = e73;
+                d73 = vlen(e73.origin - p.origin);
+            }
+        }
+        if(m73 == world)
+        {
+            bprint("adgun fx: no monster near (vr_test_spawn 0; impulse 241)\n");
+            return;
+        }
+        entity t73 = spawn();
+        t73.classname = "vr_adgun_test";
+        t73.owner = p;
+        vr_adgun_t73_mon = m73;
+        vr_adgun_t73_phase = 0;
+        vr_adgun_test_step = 0;
+        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1");
+        t73.think = VR_ADGun_FxTestThink;
+        t73.nextthink = time + 0.1;
+        bprint(sprintf("adgun fx: the flamethrower and the poison sprayer at %s\n", m73.classname));
         return;
     }
     if(request == 72)
