@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Swept blades (Debug > Tests > Melee Sweep; vr_melee_swept 0 = old): big sword swings with the blade's middle through an enemy land there (not a graze at the tip); flat chops at the floor mark mid-blade; graze enemies with the side of the AD hammer and mace heads: hits; slow moves near enemies still don't strike
 Struggle 2: head hold: arms come up over the head slapping at your hands; leg lift and on-the-back leg drag: squirms, crunches up, slaps; arm drag held high: free hand swats, tries to stay up; struggling enemies cry out with their own voices; a dying grunt (Crawl Away 1) landing on its back flails like a cockroach instead of rolling over; your palms sit on held limbs (less gap/sinking)
 Stagger fixes: parry a knight's blow and a grunt's shove on flat floor: steps back as a ragdoll, comes at you again (now actually fires); after a shove that doesn't drop it, fights on straight away (no end freeze); shove from behind or unaware: always down; slap at a ledge or top of stairs: falls, no air-walking; enforcers knocked down on ramps up to 30 deg get up (steeper: forced get-up ~4.5 s)
 Melee on ragdolls: chop corpses and downed enemies with sword, axe, hammer, mace: they jolt, not fly (Ragdoll Bounce / Most Speed rows)
