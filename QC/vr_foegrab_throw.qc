@@ -165,7 +165,7 @@ float(entity m, float xUp, float xHold) VR_FoeGrab_Lift =
 
 // The engine (vr_foegrab.cpp breakFree): m, lifted by the player self, broke free (vr_foegrab_lift_time): the hands
 // holding it lose it, it shoves him back xDist units (VR_EnemyShove_Push's slide) and gets up as soon as it lies.
-float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
+float(entity m, float xDist, float xSound) VR_FoeGrab_BreakFree =
 {
     if(VR_Carry_Held(self, cVR_OffHand) == m)
     {
@@ -176,6 +176,11 @@ float(entity m, float xDist, float xUnused) VR_FoeGrab_BreakFree =
         VR_Carry_SetHeld(self, cVR_MainHand, world);
     }
     VR_EnemyShove_Push(self, self.origin - m.origin, xDist);
+    if(xSound)
+    {
+        sound(self, CHAN_WEAPON, "vr/shove.wav", 1, ATTN_NORM); // (the shove's)
+        dprint("foegrab: break free plays vr/shove.wav\n");
+    }
     m.vr_kd_until = time;
     haptic(cVR_OffHand, 0, 0.2, 60, 0.9);
     haptic(cVR_MainHand, 0, 0.2, 60, 0.9);

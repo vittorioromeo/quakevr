@@ -3396,7 +3396,8 @@ QVR_CVAR(vr_foegrab_lift_reach, "48", CVAR_ARCHIVE)        // units: and you thi
 QVR_CVAR(vr_foegrab_lift_time, "3.5", CVAR_ARCHIVE)          // s: held up this long it breaks free (you're shoved back, it gets up)
 QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand holds the lifted ragdoll with, a share of its weight (two at 1.2 carry it, flailing, a hand on a forearm: 0.75 let an enforcer sag to the floor)
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
-QVR_CVAR(vr_foegrab_lift_shove, "48", CVAR_ARCHIVE)        // units: breaking free it shoves you back this far (0: not at all)
+QVR_CVAR(vr_foegrab_free_push, "0.15", CVAR_ARCHIVE)       // metres: breaking free it pushes you back this far, a smooth slide, less than a shove (0: not at all)
+QVR_CVAR(vr_foegrab_free_sound, "1", CVAR_ARCHIVE)         // 1: breaking free plays the shove sound
 QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_death_guard monster_death_lord monster_deflector monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
 // Leg grabs (vr_foegrab.cpp legCheck; ROUND22.md, "Leg grabs"): both hands holding a humanoid's legs (one leg with both,
 // or one each), below the knees: pulled towards you, it topples (its feet slide to you, its body falls away: the leg

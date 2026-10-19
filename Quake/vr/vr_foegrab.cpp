@@ -777,7 +777,7 @@ void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
 namespace
 {
 // A lifted enemy of player `c` breaking free (vr_foegrab_lift_time): the hands holding it lose it (the engine's holds;
-// the QC's held fields), its flail ends, it shoves him back vr_foegrab_lift_shove units and gets up as soon as it lies
+// the QC's held fields), its flail ends, it pushes him back vr_foegrab_free_push metres and gets up as soon as it lies
 // (QC VR_FoeGrab_BreakFree).
 void breakFree(int c, edict_t* m)
 {
@@ -793,12 +793,13 @@ void breakFree(int c, edict_t* m)
     }
     (void)box3d::ragdollFlail(m, false);
     hd.flailing = false;
-    const float shove = za::clamp(vr_foegrab_lift_shove.value, 0.f, 500.f);
-    (void)callQc(bindings().foegrab.BreakFree, player, m, shove, 0.f, 0.f);
+    const float shove = za::clamp(vr_foegrab_free_push.value, 0.f, 3.f) * units::metresToUnits();
+    const float sound = vr_foegrab_free_sound.value != 0.f ? 1.f : 0.f;
+    (void)callQc(bindings().foegrab.BreakFree, player, m, shove, sound, 0.f);
     if(debug())
     {
-        Con_Printf("foegrab: %s (%d) breaks free after %.2f s lifted: shoves you back %.0f units\n",
-            PR_GetString(m->v.classname), hd.carried, qcvm->time - hd.carriedSince, shove);
+        Con_Printf("foegrab: %s (%d) breaks free after %.2f s lifted: pushes you back %.0f units (sound %d)\n",
+            PR_GetString(m->v.classname), hd.carried, qcvm->time - hd.carriedSince, shove, static_cast<int>(sound));
     }
     hd.carried = 0;
 }

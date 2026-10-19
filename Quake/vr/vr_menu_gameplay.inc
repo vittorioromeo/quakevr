@@ -334,8 +334,10 @@
                   "(the more, the less it sags); below, it sinks to the floor, still held."),
         slider("Lift Launch", vr_foegrab_lift_up, 0.f, 400.f, 10.f, "%.0f units/s").extend(0.f, 1000.f)
             .help("How fast it leaves the floor as you lift it."),
-        slider("Break-Free Shove", vr_foegrab_lift_shove, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 500.f)
-            .help("How far it shoves you back as it breaks free (0: not at all)."),
+        slider("Break-Free Push", vr_foegrab_free_push, 0.f, 0.5f, 0.01f, "%.2f m").extend(0.f, 3.f)
+            .help("How far it pushes you back, smoothly, as it breaks free (0: not at all; a shove is further)."),
+        toggle("Break-Free Sound", vr_foegrab_free_sound)
+            .help("The shove sound plays as it breaks free."),
         slider("Grab While Staggered", vr_foegrab_manhandle_stagger, 0.f, 5.f, 0.25f, "%.2f s").extend(0.f, 30.f)
             .help("A humanoid staggered this recently (a shove, a hit or throw that unbalanced it, a stagger it just "
                   "recovered from) goes down when one hand grabs it: a ragdoll in your hand, as a lifted one (it flails and "
