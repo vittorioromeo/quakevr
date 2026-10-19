@@ -138,3 +138,12 @@ These came with the initial import of the game folder; no generator, credits ent
 | `weapons/chain1.wav` | 0.52 s | vr_grapple.qc:VR_Grapple_Retract; vr_grapple.qc:W_FireGrapple; weapons.qc:W_Precache |
 | `weapons/holster0.wav` | 0.54 s | weapons.qc:W_Precache; weapons.qc:VRHandOffWeapon; weapons.qc:VRTakeCarriedWeapon; weapons.qc:VRDrawHolsterWeapon |
 | `weapons/holster1.wav` | 0.38 s | vr_magholster.qc:VR_MagHolster_Arrive; weapons.qc:W_Precache; weapons.qc:RPutWeaponInHolster |
+
+## Unused-sound audit (2026-10)
+
+Every tracked file under `quakevr/sound/` (236) was searched (path with and without `.wav`, plus runtime-built prefixes) in all tracked source, map, compiled .bsp, data and script files. Nothing was removed. Files with no code reference of ours:
+
+| File | Why kept |
+|---|---|
+| `misc/bell`, `misc/click`, `misc/drawbrig`, `misc/rockthud`, `hipweap/mjoltap`, `hipweap/mjolwam` | no QC/engine/map reference of ours, but the path is an official base-game resource name (vr_pack_mg3.inc), so it overrides a base-game sound the base QC may load |
+| `vr/phys/flesh_h3`, `vr/phys/flesh_h4` | not named in vr_physsound.cpp (it uses squish3/4 instead), but `make_physics_sounds.py` still generates them (manifest in generated.json); safe to drop only together with the generator entry |
