@@ -523,6 +523,7 @@ const CompiledDefault compiledDefaults[] = {
 [[nodiscard]] bool personal(const cvar_t* var)
 {
     return var == &vr_cfg_version || var == &vr_tutorial_started || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+        || var == &vr_seated_height // (one's chair)
         || var == &vr_props_version || var == &vr_tips_seen || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)

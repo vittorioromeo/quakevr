@@ -527,8 +527,11 @@ void heightFrame(double now, za::String& text)
     {
         return;
     }
-    Cvar_SetValueQuick(&vr_height_calibration, eyes);
-    Con_Printf("VR Calibration: height set: your eyes at %.2f m%s\n", eyes, seated() ? " (seated)" : "");
+    // Seated, the seated height (vr_seated.hpp: the game stands you up by the standing height less it); the standing
+    // height (the body's size) stays.
+    Cvar_SetValueQuick(seated() ? &vr_seated_height : &vr_height_calibration, eyes);
+    Con_Printf("VR Calibration: height set: your eyes at %.2f m%s\n", eyes,
+        seated() ? va(" seated (standing: %.2f m, Height in VR Settings)", vr_height_calibration.value) : "");
     if(!seated() && eyes < 1.3f)
     {
         Con_Printf("VR Calibration: that's low for standing. Playing seated? Open the menu: Position (on the page it opens) to "

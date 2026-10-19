@@ -485,6 +485,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
 [[nodiscard]] za::Vector<Item> pageBodyCrouch();
+[[nodiscard]] za::Vector<Item> pageSeated();
+[[nodiscard]] za::Vector<Item> pageSeatedHolsters();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
@@ -1983,6 +1985,8 @@ const Page pages[] = {
     {"Holding Enemies - Struggle", pageHoldingStruggle, pageHoldingEnemies},
     {"Enemy Melee", pageEnemyMelee, pageCombat},
     {"Body - Crouched Pose", pageBodyCrouch, pageBody},
+    {"Seated Play", pageSeated, pageVrsHeightHands, LevelStandard}, // (vr_seated.hpp; SEATED.md)
+    {"Seated Holsters", pageSeatedHolsters, pageSeated, LevelStandard},
     {"Doom", pageDoom, pageGadget, LevelStandard},
     {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
     {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
@@ -5557,7 +5561,7 @@ bool qvr::menu::bodyClonePage()
     }
     const PageBuilder b = pages[ui().page].build;
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
-        b == pageHolsterZones || ui().bodyCloneLatch == ui().page)
+        b == pageHolsterZones || b == pageSeatedHolsters || ui().bodyCloneLatch == ui().page)
     {
         return true;
     }

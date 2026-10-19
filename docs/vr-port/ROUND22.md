@@ -14142,3 +14142,17 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
 - From his ironwail.cfg: `vr_ad_widowmaker_refire` 0.25 -> 0.35, `vr_ad_widowmaker_shot_pellets` 7 -> 8, `vr_dmg_ad_widowmaker` 4 -> 5, `vr_adgun_crossbow_damage` 15 -> 30; `vr_wofs_fx_tr_owncol_35` 0 -> 1 (his cfg names slot 35, which is the Plasma Gun; the Widowmaker is slot 34).
 - Migration: vr_cfg_version 161 -> 162 (the four cvars, only where still at the old default); vr_wofs_version 53 -> 54 (owncol_35, only where 0).
 - Checked (headless, AD base): `vr_ad_test 149` 9/9 PASS (6 shots at 0.35 s), `93` PASS (the target took 30), `70` 8/8 PASS; thresholds follow the cvars, none edited.
+
+## Seated play (worktree `tghost`, branch `agent/seated`, 2026-10-19)
+
+Position: Seated (`vr_bodycal_seated`) now changes how you play:
+- The tracking is raised to the standing eye height. The seated calibration now measures `vr_seated_height` instead
+  of overwriting `vr_height_calibration`.
+- Body tracking's legs are off; the legs stay planted.
+- A seated holster/pouch layout (`vr_*_seated_*`, Holster Calibration > Seated Holsters).
+- A floor reach for low hands.
+- `vr_crouch_toggle`.
+- No room-scale jump.
+
+New: `vr_seated.cpp`; VR Settings > Height and Hand Calibration > Seated Play; Debug > Views > Print Seated Status
+(`vr_seated_status`). SEATED.md has the details, the checks and what is left.
