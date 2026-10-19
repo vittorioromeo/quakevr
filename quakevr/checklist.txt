@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+AD flamethrower and poison sprayer reach ~236/197 units now (flames died at ~130 before): spray ad_dm1's minotaur, a golem, a bog lord from a few metres: they burn/turn green and lose health; nail/bolt head and limb pops on kills now 50%
 Seated play (Position: Seated, run VR Calibration seated; VR Settings > Height and Hand Calibration > Seated Play): eyes at standing height, body stands, feet on the floor while walking (no leg tracking); hip holsters on your thighs, back holsters over the shoulders, pouches; pick something up off the floor beside the chair; duck in the chair; vr_crouch_toggle (no button yet); tune Holster Calibration > Seated Holsters
 Your Widowmaker stats are defaults (refire 0.35, 8 pellets x 5, own tracer colour) and AD crossbow damage 30
 Pouch reload: with one or two magazines left, bring the nailgun's well (super nailgun on its side, thunderbolt) onto the drawn magazine: seats on it and a little off it (more lenient: 6 cm, 45 deg), never over an empty slot (Weapons > Reloading)
