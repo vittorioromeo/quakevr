@@ -386,6 +386,101 @@ void rollOver(const Parts& p, const Context& c, const glm::vec3& axis, float sig
 // ---- Deaths ----
 // Each frame: where a stumble's step goes, the wounded part's hand, a crawl's strokes (and its pull on the torso); a
 // crawl begins once he lies face down, low and nearly still after his death animation.
+// A frame of a dying cockroach's flail (on his back, vr_ragdoll_active_crawl_back): his arms paw the air over his chest,
+// his legs pedal over his hips, out of step and quicker at first, his chest twisting and his body rocking side to side
+// (a capped turn about his spine, its way changing with the strokes), all weakening to nothing by its end (the fades:
+// deathFrame), then limp.
+void backFlail(State& s, const Parts& p, const Context& c, const glm::vec3& pelvis, int chest)
+{
+    Death& d = s.death;
+    if(c.now >= d.flailUntil)
+    {
+        d.crawl = false;
+        for(Reach& r : s.reach)
+        {
+            r.weight = 0.f;
+        }
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d flailed on his back %.1f s, goes limp\n", c.num, d.flailUntil - d.flailFrom);
+        }
+        return;
+    }
+    const float age = static_cast<float>(c.now - d.flailFrom);
+    const float span = za::max(static_cast<float>(d.flailUntil - d.flailFrom), 0.1f);
+    const float left = 1.f - smooth01(age / span); // (its vigour: all at first, none at the end)
+    const float seed = static_cast<float>((c.num * 37) % 101) * 0.13f;
+    const glm::quat qc = bodyRot(p, chest), qp = bodyRot(p, 0);
+    const glm::vec3 front = qc * glm::vec3{1.f, 0.f, 0.f}, side = qc * glm::vec3{0.f, 1.f, 0.f}, spine = qc * glm::vec3{0.f, 0.f, 1.f};
+    const glm::vec3 pFront = qp * glm::vec3{1.f, 0.f, 0.f}, pSide = qp * glm::vec3{0.f, 1.f, 0.f}, pDown = qp * glm::vec3{0.f, 0.f, -1.f};
+    const float rate = 6.2831853f * (1.3f + 0.9f * left); // rad/s: its strokes, slowing
+    const float ph = age * rate;
+    for(int limb = 0; limb < limbCount; limb++)
+    {
+        Reach& r = s.reach[static_cast<za::SizeT>(limb)];
+        if(!limbWhole(s, p, limb))
+        {
+            r.weight = 0.f;
+            continue;
+        }
+        const int u = s.chain[static_cast<za::SizeT>(limb)][0];
+        const glm::vec3 root = worldPoint(p, u, p.rig->bones[u].pivot);
+        const float len = limbLength(s, p, limb);
+        const float sgn = (limb % 2) == 0 ? 1.f : -1.f;
+        // (Each limb its own beat: out of step with its pair, a wobble of its own.)
+        const float a = ph * (limb < 2 ? 1.f : 0.8f) + static_cast<float>(limb) * 1.9f + seed;
+        const float wob = za::sin(a * 0.37f + seed * 2.f);
+        glm::vec3 goal;
+        if(limb < 2)
+        {
+            // Pawing the air over his chest: up, in towards the middle and out, along his body and back.
+            goal = root + (front * (0.6f + 0.25f * za::sin(a)) + side * (sgn * (0.15f + 0.3f * za::cos(a + wob))) +
+                              spine * (0.25f * za::sin(a * 0.5f + wob))) *
+                              len;
+        }
+        else
+        {
+            // Pedalling over his hips: knees drawn up and kicked out, down his line.
+            goal = root + (pFront * (0.45f + 0.3f * za::sin(a)) + pDown * (0.45f + 0.3f * za::cos(a)) +
+                              pSide * (sgn * 0.15f * wob)) *
+                              len;
+        }
+        r.goal = goal;
+        r.weight = za::min(1.f, 0.3f + left);
+        r.strength = 0.9f * left + 0.1f;
+    }
+    // His chest twisting against his pelvis, his head tossed.
+    for(int b = 1; b < p.count; b++)
+    {
+        const Channel ch = channelOf(p.rig->bones[b]);
+        if(drivable(s, p, b) && (ch == Channel::Torso || ch == Channel::Head))
+        {
+            const float tw = (ch == Channel::Head ? 0.5f : 0.35f) * left * za::sin(ph * 0.5f + static_cast<float>(b) + seed);
+            s.target[static_cast<za::SizeT>(b)] =
+                glm::normalize(s.target[static_cast<za::SizeT>(b)] * glm::angleAxis(tw, glm::vec3{0.f, 0.f, 1.f}));
+        }
+    }
+    // Rocking side to side about his spine (its flopping limbs' kick against the floor), never over: a turn that
+    // eases towards a rock of a little, flat on his back.
+    const glm::vec3 axis = glm::length(glm::vec2{spine}) > 1e-3f ? glm::vec3{glm::normalize(glm::vec2{spine}), 0.f} : pSide;
+    // (Its turn about `axis` from face up: front turned by +a about it is -a's sine on this cross.)
+    const float tilt = za::atan2(-glm::dot(glm::cross(front, glm::vec3{0.f, 0.f, 1.f}), axis), front.z);
+    const float want = 0.35f * left * za::sin(ph * 0.45f + seed);
+    const float most = 0.05f * s.totalMass * c.gravity * 0.3f; // N m
+    for(const int part : {0, chest})
+    {
+        const float m = b3Body_GetMass(p.body[part]);
+        const float spin = glm::dot(glmv(b3Body_GetAngularVelocity(p.body[part])), axis);
+        const float tq = za::clamp(m * 0.0144f * ((want - tilt) * 4.f - spin) / 0.15f, -most, most);
+        b3Body_ApplyTorque(p.body[part], b3v(axis * tq), true);
+        if(part == chest)
+        {
+            break;
+        }
+    }
+    (void)pelvis;
+}
+
 void deathFrame(State& s, const Parts& p, const Context& c, float t)
 {
     Death& d = s.death;
@@ -465,6 +560,30 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         const bool prone = glm::dot(front, -up) > 0.35f;
         const bool down = speed < 0.6f && pelvis.z - floor < 0.45f;
         const glm::vec3 spine = glmv(b3Body_GetWorldCenter(p.body[chest])) - pelvis;
+        // Lying on his back (vr_ragdoll_active_crawl_back): no roll onto his front (a glide, turned by no limb): he
+        // flails there, a dying cockroach, then goes limp.
+        if(d.flailFrom < 0.0 && d.rollFrom < 0.0 && !prone && down && vr_ragdoll_active_crawl_back.value != 0.f &&
+            glm::dot(front, up) > 0.2f)
+        {
+            d.flailFrom = c.now;
+            d.flailUntil = c.now + za::max(vr_ragdoll_active_crawl_time.value, 0.5f);
+            const float end = static_cast<float>(d.flailUntil - s.begun);
+            const float from = static_cast<float>(c.now - s.begun);
+            s.fade[static_cast<za::SizeT>(Channel::Arms)] = Fade{0.9f, 0.f, from, end};
+            s.fade[static_cast<za::SizeT>(Channel::Legs)] = Fade{0.8f, 0.f, from, end};
+            s.fade[static_cast<za::SizeT>(Channel::Torso)] = Fade{0.5f, 0.f, from, end};
+            s.fade[static_cast<za::SizeT>(Channel::Head)] = Fade{0.5f, 0.f, from, end};
+            if(vr_debug_ragdoll.value)
+            {
+                Con_Printf("ragdoll: %d lies on his back (face up %.2f): flails %.1f s instead of rolling over to crawl\n",
+                    c.num, glm::dot(front, up), d.flailUntil - d.flailFrom);
+            }
+        }
+        if(d.flailFrom >= 0.0)
+        {
+            backFlail(s, p, c, pelvis, chest);
+            return;
+        }
         // Lying on his back or side, still: he rolls onto his front first (his torso turned about his spine, level,
         // at rollRate: the rest follows by the joints), then crawls.
         if(!prone && down && d.rollFrom < 0.0 && glm::length(glm::vec2{spine}) > 1e-3f)
@@ -3809,6 +3928,8 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         envFrame(s, p, c, t, spin); // (what is round him: the hands' goals over the clip's and the death's)
     }
+    // Its shoulders' reach (a struggle's hands over its head), before the targets are clamped to the joints' ranges.
+    const bool wideArms = shoulderReach(s, p, c.dt);
     // The strengths, and the joints set.
     const float global = za::clamp(vr_ragdoll_active_strength.value, 0.f, 3.f);
     const float hertzAt1 = za::clamp(vr_ragdoll_active_hertz.value, 0.f, maxHertz);
@@ -3952,7 +4073,7 @@ void drive(State& s, const Parts& p, const Context& c)
         }
     }
     const bool crawlPending =
-        (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on || s.struggle.on;
+        (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on || s.struggle.on || wideArms;
     if(any || crawlPending)
     {
         b3Body_SetAwake(p.body[0], true);
@@ -3978,6 +4099,7 @@ void drive(State& s, const Parts& p, const Context& c)
 
 void end(State& s)
 {
+    shoulderRestore(s); // (its shoulders' cones, widened by a struggle)
     envEnd(s); // (its hands' holds)
     dropPin(s.pin);
     s.on = false;

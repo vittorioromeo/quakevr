@@ -1070,6 +1070,10 @@
                   "limp (vr_ragdoll_active_crawl)."),
         slider("Crawl Time", vr_ragdoll_active_crawl_time, 0.5f, 8.f, 0.5f, "%.1f s").extend(0.1f, 30.f)
             .help("How long he crawls (vr_ragdoll_active_crawl_time)."),
+        toggle("Flail on His Back", vr_ragdoll_active_crawl_back)
+            .help("One to crawl who lies on his back: on, he doesn't roll over onto his front; he flails there like a "
+                  "dying cockroach, his limbs pawing the air, then goes limp. Off: he rolls over and crawls "
+                  "(vr_ragdoll_active_crawl_back)."),
         slider("Crawl Pull", vr_ragdoll_active_crawl_force, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 6.f)
             .help("Body weights his arms pull along the floor at most: more drags him further (vr_ragdoll_active_crawl_force)."),
         toggle("Swim and Flail in Liquids", vr_ragdoll_active_liquids)
@@ -1234,6 +1238,9 @@
                   "sags; 0: on the controller (vr_ragdoll_hand_stick)."),
         slider("Hand Turns with Limb", vr_ragdoll_hand_turn, 0.f, 90.f, 5.f, "%.0f deg").extend()
             .help("How far your hand is drawn turned with the limb as it twists in your hand (vr_ragdoll_hand_turn)."),
+        slider("Palm Rests on Limb", vr_ragdoll_hand_rest, 0.f, 6.f, 0.5f, "%.1f cm").extend()
+            .help("Your hand drawn on a limb it holds slid at most this far for its palm to rest on the limb's skin, not "
+                  "off it nor sunk in it; 0: where the hold has it (vr_ragdoll_hand_rest)."),
         slider("Throw", vr_ragdoll_throw, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How much of your hand's throw a limb keeps when let go of (vr_ragdoll_throw)."),
         header("Blood"),

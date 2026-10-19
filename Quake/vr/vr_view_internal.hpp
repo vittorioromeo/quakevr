@@ -836,6 +836,10 @@ struct LimbEase
     glm::vec3 offset{0.f};
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
     float unclamped{0.f}; // degrees the limb has the hand turned (vr_ragdoll_hand_probe)
+    // The palm rested on the limb's mesh (vr_ragdoll_hand_rest): the slide (world units, eased), and the palm's gap to
+    // the mesh before it and after (units; negative: in it; 999 none near) for the probe.
+    glm::vec3 rest{0.f};
+    float gapBefore{999.f}, gapAfter{999.f};
 };
 inline LimbEase limbEase[2];
 void setupHand(const hands::State& s, int hand);

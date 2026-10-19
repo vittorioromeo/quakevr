@@ -2938,6 +2938,7 @@ QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb'
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
 QVR_CVAR(vr_ragdoll_hand_stick, "30", CVAR_ARCHIVE)    // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
 QVR_CVAR(vr_ragdoll_hand_turn, "70", CVAR_ARCHIVE)    // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
+QVR_CVAR(vr_ragdoll_hand_rest, "6", CVAR_ARCHIVE)     // cm: the hand drawn on a held limb slid at most this along the way to its mesh, for its palm to rest on it (not off it, not sunk in it); 0: as the hold has it
 QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
 QVR_CVAR(vr_ragdoll_smooth, "1", CVAR_ARCHIVE)        // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)
@@ -3033,6 +3034,7 @@ QVR_CVAR(vr_ragdoll_active_stumble, "90", CVAR_ARCHIVE) // units/s: dying on the
 QVR_CVAR(vr_ragdoll_active_wound, "0.7", CVAR_ARCHIVE)  // the chance a monster killed by a blow to the body or a limb holds the wound with a free hand
 QVR_CVAR(vr_ragdoll_active_crawl, "0.25", CVAR_ARCHIVE) // the chance a humanoid lying face down after his death crawls on before going limp
 QVR_CVAR(vr_ragdoll_active_crawl_time, "3", CVAR_ARCHIVE) // s: how long he crawls
+QVR_CVAR(vr_ragdoll_active_crawl_back, "1", CVAR_ARCHIVE) // one to crawl lying on his back: 1 no roll onto his front, a dying cockroach's flail (limbs pawing the air, rocking, weakening) then limp; 0 rolls over and crawls
 QVR_CVAR(vr_ragdoll_active_crawl_force, "1.3", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
 QVR_CVAR(vr_ragdoll_active_dismember, "1", CVAR_ARCHIVE) // a dying monster losing a limb reacts: his free hand to the stump and a writhe, on one leg a try at keeping his balance before he falls, with no legs a crawl on his arms; 0: as any death
 QVR_CVAR(vr_ragdoll_active_dismember_time, "3", CVAR_ARCHIVE) // s: how long he writhes holding the stump once down
@@ -3107,6 +3109,12 @@ QVR_CVAR(vr_struggle_bursts, "0.5", CVAR_ARCHIVE)       // how much it struggles
 QVR_CVAR(vr_struggle_blend, "0.25", CVAR_ARCHIVE)       // s: its behaviours' weights ease to a change in how it is held this fast
 QVR_CVAR(vr_struggle_held_share, "0.5", CVAR_ARCHIVE)   // the joints above a held part in its limb (the hip of a held shin) keep this share of their strength
 QVR_CVAR(vr_struggle_grip_guard, "6", CVAR_ARCHIVE)     // units: a held point this far from the hand (the hold lagging) eases the struggle, to a quarter at 2.5 times it (0: never)
+QVR_CVAR(vr_struggle_frantic, "1", CVAR_ARCHIVE)        // held by the head or the legs (or an arm): its free hands slap at the holding hands, erratic, pulled back and struck in (0..2; 0 the plain pry and grasp)
+QVR_CVAR(vr_struggle_squirm, "1", CVAR_ARCHIVE)         // held by the head or the legs: its body squirms (more thrashing over Flail; 0..2)
+QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)        // dragged by an arm: it fights to stay up, its legs under it holding it up and its chest righted (0..2; 0 it flops down)
+QVR_CVAR(vr_struggle_arm_reach, "150", CVAR_ARCHIVE)    // degrees: its shoulders' cone while it struggles, for its hands over its head (the rig's 85 about the hanging arm reach no higher than the shoulder; 0: the rig's)
+QVR_CVAR(vr_struggle_voice, "1", CVAR_ARCHIVE)          // its own pain, grunt, sight and idle sounds while it struggles: their volume (0..2; 0 silent), quieter as it weakens
+QVR_CVAR(vr_struggle_voice_gap, "1.8", CVAR_ARCHIVE)    // s: about this between its cries at full effort (longer as it tires)
 QVR_CVAR(vr_struggle_classes, "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120", CVAR_ARCHIVE) // the classes that struggle: classname[:strength[:speed[:health]]] (health: its full health, for its effort; never ogres, zombies, fiends)
 QVR_CVAR(vr_struggle_debug, "0", CVAR_NONE)             // 1: a panel over each struggling enemy (its behaviours' weights, effort, fatigue, what holds it, the grip's lag); 2: also a `struggle:` line 4 times a second (Debug > Tests > Holding Enemies)
 QVR_CVAR(vr_struggle_force, "0", CVAR_NONE)             // tests: every living knockdown of a struggling class struggles as if held by the chest where it lies (the cost with many: vr_struggle_status)

@@ -163,6 +163,21 @@
             .help("Dragged on the floor by an arm or its head: its legs stiffen, heels dug in."),
         slider("Flail", vr_struggle_flail, 0.f, 2.f, 0.05f, "%.2f")
             .help("Its free legs' kicks and its body's and head's thrashing, under the moves above (more off the floor)."),
+        slider("Slap at Your Hands", vr_struggle_frantic, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Held by the head, the legs or an arm: its free hands slap frantically at the hands holding it, drawn "
+                  "back and struck in, erratic. 0: they only tug and grasp."),
+        slider("Squirm", vr_struggle_squirm, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Held by the head or the legs: its body squirms, more thrashing over Flail."),
+        slider("Stay Upright", vr_struggle_upright, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Dragged by an arm: it fights to stay up, its legs under it and its chest righted, rather than flopping "
+                  "down. 0: it flops."),
+        slider("Arm Reach", vr_struggle_arm_reach, 0.f, 175.f, 5.f, "%.0f deg")
+            .help("Its shoulders' range while it struggles, for its hands to come over its head (at your hand on its "
+                  "head). 0: its body's own (no higher than its shoulders)."),
+        slider("Voice", vr_struggle_voice, 0.f, 2.f, 0.05f, "%.2f")
+            .help("Its own pain, grunt and sight sounds while it struggles, quieter as it weakens. 0: silent."),
+        slider("Voice Gap", vr_struggle_voice_gap, 0.3f, 6.f, 0.1f, "%.1f s")
+            .help("About this between its cries at full effort; longer as it tires."),
         header("Character"),
         slider("Variation", vr_struggle_variation, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much each enemy's rhythm, favourite arm and aim differ from another's. 0: all alike."),

@@ -155,6 +155,144 @@ void parseClasses()
     return nullptr;
 }
 
+// Its voice while it struggles (vr_struggle_voice): its own class's samples. AD's monsters name theirs in their fields
+// (ad_pain_sound, ad_pain_sound2, ad_sight_sound, ad_idle_sound); id1's from this table (each precached by its spawn).
+// Only those precached are played.
+struct VoiceSet
+{
+    const char* classname;
+    const char* samples[6];
+};
+constexpr VoiceSet voiceSets[] = {
+    {"monster_army", {"soldier/pain1.wav", "soldier/pain2.wav", "soldier/sight1.wav", "soldier/idle.wav"}},
+    {"monster_enforcer", {"enforcer/pain1.wav", "enforcer/pain2.wav", "enforcer/sight1.wav", "enforcer/sight3.wav", "enforcer/idle1.wav"}},
+    {"monster_knight", {"knight/khurt.wav", "knight/ksight.wav", "knight/idle.wav"}},
+    {"monster_hell_knight", {"hknight/pain1.wav", "hknight/grunt.wav", "hknight/sight1.wav", "hknight/idle.wav"}},
+};
+constexpr const char* voiceFields[] = {"ad_pain_sound", "ad_pain_sound2", "ad_sight_sound", "ad_idle_sound"};
+constexpr int mostVoices = 10;
+
+[[nodiscard]] bool precachedSound(const char* sample)
+{
+    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+    {
+        if(!std::strcmp(sample, sv.sound_precache[i]))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] uint32_t voiceHash(uint32_t a, uint32_t b)
+{
+    uint32_t h = a * 0x9E3779B1u ^ (b + 0x7F4A7C15u) * 0x85EBCA77u;
+    h ^= h >> 15;
+    h *= 0x2C1B3C6Du;
+    h ^= h >> 13;
+    return h;
+}
+
+// Its samples (at most mostVoices, each once; an idle's last: `idleFrom` the first of those).
+int voicesOf(edict_t* ent, za::Array<const char*, mostVoices>& out, int& idleFrom)
+{
+    int n = 0;
+    idleFrom = 0;
+    const auto add = [&](const char* s) {
+        if(!s || !*s || n >= mostVoices || !precachedSound(s))
+        {
+            return;
+        }
+        for(int i = 0; i < n; i++)
+        {
+            if(!std::strcmp(out[static_cast<za::SizeT>(i)], s))
+            {
+                return;
+            }
+        }
+        out[static_cast<za::SizeT>(n++)] = s;
+    };
+    const char* name = PR_GetString(ent->v.classname);
+    for(int pass = 0; pass < 2; pass++) // (the cries, then the idles)
+    {
+        for(const char* field : voiceFields)
+        {
+            const bool idle = std::strstr(field, "idle") != nullptr;
+            if(idle == (pass == 1))
+            {
+                const eval_t* v = GetEdictFieldValueByName(ent, field);
+                add(v && v->string ? PR_GetString(v->string) : nullptr);
+            }
+        }
+        for(const VoiceSet& set : voiceSets)
+        {
+            if(std::strcmp(set.classname, name))
+            {
+                continue;
+            }
+            for(const char* sample : set.samples)
+            {
+                if(sample && (std::strstr(sample, "idle") != nullptr) == (pass == 1))
+                {
+                    add(sample);
+                }
+            }
+        }
+        idleFrom = pass == 0 ? n : idleFrom;
+    }
+    return n;
+}
+
+// A cry now and then while it struggles: on its own beat (about vr_struggle_voice_gap at full effort, longer as it
+// tires), one as it is taken and one as a burst begins; none just after a hit (its pain sound is the QC's), never
+// the same sample twice running; quieter and more often its idle grumble as its effort falls. CHAN_AUTO: it cuts no
+// sound of its own or another's.
+void struggleVoice(edict_t* ent, ragactive::Struggle& g, double now)
+{
+    const float level = za::clamp(vr_struggle_voice.value, 0.f, 2.f);
+    if(level <= 0.f)
+    {
+        return;
+    }
+    const bool burst = now >= g.burstFrom && now < g.burstUntil && g.burstFrom > g.voicedAt && now - g.voicedAt > 0.7;
+    if((now < g.nextVoice && !burst) || now - g.hitAt < 0.6)
+    {
+        return;
+    }
+    za::Array<const char*, mostVoices> samples{};
+    int idleFrom = 0;
+    const int n = voicesOf(ent, samples, idleFrom);
+    const float effort = za::clamp(g.effort, 0.f, 1.f);
+    const uint32_t h = voiceHash(g.seed, static_cast<uint32_t>(g.voices) * 7919u + 13u);
+    const auto roll = [&](uint32_t k) { return static_cast<float>(voiceHash(h, k) >> 8) / static_cast<float>(1u << 24); };
+    g.nextVoice = now + static_cast<double>(za::max(vr_struggle_voice_gap.value, 0.3f) * (0.6f + 0.8f * roll(1u)) /
+                                            (0.45f + 0.55f * effort));
+    if(n == 0)
+    {
+        return;
+    }
+    // (Its cries while it fights hard; its grumbles too as it weakens.)
+    const int pool = effort > 0.5f && idleFrom > 0 ? idleFrom : n;
+    int pick = static_cast<int>(roll(2u) * static_cast<float>(pool)) % pool;
+    if(pick == g.lastVoice && pool > 1)
+    {
+        pick = (pick + 1 + static_cast<int>(roll(3u) * static_cast<float>(pool - 1))) % pool;
+        pick = pick == g.lastVoice ? (pick + 1) % pool : pick;
+    }
+    const float volume = za::min(level * (0.4f + 0.6f * effort) * (0.85f + 0.15f * roll(4u)), 1.f);
+    const float pitch = 0.94f + 0.12f * roll(5u);
+    const char* sample = samples[static_cast<za::SizeT>(pick)];
+    SV_StartSoundPitch(ent, 0, sample, static_cast<int>(255.f * volume + 0.5f), 1.f, pitch); // (CHAN_AUTO, ATTN_NORM)
+    g.lastVoice = pick;
+    g.voicedAt = now;
+    g.voices++;
+    if(vr_struggle_debug.value)
+    {
+        Con_Printf("struggle: %d voice %s (effort %.2f volume %.2f pitch %.2f%s), %d so far\n", NUM_FOR_EDICT(ent), sample,
+            effort, volume, pitch, burst ? ", a burst" : "", g.voices);
+    }
+}
+
 } // namespace
 
 void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in)
@@ -195,6 +333,7 @@ void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in)
     in.want = true;
     if(a.on && a.struggle.on)
     {
+        struggleVoice(ent, a.struggle, qcvm->time);
         return;
     }
     if(!a.on)
@@ -293,10 +432,12 @@ void struggleStatus_f()
         const ragactive::Struggle& g = r.active.struggle;
         Con_Printf("struggle status: %d %s %.2f s: swat %.2f pry %.2f crunch %.2f claw %.2f brace %.2f kick %.2f thrash %.2f; "
                    "effort %.2f fatigue %.2f; floor %.2f drag %.2f prone %.2f inverted %.2f; grip lag %.1f (most %.1f) "
-                   "guard %.2f; gap %.1f bend %.0f straight %.2f\n",
+                   "guard %.2f; gap %.1f bend %.0f straight %.2f; its hands %.1f from its head, %.1f over it; upright %.2f "
+                   "held up %.0f N chest up %.2f; voices %d\n",
             r.num, PR_GetString(EDICT_NUM(r.num)->v.classname), qcvm->time - g.from, g.weight[0], g.weight[1], g.weight[2],
             g.weight[3], g.weight[4], g.weight[5], g.weight[6], g.effort, g.fatigue, g.contact, g.drag, g.prone, g.inverted,
-            g.gripError, g.gripErrorMost, g.guard, g.handGap, g.bend, g.straight);
+            g.gripError, g.gripErrorMost, g.guard, g.handGap, g.bend, g.straight, g.handsToHead, g.handsOverHead, g.upright,
+            g.uprightForce, g.chestUp, g.voices);
     }
     // Each hand's hold (struggling or not: the tests' grip lag and pose with the struggle off too): the held point's lag
     // from the hand, and its body's pose (its waist's bend, belly down, its head over its pelvis, its nearest arm's
@@ -323,8 +464,10 @@ void struggleStatus_f()
                            (glm::dot(cu, qp * glm::vec3{1.f, 0.f, 0.f}) >= 0.f ? 1.f : -1.f);
         const edict_t* player = EDICT_NUM(g.player);
         const glm::vec3 eye = glmv(world->toM(vec(player->v.origin) + vec(player->v.view_ofs)));
-        float gap = 1e9f, toHand = 1e9f;
+        float gap = 1e9f, toHand = 1e9f, toHead = 1e9f;
         const float k = activeParts(*r).k;
+        const int headPart = r->rig->head > 0 && r->rig->head < r->count ? r->rig->head : 0;
+        const glm::vec3 ownHead = glmv(b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(headPart)]));
         const char* heldName = r->rig->bones[g.part].name;
         const size_t heldLen = std::strlen(heldName);
         float legs = 0.f;
@@ -341,6 +484,7 @@ void struggleStatus_f()
             {
                 const glm::vec3 tip = at3(b, bone.end);
                 gap = za::min(gap, glm::distance(tip, eye));
+                toHead = za::min(toHead, glm::distance(tip, ownHead));
                 // (Not the arm it is held by: its side's letter, the names' last.)
                 if(!(heldLen > 0 && len > 0 && n[len - 1] == heldName[heldLen - 1] && std::strstr(heldName, "arm")))
                 {
@@ -360,11 +504,13 @@ void struggleStatus_f()
                                  ? (b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(head)]).z - b3Body_GetWorldCenter(r->body[0]).z) * world->m2u
                                  : 0.f;
         Con_Printf("struggle hold: %d hand %d part %d (%s) lag %.2f units; bend %.0f prone %.2f head %.1f over its pelvis; "
-                   "an arm %.1f from your head, %.1f from this hand; legs straight %.2f; pelvis %.1f %.1f %.1f\n",
+                   "an arm %.1f from your head, %.1f from this hand; legs straight %.2f; pelvis %.1f %.1f %.1f; a hand %.1f "
+                   "from its head; chest up %.2f\n",
             g.num, g.hand, g.part, r->rig->bones[g.part].name, glm::distance(at, grip) * world->m2u, bend,
             -(qc * glm::vec3{1.f, 0.f, 0.f}).z, headUp, gap * world->m2u, toHand * world->m2u,
             legCount > 0 ? legs / static_cast<float>(legCount) : 0.f, world->toU(b3Body_GetPosition(r->body[0])).x,
-            world->toU(b3Body_GetPosition(r->body[0])).y, world->toU(b3Body_GetPosition(r->body[0])).z);
+            world->toU(b3Body_GetPosition(r->body[0])).y, world->toU(b3Body_GetPosition(r->body[0])).z,
+            toHead * world->m2u, cu.z);
     }
     // vr_struggle_status hurt <n>: the held ones' health down by n (tests: at 0 or less its struggle ends as dead).
     if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "hurt"))

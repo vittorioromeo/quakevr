@@ -14412,3 +14412,44 @@ From the author's VR notes on active-ragdoll staggers.
   shove one from behind, or one that hasn't seen you: it goes down. Slap a grunt standing at a ledge or at the top of
   stairs: it falls instead of walking on air. Knock enforcers down on a ramp: they get up on it; on a steep one they
   slide, then stand up within about 5 s.
+## Struggle 2: arms over the head, slaps, squirms, staying up, voices, a back flail, palms on limbs (worktree `tghost`, branch `agent/struggle2`, 2026-10-19)
+
+His VR notes on held active ragdolls. Details in STRUGGLE.md ("Round 22's second pass").
+
+- **Head hold**: the arms stuck at the torso because the rig's shoulder cone (85 deg about the hanging arm) never let a
+  hand above the shoulder. `vr_struggle_arm_reach` (150 deg) widens it while struggling and eases it back after. The
+  free hands slap frantically at your wrist over its head (`vr_struggle_frantic`), and it squirms (`vr_struggle_squirm`).
+- **Legs held**: lifted, Crunch's grasping hands also slap at yours; lying on its back it crunches up at them rather
+  than only rolling onto its belly to claw; it squirms.
+- **Arm held**: the free hand swats at the holding one; `vr_struggle_upright` plants its feet under it and rights its
+  chest, its legs holding up to 0.8 of its weight once it is up (never lifting a body lying flat).
+- **Voices** (`vr_struggle_voice`, `vr_struggle_voice_gap`): its own pain/grunt/sight/idle samples, rate-limited,
+  varied, quieter as it tires; CHAN_AUTO.
+- **Crawl on his back** (`vr_ragdoll_active_crawl_back` 1): a dying crawler lying face up no longer glides over onto his
+  front: he flails there (arms pawing, legs pedalling, chest twisting, rocking), weakening over the crawl time, then
+  limp. Face down he crawls as before; on his side he still rolls.
+- **Palms on held limbs** (`vr_ragdoll_hand_rest` 6 cm): the drawn hand slid the shortest way until its palm's middle
+  is on the limb's mesh (0.3 cm skin), only when the limb is on the palm's side, eased over 0.06 s.
+  `vr_ragdoll_hand_probe` prints the palm's gap as held and as rested.
+
+Measured (scratch `s2_*` runs, one game each, the later two thirds of the statuses; old = the new settings off):
+
+| hold | free hand to its head (units) | to the holding hand | palm gap held -> rested (cm) |
+|---|---|---|---|
+| head drag | 16.6 -> 9.4 | 24.9 -> 17.1 | 1.4 (abs 3.3) -> 0.2 (abs 1.0) |
+| head lift | 14.0 -> 6.9 (over its top: -13.0 -> -3.5, most +1) | 29.5 -> 19.3 | 3.9 -> 2.1 |
+| lift (shoulders) | 21.2 -> 20.4 | 15.9 -> 14.9 | -3.1 (abs 3.3) -> 0.0 (abs 0.3) |
+| leg lift | 12.0 -> 13.2 | 27.2 -> 21.2 | 14.7 -> 13.3 (the limb behind the hand: not slid) |
+| arm drag | - | 51.9 -> 51.7 (first run 29.0) | 8.1 -> 2.2 |
+
+Voices: 2-3 per hold in 3.6 s, 2-3 different samples. The back flail: grunt seeds 3 and 11, knight 3/7/11 flail 3 s
+then limp; face-down ones crawl ~30 units as before. struggle_test.py: lift, leglift, headdrag, dead pass; armdrag's
+check is now its free hand's Swat (its legs no longer brace straight: they plant under it). Stay Upright shows no
+measurable effect headless (the mock drags it from flat, and a hand 0.9 m up leaves its chest at 0.3 up either way);
+the mock camera can't look at a held body (a head key moves the hands off it), so the hold strips are not useful;
+the back flail's strip is `scratch/strip_flail.png`. The mock can't take a lying leg (legdrag: no hold).
+
+To test in VR: hold one by the head (arms up over its head slapping at your hand), lift one by its legs and drag one
+by its legs on its back, drag one by an arm with your hand high (it should try to stay up and swat), listen for its
+cries; shoot a grunt in the body with Crawl Away at 1 and watch one that lands on its back; look at your hands on
+held limbs (palm on the skin, not floating, not sunk).
