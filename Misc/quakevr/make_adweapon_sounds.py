@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# NOTE (2026-10-19): quakevr/sound/vr/widowmaker_shot.wav and xbow_bolt_in.wav were hand-edited by the author;
+# don't regenerate those two (write the others only).
 # make_adweapon_sounds.py -- three sounds for Arcane Dimensions' weapons in Quake VR (docs/vr-port/ROUND22.md, "Widowmaker
 # Gatling"), synthesized here from nothing but noise and sines (no recording: nothing to credit), into quakevr/sound/vr/:
 #
