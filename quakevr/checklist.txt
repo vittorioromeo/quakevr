@@ -19,6 +19,8 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Projectiles all alike: crossbow bolts/AD plasma/lasers/nails pop heads and limbs, push corpses and ragdolls, knock wall torches off; nail headshots now pop (0.85, too often?); a grenade straight at a knocked-down enemy explodes
+Fury sword hits follow its curve (inside and outside of the bow); stray triangle by the sword handles gone; hammer and mace refused at holsters ("too big")
 Fall-damage "hnng" no longer cut off (by the next footstep or by menu/gadget/climb/flashlight sounds): land hard and walk on, open the menu right after
 AD grunt guns round 4: flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes; hose inlet further back near the stock; look straight into each muzzle and the rocket exhaust (hollow inside, no inner barrels); grenade launcher underside closed (plate colour OK?)
 Sounds: punch a wall: whoosh and hit both heard (were cutting each other); waving an open hand quieter (slap whoosh only for a slap motion); your swing values are defaults
