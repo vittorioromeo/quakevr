@@ -596,6 +596,9 @@ void buildWorld()
     def.gravity = b3Vec3{0.f, 0.f, -world->gravity / world->m2u};
     def.enableSleep = true;
     def.enableContinuous = true;
+    // Gyroscopic torque on every body that is not exactly isotropic (upstream's default 0.2 leaves it out for near-
+    // isotropic ones): the throw's spin alignment (spinAlign) relies on Box3D's gyroscopic step.
+    def.isotropicInertiaTolerance = 0.f;
     // Its tasks on the game's pool (enqueueStepTask), with stepWorkers' workers (1: all of them on this thread).
     world->tasks.workers = stepWorkers(0, 1);
     def.workerCount = static_cast<uint32_t>(world->tasks.workers);
