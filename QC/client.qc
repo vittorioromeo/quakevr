@@ -160,7 +160,8 @@ void() SetChangeParms =
     parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
     WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm39 = self.weaponclipsize;
-    parm50 = self.vr_flashlight_state;
+    parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
+    if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
     parm40 = self.weaponclipsize2;
 };
 
@@ -421,7 +422,8 @@ void() DecodeLevelParms =
     // The weapons' records (vr_weaponinst.qc): their magazines, and their ids where free (a coop player respawning
     // with the level's start parms while his old weapon still lies about gets a new one).
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
-    self.vr_flashlight_state = parm50;
+    self.vr_saw_cord_pulled = parm50 >= VR_PARM50_SAW_CORD_PULLED;
+    self.vr_flashlight_state = parm50 - (self.vr_saw_cord_pulled ? VR_PARM50_SAW_CORD_PULLED : 0);
     MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
     self.max_health = VR_MaxHealth(self); // (with them: upstream sets it here)
     if(MG3_Campaign() && self.health > self.max_health) { self.health = self.max_health; }

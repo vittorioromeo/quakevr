@@ -67,6 +67,10 @@
         slider("Fire Particle Size", "vr_fire_particles_size", 0.1f, 4.f, 0.1f, "%.1fx"),
         slider("Fire Particle Opacity", "vr_fire_particles_alpha", 0.f, 1.f, 0.05f, "%.2f"),
         slider("Emission Distance", "vr_fire_particles_range", 0.f, 2048.f, 64.f, "%.0f units").extend(0.f, 4096.f).help("Sources beyond this distance stop emitting; limits the cost on maps with many fires."),
+        header("Flames in the Air"),
+        toggle("Hands Stir Flames", "vr_flame_wobble").help("A hand passing quickly through or near a flame (torches, braziers, map fires, burning bodies, the pyro's pilot light) makes it lean the way the hand went, as if moving the air, swinging back a little as it settles; the fire and smoke particles near the hand are carried along."),
+        slider("Stir Strength", "vr_flame_wobble_strength", 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f).help("How far the flames lean for a given hand speed and nearness (0 none)."),
+        slider("Stir Speed", "vr_flame_wobble_speed", 0.2f, 3.f, 0.1f, "%.1f m/s").extend(0.f, 6.f).help("How fast a hand must move to stir a flame; slower hands do nothing."),
     };
 }
 

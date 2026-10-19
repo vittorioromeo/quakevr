@@ -14028,3 +14028,45 @@ PASS.
   grenade straight at a knocked-down enemy (goes off); nailgun headshot kills now pop heads at 0.85 like lasers (too
   often: lower `vr_decap_pop_projectile`); the fury's sword swung edge-first along its curve, inside and outside; the
   hammer or mace let go at a holster (falls).
+
+## Hands stir flames; the chainsaw cord's hint (worktree `fastship`, branch `agent/flamewobble`, 2026-10-19)
+
+### Flames stirred by a fast hand (`vr_flamewobble.cpp`)
+
+- **Now** (`vr_flame_wobble` 1, `vr_flame_wobble_strength` 1, `vr_flame_wobble_speed` 1 m/s; Graphics > Fire Model
+  Particles > Flames in the Air): a hand faster than the speed (horizontal, in the room: the play space's own motion
+  left out; smoothed over 30 ms) pushes the flames whose axis it passes within 5 units + a quarter of their height,
+  linearly more the nearer, 16 lean/s^2 a m/s over the speed. The lean (sideways units a unit up, at most 0.8) is a
+  damped spring (1.4 Hz, damping 0.45): it swings the hand's way, comes back about a fifth the other way and settles
+  in about a second. Only the flames within 64 units of a fast hand are looked at; only the swinging ones are kept.
+- **Covered:** map flame models (`progs/flame2.mdl`: braziers, large and small flames, burning bodies' flames, crates')
+  sheared over their foot in `VR_AliasPreTransform`; the wall torches' fires (`vr_walltorch.cpp`, hung or taken: their
+  flame tilted, not by the hand holding it); the pyro's pilot light (its particles carried, 40 u/s a unit of lean, not
+  by the gun's own hand); fire and smoke particles within 14 units of a fast hand drawn towards half its velocity
+  (`particles::gust`). Not leaned: id's whole torch model (`progs/flame.mdl`, only with `vr_walltorch 0`: stick and
+  flame are one model) and candles/lanterns (their body would shear too). No flame sprites exist in id's game.
+- **Debug:** Debug > Info > Flame Wobble (`vr_flame_wobble_info`: hands' speeds, swinging flames and their most lean,
+  the nearest flame model and torch fire), Debug > Logs > Flame Wobble (`vr_debug_flame_wobble` 1 pushes, 2 every
+  frame's lean).
+- **Checked (headless):** start, `setpos 958 496 30 0 90 0`, the mock main hand swept (`vr_mock_play`) through the large
+  flame at (958 526): 3 m/s: peak 0.32 (18 deg) at +0.34 s, back -0.065, settled under 0.02 at +0.93 s; 6.2 m/s: 0.49
+  (26 deg), back -0.10, settled at +1.06 s; back through it at 0.6 m/s: no push. Strip (3 m/s, every 0.08 s):
+  0 .01 .08 .21 .31 .29 .17 .05 -.03 -.06 -.06 -.03 -.01 .01 0.
+
+### The chainsaw cord's hint (`vr_chainsaw.cpp`)
+
+- **Now** (`vr_chainsaw_cord_hint`: 0 off, 1 until the first pull (default), 2 always; Combat > Enemy Weapons >
+  Chainsaw Engine > Cord Hint): a chainsaw in a hand (the main hand's first) is drawn without its seated handle (frame
+  9) and the handle alone (frame 10) dangles about its seat, with the cord from its hole: a spring (2.2 Hz, damping
+  0.15) the saw's changes of speed swing (a quarter of them), across the saw's up, at most 2 cm, rocking up to 12 deg,
+  plus a 0.4 cm sway at rest. Not while the cord is held or flying back; needs Model Handle in the Hand.
+- **Remembered:** any pull (good or weak) sets the player's QC `.vr_saw_cord_pulled` (saved with the game), carried to
+  the next level in parm50's bit 19 (the lamp's state keeps bits 0..18); a new game starts without it. A remote
+  server's game: this session's memory. `vr_chainsaw_cord_info` (Debug > Info > Chainsaw Cord Hint) prints it and the
+  dangle (now, the most since the last); `vr_chainsaw_cord_pulled 0|1` sets it.
+- **Checked (headless, e1m1, `impulse 164`):** before a pull 0.46 cm at rest, 2.0 cm after a 12 cm jolt; after a real
+  pull (`chainsaw_pull.mock`) 0; a save from before loaded: dangling again (0.46); a save from after: 0; `changelevel
+  e1m2`: still pulled, 0; Always: dangling (0.46). `vr_dumpview`: the saw at frame 9, the handle entity at frame 10.
+- **For VR:** sweep a hand through a brazier and a wall torch at a brisk and a slow pace (the slow one should do
+  nothing); the lean's size at Stir Strength 1. Pick up an ogre's chainsaw: the handle should wobble a little on its
+  seat as you move, and stop after the first pull, also after a reload and on the next map.

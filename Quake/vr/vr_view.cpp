@@ -4671,6 +4671,15 @@ extern "C" void VR_SetupViewEntities()
         flashlight::setupView(s, entities.flashlight);
         chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
         setupSawHandle();
+        for(int hand = 0; hand < 2; hand++)
+        {
+            // Its seated handle dangling (the cord's hint): the chainsaw drawn without it.
+            if(int frame = 0; chainsaw::handleOff(hand, frame))
+            {
+                entities.weapon[hand].ent.frame = frame;
+                entities.weapon[hand].ent.lerpflags |= LERP_RESETANIM;
+            }
+        }
         setupPouch(s);
         setupAmmoPouch(s);
     }
@@ -4842,6 +4851,7 @@ extern "C" void VR_SetupViewEntities()
         collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
         explosiondebris::frame();
         fireparticles::frame();
+        flamewobble::frame(); // flames stirred by a fast hand (vr_flamewobble.cpp)
         bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
     }
 

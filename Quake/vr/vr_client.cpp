@@ -19,6 +19,7 @@
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
+#include "vr_flamewobble.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -738,6 +739,7 @@ void init()
     testbatch::registerCommands();
     serverrules::registerCommands();
     fireparticles::registerCommands();
+    flamewobble::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
     smoulder::registerCommands();
@@ -860,6 +862,7 @@ extern "C" void VR_OnClientClearState()
     explosiondebris::clear();
     collectfx::clear();
     fireparticles::clear();
+    flamewobble::clear();
     shock::clear();
     smoulder::clear();
     comfortfade::clear();

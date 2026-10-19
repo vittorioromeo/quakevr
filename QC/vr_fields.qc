@@ -9,6 +9,9 @@
 .void(float) think2ArgFn;
 .float thinkArg;
 .float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
+.float vr_saw_cord_pulled; // the player has pulled a chainsaw's cord (set by the engine: vr_chainsaw.cpp, the cord's hint
+                           // stops: vr_chainsaw_cord_hint 1), saved and carried by parm50's bit 19
+float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state takes bits 0..18)
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .entity vr_wpn_from; // a weapon lying about or flying: the player whose hand it left (DropWeaponInHandScaled), else world
 .float vr_grab_by_handle; // a weapon lying about: a hand closing anywhere on it takes it by its handle, never carries it by a hotspot (func_weapon_grabbable BY_HANDLE)
