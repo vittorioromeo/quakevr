@@ -122,10 +122,6 @@ struct Reach
     glm::vec3 goal{0.f};
     float weight{0.f};
     float strength{0.f};
-    // Its limb's turns reckoned from this turn of the part it hangs from, not that part's own (`upright`: a flinch's
-    // bearing leg, vr_flinch 2: its hip's spring turns its pelvis upright over the planted foot).
-    bool upright{false};
-    glm::quat from{1.f, 0.f, 0.f, 0.f};
 };
 
 // A monster losing limbs as he dies (cutReaction; vr_ragactive.cpp, "Dismemberment"; vr_ragdoll_active_dismember): his
@@ -403,45 +399,6 @@ struct Stagger
     int steps{0};
     int stepsMost{4};       // its backpedal's steps at most (vr_ragdoll_active_stagger_steps)
     int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
-    float wheel{1.f};       // its arms' wheeling, times this (a flinch's: as strong as the hit)
-    // A flinch (vr_flinch; beginFlinch; docs/vr-port/FLINCH.md): a hit's stagger, balanced by its own body: it recovers
-    // only once the recovery test holds (stableFor), it topples if it has not by flinchMost.
-    bool flinch{false};
-    float flinchMin{0.25f};   // s: no recovery before
-    float flinchMost{1.6f};   // s: not steady by then, it topples
-    float stableFor{0.f};     // s: the recovery test held this long, unbroken
-    float tilt0{0.f};         // deg: its spine's tilt (pelvis to chest) as it stood when struck
-    // The recovery test's measures, the last frame (the overlay, vr_flinch_status): its middle's margin inside its
-    // feet's support (m; below 0 outside), its middle's level speed (m/s), its torso's tilt off its stance (deg), its feet
-    // on firm, level enough ground, and which of them failed (bits: 1 margin, 2 speed, 4 tilt, 8 ground, 16 stepping).
-    float margin{0.f}, speedNow{0.f}, tilt{0.f};
-    bool ground{true};
-    glm::vec3 groundAt{0.f};  // the worst foot (world, metres)
-    float groundShare{0.f}, groundUp{1.f}; // the ground test's worst foot: its ray's share to the floor, the floor's normal up
-    uint32_t failed{0};
-    float dv{0.f};            // m/s: the hit's level change of speed of its whole body
-    glm::vec3 impulse{0.f};   // N s, world: the hit (the overlay's arrow)
-    glm::vec3 hitAt{0.f};     // world, metres
-    float footR{0.12f};       // m: each foot's support (a disc this wide round its end)
-    // Its stance's own centre of mass from between its feet (level, world, metres: its stand frame's; an enforcer
-    // leans over his rifle, its middle well ahead of its ankles): its support is reckoned round it.
-    glm::vec3 supportOffset{0.f};
-    int struck{-1};           // the frame it was drawn in when struck (a hand-back's candidates: round it)
-    // Measures (the `flinch: ... result` line): its centre of mass's height as struck and its rise over it at most (m),
-    // its steps' level way summed (m) and their share along the hit summed (each step's cosine).
-    float comZ0{0.f}, riseMost{0.f}, stepWay{0.f}, stepAlong{0.f};
-    // vr_flinch 2: balanced by its legs (FLINCH.md, "Balance from the legs"): no pin, its weight borne only through feet
-    // on the floor, its centre of pressure kept within them, capture steps.
-    bool legs{false};
-    uint32_t legParts{0};     // its legs' parts (bits): no support or balance force on them
-    float upperMass{1.f};     // kg: the rest
-    float pelvisOver{0.f};    // m: its pelvis over its feet's ends as it stood
-    za::Array<float, 2> footGap{}; // m: each foot's end over its floor as it stood (below it: negative)
-    za::Array<float, 2> footFloor{-1e30f, -1e30f}; // m: each planted foot's floor (traced as it stood or landed)
-    int bearing{0};           // feet on the floor now
-    glm::vec3 capture{0.f};   // its capture point (level, world, metres) this frame
-    float captureOff{0.f};    // m: how far it lies past its feet's reach for its centre of pressure (0: within)
-    za::Array<glm::vec3, 2> bearAt{}; // the bearing feet's ends (world, metres)
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
@@ -627,9 +584,6 @@ struct Context
     // The world (and the movers) along `from` -> `to` (world, metres): the share of the way to the first hit (1 none),
     // where it hit and its normal.
     float (*rayHit)(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, glm::vec3& normal){nullptr};
-    // Quake's own world (its hull, the brush models; a map's geometry the physics world lacks: AD's maps) along
-    // `from` -> `to` (world, metres): the share of the way to the first hit (1 none) and the floor's normal up there.
-    float (*traceHit)(const glm::vec3& from, const glm::vec3& to, float& normalUp){nullptr};
     int num{0};       // its entity (the traces)
     double born{0.0}; // when its ragdoll was made (the traces' time)
     bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)
@@ -685,31 +639,6 @@ struct StaggerInfo
     int first{-1}, last{-1};
 };
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now);
-
-// A flinch (vr_flinch; docs/vr-port/FLINCH.md; a living monster's ragdoll just made from the frame it was drawn in): a
-// hit of `impulse` (N s, world) at `at` (world, metres). Its share `local` is given at the point on the part struck (the
-// jolt: its torso, head or limb thrown back), the rest to its whole body (a stagger's travel: it steps along it). Its
-// balance from the change of speed against `topple` (m/s: at it, its balance's edge, 0.5; above, it gives way after a
-// step or two). Stance frame `first`. Then staggerFrame balances it and the recovery test hands it back or topples it.
-struct FlinchInfo
-{
-    glm::vec3 at{0.f};
-    glm::vec3 impulse{0.f};
-    float local{0.35f};
-    float topple{2.2f};
-    int first{0};
-    float most{1.6f};     // s: not steady by then, it topples
-    float footR{0.12f};   // m
-    bool legs{false};     // vr_flinch 2: balanced by its legs (Stagger::legs)
-    float push{1.f};      // ... the impulse given its body times this (vr_flinch_legs_push; its balance reckoned without)
-};
-// Its legs' mean length (m; its drive begun), 0.75 if it has none.
-[[nodiscard]] float legLength(const State& s, const Parts& p);
-// The whole body's level change of speed (m/s) a hit's impulse gives it.
-[[nodiscard]] float flinchSpeed(const State& s, const Parts& p, const glm::vec3& impulse);
-void beginFlinch(State& s, const Parts& p, const FlinchInfo& info, double now);
-// vr_flinch_debug: its hit (an arrow), its middle over the floor, its feet's support, its state (as colours).
-void flinchDraw(const State& s, const Parts& p, double now);
 
 // A fall (the drive begun or going): towards level `dir`, the arms bracing, the torso and head keeping some tone, the
 // legs giving; parts `slack` (with their limbs) for `slackTime` s (a throw's held ones); `curl`: a throw (more tone in

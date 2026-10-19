@@ -136,6 +136,7 @@ void(float a) VR_AD_WaterAlpha;
 float(entity client, float density, vector colour) VR_AD_Fog;
 float(entity targ, entity inflictor, entity attacker, float damage, float checkarmor) VR_AD_DamageOurs;
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;
+void(float xSplash) VR_AD_Splash; // (vr_kdtrig.qc: AD's radius damage, for the explosions' ragdoll trigger)
 float() VR_AD_PathCornerTouch;
 float(entity pellet) VR_AD_PelletDamage;
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit;

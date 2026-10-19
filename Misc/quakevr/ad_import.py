@@ -129,7 +129,8 @@ PATCHES = [
      "\tlocal float save, take, flinch, noarmordmg;\n\tif (VR_AD_DamageOurs(targ, inflictor, attacker, damage, checkarmor)) return;\n",
      1, B + ": Quake VR's own entities (the player, our monsters) take damage by our T_Damage"),
     ("ai_combat.qc", "\ttarg.health = targ.health - take;\n",
-     "\ttarg.health = targ.health - take;\n\tVR_AD_Hit(targ, inflictor, attacker, take);\n",
+     "\ttarg.health = targ.health - take;\n\tVR_AD_Splash(checkarmor == DAMSPLASH);\n"
+     "\tVR_AD_Hit(targ, inflictor, attacker, take);\n\tVR_AD_Splash(0);\n",
      1, B + ": our hit hooks on AD's monsters (damage numbers, gore, small gibs, wounds)"),
     ("ai_pathcorner.qc", "void() path_corner_touch =\n{\n",
      "void() path_corner_touch =\n{\n\tif (VR_AD_PathCornerTouch()) return;\n",

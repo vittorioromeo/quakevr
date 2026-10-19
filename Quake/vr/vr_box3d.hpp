@@ -278,13 +278,6 @@ bool ragdollFlail(edict_t* ent, bool on);
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
-// A flinch (vr_flinch; QC vr_flinch.qc; docs/vr-port/FLINCH.md), a hit of `impulse` (N s, world) at `at` (units). Mode
-// 0: whether it may flinch now: the level change of speed it would give its body (m/s; its attack frames guarded: less),
-// -1 not (not of a flinching class, it can't stagger, past the budget or the range), -2 - that speed with no room for one
-// more ragdoll. Mode 1 (its knockdown's ragdoll just made): the flinch begun, 1 (2: down at once), 0 not. Mode 2: whether
-// its class flinches at all (1, 0).
-float ragdollFlinch(edict_t* ent, const glm::vec3& at, const glm::vec3& impulse, int mode);
-void flinchStatus_f(); // vr_flinch_status [reset]
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
 // ragdoll.
