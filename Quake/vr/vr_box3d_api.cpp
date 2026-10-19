@@ -380,7 +380,7 @@ void blast(const glm::vec3& at, float damage)
     }
 }
 
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass)
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass, float restitution, float most)
 {
     const int num = NUM_FOR_EDICT(ent);
     if(!world || num >= static_cast<int>(world->slots.size()) ||
@@ -418,8 +418,13 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
     {
         return false;
     }
-    // (A pusher of a mass: the impulse of the two meeting, the pusher's inverse mass added.)
-    const float j = (speed - along) / (k + (pusherMass > 0.f ? 1.f / pusherMass : 0.f));
+    // (A pusher of a mass: the impulse of the two meeting, the pusher's inverse mass added; more by its restitution, the
+    // point's gain (j k) at most `most`.)
+    float j = (1.f + za::clamp(restitution, 0.f, 1.f)) * (speed - along) / (k + (pusherMass > 0.f ? 1.f / pusherMass : 0.f));
+    if(most > 0.f)
+    {
+        j = za::min(j, most / k);
+    }
     b3Body_ApplyLinearImpulse(body, b3Vec3{d.x * j, d.y * j, d.z * j}, point, true);
     world->slots[num].asleep = false;
     if(world->slots[num].ragdoll >= 0) // (a dying hand holding on, struck there, lets go: vr_ragdoll_active_env)

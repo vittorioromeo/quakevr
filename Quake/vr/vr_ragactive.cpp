@@ -1187,7 +1187,8 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         // takes catch steps; or sagging.)
         const bool tips = g.giveAfter >= 0 ? tooFar
                                            : (g.over >= 0.f && t - g.over >= staggerCatch * 3.f) || tooFar;
-        if(gives || tips || g.sag < staggerSag)
+        // (Sure-footed, a parry's on level ground: never over by itself.)
+        if(!g.sure && (gives || tips || g.sag < staggerSag))
         {
             g.outcome = Outcome::Fell;
             g.decided = c.now;
@@ -1202,7 +1203,11 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
             return;
         }
-        if((t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) || t > g.time + staggerMost)
+        // (A parry's: at its time, as the old pose's stagger was, however it stands.)
+        const bool due = g.recoverAt > 0.f ? t >= g.recoverAt
+                                           : (t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) ||
+                                                 t > g.time + staggerMost;
+        if(due)
         {
             g.outcome = Outcome::Recovered;
             g.decided = c.now;
@@ -3325,6 +3330,12 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
     g.stepsMost = za::clamp(static_cast<int>(vr_ragdoll_active_stagger_steps.value + 0.5f), 1, 10);
     // Beaten (its roll under its chance): it backpedals 3 or 4 steps (4 nearer the edge), then gives way.
     g.giveAfter = g.balance < 0.5f ? za::min(3 + static_cast<int>(g.balance * 4.f), g.stepsMost) : -1;
+    g.recoverAt = info.recoverAt;
+    g.sure = info.sure;
+    if(g.sure)
+    {
+        g.giveAfter = -1;
+    }
     s.clip = Clip{info.first, info.last >= info.first ? info.last : info.first, static_cast<float>(info.first), now, 10.f, false};
     s.base = 1.f;
     // Its legs strong (planted, stepping), its torso by its balance, its arms and head with some give.

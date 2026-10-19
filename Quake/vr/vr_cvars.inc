@@ -3241,6 +3241,7 @@ QVR_CVAR(vr_ragdoll_centroid_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_centroid_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_stagger, "0.8", CVAR_ARCHIVE)      // seconds before a parried monster can recover (clamped to 0.1..3; 0.35 before config 89)
+QVR_CVAR(vr_parry_ragdoll, "1", CVAR_ARCHIVE)        // a parried humanoid (its monster group's Ragdoll Triggers on) staggers back as an active ragdoll for Parry Stagger, never down on level ground (stairs, a ledge, a slope: it may go down); 0: its pain pose's stagger (QC vr_kdtrig.qc VR_Parry_Ragdoll)
 QVR_CVAR(vr_parry_stagger_frames, "3", CVAR_ARCHIVE)  // frames of its pain animation a parried monster steps through (0.1 s each), then rocks back and forth over the last two (1..4; 1: its first pain frame held)
 QVR_CVAR(vr_parry_stagger_sway, "3", CVAR_ARCHIVE)    // degrees a parried monster's body sways (roll, pitch 0.6 of it) while it is staggered (0..15; 0 none)
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
@@ -3411,7 +3412,9 @@ QVR_CVAR(vr_damage_self, "1", CVAR_ARCHIVE)              // damage the player de
 QVR_CVAR(vr_headshot_mult, "1.5", CVAR_ARCHIVE)          // positional damage: headshots,
 QVR_CVAR(vr_limbshot_mult, "0.6", CVAR_ARCHIVE)         // arms (far from the body's middle),
 QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs
-QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit
+QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit (the living, standing; a ragdoll or a corpse: by mass, below)
+QVR_CVAR(vr_melee_ragdoll_bounce, "0.2", CVAR_ARCHIVE)     // a blow on a ragdoll or a corpse (a weapon's, a hand's body meeting it; a blow's push): the restitution, 0 dead .. 1 elastic; it moves by the weapon's mass and the arm's behind it against its own (vr_box3d_weapon_arm_mass)
+QVR_CVAR(vr_melee_ragdoll_most, "5", CVAR_ARCHIVE)         // m/s at most a blow gives the ragdoll's part it strikes (0: no cap)
 QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "0.55", CVAR_ARCHIVE)      // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "0.8", CVAR_ARCHIVE)        // and you
@@ -3528,6 +3531,9 @@ QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat mon
 QVR_CVAR(vr_deflect_radius, "14", CVAR_ARCHIVE)          // units around the weapon's line (or fist) a projectile is batted within
 QVR_CVAR(vr_deflect_speed, "0.6", CVAR_ARCHIVE)          // a batting swing's speed (the weapon's far end), times vr_melee_speed (a blow's least is 1)
 QVR_CVAR(vr_deflect_window, "0.2", CVAR_ARCHIVE)         // s a swing's path keeps batting (a swing a little early still bats)
+QVR_CVAR(vr_deflect_swing, "1", CVAR_ARCHIVE)            // batting needs a swing as a blow does (the hand moving, from far enough, not wiggled): a turn of the wrist or a gun brought round bats nothing
+QVR_CVAR(vr_deflect_wrist, "2", CVAR_ARCHIVE)            // m/s the hand itself (meleewristspeed: its turn taken out) must move at to bat (vr_deflect_swing)
+QVR_CVAR(vr_deflect_run, "0.2", CVAR_ARCHIVE)            // m a batting swing must have come from (meleerun; vr_deflect_swing)
 QVR_CVAR(vr_deflect_bounce, "0.6", CVAR_ARCHIVE)         // a batted projectile's restitution off the weapon (0 dead .. 1 elastic): a little livelier than a ball off a bat
 QVR_CVAR(vr_deflect_aim_assist, "0.5", CVAR_ARCHIVE)     // 0..1: a batted or bashed projectile going very near a monster (its thrower most) bends that share towards it
 QVR_CVAR(vr_grenade_catch, "2", CVAR_ARCHIVE)            // grenades as physics you can catch and throw back: 0 off (Quake's), 1 the ogres', 2 also your own (the default since round 21's misc fixes: config 41)

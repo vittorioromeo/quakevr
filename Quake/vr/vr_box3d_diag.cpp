@@ -792,6 +792,29 @@ void ragdollArmTest_f()
     Con_Printf("armtest: no intact corpse arm\n");
 }
 
+// vr_ragdoll_speeds: each ragdoll's fastest since the last ask (its middle's and any part's, units/s: a blow's launch),
+// then forgotten (Debug > Tests).
+void ragdollSpeeds_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_ragdoll_speeds: no Box3D world\n");
+        return;
+    }
+    const VmScope vm;
+    for(RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num <= 0)
+        {
+            continue;
+        }
+        edict_t* ent = EDICT_NUM(r.num);
+        Con_Printf("ragspeed: %d %s (%s): middle %.0f u/s, a part %.0f u/s at most\n", r.num, PR_GetString(ent->v.classname),
+            ent->v.health > 0.f ? "alive" : "dead", r.peakMiddle * world->m2u, r.peakPart * world->m2u);
+        r.peakMiddle = r.peakPart = 0.f;
+    }
+}
+
 void ragdollList_f()
 {
     if(!sv.active || !world)
@@ -957,7 +980,7 @@ void ragdollEnvHit_f()
             const glm::vec3 hand = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(lo)], b3v(r.rig->bones[lo].end * (r.scale / world->m2u)))) * world->m2u;
             const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(r.body[0])) * world->m2u;
             const glm::vec3 away = glm::length(hand - pelvis) > 1e-3f ? glm::normalize(hand - pelvis) : glm::vec3{0.f, 0.f, 1.f};
-            qvr::box3d::push(EDICT_NUM(r.num), hand, away * speed, 0.f);
+            qvr::box3d::push(EDICT_NUM(r.num), hand, away * speed, 0.f, 0.f, 0.f);
             Con_Printf("vr_ragdoll_env_hit: %d's %s hand struck at %.0f %.0f %.0f\n", r.num, arm == 0 ? "left" : "right",
                 hand.x, hand.y, hand.z);
             struck++;
@@ -1781,6 +1804,7 @@ void registerCommands()
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_corpse_poses", corpsePoses_f);
         Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
+        Cmd_AddCommand("vr_ragdoll_speeds", ragdollSpeeds_f);
         Cmd_AddCommand("vr_ragdoll_arm_test", ragdollArmTest_f);
         Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
         Cmd_AddCommand("vr_limb_models", limbmodel::info_f);

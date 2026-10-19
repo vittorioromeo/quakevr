@@ -244,6 +244,9 @@ struct RagdollBodies
     float scale{1.f};
     int count{0};
     za::Array<b3BodyId, ragdoll::maxBones> body{};
+    // Its fastest after a step since vr_ragdoll_speeds last asked (m/s): its middle's (all its parts' momentum over its
+    // mass: how it is launched), and any one part's (a limb whipped).
+    float peakMiddle{0.f}, peakPart{0.f};
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its entity's yaw when it was made (the frames' bones turned by it)
     double born{0.0};
     // Its head cut off (cutHead; ROUND21.md, "Decapitation"): those bones (bits) have no body nor joint now; their
@@ -425,6 +428,7 @@ struct Pushed
 {
     int num{0};
     glm::vec3 velocity{0.f}, spin{0.f}; // m/s, rad/s
+    int parts{-1}; // a ragdoll's: its parts' motion from here in World::pushedParts (velocity, spin: two a part); -1 none
 };
 
 // Box3D on the pool (vr_box3d_threads; ROUND21.md, "Box3D on the pool"): a task of Box3D's step
@@ -498,6 +502,7 @@ struct World
     za::Vector<Shock> falls;  // knocked-down monsters' ragdolls hitting the level this frame (the hardest, vertically)
     za::Vector<Impact> ragImpacts; // ragdolls' parts striking the level this frame (the hardest each: callRagImpacts)
     za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
+    za::Vector<glm::vec3> pushedParts; // the ragdolls' among them: each part's velocity and spin (Pushed::parts)
     struct PortalCopy
     {
         b3BodyId original{b3_nullBodyId}, copy{b3_nullBodyId};
@@ -1397,7 +1402,7 @@ bool canRagdoll(edict_t* ent);
 float headPropMass(const char* model);
 int nearestProp();
 float propMass(edict_t* ent);
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass);
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass, float restitution, float most);
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
     const char* key, float value, bool probe, float weaponFlags);
 } // namespace qvr::box3d

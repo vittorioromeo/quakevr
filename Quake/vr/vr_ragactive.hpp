@@ -399,6 +399,8 @@ struct Stagger
     int steps{0};
     int stepsMost{4};       // its backpedal's steps at most (vr_ragdoll_active_stagger_steps)
     int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
+    float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
+    bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
@@ -637,6 +639,8 @@ struct StaggerInfo
     float push{1.f};
     float balance{0.5f};
     int first{-1}, last{-1};
+    float recoverAt{-1.f}; // (Stagger's)
+    bool sure{false};
 };
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now);
 

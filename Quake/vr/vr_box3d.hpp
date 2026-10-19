@@ -29,9 +29,11 @@ void noteServerPhysicsStart();
 
 // A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
 // there: pushed high, a tall box tips; pushed low, it slides). `pusherMass` (kg, 0: none): what pushes has that mass, so
-// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). False if it is not a
-// Box3D prop.
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f);
+// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). `restitution` (0..1):
+// it comes off that much faster than the point's meeting speed (a blow's bounce); `most` (m/s, 0: none): the point's
+// gain at most. False if it is not a Box3D prop.
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f, float restitution = 0.f,
+    float most = 0.f);
 
 // A shot from `start` to `end` (world units): the first loose prop it passes through pushed (push) where it goes in, with
 // `velocity` and `pusherMass` (a pellet, a nail: Quake's traces pass through the pickups lying about, SOLID_TRIGGER).
@@ -276,7 +278,8 @@ bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
-bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach);
+bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
+    bool sure = false);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no

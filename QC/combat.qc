@@ -2160,6 +2160,7 @@ void() VR_Parry_Recover =
 // The dragon must close its attack scheduler without losing its flight route (rogue_dragon.qc).
 void() VR_Dragon_ParryInterrupt;
 
+float(entity m, entity p, float xHold) VR_Parry_Ragdoll; // (vr_kdtrig.qc)
 void(entity m, entity p) VR_Parry_Interrupt =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
@@ -2180,6 +2181,14 @@ void(entity m, entity p) VR_Parry_Interrupt =
     {
         m.touch = SUB_Null;
         m.movetype = MOVETYPE_STEP;
+    }
+    // A humanoid staggers back as an active ragdoll instead (vr_parry_ragdoll; vr_kdtrig.qc VR_Parry_Ragdoll): the same
+    // time, never down on level ground; the knockdown's think owns it till it is up.
+    if(m.classname != "monster_dragon" && VR_Parry_Ragdoll(m, p, stagger))
+    {
+        self = oldSelf;
+        dprint(sprintf("parry interrupt: %s staggered %.2f s (an active ragdoll)\n", m.classname, stagger));
+        return;
     }
     // A high pain amount bypasses random flinch thresholds without dealing damage. The spawn's pain can
     // split it (mitosis), and the Guardian's can teleport it: leave their poses alone. An attack still stops
@@ -2508,6 +2517,7 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
     }
 };
 
+float(entity targ, entity attacker) VR_Melee_RagdollPush; // (vr_melee.qc)
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
@@ -2541,8 +2551,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
             vr_hitpart_time == time ? vr_hitpart : -1, mult, vr_hitpos, targ.health));
     }
 
-    // VR: melee blows push what they hit, dead or alive (vr_melee_push).
-    if(targ != attacker && targ.takedamage)
+    // VR: melee blows push what they hit (vr_melee_push); a ragdoll or a corpse as two bodies meeting
+    // (VR_Melee_RagdollPush, vr_melee.qc).
+    if(targ != attacker && targ.takedamage && !VR_Melee_RagdollPush(targ, attacker))
     {
         VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
             min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));

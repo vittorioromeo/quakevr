@@ -311,6 +311,11 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector bat_vb[8];
 .float bat_paid_time; // when a batting swing last paid its stamina (VR_Deflect_Pay),
 .float bat_exhaust;   // and what that left (as a blow's mh_exhaust: 0 paid in full)
+.float bat_why;       // the last pose's swing: 0 a batting one, else why not (VR_BAT_WHY_*: VR_Deflect_SwingWhy)
+.float bat_why_v;     // and its number against
+.float bat_why_need;  // what it needed
+.float bat_wrist;     // the newest batting line's hand speed (m/s: meleewristspeed) and how far it came (m: meleerun)
+.float bat_run;
 
 .float vr_bash_time;      // on a player: when the next bash may be
 .float vr_blow_time;      // on a player: when a blow of his last landed, or he last shoved or bashed (the engine's
@@ -381,6 +386,63 @@ float(entity p, float xHand) VR_Weight_HeldMass =
         return propvalue(c, "mass");
     }
     return weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), "w_mass");
+};
+
+// Blows on ragdolls and corpses (ROUND22.md, "Melee on ragdolls"): `targ` struck by the blow of `attacker`'s hand
+// vr_hithand (T_Damage_VRMelee, after its damage) moves as two bodies meeting, not by vr_melee_push's knockback (a whole-
+// body velocity, every part of a ragdoll given it: a strong blow's 150..300 u/s flung a corpse off): what the hand holds
+// (its Mass, and vr_box3d_weapon_arm_mass of the arm behind it; an empty hand vr_box3d_hand_mass) at the blow's speed
+// (its striking point's, mh_dmgspeed) along its way, with vr_melee_ragdoll_bounce of restitution. A ragdoll (a corpse's,
+// one knocked down or staggering): the part struck (physicspush; its gain at most vr_melee_ragdoll_most m/s); one not a
+// ragdoll yet (killed by the blow: its ragdoll is made from its motion; a corpse without one) its whole mass
+// (VR_Grapple_MonsterMass). The living standing keep the knockback (FALSE).
+float(entity m) VR_Grapple_MonsterMass;
+float(entity targ, entity attacker) VR_Melee_RagdollPush =
+{
+    if(!(attacker.flags & FL_CLIENT) || vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || vr_hitdir == '0 0 0')
+    {
+        return FALSE;
+    }
+    float rag = isragdoll(targ);
+    if(!rag && targ.health > 0 && !targ.vr_corpse)
+    {
+        return FALSE;
+    }
+    entity oldSelf = self;
+    self = attacker;
+    entity b = VR_Blow(vr_hithand);
+    float speed = b.mh_dmgspeed > 0 ? b.mh_dmgspeed : b.mh_speed; // m/s
+    float held = max(0, VR_Weight_HeldMass(attacker, vr_hithand));
+    self = oldSelf;
+    float mass = held > 0 ? held + max(0, cvar("vr_box3d_weapon_arm_mass")) : max(0.1, cvar("vr_box3d_hand_mass"));
+    float bounce = min(1, max(0, cvar_hget(cvarh_vr_melee_ragdoll_bounce)));
+    float most = max(0, cvar_hget(cvarh_vr_melee_ragdoll_most));
+    vector dir = normalize(vr_hitdir);
+    float m2u = VRMetersToUnits();
+    if(rag)
+    {
+        vector at = vr_hitpos != '0 0 0' ? vr_hitpos : targ.origin;
+        physicspush(targ, at, dir * speed * m2u, mass, bounce, most);
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("melee push: %s's ragdoll struck at %.1f m/s by %.1f kg (bounce %.2f, at most %.1f m/s)\n",
+                targ.classname, speed, mass, bounce, most));
+        }
+        return TRUE;
+    }
+    float body = max(1, VR_Grapple_MonsterMass(targ));
+    float dv = (1 + bounce) * speed * mass / (mass + body);
+    if(most > 0)
+    {
+        dv = min(dv, most);
+    }
+    targ.velocity = targ.velocity + dir * dv * m2u;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("melee push: %s's body (%.0f kg) struck at %.1f m/s by %.1f kg: %.2f m/s\n", targ.classname, body,
+            speed, mass, dv));
+    }
+    return TRUE;
 };
 
 // Its melee damage multiplier: its own (Melee Damage x) times the weight's curve (weightdamage: heavy things more).
@@ -3394,7 +3456,7 @@ void(vector xForward) VR_Bash_Deflect =
             }
             if(near < radius + e.maxs_x)
             {
-                dprint(sprintf("deflect: %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
+                dprint(sprintf("deflect: accepted %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
                     e.classname, e.owner.classname, near,
                     time - (self.vr_bashdef_until - max(0, cvar_hget(cvarh_vr_bash_deflect_window)))));
                 vector pushVel = self.vr_bashdef_vel;

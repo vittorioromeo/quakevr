@@ -742,7 +742,7 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
-bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach)
+bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt, bool sure)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp || !ragdollCanStagger(ent))
@@ -758,6 +758,8 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     si.travel = za::min(za::max(reach, 0.f) / world->m2u * za::clamp(vr_ragdoll_active_stagger_travel.value, 0.f, 3.f), mostTravel);
     si.push = push;
     si.balance = balance;
+    si.recoverAt = recoverAt;
+    si.sure = sure;
     // Its stance: its standing frame (the classes' first: stand1), its weight over its feet (its pain's frames may be a
     // fall: the grunt's painb); its body made in the frame it was in (its pain's first: the flinch) goes back to it.
     si.first = si.last = 0;
@@ -767,9 +769,10 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     {
         const ragactive::Stagger& g = r.active.stagger;
         Con_Printf("stagger: %d %s shoved (push %.2f, balance %.2f): frames %d-%d held, its pelvis pinned (%.2f body weights) "
-                   "and carried %.0f units over %.2f s, %.0f units tall at the pelvis\n",
+                   "and carried %.0f units over %.2f s, %.0f units tall at the pelvis%s, up again %s %.2f s\n",
             r.num, PR_GetString(ent->v.classname), push, balance, si.first, si.last, r.active.pin.force,
-            g.travel * world->m2u, g.time, g.height * world->m2u);
+            g.travel * world->m2u, g.time, g.height * world->m2u, sure ? ", sure-footed" : "",
+            recoverAt > 0.f ? "at" : "by its balance, from", recoverAt > 0.f ? recoverAt : g.time + 0.2f);
     }
     return true;
 }

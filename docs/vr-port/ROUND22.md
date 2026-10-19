@@ -14302,3 +14302,61 @@ only); nothing in our code needed changing.
   palm case (the gib falls off the palm, not resting at z 77.6).
 - **For VR:** thrown axes and knives (spin in the air, sticking), props piled and kicked, ragdolls lying on stairs and
   in piles, the physgun on a ragdoll, judo throws and lifts.
+
+## Melee on ragdolls, batting on purpose, parried enemies stagger as ragdolls (worktree `fastship`, branch `agent/meleefeel`, 2026-10-19)
+
+The author: melee blows send ragdolls (corpses, knocked-down or staggering monsters) flying much more than expected;
+a random wrist move or a gun brought round bats a projectile back; the parried enemies' stagger looks unnatural.
+
+- **Melee on ragdolls** (`vr_box3d_contacts.cpp` limitRagdollPush; QC `vr_melee.qc` VR_Melee_RagdollPush). Two
+  paths flung them. (1) The hands' and weapons' kinematic bodies (vr_box3d_weapon_push) met a ragdoll's part as if it
+  weighed nothing: the part took the weapon's speed there and the joints dragged the body along (the "Pushes by mass"
+  limit, limitPushes, only ever scaled a ragdoll's pelvis). Now, after each step, a ragdoll a hand's body pushed has
+  every part's gain scaled alike: the momentum it got is at most what the pusher brought (its mass, pusherMass: the
+  weapon's Mass and vr_box3d_weapon_arm_mass, at its speed into it, times 1 + `vr_melee_ragdoll_bounce`, default 0.2),
+  the struck part's share by two masses meeting (the ragdoll's effective mass there: the momentum gained over the part's
+  gain, between the part's own and the whole body's), pushed on in later steps the arm's force (vr_box3d_push_force),
+  and the part's gain at most `vr_melee_ragdoll_most` (default 5 m/s). The squeeze of a weapon pressed into a body on
+  the floor (big sideways ejections with no gain along the push) is caught by the momentum bound. (2) A blow's
+  vr_melee_push knockback was a whole-body velocity added to every part (min(600, damage x 10) x 0.5 x vr_push / size).
+  A blow on a ragdoll now pushes the part struck (physicspush, new optional `bounce` and `most` arguments) with the
+  held thing's mass and the arm's at the blow's speed (mh_dmgspeed) along its way; on a body not yet a ragdoll (killed
+  by the blow, a corpse without one) the velocity of the two masses meeting against its whole mass
+  (VR_Grapple_MonsterMass). The living standing keep the old knockback. `vr_debug_shots 1`: `melee push: ...`;
+  `vr_debug_ragdoll 1` / `vr_debug_box3d 1`: `box3d: ragdoll <n> ... part <b> hit|shoved by <kg>: ..., x<keep>`.
+- **Measured** (`vr_ragdoll_speeds`, new; Debug > Tests "Ragdolls' Fastest Since Last": each ragdoll's fastest middle
+  (momentum over mass) and part since the last ask): vrfiringrange, synthetic `chop_down_gib` takes at a grunt's corpse
+  and at a knocked-down grunt (scratch/launch.sh); middle / part u/s after the chop, before -> after (which contact
+  happens varies run to run): sword corpse 282/665 -> 24/128, knocked down 194/465 -> 49/98; AD hammer corpse 233/959
+  -> 71/142; AD mace corpse 145/391 -> 54/298; crowbar knocked down (the blow landed) 15/104 -> 51/204; axe 0-75 before
+  (misses), 28-36 after. Worst middle 282 -> 71 u/s.
+- **Batting on purpose** (`vr_juice.qc` VR_Deflect_SwingWhy). With `vr_deflect_swing` (default 1) a weapon line bats
+  only if the pose is a swing as a blow is one: the far end at vr_deflect_speed (as before), the hand itself at
+  `vr_deflect_wrist` m/s or faster (default 2, meleewristspeed: a flick turns the weapon, not the hand; a gun brought
+  round goes slower), from `vr_deflect_run` m or further (default 0.2, meleerun), not wiggled, taken down to reload or
+  drawn back. The timing is the old window (vr_deflect_window 0.2 s; bashes vr_bash_deflect_window 0.3 s of the push,
+  unchanged). developer 1: `deflect: accepted <what> of <who>, ... (the hand m/s, from m)` and `deflect: rejected <what>
+  of <who>, passing hand <h>'s weapon: <why>[; its last batting swing <s> ago (the window ..)]`, once a projectile.
+  Menu: Combat > Batting Projectiles: Batting Needs a Swing, Batting Hand Speed, Batting Swing Length.
+- **Checked**: scratch/defl_gen.py mock plays with the shotgun against `impulse 247` (a spike at the face): before, a
+  wrist flick, a repositioning (min-jerk, 0.45 m in 0.45 s), a timed swing, a timed one-hand bash and a swing 0.35 s
+  early all batted it; after: flick rejected (its far end 0.8 of 1.9 m/s as it passed), repositioning rejected, early
+  rejected, swing accepted (hand 2.6 m/s, from 0.31 m), bash accepted.
+- **Parried enemies stagger as ragdolls** (`vr_parry_ragdoll`, default 1; QC `vr_kdtrig.qc` VR_Parry_Ragdoll, the
+  engine's ragdollStagger `recoverAt` and `sure`). A parried monster on the ground whose monster group takes the
+  ragdoll triggers (Combat > Monster Groups: grunts, enforcers, knights, death knights, ogres, zombies, mummies), not
+  a boss nor the dummy, staggers back with the shove's active-ragdoll stagger instead of the pain pose. The ground
+  behind it (away from you) is looked at as the ragdoll triggers do (ledge, stairs, slope down). Level: push 0.35,
+  carried 12 units, sure-footed (no fall by itself), up again at vr_parry_stagger (the old recovery). Over a drop or a
+  slope: pushed that way (push 0.7, 28 units), its balance 0.2..0.7 at random (under 0.5 it gives way), its own
+  recovery: it may go down (a knockdown, up as any). Its recovery ends the parry (`parry interrupt: <m> recovered (a
+  ragdoll's stagger, s)`; down: `... went down from a ragdoll's stagger`). 0: the pose's stagger as before. Menu:
+  Combat > Parry and Bash: Parry Stagger as Ragdoll.
+- **Checked** (scratch/parry.sh, the shotgun guard, a knight's blow via `impulse 242`, vr_parry_stagger 0.8):
+  vrtesthall: stays up, recovered 0.85 s (the pose's: 0.80); vrragtriggers' wide stairs behind it: three runs,
+  balance 0.65 and 0.64 recovered on the steps (1.10 s), 0.42 went down at 0.90 s; `vr_parry_ragdoll 0`: the pose's
+  stagger, recovered.
+- **For VR:** chop and stab bodies on the floor with the sword, axe, AD hammer and mace: they should jolt and
+  slide a little, not fly; a strong two-handed hammer blow moves a body most. Bring a gun round in front of a spike or
+  flick the wrist: no bat; a real swing and a bash bat. Parry knights and grunts on flat floor (they reel back a step as
+  a ragdoll and come at you again after the same pause) and at the top of stairs (sometimes they go down them).
