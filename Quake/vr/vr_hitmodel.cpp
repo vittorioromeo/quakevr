@@ -1767,20 +1767,24 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
 
 // A projectile's move (SV_PushEntity): a solid missile (MOVETYPE_FLYMISSILE, a bouncing grenade) meets monsters'
 // models; its class from .vr_hitclass (the grappling hook's), else a gun's. AD support: its small MOVETYPE_FLY
-// pellets retain that precision and meet corpses without changing AD's chosen projectile size/movement mode.
+// pellets retain that precision and meet corpses without changing AD's chosen projectile size/movement mode. Any
+// projectile marked so (.vr_projectile, QC VR_Proj_Mark: AD's bolts, lasers and plasma, small MOVETYPE_FLY ones, and
+// grenades) likewise meets corpses, gibs, knocked-down bodies and the shot boxes of grenades and wall torches
+// (MOVE_HITGIBS), as a flying missile does (MOVE_MISSILE).
 extern "C" int VR_HitModelMoveFlags(edict_t* ent)
 {
     if(static_cast<int>(ent->v.solid) != SOLID_BBOX && static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX)
     {
         return 0;
     }
-    const bool adPellet = qvr::ad::precisePellet(ent);
+    const bool marked = qvr::ad::precisePellet(ent) ||
+                        qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_projectile, 0.f) != 0.f;
     const int move = static_cast<int>(ent->v.movetype);
-    if(move != MOVETYPE_FLYMISSILE && move != MOVETYPE_BOUNCE && !(adPellet && move == MOVETYPE_FLY))
+    if(move != MOVETYPE_FLYMISSILE && move != MOVETYPE_BOUNCE && !(marked && move == MOVETYPE_FLY))
     {
         return 0;
     }
-    const int corpseFlags = adPellet ? MOVE_HITGIBS : 0;
+    const int corpseFlags = marked ? MOVE_HITGIBS : 0;
     if(!qvr::hitmodel::enabled())
     {
         return corpseFlags;

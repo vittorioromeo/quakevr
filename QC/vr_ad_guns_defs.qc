@@ -116,6 +116,13 @@ float(float xKind) VR_ADMelee_Heavy =
     return xKind == VR_ADMELEE_HAMMER || xKind == VR_ADMELEE_MACE;
 };
 
+// Whether a kind's weapon fits a holster (WeaponIdToHolsterable): the hammer and the mace are too big (carried by hand,
+// or left); the swords fit.
+float(float xKind) VR_ADMelee_Holsterable =
+{
+    return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE;
+};
+
 // Its model (vr_admelee.cpp makes it from AD's), or the knight's sword without AD's data.
 string(float xKind) VR_ADMelee_Model =
 {

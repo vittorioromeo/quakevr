@@ -224,12 +224,20 @@ void() VR_Test_MissilesReport =
 // vr_physics_fire (vr_box3d.cpp): a missile or a shot of yours from your eyes at the world point xAt, flying straight
 // at it (shape tests: missiles and shots against a turned solid prop; vr_debug_missiles prints where a missile hits,
 // vr_debug_shots what a pellet hit). xKind: 0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an enforcer's laser,
-// 10 a shotgun pellet (the burst rifle's and the lightning's trace: the same). The missile, or world for a shot.
+// 10 a shotgun pellet (the burst rifle's and the lightning's trace: the same); 5..9, 11..16 the other games' projectiles
+// (VR_ProjTest_Launch, vr_projhit_test.qc: AD's crossbow bolt, plasma, nails, lasers, Hipnotic's laser, Rogue's...).
+// The missile, or world for a shot.
+entity(float xKind, vector from, vector dir) VR_Test_FireFrom;
 entity(float xKind, vector xAt) VR_Test_Fire =
 {
     vector from = self.origin + self.view_ofs;
     vector dir = normalize(xAt - from);
-    from = from + dir * 24; // (ahead of your hands)
+    return VR_Test_FireFrom(xKind, from + dir * 24, dir); // (ahead of your hands)
+};
+
+// The same from `from` along `dir` (vr_projhit_test.qc: at a body from where its part is in clear view).
+entity(float xKind, vector from, vector dir) VR_Test_FireFrom =
+{
     if(xKind == 10)
     {
         traceline(from, from + dir * 2048, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // (a pellet's: FireBulletsImpl)
@@ -267,6 +275,14 @@ entity(float xKind, vector xAt) VR_Test_Fire =
     else if(xKind == 4)
     {
         m = LaunchLaser(from, dir);
+    }
+    else if(xKind >= 5)
+    {
+        m = VR_ProjTest_Launch(xKind, from, dir); // (the other games' projectiles: vr_projhit_test.qc)
+        if(m == world)
+        {
+            return world;
+        }
     }
     else
     {

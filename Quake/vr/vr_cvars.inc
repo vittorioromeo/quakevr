@@ -729,6 +729,7 @@ QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle'
 QVR_CVAR(vr_melee_phase, "1", CVAR_ARCHIVE)          // 1: on (the author's, 2026-10-07); 0: the hand is drawn stopped at a monster however fast it goes (as before)
 QVR_CVAR(vr_melee_phase_speed, "4", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (the author's 4; 2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
 QVR_CVAR(vr_melee_phase_time, "0.2", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
+QVR_CVAR(vr_melee_curved_blades, "1", CVAR_ARCHIVE) // a curved sword (AD's death fury's) strikes along its curve: its blade's points on its spine (the engine's admeleebend, QC VR_Melee_At); 0 on the straight line from the hand to its tip, as before
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
@@ -2879,6 +2880,7 @@ QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung)
 QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or heavier, always
 QVR_CVAR(vr_decap_pop_thrown_light_chance, "0.25", CVAR_ARCHIVE) // a lighter one's chance (0: never)
 QVR_CVAR(vr_decap_pop_laser, "0.85", CVAR_ARCHIVE) // an enforcer laser bolt's kill (an enemy's, or your enforcer's rifle) at the head or a limb pops it at this chance (0: never)
+QVR_CVAR(vr_decap_pop_projectile, "0.85", CVAR_ARCHIVE) // any other projectile's kill at the head or a limb (a nail, a spike, AD's crossbow bolt, a lump of flesh; every game's: QC VR_Proj_Begin) pops it at this chance, as a laser bolt's (0: never; explosives pop by their blast, vr_limbs_blast)
 // Blunt melee head kills (QC vr_decap.qc, "Blunt melee head pops"): chance = the weapon's scale x hardness^curve (at most 1),
 // hardness = (1 - damage_weight) x the speed's way from soft to hard + damage_weight x the damage's way from soft to hard.
 QVR_CVAR(vr_decap_pop_fist_scale, "0.04", CVAR_ARCHIVE)     // a punch's chance at the hardest hit

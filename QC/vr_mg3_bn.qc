@@ -107,6 +107,7 @@ void() MG3_LaserAltTouch =
     if(other.health)
     {
         SpawnBlood(org, self.velocity * 0.2, 15);
+        VR_Proj_Begin(QVR_PROJ_LASER, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, 15);
     }
     else
@@ -115,6 +116,7 @@ void() MG3_LaserAltTouch =
         WriteByte(MSG_BROADCAST, TE_GUNSHOT);
         WriteVec3(MSG_BROADCAST, org);
     }
+    VR_Proj_End();
     remove(self);
 };
 
@@ -132,6 +134,7 @@ void(vector org) MG3_EnforcerAltLaser =
     VR_AI_Tag(m);
     m.classname = "laser";
     m.movetype = MOVETYPE_FLY;
+    VR_Proj_Mark(m); // (a projectile: it meets corpses, gibs, knocked-down bodies: weapons.qc)
     m.solid = SOLID_BBOX;
     setmodel(m, "progs/laser.mdl");
     setsize(m, '0 0 0', '0 0 0');

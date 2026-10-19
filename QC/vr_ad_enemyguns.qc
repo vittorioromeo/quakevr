@@ -329,8 +329,7 @@ void() VR_ADGun_PlasmaTouch =
     // Quake VR's bolt hit (as the laser cannon's and the nails'): the prop it meets pushed, where on a body it struck
     // (PositionalDamage: a head more), our sparks with AD's flash.
     vector dir = normalize(self.velocity);
-    VR_ShotPush_Laser(other, self.origin, dir);
-    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
+    VR_Proj_Begin(QVR_PROJ_LASER, self.vr_adgun_dmg); // (every projectile's hit: weapons.qc)
     vr_ad_ammo = AD_AMMO_CELLS;
     if(self.vr_adgun_splash > 0)
     {
@@ -339,14 +338,15 @@ void() VR_ADGun_PlasmaTouch =
     if(other.takedamage)
     {
         float before = other.health;
-        float dmg = self.vr_adgun_dmg * PositionalDamageFactor(PositionalDamage(other, trace_endpos, dir));
+        float dmg = self.vr_adgun_dmg * vr_proj_factor;
         spawn_touchblood(dmg);
-        vector at = trace_endpos;
+        vector at = vr_proj_at;
         T_Damage(other, self, self.owner, dmg);
         vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
         VR_ADGun_BoltShock(other, before > 0, at, dir);
     }
     vr_ad_ammo = 0;
+    VR_Proj_End();
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 8);
     VR_ADGun_BoltFx(self.origin, dir, TRUE);
     ad_SpawnExplosion(random() < 0.3 ? ad_EXPLODE_PLASMA_SMALL : ad_EXPLODE_ELECT_SMALL, self.origin, ad_SOUND_PLASMA_HIT);
@@ -394,14 +394,14 @@ void() VR_ADGun_BoltTouch =
         remove(self);
         return;
     }
-    vector dir = normalize(self.velocity);
-    VR_ShotPush_Laser(other, self.origin, dir);
-    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
+    // Every projectile's hit (weapons.qc VR_Proj_Begin): what it met pushed (a ragdoll, a prop), where it struck (a head
+    // more), a corpse's head or limb worn, a kill at the head or a limb popped by chance (vr_decap_pop_projectile).
+    VR_Proj_Begin(QVR_PROJ_BOLT, self.vr_adgun_dmg);
     sound(self, CHAN_WEAPON, random() < 0.3 ? "weapons/bolt_hit1.wav" : "weapons/bolt_hit4.wav", 1, ATTN_NORM);
     if(other.takedamage)
     {
         float before = other.health;
-        float dmg = self.vr_adgun_dmg * PositionalDamageFactor(PositionalDamage(other, trace_endpos, dir));
+        float dmg = self.vr_adgun_dmg * vr_proj_factor;
         spawn_touchblood(dmg);
         vr_ad_ammo = AD_AMMO_NAILS;
         T_Damage(other, self, self.owner, dmg);
@@ -417,6 +417,7 @@ void() VR_ADGun_BoltTouch =
     {
         particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 4);
     }
+    VR_Proj_End();
     ad_entity_remove(self, 1);
 };
 
@@ -623,6 +624,7 @@ void() VR_ADGun_FlameTouch =
     vr_ad_ammo = self.vr_adgun_poison > 0 ? AD_AMMO_CELLS : AD_AMMO_ROCKETS;
     float before = other.health;
     VR_SetHitKind(QVR_HITKIND_NONE, -1, self.origin, dir);
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     vr_hit_nobleed = TRUE; // (it burns or poisons: no blood, no wound, no gore: combat.qc VR_HitBloodless)
     T_Damage(other, self, self.owner, self.vr_adgun_dmg);
     vr_hit_nobleed = FALSE;

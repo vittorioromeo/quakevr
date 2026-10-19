@@ -371,6 +371,7 @@ void() FireballTouch =
     if(other == self.owner)
         return;        // don't explode on owner
 
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     if(self.owner.classname == "monster_dragon")
         T_RadiusDamage(self, self.owner, 90, self.owner);
     else

@@ -627,3 +627,15 @@ float(entity p, float xHand) VR_ClipSizeIn =
 {
     return VR_ClipSizeOf(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
 }
+
+// Whether weapon `wid` (its flags `xFlags`) goes into a holster (immersive, or a quick slot's copy): not a huge one, which
+// is carried by hand or left (AD's hunter ogres' hammer and mace: VR_ADMelee_Holsterable). The holster refuses it
+// (weapons.qc VRHolsterRefused: let go at a holster, it falls; a quick slot keeps none).
+float(float wid, float xFlags) WeaponIdToHolsterable =
+{
+    if(wid == WID_SWORD)
+    {
+        return VR_ADMelee_Holsterable(VR_ADMelee_Kind(xFlags));
+    }
+    return TRUE;
+};

@@ -342,6 +342,7 @@ void() T_OrbTouch =
     if(other.takedamage)
     {
         spawn_touchblood(18);
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, 18);
     }
     else if(self.frags)

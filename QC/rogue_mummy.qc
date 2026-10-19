@@ -138,8 +138,10 @@ void() mummyGrenadeTouch =
     {
         mummyDamage = 15 + random() * 15;
 
+        VR_Proj_Begin(QVR_PROJ_BOLT, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, mummyDamage);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
+        VR_Proj_End();
         remove(self);
         return;
     }

@@ -59,18 +59,15 @@ void() Laser_Touch =
     if(!((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SILENT))))
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     org = self.origin - 8*normalize(self.velocity);
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
+    // VR: every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where
+    // it struck, a kill at the head or a limb popped by chance (vr_decap_pop_laser; vr_limbs.qc), ended by VR_Proj_End.
+    float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
+    VR_Proj_Begin(QVR_PROJ_LASER, dmg);
 
     if(other.health)
     {
         VR_HitBlood(other, org, self.velocity*0.2, 15);
-        // VR: a kill at the head or a limb pops it by chance (vr_decap_pop_laser; vr_limbs.qc), where the bolt's line
-        // meets the model.
-        float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
-        vector dir = normalize(self.velocity);
-        VR_TouchTrace(self.origin - dir * 16, self.origin + dir * 16);
-        float pop = VR_Decap_LaserArm(other, self.owner, trace_ent == other ? trace_endpos : self.origin, dir, dmg);
-        VR_Decap_Damage(other, self, self.owner, dmg, pop);
+        T_Damage(other, self, self.owner, dmg);
     }
     else
     {
@@ -79,6 +76,7 @@ void() Laser_Touch =
         WriteVec3(MSG_BROADCAST, org);
     }
 
+    VR_Proj_End();
     remove(self);
 };
 

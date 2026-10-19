@@ -27,7 +27,17 @@ inline constexpr const char* suffix = "#melee";
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a weapon model named so (allocated with VR_HeapMalloc), or null.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);
 
-// vr_admelee_models: each weapon made now, its triangles, box and tip (the weapon settings' anchors).
+// vr_admelee_models [write]: each weapon made now, its triangles, box and tip (the weapon settings' anchors).
 void info_f();
+
+// A curved sword's blade (QC admeleebend, VR_Melee_At: the melee's points follow it): sword kind `kind`'s (QC
+// VR_ADMELEE_*, 1 the death fury's) spine at share `f` of the straight line from the hand to its tip, off that line:
+// x along the line's normal in the blade's plane (the model's +y crossed with the line), y along the model's +y, both
+// as shares of the line's length. 0 0 for a straight blade (under half a unit off), a heavy weapon, or none made.
+[[nodiscard]] glm::vec2 bend(int kind, float f);
+
+// The spine's point at share `f` of the line, in the model's frame, of the made model named `model` (".../...#melee";
+// vr_admelee_spine shows it on the hand's weapon). False if it is not a sword of these, or not made.
+[[nodiscard]] bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line); // line: the straight line's point there
 
 } // namespace qvr::admelee

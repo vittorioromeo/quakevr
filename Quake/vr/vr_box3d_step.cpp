@@ -875,6 +875,13 @@ void touches(za::Vector<za::Pair<int, int>>& out)
         {
             out.emplaceBack(a, b);
         }
+        // A projectile prop (QC VR_Proj_Mark: a live grenade) meeting a ragdoll touches its body: a living monster
+        // knocked down (an active ragdoll) is struck as standing (a grenade goes off on it), a corpse is bounced off.
+        else if(kindAt(a) == Kind::Prop && other == Kind::Corpse &&
+                 fields().vr_projectile >= 0 && fieldFloat(EDICT_NUM(a), fields().vr_projectile) != 0.f)
+        {
+            out.emplaceBack(a, b);
+        }
     }
     for(int i = 0; i < events.hitCount; i++)
     {

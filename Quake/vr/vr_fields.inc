@@ -184,6 +184,7 @@ QVR_FIELD(vr_magbind4)
 QVR_FIELD(vr_magbind5)
 QVR_FIELD(vr_hot_glow)  // a weapon prop's glow 0..1 (vr_hotblade.qc VR_HotBlade_Lying; sent in U_QVR_WEAPONUID's top bits: vr_hotblade.cpp)
 QVR_FIELD(vr_melee_hud) // parry stamina and the counter's window, for the gadget and the counter glow (vr_melee.qc VR_Melee_Hud; vr_meleehud.cpp)
+QVR_FIELD(vr_projectile) // a projectile (QC VR_Proj_Mark): a small MOVETYPE_FLY one's or a grenade's move meets corpses, gibs and knocked-down bodies (VR_HitModelMoveFlags: MOVE_HITGIBS)
 QVR_FIELD(vr_hitclass) // precise hits (vr_hitmodel.cpp): a projectile's class for its tolerance (0 a gun's, 1 the grappling hook's; -1: boxes)
 QVR_FIELD(vr_hit_extra) // precise hits: a drawn part of this monster of its own (an entity, not solid: the Armagon's torso) its shots meet as its
 QVR_FIELD(vr_stamina_used) // the stamina pool (vr_melee.qc): what is spent, when last, its coming back traced; climbing drains it (vr_climb.cpp)
