@@ -91,6 +91,20 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_pyro.qc pyroflame_spawn: Quake VR: the pyro's flames look like the player's
   lights.qc setup_light_sound: Quake VR: a torch made live by the toolgun keeps its sound
   lights.qc setup_light_static: Quake VR: a torch made live by the toolgun is not made static
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Projectile: Quake VR: a bolt's, laser's or lump's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Projectile: Quake VR: a bolt's, laser's or lump's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_HomingMissile: Quake VR: a homing missile's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_HomingMissile: Quake VR: a homing missile's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Missile: Quake VR: a missile's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Missile: Quake VR: a missile's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Grenade: Quake VR: a grenade's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Grenade: Quake VR: a grenade's hit (VR_Proj_End)
+  ai_projectiles.qc launch_plasma: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc launch_projectile: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc Launch_Missile: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc Launch_Grenade: Quake VR: its projectile meets bodies (VR_Proj_Mark)
   ai_projectiles.qc launch_plasma: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   ai_projectiles.qc launch_projectile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   ai_projectiles.qc Launch_Missile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
