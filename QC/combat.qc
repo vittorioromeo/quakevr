@@ -334,6 +334,7 @@ void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
 void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
 void() VR_Knockdown_FastForwardDeath;
+float(entity e, entity xBy) VR_Knockdown_ZombieFall; // (a zombie's own fall as a ragdoll: zombie_pain, VR_AD_ZombiePain)
 // Hits that unbalance (vr_hitstagger.qc): a melee blow's (T_Damage_VRMelee), a thrown thing's (vr_carry.qc VR_Prop_Flung).
 .float vr_hst_next; // when a hit may unbalance it again (vr_hit_stagger_cooldown)
 float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagger_Melee;

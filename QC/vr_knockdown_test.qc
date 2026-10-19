@@ -103,7 +103,7 @@ void(float xMode) VR_Knockdown_Test =
                 }
             }
             else if(d < bestDist && !VR_TestSkips(x) &&
-                    ((xMode == 0 || xMode == 21 || xMode == 22) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
+                    ((xMode == 0 || (xMode >= 21 && xMode <= 24)) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
                                                                   x.vr_knockdown == 1))
             {
                 best = x;
@@ -153,6 +153,25 @@ void(float xMode) VR_Knockdown_Test =
         dprint(sprintf("knockdown test: %s shove of %s\n", two ? "two-handed" : "one-handed", best.classname));
         VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,
             two ? 1 : VR_BASH_ONE_DAMAGE, VR_Shove_HandsPush(two));
+        return;
+    }
+    if(xMode == 23 || xMode == 24)
+    {
+        // 23: a hit of 30 from you on the nearest standing one (a zombie: its own fall, zombie_pain's 25 or more);
+        // 24: a real grenade of yours fired at the floor 150 units short of it (its blast, not a direct hit).
+        if(xMode == 23)
+        {
+            T_Damage(best, self, self, 30);
+        }
+        else
+        {
+            vector short = best.origin - normalize(best.origin - self.origin) * 150;
+            short_z = best.absmin_z + 2;
+            VR_Test_Fire(2, short);
+        }
+        dprint(sprintf("knockdown test: %s %s: state %g, ragdoll %g, health %g, solid %g\n", best.classname,
+            xMode == 23 ? "hit for 30" : "a grenade fired near it", best.vr_knockdown, isragdoll(best), best.health,
+            best.solid));
         return;
     }
     if(xMode == 0)
