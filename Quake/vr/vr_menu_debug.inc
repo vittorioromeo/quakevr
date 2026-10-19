@@ -135,6 +135,10 @@ za::Vector<Item> pageDebugViews()
                   "over each other, to compare. Body Over Tracked: the body's own bones as posed with the tracking "
                   "(yellow) over the tracked ones: the yellow elbow should sit on the magenta one."),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
+        command("Print Seated Status", "vr_seated_status")
+            .help("vr_seated_status: seated play (VR Settings > Height > Seated Play): the lift, your head and the drawn "
+                  "legs over the floor, the leg tracking's weights (0 seated) and where the holsters and pouches are on "
+                  "the body."),
         command("Print Body Tracking Stats", "vr_bodytrack_stats")
             .help("vr_bodytrack_stats: the body's errors against the tracked one since the last reset, how far the arms "
                   "stretch while the elbows are fitted (1: the calibrated arm fits the tracked one), and per arm the elbow "

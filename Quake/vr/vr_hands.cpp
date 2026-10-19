@@ -14,6 +14,7 @@
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_profile.hpp"
+#include "vr_seated.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_weapons.hpp"
@@ -38,6 +39,7 @@ namespace
 {
 
 State state;
+TrackingState seatedTracking; // seated (vr_seated.hpp): this frame's tracking raised
 int stateFrame = -1;
 
 // OpenXR tracking space (+x right, +y up, -z forward) to Quake (+x forward, +y left, +z up).
@@ -615,7 +617,10 @@ void update()
         return;
     }
 
-    const TrackingState& t = tracking();
+    // Seated (vr_seated.hpp): the head and the hands raised, a standing player's; the eyes and the tracked body below too.
+    const bool raised = vrActive() && seated::raise(tracking(), seatedTracking);
+    const TrackingState& t = raised ? seatedTracking : tracking();
+    const float seatedLift = raised ? seated::lift() : 0.f;
     const entity_t& player = cl_entities[cl.viewentity];
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const float yaw = cl.viewangles[YAW];
@@ -683,7 +688,8 @@ void update()
         }
         state.turnYaw = turnYaw;
         state.spaceOrigin = toWorld(glm::vec3{0.f});
-        bodytrack::place(base, floorBelowHead, turnYaw, m2u); // the tracked body, as the head and hands
+        // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
+        bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -692,7 +698,7 @@ void update()
         const FrameState& frame = frameState();
         for(int eye = 0; eye < 2; eye++)
         {
-            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position);
+            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
             state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
         }
 

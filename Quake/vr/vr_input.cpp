@@ -26,6 +26,7 @@
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_seated.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_holsterzones.hpp"
@@ -870,7 +871,8 @@ bool jumping = false; // roomscaleJump: the jump key held (the head rising)
 
 void roomscaleJump(const hands::State& s)
 {
-    const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
+    // (Seated: never; sitting up quickly would raise the head over the standing height: vr_seated.hpp.)
+    const bool rising = vr_roomscale_jump.value && !seated::active() && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
                         s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
     if(rising != jumping)
     {

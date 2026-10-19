@@ -1740,6 +1740,48 @@ QVR_CVAR(vr_body_shoulders_up, "", CVAR_NONE)
 QVR_CVAR(vr_body_shoulders_out, "", CVAR_NONE)
 QVR_CVAR(vr_body_shoulder_up, "", CVAR_NONE)
 QVR_CVAR(vr_body_shoulder_forward, "", CVAR_NONE)
+// Seated play (vr_seated.hpp; docs/vr-port/SEATED.md): on with Position: Seated (vr_bodycal_seated, VR Calibration's and
+// Body Calibration's first row). The game stands you up: the head, the hands and the tracked body raised by your
+// standing eye height (vr_height_calibration) less your seated one, so the body stands on the floor with its legs
+// planted (body tracking's legs left out) and the holsters and pouches take their seated layout (vr_*_seated_*).
+QVR_CVAR(vr_seated_height, "0", CVAR_ARCHIVE)        // metres: your eyes' height sitting (VR Calibration's seated height step; Set Seated Height Now); 0: not measured, 0.74 of the standing height
+QVR_CVAR(vr_seated_stand, "1", CVAR_ARCHIVE)         // seated, the game stands you up (the lift above); 0: your eyes as low in the game as they are
+QVR_CVAR(vr_seated_reach, "1", CVAR_ARCHIVE)         // seated, a hand reaching low goes further down, to the game's floor (from a chair, the real floor is too far): under vr_seated_reach_start the lift fades out, gone at vr_seated_reach_floor
+QVR_CVAR(vr_seated_reach_start, "0.55", CVAR_ARCHIVE) // ... real metres over your floor the hand starts going down faster (under the seat's edge: the thighs and the hip holsters stay as they are)
+QVR_CVAR(vr_seated_reach_floor, "0.1", CVAR_ARCHIVE)  // ... real metres over your floor the hand is as low in the game as it is in the room (the floor in reach)
+QVR_CVAR(vr_seated_crouch_depth, "0.5", CVAR_ARCHIVE) // seated, metres vr_crouch_toggle lowers you (eased in and out)
+QVR_CVAR(vr_seated_crouch_ease, "0.2", CVAR_ARCHIVE)  // ... seconds it eases over
+// The seated layout: each pair of holsters and the ammo pouch moved by these seated (units forward, outwards (the pouch:
+// to the right), up, in the body's facing; degrees as their Hotspots turn), on top of the standing (and crouched)
+// layout. The grenade pouch's X moves it round the hips as its own X does (from the small of the back, against the
+// chair, to the side).
+QVR_CVAR(vr_hip_holster_seated_x, "6", CVAR_ARCHIVE)   // onto the thighs, off the chair's sides
+QVR_CVAR(vr_hip_holster_seated_y, "-3", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_seated_z, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_seated_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_seated_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_seated_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_upper_holster_seated_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_seated_x, "3", CVAR_ARCHIVE) // over the shoulders, off the chair's back
+QVR_CVAR(vr_shoulder_holster_seated_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_seated_z, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_seated_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_seated_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_shoulder_holster_seated_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_seated_x, "2", CVAR_ARCHIVE)    // up off the lap
+QVR_CVAR(vr_ammo_pouch_seated_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_seated_z, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_seated_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_seated_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_seated_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_grenade_pouch_seated_x, "6", CVAR_ARCHIVE)  // round the hips from the back (against the chair) to the side
+QVR_CVAR(vr_grenade_pouch_seated_y, "-5", CVAR_ARCHIVE) // (to the left: negative)
+QVR_CVAR(vr_grenade_pouch_seated_z, "3", CVAR_ARCHIVE)
 // Body Calibration's page: taken seated (the height left as it is); the body shown in front with the result (0 not, 1
 // facing you, 2 from its left); the settings from before the last Apply ("name value;...", for Undo).
 QVR_CVAR(vr_bodycal_seated, "0", CVAR_ARCHIVE)
