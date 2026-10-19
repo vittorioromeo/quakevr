@@ -1276,14 +1276,6 @@
   "sha256": "ee2ce98a6b436119846f7b561dc291b86f5aeaac876b63442e20a687af6ea5d7",
   "by": "make_physics_sounds.py"
  },
- "quakevr/sound/vr/phys/flesh_h3.wav": {
-  "sha256": "4600cddd7d2efad5c38425d9ba82449b24dff9e16d835babb4be201bee3e13b9",
-  "by": "make_physics_sounds.py"
- },
- "quakevr/sound/vr/phys/flesh_h4.wav": {
-  "sha256": "5bf4333bca3d09dd95738df9a6e376ec2bc5e93b2d6d30d52d288fb01c55724b",
-  "by": "make_physics_sounds.py"
- },
  "quakevr/sound/vr/phys/flesh_m1.wav": {
   "sha256": "d71146cb5300a7c689642043b65fa1b6d35435ef70ab5ae4be61fcbb4a153e3e",
   "by": "make_physics_sounds.py"
