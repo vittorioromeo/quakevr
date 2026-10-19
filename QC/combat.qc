@@ -2153,12 +2153,109 @@ void() VR_Parry_Recover =
     self.vr_parry_stagger_until = 0;
     self.vr_melee_begun = 0;
     self.attack_state = AS_STRAIGHT;
-    dprint(sprintf("parry interrupt: %s recovered\n", self.classname));
+    dprint(sprintf("parry interrupt: %s recovered (its pose's stagger, %.2f s)\n", self.classname,
+        time - self.vr_parry_stagger_start));
     self.th_run();
 };
 
 // The dragon must close its attack scheduler without losing its flight route (rogue_dragon.qc).
 void() VR_Dragon_ParryInterrupt;
+
+// ----------------------------------------------------------------------------
+// Parry balance (vr_parry_balance; ROUND22.md, "Parry balance"): a parry's strength is its tool (bare hands
+// vr_parry_tool_hand, any weapon vr_parry_tool_weapon, a heavy one up to vr_parry_tool_heavy by its Heft) times its grip
+// (two hands, the arms crossed too, vr_parry_grip_2h; one hand 1) times its timing (well timed: vr_parry_timed). Well
+// timed: the parry's window runs from raising the guard to the blow, and its best part is its start: the guard came up
+// (into the parry pose, facing ahead: VR_Parry_GuardFrame) at most vr_parry_timed_window s before the blow; a guard held
+// up all along is a plain parry. Over the parried monster's group's Parry Poise (Combat > Monster Groups; Off: never
+// staggered) it decides the outcome (VR_Parry_Interrupt): blocked only, a flinch, an active-ragdoll stagger or a longer
+// one that may go down. Repeated staggers of the same monster are shorter each (vr_parry_repeat), a heavy group's more.
+// The same poise above 1 divides the melee's chances to knock it down or unbalance it (VR_Poise_Factor).
+.float vr_guard_up_m;  // (a player) when its main hand's guard came up (0: down; VR_Parry_GuardFrame)
+.float vr_guard_up_o;  // ... the off hand's
+.float vr_guard_up_x;  // ... the arms crossed
+.float vr_parry_rep_n;    // (a monster) its staggers in a row, each within vr_parry_repeat_window of the last (0: the first)
+.float vr_parry_rep_time; // ... when its last began
+float vr_parry_strength;  // the parry VR_Parry just met a blow with: its strength
+float vr_parry_welltimed; // ... well timed
+float vr_parry_test_force; // (vr_kdtrig_test_parry while a test's blow is dealt: vr_kdtrig.qc) forced, not the pose's
+// VR_Parry_Ragdoll may not send it down stairs, a ledge, a slope (parry balance: a stagger of 2 or under). (Not an
+// initialised global: QC makes that a constant, its value shared with the literal's; assigned, every 1 changed.)
+float vr_parry_rag_nofall;
+float vr_parry_noragdoll; // VR_Parry_InterruptFor: its pain pose's stagger, no ragdoll (a flinch)
+float VR_POISE_OFF = 3; // a group whose poise is Off (never staggered) is as poised as this for VR_Poise_Factor
+
+// `m`'s Parry Poise (its monster group's; below 0: Off, a parry never staggers it).
+float(entity m) VR_Poise =
+{
+    return monstergroupget(m, MGP_POISE);
+};
+
+// The melee's chances on `e` times this (a shove's knockdown, hits unbalancing it, the ragdoll triggers' melee hits): its
+// poise over 1 to the power -vr_poise_chances (Off as VR_POISE_OFF); at or under 1 (grunts .. death knights) 1.
+float(entity e) VR_Poise_Factor =
+{
+    float k = max(0, cvar_hget(cvarh_vr_poise_chances));
+    float poise = VR_Poise(e);
+    if(poise < 0)
+    {
+        poise = VR_POISE_OFF;
+    }
+    return (k > 0 && poise > 1) ? pow(poise, -k) : 1;
+};
+
+// StartFrame's player think (VR_Melee_Frame, `self` a player): when each guard came up (its timing: VR_Parry_Strength).
+// The pose as for a blow from straight ahead (the view's yaw); a blow parried from the side is never well timed.
+void() VR_Parry_GuardFrame =
+{
+    if(!cvar_hget(cvarh_vr_parry) || !cvar_hget(cvarh_vr_parry_balance) || !VRHandsTracked(self))
+    {
+        self.vr_guard_up_m = 0;
+        self.vr_guard_up_o = 0;
+        self.vr_guard_up_x = 0;
+        return;
+    }
+    float yaw = self.v_viewangle_y * 0.0174533;
+    vector fwd = '1 0 0' * cos(yaw) + '0 1 0' * sin(yaw);
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+    float up = VR_Parry_Guard(self, cVR_MainHand, fwd);
+    self.vr_guard_up_m = !up ? 0 : self.vr_guard_up_m ? self.vr_guard_up_m : time;
+    up = VR_Parry_Guard(self, cVR_OffHand, fwd);
+    self.vr_guard_up_o = !up ? 0 : self.vr_guard_up_o ? self.vr_guard_up_o : time;
+    up = VR_Parry_ArmsCrossed(self, fwd);
+    self.vr_guard_up_x = !up ? 0 : self.vr_guard_up_x ? self.vr_guard_up_x : time;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+};
+
+// The strength of `p`'s parry with `hand` (or the arms crossed): tool x grip x timing (vr_parry_welltimed set).
+float(entity p, float hand, float xCrossed) VR_Parry_Strength =
+{
+    float f = vr_parry_test_force - 10 * floor(vr_parry_test_force / 10); // (a test's: 1 bare, 2 one hand, 3 two)
+    float tool;
+    float twoHands;
+    if(xCrossed)
+    {
+        tool = max(0, cvar_hget(cvarh_vr_parry_tool_hand));
+        twoHands = TRUE;
+    }
+    else
+    {
+        float heft = VRIsHandWeaponless(p, hand) ? 0 :
+                     min(1, max(0, weaponheft(WeaponIdToModel(VRGetEntWeapon(p, hand), VRGetEntWeaponFlags(p, hand)))));
+        float light = max(0, cvar_hget(cvarh_vr_parry_tool_weapon));
+        tool = light + (max(0, cvar_hget(cvarh_vr_parry_tool_heavy)) - light) * heft;
+        twoHands = vr_parry_test_force ? f == 3 : VRGet2HAiming(p);
+    }
+    float since = xCrossed ? p.vr_guard_up_x : hand == cVR_MainHand ? p.vr_guard_up_m : p.vr_guard_up_o;
+    vr_parry_welltimed = vr_parry_test_force ? vr_parry_test_force >= 10 :
+                         since > 0 && time - since <= max(0, cvar_hget(cvarh_vr_parry_timed_window));
+    return tool * (twoHands ? max(0, cvar_hget(cvarh_vr_parry_grip_2h)) : 1) *
+           (vr_parry_welltimed ? max(0, cvar_hget(cvarh_vr_parry_timed)) : 1);
+};
 
 float(entity m, entity p, float xHold) VR_Parry_Ragdoll; // (vr_kdtrig.qc)
 // m parried by p, staggered xStagger s (VR_Parry_Interrupt: vr_parry_stagger's; the ragdoll triggers' short stagger of a
@@ -2171,6 +2268,7 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
         return;
     }
     float stagger = xStagger;
+    float ragdollOk = !vr_parry_noragdoll; // (parry balance's flinch: VR_Parry_Interrupt)
     m.vr_parry_stagger_until = time + stagger;
     m.attack_finished = max(m.attack_finished, m.vr_parry_stagger_until);
     m.attack_state = AS_STRAIGHT;
@@ -2186,7 +2284,13 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
     }
     // A humanoid staggers back as an active ragdoll instead (vr_parry_ragdoll; vr_kdtrig.qc VR_Parry_Ragdoll): the same
     // time, never down on level ground; the knockdown's think owns it till it is up.
-    if(m.classname != "monster_dragon" && VR_Parry_Ragdoll(m, p, stagger))
+    float ragged = FALSE;
+    if(ragdollOk && m.classname != "monster_dragon")
+    {
+        ragged = VR_Parry_Ragdoll(m, p, stagger);
+    }
+    vr_parry_rag_nofall = FALSE;
+    if(ragged)
     {
         self = oldSelf;
         dprint(sprintf("parry interrupt: %s staggered %.2f s (an active ragdoll)\n", m.classname, stagger));
@@ -2235,7 +2339,65 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
 
 void(entity m, entity p) VR_Parry_Interrupt =
 {
-    VR_Parry_InterruptFor(m, p, min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger))));
+    if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
+    {
+        return;
+    }
+    float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
+    float ragdollOk = TRUE;
+    vr_parry_rag_nofall = FALSE;
+    if(cvar_hget(cvarh_vr_parry_balance))
+    {
+        // Parry balance: the strength over its poise.
+        float poise = VR_Poise(m);
+        float ratio = poise < 0 ? 0 : vr_parry_strength / max(0.05, poise);
+        string how = "";
+        if(poise < 0 || ratio < max(0, cvar_hget(cvarh_vr_parry_block_below)))
+        {
+            // Blocked: the damage cut (VR_Parry), its attack goes on.
+            dprint(sprintf("parry outcome: %s strength %.2f%s poise %s ratio %.2f: blocked\n", m.classname,
+                vr_parry_strength, vr_parry_welltimed ? " (well timed)" : "", poise < 0 ? "off" : ftos(poise), ratio));
+            return;
+        }
+        float lo = max(0.1, cvar_hget(cvarh_vr_parry_stagger_min));
+        float hi = max(lo, cvar_hget(cvarh_vr_parry_stagger_max));
+        float flinch = min(3, max(0.1, cvar_hget(cvarh_vr_parry_flinch)));
+        if(ratio < 1)
+        {
+            stagger = flinch;
+            ragdollOk = FALSE;
+            how = "flinch";
+        }
+        else if(ratio <= 2)
+        {
+            stagger = lo + (hi - lo) * (ratio - 1);
+            vr_parry_rag_nofall = TRUE;
+            how = "stagger";
+        }
+        else
+        {
+            stagger = hi + (max(hi, cvar_hget(cvarh_vr_parry_stagger_heavy)) - hi) * min(1, ratio - 2);
+            how = "heavy stagger";
+        }
+        // Diminishing returns: each stagger within the window of its last shorter (a heavy group's more).
+        float window = max(0, cvar_hget(cvarh_vr_parry_repeat_window));
+        m.vr_parry_rep_n = (m.vr_parry_rep_time > 0 && time - m.vr_parry_rep_time < window) ? m.vr_parry_rep_n + 1 : 0;
+        m.vr_parry_rep_time = time;
+        float shorter = pow(min(1, max(0.05, cvar_hget(cvarh_vr_parry_repeat))), m.vr_parry_rep_n * max(1, poise));
+        stagger = min(3, max(0.1, stagger * shorter));
+        if(ragdollOk && stagger < flinch)
+        {
+            ragdollOk = FALSE; // (cut that short, a flinch)
+        }
+        dprint(sprintf("parry outcome: %s strength %.2f%s poise %g ratio %.2f: ", m.classname, vr_parry_strength,
+            vr_parry_welltimed ? " (well timed)" : "", poise, ratio)); // (sprintf: 8 arguments at most)
+        dprint(sprintf("%s %.2f s%s (repeat %g, x%.2f)\n", how, stagger, ragdollOk ? "" : " (no ragdoll)", m.vr_parry_rep_n,
+            shorter));
+    }
+    vr_parry_noragdoll = !ragdollOk;
+    VR_Parry_InterruptFor(m, p, stagger);
+    vr_parry_noragdoll = FALSE;
+    vr_parry_rag_nofall = FALSE;
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
@@ -2293,6 +2455,22 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     if(hand < 0)
     {
         armsCrossed = VR_Parry_ArmsCrossed(targ, to);
+    }
+    // A test's forced parry (vr_kdtrig_test_parry: 1 the arms crossed, 2 and 3 the main hand's weapon), the pose not
+    // looked at.
+    if(vr_parry_test_force)
+    {
+        float forced = vr_parry_test_force - 10 * floor(vr_parry_test_force / 10);
+        armsCrossed = forced == 1;
+        hand = forced == 1 ? -1 : cVR_MainHand;
+        vr_parry_at = VRGetEntHandPos(targ, cVR_MainHand);
+    }
+    // Its strength (parry balance: VR_Parry_Interrupt's outcome).
+    vr_parry_strength = 0;
+    vr_parry_welltimed = FALSE;
+    if(hand >= 0 || armsCrossed)
+    {
+        vr_parry_strength = VR_Parry_Strength(targ, hand, armsCrossed);
     }
     // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
     // _22-59-02: the ogre's chainsaw, a knight's swing, one attack several quick blows): a blow parried within that long

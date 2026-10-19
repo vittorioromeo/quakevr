@@ -1105,6 +1105,7 @@ launch and same-frame follow-ups are cancelled too. The training dummy retains i
 dead/knocked-down monsters and entities without `th_run` retain their own thinks. The spawn
 and Guardian skip forced pain callbacks (mitosis/teleport side effects) but their attack thinks still stop.
 
+Parry balance (ROUND22.md, "Parry balance"): `python Misc/quakevr/parrybalance/test.py <worktree> [examples|pose|repeat|chances]` (forced parries with `vr_kdtrig_test_parry`, the outcome table; the crowbar's real guard held vs raised just before; diminishing returns; the poise factor on hits unbalancing). The parryinterrupt test runs with `vr_parry_balance 0` (the fixed Parry Stagger).
 `python Misc/quakevr/parryinterrupt/test.py <worktree>` runs real guard tests, lowered-guard follow-up hits,
 failed-guard controls, actual knight animations, a 0.8 s stagger, e1m1 smoke and calibration
 menu paths, a real dragon tail sequence with route recovery, and knight same-callback damage/global checks.

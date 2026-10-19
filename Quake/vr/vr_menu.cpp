@@ -2058,8 +2058,9 @@ const Page pages[] = {
     {"Monster Groups - Manhandle", pageMonsterParam<18>, pageMonsterGroups},
     {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
     {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
+    {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
 };
-static_assert(mgroups::paramCount == 21, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 22, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the

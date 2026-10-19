@@ -2867,8 +2867,10 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
 // unbalancing hits move it (times), _stagger hits' chance to unbalance it (times), _sweep the leg sweep, _leggrab the leg
 // pull and lift, _lift the lift, _necksnap the neck snap, _manhandle grabbing it staggered or weak (each 1 on, 0 never),
 // _throw the two-hand throw (0 never, 1 only when hurt, 2 always; vr_foegrab_throw_by_mass 1: by its mass instead),
-// _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs) \
+// _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large), _poise its Parry Poise
+// (a parry's strength over it: blocked, flinch or stagger; above 1 also the melee's knockdown chances over it; -1 Off:
+// a parry never staggers it; QC combat.qc VR_Parry_Outcome).
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise) \
     QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
     QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
@@ -2889,7 +2891,8 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_necksnap, #humanoid, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE)
+    QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll
@@ -3126,13 +3129,13 @@ QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the cha
 QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
 QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
-QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 12 the ragdoll nearest you flung at the live monster nearest it (vr_kdtrig_test_speed); 13 the live monster nearest you killed (a corpse, 1 more damage than its health); 20 a grunt at vr_kdtrig_test_x _y _z; 21 one 160 units ahead of you; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
+QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 12 the ragdoll nearest you flung at the live monster nearest it (vr_kdtrig_test_speed); 13 the live monster nearest you killed (a corpse, 1 more damage than its health); 20 a grunt at vr_kdtrig_test_x _y _z; 21 one 160 units ahead of you; 22 every monster gone; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
 QVR_CVAR(vr_kdtrig_test_damage, "0", CVAR_NONE)      // the test hits' damage instead of their own (0: their own)
 QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord (a boss), 6 a knight, 7 an enforcer, 8 a shambler
 QVR_CVAR(vr_kdtrig_test_speed, "300", CVAR_NONE)     // units/s: vr_kdtrig_test 12's fling
 QVR_CVAR(vr_kdtrig_test_n, "20", CVAR_NONE)           // the trials of vr_kdtrig_test 30 + k
 QVR_CVAR(vr_kdtrig_test_health, "0", CVAR_NONE)       // the test grunt's health (0: its own; 0..1: that share of its full health)
-QVR_CVAR(vr_kdtrig_test_x, "0", CVAR_NONE)            // where vr_kdtrig_test 20 and the trials put a grunt (units; on the floor under it)
+QVR_CVAR(vr_kdtrig_test_x, "0", CVAR_NONE)            // where vr_kdtrig_test 20 and the trials put a grunt (units; on the floor under it; all three 0: 64 units ahead of you)
 QVR_CVAR(vr_kdtrig_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_kdtrig_test_z, "0", CVAR_NONE)
 QVR_CVAR(vr_kdtrig_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0)
@@ -3140,6 +3143,7 @@ QVR_CVAR(vr_kdtrig_test_dist, "0", CVAR_NONE)         // units: the test shotgun
 QVR_CVAR(vr_kdtrig_test_wait, "0", CVAR_NONE)         // the trials (vr_kdtrig_test 30 + k): seconds after the hit before it is judged (0: 0.2)
 QVR_CVAR(vr_kdtrig_test_face, "0", CVAR_NONE)         // the test monster: 0 facing the test hits' source, 1 facing away (hit from behind)
 QVR_CVAR(vr_kdtrig_test_aware, "1", CVAR_NONE)        // the test monster: 1 its enemy the player as it is hit, 0 none (unaware)
+QVR_CVAR(vr_kdtrig_test_parry, "0", CVAR_NONE)        // tests 9 and 11 (its blow, its shove on you): 0 parried as your pose is; forced (the pose not looked at): 1 bare hands (the arms crossed), 2 the main hand's weapon in one hand, 3 in two hands; + 10 well timed
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding
@@ -3331,6 +3335,26 @@ QVR_CVAR(vr_shove_push_twohand, "1", CVAR_ARCHIVE)     // ... and this for two
 QVR_CVAR(vr_bash_sound, "0.7", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: silent; the old sounds 0 played retired 2026-10-16)
 QVR_CVAR(vr_parry_cooldown, "0.4", CVAR_ARCHIVE)        // s: a monster's blow parried within this long of its last parried blow is still parried (its damage cut, both pushed apart) but plays no sound or sparks, opens no new counter window and costs no stamina (one parry for a burst of quick hits: the ogre's chainsaw, a knight's swing; 0: every blow a full parry)
 QVR_CVAR(vr_parry_cooldown_attack, "1", CVAR_ARCHIVE)  // 1: also a blow of the same melee attack as the monster's last parried blow (begun up to 2 s ago) is a cooldown blow, however long between them (the demon's two claws, the Overlord's double smash: one parry, one stamina cost); 0: only vr_parry_cooldown's time
+// Parry balance (QC combat.qc VR_Parry_Strength, VR_Parry_Interrupt; ROUND22.md, "Parry balance"): a parry's strength
+// (its tool times its grip times its timing) over the parried monster's group's Parry Poise (vr_mgrp_<group>_poise)
+// decides: under vr_parry_block_below blocked (the damage cut, no stagger: its attack goes on), under 1 a flinch (its pain
+// pose, vr_parry_flinch s), 1..2 an active-ragdoll stagger (vr_parry_stagger_min .. _max s), over 2 a longer one (up to
+// vr_parry_stagger_heavy s at 3) that may go down on stairs, a ledge or a slope.
+QVR_CVAR(vr_parry_balance, "1", CVAR_ARCHIVE)          // 1: a parry's stagger by its strength over the monster's Parry Poise (above); 0: every parry staggers for vr_parry_stagger
+QVR_CVAR(vr_parry_tool_hand, "0.4", CVAR_ARCHIVE)      // a parry's strength: bare hands (the arms crossed)
+QVR_CVAR(vr_parry_tool_weapon, "1", CVAR_ARCHIVE)      // ... any weapon (a light one: Heft 0)
+QVR_CVAR(vr_parry_tool_heavy, "1.3", CVAR_ARCHIVE)     // ... the heaviest weapon (Heft 1; between: by its Heft)
+QVR_CVAR(vr_parry_grip_2h, "1.5", CVAR_ARCHIVE)        // ... times this held in two hands (the arms crossed too); one hand 1
+QVR_CVAR(vr_parry_timed, "1.25", CVAR_ARCHIVE)         // ... times this well timed: the guard raised at most vr_parry_timed_window s before the blow
+QVR_CVAR(vr_parry_timed_window, "0.3", CVAR_ARCHIVE)   // s: the best part of the parry's window, from raising the guard (the parry pose, facing ahead) on
+QVR_CVAR(vr_parry_block_below, "0.5", CVAR_ARCHIVE)    // strength over poise under this: blocked only (no stagger, the attack goes on)
+QVR_CVAR(vr_parry_flinch, "0.3", CVAR_ARCHIVE)         // s: a flinch (strength over poise from vr_parry_block_below to 1): its pain pose, no ragdoll
+QVR_CVAR(vr_parry_stagger_min, "0.5", CVAR_ARCHIVE)    // s: the ragdoll stagger at strength over poise 1 (to vr_parry_stagger_max at 2)
+QVR_CVAR(vr_parry_stagger_max, "1.2", CVAR_ARCHIVE)    // s: ... at 2
+QVR_CVAR(vr_parry_stagger_heavy, "1.5", CVAR_ARCHIVE)  // s: ... at 3 and over (over 2 it may go down on stairs, a ledge or a slope)
+QVR_CVAR(vr_parry_repeat, "0.7", CVAR_ARCHIVE)         // each stagger of the same monster within vr_parry_repeat_window s of its last: times this once more (a heavy group, poise over 1: to the power of its poise)
+QVR_CVAR(vr_parry_repeat_window, "5", CVAR_ARCHIVE)    // s: ... within this of its last stagger (0: never shorter)
+QVR_CVAR(vr_poise_chances, "1", CVAR_ARCHIVE)          // a group with Parry Poise over 1 (Off: as 3): the melee's chances to knock it down (shoves, the ragdoll triggers' melee hits) and to unbalance it divided by its poise to this power (0: not)
 QVR_CVAR(vr_bash_deflect_radius, "24", CVAR_ARCHIVE)   // units around the guard (the weapon, the hands) a bash bats projectiles back within (vr_deflect)
 QVR_CVAR(vr_bash_deflect_window, "0.3", CVAR_ARCHIVE)  // s a bash (or a shove with a weapon in hand) goes on batting after the push
 QVR_CVAR(vr_parry_wobble, "0.7", CVAR_ARCHIVE)          // how much a parried blow knocks your hand and arm
