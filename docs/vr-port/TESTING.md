@@ -1312,6 +1312,11 @@ vr_test_spawn_dist <d>; impulse 241`. The flamethrowers' tank and hose: `vr_ad_t
 1.55 1.05 12 0` (behind), `vr_adgun_hose_route 1` (over the shoulder), `vr_adgun_hose_info` (its ends, length, rings,
 the mirror image's rings with `vr_menu_body_clone 2; menu_vr`, its cost a frame); scripts `scratch/held.sh`,
 `tank.sh`, `drop.sh` of worktree goreflesh (agent/adgunvariants).
+Zombies' falls (ROUND22.md, "Zombies fall as ragdolls"): `vr_test_spawn 2; impulse 241` (AD: 238 a mummy, 201 the
+zombie knight), `vr_knockdown_debug 1; developer 1`, `vr_knockdown_test 23` (a 30 hit: "falls as a ragdoll"), `24` (a
+grenade 150 units short of it), `5` its state; `vr_decap_test 7` / `vr_knockdown_test 4` behead / gib it down there;
+`scratch/zrag.sh` of worktree fastship (agent/zombierag). The toolgun's Widowmaker: `vr_ad_upgrades 2; vr_ad_test 148`
+("comes loaded: PASS (16 of 16)").
 Upgrades: `vr_ad_upgrades 2; vr_ad_test 5` (a Widowmaker pickup ahead), take it, `vr_ad_test 6` (each hand's upgrade
 code: 1 Shadow Axe, 2 Widowmaker, 4 Plasma Gun; parm64's packing); `7` an older game's player-wide upgrades moved onto
 the weapons; `8`/`9` the worldspawn give/take_weapons and no_axestart on the current loadout's parms; `66` AD's sky

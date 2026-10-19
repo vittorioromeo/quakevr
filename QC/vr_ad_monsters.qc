@@ -27,6 +27,30 @@ void(float xBits, float xForward, float xUp, float xRadius, float xCorpseH) VR_A
     self.vr_ad_corpseh = xCorpseH;
 };
 
+// AD's zombie's, mummy's and zombie knight's pain (self.ad_th_pain): AD's own, and the fall it begins (paine1, painb1,
+// paind1: down to lie not solid until AD's wakeup finds room) is a knockdown's active ragdoll instead
+// (VR_Knockdown_ZombieFall; BACKLOG "Zombies stuck knocked down"). No ragdoll (ragdolls off, no room): AD's own fall.
+void(entity xInflictor, entity xAttacker, float xTake) VR_AD_ZombiePain =
+{
+    if(self.ad_classtype == ad_CT_MONZOMBIEK)
+    {
+        ad_zombiek_pain(xInflictor, xAttacker, xTake);
+    }
+    else
+    {
+        ad_zombie_pain(xInflictor, xAttacker, xTake);
+    }
+    if(self.health <= 0 || self.vr_knockdown)
+    {
+        return;
+    }
+    void() t = self.think;
+    if(t == ad_zombie_paine2 || t == ad_zombie_painb2 || t == ad_zombiek_paine2 || t == ad_zombiek_paind2)
+    {
+        VR_Knockdown_ZombieFall(self, xAttacker);
+    }
+};
+
 // AD's monster_start (self the monster, its class set): its data. A class not here gets none of Quake VR's treatment
 // but what any monster gets (hit hooks, shoves).
 void() VR_AD_MonsterSetup =
@@ -58,6 +82,10 @@ void() VR_AD_MonsterSetup =
         VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_ZOMBIE, 3, 21.5, 7, cvarh_vr_corpse_health_zombie);
         self.vr_ad_headl = 3;
         VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, 132, ad_zombiek_paine13);
+        if(self.ad_th_pain == ad_zombiek_pain)
+        {
+            self.ad_th_pain = VR_AD_ZombiePain; // (its fall a ragdoll's)
+        }
     }
     // Crossbow knight (progs/mon_dcrossbow.mdl: deaths 225-235, 236-255). Head: headfit.py mon_dcrossbow 19 -2 8 (3.9 -1.4
     // 21.4, 6.0).
@@ -298,6 +326,10 @@ void() VR_AD_MonsterSetup =
     {
         VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ZOMBIE, 0, 21.5, 5.5, cvarh_vr_corpse_health_zombie);
         VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, 173, ad_zombie_paine13);
+        if(self.ad_th_pain == ad_zombie_pain)
+        {
+            self.ad_th_pain = VR_AD_ZombiePain; // (its fall a ragdoll's; not a crucified one's pain)
+        }
     }
 };
 
@@ -445,6 +477,10 @@ float(entity targ) VR_AD_PainDown =
     if(targ.vr_knockdown == 1)
     {
         VR_Knockdown_Keep(targ, cvar_hget(cvarh_vr_knockdown_hit_time), "hit");
+    }
+    if(targ.vr_ad_mon & VR_ADM_ZOMBIE)
+    {
+        targ.health = targ.max_health; // (a zombie's rule down there too: only one hit of its whole health gibs it)
     }
     if(targ.ad_pain_sound != "" && targ.ad_pain_finished < time)
     {

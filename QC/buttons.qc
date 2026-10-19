@@ -810,6 +810,7 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
     VR_ADMelee_Placed(xSpawner.weapon, xSpawner.weaponflags); // AD support: an AD melee weapon (vr_ad_melee.qc)
     entity inst = WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)); // a new one, loaded
     inst.wi_adup = vr_grab_adup; // AD support: an upgrade's prop (the toolgun)
+    inst.wi_clip = VR_ClipSizeOf(xSpawner.weapon, inst); // (the Widowmaker's: its whole tube, not the super shotgun's 2)
     entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
         inst,
         xSpawner.origin, rot,

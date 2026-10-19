@@ -332,6 +332,34 @@ void() AD_WidowTubeTestRun =
 
 void(float request, entity p) AD_UpgradesTest =
 {
+    if(request == 148)
+    {
+        // The toolgun's Widowmaker (toolgun_upgrade_ssg: a func_weapon_grabbable prop) comes with its tube full.
+        makevectors(p.angles);
+        entity os3 = self;
+        self = spawn();
+        setorigin(self, p.origin + v_forward * 64 + '0 0 16');
+        vector at = self.origin;
+        toolgun_upgrade_ssg();
+        self = os3;
+        entity w = world; // (the weapon laid there: the newest with an upgraded record near it)
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(e != p && e.weaponinst != world && e.weaponinst.wi_adup && vlen(e.origin - at) < 64)
+            {
+                w = e;
+            }
+        }
+        float tube = rint(cvar("vr_ad_widowmaker_tube"));
+        float got = -1;
+        if(w != world)
+        {
+            got = w.weaponinst.wi_clip;
+        }
+        float ok = (w != world) && AD_Widowmaker(w.weaponinst) && (got == tube);
+        AD_WidowCheck("the toolgun's Widowmaker comes loaded", ok, sprintf("%g of %g", got, tube));
+        return;
+    }
     if(request == 149)
     {
         entity os2 = self;
