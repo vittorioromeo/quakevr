@@ -14595,3 +14595,47 @@ physics, not the timing:
 - shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
 
 Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
+
+## Melee frame-rate independence (worktree `gorefx`, branch `agent/meleefps`, 2026-10-19)
+
+The server ticks at 72 Hz whatever the headset's rate, and each tick reads the latest frame's pose. At 90 Hz a tick's
+pose is one or two frames newer than the last tick's (11 or 22 ms for the tick's 13.9), at 120 Hz (the author's
+headset, the recorded takes) 8 or 17 ms, at 144 Hz 7, 14 or 21 ms; a dropped frame likewise. Every speed was the pose's
+move over the tick's time, so a steady swing read at 0.8 and 1.6 times its speed by turns (90 Hz), and every gate read
+from one sample (blow speed, land, whoosh, pullback, deflect, bash, wiggle, meleearc's floor) beat with it.
+
+- **Pose clock.** The client sends its poses' time with each move (`VrMove::poseClock`: `hands::State::poseTime`, the
+  tracking's time after slow motion's filter, modulo `VR_POSE_CLOCK_WRAP` 1024 s) -> `.vr_posetime`. `VR_Melee_Track`
+  and the leg sweep (`vr_legsweep.cpp`: its speed gate, the 25 m/s teleport guard, its 0.08 s stroke) measure over the
+  poses' times (the ticks' when unknown or implausible: 0-0.25 s); a tick with the same frame's pose again is no news.
+- **Turning chords** (`VR_Melee_TurnVel`): a far or near point's velocity about the grip is its chord over the span
+  turned on to, and scaled as, a 1/72 s chord (a chord's way is the arc's at its middle: over two frames a blade's tip
+  points further back into the turn, PULLBACK). At 72 Hz frames nothing changes.
+- **Swept arcs** (`VR_Melee_ArcRib`): a point's line bends through the arc's middle (about the grip) when the chord
+  cuts its inside by more than half the line's thickness (`VR_MELEE_ARC_SAG` 0.5; ribs 40 -> 48).
+- `meleearc`'s 45 degrees a pose is 45 degrees a 72 Hz tick, per second over the two poses' times.
+- Weapon wrench (`vr_weight.cpp`): its clock is the poses' time; its ring 64 -> 128 samples (0.5 s at 240 Hz); the
+  tracking-jump guard 90 degrees a 72 Hz frame, per second.
+- Replays: takes play their poses at their recorded `xr_time` (the runtime's, steady; a frame's dt jitters a
+  millisecond). Tooling: `vr_motion_eval_rate/_jitter/_stutter` (defaults for vr_motion_eval: eval.sh `EVAL_PRE`), the
+  eval's `stutter N` (every N-th frame dropped), `vr_fixed_frames_stutter`, legsweep_test `LS_RATE`/`LS_STUTTER`.
+
+Measured (177 takes; flips: verdicts against the same build's takes at their own 120 Hz frames; strength: the first
+hit's, mean |difference|):
+
+| rate | before: fails, flips, strength diff | after: fails, flips, strength diff |
+|---|---|---|
+| native (120 Hz, recorded ticks) | 9, -, - | 8, - (1 vs before: slash_backswing_up_left 12-35-23 now passes), - |
+| 72 | 8, 1, 0.21 | 8, 2, 0.07 |
+| 90 | 13, 4, 0.32 | 8, 0, 0.07 |
+| 120 (engine ticks) | 10, 3, 0.17 | 8, 0, 0.05 |
+| 144 | 8, 3, 0.22 | 8, 2, 0.07 |
+| 90, every 5th frame dropped | 19, 12, 0.30 | 18, 10, 0.20 |
+| 144, every 5th dropped | 20, 13, 0.26 | 19, 11, 0.15 |
+
+At the reference the verdicts hold, but the first hits' strengths are 0.11 lower on average (damage about 19% lower):
+the beat's 1.2-times peaks at 120 Hz are gone (a swing's speed is its own). Open: dropped frames still miss ~10 slashes
+(the blade's far end jumps early, far 30 m/s with the grip at 0.9, touching the dummy before the swing, which then
+can't strike it again until it re-enters; not the speed estimate, not the weight's put-back: to be found). The leg
+sweep suite's verdicts at 72/90/120/144: 3/4/4/2 fails (before 3/3/4/3), mostly the fall's direction (physics) and the
+borderline `toward` case; with dropped frames 11 both before and after (four weapons "no contact").

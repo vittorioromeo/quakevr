@@ -1249,6 +1249,31 @@ float() VR_PlayerTime =
     return time + vr_player_time_offset;
 };
 
+// A point of the line's velocity about the grip (`xR0` to `xR1`, from the grip, over `xSpan` s), as its chord over
+// VR_MELEE_VEL_SPAN would read it. A chord's way is the arc's at the chord's middle: over a longer span (a tick's pose
+// two headset frames on, a dropped frame) it points further back into the turn (a blade's tip swung round read as drawn
+// back along the line: VR_MELEE_PULLBACK) and reads slower. Turning uniformly about the grip (the line is rigid), the
+// chord is turned on to the window's middle and scaled to its length: every span reads as a 72 Hz tick's chord did.
+float VR_MELEE_VEL_SPAN = 0.013889; // s (a 72 Hz tick: at 72 Hz every chord is this, as before)
+vector(vector xR0, vector xR1, float xSpan) VR_Melee_TurnVel =
+{
+    vector chord = (xR1 - xR0) * (1 / xSpan);
+    vector n = VR_Melee_Cross(xR0, xR1);
+    float sn = vlen(n);
+    float th = atan2(sn, xR0 * xR1);
+    if(sn < 0.000001 || th < 0.001)
+    {
+        return chord;
+    }
+    n = n * (1 / sn);
+    float k = VR_MELEE_VEL_SPAN / xSpan;
+    float a = th * 0.5 * (1 - k);
+    float hw = min(th * k * 0.5, 1.5);
+    float hs = th * 0.5;
+    chord = chord * (sin(hw) / hw) * (hs / sin(hs));
+    return chord * cos(a) + VR_Melee_Cross(n, chord) * sin(a) + n * (n * chord) * (1 - cos(a));
+};
+
 float(float xHand, entity b) VR_Melee_Track =
 {
     // The pose is the client's as this server frame ends (time + frametime): QC's time is still the frame's start. On
@@ -1339,9 +1364,9 @@ float(float xHand, entity b) VR_Melee_Track =
     }
     if(same && !jumped)
     {
-        b.mh_vnear = (rnear - b.mh_rnear) * (1 / dt);
         b.mh_vgrip = (rgrip - b.mh_rgrip) * (1 / dt);
-        b.mh_vfar = (rfar - b.mh_rfar) * (1 / dt);
+        b.mh_vnear = b.mh_vgrip + VR_Melee_TurnVel(b.mh_rnear - b.mh_rgrip, rnear - rgrip, dt);
+        b.mh_vfar = b.mh_vgrip + VR_Melee_TurnVel(b.mh_rfar - b.mh_rgrip, rfar - rgrip, dt);
         vwrist = (rwrist - b.mh_rwrist) * (1 / dt);
     }
     else
