@@ -12,6 +12,10 @@ namespace qvr::hands
 struct State
 {
     bool valid{false};
+    // The time of this frame's poses (the tracking's: TrackingState::time after slow motion's filter, the player's own
+    // clock; -1 unknown). The server's ticks (72 Hz) beat against the headset's frames, so a tick's pose may be one or
+    // two frames newer than the last tick's: the melee's speeds are measured over the poses' times, not the ticks'.
+    double poseTime{-1.0};
 
     glm::vec3 playerOrigin{0.f}; // the player's box (its middle; the floor below the head less the lean)
     glm::vec3 lean{0.f};         // the head's horizontal offset from it (vr_lean_radius)

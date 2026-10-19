@@ -14599,3 +14599,192 @@ Every lr fall leans backward by 15-30 units; these two lean far enough to fail t
 ### Cut flesh after Quake's gibs; the cut piece's fountain streams after it
 
 The cut's flesh was a fan of 1D blood stripes (the limb cap: each corner its own column of an 8-row red strip; the body stump: the wound paint's star of three reds over the cone the cut bone collapses into). Now both use one recipe after Quake's own gibs' and heads' necks (sampled for its colours only: mostly the palette's dark blood ramp 64..72, brown meat 96..100, pale sinew 117..119, dark pits, wet glints; chunky cells; the bone and marrow in the middle): the limb model's cap (vr_limbmodel.cpp fleshColour) is laid flat on a 32-row flesh strip under its skin at 2.5 texels a unit; the body (vr_glsl.h StumpFlesh) draws it within 1.25 limb thicknesses of each cut joint (InstanceData's new Stump: the cut bones, the reach; ragdoll::stumpLook), the cone and round it, a ragged edge, wet but not glazed. The cut piece's own fountain (vr_limbs_end_fountain) throws 2-5 drops a tick (was 1-3) with a share of the piece's speed, so they stream after it. Test aids: vr_limb_test 39 (float 14 units from the nearest corpse's stump, facing it) and 40 (the last limb hung 10 units before your eyes, its cap turned to you), Debug > Gore Tests > Limb Gore.
+
+## Brain chunks: squishier, wetter (worktree `dequant`, branch `agent/brainchunks`, 2026-10-19)
+
+The author: the brain chunks (head pops, head gibs destroyed) look bland and flat; make them squishier, glossier and
+more brain-like (folds, pinkish grey, dark blood in the grooves, a wet sheen, some warmth; a cheap jiggle if easy).
+
+- **Skins and relief** (`Misc/quakevr/make_brains.py`, then `bake_normals.py gib_brain1.mdl gib_brain2.mdl
+  gib_brain3.mdl`): the folds larger (`FOLDS` 6.5 -> 3.6: five or six gyri across a chunk; at 6.5 they read as
+  speckle at arm's length) and rounder (a gyrus' profile part half circle, part sine: a sharp crease, a swollen top),
+  pinker colours with darker sulci, blood run into every sulcus (not only the deep ones) and clotted dark in the deep
+  ones, a gyrus' flanks warmer and redder (`WARM`: light through the tissue), a little baked shade down the creases and
+  a paler crest; the relief deeper (`DEPTH` 0.10 -> 0.16 units, about 6 mm); the torn face a little darker (it blew out
+  to white under bright light).
+- **Normal maps** (normaltiles.py): a recipe may give its own `"smooth"` angle (the faces round a corner smoothed over);
+  the brains 75 degrees (35 before: the mesh's lumps baked in as flat facets, which glinted like a crystal's under the
+  sheen).
+- **Wet sheen** (`vr_smallgibs_brains_gloss`, 1, 0..2; Gore > Small Gibs > Brain Chunk Gloss): `VR_AliasWetCoat` gives a
+  brain chunk (`progs/gib_brain*`) the wet coat all over, with w 2: the alias shader keeps the sheen (WoundSheen's
+  highlight, broad lobe and grazing film) but skips the coat's darkening and its film over the bumps (the folds' relief
+  stays), and adds a warm red rim (the light come through the tissue: a cheap subsurface look).
+- **Jiggle** (`vr_brainjiggle.cpp`; `vr_smallgibs_brains_jiggle`, 1, 0 off; `vr_smallgibs_brains_jiggle_speed`, 0.8 m/s;
+  Gore > Small Gibs > Brain Chunk Jiggle): drawn only (the Box3D body stays rigid). Each brain chunk drawn has its
+  speed followed from frame to frame (smoothed over 20 ms); a change faster than the threshold (a landing, a bounce, a
+  hand's jerk) kicks a damped spring (4.8 Hz, damping 0.22): squashed along the change and bulged across it, volume
+  kept, about its origin, in `VR_AliasPreTransform`; settled in about half a second. Debug > Gore Tests > **Brain
+  Jiggle Info** (`vr_brain_jiggle_info`).
+
+Tests: `vr_smallgibs_test 21` on vrfiringrange, `vr_brain_jiggle_info` through the flight: 16 chunks followed, 43 then
+72 kicks while they fly into each other and land (the most squash 0.10, 0.15), none wobbling once they lie still and
+no kicks at rest; with jiggle 0 none followed. Close-ups on vrfiringrange (bright) and e1m1's start (dim), before and
+after: the folds read as folds at a metre, the sheen shows on the gyri in the dim, the grooves dark red.
+
+- **For VR:** pop a few heads (Debug > Gore Tests > Brain Chunks Ahead is quickest) and look at the chunks close, in
+  light and shade: folds, wet highlights, a reddish rim; pick one up and shake it, drop it: it wobbles. Gloss and Jiggle
+  sliders under Gore > Small Gibs if either is too much.
+
+
+## Thrown bodies and tackles (worktree `tghost`, branch `agent/tackle`, 2026-10-19)
+
+Two new ragdoll triggers (QC `vr_kdtrig.qc`, the table's 8th and 9th: `thrown`, `tackle`; Combat > Ragdoll Triggers >
+Thrown Bodies, Tackles; each monster group's share `vr_mgrp_<group>_thrown`, `_tackle`, Monster Groups > Thrown Bodies,
+Tackles). No damage, so not `VR_KdTrig_Hit`'s loop: their own entries share `VR_KdTrig_Bump`.
+
+- **Weight classes**: the monster's weight is `vr_kdtrig_weight` (80 kg) times its group's resistance (grunt 80, knight
+  and enforcer 92, death knight 128, ogre 200); the thrower's is the thrown body's mass (its ragdoll's) or yours
+  (`vr_kdtrig_tackle_weight` 80). Up to `vr_kdtrig_weight_topple` (1.5) times the thrower's it can be toppled (the
+  knockdown's topple, the way it was struck); up to `vr_kdtrig_weight_stagger` (3) times it only staggers (a parry's
+  stagger for `vr_kdtrig_bump_stagger` 0.6 s: `VR_Parry_InterruptFor`, as an active ragdoll where it can, pushed the
+  strike's way); heavier stands. Shamblers, fiends, dogs and the bosses never (their groups take no triggers).
+- **Thrown Bodies** (`vr_kdtrig_thrown_*`): the engine (`vr_box3d_step.cpp` `callBodyHits`, after the step) watches each
+  ragdoll thrown in the last `_window` (1.5) s (a hand let go of it: `releaseRagdoll`; the two-hand throw; the test's
+  `ragdollfling`) or held while a holding hand swings (not only dragged), its middle at a quarter of `_speed` or more,
+  its parts' boxes meeting a living monster's box (ragdolls pass through living monsters in the physics: no contact
+  existed), and calls `VR_KdTrig_BodyHit(m, body, mass, vel)`. Strike = mass x speed / (monster's weight x `_speed`
+  200): 1 or more topples a toppleable class (chance `vr_kdtrig_thrown`, 1), `_least` (0.4) .. 1 only staggers, less
+  nothing. The body flies on through it (no momentum taken from it).
+- **Tackles** (`vr_kdtrig_tackle_*`; `PlayerVRMelee` after the bash): on the ground, running at `_speed` (0.85) of
+  `sv_maxspeed` or faster, within 60 degrees of where you face, in a pose (both hands before the chest within `_gap`
+  20 units of each other or crossed, not a gun aimed two-handed; a weapon held across; a palm forward; a bash or shove
+  going), your box about to meet a living monster's (this frame's run and 8 units on). Down: you keep `_slow` (0.4) of
+  your speed; a heavier one staggers and you bounce back `_bump` (60 u/s); `_cooldown` 1.5 s.
+- Debug: `vr_kdtrig_debug 1` logs each (`kdtrig: thrown on monster_ogre: staggers (a monster_army at 325 u/s, 80 kg
+  against its 200 kg, strike 0.65: a heavier class)`), and why one stands (once each half second); 2 also a tackle
+  that was too slow. Debug > Tests > Ragdoll Triggers: Knock Down the Nearest (test 10), Fling the Nearest Body (12,
+  `vr_kdtrig_test_speed` 300), Spawn a Test Monster Ahead (21, 160 units; `vr_kdtrig_test_class` 8 a shambler now);
+  test 13 kills the nearest (a corpse).
+- Monster group params: Thrown and Tackle sit after Blast (QC `MGP_SHOVE` .. `MGP_HOLD` now 11 .. 20).
+- Headless (vrragtriggers): thrown grunt (knocked down, 364 u/s) at a grunt: down, strike 1.82; thrown grunt corpse at
+  an ogre: staggers (0.65), up in 0.65 s; at a shambler: stands (its group off). Tackle at full run (320 u/s, guard):
+  grunt down along the run (yaw 90), ogre staggers, shambler stands; walking (177 u/s): too slow; hands at the sides,
+  or running backward in the guard: nothing. eval.sh --full 168/177.
+- **For VR**: throw a corpse and a knocked-down grunt at grunts (they should fall the throw's way), at an ogre (a short
+  stagger), at a shambler (nothing); swing a held body into one; sprint into grunts with hands together or crossed,
+  palms out, or shoving (they fall away from you, you slow down), into an ogre (it staggers, you bounce), and check a
+  gun aimed two-handed while running never tackles.
+
+## Melee frame-rate independence (worktree `gorefx`, branch `agent/meleefps`, 2026-10-19)
+
+The server ticks at 72 Hz whatever the headset's rate, and each tick reads the latest frame's pose. At 90 Hz a tick's
+pose is one or two frames newer than the last tick's (11 or 22 ms for the tick's 13.9), at 120 Hz (the author's
+headset, the recorded takes) 8 or 17 ms, at 144 Hz 7, 14 or 21 ms; a dropped frame likewise. Every speed was the pose's
+move over the tick's time, so a steady swing read at 0.8 and 1.6 times its speed by turns (90 Hz), and every gate read
+from one sample (blow speed, land, whoosh, pullback, deflect, bash, wiggle, meleearc's floor) beat with it.
+
+- **Pose clock.** The client sends its poses' time with each move (`VrMove::poseClock`: `hands::State::poseTime`, the
+  tracking's time after slow motion's filter, modulo `VR_POSE_CLOCK_WRAP` 1024 s) -> `.vr_posetime`. `VR_Melee_Track`
+  and the leg sweep (`vr_legsweep.cpp`: its speed gate, the 25 m/s teleport guard, its 0.08 s stroke) measure over the
+  poses' times (the ticks' when unknown or implausible: 0-0.25 s); a tick with the same frame's pose again is no news.
+- **Turning chords** (`VR_Melee_TurnVel`): a far or near point's velocity about the grip is its chord over the span
+  turned on to, and scaled as, a 1/72 s chord (a chord's way is the arc's at its middle: over two frames a blade's tip
+  points further back into the turn, PULLBACK). At 72 Hz frames nothing changes.
+- **Swept arcs** (`VR_Melee_ArcRib`): a point's line bends through the arc's middle (about the grip) when the chord
+  cuts its inside by more than half the line's thickness (`VR_MELEE_ARC_SAG` 0.5; ribs 40 -> 48).
+- `meleearc`'s 45 degrees a pose is 45 degrees a 72 Hz tick, per second over the two poses' times.
+- Weapon wrench (`vr_weight.cpp`): its clock is the poses' time; its ring 64 -> 128 samples (0.5 s at 240 Hz); the
+  tracking-jump guard 90 degrees a 72 Hz frame, per second.
+- Replays: takes play their poses at their recorded `xr_time` (the runtime's, steady; a frame's dt jitters a
+  millisecond). Tooling: `vr_motion_eval_rate/_jitter/_stutter` (defaults for vr_motion_eval: eval.sh `EVAL_PRE`), the
+  eval's `stutter N` (every N-th frame dropped), `vr_fixed_frames_stutter`, legsweep_test `LS_RATE`/`LS_STUTTER`.
+
+Measured (177 takes; flips: verdicts against the same build's takes at their own 120 Hz frames; strength: the first
+hit's, mean |difference|):
+
+| rate | before: fails, flips, strength diff | after: fails, flips, strength diff |
+|---|---|---|
+| native (120 Hz, recorded ticks) | 9, -, - | 8, - (1 vs before: slash_backswing_up_left 12-35-23 now passes), - |
+| 72 | 8, 1, 0.21 | 8, 2, 0.07 |
+| 90 | 13, 4, 0.32 | 8, 0, 0.07 |
+| 120 (engine ticks) | 10, 3, 0.17 | 8, 0, 0.05 |
+| 144 | 8, 3, 0.22 | 8, 2, 0.07 |
+| 90, every 5th frame dropped | 19, 12, 0.30 | 18, 10, 0.20 |
+| 144, every 5th dropped | 20, 13, 0.26 | 19, 11, 0.15 |
+
+At the reference the verdicts hold, but the first hits' strengths are 0.11 lower on average (damage about 19% lower):
+the beat's 1.2-times peaks at 120 Hz are gone (a swing's speed is its own). Open: dropped frames still miss ~10 slashes
+(the blade's far end jumps early, far 30 m/s with the grip at 0.9, touching the dummy before the swing, which then
+can't strike it again until it re-enters; not the speed estimate, not the weight's put-back: to be found). The leg
+sweep suite's verdicts at 72/90/120/144: 3/4/4/2 fails (before 3/3/4/3), mostly the fall's direction (physics) and the
+borderline `toward` case; with dropped frames 11 both before and after (four weapons "no contact").
+
+Follow-up (same branch): the strength keeps the old feel. His takes are 120 Hz (Virtual Desktop; `vr_melee_speed` at its
+default 3.2). The beat had read the first hits 1.15-1.2 times too fast, and his strengths were tuned on that:
+`VR_MELEE_STRENGTH_SPEED` 1.13 scales the speed only for the strength and damage (the land/slow/wiggle gates read the
+true speed; a QC constant, no cvar to migrate). Takes at their own frames: first-hit strength 1.171 (old 1.168), damage
+per take 26.07 (old 25.95); at 120 Hz with the engine's ticks 1.181 / 26.56. Verdicts as before but
+slash_backswing_up_left 12-35-23, now a pass. The dropped-frame misses are not the speed: with every 5th frame dropped
+the replayed hands sit further from the recorded ones (`hand_error_u` median 2.6 units against 1.7 at 90 Hz, 0.9 at
+the takes' own frames; the missed slash 11.7 against 2.7; at most 87): the blade reaches the dummy earlier in the
+swing (slower, drawn back: refused) and is through it before the blow. To be found: what places the body or hands
+differently with an irregular frame (the lean, the body's gait, the replay's placement). The rule that a struck thing is
+struck again only entering it is not involved (it applies only to what a blow landed on).
+## Parry balance (worktree `dequant`, branch `agent/parrybalance`, 2026-10-19)
+
+Vittorio's approved plan: a parry's effect depends on how strong it is against how sturdy the monster is, so bare hands
+no longer stagger an ogre and weapons/explosives stay the answer to heavy monsters.
+
+- **Strength** = tool x grip x timing (QC `combat.qc` VR_Parry_Strength): bare hands `vr_parry_tool_hand` 0.4, any
+  weapon `vr_parry_tool_weapon` 1, a heavy one up to `vr_parry_tool_heavy` 1.3 at Heft 1 (by its weight class,
+  `weaponheft`); two hands (and the crossed arms) `vr_parry_grip_2h` x1.5; well timed `vr_parry_timed` x1.25.
+- **Well timed**: the parry's window runs from raising the guard to the blow; its best part is the start: the guard
+  came up at most `vr_parry_timed_window` 0.3 s before the blow. VR_Parry_GuardFrame (each player frame, from
+  VR_Melee_Frame) notes when each hand's guard and the crossed arms came up, the pose tested as for a blow from straight
+  ahead (the view's yaw): a blow parried from the side is never well timed; a guard held up all along is plain.
+- **Parry Poise** per monster group (`vr_mgrp_<group>_poise`, Monster Groups > Parry Poise; the param after Hold,
+  QC `MGP_POISE` 21): grunts, enforcers 0.3, knights 0.7, death knights 1, ogres 1.6; shamblers, giants, bosses Off (-1:
+  a parry never staggers them). The others by size: zombies 0.5, mummies 0.7, rottweilers 0.4, fiends 1.2, gremlins 0.3,
+  skull wizards 0.6, spiders/crawlers 0.5, scrags/gargoyles 0.4, vores 1.2, spawns 0.6, fish 0.3, wraiths/floaters
+  (the Overlord, the sword) 1.2, machines 1.6, others 1.
+- **Outcome** (VR_Parry_Interrupt), strength/poise: under `vr_parry_block_below` 0.5 blocked (the damage cut as before,
+  no stagger, the attack goes on: its later hits are parried again or land); under 1 a flinch (`vr_parry_flinch` 0.3 s,
+  the pain pose, no ragdoll); 1..2 the active-ragdoll stagger `vr_parry_stagger_min` 0.5 .. `_max` 1.2 s, never down
+  (stairs and slopes are not looked at); over 2 up to `vr_parry_stagger_heavy` 1.5 s at 3, and it may go down stairs, a
+  ledge or a slope as before. `vr_parry_balance 0`: the old fixed `vr_parry_stagger` for every parry (the
+  parryinterrupt test sets it). The ragdoll triggers' own short staggers (VR_Parry_InterruptFor) are untouched.
+- **Diminishing returns**: each stagger of the same monster within `vr_parry_repeat_window` 5 s of its last lasts
+  `vr_parry_repeat` 0.7 times more (0.7, 0.49, ...); a heavy group (poise over 1) to the power of its poise (an ogre's
+  0.56 a step): it recovers faster. Cut under the flinch's time it is a flinch (no ragdoll).
+- **Poise against melee** (`vr_poise_chances` 1, VR_Poise_Factor): a group with poise over 1 (Off as 3) has a shove's
+  knockdown chance, hits' unbalance chance (and its knockdown roll) and the ragdoll triggers' chances on melee hits
+  (blows, headbutts, bashes, shoves, flung props; never the shotgun's or the blast's) divided by its poise (an ogre's
+  x0.63, a fiend's x0.83); grunts .. death knights unchanged.
+- **Menu**: Combat > Parry and Bash, "Parry Balance" section (every cvar above); Monster Groups: each group's Parry
+  Poise row (Off below 0) and the "Parry Poise" page by group. No existing default changed: no config migration.
+- **A QC trap met**: an initialised global (`float x = TRUE;`) is a constant sharing the literal's storage; assigning it
+  FALSE turned every `+ 1` into `+ 0` (frikbot's BotFrame loop ran away). The flag is an uninitialised global now.
+- **Tests**: `vr_kdtrig_test_parry` (tests 9 and 11: 1 bare hands, 2 one hand, 3 two hands, +10 well timed; the pose
+  not looked at); `vr_kdtrig_test 22` clears every monster; vr_kdtrig_test_x/_y/_z all 0 put the test monster 64 units
+  ahead. `python Misc/quakevr/parrybalance/test.py <worktree> [examples|pose|repeat|chances]`:
+
+  | case | strength/poise | outcome |
+  |---|---|---|
+  | bare hands vs grunt shove | 0.6/0.3 = 2.00 | ragdoll stagger 1.20 s |
+  | bare hands vs knight | 0.6/0.7 = 0.86 | flinch 0.30 s |
+  | one-hand weapon vs knight | 1.0/0.7 = 1.43 | ragdoll stagger 0.80 s |
+  | two-hand weapon vs knight | 1.5/0.7 = 2.14 | ragdoll stagger 1.24 s |
+  | one-hand weapon vs death knight | 1.0/1.0 = 1.00 | ragdoll stagger 0.50 s |
+  | bare hands vs ogre | 0.6/1.6 = 0.38 | blocked, 6 of 10 damage taken |
+  | well-timed one-hand weapon vs ogre | 1.25/1.6 = 0.78 | flinch 0.30 s |
+  | well-timed two hands vs shambler | Off | blocked |
+
+  pose (the crowbar's real guard, mock hands, vs a knight): held up 2 s 1.43 plain; raised 3 frames before 1.79 well
+  timed. repeat: knight 1.24, 0.87, 0.61 s (recovered 1.30, 0.90, 0.65); ogre (well-timed two hands) 0.62, 0.35, 0.20 s
+  (the last a flinch). chances: ogre's unbalance 0.241 -> 0.151 (x1/1.6), grunt's unchanged. eval.sh --full 168/177.
+  parryinterrupt timing and smoke (menu paths 0 missing) PASS; its callback section expects "recovery think 1" but
+  the ragdoll stagger (vr_parry_ragdoll 1) owns the think since round 22: 0, the same with vr_parry_balance 0 (stale).
+- **For VR**: cross your arms against a grunt's shove (it reels ~1 s) and a knight (a short flinch); a sword in one hand
+  and in two against knights (0.8 s, 1.2 s); bare hands against an ogre's chainsaw (blocked, the chainsaw keeps going,
+  part of the damage through); a weapon raised just as an ogre swings (a short flinch); a shambler never staggers.
+  Parry the same knight again and again: each stagger shorter. Raise the guard just before the blow vs holding it up.

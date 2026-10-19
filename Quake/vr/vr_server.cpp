@@ -696,6 +696,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
 
     setFieldVec(ent, f.v_viewangle, move.headAngles);
     setFieldFloat(ent, f.vryaw, move.vrYaw);
+    setFieldFloat(ent, f.vr_posetime, move.poseClock);
 
     for(int h = 0; h < 2; h++)
     {

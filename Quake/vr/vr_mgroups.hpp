@@ -24,7 +24,9 @@ enum class Param : int
     Wounded,
     Blow,
     Blast,
-    Shove,     // a shove's base chance to knock it down (vr_knockdown_chance_<g>)
+    Thrown,    // the thrown body's chance times this (vr_mgrp_<g>_thrown), and the tackle's (_tackle): no hits, their own
+    Tackle,    // entries (QC VR_KdTrig_BodyHit, VR_KdTrig_Tackle), the table's last two
+    Shove,    // a shove's base chance to knock it down (vr_knockdown_chance_<g>)
     Push,      // how far shoves, bashes and unbalancing hits move it, times
     Stagger,   // hits' chance to unbalance it, times
     Sweep,     // the leg sweep takes it
@@ -34,6 +36,7 @@ enum class Param : int
     Manhandle, // grabbed staggered or weak, it goes down in the hand
     Throw,     // the two-hand throw: 0 never, 1 only when hurt, 2 always
     Hold,      // one hand's hold on it, 0..1 (-1: by its size)
+    Poise,     // its Parry Poise: a parry's strength over it decides its stagger (below 0: never staggered)
     Count
 };
 inline constexpr int paramCount = static_cast<int>(Param::Count);

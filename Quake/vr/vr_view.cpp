@@ -4072,6 +4072,12 @@ extern "C" int VR_HideViewModel()
     return hands::current().valid;
 }
 
+// A Ghost Hands hand (setupGhostHands): drawn as one solid translucent object, its nearest surface only (r_alias.c).
+extern "C" int VR_AliasSolidGhost(const entity_t* e)
+{
+    return vr_ghost_hands_solid.value != 0.f && (e == &entities.ghostHand[0].ent || e == &entities.ghostHand[1].ent);
+}
+
 // Moves the view to the eye being rendered (see vr_stereo.cpp).
 static void applyEyeView(const hands::State& s)
 {

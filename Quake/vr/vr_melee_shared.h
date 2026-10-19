@@ -16,4 +16,8 @@
                                   // a fist's: a punch pulled back and thrown again is a blow (his punches 0.41 at most)
 #define VR_MELEE_WRIST_TIME 0.12  // s over which vr_melee_wrist_speed averages the wrist's travel (a wiggle's half-period)
 
+// The poses' time the client sends with each move (VrMove::poseClock -> .vr_posetime) wraps every this many seconds (a
+// float keeps its tenth of a millisecond).
+#define VR_POSE_CLOCK_WRAP 1024
+
 #endif

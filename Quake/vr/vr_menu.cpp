@@ -29,6 +29,7 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
+#include "vr_ad.hpp"
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_obs.hpp"
@@ -823,13 +824,24 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // Whether Official Campaigns was built with the Bloody Nightmare row (items(): rebuilt when that changes).
 int campaignsBloodyShown = -1;
 
+// Arcane Dimensions: experimental. Chosen in the menu it asks first (M_Confirm), then starts as the developer launch
+// does (vr_campaign_native ad: the same game folder, start map and settings).
+void startArcaneDimensions() { Con_Printf("VR: Arcane Dimensions confirmed in the menu.\n"); Cbuf_InsertText("vr_campaign_native ad\n"); }
+void selectCampaignRow(int index)
+{
+    if(index != qvr::ad::campaignIndex) { VR_SelectCampaign(index); return; }
+    M_Confirm("Arcane Dimensions mode is still\nexperimental and might have bugs.", "Continue", "Back", 0.f,
+        startArcaneDimensions);
+}
+
 [[nodiscard]] za::Vector<Item> pageCampaigns()
 {
     za::Vector<Item> items{header("Official Campaigns")};
     for(int i = 0; i < VR_CampaignCount(); ++i) // (Arcane Dimensions too: its row dim until it is ready)
     {
-        Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
-        choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
+        Item choice = row(VR_CampaignLabel, VR_CampaignHelp, selectCampaignRow, i, -1);
+        choice.dimArg = [](int index) -> bool
+        { return index == qvr::ad::campaignIndex ? !VR_CampaignInstalled(index) : VR_CampaignUnavailable(index) != 0; };
         items.pushBack(choice);
     }
     // Dawn of the Machine's hidden difficulty: offered once found in a game (the hell knight's head, or the hub's
@@ -2018,6 +2030,8 @@ const Page pages[] = {
     {"Ragdoll Triggers - Wounded", pageKdTrigWounded, pageKdTriggers},
     {"Ragdoll Triggers - Strong Blows", pageKdTrigBlow, pageKdTriggers},
     {"Ragdoll Triggers - Explosions", pageKdTrigBlast, pageKdTriggers},
+    {"Ragdoll Triggers - Thrown Bodies", pageKdTrigThrown, pageKdTriggers},
+    {"Ragdoll Triggers - Tackles", pageKdTrigTackle, pageKdTriggers},
     // Combat > Monster Groups (vr_menu_mgroups.inc): a page for each group, then one for each trigger and action.
     {"Monster Groups", pageMonsterGroups, pageCombat},
 #define QVR_MGROUP(g, label, ...) {"Monster Groups - " label, pageMonsterGroup<mgroups::g##Group>, pageMonsterGroups},
@@ -2032,18 +2046,21 @@ const Page pages[] = {
     {"Monster Groups - Wounded", pageMonsterParam<6>, pageMonsterGroups},
     {"Monster Groups - Strong Blows", pageMonsterParam<7>, pageMonsterGroups},
     {"Monster Groups - Explosions", pageMonsterParam<8>, pageMonsterGroups},
-    {"Monster Groups - Shove Knockdown", pageMonsterParam<9>, pageMonsterGroups},
-    {"Monster Groups - Shove Push", pageMonsterParam<10>, pageMonsterGroups},
-    {"Monster Groups - Hits Unbalance", pageMonsterParam<11>, pageMonsterGroups},
-    {"Monster Groups - Leg Sweep", pageMonsterParam<12>, pageMonsterGroups},
-    {"Monster Groups - Leg Pull and Lift", pageMonsterParam<13>, pageMonsterGroups},
-    {"Monster Groups - Lift", pageMonsterParam<14>, pageMonsterGroups},
-    {"Monster Groups - Neck Snap", pageMonsterParam<15>, pageMonsterGroups},
-    {"Monster Groups - Manhandle", pageMonsterParam<16>, pageMonsterGroups},
-    {"Monster Groups - Two-Hand Throw", pageMonsterParam<17>, pageMonsterGroups},
-    {"Monster Groups - Hold Strength", pageMonsterParam<18>, pageMonsterGroups},
+    {"Monster Groups - Thrown Bodies", pageMonsterParam<9>, pageMonsterGroups},
+    {"Monster Groups - Tackles", pageMonsterParam<10>, pageMonsterGroups},
+    {"Monster Groups - Shove Knockdown", pageMonsterParam<11>, pageMonsterGroups},
+    {"Monster Groups - Shove Push", pageMonsterParam<12>, pageMonsterGroups},
+    {"Monster Groups - Hits Unbalance", pageMonsterParam<13>, pageMonsterGroups},
+    {"Monster Groups - Leg Sweep", pageMonsterParam<14>, pageMonsterGroups},
+    {"Monster Groups - Leg Pull and Lift", pageMonsterParam<15>, pageMonsterGroups},
+    {"Monster Groups - Lift", pageMonsterParam<16>, pageMonsterGroups},
+    {"Monster Groups - Neck Snap", pageMonsterParam<17>, pageMonsterGroups},
+    {"Monster Groups - Manhandle", pageMonsterParam<18>, pageMonsterGroups},
+    {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
+    {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
+    {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
 };
-static_assert(mgroups::paramCount == 19, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 22, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
@@ -5188,6 +5205,15 @@ void qvr::menu::press_f()
         }
         for(const Item& item : items(p))
         {
+            if(item.kind == Item::Action && item.actionArg && item.infoArg && !q_strcasecmp(item.infoArg(item.arg), label))
+            {   // a list row (the campaign selector): its text, then its pick(arg)
+                locked = item.dimArg && item.dimArg(item.arg);
+                found = true;
+                if(!locked) { item.actionArg(item.arg); Con_Printf("vr_menu_press: %s > %s\n", title, label); }
+                levelOverride = was;
+                if(locked) { Con_Printf("vr_menu_press: %s > %s is locked (unavailable), not pressed\n", title, label); }
+                return;
+            }
             if(item.kind == Item::Action && item.label && !q_strcasecmp(item.label, label))
             {
                 command = item.command;

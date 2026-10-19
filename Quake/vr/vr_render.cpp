@@ -20,6 +20,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
+#include "vr_brainjiggle.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_main.hpp"
@@ -289,6 +290,7 @@ extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
     applyPre(e, VR_AliasMirrored(e), nullptr, networkData(e), matrix);
     hitreact::tiltModel(e, matrix); // a living monster struck, with no rig to kick: tilted (vr_hitreact.cpp)
     flamewobble::leanModel(e, matrix); // a map flame stirred by a fast hand (vr_flamewobble.cpp)
+    brainjiggle::squashModel(e, matrix); // a brain chunk wobbling from a knock (vr_brainjiggle.cpp)
 }
 
 extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])

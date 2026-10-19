@@ -9,7 +9,8 @@ enum MgroupKind
     MgroupChance,
     MgroupResist,
     MgroupThrow,
-    MgroupHold
+    MgroupHold,
+    MgroupPoise
 };
 
 struct MgroupParamRow
@@ -34,6 +35,8 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
     {"Wounded", MgroupTimes, "Wounded's chance times this for it. 0: never."},
     {"Strong Blows", MgroupTimes, "Strong Blows' chance times this for it. 0: never."},
     {"Explosions", MgroupTimes, "Explosions' chance times this for it. 0: never."},
+    {"Thrown Bodies", MgroupTimes, "Thrown Bodies' chance times this for it. 0: never."},
+    {"Tackles", MgroupTimes, "Tackles' chance times this for it. 0: never."},
     {"Shove Knockdown", MgroupChance,
         "A shove's base chance to knock it down (Combat > Knockdowns: times Chance, the hands, its wounds, your stamina). "
         "Only a monster with a get-up of its own; others are only pushed."},
@@ -55,6 +58,11 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
     {"Hold Strength", MgroupHold,
         "One hand's hold on it: how much your hold slows it and pulls it along (two hands' together more). By Size: "
         "Holding Enemies' small, big and huge holds (or By Mass)."},
+    {"Parry Poise", MgroupPoise,
+        "How hard it is to stagger by parrying its blows (Parry and Bash > Parry Balance): your parry's strength (bare "
+        "hands 0.4, a weapon 1, a heavy one up to 1.3; two hands x1.5; well timed x1.25) over this: under 0.5 the blow is "
+        "only blocked, under 1 it flinches, up to 2 it staggers back as a ragdoll, more longer. Over 1 it also cuts your "
+        "melee's chances to knock it down or unbalance it. Off: a parry never staggers it."},
 };
 
 [[nodiscard]] Item mgroupItem(int g, mgroups::Param p, const char* label)
@@ -76,6 +84,13 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
             i.negativeStart = 0.f;
             return i.help(r.help);
         }
+        case MgroupPoise:
+        {
+            Item i = slider(label, c, -0.05f, 3.f, 0.05f, "%.2f").extend(-0.05f, 10.f);
+            i.negativeLabel = "Off";
+            i.negativeStart = 0.f;
+            return i.help(r.help);
+        }
     }
     return header(label);
 }
@@ -91,6 +106,10 @@ template <int G>
         if(p == static_cast<int>(mgroups::Param::Shove))
         {
             items.pushBack(header("Actions"));
+        }
+        if(p == static_cast<int>(mgroups::Param::Poise))
+        {
+            items.pushBack(header("Parry"));
         }
         items.pushBack(mgroupItem(G, static_cast<mgroups::Param>(p), mgroupParamRows[p].label));
     }

@@ -863,6 +863,31 @@ bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, i
     return true;
 }
 
+bool ragdollMarkThrown(edict_t* ent, const glm::vec3* velocity)
+{
+    RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
+    if(!rp)
+    {
+        return false;
+    }
+    rp->thrownAt = qcvm->time;
+    if(!velocity || glm::length(*velocity) < 0.01f)
+    {
+        return true;
+    }
+    const b3Vec3 v = b3v(glmv(world->toM(*velocity)));
+    for(int b = 0; b < rp->count; b++)
+    {
+        const b3BodyId body = rp->body[static_cast<za::SizeT>(b)];
+        if(!B3_IS_NULL(body) && b3Body_IsValid(body))
+        {
+            b3Body_SetLinearVelocity(body, v);
+            b3Body_SetAwake(body, true);
+        }
+    }
+    return true;
+}
+
 bool ragdollGrace(edict_t* ent, int player, float seconds)
 {
     const int num = ent && world ? NUM_FOR_EDICT(ent) : 0;

@@ -39,7 +39,7 @@ def setup(enabled, guard=True, stationary=True):
     return ["map vrtesthall", wait(60), "setpos 0 0 24 0 0 0", "developer 1",
             "vr_enemy_shove 0", "vr_stealth_meter 0", "vr_parry 1", "vr_parry_stamina 0", "vr_parry_drop_chance 0",
             "vr_parry_push_enemy 0", "vr_parry_push_player 0", "vr_parry_reduction 0.75",
-            "vr_parry_stagger 0.35", "vr_weapon_grip_mode 1",
+            "vr_parry_stagger 0.35", "vr_parry_balance 0", "vr_weapon_grip_mode 1",
             "impulse 154", wait(5), GUARD if guard else LOWER, wait(20)] + (
             ["notarget"] if stationary else []) + ["vr_test_spawn 5", "vr_test_spawn_dist 48", "impulse 241", wait(30)]
 
