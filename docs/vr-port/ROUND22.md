@@ -13914,3 +13914,26 @@ stock turn); the port's size with the handful of 2; the crossbow's shimmer volum
   launcher from below; `vr_ad_test 70` 8/8 (with `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`), 71 9/9, 91 3/3.
 - **For VR:** look straight into each muzzle and the exhaust (walls inside, nothing see-through); the grenade launcher's
   underside; the inlet near the stock with the hose; spray a grunt with each: fire or green puffs, no blood.
+
+## Sounds cut off: the audit (worktree `goreflesh`, branch `agent/sndaudit`, 2026-10-19)
+
+The author remembered the hard landing's "hnng" (`player/land2.wav`, CHAN_VOICE) cut off. Inventory: 1718 QC sound
+calls (376 CHAN_VOICE, 104 CHAN_WEAPON, 40 CHAN_BODY, 39 CHAN_ITEM, 93 CHAN_AUTO, 44 the hands'; AD's own `ad_CHAN_*`
+900 more), and the engine's VR sounds (channel 0, the hands' 8/9, -1 for the local ones). Measured with `snd_cutoffs log`
+(dummy SDL audio, real time): three hard landings (walking on, then the menu toggled round the third) and a fight (god
+mode, 24 spawn-list monsters, the rocket launcher fired round for 12 s).
+
+| collision | where | before -> after | |
+|---|---|---|---|
+| land2 cut by the next footstep | player CHAN_VOICE: `player.qc` steps (also `hip_decoy.qc`'s) | 2 -> 0 | fixed: steps on CHAN_AUTO |
+| land2 (any sound of the player) cut by a local sound | `S_LocalSound` and the -1 calls (menus, gadget, climb, flashlight, bullet time, highlights' beep, saw pull) took the player's first channel, whatever played | 1 (+2 menu clicks) -> 0 | fixed: -1 never overrides (`SND_PickChannel`); still tagged -1 (not spatialized, bullet time finds its sound) |
+| pain cut by land2 | player CHAN_VOICE (T_Damage then the grunt) | 3 -> 3 | kept: id1's (the grunt replaces the pain) |
+| monsters' pain / attack / idle / sight / death on their voice | id1 and the expansions' monsters, CHAN_VOICE | 130 or so in the fight | kept: a pain replaces a pain, a death the cries |
+| shambler's sattck1 by its sboom, spawn's land by its hit | CHAN_WEAPON | 5, 30 | kept: id1's |
+| a whoosh cut by its hit, swish by swish | the hands' gun channel | 45 -> 2 (done in agent/defaults1019) | fixed before |
+| the neck snap's crack on the monster's voice | `vr_foegrab_throw.qc` | not seen | kept: it silences its cry (the hands play it too) |
+| our gore and ragdoll sounds (impacts on channel 0, scrapes on 5/7 of their own, decap's udeath on CHAN_BODY) | | 0 in the fight | kept |
+
+Not reproduced: holstering and grabbing (the mock does not drive them; theirs are on the hands' channels or CHAN_AUTO,
+which never cut). One odd row: a wizard's attack cut by `weapons/r_exp3.wav` on its channel 1 (an edict reused).
+eval --full 168/177 (the 4 rows that differ from the baseline are next's bash damage, as before).

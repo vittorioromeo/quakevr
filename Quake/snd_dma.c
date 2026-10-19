@@ -434,7 +434,8 @@ static qboolean cutLog;
 
 static void S_CountCutoff (const channel_t *ch, int entnum, int entchannel, const sfx_t *by)
 {
-	const qboolean same = !S_AUTOCHANNEL (entchannel) && ch->entnum == entnum && ch->entchannel == entchannel;
+	const qboolean same = !S_AUTOCHANNEL (entchannel) && ch->entnum == entnum &&
+		(ch->entchannel == entchannel || entchannel == -1); // (-1: a local sound, which took any of the entity's before)
 	if (same)
 		cutSameChannel++;
 	else
@@ -443,7 +444,7 @@ static void S_CountCutoff (const channel_t *ch, int entnum, int entchannel, cons
 		cutPlayer++;
 	if (cutLog)
 		Con_Printf ("snd_cutoffs: %s (entity %d channel %d) cut off by %s (%s)\n", ch->sfx->name, ch->entnum, ch->entchannel,
-			by->name, same ? "same channel" : "no free channel");
+			by->name, entchannel == -1 && same ? "a local sound" : same ? "same channel" : "no free channel");
 }
 
 // snd_cutoffs [reset | log]: the counts; "reset" zeroes them; "log" prints each cut-off from now on (again: stops).
@@ -476,9 +477,11 @@ channel_t *SND_PickChannel (int entnum, int entchannel)
 	life_left = 0x7fffffff;
 	for (ch_idx = NUM_AMBIENTS; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; ch_idx++)
 	{
-		if (!S_AUTOCHANNEL (entchannel)	// channel 0 never overrides (QVR: nor the hands')
+		// QVR: nor a local sound (-1: S_LocalSound's, the menus', the gadgets'), which took the player's first channel,
+		// whatever played on it (a hard landing's "hnng" cut off by a menu's click; ROUND22.md, "Sounds cut off: the audit")
+		if (!S_AUTOCHANNEL (entchannel) && entchannel != -1	// channel 0 never overrides (QVR: nor the hands')
 			&& snd_channels[ch_idx].entnum == entnum
-			&& (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1) )
+			&& snd_channels[ch_idx].entchannel == entchannel)
 		{	// always override sound from same entity
 			first_to_die = ch_idx;
 			break;
