@@ -46,8 +46,11 @@ void(float xMode) VR_Knockdown_Test =
         // 25: body shields: your health and what each hand holds (its health, ragdoll, corpse).
         entity hm = VR_Carry_Held(self, cVR_MainHand);
         entity ho = VR_Carry_Held(self, cVR_OffHand);
-        dprint(sprintf("shield: player health %g at %v; main %s %g (ragdoll %g corpse %g) at %v; off %s %g\n", self.health,
-            self.origin, hm.classname, hm.health, isragdoll(hm), hm.vr_corpse, hm.origin, ho.classname, ho.health));
+        // (sprintf takes at most 8 arguments after its format: the hands print in two calls.)
+        dprint(sprintf("shield: player health %g at %v; main %s %g (ragdoll %g corpse %g) at %v\n", self.health, self.origin,
+            hm.classname, hm.health, isragdoll(hm), hm.vr_corpse, hm.origin));
+        dprint(sprintf("shield: off %s %g (ragdoll %g corpse %g) held %g at %v\n", ho.classname, ho.health, isragdoll(ho),
+            ho.vr_corpse, ho != world, ho.origin));
         return;
     }
     if(xMode >= 26 && xMode <= 28)
