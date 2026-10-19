@@ -1832,7 +1832,7 @@ QVR_CVAR(vr_fire_particles_range, "1216", CVAR_ARCHIVE)
 // Flames stirred by a hand passing them fast (vr_flamewobble.cpp; Graphics > Fire Model Particles > Flames in the Air):
 // they lean the hand's way, swing back a little and settle; the fire and smoke particles near it are carried along.
 QVR_CVAR(vr_flame_wobble, "1", CVAR_ARCHIVE)          // 1: on
-QVR_CVAR(vr_flame_wobble_strength, "1", CVAR_ARCHIVE) // how far they lean (0..4; 0 none)
+QVR_CVAR(vr_flame_wobble_strength, "2.5", CVAR_ARCHIVE) // how far they lean (0..4; 0 none; his 2.5, 1 before vr_cfg_version 161)
 QVR_CVAR(vr_flame_wobble_speed, "1", CVAR_ARCHIVE)    // m/s a hand must move at to stir them (slower, nothing)
 QVR_CVAR(vr_debug_flame_wobble, "0", CVAR_NONE)       // 1: print each push (the flame, the hand, how near, how fast); 2: also every swinging flame's lean every frame
 
@@ -2435,6 +2435,9 @@ QVR_CVAR(vr_ad_widowmaker_handful, "2", CVAR_ARCHIVE)      // the shells the pou
 QVR_CVAR(vr_ad_widowmaker_spin, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spinup, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spindown, "0.9", CVAR_ARCHIVE)
+// The barrels' motor (his notes 2026-10-19; vr_adweapons.cpp motorFrame): a looped whine (vr/widowmaker_motor.wav) from
+// the hand, its pitch and volume following their spin (this its volume at the top speed; 0 none).
+QVR_CVAR(vr_ad_widowmaker_motor, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
@@ -2522,7 +2525,7 @@ QVR_CVAR(vr_adgun_fumigator_range, "260", CVAR_ARCHIVE) // ... how far its puffs
 QVR_CVAR(vr_adgun_fumigator_fuel, "100", CVAR_ARCHIVE) // ... its fuel: the puffs it holds
 QVR_CVAR(vr_adgun_fumigator_rate, "0.1", CVAR_ARCHIVE) // ... seconds between its puffs, the trigger held
 QVR_CVAR(vr_adgun_crossbow_damage, "15", CVAR_ARCHIVE) // the crossbow knight's dropped crossbow: a bolt's damage (AD's bolt: 15; positional: a head more)
-QVR_CVAR(vr_adgun_crossbow_speed, "700", CVAR_ARCHIVE) // ... its bolts' speed (AD's knight on normal skill: 700)
+QVR_CVAR(vr_adgun_crossbow_speed, "1050", CVAR_ARCHIVE) // ... your bolts' speed: 1.5 times the knights' (AD's on normal skill: 700; his notes 2026-10-19; 700 before vr_cfg_version 161)
 QVR_CVAR(vr_adgun_crossbow_ammo, "10", CVAR_ARCHIVE) // ... the bolts it holds as it drops (its own: never refilled)
 QVR_CVAR(vr_adgun_crossbow_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next (the knight reloads in 2)
 QVR_CVAR(vr_adgun_crossbow_bolt_sound, "0.35", CVAR_ARCHIVE) // ... the next bolt's soft shimmer as it morphs in (vr/xbow_bolt_in.wav: its volume; 0 none)

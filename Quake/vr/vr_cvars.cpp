@@ -317,8 +317,11 @@ const DefaultChange defaultChanges[] = {
     // 160 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
     {160, &vr_chainsaw_damage, "100"},                  // 120
     {160, &vr_dmg_chainsaw_swing, "22"},                // 26
+    // 161: his flame wobble (his config of 2026-10-19); your AD crossbow's bolts 1.5 times the knights' (his notes).
+    {161, &vr_flame_wobble_strength, "1"},              // 2.5
+    {161, &vr_adgun_crossbow_speed, "700"},             // 1050
 };
-constexpr int configVersion = 160;
+constexpr int configVersion = 161;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

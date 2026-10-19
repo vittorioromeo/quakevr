@@ -1893,6 +1893,7 @@ extern "C" void VR_NewMap()
     step("casings", shells::prepare);
     step("auto pump", autopump::prepare);
     step("AD crossbow", adcrossbow::prepare); // AD support: its next bolt's sound
+    step("Widowmaker", adweapons::prepare);   // AD support: its barrels' motor
     step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);

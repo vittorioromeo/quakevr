@@ -14070,3 +14070,42 @@ PASS.
 - **For VR:** sweep a hand through a brazier and a wall torch at a brisk and a slow pace (the slow one should do
   nothing); the lean's size at Stir Strength 1. Pick up an ogre's chainsaw: the handle should wobble a little on its
   seat as you move, and stop after the first pull, also after a reload and on the next map.
+
+## Widowmaker report and motor, full pickup, faster crossbow bolts, his AD tuning (worktree `dequant`, branch `agent/widowmaker4`, 2026-10-19)
+
+- **The shot** (`vr/widowmaker_shot.wav`, `Misc/quakevr/make_adweapon_sounds.py`): "very, very powerful sounding". A
+  sharp crack and muzzle blast, a thump falling 170 -> 48 Hz over a 34 Hz sub, a boom and a rolling low tail (1.25 s),
+  the action's two clacks, driven into a tanh knee and normalised to 0.97 (never clipped). Measured against id's
+  (RMS over 0-50 ms / 0-300 ms / 300-800 ms / under 150 Hz in the first 0.3 s): super shotgun `shotgn2.wav` -4.0 /
+  -4.2 / -10.6 / -7.1 dB, rocket launcher `sgun1.wav` the same, rocket blast `r_exp3.wav` -3.1 / -3.0 / -4.4 / -5.2;
+  the old Widowmaker shot -6.7 / -13.5 / -45 / -17.9; the new one -3.4 / -3.9 / -9.1 / -4.9.
+- **The barrels' motor** (`vr_adweapons.cpp` motorFrame; `vr/widowmaker_motor.wav`, a 1 s seamless loop with a WAV cue
+  point: hum at 92 Hz and harmonics, a gear whine at 1104 Hz, a 23 Hz barrel rattle, brush hiss): started on the hand's
+  own sound channel (CHAN_HAND / CHAN_HAND2: from the hand, an auto channel, so the shot on the gun channel is never
+  cut), its channel found and then driven each frame: volume `vr_ad_widowmaker_motor` (new, 0.6; Weapons > Reloading >
+  Widowmaker > Motor Volume) times 1.25 x the spin's share of the top speed (capped at 1), pitch 0.45 -> 1 with it. It
+  stops when the volume drops under 0.005 (the barrels at rest), fades in 0.12 s when the gun goes at once (holstered,
+  dropped), and stops on a map change (adweapons::clear). If another sound takes its channel it starts again. Client
+  only (another player does not hear it). `vr_ad_widowmaker_spin_info` prints its state.
+- **Full pickup**: `AD_UpgradeGiven` fills the Widowmaker's tube (16) where a pickup gives one and its reloading is on;
+  the reserve as for a super shotgun pickup (20 -> 23).
+- **Crossbow bolts**: `vr_adgun_crossbow_speed` 700 -> 1050 (1.5 x AD's knights' on normal skill; theirs are AD's own,
+  500 + 200 per skill). Launch from the groove unchanged.
+- **His tuning as defaults** (from his config, vr_wofs_version 53 `takeAdTuning53`, vr_cfg_version 161; each value
+  only where a config still holds the old default): the Widowmaker (slot 34) Flash 0 -> 1, Recoil 0 -> 1, Recoil
+  Strength 1 -> 1.405; the fury's sword (40) finger biases index/thumb 0 -> -0.212/-0.262, grip overlap 0.3 -> 0.51,
+  pose (pitch, roll, x, y, yaw, z); the death knight's (41) and zombie knight's (42) swords hotspot 1 and pose, the
+  zombie knight's hotspot 2 x 0.7 -> 0.583; the death guard's (43), which inherited the death knight's in his config,
+  those values as its own (no AD weapon inherits; his config keeps its inheriting). `vr_flame_wobble_strength` 1 -> 2.5
+  (the Stir Strength slider now 0-4); `vr_adgun_crossbow_speed` 700 -> 1050.
+- **Checked** (headless): `vr_ad_test 149` 9/9 PASS (new: a pickup comes 16 of 16; the motor playing at volume 0.60,
+  pitch 1.00 while it fires, stopped after, the barrels at rest; both sounds load). `vr_ad_test 93` PASS with two new
+  checks: the bolt at 1050 u/s along the shot (1.0000), leaving from the drawn bolt's place (0.00 off, launch offset
+  -10.47 0.09 1.51: the test now fires a second after the take so the client has drawn it; its target at 40 ahead, not
+  64, as a bolt from the groove met the floor first with the mock's hand aiming steeply down). Migration with the mock
+  from his config with old defaults put back: 161 / 53; crossbow 1050, wobble 2.5, Widowmaker flash 1 and kick 1.405,
+  the fury's sword's pitch 21.04, a value of his own (x 7.5) kept, the death guard's sword pitch 9.88 and hotspot yaw
+  13.86.
+- **For VR:** fire the Widowmaker: the report's weight against the super shotgun and the rocket launcher; the motor
+  whine rising as the barrels spin up and dying as they coast (too loud or quiet: Motor Volume). Pick one up: full.
+  The AD crossbow's bolts: faster, still leaving from where the bolt is drawn. The AD swords in hand as he tuned them.

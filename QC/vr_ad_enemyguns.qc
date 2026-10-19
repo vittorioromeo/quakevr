@@ -416,6 +416,10 @@ void() VR_ADGun_BoltTouch =
     else
     {
         particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 4);
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("adgun: crossbow bolt struck %s at %v\n", other == world ? "the world" : other.classname, self.origin));
+        }
     }
     VR_Proj_End();
     ad_entity_remove(self, 1);
