@@ -1133,6 +1133,112 @@ void callRagImpacts()
     world->ragImpacts.clear();
 }
 
+// The ragdoll triggers' Thrown Body (QC vr_kdtrig.qc VR_KdTrig_BodyHit(entity m, entity body, float mass, vector vel)):
+// a ragdoll thrown in the last vr_kdtrig_thrown_window s (a hand let go of it, a two-hand throw) or held and swung (a
+// holding hand swung lately: not only dragged), its whole body going at a quarter of vr_kdtrig_thrown_speed or more,
+// its parts' boxes meeting a living monster's box. (Ragdolls pass through living monsters' bodies in the physics: the
+// boxes are the contact.) Each pair once a frame, after the step; the QC judges it (the weights, the momentum, its
+// cooldown).
+struct BodyHit
+{
+    int body{0};
+    int mon{0};
+    float mass{0.f};   // kg: the thrown body's
+    glm::vec3 vel{0.f}; // units/s: its middle's
+};
+constexpr int bodyHitsMost = 16;
+
+void callBodyHits()
+{
+    if(vr_kdtrig.value == 0.f || vr_kdtrig_thrown_on.value == 0.f || world->ragdolls.empty())
+    {
+        return;
+    }
+    const func_t fn = qvr::progs::findFunction("VR_KdTrig_BodyHit");
+    if(!fn)
+    {
+        return;
+    }
+    const double window = static_cast<double>(za::max(vr_kdtrig_thrown_window.value, 0.f));
+    const float least = 0.25f * za::max(vr_kdtrig_thrown_speed.value, 1.f);
+    za::Array<BodyHit, bodyHitsMost> hits{};
+    int count = 0;
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num <= 0 || !r.rig || r.num >= qcvm->num_edicts || count >= bodyHitsMost)
+        {
+            continue;
+        }
+        const bool thrown = r.thrownAt >= 0.0 && qcvm->time >= r.thrownAt && qcvm->time - r.thrownAt <= window;
+        const int num = r.num;
+        const bool held = za::findIf(world->ragdollGrabs.begin(), world->ragdollGrabs.end(),
+                              [num](const World::RagdollGrab& g) { return g.num == num && g.player >= 1; }) !=
+                          world->ragdollGrabs.end();
+        if(!thrown && !(held && !dragged(num)))
+        {
+            continue;
+        }
+        float mass = 0.f;
+        b3Vec3 momentum = b3Vec3_zero;
+        glm::vec3 lo{1e9f}, hi{-1e9f};
+        for(int b = 0; b < r.count; b++)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose || B3_IS_NULL(body) || !b3Body_IsValid(body))
+            {
+                continue;
+            }
+            const float m = b3Body_GetMass(body);
+            mass += m;
+            momentum = b3MulAdd(momentum, m, b3Body_GetLinearVelocity(body));
+            const b3AABB box = b3Body_ComputeAABB(body);
+            lo = glm::min(lo, world->toU(box.lowerBound));
+            hi = glm::max(hi, world->toU(box.upperBound));
+        }
+        if(mass <= 0.f)
+        {
+            continue;
+        }
+        const glm::vec3 vel = world->toU(b3MulSV(1.f / mass, momentum));
+        if(glm::length(vel) < least)
+        {
+            continue;
+        }
+        for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
+        {
+            edict_t* e = EDICT_NUM(n);
+            if(n == num || e->free || e->v.health <= 0.f || !(static_cast<int>(e->v.flags) & FL_MONSTER) ||
+                static_cast<int>(e->v.solid) == SOLID_NOT)
+            {
+                continue;
+            }
+            if(lo.x > e->v.absmax[0] || hi.x < e->v.absmin[0] || lo.y > e->v.absmax[1] || hi.y < e->v.absmin[1] ||
+                lo.z > e->v.absmax[2] || hi.z < e->v.absmin[2])
+            {
+                continue;
+            }
+            hits[static_cast<za::SizeT>(count++)] = {num, n, mass, vel};
+        }
+    }
+    for(int i = 0; i < count; i++)
+    {
+        const BodyHit& h = hits[static_cast<za::SizeT>(i)];
+        if(h.body >= qcvm->num_edicts || h.mon >= qcvm->num_edicts || EDICT_NUM(h.body)->free || EDICT_NUM(h.mon)->free)
+        {
+            continue;
+        }
+        QcCallGuard guard;
+        pr_global_struct->time = qcvm->time;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(h.mon));
+        G_INT(OFS_PARM1) = EDICT_TO_PROG(EDICT_NUM(h.body));
+        G_FLOAT(OFS_PARM2) = h.mass;
+        G_FLOAT(OFS_PARM3 + 0) = h.vel.x;
+        G_FLOAT(OFS_PARM3 + 1) = h.vel.y;
+        G_FLOAT(OFS_PARM3 + 2) = h.vel.z;
+        PR_ExecuteProgram(fn);
+    }
+}
+
 // The props' hardest hits this frame, to their .vr_impact (QC: an explosive box hit hard enough takes damage).
 void callShocks()
 {
@@ -1442,6 +1548,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         callShocks();
         callFalls();
         callRagImpacts();
+        callBodyHits();
         watchInside();
         physsound::frameEnd(); // the frame's knocks and scrapes
 

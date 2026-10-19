@@ -2018,6 +2018,8 @@ const Page pages[] = {
     {"Ragdoll Triggers - Wounded", pageKdTrigWounded, pageKdTriggers},
     {"Ragdoll Triggers - Strong Blows", pageKdTrigBlow, pageKdTriggers},
     {"Ragdoll Triggers - Explosions", pageKdTrigBlast, pageKdTriggers},
+    {"Ragdoll Triggers - Thrown Bodies", pageKdTrigThrown, pageKdTriggers},
+    {"Ragdoll Triggers - Tackles", pageKdTrigTackle, pageKdTriggers},
     // Combat > Monster Groups (vr_menu_mgroups.inc): a page for each group, then one for each trigger and action.
     {"Monster Groups", pageMonsterGroups, pageCombat},
 #define QVR_MGROUP(g, label, ...) {"Monster Groups - " label, pageMonsterGroup<mgroups::g##Group>, pageMonsterGroups},
@@ -2032,18 +2034,20 @@ const Page pages[] = {
     {"Monster Groups - Wounded", pageMonsterParam<6>, pageMonsterGroups},
     {"Monster Groups - Strong Blows", pageMonsterParam<7>, pageMonsterGroups},
     {"Monster Groups - Explosions", pageMonsterParam<8>, pageMonsterGroups},
-    {"Monster Groups - Shove Knockdown", pageMonsterParam<9>, pageMonsterGroups},
-    {"Monster Groups - Shove Push", pageMonsterParam<10>, pageMonsterGroups},
-    {"Monster Groups - Hits Unbalance", pageMonsterParam<11>, pageMonsterGroups},
-    {"Monster Groups - Leg Sweep", pageMonsterParam<12>, pageMonsterGroups},
-    {"Monster Groups - Leg Pull and Lift", pageMonsterParam<13>, pageMonsterGroups},
-    {"Monster Groups - Lift", pageMonsterParam<14>, pageMonsterGroups},
-    {"Monster Groups - Neck Snap", pageMonsterParam<15>, pageMonsterGroups},
-    {"Monster Groups - Manhandle", pageMonsterParam<16>, pageMonsterGroups},
-    {"Monster Groups - Two-Hand Throw", pageMonsterParam<17>, pageMonsterGroups},
-    {"Monster Groups - Hold Strength", pageMonsterParam<18>, pageMonsterGroups},
+    {"Monster Groups - Thrown Bodies", pageMonsterParam<9>, pageMonsterGroups},
+    {"Monster Groups - Tackles", pageMonsterParam<10>, pageMonsterGroups},
+    {"Monster Groups - Shove Knockdown", pageMonsterParam<11>, pageMonsterGroups},
+    {"Monster Groups - Shove Push", pageMonsterParam<12>, pageMonsterGroups},
+    {"Monster Groups - Hits Unbalance", pageMonsterParam<13>, pageMonsterGroups},
+    {"Monster Groups - Leg Sweep", pageMonsterParam<14>, pageMonsterGroups},
+    {"Monster Groups - Leg Pull and Lift", pageMonsterParam<15>, pageMonsterGroups},
+    {"Monster Groups - Lift", pageMonsterParam<16>, pageMonsterGroups},
+    {"Monster Groups - Neck Snap", pageMonsterParam<17>, pageMonsterGroups},
+    {"Monster Groups - Manhandle", pageMonsterParam<18>, pageMonsterGroups},
+    {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
+    {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
 };
-static_assert(mgroups::paramCount == 19, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 21, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the

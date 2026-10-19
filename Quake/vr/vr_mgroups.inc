@@ -5,7 +5,7 @@
 //
 // QVR_MGROUP(id, label, kdtrig, resist, shove, humanoid, throw, push, legs): the group's defaults (each its effect before the groups):
 // - kdtrig: the ragdoll triggers take it (vr_mgrp_<id>_kdtrig); resist: its resistance to them (vr_kdtrig_resist_<id>,
-//   0: by its size); every trigger's own multiplier (vr_mgrp_<id>_ledge ... _blast) 1;
+//   0: by its size); every trigger's own multiplier (vr_mgrp_<id>_ledge ... _blast, _thrown, _tackle) 1;
 // - shove: a shove's base chance to knock it down (vr_knockdown_chance_<id>; only a monster with a get-up of its own);
 //   hits unbalancing it (_stagger) 1;
 // - humanoid: the lift, the neck snap and the manhandle take it (_lift,

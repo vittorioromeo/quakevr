@@ -1743,6 +1743,15 @@ void PF_ragdollrelease()
     box3d::ragdollRelease(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]});
 }
 
+// float ragdollfling(entity e, vector velocity): e's ragdoll thrown now, every part set going at `velocity` (units/s;
+// zero: as it goes); the ragdoll triggers' Thrown Body watches it (QC vr_kdtrig.qc's tests). 0: no ragdoll.
+void PF_ragdollfling()
+{
+    const float* v = G_VECTOR(OFS_PARM1);
+    const glm::vec3 vel{v[0], v[1], v[2]};
+    G_FLOAT(OFS_RETURN) = box3d::ragdollMarkThrown(G_EDICT(OFS_PARM0), &vel) ? 1.f : 0.f;
+}
+
 // float ragdollheld(entity player, float hand): 0 nothing, 1 holding a ragdoll's limb.
 void PF_ragdollheld()
 {
@@ -2553,6 +2562,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollstagger", PF_ragdollstagger},
     {"ragdollstaggered", PF_ragdollstaggered},
     {"ragdollrelease", PF_ragdollrelease},
+    {"ragdollfling", PF_ragdollfling},
     {"ragdollheld", PF_ragdollheld},
     {"ragdollreach", PF_ragdollreach},
     {"ragdollbone", PF_ragdollbone},
