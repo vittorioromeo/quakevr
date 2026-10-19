@@ -213,6 +213,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .entity vr_blow_main;
 .entity vr_blow_off;
 .float mh_time;        // when the last new pose was taken
+.float mh_ptime;       // its own time (the client's .vr_posetime; -1 unknown)
 .float mh_dt;          // s since the one before
 .float mh_thing;       // VR_MTHING_*
 .float mh_wid;         // the weapon (another: nothing to sweep from)
@@ -232,6 +233,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_hd_cy;
 .vector mh_near;       // the near end, the grip and the far end (world, now)
 .vector mh_grip;
+.vector mh_pgrip;      // the grip at the pose before (world; VR_Melee_ArcRib: the points' arcs about it)
 .vector mh_far;
 .vector mh_rnear;      // the same from the head, in the play space (metres)
 .vector mh_rgrip;
@@ -1247,6 +1249,36 @@ float() VR_PlayerTime =
     return time + vr_player_time_offset;
 };
 
+// A point of the line's velocity about the grip (`xR0` to `xR1`, from the grip, over `xSpan` s), as its chord over
+// VR_MELEE_VEL_SPAN would read it. A chord's way is the arc's at the chord's middle: over a longer span (a tick's pose
+// two headset frames on, a dropped frame) it points further back into the turn (a blade's tip swung round read as drawn
+// back along the line: VR_MELEE_PULLBACK) and reads slower. Turning uniformly about the grip (the line is rigid), the
+// chord is turned on to the window's middle and scaled to its length: every span reads as a 72 Hz tick's chord did.
+// The strength's (and the damage's) speed: the measured speed times this. Measured over the poses' times (meleefps,
+// 2026-10-19) a blow's speed is its own; before, at the author's 120 Hz, the ticks beating against the frames read the
+// first hit's speed 1.15-1.2 times too fast on average, and his blows' strength was tuned on those. The gates (land,
+// slow, wiggle) read the true speed; only how hard a landed blow strikes keeps the old feel.
+float VR_MELEE_STRENGTH_SPEED = 1.13;
+float VR_MELEE_VEL_SPAN = 0.013889; // s (a 72 Hz tick: at 72 Hz every chord is this, as before)
+vector(vector xR0, vector xR1, float xSpan) VR_Melee_TurnVel =
+{
+    vector chord = (xR1 - xR0) * (1 / xSpan);
+    vector n = VR_Melee_Cross(xR0, xR1);
+    float sn = vlen(n);
+    float th = atan2(sn, xR0 * xR1);
+    if(sn < 0.000001 || th < 0.001)
+    {
+        return chord;
+    }
+    n = n * (1 / sn);
+    float k = VR_MELEE_VEL_SPAN / xSpan;
+    float a = th * 0.5 * (1 - k);
+    float hw = min(th * k * 0.5, 1.5);
+    float hs = th * 0.5;
+    chord = chord * (sin(hw) / hw) * (hs / sin(hs));
+    return chord * cos(a) + VR_Melee_Cross(n, chord) * sin(a) + n * (n * chord) * (1 - cos(a));
+};
+
 float(float xHand, entity b) VR_Melee_Track =
 {
     // The pose is the client's as this server frame ends (time + frametime): QC's time is still the frame's start. On
@@ -1254,6 +1286,27 @@ float(float xHand, entity b) VR_Melee_Track =
     // runs at full speed in a slowed world, and frametime is the player's), so its blows' speeds are its own.
     float now = time + vr_player_time_offset + frametime;
     float dt = now - b.mh_time;
+    // Over the poses' own times when the client sends them (.vr_posetime, the headset's frames' times): the server's
+    // 72 Hz ticks beat against the headset's frames, so a tick's pose is one or two frames newer than the last tick's
+    // (at 90 Hz 1/90 or 2/90 s for the tick's 1/72: a steady swing read at 0.8 and 1.6 times its speed by turns; a
+    // dropped frame likewise). Measured over the poses' times every headset rate reads a swing's own speed.
+    float ptime = self.vr_posetime;
+    if(ptime >= 0 && b.mh_ptime >= 0)
+    {
+        float pdt = ptime - b.mh_ptime;
+        if(pdt < -0.5 * VR_POSE_CLOCK_WRAP)
+        {
+            pdt = pdt + VR_POSE_CLOCK_WRAP;
+        }
+        if(pdt == 0 && dt > 0 && dt < 0.05)
+        {
+            return FALSE; // (the same frame's pose again: no news, not a stop)
+        }
+        if(pdt > 0 && pdt <= 0.25 && dt > 0 && dt <= 0.25)
+        {
+            dt = pdt;
+        }
+    }
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
     if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self))
@@ -1267,6 +1320,7 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
         b.mh_time = now;
+        b.mh_ptime = ptime;
         return FALSE;
     }
 
@@ -1315,9 +1369,9 @@ float(float xHand, entity b) VR_Melee_Track =
     }
     if(same && !jumped)
     {
-        b.mh_vnear = (rnear - b.mh_rnear) * (1 / dt);
         b.mh_vgrip = (rgrip - b.mh_rgrip) * (1 / dt);
-        b.mh_vfar = (rfar - b.mh_rfar) * (1 / dt);
+        b.mh_vnear = b.mh_vgrip + VR_Melee_TurnVel(b.mh_rnear - b.mh_rgrip, rnear - rgrip, dt);
+        b.mh_vfar = b.mh_vgrip + VR_Melee_TurnVel(b.mh_rfar - b.mh_rgrip, rfar - rgrip, dt);
         vwrist = (rwrist - b.mh_rwrist) * (1 / dt);
     }
     else
@@ -1333,10 +1387,12 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_rfar = rfar;
     b.mh_rwrist = rwrist;
     b.mh_near = vr_mline_near;
+    b.mh_pgrip = same ? b.mh_grip : vr_mline_grip;
     b.mh_grip = vr_mline_grip;
     b.mh_far = vr_mline_far;
     b.mh_dt = (same && !jumped) ? dt : 0;
     b.mh_time = now;
+    b.mh_ptime = ptime;
     b.mh_thing = thing;
     b.mh_wid = wid;
     b.mh_heavy2h = VR_Heavy_TwoHanded(self, xHand);
@@ -1792,6 +1848,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         sspeed = vfar;
         sneed = need * (kind == VR_MKIND_STAB ? VR_MELEE_TIP_STAB : VR_MELEE_TIP_SLASH);
     }
+    sspeed = sspeed * VR_MELEE_STRENGTH_SPEED;
     float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (sspeed - sneed) / (sneed * (VR_MELEE_GOOD - 1)) *
               (b.mh_curve > 0 ? b.mh_curve : 1);
     b.mh_kind = kind;
@@ -2065,17 +2122,17 @@ float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
 // (vr_rib_p0 to vr_rib_p1), vr_rib_r thick, striking as the layout's point vr_rib_i (VR_Melee_Decide's); the box round
 // them all, their thickness in (vr_rib_lo, _hi); a wall's crossing by each (VR_Melee_Sweep: how far past its surface,
 // where, its normal).
-float VR_MELEE_RIBS = 40;
+float VR_MELEE_RIBS = 48; // (the arrays below as long)
 float VR_MELEE_RIB_GAP = 1.5; // vr_melee_swept: neighbouring striking points' lines at most this many thicknesses apart
 float VR_MELEE_RIB_MORE = 3;  // (at most this many lines more between two points)
 float VR_MELEE_HEAD_MOST = 4; // a hammer's or mace's head: its lines along each of its two long sides, at most
-vector vr_rib_p0[40];
-vector vr_rib_p1[40];
-float vr_rib_i[40];
-float vr_rib_r[40];
-float vr_rib_wd[40];
-vector vr_rib_wat[40];
-vector vr_rib_wn[40];
+vector vr_rib_p0[48];
+vector vr_rib_p1[48];
+float vr_rib_i[48];
+float vr_rib_r[48];
+float vr_rib_wd[48];
+vector vr_rib_wat[48];
+vector vr_rib_wn[48];
 float vr_rib_n;
 float vr_rib_rmax;
 vector vr_rib_lo;
@@ -2123,6 +2180,30 @@ float(float xLo, float xHi, float xIn, float xK, float xN) VR_Melee_HeadAt =
     return xLo + xIn + (xHi - xLo - 2 * xIn) * xK / (xN - 1);
 };
 
+// A point's line from the pose before to this one along its arc round the grip, not the chord, when the chord cuts the
+// arc's inside by more than VR_MELEE_ARC_SAG of the line's thickness: a fast turn, or a pose two headset frames on (a
+// dropped frame; the 72 Hz ticks beating against the headset's frames) cuts further in. Then two lines, through the
+// arc's middle (the grip's middle, the point's way from it turned half way, its distance the mean).
+float VR_MELEE_ARC_SAG = 0.5;
+void(entity b, vector xP0, vector xP1, float xI, float xR) VR_Melee_ArcRib =
+{
+    vector r0 = xP0 - b.mh_pgrip;
+    vector r1 = xP1 - b.mh_grip;
+    float l0 = vlen(r0);
+    float l1 = vlen(r1);
+    if(l0 >= 1 && l1 >= 1 && r0 * r1 > -0.9 * l0 * l1)
+    {
+        vector mid = (b.mh_pgrip + b.mh_grip) * 0.5 + normalize(r0 * (1 / l0) + r1 * (1 / l1)) * ((l0 + l1) * 0.5);
+        if(vlen(mid - (xP0 + xP1) * 0.5) > VR_MELEE_ARC_SAG * xR)
+        {
+            VR_Melee_RibAdd(xP0, mid, xI, xR);
+            VR_Melee_RibAdd(mid, xP1, xI, xR);
+            return;
+        }
+    }
+    VR_Melee_RibAdd(xP0, xP1, xI, xR);
+};
+
 // The lines of `b`'s sweep, `xR` thick: its layout's points (VR_Melee_Track); with vr_melee_swept (`xSwept`) the surface
 // its whole blade sweeps: between two neighbouring striking points (a blade's, an axe's head's, the crowbar's bar), as
 // many lines more as keep them at most VR_MELEE_RIB_GAP thicknesses apart all along the sweep (his note: a long swing
@@ -2141,7 +2222,7 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
     {
         vector p0 = b.mh_pp[i];
         vector p1 = b.mh_cp[i];
-        VR_Melee_RibAdd(p0, p1, i, xR);
+        VR_Melee_ArcRib(b, p0, p1, i, xR);
         if(!xSwept || i + 1 >= n || !VR_Melee_Strikes(vr_mpt_kind[i]) || !VR_Melee_Strikes(vr_mpt_kind[i + 1]))
         {
             continue;

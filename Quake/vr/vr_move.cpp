@@ -109,6 +109,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         MSG_WriteFloat(buf, move.lampRange);
         MSG_WriteFloat(buf, move.lampCos);
     }
+    MSG_WriteFloat(buf, move.poseClock);
     MSG_WriteFloat(buf, move.light);
 }
 
@@ -177,6 +178,7 @@ za::Optional<VrMove> readVrMove()
         move.lampRange = in.real();
         move.lampCos = in.real();
     }
+    move.poseClock = in.real();
     move.light = in.real();
 
     if(!in.finite)

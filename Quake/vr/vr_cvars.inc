@@ -262,6 +262,14 @@ QVR_CVAR(vr_fixed_frames_rate, "72", CVAR_NONE)
 // Test runs with vr_fixed_frames 1: each frame's time off by up to this fraction of a frame (0.02: a headset's +-2%), the
 // frames' times jittered around the rate (no drift); the server ticks on its own clock (host_tickstats).
 QVR_CVAR(vr_fixed_frames_jitter, "0", CVAR_NONE)
+// Test runs with vr_fixed_frames 1: every this many frames one is dropped (the frame before it twice as long: a headset
+// that can't keep up; 0 none).
+QVR_CVAR(vr_fixed_frames_stutter, "0", CVAR_NONE)
+// vr_motion_eval's rate, jitter and stutter when its command line gives none (0: the takes' own frames): the recorded
+// takes replayed at another headset's frame rate (eval.sh EVAL_PRE; the melee's frame-rate independence, ROUND22.md).
+QVR_CVAR(vr_motion_eval_rate, "0", CVAR_NONE)
+QVR_CVAR(vr_motion_eval_jitter, "0", CVAR_NONE)
+QVR_CVAR(vr_motion_eval_stutter, "0", CVAR_NONE)
 // Test runs: 1 runs the mock headset's frames as fast as the machine makes them while the game's clock doesn't follow the
 // wall clock (vr_fixed_frames 1, a motion take played back not in watch mode): no frame cap, no vsync (VR_Unpaced). The
 // same frames and the same numbers as at the frame cap's pace, in less time. Other runs keep their real-time pace.

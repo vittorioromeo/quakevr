@@ -67,6 +67,9 @@ struct VrMove
     // it (flashlight::beamNow; sent only while lit) and the light on him as his client measures it (stealth::lightAt:
     // his map's lightmaps and the dynamic lights he sees, his own lamp's aside; -1 unknown).
     bool lampLit{false};
+    // The poses' time (hands::State::poseTime) modulo VR_POSE_CLOCK_WRAP s (a float's precision kept; -1 unknown) ->
+    // .vr_posetime: the melee's speeds over the poses' own times (vr_melee.qc VR_Melee_Track, vr_legsweep.cpp).
+    float poseClock{-1.f};
     glm::vec3 lampLens{0.f};
     glm::vec3 lampDir{1.f, 0.f, 0.f};
     float lampRange{0.f};
