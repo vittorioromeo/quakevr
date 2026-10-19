@@ -581,6 +581,10 @@ void registerCvars()
     {
         cvarAt(slot, Key::AnyGripMode).string = "-1";
         cvarAt(slot, Key::TorchClip).string = "1"; // the flashlight clips on it (the melee weapons' 0: vr_weapons.inc)
+        // Heavy handling: the weight class from the mass (the weapons' own: vr_weapons.inc), its droop and kick as is.
+        cvarAt(slot, Key::Heft).string = "-1";
+        cvarAt(slot, Key::Droop).string = "1";
+        cvarAt(slot, Key::HeavyRecoil).string = "1";
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
@@ -668,7 +672,10 @@ bool weightKey(Key key)
         case Key::ThrowMinSpeed:
         case Key::ThrowCurve:
         case Key::MeleeMinSpeed:
-        case Key::MeleeCurve: return true;
+        case Key::MeleeCurve:
+        case Key::Heft:
+        case Key::Droop:
+        case Key::HeavyRecoil: return true;
         default: return false;
     }
 }

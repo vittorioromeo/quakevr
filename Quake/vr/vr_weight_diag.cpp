@@ -524,10 +524,157 @@ void throwTable_f()
     }
 }
 
+// vr_heavy_test [slot]: heavy handling (vr_heavy*) offline, per weapon (or one slot, 0-based), at 90 fps: its weight class;
+// its droop in one hand and two (degrees); an abrupt wrist snap (yaw 60 degrees in 0.1 s, held) one-handed with the
+// struggle and without it (vr_heavy_struggle 0) and two-handed: the most it lags (degrees), its overshoot (% of the turn)
+// and the time to 90% (ms); the fastest 60 ms turn of that snap and of an extreme one (120 in 0.08 s) against its
+// wrenched-out limit (vr_weight_drop*: "drop" if over); a one-handed shot's kick, one hand and two: its peak (degrees up)
+// and the time back under a tenth of it (ms).
+void heavyTest_f()
+{
+    using weapons::Key;
+    const int only = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : -1;
+    constexpr float fps = 90.f, dt = 1.f / fps;
+    const auto loadOf = [](int slot, float twoHanded, bool struggle) {
+        Load l;
+        l.valid = true;
+        const float mass = weapons::value(slot, Key::Mass), balance = weapons::value(slot, Key::Balance) * 0.01f;
+        const float length = za::max(weapons::value(slot, Key::Span), 1.f) * 0.01f;
+        gunLoad(l, mass, balance, length);
+        if(twoHanded > 0.f)
+        {
+            const float d = balance - 0.175f, across = mass * length * length / 12.f; // (as vr_weight_test's)
+            l.com = {d, 0.f, 0.f};
+            l.inertia = {mass * gunRollRadius2, across + mass * d * d, across + mass * d * d};
+        }
+        l.twoHanded = twoHanded;
+        l.tune = weaponTuning(slot);
+        l.slot = slot;
+        l.heft = heft(slot);
+        l.struggle = struggle ? l.heft * (1.f - twoHanded) * za::clamp(vr_heavy_struggle.value, 0.f, 1.f) : 0.f;
+        return l;
+    };
+    // The snap: degrees of yaw at `t` (s) for `deg` over `dur`, smoothstepped and held.
+    const auto snapAt = [](float t, float deg, float dur) {
+        const float u = za::clamp(t / dur, 0.f, 1.f);
+        return deg * u * u * (3.f - 2.f * u);
+    };
+    const auto fastest = [&](float deg, float dur) {
+        float most = 0.f;
+        for(float t = 0.06f; t <= dur + 0.06f; t += 0.002f)
+        {
+            most = za::max(most, (snapAt(t, deg, dur) - snapAt(t - 0.06f, deg, dur)) / 0.06f);
+        }
+        return most;
+    };
+    struct Snap
+    {
+        float lag, over, t90;
+        int putBack;
+    };
+    // `deg` over `dur`, held (or straight back over as long: `back`).
+    const auto snap = [&](const Load& l, float deg, float dur, bool back) {
+        Body b;
+        const glm::vec3 x0{0.55f, -0.25f, 1.25f};
+        b.x = x0;
+        glm::quat prev{1.f, 0.f, 0.f, 0.f};
+        Snap out{0.f, 0.f, -1.f, 0};
+        const float m = za::max(l.mass, 0.01f);
+        for(int f = 1; f <= static_cast<int>(1.5f * fps); f++)
+        {
+            const float t = static_cast<float>(f) * dt;
+            const float want = snapAt(t, deg, dur) - (back ? snapAt(t - dur, deg, dur) : 0.f);
+            const glm::quat qt = glm::angleAxis(glm::radians(want), glm::vec3{0.f, 0.f, 1.f});
+            if(step(b, l, m, x0, x0, prev, qt, dt, 0.f))
+            {
+                b.q = qt;
+                b.w = glm::vec3{0.f};
+                out.putBack++;
+            }
+            if(back)
+            {
+                out.lag = za::max(out.lag, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
+                prev = qt;
+                continue;
+            }
+            prev = qt;
+            const float turned = glm::degrees(glm::dot(rotationVector(b.q), glm::vec3{0.f, 0.f, 1.f}));
+            out.lag = za::max(out.lag, want - turned);
+            out.over = za::max(out.over, (turned - deg) / deg * 100.f);
+            if(out.t90 < 0.f && turned >= 0.9f * deg)
+            {
+                out.t90 = t * 1000.f;
+            }
+        }
+        return out;
+    };
+    struct Kick
+    {
+        float peak, back;
+    };
+    const auto kick = [&](Load l, int slot) {
+        Body b;
+        const glm::vec3 x0{0.55f, -0.25f, 1.25f};
+        b.x = x0;
+        const glm::quat q0{1.f, 0.f, 0.f, 0.f};
+        const float speed = kickSpeed(slot, l.twoHanded);
+        b.w = glm::vec3{0.f, -glm::radians(speed), 0.f};
+        const float share = l.heft * (1.f - l.twoHanded), time = za::max(vr_heavy_recoil_time.value, 0.01f);
+        Kick out{0.f, -1.f};
+        const float m = za::max(l.mass, 0.01f);
+        for(int f = 1; f <= static_cast<int>(2.f * fps); f++)
+        {
+            const float t = static_cast<float>(f) * dt;
+            l.kick = speed > 0.f ? share * za::max(1.f - t / time, 0.f) : 0.f;
+            (void)step(b, l, m, x0, x0, q0, q0, dt, 0.f);
+            const float up = -glm::degrees(glm::dot(rotationVector(b.q), glm::vec3{0.f, 1.f, 0.f}));
+            if(up > out.peak)
+            {
+                out.peak = up;
+                out.back = -1.f;
+            }
+            else if(out.back < 0.f && out.peak > 0.f && up < 0.1f * out.peak)
+            {
+                out.back = t * 1000.f;
+            }
+        }
+        return out;
+    };
+    Con_Printf("vr_heavy_test: struggle %.2f (stiffness %.2fx, damping %.2fx at heft 1), droop %.1f deg, kick %.0f deg/s "
+               "(recovery %.2fx over %.2f s), drop %s\n",
+        vr_heavy_struggle.value, vr_heavy_struggle_stiffness.value, vr_heavy_struggle_damping.value, vr_heavy_droop_deg.value,
+        vr_heavy_recoil_kick.value, vr_heavy_recoil_recovery.value, vr_heavy_recoil_time.value, vr_weight_drop.value ? "on" : "off");
+    Con_Printf("%-4s %-30s %5s %4s | %4s %4s | %-15s | %-15s | %-15s | %5s %5s %5s | %-11s | %-11s | %s\n", "slot", "model",
+        "kg", "heft", "drp1", "drp2", "snap1H lag/ov/t90", "no-struggle 1H", "snap2H", "abrpt", "extr", "lim1H", "kick1H pk/ms",
+        "kick2H pk/ms", "yaw170+back 1H off/putback");
+    const float abrupt = fastest(60.f, 0.1f), extreme = fastest(120.f, 0.08f);
+    for(int slot = 0; slot < weapons::numSlots; slot++)
+    {
+        const char* id = weapons::cvar(slot, Key::ID)->string;
+        if((only >= 0 && slot != only) || !id[0] || !strcmp(id, "-1") || slot == weapons::fistSlot() ||
+            weapons::value(slot, Key::Mass) <= 0.01f)
+        {
+            continue;
+        }
+        const Load one = loadOf(slot, 0.f, true), plain = loadOf(slot, 0.f, false), two = loadOf(slot, 1.f, true);
+        const Snap s1 = snap(one, 60.f, 0.1f, false), s0 = snap(plain, 60.f, 0.1f, false), s2 = snap(two, 60.f, 0.1f, false);
+        const Snap y1 = snap(one, 170.f, 0.4f, true); // (heavy_wrist_snap.mock's yaw_slow: 425 deg/s on average)
+        const Kick k1 = kick(one, slot), k2 = kick(two, slot);
+        const float limit = dropLimit(one.mass, 0.f);
+        Con_Printf("%-4d %-30.30s %5.1f %4.2f | %4.1f %4.1f | %4.0f %4.0f %5.0f | %4.0f %4.0f %5.0f | %4.0f %4.0f %5.0f | %5s %5s "
+                   "%5.0f | %4.1f %6.0f | %4.1f %6.0f | %4.0f %d\n",
+            slot, id, one.mass, one.heft, droop(slot, 0.f), droop(slot, 1.f), s1.lag, s1.over, s1.t90, s0.lag, s0.over, s0.t90,
+            s2.lag, s2.over, s2.t90, limit > 0.f && abrupt > limit ? "drop" : "-", limit > 0.f && extreme > limit ? "drop" : "-",
+            limit, k1.peak, k1.back, k2.peak, k2.back, y1.lag, y1.putBack);
+    }
+    Con_Printf("vr_heavy_test: the abrupt snap turns %.0f deg/s at most over 60 ms, the extreme one %.0f\n", abrupt, extreme);
+}
+
 } // namespace
 
 void registerDiagCommands()
 {
+    Cmd_AddCommand("vr_heavy_test", heavyTest_f);
     Cmd_AddCommand("vr_throw_table", throwTable_f);
     Cmd_AddCommand("vr_weight_test", test_f);
     Cmd_AddCommand("vr_weight_table", table_f);

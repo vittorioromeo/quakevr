@@ -805,6 +805,13 @@ wrenched out; `vr_debug_2h_grip 1` each grip taken and why one let go, 2 also wh
 `heavy_wrist_snap.mock` (the laser cannon in one hand, `vr_weight_drop 0; vr_debug_weight 1`: fast wrist snaps and back, each
 `weight: main put back in the hand`, never a whole turn: `weight_trace.txt`'s ang_deg stays under 165); `vr_weight_test`'s
 wrist-snap table: its `long` column must be 0.
+Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"): `vr_heavy_test` (offline
+table per weapon). In game: `map vrfiringrange; setpos 300 -440 45 0 180 0; +grabright; vr_mock_button main grip 1;
+vr_ad_test 128` (the hammer; 129 the mace), `vr_mock_hand main 0.20 1.20 -0.40 70 0 0`, two hands `vr_mock_hand_to off
+heldspot 0; +grableft; vr_mock_button off grip 1`, a shambler `vr_test_spawn 3; vr_test_spawn_dist 40; impulse 241`,
+then `developer 2` and a play from `Misc/quakevr/heavy_swings_gen.py` (`meleearc:` and `heavy two-handed strength`
+lines). `vr_debug_weight 2` prints each hand's pitch below the controller (the droop); kicks: `vr_weaponfx_test 1` with
+`vr_debug_weight 2` prints `heavy kick`.
 Spring only; Weapon Weights and Held Object Weights; weight and damage (ROUND21.md): the pages are `menu_vr 42` (Weapon
 Weights) and `menu_vr 43` (Held Object Weights; `menu_vr <page> <row>` scrolls). `vr_weight_table` prints every weapon's
 and prop's mass, its damage multipliers (the curve, times its own Melee and Throw Damage x) and its speed factor (heavy

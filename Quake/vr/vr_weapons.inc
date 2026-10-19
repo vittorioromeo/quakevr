@@ -347,6 +347,15 @@ QVR_WEAPON_KEY(TorchRoll, "torch_roll")
 // slot's default, registerCvars) it can (its zone, B/Y, Clip on Gun When Let Go); 0 none of them. Off by default for the
 // melee weapons below (QVR_WEAPON_DEFAULT: the axe, Mjolnir, the swords, the chainsaw, the crowbar).
 QVR_WEAPON_KEY(TorchClip, "torch_clip")
+// Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"; vr_weight.cpp; Weapon Weights >
+// Heavy Handling): the weapon's weight class, its Heft: 0 light (no struggle) .. 1 the heaviest (the laser cannon); -1
+// (every slot's default, registerCvars) from its mass (vr_heavy_auto_from .. _full kg). One-handed, a heavy weapon lags an
+// abrupt wrist snap springily, its barrel droops and its shots kick it up; two-handed, slower deliberate swings strike
+// (vr_heavy_*). Its own multipliers of the droop and the one-handed kick (1 by default; 0 off for this weapon).
+// New cvars: no migration.
+QVR_WEAPON_KEY(Heft, "w_heft")
+QVR_WEAPON_KEY(Droop, "w_droop")
+QVR_WEAPON_KEY(HeavyRecoil, "w_hrecoil")
 #endif
 
 
@@ -2567,6 +2576,54 @@ QVR_WEAPON_DEFAULT(19, UpperHolsterX, "-1.5")
 QVR_WEAPON_DEFAULT(19, UpperHolsterY, "6")
 QVR_WEAPON_DEFAULT(19, UpperHolsterYaw, "25")
 QVR_WEAPON_DEFAULT(19, UpperHolsterZ, "-3.5")
+
+// Heavy handling's weight class (Heft: 0 fine in one hand .. 1 the heaviest; ROUND22.md, "Heavy weapons: struggle, droop,
+// recoil, two-handed swings"): the laser cannon the hardest to hold in one hand; the Widowmaker, the rocket launcher and
+// the chainsaw cumbersome; the hunter ogres' hammer and mace heavy; the big swords (the hell knight's, the death knight's,
+// the death guard's) a little heavy; the rest fine in one hand (a little more or less, no droop or struggle to speak of;
+// the zombie knight's and the fury's swords, for two at once, light). Unlisted slots: from their mass (-1).
+QVR_WEAPON_DEFAULT(0, Heft, "0")    // axe
+QVR_WEAPON_DEFAULT(1, Heft, "0")    // shotgun
+QVR_WEAPON_DEFAULT(2, Heft, "0.05") // super shotgun
+QVR_WEAPON_DEFAULT(3, Heft, "0.05") // nailgun
+QVR_WEAPON_DEFAULT(4, Heft, "0.12") // super nailgun
+QVR_WEAPON_DEFAULT(5, Heft, "0.08") // grenade launcher
+QVR_WEAPON_DEFAULT(6, Heft, "0.6")  // rocket launcher
+QVR_WEAPON_DEFAULT(7, Heft, "0.12") // thunderbolt
+QVR_WEAPON_DEFAULT(8, Heft, "0.15") // Mjolnir (one-handed by design)
+QVR_WEAPON_DEFAULT(9, Heft, "1")    // laser cannon
+QVR_WEAPON_DEFAULT(10, Heft, "0.08") // proximity gun
+QVR_WEAPON_DEFAULT(16, Heft, "0")   // the empty hand
+QVR_WEAPON_DEFAULT(17, Heft, "0")   // grapple
+QVR_WEAPON_DEFAULT(18, Heft, "0.05") // knight's sword
+QVR_WEAPON_DEFAULT(19, Heft, "0.35") // hell knight's sword (big)
+QVR_WEAPON_DEFAULT(20, Heft, "0.6")  // chainsaw
+QVR_WEAPON_DEFAULT(21, Heft, "0.08") // grunts' burst rifle
+QVR_WEAPON_DEFAULT(22, Heft, "0.12") // enforcer's rifle
+QVR_WEAPON_DEFAULT(23, Heft, "0")    // crowbar
+QVR_WEAPON_DEFAULT(24, Heft, "0.05") // MG3 hammer
+QVR_WEAPON_DEFAULT(25, Heft, "0.05")
+QVR_WEAPON_DEFAULT(26, Heft, "0")    // toolgun
+QVR_WEAPON_DEFAULT(27, Heft, "0.08") // AD soldiers' guns
+QVR_WEAPON_DEFAULT(28, Heft, "0.08")
+QVR_WEAPON_DEFAULT(29, Heft, "0.08")
+QVR_WEAPON_DEFAULT(30, Heft, "0.08")
+QVR_WEAPON_DEFAULT(31, Heft, "0.08")
+QVR_WEAPON_DEFAULT(32, Heft, "0.2")  // AD crossbow (10.65 kg, but held as a pistol crossbow)
+QVR_WEAPON_DEFAULT(33, Heft, "0")    // Shadow Axe
+QVR_WEAPON_DEFAULT(34, Heft, "0.6")  // Widowmaker
+QVR_WEAPON_DEFAULT(35, Heft, "0.12") // AD plasma gun
+QVR_WEAPON_DEFAULT(40, Heft, "0")    // the fury's swords (dual-wielded)
+QVR_WEAPON_DEFAULT(41, Heft, "0.35") // death knight's sword
+QVR_WEAPON_DEFAULT(42, Heft, "0")    // zombie knight's sword
+QVR_WEAPON_DEFAULT(43, Heft, "0.3")  // death guard's sword
+QVR_WEAPON_DEFAULT(44, Heft, "0.9")  // hunter ogre's hammer
+QVR_WEAPON_DEFAULT(45, Heft, "0.85") // hunter ogre's mace
+// Their one-handed kick (times vr_heavy_recoil_kick, by Heft): the laser cannon's rapid fire half (its kicks add up), the
+// rocket launcher's and the Widowmaker's big single shots more.
+QVR_WEAPON_DEFAULT(9, HeavyRecoil, "0.5")
+QVR_WEAPON_DEFAULT(6, HeavyRecoil, "1.5")
+QVR_WEAPON_DEFAULT(34, HeavyRecoil, "1.5")
 
 // Weight (spring model): mass, balance and length (the alternates, slots 11..15, inherit their guns').
 QVR_WEAPON_DEFAULT(0, Mass, "2.5")

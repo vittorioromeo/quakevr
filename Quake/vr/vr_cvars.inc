@@ -1089,6 +1089,28 @@ QVR_CVAR(vr_weight_drop_curve, "1", CVAR_ARCHIVE)      // heavier, times (from /
 QVR_CVAR(vr_weight_drop_2h, "1.5", CVAR_ARCHIVE)       // times the speed with the other hand on it too
 QVR_CVAR(vr_weight_drop_window, "0.06", CVAR_ARCHIVE)  // seconds the turn is measured over
 QVR_CVAR(vr_weight_drop_velocity, "0.4", CVAR_ARCHIVE) // times a throw's velocity and spin, wrenched out (the grip lost: no throw)
+// Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"; vr_weight.cpp, QC vr_melee.qc;
+// Weapon Weights > Heavy Handling): each weapon's weight class, its Heft (0 light .. 1 the laser cannon; Weapon Weights,
+// w_heft; -1 from its mass), times how much of it is held in one hand (none with the other hand on it), makes it lag an
+// abrupt wrist snap springily (the wrist's stiffness and damping on it lowered), droop (its barrel or head sags, the aim
+// with it) and kick up when it fires (a turn of the spring, recovered slowly); two-handed, its slower deliberate swings
+// strike: the speeds a blow needs lowered, a smooth sustained arc required instead, the strength from the arc and the weight.
+QVR_CVAR(vr_heavy, "1", CVAR_ARCHIVE)                      // 0: none of it (every weapon as light)
+QVR_CVAR(vr_heavy_auto_from, "10", CVAR_ARCHIVE)           // kg: a weapon without its own Heft (-1) lighter than this is light (0)
+QVR_CVAR(vr_heavy_auto_full, "20", CVAR_ARCHIVE)           // kg: and this heavy the heaviest (1)
+QVR_CVAR(vr_heavy_struggle, "1", CVAR_ARCHIVE)             // one-handed struggle: 0 off, 1 full (times the Heft)
+QVR_CVAR(vr_heavy_struggle_stiffness, "0.25", CVAR_ARCHIVE) // the wrist's stiffness on it at Heft 1 in one hand, times (lower: lags further, slower back)
+QVR_CVAR(vr_heavy_struggle_damping, "0.5", CVAR_ARCHIVE)    // its damping at Heft 1 in one hand, times (lower: springier, overshoots)
+QVR_CVAR(vr_heavy_droop, "1", CVAR_ARCHIVE)                // 1: heavy weapons droop held in one hand
+QVR_CVAR(vr_heavy_droop_deg, "9", CVAR_ARCHIVE)            // degrees the barrel (head) sags at Heft 1 in one hand (times the weapon's Droop x)
+QVR_CVAR(vr_heavy_recoil, "1", CVAR_ARCHIVE)               // 1: heavy weapons fired in one hand kick up (the aim with them)
+QVR_CVAR(vr_heavy_recoil_kick, "100", CVAR_ARCHIVE)        // deg/s the muzzle is flung up a shot at Heft 1 in one hand (times the weapon's Heavy Recoil x)
+QVR_CVAR(vr_heavy_recoil_recovery, "0.5", CVAR_ARCHIVE)    // the wrist's stiffness on it just after a shot at Heft 1 in one hand, times (slower back)
+QVR_CVAR(vr_heavy_recoil_time, "0.4", CVAR_ARCHIVE)        // s the slower recovery fades over
+QVR_CVAR(vr_heavy_melee_2h, "0.45", CVAR_ARCHIVE)          // two-handed: the speeds a blow needs at Heft 1, times (a deliberate arc is required instead)
+QVR_CVAR(vr_heavy_swing_arc, "0.3", CVAR_ARCHIVE)          // m: the far end's smooth arc a slow two-handed blow needs (steady way, no reversal)
+QVR_CVAR(vr_heavy_swing_time, "0.12", CVAR_ARCHIVE)        // s: and how long it must have been under way
+QVR_CVAR(vr_heavy_swing_strength, "1.3", CVAR_ARCHIVE)     // the strength of a deliberate two-handed arc at Heft 1 (a blow of strength 1 is a normal one; more with a longer arc)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
 QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body); 2: also where each hand and its weapon are drawn and the eye ("painview"; Misc/quakevr/painknock/painsum.py)

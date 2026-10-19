@@ -244,6 +244,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_free_back;   // and how far its near end is behind its handle (a share of the handle to the tip)
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
+.float mh_heavy2h;     // heavy handling: the weapon's weight class held two-handed (VR_Heavy_TwoHanded; 0: not)
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
 .float mh_overland;    // frames in a row the grip was as fast as a blow lands (VR_Melee_Whoosh: a slap's whoosh)
@@ -408,6 +409,24 @@ float(entity p, float xHand) VR_Weight_Leniency =
         }
     }
     return weightleniency(VR_Weight_HeldMass(p, xHand)) * own;
+};
+
+// Heavy handling (ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"): the weight class (weaponheft,
+// 0 .. 1) of the weapon `xHand` of `p` holds in both hands; 0 held in one, or a carried thing.
+float(entity p, float xHand) VR_Heavy_TwoHanded =
+{
+    if(!VRGet2HAiming(p) || VR_Carry_Held(p, xHand) != world)
+    {
+        return 0;
+    }
+    return weaponheft(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)));
+};
+
+// Its factor on the speeds a blow needs: lower for a heavier weapon in both hands (vr_heavy_melee_2h at weight class 1),
+// swung slower, deliberately (VR_Melee_Decide then asks for a smooth arc instead: meleearc).
+float(float xHeavy) VR_Heavy_SpeedFactor =
+{
+    return 1 + (min(1, max(0.05, cvar("vr_heavy_melee_2h"))) - 1) * xHeavy;
 };
 
 // A weapon's own multiplier of how fast a blow's strength rises over the speed it needs (Weapon Weights: Melee Damage
@@ -1145,7 +1164,8 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_n = 0;
         b.mh_thing = thing;
         b.mh_free = FALSE;
-        b.mh_lenient = VR_Weight_Leniency(self, xHand);
+        b.mh_heavy2h = VR_Heavy_TwoHanded(self, xHand);
+        b.mh_lenient = VR_Weight_Leniency(self, xHand) * VR_Heavy_SpeedFactor(b.mh_heavy2h);
         b.mh_curve = VR_Weight_MeleeCurve(self, xHand);
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
@@ -1222,7 +1242,8 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_time = now;
     b.mh_thing = thing;
     b.mh_wid = wid;
-    b.mh_lenient = VR_Weight_Leniency(self, xHand);
+    b.mh_heavy2h = VR_Heavy_TwoHanded(self, xHand);
+    b.mh_lenient = VR_Weight_Leniency(self, xHand) * VR_Heavy_SpeedFactor(b.mh_heavy2h);
     b.mh_curve = VR_Weight_MeleeCurve(self, xHand);
     if(!jumped)
     {
@@ -1566,6 +1587,31 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         return FALSE;
     }
+    // Heavy handling: a heavy weapon in both hands is swung slower than a light one (its weight), so its blows need less
+    // speed (mh_lenient: VR_Heavy_SpeedFactor); one slower than a light weapon's blow strikes only as a deliberate swing,
+    // a smooth arc of its far end (meleearc: a steady way, at least vr_heavy_swing_arc m over vr_heavy_swing_time s), not
+    // a slow reposition or a wave. Such a swing need not come from far (VR_Melee_CameFar) and isn't a wiggle (its arc is
+    // steady); its strength is the arc's and the weight's (below).
+    float heavyArc = 0;
+    float deliberate = FALSE;
+    float arcNeed = max(0.05, cvar("vr_heavy_swing_arc"));
+    if(b.mh_heavy2h > 0 && xKind != VR_MPT_FIST)
+    {
+        heavyArc = meleearc(b, need * 0.5);
+        if(speed < need * land / VR_Heavy_SpeedFactor(b.mh_heavy2h))
+        {
+            if(heavyArc < arcNeed)
+            {
+                if(cvar("developer") >= 2)
+                {
+                    dprint(sprintf("melee debug: heavy two-handed, slow (%.2f m/s) and no deliberate arc (%.2f m of %.2f): no blow\n",
+                        speed, heavyArc, arcNeed));
+                }
+                return FALSE;
+            }
+            deliberate = TRUE;
+        }
+    }
     float how = VR_MHOW_OTHER;
     if(b.mh_thing != VR_MTHING_GUN && b.mh_thing != VR_MTHING_FIST)
     {
@@ -1588,7 +1634,9 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         return FALSE;
     }
     // A blow, not a wiggle: the arm came from some way off (a slow swing from further).
-    if(!VR_Melee_CameFar(b, how, speed / (need * land)))
+    // (A heavy two-handed blow fast enough without its arc: from as far as a light weapon's at that speed, so a short jerk
+    // of it doesn't strike either.)
+    if(!deliberate && !VR_Melee_CameFar(b, how, speed * VR_Heavy_SpeedFactor(b.mh_heavy2h) / (need * land)))
     {
         return FALSE;
     }
@@ -1598,7 +1646,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         return FALSE;
     }
     // Nor a weapon waved back and forth.
-    if(VR_Melee_Wiggled(b))
+    if(!deliberate && VR_Melee_Wiggled(b))
     {
         if(cvar("developer") >= 2)
         {
@@ -1617,7 +1665,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     if(cvar("developer") >= 2)
     {
-        dprint("melee debug: a blow\n");
+        dprint(deliberate ? sprintf("melee debug: a blow (heavy two-handed, deliberate: arc %.2f m)\n", heavyArc) : "melee debug: a blow\n");
     }
 
     // The strength: the speed over the least. A sword's cut or stab measured at its tip (VR_MELEE_TIP_*), not the
@@ -1635,6 +1683,20 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     b.mh_speed = speed;
     b.mh_dmgspeed = sspeed;
     b.mh_core = min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s));
+    // Heavy handling: a deliberate two-handed arc of a heavy weapon strikes hard however slow (its weight does the work:
+    // weightdamage on top), vr_heavy_swing_strength at its weight class 1 for the arc needed, up to 1.3 times that for one
+    // twice as long; a faster blow keeps its own if stronger.
+    if(b.mh_heavy2h > 0 && heavyArc >= arcNeed)
+    {
+        float arcStrength = cvar("vr_heavy_swing_strength") * min(1.3, 0.7 + 0.3 * heavyArc / arcNeed);
+        arcStrength = VR_MELEE_WEAKEST + (arcStrength - VR_MELEE_WEAKEST) * b.mh_heavy2h;
+        b.mh_core = min(VR_MELEE_STRONGEST, max(b.mh_core, arcStrength));
+    }
+    if(b.mh_heavy2h > 0 && cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: heavy two-handed strength %.2f (by its speed %.2f, its arc %.2f m)\n", b.mh_core,
+            min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s)), heavyArc));
+    }
     b.mh_strength = b.mh_core * weight;
     b.mh_way = VR_Melee_Way(b, way, b.mh_thing);
     return TRUE;

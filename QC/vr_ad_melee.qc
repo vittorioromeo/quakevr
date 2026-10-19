@@ -557,6 +557,15 @@ void(float request, entity p) AD_MeleeTest =
     if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
     if(request == 126) { VR_ADMelee_CurveTest(p); return; }
     if(request == 127) { VR_ADMelee_HolsterTest(p); return; }
+    if(request == 128 || request == 129)
+    {
+        // The hammer (128) or the mace (129) in the main hand alone (heavy handling's mock swings: vr_heavy_test.cfg).
+        float heavy = request == 128 ? VR_ADMELEE_HAMMER : VR_ADMELEE_MACE;
+        VR_ADMelee_Ensure(heavy);
+        VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(heavy));
+        VR_ADMelee_Hold(p, cVR_MainHand);
+        return;
+    }
     if(request >= 116 && request <= 119)
     {
         float a = request == 116 ? VR_ADMELEE_FURY : (request == 117 ? VR_ADMELEE_DKNIGHT : (request == 118 ?

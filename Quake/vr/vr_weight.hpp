@@ -69,6 +69,10 @@ struct Load
     glm::vec3 inertia{0.f};    // kg m^2 about the grip, the hand's axes (forward: roll; left: pitch; up: yaw)
     float twist{1.f};          // the wrist's stiffness and torque about the forward axis, a share (a weapon: the forearm's twist)
     Tuning tune;
+    int slot{-1};              // a weapon's slot (else -1)
+    float heft{0.f};           // heavy handling: its weight class, 0..1 (heft; a prop's and the flashlight's 0)
+    float struggle{0.f};       // the one-handed struggle's share now: heft x (1 - twoHanded) x vr_heavy_struggle
+    float kick{0.f};           // a recovering one-handed shot's share now (vr_heavy_recoil_recovery, fading)
 };
 [[nodiscard]] Load load(int hand);
 // The mass the spring moves: with the stamina's.
@@ -129,6 +133,16 @@ struct ThrowOut
 [[nodiscard]] za::U8 dropBits();
 // The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
 [[nodiscard]] float dropLimit(float mass, float twoHanded);
+
+// Heavy handling (vr_heavy*; ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"): a weapon slot's
+// weight class, 0 (light, or vr_heavy 0) .. 1 (Weapon Weights' Heft; -1 there: from its mass, vr_heavy_auto_*).
+[[nodiscard]] float heft(int slot);
+// The degrees a weapon of `slot` held `twoHanded` (0..1) droops (its barrel down about the grip; 0: vr_heavy_droop off).
+[[nodiscard]] float droop(int slot, float twoHanded);
+// Hand `hand`'s weapon fired (vr_weaponfx.cpp playerFired): a heavy one held in one hand kicks up (the spring's turn).
+void heavyKick(int hand);
+// The kick's angular speed (deg/s) for a weapon of `slot` held `twoHanded` (0: none).
+[[nodiscard]] float kickSpeed(int slot, float twoHanded);
 
 // vr_throw_table, vr_weight_test, vr_weight_table (vr_weight_diag.cpp).
 void registerDiagCommands();

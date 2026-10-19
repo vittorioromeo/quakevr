@@ -19,6 +19,7 @@
 #include "vr_render.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
+#include "vr_weight.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -243,6 +244,7 @@ void playerFired(int hand)
     }
     adcrossbow::fired(hand); // AD support: the crossbow's string and bolt (vr_adcrossbow.cpp: if it is one)
     adweapons::fired(hand);  // AD support: the Widowmaker's barrels (vr_adweapons.cpp: if it is one)
+    weight::heavyKick(hand); // heavy handling: a heavy weapon fired in one hand kicks up (the aim with it)
     HandFx& h = handFx[hand];
     if(h.slot != slot)
     {

@@ -1047,6 +1047,7 @@ za::Vector<Item> pageDebugTools()
         command("Texture Checksums", "imagehash").help("imagehash: every loaded texture's checksum as the GPU holds it, to imagehash.txt, and their sum in the console (two texture packs, or TGA and PNG files, compared)."),
         command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
         command("Weight Test", "vr_weight_test csv").help("vr_weight_test: the weight's spring on test cases (swings, wrist snaps, wrist steps: pitch, yaw and roll), tables in the console and weight_test.csv."),
+        command("Heavy Handling Test", "vr_heavy_test").help("vr_heavy_test: every weapon's weight class and what it makes of it (Weapon Weights > Heavy Handling): droop in one hand and two, an abrupt wrist snap's lag with the struggle and without, the extreme snap that wrenches it out, a one-handed shot's kick and recovery."),
         header("External Map Index (vr_mapindex.cpp)"),
         command("Map Index Stats", "maps_stats")
             .help("maps_stats: how many packages the external index holds, by type / game_mode / map_size, how many carry their own progs.dat (left out unless the setting below is on), what the fetch cost, and where its cache is."),
