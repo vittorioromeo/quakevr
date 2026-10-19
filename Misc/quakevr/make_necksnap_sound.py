@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE (2026-10-19): quakevr/sound/vr/necksnap.wav was hand-edited by the author; running this overwrites it.
 # make_necksnap_sound.py -- the neck snap's bone crack (QC vr_foegrab_throw.qc VR_FoeGrab_NeckSnap; Combat > Holding
 # Enemies > Neck Snap; docs/vr-port/ROUND22.md, "The neck snap"), synthesised (no recordings):
 #
