@@ -50,6 +50,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 
@@ -1062,8 +1063,10 @@ void PF_meleewiggled()
 
 // float meleearc(entity b, float xFloor): heavy handling's deliberate swing (QC VR_Melee_Decide, vr_heavy_swing_*): how far
 // (m) the far end has come along a smooth arc just now, looking back through the history while it went at least xFloor
-// m/s and its way turned under 45 degrees a pose and under 150 from its way now (no reversal, no jitter, no pause); 0 if
-// that lasted under vr_heavy_swing_time.
+// m/s and its way turned under 45 degrees a 72 Hz tick (arcTurnRate: per second, over the two poses' times, so a pose
+// spanning two headset frames may turn twice as far) and under 150 from its way now (no reversal, no jitter, no pause);
+// 0 if that lasted under vr_heavy_swing_time.
+constexpr float arcTurnRate = 0.7853982f * 72.f; // rad/s (45 degrees a 72 Hz tick)
 void PF_meleearc()
 {
     G_FLOAT(OFS_RETURN) = 0.f;
@@ -1076,6 +1079,7 @@ void PF_meleearc()
     float arc = 0.f, time = 0.f;
     float newer[3] = {0.f, 0.f, 0.f}, now[3] = {0.f, 0.f, 0.f};
     const char* why = "the history's start";
+    float newerDt = 0.f;
     int n = 0;
     for(; n < VR_MELEE_HISTORY; ++n)
     {
@@ -1092,16 +1096,19 @@ void PF_meleearc()
             break;
         }
         const float dir[3] = {v[0] / speed, v[1] / speed, v[2] / speed};
+        // (The two poses' velocities are their spans' means: their middles half of each apart.)
+        const float turnMax = za::min(arcTurnRate * 0.5f * (dt + newerDt), 2.9f);
         if(n == 0)
         {
             memcpy(now, dir, sizeof(now));
         }
-        else if(meleeDot(dir, newer) < 0.7071f || meleeDot(dir, now) < -0.866f)
+        else if(meleeDot(dir, newer) < za::cos(turnMax) || meleeDot(dir, now) < -0.866f)
         {
             why = "turned";
             break;
         }
         memcpy(newer, dir, sizeof(newer));
+        newerDt = dt;
         arc += speed * dt;
         time += dt;
         r.older();

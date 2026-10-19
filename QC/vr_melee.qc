@@ -213,6 +213,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .entity vr_blow_main;
 .entity vr_blow_off;
 .float mh_time;        // when the last new pose was taken
+.float mh_ptime;       // its own time (the client's .vr_posetime; -1 unknown)
 .float mh_dt;          // s since the one before
 .float mh_thing;       // VR_MTHING_*
 .float mh_wid;         // the weapon (another: nothing to sweep from)
@@ -232,6 +233,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_hd_cy;
 .vector mh_near;       // the near end, the grip and the far end (world, now)
 .vector mh_grip;
+.vector mh_pgrip;      // the grip at the pose before (world; VR_Melee_ArcRib: the points' arcs about it)
 .vector mh_far;
 .vector mh_rnear;      // the same from the head, in the play space (metres)
 .vector mh_rgrip;
@@ -1254,6 +1256,27 @@ float(float xHand, entity b) VR_Melee_Track =
     // runs at full speed in a slowed world, and frametime is the player's), so its blows' speeds are its own.
     float now = time + vr_player_time_offset + frametime;
     float dt = now - b.mh_time;
+    // Over the poses' own times when the client sends them (.vr_posetime, the headset's frames' times): the server's
+    // 72 Hz ticks beat against the headset's frames, so a tick's pose is one or two frames newer than the last tick's
+    // (at 90 Hz 1/90 or 2/90 s for the tick's 1/72: a steady swing read at 0.8 and 1.6 times its speed by turns; a
+    // dropped frame likewise). Measured over the poses' times every headset rate reads a swing's own speed.
+    float ptime = self.vr_posetime;
+    if(ptime >= 0 && b.mh_ptime >= 0)
+    {
+        float pdt = ptime - b.mh_ptime;
+        if(pdt < -0.5 * VR_POSE_CLOCK_WRAP)
+        {
+            pdt = pdt + VR_POSE_CLOCK_WRAP;
+        }
+        if(pdt == 0 && dt > 0 && dt < 0.05)
+        {
+            return FALSE; // (the same frame's pose again: no news, not a stop)
+        }
+        if(pdt > 0 && pdt <= 0.25 && dt > 0 && dt <= 0.25)
+        {
+            dt = pdt;
+        }
+    }
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
     if(!VR_Melee_Line(self, xHand, thing) || !VRHandsTracked(self))
@@ -1267,6 +1290,7 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
         b.mh_time = now;
+        b.mh_ptime = ptime;
         return FALSE;
     }
 
@@ -1333,10 +1357,12 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_rfar = rfar;
     b.mh_rwrist = rwrist;
     b.mh_near = vr_mline_near;
+    b.mh_pgrip = same ? b.mh_grip : vr_mline_grip;
     b.mh_grip = vr_mline_grip;
     b.mh_far = vr_mline_far;
     b.mh_dt = (same && !jumped) ? dt : 0;
     b.mh_time = now;
+    b.mh_ptime = ptime;
     b.mh_thing = thing;
     b.mh_wid = wid;
     b.mh_heavy2h = VR_Heavy_TwoHanded(self, xHand);
@@ -2065,17 +2091,17 @@ float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
 // (vr_rib_p0 to vr_rib_p1), vr_rib_r thick, striking as the layout's point vr_rib_i (VR_Melee_Decide's); the box round
 // them all, their thickness in (vr_rib_lo, _hi); a wall's crossing by each (VR_Melee_Sweep: how far past its surface,
 // where, its normal).
-float VR_MELEE_RIBS = 40;
+float VR_MELEE_RIBS = 48; // (the arrays below as long)
 float VR_MELEE_RIB_GAP = 1.5; // vr_melee_swept: neighbouring striking points' lines at most this many thicknesses apart
 float VR_MELEE_RIB_MORE = 3;  // (at most this many lines more between two points)
 float VR_MELEE_HEAD_MOST = 4; // a hammer's or mace's head: its lines along each of its two long sides, at most
-vector vr_rib_p0[40];
-vector vr_rib_p1[40];
-float vr_rib_i[40];
-float vr_rib_r[40];
-float vr_rib_wd[40];
-vector vr_rib_wat[40];
-vector vr_rib_wn[40];
+vector vr_rib_p0[48];
+vector vr_rib_p1[48];
+float vr_rib_i[48];
+float vr_rib_r[48];
+float vr_rib_wd[48];
+vector vr_rib_wat[48];
+vector vr_rib_wn[48];
 float vr_rib_n;
 float vr_rib_rmax;
 vector vr_rib_lo;
@@ -2123,6 +2149,30 @@ float(float xLo, float xHi, float xIn, float xK, float xN) VR_Melee_HeadAt =
     return xLo + xIn + (xHi - xLo - 2 * xIn) * xK / (xN - 1);
 };
 
+// A point's line from the pose before to this one along its arc round the grip, not the chord, when the chord cuts the
+// arc's inside by more than VR_MELEE_ARC_SAG of the line's thickness: a fast turn, or a pose two headset frames on (a
+// dropped frame; the 72 Hz ticks beating against the headset's frames) cuts further in. Then two lines, through the
+// arc's middle (the grip's middle, the point's way from it turned half way, its distance the mean).
+float VR_MELEE_ARC_SAG = 0.5;
+void(entity b, vector xP0, vector xP1, float xI, float xR) VR_Melee_ArcRib =
+{
+    vector r0 = xP0 - b.mh_pgrip;
+    vector r1 = xP1 - b.mh_grip;
+    float l0 = vlen(r0);
+    float l1 = vlen(r1);
+    if(l0 >= 1 && l1 >= 1 && r0 * r1 > -0.9 * l0 * l1)
+    {
+        vector mid = (b.mh_pgrip + b.mh_grip) * 0.5 + normalize(r0 * (1 / l0) + r1 * (1 / l1)) * ((l0 + l1) * 0.5);
+        if(vlen(mid - (xP0 + xP1) * 0.5) > VR_MELEE_ARC_SAG * xR)
+        {
+            VR_Melee_RibAdd(xP0, mid, xI, xR);
+            VR_Melee_RibAdd(mid, xP1, xI, xR);
+            return;
+        }
+    }
+    VR_Melee_RibAdd(xP0, xP1, xI, xR);
+};
+
 // The lines of `b`'s sweep, `xR` thick: its layout's points (VR_Melee_Track); with vr_melee_swept (`xSwept`) the surface
 // its whole blade sweeps: between two neighbouring striking points (a blade's, an axe's head's, the crowbar's bar), as
 // many lines more as keep them at most VR_MELEE_RIB_GAP thicknesses apart all along the sweep (his note: a long swing
@@ -2141,7 +2191,7 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
     {
         vector p0 = b.mh_pp[i];
         vector p1 = b.mh_cp[i];
-        VR_Melee_RibAdd(p0, p1, i, xR);
+        VR_Melee_ArcRib(b, p0, p1, i, xR);
         if(!xSwept || i + 1 >= n || !VR_Melee_Strikes(vr_mpt_kind[i]) || !VR_Melee_Strikes(vr_mpt_kind[i + 1]))
         {
             continue;

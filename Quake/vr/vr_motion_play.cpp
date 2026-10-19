@@ -126,6 +126,7 @@ struct Take
     float yaw0{0.f};
     bool hasTicks{false};
     bool hasPlayYaw{false};
+    bool hasXrTime{false}; // the frames' poses' own times (xr_time, in tracking.time): the runtime's, steadier than dt
     bool hasWeapons{false};
     bool dummyAttacks{false}; // recorded with the training dummy striking back (the header's "dummy attacks: on")
     za::Vector<Frame> frames;
@@ -274,6 +275,11 @@ namespace
             take.hasTicks = true;
             fr.tick = num("sv_tick", 0.0) != 0.0;
             fr.svDt = num("sv_dt", 0.0);
+        }
+        if(has("xr_time"))
+        {
+            take.hasXrTime = true;
+            fr.tracking.time = num("xr_time", 0.0);
         }
         if(has("play_yaw"))
         {
@@ -774,6 +780,7 @@ void resample(Take& take, float hz, float jitter, int stutter)
     }
     take.frames = ZA_MOVE(out);
     take.hasTicks = false;
+    take.hasXrTime = false; // (the frames at their resampled times: realtime is theirs)
     take.firstRec = 0;
     for(size_t i = 0; i < take.frames.size(); i++)
     {
@@ -826,6 +833,7 @@ bool launchRequest = false;
 bool equipRequest = false;
 double wallStart = 0.0;
 double playClock = 0.0; // the take's time played so far
+double xrOffset = 0.0;  // a take with xr_time: realtime less its first played frame's (the poses' times on our clock)
 za::Vector<Row> replayRows;
 void (*onDone)(const Report&) = nullptr; // the evaluation's
 
@@ -1642,6 +1650,16 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     tracking = f.tracking;
     za::copy(grips, grips + za::getArraySize(grips), tracking.gripInHand);
     tracking.time = realtime;
+    if(state == State::Play && take.hasXrTime)
+    {
+        // The poses at their recorded times (the runtime's: a frame's dt is when the game ran it, jittered by a
+        // millisecond; the melee measures speeds over the poses' times, hands::State::poseTime).
+        if(cur == 0)
+        {
+            xrOffset = realtime - f.tracking.time;
+        }
+        tracking.time = f.tracking.time + xrOffset;
+    }
     if(state == State::Setup)
     {
         tracking.input = setupInput();

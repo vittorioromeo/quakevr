@@ -86,20 +86,22 @@ constexpr const char* emptyHandModel = "empty hand";
 Body bodies[2];
 
 // Wrenched out (vr_weight_drop): each hand's controller turns over the last moments (the grip pose as tracked, the
-// play space's turn taken out), on the spring's clock (the frames' dt: fixed frames in the tests).
+// play space's turn taken out), on the poses' clock (hands::State::poseTime, the headset's frames' times; the frames' dt
+// when unknown). Kept long enough for vr_weight_drop_window's most (0.5 s) at 240 Hz.
 struct Wrench
 {
-    static constexpr int size = 64;
+    static constexpr int size = 128;
     double t[size]{};
     glm::quat q[size]{};
     int count{0}, newest{-1};
     double clock{0.0};
+    double poseTime{-1.0}; // the last frame's hands::State::poseTime
     double until{-1.0};   // vr_gametime: the move says "wrenched out" until then (the server reads it once a frame)
 };
 Wrench wrenches[2];
 constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
 constexpr double jumpLatch = 0.05;   // seconds: put back in the hand (a move or two)
-constexpr float wrenchJump = 90.f;   // degrees in one frame: tracking lost and found, not a hand
+constexpr float wrenchJump = 90.f * 72.f; // degrees a second (90 a 72 Hz frame): tracking lost and found, not a hand
 
 // A prop's mass as Box3D has it (a listen server), kept while the same thing of the same setting is held.
 struct MassCache
@@ -644,7 +646,14 @@ namespace
 void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, float dt)
 {
     Wrench& w = wrenches[h];
-    w.clock += dt;
+    const double posed = s.poseTime - w.poseTime;
+    const double step = w.poseTime >= 0.0 && s.poseTime >= 0.0 && posed >= 0.0 && posed < 0.25 ? posed : static_cast<double>(dt);
+    w.poseTime = s.poseTime;
+    if(step <= 0.0 && w.count > 0)
+    {
+        return; // (the same poses again)
+    }
+    w.clock += step;
     const bool weapon = l.valid && !l.prop && !l.empty && modelmeta::identifyPath(l.model) != modelmeta::Id::Vrflashlight;
     const float limit = weapon && vrActive() ? wrenchLimit(l.mass, l.twoHanded) : 0.f;
     if(limit <= 0.f)
@@ -653,7 +662,8 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
         return;
     }
     const glm::quat q = quatFromAngles(s.gripRot[h] - glm::vec3{0.f, turnYaw, 0.f});
-    if(w.count > 0 && glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[w.newest])))) > wrenchJump)
+    if(w.count > 0 &&
+        glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[w.newest])))) > wrenchJump * static_cast<float>(step))
     {
         w.count = 0;
     }
