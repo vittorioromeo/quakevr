@@ -115,13 +115,15 @@ Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never
 Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps
 Steady Model Vertices: idle grunt and knight over several loops: no itch at the loop restart, shading no longer flickers/pulses; toggle off/on to compare
-Melee Space (Holding Enemies > Getting Close): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Melee Space (Combat > Enemy Melee): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
+Enemy Melee (Combat > Enemy Melee, Show Melee Arcs on): a knight, an ogre, a shambler after you: the floor fans (red: you are in, green: out) match where blows land? sidestep a knight vs an ogre; tune Arc Growth / Reach Growth with Size, Swing Turn
 Toolgun Spawn: hold A on the gun hand and turn your wrist: the ghost stays put and turns 2x your hand (2x right?); let go: follows the gun again, still turned (jump back to the aim OK?); A held + stick press twice goes back twice
 Hits Unbalance (Combat > Knockdowns): hard throw (crate/weapon) or strong punch/axe on a grunt staggers it like a shove (head counts more); light taps never; ogre seldom, shambler rarely; no re-stagger within 4 s; is Least Impact 0.5 too generous for punches?
 Quad Damage (Debug > Cheats): hands/arms/body glow soft pulsing blue, hands throw blue light; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs = old look, Both = both; glow/light sliders; lightning strike still arcs; glow goes when quad ends
 Blood Feedback: hits from left/right/above feel directional as you turn your head; duration/intensity/bias/coverage controls and hit toggle work; wider coverage is visible in the headset
 Blood Feedback: below Health Threshold pulses grow stronger/faster as health drops; healing stops them; pulse/intensity/curve/coverage controls and low-health toggle work independently
-Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?), let go inside: eases apart, never stuck
+Lift / judo throw diagnostics (Holding Enemies > Lift / Two-Hand Throw > Show Diagnostic, or Debug): hold a grunt with both hands; pull up: the arrow and panel show the pull vs Lift Speed and 45 deg, the reach circle, why not (one hand, at its head, too far); turn it over: turn vs Turn to Throw, hands vs Hands' Speed, the way arrow, the last try's result; do they match what you feel?
+Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?; Step In Depth 8: can't walk through it, slides aside, steps back freely; 0: walks through), let go inside: eases apart, never stuck
 Hot blades 2: glow and light only on the blade; light fades with it; dropped blade glows and cools; more embers (settings); swing trail; reheat buzz; thrown hot axe burns
 Two super shotguns: a left flick opens/closes only the left one, right only the right; both together toggle both; two-handed pry/lift still work
 AD pickups menu: the 8 soldier guns drop an arm's length ahead (vrfiringrange and AD map); range monster buttons spawn as before
@@ -198,4 +200,4 @@ MG1 developer tests: rune returns, electrode buttons, revival; quake vibration c
 Tracy (Debug > Reports, optional profiling build): save CPU/GPU/QC/jobs/loading/memory capture; coarse GPU includes 3D; detail changes and reconnect stay stable; assess overhead in VR during AD combat/held corpse; normal build stays unchanged
 Weapon damage, grapple, stamina costs, roll weight and throw damage
 Record new melee takes in vrmelee-recording (Motion Recorder); replay stays in that room
-
+Check holsters grab range and collision with holstered model (YT feedback)
