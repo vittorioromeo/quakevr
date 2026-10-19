@@ -308,6 +308,12 @@ void() VR_Knockdown_Upright =
     setorigin(self, self.origin);
     self.velocity = '0 0 0';
     self.flags = self.flags | FL_ONGROUND;
+    // (Stood a little over a slope, its box lifted clear of it, or forced up anywhere: it drops onto the floor.)
+    tracebox(self.origin, self.mins, self.maxs, self.origin - '0 0 2', FALSE, self);
+    if(trace_fraction >= 1 && !trace_startsolid)
+    {
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+    }
 };
 
 // Up on its feet already (self; the engine handed its ragdoll back standing: a stagger recovered, its body risen through
@@ -511,6 +517,20 @@ void() VR_Knockdown_Think =
         else
         {
             self.vr_kd_wet_since = 0;
+            // No room to stand (a slope steeper than vr_knockdown_getup_slope it slides on, a cramped spot): down this
+            // long since it went down (vr_knockdown_getup_force), it stands up where it lies, forced (never a ragdoll
+            // for ever; ROUND22.md, "Knocked down on a slope").
+            float force = cvar_hget(cvarh_vr_knockdown_getup_force);
+            if(force > 0 && time >= self.vr_kd_since + force)
+            {
+                which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs,
+                    max(48, search), TRUE);
+                if(which && cvar_hget(cvarh_vr_knockdown_debug))
+                {
+                    dprint(sprintf("knockdown: %s forced up after %.2f s down (no room to stand)\n", self.classname,
+                        time - self.vr_kd_since));
+                }
+            }
         }
         if(!which)
         {
@@ -750,19 +770,23 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
     chance = chance * stamina;
     // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all.
     float ledge = chance > 0 && VR_Knockdown_Ledge(e);
+    // Unaware of the shover or shoved from behind (vr_knockdown_surprise; VR_Bash_Hit took it): down for sure (a stagger
+    // that gives way after its steps), if this shove could knock it down at all.
+    float surprise = chance > 0 ? vr_kd_surprise : 0;
     float roll = random();
     // A stagger (vr_ragdoll_active_stagger; not over a ledge): every shove that could knock it down makes it stagger as a
     // ragdoll, its balance by the roll against the chance (below it: likely to go over), the shove's push on it; it falls
     // (down, as below) or recovers (VR_Knockdown_Think: back on its feet, fighting).
     if(chance > 0 && !ledge && ragdollcanstagger(e))
     {
-        float balance = min(1, max(0, 0.5 + (roll - chance) * VR_KD_STAGGER_SLOPE));
+        float balance = surprise ? 0 : min(1, max(0, 0.5 + (roll - chance) * VR_KD_STAGGER_SLOPE));
         if(cvar_hget(cvarh_vr_knockdown_debug))
         {
             dprint(sprintf("knockdown: %s %s (%s): base %.2f, health %g of %g, stamina x%.2f",
                 xKind == QVR_HITKIND_SHOVE ? "shove" : "bash", e.classname, xHand == -1 ? "two hands" : "one hand", base,
                 e.health, full, stamina));
-            dprint(sprintf(": chance %.2f, roll %.2f: a stagger, balance %.2f\n", chance, roll, balance));
+            dprint(sprintf(": chance %.2f, roll %.2f: a stagger, balance %.2f%s\n", chance, roll, balance,
+                surprise == 1 ? " (unaware: down)" : surprise == 2 ? " (from behind: down)" : ""));
         }
         return VR_Knockdown_Stagger(e, xForward, xPush, balance);
     }
@@ -771,10 +795,11 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         dprint(sprintf("knockdown: %s %s (%s): base %.2f, health %g of %g, stamina x%.2f",
             xKind == QVR_HITKIND_SHOVE ? "shove" : "bash", e.classname, xHand == -1 ? "two hands" : "one hand", base, e.health,
             full, stamina));
-        dprint(sprintf(": chance %.2f%s, roll %.2f%s\n", chance, ledge ? " (over a ledge: down)" : "", roll,
-            (ledge || roll < chance) ? ": down" : ""));
+        dprint(sprintf(": chance %.2f%s, roll %.2f%s\n", chance,
+            ledge ? " (over a ledge: down)" : surprise ? " (surprised: down)" : "", roll,
+            (ledge || surprise || roll < chance) ? ": down" : ""));
     }
-    if(roll >= chance && !ledge)
+    if(roll >= chance && !ledge && !surprise)
     {
         return FALSE;
     }

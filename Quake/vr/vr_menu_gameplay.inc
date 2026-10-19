@@ -598,6 +598,12 @@
         slider("Stamina", vr_knockdown_stamina, 0.f, 1.f, 0.05f, "%.2f")
             .help("Tired shoves knock down less: the chance times 1 - this times the share of your stamina spent (with "
                   "Stamina on). 0: stamina doesn't matter."),
+        toggle("Surprise Shoves Knock Down", vr_knockdown_surprise)
+            .help("A shove of a monster that isn't fighting you (asleep, idle, busy with another) or from behind always "
+                  "knocks it down, if its group can be knocked down by a shove at all."),
+        slider("From Behind Within", vr_knockdown_surprise_angle, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("A shove whose way is within this of where the monster faces comes from behind. 0: only one that isn't "
+                  "fighting you is surprised."),
         toggle("Over a Ledge, Always", vr_knockdown_ledge)
             .help("A shove that would carry it over the edge of a high drop (Ledge Height or more) always knocks it down, "
                   "so it tumbles off as a ragdoll. Not through a wall or railing; stairs are no ledge. Off: the chance as "
@@ -791,6 +797,12 @@
                   "monster again (it sinks, and can drown). 0: it floats until one is found."),
         slider("Retry", vr_knockdown_retry, 0.1f, 3.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
             .help("How often it tries again to get up when there is no room."),
+        slider("Steepest Slope to Stand", vr_knockdown_getup_slope, 0.f, 45.f, 1.f, "%.0f deg").extend(0.f, 60.f)
+            .help("Lying on a slope up to this steep, it gets up as on level ground. Steeper: it slides on until there "
+                  "is room, or is forced up (below)."),
+        slider("Forced Get-Up", vr_knockdown_getup_force, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("Still down this long after it went down, with no room to stand (a steep slope, a cramped spot): it "
+                  "gets up where it lies. 0: it waits for room."),
         slider("Blend", vr_knockdown_blend, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
             .help("How long the body takes to blend from how it lies into its get-up animation."),
         slider("Get-Up Speed", vr_knockdown_getup_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
