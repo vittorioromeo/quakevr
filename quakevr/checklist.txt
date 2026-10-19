@@ -19,6 +19,8 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Widowmaker round 4: heavy new shot sound (vs super shotgun and rocket); barrel motor whine rises and dies with the spin (Reloading > Widowmaker > Motor Volume); a picked-up Widowmaker is 16/16; your recoil/flash are defaults
+AD crossbow bolts 1.5x faster for you (1050); your AD sword grips (fury, DK, zombie knight, death guard) and flame wobble strength 2.5 are defaults
 Break free: lift a grunt (or hold one by hand/chest/head/leg) until it breaks free: shove sound plays and you're pushed back ~15 cm smoothly (Holding Enemies > Break-Free Push / Break-Free Sound); pulling a standing enemy free untested headless
 Projectiles all alike: crossbow bolts/AD plasma/lasers/nails pop heads and limbs, push corpses and ragdolls, knock wall torches off; nail headshots now pop (0.85, too often?); a grenade straight at a knocked-down enemy explodes
 Fury sword hits follow its curve (inside and outside of the bow); stray triangle by the sword handles gone; hammer and mace refused at holsters ("too big")
