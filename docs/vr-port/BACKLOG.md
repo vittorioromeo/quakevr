@@ -164,6 +164,10 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Look at QuakeRay (the author, 2026-10-19)
+Check out https://github.com/f1ames0ff/QuakeRay for information about a Vulkan migration (see VULKAN_MIGRATION.md) and
+better lighting effects. Not yet reviewed: licence, base engine and what is reusable unknown.
+
 ### Bullet time as an earned resource (the author, 2026-10-19; idea to consider)
 Make bullet time a limited meter that doesn't refill on its own over time, but refills from play: kills, damage
 dealt, maybe style (melee kills, headshots, throws, gibs). Keep the current self-refilling behaviour as an option.
