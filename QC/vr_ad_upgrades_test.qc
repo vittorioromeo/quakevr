@@ -222,7 +222,7 @@ void() AD_PlasmaCellTestRun =
 // free. Its shell port (vr_view_internal.hpp loadPorts: AdVrWidowmaker, on the receiver's inner side) is found; it loads by
 // hand; its tube holds vr_ad_widowmaker_tube; a pouch handful is vr_ad_widowmaker_handful shells, all going in at the
 // port, until the tube is full; then the trigger held two seconds (W_OffHandAttack each frame its shot is due) fires a
-// shell every vr_ad_widowmaker_refire. (Its spent shells' way out: the engine's "shells out" lines, vr_debug_weaponfx 1.)
+// shell every vr_ad_widowmaker_refire; last, a Widowmaker pickup touched comes with its tube full. (Its spent shells' way out: the engine's "shells out" lines, vr_debug_weaponfx 1.)
 float vr_adwm_tube, vr_adwm_end, vr_adwm_reserve;
 void(string xWhat, float xOk, string xGot) AD_WidowCheck =
 {
@@ -253,6 +253,27 @@ void() AD_WidowFireRun =
         sprintf("%g shots, %g expected at %g s; %g left in the tube", shots, expect, rate, VRGetEntWeaponClip(p, cVR_OffHand)));
     AD_WidowCheck("its shots come from the tube, not the reserve", p.ammo_shells == vr_adwm_reserve,
         sprintf("reserve %g, was %g", p.ammo_shells, vr_adwm_reserve));
+    // Last, a Widowmaker pickup (weapon_touch as the body's touch, both hands free): it comes with its tube full.
+    self = p;
+    VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
+    VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0);
+    p.ammo_shells = 20;
+    entity pk = spawn();
+    pk.classname = "weapon_supershotgun";
+    pk.netname = "Widowmaker";
+    pk.vr_ad_upgrade = ad_IT_UPGRADE_SSG;
+    float touching = p.touchinghand;
+    p.touchinghand = cVR_FakeHand;
+    self = pk;
+    other = p;
+    weapon_touch();
+    p.touchinghand = touching;
+    remove(pk);
+    self = os;
+    float tube = rint(cvar("vr_ad_widowmaker_tube"));
+    float got = AD_WidowmakerIn(p, cVR_MainHand) ? VRGetEntWeaponClip(p, cVR_MainHand) : -1;
+    AD_WidowCheck("a pickup comes with its tube full", got == tube,
+        sprintf("%g in its tube of %g (-1: no Widowmaker in hand); the reserve 20 -> %g", got, tube, p.ammo_shells));
     bprint(sprintf("adwidow: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
     remove(self);
 };

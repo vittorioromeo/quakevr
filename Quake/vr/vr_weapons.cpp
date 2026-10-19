@@ -150,9 +150,10 @@ namespace
 // handle, hotspot 2 off; takeWidowmakerGrips). 51: the Widowmaker's muzzle (slot 34) on its top barrel's front (its
 // barrels turn as a Gatling's, vr_adweapons.cpp; it was their middle, 44 0 6.8), where the config still held the old one,
 // and its muzzle offsets none where it held the super shotgun's (takeWidowmakerMuzzle). 52: the AD fury's sword's,
-// hunter ogre's hammer's and mace's (slots 40, 44, 45) poses and grips his (takeAdMeleeTuning). A first start (no saved
-// config) takes this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 52;
+// hunter ogre's hammer's and mace's (slots 40, 44, 45) poses and grips his (takeAdMeleeTuning). 53: his Widowmaker's kick
+// and flash (slot 34) and AD swords' poses and grips (slots 40-43; takeAdTuning53). A first start (no saved config) takes
+// this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 53;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -430,6 +431,39 @@ void takeWidowmakerMuzzle()
     }
 }
 
+// AD support: his tuning of 2026-10-19 (53): the Widowmaker's kick and muzzle flash (slot 34: on, the kick 1.405), and
+// the AD swords' poses and grips (slots 40-43: the fury's, the death knight's, the zombie knight's and the death guard's;
+// the death guard's sword the death knight's, which it inherited in his config), each value where the config still holds
+// the default before.
+constexpr OldValue adTuningBefore53[] = {{34, Key::Flash, 0.f}, {34, Key::Recoil, 0.f}, {34, Key::RecoilStrength, 1.f},
+    {40, Key::FingerIndexBias, 0.f}, {40, Key::FingerThumbBias, 0.f}, {40, Key::GripOverlap, 0.3f}, {40, Key::Pitch, 14.712841f},
+    {40, Key::Roll, -1.272115f}, {40, Key::OffsetX, 4.76676f}, {40, Key::OffsetY, 0.988259f}, {40, Key::Yaw, -2.909016f},
+    {40, Key::OffsetZ, 5.517184f}, {41, Key::Hotspot1Pitch, 0.f}, {41, Key::Hotspot1Roll, 0.f}, {41, Key::Hotspot1X, -2.8225f},
+    {41, Key::Hotspot1Y, 1.5769f}, {41, Key::Hotspot1Yaw, 0.f}, {41, Key::Hotspot1Z, -7.464f}, {41, Key::Pitch, 0.f},
+    {41, Key::Roll, 0.f}, {41, Key::OffsetX, 2.004f}, {41, Key::OffsetY, 2.253f}, {41, Key::Yaw, 0.79998f},
+    {41, Key::OffsetZ, 8.628f}, {42, Key::Hotspot1Pitch, 0.f}, {42, Key::Hotspot1Roll, 0.f}, {42, Key::Hotspot1X, -2.3617f},
+    {42, Key::Hotspot1Y, 1.5558f}, {42, Key::Hotspot1Yaw, 0.f}, {42, Key::Hotspot1Z, -6.2485f}, {42, Key::Hotspot2X, 0.7f},
+    {42, Key::Pitch, 0.f}, {42, Key::Roll, 0.f}, {42, Key::OffsetX, 2.004f}, {42, Key::OffsetY, 2.253f},
+    {42, Key::Yaw, 0.79998f}, {42, Key::OffsetZ, 8.628f}, {43, Key::Hotspot1Pitch, 0.f}, {43, Key::Hotspot1Roll, 0.f},
+    {43, Key::Hotspot1X, -2.8225f}, {43, Key::Hotspot1Y, 1.5769f}, {43, Key::Hotspot1Yaw, 0.f}, {43, Key::Hotspot1Z, -7.464f},
+    {43, Key::Pitch, 0.f}, {43, Key::Roll, 0.f}, {43, Key::OffsetX, 2.004f}, {43, Key::OffsetY, 2.253f},
+    {43, Key::Yaw, 0.79998f}, {43, Key::OffsetZ, 8.628f}};
+
+void takeAdTuning53()
+{
+    int taken = 0;
+    for(const OldValue& o : adTuningBefore53)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    Con_DPrintf("Weapon settings: the Widowmaker and the AD swords took %d of the author's values\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -449,6 +483,7 @@ constexpr Step steps[] = {
     {50, takeWidowmakerGrips},
     {51, takeWidowmakerMuzzle},
     {52, takeAdMeleeTuning},
+    {53, takeAdTuning53},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

@@ -37,6 +37,7 @@ void fired(int hand);
 void spinFrame(view::ViewEntity (&weapons)[2]);
 
 void clear();
+void prepare(); // the barrels' motor sound (vr/widowmaker_motor.wav)
 void registerCommands(); // vr_ad_widowmaker_spin_info
 
 } // namespace qvr::adweapons

@@ -354,7 +354,9 @@ void(entity p, float xHand) VR_ADXbow_Target =
     VR_ADGun_TestPlace(p, 64);
     entity was = self;
     self = p;
-    vector at = VRGetMuzzlePos(xHand) + VRGetWeaponFireRotFwd(xHand) * 64; // (short of the knight's corpse, 150 ahead)
+    // (Short of the knight's corpse, 150 ahead; near enough that, the mock's hand aiming steeply down, the floor is not met
+    // first by a bolt leaving from its groove, 10 behind the muzzle.)
+    vector at = VRGetMuzzlePos(xHand) + VRGetWeaponFireRotFwd(xHand) * 40;
     self = was;
     setorigin(vr_adgun_test_target, at - '0 0 4');
     vr_adgun_test_target.health = 100000;
@@ -427,12 +429,38 @@ void() VR_ADXbow_Think =
         VR_ADWeapons_Take(p, w);
         VR_ADXbow_Report(sprintf("taken into the main hand (weapon %g, model %s)", VRGetEntWeapon(p, cVR_MainHand),
             p.weaponmodel), VRGetEntWeapon(p, cVR_MainHand) == WID_ADCROSSBOW);
+        vr_adxb_step = 5; // (fired in a second: the client draws its bolt in the groove first, .launchofs)
+        self.nextthink = time + 1;
+        return;
+    }
+    if(vr_adxb_step == 5)
+    {
         VR_ADXbow_Target(p, cVR_MainHand);
         vr_adxb_clip = VRGetEntWeaponClip(p, cVR_MainHand);
         self = p;
         self.attack_finished = 0;
+        entity before = ad_newmis;
         W_AttackImpl(cVR_MainHand, WID_ADCROSSBOW, self.weaponflags, 0, &self.weapon, &self.attack_finished); // (the trigger)
+        // Its bolt (his notes 2026-10-19): 1.5 times as fast as the knights' (vr_adgun_crossbow_speed; AD's 700 on normal
+        // skill), along the shot, leaving from the groove where the client draws it (.launchofs, in the shot's frame).
+        entity bolt = ad_newmis;
+        vector fwd = VRGetWeaponFireRotFwd(cVR_MainHand);
+        vector groove = VRGetMuzzlePos(cVR_MainHand);
+        if(cvar("vr_adgun_crossbow_anim") && self.launchofs != '0 0 0')
+        {
+            makevectors(VRGetWeaponFireRot(cVR_MainHand));
+            groove = groove + v_forward * self.launchofs_x + v_right * self.launchofs_y + v_up * self.launchofs_z;
+        }
         self = was;
+        float bspeed = (bolt != before && bolt.vr_adgun_wid == WID_ADCROSSBOW) ? vlen(bolt.velocity) : 0;
+        float bwant = cvar("vr_adgun_crossbow_speed");
+        VR_ADXbow_Report(sprintf("its bolt at %.0f u/s (setting %g; the knights' %g on this skill, 700 on normal), along the "
+            "shot %.4f", bspeed, bwant, ad_SPEED_DCROSS + ad_skill * ad_SPEED_BOLTSKILL, (bspeed > 0) ? (normalize(bolt.velocity) * fwd) : 0),
+            bspeed > 0 && fabs(bspeed - bwant) < bwant * 0.05 + 10 && bwant >= 1.5 * 700 - 1 &&
+            normalize(bolt.velocity) * fwd > 0.999);
+        VR_ADXbow_Report(sprintf("its bolt leaves from the drawn bolt's place (%.2f off; launch offset %v)",
+            (bspeed > 0) ? vlen(bolt.origin - groove) : -1, p.launchofs), bspeed > 0 && vlen(bolt.origin - groove) < 0.5 &&
+            (!cvar("vr_adgun_crossbow_anim") || p.launchofs != '0 0 0'));
         vr_adxb_step = 2;
         self.nextthink = time + 1;
         return;
