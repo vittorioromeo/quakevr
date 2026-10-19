@@ -320,8 +320,13 @@ const DefaultChange defaultChanges[] = {
     // 161: his flame wobble (his config of 2026-10-19); your AD crossbow's bolts 1.5 times the knights' (his notes).
     {161, &vr_flame_wobble_strength, "1"},              // 2.5
     {161, &vr_adgun_crossbow_speed, "700"},             // 1050
+    // 162: his Widowmaker and AD crossbow numbers (his config of 2026-10-19).
+    {162, &vr_ad_widowmaker_refire, "0.25"},         // 0.35
+    {162, &vr_ad_widowmaker_shot_pellets, "7"},      // 8
+    {162, &vr_dmg_ad_widowmaker, "4"},               // 5
+    {162, &vr_adgun_crossbow_damage, "15"},          // 30
 };
-constexpr int configVersion = 161;
+constexpr int configVersion = 162;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

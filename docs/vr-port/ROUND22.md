@@ -14136,3 +14136,9 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
   origin/next too.
 - **For VR:** with one or two magazines left, bring the nailgun's well onto the drawn magazine (and the super nailgun's,
   on its side): it should seat right there, also a little off it; not over an empty slot.
+
+### His Widowmaker and crossbow numbers become defaults (wmstats)
+
+- From his ironwail.cfg: `vr_ad_widowmaker_refire` 0.25 -> 0.35, `vr_ad_widowmaker_shot_pellets` 7 -> 8, `vr_dmg_ad_widowmaker` 4 -> 5, `vr_adgun_crossbow_damage` 15 -> 30; `vr_wofs_fx_tr_owncol_35` 0 -> 1 (his cfg names slot 35, which is the Plasma Gun; the Widowmaker is slot 34).
+- Migration: vr_cfg_version 161 -> 162 (the four cvars, only where still at the old default); vr_wofs_version 53 -> 54 (owncol_35, only where 0).
+- Checked (headless, AD base): `vr_ad_test 149` 9/9 PASS (6 shots at 0.35 s), `93` PASS (the target took 30), `70` 8/8 PASS; thresholds follow the cvars, none edited.
