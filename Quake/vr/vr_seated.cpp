@@ -29,6 +29,7 @@ struct Crouch
     bool on{false};
     float eased{0.f};
     double last{-1.0};
+    bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_seated_crouch_button): its release is too
 };
 Crouch crouch;
 
@@ -172,6 +173,34 @@ bool raise(const TrackingState& in, TrackingState& out)
     {
         out.hands[h].position.y += up - handDrop(in.hands[h].position.y);
     }
+    return true;
+}
+
+bool crouchButtonConflict()
+{
+    const int b = static_cast<int>(vr_seated_crouch_button.value);
+    return (b == 1 || b == 2) && vr_bullettime_enabled.value != 0.f && static_cast<int>(vr_bullettime_trigger.value) == b;
+}
+
+bool stickPress(int hand, bool now)
+{
+    if(!now)
+    {
+        const bool taken = crouch.stickTaken[hand];
+        crouch.stickTaken[hand] = false;
+        return taken;
+    }
+    const int b = static_cast<int>(vr_seated_crouch_button.value);
+    if(!active() || key_dest != key_game || (b != 1 && b != 2) || hand != (b == 1 ? HAND_OFF : HAND_MAIN))
+    {
+        return false;
+    }
+    crouchToggle_f();
+    if(crouchButtonConflict())
+    {
+        return false; // bullet time takes the press as well
+    }
+    crouch.stickTaken[hand] = true;
     return true;
 }
 

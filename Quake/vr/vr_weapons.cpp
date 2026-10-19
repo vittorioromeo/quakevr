@@ -155,7 +155,8 @@ namespace
 // this version as it is: its settings are these defaults (markCurrent).
 // 55: the Widowmaker's (slot 34) weight and balance point and its readout's place (his config of 2026-10-19): taken where
 // the config still holds the old defaults (mass 6, balance 22, readout y -0.85, z 0.4).
-constexpr int settingsVersion = 55;
+// 56: the shotgun's (slot 1) first hotspot 9.66, -0.67 (his config of 2026-10-19; was 9.6656, -0.7315).
+constexpr int settingsVersion = 56;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -491,6 +492,19 @@ void takeWidowmakerTuning55()
     }
 }
 
+void takeShotgunHotspot56()
+{
+    constexpr OldValue old[] = {{1, Key::Hotspot1X, 9.6656f}, {1, Key::Hotspot1Y, -0.7315f}};
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -513,6 +527,7 @@ constexpr Step steps[] = {
     {53, takeAdTuning53},
     {54, takeTracerOwnColour54},
     {55, takeWidowmakerTuning55},
+    {56, takeShotgunHotspot56},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

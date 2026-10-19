@@ -283,6 +283,27 @@ void(entity m, vector at, vector dir) VR_Guard_Raise =
     }
 };
 
+// Whether `m` knows of player `pl` (its enemy is the player: alerted, the stealth AI's found) and has the player in front
+// of it (within VR_GUARD_FOV degrees of its facing): an unaware monster, or one facing away, does not guard.
+float VR_GUARD_FOV = 105;
+float(entity m, entity pl) VR_Guard_Aware =
+{
+    if(m.enemy != pl)
+    {
+        return FALSE;
+    }
+    vector d = pl.origin - m.origin;
+    d_z = 0;
+    if(vlen(d) < 1)
+    {
+        return TRUE;
+    }
+    vector f = m.angles;
+    f_x = 0;
+    makevectors(f);
+    return normalize(d) * v_forward >= cos(VR_GUARD_FOV * 0.017453292);
+};
+
 // Player `pl`'s hand `xHand` (self: pl): swung at a head?
 void(entity pl, float xHand) VR_Guard_Hand =
 {
@@ -298,7 +319,7 @@ void(entity pl, float xHand) VR_Guard_Hand =
     entity m = findradius(hp, VR_GUARD_NEAR + speed * VR_GUARD_UPM * VR_GUARD_AHEAD + 48);
     while(m)
     {
-        if((m.flags & FL_MONSTER) && m.health > 0 && time >= m.vr_guard_next && !VR_IsDummy(m) && canragdoll(m))
+        if((m.flags & FL_MONSTER) && m.health > 0 && time >= m.vr_guard_next && !VR_IsDummy(m) && canragdoll(m) && VR_Guard_Aware(m, pl))
         {
             vector head = VR_Guard_Head(m);
             // (Its way's nearest point to the head, and the hand coming towards it.)

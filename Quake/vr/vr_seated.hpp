@@ -36,6 +36,13 @@ bool raise(const TrackingState& in, TrackingState& out);
 // vr_seated_reach_start, all of the lift at vr_seated_reach_floor and under).
 [[nodiscard]] float handDrop(float realY);
 
+// A stick press chosen for the crouch toggle (vr_seated_crouch_button): `now` is the press (true) or its release. True: the
+// press (and its release) is taken here, its bound key never sent (not when bullet time is on the same stick: it takes it).
+[[nodiscard]] bool stickPress(int hand, bool now);
+
+// The chosen crouch stick is also the one that starts bullet time (vr_bullettime_trigger): both happen on a press.
+[[nodiscard]] bool crouchButtonConflict();
+
 void registerCommands(); // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
 
 } // namespace qvr::seated

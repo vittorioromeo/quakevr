@@ -618,6 +618,12 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "the magnetic holsters");
                     continue;
                 }
+                // A stick press chosen for the seated crouch toggle (vr_seated_crouch_button) does only that.
+                if(b.button == &HandInput::stickClick && seated::stickPress(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "the crouch toggle");
+                    continue;
+                }
                 // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its
                 // bound key (LTHUMB: +speed, RTHUMB: +reloadmain by default) is never sent.
                 if(b.button == &HandInput::stickClick && bullettime::stickPress(h, now))
