@@ -202,6 +202,10 @@ vector(entity player, float hand, float what) weapondrawnpose = #0;
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).
 vector(float kind, float f) admeleebend = #0;
+// AD heavy kind's (VR_ADMELEE_HAMMER, _MACE) head's box in the frame admeleebend uses (shares of the line's length: x
+// along it from the hand, y along its normal in the weapon's plane, z along the model's +y): which 0 its low corner, 1
+// its high; '0 0 0' for none (AD's data not there). QC VR_Melee_Sweep: the head's volume strikes.
+vector(float kind, float which) admeleehead = #0;
 // Magnetic holsters (vr_magholster.qc): what the local player asked since the last call, taken (1 the off hand's bind
 // button at a holster, 2 the main hand's, 4 every bound weapon home now: vr_magholster_return); others' 0. And holster
 // `slot`'s place (0..5: the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown).

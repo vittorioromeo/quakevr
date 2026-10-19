@@ -2249,6 +2249,23 @@ void PF_admeleebend()
     G_VECTOR(OFS_RETURN)[2] = b != glm::vec2{0.f} ? 1.f : 0.f;
 }
 
+// vector(float kind, float which) admeleehead: AD heavy kind `kind`'s (the hammer, the mace) head's box (admelee::head,
+// shares of the line from the hand to its tip): `which` 0 its low corner, 1 its high; '0 0 0' for none. QC
+// VR_Melee_Sweep (the head's volume strikes).
+void PF_admeleehead()
+{
+    glm::vec3 lo{0.f}, hi{0.f};
+    if(!admelee::head(static_cast<int>(G_FLOAT(OFS_PARM0)), lo, hi))
+    {
+        lo = hi = glm::vec3{0.f};
+    }
+    const glm::vec3& out = G_FLOAT(OFS_PARM1) != 0.f ? hi : lo;
+    for(int i = 0; i < 3; i++)
+    {
+        G_VECTOR(OFS_RETURN)[i] = out[i];
+    }
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
 // player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
 // weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
@@ -2484,6 +2501,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
     {"admeleebend", PF_admeleebend},
+    {"admeleehead", PF_admeleehead},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},

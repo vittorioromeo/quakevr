@@ -562,6 +562,15 @@ za::Vector<Item> pageDebugTests()
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
                   "stand."),
+        header("Melee Sweep"),
+        toggle("Swept Blades", "vr_melee_swept")
+            .help("vr_melee_swept: a weapon's blow is the surface its whole blade sweeps each frame (a hammer's or mace's "
+                  "head: its volume), landing where it crossed the thing most squarely; off: its points' lines alone, the "
+                  "outermost striking, as before."),
+        command("Melee Sweep Test", "vr_melee_sweep_test 1")
+            .help("vr_melee_sweep_test 1: scripted sweeps of the weapon in your main hand past a box ahead of you and onto "
+                  "the floor, with Swept Blades off and on: whether each strikes and where (meleesweep: lines, PASS or "
+                  "FAIL). Give the weapon first (an AD hammer: vr_ad_test 128 with AD's data)."),
         header("Parry"),
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),

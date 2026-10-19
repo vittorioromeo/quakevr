@@ -166,6 +166,7 @@ float cvarh_vr_melee_swish_gain;
 float cvarh_vr_melee_wrist_speed;
 float cvarh_vr_melee_wall_hold;
 float cvarh_vr_melee_curved_blades;
+float cvarh_vr_melee_swept;
 float cvarh_vr_melee_pommel_wait;
 float cvarh_vr_melee_butt_run;
 float cvarh_vr_box3d_hand_props;
@@ -1127,6 +1128,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_melee_wrist_speed);
     VR_CVAR_HMAKE(vr_melee_wall_hold);
     VR_CVAR_HMAKE(vr_melee_curved_blades);
+    VR_CVAR_HMAKE(vr_melee_swept);
     VR_CVAR_HMAKE(vr_melee_pommel_wait);
     VR_CVAR_HMAKE(vr_melee_butt_run);
     VR_CVAR_HMAKE(vr_box3d_hand_props);

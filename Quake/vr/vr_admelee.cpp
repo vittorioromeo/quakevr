@@ -161,6 +161,7 @@ struct Built
     glm::vec3 lo{0.f}, hi{0.f};
     glm::vec3 tip{0.f}; // the far end's middle (vr_weapons.inc's MuzzleAnchor)
     za::Vector<glm::vec3> spine; // a sword's blade's spine as made (its rings' middles), in the model's frame
+    za::Vector<glm::vec3> head;  // a hammer's or mace's head's vertices (AD's head), in the model's frame
 };
 
 // AD's frame (the weapon's own axes at its grip) to the knight sword's.
@@ -949,6 +950,7 @@ void check(const Mesh& m, Built& out)
         return false;
     }
     Mesh m;
+    size_t headVerts = 0; // (the head's vertices come first)
     if(w.sword)
     {
         swordHandle(m, *w.sword);
@@ -962,6 +964,7 @@ void check(const Mesh& m, Built& out)
             why = "its head not found";
             return false;
         }
+        headVerts = m.pos.size();
         heavyHandle(m, *w.heavy);
     }
     shade(m);
@@ -1069,6 +1072,11 @@ void check(const Mesh& m, Built& out)
     {
         out.spine.pushBack(fr.place(l));
     }
+    out.head.clear();
+    for(size_t v = 0; v < headVerts && v < pts.size(); v++)
+    {
+        out.head.pushBack(pts[v]);
+    }
     out.verts = nv;
     out.tris = nt;
     return true;
@@ -1119,6 +1127,10 @@ struct Bend
     float length{0.f};
     float off[bendSamples]{};
     float side[bendSamples]{};
+    // A hammer's or mace's head (QC admeleehead): the box round its vertices in the same frame and shares (x along the
+    // line, y along P, z along Y; z made even about the line: the off hand's model is mirrored across Y).
+    bool head{false};
+    glm::vec3 headLo{0.f}, headHi{0.f};
 };
 
 constexpr size_t weaponCount = sizeof(weapons) / sizeof(weapons[0]);
@@ -1142,15 +1154,11 @@ char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
     }
     bd.made = true;
     const Weapon& wp = weapons[w];
-    if(!wp.sword)
-    {
-        return &bd;
-    }
     char name[MAX_QPATH];
     q_snprintf(name, sizeof(name), "%s%s", wp.model, suffix);
     Built b;
     const char* why = "";
-    if(!buildNamed(name, nullptr, b, why) || b.spine.size() < 2)
+    if(!buildNamed(name, nullptr, b, why) || (wp.sword && b.spine.size() < 2) || (wp.heavy && b.head.empty()))
     {
         return &bd;
     }
@@ -1167,6 +1175,26 @@ char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
     bd.line = a;
     bd.normal = p;
     bd.length = len;
+    if(wp.heavy)
+    {
+        glm::vec3 lo{1e30f}, hi{-1e30f};
+        for(const glm::vec3& q : b.head)
+        {
+            const glm::vec3 d = (q - hand) / len;
+            const glm::vec3 s{glm::dot(d, a), glm::dot(d, p), glm::dot(d, y)};
+            lo = glm::min(lo, s);
+            hi = glm::max(hi, s);
+        }
+        const float depth = za::max(fabsf(lo.z), fabsf(hi.z));
+        lo.z = -depth;
+        hi.z = depth;
+        bd.head = true;
+        bd.headLo = lo;
+        bd.headHi = hi;
+        Con_DPrintf("AD melee model: %s: head %.3f..%.3f along its line, %.3f..%.3f across, %.3f deep (of %.1f units)\n",
+            name, lo.x, hi.x, lo.y, hi.y, depth, len);
+        return &bd;
+    }
     // The spine as (along, off, side) shares, from the hand (on the line) out; sampled by its place along the line.
     za::Vector<glm::vec3> s;
     s.pushBack(glm::vec3{0.f});
@@ -1218,6 +1246,18 @@ glm::vec2 bend(int kind, float f)
     return {b->off[i] + (b->off[i + 1] - b->off[i]) * t, b->side[i] + (b->side[i + 1] - b->side[i]) * t};
 }
 
+bool head(int kind, glm::vec3& lo, glm::vec3& hi)
+{
+    const Bend* b = bendOfKind(kind);
+    if(!b || !b->head)
+    {
+        return false;
+    }
+    lo = b->headLo;
+    hi = b->headHi;
+    return true;
+}
+
 bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
 {
     for(size_t w = 0; w < weaponCount; w++)
@@ -1229,7 +1269,7 @@ bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
             continue;
         }
         const Bend* b = bendOf(w);
-        if(!b->length)
+        if(!b->length || b->head)
         {
             return false;
         }
