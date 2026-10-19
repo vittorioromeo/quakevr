@@ -77,6 +77,7 @@ void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe
 float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
 void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
+nosave float vr_grab_adup;           // VR_WeaponGrabbable_Make: the upgrade bits the placed weapon's record gets (the toolgun's AD upgrades as props)
 float(entity xInst) AD_Widowmaker;   // the super shotgun of record xInst is the Widowmaker (its tube, its port: vr_reload.qc)
 float(entity p, float xHand) AD_WidowmakerIn; // the same of the gun p holds in xHand
 void(float xHand) AD_FireWidowmaker; // W_Attack: its shot (a shell from its tube)

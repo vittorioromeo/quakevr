@@ -319,8 +319,12 @@ const DefaultChange defaultChanges[] = {
     {164, &vr_knockdown_chance_machine, "0"}, // 0.3
     {164, &vr_mgrp_skullwiz_sweep, "0"},      // 1
     {164, &vr_mgrp_skullwiz_leggrab, "0"},    // 1
+    // 165: his wet time, the Widowmaker's motor (quieter) and load port (his config of 2026-10-19).
+    {165, &vr_wounds_wet_time, "28"},           // 15
+    {165, &vr_reload_port_widow_radius, "1.25"}, // 1.4
+    {165, &vr_ad_widowmaker_motor, "0.6"},      // 0.4
 };
-constexpr int configVersion = 164;
+constexpr int configVersion = 165;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

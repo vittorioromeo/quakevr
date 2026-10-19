@@ -142,7 +142,11 @@ const KnownSword knownSwords[] = {
     {qvr::modelmeta::Id::Knight, 655, 697,
         {334, 335, 336, 363, 364, 365, 524, 535, 536, 537, 538, 539, 540, 557, 558, 559, 560, 561, 562, 563, 564, 565,
             566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602,
-            603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646},
+            603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646,
+            // The handle and the guard: seven small separate pieces (their own vertices, found on the blade's axis behind and
+            // across it in the idle pose, moving with it), left in his hand and lying about his corpse before.
+            567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 605, 606, 610, 611, 616, 618, 619, 620,
+            621, 622, 623, 624, 625, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 641, 642, 643, 644, 647, 648},
         76, 96},
     // (The hell knight's blade, and its guard: a piece of its own his hand holds, the dropped sword has its own hilt.)
     {qvr::modelmeta::Id::Hknight, 538, 1000, [] {

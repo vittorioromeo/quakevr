@@ -86,9 +86,9 @@ ITEMS = [
     (306, 'Items', 'AD Jump Boots', 'item_artifact_jumpboots', 'progs/artifact_jumpboots.mdl', '24.f', 'false'),
     (307, 'Items', 'AD Health Vial', 'item_healthvial', 'progs/health_5.mdl', '0.f', 'false'),
     (308, 'Items', 'AD Health Gem', 'item_healthgem', 'progs/health_5.mdl', '0.f', 'false'),
-    (309, 'Weapons', 'AD Shadow Axe', 'weapon_upgrade_axe', 'progs/g_shadaxe.mdl', '8.f', 'true'),
-    (310, 'Weapons', 'AD Widowmaker', 'weapon_upgrade_ssg', 'progs/g_shot3.mdl', '8.f', 'true'),
-    (311, 'Weapons', 'AD Plasma Gun', 'weapon_upgrade_lg', 'progs/g_plasma.mdl', '8.f', 'true'),
+    (309, 'Weapons', 'AD Shadow Axe', 'toolgun_upgrade_axe', 'progs/v_shadaxe3.mdl#vr', '8.f', 'true'),
+    (310, 'Weapons', 'AD Widowmaker', 'toolgun_upgrade_ssg', 'progs/v_shot3.mdl#vr', '8.f', 'true'),
+    (311, 'Weapons', 'AD Plasma Gun', 'toolgun_upgrade_lg', 'progs/v_plasma.mdl#vr', '8.f', 'true'),
 ]
 
 # Pickups only in an AD map (Quake's backpack rules outside them: vr_ad.cpp), each with a field set before its spawn

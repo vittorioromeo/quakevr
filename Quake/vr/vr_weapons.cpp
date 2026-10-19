@@ -153,7 +153,9 @@ namespace
 // hunter ogre's hammer's and mace's (slots 40, 44, 45) poses and grips his (takeAdMeleeTuning). 53: his Widowmaker's kick
 // and flash (slot 34) and AD swords' poses and grips (slots 40-43; takeAdTuning53). A first start (no saved config) takes
 // this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 54;
+// 55: the Widowmaker's (slot 34) weight and balance point and its readout's place (his config of 2026-10-19): taken where
+// the config still holds the old defaults (mass 6, balance 22, readout y -0.85, z 0.4).
+constexpr int settingsVersion = 55;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -475,6 +477,20 @@ void takeTracerOwnColour54()
     }
 }
 
+void takeWidowmakerTuning55()
+{
+    constexpr OldValue old[] = {{34, Key::Mass, 6.f}, {34, Key::Balance, 22.f}, {34, Key::WpnTextY, -0.85f},
+        {34, Key::WpnTextZ, 0.4f}};
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -496,6 +512,7 @@ constexpr Step steps[] = {
     {52, takeAdMeleeTuning},
     {53, takeAdTuning53},
     {54, takeTracerOwnColour54},
+    {55, takeWidowmakerTuning55},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

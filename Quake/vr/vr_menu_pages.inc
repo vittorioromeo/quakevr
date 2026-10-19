@@ -757,6 +757,8 @@ void resetHandMoves()
             .help("Bring the port under it down onto the shells in the ammo pouch, the gun upright (its port facing down "
                   "into the pouch, within Reloading: Pouch Angle): a shell goes in, from your shells. One a touch: take "
                   "it away and back for the next."),
+        slider("Shot Volume", "vr_ad_widowmaker_shot_volume", 0.f, 4.f, 0.1f, "%.1f")
+            .help("How loud its shot is: 1 is the sound file as it is, more is louder."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "

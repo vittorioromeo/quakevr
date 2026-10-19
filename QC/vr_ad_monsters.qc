@@ -789,9 +789,9 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 306) { self.classname = "item_artifact_jumpboots"; ad_item_artifact_jumpboots(); }
     else if(choice == 307) { self.classname = "item_healthvial"; item_healthvial(); }
     else if(choice == 308) { self.classname = "item_healthgem"; item_healthgem(); }
-    else if(choice == 309) { self.classname = "weapon_upgrade_axe"; weapon_upgrade_axe(); }
-    else if(choice == 310) { self.classname = "weapon_upgrade_ssg"; weapon_upgrade_ssg(); }
-    else if(choice == 311) { self.classname = "weapon_upgrade_lg"; weapon_upgrade_lg(); }
+    else if(choice == 309) { AD_UpgradeProp(WID_AXE); }
+    else if(choice == 310) { AD_UpgradeProp(WID_SUPER_SHOTGUN); }
+    else if(choice == 311) { AD_UpgradeProp(WID_LIGHTNING); }
     else if(choice == 320) { self.classname = "item_backpack"; self.spawnflags = 15; ad_item_backpack(); }
     else if(choice == 321) { self.classname = "item_backpack_armour"; self.spawnflags = 0; ad_item_backpack_armour(); }
     else if(choice == 322) { self.classname = "item_backpack_armour"; self.spawnflags = 1; ad_item_backpack_armour(); }
