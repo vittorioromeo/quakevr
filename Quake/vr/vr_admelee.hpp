@@ -36,6 +36,11 @@ void info_f();
 // as shares of the line's length. 0 0 for a straight blade (under half a unit off), a heavy weapon, or none made.
 [[nodiscard]] glm::vec2 bend(int kind, float f);
 
+// A hammer's or mace's head (QC admeleehead, VR_Melee_Sweep: the head's volume strikes): heavy kind `kind`'s head's box
+// in the frame bend() uses, as shares of the line's length: x along the line from the hand, y along its normal in the
+// weapon's plane, z along the model's +y (even about the line). False for a sword, or none made (AD's data not there).
+[[nodiscard]] bool head(int kind, glm::vec3& lo, glm::vec3& hi);
+
 // The spine's point at share `f` of the line, in the model's frame, of the made model named `model` (".../...#melee";
 // vr_admelee_spine shows it on the hand's weapon). False if it is not a sword of these, or not made.
 [[nodiscard]] bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line); // line: the straight line's point there

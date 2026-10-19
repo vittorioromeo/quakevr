@@ -14367,3 +14367,45 @@ a random wrist move or a gun brought round bats a projectile back; the parried e
   slide a little, not fly; a strong two-handed hammer blow moves a body most. Bring a gun round in front of a spike or
   flick the wrist: no bat; a real swing and a bash bat. Parry knights and grunts on flat floor (they reel back a step as
   a ragdoll and come at you again after the same pause) and at the top of stairs (sometimes they go down them).
+
+
+## Swept blades: the whole blade and a heavy head's volume strike (worktree `fastship`, branch `agent/meleesweep`, 2026-10-19)
+
+His note: long weapons feel like they miss; the blow seemed to land only where the blade first touched (a sword swung
+at the ground slashed at its tip; a big swing passed an enemy its blade went through).
+
+- **Before:** VR_Melee_Sweep swept each of the layout's points (a sword's 6 striking points, 0.27..1 of the hand to the
+  tip; an axe's, the AD hammer's and mace's 2, at 0.75 and 1) as a 3-unit line from the last pose to this one; the
+  blow landed at the outermost point in the thing, a wall at the first point touching it. Between two points nothing
+  struck (the hammer's points 7.9 units apart: a thin thing between them was passed), a hammer's or mace's head struck
+  only on its handle's line (its head is 23.6 and 19.8 units across, 9.4 and 14.1 deep), and a flat chop at the floor
+  landed at the pommel (the first of the points, all as early).
+- **Now (`vr_melee_swept 1`, the default; Debug > Tests > Melee Sweep > Swept Blades; 0 is the old way exactly):**
+  VR_Melee_Ribs makes the sweep's lines: the layout's points, and between two neighbouring striking points as many lines
+  more as keep them at most 1.5 thicknesses apart (at most 3 more a pair: the swept quad covered by the lines' 3-unit
+  thickness, a curved blade's chords between its points on the curve); a hammer's or mace's head adds a grid of lines
+  over its middle (at most 4 x 4), as thick as half its depth and reaching its faces: its volume as a set of capsules.
+  The head's box comes from AD's model as made (vr_admelee.cpp: the head's vertices in the frame admeleebend uses, as
+  shares of the line; builtin `admeleehead(kind, which)`); without AD's data there is none (the line's points as before).
+  Each thing the lines meet (its box, or its model with vr_hit_precise) is scored by how squarely a line crossed it:
+  the line's nearest to its middle, the blade proper's lines (from VR_MELEE_BLADE_FROM out, a fist's knuckles) before
+  those nearer the hand, a line already in it last. The blow lands on the thing crossed most squarely, at that line's
+  contact; its kind and strength stay the outermost striking point's in it (VR_Melee_Decide unchanged: a stab is still
+  a stab, the same damage). A wall: where the blade went deepest past its surface (held off it by the hand's slide: the
+  nearest), the contact the middle of the lines as deep into the same surface (the terrain mark follows it).
+  Cost: a sword 14 lines (9 before), the hammer 14 (5), the mace 8 (5); the box round all the lines rejects things
+  nowhere near before any line is tested against them.
+- **Test:** `vr_melee_sweep_test 1` (Debug > Tests > Melee Sweep), the weapon in the main hand (`map vrfiringrange;
+  setpos 300 -440 45 0 180 0; +grabright; vr_mock_button main grip 1; vr_ad_test 117|128|129` with AD's games): the
+  probe's contacts, old and swept. Knight's sword (line 34.7): A, a box the blade's middle crosses with the tip past it,
+  old lands 14.1 off its middle (its outermost point, at its edge), swept 10.0 (its face's middle); D, a flat chop onto
+  the floor, old at the pommel (-6.9 along the blade), swept at the blade's middle (22.2; its striking part's middle
+  22.0). Hammer: B, a 1-unit pole between its two head points, old miss, swept hit; C, a small box beside the line within
+  the head (5.3 off), old miss, swept hit; F, a box 3 units clear of the head's face, neither. Mace: C 6.9 off, old miss,
+  swept hit; F neither. PASS for all three.
+- **eval.sh --full:** 168/177 as before, no verdict changed; 26 rows differ (the 4 known plus 22 contacts moved: decap
+  zone distances, one decap yes->no and one no->yes, first-blow damage over all takes 2783 -> 2808, +0.9%, from the
+  zones the new contacts land in). With `vr_melee_swept 0` the eval matches the baseline exactly (the 4 known diffs).
+- **For VR:** swing the sword past enemies so the blade's middle goes through them (they should be struck where it
+  crossed), chop flat at the floor (the mark at the blade's middle), graze enemies with the side of the AD hammer's and
+  mace's heads (struck); slow moves near enemies should still not strike.
