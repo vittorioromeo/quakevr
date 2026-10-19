@@ -3530,6 +3530,9 @@ QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat mon
 QVR_CVAR(vr_deflect_radius, "14", CVAR_ARCHIVE)          // units around the weapon's line (or fist) a projectile is batted within
 QVR_CVAR(vr_deflect_speed, "0.6", CVAR_ARCHIVE)          // a batting swing's speed (the weapon's far end), times vr_melee_speed (a blow's least is 1)
 QVR_CVAR(vr_deflect_window, "0.2", CVAR_ARCHIVE)         // s a swing's path keeps batting (a swing a little early still bats)
+QVR_CVAR(vr_deflect_swing, "1", CVAR_ARCHIVE)            // batting needs a swing as a blow does (the hand moving, from far enough, not wiggled): a turn of the wrist or a gun brought round bats nothing
+QVR_CVAR(vr_deflect_wrist, "2", CVAR_ARCHIVE)            // m/s the hand itself (meleewristspeed: its turn taken out) must move at to bat (vr_deflect_swing)
+QVR_CVAR(vr_deflect_run, "0.2", CVAR_ARCHIVE)            // m a batting swing must have come from (meleerun; vr_deflect_swing)
 QVR_CVAR(vr_deflect_bounce, "0.6", CVAR_ARCHIVE)         // a batted projectile's restitution off the weapon (0 dead .. 1 elastic): a little livelier than a ball off a bat
 QVR_CVAR(vr_deflect_aim_assist, "0.5", CVAR_ARCHIVE)     // 0..1: a batted or bashed projectile going very near a monster (its thrower most) bends that share towards it
 QVR_CVAR(vr_grenade_catch, "2", CVAR_ARCHIVE)            // grenades as physics you can catch and throw back: 0 off (Quake's), 1 the ogres', 2 also your own (the default since round 21's misc fixes: config 41)

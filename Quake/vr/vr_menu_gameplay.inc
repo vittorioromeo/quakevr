@@ -1205,7 +1205,9 @@
         slider("Headshot Sound", vr_headshot_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of the crack you hear when you land a headshot (0 off)."),
         header("Knockback"),
         slider("Knockback", vr_push, 0.f, 2.f, 0.05f, "%.2fx").extend().help("All knockback; the settings below scale this."),
-        slider("Your Melee Hits", vr_melee_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far your melee blows (and headbutts) push what they hit."),
+        slider("Your Melee Hits", vr_melee_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far your melee blows (and headbutts) push what they hit. A ragdoll or a corpse moves by mass instead (below)."),
+        slider("Blows on Ragdolls: Bounce", vr_melee_ragdoll_bounce, 0.f, 1.f, 0.05f, "%.2f").extend().help("A blow or a weapon meeting a body on the floor, knocked down or staggering moves it as two masses meeting: the weapon's (and the arm's behind it) against the body's at the part struck. How lively it comes off: 0 dead, 1 elastic."),
+        slider("Blows on Ragdolls: Most", vr_melee_ragdoll_most, 0.f, 15.f, 0.5f, "%.1f m/s").extend().help("The fastest a blow sends the part of a ragdoll it strikes. 0: no cap."),
         slider("Weapon Hits", vr_hit_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far heavy weapon hits shove monsters."),
         slider("Killing Blows", vr_kill_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far killing blows and explosions throw the bodies."),
         slider("Parry Pushes Enemy", vr_parry_push_enemy, 0.f, 3.f, 0.05f, "%.2fx").extend()
@@ -1378,6 +1380,9 @@
         slider("Batting Reach", vr_deflect_radius, 4.f, 32.f, 1.f, "%.0f units").extend().help("How near the weapon's blade, barrel or club a projectile must pass to be batted back."),
         slider("Batting Swing Speed", vr_deflect_speed, 0.2f, 1.5f, 0.05f, "%.2fx").extend().help("How fast a batting swing must be, times Swing Speed (a hit needs 1x, and more for a swung weapon)."),
         slider("Batting Timing", vr_deflect_window, 0.f, 0.5f, 0.05f, "%.2f s").extend().help("How early you may swing: the weapon's path keeps batting this long after it passed."),
+        toggle("Batting Needs a Swing", vr_deflect_swing).extend().help("Only a real swing bats: the hand itself moving fast (Batting Hand Speed), from some way off, not a weapon waved back and forth. Off: any weapon moving fast enough at its end bats, a turn of the wrist or a gun brought round to aim too."),
+        slider("Batting Hand Speed", vr_deflect_wrist, 0.5f, 4.f, 0.1f, "%.1f m/s").extend().help("How fast the hand itself must move to bat (its turn taken out: a flick of the wrist moves the weapon's end, not the hand)."),
+        slider("Batting Swing Length", vr_deflect_run, 0.f, 0.6f, 0.05f, "%.2f m").extend().help("How far a batting swing must have come from."),
         slider("Bash Batting Reach", vr_bash_deflect_radius, 4.f, 48.f, 1.f, "%.0f units").extend()
             .help("A bash (a weapon or a club held across, pushed) bats back projectiles that pass this near the weapon. A shove with open hands bats nothing."),
         slider("Bash Batting Timing", vr_bash_deflect_window, 0.f, 1.f, 0.05f, "%.2f s").extend().help("How long a bash goes on batting after the push."),

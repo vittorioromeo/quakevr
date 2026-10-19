@@ -311,6 +311,11 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector bat_vb[8];
 .float bat_paid_time; // when a batting swing last paid its stamina (VR_Deflect_Pay),
 .float bat_exhaust;   // and what that left (as a blow's mh_exhaust: 0 paid in full)
+.float bat_why;       // the last pose's swing: 0 a batting one, else why not (VR_BAT_WHY_*: VR_Deflect_SwingWhy)
+.float bat_why_v;     // and its number against
+.float bat_why_need;  // what it needed
+.float bat_wrist;     // the newest batting line's hand speed (m/s: meleewristspeed) and how far it came (m: meleerun)
+.float bat_run;
 
 .float vr_bash_time;      // on a player: when the next bash may be
 .float vr_blow_time;      // on a player: when a blow of his last landed, or he last shoved or bashed (the engine's
@@ -3451,7 +3456,7 @@ void(vector xForward) VR_Bash_Deflect =
             }
             if(near < radius + e.maxs_x)
             {
-                dprint(sprintf("deflect: %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
+                dprint(sprintf("deflect: accepted %s of %s, %.0f units from the bash's guard, %.2f s into the push\n",
                     e.classname, e.owner.classname, near,
                     time - (self.vr_bashdef_until - max(0, cvar_hget(cvarh_vr_bash_deflect_window)))));
                 vector pushVel = self.vr_bashdef_vel;
