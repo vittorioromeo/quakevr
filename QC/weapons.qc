@@ -1988,6 +1988,68 @@ void(entity e) VR_Proj_Mark =
     e.vr_projectile = 1;
 };
 
+// Body shields (ROUND22.md, "Body shields"): a corpse or a knocked-down monster a player holds in either hand (its
+// ragdoll, one hand or two) takes a monster's shot or projectile on its way to him. Held up against him, the body lies
+// inside his own hit box, whose face the shot met first, so the shot passed through it. `xP`, the player the path
+// xA..xB met: the held body's drawn shape is looked for along the path up to where it passes his middle; met there, it
+// is what the shot hit instead (trace_ent, trace_endpos, trace_fraction of xA..xB). TRUE if so.
+float(entity xP, vector xA, vector xB) VR_BodyShield_Take =
+{
+    if(!(xP.flags & FL_CLIENT) || xP.health <= 0)
+    {
+        return FALSE;
+    }
+    entity held1 = VR_Carry_Held(xP, cVR_MainHand);
+    entity held2 = VR_Carry_Held(xP, cVR_OffHand);
+    if(!isragdoll(held1) && !isragdoll(held2))
+    {
+        return FALSE;
+    }
+    vector dir = normalize(xB - xA);
+    float along = (xP.origin - xA) * dir; // (to his middle)
+    float len = vlen(xB - xA);
+    if(along <= 0 || len <= 0)
+    {
+        return FALSE;
+    }
+    vector mid = xA + dir * along;
+    entity best = world;
+    float bestT = 2;
+    for(float i = 0; i < 2; i++)
+    {
+        entity h = i ? held2 : held1;
+        if(h == world || !isragdoll(h) || !h.takedamage || (i && h == held1))
+        {
+            continue;
+        }
+        float t = hitmodel_segment(h, xA, mid, 0, HITCLASS_GUNS);
+        if(cvar_hget(cvarh_vr_debug_shots) >= 2)
+        {
+            dprint(sprintf("shot: body shield: %s from %v to %v (his middle): %g\n", h.classname, xA, mid, t));
+        }
+        if(t >= 0 && t < bestT)
+        {
+            best = h;
+            bestT = t;
+        }
+    }
+    if(best == world)
+    {
+        return FALSE;
+    }
+    trace_ent = best;
+    trace_endpos = xA + (mid - xA) * bestT;
+    trace_fraction = vlen(trace_endpos - xA) / len;
+    trace_plane_normal = '0 0 0' - dir;
+    trace_allsolid = FALSE;
+    trace_startsolid = FALSE;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot: %s held by %s takes it (body shield) at %v\n", best.classname, xP.netname, trace_endpos));
+    }
+    return TRUE;
+};
+
 // Before the projectile (self) deals its hit on `other` (`xKind` QVR_PROJ_*, `xDamage` its damage, if known: a zombie's
 // head pops only to a hit that would knock it down).
 void(float xKind, float xDamage) VR_Proj_Begin =
@@ -1998,6 +2060,13 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     {
         makeforward_mdl(self.angles);
         dir = v_forward;
+    }
+    // A monster's projectile meeting a player: the body he holds before him takes it (VR_BodyShield_Take).
+    if((other.flags & FL_CLIENT) && !(self.owner.flags & FL_CLIENT) &&
+       VR_BodyShield_Take(other, self.origin - dir * 64, self.origin + dir * 64))
+    {
+        other = trace_ent;
+        setorigin(self, trace_endpos);
     }
     if(self.vr_shot_push_kind)
     {
@@ -2144,6 +2213,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_fraction = 0; // started inside it: hit there
             trace_endpos = src;
             trace_plane_normal = -direction;
+        }
+        if(!(self.flags & FL_CLIENT) && (trace_ent.flags & FL_CLIENT))
+        {
+            VR_BodyShield_Take(trace_ent, src, src + direction*xRange); // a body the player holds before him takes it
         }
         // QVR: through a teleporter, the pellet goes on from its far side, turned with it (vr_portals_walk)
         vector shotFrom = src, shotDir = direction;
