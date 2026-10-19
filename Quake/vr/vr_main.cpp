@@ -1892,6 +1892,7 @@ extern "C" void VR_NewMap()
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
     step("auto pump", autopump::prepare);
+    step("AD crossbow", adcrossbow::prepare); // AD support: its next bolt's sound
     step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
@@ -1958,6 +1959,7 @@ extern "C" void VR_Init()
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
     adcrossbow::registerCommands(); // AD support: vr_adgun_crossbow_info (vr_adcrossbow.cpp)
+    adweapons::registerCommands();  // AD support: vr_ad_widowmaker_spin_info (vr_adweapons.cpp)
     Cmd_AddCommand("vr_admelee_models", admelee::info_f); // AD support: the AD melee weapons' models (vr_admelee.cpp)
     Cmd_AddCommand("vr_adgun_variants", adguns::variants_f); // AD support: the AD guns as our burst rifle's variants (vr_adgunart.cpp)
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
@@ -2113,6 +2115,15 @@ extern "C" void VR_Init()
     cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
 
     state->restartRequested = true;
+}
+
+extern "C" void VR_BeforeVideoInit()
+{
+    // Only when the OpenXR backend will start (not -flatscreenmode, -vrmock or another vr_backend).
+    if(!flatplay::flagGiven() && !COM_CheckParm("-vrmock") && !q_strcasecmp(vr_backend.string, "openxr"))
+    {
+        xrruntime::beforeVideoInit();
+    }
 }
 
 // Host_Shutdown, before NET_Shutdown: libcurl's global state (curl_global_cleanup) and winsock go there, and a

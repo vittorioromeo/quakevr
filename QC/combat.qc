@@ -22,9 +22,12 @@ float vr_hitkind;     // QVR_HITKIND_*
 // The blow being dealt draws no blood (ROUND22.md, "Shoves, slaps and bashes draw no blood"): a shove, a weapon's bash
 // (a parry bash) or a slap keep their damage, knockback and stagger, but spray no blood, paint no wound, send no gore
 // and tear no small gibs (VR_Gore_Hit, VR_Wound_Hit, VR_SmallGib_Hit, VR_Bash_Hit).
+// vr_hit_nobleed: set around a flame's, a poison's or a fire's T_Damage (the AD flamethrower's and poison sprayer's
+// streams, the poison they leave, burning: vr_ad_enemyguns.qc, vr_burning.qc): it burns or poisons, it does not bleed.
+float vr_hit_nobleed;
 float() VR_HitBloodless =
 {
-    return vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
+    return vr_hit_nobleed || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
            (vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap);
 };
 float vr_hithand;     // the hand that struck or fired (-1: unknown)
@@ -337,16 +340,10 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagg
 float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
 void(float xMode) VR_HitStagger_Test;
-// The flinch (vr_flinch.qc).
-.float vr_fl_prepain;      // its frame as a hit's damage met it, before its pain (a blow's or a throw's flinch: made in it)
-.float vr_fl_prepain_time; // when
-float(entity targ, entity inflictor, entity attacker, float take) VR_Flinch_Hit;
-float(entity e) VR_Flinch_PainOff;
-float(entity e) VR_Flinch_Owns;
-float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_Flinch_Melee;
-float(entity e, entity xBy, vector xDir, float xMomentum) VR_Flinch_Throw;
-void() VR_Flinch_Frame;
-entity vr_fl_thrown; // a thrown prop dealing its damage (vr_carry.qc): the flinch waits for VR_HitStagger_Throw
+// Situational knockdowns (vr_kdtrig.qc): a hit on a living humanoid by stairs, a ledge, on a slope, a close shotgun
+// blast, a wounded one: it may go down as an active ragdoll.
+float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit;
+void() VR_KdTrig_Frame;
 // Impacts and manhandling (vr_ragimpact.qc): when it was last staggered (a shove, an unbalancing hit, a stagger
 // recovered from: a hand's hold knocks it down, VR_FoeGrab_Manhandle); your landing's crush; the tests.
 .float vr_kd_shaken;
@@ -1727,14 +1724,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
     }
 
-    // VR: the flinch (vr_flinch.qc): a hit past its threshold makes it an active ragdoll a moment; else the small
-    // hit reaction (vr_hitreact.qc).
-    float flinched = VR_Flinch_Hit(targ, inflictor, attacker, take);
-    if(!flinched)
-    {
-        VR_HitReact_Hit(targ, inflictor, attacker, take);
-    }
-    float painOff = !flinched && VR_Flinch_PainOff(targ);
+    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
+    // VR: situational knockdowns (vr_kdtrig.qc): by stairs, a ledge, on a slope, a close shotgun blast, wounded: it may go
+    // down as a ragdoll (a knockdown: its pain's sound below, not its frames).
+    VR_KdTrig_Hit(targ, inflictor, attacker, take);
 
     // react to the damage
     oldself = self;
@@ -1743,8 +1736,6 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // get-up playing on); down, each hit keeps it down a little longer.
     float kdState = self.vr_knockdown;
     float kdFrame = self.frame;
-    self.vr_fl_prepain = self.frame;
-    self.vr_fl_prepain_time = time;
     void() kdThink = self.think;
     float kdNext = self.nextthink;
 
@@ -1780,12 +1771,6 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             self.pain_finished = time + 5;
     }
 
-    if(painOff && !self.vr_knockdown && self.health > 0)
-    {
-        self.frame = kdFrame; // (vr_flinch_pain 0: its pain's sound, not its frames)
-        self.think = kdThink;
-        self.nextthink = kdNext;
-    }
     if(kdState && self.health > 0)
     {
         self.frame = kdFrame;

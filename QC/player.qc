@@ -148,6 +148,8 @@ void(float xHand) player_run =
         self.frame = self.frame + self.walkframe;
     }
 
+    // QVR: the steps on any free channel (CHAN_AUTO), not the voice's: the first step after a hard landing cut its
+    // "hnng" (player/land2.wav) off, and every step a pain or a gasp (ROUND22.md, "Sounds cut off: the audit").
     if(footsteps == 1)
     {
         self.spawnsilent = self.spawnsilent + vlen(self.origin - self.old_velocity);
@@ -165,19 +167,19 @@ void(float xHand) player_run =
                    }
                 r = random();
                 if(r < 0.14)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot1.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot1.wav", 0.5, ATTN_NORM);
                 else if(r < 0.29)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot2.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot2.wav", 0.5, ATTN_NORM);
                 else if(r < 0.43)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot3.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot3.wav", 0.5, ATTN_NORM);
                 else if(r < 0.58)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot4.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot4.wav", 0.5, ATTN_NORM);
                 else if(r < 0.72)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot5.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot5.wav", 0.5, ATTN_NORM);
                 else if(r < 0.86)
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot6.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot6.wav", 0.5, ATTN_NORM);
                 else
-                   VR_SoundVaried(self, CHAN_VOICE, "misc/foot7.wav", 0.5, ATTN_NORM);
+                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot7.wav", 0.5, ATTN_NORM);
             }
         }
     }

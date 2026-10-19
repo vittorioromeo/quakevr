@@ -86,6 +86,8 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: an electric bolt electrocutes
   ai_projectiles.qc launch_plasma: Quake VR: an electric bolt's muzzle crackles, it strikes bodies
   mon_pyro.qc pyroflame_touch: Quake VR: the pyro's flames poison monsters too (the attacker credited: vr_dmgcredit.qc)
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's and fumigator's flames draw no blood
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's and fumigator's flames draw no blood (its end)
   mon_pyro.qc pyroflame_spawn: Quake VR: the pyro's flames look like the player's
   lights.qc setup_light_sound: Quake VR: a torch made live by the toolgun keeps its sound
   lights.qc setup_light_static: Quake VR: a torch made live by the toolgun is not made static

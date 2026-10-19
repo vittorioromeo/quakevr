@@ -1774,6 +1774,22 @@ void	VID_Init (void)
 
 	putenv (vid_center);	/* SDL_putenv is problematic in versions <= 1.2.9 */
 
+#ifndef _WIN32
+	// QVR: the OpenXR runtime may need SDL on X11 with GLX (SteamVR: vr/vr_xr_runtime.hpp, beforeVideoInit): the
+	// config's runtime settings first (and the runtime test environment's, from the command line: TESTING.md).
+	{
+		const char *vr_vars[] = {"vr_xr_runtime", "vr_xr_runtime_json", "vr_xr_runtime_fallback", "vr_xr_test",
+			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes"};
+		if (CFG_OpenConfig(CONFIG_NAME) == 0 || CFG_OpenConfig("config.cfg") == 0)
+		{
+			CFG_ReadCvars(vr_vars, Q_COUNTOF(vr_vars));
+			CFG_CloseConfig();
+		}
+		CFG_ReadCvarOverrides(vr_vars, Q_COUNTOF(vr_vars));
+		VR_BeforeVideoInit ();
+	}
+#endif
+
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 		Sys_Error("Couldn't init SDL video: %s", SDL_GetError());
 

@@ -94,12 +94,18 @@
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
         command("Gun Variants", "vr_adgun_variants")
             .help("The soldiers' guns as our burst rifle's variants (the models they drop now): each one's triangles, "
-                  "box (whether the rifle's corner held: the burst rifle's weapon settings hold them) and time to make."),
+                  "box (whether the rifle's corner held: the burst rifle's weapon settings hold them) and time to make; "
+                  "their add-ons' mesh: open edges (see-through), doubled edges, triangles wound inward, inner walls "
+                  "(vr_adgun_variants 1 lists each open or doubled edge)."),
         command("Hold the Flamethrower", "vr_weapon_grip_mode 1; vr_ad_test 79")
             .help("The pyro's flamethrower in your main hand: its fuel tank on your back, the hose to the gun (VR Settings > "
                   "Combat > Enemy Weapons > Arcane Dimensions' Guns > Fuel Tank and Hose)."),
         command("Hold the Poison Sprayer", "vr_weapon_grip_mode 1; vr_ad_test 80")
             .help("The fumigator's poison sprayer in your main hand, its green tank and hose."),
+        command("Flamethrowers on the Nearest Monster", "vr_ad_test 91")
+            .help("Destructive: the flamethrower, then the poison sprayer, fired from your main hand at the monster nearest "
+                  "you (its health raised): it must burn, then be poisoned, with no blood, gore or wounds; then a shot's "
+                  "damage on it, which bleeds (adgun fx: lines; 3 PASS)."),
         command("Fuel Hose Info", "vr_adgun_hose_info")
             .help("vr_adgun_hose_info: in the console, each hand's hose (its gun, its ends, its length, how low it hangs), "
                   "its rings drawn (and in the body's mirror image), its cost a frame, and how deep it has lain in your "

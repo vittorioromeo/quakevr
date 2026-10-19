@@ -3,6 +3,7 @@
 #include "vr_view_internal.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_adcrossbow.hpp"
+#include "vr_adweapons.hpp"
 
 namespace view_detail
 {
@@ -4791,6 +4792,7 @@ extern "C" void VR_SetupViewEntities()
         setupMagazines();
         setupPumps();
         adcrossbow::frame(entities.weapon, entities.adBolt); // AD support: the crossbow's string and bolt
+        adweapons::spinFrame(entities.weapon); // AD support: the Widowmaker's barrels turning
         setupSsgParts();
         setupWorldSsgs();
         patchModelFlags();

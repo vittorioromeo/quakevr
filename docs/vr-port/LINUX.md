@@ -1,9 +1,10 @@
 # Linux (native build)
 
 Status, 2026-10-17 (ROUND22.md, "Native Linux build"): the engine builds natively on x86-64 Linux with clang, runs
-flatscreen and on the mock headset, and runs VR through OpenXR with the GLX (Xlib) graphics binding. It was tested in
-WSL2 Arch Linux only, on software rendering (llvmpipe) and Monado's simulated headset with the null compositor. **No real
-headset has run it yet.**
+flatscreen and on the mock headset, and runs VR through OpenXR with the GLX (Xlib) or the EGL (`XR_MNDX_egl_enable`)
+graphics binding (2026-10-19: EGL added for a player on WiVRn whose SDL made an EGL context). It was tested in WSL2 Arch
+Linux only, on software rendering (llvmpipe) and Monado's simulated headset with the null compositor: GLX on X11, EGL on
+X11 (`SDL_VIDEO_X11_FORCE_EGL=1`) and EGL on Wayland (WSLg). **No real headset has run it yet.**
 
 Why native: under Proton the game binds OpenXR with `XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR`, which wineopenxr
 rejects ("Unhandled graphics binding type 1000023000"). VR on Linux needs the native build.
@@ -16,7 +17,8 @@ pkg-config). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev libgl-dev libx1
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
     cmake --build build
 
-- Configure prints `Quake VR: OpenXR backend on (loader ..., GLX binding)`; without pkg-config `openxr` (or with
+- Configure prints `Quake VR: OpenXR backend on (loader ..., GLX binding)` (the EGL binding needs no package);
+  without pkg-config `openxr` (or with
   `-DQVR_OPENXR=OFF`) the build has the mock backend alone.
 - **clang**, not gcc: gcc 15/16 rejects Zancle's `__decay` builtin in function signatures (`vr_jobs.hpp`, "use of
   built-in trait ... in function signature") and instantiates a defaulted `za::Pair::operator==` eagerly
@@ -27,12 +29,24 @@ pkg-config). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev libgl-dev libx1
 
 ## Run
 
-- Flat or mock: `vr_backend mock` (or `-novr`, as on Windows). SDL picks X11 or Wayland; VR needs X11 (below).
+- Flat or mock: `vr_backend mock` (or `-novr`, as on Windows). SDL picks X11 or Wayland.
 - VR: `vr_backend openxr`, with an OpenXR runtime: Monado, WiVRn, SteamVR for Linux (the loader finds the active one
   in `~/.config/openxr/1/active_runtime.json`, `/etc/xdg/openxr/1/`, `/etc/openxr/1/`, or `XR_RUNTIME_JSON`).
-- **X11/GLX only**: the session binds SDL's GLX context (`XrGraphicsBindingOpenGLXlibKHR`). On a Wayland desktop run
-  with `SDL_VIDEODRIVER=x11` (XWayland). An EGL context (SDL's Wayland driver, or `SDL_VIDEO_X11_FORCE_EGL=1`) fails
-  the start with "no GLX context current" in `qvr_openxr.txt`; an EGL binding (`XR_MNDX_egl_enable`) is not written.
+  `active_runtime.x86_64.json` wins over `active_runtime.json` in each folder (the loader's order), and manifests for
+  another architecture (`openxr_wivrn.i686.json`, or a 32-bit library) are left out ("for i686 ...: left out" in
+  `vr_xr_runtime_explain` and the start's log).
+- **The session binds SDL's context, whichever it is** (`vr_xr_linuxgl.cpp`; the log's `xrCreateSession (OpenGL, ...
+  binding ...: SDL video driver ...)` line names it):
+  - GLX (SDL's X11 driver, also under XWayland): `XrGraphicsBindingOpenGLXlibKHR` (`XR_KHR_opengl_enable`). Every
+    runtime has it.
+  - EGL (SDL's Wayland driver; X11 with `SDL_VIDEO_X11_FORCE_EGL=1`; SDL3/sdl2-compat on Wayland desktops):
+    `XrGraphicsBindingEGLMNDX` (`XR_MNDX_egl_enable`): Monado and WiVRn have it. libEGL is looked up in the process
+    (SDL loaded it), not linked.
+  - SteamVR has no EGL binding. When the start may try SteamVR (the plan has it), an X server is there (`DISPLAY`) and
+    no SDL video variable is set, the game asks SDL for X11 with GLX before video init (`SDL_VIDEODRIVER=x11`,
+    `SDL_VIDEO_X11_FORCE_EGL=0`, and SDL3's `SDL_VIDEO_DRIVER`, `SDL_VIDEO_FORCE_EGL`); the console and the log say
+    "OpenXR: before video init: ...". An EGL context with a runtime lacking `XR_MNDX_egl_enable` fails the start with
+    a warning naming those variables.
 - The runtime needs GL to import its images: Monado's GL client uses `GL_EXT_memory_object_fd` (the log's "GL interop"
   line). Mesa and NVIDIA have it.
 

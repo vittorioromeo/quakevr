@@ -35,6 +35,9 @@ void init(); // registers input commands
 // Whether the +grab button of `hand` (HAND_OFF, HAND_MAIN) is held.
 [[nodiscard]] bool grabbing(int hand);
 
+// Whether the trigger of `hand` is held (+attack, +offhandattack).
+[[nodiscard]] bool attacking(int hand);
+
 // Null when the server doesn't speak the VR protocol or the entity has no VR data.
 [[nodiscard]] const EntityVr* entityVr(int num);
 

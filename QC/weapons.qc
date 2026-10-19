@@ -1356,7 +1356,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
@@ -1369,7 +1369,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
@@ -1408,7 +1408,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
@@ -1420,7 +1420,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
@@ -1475,7 +1475,7 @@ void(float xHand) W_SwordMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
             if(VR_ADMelee_Heavy(kind))
             {
                 VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim); // (a hammer's, a mace's weight: the chainsaw's)
@@ -1490,7 +1490,7 @@ void(float xHand) W_SwordMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
-        VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
@@ -1588,13 +1588,13 @@ void(float xHand) W_FistMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE && vr_melee_slap)
     {
         // A slap (vr_melee_slap; only on what takes damage: VR_Melee_SlapLands): skin on skin, no knock.
-        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSound(""), 1.0, ATTN_NORM);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSound(""), 1.0, ATTN_NORM);
         playedsound = TRUE;
     }
     else if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         // (A held rock or brick knocks as it does; a fist on an explosive box, a metal knock: VR_Melee_HitSoundOn.)
-        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
+        VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
             (VR_Hit_Metal(trace_ent) ? VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE) : "fisthit.wav"), 1.0, ATTN_NORM);
         if(!VR_Debris_Is(held))
         {

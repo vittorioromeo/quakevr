@@ -253,6 +253,10 @@ void washTest_f()
         }
     }
     end();
+    if(washed && cl.stats[STAT_HEALTH] > 0)
+    {
+        markWashed(); // as a wash: your wounds re-open after (vr_gore_reopen_delay), bleeding back in
+    }
     Con_Printf("vr_gore_wash_test: %.2f washed off %d of your masks (%s)\n", static_cast<double>(amount), washed,
         vr_gore_wash_once.value != 0.f ? "each texel once" : "edges more");
 }
@@ -268,6 +272,15 @@ void handsInfo_f()
     if(reopenPending && reopenStart < 0.0)
     {
         Con_Printf(" (in %.1f s)", static_cast<double>(vr_gore_reopen_delay.value) - (now - lastWash));
+    }
+    else if(reopenPending && !playerWounds.empty())
+    {
+        double bled = 0.0; // (each wound's blood back, vr_gore_reopen_fade: the mean)
+        for(const LoggedWound& w : playerWounds)
+        {
+            bled += static_cast<double>(w.bled);
+        }
+        Con_Printf(" (blood back %.2f, %d smears)", bled / static_cast<double>(playerWounds.size()), reopenSmears);
     }
     const int carried[2]{cl.stats[protocol::STAT_QVR_CARRYOFF], cl.stats[protocol::STAT_QVR_CARRYMAIN]};
     Con_Printf(", carried %d %s, %d %s\n", carried[0], isGib(carried[0]) ? "(a gib)" : "", carried[1], isGib(carried[1]) ? "(a gib)" : "");

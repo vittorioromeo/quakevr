@@ -716,10 +716,10 @@ QVR_CVAR(vr_melee_slap_mult, "0.5", CVAR_ARCHIVE)    // a slap's damage, times a
 // Swing sounds by speed (QC vr_melee.qc VR_Swish): a fist's, open hand's or melee weapon's whoosh for any motion that moves
 // air, its volume by its speed as a share of the speed its blow would land at (the melee model's own, per hand and blow).
 QVR_CVAR(vr_melee_swish, "1", CVAR_ARCHIVE)          // 1: swings short of a blow whoosh softly, fast blows louder than full; 0: only a blow whooshes, at full volume (as before)
-QVR_CVAR(vr_melee_swish_min, "0.5", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
-QVR_CVAR(vr_melee_swish_sub, "0.45", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
-QVR_CVAR(vr_melee_swish_full, "2.2", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
-QVR_CVAR(vr_melee_swish_gain, "1.6", CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
+QVR_CVAR(vr_melee_swish_min, "0.3", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
+QVR_CVAR(vr_melee_swish_sub, "0.35", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
+QVR_CVAR(vr_melee_swish_full, "1.75", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
+QVR_CVAR(vr_melee_swish_gain, "2",   CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
 QVR_CVAR(vr_melee_wrist_speed, "1.1", CVAR_ARCHIVE)   // m/s the hand itself (its wrist: the hand's turn taken out) must have moved on average over the last 0.12 s to hit (a punch twice this): a wiggle flicks the tip fast but barely moves the wrist (QC vr_melee.qc)
 QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle's end's, a gun butt's) touch waits for the blade or head to reach the same thing, so a cut from close by is a cut; only pommel strikes wait (QC vr_melee.qc)
 // Melee phasing (Combat > Melee; vr_modelcollide.cpp; ROUND21.md, "Melee phasing"): while a hand swings fast its fist and
@@ -1026,6 +1026,10 @@ QVR_CVAR(vr_shoulder_offset_x, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_y, "1.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_z, "16.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
+// A Cup hotspot (a two-handed pistol grip: held wherever the hands point) takes the virtual stock too (his notes
+// 2026-10-19, the Widowmaker's two handles): the holding hand at the shoulder aims from the shoulder through the other
+// hand (vr_twohand.cpp applyHotspots). 0: a cup never aims.
+QVR_CVAR(vr_2h_cup_stock, "1", CVAR_ARCHIVE)
 // Sticky two-handed grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"; vr_twohand.cpp): once
 // the helping hand holds a weapon's hotspot, how far off it it may go (20 units plus the hotspot's own Stickiness), the
 // angle it may turn the aim off (vr_2h_angle_threshold) and how far past the muzzle it may go, before it lets go, are
@@ -1401,8 +1405,9 @@ QVR_CVAR(vr_suit_glow_light, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_blood, "1.25", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
-QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
-QVR_CVAR(vr_wounds_wet_coat, "1", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
+QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in vr_wounds_wet_time
+QVR_CVAR(vr_wounds_wet_coat, "2", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
+QVR_CVAR(vr_wounds_wet_time, "28", CVAR_ARCHIVE)      // ... seconds a soaked model takes to dry: the coat full for the first quarter, then fading out
 QVR_CVAR(vr_wounds_pool, "128", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_body_res, "1024", CVAR_ARCHIVE) // body-only minimum wound detail; tall arm atlas: 1024 gives 256x1024 (~hand density), 0 opts out
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
@@ -1423,6 +1428,7 @@ QVR_CVAR(vr_gore_wash_once, "1", CVAR_NONE)          // a wash takes its blood o
 QVR_CVAR(vr_gore_reopen, "1", CVAR_ARCHIVE)           // hurt, your wounds re-open after a wash (healed ones don't; a gib's blood doesn't come back)
 QVR_CVAR(vr_gore_reopen_delay, "4", CVAR_ARCHIVE)     // seconds out of the water, clean, before they re-open
 QVR_CVAR(vr_gore_reopen_time, "1.5", CVAR_ARCHIVE)    // seconds over which they re-open, one after another (0: all at once)
+QVR_CVAR(vr_gore_reopen_fade, "10", CVAR_ARCHIVE)     // seconds each re-opened wound takes to bleed back to its full blood (0: at once)
 // Gore: blood on you and your gear (vr_wounds.cpp; ROUND21.md, "Blood on you, your weapons and props").
 QVR_CVAR(vr_gore_spatter, "1", CVAR_ARCHIVE)          // blood thrown from hits near you onto your hands, arms, body and what you hold: how much (0 none)
 QVR_CVAR(vr_gore_spatter_melee, "1", CVAR_ARCHIVE)    // ... from your blows (fists, blades, props, guns as clubs): times
@@ -2403,7 +2409,7 @@ QVR_CVAR(vr_dmg_plasma, "80", CVAR_ARCHIVE)          // its plasma gun: a ball's
 QVR_CVAR(vr_dmg_fist, "10", CVAR_ARCHIVE)            // a punch's base damage
 QVR_CVAR(vr_dmg_axe, "20", CVAR_ARCHIVE)             // the axe's blow
 QVR_CVAR(vr_dmg_gun_bash, "12", CVAR_ARCHIVE)        // a gun swung as a club
-QVR_CVAR(vr_dmg_chainsaw_swing, "22", CVAR_ARCHIVE)  // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
+QVR_CVAR(vr_dmg_chainsaw_swing, "26", CVAR_ARCHIVE)  // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_CVAR(vr_dmg_mjolnir, "25", CVAR_ARCHIVE)         // Mjolnir's blow
 QVR_CVAR(vr_dmg_superaxe, "40", CVAR_ARCHIVE)        // Dawn of the Machine's Super Axe: a blow (QC vr_mg3_weapons.qc; zombies x3, a kill x2)
 QVR_CVAR(vr_superaxe_burst_window, "1.5", CVAR_ARCHIVE) // s: a second Super Axe blow on the same monster within it fires the lightning burst (MG3's 0.5)
@@ -2416,11 +2422,18 @@ QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet
 QVR_CVAR(vr_ad_widowmaker_shot_pellets, "7", CVAR_ARCHIVE) // its pellets a shot (a shell; AD's 21 were three shells' worth)
 QVR_CVAR(vr_ad_widowmaker_refire, "0.25", CVAR_ARCHIVE)    // s between its shots, the trigger held (the super shotgun's 0.7)
 QVR_CVAR(vr_ad_widowmaker_tube, "16", CVAR_ARCHIVE)        // the shells its tube holds
-QVR_CVAR(vr_ad_widowmaker_handful, "4", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit)
+QVR_CVAR(vr_ad_widowmaker_handful, "2", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit; his 2)
+// Its barrels turning as a Gatling's (his notes 2026-10-19; vr_adweapons.cpp spinFrame): up to a barrel a shot (120
+// degrees each vr_ad_widowmaker_refire) times this, spun up in _spinup s while the trigger is held or it fires, coasting
+// down in about _spindown s after, to a barrel on top. 0: still.
+QVR_CVAR(vr_ad_widowmaker_spin, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spinup, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spindown, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
-QVR_CVAR(vr_chainsaw_damage, "100", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
+QVR_CVAR(vr_chainsaw_damage, "120", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling
 QVR_CVAR(vr_chainsaw_overlap, "6", CVAR_ARCHIVE)      // cm the running chain's bar may sink into a monster's model (vr_modelcollide.cpp)
@@ -2503,6 +2516,7 @@ QVR_CVAR(vr_adgun_crossbow_damage, "15", CVAR_ARCHIVE) // the crossbow knight's 
 QVR_CVAR(vr_adgun_crossbow_speed, "700", CVAR_ARCHIVE) // ... its bolts' speed (AD's knight on normal skill: 700)
 QVR_CVAR(vr_adgun_crossbow_ammo, "10", CVAR_ARCHIVE) // ... the bolts it holds as it drops (its own: never refilled)
 QVR_CVAR(vr_adgun_crossbow_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next (the knight reloads in 2)
+QVR_CVAR(vr_adgun_crossbow_bolt_sound, "0.35", CVAR_ARCHIVE) // ... the next bolt's soft shimmer as it morphs in (vr/xbow_bolt_in.wav: its volume; 0 none)
 QVR_CVAR(vr_adgun_crossbow_anim, "1", CVAR_ARCHIVE) // ... a bolt in its groove while it is ready (morphing in), fired from there; its string snapping forward and its limbs flexing at a shot, drawn back for the next (vr_adcrossbow.cpp); 0: none
 QVR_CVAR(vr_adgun_crossbow_anim_at, "-1", CVAR_NONE) // debug: the crossbows in the hands drawn this many seconds after a shot (a frame strip; loaded); -1: as they are
 QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' melee monsters drop their weapons as they die (QC vr_ad_melee.qc: the death fury its two swords, the death knight, zombie knight and death guard their swords, the hunter ogres their hammer and mace)
@@ -2687,42 +2701,56 @@ QVR_CVAR(vr_hit_stagger_head, "1.5", CVAR_ARCHIVE)        // a melee blow to the
 QVR_CVAR(vr_hit_stagger_resist, "0.75", CVAR_ARCHIVE)     // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_CVAR(vr_hit_stagger_push, "1", CVAR_ARCHIVE)          // its push, times a shove's (impact 1: a two-hand shove's; 0.5 .. 1.25)
 QVR_CVAR(vr_hit_stagger_cooldown, "4", CVAR_ARCHIVE)      // s after an unbalancing hit before another hit can unbalance it (no stunlock)
-// Flinch (QC vr_flinch.qc; the engine's vr_box3d_knockdown.cpp ragdollFlinch, vr_ragactive.cpp beginFlinch;
-// docs/vr-port/FLINCH.md; Combat > Flinch): every hit past a threshold briefly makes a humanoid an active ragdoll that
-// takes the hit's impulse, steps and balances, then blends back into its animation once balanced, or topples into a
-// knockdown. 0: the hit reactions, pains and Hits Unbalance exactly as before.
-QVR_CVAR(vr_flinch, "1", CVAR_ARCHIVE)                    // 1 the flinch (shots, nails, melee, throws, blasts); 2 the same balanced by its legs (no pin); 0 the old reactions
-QVR_CVAR(vr_flinch_classes, "* -monster_zombie -monster_zombiek -monster_mummy", CVAR_ARCHIVE) // the classnames that flinch (space-separated; "*" every one that can stagger as a ragdoll, "-name" not that one: the zombies keep their own falls)
-QVR_CVAR(vr_flinch_min, "0.3", CVAR_ARCHIVE)              // m/s: a hit giving its body less change of speed only plays the small hit reaction
-QVR_CVAR(vr_flinch_cooldown, "0.6", CVAR_ARCHIVE)         // s after a flinch began before another can (no stun-lock; the small reaction meanwhile)
-QVR_CVAR(vr_flinch_attack_guard, "1", CVAR_ARCHIVE)       // in its attack frames the threshold times this (1: no protection; 3: only big hits interrupt)
-QVR_CVAR(vr_flinch_pain, "1", CVAR_ARCHIVE)               // 1: a hit too small to flinch still plays Quake's pain; 0: only its sound and the small reaction
-QVR_CVAR(vr_flinch_max, "6", CVAR_ARCHIVE)                // flinching at once at most (past it: the small reaction)
-QVR_CVAR(vr_flinch_range, "1536", CVAR_ARCHIVE)           // units: farther from every player, the small reaction
-QVR_CVAR(vr_flinch_topple, "2.0", CVAR_ARCHIVE)           // m/s: the change of speed at its balance's edge (past it: a step or two, then it falls; 1.5x: down at once)
-QVR_CVAR(vr_flinch_uneven, "0.65", CVAR_ARCHIVE)          // on a slope or stairs (its feet on uneven or steep floor): Topple times this
-QVR_CVAR(vr_flinch_local, "0.35", CVAR_ARCHIVE)           // the share of a hit's impulse given at the point struck (the jolt); the rest moves its whole body
-QVR_CVAR(vr_flinch_shotgun, "7", CVAR_ARCHIVE)            // kg m/s per shotgun pellet that hits
-QVR_CVAR(vr_flinch_ssg, "12", CVAR_ARCHIVE)               // kg m/s per super shotgun pellet that hits
-QVR_CVAR(vr_flinch_shot_near, "128", CVAR_ARCHIVE)        // units: shotguns at full strength this close
-QVR_CVAR(vr_flinch_shot_far, "1024", CVAR_ARCHIVE)        // units: and at Far Share from here
-QVR_CVAR(vr_flinch_shot_far_share, "0.25", CVAR_ARCHIVE)  // shotguns' strength far off, times this
-QVR_CVAR(vr_flinch_shot_other, "0.6", CVAR_ARCHIVE)       // kg m/s per damage: other hitscan (lightning, monsters' guns)
-QVR_CVAR(vr_flinch_nail, "1.2", CVAR_ARCHIVE)             // kg m/s per damage: nails (9: 11 kg m/s; super nails 18: 22)
-QVR_CVAR(vr_flinch_melee, "3", CVAR_ARCHIVE)              // kg m/s per damage: a melee blow (its speed, weapon and zone in its damage)
-QVR_CVAR(vr_flinch_throw, "1", CVAR_ARCHIVE)              // a thrown prop's or weapon's momentum (its mass x speed), times this
-QVR_CVAR(vr_flinch_blast, "3", CVAR_ARCHIVE)              // kg m/s per damage: an explosion's (pushed away from it, its whole body)
-QVR_CVAR(vr_flinch_most, "2.0", CVAR_ARCHIVE)             // s: not balanced by then, it topples into a knockdown
-QVR_CVAR(vr_flinch_recover_min, "0.25", CVAR_ARCHIVE)     // s: a flinch lasts at least this
-QVR_CVAR(vr_flinch_recover_hold, "0.08", CVAR_ARCHIVE)    // s: the recovery test holds this long before it is handed back
-QVR_CVAR(vr_flinch_recover_speed, "0.35", CVAR_ARCHIVE)   // m/s: its middle's level speed at most to recover
-QVR_CVAR(vr_flinch_recover_tilt, "22", CVAR_ARCHIVE)      // deg: its spine tilted at most this more than as it stood
-QVR_CVAR(vr_flinch_recover_slope, "35", CVAR_ARCHIVE)     // deg: each foot on ground no steeper
-QVR_CVAR(vr_flinch_legs_push, "2.5", CVAR_ARCHIVE)       // vr_flinch 2: the hit's impulse on its body times this (its balance and topple reckoned without it)
-QVR_CVAR(vr_flinch_legs_upright, "1", CVAR_ARCHIVE)      // vr_flinch 2: its hips' and ankles' hold on its upright, times this
-QVR_CVAR(vr_flinch_foot, "0.18", CVAR_ARCHIVE)        // m: each foot's support round its end (its middle over the two and the strip between)
-QVR_CVAR(vr_flinch_blend, "0.22", CVAR_ARCHIVE)           // s: recovered, its ragdoll blends into the animation (its nearest stand or run frame) over this
-QVR_CVAR(vr_flinch_debug, "0", CVAR_NONE)                        // 1: the overlay (its hit, its middle, its feet's support, its state) and a line per flinch; 2: also each refusal; 3: also every hit reaching it and why a class cannot
+// Ragdoll triggers (QC vr_kdtrig.qc; Combat > Ragdoll Triggers; ROUND22.md, "The flinch removed; ragdoll triggers"): a hit on a living
+// humanoid (a kind with an active stagger) in a predefined situation may knock it down as an active ragdoll, as a
+// shove's knockdown (it falls, lies, gets up). Each: on, its chance, its least damage (stronger: likelier, up to half
+// again at twice it), its push; a monster's resistance divides the chance and multiplies the least damage. Needs
+// Knockdowns.
+QVR_CVAR(vr_kdtrig, "1", CVAR_ARCHIVE)                    // the ragdoll triggers (stairs, ledges, slopes, shotgun range, wounded, strong blows, explosions); 0: none
+QVR_CVAR(vr_kdtrig_cooldown, "4", CVAR_ARCHIVE)           // s after it gets up before a ragdoll trigger takes it again
+QVR_CVAR(vr_kdtrig_look, "40", CVAR_ARCHIVE)              // units past its hull the ground behind it (along the hit) is looked at for stairs and ledges
+QVR_CVAR(vr_kdtrig_ledge_on, "1", CVAR_ARCHIVE)                     // Ledges: on
+QVR_CVAR(vr_kdtrig_ledge, "0.7", CVAR_ARCHIVE)                         // Ledges: the chance (Struck with a drop of Least Drop or more right behind it (along the hit, room for its body to drop), it is pushed off.)
+QVR_CVAR(vr_kdtrig_ledge_min, "12", CVAR_ARCHIVE)                      // ... the least damage
+QVR_CVAR(vr_kdtrig_ledge_push, "1", CVAR_ARCHIVE)                      // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_ledge_drop, "48", CVAR_ARCHIVE)                    // ... units: a ledge's least drop (less: a step)
+QVR_CVAR(vr_kdtrig_stairs_on, "1", CVAR_ARCHIVE)                    // Stairs: on
+QVR_CVAR(vr_kdtrig_stairs, "0.5", CVAR_ARCHIVE)                        // Stairs: the chance (Struck at the top of steps going down behind it (two or more, the first right behind its feet), it falls down them.)
+QVR_CVAR(vr_kdtrig_stairs_min, "15", CVAR_ARCHIVE)                     // ... the least damage
+QVR_CVAR(vr_kdtrig_stairs_push, "1", CVAR_ARCHIVE)                     // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_slope_on, "1", CVAR_ARCHIVE)                     // Slopes: on
+QVR_CVAR(vr_kdtrig_slope, "0.4", CVAR_ARCHIVE)                         // Slopes: the chance (Standing on a steep slope, hit down it, it topples down the slope.)
+QVR_CVAR(vr_kdtrig_slope_min, "15", CVAR_ARCHIVE)                      // ... the least damage
+QVR_CVAR(vr_kdtrig_slope_push, "1", CVAR_ARCHIVE)                      // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_slope_angle, "18", CVAR_ARCHIVE)                   // ... deg: the slope's least steepness
+QVR_CVAR(vr_kdtrig_shotgun_on, "1", CVAR_ARCHIVE)                   // Shotgun Range: on
+QVR_CVAR(vr_kdtrig_shotgun, "0.35", CVAR_ARCHIVE)                      // Shotgun Range: the chance (A shotgun or super shotgun blast of yours from close by knocks it over.)
+QVR_CVAR(vr_kdtrig_shotgun_push, "1", CVAR_ARCHIVE)                    // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_shotgun_range, "160", CVAR_ARCHIVE)                // ... units: blasts this close
+QVR_CVAR(vr_kdtrig_shotgun_pellets, "8", CVAR_ARCHIVE)                // ... pellets landing for the full chance (a shotgun's 6, a super shotgun's 14; under half of them none)
+QVR_CVAR(vr_kdtrig_wounded_on, "1", CVAR_ARCHIVE)                   // Wounded: on
+QVR_CVAR(vr_kdtrig_wounded, "0.25", CVAR_ARCHIVE)                      // Wounded: the chance (Badly hurt, any hit may knock it down.)
+QVR_CVAR(vr_kdtrig_wounded_min, "5", CVAR_ARCHIVE)                     // ... the least damage
+QVR_CVAR(vr_kdtrig_wounded_push, "1", CVAR_ARCHIVE)                    // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_wounded_health, "0.3", CVAR_ARCHIVE)               // ... its health under this share of its full health
+QVR_CVAR(vr_kdtrig_blow_on, "1", CVAR_ARCHIVE)                      // Strong Blows: on
+QVR_CVAR(vr_kdtrig_blow, "0.25", CVAR_ARCHIVE)                         // Strong Blows: the chance (A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30).)
+QVR_CVAR(vr_kdtrig_blow_min, "30", CVAR_ARCHIVE)                       // ... the least damage
+QVR_CVAR(vr_kdtrig_blow_push, "1", CVAR_ARCHIVE)                       // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_blow_blade, "0.4", CVAR_ARCHIVE)                   // ... a blade's edge (axes, swords, the chainsaw): its chance times this; blunt blows (fists, a gun's butt, a hammer, a mace, a pommel, the crowbar, props) 1
+QVR_CVAR(vr_kdtrig_blast_on, "1", CVAR_ARCHIVE)                     // Explosions: on
+QVR_CVAR(vr_kdtrig_blast, "0.6", CVAR_ARCHIVE)                         // Explosions: the chance (A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance).)
+QVR_CVAR(vr_kdtrig_blast_min, "15", CVAR_ARCHIVE)                      // ... the least damage
+QVR_CVAR(vr_kdtrig_blast_push, "1.25", CVAR_ARCHIVE)                   // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_blast_range, "200", CVAR_ARCHIVE)                  // ... units from the blast's centre: none past it, half the chance at it
+QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
+QVR_CVAR(vr_kdtrig_resist_army, "1", CVAR_ARCHIVE)                      // monster_army's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_resist_enforcer, "1.15", CVAR_ARCHIVE)               // monster_enforcer's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_resist_knight, "1.15", CVAR_ARCHIVE)                 // monster_knight's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_resist_hknight, "1.6", CVAR_ARCHIVE)                 // monster_hell_knight's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_resist_ogre, "2.5", CVAR_ARCHIVE)                    // monster_ogre's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_resist_zombie, "1", CVAR_ARCHIVE)                    // monster_zombie's resistance (0: by its size)
+QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
@@ -2947,15 +2975,16 @@ QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the cha
 QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
 QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
-QVR_CVAR(vr_flinch_test, "0", CVAR_NONE)              // a flinch test on the live monster nearest you (QC vr_flinch.qc: 1 shotgun, 2 super shotgun, 3 nail, 4 super nail, 5 blow, 6 head blow, 7 blast, 8 throw, 9 crowd; 20 a grunt at vr_flinch_test_x _y _z, 21 ten grunts ahead)
-QVR_CVAR(vr_flinch_test_pellets, "0", CVAR_NONE)      // the test blasts' pellets that hit (0: 6, the super shotgun's 14)
-QVR_CVAR(vr_flinch_test_health, "0", CVAR_NONE)       // vr_flinch_test 20's grunt's health (0: its own; a real weapons test's, to live through the shots)
-QVR_CVAR(vr_flinch_test_x, "0", CVAR_NONE)            // where vr_flinch_test 20 puts a grunt (units)
-QVR_CVAR(vr_flinch_test_y, "0", CVAR_NONE)
-QVR_CVAR(vr_flinch_test_z, "0", CVAR_NONE)
-QVR_CVAR(vr_flinch_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0): a side view of them
-QVR_CVAR(vr_flinch_test_dist, "0", CVAR_NONE)         // units: the test shotgun blasts' distance for their falloff (0: the player's)
-QVR_CVAR(vr_flinch_test_class, "0", CVAR_NONE)       // vr_flinch_test 20 and 21's monster: 0 grunt, 1 enforcer, 2 knight, 3 death knight, 4 ogre, 5 zombie
+QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast on the live monster nearest you; 20 a grunt at vr_kdtrig_test_x _y _z; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
+QVR_CVAR(vr_kdtrig_test_damage, "0", CVAR_NONE)      // the test hits' damage instead of their own (0: their own)
+QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre
+QVR_CVAR(vr_kdtrig_test_n, "20", CVAR_NONE)           // the trials of vr_kdtrig_test 30 + k
+QVR_CVAR(vr_kdtrig_test_health, "0", CVAR_NONE)       // the test grunt's health (0: its own; 0..1: that share of its full health)
+QVR_CVAR(vr_kdtrig_test_x, "0", CVAR_NONE)            // where vr_kdtrig_test 20 and the trials put a grunt (units; on the floor under it)
+QVR_CVAR(vr_kdtrig_test_y, "0", CVAR_NONE)
+QVR_CVAR(vr_kdtrig_test_z, "0", CVAR_NONE)
+QVR_CVAR(vr_kdtrig_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0)
+QVR_CVAR(vr_kdtrig_test_dist, "0", CVAR_NONE)         // units: the test shotgun blasts' distance (0: the player's)
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding
@@ -3729,7 +3758,7 @@ QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
-QVR_CVAR(vr_reload_port_widow_radius, "2.5", CVAR_ARCHIVE)   // (a handful's middle)
+QVR_CVAR(vr_reload_port_widow_radius, "1.25", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
 QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).

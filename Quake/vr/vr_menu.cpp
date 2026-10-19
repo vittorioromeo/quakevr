@@ -867,7 +867,15 @@ int campaignsBloodyShown = -1;
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
-[[nodiscard]] za::Vector<Item> pageFlinch();
+[[nodiscard]] za::Vector<Item> pageKdTriggers();
+[[nodiscard]] za::Vector<Item> pageKdTrigLedge();
+[[nodiscard]] za::Vector<Item> pageKdTrigStairs();
+[[nodiscard]] za::Vector<Item> pageKdTrigSlope();
+[[nodiscard]] za::Vector<Item> pageKdTrigShotgun();
+[[nodiscard]] za::Vector<Item> pageKdTrigWounded();
+[[nodiscard]] za::Vector<Item> pageKdTrigBlow();
+[[nodiscard]] za::Vector<Item> pageKdTrigBlast();
+[[nodiscard]] za::Vector<Item> pageKdTrigResist();
 [[nodiscard]] za::Vector<Item> pageHoldingEnemies();
 [[nodiscard]] za::Vector<Item> pageHoldingStruggle();
 [[nodiscard]] za::Vector<Item> pageEnemyMelee();
@@ -1996,7 +2004,15 @@ const Page pages[] = {
     {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
     {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
     {"Graphics - Loot Beams", pageGraphicsLootBeams, pageGraphics}, // (vr_lootbeams.cpp)
-    {"Flinch", pageFlinch, pageCombat}, // (QC vr_flinch.qc; docs/vr-port/FLINCH.md)
+    {"Ragdoll Triggers", pageKdTriggers, pageCombat}, // (QC vr_kdtrig.qc)
+    {"Ragdoll Triggers - Ledges", pageKdTrigLedge, pageKdTriggers},
+    {"Ragdoll Triggers - Stairs", pageKdTrigStairs, pageKdTriggers},
+    {"Ragdoll Triggers - Slopes", pageKdTrigSlope, pageKdTriggers},
+    {"Ragdoll Triggers - Shotgun Range", pageKdTrigShotgun, pageKdTriggers},
+    {"Ragdoll Triggers - Wounded", pageKdTrigWounded, pageKdTriggers},
+    {"Ragdoll Triggers - Strong Blows", pageKdTrigBlow, pageKdTriggers},
+    {"Ragdoll Triggers - Explosions", pageKdTrigBlast, pageKdTriggers},
+    {"Ragdoll Triggers - Monster Resistance", pageKdTrigResist, pageKdTriggers},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

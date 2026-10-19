@@ -458,9 +458,11 @@
         toggle("Dynamic Wounds", vr_wounds)
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
         toggle("Burns", vr_wounds_burns).help("Explosions, fire, lightning, lava and slime char what they hit; fresh burns glow in their cracks for a moment."),
-        toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry in about 25 seconds."),
+        toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry (Wet Duration)."),
         slider("Wet Sheen", vr_wounds_wet_coat, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How strongly wet skin, gloves and weapons look: a little darker and glossy, all over where the liquid came, fading as they dry (0: no wet look, the drips stay)."),
+        slider("Wet Duration", vr_wounds_wet_time, 5.f, 120.f, 1.f, "%.0f s").extend(2.f, 600.f)
+            .help("How long it takes to dry after leaving the liquid: the wet look stays full for the first quarter of it, then fades out, and the drips stop."),
         cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
             .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
         cycle("Your Wounds' Detail", vr_wounds_own_res,
@@ -536,6 +538,8 @@
             .help("How long you stay clean out of the water before they re-open."),
         slider("Re-open Spread", vr_gore_reopen_time, 0.f, 10.f, 0.25f, "%.2f s").extend()
             .help("Over how long they re-open, one after another (0: all at once)."),
+        slider("Re-open Bleed", vr_gore_reopen_fade, 0.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long each re-opened wound takes to bleed back to its full blood, from a trace; the blood runs onto your arms and hands along the way (0: at once)."),
         header("Blood on You and Your Gear"),
         slider("Blood Spatter", vr_gore_spatter, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("Blood thrown from hits near you onto your hands, arms, body and what you hold, as drops: how much (0 none)."),

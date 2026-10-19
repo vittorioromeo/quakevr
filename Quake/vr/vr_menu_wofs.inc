@@ -763,6 +763,10 @@ za::Vector<Item> pageWofsStock()
         slider("Stock Distance", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
             .help("How near the shoulder the holding hand must be (units; Virtual Stock Thresh. on Hotspots)."),
         toggle("Show Virtual Stock", "vr_show_virtual_stock").help("Marks the shoulders the stock is taken at."),
+        toggle("Cup Grips Take the Stock", "vr_2h_cup_stock")
+            .help("A Cup hotspot (a two-handed pistol grip, the Widowmaker's) aims from the shoulder too while the holding "
+                  "hand is at it: its aim turned towards the line from your shoulder through your hands (Stock Factor of "
+                  "the way). Off: a cup never aims."),
         open("Hotspots (the Shoulders)", pageIndex(pageHotspotSettings))
     );
     return list;

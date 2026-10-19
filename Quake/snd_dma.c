@@ -44,6 +44,7 @@ void S_SetUnderwaterIntensity (float intensity);
 
 channel_t	snd_channels[MAX_CHANNELS];
 int		total_channels;
+static void S_Cutoffs_f (void); // QVR: snd_cutoffs (below)
 
 static int	snd_blocked = 0;
 static qboolean	snd_initialized = false;
@@ -252,6 +253,7 @@ void S_Init (void)
 	Cvar_RegisterVariable(&_snd_mixahead);
 	Cvar_RegisterVariable(&snd_mixasync); // QVR
 	Cmd_AddCommand("snd_mixstats", S_MixStats_f); // QVR
+	Cmd_AddCommand("snd_cutoffs", S_Cutoffs_f); // QVR: the sounds cut off by others
 	Cvar_RegisterVariable(&sndspeed);
 	Cvar_RegisterVariable(&snd_mixspeed);
 	Cvar_RegisterVariable(&snd_filterquality);
@@ -425,6 +427,45 @@ SND_PickChannel
 picks a channel based on priorities, empty slots, number of channels
 =================
 */
+// QVR: the sounds still playing that a new one cut off (snd_cutoffs; ROUND22.md, "Sounds cutting each other off"):
+// replaced on their entity's own channel, or taken as the oldest when no channel was free (and of those, the player's).
+static int cutSameChannel, cutNoFreeChannel, cutPlayer;
+static qboolean cutLog;
+
+static void S_CountCutoff (const channel_t *ch, int entnum, int entchannel, const sfx_t *by)
+{
+	const qboolean same = !S_AUTOCHANNEL (entchannel) && ch->entnum == entnum &&
+		(ch->entchannel == entchannel || entchannel == -1); // (-1: a local sound, which took any of the entity's before)
+	if (same)
+		cutSameChannel++;
+	else
+		cutNoFreeChannel++;
+	if (ch->entnum == cl.viewentity)
+		cutPlayer++;
+	if (cutLog)
+		Con_Printf ("snd_cutoffs: %s (entity %d channel %d) cut off by %s (%s)\n", ch->sfx->name, ch->entnum, ch->entchannel,
+			by->name, entchannel == -1 && same ? "a local sound" : same ? "same channel" : "no free channel");
+}
+
+// snd_cutoffs [reset | log]: the counts; "reset" zeroes them; "log" prints each cut-off from now on (again: stops).
+static void S_Cutoffs_f (void)
+{
+	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "reset"))
+	{
+		cutSameChannel = cutNoFreeChannel = cutPlayer = 0;
+		Con_Printf ("snd_cutoffs: reset\n");
+		return;
+	}
+	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "log"))
+	{
+		cutLog = !cutLog;
+		Con_Printf ("snd_cutoffs: logging %s\n", cutLog ? "on" : "off");
+		return;
+	}
+	Con_Printf ("snd_cutoffs: %d same channel, %d no free channel, %d of them the player's\n", cutSameChannel,
+		cutNoFreeChannel, cutPlayer);
+}
+
 channel_t *SND_PickChannel (int entnum, int entchannel)
 {
 	int	ch_idx;
@@ -436,9 +477,11 @@ channel_t *SND_PickChannel (int entnum, int entchannel)
 	life_left = 0x7fffffff;
 	for (ch_idx = NUM_AMBIENTS; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; ch_idx++)
 	{
-		if (!S_AUTOCHANNEL (entchannel)	// channel 0 never overrides (QVR: nor the hands')
+		// QVR: nor a local sound (-1: S_LocalSound's, the menus', the gadgets'), which took the player's first channel,
+		// whatever played on it (a hard landing's "hnng" cut off by a menu's click; ROUND22.md, "Sounds cut off: the audit")
+		if (!S_AUTOCHANNEL (entchannel) && entchannel != -1	// channel 0 never overrides (QVR: nor the hands')
 			&& snd_channels[ch_idx].entnum == entnum
-			&& (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1) )
+			&& snd_channels[ch_idx].entchannel == entchannel)
 		{	// always override sound from same entity
 			first_to_die = ch_idx;
 			break;
@@ -549,6 +592,8 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	target_chan = SND_PickChannel(entnum, entchannel);
 	if (!target_chan)
 		return;
+	if (target_chan->sfx && target_chan->end > paintedtime) // QVR: a sound still playing cut off (snd_cutoffs)
+		S_CountCutoff (target_chan, entnum, entchannel, sfx);
 
 // keep track of the old sound playing on this channel (for demo rewinding)
 	old_sfx = NULL;

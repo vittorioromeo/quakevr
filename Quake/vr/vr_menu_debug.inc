@@ -671,6 +671,11 @@ za::Vector<Item> pageDebugProfiling()
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
+        command("Sounds Cut Off", "snd_cutoffs")
+            .help("snd_cutoffs: how many sounds still playing a new one cut off since the start (on their entity's own channel, "
+                  "or for want of a free one), and how many were yours. snd_cutoffs reset zeroes them."),
+        command("Log Sounds Cut Off", "snd_cutoffs log")
+            .help("snd_cutoffs log: each sound cut off from now on printed to the console, with the one that cut it (again: stops)."),
         toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
             .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
                   "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
@@ -1076,7 +1081,8 @@ za::Vector<Item> pageDebugTools()
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
         command("Wrist Blood from Hand", "vr_wrist_blood_test hand main").help("A wound across the hand/arm seam, starting on the main hand."),
         command("Wrist Blood from Arm", "vr_wrist_blood_test arm main").help("A wound across the hand/arm seam, starting on the main arm."),
-        command("Wash a Quarter Off", "vr_gore_wash_test 0.25").help("vr_gore_wash_test 0.25: a quarter of the blood washed off your hands and body at once, as water over them (Gore > Bloody Hands and Washing)."),
+        command("Wash a Quarter Off", "vr_gore_wash_test 0.25").help("vr_gore_wash_test 0.25: a quarter of the blood washed off your hands and body at once, as water over them (Gore > Bloody Hands and Washing); hurt, your wounds re-open after, bleeding back in (Re-open Bleed)."),
+        command("Wash All Off", "vr_gore_wash_test 1").help("vr_gore_wash_test 1: all the blood washed off your hands and body at once; hurt, your wounds re-open after, bleeding back in over Re-open Bleed (watch them with Bloody Hands and Washing)."),
         command("Blood from a Blow", "vr_gore_spatter_test blow").help("vr_gore_spatter_test blow: a blow's blood thrown onto what the main hand holds, the hand and the arm (Gore > Blood on You and Your Gear)."),
         command("List Clean Weapon Skins", "vr_cleanskins").help("vr_cleanskins: the weapon skins with a clean version (a patch beside the model: progs/<model>_<skin>.clean), whether it applies to your files, how often it was applied (Gore > Clean Weapon Skins)."),
         command("Blood from a Blow on Your Prop", "vr_gore_spatter_test prop").help("vr_gore_spatter_test prop: a blow on what the main hand holds (a weapon, a box, a crate, a brick), on its side facing you: the blood on held props (Gore > Blood on You and Your Gear)."),

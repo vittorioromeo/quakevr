@@ -1379,17 +1379,6 @@ ragactive::Liquid activeLiquidAt(const glm::vec3& at)
 
 // The world and the movers along `from` -> `to` (metres): the share of the way to the first hit (1 none), its point
 // and normal.
-// Quake's world (and its brush models) along `from` -> `to` (metres): the share to the first hit (1 none), the normal
-// up there (ragactive's Context::traceHit).
-float activeTraceHit(const glm::vec3& from, const glm::vec3& to, float& normalUp)
-{
-    const glm::vec3 a = from * world->m2u, b = to * world->m2u;
-    vec3_t va{a.x, a.y, a.z}, vb{b.x, b.y, b.z};
-    const trace_t tr = SV_Move(va, vec3_origin, vec3_origin, vb, MOVE_NOMONSTERS, qcvm->edicts); // (the world passes: none of it skipped)
-    normalUp = tr.plane.normal[2];
-    return tr.startsolid ? 1.f : tr.fraction;
-}
-
 float activeRayHit(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, glm::vec3& normal)
 {
     struct Hit
@@ -1549,7 +1538,6 @@ void livingClimb(RagdollBodies& r, float dt)
     c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
     c.floorBelow = activeFloorBelow;
     c.rayHit = activeRayHit;
-    c.traceHit = activeTraceHit;
     c.num = r.num;
     c.born = r.born;
     c.envMask = catWorld | catMover | catProp | catSolid | catFixture;
@@ -1645,7 +1633,6 @@ void driveActive(Slot& s, float dt)
     c.floorBelow = activeFloorBelow;
     c.liquidAt = liquidFor(r.num); // (a test's swim on dry land: that liquid everywhere for its drive)
     c.rayHit = activeRayHit;
-    c.traceHit = activeTraceHit;
     c.num = r.num;
     c.born = r.born;
     c.trace = trace;
