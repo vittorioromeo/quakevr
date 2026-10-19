@@ -3324,6 +3324,7 @@ QVR_WEAPON_DEFAULT(35, Recoil, "1")
 QVR_WEAPON_DEFAULT(35, RecoilStrength, "0.6")
 QVR_WEAPON_DEFAULT(35, RecoilTime, "0.12")
 QVR_WEAPON_DEFAULT(35, Flash, "1")
+QVR_WEAPON_DEFAULT(35, TracerOwnColour, "1") // his (vr_wofs_version 54)
 QVR_WEAPON_DEFAULT(35, FlashSize, "0.7")
 // AD support: the crossbow knight's crossbow (QC vr_ad_enemyguns.qc WID_ADCROSSBOW): AD's own progs/w_dcrossbow.mdl (its
 // gib) turned to face +x as our guns do (vr_adguns.cpp turnedModels: "progs/w_dcrossbow.mdl#gun0"; the stock along x

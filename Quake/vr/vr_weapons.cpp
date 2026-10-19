@@ -153,7 +153,7 @@ namespace
 // hunter ogre's hammer's and mace's (slots 40, 44, 45) poses and grips his (takeAdMeleeTuning). 53: his Widowmaker's kick
 // and flash (slot 34) and AD swords' poses and grips (slots 40-43; takeAdTuning53). A first start (no saved config) takes
 // this version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 53;
+constexpr int settingsVersion = 54;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -464,6 +464,17 @@ void takeAdTuning53()
     Con_DPrintf("Weapon settings: the Widowmaker and the AD swords took %d of the author's values\n", taken);
 }
 
+// 54: the tracer in its own colour on slot 35 (his config of 2026-10-19; vr_wofs_fx_tr_owncol_35): taken where the config
+// still holds the old default, 0.
+void takeTracerOwnColour54()
+{
+    cvar_t& var = cvarAt(35, Key::TracerOwnColour);
+    if(fabsf(var.value) < 1e-4f)
+    {
+        Cvar_SetQuick(&var, var.default_string);
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -484,6 +495,7 @@ constexpr Step steps[] = {
     {51, takeWidowmakerMuzzle},
     {52, takeAdMeleeTuning},
     {53, takeAdTuning53},
+    {54, takeTracerOwnColour54},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

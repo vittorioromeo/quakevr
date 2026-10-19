@@ -2422,11 +2422,11 @@ QVR_CVAR(vr_superaxe_burst_window, "1.5", CVAR_ARCHIVE) // s: a second Super Axe
 // AD support: Arcane Dimensions' player weapon upgrades (QC vr_ad_bridge.qc; Weapon Damage > Arcane Dimensions), AD's
 // numbers as shipped.
 QVR_CVAR(vr_dmg_ad_shadowaxe, "35", CVAR_ARCHIVE)     // the Shadow Axe's blow (AD's 35, the axe's 20), before its speed and weight
-QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet
+QVR_CVAR(vr_dmg_ad_widowmaker, "5", CVAR_ARCHIVE)     // the Widowmaker's pellet
 // The Widowmaker as an auto shotgun (his VR notes 2026-10-18; QC AD_FireWidowmaker): a shell a shot from its tube, fired
 // while the trigger is held; its tube loaded by hand a handful at a time at the port on its receiver's inner side.
-QVR_CVAR(vr_ad_widowmaker_shot_pellets, "7", CVAR_ARCHIVE) // its pellets a shot (a shell; AD's 21 were three shells' worth)
-QVR_CVAR(vr_ad_widowmaker_refire, "0.25", CVAR_ARCHIVE)    // s between its shots, the trigger held (the super shotgun's 0.7)
+QVR_CVAR(vr_ad_widowmaker_shot_pellets, "8", CVAR_ARCHIVE) // its pellets a shot (a shell; AD's 21 were three shells' worth)
+QVR_CVAR(vr_ad_widowmaker_refire, "0.35", CVAR_ARCHIVE)    // s between its shots, the trigger held (the super shotgun's 0.7)
 QVR_CVAR(vr_ad_widowmaker_tube, "16", CVAR_ARCHIVE)        // the shells its tube holds
 QVR_CVAR(vr_ad_widowmaker_handful, "2", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit; his 2)
 // Its barrels turning as a Gatling's (his notes 2026-10-19; vr_adweapons.cpp spinFrame): up to a barrel a shot (120
@@ -2524,7 +2524,7 @@ QVR_CVAR(vr_adgun_fumigator_speed, "500", CVAR_ARCHIVE) // ... its puffs' speed
 QVR_CVAR(vr_adgun_fumigator_range, "260", CVAR_ARCHIVE) // ... how far its puffs reach, units
 QVR_CVAR(vr_adgun_fumigator_fuel, "100", CVAR_ARCHIVE) // ... its fuel: the puffs it holds
 QVR_CVAR(vr_adgun_fumigator_rate, "0.1", CVAR_ARCHIVE) // ... seconds between its puffs, the trigger held
-QVR_CVAR(vr_adgun_crossbow_damage, "15", CVAR_ARCHIVE) // the crossbow knight's dropped crossbow: a bolt's damage (AD's bolt: 15; positional: a head more)
+QVR_CVAR(vr_adgun_crossbow_damage, "30", CVAR_ARCHIVE) // the crossbow knight's dropped crossbow: a bolt's damage (AD's bolt: 15; positional: a head more)
 QVR_CVAR(vr_adgun_crossbow_speed, "1050", CVAR_ARCHIVE) // ... your bolts' speed: 1.5 times the knights' (AD's on normal skill: 700; his notes 2026-10-19; 700 before vr_cfg_version 161)
 QVR_CVAR(vr_adgun_crossbow_ammo, "10", CVAR_ARCHIVE) // ... the bolts it holds as it drops (its own: never refilled)
 QVR_CVAR(vr_adgun_crossbow_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next (the knight reloads in 2)
