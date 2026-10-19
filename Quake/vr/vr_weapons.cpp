@@ -149,9 +149,10 @@ namespace
 // where the config still held the old tip. 50: the Widowmaker's grips his (slot 34: hotspot 1 a cup round the rear
 // handle, hotspot 2 off; takeWidowmakerGrips). 51: the Widowmaker's muzzle (slot 34) on its top barrel's front (its
 // barrels turn as a Gatling's, vr_adweapons.cpp; it was their middle, 44 0 6.8), where the config still held the old one,
-// and its muzzle offsets none where it held the super shotgun's (takeWidowmakerMuzzle). A first start (no saved config) takes this version as it is: its settings are these defaults
-// (markCurrent).
-constexpr int settingsVersion = 51;
+// and its muzzle offsets none where it held the super shotgun's (takeWidowmakerMuzzle). 52: the AD fury's sword's,
+// hunter ogre's hammer's and mace's (slots 40, 44, 45) poses and grips his (takeAdMeleeTuning). A first start (no saved
+// config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 52;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -370,6 +371,38 @@ void takeWidowmakerGrips()
     }
 }
 
+// AD support: the author's fury's sword, hunter ogre's hammer and mace (52; his config of 2026-10-19): their poses,
+// grips, thumbs and fit, each value where the config still holds the default before.
+constexpr OldValue adMeleeBefore52[] = {{40, Key::Hotspot1Pitch, 0.f}, {40, Key::Hotspot1Roll, 0.f},
+    {40, Key::Hotspot1X, -3.2833f}, {40, Key::Hotspot1Y, 1.598f}, {40, Key::Hotspot1Yaw, 0.f}, {40, Key::Hotspot1Z, -8.6794f},
+    {40, Key::Hotspot2Type, 2.f}, {40, Key::Hotspot2X, 0.7f}, {40, Key::Pitch, 0.f}, {40, Key::Roll, 0.f},
+    {40, Key::OffsetX, 2.004f}, {40, Key::OffsetY, 2.253f}, {40, Key::Yaw, 0.79998f}, {40, Key::OffsetZ, 8.628f},
+    {44, Key::FingerThumbBias, 0.f}, {44, Key::FingerThumbX, 0.f}, {44, Key::FingerThumbY, 0.f}, {44, Key::FingerThumbZ, 0.f},
+    {44, Key::Hotspot1Overlap, 0.3f}, {44, Key::Hotspot1Pitch, 0.f}, {44, Key::Hotspot1Roll, 0.f},
+    {44, Key::Hotspot1X, -5.1633f}, {44, Key::Hotspot1Y, 1.684f}, {44, Key::Hotspot1Yaw, 0.f}, {44, Key::Hotspot1Z, -13.6382f},
+    {44, Key::Hotspot2Type, 2.f}, {44, Key::GripOverlap, 0.3f}, {44, Key::Pitch, 0.f}, {44, Key::Roll, 0.f},
+    {44, Key::OffsetX, 2.004f}, {44, Key::OffsetY, 2.253f}, {44, Key::Yaw, 0.79998f}, {44, Key::OffsetZ, 8.628f},
+    {45, Key::FingerThumbBias, 0.f}, {45, Key::FingerThumbY, 0.f}, {45, Key::Hotspot1Overlap, 0.3f},
+    {45, Key::Hotspot1Pitch, 0.f}, {45, Key::Hotspot1Roll, 0.f}, {45, Key::Hotspot1X, -5.1633f}, {45, Key::Hotspot1Y, 1.684f},
+    {45, Key::Hotspot1Yaw, 0.f}, {45, Key::Hotspot1Z, -13.6382f}, {45, Key::Hotspot2Type, 2.f}, {45, Key::GripOverlap, 0.3f},
+    {45, Key::Pitch, 0.f}, {45, Key::Roll, 0.f}, {45, Key::OffsetX, 2.004f}, {45, Key::OffsetY, 2.253f},
+    {45, Key::Yaw, 0.79998f}, {45, Key::OffsetZ, 8.628f}};
+
+void takeAdMeleeTuning()
+{
+    int taken = 0;
+    for(const OldValue& o : adMeleeBefore52)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    Con_DPrintf("Weapon settings: the AD melee weapons took %d of the author's values\n", taken);
+}
+
 // AD support: the Widowmaker's muzzle on its top barrel's front (51), where the config holds the barrels' middle, and no
 // muzzle offset where it holds the super shotgun's (0.5 0.35 -0.7, inherited until 48: they put the shot 0.6 off it).
 constexpr OldValue widowmakerMuzzleOffsetsBefore51[] = {{34, Key::MuzzleOffsetX, 0.499997f}, {34, Key::MuzzleOffsetY, 0.35f},
@@ -415,6 +448,7 @@ constexpr Step steps[] = {
     {49, takeAdMeleeTips},
     {50, takeWidowmakerGrips},
     {51, takeWidowmakerMuzzle},
+    {52, takeAdMeleeTuning},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

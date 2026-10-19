@@ -13859,3 +13859,29 @@ degrees), `wm3_plasma3_crop.png` (the black hole), `wm3_trigger.png`.
 
 For VR: the spin's speed and coast; the sound against the other shotguns; the cup with the stock (Stock Factor, the
 stock turn); the port's size with the handful of 2; the crossbow's shimmer volume.
+
+## His defaults; wet duration; wounds bleeding back; sounds cut off; the open hand's swish (worktree `goreflesh`, branch `agent/defaults1019`, 2026-10-19)
+
+- **Defaults from his config:** of the AD slots 27-35 and 40-45 (not the Widowmaker, slot 34), only the fury's sword (40),
+  the hunter ogre's hammer (44) and mace (45) differed: 50 values (pose, hotspot 1, hotspot 2 off, thumb, fit), now
+  `vr_weapons.inc` defaults; `vr_wofs_version` 52 (`takeAdMeleeTuning`) moves a config still holding the old ones. Swing
+  sounds `vr_melee_swish_min/sub/full/gain` 0.5/0.45/2.2/1.6 -> 0.3/0.35/1.75/2, `vr_wounds_wet_coat` 1 -> 2, and the
+  chainsaw a fifth stronger (`vr_chainsaw_damage` 100 -> 120, `vr_dmg_chainsaw_swing` 22 -> 26): config version 160.
+- **Wet Duration** (`vr_wounds_wet_time`, 28 s: was the constant `dryTime`), Gore > Wounds on Models under Wet Sheen.
+- **Wounds bleeding back:** after a wash each re-opened wound was painted once, all within `vr_gore_reopen_time` (1.5 s)
+  of the 4 s delay, the hands' smears and arm marks at once. Now each is painted again in steps (at most 16, 0.5 s apart;
+  the masks keep the most), from a trace to full over `vr_gore_reopen_fade` (10 s, Gore > Re-open Bleed); its arm run and
+  nearby splash once, as it is half back; the hands' smears in two goes (a third and two thirds through). Mock: body
+  blood 0 -> 5010 -> 19322 -> 34139 -> 35513 over about 10 s. `vr_gore_wash_test` now counts as a wash (the wounds
+  re-open after it); Debug > Wash All Off.
+- **Sounds cut off:** a blow's whoosh played on the hand's gun channel (CHAN_WEAPON/WEAPON2), as did its hit (fist, axe,
+  sword, gun bash, wall), so the hit cut the whoosh off, and each swish the last. No channel was ever short (128 dynamic,
+  no steals; the spatial voices only pan the rest). The swishes and the melee hits now play on the hand channels
+  (`VRGetHandChannel`: any free one, from the hand). `snd_cutoffs [reset|log]` counts the sounds still playing that a new
+  one cut off (Debug menu). 29 melee canary takes with sound (dummy SDL driver, real time): 45 cut off before, 2 after (a
+  scrape loop's own, the dummy's pain).
+- **Slap vs fist:** the detection is right in every take (the 28 punches punches, the 8 slaps slaps, no slap in the 169
+  others; the grip is 1.00 at every punch's peak, 0 at every slap's). What was heard: every open-hand motion over
+  `vr_melee_swish_min` (now 0.3 of a landing speed) whooshed with the slap's sample. Now an open hand whooshes only swung
+  across as a slap goes (`VR_Melee_Slaps`): soft slap swishes in the 104 hand takes 26 -> 12, verdicts and events
+  unchanged; eval --full 168/177.

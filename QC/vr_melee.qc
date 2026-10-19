@@ -2357,7 +2357,7 @@ float(float xHand, entity b) VR_Swish_Mean =
 string(float xHand, entity b, float slap) VR_Swish_Sample =
 {
     vr_melee_whoosh_alt = !vr_melee_whoosh_alt;
-    vr_swish_chan = xHand == cVR_OffHand ? CHAN_WEAPON2 : CHAN_WEAPON;
+    vr_swish_chan = VRGetHandChannel(xHand); // (any free one of the hand's: a blow's hit, on its gun channel or another, never cuts it off)
     if(slap)
     {
         return vr_melee_whoosh_alt ? "vr/slap_whoosh2.wav" : "vr/slap_whoosh1.wav";
@@ -2365,11 +2365,7 @@ string(float xHand, entity b, float slap) VR_Swish_Sample =
     if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW ||
        b.mh_thing == VR_MTHING_CROWBAR)
     {
-        if(b.mh_thing == VR_MTHING_SAW)
-        {
-            vr_swish_chan = VRGetHandChannel(xHand); // its engine's sound is on the weapon's channel (vr_chainsaw.qc)
-        }
-        return "weapons/ax1.wav";
+        return "weapons/ax1.wav"; // (the saw's engine sound is on the weapon's channel, vr_chainsaw.qc: the swish isn't)
     }
     return vr_melee_whoosh_alt ? "knight/sword2.wav" : "knight/sword1.wav";
 };
@@ -2445,8 +2441,15 @@ void(float xHand, entity b) VR_Swish_Frame =
     {
         return;
     }
+    // An open hand whooshes only swung across, as a slap goes (VR_Melee_Slaps): its wave, reach or pat was heard as the
+    // slap's swish, more often than the fist's (the author, 2026-10-19: "the slap seems to register too often").
+    float open = b.mh_thing == VR_MTHING_FIST && !VR_Melee_ClosedFist(xHand);
+    if(open && !VR_Melee_Slaps(xHand, b))
+    {
+        return;
+    }
     b.mh_sw_time = b.mh_time;
-    string s = VR_Swish_Sample(xHand, b, b.mh_thing == VR_MTHING_FIST && !VR_Melee_ClosedFist(xHand));
+    string s = VR_Swish_Sample(xHand, b, open);
     dprint(sprintf("melee swish: soft, hand %g, %.2f of its landing speed at most, volume %.2f, %s\n", xHand,
         b.mh_sw_peak, vol, s));
     VR_Swish_Play(s, vr_swish_chan, vol, -VR_SWISH_PITCH * (1 - t));
