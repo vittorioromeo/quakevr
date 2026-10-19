@@ -14070,3 +14070,31 @@ PASS.
 - **For VR:** sweep a hand through a brazier and a wall torch at a brisk and a slow pace (the slow one should do
   nothing); the lean's size at Stir Strength 1. Pick up an ogre's chainsaw: the handle should wobble a little on its
   seat as you move, and stop after the first pull, also after a reload and on the next map.
+
+## Pouch reloading: magazines where drawn (worktree `gorefx`, branch `agent/pouchreload`, 2026-10-19)
+
+The author: reloading a magazine gun straight from the pouch works, but the receiver sometimes had to go left or right of
+the magazine drawn. The check was one box over the whole row of rounds (half-width 3.2 pouch units, about 10 cm, plus
+4 cm), centred on the row whatever the pouch showed: with one magazine left (drawn on the pouch's right) the empty
+middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight.
+
+- **Now (`vr_reload_pouch_mag_slots 1`, default):** the nailgun's, super nailgun's and thunderbolt's well load point
+  against each magazine as drawn: QC `VR_Reload_PouchMagDist` (vr_reload.qc) finds their tops through the pouch's own
+  transform (the `.ammopouch*` box; make_ammo_pouch.py MAGS, as many as the gun's reserve shows), the nearest one within
+  `vr_reload_pouch_mag_contact` (6 cm, was 4) across it and over or under its top, the well within
+  `vr_reload_pouch_mag_angle` (45 deg, was 35) of it. No magazine drawn (reserve empty): the row as before (the empty
+  knock). 0: the old row check. Shells and the super shotgun: unchanged. Menu: Weapons > Reloading (Pouch).
+- **Debug:** `vr_reload_pouch_mags` (Debug > Tests, Pouch Magazines Report) prints each magazine's top as drawn (read
+  from the pouch mesh's current frame), where the reload finds it and the old row's middle, and each gun's load point
+  against the nearest; `vr_reload_show_ports` also draws them (white drawn, cyan found, green reach); `vr_reload_debug 2`
+  prints the well's distance across, over and its cosine; mock `vr_mock_hand_to <hand> pouchmag <slot> [up left out]`.
+- **Measured (e1m1, nailgun / super nailgun / thunderbolt, every slot):** found vs drawn 0.03-0.09 cm; the old target
+  (the row's middle) 7.8 / 5.5 / 8.3 cm off the outer magazines, 0.06 cm off the middle one. The model's magazines stand
+  1.35 units out of the body, not the 1.8 the script's DEPTH gives now: the cell cords' plug (pouchCellX) sat 1.4 cm out
+  of the cells' contacts; fixed (cellcord_test 10/10).
+- **Tests:** pouch_test.sh puts the well on a drawn magazine (`pouchmag`), plus section 7 (one left: the empty middle
+  nothing; 5 cm across, 5 cm above and on it seat; the old way the middle seats): 25 PASS, its hip-holster check fails
+  on origin/next too. reload_test.sh: 109 PASS, its two failures (a pair's hit from below, the prop's knock) on
+  origin/next too.
+- **For VR:** with one or two magazines left, bring the nailgun's well onto the drawn magazine (and the super nailgun's,
+  on its side): it should seat right there, also a little off it; not over an empty slot.

@@ -13,6 +13,9 @@
 #   5. holstering: the hand at a hip holster (its reach made to win over the pouch's), nothing; the holster's reach back,
 #      the touch loads.
 #   6. save and load: a gun filled at the pouch keeps its shells; after the load, a touch fills it again.
+#   7. the magazine drawn (vr_mock_hand_to <hand> pouchmag <slot>: on a magazine as drawn in the pouch): one left, the
+#      well at the empty middle slot nothing, near it (5 cm across, 5 cm above) and on it seats; the old way, the row.
+#   (3 and 7 put the well on a drawn magazine: vr_reload_pouch_mag_slots.)
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
@@ -28,6 +31,8 @@ setup() { echo "map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mod
 # The off hand away from the pouch at pose $1, then its gun's load point at the pouch's rounds ($2 units above them).
 away() { echo "vr_mock_hand off -0.3 1.3 -0.40 $1;wait15"; }
 to() { echo "$(away "$1");vr_mock_hand_to off pouchport ${2:-0};wait15"; }
+# The same onto magazine $2 as drawn in the pouch, moved $3 up, $4 left, $5 out (units; vr_reload_pouch_mag_slots).
+tomag() { echo "$(away "$1");vr_mock_hand_to off pouchmag ${2:-0} ${3:-0} ${4:-0} ${5:-0};wait15"; }
 # The off hand's clip (mag: whether a magazine is in) after marker $2 in log $1.
 after() { echo "$1" | sed -n "/^MARK $2 *$/,\$p" | grep -m1 "^reload: off hand"; }
 clip() { after "$1" "$2" | sed -E 's/^reload: off hand weapon [0-9]+ clip ([0-9]+) .*/\1/'; }
@@ -65,7 +70,7 @@ check $([ "$(clip "$log" upside)" = 0 ] && echo 1 || echo 0) "shotgun upside dow
 # 3. Magazines: the nailgun, the thunderbolt, the super nailgun.
 for row in "156 nailgun 50_0_0 50_0_180" "161 thunderbolt 50_0_0 50_0_180" "157 super_nailgun 0_0_-90 0_0_90"; do
     set -- $row; gun=$1; name=${2//_/ }; right=${3//_/ }; wrong=${4//_/ }
-    log=$(run "$(setup $gun);$(mark start);$(to "$right");$(mark magin);$(away "$right");vr_reload_test 6;impulse 125;wait30;$(mark out);$(to "$wrong");$(mark wrong);$(to "$right");$(mark right)")
+    log=$(run "$(setup $gun);$(mark start);$(tomag "$right");$(mark magin);$(away "$right");vr_reload_test 6;impulse 125;wait30;$(mark out);$(tomag "$wrong");$(mark wrong);$(tomag "$right");$(mark right)")
     n0=$(nails "$log" out); n1=$(nails "$log" right)
     [ $gun = 161 ] && { n0=$(echo "$log" | sed -n "/^MARK out *$/,\$p" | grep -m1 "^reload: mode" | sed -E 's/.* cells ([0-9]+),.*/\1/'); n1=$(echo "$log" | sed -n "/^MARK right *$/,\$p" | grep -m1 "^reload: mode" | sed -E 's/.* cells ([0-9]+),.*/\1/'); }
     check $(echo "$log" | grep -q "magazine in: nothing" && [ "$(mag "$log" magin)" = 1 ] && echo 1 || echo 0) "$name: its magazine in, nothing at the pouch"
@@ -85,6 +90,15 @@ check $([ "$(clip "$log" wins)" = 0 ] && [ "$(clip "$log" back)" = 2 ] && echo 1
 # 6. Save and load.
 log=$(run "$(setup 155);vr_reload_test 5;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20;$(to "0 0 0");$(mark filled);save pouch_test;wait5;$(away "0 0 0");load pouch_test;wait30;$(mark loaded);vr_reload_test 5;impulse 125;wait2;$(to "0 0 0");$(mark again)")
 check $([ "$(clip "$log" filled)" = 2 ] && [ "$(clip "$log" loaded)" = 2 ] && [ "$(clip "$log" again)" = 2 ] && echo 1 || echo 0) "save and load: filled $(clip "$log" filled), loaded $(clip "$log" loaded), emptied and filled again $(clip "$log" again)"
+
+# 7. The magazine drawn (vr_reload_pouch_mag_slots; the author's note 2026-10-19): one nailgun magazine left, on the
+#    pouch's right: the well at the empty middle slot (7.8 cm left of it), nothing; 5 cm left of it, 5 cm above it (the
+#    old contact 4 cm), on it, a magazine seats; the old way (vr_reload_pouch_mag_slots 0) the empty middle seats one too.
+#    (1.6 units: 5.1 cm at vr_world_scale 1.2.)
+D="$(away "50 0 0");vr_reload_test 6;impulse 125;wait30;give n 20;wait5"
+log=$(run "$(setup 156);$D;$(tomag "50 0 0" 0 0 2.45);$(mark mid);$D;$(tomag "50 0 0" 0 0 1.6);$(mark left);$D;$(tomag "50 0 0" 0 1.6);$(mark up);$D;$(tomag "50 0 0");$(mark on);vr_reload_pouch_mag_slots 0;$D;$(tomag "50 0 0" 0 0 2.45);$(mark old);vr_reload_pouch_mag_slots 1")
+check $([ "$(mag "$log" mid)" = 0 ] && [ "$(mag "$log" left)" = 1 ] && [ "$(mag "$log" up)" = 1 ] && [ "$(mag "$log" on)" = 1 ] && echo 1 || echo 0) "nailgun, one magazine drawn: the empty middle slot nothing ($(mag "$log" mid)); 5 cm left of it $(mag "$log" left), 5 cm above $(mag "$log" up), on it $(mag "$log" on)"
+check $([ "$(mag "$log" old)" = 1 ] && echo 1 || echo 0) "the old way (the whole row): the empty middle slot seats one ($(mag "$log" old))"
 
 exit $fail
 }

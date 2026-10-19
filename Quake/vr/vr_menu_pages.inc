@@ -1428,6 +1428,14 @@ void resetHandMoves()
         slider("Pouch Angle", "vr_reload_pouch_angle", 5.f, 90.f, 5.f, "%.0f deg")
             .help("How far off the way the pouch's rounds go in the gun may lie: a well along the magazines, the "
                   "shotgun's port facing down into the pouch."),
+        toggle("Magazines Where Drawn", "vr_reload_pouch_mag_slots")
+            .help("The nailguns' and thunderbolt's well against each magazine as drawn in the pouch (the nearest one): "
+                  "Magazine Contact and Magazine Angle. Off: anywhere along the row of rounds, by Pouch Contact and Pouch "
+                  "Angle."),
+        slider("Magazine Contact", "vr_reload_pouch_mag_contact", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
+            .help("How near the well's load point must come to a drawn magazine's top: across it and along it."),
+        slider("Magazine Angle", "vr_reload_pouch_mag_angle", 5.f, 90.f, 5.f, "%.0f deg")
+            .help("How far off the magazine standing in the pouch the well may lie."),
         slider("Pouch Clearance", "vr_reload_pouch_clearance", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
             .help("A touch reloads once: the gun must leave the rounds by this much more than Pouch Contact before the "
                   "next counts (the shotgun's next shell). The launchers don't reload at the pouch; at a holster the "

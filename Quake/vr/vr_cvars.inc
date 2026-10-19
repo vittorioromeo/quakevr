@@ -3823,6 +3823,14 @@ QVR_CVAR(vr_reload_pouch_angle, "35", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_sshot_contact, "10", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_sshot_angle, "180", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_clearance, "4", CVAR_ARCHIVE)
+// The magazine guns at the pouch (the author's note 2026-10-19: the receiver had to go left or right of the magazine
+// drawn): their well's load point against each magazine as drawn in the pouch (its slot's top: make_ammo_pouch.py MAGS,
+// through the pouch's own transform; view::ammoPouchMags), the nearest of those its gun's reserve shows: within
+// vr_reload_pouch_mag_contact cm of its top across it and along it, the well within vr_reload_pouch_mag_angle degrees of
+// it. 0: the whole row of rounds (vr_reload_pouch_contact, vr_reload_pouch_angle), as before.
+QVR_CVAR(vr_reload_pouch_mag_slots, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_mag_contact, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_mag_angle, "45", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about
