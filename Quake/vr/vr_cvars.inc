@@ -1793,6 +1793,7 @@ QVR_CVAR(vr_seated_reach_start, "0.55", CVAR_ARCHIVE) // ... real metres over yo
 QVR_CVAR(vr_seated_reach_floor, "0.1", CVAR_ARCHIVE)  // ... real metres over your floor the hand is as low in the game as it is in the room (the floor in reach)
 QVR_CVAR(vr_seated_crouch_depth, "0.5", CVAR_ARCHIVE) // seated, metres vr_crouch_toggle lowers you (eased in and out)
 QVR_CVAR(vr_seated_crouch_ease, "0.2", CVAR_ARCHIVE)  // ... seconds it eases over
+QVR_CVAR(vr_seated_crouch_button, "0", CVAR_ARCHIVE)  // seated, a stick press that runs vr_crouch_toggle (the press then does only that and, if bullet time is not on the same stick, never its bound key); 0 off, 1 the left stick, 2 the right stick
 // The seated layout: each pair of holsters and the ammo pouch moved by these seated (units forward, outwards (the pouch:
 // to the right), up, in the body's facing; degrees as their Hotspots turn), on top of the standing (and crouched)
 // layout. The grenade pouch's X moves it round the hips as its own X does (from the small of the back, against the
@@ -2044,7 +2045,7 @@ QVR_CVAR(vr_decal_carve, "1", CVAR_ARCHIVE)          // bullet and nail holes an
 QVR_CVAR(vr_decal_carve_depth, "0.75", CVAR_ARCHIVE)    // ... how deep, times each kind's own (0.25-4)
 QVR_CVAR(vr_decal_carve_size, "1", CVAR_ARCHIVE)     // ... how wide the holes and craters made from now on are, times each kind's own (0.5-2)
 QVR_CVAR(vr_decal_carve_rim, "1.25", CVAR_ARCHIVE)      // ... how high their raised rim is, times each kind's own (0 none)
-QVR_CVAR(vr_decal_carve_steps, "16", CVAR_ARCHIVE)   // ... the most steps a pixel's ray takes into one (4-64; fewer where it spans few pixels)
+QVR_CVAR(vr_decal_carve_steps, "8", CVAR_ARCHIVE)   // ... the most steps a pixel's ray takes into one (4-64; fewer where it spans few pixels)
 QVR_CVAR(vr_decal_carve_fade, "1024", CVAR_ARCHIVE)  // ... units from the eye past which they are flat (flattening from half as far)
 QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (with vr_permdecals the older are baked flat into the layer)
 QVR_CVAR(vr_decal_carve_style, "-1", CVAR_ARCHIVE)   // ... how they are carved: 0 smooth, 1 retro (blocky: the wall's texel blocks, the depth in steps), 2 faceted (low-poly: 8 flat sides, 3 rings); -1: retro on retro textures' blocks, else smooth
@@ -2520,7 +2521,7 @@ QVR_CVAR(vr_ad_widowmaker_handful, "2", CVAR_ARCHIVE)      // the shells the pou
 // degrees each vr_ad_widowmaker_refire) times this, spun up in _spinup s while the trigger is held or it fires, coasting
 // down in about _spindown s after, to a barrel on top. 0: still.
 QVR_CVAR(vr_ad_widowmaker_spin, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ad_widowmaker_spinup, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spinup, "0.75", CVAR_ARCHIVE) // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
 QVR_CVAR(vr_ad_widowmaker_spindown, "0.9", CVAR_ARCHIVE)
 // The barrels' motor (his notes 2026-10-19; vr_adweapons.cpp motorFrame): a looped whine (vr/widowmaker_motor.wav) from
 // the hand, its pitch and volume following their spin (this its volume at the top speed; 0 none).

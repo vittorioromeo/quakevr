@@ -1307,6 +1307,64 @@ float(entity xInst) AD_Widowmaker =
     return AD_WeaponUpgraded(self, xInst, ad_IT_UPGRADE_SSG);
 };
 
+// The Widowmaker's barrels must reach firing speed before the first shot (his notes 2026-10-19): the spin (0 still, 1 at
+// speed) rises over vr_ad_widowmaker_spinup s while the trigger is held and falls over _spindown s after (the client's
+// drawn barrels and motor, vr_adweapons.cpp, follow the same times). It fires at 1 (the refire's pace from then on); a
+// trigger pressed again while it still spins fires sooner. Per hand, each frame (AD_WidowmakerSpinFrame).
+float vr_ad_wspin_test; // vr_ad_test 149 drives the spin itself (its trigger is no real one): the frame leaves it
+.float vr_ad_wspin0, vr_ad_wspin1, vr_ad_wspin_t0, vr_ad_wspin_t1;
+
+float(float xHand) AD_WidowmakerSpin =
+{
+    return xHand == cVR_OffHand ? self.vr_ad_wspin1 : self.vr_ad_wspin0;
+};
+
+float(float xHand) AD_WidowmakerSpunUp =
+{
+    return cvar_hget(cvarh_vr_ad_widowmaker_spin) <= 0 || AD_WidowmakerSpin(xHand) >= 1;
+};
+
+void(float xHand, float xTrigger) AD_WidowmakerSpinFrame =
+{
+    float last = xHand == cVR_OffHand ? self.vr_ad_wspin_t1 : self.vr_ad_wspin_t0;
+    float spin = AD_WidowmakerSpin(xHand);
+    float dt = min(0.1, max(0, time - last));
+    if(AD_WidowmakerIn(self, xHand))
+    {
+        if(xTrigger)
+        {
+            spin = min(1, spin + dt / max(0.01, cvar_hget(cvarh_vr_ad_widowmaker_spinup)));
+        }
+        else
+        {
+            spin = max(0, spin - dt / max(0.05, cvar_hget(cvarh_vr_ad_widowmaker_spindown)));
+        }
+    }
+    else
+    {
+        spin = 0;
+    }
+    if(xHand == cVR_OffHand)
+    {
+        self.vr_ad_wspin1 = spin;
+        self.vr_ad_wspin_t1 = time;
+    }
+    else
+    {
+        self.vr_ad_wspin0 = spin;
+        self.vr_ad_wspin_t0 = time;
+    }
+};
+
+// W_WeaponFrameImpl's call.
+void(float xHand, float xTrigger) AD_WidowmakerSpinHook =
+{
+    if(!vr_ad_wspin_test)
+    {
+        AD_WidowmakerSpinFrame(xHand, xTrigger);
+    }
+};
+
 // The same of the gun `p` holds in `xHand`.
 float(entity p, float xHand) AD_WidowmakerIn =
 {

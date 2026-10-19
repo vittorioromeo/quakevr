@@ -3608,6 +3608,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         return;
     }
 
+    // AD support: the Widowmaker's barrels first spin up to firing speed (vr_ad_bridge.qc AD_WidowmakerSpinFrame).
+    if(xWeapon == WID_SUPER_SHOTGUN && AD_WidowmakerIn(self, xHand) && !AD_WidowmakerSpunUp(xHand))
+    {
+        return;
+    }
+
     makevectors(VRGetWeaponFireRot(xHand)); // calculate forward angle for velocity
     // Wake monsters up: not for a hand merely closing (the trigger on a fist, or on a melee weapon the tracked hands
     // swing themselves: nothing happens here; the author's note e1m2_2026-10-07_22-44-33). A real swing or punch wakes
@@ -4637,6 +4643,7 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
+    AD_WidowmakerSpinHook(xHand, VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand));
 
     if(!deathmatch && time < readytime)
     {

@@ -15,6 +15,7 @@
 // Each page is shown again where it was left (its selected row, found by its label when the page is
 // built anew, on the same line of the view), across restarts too (vr_menu_positions).
 
+#include "vr_seated.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_backend.hpp"

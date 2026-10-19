@@ -79,7 +79,11 @@ void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
 nosave float vr_grab_adup;           // VR_WeaponGrabbable_Make: the upgrade bits the placed weapon's record gets (the toolgun's AD upgrades as props)
 float(entity xInst) AD_Widowmaker;   // the super shotgun of record xInst is the Widowmaker (its tube, its port: vr_reload.qc)
-float(entity p, float xHand) AD_WidowmakerIn; // the same of the gun p holds in xHand
+float(entity p, float xHand) AD_WidowmakerIn;
+void(float xHand, float xTrigger) AD_WidowmakerSpinHook;
+void(float xHand, float xTrigger) AD_WidowmakerSpinFrame; // every frame: the barrels' spin (W_WeaponFrameImpl)
+float(float xHand) AD_WidowmakerSpunUp; // the barrels at firing speed (W_AttackImpl)
+float(float xHand) AD_WidowmakerSpin; // how far up (0..1) // the same of the gun p holds in xHand
 void(float xHand) AD_FireWidowmaker; // W_Attack: its shot (a shell from its tube)
 float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
 float(entity xInst) AD_PlasmaGunInst; // the lightning gun of record xInst is the Plasma Gun (its reload override)

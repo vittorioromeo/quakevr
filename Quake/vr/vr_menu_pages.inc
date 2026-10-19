@@ -1161,8 +1161,8 @@ void resetHandMoves()
         slider("Barrel Spin", "vr_ad_widowmaker_spin", 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
             .help("How fast its barrels turn while it fires, as a Gatling's: 1 a barrel a shot (the top one fires). 0: "
                   "still."),
-        slider("Spin Up", "vr_ad_widowmaker_spinup", 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("Seconds the barrels take to come up to speed with the trigger held."),
+        slider("Spin Up (Before the First Shot)", "vr_ad_widowmaker_spinup", 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Seconds the barrels take to come up to speed with the trigger held. It fires only once they are at speed: the first shot waits this long from rest, less if they still spin."),
         slider("Spin Down", "vr_ad_widowmaker_spindown", 0.1f, 3.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
             .help("About how long they coast after the trigger is let go, stopping with a barrel on top."),
         slider("Motor Volume", "vr_ad_widowmaker_motor", 0.f, 1.f, 0.05f, "%.2f")

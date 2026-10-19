@@ -314,6 +314,12 @@ const char* bodytrackAvailability(int)
                   "too, as far as your head goes down."),
         command("Crouch Toggle", "vr_crouch_toggle")
             .help("vr_crouch_toggle: crouch or stand up, seated (to try it here; bind it to a button to play)."),
+        cycle("Crouch Button", vr_seated_crouch_button, {{0.f, "Off"}, {1.f, "Left Thumbstick Press"}, {2.f, "Right Thumbstick Press"}})
+            .help("Seated, a thumbstick press that crouches and stands you up (vr_crouch_toggle). It does only this in "
+                  "the game, never its bound key."),
+        info([]() -> const char* {
+            return seated::crouchButtonConflict() ? "Warning: this stick press also starts Bullet Time (Bullet Time > Activation)." : "";
+        }),
         open("Seated Holsters", pageIndex(pageSeatedHolsters))
             .help("Where the holsters and the pouches go seated, on top of where they are standing."),
         command("Print Seated Status", "vr_seated_status")

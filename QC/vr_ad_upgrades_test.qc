@@ -231,26 +231,79 @@ void(string xWhat, float xOk, string xGot) AD_WidowCheck =
     else { vr_adsa_fail = vr_adsa_fail + 1; }
 };
 
+float vr_adwm_t0, vr_adwm_first, vr_adwm_phase, vr_adwm_clip, vr_adwm_rest;
+
 void() AD_WidowFireRun =
 {
     entity p = self.owner;
     entity os = self;
-    if(time < vr_adwm_end)
+    float spinup = max(0.01, cvar("vr_ad_widowmaker_spinup"));
+    if(vr_adwm_phase == 1)
+    {
+        // The trigger let go 0.3 s (the barrels slowing), then pressed again: the first shot comes sooner than from rest.
+        self = p;
+        if(time < vr_adwm_rest)
+        {
+            AD_WidowmakerSpinFrame(cVR_OffHand, FALSE);
+        }
+        else
+        {
+            if(vr_adwm_t0 < 0)
+            {
+                vr_adwm_t0 = time;
+                vr_adwm_clip = VRGetEntWeaponClip(p, cVR_OffHand);
+            }
+            AD_WidowmakerSpinFrame(cVR_OffHand, TRUE);
+            if(time >= p.offhand_attack_finished)
+            {
+                W_OffHandAttack();
+            }
+            if(VRGetEntWeaponClip(p, cVR_OffHand) < vr_adwm_clip)
+            {
+                float d = time - vr_adwm_t0;
+                AD_WidowCheck("pressed again while still spinning, it fires sooner", d > 0.02 && d < spinup * 0.7,
+                    sprintf("first shot %g s after the press; from rest %g s (spin-up %g)", d, vr_adwm_first, spinup));
+                vr_adwm_phase = 2;
+            }
+        }
+        self = os;
+        self.nextthink = time + 0.01;
+        if(vr_adwm_phase != 2)
+        {
+            return;
+        }
+    }
+    else if(time < vr_adwm_end)
     {
         self = p;
+        AD_WidowmakerSpinFrame(cVR_OffHand, TRUE);
         if(time >= p.offhand_attack_finished)
         {
             W_OffHandAttack();
+        }
+        if(vr_adwm_first < 0 && VRGetEntWeaponClip(p, cVR_OffHand) < vr_adwm_tube)
+        {
+            vr_adwm_first = time - vr_adwm_t0;
         }
         self = os;
         self.nextthink = time + 0.01;
         return;
     }
-    float shots = vr_adwm_tube - VRGetEntWeaponClip(p, cVR_OffHand);
-    float rate = max(0.02, cvar("vr_ad_widowmaker_refire"));
-    float expect = ceil(2 / rate);
-    AD_WidowCheck("full auto: the trigger held 2 s fires a shell each refire", shots >= expect - 1 && shots <= expect + 1,
-        sprintf("%g shots, %g expected at %g s; %g left in the tube", shots, expect, rate, VRGetEntWeaponClip(p, cVR_OffHand)));
+    if(vr_adwm_phase == 0)
+    {
+        float shots = vr_adwm_tube - VRGetEntWeaponClip(p, cVR_OffHand);
+        float rate = max(0.02, cvar("vr_ad_widowmaker_refire"));
+        float expect = floor((2 - spinup) / rate) + 1;
+        AD_WidowCheck("first shot waits for the barrels: from rest about the spin-up time", vr_adwm_first >= spinup - 0.05 && vr_adwm_first <= spinup + 0.1,
+            sprintf("%g s after the press, spin-up %g", vr_adwm_first, spinup));
+        AD_WidowCheck("full auto: the trigger held 2 s fires a shell each refire after the spin-up", shots >= expect - 1 && shots <= expect + 1,
+            sprintf("%g shots, %g expected at %g s; %g left in the tube", shots, expect, rate, VRGetEntWeaponClip(p, cVR_OffHand)));
+        vr_adwm_phase = 1;
+        vr_adwm_t0 = -1;
+        vr_adwm_rest = time + 0.3;
+        self.nextthink = time + 0.01;
+        return;
+    }
     AD_WidowCheck("its shots come from the tube, not the reserve", p.ammo_shells == vr_adwm_reserve,
         sprintf("reserve %g, was %g", p.ammo_shells, vr_adwm_reserve));
     // Last, a Widowmaker pickup (weapon_touch as the body's touch, both hands free): it comes with its tube full.
@@ -275,6 +328,7 @@ void() AD_WidowFireRun =
     AD_WidowCheck("a pickup comes with its tube full", got == tube,
         sprintf("%g in its tube of %g (-1: no Widowmaker in hand); the reserve 20 -> %g", got, tube, p.ammo_shells));
     bprint(sprintf("adwidow: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    vr_ad_wspin_test = FALSE;
     remove(self);
 };
 
@@ -326,6 +380,10 @@ void() AD_WidowTubeTestRun =
     vr_adwm_reserve = p.ammo_shells;
     self = os;
     vr_adwm_end = time + 2;
+    vr_adwm_t0 = time;
+    vr_adwm_first = -1;
+    vr_adwm_phase = 0;
+    vr_ad_wspin_test = TRUE;
     self.think = AD_WidowFireRun;
     self.nextthink = time + 0.01;
 };
