@@ -33,7 +33,12 @@ float(entity m) VR_FoeGrab_Size =
 float(entity m, float xHand, float xUnused) VR_FoeGrab_Strength =
 {
     float s;
-    if(cvar_hget(cvarh_vr_foegrab_by_mass))
+    float own = monstergroupget(m, MGP_HOLD); // (its monster group's, Combat > Monster Groups; below 0: as below)
+    if(own >= 0)
+    {
+        s = own;
+    }
+    else if(cvar_hget(cvarh_vr_foegrab_by_mass))
     {
         float light = cvar_hget(cvarh_vr_foegrab_mass_light);
         float heavy = max(light + 1, cvar_hget(cvarh_vr_foegrab_mass_heavy));

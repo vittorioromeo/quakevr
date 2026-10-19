@@ -14,6 +14,7 @@
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_foegrab.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
@@ -2519,6 +2520,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollshovetopple", PF_ragdollshovetopple},
     {"ragdollgetup", PF_ragdollgetup},
     {"ragdollcanstagger", PF_ragdollcanstagger},
+    {"monstergroup", mgroups::PF_monstergroup},
+    {"monstergroupget", mgroups::PF_monstergroupget},
     {"ragdolldrown", PF_ragdolldrown},
     {"ragdollguard", PF_ragdollguard},
     {"ragdollstagger", PF_ragdollstagger},

@@ -3215,6 +3215,10 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         push = push * vr_bash_exhaust_push;
         stagger = stagger * vr_bash_exhaust_push;
     }
+    if(e.flags & FL_MONSTER)
+    {
+        push = push * max(0, monstergroupget(e, MGP_PUSH)); // (its monster group's Shove Push: Combat > Monster Groups)
+    }
     VR_SetHitKind(xKind, xHand, xAt, xForward);
     if(T_Damage(e, self, self, dmg) && dmg > 0)
     {

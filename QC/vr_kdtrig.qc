@@ -20,7 +20,9 @@
 //   6 blow: a strong melee blow or a flung prop (the weight: its damage over vr_kdtrig_blow_min, up to twice; a
 //     blade's times vr_kdtrig_blow_blade: fists, a gun's butt, a hammer or a mace, a pommel, the crowbar, props are
 //     blunt) -> toppled back.
-// - Never: vr_knockdown or vr_kdtrig off, a kind with no active stagger (ragdollcanstagger: the humanoids), one down,
+// - Monster groups (Combat > Monster Groups): its group's switch (vr_mgrp_<group>_kdtrig: the humanoids' on), its
+//   resistance (vr_kdtrig_resist_<group>) and each trigger's share (vr_mgrp_<group>_ledge ... _blast: its chance times it).
+// - Never: vr_knockdown or vr_kdtrig off, its group's triggers off, no get-up of its own (vr_kd_chance_h), one down,
 //   staggering, parried, flying or swimming, a boss (VR_HST_BOSS), a dummy that stays put; for vr_kdtrig_cooldown s
 //   after it gets up. Room for its ragdoll: a dead body may go for it, never a living knockdown.
 // - vr_kdtrig_debug 1: a line for each that fires (`kdtrig: <name> ...`); 2: also each that held and lost its roll.
@@ -279,18 +281,12 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
     return FALSE;
 };
 
-// `e`'s resistance to the ragdoll triggers (Monster Resistance): its kind's own (vr_kdtrig_resist_<kind>, 0: none),
-// else its hull's volume over a grunt's (32 x 32 x 64) to vr_kdtrig_resist_size (an ogre's, 5.5 times: 2.3).
+// `e`'s resistance to the ragdoll triggers (Monster Resistance): its monster group's own (vr_kdtrig_resist_<group>, 0:
+// none; Combat > Monster Groups), else its hull's volume over a grunt's (32 x 32 x 64) to vr_kdtrig_resist_size (an
+// ogre's, 5.5 times: 2.3).
 float(entity e) VR_KdTrig_Resist =
 {
-    float h = 0;
-    if(e.classname == "monster_army") { h = cvarh_vr_kdtrig_resist_army; }
-    else if(e.classname == "monster_enforcer") { h = cvarh_vr_kdtrig_resist_enforcer; }
-    else if(e.classname == "monster_knight") { h = cvarh_vr_kdtrig_resist_knight; }
-    else if(e.classname == "monster_hell_knight") { h = cvarh_vr_kdtrig_resist_hknight; }
-    else if(e.classname == "monster_ogre") { h = cvarh_vr_kdtrig_resist_ogre; }
-    else if(e.classname == "monster_zombie") { h = cvarh_vr_kdtrig_resist_zombie; }
-    float own = h ? cvar_hget(h) : 0;
+    float own = monstergroupget(e, MGP_RESIST);
     if(own > 0)
     {
         return own;
@@ -309,8 +305,9 @@ float(entity e) VR_KdTrig_Can =
     {
         return FALSE;
     }
+    // (Its monster group's switch: the humanoids' groups on, the rest off; Combat > Monster Groups.)
     float full = e.max_health > 0 ? e.max_health : e.health;
-    return full < VR_HST_BOSS && canragdoll(e) && ragdollcanstagger(e);
+    return full < VR_HST_BOSS && monstergroupget(e, MGP_KDTRIG) && canragdoll(e);
 };
 
 // Knocks `e` down for situation `i`, falling along vr_kdt_way. TRUE if it went down.
@@ -362,6 +359,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
     for(i = 0; i < VR_KDT_COUNT; i = i + 1)
     {
         float base = cvar_hget(vr_kdt_on_h[i]) ? max(0, cvar_hget(vr_kdt_chance_h[i])) : 0;
+        base = base * max(0, monstergroupget(targ, MGP_LEDGE + i)); // (its monster group's share of this trigger)
         if(base <= 0)
         {
             continue;

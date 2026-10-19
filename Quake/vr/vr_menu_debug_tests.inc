@@ -746,6 +746,9 @@ za::Vector<Item> pageDebugTests()
                   "now: each gate (its knockdown chance, canragdoll, can stagger, stamina) and the ragdoll pool as the "
                   "game counts it (each ragdoll, whether it can be freed for room), then the engine's ragdolls "
                   "(vr_ragdoll_list). Use it when shoves and lifts stop working, and send the console."),
+        command("List Monster Groups", "vr_mgroup_list")
+            .help("vr_mgroup_list: every monster classname's group (Combat > Monster Groups), then this map's monsters' "
+                  "(any not in the table marked: it is in Others) to the console."),
         command("Get Them Up Now", "vr_knockdown_test 1")
             .help("vr_knockdown_test 1: every knocked-down monster tries to get up now. Combat > Knockdowns, Print Rolls: "
                   "And Get-Ups' Motion prints how smoothly each is drawn getting up."),

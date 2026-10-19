@@ -2749,17 +2749,7 @@ QVR_CVAR(vr_corpse_placed_wake, "160", CVAR_ARCHIVE)  // units: a placed corpse 
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
 QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
 QVR_CVAR(vr_knockdown_chance, "0.6", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
-QVR_CVAR(vr_knockdown_chance_army, "0.45", CVAR_ARCHIVE)  // a shove's base chance to knock one down, by monster
-QVR_CVAR(vr_knockdown_chance_enforcer, "0.3", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_dog, "0.35", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_zombie, "0.35", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_mummy, "0.2", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_knight, "0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_hknight, "0.12", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_ogre, "0.15", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_demon, "0.1", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_shambler, "0.03", CVAR_ARCHIVE)
-QVR_CVAR(vr_knockdown_chance_gremlin, "0.25", CVAR_ARCHIVE)
+// (Each monster group's base chance, vr_knockdown_chance_<group>: QVR_MGROUP below, Combat > Monster Groups.)
 QVR_CVAR(vr_knockdown_damage, "3", CVAR_ARCHIVE)          // the chance times 1 + this times the share of its health it has lost
 QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
@@ -2820,12 +2810,37 @@ QVR_CVAR(vr_kdtrig_blast_min, "15", CVAR_ARCHIVE)                      // ... th
 QVR_CVAR(vr_kdtrig_blast_push, "1.25", CVAR_ARCHIVE)                   // ... its push over (two hands' shove 1)
 QVR_CVAR(vr_kdtrig_blast_range, "200", CVAR_ARCHIVE)                  // ... units from the blast's centre: none past it, half the chance at it
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
-QVR_CVAR(vr_kdtrig_resist_army, "1", CVAR_ARCHIVE)                      // monster_army's resistance (0: by its size)
-QVR_CVAR(vr_kdtrig_resist_enforcer, "1.15", CVAR_ARCHIVE)               // monster_enforcer's resistance (0: by its size)
-QVR_CVAR(vr_kdtrig_resist_knight, "1.15", CVAR_ARCHIVE)                 // monster_knight's resistance (0: by its size)
-QVR_CVAR(vr_kdtrig_resist_hknight, "1.6", CVAR_ARCHIVE)                 // monster_hell_knight's resistance (0: by its size)
-QVR_CVAR(vr_kdtrig_resist_ogre, "2.5", CVAR_ARCHIVE)                    // monster_ogre's resistance (0: by its size)
-QVR_CVAR(vr_kdtrig_resist_zombie, "1", CVAR_ARCHIVE)                    // monster_zombie's resistance (0: by its size)
+// Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's
+// settings for every ragdoll trigger and action, its defaults vr_mgroups.inc's. Ragdoll triggers: _kdtrig on (needs
+// Ragdoll Triggers), vr_kdtrig_resist_<group> its resistance (every trigger's chance divided by it, its least damage
+// times it; 0: by its size), _ledge ... _blast each trigger's chance times this (0: never). Actions: vr_knockdown_chance_
+// <group> a shove's base chance to knock it down (one with a get-up of its own), _push how far shoves, bashes and
+// unbalancing hits move it (times), _stagger hits' chance to unbalance it (times), _sweep the leg sweep, _leggrab the leg
+// pull and lift, _lift the lift, _necksnap the neck snap, _manhandle grabbing it staggered or weak (each 1 on, 0 never),
+// _throw the two-hand throw (0 never, 1 only when hurt, 2 always; vr_foegrab_throw_by_mass 1: by its mass instead),
+// _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large).
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind) \
+    QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_stairs, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_slope, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_shotgun, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_wounded, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_blow, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_blast, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_knockdown_chance_##g, #shove, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_push, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_stagger, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_sweep, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_leggrab, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_lift, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_necksnap, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE)
+#include "vr_mgroups.inc"
+#undef QVR_MGROUP
 QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
@@ -3439,9 +3454,7 @@ QVR_CVAR(vr_foegrab_throw_twist, "130", CVAR_ARCHIVE)     // degrees/s: the hand
 QVR_CVAR(vr_foegrab_throw_speed, "3", CVAR_ARCHIVE)       // m/s: and the hands' mean speed then, at least
 QVR_CVAR(vr_foegrab_throw_away, "0", CVAR_ARCHIVE)        // 1: a throw straight away from you (within 45 degrees) counts too (0: that's a shove's)
 QVR_CVAR(vr_foegrab_throw_hurt, "0.4", CVAR_ARCHIVE)      // the "when hurt" enemies are thrown below this share of their full health, never above
-QVR_CVAR(vr_foegrab_throw_by_mass, "0", CVAR_ARCHIVE)     // 0: the kinds below (class lists); 1: by mass (_mass_always, _mass_hurt)
-QVR_CVAR(vr_foegrab_throw_always, "monster_army monster_enforcer monster_zombie monster_knight monster_dog monster_mummy infected", CVAR_ARCHIVE) // classnames always thrown ("infected": Dawn of the Machine's infected)
-QVR_CVAR(vr_foegrab_throw_when_hurt, "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_ranged_knight", CVAR_ARCHIVE) // only when hurt; any other never (a spawn, a slime, a centroid: no knockdown get-up)
+QVR_CVAR(vr_foegrab_throw_by_mass, "0", CVAR_ARCHIVE)     // 0: by its monster group (vr_mgrp_<group>_throw); 1: by mass (_mass_always, _mass_hurt)
 QVR_CVAR(vr_foegrab_throw_mass_always, "140", CVAR_ARCHIVE) // kg, by mass: this light or lighter always (a mummy 140)
 QVR_CVAR(vr_foegrab_throw_mass_hurt, "300", CVAR_ARCHIVE)   // kg: this light or lighter only when hurt; heavier never (a vore, an overlord never)
 QVR_CVAR(vr_foegrab_throw_push, "220", CVAR_ARCHIVE)      // units/s: the thrown enemy's launch along the throw (times vr_knockdown_push)
@@ -3465,7 +3478,6 @@ QVR_CVAR(vr_foegrab_lift_strength, "1.2", CVAR_ARCHIVE)    // the most each hand
 QVR_CVAR(vr_foegrab_lift_up, "160", CVAR_ARCHIVE)          // units/s: it leaves the floor this fast up as it is lifted
 QVR_CVAR(vr_foegrab_free_push, "0.15", CVAR_ARCHIVE)       // metres: breaking free it pushes you back this far, a smooth slide, less than a shove (0: not at all)
 QVR_CVAR(vr_foegrab_free_sound, "1", CVAR_ARCHIVE)         // 1: breaking free plays the shove sound
-QVR_CVAR(vr_foegrab_lift_classes, "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz monster_death_guard monster_death_lord monster_deflector monster_ranged_knight infected", CVAR_ARCHIVE) // the humanoids that can be lifted (classnames; "infected": Dawn of the Machine's infected); never ogres, fiends, shamblers, vores
 // Leg grabs (vr_foegrab.cpp legCheck; ROUND22.md, "Leg grabs"): both hands holding a humanoid's legs (one leg with both,
 // or one each), below the knees: pulled towards you, it topples (its feet slide to you, its body falls away: the leg
 // sweep's fall); pulled up, it is lifted by the legs, head down (the lift's: carried, thrown, it breaks free).

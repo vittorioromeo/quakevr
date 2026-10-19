@@ -302,6 +302,23 @@ float(entity e, float frameA, float frameB, vector mins, vector maxs, float rang
 // recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation), 3 lost (a loaded game: its
 // ragdoll made again without its stagger; the QC begins it again, VR_Knockdown_Think).
 float(entity e) ragdollcanstagger = #0;
+// Monster groups (the engine's vr_mgroups.cpp; Combat > Monster Groups): e's group (by its classname; Others when in
+// none), and a setting of it (MGP_*, the engine's mgroups::Param in its order).
+float(entity e) monstergroup = #0;
+float(entity e, float xParam) monstergroupget = #0;
+float MGP_KDTRIG = 0;    // the ragdoll triggers take it (0/1)
+float MGP_RESIST = 1;    // its resistance to them (0: by its size)
+float MGP_LEDGE = 2;     // each trigger's chance times this, vr_kdtrig.qc's table order: MGP_LEDGE + its index
+float MGP_SHOVE = 9;     // a shove's base chance to knock it down
+float MGP_PUSH = 10;     // how far shoves, bashes and unbalancing hits move it, times
+float MGP_STAGGER = 11;  // hits' chance to unbalance it, times
+float MGP_SWEEP = 12;    // (the engine's: the leg sweep, the leg grabs, the lift, the neck snap, the manhandle, 0/1)
+float MGP_LEGGRAB = 13;
+float MGP_LIFT = 14;
+float MGP_NECKSNAP = 15;
+float MGP_MANHANDLE = 16;
+float MGP_THROW = 17;    // the two-hand throw: 0 never, 1 only when hurt, 2 always
+float MGP_HOLD = 18;     // one hand's hold on it, 0..1 (below 0: by its size)
 // A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
 // kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
 float(entity e, float begin) ragdolldrown = #0;
