@@ -539,6 +539,13 @@ void updateVelocities(const TrackingState* t)
         // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
         throwing::Motion own = drawn;
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
+        state.ownVel[h] = state.vel[h];
+        if(ctrl && ctrl->velocityValid)
+        {
+            const glm::vec3& off = calibratedOffset[h];
+            state.ownVel[h] = fromTracking(off == glm::vec3{0.f} ? ctrl->linearVelocity
+                                                                 : ctrl->linearVelocity + glm::cross(ctrl->angularVelocity, off));
+        }
         if(t && t->hands[h].velocityValid)
         {
             const Pose& p = t->hands[h];

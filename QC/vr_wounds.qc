@@ -204,6 +204,26 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     woundevent(targ, org, normalize(dir), kind + VR_Wound_CleanFlag(targ), min(255, take), extra);
 };
 
+// A ragdoll's part struck against the level hard enough (vr_ragimpact.qc VR_RagImpact_Hit, vr_ragimpact_dent: a head
+// slammed into a wall, a body thrown into one): a blunt blow's wound and dent at `xAt`, going `xDir` into it, as a
+// blunt melee blow's (the author, 2026-10-19: "the face doesn't get dented like a melee blow would"); xHand: a hand
+// drove it (its blood stream's chance as a blunt blow in the hand's).
+void(entity targ, vector xAt, vector xDir, float xTake, float xHand) VR_Wound_Slam =
+{
+    if(xTake <= 0 || !VR_Wound_TakesHit(targ))
+    {
+        return;
+    }
+    if(xDir == '0 0 0')
+    {
+        xDir = (targ.absmin + targ.absmax) * 0.5 - xAt;
+    }
+    vr_wound_sent++;
+    vr_wound_lastkind = QVR_WOUND_MELEE + 0.5;
+    woundevent(targ, xAt, normalize(xDir), QVR_WOUND_MELEE + VR_Wound_CleanFlag(targ), min(255, xTake),
+        1 + (xHand ? QVR_WOUND_MELEE_BLUNT : 0));
+};
+
 // StartFrame: every monster and player in a liquid, four times a second: how high it comes up them (wet under it;
 // lava and slime burn only as they hurt: VR_Wound_Hit). The due monsters and players alone are stepped through (findflagsdue:
 // VR_Wound_Takes's flags), the cheap checks first; the dummy's time is set as the others' (it takes none with vr_dummy_gore off).

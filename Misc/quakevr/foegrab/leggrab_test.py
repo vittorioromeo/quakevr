@@ -10,6 +10,9 @@ under its origin, then 'rel' keys aside in tracking space: x right, y up, z towa
   thigh_half   Thigh Grip 0.5 and a 3 m/s pull (counts, the speed needed doubled: pulled)
   thigh_half_slow  Thigh Grip 0.5, the 1.8 m/s pull (under the doubled need: nothing)
   slow         a hand on each shin, pulled 0.45 m in 1 s (0.45 m/s: nothing)
+  pull_solo    the main hand alone on its right shin (the off hand free), pulled 0.45 m in 0.25 s (1.8 m/s: pulled,
+               One-Hand Pull 1.3 needs 1.56); pull_solo_weak in 0.32 s (1.4 m/s: not); pull_both_weak the same with
+               both hands (pulled: two hands need 1.2)
   lift         a hand on each shin, pulled up 1.1 m in 0.6 s (1.8 m/s): lifted by the legs, its head below its feet,
                then swung away 0.5 m in 0.12 s and let go: thrown (its pelvis carried on away)
   lift_gentle  grunt, pulled up 0.55 m in 0.5 s (1.1 m/s, Leg Lift Speed 1.0): lifted
@@ -57,17 +60,20 @@ def keys_for(cls, kind, dz, way, dist, dur, swing=False, start=0.6):
         main, off = (SIDE, 0.06, 0.0), (SIDE, -0.06, 0.0)
     elif kind == "near":  # (its side to you: the leg nearer you)
         main, off = (0.0, 0.06, SIDE), (0.0, -0.06, SIDE)
+    elif kind == "solo":  # (the main hand alone on its right shin; the off hand left where it was, not gripped)
+        main, off = (-SIDE, 0.0, 0.0), None
     else:
         back = BACK if dz == SHIN else 0.0  # (its left foot stands back; its thighs side by side)
         main, off = (SIDE, -0.15, -back), (-SIDE, 0.0, 0.0)  # (the main hand's point sits higher)
-    k = [(0.0, f"cmd vr_mock_hand_to main nearest {cls} {dz}"), (0.0, f"cmd vr_mock_hand_to off nearest {cls} {dz}"),
-         (0.03, "rel main 0 0 0"), (0.03, "rel off 0 0 0")]
+    k = [(0.0, f"cmd vr_mock_hand_to main nearest {cls} {dz}"), (0.03, "rel main 0 0 0")]
+    if off:
+        k += [(0.0, f"cmd vr_mock_hand_to off nearest {cls} {dz}"), (0.03, "rel off 0 0 0")]
 
     def at(t, d, back=0.0):
         dy, dzt = (d, 0.0) if way == "up" else (0.0, d)
         return [(t, "rel %s %.3f %.3f %.3f" % (n, h[0], h[1] + dy, h[2] + dzt - back))
-                for n, h in (("main", main), ("off", off))]
-    k += at(0.1, 0.0) + [(0.15, "cmd +grabmain"), (0.15, "cmd +graboff")]
+                for n, h in (("main", main), ("off", off)) if h]
+    k += at(0.1, 0.0) + [(0.15, "cmd +grabmain")] + ([(0.15, "cmd +graboff")] if off else [])
     k += at(start, 0.0) + at(start + dur, dist)
     if swing:
         k += at(1.3, dist) + at(1.42, dist, 0.5) + [(1.42, "cmd -grabmain"), (1.42, "cmd -graboff")]
@@ -94,6 +100,10 @@ CASES = [
     ("thigh_half", 0, "monster_army", "both", THIGH, "towards", 0.6, 0.2, "vr_foegrab_leggrab_thigh 0.5", False),
     ("thigh_half_slow", 0, "monster_army", "both", THIGH, "towards", 0.45, 0.25, "vr_foegrab_leggrab_thigh 0.5", False),
     ("slow", 0, "monster_army", "both", SHIN, "towards", 0.45, 1.0, "", False),
+    # One hand alone (One-Hand Pull 1.3: a grunt needs 1.56 m/s): 1.8 m/s pulls; 1.4 m/s (enough for two hands) doesn't.
+    ("pull_solo", 0, "monster_army", "solo", SHIN, "towards", 0.45, 0.25, "", False),
+    ("pull_solo_weak", 0, "monster_army", "solo", SHIN, "towards", 0.45, 0.32, "", False),
+    ("pull_both_weak", 0, "monster_army", "both", SHIN, "towards", 0.45, 0.32, "", False),
     ("lift", 0, "monster_army", "both", SHIN, "up", 1.1, 0.6, "", True),
     ("lift_gentle", 0, "monster_army", "both", SHIN, "up", 0.55, 0.5, "", False),
     ("heavy_gentle", 6, "monster_hell_knight", "both", SHIN, "up", 0.55, 0.5, "", False),
@@ -103,7 +113,7 @@ CASES = [
 # should fell it (by its own facing).
 START = {"pull_back_ai": 2.0}  # (s: the pull starts then: held this long first)
 FACING = {"pull_back": 2, "pull_back_ai": 2, "pull_left": 4, "pull_right": 5}
-FELL = {"pull_one": "backward", "pull_both": "backward", "thigh_half": "backward", "pull_back": "forward", "pull_back_ai": "forward",
+FELL = {"pull_one": "backward", "pull_both": "backward", "pull_solo": "backward", "pull_both_weak": "backward", "thigh_half": "backward", "pull_back": "forward", "pull_back_ai": "forward",
         "pull_left": "to its right", "pull_right": "to its left"}
 
 
@@ -154,7 +164,7 @@ def main():
                                     f"its head {head:.1f} along the pull from its feet; fell {fell} (should: "
                                     f"{FELL[name]}){' by ' + by.group(1) + ' ahead, ' + by.group(2) + ' left' if by else ''} "
                                     f"({info})")
-        elif name in ("thigh", "thigh_half_slow", "slow"):
+        elif name in ("thigh", "thigh_half_slow", "slow", "pull_solo_weak"):
             ok = not pulled and not lifted
             verdict(ok and not bad, f"{name}: {'PULLED (wrong)' if pulled else 'not pulled'} ({info})")
         elif name in ("lift", "lift_gentle", "heavy"):

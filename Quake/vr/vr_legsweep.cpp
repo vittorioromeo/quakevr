@@ -38,6 +38,7 @@
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragactive.hpp"
 #include "vr_render.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -576,8 +577,16 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
     for(int e = 1; e < qcvm->num_edicts; e++)
     {
         edict_t* m = EDICT_NUM(e);
-        if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f ||
-            (static_cast<int>(m->v.solid) != SOLID_SLIDEBOX && static_cast<int>(m->v.solid) != SOLID_BBOX))
+        if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)
+        {
+            continue;
+        }
+        // Standing, or staggering as a ragdoll (on its feet still): a strong blow to its legs unbalances it (QC
+        // vr_hitstagger.qc) a moment before the sweep of the same swing is measured; it is swept all the same (the author,
+        // 2026-10-19: "a strong one just deals damage without sweeping").
+        const ragactive::State* act = box3d::activeState(e);
+        const bool staggering = act && act->on && act->stagger.on && act->stagger.outcome == ragactive::Outcome::Going;
+        if(!staggering && static_cast<int>(m->v.solid) != SOLID_SLIDEBOX && static_cast<int>(m->v.solid) != SOLID_BBOX)
         {
             continue;
         }

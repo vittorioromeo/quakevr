@@ -107,6 +107,7 @@ struct Holder
     // (their tracked palms' middle then, world).
     bool legStroke{false};
     glm::vec3 legFrom{0.f};
+    int legMask{0}; // the hands of that grip (1 the off, 2 the main, 3 both: legCheck; another: its stroke begun again)
     bool legLogged{false}; // the grip's parts printed (vr_foegrab_debug: once a two-hand hold)
     // Its feet held, it can't turn (legCheck): its yaw as the leg grip began (legYawEnt: whose; 0: none).
     int legYawEnt{0};

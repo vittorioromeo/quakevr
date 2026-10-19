@@ -14531,3 +14531,46 @@ flick; the hammer two-handed bounced and turned too much at the end of a blow.
 - **For VR:** wiggle and flick the rocket launcher, chainsaw and hammer in one hand: they should lag and settle, never
   whip round; snap hard: still dropped. Hammer two-handed blows on the ground: if it still bounces, record the new No Hit
   labels. Ghost Hands on with each heavy weapon and a two-handed grip.
+## Holds and triggers: strong sweeps, one-hand leg pull, bullet-time gestures, drags, slam dents (worktree `gorefx`, branch `agent/holdtune`, 2026-10-19)
+
+The author's notes on active-ragdoll triggers and holds.
+
+- **A strong blow to the legs sweeps too.** The blow lands first (QC melee, in the frame's physics) and a strong one
+  unbalances it (vr_hitstagger.qc: a ragdoll's stagger, `.vr_knockdown` 1); the leg sweep of the same swing, measured at
+  the frame's end (vr_legsweep.cpp), then saw it "can't be knocked down now". Now the sweep also takes a staggering
+  ragdoll (box3d::activeState: stagger on, still going): VR_LegSweep_Down skips VR_Knockdown_Start for it and the
+  engine's fall (ragdollThrown's beginFall) ends the stagger; VR_Knockdown_Think sees it fallen. The blow's damage and the
+  sweep's both land. Checked (scratch/t_sweep.py, crowbar_lr, `vr_hit_stagger_min 0; vr_hit_stagger_chance 10`): 18.4
+  melee damage, "staggers", "swept while staggering (0.03 s in)", SWEPT DOWN, fell to its right, feet slid 57.
+- **One-hand leg pull** (`vr_foegrab_legpull_onehand` 1.3; Combat > Holding Enemies > Leg Grabs, One-Hand Pull; 0: both
+  hands only). One hand alone on a humanoid's shin (the other free, on a ledge, holding a weapon) pulls it out at Pull
+  Speed times 1.3 (a grunt: 1.56 m/s); no one-hand lift. legCheck takes a hand mask (its stroke begun again when the
+  hands change). leggrab_test.py `pull_solo` (1.8 m/s: pulled, fell backward), `pull_solo_weak` (1.4 m/s: not),
+  `pull_both_weak` (1.4 m/s, both hands: pulled).
+- **Gestures in bullet time.** In slow motion the hands follow their controllers at most vr_timescale_hand_speed (8 m/s
+  of the game's): a real 3 m/s judo pull read 8 x 0.3 = 2.4 m/s real, under Throw Speed 3. The client now sends each
+  controller's own velocity (VrHandMove::ownVel, hands::State::ownVel: timescale::controllerPose's), and the judo throw,
+  the lift and the leg pulls measure it (foegrab gestureVel); a held standing enemy follows and is dragged by the hands at
+  their real pace (follow and drag caps times 1 over the time scale: gestureQuick), else the spot fell behind and the
+  hold broke before the turn was measured. The windows were already the player's (gameSeconds). scratch/t_judo.py:
+  high/mid/low x left/towards, full speed and `vr_timescale 0.3` (bullet time's scale): all 12 thrown the pulled way,
+  3.00 m/s measured in both.
+- **Dragging is no blow** (`vr_ragimpact_drag_speed` 1.2 m/s; Knockdowns > Impacts, Drag Swing; 0: as before). A body a
+  hand holds strikes nothing unless a hand holding it swung that fast (its own move in the play space, not the walk or
+  the turn) within 0.4 s of the player's (vr_box3d_step.cpp noteDragSwings, dragged). scratch/t_drag.py, a downed grunt
+  dragged 10 s by stick (back, back-left, back-right): by the arm 30 -> 30 health (5 strikes skipped; before: 8 dealt,
+  30 -> 12), by the head 30 -> 30 (21 skipped; before: 11 dealt, killed), by the leg no strike either way. The slam test
+  (held head slammed, the hand swinging) still deals.
+- **Slams dent** (`vr_ragimpact_dent` 2 damage; Knockdowns > Impacts, Dent From; 0: never). A ragdoll's strike on the
+  level dealing that much sends a blunt melee wound at the contact (VR_Wound_Slam: kind melee, extra 1, plus the
+  hand's blunt stream chance when held), its way into the part from the contact normal (VR_RagImpact_Hit's new 7th
+  argument). scratch/t_slam.py, a held head slammed into the floor 3 times: 3 head dents of the blunt kind (6), r
+  3.5-3.9, depth 1.7-1.9 (off: none).
+- **Head hold vs chest hold: no difference found.** A standing grunt held by one still hand at its head or its chest
+  (scratch/t_hold.py, AI awake, 4 seeds): pulled off at 2.84 s in every run, both; a downed grunt held by its ragdoll's
+  head or chest (scratch/t_hold2.py, 3 seeds): rose through its get-up 2.6-2.7 s after due, both. Nothing changed: the
+  author's case (which hold, standing or down, one hand or two) is needed.
+- **For VR:** a hard staff or crowbar swing into a grunt's shins: it takes the blow and is swept. Hang on a ledge with one
+  hand and yank a grunt's shin with the other. In bullet time, judo-throw a grunt with your normal full-speed motion.
+  Drag a downed grunt by an arm or the head around with the stick, into walls: no damage; then slam its head into a wall:
+  damage and a dent on its face.

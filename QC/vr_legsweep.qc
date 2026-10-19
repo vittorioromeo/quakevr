@@ -13,16 +13,29 @@ float(entity m, float xYaw, float xDamage) VR_LegSweep_Down =
         floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "swept", '0.4 1 0.4', 0.6);
         return 2;
     }
-    if((m.flags & (FL_FLY | FL_SWIM)) || m.vr_knockdown || !m.vr_kd_chance_h || !canragdoll(m) || !VR_Knockdown_MakeRoom(m))
+    // Staggering as a ragdoll (a strong blow to its legs unbalanced it just before: vr_hitstagger.qc; a shove): swept
+    // all the same, its ragdoll's stagger ended by the engine's fall (VR_Knockdown_Think: it goes down).
+    float staggering = m.vr_knockdown == 1 && m.vr_kd_stagger && isragdoll(m);
+    if(staggering)
+    {
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("legsweep: %s swept while staggering (%.2f s in)\n", m.classname, time - m.vr_kd_since));
+        }
+    }
+    else if((m.flags & (FL_FLY | FL_SWIM)) || m.vr_knockdown || !m.vr_kd_chance_h || !canragdoll(m) || !VR_Knockdown_MakeRoom(m))
     {
         return -2;
     }
-    vector was = m.velocity;
-    m.velocity = '0 0 0'; // (the engine's topple launches it: its feet along the sweep, its top over the other way)
-    if(!VR_Knockdown_Start(m))
+    else
     {
-        m.velocity = was;
-        return -2;
+        vector was = m.velocity;
+        m.velocity = '0 0 0'; // (the engine's topple launches it: its feet along the sweep, its top over the other way)
+        if(!VR_Knockdown_Start(m))
+        {
+            m.velocity = was;
+            return -2;
+        }
     }
     // Swept by you: its impacts count (vr_ragimpact_time; vr_ragimpact.qc), no hand spared by it.
     m.vr_rag_letgo = self;

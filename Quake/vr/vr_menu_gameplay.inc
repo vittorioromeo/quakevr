@@ -380,6 +380,9 @@
             .help("How fast your hands must pull its legs towards you to pull them out from under it."),
         slider("Pull Distance", vr_foegrab_legpull_distance, 0.f, 40.f, 1.f, "%.0f cm").extend(0.f, 100.f)
             .help("And how far they must come towards you in that pull (a twitch doesn't count)."),
+        slider("One-Hand Pull", vr_foegrab_legpull_onehand, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("One hand alone on its leg (the other free, hanging on a ledge or holding something) pulls it out too, "
+                  "at Pull Speed times this: a harder pull than with both hands. 0: both hands only."),
         slider("Pull Topple Speed", vr_foegrab_legpull_topple, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 2000.f)
             .help("Pulled out, how fast its body turns over away from you about its feet."),
         slider("Pull Feet Slide", vr_foegrab_legpull_feet, 0.f, 200.f, 5.f, "%.0f units/s").extend(0.f, 500.f)
@@ -667,6 +670,13 @@
             .help("Slower strikes do nothing (a body dropped from your hands strikes at about 4 m/s)."),
         slider("Held Least Speed", vr_ragimpact_held_speed, 0.25f, 5.f, 0.25f, "%.2f m/s").extend(0.25f, 30.f)
             .help("A part your hand holds (a head slammed) counts from this speed: your hand slows as it drives a body."),
+        slider("Dent From", vr_ragimpact_dent, 0.f, 20.f, 0.5f, "%.1f dmg").extend(0.f, 100.f)
+            .help("A strike dealing this much damage or more dents and wounds the part where it struck, as a blunt melee "
+                  "blow does: a head slammed into a wall gets its face dented. 0: never."),
+        slider("Drag Swing", vr_ragimpact_drag_speed, 0.f, 4.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
+            .help("A body you hold strikes nothing unless a hand holding it swung this fast (your hand's own move, not your "
+                  "walk) in the last moment: dragged along with the stick it bumps the floor and walls unhurt, a slam "
+                  "still hurts. 0: every strike counts."),
         slider("Head Strikes", vr_ragimpact_head, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("A strike on the head deals this much more."),
         slider("Limb Strikes", vr_ragimpact_limb, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)

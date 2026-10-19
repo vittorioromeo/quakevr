@@ -24,6 +24,7 @@ struct VrHandMove
     float throwAge{0.f};     // seconds since it left the hand
     glm::vec3 tracked{0.f};  // world position of the controller's own point: `pos` before the level held the drawn hand
                              // out of it (vr_handpose.cpp; the climbing grab takes a hold at either)
+    glm::vec3 ownVel{0.f};   // as `vel`, the controller's own (hands::State::ownVel: in slow motion the slowed hand lags it)
 };
 
 struct VrMove
