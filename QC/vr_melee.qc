@@ -1254,6 +1254,11 @@ float() VR_PlayerTime =
 // two headset frames on, a dropped frame) it points further back into the turn (a blade's tip swung round read as drawn
 // back along the line: VR_MELEE_PULLBACK) and reads slower. Turning uniformly about the grip (the line is rigid), the
 // chord is turned on to the window's middle and scaled to its length: every span reads as a 72 Hz tick's chord did.
+// The strength's (and the damage's) speed: the measured speed times this. Measured over the poses' times (meleefps,
+// 2026-10-19) a blow's speed is its own; before, at the author's 120 Hz, the ticks beating against the frames read the
+// first hit's speed 1.15-1.2 times too fast on average, and his blows' strength was tuned on those. The gates (land,
+// slow, wiggle) read the true speed; only how hard a landed blow strikes keeps the old feel.
+float VR_MELEE_STRENGTH_SPEED = 1.13;
 float VR_MELEE_VEL_SPAN = 0.013889; // s (a 72 Hz tick: at 72 Hz every chord is this, as before)
 vector(vector xR0, vector xR1, float xSpan) VR_Melee_TurnVel =
 {
@@ -1843,6 +1848,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         sspeed = vfar;
         sneed = need * (kind == VR_MKIND_STAB ? VR_MELEE_TIP_STAB : VR_MELEE_TIP_SLASH);
     }
+    sspeed = sspeed * VR_MELEE_STRENGTH_SPEED;
     float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (sspeed - sneed) / (sneed * (VR_MELEE_GOOD - 1)) *
               (b.mh_curve > 0 ? b.mh_curve : 1);
     b.mh_kind = kind;
