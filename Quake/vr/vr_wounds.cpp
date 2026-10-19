@@ -3609,6 +3609,14 @@ extern "C" void VR_AliasWetCoat(const entity_t* e, float out[2])
     bool whole = false;
     out[0] = qvr::wounds::wetCoat(e, whole);
     out[1] = whole && out[0] > 0.f ? 1.f : 0.f;
+    // A brain chunk (make_brains.py) is wet of its own, all over (vr_smallgibs_brains_gloss): w 2, the sheen without
+    // the coat's darkening or its film over the bumps (the folds' relief stays), and a warm rim (the light through it).
+    const float gloss = za::clamp(qvr::vr_smallgibs_brains_gloss.value, 0.f, 2.f);
+    if(gloss > 0.f && e && e->model && strncmp(e->model->name, "progs/gib_brain", 15) == 0)
+    {
+        out[0] = za::max(out[0], gloss);
+        out[1] = 2.f;
+    }
 }
 
 extern "C" void VR_BrushWound(const entity_t* e, float wound[4], float box[4])

@@ -14595,3 +14595,37 @@ physics, not the timing:
 - shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
 
 Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
+## Brain chunks: squishier, wetter (worktree `dequant`, branch `agent/brainchunks`, 2026-10-19)
+
+The author: the brain chunks (head pops, head gibs destroyed) look bland and flat; make them squishier, glossier and
+more brain-like (folds, pinkish grey, dark blood in the grooves, a wet sheen, some warmth; a cheap jiggle if easy).
+
+- **Skins and relief** (`Misc/quakevr/make_brains.py`, then `bake_normals.py gib_brain1.mdl gib_brain2.mdl
+  gib_brain3.mdl`): the folds larger (`FOLDS` 6.5 -> 3.6: five or six gyri across a chunk; at 6.5 they read as
+  speckle at arm's length) and rounder (a gyrus' profile part half circle, part sine: a sharp crease, a swollen top),
+  pinker colours with darker sulci, blood run into every sulcus (not only the deep ones) and clotted dark in the deep
+  ones, a gyrus' flanks warmer and redder (`WARM`: light through the tissue), a little baked shade down the creases and
+  a paler crest; the relief deeper (`DEPTH` 0.10 -> 0.16 units, about 6 mm); the torn face a little darker (it blew out
+  to white under bright light).
+- **Normal maps** (normaltiles.py): a recipe may give its own `"smooth"` angle (the faces round a corner smoothed over);
+  the brains 75 degrees (35 before: the mesh's lumps baked in as flat facets, which glinted like a crystal's under the
+  sheen).
+- **Wet sheen** (`vr_smallgibs_brains_gloss`, 1, 0..2; Gore > Small Gibs > Brain Chunk Gloss): `VR_AliasWetCoat` gives a
+  brain chunk (`progs/gib_brain*`) the wet coat all over, with w 2: the alias shader keeps the sheen (WoundSheen's
+  highlight, broad lobe and grazing film) but skips the coat's darkening and its film over the bumps (the folds' relief
+  stays), and adds a warm red rim (the light come through the tissue: a cheap subsurface look).
+- **Jiggle** (`vr_brainjiggle.cpp`; `vr_smallgibs_brains_jiggle`, 1, 0 off; `vr_smallgibs_brains_jiggle_speed`, 0.8 m/s;
+  Gore > Small Gibs > Brain Chunk Jiggle): drawn only (the Box3D body stays rigid). Each brain chunk drawn has its
+  speed followed from frame to frame (smoothed over 20 ms); a change faster than the threshold (a landing, a bounce, a
+  hand's jerk) kicks a damped spring (4.8 Hz, damping 0.22): squashed along the change and bulged across it, volume
+  kept, about its origin, in `VR_AliasPreTransform`; settled in about half a second. Debug > Gore Tests > **Brain
+  Jiggle Info** (`vr_brain_jiggle_info`).
+
+Tests: `vr_smallgibs_test 21` on vrfiringrange, `vr_brain_jiggle_info` through the flight: 16 chunks followed, 43 then
+72 kicks while they fly into each other and land (the most squash 0.10, 0.15), none wobbling once they lie still and
+no kicks at rest; with jiggle 0 none followed. Close-ups on vrfiringrange (bright) and e1m1's start (dim), before and
+after: the folds read as folds at a metre, the sheen shows on the gyri in the dim, the grooves dark red.
+
+- **For VR:** pop a few heads (Debug > Gore Tests > Brain Chunks Ahead is quickest) and look at the chunks close, in
+  light and shade: folds, wet highlights, a reddish rim; pick one up and shake it, drop it: it wobbles. Gloss and Jiggle
+  sliders under Gore > Small Gibs if either is too much.

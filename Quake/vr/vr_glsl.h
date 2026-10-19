@@ -2854,8 +2854,12 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 l = normalize(in_bumplight.xyz);\n" \
 "	float ndh = max(dot(n, normalize(l + v)), 0.0);\n" \
 "	float s = pow(ndh, 48.0);\n" \
-"	float f = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);\n" \
-"	return min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (s * 0.35 + pow(ndh, 12.0) * 0.08 + f * 0.12));\n" \
+"	float nv = 1.0 - clamp(dot(n, v), 0.0, 1.0);\n" \
+"	float f = pow(nv, 4.0);\n" \
+"	vec3 sheen = min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (s * 0.35 + pow(ndh, 12.0) * 0.08 + f * 0.12));\n" \
+"	if (instances[in_instance].GloveShell.w > 1.5) // a brain chunk (VR_AliasWetCoat): its rim warm and red, the light come through the soft tissue\n" \
+"		sheen += min(in_color.rgb, vec3(1.0)) * vec3(0.13, 0.03, 0.026) * (nv * nv * min(w.wet, 1.0));\n" \
+"	return sheen;\n" \
 "}\n" \
 "\n" \
 "// QVR: the normal n tilted by a relief's slope along the skin (WoundsAt's slope: units a uv unit), from the derivatives\n" \
@@ -3111,8 +3115,8 @@ QVR_DENT_FUNCTIONS \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
-"	if (wounds.wet > 0.0) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker, evenly\n" \
-"	{ // (not a fullbright texel's: unlit)\n" \
+"	if (wounds.wet > 0.0 && instances[in_instance].GloveShell.w < 1.5) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker,\n" \
+"	{ // evenly (not a fullbright texel's: unlit); w 2 (a brain chunk's own wetness: VR_AliasWetCoat) only shines\n" \
 "		float wetDark = 0.3 * min(wounds.wet, 2.0);\n" \
 "#if !ALPHATEST\n" \
 "		wetDark *= result.a;\n" \

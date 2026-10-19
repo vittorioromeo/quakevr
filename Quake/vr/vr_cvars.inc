@@ -2169,6 +2169,9 @@ QVR_CVAR(vr_smallgibs_brains_size, "0.8", CVAR_ARCHIVE)    // their size: times 
 QVR_CVAR(vr_smallgibs_brains_mass, "0.15", CVAR_ARCHIVE)   // kg each (lighter than a small gib of meat)
 QVR_CVAR(vr_smallgibs_brains_speed, "1.8", CVAR_ARCHIVE)     // m/s brain chunks fly out of a head burst (their own Speed: vr_smallgibs_speed is the meat gibs'; times vr_smallgibs_speed_burst)
 QVR_CVAR(vr_smallgibs_brains_up, "8.2", CVAR_ARCHIVE)        // m/s up (their own Up; times vr_smallgibs_up_burst)
+QVR_CVAR(vr_smallgibs_brains_gloss, "1", CVAR_ARCHIVE)    // their wet sheen (0 none .. 2), always on: a gloss without the wet coat's darkening, a warm rim (vr_wounds.cpp VR_AliasWetCoat)
+QVR_CVAR(vr_smallgibs_brains_jiggle, "1", CVAR_ARCHIVE)     // they wobble when knocked (a landing, a bounce, a jerk): drawn squashed along the knock and bulged across, a damped spring (vr_brainjiggle.cpp); the kick times this, 0 off
+QVR_CVAR(vr_smallgibs_brains_jiggle_speed, "0.8", CVAR_ARCHIVE) // m/s: a change of their speed faster than this between two frames kicks it (less: wobblier)
 // Per enemy (VR_SmallGib_Mult, vr_smallgibs.qc; the same monsters as vr_corpse_health_<monster>): a monster's small
 // gibs and brain chunks, times these. 1 as now, 0 none, 2 twice as many (a hit's, a gibbing's, and a head's bursts).
 QVR_CVAR(vr_smallgibs_mult_grunt, "1", CVAR_ARCHIVE)       // a grunt's

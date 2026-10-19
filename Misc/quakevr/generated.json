@@ -65,51 +65,51 @@
   "part": "mdl skins after 0"
  },
  "quakevr/progs/gib_brain1.mdl": {
-  "sha256": "4d47ee40270b03fbec95d840d4018962c025b815c9a5e95779dd543c0186ca19",
+  "sha256": "6588cbcf5039abe535e3f667e6e51d92f855cf11b78ed554200c842747f5a56f",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain1.mdl_0.png": {
-  "sha256": "8ffc1eabd810cd6cd4fc3b0c6c745c48d409ea263f1adfd20952cd73d0158c15",
+  "sha256": "a4422b8ea734996ee78ba0c83d72ca80c8a384b8dd6d5d62ebc41fe5656eb6e3",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain1.mdl_0_norm.png": {
-  "sha256": "e7cee9c71285ab3e40ef43d6eb21ffd88401b569a1d1c8c7009a8242769f7670",
+  "sha256": "ebed195d3437da53d10d91b87b0537534f01f7b4bdae9b2472c5f16ba939451c",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain1.mdl_1.png": {
-  "sha256": "edb0005d4ca67469ef61b42dec6bb7b0e2e2b2a3d81b57df037656eb8f1aacf6",
+  "sha256": "ff9e9abc480c6cda661c52ee98efb4c3157c20ad952344eac2062662072169da",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl": {
-  "sha256": "058b7d8aa2e5db157388766b5782f6ef39e5091e7f9b7cffa2a6c42e120efce5",
+  "sha256": "9bc70b48f4961c79848c3edceb30e5c7eba42b30c130ad1a051de016a1768995",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl_0.png": {
-  "sha256": "1ee30dbd1f203b8c2880224b56e992ec0a2318e54af7d53dd31b98c7ca3e81a1",
+  "sha256": "783848cb8692c872b0448cbd00e1eeb00006329487a9bb10c8b95e7766281b9d",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl_0_norm.png": {
-  "sha256": "6bc42d0ed42483a870a093c335d8930b9153b86e4784c5c98dcc5d673766a83f",
+  "sha256": "dd61cdf2e13399dd15c88a0da6e4766cdce04dafe7553aa52ff12d7fe93e4ee9",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain2.mdl_1.png": {
-  "sha256": "a811c2c7de20f3d92f4ca9c9493c307183f2c4bf289d59717b4ac7b402c1b258",
+  "sha256": "6bd45339c77c2cf4d41ca60a3ce428172b6d64c5e32cd944bba088b72b5694c0",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl": {
-  "sha256": "434daea5a487fa5bcfc9830135aec797cda57a96650921dfe3d00f3a3bea1afd",
+  "sha256": "c31ac555e91a6dfb1b85cef5db2308a27bc35c7ccabfa19eb921888f1648aee4",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl_0.png": {
-  "sha256": "d2292138f5aa12a7aa01b458d43c869c6445003b103a088ec88b708f7b8fe5a5",
+  "sha256": "7960847724a822147f0f30498060a59457a1ae9b013679df86632a2ee33a8a7f",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl_0_norm.png": {
-  "sha256": "5acdd2bc7a9b803a25ec9e4790b02812b18ffd977fd8ec514b0dc5e34fd9cfd7",
+  "sha256": "b03baa24a967dcdb747068bb89d5c00c593df22a1fe82a037d72ec0d91409185",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain3.mdl_1.png": {
-  "sha256": "7df907c74fd70ea848ef53b0912ec6f060d6440bc245d76cdd4c7682d857f845",
+  "sha256": "3aa9044c56e58758d89f9782eee167d0efbf2a1a54f84030ae2354a52d5c27a4",
   "by": "make_brains.py"
  },
  "quakevr/progs/grenade.mdl": {
