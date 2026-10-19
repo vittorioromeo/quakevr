@@ -198,6 +198,12 @@ struct WeaponFrame
 // from the pouch's rim up to the rounds' tops, across its width (pouch reloading: QC vr_reload.qc VR_Reload_PouchFrame).
 // False: no pouch (not immersive reloading, dead).
 [[nodiscard]] bool ammoPouchRounds(glm::vec3 (&box)[4]);
+// The magazines the ammo pouch shows (a nailgun's, the super nailgun's, cells: STAT_QVR_POUCHKIND 2..4), the first on its
+// right: how many, and each one's top middle (world) and their up. ammoPouchMags: as drawn, from the pouch's mesh in this
+// frame (its vertices through its own transform); ammoPouchMagSlots: through the rounds' box (ammoPouchRounds) as QC
+// vr_reload.qc VR_Reload_PouchMagTop finds them (pouch reloading's magazine guns; vr_reload_pouch_mag_*). 0: none shown.
+[[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[3], glm::vec3& up);
+[[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[3], glm::vec3& up);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).

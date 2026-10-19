@@ -2275,7 +2275,10 @@ void(float xHand) VR_Reload_LooseFrame =
 //   degrees, within vr_reload_pouch_contact cm: a shell per touch (the port taken away and brought back for the next);
 // - the nailgun, the super nailgun, the thunderbolt: with their well empty (the magazine dropped or pulled out), the well
 //   along the magazines standing in the pouch (their feed end up it) within that angle and that contact: a fresh
-//   magazine (min(its size, the reserve)) seated; one in already, nothing (until the gun has left the pouch).
+//   magazine (min(its size, the reserve)) seated; one in already, nothing (until the gun has left the pouch). With
+//   vr_reload_pouch_mag_slots (the default; the author's note 2026-10-19: the receiver had to go left or right of the
+//   magazine drawn), the well's load point against each magazine drawn (VR_Reload_PouchMagDist: its top, within
+//   vr_reload_pouch_mag_contact cm across it and along it, the well within vr_reload_pouch_mag_angle degrees of it).
 // Not the launchers (their rounds stand nose up in the pouch and go in butt first: no way to meet them muzzle first).
 // A touch counts once: the next only after the load point has left the rounds by vr_reload_pouch_clearance cm more than
 // the contact (.vr_pouch_touch). The gun's hand at a holster (holstering it at the hip beside the pouch): the holster
@@ -2339,6 +2342,91 @@ float(float xWeapon) VR_Reload_PouchContact =
         cvarh_vr_reload_pouch_contact)) * VRMetersToUnits() / 100;
 };
 
+// The magazines standing in the pouch for the gun `xWeapon` (a nailgun's, the super nailgun's, the thunderbolt's), as the
+// clients draw them (make_ammo_pouch.py MAGS and MAG_TOP; vr_view.cpp ammoPouchFrame, view::ammoPouchMags): as many as
+// `xHave` rounds of its ammo show (a nailgun's one a 24 up to 3; the super nailgun's one a 36 up to 2; the thunderbolt's
+// one a 36 up to 3), the first on the pouch's right. (The pouch shows the gun's own once its load point nears it:
+// VR_Reload_PlayerFrame, VR_Reload_PouchNearHand.)
+float(float xWeapon, float xHave) VR_Reload_PouchMagCount =
+{
+    if(xHave <= 0)
+    {
+        return 0;
+    }
+    if(xWeapon == WID_NAILGUN)
+    {
+        return min(3, floor((xHave + 23) / 24));
+    }
+    if(xWeapon == WID_SUPER_NAILGUN)
+    {
+        return min(2, floor((xHave + 35) / 36));
+    }
+    return xWeapon == WID_LIGHTNING ? min(3, floor((xHave + 35) / 36)) : 0;
+};
+
+// The top middle of magazine `xSlot` of those (the pouch's model units: 1.35 out of the body, y across its width, 2.9 up),
+// through the rounds' box of `p` (.ammopouch*: the model's 1.35 0 2.2, half-axes 1.25, 3.2 and 0.7; vr_view.cpp
+// ammoPouchRounds): the pouch's own transform as drawn, its scale and turn.
+vector(entity p, float xWeapon, float xSlot) VR_Reload_PouchMagTop =
+{
+    float y = xWeapon == WID_SUPER_NAILGUN ? (xSlot ? 1.75 : -1.75) : (xSlot - 1) * (xWeapon == WID_LIGHTNING ? 2.6 : 2.45);
+    return p.ammopouchpos + p.ammopouchz + p.ammopouchy * (y / 3.2);
+};
+
+float vr_pouch_mag_slot;   // (VR_Reload_PouchMagDist: the nearest magazine's slot, -1 none; the load point's distance
+float vr_pouch_mag_across; // across it from the line up its middle and its height over its top, units)
+float vr_pouch_mag_up;
+
+// How far the point `xPoint` is from the nearest magazine standing in the pouch of `p` for the gun in its `xHand`
+// (vr_reload_pouch_mag_slots): the larger of its distance across that magazine and above or below its top; -1: none
+// (not a magazine gun, none drawn, the per-magazine check off).
+float(entity p, float xHand, vector xPoint) VR_Reload_PouchMagDist =
+{
+    vr_pouch_mag_slot = -1;
+    float w = VRGetEntWeapon(p, xHand);
+    float aid = VR_Reload_AmmoFor(p, xHand);
+    if(!cvar_hget(cvarh_vr_reload_pouch_mag_slots) || !VR_Reload_UsesMag(w) || aid < 0 || p.ammopouchz == '0 0 0')
+    {
+        return -1;
+    }
+    float n = VR_Reload_PouchMagCount(w, VR_AmmoUtil_GetAmmoCountByAmmoId(p, aid));
+    vector up = normalize(p.ammopouchz);
+    float best = -1;
+    for(float j = 0; j < n; j++)
+    {
+        vector d = xPoint - VR_Reload_PouchMagTop(p, w, j);
+        float h = d * up;
+        float across = vlen(d - up * h);
+        float m = max(across, fabs(h));
+        if(best < 0 || m < best)
+        {
+            best = m;
+            vr_pouch_mag_slot = j;
+            vr_pouch_mag_across = across;
+            vr_pouch_mag_up = h;
+        }
+    }
+    return best;
+};
+
+float vr_pouch_contact; // (VR_Reload_PouchReach: the contact it measured against, units)
+
+// How far the load point of the gun in `xHand` of self is from the pouch's rounds it takes: a magazine gun's from the
+// nearest magazine drawn (VR_Reload_PouchMagDist, vr_reload_pouch_mag_contact); else, or none drawn, from the rounds' row
+// (VR_Reload_PouchDist, VR_Reload_PouchContact). `vr_pouch_contact` the contact it must come within.
+float(float xHand) VR_Reload_PouchReach =
+{
+    vector at = xHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
+    float d = VR_Reload_PouchMagDist(self, xHand, at);
+    if(d >= 0)
+    {
+        vr_pouch_contact = max(0, cvar_hget(cvarh_vr_reload_pouch_mag_contact)) * VRMetersToUnits() / 100;
+        return d;
+    }
+    vr_pouch_contact = VR_Reload_PouchContact(VRGetEntWeapon(self, xHand));
+    return VR_Reload_PouchDist(self, at);
+};
+
 // The hand of self whose gun's load point is at the pouch's rounds (within its contact and the clearance), a gun that
 // reloads there; -1 none. (VR_Reload_PlayerFrame: the pouch shows that gun's rounds.)
 float() VR_Reload_PouchNearHand =
@@ -2355,8 +2443,8 @@ float() VR_Reload_PouchNearHand =
         float w = VRGetEntWeapon(self, h);
         if(VR_Reload_AmmoFor(self, h) >= 0 && VR_Reload_PouchOn(w))
         {
-            float d = VR_Reload_PouchDist(self, h == cVR_MainHand ? self.loadportpos : self.offloadportpos);
-            if(d <= VR_Reload_PouchContact(w) + clear && d < bestD)
+            float d = VR_Reload_PouchReach(h);
+            if(d <= vr_pouch_contact + clear && d < bestD)
             {
                 best = h;
                 bestD = d;
@@ -2392,9 +2480,10 @@ void(float xHand) VR_Reload_PouchFrame =
         self.vr_pouch_touch = self.vr_pouch_touch - (self.vr_pouch_touch & bit);
         return;
     }
-    float contact = VR_Reload_PouchContact(w);
-    float d = VR_Reload_PouchDist(self, xHand == cVR_MainHand ? self.loadportpos : self.offloadportpos);
-    if(d > contact + max(0, cvar_hget(cvarh_vr_reload_pouch_clearance)) * VRMetersToUnits() / 100)
+    float d = VR_Reload_PouchReach(xHand);
+    float contact = vr_pouch_contact;
+    float slot = vr_pouch_mag_slot; // (a magazine drawn in the pouch it is measured against; -1 the rounds' row)
+    if(d > contact +max(0, cvar_hget(cvarh_vr_reload_pouch_clearance)) * VRMetersToUnits() / 100)
     {
         self.vr_pouch_touch = self.vr_pouch_touch - (self.vr_pouch_touch & bit); // (well away: the next touch counts)
     }
@@ -2432,8 +2521,16 @@ void(float xHand) VR_Reload_PouchFrame =
     {
         return; // (shut, or full: nothing)
     }
-    float most = cvar_hget(ssg ? cvarh_vr_reload_pouch_sshot_angle : cvarh_vr_reload_pouch_angle);
+    float most = cvar_hget(ssg ? cvarh_vr_reload_pouch_sshot_angle :
+        (slot >= 0 ? cvarh_vr_reload_pouch_mag_angle : cvarh_vr_reload_pouch_angle));
     float c = VR_Reload_PouchCos(xHand, w);
+    float cm = 100 / VRMetersToUnits();
+    if(debug >= 2 && slot >= 0)
+    {
+        dprint(sprintf("reload: hand %g's well at the pouch's magazine %g: %.1f cm across it, %.1f cm over its top "
+            "(within %.1f), cosine %.2f along it\n", xHand, slot, vr_pouch_mag_across * cm, vr_pouch_mag_up * cm,
+            contact * cm, c));
+    }
     if(most < 180 && c < cos(max(0, most) * 0.0174533))
     {
         if(debug >= 2)
@@ -2452,7 +2549,16 @@ void(float xHand) VR_Reload_PouchFrame =
         VR_Reload_Log(sprintf("hand %g's gun at the pouch: the pouch is empty", xHand));
         return;
     }
-    vector top = self.ammopouchpos + self.ammopouchz; // (where its rounds' tops are)
+    vector top = self.ammopouchpos + self.ammopouchz; // (where its rounds' tops are; the magazine's own, one met)
+    if(slot >= 0)
+    {
+        top = VR_Reload_PouchMagTop(self, w, slot);
+        if(debug)
+        {
+            VR_Reload_Log(sprintf("hand %g's well met the pouch's magazine %g (%.1f cm across it, %.1f cm over its top)",
+                xHand, slot, vr_pouch_mag_across * cm, vr_pouch_mag_up * cm));
+        }
+    }
     if(mag)
     {
         // A fresh magazine, seated as one let go of into the well (VR_Reload_SeatMagInto: its sound, its buzz).

@@ -1226,6 +1226,68 @@ bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove)
     worldMove = c - channel;
     return true;
 }
+
+// vr_reload_pouch_mags (Debug > Tests; pouch reloading's magazine guns, vr_reload_pouch_mag_*): each magazine the ammo
+// pouch shows, its top as drawn (its mesh) against where the reload finds it (ammoPouchMagSlots: QC's way) and against the
+// rounds' row's top middle (the old target, vr_reload_pouch_mag_slots 0), in cm out of the body, to the left and up; and
+// each hand's gun's load point against the nearest one drawn (across it, over its top, the well's cosine along it).
+void pouchMags_f()
+{
+    glm::vec3 drawn[3], found[3], box[4], up, foundUp;
+    if(!ammoPouchRounds(box))
+    {
+        Con_Printf("pouchmags: no ammo pouch\n");
+        return;
+    }
+    const int n = ammoPouchMags(drawn, up);
+    const int m = ammoPouchMagSlots(found, foundUp);
+    const float cm = 100.f / units::metresToUnits();
+    glm::vec3 ax[3];
+    for(int i = 0; i < 3; i++)
+    {
+        ax[i] = glm::length(box[i + 1]) > 1e-6f ? glm::normalize(box[i + 1]) : glm::vec3{0.f};
+    }
+    const auto parts = [&](const glm::vec3& d) {
+        return glm::vec3{glm::dot(d, ax[0]), glm::dot(d, ax[1]), glm::dot(d, ax[2])} * cm;
+    };
+    Con_Printf("pouchmags: kind %d, %d left, frame %d: %d drawn, %d found\n", cl.stats[protocol::STAT_QVR_POUCHKIND],
+        cl.stats[protocol::STAT_QVR_POUCHCOUNT], entities.ammoPouch.ent.frame, n, m);
+    const glm::vec3 old = box[0] + box[3];
+    for(int j = 0; j < n; j++)
+    {
+        const glm::vec3 a = j < m ? parts(found[j] - drawn[j]) : glm::vec3{0.f};
+        const glm::vec3 b = parts(old - drawn[j]);
+        Con_Printf("pouchmags: magazine %d at %.2f %.2f %.2f: found off it %.2f %.2f %.2f cm (%.2f); the row's top middle "
+                   "%.2f %.2f %.2f cm (%.2f)\n",
+            j, drawn[j].x, drawn[j].y, drawn[j].z, a.x, a.y, a.z, glm::length(a), b.x, b.y, b.z, glm::length(b));
+    }
+    const hands::State& s = hands::current();
+    for(int h = 0; h < 2; h++)
+    {
+        if(!s.loadPortValid[h] || n == 0)
+        {
+            continue;
+        }
+        int best = 0;
+        float bestD = 1e9f, across = 0.f, over = 0.f;
+        for(int j = 0; j < n; j++)
+        {
+            const glm::vec3 d = s.loadPort[h] - drawn[j];
+            const float hgt = glm::dot(d, up);
+            const float acr = glm::length(d - up * hgt);
+            if(za::max(acr, za::fabs(hgt)) < bestD)
+            {
+                bestD = za::max(acr, za::fabs(hgt));
+                best = j;
+                across = acr;
+                over = hgt;
+            }
+        }
+        Con_Printf("pouchmags: hand %d's load point at magazine %d: %.2f cm across it, %.2f cm over its top, cosine %.2f "
+                   "along it\n",
+            h, best, across * cm, over * cm, glm::dot(s.loadPortAxis[h], up));
+    }
+}
 } // namespace qvr::view
 
 void qvr::view::registerDiagCommands()
@@ -1241,4 +1303,5 @@ void qvr::view::registerDiagCommands()
     Cmd_AddCommand("vr_weapon_hotspot_here", hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", hotspotFit_f);
     Cmd_AddCommand("vr_admelee_spine", adMeleeSpine_f);
+    Cmd_AddCommand("vr_reload_pouch_mags", pouchMags_f);
 }

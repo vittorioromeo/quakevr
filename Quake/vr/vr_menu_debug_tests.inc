@@ -824,7 +824,11 @@ za::Vector<Item> pageDebugTests()
                   "port, a held magazine's pull, snap and apart, a hit's speed. And Magazine Grips: each empty hand's "
                   "distance off the other gun's magazine (its box) and the grip it would take."),
         toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Each held gun's load point and radius, a held magazine's top, an attached magazine's box (blue)."),
+            .help("Each held gun's load point and radius, a held magazine's top, an attached magazine's box (blue); the "
+                  "pouch's magazines as drawn (white), where pouch reloading finds them (cyan) and their reach (green)."),
+        command("Pouch Magazines Report", "vr_reload_pouch_mags; toggleconsole")
+            .help("vr_reload_pouch_mags: each magazine drawn in the ammo pouch, where pouch reloading finds it and the "
+                  "old row's middle (cm off it), and each gun's load point against the nearest one."),
         toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
         header("Tutorial (vrtutorial)"),
         command("The Tutorial", "skill 0; map vrtutorial")
