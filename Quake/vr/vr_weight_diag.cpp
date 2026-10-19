@@ -689,9 +689,11 @@ void heavyWiggle_f()
         const char* name;
         int kind; // 0 wiggle, 1 flick, 2 blow
         float amp, hz;
+        int about = 2; // the hand's axis: 0 its roll (the forearm's twist), 1 pitch, 2 yaw
     };
     constexpr Motion motions[] = {{"w30@3", 0, 30.f, 3.f}, {"w30@5", 0, 30.f, 5.f}, {"w60@2", 0, 60.f, 2.f},
-        {"w45@4", 0, 45.f, 4.f}, {"flick", 1, 30.f, 0.f}, {"blow", 2, 0.f, 0.f}, {"flick90", 1, 90.f, 0.f}};
+        {"w45@4", 0, 45.f, 4.f}, {"flick", 1, 30.f, 0.f}, {"blow", 2, 0.f, 0.f, 1}, {"flick90", 1, 90.f, 0.f},
+        {"roll45@3", 0, 45.f, 3.f, 0}, {"pitch45@3", 0, 45.f, 3.f, 1}, {"rflick", 1, 45.f, 0.f, 0}};
     struct Result
     {
         float gain, spd, off, late;
@@ -700,7 +702,8 @@ void heavyWiggle_f()
     const auto run = [&](const Load& l, float droopDeg, const Motion& mo, bool trace) {
         const glm::vec3 x0{0.55f, -0.25f, 1.25f};
         const glm::quat droopQ = glm::angleAxis(glm::radians(droopDeg), glm::vec3{0.f, 1.f, 0.f});
-        const glm::vec3 axis = mo.kind == 2 ? glm::vec3{0.f, 1.f, 0.f} : glm::vec3{0.f, 0.f, 1.f};
+        glm::vec3 axis{0.f};
+        axis[mo.about] = 1.f;
         const float moving = mo.kind == 0 ? 1.5f : mo.kind == 1 ? 0.12f : 0.1f;
         const auto angleAt = [&](float t) {
             if(mo.kind == 0)

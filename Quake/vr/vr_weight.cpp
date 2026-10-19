@@ -452,9 +452,9 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
     const float ang = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(q))));
     fprintf(file,
         "%.4f %s %s mass %.2f mult %.3f 2h %.2f target %.4f %.4f %.4f drawn %.4f %.4f %.4f off_cm %.2f ang_deg %.2f dpitch %.2f dyaw %.2f "
-        "droll %.2f speed %.3f model %s\n",
+        "droll %.2f speed %.3f model %s tpitch %.2f tyaw %.2f troll %.2f\n",
         vr_gametime, h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, l.twoHanded, xt.x, xt.y, xt.z, x.x, x.y, x.z, off, ang,
-        wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring");
+        wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring", ta.x, ta.y, ta.z);
     if(vr_debug_weight.value >= 2)
     {
         // (off its target with the droop; and off the controller itself: the droop taken out of the target)
