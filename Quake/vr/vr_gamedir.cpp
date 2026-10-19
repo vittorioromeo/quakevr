@@ -935,6 +935,8 @@ extern "C" const char* VR_CampaignHelp(int index)
 }
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
+extern "C" int VR_CampaignInstalled(int index)
+{ return index >= 0 && index < int(countof(campaigns)) && campaigns[index].status == 1; }
 extern "C" int VR_CampaignUnavailable(int index)
 { return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
     (soloOnly(index) && campaignMultiplayerRequested()); }
