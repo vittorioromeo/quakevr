@@ -1359,7 +1359,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
         slider("Parry Stagger", vr_parry_stagger, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.1f, 3.f)
-            .help("How long the monster pauses after a successful parry before it can move and attack again."),
+            .help("With Parry Balance off: how long the monster pauses after a successful parry before it can move and "
+                  "attack again."),
         toggle("Parry Stagger as Ragdoll", vr_parry_ragdoll).extend()
             .help("A parried humanoid (its monster group's Ragdoll Triggers on: Combat > Monster Groups) staggers back as an active ragdoll, as a shove's stagger, for Parry Stagger; on level ground it never falls, with stairs, a ledge or a slope behind it it may go down. Off: its pain animation's stagger (Stagger Frames, Stagger Sway)."),
         slider("Stagger Frames", vr_parry_stagger_frames, 1.f, 4.f, 1.f, "%.0f")
@@ -1386,6 +1387,46 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Every blow of the attack whose blow you last parried is a cooldown blow, however long between them "
                   "(a fiend's two claws, the Overlord's double smash, a shambler's chained swings): one parry and one "
                   "stamina cost per attack. Off: only the Parry Cooldown's time."),
+        header("Parry Balance"),
+        toggle("Parry Balance", vr_parry_balance)
+            .help("A parry's strength (its tool, times its grip, times its timing) over the monster's Parry Poise (Monster "
+                  "Groups) decides what it does: under Blocked Below the blow is only blocked (its damage cut, its attack "
+                  "goes on), under 1 it flinches, up to 2 it staggers back as a ragdoll, more a longer stagger that may "
+                  "take it down stairs or a slope. Off: every parry staggers it for Parry Stagger."),
+        slider("Bare Hands", vr_parry_tool_hand, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("A parry's strength with crossed arms (the grip's two hands times this)."),
+        slider("Weapon", vr_parry_tool_weapon, 0.f, 2.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("A parry's strength with any weapon (a light one)."),
+        slider("Heavy Weapon", vr_parry_tool_heavy, 0.f, 3.f, 0.05f, "%.2f").extend(0.f, 5.f)
+            .help("A parry's strength with the heaviest weapon (Heft 1, Weapon Weights); lighter ones by their Heft."),
+        slider("Two Hands", vr_parry_grip_2h, 1.f, 3.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A parry with a weapon held in two hands, or the arms crossed, times this (one hand: 1)."),
+        slider("Well Timed", vr_parry_timed, 1.f, 3.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A well-timed parry times this: the guard raised just before the blow (Timing Window), not held up all "
+                  "along."),
+        slider("Timing Window", vr_parry_timed_window, 0.05f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("A parry is well timed when its guard (the parry pose, facing ahead) came up at most this long before "
+                  "the blow."),
+        slider("Blocked Below", vr_parry_block_below, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 3.f)
+            .help("Strength over poise under this: the blow is only blocked (no stagger: its attack goes on)."),
+        slider("Flinch", vr_parry_flinch, 0.1f, 1.f, 0.05f, "%.2f s").extend(0.1f, 3.f)
+            .help("Strength over poise from Blocked Below to 1: it flinches this long (its pain pose, no ragdoll)."),
+        slider("Stagger at 1", vr_parry_stagger_min, 0.1f, 2.f, 0.05f, "%.2f s").extend(0.1f, 3.f)
+            .help("Strength over poise 1: it staggers back as a ragdoll this long (to Stagger at 2 at 2)."),
+        slider("Stagger at 2", vr_parry_stagger_max, 0.1f, 2.f, 0.05f, "%.2f s").extend(0.1f, 3.f)
+            .help("Strength over poise 2: its ragdoll stagger. Up to 2 it never goes down."),
+        slider("Heavy Stagger", vr_parry_stagger_heavy, 0.1f, 3.f, 0.05f, "%.2f s").extend(0.1f, 3.f)
+            .help("Strength over poise 3 and over: its stagger (from Stagger at 2 over 2); over 2 it may go down stairs, "
+                  "a ledge or a slope behind it."),
+        slider("Repeat Stagger", vr_parry_repeat, 0.05f, 1.f, 0.05f, "%.2fx")
+            .help("Each stagger of the same monster within Repeat Window of its last lasts this much of what it would "
+                  "(again for each in a row); a heavy group (poise over 1) to the power of its poise: it recovers faster."),
+        slider("Repeat Window", vr_parry_repeat_window, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("How soon after its last stagger a monster's next one is shorter (0: never)."),
+        slider("Poise Against Melee", vr_poise_chances, 0.f, 2.f, 0.1f, "%.1f").extend(0.f, 5.f)
+            .help("A heavy group (Parry Poise over 1; Off as 3): your shoves', blows' and flung props' chances to knock "
+                  "it down or unbalance it divided by its poise to this power, so weapons and explosives stay the "
+                  "answer to ogres and the like (0: not)."),
         header("Bash and Shove"),
         toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
         slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend().help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),

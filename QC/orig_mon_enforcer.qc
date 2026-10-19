@@ -63,6 +63,11 @@ void() Laser_Touch =
     // it struck, a kill at the head or a limb popped by chance (vr_decap_pop_laser; vr_limbs.qc), ended by VR_Proj_End.
     float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
     VR_Proj_Begin(QVR_PROJ_LASER, dmg);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot: a laser met %s (health %g) at %v\n", other == world ? "the world" : other.classname,
+            other.health, self.origin));
+    }
 
     if(other.health)
     {

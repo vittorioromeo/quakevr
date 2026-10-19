@@ -323,11 +323,14 @@ const DefaultChange defaultChanges[] = {
     {165, &vr_wounds_wet_time, "28"},           // 15
     {165, &vr_reload_port_widow_radius, "1.25"}, // 1.4
     {165, &vr_ad_widowmaker_motor, "0.6"},      // 0.4
-    // 166: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
-    {166, &vr_decal_carve_steps, "16"},
-    {166, &vr_ad_widowmaker_spinup, "0.2"},
+    // 166: his Ghost Hands fade (the ghost shows once the drawn hand is 6 cm off, over 7 more).
+    {166, &vr_ghost_hands_fade_from, "6"},  // 2
+    {166, &vr_ghost_hands_fade_range, "7"}, // 4
+    // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
+    {167, &vr_decal_carve_steps, "16"},
+    {167, &vr_ad_widowmaker_spinup, "0.2"},
 };
-constexpr int configVersion = 166;
+constexpr int configVersion = 167;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

@@ -586,6 +586,43 @@ float(entity e) VR_Knockdown_Start =
     return TRUE;
 };
 
+// A zombie's own fall (BACKLOG "Zombies stuck knocked down"; ROUND22.md, "Zombies fall as ragdolls"): Quake's,
+// Rogue's, Hipnotic's and Dawn of the Machine's zombies (zombie_pain), AD's zombies, mummies and zombie knight
+// (VR_AD_ZombiePain). The stock fall lay there not solid, out of reach of shots, and got up only where it fit (it could
+// stay down for good, untouchable). Instead `e`, put down by xBy's hit, falls away from xBy as a knockdown's ragdoll
+// (room made from the dead only): grabbed, dragged, hit, beheaded or gibbed down there (its own rules: only a hit of 60
+// gibs it), up through its get-up after the knockdown's time. FALSE: no ragdoll (ragdolls off, no room): the stock fall.
+float VR_KD_ZOMBIE_PUSH = 0.6;  // the topple's push (a two-hand shove's 1)
+float VR_KD_ZOMBIE_REACH = 16;  // and its carry, units
+float(entity e, entity xBy) VR_Knockdown_ZombieFall =
+{
+    if(e.health <= 0 || e.vr_knockdown || e.vr_corpse || !e.vr_kd_chance_h || !canragdoll(e))
+    {
+        return FALSE;
+    }
+    vr_kd_room_dead_only = TRUE;
+    float room = VR_Knockdown_MakeRoom(e);
+    vr_kd_room_dead_only = FALSE;
+    if(!room || !VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    vector way = e.origin - xBy.origin;
+    way_z = 0;
+    if(xBy == world || xBy == e || vlen(way) < 1)
+    {
+        makevectors(e.angles);
+        way = '0 0 0' - v_forward;
+    }
+    ragdollshovetopple(e, normalize(way), VR_KD_ZOMBIE_PUSH, FALSE, VR_KD_ZOMBIE_REACH);
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s falls as a ragdoll (its own fall): down %.1f s\n", e.classname,
+            e.vr_kd_until - time));
+    }
+    return TRUE;
+};
+
 // `e`, standing with its head under water, out of breath (vr_liquids.qc's first drowning tick): by
 // vr_ragdoll_active_drown's chance it struggles as a ragdoll (knocked down: the engine's living swim paddles, its strokes
 // frantic at first, its head up, towards where it can stand; it gets up there as any knockdown in water). TRUE if it
@@ -749,7 +786,8 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         return FALSE;
     }
     VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
-    float base = monstergroupget(e, MGP_SHOVE); // (its monster group's: vr_knockdown_chance_<group>)
+    // (Its monster group's: vr_knockdown_chance_<group>; a heavy group's times its poise factor, combat.qc VR_Poise_Factor.)
+    float base = monstergroupget(e, MGP_SHOVE) * VR_Poise_Factor(e);
     float chance = base * max(0, cvar_hget(cvarh_vr_knockdown_chance));
     float full = e.max_health > 0 ? e.max_health : e.health;
     float lost = full > 0 ? min(1, max(0, 1 - e.health / full)) : 0;

@@ -35,7 +35,12 @@ SCRATCH = os.path.join(TREE, "scratch")
 # server's ticks and the machine's load: which frame met the legs, if any, changed from run to run); with
 # sv_random_seed the grunt's AI plays the same too. LS_REALTIME=1: the old wall-clock runs, for comparison.
 REALTIME = os.environ.get("LS_REALTIME", "") == "1"
+# LS_RATE=<Hz>: the headset's frames at that rate (vr_fixed_frames_rate; the server's ticks stay 72 Hz); LS_STUTTER=<n>:
+# every n-th frame dropped (vr_fixed_frames_stutter). The sweep's frame-rate independence (ROUND22.md).
+RATE = os.environ.get("LS_RATE", "")
+STUTTER = os.environ.get("LS_STUTTER", "")
 PRE = ("" if REALTIME else "vr_fixed_frames 1;") + \
+    (f"vr_fixed_frames_rate {RATE};" if RATE else "") + (f"vr_fixed_frames_stutter {STUTTER};" if STUTTER else "") + \
     "sv_random_seed 7;vr_weapon_grip_mode 1;map vrfiringrange;wait30;god;notarget;developer 1"
 SPAWN = "vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait5"  # (the grunt last: a grunt left standing wanders)
 GRUNT = (0.0, 0.72, -1.2)  # its origin in tracking space (vr_mock_hand_to main nearest monster_army 0)

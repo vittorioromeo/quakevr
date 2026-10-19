@@ -49,7 +49,8 @@ float(entity e, float xImpact, float xDamage) VR_HitStagger_Chance =
     {
         p = p * pow(VR_HST_HEALTH_REF / full, resist);
     }
-    return p * max(0, cvar_hget(cvarh_vr_hit_stagger_chance)) * max(0, monstergroupget(e, MGP_STAGGER)); // (its monster group's share)
+    // (Its monster group's share; a heavy group's times its poise factor: combat.qc VR_Poise_Factor.)
+    return p * max(0, cvar_hget(cvarh_vr_hit_stagger_chance)) * max(0, monstergroupget(e, MGP_STAGGER)) * VR_Poise_Factor(e);
 };
 
 // Whether a hit may unbalance `e` at all now.
@@ -104,7 +105,8 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
     if(cvar_hget(cvarh_vr_knockdown) && e.vr_kd_chance_h && !(e.flags & (FL_FLY | FL_SWIM)) && canragdoll(e) &&
        ragdollcanstagger(e))
     {
-        float kd = monstergroupget(e, MGP_SHOVE) * max(0, cvar_hget(cvarh_vr_knockdown_chance)) * min(1.5, xImpact);
+        float kd = monstergroupget(e, MGP_SHOVE) * VR_Poise_Factor(e) * max(0, cvar_hget(cvarh_vr_knockdown_chance)) *
+                   min(1.5, xImpact);
         float kdRoll = random();
         float balance = min(1, max(0, 0.5 + (kdRoll - kd) * VR_KD_STAGGER_SLOPE));
         if(VR_Knockdown_Stagger(e, xDir, bashPush, balance))

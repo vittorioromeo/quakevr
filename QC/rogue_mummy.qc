@@ -357,7 +357,7 @@ void() mummy_paine9    =[  $paine9,    mummy_paine10  ] {ai_pain(2);};
 void() mummy_paine10   =[  $paine10,   mummy_paine11  ]
     {
         sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
-        self.solid = SOLID_NOT;
+        zombie_lie(); // QVR: lying in reach of shots (orig_mon_zombie.qc; stock: not solid)
     };
 void() mummy_paine11   =[  $paine11,   mummy_paine12  ]
     { self.nextthink = self.nextthink + 5; };
@@ -370,7 +370,7 @@ void() mummy_paine12   =[  $paine12,   mummy_paine13  ]
         if(!walkmove(0, 0))
         {
             self.think = mummy_paine11;
-            self.solid = SOLID_NOT;
+            zombie_lie(); // QVR: waiting for room, solid (stock: not solid, out of reach for good if it never fit)
             return;
         }
     };

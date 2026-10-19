@@ -14669,3 +14669,162 @@ Tackles). No damage, so not `VR_KdTrig_Hit`'s loop: their own entries share `VR_
   stagger), at a shambler (nothing); swing a held body into one; sprint into grunts with hands together or crossed,
   palms out, or shoving (they fall away from you, you slow down), into an ogre (it staggers, you bounce), and check a
   gun aimed two-handed while running never tackles.
+
+## Melee frame-rate independence (worktree `gorefx`, branch `agent/meleefps`, 2026-10-19)
+
+The server ticks at 72 Hz whatever the headset's rate, and each tick reads the latest frame's pose. At 90 Hz a tick's
+pose is one or two frames newer than the last tick's (11 or 22 ms for the tick's 13.9), at 120 Hz (the author's
+headset, the recorded takes) 8 or 17 ms, at 144 Hz 7, 14 or 21 ms; a dropped frame likewise. Every speed was the pose's
+move over the tick's time, so a steady swing read at 0.8 and 1.6 times its speed by turns (90 Hz), and every gate read
+from one sample (blow speed, land, whoosh, pullback, deflect, bash, wiggle, meleearc's floor) beat with it.
+
+- **Pose clock.** The client sends its poses' time with each move (`VrMove::poseClock`: `hands::State::poseTime`, the
+  tracking's time after slow motion's filter, modulo `VR_POSE_CLOCK_WRAP` 1024 s) -> `.vr_posetime`. `VR_Melee_Track`
+  and the leg sweep (`vr_legsweep.cpp`: its speed gate, the 25 m/s teleport guard, its 0.08 s stroke) measure over the
+  poses' times (the ticks' when unknown or implausible: 0-0.25 s); a tick with the same frame's pose again is no news.
+- **Turning chords** (`VR_Melee_TurnVel`): a far or near point's velocity about the grip is its chord over the span
+  turned on to, and scaled as, a 1/72 s chord (a chord's way is the arc's at its middle: over two frames a blade's tip
+  points further back into the turn, PULLBACK). At 72 Hz frames nothing changes.
+- **Swept arcs** (`VR_Melee_ArcRib`): a point's line bends through the arc's middle (about the grip) when the chord
+  cuts its inside by more than half the line's thickness (`VR_MELEE_ARC_SAG` 0.5; ribs 40 -> 48).
+- `meleearc`'s 45 degrees a pose is 45 degrees a 72 Hz tick, per second over the two poses' times.
+- Weapon wrench (`vr_weight.cpp`): its clock is the poses' time; its ring 64 -> 128 samples (0.5 s at 240 Hz); the
+  tracking-jump guard 90 degrees a 72 Hz frame, per second.
+- Replays: takes play their poses at their recorded `xr_time` (the runtime's, steady; a frame's dt jitters a
+  millisecond). Tooling: `vr_motion_eval_rate/_jitter/_stutter` (defaults for vr_motion_eval: eval.sh `EVAL_PRE`), the
+  eval's `stutter N` (every N-th frame dropped), `vr_fixed_frames_stutter`, legsweep_test `LS_RATE`/`LS_STUTTER`.
+
+Measured (177 takes; flips: verdicts against the same build's takes at their own 120 Hz frames; strength: the first
+hit's, mean |difference|):
+
+| rate | before: fails, flips, strength diff | after: fails, flips, strength diff |
+|---|---|---|
+| native (120 Hz, recorded ticks) | 9, -, - | 8, - (1 vs before: slash_backswing_up_left 12-35-23 now passes), - |
+| 72 | 8, 1, 0.21 | 8, 2, 0.07 |
+| 90 | 13, 4, 0.32 | 8, 0, 0.07 |
+| 120 (engine ticks) | 10, 3, 0.17 | 8, 0, 0.05 |
+| 144 | 8, 3, 0.22 | 8, 2, 0.07 |
+| 90, every 5th frame dropped | 19, 12, 0.30 | 18, 10, 0.20 |
+| 144, every 5th dropped | 20, 13, 0.26 | 19, 11, 0.15 |
+
+At the reference the verdicts hold, but the first hits' strengths are 0.11 lower on average (damage about 19% lower):
+the beat's 1.2-times peaks at 120 Hz are gone (a swing's speed is its own). Open: dropped frames still miss ~10 slashes
+(the blade's far end jumps early, far 30 m/s with the grip at 0.9, touching the dummy before the swing, which then
+can't strike it again until it re-enters; not the speed estimate, not the weight's put-back: to be found). The leg
+sweep suite's verdicts at 72/90/120/144: 3/4/4/2 fails (before 3/3/4/3), mostly the fall's direction (physics) and the
+borderline `toward` case; with dropped frames 11 both before and after (four weapons "no contact").
+
+Follow-up (same branch): the strength keeps the old feel. His takes are 120 Hz (Virtual Desktop; `vr_melee_speed` at its
+default 3.2). The beat had read the first hits 1.15-1.2 times too fast, and his strengths were tuned on that:
+`VR_MELEE_STRENGTH_SPEED` 1.13 scales the speed only for the strength and damage (the land/slow/wiggle gates read the
+true speed; a QC constant, no cvar to migrate). Takes at their own frames: first-hit strength 1.171 (old 1.168), damage
+per take 26.07 (old 25.95); at 120 Hz with the engine's ticks 1.181 / 26.56. Verdicts as before but
+slash_backswing_up_left 12-35-23, now a pass. The dropped-frame misses are not the speed: with every 5th frame dropped
+the replayed hands sit further from the recorded ones (`hand_error_u` median 2.6 units against 1.7 at 90 Hz, 0.9 at
+the takes' own frames; the missed slash 11.7 against 2.7; at most 87): the blade reaches the dummy earlier in the
+swing (slower, drawn back: refused) and is through it before the blow. To be found: what places the body or hands
+differently with an irregular frame (the lean, the body's gait, the replay's placement). The rule that a struck thing is
+struck again only entering it is not involved (it applies only to what a blow landed on).
+## Parry balance (worktree `dequant`, branch `agent/parrybalance`, 2026-10-19)
+
+Vittorio's approved plan: a parry's effect depends on how strong it is against how sturdy the monster is, so bare hands
+no longer stagger an ogre and weapons/explosives stay the answer to heavy monsters.
+
+- **Strength** = tool x grip x timing (QC `combat.qc` VR_Parry_Strength): bare hands `vr_parry_tool_hand` 0.4, any
+  weapon `vr_parry_tool_weapon` 1, a heavy one up to `vr_parry_tool_heavy` 1.3 at Heft 1 (by its weight class,
+  `weaponheft`); two hands (and the crossed arms) `vr_parry_grip_2h` x1.5; well timed `vr_parry_timed` x1.25.
+- **Well timed**: the parry's window runs from raising the guard to the blow; its best part is the start: the guard
+  came up at most `vr_parry_timed_window` 0.3 s before the blow. VR_Parry_GuardFrame (each player frame, from
+  VR_Melee_Frame) notes when each hand's guard and the crossed arms came up, the pose tested as for a blow from straight
+  ahead (the view's yaw): a blow parried from the side is never well timed; a guard held up all along is plain.
+- **Parry Poise** per monster group (`vr_mgrp_<group>_poise`, Monster Groups > Parry Poise; the param after Hold,
+  QC `MGP_POISE` 21): grunts, enforcers 0.3, knights 0.7, death knights 1, ogres 1.6; shamblers, giants, bosses Off (-1:
+  a parry never staggers them). The others by size: zombies 0.5, mummies 0.7, rottweilers 0.4, fiends 1.2, gremlins 0.3,
+  skull wizards 0.6, spiders/crawlers 0.5, scrags/gargoyles 0.4, vores 1.2, spawns 0.6, fish 0.3, wraiths/floaters
+  (the Overlord, the sword) 1.2, machines 1.6, others 1.
+- **Outcome** (VR_Parry_Interrupt), strength/poise: under `vr_parry_block_below` 0.5 blocked (the damage cut as before,
+  no stagger, the attack goes on: its later hits are parried again or land); under 1 a flinch (`vr_parry_flinch` 0.3 s,
+  the pain pose, no ragdoll); 1..2 the active-ragdoll stagger `vr_parry_stagger_min` 0.5 .. `_max` 1.2 s, never down
+  (stairs and slopes are not looked at); over 2 up to `vr_parry_stagger_heavy` 1.5 s at 3, and it may go down stairs, a
+  ledge or a slope as before. `vr_parry_balance 0`: the old fixed `vr_parry_stagger` for every parry (the
+  parryinterrupt test sets it). The ragdoll triggers' own short staggers (VR_Parry_InterruptFor) are untouched.
+- **Diminishing returns**: each stagger of the same monster within `vr_parry_repeat_window` 5 s of its last lasts
+  `vr_parry_repeat` 0.7 times more (0.7, 0.49, ...); a heavy group (poise over 1) to the power of its poise (an ogre's
+  0.56 a step): it recovers faster. Cut under the flinch's time it is a flinch (no ragdoll).
+- **Poise against melee** (`vr_poise_chances` 1, VR_Poise_Factor): a group with poise over 1 (Off as 3) has a shove's
+  knockdown chance, hits' unbalance chance (and its knockdown roll) and the ragdoll triggers' chances on melee hits
+  (blows, headbutts, bashes, shoves, flung props; never the shotgun's or the blast's) divided by its poise (an ogre's
+  x0.63, a fiend's x0.83); grunts .. death knights unchanged.
+- **Menu**: Combat > Parry and Bash, "Parry Balance" section (every cvar above); Monster Groups: each group's Parry
+  Poise row (Off below 0) and the "Parry Poise" page by group. No existing default changed: no config migration.
+- **A QC trap met**: an initialised global (`float x = TRUE;`) is a constant sharing the literal's storage; assigning it
+  FALSE turned every `+ 1` into `+ 0` (frikbot's BotFrame loop ran away). The flag is an uninitialised global now.
+- **Tests**: `vr_kdtrig_test_parry` (tests 9 and 11: 1 bare hands, 2 one hand, 3 two hands, +10 well timed; the pose
+  not looked at); `vr_kdtrig_test 22` clears every monster; vr_kdtrig_test_x/_y/_z all 0 put the test monster 64 units
+  ahead. `python Misc/quakevr/parrybalance/test.py <worktree> [examples|pose|repeat|chances]`:
+
+  | case | strength/poise | outcome |
+  |---|---|---|
+  | bare hands vs grunt shove | 0.6/0.3 = 2.00 | ragdoll stagger 1.20 s |
+  | bare hands vs knight | 0.6/0.7 = 0.86 | flinch 0.30 s |
+  | one-hand weapon vs knight | 1.0/0.7 = 1.43 | ragdoll stagger 0.80 s |
+  | two-hand weapon vs knight | 1.5/0.7 = 2.14 | ragdoll stagger 1.24 s |
+  | one-hand weapon vs death knight | 1.0/1.0 = 1.00 | ragdoll stagger 0.50 s |
+  | bare hands vs ogre | 0.6/1.6 = 0.38 | blocked, 6 of 10 damage taken |
+  | well-timed one-hand weapon vs ogre | 1.25/1.6 = 0.78 | flinch 0.30 s |
+  | well-timed two hands vs shambler | Off | blocked |
+
+  pose (the crowbar's real guard, mock hands, vs a knight): held up 2 s 1.43 plain; raised 3 frames before 1.79 well
+  timed. repeat: knight 1.24, 0.87, 0.61 s (recovered 1.30, 0.90, 0.65); ogre (well-timed two hands) 0.62, 0.35, 0.20 s
+  (the last a flinch). chances: ogre's unbalance 0.241 -> 0.151 (x1/1.6), grunt's unchanged. eval.sh --full 168/177.
+  parryinterrupt timing and smoke (menu paths 0 missing) PASS; its callback section expects "recovery think 1" but
+  the ragdoll stagger (vr_parry_ragdoll 1) owns the think since round 22: 0, the same with vr_parry_balance 0 (stale).
+- **For VR**: cross your arms against a grunt's shove (it reels ~1 s) and a knight (a short flinch); a sword in one hand
+  and in two against knights (0.8 s, 1.2 s); bare hands against an ogre's chainsaw (blocked, the chainsaw keeps going,
+  part of the damage through); a weapon raised just as an ogre swings (a short flinch); a shambler never staggers.
+  Parry the same knight again and again: each stagger shorter. Raise the guard just before the blow vs holding it up.
+
+## Zombies fall as ragdolls; the toolgun's Widowmaker loaded (worktree `fastship`, branch `agent/zombierag`, 2026-10-19)
+
+Zombies (BACKLOG "Zombies stuck knocked down"): the stock fall (paine1..12: not solid, health reset each frame, up only
+where `walkmove(0, 0)` fits, else retried for ever) could leave a zombie lying for good, out of reach of every shot but
+a blast. Now zombie_pain's fall (a hit of 25 or more, or a second hit within 3 s) is `VR_Knockdown_ZombieFall`
+(vr_knockdown.qc): a knockdown's active ragdoll (room made from the dead only), toppled away from the attacker (push
+0.6, 16 units), down for the knockdown's time; hit there (its own rules: health back to 60 each hit, only 60 in one hit
+gibs it), grabbed, beheaded, its limbs cut, gibbed; up through the zombie's get-up (paine13 on, or the engine's rise),
+its AI back (inpain 0 at zombie_run1). A downed or rising zombie never begins another fall. No ragdoll (ragdolls off,
+no rig, no room): the stock fall, but lying solid with a lying body's box (`zombie_lie`; also paine12's retries, the
+mummy's, a lying-spawned one's wake), so shots reach it.
+
+The other fake-death zombies: Rogue's mummy never falls in pain (only its lying spawn's wake: its retries now solid);
+Hipnotic's lying zombie rises at once (zombie_lay12); Dawn of the Machine's shub zombies and infected are monster_zombie
+with zombie_pain (their rising lie stays upstream's); AD's zombie, mummy and zombie knight: `VR_AD_ZombiePain`
+(vr_ad_monsters.qc) wraps AD's pain (no AD file patched) and turns the fall it begins (paine1, painb1, the knight's
+paind1) into the ragdoll; down there each hit puts its health back (`VR_AD_PainDown`). With no ragdoll AD's own fall
+stays (its wakeup gibs a zombie blocked too long). No Quoth zombie in the progs. Honey's axe gibbing "zombies on the
+ground" (.wad) only sees the stock fall.
+
+Checks (vrtesthall, `vr_knockdown_test 23/24`): a 30 hit: "falls as a ragdoll", up after 4.2-4.8 s, knocked down again
+(inpain reset), up again; a grenade 150 units short: down, up after 4.3 s; down, a 5 hit: health 60; a 260 hit: gibbed;
+down, `vr_decap_test 7`: beheaded, dies for good; down, the SSG test shot (aimed at the standing head) killed it whole
+by a limb (the zombie rule); AD's mummy (238) and zombie knight (201): ragdoll, up after 5.1 / 5.4 s.
+
+The toolgun's Widowmaker (`toolgun_upgrade_ssg`, a func_weapon_grabbable): its record was made with the super shotgun's
+clip (2) before its upgrade was set; `VR_WeaponGrabbable_Make` now gives it `VR_ClipSizeOf` (the tube, 16).
+`vr_ad_test 148`: "comes loaded: PASS (16 of 16)"; the map pickup's (`vr_ad_test 149`'s last check) passes too (its
+other checks fail in the plain headless run: no manual reloading there).
+
+### Body shields
+
+A corpse (or a knocked-down monster) held in one hand or two already stops monsters' hitscan and projectiles: their
+traces (MOVE_HITGIBS | MOVE_HITMODEL) and missiles meet its drawn ragdoll, which takes the damage, the blood, the wounds
+and limb pops (a held shin shot off drops the body). Held up against you, though, the body lies inside your own hit box,
+whose face a shot meets first: `VR_BodyShield_Take` (weapons.qc; FireBulletsImpl for monsters' pellets, VR_Proj_Begin
+for their projectiles) looks for the held body's shape along the shot up to your middle and gives it the hit. Checks
+(`scratch/shield.sh` of worktree fastship: a grunt corpse taken with `vr_mock_hand_to ... ragdoll near`, held up with
+`vr_mock_hand`; `vr_knockdown_test 26` holds the nearest grunt or enforcer still, `27` fires its own shot at you, `28`
+one aimed through the held body, `25` prints your health and what you hold): e1m1, one hand, a grunt's 20 rounds: 8 on
+the body, 5 on you (over it at the head, beside it), 7 wide; vrtesthall, two hands, 15 rounds through the body: 15 on
+it; enforcer lasers through it: on it (two limb pops, then it fell). The shield code's own case (the body wholly inside
+your box) did not come up in these poses (`vr_debug_shots 2` prints its looks). Open: after the off hand takes a
+ragdoll first, its QC `offhand_held` reads empty while the engine says the hand holds it.

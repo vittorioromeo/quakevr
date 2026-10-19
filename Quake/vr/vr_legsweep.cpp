@@ -26,6 +26,7 @@
 // over the other way (forward or backward of its own facing, or to a side: whichever way the sweep goes past it).
 
 #include "vr_legsweep.hpp"
+#include "vr_melee_shared.h"
 
 #include "vr_anchor.hpp"
 #include "vr_box3d.hpp"
@@ -124,6 +125,8 @@ struct Track
     int ent{0};                // a prop's edict (0: a weapon)
     glm::vec3 pts[sweepPoints]{};
     double time{0.0};
+    float ptime{-1.f};  // its pose's own time (.vr_posetime; -1 unknown)
+    double clock{0.0};  // the stroke's clock (BodyPoints::time): its moves' times summed
     double restUntil{0.0};
     BodyPoints body[strokeSamples]{}; // a ring, the newest at bodyNext - 1
     int bodyCount{0};
@@ -807,13 +810,30 @@ void qvr::legsweep::serverFrame()
         const float yaw = glm::radians(progs::fieldFloatOr(player, progs::fields().vryaw, 0.f));
         const glm::vec3 origin = vec(player->v.origin);
         BodyPoints body;
-        body.time = now;
         for(int i = 0; i < sweepPoints; i++)
         {
             const glm::vec3 d = held.pts[i] - origin;
             body.pts[i] = glm::vec3{za::cos(yaw) * d.x + za::sin(yaw) * d.y, -za::sin(yaw) * d.x + za::cos(yaw) * d.y, d.z};
         }
-        const float dt = static_cast<float>(now - tr.time);
+        // Its move's time: the poses' own (the client's .vr_posetime, the headset's frames' times) when known, else the
+        // ticks'. The 72 Hz ticks beat against the headset's frames (a tick's pose one or two frames newer than the last
+        // tick's: at 90 Hz a steady sweep read at 0.8 and 1.6 times its speed by turns, through the speed gate and the
+        // teleport guard alike); over the poses' times every headset rate reads the sweep's own speed.
+        float dt = static_cast<float>(now - tr.time);
+        const float ptime = progs::fieldFloatOr(player, progs::fields().vr_posetime, -1.f);
+        if(tr.valid && ptime >= 0.f && tr.ptime >= 0.f && dt > 1e-4f && dt < 0.25f)
+        {
+            float pdt = ptime - tr.ptime;
+            if(pdt < -0.5f * VR_POSE_CLOCK_WRAP)
+            {
+                pdt += VR_POSE_CLOCK_WRAP;
+            }
+            if(pdt > 1e-4f && pdt < 0.25f)
+            {
+                dt = pdt;
+            }
+        }
+        body.time = tr.valid ? tr.clock + dt : 0.0; // (the stroke's clock: the moves' times summed)
         const bool same = tr.valid && tr.what == held.what && tr.ent == held.ent;
         if(same && tr.bodyCount > 0 && dt > 1e-4f && dt < 0.25f && now >= tr.restUntil)
         {
@@ -830,6 +850,8 @@ void qvr::legsweep::serverFrame()
         tr.what = held.what;
         tr.ent = held.ent;
         tr.time = now;
+        tr.ptime = ptime;
+        tr.clock = body.time;
         for(int i = 0; i < sweepPoints; i++)
         {
             tr.pts[i] = held.pts[i];

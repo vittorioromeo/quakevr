@@ -394,21 +394,25 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
         makevectors(m.angles);
         dir = v_forward * -1;
     }
-    // The ground behind it: a drop (a ledge, stairs) or a slope down that way.
-    VR_KdTrig_Behind(m, dir);
+    // The ground behind it: a drop (a ledge, stairs) or a slope down that way. (Parry balance: only a stagger over 2 may
+    // send it down them, vr_parry_rag_nofall; a lesser one is as on level ground.)
     vr_kdt_resist = 1;
     string what = "";
-    if(VR_KdTrig_Match(0, m, p, p, 1000, dir))
+    if(!vr_parry_rag_nofall)
     {
-        what = "a ledge";
-    }
-    else if(VR_KdTrig_Match(1, m, p, p, 1000, dir))
-    {
-        what = "stairs";
-    }
-    else if(VR_KdTrig_Match(2, m, p, p, 1000, dir))
-    {
-        what = "a slope";
+        VR_KdTrig_Behind(m, dir);
+        if(VR_KdTrig_Match(0, m, p, p, 1000, dir))
+        {
+            what = "a ledge";
+        }
+        else if(VR_KdTrig_Match(1, m, p, p, 1000, dir))
+        {
+            what = "stairs";
+        }
+        else if(VR_KdTrig_Match(2, m, p, p, 1000, dir))
+        {
+            what = "a slope";
+        }
     }
     float level = what == "";
     vector way = level ? dir : vr_kdt_way;
@@ -473,6 +477,16 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
     }
     float loud = cvar_hget(cvarh_vr_kdtrig_debug);
     vr_kdt_resist = VR_KdTrig_Resist(targ);
+    // A melee hit (a blow, a headbutt, a bash, a shove, a flung prop) on a heavy group (Parry Poise over 1): every
+    // trigger's chance but the shotgun's and the blast's times its poise factor (combat.qc VR_Poise_Factor): weapons and
+    // explosives stay the answer to it.
+    float poiseF = 1;
+    float flung = inflictor != attacker && inflictor.vr_fling_hit == time;
+    if(vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
+       vr_hitkind == QVR_HITKIND_SHOVE || flung)
+    {
+        poiseF = VR_Poise_Factor(targ);
+    }
     float looked = FALSE;
     float i;
     for(i = 0; i < VR_KDT_COUNT; i = i + 1)
@@ -492,7 +506,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
         {
             continue;
         }
-        float chance = min(1, base * vr_kdt_weight / vr_kdt_resist);
+        float chance = min(1, base * vr_kdt_weight / vr_kdt_resist * ((i == 3 || i == 6) ? 1 : poiseF));
         float roll = random();
         if(roll >= chance)
         {
@@ -866,6 +880,10 @@ entity(entity pl) VR_KdTrig_TestTarget =
 // A grunt at `at` (on the floor under it) facing the way the test hits come from.
 entity(entity pl, vector at) VR_KdTrig_TestSpawn =
 {
+    if(at == '0 0 0') // (vr_kdtrig_test_x, _y, _z all 0: 64 units ahead of the player, along the view's yaw)
+    {
+        at = pl.origin + ('1 0 0' * cos(pl.v_viewangle_y * 0.0174533) + '0 1 0' * sin(pl.v_viewangle_y * 0.0174533)) * 64;
+    }
     tracebox(at + '0 0 64', '-16 -16 -24', '16 16 40', at - '0 0 512', TRUE, world); // (a grunt's hull: on stairs, the
     at = trace_endpos + '0 0 1';                                                         // highest step under it)
     entity oldSelf = self;
@@ -881,7 +899,8 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     {
         m.angles_y = m.angles_y + 180;
     }
-    // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss, 6 a knight, 7 an enforcer)
+    // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss, 6 a knight, 7 an enforcer, 8 a
+    // shambler)
     float k = cvar("vr_kdtrig_test_class");
     if(k == 6)
     {
@@ -995,14 +1014,20 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         }
         else if(xMode == 9)
         {
+            vr_parry_test_force = cvar("vr_kdtrig_test_parry"); // (a forced parry: combat.qc VR_Parry)
+            float before = pl.health;
             T_Damage(pl, best, best, 10);
+            vr_parry_test_force = 0;
+            dprint(sprintf("kdtrig test: its blow of 10 on you: health %g -> %g\n", before, pl.health));
         }
         else if(xMode == 11) // (11: its shove on you, vr_enemyshove.qc's: parried as your pose is)
         {
             entity was = self;
             self = best;
             self.vr_eshove_target = pl;
+            vr_parry_test_force = cvar("vr_kdtrig_test_parry");
             VR_EnemyShove_Hit();
+            vr_parry_test_force = 0;
             self = was;
         }
         else if(canragdoll(best) && VR_Knockdown_MakeRoom(best))
@@ -1109,6 +1134,11 @@ void() VR_KdTrig_Frame =
     if(want == 20)
     {
         VR_KdTrig_TestSpawn(pl, at);
+        return;
+    }
+    if(want == 22) // (every monster gone: a clean slate between cases)
+    {
+        VR_KdTrig_TestClear();
         return;
     }
     if(want == 21)

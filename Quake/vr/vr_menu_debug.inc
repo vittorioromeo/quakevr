@@ -1054,6 +1054,7 @@ za::Vector<Item> pageDebugTools()
         command("Heavy Handling Test", "vr_heavy_test").help("vr_heavy_test: every weapon's weight class and what it makes of it (Weapon Weights > Heavy Handling): droop in one hand and two, an abrupt wrist snap's lag with the struggle and without, the extreme snap that wrenches it out, a one-handed shot's kick and recovery."),
         command("Heavy Wobble Test", "vr_heavy_wiggle").help("vr_heavy_wiggle [slot] [motion hands]: each heavy weapon's steadiness, one-handed and two: the wrist wiggled (yaw +-30..60 degrees at 2-5 Hz, roll, pitch), flicked, a blow stopped dead: its swing over the wrist's (gain), fastest turn, swings back and forth once still (ring), degrees still off 0.3 s after (late)."),
         toggle("Ghost Hands (test aid)", vr_ghost_hands).help("vr_ghost_hands: each hand drawn see-through where your real controller is when the game draws it elsewhere (Player Appearance > Ghost Hands)."),
+        slider("Ghost Hands Test Offset", vr_ghost_hands_test_offset, 0.f, 30.f, 1.f, "%.0f cm").help("vr_ghost_hands_test_offset: moves each ghost hand this far sideways, to see it apart from the drawn hand without a heavy weapon or a wall."),
         header("External Map Index (vr_mapindex.cpp)"),
         command("Map Index Stats", "maps_stats")
             .help("maps_stats: how many packages the external index holds, by type / game_mode / map_size, how many carry their own progs.dat (left out unless the setting below is on), what the fetch cost, and where its cache is."),

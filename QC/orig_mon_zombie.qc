@@ -408,6 +408,13 @@ void() zombie_paind12    =[    $paind12,    zombie_paind13    ] {};
 void() zombie_paind13    =[    $paind13,    zombie_run1    ] {};
 
 void() mg3_zombie_hang1 =[    $paine1,    mg3_zombie_hang1 ] {}; // (Dawn of the Machine's hanging zombie: vr_mg3_bn.qc)
+// QVR: lying after the stock fall (no ragdoll: zombie_fall), or waiting for room to get up: solid, a lying body's box
+// (a lying-spawned zombie's), so shots and blows reach it (stock: SOLID_NOT, a zombie out of reach until it rose).
+void() zombie_lie =
+{
+    setsize(self, '-16 -16 -24', '16 16 -16');
+    self.solid = SOLID_SLIDEBOX;
+};
 void() zombie_paine1    =[    $paine1,    zombie_paine2    ]
 {
     sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
@@ -424,7 +431,7 @@ void() zombie_paine9    =[    $paine9,    zombie_paine10    ] {ai_pain(2);};
 void() zombie_paine10    =[    $paine10,    zombie_paine11    ]
 {
     sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
-    self.solid = SOLID_NOT;
+    zombie_lie(); // QVR: lying in reach of shots (stock: not solid, only an explosion's blast could reach it)
 
     // HONEY
     self.wad = ZOMBIE_ONGROUND;
@@ -446,7 +453,7 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
     if(!walkmove(0, 0))
     {
         self.think = zombie_paine11;
-        self.solid = SOLID_NOT;
+        zombie_lie(); // QVR: (stock: not solid; it could lie there for good, untouchable)
         return;
     }
 
@@ -500,6 +507,20 @@ A hit of less than 10 points of damage (winged by a shotgun) will be ignored.
 FIXME: don't use pain_finished because of nightmare hack
 =================
 */
+// QVR: down (BACKLOG "Zombies stuck knocked down"): as a knockdown's active ragdoll (vr_knockdown.qc
+// VR_Knockdown_ZombieFall: hit, grabbed, beheaded and gibbed down there, up through its get-up, paine13 on); with no
+// ragdoll (ragdolls off, no room) the stock fall, lying solid, in reach of shots (zombie_paine10, _paine12).
+void(entity attacker) zombie_fall =
+{
+    self.inpain = 2;
+    if(VR_Knockdown_ZombieFall(self, attacker))
+    {
+        sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+        return;
+    }
+    zombie_paine1();
+};
+
 void(entity attacker, float take) zombie_pain =
 {
     float r;
@@ -512,11 +533,15 @@ void(entity attacker, float take) zombie_pain =
     if(self.inpain == 2)
         return;            // down on ground, so don't reset any counters
 
+    // QVR: down already as a ragdoll, or getting up from one (a shove's, a hit's: vr_knockdown.qc): it stays so
+    // (T_DamageImpl keeps its frame and think).
+    if(self.vr_knockdown)
+        return;
+
 // go down immediately if a big enough hit
     if(take >= 25)
     {
-        self.inpain = 2;
-        zombie_paine1();
+        zombie_fall(attacker);
         return;
     }
 
@@ -530,8 +555,7 @@ void(entity attacker, float take) zombie_pain =
     if(self.pain_finished > time)
     {
 // hit again, so drop down
-        self.inpain = 2;
-        zombie_paine1();
+        zombie_fall(attacker);
         return;
     }
 

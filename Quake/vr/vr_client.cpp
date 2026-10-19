@@ -59,12 +59,14 @@
 #include "vr_wounds.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_srvrandom.hpp"
+#include "vr_melee_shared.h"
 #include "vr_toolgun.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
 #include <string.h>
@@ -312,6 +314,8 @@ VrMove unposed;
     move.vrYaw = hands::playSpaceYaw();
     move.origin = hs.playerOrigin;
     move.headPos = hs.head;
+    move.poseClock = hs.poseTime >= 0.0 ? static_cast<float>(za::fmod(hs.poseTime, static_cast<double>(VR_POSE_CLOCK_WRAP)))
+                                        : -1.f;
     // The monsters' senses (QC vr_stealth.qc): his lamp as lit and the light on him, as this client sees them.
     move.lampLit = flashlight::beamNow(move.lampLens, move.lampDir, move.lampRange, move.lampCos);
     move.light = stealth::lightAt(move.origin);

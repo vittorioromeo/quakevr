@@ -605,6 +605,7 @@ const char *VR_CampaignLabel(int index);
 const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
+int VR_CampaignInstalled(int index); // data complete (the experimental AD row is offered on this alone)
 // Setup's preparation's walk through the campaigns (vr_prepare.cpp).
 int VR_CampaignCount(void);
 const char *VR_CampaignFolder(int index);

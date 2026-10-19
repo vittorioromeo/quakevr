@@ -808,6 +808,7 @@ void update()
     body::updateHotspots(state);
     twohand::updateHotspots(state); // a carried gun's handle
 
+    state.poseTime = t.time;
     state.valid = true;
 
     // Body drift's log (vr_debug_body_error): marked where the body is when turned on.

@@ -2383,6 +2383,7 @@ void setupGhostHands(const hands::State& s)
         const int slot = weapons::slotForModel(entities.weapon[hand].ent.model);
         const glm::vec3 rot = s.unresolvedRot[hand];
         glm::vec3 pos = s.unresolvedPos[hand];
+        pos += anglesBasis(rot)[1] * (vr_ghost_hands_test_offset.value / 100.f * m2u);
         glm::vec3 handRot = basisAngles(anglesBasis(rot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
         if(slot >= 0 && slot != fist)
         {

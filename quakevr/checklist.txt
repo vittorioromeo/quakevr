@@ -19,6 +19,10 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Ghost Hands look solid: no inner/back faces through the translucency (vr_ghost_hands_solid 0 = old look); fades from 6 cm over 7 cm (your values)
+Parry balance (Parry and Bash > Parry Balance; Monster Groups > Parry Poise): crossed arms vs a grunt's shove (ragdoll stagger) and a knight (short flinch); sword one- and two-handed vs knights (longer staggers); bare hands vs an ogre's chainsaw (blocked, still hurts); a guard raised just in time vs an ogre; a shambler (never); parry the same knight again and again (shorter each time)
+Melee at any headset rate: slashes and stabs should feel the same as before (strength matched at your 120 Hz); leg sweeps and the weapon wrench still trigger
+Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
 Thrown bodies and tackles (Ragdoll Triggers > Thrown Bodies / Tackles): throw or swing bodies at grunts (topple), ogres (short stagger), shamblers (nothing); sprint into grunts and ogres in guard, crossed hands, palm forward, shoving: tackles; a gun aimed two-handed while running never tackles
 Brain chunks: pop heads (Gore Tests > Brain Chunks Ahead): folds, gloss in light and shade, pick one up and shake/drop it (jiggle); Gore > Small Gibs > Brain Chunk Gloss / Jiggle
 Leg sweep direction: sweep a grunt's shins left to right with the nailgun or sword: does it topple away from the sweep, or backward (the test sees a 15-30 unit backward lean)? wanted or not?
