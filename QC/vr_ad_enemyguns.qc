@@ -509,7 +509,9 @@ void() VR_ADGun_PoisonThink =
     {
         vr_ad_ammo = AD_AMMO_CELLS;
         float before = v.health;
+        vr_hit_nobleed = TRUE; // (poison: no blood, no wound)
         T_Damage(v, self, self.owner, self.dmg * 0.5);
+        vr_hit_nobleed = FALSE;
         vr_adgun_hits = vr_adgun_hits + max(0, before - v.health);
         vr_ad_ammo = 0;
     }
@@ -621,7 +623,9 @@ void() VR_ADGun_FlameTouch =
     vr_ad_ammo = self.vr_adgun_poison > 0 ? AD_AMMO_CELLS : AD_AMMO_ROCKETS;
     float before = other.health;
     VR_SetHitKind(QVR_HITKIND_NONE, -1, self.origin, dir);
+    vr_hit_nobleed = TRUE; // (it burns or poisons: no blood, no wound, no gore: combat.qc VR_HitBloodless)
     T_Damage(other, self, self.owner, self.vr_adgun_dmg);
+    vr_hit_nobleed = FALSE;
     VR_ClearHitKind();
     vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
     vr_ad_ammo = 0;

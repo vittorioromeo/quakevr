@@ -13885,3 +13885,32 @@ stock turn); the port's size with the handful of 2; the crossbow's shimmer volum
   `vr_melee_swish_min` (now 0.3 of a landing speed) whooshed with the slap's sample. Now an open hand whooshes only swung
   across as a slap goes (`VR_Melee_Slaps`): soft slap swishes in the 104 hand takes 26 -> 12, verdicts and events
   unchanged; eval --full 168/177.
+## AD gun variants: hollow muzzles, the grenade launcher's bottom, bloodless flames (worktree `tghost`, branch `agent/adguns4`, 2026-10-19)
+
+- **Hose inlet** (flamethrower, poison sprayer): the boss and its pipe moved back from x -6.4 to -11.5 (the stock
+  begins at -14), set on the rifle's sloping underside there (z 4.25; `inletBoss`, `inletAt` in vr_adgunart.cpp). The
+  hose follows (`hoseInlet`); arm avoidance unchanged (`vr_adgun_hose_info`: deepest 0.42 cm in the arm).
+- **Flames and poison draw no blood:** `vr_hit_nobleed` (combat.qc) set around the flamethrower's flame and poison
+  puff's T_Damage (`VR_ADGun_FlameTouch`), the poison's ticks (`VR_ADGun_PoisonThink`), burning's ticks (vr_burning.qc,
+  AD_BurnHurt) and the AD pyro's and fumigator's own flames (ad_import.py patches on pyroflame_touch; `--check` 0 of
+  142 differ): `VR_HitBloodless` is true, so no gore
+  spray, no small gibs, no wound decals. They still burn (VR_Burn_Ignite) and poison (`vr_adpoison`, its green puffs)
+  as before. `vr_ad_test 91` (Debug > Tests > AD Monsters > Flamethrowers on the Nearest Monster): flamethrower: 25
+  dealt, gore 0, wounds 0, blood 0, burning; sprayer: 25 dealt, 0/0/0, poisoned; a shot (control): gore 1, wound 1.
+- **Models** (vr_adgunart.cpp): a `lathe` helper turns a closed profile into a hollow part, every face facing out of its
+  metal (outer wall, lips, bore, floor). The rocket launcher's tube is one (back ring, tube, lip ring, closed lip, dark
+  bore to a floor), the rifle's barrel inside it dropped (`dropRifleInside`); its exhaust a walled pipe (collar, pipe,
+  ring, flared bell, lip, sooty bore and bell inside, closed at the collar). The flamethrower's nozzle and pilot pipe
+  hollow and lipped. The grenade launcher's grafted barrel keeps no keel (its v_rock z under 2: cut at the drum and
+  squeezed it was a twisted wedge with a gap under the muzzle): its bottom a flat blue plate across its sides' edges,
+  the rifle's barrel inside it gone. Hidden open ends capped (defender's magazine, the chute, centurion's tubes, the
+  inlet, the fumigator's neck).
+- **Mesh stats:** `vr_adgun_variants` prints each variant's add-ons: open edges, doubled edges, triangles wound inward,
+  inner faces (`vr_adgun_variants 1` lists each edge). Before: rocket 218 open, grenade 20 open / 16 doubled / 1
+  inward, defender 10, centurion 32, pyro 64, fumigator 28. Now 0 open everywhere but the grenade launcher's 8 (its
+  barrel's back end, inside the rifle's magazine box); its 16 doubled (the grenade rack's touching plates, the
+  launcher's own front pocket) and 1 inward (inside its collar) are hidden.
+- **Checked:** muzzle views of each (rocket, grenade, pyro, fumigator), the rocket's exhaust from behind, the grenade
+  launcher from below; `vr_ad_test 70` 8/8 (with `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`), 71 9/9, 91 3/3.
+- **For VR:** look straight into each muzzle and the exhaust (walls inside, nothing see-through); the grenade launcher's
+  underside; the inlet near the stock with the hose; spray a grunt with each: fire or green puffs, no blood.
