@@ -1,0 +1,68 @@
+#pragma once
+// vr_mgroups.hpp -- monster groups (Combat > Monster Groups; ROUND22.md, "Monster groups"): similar monsters of id1, the
+// mission packs, Dawn of the Machine and Arcane Dimensions (Quoth's through it) share a group (vr_mgroups.inc: the groups
+// and their defaults; vr_mgroups.cpp: the members, by classname), and each group has its own setting for every ragdoll
+// trigger (QC vr_kdtrig.qc) and every action on it: the shove's knockdown and push, hits unbalancing it, the leg sweep,
+// the leg grabs, the lift, the neck snap, the manhandle, the two-hand throw, one hand's hold (QC and vr_foegrab.cpp).
+// The QC asks through monstergroup and monstergroupget (its MGP_* numbers are Param's: QC builtins.qc). vr_mgroup_list
+// prints every classname's group and the map's monsters' (Debug > Combat).
+
+#include "vr_engine.hpp"
+
+namespace qvr::mgroups
+{
+
+// A group's settings, in this order (QC builtins.qc MGP_*: keep them alike).
+enum class Param : int
+{
+    KdTrig,    // the ragdoll triggers take it (vr_mgrp_<g>_kdtrig)
+    Resist,    // its resistance to them (vr_kdtrig_resist_<g>; 0: by its size)
+    Ledge,     // each trigger's chance times this (vr_mgrp_<g>_ledge ... _blast), in vr_kdtrig.qc's table order
+    Stairs,
+    Slope,
+    Shotgun,
+    Wounded,
+    Blow,
+    Blast,
+    Shove,     // a shove's base chance to knock it down (vr_knockdown_chance_<g>)
+    Push,      // how far shoves, bashes and unbalancing hits move it, times
+    Stagger,   // hits' chance to unbalance it, times
+    Sweep,     // the leg sweep takes it
+    LegGrab,   // the leg pull and the leg lift
+    Lift,      // the lift
+    NeckSnap,  // the neck snap
+    Manhandle, // grabbed staggered or weak, it goes down in the hand
+    Throw,     // the two-hand throw: 0 never, 1 only when hurt, 2 always
+    Hold,      // one hand's hold on it, 0..1 (-1: by its size)
+    Count
+};
+inline constexpr int paramCount = static_cast<int>(Param::Count);
+
+enum GroupId : int
+{
+#define QVR_MGROUP(g, ...) g##Group,
+#include "vr_mgroups.inc"
+#undef QVR_MGROUP
+    groupCount
+};
+
+// The group of a monster with classname `classname` (Others when it is in none).
+[[nodiscard]] int groupOfClass(const char* classname);
+[[nodiscard]] int groupOf(edict_t* m);
+[[nodiscard]] const char* label(int g);
+[[nodiscard]] const char* id(int g);
+// Its members' classnames, comma-separated (the menu's help).
+[[nodiscard]] const char* members(int g);
+[[nodiscard]] cvar_t& setting(int g, Param p);
+[[nodiscard]] float value(edict_t* m, Param p);
+// Whether an on/off setting of `m`'s group is on.
+[[nodiscard]] bool on(edict_t* m, Param p);
+
+// float(entity e) monstergroup: e's group (its classname's).
+void PF_monstergroup();
+// float(entity e, float param) monstergroupget: the setting `param` (MGP_*) of e's group.
+void PF_monstergroupget();
+
+void registerCommands();
+
+} // namespace qvr::mgroups

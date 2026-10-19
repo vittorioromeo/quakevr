@@ -712,7 +712,7 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         return FALSE;
     }
     VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
-    float base = cvar_hget(e.vr_kd_chance_h);
+    float base = monstergroupget(e, MGP_SHOVE); // (its monster group's: vr_knockdown_chance_<group>)
     float chance = base * max(0, cvar_hget(cvarh_vr_knockdown_chance));
     float full = e.max_health > 0 ? e.max_health : e.health;
     float lost = full > 0 ? min(1, max(0, 1 - e.health / full)) : 0;
@@ -789,9 +789,10 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 void(entity m) VR_Knockdown_WhyNot =
 {
     float most = cvar("vr_ragdoll_max");
-    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g (%g x vr_knockdown_chance %g), flags fly/swim %g\n",
-        m.classname, m.health, m.vr_knockdown, m.vr_kd_chance_h, m.vr_kd_chance_h ? cvar_hget(m.vr_kd_chance_h) : 0,
-        cvar_hget(cvarh_vr_knockdown_chance), m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
+    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g, flags fly/swim %g", m.classname, m.health,
+        m.vr_knockdown, m.vr_kd_chance_h, m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
+    dprint(sprintf(", monster group %g's chance %g x vr_knockdown_chance %g\n", monstergroup(m),
+        monstergroupget(m, MGP_SHOVE), cvar_hget(cvarh_vr_knockdown_chance)));
     dprint(sprintf("whynot: vr_knockdown %g, canragdoll %g, ragdollcanstagger %g, isragdoll %g, dummy anchored %g, stamina %g of %g\n",
         cvar_hget(cvarh_vr_knockdown), canragdoll(m), ragdollcanstagger(m), isragdoll(m),
         VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored), VR_Stamina_On() ? VR_Stamina_Left(self) : -1, VR_Stamina_Max()));

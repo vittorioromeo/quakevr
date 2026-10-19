@@ -19,7 +19,7 @@
 // weapon's from the hand to its muzzle as the server has them (QC VR_Melee_Line's: handpos, muzzlepos; carried off its
 // handle, its drawn handle and tip in the hand: VR_Melee_FreeLine's), stretched over its drawn extent; a prop's along its
 // box's long axis through its middle, at its entity. Each point's move since the last frame is swept against each live
-// humanoid's lower legs (vr_foegrab_lift_classes: its drawn model below legShare of its height, vr_hit_precise; else its
+// humanoid's lower legs (its monster group's Leg Sweep: its drawn model below legShare of its height, vr_hit_precise; else its
 // box there). Of the points that met them, the lowest decides: not the blade, level enough (its rise or fall at most
 // levelSlope of its level speed), and at least vr_legsweep_speed level (more for a heavy one: times the cube root of its
 // mass over vr_legsweep_heavy). Then foegrab::sweepDown knocks it down with its feet swept along and its body toppling

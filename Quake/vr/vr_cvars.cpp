@@ -122,13 +122,7 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_decal_bucket_max, "32"},               // 24
     {133, &vr_body_bracers, "1"},                    // 0
     {133, &vr_pbr_strength, "1"},                    // 2.5
-    // 134: AD's fumigator and centurion are humanoids for the lift and the neck snap (ROUND22.md, "Neck snap: strict
-    // zone, diagnostic, slow motion, crack").
-    {134, &vr_foegrab_lift_classes,
-        "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
-        "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_dcrossbow "
-        "monster_dfury monster_dguard monster_dknight monster_dsergeant monster_zombiek monster_mummy monster_skullwiz "
-        "monster_ranged_knight infected"},
+    // (134 and 157: vr_foegrab_lift_classes's, retired for the monster groups' Lift.)
     // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
     {135, &vr_suit_glow, "1"},                       // 2
     {135, &vr_suit_glow_light, "1"},                 // 2
@@ -294,13 +288,6 @@ const DefaultChange defaultChanges[] = {
     {156, &vr_holster_zone_upper_z, "-0.75"},
     {156, &vr_shoulder_holster_thresh, "7"},
     {156, &vr_upper_holster_thresh, "6.5"},
-    // 157: AD's death guard (Quoth's), death lord and deflector are humanoids for the lift and the neck snap, now that
-    // they have ragdolls (ROUND22.md, "AD rigs: the rest of AD's humanoids").
-    {157, &vr_foegrab_lift_classes,
-        "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
-        "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator "
-        "monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant "
-        "monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected"},
     // 158: his retuned grenade pouch reach and flamethrower lights (the holster zones and glove values already match).
     {158, &vr_grenade_pouch_thresh, "7"},
     {158, &vr_flame_lights, "3"},
@@ -600,6 +587,11 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-10-19: the class lists replaced by the monster groups' Lift, Neck Snap, Leg Sweep, Leg Grabs, Manhandle and
+    // Two-Hand Throw (vr_mgrp_<group>_*; ROUND22.md, "Monster groups").
+    "vr_foegrab_lift_classes",
+    "vr_foegrab_throw_always",
+    "vr_foegrab_throw_when_hurt",
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
     "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
     "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")

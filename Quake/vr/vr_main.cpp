@@ -120,6 +120,7 @@
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
 #include "vr_painknock.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_autopump.hpp"
@@ -1982,6 +1983,7 @@ extern "C" void VR_Init()
     weight::registerCommands();
     fatigue::registerCommands();
     painknock::registerCommands();
+    mgroups::registerCommands(); // vr_mgroup_list (vr_mgroups.cpp)
     xrruntime::registerCommands(); // (before the backend first starts: XR_RUNTIME_JSON as the game was started with it)
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);

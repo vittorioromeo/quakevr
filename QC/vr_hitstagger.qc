@@ -49,7 +49,7 @@ float(entity e, float xImpact, float xDamage) VR_HitStagger_Chance =
     {
         p = p * pow(VR_HST_HEALTH_REF / full, resist);
     }
-    return p * max(0, cvar_hget(cvarh_vr_hit_stagger_chance));
+    return p * max(0, cvar_hget(cvarh_vr_hit_stagger_chance)) * max(0, monstergroupget(e, MGP_STAGGER)); // (its monster group's share)
 };
 
 // Whether a hit may unbalance `e` at all now.
@@ -98,13 +98,13 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
     VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
     // The shove's push at this strength (VR_Bash_Hit's: 520 u/s and a 140 hop, times vr_bash_push).
     float push = min(1.25, max(0.5, xImpact)) * max(0, cvar_hget(cvarh_vr_hit_stagger_push));
-    float bashPush = cvar_hget(cvarh_vr_bash_push) * push;
+    float bashPush = cvar_hget(cvarh_vr_bash_push) * push * max(0, monstergroupget(e, MGP_PUSH)); // (its group's push)
     VR_Push(e, xDir, 520 * bashPush, 140 * bashPush);
     // An active stagger (VR_Knockdown_Try's): its balance the shove's roll against its knockdown chance at this strength.
     if(cvar_hget(cvarh_vr_knockdown) && e.vr_kd_chance_h && !(e.flags & (FL_FLY | FL_SWIM)) && canragdoll(e) &&
        ragdollcanstagger(e))
     {
-        float kd = cvar_hget(e.vr_kd_chance_h) * max(0, cvar_hget(cvarh_vr_knockdown_chance)) * min(1.5, xImpact);
+        float kd = monstergroupget(e, MGP_SHOVE) * max(0, cvar_hget(cvarh_vr_knockdown_chance)) * min(1.5, xImpact);
         float kdRoll = random();
         float balance = min(1, max(0, 0.5 + (kdRoll - kd) * VR_KD_STAGGER_SLOPE));
         if(VR_Knockdown_Stagger(e, xDir, bashPush, balance))

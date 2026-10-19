@@ -556,8 +556,7 @@ void neckDiagFrame()
         {
             continue;
         }
-        const bool infected = fieldFloatOr(e, fields().vr_mg3_infected, 0.f) != 0.f;
-        if(!isTrainingDummy(e) && !inList(vr_foegrab_lift_classes.string, PR_GetString(e->v.classname), infected))
+        if(!groupTakes(e, mgroups::Param::NeckSnap))
         {
             continue;
         }

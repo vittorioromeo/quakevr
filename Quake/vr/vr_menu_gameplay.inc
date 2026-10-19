@@ -270,9 +270,11 @@
         toggle("Throw Away From You", vr_foegrab_throw_away)
             .help("Off: a turn that would throw the enemy straight away from you does nothing (that's a shove's job). On: "
                   "it throws too."),
-        cycle("Who Can Be Thrown", "vr_foegrab_throw_by_mass", {{0.f, "By Kind"}, {1.f, "By Mass"}})
-            .help("By Kind: the lists in the console's vr_foegrab_throw_always and vr_foegrab_throw_when_hurt (classnames; "
-                  "\"infected\": Dawn of the Machine's infected); any other kind never. By Mass: the two masses below."),
+        cycle("Who Can Be Thrown", "vr_foegrab_throw_by_mass", {{0.f, "By Group"}, {1.f, "By Mass"}})
+            .help("By Group: each monster group's Two-Hand Throw (Combat > Monster Groups: always, only when hurt, or "
+                  "never). By Mass: the two masses below."),
+        open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Throw)>))
+            .help("Which groups are always thrown, only when hurt, or never (Combat > Monster Groups)."),
         slider("Always (Mass)", vr_foegrab_throw_mass_always, 10.f, 1000.f, 10.f, "%.0f kg").extend(0.f, 10000.f)
             .help("By Mass: enemies this light or lighter are always thrown (a grunt 80 kg, a mummy 140)."),
         slider("When Hurt (Mass)", vr_foegrab_throw_mass_hurt, 10.f, 2000.f, 10.f, "%.0f kg").extend(0.f, 20000.f)
@@ -315,8 +317,8 @@
             .help("Walk up close to a humanoid (a grunt, an enforcer, a zombie, a knight, a death knight, Arcane Dimensions' "
                   "soldiers and knights), hold it with both hands and pull up instead of to a side: it comes off its feet, a "
                   "ragdoll flailing in your hands. Carry it, throw it down (let go of the grips as you swing). After a while "
-                  "it breaks free and shoves you back. Never ogres, fiends, shamblers or vores (the console's "
-                  "vr_foegrab_lift_classes)."),
+                  "it breaks free and shoves you back. Never ogres, fiends, shamblers or vores (each monster group's "
+                  "Lift: Combat > Monster Groups)."),
         toggle("Show Diagnostic", vr_foegrab_lift_debug)
             .help("Over the humanoid you hold (else the nearest): your hands' pull (an arrow: green once fast enough and "
                   "within 45 degrees of straight up) against Lift Speed, the Lift Reach circle round it (green with you "
@@ -543,26 +545,6 @@
     };
 }
 
-[[nodiscard]] za::Vector<Item> pageKdTrigResist()
-{
-    return {
-        slider("By Size", vr_kdtrig_resist_size, 0.f, 1.5f, 0.05f, "%.2f")
-            .help("A kind without its own resistance below: its body's volume over a grunt's to this power (an ogre's, 5.5 times: 2.3 at 0.5). 0: all alike."),
-        slider("Grunt", vr_kdtrig_resist_army, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-        slider("Enforcer", vr_kdtrig_resist_enforcer, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-        slider("Knight", vr_kdtrig_resist_knight, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-        slider("Death Knight", vr_kdtrig_resist_hknight, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-        slider("Ogre", vr_kdtrig_resist_ogre, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-        slider("Zombie", vr_kdtrig_resist_zombie, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
-            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
-    };
-}
-
 [[nodiscard]] za::Vector<Item> pageKdTriggers()
 {
     return {
@@ -581,8 +563,11 @@
         open("Wounded", pageIndex(pageKdTrigWounded)).help("Badly hurt, any hit may knock it down."),
         open("Strong Blows", pageIndex(pageKdTrigBlow)).help("A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30)."),
         open("Explosions", pageIndex(pageKdTrigBlast)).help("A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance)."),
-        open("Monster Resistance", pageIndex(pageKdTrigResist))
-            .help("How much less likely each kind goes down (by its size, or its own)."),
+        open("Monster Resistance", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Resist)>))
+            .help("How much less likely each monster group goes down (by its size, or its own)."),
+        open("Monster Groups", pageIndex(pageMonsterGroups))
+            .help("Which monster groups the triggers take, and each trigger's share for each group (Combat > Monster "
+                  "Groups)."),
         header("Other Triggers"),
         open("Shoves, Ledges, Leg Sweep, Hits", pageIndex(pageKnockdowns))
             .help("Shoves and bashes, a shove over a ledge, the leg sweep, strong hits unbalancing (Knockdowns)."),
@@ -739,17 +724,13 @@
             .help("Swept (or its legs pulled) so that it falls backward, its legs keep their stance this long before they go limp: "
                   "its knees don't fold under it and its feet stay where they slid. 0: limp at once."),
         header("Each Monster's Chance"),
-        slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Rottweiler", vr_knockdown_chance_dog, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Zombie", vr_knockdown_chance_zombie, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Mummy", vr_knockdown_chance_mummy, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Knight", vr_knockdown_chance_knight, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Death Knight", vr_knockdown_chance_hknight, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Ogre", vr_knockdown_chance_ogre, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Fiend", vr_knockdown_chance_demon, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Shambler", vr_knockdown_chance_shambler, 0.f, 1.f, 0.01f, "%.2f"),
-        slider("Gremlin", vr_knockdown_chance_gremlin, 0.f, 1.f, 0.01f, "%.2f"),
+        open("Each Monster Group's Chance", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Shove)>))
+            .help("A shove's base chance to knock each monster group down (grunts 0.45, shamblers 0.03; Combat > Monster "
+                  "Groups)."),
+        open("Each Monster Group's Push", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Push)>))
+            .help("How far shoves, bashes and unbalancing hits move each monster group, times (Combat > Monster Groups)."),
+        open("Each Monster Group's Hits Unbalance", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Stagger)>))
+            .help("Each monster group's share of Hits Unbalance's chance (Combat > Monster Groups)."),
         header("Down"),
         slider("Time Down, Least", vr_knockdown_time_min, 0.f, 10.f, 0.25f, "%.2f s").extend(0.f, 60.f)
             .help("How long it stays down, at least (at random up to Time Down, Most)."),

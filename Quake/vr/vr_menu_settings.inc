@@ -754,6 +754,10 @@ za::Vector<Item> pageCombat()
             .help("Your shoves can knock monsters down as ragdolls, alive: the chances, how long they stay down, getting up."),
         open("Holding Enemies", pageIndex(pageHoldingEnemies))
             .help("Experimental: grip a living enemy with an empty hand to hold on to it, slow it and pull it a little."),
+        open("Monster Groups", pageIndex(pageMonsterGroups))
+            .help("Similar monsters of every game share a group (grunts, enforcers, knights, death knights, ogres, "
+                  "zombies...): each group's own setting for every ragdoll trigger and every action on it (shove, push, "
+                  "hits, leg sweep, leg grabs, lift, neck snap, manhandle, two-hand throw, hold). By group or by action."),
         open("Bullet Time", pageIndex(pageBulletTime))
             .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
         open("Burning", pageIndex(pageBurning))
