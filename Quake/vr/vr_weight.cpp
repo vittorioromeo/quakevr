@@ -569,7 +569,9 @@ namespace detail
         // Far behind the hand (a heavy weapon after a quick turn of the wrist), the wrist works harder to bring it back:
         // its pull and its most torque grow from catchFrom off on, so it lags gradually and stays short of snapTurnMost
         // (put back in the hand at once there: an abrupt jump; the hammer in one hand lagged a 425 deg/s yaw to 165).
-        const float behind = za::clamp((glm::length(e) - catchFrom) / (snapRad - catchFrom), 0.f, 1.f);
+        // (Heavy handling's: a weapon with a Heft; everything else as before, put back in the hand.)
+        const bool heavy = l.heft > 0.f;
+        const float behind = heavy ? za::clamp((glm::length(e) - catchFrom) / (snapRad - catchFrom), 0.f, 1.f) : 0.f;
         const float catchUp = 1.f + catchGain * behind * behind;
         glm::vec3 tau = kAxis * e * catchUp + damping * dw + weightTorque;
         const float most = torque * catchUp;
@@ -588,7 +590,7 @@ namespace detail
         b.q = glm::normalize(b.q + (spin * b.q) * (0.5f * h));
         // On a leash: never further than leashTurn off the hand. Past it the hand drags it along (turned back onto the
         // leash, spinning no further away than the hand: smoothly, not put back in the hand at once as at snapTurnMost).
-        const glm::vec3 off = rotationVector(targetTurn * glm::conjugate(b.q)); // (the body frame)
+        const glm::vec3 off = heavy ? rotationVector(targetTurn * glm::conjugate(b.q)) : glm::vec3{0.f}; // (the body frame)
         if(const float apart = glm::length(off); apart > leashRad)
         {
             const glm::vec3 axis = off / apart;

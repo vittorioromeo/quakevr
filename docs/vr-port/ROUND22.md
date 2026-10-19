@@ -14148,14 +14148,14 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
 - A weight class per weapon, Weapon Weights' **Heft** (`vr_wofs_w_heft_NN`, 0 light .. 1 the laser cannon; -1 from its
   mass, `vr_heavy_auto_from` 10 .. `_full` 20 kg), with its own `w_droop` and `w_hrecoil` multipliers (1; 0 off). Defaults
   (vr_weapons.inc): laser cannon 1; hammer 0.9, mace 0.85; rocket launcher, Widowmaker, chainsaw 0.6; hell knight's and
-  death knight's swords 0.35, death guard's 0.3; AD crossbow 0.2; the other guns 0..0.15; axe, crowbar, knight's,
-  zombie knight's and fury's swords 0..0.05. Everything below is times Heft times the share held in one hand
+  death knight's swords 0.35, death guard's 0.3; AD crossbow 0.2; every other weapon 0 (exactly as before: axe, crowbar, knight's,
+  zombie knight's and fury's swords, the other guns). Everything below is times Heft times the share held in one hand
   (`l.twoHanded`): two hands, none of it. `vr_heavy 0` turns it all off. New cvars only: no migration (vr_wofs_version
   and vr_cfg_version untouched).
 - One-handed struggle (vr_weight.cpp `heavyWrist`): the wrist's stiffness on it times `vr_heavy_struggle_stiffness`
   (0.25) and its damping times `_damping` (0.5) at Heft 1: an abrupt snap lags and swings back springily. The wrenched-out
   drop (vr_weight_drop*) is unchanged and still drops the extreme snaps (in game: the hammer at 1813 deg/s, limit 1583).
-- No more abrupt put-backs (every weapon): far behind the hand (from 60 degrees) the wrist pulls harder (up to 31x near
+- No more abrupt put-backs (weapons with a Heft; others unchanged): far behind the hand (from 60 degrees) the wrist pulls harder (up to 31x near
   165), and the spring keeps it on a 150-degree leash (dragged along, not put back in the hand at once). In game, the
   hammer one-handed, `heavy_wrist_snap.mock`: its 425 deg/s yaw-and-back lagged to 165 and was put back (a 165-degree jump
   in a frame); now 103 at most, no put-back in any step (the extreme ones held at the leash, 150).

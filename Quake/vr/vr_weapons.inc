@@ -2584,35 +2584,35 @@ QVR_WEAPON_DEFAULT(19, UpperHolsterZ, "-3.5")
 // the zombie knight's and the fury's swords, for two at once, light). Unlisted slots: from their mass (-1).
 QVR_WEAPON_DEFAULT(0, Heft, "0")    // axe
 QVR_WEAPON_DEFAULT(1, Heft, "0")    // shotgun
-QVR_WEAPON_DEFAULT(2, Heft, "0.05") // super shotgun
-QVR_WEAPON_DEFAULT(3, Heft, "0.05") // nailgun
-QVR_WEAPON_DEFAULT(4, Heft, "0.12") // super nailgun
-QVR_WEAPON_DEFAULT(5, Heft, "0.08") // grenade launcher
+QVR_WEAPON_DEFAULT(2, Heft, "0")    // super shotgun
+QVR_WEAPON_DEFAULT(3, Heft, "0")    // nailgun
+QVR_WEAPON_DEFAULT(4, Heft, "0")    // super nailgun
+QVR_WEAPON_DEFAULT(5, Heft, "0")    // grenade launcher
 QVR_WEAPON_DEFAULT(6, Heft, "0.6")  // rocket launcher
-QVR_WEAPON_DEFAULT(7, Heft, "0.12") // thunderbolt
-QVR_WEAPON_DEFAULT(8, Heft, "0.15") // Mjolnir (one-handed by design)
+QVR_WEAPON_DEFAULT(7, Heft, "0")    // thunderbolt
+QVR_WEAPON_DEFAULT(8, Heft, "0")    // Mjolnir (one-handed by design)
 QVR_WEAPON_DEFAULT(9, Heft, "1")    // laser cannon
-QVR_WEAPON_DEFAULT(10, Heft, "0.08") // proximity gun
+QVR_WEAPON_DEFAULT(10, Heft, "0")    // proximity gun
 QVR_WEAPON_DEFAULT(16, Heft, "0")   // the empty hand
 QVR_WEAPON_DEFAULT(17, Heft, "0")   // grapple
-QVR_WEAPON_DEFAULT(18, Heft, "0.05") // knight's sword
+QVR_WEAPON_DEFAULT(18, Heft, "0")    // knight's sword
 QVR_WEAPON_DEFAULT(19, Heft, "0.35") // hell knight's sword (big)
 QVR_WEAPON_DEFAULT(20, Heft, "0.6")  // chainsaw
-QVR_WEAPON_DEFAULT(21, Heft, "0.08") // grunts' burst rifle
-QVR_WEAPON_DEFAULT(22, Heft, "0.12") // enforcer's rifle
+QVR_WEAPON_DEFAULT(21, Heft, "0")    // grunts' burst rifle
+QVR_WEAPON_DEFAULT(22, Heft, "0")    // enforcer's rifle
 QVR_WEAPON_DEFAULT(23, Heft, "0")    // crowbar
-QVR_WEAPON_DEFAULT(24, Heft, "0.05") // MG3 hammer
-QVR_WEAPON_DEFAULT(25, Heft, "0.05")
+QVR_WEAPON_DEFAULT(24, Heft, "0")    // MG3 hammer
+QVR_WEAPON_DEFAULT(25, Heft, "0")   
 QVR_WEAPON_DEFAULT(26, Heft, "0")    // toolgun
-QVR_WEAPON_DEFAULT(27, Heft, "0.08") // AD soldiers' guns
-QVR_WEAPON_DEFAULT(28, Heft, "0.08")
-QVR_WEAPON_DEFAULT(29, Heft, "0.08")
-QVR_WEAPON_DEFAULT(30, Heft, "0.08")
-QVR_WEAPON_DEFAULT(31, Heft, "0.08")
+QVR_WEAPON_DEFAULT(27, Heft, "0")    // AD soldiers' guns
+QVR_WEAPON_DEFAULT(28, Heft, "0")   
+QVR_WEAPON_DEFAULT(29, Heft, "0")   
+QVR_WEAPON_DEFAULT(30, Heft, "0")   
+QVR_WEAPON_DEFAULT(31, Heft, "0")   
 QVR_WEAPON_DEFAULT(32, Heft, "0.2")  // AD crossbow (10.65 kg, but held as a pistol crossbow)
 QVR_WEAPON_DEFAULT(33, Heft, "0")    // Shadow Axe
 QVR_WEAPON_DEFAULT(34, Heft, "0.6")  // Widowmaker
-QVR_WEAPON_DEFAULT(35, Heft, "0.12") // AD plasma gun
+QVR_WEAPON_DEFAULT(35, Heft, "0")    // AD plasma gun
 QVR_WEAPON_DEFAULT(40, Heft, "0")    // the fury's swords (dual-wielded)
 QVR_WEAPON_DEFAULT(41, Heft, "0.35") // death knight's sword
 QVR_WEAPON_DEFAULT(42, Heft, "0")    // zombie knight's sword
