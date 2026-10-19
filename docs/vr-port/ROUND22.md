@@ -14142,3 +14142,22 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
 - From his ironwail.cfg: `vr_ad_widowmaker_refire` 0.25 -> 0.35, `vr_ad_widowmaker_shot_pellets` 7 -> 8, `vr_dmg_ad_widowmaker` 4 -> 5, `vr_adgun_crossbow_damage` 15 -> 30; `vr_wofs_fx_tr_owncol_35` 0 -> 1 (his cfg names slot 35, which is the Plasma Gun; the Widowmaker is slot 34).
 - Migration: vr_cfg_version 161 -> 162 (the four cvars, only where still at the old default); vr_wofs_version 53 -> 54 (owncol_35, only where 0).
 - Checked (headless, AD base): `vr_ad_test 149` 9/9 PASS (6 shots at 0.35 s), `93` PASS (the target took 30), `70` 8/8 PASS; thresholds follow the cvars, none edited.
+
+## Fewer pops from projectiles; AD's flamethrower and poison sprayer reach the minotaur (worktree `gorefx`, branch `agent/minotaur`, 2026-10-19)
+
+- **Pop chance:** `vr_decap_pop_projectile` 0.85 -> 0.5 (a kill at the head or a limb by a nail, a bolt, a lump; not
+  lasers). configVersion 163 moves a config still at 0.85.
+- **The streams never reached the minotaur:** the player's flamethrower and poison sprayer (`VR_ADGun_FlameThink`)
+  think every 0.05 s but took AD's per-0.1 s slowing (an eighth of the speed) and frame (gone after 7) each think: a
+  flame died after 0.35 s, about 130 units out (a puff 110), well short of `vr_adgun_pyro_range` 300 /
+  `vr_adgun_fumigator_range` 260, while its fire particles flew on. A big monster kept at a distance (the minotaur's
+  reach) was never touched. Nothing in AD or our damage path spares it: AD's minotaur resists cells by half (the
+  sprayer's puffs and poison), nothing else; AD has no fire or poison immunity for monsters (its pyro spares only pyros).
+  Fixed: half AD's slowing, drift and frame a think, AD's 0.7 s life (`VR_ADGun_FlameLife`: the range set, at most
+  about 0.39 times the speed: a flame 236 units, a puff 197). The sprite now animates at AD's pace.
+- **Test:** `vr_ad_test 101` (vr_ad_enemyguns_test.qc): the streams' flames fly into the nearest monster held
+  `vr_test_spawn_dist` units ahead of a level hand. At 150 units: before, 0 dealt on the minotaur and the hunter ogre;
+  after, minotaur 25 (fire) / 18 (poison), golem 25 / 27, bog lord 12 / 15, hunter ogre 25 / 23, each burning or
+  poisoned; ad_dm1's own endfight minotaur (woken by its trigger) 25 / 18. `70` 8/8, `91` 3/3 PASS.
+- **For VR:** ad_dm1's minotaur (or any big AD monster) from a few metres off with each stream: it should burn or turn
+  green and lose health; the flames should look as long as before or a little longer.
