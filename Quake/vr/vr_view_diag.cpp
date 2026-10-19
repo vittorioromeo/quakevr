@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_admelee.hpp"
 
 namespace qvr::view
 {
@@ -787,6 +788,35 @@ WeaponHotspot weaponHotspot(int hand, int index)
     return {static_cast<int>(w.type), pos, w.bias, w.share};
 }
 
+// vr_admelee_spine: an AD sword in a hand (vr_admelee.cpp: a curved one's points, QC VR_Melee_At): its blade's spine as
+// drawn, in the world, at shares 0.27, 0.57, 0.86 and 1 of the line from the hand to its tip ("admelee spine:" lines;
+// QC's own points for the same shares: vr_ad_test 126).
+void adMeleeSpine_f()
+{
+    const hands::State& s = hands::current();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        WeaponFrame wf;
+        if(!s.valid || !weaponFrame(s, hand, wf) || !wf.model)
+        {
+            continue;
+        }
+        for(const float f : {0.27f, 0.57f, 0.86f, 1.f})
+        {
+            glm::vec3 p, l;
+            if(!admelee::spineAt(wf.model->name, f, p, l))
+            {
+                Con_Printf("admelee spine: hand %d: %s is not an AD sword\n", hand, wf.model->name);
+                break;
+            }
+            const glm::vec3 w{wf.modelToWorld * glm::vec4{p, 1.f}};
+            const glm::vec3 off = w - glm::vec3{wf.modelToWorld * glm::vec4{l, 1.f}};
+            Con_Printf("admelee spine: hand %d %.2f drawn at %.2f %.2f %.2f, off its line %.2f %.2f %.2f\n", hand, f, w.x, w.y,
+                w.z, off.x, off.y, off.z);
+        }
+    }
+}
+
 void hotspotFit_f()
 {
     const hands::State& s = hands::current();
@@ -1210,4 +1240,5 @@ void qvr::view::registerDiagCommands()
     Cmd_AddCommand("vr_anchor_where", anchorWhere_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", hotspotFit_f);
+    Cmd_AddCommand("vr_admelee_spine", adMeleeSpine_f);
 }

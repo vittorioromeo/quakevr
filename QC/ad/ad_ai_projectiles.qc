@@ -304,6 +304,7 @@ void() ad_Touch_PlasmaProjectile =
 	if (other == self.owner) return;			// Touching self, do nothing
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
 	if (self.waitmin > time) return;			// plasma touch has been disabled
+	VR_Proj_Begin(QVR_PROJ_LASER, 0); // Quake VR: every projectile's hit (weapons.qc)
 	// Quake VR: an electric bolt's hit crackles (vr_ad_enemyguns.qc, as the player's with the dropped gun)
 	if (VR_ADGun_IsElectric(self)) VR_ADGun_BoltFx(self.origin, self.velocity, ad_TRUE);
 
@@ -410,6 +411,7 @@ void() ad_Touch_PlasmaProjectile =
 	
 	// Remove plasma bolt
 	ad_entity_remove(self, 1);
+	VR_Proj_End();
 };
 
 //----------------------------------------------------------------------
@@ -442,7 +444,7 @@ void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_l
 	}
 
 	//----------------------------------------------------------------------
-	ad_newmis.solid = ad_SOLID_BBOX;
+	ad_newmis.solid = ad_SOLID_BBOX; VR_Proj_Mark(ad_newmis); // Quake VR: it meets corpses, gibs, knocked-down bodies (weapons.qc)
 	ad_newmis.touch = ad_Touch_PlasmaProjectile;
 	ad_newmis.ad_attack_finished = time + ad_LIFE_PROJECTILE;
 	ad_newmis.ad_poisonous = ad_newmis.owner.ad_poisonous;
@@ -561,6 +563,8 @@ void() ad_Touch_Projectile =
 	if (ad_check_skycontent(self.origin)) {ad_entity_remove(self, 0.1); return;}
 	if (other == self.owner) return;			// no touching self
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
+	// Quake VR: every projectile's hit (weapons.qc VR_Proj_Begin: pushes, where it struck, a corpse's wear, pops)
+	VR_Proj_Begin((self.ad_classtype == ad_CT_PROJ_LASER || self.ad_classtype == ad_CT_PROJ_RICLASER) ? QVR_PROJ_LASER : QVR_PROJ_BOLT, 0);
 
 	// No more touch/world interaction
 	self.touch = ad_SUB_Null;
@@ -832,6 +836,7 @@ void() ad_Touch_Projectile =
 	
 	// Hide projectile and wait for any sounds to finish playing
 	ad_entity_remove(self,2);
+	VR_Proj_End();
 };
 
 //----------------------------------------------------------------------
@@ -873,7 +878,7 @@ void(vector ad_org, vector ad_dir, float ad_proj_type, float ad_proj_speed) ad_l
 	else ad_newmis.movetype = ad_MOVETYPE_FLYMISSILE;
 
 	//----------------------------------------------------------------------
-	ad_newmis.solid = ad_SOLID_BBOX;
+	ad_newmis.solid = ad_SOLID_BBOX; VR_Proj_Mark(ad_newmis); // Quake VR: it meets corpses, gibs, knocked-down bodies (weapons.qc)
 	ad_newmis.touch = ad_Touch_Projectile;
 	ad_newmis.nextthink = time + ad_LIFE_PROJECTILE;
 	ad_newmis.think = ad_SUB_Remove;
@@ -987,6 +992,7 @@ void() ad_Touch_HomingMissile =
 	if (self.ad_touchedvoid) return;				// Marked for removal
 	if (ad_check_skycontent(self.origin)) {ad_entity_remove(self, 0.1); return;}
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
+	VR_Proj_Begin(QVR_PROJ_BLAST, 0); // Quake VR: every projectile's hit (weapons.qc)
 	
 	//----------------------------------------------------------------------
 	// Check for breakable/pushable monster immunity
@@ -1106,6 +1112,7 @@ void() ad_Touch_HomingMissile =
 	// Hide+Delete homing missile, no longer needed
 	// Wait for any sounds to finish playing
 	ad_entity_remove(self, 4);
+	VR_Proj_End();
 };
 
 //----------------------------------------------------------------------
@@ -1243,6 +1250,7 @@ void() ad_Touch_Missile =
 	// Guardian skull wizards have special poison explosion
 	if (self.ad_classtype == ad_CT_PROJ_SKULLW && self.ad_th_updmissile != ad_SUB_Null) {
 		self.ad_th_updmissile(); return; }
+	VR_Proj_Begin(QVR_PROJ_BLAST, 0); // Quake VR: every projectile's hit (weapons.qc)
 	
 	//----------------------------------------------------------------------
 	// Check for breakable/pushable monster immunity
@@ -1392,6 +1400,7 @@ void() ad_Touch_Missile =
 	
 	// Hide + Delete rocket, no longer needed
 	ad_entity_remove(self, 1);
+	VR_Proj_End();
 };
 	
 //----------------------------------------------------------------------
@@ -1532,7 +1541,7 @@ void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type, float ad_
 	}
 
 	//----------------------------------------------------------------------
-	ad_newmis.solid = ad_SOLID_BBOX;
+	ad_newmis.solid = ad_SOLID_BBOX; VR_Proj_Mark(ad_newmis); // Quake VR: it meets corpses, gibs, knocked-down bodies (weapons.qc)
 	ad_newmis.touch = ad_Touch_Missile;				// Default touch/impact
 	ad_newmis.height = ad_EXPLODE_SMALL;				// Default impact sound
 	ad_newmis.ad_attack_speed = ad_newmis.ad_attack_maxspeed = ad_proj_speed;	// current/max speed
@@ -1835,6 +1844,7 @@ void() ad_Touch_Grenade =
 	if (other.solid == ad_SOLID_TRIGGER) return;	// trigger field, do nothing
 	
 	self.ad_activate = other;		// Always keep track of what to damage
+	VR_Proj_Begin(QVR_PROJ_BLAST, 0); // Quake VR: every projectile's hit (weapons.qc)
 	
 	// Let minion eggs re-bounce in opposite direction
 	// Don't want them to explode like grenades
@@ -1870,6 +1880,7 @@ void() ad_Touch_Grenade =
 			if (ad_CheckZeroVector(self.velocity)) self.avelocity = '0 0 0';
 		}
 	}
+	VR_Proj_End();
 };
 
 //----------------------------------------------------------------------
@@ -1904,7 +1915,7 @@ void(vector ad_org, vector ad_dir, vector ad_avel, float ad_proj_type) ad_Launch
 	ad_newmis.movetype = ad_MOVETYPE_BOUNCE;
 
 	//----------------------------------------------------------------------
-	ad_newmis.solid = ad_SOLID_BBOX;
+	ad_newmis.solid = ad_SOLID_BBOX; VR_Proj_Mark(ad_newmis); // Quake VR: it meets corpses, gibs, knocked-down bodies (weapons.qc)
 	ad_newmis.touch = ad_Touch_Grenade;
 	ad_newmis.nextthink = time + ad_LIFE_GRENADE;
 	ad_newmis.think = ad_Explode_Grenade;

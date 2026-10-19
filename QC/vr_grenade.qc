@@ -383,6 +383,7 @@ void(entity g, void() xBoom, float xFuse, float xPlayers) VR_Grenade_Make =
         VR_Grenade_Setup(g, xBoom, xFuse);
     }
     VR_GrenShot_Make(g); // (caught or not, a shot sets it off: vr_grenade_shoot)
+    VR_Proj_Mark(g); // (a projectile: it meets a knocked-down body and goes off on it, as on one standing: weapons.qc)
 };
 
 // Lets go of the grenade `g` wherever it is held (it went off).

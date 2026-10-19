@@ -515,10 +515,20 @@ void() HIP_LaserTouch =
         spawn_touchblood(self.dmg);
 
         makeforward(self.angles);
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        vector at = trace_ent == other ? trace_endpos : self.origin;
+        posDmgType = PositionalDamage(other, at, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
+        // VR: every projectile's hit (VR_Proj_Begin's, its bounces its own): tagged a shot where it struck (a corpse's
+        // head or limb worn), a kill at the head or a limb popped by chance (vr_decap_pop_laser).
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, oldvel);
+        float pop = VR_Decap_ProjArm(other, self.lastvictim, at, oldvel, adjDmg, QVR_PROJ_LASER);
         T_Damage(other, self, self.lastvictim, adjDmg);
+        if(pop)
+        {
+            VR_Decap_After(other);
+        }
+        VR_ClearHitKind();
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -1942,6 +1952,99 @@ void() VR_ShotPush_Touch =
     }
 };
 
+// ----------------------------------------------------------------------------
+// Projectile hits: one path for every projectile's touch (ROUND22.md, "Projectiles: one path"): id1's nails, rockets,
+// grenades and lasers, the expansions', AD's, Dawn of the Machine's and the enemy guns' (the inventory: ROUND22.md).
+// The projectile (self) meeting `other`, its touch calls VR_Proj_Begin before it deals its hit, VR_Proj_End after:
+// - the prop, gib or ragdoll (a corpse's, a knocked-down body's) it met or flew through pushed (VR_ShotPush: a nail's
+//   push, or its own kind's, .vr_shot_push_kind); an explosive's blast pushes instead (physicsblast);
+// - where it struck, along its flight (VR_TouchTrace: vr_proj_at, vr_proj_dir), and the body's part there
+//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_SetHitKind), so a corpse's
+//   head or limb it strikes is worn down (VR_Limb_CorpseWear);
+// - a kill at the head or a limb armed to pop it (VR_Decap_ProjArm: a laser's or a plasma bolt's chance
+//   vr_decap_pop_laser, any other bolt's, nail's or lump's vr_decap_pop_projectile; an explosive's are its blast's,
+//   vr_limbs_blast), ended by VR_Proj_End (VR_Decap_After).
+// A wall torch the hit's damage reaches comes off its wall (T_Damage: VR_WallTorch_Shot; AD's T_Damage hands ours to
+// ours, VR_AD_DamageOurs); a grenade bounces off it, knocking it off (GrenadeTouch). The projectile's move meets corpses,
+// gibs, knocked-down bodies and wall torches' shot boxes: a flying missile's always (MOVE_MISSILE), a small
+// MOVETYPE_FLY one's and a grenade's when marked (VR_Proj_Mark: the engine's VR_HitModelMoveFlags, MOVE_HITGIBS).
+float QVR_PROJ_BOLT = 1;  // a nail, a spike, a bolt, a lump of flesh or rock: pops at vr_decap_pop_projectile
+float QVR_PROJ_LASER = 2; // a laser or a plasma bolt: pops at vr_decap_pop_laser
+float QVR_PROJ_BLAST = 3; // an explosive's direct hit (a rocket, a grenade, a fireball, a voreball): no pop of its own
+
+entity vr_proj_target; // what the last VR_Proj_Begin's projectile met
+vector vr_proj_at;     // where it struck it (on its model, else where the projectile is)
+vector vr_proj_dir;    // its flight's way
+float vr_proj_factor;  // the part's damage factor there (PositionalDamageFactor; 1 for what takes no damage)
+float vr_proj_armed;   // a pop armed (VR_Proj_End ends it)
+float vr_proj_hits;    // VR_Proj_Begin's calls (the tests)
+
+float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm; // (vr_limbs.qc)
+
+// `e`, a projectile just launched, marked one (its move meets corpses, gibs, knocked-down bodies: the engine's
+// VR_HitModelMoveFlags), for a small MOVETYPE_FLY one (AD's bolts, lasers and plasma) or a grenade.
+void(entity e) VR_Proj_Mark =
+{
+    e.vr_projectile = 1;
+};
+
+// Before the projectile (self) deals its hit on `other` (`xKind` QVR_PROJ_*, `xDamage` its damage, if known: a zombie's
+// head pops only to a hit that would knock it down).
+void(float xKind, float xDamage) VR_Proj_Begin =
+{
+    vr_proj_hits++;
+    vector dir = normalize(self.velocity);
+    if(dir == '0 0 0')
+    {
+        makeforward_mdl(self.angles);
+        dir = v_forward;
+    }
+    if(self.vr_shot_push_kind)
+    {
+        VR_ShotPush_Touch(); // (its own kind's push, or a prop it flew through)
+    }
+    else if(xKind != QVR_PROJ_BLAST)
+    {
+        VR_ShotPush(other, self.origin, self.origin, dir, QVR_SHOTPUSH_NAIL, 1);
+    }
+    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
+    vr_proj_target = other;
+    vr_proj_at = trace_ent == other ? trace_endpos : self.origin;
+    vr_proj_dir = dir;
+    vr_proj_factor = 1;
+    vr_proj_armed = FALSE;
+    if(!other.takedamage || other == world)
+    {
+        return;
+    }
+    vr_proj_factor = PositionalDamageFactor(PositionalDamage(other, vr_proj_at, dir));
+    if(xKind == QVR_PROJ_BLAST)
+    {
+        return;
+    }
+    VR_SetHitKind(QVR_HITKIND_SHOT, -1, vr_proj_at, dir);
+    vr_proj_armed = VR_Decap_ProjArm(other, self.owner, vr_proj_at, dir, xDamage, xKind);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("projectile hit: %s (%s) at %s at %v, part factor %.2f, pop armed %g\n", self.classname,
+            ftos(xKind), other.classname, vr_proj_at, vr_proj_factor, vr_proj_armed));
+    }
+};
+
+// After its hit: the armed pop ended, the hit's tag cleared.
+void() VR_Proj_End =
+{
+    if(vr_proj_armed)
+    {
+        VR_Decap_After(vr_proj_target);
+        vr_proj_armed = FALSE;
+    }
+    if(vr_hitkind == QVR_HITKIND_SHOT && vr_hithand == -1 && vr_hitpos == vr_proj_at)
+    {
+        VR_ClearHitKind();
+    }
+};
+
 void(float damage, vector dir) TraceAttack =
 {
     vector vel, org;
@@ -2280,12 +2383,14 @@ void() T_MissileTouch =
     float rocketScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_rocket, 100); // (Weapon Damage)
     damg = (100 + random()*20) * rocketScale;
 
+    VR_Proj_Begin(QVR_PROJ_BLAST, damg); // VR: every projectile's hit (where it struck; its blast pops and pushes)
     if(other.health)
     {
         if(VR_IsShambler(other))
             damg = damg * 0.5;    // mostly immune
         T_Damage(other, self, self.owner, damg);
     }
+    VR_Proj_End();
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
@@ -2764,6 +2869,8 @@ void() GrenadeTouch =
         VR_WallTorch_KnockOff(other, self, normalize(self.velocity));
         return; // retain the grenade's bounce and its original fuse
     }
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (where it struck: its blast's pops are its own)
+    VR_Proj_End();
 
     if(other.takedamage == DAMAGE_AIM && other.mg3_chthon)
     {
@@ -2924,6 +3031,7 @@ void() ProximityGrenadeTouch =
       return;
    if(vlen(other.velocity) > 0)
       {
+      VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
       ProximityGrenadeExplode();
       self.think();
       return;
@@ -3188,7 +3296,6 @@ void(vector ang) makeforward_mdl =
 
 void() spike_touch =
 {
-    float posDmgType;
     float adjDmg;
 
     // HONEY
@@ -3207,16 +3314,15 @@ void() spike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9));
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
     {
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {
@@ -3243,12 +3349,12 @@ void() spike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 };
 
 void() superspike_touch =
 {
-    float posDmgType;
     float adjDmg;
 
     // HONEY
@@ -3267,16 +3373,15 @@ void() superspike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18));
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
     {
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {
@@ -3293,6 +3398,7 @@ void() superspike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 
 };
@@ -5845,6 +5951,17 @@ void(float xHand) VRWeightWrenchFrame =
     dprint(sprintf("weight drop: weapon %g wrenched out of hand %g\n", wid, xHand));
 };
 
+// A weapon too big for a holster (WeaponIdToHolsterable) let go at holster `xHotspot`: refused (a buzz, a word; counted
+// for the tests). The caller lets it fall.
+float vr_holster_refused; // (the tests)
+void(entity ent, float xHand, float xHotspot, float xWeapon, float xWeaponFlags) VRHolsterRefused =
+{
+    vr_holster_refused++;
+    sprint(ent, sprintf("The %s is too big for a holster.\n", WeaponNameOf(xWeapon, xWeaponFlags)));
+    VRHolsterHapticBuzz(ent, xHand, xHotspot);
+    dprint(sprintf("holster: weapon %g (flags %g) refused by holster %g: not holsterable\n", xWeapon, xWeaponFlags, xHotspot));
+};
+
 // `xHand`'s weapon into the empty holster `xHotspot` (immersive): its record with it (its magazine, its id); the hand
 // empty. (`self` is `ent`: the holster's getters are self's.)
 void(entity ent, float xHand, float xHotspot) VRHolsterHandWeapon =
@@ -5894,6 +6011,51 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
         VRSetEntWeaponInst(ent, xHand, WeaponInst_Clone(holstered));
     }
     W_SetCurrentAmmoFor(xHand);
+};
+
+// `xHand` lets its weapon go at holster `xHotspot`: a weapon too big for a holster (WeaponIdToHolsterable: AD's hammer
+// and mace) is refused and falls, as anywhere (a quick slot keeps no copy); else, immersive, into the empty holster (the
+// hand empty), or a quick slot's copy. `xPrevGrabbing`: the hand held on until now (a full holster's buzz).
+void(entity ent, float xHand, float xHotspot, float xWeapon, float xWeaponFlags, float xPrevGrabbing) VRLetGoAtHolster =
+{
+    if(!WeaponIdToHolsterable(xWeapon, xWeaponFlags))
+    {
+        VRHolsterRefused(ent, xHand, xHotspot, xWeapon, xWeaponFlags);
+        if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+        {
+            DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags);
+        }
+        return;
+    }
+    // In "immersive" mode, weapons can only be placed in an empty holster.
+    // Holstering a weapon frees your hand up.
+    if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+    {
+        if(getHolsterWeapon(xHotspot) == WID_FIST)
+        {
+            VRHolsterHandWeapon(ent, xHand, xHotspot);
+        }
+        else if(xPrevGrabbing)
+        {
+            sprint(ent, VRGetHolsterName(xHotspot));
+            sprint(ent, " holster is not empty.\n");
+
+            VRHolsterHapticBuzz(ent, xHand, xHotspot);
+        }
+    }
+    // In "quick slot" mode, weapons can be placed in any holster.
+    // Holstering a weapon does not free your hand up.
+    else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+    {
+        if(getHolsterWeapon(xHotspot) != xWeapon)
+        {
+            // (its sound: VRPutWeaponInHolster's, from the hand)
+
+            // (The holster keeps a copy: the hand keeps its weapon.)
+            VRPutWeaponInHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags,
+                WeaponInst_Clone(VRGetEntWeaponInst(ent, xHand)));
+        }
+    }
 };
 
 void(entity ent, float xHand) VRWeaponLetGoDone =
@@ -5958,38 +6120,10 @@ void(entity ent, float xHand,
             // Otherwise it falls, or flies.
             DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags);
         }
-        // Put a weapon in a holster.
+        // Let go at a holster: into it, or refused (VRLetGoAtHolster).
         else if(isHolsterHotspot(xHotspot))
         {
-            // In "immersive" mode, weapons can only be placed in an empty holster.
-            // Holstering a weapon frees your hand up.
-            if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
-            {
-                if(getHolsterWeapon(xHotspot) == WID_FIST)
-                {
-                    VRHolsterHandWeapon(ent, xHand, xHotspot);
-                }
-                else if(handPrevGrabbing)
-                {
-                    sprint(ent, VRGetHolsterName(xHotspot));
-                    sprint(ent, " holster is not empty.\n");
-
-                    VRHolsterHapticBuzz(ent, xHand, xHotspot);
-                }
-            }
-            // In "quick slot" mode, weapons can be placed in any holster.
-            // Holstering a weapon does not free your hand up.
-            else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
-            {
-                if(getHolsterWeapon(xHotspot) != xWeapon)
-                {
-                    // (its sound: VRPutWeaponInHolster's, from the hand)
-
-                    // (The holster keeps a copy: the hand keeps its weapon.)
-                    VRPutWeaponInHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags,
-                        WeaponInst_Clone(VRGetEntWeaponInst(ent, xHand)));
-                }
-            }
+            VRLetGoAtHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags, handPrevGrabbing);
         }
         // Swap weapon between hands.
         else if(xHotspot == QVR_HS_HAND_SWITCH)

@@ -259,31 +259,21 @@ void() VR_RifleLaser_Touch =
     }
 
     sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
-    VR_ShotPush_Touch(); // the prop it hit (or flew through) pushed
-
-    makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
+    // Every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a kill at the head or a limb popped by chance as an enemy's bolt (vr_decap_pop_laser).
+    VR_Proj_Begin(QVR_PROJ_LASER, self.vr_laser_damage);
 
     float bleed = FALSE;
     if(other.takedamage)
     {
         float before = other.health;
-        vector hitAt = trace_ent == other ? trace_endpos : self.origin;
-        vector hitDir = v_forward;
-        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(other, hitAt, hitDir));
-        VR_SetHitKind(QVR_HITKIND_SHOT, -1, hitAt, hitDir);
-        // (A kill at the head or a limb pops it by chance, as an enemy's bolt: vr_decap_pop_laser, vr_limbs.qc.)
-        float pop = VR_Decap_LaserArm(other, self.owner, hitAt, hitDir, dmg);
+        float dmg = self.vr_laser_damage * vr_proj_factor;
         if(T_Damage(other, self, self.owner, dmg))
         {
             spawn_touchblood(dmg);
             bleed = TRUE;
         }
-        if(pop)
-        {
-            VR_Decap_After(other);
-        }
-        VR_ClearHitKind();
+        VR_Proj_End();
         if(cvar_hget(cvarh_vr_debug_shots))
         {
             dprint(sprintf("rifle laser: hit %s (%s) at %g at %v, %g damage, health %g -> %g\n", other.classname,

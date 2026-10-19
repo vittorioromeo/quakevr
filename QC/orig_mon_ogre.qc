@@ -74,6 +74,7 @@ void() OgreGrenadeTouch =
         return;        // don't explode on owner
     if(other.takedamage == DAMAGE_AIM)
     {
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         OgreGrenadeExplode();
         return;
     }

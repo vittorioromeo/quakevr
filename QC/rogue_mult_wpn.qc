@@ -87,6 +87,7 @@ void() MultiGrenadeTouch =
     {
         if(self.classname == "MiniGrenade")
         {
+            VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
             MiniGrenadeExplode();
         }
         else
@@ -233,6 +234,7 @@ void() MultiRocketTouch =
         return;
     }
 
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     MultiRocketExplode();
 };
 
@@ -487,6 +489,7 @@ void() PlasmaTouch =
     damg = (80 + random()*20) * plasmaScale;
 
     sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
+    VR_Proj_Begin(QVR_PROJ_BLAST, damg); // VR: every projectile's hit (weapons.qc: its blast pops and pushes)
 
     if(other.health)
     {
@@ -495,6 +498,7 @@ void() PlasmaTouch =
         T_Damage(other, self, self.owner, damg);
     }
 
+    VR_Proj_End();
     // don't do radius damage to the other, because all the damage
     // was done in the impact
     T_RadiusDamage(self, self.owner, 70 * plasmaScale, other);

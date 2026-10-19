@@ -13689,3 +13689,94 @@ vs drawn bolt 0.035 u, 0.00 deg; re-posed (pitch 15, yaw 10, scale 0.9, z 2; off
 - **For VR:** slow arm moves silent; a brisk wave or a wind-up a soft whoosh; a punch or cut a clear step louder; a
   very fast punch or full cut louder than before and a touch higher. Waving a sword or axe about now whooshes softly
   each stroke (0.2 s apart at most): if too busy, raise Heard From or lower Short of a Blow.
+
+## Projectiles: one path; grenades on knocked-down bodies; the fury's curve; sword fix; no holster for the hammer and mace (worktree `gorefx`, branch `agent/projconsist`, 2026-10-19)
+
+**Projectiles: one path.** Every projectile's touch now calls `VR_Proj_Begin(kind, damage)` before its hit and
+`VR_Proj_End()` after it (QC weapons.qc, "Projectile hits"): the prop, gib or ragdoll it met (or flew through) pushed
+(`VR_ShotPush`, a nail's push; explosives push by their blast), where it struck found along its flight
+(`VR_TouchTrace`, `PositionalDamage`: the headshot crack, a corpse's head or limb worn, `VR_Limb_CorpseWear`), the hit
+tagged a shot there, and a kill at the head or a limb armed to pop (`VR_Decap_ProjArm`, vr_limbs.qc: lasers and plasma
+bolts `vr_decap_pop_laser`, any other bolt, nail or lump the new `vr_decap_pop_projectile` 0.85; explosives none of their
+own, their blasts pop, `vr_limbs_blast`). Wall torches come off through the damage (T_Damage's `VR_WallTorch_Shot`; AD's
+T_Damage hands ours to ours).
+
+The real bug: AD's crossbow bolt (and AD's lasers, plasma and its player-sized small projectiles, MG3's alt laser and
+seeker eye) are `MOVETYPE_FLY`: their move is `MOVE_NORMAL` without `MOVE_HITGIBS`, so it passed through corpses,
+knocked-down bodies and gibs (`SOLID_NOT_BUT_TOUCHABLE`) and missed the wall torch's shot box (`VR_ShotTargetClip` only
+meets shots and missiles). A projectile marked `.vr_projectile` (`VR_Proj_Mark`: AD's `ad_launch_projectile`,
+`ad_launch_plasma`, `ad_Launch_Missile`, `ad_Launch_Grenade`, MG3's FLY ones, every grenade made by `VR_Grenade_Make`)
+now moves as AD's pellets did (vr_hitmodel.cpp `VR_HitModelMoveFlags`: `MOVE_HITGIBS` + precise hits). Grenades: a
+marked prop meeting a ragdoll (Box3D `Kind::Corpse`) now touches it (vr_box3d_step.cpp `touches`): a living, knocked-down
+monster (DAMAGE_AIM) is struck as standing, so a grenade goes off on it instead of bouncing; a corpse is bounced off.
+
+Inventory (H = calls the helper now; was = what it had before):
+
+| game | projectile (classname / AD type) | touch | movetype | was | now |
+|---|---|---|---|---|---|
+| id1 | spike, super spike (player, wizard, hell knight, spikeshooters, scourge, MG3 spikes) | spike_touch, superspike_touch | FLYMISSILE | TT PD SP | H (bolt) |
+| id1 | missile, lavaball (rocket, traps, Chthon) | T_MissileTouch | FLYMISSILE | TD RD | H (blast) |
+| id1 | grenade (launcher, hand, AD grenade soldier's gun) | GrenadeTouch / VR_Grenade_Touch | BOUNCE (Box3D) | WT TD RD | H (blast) + marked |
+| id1 | enforcer_laser | Laser_Touch | FLYMISSILE | SP TT LA | H (laser) |
+| id1 | ogre_grenade, zgrenade, voreball, fireball | OgreGrenadeTouch, ZombieGrenadeTouch, ShalMissileTouch, fire_touch | BOUNCE/FLYMISSILE/TOSS | TD/RD | H |
+| VR | rifle_laser (enforcer rifle) | VR_RifleLaser_Touch | FLYMISSILE | SP TT PD LA | H (laser) |
+| VR | AD crossbow bolt (BOLT1) | VR_ADGun_BoltTouch | FLY | SP TT PD, no collision with bodies | H (bolt) + marked |
+| VR | AD plasma rifle bolt | VR_ADGun_PlasmaTouch | FLY/FLYMISSILE | SP TT PD | H (laser) + marked |
+| VR | vr_adflame | VR_ADGun_FlameTouch | FLYMISSILE | TD | H (blast) |
+| hip | hiplaser (laser cannon, Armagon, gremlin) | HIP_LaserTouch | FLYMISSILE | TT SP PD | its own (bounces): hit tag + `VR_Decap_ProjArm` (laser) |
+| hip | proximity_grenade | ProximityGrenadeTouch | TOSS | RD | H (blast) |
+| rogue | lava_spike, super lava spike | lavaspike_touch, superlavaspike_touch | FLYMISSILE | SP TT | H (bolt) |
+| rogue | plasma (gun, dragon), MultiRocket, MultiGrenade | PlasmaTouch, MultiRocketTouch, MultiGrenadeTouch | FLYMISSILE/BOUNCE | TD RD | H (blast) |
+| rogue | wrath ball, mummy flesh, dragon fireball, lavaman ball, Vengeance sphere | WrathMissileTouch, mummyGrenadeTouch, FireballTouch, lavaman_touch, sphere_impact | various | TD/RD | H |
+| rogue | buzzsaw (trap) | buzzsaw_touch | FLY | VR_Limb_RagdollHit already | unchanged |
+| AD | NG SNG REFNG MONNG SANTA BOLT1 HKN DLORD LASER RICLASER WBONE WIZ MPOISON MBLOOD SCORP FURY2 NOUR1 BLBOLT GROCK FLESH SPID SWAMP VORE ELF | ad_Touch_Projectile | FLY/FLYMISSILE/BOUNCE | ATD only | H (laser for LASER/RICLASER, else bolt) + marked |
+| AD | PLASMA (player AD plasma gun, plasma monsters) | ad_Touch_PlasmaProjectile | FLY/FLYMISSILE | ATD RD | H (laser) + marked |
+| AD | SHAL SERG SHUB1 (homing) | ad_Touch_HomingMissile | FLYMISSILE | ATD RD | H (blast) |
+| AD | ROCKET ARMY LAVA CHTHON ... (ad_Launch_Missile) | ad_Touch_Missile | FLY/FLYMISSILE | ATD RD | H (blast) + marked |
+| AD | GL GLMON MEGG NOUR2 CHTHON2 SHUB2 | ad_Touch_Grenade | BOUNCE | ATD RD | H (blast) + marked |
+| AD | SG/SSG pellets | ad_Touch_Bullet | FLY/FLYMISSILE | PH (TT PD TD) | unchanged (hitscan-like pellets: their own path) |
+| AD | flame/hazard, pyro flame, gas trap, wraith/skull clouds | ad_Touch_HazardProjectile, ad_pyroflame_touch, ad_trap_gasshooter_touch, ... | BOUNCE/FLY | ATD | unchanged (clouds and flames) |
+| MG3 | alt enforcer laser | MG3_LaserAltTouch | FLY | TD | H (laser) + marked |
+| MG3 | orb, ogre missile, demodog grenade, slime blob, Shub blast/spheres/spam | T_OrbTouch, MG3_OgreMissileTouch, MG3_DemoGrenadeTouch, MG3_Slime_BlobTouch, blast_touch, sphere_mis_touch, oldnew_spam_touch | various | TD/RD | H (blast) |
+| MG3 | seeker eye | eye_touch | FLY | TD | H (bolt) + marked |
+| Quoth | (its monsters run AD's projectile code) | as AD | | | as AD |
+
+(TT VR_TouchTrace, PD PositionalDamage, SP shot push, TD T_Damage, ATD AD's T_Damage, RD radius damage, WT wall torch,
+LA laser pop arming, PH VR_AD_PelletHit.) Decals: nails keep `spike_bullethole`; the rest leave their games' own marks.
+
+**Tests** (`vr_ad_test 130`, QC/vr_projhit_test.qc; `vr_decap_pop_roll 0; vr_corpse_health_mult 0.01` on ad_dm1, each
+case `scratch1 K; scratch2 C; vr_ad_test 130; wait400`): for kinds 1 nail, 9 Rogue lava nail (before: no pop), 4 enforcer laser, 5 hip laser, 6 AD crossbow
+bolt, 7 AD plasma bolt, 8 AD nail, 11 AD laser: case 0 a head kill pops the head (headless 1), case 1 a corpse's arm pops
+it (limbs 96), case 2 the corpse is pushed (`vr_debug_shots`: `shot push: ... monster_army`), case 3 a knocked-down
+grunt is hit (health 85-91); 0 rocket, 2 grenade, 12 Rogue plasma: blasts (a grenade on a knocked-down grunt: dead, limbs
+popped by the blast). Wall torches (`vr_test_walltorch_shot K` on vrfiringrange, `setpos -476 -760 41 0 -90 0`): kinds
+0 1 2 4 5 6 7 8 9 11 12 all `detached=1`.
+
+**The fury's curve.** The melee's blade (QC vr_melee.qc): a straight line from the hand (`VRGetEntHandPos`) to the
+weapon's muzzle anchor (its tip), with points at shares of it (the sword's layout: pommel -1, hilt 0, guard 0.12, blade
+0.27 .. 1); each frame each point is swept from where it was to where it is (`VR_Melee_Sweep`): a line trace against the
+world, and a segment against each monster's box grown by `VR_MELEE_RADIUS` (3 units, times vr_melee_range_multiplier),
+then against its model (`hitmodel_segment`, precise hits); the outermost striking point in it lands the blow. The death
+fury's blade bows up to 12 model units (4.6 world units) off that line, so the line cut across the curve's inside: it
+struck what the blade had not reached yet, and missed with the outer bow. Now the points of a curved AD sword lie on its
+spine (`admeleebend(kind, f)`, vr_admelee.cpp `admelee::bend`: the made model's blade spine sampled at 17 shares of the
+line, kept per weapon per game folder; QC `VR_Melee_BendLine` orients it by the hand's right, `VR_Melee_At` adds it):
+the same 9 swept points, no extra traces. `vr_melee_curved_blades` (1; 0 the line). Checked: `vr_ad_test 126`'s points
+match the drawn blade (`vr_admelee_spine`) within about half a unit of bend (the drawn sword sits ~2 units off the
+server's hand line near the hilt: the slot's weapon offsets, as before), and a sweep past the bow strikes a box on its
+outside the line missed, and misses one on its inside the line struck (PASS; the line: FAIL).
+
+**Swords' stray vertex.** The four made swords' blades closed inside the guard at a point whose z was the spine's
+half-width (1.65-1.85 AD units: a place's z there is a width), so a fan of triangles stuck out ~4.5 units beside the
+handle. Closed in the blade's plane now: the boxes' y max 6.13 -> 4.04 (the guard's), no off-plane spike
+(`vr_admelee_models write` dumps the made files; still 0 open edges, outward).
+
+**Hammer and mace not holsterable.** `WeaponIdToHolsterable(wid, flags)` (vr_weaponutil.qc; `VR_ADMelee_Holsterable`:
+the hammer and the mace): let go at a holster they are refused (a buzz, "too big for a holster") and fall; a quick slot
+keeps no copy (weapons.qc `VRLetGoAtHolster`, the let-go-at-a-holster branch moved out of DoHandImpl). `vr_ad_test 127`:
+PASS.
+
+- **For VR:** the crossbow at a corpse's arm or head (pops), at a ragdoll (pushes), at a wall torch (comes off); a
+  grenade straight at a knocked-down enemy (goes off); nailgun headshot kills now pop heads at 0.85 like lasers (too
+  often: lower `vr_decap_pop_projectile`); the fury's sword swung edge-first along its curve, inside and outside; the
+  hammer or mace let go at a holster (falls).

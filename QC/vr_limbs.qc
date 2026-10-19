@@ -1129,7 +1129,20 @@ float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
 // or corpse hit popping it at vr_decap_pop_laser (times Head Chance or Limb Chance; corpses obey their own toggles).
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_Decap_LaserArm =
 {
-    float chance = min(1, max(0, cvar_hget(cvarh_vr_decap_pop_laser)));
+    return VR_Decap_ProjArm(targ, attacker, xAt, xDir, xDamage, QVR_PROJ_LASER);
+};
+
+// Any projectile's hit (VR_Proj_Begin, weapons.qc; `xKind` QVR_PROJ_*) about to deal `xDamage` to `targ` for `attacker`,
+// striking it at `xAt` going `xDir`: armed as a laser bolt's (above), at its kind's chance: a laser's or a plasma bolt's
+// vr_decap_pop_laser, a bolt's, a nail's or a lump's vr_decap_pop_projectile; an explosive's none (its blast's pops).
+float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm =
+{
+    if(xKind != QVR_PROJ_LASER && xKind != QVR_PROJ_BOLT)
+    {
+        return FALSE;
+    }
+    float chance = min(1, max(0, cvar_hget(xKind == QVR_PROJ_LASER ? cvarh_vr_decap_pop_laser : cvarh_vr_decap_pop_projectile)));
+    string what = xKind == QVR_PROJ_LASER ? "a laser bolt" : "a projectile";
     if(chance <= 0 || !targ.takedamage || !(targ.flags & FL_MONSTER) || targ == attacker)
     {
         return FALSE;
@@ -1143,7 +1156,7 @@ float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_D
             return FALSE;
         }
         vr_decap_chance = chance;
-        vr_decap_why = "a laser bolt";
+        vr_decap_why = what;
         return TRUE;
     }
     if(!VR_Limb_Allowed(targ))
@@ -1154,11 +1167,11 @@ float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage) VR_D
     if(bone < 0 || (VR_Limb_IsZombie(targ) && xDamage < VR_DECAP_ZOMBIE_DOWN) ||
        !VR_Limb_Arm(targ, attacker, xAt, xDir * VR_DECAP_SHOT_SPEED, QVR_DECAP_LASER, bone))
     {
-        dprint(sprintf("limbs: no: a laser bolt at %s at %v, its limb %g\n", targ.classname, xAt, bone));
+        dprint(sprintf("limbs: no: %s at %s at %v, its limb %g\n", what, targ.classname, xAt, bone));
         return FALSE;
     }
     vr_decap_chance = chance;
-    vr_decap_why = "a laser bolt at a limb";
+    vr_decap_why = strcat(what, " at a limb");
     return TRUE;
 };
 

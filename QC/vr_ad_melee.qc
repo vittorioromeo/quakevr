@@ -425,6 +425,127 @@ void(entity p) VR_ADMelee_ReportCarried =
     bprint(sprintf("admelee: carried AD melee weapons on their own models: %g\n", n));
 };
 
+// `vr_ad_test 126` (the death fury's sword in the main hand: `vr_ad_test 116` first, a few frames before): its melee
+// points on its curve (VR_Melee_At, vr_melee_curved_blades) against the straight line from the hand to its tip, and a
+// sweep: the blade's points moved 24 units across its flat in one frame past a small box on the curve's bow, halfway
+// (the points' own thickness, VR_MELEE_RADIUS, in): the curved points' sweeps strike it, the straight line's pass it by.
+// "admelee curve:" lines (each share's point; the engine's drawn spine for the same shares: vr_admelee_spine), then
+// PASS or FAIL.
+void(entity p) VR_ADMelee_CurveTest =
+{
+    entity was = self;
+    self = p;
+    bprint(sprintf("admelee curve: main hand %s, curved blades %g\n", p.weaponmodel, cvar_hget(cvarh_vr_melee_curved_blades)));
+    float ok = VR_Melee_Line(p, cVR_MainHand, VR_MTHING_SWORD);
+    float kind = VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand));
+    vector grip = vr_mline_grip, far = vr_mline_far;
+    float bend = vr_mline_bend;
+    vector across = normalize(vr_mline_bend_y);
+    if(!bend)
+    {
+        makevectors(VRGetEntHandRot(p, cVR_MainHand));
+        across = v_right * -1;
+    }
+    float most = 0;
+    vector mostAt = grip;
+    float f;
+    for(f = 0.27; f < 1.01; f = f + 0.1)
+    {
+        vector at = VR_Melee_At(min(1, f));
+        vector line = grip + (far - grip) * min(1, f);
+        if(vlen(at - line) > most)
+        {
+            most = vlen(at - line);
+            mostAt = at;
+        }
+    }
+    float s;
+    for(s = 0; s < 4; s++)
+    {
+        f = s == 0 ? 0.27 : (s == 1 ? 0.57 : (s == 2 ? 0.86 : 1));
+        vector pt = VR_Melee_At(f);
+        vector off = pt - (grip + (far - grip) * f);
+        bprint(sprintf("admelee curve: %.2f at %.2f %.2f %.2f, off its line %.2f %.2f %.2f\n", f, pt_x, pt_y, pt_z, off_x,
+            off_y, off_z));
+    }
+    // Two small boxes (1 unit, grown by the points' thickness) halfway along a 24-unit sweep across the flat: one just
+    // outside the curve's bow (the blade strikes it, the straight line passed it by), one just inside it, off the line
+    // the other way (the straight line struck it before the blade got there: "it hits sooner").
+    vector d = across * 24;
+    vector out = normalize(mostAt - (grip + (far - grip) * ((mostAt - grip) * (far - grip) / max(0.001, (far - grip) * (far - grip)))));
+    vector outer = mostAt + out * 1.5 + d * 0.5;
+    vector inner = mostAt - out * (most + 1.5) + d * 0.5;
+    vector half = '1 1 1' * (1 + VR_MELEE_RADIUS);
+    float curvedOuter = 0, curvedInner = 0, straightOuter = 0, straightInner = 0;
+    VR_Melee_Layout(VR_MTHING_SWORD);
+    for(float i = 0; i < vr_mpt_n; i++)
+    {
+        if(vr_mpt_kind[i] != VR_MPT_EDGE)
+        {
+            continue;
+        }
+        vector c0 = VR_Melee_At(vr_mpt_f[i]);
+        vector l0 = grip + (far - grip) * vr_mpt_f[i];
+        curvedOuter = curvedOuter + (VR_SegmentBox(c0, c0 + d, outer - half, outer + half) >= 0);
+        curvedInner = curvedInner + (VR_SegmentBox(c0, c0 + d, inner - half, inner + half) >= 0);
+        straightOuter = straightOuter + (VR_SegmentBox(l0, l0 + d, outer - half, outer + half) >= 0);
+        straightInner = straightInner + (VR_SegmentBox(l0, l0 + d, inner - half, inner + half) >= 0);
+    }
+    self = was;
+    float pass = (ok && (kind == VR_ADMELEE_FURY) && bend && (most > 3) && (curvedOuter > 0) && (curvedInner == 0) &&
+                  (straightOuter == 0) && (straightInner > 0));
+    bprint(sprintf("admelee curve: kind %g bent %g, %.2f units off the line at most\n", kind, bend, most));
+    bprint(sprintf("admelee curve: the bow's outside struck by the curved points %g, the line's %g; its inside %g, %g: %s\n",
+        curvedOuter, straightOuter, curvedInner, straightInner, pass ? "PASS" : "FAIL"));
+};
+
+// `vr_ad_test 127` (Weapon Mode Immersive): the hammer, the mace, then the fury's sword in the main hand let go at the
+// empty left hip holster (VRLetGoAtHolster, as the hand's letting go there): the hammer and the mace are refused (the
+// holster stays empty, the weapon falls: the hand empty, a weapon lying about), the sword goes in. "admelee holster:"
+// lines, then PASS or FAIL.
+void(entity p) VR_ADMelee_HolsterTest =
+{
+    float pass = TRUE;
+    float hs = QVR_HS_LEFT_HIP_HOLSTER;
+    for(float k = 0; k < 3; k++)
+    {
+        float kind = (k == 0) ? VR_ADMELEE_HAMMER : ((k == 1) ? VR_ADMELEE_MACE : VR_ADMELEE_FURY);
+        float flags = VR_ADMelee_Flags(kind);
+        VR_ADMelee_Ensure(kind);
+        VR_ADMelee_Hand(p, cVR_MainHand, flags);
+        entity was = self;
+        self = p;
+        setHolsterWeapon(hs, WID_FIST);
+        setHolsterWeaponModel(hs, WeaponIdToModel(WID_FIST, 0));
+        setHolsterWeaponFlags(hs, 0);
+        VRSetEntHolsterWeaponInst(p, hs, world);
+        float refused = vr_holster_refused;
+        VRLetGoAtHolster(p, cVR_MainHand, hs, VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeaponFlags(p, cVR_MainHand), TRUE);
+        float inHolster = ((getHolsterWeapon(hs) == WID_SWORD) && (VR_ADMelee_Kind(getHolsterWeaponFlags(hs)) == kind));
+        float handEmpty = VRIsHandEmpty(p, cVR_MainHand);
+        entity lying = world;
+        for(entity e = findradius(p.origin, 96); e; e = e.chain)
+        {
+            if((e.classname == "thrown_weapon") && (e.weapon == WID_SWORD) && (VR_ADMelee_Kind(e.weaponflags) == kind))
+            {
+                lying = e;
+            }
+        }
+        self = was;
+        float want = VR_ADMelee_Holsterable(kind);
+        float good = want ? (inHolster && handEmpty) : (!inHolster && handEmpty && (lying != world) && (vr_holster_refused > refused));
+        bprint(sprintf("admelee holster: %s: holsterable %g, in the holster %g, hand empty %g, lying %g, refused %g: %s\n",
+            VR_ADMelee_Name(kind), want, inHolster, handEmpty, lying != world, vr_holster_refused - refused,
+            good ? "ok" : "WRONG"));
+        pass = (pass && good);
+        if(lying != world)
+        {
+            remove(lying);
+        }
+    }
+    bprint(sprintf("admelee holster: %s\n", pass ? "PASS" : "FAIL"));
+};
+
 void(float request, entity p) AD_MeleeTest =
 {
     if(!cvar("vr_ad_mounted"))
@@ -434,6 +555,8 @@ void(float request, entity p) AD_MeleeTest =
     }
     if(request == 123 || request == 125) { VR_ADMelee_TakeNearest(p, request == 125); return; }
     if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
+    if(request == 126) { VR_ADMelee_CurveTest(p); return; }
+    if(request == 127) { VR_ADMelee_HolsterTest(p); return; }
     if(request >= 116 && request <= 119)
     {
         float a = request == 116 ? VR_ADMELEE_FURY : (request == 117 ? VR_ADMELEE_DKNIGHT : (request == 118 ?

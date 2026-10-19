@@ -108,6 +108,7 @@ void() MG3_OgreMissileTouch =
     if(self.vr_mg3_close_until > time)
     {
         spawn_touchblood(18);
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, 20);
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_KNIGHTSPIKE);

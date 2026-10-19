@@ -202,6 +202,7 @@ void() ShalMissileTouch =
     if(other == self.owner)
         return;        // don't explode on owner
 
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     if(other.classname == "monster_zombie")
         T_Damage(other, self, self, 110);
     T_RadiusDamage(self, self.owner, 40, world);

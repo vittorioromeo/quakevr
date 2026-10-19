@@ -559,6 +559,13 @@ float vr_mline_hs;   // the hand's share of the way from its near end (its pomme
 float vr_mline_tip;  // the far end is its tip (the hand nearer its near end), else its near end
 float vr_mline_gw;   // the hand's half width, a share of its length
 float vr_mline_back; // its near end behind its handle (VR_Melee_NearBack)
+// A curved blade (AD's death fury's sword: the engine's admeleebend, vr_admelee.cpp): its points (VR_Melee_At) follow
+// the blade's spine off the straight line from the hand to its tip, so its sweeps are where the curved blade goes (the
+// line alone cut across the curve's inside: it struck sooner than the blade, and missed with its outer bow). Its kind
+// (0: straight) and, in the world, the line's normal in the blade's plane and the flat's normal, each the line's length.
+float vr_mline_bend;
+vector vr_mline_bend_p;
+vector vr_mline_bend_y;
 
 // The hand's half width along a weapon held anywhere on it (m): the points there are the hand's, they strike nothing.
 float VR_MELEE_FREE_GRIP = 0.05;
@@ -609,11 +616,45 @@ float(entity p, float xHand, float xThing, vector xHandPos) VR_Melee_FreeLine =
     return TRUE;
 };
 
+// A sword held by its handle along `xLine` (the hand to its tip, world): if it is a curved AD sword (admeleebend), its
+// bend's axes into vr_mline_bend_*. The model's +y (the blade's flat's normal: the knight's sword's slot draws it with no
+// roll) is the hand's left; a mirrored model (the off hand's) keeps the bend, which lies in the blade's plane.
+void(entity p, float xHand, float xThing, vector xLine) VR_Melee_BendLine =
+{
+    float kind = xThing == VR_MTHING_SWORD ? VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand)) : 0;
+    if(kind <= 0 || !cvar_hget(cvarh_vr_melee_curved_blades))
+    {
+        return;
+    }
+    vector curved = admeleebend(kind, 0.5);
+    if(curved_z == 0)
+    {
+        return;
+    }
+    vector oldF = v_forward, oldR = v_right, oldU = v_up;
+    makevectors(VRGetEntHandRot(p, xHand));
+    float len = vlen(xLine);
+    vector a = xLine * (1 / max(0.001, len));
+    vector y = v_right * -1;
+    y = normalize(y - a * (y * a));
+    vr_mline_bend = kind;
+    vr_mline_bend_y = y * len;
+    vector pn;
+    pn_x = y_y * a_z - y_z * a_y; // (y x a: the model's +y crossed with the line, admelee::bend's normal)
+    pn_y = y_z * a_x - y_x * a_z;
+    pn_z = y_x * a_y - y_y * a_x;
+    vr_mline_bend_p = normalize(pn) * len;
+    v_forward = oldF;
+    v_right = oldR;
+    v_up = oldU;
+};
+
 float(entity p, float xHand, float xThing) VR_Melee_Line =
 {
     vector h = VRGetEntHandPos(p, xHand);
     vr_mline_grip = h;
     vr_mline_free = FALSE;
+    vr_mline_bend = 0;
     if(xThing == VR_MTHING_NONE)
     {
         return FALSE;
@@ -654,6 +695,7 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     }
     vector a = m - h;
     vr_mline_far = m;
+    VR_Melee_BendLine(p, xHand, xThing, a);
     float back = VR_Melee_NearBack(xThing);
     if(xThing == VR_MTHING_GUN && VRIsHandCarryingByForegrip(p, xHand))
     {
@@ -886,7 +928,13 @@ vector(float xF) VR_Melee_At =
     {
         return vr_mline_near;
     }
-    return vr_mline_grip + (vr_mline_far - vr_mline_grip) * xF;
+    vector at = vr_mline_grip + (vr_mline_far - vr_mline_grip) * xF;
+    if(vr_mline_bend && xF > 0)
+    {
+        vector k = admeleebend(vr_mline_bend, xF); // (a curved blade: on its spine)
+        at = at + vr_mline_bend_p * k_x + vr_mline_bend_y * k_y;
+    }
+    return at;
 };
 
 // `xVec` of the world turned into the play space (the player's turning undone). The turn's cosine and sine are kept

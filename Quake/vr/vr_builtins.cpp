@@ -39,6 +39,7 @@
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
+#include "vr_admelee.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 #include "vr_walltorch.hpp"
@@ -2180,6 +2181,17 @@ void PF_weapondrawnpose()
     }
 }
 
+// vector(float kind, float f) admeleebend: AD sword kind `kind`'s blade at share `f` of the line from the hand to its tip,
+// off that line (admelee::bend, as shares of its length): x in the blade's plane (the model's +y crossed with the line),
+// y along the model's +y; z 1 if the blade is curved (0: straight, nothing off it). QC VR_Melee_At.
+void PF_admeleebend()
+{
+    const glm::vec2 b = admelee::bend(static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1));
+    G_VECTOR(OFS_RETURN)[0] = b.x;
+    G_VECTOR(OFS_RETURN)[1] = b.y;
+    G_VECTOR(OFS_RETURN)[2] = b != glm::vec2{0.f} ? 1.f : 0.f;
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
 // player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
 // weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
@@ -2414,6 +2426,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapongrabspot", PF_weapongrabspot},
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
+    {"admeleebend", PF_admeleebend},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},

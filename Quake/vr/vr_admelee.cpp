@@ -160,6 +160,7 @@ struct Built
     float volume{0.f};              // signed, the MDL's winding (negative: closed the right way round)
     glm::vec3 lo{0.f}, hi{0.f};
     glm::vec3 tip{0.f}; // the far end's middle (vr_weapons.inc's MuzzleAnchor)
+    za::Vector<glm::vec3> spine; // a sword's blade's spine as made (its rings' middles), in the model's frame
 };
 
 // AD's frame (the weapon's own axes at its grip) to the knight sword's.
@@ -362,6 +363,7 @@ struct Mesh
     za::Vector<int> patch; // -1: skinned already
     za::Vector<int> tri;
     za::Vector<Patch> patches;
+    za::Vector<glm::vec3> spine; // the blade's rings' middles (AD's frame at the hand), the guard to the tip
     int groups{0};
 
     int vert(const glm::vec3& p, int grp, int pat, const glm::vec2& st = glm::vec2{0.f}, const glm::vec3& n = {})
@@ -495,7 +497,9 @@ void blade(Mesh& m, const Sword& s)
         return (P(i + 1) - P(i - 1)) * (chord(seg) / (chord(i - 1) + chord(i)));
     };
     const glm::vec2 t0 = glm::normalize(glm::vec2{P(1) - P(0)});
-    ring(P(0) - glm::vec3{t0, 0.f} * 0.45f, t0, 0.f); // (closed inside the guard)
+    // (Closed inside the guard, in the blade's plane: a spine point's z is its half-width, not a place; the closing
+    // point once kept it and stood out of the handle's side by the blade's half-width.)
+    ring(glm::vec3{s.spine[0][0], s.spine[0][1], 0.f} - glm::vec3{t0, 0.f} * 0.45f, t0, 0.f);
     for(int i = 0; i + 1 < n; i++)
     {
         const glm::vec3 p0 = P(i), p1 = P(i + 1), m0 = tangent(i, i), m1 = tangent(i + 1, i);
@@ -509,6 +513,10 @@ void blade(Mesh& m, const Sword& s)
                                 (3 * t2 - 2 * t) * m1;
             ring(glm::vec3{p.x, p.y, 0.f}, glm::normalize(glm::vec2{d}), za::max(p.z, 0.f));
         }
+    }
+    for(size_t i = 1; i < mids.size(); i++) // (not the closing point inside the guard)
+    {
+        m.spine.pushBack(mids[i]);
     }
     tube(m, pts, mids, 6, false, nullptr, nullptr, &look);
 }
@@ -1056,6 +1064,11 @@ void check(const Mesh& m, Built& out)
         }
     }
     out.tip /= static_cast<float>(za::max(tipCount, 1));
+    out.spine.clear();
+    for(const glm::vec3& l : m.spine)
+    {
+        out.spine.pushBack(fr.place(l));
+    }
     out.verts = nv;
     out.tris = nt;
     return true;
@@ -1092,7 +1105,141 @@ void check(const Mesh& m, Built& out)
     return ok;
 }
 
+// A sword's bend (QC VR_Melee_At: the melee's points on a curved blade): its spine's way off the straight line from the
+// hand (swordHand) to its tip (Built::tip, the slot's MuzzleAnchor), at bendSamples places evenly along that line, as
+// shares of the line's length: `off` along the line's normal in the blade's plane (P: Y x the line, Y the model's +y,
+// the blade's flat's normal), `side` along Y. Each weapon's made once a game folder (AD's data).
+constexpr int bendSamples = 17;
+
+struct Bend
+{
+    bool made{false};
+    bool curved{false};
+    glm::vec3 hand{0.f}, line{0.f}, normal{0.f};
+    float length{0.f};
+    float off[bendSamples]{};
+    float side[bendSamples]{};
+};
+
+constexpr size_t weaponCount = sizeof(weapons) / sizeof(weapons[0]);
+Bend bends[weaponCount];
+char bendsGameDir[MAX_OSPATH]; // the game folder they were made in
+
+[[nodiscard]] const Bend* bendOf(size_t w)
+{
+    if(strcmp(bendsGameDir, com_gamedir) != 0)
+    {
+        q_strlcpy(bendsGameDir, com_gamedir, sizeof(bendsGameDir));
+        for(Bend& b : bends)
+        {
+            b = Bend{};
+        }
+    }
+    Bend& bd = bends[w];
+    if(bd.made)
+    {
+        return &bd;
+    }
+    bd.made = true;
+    const Weapon& wp = weapons[w];
+    if(!wp.sword)
+    {
+        return &bd;
+    }
+    char name[MAX_QPATH];
+    q_snprintf(name, sizeof(name), "%s%s", wp.model, suffix);
+    Built b;
+    const char* why = "";
+    if(!buildNamed(name, nullptr, b, why) || b.spine.size() < 2)
+    {
+        return &bd;
+    }
+    const glm::vec3 hand = swordHand;
+    const float len = glm::length(b.tip - hand);
+    if(len < 1.f)
+    {
+        return &bd;
+    }
+    const glm::vec3 a = (b.tip - hand) / len;
+    const glm::vec3 y{0.f, 1.f, 0.f};
+    const glm::vec3 p = glm::normalize(glm::cross(y, a));
+    bd.hand = hand;
+    bd.line = a;
+    bd.normal = p;
+    bd.length = len;
+    // The spine as (along, off, side) shares, from the hand (on the line) out; sampled by its place along the line.
+    za::Vector<glm::vec3> s;
+    s.pushBack(glm::vec3{0.f});
+    for(const glm::vec3& q : b.spine)
+    {
+        const glm::vec3 d = (q - hand) / len;
+        if(glm::dot(d, a) > s.back().x)
+        {
+            s.pushBack(glm::vec3{glm::dot(d, a), glm::dot(d, p), glm::dot(d, y)});
+        }
+    }
+    float most = 0.f;
+    size_t seg = 0;
+    for(int k = 0; k < bendSamples; k++)
+    {
+        const float f = static_cast<float>(k) / (bendSamples - 1);
+        while(seg + 2 < s.size() && s[seg + 1].x < f)
+        {
+            seg++;
+        }
+        const glm::vec3 &u = s[seg], &v = s[za::min(seg + 1, s.size() - 1)];
+        const float t = v.x > u.x ? za::max(0.f, za::min(1.f, (f - u.x) / (v.x - u.x))) : 0.f;
+        bd.off[k] = u.y + (v.y - u.y) * t;
+        bd.side[k] = u.z + (v.z - u.z) * t;
+        most = za::max(most, fabsf(bd.off[k]));
+    }
+    bd.curved = most * len > 0.5f; // (half a unit off its line anywhere: the straight swords are not)
+    Con_DPrintf("AD melee model: %s: blade bent %.2f units off its line at most\n", name, most * len);
+    return &bd;
+}
+
+[[nodiscard]] const Bend* bendOfKind(int kind)
+{
+    return kind >= 1 && kind <= static_cast<int>(weaponCount) ? bendOf(static_cast<size_t>(kind - 1)) : nullptr;
+}
+
 } // namespace
+
+glm::vec2 bend(int kind, float f)
+{
+    const Bend* b = bendOfKind(kind);
+    if(!b || !b->curved)
+    {
+        return glm::vec2{0.f};
+    }
+    const float x = za::max(0.f, za::min(1.f, f)) * (bendSamples - 1);
+    const int i = za::min(static_cast<int>(x), bendSamples - 2);
+    const float t = x - static_cast<float>(i);
+    return {b->off[i] + (b->off[i + 1] - b->off[i]) * t, b->side[i] + (b->side[i + 1] - b->side[i]) * t};
+}
+
+bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
+{
+    for(size_t w = 0; w < weaponCount; w++)
+    {
+        char name[MAX_QPATH];
+        q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
+        if(strcmp(name, model) != 0)
+        {
+            continue;
+        }
+        const Bend* b = bendOf(w);
+        if(!b->length)
+        {
+            return false;
+        }
+        const glm::vec2 k = bend(static_cast<int>(w) + 1, f);
+        line = b->hand + b->line * (f * b->length);
+        out = line + (b->normal * k.x + glm::vec3{0.f, 1.f, 0.f} * k.y) * b->length;
+        return true;
+    }
+    return false;
+}
 
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
@@ -1118,10 +1265,14 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     return out;
 }
 
+// vr_admelee_models [write]: each model's stats (write: its made file into the game folder, admelee_<n>.mdl, to look
+// at in a model viewer or a script).
 void info_f()
 {
+    const bool write = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "write");
     for(const Weapon& w : weapons)
     {
+        const int index = static_cast<int>(&w - weapons);
         char name[MAX_QPATH];
         q_snprintf(name, sizeof(name), "%s%s", w.model, suffix);
         Built b;
@@ -1135,6 +1286,12 @@ void info_f()
                    "%.2f %.2f %.2f, tip %.4f %.4f %.4f\n",
             name, b.tris, b.verts, b.openEdges, b.overEdges, b.volume < 0.f ? "outward" : "INSIDE OUT", b.lo.x, b.lo.y,
             b.lo.z, b.hi.x, b.hi.y, b.hi.z, b.tip.x, b.tip.y, b.tip.z);
+        if(write)
+        {
+            char out[MAX_QPATH];
+            q_snprintf(out, sizeof(out), "admelee_%d.mdl", index);
+            COM_WriteFile(out, b.file.data(), static_cast<int>(b.file.size()));
+        }
     }
 }
 

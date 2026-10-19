@@ -291,6 +291,7 @@
 // ----------------------------------------------------------------------------
 
 .float  vr_rigid; // MOVETYPE_TOSS/BOUNCE entities that spin, bounce and settle as rigid bodies
+.float  vr_projectile; // a projectile (weapons.qc VR_Proj_Mark): a small MOVETYPE_FLY one's or a grenade's move meets corpses, gibs, knocked-down bodies (vr_hitmodel.cpp)
 .float  vr_hitclass; // precise hits (vr_hitmodel.cpp): a missile's class for its tolerance (HITCLASS_*: 0 a gun's, 1 the grappling hook's); -1: Quake's boxes
 .vector vr_spin;  // their angular velocity, radians per second, world axes
                   // (.vr_rigid 2: a solid one, SOLID_BBOX, its box kept round its drawn shape as it turns: an explosive box)

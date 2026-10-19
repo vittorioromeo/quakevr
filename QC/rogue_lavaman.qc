@@ -336,6 +336,7 @@ void() lavaman_touch =
     {
         if(other.classname == "monster_shambler")
             damg = damg * 0.5;    // mostly immune
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, damg);
     }
 

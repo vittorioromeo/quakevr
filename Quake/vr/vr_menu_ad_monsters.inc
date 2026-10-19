@@ -116,7 +116,25 @@
             .help("Both hands get the death fury's swords. 117: the death knight's and zombie knight's; 118: the death "
                   "guard's and the hammer; 119: the mace and the knight's own sword (console)."),
         command("Melee Weapon Models", "vr_admelee_models")
-            .help("The melee weapons made from AD's weapon models: triangles, box, tip."),
+            .help("The melee weapons made from AD's weapon models: triangles, box, tip. 'vr_admelee_models write' "
+                  "(console): each made file into the game folder (admelee_<n>.mdl)."),
+        command("Fury's Sword: Curve Check", "vr_ad_test 126")
+            .help("The death fury's sword in your main hand (Fury's Swords in Hand first): its melee points on its curved "
+                  "blade against the straight line, and a sweep past the bow (admelee curve: PASS). Curved Blades off: "
+                  "the line (FAIL, to compare)."),
+        command("Fury's Sword: Drawn Spine", "vr_admelee_spine")
+            .help("The sword's blade as drawn in each hand, at the points the melee checks (admelee spine: lines), to "
+                  "compare with Curve Check's."),
+        toggle("Curved Blades", "vr_melee_curved_blades")
+            .help("A curved sword (the death fury's) strikes along its curve; off: along the straight line from the hand "
+                  "to its tip, as before."),
+        command("Holster Refusal Check", "vr_ad_test 127")
+            .help("Destructive (your left hip holster): the hammer and the mace let go at it are refused and fall; the "
+                  "fury's sword goes in (admelee holster: PASS)."),
+        command("Projectile Hit Check", "vr_ad_test 130")
+            .help("Destructive: a grunt spawned ahead, struck by projectile kind scratch1 (1 a nail, 6 AD's crossbow bolt, "
+                  "2 a grenade...: vr_projhit_test.qc) in case scratch2 (0 a head kill, 1 a corpse's arm, 2 a corpse's "
+                  "torso, 3 knocked down): projhit: lines (headless, limbs, moved, health)."),
         command("Stand-In Gun Model", "vr_ad_test 89")
             .help("A gun model the engine cannot make (another AD release): Quake VR's stand-in loads under its name."),
         command("Arm for a Level Change", "vr_ad_test 87")
