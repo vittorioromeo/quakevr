@@ -61,6 +61,30 @@ and legs 1.4, torso 1.2, head 0.9). It is then multiplied by effort, the grip gu
 the drive it gets `vr_ragdoll_active_strength`, the joint torque caps and the 20 Hz spring cap, as for any active
 ragdoll.
 
+Round 22's second pass (his VR notes; ROUND22.md, "Struggle 2"):
+
+- **Slap at Your Hands** (`vr_struggle_frantic`, 1): held by the head (Pry), the legs (Crunch) or an arm (Pry, at half),
+  the free hands slap at the holding hand on a quicker beat of their own, drawn back 0.4 of the arm and struck in, the
+  beat and the aim jittered by seeded noise (`slapAt`). On its head they aim at your wrist and forearm over it, so
+  they come up over its head. Their arms get +0.5 x Frantic strength and keep half against the grip guard.
+- **Arm Reach** (`vr_struggle_arm_reach`, 150 deg): the rig's shoulder cone is 85 deg about the hanging arm, so a
+  hand never got above the shoulder (the arms stuck at the torso). While it struggles the shoulders' Box3D cone and
+  the drive's clamp are widened to this; after, they ease back at 1.5 rad/s, never tighter than the arm is turned
+  (no snap), the drive kept on until they are back (at most 3 s, then back at once as it ends: `shoulderReach`).
+- **Squirm** (`vr_struggle_squirm`, 1): Thrash wants +0.8 x Squirm more while its head or legs are held.
+- **Legs held on the floor, on its back**: Crunch also wants 0.6 x contact x (1 - prone) (it sits up at the hands),
+  and Claw is x (0.4 + 0.6 prone) (less of the glide onto its belly).
+- **Dragged by an arm**: Swat also wants 0.7 x arm held (the free hand swats at the holding one). **Stay Upright**
+  (`vr_struggle_upright`, 1): its feet planted under its hip, knees bent (over Brace, which eases by 0.7), Kick less;
+  its back rights its chest (a capped turn, 0.045 body weights x m); its legs hold up to 0.8 of its weight once its
+  chest is up past 0.2 and its middle sinks below a crouch (`stayUp`). Not eased by the grip guard (holding its own
+  weight eases the hold). Lying flat it can only try to sit up: it is not lifted.
+- **Voice** (`vr_struggle_voice` 1, `vr_struggle_voice_gap` 1.8 s): its own class's samples (AD's `ad_pain_sound`,
+  `ad_pain_sound2`, `ad_sight_sound`, `ad_idle_sound` fields; id1's from a table; only precached ones) on CHAN_AUTO,
+  ATTN_NORM: one as it is taken, then every gap x (0.6..1.4) / (0.45 + 0.55 effort), one as a burst begins (0.7 s
+  apart at least), none within 0.6 s of a hit (the QC's pain sound), never the same sample twice running, idles only
+  once its effort is under 0.5, volume 0.4 + 0.6 effort, pitch 0.94..1.06 (`struggleVoice`).
+
 Rhythm: each limb has a phase. It advances at its behaviours' blended rate, times `vr_struggle_speed`, the class speed,
 its own rate (seeded, +-35% x Variation), a burst's quickening and its effort. The arms alternate and so do the legs.
 
@@ -104,6 +128,9 @@ Not ogres, zombies, fiends, shamblers or vores. Health is its full health, used 
   for the cost with many.
 - `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legdrag (INFO: the mock cannot take a lying leg), headdrag, armdrag (each also with the
   struggle off) and dead.
+- `vr_struggle_status` also prints its free hands from its own head and over it, Upright, the force holding it up,
+  its chest's uprightness and its voices; each hold line its nearest hand from its head and its chest up.
+  `vr_struggle_debug 1` prints each voice.
 
 ## Cost
 

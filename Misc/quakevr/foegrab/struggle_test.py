@@ -8,7 +8,8 @@ Each case is one game on vrfiringrange (batched: testbatch.py), a grunt 36 units
   legdrag    knocked down, you stop 44 units off, the main hand on its left thigh, you walk back (dragged by the
              leg): Claw leads; it turns belly down
   headdrag   knocked down (vr_knockdown_test 0), the main hand on its ragdoll's head, you walk back: Pry leads, Brace too
-  armdrag    knocked down, the main hand on its right forearm, you walk back: Pry and Brace; its legs straight
+  armdrag    knocked down, the main hand on its right forearm, you walk back: Pry leads, its free hand swats (Swat over
+             0.4); its chest's uprightness (Stay Upright) reported
   dead       as headdrag, its health taken at 2.5 s: its struggle ends (dead), its strengths let go
 Each also as <case>_off (vr_struggle 0): the holds' lag and the pose compared. PASS per case as above; the logs go to
 <agent>/scratch/struggle_<case>.txt.
@@ -113,7 +114,8 @@ def parse(out):
         r"kick ([\d.]+) thrash ([\d.]+);", flat)]
     holds = [tuple(float(x) for x in m) for m in re.findall(
         r"struggle hold: \d+ hand \d part \d+ \(\S+\) lag ([\d.]+) units; bend ([-\d]+) prone ([-\d.]+) head ([-\d.]+) over "
-        r"its pelvis; an arm ([\d.]+) from your head, ([\d.]+) from this hand; legs straight ([\d.]+);", flat)]
+        r"its pelvis; an arm ([\d.]+) from your head, ([\d.]+) from this hand; legs straight ([\d.]+); pelvis \S+ \S+ \S+; "
+        r"a hand ([\d.]+) from its head; chest up ([-\d.]+)", flat)]
     traces = re.findall(r"struggle: \d+ ([\d.]+) s w .*? effort ([\d.]+) .*? straight ([\d.]+) ", flat)
     cost = [float(x) for x in re.findall(r"struggling; ([\d.]+) ms a frame", flat)]
     return flat, weights, holds, traces, cost
@@ -172,11 +174,16 @@ def main():
                                "leglift": (3, "its head over its pelvis", True),
                                "legdrag": (2, "belly down", True),
                                "headdrag": (5, "an arm from the holding hand", False),
-                               "armdrag": (6, "legs straight", True)}[name]
+                               "armdrag": (8, "chest up (Stay Upright)", True)}[name]
             pick = (lambda xs: min(xs)) if name == "lift" else (lambda xs: sum(xs) / len(xs))
             a = pick([x[col] for x in on_p]) if on_p else 0.0
             z = pick([x[col] for x in off_p]) if off_p else 0.0
             moved = a > z if more else a < z
+            if name == "armdrag":
+                # (Its free hand swats at the holding one as it pries; the pose is the struggle's Stay Upright: lying
+                # dragged from flat it can't rise, so its chest is reported, not judged.)
+                moved = mean.get("swat", 0.0) > 0.4
+                word = f"swat {mean.get('swat', 0.0):.2f} (>0.4); chest up"
             ok = ok and moved
             extra = (f"; {word} {a:.2f} (off {z:.2f}: {'as meant' if moved else 'NOT as meant'}); bend "
                      f"{pose(on_p, 1)[0]:.0f} (off {pose(off_p, 1)[0]:.0f})")

@@ -331,6 +331,9 @@ struct Death
     glm::vec3 rollAxis{0.f};
     float rollSign{1.f};
     glm::vec3 crawlStart{0.f};
+    // On his back instead (vr_ragdoll_active_crawl_back 1): no roll onto his front; a dying cockroach's flail, his limbs
+    // pawing the air and his body rocking, weakening, from `flailFrom` until `flailUntil`, then limp.
+    double flailFrom{-1.0}, flailUntil{-1.0};
 };
 
 // Liquids (vr_ragdoll_active_liquids; vr_ragactive.cpp, "Liquids"; ROUND22.md, "Active ragdolls: liquids"): a dying
@@ -522,6 +525,15 @@ struct Struggle
     // its waist's bend (deg: its chest's up against its pelvis's, forward positive), its legs' straightness (each foot's
     // distance from its hip over the leg's length, the mean), the arms' and legs' strength now.
     float handGap{0.f}, bend{0.f}, straight{0.f}, armsNow{0.f}, legsNow{0.f};
+    // Held by an arm (its upper arm or below; 0..1), how much it fights to stay up (Upright: 0..1) and the force its
+    // legs hold it up with this frame (N), how upright its chest is (its up's z).
+    float heldArm{0.f}, upright{0.f}, uprightForce{0.f}, chestUp{0.f};
+    // Its free hands from its own head (units: the nearest; how far over its top the highest is).
+    float handsToHead{0.f}, handsOverHead{0.f};
+    // Its voice (vr_struggle_voice; vr_box3d_struggle.cpp): the next cry, how many so far, the last sample's index.
+    double nextVoice{0.0}, voicedAt{-1e9};
+    int voices{0};
+    int lastVoice{-1};
 };
 
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
@@ -569,6 +581,11 @@ struct State
     Guard guard;
     // Struggling in a player's hands (vr_struggle).
     Struggle struggle;
+    // Its shoulders' cones widened while it struggles (vr_struggle_arm_reach: its hands over its head; the rig's 85
+    // degrees about the hanging arm reach no higher than its shoulders), eased back after: each arm's rig cone (rad; < 0
+    // not widened) and how long they have been narrowing (s; at most 3, then back at once as the drive ends).
+    za::Array<float, 2> shoulderCone{-1.f, -1.f};
+    float narrowing{0.f};
 };
 
 // What the drive needs of the world each frame.
@@ -753,5 +770,10 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t);
 [[nodiscard]] uint32_t struggleSlack(const ragdoll::Rig& rig, int count, uint32_t held, uint32_t& partly);
 // The struggle's cost: milliseconds over the frames since the last call, and how many struggles.
 void struggleCostSince(double& ms, int& frames, int& count);
+// Each drive frame (before its joints are set): its shoulders' cones widened while it struggles (vr_struggle_arm_reach),
+// eased back to the rig's after, never under the arm's turn now (no snap). True: one is still wider than the rig's (the
+// drive keeps on until it is back). shoulderRestore: the drive ends: back at once, but no tighter than the arm is turned.
+bool shoulderReach(State& s, const Parts& p, float dt);
+void shoulderRestore(State& s);
 
 } // namespace qvr::ragactive

@@ -219,6 +219,9 @@ void ragdollHandProbe_f()
                    "the hand drawn %.1f cm and %.0f degrees (of %.0f) off its controller (eased %.2f)\n",
             name, limb.num, limb.part, lag * cm, glm::length(e.offset * e.blend) * cm,
             glm::degrees(glm::angle(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend))), e.unclamped, e.blend);
+        Con_Printf("ragdoll hand %s rest: the palm %.1f cm from the limb's mesh as held, %.1f cm rested on it (slid %.1f cm; "
+                   "negative: in it; vr_ragdoll_hand_rest)\n",
+            name, e.gapBefore * cm, e.gapAfter * cm, glm::length(e.rest) * cm);
         if(!rh.drawn || !limb.shape)
         {
             Con_Printf("  (the hand isn't drawn, or the limb has no shape)\n");

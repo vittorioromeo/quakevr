@@ -1988,6 +1988,44 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         e.offset = offset;
         e.turn = turn;
         e.unclamped = degrees;
+        // Its palm rested on the limb's mesh (vr_ragdoll_hand_rest): the hold's point is on the limb's body (its hull,
+        // not the drawn skin) and the hold lags and sags, so the palm came off the mesh or sank into it. Slid the
+        // shortest way until the palm's middle lies on the mesh's skin, at most that far, eased (the fingers then close
+        // round it: the grasp).
+        const float cm = 0.01f * units::metresToUnits();
+        const float restMost = za::fmax(vr_ragdoll_hand_rest.value, 0.f) * cm;
+        glm::vec3 restWant{0.f};
+        e.gapBefore = e.gapAfter = 999.f;
+        const float look = za::fmax(restMost * 4.f, 20.f * cm); // (how far the mesh is looked for)
+        if(h.shape)
+        {
+            const glm::mat3 R = glm::mat3_cast(turn * controller);
+            const glm::vec3 palm = pos + offset + R * grip::handFrame(hand, hand == HAND_OFF, true).palm;
+            glm::vec3 at;
+            bool in = false;
+            const float d = grasp::surfaceDistance(*h.shape, h.toWorld, palm, look, at, in);
+            if(d > 1e-4f && d <= look)
+            {
+                constexpr float skin = 0.3f; // cm: the palm's skin on it
+                e.gapBefore = in ? -d : d;
+                const float by = in ? d + skin * cm : d - skin * cm;
+                // (Off the palm's side of the hand, behind its back: not slid through the hand.)
+                const glm::vec3 n = R * grip::handFrame(hand, hand == HAND_OFF, true).palmNormal;
+                const bool facing = in || glm::dot(at - palm, n) > 0.f;
+                restWant = restMost > 0.f && facing ? (at - palm) / d * za::clamp(by, -restMost, restMost) : glm::vec3{0.f};
+            }
+        }
+        e.rest += (restWant - e.rest) * (1.f - za::exp(-dt / 0.06f));
+        if(e.gapBefore < 900.f)
+        {
+            const glm::mat3 R = glm::mat3_cast(turn * controller);
+            glm::vec3 at;
+            bool in = false;
+            const float d = grasp::surfaceDistance(*h.shape, h.toWorld,
+                pos + offset + e.rest + R * grip::handFrame(hand, hand == HAND_OFF, true).palm, look, at, in);
+            e.gapAfter = d < 0.f || d > look ? 999.f : (in ? -d : d);
+        }
+        e.offset += e.rest;
     }
     e.blend = on ? za::fmin(1.f, e.blend + dt / limbEaseTime) : za::fmax(0.f, e.blend - dt / limbEaseTime);
     if(e.blend <= 0.f)

@@ -319,7 +319,7 @@ void sense(State& s, const Parts& p, const Context& c)
 void holds(State& s, const Parts& p, const StruggleInput& in, float dt)
 {
     Struggle& g = s.struggle;
-    float torso = 0.f, head = 0.f, legs = 0.f, arms = 0.f, lag = 0.f;
+    float torso = 0.f, head = 0.f, legs = 0.f, arms = 0.f, arm = 0.f, lag = 0.f;
     for(int i = 0; i < in.holds; i++)
     {
         const StruggleHold& h = in.hold[static_cast<za::SizeT>(i)];
@@ -330,6 +330,7 @@ void holds(State& s, const Parts& p, const StruggleInput& in, float dt)
         lag = za::max(lag, glm::distance(h.at, h.grip) * p.m2u);
         const Channel ch = channelOf(p.rig->bones[h.part]);
         const int limb = limbOfPart(s, p, h.part);
+        arm = limb == static_cast<int>(Limb::ArmL) || limb == static_cast<int>(Limb::ArmR) ? 1.f : arm;
         if(ch == Channel::Head)
         {
             head = 1.f;
@@ -351,6 +352,7 @@ void holds(State& s, const Parts& p, const StruggleInput& in, float dt)
     g.heldHead = head;
     g.heldLegs = legs;
     g.heldArms = arms;
+    g.heldArm = arm;
     g.gripError = lag;
     g.gripErrorMost = za::max(g.gripErrorMost, lag);
     // The guard: past vr_struggle_grip_guard units it eases off, to a quarter at 2.5 times it; quick down, slow up.
@@ -402,17 +404,29 @@ void weights(State& s, const Context& c)
     const float air = 1.f - g.contact;
     za::Array<float, behaviourCount>& w = g.want;
     const auto at = [&](Behaviour b) -> float& { return w[static_cast<za::SizeT>(b)]; };
-    at(Behaviour::Swat) = g.heldTorso * (0.55f + 0.45f * air) * za::clamp(vr_struggle_swat.value, 0.f, 2.f);
+    // (Held by an arm: its other hand swats at the holding one too; held by the legs lying on its back: it crunches up
+    // at the hands rather than only clawing, the claw's roll onto its belly less.)
+    at(Behaviour::Swat) = za::min(1.f, g.heldTorso * (0.55f + 0.45f * air) + 0.7f * g.heldArms) *
+                          za::clamp(vr_struggle_swat.value, 0.f, 2.f);
     at(Behaviour::Pry) = za::min(1.f, g.heldHead + 0.8f * g.heldArms + 0.25f * g.heldTorso * g.contact) *
                          za::clamp(vr_struggle_pry.value, 0.f, 2.f);
-    at(Behaviour::Crunch) = g.heldLegs * air * g.inverted * za::clamp(vr_struggle_crunch.value, 0.f, 2.f);
-    at(Behaviour::Claw) = g.heldLegs * g.contact * (0.35f + 0.65f * g.drag) * za::clamp(vr_struggle_claw.value, 0.f, 2.f);
+    at(Behaviour::Crunch) = g.heldLegs * za::min(1.f, air * g.inverted + 0.6f * g.contact * (1.f - g.prone)) *
+                            za::clamp(vr_struggle_crunch.value, 0.f, 2.f);
+    at(Behaviour::Claw) = g.heldLegs * g.contact * (0.35f + 0.65f * g.drag) * (0.4f + 0.6f * g.prone) *
+                          za::clamp(vr_struggle_claw.value, 0.f, 2.f);
+    // Fighting to stay up (dragged by an arm, not by its head or legs): its legs under it, its chest righted.
+    const float up = g.heldArm * (1.f - g.heldLegs) * (1.f - g.heldHead) * za::clamp(vr_struggle_upright.value, 0.f, 2.f);
     at(Behaviour::Brace) = (1.f - g.heldLegs) * za::min(1.f, g.heldArms + 0.6f * g.heldHead) * g.contact *
-                           (0.35f + 0.65f * g.drag) * za::clamp(vr_struggle_brace.value, 0.f, 2.f);
+                           (0.35f + 0.65f * g.drag) * (1.f - 0.7f * za::min(up, 1.f)) *
+                           za::clamp(vr_struggle_brace.value, 0.f, 2.f);
     const float flail = za::clamp(vr_struggle_flail.value, 0.f, 2.f);
-    at(Behaviour::Kick) = (1.f - g.heldLegs) * (1.f - 0.8f * za::min(at(Behaviour::Brace), 1.f)) * (0.35f + 0.65f * air) * flail;
-    at(Behaviour::Thrash) = (0.5f + 0.5f * air) * flail;
+    at(Behaviour::Kick) = (1.f - g.heldLegs) * (1.f - 0.8f * za::min(at(Behaviour::Brace), 1.f)) * (1.f - 0.6f * za::min(up, 1.f)) *
+                          (0.35f + 0.65f * air) * flail;
+    // (Held by the head or the legs it squirms: more thrashing.)
+    at(Behaviour::Thrash) = (0.5f + 0.5f * air + 0.8f * za::max(g.heldHead, g.heldLegs) * za::clamp(vr_struggle_squirm.value, 0.f, 2.f)) *
+                            flail;
     const float tau = za::clamp(vr_struggle_blend.value, 0.02f, 3.f);
+    ease(g.upright, up, c.dt, tau);
     for(int b = 0; b < behaviourCount; b++)
     {
         const auto i = static_cast<za::SizeT>(b);
@@ -426,6 +440,20 @@ void weights(State& s, const Context& c)
     return g.weight[static_cast<za::SizeT>(b)];
 }
 
+// A frantic slap at `T` (a holding hand; world, metres) by arm `arm` from its shoulder `root`: drawn back along the way
+// to it and struck in on a quicker beat of its own, the beat and the aim jittering (its seed's noise), within its reach.
+[[nodiscard]] glm::vec3 slapAt(const Struggle& g, int arm, const glm::vec3& root, float len, const glm::vec3& T,
+    const glm::vec3& L, const glm::vec3& U, float ph)
+{
+    const uint32_t sd = g.seed ^ (0x9100u + static_cast<uint32_t>(arm) * 0x35u);
+    const float strike = 0.5f + 0.5f * za::sin(ph * 1.35f + 1.4f * noise(sd, ph * 0.45f)); // (0 drawn back, 1 on it)
+    const glm::vec3 n = unit(T - root, U);
+    const glm::vec3 jitter = (L * noise(sd ^ 1u, ph * 0.9f) + U * noise(sd ^ 2u, ph * 0.9f + 7.f) +
+                                 n * (0.5f * noise(sd ^ 3u, ph * 0.7f + 3.f))) *
+                             (0.16f * len);
+    return within(root, T + jitter - n * (0.4f * len * (1.f - strike)), 1.05f * len);
+}
+
 // The arms' goals (each a blend of its behaviours'), their reaches set.
 void armGoals(State& s, const Parts& p, const StruggleInput& in, float armsK, uint32_t heldLimbsBits)
 {
@@ -435,6 +463,7 @@ void armGoals(State& s, const Parts& p, const StruggleInput& in, float armsK, ui
     const glm::vec3 F = qc * ax, L = qc * ay, U = qc * az;
     const glm::vec3 playerChest = in.feet + (in.eye - in.feet) * 0.72f;
     const float var = za::clamp(vr_struggle_variation.value, 0.f, 1.f);
+    const float frantic = za::clamp(vr_struggle_frantic.value, 0.f, 2.f);
     for(int arm = 0; arm < 2; arm++)
     {
         Reach& r = s.reach[static_cast<za::SizeT>(arm)];
@@ -491,14 +520,22 @@ void armGoals(State& s, const Parts& p, const StruggleInput& in, float armsK, ui
             const float d = glm::distance(hand, root);
             const float can = 1.f - 0.7f * smooth01((d - 1.1f * len) / (0.8f * len));
             const glm::vec3 n = unit(hand - root, F);
-            add(within(root, hand - n * (tugBack * (1.f + za::sin(ph))), 1.08f * len), w * can);
+            const glm::vec3 tug = within(root, hand - n * (tugBack * (1.f + za::sin(ph))), 1.08f * len);
+            // (Held by the head, or an arm: slapping at the hand frantically rather than only tugging at it.)
+            const float slap = za::min(1.f, frantic * (g.heldHead + 0.5f * g.heldArms));
+            // (On its head: at his wrist and forearm over it, the hands up over its head.)
+            const glm::vec3 wrist = hand + unit(in.eye - hand, U) * 0.1f + U * 0.1f;
+            const glm::vec3 at = glm::mix(hand, wrist, g.heldHead);
+            add(slap > 0.01f ? glm::mix(tug, slapAt(g, arm, root, len, at, L, U, ph), slap) : tug, w * can);
         }
         if(const float w = weightOf(g, Behaviour::Crunch); w > 0.01f)
         {
-            // Grasping for the player: his hands holding its legs, his middle.
+            // Grasping for the player: his hands holding its legs, his middle; slapping at those hands.
             const glm::vec3 T = anyHold ? glm::mix(hand, playerChest, 0.35f) : playerChest;
             const glm::vec3 grasp = (L * za::cos(ph) + F * za::sin(ph)) * (0.12f * len);
-            add(within(root, T + grasp + wander, 1.1f * len), w);
+            const glm::vec3 reachFor = within(root, T + grasp + wander, 1.1f * len);
+            const float slap = anyHold ? za::min(1.f, 0.6f * frantic) : 0.f;
+            add(slap > 0.01f ? glm::mix(reachFor, slapAt(g, arm, root, len, hand, L, U, ph), slap) : reachFor, w);
         }
         if(const float w = weightOf(g, Behaviour::Claw); w > 0.01f)
         {
@@ -555,6 +592,16 @@ void legGoals(State& s, const Parts& p, float legsK, uint32_t heldLimbsBits)
             sum += goal * w;
             wsum += w;
         }
+        if(const float w = za::min(g.upright, 1.f) * 1.2f; w > 0.01f)
+        {
+            // Staying up: its feet (its knees bent) on the floor under its hip, a little ahead of it and apart.
+            const glm::vec3 fl = level(F);
+            const glm::vec3 ahead = glm::length(fl) > 0.2f ? glm::normalize(fl) : -g.dragWay;
+            glm::vec3 goal = root + ahead * (0.3f * len) + level(L) * (((leg == 2) ? 1.f : -1.f) * 0.12f * len);
+            goal.z = g.floor > -1e29f ? za::max(g.floor + 0.03f, root.z - 0.9f * len) : root.z - 0.7f * len;
+            sum += within(root, goal, 0.95f * len) * w;
+            wsum += w;
+        }
         if(wsum <= 0.01f)
         {
             r.weight = 0.f;
@@ -562,7 +609,7 @@ void legGoals(State& s, const Parts& p, float legsK, uint32_t heldLimbsBits)
         }
         r.goal = sum / wsum;
         r.weight = za::min(1.f, wsum);
-        r.strength = legsK;
+        r.strength = za::max(legsK, 0.9f * za::min(g.upright, 1.f) * g.effort * za::max(g.guard, 0.5f));
     }
 }
 
@@ -729,12 +776,63 @@ void crunchPull(State& s, const Parts& p, const Context& c, uint32_t heldLimbsBi
     }
 }
 
+// Staying up, dragged by an arm (Upright): its legs under it hold it up (a force up on its pelvis and chest, at most
+// 0.8 of its weight as its middle sinks below a crouch, as far as its chest is up past 0.2: slumped or flat, none), its back righting
+// its chest (a capped turn towards up: from flat, trying to sit up). The hold and the floor take the rest: never lifted.
+void stayUp(State& s, const Parts& p, const Context& c)
+{
+    Struggle& g = s.struggle;
+    g.uprightForce = 0.f;
+    // (Not eased by the grip guard: holding its own weight up eases the hold's load, it never pulls against it.)
+    const float w = za::min(g.upright, 1.f) * g.effort * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
+    if(w < 0.02f || g.floor < -1e29f || !limbOk(s, p, 2) || !limbOk(s, p, 3))
+    {
+        return;
+    }
+    const int chest = chestPart(p);
+    const float legs = 0.5f * (limbLen(s, p, 2) + limbLen(s, p, 3));
+    const float high = middleOf(p, 0).z - g.floor;
+    const glm::vec3 cu = rotOf(p, chest) * az;
+    // (Its legs hold it up as far as it is up: its weight on its feet, its middle kept off the floor; lying flat its
+    // back can only try to sit it up, below.)
+    const float low = smooth01((0.9f * legs - high) / (0.5f * legs)); // (0 at a crouch's height and over)
+    const float onFeet = smooth01((cu.z - 0.2f) / 0.5f);
+    const float f = 0.8f * s.totalMass * c.gravity * za::min(w, 1.f) * low * onFeet;
+    if(f > 1.f)
+    {
+        pushOn(p, 0, glm::vec3{0.f, 0.f, 0.4f * f});
+        pushOn(p, chest, glm::vec3{0.f, 0.f, 0.6f * f});
+        g.uprightForce = f;
+    }
+    const glm::vec3 axis = glm::cross(cu, az);
+    const float sn = glm::length(axis);
+    if(sn < 1e-3f)
+    {
+        return;
+    }
+    const glm::vec3 k = axis / sn;
+    const float off = za::atan2(sn, glm::dot(cu, az));
+    const float rate = za::clamp(off * 3.f, 0.f, 2.5f) * za::min(w, 1.f);
+    const float most = 0.15f * s.totalMass * c.gravity * 0.3f; // N m
+    for(const int part : {0, chest})
+    {
+        const float m = b3Body_GetMass(p.body[part]);
+        const float spin = glm::dot(glmv(b3Body_GetAngularVelocity(p.body[part])), k);
+        const float tq = za::clamp(m * 0.0144f * (rate - spin) / 0.15f, -most, most); // (I ~ m (12 cm)^2)
+        b3Body_ApplyTorque(p.body[part], b3v(k * tq), true);
+    }
+}
+
 // The traces' measures (each frame: cheap).
 void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLimbsBits)
 {
     Struggle& g = s.struggle;
-    const int chest = chestPart(p);
+    const int chest = chestPart(p), head = headPart(p);
     g.handGap = 1e9f;
+    g.handsToHead = 1e9f;
+    g.handsOverHead = -1e9f;
+    const glm::vec3 headAt = head >= 0 ? middleOf(p, head) : glm::vec3{0.f};
+    const float headTop = head >= 0 ? za::max(headAt.z, pointOf(p, head, p.rig->bones[head].end).z) : 0.f;
     for(int arm = 0; arm < 2; arm++)
     {
         if(!limbOk(s, p, arm) || (heldLimbsBits & (1u << arm)) != 0u)
@@ -742,6 +840,11 @@ void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLim
             continue;
         }
         const glm::vec3 tip = limbTip(s, p, arm);
+        if(head >= 0)
+        {
+            g.handsToHead = za::min(g.handsToHead, glm::distance(tip, headAt) * p.m2u);
+            g.handsOverHead = za::max(g.handsOverHead, (tip.z - headTop) * p.m2u);
+        }
         float d = glm::distance(tip, in.eye);
         for(int i = 0; i < in.holds; i++)
         {
@@ -751,6 +854,7 @@ void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLim
     }
     const glm::quat qp = rotOf(p, 0), qc = rotOf(p, chest);
     const glm::vec3 up = qp * az, cu = qc * az;
+    g.chestUp = cu.z;
     const float ang = za::atan2(glm::length(glm::cross(up, cu)), glm::dot(up, cu));
     g.bend = glm::degrees(ang) * (glm::dot(cu, qp * ax) >= 0.f ? 1.f : -1.f);
     float straight = 0.f;
@@ -853,6 +957,7 @@ void beginStruggle(State& s, const Parts& p, const Context& c)
     g.phase[3] = g.phase[2] + pi;
     g.favourite = roll(g.seed, 7u) < 0.5f * var + (1.f - var) ? 1 : 0; // (the right arm, unless its roll says the left)
     g.nextBurst = c.now + 0.5 + 1.5 * static_cast<double>(roll(g.seed, 8u));
+    g.nextVoice = c.now + 0.15 + 0.35 * static_cast<double>(roll(g.seed, 9u)); // (a cry as it is taken)
     // Whatever led it gives way: a fall (landed), the clip (its joints hold their own turns), its muscles' lift.
     s.fall.on = false;
     s.clip.first = -1;
@@ -919,13 +1024,19 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
         k[static_cast<int>(Channel::Torso)] += behaviourData[b].torso * w;
         k[static_cast<int>(Channel::Head)] += behaviourData[b].head * w;
     }
+    // (Slapping at the hands on its head or legs: its arms harder, and kept at half against the guard: an arm's slap
+    // barely loads the hold.)
+    const float frantic = za::clamp(vr_struggle_frantic.value, 0.f, 2.f) * za::max(g.heldHead, g.heldLegs);
+    k[static_cast<int>(Channel::Arms)] +=
+        0.5f * frantic * (weightOf(g, Behaviour::Pry) * g.heldHead + weightOf(g, Behaviour::Crunch));
     const float scale = g.effort * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
     const float most[channelCount] = {1.4f, 1.2f, 1.4f, 0.9f}; // (Legs, Torso, Arms, Head)
     for(int ch = 0; ch < channelCount; ch++)
     {
         // (Its legs keep half against the guard: bracing and kicking on the floor resist a drag by friction, the drag's
         // own lag is no reason to give that up; the hold's let-go stays the hold's.)
-        const float guard = ch == static_cast<int>(Channel::Legs) ? za::max(g.guard, 0.5f) : g.guard;
+        const bool keeps = ch == static_cast<int>(Channel::Legs) || (ch == static_cast<int>(Channel::Arms) && frantic > 0.01f);
+        const float guard = keeps ? za::max(g.guard, 0.5f) : g.guard;
         const float v = za::clamp(k[ch], 0.f, most[ch]) * scale * guard;
         s.fade[static_cast<za::SizeT>(ch)] = Fade{v, v, t, t};
     }
@@ -944,16 +1055,18 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     bodyTargets(s, p, *in, heldLimbsBits, static_cast<float>(c.now - g.from));
     rollOver(s, p, c);
     crunchPull(s, p, c, heldLimbsBits);
+    stayUp(s, p, c);
     measure(s, p, *in, heldLimbsBits);
     if(vr_struggle_debug.value >= 2.f && g.frame % traceEvery == 1)
     {
         Con_Printf("struggle: %d %.2f s w %.2f %.2f %.2f %.2f %.2f %.2f %.2f effort %.2f fatigue %.2f held t%.0f h%.0f "
                    "l%.0f a%.0f contact %.2f drag %.2f prone %.2f inverted %.2f grip %.1f most %.1f guard %.2f gap %.1f "
-                   "bend %.0f straight %.2f arms %.2f legs %.2f roll %.0f\n",
+                   "bend %.0f straight %.2f arms %.2f legs %.2f roll %.0f upright %.2f up %.0f N chest up %.2f hands to head "
+                   "%.1f over %.1f\n",
             c.num, c.now - g.from, g.weight[0], g.weight[1], g.weight[2], g.weight[3], g.weight[4], g.weight[5],
             g.weight[6], g.effort, g.fatigue, g.heldTorso, g.heldHead, g.heldLegs, g.heldArms, g.contact, g.drag, g.prone,
             g.inverted, g.gripError, g.gripErrorMost, g.guard, g.handGap, g.bend, g.straight, g.armsNow, g.legsNow,
-            g.rollTorque);
+            g.rollTorque, g.upright, g.uprightForce, g.chestUp, g.handsToHead, g.handsOverHead);
     }
     struggleCost.seconds += Sys_DoubleTime() - t0;
     struggleCost.count++;
@@ -971,6 +1084,78 @@ void struggleCostSince(double& ms, int& frames, int& count)
     frames = struggleCost.frames;
     count = struggleCost.count;
     struggleCost = StruggleCost{};
+}
+
+bool shoulderReach(State& s, const Parts& p, float dt)
+{
+    if(!p.rig)
+    {
+        return false;
+    }
+    constexpr float narrowRate = 1.5f; // rad/s: the cone eased back after a struggle
+    constexpr float narrowMost = 3.f;  // s: then back at once as the drive ends (an arm left lying over its head)
+    const float wide = glm::radians(za::clamp(vr_struggle_arm_reach.value, 0.f, 175.f));
+    const bool want = s.struggle.on && wide > 0.f;
+    bool any = false;
+    for(int arm = 0; arm < 2; arm++)
+    {
+        float& rigCone = s.shoulderCone[static_cast<za::SizeT>(arm)];
+        const int u = upperOf(s, arm);
+        const b3JointId j = u >= 0 ? s.joint[static_cast<za::SizeT>(u)] : b3_nullJointId;
+        if(u < 0 || p.rig->bones[u].joint != ragdoll::Joint::Ball || B3_IS_NULL(j) || !b3Joint_IsValid(j))
+        {
+            rigCone = -1.f;
+            continue;
+        }
+        const float now = b3SphericalJoint_GetConeLimit(j);
+        float to = now;
+        if(want)
+        {
+            rigCone = rigCone < 0.f ? now : rigCone;
+            to = za::max(rigCone, wide);
+        }
+        else if(rigCone >= 0.f)
+        {
+            // (Eased back, never tighter than the arm is turned now: no snap.)
+            const float turned = b3SphericalJoint_GetConeAngle(j);
+            to = za::max(rigCone, za::min(now - narrowRate * dt, za::max(turned + 0.03f, rigCone)));
+            if(to <= rigCone + 1e-3f)
+            {
+                to = rigCone;
+                rigCone = -1.f;
+            }
+        }
+        if(to != now)
+        {
+            b3SphericalJoint_SetConeLimit(j, to);
+            s.lower[static_cast<za::SizeT>(u)] = to;
+        }
+        any = any || rigCone >= 0.f;
+    }
+    s.narrowing = want || !any ? 0.f : s.narrowing + dt;
+    return any && s.narrowing < narrowMost;
+}
+
+void shoulderRestore(State& s)
+{
+    for(int arm = 0; arm < 2; arm++)
+    {
+        float& rigCone = s.shoulderCone[static_cast<za::SizeT>(arm)];
+        const int u = upperOf(s, arm);
+        if(rigCone < 0.f || u < 0)
+        {
+            rigCone = -1.f;
+            continue;
+        }
+        const b3JointId j = s.joint[static_cast<za::SizeT>(u)];
+        if(B3_IS_NON_NULL(j) && b3Joint_IsValid(j))
+        {
+            b3SphericalJoint_SetConeLimit(j, rigCone);
+            s.lower[static_cast<za::SizeT>(u)] = rigCone;
+        }
+        rigCone = -1.f;
+    }
+    s.narrowing = 0.f;
 }
 
 } // namespace qvr::ragactive
