@@ -14174,3 +14174,61 @@ New: `vr_seated.cpp`; VR Settings > Height and Hand Calibration > Seated Play; D
   poisoned; ad_dm1's own endfight minotaur (woken by its trigger) 25 / 18. `70` 8/8, `91` 3/3 PASS.
 - **For VR:** ad_dm1's minotaur (or any big AD monster) from a few metres off with each stream: it should burn or turn
   green and lose health; the flames should look as long as before or a little longer.
+
+## Monster groups (worktree `fastship`, branch `agent/monstergroups`, 2026-10-19)
+
+The author: full control over every monster and every ragdoll trigger and action, similar monsters of every game
+sharing one group's settings.
+
+- **The groups** (`Quake/vr/vr_mgroups.inc`: id, label and defaults; `vr_mgroups.cpp`: the members by classname, 134
+  classnames: id1, Scourge of Armagon, Dissolution of Eternity, Honey, Dawn of the Machine, Arcane Dimensions' own
+  `ad_monster_*` and the Quoth classnames AD plays; any other classname is in Others). Grunts, Enforcers, Knights, Death
+  Knights, Ogres, Zombies, Mummies, Rottweilers, Fiends, Shamblers, Gremlins, Skull Wizards, Spiders and Crawlers,
+  Giants, Scrags and Gargoyles, Vores, Spawns, Fish and Eels, Wraiths and Floaters, Machines, Bosses, Others. Dawn of
+  the Machine's infected and the training dummy have their stock monster's classname, so its group.
+- **Each group's settings** (19; cvars from vr_cvars.inc's `QVR_MGROUP` macro over vr_mgroups.inc, so they are ordinary
+  `QVR_CVAR`s): `vr_mgrp_<g>_kdtrig` (the ragdoll triggers take it), `vr_kdtrig_resist_<g>` (its resistance; 0 by size),
+  `vr_mgrp_<g>_ledge`/`_stairs`/`_slope`/`_shotgun`/`_wounded`/`_blow`/`_blast` (each trigger's chance times this),
+  `vr_knockdown_chance_<g>` (a shove's base chance), `_push` (shoves', bashes' and unbalancing hits' push, times),
+  `_stagger` (Hits Unbalance's chance, times), `_sweep`, `_leggrab`, `_lift`, `_necksnap`, `_manhandle` (on/off),
+  `_throw` (0 never, 1 when hurt, 2 always), `_hold` (one hand's hold 0..1; -1 by size). The eleven old
+  `vr_knockdown_chance_<kind>` and six `vr_kdtrig_resist_<kind>` keep their names and values (the group ids are those
+  kinds'), so no migration.
+- **Defaults are the effect before the groups**: the triggers on for the groups whose members had an active stagger
+  (grunts, enforcers, knights, death knights, ogres, zombies, mummies), every multiplier 1, the humanoid actions on for
+  the old `vr_foegrab_lift_classes` (grunts, enforcers, knights, death knights, zombies, mummies, skull wizards), the
+  throw as the old lists had it (always: grunts, enforcers, knights, zombies, mummies, rottweilers; when hurt: death
+  knights, ogres, fiends; never: the rest), the hold by size.
+- **Where they act**: QC `vr_kdtrig.qc` (VR_KdTrig_Can: the group's switch instead of `ragdollcanstagger`; the
+  resistance; each trigger's base chance times the group's share), `vr_knockdown.qc` (the shove's base chance),
+  `vr_hitstagger.qc` (its chance and push; the knockdown chance of its stagger), `vr_melee.qc` VR_Bash_Hit (the push),
+  `vr_foegrab.qc` (the hold); the engine `vr_foegrab.cpp` (`groupTakes`: lift, leg grabs, neck snap and its diagnostic,
+  manhandle, `foegrab::humanoid` for the leg sweep; `throwTier`). Builtins `monstergroup(e)`, `monstergroupget(e, MGP_*)`
+  (QC builtins.qc numbers them as `mgroups::Param`).
+- **Retired**: `vr_foegrab_lift_classes`, `vr_foegrab_throw_always`, `vr_foegrab_throw_when_hurt` (retiredCvars; their
+  migration rows 134 and 157 dropped). Who Can Be Thrown: By Group or By Mass.
+- **Changes in effect** (the groups' consistency): AD's soldiers, defender, eliminator, pyro, fumigator, deflector,
+  crossbow knight and zombie knight are now thrown always (they were never: not in the lists); AD's death knights,
+  guards, lord, fury, sergeant, justice knight, the hunter ogres and Freddie when hurt; the justice knight is now a
+  humanoid (lift, neck snap, sweeps); the infected fiend is no longer lifted and is thrown when hurt, the infected death
+  knight when hurt (the lists' "infected" took every infected); AD's mummy's shove chance is the mummy's 0.2 (it was the
+  zombie's 0.35); the ragdoll triggers now take the hunter ogres, the justice knight, the ranged knight and Quoth's death
+  knight (their groups', no longer only the actively staggering classes).
+- **Menu**: Combat > Monster Groups: List Every Monster's Group, a page per group (Ragdoll Triggers: switch, resistance,
+  the seven shares; Actions: the rest; its members), a page per trigger and action (every group). Ragdoll Triggers >
+  Monster Resistance opens the resistance page; Knockdowns' Each Monster's Chance opens the shove, push and Hits
+  Unbalance pages; Holding Enemies links the throw's. Debug > Tests (knockdowns): List Monster Groups.
+- **vr_mgroup_list**: `mgroup <id> (<label>): <classnames>` per group, `mgroup class <c> -> <id>` per classname, then
+  `mgroup live <edict> <c> -> <id>` for this map's monsters (marked when not in the table).
+- **Checked** (headless): every monster classname in the QC (spawn functions, AD's, QUAKED lines, literals; 30 helpers
+  left out) is listed (scratch/mg_check.py); vrragtriggers flat, 12 trials: a grunt's blast 12 at x1, 0 at x0, 0 with
+  the group's triggers off; a grunt's blunt blow 45 4 / 0; a death knight's blast 4 / 0; a grunt's shove at
+  `vr_knockdown_chance` 100: chance 0 at the group's 0 (stands), down at 0.45; push 0: 0 u/s (342 at 1); Hits
+  Unbalance 0: chance 0, at 1 pushed and pained. The ragdoll triggers' suite (vrragtriggers, 20 trials; it needs
+  `developer 1`, its lines are dprints): ledge 20, blast 30 20, blunt blow 45 7, super shotgun at 600 0. Menu paths
+  (vrcalibration): 0 missing; vr_menu_search builds every Monster Groups page. eval.sh --full 168/177 (the same 4
+  numeric differences, verdicts unchanged).
+- **Open questions** (the current behaviour kept): see the report (bosses' push, the bog lord, Freddie, the seeker, the
+  skull wizard, the justice knight, the demon dog, Honey's spear knight, the AD crawlers' and giants' groups).
+- **For VR:** Combat > Monster Groups: open a group, set Shove Knockdown to 0 and shove one (it stays up), Shove Push
+  to 0 (it stands its ground); Lift off for Grunts (no lift); AD's soldiers now go over with the two-hand throw.

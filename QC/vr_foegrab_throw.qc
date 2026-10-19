@@ -1,16 +1,14 @@
 // vr_foegrab_throw.qc -- the two-hand throw (Combat > Holding Enemies, "Two-Hand Throw"; ROUND21.md, "Holding enemies").
 // Both hands holding one enemy (vr_foegrab.cpp) and turning it over hard enough (the engine's throwCheck: the hands' turn
 // of it about a level axis through its middle, vr_foegrab_throw_twist, and their speed, vr_foegrab_throw_speed) throw it
-// down that way: a knockdown as a shove's (vr_knockdown.qc: it falls as a ragdoll, lies, gets up), for sure, by its kind
-// and its health:
-// - always: the kinds in vr_foegrab_throw_always (a grunt, an enforcer, a zombie, a knight, a rottweiler, a mummy, the
-//   infected);
-// - only when hurt, below vr_foegrab_throw_hurt of its full health (and never above): vr_foegrab_throw_when_hurt (a death
-//   knight, the ogres, a fiend, a ranged knight);
-// - never: any other (a shambler, a vore, the bosses; a spawn, Dawn of the Machine's slime and Rogue's centroid, the
-//   scorpion: they have no knockdown get-up), and anything flying or swimming;
-// or by its mass (vr_foegrab_throw_by_mass: light up to _mass_always, hurt up to _mass_hurt). The engine reads the class
-// lists (they are strings) and passes the kind; the rest is here. One hand never throws.
+// down that way: a knockdown as a shove's (vr_knockdown.qc: it falls as a ragdoll, lies, gets up), for sure, by its
+// monster group's Two-Hand Throw (vr_mgrp_<group>_throw; Combat > Monster Groups) and its health:
+// - always: the grunts, enforcers, knights, zombies, mummies and rottweilers;
+// - only when hurt, below vr_foegrab_throw_hurt of its full health (and never above): the death knights, ogres, fiends;
+// - never: any other (shamblers, vores, the bosses; spawns, Rogue's centroid, AD's crawlers: no knockdown get-up), and
+//   anything flying or swimming;
+// or by its mass (vr_foegrab_throw_by_mass: light up to _mass_always, hurt up to _mass_hurt). The engine reads the group's
+// setting and passes the kind; the rest is here. One hand never throws.
 
 // By its mass: 0 always, 1 only when hurt, 2 never (a vore and an overlord: rooted, as VR_FoeGrab_Size has them; a
 // spawn, a slime and a centroid: no knockdown get-up).

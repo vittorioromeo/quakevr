@@ -12,7 +12,7 @@
 // - the dummy (vr_dummy.qc) is held as any enemy but never moved (it stands on its spot);
 // - both hands holding one enemy and turning it over hard (vr_foegrab_throw_twist degrees/s, the hands at
 //   vr_foegrab_throw_speed m/s) throw it down that way (QC vr_foegrab_throw.qc: a knockdown, for sure, by its kind and
-//   health: vr_foegrab_throw_always, _when_hurt, _hurt; or by mass), and both let go (throwCheck);
+//   health: its monster group's Two-Hand Throw, vr_foegrab_throw_hurt; or by mass), and both let go (throwCheck);
 // - its shoves (grunts, enforcers) are resisted (QC vr_enemyshove.qc: vr_foegrab_shove_resist times its hold) or, with
 //   vr_foegrab_shove 1, push you fully and break the hold;
 // - the holding hand deals no melee blows (QC .vr_foegrab_hands); the other hand fights as ever;
@@ -58,8 +58,8 @@ void reset();
 // fall is printed as the throw's ("shove trace:"). False: no ragdoll.
 bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false, float reach = 0.f);
 
-// The leg sweep's (vr_legsweep.cpp). A humanoid: the lift's and the neck snap's (vr_foegrab_lift_classes; the training
-// dummy as one). Its mass (kg: QC VR_Grapple_MonsterMass, as the grapple and the throw weigh it).
+// The leg sweep's (vr_legsweep.cpp). A humanoid: its monster group's Leg Sweep (vr_mgroups.hpp; the training dummy as
+// one). Its mass (kg: QC VR_Grapple_MonsterMass, as the grapple and the throw weigh it).
 [[nodiscard]] bool humanoid(edict_t* m);
 [[nodiscard]] float monsterMass(edict_t* player, edict_t* m);
 // `player` swept `m`'s legs along level `sweep`: knocked down (QC VR_LegSweep_Down: a knockdown as the throw's, `damage`

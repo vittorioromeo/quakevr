@@ -458,53 +458,24 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
 }
 } // namespace
 
-// Whether `name` is one of the words of `list` (spaces or commas between them); "infected" stands for Dawn of the
-// Machine's infected monsters (`infected`: this one is).
-[[nodiscard]] bool inList(const char* list, const char* name, bool infected)
+bool groupTakes(edict_t* m, mgroups::Param p)
 {
-    char word[64];
-    const char* p = list;
-    while(*p)
-    {
-        while(*p == ' ' || *p == ',' || *p == '\t')
-        {
-            p++;
-        }
-        int n = 0;
-        while(*p && *p != ' ' && *p != ',' && *p != '\t')
-        {
-            if(n < 63)
-            {
-                word[n++] = *p;
-            }
-            p++;
-        }
-        word[n] = 0;
-        if(n > 0 && (!q_strcasecmp(word, name) || (infected && !q_strcasecmp(word, "infected"))))
-        {
-            return true;
-        }
-    }
-    return false;
+    return m && (isTrainingDummy(m) || mgroups::on(m, p));
 }
 
 namespace
 {
-// The throw's kind of `m` (QC VR_FoeGrab_Throw's xTier): 0 always thrown, 1 only when hurt, 2 never (by the class lists:
-// vr_foegrab_throw_always, _when_hurt); -1 by its mass (vr_foegrab_throw_by_mass: the QC's).
+// The throw's kind of `m` (QC VR_FoeGrab_Throw's xTier): 0 always thrown, 1 only when hurt, 2 never (its monster group's
+// Two-Hand Throw, vr_mgrp_<group>_throw: 2 always, 1 when hurt, 0 never); -1 by its mass (vr_foegrab_throw_by_mass: the
+// QC's).
 [[nodiscard]] float throwTier(edict_t* m)
 {
     if(vr_foegrab_throw_by_mass.value != 0.f)
     {
         return -1.f;
     }
-    const char* c = PR_GetString(m->v.classname);
-    const bool infected = fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f;
-    if(inList(vr_foegrab_throw_always.string, c, infected))
-    {
-        return 0.f;
-    }
-    return inList(vr_foegrab_throw_when_hurt.string, c, infected) ? 1.f : 2.f;
+    const float kind = mgroups::value(m, mgroups::Param::Throw);
+    return kind >= 2.f ? 0.f : (kind >= 1.f ? 1.f : 2.f);
 }
 } // namespace
 
@@ -746,15 +717,13 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
 }
 
 // Manhandling (vr_foegrab_manhandle_stagger, _health; QC VR_FoeGrab_Manhandle): hand `h` of `player` just took hold of
-// `m`, a humanoid (the lift's classes) staggered a moment ago or weak: knocked down where it stands, its ragdoll held on
-// by that hand as a lifted one's (handOver at vr_foegrab_lift_strength, flailing; it breaks free after
+// `m`, a humanoid (its monster group's Manhandle) staggered a moment ago or weak: knocked down where it stands, its
+// ragdoll held on by that hand as a lifted one's (handOver at vr_foegrab_lift_strength, flailing; it breaks free after
 // vr_foegrab_lift_time, carryStep). Not while the hands carry one already.
 void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
 {
     if((vr_foegrab_manhandle_stagger.value <= 0.f && vr_foegrab_manhandle_health.value <= 0.f) || hd.carried > 0 ||
-        isTrainingDummy(m) ||
-        !inList(vr_foegrab_lift_classes.string, PR_GetString(m->v.classname),
-            fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f))
+        isTrainingDummy(m) || !groupTakes(m, mgroups::Param::Manhandle))
     {
         return;
     }
@@ -1078,7 +1047,7 @@ NeckTwist neckStep(int c, edict_t* m, const VrMove& move, const glm::vec3& neck,
 }
 } // namespace
 
-// Both hands of player `c` twisted `m`'s head far enough (neckStep): a humanoid's (vr_foegrab_lift_classes: never an
+// Both hands of player `c` twisted `m`'s head far enough (neckStep): a humanoid's (its monster group's Neck Snap: never an
 // ogre, a fiend, a shambler, a vore) neck snaps (QC VR_FoeGrab_NeckSnap: it dies on the spot, killed by him, whole, the
 // crack loud; standing, it is knocked down first, its ragdoll made). Its body stays in his hands, limp: standing
 // (`ragdoll` false), both holds hand over to its ragdoll (handOver at vr_foegrab_necksnap_strength of its weight a hand,
@@ -1094,14 +1063,13 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     const bool dummy = isTrainingDummy(m);
     const char* name = dummy ? "the training dummy" : PR_GetString(m->v.classname);
     const int num = NUM_FOR_EDICT(m);
-    const bool infected = fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f;
-    if(!dummy && !inList(vr_foegrab_lift_classes.string, PR_GetString(m->v.classname), infected))
+    if(!groupTakes(m, mgroups::Param::NeckSnap))
     {
         if(debug())
         {
-            Con_Printf("foegrab: both hands twist %s (%d)'s head %.0f deg within %.2f s: no neck snap, not a humanoid "
-                       "(vr_foegrab_lift_classes)\n",
-                name, num, t.turned, neckWindow());
+            Con_Printf("foegrab: both hands twist %s (%d)'s head %.0f deg within %.2f s: no neck snap, its monster group "
+                       "(%s)'s Neck Snap is off\n",
+                name, num, t.turned, neckWindow(), mgroups::label(mgroups::groupOf(m)));
         }
         return;
     }
@@ -1378,11 +1346,10 @@ TwoHands twoHandsOf(edict_t* player, const VrMove& move, edict_t* m, bool log)
     return t;
 }
 
-// A humanoid (vr_foegrab_lift_classes; the training dummy as one): the lift's and the neck snap's.
+// Lifted (its monster group's Lift; the training dummy as a humanoid).
 [[nodiscard]] bool liftable(edict_t* m)
 {
-    const bool infected = fieldFloatOr(m, fields().vr_mg3_infected, 0.f) != 0.f;
-    return isTrainingDummy(m) || inList(vr_foegrab_lift_classes.string, PR_GetString(m->v.classname), infected);
+    return groupTakes(m, mgroups::Param::Lift);
 }
 [[nodiscard]] float liftSpeedNeed()
 {
@@ -1466,7 +1433,7 @@ void twoHandCheck(int c)
 }
 
 // The lift (vr_foegrab_lift; QC VR_FoeGrab_Lift): both hands pulling the enemy up, their mean velocity up at
-// vr_foegrab_lift_speed or more and within 45 degrees of straight up, a humanoid (vr_foegrab_lift_classes: no ogre, fiend,
+// vr_foegrab_lift_speed or more and within 45 degrees of straight up, a humanoid (its monster group's Lift: no ogre, fiend,
 // shambler or vore) and the player within vr_foegrab_lift_reach of it (walked up close). It is knocked down (its ragdoll
 // launched up at vr_foegrab_lift_up), held on by both hands (handOver at vr_foegrab_lift_strength of its weight a hand: carried, thrown
 // down by letting go with a throw), flailing (box3d::ragdollFlail), and breaks free after vr_foegrab_lift_time (carryStep:
@@ -1494,7 +1461,7 @@ bool liftCheck(int c, const TwoHands& t)
     const char* name = dummy ? "the training dummy" : PR_GetString(m->v.classname);
     const float off = glm::length(glm::vec2{vec(m->v.origin) - vec(player->v.origin)});
     const bool humanoid = liftable(m);
-    const char* no = !humanoid ? "not a humanoid (vr_foegrab_lift_classes)" :
+    const char* no = !humanoid ? "its monster group's Lift is off (Combat > Monster Groups)" :
                      off > liftReach() ? "too far from you (vr_foegrab_lift_reach)" : nullptr;
     if(no)
     {
@@ -1677,9 +1644,9 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
     edict_t* player = t.player;
     edict_t* m = t.m;
     GrabDiag& g = grabDiag;
-    if(vr_foegrab_leggrab.value == 0.f || !liftable(m))
+    if(vr_foegrab_leggrab.value == 0.f || !groupTakes(m, mgroups::Param::LegGrab))
     {
-        legNote(c, vr_foegrab_leggrab.value == 0.f ? "Leg Grabs off" : "not a humanoid");
+        legNote(c, vr_foegrab_leggrab.value == 0.f ? "Leg Grabs off" : "not a humanoid (its monster group's Leg Grabs off)");
         hd.legStroke = false;
         return false;
     }
@@ -2048,7 +2015,7 @@ bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength,
 
 bool qvr::foegrab::humanoid(edict_t* m)
 {
-    return m && liftable(m);
+    return groupTakes(m, mgroups::Param::Sweep);
 }
 
 float qvr::foegrab::monsterMass(edict_t* player, edict_t* m)

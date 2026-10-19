@@ -16,6 +16,7 @@
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_lines.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_mem.hpp"
 #include "vr_motion.hpp"
 #include "vr_move.hpp"
@@ -174,7 +175,9 @@ inline Pin pins[2];
 [[nodiscard]] float cm();
 [[nodiscard]] bool debug(int level = 1);
 [[nodiscard]] glm::vec3 trackedPalmOf(edict_t* ent, const VrMove& move, int h);
-[[nodiscard]] bool inList(const char* list, const char* name, bool infected);
+// Whether action `p` takes `m` (its monster group's switch: vr_mgroups.hpp, Combat > Monster Groups); the training dummy
+// always.
+[[nodiscard]] bool groupTakes(edict_t* m, mgroups::Param p);
 [[nodiscard]] const char* throwResult(float r);
 float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, bool trace);
 [[nodiscard]] int carryingHands(int c, edict_t* m);
