@@ -137,6 +137,8 @@ constexpr Spawnable spawnables[] = {
     {"Weapons", "Axe", "func_weapon_grabbable", "progs/v_axe.mdl", 8.f, "weapon", 2.f, 0, false},
     {"Weapons", "Crowbar", "func_weapon_grabbable", "progs/v_crowbar.mdl", 8.f, "weapon", 17.f, 0, false},
     {"Weapons", "Knight's Sword", "func_weapon_grabbable", "progs/v_ksword.mdl", 8.f, "weapon", 13.f, 0, false},
+    {"Weapons", "Death Knight's Sword", "func_weapon_grabbable", "progs/v_hksword.mdl", 8.f, "weapon", 13.f, 0, false, false,
+        false, -1, false, 0, nullptr, nullptr, 0, 1.f}, // (QC QVR_WPNFLAG_USE_SECONDARY_AMMO: the hell knight's sword)
     {"Weapons", "Shotgun", "func_weapon_grabbable", "progs/v_shot.mdl", 8.f, "weapon", 4.f, 0, false},
     {"Weapons", "Super Shotgun", "func_weapon_grabbable", "progs/v_shot2.mdl", 8.f, "weapon", 5.f, 0, false},
     {"Weapons", "Nailgun", "func_weapon_grabbable", "progs/v_nail.mdl", 8.f, "weapon", 6.f, 0, false},
@@ -631,7 +633,9 @@ void pick(int num)
         const int flagsOfs = ED_FindFieldOffset("weaponflags");
         if(flagsOfs >= 0)
         {
-            sel.weaponFlags = static_cast<float>(static_cast<int>(fieldFloat(e, flagsOfs)) & swordKindBits);
+            // (the sword, id 13, also keeps QC QVR_WPNFLAG_USE_SECONDARY_AMMO: the death knight's)
+            const int keep = wid == 13 ? (swordKindBits | 1) : swordKindBits;
+            sel.weaponFlags = static_cast<float>(static_cast<int>(fieldFloat(e, flagsOfs)) & keep);
         }
     }
     else if(!qvr::progs::findFunction(cls))

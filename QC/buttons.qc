@@ -808,8 +808,10 @@ entity(entity xSpawner) VR_WeaponGrabbable_Make =
     vector rot = (xSpawner.spawnflags & WEAPON_GRABBABLE_AS_PLACED) ? xSpawner.angles : randomVec(180);
     VR_ADGun_Placed(xSpawner.weapon); // AD support: an AD soldier's gun (20..27): its model and sounds (vr_ad_enemyguns.qc)
     VR_ADMelee_Placed(xSpawner.weapon, xSpawner.weaponflags); // AD support: an AD melee weapon (vr_ad_melee.qc)
+    entity inst = WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)); // a new one, loaded
+    inst.wi_adup = vr_grab_adup; // AD support: an upgrade's prop (the toolgun)
     entity w = CreateThrownWeapon(xSpawner, xSpawner.weapon, xSpawner.weaponflags,
-        WeaponInst_New(WeaponIdToBaseClipSize(xSpawner.weapon)) /* a new one, loaded */,
+        inst,
         xSpawner.origin, rot,
         '0 0 0', '0 0 0',
         FALSE /* disappear on hit */,

@@ -1280,7 +1280,7 @@ void(float xHand) AD_FireWidowmaker =
     // Its own report (his notes 2026-10-19: "very, very powerful sounding"): a crack, a deep thump and a long boom, the
     // action's two clacks (vr/widowmaker_shot.wav, synthesized: Misc/quakevr/make_adweapon_sounds.py). Its barrels' motor
     // is the client's (vr_adweapons.cpp motorFrame), on the hand's own channel.
-    sound(self, VRGetGunChannel(xHand), "vr/widowmaker_shot.wav", 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), "vr/widowmaker_shot.wav", max(0, min(4, cvar_hget(cvarh_vr_ad_widowmaker_shot_volume))), ATTN_NORM);
     self.punchangle_x = -3;
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
     vr_pellet_damage = max(0, cvar("vr_dmg_ad_widowmaker"));
@@ -1437,6 +1437,31 @@ void() weapon_plasmagun =
 {
     weapon_upgrade_lg();
 };
+
+// The toolgun's AD upgrades: the weapon laid as a prop (func_weapon_grabbable: a rigid body like every other weapon there)
+// with its upgrade on its record, not the floating pickup. Where the upgrades play only (as AD_UpgradeItem).
+void(float xWid) AD_UpgradeProp =
+{
+    if(!VR_AD_FeatureScope(AD_UpgradeScope()))
+    {
+        remove(self);
+        return;
+    }
+    if(!AD_Rules())
+    {
+        AD_WeaponsOnDemand();
+    }
+    self.classname = "func_weapon_grabbable";
+    self.weapon = xWid;
+    vr_grab_adup = AD_UpgradeFor(xWid);
+    func_weapon_grabbable();
+    vr_grab_adup = 0;
+};
+
+// (the toolgun's entries: Quake VR/vr_toolgun.cpp, by these names)
+void() toolgun_upgrade_axe = { AD_UpgradeProp(WID_AXE); };
+void() toolgun_upgrade_ssg = { AD_UpgradeProp(WID_SUPER_SHOTGUN); };
+void() toolgun_upgrade_lg = { AD_UpgradeProp(WID_LIGHTNING); };
 
 /*QUAKED weapon_upgrade_ghook (0 .5 .8) (-16 -16 0) (16 16 56)
 Arcane Dimensions' grappling hook: Quake VR's is the player's own (Movement > Grappling Hook); nothing to pick up.

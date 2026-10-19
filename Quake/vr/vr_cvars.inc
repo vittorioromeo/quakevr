@@ -1429,7 +1429,7 @@ QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
 QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in vr_wounds_wet_time
 QVR_CVAR(vr_wounds_wet_coat, "2", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
-QVR_CVAR(vr_wounds_wet_time, "28", CVAR_ARCHIVE)      // ... seconds a soaked model takes to dry: the coat full for the first quarter, then fading out
+QVR_CVAR(vr_wounds_wet_time, "15", CVAR_ARCHIVE)      // ... seconds a soaked model takes to dry: the coat full for the first quarter, then fading out
 QVR_CVAR(vr_wounds_pool, "128", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_body_res, "1024", CVAR_ARCHIVE) // body-only minimum wound detail; tall arm atlas: 1024 gives 256x1024 (~hand density), 0 opts out
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
@@ -2501,7 +2501,9 @@ QVR_CVAR(vr_ad_widowmaker_spinup, "0.2", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spindown, "0.9", CVAR_ARCHIVE)
 // The barrels' motor (his notes 2026-10-19; vr_adweapons.cpp motorFrame): a looped whine (vr/widowmaker_motor.wav) from
 // the hand, its pitch and volume following their spin (this its volume at the top speed; 0 none).
-QVR_CVAR(vr_ad_widowmaker_motor, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_motor, "0.4", CVAR_ARCHIVE)
+// The shot's volume (vr/widowmaker_shot.wav played at this, over 1 louder than the file: SND_LOUD, up to 4).
+QVR_CVAR(vr_ad_widowmaker_shot_volume, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
@@ -3863,7 +3865,7 @@ QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
-QVR_CVAR(vr_reload_port_widow_radius, "1.25", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
+QVR_CVAR(vr_reload_port_widow_radius, "1.4", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
 QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).

@@ -838,6 +838,7 @@ float cvarh_vr_ad_widowmaker_tube;
 float cvarh_vr_ad_widowmaker_handful;
 float cvarh_vr_ad_widowmaker_refire;
 float cvarh_vr_ad_widowmaker_shot_pellets;
+float cvarh_vr_ad_widowmaker_shot_volume;
 float cvarh_vr_reload_shell_pairs;
 float cvarh_vr_cellcord_laser;
 float cvarh_vr_cellcord_hammer;
@@ -1797,6 +1798,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_ad_widowmaker_handful);
     VR_CVAR_HMAKE(vr_ad_widowmaker_refire);
     VR_CVAR_HMAKE(vr_ad_widowmaker_shot_pellets);
+    VR_CVAR_HMAKE(vr_ad_widowmaker_shot_volume);
     VR_CVAR_HMAKE(vr_reload_shell_pairs);
     VR_CVAR_HMAKE(vr_cellcord_laser);
     VR_CVAR_HMAKE(vr_cellcord_hammer);
