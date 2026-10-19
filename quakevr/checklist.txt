@@ -19,6 +19,9 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Melee on ragdolls: chop corpses and downed enemies with sword, axe, hammer, mace: they jolt, not fly (Ragdoll Bounce / Most Speed rows)
+Batting projectiles on purpose: flick the wrist or bring a gun round in front of a spike: no bat; a timed swing or timed bash: bats (hand speed bar 2 m/s OK?)
+Parry stagger as an active ragdoll (Parry and Bash > Parry Ragdoll; off = old stagger): parry knights and grunts on flat floor (small step back, never falls, same recovery) and at the top of stairs (can go down)
 Box3D updated to upstream (solver rework, contact fixes): thrown axes and knives (spin, sticking: more stick now), piled and kicked props, ragdolls on stairs and in piles, physgun on a ragdoll (less jitter), judo throws and lifts: anything feel different or worse?
 Heavy weapons (Weapon Weights > Heavy Handling): one-handed snaps with laser cannon, hammer, rocket launcher lag and swing back springily (extreme snap still drops); one-handed droop (laser cannon ~18 deg below the controller: too harsh?); laser cannon bursts one-handed kick up and recover slowly; slow deliberate two-handed hammer/mace chops hit hard, slow repositioning doesn't
 Monster Groups (Combat > Monster Groups: a page per group and per trigger/action): Grunts: Shove Knockdown 0 = shoved grunts stay up, Shove Push 0 = don't move, Lift off = no lift; AD soldiers/enforcer types/crossbow and zombie knights can now be thrown; AD death knights/guards/fury/hunter ogres thrown when hurt
