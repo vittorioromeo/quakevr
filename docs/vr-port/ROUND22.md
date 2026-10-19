@@ -14783,3 +14783,50 @@ no longer stagger an ogre and weapons/explosives stay the answer to heavy monste
   and in two against knights (0.8 s, 1.2 s); bare hands against an ogre's chainsaw (blocked, the chainsaw keeps going,
   part of the damage through); a weapon raised just as an ogre swings (a short flinch); a shambler never staggers.
   Parry the same knight again and again: each stagger shorter. Raise the guard just before the blow vs holding it up.
+
+## Enemy weapons' relief (worktree `gorefx`, branch `agent/weaponreliefs`, 2026-10-20)
+
+His note: many new equippable enemy weapons look flat. **Inventory** (relief inside the skin's islands: mean tilt,
+share over 5 degrees, alpha mean / 10th percentile; our player weapons' baked maps: 3-6 degrees, 25-35 %, 224-243 / 210-239):
+
+| Weapon (model) | Relief before | Now |
+| --- | --- | --- |
+| Knight's sword `v_ksword`, death knight's `v_hksword` | baked (7.5 / 9.1 deg) | unchanged |
+| Grunt gun `v_gruntgun`, enforcer rifle `v_enfrifle` | baked (7.7 / 8.8) | unchanged |
+| Ogre chainsaw `v_chainsaw`, laser cannon `v_laserg`, Mjolnir `v_hammer` | baked (3.9 / 4.1 / 4.1) | unchanged |
+| Freddie's super nailgun (`v_nail2`, ours) | baked | unchanged |
+| AD Shadow Axe / Widowmaker / Plasma Gun (`#vr`) and the Plasma Gun's cell, well | made from colours, shallow (vr_parallax_models 0.25) | relief made at load: 3.3 / 2.1 / 5.8 deg, alpha 237 / 244 / 244 |
+| AD soldiers' guns `v_gruntgun.mdl#adv0..7` | made | the rifle's baked map on its rows + relief on the add-ons: 5.6-6.7 deg, alpha 235 / 218 |
+| AD crossbow `w_dcrossbow.mdl#gun0` (and old `#gun<n>`) | made | 5.7 deg, alpha 225 / 213 |
+| AD melee `#melee`: fury, death knight, zombie knight, death guard swords, hammer, mace | made | 1.3-7.1 deg, alpha 225-244 / 208-240 |
+
+**How** (`Quake/vr/vr_skinrelief.cpp`, new): a model whose name has `#vr`, `#adv`, `#gun` or `#melee` (`VR_SkinReliefWanted`)
+gets, instead of the map made from its skin's colours, one made from its skin in our bake's style, ported from
+normaltiles.paint_heights / normaldetail.weapon_heights: painted seams (narrow elongated valleys, 6-16 texels long) as
+0.8-texel grooves, painted rivets (round bright peaks up to 3.5 texels) as 0.9-texel domes, wood and leather grained along
+their streaks (no checkering); twice the skin's size (four times under 256 wide); heights as finish_heights (broad forms
+out, 95th percentile the surface, 0.4 units at alpha 0, HEIGHT_CAP), from the model's own units per texel (the
+area-weighted median over its first frame), capped at 0.3 units a texel: AD's monsters' weapons are about a unit a
+texel, where every texel would reach the cap. Drawn as an authored map (NORMALMAP_AUTHORED | FILE, new
+NORMALMAP_RELIEF: vr_normalmap_authored, vr_parallax_authored; TexMgr_AuthoredHeights raises the islands' rims, so the
+rays stop at seams). Made in TexMgr_LoadImage32 from the skin as it uploads, so a reload remakes it; never a file, so
+nothing from AD's assets is written to the repository. The burst rifle's variants copy `v_gruntgun.mdl_0_norm.png` over
+their skin's first 260 rows (vr_adgunart.cpp keeps the rifle's coordinates). Kept in the disk cache with the made skin
+maps (vr_normalmap_cache; build `5e1ef00000000001`, bump with any change).
+New cvar **`vr_weapon_relief`** (1; 0: the colour-made map as before; read as the model loads, so a restart).
+
+**Cost**: made once per skin (2-35 ms on the pool: a #adv variant 25-35 ms, a melee weapon 3 ms; about 0.35 s for
+all 24 on AD's first load), then read from the disk cache. Drawing: the authored path, as our own weapons. Video
+memory: the maps are twice the skin (a #adv variant's 512 x 840).
+
+**Checks**: `scratch/wr_all.sh <name>` (worktree gorefx) holds each in the main hand on AD's start (`vr_ad_test 97..99`,
+`73..80`, `116..119`, `128`, `impulse 165`), lit at the spawn and in shade at (616 0 244); `PRE="vr_weapon_relief 0"`
+for the old maps. `developer 1` prints a `skinrelief:` line per map with the statistics above. Before/after sheets:
+`scratch/weaponreliefs_light.png`, `_shade.png`, `_crossbow.png` (crossbow: `vr_test_spawn 202; impulse 241; vr_ad_test 93`).
+Screen pixels changed on the held weapon: 4-30 % lit, 0.1-5 % in shade (dark there). Our own models' maps are untouched.
+Thin parts: the heights stay within HEIGHT_CAP (0.12 units, x1.5 at vr_parallax_authored) and the rims rise at every
+island edge, so blades and handles can't pull texels across a seam; not seen moving in VR yet.
+
+- **For VR**: hold the Shadow Axe, the Widowmaker, an AD soldier's gun and a death knight's sword close up under a
+  torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
+  axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.

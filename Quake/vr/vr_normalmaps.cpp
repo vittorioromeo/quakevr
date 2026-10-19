@@ -717,6 +717,15 @@ static void TexMgr_EnsureHeightMask (void)
 	}
 }
 
+// VR_SkinIslands -- the islands set (VR_SetHeightMask; made now if lazy), or NULL: vr_skinrelief.cpp's
+extern "C" const byte *VR_SkinIslands (int *width, int *height)
+{
+	TexMgr_EnsureHeightMask ();
+	*width = heightmask_width;
+	*height = heightmask_height;
+	return heightmask;
+}
+
 /*
 ================
 TexMgr_NormalCacheBuild, TexMgr_SkinNormalsKey -- the normal maps made from skins kept on disk (vr_texcache.cpp).
@@ -935,8 +944,12 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 		if (img)
 			return;
 	}
-	TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
-		glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
+	if (flags & NORMALMAP_RELIEF) // a weapon made from another model's file: its relief made from its skin (vr_skinrelief.cpp)
+		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+			glt->source_offset, NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS | NORMALMAP_RELIEF, worldwidth);
+	else
+		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+			glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
 }
 
 

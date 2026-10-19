@@ -248,9 +248,10 @@ float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on 
 // materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
 // loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
 // NORMALMAP_EXT: an external pack's (vr/vr_extmaps.cpp), its green turned to ours where its heights say it runs the
-// other way (vr_extmaps_green).
+// other way (vr_extmaps_green). NORMALMAP_RELIEF: a weapon made from another model's file (vr_skinrelief.cpp): its map
+// made from its skin as it uploads, in our baked maps' style and at their scale, drawn as an authored one (with FILE).
 enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
-	NORMALMAP_FLAT = 32, NORMALMAP_EXT = 64 };
+	NORMALMAP_FLAT = 32, NORMALMAP_EXT = 64, NORMALMAP_RELIEF = 128 };
 #define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s;
 void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheight);	// a made one's size (NORMALMAP_SHADING): mipmapped down to at most this
@@ -258,6 +259,12 @@ int VR_MakeNormalMap (struct gltexture_s *glt, unsigned char *data, int kind, in
 float VR_AlphaCoverage (const unsigned char *data, int count);	// an alpha-tested texture's share of texels that pass the test
 void VR_AlphaCoverageMip (const unsigned char *in, unsigned char *out, int count, float coverage); // a mip level with that coverage kept (vr_alpha_coverage)
 void VR_SetHeightMask (const unsigned char *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
+const unsigned char *VR_SkinIslands (int *width, int *height); // ... those islands (made now if lazy), or NULL
+// The relief of the weapons made from other models' files (vr_skinrelief.cpp; vr_weapon_relief).
+int VR_SkinReliefWanted (const char *model);				// VR_LoadSkinNormalMaps: nonzero if its skins get one (NORMALMAP_RELIEF)
+void VR_SkinReliefBegin (const void *hdr, const void *stverts, const void *triangles, const void *frames); // ... its units per texel, from its first frame
+void VR_SkinReliefEnd (void);
+unsigned char *VR_SkinRelief (struct gltexture_s *glt, unsigned char *data); // TexMgr_LoadImage32: the map made from the skin's RGBA (hunk; glt's size set)
 void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
 	unsigned char *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
 void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,
