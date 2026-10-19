@@ -14595,3 +14595,33 @@ physics, not the timing:
 - shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
 
 Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
+
+## Zombies fall as ragdolls; the toolgun's Widowmaker loaded (worktree `fastship`, branch `agent/zombierag`, 2026-10-19)
+
+Zombies (BACKLOG "Zombies stuck knocked down"): the stock fall (paine1..12: not solid, health reset each frame, up only
+where `walkmove(0, 0)` fits, else retried for ever) could leave a zombie lying for good, out of reach of every shot but
+a blast. Now zombie_pain's fall (a hit of 25 or more, or a second hit within 3 s) is `VR_Knockdown_ZombieFall`
+(vr_knockdown.qc): a knockdown's active ragdoll (room made from the dead only), toppled away from the attacker (push
+0.6, 16 units), down for the knockdown's time; hit there (its own rules: health back to 60 each hit, only 60 in one hit
+gibs it), grabbed, beheaded, its limbs cut, gibbed; up through the zombie's get-up (paine13 on, or the engine's rise),
+its AI back (inpain 0 at zombie_run1). A downed or rising zombie never begins another fall. No ragdoll (ragdolls off,
+no rig, no room): the stock fall, but lying solid with a lying body's box (`zombie_lie`; also paine12's retries, the
+mummy's, a lying-spawned one's wake), so shots reach it.
+
+The other fake-death zombies: Rogue's mummy never falls in pain (only its lying spawn's wake: its retries now solid);
+Hipnotic's lying zombie rises at once (zombie_lay12); Dawn of the Machine's shub zombies and infected are monster_zombie
+with zombie_pain (their rising lie stays upstream's); AD's zombie, mummy and zombie knight: `VR_AD_ZombiePain`
+(vr_ad_monsters.qc) wraps AD's pain (no AD file patched) and turns the fall it begins (paine1, painb1, the knight's
+paind1) into the ragdoll; down there each hit puts its health back (`VR_AD_PainDown`). With no ragdoll AD's own fall
+stays (its wakeup gibs a zombie blocked too long). No Quoth zombie in the progs. Honey's axe gibbing "zombies on the
+ground" (.wad) only sees the stock fall.
+
+Checks (vrtesthall, `vr_knockdown_test 23/24`): a 30 hit: "falls as a ragdoll", up after 4.2-4.8 s, knocked down again
+(inpain reset), up again; a grenade 150 units short: down, up after 4.3 s; down, a 5 hit: health 60; a 260 hit: gibbed;
+down, `vr_decap_test 7`: beheaded, dies for good; down, the SSG test shot (aimed at the standing head) killed it whole
+by a limb (the zombie rule); AD's mummy (238) and zombie knight (201): ragdoll, up after 5.1 / 5.4 s.
+
+The toolgun's Widowmaker (`toolgun_upgrade_ssg`, a func_weapon_grabbable): its record was made with the super shotgun's
+clip (2) before its upgrade was set; `VR_WeaponGrabbable_Make` now gives it `VR_ClipSizeOf` (the tube, 16).
+`vr_ad_test 148`: "comes loaded: PASS (16 of 16)"; the map pickup's (`vr_ad_test 149`'s last check) passes too (its
+other checks fail in the plain headless run: no manual reloading there).
