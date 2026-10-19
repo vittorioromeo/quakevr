@@ -14367,3 +14367,41 @@ a random wrist move or a gun brought round bats a projectile back; the parried e
   slide a little, not fly; a strong two-handed hammer blow moves a body most. Bring a gun round in front of a spike or
   flick the wrist: no bat; a real swing and a bash bat. Parry knights and grunts on flat floor (they reel back a step as
   a ragdoll and come at you again after the same pause) and at the top of stairs (sometimes they go down them).
+
+## Heavy weapons settle; Ghost Hands (worktree `goreflesh`, branch `agent/heavyfix`, 2026-10-19)
+
+The author: the rocket launcher, chainsaw and AD hammer in one hand spazzed out at a fast wrist wiggle and bounced at a
+flick; the hammer two-handed bounced and turned too much at the end of a blow.
+
+- **The cause** (vr_weight.cpp `step`, weapons with a Heft only): far behind the hand the catch-up raised the wrist's
+  pull up to 31x without its damping (a damping ratio down to a fifth), and the wrist's torque limit clipped the pull
+  and the damping together: at the limit the weapon lost its damping, the leash dragged it along at the hand's speed and
+  the limit could not stop it again. A +-60 degree yaw wiggle at 2 Hz swung the hammer, chainsaw and rocket launcher
+  +-180 (gain 3), 113-135 degrees still off 0.3 s after the hand stopped. On top, the struggle's damping (0.5) times a
+  weapon's own Spring Damping (the laser cannon 0.6, the chainsaw 0.65) left the laser cannon at a ratio of 0.3: a blow
+  stopped dead swung on 54 degrees and rang.
+- **Fixed:** the catch-up's damping grows with the square root of its pull (the same ratio); the torque limit clips the
+  pull alone, the damping acts beyond it; a weapon with a Heft is damped at least `vr_heavy_damping_min` (0.8, Weapon
+  Weights > Heavy Handling "Settle (Least Damping)"; no lower than Aiming: Spring's own damping). Light weapons
+  unchanged (the old path).
+- **Test:** `vr_heavy_wiggle [slot] [motion hands]` (Debug > Heavy Wobble Test): offline at 90 fps, per heavy weapon one-
+  and two-handed, yaw wiggles +-30/30/60/45 at 3/5/2/4 Hz, roll and pitch +-45 at 3 Hz, flicks (30, 90, roll 45 in 60 ms
+  and back), a blow stopped dead; gain, fastest turn over the wrist's, ringing, degrees still off 0.3 s after. One-handed
+  w60@2 gain before/after: rocket launcher 2.84/1.22, laser 0.61/0.66 (late 11.7/2.2), chainsaw 2.99/0.98 (late
+  112.7/4.3), hammer 2.97/0.97 (late 134.6/4.3); the laser's 1H blow late 66.7/12.2 (ring 4/1); two-handed unchanged
+  (gain 1.05-1.2). In game (`Misc/quakevr/heavy_wiggle_gen.py`, vr_debug_weight 1 trace): the w60@2 lag 150 (the leash)
+  -> 50 for the hammer and the chainsaw. The extreme snaps still drop (vr_weight_drop untouched).
+- **Not reproduced:** the chainsaw's fast bounce at a small flick and the two-handed hammer's bounce at the end of a
+  blow (offline: 6 degrees past, settled in 0.1 s; in game `Misc/quakevr/heavy_chop_gen.py`, chops into the floor at
+  2-5 m/s: at most 7.5 degrees, no ringing). No Hit has four new labels for takes: "Heavy: Wrist Wiggle, Rocket
+  Launcher", "Heavy: Chainsaw Flick", "Heavy: Hammer 1H Wiggle", "Heavy: Hammer 2H Blow on the Ground" (replay with
+  vr_debug_weight 1: weight_trace.txt rows now end with the target's angles, tpitch/tyaw/troll).
+- **Ghost Hands** (Player Appearance > Ghost Hands; default off): `vr_ghost_hands` 0 off, 1 hands, 2 hands and forearms
+  (a translucent forearm from the drawn elbow); `_which` 0 both, 1 the off hand only; `_alpha` 0.35; `_lightness` 1.6;
+  `_tint` 0.6 (0 own colours, 1 cold blue); `_fade_from` 2 cm, `_fade_range` 4 cm (the farther of the grip and a point
+  15 cm ahead, so a turn counts). The jointed hand's mesh as posed (the same bones), placed where setupHand would draw
+  it at `hands::State::unresolvedPos/Rot` (new: before the walls, the two-handed grip and the spring), translucent and
+  light-multiplied. Debug has a toggle too. Checked: the hammer drooped 80 degrees, the ghost drawn below the drawn hand.
+- **For VR:** wiggle and flick the rocket launcher, chainsaw and hammer in one hand: they should lag and settle, never
+  whip round; snap hard: still dropped. Hammer two-handed blows on the ground: if it still bounces, record the new No Hit
+  labels. Ghost Hands on with each heavy weapon and a two-handed grip.
