@@ -105,16 +105,9 @@ These came with the initial import of the game folder; no generator, credits ent
 | `hipweap/laserric.wav` | 0.30 s | weapons.qc:HIP_LaserTouch; weapons.qc:W_Precache |
 | `hipweap/mjolhit.wav` | 3.06 s | hip_items.qc:trap_tesla_think; hip_items.qc:trap_tesla_coil; vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; weapons.qc:HIP_SpawnMjolnirBase; weapons.qc:W_Precache |
 | `hipweap/mjolslap.wav` | 0.25 s | vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; vr_mg3_weapons.qc:W_SuperAxeMelee; weapons.qc:HIP_SpawnMjolnirBase; weapons.qc:W_Precache |
-| `hipweap/mjoltap.wav` | 0.25 s | not referenced by our QC or engine |
 | `hipweap/mjoltink.wav` | 0.27 s | vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; vr_mg3_weapons.qc:W_SuperAxeMelee; weapons.qc:HIP_FireMjolnir; weapons.qc:W_Precache |
-| `hipweap/mjolwam.wav` | 0.27 s | not referenced by our QC or engine |
 | `hipweap/proxbomb.wav` | 0.75 s | weapons.qc:W_Precache; weapons.qc:W_FireProximityGrenade |
 | `hipweap/proxwarn.wav` | 0.19 s | weapons.qc:W_Precache; weapons.qc:ProximityBomb |
-| `misc/bell.wav` | 2.79 s | not referenced by our QC or engine |
-| `misc/clang.wav` | 1.18 s | not referenced by our QC or engine |
-| `misc/click.wav` | 0.22 s | vr_menuui.cpp:mockMouse_f |
-| `misc/deepthud.wav` | 1.19 s | not referenced by our QC or engine |
-| `misc/drawbrig.wav` | 1.78 s | not referenced by our QC or engine |
 | `misc/flys.wav` | 7.00 s | player.qc:HeadThink; vr_carry.qc:VR_Gib_Die; world.qc:worldspawn |
 | `misc/foot1.wav` | 0.21 s | hip_decoy.qc:decoy_walk1; player.qc:player_run; world.qc:worldspawn |
 | `misc/foot2.wav` | 0.15 s | hip_decoy.qc:decoy_walk1; player.qc:player_run; world.qc:worldspawn |
@@ -126,7 +119,6 @@ These came with the initial import of the game folder; no generator, credits ent
 | `misc/longexpl.wav` | 3.84 s | hip_expl.qc:exploder_fire; hip_expl.qc:func_exploder; hip_expl.qc:func_multi_exploder; hip_mon_arma.qc:armagon_body_explode2; world.qc:worldspawn |
 | `misc/quake.wav` | 3.09 s | hip_quake.qc:earthquake_postthink; hip_quake.qc:func_earthquake; rogue_earthq.qc:earthquake_rumble; rogue_earthq.qc:earthquake; rogue_earthq.qc:earthquake_touch (+3) |
 | `misc/quakeend.wav` | 0.73 s | hip_quake.qc:earthquake_postthink; hip_quake.qc:func_earthquake; vr_mg_triggers.qc:trigger_screenshake |
-| `misc/rockthud.wav` | 0.87 s | not referenced by our QC or engine |
 | `misc/shortexp.wav` | 2.49 s | hip_expl.qc:exploder_fire; hip_expl.qc:func_exploder; hip_expl.qc:multi_exploder_fire; hip_expl.qc:func_multi_exploder; world.qc:worldspawn |
 | `misc/spike.wav` | 0.31 s | misc.qc:spikeshooter_use; misc.qc:trap_spikeshooter |
 | `misc/tesla.wav` | 2.03 s | hip_items.qc:trap_tesla_think; hip_items.qc:trap_tesla_coil |
@@ -141,8 +133,5 @@ These came with the initial import of the game folder; no generator, credits ent
 
 ## Unused-sound audit (2026-10)
 
-Every tracked file under `quakevr/sound/` (236) was searched (path with and without `.wav`, plus runtime-built prefixes) in all tracked source, map, compiled .bsp, data and script files. Removed: `vr/phys/flesh_h3.wav`, `vr/phys/flesh_h4.wav` (never loaded; the generator now makes only two flesh_h takes). Files with no code reference of ours:
-
-| File | Why kept |
-|---|---|
-| `misc/bell`, `misc/click`, `misc/drawbrig`, `misc/rockthud`, `hipweap/mjoltap`, `hipweap/mjolwam` | no QC/engine/map reference of ours, but the path is an official base-game resource name (vr_pack_mg3.inc), byte-identical to the id1 (rerelease pak12) and hipnotic copies, so it overrides a base-game sound the base QC may load |
+`vr/phys/flesh_h3.wav` and `flesh_h4.wav` were removed (never loaded; the generator now makes two flesh_h takes).
+Eight files were byte-identical copies of the base game's (id1 rerelease pak12 / Hipnotic pak0) and nothing of ours played them, so they were removed too: `misc/bell`, `misc/click`, `misc/clang`, `misc/deepthud`, `misc/drawbrig`, `misc/rockthud`, `hipweap/mjoltap`, `hipweap/mjolwam`. The game loads them from the user's id1 / Hipnotic paks as before.
