@@ -747,9 +747,9 @@ za::Vector<Item> pageCombat()
         open("Enemy Melee", pageIndex(pageEnemyMelee))
             .help("Monsters' melee blows: the arc ahead of them where they land and their reach (both growing with "
                   "size), how fast they turn after you while swinging, how close they come; Show Melee Arcs."),
-        open("Flinch", pageIndex(pageFlinch))
-            .help("Hits make humanoids flinch as active ragdolls: they step and balance, then recover or topple. The "
-                  "thresholds, the balance and each weapon's strength."),
+        open("Ragdoll Triggers", pageIndex(pageKdTriggers))
+            .help("Hits knock humanoids down as ragdolls by stairs and ledges, on slopes, from a close shotgun blast, a "
+                  "strong blow, an explosion or badly hurt: each trigger's settings, Monster Resistance."),
         open("Knockdowns", pageIndex(pageKnockdowns))
             .help("Your shoves can knock monsters down as ragdolls, alive: the chances, how long they stay down, getting up."),
         open("Holding Enemies", pageIndex(pageHoldingEnemies))

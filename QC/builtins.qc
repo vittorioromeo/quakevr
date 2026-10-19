@@ -307,7 +307,6 @@ float(entity e, float begin) ragdolldrown = #0;
 float(entity e, vector at, float hold) ragdollguard = #0;
 float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
-float(entity e, vector at, vector impulse, float mode) ragdollflinch = #0; // (vr_flinch.qc; the engine's box3d::ragdollFlinch)
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;

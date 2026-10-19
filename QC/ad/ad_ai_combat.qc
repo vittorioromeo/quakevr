@@ -273,7 +273,9 @@ void(entity ad_targ, entity ad_inflictor, entity ad_attacker, float ad_damage, f
 	//----------------------------------------------------------------------
 	VR_AD_KdSave(ad_targ, ad_inflictor);
 	ad_targ.health = ad_targ.health - ad_take;
+	VR_AD_Splash(ad_checkarmor == ad_DAMSPLASH);
 	VR_AD_Hit(ad_targ, ad_inflictor, ad_attacker, ad_take);
+	VR_AD_Splash(0);
 	
 	//----------------------------------------------------------------------
 	// Changed the turret code to allow for monster % HP triggers

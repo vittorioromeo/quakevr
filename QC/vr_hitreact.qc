@@ -151,7 +151,7 @@ void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Sl
 
 // Where a blow struck `targ` and which way it went (vr_hr_at, vr_hr_dir: unit) and its part (vr_hr_part: 0 the body,
 // 1 the head, 2 a limb, 3 a leg, -1 unknown), from the hit's globals (its pellets, its kind, the point PositionalDamage
-// found) or the inflictor's and attacker's places. (The small reaction's and the flinch's: vr_flinch.qc.)
+// found) or the inflictor's and attacker's places. (The small reaction's and the situational knockdowns': vr_kdtrig.qc.)
 void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;

@@ -143,10 +143,6 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
 // A melee blow by `xBy` (T_Damage_VRMelee) dealing `xDamage` (its zone's multiplier in), at the head or not.
 float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagger_Melee =
 {
-    if(VR_Flinch_Owns(e))
-    {
-        return VR_Flinch_Melee(e, xBy, xDir, xDamage, xHead); // (vr_flinch.qc)
-    }
     float impact = xDamage / max(1, cvar_hget(cvarh_vr_hit_stagger_melee_ref));
     if(xHead)
     {
@@ -160,10 +156,6 @@ float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagg
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw =
 {
     float momentum = max(0, xMass) * max(0, xSpeed) / max(1, VRMetersToUnits());
-    if(VR_Flinch_Owns(e))
-    {
-        return VR_Flinch_Throw(e, xBy, xDir, momentum); // (vr_flinch.qc)
-    }
     float impact = momentum / max(1, cvar_hget(cvarh_vr_hit_stagger_throw_ref));
     return VR_HitStagger_Try(e, xBy, xDir, impact, xDamage, sprintf("a throw (%.1f kg, %.0f kg m/s)", xMass, momentum));
 };

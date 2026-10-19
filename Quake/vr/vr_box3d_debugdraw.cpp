@@ -74,7 +74,7 @@ void drawCapsule(const b3Capsule& c, const b3WorldTransform& xf, const glm::vec4
 
 void activeRagdollDraw()
 {
-    if(!world || !sv.active || (!vr_ragdoll_active_debug.value && !vr_flinch_debug.value))
+    if(!world || !sv.active || !vr_ragdoll_active_debug.value)
     {
         return;
     }
@@ -82,14 +82,7 @@ void activeRagdollDraw()
     {
         if(r.num > 0 && r.active.on)
         {
-            if(vr_ragdoll_active_debug.value)
-            {
-                ragactive::debugDraw(r.active, activeParts(r));
-            }
-            if(vr_flinch_debug.value)
-            {
-                ragactive::flinchDraw(r.active, activeParts(r), sv.qcvm.time); // (vr_flinch; no VM bound while drawing)
-            }
+            ragactive::debugDraw(r.active, activeParts(r));
         }
     }
 }
