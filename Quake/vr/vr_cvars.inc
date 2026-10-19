@@ -2755,6 +2755,8 @@ QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times th
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
 QVR_CVAR(vr_knockdown_bash, "1", CVAR_ARCHIVE)            // and this for a weapon's bash (0: only open-palm shoves)
 QVR_CVAR(vr_knockdown_stamina, "1", CVAR_ARCHIVE)         // how much low stamina cuts the chance: times 1 - this x the share spent (0: no effect)
+QVR_CVAR(vr_knockdown_surprise, "1", CVAR_ARCHIVE)        // a shove of a monster unaware of you (its enemy not you: asleep, idle, fighting another) or from behind (vr_knockdown_surprise_angle) knocks it down for sure, if its monster group can go down from a shove at all (QC VR_Knockdown_Try); 0: its chance as any
+QVR_CVAR(vr_knockdown_surprise_angle, "70", CVAR_ARCHIVE) // degrees: a shove's way within this of where the monster faces is one from behind (0: only an unaware one is surprised)
 // Hits that unbalance (QC vr_hitstagger.qc; Combat > Knockdowns, "Hits Unbalance"): a strong throw or melee blow may make
 // a monster lose its balance as a shove does (the active-ragdoll stagger; others: pushed and a forced pain), by chance.
 QVR_CVAR(vr_hit_stagger, "1", CVAR_ARCHIVE)               // on (0: only shoves and bashes unbalance)
@@ -2884,6 +2886,8 @@ QVR_CVAR(vr_knockdown_water_climb, "48", CVAR_ARCHIVE)   // ... getting up in a 
 QVR_CVAR(vr_knockdown_water_giveup, "3", CVAR_ARCHIVE)   // ... none found for this long (s) after its time to get up: it gets up where it floats, a walking monster again (and sinks); 0: never
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
 QVR_CVAR(vr_knockdown_getup_speed, "0.8", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
+QVR_CVAR(vr_knockdown_getup_slope, "30", CVAR_ARCHIVE)    // degrees: a knocked-down monster lying on a slope up to this steep gets up as on level ground (QC VR_Knockdown_Think)
+QVR_CVAR(vr_knockdown_getup_force, "4.5", CVAR_ARCHIVE)   // s: its get-up due this long and still down (a steeper slope it slides on, no room): it gets up where it lies, forced (never a ragdoll for ever); 0: never
 QVR_CVAR(vr_knockdown_push, "1.3", CVAR_ARCHIVE)          // (the author's 1.3, 2026-10-11) the knocked body's launch, times the shove's push
 QVR_CVAR(vr_knockdown_shove_travel, "0.8", CVAR_ARCHIVE)  // how far the shoved-down body goes, times how far the same shove carries a standing one (its pelvis, as it lies; box3d ragdollShove); 0: it falls where it stood
 QVR_CVAR(vr_knockdown_shove_topple_angle, "90", CVAR_ARCHIVE) // degrees it turns over about its feet along the shove (90: from standing to flat), head and chest first; 0: no turn (it falls as it will)
@@ -3049,6 +3053,9 @@ QVR_CVAR(vr_ragdoll_active_stagger_push, "2", CVAR_ARCHIVE)  // m/s: a fresh two
 QVR_CVAR(vr_ragdoll_active_stagger_travel, "1.2", CVAR_ARCHIVE) // how far its pelvis is carried (its backpedal), times how far the shove slides a standing one (at most 4 m; 0.2 before vr_cfg_version 128)
 QVR_CVAR(vr_ragdoll_active_stagger_pin, "2", CVAR_ARCHIVE)  // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
 QVR_CVAR(vr_ragdoll_active_stagger_blend, "0.2", CVAR_ARCHIVE) // s: recovered, its ragdoll blended into the animated monster over this
+QVR_CVAR(vr_ragdoll_active_stagger_settle, "1", CVAR_ARCHIVE) // m/s: its backpedal near done (its pin's carry 90% over), slower than this, steady and not mid-step: it has recovered (0.4, from 0.2 s past its carry, before: it froze a moment at its end)
+QVR_CVAR(vr_ragdoll_active_stagger_settle_time, "0.35", CVAR_ARCHIVE) // s: still up this long past its carry, it has recovered however it moves (1.2 before)
+QVR_CVAR(vr_ragdoll_active_stagger_drop, "20", CVAR_ARCHIVE) // units: the floor under its pelvis this much lower than where it stood (stepped off a ledge, the top of stairs) a moment: it falls, sure-footed or not (no backpedalling on air); 0: never
 QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: pulled into its get-up's first frame, then risen through its get-up, handed back to the animated monster standing; 0: the ragdoll blended into the get-up from the floor, as before
 QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
 QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
@@ -3066,9 +3073,9 @@ QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the cha
 QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
 QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
-QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast on the live monster nearest you; 20 a grunt at vr_kdtrig_test_x _y _z; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
+QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 20 a grunt at vr_kdtrig_test_x _y _z; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
 QVR_CVAR(vr_kdtrig_test_damage, "0", CVAR_NONE)      // the test hits' damage instead of their own (0: their own)
-QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord (a boss)
+QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord (a boss), 6 a knight, 7 an enforcer
 QVR_CVAR(vr_kdtrig_test_n, "20", CVAR_NONE)           // the trials of vr_kdtrig_test 30 + k
 QVR_CVAR(vr_kdtrig_test_health, "0", CVAR_NONE)       // the test grunt's health (0: its own; 0..1: that share of its full health)
 QVR_CVAR(vr_kdtrig_test_x, "0", CVAR_NONE)            // where vr_kdtrig_test 20 and the trials put a grunt (units; on the floor under it)
@@ -3076,6 +3083,9 @@ QVR_CVAR(vr_kdtrig_test_y, "0", CVAR_NONE)
 QVR_CVAR(vr_kdtrig_test_z, "0", CVAR_NONE)
 QVR_CVAR(vr_kdtrig_test_yaw, "0", CVAR_NONE)          // the test hits' way (deg; 0: from the player; 360: yaw 0)
 QVR_CVAR(vr_kdtrig_test_dist, "0", CVAR_NONE)         // units: the test shotgun blasts' distance (0: the player's)
+QVR_CVAR(vr_kdtrig_test_wait, "0", CVAR_NONE)         // the trials (vr_kdtrig_test 30 + k): seconds after the hit before it is judged (0: 0.2)
+QVR_CVAR(vr_kdtrig_test_face, "0", CVAR_NONE)         // the test monster: 0 facing the test hits' source, 1 facing away (hit from behind)
+QVR_CVAR(vr_kdtrig_test_aware, "1", CVAR_NONE)        // the test monster: 1 its enemy the player as it is hit, 0 none (unaware)
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 QVR_CVAR(vr_ragdoll_active_env_arms, "1", CVAR_ARCHIVE)  // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding

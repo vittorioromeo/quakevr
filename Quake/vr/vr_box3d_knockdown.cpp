@@ -297,6 +297,12 @@ namespace
     trace_t down = point(eye, eye - glm::vec3{0.f, 0.f, 128.f}, ent);
     const float floorZ = down.fraction < 1.f ? down.endpos[2] : from.z - 24.f;
     const float height = eye.z;
+    // A slope up to vr_knockdown_getup_slope is floor to stand on (ROUND22.md, "Knocked down on a slope": enforcers slid
+    // down a ramp and never got up: the box over the point met the slope, no room anywhere). Steeper: none (it slides on;
+    // the QC's forced get-up, vr_knockdown_getup_force, stands it up anywhere at last).
+    const float steepest = glm::radians(za::clamp(vr_knockdown_getup_slope.value, 0.f, 60.f));
+    const float flattest = za::cos(steepest + glm::radians(1.f)); // (a degree over: a map's 30 is 30.03)
+    const float corner = glm::length(glm::vec2{za::max(-mins.x, maxs.x), za::max(-mins.y, maxs.y)});
     const auto tryAt = [&](const glm::vec3& c) {
         const glm::vec3 level{c.x, c.y, height};
         if(point(eye, level, ent).fraction < 1.f)
@@ -304,19 +310,30 @@ namespace
             return false; // (a wall between)
         }
         const trace_t tr = point(level, level - glm::vec3{0.f, 0.f, height - floorZ + 32.f}, ent);
-        if(tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f || za::abs(tr.endpos[2] - floorZ) > 24.f)
+        if(tr.fraction >= 1.f || tr.plane.normal[2] < flattest || za::abs(tr.endpos[2] - floorZ) > 24.f)
         {
-            return false; // (no floor near the body's: a ledge, a drop, a step too high)
+            return false; // (no floor near the body's: a ledge, a drop, a step too high, too steep)
         }
-        vec3_t o{c.x, c.y, tr.endpos[2] - mins.z + 0.25f};
+        // (On a slope its box over the point meets the slope uphill: lifted clear by as much as its corner rises, about;
+        // it settles onto the slope.)
+        const float nz = za::clamp(tr.plane.normal[2], 0.05f, 1.f);
+        const float rise = corner * za::sqrt(za::max(1.f - nz * nz, 0.f)) / nz;
         vec3_t lo{mins.x, mins.y, mins.z}, hi{maxs.x, maxs.y, maxs.z};
-        const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
-        if(box.startsolid || box.allsolid)
+        const float most = rise > 0.5f ? rise + 1.f : 0.25f; // (level: as before, at its floor)
+        for(float lift = 0.25f;; lift = za::min(lift + 4.f, most))
         {
-            return false;
+            vec3_t o{c.x, c.y, tr.endpos[2] - mins.z + lift};
+            const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+            if(!box.startsolid && !box.allsolid)
+            {
+                out = glm::vec3{o[0], o[1], o[2]};
+                return true;
+            }
+            if(lift >= most)
+            {
+                return false;
+            }
         }
-        out = glm::vec3{o[0], o[1], o[2]};
-        return true;
     };
     if(tryAt(at))
     {

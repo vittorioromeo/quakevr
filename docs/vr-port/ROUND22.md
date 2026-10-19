@@ -14367,3 +14367,48 @@ a random wrist move or a gun brought round bats a projectile back; the parried e
   slide a little, not fly; a strong two-handed hammer blow moves a body most. Bring a gun round in front of a spike or
   flick the wrist: no bat; a real swing and a bash bat. Parry knights and grunts on flat floor (they reel back a step as
   a ragdoll and come at you again after the same pause) and at the top of stairs (sometimes they go down them).
+
+## Stagger and knockdown fixes (agent/staggerfix)
+
+From the author's VR notes on active-ragdoll staggers.
+
+- **Parry ragdoll in the real game** (QC `vr_kdtrig.qc` VR_Parry_Ragdoll). The parry pushes the attacker
+  (VR_Push, `vr_parry_push_enemy`, his 0.55, the default) before VR_Parry_Interrupt asks for the ragdoll, and VR_Push
+  clears FL_ONGROUND, so the `FL_ONGROUND` gate always failed and the pain pose played. The headless check had
+  `vr_parry_push_enemy 0`. Now the gate looks for ground under its feet (a box trace 6 units down), and the parry's
+  push and lift are undone before the knockdown starts (the stagger carries it). Checked with the defaults: a knight's
+  blow (3/3) and a grunt's shove (3/3) parried on flat floor make it stagger back as a ragdoll and recover at 0.80 s.
+- **No freeze at the end of a stagger** (engine `vr_ragactive.cpp` staggerFrame). It used to wait until 0.2 s after its
+  pin's carry ended and its pelvis was under 0.4 m/s (up to 1.2 s). The carry eases out, so the last part looked like
+  gliding. Now it recovers once 90% of the carry is done, it isn't mid-step, it is steady and slower than
+  `vr_ragdoll_active_stagger_settle` (1 m/s), or at the latest `vr_ragdoll_active_stagger_settle_time` (0.35 s) after
+  the carry. Flat two-hand shove, carry 1.60 s: recovered at 1.81 s before; 1.27 to 1.30 s now (1.96 s with the cap
+  when still leaning). The handback gap is unchanged or smaller (8 to 18 units at most, before 14 to 18).
+- **Surprise shoves knock down** (`vr_knockdown_surprise` 1, `vr_knockdown_surprise_angle` 70; QC `vr_melee.qc`
+  VR_Knockdown_Surprised, VR_Knockdown_Try). Surprise is taken as the blow lands, before its damage wakes the monster:
+  either it isn't fighting the shover (`enemy` not him) or the shove's direction is within the angle of where it faces.
+  Then it always goes down: a stagger with balance 0 that gives way after its steps, if its group's shove chance is
+  above 0. Grunts on flat floor: 10/10 from behind and 10/10 unaware went down; facing you and aware, 7/10 by chance.
+- **No backpedalling on air** (`vr_ragdoll_active_stagger_drop` 20 units). If the floor under its pelvis is more than
+  that much lower than where it stood, for 0.06 s, the stagger falls (a topple), sure-footed or not. Tested with
+  `vr_knockdown_ledge 0` and the ledge/stairs triggers off, a steady grunt (chance 0.01). Shoved off vrragtriggers' 32
+  drop: 10/10 fell "no floor under it" (with `_drop 0`, 4/4 walked off and recovered on the floor below). Shoved off
+  the top of the wide stairs: 10/10 fell.
+- **Getting up on slopes** (engine `vr_box3d_knockdown.cpp` standSpot; `vr_knockdown_getup_slope` 30,
+  `vr_knockdown_getup_force` 4.5 s; QC VR_Knockdown_Think, VR_Knockdown_Upright). On a slope, the standing box over the
+  floor point cut into the slope uphill, so no place was ever free ("no room to get up", forever). Now the box is
+  lifted clear by about how far its corner rises on the slope, up to the slope limit (plus 1 degree). A steeper slope
+  doesn't count as somewhere to stand. Still down `_force` s after it went down with no room: it gets up where it lies
+  (ragdollgetup anywhere). A monster stood up over the floor drops onto it (Upright clears FL_ONGROUND when there is
+  nothing under it). Enforcers knocked uphill on the 12, 20 and 30 degree ramps got up on the ramp; before the 1
+  degree margin, the 30 ramp (30.03 degrees) took the forced path at 4.6 and 4.9 s; on 40 degrees they slid to the
+  floor and got up there.
+- **Tests**: `vr_kdtrig_test` 8 (two-hand shove), 9 (its blow on you), 10 (knocked down), 11 (its shove on you);
+  `vr_kdtrig_test_class` 6 knight, 7 enforcer; `vr_kdtrig_test_wait`, `_face`, `_aware`.
+- **Menus**: Combat > Knockdowns: Surprise Shoves Knock Down, From Behind Within, Steepest Slope to Stand, Forced
+  Get-Up; beside Stagger Recovery Blend (physics menu): Stagger Settles Below, Stagger Settle at Most, Stagger Drop Falls.
+- **For VR:** parry a knight's swing and a grunt's shove: it steps back as a ragdoll and comes on again. Shove a grunt
+  until it recovers: it should take up the fight right as its backpedal ends, with no pause or glide. Sneak up and
+  shove one from behind, or one that hasn't seen you: it goes down. Slap a grunt standing at a ledge or at the top of
+  stairs: it falls instead of walking on air. Knock enforcers down on a ramp: they get up on it; on a steep one they
+  slide, then stand up within about 5 s.

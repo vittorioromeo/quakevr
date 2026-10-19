@@ -3259,10 +3259,35 @@ float(float xBoth) VR_Shove_HandsPush =
     return max(0, cvar_hget(xBoth ? cvarh_vr_shove_push_twohand : cvarh_vr_shove_push_onehand));
 };
 
+// A shove's surprise (vr_knockdown_surprise; vr_knockdown.qc VR_Knockdown_Try): 1, `e` unaware of `by` (its enemy not
+// him: asleep, idle, fighting another), 2, shoved from behind (the shove's way within vr_knockdown_surprise_angle of
+// where it faces), 0 neither. Taken as the blow finds it, before its damage wakes it (VR_Bash_Hit: vr_kd_surprise).
+float vr_kd_surprise;
+float(entity e, entity by, vector xForward) VR_Knockdown_Surprised =
+{
+    if(!cvar_hget(cvarh_vr_knockdown_surprise) || !(e.flags & FL_MONSTER) || e.health <= 0)
+    {
+        return 0;
+    }
+    if(e.enemy != by)
+    {
+        return 1;
+    }
+    float half = cvar_hget(cvarh_vr_knockdown_surprise_angle);
+    vector f = xForward;
+    f_z = 0;
+    if(half <= 0 || f == '0 0 0')
+    {
+        return 0;
+    }
+    return fabs(anglemod(vectoyaw(f) - e.angles_y + 180) - 180) <= half ? 2 : 0;
+};
+
 // Knocks `e` back along `xForward`: `xScale` of vr_bash_damage and `xPush` of vr_bash_push, and a stagger (its pain,
 // forced).
 void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xScale, float xPush) VR_Bash_Hit =
 {
+    vr_kd_surprise = VR_Knockdown_Surprised(e, self, xForward);
     if(self.flags & FL_CLIENT)
     {
         self.vr_blow_time = time; // (bullet time's screen tap: vr_bullettime_tap_blow_quiet)
@@ -3305,6 +3330,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     }
     // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
     VR_Knockdown_Try(e, xForward, xKind, xHand, push);
+    vr_kd_surprise = 0;
     if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))
     {
         // Wood's splinters, metal's sparks; never blood: a shove or a bash draws none (combat.qc VR_HitBloodless).

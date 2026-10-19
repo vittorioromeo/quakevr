@@ -1118,6 +1118,15 @@
                   "against its roll): less, it falls more often (vr_ragdoll_active_stagger_pin)."),
         slider("Stagger Recovery Blend", vr_ragdoll_active_stagger_blend, 0.05f, 1.f, 0.05f, "%.2f s")
             .help("Recovered, its ragdoll blends into the animated monster over this (vr_ragdoll_active_stagger_blend)."),
+        slider("Stagger Settles Below", vr_ragdoll_active_stagger_settle, 0.f, 3.f, 0.1f, "%.1f m/s")
+            .help("Its backpedal nearly done, not mid-step, steady and slower than this: it has recovered and fights on "
+                  "(higher: handed back sooner) (vr_ragdoll_active_stagger_settle)."),
+        slider("Stagger Settle at Most", vr_ragdoll_active_stagger_settle_time, 0.f, 1.2f, 0.05f, "%.2f s")
+            .help("Still staggering this long after its backpedal: recovered however it moves "
+                  "(vr_ragdoll_active_stagger_settle_time)."),
+        slider("Stagger Drop Falls", vr_ragdoll_active_stagger_drop, 0.f, 64.f, 4.f, "%.0f units")
+            .help("Backpedalling off a ledge or down from the top of stairs: the floor this much lower under it than "
+                  "where it stood, it falls instead of stepping on air. 0: never (vr_ragdoll_active_stagger_drop)."),
         toggle("Active Get-Ups", vr_ragdoll_active_getup)
             .help("A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
                   "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "

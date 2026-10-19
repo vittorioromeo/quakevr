@@ -1058,7 +1058,9 @@ constexpr float staggerFar = 0.1f;       // s: past twice its limit this long, i
 constexpr float staggerStepAt = 0.2f;    // of a leg's length: a foot this far from its stance under the capture point steps
 constexpr float staggerSag = 0.55f;      // of its pelvis's height: it gave way
 constexpr float staggerSteady = 12.f;    // deg: leaning less, it is steady
-constexpr float staggerMost = 1.2f;      // s: up this long after its travel, it has recovered
+constexpr float staggerMost = 1.2f;      // s: vr_ragdoll_active_stagger_settle_time at most
+constexpr float staggerSettleShare = 0.9f; // of its carry: gone this far, it may recover (vr_ragdoll_active_stagger_settle)
+constexpr float staggerAir = 0.06f;      // s: no floor under it this long (vr_ragdoll_active_stagger_drop), it falls
 constexpr float staggerWheel = 2.f;      // Hz: its arms wheeling for its balance
 constexpr float staggerUpright = 8.f;    // rad/s per radian its pelvis is pitched off its stance's, steady (turnWhole)
 constexpr float staggerUprightMost = 4.f; // rad/s
@@ -1187,8 +1189,15 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         // takes catch steps; or sagging.)
         const bool tips = g.giveAfter >= 0 ? tooFar
                                            : (g.over >= 0.f && t - g.over >= staggerCatch * 3.f) || tooFar;
+        // No floor under it (backpedalled off a ledge, the top of stairs; ROUND22.md, "No backpedalling on air"): the
+        // floor under its pelvis vr_ragdoll_active_stagger_drop lower than where it stood, a moment: it goes over, sure-
+        // footed or not (its pin would carry it on level, its feet stepping on air).
+        const float drop = za::max(vr_ragdoll_active_stagger_drop.value, 0.f) / p.m2u;
+        const bool floorGone = drop > 0.f && c.floorBelow && (below < -1e29f || pelvis.z - below > g.overFloor + drop);
+        g.noFloor = floorGone ? (g.noFloor < 0.f ? t : g.noFloor) : -1.f;
+        const bool offEdge = g.noFloor >= 0.f && t - g.noFloor >= staggerAir;
         // (Sure-footed, a parry's on level ground: never over by itself.)
-        if(!g.sure && (gives || tips || g.sag < staggerSag))
+        if(offEdge || (!g.sure && (gives || tips || g.sag < staggerSag)))
         {
             g.outcome = Outcome::Fell;
             g.decided = c.now;
@@ -1196,17 +1205,23 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             {
                 Con_Printf("stagger: %d fell at %.2f s%s: leaning %.0f deg (at most %.0f), its pelvis at %.0f%% of its height, "
                            "%d steps, moved %.0f units (its middle %.0f along the shove from its feet, %.0f aside)\n",
-                    c.num, t, gives ? " (gave way)" : "", g.lean, limit, g.sag * 100.f, g.steps,
+                    c.num, t, offEdge ? " (no floor under it)" : gives ? " (gave way)" : "", g.lean, limit, g.sag * 100.f,
+                    g.steps,
                     glm::length(level(pelvis - g.pelvis0)) * p.m2u, glm::dot(level(com - support), g.dir) * p.m2u,
                     glm::dot(level(com - support), glm::cross(up, g.dir)) * p.m2u);
             }
             beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
             return;
         }
-        // (A parry's: at its time, as the old pose's stagger was, however it stands.)
-        const bool due = g.recoverAt > 0.f ? t >= g.recoverAt
-                                           : (t > g.time + 0.2f && g.stepLeg < 0 && g.lean < staggerSteady && speed < 0.4f) ||
-                                                 t > g.time + staggerMost;
+        // (A parry's: at its time, as the old pose's stagger was, however it stands. Else its carry near over (its pin's
+        // anchor easing out: the last of it a glide), not mid-step, steady and slow (vr_ragdoll_active_stagger_settle),
+        // or vr_ragdoll_active_stagger_settle_time past its carry however it moves: handed back then, no wait for it to
+        // stand still (it froze, floating, a moment at its end).)
+        const float settle = za::max(vr_ragdoll_active_stagger_settle.value, 0.f);
+        const float settleMost = za::clamp(vr_ragdoll_active_stagger_settle_time.value, 0.f, staggerMost);
+        const bool settled = staggerShare(g, t) >= staggerSettleShare && g.stepLeg < 0 && g.lean < staggerSteady &&
+                             speed < settle;
+        const bool due = g.recoverAt > 0.f ? t >= g.recoverAt : settled || t > g.time + settleMost;
         if(due)
         {
             g.outcome = Outcome::Recovered;

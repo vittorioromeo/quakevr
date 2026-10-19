@@ -390,6 +390,7 @@ struct Stagger
     float farSince{-1.f};   // ... past twice it since
     float sag{1.f};         // its pelvis's height over the floor now over `overFloor`, as it stood (its lowest)
     float overFloor{0.f};   // m (0: not yet measured)
+    float noFloor{-1.f};    // s after the drive began: no floor under its pelvis since (-1: there is)
     // Its feet: each leg's place on the floor (planted), its stance (the foot from the pelvis, level), a step's way.
     za::Array<glm::vec3, 2> planted{}, stance{};
     int stepLeg{-1}; // Limb

@@ -347,10 +347,20 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
 {
     if(!cvar_hget(cvarh_vr_parry_ragdoll) || !cvar_hget(cvarh_vr_knockdown) || !(m.flags & FL_MONSTER) ||
        m.health <= 0 || m.vr_knockdown || m.vr_corpse || !m.vr_kd_chance_h || (m.flags & (FL_FLY | FL_SWIM)) ||
-       !(m.flags & FL_ONGROUND) || VR_IsDummy(m) || !monstergroupget(m, MGP_KDTRIG) || !canragdoll(m) ||
-       !ragdollcanstagger(m))
+       VR_IsDummy(m) || !monstergroupget(m, MGP_KDTRIG) || !canragdoll(m) || !ragdollcanstagger(m))
     {
         return FALSE;
+    }
+    // On its feet: the parry's own push (VR_Push, vr_parry_push_enemy) has just lifted it off the ground (FL_ONGROUND
+    // cleared, an upward speed) before this is asked, so the ground is looked for under its feet instead (the author's
+    // games never staggered as ragdolls: the headless check had the push off). Its push is the stagger's from here.
+    if(!(m.flags & FL_ONGROUND))
+    {
+        tracebox(m.origin, m.mins, m.maxs, m.origin - '0 0 6', FALSE, m);
+        if(trace_fraction >= 1 || trace_startsolid || trace_plane_normal_z < 0.7)
+        {
+            return FALSE;
+        }
     }
     float full = m.max_health > 0 ? m.max_health : m.health;
     if(full >= VR_HST_BOSS)
@@ -390,8 +400,19 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
     vr_kd_room_dead_only = TRUE;
     float room = VR_Knockdown_MakeRoom(m);
     vr_kd_room_dead_only = FALSE;
-    if(!room || !VR_Knockdown_Start(m))
+    if(!room)
     {
+        return FALSE;
+    }
+    // (The parry's push and lift undone: the stagger carries it, from its feet.)
+    vector wasVel = m.velocity;
+    float wasFlags = m.flags;
+    m.velocity = '0 0 0';
+    m.flags = m.flags | FL_ONGROUND;
+    if(!VR_Knockdown_Start(m))
+    {
+        m.velocity = wasVel;
+        m.flags = wasFlags;
         return FALSE;
     }
     float push = level ? VR_PARRY_RAG_PUSH : VR_PARRY_RAG_SLOPE_PUSH;
@@ -535,8 +556,23 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     {
         m.angles = '0 1 0' * (cvar("vr_kdtrig_test_yaw") + 180);
     }
-    float k = cvar("vr_kdtrig_test_class"); // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss)
-    if(k == 3)
+    if(cvar("vr_kdtrig_test_face") == 1) // (facing away: hit from behind)
+    {
+        m.angles_y = m.angles_y + 180;
+    }
+    // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss, 6 a knight, 7 an enforcer)
+    float k = cvar("vr_kdtrig_test_class");
+    if(k == 6)
+    {
+        m.classname = "monster_knight";
+        monster_knight();
+    }
+    else if(k == 7)
+    {
+        m.classname = "monster_enforcer";
+        monster_enforcer();
+    }
+    else if(k == 3)
     {
         m.classname = "monster_hell_knight";
         monster_hell_knight();
@@ -619,6 +655,36 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         T_Damage(best, blast, pl, best.health > vr_kdt_test_damage ? vr_kdt_test_damage : 1);
         remove(blast);
     }
+    else if(xMode >= 8)
+    {
+        // 8 a two-hand open-palm shove (VR_Bash_Hit, a real one's), 9 it strikes you (a melee monster's blow: parried
+        // as your pose is, VR_Parry), 10 knocked down at once (vr_knockdown_test 0's); aware of you or not
+        // (vr_kdtrig_test_aware), facing as vr_kdtrig_test_face put it.
+        best.enemy = cvar("vr_kdtrig_test_aware") ? pl : world;
+        if(xMode == 8)
+        {
+            vr_bash_exhaust_dmg = 0;
+            vr_bash_exhaust_push = 0;
+            VR_Bash_Hit(best, chest, dir, QVR_HITKIND_SHOVE, -1, 1, VR_Shove_HandsPush(TRUE));
+        }
+        else if(xMode == 9)
+        {
+            T_Damage(pl, best, best, 10);
+        }
+        else if(xMode == 11) // (11: its shove on you, vr_enemyshove.qc's: parried as your pose is)
+        {
+            entity was = self;
+            self = best;
+            self.vr_eshove_target = pl;
+            VR_EnemyShove_Hit();
+            self = was;
+        }
+        else if(canragdoll(best) && VR_Knockdown_MakeRoom(best))
+        {
+            best.velocity = dir * 220 + '0 0 120';
+            VR_Knockdown_Start(best);
+        }
+    }
     VR_ClearHitKind();
     vr_kdt_test_damage = 0;
     vr_kdt_test_strength = 0;
@@ -667,12 +733,13 @@ void() VR_KdTrig_TrialThink =
         m.vr_kdt_fired = 0;
         VR_KdTrig_TestHit(pl, m, self.vr_kdt_trial_mode);
         self.vr_kdt_trial_phase = 2;
-        self.nextthink = time + 0.2;
+        self.nextthink = time + (cvar("vr_kdtrig_test_wait") > 0 ? cvar("vr_kdtrig_test_wait") : 0.2);
         return;
     }
     float k = m.vr_kdt_fired;
-    dprint(sprintf("kdtrig trial: %s at %v health %g: %s\n", m.classname, m.origin, m.health,
-        k ? vr_kdt_name[k - 1] : "stands"));
+    dprint(sprintf("kdtrig trial: %s at %v health %g: %s%s\n", m.classname, m.origin, m.health,
+        k ? vr_kdt_name[k - 1] : "stands", m.vr_knockdown == 1 ? (m.vr_kd_stagger ? ", staggering" : ", down") :
+        m.vr_knockdown == 2 ? ", rising" : ""));
     if(k)
     {
         self.vr_kdt_trial_fired = self.vr_kdt_trial_fired + 1;
