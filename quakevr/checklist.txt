@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Leg sweep direction: sweep a grunt's shins left to right with the nailgun or sword: does it topple away from the sweep, or backward (the test sees a 15-30 unit backward lean)? wanted or not?
 Holds and triggers: a hard crowbar/staff swing into shins sweeps even when strong (damage + sweep); hang on a ledge with one hand, yank a shin with the other (one-hand leg pull, 1.3x speed); full-speed judo throw in bullet time; drag a downed grunt into walls with the stick: no damage from dragging alone; slam its head into a wall: damage and face dents; head hold no longer lasts longer than a chest hold
 Toolgun: Shadow Axe, Widowmaker, Plasma Gun spawn as props (drop, rest, grab, upgraded in hand); Death Knight's Sword on the Weapons tab; Widowmaker shot louder (Shot Volume 3) and motor quieter (0.4); dead knight: no sword handle or loose triangles left on the hand; your wet duration (15 s) and Widowmaker weight/balance are defaults
 Heavy weapons settle: wiggle and flick the rocket launcher, chainsaw, hammer one-handed: lag and settle, never whip round (hard snap still drops); 2H hammer blows on the ground: if it still bounces, record "Hammer 2H blow on the ground" (Motion Recorder > No Hit; also Heavy RL wiggle, Chainsaw flick, Hammer 1H wiggle)
