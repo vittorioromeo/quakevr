@@ -325,8 +325,10 @@ const DefaultChange defaultChanges[] = {
     {162, &vr_ad_widowmaker_shot_pellets, "7"},      // 8
     {162, &vr_dmg_ad_widowmaker, "4"},               // 5
     {162, &vr_adgun_crossbow_damage, "15"},          // 30
+    // 163: a projectile's kill pops a head or limb less often (his notes of 2026-10-19).
+    {163, &vr_decap_pop_projectile, "0.85"}, // 0.5
 };
-constexpr int configVersion = 162;
+constexpr int configVersion = 163;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
