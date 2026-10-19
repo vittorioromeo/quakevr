@@ -1060,6 +1060,66 @@ void PF_meleewiggled()
     }
 }
 
+// float meleearc(entity b, float xFloor): heavy handling's deliberate swing (QC VR_Melee_Decide, vr_heavy_swing_*): how far
+// (m) the far end has come along a smooth arc just now, looking back through the history while it went at least xFloor
+// m/s and its way turned under 45 degrees a pose and under 150 from its way now (no reversal, no jitter, no pause); 0 if
+// that lasted under vr_heavy_swing_time.
+void PF_meleearc()
+{
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(!bindings().melee.valid)
+    {
+        return;
+    }
+    MeleeRing r{G_EDICT(OFS_PARM0)};
+    const float floor = za::max(G_FLOAT(OFS_PARM1), 0.01f);
+    float arc = 0.f, time = 0.f;
+    float newer[3] = {0.f, 0.f, 0.f}, now[3] = {0.f, 0.f, 0.f};
+    const char* why = "the history's start";
+    int n = 0;
+    for(; n < VR_MELEE_HISTORY; ++n)
+    {
+        const float dt = r.dt();
+        if(dt <= 0.f)
+        {
+            break;
+        }
+        const float* v = r.at(r.f.hfar);
+        const float speed = meleeVlen(v);
+        if(speed < floor)
+        {
+            why = "slower";
+            break;
+        }
+        const float dir[3] = {v[0] / speed, v[1] / speed, v[2] / speed};
+        if(n == 0)
+        {
+            memcpy(now, dir, sizeof(now));
+        }
+        else if(meleeDot(dir, newer) < 0.7071f || meleeDot(dir, now) < -0.866f)
+        {
+            why = "turned";
+            break;
+        }
+        memcpy(newer, dir, sizeof(newer));
+        arc += speed * dt;
+        time += dt;
+        r.older();
+    }
+    G_FLOAT(OFS_RETURN) = time >= vr_heavy_swing_time.value ? arc : 0.f;
+    if(developer.value >= 2)
+    {
+        Con_Printf("meleearc: %.2f m over %.3f s (%d poses, at least %.2f m/s), back to %s\n", arc, time, n, floor, why);
+    }
+}
+
+// float(string model) weaponheft: heavy handling's weight class of the weapon drawn with `model` (weight::heft: 0 light ..
+// 1; 0 for no such weapon or vr_heavy 0).
+void PF_weaponheft()
+{
+    G_FLOAT(OFS_RETURN) = weight::heft(weapons::slotForName(G_STRING(OFS_PARM0)));
+}
+
 // vector meleegripago(entity b, float xBack): where the grip was xBack s ago (from the head, in the play space, metres;
 // as far back as the history goes).
 void PF_meleegripago()
@@ -2579,6 +2639,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"meleewristspeed", PF_meleewristspeed},
     {"meleewiggled", PF_meleewiggled},
     {"meleegripago", PF_meleegripago},
+    {"meleearc", PF_meleearc},
+    {"weaponheft", PF_weaponheft},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

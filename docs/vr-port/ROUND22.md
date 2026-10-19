@@ -14143,6 +14143,45 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
 - Migration: vr_cfg_version 161 -> 162 (the four cvars, only where still at the old default); vr_wofs_version 53 -> 54 (owncol_35, only where 0).
 - Checked (headless, AD base): `vr_ad_test 149` 9/9 PASS (6 shots at 0.35 s), `93` PASS (the target took 30), `70` 8/8 PASS; thresholds follow the cvars, none edited.
 
+### Heavy weapons: struggle, droop, recoil, two-handed swings (heavyweapons)
+
+- A weight class per weapon, Weapon Weights' **Heft** (`vr_wofs_w_heft_NN`, 0 light .. 1 the laser cannon; -1 from its
+  mass, `vr_heavy_auto_from` 10 .. `_full` 20 kg), with its own `w_droop` and `w_hrecoil` multipliers (1; 0 off). Defaults
+  (vr_weapons.inc): laser cannon 1; hammer 0.9, mace 0.85; rocket launcher, Widowmaker, chainsaw 0.6; hell knight's and
+  death knight's swords 0.35, death guard's 0.3; AD crossbow 0.2; every other weapon 0 (exactly as before: axe, crowbar, knight's,
+  zombie knight's and fury's swords, the other guns). Everything below is times Heft times the share held in one hand
+  (`l.twoHanded`): two hands, none of it. `vr_heavy 0` turns it all off. New cvars only: no migration (vr_wofs_version
+  and vr_cfg_version untouched).
+- One-handed struggle (vr_weight.cpp `heavyWrist`): the wrist's stiffness on it times `vr_heavy_struggle_stiffness`
+  (0.25) and its damping times `_damping` (0.5) at Heft 1: an abrupt snap lags and swings back springily. The wrenched-out
+  drop (vr_weight_drop*) is unchanged and still drops the extreme snaps (in game: the hammer at 1813 deg/s, limit 1583).
+- No more abrupt put-backs (weapons with a Heft; others unchanged): far behind the hand (from 60 degrees) the wrist pulls harder (up to 31x near
+  165), and the spring keeps it on a 150-degree leash (dragged along, not put back in the hand at once). In game, the
+  hammer one-handed, `heavy_wrist_snap.mock`: its 425 deg/s yaw-and-back lagged to 165 and was put back (a 165-degree jump
+  in a frame); now 103 at most, no put-back in any step (the extreme ones held at the leash, 150).
+- Droop (`vr_heavy_droop` 1, `_deg` 9 at Heft 1): the spring's target turned barrel down about the grip, the drawn hand,
+  the aim and the melee with it. In game the hammer sits 11.4 degrees below the controller in one hand (8.1 droop + the
+  spring's sag), 0.3 in two.
+- One-handed kick (`vr_heavy_recoil` 1, `_kick` 100 deg/s at Heft 1, `_recovery` 0.5x the wrist's stiffness fading over
+  `_time` 0.4 s): `weight::heavyKick` from `weaponfx::playerFired`, a spin of the spring (the aim with it), any weapon (the
+  laser cannon and rocket launcher have no programmatic recoil). w_hrecoil: laser 0.5 (rapid fire), RL and Widowmaker 1.5.
+  In game the laser cannon: one shot 4.4 degrees up, five 0.1 s apart 20, none two-handed.
+- Two-handed heavy blows (QC vr_melee.qc): the speeds a blow needs times 1 - (1 - `vr_heavy_melee_2h` 0.45) x Heft (in
+  `mh_lenient`); a blow slower than a light weapon's needs a deliberate arc instead: `meleearc` (builtin) walks the far
+  end's history back while it goes at least half the speed needed and turns under 45 degrees a pose (under 150 overall):
+  at least `vr_heavy_swing_arc` 0.3 m over `_swing_time` 0.12 s (the history holds 24 poses, about 0.33 s: a longer arc
+  needs a faster swing). Such a blow skips VR_Melee_CameFar and the wiggle test; its strength is
+  `vr_heavy_swing_strength` 1.3 at Heft 1 (up to 1.3x for twice the arc), the weight's damage on top (weightdamage);
+  a fast blow keeps its own if stronger. Non-deliberate heavy blows keep a light weapon's CameFar.
+- Menu: Weapon Weights > Heavy Handling (a readout, Heft, Droop, One-Handed Kick per weapon; the globals). Debug >
+  Heavy Handling Test (`vr_heavy_test [slot]`, offline, every weapon: droop, abrupt-snap lag with and without the
+  struggle, the extreme snap against the drop limit, kick peak and recovery, a 170-degree yaw and back).
+- Tests: `vr_ad_test 128`/`129` put the hammer/mace in the main hand. `Misc/quakevr/heavy_swings_gen.py <out.mock>
+  [onehand]` writes sweeps through a shambler at 0.9, 1.6, 2.2, 3.5 m/s, each back at 0.3 m/s, a 0.27 m jerk and a
+  wiggle. The hammer two-handed (developer 2): blows at every speed (old: none at 0.9 and 1.6), strength 1.24 (0.9),
+  1.24-1.53 (1.6), 1.26-1.57 (2.2), 1.54-1.75 (3.5); none on the slow returns, the jerk or the wiggle. One-handed:
+  none at 0.9 and 1.6 (as before). eval.sh --full 168/177.
+
 ## Seated play (worktree `tghost`, branch `agent/seated`, 2026-10-19)
 
 Position: Seated (`vr_bodycal_seated`) now changes how you play:

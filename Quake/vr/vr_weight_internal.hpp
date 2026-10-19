@@ -67,7 +67,13 @@ struct Body
     const char* model{nullptr}; // what it holds (another: taken afresh)
     int entity{0};
     double jumpUntil{-1.0}; // vr_gametime: put back in the hand, the move says so until then (dropBits: the melee's jump)
+    double kickAt{-1.0};    // vr_gametime: a heavy one-handed shot's kick (heavy handling: the slower recovery after it)
+    float kickShare{0.f};   // and its share (heft x the hand's share alone)
 };
+
+// Heavy handling: the wrist's stiffness and damping on what hand holds, times these (1: as light), from its one-handed
+// struggle and a recovering kick (Load::struggle, Load::kick).
+void heavyWrist(const Load& l, float& stiffness, float& damping);
 
 [[nodiscard]] glm::quat quatFromAngles(const glm::vec3& angles);
 [[nodiscard]] Tuning weaponTuning(int slot);

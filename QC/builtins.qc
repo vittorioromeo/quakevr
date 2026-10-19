@@ -507,6 +507,10 @@ float(entity b, float xGrip) meleerun = #0;
 float(entity b) meleewristspeed = #0;
 float(entity b) meleewiggled = #0;
 vector(entity b, float xBack) meleegripago = #0;
+// Heavy handling (vr_heavy*): meleearc, the far end's smooth arc just now (m: steady way, no reversal, at least `xFloor`
+// m/s; 0 if under vr_heavy_swing_time); weaponheft, a weapon's weight class (0 light .. 1; Weapon Weights' Heft).
+float(entity b, float xFloor) meleearc = #0;
+float(string model) weaponheft = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 

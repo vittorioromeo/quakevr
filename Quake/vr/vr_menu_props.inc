@@ -132,6 +132,21 @@ void weaponWeightsPrint()
     return text.cStr();
 }
 
+// Heavy handling: the edited weapon's weight class and what it makes of it in one hand (vr_heavy*).
+[[nodiscard]] const char* weaponWeightsHeavyReadout(int /* unused */)
+{
+    za::String& text = readouts.weaponWeightsHeavy;
+    const int slot = weaponWeightsSlot;
+    const float heft = weight::heft(slot);
+    const char* cls = heft <= 0.f ? "light" : heft < 0.25f ? "fine in one hand" : heft < 0.5f ? "better in two hands"
+                      : heft < 0.8f ? "cumbersome in one hand" : "very hard in one hand";
+    text = !vr_heavy.value ? "This weapon: as light (Heavy Handling off)"
+           : heft <= 0.f   ? "This weapon: light (no struggle, droop or kick)"
+                           : va("This weapon: heft %.2f, %s; one hand: droops %.1f deg, kicks %.0f deg/s", heft, cls,
+                               weight::droop(slot, 0.f), weight::kickSpeed(slot, 0.f));
+    return text.cStr();
+}
+
 // A hand's weapon slot (the empty hand's: the hand model's; -1: not in a game).
 [[nodiscard]] int weaponWeightsSlotOf(int hand)
 {
@@ -248,6 +263,51 @@ za::Vector<Item> pageWeaponWeights()
         s("Spin in the Air", Key::SpinAlign, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times Throwing and Physics: Spin Alignment for this weapon thrown: how fast its tumble settles into a "
                   "clean spin end over end (an axe's, in its blade's plane). 0: it tumbles as it left your hand."),
+        header("Heavy Handling"),
+        infoLine(weaponWeightsHeavyReadout, 0),
+        s("Heft", Key::Heft, -1.f, 1.f, 0.05f, "%.2f")
+            .help("This weapon's weight class: 0 light, fine in one hand; 1 the heaviest (the laser cannon). In one hand a "
+                  "heavy weapon lags an abrupt snap of your wrist springily, droops and kicks up when it fires; in two "
+                  "hands its slower, deliberate swings strike hard. -1: from its mass."),
+        s("Droop", Key::Droop, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times the droop below for this weapon held in one hand. 0: it doesn't droop."),
+        s("One-Handed Kick", Key::HeavyRecoil, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times the kick below for this weapon fired in one hand. 0: none."),
+        toggle("Heavy Handling (every weapon)", vr_heavy)
+            .help("Heavy weapons are hard to hold in one hand (their Heft): they lag, droop and kick; in two hands slow, "
+                  "deliberate swings strike. Off: every weapon handles as a light one."),
+        slider("One-Handed Struggle", vr_heavy_struggle, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much a heavy weapon in one hand lags an abrupt snap of your wrist and swings back springily, as if "
+                  "you fought to keep it lined up. 0: none."),
+        slider("Struggle Stiffness", vr_heavy_struggle_stiffness, 0.05f, 1.f, 0.05f, "%.2fx")
+            .help("The wrist's firmness on the heaviest weapon (Heft 1) in one hand, times: lower lags further and comes "
+                  "back slower."),
+        slider("Struggle Damping", vr_heavy_struggle_damping, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Its damping, times: lower swings past and wobbles back (springier)."),
+        toggle("Droop in One Hand", vr_heavy_droop)
+            .help("A heavy weapon held in one hand sags under its weight: its barrel or head (and your aim) falls below "
+                  "your controller's."),
+        slider("Droop", vr_heavy_droop_deg, 0.f, 30.f, 0.5f, "%.1f deg").extend(0.f, 90.f)
+            .help("Degrees the heaviest weapon (Heft 1) droops in one hand (lighter ones less)."),
+        toggle("Kick in One Hand", vr_heavy_recoil)
+            .help("A heavy weapon fired in one hand kicks up harder (your aim with it) and comes back slower."),
+        slider("Kick", vr_heavy_recoil_kick, 0.f, 600.f, 10.f, "%.0f deg/s").extend(0.f, 3000.f)
+            .help("How fast a shot flings the heaviest weapon's muzzle up in one hand."),
+        slider("Kick Recovery", vr_heavy_recoil_recovery, 0.05f, 1.f, 0.05f, "%.2fx")
+            .help("The wrist's firmness on it just after a shot, times (fading over the time below): lower comes back "
+                  "slower."),
+        slider("Kick Recovery Time", vr_heavy_recoil_time, 0.05f, 2.f, 0.05f, "%.2f s"),
+        slider("Two-Handed Speed Needed", vr_heavy_melee_2h, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Times every speed a blow needs with the heaviest weapon in both hands (lighter ones less): you swing a "
+                  "heavy weapon slower. A blow slower than a light weapon's must be a deliberate swing (below)."),
+        slider("Deliberate Swing Arc", vr_heavy_swing_arc, 0.1f, 1.5f, 0.05f, "%.2f m")
+            .help("How far its head must have come along a smooth, steady arc for a slow two-handed blow to strike (no "
+                  "reversal, no jitter): a reposition or a wave doesn't."),
+        slider("Deliberate Swing Time", vr_heavy_swing_time, 0.f, 0.3f, 0.01f, "%.2f s")
+            .help("And how long that arc must have been under way."),
+        slider("Deliberate Swing Strength", vr_heavy_swing_strength, 0.5f, 1.75f, 0.05f, "%.2f")
+            .help("The strength of such a swing with the heaviest weapon (1: a normal good blow; up to 1.3 times this "
+                  "for an arc twice as long); its weight's damage on top."),
         header("Wrenched Out (experimental, every weapon)"),
         infoLine(weaponWeightsDropReadout, 0),
         toggle("Heavy Weapons Wrenched Out", vr_weight_drop)

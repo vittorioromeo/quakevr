@@ -550,6 +550,7 @@ struct MenuReadouts
     za::String heldObjectMass;
     za::String heldObjectDamage[2];    // by line
     za::String weaponWeightsDrop;      // weaponWeightsDropReadout
+    za::String weaponWeightsHeavy;     // weaponWeightsHeavyReadout
     za::String weaponWeightsHits[2];   // weaponWeightsHitsReadout, by line
     za::String weaponOffsetsStock;     // weaponOffsetsStockReadout
     char checklistSummary[48];         // checklistSummary
@@ -559,7 +560,7 @@ struct MenuReadouts
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistUndoHelp, stamina, renderScaleHelp, buildVersion);
+            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistUndoHelp, stamina, renderScaleHelp, buildVersion);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
