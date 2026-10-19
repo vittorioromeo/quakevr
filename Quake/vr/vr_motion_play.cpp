@@ -691,6 +691,7 @@ struct Options
     bool quiet{false};
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
     float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
+    int stutter{0};       // with rate: every this many frames one is dropped (the frame before lasts two; 0 none)
 };
 
 // A repeatable jitter: frame k's time off by up to `amount` frames (a hash of k: the same every run), none for frame 0.
@@ -714,8 +715,9 @@ struct Options
 // (positions and velocities linearly, orientations by slerp), the controls and the rest from the frame before;
 // the server frames left to the engine (its 72 Hz ticks, as with a headset at that rate). `jitter`: each frame's time
 // off by up to that fraction of a frame (frameJitter), as a headset's frame times vary around its rate. The take's events
-// stay at their times, for the report.
-void resample(Take& take, float hz, float jitter)
+// stay at their times, for the report. `stutter`: every this many frames one is dropped (a missed frame: the one before
+// it shown twice as long), as a headset that can't keep up.
+void resample(Take& take, float hz, float jitter, int stutter)
 {
     za::Vector<Frame> out;
     const za::Vector<Frame>& in = take.frames;
@@ -731,6 +733,10 @@ void resample(Take& take, float hz, float jitter)
         if(t > tEnd + 1e-9)
         {
             break;
+        }
+        if(stutter > 1 && k > 0 && k % static_cast<za::U64>(stutter) == 0)
+        {
+            continue; // (dropped: the next frame's dt spans two)
         }
         while(j + 1 < in.size() && in[j + 1].t <= t)
         {
@@ -1301,7 +1307,7 @@ void stopPlayback(const char* why)
     }
     if(o.rate > 0.f)
     {
-        resample(t, za::clamp(o.rate, 20.f, 500.f), o.jitter);
+        resample(t, za::clamp(o.rate, 20.f, 500.f), o.jitter, o.stutter);
     }
     take = ZA_MOVE(t);
     opts = o;
@@ -1534,7 +1540,10 @@ double hostFrameTime(double time)
         // frames' times jittered, not their lengths: no drift).
         const double jitter = za::clamp(static_cast<double>(vr_fixed_frames_jitter.value), 0.0, 0.45);
         fixedFrameCount++;
-        return fixedFrameDt() * (1.0 + frameJitter(fixedFrameCount, jitter) - frameJitter(fixedFrameCount - 1, jitter));
+        // vr_fixed_frames_stutter: every this many frames one dropped (this one twice as long).
+        const za::U64 stutter = static_cast<za::U64>(za::max(vr_fixed_frames_stutter.value, 0.f));
+        const double frames = stutter > 1 && fixedFrameCount % stutter == 0 ? 2.0 : 1.0;
+        return fixedFrameDt() * (frames + frameJitter(fixedFrameCount, jitter) - frameJitter(fixedFrameCount - 1, jitter));
     }
     if(state == State::Setup || state == State::Post)
     {
@@ -2513,6 +2522,11 @@ void eval_f()
     evalOpts = Options{};
     evalProgress.clear();
     evalOpts.quiet = true;
+    // (vr_motion_eval_rate, _jitter, _stutter: the defaults of its rate, jitter and stutter options: an eval script's
+    // takes replayed at another headset's rate, eval.sh's EVAL_PRE.)
+    evalOpts.rate = vr_motion_eval_rate.value;
+    evalOpts.jitter = vr_motion_eval_jitter.value;
+    evalOpts.stutter = static_cast<int>(vr_motion_eval_stutter.value);
     evalMap = "vrmelee-recording";
     evalOut.clear();
     evalQuit = false;
@@ -2534,6 +2548,10 @@ void eval_f()
         else if(!q_strcasecmp(a, "jitter") && i + 1 < Cmd_Argc())
         {
             evalOpts.jitter = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "stutter") && i + 1 < Cmd_Argc())
+        {
+            evalOpts.stutter = Q_atoi(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "save"))
         {
