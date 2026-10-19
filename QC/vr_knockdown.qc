@@ -749,7 +749,8 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         return FALSE;
     }
     VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
-    float base = monstergroupget(e, MGP_SHOVE); // (its monster group's: vr_knockdown_chance_<group>)
+    // (Its monster group's: vr_knockdown_chance_<group>; a heavy group's times its poise factor, combat.qc VR_Poise_Factor.)
+    float base = monstergroupget(e, MGP_SHOVE) * VR_Poise_Factor(e);
     float chance = base * max(0, cvar_hget(cvarh_vr_knockdown_chance));
     float full = e.max_health > 0 ? e.max_health : e.health;
     float lost = full > 0 ? min(1, max(0, 1 - e.health / full)) : 0;

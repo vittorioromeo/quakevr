@@ -4210,6 +4210,7 @@ void() VR_Melee_Frame =
     }
     VR_Stamina_Frame();
     VR_Counter_Frame();
+    VR_Parry_GuardFrame(); // (when each guard came up: a parry's timing, combat.qc)
     VR_Melee_Hud();
 };
 
