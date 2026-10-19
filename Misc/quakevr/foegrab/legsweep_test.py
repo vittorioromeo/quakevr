@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """legsweep_test.py <agent> [regex] -- the leg sweep with the mock headset's main hand (ROUND22.md, "Leg sweep").
 
-Each case is one game on vrfiringrange (in real time: the mock plays its motions on the clock): a grunt spawned ahead
+Each case is one game on vrfiringrange (fixed frames, vr_fixed_frames 1: the mock plays its motions on the game's clock,
+the same ticks every run; LS_REALTIME=1 runs on the wall clock, as before 2026-10-19, when which cases failed changed
+from run to run): a grunt spawned ahead
 (vr_test_spawn 0, 36 units: its origin 1.2 m ahead in tracking space, GRUNT), a weapon or a prop put in the main hand
 (vr_weapon_grip_mode 1: it stays there without the grip held), then a vr_mock_play motion sweeps the hand level through
 its lower legs (tracking space: x right, y up, -z forward), the thing pointing forward and down about 38 degrees (a gun's
@@ -19,6 +21,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 KIT = "C:/OHWorkspace/qvr-kit"
 BASH = "C:/Program Files/Git/bin/bash.exe"
@@ -27,22 +30,38 @@ ONLY = sys.argv[2] if len(sys.argv) > 2 else ""
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
-PRE = "sv_random_seed 7;vr_weapon_grip_mode 1;map vrfiringrange;wait30;god;notarget;developer 1"
+# vr_fixed_frames 1: every frame 1/72 s of game time with a server tick, and vr_mock_play's clock (realtime) advances
+# by the same frames, so the sweep's poses land on the same ticks every run (on the wall clock they beat against the
+# server's ticks and the machine's load: which frame met the legs, if any, changed from run to run); with
+# sv_random_seed the grunt's AI plays the same too. LS_REALTIME=1: the old wall-clock runs, for comparison.
+REALTIME = os.environ.get("LS_REALTIME", "") == "1"
+PRE = ("" if REALTIME else "vr_fixed_frames 1;") + \
+    "sv_random_seed 7;vr_weapon_grip_mode 1;map vrfiringrange;wait30;god;notarget;developer 1"
 SPAWN = "vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait5"  # (the grunt last: a grunt left standing wanders)
 GRUNT = (0.0, 0.72, -1.2)  # its origin in tracking space (vr_mock_hand_to main nearest monster_army 0)
 
 # What the main hand holds: the console commands that put it there, and the controller's pitch that points it forward
 # and down about 38 degrees (a gun's line is about 48 degrees under the controller's, a melee weapon's and a prop's along
-# it). (impulse 150 + its weapon id: one lying beside you; vr_test_weaponinst 4: the nearest lying into the main hand.
-# A prop: in the empty main hand, gripped: vr_test_spawn_hold, +grabmain.)
+# it). (impulse 150 + its weapon id: in the main hand (vr_test_weaponinst 4 then finds the hand full: a no-op kept
+# for older builds). A prop: in the empty main hand, gripped: vr_test_spawn_hold, +grabmain.)
 W = "impulse %d;wait10;vr_test_weaponinst 4;impulse 120"
 P = "+grabmain;vr_test_spawn_hold 1;vr_test_spawn_dist 20;vr_test_spawn %d;impulse 241"
 GUN, MELEE = 10, -40
+# The laser cannon's line (hand to muzzle) is longer than the other guns' (42 units) and steeper: at GUN its muzzle rested
+# on the floor (77 degrees down; vr_legsweep_debug 2), dragged along it stuck, then jumped past the legs in one frame
+# (ignored as a teleport: the case's "no contact"). Held 40 degrees higher: its line about 40 degrees down.
+LASER = GUN + 40
 HOLD = {
     "shotgun": (W % 154, GUN), "supershotgun": (W % 155, GUN), "grenadel": (W % 158, GUN), "rocketl": (W % 160, GUN),
-    "lightning": (W % 161, GUN), "nailgun": (W % 156, GUN), "laser": (W % 162, GUN), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
-    "sword": (W % 163, MELEE), "plank": (P % 114, MELEE), "crate": (P % 109, MELEE), "brick": (P % 115, MELEE),
+    "lightning": (W % 161, GUN), "nailgun": (W % 156, GUN), "laser": (W % 162, LASER), "axe": (W % 152, MELEE), "crowbar": (W % 167, MELEE),
+    "sword": (W % 163, MELEE), "plank": (P % 114, MELEE), "crate": (P % 107, MELEE), "brick": (P % 115, MELEE),
 }
+# Metres lower and further forward the hand sweeps (else at the grunt's origin's height, 0.35 m short of it: where a held
+# line pointing forward and down reaches its shins): a crate or a brick in the hand reaches nothing beyond it, so it
+# swept over and in front of its legs and met nothing (the cases' "no contact"). (The crate: the small one, 107.)
+SHIFT = {"crate": (0.3, 0.3), "brick": (0.3, 0.3)}
+PROPS = ("crate", "brick")  # (put in the hand at the sweep's start; the plank as before: taken there, it is held at
+# another angle and met nothing)
 
 # (case, held, motion, expected down)
 CASES = [
@@ -72,8 +91,9 @@ def motion(name, keys):
     return f"quakevr/motions/{name}.mock"
 
 
-def sweep(kind, pitch):
-    """The hand's (t, line) keys, placed from the grunt's origin: still at its start for 0.3 s, then swept to its end."""
+def sweep(kind, pitch, shift=(0.0, 0.0)):
+    """The hand's (t, line) keys, placed from the grunt's origin (`shift`: m lower, m further forward): still at its start
+    for 0.3 s, then swept to its end."""
     if kind in ("lr", "rl", "slow"):
         x0, x1 = (-0.75, 0.75) if kind != "rl" else (0.75, -0.75)
         a, b, turn = (x0, 0.0, 0.35), (x1, 0.0, 0.35), (pitch, 0)
@@ -92,7 +112,7 @@ def sweep(kind, pitch):
         a, b, turn = (-0.75, -0.2, 0.3), (0.75, -0.2, 0.3), (118, 0)
         dur = 0.25
     line = "main %.3f %.3f %.3f %.1f %.1f 0"
-    a, b = [(p[0] + GRUNT[0], p[1] + GRUNT[1], p[2] + GRUNT[2]) + turn for p in (a, b)]
+    a, b = [(p[0] + GRUNT[0], p[1] + GRUNT[1] - shift[0], p[2] + GRUNT[2] - shift[1]) + turn for p in (a, b)]
     keys = [(0.0, line % a), (0.3, line % a), (0.3 + dur, line % b), (2.0, line % b)]
     if kind == "walk":
         keys += [(0.3, "cmd vr_mock_stick off 0 1"), (1.3, "cmd vr_mock_stick off 0 0")]
@@ -112,17 +132,28 @@ def main():
         if ONLY and not re.search(ONLY, name):
             continue
         hold, pitch = HOLD[held]
-        keys = sweep(kind, pitch)
+        keys = sweep(kind, pitch, SHIFT.get(held, (0.0, 0.0)))
         path = motion("legsweep_" + name, keys)
         spawn = SPAWN.replace("vr_test_spawn_dist 36", f"vr_test_spawn_dist {SPAWN_DIST.get(kind, 36)}")
-        script = (f"{PRE};{hold};wait40;vr_mock_hand {keys[0][1]};wait5;{spawn};"
+        # (A prop is put in the hand where it already is, at the sweep's start: a carried crate jumped there with the hand
+        # was let go, "carry: stopped at the body, let go".)
+        first = f"vr_mock_hand {keys[0][1]};wait5;{hold};wait40" if held in PROPS else \
+            f"{hold};wait40;vr_mock_hand {keys[0][1]};wait5"
+        script = (f"{PRE};{first};{spawn};"
                   f"vr_legsweep_debug 1;{EXTRA};vr_mock_play {path};wait400;"
                   "toggleconsole;quit")
-        r = subprocess.run([BASH, f"{KIT}/run.sh", AGENT, "-RealTime", "-Script", script, "-Filter",
-                            "legsweep|not put|rror|CRASH", "-Timeout", "300"], capture_output=True, text=True)
-        # (The game's own log: run.sh's output wraps long lines.)
-        with open(f"{KIT}/bases/{AGENT}/qbase/qconsole.log", errors="replace") as f:
-            out = "\n".join(line for line in f.read().splitlines() if re.search("legsweep|not put|rror|CRASH", line))
+        keep = "legsweep|not put|let go|rror|CRASH|TIMEOUT"
+        log = f"{KIT}/bases/{AGENT}/qbase/qconsole.log"
+        started = time.time()
+        r = subprocess.run([BASH, f"{KIT}/run.sh", AGENT] + (["-RealTime"] if REALTIME else []) +
+                           ["-Script", script, "-Filter", keep, "-Timeout", "300"], capture_output=True, text=True)
+        # (The game's own log, written to the end: the game has quit. run.sh's output wraps long lines. A log older than
+        # the run is an earlier case's: this run never started the game.)
+        if not os.path.exists(log) or os.path.getmtime(log) < started - 1:
+            verdict(False, f"{name}: no game log from this run ({r.stdout.strip()[-200:]})")
+            continue
+        with open(log, errors="replace") as f:
+            out = "\n".join(line for line in f.read().splitlines() if re.search(keep, line))
         out += "\n" + r.stdout.replace("\r", "")[-300:]
         with open(os.path.join(SCRATCH, f"legsweep_{name}.txt"), "w") as f:
             f.write(out)
@@ -132,7 +163,8 @@ def main():
                          r"ahead of them by its facing, ([-\d.]+) to its left: fell (\w+(?: \w+ \w+)?) \(swept towards "
                          r"(its \w+)\); feet slid ([-\d.]+) along", flat)
         notes = re.findall(r"legsweep: the main hand's thing on \S+ \(\d+\)'s legs: ([^:]+: [^;]*?)(?= legsweep|$)", flat)
-        last = notes[-1][:150] if notes else "no contact"
+        dropped = re.search(r"(test spawn: \S+ not put in the main hand|carry: [^:]*let go)", flat)
+        last = notes[-1][:150] if notes else "no contact" + (f"; {dropped.group(1)}" if dropped else "")
         if down:
             # Its feet slid along the sweep and its head lies against it from them (toppled the other way, more than
             # aside); from its side (along its facing), it fell the other way of its facing from where the sweep went.

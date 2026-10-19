@@ -14574,3 +14574,24 @@ The author's notes on active-ragdoll triggers and holds.
   hand and yank a grunt's shin with the other. In bullet time, judo-throw a grunt with your normal full-speed motion.
   Drag a downed grunt by an arm or the head around with the stick, into walls: no damage; then slam its head into a wall:
   damage and a dent on its face.
+
+### Leg-sweep test made deterministic (2026-10-19)
+
+`Misc/quakevr/foegrab/legsweep_test.py` ran on the wall clock (`-RealTime`). `vr_mock_play` paces on `realtime`, so the
+0.25 s sweep (8 cm a tick at 72 Hz) met the shins on different ticks, or not at all, depending on the machine's load.
+That is why 9-10 cases failed, and different ones each run. It now runs with `vr_fixed_frames 1` (fast mode): the play's
+clock advances by the same 1/72 s frames as the server, and `sv_random_seed 7` fixes the grunt's AI. Five runs in a row
+gave byte-identical legsweep lines and verdicts (`LS_REALTIME=1` gives the old runs). Harness fixes for cases that never
+met the legs:
+- The laser cannon is held 40 degrees higher. Its 42-unit line rested its muzzle on the floor, where it stuck, then
+  jumped past the legs in one frame, which was ignored as a teleport.
+- The brick and the crate sweep 0.3 m lower and further forward. Held flat, they passed over and in front of the shins.
+- The crate is now the small one (107), put in the hand at the start pose. A crate that jumped there with the hand was
+  let go ("carry: stopped at the body").
+
+A missing or stale game log now fails the case. Stable result: 17/20. Three falls fail every time, and the cause is the
+physics, not the timing:
+- nailgun_lr and sword_hilt fall backward: the head lands 30 units back by its facing and only 13-17 against the sweep.
+- shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
+
+Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
