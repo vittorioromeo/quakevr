@@ -1025,6 +1025,10 @@ QVR_CVAR(vr_shoulder_offset_x, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_y, "1.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_offset_z, "16.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
+// A Cup hotspot (a two-handed pistol grip: held wherever the hands point) takes the virtual stock too (his notes
+// 2026-10-19, the Widowmaker's two handles): the holding hand at the shoulder aims from the shoulder through the other
+// hand (vr_twohand.cpp applyHotspots). 0: a cup never aims.
+QVR_CVAR(vr_2h_cup_stock, "1", CVAR_ARCHIVE)
 // Sticky two-handed grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"; vr_twohand.cpp): once
 // the helping hand holds a weapon's hotspot, how far off it it may go (20 units plus the hotspot's own Stickiness), the
 // angle it may turn the aim off (vr_2h_angle_threshold) and how far past the muzzle it may go, before it lets go, are
@@ -2415,7 +2419,14 @@ QVR_CVAR(vr_dmg_ad_widowmaker, "4", CVAR_ARCHIVE)     // the Widowmaker's pellet
 QVR_CVAR(vr_ad_widowmaker_shot_pellets, "7", CVAR_ARCHIVE) // its pellets a shot (a shell; AD's 21 were three shells' worth)
 QVR_CVAR(vr_ad_widowmaker_refire, "0.25", CVAR_ARCHIVE)    // s between its shots, the trigger held (the super shotgun's 0.7)
 QVR_CVAR(vr_ad_widowmaker_tube, "16", CVAR_ARCHIVE)        // the shells its tube holds
-QVR_CVAR(vr_ad_widowmaker_handful, "4", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit)
+QVR_CVAR(vr_ad_widowmaker_handful, "2", CVAR_ARCHIVE)      // the shells the pouch gives a hand for it (all go in at once, as many as fit; his 2)
+// Its barrels turning as a Gatling's (his notes 2026-10-19; vr_adweapons.cpp spinFrame): up to a barrel a shot (120
+// degrees each vr_ad_widowmaker_refire) times this, spun up in _spinup s while the trigger is held or it fires, coasting
+// down in about _spindown s after, to a barrel on top. 0: still.
+QVR_CVAR(vr_ad_widowmaker_spin, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spinup, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spindown, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
@@ -2502,6 +2513,7 @@ QVR_CVAR(vr_adgun_crossbow_damage, "15", CVAR_ARCHIVE) // the crossbow knight's 
 QVR_CVAR(vr_adgun_crossbow_speed, "700", CVAR_ARCHIVE) // ... its bolts' speed (AD's knight on normal skill: 700)
 QVR_CVAR(vr_adgun_crossbow_ammo, "10", CVAR_ARCHIVE) // ... the bolts it holds as it drops (its own: never refilled)
 QVR_CVAR(vr_adgun_crossbow_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next (the knight reloads in 2)
+QVR_CVAR(vr_adgun_crossbow_bolt_sound, "0.35", CVAR_ARCHIVE) // ... the next bolt's soft shimmer as it morphs in (vr/xbow_bolt_in.wav: its volume; 0 none)
 QVR_CVAR(vr_adgun_crossbow_anim, "1", CVAR_ARCHIVE) // ... a bolt in its groove while it is ready (morphing in), fired from there; its string snapping forward and its limbs flexing at a shot, drawn back for the next (vr_adcrossbow.cpp); 0: none
 QVR_CVAR(vr_adgun_crossbow_anim_at, "-1", CVAR_NONE) // debug: the crossbows in the hands drawn this many seconds after a shot (a frame strip; loaded); -1: as they are
 QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' melee monsters drop their weapons as they die (QC vr_ad_melee.qc: the death fury its two swords, the death knight, zombie knight and death guard their swords, the hunter ogres their hammer and mace)
@@ -3742,7 +3754,7 @@ QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
-QVR_CVAR(vr_reload_port_widow_radius, "2.5", CVAR_ARCHIVE)   // (a handful's middle)
+QVR_CVAR(vr_reload_port_widow_radius, "1.25", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
 QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
 // Each magazine's reference point: its top (its feed end) moved by these (its model units: +x along its gun, +y left,
 // +z up its length), and its radius (world units).

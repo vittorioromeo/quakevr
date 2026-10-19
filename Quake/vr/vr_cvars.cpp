@@ -304,8 +304,11 @@ const DefaultChange defaultChanges[] = {
     {158, &vr_grenade_pouch_thresh, "7"},
     {158, &vr_flame_lights, "3"},
     {158, &vr_flame_light_scale, "1"},
+    // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
+    {159, &vr_ad_widowmaker_handful, "4"},
+    {159, &vr_reload_port_widow_radius, "2.5"},
 };
-constexpr int configVersion = 158;
+constexpr int configVersion = 159;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

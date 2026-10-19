@@ -64,8 +64,13 @@ struct Hand
     glm::vec3 centre{0.f}, fwd{0.f}, up{0.f}; // its bolt's place last frame (drawn or not: vr_adgun_crossbow_info)
     glm::vec3 launch{0.f};                    // and its middle from the muzzle in the shot's frame (zero: not held)
     glm::vec3 firedCentre{0.f}, firedFwd{0.f}; // the bolt as the last shot left (vr_adgun_crossbow_info)
+    bool boltIn{false};                        // its next bolt drawn (morphing in or there) last frame
 };
 Hand handState[2];
+
+// The next bolt's shimmer as it morphs in (Misc/quakevr/make_adweapon_sounds.py; vr_adgun_crossbow_bolt_sound).
+constexpr const char* boltSoundName = "vr/xbow_bolt_in.wav";
+sfx_t* boltSound = nullptr;
 
 // The model checked once: AD's crossbow with the added frames (another release, the stand-in: none).
 struct Known
@@ -319,6 +324,23 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
             loaded = true;
         }
         const Look l = look(since, refire, loaded);
+        // The next bolt's coming: a soft shimmer as it starts to morph in (his notes 2026-10-19), from the groove.
+        const bool boltIn = l.bolt >= 0.f;
+        if(boltIn && !h.boltIn && h.shotAt >= 0.0)
+        {
+            const float volume = za::clamp(vr_adgun_crossbow_bolt_sound.value, 0.f, 1.f);
+            if(boltSound && volume > 0.f)
+            {
+                vec3_t org{h.centre.x, h.centre.y, h.centre.z};
+                S_StartSound(0, 0, boltSound, org, volume, 2.f);
+            }
+            if(vr_debug_weaponfx.value)
+            {
+                Con_Printf("crossbow hand %d: bolt morphs in %.3f s after the shot (%s, volume %.2f)\n", hand, since,
+                    boltSound ? boltSoundName : "no sound system", volume);
+            }
+        }
+        h.boltIn = boltIn;
         w.poseFrame[0] = l.a;
         w.poseFrame[1] = l.b;
         w.poseBlend = l.blend;
@@ -349,6 +371,11 @@ void clear()
 void registerCommands()
 {
     Cmd_AddCommand("vr_adgun_crossbow_info", info_f);
+}
+
+void prepare()
+{
+    boltSound = S_PrecacheSound(boltSoundName);
 }
 
 } // namespace qvr::adcrossbow
