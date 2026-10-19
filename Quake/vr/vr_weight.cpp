@@ -520,7 +520,11 @@ namespace detail
     float heavyStiff = 1.f, heavyDamp = 1.f;
     heavyWrist(l, heavyStiff, heavyDamp);
     const float kA = (wristStiffness + gripStiffening * l.mass * gravity * glm::length(l.com)) * stiff * heavyStiff;
-    const float zetaA = zeta * heavyDamp;
+    // A weapon with a Heft settles: its damping ratio (the struggle's and its own Spring Damping times it) no less than
+    // vr_heavy_damping_min (the laser cannon in one hand was at 0.3: a blow stopped dead swung on 54 degrees and back),
+    // unless Aiming: Spring's own damping is lower.
+    const float settle = za::min(vr_heavy_damping_min.value, za::max(vr_weight_spring_damping.value, 0.f));
+    const float zetaA = l.heft > 0.f ? za::max(zeta * heavyDamp, settle) : zeta * heavyDamp;
     const glm::vec3 kAxis{kA * l.twist, kA, kA};
     const float strength = za::max(vr_weight_spring_strength.value * t.strength, 0.f);
     const float force = strength > 0.f ? armForce * strength * grip2 : 0.f;
@@ -573,15 +577,30 @@ namespace detail
         const bool heavy = l.heft > 0.f;
         const float behind = heavy ? za::clamp((glm::length(e) - catchFrom) / (snapRad - catchFrom), 0.f, 1.f) : 0.f;
         const float catchUp = 1.f + catchGain * behind * behind;
-        glm::vec3 tau = kAxis * e * catchUp + damping * dw + weightTorque;
         const float most = torque * catchUp;
-        if(torque > 0.f)
+        const auto limit = [&](glm::vec3 v) {
+            if(torque > 0.f)
+            {
+                v.x = za::clamp(v.x, -most * l.twist, most * l.twist); // the forearm's twist is weaker
+                if(const float len = glm::length(v); len > most)
+                {
+                    v *= most / len;
+                }
+            }
+            return v;
+        };
+        glm::vec3 tau;
+        if(heavy)
         {
-            tau.x = za::clamp(tau.x, -most * l.twist, most * l.twist); // the forearm's twist is weaker
+            // A heavy weapon: its damping grows with the catch-up's pull (the same damping ratio however hard it pulls),
+            // and the wrist's torque limits the pull and the damping each on its own: clipped together, a wrist at its
+            // limit lost its damping and slung the weapon round (wiggled +-60 degrees at 2 Hz, the hammer in one hand
+            // swung +-180 and rang on after the hand was still).
+            tau = limit(kAxis * e * catchUp + weightTorque) + damping * dw * za::sqrt(catchUp);
         }
-        if(const float len = glm::length(tau); torque > 0.f && len > most)
+        else
         {
-            tau *= most / len;
+            tau = limit(kAxis * e * catchUp + damping * dw + weightTorque);
         }
         // The centre of mass: its weight (the sag; held up whatever the strength) and its trailing the grip's acceleration.
         tau += -weightTorque + glm::cross(l.com, toHand * (m * (sagAccel - inert * gripAccel)));

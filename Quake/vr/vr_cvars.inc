@@ -1101,7 +1101,8 @@ QVR_CVAR(vr_heavy_auto_full, "20", CVAR_ARCHIVE)           // kg: and this heavy
 QVR_CVAR(vr_heavy_struggle, "1", CVAR_ARCHIVE)             // one-handed struggle: 0 off, 1 full (times the Heft)
 QVR_CVAR(vr_heavy_struggle_stiffness, "0.25", CVAR_ARCHIVE) // the wrist's stiffness on it at Heft 1 in one hand, times (lower: lags further, slower back)
 QVR_CVAR(vr_heavy_struggle_damping, "0.5", CVAR_ARCHIVE)    // its damping at Heft 1 in one hand, times (lower: springier, overshoots)
-QVR_CVAR(vr_heavy_droop, "1", CVAR_ARCHIVE)                // 1: heavy weapons droop held in one hand
+QVR_CVAR(vr_heavy_damping_min, "0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
+QVR_CVAR(vr_heavy_droop, "1", CVAR_ARCHIVE)               // 1: heavy weapons droop held in one hand
 QVR_CVAR(vr_heavy_droop_deg, "9", CVAR_ARCHIVE)            // degrees the barrel (head) sags at Heft 1 in one hand (times the weapon's Droop x)
 QVR_CVAR(vr_heavy_recoil, "1", CVAR_ARCHIVE)               // 1: heavy weapons fired in one hand kick up (the aim with them)
 QVR_CVAR(vr_heavy_recoil_kick, "100", CVAR_ARCHIVE)        // deg/s the muzzle is flung up a shot at Heft 1 in one hand (times the weapon's Heavy Recoil x)

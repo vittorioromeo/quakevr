@@ -284,6 +284,9 @@ za::Vector<Item> pageWeaponWeights()
                   "back slower."),
         slider("Struggle Damping", vr_heavy_struggle_damping, 0.f, 1.f, 0.05f, "%.2fx")
             .help("Its damping, times: lower swings past and wobbles back (springier)."),
+        slider("Settle (Least Damping)", vr_heavy_damping_min, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The least damping ratio of a heavy weapon, in one hand or two, whatever the struggle and its own "
+                  "Spring Damping: 1 comes to rest without swinging past; 0.8 swings a little past; lower wobbles."),
         toggle("Droop in One Hand", vr_heavy_droop)
             .help("A heavy weapon held in one hand sags under its weight: its barrel or head (and your aim) falls below "
                   "your controller's."),
