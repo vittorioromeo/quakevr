@@ -277,7 +277,8 @@ FUNC_PATCHES = [
 Q = "Quake VR"
 QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
              "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
-             "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "vr_hit_nobleed"}
+             "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "vr_hit_nobleed",
+             "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
 _STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
 _FACE = "VR_MeleeArc_TurnBegin(); %s VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)"
@@ -364,6 +365,42 @@ PATCHES += [
      "\t\tself.velocity = self.velocity - (self.movedir * 0.125);\n\t\tself.nextthink = time + 0.1;\n"
      "\t\tVR_ADGun_StreamFx(self, self.owner.classtype != CT_MONPYRO); // Quake VR: our fire with it "
      "(vr_ad_enemyguns.qc)\n", 1, Q + ": the pyro's flames look like the player's"),
+]
+# Every projectile's hit through one path (weapons.qc VR_Proj_Begin/End: pushes, where it struck, a corpse's wear,
+# pops) and the small ones marked to meet corpses, gibs, knocked-down bodies (VR_Proj_Mark).
+_PROJ_BEGIN = "\tVR_Proj_Begin(%s, 0); // Quake VR: every projectile's hit (weapons.qc)\n"
+_PROJ_MARK = ("\tnewmis.solid = SOLID_BBOX;\n",
+              "\tnewmis.solid = SOLID_BBOX; VR_Proj_Mark(newmis); // Quake VR: it meets corpses, gibs, knocked-down "
+              "bodies (weapons.qc)\n")
+FUNC_PATCHES += [
+    ("ai_projectiles.qc", "Touch_PlasmaProjectile", "// plasma touch has been disabled\n",
+     "// plasma touch has been disabled\n" + _PROJ_BEGIN % "QVR_PROJ_LASER", Q + ": a plasma bolt's hit (VR_Proj_Begin)"),
+    ("ai_projectiles.qc", "Touch_PlasmaProjectile", "// Remove plasma bolt\n\tentity_remove(self, 1);",
+     "// Remove plasma bolt\n\tentity_remove(self, 1);\n\tVR_Proj_End();", Q + ": a plasma bolt's hit (VR_Proj_End)"),
+    ("ai_projectiles.qc", "Touch_Projectile", "\n\n\t// No more touch/world interaction",
+     "\n\t// Quake VR: every projectile's hit (weapons.qc VR_Proj_Begin: pushes, where it struck, a corpse's wear, pops)\n"
+     "\tVR_Proj_Begin((self.classtype == CT_PROJ_LASER || self.classtype == CT_PROJ_RICLASER) ? QVR_PROJ_LASER : "
+     "QVR_PROJ_BOLT, 0);\n\n\t// No more touch/world interaction", Q + ": a bolt's, laser's or lump's hit (VR_Proj_Begin)"),
+    ("ai_projectiles.qc", "Touch_Projectile", "// Hide projectile and wait for any sounds to finish playing\n"
+     "\tentity_remove(self,2);", "// Hide projectile and wait for any sounds to finish playing\n"
+     "\tentity_remove(self,2);\n\tVR_Proj_End();", Q + ": a bolt's, laser's or lump's hit (VR_Proj_End)"),
+    ("ai_projectiles.qc", "Touch_HomingMissile", "// trigger field, do nothing\n",
+     "// trigger field, do nothing\n" + _PROJ_BEGIN % "QVR_PROJ_BLAST", Q + ": a homing missile's hit (VR_Proj_Begin)"),
+    ("ai_projectiles.qc", "Touch_HomingMissile", "// Wait for any sounds to finish playing\n\tentity_remove(self, 4);",
+     "// Wait for any sounds to finish playing\n\tentity_remove(self, 4);\n\tVR_Proj_End();",
+     Q + ": a homing missile's hit (VR_Proj_End)"),
+    ("ai_projectiles.qc", "Touch_Missile", "self.th_updmissile(); return; }\n",
+     "self.th_updmissile(); return; }\n" + _PROJ_BEGIN % "QVR_PROJ_BLAST", Q + ": a missile's hit (VR_Proj_Begin)"),
+    ("ai_projectiles.qc", "Touch_Missile", "// Hide + Delete rocket, no longer needed\n\tentity_remove(self, 1);",
+     "// Hide + Delete rocket, no longer needed\n\tentity_remove(self, 1);\n\tVR_Proj_End();",
+     Q + ": a missile's hit (VR_Proj_End)"),
+    ("ai_projectiles.qc", "Touch_Grenade", "// Always keep track of what to damage\n",
+     "// Always keep track of what to damage\n" + _PROJ_BEGIN % "QVR_PROJ_BLAST", Q + ": a grenade's hit (VR_Proj_Begin)"),
+    ("ai_projectiles.qc", "Touch_Grenade", "self.avelocity = '0 0 0';\n\t\t}\n\t}",
+     "self.avelocity = '0 0 0';\n\t\t}\n\t}\n\tVR_Proj_End();", Q + ": a grenade's hit (VR_Proj_End)"),
+] + [
+    ("ai_projectiles.qc", func, _PROJ_MARK[0], _PROJ_MARK[1], Q + ": its projectile meets bodies (VR_Proj_Mark)")
+    for func in ("launch_plasma", "launch_projectile", "Launch_Missile", "Launch_Grenade")
 ]
 # Melee arc (fight.qc VR_MeleeArc_Hits): a swing hits only what is in front (side swings: either side). (file, the exact
 # text of the line's test, the side argument): ai_checkmelee(...) there becomes (ai_checkmelee(...) &&

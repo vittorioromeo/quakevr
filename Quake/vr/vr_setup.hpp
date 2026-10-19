@@ -3,8 +3,8 @@
 // seconds after the player appears, calibrates step by step, the instructions floating in front of the eyes:
 //
 //  0. A welcome in the middle of the view for a few seconds (a start; not the restart after the menu).
-//  1. Height: standing tall (sitting up straight, with Position: Seated) and still: vr_height_calibration, as VR Settings >
-//     Set Height Now.
+//  1. Height: standing tall and still: vr_height_calibration, as VR Settings > Set Height Now; with Position: Seated,
+//     sitting up straight: vr_seated_height instead (vr_seated.hpp), the standing height left as it is.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
 // (No main hand step: there is no main hand setting.)

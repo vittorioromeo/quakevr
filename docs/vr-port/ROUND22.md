@@ -14181,3 +14181,35 @@ middle, 7.8 cm off it, loaded too, and the 4 cm contact above the tops was tight
   wiggle. The hammer two-handed (developer 2): blows at every speed (old: none at 0.9 and 1.6), strength 1.24 (0.9),
   1.24-1.53 (1.6), 1.26-1.57 (2.2), 1.54-1.75 (3.5); none on the slow returns, the jerk or the wiggle. One-handed:
   none at 0.9 and 1.6 (as before). eval.sh --full 168/177.
+
+## Seated play (worktree `tghost`, branch `agent/seated`, 2026-10-19)
+
+Position: Seated (`vr_bodycal_seated`) now changes how you play:
+- The tracking is raised to the standing eye height. The seated calibration now measures `vr_seated_height` instead
+  of overwriting `vr_height_calibration`.
+- Body tracking's legs are off; the legs stay planted.
+- A seated holster/pouch layout (`vr_*_seated_*`, Holster Calibration > Seated Holsters).
+- A floor reach for low hands.
+- `vr_crouch_toggle`.
+- No room-scale jump.
+
+New: `vr_seated.cpp`; VR Settings > Height and Hand Calibration > Seated Play; Debug > Views > Print Seated Status
+(`vr_seated_status`). SEATED.md has the details, the checks and what is left.
+## Fewer pops from projectiles; AD's flamethrower and poison sprayer reach the minotaur (worktree `gorefx`, branch `agent/minotaur`, 2026-10-19)
+
+- **Pop chance:** `vr_decap_pop_projectile` 0.85 -> 0.5 (a kill at the head or a limb by a nail, a bolt, a lump; not
+  lasers). configVersion 163 moves a config still at 0.85.
+- **The streams never reached the minotaur:** the player's flamethrower and poison sprayer (`VR_ADGun_FlameThink`)
+  think every 0.05 s but took AD's per-0.1 s slowing (an eighth of the speed) and frame (gone after 7) each think: a
+  flame died after 0.35 s, about 130 units out (a puff 110), well short of `vr_adgun_pyro_range` 300 /
+  `vr_adgun_fumigator_range` 260, while its fire particles flew on. A big monster kept at a distance (the minotaur's
+  reach) was never touched. Nothing in AD or our damage path spares it: AD's minotaur resists cells by half (the
+  sprayer's puffs and poison), nothing else; AD has no fire or poison immunity for monsters (its pyro spares only pyros).
+  Fixed: half AD's slowing, drift and frame a think, AD's 0.7 s life (`VR_ADGun_FlameLife`: the range set, at most
+  about 0.39 times the speed: a flame 236 units, a puff 197). The sprite now animates at AD's pace.
+- **Test:** `vr_ad_test 101` (vr_ad_enemyguns_test.qc): the streams' flames fly into the nearest monster held
+  `vr_test_spawn_dist` units ahead of a level hand. At 150 units: before, 0 dealt on the minotaur and the hunter ogre;
+  after, minotaur 25 (fire) / 18 (poison), golem 25 / 27, bog lord 12 / 15, hunter ogre 25 / 23, each burning or
+  poisoned; ad_dm1's own endfight minotaur (woken by its trigger) 25 / 18. `70` 8/8, `91` 3/3 PASS.
+- **For VR:** ad_dm1's minotaur (or any big AD monster) from a few metres off with each stream: it should burn or turn
+  green and lose health; the flames should look as long as before or a little longer.

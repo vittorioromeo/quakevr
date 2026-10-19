@@ -5,6 +5,7 @@
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_seated.hpp"
 
 namespace view_detail
 {
@@ -1108,8 +1109,10 @@ struct HolsterPose
 
 // Each pair's turn (the Hotspots menu, vr_*_holster_pitch/yaw/roll): degrees, {pitch, yaw, roll}; and crouched, the
 // share `crouched` of its crouched turn on top (vr_*_holster_crouch_pitch/yaw/roll; avatar::crouchPoseWeight).
+// Seated (vr_seated.hpp), the seated layout's turn on top (vr_*_holster_seated_pitch/yaw/roll).
 [[nodiscard]] glm::vec3 holsterTurn(int h, float crouched)
 {
+    const float sit = qvr::seated::active() ? 1.f : 0.f;
     switch(h)
     {
         case LeftHip:
@@ -1117,18 +1120,27 @@ struct HolsterPose
             return glm::vec3{vr_hip_holster_pitch.value, vr_hip_holster_yaw.value, vr_hip_holster_roll.value} +
                    glm::vec3{vr_hip_holster_crouch_pitch.value, vr_hip_holster_crouch_yaw.value,
                        vr_hip_holster_crouch_roll.value} *
-                       crouched;
+                       crouched +
+                   glm::vec3{vr_hip_holster_seated_pitch.value, vr_hip_holster_seated_yaw.value,
+                       vr_hip_holster_seated_roll.value} *
+                       sit;
         case LeftUpper:
         case RightUpper:
             return glm::vec3{vr_upper_holster_pitch.value, vr_upper_holster_yaw.value, vr_upper_holster_roll.value} +
                    glm::vec3{vr_upper_holster_crouch_pitch.value, vr_upper_holster_crouch_yaw.value,
                        vr_upper_holster_crouch_roll.value} *
-                       crouched;
+                       crouched +
+                   glm::vec3{vr_upper_holster_seated_pitch.value, vr_upper_holster_seated_yaw.value,
+                       vr_upper_holster_seated_roll.value} *
+                       sit;
         default:
             return glm::vec3{vr_shoulder_holster_pitch.value, vr_shoulder_holster_yaw.value, vr_shoulder_holster_roll.value} +
                    glm::vec3{vr_shoulder_holster_crouch_pitch.value, vr_shoulder_holster_crouch_yaw.value,
                        vr_shoulder_holster_crouch_roll.value} *
-                       crouched;
+                       crouched +
+                   glm::vec3{vr_shoulder_holster_seated_pitch.value, vr_shoulder_holster_seated_yaw.value,
+                       vr_shoulder_holster_seated_roll.value} *
+                       sit;
     }
 }
 
@@ -2114,7 +2126,10 @@ void setupAmmoPouch(const hands::State& s)
     turnHolster(pose, at, frame,
         glm::vec3{vr_ammo_pouch_pitch.value, vr_ammo_pouch_yaw.value, vr_ammo_pouch_roll.value} +
             glm::vec3{vr_ammo_pouch_crouch_pitch.value, vr_ammo_pouch_crouch_yaw.value, vr_ammo_pouch_crouch_roll.value} *
-                avatar::crouchPoseShare(s)); // (crouched: its crouched turn on top)
+                avatar::crouchPoseShare(s) + // (crouched: its crouched turn on top; seated, the seated layout's)
+            (qvr::seated::active() ? glm::vec3{vr_ammo_pouch_seated_pitch.value, vr_ammo_pouch_seated_yaw.value,
+                                    vr_ammo_pouch_seated_roll.value}
+                              : glm::vec3{0.f}));
     if(vr_body_debug.value < 2.f)
     {
         zones::publish(zones::ZoneAmmoPouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);

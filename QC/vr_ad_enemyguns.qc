@@ -594,17 +594,21 @@ void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
     }
 };
 
+// A flame's or puff's flight: AD's flames' (ad_pyroflame_think: a tenth of a second a frame, drifting up, an eighth of
+// its speed lost a frame, gone after seven), at twice their thinks (the fire carried with it: VR_ADGun_StreamFx), so
+// each think half of theirs. (It once took a whole frame's slowing and a frame a think: it died at half AD's reach, a
+// third of the range set, short of a big monster held off at a distance, the minotaur: ROUND22.md.)
 void() VR_ADGun_FlameThink =
 {
     self.cnt = self.cnt + 1;
-    if(self.cnt > 6 || time >= self.attack_finished)
+    if(self.cnt > 13 || time >= self.attack_finished)
     {
         remove(self);
         return;
     }
-    self.frame = self.cnt;
-    self.velocity_z = self.velocity_z + 10 + random() * 20; // (drifting up, slowing down: AD's flames)
-    self.velocity = self.velocity - self.movedir * 0.125;
+    self.frame = min(6, floor(self.cnt / 2));
+    self.velocity_z = self.velocity_z + 5 + random() * 10;
+    self.velocity = self.velocity - self.movedir * 0.0625;
     self.nextthink = time + 0.05;
     VR_ADGun_StreamFx(self, self.vr_adgun_poison > 0 || self.model == ad_SBURST_POISON);
 };
@@ -655,6 +659,19 @@ void(float xHand, float xTime) VR_ADGun_SetStream =
     else { self.vr_adgun_stream = xTime; }
 };
 
+// A flame's life (s) for its reach `xRange` (units) at `xSpeed`: slowing as AD's (VR_ADGun_FlameThink: its speed less
+// 1.25 times it a second, it covers xSpeed * (t - 0.625 t^2)) and gone after AD's 0.7 s, so it reaches at most about
+// 0.39 times its speed (the pyro's 600: 236 units).
+float(float xRange, float xSpeed) VR_ADGun_FlameLife =
+{
+    float q = 1 - 2.5 * xRange / xSpeed;
+    if(q <= 0.015625) // ((1 - 1.25 * 0.7)^2: farther than it flies in 0.7 s)
+    {
+        return 0.7;
+    }
+    return max(0.1, (1 - sqrt(q)) / 1.25);
+};
+
 void(float xHand, float xWid) VR_ADGun_FireFlame =
 {
     float poison = (xWid == WID_ADFUMIGATOR);
@@ -682,7 +699,7 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     f.velocity = f.movedir + vrProjectileVelocity(xHand, 0.5);
     f.angles_z = anglemod(350 + random() * 20);
     f.cnt = 0;
-    f.attack_finished = time + max(0.1, VR_ADGun_Value(xWid, "range") / speed); // (its reach: units)
+    f.attack_finished = time + VR_ADGun_FlameLife(VR_ADGun_Value(xWid, "range"), speed);
     f.vr_adgun_wid = xWid;
     f.vr_adgun_dmg = (water && !poison) ? 0 : VR_ADGun_Value(xWid, "damage");
     f.vr_adgun_burn = (poison || water) ? 0 : VR_ADGun_Value(xWid, "burn");

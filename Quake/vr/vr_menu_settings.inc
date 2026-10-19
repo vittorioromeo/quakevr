@@ -66,6 +66,9 @@ za::Vector<Item> pageMain()
                   "see them."),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
             .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+        open("Seated Play", pageIndex(pageSeated))
+            .help("Playing sitting down: the game stands you up, the holsters and pouches where you reach them seated, "
+                  "the floor in reach, a crouch toggle."),
     };
 }
 
@@ -117,6 +120,8 @@ za::Vector<Item> pageMain()
             .help(holsterHelp),
         slider("Back Holsters Up", vr_menu_holster_back_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
             .help(holsterHelp),
+        open("Seated Holsters", pageIndex(pageSeatedHolsters))
+            .help("Playing seated (Height > Seated Play): where the holsters and pouches go then, on top of these."),
         action("Reset Holsters", resetHolsters)
             .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
