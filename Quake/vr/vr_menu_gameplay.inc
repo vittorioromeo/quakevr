@@ -423,83 +423,168 @@
     };
 }
 
-// Flinch (QC vr_flinch.qc; vr_box3d_knockdown.cpp ragdollFlinch, vr_ragactive.cpp beginFlinch; docs/vr-port/FLINCH.md):
-// Combat > Flinch.
-[[nodiscard]] za::Vector<Item> pageFlinch()
+// Ragdoll Triggers (QC vr_kdtrig.qc; ROUND22.md, "The flinch removed; ragdoll triggers"): Combat > Ragdoll Triggers, a page per
+// trigger and Monster Resistance; the shove's, the leg sweep's, the leg pull's and the lift's on their own pages.
+[[nodiscard]] za::Vector<Item> pageKdTrigLedge()
 {
     return {
-        cycle("Flinch", "vr_flinch", {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, Leg Balance"}})
-            .help("Leg Balance (new): no pin holding its pelvis; it bears its weight only on its feet and keeps its balance "
-                  "by stepping where its momentum will carry it. "
-                  "Every hit strong enough briefly makes a humanoid an active ragdoll: the hit's force goes into its body "
-                  "at the point struck, it steps back along it and balances with its arms and torso, then blends back into "
-                  "its animation once balanced, or topples into a knockdown and gets up. Off: the small hit reactions, "
-                  "Quake's pains and Hits Unbalance exactly as before."),
-        header("Safeguards"),
-        slider("Least Hit", vr_flinch_min, 0.f, 2.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
-            .help("A hit giving its body less change of speed than this only plays the small hit reaction (a shotgun's 6 "
-                  "pellets close: about 0.6 m/s on a grunt; a nail 0.15)."),
-        slider("Cooldown", vr_flinch_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
-            .help("After a flinch begins, none again for this long (no stun-lock): the small reaction meanwhile."),
-        slider("Guard Attacks", vr_flinch_attack_guard, 1.f, 5.f, 0.25f, "%.2fx").extend(1.f, 100.f)
-            .help("While it attacks, the Least Hit times this: only big hits interrupt its attack. 1: no protection."),
-        toggle("Pains on Small Hits", vr_flinch_pain)
-            .help("A hit too small to flinch still plays Quake's pain animation. Off: only its sound and the small reaction "
-                  "(a flinch never plays it)."),
-        slider("Most at Once", vr_flinch_max, 0.f, 16.f, 1.f, "%.0f")
-            .help("Flinching at once at most; past it the small reaction (each also needs room under Max Ragdolls: a dead "
-                  "body may go for it, never a living knockdown)."),
-        slider("Range", vr_flinch_range, 256.f, 4096.f, 128.f, "%.0f units")
-            .help("Farther from every player than this, the small reaction."),
-        header("Balance"),
-        slider("Topple Speed", vr_flinch_topple, 0.5f, 6.f, 0.1f, "%.1f m/s").extend(0.1f, 20.f)
-            .help("The change of speed at its balance's edge: past it, it takes a step or two and falls; past 1.5 times "
-                  "it, it goes down at once. Heavier monsters (an ogre) get less from the same hit."),
-        slider("On Slopes and Stairs", vr_flinch_uneven, 0.1f, 1.f, 0.05f, "%.2fx")
-            .help("Standing on a slope, stairs or an edge, Topple Speed times this: small hits make it fall there."),
-        slider("Jolt at the Point", vr_flinch_local, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of a hit given at the point struck (its head, torso or a limb jolts); the rest moves its whole "
-                  "body, which steps along it."),
-        slider("Leg Balance: Push", vr_flinch_legs_push, 0.5f, 5.f, 0.1f, "%.1fx").extend(0.f, 20.f)
-            .help("Flinch Leg Balance: the hit's push on its body times this (its balance and topple are reckoned without "
-                  "it). More: more and longer steps back."),
-        slider("Leg Balance: Upright", vr_flinch_legs_upright, 0.f, 3.f, 0.1f, "%.1fx")
-            .help("Flinch Leg Balance: how firmly its hips and ankles turn it back upright over its feet."),
-        slider("Foot Support", vr_flinch_foot, 0.04f, 0.3f, 0.01f, "%.2f m")
-            .help("How far round each foot its centre of mass may be and still count as balanced."),
-        slider("Most Time", vr_flinch_most, 0.5f, 4.f, 0.1f, "%.1f s")
-            .help("Not balanced by then, it topples into a knockdown."),
-        slider("Least Time", vr_flinch_recover_min, 0.f, 1.f, 0.05f, "%.2f s").help("A flinch lasts at least this."),
-        slider("Steady For", vr_flinch_recover_hold, 0.f, 0.5f, 0.02f, "%.2f s")
-            .help("The recovery test holds this long before it is handed back."),
-        slider("Recover Below Speed", vr_flinch_recover_speed, 0.05f, 2.f, 0.05f, "%.2f m/s")
-            .help("Its centre of mass moving slower than this to recover."),
-        slider("Recover Below Tilt", vr_flinch_recover_tilt, 2.f, 45.f, 1.f, "%.0f deg")
-            .help("Its spine tilted at most this much more than as it stood."),
-        slider("Firm Ground Slope", vr_flinch_recover_slope, 5.f, 60.f, 1.f, "%.0f deg")
-            .help("Each foot on ground no steeper than this to recover."),
-        slider("Blend Back", vr_flinch_blend, 0.05f, 0.6f, 0.01f, "%.2f s")
-            .help("Recovered, its ragdoll blends into the animation (the stand or run frame nearest its pose) over this."),
-        header("Hit Strength"),
-        slider("Shotgun Pellet", vr_flinch_shotgun, 0.f, 30.f, 0.5f, "%.1f kg m/s").extend(0.f, 200.f)
-            .help("The impulse of each shotgun pellet that hits (its 6: 42 kg m/s close)."),
-        slider("Super Shotgun Pellet", vr_flinch_ssg, 0.f, 40.f, 0.5f, "%.1f kg m/s").extend(0.f, 200.f)
-            .help("Each super shotgun pellet's (its 14: 168 kg m/s close, enough to knock a grunt over)."),
-        slider("Shotguns Full Within", vr_flinch_shot_near, 0.f, 512.f, 16.f, "%.0f units")
-            .help("Shotguns hit at full strength this close..."),
-        slider("Shotguns Weak From", vr_flinch_shot_far, 128.f, 4096.f, 64.f, "%.0f units")
-            .help("...easing to Far Share from here on."),
-        slider("Far Share", vr_flinch_shot_far_share, 0.f, 1.f, 0.05f, "%.2f").help("Shotguns' strength far off."),
-        slider("Nails", vr_flinch_nail, 0.f, 10.f, 0.1f, "%.1f per damage")
-            .help("Nails and missiles' own hits: kg m/s per damage (a nail's 9, a super nail's 18). Quick hits add up."),
-        slider("Other Shots", vr_flinch_shot_other, 0.f, 10.f, 0.1f, "%.1f per damage")
-            .help("Lightning and monsters' shots and blows: kg m/s per damage."),
-        slider("Melee", vr_flinch_melee, 0.f, 10.f, 0.1f, "%.1f per damage")
-            .help("A melee blow: kg m/s per damage (its speed, weapon and zone are in its damage). A head blow jolts the head."),
-        slider("Throws", vr_flinch_throw, 0.f, 3.f, 0.05f, "%.2fx")
-            .help("A thrown prop or weapon: its momentum (mass times speed) times this."),
-        slider("Blasts", vr_flinch_blast, 0.f, 10.f, 0.1f, "%.1f per damage")
-            .help("An explosion: kg m/s per damage, pushing its whole body away from it."),
+        toggle("Ledges", vr_kdtrig_ledge_on)
+            .help("Struck with a drop of Least Drop or more right behind it (along the hit, room for its body to drop), it is pushed off. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_ledge, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_ledge_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_ledge_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Least Drop", vr_kdtrig_ledge_drop, 24.f, 256.f, 8.f, "%.0f units")
+            .help("A drop at least this deep is a ledge (a monster is about 56 tall, a stair 16-18)."),
+        slider("Look Behind", vr_kdtrig_look, 8.f, 128.f, 4.f, "%.0f units")
+            .help("How far past its body the ground behind it is looked at for stairs and ledges."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigStairs()
+{
+    return {
+        toggle("Stairs", vr_kdtrig_stairs_on)
+            .help("Struck at the top of steps going down behind it (two or more, the first right behind its feet), it falls down them. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_stairs, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_stairs_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_stairs_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Look Behind", vr_kdtrig_look, 8.f, 128.f, 4.f, "%.0f units")
+            .help("How far past its body the ground behind it is looked at for stairs and ledges."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigSlope()
+{
+    return {
+        toggle("Slopes", vr_kdtrig_slope_on)
+            .help("Standing on a steep slope, hit down it, it topples down the slope. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_slope, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_slope_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_slope_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Least Steepness", vr_kdtrig_slope_angle, 5.f, 45.f, 1.f, "%.0f deg")
+            .help("Slopes at least this steep."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigShotgun()
+{
+    return {
+        toggle("Shotgun Range", vr_kdtrig_shotgun_on)
+            .help("A shotgun or super shotgun blast of yours from close by knocks it over. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_shotgun, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Push", vr_kdtrig_shotgun_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Range", vr_kdtrig_shotgun_range, 32.f, 512.f, 16.f, "%.0f units")
+            .help("Shotgun and super shotgun blasts this close; less likely towards it."),
+        slider("Full Pellets", vr_kdtrig_shotgun_pellets, 2.f, 20.f, 1.f, "%.0f")
+            .help("Pellets landing for the full chance (fewer: less, under half of them none; a shotgun has 6, a super "
+                  "shotgun 14)."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigWounded()
+{
+    return {
+        toggle("Wounded", vr_kdtrig_wounded_on)
+            .help("Badly hurt, any hit may knock it down. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_wounded, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_wounded_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_wounded_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Wounded Below", vr_kdtrig_wounded_health, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Its health under this share of its full health: half the chance there, all of it near death."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigBlow()
+{
+    return {
+        toggle("Strong Blows", vr_kdtrig_blow_on)
+            .help("A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30). Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_blow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_blow_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_blow_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Blades' Share", vr_kdtrig_blow_blade, 0.f, 1.f, 0.05f, "%.2f")
+            .help("An axe's, a sword's or the chainsaw's edge: the chance times this. Blunt blows (fists, a gun's butt, a "
+                  "hammer, a mace, a pommel, the crowbar, props) count fully."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigBlast()
+{
+    return {
+        toggle("Explosions", vr_kdtrig_blast_on)
+            .help("A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance). Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_blast, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down (times how strong the hit is: up to half again; divided by its Monster Resistance)."),
+        slider("Least Damage", vr_kdtrig_blast_min, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("Weaker hits never trigger it (times its Monster Resistance)."),
+        slider("Push", vr_kdtrig_blast_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over as it goes down (a two-hand shove: 1)."),
+        slider("Range", vr_kdtrig_blast_range, 32.f, 512.f, 16.f, "%.0f units")
+            .help("None farther from the blast's centre; the chance falls to half towards it."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigResist()
+{
+    return {
+        slider("By Size", vr_kdtrig_resist_size, 0.f, 1.5f, 0.05f, "%.2f")
+            .help("A kind without its own resistance below: its body's volume over a grunt's to this power (an ogre's, 5.5 times: 2.3 at 0.5). 0: all alike."),
+        slider("Grunt", vr_kdtrig_resist_army, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+        slider("Enforcer", vr_kdtrig_resist_enforcer, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+        slider("Knight", vr_kdtrig_resist_knight, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+        slider("Death Knight", vr_kdtrig_resist_hknight, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+        slider("Ogre", vr_kdtrig_resist_ogre, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+        slider("Zombie", vr_kdtrig_resist_zombie, 0.f, 5.f, 0.05f, "%.2f").extend(0.f, 50.f)
+            .help("Every ragdoll trigger's chance divided by this and its least damage times it (0: by its size)."),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTriggers()
+{
+    return {
+        toggle("Ragdoll Triggers", vr_kdtrig)
+            .help("Situations in a fight that knock a grunt, an enforcer, a knight or another humanoid down as a "
+                  "ragdoll: by stairs and ledges, on slopes, a close shotgun blast, a strong blow, an explosion, "
+                  "badly hurt. It gets up as after a shove. Bigger monsters resist (Monster Resistance). Needs "
+                  "Knockdowns."),
+        slider("Cooldown", vr_kdtrig_cooldown, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("After it gets up, no ragdoll trigger takes it again for this long."),
+        header("Triggers"),
+        open("Ledges", pageIndex(pageKdTrigLedge)).help("Struck with a drop of Least Drop or more right behind it (along the hit, room for its body to drop), it is pushed off."),
+        open("Stairs", pageIndex(pageKdTrigStairs)).help("Struck at the top of steps going down behind it (two or more, the first right behind its feet), it falls down them."),
+        open("Slopes", pageIndex(pageKdTrigSlope)).help("Standing on a steep slope, hit down it, it topples down the slope."),
+        open("Shotgun Range", pageIndex(pageKdTrigShotgun)).help("A shotgun or super shotgun blast of yours from close by knocks it over."),
+        open("Wounded", pageIndex(pageKdTrigWounded)).help("Badly hurt, any hit may knock it down."),
+        open("Strong Blows", pageIndex(pageKdTrigBlow)).help("A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30)."),
+        open("Explosions", pageIndex(pageKdTrigBlast)).help("A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance)."),
+        open("Monster Resistance", pageIndex(pageKdTrigResist))
+            .help("How much less likely each kind goes down (by its size, or its own)."),
+        header("Other Triggers"),
+        open("Shoves, Ledges, Leg Sweep, Hits", pageIndex(pageKnockdowns))
+            .help("Shoves and bashes, a shove over a ledge, the leg sweep, strong hits unbalancing (Knockdowns)."),
+        open("Lift and Leg Pull", pageIndex(pageHoldingEnemies)).help("Lifting and pulling held enemies off their feet."),
     };
 }
 

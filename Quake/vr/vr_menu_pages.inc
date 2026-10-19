@@ -1151,6 +1151,14 @@ void resetHandMoves()
                   "many as fit. Its port at the pouch takes as many a touch."),
         slider("Fire Rate", "vr_ad_widowmaker_refire", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.02f, 3.f)
             .help("Seconds between its shots while the trigger is held: a shell each, its spent shell out of the other side."),
+        header("Barrels"),
+        slider("Barrel Spin", "vr_ad_widowmaker_spin", 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
+            .help("How fast its barrels turn while it fires, as a Gatling's: 1 a barrel a shot (the top one fires). 0: "
+                  "still."),
+        slider("Spin Up", "vr_ad_widowmaker_spinup", 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Seconds the barrels take to come up to speed with the trigger held."),
+        slider("Spin Down", "vr_ad_widowmaker_spindown", 0.1f, 3.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
+            .help("About how long they coast after the trigger is let go, stopping with a barrel on top."),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),

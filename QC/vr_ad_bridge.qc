@@ -89,10 +89,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     VR_Gore_Hit(targ, inflictor, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, take);
     VR_Wound_Hit(targ, inflictor, attacker, take);
-    // VR: the flinch (vr_flinch.qc): a shot, a nail, a blast past its threshold makes it an active ragdoll a moment;
-    // begun, AD's pain below gives way to it as to a knockdown (VR_AD_PainDown). (A melee blow's and a throw's come
-    // after the damage: VR_HitStagger_Melee, _Throw.)
-    if(targ.health > 0 && VR_Flinch_Hit(targ, inflictor, attacker, take))
+    // VR: situational knockdowns (vr_kdtrig.qc): by stairs, a ledge, on a slope, a close shotgun blast, wounded, it may go
+    // down as a ragdoll; down, AD's pain below gives way to it as to any knockdown (VR_AD_PainDown).
+    if(targ.health > 0 && VR_KdTrig_Hit(targ, inflictor, attacker, take))
     {
         VR_AD_KdSave(targ, inflictor);
     }
@@ -178,6 +177,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 void() AD_WorldSpawn =
 {
     vr_ad_data = (VR_Pack_AD() && cvar("vr_ad_mounted") != 0);
+    precache_sound("vr/widowmaker_shot.wav"); // (the Widowmaker's shot: AD_FireWidowmaker; its stand-in model too)
     if(vr_ad_data)
     {
         precache_sound("vr/torch_light.wav"); // (AD's burning lights our fire: vr_ad_player.qc)
@@ -1270,7 +1270,9 @@ void(float xHand, entity b) AD_ShadowAxeChop =
 // side, as the shotgun's (vr_shells.cpp: its port).
 void(float xHand) AD_FireWidowmaker =
 {
-    sound(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", 1, ATTN_NORM);
+    // Its own report (his notes 2026-10-19: unlike the other shotguns, an auto shotgun's): a dry punch and the action's
+    // two clacks (vr/widowmaker_shot.wav, synthesized: Misc/quakevr/make_adweapon_sounds.py).
+    sound(self, VRGetGunChannel(xHand), "vr/widowmaker_shot.wav", 1, ATTN_NORM);
     self.punchangle_x = -3;
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
     vr_pellet_damage = max(0, cvar("vr_dmg_ad_widowmaker"));
@@ -1285,7 +1287,8 @@ void(float xHand) AD_FireWidowmaker =
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     if(cvar_hget(cvarh_vr_debug_shots))
     {
-        dprint(sprintf("widowmaker: hand %g fired, %g in its tube\n", xHand, VRGetEntWeaponClip(self, xHand)));
+        dprint(sprintf("widowmaker: hand %g fired from %s, %g in its tube\n", xHand, vtos(VRGetMuzzlePos(xHand)),
+            VRGetEntWeaponClip(self, xHand)));
     }
 };
 

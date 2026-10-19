@@ -362,6 +362,12 @@ za::Vector<Item> pageDebugTests()
             .help("The Widowmaker in your off hand, empty, your main hand free: handfuls from your pouch brought to its "
                   "shell port (the receiver's inner side) fill its tube, then a held trigger fires it full auto for two "
                   "seconds (adwidow: lines in the console). Then load it and fire it yourself."),
+        adSpawnRow(310, command("Arcane Dimensions: Widowmaker Barrels Info", "vr_ad_widowmaker_spin_info")) // AD support
+            .help("Each hand's Widowmaker barrels: their turn, speed and the frames drawn, the trigger and the last shot, "
+                  "the muzzle (the top barrel's front) in the world."),
+        adSpawnRow(310, slider("Arcane Dimensions: Widowmaker Barrels Held At", "vr_ad_widowmaker_spin_at", -1.f, 360.f, 5.f, "%.0f deg")) // AD support
+            .help("Debug: the Widowmakers in the hands drawn with their barrels turned this far (for pictures); -1 as "
+                  "they are, turning with the trigger."),
         adSpawnRow(309, command("Arcane Dimensions: Shadow Axe Rules Test", "vr_ad_test 140")) // AD support
             .help("Three AD zombies and an AD knight ahead; two seconds on, AD's Shadow Axe rules are checked through your "
                   "axe's own blows: a zombie in pain gibbed for good, the knight's long pain, a downed zombie chopped by a "
@@ -563,24 +569,19 @@ za::Vector<Item> pageDebugTests()
             .help("Developer 1: a real dragon tail hit and two same-frame follow-ups, then its route recovery. Needs Dissolution of Eternity; grants 500 health. Hold a guard to test the parry: a melee weapon level across in front (a crowbar or sword held up like a gun is no guard), its grip held."),
         command("A Melee Blow Now", "impulse 242")
             .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
-        header("Flinch"),
-        cycle("Show Flinch", "vr_flinch_debug", {{0.f, "Off"}, {1.f, "Overlay and Log"}, {2.f, "Also Refusals"}})
-            .help("vr_flinch_debug: over each flinching enemy the hit (a white arrow), its centre of mass over the floor "
-                  "and its feet's support (yellow: balancing, green: steady, cyan: recovered, red: toppled); `flinch:` "
-                  "lines for each hit, recovery and topple (Combat > Flinch)."),
-        command("Flinch Status", "vr_flinch_status")
-            .help("vr_flinch_status: flinches begun, recovered and toppled since the last call, their switch-in cost, "
-                  "recovery time and hand-back gap, and each flinching enemy's balance."),
-        command("Shotgun the Nearest", "vr_flinch_test 1").help("vr_flinch_test 1: a shotgun blast (6 pellets) on the live monster nearest you, from where you stand (1 damage)."),
-        command("Super Shotgun the Nearest", "vr_flinch_test 2").help("vr_flinch_test 2: a super shotgun blast (14 pellets), 1 damage."),
-        command("Nail the Nearest", "vr_flinch_test 4").help("vr_flinch_test 4: a super nail (3: a nail)."),
-        command("Strike the Nearest", "vr_flinch_test 5").help("vr_flinch_test 5: a 30-damage melee blow to its body (6: to its head), 1 damage dealt."),
-        command("Blast Before the Nearest", "vr_flinch_test 7").help("vr_flinch_test 7: a 60-damage blast 48 units before it, 1 damage dealt."),
-        command("Throw at the Nearest", "vr_flinch_test 8").help("vr_flinch_test 8: a 12 kg crate at 10 m/s."),
-        command("Ten Grunts Ahead", "vr_flinch_test 21").help("vr_flinch_test 21: ten grunts in two rows 160 units ahead (then 9: a shotgun blast on each)."),
-        cycle("Test Monster", "vr_flinch_test_class",
-            {{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Ogre"}, {5.f, "Zombie"}})
-            .help("vr_flinch_test_class: the monster Ten Grunts Ahead (vr_flinch_test 21) and vr_flinch_test 20 put down."),
+        header("Ragdoll Triggers"),
+        cycle("Show Ragdoll Triggers", "vr_kdtrig_debug", {{0.f, "Off"}, {1.f, "Log"}, {2.f, "Also Lost Rolls"}})
+            .help("vr_kdtrig_debug: a `kdtrig:` line for each hit that knocks a humanoid down by stairs, a ledge, a slope, "
+                  "a close shotgun blast or its wounds (which, its chance and roll); Also Lost Rolls: each that held but "
+                  "missed (Combat > Ragdoll Triggers)."),
+        command("Shotgun the Nearest", "vr_kdtrig_test 1")
+            .help("vr_kdtrig_test 1: a shotgun blast (6 pellets) on the live monster nearest you, from where you stand "
+                  "(1 damage dealt; its strength a real blast's)."),
+        command("Super Shotgun the Nearest", "vr_kdtrig_test 2").help("vr_kdtrig_test 2: a super shotgun blast (14 pellets)."),
+        command("Punch the Nearest", "vr_kdtrig_test 5").help("vr_kdtrig_test 5: a 30-damage blunt blow (a fist's)."),
+        command("Chop the Nearest", "vr_kdtrig_test 6").help("vr_kdtrig_test 6: a 30-damage blade's blow (an axe's)."),
+        command("Blast Before the Nearest", "vr_kdtrig_test 7")
+            .help("vr_kdtrig_test 7: a 60-damage blast 48 units before it (1 dealt)."),
         header("Holding Enemies"),
         cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "

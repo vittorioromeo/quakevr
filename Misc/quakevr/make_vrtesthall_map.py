@@ -113,8 +113,8 @@ def ramp(x0, y0, x1, y1, h, tex, top):
         "}"])
 
 
-# ---- a slope (22 degrees: 64 units up over 160) north of the mantle blocks' west end, for the flinch tests
-# (vr_flinch: a hit on a slope topples sooner; FLINCH.md)
+# ---- a slope (22 degrees: 64 units up over 160) north of the mantle blocks' west end, for the situational
+# knockdowns' tests (vr_kdtrig: a hit down a steep slope may topple it; QC vr_kdtrig.qc)
 B.append(ramp(-240, 460, -80, 620, 64, "qvr_wall", "qvr_floor"))
 
 # ---- things to pick up: a table in the north-west

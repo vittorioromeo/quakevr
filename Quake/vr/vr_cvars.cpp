@@ -305,17 +305,20 @@ const DefaultChange defaultChanges[] = {
     {158, &vr_grenade_pouch_thresh, "7"},
     {158, &vr_flame_lights, "3"},
     {158, &vr_flame_light_scale, "1"},
-    // 159: his swing sounds and wet sheen (his config of 2026-10-19).
-    {159, &vr_melee_swish_min, "0.5"},                  // 0.3
-    {159, &vr_melee_swish_sub, "0.45"},                 // 0.35
-    {159, &vr_melee_swish_full, "2.2"},                 // 1.75
-    {159, &vr_melee_swish_gain, "1.6"},                 // 2
-    {159, &vr_wounds_wet_coat, "1"},                    // 2
-    // 159 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
-    {159, &vr_chainsaw_damage, "100"},                  // 120
-    {159, &vr_dmg_chainsaw_swing, "22"},                // 26
+    // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
+    {159, &vr_ad_widowmaker_handful, "4"},
+    {159, &vr_reload_port_widow_radius, "2.5"},
+    // 160: his swing sounds and wet sheen (his config of 2026-10-19).
+    {160, &vr_melee_swish_min, "0.5"},                  // 0.3
+    {160, &vr_melee_swish_sub, "0.45"},                 // 0.35
+    {160, &vr_melee_swish_full, "2.2"},                 // 1.75
+    {160, &vr_melee_swish_gain, "1.6"},                 // 2
+    {160, &vr_wounds_wet_coat, "1"},                    // 2
+    // 160 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
+    {160, &vr_chainsaw_damage, "100"},                  // 120
+    {160, &vr_dmg_chainsaw_swing, "22"},                // 26
 };
-constexpr int configVersion = 159;
+constexpr int configVersion = 160;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -631,6 +634,49 @@ constexpr const char* retiredCvars[] = {
     "vr_model_ambient_prefetch",
     "vr_water_pick_once",
     "vr_server_thread_check",
+    // 2026-10-19: the flinch removed (ROUND22.md, "The flinch removed; ragdoll triggers"; FLINCH_RETROSPECTIVE.md):
+    // hits play the pains again, active ragdolls come from the triggers (vr_kdtrig: Combat > Ragdoll Triggers).
+    "vr_flinch",
+    "vr_flinch_classes",
+    "vr_flinch_min",
+    "vr_flinch_cooldown",
+    "vr_flinch_attack_guard",
+    "vr_flinch_pain",
+    "vr_flinch_max",
+    "vr_flinch_range",
+    "vr_flinch_topple",
+    "vr_flinch_uneven",
+    "vr_flinch_local",
+    "vr_flinch_shotgun",
+    "vr_flinch_ssg",
+    "vr_flinch_shot_near",
+    "vr_flinch_shot_far",
+    "vr_flinch_shot_far_share",
+    "vr_flinch_shot_other",
+    "vr_flinch_nail",
+    "vr_flinch_melee",
+    "vr_flinch_throw",
+    "vr_flinch_blast",
+    "vr_flinch_most",
+    "vr_flinch_recover_min",
+    "vr_flinch_recover_hold",
+    "vr_flinch_recover_speed",
+    "vr_flinch_recover_tilt",
+    "vr_flinch_recover_slope",
+    "vr_flinch_legs_push",
+    "vr_flinch_legs_upright",
+    "vr_flinch_foot",
+    "vr_flinch_blend",
+    "vr_flinch_debug",
+    "vr_flinch_test",
+    "vr_flinch_test_pellets",
+    "vr_flinch_test_health",
+    "vr_flinch_test_x",
+    "vr_flinch_test_y",
+    "vr_flinch_test_z",
+    "vr_flinch_test_yaw",
+    "vr_flinch_test_dist",
+    "vr_flinch_test_class",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

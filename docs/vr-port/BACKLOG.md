@@ -164,6 +164,12 @@ by the engine (`<monster>.mdl#gun<n>`, `vr_adgun_models`), low-poly and textured
   flames and puffs. Models: a fuel tank or canister that shows the fuel left.
 For all: grip and muzzle offsets checked in the headset, a pickup outline, the spent look (VR_EnemyGun_Spent) kept.
 
+### Bullet time as an earned resource (the author, 2026-10-19; idea to consider)
+Make bullet time a limited meter that doesn't refill on its own over time, but refills from play: kills, damage
+dealt, maybe style (melee kills, headshots, throws, gibs). Keep the current self-refilling behaviour as an option.
+Open: refill amounts per action, a cap, a HUD/wrist meter, how it interacts with the existing slow-mo settings and
+difficulty.
+
 ### Zombies stuck knocked down (the author, 2026-10-19)
 Zombies knocked down the stock Quake way (zombie "lie down" frames, not an active ragdoll) can stay in that state and
 become invincible. Plan: drop the stock knockdown state and always knock zombies down as an active ragdoll (they get up

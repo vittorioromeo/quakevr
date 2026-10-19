@@ -45,4 +45,7 @@ void clear();
 // vr_adgun_crossbow_info.
 void registerCommands();
 
+// The next bolt's sound precached (with the game's sounds: vr_main.cpp).
+void prepare();
+
 } // namespace qvr::adcrossbow

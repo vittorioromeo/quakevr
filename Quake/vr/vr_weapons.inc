@@ -3199,9 +3199,9 @@ QVR_WEAPON_DEFAULT(33, WpnTextAnchor, "4.65 0 8.67")
 QVR_WEAPON_DEFAULT(34, ID, "progs/v_shot3.mdl#vr")
 QVR_WEAPON_UNINHERITED(34, TwoHFixedHandRoll, "-71.399948")
 QVR_WEAPON_UNINHERITED(34, TwoHFixedHandYaw, "-21.600008")
-QVR_WEAPON_UNINHERITED(34, MuzzleOffsetX, "0.499997")
-QVR_WEAPON_UNINHERITED(34, MuzzleOffsetY, "0.35")
-QVR_WEAPON_UNINHERITED(34, MuzzleOffsetZ, "-0.7")
+QVR_WEAPON_UNINHERITED(34, MuzzleOffsetX, "0") // (51: the top barrel's front itself; the super shotgun's 0.5 0.35 -0.7 before)
+QVR_WEAPON_UNINHERITED(34, MuzzleOffsetY, "0")
+QVR_WEAPON_UNINHERITED(34, MuzzleOffsetZ, "0")
 QVR_WEAPON_UNINHERITED(34, Pitch, "-7")
 QVR_WEAPON_UNINHERITED(34, Scale, "0.48")
 QVR_WEAPON_UNINHERITED(34, WpnTextPitch, "66.5")
@@ -3239,7 +3239,8 @@ QVR_WEAPON_DEFAULT(34, HandAnchor, "5.0979 -0.0482 0.7118")
 // receiver's top. Hotspot 1 (the super shotgun's fore-end beside its barrel) the front handle: the other hand's controller
 // where the main hand's is from the rear handle (vr_hotspot_fit: model 7.29 0.71 4.64 -> 31 0 3.3; settings' frame:
 // corner + Scale 0.48 x (point - corner)). Heavier and longer than the super shotgun (Weight).
-QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "44 0 6.8")
+// Round 22 (widowmaker3, vr_wofs_version 51): the barrels turn (a Gatling); the muzzle the top barrel's front.
+QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "44 0 8.8")
 QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "29.08 -0.04 -0.18")
 QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "12 0.85 10")
 QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "12 0.85 10")
@@ -3517,7 +3518,7 @@ QVR_WEAPON_DEFAULT(40, Span, "80")
 QVR_WEAPON_DEFAULT(40, Hotspot1X, "-5.558533")
 QVR_WEAPON_DEFAULT(40, Hotspot1Y, "-1.448273")
 QVR_WEAPON_DEFAULT(40, Hotspot1Z, "-8.970978")
-// The author's fury's sword (his config of 2026-10-19; vr_wofs_version 51): its pose and grip, hotspot 2 off.
+// The author's fury's sword (his config of 2026-10-19; vr_wofs_version 52): its pose and grip, hotspot 2 off.
 QVR_WEAPON_DEFAULT(40, Hotspot1Pitch, "-2.105629")
 QVR_WEAPON_DEFAULT(40, Hotspot1Roll, "0.688379")
 QVR_WEAPON_DEFAULT(40, Hotspot1Yaw, "-5.272631")
@@ -3849,7 +3850,7 @@ QVR_WEAPON_DEFAULT(44, Span, "80")
 QVR_WEAPON_DEFAULT(44, Hotspot1X, "-5.2")
 QVR_WEAPON_DEFAULT(44, Hotspot1Y, "-8.500001")
 QVR_WEAPON_DEFAULT(44, Hotspot1Z, "-13.760001")
-// The author's hunter ogre's hammer (his config of 2026-10-19; vr_wofs_version 51): its pose, grip, thumb and fit.
+// The author's hunter ogre's hammer (his config of 2026-10-19; vr_wofs_version 52): its pose, grip, thumb and fit.
 QVR_WEAPON_DEFAULT(44, FingerThumbBias, "-1")
 QVR_WEAPON_DEFAULT(44, FingerThumbX, "-0.585")
 QVR_WEAPON_DEFAULT(44, FingerThumbY, "-0.505")
@@ -3941,7 +3942,7 @@ QVR_WEAPON_DEFAULT(45, Span, "80")
 QVR_WEAPON_DEFAULT(45, Hotspot1X, "-4.8")
 QVR_WEAPON_DEFAULT(45, Hotspot1Y, "-13.5")
 QVR_WEAPON_DEFAULT(45, Hotspot1Z, "-14.22")
-// The author's hunter ogre's mace (his config of 2026-10-19; vr_wofs_version 51): its pose, grip, thumb and fit.
+// The author's hunter ogre's mace (his config of 2026-10-19; vr_wofs_version 52): its pose, grip, thumb and fit.
 QVR_WEAPON_DEFAULT(45, FingerThumbBias, "-0.756")
 QVR_WEAPON_DEFAULT(45, FingerThumbY, "-0.36")
 QVR_WEAPON_DEFAULT(45, Hotspot1Overlap, "0.355")
