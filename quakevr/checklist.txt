@@ -19,6 +19,8 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Sounds: punch a wall: whoosh and hit both heard (were cutting each other); waving an open hand quieter (slap whoosh only for a slap motion); your swing values are defaults
+Own blood after a wash bleeds back over ~10 s (Re-open Bleed slider); Wet Duration slider (28 s), wet sheen 2 default; chainsaw +20% (120/s, swing 26); AD Fury sword, hammer, mace: your grips are defaults
 Widowmaker Gatling: barrels spin up while firing and coast to a stop with one on top; the top barrel fires; new auto-shotgun sound; side port half size, loads 2 shells; front handle gap closed; Cup grip now uses the virtual stock (Virtual Stock page toggle)
 Plasma Gun: receiver hole black inside; trigger meets the body. Crossbow: soft shimmer as the next bolt morphs in (volume setting)
 Ragdoll triggers (physical flinch removed; Combat > Ragdoll Triggers, one page each + Monster Resistance): enemies at the top of stairs and by ledges, the test-hall ramp, close shotgun/super shotgun blasts, punches and blunt weapons vs blades, rockets/grenades near grunts, a badly hurt enemy; ogres and death knights resist enough? hits play normal pains again
