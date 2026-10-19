@@ -2858,7 +2858,7 @@ SPECULAR_AA_FUNCTIONS
 "	float f = pow(nv, 4.0);\n" \
 "	vec3 sheen = min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (s * 0.35 + pow(ndh, 12.0) * 0.08 + f * 0.12));\n" \
 "	if (instances[in_instance].GloveShell.w > 1.5) // a brain chunk (VR_AliasWetCoat): its rim warm and red, the light come through the soft tissue\n" \
-"		sheen += min(in_color.rgb, vec3(1.0)) * vec3(0.20, 0.045, 0.04) * (nv * nv * min(w.wet, 1.0));\n" \
+"		sheen += min(in_color.rgb, vec3(1.0)) * vec3(0.13, 0.03, 0.026) * (nv * nv * min(w.wet, 1.0));\n" \
 "	return sheen;\n" \
 "}\n" \
 "\n" \

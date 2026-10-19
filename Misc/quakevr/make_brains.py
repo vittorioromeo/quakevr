@@ -24,6 +24,10 @@
 # noise (seamless over the islands' edges): the folds are the contour lines of a warped value noise (each line a
 # sulcus, rounded gyri between), dark and bloody in the sulci, fine vessels over the gyri, blood smeared over it
 # (thicker towards the torn face), the colour darker and duller than the palette's pinks as the gibs' dark meat is.
+# Round 22 ("Brain chunks: squishier, wetter"): the folds larger (FOLDS) and rounder (a gyrus' top a sine's, swollen),
+# blood run into every sulcus and clotted in the deep ones, a gyrus' flanks warmer and redder (light through the tissue),
+# its crest a touch paler; the relief deeper (DEPTH). The engine adds the wet sheen and a warm rim
+# (vr_smallgibs_brains_gloss: vr_wounds.cpp VR_AliasWetCoat) and a jiggle on knocks (vr_brainjiggle.cpp).
 #
 # Deterministic: fixed seeds; the same files each run. genguard.py keeps it from overwriting models edited since.
 
@@ -60,7 +64,7 @@ CLOT = np.array((52, 2, 4)) / 255.0    # dark, thick
 VESSEL = np.array((150, 30, 40)) / 255.0
 WARM = np.array((200, 74, 72)) / 255.0  # a gyrus' flanks: the light through the tissue, reddened
 DARKEN = 0.6  # as dim as the gibs' meat beside them
-FOLDS = 2.6    # the folds' noise, cycles a unit (more: closer folds; 2.6: four or five gyri across a chunk)
+FOLDS = 3.6    # the folds' noise, cycles a unit (more: closer folds; 3.6: five or six gyri across a chunk)
 GYRUS = 0.24   # how far from a sulcus' line (in the noise) a gyrus reaches its crest (more: narrower sulci)
 DEPTH = 0.16   # units: a sulcus' depth in the relief (about 6 mm at vr_world_scale 1)
 PALETTE_IDX = list(range(128, 144)) + list(range(144, 160)) + list(range(160, 176)) + list(range(64, 80)) + \
