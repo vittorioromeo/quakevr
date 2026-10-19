@@ -39,6 +39,7 @@ float VR_RIMP_GAP = 0.15; // s: strikes on one piece this close together count a
 float vr_rimp_test;       // in a test (VR_RagImpact_Test): each strike printed whatever vr_knockdown_debug says
 float vr_rimp_dealt;      // the tests: strikes dealt, and the damage in all
 float vr_rimp_total;
+float vr_rimp_dents;      // and the strikes that dented (vr_ragimpact_dent)
 
 // A shove landed on `e`, a hit or a throw unbalanced it, or it recovered from a stagger: staggered now (manhandling).
 void(entity e) VR_Manhandle_Shaken =
@@ -237,8 +238,10 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare
 };
 
 // The engine (vr_box3d.cpp callRagImpacts): ragdoll `m`'s hardest strike on the level this frame at `xAt`, its part at
-// xSpeed m/s (xRaw before the whip's cap), xMass kg behind it; xHeld: a hand holds the part (its least speed halved).
-void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld) VR_RagImpact_Hit =
+// xSpeed m/s (xRaw before the whip's cap), xMass kg behind it; xHeld: a hand holds the part (its least speed halved);
+// xInto the blow's way into the part (from the level struck). A strike dealing vr_ragimpact_dent or more dents and
+// wounds it there as a blunt melee blow does (VR_Wound_Slam).
+void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld, vector xInto) VR_RagImpact_Hit =
 {
     if(!cvar_hget(cvarh_vr_ragimpact) || !(m.flags & FL_MONSTER) || m.vr_gib || !isragdoll(m))
     {
@@ -264,6 +267,17 @@ void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld) V
         return;
     }
     m.vr_rimp_next[slot] = time + VR_RIMP_GAP;
+    float dent = cvar_hget(cvarh_vr_ragimpact_dent);
+    if(dent > 0 && dmg >= dent)
+    {
+        vr_rimp_dents = vr_rimp_dents + 1;
+        if(vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("ragimpact: %s dented at its %s (%.1f damage, into %v)\n", m.classname,
+                piece == 0 ? "head" : (piece > 0 ? "limb" : "torso"), dmg, xInto));
+        }
+        VR_Wound_Slam(m, xAt, xInto, dmg, xHeld);
+    }
     VR_RagImpact_Deal(m, by, xAt, piece, dmg, -1, sprintf("struck at %.1f m/s (%.1f raw)%s, %.1f kg behind it", xSpeed, xRaw,
         xHeld ? " held" : "", xMass));
 };

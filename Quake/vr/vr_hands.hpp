@@ -75,6 +75,10 @@ struct State
     // including the player's own movement: what the QC's thresholds and multipliers expect.
     glm::vec3 vel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 angVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The controller's own velocity behind each hand (slow motion: the slowed hand lags it, its speed capped at
+    // vr_timescale_hand_speed; timescale::controllerPose), in the game's time as `vel`; `vel` otherwise. The hands'
+    // gestures (the judo throw, the lift, the leg pull) go by it: the same real motion works in bullet time.
+    glm::vec3 ownVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 headVel{0.f};
 
     int hotspot[2]{0, 0}; // body::Hotspot of each hand

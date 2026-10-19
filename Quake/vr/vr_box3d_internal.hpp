@@ -421,6 +421,7 @@ struct Impact
     float bodyMass{0.f};
     bool held{false};   // a hand holds the part (it drives it)
     int part{-1};       // which part (its ragdoll's body): each part's hardest strike kept
+    glm::vec3 into{0.f, 0.f, -1.f}; // the blow's way into the part (unit: from the level it struck into the body)
 };
 
 // A prop near a hand's body before a step, and its motion then (notePushed, limitPushes).

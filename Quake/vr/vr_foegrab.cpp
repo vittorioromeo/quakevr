@@ -154,6 +154,15 @@ namespace
     return real * static_cast<double>(timescale::current());
 }
 
+// How many times faster than the world a held enemy follows and is pulled by its hands in slow motion (1 over the time
+// scale): at the hands' real pace. A real 3 m/s judo pull moves the slowed hand 8-10 m/s of the game's at a 0.3 scale;
+// followed and dragged at the world's pace the spot fell behind and the hold broke (vr_foegrab_break) before the throw's
+// turn was measured.
+[[nodiscard]] float gestureQuick()
+{
+    return 1.f / za::max(timescale::current(), 0.05f);
+}
+
 // This frame's real length (`dt` the game's).
 [[nodiscard]] float realFrame(float dt)
 {
@@ -164,6 +173,14 @@ namespace
 [[nodiscard]] glm::vec3 realVel(const glm::vec3& v)
 {
     return v * timescale::handScale();
+}
+
+// Hand `h`'s gesture velocity in real metres a second: its controller's own (VrHandMove::ownVel; in slow motion the
+// slowed hand lags it, capped at vr_timescale_hand_speed of the game's time: a judo throw's 3 m/s pull read 2.4 at a 0.3
+// scale, 1.6 in bullet time's, and never threw), so the same real motion throws, lifts and pulls as at full speed.
+[[nodiscard]] glm::vec3 gestureVel(const VrMove& move, int h)
+{
+    return realVel(move.hands[h].ownVel);
 }
 
 // `m`'s body: its origin and its axes turned with its yaw (the server's: what the model as drawn eases to, the client's
@@ -1314,7 +1331,7 @@ TwoHands twoHandsOf(edict_t* player, const VrMove& move, edict_t* m, bool log)
     {
         r[h] = (palmOf(player, move, h) - middle) * toMetres;
     }
-    const glm::vec3 v0 = realVel(move.hands[0].vel), v1 = realVel(move.hands[1].vel); // (the player's clock)
+    const glm::vec3 v0 = gestureVel(move, 0), v1 = gestureVel(move, 1); // (the player's clock, the controllers' own)
     const float speed = 0.5f * (glm::length(v0) + glm::length(v1));
     const glm::vec3 d = r[1] - r[0];
     const glm::vec3 wheel = glm::cross(d, v1 - v0) / za::max(glm::dot(d, d), throwMinArm * throwMinArm);
@@ -1364,7 +1381,7 @@ namespace
 {
 bool liftCheck(int c, const TwoHands& t);
 void throwCheck(int c, const TwoHands& t);
-bool legCheck(int c, const TwoHands& t, const VrMove& move);
+bool legCheck(int c, edict_t* player, edict_t* m, const VrMove& move, int mask);
 
 // Each frame, for player `c`: both his hands on one enemy measured (TwoHands), then its two-hand moves tried in turn: the
 // neck snap (neckCheck: both hands at its head, the only move there), the lift (liftCheck: an upward pull is never a
@@ -1386,9 +1403,18 @@ void twoHandCheck(int c)
         }
         hd.twoHanded = false;
         hd.neckWhere = 0;
-        hd.legStroke = false;
-        hd.legLogged = false;
-        hd.legYawEnt = 0;
+        // One hand alone on it (the other free, hanging on a ledge, holding a weapon): its leg pull (legCheck), harder.
+        const int one = move && a.active != b.active ? (a.active ? 0 : 1) : -1;
+        const bool tried = one >= 0 && vr_foegrab_legpull_onehand.value > 0.f &&
+                           qcvm->time - hd.holds[one].since >= gameSeconds(throwSettle) &&
+                           legCheck(c, player, EDICT_NUM(hd.holds[one].ent), *move, 1 << one);
+        if(!tried)
+        {
+            hd.legStroke = false;
+            hd.legLogged = false;
+            hd.legYawEnt = 0;
+            hd.legMask = 0;
+        }
         return;
     }
     if(!hd.twoHanded)
@@ -1418,7 +1444,7 @@ void twoHandCheck(int c)
         throwNote(c, "at its head: neck snap's");
         return;
     }
-    if(legCheck(c, t, *move))
+    if(legCheck(c, player, m, *move, 3))
     {
         liftNote(c, "on its legs: the leg grabs'");
         throwNote(c, "on its legs: the leg grabs'");
@@ -1637,26 +1663,52 @@ void legTry(int c, edict_t* m, const char* what, const char* last, float speed, 
 //   within Lift Reach: lifted as the lift's (QC VR_FoeGrab_Lift, no hop), held on by the legs (handOver at Lift
 //   Strength: the limbs nearest the hands, its shins), its body swung over head down away from you
 //   (vr_foegrab_leglift_topple), flailing; carried, thrown, it breaks free after Lift Time.
-// True: a leg grip (the lift and the throw aren't tried then).
-bool legCheck(int c, const TwoHands& t, const VrMove& move)
+// - One hand alone on a leg (`mask` that hand's bit; the other free, hanging on a ledge, holding a weapon: the author,
+//   2026-10-19): the leg pull only, that hand's velocity, at vr_foegrab_legpull_onehand times the speed (no lift).
+// The velocities are the controllers' own (gestureVel: in bullet time as at full speed). True: a leg grip (the lift and
+// the throw aren't tried then).
+bool legCheck(int c, edict_t* player, edict_t* m, const VrMove& move, int mask)
 {
     Holder& hd = holders[c];
-    edict_t* player = t.player;
-    edict_t* m = t.m;
     GrabDiag& g = grabDiag;
+    const bool both = mask == 3;
+    if(mask != hd.legMask)
+    {
+        hd.legMask = mask;
+        hd.legStroke = false;
+        hd.legLogged = false;
+        hd.legYawEnt = 0;
+    }
     if(vr_foegrab_leggrab.value == 0.f || !groupTakes(m, mgroups::Param::LegGrab))
     {
         legNote(c, vr_foegrab_leggrab.value == 0.f ? "Leg Grabs off" : "not a humanoid (its monster group's Leg Grabs off)");
         hd.legStroke = false;
         return false;
     }
-    LegPart parts[2];
+    LegPart parts[2]{LegPart::None, LegPart::None};
     const char* bones[2]{"", ""};
+    float weight = 1.f;
+    glm::vec3 vm{0.f}, mid{0.f};
+    int holding = 0;
     for(int h = 0; h < 2; h++)
     {
+        if(!(mask & (1 << h)))
+        {
+            bones[h] = "free"; // (the diagnostic's: that hand isn't on it)
+            continue;
+        }
         parts[h] = legPartAt(m, spotOf(hd.holds[h]), &bones[h]);
+        weight = za::min(weight, legWeight(parts[h]));
+        vm += gestureVel(move, h);
+        mid += trackedPalmOf(player, move, h);
+        holding++;
     }
-    const float weight = za::min(legWeight(parts[0]), legWeight(parts[1]));
+    vm /= static_cast<float>(za::max(holding, 1));
+    mid /= static_cast<float>(za::max(holding, 1));
+    if(!both && weight <= 0.f)
+    {
+        return false; // (one hand elsewhere on it: no leg grip, nothing to say)
+    }
     // Its feet in your hands, it can't turn on them: its yaw stays as it was when the leg grip began (the grab wakes its
     // AI, which would turn it to face you: pulled from its back, it then fell as if pulled from its front).
     if(weight <= 0.f)
@@ -1671,6 +1723,14 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
     else
     {
         m->v.angles[1] = hd.legYaw;
+    }
+    if(debug() && !hd.legLogged && !both)
+    {
+        hd.legLogged = true;
+        const int h = mask == 1 ? 0 : 1;
+        Con_Printf("foegrab: the %s hand alone on %s (%d)'s leg, on %s (%s): grip %.2f, one-hand pull x%.2f\n", handName(h),
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), bones[h][0] ? bones[h] : "-",
+            legPartName(static_cast<int>(parts[h])), weight, vr_foegrab_legpull_onehand.value);
     }
     if(debug() && !hd.legLogged)
     {
@@ -1688,12 +1748,12 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
     glm::vec3 you = vec(player->v.origin) - vec(m->v.origin);
     you.z = 0.f;
     you = glm::length(you) > 1e-3f ? glm::normalize(you) : -forwardFlat(player);
-    const glm::vec3 vmLevel{t.vm.x, t.vm.y, 0.f};
-    const float toward = glm::dot(vmLevel, you), level = glm::length(vmLevel), up = t.vm.z;
-    const float pullNeed = za::max(vr_foegrab_legpull_speed.value, 0.1f) * factor / za::max(weight, 0.05f);
+    const glm::vec3 vmLevel{vm.x, vm.y, 0.f};
+    const float toward = glm::dot(vmLevel, you), level = glm::length(vmLevel), up = vm.z;
+    const float pullNeed = za::max(vr_foegrab_legpull_speed.value, 0.1f) * factor / za::max(weight, 0.05f) *
+                           (both ? 1.f : za::max(vr_foegrab_legpull_onehand.value, 0.1f));
     const float liftNeed = za::max(vr_foegrab_leglift_speed.value, 0.1f) * factor / za::max(weight, 0.05f);
     // The pull's stroke: from where the hands were as they started coming towards you (at half its speed).
-    const glm::vec3 mid = 0.5f * (trackedPalmOf(player, move, 0) + trackedPalmOf(player, move, 1));
     if(toward < legStrokeShare * pullNeed || weight <= 0.f)
     {
         hd.legStroke = false;
@@ -1733,11 +1793,12 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         return false;
     }
     const double time = qcvm->time;
-    const bool lifting = up >= liftNeed && up >= level;
+    const bool lifting = both && up >= liftNeed && up >= level;
     const bool pulling = toward >= pullNeed && toward >= up && drawn >= za::max(vr_foegrab_legpull_distance.value, 0.f);
     if(!lifting && !pulling)
     {
-        legNote(c, up >= level && up > toward ? (up >= liftNeed ? "pull straighter up" : "lift faster") :
+        legNote(c, !both && up >= level && up > toward ? "one hand: pull towards you (the lift takes both)" :
+                   up >= level && up > toward ? (up >= liftNeed ? "pull straighter up" : "lift faster") :
                    toward < pullNeed                ? "pull towards you faster" :
                    toward < up                      ? "pull level" :
                                                       "pull further");
@@ -1759,8 +1820,9 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         const float result = qvr::foegrab::sweepDown(player, m, way, glm::radians(za::clamp(vr_foegrab_legpull_topple.value, 0.f, 2000.f)),
             za::clamp(vr_foegrab_legpull_feet.value, 0.f, 500.f), 0.f);
         legNote(c, result >= 1.f ? "pulled down" : "can't knock it down now");
-        legTry(c, m, "pull", result >= 2.f ? "dummy: would pull down" : result >= 1.f ? "PULLED DOWN" : "no: can't knock it down",
-            toward, pullNeed);
+        legTry(c, m, "pull",
+            result >= 2.f ? "dummy: would pull down" : result >= 1.f ? "PULLED DOWN" : "no: can't knock it down", toward,
+            pullNeed);
         if(result != 1.f)
         {
             return true;
@@ -1779,7 +1841,10 @@ bool legCheck(int c, const TwoHands& t, const VrMove& move)
         {
             for(int h = 0; h < 2; h++)
             {
-                release(player, h, Why::Thrown, "pulled down by the legs");
+                if(mask & (1 << h))
+                {
+                    release(player, h, Why::Thrown, "pulled down by the legs");
+                }
             }
         }
         return true;
@@ -2354,7 +2419,7 @@ void qvr::foegrab::serverFrame()
         if(moving > 0)
         {
             glm::vec3 step = handMove / static_cast<float>(moving) * (follow * hold);
-            const float most = followMaxSpeed * dt;
+            const float most = followMaxSpeed * gestureQuick() * dt;
             if(glm::length(step) > most)
             {
                 step *= most / glm::length(step);
@@ -2384,8 +2449,8 @@ void qvr::foegrab::serverFrame()
         {
             pull /= static_cast<float>(pulling);
             pull.z = 0.f;
-            glm::vec3 step = pull * (1.f - za::exp(-za::max(0.f, vr_foegrab_drag.value) * hold * dt));
-            const float most = za::max(0.f, vr_foegrab_drag_speed.value) * dt;
+            glm::vec3 step = pull * (1.f - za::exp(-za::max(0.f, vr_foegrab_drag.value) * hold * gestureQuick() * dt));
+            const float most = za::max(0.f, vr_foegrab_drag_speed.value) * gestureQuick() * dt;
             if(glm::length(step) > most)
             {
                 step *= most / glm::length(step);

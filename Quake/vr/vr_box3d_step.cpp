@@ -7,6 +7,8 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_decals.hpp"
+#include "vr_move.hpp"
+#include "vr_timescale.hpp"
 
 namespace box3d::detail
 {
@@ -779,6 +781,60 @@ void noteFallSpeeds(float dt)
 // vr_ragimpact_body of the rest of its body, plus vr_ragimpact_held_mass for a hand's (your arm's) driving it. Not a
 // loose weapon, nor a body staggering or getting up (its steps). The QC judges which bodies count and deals the damage
 // (callRagImpacts).
+// Dragged, not struck (vr_ragimpact_drag_speed; the author, 2026-10-19: "dragging an enemy by legs or arms while moving
+// with the thumbstick sometimes damages or kills it: dragging alone must not deal damage; only real blows, throws to
+// the ground, smashes against walls"): a body a hand holds strikes nothing while no hand holding it has swung (its own
+// move in the play space, VrHandMove::vel: not the walk, not the turn) at vr_ragimpact_drag_speed or faster within
+// dragWindow. Its parts bumping the floor, a step or a wall as you walk it along are no blows; a slam swung into a wall is.
+constexpr double dragWindow = 0.4; // s of the player's (in slow motion as long): a slam's swing counts this long after
+struct DragSwings
+{
+    double at[MAX_SCOREBOARD][2]{}; // when each player's hand last swung (the game's time; 0: never)
+};
+DragSwings dragSwings;
+
+void noteDragSwings()
+{
+    const float fast = za::max(vr_ragimpact_drag_speed.value, 0.f);
+    for(const World::RagdollGrab& g : world->ragdollGrabs)
+    {
+        if(g.player < 1 || g.player > za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)) || g.hand < 0 || g.hand > 1)
+        {
+            continue;
+        }
+        const qvr::VrMove* move = qvr::server::clientMove(EDICT_NUM(g.player));
+        if(move && glm::length(move->hands[g.hand].vel) >= fast)
+        {
+            dragSwings.at[g.player - 1][g.hand] = qcvm->time;
+        }
+    }
+}
+
+// Whether ragdoll `num` is held and only dragged now (no holding hand swung lately).
+[[nodiscard]] bool dragged(int num)
+{
+    if(vr_ragimpact_drag_speed.value <= 0.f)
+    {
+        return false;
+    }
+    bool held = false;
+    const double window = dragWindow * static_cast<double>(qvr::timescale::current());
+    for(const World::RagdollGrab& g : world->ragdollGrabs)
+    {
+        if(g.num != num || g.player < 1 || g.player > static_cast<int>(MAX_SCOREBOARD) || g.hand < 0 || g.hand > 1)
+        {
+            continue;
+        }
+        held = true;
+        const double at = dragSwings.at[g.player - 1][g.hand];
+        if(at > 0.0 && qcvm->time - at <= window && qcvm->time >= at)
+        {
+            return false;
+        }
+    }
+    return held;
+}
+
 void noteRagImpacts(const b3ContactEvents& events)
 {
     const float least = za::max(vr_ragimpact_min_speed.value, 0.5f);
@@ -787,6 +843,7 @@ void noteRagImpacts(const b3ContactEvents& events)
     {
         return;
     }
+    noteDragSwings();
     const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
     for(int i = 0; i < events.hitCount; i++)
     {
@@ -836,7 +893,19 @@ void noteRagImpacts(const b3ContactEvents& events)
             {
                 continue;
             }
-            const Impact hit{a, world->toU(e.point), speed, e.approachSpeed, mass, partMass, r.bodyMass, held, part};
+            if(dragged(a))
+            {
+                if(vr_knockdown_debug.value >= 2.f)
+                {
+                    Con_Printf("ragdoll impact: %d %s at %.1f m/s%s: dragged, no blow (no hand swung at %.1f m/s)\n", a,
+                        PR_GetString(EDICT_NUM(a)->v.classname), speed, held ? ", held" : "", vr_ragimpact_drag_speed.value);
+                }
+                continue;
+            }
+            // (The normal points from shape A to shape B: from the part into the level when the part is A.)
+            const glm::vec3 n{static_cast<float>(e.normal.x), static_cast<float>(e.normal.y), static_cast<float>(e.normal.z)};
+            const Impact hit{a, world->toU(e.point), speed, e.approachSpeed, mass, partMass, r.bodyMass, held, part,
+                side ? n : -n};
             auto it = za::findIf(world->ragImpacts.begin(), world->ragImpacts.end(),
                 [a, part](const Impact& s) { return s.num == a && s.part == part; });
             if(it == world->ragImpacts.end())
@@ -1056,6 +1125,9 @@ void callRagImpacts()
         G_FLOAT(OFS_PARM3) = hit.mass;
         G_FLOAT(OFS_PARM4) = hit.raw;
         G_FLOAT(OFS_PARM5) = hit.held ? 1.f : 0.f;
+        G_FLOAT(OFS_PARM6 + 0) = hit.into.x;
+        G_FLOAT(OFS_PARM6 + 1) = hit.into.y;
+        G_FLOAT(OFS_PARM6 + 2) = hit.into.z;
         PR_ExecuteProgram(fn);
     }
     world->ragImpacts.clear();

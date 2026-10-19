@@ -684,6 +684,7 @@ float cvarh_vr_ragimpact;
 float cvarh_vr_ragimpact_damage;
 float cvarh_vr_ragimpact_min_speed;
 float cvarh_vr_ragimpact_held_speed;
+float cvarh_vr_ragimpact_dent;
 float cvarh_vr_ragimpact_head;
 float cvarh_vr_ragimpact_piece_hp;
 float cvarh_vr_ragimpact_time;
@@ -1640,6 +1641,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_ragimpact_damage);
     VR_CVAR_HMAKE(vr_ragimpact_min_speed);
     VR_CVAR_HMAKE(vr_ragimpact_held_speed);
+    VR_CVAR_HMAKE(vr_ragimpact_dent);
     VR_CVAR_HMAKE(vr_ragimpact_head);
     VR_CVAR_HMAKE(vr_ragimpact_piece_hp);
     VR_CVAR_HMAKE(vr_ragimpact_time);
