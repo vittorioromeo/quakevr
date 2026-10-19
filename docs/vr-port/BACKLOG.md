@@ -63,6 +63,11 @@ holds on, each foot finds a ledge's, a rung's or the floor's top, else a spot on
 and hangs when there is none (VR Settings > Body: Climbing Footholds, Foothold Reach, Foothold Step Speed). Awaiting his
 VR check.
 
+### Fold vr_struggle_classes into the monster groups (author, 2026-10-19)
+
+The struggle classes list should become a per-group setting like the lift, neck snap and throw lists did
+(ROUND22.md, "Monster groups"); then retire `vr_struggle_classes`.
+
 ### Repository chores
 
 ## To manually revisit (author unsure)

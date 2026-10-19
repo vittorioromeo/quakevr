@@ -2819,7 +2819,7 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
 // pull and lift, _lift the lift, _necksnap the neck snap, _manhandle grabbing it staggered or weak (each 1 on, 0 never),
 // _throw the two-hand throw (0 never, 1 only when hurt, 2 always; vr_foegrab_throw_by_mass 1: by its mass instead),
 // _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind) \
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs) \
     QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
     QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
@@ -2830,10 +2830,10 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_blow, "1", CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_blast, "1", CVAR_ARCHIVE) \
     QVR_CVAR(vr_knockdown_chance_##g, #shove, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_push, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_push, #push, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_stagger, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_sweep, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_leggrab, #humanoid, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_sweep, #legs, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_leggrab, #legs, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_lift, #humanoid, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_necksnap, #humanoid, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
@@ -3068,7 +3068,7 @@ QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling gr
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
 QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast on the live monster nearest you; 20 a grunt at vr_kdtrig_test_x _y _z; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
 QVR_CVAR(vr_kdtrig_test_damage, "0", CVAR_NONE)      // the test hits' damage instead of their own (0: their own)
-QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre
+QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord (a boss)
 QVR_CVAR(vr_kdtrig_test_n, "20", CVAR_NONE)           // the trials of vr_kdtrig_test 30 + k
 QVR_CVAR(vr_kdtrig_test_health, "0", CVAR_NONE)       // the test grunt's health (0: its own; 0..1: that share of its full health)
 QVR_CVAR(vr_kdtrig_test_x, "0", CVAR_NONE)            // where vr_kdtrig_test 20 and the trials put a grunt (units; on the floor under it)

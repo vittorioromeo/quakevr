@@ -14267,8 +14267,15 @@ sharing one group's settings.
   `developer 1`, its lines are dprints): ledge 20, blast 30 20, blunt blow 45 7, super shotgun at 600 0. Menu paths
   (vrcalibration): 0 missing; vr_menu_search builds every Monster Groups page. eval.sh --full 168/177 (the same 4
   numeric differences, verdicts unchanged).
-- **Open questions** (the current behaviour kept): see the report (bosses' push, the bog lord, Freddie, the seeker, the
-  skull wizard, the justice knight, the demon dog, Honey's spear knight, the AD crawlers' and giants' groups).
+- **Decided (the author, 2026-10-19)**: Bosses' Shove Push 0 (no shove, bash or unbalancing hit moves a boss); AD's bog lord
+  and Quoth's gug moved from Giants to Bosses; Machines' shove knockdown 0 (all six members: centroid, seeker/juggernaut,
+  Floyd, sweeper, ball turret; none relied on the 0.3 but they have no get-up of their own anyway); Skull Wizards' Leg
+  Sweep and Leg Grabs off (the robe has no legs; lift, neck snap and manhandle stay). Kept: Freddie/Edie in Ogres, the
+  justice knight in Death Knights, the demon dog in Rottweilers, Honey's spear knight in Bosses, crawlers no sweep or
+  throw, fiends/vores/spawns/dogs no sweep or lift, the 1000-health boss gate. vr_mgroups.inc gains `push` and `legs`
+  columns for these defaults. Config version 164 moves only users still on the old defaults (`vr_mgrp_boss_push`,
+  `vr_knockdown_chance_machine`, `vr_mgrp_skullwiz_sweep`/`_leggrab`). Later: fold `vr_struggle_classes` into the groups
+  (BACKLOG).
 - **For VR:** Combat > Monster Groups: open a group, set Shove Knockdown to 0 and shove one (it stays up), Shove Push
   to 0 (it stands its ground); Lift off for Grunts (no lift); AD's soldiers now go over with the two-hand throw.
 ## Box3D updated to upstream efca0c18 (worktree `dequant`, branch `agent/box3dup`, 2026-10-19)

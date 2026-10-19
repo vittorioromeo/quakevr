@@ -535,11 +535,17 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     {
         m.angles = '0 1 0' * (cvar("vr_kdtrig_test_yaw") + 180);
     }
-    float k = cvar("vr_kdtrig_test_class"); // (0 a grunt, 3 a death knight, 4 an ogre)
+    float k = cvar("vr_kdtrig_test_class"); // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss)
     if(k == 3)
     {
         m.classname = "monster_hell_knight";
         monster_hell_knight();
+    }
+    else if(k == 5)
+    {
+        m.classname = "monster_army"; // (a grunt named for a boss: the group is by classname)
+        monster_army();
+        m.classname = "monster_boglord";
     }
     else if(k == 4)
     {

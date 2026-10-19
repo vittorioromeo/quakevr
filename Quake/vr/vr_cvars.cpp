@@ -314,8 +314,13 @@ const DefaultChange defaultChanges[] = {
     {162, &vr_adgun_crossbow_damage, "15"},          // 30
     // 163: a projectile's kill pops a head or limb less often (his notes of 2026-10-19).
     {163, &vr_decap_pop_projectile, "0.85"}, // 0.5
+    // 164: monster groups: bosses can't be shoved, machines aren't knocked down by shoves, a skull wizard has no legs.
+    {164, &vr_mgrp_boss_push, "0"},           // 1
+    {164, &vr_knockdown_chance_machine, "0"}, // 0.3
+    {164, &vr_mgrp_skullwiz_sweep, "0"},      // 1
+    {164, &vr_mgrp_skullwiz_leggrab, "0"},    // 1
 };
-constexpr int configVersion = 163;
+constexpr int configVersion = 164;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

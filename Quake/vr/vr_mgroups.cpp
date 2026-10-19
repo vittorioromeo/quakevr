@@ -64,9 +64,8 @@ constexpr Member memberTable[] = {
     // AD's spiders, scorpion, steel claw, swampling and voreling (the vore's voreling pool).
     {"monster_spider", crawlerGroup}, {"monster_scorpion", crawlerGroup}, {"monster_steelclaw", crawlerGroup},
     {"monster_swampling", crawlerGroup}, {"monster_voreling", crawlerGroup}, {"monster_shalrathminion", crawlerGroup},
-    // AD's big walkers: the minotaur, the drole, the stone golem, the bog lord (Quoth's gug).
+    // AD's big walkers: the minotaur, the drole, the stone golem.
     {"monster_minotaur", giantGroup}, {"monster_drole", giantGroup}, {"monster_golem", giantGroup},
-    {"monster_boglord", giantGroup}, {"monster_gug", giantGroup},
     // Scrags (id's, AD's, Nour's minions) and AD's gargoyle (the minotaur's minions) and gaunt (the judicator's, Quoth's
     // polyp).
     {"monster_wizard", wizardGroup}, {"monster_nourminion", wizardGroup}, {"monster_gargoyle", wizardGroup},
@@ -89,7 +88,7 @@ constexpr Member memberTable[] = {
     {"monster_scourge", machineGroup}, {"monster_seeker", machineGroup}, {"monster_juggernaut", machineGroup},
     {"monster_floyd", machineGroup}, {"monster_sweeper", machineGroup}, {"monster_turretbal", machineGroup},
     // Bosses: Chthon and Shub (id's, Dawn of the Machine's, AD's), Armagon, the dragon, Hephaestus (the lava man; Dawn of
-    // the Machine's too), the morph, Honey's spear knight; AD's eidolon, fire top, ice golem, judicator, mammoth, Nour
+    // the Machine's too), the morph, Honey's spear knight, the bog lord (Quoth's gug); AD's eidolon, fire top, ice golem, judicator, mammoth, Nour
     // (Quoth's vermis), demon prince.
     {"monster_boss", bossGroup}, {"monster_boss_final", bossGroup}, {"monster_chthon", bossGroup},
     {"monster_oldone", bossGroup}, {"monster_oldone_new", bossGroup}, {"monster_shub", bossGroup},
@@ -99,7 +98,7 @@ constexpr Member memberTable[] = {
     {"monster_eidolon_wavetrig", bossGroup}, {"monster_firetopboss", bossGroup}, {"monster_icegolem", bossGroup},
     {"monster_icegolem_wavetrig", bossGroup}, {"monster_judicator", bossGroup}, {"monster_mammoth", bossGroup},
     {"monster_nour", bossGroup}, {"monster_nouronihar", bossGroup}, {"monster_vermis", bossGroup},
-    {"monster_dprince", bossGroup}, {"monster_vomit", bossGroup}, // (Dissolution of Eternity's Vomitus: cut, named still)
+    {"monster_dprince", bossGroup}, {"monster_boglord", bossGroup}, {"monster_gug", bossGroup}, {"monster_vomit", bossGroup}, // (Dissolution of Eternity's Vomitus: cut, named still)
     // Others: AD's Christmas ones, Scourge of Armagon's decoy (a player's double), AD's fade.
     {"monster_xmas_elf", otherGroup}, {"monster_xmas_raindeer", otherGroup}, {"monster_xmas_santa", otherGroup},
     {"monster_santa", otherGroup}, {"monster_xmas_snowman", otherGroup}, {"monster_snowman", otherGroup},
