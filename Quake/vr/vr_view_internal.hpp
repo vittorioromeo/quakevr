@@ -55,6 +55,7 @@
 #include "vr_shells.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_fireparticles.hpp"
+#include "vr_flamewobble.hpp"
 #include "vr_shock.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_comfortfade.hpp"

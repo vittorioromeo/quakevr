@@ -2018,6 +2018,31 @@ int fireSource(const glm::vec3& at, float sourceScale)
     return static_cast<int>(pool.size() - before);
 }
 
+void gust(const glm::vec3& at, float radius, const glm::vec3& vel, float dt)
+{
+    constexpr float rate = 10.f; // a second: how fast the air takes a particle at the hand along
+    if(radius <= 0.f || dt <= 0.f || pool.empty())
+    {
+        return;
+    }
+    const float r2 = radius * radius;
+    for(Particle& p : pool)
+    {
+        if(p.cell != CellFire && p.cell != CellSmoke)
+        {
+            continue;
+        }
+        const glm::vec3 d = p.org - at;
+        const float d2 = glm::dot(d, d);
+        if(d2 >= r2)
+        {
+            continue;
+        }
+        const float w = 1.f - za::sqrt(d2) / radius;
+        p.vel += (vel - p.vel) * za::min(1.f, rate * w * w * dt);
+    }
+}
+
 // Incandescent physical chunks leave short flame tongues and slower, lingering smoke.
 void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size, float heat)
 {

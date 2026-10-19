@@ -246,6 +246,9 @@ za::Vector<Item> pageDebugLogging()
             .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
                   "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "
                   "and the cord's hole drawn. The engine and cut lines need Developer Messages."),
+        cycle("Flame Wobble", vr_debug_flame_wobble, {{0.f, "Off"}, {1.f, "Each Push"}, {2.f, "And Every Frame's Lean"}})
+            .help("Flames stirred by a fast hand (Graphics > Fire Model Particles > Flames in the Air): each push (the "
+                  "flame, the hand, how near and fast); And Every Frame's Lean: each swinging flame's lean every frame."),
         cycle("Wall Buttons", vr_debug_wallbuttons, {{0.f, "Off"}, {1.f, "Each Press"}, {2.f, "And Weapon Lines"}})
             .help("Each button pressed: what pressed it and how (a hand, a held weapon and its line, a thrown thing and "
                   "its speed, stepped on), and where the hand was: how far from the button and from you (a far one is a "
@@ -858,6 +861,13 @@ za::Vector<Item> pageDebugReports()
         command("Torch Lights", "vr_torch_lights_list")
             .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
                   "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),
+        command("Flame Wobble", "vr_flame_wobble_info")
+            .help("vr_flame_wobble_info: the hands' speeds, the flames swinging now (their lean and the most since the "
+                  "last time), the nearest flame model and torch fire to you (where to sweep a hand)."),
+        command("Chainsaw Cord Hint", "vr_chainsaw_cord_info")
+            .help("vr_chainsaw_cord_info: whether you have pulled a chainsaw's cord yet (Combat > Enemy Weapons > "
+                  "Chainsaw Engine > Cord Hint), the handle's dangle now and the most since the last time. "
+                  "vr_chainsaw_cord_pulled 0|1 sets it, as a pull does."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
         command("Distortion Trails", "vr_bullettime_trails_list")
             .help("vr_bullettime_trails_list: each distortion trail (its kind, places, head, age), their strength now and "

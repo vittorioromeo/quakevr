@@ -3,6 +3,7 @@
 #include "vr_adtank.hpp"
 
 #include "vr_adguns.hpp"
+#include "vr_flamewobble.hpp"
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
@@ -81,6 +82,8 @@ Pilot pilots[2];
 constexpr float pilotRate = 34.f; // particles a second: about 3 in 4 small yellow tongues, the rest blue at the tip; a spark
 
 // Visual randomness (no sequence that matters): 0..1.
+constexpr float pilotHeight = 3.f; // units: its flames' height (vr_flamewobble.cpp's reach round them)
+constexpr float pilotStir = 40.f;  // units/s its flames drift a unit of a stirring hand's lean
 unsigned pilotSeed = 0x9E3779B9u;
 [[nodiscard]] float pilotRandom()
 {
@@ -113,6 +116,9 @@ void pilotFlames(int i, const view::ViewEntity* ve)
         return;
     }
     const glm::vec3 fwd = glm::normalize(ahead);
+    // Stirred by the other hand passing it fast (vr_flamewobble.cpp): its flames carried the way the air went.
+    const glm::vec2 lean = flamewobble::source(0x30000u + static_cast<unsigned>(i), tip, pilotHeight, i);
+    const glm::vec3 stir = glm::vec3{lean, 0.f} * pilotStir;
     p.owed += dt * pilotRate;
     const glm::vec3 blue{0.42f, 0.62f, 1.f}, yellow{1.f, 0.86f, 0.32f};
     while(p.owed >= 1.f)
@@ -123,15 +129,15 @@ void pilotFlames(int i, const view::ViewEntity* ve)
         const glm::vec3 wobble{pilotRandom() - 0.5f, pilotRandom() - 0.5f, pilotRandom() - 0.5f};
         if(r < 0.08f)
         {
-            particles::hotTrail(tip, fwd * 30.f + wobble * 30.f + glm::vec3{0.f, 0.f, 12.f}, yellow, 0.8f, 0.3f, true);
+            particles::hotTrail(tip, fwd * 30.f + wobble * 30.f + glm::vec3{0.f, 0.f, 12.f} + stir, yellow, 0.8f, 0.3f, true);
         }
         else if(r < 0.32f)
         {
-            particles::hotTrail(tip + fwd * 0.2f, fwd * 4.f + wobble * 2.f, blue, 0.45f, 0.12f, false);
+            particles::hotTrail(tip + fwd * 0.2f, fwd * 4.f + wobble * 2.f + stir, blue, 0.45f, 0.12f, false);
         }
         else
         {
-            particles::hotTrail(tip + fwd * 0.5f, fwd * 9.f + wobble * 4.f + glm::vec3{0.f, 0.f, 5.f}, yellow, 0.5f, 0.2f, false);
+            particles::hotTrail(tip + fwd * 0.5f, fwd * 9.f + wobble * 4.f + glm::vec3{0.f, 0.f, 5.f} + stir, yellow, 0.5f, 0.2f, false);
         }
     }
 }

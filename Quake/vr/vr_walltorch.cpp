@@ -16,6 +16,7 @@
 #include "vr_profile.hpp"
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
+#include "vr_flamewobble.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "vr_progs.hpp"
 #include "vr_selfcollide.hpp"
@@ -178,8 +179,10 @@ void findModels()
     return t * t * (3.f - 2.f * t);
 }
 
-// The flame of a stick at `origin` turned `axes` (its +x the head), its head going `vel`, `s` big (hung: on its wall).
-[[nodiscard]] Flame flameOf(const glm::vec3& origin, const glm::mat3& axes, const glm::vec3& vel, float s, bool hung)
+// The flame of a stick at `origin` turned `axes` (its +x the head), its head going `vel`, `s` big (hung: on its wall),
+// stirred by a hand passing it (`stir`: vr_flamewobble.cpp's lean, sideways units a unit up).
+[[nodiscard]] Flame flameOf(const glm::vec3& origin, const glm::mat3& axes, const glm::vec3& vel, float s, bool hung,
+    const glm::vec2& stir = glm::vec2{0.f})
 {
     Flame f;
     const glm::vec3 along = axes[0];
@@ -199,7 +202,7 @@ void findModels()
         lean *= most / l;
     }
     const glm::vec3 baseUp{0.f, 0.f, 1.f}; // gravity, regardless of the stick's orientation
-    const glm::vec3 leaned = baseUp + lean * (1.f - f.inv);
+    const glm::vec3 leaned = baseUp + lean * (1.f - f.inv) + glm::vec3{stir, 0.f};
     f.up = glm::length(leaned) > 1e-4f ? glm::normalize(leaned) : baseUp;
     f.k = glm::vec3{1.f + 0.5f * flat, 1.f - 0.08f * flat, 1.f - 0.4f * flat};
 
@@ -696,7 +699,14 @@ extern "C" void VR_WallTorchFlames(void)
         t.time = hung ? -1.0 : now;
 
         const int holdHand = heldBy[1] == i ? 1 : heldBy[0] == i ? 0 : -1;
-        const Flame f = flameOf(origin, axes, t.vel, hung ? 1.f : size * za::pow(t.level, 0.6f), hung);
+        const float flameSize = hung ? 1.f : size * za::pow(t.level, 0.6f);
+        Flame f = flameOf(origin, axes, t.vel, flameSize, hung);
+        // Stirred by a fast hand passing it (vr_flamewobble.cpp; not the hand holding it: its swing leans it already).
+        if(const glm::vec2 stir = flamewobble::source(0x20000u + static_cast<unsigned>(i), f.foot, f.height, holdHand);
+            stir != glm::vec2{0.f})
+        {
+            f = flameOf(origin, axes, t.vel, flameSize, hung, stir);
+        }
         t.fire = f.foot + f.up * ((fireLight - fireBase) * f.s * f.k.z);
         t.light = t.level * glm::mix(1.f, za::max(0.f, vr_walltorch_inv_light.value), f.inv);
 

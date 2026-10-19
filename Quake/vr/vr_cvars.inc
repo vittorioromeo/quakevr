@@ -1822,6 +1822,12 @@ QVR_CVAR(vr_fire_particles_life_max, "0.65", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_size, "2.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_alpha, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_range, "1216", CVAR_ARCHIVE)
+// Flames stirred by a hand passing them fast (vr_flamewobble.cpp; Graphics > Fire Model Particles > Flames in the Air):
+// they lean the hand's way, swing back a little and settle; the fire and smoke particles near it are carried along.
+QVR_CVAR(vr_flame_wobble, "1", CVAR_ARCHIVE)          // 1: on
+QVR_CVAR(vr_flame_wobble_strength, "1", CVAR_ARCHIVE) // how far they lean (0..4; 0 none)
+QVR_CVAR(vr_flame_wobble_speed, "1", CVAR_ARCHIVE)    // m/s a hand must move at to stir them (slower, nothing)
+QVR_CVAR(vr_debug_flame_wobble, "0", CVAR_NONE)       // 1: print each push (the flame, the hand, how near, how fast); 2: also every swinging flame's lean every frame
 
 // Explosion chunks (vr_explosiondebris.cpp): the server's Box3D props (count, speeds, sizes, lives, bounce, max: the
 // server's settings), their trail and glow the client's; harmless, bounded.
@@ -2447,6 +2453,9 @@ QVR_CVAR(vr_chainsaw_pull_shake_time, "0.35", CVAR_ARCHIVE) // seconds it shakes
 QVR_CVAR(vr_chainsaw_pull_smoke, "12", CVAR_ARCHIVE)      // puffs of exhaust smoke at the pull (as Smoke's; 0: none)
 QVR_CVAR(vr_chainsaw_pull_sparks, "24", CVAR_ARCHIVE)     // tiny sparks out of the exhaust at the pull (0: none)
 QVR_CVAR(vr_chainsaw_model_handle, "1", CVAR_ARCHIVE)    // the cord's handle in the fist is the model's own, the one seated on the saw (v_chainsaw.mdl frame 10; NOTES.md vrfiringrange_2026-10-02_01-42-48); 0: a plain tube
+// The cord's hint (Vittorio, 2026-10-19: a player never found that the chainsaw starts by its cord): its handle, seated,
+// dangles 1-2 cm about its seat, swung by the hand's motion and swaying a little at rest (vr_chainsaw.cpp).
+QVR_CVAR(vr_chainsaw_cord_hint, "1", CVAR_ARCHIVE)       // 0: never; 1: until you first pull a cord (remembered by the game, its saves and levels); 2: always
 QVR_CVAR(vr_gruntgun_damage, "6", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_gruntgun_ammo, "30", CVAR_ARCHIVE)       // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too

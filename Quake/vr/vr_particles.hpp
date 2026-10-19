@@ -107,6 +107,9 @@ void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float 
 // Exact burst of additional fire particles for a flame-model source.
 int largeExplosionCount(); // diagnostic: live large textured blast fireballs
 int fireSource(const glm::vec3& at, float sourceScale);
+// The air a fast hand moves (vr_flamewobble.cpp): the fire and smoke particles within `radius` units of `at` carried
+// towards going `vel` (units/s), the nearer the more, over `dt` seconds.
+void gust(const glm::vec3& at, float radius, const glm::vec3& vel, float dt);
 
 // Fiery/smoky trail of an incandescent physical explosion chunk; size in world units, heat 0..1.
 void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size, float heat);

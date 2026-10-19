@@ -855,6 +855,10 @@
         toggle("Model Handle in the Hand", vr_chainsaw_model_handle)
             .help("The cord's handle in your fist is the chainsaw model's own, the one seated on it, easing from its seat "
                   "into the fist's turn as you take it. Off: a plain round handle."),
+        cycle("Cord Hint", vr_chainsaw_cord_hint, {{0.f, "Off"}, {1.f, "Until the First Pull"}, {2.f, "Always"}})
+            .help("The cord's handle on a chainsaw in your hand dangles a little about its seat, swung by your hand's "
+                  "motion, a hint that the engine starts by pulling it. Until the First Pull: still once you have "
+                  "pulled a cord (remembered by your game, its saves and the next levels)."),
     };
 }
 

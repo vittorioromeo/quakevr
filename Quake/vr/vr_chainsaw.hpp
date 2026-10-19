@@ -43,6 +43,11 @@ void drawOpaque();
 // frame (drawOpaque draws a plain tube then).
 [[nodiscard]] bool handleEntity(const view::ViewEntity*& saw, glm::vec3& origin, glm::vec3& angles, int& frame);
 
+// The cord's hint (vr_chainsaw_cord_hint): the chainsaw in `hand` drawn without its seated handle this frame (the handle
+// dangles about its seat, drawn by handleEntity): the frame to draw it with. False otherwise (the server's frame stands).
+// vr_chainsaw_cord_info prints it; vr_chainsaw_cord_pulled 0|1 sets whether a cord has been pulled (as a pull does).
+[[nodiscard]] bool handleOff(int hand, int& frame);
+
 // The grip of `hand` pressed or released (vr_input.cpp): true when the cord takes it (the game does not see it). A press
 // it takes, it also takes the release of.
 [[nodiscard]] bool grip(int hand, bool pressed);
