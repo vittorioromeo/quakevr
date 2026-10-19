@@ -866,6 +866,28 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_SetState (opaque_state | GLS_NO_ZWRITE);
 		VR_GPUZoneEnd ();
 	}
+	if (translucent && !aliasdepth && !showtris && VR_AliasSolidGhost (ibuf.ent))
+	{ // QVR: a Ghost Hands hand as one solid translucent object: its nearest surface's depth first (colour off, back faces
+	  // culled), then the blend below passes the depth test on that surface only, so the fingers behind the palm and the
+	  // far side stay hidden
+		VR_GPUZoneBegin ("ghost depth prepass");
+		GL_UseProgram (glprogs.alias_depth[poseverttype]);
+		VR_AliasShadowClip ();
+		GL_SetState (opaque_state);
+		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		for (hdr = VR_AliasSurfaceFirst (ibuf.ent, mainhdr); hdr; hdr = VR_AliasSurfaceNext (ibuf.ent, mainhdr, hdr))
+		{
+			skinnum = ibuf.ent->skinnum;
+			if ((skinnum >= hdr->numskins) || (skinnum < 0)) skinnum = 0;
+			if (!hdr->gltextures[skinnum][anim])
+				continue;
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount);
+		}
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
+		GL_SetState ((state | GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE) & ~GLS_CULL_BACK);
+		VR_GPUZoneEnd ();
+	}
 	if (!notex)
 		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)

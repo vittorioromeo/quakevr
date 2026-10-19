@@ -1108,8 +1108,10 @@ QVR_CVAR(vr_ghost_hands_which, "0", CVAR_ARCHIVE)          // 0 both hands, 1 th
 QVR_CVAR(vr_ghost_hands_alpha, "0.35", CVAR_ARCHIVE)       // their opacity (0..1)
 QVR_CVAR(vr_ghost_hands_lightness, "1.6", CVAR_ARCHIVE)    // times the light on them (brighter: stands out from the drawn hand)
 QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own colours .. 1 a cold blue
-QVR_CVAR(vr_ghost_hands_fade_from, "2", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
-QVR_CVAR(vr_ghost_hands_fade_range, "4", CVAR_ARCHIVE)     // cm: and it fades in over this much further
+QVR_CVAR(vr_ghost_hands_fade_from, "6", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
+QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
+QVR_CVAR(vr_ghost_hands_solid, "1", CVAR_ARCHIVE)          // 1 each ghost hand is one solid translucent object (its nearest surface only), 0 every face blended
+QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_heavy_droop, "1", CVAR_ARCHIVE)               // 1: heavy weapons droop held in one hand
 QVR_CVAR(vr_heavy_droop_deg, "9", CVAR_ARCHIVE)            // degrees the barrel (head) sags at Heft 1 in one hand (times the weapon's Droop x)
