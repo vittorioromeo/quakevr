@@ -32,6 +32,7 @@
 
 // Shoved (vr_ragdoll_active_stagger): staggering as a ragdoll (the engine's; VR_Knockdown_Try), not yet down nor up.
 .float vr_kd_stagger;
+.float vr_kd_parry;   // its stagger a parry's (vr_kdtrig.qc VR_Parry_Ragdoll): its recovery ends the parry's
 .float vr_kd_due;  // when its own timer runs out (vr_kd_until as it went down, before anything kept it down)
 .float vr_kd_rise; // its timer ran out: its get-up begun (nothing keeps it down from then)
 
@@ -399,6 +400,15 @@ void() VR_Knockdown_Think =
         }
         if(st == 2)
         {
+            if(self.vr_kd_parry) // (a parry's: VR_Parry_Ragdoll, as VR_Parry_Recover ends the pose's)
+            {
+                self.vr_kd_parry = 0;
+                self.vr_parry_stagger_until = 0;
+                self.vr_melee_begun = 0;
+                self.attack_state = AS_STRAIGHT;
+                dprint(sprintf("parry interrupt: %s recovered (a ragdoll's stagger, %.2f s)\n", self.classname,
+                    time - self.vr_kd_since));
+            }
             VR_Knockdown_Afoot("recovers from its stagger");
             return;
         }
@@ -416,6 +426,12 @@ void() VR_Knockdown_Think =
             return;
         }
         self.vr_kd_stagger = 0;
+        if(self.vr_kd_parry)
+        {
+            self.vr_kd_parry = 0;
+            dprint(sprintf("parry interrupt: %s went down from a ragdoll's stagger after %.2f s\n", self.classname,
+                time - self.vr_kd_since));
+        }
         float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min));
         float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max));
         self.vr_kd_since = time;
@@ -524,6 +540,7 @@ float(entity e) VR_Knockdown_Start =
     }
     e.vr_shove = world;
     e.vr_kd_stagger = 0;
+    e.vr_kd_parry = 0;
     e.vr_kd_mins = e.mins;
     e.vr_kd_maxs = e.maxs;
     e.vr_kd_movetype = e.movetype;

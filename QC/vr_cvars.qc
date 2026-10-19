@@ -200,6 +200,7 @@ float cvarh_vr_pickup_prop_models;
 float cvarh_vr_headshot_sound;
 float cvarh_vr_parry;
 float cvarh_vr_parry_stagger;
+float cvarh_vr_parry_ragdoll;
 float cvarh_vr_parry_stagger_frames;
 float cvarh_vr_parry_stagger_sway;
 float cvarh_vr_carry;
@@ -1155,6 +1156,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_headshot_sound);
     VR_CVAR_HMAKE(vr_parry);
     VR_CVAR_HMAKE(vr_parry_stagger);
+    VR_CVAR_HMAKE(vr_parry_ragdoll);
     VR_CVAR_HMAKE(vr_parry_stagger_frames);
     VR_CVAR_HMAKE(vr_parry_stagger_sway);
     VR_CVAR_HMAKE(vr_carry);

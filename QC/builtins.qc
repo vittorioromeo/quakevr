@@ -327,7 +327,9 @@ float(entity e, float begin) ragdolldrown = #0;
 // (vr_ragdoll_active_guard; vr_hitreact.qc VR_Guard_Raise): its arms up before its face for `hold` s. 0: it can't (not
 // one of the kinds driven alive, Active Deaths off).
 float(entity e, vector at, float hold) ragdollguard = #0;
-float(entity e, vector dir, float push, float balance, float reach) ragdollstagger = #0;
+// (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
+// it never goes over by itself, level ground.)
+float(entity e, vector dir, float push, float balance, float reach, optional float recover, optional float sure) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;

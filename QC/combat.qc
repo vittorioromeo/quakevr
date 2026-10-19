@@ -2160,6 +2160,7 @@ void() VR_Parry_Recover =
 // The dragon must close its attack scheduler without losing its flight route (rogue_dragon.qc).
 void() VR_Dragon_ParryInterrupt;
 
+float(entity m, entity p, float xHold) VR_Parry_Ragdoll; // (vr_kdtrig.qc)
 void(entity m, entity p) VR_Parry_Interrupt =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
@@ -2180,6 +2181,14 @@ void(entity m, entity p) VR_Parry_Interrupt =
     {
         m.touch = SUB_Null;
         m.movetype = MOVETYPE_STEP;
+    }
+    // A humanoid staggers back as an active ragdoll instead (vr_parry_ragdoll; vr_kdtrig.qc VR_Parry_Ragdoll): the same
+    // time, never down on level ground; the knockdown's think owns it till it is up.
+    if(m.classname != "monster_dragon" && VR_Parry_Ragdoll(m, p, stagger))
+    {
+        self = oldSelf;
+        dprint(sprintf("parry interrupt: %s staggered %.2f s (an active ragdoll)\n", m.classname, stagger));
+        return;
     }
     // A high pain amount bypasses random flinch thresholds without dealing damage. The spawn's pain can
     // split it (mitosis), and the Guardian's can teleport it: leave their poses alone. An attack still stops

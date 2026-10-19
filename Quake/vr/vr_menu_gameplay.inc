@@ -1250,6 +1250,8 @@
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
         slider("Parry Stagger", vr_parry_stagger, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.1f, 3.f)
             .help("How long the monster pauses after a successful parry before it can move and attack again."),
+        toggle("Parry Stagger as Ragdoll", vr_parry_ragdoll).extend()
+            .help("A parried humanoid (its monster group's Ragdoll Triggers on: Combat > Monster Groups) staggers back as an active ragdoll, as a shove's stagger, for Parry Stagger; on level ground it never falls, with stairs, a ledge or a slope behind it it may go down. Off: its pain animation's stagger (Stagger Frames, Stagger Sway)."),
         slider("Stagger Frames", vr_parry_stagger_frames, 1.f, 4.f, 1.f, "%.0f")
             .help("How many frames of its pain animation a parried monster steps through (a tenth of a second each), "
                   "then rocks back and forth over the last two until it recovers. 1: it holds its first pain pose."),

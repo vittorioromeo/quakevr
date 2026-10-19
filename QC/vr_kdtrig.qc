@@ -329,6 +329,89 @@ float(entity e, float i, float xPush) VR_KdTrig_Down =
     return TRUE;
 };
 
+// A parry's stagger as an active ragdoll (vr_parry_ragdoll; ROUND22.md, "Parried enemies stagger as ragdolls"; the
+// author: the parried pain pose's stagger looked unnatural). `m`, parried by `p` (VR_Parry_Interrupt, combat.qc), a
+// humanoid whose monster group takes the ragdoll triggers (Combat > Monster Groups) staggers back as a shove's stagger
+// (ragdollstagger) for xHold s (vr_parry_stagger: the same recovery as the pose's), then is on its feet, fighting. On
+// level ground it never goes over (sure-footed: a small push, a step back); with a step down, stairs or a ledge behind
+// it, or on a slope down away from you (the ragdoll triggers' looks: VR_KdTrig_Behind, VR_KdTrig_Match) it is pushed that
+// way, its balance by chance (VR_PARRY_RAG_BALANCE ..), and may go down (a knockdown, getting up as any). TRUE: it
+// staggers so (else the pose's stagger).
+float VR_PARRY_RAG_PUSH = 0.35;      // the push (a two-hand shove's 1) on level ground,
+float VR_PARRY_RAG_REACH = 12;       // and its carry (units): a step back
+float VR_PARRY_RAG_SLOPE_PUSH = 0.7; // over a drop or a slope
+float VR_PARRY_RAG_SLOPE_REACH = 28;
+float VR_PARRY_RAG_BALANCE = 0.2;    // there its balance this .. this + VR_PARRY_RAG_SWAY (under 0.5: it gives way)
+float VR_PARRY_RAG_SWAY = 0.5;
+float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
+{
+    if(!cvar_hget(cvarh_vr_parry_ragdoll) || !cvar_hget(cvarh_vr_knockdown) || !(m.flags & FL_MONSTER) ||
+       m.health <= 0 || m.vr_knockdown || m.vr_corpse || !m.vr_kd_chance_h || (m.flags & (FL_FLY | FL_SWIM)) ||
+       !(m.flags & FL_ONGROUND) || VR_IsDummy(m) || !monstergroupget(m, MGP_KDTRIG) || !canragdoll(m) ||
+       !ragdollcanstagger(m))
+    {
+        return FALSE;
+    }
+    float full = m.max_health > 0 ? m.max_health : m.health;
+    if(full >= VR_HST_BOSS)
+    {
+        return FALSE;
+    }
+    if(!vr_kdt_ready)
+    {
+        VR_KdTrig_Init();
+    }
+    vector dir = m.origin - p.origin;
+    dir_z = 0;
+    dir = normalize(dir);
+    if(dir == '0 0 0')
+    {
+        makevectors(m.angles);
+        dir = v_forward * -1;
+    }
+    // The ground behind it: a drop (a ledge, stairs) or a slope down that way.
+    VR_KdTrig_Behind(m, dir);
+    vr_kdt_resist = 1;
+    string what = "";
+    if(VR_KdTrig_Match(0, m, p, p, 1000, dir))
+    {
+        what = "a ledge";
+    }
+    else if(VR_KdTrig_Match(1, m, p, p, 1000, dir))
+    {
+        what = "stairs";
+    }
+    else if(VR_KdTrig_Match(2, m, p, p, 1000, dir))
+    {
+        what = "a slope";
+    }
+    float level = what == "";
+    vector way = level ? dir : vr_kdt_way;
+    vr_kd_room_dead_only = TRUE;
+    float room = VR_Knockdown_MakeRoom(m);
+    vr_kd_room_dead_only = FALSE;
+    if(!room || !VR_Knockdown_Start(m))
+    {
+        return FALSE;
+    }
+    float push = level ? VR_PARRY_RAG_PUSH : VR_PARRY_RAG_SLOPE_PUSH;
+    float balance = level ? 1 : VR_PARRY_RAG_BALANCE + random() * VR_PARRY_RAG_SWAY;
+    float reach = level ? VR_PARRY_RAG_REACH : VR_PARRY_RAG_SLOPE_REACH;
+    if(!ragdollstagger(m, way, push, balance, reach, level ? xHold : 0, level))
+    {
+        ragdollshovetopple(m, way, push, FALSE, reach); // (its ragdoll made, no stagger: down, as a shove's)
+        return TRUE;
+    }
+    m.vr_kd_stagger = 1;
+    m.vr_kd_balance = balance;
+    m.vr_kd_dir = way;
+    m.vr_kd_parry = 1;
+    m.nextthink = time + 0.05;
+    dprint(sprintf("parry ragdoll: %s staggers back as a ragdoll (%s), push %.2f, balance %.2f%s\n", m.classname,
+        level ? "level ground: it stays up" : what, push, balance, level ? sprintf(", up again in %.2f s", xHold) : ""));
+    return TRUE;
+};
+
 // T_DamageDeal's and AD's (vr_ad_bridge.qc), the hit's damage dealt, before its pain: TRUE if it went down.
 float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit =
 {
