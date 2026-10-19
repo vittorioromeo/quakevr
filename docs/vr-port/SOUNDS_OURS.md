@@ -61,7 +61,7 @@ sound played by a constructed name may list only its table.
 
 | Files | Length | How made | For | Used (file:function) | Cvar |
 |---|---|---|---|---|---|
-| `vr/phys/flesh_h1.wav` ... `vr/phys/wood_m4.wav` (40) | 0.08-0.47 s | downloaded: Kenney Impact Sounds 1.0 (kenney.nl/assets/impact-sounds, CC0), cut/levelled by `make_physics_sounds.py` | prop impacts by material (wood/metal/soft/flesh) and weight (l/m/h) | vr_physsound.cpp:file scope; vr_crates.qc:VR_Hit_Armoured; vr_crates.qc:VR_Blunt_HitLayer; world.qc:worldspawn; vr_crates.qc:VR_Crates_Precache; vr_crates.qc:VR_Metal_Sound; vr_crates.qc:VR_Crate_Pain |  |
+| `vr/phys/flesh_h1.wav` ... `vr/phys/wood_m4.wav` (38) | 0.08-0.47 s | downloaded: Kenney Impact Sounds 1.0 (kenney.nl/assets/impact-sounds, CC0), cut/levelled by `make_physics_sounds.py` | prop impacts by material (wood/metal/soft/flesh) and weight (l/m/h) | vr_physsound.cpp:file scope; vr_crates.qc:VR_Hit_Armoured; vr_crates.qc:VR_Blunt_HitLayer; world.qc:worldspawn; vr_crates.qc:VR_Crates_Precache; vr_crates.qc:VR_Metal_Sound; vr_crates.qc:VR_Crate_Pain |  |
 | `vr/phys/scrape_metal1.wav` ... `vr/phys/scrape_wood4.wav` (12) | 0.50 s | downloaded: Freesound CC0 previews: 481861 craigsmith (wood), 690010 matth3wc04 + 844755 MeanRaccoon (metal), 545562 rsellick (stone); windows picked by `make_physics_sounds.py` | props sliding with friction (0.5 s grains crossfaded) | vr_physsound.cpp:file scope |  |
 | `vr/phys/scrape_soft1.wav` ... `vr/phys/scrape_soft4.wav` (4) | 0.50 s | derived: the wood scrape grains low-passed at 700 Hz, quieter (`make_physics_sounds.py`) | a sack or body dragged | vr_physsound.cpp:file scope |  |
 | `vr/phys/grab_metal1.wav` ... `vr/phys/grab_wood3.wav` (9) | 0.14-0.25 s | downloaded: Kenney Impact Sounds (impactSoft_medium + impactWood_light / impactMetal_light / footstep_concrete), CC0, mixed by `make_physics_sounds.py` | a climbing hand taking a hold | vr_carry.qc:VR_Carry_GrabSound; weapons.qc:wpnthrow_touch; world.qc:worldspawn; vr_physsound.cpp:file scope; vr_twohand.cpp:applyHand; vr_twohand.cpp:gripFeedback |  |
@@ -105,16 +105,9 @@ These came with the initial import of the game folder; no generator, credits ent
 | `hipweap/laserric.wav` | 0.30 s | weapons.qc:HIP_LaserTouch; weapons.qc:W_Precache |
 | `hipweap/mjolhit.wav` | 3.06 s | hip_items.qc:trap_tesla_think; hip_items.qc:trap_tesla_coil; vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; weapons.qc:HIP_SpawnMjolnirBase; weapons.qc:W_Precache |
 | `hipweap/mjolslap.wav` | 0.25 s | vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; vr_mg3_weapons.qc:W_SuperAxeMelee; weapons.qc:HIP_SpawnMjolnirBase; weapons.qc:W_Precache |
-| `hipweap/mjoltap.wav` | 0.25 s | not referenced by our QC or engine |
 | `hipweap/mjoltink.wav` | 0.27 s | vr_mg3_weapons.qc:VR_MG3_Weapons_Precache; vr_mg3_weapons.qc:W_SuperAxeMelee; weapons.qc:HIP_FireMjolnir; weapons.qc:W_Precache |
-| `hipweap/mjolwam.wav` | 0.27 s | not referenced by our QC or engine |
 | `hipweap/proxbomb.wav` | 0.75 s | weapons.qc:W_Precache; weapons.qc:W_FireProximityGrenade |
 | `hipweap/proxwarn.wav` | 0.19 s | weapons.qc:W_Precache; weapons.qc:ProximityBomb |
-| `misc/bell.wav` | 2.79 s | not referenced by our QC or engine |
-| `misc/clang.wav` | 1.18 s | not referenced by our QC or engine |
-| `misc/click.wav` | 0.22 s | vr_menuui.cpp:mockMouse_f |
-| `misc/deepthud.wav` | 1.19 s | not referenced by our QC or engine |
-| `misc/drawbrig.wav` | 1.78 s | not referenced by our QC or engine |
 | `misc/flys.wav` | 7.00 s | player.qc:HeadThink; vr_carry.qc:VR_Gib_Die; world.qc:worldspawn |
 | `misc/foot1.wav` | 0.21 s | hip_decoy.qc:decoy_walk1; player.qc:player_run; world.qc:worldspawn |
 | `misc/foot2.wav` | 0.15 s | hip_decoy.qc:decoy_walk1; player.qc:player_run; world.qc:worldspawn |
@@ -126,7 +119,6 @@ These came with the initial import of the game folder; no generator, credits ent
 | `misc/longexpl.wav` | 3.84 s | hip_expl.qc:exploder_fire; hip_expl.qc:func_exploder; hip_expl.qc:func_multi_exploder; hip_mon_arma.qc:armagon_body_explode2; world.qc:worldspawn |
 | `misc/quake.wav` | 3.09 s | hip_quake.qc:earthquake_postthink; hip_quake.qc:func_earthquake; rogue_earthq.qc:earthquake_rumble; rogue_earthq.qc:earthquake; rogue_earthq.qc:earthquake_touch (+3) |
 | `misc/quakeend.wav` | 0.73 s | hip_quake.qc:earthquake_postthink; hip_quake.qc:func_earthquake; vr_mg_triggers.qc:trigger_screenshake |
-| `misc/rockthud.wav` | 0.87 s | not referenced by our QC or engine |
 | `misc/shortexp.wav` | 2.49 s | hip_expl.qc:exploder_fire; hip_expl.qc:func_exploder; hip_expl.qc:multi_exploder_fire; hip_expl.qc:func_multi_exploder; world.qc:worldspawn |
 | `misc/spike.wav` | 0.31 s | misc.qc:spikeshooter_use; misc.qc:trap_spikeshooter |
 | `misc/tesla.wav` | 2.03 s | hip_items.qc:trap_tesla_think; hip_items.qc:trap_tesla_coil |
@@ -138,3 +130,8 @@ These came with the initial import of the game folder; no generator, credits ent
 | `weapons/chain1.wav` | 0.52 s | vr_grapple.qc:VR_Grapple_Retract; vr_grapple.qc:W_FireGrapple; weapons.qc:W_Precache |
 | `weapons/holster0.wav` | 0.54 s | weapons.qc:W_Precache; weapons.qc:VRHandOffWeapon; weapons.qc:VRTakeCarriedWeapon; weapons.qc:VRDrawHolsterWeapon |
 | `weapons/holster1.wav` | 0.38 s | vr_magholster.qc:VR_MagHolster_Arrive; weapons.qc:W_Precache; weapons.qc:RPutWeaponInHolster |
+
+## Unused-sound audit (2026-10)
+
+`vr/phys/flesh_h3.wav` and `flesh_h4.wav` were removed (never loaded; the generator now makes two flesh_h takes).
+Eight files were byte-identical copies of the base game's (id1 rerelease pak12 / Hipnotic pak0) and nothing of ours played them, so they were removed too: `misc/bell`, `misc/click`, `misc/clang`, `misc/deepthud`, `misc/drawbrig`, `misc/rockthud`, `hipweap/mjoltap`, `hipweap/mjolwam`. The game loads them from the user's id1 / Hipnotic paks as before.

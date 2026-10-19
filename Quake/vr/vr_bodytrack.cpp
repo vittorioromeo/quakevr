@@ -16,6 +16,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
+#include "vr_seated.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
@@ -593,8 +594,10 @@ void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw
                            : !armJoints                                   ? GateJoints
                                                                           : GateOn;
         st.arm[side] = ease(st.arm[side], armTarget, dt);
-        const float legTarget =
-            good && all({upperLeg(side), lowerLeg(side), ankle(side)}) ? za::clamp(vr_bodytrack_legs.value, 0.f, 1.f) : 0.f;
+        // Seated (vr_seated.hpp): never the legs (they sit; the body stands, its legs planted on the floor).
+        const float legTarget = good && !seated::active() && all({upperLeg(side), lowerLeg(side), ankle(side)})
+                                    ? za::clamp(vr_bodytrack_legs.value, 0.f, 1.f)
+                                    : 0.f;
         st.leg[side] = ease(st.leg[side], legTarget, dt);
     }
     st.placeSeconds += Sys_DoubleTime() - t0;

@@ -11,6 +11,7 @@
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seated.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -42,14 +43,54 @@ namespace
     return hands::forward({0.f, s.bodyYaw, 0.f}) * (heightRatio * mult);
 }
 
-// The crouched pose's adjustment of a holster (vr_*_holster_crouch_x/y/z) or the ammo pouch (vr_ammo_pouch_crouch_*,
-// `holster` -1), at the share `w` of it (avatar::crouchPoseWeight): units forward, outwards (the left ones mirrored;
-// the pouch: to the right) and up, in the body's facing.
-[[nodiscard]] glm::vec3 crouchShift(const hands::State& s, int holster, float w)
+// A holster's (or the ammo pouch's, `holster` -1) move `v`: units forward, outwards (the left ones mirrored; the pouch:
+// to the right) and up, in the body's facing.
+[[nodiscard]] glm::vec3 inBodyFacing(const hands::State& s, int holster, glm::vec3 v)
 {
-    if(w == 0.f)
+    if(holster == LeftHip || holster == LeftUpper || holster == LeftShoulder)
+    {
+        v.y = -v.y;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    return fwd * v.x + right * v.y + up * v.z;
+}
+
+// The seated layout's move of a holster (vr_*_holster_seated_x/y/z) or the ammo pouch (vr_ammo_pouch_seated_*,
+// `holster` -1): all of it while seated (vr_seated.hpp), none standing.
+[[nodiscard]] glm::vec3 seatedShift(const hands::State& s, int holster)
+{
+    if(!seated::active())
     {
         return glm::vec3{0.f};
+    }
+    glm::vec3 v;
+    switch(holster)
+    {
+        case LeftHip:
+        case RightHip: v = {vr_hip_holster_seated_x.value, vr_hip_holster_seated_y.value, vr_hip_holster_seated_z.value}; break;
+        case LeftUpper:
+        case RightUpper:
+            v = {vr_upper_holster_seated_x.value, vr_upper_holster_seated_y.value, vr_upper_holster_seated_z.value};
+            break;
+        case LeftShoulder:
+        case RightShoulder:
+            v = {vr_shoulder_holster_seated_x.value, vr_shoulder_holster_seated_y.value, vr_shoulder_holster_seated_z.value};
+            break;
+        default: v = {vr_ammo_pouch_seated_x.value, vr_ammo_pouch_seated_y.value, vr_ammo_pouch_seated_z.value}; break;
+    }
+    return inBodyFacing(s, holster, v);
+}
+
+// The crouched pose's adjustment of a holster (vr_*_holster_crouch_x/y/z) or the ammo pouch (vr_ammo_pouch_crouch_*,
+// `holster` -1), at the share `w` of it (avatar::crouchPoseWeight), as inBodyFacing; and seated, the seated layout's
+// (seatedShift) on top.
+[[nodiscard]] glm::vec3 crouchShift(const hands::State& s, int holster, float w)
+{
+    const glm::vec3 seatedMove = seatedShift(s, holster);
+    if(w == 0.f)
+    {
+        return seatedMove;
     }
     glm::vec3 v;
     switch(holster)
@@ -66,13 +107,7 @@ namespace
             break;
         default: v = {vr_ammo_pouch_crouch_x.value, vr_ammo_pouch_crouch_y.value, vr_ammo_pouch_crouch_z.value}; break;
     }
-    if(holster == LeftHip || holster == LeftUpper || holster == LeftShoulder)
-    {
-        v.y = -v.y;
-    }
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
-    return (fwd * v.x + right * v.y + up * v.z) * w;
+    return inBodyFacing(s, holster, v) * w + seatedMove;
 }
 
 [[nodiscard]] float threshold(Holster holster)
@@ -243,10 +278,19 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 // behind the box's middle by default.
 constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the body sits on the back
 
+// Its X, Y and Z (vr_grenade_pouch_x/y/z), seated with the seated layout's on top (vr_grenade_pouch_seated_*: X round
+// the hips as its own).
+[[nodiscard]] glm::vec3 pouchOffsets()
+{
+    const glm::vec3 v{vr_grenade_pouch_x.value, vr_grenade_pouch_y.value, vr_grenade_pouch_z.value};
+    return seated::active()
+               ? v + glm::vec3{vr_grenade_pouch_seated_x.value, vr_grenade_pouch_seated_y.value, vr_grenade_pouch_seated_z.value}
+               : v;
+}
+
 [[nodiscard]] glm::vec3 legacyPouchPosition(const hands::State& s)
 {
-    return hands::bodyAnchor(s, {vr_grenade_pouch_x.value, vr_grenade_pouch_y.value, vr_grenade_pouch_z.value}) +
-           crouchAdjustment(s, -9.5f);
+    return hands::bodyAnchor(s, pouchOffsets()) + crouchAdjustment(s, -9.5f);
 }
 
 // On the drawn body: the default X on the back of the hips' ring (the belt at the small of the back), X moving it on
@@ -257,7 +301,7 @@ constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float now = glm::dot(pos - standing.head, fwd);
-    const float at = t.axis - torsoRing(t, true).x + (vr_grenade_pouch_x.value - POUCH_X_DEFAULT);
+    const float at = t.axis - torsoRing(t, true).x + (pouchOffsets().x - POUCH_X_DEFAULT);
     return outOfTheTorso(standing, true, pos + fwd * (at - now));
 }
 

@@ -284,6 +284,96 @@ const char* bodytrackAvailability(int)
     };
 }
 
+// VR Settings > Height > Seated Play (vr_seated.hpp; docs/vr-port/SEATED.md).
+[[nodiscard]] za::Vector<Item> pageSeatedHolsters();
+
+[[nodiscard]] za::Vector<Item> pageSeated()
+{
+    return {
+        cycle("Position", vr_bodycal_seated, {{0.f, "Standing"}, {1.f, "Seated"}})
+            .help("Seated: the game stands you up (your eyes at your standing Height), the body stands with its legs on "
+                  "the floor, the holsters and pouches move where a seated player reaches them, and a hand reaching low "
+                  "goes on down to the floor. VR Calibration and Body Calibration take you seated too."),
+        slider("Seated Height", vr_seated_height, 0.8f, 1.5f, 0.01f, "%.2f m").extend(0.f, 2.f)
+            .help("Your eyes' height sitting (VR Calibration measures it seated; 0: not measured, 0.74 of your standing "
+                  "Height). The game raises you by your standing Height less this."),
+        command("Set Seated Height Now", "vr_seated_height_now")
+            .help("Sit up straight where you play, look ahead and press: your seated height from the headset."),
+        toggle("Stand Up in the Game", vr_seated_stand)
+            .help("Seated, your eyes at your standing height in the game. Off: as low as they really are (crouched)."),
+        toggle("Reach the Floor", vr_seated_reach)
+            .help("Seated, a hand reaching down beside the chair goes on down faster, to the game's floor: pick things up "
+                  "without leaving the chair."),
+        slider("Reach: Starts At", vr_seated_reach_start, 0.3f, 0.9f, 0.01f, "%.2f m").extend(0.1f, 1.5f)
+            .help("How high over your real floor a hand starts going down faster (keep it under your thighs and the hip "
+                  "holsters)."),
+        slider("Reach: Floor At", vr_seated_reach_floor, 0.f, 0.4f, 0.01f, "%.2f m").extend(0.f, 1.f)
+            .help("How high over your real floor a hand is at the game's floor."),
+        slider("Crouch Depth", vr_seated_crouch_depth, 0.f, 1.f, 0.05f, "%.2f m").extend(0.f, 1.5f)
+            .help("Seated, how far vr_crouch_toggle (bind it to a button) crouches you. Ducking in the chair crouches "
+                  "too, as far as your head goes down."),
+        command("Crouch Toggle", "vr_crouch_toggle")
+            .help("vr_crouch_toggle: crouch or stand up, seated (to try it here; bind it to a button to play)."),
+        open("Seated Holsters", pageIndex(pageSeatedHolsters))
+            .help("Where the holsters and the pouches go seated, on top of where they are standing."),
+        command("Print Seated Status", "vr_seated_status")
+            .help("vr_seated_status: the lift, your head and the legs over the floor, the holsters on the body."),
+    };
+}
+
+// VR Settings > Height > Seated Play > Seated Holsters: the seated layout (vr_*_seated_*), on top of the standing one.
+[[nodiscard]] za::Vector<Item> pageSeatedHolsters()
+{
+    return {
+        header("Hip Holsters (seated)"),
+        crouchUnits("Hips Forward", vr_hip_holster_seated_x, "Seated, both hip holsters further forward, onto the "
+            "thighs (negative: back), units, in the way the body faces."),
+        crouchUnits("Hips Out", vr_hip_holster_seated_y, "Seated, each hip holster further out (negative: in, off the "
+            "chair's sides), units."),
+        crouchUnits("Hips Up", vr_hip_holster_seated_z, "Seated, the hip holsters higher (negative: lower), units."),
+        crouchDegrees("Hips Pitch", vr_hip_holster_seated_pitch, "Seated, the hip holsters' top tips further from the "
+            "body (as the Hotspots' Hip Pitch)."),
+        crouchDegrees("Hips Yaw", vr_hip_holster_seated_yaw, "Seated, their face turns further outwards."),
+        crouchDegrees("Hips Roll", vr_hip_holster_seated_roll, "Seated, their top tips further outwards."),
+        header("Chest Holsters (seated)"),
+        crouchUnits("Chest Forward", vr_upper_holster_seated_x, "Seated, both chest holsters further forward "
+            "(negative: back), units."),
+        crouchUnits("Chest Out", vr_upper_holster_seated_y, "Seated, each chest holster further out (negative: in), "
+            "units."),
+        crouchUnits("Chest Up", vr_upper_holster_seated_z, "Seated, the chest holsters higher (negative: lower), units."),
+        crouchDegrees("Chest Pitch", vr_upper_holster_seated_pitch, "Seated, their top tips further from the body."),
+        crouchDegrees("Chest Yaw", vr_upper_holster_seated_yaw, "Seated, their face turns further outwards."),
+        crouchDegrees("Chest Roll", vr_upper_holster_seated_roll, "Seated, their top tips further outwards."),
+        header("Shoulder Holsters (seated)"),
+        crouchUnits("Back Forward", vr_shoulder_holster_seated_x, "Seated, both shoulder (back) holsters further "
+            "forward, off the chair's back (negative: back), units."),
+        crouchUnits("Back Out", vr_shoulder_holster_seated_y, "Seated, each shoulder holster further out (negative: "
+            "in), units."),
+        crouchUnits("Back Up", vr_shoulder_holster_seated_z, "Seated, the shoulder holsters higher (negative: lower), "
+            "units."),
+        crouchDegrees("Back Pitch", vr_shoulder_holster_seated_pitch, "Seated, the guns on the back tip further."),
+        crouchDegrees("Back Yaw", vr_shoulder_holster_seated_yaw, "Seated, they turn further outwards."),
+        crouchDegrees("Back Roll", vr_shoulder_holster_seated_roll, "Seated, their top tips further outwards."),
+        header("Ammo Pouch (seated)"),
+        crouchUnits("Pouch Forward", vr_ammo_pouch_seated_x, "Seated, the ammo pouch further forward (negative: back), "
+            "units."),
+        crouchUnits("Pouch Right", vr_ammo_pouch_seated_y, "Seated, the ammo pouch further right (negative: left), "
+            "units."),
+        crouchUnits("Pouch Up", vr_ammo_pouch_seated_z, "Seated, the ammo pouch higher, off the lap (negative: lower), "
+            "units."),
+        crouchDegrees("Pouch Pitch", vr_ammo_pouch_seated_pitch, "Seated, its top tips further from the body."),
+        crouchDegrees("Pouch Yaw", vr_ammo_pouch_seated_yaw, "Seated, it turns further."),
+        crouchDegrees("Pouch Roll", vr_ammo_pouch_seated_roll, "Seated, its top tips further sideways."),
+        header("Grenade Pouch (seated)"),
+        crouchUnits("Grenades Forward", vr_grenade_pouch_seated_x, "Seated, the grenade pouch further round the hips "
+            "from the small of the back (against the chair) towards the front, units (as its own X)."),
+        crouchUnits("Grenades Right", vr_grenade_pouch_seated_y, "Seated, the grenade pouch further right (negative: "
+            "left), units."),
+        crouchUnits("Grenades Up", vr_grenade_pouch_seated_z, "Seated, the grenade pouch higher (negative: lower), "
+            "units."),
+    };
+}
+
 // Split from Body: the arms' reach and bend, the shoulders, and the pauldrons over them. Body Calibration measures the
 // arms' lengths and the shoulders (vr_bodycal_*); the sliders here are tweaks on top (vr_body_tweak_*, 0: as measured;
 // uncalibrated, on the default body), and the settings it doesn't measure. Built again when calibrated or not

@@ -216,6 +216,10 @@ IMPACTS = {  # out name: Kenney's name
     "soft_m": "impactSoft_medium", "soft_h": "impactSoft_heavy",
     "flesh_m": "impactPunch_medium", "flesh_h": "impactPunch_heavy",
 }
+def takes(key):  # flesh_h has two takes: the engine only plays flesh_h1/2 (squish3/4 fill the rest)
+    return 2 if key == "flesh_h" else 4
+
+
 WEIGHT_DB = {"l": -17.0, "m": -14.0, "h": -11.0}
 
 # Scrape grains: (material, [(Freesound id, grains taken from it)]).
@@ -270,7 +274,7 @@ def main():
     out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "quakevr", "sound", "vr", "phys")
     audio = next((d for d, _, files in os.walk(src) if "impactWood_light_000.ogg" in files), src)  # (the zip's Audio)
 
-    names = [f"{k}{n}" for k in IMPACTS for n in range(1, 5)]
+    names = [f"{k}{n}" for k in IMPACTS for n in range(1, takes(k) + 1)]
     names += [f"scrape_{m}{n}" for m in ("wood", "metal", "stone", "soft") for n in range(1, 5)]
     names += [f"grab_{m}{n}" for m in ("wood", "metal", "stone") for n in range(1, 4)]
     os.makedirs(out, exist_ok=True)
@@ -281,7 +285,7 @@ def main():
         print("%-16s %.3f s, loudest %.1f dBFS, peak %.2f" % (name, len(x) / RATE, loudest_db(x), np.abs(x).max()))
 
     for key, kenney in IMPACTS.items():
-        for n in range(1, 5):
+        for n in range(1, takes(key) + 1):
             x = trimmed_hit(load(os.path.join(audio, "%s_%03d.ogg" % (kenney, n - 1))))
             save(f"{key}{n}", at_loudness(x, WEIGHT_DB[key[-1]]))
 

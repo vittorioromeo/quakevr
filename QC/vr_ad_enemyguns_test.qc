@@ -95,17 +95,33 @@ void() VR_ADGun_TestThink =
 // would: test 70 aims the streams): what it took, the gore, wounds and blood sent (none: fire and
 // poison do not bleed), and what it is left with (burning; poisoned). Phase 2 a shot's damage on it (the counters'
 // control: it does bleed).
+// vr_ad_test 101: the two streams' flames and puffs flying into the monster nearest you (one awake first; else the
+// map's own waiting for its trigger, woken by it), held with its near side vr_test_spawn_dist units (50 if 0) along the
+// main hand's aim (level it: vr_mock_hand main 0.25 1.2 -0.4 70 0 0): what it took (`adgun fly: ... dealt N`; PASS: some,
+// and burning or poisoned). A big monster held off at a distance, the minotaur's, the reach's test.
 entity vr_adgun_t73_mon;
 float vr_adgun_t73_phase;
 float vr_adgun_t73_gore, vr_adgun_t73_wound, vr_adgun_t73_blood, vr_adgun_t73_health;
+float vr_adgun_t73_fly; // vr_ad_test 101: the flames and puffs fly into the monster (no touch called for them)
 
 void(entity p) VR_ADGun_FxTestPlace =
 {
     entity m = vr_adgun_t73_mon;
     entity oldSelf = self;
     self = p;
-    vector at = VRGetMuzzlePos(cVR_MainHand) + VRGetWeaponFireRotFwd(cVR_MainHand) * 70;
+    vector fwd = VRGetWeaponFireRotFwd(cVR_MainHand);
+    vector at = VRGetMuzzlePos(cVR_MainHand);
     self = oldSelf;
+    if(vr_adgun_t73_fly)
+    {
+        // Its near side 50 units ahead of the muzzle, the aim through its middle (a big one's too).
+        float gap = cvar("vr_test_spawn_dist") > 0 ? cvar("vr_test_spawn_dist") : 50;
+        at = at + fwd * (gap + max(m.maxs_x, m.maxs_y));
+        setorigin(m, at - (m.mins + m.maxs) * 0.5);
+        m.velocity = '0 0 0';
+        return;
+    }
+    at = at + fwd * 70;
     setorigin(m, at - '0 0 8');
     m.velocity = '0 0 0';
 };
@@ -157,7 +173,7 @@ void() VR_ADGun_FxTestThink =
                     fl = f2;
                 }
             }
-            if(fl != world)
+            if(fl != world && !vr_adgun_t73_fly)
             {
                 setorigin(fl, (m.absmin + m.absmax) * 0.5);
                 self = fl;
@@ -184,6 +200,25 @@ void() VR_ADGun_FxTestThink =
     float blood = vr_blood_sent - vr_adgun_t73_blood, dealt = vr_adgun_t73_health - m.health;
     float burning = (m.burn_fire != world), poisoned = (m.vr_adpoison != world);
     float ok = (dealt > 0);
+    if(vr_adgun_t73_fly)
+    {
+        // (101: what flew into it hurt it; it burns or is poisoned)
+        ok = (ok && (ph == 0 ? burning : poisoned));
+        bprint(sprintf("adgun fly: %s on %s: dealt %g, burning %g, poisoned %g: %s\n", VR_ADGun_Name(wid), m.classname, dealt,
+            burning, poisoned, ok ? "PASS" : "FAIL"));
+        if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+        vr_adgun_test_step = 0;
+        vr_adgun_t73_phase = ph + 1;
+        if(vr_adgun_t73_phase > 1)
+        {
+            bprint(sprintf("adgun fly: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+            cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
+            remove(self);
+            return;
+        }
+        self.nextthink = time + 0.3;
+        return;
+    }
     if(ph < 2)
     {
         ok = (ok && gore == 0 && wound == 0 && blood == 0 && (ph == 0 ? burning : poisoned));
@@ -1005,8 +1040,9 @@ void(float request, entity p) AD_GunTest =
         remove(g);
         return;
     }
-    if(request == 91)
+    if(request == 91 || request == 101)
     {
+        vr_adgun_t73_fly = (request == 101); // (101: the flames and puffs fly into it: a big monster's too)
         if(!cvar("vr_ad_mounted"))
         {
             bprint("adgun fx: Arcane Dimensions' data is not loaded\n");
@@ -1014,13 +1050,15 @@ void(float request, entity p) AD_GunTest =
         }
         AD_WeaponsOnDemand();
         entity m73 = world;
-        float d73 = 1024;
+        float d73 = vr_adgun_t73_fly ? 3072 : 1024;
         for(entity e73 = findflags(world, flags, FL_MONSTER); e73; e73 = findflags(e73, flags, FL_MONSTER))
         {
-            if(e73.health > 0 && !VR_IsDummy(e73) && vlen(e73.origin - p.origin) < d73)
+            // (101: one awake first, by 2048 units: one waiting for its trigger only if none is)
+            float w73 = (vr_adgun_t73_fly && (e73.solid == SOLID_NOT || !e73.takedamage)) ? 2048 : 0;
+            if(e73.health > 0 && !VR_IsDummy(e73) && vlen(e73.origin - p.origin) + w73 < d73)
             {
                 m73 = e73;
-                d73 = vlen(e73.origin - p.origin);
+                d73 = vlen(e73.origin - p.origin) + w73;
             }
         }
         if(m73 == world)
@@ -1039,6 +1077,17 @@ void(float request, entity p) AD_GunTest =
         cvar_set("vr_weapon_grip_mode", "1");
         t73.think = VR_ADGun_FxTestThink;
         t73.nextthink = time + 0.1;
+        if(vr_adgun_t73_fly && (m73.solid == SOLID_NOT || !m73.takedamage) && m73.use)
+        {
+            // (101: one waiting for its trigger, as the map's own are, woken by its trigger as the map would: in a while)
+            entity os101 = self;
+            activator = p;
+            self = m73;
+            m73.use();
+            self = os101;
+            t73.nextthink = time + 3;
+            bprint(sprintf("adgun fly: %s woken by its trigger (%s)\n", m73.classname, m73.targetname));
+        }
         bprint(sprintf("adgun fx: the flamethrower and the poison sprayer at %s\n", m73.classname));
         return;
     }
