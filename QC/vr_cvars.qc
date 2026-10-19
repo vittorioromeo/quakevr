@@ -775,6 +775,8 @@ float cvarh_vr_headshot_mult;
 float cvarh_vr_limbshot_mult;
 float cvarh_vr_legshot_mult;
 float cvarh_vr_melee_push;
+float cvarh_vr_melee_ragdoll_bounce;
+float cvarh_vr_melee_ragdoll_most;
 float cvarh_vr_melee_push_player;
 float cvarh_vr_parry_push_enemy;
 float cvarh_vr_parry_push_player;
@@ -1725,6 +1727,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_limbshot_mult);
     VR_CVAR_HMAKE(vr_legshot_mult);
     VR_CVAR_HMAKE(vr_melee_push);
+    VR_CVAR_HMAKE(vr_melee_ragdoll_bounce);
+    VR_CVAR_HMAKE(vr_melee_ragdoll_most);
     VR_CVAR_HMAKE(vr_melee_push_player);
     VR_CVAR_HMAKE(vr_parry_push_enemy);
     VR_CVAR_HMAKE(vr_parry_push_player);

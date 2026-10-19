@@ -3411,7 +3411,9 @@ QVR_CVAR(vr_damage_self, "1", CVAR_ARCHIVE)              // damage the player de
 QVR_CVAR(vr_headshot_mult, "1.5", CVAR_ARCHIVE)          // positional damage: headshots,
 QVR_CVAR(vr_limbshot_mult, "0.6", CVAR_ARCHIVE)         // arms (far from the body's middle),
 QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs
-QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit
+QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit (the living, standing; a ragdoll or a corpse: by mass, below)
+QVR_CVAR(vr_melee_ragdoll_bounce, "0.2", CVAR_ARCHIVE)     // a blow on a ragdoll or a corpse (a weapon's, a hand's body meeting it; a blow's push): the restitution, 0 dead .. 1 elastic; it moves by the weapon's mass and the arm's behind it against its own (vr_box3d_weapon_arm_mass)
+QVR_CVAR(vr_melee_ragdoll_most, "5", CVAR_ARCHIVE)         // m/s at most a blow gives the ragdoll's part it strikes (0: no cap)
 QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "0.55", CVAR_ARCHIVE)      // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "0.8", CVAR_ARCHIVE)        // and you

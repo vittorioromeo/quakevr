@@ -276,7 +276,8 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
 // point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass; its Mass and vr_box3d_weapon_arm_mass).
-float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
+// `bounce` (0..1): its restitution; `most` (m/s, 0 or none: no cap): the point's gain at most (blows on ragdolls).
+float(entity e, vector at, vector vel, optional float mass, optional float bounce, optional float most) physicspush = #0;
 // Ragdolls (vr_ragdoll; the engine's vr_box3d.cpp, "Ragdolls"): whether e is one; a hand takes the limb of e it is on
 // (or catches the one it pulls); a force grab's pull of e's limb nearest the hand's aim (due in `flight` s); let go (a held
 // limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from

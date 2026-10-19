@@ -1608,14 +1608,19 @@ void PF_modelpoint()
 
 // A push of a hand on a prop (physicspush(e, at, velocity)): the point `at` of the rigid body `e` gets at least the
 // velocity's speed along it (Box3D: an impulse there, so a tall box pushed high tips over; vr_box3d.cpp). False if it is
-// not Box3D's. Optional `mass` (kg, 0: none): what pushes has that mass (a hand's, a weapon's: box3d::push).
+// not Box3D's. Optional `mass` (kg, 0: none): what pushes has that mass (a hand's, a weapon's: box3d::push); `bounce`
+// (0..1) its restitution, `most` (m/s, 0: none) the point's gain at most (a blow on a ragdoll: vr_melee_ragdoll_*).
 void PF_physicspush()
 {
     const float* at = G_VECTOR(OFS_PARM1);
     const float* v = G_VECTOR(OFS_PARM2);
     const float mass = qcvm->argc > 3 ? G_FLOAT(OFS_PARM3) : 0.f;
-    G_FLOAT(OFS_RETURN) =
-        box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}, mass) ? 1.f : 0.f;
+    const float bounce = qcvm->argc > 4 ? G_FLOAT(OFS_PARM4) : 0.f;
+    const float most = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 0.f;
+    G_FLOAT(OFS_RETURN) = box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}, mass,
+                              bounce, most)
+                              ? 1.f
+                              : 0.f;
 }
 
 // entity physicsshot(vector start, vector end, vector vel, float mass): a shot's push (box3d::shot): the first loose prop

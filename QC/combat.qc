@@ -2508,6 +2508,7 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
     }
 };
 
+float(entity targ, entity attacker) VR_Melee_RagdollPush; // (vr_melee.qc)
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
     // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
@@ -2541,8 +2542,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
             vr_hitpart_time == time ? vr_hitpart : -1, mult, vr_hitpos, targ.health));
     }
 
-    // VR: melee blows push what they hit, dead or alive (vr_melee_push).
-    if(targ != attacker && targ.takedamage)
+    // VR: melee blows push what they hit (vr_melee_push); a ragdoll or a corpse as two bodies meeting
+    // (VR_Melee_RagdollPush, vr_melee.qc).
+    if(targ != attacker && targ.takedamage && !VR_Melee_RagdollPush(targ, attacker))
     {
         VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
             min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));

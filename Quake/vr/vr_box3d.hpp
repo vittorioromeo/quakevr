@@ -29,9 +29,11 @@ void noteServerPhysicsStart();
 
 // A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
 // there: pushed high, a tall box tips; pushed low, it slides). `pusherMass` (kg, 0: none): what pushes has that mass, so
-// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). False if it is not a
-// Box3D prop.
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f);
+// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). `restitution` (0..1):
+// it comes off that much faster than the point's meeting speed (a blow's bounce); `most` (m/s, 0: none): the point's
+// gain at most. False if it is not a Box3D prop.
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f, float restitution = 0.f,
+    float most = 0.f);
 
 // A shot from `start` to `end` (world units): the first loose prop it passes through pushed (push) where it goes in, with
 // `velocity` and `pusherMass` (a pellet, a nail: Quake's traces pass through the pickups lying about, SOLID_TRIGGER).

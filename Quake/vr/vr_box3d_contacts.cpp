@@ -703,6 +703,7 @@ namespace
 void notePushed(float dt)
 {
     world->pushed.clear();
+    world->pushedParts.clear();
     if(vr_box3d_hand_mass.value <= 0.f && vr_box3d_weapon_arm_mass.value <= 0.f)
     {
         return;
@@ -733,7 +734,20 @@ void notePushed(float dt)
                 if(!za::anyOf(out.begin(), out.end(), [num](const Pushed& p) { return p.num == num; }))
                 {
                     const b3BodyId prop = world->slots[num].body;
-                    out.pushBack({num, glmv(b3Body_GetLinearVelocity(prop)), glmv(b3Body_GetAngularVelocity(prop))});
+                    Pushed p{num, glmv(b3Body_GetLinearVelocity(prop)), glmv(b3Body_GetAngularVelocity(prop))};
+                    // (A ragdoll: every part's motion, struck by mass as one body: limitRagdollPush.)
+                    if(const RagdollBodies* r = world->slots[num].ragdoll >= 0 ? ragdollOf(num) : nullptr)
+                    {
+                        p.parts = static_cast<int>(world->pushedParts.size());
+                        for(int b = 0; b < r->count; b++)
+                        {
+                            const b3BodyId part = r->body[static_cast<za::SizeT>(b)];
+                            const bool ok = !partCut(*r, b) && b3Body_IsValid(part);
+                            world->pushedParts.pushBack(ok ? glmv(b3Body_GetLinearVelocity(part)) : glm::vec3{0.f});
+                            world->pushedParts.pushBack(ok ? glmv(b3Body_GetAngularVelocity(part)) : glm::vec3{0.f});
+                        }
+                    }
+                    out.pushBack(p);
                 }
                 return true;
             },
@@ -760,82 +774,211 @@ void notePushed(float dt)
 // only pushShare of the velocity (and of the spin) the step gave it, if away from the body: the masses of all the
 // hands' bodies pushing it together against its own; pushed on, as a shove (pushKeep). A hand held still holds things up
 // and stops them at full strength.
-void limitPushes(float dt)
+namespace
+{
+// The hands' bodies pushing on `prop` after a step (limitPushes): their masses (each body once), whether one has none
+// (a kinematic body's full push), the strongest push's normal impulse and normal (from the pusher to the prop).
+struct HandPush
+{
+    float pusher{0.f}, strongest{0.f};
+    float fastest{0.f}; // m/s: the fastest of them into it there
+    bool full{false};
+    glm::vec3 normal{0.f};
+    za::Array<b3BodyId, 32> counted; // (two players' hands, reach and body are already 8; held props add more)
+    size_t countedN{0};
+};
+
+// Adds `prop`'s contacts with the hands' bodies to `hp`; true if one of them is its strongest push now.
+bool scanHandPush(b3BodyId prop, HandPush& hp)
 {
     za::Vector<b3ContactData>& contacts = scratch.pushContacts;
+    // Every contact, not the first few: a drawn fist (vr_box3d_hand_push_fist) is a body of a sphere per joint, and
+    // pressed on a box its spheres touch it in dozens of places, the ones that push often not among the first 16 (it
+    // then pushed at full strength, as a kinematic body: walked into, a tall box tipped; landing on you, it flew off).
+    contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(prop), 1)));
+    const int count = b3Body_GetContactData(prop, contacts.data(), static_cast<int>(contacts.size()));
+    bool strongest = false;
+    for(int c = 0; c < count && !hp.full; c++)
+    {
+        const b3ContactData& cd = contacts[static_cast<size_t>(c)];
+        const bool propA = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), prop);
+        const b3ShapeId other = propA ? cd.shapeIdB : cd.shapeIdA;
+        if((b3Shape_GetFilter(other).categoryBits & (catReach | catHand | catHeld)) == 0)
+        {
+            continue;
+        }
+        const b3BodyId body = b3Shape_GetBody(other);
+        for(int i = 0; i < cd.manifoldCount; i++)
+        {
+            const b3Manifold& mf = cd.manifolds[i];
+            float impulse = 0.f;
+            glm::vec3 at{0.f};
+            for(int k = 0; k < mf.pointCount; k++)
+            {
+                const b3ManifoldPoint& mp = mf.points[k];
+                impulse += mp.totalNormalImpulse;
+                at += glmv(propA ? mp.anchorA : mp.anchorB);
+            }
+            if(impulse <= 0.f || mf.pointCount == 0)
+            {
+                continue;
+            }
+            // The normal from the body to the prop (Box3D's points from A to B), and the body's motion into it there.
+            const glm::vec3 n = propA ? -glmv(mf.normal) : glmv(mf.normal);
+            const glm::vec3 point = glmv(b3Body_GetWorldCenter(prop)) + at / static_cast<float>(mf.pointCount);
+            const float into = glm::dot(glmv(b3Body_GetWorldPointVelocity(body, b3v(point))), n);
+            if(into < 0.3f)
+            {
+                continue;
+            }
+            const float mass = pusherMass(other);
+            if(mass <= 0.f)
+            {
+                hp.full = true;
+                break;
+            }
+            hp.fastest = za::max(hp.fastest, into);
+            if(!za::anyOf(hp.counted.begin(), hp.counted.begin() + static_cast<za::PtrDiffT>(hp.countedN),
+                   [body](b3BodyId b) { return B3_ID_EQUALS(b, body); }))
+            {
+                hp.pusher += mass;
+                if(hp.countedN < hp.counted.size())
+                {
+                    hp.counted[hp.countedN++] = body;
+                }
+            }
+            if(impulse > hp.strongest)
+            {
+                hp.strongest = impulse;
+                hp.normal = n;
+                strongest = true;
+            }
+        }
+    }
+    return strongest;
+}
+
+// A ragdoll a hand's body pushed in the step (`p`: its parts' motion before it; ROUND22.md, "Melee on ragdolls"):
+// Box3D's kinematic hand, weapon or carried thing gave the part it met its own speed there, and the joints carried the
+// rest along, as if it weighed nothing (a sword's tip at 12 m/s flung a corpse off at 7 m/s). As two bodies meeting: the
+// ragdoll's mass at that part (the momentum the step gave it all over the part's gain along the push: the part alone up
+// to the whole body, as its joints took the rest along) against the pusher's (pusherMass), with vr_melee_ragdoll_bounce
+// of restitution, and never more momentum than the pusher brought (pushed on in the next steps: the arm's force,
+// vr_box3d_push_force), every part's gain scaled alike, the part's at most vr_melee_ragdoll_most m/s.
+void limitRagdollPush(const Pushed& p, float dt)
+{
+    RagdollBodies* rp = ragdollOf(p.num);
+    if(!rp || p.parts < 0 || p.parts + 2 * rp->count > static_cast<int>(world->pushedParts.size()))
+    {
+        return;
+    }
+    RagdollBodies& r = *rp;
+    HandPush hp;
+    int struck = -1;
+    for(int b = 0; b < r.count && !hp.full; b++)
+    {
+        const b3BodyId part = r.body[static_cast<za::SizeT>(b)];
+        if(!partCut(r, b) && b3Body_IsValid(part) && scanHandPush(part, hp))
+        {
+            struck = b;
+        }
+    }
+    if(hp.full || hp.pusher <= 0.f || struck < 0)
+    {
+        return;
+    }
+    const auto before = [&](int b, int which) { return world->pushedParts[static_cast<za::SizeT>(p.parts + 2 * b + which)]; };
+    glm::vec3 momentum{0.f};
+    float whole = 0.f;
+    for(int b = 0; b < r.count; b++)
+    {
+        const b3BodyId part = r.body[static_cast<za::SizeT>(b)];
+        if(partCut(r, b) || !b3Body_IsValid(part))
+        {
+            continue;
+        }
+        const float m = b3Body_GetMass(part);
+        momentum += (glmv(b3Body_GetLinearVelocity(part)) - before(b, 0)) * m;
+        whole += m;
+    }
+    const b3BodyId hit = r.body[static_cast<za::SizeT>(struck)];
+    const float gained = glm::dot(glmv(b3Body_GetLinearVelocity(hit)) - before(struck, 0), hp.normal);
+    const float given = glm::length(momentum); // N s
+    if(given <= 1e-4f)
+    {
+        return;
+    }
+    Slot& slot = world->slots[static_cast<size_t>(p.num)];
+    const bool shove = slot.pushedStep >= world->steps - 1;
+    slot.pushedStep = world->steps;
+    const float bounce = za::clamp(vr_melee_ragdoll_bounce.value, 0.f, 1.f);
+    // The most the pusher can give it: a hit, its momentum into it and the bounce (whatever the ragdoll's mass there: a
+    // weapon pressed on a body lying on the floor squeezed it out at speed, the part's own gain none); pushed on, the arm's
+    // force over the step.
+    const float force = vr_box3d_push_force.value;
+    const float allowed = shove ? (force > 0.f ? force * dt : 1e30f) : (1.f + bounce) * hp.pusher * hp.fastest;
+    float keep = za::min(1.f, allowed / given);
+    float mass = whole;
+    if(gained > 1e-3f)
+    {
+        // (The share of two masses meeting at that part: hit, a part alone keeps less than the pusher's whole momentum.)
+        const float own = b3Body_GetMass(hit);
+        mass = za::clamp(glm::dot(momentum, hp.normal) / gained, own, za::max(whole, own));
+        if(!shove)
+        {
+            keep = za::min(keep, (1.f + bounce) * hp.pusher / (hp.pusher + mass));
+        }
+        const float most = vr_melee_ragdoll_most.value;
+        if(most > 0.f && gained * keep > most)
+        {
+            keep = most / gained;
+        }
+    }
+    if(keep >= 1.f)
+    {
+        return;
+    }
+    for(int b = 0; b < r.count; b++)
+    {
+        const b3BodyId part = r.body[static_cast<za::SizeT>(b)];
+        if(partCut(r, b) || !b3Body_IsValid(part))
+        {
+            continue;
+        }
+        const glm::vec3 v0 = before(b, 0), w0 = before(b, 1);
+        b3Body_SetLinearVelocity(part, b3v(v0 + (glmv(b3Body_GetLinearVelocity(part)) - v0) * keep));
+        b3Body_SetAngularVelocity(part, b3v(w0 + (glmv(b3Body_GetAngularVelocity(part)) - w0) * keep));
+    }
+    if(vr_debug_box3d.value || vr_debug_ragdoll.value)
+    {
+        Con_Printf("box3d: ragdoll %d %s part %d %s by %.1f kg: %.0f u/s gained there, %.1f kg of its %.1f behind it, x%.2f: "
+                   "its middle %.0f u/s faster\n",
+            p.num, PR_GetString(EDICT_NUM(p.num)->v.classname), struck, shove ? "shoved" : "hit", hp.pusher,
+            gained * world->m2u, mass, whole, keep, glm::length(momentum) / za::max(whole, 1e-3f) * keep * world->m2u);
+    }
+}
+} // namespace
+
+void limitPushes(float dt)
+{
     for(const Pushed& p : world->pushed)
     {
         const Slot& s = world->slots[static_cast<size_t>(p.num)];
+        if(s.ragdoll >= 0)
+        {
+            limitRagdollPush(p, dt);
+            continue;
+        }
         if(!pushedByMass(s) || !b3Body_IsValid(s.body))
         {
             continue;
         }
         const float m = b3Body_GetMass(s.body);
-        // Every contact, not the first few: a drawn fist (vr_box3d_hand_push_fist) is a body of a sphere per joint, and
-        // pressed on a box its spheres touch it in dozens of places, the ones that push often not among the first 16 (it
-        // then pushed at full strength, as a kinematic body: walked into, a tall box tipped; landing on you, it flew off).
-        contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(s.body), 1)));
-        const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
-        float pusher = 0.f, strongest = 0.f;
-        bool full = false;
-        glm::vec3 normal{0.f};
-        za::Array<b3BodyId, 32> counted; // (two players' hands, reach and body are already 8; held props add more)
-        size_t countedN = 0;
-        for(int c = 0; c < count && !full; c++)
-        {
-            const b3ContactData& cd = contacts[static_cast<size_t>(c)];
-            const bool propA = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), s.body);
-            const b3ShapeId other = propA ? cd.shapeIdB : cd.shapeIdA;
-            if((b3Shape_GetFilter(other).categoryBits & (catReach | catHand | catHeld)) == 0)
-            {
-                continue;
-            }
-            const b3BodyId body = b3Shape_GetBody(other);
-            for(int i = 0; i < cd.manifoldCount; i++)
-            {
-                const b3Manifold& mf = cd.manifolds[i];
-                float impulse = 0.f;
-                glm::vec3 at{0.f};
-                for(int k = 0; k < mf.pointCount; k++)
-                {
-                    const b3ManifoldPoint& mp = mf.points[k];
-                    impulse += mp.totalNormalImpulse;
-                    at += glmv(propA ? mp.anchorA : mp.anchorB);
-                }
-                if(impulse <= 0.f || mf.pointCount == 0)
-                {
-                    continue;
-                }
-                // The normal from the body to the prop (Box3D's points from A to B), and the body's motion into it there.
-                const glm::vec3 n = propA ? -glmv(mf.normal) : glmv(mf.normal);
-                const glm::vec3 point = glmv(b3Body_GetWorldCenter(s.body)) + at / static_cast<float>(mf.pointCount);
-                if(glm::dot(glmv(b3Body_GetWorldPointVelocity(body, b3v(point))), n) < 0.3f)
-                {
-                    continue;
-                }
-                const float mass = pusherMass(other);
-                if(mass <= 0.f)
-                {
-                    full = true;
-                    break;
-                }
-                if(!za::anyOf(counted.begin(), counted.begin() + static_cast<za::PtrDiffT>(countedN),
-                       [body](b3BodyId b) { return B3_ID_EQUALS(b, body); }))
-                {
-                    pusher += mass;
-                    if(countedN < counted.size())
-                    {
-                        counted[countedN++] = body;
-                    }
-                }
-                if(impulse > strongest)
-                {
-                    strongest = impulse;
-                    normal = n;
-                }
-            }
-        }
-        if(full || pusher <= 0.f)
+        HandPush hp;
+        scanHandPush(s.body, hp);
+        const float pusher = hp.pusher;
+        const glm::vec3 normal = hp.normal;
+        if(hp.full || pusher <= 0.f)
         {
             continue;
         }

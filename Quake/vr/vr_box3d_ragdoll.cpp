@@ -1850,6 +1850,25 @@ void writeRagdoll(edict_t* ent, Slot& s)
     QVR_TRACY_SCOPE(tracyScope, "ragdoll publish");
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const ragdoll::Rig& rig = *r.rig;
+    {
+        // (vr_ragdoll_speeds: how fast it goes after this step.)
+        glm::vec3 momentum{0.f};
+        float mass = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(partCut(r, b))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const glm::vec3 v = glmv(b3Body_GetLinearVelocity(body));
+            const float m = b3Body_GetMass(body);
+            momentum += v * m;
+            mass += m;
+            r.peakPart = za::max(r.peakPart, glm::length(v));
+        }
+        r.peakMiddle = za::max(r.peakMiddle, mass > 0.f ? glm::length(momentum) / mass : 0.f);
+    }
     // Knocked down, then killed where it lay ("Knockdowns"): its loose pieces (its weapon, welded) go, as a dead one's
     // death frames hide them (the QC drops the weapon itself: vr_enemyguns.qc and the like).
     if(r.knocked && ent->v.health <= 0.f)
