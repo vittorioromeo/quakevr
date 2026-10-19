@@ -14595,3 +14595,43 @@ physics, not the timing:
 - shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
 
 Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
+
+
+## Thrown bodies and tackles (worktree `tghost`, branch `agent/tackle`, 2026-10-19)
+
+Two new ragdoll triggers (QC `vr_kdtrig.qc`, the table's 8th and 9th: `thrown`, `tackle`; Combat > Ragdoll Triggers >
+Thrown Bodies, Tackles; each monster group's share `vr_mgrp_<group>_thrown`, `_tackle`, Monster Groups > Thrown Bodies,
+Tackles). No damage, so not `VR_KdTrig_Hit`'s loop: their own entries share `VR_KdTrig_Bump`.
+
+- **Weight classes**: the monster's weight is `vr_kdtrig_weight` (80 kg) times its group's resistance (grunt 80, knight
+  and enforcer 92, death knight 128, ogre 200); the thrower's is the thrown body's mass (its ragdoll's) or yours
+  (`vr_kdtrig_tackle_weight` 80). Up to `vr_kdtrig_weight_topple` (1.5) times the thrower's it can be toppled (the
+  knockdown's topple, the way it was struck); up to `vr_kdtrig_weight_stagger` (3) times it only staggers (a parry's
+  stagger for `vr_kdtrig_bump_stagger` 0.6 s: `VR_Parry_InterruptFor`, as an active ragdoll where it can, pushed the
+  strike's way); heavier stands. Shamblers, fiends, dogs and the bosses never (their groups take no triggers).
+- **Thrown Bodies** (`vr_kdtrig_thrown_*`): the engine (`vr_box3d_step.cpp` `callBodyHits`, after the step) watches each
+  ragdoll thrown in the last `_window` (1.5) s (a hand let go of it: `releaseRagdoll`; the two-hand throw; the test's
+  `ragdollfling`) or held while a holding hand swings (not only dragged), its middle at a quarter of `_speed` or more,
+  its parts' boxes meeting a living monster's box (ragdolls pass through living monsters in the physics: no contact
+  existed), and calls `VR_KdTrig_BodyHit(m, body, mass, vel)`. Strike = mass x speed / (monster's weight x `_speed`
+  200): 1 or more topples a toppleable class (chance `vr_kdtrig_thrown`, 1), `_least` (0.4) .. 1 only staggers, less
+  nothing. The body flies on through it (no momentum taken from it).
+- **Tackles** (`vr_kdtrig_tackle_*`; `PlayerVRMelee` after the bash): on the ground, running at `_speed` (0.85) of
+  `sv_maxspeed` or faster, within 60 degrees of where you face, in a pose (both hands before the chest within `_gap`
+  20 units of each other or crossed, not a gun aimed two-handed; a weapon held across; a palm forward; a bash or shove
+  going), your box about to meet a living monster's (this frame's run and 8 units on). Down: you keep `_slow` (0.4) of
+  your speed; a heavier one staggers and you bounce back `_bump` (60 u/s); `_cooldown` 1.5 s.
+- Debug: `vr_kdtrig_debug 1` logs each (`kdtrig: thrown on monster_ogre: staggers (a monster_army at 325 u/s, 80 kg
+  against its 200 kg, strike 0.65: a heavier class)`), and why one stands (once each half second); 2 also a tackle
+  that was too slow. Debug > Tests > Ragdoll Triggers: Knock Down the Nearest (test 10), Fling the Nearest Body (12,
+  `vr_kdtrig_test_speed` 300), Spawn a Test Monster Ahead (21, 160 units; `vr_kdtrig_test_class` 8 a shambler now);
+  test 13 kills the nearest (a corpse).
+- Monster group params: Thrown and Tackle sit after Blast (QC `MGP_SHOVE` .. `MGP_HOLD` now 11 .. 20).
+- Headless (vrragtriggers): thrown grunt (knocked down, 364 u/s) at a grunt: down, strike 1.82; thrown grunt corpse at
+  an ogre: staggers (0.65), up in 0.65 s; at a shambler: stands (its group off). Tackle at full run (320 u/s, guard):
+  grunt down along the run (yaw 90), ogre staggers, shambler stands; walking (177 u/s): too slow; hands at the sides,
+  or running backward in the guard: nothing. eval.sh --full 168/177.
+- **For VR**: throw a corpse and a knocked-down grunt at grunts (they should fall the throw's way), at an ogre (a short
+  stagger), at a shambler (nothing); swing a held body into one; sprint into grunts with hands together or crossed,
+  palms out, or shoving (they fall away from you, you slow down), into an ogre (it staggers, you bounce), and check a
+  gun aimed two-handed while running never tackles.

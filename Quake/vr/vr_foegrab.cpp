@@ -572,6 +572,7 @@ float throwDown(edict_t* player, edict_t* m, const glm::vec3& dir, float twist, 
         palms[held++] = chest - side;
     }
     (void)box3d::ragdollThrown(m, dir, palms, held);
+    (void)box3d::ragdollMarkThrown(m); // (it strikes the living as it goes: the ragdoll triggers' Thrown Body)
     // The hands that held it are in it as it goes, still moving (the pull's follow-through), and he stands where a throw
     // towards him lands it: they knocked it back up and over the other way. It passes through them a moment.
     (void)box3d::ragdollGrace(m, NUM_FOR_EDICT(player), za::clamp(vr_foegrab_throw_grace.value, 0.f, 5.f));

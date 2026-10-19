@@ -591,6 +591,16 @@ za::Vector<Item> pageDebugTests()
         command("Chop the Nearest", "vr_kdtrig_test 6").help("vr_kdtrig_test 6: a 30-damage blade's blow (an axe's)."),
         command("Blast Before the Nearest", "vr_kdtrig_test 7")
             .help("vr_kdtrig_test 7: a 60-damage blast 48 units before it (1 dealt)."),
+        command("Knock Down the Nearest", "vr_kdtrig_test 10")
+            .help("vr_kdtrig_test 10: the live monster nearest you knocked down at once (a body to throw)."),
+        command("Fling the Nearest Body", "vr_kdtrig_test 12")
+            .help("vr_kdtrig_test 12: the ragdoll nearest you (a corpse or a knocked-down one) thrown at the live monster "
+                  "nearest it at Test Throw Speed (Thrown Bodies: topples, staggers or nothing by their weights)."),
+        slider("Test Throw Speed", vr_kdtrig_test_speed, 50.f, 800.f, 10.f, "%.0f u/s")
+            .help("vr_kdtrig_test_speed: Fling the Nearest Body's speed."),
+        command("Spawn a Test Monster Ahead", "vr_kdtrig_test 21")
+            .help("vr_kdtrig_test 21: a test monster (vr_kdtrig_test_class: 0 a grunt, 4 an ogre, 8 a shambler) 160 "
+                  "units ahead of you, facing you (run into it in a guard: Tackles)."),
         header("Holding Enemies"),
         cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "

@@ -2161,14 +2161,16 @@ void() VR_Parry_Recover =
 void() VR_Dragon_ParryInterrupt;
 
 float(entity m, entity p, float xHold) VR_Parry_Ragdoll; // (vr_kdtrig.qc)
-void(entity m, entity p) VR_Parry_Interrupt =
+// m parried by p, staggered xStagger s (VR_Parry_Interrupt: vr_parry_stagger's; the ragdoll triggers' short stagger of a
+// heavier one, vr_kdtrig.qc VR_KdTrig_Stagger: theirs).
+void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
     if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
     {
         return;
     }
-    float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
+    float stagger = xStagger;
     m.vr_parry_stagger_until = time + stagger;
     m.attack_finished = max(m.attack_finished, m.vr_parry_stagger_until);
     m.attack_state = AS_STRAIGHT;
@@ -2229,6 +2231,11 @@ void(entity m, entity p) VR_Parry_Interrupt =
     self = oldSelf;
     dprint(sprintf("parry interrupt: %s staggered %.2f s (pain frames %g from %g, was %g; sway %g deg)\n", m.classname,
         stagger, m.vr_parry_frames, m.vr_parry_frames ? m.vr_parry_frame0 : m.frame, frameBefore, m.vr_parry_sway));
+};
+
+void(entity m, entity p) VR_Parry_Interrupt =
+{
+    VR_Parry_InterruptFor(m, p, min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger))));
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =

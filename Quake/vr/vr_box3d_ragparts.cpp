@@ -568,11 +568,12 @@ void releaseRagdoll(edict_t* player, int hand, const glm::vec3& velocity)
     }
     const World::RagdollGrab g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
     endGrab(index);
-    const RagdollBodies* r = ragdollOf(g.num);
+    RagdollBodies* r = ragdollOf(g.num);
     if(!r || g.part >= r->count)
     {
         return;
     }
+    r->thrownAt = qcvm->time; // (let go of: a throw, as fast as it goes: the ragdoll triggers' Thrown Body)
     const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
     const glm::vec3 v = glmv(world->toM(velocity * za::max(vr_ragdoll_throw.value, 0.f)));
     const glm::vec3 now = glmv(b3Body_GetLinearVelocity(part));
