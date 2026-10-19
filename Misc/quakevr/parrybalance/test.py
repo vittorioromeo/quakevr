@@ -6,7 +6,7 @@ monster each (vr_kdtrig_test 39 / 41, one trial): the outcome table of the plan.
 pose: the real crossed-arms pose (mock hands) against a knight: raised long before the blow (plain) or just before it
 (well timed).
 repeat: diminishing returns: three parries of one knight, then of one ogre, two seconds apart.
-chances: the poise factor on the melee's chances (vr_hitstagger_test's chance lines, grunt vs ogre)."""
+chances: the poise factor on hits unbalancing (vr_knockdown_test 40's chance lines), a grunt and an ogre."""
 import re
 import subprocess
 import sys
@@ -19,7 +19,7 @@ KIT = Path("C:/OHWorkspace/qvr-kit")
 BASH = "C:/Program Files/Git/bin/bash.exe"
 CFG = TREE / "quakevr/test_parrybalance.cfg"
 LOG = KIT / "bases" / NAME / "qbase/qconsole.log"
-FILTER = "ENGINE|CASE|parry outcome|parry interrupt|kdtrig t|parry: none|parry ragdoll"
+FILTER = "ENGINE|CASE|hit stagger|parry outcome|parry interrupt|kdtrig t|parry: none|parry ragdoll"
 
 
 def wait(n):
@@ -70,7 +70,7 @@ def cases(log):
 def outcome(lines):
     """(kind, seconds or None, ratio, ragdoll?) from a case's parry outcome line."""
     text = "\n".join(lines)
-    m = re.search(r"parry outcome: \S+ strength ([\d.]+)( \(well timed\))? poise (\S+) ratio ([\d.]+): (.*)", text)
+    m = re.search(r"parry outcome: \S+ strength ([\d.]+)( \(well timed\))? poise\s+(\S+) ratio ([\d.]+): (.*)", text)
     assert m, text[-1500:]
     rest = m.group(5)
     if rest.startswith("blocked"):
@@ -96,7 +96,7 @@ if selected("examples"):
     cmds = setup()
     for name, cls, forced, test, *_ in table:
         cmds += ["echo CASE " + name, "vr_kdtrig_test_class %d" % cls, "vr_kdtrig_test_parry %d" % forced,
-                 "vr_kdtrig_test %d" % test, "vr_waitprint 900 kdtrig test:", wait(10)]
+                 "vr_kdtrig_test %d" % test, wait(110)]
     log = run("examples", cmds + ["echo CASE end"])
     got = cases(log)
     print("| case | strength/poise | outcome | ragdoll | health |")
@@ -136,7 +136,7 @@ if selected("repeat"):
         cmds += ["echo CASE " + name, "vr_kdtrig_test_class %d" % cls, "vr_kdtrig_test_parry %d" % forced,
                  "vr_kdtrig_test 20", wait(60)]
         for i in range(3):
-            cmds += ["vr_kdtrig_test 9", "vr_waitprint 900 recovered", wait(20)]
+            cmds += ["vr_kdtrig_test 9", wait(150)]
         cmds += ["vr_kdtrig_test 22", wait(10)]  # (22: every monster gone)
     log = run("repeat", cmds + ["echo CASE end"])
     got = cases(log)
@@ -151,3 +151,24 @@ if selected("repeat"):
         else:
             assert abs(secs[1] / secs[0] - 0.7 ** 1.6) < 0.03, secs
     print("repeat: PASS")
+
+if selected("chances"):
+    cmds = setup()
+    for name, cls in [("grunt", 0), ("ogre", 4)]:
+        cmds += ["vr_kdtrig_test_class %d" % cls, "vr_kdtrig_test 20", wait(30)]
+        for k in [0, 1]:
+            cmds += ["echo CASE %s_%d" % (name, k), "vr_poise_chances %d" % k, "vr_knockdown_test 40", wait(3)]
+        cmds += ["vr_kdtrig_test 22", wait(5)]
+    log = run("chances", cmds + ["echo CASE end", "vr_poise_chances 1"])
+    got = cases(log)
+
+    def chances(case):
+        m = re.search(r"weak tap ([\d.]+), strong blow ([\d.]+), head punch ([\d.]+), heavy throw ([\d.]+), weapon throw "
+                      r"([\d.]+)", "\n".join(got[case]))
+        assert m, got[case]
+        return [float(x) for x in m.groups()]
+    for name, factor in [("grunt", 1), ("ogre", 1 / 1.6)]:
+        off, on = chances(name + "_0"), chances(name + "_1")
+        print("%s: hits unbalance off %s, on %s" % (name, off, on))
+        assert any(off) and all(abs(b - a * factor) < 0.002 for a, b in zip(off, on)), (off, on)
+    print("chances: PASS")

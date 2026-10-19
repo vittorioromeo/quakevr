@@ -14669,3 +14669,62 @@ Tackles). No damage, so not `VR_KdTrig_Hit`'s loop: their own entries share `VR_
   stagger), at a shambler (nothing); swing a held body into one; sprint into grunts with hands together or crossed,
   palms out, or shoving (they fall away from you, you slow down), into an ogre (it staggers, you bounce), and check a
   gun aimed two-handed while running never tackles.
+
+## Parry balance (worktree `dequant`, branch `agent/parrybalance`, 2026-10-19)
+
+Vittorio's approved plan: a parry's effect depends on how strong it is against how sturdy the monster is, so bare hands
+no longer stagger an ogre and weapons/explosives stay the answer to heavy monsters.
+
+- **Strength** = tool x grip x timing (QC `combat.qc` VR_Parry_Strength): bare hands `vr_parry_tool_hand` 0.4, any
+  weapon `vr_parry_tool_weapon` 1, a heavy one up to `vr_parry_tool_heavy` 1.3 at Heft 1 (by its weight class,
+  `weaponheft`); two hands (and the crossed arms) `vr_parry_grip_2h` x1.5; well timed `vr_parry_timed` x1.25.
+- **Well timed**: the parry's window runs from raising the guard to the blow; its best part is the start: the guard
+  came up at most `vr_parry_timed_window` 0.3 s before the blow. VR_Parry_GuardFrame (each player frame, from
+  VR_Melee_Frame) notes when each hand's guard and the crossed arms came up, the pose tested as for a blow from straight
+  ahead (the view's yaw): a blow parried from the side is never well timed; a guard held up all along is plain.
+- **Parry Poise** per monster group (`vr_mgrp_<group>_poise`, Monster Groups > Parry Poise; the param after Hold,
+  QC `MGP_POISE` 21): grunts, enforcers 0.3, knights 0.7, death knights 1, ogres 1.6; shamblers, giants, bosses Off (-1:
+  a parry never staggers them). The others by size: zombies 0.5, mummies 0.7, rottweilers 0.4, fiends 1.2, gremlins 0.3,
+  skull wizards 0.6, spiders/crawlers 0.5, scrags/gargoyles 0.4, vores 1.2, spawns 0.6, fish 0.3, wraiths/floaters
+  (the Overlord, the sword) 1.2, machines 1.6, others 1.
+- **Outcome** (VR_Parry_Interrupt), strength/poise: under `vr_parry_block_below` 0.5 blocked (the damage cut as before,
+  no stagger, the attack goes on: its later hits are parried again or land); under 1 a flinch (`vr_parry_flinch` 0.3 s,
+  the pain pose, no ragdoll); 1..2 the active-ragdoll stagger `vr_parry_stagger_min` 0.5 .. `_max` 1.2 s, never down
+  (stairs and slopes are not looked at); over 2 up to `vr_parry_stagger_heavy` 1.5 s at 3, and it may go down stairs, a
+  ledge or a slope as before. `vr_parry_balance 0`: the old fixed `vr_parry_stagger` for every parry (the
+  parryinterrupt test sets it). The ragdoll triggers' own short staggers (VR_Parry_InterruptFor) are untouched.
+- **Diminishing returns**: each stagger of the same monster within `vr_parry_repeat_window` 5 s of its last lasts
+  `vr_parry_repeat` 0.7 times more (0.7, 0.49, ...); a heavy group (poise over 1) to the power of its poise (an ogre's
+  0.56 a step): it recovers faster. Cut under the flinch's time it is a flinch (no ragdoll).
+- **Poise against melee** (`vr_poise_chances` 1, VR_Poise_Factor): a group with poise over 1 (Off as 3) has a shove's
+  knockdown chance, hits' unbalance chance (and its knockdown roll) and the ragdoll triggers' chances on melee hits
+  (blows, headbutts, bashes, shoves, flung props; never the shotgun's or the blast's) divided by its poise (an ogre's
+  x0.63, a fiend's x0.83); grunts .. death knights unchanged.
+- **Menu**: Combat > Parry and Bash, "Parry Balance" section (every cvar above); Monster Groups: each group's Parry
+  Poise row (Off below 0) and the "Parry Poise" page by group. No existing default changed: no config migration.
+- **A QC trap met**: an initialised global (`float x = TRUE;`) is a constant sharing the literal's storage; assigning it
+  FALSE turned every `+ 1` into `+ 0` (frikbot's BotFrame loop ran away). The flag is an uninitialised global now.
+- **Tests**: `vr_kdtrig_test_parry` (tests 9 and 11: 1 bare hands, 2 one hand, 3 two hands, +10 well timed; the pose
+  not looked at); `vr_kdtrig_test 22` clears every monster; vr_kdtrig_test_x/_y/_z all 0 put the test monster 64 units
+  ahead. `python Misc/quakevr/parrybalance/test.py <worktree> [examples|pose|repeat|chances]`:
+
+  | case | strength/poise | outcome |
+  |---|---|---|
+  | bare hands vs grunt shove | 0.6/0.3 = 2.00 | ragdoll stagger 1.20 s |
+  | bare hands vs knight | 0.6/0.7 = 0.86 | flinch 0.30 s |
+  | one-hand weapon vs knight | 1.0/0.7 = 1.43 | ragdoll stagger 0.80 s |
+  | two-hand weapon vs knight | 1.5/0.7 = 2.14 | ragdoll stagger 1.24 s |
+  | one-hand weapon vs death knight | 1.0/1.0 = 1.00 | ragdoll stagger 0.50 s |
+  | bare hands vs ogre | 0.6/1.6 = 0.38 | blocked, 6 of 10 damage taken |
+  | well-timed one-hand weapon vs ogre | 1.25/1.6 = 0.78 | flinch 0.30 s |
+  | well-timed two hands vs shambler | Off | blocked |
+
+  pose (the crowbar's real guard, mock hands, vs a knight): held up 2 s 1.43 plain; raised 3 frames before 1.79 well
+  timed. repeat: knight 1.24, 0.87, 0.61 s (recovered 1.30, 0.90, 0.65); ogre (well-timed two hands) 0.62, 0.35, 0.20 s
+  (the last a flinch). chances: ogre's unbalance 0.241 -> 0.151 (x1/1.6), grunt's unchanged. eval.sh --full 168/177.
+  parryinterrupt timing and smoke (menu paths 0 missing) PASS; its callback section expects "recovery think 1" but
+  the ragdoll stagger (vr_parry_ragdoll 1) owns the think since round 22: 0, the same with vr_parry_balance 0 (stale).
+- **For VR**: cross your arms against a grunt's shove (it reels ~1 s) and a knight (a short flinch); a sword in one hand
+  and in two against knights (0.8 s, 1.2 s); bare hands against an ogre's chainsaw (blocked, the chainsaw keeps going,
+  part of the damage through); a weapon raised just as an ogre swings (a short flinch); a shambler never staggers.
+  Parry the same knight again and again: each stagger shorter. Raise the guard just before the blow vs holding it up.

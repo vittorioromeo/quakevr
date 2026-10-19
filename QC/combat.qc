@@ -2179,7 +2179,9 @@ void() VR_Dragon_ParryInterrupt;
 float vr_parry_strength;  // the parry VR_Parry just met a blow with: its strength
 float vr_parry_welltimed; // ... well timed
 float vr_parry_test_force; // (vr_kdtrig_test_parry while a test's blow is dealt: vr_kdtrig.qc) forced, not the pose's
-float vr_parry_rag_canfall = TRUE; // VR_Parry_Ragdoll may send it down stairs, a ledge, a slope (a stagger over 2)
+// VR_Parry_Ragdoll may not send it down stairs, a ledge, a slope (parry balance: a stagger of 2 or under). (Not an
+// initialised global: QC makes that a constant, its value shared with the literal's; assigned, every 1 changed.)
+float vr_parry_rag_nofall;
 float vr_parry_noragdoll; // VR_Parry_InterruptFor: its pain pose's stagger, no ragdoll (a flinch)
 float VR_POISE_OFF = 3; // a group whose poise is Off (never staggered) is as poised as this for VR_Poise_Factor
 
@@ -2287,7 +2289,7 @@ void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
     {
         ragged = VR_Parry_Ragdoll(m, p, stagger);
     }
-    vr_parry_rag_canfall = TRUE;
+    vr_parry_rag_nofall = FALSE;
     if(ragged)
     {
         self = oldSelf;
@@ -2343,7 +2345,7 @@ void(entity m, entity p) VR_Parry_Interrupt =
     }
     float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
     float ragdollOk = TRUE;
-    vr_parry_rag_canfall = TRUE;
+    vr_parry_rag_nofall = FALSE;
     if(cvar_hget(cvarh_vr_parry_balance))
     {
         // Parry balance: the strength over its poise.
@@ -2369,7 +2371,7 @@ void(entity m, entity p) VR_Parry_Interrupt =
         else if(ratio <= 2)
         {
             stagger = lo + (hi - lo) * (ratio - 1);
-            vr_parry_rag_canfall = FALSE;
+            vr_parry_rag_nofall = TRUE;
             how = "stagger";
         }
         else
@@ -2395,7 +2397,7 @@ void(entity m, entity p) VR_Parry_Interrupt =
     vr_parry_noragdoll = !ragdollOk;
     VR_Parry_InterruptFor(m, p, stagger);
     vr_parry_noragdoll = FALSE;
-    vr_parry_rag_canfall = TRUE;
+    vr_parry_rag_nofall = FALSE;
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =

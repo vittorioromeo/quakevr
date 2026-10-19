@@ -395,10 +395,10 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
         dir = v_forward * -1;
     }
     // The ground behind it: a drop (a ledge, stairs) or a slope down that way. (Parry balance: only a stagger over 2 may
-    // send it down them, vr_parry_rag_canfall; a lesser one is as on level ground.)
+    // send it down them, vr_parry_rag_nofall; a lesser one is as on level ground.)
     vr_kdt_resist = 1;
     string what = "";
-    if(vr_parry_rag_canfall)
+    if(!vr_parry_rag_nofall)
     {
         VR_KdTrig_Behind(m, dir);
         if(VR_KdTrig_Match(0, m, p, p, 1000, dir))
