@@ -465,6 +465,12 @@ za::Vector<Item> pageDebugAutomation()
         command("Cut Ends' Fountains", "vr_limb_test 18")
             .help("vr_limb_test 18: each flying limb's (or head's) own fountain: its age, its spout (how far from the piece's "
                   "middle, and from the stump's joint as it was cut), the piece's speed and weight; the drops so far."),
+        command("Look Into Its Stump", "vr_limb_test 39")
+            .help("vr_limb_test 39: you float (noclip) 14 units from the nearest corpse's first stump, turned to face it from "
+                  "the side it faces (look ahead and down first): the cut's flesh up close (noclip again to walk)."),
+        command("Look Into the Limb's Cap", "vr_limb_test 40")
+            .help("vr_limb_test 40: the last limb thrown hung in the air 10 units before your eyes where you look, its cut "
+                  "end turned to you."),
         command("Limb Weights Here", "vr_limb_test 19")
             .help("vr_limb_test 19: every kind of monster on the map: what its head and each limb weigh cut off (kg, share of "
                   "its ragdoll's Mass; * a whole limb) (Limb Gore > Limb Weight)."),

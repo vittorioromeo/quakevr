@@ -124,6 +124,7 @@ entity(entity c, string m, float xBone, vector xAt, vector xAng, vector xVel, ve
     h.vr_rigid = 1;
     h.vr_spin = xSpin;
     VR_Limb_SetMass(h, c, xBone);
+    h.vr_limb_end = limbpiece(c, xBone, 1); // (its cut end, model space: the tests' look at its cap)
     VR_Limb_EndFountain(h, c, xBone, FALSE);
     particle2(xAt, xVel * 0.3, QVR_PARTICLE_PRESET_BLOOD, 20);
     vr_limb_last = h;
@@ -166,8 +167,10 @@ void() VR_Limb_EndFountainThink =
     jitter_x = crandom() * 10;
     jitter_y = crandom() * 10;
     jitter_z = crandom() * 6;
-    float n = 1 + ceil(2 * s);
-    particle2(h.origin + off + out * 0.5, out * (2 + 4 * s) + jitter * 0.03, QVR_PARTICLE_PRESET_BLOODTRAIL, n);
+    // (Thrown out of the end along with the piece: a share of its own speed (the trail's drops go 0..12 times `dir`),
+    // so they stream after it as it flies rather than hang where it was; the stump's 2-6 a tick, these 2-5.)
+    float n = 2 + ceil(3 * s);
+    particle2(h.origin + off + out * 0.5, out * (3 + 5 * s) + jitter * 0.03 + h.velocity * (1 / 18), QVR_PARTICLE_PRESET_BLOODTRAIL, n);
     vr_limb_endspurts = vr_limb_endspurts + n;
 };
 

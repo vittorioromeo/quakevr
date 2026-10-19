@@ -14595,6 +14595,11 @@ physics, not the timing:
 - shotgun_toward falls back-right, its feet sliding 7.6 units against the sweep.
 
 Every lr fall leans backward by 15-30 units; these two lean far enough to fail the check.
+
+### Cut flesh after Quake's gibs; the cut piece's fountain streams after it
+
+The cut's flesh was a fan of 1D blood stripes (the limb cap: each corner its own column of an 8-row red strip; the body stump: the wound paint's star of three reds over the cone the cut bone collapses into). Now both use one recipe after Quake's own gibs' and heads' necks (sampled for its colours only: mostly the palette's dark blood ramp 64..72, brown meat 96..100, pale sinew 117..119, dark pits, wet glints; chunky cells; the bone and marrow in the middle): the limb model's cap (vr_limbmodel.cpp fleshColour) is laid flat on a 32-row flesh strip under its skin at 2.5 texels a unit; the body (vr_glsl.h StumpFlesh) draws it within 1.25 limb thicknesses of each cut joint (InstanceData's new Stump: the cut bones, the reach; ragdoll::stumpLook), the cone and round it, a ragged edge, wet but not glazed. The cut piece's own fountain (vr_limbs_end_fountain) throws 2-5 drops a tick (was 1-3) with a share of the piece's speed, so they stream after it. Test aids: vr_limb_test 39 (float 14 units from the nearest corpse's stump, facing it) and 40 (the last limb hung 10 units before your eyes, its cap turned to you), Debug > Gore Tests > Limb Gore.
+
 ## Brain chunks: squishier, wetter (worktree `dequant`, branch `agent/brainchunks`, 2026-10-19)
 
 The author: the brain chunks (head pops, head gibs destroyed) look bland and flat; make them squishier, glossier and

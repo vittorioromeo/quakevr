@@ -15,7 +15,8 @@
 // last death frame: lying, its head far from where it stands); 23 where its head is for the head and limb tests: a
 // point on its head as animated against its standing head zone's middle (VR_Decap_OnMeleeHead, VR_Decap_OnHead,
 // ragdolllimb); 24-28 blunt corpse impacts (PASS/FAIL), 29 a corpse limb's stored worn damage; 30-38 each weapon's hits
-// wearing a corpse's limb off (vr_limbs_wear_test.qc). `limbtest:` lines.
+// wearing a corpse's limb off (vr_limbs_wear_test.qc); 39 a close look into the nearest corpse's stump, 40 into the
+// last limb thrown's cap (VR_Limb_TestLookAtCut). `limbtest:` lines.
 
 void(float xTest) VR_Limb_WearTest; // (vr_limbs_wear_test.qc)
 
@@ -96,6 +97,80 @@ float(entity m) VR_Limb_TestBone =
     return -1;
 };
 
+// Test aid (vr_limb_test 39, 40; Debug > Gore Tests > Limb Gore): a close look at a cut's flesh, where you look. 39:
+// you float (noclip) 14 units from the nearest corpse's first stump, turned to face it from the side it faces (look
+// straight ahead, pitched down, first: your head's pitch is kept); 40: the last limb thrown hung in the air 10 units
+// before your eyes, its cut end turned to you. Prints `limbtest: 39|40 look ...`.
+void(float xTest) VR_Limb_TestLookAtCut =
+{
+    makevectors(self.headpos != '0 0 0' ? self.v_viewangle : self.v_angle); // (where you look: your head, not your aim)
+    vector fwd = v_forward;
+    vector eye = self.headpos != '0 0 0' ? self.headpos : self.origin + self.view_ofs;
+    if(xTest == 39)
+    {
+        entity m = VR_Limb_TestTarget(0);
+        float stumps = (m != world && isragdoll(m)) ? ragdolllimbs(m, 2) : 0;
+        float b = -1;
+        for(float k = 1; k < 16 && b < 0; k++)
+        {
+            b = (stumps & VR_Limb_Bit(k)) ? k : -1;
+        }
+        if(b < 0)
+        {
+            VR_Gore_Print("limbtest: 39 look: no corpse with a stump near\n");
+            return;
+        }
+        vector at = ragdollcut(m, 4, b);
+        vector out = ragdollcut(m, 5, b);
+        // (Turned to face it from the side it faces, your head's pitch kept: the turn is the play space's, so look
+        // straight ahead first, pitched down.)
+        vector face = '0 0 0';
+        face_x = (self.headpos != '0 0 0') ? self.v_viewangle_x : self.v_angle_x;
+        face_y = (fabs(out_x) + fabs(out_y) > 0.05) ? vectoyaw(out * -1) : self.v_angle_y;
+        self.angles = '0 1 0' * face_y;
+        self.fixangle = TRUE;
+        makevectors(face);
+        fwd = v_forward;
+        self.movetype = MOVETYPE_NOCLIP;
+        self.velocity = '0 0 0';
+        setorigin(self, at - fwd * 14 - (eye - self.origin));
+        VR_Gore_Print(sprintf("limbtest: 39 look at %s's stump (joint %g) at %v, facing %v (%.2f to the view)\n", m.classname,
+            b, at, ragdollcut(m, 5, b), ragdollcut(m, 5, b) * fwd * -1));
+        return;
+    }
+    entity h = vr_limb_last;
+    if(h == world || h.classname != "vr_limb" || h.model == "" || h.vr_limb_end == '0 0 0')
+    {
+        VR_Gore_Print("limbtest: 40 look: no limb thrown\n");
+        return;
+    }
+    // (Its cut end turned to you: the turn whose end points nearest back along the view.)
+    vector best = '0 0 0';
+    float bestDot = -2;
+    vector ang = '0 0 0';
+    for(ang_x = -90; ang_x <= 90; ang_x = ang_x + 15)
+    {
+        for(ang_y = 0; ang_y < 360; ang_y = ang_y + 15)
+        {
+            float d = normalize(modelpoint(h, ang, h.vr_limb_end)) * fwd * -1;
+            if(d > bestDot)
+            {
+                bestDot = d;
+                best = ang;
+            }
+        }
+    }
+    h.movetype = MOVETYPE_NONE;
+    h.velocity = '0 0 0';
+    h.avelocity = '0 0 0';
+    h.vr_rigid = 0;
+    h.vr_spin = '0 0 0';
+    h.nextthink = time + 120;
+    h.angles = best;
+    setorigin(h, eye + fwd * 10 - modelpoint(h, best, h.vr_limb_end));
+    VR_Gore_Print(sprintf("limbtest: 40 look at %s's cap at %v (%.2f to the view)\n", h.model, eye + fwd * 10, bestDot));
+};
+
 void(entity m, string xWhat, float xCuts, float xPops, float xLimbs, float xFountains) VR_Limb_TestReport =
 {
     vector parts = isragdoll(m) ? ragdollcut(m, 7) : '0 0 0';
@@ -159,6 +234,11 @@ void(float xTest) VR_Limb_Test =
             nf++;
         }
         bprint(sprintf("limbtest: 18 %g fountains, %g drops thrown in all\n", nf, vr_limb_endspurts));
+        return;
+    }
+    if(xTest == 39 || xTest == 40)
+    {
+        VR_Limb_TestLookAtCut(xTest);
         return;
     }
     if(xTest == 19)
