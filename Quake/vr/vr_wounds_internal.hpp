@@ -107,6 +107,7 @@ struct LoggedWound
     Event ev;
     glm::vec3 rel{0.f}; // its point from the player's origin
     za::U32 seed{0};    // the draws' state it was painted with (re-opened: the same draws, the same wounds where it was)
+    float bled{0.f};    // re-opening: the share of its blood back (painted again in steps: vr_gore_reopen_fade)
 };
 
 inline za::Vector<LoggedWound> playerWounds; // the player's wounds not healed yet, oldest first
@@ -116,6 +117,8 @@ inline double lastWash = -1e9;               // cl.time the player was last bein
 inline bool reopenPending = false;           // washed while hurt: the wounds re-open
 
 inline double reopenStart = -1.0;            // cl.time they began to (-1: not yet)
+inline int reopenSmears = 0;                 // the times their blood ran onto the hands since (reopen: two)
+void markWashed();                           // being washed now: the wounds re-open after (vr_wounds.cpp wash)
 
 inline za::Vector<Mask> masks; // one a layer
 

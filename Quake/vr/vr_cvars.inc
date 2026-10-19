@@ -716,10 +716,10 @@ QVR_CVAR(vr_melee_slap_mult, "0.5", CVAR_ARCHIVE)    // a slap's damage, times a
 // Swing sounds by speed (QC vr_melee.qc VR_Swish): a fist's, open hand's or melee weapon's whoosh for any motion that moves
 // air, its volume by its speed as a share of the speed its blow would land at (the melee model's own, per hand and blow).
 QVR_CVAR(vr_melee_swish, "1", CVAR_ARCHIVE)          // 1: swings short of a blow whoosh softly, fast blows louder than full; 0: only a blow whooshes, at full volume (as before)
-QVR_CVAR(vr_melee_swish_min, "0.5", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
-QVR_CVAR(vr_melee_swish_sub, "0.45", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
-QVR_CVAR(vr_melee_swish_full, "2.2", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
-QVR_CVAR(vr_melee_swish_gain, "1.6", CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
+QVR_CVAR(vr_melee_swish_min, "0.3", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
+QVR_CVAR(vr_melee_swish_sub, "0.35", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
+QVR_CVAR(vr_melee_swish_full, "1.75", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
+QVR_CVAR(vr_melee_swish_gain, "2",   CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
 QVR_CVAR(vr_melee_wrist_speed, "1.1", CVAR_ARCHIVE)   // m/s the hand itself (its wrist: the hand's turn taken out) must have moved on average over the last 0.12 s to hit (a punch twice this): a wiggle flicks the tip fast but barely moves the wrist (QC vr_melee.qc)
 QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle's end's, a gun butt's) touch waits for the blade or head to reach the same thing, so a cut from close by is a cut; only pommel strikes wait (QC vr_melee.qc)
 // Melee phasing (Combat > Melee; vr_modelcollide.cpp; ROUND21.md, "Melee phasing"): while a hand swings fast its fist and
@@ -1400,8 +1400,9 @@ QVR_CVAR(vr_suit_glow_light, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_blood, "1.25", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
-QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
-QVR_CVAR(vr_wounds_wet_coat, "1", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
+QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in vr_wounds_wet_time
+QVR_CVAR(vr_wounds_wet_coat, "2", CVAR_ARCHIVE)       // ... the wet look's strength (0 none .. 2): a uniform coat, darker and glossy, on what is wet (your weapons too), fading as it dries
+QVR_CVAR(vr_wounds_wet_time, "28", CVAR_ARCHIVE)      // ... seconds a soaked model takes to dry: the coat full for the first quarter, then fading out
 QVR_CVAR(vr_wounds_pool, "128", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_body_res, "1024", CVAR_ARCHIVE) // body-only minimum wound detail; tall arm atlas: 1024 gives 256x1024 (~hand density), 0 opts out
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
@@ -1422,6 +1423,7 @@ QVR_CVAR(vr_gore_wash_once, "1", CVAR_NONE)          // a wash takes its blood o
 QVR_CVAR(vr_gore_reopen, "1", CVAR_ARCHIVE)           // hurt, your wounds re-open after a wash (healed ones don't; a gib's blood doesn't come back)
 QVR_CVAR(vr_gore_reopen_delay, "4", CVAR_ARCHIVE)     // seconds out of the water, clean, before they re-open
 QVR_CVAR(vr_gore_reopen_time, "1.5", CVAR_ARCHIVE)    // seconds over which they re-open, one after another (0: all at once)
+QVR_CVAR(vr_gore_reopen_fade, "10", CVAR_ARCHIVE)     // seconds each re-opened wound takes to bleed back to its full blood (0: at once)
 // Gore: blood on you and your gear (vr_wounds.cpp; ROUND21.md, "Blood on you, your weapons and props").
 QVR_CVAR(vr_gore_spatter, "1", CVAR_ARCHIVE)          // blood thrown from hits near you onto your hands, arms, body and what you hold: how much (0 none)
 QVR_CVAR(vr_gore_spatter_melee, "1", CVAR_ARCHIVE)    // ... from your blows (fists, blades, props, guns as clubs): times
@@ -2402,7 +2404,7 @@ QVR_CVAR(vr_dmg_plasma, "80", CVAR_ARCHIVE)          // its plasma gun: a ball's
 QVR_CVAR(vr_dmg_fist, "10", CVAR_ARCHIVE)            // a punch's base damage
 QVR_CVAR(vr_dmg_axe, "20", CVAR_ARCHIVE)             // the axe's blow
 QVR_CVAR(vr_dmg_gun_bash, "12", CVAR_ARCHIVE)        // a gun swung as a club
-QVR_CVAR(vr_dmg_chainsaw_swing, "22", CVAR_ARCHIVE)  // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
+QVR_CVAR(vr_dmg_chainsaw_swing, "26", CVAR_ARCHIVE)  // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
 QVR_CVAR(vr_dmg_mjolnir, "25", CVAR_ARCHIVE)         // Mjolnir's blow
 QVR_CVAR(vr_dmg_superaxe, "40", CVAR_ARCHIVE)        // Dawn of the Machine's Super Axe: a blow (QC vr_mg3_weapons.qc; zombies x3, a kill x2)
 QVR_CVAR(vr_superaxe_burst_window, "1.5", CVAR_ARCHIVE) // s: a second Super Axe blow on the same monster within it fires the lightning burst (MG3's 0.5)
@@ -2419,7 +2421,7 @@ QVR_CVAR(vr_ad_widowmaker_handful, "4", CVAR_ARCHIVE)      // the shells the pou
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
-QVR_CVAR(vr_chainsaw_damage, "100", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
+QVR_CVAR(vr_chainsaw_damage, "120", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling
 QVR_CVAR(vr_chainsaw_overlap, "6", CVAR_ARCHIVE)      // cm the running chain's bar may sink into a monster's model (vr_modelcollide.cpp)

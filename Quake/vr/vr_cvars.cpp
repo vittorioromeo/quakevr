@@ -300,12 +300,22 @@ const DefaultChange defaultChanges[] = {
         "monster_army monster_enforcer monster_zombie monster_knight monster_hell_knight monster_army_grenade "
         "monster_army_plasma monster_army_rocket monster_defender monster_eliminator monster_pyro monster_fumigator "
         "monster_centurion monster_dcrossbow monster_dfury monster_dguard monster_dknight monster_dsergeant "
-        "monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected"},    // 158: his retuned grenade pouch reach and flamethrower lights (the holster zones and glove values already match).
+        "monster_zombiek monster_mummy monster_skullwiz monster_ranged_knight infected"},
+    // 158: his retuned grenade pouch reach and flamethrower lights (the holster zones and glove values already match).
     {158, &vr_grenade_pouch_thresh, "7"},
     {158, &vr_flame_lights, "3"},
     {158, &vr_flame_light_scale, "1"},
+    // 159: his swing sounds and wet sheen (his config of 2026-10-19).
+    {159, &vr_melee_swish_min, "0.5"},                  // 0.3
+    {159, &vr_melee_swish_sub, "0.45"},                 // 0.35
+    {159, &vr_melee_swish_full, "2.2"},                 // 1.75
+    {159, &vr_melee_swish_gain, "1.6"},                 // 2
+    {159, &vr_wounds_wet_coat, "1"},                    // 2
+    // 159 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
+    {159, &vr_chainsaw_damage, "100"},                  // 120
+    {159, &vr_dmg_chainsaw_swing, "22"},                // 26
 };
-constexpr int configVersion = 158;
+constexpr int configVersion = 159;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
