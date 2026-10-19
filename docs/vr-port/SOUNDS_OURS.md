@@ -61,7 +61,7 @@ sound played by a constructed name may list only its table.
 
 | Files | Length | How made | For | Used (file:function) | Cvar |
 |---|---|---|---|---|---|
-| `vr/phys/flesh_h1.wav` ... `vr/phys/wood_m4.wav` (40) | 0.08-0.47 s | downloaded: Kenney Impact Sounds 1.0 (kenney.nl/assets/impact-sounds, CC0), cut/levelled by `make_physics_sounds.py` | prop impacts by material (wood/metal/soft/flesh) and weight (l/m/h) | vr_physsound.cpp:file scope; vr_crates.qc:VR_Hit_Armoured; vr_crates.qc:VR_Blunt_HitLayer; world.qc:worldspawn; vr_crates.qc:VR_Crates_Precache; vr_crates.qc:VR_Metal_Sound; vr_crates.qc:VR_Crate_Pain |  |
+| `vr/phys/flesh_h1.wav` ... `vr/phys/wood_m4.wav` (38) | 0.08-0.47 s | downloaded: Kenney Impact Sounds 1.0 (kenney.nl/assets/impact-sounds, CC0), cut/levelled by `make_physics_sounds.py` | prop impacts by material (wood/metal/soft/flesh) and weight (l/m/h) | vr_physsound.cpp:file scope; vr_crates.qc:VR_Hit_Armoured; vr_crates.qc:VR_Blunt_HitLayer; world.qc:worldspawn; vr_crates.qc:VR_Crates_Precache; vr_crates.qc:VR_Metal_Sound; vr_crates.qc:VR_Crate_Pain |  |
 | `vr/phys/scrape_metal1.wav` ... `vr/phys/scrape_wood4.wav` (12) | 0.50 s | downloaded: Freesound CC0 previews: 481861 craigsmith (wood), 690010 matth3wc04 + 844755 MeanRaccoon (metal), 545562 rsellick (stone); windows picked by `make_physics_sounds.py` | props sliding with friction (0.5 s grains crossfaded) | vr_physsound.cpp:file scope |  |
 | `vr/phys/scrape_soft1.wav` ... `vr/phys/scrape_soft4.wav` (4) | 0.50 s | derived: the wood scrape grains low-passed at 700 Hz, quieter (`make_physics_sounds.py`) | a sack or body dragged | vr_physsound.cpp:file scope |  |
 | `vr/phys/grab_metal1.wav` ... `vr/phys/grab_wood3.wav` (9) | 0.14-0.25 s | downloaded: Kenney Impact Sounds (impactSoft_medium + impactWood_light / impactMetal_light / footstep_concrete), CC0, mixed by `make_physics_sounds.py` | a climbing hand taking a hold | vr_carry.qc:VR_Carry_GrabSound; weapons.qc:wpnthrow_touch; world.qc:worldspawn; vr_physsound.cpp:file scope; vr_twohand.cpp:applyHand; vr_twohand.cpp:gripFeedback |  |
@@ -138,3 +138,11 @@ These came with the initial import of the game folder; no generator, credits ent
 | `weapons/chain1.wav` | 0.52 s | vr_grapple.qc:VR_Grapple_Retract; vr_grapple.qc:W_FireGrapple; weapons.qc:W_Precache |
 | `weapons/holster0.wav` | 0.54 s | weapons.qc:W_Precache; weapons.qc:VRHandOffWeapon; weapons.qc:VRTakeCarriedWeapon; weapons.qc:VRDrawHolsterWeapon |
 | `weapons/holster1.wav` | 0.38 s | vr_magholster.qc:VR_MagHolster_Arrive; weapons.qc:W_Precache; weapons.qc:RPutWeaponInHolster |
+
+## Unused-sound audit (2026-10)
+
+Every tracked file under `quakevr/sound/` (236) was searched (path with and without `.wav`, plus runtime-built prefixes) in all tracked source, map, compiled .bsp, data and script files. Removed: `vr/phys/flesh_h3.wav`, `vr/phys/flesh_h4.wav` (never loaded; the generator now makes only two flesh_h takes). Files with no code reference of ours:
+
+| File | Why kept |
+|---|---|
+| `misc/bell`, `misc/click`, `misc/drawbrig`, `misc/rockthud`, `hipweap/mjoltap`, `hipweap/mjolwam` | no QC/engine/map reference of ours, but the path is an official base-game resource name (vr_pack_mg3.inc), byte-identical to the id1 (rerelease pak12) and hipnotic copies, so it overrides a base-game sound the base QC may load |
