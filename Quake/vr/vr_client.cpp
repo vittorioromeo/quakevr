@@ -20,6 +20,7 @@
 #include "vr_particles.hpp"
 #include "vr_fireparticles.hpp"
 #include "vr_flamewobble.hpp"
+#include "vr_brainjiggle.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -741,6 +742,7 @@ void init()
     serverrules::registerCommands();
     fireparticles::registerCommands();
     flamewobble::registerCommands();
+    brainjiggle::registerCommands();
     Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
     smoulder::registerCommands();

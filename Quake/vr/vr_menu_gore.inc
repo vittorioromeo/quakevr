@@ -39,6 +39,12 @@
         slider("From a Head Pop", vr_smallgibs_brains_pop, 0.f, 20.f, 1.f, "%.0f").help("How many when a headshot pops a head (Decapitation > Head Shots)."),
         slider("Brain Chunk Size", vr_smallgibs_brains_size, 0.2f, 2.f, 0.05f, "%.2fx").help("Times the small gibs' size (Smallest, Largest)."),
         slider("Brain Chunk Mass", vr_smallgibs_brains_mass, 0.05f, 2.f, 0.05f, "%.2f kg"),
+        slider("Brain Chunk Gloss", vr_smallgibs_brains_gloss, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Their wet sheen, always on: the highlights on the folds and a warm, reddish rim; 0 dry and matt "
+                  "(vr_smallgibs_brains_gloss)."),
+        slider("Brain Chunk Jiggle", vr_smallgibs_brains_jiggle, 0.f, 4.f, 0.25f, "%.2fx")
+            .help("They wobble when knocked (landing, bouncing, shaken in a hand): squashed and bulging, settling in "
+                  "half a second. Drawn only: their physics stay rigid. 0 off (vr_smallgibs_brains_jiggle)."),
         slider("Brain Chunk Speed", vr_smallgibs_brains_speed, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
             .help("How fast brain chunks fly out of a head burst: their own, not Speed below (times A Large Gib Bursts: "
                   "Speed). The default is Speed's, which is what they used then (vr_smallgibs_brains_speed)."),

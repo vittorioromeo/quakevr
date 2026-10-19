@@ -355,6 +355,8 @@ za::Vector<Item> pageDebugAutomation()
         command("Burst a Gib and a Head", "vr_smallgibs_test 7"),
         command("Brain Chunks Ahead", "vr_smallgibs_test 21")
             .help("vr_smallgibs_test 21: a head pop's brain chunks (Small Gibs > From a Head Pop) burst just ahead of you, to look at, pick up and throw."),
+        command("Brain Jiggle Info", "vr_brain_jiggle_info")
+            .help("vr_brain_jiggle_info: the brain chunks followed, those wobbling, the knocks that kicked them and the most squash since the last (Small Gibs > Brain Chunk Jiggle)."),
         command("Most Lying About", "vr_smallgibs_test 8").help("vr_smallgibs_test 8: 15 made with Most Lying About 10: the five oldest go."),
         command("Held, Then Let Go", "vr_smallgibs_test 9").help("vr_smallgibs_test 9: one in the off hand for 3 s with Last 1 s, then let go: it waits until it lands."),
         command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),

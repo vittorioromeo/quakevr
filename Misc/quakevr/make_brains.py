@@ -52,15 +52,17 @@ BRAINS = [  # (file, seed, size cm x y z, the torn face's normal, the share of t
 
 # The skins: (name, a gyrus' top, a sulcus' floor, the torn face (white matter)), sRGB 0..255, before DARKEN.
 SKINS = [
-    ("pinkish", (176, 130, 134), (84, 46, 54), (190, 158, 152)),
-    ("greyish", (146, 134, 138), (64, 52, 58), (170, 160, 160)),
+    ("pinkish", (212, 148, 150), (100, 30, 38), (184, 144, 138)),
+    ("greyish", (186, 152, 158), (88, 32, 42), (172, 148, 146)),
 ]
 BLOOD = np.array((96, 8, 10)) / 255.0  # fresh (the gibs' reds: palette 64-79)
 CLOT = np.array((52, 2, 4)) / 255.0    # dark, thick
 VESSEL = np.array((150, 30, 40)) / 255.0
+WARM = np.array((200, 74, 72)) / 255.0  # a gyrus' flanks: the light through the tissue, reddened
 DARKEN = 0.6  # as dim as the gibs' meat beside them
-FOLDS = 6.5    # the folds' noise, cycles a unit (more: closer folds)
-DEPTH = 0.10   # units: a sulcus' depth in the relief (about 4 mm at vr_world_scale 1)
+FOLDS = 2.6    # the folds' noise, cycles a unit (more: closer folds; 2.6: four or five gyri across a chunk)
+GYRUS = 0.24   # how far from a sulcus' line (in the noise) a gyrus reaches its crest (more: narrower sulci)
+DEPTH = 0.16   # units: a sulcus' depth in the relief (about 6 mm at vr_world_scale 1)
 PALETTE_IDX = list(range(128, 144)) + list(range(144, 160)) + list(range(160, 176)) + list(range(64, 80)) + \
     list(range(1, 15)) + list(range(96, 102))  # mauve greys, pinks, pinkish beige, reds, greys, dark browns
 
@@ -279,11 +281,13 @@ def brain_paint(P, C, seed, torn_n, torn_d):
     warp = np.stack([md.fbm(P * 1.1 + o, seed + 40 + j, 2) - 0.5 for j, o in enumerate((0.0, 5.3, 9.7))], -1)
     # (Where two noises of the folds' size cross their middles: a labyrinth of meandering lines, not the nested rings
     # of one noise's contours.)
-    n1 = md.vnoise(P * FOLDS + warp * 2.5, seed + 50) - 0.5
-    n2 = md.vnoise(P * FOLDS * 1.37 + warp * 2.5 + 4.1, seed + 51) - 0.5
+    n1 = md.vnoise(P * FOLDS + warp * 2.0, seed + 50) - 0.5
+    n2 = md.vnoise(P * FOLDS * 1.37 + warp * 2.0 + 4.1, seed + 51) - 0.5
     d = np.minimum(np.abs(n1), np.abs(n2) * 0.8)
-    d = np.clip(d / 0.2, 0, 1) * 0.5  # 0 in a sulcus .. 0.5 on a gyrus' crest
-    gyrus = np.sqrt(np.clip(1 - (1 - 2 * d) ** 2, 0, 1))
+    d = np.clip(d / GYRUS, 0, 1) * 0.5  # 0 in a sulcus .. 0.5 on a gyrus' crest
+    # The profile: a half circle's (a sharp crease at the sulcus) eased into a sine's (the top round, not flat: a
+    # swollen, squishy sausage of cortex).
+    gyrus = 0.6 * np.sqrt(np.clip(1 - (1 - 2 * d) ** 2, 0, 1)) + 0.4 * np.sin(np.pi * d)
     # Some sulci deeper (the fissures), some shallow.
     deep = md.smoothstep(md.vnoise(P * 0.9 + 2.0, seed + 60), 0.35, 0.75)
     fine = md.fbm(P * 14.0, seed + 70, 2) - 0.5
@@ -297,13 +301,15 @@ def brain_paint(P, C, seed, torn_n, torn_d):
     bl = md.fbm(P * 1.5 + 11.0, seed + 100, 3) + 0.22 * near
     smear = md.smoothstep(bl, 0.70, 0.78)
     clot = md.smoothstep(md.fbm(P * 4.0, seed + 110, 2) + 0.15 * near, 0.62, 0.72)
-    pooled = (1 - md.smoothstep(d, 0.0, 0.22)) * deep  # the deep sulci: blood in them
+    # Blood run into every sulcus (a crease's floor), the deep ones full of it and clotted dark.
+    sulcus = 1 - md.smoothstep(d, 0.0, 0.2)
+    pooled = sulcus * (0.55 + 0.45 * deep)
     # The torn face: rough, pitted, blood-soaked.
     trough = md.fbm(P * 5.0, seed + 120, 3) - 0.5
     tpits = md.smoothstep(md.vnoise(P * 9.0, seed + 121), 0.68, 0.85)
     tblood = md.smoothstep(md.fbm(P * 2.6, seed + 122, 3) + 0.25 * (md.fbm(P * 7.0, seed + 123, 2) - 0.5), 0.5, 0.6)
 
-    h_cortex = DEPTH * ((gyrus - 1) * (0.6 + 0.6 * deep) + 0.06 * fine + 0.25 * mottle)
+    h_cortex = DEPTH * ((gyrus - 1) * (0.7 + 0.5 * deep) + 0.04 * fine + 0.15 * mottle)
     h_torn = DEPTH * (0.7 * trough - 0.35 * tpits + 0.05 * fine)
     h = np.where(torn, h_torn, h_cortex)
 
@@ -312,10 +318,17 @@ def brain_paint(P, C, seed, torn_n, torn_d):
         top = np.array(top) / 255.0
         floor = np.array(floor) / 255.0
         white = np.array(white) / 255.0
-        g = gyrus ** 0.8
-        c = md.mix(floor, top, g) * (1 + 0.22 * mottle + 0.05 * fine)[..., None]
+        g = gyrus ** 0.7
+        c = md.mix(floor, top, g) * (1 + 0.12 * mottle + 0.05 * fine)[..., None]
+        # A gyrus' flanks warmer and redder than its top (the light scattered through the soft tissue: blood under
+        # it), a little darker down into the creases (their own shade), the crest a touch paler (wet: it catches
+        # the light).
+        flank = 4 * gyrus * (1 - gyrus)
+        c = md.mix(c, WARM, 0.22 * flank)
+        c = c * (0.72 + 0.28 * gyrus)[..., None] + (0.05 * gyrus ** 6)[..., None]
         c = md.mix(c, VESSEL, 0.35 * vessel)
-        c = md.mix(c, BLOOD, 0.6 * pooled)
+        c = md.mix(c, BLOOD, 0.75 * pooled)
+        c = md.mix(c, CLOT, 0.55 * sulcus * deep)
         c = md.mix(c, BLOOD, 0.8 * smear)
         c = md.mix(c, CLOT, 0.7 * smear * clot)
         w = white * (1 + 0.25 * trough + 0.06 * fine)[..., None]
