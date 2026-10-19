@@ -256,6 +256,21 @@ void addFoe(edict_t* m)
     foes[numFoes++] = Foe{num, vec(m->v.origin), m->v.angles[1], true};
 }
 
+// An enemy breaking free of player `player`'s grasp (a lift timing out: breakFree; a standing one pulled away from its
+// hold: release, Why::Pulled): the QC's VR_FoeGrab_BreakFree shoves him back vr_foegrab_free_push metres and plays the
+// shove sound (vr_foegrab_free_sound). (An enemy's own shove that breaks the hold, Why::BrokeFree, did both already.)
+void breakFreeEffects(edict_t* player, edict_t* m)
+{
+    const float shove = za::clamp(vr_foegrab_free_push.value, 0.f, 3.f) * units::metresToUnits();
+    const float sound = vr_foegrab_free_sound.value != 0.f ? 1.f : 0.f;
+    (void)callQc(bindings().foegrab.BreakFree, player, m, shove, sound, 0.f);
+    if(debug())
+    {
+        Con_Printf("foegrab: %s breaks free: pushes you back %.0f units (sound %d)\n", PR_GetString(m->v.classname), shove,
+            static_cast<int>(sound));
+    }
+}
+
 void release(edict_t* player, int h, Why why, const char* text)
 {
     Holder* hp = holderOf(player);
@@ -274,6 +289,10 @@ void release(edict_t* player, int h, Why why, const char* text)
     if(m && !m->free && bindings().isVrProgs)
     {
         (void)callQc(bindings().foegrab.Released, player, m, static_cast<float>(h), static_cast<float>(why), 0.f);
+        if(why == Why::Pulled)
+        {
+            breakFreeEffects(player, m);
+        }
     }
 }
 
@@ -793,13 +812,11 @@ void breakFree(int c, edict_t* m)
     }
     (void)box3d::ragdollFlail(m, false);
     hd.flailing = false;
-    const float shove = za::clamp(vr_foegrab_free_push.value, 0.f, 3.f) * units::metresToUnits();
-    const float sound = vr_foegrab_free_sound.value != 0.f ? 1.f : 0.f;
-    (void)callQc(bindings().foegrab.BreakFree, player, m, shove, sound, 0.f);
+    breakFreeEffects(player, m);
     if(debug())
     {
-        Con_Printf("foegrab: %s (%d) breaks free after %.2f s lifted: pushes you back %.0f units (sound %d)\n",
-            PR_GetString(m->v.classname), hd.carried, qcvm->time - hd.carriedSince, shove, static_cast<int>(sound));
+        Con_Printf("foegrab: %s (%d) breaks free after %.2f s lifted\n", PR_GetString(m->v.classname), hd.carried,
+            qcvm->time - hd.carriedSince);
     }
     hd.carried = 0;
 }

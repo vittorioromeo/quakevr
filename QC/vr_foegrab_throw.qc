@@ -178,7 +178,7 @@ float(entity m, float xDist, float xSound) VR_FoeGrab_BreakFree =
     VR_EnemyShove_Push(self, self.origin - m.origin, xDist);
     if(xSound)
     {
-        sound(self, CHAN_WEAPON, "vr/shove.wav", 1, ATTN_NORM); // (the shove's)
+        sound(self, CHAN_AUTO, "vr/shove.wav", 1, ATTN_NORM); // (the shove's)
         dprint("foegrab: break free plays vr/shove.wav\n");
     }
     m.vr_kd_until = time;
