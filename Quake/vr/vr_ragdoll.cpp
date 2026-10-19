@@ -1881,6 +1881,7 @@ struct Neck
     glm::vec3 pivot{0.f};
 };
 constexpr float neckShrink = 1e-3f;
+constexpr float stumpReach = 1.25f; // a stump's flesh reaches this many times its limb's thickness round its joint (stumpLook)
 
 template <typename Rots, typename Poss>
 [[nodiscard]] Neck neckOf(const Published& p, int b, const Rots& rots, const Poss& poss)
@@ -2605,6 +2606,56 @@ int bonePoses(const entity_t* e, const float** matrices)
         *matrices = s->skin.data();
     }
     return s->bones;
+}
+
+void stumpLook(const entity_t* e, float out[4])
+{
+    out[0] = out[1] = out[2] = out[3] = 0.f;
+    const Swapped* s = swappedOf(e);
+    if(!s || e->model != s->skinned || s->num < 0 || s->num >= static_cast<int>(draw.byNum.size()))
+    {
+        return;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(s->num)];
+    if(!p.rig || !p.cut)
+    {
+        return;
+    }
+    // Each cut bone's thickness at its cut: its rest vertices' mean distance from its axis, over the third of it by its
+    // joint (the parent's ring the cone closes; vr_glsl.h StumpFlesh). Their mean, a little past it.
+    uint32_t bits = 0;
+    float sum = 0.f;
+    int n = 0;
+    for(int b = 0; b < za::min(p.bodies, 24); b++)
+    {
+        if(!(p.cut & (1u << b)))
+        {
+            continue;
+        }
+        bits |= 1u << b;
+        const Bone& bone = p.rig->bones[b];
+        const glm::vec3 along = bone.end - bone.pivot;
+        const float len = glm::length(along);
+        float r = 0.f;
+        int k = 0;
+        if(len > 1e-3f)
+        {
+            const glm::vec3 axis = along / len;
+            for(const glm::vec3& q : bone.points)
+            {
+                const float t = glm::dot(q - bone.pivot, axis);
+                if(t >= 0.f && t <= len * 0.35f)
+                {
+                    r += glm::length(q - bone.pivot - axis * t);
+                    k++;
+                }
+            }
+        }
+        sum += k > 0 ? r / static_cast<float>(k) : za::max(bone.capsule, len * 0.25f);
+        n++;
+    }
+    out[0] = static_cast<float>(bits);
+    out[1] = za::max(stumpReach * sum / static_cast<float>(za::max(n, 1)) * p.scale, 0.5f);
 }
 
 bool drawMatrix(const entity_t* e, float matrix[16])

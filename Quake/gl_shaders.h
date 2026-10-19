@@ -1382,6 +1382,7 @@ NOISE_FUNCTIONS
 "	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
 "	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
 "	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn); y the painted leather's relief's strength (vr_glove_relief)\n"\
+"	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\

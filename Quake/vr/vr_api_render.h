@@ -150,6 +150,7 @@ typedef struct vraliasinstance_s
 	float		dent[4]; // flesh dents (vr_dents.cpp): its rows' first in the dent buffer, their count (0 none), xy of its pose's origin in units
 	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
 	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none); [2] the wet coat's strength (VR_AliasWetCoat; 0 dry), [3] 1: all of it wet (else where its wound mask is)
+	float		stump[4]; // a ragdoll's stumps (vr_ragdoll.cpp stumpLook; the shaders' StumpFlesh): its cut bones (bits 0..23, as a whole number; 0 none), how far round their joints the cut's flesh reaches (units)
 } vraliasinstance_t;
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first

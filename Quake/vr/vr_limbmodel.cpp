@@ -31,10 +31,83 @@ struct KeptName
     char text[MAX_QPATH]{};
 };
 za::Vector<za::UniquePtr<KeptName>> keptNames;
-constexpr int stripRows = 8;          // the blood strip under each skin (texels)
+constexpr int stripRows = 32;         // the flesh strip under each skin (texels): its left square the cap's
+constexpr int minStripRows = 8;       // (less room under a tall skin: as many rows as fit, at least these)
 constexpr int maxSkinHeight = 480;    // Mod_LoadAliasModel's MAX_LBM_HEIGHT
-// Blood reds (0..255) the strip is painted with: the palette's nearest (its ordinary colours, not the fullbright).
-constexpr float bloodReds[4][3] = {{96.f, 8.f, 4.f}, {124.f, 14.f, 8.f}, {72.f, 4.f, 2.f}, {148.f, 24.f, 12.f}};
+constexpr float capTexelsPerUnit = 2.5f; // the cap's flesh as fine as the body stump's (vr_glsl.h StumpFlesh's cells)
+
+// The cut's flesh (the same recipe as the body stump's, vr_glsl.h StumpFlesh: keep them alike), after Quake's own gibs'
+// and heads' necks: mostly dark reds of the palette's blood ramp (64..79), blotches of brown meat and pale sinew, dark
+// pits, a few wet glints; the bone in its middle. `c` a texel (cell) in the flesh's 3D noise, `r` how far out of the
+// middle (0) to the rim (1). Palette colours (0..255): the skin takes the nearest (nearestPalette).
+[[nodiscard]] uint32_t fleshHash(int x, int y, int z)
+{
+    uint32_t h = static_cast<uint32_t>(x) * 73856093u ^ static_cast<uint32_t>(y) * 19349663u ^ static_cast<uint32_t>(z) * 83492791u;
+    h = (h ^ (h >> 13u)) * 0x5bd1e995u;
+    return h ^ (h >> 15u);
+}
+
+[[nodiscard]] float fleshRand(int x, int y, int z)
+{
+    return static_cast<float>(fleshHash(x, y, z) & 0xFFFFFFu) / 16777216.f;
+}
+
+[[nodiscard]] float fleshNoise(const glm::vec3& p)
+{
+    const glm::vec3 fl = glm::floor(p);
+    const int x = static_cast<int>(fl.x), y = static_cast<int>(fl.y), z = static_cast<int>(fl.z);
+    glm::vec3 f = p - fl;
+    f = f * f * (3.f - 2.f * f);
+    const auto lerp = [](float a, float b, float t) { return a + (b - a) * t; };
+    const float a = lerp(lerp(fleshRand(x, y, z), fleshRand(x + 1, y, z), f.x), lerp(fleshRand(x, y + 1, z), fleshRand(x + 1, y + 1, z), f.x), f.y);
+    const float b = lerp(lerp(fleshRand(x, y, z + 1), fleshRand(x + 1, y, z + 1), f.x),
+        lerp(fleshRand(x, y + 1, z + 1), fleshRand(x + 1, y + 1, z + 1), f.x), f.y);
+    return lerp(a, b, f.z);
+}
+
+[[nodiscard]] glm::vec3 fleshColour(const glm::vec3& c, float r)
+{
+    const glm::vec3 cell = glm::floor(c);
+    const float w = fleshRand(static_cast<int>(cell.x), static_cast<int>(cell.y), static_cast<int>(cell.z));
+    const float lv = 0.6f * fleshNoise(c * 0.2f) + 0.4f * fleshNoise(c * 0.43f + 31.f);
+    const float meat = fleshNoise(c * 0.27f + 71.f);
+    const float bone = 0.14f + 0.06f * (fleshNoise(c * 0.5f + 5.f) - 0.5f);
+    if(r < bone * 0.4f)
+    {
+        return w < 0.5f ? glm::vec3{55.f, 43.f, 31.f} : glm::vec3{39.f, 31.f, 23.f}; // (its marrow)
+    }
+    if(r < bone)
+    {
+        return w < 0.4f ? glm::vec3{107.f, 87.f, 71.f} : w < 0.75f ? glm::vec3{95.f, 75.f, 59.f} : glm::vec3{83.f, 63.f, 51.f};
+    }
+    if(r < bone * 1.3f)
+    {
+        return w < 0.5f ? glm::vec3{31.f, 0.f, 0.f} : glm::vec3{23.f, 0.f, 0.f}; // (dark round the bone)
+    }
+    const float l = lv + (w - 0.5f) * 0.2f;
+    if(l < 0.3f)
+    {
+        return w < 0.5f ? glm::vec3{15.f, 11.f, 7.f} : glm::vec3{23.f, 0.f, 0.f}; // a pit
+    }
+    if(w > 0.97f && lv > 0.45f)
+    {
+        return w > 0.985f ? glm::vec3{119.f, 0.f, 0.f} : glm::vec3{103.f, 0.f, 0.f}; // a wet glint
+    }
+    if(meat > 0.64f)
+    {
+        if(meat > 0.8f && w > 0.5f)
+        {
+            constexpr float sinew[3][3] = {{83.f, 55.f, 35.f}, {99.f, 63.f, 43.f}, {111.f, 71.f, 51.f}};
+            const float* s = sinew[za::min(static_cast<int>((w - 0.5f) * 6.f), 2)];
+            return glm::vec3{s[0], s[1], s[2]};
+        }
+        constexpr float brown[5][3] = {{35.f, 19.f, 7.f}, {47.f, 23.f, 11.f}, {59.f, 31.f, 15.f}, {75.f, 35.f, 19.f}, {87.f, 43.f, 23.f}};
+        const float* s = brown[za::clamp(static_cast<int>((lv * 1.4f - 0.2f + (w - 0.5f) * 0.3f) * 5.f), 0, 4)];
+        return glm::vec3{s[0], s[1], s[2]};
+    }
+    const int i = za::clamp(static_cast<int>(1.f + lv * lv * 12.f + (w - 0.5f) * 3.f), 1, 13);
+    return glm::vec3{static_cast<float>(7 + 8 * i), 0.f, 0.f};
+}
 
 // A monster's gear left off its limbs' models (a piece of its own: no triangle crosses to the flesh), as its cut limb
 // drops a weapon of ours in its place: AD's Freddie's super nailgun, its five barrels on his left forearm (QC
@@ -329,29 +402,42 @@ struct Built
         why = "no triangle of its own";
         return false;
     }
-    const bool strip = skinH + stripRows <= maxSkinHeight;
+    const int rows = za::min(za::min(stripRows, maxSkinHeight - skinH), skinW);
+    const bool strip = rows >= minStripRows;
     const ragdoll::Bone& root = rig.bones[bone];
     const glm::vec3 axis = root.pivot - root.end;
     const glm::vec3 capOut = glm::length(axis) > 1e-3f ? glm::normalize(axis) : glm::vec3{0.f, 0.f, -1.f};
     const byte capNormal = nearestNormal(capOut);
     int capMid = -1;
+    float capTexels = 1.f; // the cap's radius on the strip (texels): its rim, for the bone in its middle
     if(capCorners > 0)
     {
         OutVert m;
         m.p = capSum / static_cast<float>(capCorners);
         capMid = static_cast<int>(verts.size());
         verts.pushBack(m);
-        // The cap's texels: along the blood strip (its middle row), every corner its own column.
+        // The cap's texels: laid flat on the strip's left square (seen down the limb's axis), its middle the square's,
+        // as fine as the body stump's flesh (capTexelsPerUnit) unless it is wider than the square.
         capVerts.pushBack(capMid);
-        int k = 0;
+        const glm::vec3 side = glm::normalize(glm::abs(capOut.z) < 0.9f ? glm::cross(capOut, glm::vec3{0.f, 0.f, 1.f})
+                                                                         : glm::cross(capOut, glm::vec3{1.f, 0.f, 0.f}));
+        const glm::vec3 up = glm::cross(capOut, side);
+        float reach = 1e-3f;
+        for(const int i : capVerts)
+        {
+            reach = za::max(reach, glm::length(verts[static_cast<za::SizeT>(i)].p - m.p));
+        }
+        const float half = static_cast<float>(rows) * 0.5f;
+        const float k = strip ? za::min(capTexelsPerUnit, (half - 1.f) / reach) : 0.f;
+        capTexels = za::max(reach * k, 1.f);
         for(const int i : capVerts)
         {
             OutVert& cv = verts[static_cast<za::SizeT>(i)];
+            const glm::vec3 d = cv.p - m.p;
             cv.onseam = 0;
-            cv.s = (k * 13 + 3) % skinW;
-            cv.t = strip ? skinH + stripRows / 2 : skinH / 2;
+            cv.s = strip ? static_cast<int>(za::lround(half + glm::dot(d, side) * k)) : skinW / 2;
+            cv.t = strip ? skinH + static_cast<int>(za::lround(half + glm::dot(d, up) * k)) : skinH / 2;
             cv.normal = capNormal;
-            k++;
         }
     }
 
@@ -368,7 +454,7 @@ struct Built
     }
     const glm::vec3 packScale = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
 
-    const int outH = skinH + (strip ? stripRows : 0);
+    const int outH = skinH + (strip ? rows : 0);
     za::Vector<byte>& f = out.file;
     f.clear();
     put(f, IDPOLYHEADER);
@@ -393,24 +479,42 @@ struct Built
     put(f, zombie ? EF_ZOMGIB : EF_GIB);
     putf(f, rdf(src, 80));
 
-    // The skins, each with the strip under it.
-    byte reds[4];
-    for(int i = 0; i < 4; i++)
+    // The skins, each with the strip under it: the cut's flesh (fleshColour), the bone in the left square's middle (the
+    // cap's), the palette's nearest to each colour (looked up once a colour).
+    za::Vector<byte> flesh;
+    if(strip)
     {
-        reds[i] = nearestPalette(bloodReds[i]);
+        za::Vector<uint32_t> seen;
+        za::Vector<byte> seenIndex;
+        flesh.reserve(static_cast<za::SizeT>(rows * skinW));
+        const float half = static_cast<float>(rows) * 0.5f;
+        for(int y = 0; y < rows; y++)
+        {
+            for(int x = 0; x < skinW; x++)
+            {
+                const float r = x < rows ? glm::length(glm::vec2{x + 0.5f - half, y + 0.5f - half}) / capTexels : 2.f;
+                const glm::vec3 c = fleshColour(glm::vec3{static_cast<float>(x), static_cast<float>(y), static_cast<float>(bone * 7 + 3)}, r);
+                const uint32_t key = static_cast<uint32_t>(c.x) | static_cast<uint32_t>(c.y) << 8 | static_cast<uint32_t>(c.z) << 16;
+                za::SizeT i = 0;
+                while(i < seen.size() && seen[i] != key)
+                {
+                    i++;
+                }
+                if(i == seen.size())
+                {
+                    const float want[3] = {c.x, c.y, c.z};
+                    seen.pushBack(key);
+                    seenIndex.pushBack(nearestPalette(want));
+                }
+                flesh.pushBack(seenIndex[i]);
+            }
+        }
     }
     const auto image = [&](const byte* pixels) {
         f.emplaceBackRange(pixels, skinBytes);
         if(strip)
         {
-            for(int y = 0; y < stripRows; y++)
-            {
-                for(int x = 0; x < skinW; x++)
-                {
-                    const unsigned h = static_cast<unsigned>(x) * 73856093u ^ static_cast<unsigned>(y) * 19349663u;
-                    f.pushBack(reds[(h >> 3) & 3u]);
-                }
-            }
+            f.emplaceBackRange(flesh.data(), static_cast<size_t>(flesh.size()));
         }
     };
     at = headerSize;

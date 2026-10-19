@@ -157,6 +157,10 @@ void watchGetup(int num, double from, double until);
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
 // Its drawn model matrix (VR_AliasPostTransform): a translation to where its bones are given from; false if it isn't one.
 [[nodiscard]] bool drawMatrix(const entity_t* e, float matrix[16]);
+// Its stumps' look for the alias shaders (InstanceData's Stump; StumpFlesh, vr_glsl.h): out[0] its drawn cut bones
+// (bits 0..23, a whole number; 0 none, or not a swapped entity), out[1] how far round their joints the cut's flesh
+// reaches (units: their limbs' thickness at the cut).
+void stumpLook(const entity_t* e, float out[4]);
 
 // A ragdoll's mesh as drawn now, in the world (units): its .mdl vertices skinned to its bodies (rigid: one bone each),
 // and their normals (the rest pose's turned with them) if `normals`. False if edict `num` has no ragdoll published.

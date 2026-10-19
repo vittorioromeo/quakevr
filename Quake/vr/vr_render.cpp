@@ -396,6 +396,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     }
     out->gloveshell[0] = shell;
     out->gloveshell[1] = out->gloveshell[2] = out->gloveshell[3] = 0.f;
+    ragdoll::stumpLook(e, out->stump); // a ragdoll's stumps' flesh (the shaders' StumpFlesh)
     const bool standard = kind == 1;
     const bool lit = standard && !r_fullbright_cheatsafe && !r_lightmap_cheatsafe;
     VR_AliasLightDir(e, out->lightdir);

@@ -2272,7 +2272,8 @@ QVR_PERMDECAL_FUNCTIONS \
 "layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n" \
 "layout(location=15) flat out float out_retroset; // QVR: its retro textures' set (vr/vr_retro.h; your body's by part)\n" \
 "layout(location=16) out vec3 out_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose (units; zero: no dents)\n" \
-"layout(location=17) out vec4 out_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n"
+"layout(location=17) out vec4 out_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n" \
+"layout(location=18) out vec4 out_stump; // QVR: a ragdoll's stumps (StumpFlesh): xyz the rest pose's place (units), w how near a cut joint (1: inst.Stump.y; 2 none)\n"
 
 // which side's wound mask a vertex reads (vr/vr_wounds.cpp): your body's arms and legs share their skin's texels,
 // mirrored, so its mask is two layers, the left side's (with the middle's) and the right side's; a vertex's side is its
@@ -2285,6 +2286,26 @@ QVR_PERMDECAL_FUNCTIONS \
 "		int bone = HeaviestBone();\n" \
 "		uint bits = bone < 24 ? uint(inst.WoundSide.x) >> uint(bone) : bone < 48 ? uint(inst.WoundSide.y) >> uint(bone - 24) : 0u;\n" \
 "		out_woundside = float(bits & 1u);\n" \
+"	}\n" \
+"#endif\n" \
+"	out_stump = vec4(0.0, 0.0, 0.0, 2.0); // QVR: a ragdoll's stumps (inst.Stump: vr/vr_ragdoll.cpp stumpLook): how near a joint cut\n" \
+"#if POSEVERTTYPE == 1\n" \
+"	if (inst.Stump.x > 0.5) // ... its bone's vertices shrunk to it (neckShrink): any of them there, this one's too\n" \
+"	{\n" \
+"		uint cuts = uint(inst.Stump.x);\n" \
+"		float near = 2.0;\n" \
+"		for (uint c = 0u; c < 24u; c++)\n" \
+"		{\n" \
+"			if ((cuts & (1u << c)) == 0u)\n" \
+"				continue;\n" \
+"			mat3x4 sb = BonePoses[uint(inst.Pose1) + c];\n" \
+"			float sk = length(vec3(sb[0].x, sb[1].x, sb[2].x));\n" \
+"			if (sk < 1e-6) // (a hidden bone's: all of it at nothing)\n" \
+"				continue;\n" \
+"			vec3 joint = (transpose(sb) * vec4(bind_pos, 1.0)).xyz;\n" \
+"			near = min(near, distance(lerpedPos, joint) / max(inst.Stump.y, 0.1));\n" \
+"		}\n" \
+"		out_stump = vec4(bind_pos, near);\n" \
 "	}\n" \
 "#endif\n"
 
@@ -2542,7 +2563,8 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n" \
 "layout(location=15) flat in float in_retroset; // QVR: its retro textures' set (vr/vr_retro.h)\n" \
 "layout(location=16) in vec3 in_restpos; // QVR: flesh dents (vr/vr_dents.cpp): where in the model's rest pose\n" \
-"layout(location=17) in vec4 in_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n"
+"layout(location=17) in vec4 in_restnor; // QVR: ... its normal there, and its flesh (w: 0 a weapon)\n" \
+"layout(location=18) in vec4 in_stump; // QVR: a stump's flesh (StumpFlesh): xyz the rest pose's place, w how near a cut joint (1 its reach)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
 #define QVR_ALIAS_FS_FUNCTIONS \
@@ -2728,6 +2750,64 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 glow;	 // embers (unlit)\n" \
 "	vec2 slope;	// the relief's slope along the skin's u and v (units a whole skin across; the fine masks')\n" \
 "};\n" \
+"\n" \
+"// QVR: a cut-off limb's stump on its body (vr/vr_ragdoll.cpp: the cut bone's vertices shrunk to its joint, the\n" \
+"// triangles across the cut a cone closing it): Quake's gibs' flesh, the same recipe as a cut limb's cap\n" \
+"// (vr/vr_limbmodel.cpp fleshColour: keep them alike): dark reds of the palette's blood ramp, blotches of brown meat and\n" \
+"// pale sinew, dark pits, wet glints, chunky cells (2.5 a unit) of the rest pose (they stay put on the body); the bone\n" \
+"// in the cone's middle (r: 0 there, 1 at its rim). Palette colours.\n" \
+"uint StumpHash(ivec3 c)\n" \
+"{\n" \
+"	uint h = uint(c.x) * 73856093u ^ uint(c.y) * 19349663u ^ uint(c.z) * 83492791u;\n" \
+"	h = (h ^ (h >> 13u)) * 0x5bd1e995u;\n" \
+"	return h ^ (h >> 15u);\n" \
+"}\n" \
+"float StumpRand(ivec3 c)\n" \
+"{\n" \
+"	return float(StumpHash(c) & 0xFFFFFFu) / 16777216.0;\n" \
+"}\n" \
+"float StumpNoise(vec3 p)\n" \
+"{\n" \
+"	ivec3 i = ivec3(floor(p));\n" \
+"	vec3 f = fract(p);\n" \
+"	f = f * f * (3.0 - 2.0 * f);\n" \
+"	float a = mix(mix(StumpRand(i), StumpRand(i + ivec3(1, 0, 0)), f.x), mix(StumpRand(i + ivec3(0, 1, 0)), StumpRand(i + ivec3(1, 1, 0)), f.x), f.y);\n" \
+"	float b = mix(mix(StumpRand(i + ivec3(0, 0, 1)), StumpRand(i + ivec3(1, 0, 1)), f.x), mix(StumpRand(i + ivec3(0, 1, 1)), StumpRand(i + ivec3(1, 1, 1)), f.x), f.y);\n" \
+"	return mix(a, b, f.z);\n" \
+"}\n" \
+"vec3 StumpFlesh(vec3 c, float r)\n" \
+"{\n" \
+"	ivec3 cell = ivec3(floor(c));\n" \
+"	float w = StumpRand(cell);\n" \
+"	float lv = 0.6 * StumpNoise(c * 0.2) + 0.4 * StumpNoise(c * 0.43 + 31.0);\n" \
+"	float meat = StumpNoise(c * 0.27 + 71.0);\n" \
+"	float bone = 0.14 + 0.06 * (StumpNoise(c * 0.5 + 5.0) - 0.5);\n" \
+"	vec3 o;\n" \
+"	float l = lv + (w - 0.5) * 0.2;\n" \
+"	if (r < bone * 0.4)\n" \
+"		o = w < 0.5 ? vec3(55., 43., 31.) : vec3(39., 31., 23.);\n" \
+"	else if (r < bone)\n" \
+"		o = w < 0.4 ? vec3(107., 87., 71.) : w < 0.75 ? vec3(95., 75., 59.) : vec3(83., 63., 51.);\n" \
+"	else if (r < bone * 1.3)\n" \
+"		o = w < 0.5 ? vec3(31., 0., 0.) : vec3(23., 0., 0.);\n" \
+"	else if (l < 0.3)\n" \
+"		o = w < 0.5 ? vec3(15., 11., 7.) : vec3(23., 0., 0.);\n" \
+"	else if (w > 0.97 && lv > 0.45)\n" \
+"		o = w > 0.985 ? vec3(119., 0., 0.) : vec3(103., 0., 0.);\n" \
+"	else if (meat > 0.8 && w > 0.5)\n" \
+"	{\n" \
+"		int k = min(int((w - 0.5) * 6.0), 2);\n" \
+"		o = k == 0 ? vec3(83., 55., 35.) : k == 1 ? vec3(99., 63., 43.) : vec3(111., 71., 51.);\n" \
+"	}\n" \
+"	else if (meat > 0.64)\n" \
+"	{\n" \
+"		int k = clamp(int((lv * 1.4 - 0.2 + (w - 0.5) * 0.3) * 5.0), 0, 4);\n" \
+"		o = k == 0 ? vec3(35., 19., 7.) : k == 1 ? vec3(47., 23., 11.) : k == 2 ? vec3(59., 31., 15.) : k == 3 ? vec3(75., 35., 19.) : vec3(87., 43., 23.);\n" \
+"	}\n" \
+"	else\n" \
+"		o = vec3(float(7 + 8 * clamp(int(1.0 + lv * lv * 12.0 + (w - 0.5) * 3.0), 1, 13)), 0.0, 0.0);\n" \
+"	return o / 255.0;\n" \
+"}\n" \
 "\n" \
 "float WoundHash(vec2 p)\n" \
 "{\n" \
@@ -3111,6 +3191,14 @@ QVR_DENT_FUNCTIONS \
 "		wounds.look += skinShare * (mix(toned, leather, cover) - result.rgb);\n" \
 "	}\n" \
 "	result.rgb = wounds.look;\n" \
+"	if (in_stump.w < 1.1) // QVR: a cut-off limb's stump (StumpFlesh): the cone closing it and round it, its edge ragged\n" \
+"	{\n" \
+"		vec3 sc = in_stump.xyz * 2.5;\n" \
+"		float cover = step(in_stump.w, 0.75 + 0.35 * StumpRand(ivec3(floor(sc)) + ivec3(9, 4, 2)));\n" \
+"		result.rgb = mix(result.rgb, StumpFlesh(sc, in_stump.w), cover);\n" \
+"		wounds.gloss = mix(wounds.gloss, 0.25, cover); // (wet, not glazed)\n" \
+"		wounds.flatten = max(wounds.flatten, cover);\n" \
+"	}\n" \
 "	if (wounds.wet > 0.0) // QVR: the wet coat (vr/vr_wounds.cpp wetCoat): all of the look a little darker, evenly\n" \
 "	{ // (not a fullbright texel's: unlit)\n" \
 "		float wetDark = 0.3 * min(wounds.wet, 2.0);\n" \
