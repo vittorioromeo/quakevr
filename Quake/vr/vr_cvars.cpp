@@ -636,6 +636,7 @@ constexpr const char* retiredCvars[] = {
     "vr_server_thread_check",
     // 2026-10-19: the flinch removed (ROUND22.md, "The flinch removed; ragdoll triggers"; FLINCH_RETROSPECTIVE.md):
     // hits play the pains again, active ragdolls come from the triggers (vr_kdtrig: Combat > Ragdoll Triggers).
+    "vr_foegrab_lift_shove", // 2026-10-19: replaced by vr_foegrab_free_push (metres)
     "vr_flinch",
     "vr_flinch_classes",
     "vr_flinch_min",

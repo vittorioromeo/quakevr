@@ -246,7 +246,7 @@ def case_lift():
         if what in ("grunt", "enforcer"):
             # (Held up: its pelvis over the player's origin's height less 5, 19+ units off the floor; lying, about -19.)
             ok = (lifted and lifted.group(1) == "2" and flails and s1 and s1[0] == 2 and s1[3] > -5 and broke and
-                  1.9 <= float(broke.group(1)) <= 2.2 and moved >= 24 and not thrown and not bad)
+                  1.9 <= float(broke.group(1)) <= 2.2 and 2 <= moved <= 10 and "plays vr/shove.wav" in flat and not thrown and not bad)
             verdict(ok, f"{what} lifted by {lifted.group(1) if lifted else 0} hands, flails {flails}, pelvis "
                         f"{s1[3] if s1 else '?'} up at 0.5 s, broke free after {broke.group(1) if broke else '-'} s, "
                         f"you shoved {moved:.0f} units")
