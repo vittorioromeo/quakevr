@@ -563,6 +563,77 @@
     };
 }
 
+// Thrown Bodies' and Tackles' weight classes (both pages).
+void kdTrigWeightRows(za::Vector<Item>& items)
+{
+    items.pushBack(header("Weight Classes"));
+    items.pushBack(slider("Monster Weight", vr_kdtrig_weight, 20.f, 200.f, 5.f, "%.0f kg")
+                       .help("A monster's weight: this times its group's Trigger Resistance (a grunt 1, an ogre 2.5: 80 and "
+                             "200 kg)."));
+    items.pushBack(slider("Topple Class", vr_kdtrig_weight_topple, 0.5f, 4.f, 0.05f, "%.2fx")
+                       .help("A monster up to this times the thrower's weight (the thrown body's mass, or yours) can be "
+                             "toppled: a grunt thrown at a grunt. Heavier ones only stagger."));
+    items.pushBack(slider("Stagger Class", vr_kdtrig_weight_stagger, 0.5f, 8.f, 0.1f, "%.1fx")
+                       .help("Up to this times the thrower's weight it only staggers (an ogre); heavier ones stand. "
+                             "Shamblers and bosses never (their groups are off)."));
+    items.pushBack(slider("Stagger Time", vr_kdtrig_bump_stagger, 0.1f, 2.f, 0.05f, "%.2f s")
+                       .help("A heavier one's short stagger, as a parry's (as a ragdoll where it can)."));
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigThrown()
+{
+    za::Vector<Item> items{
+        toggle("Thrown Bodies", vr_kdtrig_thrown_on)
+            .help("A body you throw (a corpse or a knocked-down enemy: let go of, or a two-hand throw) or swing in your "
+                  "hand into a living monster knocks it over the way the body goes, by their weights and the body's "
+                  "momentum. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_thrown, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it goes down when the body is heavy and fast enough."),
+        slider("Push", vr_kdtrig_thrown_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over (a two-hand shove: 1; more with the body's momentum)."),
+        slider("Speed", vr_kdtrig_thrown_speed, 50.f, 600.f, 10.f, "%.0f u/s")
+            .help("A body of the monster's own weight this fast topples it (its momentum over the monster's: a lighter or "
+                  "slower body less). A quarter of it the least that counts."),
+        slider("Least Strike", vr_kdtrig_thrown_least, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A strike under this share of a toppling one does nothing; between it and a toppling one it only "
+                  "staggers."),
+        slider("Thrown For", vr_kdtrig_thrown_window, 0.25f, 5.f, 0.25f, "%.2f s")
+            .help("How long after it leaves your hand a body counts as thrown (held, while your hand swings it)."),
+    };
+    kdTrigWeightRows(items);
+    items.pushBack(open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Thrown)>))
+                       .help("Thrown Bodies' chance times each group's share."));
+    return items;
+}
+
+[[nodiscard]] za::Vector<Item> pageKdTrigTackle()
+{
+    za::Vector<Item> items{
+        toggle("Tackles", vr_kdtrig_tackle_on)
+            .help("Running at full speed into a monster with your hands together before your chest (crossed too), a "
+                  "weapon held across, a palm forward or shoving tackles it: a light one falls the way you run, an ogre "
+                  "staggers, shamblers and bosses stand. The hit slows you. Needs Ragdoll Triggers and Knockdowns on."),
+        slider("Chance", vr_kdtrig_tackle, 0.f, 1.f, 0.05f, "%.2f").help("The chance a light one goes down."),
+        slider("Push", vr_kdtrig_tackle_push, 0.25f, 2.f, 0.05f, "%.2fx")
+            .help("How hard it is pushed over (a two-hand shove: 1)."),
+        slider("Least Speed", vr_kdtrig_tackle_speed, 0.3f, 1.f, 0.05f, "%.2f")
+            .help("Your ground speed for it, as a share of the most (walking is about 0.6)."),
+        slider("Your Weight", vr_kdtrig_tackle_weight, 40.f, 150.f, 5.f, "%.0f kg")
+            .help("Your weight for the weight classes below."),
+        slider("Hands Together", vr_kdtrig_tackle_gap, 4.f, 40.f, 1.f, "%.0f units")
+            .help("Your hands this close together before your chest are the guard."),
+        slider("Speed Kept", vr_kdtrig_tackle_slow, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Your speed after the hit, a share (half of it against one that only staggers)."),
+        slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s")
+            .help("You bounce back off a heavier one that only staggers."),
+        slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you tackle again."),
+    };
+    kdTrigWeightRows(items);
+    items.pushBack(open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Tackle)>))
+                       .help("Tackles' chance times each group's share."));
+    return items;
+}
+
 [[nodiscard]] za::Vector<Item> pageKdTriggers()
 {
     return {
@@ -581,6 +652,8 @@
         open("Wounded", pageIndex(pageKdTrigWounded)).help("Badly hurt, any hit may knock it down."),
         open("Strong Blows", pageIndex(pageKdTrigBlow)).help("A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30)."),
         open("Explosions", pageIndex(pageKdTrigBlast)).help("A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance)."),
+        open("Thrown Bodies", pageIndex(pageKdTrigThrown)).help("A body you throw or swing into a monster knocks it over by weight and momentum; a heavier one staggers."),
+        open("Tackles", pageIndex(pageKdTrigTackle)).help("Running at full speed into a monster in a guard or a shove tackles it; a heavier one staggers."),
         open("Monster Resistance", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Resist)>))
             .help("How much less likely each monster group goes down (by its size, or its own)."),
         open("Monster Groups", pageIndex(pageMonsterGroups))

@@ -3171,6 +3171,8 @@ void() PlayerVRMeleeHeadbutt =
     VR_Headbutt_Hit(threshold);
 }
 
+void() VR_KdTrig_Tackle; // (vr_kdtrig.qc)
+
 void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
@@ -3180,6 +3182,7 @@ void() PlayerVRMelee =
     VR_Buttons_WeaponFrame(); // a held weapon touching a wall button presses it, all of it (buttons.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();
+    VR_KdTrig_Tackle(); // running into a monster in a guard or a shove (the ragdoll triggers' Tackles)
 
     PlayerVRMeleeImpl(
         cVR_MainHand,

@@ -285,6 +285,10 @@ int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs)
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
 // ragdoll.
 bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count, float legsHold = 0.f);
+// `ent`'s ragdoll is thrown now (the ragdoll triggers' Thrown Body: QC VR_KdTrig_BodyHit as it strikes a living
+// monster); with `velocity` (units/s, not zero) every part of it is set going at that first (ragdollfling: the tests').
+// False: no ragdoll.
+bool ragdollMarkThrown(edict_t* ent, const glm::vec3* velocity = nullptr);
 // `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
 // for `seconds` from now at least (a throw's grace, as a thrown prop's: vr_box3d_throw_grace; a later call may lengthen
 // it, never shorten it). False: no ragdoll.

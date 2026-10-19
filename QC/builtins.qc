@@ -313,18 +313,19 @@ float(entity e) monstergroup = #0;
 float(entity e, float xParam) monstergroupget = #0;
 float MGP_KDTRIG = 0;    // the ragdoll triggers take it (0/1)
 float MGP_RESIST = 1;    // its resistance to them (0: by its size)
-float MGP_LEDGE = 2;     // each trigger's chance times this, vr_kdtrig.qc's table order: MGP_LEDGE + its index
-float MGP_SHOVE = 9;     // a shove's base chance to knock it down
-float MGP_PUSH = 10;     // how far shoves, bashes and unbalancing hits move it, times
-float MGP_STAGGER = 11;  // hits' chance to unbalance it, times
-float MGP_SWEEP = 12;    // (the engine's: the leg sweep, the leg grabs, the lift, the neck snap, the manhandle, 0/1)
-float MGP_LEGGRAB = 13;
-float MGP_LIFT = 14;
-float MGP_NECKSNAP = 15;
-float MGP_MANHANDLE = 16;
-float MGP_THROW = 17;    // the two-hand throw: 0 never, 1 only when hurt, 2 always
-float MGP_HOLD = 18;     // one hand's hold on it, 0..1 (below 0: by its size)
-float MGP_POISE = 19;    // its Parry Poise (below 0: a parry never staggers it; combat.qc VR_Parry_Interrupt)
+float MGP_LEDGE = 2;     // each trigger's chance times this, vr_kdtrig.qc's table order: MGP_LEDGE + its index (the
+                         // thrown body 9 and the tackle 10 the last two)
+float MGP_SHOVE = 11;    // a shove's base chance to knock it down
+float MGP_PUSH = 12;     // how far shoves, bashes and unbalancing hits move it, times
+float MGP_STAGGER = 13;  // hits' chance to unbalance it, times
+float MGP_SWEEP = 14;    // (the engine's: the leg sweep, the leg grabs, the lift, the neck snap, the manhandle, 0/1)
+float MGP_LEGGRAB = 15;
+float MGP_LIFT = 16;
+float MGP_NECKSNAP = 17;
+float MGP_MANHANDLE = 18;
+float MGP_THROW = 19;    // the two-hand throw: 0 never, 1 only when hurt, 2 always
+float MGP_HOLD = 20;     // one hand's hold on it, 0..1 (below 0: by its size)
+float MGP_POISE = 21;    // its Parry Poise (below 0: a parry never staggers it; combat.qc VR_Parry_Interrupt)
 // A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
 // kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
 float(entity e, float begin) ragdolldrown = #0;
@@ -337,6 +338,9 @@ float(entity e, vector at, float hold) ragdollguard = #0;
 float(entity e, vector dir, float push, float balance, float reach, optional float recover, optional float sure) ragdollstagger = #0;
 float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
+// e's ragdoll thrown now, every part set going at vel (units/s; '0 0 0': as it goes): the ragdoll triggers' Thrown
+// Body watches it strike living monsters (VR_KdTrig_BodyHit). 0: no ragdoll.
+float(entity e, vector vel) ragdollfling = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
 float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)

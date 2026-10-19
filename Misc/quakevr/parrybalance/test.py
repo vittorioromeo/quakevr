@@ -117,7 +117,7 @@ if selected("pose"):
     cmds = setup() + ["vr_kdtrig_test_parry 0", "vr_kdtrig_test_class 6"]
     # Held up all along: raised, two seconds, the blow.
     cmds += ["echo CASE held", "vr_kdtrig_test 20", wait(60), GUARD, wait(150), "vr_kdtrig_test 9", wait(150),
-             "vr_kdtrig_test 21", LOWER, wait(30)]
+             "vr_kdtrig_test 22", LOWER, wait(30)]
     # Raised just before the blow.
     cmds += ["echo CASE timed", "vr_kdtrig_test 20", wait(60), GUARD, wait(3), "vr_kdtrig_test 9", wait(150)]
     log = run("pose", cmds + ["echo CASE end"])
@@ -137,7 +137,7 @@ if selected("repeat"):
                  "vr_kdtrig_test 20", wait(60)]
         for i in range(3):
             cmds += ["vr_kdtrig_test 9", "vr_waitprint 900 recovered", wait(20)]
-        cmds += ["vr_kdtrig_test 21", wait(10)]  # (21: every monster gone)
+        cmds += ["vr_kdtrig_test 22", wait(10)]  # (22: every monster gone)
     log = run("repeat", cmds + ["echo CASE end"])
     got = cases(log)
     for name in ["knight", "ogre"]:

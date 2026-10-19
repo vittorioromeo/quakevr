@@ -2180,6 +2180,7 @@ float vr_parry_strength;  // the parry VR_Parry just met a blow with: its streng
 float vr_parry_welltimed; // ... well timed
 float vr_parry_test_force; // (vr_kdtrig_test_parry while a test's blow is dealt: vr_kdtrig.qc) forced, not the pose's
 float vr_parry_rag_canfall = TRUE; // VR_Parry_Ragdoll may send it down stairs, a ledge, a slope (a stagger over 2)
+float vr_parry_noragdoll; // VR_Parry_InterruptFor: its pain pose's stagger, no ragdoll (a flinch)
 float VR_POISE_OFF = 3; // a group whose poise is Off (never staggered) is as poised as this for VR_Poise_Factor
 
 // `m`'s Parry Poise (its monster group's; below 0: Off, a parry never staggers it).
@@ -2255,64 +2256,17 @@ float(entity p, float hand, float xCrossed) VR_Parry_Strength =
 };
 
 float(entity m, entity p, float xHold) VR_Parry_Ragdoll; // (vr_kdtrig.qc)
-void(entity m, entity p) VR_Parry_Interrupt =
+// m parried by p, staggered xStagger s (VR_Parry_Interrupt: vr_parry_stagger's; the ragdoll triggers' short stagger of a
+// heavier one, vr_kdtrig.qc VR_KdTrig_Stagger: theirs).
+void(entity m, entity p, float xStagger) VR_Parry_InterruptFor =
 {
     // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
     if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
     {
         return;
     }
-    float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
-    float ragdollOk = TRUE;
-    vr_parry_rag_canfall = TRUE;
-    if(cvar_hget(cvarh_vr_parry_balance))
-    {
-        // Parry balance: the strength over its poise.
-        float poise = VR_Poise(m);
-        float ratio = poise < 0 ? 0 : vr_parry_strength / max(0.05, poise);
-        string how = "";
-        if(poise < 0 || ratio < max(0, cvar_hget(cvarh_vr_parry_block_below)))
-        {
-            // Blocked: the damage cut (VR_Parry), its attack goes on.
-            dprint(sprintf("parry outcome: %s strength %.2f%s poise %s ratio %.2f: blocked\n", m.classname,
-                vr_parry_strength, vr_parry_welltimed ? " (well timed)" : "", poise < 0 ? "off" : ftos(poise), ratio));
-            return;
-        }
-        float lo = max(0.1, cvar_hget(cvarh_vr_parry_stagger_min));
-        float hi = max(lo, cvar_hget(cvarh_vr_parry_stagger_max));
-        float flinch = min(3, max(0.1, cvar_hget(cvarh_vr_parry_flinch)));
-        if(ratio < 1)
-        {
-            stagger = flinch;
-            ragdollOk = FALSE;
-            how = "flinch";
-        }
-        else if(ratio <= 2)
-        {
-            stagger = lo + (hi - lo) * (ratio - 1);
-            vr_parry_rag_canfall = FALSE;
-            how = "stagger";
-        }
-        else
-        {
-            stagger = hi + (max(hi, cvar_hget(cvarh_vr_parry_stagger_heavy)) - hi) * min(1, ratio - 2);
-            how = "heavy stagger";
-        }
-        // Diminishing returns: each stagger within the window of its last shorter (a heavy group's more).
-        float window = max(0, cvar_hget(cvarh_vr_parry_repeat_window));
-        m.vr_parry_rep_n = (m.vr_parry_rep_time > 0 && time - m.vr_parry_rep_time < window) ? m.vr_parry_rep_n + 1 : 0;
-        m.vr_parry_rep_time = time;
-        float shorter = pow(min(1, max(0.05, cvar_hget(cvarh_vr_parry_repeat))), m.vr_parry_rep_n * max(1, poise));
-        stagger = min(3, max(0.1, stagger * shorter));
-        if(ragdollOk && stagger < flinch)
-        {
-            ragdollOk = FALSE; // (cut that short, a flinch)
-        }
-        dprint(sprintf("parry outcome: %s strength %.2f%s poise %g ratio %.2f: ", m.classname, vr_parry_strength,
-            vr_parry_welltimed ? " (well timed)" : "", poise, ratio)); // (sprintf: 8 arguments at most)
-        dprint(sprintf("%s %.2f s%s (repeat %g, x%.2f)\n", how, stagger, ragdollOk ? "" : " (no ragdoll)", m.vr_parry_rep_n,
-            shorter));
-    }
+    float stagger = xStagger;
+    float ragdollOk = !vr_parry_noragdoll; // (parry balance's flinch: VR_Parry_Interrupt)
     m.vr_parry_stagger_until = time + stagger;
     m.attack_finished = max(m.attack_finished, m.vr_parry_stagger_until);
     m.attack_state = AS_STRAIGHT;
@@ -2379,6 +2333,69 @@ void(entity m, entity p) VR_Parry_Interrupt =
     self = oldSelf;
     dprint(sprintf("parry interrupt: %s staggered %.2f s (pain frames %g from %g, was %g; sway %g deg)\n", m.classname,
         stagger, m.vr_parry_frames, m.vr_parry_frames ? m.vr_parry_frame0 : m.frame, frameBefore, m.vr_parry_sway));
+};
+
+void(entity m, entity p) VR_Parry_Interrupt =
+{
+    if(m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
+    {
+        return;
+    }
+    float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
+    float ragdollOk = TRUE;
+    vr_parry_rag_canfall = TRUE;
+    if(cvar_hget(cvarh_vr_parry_balance))
+    {
+        // Parry balance: the strength over its poise.
+        float poise = VR_Poise(m);
+        float ratio = poise < 0 ? 0 : vr_parry_strength / max(0.05, poise);
+        string how = "";
+        if(poise < 0 || ratio < max(0, cvar_hget(cvarh_vr_parry_block_below)))
+        {
+            // Blocked: the damage cut (VR_Parry), its attack goes on.
+            dprint(sprintf("parry outcome: %s strength %.2f%s poise %s ratio %.2f: blocked\n", m.classname,
+                vr_parry_strength, vr_parry_welltimed ? " (well timed)" : "", poise < 0 ? "off" : ftos(poise), ratio));
+            return;
+        }
+        float lo = max(0.1, cvar_hget(cvarh_vr_parry_stagger_min));
+        float hi = max(lo, cvar_hget(cvarh_vr_parry_stagger_max));
+        float flinch = min(3, max(0.1, cvar_hget(cvarh_vr_parry_flinch)));
+        if(ratio < 1)
+        {
+            stagger = flinch;
+            ragdollOk = FALSE;
+            how = "flinch";
+        }
+        else if(ratio <= 2)
+        {
+            stagger = lo + (hi - lo) * (ratio - 1);
+            vr_parry_rag_canfall = FALSE;
+            how = "stagger";
+        }
+        else
+        {
+            stagger = hi + (max(hi, cvar_hget(cvarh_vr_parry_stagger_heavy)) - hi) * min(1, ratio - 2);
+            how = "heavy stagger";
+        }
+        // Diminishing returns: each stagger within the window of its last shorter (a heavy group's more).
+        float window = max(0, cvar_hget(cvarh_vr_parry_repeat_window));
+        m.vr_parry_rep_n = (m.vr_parry_rep_time > 0 && time - m.vr_parry_rep_time < window) ? m.vr_parry_rep_n + 1 : 0;
+        m.vr_parry_rep_time = time;
+        float shorter = pow(min(1, max(0.05, cvar_hget(cvarh_vr_parry_repeat))), m.vr_parry_rep_n * max(1, poise));
+        stagger = min(3, max(0.1, stagger * shorter));
+        if(ragdollOk && stagger < flinch)
+        {
+            ragdollOk = FALSE; // (cut that short, a flinch)
+        }
+        dprint(sprintf("parry outcome: %s strength %.2f%s poise %g ratio %.2f: ", m.classname, vr_parry_strength,
+            vr_parry_welltimed ? " (well timed)" : "", poise, ratio)); // (sprintf: 8 arguments at most)
+        dprint(sprintf("%s %.2f s%s (repeat %g, x%.2f)\n", how, stagger, ragdollOk ? "" : " (no ragdoll)", m.vr_parry_rep_n,
+            shorter));
+    }
+    vr_parry_noragdoll = !ragdollOk;
+    VR_Parry_InterruptFor(m, p, stagger);
+    vr_parry_noragdoll = FALSE;
+    vr_parry_rag_canfall = TRUE;
 };
 
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =

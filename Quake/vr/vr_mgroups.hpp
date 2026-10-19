@@ -24,7 +24,9 @@ enum class Param : int
     Wounded,
     Blow,
     Blast,
-    Shove,     // a shove's base chance to knock it down (vr_knockdown_chance_<g>)
+    Thrown,    // the thrown body's chance times this (vr_mgrp_<g>_thrown), and the tackle's (_tackle): no hits, their own
+    Tackle,    // entries (QC VR_KdTrig_BodyHit, VR_KdTrig_Tackle), the table's last two
+    Shove,    // a shove's base chance to knock it down (vr_knockdown_chance_<g>)
     Push,      // how far shoves, bashes and unbalancing hits move it, times
     Stagger,   // hits' chance to unbalance it, times
     Sweep,     // the leg sweep takes it

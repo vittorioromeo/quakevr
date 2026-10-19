@@ -20,21 +20,27 @@
 //   6 blow: a strong melee blow or a flung prop (the weight: its damage over vr_kdtrig_blow_min, up to twice; a
 //     blade's times vr_kdtrig_blow_blade: fists, a gun's butt, a hammer or a mace, a pommel, the crowbar, props are
 //     blunt) -> toppled back.
+//   8 thrown, 9 tackle: no hit; a thrown body striking it (the engine's callBodyHits -> VR_KdTrig_BodyHit), you running
+//     into it in a guard or a shove (VR_KdTrig_Tackle) -> by weight toppled the way it was struck, a short stagger or
+//     nothing (VR_KdTrig_Bump; "Thrown bodies and tackles" below).
 // - Monster groups (Combat > Monster Groups): its group's switch (vr_mgrp_<group>_kdtrig: the humanoids' on), its
-//   resistance (vr_kdtrig_resist_<group>) and each trigger's share (vr_mgrp_<group>_ledge ... _blast: its chance times it).
+//   resistance (vr_kdtrig_resist_<group>) and each trigger's share (vr_mgrp_<group>_ledge ... _blast, _thrown, _tackle:
+//   its chance times it).
 // - Never: vr_knockdown or vr_kdtrig off, its group's triggers off, no get-up of its own (vr_kd_chance_h), one down,
 //   staggering, parried, flying or swimming, a boss (VR_HST_BOSS), a dummy that stays put; for vr_kdtrig_cooldown s
 //   after it gets up. Room for its ragdoll: a dead body may go for it, never a living knockdown.
 // - vr_kdtrig_debug 1: a line for each that fires (`kdtrig: <name> ...`); 2: also each that held and lost its roll.
 
-float VR_KDT_COUNT = 7;
-string vr_kdt_name[7];
-float vr_kdt_on_h[7];     // its switch's cvar
-float vr_kdt_chance_h[7]; // its chance's cvar
-float vr_kdt_min_h[7];    // its least damage's cvar (0: none)
-float vr_kdt_push_h[7];   // its push's cvar
-float vr_kdt_edge[7];     // TRUE: pushed whole over an edge (ragdollshovetopple's ledge); FALSE: toppled where it stands
-float vr_kdt_throw[7];    // toppled: units it is carried per push (a blast's throw farther)
+float VR_KDT_COUNT = 7;  // the hits' (VR_KdTrig_Hit's loop); the thrown body and the tackle after them, their own entries
+float VR_KDT_THROWN = 7;
+float VR_KDT_TACKLE = 8;
+string vr_kdt_name[9];  // (the hits' seven, then the thrown body and the tackle: VR_KDT_THROWN, VR_KDT_TACKLE)
+float vr_kdt_on_h[9];     // its switch's cvar
+float vr_kdt_chance_h[9]; // its chance's cvar
+float vr_kdt_min_h[9];    // its least damage's cvar (0: none)
+float vr_kdt_push_h[9];   // its push's cvar
+float vr_kdt_edge[9];     // TRUE: pushed whole over an edge (ragdollshovetopple's ledge); FALSE: toppled where it stands
+float vr_kdt_throw[9];    // toppled: units it is carried per push (a blast's throw farther)
 float vr_ad_splash;       // AD's T_Damage dealing radius damage (VR_AD_Splash; AD's own explosions)
 float vr_kdt_ready;
 
@@ -90,6 +96,10 @@ void() VR_KdTrig_Init =
         cvarh_vr_kdtrig_blow_push, FALSE, 16);
     VR_KdTrig_Def(6, "blast", cvarh_vr_kdtrig_blast_on, cvarh_vr_kdtrig_blast, cvarh_vr_kdtrig_blast_min,
         cvarh_vr_kdtrig_blast_push, FALSE, 48);
+    VR_KdTrig_Def(VR_KDT_THROWN, "thrown", cvarh_vr_kdtrig_thrown_on, cvarh_vr_kdtrig_thrown, 0, cvarh_vr_kdtrig_thrown_push,
+        FALSE, 24);
+    VR_KdTrig_Def(VR_KDT_TACKLE, "tackle", cvarh_vr_kdtrig_tackle_on, cvarh_vr_kdtrig_tackle, 0, cvarh_vr_kdtrig_tackle_push,
+        FALSE, 24);
     vr_kdt_ready = TRUE;
 };
 
@@ -343,6 +353,7 @@ float VR_PARRY_RAG_SLOPE_PUSH = 0.7; // over a drop or a slope
 float VR_PARRY_RAG_SLOPE_REACH = 28;
 float VR_PARRY_RAG_BALANCE = 0.2;    // there its balance this .. this + VR_PARRY_RAG_SWAY (under 0.5: it gives way)
 float VR_PARRY_RAG_SWAY = 0.5;
+vector vr_parry_way; // (the ragdoll triggers' short stagger, VR_KdTrig_Stagger: its way instead of from `p`; level, unit)
 float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
 {
     if(!cvar_hget(cvarh_vr_parry_ragdoll) || !cvar_hget(cvarh_vr_knockdown) || !(m.flags & FL_MONSTER) ||
@@ -372,6 +383,10 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
         VR_KdTrig_Init();
     }
     vector dir = m.origin - p.origin;
+    if(vr_parry_way != '0 0 0')
+    {
+        dir = vr_parry_way;
+    }
     dir_z = 0;
     dir = normalize(dir);
     if(dir == '0 0 0')
@@ -524,6 +539,312 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
 };
 
 // ----------------------------------------------------------------------------
+// Thrown bodies and tackles (ROUND22.md, "Thrown bodies and tackles"): no damage dealt, so not VR_KdTrig_Hit's loop;
+// their own entries, the table's last two (on, chance, push; its monster group's share at MGP_LEDGE + its index). By
+// weight: the monster's (vr_kdtrig_weight times its resistance) against the thrower's (the thrown body's mass, the
+// player's vr_kdtrig_tackle_weight): up to vr_kdtrig_weight_topple times it toppled the way it was struck, up to
+// vr_kdtrig_weight_stagger times only a short stagger (VR_KdTrig_Stagger), heavier nothing; shamblers, fiends and the
+// bosses never (their groups take no triggers: VR_KdTrig_Can).
+
+.float vr_kdt_tackle_next; // a player's: when he may tackle again
+.float vr_kdt_said;        // a monster's: its last `kdtrig:` line for a strike that did nothing (one each half second)
+float vr_kdt_tweight;      // VR_KdTrig_Class's: the monster's weight (kg)
+
+// `e`'s weight class against a thrower of `xMass` kg: 2 it can topple, 1 it only staggers, 0 it stands.
+float(entity e, float xMass) VR_KdTrig_Class =
+{
+    vr_kdt_tweight = max(1, cvar_hget(cvarh_vr_kdtrig_weight)) * VR_KdTrig_Resist(e);
+    float ratio = vr_kdt_tweight / max(1, xMass);
+    if(ratio <= max(0, cvar_hget(cvarh_vr_kdtrig_weight_topple)))
+    {
+        return 2;
+    }
+    if(ratio <= max(0, cvar_hget(cvarh_vr_kdtrig_weight_stagger)))
+    {
+        return 1;
+    }
+    return 0;
+};
+
+// A heavier one's short stagger by `by` along level `dir` (vr_kdtrig_bump_stagger s: a parry's, as an active ragdoll where
+// it can, else its pain pose's: combat.qc VR_Parry_InterruptFor).
+void(entity m, entity by, vector dir) VR_KdTrig_Stagger =
+{
+    float hold = min(3, max(0.1, cvar_hget(cvarh_vr_kdtrig_bump_stagger)));
+    vr_parry_way = dir;
+    VR_Parry_InterruptFor(m, by, hold);
+    vr_parry_way = '0 0 0';
+    m.vr_kdt_next = time + hold + 0.5;
+};
+
+// A strike of trigger `i` on `m` that did nothing, said (vr_kdtrig_debug; once each half second a monster: a thrown body
+// in it is met every frame).
+void(float i, entity m, string xWhy) VR_KdTrig_Stands =
+{
+    if(cvar_hget(cvarh_vr_kdtrig_debug) && time >= m.vr_kdt_said)
+    {
+        m.vr_kdt_said = time + 0.5;
+        dprint(sprintf("kdtrig: %s on %s: stands (%s)\n", vr_kdt_name[i], m.classname, xWhy));
+    }
+};
+
+// Why `m` can't be taken by a ragdoll trigger now (VR_KdTrig_Can false).
+string(entity m) VR_KdTrig_WhyNot =
+{
+    if(!monstergroupget(m, MGP_KDTRIG))
+    {
+        return "its monster group takes no triggers";
+    }
+    float full = m.max_health > 0 ? m.max_health : m.health;
+    if(full >= VR_HST_BOSS)
+    {
+        return "a boss";
+    }
+    return "down, staggering or cooling down";
+};
+
+// Trigger `i` (the thrown body's, the tackle's) on `m` by a thrower of `xMass` kg along level `dir`, struck `xStrike`
+// strong (1: enough to topple one of its own weight), by `by`: toppled, staggered or nothing. 2 down, 1 staggered, 0
+// nothing.
+float(float i, entity m, entity by, float xMass, vector dir, float xStrike, string xHow) VR_KdTrig_Bump =
+{
+    if(!vr_kdt_ready)
+    {
+        VR_KdTrig_Init();
+    }
+    if(!cvar_hget(vr_kdt_on_h[i]))
+    {
+        return 0;
+    }
+    if(!VR_KdTrig_Can(m))
+    {
+        VR_KdTrig_Stands(i, m, VR_KdTrig_WhyNot(m));
+        return 0;
+    }
+    float base = max(0, cvar_hget(vr_kdt_chance_h[i])) * max(0, monstergroupget(m, MGP_LEDGE + i));
+    if(base <= 0)
+    {
+        VR_KdTrig_Stands(i, m, "its group's share 0");
+        return 0;
+    }
+    float cls = VR_KdTrig_Class(m, xMass);
+    float loud = cvar_hget(cvarh_vr_kdtrig_debug);
+    string about = sprintf("%s, %.0f kg against its %.0f kg, strike %.2f", xHow, xMass, vr_kdt_tweight, xStrike);
+    if(cls == 0)
+    {
+        VR_KdTrig_Stands(i, m, sprintf("too heavy: %s", about));
+        return 0;
+    }
+    if(xStrike < max(0, cvar_hget(cvarh_vr_kdtrig_thrown_least)))
+    {
+        VR_KdTrig_Stands(i, m, sprintf("too weak: %s", about));
+        return 0;
+    }
+    if(cls == 2 && xStrike >= 1)
+    {
+        float chance = min(1, base);
+        float roll = random();
+        if(roll < chance)
+        {
+            float push = min(1.25, max(0.6, 0.6 * xStrike)) * max(0, cvar_hget(vr_kdt_push_h[i]));
+            vr_kdt_way = dir;
+            vr_kdt_past = 0;
+            if(VR_KdTrig_Down(m, i, push))
+            {
+                if(loud)
+                {
+                    dprint(sprintf("kdtrig: %s on %s: down (%s; push %.2f, yaw %.0f)\n", vr_kdt_name[i], m.classname, about,
+                        push, vectoyaw(dir)));
+                }
+                return 2;
+            }
+            if(loud)
+            {
+                dprint(sprintf("kdtrig: %s on %s: no ragdoll (no room)\n", vr_kdt_name[i], m.classname));
+            }
+        }
+        else if(loud >= 2)
+        {
+            dprint(sprintf("kdtrig: %s on %s: chance %.2f, roll %.2f: staggers instead\n", vr_kdt_name[i], m.classname,
+                chance, roll));
+        }
+    }
+    VR_KdTrig_Stagger(m, by, dir);
+    if(loud)
+    {
+        dprint(sprintf("kdtrig: %s on %s: staggers (%s%s)\n", vr_kdt_name[i], m.classname, about,
+            cls == 1 ? ": a heavier class" : ""));
+    }
+    return 1;
+};
+
+// The engine's (vr_box3d_step.cpp callBodyHits): a thrown ragdoll `body` (a corpse or a knocked-down one; its mass xMass
+// kg, its middle going at xVel units/s) meeting living monster `m`'s box. Its strike: its momentum over that of a body of
+// m's weight at vr_kdtrig_thrown_speed.
+void(entity m, entity body, float xMass, vector xVel) VR_KdTrig_BodyHit =
+{
+    if(m == body || m.health <= 0 || m.vr_knockdown || !(m.flags & FL_MONSTER))
+    {
+        return;
+    }
+    if(!vr_kdt_ready)
+    {
+        VR_KdTrig_Init();
+    }
+    vector dir = xVel;
+    dir_z = 0;
+    dir = normalize(dir);
+    if(dir == '0 0 0')
+    {
+        dir = m.origin - body.origin;
+        dir_z = 0;
+        dir = normalize(dir);
+    }
+    float speed = vlen(xVel);
+    VR_KdTrig_Class(m, xMass); // (its weight)
+    float strike = xMass * speed / (vr_kdt_tweight * max(1, cvar_hget(cvarh_vr_kdtrig_thrown_speed)));
+    VR_KdTrig_Bump(VR_KDT_THROWN, m, body, xMass, dir, strike, sprintf("a %s at %.0f u/s", body.classname, speed));
+};
+
+// Whether `rel` (a hand's place from the player's origin) is before his chest, facing level `fwd`.
+float(vector rel, vector fwd) VR_KdTrig_BeforeChest =
+{
+    vector right;
+    right_x = fwd_y;
+    right_y = -fwd_x;
+    right_z = 0;
+    float ahead = rel * fwd;
+    return ahead >= 2 && ahead <= 40 && fabs(rel * right) <= 16 && rel_z >= -8 && rel_z <= 50;
+};
+
+// The tackle's pose of `self` (a player) facing level `fwd`: 3 shoving (a bash's or a shove's push going), 2 a palm
+// forward (the shove's pose), 1 the guard (both hands before his chest within vr_kdtrig_tackle_gap of each other, crossed
+// too; a weapon held across: the parry's); 0 none.
+float(vector fwd) VR_KdTrig_TacklePose =
+{
+    if(!VRHandsTracked(self))
+    {
+        return 0;
+    }
+    entity bm = VR_Blow(cVR_MainHand);
+    entity bo = VR_Blow(cVR_OffHand);
+    if(bm.mh_pushing || bo.mh_pushing)
+    {
+        return 3;
+    }
+    vector m = VRGetEntHandPos(self, cVR_MainHand) - self.origin;
+    vector o = VRGetEntHandPos(self, cVR_OffHand) - self.origin;
+    if((bm.mh_stance == 2 && VR_KdTrig_BeforeChest(m, fwd)) || (bo.mh_stance == 2 && VR_KdTrig_BeforeChest(o, fwd)))
+    {
+        return 2;
+    }
+    if(bm.mh_stance == 1 || bo.mh_stance == 1)
+    {
+        return 1;
+    }
+    // (Not a gun aimed with both hands: the hands together before the chest, but no guard.)
+    if(!VRGet2HAiming(self) && vlen(m - o) <= max(1, cvar_hget(cvarh_vr_kdtrig_tackle_gap)) &&
+       VR_KdTrig_BeforeChest(m, fwd) && VR_KdTrig_BeforeChest(o, fwd))
+    {
+        return 1;
+    }
+    return 0;
+};
+
+// PlayerVRMelee's, after the bash (client.qc; self the player): running at full speed (vr_kdtrig_tackle_speed of
+// sv_maxspeed, on the ground, the way he faces) in a tackle's pose about to meet a living monster's box: a tackle, by
+// weight (VR_KdTrig_Bump: his vr_kdtrig_tackle_weight). It slows him (vr_kdtrig_tackle_slow); off a heavier one that
+// only staggers he bounces back (vr_kdtrig_tackle_bump). Its cooldown vr_kdtrig_tackle_cooldown.
+void() VR_KdTrig_Tackle =
+{
+    if(!cvar_hget(cvarh_vr_kdtrig_tackle_on) || !cvar_hget(cvarh_vr_kdtrig) || self.health <= 0 ||
+       time < self.vr_kdt_tackle_next || !(self.flags & FL_ONGROUND))
+    {
+        return;
+    }
+    vector run = self.velocity;
+    run_z = 0;
+    float speed = vlen(run);
+    float slow = speed < max(1, cvar("sv_maxspeed")) * max(0, cvar_hget(cvarh_vr_kdtrig_tackle_speed));
+    if(speed < 1 || (slow && cvar_hget(cvarh_vr_kdtrig_debug) < 2)) // (vr_kdtrig_debug 2: a slow one's said, below)
+    {
+        return;
+    }
+    run = run * (1 / speed);
+    vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
+    fwd_z = 0;
+    fwd = normalize(fwd);
+    if(fwd * run < 0.5)
+    {
+        return;
+    }
+    float pose = VR_KdTrig_TacklePose(fwd);
+    if(!pose)
+    {
+        return;
+    }
+    // About to meet it: his box carried this frame's run and a bit on (blocked by it, his speed is gone next frame).
+    float reach = 8 + speed * max(frametime, 0.01) * 2;
+    vector lo = self.absmin + run * reach;
+    vector hi = self.absmax + run * reach;
+    entity best = world;
+    float bestD = 100000;
+    for(entity e = findradius(self.origin + run * reach, reach + 96); e; e = e.chain)
+    {
+        if(e == self || !(e.flags & FL_MONSTER) || e.health <= 0 || e.solid == SOLID_NOT || e.vr_knockdown ||
+           (e.origin - self.origin) * run <= 0)
+        {
+            continue;
+        }
+        if(lo_x > e.absmax_x || hi_x < e.absmin_x || lo_y > e.absmax_y || hi_y < e.absmin_y || lo_z > e.absmax_z ||
+           hi_z < e.absmin_z)
+        {
+            continue;
+        }
+        float d = vlen(e.origin - self.origin);
+        if(d < bestD)
+        {
+            bestD = d;
+            best = e;
+        }
+    }
+    if(!best)
+    {
+        return;
+    }
+    self.vr_kdt_tackle_next = time + 0.3; // (a strike that did nothing: not every frame)
+    if(slow)
+    {
+        dprint(sprintf("kdtrig: tackle on %s: none (running %.0f u/s: too slow)\n", best.classname, speed));
+        return;
+    }
+    string how = pose == 3 ? "shoving" : pose == 2 ? "palm forward" : "guard";
+    float weight = max(1, cvar_hget(cvarh_vr_kdtrig_tackle_weight));
+    float strike = speed / max(1, cvar("sv_maxspeed")); // (at full speed 1: his own class topples)
+    float done = VR_KdTrig_Bump(VR_KDT_TACKLE, best, self, weight, run,
+        max(1, strike / max(0.01, cvar_hget(cvarh_vr_kdtrig_tackle_speed))), sprintf("running %.0f u/s, %s", speed, how));
+    if(!done)
+    {
+        return;
+    }
+    self.vr_kdt_tackle_next = time + max(0, cvar_hget(cvarh_vr_kdtrig_tackle_cooldown));
+    float kept = max(0, min(1, cvar_hget(cvarh_vr_kdtrig_tackle_slow)));
+    vector up = '0 0 1' * self.velocity_z;
+    if(done == 2)
+    {
+        self.velocity = run * (speed * kept) + up;
+    }
+    else if(VR_KdTrig_Class(best, weight) == 1)
+    {
+        self.velocity = run * (-max(0, cvar_hget(cvarh_vr_kdtrig_tackle_bump))) + up;
+    }
+    else
+    {
+        self.velocity = run * (speed * kept * 0.5) + up;
+    }
+};
+
+// ----------------------------------------------------------------------------
 // Tests (vr_kdtrig_test <n>; Debug > Tests > Ragdoll Triggers), hits through T_Damage as the weapons deal them (1
 // damage: never a kill; the strength reckoned from the weapon's), by the first player, on the live monster nearest him:
 //   1 a shotgun blast (6 pellets), 2 a super shotgun's (14), 5 a blunt melee blow (30: a fist's), 6 a blade's (an
@@ -539,7 +860,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
 .float vr_kdt_trial_phase;
 .entity vr_kdt_trial_mon;
 .float vr_kdt_trial_fired;
-float vr_kdt_took[7]; // the trials' (one run at a time): how many each situation took
+float vr_kdt_took[9]; // the trials' (one run at a time): how many each situation took
 
 entity(entity pl) VR_KdTrig_TestTarget =
 {
@@ -581,12 +902,7 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss, 6 a knight, 7 an enforcer, 8 a
     // shambler)
     float k = cvar("vr_kdtrig_test_class");
-    if(k == 8)
-    {
-        m.classname = "monster_shambler";
-        monster_shambler();
-    }
-    else if(k == 6)
+    if(k == 6)
     {
         m.classname = "monster_knight";
         monster_knight();
@@ -611,6 +927,11 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     {
         m.classname = "monster_ogre";
         monster_ogre();
+    }
+    else if(k == 8)
+    {
+        m.classname = "monster_shambler";
+        monster_shambler();
     }
     else
     {
@@ -815,9 +1136,62 @@ void() VR_KdTrig_Frame =
         VR_KdTrig_TestSpawn(pl, at);
         return;
     }
-    if(want == 21) // (every monster gone: a clean slate between cases)
+    if(want == 22) // (every monster gone: a clean slate between cases)
     {
         VR_KdTrig_TestClear();
+        return;
+    }
+    if(want == 21)
+    {
+        vector ahead = VRForwardOf('0 1 0' * pl.v_viewangle_y);
+        ahead_z = 0;
+        VR_KdTrig_TestSpawn(pl, pl.origin + normalize(ahead) * 160);
+        return;
+    }
+    if(want == 12)
+    {
+        // The ragdoll nearest him flung at the live monster (on its feet) nearest it.
+        entity body = world;
+        float bd = 100000;
+        for(entity r = nextent(world); r; r = nextent(r))
+        {
+            if(isragdoll(r) && vlen(r.origin - pl.origin) < bd)
+            {
+                bd = vlen(r.origin - pl.origin);
+                body = r;
+            }
+        }
+        entity aim = world;
+        float ad = 100000;
+        for(entity t = nextent(world); t; t = nextent(t))
+        {
+            if(t != body && (t.flags & FL_MONSTER) && t.health > 0 && !t.vr_knockdown && vlen(t.origin - body.origin) < ad)
+            {
+                ad = vlen(t.origin - body.origin);
+                aim = t;
+            }
+        }
+        if(!body || !aim)
+        {
+            dprint("kdtrig test: no ragdoll, or no live monster to fling it at\n");
+            return;
+        }
+        float spd = max(10, cvar("vr_kdtrig_test_speed"));
+        vector to = (aim.absmin + aim.absmax) * 0.5 - body.origin;
+        float flight = vlen(to) / spd;
+        vector vel = normalize(to) * spd + '0 0 1' * (0.5 * cvar("sv_gravity") * flight);
+        dprint(sprintf("kdtrig test 12: %s flung at %s %.0f units off at %.0f u/s: %g\n", body.classname, aim.classname,
+            vlen(to), spd, ragdollfling(body, vel)));
+        return;
+    }
+    if(want == 13)
+    {
+        entity dead = VR_KdTrig_TestTarget(pl);
+        if(dead)
+        {
+            dprint(sprintf("kdtrig test 13: %s killed\n", dead.classname));
+            T_Damage(dead, pl, pl, dead.health + 1);
+        }
         return;
     }
     if(want > 30)

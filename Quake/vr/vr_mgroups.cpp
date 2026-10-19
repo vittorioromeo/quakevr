@@ -122,7 +122,7 @@ cvar_t* const settings[groupCount][paramCount] = {
 #define QVR_MGROUP(g, ...)                                                                                                \
     {&vr_mgrp_##g##_kdtrig, &vr_kdtrig_resist_##g, &vr_mgrp_##g##_ledge, &vr_mgrp_##g##_stairs, &vr_mgrp_##g##_slope,    \
         &vr_mgrp_##g##_shotgun, &vr_mgrp_##g##_wounded, &vr_mgrp_##g##_blow, &vr_mgrp_##g##_blast,                       \
-        &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
+        &vr_mgrp_##g##_thrown, &vr_mgrp_##g##_tackle, &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
         &vr_mgrp_##g##_leggrab, &vr_mgrp_##g##_lift, &vr_mgrp_##g##_necksnap, &vr_mgrp_##g##_manhandle,                  \
         &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise},
 #include "vr_mgroups.inc"

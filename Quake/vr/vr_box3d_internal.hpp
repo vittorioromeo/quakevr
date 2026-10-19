@@ -285,6 +285,9 @@ struct RagdollBodies
     // Its middle's speed (m/s, any way) and its mass (kg) then, the same parts': an impact's measure (touches, Impacts).
     float bodySpeed{0.f}, bodyMass{0.f};
     bool warnedUnstable{false}; // a part of it went faster than unstableSpeed (noteFallSpeeds said so)
+    // When it was last thrown (a hand let go of it, a two-hand throw, ragdollfling; -1 never): the ragdoll triggers'
+    // Thrown Body watches it strike living monsters for vr_kdtrig_thrown_window s after (callBodyHits).
+    double thrownAt{-1.0};
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // Its active drive's forces this frame (N, world; ragactive::Parts::force), given again for the step's later pieces
