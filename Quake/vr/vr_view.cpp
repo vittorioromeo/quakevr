@@ -352,7 +352,7 @@ bool ammoPouchPlaced = false; // the ammo pouch placed last frame, drawn or not 
     };
     return !among(entities.worldButton) && !among(entities.worldFrontButton) && !among(entities.worldMag) &&
            !among(entities.worldWell) && !among(entities.worldSsgFrame) && !among(entities.worldSsgBarrels) &&
-           !among(entities.ghost) && !among(entities.enemyFlash);
+           !among(entities.ghost) && !among(entities.ghostHand) && !among(entities.enemyFlash);
 }
 
 // The copy of `ve` in the body's mirror image (vr_bodyclone.cpp), `mirror` the world to it: its place reflected and its
@@ -3360,7 +3360,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(ssgBarrels, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterSsgFrame, VR_DRAW_HOLSTERED),
         QVR_DRAW_RANGE(holsterSsgBarrels, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldSsgFrame, VR_DRAW_LYING),
         QVR_DRAW_RANGE(worldSsgBarrels, VR_DRAW_LYING), QVR_DRAW_RANGE(sawHandle, VR_DRAW_HELD), QVR_DRAW_RANGE(button, VR_DRAW_HELD),
-        QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
+        QVR_DRAW_RANGE(frontButton, VR_DRAW_HELD), QVR_DRAW_RANGE(ghost, VR_DRAW_OTHER), QVR_DRAW_RANGE(ghostHand, VR_DRAW_OTHER), QVR_DRAW_RANGE(muzzleFlash, VR_DRAW_HELD),
         QVR_DRAW_RANGE(enemyFlash, VR_DRAW_OTHER), QVR_DRAW_RANGE(adBolt, VR_DRAW_HELD)};
 #undef QVR_DRAW_RANGE
     const size_t index = static_cast<size_t>(p - first) / sizeof(ViewEntity);
@@ -4700,6 +4700,7 @@ extern "C" void VR_SetupViewEntities()
     if(posingNow)
     {
         setupPosing(s);
+        entities.ghostHand[0].visible = entities.ghostHand[1].visible = false;
     }
     else
     {
@@ -4725,6 +4726,7 @@ extern "C" void VR_SetupViewEntities()
 
         setupHand(s, HAND_MAIN);
         setupHand(s, HAND_OFF);
+        setupGhostHands(s);
         QVR_PROFILE("view hotspots");
         showHotspots();
     }

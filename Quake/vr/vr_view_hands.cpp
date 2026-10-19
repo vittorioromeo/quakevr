@@ -2329,6 +2329,7 @@ void setupHand(const hands::State& s, int hand)
 // A hand drawn at (`pos`, `handRot`), holding `held` (the jointed hand; else the six models).
 void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion)
 {
+    ghostDrawn[hand] = {pos, handRot, mirrored, host_framecount}; // (Ghost Hands: how far it is drawn from its controller)
     if(setupRigHand(hand, pos, handRot, mirrored, hide, held, motion))
     {
         return;
@@ -2356,6 +2357,76 @@ void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hi
         if(hide)
         {
             ve.visible = false;
+        }
+    }
+}
+
+void setupGhostHands(const hands::State& s)
+{
+    const int mode = static_cast<int>(vr_ghost_hands.value);
+    const float m2u = units::metresToUnits();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        view::ViewEntity& ghost = entities.ghostHand[hand];
+        ghost.visible = false;
+        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        const GhostDrawn& drawn = ghostDrawn[hand];
+        if(mode <= 0 || !s.valid || (vr_ghost_hands_which.value >= 1.f && hand != HAND_OFF) || !rigHands[hand].drawn ||
+            !base.visible || !base.ent.model || drawn.frame != host_framecount)
+        {
+            continue;
+        }
+        // Where setupHand would draw it with its controller where it really is (before the walls, the two-handed grip
+        // and the weight's spring) and nothing holding it elsewhere: on its own weapon as held, or empty.
+        const bool mirrored = hand == HAND_OFF;
+        const int fist = weapons::fistSlot();
+        const int slot = weapons::slotForModel(entities.weapon[hand].ent.model);
+        const glm::vec3 rot = s.unresolvedRot[hand];
+        glm::vec3 pos = s.unresolvedPos[hand];
+        glm::vec3 handRot = basisAngles(anglesBasis(rot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+        if(slot >= 0 && slot != fist)
+        {
+            handRot = attachedTurn(rot, slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
+            moveDrawnHand(hand, mirrored, attachedTurn(rot, slot, mirrored, glm::vec3{0.f}, hand),
+                weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
+                weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+        }
+        // Faded in as the drawn hand leaves it: the further apart of its grip and a point 15 cm ahead of it (a heavy
+        // weapon's lag turns the hand about its grip).
+        const float ahead = 0.15f * m2u;
+        const float apart = za::max(glm::distance(pos, drawn.pos),
+                                glm::distance(pos + hands::forward(handRot) * ahead, drawn.pos + hands::forward(drawn.rot) * ahead)) *
+                            100.f / m2u;
+        const float from = za::max(vr_ghost_hands_fade_from.value, 0.f), range = za::max(vr_ghost_hands_fade_range.value, 0.01f);
+        const float alpha = za::clamp(vr_ghost_hands_alpha.value, 0.f, 1.f) * za::clamp((apart - from) / range, 0.f, 1.f);
+        if(alpha < 0.02f)
+        {
+            continue;
+        }
+        // The drawn hand's mesh as posed (its fingers, its bones: handBonePoses), placed there; translucent and tinted.
+        ghost = base;
+        view::ViewEntity placed;
+        (void)rigPlacement(hand, pos, handRot, drawn.mirrored, &placed);
+        for(int i = 0; i < 3; i++)
+        {
+            ghost.ent.origin[i] = placed.ent.origin[i];
+            ghost.ent.angles[i] = placed.ent.angles[i];
+        }
+        ghost.ent.alpha = static_cast<unsigned char>(ENTALPHA_ENCODE(alpha));
+        const float tint = za::clamp(vr_ghost_hands_tint.value, 0.f, 1.f);
+        ghost.lightMultiply = true;
+        ghost.lightMod = za::max(vr_ghost_hands_lightness.value, 0.f) * glm::mix(glm::vec3{1.f}, glm::vec3{0.7f, 1.f, 1.6f}, tint);
+        ghost.visible = true;
+
+        // With forearms: from the drawn elbow to the ghost's wrist (the drawn wrist, carried with the hand).
+        glm::vec3 wrist, along;
+        avatar::ForearmFrame elbow;
+        if(mode >= 2 && avatar::forearm(hand, wrist, along) && avatar::forearmFrame(hand, 0.f, elbow))
+        {
+            const glm::vec3 inHand = glm::transpose(anglesBasis(drawn.rot)) * (wrist - drawn.pos);
+            const glm::vec3 to = pos + anglesBasis(handRot) * inHand;
+            const glm::vec4 colour{glm::mix(glm::vec3{0.9f, 0.75f, 0.65f}, glm::vec3{0.55f, 0.75f, 1.f}, tint), alpha * 0.8f};
+            lines::sceneLine(elbow.point, to, 0.07f * m2u, colour, colour);
         }
     }
 }

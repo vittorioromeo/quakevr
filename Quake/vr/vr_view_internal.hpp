@@ -346,6 +346,7 @@ struct Entities
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
+    view::ViewEntity ghostHand[2]; // Ghost Hands: each hand at its real controller (setupGhostHands)
     view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
     view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
     view::ViewEntity adBolt[2]; // AD support: the bolts in the hands' crossbows' grooves (vr_adcrossbow.cpp)
@@ -468,6 +469,10 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.ghost)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.ghostHand)
     {
         f(ve);
     }
@@ -656,6 +661,18 @@ struct GhostRequest
 };
 inline GhostRequest ghostRequests[2];
 void setupGhosts();
+// Ghost Hands (vr_ghost_hands): each jointed hand also drawn translucent where its controller really is (before the
+// walls, the two-handed grip and the weight's spring move it: hands::State::unresolvedPos/Rot), fading out as the drawn
+// hand comes within reach of it; with forearms, a translucent forearm from the drawn elbow to it. drawHand notes the
+// pose each hand is drawn at (ghostDrawn); setupGhostHands places the ghosts after both hands.
+struct GhostDrawn
+{
+    glm::vec3 pos{0.f}, rot{0.f};
+    bool mirrored{false};
+    int frame{-1}; // host_framecount drawn in
+};
+inline GhostDrawn ghostDrawn[2];
+void setupGhostHands(const hands::State& s);
 void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool floating = false);
 [[nodiscard]] int damageLevel();
 

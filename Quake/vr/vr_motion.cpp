@@ -63,7 +63,11 @@ const za::Vector<Category> categoryList = {
     {{"stab", "Expected Stab"}, {any, {"one_hand", "One Hand"}, {"two_hands", "Two Hands"}}},
     {{"no_hit", "No Hit"},
         {any, {"wiggling", "Wiggling"}, {"weak", "Weak Motion"}, {"idle", "Idle"}, {"slow_waving", "Slow Waving"},
-            {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"}}},
+            {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"},
+            // Heavy handling's wobble (ROUND22.md, "Heavy weapons settle"): the in-game weapon against the hand, replayed
+            // with vr_debug_weight 1 (weight_trace.txt); no blow expected either.
+            {"heavy_wiggle_rl", "Heavy: Wrist Wiggle, Rocket Launcher"}, {"heavy_flick_chainsaw", "Heavy: Chainsaw Flick"},
+            {"heavy_wiggle_hammer", "Heavy: Hammer 1H Wiggle"}, {"heavy_hammer_2h_ground", "Heavy: Hammer 2H Blow on the Ground"}}},
     {{"bash", "Expected Bash"}, {any, {"sword_1h", "Sword 1H"}, {"sword_2h", "Sword 2H"}, {"gun", "Gun"}}},
     {{"parry_pose", "Expected Parry Pose"},
         {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},

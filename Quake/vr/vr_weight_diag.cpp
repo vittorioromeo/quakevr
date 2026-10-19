@@ -31,6 +31,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
@@ -670,11 +671,165 @@ void heavyTest_f()
     Con_Printf("vr_heavy_test: the abrupt snap turns %.0f deg/s at most over 60 ms, the extreme one %.0f\n", abrupt, extreme);
 }
 
+// vr_heavy_wiggle [slot]: heavy handling's stability offline at 90 fps, per weapon with a Heft (or one slot, 0-based),
+// one-handed (with the struggle and the droop) and two-handed: the wrist wiggled (yaw +-A degrees at F Hz for 1.5 s,
+// then held), a flick (30 degrees in 60 ms and back; and 90) and a blow stopped dead (pitched down at 900 deg/s with the grip
+// moving 3 m/s, stopped at once: the hit). Per motion: gain (the weapon's yaw swing over the wrist's, the last second),
+// spd (its fastest turn over the wrist's), off (the most it turns off the wiggle's axis, degrees), ring (its swings
+// back and forth over 1 degree once the hand is still), late (degrees still off 0.3 s after), pb (put back).
+void heavyWiggle_f()
+{
+    using weapons::Key;
+    const int only = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : -1;
+    // vr_heavy_wiggle <slot> <motion 0..5> <hands 1|2>: that one's turn every third frame too.
+    const int traceMotion = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : -1, traceHands = Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 1;
+    constexpr float fps = 90.f, dt = 1.f / fps;
+    struct Motion
+    {
+        const char* name;
+        int kind; // 0 wiggle, 1 flick, 2 blow
+        float amp, hz;
+        int about = 2; // the hand's axis: 0 its roll (the forearm's twist), 1 pitch, 2 yaw
+    };
+    constexpr Motion motions[] = {{"w30@3", 0, 30.f, 3.f}, {"w30@5", 0, 30.f, 5.f}, {"w60@2", 0, 60.f, 2.f},
+        {"w45@4", 0, 45.f, 4.f}, {"flick", 1, 30.f, 0.f}, {"blow", 2, 0.f, 0.f, 1}, {"flick90", 1, 90.f, 0.f},
+        {"roll45@3", 0, 45.f, 3.f, 0}, {"pitch45@3", 0, 45.f, 3.f, 1}, {"rflick", 1, 45.f, 0.f, 0}};
+    struct Result
+    {
+        float gain, spd, off, late;
+        int ring, putBack;
+    };
+    const auto run = [&](const Load& l, float droopDeg, const Motion& mo, bool trace) {
+        const glm::vec3 x0{0.55f, -0.25f, 1.25f};
+        const glm::quat droopQ = glm::angleAxis(glm::radians(droopDeg), glm::vec3{0.f, 1.f, 0.f});
+        glm::vec3 axis{0.f};
+        axis[mo.about] = 1.f;
+        const float moving = mo.kind == 0 ? 1.5f : mo.kind == 1 ? 0.12f : 0.1f;
+        const auto angleAt = [&](float t) {
+            if(mo.kind == 0)
+            {
+                return t < moving ? mo.amp * za::sin(2.f * 3.14159265f * mo.hz * t) : 0.f;
+            }
+            if(mo.kind == 1)
+            {
+                const float u = za::clamp(t / 0.06f, 0.f, 2.f), s = u <= 1.f ? u : 2.f - u;
+                return mo.amp * s * s * (3.f - 2.f * s);
+            }
+            return 900.f * za::min(t, moving); // (the blow: straight on, then stopped dead)
+        };
+        const auto posAt = [&](float t) {
+            return mo.kind == 2 ? x0 + glm::vec3{0.f, 0.f, -3.f * za::min(t, moving)} : x0;
+        };
+        const auto turnAt = [&](float t) { return glm::angleAxis(glm::radians(angleAt(t)), axis) * droopQ; };
+        Body b;
+        b.x = x0;
+        b.q = turnAt(0.f);
+        Result r{0.f, 0.f, 0.f, 0.f, 0, 0};
+        const float m = za::max(l.mass, 0.01f);
+        float handFastest = 0.f, last = 0.f, lastAngle = angleAt(0.f);
+        float most = 0.f;
+        for(int f = 1; f <= static_cast<int>(2.5f * fps); f++)
+        {
+            const float t = static_cast<float>(f) * dt;
+            const glm::quat qt = turnAt(t);
+            const glm::vec3 xt = posAt(t), xt0 = posAt(t - dt);
+            const glm::quat qt0 = turnAt(t - dt);
+            const glm::quat before = b.q;
+            if(step(b, l, m, xt0, xt, qt0, qt, dt, 0.f))
+            {
+                b.q = qt;
+                b.w = glm::vec3{0.f};
+                b.v = glm::vec3{0.f};
+                r.putBack++;
+            }
+            const float want = angleAt(t);
+            handFastest = za::max(handFastest, za::fabs(want - lastAngle) / dt);
+            lastAngle = want;
+            r.spd = za::max(r.spd, glm::degrees(glm::length(rotationVector(b.q * glm::conjugate(before)))) / dt);
+            // Its turn off the hand's (droop's) rest, in the world: along the motion's axis and off it.
+            const glm::vec3 turned = glm::degrees(rotationVector(b.q * glm::conjugate(droopQ)));
+            const float along = glm::dot(turned, axis);
+            r.off = za::max(r.off, glm::length(turned - axis * along));
+            if(trace && f % 3 == 0)
+            {
+                Con_Printf("t %.3f hand %.1f weapon %.1f off %.1f\n", t, want, along, glm::length(turned - axis * along));
+            }
+            if(mo.kind == 0 && t > moving - 1.f && t < moving)
+            {
+                most = za::max(most, za::fabs(along));
+            }
+            if(t >= moving)
+            {
+                const float err = along - want;
+                if(za::fabs(err) > 1.f && last != 0.f && (err > 0.f) != (last > 0.f))
+                {
+                    r.ring++;
+                }
+                if(za::fabs(err) > 1.f)
+                {
+                    last = err;
+                }
+                if(t >= moving + 0.3f)
+                {
+                    r.late = za::max(r.late, za::fabs(err));
+                }
+            }
+        }
+        r.gain = mo.kind == 0 ? most / mo.amp : 0.f;
+        r.spd = handFastest > 0.f ? r.spd / handFastest : 0.f;
+        return r;
+    };
+    Con_Printf("vr_heavy_wiggle: gain spd off ring late pb per motion (1H with struggle and droop; 2H)\n");
+    for(int slot = 0; slot < weapons::numSlots; slot++)
+    {
+        const char* id = weapons::cvar(slot, Key::ID)->string;
+        if((only >= 0 && slot != only) || !id[0] || !strcmp(id, "-1") || slot == weapons::fistSlot() ||
+            weapons::value(slot, Key::Mass) <= 0.01f || (only < 0 && heft(slot) <= 0.f))
+        {
+            continue;
+        }
+        for(int hands = 1; hands <= 2; hands++)
+        {
+            Load l;
+            l.valid = true;
+            const float mass = weapons::value(slot, Key::Mass), balance = weapons::value(slot, Key::Balance) * 0.01f;
+            const float length = za::max(weapons::value(slot, Key::Span), 1.f) * 0.01f;
+            gunLoad(l, mass, balance, length);
+            const float twoHanded = hands == 2 ? 1.f : 0.f;
+            if(hands == 2)
+            {
+                const float d = balance - 0.175f, across = mass * length * length / 12.f; // (as vr_heavy_test's)
+                l.com = {d, 0.f, 0.f};
+                l.inertia = {mass * gunRollRadius2, across + mass * d * d, across + mass * d * d};
+            }
+            l.twoHanded = twoHanded;
+            l.tune = weaponTuning(slot);
+            l.slot = slot;
+            l.heft = heft(slot);
+            l.struggle = l.heft * (1.f - twoHanded) * za::clamp(vr_heavy_struggle.value, 0.f, 1.f);
+            const float droopDeg = droop(slot, twoHanded);
+            char line[512];
+            size_t used = 0;
+            line[0] = 0;
+            for(const Motion& mo : motions)
+            {
+                const int index = static_cast<int>(&mo - motions);
+                const Result r = run(l, droopDeg, mo, index == traceMotion && hands == traceHands);
+                used += static_cast<size_t>(q_snprintf(line + used, sizeof(line) - used, " | %s %.2f %.1f %.0f %d %.1f %d", mo.name,
+                    r.gain, r.spd, r.off, r.ring, r.late, r.putBack));
+                used = za::min(used, sizeof(line) - 1);
+            }
+            Con_Printf("%d %.12s %dH%s\n", slot, id, hands, line);
+        }
+    }
+}
+
 } // namespace
 
 void registerDiagCommands()
 {
     Cmd_AddCommand("vr_heavy_test", heavyTest_f);
+    Cmd_AddCommand("vr_heavy_wiggle", heavyWiggle_f);
     Cmd_AddCommand("vr_throw_table", throwTable_f);
     Cmd_AddCommand("vr_weight_test", test_f);
     Cmd_AddCommand("vr_weight_table", table_f);
