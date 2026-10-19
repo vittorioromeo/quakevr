@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Limb cuts: cut a limb with a sword and look at the cap (chunky flesh, bone) and the body stump, plus a decapitated neck: too bright/saturated? bone size? stump flesh area big enough vs the blood paint? the flying limb trails its own fountain
 Zombies fall as active ragdolls (SSG, grenades): grab, drag, behead or gib them while down; they get up after a few seconds (AD zombies, mummy, zombie knight too); no more untargetable lying zombies
 Body shield: hold a corpse in front of you (two hands, then one) while grunts and enforcers shoot: the body takes the hits; Widowmaker from the toolgun has 16 shells
 Ghost Hands look solid: no inner/back faces through the translucency (vr_ghost_hands_solid 0 = old look); fades from 6 cm over 7 cm (your values)
