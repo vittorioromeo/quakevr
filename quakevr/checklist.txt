@@ -19,6 +19,8 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Flames stir in the air (Graphics > Fire Model Particles > Flames in the Air): sweep a hand fast through a brazier and a wall torch fire: leans with the hand and settles in ~1 s; slow hand: nothing
+Chainsaw cord hint (Chainsaw Engine > Cord Hint: until first pull): the ripcord handle dangles 1-2 cm until you pull it once, then rests still (remembered in saves and across levels)
 Projectiles all alike: crossbow bolts/AD plasma/lasers/nails pop heads and limbs, push corpses and ragdolls, knock wall torches off; nail headshots now pop (0.85, too often?); a grenade straight at a knocked-down enemy explodes
 Fury sword hits follow its curve (inside and outside of the bow); stray triangle by the sword handles gone; hammer and mace refused at holsters ("too big")
 Fall-damage "hnng" no longer cut off (by the next footstep or by menu/gadget/climb/flashlight sounds): land hard and walk on, open the menu right after
