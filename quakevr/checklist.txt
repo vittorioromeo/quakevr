@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Stagger fixes: parry a knight's blow and a grunt's shove on flat floor: steps back as a ragdoll, comes at you again (now actually fires); after a shove that doesn't drop it, fights on straight away (no end freeze); shove from behind or unaware: always down; slap at a ledge or top of stairs: falls, no air-walking; enforcers knocked down on ramps up to 30 deg get up (steeper: forced get-up ~4.5 s)
 Melee on ragdolls: chop corpses and downed enemies with sword, axe, hammer, mace: they jolt, not fly (Ragdoll Bounce / Most Speed rows)
 Batting projectiles on purpose: flick the wrist or bring a gun round in front of a spike: no bat; a timed swing or timed bash: bats (hand speed bar 2 m/s OK?)
 Parry stagger as an active ragdoll (Parry and Bash > Parry Ragdoll; off = old stagger): parry knights and grunts on flat floor (small step back, never falls, same recovery) and at the top of stairs (can go down)
