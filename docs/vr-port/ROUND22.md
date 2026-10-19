@@ -14271,3 +14271,34 @@ sharing one group's settings.
   skull wizard, the justice knight, the demon dog, Honey's spear knight, the AD crawlers' and giants' groups).
 - **For VR:** Combat > Monster Groups: open a group, set Shove Knockdown to 0 and shove one (it stays up), Shove Push
   to 0 (it stands its ground); Lift off for Grunts (no lift); AD's soldiers now go over with the two-hand throw.
+## Box3D updated to upstream efca0c18 (worktree `dequant`, branch `agent/box3dup`, 2026-10-19)
+
+Vendored `Quake/vr/external/box3d` from 5d83df83 to upstream main efca0c18 (still the 4 commits audited 2026-10-18:
+a2e4816b "Fixes for #175", 8128d740 a template, 0cfc475b "Solver stuff (#189)", efca0c18 "Gyro tolerance (#191)").
+21 files copied per the README; our patched files (`src/mesh_contact.c`, `src/core.h`, `src/core.c`) are untouched
+upstream in that range, so kept as they were; no files added or removed. API: only additions
+(`b3WorldDef.isotropicInertiaTolerance`, `b3World_Set/GetIsotropicInertiaTolerance`, a zero time step runs collision
+only); nothing in our code needed changing.
+
+- `isotropicInertiaTolerance = 0` on the game's world (`vr_box3d.cpp`) and on `vr_physics_mtbench`'s: upstream's 0.2
+  drops the gyroscopic torque for nearly isotropic bodies; 0 keeps it on every body but an exactly isotropic one, which
+  is the old behaviour (before #191 it ran for every body; for an isotropic one the term is zero anyway). Not judged in
+  VR whether 0.2 would matter (it would only touch near-cubes and near-spheres, which spinAlign barely turns anyway).
+- `vr_physics_mtbench`: 200 bodies 300 steps `d33bc06e429210a0` -> `eece2c3897006b67`, 400/300 `f8ce1f46c1cbf84b` ->
+  `b071f169ad1d96cb`; the same for every worker count and for SSE2 and AVX2 (`vr_box3d_avx2` 0 and 1), before and after.
+- Tests, old build vs new (headless): throw_spin_test PASS; held_over_props PASS; toolgun_physgun_ragdoll PASS (held
+  part jitter 0.43 -> 0.34, worst 1.96 -> 0.99); judo_test dir hold lift 0 fails; vr_kdtrig_test trials on
+  vrragtriggers (20 each): ledge drop 96 blow 30 20/20 both, blast 30 20/20 both, blunt 45 flat 7 -> 9 (expected 0.38);
+  axe_stick_rates (60 each, modes 4 5 6 8 9 10 11 12) 42 37 35 33 42 23 3 8 % -> 47 32 33 30 37 43 3 13 % (134 -> 143
+  of 480; mode 10, spear-like, 21 -> 3 out); throw_grace and throw_trigger the same within run noise (one late
+  release in a trigger run did not repeat); gib_2h_throw 10 -> 9 bursts of 28 (which small gibs both hands hold varies);
+  ragdoll_test all scenarios exit 0, no NaN; eval --full 168/177, the same 4 numeric differences, verdicts unchanged.
+- Ragdoll sleep: ragdoll_test's `cap` pile (10 dead grunts spawned on one spot) still had 8 ragdolls awake at 9 s and
+  `shot` picked a crawling death (random) with the new build. Bisected: a2e4816 alone slept, from 0cfc475 (#189) not.
+  The pile is chaotic (the corpses start inside each other): run as `scratch` pile tests at 7 spawn distances, the old
+  build kept jittering in 2 of 7 (up to 36 u/s after 30 s), the new one in 1 of 7, the others asleep by 20-30 s. Not a
+  regression, but the interpenetrating pile can jitter for good in either build.
+- Stale tests (the same with both builds): prop_2h_test (`carry: the other hand is not within reach`), throw_grace's
+  palm case (the gib falls off the palm, not resting at z 77.6).
+- **For VR:** thrown axes and knives (spin in the air, sticking), props piled and kicked, ragdolls lying on stairs and
+  in piles, the physgun on a ragdoll, judo throws and lifts.

@@ -7,10 +7,14 @@ Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (
 
 - Upstream: https://github.com/erincatto/box3d
 - Version: 0.1.0 (alpha) and later work on main (`b3GetVersion` says 0.2.0, the next)
-- Commit: `5d83df83ab47172c2c745b44315e7538ead02397` (2026-10-07, "Improve compound serialization (#183)")
+- Commit: `efca0c184d40fd6a82016983f1601c4d23965867` ("Gyro tolerance (#191)"; updated 2026-10-19 from 5d83df83,
+  `docs/vr-port/ROUND22.md`, "Box3D updated to upstream efca0c18"). Since #191 a world's `isotropicInertiaTolerance`
+  (upstream's default 0.2) leaves the gyroscopic torque out for nearly isotropic bodies; Quake VR's worlds set it to 0,
+  so every body but an exactly isotropic one keeps it, as before #191 (`vr_box3d.cpp`, the throw's spin alignment).
 
 Only the library is vendored: `src/` (the C17 sources and their private headers) and `include/box3d/` (the
-public C API), unchanged but for one local change, marked `QVR` (keep it when updating): `src/mesh_contact.c`
+public C API), unchanged but for local changes marked `QVR` (keep them when updating): the Tracy ones in `src/core.h`
+and `src/core.c` (above, and `TRACY.md`), and in `src/mesh_contact.c`
 b3ComputeMeshManifolds asks the pre-solve callback for a mesh's contact points too (upstream asks it only in the convex
 path, once a contact), so that a prop passing through a teleporter does not collide with the wall behind it
 (`vr_box3d.cpp` preSolve, the portal copies). Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
@@ -44,5 +48,6 @@ physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cm
   The results are the same whatever the count (Box3D is deterministic across threads).
 
 To update: copy upstream's `src/*.c`, `src/*.h`, `src/*.inl`, `include/box3d/*.h` and `LICENSE` over these (removing
-files upstream removed or renamed), re-apply the `QVR` change and change the commit above. New `.c` files are
+files upstream removed or renamed), re-apply the `QVR` changes (diff the vendored `src/` against the old upstream commit to see them all) and change the
+commit above. New `.c` files are
 picked up by the build's wildcards (`quakevr.props`, `vr.cmake`).

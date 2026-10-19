@@ -672,6 +672,7 @@ void mtbench_f()
         def.gravity = b3Vec3{0.f, 0.f, -9.81f};
         def.enableSleep = true;
         def.enableContinuous = true;
+        def.isotropicInertiaTolerance = 0.f; // as the game's world (vr_box3d.cpp)
         def.workerCount = static_cast<uint32_t>(workers);
         def.enqueueTask = enqueueStepTask;
         def.finishTask = finishStepTask;
