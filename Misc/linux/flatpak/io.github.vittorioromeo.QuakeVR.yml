@@ -1,0 +1,112 @@
+# Quake VR as a Flatpak (docs/vr-port/LINUX.md, "Flatpak"): the engine (Release, clang), the compiled QuakeC and the
+# quakevr game folder (the files git tracks, as the Windows package: Windows/package-quakevr.ps1), the OpenXR loader,
+# and a launcher that finds the player's Quake. No id, Arcane Dimensions or expansion data is in it: the player's
+# own Quake install is read in place.
+#
+#   flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo build-dir \
+#       Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml
+#   flatpak build-bundle repo QuakeVR.flatpak io.github.vittorioromeo.QuakeVR
+#
+# CI: .github/workflows/flatpak.yml (every push: the bundle as a workflow artifact).
+app-id: io.github.vittorioromeo.QuakeVR
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+# clang: gcc rejects vendored Zancle (LINUX.md, "Build").
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm22
+command: quakevr
+
+finish-args:
+  # Display: Wayland and X11 both. X11 always (not fallback-x11): SteamVR has only the GLX binding, so with SteamVR the
+  # game asks SDL for X11 (XWayland on a Wayland desktop; LINUX.md, "Run"). ipc: X11 shared memory.
+  - --socket=wayland
+  - --socket=x11
+  - --share=ipc
+  # GPU (dri) and the headset's USB/HID devices (and controllers): --device=all includes dri.
+  - --device=all
+  - --socket=pulseaudio
+  # The update check (vr_update.cpp), OBS's websocket (vr_obs.cpp, localhost), multiplayer.
+  - --share=network
+  # The player's Quake (id1, mods, expansions): read in place, never written (the game writes into its own data
+  # folder, ~/.var/app/io.github.vittorioromeo.QuakeVR). Steam libraries and GOG folders under home are found by the
+  # launcher. Quake on another disk: flatpak override --user --filesystem=/path/to/Quake:ro (LINUX.md).
+  - --filesystem=home:ro
+  # Flatpak Steam's library (outside what home covers).
+  - --filesystem=~/.var/app/com.valvesoftware.Steam:ro
+  # OpenXR: the active runtime's manifest (~/.config/openxr/1/active_runtime.json; Flatpak shows it in the app's own
+  # XDG_CONFIG_HOME too, where the loader and the game look first; the launcher also adds ~/.config to XDG_CONFIG_DIRS).
+  - --filesystem=xdg-config/openxr:ro
+  # OpenXR runtimes' IPC: Monado (and Envision's), WiVRn.
+  - --filesystem=xdg-run/monado_comp_ipc
+  - --filesystem=xdg-run/wivrn
+  # WiVRn's own Flatpak: its OpenXR library, built on this runtime (what its active_runtime.json points at).
+  - --filesystem=xdg-data/flatpak/app/io.github.wivrn.wivrn:ro
+  # SteamVR: its OpenXR manifest and vrclient, and the vrserver/compositor state it reads.
+  - --filesystem=xdg-data/Steam:ro
+  - --filesystem=~/.steam:ro
+  - --filesystem=xdg-config/openvr:ro
+
+modules:
+  # The QuakeC compiler, for the build only (the commit of the author's fteqcc64.exe: "git-6729-f937b9d88").
+  - name: fteqcc
+    buildsystem: simple
+    build-commands:
+      - make -C engine/qclib qcc
+      - install -Dm755 engine/qclib/fteqcc.bin /app/bin/fteqcc
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        url: https://github.com/fte-team/fteqw/archive/f937b9d88f71fc4429db5fe56c6a98d922711b2e.tar.gz
+        sha256: d8aede03b56a37eafaf3e11d2ca63fe6a84e45ee602afff72ffd152d18bafef3
+
+  # The OpenXR loader (not in the freedesktop runtime): libopenxr_loader.so and pkg-config openxr for the engine.
+  - name: openxr-loader
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTS=OFF
+      - -DDYNAMIC_LOADER=ON
+      - -DBUILD_WITH_SYSTEM_JSONCPP=OFF
+    cleanup:
+      - /include
+      - /lib/pkgconfig
+      - /lib/cmake
+      - /share/doc
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/OpenXR-SDK/archive/refs/tags/release-1.1.65.tar.gz
+        sha256: 27aa797baf680c5f836b6138e78e59e2f72d6becfef6d4587ed9a57756d6d3b3
+
+  # Quake VR: build.sh compiles the QuakeC, builds the engine and installs it, the game folder and the launcher.
+  - name: quakevr
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/llvm22/bin
+      prepend-ld-library-path: /usr/lib/sdk/llvm22/lib
+      env:
+        CC: clang
+        CXX: clang++
+    build-commands:
+      - bash Misc/linux/flatpak/build.sh
+    sources:
+      # The checkout this manifest is in, less what is never built or shipped (and flatpak-builder's own folders when
+      # it runs from the checkout's root, as CI does).
+      - type: dir
+        path: ../../..
+        skip:
+          - .git
+          - .github
+          - .flatpak-builder
+          - flatpak_app
+          - repo
+          - build
+          - build-cmake
+          - dist
+          - out
+          - scratch
+          - evaltakes
+          - docs
+          - Installer
+          - Windows

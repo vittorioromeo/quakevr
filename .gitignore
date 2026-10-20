@@ -33,3 +33,6 @@ quakevr/maps/vrfiringrange_recovered_20261012.bsp
 quakevr/maps/vrfiringrange_recovered_20261012.lit
 quakevr/maps/vrfiringrange_recovered_20261012.lux
 .env
+
+# The Flatpak build's build number and hash (Quake/vr/qvr_buildinfo.cmake; written by .github/workflows/flatpak.yml)
+/.qvr-buildinfo
