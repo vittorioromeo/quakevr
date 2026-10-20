@@ -113,6 +113,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     VR_Gore_Hit(targ, inflictor, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, take);
     VR_Wound_Hit(targ, inflictor, attacker, take);
+    // VR: living hit reactions (vr_hitreact.qc): it flinches where struck, a leg hit's knee buckling, its steps slowed a
+    // moment (AD's ai_run and ai_walk: VR_HitReact_Dist), as our monsters do (T_DamageDeal).
+    VR_HitReact_Hit(targ, inflictor, attacker, take);
     // VR: situational knockdowns (vr_kdtrig.qc): by stairs, a ledge, on a slope, a close shotgun blast, wounded, it may go
     // down as a ragdoll; down, AD's pain below gives way to it as to any knockdown (VR_AD_PainDown).
     if(targ.health > 0 && VR_KdTrig_Hit(targ, inflictor, attacker, take))

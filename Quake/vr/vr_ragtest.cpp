@@ -1185,7 +1185,10 @@ void ragtest::frame()
         else if(sv.qcvm.time - run.fired > static_cast<double>(a.within))
         {
             Con_Printf("ragact: %s on %s (%d): NOT begun in %.1f s (%s)\n", nameOf(a), classOf(run.num), run.num, a.within,
-                !s ? "no ragdoll" : !s->on ? "its ragdoll not driven" : "driven, but not this");
+                a.began == flinchBegan ? "no hit reaction drawn: no blow sent, or vr_hit_react off" // (no ragdoll's)
+                : !s                   ? "no ragdoll"
+                : !s->on               ? "its ragdoll not driven"
+                                       : "driven, but not this");
             tests.missed++;
             run.done = true;
         }
