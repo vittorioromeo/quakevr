@@ -346,6 +346,40 @@ string() VR_Reload_ShellInSound =
     return k < 1 ? "vr/reload_shell_in.wav" : (k < 2 ? "vr/reload_shell_in_2.wav" : "vr/reload_shell_in_3.wav");
 };
 
+// The second shell of two pushed in at once (VR_Reload_ShellsIn): its own take, a touch quieter and higher, on any free
+// channel (the first's is still sounding), from what took them.
+void() VR_Reload_SecondShellThink =
+{
+    float v = self.cnt * cvar_hget(cvarh_vr_reload_volume);
+    if(self.owner && v > 0)
+    {
+        sound_pitch(self.owner, CHAN_AUTO, VR_Reload_ShellInSound(), min(1, v), ATTN_NORM, 103 + crandom() * 3);
+        if(cvar_hget(cvarh_vr_reload_debug))
+        {
+            dprint(sprintf("reload: the second shell's sound (%.2f volume)\n", v));
+        }
+    }
+    remove(self);
+};
+
+// `n` shells pushed into what `e` holds at once (`xChannel` its gun's): the insert's sound, and with two or more (the
+// starter shotgun's taped pairs, the Widowmaker's handful, the super shotgun's two chambers) a second one 70-90 ms
+// later, so two shells are heard going in (author's note 2026-10-20). One shell: one sound, as ever.
+void(entity e, float xChannel, float n) VR_Reload_ShellsIn =
+{
+    VR_Reload_Sound(e, xChannel, VR_Reload_ShellInSound(), 1);
+    if(n < 2)
+    {
+        return;
+    }
+    entity s = spawn();
+    s.classname = "vr_reload_shell2";
+    s.owner = e;
+    s.cnt = 0.8 + random() * 0.15;
+    s.think = VR_Reload_SecondShellThink;
+    s.nextthink = time + 0.07 + random() * 0.02;
+};
+
 void(string xWhat) VR_Reload_Log =
 {
     if(cvar_hget(cvarh_vr_reload_debug))
@@ -1972,7 +2006,7 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
     VRSetEntWeaponClip(self, gunHand, clip + n);
     r.vr_ammo_count = r.vr_ammo_count - n;
     VR_Reload_AmmoChanged(self);
-    VR_Reload_Sound(self, VRGetGunChannel(gunHand), VR_Reload_ShellInSound(), 1);
+    VR_Reload_ShellsIn(self, VRGetGunChannel(gunHand), n);
     if(w == WID_SUPER_SHOTGUN)
     {
         self.vr_ssg_loaded = time;
@@ -2586,7 +2620,7 @@ void(float xHand) VR_Reload_PouchFrame =
     VR_AmmoUtil_DelAmmoCountByAmmoId(self, aid, n);
     VRSetEntWeaponClip(self, xHand, clip + n);
     VR_Reload_AmmoChanged(self);
-    VR_Reload_Sound(self, VRGetGunChannel(xHand), VR_Reload_ShellInSound(), 1);
+    VR_Reload_ShellsIn(self, VRGetGunChannel(xHand), n);
     VR_Reload_Haptic(self, xHand, 0.08, 70, 0.7);
     if(ssg)
     {
@@ -2720,7 +2754,7 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
         n = min(n, VR_ClipSizeOf(w, g.weaponinst) - clip);
         g.weaponinst.wi_clip = clip + n;
         r.vr_ammo_count = r.vr_ammo_count - n;
-        VR_Reload_Sound(g, CHAN_AUTO, VR_Reload_ShellInSound(), 1);
+        VR_Reload_ShellsIn(g, CHAN_AUTO, n);
         VR_Reload_Log(sprintf("%g into the %s lying about (%s): its magazine %g of %g", n, g.netname, how, clip + n,
             VR_ClipSizeOf(w, g.weaponinst)));
         if(clip + n >= VR_ClipSizeOf(w, g.weaponinst))

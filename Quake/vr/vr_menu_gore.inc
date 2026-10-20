@@ -616,7 +616,7 @@
             .help("Shots, blows and blood mark the brush things with models of their own (the firing range's targets: its spawn buttons and panels), and doors and lifts with Permanent Decals off: moving with them, the newest 128, flat (vr_decal_entities)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many; more cost GPU time where they pile up (512 shipped)."),
         slider("Decals Piled in One Spot", vr_decal_bucket_max, 8.f, 255.f, 8.f, "%.0f")
-            .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (24 shipped, 255 the most)."),
+            .help("How many marks one spot of the floor or wall keeps where they pile up (a corpse cut apart in one place). Past it the oldest there go whole, never leaving holes in the others. Each pixel there walks all of them: more cost GPU time when you look at the pile (128 shipped, 255 the most)."),
         slider("Decal Lifetime", vr_decal_life, 10.f, 600.f, 10.f, "%.0f s").extend(),
         toggle("Carved Holes and Craters", vr_decal_carve)
             .help("Bullet, nail and blast marks carved into walls and floors: a pit, hole or crater with a raised rim and a dark middle, its texture seen deeper in and lit by the world's light. Pellets leave small pits, nails narrow deeper holes (the super nailgun's and lava nails' larger), rockets and grenades wide shallow craters, the lightning gun a scorch only. Look only: nothing to bump into."),

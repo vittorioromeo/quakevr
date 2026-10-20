@@ -324,6 +324,7 @@ extern THREAD_LOCAL qcvm_t			*qcvm;
 
 void PR_SwitchQCVM(qcvm_t *nvm);
 void PR_PushQCVM(qcvm_t *newvm, qcvm_t **oldvm);
+float PR_ServerGlobalFloat (const char *name); // QVR: the server's QC float global by name (0 if none)
 void PR_PopQCVM(qcvm_t *oldvm);
 
 void PR_Init (void);

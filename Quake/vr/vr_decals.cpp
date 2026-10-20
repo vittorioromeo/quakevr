@@ -1841,7 +1841,7 @@ static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHe
 // listed in the buckets of the cells that reach its rectangle (at its full size, through the surface along its normal:
 // where the shader can find a pixel in it), each once (its memberships: Decal::buckets).
 constexpr float worldCell = 32.f;
-// A bucket lists at most vr_decal_bucket_max marks (32 shipped; 255 at most: its header's length, 8 bits). Past that a
+// A bucket lists at most vr_decal_bucket_max marks (128 shipped; 255 at most: its header's length, 8 bits). Past that a
 // mark is left out of every bucket it is in, not only the full one: newest first, a mark is listed only if each of its
 // buckets has room. A pile of more marks than that on one cell loses its oldest whole, as the ring loses its oldest;
 // never a cell-shaped hole in an older mark under newer ones (2026-10-11: the newest 64 of each bucket left square

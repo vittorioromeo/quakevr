@@ -2309,6 +2309,16 @@ bool qvr::menuui::drawProgress(int x0, int x1, int y, float fraction)
     return true;
 }
 
+// The death menu opening (menu.c M_CheckDeathMenu): the panel in front of where you look now, not where a hand left it
+// (moved with the body, it can be anywhere round a dead player; author's note 2026-10-20: no death menu seen in VR).
+extern "C" void VR_MenuPanelInFront(void)
+{
+    if(panelGrab.hand < 0)
+    {
+        panel::unplaceMenu();
+    }
+}
+
 extern "C" int VR_MenuDrawSlider(int x, int y, float range, float marker, const char* desc)
 {
     if(!styled())

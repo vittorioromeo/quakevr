@@ -15446,3 +15446,26 @@ Box3D's jobs, more awake bodies and contacts, VR_Melee_Sweep and hand collide.
 "still in it" time and the pommel's pending blow (VR_Melee_Rearm's), so a gate changes when blows re-arm: the melee
 feel, not done without his takes. The bench's seed-7 fight is one sample of a chaotic scenario: a regression in it
 should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the script's two seed lines).
+
+## Author's notes of 2026-10-20: the death menu in VR, decals kept, two shells heard, bullet time by skill (worktree `release`, branch `agent/notes1020`)
+
+- **Death menu never seen in VR.** M_CheckDeathMenu opened it only with `key_dest == key_game && m_state == m_none`, but
+  a map or a load started from a menu (`map`, Host_Loadgame, the Load menu, Continue's load...) sets key_dest back to
+  the game and leaves m_state at the menu it came from: in real play m_state was stale and the menu never opened; the
+  tests started their map from a script, m_state m_none. Now key_dest alone says "in the game". Also: not while a
+  respawn is under way (QC's `vr_restart_queued`, read by the new `PR_ServerGlobalFloat`, or a load put off by
+  "Loading...": VR_LoadingWaiting), so a press before the delay respawns as ever and the menu never flashes over its
+  load; once open, presses go to the menu (key_dest key_menu: no +attack reaches QC). The panel opens in front of the
+  head (`VR_MenuPanelInFront`: a panel a hand had moved is put back, unless a hand holds it). `developer 1` logs
+  `Death menu: opening (menu <old m_state> before)`.
+- **Decals Piled in One Spot** (`vr_decal_bucket_max`) 24 -> 128, his value (the marks vanishing mid-fight were a pile's
+  oldest going: Max Decals was already his 512). Migration 173 (only a config still at 24).
+- **Two shells heard** (QC vr_reload.qc `VR_Reload_ShellsIn`): an insert of two or more at once (a taped pair, the
+  Widowmaker's handful, the super shotgun's two) plays the insert, then a second take 70-90 ms later (0.80-0.95 of the
+  volume, pitch 100-106%, CHAN_AUTO so the first isn't cut). One shell: as before. `vr_reload_debug 1` logs
+  `reload: the second shell's sound`.
+- **Earned bullet time**: his `vr_bullettime_earn_damage` 350 (was 180) and `vr_bullettime_earn_active` 0.2 (was 0.25)
+  are the defaults (migration 173), 350 being Normal's; `vr_bullettime_earn_skill0..3` (0.75, 1, 1.2, 1.5) scale the
+  damage needed per skill (the `skill` cvar the game runs at). Rows under Damage to Fill (Easy/Normal/Hard/Nightmare:
+  Damage Needed). `vr_bullettime_meter` prints `fills by <n> damage dealt (skill <s>)`. bullettime_earn_test.sh pins
+  its cases to 180/0.25 on skill 1 and has two new cases (Nightmare 270, Easy 135).
