@@ -15366,3 +15366,38 @@ both. eval.sh: verdicts unchanged (169/177; four takes' damage moves by 0.1).
 - Unrelated, seen on the way: ad_swampy's spawns give 0.1-1.0 s "server other" hitches with either setting.
 - **In VR**: on an AD map spawn an ogre and an enforcer with the spawner (or reach a delayed spawn): no stall;
   developer 1 prints `hull: 40x88 ready in play ...`.
+
+## AD's monster spawns: their limbs made as the map loads, the normal-map cache kept (worktree `tghost`, branch `agent/swampyhitch`, 2026-10-20)
+
+The 0.1-1.0 s "server other" hitches on ad_swampy were `limbmodel::spawnFrame` (VR_ServerFrameEnd): the late limb
+models of every AD kind, one a server frame at 5-27 ms each (skins 2.5, normal maps 4-23, draw lists 2), several server
+frames in a slow host frame. Two causes:
+
+- **The load's prebuild missed AD's monsters.** It took the edicts with FL_MONSTER and a model; AD's monsters have none
+  (or the placeholder `misc_broken.mdl` that sizes them) until `ad_monster_spawn` sets `self.mdl`, 0.1-0.5 s in or at
+  their trigger, so every AD kind went the late way (ad_swampy: 15 kinds, 127 limbs). `kindModel` now takes a
+  `monster_*`'s `mdl` (a new engine field, `QVR_FIELD(mdl)`) when it is a precached alias model other than its current
+  one, posed with it for the lookups (modelindex set back after).
+- **The normal-map disk cache emptied itself every session.** vr_skinrelief's relief maps were stored in
+  `cache/normalmaps/` under a second build folder, and `prepare` removes a product's other builds: each removed the
+  other's files every session, so nearly every skin normal map (the limbs' too) was made again (786 misses, 40 hits a
+  run). The relief maps now have their own product, `cache/reliefmaps/` (`VR_ReliefCacheLoad/Store`); the old
+  `normalmaps/5e1ef...` folder is pruned on its own. Warm: 810 read, 0 missed.
+
+Headless, no spawner (`wait300` after the load, each map's own spawns; `scratch/sw_maps.sh`, the machine shared):
+
+| Map | Load before / after | Kinds made late before / after | "server other" frames >= 30 ms before / after |
+|---|---|---|---|
+| ad_swampy | 3.28 / 2.57 s | 15 (127 limbs) / 0 | 14 (max 192 ms) / 0 |
+| ad_tears | 4.39 / 3.49 s | 3 / 0 | 4 (max 202) / 0 |
+| ad_sepulcher | 3.48 / 2.79 s | 4 / 0 | 4 (max 152) / 0 |
+| ad_e1m1 | 1.85 / 1.62 s | 3 / 0 | 3 (max 378) / 0 |
+| MG1 mge1m1, MG3 map5 | 1.2 / 1.5, 1.0 / 0.8 s | 0 / 0 | 0 / 0 (2 of 38 ms, a busy machine) |
+
+The prebuild on ad_swampy makes 214 limbs for 28 kinds (was 87 for 12): 0.5 s with a warm cache, 1.5 s cold (the first
+session after this build). With the debug spawner (0..11, not probed without `vr_probe_test_spawn`) only its own kinds
+are late, now read from the cache. e1m1 unchanged (17 limbs, 2 kinds).
+
+- **In VR**: on ad_swampy, walk into the first fights: no stutter as the monsters appear; developer 1 prints `limb
+  models: N made for K kinds of monster (M of them not yet appeared)` at the load and no `first spawned after the load`
+  for the map's own kinds.

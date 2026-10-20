@@ -41,6 +41,7 @@ const ProductInfo products[] = {
     {"ao", "models' occlusion bakes", 64ull << 20, &qvr::vr_ao_cache},
     {"dequant", "dequantised poses", 256ull << 20, &qvr::vr_mdl_dequant_cache},
     {"rigs", "ragdoll rigs", 0, &qvr::vr_ragdoll_rig_cache},
+    {"reliefmaps", "weapons' relief maps", 0, &qvr::vr_normalmap_cache},
 };
 static_assert(sizeof(products) / sizeof(products[0]) == static_cast<size_t>(Product::Count));
 
@@ -429,28 +430,54 @@ extern "C" int VR_NormalCacheMode(void)
     return qvr::diskcache::modeOf(Product::NormalMaps);
 }
 
-extern "C" int VR_NormalCacheLoad(const char* build, unsigned long long key, unsigned char* rgba, int width, int height)
+namespace
+{
+
+[[nodiscard]] int rgbaCacheLoad(Product p, const char* build, unsigned long long key, unsigned char* rgba, int width,
+    int height, const char* what)
 {
     unsigned w = 0, h = 0;
     za::Vector<char> data;
-    if(!qvr::diskcache::read(Product::NormalMaps, build, key, "nrm", normalMagic, w, h, data, "(a skin)"))
+    if(!qvr::diskcache::read(p, build, key, "nrm", normalMagic, w, h, data, what))
     {
         return 0;
     }
     if(w != static_cast<unsigned>(width) || h != static_cast<unsigned>(height) ||
         data.size() != static_cast<size_t>(width) * height * 4)
     {
-        qvr::diskcache::noteRejected(Product::NormalMaps);
+        qvr::diskcache::noteRejected(p);
         return 0;
     }
     memcpy(rgba, data.data(), data.size());
     return 1;
 }
 
+void rgbaCacheStore(Product p, const char* build, unsigned long long key, const unsigned char* rgba, int width, int height)
+{
+    qvr::diskcache::write(p, build, key, "nrm", normalMagic, static_cast<unsigned>(width), static_cast<unsigned>(height),
+        rgba, static_cast<size_t>(width) * height * 4);
+}
+
+} // namespace
+
+extern "C" int VR_NormalCacheLoad(const char* build, unsigned long long key, unsigned char* rgba, int width, int height)
+{
+    return rgbaCacheLoad(Product::NormalMaps, build, key, rgba, width, height, "(a skin)");
+}
+
 extern "C" void VR_NormalCacheStore(const char* build, unsigned long long key, const unsigned char* rgba, int width, int height)
 {
-    qvr::diskcache::write(Product::NormalMaps, build, key, "nrm", normalMagic, static_cast<unsigned>(width),
-        static_cast<unsigned>(height), rgba, static_cast<size_t>(width) * height * 4);
+    rgbaCacheStore(Product::NormalMaps, build, key, rgba, width, height);
+}
+
+extern "C" int VR_ReliefCacheLoad(const char* build, unsigned long long key, unsigned char* rgba, int width, int height)
+{
+    return rgbaCacheLoad(Product::ReliefMaps, build, key, rgba, width, height, "(a weapon's relief)");
+}
+
+extern "C" void VR_ReliefCacheStore(const char* build, unsigned long long key, const unsigned char* rgba, int width, int height)
+{
+    rgbaCacheStore(Product::ReliefMaps, build, key, rgba, width, height);
 }
 
 extern "C" void VR_NoteModelLoad(const char* name, double seconds)

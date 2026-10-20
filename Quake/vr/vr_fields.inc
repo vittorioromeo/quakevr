@@ -215,6 +215,7 @@ QVR_FIELD(vr_corpse_placed) // a mapper's corpse (QC vr_mg_corpses.qc): 1 asleep
 QVR_FIELD(vr_gib) // a gib or head (QC): not a corpse (vr_box3d.cpp)
 QVR_FIELD(vr_headless) // its head cut off (QC vr_decap.qc): its ragdoll is made headless, a saved game's too (vr_box3d.cpp)
 QVR_FIELD(vr_limbcut) // the ragdoll bones cut off (bits; QC vr_limbs.qc, ROUND21.md "Limb gore"): made so again in a saved game (vr_box3d.cpp)
+QVR_FIELD(mdl) // the model an Arcane Dimensions monster takes as it appears (QC defs.qc, ad_monsters.qc): its kind's limbs made as the map loads (vr_limbmodel.cpp prebuild)
 QVR_FIELD(vr_death_hit) // where the blow that killed a monster struck it (QC combat.qc VR_Ragdoll_NoteDeathHit: 1 head, 2 limb, 3 leg, 0 body, -1 unknown): an active death's collapse or held wound (vr_box3d.cpp, vr_ragactive.cpp)
 QVR_FIELD(vr_death_hitpos) // ... and the point, from its origin as it died ('0 0 0' unknown)
 QVR_FIELD(vr_deathdoll) // a player's ragdoll body's player (an entity; QC vr_deathdoll.qc) (vr_deathview.cpp: the camera follows its head)
