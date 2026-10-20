@@ -98,6 +98,8 @@ typedef struct
 		double	shoot_time;				// last time the player attacked
 		double	cheat;					// time spent with cheats active since last autosave
 		qboolean	level_started;		// QVR: the level's start autosaved, or not to be (a loaded game: vr_autosave_level_start)
+		double	wait_since;				// QVR: an autosave due waiting since (unsafe: Host_AutosaveWait), 0 none
+		const char	*wait_reason;		// QVR: why, as last logged
 	}			autosave;
 
 	struct

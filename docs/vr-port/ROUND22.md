@@ -15162,3 +15162,35 @@ flinches and limps, no QC errors.
 
 - **AD maps**: shoot AD knights and soldiers in the body and the legs: they flinch, a leg hit buckles the knee and they
   limp a step, as id1's grunts do; shove them: they stagger (death knights rarely go down).
+
+## Rotating autosaves, safe autosaving, the death menu
+
+Player feedback: an autosave made in an ambush trapped them (respawn, die again, progress lost without a manual save).
+
+- **Rotation** (vr_continue.cpp `VR_AutosaveRotate`): `vr_autosave_slots` (3) autosaves kept per map. The newest keeps
+  the old name (`autosave/<name>.sav`: Continue, the skill menu's Resume, older saves unchanged), the older ones are
+  `<name>@2.sav`, `@3`... (their file times kept by the rename). The autosaves queue `save <name> 0 rotate`;
+  Host_Savegame_f waits for a save still being written, then shifts the slots (each `.addon` with its save). Every save
+  now has a `// qvr_player <health> <armor> <seconds into the level>` context line for the menu.
+- **Only when safe** (host.c `Host_AutosaveUnsafe`/`Host_AutosaveWait`; both the level-start and Ironwail's timed
+  autosave): not while a living monster is after you (`vr_autosave_safe_alerted`), a living monster in sight is within
+  `vr_autosave_safe_radius` (600), or your health is below `vr_autosave_safe_health` (40%) of its maximum. A due autosave
+  waits and is made as soon as it is safe; after `vr_autosave_safe_maxdelay` (60 s) of waiting for monsters (one stuck
+  hunting you) it is made anyway, never at low health. `vr_autosave_safe 0`: none of the checks. `developer 1` logs
+  `Autosave: waiting: ...`, `safe now, after x s`, `made anyway after x s`.
+- **Load Autosave** (menu.c `m_autosaves`, `menu_autosaves`): the main/pause menu's row under Continue (shown when
+  autosave/ has one) and VR Settings > Saves and Autosaves list the loadable autosaves newest first, two lines each
+  (`e1m3: The Necropolis` / `Health 65 Armor 50, 3:12 in, 5 min ago`; an older save without the player line: the time
+  only). Inspections are cached by path and file time.
+- **Death menu** (`vr_death_menu` 1, `vr_death_menu_delay` 2 s; single player, campaign maps): Respawn (as fire:
+  `restart`, the last save with `sv_autoload` 2), Restart the Level (`restart fresh`), then the autosaves. Back: you
+  stay dead and fire respawns as ever; it doesn't open again for that death.
+- Settings: VR Settings > Saves and Autosaves (also sv_autosave, sv_autosave_interval, vr_autosave_level_start,
+  sv_autoload). Debug > Tests > Saves: List the Autosaves (`vr_autosave_list`, `vr_autosave_load <n>`), Open the Death
+  Menu (`menu_autosaves death`).
+- Tests: 4 level starts with 3 slots leave e1m1, @2, @3 (the oldest dropped); an alerted grunt delays the level-start
+  autosave until `vr_test_kill`, health 30 until `give h 100`, a grunt left alive with maxdelay 5: made after 5 s; the
+  main menu's Load Autosave > 2nd row loads `@2`, the death menu's 5th row loads `@3`; an old-format `e1m1.sav` lists
+  without health, loads, and rotates to `@2`. (Scripts' `kill` respawns at once in Quake: tests die to a grunt with
+  `give h 1`. A scripted Respawn prints "Autoload failed!": Host_AutoLoad's load waits behind the script's `wait`s, as
+  it always did; not so in play.)

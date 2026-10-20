@@ -122,6 +122,7 @@ namespace
         case m_net:
         case m_skill:
         case m_help:
+        case m_autosaves: // (two lines a row, laid out in its own 20-unit rows)
         case m_quit: // drawn over the menu it came from
             return 1.f;
         default: return spacingSetting();
@@ -3084,6 +3085,10 @@ void qvr::menuui::openMenu(int state)
         case m_keys: M_Menu_Keys_f(); break;
         case m_mods: M_Menu_Mods_f(); break;
         case m_help: M_Menu_Help_f(); break;
+        case m_autosaves:
+            Cmd_TokenizeString("menu_autosaves"); // it looks at its command's arguments
+            M_Menu_Autosaves_f();
+            break;
         default: M_Menu_Main_f(); break;
     }
 }

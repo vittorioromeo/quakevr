@@ -2502,6 +2502,16 @@ static void Host_Savegame_f (void)
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
+	// QVR: `save <name> 0 rotate` (Host_CheckAutosave's): the autosaves kept each a slot older first, once any save still
+	// being written is done (VR_AutosaveRotate: vr_autosave_slots, the oldest replaced)
+	if (Cmd_Argc () >= 4 && !strcmp (Cmd_Argv (3), "rotate"))
+	{
+		SDL_LockMutex (save_mutex);
+		while (save_pending)
+			SDL_CondWait (save_finished_condition, save_mutex);
+		SDL_UnlockMutex (save_mutex);
+		VR_AutosaveRotate (name);
+	}
 	VR_AddonOnSave (name); // QVR: <save>.addon names the map package it was made in
 
 	// second argument, if present, indicates whether or not text should be printed to the notification area

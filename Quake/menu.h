@@ -52,7 +52,8 @@ enum m_state_e {
 	m_slist,
 	m_vr, // QVR: vr/vr_menu.cpp
 	m_credits, // QVR: native official campaign ending
-	m_confirm // QVR: a question over the menu it came from, with two buttons (M_Confirm)
+	m_confirm, // QVR: a question over the menu it came from, with two buttons (M_Confirm)
+	m_autosaves // QVR: Load Autosave, and the death menu (M_Menu_Autosaves_f, M_CheckDeathMenu)
 };
 
 extern enum m_state_e m_state;
@@ -86,6 +87,8 @@ void M_RefreshMods (void);
 void M_OnModInstall (const char *name);
 
 void M_Menu_Main_f (void);
+void M_Menu_Autosaves_f (void);	// QVR: Load Autosave (menu_autosaves; "menu_autosaves death": the death menu)
+void M_CheckDeathMenu (void);	// QVR: each server frame: the death menu opened when the player has been dead a moment
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);
 

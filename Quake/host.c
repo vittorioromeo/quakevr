@@ -1046,6 +1046,104 @@ void Host_GetConsoleCommands (void)
 
 /*
 ==================
+Host_AutosaveUnsafe
+
+QVR: why an autosave due must wait (player feedback: an autosave made in an ambush trapped them, dying again at each
+respawn): 0 safe; 1 a living monster after you (vr_autosave_safe_alerted) or near you and in sight
+(vr_autosave_safe_radius): the longest wait (vr_autosave_safe_maxdelay) ends it; 2 your health below
+vr_autosave_safe_health percent: only healing ends it. *reason: what, for the log.
+==================
+*/
+static int Host_AutosaveUnsafe (const char **reason)
+{
+	edict_t		*ed;
+	int			i, self;
+	float		radius, percent, maxhealth;
+	qboolean	alerted;
+	vec3_t		eye, mid, d;
+	trace_t		tr;
+
+	*reason = "";
+	if (!Cvar_VariableValue ("vr_autosave_safe"))
+		return 0;
+	percent = Cvar_VariableValue ("vr_autosave_safe_health");
+	maxhealth = sv_player->v.max_health > 0.f ? sv_player->v.max_health : 100.f;
+	if (percent > 0.f && sv_player->v.health < maxhealth * percent / 100.f)
+	{
+		*reason = "your health is low";
+		return 2;
+	}
+	radius = Cvar_VariableValue ("vr_autosave_safe_radius");
+	alerted = Cvar_VariableValue ("vr_autosave_safe_alerted") != 0.f;
+	self = EDICT_TO_PROG (sv_player);
+	VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, eye);
+	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	{
+		// a living monster in the world (not a corpse, nor one yet to appear: AD's spawned later)
+		if (ed->free || !((int) ed->v.flags & FL_MONSTER) || ed->v.health <= 0.f || ed->v.deadflag != 0.f ||
+			ed->v.solid == SOLID_NOT || !ed->v.modelindex)
+			continue;
+		if (alerted && ed->v.enemy == self)
+		{
+			*reason = "a monster is after you";
+			return 1;
+		}
+		if (radius <= 0.f)
+			continue;
+		VectorSubtract (ed->v.origin, sv_player->v.origin, d);
+		if (DotProduct (d, d) > radius * radius)
+			continue;
+		VectorAdd (ed->v.absmin, ed->v.absmax, mid);
+		VectorScale (mid, 0.5f, mid);
+		tr = SV_Move (eye, vec3_origin, vec3_origin, mid, MOVE_NOMONSTERS, sv_player);
+		if (tr.fraction >= 1.f && !tr.allsolid)
+		{
+			*reason = "a monster is near, in sight";
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*
+==================
+Host_AutosaveWait
+
+QVR: true while an autosave due waits for it to be safe (Host_AutosaveUnsafe), what it waits for logged as it changes
+(developer 1); false when it may be made: safe, or the monsters waited for vr_autosave_safe_maxdelay seconds.
+==================
+*/
+static qboolean Host_AutosaveWait (void)
+{
+	const char	*reason;
+	int			unsafe = Host_AutosaveUnsafe (&reason);
+	float		maxdelay = Cvar_VariableValue ("vr_autosave_safe_maxdelay");
+
+	if (!unsafe)
+	{
+		if (sv.autosave.wait_since)
+			Con_DPrintf ("Autosave: safe now, after %.1f s\n", qcvm->time - sv.autosave.wait_since);
+		sv.autosave.wait_since = 0.;
+		sv.autosave.wait_reason = NULL;
+		return false;
+	}
+	if (!sv.autosave.wait_since)
+		sv.autosave.wait_since = qcvm->time;
+	if (unsafe == 1 && maxdelay > 0.f && qcvm->time - sv.autosave.wait_since >= maxdelay)
+	{
+		Con_DPrintf ("Autosave: made anyway after %.0f s (%s)\n", qcvm->time - sv.autosave.wait_since, reason);
+		sv.autosave.wait_since = 0.;
+		sv.autosave.wait_reason = NULL;
+		return false;
+	}
+	if (sv.autosave.wait_reason != reason)
+		Con_DPrintf ("Autosave: waiting: %s\n", reason);
+	sv.autosave.wait_reason = reason;
+	return true;
+}
+
+/*
+==================
 Host_CheckAutosave
 ==================
 */
@@ -1097,14 +1195,20 @@ static void Host_CheckAutosave (void)
 
 	// QVR: an autosave as the level starts (a map or a changelevel; a loaded game is not one: Host_Loadgame_f), the
 	// player in and a moment into it, whatever the score: vr_autosave_level_start, Continue's (vr_continue.cpp)
+	// It waits until it is safe (Host_AutosaveWait: an ambush at the level's start), nothing else saved meanwhile.
 	if (!sv.autosave.level_started && cls.signon == SIGNONS && qcvm->time >= 2.5)
 	{
-		sv.autosave.level_started = true;
-		if (Cvar_VariableValue ("vr_autosave_level_start"))
+		if (!Cvar_VariableValue ("vr_autosave_level_start"))
+			sv.autosave.level_started = true;
+		else
 		{
+			if (Host_AutosaveWait ())
+				return;
+			sv.autosave.level_started = true;
 			VR_AutosaveName (sv.name, autosavename, sizeof (autosavename));
 			sv.autosave.time = qcvm->time;
-			Cbuf_InsertText (va ("save \"%s\" 0\n", autosavename)); // (next, before any queued command)
+			sv.autosave.cheat = 0;
+			Cbuf_InsertText (va ("save \"%s\" 0 rotate\n", autosavename)); // (next, before any queued command)
 			return;
 		}
 	}
@@ -1151,10 +1255,14 @@ static void Host_CheckAutosave (void)
 	if (score < 1.f)
 		return;
 
+	// QVR: not until it is safe (no monster after you or near, your health not low: Host_AutosaveWait)
+	if (Host_AutosaveWait ())
+		return;
+
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
 	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package
-	Cbuf_AddText (va ("save \"%s\" 0\n", autosavename));
+	Cbuf_AddText (va ("save \"%s\" 0 rotate\n", autosavename)); // QVR: rotate: the older ones kept (vr_autosave_slots)
 }
 
 /*
@@ -1216,6 +1324,7 @@ void Host_ServerFrame (void)
 	VR_ProfileEnd (); // QVR
 
 	Host_CheckAutosave ();
+	M_CheckDeathMenu (); // QVR: dead a moment: Respawn, Restart the Level, the autosaves (menu.c)
 }
 
 typedef struct summary_s {

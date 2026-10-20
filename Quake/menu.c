@@ -1419,13 +1419,15 @@ static void M_Confirm_Mousemove (float x, float y)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 5; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
+int	m_main_cursor = 6; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
 int m_main_mods;
 qboolean m_main_continue_offered; // QVR: the cursor put on Continue once, at the menu's first opening with a save to continue
+qboolean m_main_autosaves; // QVR: an autosave to load (Load Autosave's row shown), as the menu's opening found
 
 enum
 {
 	MAIN_CONTINUE, // QVR: the newest save of a campaign's map (vr_continue.cpp), the first row; shown only when there is one
+	MAIN_LOADAUTOSAVE, // QVR: Load Autosave, the rotating autosaves newest first (M_Menu_Autosaves_f); shown when there is one
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp)
 	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
 	MAIN_VRHUB, // QVR: the VR hub (vrstart, as the Play page's VR Hub), confirmed
@@ -1447,7 +1449,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"Continue", "VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
+	"Continue", "Load Autosave", "VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
 	"Play Custom Map", "Options", "Advanced VR", "Mods", "Quit",
 };
 
@@ -1462,6 +1464,8 @@ static qboolean M_Main_Shown (int item)
 {
 	if (item == MAIN_CONTINUE) // QVR: only with a save to continue (vr_continue.cpp)
 		return VR_ContinueAvailable ();
+	if (item == MAIN_LOADAUTOSAVE) // QVR: only with an autosave to load
+		return m_main_autosaves;
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
@@ -1472,8 +1476,10 @@ static qboolean M_Main_Shown (int item)
 // vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
 {
-	if (item == MAIN_VRCALIBRATION) // QVR: Continue on its own above the VR rows, when shown
-		return M_Main_Shown (MAIN_CONTINUE);
+	if (item == MAIN_LOADAUTOSAVE) // QVR: with Continue when it is shown, else the first row
+		return false;
+	if (item == MAIN_VRCALIBRATION) // QVR: Continue and Load Autosave on their own above the VR rows, when shown
+		return M_Main_Shown (MAIN_CONTINUE) || M_Main_Shown (MAIN_LOADAUTOSAVE);
 	return item == MAIN_CAMPAIGNS || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
 }
 
@@ -1498,6 +1504,9 @@ void M_Menu_Main_f (void)
 	// QVR: Continue (vr_continue.cpp): the saves looked at again; the cursor on it the first time it is offered, off it
 	// when there is none (the playing group's first row)
 	VR_ContinueRefresh ();
+	m_main_autosaves = VR_AutosaveAny ();
+	if (!M_Main_Shown (MAIN_LOADAUTOSAVE) && m_main_cursor == MAIN_LOADAUTOSAVE)
+		m_main_cursor = MAIN_CAMPAIGNS;
 	if (M_Main_Shown (MAIN_CONTINUE) && !m_main_continue_offered)
 	{
 		m_main_continue_offered = true;
@@ -1683,6 +1692,7 @@ void M_Main_Draw (void)
 					M_PrintEx (x + 2, row + 1, 16, "MODS");
 				break;
 			case MAIN_CONTINUE: M_PrintEx (x + 2, row + 1, 16, "CONTINUE"); break;
+			case MAIN_LOADAUTOSAVE: M_PrintEx (x + 2, row + 1, 16, "LOAD AUTOSAVE"); break;
 			case MAIN_VRCALIBRATION: M_PrintEx (x + 2, row + 1, 16, "VR CALIBRATION"); break;
 			case MAIN_VRTUTORIAL: M_PrintEx (x + 2, row + 1, 16, "VR TUTORIAL"); break;
 			case MAIN_VRHUB: M_PrintEx (x + 2, row + 1, 16, "VR HUB"); break;
@@ -1819,6 +1829,10 @@ void M_Main_Key (int key)
 			}
 			else
 				M_Main_Continue ();
+			break;
+
+		case MAIN_LOADAUTOSAVE: // QVR: the rotating autosaves, newest first
+			M_Menu_Autosaves_f ();
 			break;
 
 		case MAIN_VRCALIBRATION: // QVR: the calibration room (vr_setup)
@@ -2224,6 +2238,244 @@ void M_Save_Mousemove (float cx, float cy)
 	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
 	if (load_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
+}
+
+//=============================================================================
+/* LOAD AUTOSAVE MENU */ // QVR
+
+// QVR: Load Autosave (the main menu's row, VR Settings > Saves and Autosaves, menu_autosaves) and the death menu (single
+// player, dead for vr_death_menu_delay seconds: M_CheckDeathMenu; player feedback: an autosave in an ambush trapped
+// them). The rotating autosaves (vr_continue.cpp), newest first, each in two lines: its map and title; health, armor,
+// time into the level and how long ago. The death menu has Respawn (as fire does: the last save loaded, sv_autoload,
+// else the level again) and Restart the Level above them; Back from it to the dead player (fire respawns as ever).
+#define AUTOSAVES_TOP	32	// the first row's y (the title above)
+#define AUTOSAVES_ROWH	20	// a row's height (two lines; the laser's target)
+
+static struct
+{
+	qboolean	death;			// the death menu
+	qboolean	dismissed;		// closed while dead: not opened again until the player lives
+	double		deadsince;		// sv.time the player was first seen dead (0: alive)
+	int			count;			// autosaves listed
+	int			cursor;			// the row (the death menu's actions first)
+	int			first;			// the first row drawn (scrolled)
+} autosavesmenu;
+
+static int M_Autosaves_Actions (void)
+{
+	return autosavesmenu.death ? 2 : 0;
+}
+
+static int M_Autosaves_Rows (void)
+{
+	return M_Autosaves_Actions () + autosavesmenu.count;
+}
+
+// How many rows the canvas has room for, below the title.
+static int M_Autosaves_Visible (void)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	return q_max (3, (int) (q_min (bottom, 400.f) - 12 - AUTOSAVES_TOP) / AUTOSAVES_ROWH);
+}
+
+static void M_Autosaves_KeepVisible (void)
+{
+	int visible = M_Autosaves_Visible ();
+
+	if (autosavesmenu.cursor < autosavesmenu.first)
+		autosavesmenu.first = autosavesmenu.cursor;
+	if (autosavesmenu.cursor >= autosavesmenu.first + visible)
+		autosavesmenu.first = autosavesmenu.cursor - visible + 1;
+	autosavesmenu.first = CLAMP (0, autosavesmenu.first, q_max (0, M_Autosaves_Rows () - visible));
+}
+
+static void M_Menu_Autosaves_Open (qboolean death)
+{
+	IN_DeactivateForMenu ();
+	key_dest = key_menu;
+	m_state = m_autosaves;
+	m_entersound = true;
+	autosavesmenu.death = death;
+	autosavesmenu.count = VR_AutosaveListRefresh ();
+	autosavesmenu.cursor = 0;
+	autosavesmenu.first = 0;
+	Con_DPrintf ("%s: %d autosaves\n", death ? "Death menu" : "Load Autosave", autosavesmenu.count);
+}
+
+void M_Menu_Autosaves_f (void)
+{
+	M_Menu_Autosaves_Open (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "death"));
+}
+
+static void M_Autosaves_Close (void)
+{
+	IN_Activate ();
+	key_dest = key_game;
+	m_state = m_none;
+}
+
+// A line cut to the canvas's right edge from x.
+static void M_Autosaves_Print (int x, int y, qboolean white, const char *text)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+	char line[128];
+	int chars;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	chars = CLAMP (8, (int) (right - 4 - x) / 8, (int) sizeof (line) - 1);
+	q_strlcpy (line, text, sizeof (line));
+	if ((int) strlen (line) > chars)
+		line[chars] = 0;
+	if (white)
+		M_PrintWhite (x, y, line);
+	else
+		M_Print (x, y, line);
+}
+
+void M_Autosaves_Draw (void)
+{
+	const char *title = autosavesmenu.death ? "You Died" : "Load Autosave";
+	char line1[96], line2[96];
+	int i, row, y, visible = M_Autosaves_Visible ();
+
+	if (VR_BigFont_CanDraw (title))
+		VR_BigFont_DrawScaled ((int) (160.f - VR_BigFont_WidthScaled (1.f, title) * 0.5f), 4, 1.f, title);
+	else
+		M_PrintWhite (160 - 4 * (int) strlen (title), 12, title);
+
+	M_Autosaves_KeepVisible ();
+	for (i = 0; i < visible; i++)
+	{
+		row = autosavesmenu.first + i;
+		if (row >= M_Autosaves_Rows ())
+			break;
+		y = AUTOSAVES_TOP + i * AUTOSAVES_ROWH;
+		if (row < M_Autosaves_Actions ())
+		{
+			if (row == 0)
+				M_Autosaves_Print (24, y + 6, true, sv.lastsave[0] && sv_autoload.value >= 2.f
+					? "Respawn: load your last save" : "Respawn: start the level again");
+			else
+				M_Autosaves_Print (24, y + 6, true, "Restart the level");
+		}
+		else
+		{
+			VR_AutosaveDescribe (row - M_Autosaves_Actions (), line1, sizeof (line1), line2, sizeof (line2));
+			M_Autosaves_Print (24, y + 1, true, line1);
+			M_Autosaves_Print (24, y + 10, false, line2);
+		}
+		if (row == autosavesmenu.cursor)
+			M_DrawArrowCursor (12, y + 6);
+	}
+	y = AUTOSAVES_TOP + visible * AUTOSAVES_ROWH;
+	if (!autosavesmenu.count)
+		M_Autosaves_Print (24, AUTOSAVES_TOP + M_Autosaves_Actions () * AUTOSAVES_ROWH + 6, false, "No autosaves yet.");
+	else if (autosavesmenu.first + visible < M_Autosaves_Rows ())
+		M_Print (24, y, "more below...");
+}
+
+void M_Autosaves_Key (int key)
+{
+	int rows = M_Autosaves_Rows ();
+
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		if (autosavesmenu.death) // back to the dead player: fire respawns as ever
+		{
+			autosavesmenu.dismissed = true;
+			M_Autosaves_Close ();
+		}
+		else
+			M_Menu_Main_f ();
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		if (autosavesmenu.cursor >= rows)
+			break;
+		M_ThrottledSound ("misc/menu2.wav");
+		M_Autosaves_Close ();
+		if (autosavesmenu.cursor < M_Autosaves_Actions ())
+			Cbuf_InsertText (autosavesmenu.cursor == 0 ? "restart\n" : "restart fresh\n"); // (next, before any command queued)
+		else
+			VR_AutosaveLoad (autosavesmenu.cursor - M_Autosaves_Actions ());
+		break;
+
+	case K_UPARROW:
+	case K_LEFTARROW:
+	case K_MWHEELUP:
+		if (rows <= 0)
+			break;
+		M_ThrottledSound ("misc/menu1.wav");
+		autosavesmenu.cursor = (autosavesmenu.cursor - 1 + rows) % rows;
+		break;
+
+	case K_DOWNARROW:
+	case K_RIGHTARROW:
+	case K_MWHEELDOWN:
+		if (rows <= 0)
+			break;
+		M_ThrottledSound ("misc/menu1.wav");
+		autosavesmenu.cursor = (autosavesmenu.cursor + 1) % rows;
+		break;
+	}
+}
+
+void M_Autosaves_Mousemove (float cx, float cy)
+{
+	int prev = autosavesmenu.cursor;
+	int row = (int) floor ((cy - AUTOSAVES_TOP) / AUTOSAVES_ROWH);
+
+	if (row < 0 || row >= M_Autosaves_Visible () || autosavesmenu.first + row >= M_Autosaves_Rows ())
+		return;
+	autosavesmenu.cursor = autosavesmenu.first + row;
+	if (autosavesmenu.cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
+}
+
+// QVR: the death menu opened when the player of a single-player campaign game has been dead vr_death_menu_delay seconds
+// (not the VR maps, not after Back closed it for this death); closed when they live again another way.
+void M_CheckDeathMenu (void)
+{
+	edict_t *player;
+
+	if (!sv.active || svs.maxclients != 1 || !svs.clients || !svs.clients[0].edict || cls.signon != SIGNONS ||
+		cl.intermission || !VR_AutosaveAllowed (sv.name))
+		return;
+	player = svs.clients[0].edict;
+	if (player->v.health > 0.f)
+	{
+		// (alive again another way: its death menu closed; one opened alive, Debug's, stays)
+		if (autosavesmenu.deadsince && m_state == m_autosaves && autosavesmenu.death && key_dest == key_menu)
+			M_Autosaves_Close ();
+		autosavesmenu.deadsince = 0.;
+		autosavesmenu.dismissed = false;
+		return;
+	}
+	if (!autosavesmenu.deadsince)
+	{
+		autosavesmenu.deadsince = q_max (sv.qcvm.time, 0.001);
+		Con_DPrintf ("Death menu: the player died (key_dest %d, menu %d)\n", (int) key_dest, (int) m_state);
+	}
+	if (!Cvar_VariableValue ("vr_death_menu") || autosavesmenu.dismissed || sv.autoloading)
+		return;
+	if (sv.qcvm.time - autosavesmenu.deadsince < Cvar_VariableValue ("vr_death_menu_delay"))
+		return;
+	if (key_dest != key_game || m_state != m_none)
+		return;
+	M_Menu_Autosaves_Open (true);
 }
 
 //=============================================================================
@@ -7923,6 +8175,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_main", M_Menu_Main_f);
 	Cmd_AddCommand ("menu_singleplayer", M_Menu_SinglePlayer_f);
 	Cmd_AddCommand ("menu_load", M_Menu_Load_f);
+	Cmd_AddCommand ("menu_autosaves", M_Menu_Autosaves_f); // QVR: Load Autosave ("menu_autosaves death": the death menu)
 	Cmd_AddCommand ("menu_save", M_Menu_Save_f);
 	Cmd_AddCommand ("menu_multiplayer", M_Menu_MultiPlayer_f);
 	Cmd_AddCommand ("menu_setup", M_Menu_Setup_f);
@@ -8215,6 +8468,10 @@ void M_DrawPanel (void)
 	case m_confirm: // QVR
 		M_Confirm_Draw ();
 		break;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Draw ();
+		break;
 	}
 
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
@@ -8368,6 +8625,10 @@ void M_Keydown (int key, qboolean repeat)
 	case m_confirm: // QVR
 		M_Confirm_Key (key);
 		return;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Key (key);
+		return;
 	}
 }
 
@@ -8484,6 +8745,10 @@ void M_Mousemove (int screenx, int screeny)
 
 	case m_confirm: // QVR
 		M_Confirm_Mousemove (x, y);
+		return;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Mousemove (x, y);
 		return;
 	}
 }
