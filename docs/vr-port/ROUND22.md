@@ -14902,7 +14902,7 @@ shove poses are gone (`VR_KdTrig_TacklePose`, `vr_kdtrig_tackle_gap`, `_slow` re
   on"); a heavier class staggers back 12 + 0.6 of that on its feet (an ogre: moved 43 units); heavier stands.
 - The training dummy judges it with the Shoulder Charges off too (the event and his bounce; it stands), so takes
   record and replay whatever the switch.
-- `vr_kdtrig_tackle_on` 0 (config 168 migrates 1 -> 0); menu Combat > Ragdoll Triggers > **Shoulder Charges** (the page
+- `vr_kdtrig_tackle_on` 0 (config 169 migrates 1 -> 0); menu Combat > Ragdoll Triggers > **Shoulder Charges** (the page
   renamed from Tackles: menu path check 0 missing); `vr_kdtrig_debug 2` says, each half second while running fast, why
   the pose isn't a charge (`kdtrig: charge pose: no (a hand high (11 units below the head); turn 0 deg, ...)`). Each take
   sample has `charge` (turn, drop, reach) and `charge_ok` (the side or 0, the ground speed, held s) in its `qc` column.
@@ -14931,7 +14931,7 @@ the topple's chance grows from none at `_least` to its full at a strike of 1 (el
 (`callBodyHits`) counts a thrown body's strike at 0.85 of its fastest since the throw at least (`thrownPeak`); the
 topple launches it at 150 + 100 x strike x push u/s (at most 450) and carries it 8 + 32 x push units (thrown's carry
 24 -> 32; push 0.6 x strike, 0.6..1.5, times `_push`); a stagger is pushed back 12 + 20 x strike x push units (0.6 of
-it for a heavier class, at most 96). His values are the defaults (config 168): `vr_kdtrig_thrown_speed` 200 -> 160,
+it for a heavier class, at most 96). His values are the defaults (config 169): `vr_kdtrig_thrown_speed` 200 -> 160,
 `_least` 0.4 -> 0.05, `_push` 1 -> 2.
 
 Headless (`vr_kdtrig_test 44`, new: Debug > Tests > Ragdoll Triggers > Throw Trials; a fresh grunt corpse 128 units
@@ -14954,3 +14954,65 @@ the harder the throw), at an ogre (staggers back). Shoulder Charges stay off: re
 reports `kdtrig: shoulder charge on the training dummy (it stands)` with `developer 1`); to try it live, turn
 Shoulder Charges on and sprint side-on into a grunt (it should fly back and fall; you bounce back), an ogre (it
 staggers back), and check a running guard, a shove and a gun never fire it.
+
+## Gib impacts: one rule for thrown, held and struck gibs (worktree `gorefx`, branch `agent/gibhits`, 2026-10-20)
+
+The author: a head gib (or gib, small gib, brain chunk) smashed while held into a wall, the floor or a monster should
+burst as a throw does (it never burst held), and a light tap must not burst it: tossed up and tapped with the other
+hand it burst every time (any hand hit at `vr_melee_speed`, 3.2 m/s, dealt 20+ damage against 12/18 health); it should
+bounce off like a volleyball. Now one impact rule, `VR_Gib_Impact` (vr_carry.qc): intensity = the impact's speed over
+the kind's burst speed (`VR_Gib_BurstSpeed`); from 1 it bursts, from 0.5 it is worn by `(2i - 1)` of its full health
+(two hits at 0.75 burst it), below 0.5 nothing. The paths:
+
+- **Hand and weapon hits** on a loose one (`VR_Gib_Struck` the touch, `VR_Gib_Blow` a melee blow, `VR_Gib_HeldFrameHand`
+  one held in the other hand): the hand's (blow's) speed against it (at most its own, as before; a blow times its
+  stamina). Short of bursting it bounces off the striker along the hit (`VR_Gib_HandImpact`: `v += n (1 + e) u`, u the
+  approach speed, e `vr_gib_bounce`, at most 15 m/s); a small gib in its blow grace stays put. One tap is one hit
+  (`.vr_gib_hittime`, 0.15 s: the touch and the sweep's blow land together). The touch still starts at `vr_melee_speed`
+  (slower: the nudge's push, as before). `vr_sgib_graceblow` is gone (`VR_Gib_Hit` takes the speed now).
+- **Held smash** (`VR_Gib_HeldSmash`, from `VR_Carry_Follow`, one or two hands): the hand's line meets the level (its
+  trace), or a monster or solid thing (a second trace with monsters); the speed into it is the smaller of the gib's last
+  frame's motion and the hand's own velocity along the normal (walking into a wall with it held out is not a smash). It
+  bursts out of the hand (`VR_Gib_KnockOut`); no damage to the monster (the hand's own blow does that).
+- **Thrown** (`VR_Gib_Think2`, `VR_Gib_Touch`): as before, its own thresholds as the intensity (turn / Gib Splat Speed,
+  hand speed / Hard Throw Bursts, speed into a monster / Gib Splat Speed): only the outcome goes through the rule.
+- Shots and blasts: `T_Damage` / `VR_Gib_Damage` as before.
+
+New cvars (Gibs and Corpses page, after Hard Throw Bursts): **`vr_gib_burst_speed`** 5 m/s, **`vr_gib_burst_head`** 1.3x
+(6.5 m/s), **`vr_gib_burst_small`** 0.7x (3.5 m/s: small gibs, brain chunks), **`vr_gib_bounce`** 0.4.
+
+**Checks**: `vr_smallgibs_test 25` (Debug > Gore Tests, "Gib Impacts: Smash, Tap, Hit"; after test 15): a head held in
+the off hand smashed into the wall at 13 m/s bursts, at 2.17 doesn't; a head falling at 120 u/s struck from below by the
+touch and by a blow at 3.9 m/s (0.6x) bounces up (-120 to +220 u/s, worn 18 to 14.4), at 9.75 bursts. Test 12 (thrown at
+a wall) as before: 220 u/s sticks, 400 bursts. `Misc/quakevr/gib_2h_throw_test.sh`: every burst is a thrown one's wall
+hit (no held smash or hand hit fired during the two-handed throws).
+
+- **For VR**: toss a head up and tap it with the other hand: it should bounce up; slap it hard: it bursts. Hold a head
+  and slam it into a wall or the floor fast: it bursts; press it on slowly: it stays. Punch heads lying on the floor
+  (they bounce away unless the punch is fast). Tune with Gib Burst Speed / Head Burst Speed / Gib Bounce.
+## Mantle height, one-hand drag by part, shallower dents (worktree `tghost`, branch `agent/mantledrag`, 2026-10-20)
+
+- **Mantle Height** (`vr_climb_mantle_height` 18 units; Movement > Climbing, before Mantle onto Slopes). A mantle
+  needs a hand pulled down 8 units (mantlePull) and the head this far over the ledge's top (was the fixed 8). At a
+  chest-high lip the 8-unit pull already put the head 15 over the top, so the pull was what fired it: leaning up over
+  the ledge mantled. 18 is a little later. `Misc/quakevr/climb/mantle_height_test.py` (vrslopes' level top, hands at
+  1.49 m pulled down 0.2-0.8 m and held): at 8 the shallowest pull that mantles is 0.30 m (the head 15.3 over the top),
+  at 18 it is 0.40 m (head 18.0); 20: 0.45 m, 24: only the full 0.8 m. slopes_test.sh: all 8 tops as before. The
+  mantle's debug line (`vr_climb_debug 1`) now prints the head's height over the top.
+- **One hand drags by its torso and shoulders only** (`vr_foegrab_drag_onehand` 1; Combat > Holding Enemies > Effect,
+  One Hand Drags By: 1 Torso, Shoulders, 2 + Head, 0 Anywhere as before). With one hand alone on a standing enemy, the
+  follow and the pull (serverFrame) count that hand only at its torso, shoulders or upper arms (foegrab::oneHandDrags):
+  on its legs (legPartAt) it is the one-hand leg pull's, at its head or neck (the neck snap's head zone) the head
+  hold's, on a forearm or a hand neither. Two hands on it drag as before. Not dragged, a hand pulled away past the
+  break lets go as any hold. `vr_foegrab_debug 1` prints each hand's part and whether it drags; `vr_foegrab_status`
+  shows it and the enemy's origin. `Misc/quakevr/foegrab/onehand_drag_test.py` (one hand pulled 0.4 m in 1 s):
+  shin, not dragged (the hold broke at 1.32 s); chest, dragged 12.7 units; head, not dragged; shin with 0, dragged
+  11.1. leggrab_test.py: pull_solo pulled (1.8 m/s, needs 1.56), pull_solo_weak not (now the hold breaks instead of
+  the grunt being dragged), pull_one, pull_both, slow, thigh_half_slow as before.
+- **Dents** (migration 168, his config of 2026-10-20): `vr_gore_dents_depth` 3 -> 2.5. His other dent settings
+  (`vr_gore_dents` 1, `_size` 1.25, `_max` 12, `vr_ragimpact_dent` 2, `vr_dummy_dents` 0, `vr_decal_melee_blunt_depth`
+  1) were the defaults already.
+- **For VR**: hang from or stand at a chest-high ledge and lean up and down over it: no mantle until you really pull
+  up (try Mantle Height 22-26 if it still fires). Grab a grunt's shin with one hand: walking back no longer drags it;
+  a sharp yank pulls its legs out. One hand on its chest or shoulder drags it as before; one hand on its head holds
+  it but no longer drags it (One Hand Drags By: Torso, Shoulders, Head to drag by the head too).

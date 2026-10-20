@@ -244,6 +244,11 @@
                   "what Follow the Hand leaves."),
         slider("Pull Speed", vr_foegrab_drag_speed, 0.f, 300.f, 5.f, "%.0f units/s")
             .help("The pull's top speed (32 units are about a metre)."),
+        cycle("One Hand Drags By", "vr_foegrab_drag_onehand",
+            {{1.f, "Torso, Shoulders"}, {2.f, "Torso, Shoulders, Head"}, {0.f, "Anywhere"}})
+            .help("Where one hand alone (the other off it) drags a standing enemy along by Follow the Hand and Pull. "
+                  "Torso, Shoulders: a hand on its legs only pulls its legs out (Leg Grabs, One-Hand Pull), on its head "
+                  "only holds it, on a forearm or hand neither. Anywhere: as before."),
         header("Their Shoves"),
         cycle("Held Enemy's Shove", "vr_foegrab_shove", {{0.f, "Resisted"}, {1.f, "Breaks Free"}})
             .help("Resisted: a grunt or enforcer you hold barely pushes you (by Shove Resistance and its hold), and comes "

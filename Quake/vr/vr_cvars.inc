@@ -1459,7 +1459,7 @@ QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blo
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
 QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
-QVR_CVAR(vr_gore_dents_depth, "3", CVAR_ARCHIVE)      // how deep the dents push in, times their own (0 flat: the raw flesh only)
+QVR_CVAR(vr_gore_dents_depth, "2.5", CVAR_ARCHIVE)    // how deep the dents push in, times their own (0 flat: the raw flesh only; his config of 2026-10-20, 3 before)
 QVR_CVAR(vr_gore_dents_size, "1.25", CVAR_ARCHIVE)       // how wide the dents are, times their own (and as much deeper)
 QVR_CVAR(vr_gore_dents_max, "12", CVAR_ARCHIVE)        // dents a body keeps (1..16): past it, the oldest merges into its neighbour
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
@@ -2411,6 +2411,7 @@ QVR_CVAR(vr_climb_leniency_air, "4.5", CVAR_ARCHIVE)   // cm: and this much furt
 QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
 QVR_CVAR(vr_climb_mantle_grunt_sound, "4", CVAR_ARCHIVE) // the mantle's grunt (vr_climb.cpp mantleGrunts): 0 the jump's (player/plyrjmp8.wav), 1 a hard landing's (player/land2.wav), 2 the jump's deeper, 3 a hard landing's deeper (both made from id's as they load), 4 a short pain grunt (player/pain2.wav)
+QVR_CVAR(vr_climb_mantle_height, "18", CVAR_ARCHIVE) // units: holding a ledge, a mantle starts only once the head (the eyes) is this far above its top (and a hand has pulled down 8 units): lean up and down over a ledge under it without mantling (0..40; 8 before, though at a chest-high lip the pull's 8 units brought the head to 15 first)
 QVR_CVAR(vr_climb_mantle_lenient, "1", CVAR_ARCHIVE) // 1: a mantle onto a sloping top (rising or falling away from the lip, or across it) finds its spot on the slope, up to vr_climb_mantle_slope (vr_climb.cpp findMantleSloped; tried when the level search finds none); 0: level tops only, as before
 QVR_CVAR(vr_climb_mantle_slope, "40", CVAR_ARCHIVE)  // degrees: the steepest top a mantle stands you on with vr_climb_mantle_lenient (0..60; Quake walks up to about 45)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
@@ -2729,6 +2730,10 @@ QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be d
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_gib_splat_throw, "7", CVAR_ARCHIVE)      // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
+QVR_CVAR(vr_gib_burst_speed, "5", CVAR_ARCHIVE)      // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
+QVR_CVAR(vr_gib_burst_head, "1.3", CVAR_ARCHIVE)     // times vr_gib_burst_speed for a head
+QVR_CVAR(vr_gib_burst_small, "0.7", CVAR_ARCHIVE)    // times vr_gib_burst_speed for a small gib or brain chunk
+QVR_CVAR(vr_gib_bounce, "0.4", CVAR_ARCHIVE)         // how much a gib a hand hits short of bursting bounces off it (restitution: 0 dead, 1 elastic)
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
 QVR_CVAR(vr_corpse_health_mult, "2", CVAR_ARCHIVE)    // times every monster's corpse health (vr_corpse_health_<monster>): the damage that gibs a corpse or a ragdoll
 QVR_CVAR(vr_corpse_nogib, "0", CVAR_ARCHIVE)          // never gibbed (testing): 0 off, 1 corpses and ragdolls (and dying bodies) take damage but never burst, 2 also monsters die whole (their death code never gibs them)
@@ -3541,6 +3546,7 @@ QVR_CVAR(vr_foegrab_slow, "0.8", CVAR_ARCHIVE)           // share of a fully hel
 QVR_CVAR(vr_foegrab_follow, "1", CVAR_ARCHIVE)           // share of the holding hands' own move (flat) the enemy follows, times its hold (a grunt comes along)
 QVR_CVAR(vr_foegrab_drag, "20", CVAR_ARCHIVE)            // 1/s: how fast the hand pulls the spot it holds to it (times the hold)
 QVR_CVAR(vr_foegrab_drag_speed, "300", CVAR_ARCHIVE)     // units/s: at most this fast
+QVR_CVAR(vr_foegrab_drag_onehand, "1", CVAR_ARCHIVE)     // where one hand alone (the other not on it) drags a standing enemy by (the follow and the pull above): 1 its torso and shoulders only (a hand on its legs is the one-hand leg pull's, on its head the head hold's, on a forearm or hand neither), 2 its head too, 0 anywhere (as before)
 QVR_CVAR(vr_foegrab_strength_small, "0.85", CVAR_ARCHIVE)  // one hand's hold on a small enemy (grunt, enforcer, zombie, knight, mummy...)
 QVR_CVAR(vr_foegrab_strength_medium, "0.25", CVAR_ARCHIVE) // on a big one (fiend, ogre)
 QVR_CVAR(vr_foegrab_strength_large, "0.04", CVAR_ARCHIVE)  // on a huge one (shambler, vore and bigger)
