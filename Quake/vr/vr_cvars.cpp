@@ -324,8 +324,9 @@ const DefaultChange defaultChanges[] = {
     {165, &vr_reload_port_widow_radius, "1.25"}, // 1.4
     {165, &vr_ad_widowmaker_motor, "0.6"},      // 0.4
     // 166: his Ghost Hands fade (the ghost shows once the drawn hand is 6 cm off, over 7 more).
-    {166, &vr_ghost_hands_fade_from, "6"},  // 2
-    {166, &vr_ghost_hands_fade_range, "7"}, // 4
+    // (Its rows named the new values until 171, so they changed nothing: 171 below does it again.)
+    {166, &vr_ghost_hands_fade_from, "2"},  // 6
+    {166, &vr_ghost_hands_fade_range, "4"}, // 7
     // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
     {167, &vr_decal_carve_steps, "16"},
     {167, &vr_ad_widowmaker_spinup, "0.2"},
@@ -341,8 +342,14 @@ const DefaultChange defaultChanges[] = {
     // 170: the pouch gives taped shell pairs by default (1.1 balance: manual reloading made ogres tanky; ROUND22.md,
     // "1.1 pacing: shell pairs, big monsters' health"). A config at the old default (off) takes it.
     {170, &vr_reload_shell_pairs, "0"},
+    // 171: 166's Ghost Hands fade again (its rows had the new values where the old belong: a config of 166-170 still at
+    // the old 2 and 4 takes 6 and 7); the retro lighting's model steps 15 -> 16 (1.0.1's vr_defaults.cfg set 15, and the
+    // line went without a row when the default moved into vr_cvars.inc, 57ee3adc4: a 1.0.1 config kept 15).
+    {171, &vr_ghost_hands_fade_from, "2"},  // 6
+    {171, &vr_ghost_hands_fade_range, "4"}, // 7
+    {171, &vr_retrolight_model_steps, "15"}, // 16
 };
-constexpr int configVersion = 170;
+constexpr int configVersion = 171;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -708,6 +715,13 @@ constexpr const char* retiredCvars[] = {
     "vr_flinch_test_yaw",
     "vr_flinch_test_dist",
     "vr_flinch_test_class",
+    // The eliminator's plasma gun's own tweaks (1.1 beta 1 and 2; it fires as the centurion's since 944765aa1).
+    "vr_adgun_eliminator_ammo",
+    "vr_adgun_eliminator_damage",
+    "vr_adgun_eliminator_refire",
+    "vr_adgun_eliminator_speed",
+    "vr_adgun_eliminator_splash",
+    "vr_toolgun_menu_height", // 1.0.1's: the toolgun's own panel replaced its VR Settings pages (7baa39660)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

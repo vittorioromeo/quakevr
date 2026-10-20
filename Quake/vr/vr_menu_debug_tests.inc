@@ -949,7 +949,11 @@ za::Vector<Item> pageDebugTests()
                   "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
         command("List the Autosaves", "vr_autosave_list")
             .help("vr_autosave_list: the Load Autosave menu's list (the rotating autosaves kept, vr_autosave_slots per "
-                  "map, newest first), printed; vr_autosave_load <n> loads the n-th."),
+                  "map, newest first; this game's only unless vr_autosave_list_all), printed, and how long reading it "
+                  "took; vr_autosave_load <n> loads the n-th."),
+        command("List the Autosaves: Cold", "vr_autosave_list cold")
+            .help("vr_autosave_list cold: as List the Autosaves, every file read again (as at the menu's first "
+                  "opening): its time is the menu's hitch."),
         command("Open the Death Menu", "menu_autosaves death")
             .help("The menu a dead player gets (vr_death_menu): Respawn, Restart the Level, the autosaves; here alive, "
                   "to look at it."),

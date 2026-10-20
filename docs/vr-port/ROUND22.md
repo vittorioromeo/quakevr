@@ -15313,3 +15313,28 @@ ogre (180) loads at 180.
 - **In VR**: reload the shotgun from empty (pairs), with one place left (a single shell), with one shell in the
   reserve; fight ogres and a shambler: they should go down noticeably sooner. Combat > Monster Health's examples follow
   the sliders.
+
+
+## 1.1 sweep fixes: QC lookups, config migration, autosave list (worktree `dequant`, branch `agent/sweepfix1`, 2026-10-20)
+
+- **Per-frame QC lookups**: `callBodyHits` (every frame with a ragdoll), `callRagImpacts`, `monsterFell` and
+  `makeRagdollRoom` named their QC function by `findFunction` (a strcmp over every function, ~0.04 ms) at each call; now
+  resolved once per progs load in `Bindings` (`KdTrig_BodyHit`, `RagImpact_Hit`, `Monster_Fall`, `Knockdown_MakeRoom`).
+  The other `findFunction` calls left are commands, map loads or rare events. Checked: `vr_kdtrig_test 44` on e1m1
+  still fires Thrown Bodies ("kdtrig: thrown on monster_army: down").
+- **Config migration**: row 166 (Ghost Hands fade) named the new values (6, 7) where the old belong, so it changed
+  nothing; fixed to 2 and 4, and 171 does it again for configs of 166-170 still at exactly 2 / 4. 171 also moves
+  `vr_retrolight_model_steps` 15 -> 16 (1.0.1's vr_defaults.cfg set 15; 57ee3adc4 dropped the line without a row).
+  Checked with `vr_cfg_version` 167 / 125 and `vr_migrate_config`: 2/4 -> 6/7, 15 -> 16; 3/4.5 and 12 kept.
+- **Retired cvars**: `vr_adgun_eliminator_{ammo,damage,refire,speed,splash}` (betas 1-2) and `vr_toolgun_menu_height`
+  (1.0.1) load silently. Every archived cvar of v1.0.0, v1.0.1 and the three betas is now known (current, alias or
+  retired). (A dev config of version 132 still names nine never-released ones: `vr_adgun_grenade_*`, `_rocket_*`,
+  `vr_adgun_ours`, `vr_foegrab_necksnap_method/_speed`.)
+- **Load Autosave list**: shows the game played now's autosaves only (its campaign, or its map package), its first row
+  "Showing: Quake / Select: all games (12 more)" switches to every game's (`vr_autosave_list_all`, default 0; VR
+  Settings > Saves and Autosaves > List Every Game's), another game's autosave named with its title. Each file is read
+  only to its globals' end (`readSaveHead`: 64 KB, growing), not its edicts. 24 saves of 4.9 MB (12 Quake, 12 Scourge):
+  cold 4.4-5.6 ms (whole reads: 53-96 ms), warm 0.9 ms. `vr_autosave_list [cold]` prints the time (Debug > Tests >
+  Saves > List the Autosaves: Cold).
+- **In VR**: open Load Autosave after playing two campaigns: only this one's, the first row switches; the death menu
+  has the row under Restart.
