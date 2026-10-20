@@ -755,37 +755,52 @@ void(entity m, entity body, float xMass, vector xVel) VR_KdTrig_BodyHit =
     VR_KdTrig_Bump(VR_KDT_THROWN, m, body, xMass, dir, strike, sprintf("a %s at %.0f u/s", body.classname, speed));
 };
 
-// The shoulder charge (the tackle's entry; ROUND22.md, "Shoulder charge"): running at full speed into a monster with a
-// shoulder leading, side-on, both hands low and close to the body (the leading arm tucked, not reaching out). In the
-// player's level frame along the run (his head looks the way he runs: vr_movement_mode 1 runs where the head looks, so
-// the head can't show the torso's turn; the hands can): the hands' middle, from the head, lies round to the side of
-// the run by vr_kdtrig_tackle_turn degrees or more (the torso turned side-on: the hands in front of it are beside the
-// run, the leading shoulder the other side); both vr_kdtrig_tackle_low units or more below the head; each within
-// vr_kdtrig_tackle_reach of the head's line (level), none reaching ahead past VR_KDT_CHARGE_AHEAD of it; no shove or
-// bash going, no gun aimed with both hands; held vr_kdtrig_tackle_hold s. A running guard (hands before the chest), a
-// running shove, a gun carried or aimed, walking into one (too slow), a sidestep (not running the way he looks) don't.
-float VR_KDT_CHARGE_AHEAD = 0.6; // a hand reaching ahead past this share of the reach: not tucked (a shove's, a guard's)
+// The shoulder charge (the tackle's entry; ROUND22.md, "Shoulder charge" and "Shoulder charge tuning"): running at
+// speed into a monster with a shoulder leading, the head tucked down, both hands low and close to the body (the
+// leading arm tucked, not reaching out). In the player's level frame along the run (his head looks the way he runs:
+// vr_movement_mode 1 runs where the head looks, so the head's yaw can't show the torso's turn; the hands can): the
+// hands' middle, from the head, lies round to the side of the run by vr_kdtrig_tackle_turn degrees or more, or right
+// under the head (the torso turned side-on or bent over the run: the author's charges keep the hands beside or behind
+// the head's line); both vr_kdtrig_tackle_low units or more below the head; each within vr_kdtrig_tackle_reach of the
+// head's line (level), none reaching ahead past VR_KDT_CHARGE_AHEAD of it; the head tipped down vr_kdtrig_tackle_head
+// degrees or more (his charges 10-19 deg, his runs 0-5: the one sign apart a run with the hands hanging low has); no
+// shove or bash going; held vr_kdtrig_tackle_hold s. A gun carried two-handed low counts (one of his charge kinds); one
+// aimed is held high and ahead. A running guard (hands before the chest), a running shove, walking into one (too
+// slow), a sidestep (not running the way he looks) don't. vr_kdtrig_tackle_leniency scales all of these together
+// (VR_KdTrig_ChargeStrict).
+float VR_KDT_CHARGE_AHEAD = 0.3;  // a hand reaching ahead past this share of the reach: not tucked (a shove's, a guard's)
+float VR_KDT_CHARGE_UNDER = 2;    // the hands' middle within this of the head's line (level): under it, side-on enough
+float VR_KDT_CHARGE_GRACE = 0.25; // s: the least speed reached this recently still counts (a replay's or a step's dip)
 .float vr_kdt_tackle_next;  // a player's: when he may charge again
+.float vr_kdt_charge_fast;  // a player's: when he last ran at the least speed
 .float vr_kdt_charge_since; // a player's: since when he holds the charge's pose (0: not)
 .float vr_kdt_charge_said;  // (vr_kdtrig_debug 2: the pose's why-not, each half second while running fast)
 float vr_kdt_charge_side;   // VR_KdTrig_ChargePose's: the leading shoulder (1 the left, -1 the right),
 vector vr_kdt_charge_m;     // its measures (x the hands' middle's turn from the run, deg; y the higher hand's drop below
                             // the head, units; z the farther hand's level distance from the head's line, units),
+float vr_kdt_charge_out;    // the hand farther ahead of the head along the run (units),
+float vr_kdt_charge_head;   // the head's tip down (deg; the view's pitch),
 string vr_kdt_charge_why;   // and why it doesn't hold ("" it does)
+
+// The charge's strictness from vr_kdtrig_tackle_leniency (0..1): its least thresholds (the turn, the hands' drop, the
+// head's tip, the hold) are times this, its most ones (the hands' reach, the facing, the speed's shortfall from
+// sv_maxspeed) divided by it. 0.5: 1 (the thresholds as set); 1: 0.5; 0: 1.5. (The author's takes of 2026-10-21 all
+// right from about 0.25 to 1; ROUND22.md, "Shoulder charge tuning".)
+float() VR_KdTrig_ChargeStrict =
+{
+    return 1.5 - clamp(cvar_hget(cvarh_vr_kdtrig_tackle_leniency), 0, 1);
+};
 
 // Whether `self` (a player) running along level unit `run` is in the shoulder charge's pose (above).
 float(vector run) VR_KdTrig_ChargePose =
 {
     vr_kdt_charge_why = "";
     vr_kdt_charge_m = '0 0 0';
+    vr_kdt_charge_out = 0;
+    vr_kdt_charge_head = self.v_viewangle_x;
     if(!VRHandsTracked(self))
     {
         vr_kdt_charge_why = "hands not tracked";
-        return FALSE;
-    }
-    if(VRGet2HAiming(self))
-    {
-        vr_kdt_charge_why = "a gun aimed with both hands";
         return FALSE;
     }
     if(VR_Blow(cVR_MainHand).mh_pushing || VR_Blow(cVR_OffHand).mh_pushing)
@@ -813,9 +828,11 @@ float(vector run) VR_KdTrig_ChargePose =
     float far = max(vlen(ml), vlen(ol));
     float out = max(m * run, o * run);
     vr_kdt_charge_m = '1 0 0' * turn + '0 1 0' * drop + '0 0 1' * far;
+    vr_kdt_charge_out = out;
     vr_kdt_charge_side = side >= 0 ? 1 : -1; // (the hands to the right of the run: the left shoulder leads)
-    float reach = max(1, cvar_hget(cvarh_vr_kdtrig_tackle_reach));
-    if(drop < cvar_hget(cvarh_vr_kdtrig_tackle_low))
+    float k = VR_KdTrig_ChargeStrict();
+    float reach = max(1, cvar_hget(cvarh_vr_kdtrig_tackle_reach)) / k;
+    if(drop < cvar_hget(cvarh_vr_kdtrig_tackle_low) * k)
     {
         vr_kdt_charge_why = sprintf("a hand high (%.0f units below the head)", drop);
         return FALSE;
@@ -830,9 +847,14 @@ float(vector run) VR_KdTrig_ChargePose =
         vr_kdt_charge_why = sprintf("a hand reaching ahead (%.0f units)", out);
         return FALSE;
     }
-    if(fabs(side) < 2 || turn < cvar_hget(cvarh_vr_kdtrig_tackle_turn))
+    if(vlen('1 0 0' * ahead + '0 1 0' * side) > VR_KDT_CHARGE_UNDER && turn < cvar_hget(cvarh_vr_kdtrig_tackle_turn) * k)
     {
         vr_kdt_charge_why = sprintf("not side-on (the hands %.0f deg round from the run)", turn);
+        return FALSE;
+    }
+    if(vr_kdt_charge_head < cvar_hget(cvarh_vr_kdtrig_tackle_head) * k)
+    {
+        vr_kdt_charge_why = sprintf("the head up (tipped %.0f deg down)", vr_kdt_charge_head);
         return FALSE;
     }
     return TRUE;
@@ -844,6 +866,8 @@ float(vector run) VR_KdTrig_ChargePose =
 //             level distance from the head's line (units)
 //  charge_ok  x the pose holds (1 the left shoulder leading, -1 the right, 0 not), y the ground speed (u/s), z how long
 //             it has been held running (s)
+//  charge_hd  x the head's tip down (deg), y the hand farther ahead of the head along the run (units), z the
+//             strictness (VR_KdTrig_ChargeStrict)
 void() VR_KdTrig_ChargeSample =
 {
     vector run = self.velocity;
@@ -856,6 +880,7 @@ void() VR_KdTrig_ChargeSample =
     }
     float ok = VR_KdTrig_ChargePose(normalize(run));
     motionvalue("charge", vr_kdt_charge_m);
+    motionvalue("charge_hd", '1 0 0' * vr_kdt_charge_head + '0 1 0' * vr_kdt_charge_out + '0 0 1' * VR_KdTrig_ChargeStrict());
     motionvalue("charge_ok", '1 0 0' * (ok * vr_kdt_charge_side) + '0 1 0' * speed +
         '0 0 1' * (self.vr_kdt_charge_since ? time - self.vr_kdt_charge_since : 0));
 };
@@ -877,15 +902,23 @@ void() VR_KdTrig_Tackle =
     vector run = self.velocity;
     run_z = 0;
     float speed = vlen(run);
-    float least = max(1, cvar("sv_maxspeed")) * max(0, cvar_hget(cvarh_vr_kdtrig_tackle_speed));
+    float k = VR_KdTrig_ChargeStrict();
+    // (The least speed's shortfall from the most is a "most" one: divided by the strictness.)
+    float least = max(1, cvar("sv_maxspeed")) * clamp(1 - (1 - cvar_hget(cvarh_vr_kdtrig_tackle_speed)) / k, 0, 1);
     float loud = cvar_hget(cvarh_vr_kdtrig_debug);
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
     fwd_z = 0;
     fwd = normalize(fwd);
+    if(speed >= least)
+    {
+        self.vr_kdt_charge_fast = time;
+    }
+    // (A dip below the least speed this recently, a step's or a replay's frame: still running.)
+    float fast = self.vr_kdt_charge_fast && time - self.vr_kdt_charge_fast <= VR_KDT_CHARGE_GRACE;
     // (Standing or walking: the pose along the way he looks, so that one taken before the run-up counts as held.)
     run = speed < least * 0.5 ? fwd : run * (1 / speed);
     float pose = VR_KdTrig_ChargePose(run);
-    if(speed < least * 0.5)
+    if(speed < least * 0.5 && !fast)
     {
         if(!pose)
         {
@@ -897,7 +930,7 @@ void() VR_KdTrig_Tackle =
         }
         return;
     }
-    if(pose && fwd * run < 0.5)
+    if(pose && fwd * run < cos(min(90, max(0, cvar_hget(cvarh_vr_kdtrig_tackle_face)) / k)))
     {
         pose = FALSE;
         vr_kdt_charge_why = "not running the way you look (a sidestep)";
@@ -953,15 +986,16 @@ void() VR_KdTrig_Tackle =
     }
     self.vr_kdt_tackle_next = time + 0.3; // (a strike that did nothing: not every frame)
     float held = time - self.vr_kdt_charge_since;
-    if(speed < least || held < max(0, cvar_hget(cvarh_vr_kdtrig_tackle_hold)))
+    if(!fast || held < max(0, cvar_hget(cvarh_vr_kdtrig_tackle_hold)) * k)
     {
         if(loud)
         {
             dprint(sprintf("kdtrig: charge on %s: none (%.0f u/s, the pose held %.2f s: %s)\n", best.classname, speed, held,
-                speed < least ? "too slow" : "not long enough"));
+                !fast ? "too slow" : "not long enough"));
         }
         return;
     }
+    speed = max(speed, least); // (a dip of the grace's: the run's speed)
     string side = vr_kdt_charge_side > 0 ? "left" : "right";
     string how = sprintf("running %.0f u/s, %s shoulder, turn %.0f deg, hands %.0f below the head, %.0f out", speed, side,
         vr_kdt_charge_m_x, vr_kdt_charge_m_y, vr_kdt_charge_m_z);
