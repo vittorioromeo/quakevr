@@ -173,12 +173,6 @@ For all: grip and muzzle offsets checked in the headset, a pickup outline, the s
 Check out https://github.com/f1ames0ff/QuakeRay for information about a Vulkan migration (see VULKAN_MIGRATION.md) and
 better lighting effects. Not yet reviewed: licence, base engine and what is reusable unknown.
 
-### Bullet time as an earned resource (the author, 2026-10-19; idea to consider)
-Make bullet time a limited meter that doesn't refill on its own over time, but refills from play: kills, damage
-dealt, maybe style (melee kills, headshots, throws, gibs). Keep the current self-refilling behaviour as an option.
-Open: refill amounts per action, a cap, a HUD/wrist meter, how it interacts with the existing slow-mo settings and
-difficulty.
-
 ### Dual-wield parry: crossed swords (the author, 2026-10-18)
 With a sword in each hand (e.g. the Death Fury's pair), crossing the two blades in front of the body should be a valid
 parry pose; today it isn't recognised. Later, after the AD melee work.

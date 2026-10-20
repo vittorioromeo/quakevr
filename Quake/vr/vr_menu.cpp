@@ -2064,6 +2064,8 @@ const Page pages[] = {
     {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
     {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
     {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
+    {"Monster Groups - Health", pageMonsterParam<22>, pageMonsterGroups},
+    {"Monster Health", pageMonsterHealth, pageCombat}, // (vr_menu_mgroups.inc)
     {"Ragdoll Tool", pageRagtool, pageDebug}, // (vr_menu_ragtool.inc; vr_ragtool.cpp)
     {"Ragdoll Tool - Motors", pageRagtoolParams<0>, pageRagtool},
     {"Ragdoll Tool - Joint Groups", pageRagtoolParams<1>, pageRagtool},
@@ -2075,7 +2077,7 @@ const Page pages[] = {
     {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
     {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
 };
-static_assert(mgroups::paramCount == 22, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 23, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the

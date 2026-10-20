@@ -1415,6 +1415,8 @@ void SV_Physics (void)
 	}
 	} // QVR: ("SV edicts")
 
+	VR_MonsterHealth_Frame (); // QVR: Combat > Monster Health's cut on the monsters seen for the first time
+
 	if (!sv_freezenonclients.value)
 		SV_ZONE ("SV physics frame end", VR_PhysicsFrameEnd ()); // QVR: the rigid bodies' world steps (Box3D)
 

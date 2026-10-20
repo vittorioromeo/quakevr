@@ -364,6 +364,10 @@ void resetBodyEquipment()
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
                   "press does only this (never its bound key), and the screen tap does nothing. More: Advanced VR "
                   "Options > Combat > Bullet Time."),
+        cycle("Meter Refill", "vr_bullettime_meter_mode", {{1.f, "Earned by Damage"}, {0.f, "Over Time"}})
+            .help("Earned by Damage: the TIME meter never fills by itself; hurting enemies fills it (six grunts' worth "
+                  "fills it from empty; less while slowed). Over Time: it fills by itself after each use. Either way it "
+                  "is kept from level to level and in saves, full on a new game."),
         cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
                   "so a stray knock never starts it); Single Tap, one hard tap."),
@@ -828,6 +832,9 @@ za::Vector<Item> pageCombat()
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback, hits knocking your hands."),
+        open("Monster Health", pageIndex(pageMonsterHealth))
+            .help("Big monsters (ogres, shamblers, giants, most bosses) appear with less health, by a curve on their "
+                  "health pool; small ones keep theirs. The curve, each group's own multiplier, examples."),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("Every weapon's base damage, to balance them: your guns, the mission packs', melee weapons, the weapons "
                   "monsters drop, thrown weapons."),

@@ -252,7 +252,7 @@ za::Vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
-        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Screen Tap"}})
+        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused, Refills"}, {2.f, "And the Screen Tap"}})
             .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and taps that never "
                   "stopped on the screen; And the Screen Tap: every frame near the gadget's screen, how far over it your "
                   "hand (and its gun's butt) is and how fast it comes into it."),
@@ -894,6 +894,11 @@ za::Vector<Item> pageDebugReports()
                   "Chainsaw Engine > Cord Hint), the handle's dangle now and the most since the last time. "
                   "vr_chainsaw_cord_pulled 0|1 sets it, as a pull does."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
+        command("Bullet Time Meter", "vr_bullettime_meter")
+            .help("vr_bullettime_meter [level]: prints bullet time's meter and how it fills; with a level (0 .. 1) sets it. "
+                  "Debug > Bullet Time 1 prints each hit's refill."),
+        command("Empty the Bullet Time Meter", "vr_bullettime_meter 0")
+            .help("vr_bullettime_meter 0: the meter empty, to try earning it back by hurting enemies."),
         command("Distortion Trails", "vr_bullettime_trails_list")
             .help("vr_bullettime_trails_list: each distortion trail (its kind, places, head, age), their strength now and "
                   "the vertices made."),
@@ -911,6 +916,7 @@ za::Vector<Item> pageDebugReports()
         command("Nearest Monster Guards Its Head", "vr_test_guard 1").help("vr_test_guard 1: the live monster nearest you throws its arms up before its face for 0.6 s, as when your hand swings at its head (Gibs and Corpses > Ragdoll Settings > Guard the Head; standing: Hit Reactions on Limbs; a ragdoll: its body's arms)."),
         command("Hit Reactions Now", "vr_hit_react_info").help("vr_hit_react_info: the monsters flinching now, each blow's age, part, size and whether its bones or its whole model take it."),
         command("Kill the Nearest Monster", "vr_test_kill 1").help("vr_test_kill <n>: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3) or a leg (4): an active death to watch (Gibs and Corpses > Ragdoll Settings, Active Deaths)."),
+        command("Hurt the Nearest Monster", "vr_test_hurt 15").help("vr_test_hurt <damage>: the live monster nearest you takes that much from a shot of yours (15 here: half a grunt's health); earned bullet time's meter fills by it."),
         command("Cut the Nearest Monster's Leg Off", "vr_test_cut 3").help("vr_test_cut <n>: the live monster nearest you killed by a sword's cut at its left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7) or head (8); n + 10: the dead one nearest you cut so. With React to Lost Limbs: he balances on one leg, holds the stump, writhes, crawls with no legs."),
         command("Cut the Nearest Monster's Arm Off", "vr_test_cut 1").help("vr_test_cut 1: the same at its left arm: his right hand to the stump."),
         command("Cut Both Its Legs Off", "vr_test_cut 5").help("vr_test_cut 5: the same at both legs: he crawls on his arms."),

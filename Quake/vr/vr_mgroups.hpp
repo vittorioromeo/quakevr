@@ -37,6 +37,7 @@ enum class Param : int
     Throw,     // the two-hand throw: 0 never, 1 only when hurt, 2 always
     Hold,      // one hand's hold on it, 0..1 (-1: by its size)
     Poise,     // its Parry Poise: a parry's strength over it decides its stagger (below 0: never staggered)
+    Health,    // its health times this as it appears (with Monster Health's curve: vr_monster_health)
     Count
 };
 inline constexpr int paramCount = static_cast<int>(Param::Count);
@@ -65,6 +66,14 @@ enum GroupId : int
 void PF_monstergroup();
 // float(entity e, float param) monstergroupget: the setting `param` (MGP_*) of e's group.
 void PF_monstergroupget();
+
+// Monster health (Combat > Monster Health; vr_cvars.inc vr_monster_health*): the curve's cut (0..1) for a monster of
+// full health `full`, and the multiplier a monster of `classname` and that full health gets (its group's times; 1 with
+// Monster Health off, for the scripted bosses and for 20000 health or more: a scripted invulnerability).
+[[nodiscard]] float healthCut(float full);
+[[nodiscard]] float healthMultiplier(const char* classname, float full);
+// The menu's examples: line `i` (an example monster's health now), or nullptr past the last.
+[[nodiscard]] const char* healthExampleLine(int i);
 
 void registerCommands();
 

@@ -54,6 +54,8 @@ struct State
     bool viewValid = false;
     glm::vec3 startOffset{0.f};        // vr_debug_gadget_button 3: the screen's middle from the tapping hand at the frame's
     bool startValid = false;           // start (frameStartOffset)
+    float written = -1.f;              // the player's .vr_bullettime_spent as last written (another value: a load, a level)
+    double earnedAt = -1e9;            // realtime the meter last grew by damage dealt (the gadget's frame lights)
 };
 State state;
 
@@ -125,6 +127,78 @@ void cutOffSound(double seconds)
     {
         offSound.fadeFrom = realtime;
         offSound.fadeLen = seconds;
+    }
+}
+
+[[nodiscard]] bool earnedMode()
+{
+    return vr_bullettime_meter_mode.value != 0.f;
+}
+
+// Earned bullet time (vr_bullettime_meter_mode 1; ROUND22.md, "Earned bullet time"): the meter never fills over time,
+// only by the damage the player deals living monsters (QC VR_BulletTime_Earn: at most the health each had, never a
+// corpse's, a prop's or a monster's to another), vr_bullettime_earn_damage of it from empty to full; while it runs, at
+// vr_bullettime_earn_active of that. The meter is kept on the player (.vr_bullettime_spent, 1 - the level: 0 is full, a
+// new game's and an old save's), so a save keeps it and the next level gets it (parm74); a value there the engine didn't
+// write (a load, a level's start) is taken as the meter. The damage arrives in .vr_bullettime_earned, taken each frame
+// (in both modes: over time it is dropped).
+[[nodiscard]] edict_t* meterPlayer()
+{
+    return sv.active && svs.maxclients == 1 && svs.clients[0].edict ? svs.clients[0].edict : nullptr;
+}
+
+void readMeter()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_spent;
+    if(player && ofs >= 0)
+    {
+        const float spent = progs::fieldFloat(player, ofs);
+        if(spent != state.written)
+        {
+            state.level = za::clamp(1.f - spent, 0.f, 1.f);
+            state.written = spent;
+        }
+    }
+}
+
+void writeMeter()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_spent;
+    if(player && ofs >= 0)
+    {
+        state.written = 1.f - state.level;
+        progs::fieldFloat(player, ofs) = state.written;
+    }
+}
+
+void earn()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_earned;
+    if(!player || ofs < 0)
+    {
+        return;
+    }
+    const float damage = progs::fieldFloat(player, ofs);
+    progs::fieldFloat(player, ofs) = 0.f;
+    if(damage <= 0.f || !earnedMode())
+    {
+        return;
+    }
+    const float share = state.active ? za::clamp(vr_bullettime_earn_active.value, 0.f, 1.f) : 1.f;
+    const float gain = damage / za::max(1.f, vr_bullettime_earn_damage.value) * share;
+    const float before = state.level;
+    state.level = za::min(1.f, state.level + gain);
+    if(state.level > before)
+    {
+        state.earnedAt = realtime;
+    }
+    if(vr_debug_bullettime.value)
+    {
+        Con_Printf("bullet time: earned %g damage%s, meter %.3f -> %.3f\n", damage, state.active ? " (running)" : "",
+                   before, state.level);
     }
 }
 
@@ -577,12 +651,30 @@ void tapFeedbackTest_f()
     gadget::tapFeedback(Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) != 0);
 }
 
+// vr_bullettime_meter [level]: prints the meter (and how it fills), or sets it (0 .. 1; a test's empty meter).
+void meter_f()
+{
+    if(Cmd_Argc() > 1)
+    {
+        state.level = za::clamp(static_cast<float>(atof(Cmd_Argv(1))), 0.f, 1.f);
+        writeMeter();
+        Con_Printf("bullet time meter set to %.3f\n", state.level);
+        return;
+    }
+    Con_Printf("bullet time meter: %.3f (%s, %s, cooldown %.1f s; fills %s)\n", state.level,
+               state.active ? "running" : "off", meterPlayer() && progs::fields().vr_bullettime_spent >= 0 ? "kept" : "not kept",
+               state.cooldown,
+               earnedMode() ? va("by %g damage dealt", za::max(1.f, vr_bullettime_earn_damage.value))
+                            : va("over %g s", za::max(0.1f, vr_bullettime_recharge.value)));
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_bullettime", bullettime_f);
     Cmd_AddCommand("vr_bullettime_tap_feedback_test", tapFeedbackTest_f);
+    Cmd_AddCommand("vr_bullettime_meter", meter_f);
 }
 
 bool ownsStick(int hand)
@@ -655,6 +747,8 @@ void advance(double dt)
     {
         stop(true);
     }
+    readMeter();
+    earn();
     const float step = static_cast<float>(dt);
     const bool running = key_dest == key_game && !runtimeMenuPaused(); // a menu open (the runtime's too): the meter waits
     if(running && state.active)
@@ -670,10 +764,11 @@ void advance(double dt)
     {
         state.cooldown = za::max(0.f, state.cooldown - step);
     }
-    else if(running)
+    else if(running && !earnedMode())
     {
         state.level = za::min(1.f, state.level + step / za::max(0.1f, vr_bullettime_recharge.value));
     }
+    writeMeter();
     const float target = state.active ? 1.f : 0.f;
     const float most = step / fadeTime;
     state.look = state.look < target ? za::min(target, state.look + most) : za::max(target, state.look - most);
@@ -861,6 +956,8 @@ Meter meter()
     m.cooling = !state.active && state.cooldown > 0.f;
     m.ready = !state.active && !m.cooling && state.level >= za::clamp(vr_bullettime_min.value, 0.01f, 1.f);
     m.level = state.level;
+    m.earned = earnedMode();
+    m.gained = realtime - state.earnedAt < 0.4;
     return m;
 }
 

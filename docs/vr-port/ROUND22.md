@@ -15207,3 +15207,77 @@ pelvis, the grenade pouch, the chest holsters from the chest). Mock eyes at 1.70
 - **VR**: set Height a little off (VR Settings > Body and Equipment) and look down: the feet should stay on the floor,
   the knees straight; crouch: they bend. Check the belt (ammo pouch, hip holsters) sits on the belt; try Belt Height and
   Flashlight Forward with the body shown in front of you.
+
+## Earned bullet time (worktree `goreflesh`, branch `agent/earnedbt`, 2026-10-20)
+
+The backlog's "Bullet time as an earned resource", the 1.1 default: bullet time's meter no longer fills by itself; the
+damage you deal fills it. `vr_bullettime_meter_mode` 1 (earned, default) or 0 (over time, 1.0's: `vr_bullettime_recharge`
+after the cooldown, unchanged). `vr_bullettime_earn_damage` 180: the damage that fills it from empty, six grunts' health
+(QC `orig_mon_soldier.qc`: 30 each). `vr_bullettime_earn_active` 0.25: damage dealt while it runs fills at a quarter, so
+a fight can extend it a little but not forever. The cooldown (`vr_bullettime_cooldown` 2 s) still blocks a restart; in
+the earned mode the meter fills during it too. No config migration: the mode is a new cvar, so every config (1.0's had
+only the self-filling meter) takes the default, earned.
+
+Decisions:
+- **What counts** (QC `VR_BulletTime_Earn`, combat.qc; called from `T_DamageDeal` and AD's `VR_AD_Hit`): the health
+  taken from a living monster (FL_MONSTER, health above 0, not a corpse or a dying one), at most the health it had (no
+  overkill), dealt by the player or by something he owns (his missiles, thrown things: `.owner`). Never a corpse's, a
+  prop's or breakable's, the training dummy's (it returns earlier), a monster's to another, nor damage whose attacker
+  is neither the player nor owned by him (a falling body's); single player only (not deathmatch or coop). A zombie
+  knocked down and getting up again counts each time it is hurt (it gets its health back: it is a fight).
+- **Kept**: the meter is kept on the player (`.vr_bullettime_spent`, 1 - the level, so 0 is full: a new game's and a
+  save from before this), saved with the game, carried to the next level by `parm74` (new; `lastExtSpawnParm` 74). A new
+  game, a coop respawn (SetNewParms) and an AD exit's inventory reset start full; a restart after death starts with the
+  level's starting meter. The engine writes the field every frame and takes a value it didn't write (a load, a level's
+  start) as the meter. Both modes keep it this way.
+- **The gadget**: the TIME bar (unchanged look) also shows while cooling down in the earned mode (it fills then), and its
+  frame lights for 0.4 s as a hit fills it.
+
+Menus: VR Settings > Bullet Time > Meter Refill (Earned by Damage / Over Time); Advanced > Combat > Bullet Time: Meter
+Refill, Damage to Fill, Refill While Slowed (Recharge Time and Cooldown's help say which mode they are for). Debug:
+`vr_bullettime_meter [level]` prints the meter or sets it (Debug rows "Bullet Time Meter", "Empty the Bullet Time Meter");
+`vr_debug_bullettime 1` prints each hit's refill; test aid `vr_test_hurt <damage>` (the nearest live monster takes it from
+a shot of yours; Debug row "Hurt the Nearest Monster").
+
+Test `Misc/quakevr/bullettime_earn_test.sh <agent> [case]`, both pass: **earned**: a new game's meter 1.000; emptied, 300
+idle frames leave it at 0.000; `vr_test_hurt 15` on a grunt takes 19 (the shot's body multiplier) and fills 0.106
+(19/180), the killing 100 only the 11 left (0.167); five more grunts 0.167 -> 1.000; set 0.4, saved, set 0.9, loaded:
+0.400; `changelevel e1m2`: 0.400; running at 0.49, a grunt's 30: +0.041 (a quarter). **classic**: emptied, 300 frames
+fill 0.208, a grunt killed adds nothing beyond the time. (Grunts spawned onto a fresh corpse were hurt by the falling
+body, uncredited: the test lets each settle.) Not run headless: AD's path (`VR_AD_Hit`).
+
+- **In VR**: fight a few grunts in e1m1 with bullet time empty (Debug > Empty the Bullet Time Meter): the TIME bar on
+  the gadget grows with each hit (its frame flashes), six grunts fill it; it never grows standing still. Start it and
+  kill: it drains, a kill gives a little back. Save, load, take an exit: the meter stays. VR Settings > Bullet Time >
+  Meter Refill > Over Time: the old self-filling meter.
+## 1.1 pacing: shell pairs, big monsters' health (worktree `gorefx`, branch `agent/pacing`, 2026-10-20)
+
+Player feedback for 1.1: with manual reloading, ogres feel too tanky.
+
+- **Shell pairs by default** (`vr_reload_shell_pairs` 1; config row 170 moves a config still at the old 0): the pouch
+  gives a taped pair unless only one shell is left or the gun in the other hand (a manual shotgun) has one place left
+  in its tube (or none): then a single shell (QC `VR_Reload_Take`). A pair taken elsewhere and pushed into a gun with one
+  place still loads one and leaves one in the hand. The super shotgun and the Widowmaker keep their own rules.
+- **Monster Health** (Combat > Monster Health; `vr_monster_health*`, vr_mgroups.cpp): each monster's health and full
+  health (`.max_health`) times a multiplier, once, as it first appears (`VR_MonsterHealth_Frame`, after SV_Physics'
+  edicts: every game's monsters alike, those spawned later too). The QC field `.vr_hpscale` keeps the multiplier, so a
+  loaded game's monsters are not cut again (an older save's are, by their full health). The cut is a piecewise-linear
+  curve on the full health: 0 up to `_from` 150, then (`_hp1` 200, `_cut1` 10%), (`_hp2` 600, `_cut2` 15%), (`_hp3`
+  1000, `_cut3` 20%), flat beyond, capped by `_max` 20%; then times the group's `vr_mgrp_<group>_health` (Monster
+  Groups > Health, 1). `vr_monster_health_debug 1` prints `mhealth <num> <class> <group>: before -> after`.
+- **Bosses**: the curve applies to the bosses fought by damage (Armagon, the dragon, Hephaestus, the morph, the spear
+  knight, the bog lord/gug, the demon prince). Left alone: those killed by a trick or fought in scripted waves/phases
+  whose health their code sets as they go (Chthon and Shub in every form, Dawn of the Machine's Chthon and Shub, AD's
+  eidolon, ice golem, judicator, mammoth, Nour/vermis, fire top), the training dummy, and anything at 20000 health or
+  more (scripted invulnerability).
+
+Verified headless: the reload self-test (`vr_reload_test 9; impulse 125`) 77 passed, 0 failed, with the new cases
+(single shell for one place, a pair for two, a pair into one place, the last shell single); every spawnable monster
+(`vr_toolgun_spawn_test`) logged: grunts, knights, enforcers, zombies, dogs, scrags unchanged; ogre 200 -> 180,
+death knight 250 -> 223, fiend 300 -> 266, vore 400 -> 350, AD minotaur/drole/golem 500 -> 431, shambler 600 -> 510,
+Hephaestus 1500 -> 1200, Armagon 2500 -> 2000, super shambler 2000 -> 1600; the exempt bosses unchanged. A saved
+ogre (180) loads at 180.
+
+- **In VR**: reload the shotgun from empty (pairs), with one place left (a single shell), with one shell in the
+  reserve; fight ogres and a shambler: they should go down noticeably sooner. Combat > Monster Health's examples follow
+  the sliders.

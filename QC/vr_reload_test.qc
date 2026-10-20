@@ -362,14 +362,28 @@ void() VR_Reload_SelfTest =
     // The taped pair.
     cvar_set("vr_reload_shell_pairs", "1");
     VRSetEntWeaponClip(self, cVR_OffHand, 7);
+    r = VR_Reload_TestTake(11, 1, "one place left in the tube: a single shell, not a pair");
+    VR_Reload_Check(r.model == VR_RELOAD_SHELL, "the single shell's model");
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8,
+        sprintf("the single shell into the gun with one place: magazine %g (want 8)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    self.ammo_shells = 12;
+    VRSetEntWeaponClip(self, cVR_OffHand, 6);
     r = VR_Reload_TestTake(10, 2, "take a taped pair");
     VR_Reload_Check(r.model == VR_RELOAD_PAIR, "the pair's model");
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8 &&
+                    VR_Carry_Held(self, cVR_MainHand) == world,
+        sprintf("a pair into a gun with two places: magazine %g (want 8), the hand empty", VRGetEntWeaponClip(self, cVR_OffHand)));
+    // (A pair taken with the gun elsewhere, then loaded into one place: one in, one left in the hand.)
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    r = VR_Reload_TestTake(8, 2, "a pair with two places");
+    VRSetEntWeaponClip(self, cVR_OffHand, 7);
     VR_Reload_Check(!VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8 &&
                     r.vr_ammo_count == 1 && r.model == VR_RELOAD_SHELL,
         sprintf("a pair into a gun with one place: magazine %g (want 8), one shell left in the hand",
             VRGetEntWeaponClip(self, cVR_OffHand)));
     VR_Reload_Refund(self, r, cVR_MainHand);
-    VR_Reload_Check(self.ammo_shells == 11, sprintf("the pair's other shell put back: %g shells (want 11)", self.ammo_shells));
+    VR_Reload_Check(self.ammo_shells == 9, sprintf("the pair's other shell put back: %g shells (want 9)", self.ammo_shells));
+    self.ammo_shells = 11;
     VRSetEntWeaponClip(self, cVR_OffHand, 0);
     r = VR_Reload_TestTake(9, 2, "another pair");
     VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2,

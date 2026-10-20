@@ -163,6 +163,7 @@ void() SetChangeParms =
     parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
     if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
     parm40 = self.weaponclipsize2;
+    parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
 };
 
 void() OnSpawnServerBeforeLoad =
@@ -321,6 +322,7 @@ void() SetNewParms =
     parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
     parm73 = 0; // (no magnetic holster bindings)
+    parm74 = 0; // (bullet time's meter full)
 };
 
 void() DecodeLevelParms =
@@ -424,6 +426,7 @@ void() DecodeLevelParms =
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
     self.vr_saw_cord_pulled = parm50 >= VR_PARM50_SAW_CORD_PULLED;
     self.vr_flashlight_state = parm50 - (self.vr_saw_cord_pulled ? VR_PARM50_SAW_CORD_PULLED : 0);
+    self.vr_bullettime_spent = parm74;
     MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
     self.max_health = VR_MaxHealth(self); // (with them: upstream sets it here)
     if(MG3_Campaign() && self.health > self.max_health) { self.health = self.max_health; }

@@ -687,7 +687,9 @@ void stealthGem(const Readout& r, const Palette& pal)
 }
 
 // Bullet time's meter (vr_bullettime.cpp): "TIME" and a bar, lit for what's left. Running: the label white, the bar
-// drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim.
+// drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim. Earned
+// (vr_bullettime_meter_mode 1): the bar shows while cooling too (it fills by damage dealt), and its frame lights a moment
+// as a hit fills it.
 void timeRow(const Readout& r, const Palette& pal)
 {
     const bullettime::Meter& m = r.time;
@@ -697,9 +699,11 @@ void timeRow(const Readout& r, const Palette& pal)
     }
     const float y = rowY[1] - 1.f, h = 9.f, w = meterRight - meterX;
     drawText(labelX, rowY[1], 8.f, "TIME", m.active ? pal.value : pal.label, pal);
-    const glm::vec3 frame = m.active ? (blinkOn() ? pal.value : pal.line) : m.cooling ? pal.dim * 0.6f : pal.line;
+    const glm::vec3 frame = m.active ? (blinkOn() ? pal.value : pal.line)
+                          : m.gained ? pal.value
+                          : m.cooling ? pal.dim * 0.6f : pal.line;
     meterFrame(meterX, y, w, h, frame);
-    if(!m.cooling)
+    if(!m.cooling || m.earned)
     {
         fill(meterX + 2.f, y + 2.f, (w - 4.f) * CLAMP(0.f, m.level, 1.f), h - 4.f, m.active || m.ready ? pal.value : pal.dim);
     }
