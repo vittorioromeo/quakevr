@@ -14879,3 +14879,30 @@ island edge, so blades and handles can't pull texels across a seam; not seen mov
 - **For VR**: hold the Shadow Axe, the Widowmaker, an AD soldier's gun and a death knight's sword close up under a
   torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
   axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.
+
+## Mantle height, one-hand drag by part, shallower dents (worktree `tghost`, branch `agent/mantledrag`, 2026-10-20)
+
+- **Mantle Height** (`vr_climb_mantle_height` 18 units; Movement > Climbing, before Mantle onto Slopes). A mantle
+  needs a hand pulled down 8 units (mantlePull) and the head this far over the ledge's top (was the fixed 8). At a
+  chest-high lip the 8-unit pull already put the head 15 over the top, so the pull was what fired it: leaning up over
+  the ledge mantled. 18 is a little later. `Misc/quakevr/climb/mantle_height_test.py` (vrslopes' level top, hands at
+  1.49 m pulled down 0.2-0.8 m and held): at 8 the shallowest pull that mantles is 0.30 m (the head 15.3 over the top),
+  at 18 it is 0.40 m (head 18.0); 20: 0.45 m, 24: only the full 0.8 m. slopes_test.sh: all 8 tops as before. The
+  mantle's debug line (`vr_climb_debug 1`) now prints the head's height over the top.
+- **One hand drags by its torso and shoulders only** (`vr_foegrab_drag_onehand` 1; Combat > Holding Enemies > Effect,
+  One Hand Drags By: 1 Torso, Shoulders, 2 + Head, 0 Anywhere as before). With one hand alone on a standing enemy, the
+  follow and the pull (serverFrame) count that hand only at its torso, shoulders or upper arms (foegrab::oneHandDrags):
+  on its legs (legPartAt) it is the one-hand leg pull's, at its head or neck (the neck snap's head zone) the head
+  hold's, on a forearm or a hand neither. Two hands on it drag as before. Not dragged, a hand pulled away past the
+  break lets go as any hold. `vr_foegrab_debug 1` prints each hand's part and whether it drags; `vr_foegrab_status`
+  shows it and the enemy's origin. `Misc/quakevr/foegrab/onehand_drag_test.py` (one hand pulled 0.4 m in 1 s):
+  shin, not dragged (the hold broke at 1.32 s); chest, dragged 12.7 units; head, not dragged; shin with 0, dragged
+  11.1. leggrab_test.py: pull_solo pulled (1.8 m/s, needs 1.56), pull_solo_weak not (now the hold breaks instead of
+  the grunt being dragged), pull_one, pull_both, slow, thigh_half_slow as before.
+- **Dents** (migration 168, his config of 2026-10-20): `vr_gore_dents_depth` 3 -> 2.5. His other dent settings
+  (`vr_gore_dents` 1, `_size` 1.25, `_max` 12, `vr_ragimpact_dent` 2, `vr_dummy_dents` 0, `vr_decal_melee_blunt_depth`
+  1) were the defaults already.
+- **For VR**: hang from or stand at a chest-high ledge and lean up and down over it: no mantle until you really pull
+  up (try Mantle Height 22-26 if it still fires). Grab a grunt's shin with one hand: walking back no longer drags it;
+  a sharp yank pulls its legs out. One hand on its chest or shoulder drags it as before; one hand on its head holds
+  it but no longer drags it (One Hand Drags By: Torso, Shoulders, Head to drag by the head too).

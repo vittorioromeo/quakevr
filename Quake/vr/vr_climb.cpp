@@ -112,7 +112,7 @@
 // Only along the lip: the reach's pull up and in (the body swung round the hold) and a pull down past the highest hold
 // still leave the tracked hand that much lower or further in than the drawn one.
 //
-// Mantle: once a hand has pulled down by `mantlePull` units since it took hold and the head is `mantleHead` units
+// Mantle: once a hand has pulled down by `mantlePull` units since it took hold and the head is vr_climb_mantle_height units
 // above its ledge, and the player's box fits on top (with floor under it) and the way there (straight up, then over)
 // is clear, the body is carried there in `mantleTime` seconds, and stands. The ledge map knows how deep the top is at
 // each place along the lip: a spot whose middle is over the top needs only the sweep over to it (and the sweep up,
@@ -194,7 +194,6 @@ constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting
 constexpr float maxHangSpeed = 500.f; // units / second the body follows the hands at
 constexpr float maxHangReach = 48.f;  // the body stays this close (horizontally) to each hold
 constexpr float mantlePull = 8.f;     // units a hand must have pulled down before a mantle
-constexpr float mantleHead = 8.f;     // and the head must be this far above the ledge
 constexpr float mantleTime = 0.3f;    // seconds the mantle takes
 constexpr float flingMax = 200.f;     // units / second the release flings at most,
 constexpr float flingMaxUp = 150.f;   // and upwards
@@ -2713,7 +2712,8 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         }
         const float pulledDown = g.relAtGrab.z - rel[h].z;
         const float headAbove = headZ + (ent->v.origin[2] - origin.z) - topNow(g);
-        if(pulledDown < mantlePull || headAbove < mantleHead || c.slipping)
+        // (The head's height over the top: under it, he can lean up and down over the ledge without mantling.)
+        if(pulledDown < mantlePull || headAbove < za::clamp(vr_climb_mantle_height.value, 0.f, 40.f) || c.slipping)
         {
             continue;
         }
@@ -2770,8 +2770,10 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         mantleGrunt(ent);
         if(debug())
         {
-            Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f)\n", c.mantleFrom.x,
-                c.mantleFrom.y, c.mantleFrom.z, mid.z, to.x, to.y, to.z);
+            Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f), the head %.1f over the "
+                       "top (Mantle Height %.0f)\n",
+                c.mantleFrom.x, c.mantleFrom.y, c.mantleFrom.z, mid.z, to.x, to.y, to.z, headAbove,
+                vr_climb_mantle_height.value);
         }
         break;
     }

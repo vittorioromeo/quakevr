@@ -440,9 +440,13 @@ void status_f()
                 continue;
             }
             edict_t* m = EDICT_NUM(g.ent);
-            Con_Printf("foegrab status: player %d %s hand holds %s (%d): hand %.2f, held %.2f, stretch %.1f cm, %.2f s\n",
-                c + 1, handName(h), PR_GetString(m->v.classname), g.ent, g.strength,
-                fieldFloatOr(m, fields().vr_foegrab_hold, 0.f), g.stretch / cm(), qcvm->time - g.since);
+            const char* where = "";
+            const bool drags = oneHandDrags(c, h, m, &where);
+            Con_Printf("foegrab status: player %d %s hand holds %s (%d) at (%.1f %.1f %.1f): hand %.2f, held %.2f, stretch "
+                       "%.1f cm, %.2f s; by %s: %s\n",
+                c + 1, handName(h), PR_GetString(m->v.classname), g.ent, m->v.origin[0], m->v.origin[1], m->v.origin[2],
+                g.strength, fieldFloatOr(m, fields().vr_foegrab_hold, 0.f), g.stretch / cm(), qcvm->time - g.since, where,
+                drags ? "drags" : "doesn't drag");
             count++;
         }
     }

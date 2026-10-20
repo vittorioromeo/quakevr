@@ -84,6 +84,7 @@ struct Hold
     double since{0.0};
     double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
     glm::vec3 lastPalm{0.f}; // the tracked palm at the end of the last server frame (world): its move since is followed
+    int dragWhere{-1};       // where this hand alone holds it (oneHandDrags' DragPart; -1 not yet), printed as it changes
 };
 
 struct Holder
@@ -383,6 +384,9 @@ enum class LegPart : int
 [[nodiscard]] const char* legPartName(int p);
 [[nodiscard]] LegPart legPartAt(edict_t* m, const glm::vec3& at, const char** bone);
 [[nodiscard]] float legWeight(LegPart p);
+// Whether hand `h` of player `c` drags the standing enemy it holds (serverFrame's follow and pull): always with both his
+// hands on it; alone, by vr_foegrab_drag_onehand and the part it holds (`where`, if given: its name).
+[[nodiscard]] bool oneHandDrags(int c, int h, edict_t* m, const char** where = nullptr);
 [[nodiscard]] float legMassFactor(float mass);
 const char* throwWayName(const glm::vec3& dir, const glm::vec3& middle, const glm::vec3& you, const char** sub);
 bool moveFlat(edict_t* m, const glm::vec3& to);
