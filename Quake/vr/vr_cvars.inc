@@ -2843,30 +2843,34 @@ QVR_CVAR(vr_kdtrig_blast, "0.6", CVAR_ARCHIVE)                         // Explos
 QVR_CVAR(vr_kdtrig_blast_min, "15", CVAR_ARCHIVE)                      // ... the least damage
 QVR_CVAR(vr_kdtrig_blast_push, "1.25", CVAR_ARCHIVE)                   // ... its push over (two hands' shove 1)
 QVR_CVAR(vr_kdtrig_blast_range, "200", CVAR_ARCHIVE)                  // ... units from the blast's centre: none past it, half the chance at it
-// Thrown Bodies and Tackles (QC vr_kdtrig.qc VR_KdTrig_BodyHit, VR_KdTrig_Tackle; ROUND22.md, "Thrown bodies and
-// tackles"): a monster struck by a thrown body (a corpse or a knocked-down one, a hand's throw or swing) or by you
-// running into it in a guard or a shove reacts by weight: its weight (Weight times its group's resistance) up to Topple
-// Class times the thrower's (the body's mass; yours, Tackles' Your Weight) can topple, up to Stagger Class times it only
-// staggers (Stagger Time), heavier stands. A thrown body's push: its momentum over the monster's (Weight's at Speed).
+// Thrown Bodies and Shoulder Charges (QC vr_kdtrig.qc VR_KdTrig_BodyHit, VR_KdTrig_Tackle; ROUND22.md, "Thrown bodies
+// and tackles", "Shoulder charge"): a monster struck by a thrown body (a corpse or a knocked-down one, a hand's throw or
+// swing) or by you running into it with a shoulder leading reacts by weight: its weight (Weight times its group's
+// resistance) up to Topple Class times the thrower's (the body's mass; yours, Shoulder Charges' Your Weight) can
+// topple, up to Stagger Class times it only staggers back, heavier stands. A thrown body's strike: its momentum over
+// the monster's (Weight's at Speed); toppling's chance in full from a strike of 1, less below it to none at Least Strike.
 QVR_CVAR(vr_kdtrig_weight, "80", CVAR_ARCHIVE)            // kg: a monster of resistance 1's weight (a grunt's); each its resistance times this
 QVR_CVAR(vr_kdtrig_weight_topple, "1.5", CVAR_ARCHIVE)    // up to this times the thrower's weight it can be toppled (a similar or lighter class)
 QVR_CVAR(vr_kdtrig_weight_stagger, "3", CVAR_ARCHIVE)     // up to this times it only staggers (an ogre at a grunt); heavier: nothing
-QVR_CVAR(vr_kdtrig_bump_stagger, "0.6", CVAR_ARCHIVE)     // s: the short stagger of a heavier one (a parry's, as a ragdoll where it can)
+QVR_CVAR(vr_kdtrig_bump_stagger, "0.6", CVAR_ARCHIVE)     // s: the stagger of a heavier one (a parry's, as a ragdoll where it can), pushed back with the strike
 QVR_CVAR(vr_kdtrig_thrown_on, "1", CVAR_ARCHIVE)          // Thrown Bodies: on
 QVR_CVAR(vr_kdtrig_thrown, "1", CVAR_ARCHIVE)             // Thrown Bodies: the chance (A body you throw or swing into a monster knocks it over by weight and momentum.)
-QVR_CVAR(vr_kdtrig_thrown_push, "1", CVAR_ARCHIVE)        // ... its push over (two hands' shove 1)
-QVR_CVAR(vr_kdtrig_thrown_speed, "200", CVAR_ARCHIVE)     // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
-QVR_CVAR(vr_kdtrig_thrown_least, "0.4", CVAR_ARCHIVE)     // ... a weaker strike (that momentum share) does nothing, under 1 it only staggers
+QVR_CVAR(vr_kdtrig_thrown_push, "2", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1), more with the strike
+QVR_CVAR(vr_kdtrig_thrown_speed, "160", CVAR_ARCHIVE)     // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
+QVR_CVAR(vr_kdtrig_thrown_least, "0.05", CVAR_ARCHIVE)    // ... a weaker strike (that momentum share) does nothing; from it to 1 the topple's chance grows to its full (else a stagger back)
 QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
-QVR_CVAR(vr_kdtrig_tackle_on, "1", CVAR_ARCHIVE)          // Tackles: on
-QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Tackles: the chance (Running at full speed into a monster with your hands together before your chest, a weapon across, palms forward or shoving tackles it.)
-QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over (two hands' shove 1)
+QVR_CVAR(vr_kdtrig_tackle_on, "0", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
+QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
+QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1; the knock times it)
 QVR_CVAR(vr_kdtrig_tackle_speed, "0.85", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
-QVR_CVAR(vr_kdtrig_tackle_gap, "20", CVAR_ARCHIVE)        // ... units: your hands this close together before your chest (crossed too) is the guard
-QVR_CVAR(vr_kdtrig_tackle_slow, "0.4", CVAR_ARCHIVE)      // ... your speed kept after it (a stagger's half of it)
-QVR_CVAR(vr_kdtrig_tackle_bump, "60", CVAR_ARCHIVE)       // ... units/s you bounce back off a heavier one that only staggers
-QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you tackle again
+QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
+QVR_CVAR(vr_kdtrig_tackle_low, "12", CVAR_ARCHIVE)        // ... units: both hands at least this far below your head (low, by the body)
+QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.6 of it
+QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
+QVR_CVAR(vr_kdtrig_tackle_knock, "96", CVAR_ARCHIVE)      // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
+QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
+QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
 // Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's
 // settings for every ragdoll trigger and action, its defaults vr_mgroups.inc's. Ragdoll triggers: _kdtrig on (needs
@@ -2904,7 +2908,7 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
-QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll
+QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll, and why your pose isn't a shoulder charge (each half second running fast)
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
@@ -3138,7 +3142,7 @@ QVR_CVAR(vr_ragdoll_active_drown, "1", CVAR_ARCHIVE) // with Knockdowns, the cha
 QVR_CVAR(vr_ragdoll_active_pullup, "1", CVAR_ARCHIVE) // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie falling past a ledge's lip near a hand grabs it (Grab Ledges on), hangs a moment, then by this chance pulls itself up onto the top (else it drops after its hang, as a dying one); 0: it never grabs
 QVR_CVAR(vr_ragdoll_active_grab, "0.7", CVAR_ARCHIVE) // the chance a falling grunt, enforcer, knight, death knight, ogre or zombie (knocked down or dying) grabs at another monster within reach (standing, or its ragdoll) to catch itself: a hand on it a moment, slowing its fall (a ragdoll held dragged along); 0: never
 QVR_CVAR(vr_ragdoll_active_guard, "0.7", CVAR_ARCHIVE) // the chance a living monster with a rig guards its head when a hand of yours swings at it (fast enough to strike: a sword, an axe, a fist, a bash; never a shot): its arms up before its face for 0.6 s (standing: drawn as a hit reaction, Hit Reactions on Limbs; a ragdoll staggering, down or getting up: its body's arms); its looks alone; 0: never
-QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 12 the ragdoll nearest you flung at the live monster nearest it (vr_kdtrig_test_speed); 13 the live monster nearest you killed (a corpse, 1 more damage than its health); 20 a grunt at vr_kdtrig_test_x _y _z; 21 one 160 units ahead of you; 22 every monster gone; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there)
+QVR_CVAR(vr_kdtrig_test, "0", CVAR_NONE)              // a ragdoll trigger test (QC vr_kdtrig.qc: 1 shotgun, 2 super shotgun, 5 blunt blow, 6 blade blow, 7 blast, 8 a two-hand shove, 9 its blow on you (a parry), 10 knocked down at once, 11 its shove on you (a parry) on the live monster nearest you; 12 the ragdoll nearest you flung at the live monster nearest it (vr_kdtrig_test_speed); 13 the live monster nearest you killed (a corpse, 1 more damage than its health); 20 a grunt at vr_kdtrig_test_x _y _z; 21 one 160 units ahead of you; 22 every monster gone; 30 + k: vr_kdtrig_test_n trials of test k on a fresh grunt there; 44: those of a grunt corpse thrown at it at vr_kdtrig_test_speed, its push measured)
 QVR_CVAR(vr_kdtrig_test_damage, "0", CVAR_NONE)      // the test hits' damage instead of their own (0: their own)
 QVR_CVAR(vr_kdtrig_test_class, "0", CVAR_NONE)       // the test monster: 0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord (a boss), 6 a knight, 7 an enforcer, 8 a shambler
 QVR_CVAR(vr_kdtrig_test_speed, "300", CVAR_NONE)     // units/s: vr_kdtrig_test 12's fling

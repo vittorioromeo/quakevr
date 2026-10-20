@@ -1147,6 +1147,7 @@ struct BodyHit
     glm::vec3 vel{0.f}; // units/s: its middle's
 };
 constexpr int bodyHitsMost = 16;
+constexpr float thrownKeep = 0.85f; // a thrown body's strike: this share of its fastest since the throw at least
 
 void callBodyHits()
 {
@@ -1163,7 +1164,7 @@ void callBodyHits()
     const float least = 0.25f * za::max(vr_kdtrig_thrown_speed.value, 1.f);
     za::Array<BodyHit, bodyHitsMost> hits{};
     int count = 0;
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0 || !r.rig || r.num >= qcvm->num_edicts || count >= bodyHitsMost)
         {
@@ -1199,10 +1200,21 @@ void callBodyHits()
         {
             continue;
         }
-        const glm::vec3 vel = world->toU(b3MulSV(1.f / mass, momentum));
-        if(glm::length(vel) < least)
+        glm::vec3 vel = world->toU(b3MulSV(1.f / mass, momentum));
+        const float speed = glm::length(vel);
+        if(thrown)
+        {
+            r.thrownPeak = za::max(r.thrownPeak, speed);
+        }
+        if(speed < least)
         {
             continue;
+        }
+        // A thrown one strikes at thrownKeep of its fastest since the throw at least: its limbs dragging on the floor or
+        // catching on the way slow its middle before it meets the monster (the throw's speed is what the thrower gave it).
+        if(thrown && speed > 0.f && speed < thrownKeep * r.thrownPeak)
+        {
+            vel *= thrownKeep * r.thrownPeak / speed;
         }
         for(int n = 1; n < qcvm->num_edicts && count < bodyHitsMost; n++)
         {

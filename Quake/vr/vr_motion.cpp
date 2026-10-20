@@ -134,6 +134,17 @@ const za::Vector<Category> categoryList = {
     {{"no_judo_throw", "Judo Throw Not Expected"},
         {any, {"slow", "Too Slow"}, {"small", "Too Small a Turn"}, {"shove", "A Shove"}, {"lift", "A Lift"},
             {"one_hand", "One Hand"}, {"adjusting", "Adjusting the Grip"}}},
+    // Shoulder charges (ROUND22.md, "Shoulder charge"): running at full speed into the training dummy side-on, a
+    // shoulder leading, both hands low and close to the body (QC vr_kdtrig.qc VR_KdTrig_Tackle: the "shouldercharge"
+    // event; the dummy stands). The negatives run (or walk) into it in other poses. eval.sh replays them at the settings
+    // as set.
+    {{"shoulder_charge", "Shoulder Charge"},
+        {any, {"left", "Left Shoulder"}, {"right", "Right Shoulder"}, {"hands_clasped", "Hands Clasped Low"},
+            {"arms_tucked", "Arms Tucked"}, {"with_gun", "Holding a Gun Low"}, {"with_melee", "Holding a Melee Weapon Low"}}},
+    {{"no_shoulder_charge", "Shoulder Charge Not Expected"},
+        {any, {"running_guard", "Running Guard (no charge)"}, {"running_shove", "Running Shove"},
+            {"running_gun", "Running with Gun"}, {"walking", "Walking into Enemy"}, {"sidestep", "Sidestep Bump"},
+            {"running_idle", "Running, Hands Relaxed"}, {"running_melee", "Running with a Melee Weapon Raised"}}},
 };
 } // namespace
 
@@ -147,7 +158,7 @@ za::Vector<int> categoryOrder()
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
-        "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw", "other"};
+        "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw", "shoulder_charge", "no_shoulder_charge", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)
@@ -707,7 +718,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
         "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw",
-        "vr_legsweep"};
+        "vr_legsweep", "vr_kdtrig_tackle", "vr_movement_mode", "sv_maxspeed"};
     za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {

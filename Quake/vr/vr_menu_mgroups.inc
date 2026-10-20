@@ -36,7 +36,7 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
     {"Strong Blows", MgroupTimes, "Strong Blows' chance times this for it. 0: never."},
     {"Explosions", MgroupTimes, "Explosions' chance times this for it. 0: never."},
     {"Thrown Bodies", MgroupTimes, "Thrown Bodies' chance times this for it. 0: never."},
-    {"Tackles", MgroupTimes, "Tackles' chance times this for it. 0: never."},
+    {"Shoulder Charges", MgroupTimes, "Shoulder Charges' chance times this for it. 0: never."},
     {"Shove Knockdown", MgroupChance,
         "A shove's base chance to knock it down (Combat > Knockdowns: times Chance, the hands, its wounds, your stamina). "
         "Only a monster with a get-up of its own; others are only pushed."},

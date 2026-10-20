@@ -871,6 +871,7 @@ bool ragdollMarkThrown(edict_t* ent, const glm::vec3* velocity)
         return false;
     }
     rp->thrownAt = qcvm->time;
+    rp->thrownPeak = 0.f;
     if(!velocity || glm::length(*velocity) < 0.01f)
     {
         return true;

@@ -581,8 +581,9 @@ za::Vector<Item> pageDebugTests()
         header("Ragdoll Triggers"),
         cycle("Show Ragdoll Triggers", "vr_kdtrig_debug", {{0.f, "Off"}, {1.f, "Log"}, {2.f, "Also Lost Rolls"}})
             .help("vr_kdtrig_debug: a `kdtrig:` line for each hit that knocks a humanoid down by stairs, a ledge, a slope, "
-                  "a close shotgun blast or its wounds (which, its chance and roll); Also Lost Rolls: each that held but "
-                  "missed (Combat > Ragdoll Triggers)."),
+                  "a close shotgun blast or its wounds (which, its chance and roll), each thrown body and shoulder "
+                  "charge; Also Lost Rolls: each that held but missed, and, each half second while you run fast, why "
+                  "your pose isn't a shoulder charge (Combat > Ragdoll Triggers)."),
         command("Shotgun the Nearest", "vr_kdtrig_test 1")
             .help("vr_kdtrig_test 1: a shotgun blast (6 pellets) on the live monster nearest you, from where you stand "
                   "(1 damage dealt; its strength a real blast's)."),
@@ -598,9 +599,14 @@ za::Vector<Item> pageDebugTests()
                   "nearest it at Test Throw Speed (Thrown Bodies: topples, staggers or nothing by their weights)."),
         slider("Test Throw Speed", vr_kdtrig_test_speed, 50.f, 800.f, 10.f, "%.0f u/s")
             .help("vr_kdtrig_test_speed: Fling the Nearest Body's speed."),
+        command("Throw Trials", "vr_kdtrig_test 44")
+            .help("vr_kdtrig_test 44: vr_kdtrig_test_n trials of a fresh grunt corpse thrown at a fresh test monster "
+                  "(vr_kdtrig_test_class) at vr_kdtrig_test_x _y _z (0 0 0: 64 units ahead of you) at Test Throw Speed: "
+                  "each `kdtrig trial` line (down, staggers or stands, how far it was pushed), then the counts and the "
+                  "mean push."),
         command("Spawn a Test Monster Ahead", "vr_kdtrig_test 21")
             .help("vr_kdtrig_test 21: a test monster (vr_kdtrig_test_class: 0 a grunt, 4 an ogre, 8 a shambler) 160 "
-                  "units ahead of you, facing you (run into it in a guard: Tackles)."),
+                  "units ahead of you, facing you (run into it side-on: Shoulder Charges)."),
         header("Holding Enemies"),
         cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "

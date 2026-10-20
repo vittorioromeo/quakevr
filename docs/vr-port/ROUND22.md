@@ -14880,6 +14880,81 @@ island edge, so blades and handles can't pull texels across a seam; not seen mov
   torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
   axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.
 
+## Shoulder charge (the tackle redone) and thrown bodies that topple (worktree `fastship`, branch `agent/shouldercharge`, 2026-10-20)
+
+His two items: the tackle fired far too often by accident (he turned it off); thrown bodies toppled live enemies too
+rarely and pushed them too little.
+
+**Shoulder charge: design (phase 1, a prototype behind the old tackle switch, off).** The guard, palm-forward and
+shove poses are gone (`VR_KdTrig_TacklePose`, `vr_kdtrig_tackle_gap`, `_slow` removed). New `VR_KdTrig_ChargePose`
+(QC `vr_kdtrig.qc`), in the level frame along the run, from the head:
+
+- side-on: the hands' middle lies `vr_kdtrig_tackle_turn` (50) degrees or more round from the run. With `vr_movement_mode 1`
+  he runs where the head looks, so the head can't show the torso's turn; the hands in front of a side-on torso sit
+  beside the run (the hands to the right: the left shoulder leads; the event's sub `left`/`right`);
+- both hands `_low` (12) units or more below the head, each within `_reach` (20) of the head's line, none reaching
+  ahead past 0.6 of it (the leading arm tucked, not a shove); no shove or bash going, no gun aimed two-handed;
+- held `_hold` (0.15) s (the pose may be taken standing, before the run-up), running at `_speed` (0.85) of
+  sv_maxspeed the way he looks (60 degrees: a sidestep doesn't count), his box about to meet a living monster's.
+- The hit: a `shouldercharge` event (motion takes); he bounces back `_bump` (100 u/s) always; by weight
+  (`VR_KdTrig_Bump`, his `_weight` 80 kg): a toppleable class is launched and carried `_knock` (96) units times his
+  weight over its (up to 1.5) times `_push`, then toppled (a grunt: carried 96, the ragdoll "shoved down: 77 units
+  on"); a heavier class staggers back 12 + 0.6 of that on its feet (an ogre: moved 43 units); heavier stands.
+- The training dummy judges it with the Shoulder Charges off too (the event and his bounce; it stands), so takes
+  record and replay whatever the switch.
+- `vr_kdtrig_tackle_on` 0 (config 169 migrates 1 -> 0); menu Combat > Ragdoll Triggers > **Shoulder Charges** (the page
+  renamed from Tackles: menu path check 0 missing); `vr_kdtrig_debug 2` says, each half second while running fast, why
+  the pose isn't a charge (`kdtrig: charge pose: no (a hand high (11 units below the head); turn 0 deg, ...)`). Each take
+  sample has `charge` (turn, drop, reach) and `charge_ok` (the side or 0, the ground speed, held s) in its `qc` column.
+
+**Motion recorder**: categories **Shoulder Charge** (`shoulder_charge`: left, right, hands_clasped, arms_tucked,
+with_gun, with_melee) and **Shoulder Charge Not Expected** (`no_shoulder_charge`: running_guard, running_shove,
+running_gun, walking, sidestep, running_idle, running_melee); expect.cfg `shouldercharge` / `!shouldercharge`; the
+replay's events column carries it; the header's settings list `vr_kdtrig_tackle*`, `vr_movement_mode`, `sv_maxspeed`.
+eval.sh (kit; staged as `fastship/scratch/eval_charge.sh`, the current kit eval.sh plus this): the takes are out of the
+melee sets and replayed with the lift/judo ones, `shoulder charge: expected caught a/b, missed c, false d/e`, each take
+by name. Synthetic takes (`motion_synth.py charge`: the moving stick now written): left and right caught 2/2, 0 false
+of 5 (running guard, running idle, running shove, walking 155 u/s: too slow, sidestep).
+
+**Takes to record** (melee recording room, the training dummy, empty hands unless said; start each 4-5 m from it, start
+the take, take the pose, push the stick fully forward, run into it, end the take): positives 16: 4 `left` and 4
+`right` (arms tucked), 4 `hands_clasped` (2 each shoulder), 2 `with_gun`, 2 `with_melee`; negatives 20: 4
+`running_guard`, 4 `running_shove`, 4 `running_gun` (aimed one- and two-handed), 3 `walking` (the charge's pose,
+walking in), 3 `sidestep` (strafing into it side-on), 2 `running_idle`. Then the detector gets tuned on them.
+
+**Thrown bodies.** What limited the topples: (1) the strike was a hard gate, toppling only at 1 or more (a grunt
+corpse on a grunt slower than `_speed` at contact never toppled; hand throws' middles are often 100-200 u/s); (2) the
+strike's speed was the body's middle at contact, after its limbs dragged or caught on the way; (3) no push back at all:
+`ragdollshovetopple` carries a body its reach only with a launch along the way, and `VR_KdTrig_Down` gave none, so it
+fell over where it stood (about 25-30 units whatever the strike; the stagger's step back the parry's 12 units). Fixed:
+the topple's chance grows from none at `_least` to its full at a strike of 1 (else a stagger back); the engine
+(`callBodyHits`) counts a thrown body's strike at 0.85 of its fastest since the throw at least (`thrownPeak`); the
+topple launches it at 150 + 100 x strike x push u/s (at most 450) and carries it 8 + 32 x push units (thrown's carry
+24 -> 32; push 0.6 x strike, 0.6..1.5, times `_push`); a stagger is pushed back 12 + 20 x strike x push units (0.6 of
+it for a heavier class, at most 96). His values are the defaults (config 169): `vr_kdtrig_thrown_speed` 200 -> 160,
+`_least` 0.4 -> 0.05, `_push` 1 -> 2.
+
+Headless (`vr_kdtrig_test 44`, new: Debug > Tests > Ragdoll Triggers > Throw Trials; a fresh grunt corpse 128 units
+before a fresh grunt, flung at it; the push the target's level move, its pelvis when down, after 1.2 s; 10 trials
+each; his values both times):
+
+| fling u/s | before: down / staggered / stood, push | after |
+|---|---|---|
+| 120 | (strike 0.9: never toppled; not run) | 8 / 2 / 0, 38 units |
+| 160 | - | 10 / 0 / 0, 37 |
+| 200 | 10 / 0 / 0, 23 | 10 / 0 / 0, 46 |
+| 300 | 9 / 0 / 1, 24 | 10 / 0 / 0, 62 |
+| 450 | 10 / 0 / 0, 30 | 10 / 0 / 0, 85 |
+
+At an ogre (300 u/s, strike 0.8): staggered 5 of 5, pushed 31 units. In the headless room his values already toppled
+nearly always at 200 u/s and more; in his games the bodies' slower middles (and the hard gate) were what kept them up.
+
+**For VR**: throw corpses and knocked-down grunts at grunts gently and hard (more topple, and they fly back farther
+the harder the throw), at an ogre (staggers back). Shoulder Charges stay off: record the takes above first (the dummy
+reports `kdtrig: shoulder charge on the training dummy (it stands)` with `developer 1`); to try it live, turn
+Shoulder Charges on and sprint side-on into a grunt (it should fly back and fall; you bounce back), an ogre (it
+staggers back), and check a running guard, a shove and a gun never fire it.
+
 ## Gib impacts: one rule for thrown, held and struck gibs (worktree `gorefx`, branch `agent/gibhits`, 2026-10-20)
 
 The author: a head gib (or gib, small gib, brain chunk) smashed while held into a wall, the floor or a monster should
