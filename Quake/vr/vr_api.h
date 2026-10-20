@@ -525,6 +525,10 @@ int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reope
 int VR_MenuToggleCloses (void);							// M_ToggleMenu_f, in a menu: nonzero if it closes from this page at once (VR Calibration waiting on Body Calibration's page), not to the main menu first
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)
 int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzero while the runtime's menu pauses a single player game (vr_xr_unfocused_pause)
+int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
+int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
+int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
+void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text
 // 24 pixels high whose small capitals end on row 15.
 int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every letter of `text` is there

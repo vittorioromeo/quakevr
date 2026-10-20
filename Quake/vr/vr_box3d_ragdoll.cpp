@@ -56,6 +56,16 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
     {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
     {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}, {"monster_death_lord", true},
     {"monster_death_guard", true}, {"monster_deflector", true}, {"monster_ogre_flak", true}};
+
+// A joint's limits' share by its group (vr_ragdoll_limits_legs ...; the ragdoll tool's Joint Groups): times the global
+// one and its class's.
+cvar_t* const groupLimitCvars[ragactive::channelCount] = {&vr_ragdoll_limits_legs, &vr_ragdoll_limits_torso,
+    &vr_ragdoll_limits_arms, &vr_ragdoll_limits_head};
+
+[[nodiscard]] float groupLimits(const ragdoll::Bone& bone)
+{
+    return za::clamp(groupLimitCvars[static_cast<int>(ragactive::channelOf(bone))]->value, 0.05f, 3.f);
+}
 } // namespace
 
 [[nodiscard]] const ActiveClass* activeClassOf(const edict_t* ent)
@@ -798,7 +808,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     // ball: its cone about it) or the hinge's axis.
     const float jointFriction = za::max(tune(ent, Tune::JointFriction), 0.f);
     const float stiffness = za::max(tune(ent, Tune::JointStiffness), 0.f);
-    const float limits = za::clamp(tune(ent, Tune::Limits), 0.05f, 3.f);
+    const float limitsAll = za::clamp(tune(ent, Tune::Limits), 0.05f, 3.f);
     za::Array<b3JointId, ragdoll::maxBones> joints{}; // (each part's joint to its parent: an active ragdoll drives them)
     za::fill(joints, b3_nullJointId);
     for(int b = 0; b < r.count; b++)
@@ -815,6 +825,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         const glm::vec3 at = ((rp * bone.pivot + tp) + (rc * bone.pivot + tc)) * 0.5f;
         const glm::vec3 inParent = glm::inverse(rp) * (at - tp) * k, inChild = glm::inverse(rc) * (at - tc) * k;
         const glm::quat frame = ragpose::jointFrame(bone); // (a hinge's axis, else the bone's rest direction: z)
+        const float limits = limitsAll * groupLimits(bone); // (vr_ragdoll_limits_<group>: 1 each by default)
         const auto setBase = [&](b3JointDef& base) {
             base.bodyIdA = r.body[static_cast<za::SizeT>(bone.parent)];
             base.bodyIdB = r.body[static_cast<za::SizeT>(b)];

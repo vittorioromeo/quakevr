@@ -4,6 +4,7 @@
 
 #include "vr_box3d_internal.hpp"
 
+#include "vr_ragtool.hpp"
 #include "vr_text3d.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
@@ -118,7 +119,9 @@ void parseClasses()
     const edict_t* player = nullptr;
     for(const World::RagdollGrab& g : world->ragdollGrabs)
     {
-        if(g.num != r.num || g.player < 1 || g.player > svs.maxclients || g.part < 0 || g.part >= r.count ||
+        // (The ragdoll tool's virtual hand is the physgun's hold, player 0: a hand of the first player's to the struggle.)
+        const bool toolHand = g.player == 0 && ragtool::active() && svs.maxclients >= 1;
+        if(g.num != r.num || (g.player < 1 && !toolHand) || g.player > svs.maxclients || g.part < 0 || g.part >= r.count ||
             B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor) || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint) ||
             in.holds >= 2)
         {
@@ -126,10 +129,10 @@ void parseClasses()
         }
         ragactive::StruggleHold& h = in.hold[static_cast<za::SizeT>(in.holds++)];
         h.part = g.part;
-        h.hand = g.hand;
+        h.hand = toolHand ? 1 : g.hand;
         h.at = glmv(b3Body_GetPosition(g.anchor));
         h.grip = glmv(b3Body_GetWorldPoint(r.body[static_cast<za::SizeT>(g.part)], b3Joint_GetLocalFrameB(g.joint).p));
-        player = player ? player : EDICT_NUM(g.player);
+        player = player ? player : EDICT_NUM(toolHand ? 1 : g.player);
     }
     // A test's (vr_struggle_force): held by its chest where it lies, by the first player.
     if(in.holds == 0 && vr_struggle_force.value != 0.f && svs.maxclients >= 1)

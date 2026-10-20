@@ -1188,7 +1188,7 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
-	if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses
+	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
 		SV_Physics ();
 	VR_ProfileEnd (); // QVR
 

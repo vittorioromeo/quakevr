@@ -15121,3 +15121,28 @@ u/s, 18 to 14.4).
   (Break Speed: Explosive). Slam a held crate into a wall fast: it breaks out of your hands. Tap crate pieces: they
   are only pushed; punch them: dust. Throw a piece at a wall hard: dust. In AD maps, vases and windows break from almost any
   blow, stone and metal need hard hits or weapons. Tune with Crates > Breaking > Break Speed and its materials.
+## The ragdoll tool (worktree `fastship`, branch `agent/ragtool`, 2026-10-20)
+
+His request: a flat-screen tool, in the codebase and on the game's code paths, to see the active ragdoll animations on
+a rig of his choice and tweak them interactively. Built as a mode of the game: `-ragtool` (implies -flatscreenmode) or
+`vr_ragtool`; usage in RAGTOOL.md. Engine: `vr_ragtool.cpp` (the mode, 24 behaviours as steps of the game's own calls,
+the parameter registry of 94 settings in 9 groups, presets, orbit camera, keys), `vr_box3d_ragtool.cpp` (overlays:
+part frames, joint limit cones and hinge arcs, ragactive::debugDraw's targets, contacts, centre of mass over the
+support's outline; the run's measures), `vr_menu_ragtool.inc` (Debug > Ragdoll Tool and a page per group). Hooks, all
+inert with the tool off: V_CalcRefdef (camera), V_RenderView (the debug lines over a flat view), Host_ServerFrame (pause
+and step), Key_Event (its keys), VR_MenuRunsGame (the game runs behind its page), the struggle's holds (the physgun's
+hold counts as the first player's hand while the tool runs), toolgun::spawnEntryAt (the spawner by entry).
+
+New settings, 1 by default (the game unchanged): `vr_ragdoll_active_{hertz,damping,torque}_{legs,torso,arms,head}`
+(the drive per joint group, `ragactive::Channel`) and `vr_ragdoll_limits_{legs,torso,arms,head}` (the joint limits per
+group, as the ragdoll is made). `ragactive::tracking` measures the driven joints' mean miss of their targets.
+
+Checks (headless, flat): every behaviour played on a grunt and on AD's death knight, no errors (a fresh subject now
+stands 0.5 s before its steps: a just-made AD knight refused `vr_knockdown_test 0` at once). On the death knight the
+game itself does not begin vr_ragdoll_act's stagger, throw, flinch and knee buckle, nor its shoves' staggers (`ragact:
+... NOT begun (no ragdoll)`), seen not changed; the grunt does them all. The legs' motors off raised the
+stagger's mean tracking error from 29.7-31.6 deg (three default runs) to 37.9-39.3; a preset saved, reset and loaded
+back (94 settings, the 2 changed restored).
+
+- **Flat (desktop)**: `ironwail.exe -ragtool`; orbit with the mouse, Tab for the page; play each behaviour on a few
+  models; Struggle with each Hold, moving the hand; edit a Joint Groups slider and replay; Save and Load a preset.

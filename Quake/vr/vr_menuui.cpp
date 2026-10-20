@@ -44,6 +44,7 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_menupaint.hpp"
+#include "vr_ragtool.hpp"
 #include "vr_obs.hpp"
 #include "vr_renderdoc.hpp"
 #include "vr_panel.hpp"
@@ -3156,6 +3157,10 @@ namespace
 
 extern "C" int VR_MenuRunsGame()
 {
+    if(ragtool::active() && key_dest == key_menu && sv.active && svs.maxclients == 1 && !cl.intermission)
+    {
+        return 1; // (the ragdoll tool: its subject moves on behind its page)
+    }
     if(!ui_live_preview.value || !vrActive() || key_dest != key_menu || !sv.active || svs.maxclients != 1 ||
         cl.intermission)
     {

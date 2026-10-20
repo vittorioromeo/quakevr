@@ -13,6 +13,7 @@
 /maps/autosave/
 /screenshots/
 /notes/
+/ragtool/
 /motions/*
 !/motions/expect.cfg
 !/motions/suspects.cfg

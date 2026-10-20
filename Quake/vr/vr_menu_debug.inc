@@ -27,6 +27,10 @@
         open("Tests", pageIndex(pageDebugTests))
             .help("For playing and tuning in the headset: put a monster or a box ahead of you, fire a projectile at you, "
                   "make an ogre throw, hold and shove enemies; god mode, Quad."),
+        open("Ragdoll Tool", pageIndex(pageRagtool))
+            .help("The active ragdolls' behaviours on a monster of your choice, flat on the desktop: played, slowed, "
+                  "stepped, drawn (skeleton, limits, targets, contacts, balance) and tuned live, saved as presets "
+                  "(vr_ragtool; launch with -ragtool; docs/vr-port/RAGTOOL.md)."),
         open("Automation & Self-Tests", pageIndex(pageDebugAutomation))
             .help("Scripted scenarios, self-tests, benchmarks, acceptance checks and crash tests, meant mostly for headless "
                   "agent runs (ROUND22.md, \"Debug > Automation & Self-Tests\")."),
