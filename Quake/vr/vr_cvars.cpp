@@ -348,8 +348,11 @@ const DefaultChange defaultChanges[] = {
     {171, &vr_ghost_hands_fade_from, "2"},  // 6
     {171, &vr_ghost_hands_fade_range, "4"}, // 7
     {171, &vr_retrolight_model_steps, "15"}, // 16
+    // 172: Box3D on the pool from 300 awake bodies (ROUND22.md, "play_gore_fight's cost"): at 150-190 with ragdolls the
+    // main thread waited on the workers longer than it took to step alone, and spiked.
+    {172, &vr_box3d_threads_bodies, "150"}, // 300
 };
-constexpr int configVersion = 171;
+constexpr int configVersion = 172;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

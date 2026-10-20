@@ -43,7 +43,7 @@ physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cm
   task callbacks (`enqueueStepTask`, `finishStepTask`) that hand each of Box3D's tasks to a pool worker as a
   `jobs::Task`, or run it on the stepping thread as it waits; Box3D's own scheduler (`src/scheduler.c`) and threads
   are never used. Its worker count (`b3World_SetWorkerCount`, before a step) is `vr_box3d_workers` (default 4, the
-  stepping thread one of them) while at least `vr_box3d_threads_bodies` (150) bodies are awake, else 1: the step on
+  stepping thread one of them) while at least `vr_box3d_threads_bodies` (300) bodies are awake, else 1: the step on
   the stepping thread alone, Box3D's serial path. `vr_box3d_threads 0` (or `vr_jobs_parallel 0`) keeps it at 1.
   The results are the same whatever the count (Box3D is deterministic across threads).
 
