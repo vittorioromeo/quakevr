@@ -644,7 +644,7 @@ bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
     const float m2w = bodyUnits();
     const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + torchThickness() + 0.0025f + vr_flashlight_forward.value) +
                                                   left * (side * (beltSide + vr_flashlight_out.value)) +
-                                                  up * (beltUp + vr_flashlight_up.value)) *
+                                                  up * (beltUp + vr_flashlight_up.value + vr_body_belt_up.value)) *
                                                   m2w;
 
     const float lean = glm::radians(CLAMP(-30.f, vr_flashlight_tilt.value, 60.f));

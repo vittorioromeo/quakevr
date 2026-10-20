@@ -14,6 +14,7 @@
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_seated.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -227,6 +228,7 @@ struct Bone
 struct Body
 {
     float m2w{1.f};    // world units per metre of the modelled body
+    float legM2w{1.f}; // ... of its legs, hip to ankle (m2w times the leg fit: legFit)
     float floorZ{0.f};
     glm::vec3 fwd{FWD};
     glm::vec3 left{0.f, 1.f, 0.f};
@@ -254,6 +256,34 @@ float climbHang = 0.f;
     return p.pos + p.rot * o;
 }
 
+// The legs fitted to the height you stand at (vr_body_leg_fit; ROUND22.md, "Body and Equipment"). The body is scaled to
+// the Height setting (vr_height_calibration) and hangs from the head: standing taller than it (a Height set low), the
+// legs were too short and the feet hung in the air (eyes at 1.70 m, Height 1.55: the ankles 23 cm up), standing lower
+// (a Height set high) the knees stayed bent and the body crouched; Body Calibration fixed it only by measuring the
+// height again. Here the legs (hip to ankle; the feet keep the body's size) are lengthened or shortened so that, at the
+// height the headset sees you stand at (hands::State::standingHeight, learnt as Leaning Detection learns it: it rises
+// quickly as you stand up straighter, settles slowly), the feet reach the floor with the knees straight, between 0.75
+// and 1.3 times; the crouch is measured from there too. Sets b.legM2w; returns how much higher than the scaled body
+// that stands (world units). Seated, with the reference poses (standingHeight their own height) or off: none.
+[[nodiscard]] float legFit(const hands::State& s, Body& b)
+{
+    b.legM2w = b.m2w;
+    const float m2u = units::metresToUnits();
+    const float scaledFor = b.m2w / m2u * units::modelEyeHeight; // the eye height the body is scaled to
+    if(!vr_body_leg_fit.value || seated::active() || s.standingHeight <= 0.f)
+    {
+        return 0.f;
+    }
+    const float leg = (boneLength(ThighL, ThighL + 1) + boneLength(ThighL + 1, ThighL + 2)) * b.m2w;
+    if(leg <= 0.f)
+    {
+        return 0.f;
+    }
+    const float fit = CLAMP(0.75f, 1.f + (s.standingHeight - scaledFor) * m2u / leg, 1.3f);
+    b.legM2w = b.m2w * fit;
+    return (fit - 1.f) * leg;
+}
+
 // The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
 // the pelvis straight down under the neck (the legs bend) and tilts the back forward about it, as a
 // person crouching does; when the pelvis can go no lower, the back bends further.
@@ -271,6 +301,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const Bind& bd = bind();
     b.m2w = units::metresToUnits() * (scale > 0.f ? scale : units::bodyScale());
     b.floorZ = s.head.z - s.headHeight * units::metresToUnits();
+    const float standLift = legFit(s, b);
 
     glm::vec3 right, up;
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, b.fwd, right, up);
@@ -315,10 +346,11 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
-    const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
-    const float squatZ = b.floorZ + 0.3f * b.m2w;
+    // (Standing: as high as the height you stand at, the legs fitted to it: legFit.)
+    const float standZ = b.floorZ + standLift + bd.pos[Pelvis].z * b.m2w;
+    const float squatZ = b.floorZ + 0.3f * b.legM2w;
     const auto depthUnder = [&](const glm::vec3& neck) {
-        const float headDrop = za::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - neck.z);
+        const float headDrop = za::max(0.f, b.floorZ + standLift + bd.pos[Head].z * b.m2w - neck.z);
         const float drop = za::max(0.f, headDrop - tiltDrop);
         return standZ > squatZ ? za::min(1.f, drop / (standZ - squatZ)) : 0.f;
     };
@@ -1629,7 +1661,7 @@ struct FootHit
 {
     const Climbing& c = climbing;
     const float u = b.m2w;
-    const float leg = legLength(side) * u;
+    const float leg = legLength(side) * b.legM2w;
     const float reach = CLAMP(0.5f, vr_body_climb_feet_reach.value, 1.2f);
     const bool up = c.rise > 0.08f;
     const float zTop = hip.z - 0.25f * leg;
@@ -1775,7 +1807,7 @@ struct FootHit
 [[nodiscard]] glm::vec3 hangingFoot(const Body& b, int side, const glm::vec3& hip)
 {
     const float u = b.m2w;
-    const float leg = legLength(side) * u;
+    const float leg = legLength(side) * b.legM2w;
     const float swing = za::sin(climbing.sway + (side == 0 ? 0.f : 2.1f));
     return hip - UP * (0.92f * leg) + climbing.in * ((0.1f + 0.04f * swing) * u) + climbOutward(side) * (0.03f * u) -
            climbing.lag;
@@ -1863,7 +1895,7 @@ void updateClimbing(const Body& b, float dt, bool legs)
     {
         ClimbFoot& f = c.feet[side];
         hip[side] = childPos(b, side == 0 ? ThighL : ThighR);
-        const float leg = legLength(side) * b.m2w;
+        const float leg = legLength(side) * b.legM2w;
         if(f.step >= 0.f)
         {
             f.step = za::min(1.f, f.step + dt * speed / CLIMB_STEP_TIME);
@@ -2064,8 +2096,8 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     const glm::vec3 footFwd = yawForward(ft.yaw);
     const glm::vec3 footLeft{-footFwd.y, footFwd.x, 0.f};
     const glm::vec3 outward = side == 0 ? footLeft : -footLeft;
-    const float a = boneLength(thigh, calf) * b.m2w;
-    const float l = boneLength(calf, foot) * b.m2w;
+    const float a = boneLength(thigh, calf) * b.legM2w;
+    const float l = boneLength(calf, foot) * b.legM2w;
     const float footZ = b.floorZ + bd.pos[foot].z * b.m2w;
 
     // Standing still: the knee over the foot, both straight ahead.

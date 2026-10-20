@@ -169,6 +169,11 @@ za::Vector<Item> pageDebugViews()
             .help("Twice a second in the console: how far the game's body (its feet) has drifted in your room since it was turned "
                   "on (or marked), and how far its facing has turned, with your lean. Stand still in the room: leaning and "
                   "turning or moving with the stick, both should stay near 0 (vr_body_error)."),
+        toggle("Log Body Heights", vr_debug_body_heights)
+            .help("Twice a second in the console: metres above the body's floor of your eyes (as calibrated and as learnt "
+                  "standing), the pelvis, the knees and ankles (and how straight the legs are, 1 straight), the ammo pouch "
+                  "and the hip holsters (and how far from the pelvis), the grenade pouch and the chest holsters. Standing "
+                  "still, they should stay put; a leg at 1 with its ankle off the floor is too short."),
         command("Mark Body Drift Here", "vr_body_error mark")
             .help("vr_body_error mark: measure the body's drift from where it stands now (stand straight, your feet where they "
                   "are to stay)."),

@@ -15163,6 +15163,51 @@ flinches and limps, no QC errors.
 - **AD maps**: shoot AD knights and soldiers in the body and the legs: they flinch, a leg hit buckles the knee and they
   limp a step, as id1's grunts do; shove them: they stagger (death knights rarely go down).
 
+## Body and Equipment (worktree `tghost`, branch `agent/bodycustom`, 2026-10-20)
+
+Players: the chest gear too far back (the flashlight hard to grab), the ammo belt too low and sinking over a session,
+changing the height breaking the legs until a full Body Calibration. Measured with a new probe, Debug > Views > Log Body
+Heights (`vr_debug_body_heights`: twice a second, metres over the body's floor: eyes as calibrated and as learnt
+standing, pelvis, knees, ankles, each leg's straightness, the ammo pouch and hip holsters and their offset from the
+pelvis, the grenade pouch, the chest holsters from the chest). Mock eyes at 1.70 m.
+
+- **The legs.** No leg calibration exists: the whole body is scaled to `vr_height_calibration` and hangs from the head,
+  the legs IK'd to the floor. A Height off from the eyes' real height broke them: Height 1.547 (the test baseline's),
+  ankles 0.23 m in the air, legs locked straight; 1.40: 0.37 m; 2.00: knees bent (straightness 0.71) and the body in its
+  crouched pose. Body Calibration fixed it only because it measures the height again. Now `vr_body_leg_fit 1`
+  (avatar `legFit`): hip-to-ankle lengthened or shortened (0.75-1.3x) so that at the height the headset sees you stand at
+  (`hands::State::standingHeight`, Leaning Detection's learnt standing height: rises fast, settles slowly while centred
+  and not crouched) the feet reach the floor with straight knees, and the crouch depth is measured from there. After:
+  Height 1.547 ankles 0.081, 2.00 straightness 0.94 (clamp), 1.40 ankles 0.16 (clamp; 30 cm off). A Height equal to the
+  eyes: unchanged (fit 1). Seated: off.
+- **The belt too low.** The holsters and pouches are placed in Quake units from the player's origin (2 units up, Z
+  offsets times the Height), the body in metres times the Height and the world scale on `vr_floor_offset`'s floor: the
+  taller (or the bigger the world scale, or the higher the floor) the lower the gear on the body. Hip holsters from the
+  pelvis: -0.04 m at Height 1.40, -0.13 at 1.547, -0.21 at 1.70, -0.39 at 2.00; ammo pouch -0.00/-0.08/-0.16/-0.23.
+  `vr_body_gear_fit 1` (vr_body.cpp `fitToBody`): the old placement taken as on the reference body it was tuned on
+  (eyes 1.55 m, the author's; world scale 1.2; floor -22) and scaled to this body about the floor under the box's middle.
+  After: ammo pouch -0.075..-0.084 at every Height, hip holsters -0.12..-0.17 (proportional), chest holsters
+  -0.02..-0.03 from the chest (before +0.06..-0.27). The author's setup (1.5546 m, 1.2, -22): unchanged (k 1.003).
+- **The drift.** A 100 s session (stand, stick walk, walk turning, crouch to 1.15 m and up 5 times, look down 60 degrees,
+  a 4 cm slouch for 20 s, straight again): nothing accumulates; every standing phase returns the pouch to the same
+  height (0.891 m, -0.086 from the pelvis; 0.895 before the first walk: the feet's stance). The gear is carried by the
+  pelvis, which hangs from the head: any lowering of the head (a slouch, the headset slipping down the face, the
+  runtime's floor moving) lowers the belt 1:1, and as the calibrated height stayed the reference the knees stayed bent
+  (straightness 0.96) for as long as it lasted. With the leg fit the learnt standing height settles to it within ~20 s
+  and the legs straighten (1.000); the belt still follows the head, as the body does. Looking down 60 degrees with the
+  mock lifts the body 11 cm: the mock pitches the head about the eyes (a real head pitches about the neck, dropping the
+  eyes as much), not a bug.
+- **The page.** VR Settings > Body and Equipment (replaces Holster Calibration and Ammo Pouch on VR Settings; their
+  rows are on it; the body clone is shown while it is open): Height, Legs Fit Your Height, Gear Fits Your Body, Body
+  Calibration; Shoulders Back/Out/Up (`vr_body_tweak_shoulders_*`), Torso Back; Belt Height (`vr_body_belt_up`, metres:
+  hip holsters, both pouches, the belt torch), Flashlight Forward/Out/Up; the ammo pouch's rows; the holsters' rows
+  (chest holsters forward for the chest gear); Reset Body and Equipment. The board in the calibration room was not given
+  a line (compiling it needs the id texture WAD, not in the worktree).
+
+- **VR**: set Height a little off (VR Settings > Body and Equipment) and look down: the feet should stay on the floor,
+  the knees straight; crouch: they bend. Check the belt (ammo pouch, hip holsters) sits on the belt; try Belt Height and
+  Flashlight Forward with the body shown in front of you.
+
 ## Earned bullet time (worktree `goreflesh`, branch `agent/earnedbt`, 2026-10-20)
 
 The backlog's "Bullet time as an earned resource", the 1.1 default: bullet time's meter no longer fills by itself; the

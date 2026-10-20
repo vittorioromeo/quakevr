@@ -15,10 +15,10 @@ za::Vector<Item> pageMain()
         open("Height and Hand Calibration", pageIndex(pageVrsHeightHands))
             .help("Your height (Set Height Now measures it), the world's scale, the floor's height, and the drawn hands "
                   "moved and turned on your controllers so they sit where your real hands are."),
-        open("Holster Calibration", pageIndex(pageVrsHolsters))
-            .help("Where the hip, chest and back holsters are on your body, and the guns drawn over your shoulders."),
-        open("Ammo Pouch", pageIndex(pageVrsAmmoPouch))
-            .help("Where immersive reloading's pouch is on your belt, its size and its ammo counter."),
+        open("Body and Equipment", pageIndex(pageVrsBodyEquipment))
+            .help("Fit the body to you (the legs to your height, the shoulders, the torso) and move what you wear: the "
+                  "belt's height, the flashlight, the ammo pouch, the hip, chest and back holsters. Your body is shown in "
+                  "front of you while you choose."),
 
         header("Moving"),
         open("Locomotion and Controls", pageIndex(pageVrsLocoControls))
@@ -156,6 +156,76 @@ za::Vector<Item> pageMain()
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
     };
+}
+
+// Reset Body and Equipment: the shoulders, the torso, the belt, the torch on it, every holster and the ammo pouch's
+// place back to as shipped (not Height nor Body Calibration's measurements).
+void resetBodyEquipment()
+{
+    resetHolsters();
+    for(cvar_t* var : {&vr_body_tweak_shoulders_back, &vr_body_tweak_shoulders_out, &vr_body_tweak_shoulders_up,
+            &vr_body_torso_back, &vr_body_belt_up, &vr_flashlight_forward, &vr_flashlight_out, &vr_flashlight_up,
+            &vr_ammo_pouch_x, &vr_ammo_pouch_y, &vr_ammo_pouch_z, &vr_body_leg_fit, &vr_body_gear_fit})
+    {
+        Cvar_SetQuick(var, var->default_string);
+    }
+}
+
+// VR Settings > Body and Equipment (ROUND22.md, "Body and Equipment"; players: the flashlight too far back, the ammo
+// belt too low, the legs broken by a change of height): the body's fit and the places of what you wear, on one page, the
+// body shown in front of you while it is open (menu::bodyClonePage). The holsters' and the ammo pouch's own rows (their
+// pages before) are here as parts.
+[[nodiscard]] za::Vector<Item> pageVrsBodyEquipment()
+{
+    const char* cm = "%+.2f m";
+    za::Vector<Item> out{
+        header("Fit"),
+        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
+            .help("Your eyes' height standing (Height and Hand Calibration > Set Height Now measures it). The body is "
+                  "sized to it; with Legs Fit Your Height the legs still reach the floor if it is off."),
+        toggle("Legs Fit Your Height", vr_body_leg_fit)
+            .help("The legs lengthen or shorten (up to a quarter) so that, standing at the height the headset sees you "
+                  "stand at, the feet are on the floor and the knees straight: changing Height no longer breaks the legs "
+                  "or needs Body Calibration again. Off: the legs as the body's proportions make them."),
+        toggle("Gear Fits Your Body", vr_body_gear_fit)
+            .help("The holsters and the pouches are placed for your body's size (Height, World Scale) and the floor, so "
+                  "the belt sits on the belt for a tall player too. Off: placed as before (low on a tall body)."),
+        open("Body Calibration", pageIndex(pageBodyCalibration))
+            .help("Measures your arms and shoulders (and your height) from a few poses."),
+        header("Shoulders and Torso"),
+        slider("Shoulders Back", vr_body_tweak_shoulders_back, -0.1f, 0.1f, 0.005f, cm).extend(-0.3f, 0.3f)
+            .help("The shoulders further back (negative: forward), on top of Body Calibration's."),
+        slider("Shoulders Out", vr_body_tweak_shoulders_out, -0.1f, 0.1f, 0.005f, cm).extend(-0.3f, 0.3f)
+            .help("The shoulders further out to the sides (negative: in)."),
+        slider("Shoulders Up", vr_body_tweak_shoulders_up, -0.1f, 0.1f, 0.005f, cm).extend(-0.3f, 0.3f)
+            .help("The shoulders higher (negative: lower)."),
+        slider("Torso Back", vr_body_torso_back, -0.1f, 0.25f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
+            .help("How far the torso sits behind your neck (negative: in front): further back, looking down shows more "
+                  "of the chest and belt; the chest's gear moves with it."),
+        header("Belt"),
+        slider("Belt Height", vr_body_belt_up, -0.15f, 0.15f, 0.01f, cm).extend(-0.4f, 0.4f)
+            .help("Everything on the belt higher (negative: lower): the hip holsters, the ammo pouch, the grenade pouch "
+                  "and the flashlight."),
+        slider("Flashlight Forward", vr_flashlight_forward, -0.1f, 0.15f, 0.005f, cm).extend(-0.3f, 0.3f)
+            .help("The flashlight on the belt further forward (negative: back), out of the belt's front."),
+        slider("Flashlight Out", vr_flashlight_out, -0.15f, 0.15f, 0.005f, cm).extend(-0.3f, 0.3f)
+            .help("The flashlight further out towards its side (negative: in, towards the buckle)."),
+        slider("Flashlight Up", vr_flashlight_up, 0.f, 0.5f, 0.01f, cm).extend(-0.3f, 0.8f)
+            .help("The flashlight's clip higher on the body (from the pelvis)."),
+    };
+    for(Item& it : pageVrsAmmoPouch())
+    {
+        out.pushBack(it);
+    }
+    out.pushBack(header("Holsters"));
+    for(Item& it : pageVrsHolsters())
+    {
+        out.pushBack(it);
+    }
+    out.pushBack(action("Reset Body and Equipment", resetBodyEquipment)
+                     .help("The shoulders, torso, belt, flashlight, holsters and ammo pouch back to as shipped (not Height "
+                           "nor Body Calibration's measurements)."));
+    return out;
 }
 
 [[nodiscard]] za::Vector<Item> pageVrsControls()

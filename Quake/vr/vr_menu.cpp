@@ -1780,6 +1780,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageVrsHands();
 [[nodiscard]] za::Vector<Item> pageVrsHolsters();
 [[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
+[[nodiscard]] za::Vector<Item> pageVrsBodyEquipment();
 [[nodiscard]] za::Vector<Item> pageVrsControls();
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion();
 [[nodiscard]] za::Vector<Item> pageVrsComfort();
@@ -2013,8 +2014,8 @@ const Page pages[] = {
     {"Blood Feedback", pageBloodFeedback, pageVrsComfortTurning, LevelStandard},
     // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
     {"VR Settings - Height and Hand Calibration", pageVrsHeightHands, pageMain, LevelStandard},
-    {"VR Settings - Holster Calibration", pageVrsHolsters, pageMain, LevelStandard},
-    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageMain, LevelStandard},
+    {"VR Settings - Body and Equipment", pageVrsBodyEquipment, pageMain, LevelStandard}, // (ROUND22.md, "Body and Equipment": the holsters and the ammo pouch in it)
+    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageVrsBodyEquipment, LevelStandard}, // (its rows also on Body and Equipment)
     {"VR Settings - Locomotion and Controls", pageVrsLocoControls, pageMain, LevelStandard},
     {"VR Settings - Comfort, Teleport and Turning", pageVrsComfortTurning, pageMain, LevelStandard},
     {"VR Settings - Weapons and Bullet Time", pageVrsWeaponsBulletTime, pageMain, LevelStandard},
@@ -2081,7 +2082,7 @@ constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
-const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsHolsters, pageVrsAmmoPouch, pageVrsLocoControls,
+const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsLocoControls,
     pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
     pageVrsDisplayGraphics};
 
@@ -5629,7 +5630,7 @@ bool qvr::menu::bodyClonePage()
     }
     const PageBuilder b = pages[ui().page].build;
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
-        b == pageHolsterZones || b == pageSeatedHolsters || ui().bodyCloneLatch == ui().page)
+        b == pageHolsterZones || b == pageSeatedHolsters || b == pageVrsBodyEquipment || ui().bodyCloneLatch == ui().page)
     {
         return true;
     }
