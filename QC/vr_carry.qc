@@ -255,6 +255,8 @@ void(entity xBox) VR_Carry_FloatGraceFrame =
     }
 };
 
+.float vr_gib_hittime; // a hand's or weapon's last hit on a gib (VR_Gib_HandImpact): one tap is one hit (touch and blow)
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 {
     if(time < xBox.carry_nudgetime || xBox.carry_player != world)
@@ -288,10 +290,15 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         return;
     }
 
-    // A gib or head struck with a swing bursts (VR_Gib_Struck).
+    // A gib or head struck with a swing bursts, or bounces off the hand (VR_Gib_Struck: the impact rule, VR_Gib_Impact).
     if(xBox.vr_gib)
     {
         VR_Gib_Struck(xPlayer, xHand, xBox);
+        if(xBox.vr_gib && xBox.vr_gib_hittime == time)
+        {
+            xBox.carry_nudgetime = time + 0.05;
+            return; // bounced (not pushed as well)
+        }
         if(!xBox.vr_gib)
         {
             if(xBox.vr_sgib && cvar_hget(cvarh_vr_smallgibs_trace))
@@ -1444,6 +1451,9 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
     dprint(sprintf("carry: teleported with the player, moved by %v\n", d));
 };
 
+float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact;
+float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash;
+
 float(entity box, vector target) VR_Carry_Follow =
 {
     vector wanted = target;
@@ -1475,6 +1485,12 @@ float(entity box, vector target) VR_Carry_Follow =
     // monster as a club (its melee hit, vr_melee.qc) stopped at the monster's box while the hand went on, and was dropped
     // once the hand was 32 units past it (the author's note, 2026-09-29 21:20). It passes through them (it is not solid).
     traceline(from, target, TRUE, self);
+    // A gib or head smashed into the level, a monster or a solid thing hard enough bursts (the impact rule: out of the
+    // hand, gone). (After this trace: it reads it.)
+    if(box.vr_gib && VR_Gib_HeldSmash(box, from, target))
+    {
+        return TRUE; // (no longer held: nothing to let go of)
+    }
     vector dest = trace_endpos;
     if(trace_fraction < 1)
     {
@@ -1975,7 +1991,7 @@ void() VR_Gib_Touch =
        speed >= cvar_hget(cvarh_vr_gib_splat_speed) && VR_Gib_IsDestroyable(self))
     {
         dprint("gib: struck "); dprint(other.classname); dprint(" at "); dprint(ftos(speed)); dprint("\n");
-        VR_Gib_Burst(self, dir);
+        VR_Gib_Impact(self, speed / max(1, cvar_hget(cvarh_vr_gib_splat_speed)), dir, "thrown into a monster");
     }
 };
 
@@ -2049,25 +2065,14 @@ float(entity e) VR_SmallGib_BlowBursts =
            VR_Gib_IsDestroyable(e) && e.carry_player == world;
 };
 
-float vr_sgib_graceblow; // set round a blow's T_Damage on a small gib in its blow grace (VR_Gib_Hit): it bursts or stays put
+float(entity g, float xSpeed, vector xStriker, float xStill, string xHow) VR_Gib_HandImpact;
 
-// A hand's blow or strike of `xDmg` on a loose gib or head (VR_Gib_Blow, VR_Gib_Struck). A small gib in its blow grace
-// (VR_SmallGib_BlowBursts) takes it before it is armed, and isn't knocked away by it.
-void(entity xGib, entity xPlayer, float xDmg) VR_Gib_Hit =
+// A hand's blow or strike at `xSpeed` (m/s, against it) on a loose gib or head (VR_Gib_Blow, VR_Gib_Struck), the striker
+// moving at `xStriker` (units/s): the impact rule (VR_Gib_HandImpact). A small gib in its blow grace
+// (VR_SmallGib_BlowBursts) takes it before it is armed, and isn't knocked away by it (it bursts or stays put).
+void(entity xGib, entity xPlayer, float xSpeed, vector xStriker, string xHow) VR_Gib_Hit =
 {
-    float grace = VR_SmallGib_BlowBursts(xGib);
-    float armedNow = grace && !xGib.takedamage;
-    if(armedNow)
-    {
-        xGib.takedamage = DAMAGE_YES;
-    }
-    vr_sgib_graceblow = grace;
-    T_Damage(xGib, xPlayer, xPlayer, xDmg);
-    vr_sgib_graceblow = FALSE;
-    if(armedNow && xGib.vr_gib)
-    {
-        xGib.takedamage = DAMAGE_NO; // armed as before (VR_Gib_Think2)
-    }
+    VR_Gib_HandImpact(xGib, xSpeed, xStriker, VR_SmallGib_BlowBursts(xGib), xHow);
 };
 
 // From ThrowGib and ThrowHead, after VR_MakeGibGrabbable: `xHealthMult` of vr_gib_health.
@@ -2130,6 +2135,156 @@ float(entity g) VR_Gib_HardThrow =
     return hard > 0 && g.vr_gib_handspeed >= hard && VR_Gib_IsDestroyable(g);
 };
 
+// ----------------------------------------------------------------------------
+// The impact rule (ROUND22.md, "Gib impacts"; the author, 2026-10-20): one rule for a gib, a head, a small gib or a brain
+// chunk that can be destroyed meeting something hard, however it meets it. Its intensity is the impact's speed over its
+// kind's burst speed (VR_Gib_BurstSpeed: vr_gib_burst_speed m/s, a head's times vr_gib_burst_head, a small gib's times
+// vr_gib_burst_small): from 1 it bursts; from half it is worn by as much of its health (two hits at three quarters burst
+// it); under half nothing. The paths:
+// - a hand's or a weapon's hit on a loose one (VR_Gib_Struck, the touch; VR_Gib_Blow, a melee blow; VR_Gib_HeldFrameHand,
+//   one held in the other hand): the hand's speed against it. Short of bursting it bounces off the hand along the hit,
+//   like a volleyball (vr_gib_bounce): a gib tossed up and tapped flies on, struck hard it bursts.
+// - one held and smashed into the level, a monster or a solid thing (VR_Gib_HeldSmash, from VR_Carry_Follow): its speed
+//   into it, as the hand drove it. Before, a held one never burst.
+// - one thrown at a wall or a monster (VR_Gib_Think2, VR_Gib_Touch): as before, its own thresholds (Gib Splat Speed, Hard
+//   Throw Bursts: a thrown gib's hit is seen in its turned velocity, not a relative speed), an intensity of 1.
+// Shots and blasts are damage (T_Damage, VR_Gib_Damage) as before.
+
+float VR_GIB_HIT_GAP = 0.15; // s: hand hits on one gib this close together count once
+
+float(entity g) VR_Gib_BurstSpeed =
+{
+    float mult = 1;
+    if(g.vr_sgib)
+    {
+        mult = cvar_hget(cvarh_vr_gib_burst_small);
+    }
+    else if(g.vr_gib_healthmult >= 1.5)
+    {
+        mult = cvar_hget(cvarh_vr_gib_burst_head);
+    }
+    return max(0.1, cvar_hget(cvarh_vr_gib_burst_speed) * max(0.01, mult));
+};
+
+// `g` met something at `xIntensity` (VR_Gib_BurstSpeed's); `xDir` the way it pushed it (blood flies along it); `xHow` for
+// the console. TRUE: it burst (held, out of the hand first: VR_Gib_HeldSmash).
+void(entity xPlayer, entity xGib) VR_Gib_KnockOut;
+float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact =
+{
+    if(!g.vr_gib || !VR_Gib_IsDestroyable(g))
+    {
+        return FALSE;
+    }
+    float full = max(1, cvar_hget(cvarh_vr_gib_health) * g.vr_gib_healthmult);
+    float wear = 0;
+    if(xIntensity >= 1)
+    {
+        wear = max(full, g.vr_gib_hp);
+    }
+    else if(xIntensity >= 0.5)
+    {
+        wear = full * (xIntensity * 2 - 1);
+    }
+    g.vr_gib_hp = g.vr_gib_hp - wear;
+    float burst = wear > 0 && g.vr_gib_hp <= 0;
+    dprint(sprintf("gib: impact (%s) at %.2f of its burst speed: %s\n", xHow, xIntensity,
+        burst ? "burst" : (wear > 0 ? sprintf("worn, %.1f left", g.vr_gib_hp) : "unhurt")));
+    if(burst)
+    {
+        if(g.carry_player != world)
+        {
+            VR_Gib_KnockOut(g.carry_player, g);
+        }
+        VR_Gib_Burst(g, xDir);
+    }
+    return burst;
+};
+
+// From VR_Carry_Follow (self the player), after its trace of the level from `xFrom` to `xTo` (where the hand wants it):
+// the held gib or head `box` driven into the level along it, or into a monster or a solid thing (a second trace), at its
+// speed into it (its last frame's motion, which followed the hand, and the hand's own) meets the impact rule (VR_Gib_Impact): it bursts, out
+// of the hand, from its burst speed (vr_gib_burst_speed); from half that it is worn. Pressed on, it has stopped there (its
+// motion along the surface): one hit. TRUE: it burst. The trace is left as the level's, as it was.
+float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash =
+{
+    if(!VR_Gib_IsDestroyable(box) || box.carry_player != self || box.velocity == '0 0 0')
+    {
+        return FALSE;
+    }
+    vector n = '0 0 0';
+    vector otherVel = '0 0 0';
+    string what = "the level";
+    float retrace = FALSE;
+    if(trace_fraction < 1 && !trace_startsolid)
+    {
+        n = trace_plane_normal;
+        otherVel = trace_ent.velocity; // (a door, a lift)
+    }
+    else
+    {
+        traceline(xFrom, xTo, FALSE, self); // (held, it is not solid: the line passes it)
+        retrace = TRUE;
+        entity e = trace_ent;
+        if(trace_fraction < 1 && !trace_startsolid && e != world && e != box &&
+           (e.solid == SOLID_BBOX || e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BSP))
+        {
+            n = trace_plane_normal;
+            otherVel = e.velocity;
+            what = e.classname;
+        }
+    }
+    float burst = FALSE;
+    if(n != '0 0 0')
+    {
+        // As fast as both it and the hand that drives it go into it: walking into a wall with it held out, the body's
+        // motion is not a smash (the hand's velocity is its own swing).
+        float hand = self.mainhand_held == box ? cVR_MainHand : cVR_OffHand;
+        float into = min(-((box.velocity - otherVel) * n) * (1 / VRMetersToUnits()), -(VRGetEntHandVel(self, hand) * n));
+        float intensity = into / VR_Gib_BurstSpeed(box);
+        if(intensity >= 0.5)
+        {
+            burst = VR_Gib_Impact(box, intensity, box.velocity, sprintf("held, smashed into %s at %.2f m/s", what, into));
+        }
+    }
+    if(retrace && !burst)
+    {
+        traceline(xFrom, xTo, TRUE, self);
+    }
+    return burst;
+};
+
+// A hand's or weapon's hit on the loose `g` at `xSpeed` (m/s, against it), the striker moving at `xStriker` (units/s):
+// the impact rule, and short of bursting it bounces off the striker along the hit (vr_gib_bounce; not `xStill`: a small
+// gib in its blow grace stays put). FALSE: no hit (the same tap again, VR_GIB_HIT_GAP).
+float(entity g, float xSpeed, vector xStriker, float xStill, string xHow) VR_Gib_HandImpact =
+{
+    if(time < g.vr_gib_hittime + VR_GIB_HIT_GAP)
+    {
+        return FALSE;
+    }
+    g.vr_gib_hittime = time;
+    vector rel = xStriker - g.velocity;
+    vector dir = normalize(rel);
+    if(VR_Gib_Impact(g, xSpeed / VR_Gib_BurstSpeed(g), dir, xHow) || xStill || !g.vr_gib)
+    {
+        return TRUE;
+    }
+    float into = rel * dir;
+    if(into > 0)
+    {
+        vector v = g.velocity + dir * (into * (1 + max(0, min(1, cvar_hget(cvarh_vr_gib_bounce)))));
+        float cap = 15 * VRMetersToUnits();
+        if(vlen(v) > cap)
+        {
+            v = normalize(v) * cap;
+        }
+        dprint(sprintf("gib: bounced off the hit: %v to %v\n", g.velocity, v));
+        g.velocity = v;
+        g.flags = g.flags - (g.flags & FL_ONGROUND);
+    }
+    return TRUE;
+};
+
 // Arms it, and follows a thrown one's flight (VR_Gib_Released). A thrown gib is a rigid body, whose
 // landing on the world touches nothing: a hard hit is seen in its velocity, turned sharply between
 // two frames: bursting it (one that can be destroyed), or slower sticking it (Thrown Gibs Stick).
@@ -2181,7 +2336,7 @@ void() VR_Gib_Think2 =
         {
             dprint(sprintf("gib: struck the world at %.1f, %.2f s after it was let go of, %.0f units from you, now %v\n",
                 lastSpeed, time - self.vr_gib_releasetime, vlen(self.origin - self.carry_letgo.origin), self.velocity));
-            VR_Gib_Burst(self, self.vr_gib_lastvel);
+            VR_Gib_Impact(self, vlen(change) / max(1, splat), self.vr_gib_lastvel, "thrown into the world");
             return;
         }
         // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown), or burst there
@@ -2208,7 +2363,8 @@ void() VR_Gib_Think2 =
                 {
                     dprint(sprintf("gib: thrown hard (the hand at %.1f m/s) into the world at %.1f, %.0f into it, %.2f s after "
                         "it was let go of: burst\n", self.vr_gib_handspeed, lastSpeed, into, time - self.vr_gib_releasetime));
-                    VR_Gib_Burst(self, self.vr_gib_lastvel);
+                    VR_Gib_Impact(self, self.vr_gib_handspeed / max(0.1, cvar_hget(cvarh_vr_gib_splat_throw)),
+                        self.vr_gib_lastvel, "thrown hard into the world");
                     return;
                 }
                 vr_gore_stick_thrown = min(1, cvar_hget(cvarh_vr_gore_stick_thrown));
@@ -2295,11 +2451,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Gib_Damag
         VR_Gib_Burst(targ, dir);
         return TRUE;
     }
-    if(vr_sgib_graceblow)
-    {
-        return TRUE; // a small gib in its blow grace: never batted away (VR_Gib_Hit)
-    }
-
     // Knocked away (a rigid body lying asleep wakes as it moves).
     targ.velocity = targ.velocity + dir * min(400, damage * 12) + '0 0 1' * min(150, damage * 4);
     targ.flags = targ.flags - (targ.flags & FL_ONGROUND);
@@ -2740,8 +2891,8 @@ void() VR_Gib_StuckThink2 =
     }
 };
 
-// The damage of a hand or gun striking a gib at `xSpeed` (m/s; vr_melee_speed or more): the base of
-// a punch at that speed up to three times it.
+// The damage of a hand or gun striking at `xSpeed` (m/s; vr_melee_speed or more): the base of a punch at that speed up to
+// three times it (a corpse's head or limb: vr_decap.qc, vr_limbs.qc; a gib's is the impact rule's, VR_Gib_Impact).
 float(float xSpeed) VR_Gib_StrikeDamage =
 {
     float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
@@ -2750,7 +2901,8 @@ float(float xSpeed) VR_Gib_StrikeDamage =
 
 // A melee blow of `xHand` of `self` (vr_melee.qc: its fist or what it holds swept into it, a blow's speed `xSpeed`, m/s)
 // landing on a loose gib or head (on the floor, flying): struck as one held in the other hand is (VR_Gib_HeldFrameHand),
-// at the blow's speed, weaker short of stamina (VR_Blow_Exhaust, vr_strike_stamina); it bursts.
+// at the blow's speed, weaker short of stamina (VR_Blow_Exhaust, vr_strike_stamina): the impact rule (VR_Gib_Impact), it
+// bursts or bounces off.
 float(float xHand) VR_Blow_Exhaust;
 void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blow =
 {
@@ -2763,7 +2915,14 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     float sgib = xGib.vr_sgib;
     float sgibId = xGib.vr_sgib_id;
     float grace = VR_SmallGib_BlowSpared(xGib);
-    VR_Gib_Hit(xGib, self, VR_Gib_StrikeDamage(xSpeed) * VR_Blow_Exhaust(xHand));
+    // Its speed against the gib (at most the blow's own), weaker short of stamina; the blow's motion bounces it.
+    vector striker = normalize(xDir) * (xSpeed * VRMetersToUnits());
+    if(xDir == '0 0 0')
+    {
+        striker = VRGetEntHandVel(self, xHand) * VRMetersToUnits();
+    }
+    float against = min(xSpeed, vlen(striker - xGib.velocity) * (1 / VRMetersToUnits()));
+    VR_Gib_Hit(xGib, self, against * VR_Blow_Exhaust(xHand), striker, "a blow");
     VR_ClearHitKind();
     if(sgib > 0 && cvar_hget(cvarh_vr_smallgibs_trace))
     {
@@ -2791,7 +2950,7 @@ void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
     dprint(sprintf("gib: struck by the %s hand's touch at %.2f m/s, %.2f s after it was let go of (by the %s hand)\n",
         xHand == cVR_MainHand ? "main" : "off", speed, time - xGib.vr_gib_releasetime,
         xGib.vr_gib_releasehand == cVR_MainHand ? "main" : "off"));
-    VR_Gib_Hit(xGib, xPlayer, VR_Gib_StrikeDamage(speed));
+    VR_Gib_Hit(xGib, xPlayer, speed, handVel * VRMetersToUnits(), "a hand's touch");
 };
 
 // ----------------------------------------------------------------------------
@@ -2949,7 +3108,8 @@ void(float xHand) VR_Gib_HeldFrameHand =
             VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), g);
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
-            T_Damage(g, self, self, VR_Gib_StrikeDamage(speed));
+            g.velocity = VRGetHandVel(holder) * m2u; // (moving with the hand that held it: it bounces off the other)
+            VR_Gib_HandImpact(g, speed, VRGetHandVel(xHand) * m2u, FALSE, "a hand's blow, held in the other");
             VR_ClearHitKind();
             return;
         }
