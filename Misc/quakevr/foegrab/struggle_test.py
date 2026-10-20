@@ -25,13 +25,17 @@ os.environ.setdefault("TB_NODRAW", "1")
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "permdecals"
 ONLY = sys.argv[2] if len(sys.argv) > 2 else ""
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
+CLASS = os.environ.get("STRUGGLE_CLASS", "monster_army")  # (another class: its dispenser number in STRUGGLE_SPAWN)
+SPAWN = os.environ.get("STRUGGLE_SPAWN", "0")
+LIFT_DY = {"monster_hell_knight": 0.2, "monster_enforcer": 0.1}.get(CLASS, 0.0)  # (m: its chest higher than a grunt's)
+TAG = ("" if CLASS == "monster_army" else "_" + CLASS.replace("monster_", "")) + os.environ.get("STRUGGLE_LABEL", "")
 MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
 PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 12;"
-       "vr_knockdown_debug 1;vr_struggle_debug 2;vr_foegrab_lift_time 9;vr_test_spawn 0;vr_test_spawn_dist 36;"
+       "vr_knockdown_debug 1;vr_struggle_debug 2;vr_foegrab_lift_time 9;vr_test_spawn " + SPAWN + ";vr_test_spawn_dist 36;"
        "cl_backspeed 30;impulse 241;wait40")
 DOWN = ("vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait60;"
-        "vr_mock_walk_to nearest monster_army 24;wait200;vr_mock_walk_to off;wait90")
+        "vr_mock_walk_to nearest " + CLASS + " 24;wait200;vr_mock_walk_to off;wait90")
 FILTER = "struggle|lifted|leg diag|MARK|[Ee]rror|CRASH"
 FAILS = 0
 NAMES = ["swat", "pry", "crunch", "claw", "brace", "kick", "thrash"]
@@ -54,7 +58,7 @@ def statuses(t0, t1):
 
 
 def lift_keys():
-    y, near, gap = 1.02, -1.15, 0.09
+    y, near, gap = 1.02 + LIFT_DY, -1.15, 0.09
     m0, o0 = (gap, y, near - 0.08), (-gap, y, near)
     m1, o1 = (gap, y + 0.4, near - 0.08), (-gap, y + 0.4, near)
     k = [(0.0, "main %.3f %.3f %.3f" % m0), (0.0, "off %.3f %.3f %.3f" % o0), (0.3, "cmd +grabmain"), (0.3, "cmd +graboff"),
@@ -66,8 +70,8 @@ def lift_keys():
 def leg_keys(way, walk=False):
     side, back, shin = 0.17, 0.38, -21
     main, off = (side, -0.15, -back), (-side, 0.0, 0.0)
-    k = [(0.0, f"cmd vr_mock_hand_to main nearest monster_army {shin}"),
-         (0.0, f"cmd vr_mock_hand_to off nearest monster_army {shin}"), (0.03, "rel main 0 0 0"), (0.03, "rel off 0 0 0")]
+    k = [(0.0, f"cmd vr_mock_hand_to main nearest {CLASS} {shin}"),
+         (0.0, f"cmd vr_mock_hand_to off nearest {CLASS} {shin}"), (0.03, "rel main 0 0 0"), (0.03, "rel off 0 0 0")]
 
     def at(t, d, low=0.0):
         dy, dz = (d, 0.0) if way == "up" else (0.0, d)
@@ -80,10 +84,11 @@ def leg_keys(way, walk=False):
     return k + statuses(1.2, 4.2) + [(4.4, "cmd -grabmain"), (4.4, "cmd -graboff")]
 
 
-def drag_keys(part, dead=False):
+def drag_keys(part, dead=False, lift=False):
     k = [(0.0, f"cmd vr_mock_hand_to main ragdoll {part}"), (0.03, "rel main 0 0 0"), (0.15, "cmd +grabmain"),
-         (0.5, "rel main 0 0 0"), (0.8, "rel main 0 0.25 0"),  # (lifted a little off the floor)
-         (1.0, "cmd +back"), (3.0, "cmd -back")]
+         (0.5, "rel main 0 0 0"), (0.8, "rel main 0 0.25 0")]  # (lifted a little off the floor)
+    # (Lifted by it, held up before you, not walked: the head hold.)
+    k += [(1.3, "rel main 0 0.75 0")] if lift else [(1.0, "cmd +back"), (3.0, "cmd -back")]
     if dead:
         k.append((2.5, "cmd vr_struggle_status hurt 999"))
     return k + statuses(0.6, 3.6) + [(3.8, "cmd -grabmain")]
@@ -92,12 +97,13 @@ def drag_keys(part, dead=False):
 CASES = {
     "lift": (lift_keys, ""),
     "leglift": (lambda: leg_keys("up"), ""),
-    "legdrag": (lambda: drag_keys("7 0"), DOWN.replace("monster_army 24", "monster_army 44")),
+    "legdrag": (lambda: drag_keys("7 0"), DOWN.replace(CLASS + " 24", CLASS + " 44")),
     "headdrag": (lambda: drag_keys("head 0"), DOWN),
+    "headlift": (lambda: drag_keys("head 0", lift=True), DOWN),
     "armdrag": (lambda: drag_keys("6 0"), DOWN),
     "dead": (lambda: drag_keys("head 0", dead=True), DOWN),
 }
-LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "headdrag": "pry", "armdrag": "pry"}
+LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "headdrag": "pry", "headlift": "pry", "armdrag": "pry"}
 
 
 def verdict(ok, what):
@@ -118,7 +124,8 @@ def parse(out):
         r"a hand ([\d.]+) from its head; chest up ([-\d.]+)", flat)]
     traces = re.findall(r"struggle: \d+ ([\d.]+) s w .*? effort ([\d.]+) .*? straight ([\d.]+) ", flat)
     cost = [float(x) for x in re.findall(r"struggling; ([\d.]+) ms a frame", flat)]
-    return flat, weights, holds, traces, cost
+    flail = [(float(a), float(b)) for a, b in re.findall(r"flail ([\d.]+) u/s miss ([\d.]+) u", flat)]
+    return flat, weights, holds, traces, cost, flail
 
 
 def stats(xs):
@@ -134,21 +141,23 @@ def main():
             case = name + ("_off" if off else "")
             if (ONLY and not re.search(ONLY, case)) or (off and name == "dead"):
                 continue
-            path = motion("struggle_" + case, keys())
-            script = (f"{PRE};{pre};{'vr_struggle 0;' if off else ''}vr_mock_play {path};wait420;-grabmain;-graboff;"
+            path = motion("struggle_" + case + TAG, keys())
+            script = (f"{PRE};{pre};{os.environ.get('STRUGGLE_EXTRA', '')};{'vr_struggle 0;' if off else ''}vr_mock_play {path};wait420;-grabmain;-graboff;"
                       "-back;wait5;toggleconsole;quit")
             handles[case] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "240"])
     b.run()
     res = {}
     for case, h in handles.items():
         out = b.output(h).replace("\r", "")
-        with open(os.path.join(SCRATCH, f"struggle_{case}.txt"), "w") as f:
+        with open(os.path.join(SCRATCH, f"struggle_{case}{TAG}.txt"), "w") as f:
             f.write(out)
         res[case] = parse(out)
     for name in CASES:
         if name not in res:
             continue
-        flat, weights, holds, traces, cost = res[name]
+        flat, weights, holds, traces, cost, flail = res[name]
+        fl = flail[len(flail) // 3:]
+        flails = (f"; flail {sum(x[0] for x in fl) / len(fl):.1f} u/s (miss {sum(x[1] for x in fl) / len(fl):.1f})" if fl else "")
         bad = bool(re.search(r"\b[Ee]rror|CRASH", flat))
         lag_on = stats([x[0] for x in holds])
         offr = res.get(name + "_off")
@@ -174,6 +183,7 @@ def main():
                                "leglift": (3, "its head over its pelvis", True),
                                "legdrag": (2, "belly down", True),
                                "headdrag": (5, "an arm from the holding hand", False),
+                               "headlift": (5, "an arm from the holding hand", False),
                                "armdrag": (8, "chest up (Stay Upright)", True)}[name]
             pick = (lambda xs: min(xs)) if name == "lift" else (lambda xs: sum(xs) / len(xs))
             a = pick([x[col] for x in on_p]) if on_p else 0.0
@@ -188,7 +198,7 @@ def main():
             extra = (f"; {word} {a:.2f} (off {z:.2f}: {'as meant' if moved else 'NOT as meant'}); bend "
                      f"{pose(on_p, 1)[0]:.0f} (off {pose(off_p, 1)[0]:.0f})")
         verdict(ok, f"{name}: leads {lead} ({ws}); lag mean/most {lag_on[0]:.1f}/{lag_on[1]:.1f} units (off "
-                    f"{lag_off[0]:.1f}/{lag_off[1]:.1f}){extra}; cost {max(cost or [0]):.4f} ms/frame")
+                    f"{lag_off[0]:.1f}/{lag_off[1]:.1f}){extra}{flails}; cost {max(cost or [0]):.4f} ms/frame")
     print(f"{FAILS} failed")
     return 1 if FAILS else 0
 

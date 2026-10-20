@@ -4026,7 +4026,9 @@ void drive(State& s, const Parts& p, const Context& c)
         const glm::quat frame = ragpose::jointFrame(bone);
         const glm::quat qp = bodyRot(p, bone.parent);
         const GroupGains& gg = groupGains(channelOf(bone)); // (vr_ragdoll_active_*_<group>: 1 each by default)
-        const float hertz = za::min(hertzAt1 * gg.hertz * za::sqrt(k), maxHertz);
+        // (Struggling, its class's arm drive: its arms' springs stiffer, their cap too: struggleFrame's arms.)
+        const float armDrive = s.struggle.on && channelOf(bone) == Channel::Arms ? s.struggle.arms : 1.f;
+        const float hertz = za::min(hertzAt1 * gg.hertz * za::sqrt(k) * armDrive, maxHertz * armDrive);
         const float most = s.friction + k * s.cap[i] * torque * gg.torque;
         const float jointDamping = damping * gg.damping;
         if(bone.joint == ragdoll::Joint::Ball)

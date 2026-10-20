@@ -490,6 +490,7 @@ struct StruggleInput
     glm::vec3 eye{0.f}, feet{0.f}; // the holding player's head and feet (world, metres)
     float health{1.f};             // its health over its class's (0..1)
     float strength{1.f}, speed{1.f}; // its class's (vr_struggle_classes)
+    float arms{1.f};                 // its class's arm drive: its arms' springs this many times stiffer (vr_struggle_classes)
 };
 
 struct Struggle
@@ -531,6 +532,13 @@ struct Struggle
     float heldArm{0.f}, upright{0.f}, uprightForce{0.f}, chestUp{0.f};
     // Its free hands from its own head (units: the nearest; how far over its top the highest is).
     float handsToHead{0.f}, handsOverHead{0.f};
+    // Its free hands' motion since vr_struggle_status last read it (its flailing's measure): the path their tips went in
+    // its chest's frame (units, each arm's added), the time (s), the summed misses of their goals (units x s).
+    za::Array<glm::vec3, 2> handWas{};
+    za::Array<bool, 2> handWasSet{};
+    float handPath{0.f}, handTime{0.f}, goalMiss{0.f};
+    // Its class's arm drive (StruggleInput::arms; the drive's arm springs times this, their cap too).
+    float arms{1.f};
     // Its voice (vr_struggle_voice; vr_box3d_struggle.cpp): the next cry, how many so far, the last sample's index.
     double nextVoice{0.0}, voicedAt{-1e9};
     int voices{0};
