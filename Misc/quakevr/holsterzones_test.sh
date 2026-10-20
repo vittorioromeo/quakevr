@@ -4,7 +4,8 @@
 # its grip put at the right hip holster as drawn (vr_mock_hand_to main zonegrip 3 <out> <side> 0: units in the holster's
 # frame, whose `out` is sideways at the hip: negative is in, towards the ammo pouch), let go: IN (back in the holster) or
 # DROP. vr_holster_zones 0 (the old spheres) drops it 1 unit in from the drawn holster (no hotspot) and 2 in (the ammo
-# pouch's hotspot); the zones take it in, but towards the pouch (his zones, 2026-10-17: thin, 4 units in drops it).
+# pouch's hotspot); the zones take it in, but towards the pouch (his zones, 2026-10-17: thin, 4 units in drops it;
+# config 156, his narrower hip zone moved 0.5 in: 2 units out is still in, 3 out drops it).
 # The hand point (vr_holster_zone_hand_point): the palm of the hand holding the gun put 3 units in (zonepalm), its gun's
 # grip and body out of the box: IN with it, DROP without. Then the empty off hand at the middle of every holster's and
 # pouch's box (zonebox; his chest boxes no longer take the holster as drawn): its hotspot. The gun is drawn from the
@@ -24,7 +25,7 @@ if [ "$2" = "shot" ]; then
     exit 0
 fi
 # mode:point:hand point:out,side:expected (mode 0 the old spheres, 1 the zones; point: grip or palm)
-CASES="0:grip:1:0,0:IN 0:grip:1:-1,0:DROP 0:grip:1:-2,0:DROP 0:grip:1:-3,0:DROP 1:grip:1:3,0:IN 1:grip:1:0,0:IN 1:grip:1:-2,0:IN 1:grip:1:-4,0:DROP 1:grip:1:-7,0:DROP 1:grip:1:6,0:DROP 1:palm:1:-3,0:IN 1:palm:0:-3,0:DROP"
+CASES="0:grip:1:0,0:IN 0:grip:1:-1,0:DROP 0:grip:1:-2,0:DROP 0:grip:1:-3,0:DROP 1:grip:1:2,0:IN 1:grip:1:0,0:IN 1:grip:1:-2,0:IN 1:grip:1:-4,0:DROP 1:grip:1:-7,0:DROP 1:grip:1:6,0:DROP 1:palm:1:-3,0:IN 1:palm:0:-3,0:DROP"
 for c in $CASES; do
     IFS=: read mode point hp pos want <<< "$c"
     if [ $mode = 0 ]; then D=$(draw "holster 3"); else D=$(draw "zone 3"); fi

@@ -39,7 +39,7 @@ mkdir -p "$D"
 OFFX=${OFFX:--0.83}; MAINX=${MAINX:-0.35}; MAINY=${MAINY:-2.0}; MAINZ=${MAINZ:--0.55}; FLING=${FLING:-150}
 python -c "
 import sys; sys.path.insert(0, sys.argv[1]); import climb_plays as c
-for name, args in (('pc_mantle', (1.52, 0.72, -0.69, -0.49)), ('pc_stack', (3.04, 1.0)), ('pc_side', (1.27, 0.47, -0.69, -0.49)),
+for name, args in (('pc_mantle', (1.52, 0.72, -0.69, -0.49)), ('pc_stack', (3.04, 0.72)), ('pc_side', (1.27, 0.47, -0.69, -0.49)),
                    ('pc_hang', (1.52, 1.37, -0.69, -0.69)), ('pc_hangfar', (1.52, 1.37, -1.0, -1.0))):
     L, t = c.pullup(*args); c.write(sys.argv[2] + '/' + name + '.txt', L)
 L, t = c.mover('liftride'); c.write(sys.argv[2] + '/pc_liftride.txt', L)
