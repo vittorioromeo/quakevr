@@ -15546,3 +15546,40 @@ Result: 10/10 caught, 0/8 false at L 0.25, 0.5, 0.75 and 1 (L 0: 6/10, its head 
 `eval.sh --full` melee verdicts unchanged (3 rows differ by 0.1 in an offset only). In VR: charge with the head down
 and see it fire; run head-up into monsters and see it not; a charge with the head up needs Head Down lower or the
 leniency up.
+## 1.1 sweep: AD and melee test failures (worktree `dequant`, branch `agent/regfix5`, 2026-10-21)
+
+Each failing test from the 1.1 suite sweep, real or stale, and what was done:
+
+- **ad_hits** (25/57/12 for 24/56/9): stale. Sneak attack (`vr_stealth_sneak` 1.25) on the frozen, unaware test grunt:
+  the volley's first pellet (it has no enemy yet) is x1.25, AD's T_Damage ceils it (4 -> 5, 9 -> 12). The test sets
+  `vr_stealth_sneak 1`. PASS.
+- **ad_pop_odds** (mode 51 health -2): stale, the same: the corpse is made by `T_Damage(g, g, p, 2)` on a 1-health grunt,
+  x1.25 ceiled to 3. `vr_stealth_sneak 1` in its setup. PASS (volleys 0.735 / 0.694 / 0.749 as before).
+- **adbugs stealth, map_trigger_wakes**: stale harness. AD's `monster_use` wakes only for AD's player
+  (`ad_classtype` CT_PLAYER, set on AD's maps); the test runs on e1m1 with the debug spawner's AD soldier. Scene 7
+  (`vr_stealth_test.qc`) now pulls the trigger as AD's player (the field set round the call). 15/15 scenes.
+- **melee_space**: real. AD's monsters spawn in the test install now and two came into the face: the zombie knight's
+  melee start lunges 20 units (`zombiek_melee`'s `walkmove`), unchecked (gap 0.5), and the hunter ogre's chainsaw swing
+  goes on with `ai_forward` steps after its charge steps (8.9-13.8). Importer patches (`ad_import.py`, AD_IMPORT.txt):
+  `zombiek_melee`'s lunge and `Demon_Claw`'s 12-unit step are melee-space steps (as `ai_charge_front`'s);
+  `ai_forward` within 0.25 s of a melee stamp keeps the stamp and is one too (other forward steps unchanged). After: the
+  zombie knight 16.0/16.1, the hunter ogre 16.0. `melee_space_test.sh` takes `MONSTERS=` to run a few.
+- **melee_phase grunt_gun_hold1** (0.18-1.95 units drawn while phasing): stale check. The shotgun is already pressed into
+  the grunt when the hold-1 swing starts (left there by hold0); the phase's first frames ease that press away (0.18 ->
+  0.07 -> 0.03..., touching nothing: 0 planes). The check now skips phasing frames with no contact whose drawn offset
+  shrinks. 7/7. `grunt_fast_on` gave 0 hits in 1 of 3 runs (a flake, not followed).
+- **parry callback**: stale. The knight staggers as an active ragdoll (`vr_parry_ragdoll`), so the knockdown's think
+  owns it, not `VR_Parry_Recover`: "recovery think" counts either. `callback_0` retired (vr_parry_interrupt is gone; the
+  setup never read it). **dragon**: the observer's "next think" (`nextthink > time`) read 0 when the dragon's think fell
+  in the observer's frame (1 of 3 runs here); now "a think is scheduled" (and its delay printed: 0.100 s). 3/3 PASS.
+- **prop_2h** ("the other hand is not within reach"): stale harness. Bisected to 4c98c13ba (2026-10-12, solid carried
+  props kept out of the torso): the 70 cm barrel held 30 cm ahead of the chest is pushed forward and the off hand, 50 cm
+  from the main one, misses its surface by 4-12 cm. The hands start 45 cm ahead now (`CHEST_AHEAD`): both hands, thrown
+  into the ogre for 55. The small crate (107) never takes the second hand at this hand spacing either way (narrower).
+- **rl_voice_20261012** (18 reinsertion checks): stale count. `vr_reload_test 28` has 21 checks since the Reinsertion
+  Delay's 3; 21 passed, 0 failed.
+- **"check DP_QC_MINMAXBOUND before calling (: OnLoadGame)"**: harmless. Ironwail's developer warning for a builtin
+  called before `checkextension` of its extension (`PR_CheckBuiltinExtension`); our progs never call `checkextension`,
+  so the first caller of each extension builtin after each map spawn is named (a new map too: FRIK_FILE in
+  VR_PrecacheOwnModel, DP_QC_MINMAXBOUND in VR_Crate_FullHealth, ...). After a load OnLoadGame is the first `min`.
+  The engine has and advertises them all; only shown with `developer`.

@@ -265,7 +265,10 @@ void()	ad_zombiek_attc14=[	$attc14,	ad_zombiek_run1	] {};
 void() ad_zombiek_melee =
 {
 	ad_ai_face ();		// Turn towards enemy target
+	self.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)
+	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_walkmove (self.ideal_yaw, 20);
+	VR_MeleeSpace_Step(ad_before);
 
 	// Randomly select melee attacks
 	if (random() < 0.5) ad_zombiek_attb1();	// Stationary over arm swing 

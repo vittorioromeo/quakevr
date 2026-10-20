@@ -281,7 +281,12 @@ void() VR_Stealth_TestFrame =
             activator = p;
             if(VR_Stealth_AD(m))
             {
-                VR_AD_StealthTestUse(); // AD support: AD's monster_use
+                // AD support: AD's monster_use, which wakes only for AD's player (AD's maps: the player is AD's there). On
+                // a Quake map (e1m1, the debug spawner's AD soldier) he is not: the trigger is pulled as AD's player.
+                float adclass = p.ad_classtype;
+                p.ad_classtype = ad_CT_PLAYER;
+                VR_AD_StealthTestUse();
+                p.ad_classtype = adclass;
             }
             else
             {
