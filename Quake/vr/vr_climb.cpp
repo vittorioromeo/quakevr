@@ -129,7 +129,7 @@
 //
 // The QC never sees the grip of a hand that holds (its grab bits are masked in .vrbits0 from the press until the
 // release), so the press picks nothing up; instead .vrbits0 bits 15 (off hand) and 16 (main hand) tell it the hand
-// holds (QVR_VRBITS0_*HAND_CLIMBING: no melee blows). The client gets the holds as stats (STAT_QVR_CLIMB*).
+// holds, both while it mantles (QVR_VRBITS0_*HAND_CLIMBING: no melee blows, no force grab). The client gets the holds as stats (STAT_QVR_CLIMB*).
 
 #include "vr_climb.hpp"
 #include "vr_avatar.hpp"
@@ -2358,7 +2358,8 @@ static void climbPreThink(edict_t* ent)
             {
                 bits &= ~prevGrabBit[h];
             }
-            bits = g.active ? bits | climbingBit[h] : bits & ~climbingBit[h];
+            // (Mantling: both, its hands on the ledge though their grips have gone: no force grab, no blows.)
+            bits = g.active || c.mantling ? bits | climbingBit[h] : bits & ~climbingBit[h];
         }
         fieldFloat(ent, vrbits) = static_cast<float>(bits);
     }

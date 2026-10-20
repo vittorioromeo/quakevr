@@ -824,13 +824,14 @@ void stayUp(State& s, const Parts& p, const Context& c)
 }
 
 // The traces' measures (each frame: cheap).
-void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLimbsBits)
+void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLimbsBits, float dt)
 {
     Struggle& g = s.struggle;
     const int chest = chestPart(p), head = headPart(p);
     g.handGap = 1e9f;
     g.handsToHead = 1e9f;
     g.handsOverHead = -1e9f;
+    g.handTime += dt;
     const glm::vec3 headAt = head >= 0 ? middleOf(p, head) : glm::vec3{0.f};
     const float headTop = head >= 0 ? za::max(headAt.z, pointOf(p, head, p.rig->bones[head].end).z) : 0.f;
     for(int arm = 0; arm < 2; arm++)
@@ -840,6 +841,16 @@ void measure(State& s, const Parts& p, const StruggleInput& in, uint32_t heldLim
             continue;
         }
         const glm::vec3 tip = limbTip(s, p, arm);
+        {
+            // (Its flailing's measure: the hand's path in its chest's frame, and how far it is from its goal.)
+            const glm::vec3 local = glm::inverse(rotOf(p, chest)) * (tip - middleOf(p, chest)) * p.m2u;
+            const auto i = static_cast<za::SizeT>(arm);
+            g.handPath += g.handWasSet[i] ? glm::distance(local, g.handWas[i]) : 0.f;
+            g.handWas[i] = local;
+            g.handWasSet[i] = true;
+            const Reach& r = s.reach[i];
+            g.goalMiss += r.weight > 0.f ? glm::distance(r.goal, tip) * p.m2u * dt : 0.f;
+        }
         if(head >= 0)
         {
             g.handsToHead = za::min(g.handsToHead, glm::distance(tip, headAt) * p.m2u);
@@ -991,6 +1002,7 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     const double t0 = Sys_DoubleTime();
     sense(s, p, c);
     holds(s, p, *in, c.dt);
+    g.arms = za::clamp(in->arms, 1.f, 2.5f);
     effort(s, *in, c);
     weights(s, c);
     // Its limbs' rhythm: each limb's phase on at its behaviours' blended rate, quicker in a fit.
@@ -1056,7 +1068,7 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     rollOver(s, p, c);
     crunchPull(s, p, c, heldLimbsBits);
     stayUp(s, p, c);
-    measure(s, p, *in, heldLimbsBits);
+    measure(s, p, *in, heldLimbsBits, c.dt);
     if(vr_struggle_debug.value >= 2.f && g.frame % traceEvery == 1)
     {
         Con_Printf("struggle: %d %.2f s w %.2f %.2f %.2f %.2f %.2f %.2f %.2f effort %.2f fatigue %.2f held t%.0f h%.0f "

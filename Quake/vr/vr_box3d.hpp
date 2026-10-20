@@ -354,9 +354,11 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
 // when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
 // let go of as any (ragdollRelease). `head`: its head's part instead of the nearest, if not cut off and its middle within
-// `reach` and 12 units more (the neck snap's: the hands held its head).
+// `reach` and 12 units more (the neck snap's: the hands held its head). `torso` (a lift): its chest or pelvis instead of
+// an arm across it (an enforcer's forearms before his chest, his rifle in both hands), the torso's surface within 10
+// units more than the arm's (else that arm: lifted by it, it hung slack and could not flail).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
-    bool head = false);
+    bool head = false, bool torso = false);
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);

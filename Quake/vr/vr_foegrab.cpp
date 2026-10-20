@@ -694,7 +694,7 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
         const Hold& g = hd.holds[h];
         if(!g.active || g.ent != NUM_FOR_EDICT(m) ||
             !box3d::ragdollHoldSoft(m, player, h, softReach, force, za::clamp(hertz, 0.5f, 30.f), softStuck,
-                why == Why::Snapped))
+                why == Why::Snapped, lift))
         {
             continue;
         }

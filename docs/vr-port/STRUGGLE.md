@@ -79,8 +79,8 @@ Round 22's second pass (his VR notes; ROUND22.md, "Struggle 2"):
   its back rights its chest (a capped turn, 0.045 body weights x m); its legs hold up to 0.8 of its weight once its
   chest is up past 0.2 and its middle sinks below a crouch (`stayUp`). Not eased by the grip guard (holding its own
   weight eases the hold). Lying flat it can only try to sit up: it is not lifted.
-- **Voice** (`vr_struggle_voice` 1, `vr_struggle_voice_gap` 1.8 s): its own class's samples (AD's `ad_pain_sound`,
-  `ad_pain_sound2`, `ad_sight_sound`, `ad_idle_sound` fields; id1's from a table; only precached ones) on CHAN_AUTO,
+- **Voice** (`vr_struggle_voice` 1, `vr_struggle_voice_gap` 1.8 s): its own class's samples, never a sight sound (AD's
+  `ad_pain_sound`, `ad_pain_sound2`, `ad_idle_sound` fields; id1's from a table; only precached ones) on CHAN_AUTO,
   ATTN_NORM: one as it is taken, then every gap x (0.6..1.4) / (0.45 + 0.55 effort), one as a burst begins (0.7 s
   apart at least), none within 0.6 s of a hit (the QC's pain sound), never the same sample twice running, idles only
   once its effort is under 0.5, volume 0.4 + 0.6 effort, pitch 0.94..1.06 (`struggleVoice`).
@@ -111,9 +111,20 @@ effort = ramp in (0.35 s) x (1 - fatigue x (1 - Effort When Tired)) x burst x fl
 
 ## Classes
 
-`vr_struggle_classes`: `classname[:strength[:speed[:health]]]` words. The shipped list: grunt, enforcer, knight, death
-knight, and AD's soldiers and knights (defender, eliminator, pyro, fumigator, crossbow, fury, guard, dknight, sergeant).
-Not ogres, zombies, fiends, shamblers or vores. Health is its full health, used for its effort.
+`vr_struggle_classes`: `classname[:strength[:speed[:health[:arms]]]]` words. The shipped list: grunt, enforcer, knight,
+death knight, zombie (since configVersion 174), and AD's soldiers and knights (defender, eliminator, pyro, fumigator,
+crossbow, fury, guard, dknight, sergeant). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
+effort. Arms (1..2.5, 1 if left out): while it struggles its arms' joint springs (and their 20 Hz cap) are that many
+times stiffer. A Box3D joint's spring acts on its two bodies' own inertia, so an arm whose forearm outweighs its upper
+arm lags its goals: the enforcer's forearms (his gun hands) are 5 kg on 0.9-2.3 kg upper arms and a 58 kg chest (the
+grunt's 0.9 kg on 3-4 kg). Shipped: enforcer 2.5, death knight 1.5, zombie 1.5 (ROUND22.md, "Struggle 3").
+
+A lift (`foegrab` handOver, Why::Lifted) holds its chest or pelvis rather than an arm across it when the torso's
+surface is within 10 units more of the hand (`ragdollHoldSoft`'s `torso`): the enforcer's forearms are before his chest
+(the rifle in both hands), so a chest lift took a forearm and that arm hung slack.
+
+Voices never use a sight sound (its cry on noticing you): the table has none, AD's `ad_sight_sound` is not read, and a
+sample named `sight` is skipped.
 
 ## Debug and tests
 
@@ -128,6 +139,10 @@ Not ogres, zombies, fiends, shamblers or vores. Health is its full health, used 
   for the cost with many.
 - `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legdrag (INFO: the mock cannot take a lying leg), headdrag, armdrag (each also with the
   struggle off) and dead.
+- `vr_struggle_status` ends each struggling line with `flail <u/s> miss <u>`: its free hands' speed in its chest's
+  frame and their mean distance from their goals since the last call (the flailing's measure). `STRUGGLE_CLASS`,
+  `STRUGGLE_SPAWN` (its dispenser number), `STRUGGLE_EXTRA` (commands) and `STRUGGLE_LABEL` run struggle_test.py on
+  another class; it also has `headlift` (held up by its head before you).
 - `vr_struggle_status` also prints its free hands from its own head and over it, Upright, the force holding it up,
   its chest's uprightness and its voices; each hold line its nearest hand from its head and its chest up.
   `vr_struggle_debug 1` prints each voice.
