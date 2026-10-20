@@ -46,6 +46,7 @@
 #include "vr_body.hpp"
 #include "vr_bodytrack.hpp"
 #include "vr_hands.hpp"
+#include "vr_handpose.hpp"
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_hotblade.hpp"
@@ -2061,6 +2062,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
+    Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
     qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);

@@ -171,6 +171,9 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),
+        command("Weapons Into the Walls", "vr_gun_wall_depth")
+            .help("vr_gun_wall_depth: each hand's weapon as drawn (held by its handle, by a hotspot, anywhere, two-handed): "
+                  "how deep it goes into the walls and floors, and how far they hold the hand out, in the console."),
         cycle("Log Hand Offsets", vr_debug_hand_offset, {{0.f, "Off"}, {1.f, "When Moved"}, {2.f, "Every Frame"}})
             .help("Each hand drawn away from where it is tracked, and by what (walls, the weight's spring, models, the body, "
                   "a held thing against a wall, the other hand's weapon or held thing), in the console."),

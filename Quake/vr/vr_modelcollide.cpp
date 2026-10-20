@@ -467,6 +467,7 @@ struct Recorded
     const qmodel_t* model{nullptr};
     int frame{0};
     glm::mat4 toHand{1.f}; // the model's raw coordinates to the hand's frame
+    glm::vec3 handPos{0.f}, handRot{0.f}; // that frame: the hand as drawn (drawnWeaponPoints)
     za::Vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
 };
 Recorded recorded[2];
@@ -1245,14 +1246,17 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        // The weapon as drawn, in the frame of the hand as drawn.
+        // The weapon as drawn, in the frame of the hand as drawn (a gun carried off its handle too: in the frame of the
+        // hand carrying it, as it is carried; the walls hold it out, vr_handpose.cpp, though the models don't: notTested).
         Recorded& r = recorded[hand];
         const entity_t* e = weapon[hand];
-        r.valid = e && e->model && quakeAlias(e->model) && !twohand::carrying(hand);
+        r.valid = e && e->model && quakeAlias(e->model);
         if(r.valid)
         {
             r.model = e->model;
             r.frame = e->frame;
+            r.handPos = s.pos[hand];
+            r.handRot = s.visualRot[hand];
             r.toHand = glm::inverse(handFrame(s.pos[hand], s.visualRot[hand])) * grasp::shapeToWorld(*e, mirrored[hand]);
         }
         // And the prop it holds alone, from the hand as drawn with it (moved by meeting the other's or a wall).
@@ -1311,6 +1315,24 @@ bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out)
             out.pushBack(glm::vec3{turn * glm::vec4{v, 1.f}});
         }
     }
+    return !out.empty();
+}
+
+bool drawnWeaponPoints(int hand, za::Vector<glm::vec3>& out, glm::vec3& from)
+{
+    out.clear();
+    const Recorded& r = recorded[hand];
+    const za::Vector<glm::vec3>* samples = r.valid ? samplesOf(r.model, r.frame) : nullptr;
+    if(!samples)
+    {
+        return false;
+    }
+    const glm::mat4 toWorld = handFrame(r.handPos, r.handRot) * r.toHand;
+    for(const glm::vec3& v : *samples)
+    {
+        out.pushBack(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+    }
+    from = r.handPos;
     return !out.empty();
 }
 

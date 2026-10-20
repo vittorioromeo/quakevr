@@ -14879,3 +14879,31 @@ island edge, so blades and handles can't pull texels across a seam; not seen mov
 - **For VR**: hold the Shadow Axe, the Widowmaker, an AD soldier's gun and a death knight's sword close up under a
   torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
   axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.
+
+## Weapons held off their handle collide with the level (worktree `goreflesh`, branch `agent/gripcollide`, 2026-10-20)
+
+The author: a weapon held anywhere but its main handle (by a secondary hotspot, or anywhere on it) passed through walls
+and floors. Cause: the walls' test (vr_handpose.cpp resolvePositions, round 21's slide) ran only for a hand with a
+muzzle, and a weapon carried off its handle (the hand-off, taken off the floor by a hotspot or anywhere: twohand::carrying)
+has none ("no aim"); its shape (modelcollide::weaponShape) was not recorded for it either. Now its shape is its drawn
+model in the frame of the carrying hand (as a held weapon's is in its hand's), its tip the carried tip as drawn
+(view::carriedWeaponPose), and it slides out of the level as a held one does. Carried with the other hand on it too
+(drawn between the hands: carriedInBoth), the other hand is moved by the same push, so the weapon moves as a whole and
+both grips stay on it. Held by its handle, with or without the other hand (a hotspot, anywhere: either hand primary),
+nothing changed: the holding hand already carried the test. The models' push (vr_model_collide) still skips carried
+weapons, as before.
+
+**Measure**: `vr_gun_wall_depth` (the Debug page, "Weapons Into the Walls", by Log Hand Offsets): each hand's drawn weapon, how many of its
+sample points are in the level and how deep (lines from the eyes), and how far the walls held the hand out.
+`bash Misc/quakevr/gun_wall_test.sh <agent>`: each grip walked into vrtesthall's north wall. Deepest point, before ->
+after: by the handle 5.0 -> 5.0 cm (main), 4.9 -> 4.9 (off); handle + other hand anywhere 5.1 -> 5.1 (either hand
+primary); hand-off, carried anywhere 13.5 -> 0; taken off the floor anywhere 29.4 -> 0; by the crowbar's blade hotspot
+18.5 -> 0; carried with both hands 28.8 -> 0. Pushing against the wall for 60 frames: no hand moves (0.000 units, every
+grip). eval.sh --full: 169/177, verdicts as the baseline (one event's offset 39.1 -> 39.0 units, PASS both).
+
+Seen while testing (not changed): an empty hand pushed into a wall is drawn up to 3 cm into it (walls 0 in
+vr_debug_hand_offset: the torso-to-hand stop doesn't catch it there).
+
+- **For VR**: take a weapon off the floor by its barrel or a crowbar by its blade, and hand a shotgun off to the other
+  hand's grip on its barrel; push each into a wall and the floor (and with both hands on it): it should stop at the
+  surface and slide along it, as a weapon held by its handle does, the hands staying where they hold it.

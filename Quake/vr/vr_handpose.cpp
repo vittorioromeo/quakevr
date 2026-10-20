@@ -11,6 +11,10 @@
 // turn put it into along that surface's normal (the rays from the hand to its points; Gauss-Seidel),
 // as far as vr_gun_wall_max. vr_gun_wall_slide 0: the old push-back along the aim (the hand moved
 // back so that the muzzle stops at the wall). Hands stay within 50 units of the torso.
+// However the weapon is held: by its handle, or carried off it (taken by a hotspot or anywhere on it, or after the
+// hand-off: no muzzle, its tip as drawn instead), its points in the frame of the hand carrying it; carried with the other
+// hand on it too (drawn between the hands), the other hand is held out with it (ROUND22.md, "Weapons held off their
+// handle collide with the level"; they went through walls and floors before).
 //
 // Weight: what a hand holds follows it through a spring (vr_weight.cpp), after the two-handed aim (weightDirections).
 // The old engine's weight (each frame a hand moved and turned only part of the way to the tracked pose, the Speed
@@ -25,7 +29,9 @@
 #include "vr_modelcollide.hpp"
 #include "vr_protocol.hpp"
 #include "vr_trace.hpp"
+#include "vr_twohand.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
@@ -294,6 +300,26 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
     return glm::length(off) > 0.01f;
 }
 
+// The tip of the weapon in `hand` as placed last frame, as tracked (less the models' drawn push, as the muzzle is): its
+// muzzle; one carried off its handle (by a hotspot, anywhere on it, after the hand-off) has no aim and no muzzle: its tip
+// as drawn. False with neither.
+[[nodiscard]] bool lastTip(const hands::State& s, int hand, glm::vec3& out)
+{
+    if(s.muzzleValid[hand])
+    {
+        out = s.muzzle[hand];
+        return true;
+    }
+    glm::vec3 pos, rot, tip;
+    bool mirrored = false;
+    if(twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip))
+    {
+        out = tip - modelcollide::drawnOffset(hand);
+        return true;
+    }
+    return false;
+}
+
 } // namespace
 
 void resolvePositions(hands::State& s, float /* turnYaw */)
@@ -320,6 +346,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         torso = {s.playerOrigin.x + offset.x, s.playerOrigin.y + offset.y, chest.z};
     }
 
+    glm::vec3 gunPush[HAND_COUNT]{glm::vec3{0.f}, glm::vec3{0.f}};
     for(int h = 0; h < HAND_COUNT; h++)
     {
         HandMemory& m = memory[h];
@@ -327,10 +354,14 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         stopAtWall(pos, torso, s.pos[h]);
 
         // The weapon (and what the hand holds) must not go through walls either: from where it was placed last frame.
+        // However it is held: by its handle, or carried off it (by a hotspot, anywhere on it, after the hand-off), its
+        // shape is its drawn model's in the frame of the hand holding or carrying it.
         colliding[h] = false;
-        if(m.valid && s.muzzleValid[h])
+        glm::vec3 tip{0.f};
+        if(m.valid && lastTip(s, h, tip))
         {
-            const glm::vec3 last = s.muzzle[h] - m.lastPos;
+            const glm::vec3 before = pos;
+            const glm::vec3 last = tip - m.lastPos;
             if(vr_gun_wall_slide.value)
             {
                 // Where the muzzle was from the hand last frame, turned as the hand is now.
@@ -344,6 +375,7 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                 m.gunValid = m.slid = false;
                 colliding[h] = stopAtWall(pos, pos, pos + last, last);
             }
+            gunPush[h] = pos - before;
         }
         else
         {
@@ -376,6 +408,19 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         m.lastPos = pos;
         m.valid = true;
     }
+
+    // A weapon carried off its handle with the other hand on it too is placed between the hands (vr_twohand.cpp's
+    // carriedInBoth): the other hand held out with the carrying one, so that the weapon moves as a whole by the push.
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const int other = 1 - h;
+        if(glm::dot(gunPush[h], gunPush[h]) > 0.f && twohand::carrying(h) && twohand::freeHelping(other))
+        {
+            s.pos[other] += gunPush[h];
+            wallPushes[other] += gunPush[h];
+            memory[other].lastPos = s.pos[other];
+        }
+    }
 }
 
 void weightDirections(hands::State& s, float turnYaw)
@@ -398,6 +443,57 @@ bool gunColliding(int hand)
 glm::vec3 wallPush(int hand)
 {
     return hand == 0 || hand == 1 ? wallPushes[hand] : glm::vec3{0.f};
+}
+
+void gunWallDepth_f()
+{
+    za::Vector<glm::vec3>& pts = scratch.model;
+    const float cm = 100.f / units::metresToUnits();
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const char* name = h == HAND_MAIN ? "main" : "off";
+        glm::vec3 from{0.f};
+        if(!modelcollide::drawnWeaponPoints(h, pts, from))
+        {
+            Con_Printf("gunwall: %s hand, no weapon drawn\n", name);
+            continue;
+        }
+        const char* how = twohand::carrying(h) ? (twohand::freeHelping(1 - h) ? "carried2h" : "carried")
+                        : twohand::helping(1 - h) ? (twohand::freeHelping(1 - h) ? "held+anywhere" : "held+hotspot")
+                                                  : "held";
+        // The drawn weapon's points inside the level: the line from the eyes to each goes into a surface, this deep past it
+        // (from the eyes, not the hand: an empty hand may be drawn a little into a wall, and the lines from it start there).
+        const glm::vec3 eyes = hands::current().head;
+        const auto depthOf = [&](const glm::vec3& p) {
+            const auto tr = lineTrace(eyes, p);
+            if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+            {
+                return 0.f;
+            }
+            return za::max(glm::dot(worldtrace::endPos(*tr) - p, worldtrace::normal(*tr)), 0.f);
+        };
+        float deepest = 0.f;
+        int inside = 0;
+        glm::vec3 reach{0.f};
+        for(const glm::vec3& p : pts)
+        {
+            if(glm::distance(p, from) > glm::length(reach))
+            {
+                reach = p - from;
+            }
+            if(const float depth = depthOf(p); depth > 0.01f)
+            {
+                inside++;
+                deepest = za::max(deepest, depth);
+            }
+        }
+        // (Short: one console line. in: points in the level of all; out: the hand held out by the walls; hand in: the hand
+        // itself; reach: its farthest point from the hand.)
+        Con_Printf("gunwall: %s %s in %d/%d deep %.1fcm out %.1fcm hand in %.1fcm at %.0f %.0f %.0f reach %.0f %.0f %.0f\n",
+            name, how, inside, static_cast<int>(pts.size()), deepest * cm, glm::length(wallPushes[h]) * cm,
+            depthOf(from) * cm, from.x, from.y, from.z, reach.x, reach.y, reach.z);
+    }
+    pts.clear();
 }
 
 void reset()
