@@ -412,8 +412,11 @@ QVR_CVAR(vr_sandevistan_missiles, "1", CVAR_ARCHIVE)   // in Sandevistan, the pl
 QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a hard tap on the gadget's screen (vr_bullettime_tap) and vr_bullettime start and stop it; 0: off
 QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
 QVR_CVAR(vr_bullettime_duration, "20", CVAR_ARCHIVE)    // real seconds a full meter lasts
-QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // real seconds the meter takes to fill from empty (after the cooldown)
-QVR_CVAR(vr_bullettime_cooldown, "2", CVAR_ARCHIVE)    // real seconds after it ends before it can start again (the meter waits too)
+QVR_CVAR(vr_bullettime_meter_mode, "1", CVAR_ARCHIVE) // QVR round 22: how the meter fills: 1 earned (by the damage you deal living monsters, never over time: vr_bullettime_earn_*); 0 over time (vr_bullettime_recharge, 1.0's)
+QVR_CVAR(vr_bullettime_earn_damage, "180", CVAR_ARCHIVE) // earned: the damage (health taken from living monsters, no overkill) that fills it from empty; 180: six grunts (30 health each)
+QVR_CVAR(vr_bullettime_earn_active, "0.25", CVAR_ARCHIVE) // earned: damage dealt while it runs fills it at this share (0: not at all .. 1: fully; low: no endless slow motion)
+QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // over time (vr_bullettime_meter_mode 0): real seconds the meter takes to fill from empty (after the cooldown)
+QVR_CVAR(vr_bullettime_cooldown, "2", CVAR_ARCHIVE)    // real seconds after it ends before it can start again (over time, the meter waits too)
 QVR_CVAR(vr_bullettime_min, "0.25", CVAR_ARCHIVE)      // the least meter it starts with (0.01 .. 1)
 QVR_CVAR(vr_bullettime_sandevistan, "0", CVAR_ARCHIVE) // 1: while it runs, the player runs in its own time (as vr_sandevistan)
 QVR_CVAR(vr_bullettime_fx, "1", CVAR_ARCHIVE)          // its look's strength (0 off .. 1; spectator: vr_spectator_bullettime_fx); never for the recording's vr_timescale
@@ -466,7 +469,7 @@ QVR_CVAR(vr_bullettime_trails_hitscan, "1", CVAR_ARCHIVE)  // 1: behind your hit
 QVR_CVAR(vr_bullettime_trails_nails, "1", CVAR_ARCHIVE)    // 1: behind nails (yours, traps')
 QVR_CVAR(vr_bullettime_trails_explosives, "1", CVAR_ARCHIVE) // 1: behind rockets and flying grenades (an ogre's too)
 QVR_CVAR(vr_bullettime_trails_enemy, "1", CVAR_ARCHIVE)    // 1: behind monsters' shots (lasers, spit, flames, vore balls, thrown flesh, grunts' bullets)
-QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each tap; 2: also the screen tap's striking point and speeds every frame near the screen
+QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, each tap, and each hit that refills the meter (earned); 2: also the screen tap's striking point and speeds every frame near the screen
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "0", CVAR_ARCHIVE)
@@ -3179,6 +3182,7 @@ QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ra
 QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
 QVR_CVAR(vr_ragdoll_active_getup_hold, "1", CVAR_ARCHIVE) // QVR round 22: 1: a get-up rises where it lies: it rolls over and is pulled in on the spot (its body's level motion held), only the get-up's own frames move it; 0: as before (its roll over carried it off along the floor like a wheel, up to 60 units, and the pin dragged it back)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
+QVR_CVAR(vr_test_hurt, "0", CVAR_NONE)                  // damage: the live monster nearest you takes it from a shot of yours, its health as it is (QC combat_test.qc VR_TestHurt_Frame; earned bullet time's test)
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
 QVR_CVAR(vr_ragdoll_active_env_brace, "1", CVAR_ARCHIVE) // falling onto a floor, a wall or a crate within reach: his arms go out to it and take the landing, giving
 QVR_CVAR(vr_ragdoll_active_env_lean, "1", CVAR_ARCHIVE)  // dying with a wall behind or beside him: a hand braced on it, he slumps down it (a crate: braced, not held)

@@ -83,3 +83,39 @@ void() VR_TestKill_Frame =
     VR_ClearHitKind();
     vr_hitpart_target = world;
 };
+
+// Test aid `vr_test_hurt <damage>` (console; earned bullet time's test, Misc/quakevr/bullettime_earn_test.sh): the live
+// monster nearest the player takes <damage> from a shot of his, its health as it is (a kill when it is enough). Prints
+// `test hurt:` with its health before and after.
+void() VR_TestHurt_Frame =
+{
+    float dmg = cvar("vr_test_hurt");
+    if(dmg <= 0)
+    {
+        return;
+    }
+    cvar_set("vr_test_hurt", "0");
+    entity pl = find(world, classname, "player");
+    entity best = world;
+    float bestD = 100000;
+    entity e = nextent(world);
+    while(e)
+    {
+        if((e.flags & FL_MONSTER) && e.health > 0 && e.takedamage && !VR_IsDummy(e) && !VR_TestSkips(e) &&
+           vlen(e.origin - pl.origin) < bestD)
+        {
+            bestD = vlen(e.origin - pl.origin);
+            best = e;
+        }
+        e = nextent(e);
+    }
+    if(best == world)
+    {
+        dprint("test hurt: no live monster\n");
+        return;
+    }
+    float before = best.health;
+    VR_ClearHitKind();
+    T_Damage(best, pl, pl, dmg);
+    dprint(sprintf("test hurt: %s %g damage, health %g -> %g\n", best.classname, dmg, before, best.health));
+};

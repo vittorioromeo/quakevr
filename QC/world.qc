@@ -613,6 +613,7 @@ void() StartFrame =
     VR_PropImp_TestFrame(); // VR: the props' impact rule (vr_prop_impact_test, vr_propimpact_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
     VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
+    VR_TestHurt_Frame(); // VR: the nearest live monster hurt by a shot of the player's (vr_test_hurt <damage>, combat_test.qc)
     VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
     VR_KdTrig_Frame(); // VR: the situational knockdowns' tests (vr_kdtrig_test; vr_kdtrig.qc)
     VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
