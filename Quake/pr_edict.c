@@ -2586,6 +2586,8 @@ void SaveData_Fill (savedata_t *save)
 	// QVR: the model precache list
 	for (i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
 		size += strlen (sv.model_precache[i]) + 1;
+	for (i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++) // QVR: and the sound precache list
+		size += strlen (sv.sound_precache[i]) + 1;
 
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
@@ -2645,6 +2647,16 @@ void SaveData_Fill (savedata_t *save)
 		ofs += len;
 		save->nummodels = i;
 	}
+	/* QVR: the sound precache list (the late ones, precached mid-game, are precached again at the load) */
+	save->numsounds = 0;
+	for (i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+	{
+		int len = strlen (sv.sound_precache[i]) + 1;
+		save->sounds[i] = (const char *) (save->buffer + ofs);
+		memcpy (save->buffer + ofs, sv.sound_precache[i], len);
+		ofs += len;
+		save->numsounds = i;
+	}
 	save->progscrc = qcvm->crc;
 
 	/* known strings (contents) */
@@ -2685,6 +2697,9 @@ void SaveData_WriteHeader (savedata_t *save)
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
+	// QVR: the sound list, after the context (the save menu reads the context from the file's head)
+	for (i = 1; i <= save->numsounds; i++)
+		fprintf (save->file, "// qvr_sound %s\n", save->sounds[i]);
 	if (save->vrbrushes)
 		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
 	if (save->vrdecals)
