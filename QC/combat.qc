@@ -1224,6 +1224,12 @@ void() VR_Shove_Think =
                                                         frametime);
 };
 
+// VR: a monster's weight against a push (VR_Push: its push divided by this): its size over a grunt's, at least 0.6.
+float(entity e) VR_Push_Mass =
+{
+    return max(0.6, vlen(e.size) / vlen('32 32 56'));
+};
+
 // VR: pushes `e` along `dir` (made horizontal) at `speed` units/s, lifted by `up`: players and
 // walking monsters are thrown (their velocity), flying and swimming monsters stepped aside. Monsters
 // bigger than a grunt move less (by their size), smaller ones more.
@@ -1244,7 +1250,7 @@ void(entity e, vector dir, float speed, float up) VR_Push =
 
     if(e.flags & FL_MONSTER)
     {
-        float mass = max(0.6, vlen(e.size) / vlen('32 32 56'));
+        float mass = VR_Push_Mass(e);
         speed = speed / mass;
         up = up / mass;
         if(e.flags & (FL_FLY | FL_SWIM))

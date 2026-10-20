@@ -886,9 +886,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Ledge Push", vr_knockdown_shove_ledge_push, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
             .help("How hard a shove over a ledge throws it off, times the shove's own push (it is always kept going "
                   "until it is past the edge). Less: it drops closer to the ledge's foot."),
-        toggle("Weapon Stays in Hand", vr_knockdown_weld)
-            .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
-                  "loose as a dead one's."),
+        cycle("Weapon Stays in Hand", vr_knockdown_weld, {{0.f, "Off"}, {1.f, "In the Hand"}, {2.f, "Where It Was (Old)"}})
+            .help("Its weapon stays in its hand while it is down or staggering, lifted or struggling (killed there, it "
+                  "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Where It "
+                  "Was (Old): fixed to the part nearest it where its frame had it (the enforcer's rifle hung at his side). "
+                  "Off: it flops loose as a dead one's."),
         header("Getting Up"),
         slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
             .help("Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle."),
@@ -1453,7 +1455,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A one-handed shove's or bash's push, times Shove and Bash Push."),
         slider("Two-Hand Push", vr_shove_push_twohand, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("A two-handed shove's or bash's push (both palms, or a weapon held in two hands), times Shove and "
-                  "Bash Push."),
+                  "Bash Push. Its distance goes by the push's square (1.12: 1.25 times as far as 1)."),
+        slider("Running Shove Carry", vr_shove_run_carry, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("Shoving or bashing while you run: this share of your speed along the shove is added to its push (by "
+                  "the monster's Shove Push over its weight, at most all of it), so it flies farther and faster. "
+                  "Standing shoves are unchanged. 0: off."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: silent)."),
         header("Counter-Attacks"),

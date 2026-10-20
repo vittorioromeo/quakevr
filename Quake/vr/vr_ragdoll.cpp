@@ -2443,10 +2443,100 @@ namespace
     p.skinned = Mod_ForName(name, false);
     return p.skinned;
 }
+// vr_debug_ragdoll_gun: ragdoll `num`'s held weapon (its loose bone) against its hand as drawn, every 0.25 s of the
+// client's time: the weapon's middle from the middle of the part nearest it in the rest pose (where its hand holds it),
+// beside that distance in the rest pose. The weapon follows the hand: the two stay close; it stays behind: they part.
+// Not drawn with the body (hidden: no loose body made): said so.
+double gunCheckNext = 0.0;
+void gunCheck(int num, const Published& p)
+{
+    const Rig& rig = *p.rig;
+    int loose = -1;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        loose = rig.bones[b].joint == Joint::Loose ? b : loose;
+    }
+    if(loose < 0)
+    {
+        return;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig.model)));
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const auto rest = [&](int v) {
+        const trivertx_t& t = tv[v];
+        return glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+            t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+    };
+    glm::vec3 gunRest{0.f};
+    int gunVerts = 0;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        if(rig.vertBone[static_cast<za::SizeT>(v)] == loose)
+        {
+            gunRest += rest(v);
+            gunVerts++;
+        }
+    }
+    if(gunVerts == 0)
+    {
+        return;
+    }
+    gunRest /= static_cast<float>(gunVerts);
+    int hand = -1;
+    float handD = 1e30f;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+        if(b != loose && glm::distance(rest(v), gunRest) < handD)
+        {
+            handD = glm::distance(rest(v), gunRest);
+            hand = b;
+        }
+    }
+    if(hand < 0)
+    {
+        return;
+    }
+    if(loose >= p.bodies)
+    {
+        Con_Printf("gun: %d its %s hidden (no loose body)\n", num, rig.bones[loose].name);
+        return;
+    }
+    za::Vector<glm::vec3>& drawn = drawScratch.skinned;
+    if(!skinnedVertices(num, drawn, nullptr, true))
+    {
+        return;
+    }
+    glm::vec3 gun{0.f}, gunR{0.f}, part{0.f}, partR{0.f};
+    int partVerts = 0;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+        if(b == loose)
+        {
+            gun += drawn[static_cast<za::SizeT>(v)];
+            gunR += rest(v);
+        }
+        else if(b == hand)
+        {
+            part += drawn[static_cast<za::SizeT>(v)];
+            partR += rest(v);
+            partVerts++;
+        }
+    }
+    const float n = static_cast<float>(gunVerts), m = static_cast<float>(za::max(partVerts, 1));
+    Con_Printf("gun: %d its %s %.1f units from its %s (the rest pose's %.1f)\n", num, rig.bones[loose].name,
+        glm::distance(gun / n, part / m), rig.bones[hand].name, glm::distance(gunR / n, partR / m) * p.scale);
+}
 } // namespace
 
 void swapModels()
 {
+    const bool gunChecks = vr_debug_ragdoll_gun.value != 0.f && cl.time >= gunCheckNext;
+    if(gunChecks)
+    {
+        gunCheckNext = cl.time + 0.25;
+    }
     draw.swapped.clear();
     if(!sv.active || cls.state != ca_connected)
     {
@@ -2508,6 +2598,10 @@ void swapModels()
             }
         }
         drawnPose(num);
+        if(gunChecks)
+        {
+            gunCheck(num, p);
+        }
         trackPose(e);
         Swapped s;
         s.num = num;

@@ -726,6 +726,10 @@ za::Vector<Item> pageDebugTests()
                   "what Knockdowns' Travel is a share of."),
         command("Shove the Nearest, Standing, Two Hands", "vr_knockdown_chance 0; vr_knockdown_debug 1; developer 1; vr_knockdown_test 22")
             .help("The same with a two-handed shove (vr_knockdown_test 22)."),
+        command("Shove the Nearest, Running, Two Hands", "vr_knockdown_debug 1; developer 1; vr_test_shove_run 320; vr_knockdown_test 22; vr_test_shove_run 0")
+            .help("Print Rolls on, then vr_knockdown_test 22 as if you ran into it at 320 u/s (vr_test_shove_run): "
+                  "Running Shove Carry's push (\"bash hit: ... of it your run's\") and its stagger's travel "
+                  "(\"stagger: ... carried N units\"), against Shove the Nearest, Stagger."),
         command("Shove the Nearest, Stagger", "vr_knockdown_debug 1; developer 1; vr_knockdown_test 21")
             .help("Print Rolls on, then vr_knockdown_test 21: the nearest monster shoved with one hand, its chance as set; "
                   "with Active Shoves and Throws (Gibs and Corpses > Ragdoll Settings) it staggers: the console prints its "

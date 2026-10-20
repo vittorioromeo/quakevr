@@ -288,8 +288,9 @@ bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
+// `farther`: its travel's limit (4 m) times this (at least 1; a two-hand shove's hands, a running shove: QC VR_Bash_Hit).
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
-    bool sure = false);
+    bool sure = false, float farther = 1.f);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no

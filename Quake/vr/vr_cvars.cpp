@@ -356,8 +356,10 @@ const DefaultChange defaultChanges[] = {
     {173, &vr_decal_bucket_max, "24"},          // 128
     {173, &vr_bullettime_earn_damage, "180"},   // 350
     {173, &vr_bullettime_earn_active, "0.25"},  // 0.2
+    // 174: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
+    {174, &vr_shove_push_twohand, "1"}, // 1.12
 };
-constexpr int configVersion = 173;
+constexpr int configVersion = 174;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

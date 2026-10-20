@@ -15497,3 +15497,36 @@ should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the 
 - **ragimpact slam**: 2 head strikes of 10, at 1.4-1.6 m/s, health 30 -> 28. The head's pop limit is now 104
   (`vr_ragimpact_piece_hp` 0.65 x corpse health 80 x `vr_corpse_health_mult` 2), 32 when the test was written, so
   "popped" is out of reach by design; the weak strikes still need a look (not fixed). leggrab not run.
+
+## Running shoves, two-hand shoves x1.25, the held weapon in the hand (worktree `release`, branch `agent/shovevel`, 2026-10-21)
+
+The author's notes: a shove while running at full speed should carry his speed into it; two-hand shoves 1.25 times as
+far; the enforcer's rifle hung at his side through every active-ragdoll state instead of following his hand.
+
+- **Running shoves** (QC `VR_Bash_Hit`; `vr_shove_run_carry`, new, 1; "Running Shove Carry" under "Two-Hand Push"): your
+  velocity along the shove (40 u/s and more; less is standing, unchanged) is added to the push's speed after Knockback
+  (`vr_push`) and the monster's weight, times its group's Shove Push over its weight (`VR_Push_Mass`), at most all of it.
+  Its slide (`VR_Shove_Reach`, the stagger's travel) grows with it. The stagger's travel limit (4 m, `ragdollStagger`)
+  is now times `far` (`ragdollstagger`'s new optional 8th argument, at most 2.5): the hands' push over 1 squared (two
+  hands 1.12: 1.25) times the run's speed-up (linear, so 160 u/s still falls short of 320's).
+- **Two hands x1.25**: `vr_shove_push_twohand` 1 -> **1.12** (distance goes by the push's square: the hop and the slide
+  are both by the speed, 1.12^2 = 1.25); `vr_cfg_version` 174 moves a config still at 1. A two-hand stagger was at the
+  4 m limit already (its uncapped travel 7.4 m), so the limit grows with the hands' push too (above).
+- **Measured** (vrtesthall's grunt, `vr_knockdown_test 22`/`21`, `vr_test_shove_run` for the run, `vr_knockdown_debug 1`
+  "carried N units"): two hands 342 u/s, 126 units (the limit) -> 383 u/s, **158** (1.25x); running at 160 u/s: 539 u/s,
+  226; at 320: 697 u/s, 295; one hand 239 u/s, 107 (unchanged) -> 555 u/s, 300 running at 320. On vrfiringrange
+  (`vr_knockdown_surprise 0`, chance 0.01) a standing two-hand stagger recovers after 156 units; a running one at 320
+  gives way at 0.23 s (1 step) and lies 182 units off at 1 s (standing, one that gives way: 101).
+- **The weapon in the hand** (`vr_box3d_ragdoll.cpp` `createRagdoll`, `looseHolder`, `weldLoose`; `vr_knockdown_weld`
+  1): a living ragdoll's loose piece (the grunt's shotgun, the enforcer's rifle, the knight's and death knight's sword,
+  the ogre's chainsaw; any rig's, AD's too) is made where the hand that holds it in the rest pose holds it (the part with
+  a vertex nearest it there: the enforcer's and the grunt's left forearm, the others' right hand), not where the frame
+  had it, welded to that hand, and weighs no more than it. Before: welded where the frame had it to the nearest part
+  (a pain frame: the rifle down at his side, welded to his right forearm). `vr_knockdown_weld 2` (Combat, "Weapon Stays
+  in Hand": Where It Was (Old)) keeps the old way for an A/B.
+- **Measured** (`vr_debug_ragdoll_gun 1`, new; Debug > Ragdolls' Weapons in Hand: every 0.25 s the drawn weapon's
+  middle from its holding part's, beside the rest pose's): the enforcer knocked down, old 14-56 units from his left
+  forearm (rest 7.2), now 6.1-7.9; struggling (`vr_struggle_force`) old 20-37, now 7.1-8.6; staggering 6.2-7.3. Grunt
+  4.7-8.3 (rest 4.7), death knight 5.5-9.0 (5.5). Knight and ogre: on landing the weld gives a moment (18 and 24 units at
+  about 1 s, then back to 3.5-4.4 and 14-16).
+- Debug > Tests > Enemy Shoves: "Shove the Nearest, Running, Two Hands" (`vr_test_shove_run 320`).

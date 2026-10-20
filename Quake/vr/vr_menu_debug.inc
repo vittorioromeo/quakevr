@@ -337,6 +337,10 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        toggle("Ragdolls' Weapons in Hand", vr_debug_ragdoll_gun)
+            .help("vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
+                  "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "
+                  "pose's (\"gun:\"; the same: in his hand)."),
         toggle("Dead Monsters Animating", vr_debug_deadanim)
             .help("vr_debug_deadanim: each dead monster that animates again printed (its think its AI's stand, walk, run or "
                   "attack again, or its frame changing 3 s after its death: a corpse that gets up or runs in place). Needs "

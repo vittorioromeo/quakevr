@@ -759,7 +759,8 @@ bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold)
     return true;
 }
 
-bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt, bool sure)
+bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt, bool sure,
+    float farther)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
     if(!rp || !ragdollCanStagger(ent))
@@ -770,8 +771,9 @@ bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balanc
     beginLiving(r, ent);
     ragactive::StaggerInfo si;
     si.dir = dir;
-    // (A standing one's slide is long, the shove's game: its stagger a share of it, at most a few steps.)
-    constexpr float mostTravel = 4.f; // m
+    // (A standing one's slide is long, the shove's game: its stagger a share of it, at most a few steps; a harder shove's
+    // (`farther`: two hands over 1, a running shove) as much farther as its slide, at most 2.5 times.)
+    const float mostTravel = 4.f * za::clamp(farther, 1.f, 2.5f); // m
     si.travel = za::min(za::max(reach, 0.f) / world->m2u * za::clamp(vr_ragdoll_active_stagger_travel.value, 0.f, 3.f), mostTravel);
     si.push = push;
     si.balance = balance;
