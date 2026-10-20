@@ -15090,7 +15090,10 @@ New settings, 1 by default (the game unchanged): `vr_ragdoll_active_{hertz,dampi
 (the drive per joint group, `ragactive::Channel`) and `vr_ragdoll_limits_{legs,torso,arms,head}` (the joint limits per
 group, as the ragdoll is made). `ragactive::tracking` measures the driven joints' mean miss of their targets.
 
-Checks (headless, flat): every behaviour played on a grunt and on AD's death knight; the legs' motors off raised the
+Checks (headless, flat): every behaviour played on a grunt and on AD's death knight, no errors (a fresh subject now
+stands 0.5 s before its steps: a just-made AD knight refused `vr_knockdown_test 0` at once). On the death knight the
+game itself does not begin vr_ragdoll_act's stagger, throw, flinch and knee buckle, nor its shoves' staggers (`ragact:
+... NOT begun (no ragdoll)`), seen not changed; the grunt does them all. The legs' motors off raised the
 stagger's mean tracking error from 29.7-31.6 deg (three default runs) to 37.9-39.3; a preset saved, reset and loaded
 back (94 settings, the 2 changed restored).
 

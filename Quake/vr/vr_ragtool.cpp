@@ -72,6 +72,7 @@ struct Behaviour
 constexpr float placeGap = 64.f;  // units: the player this far off the subject when a push comes from him
 constexpr float handSpeed = 90.f; // units/s: the virtual hand towards its goal
 constexpr float stageAhead = 160.f; // units: the subject this far ahead of where the player starts
+constexpr double settleFirst = 0.5; // s: a fresh subject stands this long before its behaviour's steps begin
 
 const Behaviour behaviours[] = {
     {"stand", "Stand (Idle)", "Spawned fresh and left standing: the start of every other run.", 2.f, {{0.f, Op::End, 0.f, nullptr}}},
@@ -491,7 +492,7 @@ void makeSubject()
         r = Run{};
         r.count = count;
         r.behaviour = tool.playAfterSpawn;
-        r.begun = sv.qcvm.time;
+        r.begun = sv.qcvm.time + settleFirst; // (settled on its feet first: a fresh AD monster may refuse a knockdown)
         r.on = true;
         tool.playAfterSpawn = -1;
     }
