@@ -380,6 +380,24 @@ static ddef_t *ED_FindGlobal (const char *name)
 	return NULL;
 }
 
+// QVR: the server's QC float global `name` (0 without a server or such a global): the death menu reads
+// vr_restart_queued (a respawn under way: menu.c M_CheckDeathMenu)
+float PR_ServerGlobalFloat (const char *name)
+{
+	qcvm_t	*oldvm;
+	ddef_t	*def;
+	float	value = 0.f;
+
+	if (!sv.active || !sv.qcvm.progs)
+		return 0.f;
+	PR_PushQCVM (&sv.qcvm, &oldvm);
+	def = ED_FindGlobal (name);
+	if (def && (def->type & ~DEF_SAVEGLOBAL) == ev_float && def->ofs < qcvm->progs->numglobals)
+		value = G_FLOAT (def->ofs);
+	PR_PopQCVM (oldvm);
+	return value;
+}
+
 
 /*
 ============

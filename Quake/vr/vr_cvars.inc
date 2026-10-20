@@ -414,8 +414,12 @@ QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a hard tap on the g
 QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
 QVR_CVAR(vr_bullettime_duration, "20", CVAR_ARCHIVE)    // real seconds a full meter lasts
 QVR_CVAR(vr_bullettime_meter_mode, "1", CVAR_ARCHIVE) // QVR round 22: how the meter fills: 1 earned (by the damage you deal living monsters, never over time: vr_bullettime_earn_*); 0 over time (vr_bullettime_recharge, 1.0's)
-QVR_CVAR(vr_bullettime_earn_damage, "180", CVAR_ARCHIVE) // earned: the damage (health taken from living monsters, no overkill) that fills it from empty; 180: six grunts (30 health each)
-QVR_CVAR(vr_bullettime_earn_active, "0.25", CVAR_ARCHIVE) // earned: damage dealt while it runs fills it at this share (0: not at all .. 1: fully; low: no endless slow motion)
+QVR_CVAR(vr_bullettime_earn_damage, "350", CVAR_ARCHIVE) // earned: the damage (health taken from living monsters, no overkill) that fills it from empty on Normal (times vr_bullettime_earn_skill<n> on the others); 350: about twelve grunts (30 health each)
+QVR_CVAR(vr_bullettime_earn_active, "0.2", CVAR_ARCHIVE) // earned: damage dealt while it runs fills it at this share (0: not at all .. 1: fully; low: no endless slow motion)
+QVR_CVAR(vr_bullettime_earn_skill0, "0.75", CVAR_ARCHIVE) // earned: Easy (skill 0): times vr_bullettime_earn_damage the damage that fills it (less: faster)
+QVR_CVAR(vr_bullettime_earn_skill1, "1", CVAR_ARCHIVE)    // earned: Normal (skill 1): likewise (the baseline)
+QVR_CVAR(vr_bullettime_earn_skill2, "1.2", CVAR_ARCHIVE)  // earned: Hard (skill 2): likewise
+QVR_CVAR(vr_bullettime_earn_skill3, "1.5", CVAR_ARCHIVE)  // earned: Nightmare (skill 3): likewise
 QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // over time (vr_bullettime_meter_mode 0): real seconds the meter takes to fill from empty (after the cooldown)
 QVR_CVAR(vr_bullettime_cooldown, "2", CVAR_ARCHIVE)    // real seconds after it ends before it can start again (over time, the meter waits too)
 QVR_CVAR(vr_bullettime_min, "0.25", CVAR_ARCHIVE)      // the least meter it starts with (0.01 .. 1)
@@ -2065,7 +2069,7 @@ QVR_CVAR(vr_light_contrast, "2.5", CVAR_ARCHIVE)         // lightmap contrast ab
 QVR_CVAR(vr_ambient_light, "0", CVAR_ARCHIVE)          // the room's own fill light: the baked light's floor, as a share of Quake's full light (0 none; the same curve as vr_light_contrast, which still shapes the shade: qvr::lighting::lightCurve)
 QVR_CVAR(vr_decals, "1", CVAR_ARCHIVE)                 // blood and scorch marks on the world
 QVR_CVAR(vr_decal_max, "512", CVAR_ARCHIVE)            // how many are kept (the oldest go first; each pixel of the world walks its cell's: PERF_DECISIONS 15)
-QVR_CVAR(vr_decal_bucket_max, "24", CVAR_ARCHIVE)     // how many marks one 32-unit spot of the world lists (1-255; past it the oldest of a pile go whole: each pixel walks its spot's list, PERF_DECISIONS 15)
+QVR_CVAR(vr_decal_bucket_max, "128", CVAR_ARCHIVE)    // how many marks one 32-unit spot of the world lists (1-255; past it the oldest of a pile go whole: each pixel walks its spot's list, PERF_DECISIONS 15; 128 the author's, 2026-10-20: 24 lost marks mid-fight)
 QVR_CVAR(vr_decal_life, "240", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)
 QVR_CVAR(vr_decals_world, "1", CVAR_ARCHIVE)         // the marks drawn in the world's own shader, on its texture under its light and following its parallax relief (0: as meshes over it)
 QVR_CVAR(vr_decal_carve, "1", CVAR_ARCHIVE)          // bullet and nail holes and blast craters carved into the surface (parallax occlusion in the world's shader against a crater's height; vr_decals_world 1 only; 0: flat)

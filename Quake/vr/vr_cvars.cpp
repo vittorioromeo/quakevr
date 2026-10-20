@@ -351,8 +351,13 @@ const DefaultChange defaultChanges[] = {
     // 172: Box3D on the pool from 300 awake bodies (ROUND22.md, "play_gore_fight's cost"): at 150-190 with ragdolls the
     // main thread waited on the workers longer than it took to step alone, and spiked.
     {172, &vr_box3d_threads_bodies, "150"}, // 300
+    // 173: the author's values (2026-10-20 notes): more marks kept in one spot (decals vanished mid-fight where the gore
+    // piled up), earned bullet time taking more damage to fill (Normal's; the other skills scale it) and less while it runs.
+    {173, &vr_decal_bucket_max, "24"},          // 128
+    {173, &vr_bullettime_earn_damage, "180"},   // 350
+    {173, &vr_bullettime_earn_active, "0.25"},  // 0.2
 };
-constexpr int configVersion = 172;
+constexpr int configVersion = 173;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

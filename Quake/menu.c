@@ -2255,6 +2255,7 @@ static struct
 {
 	qboolean	death;			// the death menu
 	qboolean	dismissed;		// closed while dead: not opened again until the player lives
+	qboolean	respawning;		// held back for this death: a respawn under way (logged once)
 	double		deadsince;		// sv.time the player was first seen dead (0: alive)
 	int			count;			// autosaves listed
 	int			cursor;			// the row (the death menu's actions first)
@@ -2487,6 +2488,7 @@ void M_CheckDeathMenu (void)
 			M_Autosaves_Close ();
 		autosavesmenu.deadsince = 0.;
 		autosavesmenu.dismissed = false;
+		autosavesmenu.respawning = false;
 		return;
 	}
 	if (!autosavesmenu.deadsince)
@@ -2498,9 +2500,21 @@ void M_CheckDeathMenu (void)
 		return;
 	if (sv.qcvm.time - autosavesmenu.deadsince < Cvar_VariableValue ("vr_death_menu_delay"))
 		return;
-	if (key_dest != key_game || m_state != m_none)
+	// (In the game, whatever m_state says: a map or a load started from a menu leaves key_dest key_game and m_state the
+	// menu it came from, and the death menu never opened in play, only in tests started by a script: author's note
+	// 2026-10-20. Not once a press asked for a respawn, QC's respawn: its restart, or the load it makes, under way.)
+	if (key_dest != key_game)
 		return;
+	if (PR_ServerGlobalFloat ("vr_restart_queued") || VR_LoadingWaiting ())
+	{
+		if (!autosavesmenu.respawning)
+			Con_DPrintf ("Death menu: not opened: a respawn is under way\n");
+		autosavesmenu.respawning = true;
+		return;
+	}
+	Con_DPrintf ("Death menu: opening (menu %d before)\n", (int) m_state);
 	M_Menu_Autosaves_Open (true);
+	VR_MenuPanelInFront ();
 }
 
 //=============================================================================

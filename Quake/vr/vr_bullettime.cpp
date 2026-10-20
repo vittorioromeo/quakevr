@@ -173,6 +173,16 @@ void writeMeter()
     }
 }
 
+// The damage that fills the meter from empty: vr_bullettime_earn_damage (Normal's) times the game's skill's multiplier
+// (vr_bullettime_earn_skill0..3: Easy fills sooner, Hard and Nightmare later).
+[[nodiscard]] float earnDamage()
+{
+    const cvar_t* const perSkill[] = {&vr_bullettime_earn_skill0, &vr_bullettime_earn_skill1, &vr_bullettime_earn_skill2,
+        &vr_bullettime_earn_skill3};
+    const int level = za::clamp(static_cast<int>(skill.value + 0.5f), 0, 3);
+    return za::max(1.f, vr_bullettime_earn_damage.value * za::max(0.01f, perSkill[level]->value));
+}
+
 void earn()
 {
     edict_t* player = meterPlayer();
@@ -188,7 +198,7 @@ void earn()
         return;
     }
     const float share = state.active ? za::clamp(vr_bullettime_earn_active.value, 0.f, 1.f) : 1.f;
-    const float gain = damage / za::max(1.f, vr_bullettime_earn_damage.value) * share;
+    const float gain = damage / earnDamage() * share;
     const float before = state.level;
     state.level = za::min(1.f, state.level + gain);
     if(state.level > before)
@@ -664,7 +674,7 @@ void meter_f()
     Con_Printf("bullet time meter: %.3f (%s, %s, cooldown %.1f s; fills %s)\n", state.level,
                state.active ? "running" : "off", meterPlayer() && progs::fields().vr_bullettime_spent >= 0 ? "kept" : "not kept",
                state.cooldown,
-               earnedMode() ? va("by %g damage dealt", za::max(1.f, vr_bullettime_earn_damage.value))
+               earnedMode() ? va("by %g damage dealt (skill %d)", earnDamage(), static_cast<int>(skill.value + 0.5f))
                             : va("over %g s", za::max(0.1f, vr_bullettime_recharge.value)));
 }
 

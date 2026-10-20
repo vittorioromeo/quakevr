@@ -178,8 +178,16 @@
                   "fills by itself after the cooldown (Recharge Time). Kept from level to level and in saves; full on a "
                   "new game."),
         slider("Damage to Fill", "vr_bullettime_earn_damage", 30.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("Earned by Damage: the damage dealt that fills the meter from empty (180: six grunts, 30 health "
-                  "each). Less: it fills faster."),
+            .help("Earned by Damage: the damage dealt that fills the meter from empty on Normal (350: about twelve "
+                  "grunts, 30 health each); the other skills scale it (below). Less: it fills faster."),
+        slider("Easy: Damage Needed", "vr_bullettime_earn_skill0", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Easy (skill 0): times Damage to Fill (0.75 shipped: it fills sooner)."),
+        slider("Normal: Damage Needed", "vr_bullettime_earn_skill1", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Normal (skill 1): times Damage to Fill (1 shipped)."),
+        slider("Hard: Damage Needed", "vr_bullettime_earn_skill2", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Hard (skill 2): times Damage to Fill (1.2 shipped: it fills later)."),
+        slider("Nightmare: Damage Needed", "vr_bullettime_earn_skill3", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Nightmare (skill 3): times Damage to Fill (1.5 shipped)."),
         slider("Refill While Slowed", "vr_bullettime_earn_active", 0.f, 1.f, 0.05f, "%.2fx")
             .help("Earned by Damage: damage dealt while bullet time runs fills the meter at this share (low: no endless "
                   "slow motion; 0: not at all)."),

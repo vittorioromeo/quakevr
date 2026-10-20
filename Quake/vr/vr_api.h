@@ -501,6 +501,7 @@ void VR_Menu_Char (int key);							// M_Charinput, m_vr: a typed character (the 
 int VR_Menu_TextEntry (void);							// M_TextEntry, m_vr: a textmode_t (the Search page takes typing)
 // The VR menu style's widgets (vr_menuui.cpp): nonzero if they drew it in place of Quake's.
 int VR_MenuDrawSlider (int x, int y, float range, float marker, const char *desc); // M_DrawSliderWithMarkers (marker < 0: none)
+void VR_MenuPanelInFront (void);						// the death menu opening: the menu panel in front of the head (not where a hand left it)
 int VR_MenuDrawCheckbox (int x, int y, int on);			// M_DrawCheckbox: a switch
 int VR_MenuDrawTextBox (int x, int y, int width, int lines); // M_DrawTextBox: a panel
 int VR_MenuDrawHighlight (int cx, int cy);				// M_DrawArrowCursor: the selected row's highlight; nonzero: no cursor (the corner's buttons have the selection)
