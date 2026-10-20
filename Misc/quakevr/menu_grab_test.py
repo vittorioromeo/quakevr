@@ -9,7 +9,8 @@
   6. on its face (vr_mock_laser 160 100), gripped: armed, not held; moved 2 cm: still armed; 10 cm: held, not jumped
   7. on its face, a stick pushed first: never held (the sliders' fine modifier)
   8. vr_menu_grab 0: the frame does nothing
-  9. moved, the menus closed and opened again: back in front of the head
+  9. moved, the menus closed and opened again: stays where it was put (ROUND22.md, "Menu panels kept when the menu
+     closes": his note, a moved panel stays placed); unplaced (vr_menu_panel reset), closed and opened: in front of the head
 Prints PASS/FAIL per check; exits 1 on a failure.
 """
 import os
@@ -40,6 +41,7 @@ steps = [
     ("off", f"{G0};{H0};vr_menu_grab 0;vr_mock_laser frame;wait5;{G1}"),
     ("placed", f"{G0};vr_menu_grab 2;{G1};vr_mock_hand main 0.2 1.2 -0.3 0 30 0;wait5;{G0}"),
     ("reopened", "vr_mock_laser off;vr_mock_button main menu 1;wait90;vr_mock_button main menu 0;wait30;menu_vr 0;wait20"),
+    ("unplaced", "vr_menu_panel reset;vr_mock_button main menu 1;wait90;vr_mock_button main menu 0;wait30;menu_vr 0;wait20"),
 ]
 script = ";".join(f"{cmd};echo STEP {name};vr_menu_panel" for name, cmd in steps) + ";toggleconsole;quit"
 out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script, "-Filter", "STEP|MENUPANEL|grab|exit="],
@@ -85,7 +87,9 @@ check(f10["held"] == 1 and f10["armed"] == -1 and f10["centre"] == o["centre"], 
 st = get("stick")
 check(st["held"] == -1 and st["placed"] == 0 and st["armed"] == -1, "7 a stick pushed: never held")
 check(get("off")["held"] == -1 and get("off")["placed"] == 0, "8 vr_menu_grab 0: the frame does nothing")
-check(get("placed")["placed"] == 1 and get("reopened")["placed"] == 0 and get("reopened")["centre"] == o["centre"],
-      "9 closed and opened again: back in front of the head")
+pl, ro, up = get("placed"), get("reopened"), get("unplaced")
+check(pl["placed"] == 1 and ro["placed"] == 1 and ro["centre"] == pl["centre"],
+      "9 closed and opened again: stays where it was put")
+check(up["placed"] == 0 and up["centre"] == o["centre"], "9 unplaced, closed and opened again: back in front of the head")
 check("exit=0" in out, "the game quit normally")
 sys.exit(fail)

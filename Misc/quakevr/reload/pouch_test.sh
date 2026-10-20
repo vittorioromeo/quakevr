@@ -82,8 +82,9 @@ done
 log=$(run "$(setup 156);$(away "0 0 0");vr_reload_test 6;impulse 125;wait30;give n 0;wait2;$(mark start);$(to "50 0 0");$(mark empty)")
 check $([ "$(mag "$log" empty)" = 0 ] && echo "$log" | grep -q "pouch is empty" && echo 1 || echo 0) "nailgun with no nails left: nothing, the empty pouch's knock (mag $(mag "$log" empty))"
 
-# 5. Holstering: the hand at a hip holster wins.
-log=$(run "$(setup 155);vr_reload_test 5;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20;vr_mock_hand_to off holster 2;wait20;$(mark hip);vr_hip_holster_thresh 40;vr_ammo_pouch_thresh 0.5;$(to "0 0 0");$(mark wins);vr_hip_holster_thresh 6.5;vr_ammo_pouch_thresh 5;wait15;$(mark back)")
+# 5. Holstering: the hand at a hip holster wins (its reach made 40 and its zone 0.6 deep: his thin hip zone, config 156,
+#    is 0.05 of the reach deep, too thin to take in the pouch even at that reach).
+log=$(run "$(setup 155);vr_reload_test 5;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20;vr_mock_hand_to off holster 2;wait20;$(mark hip);vr_hip_holster_thresh 40;vr_holster_zone_hip_depth 0.6;vr_ammo_pouch_thresh 0.5;$(to "0 0 0");$(mark wins);vr_hip_holster_thresh 6.5;vr_holster_zone_hip_depth 0.05;vr_ammo_pouch_thresh 5;wait15;$(mark back)")
 check $([ "$(clip "$log" hip)" = 0 ] && echo 1 || echo 0) "super shotgun open at the left hip holster: nothing (clip $(clip "$log" hip))"
 check $([ "$(clip "$log" wins)" = 0 ] && [ "$(clip "$log" back)" = 2 ] && echo 1 || echo 0) "its breech at the pouch, the hand within the hip holster's reach: nothing ($(clip "$log" wins)); the reach back: fills ($(clip "$log" back))"
 
