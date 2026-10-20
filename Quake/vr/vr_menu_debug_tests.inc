@@ -947,6 +947,12 @@ za::Vector<Item> pageDebugTests()
         command("List the Saves", "vr_save_info")
             .help("vr_save_info: every save in the game folder and autosave/, each with what it was played as (its "
                   "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
+        command("List the Autosaves", "vr_autosave_list")
+            .help("vr_autosave_list: the Load Autosave menu's list (the rotating autosaves kept, vr_autosave_slots per "
+                  "map, newest first), printed; vr_autosave_load <n> loads the n-th."),
+        command("Open the Death Menu", "menu_autosaves death")
+            .help("The menu a dead player gets (vr_death_menu): Respawn, Restart the Level, the autosaves; here alive, "
+                  "to look at it."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

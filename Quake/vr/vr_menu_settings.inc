@@ -39,6 +39,9 @@ za::Vector<Item> pageMain()
         open("HUD, Haptics and Sound", pageIndex(pageVrsHudHapticsSound))
             .help("The HUD's kind, the crosshair and Doom on the wrist gadget; how strongly the controllers vibrate; the "
                   "game's and the music's volume and spatial sound."),
+        open("Saves and Autosaves", pageIndex(pageSaves))
+            .help("Load an autosave (the last few of each map are kept), how often the game autosaves, waiting until it "
+                  "is safe (no monster after you, your health not low), and the menu you get when you die."),
 
         header("Sight"),
         open("Display and Graphics", pageIndex(pageVrsDisplayGraphics))
@@ -49,6 +52,46 @@ za::Vector<Item> pageMain()
         action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
             .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
                   "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds."),
+    };
+}
+
+// Saves and Autosaves (player feedback: an autosave made in an ambush trapped them, dying at each respawn): the
+// rotating autosaves (vr_continue.cpp), when they wait to be safe (host.c Host_AutosaveUnsafe), the death menu (menu.c).
+za::Vector<Item> pageSaves()
+{
+    return {
+        command("Load an Autosave", "menu_autosaves")
+            .help("The autosaves kept, newest first: each one's map, your health and armor, how far into the level and "
+                  "how long ago (the main menu's Load Autosave row too)."),
+        header("Autosaves"),
+        toggle("Autosave", "sv_autosave").help("Saves the game by itself in quiet moments (and as each level starts)."),
+        slider("Every", "sv_autosave_interval", 10.f, 300.f, 10.f, "%.0f s")
+            .help("About how often it autosaves: it waits for a quiet moment (not hurt, not firing, slowing down)."),
+        toggle("As Each Level Starts", "vr_autosave_level_start")
+            .help("An autosave a moment after each level starts (a new map, not a loaded game)."),
+        slider("Autosaves Kept", "vr_autosave_slots", 1.f, 9.f, 1.f, "%.0f per map")
+            .help("How many of each map's latest autosaves are kept: the oldest is replaced by a new one. 1: only the "
+                  "last one, overwritten."),
+        header("Only When Safe"),
+        toggle("Wait Until Safe", "vr_autosave_safe")
+            .help("An autosave due waits until the checks below pass, then it is made: so it never traps you in a fight."),
+        toggle("Not While Hunted", "vr_autosave_safe_alerted")
+            .help("Not while a living monster is after you, wherever it is."),
+        slider("Monsters in Sight Within", "vr_autosave_safe_radius", 0.f, 1500.f, 50.f, "%.0f units")
+            .help("Not while a living monster you can see is this near (a unit is 3 cm; 0: off), awake or not."),
+        slider("Health at Least", "vr_autosave_safe_health", 0.f, 100.f, 5.f, "%.0f%%")
+            .help("Not while your health is below this share of its maximum (0: off). Healing ends this wait."),
+        slider("Longest Wait for Monsters", "vr_autosave_safe_maxdelay", 0.f, 300.f, 10.f, "%.0f s")
+            .help("After this long waiting for the monsters (one stuck hunting you), it autosaves anyway; your health "
+                  "must still be high enough. 0: waits as long as it takes."),
+        header("When You Die"),
+        toggle("Death Menu", "vr_death_menu")
+            .help("A moment after you die: Respawn (your last save), Restart the Level, or any autosave kept, newest "
+                  "first. Back: you stay dead, fire respawns as ever."),
+        slider("Death Menu After", "vr_death_menu_delay", 0.5f, 5.f, 0.5f, "%.1f s"),
+        cycle("Respawn", "sv_autoload", {{0.f, "Restarts the Level"}, {2.f, "Loads the Last Save"}})
+            .help("What respawning does (fire when dead, the death menu's Respawn): load your last save (manual or "
+                  "auto), or start the level again."),
     };
 }
 

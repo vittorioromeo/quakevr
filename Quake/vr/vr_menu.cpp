@@ -1776,6 +1776,7 @@ struct Page
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageSaves();
 [[nodiscard]] za::Vector<Item> pageVrsHeight();
 [[nodiscard]] za::Vector<Item> pageVrsHands();
 [[nodiscard]] za::Vector<Item> pageVrsHolsters();
@@ -2076,6 +2077,7 @@ const Page pages[] = {
     {"Ragdoll Tool - Struggle", pageRagtoolParams<6>, pageRagtool},
     {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
     {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
+    {"Saves and Autosaves", pageSaves, pageMain, LevelStandard}, // (vr_menu_settings.inc; vr_continue.cpp)
 };
 static_assert(mgroups::paramCount == 23, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

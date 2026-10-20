@@ -4323,6 +4323,14 @@ QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, n
 // Continue and the autosaves (vr_continue.cpp).
 QVR_CVAR(vr_autosave_level_start, "1", CVAR_ARCHIVE) // with sv_autosave on: an autosave as each campaign map starts (a map, a changelevel; not a load), besides Ironwail's every sv_autosave_interval seconds of quiet play. 0: Ironwail's only
 QVR_CVAR(vr_continue_available, "0", CVAR_ROM)       // a save Continue would load (the hub's Continue button shows only then: QC buttons.qc)
+QVR_CVAR(vr_autosave_slots, "3", CVAR_ARCHIVE)       // the autosaves kept per map (1-9): autosave/<name>.sav the newest, <name>@2.sav, @3... the older ones (VR_AutosaveRotate); 1: one, overwritten (Ironwail's)
+QVR_CVAR(vr_autosave_safe, "1", CVAR_ARCHIVE)        // an autosave due waits until it is safe (the checks below; host.c Host_AutosaveUnsafe): 0 none of them
+QVR_CVAR(vr_autosave_safe_alerted, "1", CVAR_ARCHIVE) // not while a living monster is after you (its enemy is you), wherever it is
+QVR_CVAR(vr_autosave_safe_radius, "600", CVAR_ARCHIVE) // not while a living monster you can see (or that sees you) is within this many units (0: off)
+QVR_CVAR(vr_autosave_safe_health, "40", CVAR_ARCHIVE) // not while your health is below this percent of its maximum (0: off); the longest wait doesn't end this one
+QVR_CVAR(vr_autosave_safe_maxdelay, "60", CVAR_ARCHIVE) // seconds an autosave due waits for the monsters (alerted, near) before it is made anyway (a monster stuck hunting you); 0: waits as long as it takes
+QVR_CVAR(vr_death_menu, "1", CVAR_ARCHIVE)           // single player, dead: the death menu (Respawn, Restart the Level, the autosaves newest first) opens after vr_death_menu_delay seconds (menu.c M_Autosaves)
+QVR_CVAR(vr_death_menu_delay, "2", CVAR_ARCHIVE)     // seconds dead before the death menu opens
 
 QVR_CVAR(vr_mg_world_test, "0", CVAR_NONE) // Debug > Tests: 1 report authored native fog; 2 environment acceptance with a destructive e5m1 barrel test
 
