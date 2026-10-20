@@ -293,13 +293,23 @@ void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
 
 // A wall torch met by a shot, a missile, an explosion's radius damage or a thrown prop's blow (combat.qc
 // T_DamageImpl): it comes off its wall. TRUE: its coming off is what the damage did (none of it is dealt to it, and it
-// is never gibbed). Not a melee blow (xMelee): a fist closed on the way to a torch keeps taking it by hand, and a
-// torch's own club is not a shot. Off (vr_walltorch_shot 0): as in id's Quake, every shot goes through it.
+// is never gibbed). A player's melee blow (xMelee) knocks it off too, unless it is a fist closed on the way to it,
+// slower than a punch (the grab window, VR_WallTorch_CanGrip): that hand takes it. Off (vr_walltorch_shot 0): as in
+// id's Quake, every shot goes through it.
+float VR_WALLTORCH_PUNCH_SPEED = 2.5; // m/s of the hand (the flashlight's late grip's punch)
+float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip;
+void(entity t, entity xPlayer, float xHand, string xHow) VR_WallTorch_Grip;
 float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_WallTorch_Shot =
 {
     if(!cvar_hget(cvarh_vr_walltorch_shot) || damage <= 0)
     {
         return FALSE;
+    }
+    if(xMelee && (attacker.flags & FL_CLIENT) && (vr_hithand == cVR_MainHand || vr_hithand == cVR_OffHand) &&
+       VR_WallTorch_CanGrip(targ, attacker, vr_hithand))
+    {
+        VR_WallTorch_Grip(targ, attacker, vr_hithand, "a blow with the grip closed");
+        return TRUE;
     }
     entity by = inflictor;
     if(by == world || by == attacker)
@@ -314,7 +324,6 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
 // press at most vr_walltorch_grab_time ago with the hand slower than a punch: a fist closed on the way to the torch takes
 // it as it gets there (NOTES.md vrfiringrange_2026-10-02_15-56-57: a grip pressed before the hand was within reach, more
 // than the box's 0.2 s, never took it; the walltorch_grab_test.sh reaches pressed as they start missed 24 of 30).
-float VR_WALLTORCH_PUNCH_SPEED = 2.5; // m/s of the hand (the flashlight's late grip's punch)
 float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 {
     if(VR_Carry_GripPressed(xPlayer, xHand))

@@ -15497,3 +15497,28 @@ should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the 
 - **ragimpact slam**: 2 head strikes of 10, at 1.4-1.6 m/s, health 30 -> 28. The head's pop limit is now 104
   (`vr_ragimpact_piece_hp` 0.65 x corpse health 80 x `vr_corpse_health_mult` 2), 32 when the test was written, so
   "popped" is out of reach by design; the weak strikes still need a look (not fixed). leggrab not run.
+## Toolgun suite regressions from the 1.1 sweep (worktree `gorefx`, branch `agent/regfix2`, 2026-10-21)
+
+- **toolgun_fire (8 fails): a stale harness.** 71ea9ad33 put the Death Knight's Sword into the Weapons tab, so every entry
+  after it moved down one place, and the test's fixed indexes picked the wrong entries: 46 gave the Biosuit (the "wall
+  torch"), 47 the Wall Torch, which hung on the floor 10 units off a point that is not a wall (the "large flame"), and
+  so on. The "grip doesn't take it" fail was the grip test taking the map's own torch, because no torch had been made
+  there. `vr_toolgun_select` now also takes a label (`vr_toolgun_select Wall Torch`, any case), and the test selects by
+  label. Now PASS.
+- **walltorch_grab (0 of 120): a stale harness, then one real bug.** Since 47ff1eb5c a grip takes the torch off its wall
+  at once and logs `walltorch: taken immediately`, but the test still waited for `gripped on its wall`. It also counted
+  on the torch staying on its wall from one reach to the next. Now each reach loads the map fresh, and the reaching hand
+  goes back to rest before that. Without that, setpos swept the hand from where the last reach left it through the
+  torch, and the blow knocked the torch off. The real bug, also from 47ff1eb5c: melee blows now knock a torch off, and
+  the blow arrived before the fist that was already closed on the way to the torch could take it. A fist that
+  `VR_WallTorch_CanGrip` accepts (grip fresh, slower than a punch, hand empty) now takes the torch when it strikes it.
+  Any other blow still knocks the torch off, and his torch_hits review kind 23 still knocks it off. Result: 116 of 120.
+  The 4 misses are the open hand (grip pressed halfway, on arrival or after) reaching at 1.6 m/s and knocking the torch
+  off first, which is a slap by his design. The harness labels them as slaps.
+- **toolgun_spawnall: AD Shards Backpack drawn on the server but never on the client.** This was not caused by the
+  range: it failed in 4 of 5 full sweeps and passed whenever only part of the list was run. When the toolgun's remover
+  (or the scene cleanup) removed the AD Fishing Ogre (entry 93), it left behind the ogre's `ad_attachment`: an
+  invisible, solid 48x48x64 MOVETYPE_STEP box that fills its space. The backpack placed at the same ring slot later
+  dropped inside that box, was pushed into the floor, touched no PVS leaf and so was never sent. `VR_Scene_Remove` now
+  removes an AD monster's attachments 1-3 along with it (`VR_AD_RemoveAttachments`, as AD's own removal does). In play,
+  that box was an invisible wall where a fishing ogre had been removed. Now 2 of 2 full sweeps PASS.
