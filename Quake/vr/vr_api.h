@@ -644,6 +644,9 @@ void VR_AutosaveRotate(const char *path);		// Host_Savegame_f's `save <name> 0 r
 int VR_AutosaveAny(void);						// nonzero if autosave/ has one (the main menu's Load Autosave row; not read)
 int VR_AutosaveListRefresh(void);				// the loadable autosaves, newest first (the Load Autosave menu, the death menu): how many
 void VR_AutosaveDescribe(int i, char *line1, size_t size1, char *line2, size_t size2); // "e1m3: The Necropolis", "Health 65 Armor 50, 3:12 in, 5 min ago"
+int VR_AutosaveListHidden(void);				// the loadable autosaves of other games the last refresh left out (vr_autosave_list_all 0)
+void VR_AutosaveListScope(char *out, size_t size);	// what the list shows: the game played now's title, or "All Games"
+int VR_AutosaveListToggleAll(void);			// vr_autosave_list_all flipped, the list read again: how many
 void VR_AutosaveLoad(int i);					// the i-th of that list loaded (queued)
 
 // Music read in place (vr_music.cpp): a CD track from the game folders on the search path, or from the owned

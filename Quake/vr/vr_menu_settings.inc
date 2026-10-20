@@ -72,6 +72,9 @@ za::Vector<Item> pageSaves()
         slider("Autosaves Kept", "vr_autosave_slots", 1.f, 9.f, 1.f, "%.0f per map")
             .help("How many of each map's latest autosaves are kept: the oldest is replaced by a new one. 1: only the "
                   "last one, overwritten."),
+        toggle("List Every Game's", "vr_autosave_list_all")
+            .help("Load Autosave and the death menu list the autosaves of every campaign and map package, not only "
+                  "the one you are playing (their first row switches it too)."),
         header("Only When Safe"),
         toggle("Wait Until Safe", "vr_autosave_safe")
             .help("An autosave due waits until the checks below pass, then it is made: so it never traps you in a fight."),

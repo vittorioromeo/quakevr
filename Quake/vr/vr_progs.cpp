@@ -279,6 +279,10 @@ extern "C" void VR_OnProgsLoaded()
         b.propTouches[2] = findFunction("VR_CratePiece_Touch");
         b.propTouches[3] = findFunction("wpnthrow_touch");
         b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
+        b.KdTrig_BodyHit = findFunction("VR_KdTrig_BodyHit");
+        b.RagImpact_Hit = findFunction("VR_RagImpact_Hit");
+        b.Monster_Fall = findFunction("VR_Monster_Fall");
+        b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");

@@ -1070,7 +1070,7 @@ void touches(za::Vector<za::Pair<int, int>>& out)
 // A live monster's fall (QC's VR_Monster_Fall: its fall damage) at `speed` units/s down.
 void monsterFell(edict_t* ent, float speed)
 {
-    const func_t fn = qvr::progs::findFunction("VR_Monster_Fall");
+    const func_t fn = qvr::progs::bindings().Monster_Fall;
     if(!fn || ent->free || ent->v.health <= 0.f || !(static_cast<int>(ent->v.flags) & FL_MONSTER))
     {
         return;
@@ -1099,7 +1099,7 @@ void callFalls()
 // VR_RagImpact_Hit(entity m, vector at, float speed, float mass, float raw, float held): it judges and deals them.
 void callRagImpacts()
 {
-    const func_t fn = world->ragImpacts.empty() ? 0 : qvr::progs::findFunction("VR_RagImpact_Hit");
+    const func_t fn = qvr::progs::bindings().RagImpact_Hit;
     for(const Impact& hit : world->ragImpacts)
     {
         if(!fn || hit.num >= qcvm->num_edicts)
@@ -1156,7 +1156,7 @@ void callBodyHits()
     {
         return;
     }
-    const func_t fn = qvr::progs::findFunction("VR_KdTrig_BodyHit");
+    const func_t fn = qvr::progs::bindings().KdTrig_BodyHit;
     if(!fn)
     {
         return;

@@ -66,6 +66,7 @@ struct ContinueSave
     int campaign{0};
     time_t when{0};             // the file's time
     bool package{false};        // a map package's save: its title is the index's (read again when that arrives)
+    char packageSha[72]{};      // its map package's sha256 ("": none; the Load Autosave menu's This Campaign)
     bool hasPlayer{false};      // its `// qvr_player` line (saves since the rotating autosaves): the three below
     int health{0};
     int armor{0};
@@ -142,6 +143,28 @@ bool readSave(const char* path, za::Vector<char>& text, long limit = 0, bool* wh
     text[got] = 0;
     if(whole) { *whole = want == size; }
     return got > 0;
+}
+
+// Whether a save's text has its globals whole (their vr_save_packmask and vr_save_campaign, VR_SaveCampaign's; the
+// block's closing brace after both).
+bool globalsRead(const char* text)
+{
+    const char* mask = strstr(text, "\"vr_save_packmask\"");
+    const char* campaign = strstr(text, "\"vr_save_campaign\"");
+    return mask && campaign && strstr(mask > campaign ? mask : campaign, "\n}");
+}
+
+// A save's head: the header, the context lines and the globals (all inspect reads), not the edicts after them (most of
+// a save: 24 autosaves read whole were an 81 ms hitch at the Load Autosave menu's first opening). Read in growing
+// pieces until the globals are whole (permanent decals' lines come before them), or the whole save.
+bool readSaveHead(const char* path, za::Vector<char>& text)
+{
+    for(long limit = 64L * 1024;; limit *= 4)
+    {
+        bool whole = false;
+        if(!readSave(path, text, limit, &whole)) { return false; }
+        if(whole || globalsRead(text.data())) { return true; }
+    }
 }
 
 // Line `n` (0: the version) of a save, into `out`.
@@ -304,7 +327,7 @@ void migrateFolderAutosaves()
 bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
 {
     za::Vector<char> text; // (a command's working buffer: once per menu opening at most)
-    if(!readSave(c.path, text)) { return false; }
+    if(!readSaveHead(c.path, text)) { return false; }
     char line[128];
     saveLine(text.data(), 0, line, sizeof(line));
     if(Q_atoi(line) != SAVEGAME_VERSION) { return false; }
@@ -337,6 +360,7 @@ bool inspect(const Candidate& c, ContinueSave& out, bool verbose)
     q_strlcpy(out.title, ctx.mapTitle, sizeof(out.title));
     q_strlcpy(out.context, contextTitle(ctx), sizeof(out.context));
     out.package = ctx.package[0] != 0;
+    q_strlcpy(out.packageSha, ctx.package, sizeof(out.packageSha));
     char player[64];
     out.hasPlayer = contextLine(text.data(), "qvr_player", player, sizeof(player)) &&
                     sscanf(player, "%d %d %f", &out.health, &out.armor, &out.played) == 3;
@@ -487,18 +511,36 @@ bool inspectAutosave(const Candidate& c, ContinueSave& out)
     return e.loadable;
 }
 
-// The loadable autosaves of autosave/ (not the relighting's own), newest first, at most maxAutosaves.
+// Whether a save is of the game played now: its map package the active one, else (none either side) its campaign the
+// active campaign (the Load Autosave menu's This Campaign; vr_autosave_list_all 0).
+bool ofThisGame(const ContinueSave& s)
+{
+    const za::String& sha = qvr::mapinstall::active();
+    if(sha.size() || s.packageSha[0]) { return !q_strcasecmp(s.packageSha, sha.cStr()); }
+    return s.campaign == VR_ActiveCampaign();
+}
+
+// The loadable autosaves of autosave/ (not the relighting's own), newest first, at most maxAutosaves: this game's only
+// unless vr_autosave_list_all (autosaveHidden: the others').
+int autosaveHidden = 0;
 void refreshAutosaves()
 {
     autosaveCount = 0;
+    autosaveHidden = 0;
     candidateCount = 0;
     addCandidates("autosave");
+    const bool all = qvr::vr_autosave_list_all.value != 0.f;
     for(int i = 0; i < candidateCount; ++i)
     {
         const Candidate& c = candidates[i];
         if(!strcmp(c.relname, "autosave/relight")) { continue; } // (vr_relight.cpp's batch save)
         ContinueSave found;
         if(!inspectAutosave(c, found)) { continue; }
+        if(!all && !ofThisGame(found))
+        {
+            ++autosaveHidden;
+            continue;
+        }
         int at = autosaveCount;
         while(at > 0 && autosaves[at - 1].when < found.when) { --at; }
         if(at >= maxAutosaves) { continue; }
@@ -511,7 +553,8 @@ void refreshAutosaves()
 // An autosave's two lines: "e1m3: The Necropolis" and "Health 65 Armor 50, 3:12 in, 5 min ago".
 void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* line2, size_t size2)
 {
-    q_snprintf(line1, size1, "%s: %s", s.map, s.title);
+    if(s.context[0] && !ofThisGame(s)) { q_snprintf(line1, size1, "%s: %s (%s)", s.map, s.title, s.context); }
+    else { q_snprintf(line1, size1, "%s: %s", s.map, s.title); }
     time_t now;
     time(&now);
     const double ago = difftime(now, s.when);
@@ -535,17 +578,27 @@ void describeAutosave(const ContinueSave& s, char* line1, size_t size1, char* li
     q_snprintf(line2, size2, "Health %d Armor %d, %s, %s", s.health, s.armor, played, when);
 }
 
-// vr_autosave_list: the Load Autosave menu's list, printed (Debug > Tests > Saves).
+// vr_autosave_list [cold]: the Load Autosave menu's list, printed, and how long reading it took (Debug > Tests > Saves);
+// cold: every file read again, as at the menu's first opening.
 void autosaveList()
 {
+    if(Cmd_Argc() >= 2 && !strcmp(Cmd_Argv(1), "cold"))
+    {
+        for(InspectedAutosave& e : inspected) { e = InspectedAutosave{}; }
+    }
+    const double start = Sys_DoubleTime();
     refreshAutosaves();
+    const double ms = (Sys_DoubleTime() - start) * 1000.0;
     for(int i = 0; i < autosaveCount; ++i)
     {
         char line1[96], line2[96];
         describeAutosave(autosaves[i], line1, sizeof(line1), line2, sizeof(line2));
         Con_Printf("autosave %d: %s | %s | %s\n", i + 1, autosaves[i].relname, line1, line2);
     }
-    Con_Printf("vr_autosave_list: %d autosaves\n", autosaveCount);
+    Con_Printf("vr_autosave_list: %d autosaves (%s), %d of other games not listed; read in %.2f ms (this game: campaign "
+               "%d, package %s)\n",
+        autosaveCount, qvr::vr_autosave_list_all.value != 0.f ? "all games" : "this game's", autosaveHidden, ms,
+        VR_ActiveCampaign(), qvr::mapinstall::active().size() ? qvr::mapinstall::active().cStr() : "none");
 }
 
 // vr_autosave_load [n]: the n-th newest autosave (1: the newest) loaded, as the Load Autosave menu's row n.
@@ -612,6 +665,33 @@ extern "C" int VR_AutosaveAny(void)
 
 extern "C" int VR_AutosaveListRefresh(void)
 {
+    refreshAutosaves();
+    return autosaveCount;
+}
+
+extern "C" int VR_AutosaveListHidden(void) { return autosaveHidden; }
+
+extern "C" void VR_AutosaveListScope(char* out, size_t size)
+{
+    if(qvr::vr_autosave_list_all.value != 0.f)
+    {
+        q_strlcpy(out, "All Games", size);
+        return;
+    }
+    const za::String& sha = qvr::mapinstall::active();
+    char title[64];
+    if(sha.size())
+    {
+        packageTitleNow(sha.cStr(), title, sizeof(title));
+        if(!title[0]) { q_snprintf(title, sizeof(title), "map package %.8s", sha.cStr()); }
+    }
+    else { q_strlcpy(title, VR_CampaignTitle(VR_ActiveCampaign()), sizeof(title)); }
+    q_strlcpy(out, title, size);
+}
+
+extern "C" int VR_AutosaveListToggleAll(void)
+{
+    Cvar_SetValueQuick(&qvr::vr_autosave_list_all, qvr::vr_autosave_list_all.value != 0.f ? 0.f : 1.f);
     refreshAutosaves();
     return autosaveCount;
 }

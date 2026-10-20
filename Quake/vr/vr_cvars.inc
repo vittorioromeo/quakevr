@@ -4324,6 +4324,7 @@ QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, n
 QVR_CVAR(vr_autosave_level_start, "1", CVAR_ARCHIVE) // with sv_autosave on: an autosave as each campaign map starts (a map, a changelevel; not a load), besides Ironwail's every sv_autosave_interval seconds of quiet play. 0: Ironwail's only
 QVR_CVAR(vr_continue_available, "0", CVAR_ROM)       // a save Continue would load (the hub's Continue button shows only then: QC buttons.qc)
 QVR_CVAR(vr_autosave_slots, "3", CVAR_ARCHIVE)       // the autosaves kept per map (1-9): autosave/<name>.sav the newest, <name>@2.sav, @3... the older ones (VR_AutosaveRotate); 1: one, overwritten (Ironwail's)
+QVR_CVAR(vr_autosave_list_all, "0", CVAR_ARCHIVE)    // the Load Autosave menu and the death menu list every game's autosaves (each other campaign's or map package's named after its title); 0: only the game played now's (its campaign, or its map package)
 QVR_CVAR(vr_autosave_safe, "1", CVAR_ARCHIVE)        // an autosave due waits until it is safe (the checks below; host.c Host_AutosaveUnsafe): 0 none of them
 QVR_CVAR(vr_autosave_safe_alerted, "1", CVAR_ARCHIVE) // not while a living monster is after you (its enemy is you), wherever it is
 QVR_CVAR(vr_autosave_safe_radius, "600", CVAR_ARCHIVE) // not while a living monster you can see (or that sees you) is within this many units (0: off)

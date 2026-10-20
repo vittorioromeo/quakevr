@@ -2261,9 +2261,16 @@ static struct
 	int			first;			// the first row drawn (scrolled)
 } autosavesmenu;
 
+// The rows above the autosaves: the death menu's Respawn and Restart, then which games' autosaves are listed (this
+// game's or every game's: vr_autosave_list_all; selecting it switches).
 static int M_Autosaves_Actions (void)
 {
-	return autosavesmenu.death ? 2 : 0;
+	return autosavesmenu.death ? 3 : 1;
+}
+
+static int M_Autosaves_ScopeRow (void)
+{
+	return M_Autosaves_Actions () - 1;
 }
 
 static int M_Autosaves_Rows (void)
@@ -2301,7 +2308,7 @@ static void M_Menu_Autosaves_Open (qboolean death)
 	m_entersound = true;
 	autosavesmenu.death = death;
 	autosavesmenu.count = VR_AutosaveListRefresh ();
-	autosavesmenu.cursor = 0;
+	autosavesmenu.cursor = !death && autosavesmenu.count ? M_Autosaves_Actions () : 0; // (the newest autosave; Respawn)
 	autosavesmenu.first = 0;
 	Con_DPrintf ("%s: %d autosaves\n", death ? "Death menu" : "Load Autosave", autosavesmenu.count);
 }
@@ -2341,7 +2348,7 @@ static void M_Autosaves_Print (int x, int y, qboolean white, const char *text)
 void M_Autosaves_Draw (void)
 {
 	const char *title = autosavesmenu.death ? "You Died" : "Load Autosave";
-	char line1[96], line2[96];
+	char line1[96], line2[96], scope[64];
 	int i, row, y, visible = M_Autosaves_Visible ();
 
 	if (VR_BigFont_CanDraw (title))
@@ -2356,7 +2363,20 @@ void M_Autosaves_Draw (void)
 		if (row >= M_Autosaves_Rows ())
 			break;
 		y = AUTOSAVES_TOP + i * AUTOSAVES_ROWH;
-		if (row < M_Autosaves_Actions ())
+		if (row == M_Autosaves_ScopeRow ())
+		{
+			VR_AutosaveListScope (scope, sizeof (scope));
+			q_snprintf (line1, sizeof (line1), "Showing: %s", scope);
+			if (Cvar_VariableValue ("vr_autosave_list_all"))
+				q_strlcpy (line2, "Select: only the game you are playing", sizeof (line2));
+			else if (VR_AutosaveListHidden ())
+				q_snprintf (line2, sizeof (line2), "Select: all games (%d more)", VR_AutosaveListHidden ());
+			else
+				q_strlcpy (line2, "Select: all games", sizeof (line2));
+			M_Autosaves_Print (24, y + 1, true, line1);
+			M_Autosaves_Print (24, y + 10, false, line2);
+		}
+		else if (row < M_Autosaves_Actions ())
 		{
 			if (row == 0)
 				M_Autosaves_Print (24, y + 6, true, sv.lastsave[0] && sv_autoload.value >= 2.f
@@ -2375,7 +2395,7 @@ void M_Autosaves_Draw (void)
 	}
 	y = AUTOSAVES_TOP + visible * AUTOSAVES_ROWH;
 	if (!autosavesmenu.count)
-		M_Autosaves_Print (24, AUTOSAVES_TOP + M_Autosaves_Actions () * AUTOSAVES_ROWH + 6, false, "No autosaves yet.");
+		M_Autosaves_Print (24, AUTOSAVES_TOP + M_Autosaves_Actions () * AUTOSAVES_ROWH + 6, false, VR_AutosaveListHidden () ? "No autosaves of this game yet." : "No autosaves yet.");
 	else if (autosavesmenu.first + visible < M_Autosaves_Rows ())
 		M_Print (24, y, "more below...");
 }
@@ -2406,6 +2426,11 @@ void M_Autosaves_Key (int key)
 		if (autosavesmenu.cursor >= rows)
 			break;
 		M_ThrottledSound ("misc/menu2.wav");
+		if (autosavesmenu.cursor == M_Autosaves_ScopeRow ()) // this game's autosaves or every game's: the list again
+		{
+			autosavesmenu.count = VR_AutosaveListToggleAll ();
+			break;
+		}
 		M_Autosaves_Close ();
 		if (autosavesmenu.cursor < M_Autosaves_Actions ())
 			Cbuf_InsertText (autosavesmenu.cursor == 0 ? "restart\n" : "restart fresh\n"); // (next, before any command queued)
