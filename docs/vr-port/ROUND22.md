@@ -15446,3 +15446,26 @@ Box3D's jobs, more awake bodies and contacts, VR_Melee_Sweep and hand collide.
 "still in it" time and the pommel's pending blow (VR_Melee_Rearm's), so a gate changes when blows re-arm: the melee
 feel, not done without his takes. The bench's seed-7 fight is one sample of a chaotic scenario: a regression in it
 should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the script's two seed lines).
+
+## 1.1 sweep: ragdoll-area suites (worktree `goreflesh`, branch `agent/regfix4`, 2026-10-21)
+
+- **rag_env** (stale test): the kdtrig slope (d060895c5, x -240..-80 by vrtesthall's north wall) stands where
+  `env_test.sh`'s wall, along and off cases put the monster: it began inside the wedge and its body fell out through
+  the floor to z -1240 (75-84 kJ, "explosion?"). The cases (and `cost`) moved west of it: wall/along/off PASS.
+- **animsmooth** (stale test): the grunt's stand loop wraps by the dequantiser's runs (05f525b79), so nothing is
+  "learnt"; Rebuild From Skeleton (default 1, a004f27d7) derives the rig with Smooth Limbs off. The check asks frame
+  7 > 0 and no rig with both off: 9/9 PASS.
+- **rag_climb** (a real bug and a stale placement): `ragactive::struck` knew only the arm's upper arm and forearm, so
+  a hit on a rig's own hand bone (ogre, death knight: what a shot at the hand finds) never made a hold let go; now a
+  part on the forearm counts. At 132 units the knight and the zombie caught the lip with the pelvis still on the top
+  (failing so on 10-14 already); the monster now stands 140 ahead (its origin 2 units in from the lip). N=2: 48/48.
+- **rag_dismember, ogre head** (stale threshold): the limp beheaded ogre (200 kg) kneels, then topples at 1.4-2 s (up
+  to 1 kJ); `dismember_trace.py` looks for restlessness from 2.5 s at the earliest (0 J there). All cases PASS.
+- **kdtrig test 44** (stale test): at the default place (64 units ahead) the corpse was put 64 units behind you; at
+  e1m1's start that is off the ledge, so it was flung from ~535 units and landed after the judging (4/10 down). The
+  trials now put the target 192 units ahead (the corpse between, 64 ahead): e1m1 10/10 down, push 33 (above: 10/10,
+  37); vrmelee-recording flings from the same 13-14 units.
+- **legsweep**: 16/20: the 3 known backward falls, and `plank_lr` "not swept (no contact)" (not looked into).
+- **ragimpact slam**: 2 head strikes of 10, at 1.4-1.6 m/s, health 30 -> 28. The head's pop limit is now 104
+  (`vr_ragimpact_piece_hp` 0.65 x corpse health 80 x `vr_corpse_health_mult` 2), 32 when the test was written, so
+  "popped" is out of reach by design; the weak strikes still need a look (not fixed). leggrab not run.
