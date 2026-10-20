@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Prop impacts (Crates > Breaking): light taps only move crates and boxes; hard punches or the axe break a crate in one or two hits; a hard punch or wall slam blows up an explosive box; a held crate slammed into a wall breaks out of your hands; crate pieces dust when punched or thrown hard; 9 m/s base / 8.4 m/s box feel right?
 AD zombie knight: behead one lying on the floor before its trigger, walk through the trigger: it stays down (no headless body running in place); vr_debug_deadanim 1 + developer 1 logs "deadanim:" if any dead monster animates again
 Weapons held off their handle collide: pick up a weapon by its barrel, a crowbar by its blade, hand a shotgun off to the other hand's barrel grip, push each into a wall and the floor (also two-handed): stops and slides, hands stay on their grips
 Shoulder charge (Ragdoll Triggers > Shoulder Charges, off by default): record takes first (Motion Recorder > Shoulder Charge / Not Expected; 16 positives, 20 negatives, see ROUND22); then turn it on: hands low and tucked, turned side-on, sprint into a grunt: launched back and toppled, you bounce back; ogre staggers
