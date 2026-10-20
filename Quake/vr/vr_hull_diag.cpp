@@ -57,7 +57,8 @@ void cacheTest_f()
 {
     if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
     settle();
-    const int room = static_cast<int>(maxMonsterTrees - monsterTrees.trees.size());
+    joinBackground();
+    const int room =static_cast<int>(maxMonsterTrees - monsterTrees.trees.size());
     const int count = za::min(room, za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 64, 1, 120));
     if(count < 1) { Con_Printf("vr_hull_cachetest: no free slots; run on a fresh map\n"); return; }
     za::Vector<za::U32> hashes;
@@ -220,6 +221,9 @@ void stats_f()
     {
         return;
     }
+    Con_Printf("hull: compiled in play on the pool (vr_hull_async %d, this session): %d started, %d running (waited for "
+               "now)\n", static_cast<int>(vr_hull_async.value), backgroundStarted(), backgroundRunning());
+    joinBackground();
     const za::SizeT bytes = built.bytes();
     Con_Printf("hull: %s: %d nodes (hulls 1-2: %d clipnodes), %d brushes (%d clip), %d planes (%d bevels), %d slivers "
                "dropped, %.0f KB, built in %.1f ms (clip brushes %.1f); width %g (%s)\n",
@@ -286,6 +290,7 @@ void keepTest_f()
         Con_Printf("vr_hull_keeptest: no map\n");
         return;
     }
+    joinBackground();
     qmodel_t* world = sv.worldmodel;
     Brushes fresh;
     build(fresh, world, keyOf(world));
@@ -334,6 +339,7 @@ void bench_f()
     const float width = Cmd_Argc() > 2 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(2))), minWidth, maxWidth)
                                        : (vr_hull_width.value > 0.f ? widthSetting() : 20.f);
     qmodel_t* world = sv.worldmodel;
+    joinBackground(); // (the trees compiled in play read the brushes built again here)
     built.clipnodes = nullptr; // time a fresh build
     const Brushes* b = worldBrushes(world);
     if(!b)
@@ -1318,6 +1324,7 @@ void preloadTest_f()
 {
     if(!sv.active || !wanted() || vr_hull_brushmodels.value == 0.f || !worldBrushes(sv.worldmodel)) return;
     settle();
+    joinBackground();
     za::Vector<const Tree*> sizes;
     if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
     for(const Tree& t : monsterTrees.trees)

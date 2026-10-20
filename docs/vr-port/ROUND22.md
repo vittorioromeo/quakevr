@@ -15338,3 +15338,31 @@ ogre (180) loads at 180.
   Saves > List the Autosaves: Cold).
 - **In VR**: open Load Autosave after playing two campaigns: only this one's, the first row switches; the death menu
   has the row under Restart.
+## Monster hull sizes first met in play: compiled on the pool (worktree `tghost`, branch `agent/hullhitch`, 2026-10-20)
+
+Sweep finding: the first move of a monster whose box size the load did not compile (AD's delayed and triggered spawns,
+the test spawner) compiled the world's tree in the frame (`treeFor`'s runtime build, without the disk cache). Now
+`moveBox` asks `worldTreeReady`: a missing size is read from the disk cache or compiled (and written) on the pool with
+the brush models live edicts can meet, one size at a time (a second waits its turn: the build gate would otherwise queue
+its work behind the first's job and report it done), and the monster moves with Quake's own hull until it is ready
+(wider, as tall from the same feet: the switch is seamless). Whatever changes `built`'s layout or the slots, a setting's
+`prepare`, map changes, shutdown and the hull diagnostics wait for the job first (`joinBackground`). `vr_hull_async` (1;
+0: the old in-frame compile), Debug > Tests > New Monster Sizes in Play; `vr_hull_stats` counts them. Precompiling every
+class's size at load was not done: it would add load time on every map for sizes most never use.
+
+Headless (spawner 0..11, `vr_profile_hitch`; the machine shared with other agents, so times are noisy):
+
+| Map | Size | Before: frame stall | After: frames over 55 ms from it | Ready after (pool) |
+|---|---|---|---|---|
+| ad_tears | 40x88, 28x56 | 1.5-4.7 s, 1.4-1.9 s | none (none over 33 ms) | 2.2-2.6 s compiled; 0.11-0.13 s from the disk |
+| ad_sepulcher | 40x88, 28x56 | 0.61 s, 0.58 s | none | 0.79 s |
+| ad_swampy | 28x56 | 0.27 s | none | 0.37 s |
+| MG3 map5 | 28x56 | 0.25 s | none | 0.36 s |
+
+Load times unchanged (no load-time work added; the runs' differences are noise). `vr_mhull_walktest 8` right after an
+ogre and an enforcer spawn on ad_tears (the fallback in use for the first 2.5 s): 0 stuck, 0 in solid, 0 embedded for
+both. eval.sh: verdicts unchanged (169/177; four takes' damage moves by 0.1).
+
+- Unrelated, seen on the way: ad_swampy's spawns give 0.1-1.0 s "server other" hitches with either setting.
+- **In VR**: on an AD map spawn an ogre and an enforcer with the spawner (or reach a delayed spawn): no stall;
+  developer 1 prints `hull: 40x88 ready in play ...`.

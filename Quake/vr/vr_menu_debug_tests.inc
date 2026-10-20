@@ -1165,6 +1165,11 @@ za::Vector<Item> pageDebugTests()
             .help("How much memory a big map's hitbox build (its first load after an install or update) may hold at once "
                   "(estimated): past it a tree's build waits for another to end. vrstart: about 330 MB a tree, three at "
                   "once in 1 GB. No Limit: all at once (about 1 GB more, 5-10% quicker) (vr_hull_build_mb)."),
+        cycle("New Monster Sizes in Play", vr_hull_async, {{0.f, "In the Frame"}, {1.f, "On the Pool"}})
+            .help("A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "
+                  "spawner): On the Pool compiles its hull in the background while it moves with Quake's own hull, "
+                  "no hitch; In the Frame compiles it at its first move, the game waiting (ad_tears: 1.3-1.9 s) "
+                  "(vr_hull_async; developer 1 prints the switch)."),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")
             .help("vr_portals_info: every teleporter built for this map - its plane, its opening, its trigger brush - and "
