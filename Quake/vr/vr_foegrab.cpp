@@ -1620,6 +1620,56 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
     return heavy > 0.f && mass > heavy ? za::pow(mass / heavy, 1.f / 3.f) : 1.f;
 }
 
+// The one-hand drag (the author, 2026-10-20: one hand on a shin dragged the grunt along instead of pulling its legs
+// out): one hand alone on a standing enemy drags it (the follow and the pull, serverFrame) only by its torso and
+// shoulders (vr_foegrab_drag_onehand 1): on its legs (legPartAt) the hand is the one-hand leg pull's (legCheck), at its
+// head or neck (its head zone, as the neck snap's) the head hold's (2: that drags too), on a forearm or a hand (the
+// rig's bone) neither; elsewhere (its chest, its belly, its shoulders, an upper arm) it drags. 0: anywhere, as before.
+// Both his hands on it: they drag, as ever (the two-hand moves are theirs).
+bool oneHandDrags(int c, int h, edict_t* m, const char** where)
+{
+    const Holder& hd = holders[c];
+    const Hold& g = hd.holds[h];
+    const Hold& other = hd.holds[1 - h];
+    const float mode = vr_foegrab_drag_onehand.value;
+    const char* name = "both hands";
+    bool drags = true;
+    const bool alone = !other.active || other.ent != g.ent;
+    if(alone && mode == 0.f)
+    {
+        name = "anywhere (One Hand Drags By Anywhere)";
+    }
+    else if(alone)
+    {
+        const glm::vec3 spot = spotOf(g);
+        const char* bone = "";
+        if(legPartAt(m, spot, &bone) != LegPart::None)
+        {
+            name = "its leg";
+            drags = false;
+        }
+        else if(atHead(headZoneOf(m).where(restOf(m, spot))))
+        {
+            name = "its head";
+            drags = mode >= 2.f;
+        }
+        else if(bone[0] && (!q_strncasecmp(bone, "forearm", 7) || !q_strncasecmp(bone, "hand", 4)))
+        {
+            name = "its forearm or hand";
+            drags = false;
+        }
+        else
+        {
+            name = "its torso or shoulders";
+        }
+    }
+    if(where)
+    {
+        *where = name;
+    }
+    return drags;
+}
+
 namespace
 {
 void legNote(int c, const char* why)
@@ -2394,6 +2444,28 @@ void qvr::foegrab::serverFrame()
             carry.z = 0.f;
             target += carry / static_cast<float>(carriers) * hold * (1.f - follow); // (the hands' follow below carries the rest)
         }
+        // The hands that drag it (oneHandDrags: one alone by its torso or shoulders only), each printed as that changes.
+        bool dragging[MAX_SCOREBOARD][2]{};
+        for(int c = 0; c < players; c++)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                Hold& g = holders[c].holds[h];
+                if(!g.active || g.ent != foe.ent)
+                {
+                    continue;
+                }
+                const char* where = "";
+                dragging[c][h] = oneHandDrags(c, h, m, &where);
+                const int whereNow = dragging[c][h] ? 1 : 0;
+                if(debug() && whereNow != g.dragWhere)
+                {
+                    Con_Printf("foegrab: the %s hand holds %s (%d) by %s: %s\n", handName(h), PR_GetString(m->v.classname),
+                        foe.ent, where, dragging[c][h] ? "drags it" : "doesn't drag it");
+                }
+                g.dragWhere = whereNow;
+            }
+        }
         // It follows its hands' own move since the last frame (flat; a step, a pull, the player walking off with it), by
         // vr_foegrab_follow times its hold: a grunt comes along, an ogre a little, a shambler hardly.
         glm::vec3 handMove{0.f};
@@ -2404,7 +2476,7 @@ void qvr::foegrab::serverFrame()
             for(int h = 0; h < 2 && move; h++)
             {
                 const Hold& g = holders[c].holds[h];
-                if(!g.active || g.ent != foe.ent || qcvm->time - g.since < 1e-6)
+                if(!g.active || g.ent != foe.ent || qcvm->time - g.since < 1e-6 || !dragging[c][h])
                 {
                     continue;
                 }
@@ -2437,7 +2509,7 @@ void qvr::foegrab::serverFrame()
             {
                 const Hold& g = holders[c].holds[h];
                 glm::vec3 at{0.f};
-                if(!g.active || g.ent != foe.ent || !spotNow(holders[c].holds[h], 0.f, at))
+                if(!g.active || g.ent != foe.ent || !dragging[c][h] || !spotNow(holders[c].holds[h], 0.f, at))
                 {
                     continue;
                 }

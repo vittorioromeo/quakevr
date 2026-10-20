@@ -193,6 +193,10 @@
         slider("Reach Over the Top", "vr_climb_over_top", 0.f, 40.f, 1.f, "%.0f units").extend().help("Over the top of a ledge, how far in from the drop a hand touching the top still holds it (up to how deep the top is). Less: only a hand near the edge grabs."),
         toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         slider("Grab Sound", "vr_physsound_grab", 0.f, 1.f, 0.1f, "%.1f").help("A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds)."),
+        slider("Mantle Height", "vr_climb_mantle_height", 0.f, 40.f, 1.f, "%.0f units")
+            .help("Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
+                  "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
+                  "32 units are about a metre)."),
         toggle("Mantle onto Slopes", "vr_climb_mantle_lenient")
             .help("Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or "
                   "sloping along it) stands you on the slope, up to Steepest Slope. Off: only level tops, as before."),

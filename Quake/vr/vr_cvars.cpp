@@ -329,8 +329,10 @@ const DefaultChange defaultChanges[] = {
     // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
     {167, &vr_decal_carve_steps, "16"},
     {167, &vr_ad_widowmaker_spinup, "0.2"},
+    // 168: his shallower dents (his config of 2026-10-20).
+    {168, &vr_gore_dents_depth, "3"},
 };
-constexpr int configVersion = 167;
+constexpr int configVersion = 168;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
