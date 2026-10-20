@@ -15469,3 +15469,9 @@ should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the 
   damage needed per skill (the `skill` cvar the game runs at). Rows under Damage to Fill (Easy/Normal/Hard/Nightmare:
   Damage Needed). `vr_bullettime_meter` prints `fills by <n> damage dealt (skill <s>)`. bullettime_earn_test.sh pins
   its cases to 180/0.25 on skill 1 and has two new cases (Nightmare 270, Easy 135).
+- Tests (VR mock): `Misc/quakevr/deathmenu_test.sh <agent>`: a map started from the main menu (m_state 1 at death:
+  the old check bailed) opens the menu after 2 s, panel 150 units in front of the head; its Restart the Level row
+  restarts e1m1; Respawn restarts (scripted: "Autoload failed!", as noted above); a press 90 frames after death gives
+  `not opened: a respawn is under way` and no menu. Reload self-test (`vr_reload_test 9; impulse 125`): 77 passed, its
+  3 two-shell inserts each with a second sound, its 13 single ones without. bullettime_earn_test.sh: all 4 PASS (the
+  `earned` case failed once on a grunt hurt beforehand, 26 of 30: passes again unchanged).

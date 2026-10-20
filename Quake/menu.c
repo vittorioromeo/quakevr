@@ -2255,6 +2255,7 @@ static struct
 {
 	qboolean	death;			// the death menu
 	qboolean	dismissed;		// closed while dead: not opened again until the player lives
+	qboolean	respawning;		// held back for this death: a respawn under way (logged once)
 	double		deadsince;		// sv.time the player was first seen dead (0: alive)
 	int			count;			// autosaves listed
 	int			cursor;			// the row (the death menu's actions first)
@@ -2487,6 +2488,7 @@ void M_CheckDeathMenu (void)
 			M_Autosaves_Close ();
 		autosavesmenu.deadsince = 0.;
 		autosavesmenu.dismissed = false;
+		autosavesmenu.respawning = false;
 		return;
 	}
 	if (!autosavesmenu.deadsince)
@@ -2504,7 +2506,12 @@ void M_CheckDeathMenu (void)
 	if (key_dest != key_game)
 		return;
 	if (PR_ServerGlobalFloat ("vr_restart_queued") || VR_LoadingWaiting ())
+	{
+		if (!autosavesmenu.respawning)
+			Con_DPrintf ("Death menu: not opened: a respawn is under way\n");
+		autosavesmenu.respawning = true;
 		return;
+	}
 	Con_DPrintf ("Death menu: opening (menu %d before)\n", (int) m_state);
 	M_Menu_Autosaves_Open (true);
 	VR_MenuPanelInFront ();
