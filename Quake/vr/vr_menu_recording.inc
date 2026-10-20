@@ -160,7 +160,8 @@
         toggle("Bullet Time", "vr_bullettime_enabled")
             .help("Tap your gadget's screen hard with your other hand (or the butt of the gun it holds): the world "
                   "slows for as long as the meter on the gadget's screen (TIME) lasts; tap again to stop. Then a "
-                  "cooldown, and the meter fills again. Bindable: vr_bullettime. Single player."),
+                  "cooldown; the meter fills as you hurt enemies (or over time: Meter Refill). Bindable: vr_bullettime. "
+                  "Single player."),
         cycle("Trigger", "vr_bullettime_trigger",
             {{0.f, "Gadget (Screen Tap)"}, {1.f, "Left Stick Press"}, {2.f, "Right Stick Press"}})
             .help("What starts and stops it. Gadget: a hard tap on its screen (its settings below). A stick press: that "
@@ -171,10 +172,22 @@
             .help("How fast the world runs while it lasts (0.3: under a third of its speed)."),
         slider("Duration", "vr_bullettime_duration", 1.f, 20.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
             .help("Real seconds a full meter lasts."),
+        cycle("Meter Refill", "vr_bullettime_meter_mode", {{1.f, "Earned by Damage"}, {0.f, "Over Time"}})
+            .help("Earned by Damage: the meter never fills by itself, only by the damage you deal living enemies (what "
+                  "health they had at most: no overkill; never corpses, props or enemies hurting each other). Over Time: it "
+                  "fills by itself after the cooldown (Recharge Time). Kept from level to level and in saves; full on a "
+                  "new game."),
+        slider("Damage to Fill", "vr_bullettime_earn_damage", 30.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("Earned by Damage: the damage dealt that fills the meter from empty (180: six grunts, 30 health "
+                  "each). Less: it fills faster."),
+        slider("Refill While Slowed", "vr_bullettime_earn_active", 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Earned by Damage: damage dealt while bullet time runs fills the meter at this share (low: no endless "
+                  "slow motion; 0: not at all)."),
         slider("Recharge Time", "vr_bullettime_recharge", 2.f, 120.f, 1.f, "%.0f s").extend(0.5f, 600.f)
-            .help("Real seconds the meter takes to fill from empty."),
+            .help("Over Time: real seconds the meter takes to fill from empty."),
         slider("Cooldown", "vr_bullettime_cooldown", 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
-            .help("Real seconds after it ends (or is stopped) before it can start again; the meter waits too."),
+            .help("Real seconds after it ends (or is stopped) before it can start again (over time, the meter waits "
+                  "too)."),
         slider("Least Meter to Start", "vr_bullettime_min", 0.05f, 1.f, 0.05f, "%.2f")
             .help("How full the meter must be to start (it then runs until empty or stopped)."),
         slider("End Sound Plays At Most", "vr_bullettime_sound_off_max", 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)

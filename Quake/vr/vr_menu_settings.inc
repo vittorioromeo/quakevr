@@ -294,6 +294,10 @@ za::Vector<Item> pageMain()
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
                   "press does only this (never its bound key), and the screen tap does nothing. More: Advanced VR "
                   "Options > Combat > Bullet Time."),
+        cycle("Meter Refill", "vr_bullettime_meter_mode", {{1.f, "Earned by Damage"}, {0.f, "Over Time"}})
+            .help("Earned by Damage: the TIME meter never fills by itself; hurting enemies fills it (six grunts' worth "
+                  "fills it from empty; less while slowed). Over Time: it fills by itself after each use. Either way it "
+                  "is kept from level to level and in saves, full on a new game."),
         cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
                   "so a stray knock never starts it); Single Tap, one hard tap."),

@@ -1419,6 +1419,29 @@ void(entity targ) VR_Ragdoll_NoteDeathHit =
 void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit;
 void(entity e, vector at, vector dir) VR_HitReact_Pellet;
 
+// VR: earned bullet time (vr_bullettime_meter_mode 1; vr_bullettime.cpp, ROUND22.md "Earned bullet time"): the damage
+// the player deals a living monster, at most the health it had (no overkill), goes to his .vr_bullettime_earned for the
+// engine to turn into meter (vr_bullettime_earn_damage fills it). His own missiles' and thrown things' count (their
+// owner); never a corpse's, a dying one's, a prop's, a monster's to another; single player only. Called by
+// T_DamageDeal and AD's T_Damage (VR_AD_Hit) right after the health is taken.
+void(entity targ, entity attacker, float take, float healthBefore) VR_BulletTime_Earn =
+{
+    if(deathmatch || coop || take <= 0 || healthBefore <= 0 || !(targ.flags & FL_MONSTER) || targ.vr_corpse ||
+       targ.vr_corpse_dying)
+    {
+        return;
+    }
+    if(!(attacker.flags & FL_CLIENT))
+    {
+        attacker = attacker.owner;
+        if(!(attacker.flags & FL_CLIENT))
+        {
+            return;
+        }
+    }
+    attacker.vr_bullettime_earned = attacker.vr_bullettime_earned + min(take, healthBefore);
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
@@ -1686,7 +1709,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     take = VR_Trailer_Take(targ, attacker, take); // QVR: an oblivious one's beheading cut kills it (vr_trailer.qc)
 
     // do the damage
+    float healthBefore = targ.health;
     targ.health = targ.health - take;
+    VR_BulletTime_Earn(targ, attacker, take, healthBefore); // VR: earned bullet time's meter
     if(isVRMelee && vr_melee_slap && (targ.flags & FL_MONSTER) && targ.health < -1)
     {
         targ.health = -1; // VR: a slap kills but never gibs (vr_melee_slap): no overkill
