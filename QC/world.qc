@@ -564,6 +564,8 @@ void() worldspawn =
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
+void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
+void() VR_DeadAnim_TestFrame;
 
 void() StartFrame =
 {
@@ -594,6 +596,8 @@ void() StartFrame =
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
+    VR_DeadAnim_TestFrame(); // VR: vr_deadanim_test (vr_deadanim.qc)
+    VR_DeadAnim_Frame(); // VR: dead monsters animating again, logged (vr_debug_deadanim, vr_deadanim.qc)
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)

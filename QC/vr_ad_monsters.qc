@@ -400,6 +400,9 @@ void() VR_AD_ZombieDie =
     ad_monster_death_precheck(); // (dead, no think; its health -1 gibs nothing)
     self.ad_inpain = 0;
     self.solid = SOLID_NOT;
+    // (A map's dormant one, lying until its trigger: the trigger wakes it no more. ROUND22.md, "A beheaded zombie knight
+    // ran again": its headless body got up, running.)
+    self.use = ad_SUB_Null;
 };
 
 void(entity e, entity by) VR_AD_ZombieKilled =

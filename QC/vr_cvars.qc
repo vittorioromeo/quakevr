@@ -306,6 +306,7 @@ float cvarh_vr_crate_shield;
 float cvarh_vr_hull_hit_head;
 float cvarh_vr_crouch_height;
 float cvarh_vr_debug_crates;
+float cvarh_vr_debug_deadanim;
 float cvarh_vr_walltorch_pull;
 float cvarh_vr_walltorch_reach;
 float cvarh_vr_walltorch_grab_time;
@@ -1311,6 +1312,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_hull_hit_head);
     VR_CVAR_HMAKE(vr_crouch_height);
     VR_CVAR_HMAKE(vr_debug_crates);
+    VR_CVAR_HMAKE(vr_debug_deadanim);
     VR_CVAR_HMAKE(vr_walltorch_pull);
     VR_CVAR_HMAKE(vr_walltorch_reach);
     VR_CVAR_HMAKE(vr_walltorch_grab_time);

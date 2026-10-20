@@ -447,6 +447,15 @@ FUNC_PATCHES += [
     ("weapons.qc", "FireBullets", "\t\t\tdir = normalize (dir - src);\n\t\t}\n",
      "\t\t\tdir = normalize (dir - src);\n\t\t}\n\t" + _BEND % ("dir", "dir", "NARROW"), _AIM),
 ]
+# A zombie's wake-up (getting off the floor: its fall's, or a map's dormant one's use) never on a dead one. AD's only
+# death for a zombie gibs it; Quake VR's beheading or cut limb kills it whole, for good (VR_AD_ZombieDie: not gibbed), and
+# a dormant one's trigger would raise the headless body, running (ROUND22.md, "A beheaded zombie knight ran again").
+_WAKE = "\tif (self.gibbed) return;\t\t\t// Do nothing dead\n"
+FUNC_PATCHES += [
+    (f, func, _WAKE, "\tif (self.gibbed || self.deadflag) return;\t// Do nothing dead (QVR: or killed whole, beheaded)\n",
+     B + ": a zombie killed whole (beheaded, a limb cut) never gets up")
+    for f, func in (("mon_zombie.qc", "zombie_wakeup"), ("mon_zombiek.qc", "zombiek_wakeup"))
+]
 # (file, function: a fire function with no arguments or the shot's frame, its kind): VR_AimCone_Wait at its start.
 AIM_WAITS = [
     ("mon_soldier.qc", "army_fire", "NARROW"), ("mon_soldier.qc", "army_fire_rocket", "NARROW"),

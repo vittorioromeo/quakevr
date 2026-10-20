@@ -594,7 +594,7 @@ void(entity ad_inflictor, entity ad_attacker, float ad_take) ad_zombiek_pain =
  ZOMBIE WAKEUP (check if can get up)
 =============================================================================*/
 void() ad_zombiek_wakeup	= {
-	if (self.ad_gibbed) return;			// Do nothing dead
+	if (self.ad_gibbed || self.deadflag) return;	// Do nothing dead (QVR: or killed whole, beheaded)
 	
 	self.use = ad_SUB_Null;				// No more using at this point
 	if (!self.enemy) ad_FindTarget();		// If no enemy, look around?

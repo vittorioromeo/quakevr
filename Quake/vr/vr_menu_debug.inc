@@ -325,6 +325,10 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        toggle("Dead Monsters Animating", vr_debug_deadanim)
+            .help("vr_debug_deadanim: each dead monster that animates again printed (its think its AI's stand, walk, run or "
+                  "attack again, or its frame changing 3 s after its death: a corpse that gets up or runs in place). Needs "
+                  "Developer Messages."),
         cycle("Hit Reaction Log", vr_hit_react_debug, {{0.f, "Off"}, {1.f, "Blows"}, {2.f, "Every Frame"}})
             .help("vr_hit_react_debug: each blow a living monster flinches at printed (the bone struck, its size) and the "
                   "server's slow-down of its steps; Every Frame: its bones' turns each frame too (hittrace lines)."),

@@ -475,6 +475,8 @@ vr_ad_melee.qc
 // The held guns' models the map can give (the engine prepares their convex pieces at load).
 vr_gunprep.qc
 vr_ad_monsters_test.qc
+// Dead monsters stay dead: the watch (vr_debug_deadanim) and its test (after AD's files: its animation callbacks).
+vr_deadanim.qc
 vr_ad_shots_test.qc
 vr_projhit_test.qc
 // The Shadow Axe's rules through our axe (vr_ad_test 140; after the bridge: AD_AxeMark, AD_ShadowAxeChop).
