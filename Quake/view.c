@@ -897,6 +897,8 @@ void V_CalcRefdef (void)
 
 	if (chase_active.value)
 		Chase_UpdateForDrawing (); //johnfitz
+
+	VR_RagtoolView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the ragdoll tool's orbit camera
 }
 
 /*
@@ -961,6 +963,8 @@ void V_RenderView (void)
 		VR_TRACY_SCOPE ("view: R_RenderView"); // QVR: profiling builds only
 		R_RenderView ();
 	}
+
+	VR_RagtoolOverlay (); // QVR: the ragdoll tool's lines over the flat view (in a headset: the eye's UI pass)
 
 	{
 		VR_TRACY_SCOPE ("view: poly blend"); // QVR: profiling builds only

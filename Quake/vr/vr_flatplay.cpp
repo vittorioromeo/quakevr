@@ -25,6 +25,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_ragtool.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -279,7 +280,7 @@ void noteBackendImplied()
 
 void init()
 {
-    fs.flag = COM_CheckParm("-flatscreenmode") != 0;
+    fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
 }
 

@@ -6,6 +6,7 @@
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_seated.hpp"
+#include "vr_ragtool.hpp"
 
 namespace view_detail
 {
@@ -4761,6 +4762,7 @@ extern "C" void VR_SetupViewEntities()
         {
             box3d::activeRagdollDraw(); // vr_ragdoll_active_debug
         }
+        ragtool::draw(); // the ragdoll tool's subject: its skeleton, limits, targets, contacts, balance
         ledges::debugDraw(); // vr_debug_ledges
         hitmodel::debugDraw(); // vr_debug_hits
         hitmodel::zonesDraw(); // vr_debug_hitzones

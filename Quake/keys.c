@@ -1296,6 +1296,10 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 		return;
 	}
 
+// QVR: the ragdoll tool's keys in the game (vr_ragtool.cpp)
+	if (key_dest == key_game && VR_RagtoolKey (key, down))
+		return;
+
 // demo controls
 	if (cls.demoplayback && key_dest == key_game)
 	{

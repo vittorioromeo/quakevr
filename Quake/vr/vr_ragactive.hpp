@@ -748,6 +748,10 @@ void release(State& s, const Parts& p);
 // grey limp), the pin (yellow) and the reaches' goals (red).
 void debugDraw(const State& s, const Parts& p);
 
+// The ragdoll tool's measure (vr_ragtool.cpp): the driven joints' mean miss of their targets (degrees, the bone's
+// direction against its target's, as debugDraw draws them) and their mean strength; false: none driven.
+bool tracking(const State& s, const Parts& p, float& errorDegrees, float& strength);
+
 // vr_ragdoll_active_list's line for it.
 void describe(const State& s, const Parts& p, int num, double now);
 

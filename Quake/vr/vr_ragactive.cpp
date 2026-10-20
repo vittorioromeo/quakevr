@@ -3778,6 +3778,46 @@ bool beginClimb(State& s, const Parts& p, const Context& c)
 namespace
 {
 void dismemberFrame(State& s, const Parts& p, const Context& c, float t); // (below: "Dismemberment")
+
+// A joint group's own share of the drive's spring rate, damping and motor force (vr_ragdoll_active_hertz_legs ... ;
+// the ragdoll tool's Joint Groups): 1 each, the global settings alone.
+struct GroupGains
+{
+    float hertz{1.f}, damping{1.f}, torque{1.f};
+};
+struct GroupGainCvars
+{
+    cvar_t* hertz;
+    cvar_t* damping;
+    cvar_t* torque;
+};
+const GroupGainCvars groupGainCvars[channelCount] = {
+    {&vr_ragdoll_active_hertz_legs, &vr_ragdoll_active_damping_legs, &vr_ragdoll_active_torque_legs},
+    {&vr_ragdoll_active_hertz_torso, &vr_ragdoll_active_damping_torso, &vr_ragdoll_active_torque_torso},
+    {&vr_ragdoll_active_hertz_arms, &vr_ragdoll_active_damping_arms, &vr_ragdoll_active_torque_arms},
+    {&vr_ragdoll_active_hertz_head, &vr_ragdoll_active_damping_head, &vr_ragdoll_active_torque_head},
+};
+// (Read once a drive, not a joint.)
+struct GroupGainsNow
+{
+    za::Array<GroupGains, channelCount> of{};
+};
+GroupGainsNow groupGainsNow;
+
+void readGroupGains()
+{
+    for(int ch = 0; ch < channelCount; ch++)
+    {
+        const GroupGainCvars& v = groupGainCvars[ch];
+        groupGainsNow.of[static_cast<za::SizeT>(ch)] = GroupGains{za::clamp(v.hertz->value, 0.f, 4.f),
+            za::clamp(v.damping->value, 0.f, 4.f), za::clamp(v.torque->value, 0.f, 4.f)};
+    }
+}
+
+[[nodiscard]] const GroupGains& groupGains(Channel ch)
+{
+    return groupGainsNow.of[static_cast<za::SizeT>(ch)];
+}
 } // namespace
 
 void drive(State& s, const Parts& p, const Context& c)
@@ -3935,6 +3975,7 @@ void drive(State& s, const Parts& p, const Context& c)
     const float hertzAt1 = za::clamp(vr_ragdoll_active_hertz.value, 0.f, maxHertz);
     const float damping = za::clamp(vr_ragdoll_active_damping.value, 0.f, 4.f);
     const float torque = za::max(vr_ragdoll_active_torque.value, 0.f);
+    readGroupGains();
     bool any = false;
     for(int b = 1; b < p.count; b++)
     {
@@ -3970,14 +4011,16 @@ void drive(State& s, const Parts& p, const Context& c)
         any = true;
         const glm::quat frame = ragpose::jointFrame(bone);
         const glm::quat qp = bodyRot(p, bone.parent);
-        const float hertz = za::min(hertzAt1 * za::sqrt(k), maxHertz);
-        const float most = s.friction + k * s.cap[i] * torque;
+        const GroupGains& gg = groupGains(channelOf(bone)); // (vr_ragdoll_active_*_<group>: 1 each by default)
+        const float hertz = za::min(hertzAt1 * gg.hertz * za::sqrt(k), maxHertz);
+        const float most = s.friction + k * s.cap[i] * torque * gg.torque;
+        const float jointDamping = damping * gg.damping;
         if(bone.joint == ragdoll::Joint::Ball)
         {
             const glm::quat q = ragpose::clampSwingTwist(ragpose::toJoint(frame, s.target[i]), s.lower[i] * 0.95f, s.upper[i] * 0.95f);
             b3SphericalJoint_EnableSpring(j, true);
             b3SphericalJoint_SetSpringHertz(j, hertz);
-            b3SphericalJoint_SetSpringDampingRatio(j, damping);
+            b3SphericalJoint_SetSpringDampingRatio(j, jointDamping);
             b3SphericalJoint_SetTargetRotation(j, toB3(q));
             b3SphericalJoint_EnableMotor(j, true);
             b3SphericalJoint_SetMotorVelocity(j, b3v(qp * spin[i]));
@@ -3989,7 +4032,7 @@ void drive(State& s, const Parts& p, const Context& c)
             const float angle = za::clamp(ragpose::twistZ(ragpose::toJoint(frame, s.target[i])), lo, hi);
             b3RevoluteJoint_EnableSpring(j, true);
             b3RevoluteJoint_SetSpringHertz(j, hertz);
-            b3RevoluteJoint_SetSpringDampingRatio(j, damping);
+            b3RevoluteJoint_SetSpringDampingRatio(j, jointDamping);
             b3RevoluteJoint_SetTargetAngle(j, angle);
             b3RevoluteJoint_EnableMotor(j, true);
             b3RevoluteJoint_SetMotorSpeed(j, glm::dot(spin[i], glm::normalize(bone.hinge)));
@@ -4167,6 +4210,43 @@ void debugDraw(const State& s, const Parts& p)
         lines::line(limbEnd(s, p, limb) * u, r.goal * u, width * 0.5f, red, red);
     }
     envDraw(s, p);
+}
+
+bool tracking(const State& s, const Parts& p, float& errorDegrees, float& strength)
+{
+    errorDegrees = strength = 0.f;
+    if(!p.rig || !s.on)
+    {
+        return false;
+    }
+    int n = 0;
+    for(int b = 1; b < p.count; b++)
+    {
+        const auto i = static_cast<za::SizeT>(b);
+        if(!drivable(s, p, b) || s.strength[i] < 0.005f)
+        {
+            continue;
+        }
+        const ragdoll::Bone& bone = p.rig->bones[b];
+        const glm::vec3 joint = worldPoint(p, b, bone.pivot);
+        const glm::vec3 actual = worldPoint(p, b, bone.end) - joint;
+        const glm::vec3 target = bodyRot(p, bone.parent) * (s.target[i] * ((bone.end - bone.pivot) * p.k));
+        const float la = glm::length(actual), lt = glm::length(target);
+        if(la < 1e-5f || lt < 1e-5f)
+        {
+            continue;
+        }
+        errorDegrees += glm::degrees(za::acos(za::clamp(glm::dot(actual, target) / (la * lt), -1.f, 1.f)));
+        strength += s.strength[i];
+        n++;
+    }
+    if(n == 0)
+    {
+        return false;
+    }
+    errorDegrees /= static_cast<float>(n);
+    strength /= static_cast<float>(n);
+    return true;
 }
 
 void describe(const State& s, const Parts& p, int num, double now)

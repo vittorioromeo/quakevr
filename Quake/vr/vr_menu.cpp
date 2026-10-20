@@ -52,6 +52,7 @@
 #include "vr_held.hpp"
 #include "vr_props.hpp"
 #include "vr_ragtest.hpp"
+#include "vr_ragtool.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_retro.hpp"
@@ -513,6 +514,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageStealth();
 [[nodiscard]] za::Vector<Item> pageStealthTests();
 [[nodiscard]] za::Vector<Item> pageRagdollTests();
+[[nodiscard]] za::Vector<Item> pageRagtool(); // (vr_menu_ragtool.inc)
 [[nodiscard]] za::Vector<Item> pageRagdolls();
 [[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
@@ -628,6 +630,7 @@ const char* const menuButtonHelp =
 #include "vr_menu_toolgun.inc"
 #include "vr_menu_stealth.inc"
 #include "vr_menu_ragtests.inc"
+#include "vr_menu_ragtool.inc" // Debug > Ragdoll Tool (vr_ragtool.cpp)
 #include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
@@ -2060,6 +2063,16 @@ const Page pages[] = {
     {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
     {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
     {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
+    {"Ragdoll Tool", pageRagtool, pageDebug}, // (vr_menu_ragtool.inc; vr_ragtool.cpp)
+    {"Ragdoll Tool - Motors", pageRagtoolParams<0>, pageRagtool},
+    {"Ragdoll Tool - Joint Groups", pageRagtoolParams<1>, pageRagtool},
+    {"Ragdoll Tool - Stagger and Balance", pageRagtoolParams<2>, pageRagtool},
+    {"Ragdoll Tool - Shove", pageRagtoolParams<3>, pageRagtool},
+    {"Ragdoll Tool - Knockdown and Get-Up", pageRagtoolParams<4>, pageRagtool},
+    {"Ragdoll Tool - Death and Crawl", pageRagtoolParams<5>, pageRagtool},
+    {"Ragdoll Tool - Struggle", pageRagtoolParams<6>, pageRagtool},
+    {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
+    {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
 };
 static_assert(mgroups::paramCount == 22, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
@@ -6158,6 +6171,17 @@ void qvr::menu::jumpToMainMenu()
     }
     navReset();
     M_Menu_Main_f();
+}
+
+void qvr::menu::jumpToRagtool()
+{
+    const int target = pageIndex(pageRagtool);
+    if(m_state == m_vr && key_dest == key_menu && ui().page == target)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    openFromAnywhere(target);
 }
 
 void qvr::menu::jumpToRelighting()

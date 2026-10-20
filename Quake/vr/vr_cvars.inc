@@ -2998,6 +2998,27 @@ QVR_CVAR(vr_liquid_fall_cushion, "48", CVAR_ARCHIVE)   // units of water, slime 
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
+QVR_CVAR(vr_ragdoll_limits_legs, "1", CVAR_ARCHIVE)   // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)
+QVR_CVAR(vr_ragdoll_limits_torso, "1", CVAR_ARCHIVE)  // ... the torso's (the spine, a tail)
+QVR_CVAR(vr_ragdoll_limits_arms, "1", CVAR_ARCHIVE)   // ... the arms'
+QVR_CVAR(vr_ragdoll_limits_head, "1", CVAR_ARCHIVE)   // ... the neck's and jaw's
+// The ragdoll tool (vr_ragtool.cpp, RAGTOOL.md; `-ragtool` or `vr_ragtool`): its choices, shown on its menu page. Not saved.
+QVR_CVAR(vr_ragtool_map, "vrragtriggers", CVAR_NONE)  // the room vr_ragtool loads
+QVR_CVAR(vr_ragtool_model, "0", CVAR_NONE)            // the subject: its row in vr_ragtool_models (the toolgun's monsters with a rig)
+QVR_CVAR(vr_ragtool_behaviour, "0", CVAR_NONE)        // the behaviour Play sets going: its row in vr_ragtool_behaviours
+QVR_CVAR(vr_ragtool_hold, "0", CVAR_NONE)             // the virtual hand's hold: 0 chest, 1 head, 2 arm, 3 leg, 4 pelvis
+QVR_CVAR(vr_ragtool_dir, "0", CVAR_NONE)              // degrees: where a shove, a blow or a knockdown comes from (0 his front, 90 his left, 180 his back)
+QVR_CVAR(vr_ragtool_loop, "0", CVAR_NONE)             // 1: the behaviour played again (a fresh subject) when it ends
+QVR_CVAR(vr_ragtool_length, "5", CVAR_NONE)           // s: how long a behaviour's run is watched (and logged) before it ends or loops
+QVR_CVAR(vr_ragtool_speed, "1", CVAR_NONE)            // the time scale while the tool runs (host_timescale; 0.25: slow motion)
+QVR_CVAR(vr_ragtool_cam_dist, "75", CVAR_NONE)     // units: the camera's distance from the subject (the mouse wheel)
+QVR_CVAR(vr_ragtool_cam_shift, "0.3", CVAR_NONE)      // the subject this share of the distance right of the screen's middle (the panel on the left)
+QVR_CVAR(vr_ragtool_show_bones, "1", CVAR_NONE)       // the parts' frames and bones
+QVR_CVAR(vr_ragtool_show_limits, "1", CVAR_NONE)      // the joints' limits (cones, arcs)
+QVR_CVAR(vr_ragtool_show_targets, "1", CVAR_NONE)     // the motors' targets against the parts (ragactive::debugDraw)
+QVR_CVAR(vr_ragtool_show_contacts, "1", CVAR_NONE)    // the parts' contacts
+QVR_CVAR(vr_ragtool_show_balance, "1", CVAR_NONE)     // the centre of mass, its point on the floor and the feet's support
+QVR_CVAR(vr_ragtool_log, "1", CVAR_NONE)              // 1: each run's summary on the console (ragtool:); 2: and a sample every 0.5 s
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
 QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
@@ -3094,6 +3115,20 @@ QVR_CVAR(vr_ragdoll_active, "1", CVAR_ARCHIVE)        // a dying grunt, enforcer
 QVR_CVAR(vr_ragdoll_active_strength, "1", CVAR_ARCHIVE) // times the joints' strength (0 limp .. 3)
 QVR_CVAR(vr_ragdoll_active_hertz, "10", CVAR_ARCHIVE)   // Hz: a joint's spring towards its pose at full strength (at most 20)
 QVR_CVAR(vr_ragdoll_active_damping, "1", CVAR_ARCHIVE)  // its damping (1: critical)
+// Each joint group's own share of the three above (vr_ragactive.cpp's channels: the legs, the torso with the pelvis and a
+// tail, the arms, the head and jaw), times them (1: as the global ones). The ragdoll tool's Joint Groups (RAGTOOL.md).
+QVR_CVAR(vr_ragdoll_active_hertz_legs, "1", CVAR_ARCHIVE)    // times vr_ragdoll_active_hertz for the legs' joints
+QVR_CVAR(vr_ragdoll_active_hertz_torso, "1", CVAR_ARCHIVE)   // ... the torso's (the spine, a tail)
+QVR_CVAR(vr_ragdoll_active_hertz_arms, "1", CVAR_ARCHIVE)    // ... the arms'
+QVR_CVAR(vr_ragdoll_active_hertz_head, "1", CVAR_ARCHIVE)    // ... the neck's and jaw's
+QVR_CVAR(vr_ragdoll_active_damping_legs, "1", CVAR_ARCHIVE)  // times vr_ragdoll_active_damping for the legs' joints
+QVR_CVAR(vr_ragdoll_active_damping_torso, "1", CVAR_ARCHIVE) // ... the torso's
+QVR_CVAR(vr_ragdoll_active_damping_arms, "1", CVAR_ARCHIVE)  // ... the arms'
+QVR_CVAR(vr_ragdoll_active_damping_head, "1", CVAR_ARCHIVE)  // ... the neck's and jaw's
+QVR_CVAR(vr_ragdoll_active_torque_legs, "1", CVAR_ARCHIVE)   // times vr_ragdoll_active_torque (a motor's most force) for the legs' joints
+QVR_CVAR(vr_ragdoll_active_torque_torso, "1", CVAR_ARCHIVE)  // ... the torso's
+QVR_CVAR(vr_ragdoll_active_torque_arms, "1", CVAR_ARCHIVE)   // ... the arms'
+QVR_CVAR(vr_ragdoll_active_torque_head, "1", CVAR_ARCHIVE)   // ... the neck's and jaw's
 QVR_CVAR(vr_ragdoll_active_torque, "2", CVAR_ARCHIVE)   // a joint's motor at full strength: at most this many times the weight of what hangs on it times its lever (a blow or a hand overpowers it)
 QVR_CVAR(vr_ragdoll_active_fade, "1", CVAR_ARCHIVE)     // times how long the strength lasts (his death animation's length: the legs give first, then the torso, the arms, the head)
 QVR_CVAR(vr_ragdoll_active_pin, "0.6", CVAR_ARCHIVE)    // body weights: his pelvis pulled along his death animation's at first (its throw back or forward kept), at most this force; 0 none

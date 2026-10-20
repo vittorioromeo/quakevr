@@ -8,6 +8,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_decals.hpp"
 #include "vr_move.hpp"
+#include "vr_ragtool.hpp"
 #include "vr_timescale.hpp"
 
 namespace box3d::detail
@@ -1344,6 +1345,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         return;
     }
+    ragtool::serverFrame(); // (the ragdoll tool's run, vr_ragtool: its next steps, the virtual hand, the log)
     ragtest::frame(); // (the ragdoll tests under way, vr_ragdoll_act: their next steps, whether each began)
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||

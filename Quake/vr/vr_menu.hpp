@@ -96,6 +96,9 @@ void jumpToMainMenu();
 // Back from it goes up the tree: Graphics, Advanced VR Options, VR Settings.
 void jumpToRelighting();
 
+// The ragdoll tool's page (Debug > Ragdoll Tool; Tab in the tool: vr_ragtool.cpp), the menu opened on it if closed.
+void jumpToRagtool();
+
 // The presets' callbacks (Locomotion's Comfort, Body and Display's Handedness) and VR Settings' own rows (Turning Mode, Move Towards, the hands), once the cvars are registered.
 void init();
 

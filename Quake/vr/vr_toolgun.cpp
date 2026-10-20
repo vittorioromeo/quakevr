@@ -2285,6 +2285,21 @@ void spawnTest_f()
     Con_Printf("spawntest: %d spawned, %d failed, %d unavailable\n", spawned, failed, unavailable);
 }
 
+} // namespace
+
+edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
+{
+    if(i < 0 || i >= spawnableTotal || !sv.active || !entryAvailable(spawnables[i]))
+    {
+        return nullptr;
+    }
+    const Spawnable& s = spawnables[i];
+    return box3d::spawnClass(s.classname, feet + glm::vec3{0.f, 0.f, s.lift + 1.f}, glm::vec3{0.f, yaw, 0.f},
+        s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
+}
+
+namespace
+{
 // vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
 // AD support: catalog evidence for the shared Debug and toolgun spawn menus.
 void spawnlist_f()
