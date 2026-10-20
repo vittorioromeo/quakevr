@@ -83,13 +83,19 @@ echo "(the profile's box3d step and reach: their average and worst per frame)"
 
 # 5. A shell into the shotgun lying about: its slide; the lying gun's screen.
 S="$BASE;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2;vr_reload_test 20;impulse 125;wait120;vr_debug_collect_fx 1;+grabmain;vr_mock_button main grip 1;wait10;vr_reload_test 22;impulse 125;wait5;vr_reload_test 22;impulse 125;wait150"
-log=$(tb_run_sh -Script "$S;toggleconsole;quit" -Filter "^reload: 1 into the Shotgun lying|^collect fx|^world gun" 2>&1)
+# (Single shells, vr_reload_shell_pairs 0, and the taped pair, the 1.1 default: both go in at once.)
+lying() { # <pairs 0/1> <shells in>
+log=$(tb_run_sh -Script "vr_reload_shell_pairs $1;$S;toggleconsole;quit" -Filter "^reload: [0-9] into the Shotgun lying|^collect fx|^world gun" 2>&1)
 gun=$(echo "$log" | grep -m1 "into hotspot 241" | sed -E 's/.*\(entity ([0-9]+),.*/\1/')
 first=$(echo "$log" | grep -m1 "in gun $gun (lying) t 0.00" | sed -E 's/.* t 0.00, ([0-9.]+) off its port.*/\1/')
 last=$(echo "$log" | grep "in gun $gun (lying)" | tail -1 | sed -E 's/.* t ([0-9.]+), ([0-9.]+) off its port.*/\1 \2/')
-check $(echo "$log" | grep -q "^reload: 1 into the Shotgun lying about (from a hand)" && echo "$log" | grep -q "collect fx: progs/vr_shell_live.mdl gone in" && awk -v f="$first" -v l="$last" 'BEGIN { split(l, x, " "); print (f != "" && f < 1 && x[1] > 0.9 && x[2] > 2.5) ? 1 : 0 }') "the lying shotgun: the shell slides in from its port ($first units off) into its tube (t, units: $last)"
+check $( (echo "$log" | grep -q "^reload: $2 into the Shotgun lying about (from a hand)" && echo "$log" | grep -qE "collect fx: progs/vr_shell_[a-z_]*\.mdl gone in" && awk -v f="$first" -v l="$last" 'BEGIN { split(l, x, " "); print (f != "" && f < 1 && x[1] > 0.9 && x[2] > 2.5) ? 1 : 0 }') || echo 0) "pairs $1: the lying shotgun: $2 in, the shell slides in from its port ($first units off) into its tube (t, units: $last)"
 screens=$(echo "$log" | grep "^world gun $gun " | sed -E 's/.*its screen "([^"]*)".*/\1/' | sort -u | tr '\n' ' ')
-check $([ "$screens" = "0/8 1/8 " ] && echo 1 || echo 0) "the lying shotgun's screen: its clip and size alone ($screens)"
+# (Its empty screen, 0/8, is sampled only if a report falls before the load: under load it may not.)
+check $( ([ "$screens" = "0/8 $2/8 " ] || [ "$screens" = "$2/8 " ]) && echo 1 || echo 0) "pairs $1: the lying shotgun's screen: its clip and size alone ($screens)"
+}
+lying 0 1
+lying 1 2
 
 # 6. Loose rounds by contact slide in too (the lying guns' and a held one's).
 slide() { # <gun> <step> [open]: the lying gun, a loose round by test step <step>

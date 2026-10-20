@@ -32,7 +32,7 @@ steps = [
     ("open", f"map e1m1;wait60;{H0};menu_vr 3;wait20;vr_menu_panels open;wait20"),
     ("pages", "vr_menu_panels focus 2;menu_vr 0;wait10"),
     ("laser1", "vr_mock_laser 100 40 panel 1;wait10"),
-    ("laser2", "vr_mock_laser 100 40 panel 2;wait10"),
+    ("laser2", "vr_mock_laser 100 60 panel 2;wait10"),
     ("key2", "vr_mock_key downarrow;wait5"),
     ("same", "menu_vr 3;wait10;vr_mock_laser 100 20 panel 2;wait5;vr_mock_laser 100 41 panel 2;wait10;"
              "vr_mock_laser 100 20 panel 1;wait5;vr_mock_laser 100 41 panel 1;wait10"),
@@ -41,7 +41,7 @@ steps = [
     ("back2", "menu_vr 0;wait3;vr_mock_key escape;wait5"),
     ("reopen", "vr_menu_panels open;wait10"),
     ("hands", "vr_menu_panels focus 1;menu_vr 3;wait5;vr_mock_laser 100 20 panel 2 hand off;vr_mock_laser 100 60 panel 1;wait10"),
-    ("hands2", "vr_mock_laser 100 40 panel 2 hand off;wait10"),
+    ("hands2", "vr_mock_laser 100 60 panel 2 hand off;wait10"),
     ("pre", "vr_mock_laser off;vr_mock_laser off hand off;vr_menu_panels focus 2;wait5"),
     ("closed", "vr_mock_laser off;vr_mock_laser off hand off;wait2;vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait10"),
     ("again", "vr_mock_button main menu 1;wait5;vr_mock_button main menu 0;wait20;vr_menu_panels focus 2;wait5"),
