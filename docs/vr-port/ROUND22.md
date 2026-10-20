@@ -14879,3 +14879,39 @@ island edge, so blades and handles can't pull texels across a seam; not seen mov
 - **For VR**: hold the Shadow Axe, the Widowmaker, an AD soldier's gun and a death knight's sword close up under a
   torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
   axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.
+
+## Gib impacts: one rule for thrown, held and struck gibs (worktree `gorefx`, branch `agent/gibhits`, 2026-10-20)
+
+The author: a head gib (or gib, small gib, brain chunk) smashed while held into a wall, the floor or a monster should
+burst as a throw does (it never burst held), and a light tap must not burst it: tossed up and tapped with the other
+hand it burst every time (any hand hit at `vr_melee_speed`, 3.2 m/s, dealt 20+ damage against 12/18 health); it should
+bounce off like a volleyball. Now one impact rule, `VR_Gib_Impact` (vr_carry.qc): intensity = the impact's speed over
+the kind's burst speed (`VR_Gib_BurstSpeed`); from 1 it bursts, from 0.5 it is worn by `(2i - 1)` of its full health
+(two hits at 0.75 burst it), below 0.5 nothing. The paths:
+
+- **Hand and weapon hits** on a loose one (`VR_Gib_Struck` the touch, `VR_Gib_Blow` a melee blow, `VR_Gib_HeldFrameHand`
+  one held in the other hand): the hand's (blow's) speed against it (at most its own, as before; a blow times its
+  stamina). Short of bursting it bounces off the striker along the hit (`VR_Gib_HandImpact`: `v += n (1 + e) u`, u the
+  approach speed, e `vr_gib_bounce`, at most 15 m/s); a small gib in its blow grace stays put. One tap is one hit
+  (`.vr_gib_hittime`, 0.15 s: the touch and the sweep's blow land together). The touch still starts at `vr_melee_speed`
+  (slower: the nudge's push, as before). `vr_sgib_graceblow` is gone (`VR_Gib_Hit` takes the speed now).
+- **Held smash** (`VR_Gib_HeldSmash`, from `VR_Carry_Follow`, one or two hands): the hand's line meets the level (its
+  trace), or a monster or solid thing (a second trace with monsters); the speed into it is the smaller of the gib's last
+  frame's motion and the hand's own velocity along the normal (walking into a wall with it held out is not a smash). It
+  bursts out of the hand (`VR_Gib_KnockOut`); no damage to the monster (the hand's own blow does that).
+- **Thrown** (`VR_Gib_Think2`, `VR_Gib_Touch`): as before, its own thresholds as the intensity (turn / Gib Splat Speed,
+  hand speed / Hard Throw Bursts, speed into a monster / Gib Splat Speed): only the outcome goes through the rule.
+- Shots and blasts: `T_Damage` / `VR_Gib_Damage` as before.
+
+New cvars (Gibs and Corpses page, after Hard Throw Bursts): **`vr_gib_burst_speed`** 5 m/s, **`vr_gib_burst_head`** 1.3x
+(6.5 m/s), **`vr_gib_burst_small`** 0.7x (3.5 m/s: small gibs, brain chunks), **`vr_gib_bounce`** 0.4.
+
+**Checks**: `vr_smallgibs_test 25` (Debug > Gore Tests, "Gib Impacts: Smash, Tap, Hit"; after test 15): a head held in
+the off hand smashed into the wall at 13 m/s bursts, at 2.17 doesn't; a head falling at 120 u/s struck from below by the
+touch and by a blow at 3.9 m/s (0.6x) bounces up (-120 to +220 u/s, worn 18 to 14.4), at 9.75 bursts. Test 12 (thrown at
+a wall) as before: 220 u/s sticks, 400 bursts. `Misc/quakevr/gib_2h_throw_test.sh`: every burst is a thrown one's wall
+hit (no held smash or hand hit fired during the two-handed throws).
+
+- **For VR**: toss a head up and tap it with the other hand: it should bounce up; slap it hard: it bursts. Hold a head
+  and slam it into a wall or the floor fast: it bursts; press it on slowly: it stays. Punch heads lying on the floor
+  (they bounce away unless the punch is fast). Tune with Gib Burst Speed / Head Burst Speed / Gib Bounce.

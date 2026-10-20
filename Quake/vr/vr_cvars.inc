@@ -2729,6 +2729,10 @@ QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be d
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_gib_splat_throw, "7", CVAR_ARCHIVE)      // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
+QVR_CVAR(vr_gib_burst_speed, "5", CVAR_ARCHIVE)      // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
+QVR_CVAR(vr_gib_burst_head, "1.3", CVAR_ARCHIVE)     // times vr_gib_burst_speed for a head
+QVR_CVAR(vr_gib_burst_small, "0.7", CVAR_ARCHIVE)    // times vr_gib_burst_speed for a small gib or brain chunk
+QVR_CVAR(vr_gib_bounce, "0.4", CVAR_ARCHIVE)         // how much a gib a hand hits short of bursting bounces off it (restitution: 0 dead, 1 elastic)
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
 QVR_CVAR(vr_corpse_health_mult, "2", CVAR_ARCHIVE)    // times every monster's corpse health (vr_corpse_health_<monster>): the damage that gibs a corpse or a ragdoll
 QVR_CVAR(vr_corpse_nogib, "0", CVAR_ARCHIVE)          // never gibbed (testing): 0 off, 1 corpses and ragdolls (and dying bodies) take damage but never burst, 2 also monsters die whole (their death code never gibs them)

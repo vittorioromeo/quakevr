@@ -869,6 +869,16 @@
         slider("Hard Throw Bursts", vr_gib_splat_throw, 0.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
             .help("A gib or head thrown with the hand this fast or faster bursts on a wall instead of sticking, however "
                   "heavy (a heavy one leaves the hand slowly). Softer throws stick (Thrown Gibs Stick). 0: off."),
+        slider("Gib Burst Speed", vr_gib_burst_speed, 1.f, 12.f, 0.25f, "%.2f m/s").extend(0.1f, 40.f)
+            .help("A hand's or weapon's hit on a gib, or one held and smashed into a wall, the floor or a monster, this fast "
+                  "bursts it. From half as fast it is worn (two such hits burst it); a hand's hit short of bursting bounces "
+                  "it off the hand, like a volleyball."),
+        slider("Head Burst Speed", vr_gib_burst_head, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Gib Burst Speed for a head."),
+        slider("Small Gib Burst Speed", vr_gib_burst_small, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Gib Burst Speed for a small gib or a brain chunk."),
+        slider("Gib Bounce", vr_gib_bounce, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much a gib a hand hits short of bursting bounces off it: 0 dead, 1 elastic."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
         slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)

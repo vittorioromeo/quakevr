@@ -365,6 +365,10 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_smallgibs_test 22 (Step Up to the Wall Ahead first, a wall 220 units wide): gibs of 8, 12 and 20 kg, "
                   "a grunt's and an ogre's head and a small gib thrown at it as hand throws of 2 to 6 m/s make them, 10 each; "
                   "prints how many stuck or burst (developer 1)."),
+        command("Gib Impacts: Smash, Tap, Hit", "vr_smallgibs_test 25")
+            .help("vr_smallgibs_test 25 (Step Up to the Wall Ahead first): a head held in the off hand smashed into the "
+                  "nearest wall at twice Gib Burst Speed (it bursts) and a third (it doesn't); a falling head struck from "
+                  "below by the hand and by a blow at 0.6x (it bounces up) and 1.5x (it bursts). The console."),
         command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
             .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")

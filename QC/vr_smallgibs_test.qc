@@ -42,6 +42,9 @@
 //  24 blood streams by melee kind (ROUND22.md, "Melee opens blood streams"): one blow a frame, in turn a sword's blade,
 //     an axe's blade, the crowbar, a punch and a thrown axe, n of each; then vr_gore_streams_info (its melee line: how
 //     many of each kind's wounds opened one: vr_gore_streams_melee_blade, _melee_blunt, _thrown_blade)
+//  25 the impact rule (vr_carry.qc VR_Gib_Impact): a head held in the off hand smashed into the nearest wall at twice its
+//     burst speed (bursts) and a third (doesn't); a head falling, struck from below by the hand's touch and by a blow at
+//     0.6x (bounces up) and 1.5x (bursts) (VR_SmallGib_TestImpact; 12 is the thrown one)
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -540,6 +543,104 @@ void(entity m, float n) VR_SmallGib_TestBloodless =
     }
 };
 
+// Test 25's head: a player's head gib at `at`, loose, armed, destroyable as a head (1.5).
+entity(vector at) VR_SmallGib_TestHead =
+{
+    entity h = spawn();
+    setmodel(h, "progs/h_player.mdl");
+    setorigin(h, at);
+    h.think = SUB_Remove;
+    h.nextthink = time + 10;
+    VR_MakeGibGrabbable(h);
+    VR_Gib_MakeDestroyable(h, 1.5);
+    h.vr_gib_armtime = time;
+    h.takedamage = DAMAGE_YES;
+    h.movetype = MOVETYPE_TOSS;
+    return h;
+};
+
+// Test 25: the impact rule (vr_carry.qc VR_Gib_Impact), at a head's burst speed (VR_Gib_BurstSpeed). A head held in the
+// off hand smashed into the nearest wall (VR_Carry_Follow: the hand's motion and its own into it) at 2x and 1/3 of it;
+// a head falling (as tossed up) struck from below by the off hand's touch (VR_Gib_Struck) and by a blow (VR_Gib_Blow) at
+// 0.6x (it bounces up, worn) and at 1.5x (it bursts). One "sgibtest: impact:" line each; the hand's velocity is set for
+// the call (the mock's own put back).
+void() VR_SmallGib_TestImpact =
+{
+    float m2u = VRMetersToUnits();
+    entity probe = VR_SmallGib_TestHead(self.origin + '0 0 200');
+    float bs = VR_Gib_BurstSpeed(probe);
+    remove(probe);
+    vector oldVel = self.offhandvel;
+
+    // Held, smashed into the wall.
+    float bestFrac = 2;
+    vector wallDir = '0 0 0';
+    vector eye = self.origin + '0 0 16';
+    for(float yaw = 0; yaw < 360; yaw = yaw + 90)
+    {
+        makevectors('0 1 0' * yaw);
+        traceline(eye, eye + v_forward * 400, TRUE, self);
+        if(trace_fraction < bestFrac && !trace_startsolid)
+        {
+            bestFrac = trace_fraction;
+            wallDir = v_forward;
+        }
+    }
+    if(bestFrac >= 1 || !VRIsHandEmpty(self, cVR_OffHand))
+    {
+        bprint(sprintf("sgibtest: impact: no wall within 400 units, or the off hand is full (%.2f)\n", bestFrac));
+    }
+    else
+    {
+        vector wall = eye + wallDir * (400 * bestFrac);
+        for(float k = 0; k < 2; k++)
+        {
+            float spd = k == 0 ? bs * 2 : bs / 3;
+            entity h = VR_SmallGib_TestHead(wall - wallDir * 20);
+            VR_Carry_Start(self, cVR_OffHand, h);
+            setorigin(h, wall - wallDir * 20);
+            h.velocity = wallDir * (spd * m2u);
+            self.offhandvel = wallDir * spd;
+            float held = h.carry_player == self;
+            VR_Carry_Follow(h, wall + wallDir * 6);
+            self.offhandvel = oldVel;
+            bprint(sprintf("sgibtest: impact: held %d, smashed into the wall at %.2f m/s (burst speed %.2f): %s\n", held,
+                spd, bs, h.vr_gib ? "not burst" : "burst"));
+            if(h.vr_gib)
+            {
+                VR_Gib_KnockOut(self, h);
+                h.nextthink = time + 0.1;
+            }
+        }
+    }
+
+    // Tossed up, struck from below as it falls: the touch (0, 1) and a blow (2, 3), light and hard.
+    makevectors('0 1 0' * self.v_viewangle_y);
+    for(float j = 0; j < 4; j++)
+    {
+        float hit = (j == 0 || j == 2) ? 0.6 : 1.5;
+        float speed = bs * hit;
+        entity t = VR_SmallGib_TestHead(self.origin + v_forward * 40 + v_right * (j * 20 - 30) + '0 0 40');
+        t.velocity = '0 0 -120';
+        vector before = t.velocity;
+        self.offhandvel = '0 0 1' * speed;
+        if(j < 2)
+        {
+            VR_Gib_Struck(self, cVR_OffHand, t);
+        }
+        else
+        {
+            VR_Gib_Blow(cVR_OffHand, t, speed, t.origin, '0 0 1');
+        }
+        self.offhandvel = oldVel;
+        // (sprintf takes 8 arguments: two calls)
+        bprint(sprintf("sgibtest: impact: tossed, %s from below at %.2f m/s (%.1fx): %s, ", j < 2 ? "touched" : "a blow",
+            speed, hit, t.vr_gib ? "not burst" : "burst"));
+        bprint(sprintf("velocity %v to %v (up %+.0f), %.1f health left\n", before, t.velocity, t.velocity_z - before_z,
+            t.vr_gib_hp));
+    }
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
     vr_sgib_test = xCase;
@@ -623,7 +724,8 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: a gib made at your feet: %d\n", vr_sgib_test_g != world));
         return;
     }
-    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22)
+    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22 &&
+       xCase != 25)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -930,6 +1032,11 @@ void(float xCase) VR_SmallGib_TestStart =
         }
         VR_SmallGib_StickRound(0);
         vr_sgib_test_t = time;
+    }
+    else if(xCase == 25)
+    {
+        VR_SmallGib_TestImpact();
+        vr_sgib_test = 0;
     }
     if(xCase == 14)
     {
