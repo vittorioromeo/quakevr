@@ -16,7 +16,9 @@ base=('vr_fixed_frames 1;vr_particle_seed 7;map vrfiringrange;wait60;god;notarge
 if '--visual-only' not in sys.argv:
  parts=[]
  for bracers,source,hand in [(0,'hand','main'),(0,'arm','off'),(1,'hand','main'),(1,'arm','off')]:
-  parts.append(base+f'vr_body_bracers {bracers};wait20;vr_wrist_blood_test {source} {hand};wait10;vr_body_wrist_info;vr_gore_hands_info')
+  # (wait120: the legs fitted to the height you stand at (vr_body_leg_fit) learn it over the first second or two, the
+  # crouch measured from it moving the shoulders, and the forearm's mount, by up to 0.04 units until then)
+  parts.append(base+f'vr_body_bracers {bracers};wait120;vr_wrist_blood_test {source} {hand};wait10;vr_body_wrist_info;vr_gore_hands_info')
  script=';'.join(parts)+';vr_menu_path_check maps/vrcalibration.map;toggleconsole;quit'
  (ROOT/'scratch/wrist_runtime.cfg').write_text(script)
  r=subprocess.run([BASH,str(KIT/'run.sh'),AGENT,'-Script',script,'-ExtraArgs','-nomapindex',
