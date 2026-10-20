@@ -749,7 +749,8 @@ float(entity e) VR_Knockdown_Ledge =
 // `e` (its push just landed: VR_Push) staggering as a ragdoll along xForward (vr_ragdoll_active_stagger; the caller asked
 // ragdollcanstagger): xPush the push (two hands 1), xBalance 0 about to fall .. 1 steady. Its ragdoll made (room for it
 // first); one that cannot stagger topples over. FALSE: no room, no ragdoll (it stands as it was).
-// (A shove's, VR_Knockdown_Try; a strong hit's, vr_hitstagger.qc.)
+// (A shove's, VR_Knockdown_Try; a strong hit's, vr_hitstagger.qc.) Its travel's limit times vr_kd_stagger_far (VR_Bash_Hit's;
+// 0: 1).
 float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagger =
 {
     if(!VR_Knockdown_MakeRoom(e))
@@ -761,7 +762,7 @@ float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagg
     {
         return FALSE;
     }
-    if(ragdollstagger(e, xForward, xPush, xBalance, slide))
+    if(ragdollstagger(e, xForward, xPush, xBalance, slide, 0, 0, max(1, vr_kd_stagger_far)))
     {
         e.vr_kd_stagger = 1;
         e.vr_kd_balance = xBalance;

@@ -1699,14 +1699,16 @@ void PF_ragdollguard()
 // float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
 // along dir (its ragdoll made), staggers instead (push: the shove's; balance 0 about to fall .. 1 steady; reach: the
 // units the shove carries a standing one). 0: it can't (a knockdown, as before). Optional `recover` (s, a parry's): up
-// again then, however it stands; `sure`: it never goes over by itself (level ground).
+// again then, however it stands; `sure`: it never goes over by itself (level ground); `far`: its travel's limit times
+// this (at least 1: a two-hand or running shove's).
 void PF_ragdollstagger()
 {
     const float* d = G_VECTOR(OFS_PARM1);
     const float recover = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : -1.f;
     const bool sure = qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f;
+    const float farther = qcvm->argc > 7 ? G_FLOAT(OFS_PARM7) : 1.f;
     G_FLOAT(OFS_RETURN) = box3d::ragdollStagger(G_EDICT(OFS_PARM0), glm::vec3{d[0], d[1], d[2]}, G_FLOAT(OFS_PARM2),
-                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), recover > 0.f ? recover : -1.f, sure)
+                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), recover > 0.f ? recover : -1.f, sure, farther)
                               ? 1.f
                               : 0.f;
 }

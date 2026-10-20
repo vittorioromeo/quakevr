@@ -371,8 +371,10 @@ const DefaultChange defaultChanges[] = {
         "monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 "
         "monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 "
         "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120"},
+    // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
+    {176, &vr_shove_push_twohand, "1"}, // 1.12
 };
-constexpr int configVersion = 175;
+constexpr int configVersion = 176;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

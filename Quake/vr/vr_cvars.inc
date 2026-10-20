@@ -3031,8 +3031,9 @@ QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carrie
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)
 QVR_CVAR(vr_knockdown_ledge_margin, "24", CVAR_ARCHIVE)  // units past that travel (times vr_knockdown_ledge_reach) where a ledge still counts
-QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down (0: it falls loose)
-QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)              // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
+QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down or staggering, held as in its rest pose by the hand that holds it there (0: it falls loose; 2: as before 2026-10-21, welded where its frame had it to the part nearest it: the enforcer's rifle hung at his side)
+QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
+QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
 
 QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume); each class has its own by default (vr_ragdoll_<class>_mass), this is for a class set to -1
 QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
@@ -3048,6 +3049,7 @@ QVR_CVAR(vr_ragdoll_drag_slime, "3", CVAR_ARCHIVE)     // ... slime's
 QVR_CVAR(vr_ragdoll_drag_lava, "5", CVAR_ARCHIVE)      // ... lava's
 QVR_CVAR(vr_liquid_fall_cushion, "48", CVAR_ARCHIVE)   // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
+QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)        // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_limits_legs, "1", CVAR_ARCHIVE)   // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)
@@ -3433,7 +3435,8 @@ QVR_CVAR(vr_shove_speed, "3.5", CVAR_ARCHIVE)          // m/s open palms (facing
 QVR_CVAR(vr_bash_damage, "5", CVAR_ARCHIVE)            // a bash's damage (small: it knocks back and staggers)
 QVR_CVAR(vr_bash_push, "0.9", CVAR_ARCHIVE)            // how far a shove or a bash throws what it hits (its push: 520 u/s and a 140 hop, times Knockback; then the hands below)
 QVR_CVAR(vr_shove_push_onehand, "0.7", CVAR_ARCHIVE)   // ... times this for one hand (a shove or a bash)
-QVR_CVAR(vr_shove_push_twohand, "1", CVAR_ARCHIVE)     // ... and this for two
+QVR_CVAR(vr_shove_push_twohand, "1.12", CVAR_ARCHIVE)  // ... and this for two (1.12: x1.25 the distance, which goes by its square; over 1 its stagger's travel limit too)
+QVR_CVAR(vr_shove_run_carry, "1", CVAR_ARCHIVE)        // a shove or a bash while you run (40 u/s or more along it): this share of your speed along it carried into it on top of its push (times its group's Shove Push over its weight, at most all of it; not by Knockback): farther and faster, its stagger's travel limit as far as its slide; 0: standing's push alone
 QVR_CVAR(vr_bash_sound, "0.7", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: silent; the old sounds 0 played retired 2026-10-16)
 QVR_CVAR(vr_parry_cooldown, "0.4", CVAR_ARCHIVE)        // s: a monster's blow parried within this long of its last parried blow is still parried (its damage cut, both pushed apart) but plays no sound or sparks, opens no new counter window and costs no stamina (one parry for a burst of quick hits: the ogre's chainsaw, a knight's swing; 0: every blow a full parry)
 QVR_CVAR(vr_parry_cooldown_attack, "1", CVAR_ARCHIVE)  // 1: also a blow of the same melee attack as the monster's last parried blow (begun up to 2 s ago) is a cooldown blow, however long between them (the demon's two claws, the Overlord's double smash: one parry, one stamina cost); 0: only vr_parry_cooldown's time

@@ -3737,6 +3737,9 @@ float(float xBoth) VR_Shove_HandsPush =
 // him: asleep, idle, fighting another), 2, shoved from behind (the shove's way within vr_knockdown_surprise_angle of
 // where it faces), 0 neither. Taken as the blow finds it, before its damage wakes it (VR_Bash_Hit: vr_kd_surprise).
 float vr_kd_surprise;
+float vr_kd_stagger_far;       // VR_Bash_Hit's: its stagger's travel limit times this (vr_knockdown.qc VR_Knockdown_Stagger; 0: 1)
+float VR_SHOVE_RUN_MIN = 40;   // u/s along the shove: slower is standing (vr_shove_run_carry carries nothing)
+float vr_test_shove_run;       // u/s: vr_knockdown_test 21/22's run into the shove (vr_test_shove_run; 0: your own velocity)
 float(entity e, entity by, vector xForward) VR_Knockdown_Surprised =
 {
     if(!cvar_hget(cvarh_vr_knockdown_surprise) || !(e.flags & FL_MONSTER) || e.health <= 0)
@@ -3786,9 +3789,35 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         VR_QuadSound(self, "a bash or shove hurt");
     }
     VR_ClearHitKind();
-    VR_Push(e, xForward, 520 * push, 140 * push);
-    dprint(sprintf("bash hit: %s, %.1f damage, knocked back at %.0f u/s, staggered %.2f s\n", e.classname, dmg,
-        vlen(e.velocity), stagger));
+    // Running into it (vr_shove_run_carry): your own speed along the shove carried into it on top of the push (yours as
+    // you move, not scaled by Knockback), times its group's Shove Push over its weight (VR_Push_Mass), at most all of it:
+    // a running shove sends it farther and faster; standing (under VR_SHOVE_RUN_MIN) as before.
+    float run = 0;
+    vector way = xForward;
+    way_z = 0;
+    if((self.flags & FL_CLIENT) && (e.flags & FL_MONSTER) && push > 0 && vlen(way) > 0)
+    {
+        vector runVel = self.velocity;
+        if(vr_test_shove_run > 0)
+        {
+            runVel = normalize(way) * vr_test_shove_run; // (vr_knockdown_test 21/22's vr_test_shove_run)
+        }
+        runVel_z = 0;
+        run = runVel * normalize(way);
+        run = run >= VR_SHOVE_RUN_MIN ? run * max(0, cvar_hget(cvarh_vr_shove_run_carry)) : 0;
+        run = run * min(1, max(0, monstergroupget(e, MGP_PUSH)) / VR_Push_Mass(e));
+    }
+    float knock = max(0.01, cvar_hget(cvarh_vr_push));
+    float pushSpeed = 520 * push;
+    float carried = run * VR_Push_Mass(e) / knock; // (VR_Push's units: times Knockback, over its weight)
+    // Its stagger's travel limit (ragdollstagger's `far`): the hands' push over 1 as much farther as its slide (the
+    // square of its speed: two hands' 1.12, 1.25 times), times the run's speed-up (linear: 160 u/s still short of 320's).
+    float speedUp = pushSpeed > 0 ? (pushSpeed + carried) / pushSpeed : 1;
+    float hands = max(1, VR_Shove_HandsPush(xHand == -1));
+    vr_kd_stagger_far = hands * hands * speedUp;
+    VR_Push(e, xForward, pushSpeed + carried, 140 * push);
+    dprint(sprintf("bash hit: %s, %.1f damage, knocked back at %.0f u/s (%.0f of it your run's), staggered %.2f s\n",
+        e.classname, dmg, vlen(e.velocity), run, stagger));
     if(e.health > 0 && e.th_pain && !e.vr_knockdown)
     {
         entity oldSelf = self;
@@ -3805,6 +3834,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
     VR_Knockdown_Try(e, xForward, xKind, xHand, push);
     vr_kd_surprise = 0;
+    vr_kd_stagger_far = 0;
     if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))
     {
         // Wood's splinters, metal's sparks; never blood: a shove or a bash draws none (combat.qc VR_HitBloodless).

@@ -238,6 +238,7 @@ float cvarh_vr_bash_damage;
 float cvarh_vr_bash_push;
 float cvarh_vr_shove_push_onehand;
 float cvarh_vr_shove_push_twohand;
+float cvarh_vr_shove_run_carry;
 float cvarh_vr_bash_sound;
 float cvarh_vr_parry_cooldown;
 float cvarh_vr_parry_cooldown_attack;
@@ -1255,6 +1256,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_bash_push);
     VR_CVAR_HMAKE(vr_shove_push_onehand);
     VR_CVAR_HMAKE(vr_shove_push_twohand);
+    VR_CVAR_HMAKE(vr_shove_run_carry);
     VR_CVAR_HMAKE(vr_bash_sound);
     VR_CVAR_HMAKE(vr_parry_cooldown);
     VR_CVAR_HMAKE(vr_parry_cooldown_attack);

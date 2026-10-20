@@ -607,6 +607,76 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
                    "motion %.0f u/s\n", num, frame, di.death, r.active.death.length, glm::length(glm::vec2{deathMotion(num)}));
     }
 }
+// The part that holds rig `rig`'s loose piece `loose` (a monster's weapon): the part with a vertex nearest the piece's
+// middle in the rest pose (the frame its rig was measured in: the weapon in its hands; the enforcer's rifle, held in both,
+// his left forearm's). -1: none.
+int looseHolder(const ragdoll::Rig& rig, int loose)
+{
+    const ragdoll::Bone& piece = rig.bones[loose];
+    if(piece.points.empty())
+    {
+        return -1;
+    }
+    glm::vec3 mid{0.f};
+    for(const glm::vec3& p : piece.points)
+    {
+        mid += p;
+    }
+    mid /= static_cast<float>(piece.points.size());
+    int best = -1;
+    float bestD = 1e30f;
+    for(int o = 0; o < rig.numBones; o++)
+    {
+        if(rig.bones[o].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        for(const glm::vec3& p : rig.bones[o].points)
+        {
+            const float d = glm::distance(p, mid);
+            if(d < bestD)
+            {
+                bestD = d;
+                best = o;
+            }
+        }
+    }
+    return best;
+}
+
+// Ragdoll `r`'s loose piece `loose` welded where it is now to its part `to` (vr_knockdown_weld; createRagdoll). `held`:
+// `to` is the hand that holds it, and the piece weighs no more than that hand (a 3 kg rifle on a 0.6 kg hand: the weld
+// gave under a landing's jolt, the weapon swinging 15 units off the hand a moment).
+void weldLoose(RagdollBodies& r, int num, int loose, int to, float looseVolume, float density, bool held)
+{
+    const b3BodyId a = r.body[static_cast<za::SizeT>(to)], c = r.body[static_cast<za::SizeT>(loose)];
+    if(held && b3Body_GetMass(c) > b3Body_GetMass(a) && b3Body_GetMass(c) > 0.f)
+    {
+        b3MassData md = b3Body_GetMassData(c);
+        const float k = b3Body_GetMass(a) / md.mass;
+        md.mass *= k;
+        md.inertia.cx = b3MulSV(k, md.inertia.cx);
+        md.inertia.cy = b3MulSV(k, md.inertia.cy);
+        md.inertia.cz = b3MulSV(k, md.inertia.cz);
+        b3Body_SetMassData(c, md);
+    }
+    const b3WorldTransform xa = b3Body_GetTransform(a), xc = b3Body_GetTransform(c);
+    const glm::quat qa = fromB3(xa.q), qc = fromB3(xc.q);
+    const glm::vec3 pa = glmv(xa.p), pc = glmv(xc.p);
+    b3WeldJointDef jd = b3DefaultWeldJointDef();
+    jd.base.bodyIdA = a;
+    jd.base.bodyIdB = c;
+    jd.base.localFrameA = b3Transform{b3v(glm::inverse(qa) * (pc - pa)), toB3(glm::normalize(glm::inverse(qa) * qc))};
+    jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
+    jd.base.collideConnected = false;
+    (void)b3CreateWeldJoint(world->id, &jd);
+    if(vr_knockdown_debug.value >= 2.f)
+    {
+        Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n", num,
+            b3Body_GetMass(c), b3Body_GetMass(c) / za::max(looseVolume, 1e-6f) / density, r.rig->bones[to].name,
+            b3Body_GetMass(a));
+    }
+}
 } // namespace
 
 // The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
@@ -732,17 +802,30 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     }
     constexpr float looseMass = 3.f; // kg: a loose piece (his shotgun)
     const float density = mass / za::max(volume, 1e-6f);
+    // Knocked down or staggering, alive (vr_knockdown_weld): its weapon (a loose piece) made in the hand that holds it,
+    // where that hand holds it in the rest pose (looseHolder: the part nearest it there), not where its frame has it
+    // (a pain frame swings it apart from the hands), and welded to that hand below: it follows the hand through every
+    // active-ragdoll state (stagger, knockdown, lift, struggle, get-up) as a dead one's weapon is dropped.
+    // (vr_knockdown_weld 2: as before, where its frame has it, welded to the part nearest it there.)
+    const bool weld = r.knocked && vr_knockdown_weld.value != 0.f;
+    const bool inHand = weld && vr_knockdown_weld.value != 2.f;
+    za::Array<int, ragdoll::maxBones> heldBy{};
+    for(int b = 0; b < r.count; b++)
+    {
+        heldBy[static_cast<za::SizeT>(b)] = inHand && rig->bones[b].joint == ragdoll::Joint::Loose ? looseHolder(*rig, b) : -1;
+    }
 
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = rig->bones[b];
+        const int src = heldBy[static_cast<za::SizeT>(b)] >= 0 ? heldBy[static_cast<za::SizeT>(b)] : b; // (its pose's)
         glm::quat rot, prot;
         glm::vec3 pos, ppos;
-        ragdoll::bonePose(*rig, pose, b, rot, pos);
-        ragdoll::bonePose(*rig, prevPose, b, prot, ppos);
+        ragdoll::bonePose(*rig, pose, src, rot, pos);
+        ragdoll::bonePose(*rig, prevPose, src, prot, ppos);
         glm::quat drot;
         glm::vec3 dpos;
-        ragdoll::bonePose(*rig, drawnPose, b, drot, dpos);
+        ragdoll::bonePose(*rig, drawnPose, src, drot, dpos);
         b3BodyDef def = b3DefaultBodyDef();
         def.userData = userOf(num);
         def.type = b3_dynamicBody;
@@ -867,13 +950,19 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             joints[static_cast<za::SizeT>(b)] = b3CreateRevoluteJoint(world->id, &jd);
         }
     }
-    // Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the part nearest it, his hand's.
-    if(r.knocked && vr_knockdown_weld.value != 0.f)
+    // Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the hand that holds it (made there
+    // above: heldBy); one with no holder found, to the part nearest it.
+    if(weld)
     {
         for(int b = 0; b < r.count; b++)
         {
             if(rig->bones[b].joint != ragdoll::Joint::Loose)
             {
+                continue;
+            }
+            if(const int holder = heldBy[static_cast<za::SizeT>(b)]; holder >= 0)
+            {
+                weldLoose(r, num, b, holder, volumes[static_cast<za::SizeT>(b)], density, true);
                 continue;
             }
             glm::quat lr;
@@ -906,26 +995,9 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
                     }
                 }
             }
-            if(best < 0)
+            if(best >= 0)
             {
-                continue;
-            }
-            const b3BodyId a = r.body[static_cast<za::SizeT>(best)], c = r.body[static_cast<za::SizeT>(b)];
-            const b3WorldTransform xa = b3Body_GetTransform(a), xc = b3Body_GetTransform(c);
-            const glm::quat qa = fromB3(xa.q), qc = fromB3(xc.q);
-            const glm::vec3 pa = glmv(xa.p), pc = glmv(xc.p);
-            b3WeldJointDef jd = b3DefaultWeldJointDef();
-            jd.base.bodyIdA = a;
-            jd.base.bodyIdB = c;
-            jd.base.localFrameA = b3Transform{b3v(glm::inverse(qa) * (pc - pa)), toB3(glm::normalize(glm::inverse(qa) * qc))};
-            jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
-            jd.base.collideConnected = false;
-            (void)b3CreateWeldJoint(world->id, &jd);
-            if(vr_knockdown_debug.value >= 2.f)
-            {
-                Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n",
-                    num, b3Body_GetMass(c), b3Body_GetMass(c) / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) / density,
-                    rig->bones[best].name, b3Body_GetMass(a));
+                weldLoose(r, num, b, best, volumes[static_cast<za::SizeT>(b)], density, false);
             }
         }
     }
