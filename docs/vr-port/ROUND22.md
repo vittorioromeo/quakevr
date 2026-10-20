@@ -14879,3 +14879,34 @@ island edge, so blades and handles can't pull texels across a seam; not seen mov
 - **For VR**: hold the Shadow Axe, the Widowmaker, an AD soldier's gun and a death knight's sword close up under a
   torch and turn them: seams and rivets should catch the light as on our shotgun; look along a sword's blade and the
   axe's handle at a grazing angle for paint that swims. `vr_weapon_relief 0` + restart for the old look.
+
+## A beheaded zombie knight ran again (worktree `dequant`, branch `agent/deadanim`, 2026-10-20)
+
+The cause: AD's zombies (zombie, mummy, zombie knight) have only one death, a gibbing, so AD's wake-up
+(`zombie_wakeup`, `zombiek_wakeup`: getting off the floor) treats "gibbed" as "dead". Quake VR's beheading and cut limbs
+kill one whole, for good (`VR_AD_ZombieDie`), never gibbed. A map's dormant zombie (lying with AD's ONFLOOR flag until a
+trigger fires) keeps `use = wakeup`: beheaded where it lay, the trigger later stood the headless body up (its ragdoll
+dropped: solid again) and ran it, in place, through its get-up and run frames. Reproduced headless (`floor` case: 144
+warnings from the watch over 15 s, solid 3, frames 133 on), gone after the fix.
+
+- The fix: AD's two wake-ups return on `deadflag` too (ad_import.py FUNC_PATCHES, `_WAKE`, and the imported
+  `ad_mon_zombie.qc` / `ad_mon_zombiek.qc`); `VR_AD_ZombieDie` clears its `use`. A living zombie's rising (its fall's,
+  a dormant one's) is unchanged.
+- Audit: our knockdown's thinks (`VR_Knockdown_Think`, `_Step`, `_Reverse`, `_Afoot` through Think) all return on a
+  dead one; `VR_AD_PainDown` only acts on a living knocked-down one; stealth's animations check `VR_Stealth_Applies`
+  (health); id1's and AD's `monster_use` check health. One more of the class fixed: MG's paused path walker
+  (`MG_MonsterBeginWalking`, its `use`) walked a monster killed while it stood paused; it returns on a dead one now.
+  Statues (Rogue's, `knight_pause`), Honey's trigger spawns and the lavaman take no damage before their use: not
+  reachable.
+- The watch: `vr_debug_deadanim 1` (Debug > Logging, "Dead Monsters Animating"; developer 1) prints "deadanim: dead ..."
+  for a dead monster whose think is its AI's stand/walk/run/attack (or AD's wake-up) again, or whose frame changes twice
+  within 0.5 s once 3 s past its death (once: the engine putting a stuck corpse at its death's last frame).
+- The test: `Misc/quakevr/deadanim_test.sh <agent> [choices]` (cases stand down getup stagger parry fall floor; KILL=1
+  kills instead of beheading): `vr_deadanim_test` 1 report, 2 stagger, 3 parry's stagger, 4 a zombie's own fall,
+  5 the dead one's use fired, 6 killed, 8 laid dormant, 9 state. Run: zombie knight, mummy (all 7 cases), Quake's
+  zombie, grunt, knight, death knight, rocket soldier (beheaded in each state), grunt and rocket soldier killed in each
+  state: 0 warnings, 15 s each. Not covered headless: held in a hand (the mock can't grab a body).
+
+- **For VR**: in an AD map with zombie knights lying on the floor before their trigger (or any zombie knight you knock
+  down), behead one, then walk on through its trigger: it must stay down. With `vr_debug_deadanim 1` and developer on,
+  no "deadanim:" line should appear while you fight.

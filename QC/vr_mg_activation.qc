@@ -34,6 +34,7 @@ float() MG_MonsterInhibited = {
     return FALSE;
 };
 void() MG_MonsterBeginWalking = {
+    if(self.health <= 0 || self.deadflag) return; // QVR: killed while it stood paused: its trigger never raises the body
     self.use = monster_use;
     self.pausetime = 0;
     self.th_walk();
