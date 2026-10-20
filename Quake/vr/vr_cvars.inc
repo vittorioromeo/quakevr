@@ -1615,6 +1615,17 @@ QVR_CVAR(vr_bodytrack_synth_forearm, "1.1", CVAR_NONE)  // its forearms' length,
 QVR_CVAR(vr_bodytrack_synth_wrist, "8", CVAR_NONE)    // cm its wrists are behind vr_bodytrack_synth_wrist_from's point, along the controller (the controller-to-wrist offset)
 QVR_CVAR(vr_bodytrack_synth_wrist_from, "1", CVAR_NONE) // where its wrists are measured from: 1 the controller's grip (where Meta puts them), 0 the avatar's last posed wrists (with _wrist 0, _shoulders, _upper_arm and _forearm 1 and _shoulder_forward 0: a self-check)
 QVR_CVAR(vr_body_legs_back, "0.3", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
+// Body and Equipment (VR Settings; ROUND22.md, "Body and Equipment"). Leg fit: the legs (hip to ankle) lengthened or
+// shortened so that, standing at the height the headset sees you stand at (learnt as Leaning Detection learns it), the
+// feet reach the floor with the knees straight: a Height (vr_height_calibration) off from your eyes' real height no
+// longer leaves the feet hanging in the air or the knees bent (0: the legs as the body's proportions make them, as
+// before). Gear fit: the holsters and the pouches placed for the body's size (its eye height and the world's scale) and
+// its floor (vr_floor_offset), as they sit on a 1.55 m-eyed body at world scale 1.2 (0: placed from the player's origin
+// in Quake's units, as before: low on a tall body). Belt height: metres the belt's gear (the hip holsters, the ammo
+// pouch, the grenade pouch, the torch on the belt) sits higher (negative: lower).
+QVR_CVAR(vr_body_leg_fit, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_gear_fit, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_belt_up, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "1", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
 QVR_CVAR(vr_body_pauldron_size, "1", CVAR_ARCHIVE)    // their size (scaled with the build too)
@@ -2681,7 +2692,8 @@ QVR_CVAR(vr_debug_hand_collide, "0", CVAR_NONE)       // Debug > Views > Log Emp
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
 QVR_CVAR(vr_debug_body_error, "0", CVAR_NONE)         // Debug > Views > Log Body Drift: twice a second, where the game thinks your feet are in the room and which way your body faces there, against where they were at the mark (vr_body_error mark; marked when turned on): standing still in the room, leaning and turning with the stick, both should stay near 0
-QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)        // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
+QVR_CVAR(vr_debug_body_heights, "0", CVAR_NONE)       // Debug > Views > Log Body Heights: twice a second, metres above the body's floor: the eyes (as calibrated, as learnt standing), the pelvis, the knees and ankles and how straight the legs are, the ammo pouch and the hip holsters (and from the pelvis), the grenade pouch, the chest holsters (ROUND22.md, "Body and Equipment")
+QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)       // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
 QVR_CVAR(vr_debug_rope, "0", CVAR_NONE)                // Debug > Views > Show Grapple Rope: each grappling hook rope's drawn chain (points white, pieces green), the corners it wraps round (red) and its taut path (yellow) (vr_rope.cpp)
 QVR_CVAR(vr_debug_hitzones, "0", CVAR_NONE)          // Debug > Show Hit Zones: 1 animated positional damage surfaces, 2 legacy decapitation reference zones, 3 both; precise hits off: standing box/ray references
 QVR_CVAR(vr_debug_hitzones_xray, "0", CVAR_NONE)     // Debug > Hit Zones Through Walls: see animated region surfaces through models and walls
