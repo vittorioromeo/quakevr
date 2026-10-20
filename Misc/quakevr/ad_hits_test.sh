@@ -7,7 +7,7 @@ AGENT=${1:?worker name}
 K=C:/OHWorkspace/qvr-kit
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
 OUT=$TREE/scratch/ad_hits_test.log
-S='developer 0;sv_random_seed 7;map e1m1;wait120;god;notarget;vr_ad_projectiles 2;vr_positional_damage 0;vr_gruntgun_damage 9;vr_ad_pellet_spread 0;scratch1 128;vr_ad_test 40;wait90;vr_ad_test 41;wait90;vr_ad_test 42;wait90;scratch1 384;vr_ad_test 40;wait90;vr_ad_test 41;wait90;vr_ad_pellet_spread 1;scratch1 128;vr_ad_test 41;wait90;scratch1 0;vr_ad_test 44;wait5;toggleconsole;quit'
+S='developer 0;sv_random_seed 7;vr_monster_health 0;map e1m1;wait120;god;notarget;vr_ad_projectiles 2;vr_positional_damage 0;vr_gruntgun_damage 9;vr_ad_pellet_spread 0;scratch1 128;vr_ad_test 40;wait90;vr_ad_test 41;wait90;vr_ad_test 42;wait90;scratch1 384;vr_ad_test 40;wait90;vr_ad_test 41;wait90;vr_ad_pellet_spread 1;scratch1 128;vr_ad_test 41;wait90;scratch1 0;vr_ad_test 44;wait5;toggleconsole;quit'
 bash "$K/run.sh" "$AGENT" -ExtraArgs '-nomapindex -noaddons' -Script "$S" -Filter '^adhits:|Host_Error|SV_Error|ENGINE ERROR|Fatal error|CRASH|exit=' -Timeout 300 > "$OUT"
 grep -q '^exit=0' "$OUT"
 grep -c '^adhits: source .* monster_army solid 3 ' "$OUT" | grep -q '^6$'
