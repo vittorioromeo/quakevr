@@ -60,6 +60,7 @@ float() AD_ChangelevelTouch;         // changelevel_touch: FALSE when the exit i
 float(void() start) AD_MonsterPrepare; // walk/fly/swimmonster_start: AD's spawn flags and keys on our monsters
 void(entity targ, entity attacker) AD_MonsterKilled; // Killed: AD's keys on our monsters (deathtarget)
 float(entity e) AD_Run;              // AD's code owns this entity's damage, pain and death (AD's monsters, breakables)
+float(entity e) AD_BreakKind;        // the props' impact rule (vr_carry.qc VR_Prop_Kind): an AD breakable's VR_PROPK_*, else 0
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) AD_Damage; // T_DamageImpl: to AD's
 float(entity p) AD_Pellets;          // whether `p`'s shotguns fire AD's projectile pellets (vr_ad_projectiles)
 void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_FirePellets; // FireBullets

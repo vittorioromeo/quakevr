@@ -1452,7 +1452,8 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
 };
 
 float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact;
-float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash;
+float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash;
+float(entity e) VR_Prop_Kind;
 
 float(entity box, vector target) VR_Carry_Follow =
 {
@@ -1485,9 +1486,10 @@ float(entity box, vector target) VR_Carry_Follow =
     // monster as a club (its melee hit, vr_melee.qc) stopped at the monster's box while the hand went on, and was dropped
     // once the hand was 32 units past it (the author's note, 2026-09-29 21:20). It passes through them (it is not solid).
     traceline(from, target, TRUE, self);
-    // A gib or head smashed into the level, a monster or a solid thing hard enough bursts (the impact rule: out of the
-    // hand, gone). (After this trace: it reads it.)
-    if(box.vr_gib && VR_Gib_HeldSmash(box, from, target))
+    // A gib or head, or a prop that breaks (a crate, a barrel, an explosive box, a crate's piece), smashed into the level,
+    // a monster or a solid thing hard enough bursts or breaks (the impact rule: out of the hand, gone; an explosive box
+    // blows up), or softer is damaged. (After this trace: it reads it.)
+    if(VR_Prop_Kind(box) && VR_Prop_HeldSmash(box, from, target))
     {
         return TRUE; // (no longer held: nothing to let go of)
     }
@@ -2144,11 +2146,12 @@ float(entity g) VR_Gib_HardThrow =
 // - a hand's or a weapon's hit on a loose one (VR_Gib_Struck, the touch; VR_Gib_Blow, a melee blow; VR_Gib_HeldFrameHand,
 //   one held in the other hand): the hand's speed against it. Short of bursting it bounces off the hand along the hit,
 //   like a volleyball (vr_gib_bounce): a gib tossed up and tapped flies on, struck hard it bursts.
-// - one held and smashed into the level, a monster or a solid thing (VR_Gib_HeldSmash, from VR_Carry_Follow): its speed
+// - one held and smashed into the level, a monster or a solid thing (VR_Prop_HeldSmash, from VR_Carry_Follow): its speed
 //   into it, as the hand drove it. Before, a held one never burst.
 // - one thrown at a wall or a monster (VR_Gib_Think2, VR_Gib_Touch): as before, its own thresholds (Gib Splat Speed, Hard
 //   Throw Bursts: a thrown gib's hit is seen in its turned velocity, not a relative speed), an intensity of 1.
-// Shots and blasts are damage (T_Damage, VR_Gib_Damage) as before.
+// Shots and blasts are damage (T_Damage, VR_Gib_Damage) as before. Props that break follow the same rule (VR_Prop_Impact,
+// below), gibs by these numbers.
 
 float VR_GIB_HIT_GAP = 0.15; // s: hand hits on one gib this close together count once
 
@@ -2167,7 +2170,7 @@ float(entity g) VR_Gib_BurstSpeed =
 };
 
 // `g` met something at `xIntensity` (VR_Gib_BurstSpeed's); `xDir` the way it pushed it (blood flies along it); `xHow` for
-// the console. TRUE: it burst (held, out of the hand first: VR_Gib_HeldSmash).
+// the console. TRUE: it burst (held, out of the hand first: VR_Prop_HeldSmash).
 void(entity xPlayer, entity xGib) VR_Gib_KnockOut;
 float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact =
 {
@@ -2200,14 +2203,231 @@ float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact =
     return burst;
 };
 
-// From VR_Carry_Follow (self the player), after its trace of the level from `xFrom` to `xTo` (where the hand wants it):
-// the held gib or head `box` driven into the level along it, or into a monster or a solid thing (a second trace), at its
-// speed into it (its last frame's motion, which followed the hand, and the hand's own) meets the impact rule (VR_Gib_Impact): it bursts, out
-// of the hand, from its burst speed (vr_gib_burst_speed); from half that it is worn. Pressed on, it has stopped there (its
-// motion along the surface): one hit. TRUE: it burst. The trace is left as the level's, as it was.
-float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash =
+// ----------------------------------------------------------------------------
+// The impact rule for props (ROUND22.md, "Prop impacts"; the author, 2026-10-20): every prop that breaks follows the
+// gibs' rule, through VR_Prop_Impact: its intensity is the impact's speed over its kind's break speed (VR_Prop_BreakSpeed:
+// a gib's burst speed, VR_Gib_BurstSpeed, its numbers unchanged; a crate's piece vr_prop_break_piece; any other
+// vr_prop_break_speed for a small crate's 75 health, times the square root of its own full health over that (0.5x ..
+// 2.5x: as hard to break as its health, the impact's energy its speed's square) and its material's multiplier,
+// vr_prop_break_wood / _glass / _stone / _metal / _explosive). From 1 it breaks (Killed: a crate into pieces, an explosive
+// box blows up, AD's breakable into rubble); from half it takes (2i - 1) of its full health; under half nothing (a light
+// tap only pushes it: the hand's body). The paths:
+// - a hand's or a weapon's melee blow (T_Damage_VRMelee: VR_Prop_BlowDamage): the blow's speed, weaker short of
+//   stamina, times its weapon's heft (the square root of its damage over a punch's: the axe 1.4x), the blow's damage
+//   replaced by the rule's. A crate's piece is also struck by the hand's touch (VR_CratePiece_Struck).
+// - one held and smashed into the level, a monster or a solid thing (VR_Prop_HeldSmash, from VR_Carry_Follow), as a gib.
+// - one thrown or dropped (its Box3D impact, vr_crates.qc): a crate from 70% of Breaks On Impact (vr_crate_impact) as the
+//   intensity, an explosive box at Blow Up On Impact (vr_explobox_impact), a crate's piece thrown at
+//   vr_crate_piece_impact: only the outcome goes through the rule.
+// Shots and blasts are damage (T_Damage) as before. Not props: shootable buttons, doors and triggers, Scourge of Armagon's
+// damage thresholds (a rocket's walls) and Dimension of the Machine's sinking pillars (any hit sinks them).
+
+float VR_PROPK_NONE = 0;
+float VR_PROPK_GIB = 1;       // a gib, a head, a small gib, a brain chunk that can burst (VR_Gib_Impact)
+float VR_PROPK_PIECE = 2;     // a crate's piece
+float VR_PROPK_WOOD = 3;      // a crate, a barrel; AD's wooden breakables
+float VR_PROPK_GLASS = 4;     // AD's glass and pottery (windows, vases)
+float VR_PROPK_STONE = 5;     // AD's rock and brick; Scourge of Armagon's walls with rubble
+float VR_PROPK_METAL = 6;     // AD's metal breakables
+float VR_PROPK_EXPLOSIVE = 7; // an explosive box (id's, MG1's func_explode)
+float VR_PROP_BREAK_HEALTH = 75; // the health vr_prop_break_speed is for (a small crate's)
+
+.float vr_prop_full;     // a prop's full health, taken at its first impact (one without max_health: VR_Prop_Full)
+float vr_prop_held_hit;  // VR_Prop_HeldSmash's damage on the prop it holds (a crate's piece in a hand takes none else)
+
+void() barrel_explode; // (misc.qc)
+
+// What kind of prop `e` is (VR_PROPK_*): one that can break, not broken yet.
+float(entity e) VR_Prop_Kind =
 {
-    if(!VR_Gib_IsDestroyable(box) || box.carry_player != self || box.velocity == '0 0 0')
+    if(e.vr_gib)
+    {
+        return VR_Gib_IsDestroyable(e) ? VR_PROPK_GIB : VR_PROPK_NONE;
+    }
+    if(!e.takedamage || e.health <= 0 || (e.flags & (FL_MONSTER | FL_CLIENT)) || e.vr_corpse)
+    {
+        return VR_PROPK_NONE;
+    }
+    if(e.vr_cratekind == 3)
+    {
+        return VR_PROPK_PIECE;
+    }
+    if(e.vr_cratekind == 1 || e.vr_cratekind == 2)
+    {
+        return VR_PROPK_WOOD;
+    }
+    if(e.th_die == barrel_explode || e.classname == "func_explode")
+    {
+        return VR_PROPK_EXPLOSIVE;
+    }
+    if(e.classname == "breakablewallwithrubble")
+    {
+        return VR_PROPK_STONE;
+    }
+    return AD_BreakKind(e);
+};
+
+string(float xKind) VR_Prop_KindName =
+{
+    if(xKind == VR_PROPK_GIB)
+    {
+        return "gib";
+    }
+    if(xKind == VR_PROPK_PIECE)
+    {
+        return "piece";
+    }
+    if(xKind == VR_PROPK_WOOD)
+    {
+        return "wood";
+    }
+    if(xKind == VR_PROPK_GLASS)
+    {
+        return "glass";
+    }
+    if(xKind == VR_PROPK_STONE)
+    {
+        return "stone";
+    }
+    if(xKind == VR_PROPK_METAL)
+    {
+        return "metal";
+    }
+    return xKind == VR_PROPK_EXPLOSIVE ? "explosive" : "none";
+};
+
+// Its full health: its max_health (a crate's), else its health at its first impact (an explosive box's 20, AD's).
+float(entity e) VR_Prop_Full =
+{
+    if(e.max_health > 0)
+    {
+        return e.max_health;
+    }
+    if(e.vr_prop_full <= 0)
+    {
+        e.vr_prop_full = max(1, e.health);
+    }
+    return e.vr_prop_full;
+};
+
+// m/s: the impact that breaks `e` (of `xKind`).
+float(entity e, float xKind) VR_Prop_BreakSpeed =
+{
+    if(xKind == VR_PROPK_GIB)
+    {
+        return VR_Gib_BurstSpeed(e);
+    }
+    if(xKind == VR_PROPK_PIECE)
+    {
+        return max(0.1, cvar_hget(cvarh_vr_prop_break_piece));
+    }
+    float mult = cvar_hget(cvarh_vr_prop_break_wood);
+    if(xKind == VR_PROPK_GLASS)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_glass);
+    }
+    else if(xKind == VR_PROPK_STONE)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_stone);
+    }
+    else if(xKind == VR_PROPK_METAL)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_metal);
+    }
+    else if(xKind == VR_PROPK_EXPLOSIVE)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_explosive);
+    }
+    float scale = min(2.5, max(0.5, sqrt(VR_Prop_Full(e) / VR_PROP_BREAK_HEALTH)));
+    return max(0.1, cvar_hget(cvarh_vr_prop_break_speed) * max(0.01, mult) * scale);
+};
+
+// The damage the rule deals `e` (not a gib) meeting something at `xIntensity` (its break speed's): at 1 or more all its
+// health; from half (2i - 1) of its full health; under half none. `xHow` for the console.
+float(entity e, float xKind, float xIntensity, string xHow) VR_Prop_Wear =
+{
+    float full = VR_Prop_Full(e);
+    float wear = 0;
+    if(xIntensity >= 1)
+    {
+        wear = max(full, e.health);
+    }
+    else if(xIntensity >= 0.5)
+    {
+        wear = full * (xIntensity * 2 - 1);
+    }
+    dprint(sprintf("prop: %s (%s) impact (%s) at %.2f of its break speed (%.2f m/s): %s\n", e.classname,
+        VR_Prop_KindName(xKind), xHow, xIntensity, VR_Prop_BreakSpeed(e, xKind), wear <= 0 ? "unhurt" :
+        (wear >= e.health ? "broken" : sprintf("damaged by %.1f, %.1f of %.0f left", wear, e.health - wear, full))));
+    return wear;
+};
+
+// `e` met something at `xIntensity` (VR_Prop_BreakSpeed's), pushed along `xDir`, by `xBy` (its damage's inflictor and
+// attacker; world: the level); `xHow` for the console. A gib by its own rule (VR_Gib_Impact). TRUE: it broke.
+float(entity e, float xIntensity, vector xDir, string xHow, entity xBy) VR_Prop_Impact =
+{
+    float kind = VR_Prop_Kind(e);
+    if(kind == VR_PROPK_GIB)
+    {
+        return VR_Gib_Impact(e, xIntensity, xDir, xHow);
+    }
+    if(kind == VR_PROPK_NONE)
+    {
+        return FALSE;
+    }
+    float wear = VR_Prop_Wear(e, kind, xIntensity, xHow);
+    if(wear <= 0)
+    {
+        return FALSE;
+    }
+    T_Damage(e, xBy, xBy, wear);
+    return e.takedamage == DAMAGE_NO || e.health <= 0 || (kind == VR_PROPK_PIECE && e.vr_cratekind != 3);
+};
+
+// A melee blow of `xHand` of self (T_Damage_VRMelee; its damage `xDamage`, VRMeleeDmg's) landing on `targ`: on a prop that
+// breaks (not a gib: VR_Gib_Blow has those), the damage of the impact rule instead (0: a light blow, it only pushes; the
+// same prop struck again within VR_GIB_HIT_GAP, by the other hand's sweep or the touch, once). -1: not such a prop, or not
+// a tracked hand's blow: the blow's damage as it is.
+entity(float xHand) VR_Blow;
+float(float xHand) VR_Blow_Strength;
+float(float xHand) VR_Blow_Counter;
+float(float xHand) VR_Blow_Exhaust;
+float() VRMeleeDmgQuadMult;
+.float mh_speed;
+float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage =
+{
+    float kind = VR_Prop_Kind(targ);
+    if(kind == VR_PROPK_NONE || kind == VR_PROPK_GIB || !VRHandsTracked(self) || !self.ishuman)
+    {
+        return -1;
+    }
+    if(time < targ.vr_gib_hittime + VR_GIB_HIT_GAP)
+    {
+        return 0;
+    }
+    targ.vr_gib_hittime = time;
+    // Its weapon's heft: its damage over a punch's of the same strength, counter and stamina (the blow's own strength
+    // is its speed's), square-rooted (as the speed's share of the impact's energy): a fist 1, the axe 1.4, a slap 0.7.
+    float punch = cvar_hget(cvarh_vr_dmg_fist) * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
+                  cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+    float heft = punch > 0 ? sqrt(min(4, max(0.25, xDamage / punch))) : 1;
+    float speed = VR_Blow(xHand).mh_speed;
+    float intensity = speed * VR_Blow_Exhaust(xHand) * heft / VR_Prop_BreakSpeed(targ, kind);
+    return VR_Prop_Wear(targ, kind, intensity, sprintf("the %s hand's blow at %.2f m/s, heft %.2f",
+        xHand == cVR_MainHand ? "main" : "off", speed, heft));
+};
+
+// From VR_Carry_Follow (self the player), after its trace of the level from `xFrom` to `xTo` (where the hand wants it):
+// the held gib, head or prop that breaks `box` driven into the level along it, or into a monster or a solid thing (a
+// second trace), at its speed into it (its last frame's motion, which followed the hand, and the hand's own) meets the
+// impact rule (VR_Prop_Impact): a gib bursts, out of the hand, from its burst speed (vr_gib_burst_speed), a prop breaks
+// from its break speed (a crate, out of the hand; an explosive box blows up); from half that it is worn. Pressed on, it
+// has stopped there (its motion along the surface): one hit. TRUE: it burst or broke. The trace is left as the level's,
+// as it was.
+float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash =
+{
+    float kind = VR_Prop_Kind(box);
+    if(kind == VR_PROPK_NONE || box.carry_player != self || box.velocity == '0 0 0')
     {
         return FALSE;
     }
@@ -2215,6 +2435,15 @@ float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash =
     vector otherVel = '0 0 0';
     string what = "the level";
     float retrace = FALSE;
+    vector to = xTo;
+    if(kind != VR_PROPK_GIB && (trace_fraction >= 1 || trace_startsolid) && xTo != xFrom)
+    {
+        // A prop's face meets the wall before its middle does: the line on by its least half-size (a gib's is small).
+        vector half = (box.maxs - box.mins) * 0.5;
+        to = xTo + normalize(xTo - xFrom) * max(1, min(half_x, min(half_y, half_z)));
+        traceline(xFrom, to, TRUE, self);
+        retrace = TRUE;
+    }
     if(trace_fraction < 1 && !trace_startsolid)
     {
         n = trace_plane_normal;
@@ -2222,7 +2451,7 @@ float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash =
     }
     else
     {
-        traceline(xFrom, xTo, FALSE, self); // (held, it is not solid: the line passes it)
+        traceline(xFrom, to, FALSE, self); // (held, it is not solid: the line passes it)
         retrace = TRUE;
         entity e = trace_ent;
         if(trace_fraction < 1 && !trace_startsolid && e != world && e != box &&
@@ -2240,10 +2469,12 @@ float(entity box, vector xFrom, vector xTo) VR_Gib_HeldSmash =
         // motion is not a smash (the hand's velocity is its own swing).
         float hand = self.mainhand_held == box ? cVR_MainHand : cVR_OffHand;
         float into = min(-((box.velocity - otherVel) * n) * (1 / VRMetersToUnits()), -(VRGetEntHandVel(self, hand) * n));
-        float intensity = into / VR_Gib_BurstSpeed(box);
+        float intensity = into / VR_Prop_BreakSpeed(box, kind);
         if(intensity >= 0.5)
         {
-            burst = VR_Gib_Impact(box, intensity, box.velocity, sprintf("held, smashed into %s at %.2f m/s", what, into));
+            vr_prop_held_hit = TRUE;
+            burst = VR_Prop_Impact(box, intensity, box.velocity, sprintf("held, smashed into %s at %.2f m/s", what, into), self);
+            vr_prop_held_hit = FALSE;
         }
     }
     if(retrace && !burst)

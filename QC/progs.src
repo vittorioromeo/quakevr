@@ -485,3 +485,5 @@ vr_gibprops_test.qc
 vr_limbs_wear_test.qc
 // The weapon each weapon's damage is credited with (vr_dmgcredit_test; after every weapon it fires).
 vr_dmgcredit_test.qc
+// The props' impact rule (vr_prop_impact_test; after AD's files: its breakables' kinds).
+vr_propimpact_test.qc

@@ -369,6 +369,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_smallgibs_test 25 (Step Up to the Wall Ahead first): a head held in the off hand smashed into the "
                   "nearest wall at twice Gib Burst Speed (it bursts) and a third (it doesn't); a falling head struck from "
                   "below by the hand and by a blow at 0.6x (it bounces up) and 1.5x (it bursts). The console."),
+        command("Prop Impacts: Tap, Hit, Smash, Throw", "god 1; vr_prop_impact_test 1")
+            .help("vr_prop_impact_test 1 (god mode on: an explosive box blows up; near a wall): a small crate, an explosive "
+                  "box, a crate's piece and a wall with rubble each struck by a blow at 0.4x, 0.75x and 1.2x its Break Speed "
+                  "(unhurt, damaged, broken) and with an axe's heft; held and smashed into the wall; thrown into it. The "
+                  "console (propimpact: lines)."),
         command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
             .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")

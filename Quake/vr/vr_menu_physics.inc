@@ -789,6 +789,28 @@
         slider("Breaks On Impact", vr_crate_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
             .help("A crate hitting something this hard breaks (dropped from about 85 units); from 70% of it, it is damaged. "
                   "Things thrown at it damage it as they do monsters. 0: impacts never break them."),
+        slider("Break Speed", vr_prop_break_speed, 2.f, 20.f, 0.25f, "%.2f m/s").extend(0.1f, 60.f)
+            .help("A hand's or weapon's blow on a small crate, or one held and smashed into a wall, the floor or a monster, "
+                  "this fast breaks it; from half as fast it is damaged (more the faster), slower it is only pushed. Every "
+                  "prop that breaks follows it: explosive boxes (they blow up), barrels, AD's and the expansions' "
+                  "breakables, a crate's pieces; each by its health (the square root of it over a small crate's) and its "
+                  "material (below). A weapon's heft helps (the axe 1.4x)."),
+        slider("Break Speed: Wood", vr_prop_break_wood, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Break Speed for crates, barrels and wooden breakables."),
+        slider("Break Speed: Glass", vr_prop_break_glass, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Break Speed for glass and pottery (AD's windows and vases)."),
+        slider("Break Speed: Stone", vr_prop_break_stone, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Break Speed for rock and brick breakables."),
+        slider("Break Speed: Metal", vr_prop_break_metal, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Break Speed for metal breakables."),
+        slider("Break Speed: Explosive", vr_prop_break_explosive, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
+            .help("Times Break Speed for explosive boxes (20 health: 8.4 m/s by default). Broken, they blow up, in your "
+                  "hands too."),
+        slider("Break Speed: Pieces", vr_prop_break_piece, 1.f, 12.f, 0.25f, "%.2f m/s").extend(0.1f, 40.f)
+            .help("A hand's hit on a crate's piece, or one held and smashed into something, this fast bursts it into dust; "
+                  "from half as fast it is worn (two such hits burst it)."),
+        slider("Thrown Pieces Burst", vr_crate_piece_impact, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 60.f)
+            .help("A crate's piece you throw that hits something this hard bursts; from half, it is worn. 0: never."),
         toggle("Overhead Slam", vr_carry_slam)
             .help("A crate or barrel held in both hands over your head and swung down onto a monster, a prop or a wall breaks "
                   "at once (what it hits takes a heavy blow); thrown down from there, it takes heavy damage (two such "
