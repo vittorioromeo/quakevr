@@ -50,6 +50,84 @@ pkg-config). Debian/Ubuntu: `clang cmake ninja-build libsdl2-dev libgl-dev libx1
 - The runtime needs GL to import its images: Monado's GL client uses `GL_EXT_memory_object_fd` (the log's "GL interop"
   line). Mesa and NVIDIA have it.
 
+## Flatpak
+
+The portable Linux build: the Flatpak `io.github.vittorioromeo.QuakeVR` (the Release engine built with clang, the
+compiled QuakeC, the `quakevr` game folder, the OpenXR loader 1.1.65) on the freedesktop runtime 25.08. Nothing of id's,
+Arcane Dimensions' or the expansions' is in it: it reads the player's own Quake in place.
+
+- **CI** (`.github/workflows/flatpak.yml`): every push (any branch) and manual runs build it in the
+  `ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08` container (the maintained successor of the
+  `bilelmoussaoui` images, which stop at 24.08) with `flatpak/flatpak-github-actions/flatpak-builder@v6.8`, and keep the
+  bundle as the run's artifact `QuakeVR-<branch>-<hash>` (30 days: the Actions tab, the run, Artifacts). No release is
+  published.
+- **Files** (`Misc/linux/flatpak/`): the manifest `io.github.vittorioromeo.QuakeVR.yml` (modules: fteqcc at the commit of
+  the author's `fteqcc64.exe`, for the build only; the OpenXR loader; Quake VR), `build.sh` (in the sandbox: the QuakeC,
+  CMake, the install; the game folder is what git would track under `quakevr/`, less `.gitignore` and `motions/`, as
+  `Windows/package-quakevr.ps1` has it), `quakevr.sh` (the launcher), the desktop entry, the AppStream metadata and the
+  icon (the installer's logo). The build number: CI writes `.qvr-buildinfo` ("<commit count> <hash>"), which
+  `qvr_buildinfo.cmake` reads when the copy has no `.git`; a local build says `build 0 (unknown)`.
+- **Building it locally** (flatpak-builder 1.4; it installs the runtime, the SDK and
+  `org.freedesktop.Sdk.Extension.llvm22` from Flathub):
+
+      flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo build-dir \
+          Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml
+      flatpak build-bundle repo QuakeVR.flatpak io.github.vittorioromeo.QuakeVR
+
+### Installing and running
+
+    flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    flatpak install --user QuakeVR-next-abc1234.flatpak     # the runtime comes from Flathub
+    flatpak run io.github.vittorioromeo.QuakeVR             # or "Quake VR" in the desktop's menu
+
+- **Quake's data**: the launcher runs `-basedir <Quake> -basedir <Quake VR> -game quakevr`, as the Windows installer's
+  shortcuts do. It looks for Quake in this order: `--quake-dir <folder>` (then remembered in
+  `~/.var/app/io.github.vittorioromeo.QuakeVR/config/quake-dir`), `QUAKEVR_QUAKE_DIR`, the remembered folder,
+  `steamapps/common/Quake` in every Steam library (native and Flatpak Steam, from `libraryfolders.vdf`), then
+  `~/GOG Games/Quake`, `~/Games/Heroic/Quake`, `~/Games/Quake`, `~/quake`. A folder qualifies with `id1/pak0.pak` (lower
+  case, as Ironwail looks for it) or with `rerelease/id1/pak0.pak`: Steam's and GOG's current Quake (the original
+  release's `Id1/PAK0.PAK` beside it is upper case, so not used).
+
+      flatpak run io.github.vittorioromeo.QuakeVR --quake-dir ~/.local/share/Steam/steamapps/common/Quake
+
+  Home is readable (read-only). Quake on another disk needs sharing too:
+  `flatpak override --user --filesystem=/mnt/games/Quake:ro io.github.vittorioromeo.QuakeVR`. Without a Quake, the
+  engine's error dialog says how to give one. Mods and Arcane Dimensions are found in the Quake folder, as on Windows.
+- **What it writes**: `~/.var/app/io.github.vittorioromeo.QuakeVR/data/QuakeVR/quakevr/` (config, saves, logs, crash
+  and bug reports, screenshots), beside links to the shipped files (`/app/share/quakevr/quakevr`, refreshed at every
+  start). The Quake folder is never written.
+- **VR runtimes**: the host's `~/.config/openxr` (shared read-only) shows in the app's own config folder too, where the
+  loader and the game's detection look first (`vr_xr_runtime_explain` lists it as
+  `~/.var/app/io.github.vittorioromeo.QuakeVR/config/openxr/1/active_runtime.json`); the launcher also adds `~/.config`
+  to `XDG_CONFIG_DIRS`. The runtime's library is loaded into the sandboxed game, so it must be
+  visible there and work with the freedesktop runtime's libraries:
+  - **WiVRn's Flatpak** (`io.github.wivrn.wivrn`): expected to work (its library is built on the freedesktop runtime;
+    its folder and `xdg-run/wivrn` are shared). Not tried yet.
+  - **Monado or WiVRn from distribution packages**: their manifests (`/usr/share/openxr/1`, `/etc/xdg/openxr/1`) name a
+    library under the host's `/usr`, which the sandbox does not see (its `/usr` is the runtime's): no runtime found. Use
+    the native build.
+  - **SteamVR**: its manifest and `vrclient` are in the Steam folder (shared read-only), and the game asks SDL for
+    X11/GLX. Not tried; the likely limits: SteamVR's library expecting the Steam Runtime's libraries, and the sandbox
+    hides the host's processes, so the game's "SteamVR is running" detection (`vrserver` in `/proc`) sees nothing.
+  - Any manifest by hand: `flatpak run --env=XR_RUNTIME_JSON=/path/to/manifest.json io.github.vittorioromeo.QuakeVR`
+    (the manifest and its library readable in the sandbox).
+- **Not in it**: the relighting scripts (`quakevr/tools`, Python: in the repository), ericw-tools, the HD texture pack,
+  debug symbols (the binary is stripped: a crash report's offsets need that CI build's unstripped binary, not kept). No
+  real headset has run the Flatpak yet.
+
+| Permission | Why |
+|---|---|
+| `--socket=wayland`, `--socket=x11`, `--share=ipc` | the window; X11 always (not `fallback-x11`): SteamVR has only the GLX binding, so with it the game asks SDL for X11 (XWayland); ipc: X11 shared memory |
+| `--device=all` | the GPU (dri) and the headset's and controllers' USB/HID devices |
+| `--socket=pulseaudio` | sound (PipeWire's Pulse server too) |
+| `--share=network` | the update check, OBS's websocket, multiplayer |
+| `--filesystem=home:ro` | the player's Quake, Steam libraries and GOG folders under home, read in place |
+| `--filesystem=~/.var/app/com.valvesoftware.Steam:ro` | Flatpak Steam's library |
+| `--filesystem=xdg-config/openxr:ro` | the active OpenXR runtime's manifest |
+| `--filesystem=xdg-run/monado_comp_ipc`, `xdg-run/wivrn` | the runtimes' IPC sockets (Monado and Envision; WiVRn) |
+| `--filesystem=xdg-data/flatpak/app/io.github.wivrn.wivrn:ro` | WiVRn's Flatpak: its OpenXR library |
+| `--filesystem=xdg-data/Steam:ro`, `~/.steam:ro`, `xdg-config/openvr:ro` | SteamVR: its OpenXR manifest, `vrclient`, OpenVR's paths |
+
 ## Platform pieces (what the Windows-only code became)
 
 | Piece | Linux |

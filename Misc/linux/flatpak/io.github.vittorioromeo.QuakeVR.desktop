@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Quake VR
+GenericName=VR first-person shooter
+Comment=Quake in virtual reality (OpenXR); plays your own copy of Quake
+Exec=quakevr
+Icon=io.github.vittorioromeo.QuakeVR
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=quake;vr;virtual reality;openxr;shooter;

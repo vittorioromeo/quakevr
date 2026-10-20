@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata of the Flatpak (Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml). -->
+<component type="desktop-application">
+  <id>io.github.vittorioromeo.QuakeVR</id>
+  <name>Quake VR</name>
+  <summary>Quake in virtual reality</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <developer id="io.github.vittorioromeo">
+    <name>Vittorio Romeo</name>
+  </developer>
+  <description>
+    <p>
+      Quake VR is a virtual reality port of Quake on the Ironwail engine: tracked hands and weapons, melee,
+      physics, and the campaigns played on an OpenXR headset (Monado, WiVRn, SteamVR).
+    </p>
+    <p>
+      It plays your own copy of Quake (Steam, GOG or any folder with id1/pak0.pak): no game data from id Software is
+      included.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.vittorioromeo.QuakeVR.desktop</launchable>
+  <url type="homepage">https://github.com/vittorioromeo/quakevr</url>
+  <url type="bugtracker">https://github.com/vittorioromeo/quakevr/issues</url>
+  <categories>
+    <category>Game</category>
+    <category>ActionGame</category>
+  </categories>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-fantasy">intense</content_attribute>
+    <content_attribute id="violence-realistic">moderate</content_attribute>
+    <content_attribute id="violence-bloodshed">intense</content_attribute>
+    <content_attribute id="social-chat">none</content_attribute>
+  </content_rating>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>gamepad</control>
+  </supports>
+</component>
