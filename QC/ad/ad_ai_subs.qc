@@ -684,7 +684,9 @@ void() ad_ai_face =
 //----------------------------------------------------------------------
 void(float ad_dist) ad_ai_forward =
 {
+	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
 	ad_walkmove (self.angles_y, ad_dist);
+	if (time - self.vr_melee_time < 0.25) { self.vr_melee_time = time; VR_MeleeSpace_Step(ad_before); } // QVR: a step in a swing
 };
 
 //----------------------------------------------------------------------

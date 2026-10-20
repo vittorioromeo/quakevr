@@ -316,6 +316,20 @@ FUNC_PATCHES += [
     ("ai_subs.qc", "ai_checkmelee", "\tif (delta <= attackdist && ",
      "\t// AD support: melee arc: the reach grows with size (fight.qc VR_MeleeReach)\n"
      "\tif (delta <= VR_MeleeReach(attackdist) && ", Q + ": melee arc (fight.qc VR_MeleeReach): the reach grows with size"),
+    # The melee lunges at a swing's start (the zombie knight's 20 units, the fiend's claw's 12): a melee step as the charges'
+    # (the zombie knight's came to 0.1 units of the head with Melee Space on).
+    ("mon_zombiek.qc", "zombiek_melee", "\twalkmove (self.ideal_yaw, 20);",
+     _STAMP + "\tlocal vector before = self.origin;" + _STEP + "\n\twalkmove (self.ideal_yaw, 20);\n"
+     "\tVR_MeleeSpace_Step(before);", _SPACE),
+    ("mon_demon.qc", "Demon_Claw", "\twalkmove (self.ideal_yaw, 12);",
+     "\tlocal vector before = self.origin;" + _STEP + "\n\twalkmove (self.ideal_yaw, 12);\n\tVR_MeleeSpace_Step(before);",
+     _SPACE),
+    # A forward step inside a swing (a melee step stamped a moment ago, the stamp kept on: the hunter ogre's chainsaw
+    # swing goes on with ai_forward after its charge steps, and came to 9-13 units of the head); its other steps as AD's.
+    ("ai_subs.qc", "ai_forward", "\twalkmove (self.angles_y, dist);",
+     "\tlocal vector before = self.origin;" + _STEP + "\n\twalkmove (self.angles_y, dist);\n"
+     "\tif (time - self.vr_melee_time < 0.25) { self.vr_melee_time = time; VR_MeleeSpace_Step(before); } "
+     "// QVR: a step in a swing", _SPACE),
 ] + [
     (fn, func, "\tai_face ();", "\t" + _FACE % "ai_face ();", _ARC)
     for fn, func in (("mon_demon.qc", "Demon_Claw"), ("mon_drole.qc", "drole_claw"), ("mon_minotaur.qc", "mino_claw"),
