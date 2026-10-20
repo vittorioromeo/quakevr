@@ -3,7 +3,8 @@
 # open floor (setpos -300 -100 24 facing +y; the test crate 40 units ahead: vr_test_spawn 120..122), one game each, PASS or
 # FAIL per case:
 #   heavy  a large crate (65 kg: holds like the level): grabbed, mantled onto, standing on it (z 72)
-#   stack  two large crates stacked (96 high, the hands raised to 3.04 m): mantled onto the top one (z 120)
+#   stack  two large crates stacked (96 high, the hands raised to 3.04 m, pulled to 0.72: the head 18 over
+#          the top, Mantle Height): mantled onto the top one (z 120)
 #   side   a large crate lying on its side (40 high): mantled onto (z 64)
 #   light  a large crate made light (vr_climb_prop_mass 70), the player 10 units back: it tips towards him, the hands let
 #          go, and he hasn't moved (within 2 units: not pulled along)
