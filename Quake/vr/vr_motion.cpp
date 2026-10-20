@@ -692,7 +692,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 // A prop (not a weapon) carried in the hand (the player's mainhand_held / offhand_held): "model (classname)", else "".
 [[nodiscard]] za::String heldProp(int hand)
 {
-    if(!sv.active || svs.maxclients < 1 || !sv.qcvm.edicts || sv.qcvm.num_edicts < 2)
+    // (No server, or one loading a map (sv.active false over SV_SpawnServer), or its player not in yet: nothing.)
+    if(!sv.active || svs.maxclients < 1 || !svs.clients || !svs.clients[0].active || !sv.qcvm.progs ||
+       !sv.qcvm.edicts || sv.qcvm.edict_size <= 0 || sv.qcvm.num_edicts < 2)
     {
         return {};
     }
@@ -703,8 +705,10 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     za::String out;
     const auto& f = progs::fields();
     const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
-    const int num = ofs >= 0 ? progs::fieldInt(EDICT_NUM(1), ofs) : 0;
-    if(num > 0 && num < qcvm->max_edicts * qcvm->edict_size)
+    edict_t* const player = EDICT_NUM(1);
+    const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
+    // (An edict reference in range and on an edict's start; one freed since is skipped below.)
+    if(num > 0 && num % qcvm->edict_size == 0 && num / qcvm->edict_size < qcvm->num_edicts)
     {
         edict_t* ent = PROG_TO_EDICT(num);
         const int index = static_cast<int>(ent->v.modelindex);
