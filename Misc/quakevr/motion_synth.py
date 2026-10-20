@@ -232,6 +232,8 @@ class Take:
         self.t = 0.0
         self.phase = "pre"
         self.fists = set()  # empty hands whose grip is a fist of their own (a punch, the flashlight), not a helping grip
+        self.stick = (0.0, 0.0)  # the moving stick (the off hand's, vr_stick_swap 0) from now on: x right, y forward
+        self.sticks = []  # each frame's
 
     def set(self, hand, pos, quat):
         self.pose[hand] = (tuple(pos), quat)
@@ -241,6 +243,7 @@ class Take:
 
     def _emit(self):
         self.frames.append((self.t, self.phase, dict(self.pose), dict(self.grips)))
+        self.sticks.append(self.stick)
 
     def hold(self, seconds, phase=None):
         if phase:
@@ -304,7 +307,9 @@ class Take:
                 row.update({"raw_%s_valid" % p: "1", "raw_%s_vvalid" % p: "1", "raw_%s_gvalid" % p: "0"})
                 g = grips[hand]
                 row.update({"%s_buttons" % p: str(2 if g else 0), "%s_grip" % p: "1" if g else "0", "%s_trigger" % p: "0",
-                            "%s_thumb" % p: "1", "%s_stick_x" % p: "0", "%s_stick_y" % p: "0",
+                            "%s_thumb" % p: "1",
+                            "%s_stick_x" % p: "%.3f" % (self.sticks[i][0] if hand == "off" else 0.0),
+                            "%s_stick_y" % p: "%.3f" % (self.sticks[i][1] if hand == "off" else 0.0),
                             "%s_wid" % p: str(self.weapons[hand]), "%s_wflags" % p: "0",
                             "%s_helping" % p: "1" if (hand == "off" and g and self.weapons["off"] == 0 and hand not in self.fists) else "0"})
             if self.target:
@@ -315,7 +320,8 @@ class Take:
         columns = list(rows[0].keys())
         category = self.label.split("_")[0]
         for c in ("no_hit", "palm_shove_1h", "palm_shove_2h", "parry_pose", "parry_bash", "hilt_pommel", "gun_strike",
-                  "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw"):
+                  "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw",
+                  "shoulder_charge", "no_shoulder_charge"):
             if self.label.startswith(c):
                 category = c
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -633,6 +639,9 @@ def preset(name, args):
     take = liftjudo_preset(name, args)
     if take:
         return take
+    take = charge_preset(name, args)
+    if take:
+        return take
     take = fix_preset(name, args)
     if take:
         return take
@@ -788,6 +797,42 @@ def liftjudo_preset(name, args):
     return take
 
 
+def charge_preset(name, args):
+    """Running into the training dummy from `--charge-distance` (3 m) ahead with the moving stick (the off hand's) held
+    forward (ROUND22.md, "Shoulder charge"): `shoulder_charge_left` (side-on, the left shoulder leading: both hands low
+    by the belly to the right of the head, the left arm tucked across), `_right` (mirrored); not charges:
+    `no_shoulder_charge_running_guard` (both hands before the chest), `_running_idle` (hands low at the sides),
+    `_running_shove` (both palms out ahead), `_walking` (the charge's pose, the stick half forward: walking),
+    `_sidestep` (the charge's pose, the stick to the right: running sideways into it)."""
+    shapes = {  # (main hand, off hand: player frame metres from the head's foot point, z from the eye), stick
+        "shoulder_charge_left": (((0.0, -0.3, -0.6), (0.1, -0.15, -0.5)), (0.0, 1.0)),
+        "shoulder_charge_right": (((0.1, 0.15, -0.5), (0.0, 0.3, -0.6)), (0.0, 1.0)),
+        "no_shoulder_charge_running_guard": (((0.35, -0.08, -0.3), (0.35, 0.08, -0.3)), (0.0, 1.0)),
+        "no_shoulder_charge_running_idle": (((0.1, -0.25, -0.7), (0.1, 0.25, -0.7)), (0.0, 1.0)),
+        "no_shoulder_charge_running_shove": (((0.5, -0.15, -0.35), (0.5, 0.15, -0.35)), (0.0, 1.0)),
+        "no_shoulder_charge_walking": (((0.0, -0.3, -0.6), (0.1, -0.15, -0.5)), (0.0, 0.45)),
+        "no_shoulder_charge_sidestep": (((0.0, -0.3, -0.6), (0.1, -0.15, -0.5)), (1.0, 0.0)),
+    }
+    if name not in shapes:
+        return None
+    (mp, op), stick = shapes[name]
+    ws, eye = args.world_scale, args.eye_height
+    d = args.charge_distance
+    target = (0.3, -d) if stick[0] > 0 else (d, 0.0)  # (a sidestep: the dummy to the right, run into sideways)
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, target=target, note="synthetic")
+    pose = {"main": ((mp[0], mp[1], eye + mp[2]), fist_pose("main")), "off": ((op[0], op[1], eye + op[2]), fist_pose("off"))}
+    take.start(pose)
+    take.hold(0.4, phase="pre")
+    take.stick = stick
+    take.hold(1.4 if stick[1] < 0.9 and stick[0] == 0 else 0.9, phase="rec")
+    take.stick = (0.0, 0.0)
+    take.hold(0.4, phase="tail")
+    return take
+
+
+CHARGE_PRESETS = ["shoulder_charge_left", "shoulder_charge_right", "no_shoulder_charge_running_guard",
+                  "no_shoulder_charge_running_idle", "no_shoulder_charge_running_shove", "no_shoulder_charge_walking",
+                  "no_shoulder_charge_sidestep"]
 LIFTJUDO_PRESETS = ["lift_straight", "lift_fast", "no_lift_slow", "no_lift_sideways", "judo_throw_left",
                     "judo_throw_right", "judo_throw_towards", "no_judo_throw_slow", "no_judo_throw_small"]
 LEGSWEEP_PRESETS = ["leg_sweep_shotgun", "no_leg_sweep_axe", "no_leg_sweep_slow"]
@@ -822,6 +867,7 @@ def main():
                     "up from the floor")
     ap.add_argument("--sweep-height", type=float, default=0.45, help="the leg sweep presets: the hand's height over the floor")
     ap.add_argument("--necksnap-distance", type=float, default=0.7, help="the neck snap presets: metres to the dummy")
+    ap.add_argument("--charge-distance", type=float, default=3.0, help="the shoulder charge presets: metres to the dummy")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
                     help="the chop presets' weapon; crowbar, chainsaw, superaxe: the sword presets' too")
@@ -836,7 +882,8 @@ def main():
     ap.add_argument("--dummy-health", type=int, help="its health (vr_dummy_health; -1 its enemy's own)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LEGSWEEP_PRESETS + LIFTJUDO_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS + NECKSNAP_PRESETS + LEGSWEEP_PRESETS + LIFTJUDO_PRESETS +
+                        CHARGE_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
@@ -847,7 +894,8 @@ def main():
     names = (PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else
              NECKSNAP_PRESETS if args.preset == "necksnap" else
              LEGSWEEP_PRESETS if args.preset == "legsweep" else
-             LIFTJUDO_PRESETS if args.preset == "liftjudo" else [args.preset])
+             LIFTJUDO_PRESETS if args.preset == "liftjudo" else
+             CHARGE_PRESETS if args.preset == "charge" else [args.preset])
     for name in names:
         a = argparse.Namespace(**vars(args))
         a.duration = args.duration or DEFAULT_DURATION.get(name, 0.3)

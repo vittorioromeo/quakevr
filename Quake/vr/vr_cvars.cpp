@@ -329,8 +329,15 @@ const DefaultChange defaultChanges[] = {
     // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
     {167, &vr_decal_carve_steps, "16"},
     {167, &vr_ad_widowmaker_spinup, "0.2"},
+    // 168: his Thrown Bodies tuning (his config of 2026-10-20); the tackle redone as the shoulder charge, off for now
+    // (the old guard/shove tackle fired unintentionally), its bounce always (feedback).
+    {168, &vr_kdtrig_thrown_speed, "200"}, // 160
+    {168, &vr_kdtrig_thrown_least, "0.4"}, // 0.05
+    {168, &vr_kdtrig_thrown_push, "1"},    // 2
+    {168, &vr_kdtrig_tackle_on, "1"},      // 0
+    {168, &vr_kdtrig_tackle_bump, "60"},   // 100
 };
-constexpr int configVersion = 167;
+constexpr int configVersion = 168;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

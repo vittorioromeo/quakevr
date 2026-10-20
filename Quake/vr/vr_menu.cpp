@@ -2032,7 +2032,7 @@ const Page pages[] = {
     {"Ragdoll Triggers - Strong Blows", pageKdTrigBlow, pageKdTriggers},
     {"Ragdoll Triggers - Explosions", pageKdTrigBlast, pageKdTriggers},
     {"Ragdoll Triggers - Thrown Bodies", pageKdTrigThrown, pageKdTriggers},
-    {"Ragdoll Triggers - Tackles", pageKdTrigTackle, pageKdTriggers},
+    {"Ragdoll Triggers - Shoulder Charges", pageKdTrigTackle, pageKdTriggers},
     // Combat > Monster Groups (vr_menu_mgroups.inc): a page for each group, then one for each trigger and action.
     {"Monster Groups", pageMonsterGroups, pageCombat},
 #define QVR_MGROUP(g, label, ...) {"Monster Groups - " label, pageMonsterGroup<mgroups::g##Group>, pageMonsterGroups},

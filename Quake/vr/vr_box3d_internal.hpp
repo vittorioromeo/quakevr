@@ -288,6 +288,9 @@ struct RagdollBodies
     // When it was last thrown (a hand let go of it, a two-hand throw, ragdollfling; -1 never): the ragdoll triggers'
     // Thrown Body watches it strike living monsters for vr_kdtrig_thrown_window s after (callBodyHits).
     double thrownAt{-1.0};
+    // Its middle's fastest (units/s) since then: a strike counts at thrownKeep of it at least (callBodyHits; the floor
+    // or a limb catching on the way slows it before it meets the monster).
+    float thrownPeak{0.f};
     // Each part's lift in a liquid this frame (N, up; ragdollsInLiquids), given again for the step's later pieces.
     za::Array<float, ragdoll::maxBones> lift{};
     // Its active drive's forces this frame (N, world; ragactive::Parts::force), given again for the step's later pieces

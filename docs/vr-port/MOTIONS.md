@@ -78,6 +78,8 @@ with them off.
 | Lift Not Expected | `no_lift` | both hands on it moving it but no lift | slow, sideways, too_far, one_hand, adjusting, throw |
 | Judo Throw Expected | `judo_throw` | both hands turning it down (the two-hand throw, `vr_foegrab_throw`) | left, right, towards, away, fast, hip |
 | Judo Throw Not Expected | `no_judo_throw` | both hands on it turning or moving it but no throw | slow, small, shove, lift, one_hand, adjusting |
+| Shoulder Charge | `shoulder_charge` | running at full speed into the dummy side-on, a shoulder leading, both hands low and close to the body (`shouldercharge`) | left, right, hands_clasped, arms_tucked, with_gun, with_melee |
+| Shoulder Charge Not Expected | `no_shoulder_charge` | running (or walking) into the dummy in another pose: no charge | running_guard, running_shove, running_gun, walking, sidestep, running_idle, running_melee |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
 The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test

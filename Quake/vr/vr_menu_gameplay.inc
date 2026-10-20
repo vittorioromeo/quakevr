@@ -595,8 +595,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A body of the monster's own weight this fast topples it (its momentum over the monster's: a lighter or "
                   "slower body less). A quarter of it the least that counts."),
         slider("Least Strike", vr_kdtrig_thrown_least, 0.f, 1.f, 0.05f, "%.2f")
-            .help("A strike under this share of a toppling one does nothing; between it and a toppling one it only "
-                  "staggers."),
+            .help("A strike under this share of a toppling one does nothing; from it up to a toppling one the chance to "
+                  "topple grows to its full (else it staggers back, farther the harder it was struck)."),
         slider("Thrown For", vr_kdtrig_thrown_window, 0.25f, 5.f, 0.25f, "%.2f s")
             .help("How long after it leaves your hand a body counts as thrown (held, while your hand swings it)."),
     };
@@ -609,28 +609,35 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 [[nodiscard]] za::Vector<Item> pageKdTrigTackle()
 {
     za::Vector<Item> items{
-        toggle("Tackles", vr_kdtrig_tackle_on)
-            .help("Running at full speed into a monster with your hands together before your chest (crossed too), a "
-                  "weapon held across, a palm forward or shoving tackles it: a light one falls the way you run, an ogre "
-                  "staggers, shamblers and bosses stand. The hit slows you. Needs Ragdoll Triggers and Knockdowns on."),
-        slider("Chance", vr_kdtrig_tackle, 0.f, 1.f, 0.05f, "%.2f").help("The chance a light one goes down."),
+        toggle("Shoulder Charges", vr_kdtrig_tackle_on)
+            .help("Running at full speed into a monster side-on, a shoulder leading, both hands low and close to your "
+                  "body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers back, "
+                  "shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
+                  "(Being tuned on recorded takes: Motion Recorder > Shoulder Charge.)"),
+        slider("Chance", vr_kdtrig_tackle, 0.f, 1.f, 0.05f, "%.2f").help("The chance a light one falls."),
         slider("Push", vr_kdtrig_tackle_push, 0.25f, 2.f, 0.05f, "%.2fx")
-            .help("How hard it is pushed over (a two-hand shove: 1)."),
+            .help("How hard it is pushed over and back (a two-hand shove: 1; the knock times this)."),
+        slider("Knock Back", vr_kdtrig_tackle_knock, 0.f, 200.f, 4.f, "%.0f units")
+            .help("How far one of your weight is knocked back before it falls (a lighter one up to 1.5 times; a "
+                  "heavier one staggers back 0.6 of it)."),
         slider("Least Speed", vr_kdtrig_tackle_speed, 0.3f, 1.f, 0.05f, "%.2f")
             .help("Your ground speed for it, as a share of the most (walking is about 0.6)."),
         slider("Your Weight", vr_kdtrig_tackle_weight, 40.f, 150.f, 5.f, "%.0f kg")
             .help("Your weight for the weight classes below."),
-        slider("Hands Together", vr_kdtrig_tackle_gap, 4.f, 40.f, 1.f, "%.0f units")
-            .help("Your hands this close together before your chest are the guard."),
-        slider("Speed Kept", vr_kdtrig_tackle_slow, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Your speed after the hit, a share (half of it against one that only staggers)."),
-        slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s")
-            .help("You bounce back off a heavier one that only staggers."),
-        slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you tackle again."),
+        slider("Side-On Turn", vr_kdtrig_tackle_turn, 10.f, 90.f, 5.f, "%.0f deg")
+            .help("Your hands' middle, seen from your head, at least this far round to the side of the run (your torso "
+                  "turned side-on, a shoulder leading)."),
+        slider("Hands Low", vr_kdtrig_tackle_low, 0.f, 30.f, 1.f, "%.0f units")
+            .help("Both hands at least this far below your head."),
+        slider("Hands Close", vr_kdtrig_tackle_reach, 8.f, 40.f, 1.f, "%.0f units")
+            .help("Both hands within this of your head's line, neither reaching ahead (the leading arm tucked)."),
+        slider("Hold", vr_kdtrig_tackle_hold, 0.f, 1.f, 0.05f, "%.2f s").help("The pose held running before it counts."),
+        slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s").help("You bounce back off it."),
+        slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you charge again."),
     };
     kdTrigWeightRows(items);
     items.pushBack(open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Tackle)>))
-                       .help("Tackles' chance times each group's share."));
+                       .help("Shoulder Charges' chance times each group's share."));
     return items;
 }
 
@@ -653,7 +660,9 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         open("Strong Blows", pageIndex(pageKdTrigBlow)).help("A strong melee blow or a prop you fling knocks it over (up to twice the chance at twice Least Damage: a hard punch is about 30)."),
         open("Explosions", pageIndex(pageKdTrigBlast)).help("A nearby explosion (a rocket, a grenade, a barrel, any blast that leaves it alive) throws it down away from the blast's centre (Least Damage: the damage it took, already less with distance)."),
         open("Thrown Bodies", pageIndex(pageKdTrigThrown)).help("A body you throw or swing into a monster knocks it over by weight and momentum; a heavier one staggers."),
-        open("Tackles", pageIndex(pageKdTrigTackle)).help("Running at full speed into a monster in a guard or a shove tackles it; a heavier one staggers."),
+        open("Shoulder Charges", pageIndex(pageKdTrigTackle))
+            .help("Running at full speed into a monster side-on, a shoulder leading, knocks it back; a heavier one "
+                  "staggers back."),
         open("Monster Resistance", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Resist)>))
             .help("How much less likely each monster group goes down (by its size, or its own)."),
         open("Monster Groups", pageIndex(pageMonsterGroups))
