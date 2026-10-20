@@ -15401,3 +15401,48 @@ are late, now read from the cache. e1m1 unchanged (17 limbs, 2 kinds).
 - **In VR**: on ad_swampy, walk into the first fights: no stutter as the monsters appear; developer 1 prints `limb
   models: N made for K kinds of monster (M of them not yet appeared)` at the load and no `first spawned after the load`
   for the map's own kinds.
+
+## play_gore_fight's cost (worktree `goreflesh`, branch `agent/gorecost`, 2026-10-20)
+
+The perf sweep: play_gore_fight's CPU mean 1.98 -> 2.23 ms against 1.1.0-beta2 (p99 +41%, server +24%), Tracy showing
+Box3D's jobs, more awake bodies and contacts, VR_Melee_Sweep and hand collide.
+
+**Attribution.** Mostly not slower code: the scenario took another course.
+- *The scenario is chaotic.* Seed 7 (the bench's) on next: 19.1 monsters alive on average, 110.7 awake bodies, 128
+  contacts; on beta2 18.6, 93.5, 101.6. The same next build with an empty `--settings` file (one `exec` line more before
+  the map) plays beta2's fight exactly (every count equal to beta2's to the decimal) at 1.83-1.87 ms against beta2's
+  1.87-1.91: for the same fight next's code is no slower. Seeds 1-6 (`vr_bench_seed`/`vr_particle_seed`, realtime,
+  exclusive): beta2 1.94-2.40 ms (mean 2.15), next 2.08-2.62 (mean 2.33, two runs disturbed by the machine); the fights
+  where next costs more are those where the ragdoll triggers (the flinch's replacement) knock living grunts into active
+  ragdolls: seed 7 has 0.8 living ragdolls on average (9.7 awake parts), seed 6 133 awake bodies against 92.
+- *Box3D on the pool from 150 awake (+0.08 ms, the p99 spikes).* That course goes over 150 awake bodies (max 173), where
+  the step moved to the pool: the main thread then waited on the workers (Tracy, main thread: `Job blocking wait`
+  0.06-0.19 ms a frame) longer than it took to step alone. Interleaved A/B, seed 7, same fight (`vr_box3d_threads 0`
+  set in the script, which doesn't change the course): CPU 2.22 -> 2.14 ms, p99 4.44 -> 3.64, server 0.87 -> 0.81 (the
+  undisturbed 3 of 4 pairs). The physics scenarios at 150 / 300 / never (2 reps each, the disturbed ones dropped):
+  props_500_active 3.40 / 3.17 / 3.23 ms, ragdolls_32_active 2.89 / 2.64 / 2.68, gore_blast_crowd_32 2.65 / 2.82 / 2.77.
+- *QC functions looked up by name each step (0.033 ms a frame with ragdolls).* `box3d after callbacks` 0.0011 (beta2)
+  -> 0.0339 ms: the new `callBodyHits` (Thrown Bodies) looked `VR_KdTrig_BodyHit` up with `qvr::progs::findFunction`,
+  a strcmp scan of every QC function, each step while any ragdoll exists (`callRagImpacts` and `monsterFell` the same,
+  less often). Same fight after the fix: 0.0010 ms.
+- *The rest, from the Tracy pair (each zone a frame):* `VR_Melee_Sweep` 0.052 -> 0.088 ms (the swept blades' ribs, every
+  frame a hand holds something, a blow or not); `hand collide` 0.009 -> 0.028; SolveJoints 0.022 -> 0.042, `box3d
+  before step` 0.047 -> 0.072, `box3d publish bodies` 0.024 -> 0.040, particle lighting 0.062 -> 0.094 (the fight's
+  content: living ragdolls, more gibs and blood).
+
+**Changes.**
+- `findFunction` (vr_progs.cpp) uses the VM's hash table (pr_edict.c `ED_FindFunction`), the scan only before it exists:
+  every caller by name gets it, the same indices.
+- `vr_box3d_threads_bodies` 150 -> 300 (config 172 moves a config at 150; Debug > Physics Threads From has the row).
+- The bench's counts add the awake bodies by kind (`ragdolls_living`, `ragdolls_dead`, `awake_rag_living`,
+  `awake_rag_dead`, `awake_gibs`, `awake_props`; box3d::profileAwakeKinds), which is how the course was told apart.
+
+**Result** (bench.sh, play_gore_fight, 3 runs, same machine, same fight as next's): CPU mean beta2 2.028 / next 2.198
+/ now 2.048 ms (+1% on beta2), p99 3.33 / 3.75 / 3.46, server 0.701 / 0.840 / 0.783, worst frame 4.6 / 6.2 / 6.9 (one
+9.3 ms frame in one run; the others 6.5 and 4.7). eval.sh --full: 169/177 pass, the differences PASS -> PASS at the
+0.1 level (they change from run to run).
+
+**Not done.** VR_Melee_Sweep could skip a hand too slow for any blow, but its sweep also keeps the struck thing's
+"still in it" time and the pommel's pending blow (VR_Melee_Rearm's), so a gate changes when blows re-arm: the melee
+feel, not done without his takes. The bench's seed-7 fight is one sample of a chaotic scenario: a regression in it
+should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the script's two seed lines).
