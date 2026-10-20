@@ -36,6 +36,30 @@ float(entity client, float density, vector colour) VR_AD_Fog =
     return TRUE;
 };
 
+// An AD breakable (func_breakable, its models: the vase...; not its walls, spawners or rubble) for the props' impact rule
+// (vr_carry.qc VR_Prop_Kind): its material's kind, by its style (0: AD's default, rock). 0: not one.
+float(entity e) AD_BreakKind =
+{
+    if(e.ad_classgroup != ad_CG_BREAKABLE || (e.ad_classtype != ad_CT_FUNCBREAK && e.ad_classtype != ad_CT_FUNCBREAKMDL))
+    {
+        return VR_PROPK_NONE;
+    }
+    float s = e.style;
+    if(s == ad_BTYPE_GLASS || s == ad_BTYPE_CERAMIC)
+    {
+        return VR_PROPK_GLASS;
+    }
+    if(s == ad_BTYPE_METAL)
+    {
+        return VR_PROPK_METAL;
+    }
+    if(s == ad_BTYPE_WOOD || s == ad_BTYPE_FLESH || s == ad_BTYPE_CUSTOM)
+    {
+        return VR_PROPK_WOOD;
+    }
+    return VR_PROPK_STONE; // (rock, brick)
+};
+
 // AD's code owns `e`'s damage, pain and death: AD's monsters, breakables, its other damageable entities (not a player).
 // An AD monster's corpse or dying body that Quake VR's corpses took (vr_ad_monsters.qc) is Quake VR's: gibbed as one.
 // So is a gib or head of ours: an AD monster's head made of the monster itself by our gibbing (ThrowHead) and AD's own

@@ -2704,12 +2704,41 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
 };
 
 float(entity targ, entity attacker) VR_Melee_RagdollPush; // (vr_melee.qc)
+float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage; // (vr_carry.qc)
+float vr_melee_blowhand; // 1 + the hand whose blow PlayerVRMeleeImpl (client.qc) is dealing; 0: none (a chainsaw's chain...)
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
-    // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
-    // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
-    float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
-    damage = VR_Melee_CapDamage(damage * mult, mult);
+    // A prop that breaks (a crate, an explosive box, AD's breakables...) struck by a hand's blow: the impact rule's damage
+    // instead (VR_Prop_BlowDamage: from the blow's speed; a light one none, it only pushes). Else positional damage
+    // (vr_melee_positional): the zone of the point on the model it met, the same the guns use. Off: 1, and nothing is
+    // recorded - exactly the flat melee damage of before.
+    float prop = -1;
+    if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_blowhand == vr_hithand + 1 && attacker == self &&
+       (attacker.flags & FL_CLIENT))
+    {
+        prop = VR_Prop_BlowDamage(targ, damage, vr_hithand);
+    }
+    float mult = 1;
+    float pushDamage = damage;
+    if(prop >= 0)
+    {
+        damage = prop;
+        if(damage <= 0)
+        {
+            if(targ.takedamage)
+            {
+                VR_Push(targ, targ.origin - attacker.origin, min(600, pushDamage * 10) * cvar_hget(cvarh_vr_melee_push),
+                    min(200, pushDamage * 3) * cvar_hget(cvarh_vr_melee_push));
+            }
+            return FALSE;
+        }
+    }
+    else
+    {
+        mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
+        damage = VR_Melee_CapDamage(damage * mult, mult);
+        pushDamage = damage;
+    }
     VR_Teeth_Blow(targ, attacker, damage); // VR: a punch to the face knocks teeth out (vr_teeth.qc)
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
@@ -2739,10 +2768,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
 
     // VR: melee blows push what they hit (vr_melee_push); a ragdoll or a corpse as two bodies meeting
     // (VR_Melee_RagdollPush, vr_melee.qc).
+    // (A prop's by the blow's own damage, not the impact rule's.)
     if(targ != attacker && targ.takedamage && !VR_Melee_RagdollPush(targ, attacker))
     {
-        VR_Push(targ, targ.origin - attacker.origin, min(600, damage * 10) * cvar_hget(cvarh_vr_melee_push),
-            min(200, damage * 3) * cvar_hget(cvarh_vr_melee_push));
+        VR_Push(targ, targ.origin - attacker.origin, min(600, pushDamage * 10) * cvar_hget(cvarh_vr_melee_push),
+            min(200, pushDamage * 3) * cvar_hget(cvarh_vr_melee_push));
     }
     // VR: a strong blow may unbalance it as a shove does (vr_hitstagger.qc; a head blow counts more).
     if(r && alive && damage > 0)

@@ -1174,6 +1174,17 @@ QVR_CVAR(vr_crates_seed, "0", CVAR_ARCHIVE)              // mixed with the map's
 QVR_CVAR(vr_crates_exclude, "vrfiringrange vrclimb vrexample vrcalibration", CVAR_ARCHIVE) // maps with none (names, spaces between)
 QVR_CVAR(vr_crate_health, "75", CVAR_ARCHIVE)            // a small crate's health (a large one's by its size: 1.6 times); 0: can't be broken
 QVR_CVAR(vr_crate_impact, "16", CVAR_ARCHIVE)            // m/s: a crate hitting something this hard breaks (less: damaged from 70% of it); 0: never
+// The props' impact rule (QC vr_carry.qc VR_Prop_Impact; ROUND22.md "Prop impacts"): a hand's or weapon's hit on a prop that
+// breaks (a crate, a barrel, an explosive box, AD's and the expansions' breakables), or one held and smashed into something,
+// at its break speed or faster breaks it; from half of it, it is damaged by (2 x speed / break speed - 1) of its full health.
+QVR_CVAR(vr_prop_break_speed, "9", CVAR_ARCHIVE)         // m/s: a small crate's break speed (75 health); others' by the square root of their health over 75 (0.5x .. 2.5x) times their material's
+QVR_CVAR(vr_prop_break_wood, "1", CVAR_ARCHIVE)          // times vr_prop_break_speed for wood (crates, barrels, AD's wooden breakables)
+QVR_CVAR(vr_prop_break_glass, "0.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for glass and pottery (AD's windows, vases)
+QVR_CVAR(vr_prop_break_stone, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for rock and brick (AD's, Scourge of Armagon's walls with rubble)
+QVR_CVAR(vr_prop_break_metal, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for AD's metal breakables
+QVR_CVAR(vr_prop_break_explosive, "1.8", CVAR_ARCHIVE)   // times vr_prop_break_speed for an explosive box (it blows up: 20 health, so 8.4 m/s)
+QVR_CVAR(vr_prop_break_piece, "4", CVAR_ARCHIVE)         // m/s: a crate's piece's break speed (a hand's hit, held and smashed)
+QVR_CVAR(vr_crate_piece_impact, "8", CVAR_ARCHIVE)       // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
 // Overhead slams (QC vr_crates.qc VR_Crate_SlamFrame; NOTES.md vrfiringrange_2026-10-07_23-08-07): a crate or barrel held
 // in both hands over the head, swung down onto something, breaks at once; let go of from there, its first landing hurts it.
 QVR_CVAR(vr_carry_slam, "1", CVAR_ARCHIVE)             // 1: on; 0: off
@@ -2223,7 +2234,8 @@ QVR_CVAR(vr_gore_stick_speed, "20", CVAR_ARCHIVE)         // units/s a gib must 
 QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th monster dispenser (func_enemy_dispenser) used, as its button would (buttons.qc VR_TestDispenser_Frame: test dispenser: lines, the monster's yaw); back to 0 once done
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
-QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                   // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
+QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines
+QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
 QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay

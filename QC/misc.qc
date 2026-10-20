@@ -338,10 +338,9 @@ void(float xSpeed) VR_Explobox_Impact =
     {
         return;
     }
-    // At the threshold, a whole box's health (20): it blows up; harder, more (a box already hurt goes sooner).
-    float r = xSpeed / threshold;
-    dprint("explobox: hit at "); dprint(ftos(xSpeed)); dprint(" m/s"); dprint("\n");
-    T_Damage(self, world, world, 20 * r * r);
+    // At the threshold it blows up (the props' impact rule, vr_carry.qc VR_Prop_Impact, at 1 or more: all its health).
+    VR_Prop_Impact(self, xSpeed / threshold, self.velocity, sprintf("hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 void() VR_Explobox_Setup =

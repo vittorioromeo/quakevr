@@ -15073,3 +15073,51 @@ vr_debug_hand_offset: the torso-to-hand stop doesn't catch it there).
 - **For VR**: take a weapon off the floor by its barrel or a crowbar by its blade, and hand a shotgun off to the other
   hand's grip on its barrel; push each into a wall and the floor (and with both hands on it): it should stop at the
   surface and slide along it, as a weapon held by its handle does, the hands staying where they hold it.
+
+## Prop impacts: the gibs' rule for every prop that breaks (worktree `gorefx`, branch `agent/propimpact`, 2026-10-20)
+
+The author: extend the gib impact rule to all destructible props (light hits push, medium damage, hard destroy; held
+smashes, throws, hand, weapon and melee hits alike). `VR_Prop_Impact` (vr_carry.qc) now takes every kind: a gib goes
+to `VR_Gib_Impact` (numbers unchanged), any other prop by `VR_Prop_Kind` / `VR_Prop_BreakSpeed`: intensity = impact
+speed / break speed; from 1 it is killed (a crate breaks, an explosive box blows up, in the hand too), from 0.5 it takes
+`(2i - 1)` of its full health (`VR_Prop_Full`: max_health, else its health at its first impact), below nothing. Break
+speed = `vr_prop_break_speed` (9 m/s, a small crate's 75 health) x `sqrt(full / 75)` (0.5..2.5) x the material's
+multiplier; a crate's piece its own `vr_prop_break_piece` (4 m/s).
+
+| Kind | Entities | Before | Now (defaults) |
+|---|---|---|---|
+| wood | `vr_crate`, `vr_barrel` (auto-placed and mapped), AD wooden/flesh/custom `func_breakable` | blows did weapon damage (fist 10+, 75 health: ~7 punches); Box3D hit from 70% of `vr_crate_impact` 16 m/s: `health * i^2` | blow 9 m/s small (11.4 large), heft-scaled; held smash; Box3D hit from 70%: `(2i-1)` |
+| piece | a crate's pieces | burst by any hand touch or blow at `vr_melee_speed`, any damage; thrown: never | 4 m/s touch/blow/held smash; thrown at `vr_crate_piece_impact` 8 m/s (only when thrown); shots and blasts still burst it (1 health) |
+| explosive | `misc_explobox`, `misc_explobox2`, MG1 `func_explode` | blows did weapon damage (20 health); Box3D hit at `vr_explobox_impact` 14 m/s blew it up | blow / held smash 8.4 m/s (x1.8) blows it up, half that damages; Box3D as before (>= 1 only) |
+| glass | AD glass and ceramic (`func_breakable_vase`, windows) | weapon damage (health often 1) | x0.5: a health-1 vase 2.25 m/s |
+| stone | AD rock/brick (style 0, 1, 5), SoA `func_breakablewallwithrubble` | weapon damage | x1.5 (a health-10 wall 6.75 m/s) |
+| metal | AD metal `func_breakable` | weapon damage | x1.5 (health 200: 22 m/s, practically shots only) |
+| not props | shootable buttons/doors/triggers, SoA `trigger_damagethreshold` (rocket walls), MG3 `func_breakable` (Dimension of the Machine's sinking pillar), `func_vr_target`, dummies | - | unchanged |
+
+Paths: **melee blows** (`T_Damage_VRMelee`: only a hand's blow from `PlayerVRMeleeImpl`, `vr_melee_blowhand`; the
+chainsaw's running chain and other melee-kind damage stay as they were): `VR_Prop_BlowDamage`, the blow's `mh_speed`
+times stamina times the weapon's heft (`sqrt(damage / a punch's)`: axe 1.41, chainsaw 1.6, slap 0.7) replaces the
+blow's damage (no positional or cap); a light blow deals none but still pushes (`vr_melee_push`, by the blow's own
+damage); one hit per 0.15 s per prop (`.vr_gib_hittime`). **Held smash**: `VR_Gib_HeldSmash` became
+`VR_Prop_HeldSmash` (any kind; a prop's line is extended by its least half-size, its face meets the wall first).
+**Thrown/dropped**: `VR_Crate_Impact`, `VR_Explobox_Impact`, new `VR_CratePiece_Impact` route through `VR_Prop_Impact`.
+**Piece touch**: `VR_CratePiece_Struck` by the rule (it bursts only from 4 m/s; a slower touch wears it and the nudge
+pushes it). `VR_CratePiece_Damage` wears health (shots still burst).
+
+New cvars (Crates page, Breaking, after Breaks On Impact): `vr_prop_break_speed` 9, `vr_prop_break_wood` 1, `_glass`
+0.5, `_stone` 1.5, `_metal` 1.5, `_explosive` 1.8, `vr_prop_break_piece` 4, `vr_crate_piece_impact` 8.
+
+**Checks**: `vr_prop_impact_test 1` (Debug > Gore Tests, "Prop Impacts: Tap, Hit, Smash, Throw"), e1m1, god mode: a
+small crate, an explosive box, a piece and a rubble-wall stand-in each: blow 0.4x unhurt, 0.75x damaged (crate 75 to
+37, box 20 to 10, piece 1 to 0.5, wall 10 to 5), 1.2x broken, 0.75x with the axe's heft broken; piece touch 0.5x
+unhurt, 0.9x worn, 1.2x burst; held smash at 2x into the wall breaks crate, box (blows up), piece; crate at 0.75x
+damaged; thrown crate 0.6x unhurt, 0.85x 75 to 22, 1.1x broken; box 0.9x unhurt, 1.1x blows up; piece thrown 0.4x
+unhurt, 0.75x worn, 1.1x burst, dropped at 1.5x unhurt. AD stand-ins (fields only, no models): vase 2.25 m/s, window
+(20) 2.32, wooden (75) 9, metal (200) 22. `vr_smallgibs_test 25` unchanged (13 m/s bursts, 2.17 doesn't, -120 to +220
+u/s, 18 to 14.4).
+
+- **For VR**: tap a crate or an explosive box lightly: it only moves; punch a crate hard (or swing the axe): it breaks
+  in one or two; a medium punch makes it creak. Punch an explosive box hard or slam one held into a wall: it blows up
+  (Break Speed: Explosive). Slam a held crate into a wall fast: it breaks out of your hands. Tap crate pieces: they
+  are only pushed; punch them: dust. Throw a piece at a wall hard: dust. In AD maps, vases and windows break from almost any
+  blow, stone and metal need hard hits or weapons. Tune with Crates > Breaking > Break Speed and its materials.

@@ -469,8 +469,9 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased =
 };
 
 // A crate's hardest hit of a frame (Box3D's): what it met thrown or flung (VR_SolidProp_Impact), and itself: from 70% of
-// Breaks On Impact (vr_crate_impact) it takes its health times (speed / that)^2, so at it, it breaks (dropped from about
-// 85 units; the upper crate of a stack falling off the lower lands at about 10 m/s and doesn't).
+// Breaks On Impact (vr_crate_impact) the impact rule (VR_Prop_Impact) at speed / that: (2i - 1) of its full health (40%
+// at 70%; before, i^2: 49%), so at it, it breaks (dropped from about 85 units; the upper crate of a stack falling off the
+// lower lands at about 10 m/s and doesn't).
 void(float xSpeed) VR_Crate_Impact =
 {
     VR_SolidProp_Impact(xSpeed);
@@ -499,9 +500,8 @@ void(float xSpeed) VR_Crate_Impact =
     {
         return;
     }
-    float r = xSpeed / threshold;
-    dprint(sprintf("crate at %v: hit %s at %.1f m/s: %.1f\n", self.origin, other.classname, xSpeed, self.max_health * r * r));
-    T_Damage(self, world, world, self.max_health * r * r);
+    VR_Prop_Impact(self, xSpeed / threshold, self.velocity, sprintf("hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 // Hurt, not broken: a knock of wood, at most every 0.1 s.
@@ -668,16 +668,23 @@ void(entity xPiece) VR_CratePiece_BurnAway =
     VR_CratePiece_Gone(xPiece);
 };
 
-// Its damage, from T_Damage (instead of Quake's): any hit bursts it. Held, it takes none.
+// Its damage, from T_Damage (instead of Quake's): it wears its health (1: a shot, a blast bursts it; a blow or a smash by
+// the impact rule, VR_Prop_Impact, may only wear it), and bursts once it is gone. Held, it takes none (but being smashed
+// into something: VR_Prop_HeldSmash).
 float(entity targ, entity inflictor, entity attacker, float damage) VR_CratePiece_Damage =
 {
-    if(targ.carry_player != world || damage <= 0 || !targ.takedamage)
+    if((targ.carry_player != world && !vr_prop_held_hit) || damage <= 0 || !targ.takedamage)
     {
         return FALSE;
     }
     if(VR_Burn_JustLit(targ))
     {
         return TRUE; // set on fire by this very hit (a lava nail, a thrown torch): it burns, it doesn't burst
+    }
+    targ.health = targ.health - damage;
+    if(targ.health > 0)
+    {
+        return TRUE;
     }
     vector dir = '0 0 0';
     if(inflictor != world && inflictor != targ)
@@ -693,13 +700,16 @@ void() VR_CratePiece_Die =
     VR_CratePiece_Burst(self, '0 0 0');
 };
 
-// Struck by a hand or a weapon at a swing's speed (VR_Carry_Nudge; vr_melee_speed): it bursts. Not by the hand that just
-// let go of it (a throw's follow-through).
+// Struck by a hand or a weapon's touch at a swing's speed (VR_Carry_Nudge; vr_melee_speed): the impact rule (VR_Prop_Impact)
+// at the hand's speed against it (at most its own) over its break speed (vr_prop_break_piece): it bursts, or softer is
+// worn and pushed by the hand (the nudge goes on). One tap is one hit (with the blow: VR_GIB_HIT_GAP). Not by the hand
+// that just let go of it (a throw's follow-through).
 void(entity xPlayer, float xHand, entity xPiece) VR_CratePiece_Struck =
 {
-    float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
+    vector handVel = VRGetEntHandVel(xPlayer, xHand);
+    float speed = min(vlen(handVel), vlen(handVel - xPiece.velocity * (1 / VRMetersToUnits())));
     if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !xPiece.takedamage ||
-       (xPiece.carry_letgo == xPlayer && time < xPiece.carry_letgo_time + 0.4))
+       (xPiece.carry_letgo == xPlayer && time < xPiece.carry_letgo_time + 0.4) || time < xPiece.vr_gib_hittime + VR_GIB_HIT_GAP)
     {
         return;
     }
@@ -707,7 +717,24 @@ void(entity xPlayer, float xHand, entity xPiece) VR_CratePiece_Struck =
     {
         return; // a lit torch's swing: set on fire
     }
-    T_Damage(xPiece, xPlayer, xPlayer, 5);
+    xPiece.vr_gib_hittime = time;
+    VR_Prop_Impact(xPiece, speed / VR_Prop_BreakSpeed(xPiece, VR_PROPK_PIECE), normalize(handVel),
+        sprintf("the %s hand's touch at %.2f m/s", xHand == cVR_MainHand ? "main" : "off", speed), xPlayer);
+};
+
+// Its Box3D hit (.vr_impact, at `xSpeed` m/s): thrown by a player (within VR_THROWN_BOX_TIME), as hard as Thrown Pieces
+// Burst (vr_crate_piece_impact) it bursts, from half it is worn (the impact rule). Falling from a broken crate, or
+// dropped, nothing.
+void(float xSpeed) VR_CratePiece_Impact =
+{
+    float hard = cvar_hget(cvarh_vr_crate_piece_impact);
+    if(hard <= 0 || self.carry_player != world || !self.carry_thrown || time - self.carry_thrown > VR_THROWN_BOX_TIME ||
+       !(self.carry_letgo.flags & FL_CLIENT) || xSpeed < hard * 0.5)
+    {
+        return;
+    }
+    VR_Prop_Impact(self, xSpeed / hard, self.velocity, sprintf("thrown, hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 // Armed a moment after it is made (not burst by the rest of the blow that broke its crate); then, past its time (Pieces
@@ -758,6 +785,7 @@ void(entity p) VR_CratePiece_Setup =
     SetThrownWeaponDealDamage(p, FALSE);
     SetThrownWeaponDisappearOnHit(p, FALSE);
     VR_Carry_Setup(p); // carried, nudged, thrown; a rigid body (vr_rigid 1)
+    p.vr_impact = VR_CratePiece_Impact;
     p.health = 1;
     p.takedamage = DAMAGE_NO; // armed in a moment (VR_CratePiece_Think)
     p.th_die = VR_CratePiece_Die;
