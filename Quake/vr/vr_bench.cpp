@@ -137,10 +137,17 @@ enum Count
     Dlights,
     ShadowDlights,
     ShadowMapLights,
+    RagdollsLiving, // box3d::AwakeKinds: the awake bodies by what they are
+    RagdollsDead,
+    RagLivingAwake,
+    RagDeadAwake,
+    GibsAwake,
+    PropsAwake,
     CountCount
 };
 constexpr const char* countNames[CountCount] = {"edicts", "monsters_alive", "box3d_bodies", "box3d_awake",
-    "box3d_contacts", "particles", "vr_particles", "decals", "dlights", "shadow_dlights", "shadow_maplights"};
+    "box3d_contacts", "particles", "vr_particles", "decals", "dlights", "shadow_dlights", "shadow_maplights",
+    "ragdolls_living", "ragdolls_dead", "awake_rag_living", "awake_rag_dead", "awake_gibs", "awake_props"};
 constexpr int countEvery = 16;
 // GPU read-backs dropped at the start: the slots in flight then are the frames before it (vr_profile.cpp's ring).
 constexpr int gpuSkip = 6;
@@ -242,6 +249,14 @@ void takeCounts(int (&n)[CountCount])
         PR_PopQCVM(old);
     }
     box3d::profileCounts(n[Bodies], n[BodiesAwake], n[Contacts]);
+    box3d::AwakeKinds k;
+    box3d::profileAwakeKinds(k);
+    n[RagdollsLiving] = k.ragdollsLiving;
+    n[RagdollsDead] = k.ragdollsDead;
+    n[RagLivingAwake] = k.ragLivingAwake;
+    n[RagDeadAwake] = k.ragDeadAwake;
+    n[GibsAwake] = k.gibsAwake;
+    n[PropsAwake] = k.propsAwake;
     n[Particles] = r_numactiveparticles;
     n[VrParticles] = particles::liveCount();
     n[Decals] = decals::liveCount();

@@ -1170,6 +1170,56 @@ void profileCounts(int& bodies, int& awake, int& contacts)
     }
 }
 
+void profileAwakeKinds(AwakeKinds& out)
+{
+    out = {};
+    if(!world || !sv.active)
+    {
+        return;
+    }
+    const VmScope vm;
+    const int n = glm::min(qcvm->num_edicts, static_cast<int>(world->slots.size()));
+    for(int i = 1; i < n; i++)
+    {
+        const Slot& s = world->slots[i];
+        const edict_t* e = EDICT_NUM(i);
+        if(e->free || B3_IS_NULL(s.body))
+        {
+            continue;
+        }
+        if(s.ragdoll >= 0 && s.ragdoll < static_cast<int>(world->ragdolls.size()))
+        {
+            const RagdollBodies& r = world->ragdolls[s.ragdoll];
+            const bool living = e->v.deadflag == 0.f && e->v.health > 0.f;
+            int awake = 0;
+            for(int b = 0; b < r.count; b++)
+            {
+                awake += !partCut(r, b) && b3Body_IsValid(r.body[b]) && b3Body_IsAwake(r.body[b]) ? 1 : 0;
+            }
+            (living ? out.ragdollsLiving : out.ragdollsDead)++;
+            (living ? out.ragLivingAwake : out.ragDeadAwake) += awake;
+            continue;
+        }
+        if(!b3Body_IsAwake(s.body))
+        {
+            continue;
+        }
+        const char* model = s.model ? s.model->name : "";
+        if(s.kind == Kind::Prop && (strstr(model, "gib") || strstr(model, "/h_")))
+        {
+            out.gibsAwake++;
+        }
+        else if(s.kind == Kind::Prop || s.kind == Kind::Corpse)
+        {
+            out.propsAwake++;
+        }
+        else
+        {
+            out.otherAwake++;
+        }
+    }
+}
+
 int nearestProp()
 {
     if(!world || !sv.active || svs.maxclients < 1)

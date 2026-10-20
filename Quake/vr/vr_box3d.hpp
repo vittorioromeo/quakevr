@@ -139,6 +139,16 @@ void struggleDraw(const glm::vec3& eye);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
+// The awake bodies by what they are (the bench's counts: what keeps the solver busy).
+struct AwakeKinds
+{
+    int ragdollsLiving{0}, ragdollsDead{0}; // ragdolls (living: a knocked-down or staggering monster)
+    int ragLivingAwake{0}, ragDeadAwake{0}; // their awake parts
+    int gibsAwake{0};                       // gibs and heads (props whose model is a gib's)
+    int propsAwake{0};                      // other props and pushable corpses
+    int otherAwake{0};                      // the rest (held, actors, players: kinematic ones Box3D counts awake)
+};
+void profileAwakeKinds(AwakeKinds& out);
 
 // The grappling hook's rope (vr_ropesim.cpp) against what it can't pass through: the world's mesh, the doors and lifts,
 // the props (not the entities `skipA` and `skipB`, 0: none; the rope's ends). A sphere of `radius` cast from `from` to
