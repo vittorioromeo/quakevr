@@ -36,8 +36,10 @@ FILTER="^ragtrace|^ragenv|env_hit|limp at frame|active death|test kill|rror|CRAS
 # headset's view) and how far ahead the monster is, per case.
 place() {
     case $1 in
-    wall|off) echo "setpos -150 $((640 - 16 - GAP - 110)) 24 0 90 0;vr_test_spawn_dist 110" ;;
-    along) echo "setpos -270 616 24 0 0 0;vr_mock_turn_to 0;wait150;vr_test_spawn_dist 110" ;;
+    # (The wall cases keep west of the kdtrig slope, x -240 .. -80 by the north wall since 2026-10-19: there the
+    # monster stood inside the wedge and its body fell out through the floor, 75-84 kJ "explosion?".)
+    wall|off) echo "setpos -320 $((640 - 16 - GAP - 110)) 24 0 90 0;vr_test_spawn_dist 110" ;;
+    along) echo "setpos -250 616 24 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist 110" ;;
     ledge|hit) echo "vr_kill_push 0;setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${LEDGE:-132}" ;;
     thrown) echo "setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${LEDGE:-132}" ;;
     crate) echo "setpos -150 0 24 0 90 0;vr_test_spawn 108;vr_test_spawn_dist 150;impulse 241;wait5;vr_test_spawn_dist 105" ;;
@@ -63,8 +65,8 @@ for c in $CASES; do
     cost)
         for a in 1 0; do
             S="sv_random_seed ${SEED:-7};map vrtesthall;wait30;god;notarget;vr_ragdoll_max 8;vr_ragdoll_active_env $a;vr_test_spawn 0;vr_test_spawn_dist 110"
-            for x in -330 -270 -210 -150 -90 -30 30 80; do S="$S;setpos $x 474 24 0 90 0;wait2;impulse 241;wait2"; done
-            S="$S;setpos -125 300 24 0 90 0;wait40;vr_ragdoll_active_list"
+            for x in -600 -552 -504 -456 -408 -360 -312 -264; do S="$S;setpos $x 474 24 0 90 0;wait2;impulse 241;wait2"; done
+            S="$S;setpos -430 300 24 0 90 0;wait40;vr_ragdoll_active_list"
             for i in 1 2 3 4 5 6 7 8; do S="$S;vr_test_kill 1;wait1"; done
             S="$S;wait4;vr_physics_steptime;wait60;vr_physics_steptime;vr_ragdoll_active_list;wait300;vr_physics_steptime;toggleconsole;quit"
             echo "-- vr_ragdoll_active_env $a"

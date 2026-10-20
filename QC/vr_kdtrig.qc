@@ -1233,6 +1233,13 @@ void() VR_KdTrig_TrialThink =
     entity tm = self.vr_kdt_trial_mon;
     if(self.vr_kdt_trial_mode == VR_KDT_TRIAL_THROWN && self.vr_kdt_trial_phase == 0)
     {
+        // (The default place, 64 units ahead, put the corpse 64 units behind you: in a wall or off the ledge you stand
+        // at, it fell where the trace found a floor and was flung from 500 units off, landing after the judging. The
+        // target 192 units ahead: the corpse between you, 64 ahead, as the trials were meant.)
+        if(at == '0 0 0')
+        {
+            at = pl.origin + ('1 0 0' * cos(pl.v_viewangle_y * 0.0174533) + '0 1 0' * sin(pl.v_viewangle_y * 0.0174533)) * 192;
+        }
         tm = VR_KdTrig_TestSpawn(pl, at);
         self.vr_kdt_trial_mon = tm;
         vector back = pl.origin - tm.origin;
