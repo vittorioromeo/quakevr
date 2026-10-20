@@ -2918,9 +2918,25 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE)
+    QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
+// Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
+// a monster's health cut as it first appears, by its full health on a curve: none up to _from, then straight lines
+// through (_hp1, _cut1), (_hp2, _cut2), (_hp3, _cut3) (cuts in percent), _cut3 beyond, never more than _max; then times
+// its monster group's _health (vr_mgrp_<group>_health, 1). Not the scripted bosses (Chthon's and Shub's kinds, Dawn of
+// the Machine's, Arcane Dimensions' wave bosses). Its health and full health (.max_health) both, once (QC .vr_hpscale).
+QVR_CVAR(vr_monster_health, "1", CVAR_ARCHIVE)        // 1 on; 0 every monster its own health
+QVR_CVAR(vr_monster_health_from, "150", CVAR_ARCHIVE) // no cut up to this health (grunts, knights, enforcers, zombies...)
+QVR_CVAR(vr_monster_health_hp1, "200", CVAR_ARCHIVE)  // the curve's first point: an ogre's health ...
+QVR_CVAR(vr_monster_health_cut1, "10", CVAR_ARCHIVE)  // ... cut this many percent
+QVR_CVAR(vr_monster_health_hp2, "600", CVAR_ARCHIVE)  // a shambler's ...
+QVR_CVAR(vr_monster_health_cut2, "15", CVAR_ARCHIVE)
+QVR_CVAR(vr_monster_health_hp3, "1000", CVAR_ARCHIVE) // and from here on ...
+QVR_CVAR(vr_monster_health_cut3, "20", CVAR_ARCHIVE)
+QVR_CVAR(vr_monster_health_max, "20", CVAR_ARCHIVE)   // the most the curve cuts (percent)
+QVR_CVAR(vr_monster_health_debug, "0", CVAR_NONE)     // 1: a console line for each monster's health as it is set (mhealth: classname, group, before, after)
 QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each ragdoll trigger that fires (which, its chance and roll, the resistance); 2: also each that held and lost its roll, and why your pose isn't a shoulder charge (each half second running fast)
 // Impacts (QC vr_ragimpact.qc, the engine's vr_box3d.cpp noteRagImpacts; Combat > Knockdowns, "Impacts"): a knocked-down,
 // thrown or held living ragdoll's part striking a wall or the floor hard takes damage by its speed times the mass behind
@@ -3869,7 +3885,7 @@ QVR_CVAR(vr_ammo_pouch_counter_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_scale, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
-QVR_CVAR(vr_reload_shell_pairs, "0", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits)
+QVR_CVAR(vr_reload_shell_pairs, "1", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits); a single one when only one is left or the gun in the other hand has one place left (1.1: the default)
 // The cell cords (vr_cellcord.cpp; QC vr_reload.qc VR_Reload_Corded; Weapons > Reloading > Cell Cords): a weapon that
 // draws cells held, a coiled cord (the flashlight's Coiled) from its bottom into a cell standing in the ammo pouch (the
 // pouch then gives and shows cells); no cells left, it falls loose off the gun, and plugs back in when there are some.

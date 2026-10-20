@@ -758,6 +758,9 @@ za::Vector<Item> pageCombat()
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback, hits knocking your hands."),
+        open("Monster Health", pageIndex(pageMonsterHealth))
+            .help("Big monsters (ogres, shamblers, giants, most bosses) appear with less health, by a curve on their "
+                  "health pool; small ones keep theirs. The curve, each group's own multiplier, examples."),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("Every weapon's base damage, to balance them: your guns, the mission packs', melee weapons, the weapons "
                   "monsters drop, thrown weapons."),
