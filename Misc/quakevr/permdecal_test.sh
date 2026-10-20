@@ -29,7 +29,7 @@ bash "$K/run.sh" "$AGENT" -Clean -Script "$S" -Filter '^permdecals:|^vr_decal_at
 S2='load permdecal_test;wait60;vr_permdecal_info;toggleconsole;quit'
 bash "$K/run.sh" "$AGENT" -Script "$S2" -Filter '^permdecals:|Host_Error|ENGINE ERROR|CRASH|exit=' >> "$OUT"
 [ "$(grep -c '^exit=0' "$OUT")" = 2 ] || fail "a run failed"
-[ "$(grep -c '^vr_decal_at: laid at .* entity [1-9][0-9]*$' "$OUT")" = 2 ] || fail "marks on brush entities"
+[ "$(grep -c '^vr_decal_at: laid at .* entity [1-9][0-9]*\( (\|$\)' "$OUT")" = 2 ] || fail "marks on brush entities"
 grep -q '^0 decals:' "$OUT" || fail "marks left live"
 # The stamps kept after the marks, after the load in the same game, after the load in a new one: the same, 40 or more,
 # 2 of them on brush entities.
