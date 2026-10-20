@@ -2,7 +2,7 @@
 # adbugs_tests.sh <agent> [stealth|guns|armagon|range|all] -- the 2026-10-14 playtest's AD and expansion regressions
 # (ROUND22.md, "AD stealth, AD soldiers' drops, Armagon's torso, SoA relief, the firing range's laser cannons"), headless:
 #   stealth  vr_stealth_test 1's scenes on an AD rocket soldier (the debug spawner's 211) on e1m1 under the AD campaign
-#            (15 scenes; 7, a map's trigger, needs AD's own player: pass on AD's start map, n/a here), and the same
+#            (15 scenes; 7, a map's trigger, pulled as AD's player as on AD's maps), and the same
 #            soldier 300 units ahead of him on AD's start, him dark (vr_stealth_light_force 10): Idle after 7 s
 #   guns     vr_ad_test 71: each armed AD soldier's drop (AD's own single-use guns); vr_ad_test 90: the grenade launcher
 #            fires our grenade (model, size, physics, fuse), clear of its muzzle

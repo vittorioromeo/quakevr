@@ -207,6 +207,7 @@ void(entity e) VR_Scene_Remove =
         e.frame = 0;
         return;
     }
+    VR_AD_RemoveAttachments(e);
     e.nextthink2 = 0;
     remove(e);
 };

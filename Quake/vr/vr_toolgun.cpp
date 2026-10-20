@@ -2300,7 +2300,8 @@ edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
 
 namespace
 {
-// vr_toolgun_select <n | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), or nothing.
+// vr_toolgun_select <n | label | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), the entry with
+// that label (any case, e.g. "Wall Torch"), or nothing.
 // AD support: catalog evidence for the shared Debug and toolgun spawn menus.
 void spawnlist_f()
 {
@@ -2320,10 +2321,40 @@ void select_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_toolgun_select <0..%d | clear>\n", spawnableTotal - 1);
+        Con_Printf("usage: vr_toolgun_select <0..%d | label | clear>\n", spawnableTotal - 1);
         return;
     }
-    toolgun::selectSpawnable(!q_strcasecmp(Cmd_Argv(1), "clear") ? -1 : Q_atoi(Cmd_Argv(1)));
+    const char* const arg = Cmd_Argv(1);
+    if(!q_strcasecmp(arg, "clear"))
+    {
+        toolgun::selectSpawnable(-1);
+        return;
+    }
+    const char* const digits = arg[0] == '-' ? arg + 1 : arg;
+    if(digits[0] >= '0' && digits[0] <= '9')
+    {
+        toolgun::selectSpawnable(Q_atoi(arg));
+        return;
+    }
+    // A label, its words the arguments ("vr_toolgun_select Wall Torch"): test scripts stay right as entries are added.
+    char label[128] = "";
+    for(int a = 1; a < Cmd_Argc(); ++a)
+    {
+        if(a > 1)
+        {
+            q_strlcat(label, " ", sizeof(label));
+        }
+        q_strlcat(label, Cmd_Argv(a), sizeof(label));
+    }
+    for(int i = 0; i < spawnableTotal; ++i)
+    {
+        if(!q_strcasecmp(spawnables[i].label, label))
+        {
+            toolgun::selectSpawnable(i);
+            return;
+        }
+    }
+    Con_Printf("vr_toolgun_select: no entry labelled \"%s\"\n", label);
 }
 
 void pick_f()

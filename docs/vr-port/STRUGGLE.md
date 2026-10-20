@@ -112,7 +112,7 @@ effort = ramp in (0.35 s) x (1 - fatigue x (1 - Effort When Tired)) x burst x fl
 ## Classes
 
 `vr_struggle_classes`: `classname[:strength[:speed[:health[:arms]]]]` words. The shipped list: grunt, enforcer, knight,
-death knight, zombie (since configVersion 174), and AD's soldiers and knights (defender, eliminator, pyro, fumigator,
+death knight, zombie (since configVersion 175), and AD's soldiers and knights (defender, eliminator, pyro, fumigator,
 crossbow, fury, guard, dknight, sergeant). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
 effort. Arms (1..2.5, 1 if left out): while it struggles its arms' joint springs (and their 20 Hz cap) are that many
 times stiffer. A Box3D joint's spring acts on its two bodies' own inertia, so an arm whose forearm outweighs its upper
