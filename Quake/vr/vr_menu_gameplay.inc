@@ -615,10 +615,14 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 {
     za::Vector<Item> items{
         toggle("Shoulder Charges", vr_kdtrig_tackle_on)
-            .help("Running at full speed into a monster side-on, a shoulder leading, both hands low and close to your "
-                  "body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers back, "
-                  "shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
-                  "(Being tuned on recorded takes: Motion Recorder > Shoulder Charge.)"),
+            .help("Running into a monster with a shoulder leading, your head tucked down, both hands low and close to "
+                  "your body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers "
+                  "back, shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
+                  "(Tuned on recorded takes: Motion Recorder > Shoulder Charge.)"),
+        slider("Charge Leniency", vr_kdtrig_tackle_leniency, 0.f, 1.f, 0.05f, "%.2f")
+            .help("All of the charge's thresholds below together: 0.5 uses them as set; higher is easier (1: the least "
+                  "ones halved, the most ones and the speed's shortfall from full doubled), lower stricter (0: 1.5 "
+                  "times)."),
         slider("Chance", vr_kdtrig_tackle, 0.f, 1.f, 0.05f, "%.2f").help("The chance a light one falls."),
         slider("Push", vr_kdtrig_tackle_push, 0.25f, 2.f, 0.05f, "%.2fx")
             .help("How hard it is pushed over and back (a two-hand shove: 1; the knock times this)."),
@@ -636,6 +640,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Both hands at least this far below your head."),
         slider("Hands Close", vr_kdtrig_tackle_reach, 8.f, 40.f, 1.f, "%.0f units")
             .help("Both hands within this of your head's line, neither reaching ahead (the leading arm tucked)."),
+        slider("Head Down", vr_kdtrig_tackle_head, 0.f, 30.f, 0.5f, "%.1f deg")
+            .help("Your head tipped down at least this much (tucked into the charge; a plain run looks ahead)."),
+        slider("Facing", vr_kdtrig_tackle_face, 20.f, 90.f, 5.f, "%.0f deg")
+            .help("Running within this of the way you look (a sidestep doesn't charge)."),
         slider("Hold", vr_kdtrig_tackle_hold, 0.f, 1.f, 0.05f, "%.2f s").help("The pose held running before it counts."),
         slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s").help("You bounce back off it."),
         slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you charge again."),

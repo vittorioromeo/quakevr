@@ -139,6 +139,7 @@ float() VR_AD_Extensions;
 float() VR_AD_ShadowAxeHit;                  // monsters.qc's pain check: a Shadow Axe's blow (vr_ad_bridge.qc)
 float(entity p, float xBit) VR_AD_HasUpgrade; // triggers_states.qc's upgrade_* keys: p carries the upgrade
 void(float a) VR_AD_WaterAlpha;
+void(entity e) VR_AD_RemoveAttachments; // vr_cheats.qc VR_Scene_Remove: an AD monster's helpers go with it (vr_ad_bridge.qc)
 float(entity client, float density, vector colour) VR_AD_Fog;
 float(entity targ, entity inflictor, entity attacker, float damage, float checkarmor) VR_AD_DamageOurs;
 void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit;

@@ -356,10 +356,15 @@ const DefaultChange defaultChanges[] = {
     {173, &vr_decal_bucket_max, "24"},          // 128
     {173, &vr_bullettime_earn_damage, "180"},   // 350
     {173, &vr_bullettime_earn_active, "0.25"},  // 0.2
-    // 174: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
-    {174, &vr_shove_push_twohand, "1"}, // 1.12
+    // 174: the shoulder charge tuned on the author's takes of 2026-10-21 (ROUND22.md, "Shoulder charge tuning"): his runs
+    // with the head down were slower and his hands higher than the first guesses.
+    {174, &vr_kdtrig_tackle_speed, "0.85"}, // 0.75
+    {174, &vr_kdtrig_tackle_low, "12"},     // 5
+    // (175: the struggle3 branch's.)
+    // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
+    {176, &vr_shove_push_twohand, "1"}, // 1.12
 };
-constexpr int configVersion = 174;
+constexpr int configVersion = 176;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

@@ -77,7 +77,9 @@ void(float ad_side) ad_Demon_Claw =
 	if (!self.enemy) return;
 	if (self.health < 1) return;
 	VR_MeleeArc_TurnBegin(); ad_ai_face (); VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)						// Turn towards enemy target
-	ad_walkmove (self.ideal_yaw, 12);	// Get extra close to enemy target
+	local vector ad_before = self.origin; // QVR: (VR_MeleeSpace_Step: fight.qc)
+	ad_walkmove (self.ideal_yaw, 12);
+	VR_MeleeSpace_Step(ad_before);	// Get extra close to enemy target
 	ad_ai_damagebreakable(20);			// Damage any breakables
 
 	// Moved the check for melee distance to here with takedamage

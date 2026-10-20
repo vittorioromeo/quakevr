@@ -14,7 +14,7 @@ TREE=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$TREE/scratch"
 # ogre, zombie, shambler, knight, hell knight, rottweiler, fiend, mummy, phantom swordsman, MG3's infected knight and
 # death knight; AD's death knight, zombie knight, hunter ogre, minotaur, fury
-MONSTERS="1 2 3 5 6 7 9 14 15 31 33 200 201 203 215 216"
+MONSTERS=${MONSTERS:-"1 2 3 5 6 7 9 14 15 31 33 200 201 203 215 216"}
 run() {
     local S="developer 1;sv_random_seed 7;vr_enemy_melee_space $1"
     for M in $MONSTERS; do
