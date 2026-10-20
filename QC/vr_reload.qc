@@ -1154,7 +1154,8 @@ float(float xHand) VR_Reload_PouchKind =
 };
 
 // `xHand` of self (empty, at the pouch, its grip just pressed) takes a round by its ammo (VR_Reload_PouchKind: the gun in
-// the other hand's, else the last kind): a shell (a taped pair with vr_reload_shell_pairs and two or more left), or a
+// the other hand's, else the last kind): a shell (a taped pair with vr_reload_shell_pairs, the default, and two or more
+// left, unless the gun in the other hand has one place left), or a
 // magazine holding min(its size, the reserve), out of the reserve. None left: the empty pouch's dull pats.
 void(float xHand) VR_Reload_Take =
 {
@@ -1192,6 +1193,11 @@ void(float xHand) VR_Reload_Take =
         {
             n = 1;
         }
+    }
+    else if(n == 2 && aid == AID_SHELLS && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand)) &&
+            VR_ClipSizeIn(self, VRGetOtherHand(xHand)) - VRGetEntWeaponClip(self, VRGetOtherHand(xHand)) < 2)
+    {
+        n = 1; // (one place left in the gun's tube, or none: a single shell, not a pair)
     }
     if(w)
     {

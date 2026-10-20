@@ -4,6 +4,10 @@
 #include "vr_cvars.hpp"
 #include "vr_progs.hpp"
 
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -124,10 +128,54 @@ cvar_t* const settings[groupCount][paramCount] = {
         &vr_mgrp_##g##_shotgun, &vr_mgrp_##g##_wounded, &vr_mgrp_##g##_blow, &vr_mgrp_##g##_blast,                       \
         &vr_mgrp_##g##_thrown, &vr_mgrp_##g##_tackle, &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
         &vr_mgrp_##g##_leggrab, &vr_mgrp_##g##_lift, &vr_mgrp_##g##_necksnap, &vr_mgrp_##g##_manhandle,                  \
-        &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise},
+        &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise, &vr_mgrp_##g##_health},
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 };
+
+// Monster health (healthMultiplier): the bosses whose health is not a pool to shoot down, left as they are. Killed by a
+// trick (id's Chthon by lightning, Shub by telefrag, and Arcane Dimensions' and Dawn of the Machine's own), or fought in
+// waves and phases whose health their code sets as they go (Arcane Dimensions' eidolon, ice golem, judicator, mammoth,
+// Nour, fire top; Dawn of the Machine's Chthon and Shub, set as they wake). The other bosses (Armagon, the dragon,
+// Hephaestus, the morph, the spear knight, the bog lord, the demon prince) are cut as any monster.
+constexpr const char* healthExempt[] = {
+    "monster_boss", "monster_chthon", "monster_boss_final", "monster_oldone", "monster_oldone_new", "monster_shub",
+    "monster_shubupsd", "monster_shub_eye", "monster_eidolon", "monster_eidolon_wavetrig", "monster_icegolem",
+    "monster_icegolem_wavetrig", "monster_judicator", "monster_mammoth", "monster_nour", "monster_nouronihar",
+    "monster_vermis", "monster_firetopboss",
+};
+
+// Health this high is a scripted invulnerability (Arcane Dimensions' 50000), not a pool: left alone.
+constexpr float healthScripted = 20000.f;
+
+[[nodiscard]] bool healthExemptClass(const char* classname)
+{
+    for(const char* c : healthExempt)
+    {
+        if(classname && std::strcmp(c, classname) == 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The menu's examples (healthExampleLine): a monster of each size, with its usual health (normal skill).
+struct HealthExample
+{
+    const char* classname;
+    const char* label;
+    float health;
+};
+constexpr HealthExample healthExamples[] = {
+    {"monster_army", "Grunt", 30.f}, {"monster_knight", "Knight", 75.f}, {"monster_ogre", "Ogre", 200.f},
+    {"monster_hell_knight", "Death Knight", 250.f}, {"monster_demon1", "Fiend", 300.f},
+    {"monster_shalrath", "Vore", 400.f}, {"monster_minotaur", "Minotaur (AD)", 500.f},
+    {"monster_shambler", "Shambler", 600.f}, {"monster_lava_man", "Hephaestus", 1500.f},
+    {"monster_armagon", "Armagon", 2000.f}, {"monster_boss", "Chthon (left alone)", 3.f},
+};
+constexpr int healthExampleCount = static_cast<int>(sizeof(healthExamples) / sizeof(healthExamples[0]));
+char healthExampleText[healthExampleCount][96];
 
 // The menu's member lists (memberText), made once.
 char memberText[groupCount][768];
@@ -267,6 +315,57 @@ bool on(edict_t* m, Param p)
     return value(m, p) != 0.f;
 }
 
+float healthCut(float full)
+{
+    // (from, 0), then the three points: straight lines between them, the last's cut beyond; a point not past the one
+    // before it is a step there.
+    const float xs[] = {vr_monster_health_from.value, vr_monster_health_hp1.value, vr_monster_health_hp2.value,
+        vr_monster_health_hp3.value};
+    const float ys[] = {0.f, vr_monster_health_cut1.value, vr_monster_health_cut2.value, vr_monster_health_cut3.value};
+    constexpr int n = 4;
+    float cut = 0.f;
+    if(full > xs[0])
+    {
+        cut = ys[n - 1];
+        for(int i = 1; i < n; ++i)
+        {
+            if(full < xs[i])
+            {
+                const float span = xs[i] - xs[i - 1];
+                const float t = span > 0.f ? (full - xs[i - 1]) / span : 1.f;
+                cut = ys[i - 1] + (ys[i] - ys[i - 1]) * za::clamp(t, 0.f, 1.f);
+                break;
+            }
+        }
+    }
+    const float most = za::clamp(vr_monster_health_max.value, 0.f, 95.f);
+    return za::clamp(cut, 0.f, most) / 100.f;
+}
+
+float healthMultiplier(const char* classname, float full)
+{
+    if(vr_monster_health.value == 0.f || full >= healthScripted || healthExemptClass(classname))
+    {
+        return 1.f;
+    }
+    const float group = za::max(setting(groupOfClass(classname), Param::Health).value, 0.01f);
+    return (1.f - healthCut(full)) * group;
+}
+
+const char* healthExampleLine(int i)
+{
+    if(i < 0 || i >= healthExampleCount)
+    {
+        return nullptr;
+    }
+    const HealthExample& e = healthExamples[i];
+    const float m = healthMultiplier(e.classname, e.health);
+    const float now = za::max(1.f, std::round(e.health * m));
+    std::snprintf(healthExampleText[i], sizeof(healthExampleText[i]), "%s: %.0f -> %.0f (%+.0f%%)", e.label, e.health,
+        now, (now / e.health - 1.f) * 100.f);
+    return healthExampleText[i];
+}
+
 void PF_monstergroup()
 {
     G_FLOAT(OFS_RETURN) = static_cast<float>(groupOf(G_EDICT(OFS_PARM0)));
@@ -284,3 +383,48 @@ void registerCommands()
 }
 
 } // namespace qvr::mgroups
+
+// SV_Physics, after every entity has thought: each monster seen for the first time (FL_MONSTER, alive, its QC
+// .vr_hpscale still 0) gets Monster Health's multiplier on its health and full health (.max_health), and .vr_hpscale
+// the multiplier (1 unchanged): once, saved with it (a loaded game's monsters are not cut again; an older save's are,
+// by their full health). Its full health sets the cut (its health where it has none).
+extern "C" void VR_MonsterHealth_Frame(void)
+{
+    using namespace qvr;
+    const int ofs = progs::fields().vr_hpscale;
+    if(ofs < 0 || qcvm != &sv.qcvm)
+    {
+        return;
+    }
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; ++num)
+    {
+        edict_t* e = EDICT_NUM(num);
+        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f)
+        {
+            continue;
+        }
+        float& done = progs::fieldFloat(e, ofs);
+        if(done != 0.f)
+        {
+            continue;
+        }
+        const char* classname = PR_GetString(e->v.classname);
+        const float full = e->v.max_health >= e->v.health ? e->v.max_health : e->v.health;
+        const float m = progs::isTrainingDummy(e) ? 1.f : mgroups::healthMultiplier(classname, full);
+        done = m;
+        const float before = e->v.health;
+        if(m != 1.f)
+        {
+            e->v.health = za::max(1.f, std::round(e->v.health * m));
+            if(e->v.max_health > 0.f)
+            {
+                e->v.max_health = za::max(1.f, std::round(e->v.max_health * m));
+            }
+        }
+        if(vr_monster_health_debug.value != 0.f)
+        {
+            Con_Printf("mhealth %d %s %s: %g -> %g (full %g, x%.3f)\n", num, classname,
+                mgroups::id(mgroups::groupOfClass(classname)), before, e->v.health, e->v.max_health, m);
+        }
+    }
+}

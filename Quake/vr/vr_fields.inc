@@ -229,6 +229,8 @@ QVR_FIELD(vr_dummy_kind)
 // When the entity was made (ED_Alloc: VR_OnEdictAlloc, vr_cheats.cpp): the map's own and those placed as it loads
 // before its first second is out; vr_scene_clean props (QC VR_Scene_Clean) removes the loose props made later.
 QVR_FIELD(vr_born)
+// A monster's Monster Health multiplier, set once as it first appears (VR_MonsterHealth_Frame, vr_mgroups.cpp; 0 not yet).
+QVR_FIELD(vr_hpscale)
 QVR_FIELD(vr_gate_crossed) // a missile carried through a teleporter: when (VR_PortalToss); it meets its owner (VR_PortalHitsOwner)
 
 // Quake's drawing extensions, set by the engine on what it makes (vr_explosiondebris.cpp: a chunk's size and its fade).

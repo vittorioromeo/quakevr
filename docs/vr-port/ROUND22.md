@@ -15205,3 +15205,34 @@ body, uncredited: the test lets each settle.) Not run headless: AD's path (`VR_A
   the gadget grows with each hit (its frame flashes), six grunts fill it; it never grows standing still. Start it and
   kill: it drains, a kill gives a little back. Save, load, take an exit: the meter stays. VR Settings > Bullet Time >
   Meter Refill > Over Time: the old self-filling meter.
+## 1.1 pacing: shell pairs, big monsters' health (worktree `gorefx`, branch `agent/pacing`, 2026-10-20)
+
+Player feedback for 1.1: with manual reloading, ogres feel too tanky.
+
+- **Shell pairs by default** (`vr_reload_shell_pairs` 1; config row 170 moves a config still at the old 0): the pouch
+  gives a taped pair unless only one shell is left or the gun in the other hand (a manual shotgun) has one place left
+  in its tube (or none): then a single shell (QC `VR_Reload_Take`). A pair taken elsewhere and pushed into a gun with one
+  place still loads one and leaves one in the hand. The super shotgun and the Widowmaker keep their own rules.
+- **Monster Health** (Combat > Monster Health; `vr_monster_health*`, vr_mgroups.cpp): each monster's health and full
+  health (`.max_health`) times a multiplier, once, as it first appears (`VR_MonsterHealth_Frame`, after SV_Physics'
+  edicts: every game's monsters alike, those spawned later too). The QC field `.vr_hpscale` keeps the multiplier, so a
+  loaded game's monsters are not cut again (an older save's are, by their full health). The cut is a piecewise-linear
+  curve on the full health: 0 up to `_from` 150, then (`_hp1` 200, `_cut1` 10%), (`_hp2` 600, `_cut2` 15%), (`_hp3`
+  1000, `_cut3` 20%), flat beyond, capped by `_max` 20%; then times the group's `vr_mgrp_<group>_health` (Monster
+  Groups > Health, 1). `vr_monster_health_debug 1` prints `mhealth <num> <class> <group>: before -> after`.
+- **Bosses**: the curve applies to the bosses fought by damage (Armagon, the dragon, Hephaestus, the morph, the spear
+  knight, the bog lord/gug, the demon prince). Left alone: those killed by a trick or fought in scripted waves/phases
+  whose health their code sets as they go (Chthon and Shub in every form, Dawn of the Machine's Chthon and Shub, AD's
+  eidolon, ice golem, judicator, mammoth, Nour/vermis, fire top), the training dummy, and anything at 20000 health or
+  more (scripted invulnerability).
+
+Verified headless: the reload self-test (`vr_reload_test 9; impulse 125`) 77 passed, 0 failed, with the new cases
+(single shell for one place, a pair for two, a pair into one place, the last shell single); every spawnable monster
+(`vr_toolgun_spawn_test`) logged: grunts, knights, enforcers, zombies, dogs, scrags unchanged; ogre 200 -> 180,
+death knight 250 -> 223, fiend 300 -> 266, vore 400 -> 350, AD minotaur/drole/golem 500 -> 431, shambler 600 -> 510,
+Hephaestus 1500 -> 1200, Armagon 2500 -> 2000, super shambler 2000 -> 1600; the exempt bosses unchanged. A saved
+ogre (180) loads at 180.
+
+- **In VR**: reload the shotgun from empty (pairs), with one place left (a single shell), with one shell in the
+  reserve; fight ogres and a shambler: they should go down noticeably sooner. Combat > Monster Health's examples follow
+  the sliders.
