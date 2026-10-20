@@ -4309,10 +4309,17 @@ void struck(State& s, const Parts& p, b3BodyId part)
     s.struggle.struck = s.struggle.on; // (a struggle flinches: struggleFrame)
     for(int arm = 0; arm < 2; arm++)
     {
-        for(int j = 0; j < 2; j++)
+        if(s.env.hand[static_cast<za::SizeT>(arm)].mode == Grip::None)
         {
-            const int b = s.chain[static_cast<za::SizeT>(arm)][static_cast<za::SizeT>(j)];
-            if(b >= 0 && B3_ID_EQUALS(p.body[b], part) && s.env.hand[static_cast<za::SizeT>(arm)].mode != Grip::None)
+            continue;
+        }
+        // The arm's two parts, or a part on its lower one (a rig's own hand: the ogre's, the death knight's hand_l/_r,
+        // which hold onto the lip and are what a hit there finds).
+        const int lo = s.chain[static_cast<za::SizeT>(arm)][1];
+        for(int b = 0; b < p.count; b++)
+        {
+            const bool ofArm = b == s.chain[static_cast<za::SizeT>(arm)][0] || b == lo || (lo >= 0 && p.rig->bones[b].parent == lo);
+            if(ofArm && B3_ID_EQUALS(p.body[b], part))
             {
                 s.env.hand[static_cast<za::SizeT>(arm)].struck = true;
             }

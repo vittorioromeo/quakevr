@@ -9,7 +9,8 @@
 #   off    vr_ragdoll_active_pullup 0: it never grabs (PASS if no climb), falls and gets up below
 # Each prints one line per monster and trial: the climb's lines (its grab, how it ended, its chest's height over the lip
 # at most) and where it stood up at the end (z 216: the top; 24: the floor below); then the passes per case.
-# N=n: n trials each (sv_random_seed SEED0, SEED0 + 1, ...).
+# N=n: n trials each (sv_random_seed SEED0, SEED0 + 1, ...). DIST: how far ahead it stands (140: its origin 2 units in from the lip;
+# at 132 the knight and the zombie caught the lip with their pelvis still on the top and stood up there, 2026-10-20).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
@@ -22,7 +23,7 @@ SEED0=${SEED0:-7}
 name() { case $1 in 0) echo grunt;; 1) echo ogre;; 2) echo zombie;; 5) echo knight;; 6) echo hknight;; 8) echo enforcer;; *) echo m$1;; esac; }
 FILTER="climb:|ragenv: [0-9]+ (left|right) hand (holds|lets)|monster_[a-z_]*: state|rror|CRASH|exit="
 one() { # one <monster> <pullup> <then> <seed>
-    tb_run_sh -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-132};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
+    tb_run_sh -Script "sv_random_seed $4;map vrtesthall;wait30;god;notarget;developer 1;vr_debug_ragdoll 1;vr_knockdown_debug 1;vr_knockdown_push ${PUSH:-0.15};vr_ragdoll_active_pullup $2;${EXTRA:-};setpos 430 430 216 0 180 0;vr_mock_turn_to 180;wait150;vr_test_spawn_dist ${DIST:-140};vr_test_spawn $1;impulse 241;wait40;vr_knockdown_test 0;$3;wait900;vr_knockdown_test 5;toggleconsole;quit" -Filter "$FILTER" -Timeout 300 2>&1 | tr -d '\r'
 }
 for c in $CASES; do
     pass=0
