@@ -262,6 +262,12 @@ FUNC_PATCHES = [
      "\t\tself.enemylastseen = time;\n\t}\n\tif (VR_AD_StealthLose(enemy_vis)) return;\n",
      B + ": stealth: lost him a while: Alert, to where it saw him last"),
 ] + [
+    # AD support: living hit reactions (vr_hitreact.qc) on AD's monsters: struck a moment ago, shorter steps, a leg hit's
+    # hitch to that side (as ai.qc's ai_walk and ai_run; the blow itself is sent by VR_AD_Hit).
+    (f, fn, "\tmovedist = dist;\n", "\tdist = VR_HitReact_Dist(dist); // VR: struck a moment ago: shorter steps, a leg hit's "
+     "hitch (vr_hitreact.qc)\n\tmovedist = dist;\n", B + ": hit reactions: struck a moment ago, shorter steps (a leg hit: a limp)")
+    for f, fn in (("ai_states.qc", "ai_walk"), ("ai_states.qc", "ai_run"))
+] + [
     # AD support: a monster gibbed by AD's code gets id's gibbing's gore, small gibs and limbs, and its head and gibs are
     # Quake VR's props (carried, rigid bodies, burst by damage; vr_ad_monsters.qc VR_AD_Gibbed, VR_AD_GibThrown).
     ("ai_gibs.qc", "monster_ThrowGib", "\tself.gibbed = TRUE;\t\t// Monster has offical gone to pieces ;)\n",
@@ -279,6 +285,7 @@ QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_Mele
              "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "vr_hit_nobleed",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
+QVR_NAMES |= {"VR_HitReact_Dist"}  # (the hit reactions' patches above)
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
 _STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
 _FACE = "VR_MeleeArc_TurnBegin(); %s VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)"
@@ -501,7 +508,7 @@ def line_patch(text, fn, needle, edit, mark, count=1):
 
 
 def func_patch(text, fn, func, old, new, why):
-    m = re.search(r"(?m)^[^\n]*\b" + re.escape(func) + r" =\s*\{", text)
+    m = re.search(r"(?m)^[^\n]*\b" + re.escape(func) + r"\s*=\s*\{", text)  # ("name\t= {" too)
     end = text.find("\n};", m.end()) if m else -1
     if not m or end < 0:
         sys.exit("ad_import: function %s not found in %s (%s)" % (func, fn, why))

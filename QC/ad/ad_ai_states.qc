@@ -43,6 +43,7 @@ void(float ad_dist) ad_ai_walk =
 	// Turret monsters don't walk, they stand around
 	if (self.ad_movespeed < 0) { self.ad_th_stand(); return; }
 	ad_monster_liquid_check();				// Check for liquid damage
+	ad_dist = VR_HitReact_Dist(ad_dist); // VR: struck a moment ago: shorter steps, a leg hit's hitch (vr_hitreact.qc)
 	ad_movedist = ad_dist;
 	if (ad_FindTarget ()) return;			// Found a player?
 	if (VR_AD_StealthWalk(ad_dist)) return;
@@ -75,6 +76,7 @@ void(float ad_dist) ad_ai_run =
 {
 	if (self.health < 1) return;	// Health < 0, no more running
 	ad_monster_liquid_check();			// Check for liquid damage
+	ad_dist = VR_HitReact_Dist(ad_dist); // VR: struck a moment ago: shorter steps, a leg hit's hitch (vr_hitreact.qc)
 	ad_movedist = ad_dist;
 
 	// Is the enemy dead or no longer taking damage?

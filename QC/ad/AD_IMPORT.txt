@@ -65,6 +65,8 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_states.qc ai_stand: bridge: stealth: Alert: turning to look, searching
   ai_states.qc ai_walk: bridge: stealth: Alert: walking to what it noticed, or back to its post
   ai_states.qc ai_run: bridge: stealth: lost him a while: Alert, to where it saw him last
+  ai_states.qc ai_walk: bridge: hit reactions: struck a moment ago, shorter steps (a leg hit: a limp)
+  ai_states.qc ai_run: bridge: hit reactions: struck a moment ago, shorter steps (a leg hit: a limp)
   ai_gibs.qc monster_ThrowGib: bridge: gibbed: Quake VR's gore, small gibs and limbs
   ai_gibs.qc ThrowGib: bridge: its gibs and head Quake VR's props (grabbed, rigid bodies, burst by damage)
   ai_subs.qc ai_charge: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
@@ -111,6 +113,8 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   ai_projectiles.qc Launch_Grenade: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   ai_projectiles.qc Launch_Shells: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   weapons.qc FireBullets: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  mon_zombie.qc zombie_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
+  mon_zombiek.qc zombiek_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEESIDE,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))

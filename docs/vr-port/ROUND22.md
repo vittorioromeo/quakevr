@@ -15146,3 +15146,19 @@ back (94 settings, the 2 changed restored).
 
 - **Flat (desktop)**: `ironwail.exe -ragtool`; orbit with the mouse, Tab for the page; play each behaviour on a few
   models; Struggle with each Hold, moving the hand; edit a Joint Groups slider and replay; Save and Load a preset.
+
+## AD humanoids: hit reactions (worktree `gorefx`, branch `agent/addkstagger`, 2026-10-20)
+
+The ragdoll tool saw AD's death knight refuse vr_ragdoll_act's stagger, throw, flinch and knee buckle and the shoves'
+staggers. On `next` now (the tool's fresh subject stands 0.5 s first) the stagger, throw and every shove's stagger begin
+on all AD humanoids, by their group's chance (death knights 0.12); only the flinch and knee buckle did not: AD's monsters
+take damage through AD's T_Damage (AD_Damage), whose hit hook VR_AD_Hit never sent the hit reaction (T_DamageDeal's
+VR_HitReact_Hit). Fixed: VR_AD_Hit calls it (before the situational knockdowns, as ours do), and AD's ad_ai_walk and
+ad_ai_run take VR_HitReact_Dist (the slow-down, a leg hit's hitch). vr_ragdoll_act's missed flinch now says "no hit
+reaction drawn" (a flinch is no ragdoll's). Checked in the tool on the grunt, the knight and AD's death knight, death
+guard, fury, sergeant, crossbow knight, rocket, plasma and grenade soldiers, defender and eliminator: flinch and knee on
+2 of 12 before (and the fury's flinch), 12 of 12 after, each knee hit's limp logged; in ad_sepulcher a zombie knight
+flinches and limps, no QC errors.
+
+- **AD maps**: shoot AD knights and soldiers in the body and the legs: they flinch, a leg hit buckles the knee and they
+  limp a step, as id1's grunts do; shove them: they stagger (death knights rarely go down).
