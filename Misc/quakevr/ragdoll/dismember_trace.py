@@ -74,7 +74,9 @@ if tr:
         if on:
             out.append('writhe stir %.2f (%.2f before)' % (sum(on) / len(on), sum(before) / max(len(before), 1)))
     out.append('strength %.2f at first, driven until %.1f s' % (strong, until))
-    after = [r for r in tr if r['t'] > until + 1.0]
+    # (From 1 s after the drive let go, 2.5 s at the earliest: a limp beheaded ogre, 200 kg, sinks onto its knees and
+    # only topples from there at 1.4-2 s, up to 1 kJ: a fall, not restlessness.)
+    after = [r for r in tr if r['t'] > max(until + 1.0, 2.5)]
     if after:
         ke = max(r['ke'] for r in after)
         spin = max(r['spin'] for r in after)
