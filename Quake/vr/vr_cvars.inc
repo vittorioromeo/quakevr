@@ -12,7 +12,8 @@ QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE)       // Movement > Player Hitbo
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_build_mb, "1024", CVAR_ARCHIVE)       // the memory the world's compiled hulls' builds at a load may hold at once (MB, estimated: 16 KB a brush of the world's a tree; vrstart: about 330 MB a tree, three at once): a build past it waits for one to end (one always runs); 0: no limit (vrstart's seven at once: about 1 GB more working set, 5-10% quicker)
-QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)              // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
+QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
+QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity width between the player and monsters (both ways)
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
@@ -4324,6 +4325,7 @@ QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, n
 QVR_CVAR(vr_autosave_level_start, "1", CVAR_ARCHIVE) // with sv_autosave on: an autosave as each campaign map starts (a map, a changelevel; not a load), besides Ironwail's every sv_autosave_interval seconds of quiet play. 0: Ironwail's only
 QVR_CVAR(vr_continue_available, "0", CVAR_ROM)       // a save Continue would load (the hub's Continue button shows only then: QC buttons.qc)
 QVR_CVAR(vr_autosave_slots, "3", CVAR_ARCHIVE)       // the autosaves kept per map (1-9): autosave/<name>.sav the newest, <name>@2.sav, @3... the older ones (VR_AutosaveRotate); 1: one, overwritten (Ironwail's)
+QVR_CVAR(vr_autosave_list_all, "0", CVAR_ARCHIVE)    // the Load Autosave menu and the death menu list every game's autosaves (each other campaign's or map package's named after its title); 0: only the game played now's (its campaign, or its map package)
 QVR_CVAR(vr_autosave_safe, "1", CVAR_ARCHIVE)        // an autosave due waits until it is safe (the checks below; host.c Host_AutosaveUnsafe): 0 none of them
 QVR_CVAR(vr_autosave_safe_alerted, "1", CVAR_ARCHIVE) // not while a living monster is after you (its enemy is you), wherever it is
 QVR_CVAR(vr_autosave_safe_radius, "600", CVAR_ARCHIVE) // not while a living monster you can see (or that sees you) is within this many units (0: off)

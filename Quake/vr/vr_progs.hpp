@@ -61,6 +61,12 @@ struct Bindings
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
     func_t AxeStick_Stuck{0}; // a thrown axe's blade stuck in something (QC vr_axestick.qc; vr_axestick.cpp)
+    // The ragdolls' per-frame QC (vr_box3d_step.cpp's callBodyHits, callRagImpacts, monsterFell; vr_box3d_ragdoll.cpp's
+    // makeRagdollRoom): resolved here, not by name each frame (findFunction scans every function).
+    func_t KdTrig_BodyHit{0};
+    func_t RagImpact_Hit{0};
+    func_t Monster_Fall{0};
+    func_t Knockdown_MakeRoom{0};
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {

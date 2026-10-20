@@ -56,6 +56,7 @@ bool loadingSaveGame = false;
 struct SaveInfo
 {
     za::Vector<za::String> models;  // [the saved .modelindex] its model's name ("": none; `// qvr_model` lines)
+    za::Vector<za::String> sounds;  // the saved sound precache list (`// qvr_sound` lines)
     za::String notice;              // a centre print for the player once in the loaded game (another build's save)
 };
 SaveInfo saveInfo;
@@ -286,6 +287,10 @@ extern "C" void VR_OnProgsLoaded()
         b.propTouches[2] = findFunction("VR_CratePiece_Touch");
         b.propTouches[3] = findFunction("wpnthrow_touch");
         b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
+        b.KdTrig_BodyHit = findFunction("VR_KdTrig_BodyHit");
+        b.RagImpact_Hit = findFunction("VR_RagImpact_Hit");
+        b.Monster_Fall = findFunction("VR_Monster_Fall");
+        b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");
@@ -639,6 +644,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
 {
     using qvr::progs::saveInfo;
     saveInfo.models.clear();
+    saveInfo.sounds.clear();
     saveInfo.notice.clear();
     const char* line = strstr(text, "\n// qvr_save ");
     if(!line)
@@ -669,7 +675,8 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
             VR_BuildVersion(), now, now == crc ? ", the same" : "");
         saveInfo.notice = va("Saved game from another build\n%s", build);
     }
-    for(const char* p = strchr(line, '\n'); p && !strncmp(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
+    const char* p = strchr(line, '\n');
+    for(; p && !strncmp(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
     {
         const char* at = p + 1 + 13;
         char* end = nullptr;
@@ -683,6 +690,17 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
             saveInfo.models.resize(static_cast<za::SizeT>(i + 1));
         }
         saveInfo.models[static_cast<za::SizeT>(i)] = za::String{end + 1, strcspn(end + 1, "\r\n")};
+    }
+    // The sound precache list, its lines together after the context's (saves before 2026-10-20 have none: their late
+    // sounds are lost)
+    for(p = strstr(line, "\n// qvr_sound "); p && !strncmp(p + 1, "// qvr_sound ", 13); p = strchr(p + 1, '\n'))
+    {
+        const char* at = p + 1 + 13;
+        const size_t length = strcspn(at, "\r\n");
+        if(length > 0 && length < MAX_QPATH)
+        {
+            saveInfo.sounds.pushBack(za::String{at, length});
+        }
     }
     return 1;
 }
@@ -835,6 +853,46 @@ void remapModelValue(float& value, const char* what, int num)
     }
 }
 
+// The sounds the saved game had precached that the map loaded now doesn't: the ones precached late (a monster spawned
+// mid-game by the test spawner, the toolgun or a delayed spawner, whose spawn function precached its sounds then) are
+// precached again, or its sounds would not play in the loaded game (SV_StartSound: "not precached"). Sounds go by name,
+// so only the list's names matter, not their order.
+void restoreLateSounds()
+{
+    if(!VR_AllowLatePrecache())
+    {
+        saveInfo.sounds.clear();
+        return;
+    }
+    int added = 0;
+    for(const za::String& name : saveInfo.sounds)
+    {
+        int i = 1;
+        for(; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+        {
+            if(!strcmp(sv.sound_precache[i], name.cStr()))
+            {
+                break;
+            }
+        }
+        if(i >= MAX_SOUNDS)
+        {
+            Con_Warning("load: sound precache full: %s not precached\n", name.cStr());
+            break;
+        }
+        if(!sv.sound_precache[i])
+        {
+            sv.sound_precache[i] = Hunk_Strdup(name.cStr(), "precache"); // (the list keeps the pointer)
+            added++;
+        }
+    }
+    if(added > 0)
+    {
+        Con_DPrintf("load: %d late sound precache(s) restored\n", added);
+    }
+    saveInfo.sounds.clear();
+}
+
 // The saved .modelindex values index the precache list of the game that was saved, and the map loaded now precaches
 // its models again, in its own order: the same only if every spawn function precached the same models in the same
 // order (the training dummy precaches the enemy vr_dummy_type names: changed since, every model after it moved one way
@@ -876,6 +934,7 @@ void rebindLoadedModels()
         }
     }
     saveInfo.models.clear();
+    restoreLateSounds();
     // Everything precached while loading is in the serverinfo that clients receive (none is connected yet).
     qvr::server::onSpawnServerAfterLoad();
 }

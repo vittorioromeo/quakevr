@@ -6,6 +6,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_api.h"
 #include "vr_jobs.hpp"
+#include "vr_progs.hpp"
 #include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -807,6 +808,50 @@ void info_f()
     }
 }
 
+namespace
+{
+
+// The precached alias model a monster's `mdl` names (0: none, or not a monster's classname).
+[[nodiscard]] int mdlModel(edict_t* ent)
+{
+    const int mdl = progs::fields().mdl;
+    if(mdl < 0 || strncmp(PR_GetString(ent->v.classname), "monster_", 8) != 0)
+    {
+        return 0;
+    }
+    const char* name = PR_GetString(progs::fieldInt(ent, mdl));
+    for(int i = 1; name[0] && i < MAX_MODELS && sv.model_precache[i]; i++)
+    {
+        if(!strcmp(sv.model_precache[i], name))
+        {
+            return sv.models[i] && sv.models[i]->type == mod_alias ? i : 0;
+        }
+    }
+    return 0;
+}
+
+// The model index `ent` is a kind of monster by (0: none): a monster's own, or the model an Arcane Dimensions monster
+// takes as it appears (`mdl`, precached by its spawn function). AD's monsters have none as the map loads (or the
+// placeholder misc_broken.mdl that sizes them) until ad_monster_spawn sets it, 0.1-0.5 s in or at their trigger: their
+// kinds' limbs were made in play then, 5-25 ms a limb, one a server frame (ad_swampy's spawns' "server other" hitches).
+[[nodiscard]] int kindModel(edict_t* ent)
+{
+    if(ent->free)
+    {
+        return 0;
+    }
+    const int index = static_cast<int>(ent->v.modelindex);
+    const bool monster = static_cast<int>(ent->v.flags) & FL_MONSTER;
+    const int appears = mdlModel(ent);
+    if(appears > 0 && appears != index)
+    {
+        return appears;
+    }
+    return monster && index > 0 && index < MAX_MODELS && sv.model_precache[index] && sv.models[index] ? index : 0;
+}
+
+} // namespace
+
 // (each kind of monster once: the first of its model's; a limb its first cut takes whole, as box3d::limbModel names it)
 void prebuild()
 {
@@ -820,11 +865,8 @@ void prebuild()
     za::Vector<qmodel_t*> rigged;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
-        const edict_t* ent = EDICT_NUM(num);
-        const int index = static_cast<int>(ent->v.modelindex);
-        if(!ent->free && (static_cast<int>(ent->v.flags) & FL_MONSTER) && index > 0 && index < MAX_MODELS &&
-            sv.model_precache[index] && sv.models[index] &&
-            za::find(rigged.begin(), rigged.end(), sv.models[index]) == rigged.end())
+        const int index = kindModel(EDICT_NUM(num));
+        if(index > 0 && za::find(rigged.begin(), rigged.end(), sv.models[index]) == rigged.end())
         {
             rigged.pushBack(sv.models[index]);
         }
@@ -832,13 +874,12 @@ void prebuild()
     ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
     VR_TimeAdd("  their monsters' rigs (warmRigs)", Sys_DoubleTime() - t0);
     za::Vector<int> seen;
-    int made = 0;
+    int made = 0, waiting = 0;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
-        const int index = static_cast<int>(ent->v.modelindex);
-        if(ent->free || !(static_cast<int>(ent->v.flags) & FL_MONSTER) || index <= 0 || index >= MAX_MODELS ||
-            !sv.model_precache[index] || za::find(seen.begin(), seen.end(), index) != seen.end())
+        const int index = kindModel(ent);
+        if(index <= 0 || za::find(seen.begin(), seen.end(), index) != seen.end())
         {
             continue;
         }
@@ -848,6 +889,10 @@ void prebuild()
             newMap();
         }
         late.seen[static_cast<za::SizeT>(index)] = 1; // (spawnFrame: the kinds made here are not new)
+        // (an AD monster not yet appeared posed with the model it takes for the lookups, set back after)
+        const float oldIndex = ent->v.modelindex;
+        waiting += static_cast<int>(oldIndex) != index;
+        ent->v.modelindex = static_cast<float>(index);
         const uint32_t joints = box3d::limbInfo(ent, 0, -1);
         for(int bone = 0; bone < 32; bone++)
         {
@@ -858,10 +903,11 @@ void prebuild()
                 made++;
             }
         }
+        ent->v.modelindex = oldIndex;
     }
     VR_TimeAdd("VR after spawn: limb models", Sys_DoubleTime() - t0);
-    Con_DPrintf("limb models: %d made for %d kinds of monster, %.1f ms\n", made, static_cast<int>(seen.size()),
-        (Sys_DoubleTime() - t0) * 1000.0);
+    Con_DPrintf("limb models: %d made for %d kinds of monster (%d of them not yet appeared), %.1f ms\n", made,
+        static_cast<int>(seen.size()), waiting, (Sys_DoubleTime() - t0) * 1000.0);
 }
 
 namespace

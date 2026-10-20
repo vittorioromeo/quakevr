@@ -15313,3 +15313,91 @@ ogre (180) loads at 180.
 - **In VR**: reload the shotgun from empty (pairs), with one place left (a single shell), with one shell in the
   reserve; fight ogres and a shambler: they should go down noticeably sooner. Combat > Monster Health's examples follow
   the sliders.
+
+
+## 1.1 sweep fixes: QC lookups, config migration, autosave list (worktree `dequant`, branch `agent/sweepfix1`, 2026-10-20)
+
+- **Per-frame QC lookups**: `callBodyHits` (every frame with a ragdoll), `callRagImpacts`, `monsterFell` and
+  `makeRagdollRoom` named their QC function by `findFunction` (a strcmp over every function, ~0.04 ms) at each call; now
+  resolved once per progs load in `Bindings` (`KdTrig_BodyHit`, `RagImpact_Hit`, `Monster_Fall`, `Knockdown_MakeRoom`).
+  The other `findFunction` calls left are commands, map loads or rare events. Checked: `vr_kdtrig_test 44` on e1m1
+  still fires Thrown Bodies ("kdtrig: thrown on monster_army: down").
+- **Config migration**: row 166 (Ghost Hands fade) named the new values (6, 7) where the old belong, so it changed
+  nothing; fixed to 2 and 4, and 171 does it again for configs of 166-170 still at exactly 2 / 4. 171 also moves
+  `vr_retrolight_model_steps` 15 -> 16 (1.0.1's vr_defaults.cfg set 15; 57ee3adc4 dropped the line without a row).
+  Checked with `vr_cfg_version` 167 / 125 and `vr_migrate_config`: 2/4 -> 6/7, 15 -> 16; 3/4.5 and 12 kept.
+- **Retired cvars**: `vr_adgun_eliminator_{ammo,damage,refire,speed,splash}` (betas 1-2) and `vr_toolgun_menu_height`
+  (1.0.1) load silently. Every archived cvar of v1.0.0, v1.0.1 and the three betas is now known (current, alias or
+  retired). (A dev config of version 132 still names nine never-released ones: `vr_adgun_grenade_*`, `_rocket_*`,
+  `vr_adgun_ours`, `vr_foegrab_necksnap_method/_speed`.)
+- **Load Autosave list**: shows the game played now's autosaves only (its campaign, or its map package), its first row
+  "Showing: Quake / Select: all games (12 more)" switches to every game's (`vr_autosave_list_all`, default 0; VR
+  Settings > Saves and Autosaves > List Every Game's), another game's autosave named with its title. Each file is read
+  only to its globals' end (`readSaveHead`: 64 KB, growing), not its edicts. 24 saves of 4.9 MB (12 Quake, 12 Scourge):
+  cold 4.4-5.6 ms (whole reads: 53-96 ms), warm 0.9 ms. `vr_autosave_list [cold]` prints the time (Debug > Tests >
+  Saves > List the Autosaves: Cold).
+- **In VR**: open Load Autosave after playing two campaigns: only this one's, the first row switches; the death menu
+  has the row under Restart.
+## Monster hull sizes first met in play: compiled on the pool (worktree `tghost`, branch `agent/hullhitch`, 2026-10-20)
+
+Sweep finding: the first move of a monster whose box size the load did not compile (AD's delayed and triggered spawns,
+the test spawner) compiled the world's tree in the frame (`treeFor`'s runtime build, without the disk cache). Now
+`moveBox` asks `worldTreeReady`: a missing size is read from the disk cache or compiled (and written) on the pool with
+the brush models live edicts can meet, one size at a time (a second waits its turn: the build gate would otherwise queue
+its work behind the first's job and report it done), and the monster moves with Quake's own hull until it is ready
+(wider, as tall from the same feet: the switch is seamless). Whatever changes `built`'s layout or the slots, a setting's
+`prepare`, map changes, shutdown and the hull diagnostics wait for the job first (`joinBackground`). `vr_hull_async` (1;
+0: the old in-frame compile), Debug > Tests > New Monster Sizes in Play; `vr_hull_stats` counts them. Precompiling every
+class's size at load was not done: it would add load time on every map for sizes most never use.
+
+Headless (spawner 0..11, `vr_profile_hitch`; the machine shared with other agents, so times are noisy):
+
+| Map | Size | Before: frame stall | After: frames over 55 ms from it | Ready after (pool) |
+|---|---|---|---|---|
+| ad_tears | 40x88, 28x56 | 1.5-4.7 s, 1.4-1.9 s | none (none over 33 ms) | 2.2-2.6 s compiled; 0.11-0.13 s from the disk |
+| ad_sepulcher | 40x88, 28x56 | 0.61 s, 0.58 s | none | 0.79 s |
+| ad_swampy | 28x56 | 0.27 s | none | 0.37 s |
+| MG3 map5 | 28x56 | 0.25 s | none | 0.36 s |
+
+Load times unchanged (no load-time work added; the runs' differences are noise). `vr_mhull_walktest 8` right after an
+ogre and an enforcer spawn on ad_tears (the fallback in use for the first 2.5 s): 0 stuck, 0 in solid, 0 embedded for
+both. eval.sh: verdicts unchanged (169/177; four takes' damage moves by 0.1).
+
+- Unrelated, seen on the way: ad_swampy's spawns give 0.1-1.0 s "server other" hitches with either setting.
+- **In VR**: on an AD map spawn an ogre and an enforcer with the spawner (or reach a delayed spawn): no stall;
+  developer 1 prints `hull: 40x88 ready in play ...`.
+
+## AD's monster spawns: their limbs made as the map loads, the normal-map cache kept (worktree `tghost`, branch `agent/swampyhitch`, 2026-10-20)
+
+The 0.1-1.0 s "server other" hitches on ad_swampy were `limbmodel::spawnFrame` (VR_ServerFrameEnd): the late limb
+models of every AD kind, one a server frame at 5-27 ms each (skins 2.5, normal maps 4-23, draw lists 2), several server
+frames in a slow host frame. Two causes:
+
+- **The load's prebuild missed AD's monsters.** It took the edicts with FL_MONSTER and a model; AD's monsters have none
+  (or the placeholder `misc_broken.mdl` that sizes them) until `ad_monster_spawn` sets `self.mdl`, 0.1-0.5 s in or at
+  their trigger, so every AD kind went the late way (ad_swampy: 15 kinds, 127 limbs). `kindModel` now takes a
+  `monster_*`'s `mdl` (a new engine field, `QVR_FIELD(mdl)`) when it is a precached alias model other than its current
+  one, posed with it for the lookups (modelindex set back after).
+- **The normal-map disk cache emptied itself every session.** vr_skinrelief's relief maps were stored in
+  `cache/normalmaps/` under a second build folder, and `prepare` removes a product's other builds: each removed the
+  other's files every session, so nearly every skin normal map (the limbs' too) was made again (786 misses, 40 hits a
+  run). The relief maps now have their own product, `cache/reliefmaps/` (`VR_ReliefCacheLoad/Store`); the old
+  `normalmaps/5e1ef...` folder is pruned on its own. Warm: 810 read, 0 missed.
+
+Headless, no spawner (`wait300` after the load, each map's own spawns; `scratch/sw_maps.sh`, the machine shared):
+
+| Map | Load before / after | Kinds made late before / after | "server other" frames >= 30 ms before / after |
+|---|---|---|---|
+| ad_swampy | 3.28 / 2.57 s | 15 (127 limbs) / 0 | 14 (max 192 ms) / 0 |
+| ad_tears | 4.39 / 3.49 s | 3 / 0 | 4 (max 202) / 0 |
+| ad_sepulcher | 3.48 / 2.79 s | 4 / 0 | 4 (max 152) / 0 |
+| ad_e1m1 | 1.85 / 1.62 s | 3 / 0 | 3 (max 378) / 0 |
+| MG1 mge1m1, MG3 map5 | 1.2 / 1.5, 1.0 / 0.8 s | 0 / 0 | 0 / 0 (2 of 38 ms, a busy machine) |
+
+The prebuild on ad_swampy makes 214 limbs for 28 kinds (was 87 for 12): 0.5 s with a warm cache, 1.5 s cold (the first
+session after this build). With the debug spawner (0..11, not probed without `vr_probe_test_spawn`) only its own kinds
+are late, now read from the cache. e1m1 unchanged (17 limbs, 2 kinds).
+
+- **In VR**: on ad_swampy, walk into the first fights: no stutter as the monsters appear; developer 1 prints `limb
+  models: N made for K kinds of monster (M of them not yet appeared)` at the load and no `first spawned after the load`
+  for the map's own kinds.

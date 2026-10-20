@@ -30,6 +30,8 @@ enum class Product : int
     AO,         // the models' own occlusion bakes (vr_ao.cpp; vr_ao_cache)
     Dequant,    // .mdl poses dequantised (vr_mdldequant.cpp; vr_mdl_dequant_cache)
     Rigs,       // the monsters' ragdoll rigs (vr_ragdoll.cpp; vr_ragdoll_rig_cache)
+    ReliefMaps, // derived weapons' relief maps (vr_skinrelief.cpp; vr_normalmap_cache): their own folder, as a
+                // product keeps one build (sharing normalmaps/, each removed the other's files every session)
     Count
 };
 

@@ -306,6 +306,8 @@ typedef struct savedata_s
 	const char		*lightstyles[MAX_LIGHTSTYLES];
 	int				nummodels;		// QVR: the model precache list (sv.model_precache[1..]), for the load's
 	const char		*models[MAX_MODELS];	// .modelindex values (VR_ReadSaveInfo)
+	int				numsounds;		// QVR: the sound precache list (sv.sound_precache[1..]): the late ones precached
+	const char		*sounds[MAX_SOUNDS];	// again at the load (a monster spawned mid-game: VR_ReadSaveInfo)
 	unsigned int	progscrc;		// QVR: the progs' CRC (qcvm->crc)
 	char			vrcontext[512];	// QVR: what the game is played as (VR_SaveContext: the campaign, the map package, titles)
 	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)

@@ -416,7 +416,7 @@ void prepareHeldGuns()
 // removed edicts' bodies go at once.
 bool makeRagdollRoom(edict_t* ent)
 {
-    const func_t room = qvr::progs::findFunction("VR_Knockdown_MakeRoom");
+    const func_t room = qvr::progs::bindings().Knockdown_MakeRoom;
     if(!room) { return false; }
     bool madeRoom = false;
     {

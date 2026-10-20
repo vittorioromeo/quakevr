@@ -745,7 +745,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
             key = qvr::diskcache::fnv(key, mask, (size_t)mw * mh);
         }
     }
-    const bool hit = cache == 1 && VR_NormalCacheLoad(cacheBuild, key, map, W, H);
+    const bool hit = cache == 1 && VR_ReliefCacheLoad(cacheBuild, key, map, W, H);
     if(!hit)
     {
         Floats cov(n);
@@ -759,7 +759,7 @@ extern "C" byte* VR_SkinRelief(gltexture_t* glt, byte* data)
         makeMap(data, cov.p, w, h, scale, units, map);
         if(cache)
         {
-            VR_NormalCacheStore(cacheBuild, key, map, W, H);
+            VR_ReliefCacheStore(cacheBuild, key, map, W, H);
         }
     }
     if(isRifleVariant(glt))

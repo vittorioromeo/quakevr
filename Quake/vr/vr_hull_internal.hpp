@@ -294,5 +294,11 @@ bool boxInBrush(const Brushes& b, const Brush& br, const glm::dvec3& p, const gl
 double support(const Plane& p, const glm::dvec3& ext);
 int clientNum(const edict_t* ent);
 float entWidthSetting();
+// The trees compiled in play on the pool (vr_hull_async) finished first: before anything changes `built`'s layout or the
+// trees' slots, or reads every tree (vr_hull.cpp, "Trees compiled in play"). The main thread's.
+void joinBackground();
+void joinBackgroundTree(const Tree* t); // ... that tree's alone, if it is one
+int backgroundStarted();                // this session's: posted, and how many are still running
+int backgroundRunning();
 
 } // namespace qvr::hull::detail

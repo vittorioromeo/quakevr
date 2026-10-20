@@ -760,6 +760,7 @@ const Brushes* worldBrushes(qmodel_t* world)
     }
     if(built.clipnodes != world->hulls[0].clipnodes)
     {
+        joinBackground(); // (none expected: they read the brushes made again here)
         build(built, world, keyOf(world));
         Con_DPrintf("hull: %s rebuilt as %d brushes in %.1f ms\n", world->name, static_cast<int>(built.brushes.size()),
             built.ms);
@@ -3427,6 +3428,7 @@ int subOf(Brushes& b, int index)
     {
         return known; // the world's, but none of its submodels (not expected)
     }
+    joinBackground(); // (the trees compiled in play read b: its layout changes here)
     const bool audit = vr_hull_audit.value != 0.f;
     const auto before = audit ? alloccount::statsThisThread() : alloccount::Stats{};
     const auto base = static_cast<za::U32>(b.leafBrush.size());
@@ -3471,6 +3473,7 @@ Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
     }
     if(v.size() >= maxMonsterTrees)
     {
+        joinBackground(); // (a tree compiled in play is one of them)
         ++hullAudit.clears;
         if(vr_hull_audit.value != 0.f)
         {
@@ -3635,8 +3638,8 @@ struct DiskJob
     za::U64 world = 0;
 };
 
-// The tree's job's disk (the main thread): off with the setting.
-DiskJob diskJob(const Tree& t, qmodel_t* world)
+// The tree's job's disk (the main thread): off with the setting. key: the world's (keyOf), if known.
+DiskJob diskJob(const Tree& t, qmodel_t* world, za::U64 key = 0)
 {
     DiskJob d;
     d.mode = static_cast<int>(za::clamp(vr_hull_cache.value, 0.f, 2.f));
@@ -3645,7 +3648,7 @@ DiskJob diskJob(const Tree& t, qmodel_t* world)
         d.mode = 0;
         return d;
     }
-    d.world = keyOf(world);
+    d.world = key ? key : keyOf(world);
     char name[96];
     snprintf(name, sizeof(name), "/%016llx_%g_%g_%g.hul", static_cast<unsigned long long>(d.world),
         static_cast<double>(t.ext.x), static_cast<double>(t.ext.y), static_cast<double>(t.ext.z));
@@ -3912,6 +3915,149 @@ void postTree(Tree* t)
         }));
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Trees compiled in play (vr_hull_async): a monster's box size whose tree the map's load did not make (a size first met
+// when a monster spawns in play: AD's delayed and triggered spawns, the test spawner, a class's width changed) was
+// compiled by its first move, the frame waiting (ad_tears' 40x88 and 28x56: 1.3-1.9 s; ad_sepulcher 0.4 s). Now its
+// tree is read from the disk cache or compiled (and written there) on the pool, with the brush models that can be met
+// now, and until it is ready the monster moves with Quake's own hull (moveBox false: hull 1 or 2, as without vr_mhull).
+// That hull is wider and as tall from the same feet, so wherever the monster stands then is free for its narrower box
+// too: the change over is seamless. While a job runs the main thread touches neither its tree nor `built`'s layout:
+// whatever would (an external model's brushes added, a slot taken past the limit, a setting's prepare, a map change,
+// the diagnostics) waits for it first (joinBackground).
+
+struct BackgroundTree
+{
+    Tree* tree = nullptr;
+    jobs::Future<void> job;
+    double posted = 0.0;
+};
+
+struct BackgroundTrees
+{
+    za::Vector<BackgroundTree> list; // running, or done and not yet looked at
+    int started = 0;                 // this session's
+};
+
+BackgroundTrees background; // (the main thread's)
+
+void finishBackground(za::SizeT i)
+{
+    BackgroundTree& bt = background.list[i];
+    bt.job.get();
+    const Tree& t = *bt.tree;
+    reportTree(t, t.cutBack);
+    Con_DPrintf("hull: %gx%g ready in play %.0f ms after its job began (%s on the pool; Quake's hull meanwhile)\n",
+        t.ext.x * 2.f, t.ext.z * 2.f, (Sys_DoubleTime() - bt.posted) * 1000.0, t.fromDisk ? "read from the disk" : "compiled");
+    background.list.erase(background.list.begin() + static_cast<za::PtrDiffT>(i));
+}
+
+// t's world tree (a fresh slot) from the disk or compiled on the pool, then its brush models that live edicts can be
+// met with (prepareBrushModels' list, made here: the edicts are the main thread's).
+void startBackground(Tree& t)
+{
+    za::Vector<za::SizeT> subs;
+    if(vr_hull_brushmodels.value != 0.f)
+    {
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        collidingSubs(subs); // (an external model's brushes added here wait for the other jobs first: subOf)
+        PR_PopQCVM(oldVm);
+    }
+    ++background.started;
+    BackgroundTree bt;
+    bt.tree = &t;
+    bt.posted = Sys_DoubleTime();
+    bt.job = jobs::async(
+        [tp = &t, subs = ZA_MOVE(subs), d = diskJob(t, sv.worldmodel, built.key), budget = buildBudget()]() mutable
+        {
+            diskOrCompile(*tp, built, gateWork(*tp, built, ZA_MOVE(d), budget));
+            if(!subs.empty() && !tp->heads.empty() && tp->heads[0] >= 0)
+            {
+                za::Vector<Tree*> one;
+                one.pushBack(tp);
+                za::Vector<int> counts(1, 0);
+                buildModelsAtOnce(one, built, subs, counts);
+            }
+        });
+    background.list.pushBack(ZA_MOVE(bt));
+}
+
+// The world's tree for a monster's box ready for its move now: true when it is (or when it is made by the first trace
+// as before: the setting off, the load's builds not settled, the slots full); false while its job runs (started here
+// at its first ask).
+bool worldTreeReady(const glm::vec3& ext)
+{
+    if(vr_hull_async.value == 0.f || pending.brushes.valid() || !sv.active || !worldBrushes(sv.worldmodel))
+    {
+        return true;
+    }
+    for(za::SizeT i = background.list.size(); i-- > 0;)
+    {
+        if(background.list[i].job.ready())
+        {
+            finishBackground(i);
+        }
+    }
+    Tree* t = findSlot(built.clipnodes, ext);
+    if(t && !t->heads.empty() && t->heads[0] >= 0)
+    {
+        return true;
+    }
+    if((!t && monsterTrees.trees.size() >= maxMonsterTrees) || t == &static_cast<Tree&>(tree))
+    {
+        return true;
+    }
+    // One compile at a time (a big map's holds over a GB: vr_hull_build_mb's budget, whose gate would queue a second
+    // one's work behind the first's job, not in its own): another size waits its turn here, on Quake's hull too.
+    if(background.list.empty())
+    {
+        startBackground(slotFor(built.clipnodes, ext)); // (a slot holding a brush model's tree already: compiled, not read)
+    }
+    return false;
+}
+
+} // namespace
+namespace detail
+{
+void joinBackground()
+{
+    while(!background.list.empty())
+    {
+        finishBackground(0);
+    }
+}
+
+void joinBackgroundTree(const Tree* t)
+{
+    for(za::SizeT i = 0; i < background.list.size(); ++i)
+    {
+        if(background.list[i].tree == t)
+        {
+            finishBackground(i);
+            return;
+        }
+    }
+}
+
+int backgroundStarted()
+{
+    return background.started;
+}
+
+int backgroundRunning()
+{
+    int n = 0;
+    for(const BackgroundTree& bt : background.list)
+    {
+        n += bt.job.ready() ? 0 : 1;
+    }
+    return n;
+}
+} // namespace detail
+namespace
+{
+
 } // namespace
 namespace detail
 {
@@ -3962,6 +4108,7 @@ const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const
     const za::U64 clearsBefore = hullAudit.clears;
     const auto before = audit ? alloccount::statsThisThread() : alloccount::Stats{};
     Tree& t = slotFor(b.clipnodes, ext);
+    joinBackgroundTree(&t); // (a trace with a box whose tree is compiled in play: a diagnostic's, its box's own)
     if(t.heads.size() < b.subs.size())
     {
         t.heads.resize(b.subs.size(), -1);
@@ -4003,6 +4150,7 @@ void warmCache_f()
 {
     if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
     settle();
+    joinBackground();
     za::Vector<glm::vec3> exts;
     if(tree.forClipnodes == built.clipnodes) exts.pushBack(tree.ext);
     for(const Tree& t : monsterTrees.trees)
@@ -4158,6 +4306,7 @@ void prepareBrushModels()
 // World and loaded brush hulls for these boxes, prepared before play (or after a width-setting change).
 void prepare()
 {
+    joinBackground(); // (every tree's models built below)
     if(!wanted() || !worldBrushes(sv.worldmodel))
     {
         return;
@@ -4196,6 +4345,7 @@ void init()
 void beforeLoad()
 {
     settle();
+    joinBackground();
     for(int i = 0; i < crouchSlots; ++i)
     {
         crouchBox[i] = 0.f; // (each map starts standing)
@@ -4271,11 +4421,13 @@ void spawned()
 void finishLoads()
 {
     settle();
+    joinBackground(); // (the trees compiled in play: they read the old world)
 }
 
 void keepForReload()
 {
     settle();
+    joinBackground();
     Brushes& b = built;
     if(keepLimit() == 0 || !b.clipnodes || !b.key || b.worldSubs == 0)
     {
@@ -4323,7 +4475,8 @@ bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, flo
     {
         narrowBox(mins, maxs, width, boxMins, boxMaxs);
         boxMaxs[2] = mins[2] + height; // Quake's hull's height, from the box's feet as Quake places it
-        return true;
+        // (its tree not ready yet: Quake's hull meanwhile, its compile on the pool: "Trees compiled in play")
+        return worldTreeReady((glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]} - glm::vec3{boxMins[0], boxMins[1], boxMins[2]}) * 0.5f);
     }
     const float crouch = crouchTop(passedict);
     if((vr_hull_width.value <= 0.f && crouch <= 0.f) || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))

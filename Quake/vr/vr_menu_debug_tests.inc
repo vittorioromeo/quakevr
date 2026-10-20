@@ -949,7 +949,11 @@ za::Vector<Item> pageDebugTests()
                   "campaign, its Map Library package), its map's title and its line in the Load menu, printed."),
         command("List the Autosaves", "vr_autosave_list")
             .help("vr_autosave_list: the Load Autosave menu's list (the rotating autosaves kept, vr_autosave_slots per "
-                  "map, newest first), printed; vr_autosave_load <n> loads the n-th."),
+                  "map, newest first; this game's only unless vr_autosave_list_all), printed, and how long reading it "
+                  "took; vr_autosave_load <n> loads the n-th."),
+        command("List the Autosaves: Cold", "vr_autosave_list cold")
+            .help("vr_autosave_list cold: as List the Autosaves, every file read again (as at the menu's first "
+                  "opening): its time is the menu's hitch."),
         command("Open the Death Menu", "menu_autosaves death")
             .help("The menu a dead player gets (vr_death_menu): Respawn, Restart the Level, the autosaves; here alive, "
                   "to look at it."),
@@ -1161,6 +1165,11 @@ za::Vector<Item> pageDebugTests()
             .help("How much memory a big map's hitbox build (its first load after an install or update) may hold at once "
                   "(estimated): past it a tree's build waits for another to end. vrstart: about 330 MB a tree, three at "
                   "once in 1 GB. No Limit: all at once (about 1 GB more, 5-10% quicker) (vr_hull_build_mb)."),
+        cycle("New Monster Sizes in Play", vr_hull_async, {{0.f, "In the Frame"}, {1.f, "On the Pool"}})
+            .help("A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "
+                  "spawner): On the Pool compiles its hull in the background while it moves with Quake's own hull, "
+                  "no hitch; In the Frame compiles it at its first move, the game waiting (ad_tears: 1.3-1.9 s) "
+                  "(vr_hull_async; developer 1 prints the switch)."),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")
             .help("vr_portals_info: every teleporter built for this map - its plane, its opening, its trigger brush - and "
