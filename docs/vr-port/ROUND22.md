@@ -15194,3 +15194,122 @@ Player feedback: an autosave made in an ambush trapped them (respawn, die again,
   without health, loads, and rotates to `@2`. (Scripts' `kill` respawns at once in Quake: tests die to a grunt with
   `give h 1`. A scripted Respawn prints "Autoload failed!": Host_AutoLoad's load waits behind the script's `wait`s, as
   it always did; not so in play.)
+
+## Body and Equipment (worktree `tghost`, branch `agent/bodycustom`, 2026-10-20)
+
+Players: the chest gear too far back (the flashlight hard to grab), the ammo belt too low and sinking over a session,
+changing the height breaking the legs until a full Body Calibration. Measured with a new probe, Debug > Views > Log Body
+Heights (`vr_debug_body_heights`: twice a second, metres over the body's floor: eyes as calibrated and as learnt
+standing, pelvis, knees, ankles, each leg's straightness, the ammo pouch and hip holsters and their offset from the
+pelvis, the grenade pouch, the chest holsters from the chest). Mock eyes at 1.70 m.
+
+- **The legs.** No leg calibration exists: the whole body is scaled to `vr_height_calibration` and hangs from the head,
+  the legs IK'd to the floor. A Height off from the eyes' real height broke them: Height 1.547 (the test baseline's),
+  ankles 0.23 m in the air, legs locked straight; 1.40: 0.37 m; 2.00: knees bent (straightness 0.71) and the body in its
+  crouched pose. Body Calibration fixed it only because it measures the height again. Now `vr_body_leg_fit 1`
+  (avatar `legFit`): hip-to-ankle lengthened or shortened (0.75-1.3x) so that at the height the headset sees you stand at
+  (`hands::State::standingHeight`, Leaning Detection's learnt standing height: rises fast, settles slowly while centred
+  and not crouched) the feet reach the floor with straight knees, and the crouch depth is measured from there. After:
+  Height 1.547 ankles 0.081, 2.00 straightness 0.94 (clamp), 1.40 ankles 0.16 (clamp; 30 cm off). A Height equal to the
+  eyes: unchanged (fit 1). Seated: off.
+- **The belt too low.** The holsters and pouches are placed in Quake units from the player's origin (2 units up, Z
+  offsets times the Height), the body in metres times the Height and the world scale on `vr_floor_offset`'s floor: the
+  taller (or the bigger the world scale, or the higher the floor) the lower the gear on the body. Hip holsters from the
+  pelvis: -0.04 m at Height 1.40, -0.13 at 1.547, -0.21 at 1.70, -0.39 at 2.00; ammo pouch -0.00/-0.08/-0.16/-0.23.
+  `vr_body_gear_fit 1` (vr_body.cpp `fitToBody`): the old placement taken as on the reference body it was tuned on
+  (eyes 1.55 m, the author's; world scale 1.2; floor -22) and scaled to this body about the floor under the box's middle.
+  After: ammo pouch -0.075..-0.084 at every Height, hip holsters -0.12..-0.17 (proportional), chest holsters
+  -0.02..-0.03 from the chest (before +0.06..-0.27). The author's setup (1.5546 m, 1.2, -22): unchanged (k 1.003).
+- **The drift.** A 100 s session (stand, stick walk, walk turning, crouch to 1.15 m and up 5 times, look down 60 degrees,
+  a 4 cm slouch for 20 s, straight again): nothing accumulates; every standing phase returns the pouch to the same
+  height (0.891 m, -0.086 from the pelvis; 0.895 before the first walk: the feet's stance). The gear is carried by the
+  pelvis, which hangs from the head: any lowering of the head (a slouch, the headset slipping down the face, the
+  runtime's floor moving) lowers the belt 1:1, and as the calibrated height stayed the reference the knees stayed bent
+  (straightness 0.96) for as long as it lasted. With the leg fit the learnt standing height settles to it within ~20 s
+  and the legs straighten (1.000); the belt still follows the head, as the body does. Looking down 60 degrees with the
+  mock lifts the body 11 cm: the mock pitches the head about the eyes (a real head pitches about the neck, dropping the
+  eyes as much), not a bug.
+- **The page.** VR Settings > Body and Equipment (replaces Holster Calibration and Ammo Pouch on VR Settings; their
+  rows are on it; the body clone is shown while it is open): Height, Legs Fit Your Height, Gear Fits Your Body, Body
+  Calibration; Shoulders Back/Out/Up (`vr_body_tweak_shoulders_*`), Torso Back; Belt Height (`vr_body_belt_up`, metres:
+  hip holsters, both pouches, the belt torch), Flashlight Forward/Out/Up; the ammo pouch's rows; the holsters' rows
+  (chest holsters forward for the chest gear); Reset Body and Equipment. The board in the calibration room was not given
+  a line (compiling it needs the id texture WAD, not in the worktree).
+
+- **VR**: set Height a little off (VR Settings > Body and Equipment) and look down: the feet should stay on the floor,
+  the knees straight; crouch: they bend. Check the belt (ammo pouch, hip holsters) sits on the belt; try Belt Height and
+  Flashlight Forward with the body shown in front of you.
+
+## Earned bullet time (worktree `goreflesh`, branch `agent/earnedbt`, 2026-10-20)
+
+The backlog's "Bullet time as an earned resource", the 1.1 default: bullet time's meter no longer fills by itself; the
+damage you deal fills it. `vr_bullettime_meter_mode` 1 (earned, default) or 0 (over time, 1.0's: `vr_bullettime_recharge`
+after the cooldown, unchanged). `vr_bullettime_earn_damage` 180: the damage that fills it from empty, six grunts' health
+(QC `orig_mon_soldier.qc`: 30 each). `vr_bullettime_earn_active` 0.25: damage dealt while it runs fills at a quarter, so
+a fight can extend it a little but not forever. The cooldown (`vr_bullettime_cooldown` 2 s) still blocks a restart; in
+the earned mode the meter fills during it too. No config migration: the mode is a new cvar, so every config (1.0's had
+only the self-filling meter) takes the default, earned.
+
+Decisions:
+- **What counts** (QC `VR_BulletTime_Earn`, combat.qc; called from `T_DamageDeal` and AD's `VR_AD_Hit`): the health
+  taken from a living monster (FL_MONSTER, health above 0, not a corpse or a dying one), at most the health it had (no
+  overkill), dealt by the player or by something he owns (his missiles, thrown things: `.owner`). Never a corpse's, a
+  prop's or breakable's, the training dummy's (it returns earlier), a monster's to another, nor damage whose attacker
+  is neither the player nor owned by him (a falling body's); single player only (not deathmatch or coop). A zombie
+  knocked down and getting up again counts each time it is hurt (it gets its health back: it is a fight).
+- **Kept**: the meter is kept on the player (`.vr_bullettime_spent`, 1 - the level, so 0 is full: a new game's and a
+  save from before this), saved with the game, carried to the next level by `parm74` (new; `lastExtSpawnParm` 74). A new
+  game, a coop respawn (SetNewParms) and an AD exit's inventory reset start full; a restart after death starts with the
+  level's starting meter. The engine writes the field every frame and takes a value it didn't write (a load, a level's
+  start) as the meter. Both modes keep it this way.
+- **The gadget**: the TIME bar (unchanged look) also shows while cooling down in the earned mode (it fills then), and its
+  frame lights for 0.4 s as a hit fills it.
+
+Menus: VR Settings > Bullet Time > Meter Refill (Earned by Damage / Over Time); Advanced > Combat > Bullet Time: Meter
+Refill, Damage to Fill, Refill While Slowed (Recharge Time and Cooldown's help say which mode they are for). Debug:
+`vr_bullettime_meter [level]` prints the meter or sets it (Debug rows "Bullet Time Meter", "Empty the Bullet Time Meter");
+`vr_debug_bullettime 1` prints each hit's refill; test aid `vr_test_hurt <damage>` (the nearest live monster takes it from
+a shot of yours; Debug row "Hurt the Nearest Monster").
+
+Test `Misc/quakevr/bullettime_earn_test.sh <agent> [case]`, both pass: **earned**: a new game's meter 1.000; emptied, 300
+idle frames leave it at 0.000; `vr_test_hurt 15` on a grunt takes 19 (the shot's body multiplier) and fills 0.106
+(19/180), the killing 100 only the 11 left (0.167); five more grunts 0.167 -> 1.000; set 0.4, saved, set 0.9, loaded:
+0.400; `changelevel e1m2`: 0.400; running at 0.49, a grunt's 30: +0.041 (a quarter). **classic**: emptied, 300 frames
+fill 0.208, a grunt killed adds nothing beyond the time. (Grunts spawned onto a fresh corpse were hurt by the falling
+body, uncredited: the test lets each settle.) Not run headless: AD's path (`VR_AD_Hit`).
+
+- **In VR**: fight a few grunts in e1m1 with bullet time empty (Debug > Empty the Bullet Time Meter): the TIME bar on
+  the gadget grows with each hit (its frame flashes), six grunts fill it; it never grows standing still. Start it and
+  kill: it drains, a kill gives a little back. Save, load, take an exit: the meter stays. VR Settings > Bullet Time >
+  Meter Refill > Over Time: the old self-filling meter.
+## 1.1 pacing: shell pairs, big monsters' health (worktree `gorefx`, branch `agent/pacing`, 2026-10-20)
+
+Player feedback for 1.1: with manual reloading, ogres feel too tanky.
+
+- **Shell pairs by default** (`vr_reload_shell_pairs` 1; config row 170 moves a config still at the old 0): the pouch
+  gives a taped pair unless only one shell is left or the gun in the other hand (a manual shotgun) has one place left
+  in its tube (or none): then a single shell (QC `VR_Reload_Take`). A pair taken elsewhere and pushed into a gun with one
+  place still loads one and leaves one in the hand. The super shotgun and the Widowmaker keep their own rules.
+- **Monster Health** (Combat > Monster Health; `vr_monster_health*`, vr_mgroups.cpp): each monster's health and full
+  health (`.max_health`) times a multiplier, once, as it first appears (`VR_MonsterHealth_Frame`, after SV_Physics'
+  edicts: every game's monsters alike, those spawned later too). The QC field `.vr_hpscale` keeps the multiplier, so a
+  loaded game's monsters are not cut again (an older save's are, by their full health). The cut is a piecewise-linear
+  curve on the full health: 0 up to `_from` 150, then (`_hp1` 200, `_cut1` 10%), (`_hp2` 600, `_cut2` 15%), (`_hp3`
+  1000, `_cut3` 20%), flat beyond, capped by `_max` 20%; then times the group's `vr_mgrp_<group>_health` (Monster
+  Groups > Health, 1). `vr_monster_health_debug 1` prints `mhealth <num> <class> <group>: before -> after`.
+- **Bosses**: the curve applies to the bosses fought by damage (Armagon, the dragon, Hephaestus, the morph, the spear
+  knight, the bog lord/gug, the demon prince). Left alone: those killed by a trick or fought in scripted waves/phases
+  whose health their code sets as they go (Chthon and Shub in every form, Dawn of the Machine's Chthon and Shub, AD's
+  eidolon, ice golem, judicator, mammoth, Nour/vermis, fire top), the training dummy, and anything at 20000 health or
+  more (scripted invulnerability).
+
+Verified headless: the reload self-test (`vr_reload_test 9; impulse 125`) 77 passed, 0 failed, with the new cases
+(single shell for one place, a pair for two, a pair into one place, the last shell single); every spawnable monster
+(`vr_toolgun_spawn_test`) logged: grunts, knights, enforcers, zombies, dogs, scrags unchanged; ogre 200 -> 180,
+death knight 250 -> 223, fiend 300 -> 266, vore 400 -> 350, AD minotaur/drole/golem 500 -> 431, shambler 600 -> 510,
+Hephaestus 1500 -> 1200, Armagon 2500 -> 2000, super shambler 2000 -> 1600; the exempt bosses unchanged. A saved
+ogre (180) loads at 180.
+
+- **In VR**: reload the shotgun from empty (pairs), with one place left (a single shell), with one shell in the
+  reserve; fight ogres and a shambler: they should go down noticeably sooner. Combat > Monster Health's examples follow
+  the sliders.

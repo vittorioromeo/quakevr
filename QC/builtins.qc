@@ -326,6 +326,7 @@ float MGP_MANHANDLE = 18;
 float MGP_THROW = 19;    // the two-hand throw: 0 never, 1 only when hurt, 2 always
 float MGP_HOLD = 20;     // one hand's hold on it, 0..1 (below 0: by its size)
 float MGP_POISE = 21;    // its Parry Poise (below 0: a parry never staggers it; combat.qc VR_Parry_Interrupt)
+float MGP_HEALTH = 22;   // its health times this as it appears (the engine's, with Monster Health's curve: .vr_hpscale)
 // A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
 // kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
 float(entity e, float begin) ragdolldrown = #0;

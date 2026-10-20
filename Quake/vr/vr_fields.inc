@@ -199,6 +199,8 @@ QVR_FIELD(vr_foegrab_letgo) // set by the QC on a monster: every hand holding it
 QVR_FIELD(vr_mg3_infected) // Dawn of the Machine's infected monster (QC combat.qc): the throw's "infected" kind (vr_foegrab.cpp)
 QVR_FIELD(vr_eshove_speed) // a player's slide from an enemy's shove, units/s (QC vr_enemyshove.qc; 0 none): what his hands hold is carried along (vr_foegrab.cpp)
 QVR_FIELD(vr_blow_time) // a player's last landed melee blow, shove or bash: its server time (QC vr_melee.qc): bullet time's screen tap waits (vr_bullettime_tap_blow_quiet)
+QVR_FIELD(vr_bullettime_spent) // bullet time's meter used up (0 full, 1 empty), kept on the player for saves and the next level (QC parm74): vr_bullettime.cpp
+QVR_FIELD(vr_bullettime_earned) // the damage the player dealt living monsters since the engine took it (QC VR_BulletTime_Earn): earned bullet time
 QVR_FIELD(vr_sgib) // a small gib: when it was made (QC vr_smallgibs.qc; vr_box3d.cpp: its blow grace, vr_smallgibs_blow_grace)
 QVR_FIELD(vr_sgib_id) // its serial (vr_smallgibs_trace's lines)
 QVR_FIELD(vr_monster_drop) // a weapon or backpack a monster dropped: when (QC vr_carry.qc; vr_box3d.cpp: made inside a body it passes through it, vr_prop_drop_pass_inside)
@@ -227,6 +229,8 @@ QVR_FIELD(vr_dummy_kind)
 // When the entity was made (ED_Alloc: VR_OnEdictAlloc, vr_cheats.cpp): the map's own and those placed as it loads
 // before its first second is out; vr_scene_clean props (QC VR_Scene_Clean) removes the loose props made later.
 QVR_FIELD(vr_born)
+// A monster's Monster Health multiplier, set once as it first appears (VR_MonsterHealth_Frame, vr_mgroups.cpp; 0 not yet).
+QVR_FIELD(vr_hpscale)
 QVR_FIELD(vr_gate_crossed) // a missile carried through a teleporter: when (VR_PortalToss); it meets its owner (VR_PortalHitsOwner)
 
 // Quake's drawing extensions, set by the engine on what it makes (vr_explosiondebris.cpp: a chunk's size and its fade).

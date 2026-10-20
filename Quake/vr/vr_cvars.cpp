@@ -338,8 +338,11 @@ const DefaultChange defaultChanges[] = {
     {169, &vr_kdtrig_thrown_push, "1"},    // 2
     {169, &vr_kdtrig_tackle_on, "1"},      // 0
     {169, &vr_kdtrig_tackle_bump, "60"},   // 100
+    // 170: the pouch gives taped shell pairs by default (1.1 balance: manual reloading made ogres tanky; ROUND22.md,
+    // "1.1 pacing: shell pairs, big monsters' health"). A config at the old default (off) takes it.
+    {170, &vr_reload_shell_pairs, "0"},
 };
-constexpr int configVersion = 169;
+constexpr int configVersion = 170;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

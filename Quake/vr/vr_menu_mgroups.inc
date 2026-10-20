@@ -10,7 +10,8 @@ enum MgroupKind
     MgroupResist,
     MgroupThrow,
     MgroupHold,
-    MgroupPoise
+    MgroupPoise,
+    MgroupHealth
 };
 
 struct MgroupParamRow
@@ -63,6 +64,10 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
         "hands 0.4, a weapon 1, a heavy one up to 1.3; two hands x1.5; well timed x1.25) over this: under 0.5 the blow is "
         "only blocked, under 1 it flinches, up to 2 it staggers back as a ragdoll, more longer. Over 1 it also cuts your "
         "melee's chances to knock it down or unbalance it. Off: a parry never staggers it."},
+    {"Health", MgroupHealth,
+        "Its health times this as it appears, on top of Monster Health's cut for big monsters (Combat > Monster Health; "
+        "only with it on). Monsters already about keep theirs. Not the scripted bosses (Chthon, Shub, Arcane "
+        "Dimensions' wave bosses)."},
 };
 
 [[nodiscard]] Item mgroupItem(int g, mgroups::Param p, const char* label)
@@ -91,6 +96,7 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
             i.negativeStart = 0.f;
             return i.help(r.help);
         }
+        case MgroupHealth: return slider(label, c, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 10.f).help(r.help);
     }
     return header(label);
 }
@@ -110,6 +116,10 @@ template <int G>
         if(p == static_cast<int>(mgroups::Param::Poise))
         {
             items.pushBack(header("Parry"));
+        }
+        if(p == static_cast<int>(mgroups::Param::Health))
+        {
+            items.pushBack(header("Health"));
         }
         items.pushBack(mgroupItem(G, static_cast<mgroups::Param>(p), mgroupParamRows[p].label));
     }
@@ -171,5 +181,48 @@ void mgroupParamRowsOpen(za::Vector<Item>& items)
     mgroupGroupRows<0>(items);
     items.pushBack(header("By Trigger or Action"));
     mgroupParamRowsOpen<0>(items);
+    return items;
+}
+
+// Combat > Monster Health (vr_mgroups.cpp healthMultiplier; vr_cvars.inc vr_monster_health*): big monsters' health cut
+// by a curve on their full health, then each group's own multiplier; examples below, as set now.
+[[nodiscard]] const char* monsterHealthExample(int i)
+{
+    const char* line = mgroups::healthExampleLine(i);
+    return line ? line : "";
+}
+
+[[nodiscard]] za::Vector<Item> pageMonsterHealth()
+{
+    za::Vector<Item> items{
+        toggle("Cut Big Monsters' Health", vr_monster_health)
+            .help("Monsters with a big health pool (ogres, shamblers, giants, most bosses) appear with less health, by "
+                  "the curve below: a reload by hand costs time. Small ones (grunts, knights, enforcers, zombies) keep "
+                  "theirs. Monsters already about keep theirs: the next map, or a monster appearing, shows a change. "
+                  "Not the scripted bosses (Chthon, Shub, Arcane Dimensions' wave bosses)."),
+        slider("Full Health Up To", vr_monster_health_from, 0.f, 500.f, 10.f, "%.0f").extend(0.f, 5000.f)
+            .help("No cut for a monster with this much health or less (a knight 75, an enforcer 80)."),
+        header("Curve"),
+        slider("Point 1 Health", vr_monster_health_hp1, 50.f, 1000.f, 10.f, "%.0f").extend(0.f, 10000.f)
+            .help("The curve's first point: a monster with this much health (an ogre 200) ..."),
+        slider("Point 1 Cut", vr_monster_health_cut1, 0.f, 50.f, 1.f, "%.0f%%").extend(0.f, 95.f)
+            .help("... loses this share of it. Between the points (and from Full Health Up To) the cut goes up evenly."),
+        slider("Point 2 Health", vr_monster_health_hp2, 50.f, 2000.f, 25.f, "%.0f").extend(0.f, 10000.f)
+            .help("The second point: a shambler's 600 ..."),
+        slider("Point 2 Cut", vr_monster_health_cut2, 0.f, 50.f, 1.f, "%.0f%%").extend(0.f, 95.f).help("... loses this share."),
+        slider("Point 3 Health", vr_monster_health_hp3, 50.f, 5000.f, 50.f, "%.0f").extend(0.f, 50000.f)
+            .help("The last point: from this much health on ..."),
+        slider("Point 3 Cut", vr_monster_health_cut3, 0.f, 50.f, 1.f, "%.0f%%").extend(0.f, 95.f)
+            .help("... every monster loses this share."),
+        slider("Most Cut", vr_monster_health_max, 0.f, 50.f, 1.f, "%.0f%%").extend(0.f, 95.f)
+            .help("The curve never cuts more than this (each group's own Health multiplier still applies)."),
+        open("Each Group's Health", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Health)>))
+            .help("Each monster group's health times its own multiplier, on top of the curve (Monster Groups > Health)."),
+        header("Examples (now)"),
+    };
+    for(int i = 0; mgroups::healthExampleLine(i); ++i)
+    {
+        items.pushBack(infoLine(monsterHealthExample, i));
+    }
     return items;
 }

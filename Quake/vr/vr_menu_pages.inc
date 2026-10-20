@@ -752,7 +752,8 @@ void resetHandMoves()
     return {
         header("Shells"),
         toggle("Shell Pairs", "vr_reload_shell_pairs")
-            .help("The pouch gives two shells taped together: both go into the shotgun at once (one, if only one fits)."),
+            .help("The pouch gives two shells taped together: both go into the shotgun at once. A single shell when only "
+                  "one is left, or the shotgun in your other hand has one place left (one goes in if only one fits)."),
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),

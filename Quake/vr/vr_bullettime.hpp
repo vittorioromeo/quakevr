@@ -1,8 +1,10 @@
 // vr_bullettime.hpp -- bullet time for play (ROUND21.md, "Slow motion: bullet time and Sandevistan"): a hard,
 // deliberate tap on the wrist gadget's screen, by the other hand or the butt of the gun it holds (or the bindable
 // vr_bullettime), slows the world to vr_bullettime_scale for as long as its meter lasts (vr_bullettime_duration real
-// seconds when full), then a cooldown, then the meter fills again (vr_bullettime_recharge). The gadget's screen shows the
-// meter. While it runs, the eyes get its look (vr_bullettime_fx: desaturated, tinted, vignetted; never with the
+// seconds when full), then a cooldown. The meter fills by the damage the player deals living monsters
+// (vr_bullettime_meter_mode 1, the default: vr_bullettime_earn_damage of it fills it; never over time), or over time
+// (0: vr_bullettime_recharge, 1.0's); it is kept in saves and from level to level, full on a new game. The gadget's
+// screen shows the meter. While it runs, the eyes get its look (vr_bullettime_fx: desaturated, tinted, vignetted; never with the
 // recording's vr_timescale). With vr_bullettime_sandevistan the player runs in its own time in the slowed world
 // (vr_timescale.cpp). The gadget's side button is the gear lights' (vr_gearlights.hpp).
 
@@ -54,6 +56,8 @@ struct Meter
     bool cooling{false}; // after it ran: no start yet
     bool ready{false};   // a press would start it
     float level{1.f};    // 0 .. 1
+    bool earned{false};  // vr_bullettime_meter_mode 1: filled by damage dealt, never over time
+    bool gained{false};  // ... and it grew in the last moment (a hit landed)
 };
 [[nodiscard]] Meter meter();
 
