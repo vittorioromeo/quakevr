@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Gib impacts (Gibs page: Burst Speed, Head/Small multipliers, Bounce): toss a head up and tap it: bounces; slap it hard: bursts; slam a held head into a wall or floor fast: bursts, press slowly: stays; punch heads on the floor: bounce unless fast
 AD weapon reliefs (vr_weapon_relief 1, at load): hold the Shadow Axe, Widowmaker, Plasma Gun, grunt-gun variants, crossbow, AD swords, hammer and mace close under a torch and turn them: grooves, rivets, grain; look along blades and handles at grazing angles: no swimming paint
 Widowmaker spins up ~0.75 s before the first shot (sooner if still spinning); seated Crouch Button (off/left/right stick, warns if it's also the bullet-time trigger); enemies raise their arms only when alerted and facing you (sneak up from behind: no guard)
 Limb cuts: cut a limb with a sword and look at the cap (chunky flesh, bone) and the body stump, plus a decapitated neck: too bright/saturated? bone size? stump flesh area big enough vs the blood paint? the flying limb trails its own fountain
