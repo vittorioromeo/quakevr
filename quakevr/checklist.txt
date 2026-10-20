@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+No stall when new monster sizes appear: on AD maps (ad_tears, ad_sepulcher) spawn an ogre and an enforcer from the toolgun or reach a delayed spawn: no freeze (was up to 1.3 s+)
 Load Autosave shows only this game's autosaves (first row switches to all games); no hitch opening it; on the death menu the row sits under Restart
 Sounds after a load: spawn a monster with the toolgun/spawner, quicksave, quickload: it still makes its sounds; AD ad_tears: the trigger's ogre idle sound plays
 Autosaves (VR Settings > Saves and Autosaves): last 3 kept per map; main/pause menu Load Autosave lists them newest first (two lines, readable with the laser?); death menu ~2 s after dying: Respawn, Restart the Level, autosaves; get ambushed: no autosave until safe (alerted/near monsters, health < 40%); main menu still fits with the extra row
