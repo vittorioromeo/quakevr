@@ -117,7 +117,7 @@ if selected("dragon"):
     print("dragon_crowbar: PASS the crowbar held level across parries the tail (492/492, interrupted)")
 
 if selected("callback"):
-    for enabled in [1, 0]:
+    for enabled in [1]:  # (vr_parry_interrupt retired: a parry always interrupts)
         label = "callback_%s" % enabled
         log = run(label, setup(enabled)[:-5] +
                   ["vr_physics_spawn VR_Parry_SameCallbackTest 48", wait(1)])
