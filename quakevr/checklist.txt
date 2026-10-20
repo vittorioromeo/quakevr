@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Mantle Height (Movement > Climbing, 18): lean up and down over a chest-high ledge without mantling (try 22-26 if still early); one hand on a shin: no drag, a yank pulls the legs out; one hand on the chest drags; one hand on the head holds without dragging (Holding Enemies > One Hand Drags By); dents a bit shallower (your 2.5)
 Gib impacts (Gibs page: Burst Speed, Head/Small multipliers, Bounce): toss a head up and tap it: bounces; slap it hard: bursts; slam a held head into a wall or floor fast: bursts, press slowly: stays; punch heads on the floor: bounce unless fast
 AD weapon reliefs (vr_weapon_relief 1, at load): hold the Shadow Axe, Widowmaker, Plasma Gun, grunt-gun variants, crossbow, AD swords, hammer and mace close under a torch and turn them: grooves, rivets, grain; look along blades and handles at grazing angles: no swimming paint
 Widowmaker spins up ~0.75 s before the first shot (sooner if still spinning); seated Crouch Button (off/left/right stick, warns if it's also the bullet-time trigger); enemies raise their arms only when alerted and facing you (sneak up from behind: no guard)
