@@ -77,14 +77,15 @@ run throw_hot "$T; vr_hotblade_test 1; wait5; vr_hotblade_test 13; wait60" 'thro
 # A level change: a blade still glowing keeps glowing (its time left carried in parm65..72), a cold one stays cold.
 run levelchange "vr_hotblade_time 30; map e1m2; wait60; god; notarget; impulse 152; wait20; vr_hotblade_test 1; wait20; changelevel e1m3; wait60; wait10; vr_hotblade_report" 'client: 1 glowing'
 # A real swing (a synthetic overhead chop with the axe at the firing range's dummy): cold and hot, the hot one 1.5x
-# (base 20 -> 30) and the dummy lit.
+# (base 20 -> 30) and the dummy lit. (The take is 90 Hz, motion_synth's default: since meleefps a swing's speed is its
+# own, no 90 Hz beat peak, so 20.9 / 31.3, not 29.6 / 44.4.)
 if [[ "swing" =~ $F ]]; then
   python "$WT/Misc/quakevr/motion_synth.py" chop_overhead --weapon axe --out "$WT/scratch/hotblade/motions" > /dev/null
   TAKE=$(ls -t "$WT"/scratch/hotblade/motions/*.csv | head -1)
   R=''
   for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do R="$R; wait4; vr_hotblade_test 1"; done
-  run swing_cold "map vrfiringrange; wait60; vr_motion_play $TAKE; wait300" 'Dummy: 29\.6 damage'
-  run swing_hot "map vrfiringrange; wait60; vr_motion_play $TAKE$R; wait200" 'Dummy: 44\.4 damage;monster_army lit \(a blow\)'
+  run swing_cold "map vrfiringrange; wait60; vr_motion_play $TAKE; wait300" 'Dummy: 20\.9 damage'
+  run swing_hot "map vrfiringrange; wait60; vr_motion_play $TAKE$R; wait200" 'Dummy: 31\.3 damage;monster_army lit \(a blow\)'
 fi
 # Screenshots, checked by eye (scratch/hotblade/shots_*.png; not PASS/FAIL): each blade held red-hot seen from the side
 # (the axe, the sword, the crowbar, the Super Axe, the chainsaw: only the heated part glows, its light on the hand), the

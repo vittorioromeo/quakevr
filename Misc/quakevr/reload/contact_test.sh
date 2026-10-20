@@ -18,13 +18,20 @@ check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; f
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|[0-9] into|a magazine of|.*placed loose|the super shotgun open)|^  |^    "
 
-# 1. The shapes.
-log=$(for gun in 154 156 157 161; do
-    G="map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse $gun;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 100;give c 100;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
+# 1. The shapes (single shells, vr_reload_shell_pairs 0; then the taped pair, the 1.1 default).
+shapes() { # <guns> [pairs]
+for gun in $1; do
+    G="vr_reload_shell_pairs ${2:-0};map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse $gun;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;give n 100;give c 100;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10"
     if [ $gun = 154 ]; then GET="vr_reload_test 5;impulse 125;wait2;vr_reload_test 1;impulse 125;wait3;vr_reload_test 3;impulse 125"; else GET="vr_reload_test 6;impulse 125"; fi
     tb_run_sh -Script "$G;$GET;wait90;vr_physics_shapes vr_ammo_shell vr_ammo_mag;toggleconsole;quit" -Filter "^  |^    " 2>&1
-done)
+done
+}
+log=$(shapes "154 156 157 161")
+plog=$(shapes 154 1)
 echo "$log" | grep -E "^  [0-9]+ |body \(its hull\)|drawn  |inside the hull|outside the hull" | sort -u
+echo "$plog" | grep -A2 "vr_ammo_shell ("
+# (Its size not pinned yet: printed above; pin it from a run, as the single shell's below.)
+check $(echo "$plog" | grep -A2 "vr_ammo_shell (progs/vr_shell_pair.mdl" | grep -q "body (its hull) [0-9.]* x" && echo 1 || echo 0) "the taped pair (vr_reload_shell_pairs 1) has its own body"
 check $(echo "$log" | grep -A2 "vr_ammo_shell (" | grep -q "body (its hull) 2.30 x 0.68 x 0.68" && echo 1 || echo 0) "the shell's body is its drawn size (2.30 x 0.68 x 0.68)"
 check $(echo "$log" | grep -A4 "vr_ammo_mag (" | grep "Quake box" | awk '{print $3}' | awk '$1 > 4 {bad=1} END {print bad ? 0 : 1}') "the magazines' Quake boxes are their drawn size (were twice it)"
 

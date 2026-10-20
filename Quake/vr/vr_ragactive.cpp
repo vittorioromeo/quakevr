@@ -1180,6 +1180,9 @@ constexpr float staggerSteady = 12.f;    // deg: leaning less, it is steady
 constexpr float staggerMost = 1.2f;      // s: vr_ragdoll_active_stagger_settle_time at most
 constexpr float staggerSettleShare = 0.9f; // of its carry: gone this far, it may recover (vr_ragdoll_active_stagger_settle)
 constexpr float staggerAir = 0.06f;      // s: no floor under it this long (vr_ragdoll_active_stagger_drop), it falls
+constexpr float staggerFloorOverFeet = 12.f; // units: the floor under its pelvis higher than its feet by more than this is
+                                             // something it stands beside (a step, a crate), not its floor (the ogre's
+                                             // feet's ends lie up to 8 units below their soles)
 constexpr float staggerWheel = 2.f;      // Hz: its arms wheeling for its balance
 constexpr float staggerUpright = 8.f;    // rad/s per radian its pelvis is pitched off its stance's, steady (turnWhole)
 constexpr float staggerUprightMost = 4.f; // rad/s
@@ -1217,7 +1220,10 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     footZ = feet > 0 ? footZ : pelvis.z - g.height;
     g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));    g.leanMost = za::max(g.leanMost, g.lean);
     // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
-    const float below = c.floorBelow ? c.floorBelow(pelvis, 2.f) : -1e30f;
+    // (A step or a crate under its pelvis, higher than its feet, is not its floor: else, stepping back off it on level
+    // ground read as a drop, "no floor under it", and a sag.)
+    const float rawBelow = c.floorBelow ? c.floorBelow(pelvis, 2.f) : -1e30f;
+    const float below = rawBelow > -1e29f ? za::min(rawBelow, footZ + staggerFloorOverFeet / p.m2u) : rawBelow;
     const float floor = below > -1e29f ? below : footZ;
     if(g.overFloor <= 0.f)
     {
@@ -1322,6 +1328,14 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             g.decided = c.now;
             if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
             {
+                if(offEdge)
+                {
+                    Con_Printf("stagger: %d no floor at %.0f %.0f %.0f: pelvis %.1f units over %s, it stood %.1f over the "
+                               "floor (drop %.0f)\n",
+                        c.num, pelvis.x * p.m2u, pelvis.y * p.m2u, pelvis.z * p.m2u,
+                        below < -1e29f ? 0.f : (pelvis.z - below) * p.m2u,
+                        below < -1e29f ? "nothing (none within 2 m)" : "the floor", g.overFloor * p.m2u, drop * p.m2u);
+                }
                 Con_Printf("stagger: %d fell at %.2f s%s: leaning %.0f deg (at most %.0f), its pelvis at %.0f%% of its height, "
                            "%d steps, moved %.0f units (its middle %.0f along the shove from its feet, %.0f aside)\n",
                     c.num, t, offEdge ? " (no floor under it)" : gives ? " (gave way)" : "", g.lean, limit, g.sag * 100.f,

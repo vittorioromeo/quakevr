@@ -2,7 +2,8 @@
 # guard_test.sh <agent> [cases] -- monsters guarding their heads in melee (ROUND22.md, "Guarding the head";
 # vr_ragdoll_active_guard 1 here: the chance aside). Each case prints PASS or FAIL and what it saw.
 #   swing   vrfiringrange: your main hand swinging (vr_mock_swing 0.5) at a grunt and a knight 45 units ahead: it guards
-#           (standing: a hit reaction's guard, its arms turned: `hittrace`'s most, deg; PASS: a guard, arms past 30 deg)
+#           (standing: a hit reaction's guard, its arms turned: `hittrace`'s most, deg; PASS: a guard, arms past 30 deg);
+#           notarget 0: only a monster aware of you guards (VR_Guard_Aware, smallfix1019b)
 #   shot    the same monsters shot in the head (vr_test_hit 2), no swing: no guard (PASS)
 #   stagger vrfiringrange: a grunt shoved (steady: it recovers), vr_test_guard as it staggers: its ragdoll's arms (PASS:
 #           guarded, and it still recovers)
@@ -23,7 +24,7 @@ for c in $CASES; do
     swing|off)
         for m in 0 5; do
             g=1; [ $c = off ] && g=0
-            out=$(GUARD=$g run "$FR;vr_ragdoll_active_guard $g;vr_test_spawn $m;vr_test_spawn_dist 45;impulse 241;wait60;vr_mock_swing 0.5;wait150;vr_mock_swing 0;wait10")
+            out=$(GUARD=$g run "$FR;notarget 0;vr_ragdoll_active_guard $g;vr_test_spawn $m;vr_test_spawn_dist 45;impulse 241;wait60;vr_mock_swing 0.5;wait150;vr_mock_swing 0;wait10")
             n=$(echo "$out" | grep -c "standing guards")
             most=$(echo "$out" | grep -o "most [0-9.]* deg [a-z_]*" | awk '{if($2>m){m=$2;b=$4}} END{printf "%.0f %s", m, b}')
             if [ $c = swing ]; then
@@ -41,7 +42,7 @@ for c in $CASES; do
             [ "$n" = 0 ]; verdict "shot m$m" $? "$n guards from two head shots"
         done ;;
     stagger)
-        out=$(run "$FR;vr_knockdown_chance 0.01;vr_test_spawn 0;vr_test_spawn_dist 100;impulse 241;wait60;vr_knockdown_test 21;wait10;vr_test_guard 1;wait200")
+        out=$(run "$FR;vr_knockdown_chance 0.01;vr_knockdown_surprise 0;vr_test_spawn 0;vr_test_spawn_dist 100;impulse 241;wait60;vr_knockdown_test 21;wait10;vr_test_guard 1;wait200")
         echo "$out" | grep -q "guards its head (staggering)" && echo "$out" | grep -q "recovers from its stagger"
         verdict stagger $? "$(echo "$out" | grep -o "guards its head ([a-z ]*)" | head -1); $(echo "$out" | grep -o "recovers from its stagger after [0-9.]* s")" ;;
     down)
