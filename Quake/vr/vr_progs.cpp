@@ -155,6 +155,13 @@ const Bindings& bindings()
 
 func_t findFunction(const char* name)
 {
+    // The VM's name table (pr_edict.c ED_FindFunction: hashed once the progs are loaded): several callers look up by
+    // name each step (vr_box3d_step.cpp's callbacks), and the scan over every function's name cost ~0.03 ms a call.
+    if(qcvm->ht_functions.capacity > 0)
+    {
+        const dfunction_t* f = VR_ED_FindFunction(name);
+        return f ? static_cast<func_t>(f - qcvm->functions) : 0;
+    }
     for(int i = 0; i < qcvm->progs->numfunctions; i++)
     {
         if(!strcmp(PR_GetString(qcvm->functions[i].s_name), name))
