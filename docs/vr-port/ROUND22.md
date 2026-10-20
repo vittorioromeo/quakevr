@@ -15634,3 +15634,16 @@ started by accident while both hands fought a ragdoll; his parry, mantle and leg
 - **For VR:** lift an enforcer, a death knight and a zombie by the chest and hold each by the head: their arms should
   swat and slap at your hands like a grunt's; listen for a grunt's cries (no "sight" bark); climb and mantle with a
   trigger held (nothing pulled); fight a body with both hands near the gadget (no slow motion).
+## The super shotgun's shot refilled by the hip holster (worktree `gorefx`, branch `agent/cuptrigger`, 2026-10-21)
+
+grip_state "flick_anywhere" (bisected to the holsters3 merge, 81167de50): with the off hand let go at the cup and left
+there, the main hand's shot left the clip at 2. The shot fired (QC's W_Attack ran, attack_finished moved on): the
+super shotgun's firing animation kicks the drawn hand back about 13 units toward the body, and
+`vr_holster_zone_hand_point`'s palm sample, taken from the drawn hand, landed in the right hip's zone for 6 frames. A
+hip holster is a reload holster (`isReloadHolsterHotspot`), so the shot was refilled at once. The off hand only
+mattered because of where the mock put the main hand (with it moved away the palm kicked as far, outside the zone).
+
+`vr_holsterzones.cpp` `restingPalm`: the palm sample is the drawn palm while the gun is at rest (its weapon frame 0),
+and during a firing animation the last resting palm held in the hand's frame (the same gun model only; none
+otherwise). The probe now shows clip 0 and no zone change; grip_state, holsterzones_test.sh (13 PASS) and
+prop_climb_test.sh PASS.
