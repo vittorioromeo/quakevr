@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Earned bullet time (default; VR Settings > Bullet Time > Meter Refill): empty the meter (Debug > Empty the Bullet Time Meter), fight grunts: the gadget TIME bar grows and flashes on each hit, six grunts fill it, it doesn't grow standing still; save/load and level exits keep it; Meter Refill > Over Time = old behaviour
 AD hit reactions: in AD maps shoot knights, death knights and soldiers in the body and legs: they flinch, buckle at the knee and limp a step; shoved, they stagger (death knights rarely go down)
 Ragdoll tool (flat: ironwail.exe -ragtool, add -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters; play a few behaviours on several models, Struggle with each hold while moving the hand (arrows, PgUp/PgDn), change a Joint Groups slider and replay, save/load a preset (docs/vr-port/RAGTOOL.md)
 Prop impacts (Crates > Breaking): light taps only move crates and boxes; hard punches or the axe break a crate in one or two hits; a hard punch or wall slam blows up an explosive box; a held crate slammed into a wall breaks out of your hands; crate pieces dust when punched or thrown hard; 9 m/s base / 8.4 m/s box feel right?
