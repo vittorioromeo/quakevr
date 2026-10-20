@@ -51,6 +51,10 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // (vr_handpose.cpp).
 bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out);
 
+// The weapon in `hand` (held or carried) as it was drawn last frame: its model's sample points in the world, and the hand
+// it was drawn from (`from`). False without one. For vr_gun_wall_depth (vr_handpose.cpp).
+bool drawnWeaponPoints(int hand, za::Vector<glm::vec3>& out, glm::vec3& from);
+
 // The triangles of `e` (entity number `num`: its pose is cached by it) as drawn this frame, in the world, three corners
 // each (a Quake alias model's; not a jointed one): false (none) otherwise. For the wounds painted on models
 // (vr_wounds.cpp): where a hit meets the model's surface.

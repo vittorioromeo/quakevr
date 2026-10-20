@@ -20,6 +20,10 @@ void weightDirections(hands::State& s, float turnYaw);
 // How far this frame's resolvePositions moved `hand` (out of the walls, with what it holds; vr_debug_hand_offset).
 [[nodiscard]] glm::vec3 wallPush(int hand);
 
+// vr_gun_wall_depth: each hand's weapon as drawn last frame (held or carried), how far into the level it goes (its model's
+// points past the surfaces the lines from the hand to them meet), and how far the walls held the hand out.
+void gunWallDepth_f();
+
 void reset();
 
 } // namespace qvr::handpose
