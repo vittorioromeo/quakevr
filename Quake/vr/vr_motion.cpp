@@ -692,24 +692,29 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 // A prop (not a weapon) carried in the hand (the player's mainhand_held / offhand_held): "model (classname)", else "".
 [[nodiscard]] za::String heldProp(int hand)
 {
-    if(!sv.active || svs.maxclients < 1)
+    if(!sv.active || svs.maxclients < 1 || !sv.qcvm.edicts || sv.qcvm.num_edicts < 2)
     {
         return {};
     }
+    // A take also ends from a console command (vr_motion_stop) or the host frame's end, where no VM (or the
+    // client's) is current: read the server's.
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    za::String out;
     const auto& f = progs::fields();
     const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
     const int num = ofs >= 0 ? progs::fieldInt(EDICT_NUM(1), ofs) : 0;
-    if(num <= 0)
+    if(num > 0 && num < qcvm->max_edicts * qcvm->edict_size)
     {
-        return {};
+        edict_t* ent = PROG_TO_EDICT(num);
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(!ent->free && index > 0 && index < MAX_MODELS && sv.models[index])
+        {
+            out = va("%s (%s)", sv.models[index]->name, PR_GetString(ent->v.classname));
+        }
     }
-    edict_t* ent = PROG_TO_EDICT(num);
-    const int index = static_cast<int>(ent->v.modelindex);
-    if(ent->free || index <= 0 || index >= MAX_MODELS || !sv.models[index])
-    {
-        return {};
-    }
-    return va("%s (%s)", sv.models[index]->name, PR_GetString(ent->v.classname));
+    PR_PopQCVM(oldVm);
+    return out;
 }
 
 // The settings the melee reads, for the header.
