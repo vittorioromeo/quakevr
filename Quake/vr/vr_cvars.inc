@@ -2895,12 +2895,15 @@ QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand 
 QVR_CVAR(vr_kdtrig_tackle_on, "0", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
 QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1; the knock times it)
-QVR_CVAR(vr_kdtrig_tackle_speed, "0.85", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed)
+QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
 QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
-QVR_CVAR(vr_kdtrig_tackle_low, "12", CVAR_ARCHIVE)        // ... units: both hands at least this far below your head (low, by the body)
-QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.6 of it
+QVR_CVAR(vr_kdtrig_tackle_low, "5", CVAR_ARCHIVE)         // ... units: both hands at least this far below your head (low, by the body)
+QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.3 of it
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
+QVR_CVAR(vr_kdtrig_tackle_head, "7.5", CVAR_ARCHIVE)      // ... deg: your head tipped down at least this much (tucked, as the author charges)
+QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.5", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
 QVR_CVAR(vr_kdtrig_tackle_knock, "96", CVAR_ARCHIVE)      // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
 QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
 QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again

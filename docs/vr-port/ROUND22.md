@@ -15497,3 +15497,27 @@ should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the 
 - **ragimpact slam**: 2 head strikes of 10, at 1.4-1.6 m/s, health 30 -> 28. The head's pop limit is now 104
   (`vr_ragimpact_piece_hp` 0.65 x corpse health 80 x `vr_corpse_health_mult` 2), 32 when the test was written, so
   "popped" is out of reach by design; the weak strikes still need a look (not fixed). leggrab not run.
+
+## Shoulder charge tuning on the author's takes (worktree `fastship`, branch `agent/chargetune`, 2026-10-21)
+
+His 18 takes of 2026-10-21 (10 Shoulder Charge: left, right, hands clasped, a gun two-handed, the axe; 8 Not Expected:
+runs with the hands out, forward, under the chin, hanging low behind, an axe carried, a slow punch). The old detector
+caught 3/10, false 0/8: his tucked hands are only 7-12 units below the head (12 asked), his head-down runs top out at
+271-301 u/s (0.85 asked 272), "a gun aimed with both hands" rejected his two-handed gun charge, and "side-on" (the
+hands' middle 2+ units to the side) failed with the hands right under the head. What sets his charges apart (the 0.35 s
+before contact): the **head tipped down** 10-19 deg (his plain runs 0-6) and both hands at or behind the head's line
+(the farther-ahead one at most 0.6 units ahead; his runs 4.8-16). A run with the hands hanging low behind
+(`no_shoulder_charge_..._00-31-22`) has all a charge has but the head (0.6 deg): the head's tip is the one sign there.
+
+Now: `vr_kdtrig_tackle_head` 7.5 deg (new), `_low` 12 -> 5, `_speed` 0.85 -> 0.75 (reached within the last 0.25 s: a
+replay's or a step's dip at contact no longer loses it), the ahead share of `_reach` 0.6 -> 0.3 (6 units), "side-on"
+also when the hands' middle is within 2 units of the head's line, the two-handed gun check gone (an aimed gun is high
+and ahead), `_face` 60 deg (the sidestep cone, was fixed), and **`vr_kdtrig_tackle_leniency`** (Charge Leniency, 0.5):
+strictness k = 1.5 - L multiplies the least thresholds (turn, low, head, hold) and divides the most ones (reach, face,
+the speed's shortfall from sv_maxspeed). Config version 174 moves configs at the old speed and low. Shoulder Charges
+stay off by default. New take column `charge_hd` (head tip, the farther-ahead hand, k).
+
+Result: 10/10 caught, 0/8 false at L 0.25, 0.5, 0.75 and 1 (L 0: 6/10, its head and drop thresholds 1.5 times).
+`eval.sh --full` melee verdicts unchanged (3 rows differ by 0.1 in an offset only). In VR: charge with the head down
+and see it fire; run head-up into monsters and see it not; a charge with the head up needs Head Down lower or the
+leniency up.
