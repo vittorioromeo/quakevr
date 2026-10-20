@@ -15583,3 +15583,54 @@ Each failing test from the 1.1 suite sweep, real or stale, and what was done:
   so the first caller of each extension builtin after each map spawn is named (a new map too: FRIK_FILE in
   VR_PrecacheOwnModel, DP_QC_MINMAXBOUND in VR_Crate_FullHealth, ...). After a load OnLoadGame is the first `min`.
   The engine has and advertises them all; only shown with `developer`.
+
+## Struggle 3: every humanoid flails; no sight cries; no force grab climbing; no bullet time in a scuffle; his defaults (worktree `tghost`, branch `agent/struggle3`, 2026-10-21)
+
+His VR notes: lifted by the chest and held by the head, the grunt and the knight struggle well, the enforcer, zombie and
+death knight too statically; the lifted grunt's cries include its sight sound; force grabs while climbing; bullet time
+started by accident while both hands fought a ragdoll; his parry, mantle and leg pull values as defaults.
+
+- **Why the others stood still** (measured: `vr_struggle_status`'s new `flail` (its free hands' speed in its chest's
+  frame) and `miss` (their distance from their goals); struggle_test.py on each class, the later two thirds):
+  - The enforcer, lifted at the chest, was held by his **forearm** (his forearms are before his chest, the rifle in both
+    hands): that arm hung slack, the other pried: flail 8.8 u/s (grunt 226). A lift now takes the torso when its
+    surface is within 10 units more than the arm's (`ragdollHoldSoft`'s `torso`): 113 u/s.
+  - The rigs' **arm masses**: grunt upper arms 3.3-4.1 kg with 0.9 kg forearms, knight 3.6 with 0.6 kg hands; enforcer
+    0.9 and 2.3 kg upper arms with 5.2 and 5.0 kg forearms (his gun hands) on a 57.5 kg chest; zombie 1.9-2.1 kg upper
+    arms, 0.5-0.7 kg forearms; death knight 12-15 kg upper arms. A Box3D joint's spring acts on its two bodies' own
+    inertia (the motor, at zero speed, only brakes), so the enforcer's hands missed their goals by 50-60 units (grunt
+    15-36) whatever the torque (`vr_ragdoll_active_torque_arms` 4: no better; `_hertz_arms` 2: better).
+  - The **zombie** did not struggle at all (not in `vr_struggle_classes`: only the lifted flail).
+- **Fixed:** `vr_struggle_classes` has a 5th field, arms (1..2.5): its arms' springs and their 20 Hz cap that many
+  times stiffer while it struggles. Shipped: enforcer 2.5, death knight 1.5, zombie (new: `monster_zombie:1:0.9:60:1.5`,
+  its voices z_pain, z_pain1, z_idle, z_idle1). Grunt, knight and AD's classes unchanged (1).
+
+| class | lift: flail u/s, arm to the holding hand | head lift: flail, arm to the holding hand (min) | head drag: flail, arm to the hand |
+|---|---|---|---|
+| grunt | 226, 14.9 (unchanged) | 40, 5.4 (3.4) | 81, 17.1 |
+| knight | 118 (unchanged) | 13 (unchanged) | 69 |
+| enforcer | 8.8 -> 238, 26.7 -> 15.1 | 58 -> 280, 17.6 -> 11.8 (12.3 -> 6.3) | 142 -> 206, 18.1 -> 10.6 |
+| death knight | 106 (chest held; 199 by the pelvis) -> 210, 24.5 -> 22.4 | 150 -> 232, 4.0 -> 4.3 | 115 -> 179, 14.0 -> 12.9 |
+| zombie | none -> 333, 15.5 | none -> 270, 11.9 (2.6) | none -> 285, 14.4 |
+
+  (Misses after: enforcer 28-30, death knight 19-37, zombie 32-37, grunt 15-37. One seed each: the numbers move a
+  good deal between seeds. The knight's arm-to-hand is not measured: no forearm.) The lift test's hands are raised 0.1
+  m for the enforcer and 0.2 m for the death knight (their chests are higher: at a grunt's height they held the pelvis).
+- **Voices:** no sight sounds (the table's sight samples gone, `ad_sight_sound` not read, any sample named sight
+  skipped). Checked: every struggle run's voices are pain/grunt samples (soldier pain1/pain2, enforcer pain1/pain2,
+  hknight pain1/grunt, knight khurt, zombie z_pain/z_pain1).
+- **Climbing:** the climb sets both QVR_VRBITS0_*HAND_CLIMBING bits while it mantles (before, none: the grips end as
+  the mantle begins); VR_Forcegrab_HandFrame takes nothing while either is set (`developer 2`: "forcegrab: off while
+  climbing"). Test (scratch/s3_climb.sh, vrclimb's jump wall, the main trigger held): 86 frames blocked hanging, 22
+  mantling, then free. Melee, reloads and grenades also see the hands as climbing during a mantle (as when hanging).
+- **Bullet time:** `vr_bullettime_tap_both_held` 1 (Advanced VR Options > Bullet Time "Not While Both Hands Hold"):
+  screen taps don't count while both hands hold an enemy (foegrab) or a ragdoll (`box3d::ragdollHeld`, the server's VM
+  pushed: it crashed in the client's frame without). `vr_debug_bullettime 1` prints the change. Test (scratch/s3_bt.sh):
+  lifted with both hands, "screen taps off", released, "on again". The mock's tapping hand is drawn on the held limb,
+  so the tap itself is not reproduced headless.
+- **His defaults** (configVersion 175, the migration takes a config at the old value): `vr_parry_timed` 1.25 -> 1.3,
+  `vr_climb_mantle_height` 18 -> 20, `vr_foegrab_legpull_onehand` 1.3 -> 1; `vr_struggle_classes` (the zombie and the
+  arm fields) migrates from the old default string. His other parry values already were the defaults.
+- **For VR:** lift an enforcer, a death knight and a zombie by the chest and hold each by the head: their arms should
+  swat and slap at your hands like a grunt's; listen for a grunt's cries (no "sight" bark); climb and mantle with a
+  trigger held (nothing pulled); fight a body with both hands near the gadget (no slow motion).

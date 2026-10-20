@@ -637,6 +637,17 @@ void(float xHand) VR_Forcegrab_HandFrame =
         VR_Forcegrab_WaitsForRelease(xHand, VRGetFireButtonPressed(xHand)); // (the trigger let go meanwhile counts)
         return;
     }
+    // Climbing or mantling (the engine's climbing bits: a hand on a ledge, or both as it mantles): neither hand force
+    // grabs (his note: things pulled mid-climb).
+    if(VRHasBit(self.vrbits0, QVR_VRBITS0_OFFHAND_CLIMBING) || VRHasBit(self.vrbits0, QVR_VRBITS0_MAINHAND_CLIMBING))
+    {
+        if(VRGetFireButtonPressed(xHand) && cvar("developer") >= 2)
+        {
+            dprint("forcegrab: off while climbing\n");
+        }
+        VR_Forcegrab_Set(xHand, world, FALSE);
+        return;
+    }
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
        !VRIsHandEmpty(self, xHand) ||
        VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
