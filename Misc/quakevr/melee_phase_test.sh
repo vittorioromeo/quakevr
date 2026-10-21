@@ -49,8 +49,8 @@ for line in lines:
     if cur is None: continue
     c = cases[cur]
     if line.startswith("melee event:"): c["hits"] += 1
-    m = re.match(r"model collide main: t ([\d.]+) push .* given ([\d.]+) drawn ([\d.]+) .*planes(.*)", line)
-    if m: c["lines"].append((float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4).strip()))
+    m = re.match(r"model collide main: t ([\d.]+) push .* given ([\d.]+) drawn ([\d.]+) .*?(\d+) planes(.*)", line)
+    if m: c["lines"].append((float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4) + " planes" + m.group(5)))
     m = re.match(r"melee phase main: (on|off) at t ([\d.]+)", line)
     if m: c.setdefault("phase", []).append((m.group(1), float(m.group(2))))
 ok = n = 0
@@ -62,7 +62,14 @@ def summary(k):
     c = cases.get(k, {"hits": -1, "lines": []})
     L = c["lines"]
     maxd = max([d for _, _, d, _ in L], default=0.0)
-    maxdp = max([d for _, _, d, f in L if "phasing" in f], default=0.0)
+    # Drawn held out while phasing: a phasing frame touching nothing (0 planes) whose drawn offset shrinks is the hold from
+    # before the phase easing away (a gun already pressed into the grunt when its swing starts: grunt_gun_hold1), not
+    # the monster holding it out; any other phasing frame counts.
+    maxdp, prev = 0.0, None
+    for _, _, d, f in L:
+        if "phasing" in f and not (int(f.split()[0]) == 0 and prev is not None and d <= prev):
+            maxdp = max(maxdp, d)
+        prev = d
     return c, L, maxd, maxdp
 c, L, maxd, _ = summary("dummy_fast_off")
 check("dummy_fast_off", c["hits"] == 1 and maxd > 0.5 and "phase" not in c, f"{c['hits']} hit, drawn held out up to {maxd:.2f} units")

@@ -356,8 +356,25 @@ const DefaultChange defaultChanges[] = {
     {173, &vr_decal_bucket_max, "24"},          // 128
     {173, &vr_bullettime_earn_damage, "180"},   // 350
     {173, &vr_bullettime_earn_active, "0.25"},  // 0.2
+    // 174: the shoulder charge tuned on the author's takes of 2026-10-21 (ROUND22.md, "Shoulder charge tuning"): his runs
+    // with the head down were slower and his hands higher than the first guesses.
+    {174, &vr_kdtrig_tackle_speed, "0.85"}, // 0.75
+    {174, &vr_kdtrig_tackle_low, "12"},     // 5
+    // 175: the author's values (his config of 2026-10-21): a timed parry's reduction, the mantle's head height, one
+    // hand's leg pull as strong as two; the struggle's classes: zombies struggle, the enforcer's, death knight's and
+    // zombie's arms driven harder (their 5th field; ROUND22.md, "Struggle 3").
+    {175, &vr_parry_timed, "1.25"},                // 1.3
+    {175, &vr_climb_mantle_height, "18"},          // 20
+    {175, &vr_foegrab_legpull_onehand, "1.3"},     // 1
+    {175, &vr_struggle_classes,
+        "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250 "
+        "monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 "
+        "monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 "
+        "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120"},
+    // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
+    {176, &vr_shove_push_twohand, "1"}, // 1.12
 };
-constexpr int configVersion = 173;
+constexpr int configVersion = 176;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

@@ -18,12 +18,12 @@ TRIG="vr_mock_button main trigger 1;wait3;vr_mock_button main trigger 0;wait10"
 P="map vrfiringrange;wait60;god;notarget;developer 1;impulse 169;vr_weapon_grip_mode 1;wait10;vr_toolgun_tool 0"
 # 1. The wall torch.
 P="$P;setpos -540 -715 40 0 180 0;vr_mock_hand off -0.35 1.1 -0.2 0 0 0;vr_mock_hand main 0.15 1.4 -0.3 70 0 0;wait20"
-P="$P;vr_toolgun_select 46;wait3;echo STEP walltorch;vr_toolgun_status;$TRIG"
+P="$P;vr_toolgun_select Wall Torch;wait3;echo STEP walltorch;vr_toolgun_status;$TRIG"
 # 2. The free-standing flames, on the floor ahead.
 N=0
-for e in 47:large 48:small 49:white 51:lantern; do
+for e in Large_Flame:large Small_Flame:small White_Flame:white Lantern:lantern; do
   i=${e%%:*}; y=$(( -650 + N * 40 )); N=$(( N + 1 ))
-  P="$P;setpos -540 $y 40 0 180 0;vr_mock_hand main 0.15 1.4 -0.3 5 0 0;wait20;vr_toolgun_select $i;wait3;echo STEP ${e#*:};vr_toolgun_status;$TRIG"
+  P="$P;setpos -540 $y 40 0 180 0;vr_mock_hand main 0.15 1.4 -0.3 5 0 0;wait20;vr_toolgun_select ${i//_/ };wait3;echo STEP ${e#*:};vr_toolgun_status;$TRIG"
 done
 P="$P;setpos -520 -640 40 0 180 0;wait30;echo STEP lights;vr_torch_lights_list;snd_show 2;wait1;snd_show 0"
 # Screenshots: the wall torch, then the large flame (the toolgun put away; then taken out again).

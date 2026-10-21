@@ -437,6 +437,7 @@ QVR_CVAR(vr_bullettime_tap_double_window, "0.8", CVAR_ARCHIVE) // seconds: a dou
 QVR_CVAR(vr_bullettime_tap_min_gap, "0.05", CVAR_ARCHIVE) // seconds: a double tap's second tap no sooner than this after its first (sooner: a new first tap; an arm wiggled or flicked fast is no double tap)
 QVR_CVAR(vr_bullettime_tap_double_speed, "0.2", CVAR_ARCHIVE) // m/s: a double tap's least speed into the screen, per tap (instead of vr_bullettime_tap_speed)
 QVR_CVAR(vr_bullettime_tap_blow_quiet, "0.5", CVAR_ARCHIVE) // QVR round 22: real seconds after a melee blow of the player's lands, or he shoves or bashes (either hand), in which screen taps don't count (a double tap's first waiting is dropped): a melee's thick turned slow motion on by accident; 0: off
+QVR_CVAR(vr_bullettime_tap_both_held, "1", CVAR_ARCHIVE) // QVR round 22: 1: screen taps don't count while both hands hold an enemy or a ragdoll (foegrab, a ragdoll hold: a scuffle knocked the gadget; his note); 0: they do
 QVR_CVAR(vr_bullettime_tap_calm_speed, "2.5", CVAR_ARCHIVE) // QVR round 22: m/s (real): screen taps don't count within 0.3 s of the gadget's hand going faster than this, or the tapping hand across the screen (its motion into and out of it is the tap's own; the play space's: walking aside); blows and shoves need 3 or more; 0: off
 QVR_CVAR(vr_bullettime_tap_speed, "0.5", CVAR_ARCHIVE) // m/s: the least speed into the screen (the hands' speed towards each other along its normal: both may move)
 QVR_CVAR(vr_bullettime_tap_angle, "80", CVAR_ARCHIVE) // degrees: how far off straight into the screen the strike may come (a swing across it comes from the side)
@@ -2443,7 +2444,7 @@ QVR_CVAR(vr_climb_leniency_air, "4.5", CVAR_ARCHIVE)   // cm: and this much furt
 QVR_CVAR(vr_climb_air_grab_time, "0.325", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
 QVR_CVAR(vr_climb_mantle_grunt_sound, "4", CVAR_ARCHIVE) // the mantle's grunt (vr_climb.cpp mantleGrunts): 0 the jump's (player/plyrjmp8.wav), 1 a hard landing's (player/land2.wav), 2 the jump's deeper, 3 a hard landing's deeper (both made from id's as they load), 4 a short pain grunt (player/pain2.wav)
-QVR_CVAR(vr_climb_mantle_height, "18", CVAR_ARCHIVE) // units: holding a ledge, a mantle starts only once the head (the eyes) is this far above its top (and a hand has pulled down 8 units): lean up and down over a ledge under it without mantling (0..40; 8 before, though at a chest-high lip the pull's 8 units brought the head to 15 first)
+QVR_CVAR(vr_climb_mantle_height, "20", CVAR_ARCHIVE) // units: holding a ledge, a mantle starts only once the head (the eyes) is this far above its top (and a hand has pulled down 8 units): lean up and down over a ledge under it without mantling (0..40; 8 before, though at a chest-high lip the pull's 8 units brought the head to 15 first)
 QVR_CVAR(vr_climb_mantle_lenient, "1", CVAR_ARCHIVE) // 1: a mantle onto a sloping top (rising or falling away from the lip, or across it) finds its spot on the slope, up to vr_climb_mantle_slope (vr_climb.cpp findMantleSloped; tried when the level search finds none); 0: level tops only, as before
 QVR_CVAR(vr_climb_mantle_slope, "40", CVAR_ARCHIVE)  // degrees: the steepest top a mantle stands you on with vr_climb_mantle_lenient (0..60; Quake walks up to about 45)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
@@ -2895,12 +2896,15 @@ QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand 
 QVR_CVAR(vr_kdtrig_tackle_on, "0", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
 QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1; the knock times it)
-QVR_CVAR(vr_kdtrig_tackle_speed, "0.85", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed)
+QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
 QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
-QVR_CVAR(vr_kdtrig_tackle_low, "12", CVAR_ARCHIVE)        // ... units: both hands at least this far below your head (low, by the body)
-QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.6 of it
+QVR_CVAR(vr_kdtrig_tackle_low, "5", CVAR_ARCHIVE)         // ... units: both hands at least this far below your head (low, by the body)
+QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.3 of it
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
+QVR_CVAR(vr_kdtrig_tackle_head, "7.5", CVAR_ARCHIVE)      // ... deg: your head tipped down at least this much (tucked, as the author charges)
+QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.5", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
 QVR_CVAR(vr_kdtrig_tackle_knock, "96", CVAR_ARCHIVE)      // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
 QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
 QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again
@@ -3027,8 +3031,9 @@ QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carrie
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)
 QVR_CVAR(vr_knockdown_ledge_margin, "24", CVAR_ARCHIVE)  // units past that travel (times vr_knockdown_ledge_reach) where a ledge still counts
-QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down (0: it falls loose)
-QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)              // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
+QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down or staggering, held as in its rest pose by the hand that holds it there (0: it falls loose; 2: as before 2026-10-21, welded where its frame had it to the part nearest it: the enforcer's rifle hung at his side)
+QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
+QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
 
 QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume); each class has its own by default (vr_ragdoll_<class>_mass), this is for a class set to -1
 QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
@@ -3044,6 +3049,7 @@ QVR_CVAR(vr_ragdoll_drag_slime, "3", CVAR_ARCHIVE)     // ... slime's
 QVR_CVAR(vr_ragdoll_drag_lava, "5", CVAR_ARCHIVE)      // ... lava's
 QVR_CVAR(vr_liquid_fall_cushion, "48", CVAR_ARCHIVE)   // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
+QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)        // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_limits_legs, "1", CVAR_ARCHIVE)   // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)
@@ -3273,7 +3279,7 @@ QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)        // dragged by an arm: it
 QVR_CVAR(vr_struggle_arm_reach, "150", CVAR_ARCHIVE)    // degrees: its shoulders' cone while it struggles, for its hands over its head (the rig's 85 about the hanging arm reach no higher than the shoulder; 0: the rig's)
 QVR_CVAR(vr_struggle_voice, "1", CVAR_ARCHIVE)          // its own pain, grunt, sight and idle sounds while it struggles: their volume (0..2; 0 silent), quieter as it weakens
 QVR_CVAR(vr_struggle_voice_gap, "1.8", CVAR_ARCHIVE)    // s: about this between its cries at full effort (longer as it tires)
-QVR_CVAR(vr_struggle_classes, "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120", CVAR_ARCHIVE) // the classes that struggle: classname[:strength[:speed[:health]]] (health: its full health, for its effort; never ogres, zombies, fiends)
+QVR_CVAR(vr_struggle_classes, "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250:1.5 monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120", CVAR_ARCHIVE) // the classes that struggle: classname[:strength[:speed[:health[:arms]]]] (health: its full health, for its effort; arms: its arms' springs that many times stiffer, 1..2.5; never ogres or fiends; zombies since configVersion 175)
 QVR_CVAR(vr_struggle_debug, "0", CVAR_NONE)             // 1: a panel over each struggling enemy (its behaviours' weights, effort, fatigue, what holds it, the grip's lag); 2: also a `struggle:` line 4 times a second (Debug > Tests > Holding Enemies)
 QVR_CVAR(vr_struggle_force, "0", CVAR_NONE)             // tests: every living knockdown of a struggling class struggles as if held by the chest where it lies (the cost with many: vr_struggle_status)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
@@ -3433,7 +3439,8 @@ QVR_CVAR(vr_shove_speed, "3.5", CVAR_ARCHIVE)          // m/s open palms (facing
 QVR_CVAR(vr_bash_damage, "5", CVAR_ARCHIVE)            // a bash's damage (small: it knocks back and staggers)
 QVR_CVAR(vr_bash_push, "0.9", CVAR_ARCHIVE)            // how far a shove or a bash throws what it hits (its push: 520 u/s and a 140 hop, times Knockback; then the hands below)
 QVR_CVAR(vr_shove_push_onehand, "0.7", CVAR_ARCHIVE)   // ... times this for one hand (a shove or a bash)
-QVR_CVAR(vr_shove_push_twohand, "1", CVAR_ARCHIVE)     // ... and this for two
+QVR_CVAR(vr_shove_push_twohand, "1.12", CVAR_ARCHIVE)  // ... and this for two (1.12: x1.25 the distance, which goes by its square; over 1 its stagger's travel limit too)
+QVR_CVAR(vr_shove_run_carry, "1", CVAR_ARCHIVE)        // a shove or a bash while you run (40 u/s or more along it): this share of your speed along it carried into it on top of its push (times its group's Shove Push over its weight, at most all of it; not by Knockback): farther and faster, its stagger's travel limit as far as its slide; 0: standing's push alone
 QVR_CVAR(vr_bash_sound, "0.7", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: silent; the old sounds 0 played retired 2026-10-16)
 QVR_CVAR(vr_parry_cooldown, "0.4", CVAR_ARCHIVE)        // s: a monster's blow parried within this long of its last parried blow is still parried (its damage cut, both pushed apart) but plays no sound or sparks, opens no new counter window and costs no stamina (one parry for a burst of quick hits: the ogre's chainsaw, a knight's swing; 0: every blow a full parry)
 QVR_CVAR(vr_parry_cooldown_attack, "1", CVAR_ARCHIVE)  // 1: also a blow of the same melee attack as the monster's last parried blow (begun up to 2 s ago) is a cooldown blow, however long between them (the demon's two claws, the Overlord's double smash: one parry, one stamina cost); 0: only vr_parry_cooldown's time
@@ -3447,7 +3454,7 @@ QVR_CVAR(vr_parry_tool_hand, "0.4", CVAR_ARCHIVE)      // a parry's strength: ba
 QVR_CVAR(vr_parry_tool_weapon, "1", CVAR_ARCHIVE)      // ... any weapon (a light one: Heft 0)
 QVR_CVAR(vr_parry_tool_heavy, "1.3", CVAR_ARCHIVE)     // ... the heaviest weapon (Heft 1; between: by its Heft)
 QVR_CVAR(vr_parry_grip_2h, "1.5", CVAR_ARCHIVE)        // ... times this held in two hands (the arms crossed too); one hand 1
-QVR_CVAR(vr_parry_timed, "1.25", CVAR_ARCHIVE)         // ... times this well timed: the guard raised at most vr_parry_timed_window s before the blow
+QVR_CVAR(vr_parry_timed, "1.3", CVAR_ARCHIVE)          // ... times this well timed: the guard raised at most vr_parry_timed_window s before the blow
 QVR_CVAR(vr_parry_timed_window, "0.3", CVAR_ARCHIVE)   // s: the best part of the parry's window, from raising the guard (the parry pose, facing ahead) on
 QVR_CVAR(vr_parry_block_below, "0.5", CVAR_ARCHIVE)    // strength over poise under this: blocked only (no stagger, the attack goes on)
 QVR_CVAR(vr_parry_flinch, "0.3", CVAR_ARCHIVE)         // s: a flinch (strength over poise from vr_parry_block_below to 1): its pain pose, no ragdoll
@@ -3687,7 +3694,7 @@ QVR_CVAR(vr_foegrab_leggrab_thigh, "0", CVAR_ARCHIVE)      // a hand on a thigh 
 QVR_CVAR(vr_foegrab_leggrab_heavy, "100", CVAR_ARCHIVE)    // kg: a humanoid heavier than this needs a faster pull and lift, times the cube root of its mass over this (a grunt 80, an enforcer 100, a death knight 150); 0: all alike
 QVR_CVAR(vr_foegrab_legpull_speed, "1.2", CVAR_ARCHIVE)    // m/s: the hands' mean speed towards you (level) that pulls its legs out
 QVR_CVAR(vr_foegrab_legpull_distance, "8", CVAR_ARCHIVE)   // cm: and how far they have come towards you in that pull
-QVR_CVAR(vr_foegrab_legpull_onehand, "1.3", CVAR_ARCHIVE)  // one hand alone on its leg (the other free, on a ledge, holding something else) pulls it out too, at Pull Speed times this (0: both hands only)
+QVR_CVAR(vr_foegrab_legpull_onehand, "1", CVAR_ARCHIVE)    // one hand alone on its leg (the other free, on a ledge, holding something else) pulls it out too, at Pull Speed times this (0: both hands only)
 QVR_CVAR(vr_foegrab_legpull_topple, "200", CVAR_ARCHIVE)   // deg/s: pulled out, its body turns over about its feet away from you this fast (its top's speed)
 QVR_CVAR(vr_foegrab_legpull_feet, "60", CVAR_ARCHIVE)      // units/s: its feet slide towards you this fast as it topples
 QVR_CVAR(vr_foegrab_legpull_hold_strength, "0.1", CVAR_ARCHIVE) // pulled down, the most each hand still holding its legs pulls them with, a share of its weight (softer than a throw's hold, vr_foegrab_throw_hold_strength: held hard, its shins pinned, it pivoted on them and fell the wrong way; Hold On After a Throw off: let go)

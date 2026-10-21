@@ -1,8 +1,10 @@
 // vr_bullettime.cpp -- see vr_bullettime.hpp.
 
 #include "vr_bullettime.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_touch.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
@@ -49,6 +51,7 @@ struct State
     double fastAt = -1e9;
     int fastHand = 0;
     float fastSpeed = 0.f;
+    bool bothHeld = false; // both hands on an enemy or a body (vr_bullettime_tap_both_held: taps off)
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
     glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
     bool viewValid = false;
@@ -414,6 +417,30 @@ constexpr float calmTime = 0.3f; // s
         {
             state.blowField = blow;
             state.blowAt = blow > 0.f ? now : -1e9; // (0: none yet, or a new map's)
+        }
+        // (Both hands on an enemy or a ragdoll: fighting, pushing, shoving it, the gadget knocked in the scuffle.)
+        // (The client's frame: the server's VM pushed for its ragdoll holds.)
+        bool held[2] = {foegrab::holding(0), foegrab::holding(1)};
+        if(vr_bullettime_tap_both_held.value != 0.f && (!held[0] || !held[1]) && sv.qcvm.edicts)
+        {
+            qcvm_t* oldVm = nullptr;
+            PR_PushQCVM(&sv.qcvm, &oldVm);
+            for(int h = 0; h < 2; h++)
+            {
+                held[h] = held[h] || box3d::ragdollHeld(player, h) > 0;
+            }
+            PR_PopQCVM(oldVm);
+        }
+        const bool both = vr_bullettime_tap_both_held.value != 0.f && held[0] && held[1];
+        if(both != state.bothHeld && vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: screen taps %s\n", both ? "off: both hands hold an enemy or a body" : "on again");
+        }
+        state.bothHeld = both;
+        if(both)
+        {
+            q_snprintf(why, static_cast<size_t>(whyLen), "both hands hold an enemy or a body");
+            return false;
         }
     }
     const float limit = vr_bullettime_tap_calm_speed.value;

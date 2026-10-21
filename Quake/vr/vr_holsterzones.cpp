@@ -46,6 +46,12 @@ struct HandPick
     glm::vec3 sample[MAX_SAMPLES]{};
     float ratio[ZoneCount]{};
     int frame{-100};
+    // The palm (vr_holster_zone_hand_point) as last drawn with its gun at rest (its weapon frame 0), in the hand's frame
+    // from its point, and that gun's model: a firing animation's kick (the super shotgun's, 13 units back toward the
+    // body) left it in the hip holster's zone, and a hip holster reloads (the shot refilled at once: grip_state
+    // "flick_anywhere", 2026-10-21).
+    glm::vec3 restPalm{0.f};
+    int restModel{0};
 };
 
 // A hand dragging a zone (vr_holster_zone_<kind>_drag): where it took hold, in the body's frame from the zone's pivot
@@ -237,6 +243,33 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] != 0; // (QC's WID_FIST)
 }
 
+// The palm of the hand holding a gun for the zones: as drawn while the gun is at rest, else (a firing animation) where it
+// was then in the hand's frame (HandPick::restPalm). False with no palm drawn, or none seen at rest with this gun.
+[[nodiscard]] bool restingPalm(const hands::State& s, int hand, HandPick& h, glm::vec3& out)
+{
+    glm::vec3 palm;
+    if(!view::heldHandPoint(hand, palm))
+    {
+        return false;
+    }
+    const int model = cl.stats[hand == HAND_MAIN ? int{STAT_WEAPON} : int{protocol::STAT_QVR_WEAPONMODEL2}];
+    const int frame = cl.stats[hand == HAND_MAIN ? int{STAT_WEAPONFRAME} : int{protocol::STAT_QVR_WEAPONFRAME2}];
+    const glm::mat3 basis = hands::basisOf(s.rot[hand]);
+    if(frame == 0)
+    {
+        h.restPalm = glm::transpose(basis) * (palm - s.pos[hand]);
+        h.restModel = model;
+        out = palm;
+        return true;
+    }
+    if(h.restModel != model)
+    {
+        return false;
+    }
+    out = s.pos[hand] + basis * h.restPalm;
+    return true;
+}
+
 // The pivots of every zone present this frame (false: absent).
 [[nodiscard]] bool pivotOf(int zone, const body::HolsterPositions& holsters, const glm::vec3* grenadePouch,
     const glm::vec3* ammoPouch, glm::vec3& out)
@@ -408,9 +441,9 @@ int pick(const hands::State& s, int hand, const body::HolsterPositions& holsters
         h.sample[h.samples++] = glm::mix(handle, tip, 0.5f);
         // And the hand holding it, as drawn (its palm): a hand in a holster while its gun's points were not let the gun
         // fall (2026-10-17). Tested for the holsters only, as the gun's points (the pouches still take the hand alone,
-        // and no gun).
+        // and no gun). Where it rests on the gun, not where a firing animation kicks it (restingPalm).
         glm::vec3 palm;
-        if(vr_holster_zone_hand_point.value != 0.f && view::heldHandPoint(hand, palm))
+        if(vr_holster_zone_hand_point.value != 0.f && restingPalm(s, hand, h, palm))
         {
             h.sample[h.samples++] = palm;
         }

@@ -28,7 +28,10 @@ def path(points, duration):
     for i in range(n + 1):
         s = tp.minjerk(i / n); keys.append([i / n * duration] + [a[k] + (b[k] - a[k]) * s for k in range(4)])
     return keys
-CHEST = (0.0, 1.25, -0.30, 0.0)
+# The hands' start ahead of the chest (m): the barrel (22 units, ~70 cm across) is kept out of the torso since 4c98c13ba
+# (2026-10-12, solid props carried clear of the body), so at 0.30 it sat ahead of the hands, the off hand 4-12 cm short of
+# its surface ("the other hand is not within reach"); at 0.45 both hands are at its sides.
+CHEST = (0.0, 1.25, -float(os.environ.get("CHEST_AHEAD", "0.45")), 0.0)
 OVER = (0.0, 2.00, -0.15, 30.0)
 def line(elev, peak, duration):
     length = peak * duration / 1.875; e = math.radians(elev)

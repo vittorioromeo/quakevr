@@ -15541,3 +15541,186 @@ Recovery rates the same within the rolls (old/new, one-hand: grunt 16/13, enforc
   z -11 on the enforcer) and the rig cache rebuilt: every ragdoll of theirs changes, so not done here.
 - The enforcer's arms barely move in any stagger (1.8 u rms, old and new): something holds them (its rifle?); not
   looked into (the release worker is changing its gun attachment).
+## Running shoves, two-hand shoves x1.25, the held weapon in the hand (worktree `release`, branch `agent/shovevel`, 2026-10-21)
+
+The author's notes: a shove while running at full speed should carry his speed into it; two-hand shoves 1.25 times as
+far; the enforcer's rifle hung at his side through every active-ragdoll state instead of following his hand.
+
+- **Running shoves** (QC `VR_Bash_Hit`; `vr_shove_run_carry`, new, 1; "Running Shove Carry" under "Two-Hand Push"): your
+  velocity along the shove (40 u/s and more; less is standing, unchanged) is added to the push's speed after Knockback
+  (`vr_push`) and the monster's weight, times its group's Shove Push over its weight (`VR_Push_Mass`), at most all of it.
+  Its slide (`VR_Shove_Reach`, the stagger's travel) grows with it. The stagger's travel limit (4 m, `ragdollStagger`)
+  is now times `far` (`ragdollstagger`'s new optional 8th argument, at most 2.5): the hands' push over 1 squared (two
+  hands 1.12: 1.25) times the run's speed-up (linear, so 160 u/s still falls short of 320's).
+- **Two hands x1.25**: `vr_shove_push_twohand` 1 -> **1.12** (distance goes by the push's square: the hop and the slide
+  are both by the speed, 1.12^2 = 1.25); `vr_cfg_version` 176 moves a config still at 1 (174 the shoulder charge's, 175 struggle3's). A two-hand stagger was at the
+  4 m limit already (its uncapped travel 7.4 m), so the limit grows with the hands' push too (above).
+- **Measured** (vrtesthall's grunt, `vr_knockdown_test 22`/`21`, `vr_test_shove_run` for the run, `vr_knockdown_debug 1`
+  "carried N units"): two hands 342 u/s, 126 units (the limit) -> 383 u/s, **158** (1.25x); running at 160 u/s: 539 u/s,
+  226; at 320: 697 u/s, 295; one hand 239 u/s, 107 (unchanged) -> 555 u/s, 300 running at 320. On vrfiringrange
+  (`vr_knockdown_surprise 0`, chance 0.01) a standing two-hand stagger recovers after 156 units; a running one at 320
+  gives way at 0.23 s (1 step) and lies 182 units off at 1 s (standing, one that gives way: 101).
+- **The weapon in the hand** (`vr_box3d_ragdoll.cpp` `createRagdoll`, `looseHolder`, `weldLoose`; `vr_knockdown_weld`
+  1): a living ragdoll's loose piece (the grunt's shotgun, the enforcer's rifle, the knight's and death knight's sword,
+  the ogre's chainsaw; any rig's, AD's too) is made where the hand that holds it in the rest pose holds it (the part with
+  a vertex nearest it there: the enforcer's and the grunt's left forearm, the others' right hand), not where the frame
+  had it, welded to that hand, and weighs no more than it. Before: welded where the frame had it to the nearest part
+  (a pain frame: the rifle down at his side, welded to his right forearm). `vr_knockdown_weld 2` (Combat, "Weapon Stays
+  in Hand": Where It Was (Old)) keeps the old way for an A/B.
+- **Measured** (`vr_debug_ragdoll_gun 1`, new; Debug > Ragdolls' Weapons in Hand: every 0.25 s the drawn weapon's
+  middle from its holding part's, beside the rest pose's): the enforcer knocked down, old 14-56 units from his left
+  forearm (rest 7.2), now 6.1-7.9; struggling (`vr_struggle_force`) old 20-37, now 7.1-8.6; staggering 6.2-7.3. Grunt
+  4.7-8.3 (rest 4.7), death knight 5.5-9.0 (5.5). Knight and ogre: on landing the weld gives a moment (18 and 24 units at
+  about 1 s, then back to 3.5-4.4 and 14-16).
+- Debug > Tests > Enemy Shoves: "Shove the Nearest, Running, Two Hands" (`vr_test_shove_run 320`).
+
+## Toolgun suite regressions from the 1.1 sweep (worktree `gorefx`, branch `agent/regfix2`, 2026-10-21)
+
+- **toolgun_fire (8 fails): a stale harness.** 71ea9ad33 put the Death Knight's Sword into the Weapons tab, so every entry
+  after it moved down one place, and the test's fixed indexes picked the wrong entries: 46 gave the Biosuit (the "wall
+  torch"), 47 the Wall Torch, which hung on the floor 10 units off a point that is not a wall (the "large flame"), and
+  so on. The "grip doesn't take it" fail was the grip test taking the map's own torch, because no torch had been made
+  there. `vr_toolgun_select` now also takes a label (`vr_toolgun_select Wall Torch`, any case), and the test selects by
+  label. Now PASS.
+- **walltorch_grab (0 of 120): a stale harness, then one real bug.** Since 47ff1eb5c a grip takes the torch off its wall
+  at once and logs `walltorch: taken immediately`, but the test still waited for `gripped on its wall`. It also counted
+  on the torch staying on its wall from one reach to the next. Now each reach loads the map fresh, and the reaching hand
+  goes back to rest before that. Without that, setpos swept the hand from where the last reach left it through the
+  torch, and the blow knocked the torch off. The real bug, also from 47ff1eb5c: melee blows now knock a torch off, and
+  the blow arrived before the fist that was already closed on the way to the torch could take it. A fist that
+  `VR_WallTorch_CanGrip` accepts (grip fresh, slower than a punch, hand empty) now takes the torch when it strikes it.
+  Any other blow still knocks the torch off, and his torch_hits review kind 23 still knocks it off. Result: 116 of 120.
+  The 4 misses are the open hand (grip pressed halfway, on arrival or after) reaching at 1.6 m/s and knocking the torch
+  off first, which is a slap by his design. The harness labels them as slaps.
+- **toolgun_spawnall: AD Shards Backpack drawn on the server but never on the client.** This was not caused by the
+  range: it failed in 4 of 5 full sweeps and passed whenever only part of the list was run. When the toolgun's remover
+  (or the scene cleanup) removed the AD Fishing Ogre (entry 93), it left behind the ogre's `ad_attachment`: an
+  invisible, solid 48x48x64 MOVETYPE_STEP box that fills its space. The backpack placed at the same ring slot later
+  dropped inside that box, was pushed into the floor, touched no PVS leaf and so was never sent. `VR_Scene_Remove` now
+  removes an AD monster's attachments 1-3 along with it (`VR_AD_RemoveAttachments`, as AD's own removal does). In play,
+  that box was an invisible wall where a fishing ogre had been removed. Now 2 of 2 full sweeps PASS.
+
+## Shoulder charge tuning on the author's takes (worktree `fastship`, branch `agent/chargetune`, 2026-10-21)
+
+His 18 takes of 2026-10-21 (10 Shoulder Charge: left, right, hands clasped, a gun two-handed, the axe; 8 Not Expected:
+runs with the hands out, forward, under the chin, hanging low behind, an axe carried, a slow punch). The old detector
+caught 3/10, false 0/8: his tucked hands are only 7-12 units below the head (12 asked), his head-down runs top out at
+271-301 u/s (0.85 asked 272), "a gun aimed with both hands" rejected his two-handed gun charge, and "side-on" (the
+hands' middle 2+ units to the side) failed with the hands right under the head. What sets his charges apart (the 0.35 s
+before contact): the **head tipped down** 10-19 deg (his plain runs 0-6) and both hands at or behind the head's line
+(the farther-ahead one at most 0.6 units ahead; his runs 4.8-16). A run with the hands hanging low behind
+(`no_shoulder_charge_..._00-31-22`) has all a charge has but the head (0.6 deg): the head's tip is the one sign there.
+
+Now: `vr_kdtrig_tackle_head` 7.5 deg (new), `_low` 12 -> 5, `_speed` 0.85 -> 0.75 (reached within the last 0.25 s: a
+replay's or a step's dip at contact no longer loses it), the ahead share of `_reach` 0.6 -> 0.3 (6 units), "side-on"
+also when the hands' middle is within 2 units of the head's line, the two-handed gun check gone (an aimed gun is high
+and ahead), `_face` 60 deg (the sidestep cone, was fixed), and **`vr_kdtrig_tackle_leniency`** (Charge Leniency, 0.5):
+strictness k = 1.5 - L multiplies the least thresholds (turn, low, head, hold) and divides the most ones (reach, face,
+the speed's shortfall from sv_maxspeed). Config version 174 moves configs at the old speed and low. Shoulder Charges
+stay off by default. New take column `charge_hd` (head tip, the farther-ahead hand, k).
+
+Result: 10/10 caught, 0/8 false at L 0.25, 0.5, 0.75 and 1 (L 0: 6/10, its head and drop thresholds 1.5 times).
+`eval.sh --full` melee verdicts unchanged (3 rows differ by 0.1 in an offset only). In VR: charge with the head down
+and see it fire; run head-up into monsters and see it not; a charge with the head up needs Head Down lower or the
+leniency up.
+## 1.1 sweep: AD and melee test failures (worktree `dequant`, branch `agent/regfix5`, 2026-10-21)
+
+Each failing test from the 1.1 suite sweep, real or stale, and what was done:
+
+- **ad_hits** (25/57/12 for 24/56/9): stale. Sneak attack (`vr_stealth_sneak` 1.25) on the frozen, unaware test grunt:
+  the volley's first pellet (it has no enemy yet) is x1.25, AD's T_Damage ceils it (4 -> 5, 9 -> 12). The test sets
+  `vr_stealth_sneak 1`. PASS.
+- **ad_pop_odds** (mode 51 health -2): stale, the same: the corpse is made by `T_Damage(g, g, p, 2)` on a 1-health grunt,
+  x1.25 ceiled to 3. `vr_stealth_sneak 1` in its setup. PASS (volleys 0.735 / 0.694 / 0.749 as before).
+- **adbugs stealth, map_trigger_wakes**: stale harness. AD's `monster_use` wakes only for AD's player
+  (`ad_classtype` CT_PLAYER, set on AD's maps); the test runs on e1m1 with the debug spawner's AD soldier. Scene 7
+  (`vr_stealth_test.qc`) now pulls the trigger as AD's player (the field set round the call). 15/15 scenes.
+- **melee_space**: real. AD's monsters spawn in the test install now and two came into the face: the zombie knight's
+  melee start lunges 20 units (`zombiek_melee`'s `walkmove`), unchecked (gap 0.5), and the hunter ogre's chainsaw swing
+  goes on with `ai_forward` steps after its charge steps (8.9-13.8). Importer patches (`ad_import.py`, AD_IMPORT.txt):
+  `zombiek_melee`'s lunge and `Demon_Claw`'s 12-unit step are melee-space steps (as `ai_charge_front`'s);
+  `ai_forward` within 0.25 s of a melee stamp keeps the stamp and is one too (other forward steps unchanged). After: the
+  zombie knight 16.0/16.1, the hunter ogre 16.0. `melee_space_test.sh` takes `MONSTERS=` to run a few.
+- **melee_phase grunt_gun_hold1** (0.18-1.95 units drawn while phasing): stale check. The shotgun is already pressed into
+  the grunt when the hold-1 swing starts (left there by hold0); the phase's first frames ease that press away (0.18 ->
+  0.07 -> 0.03..., touching nothing: 0 planes). The check now skips phasing frames with no contact whose drawn offset
+  shrinks. 7/7. `grunt_fast_on` gave 0 hits in 1 of 3 runs (a flake, not followed).
+- **parry callback**: stale. The knight staggers as an active ragdoll (`vr_parry_ragdoll`), so the knockdown's think
+  owns it, not `VR_Parry_Recover`: "recovery think" counts either. `callback_0` retired (vr_parry_interrupt is gone; the
+  setup never read it). **dragon**: the observer's "next think" (`nextthink > time`) read 0 when the dragon's think fell
+  in the observer's frame (1 of 3 runs here); now "a think is scheduled" (and its delay printed: 0.100 s). 3/3 PASS.
+- **prop_2h** ("the other hand is not within reach"): stale harness. Bisected to 4c98c13ba (2026-10-12, solid carried
+  props kept out of the torso): the 70 cm barrel held 30 cm ahead of the chest is pushed forward and the off hand, 50 cm
+  from the main one, misses its surface by 4-12 cm. The hands start 45 cm ahead now (`CHEST_AHEAD`): both hands, thrown
+  into the ogre for 55. The small crate (107) never takes the second hand at this hand spacing either way (narrower).
+- **rl_voice_20261012** (18 reinsertion checks): stale count. `vr_reload_test 28` has 21 checks since the Reinsertion
+  Delay's 3; 21 passed, 0 failed.
+- **"check DP_QC_MINMAXBOUND before calling (: OnLoadGame)"**: harmless. Ironwail's developer warning for a builtin
+  called before `checkextension` of its extension (`PR_CheckBuiltinExtension`); our progs never call `checkextension`,
+  so the first caller of each extension builtin after each map spawn is named (a new map too: FRIK_FILE in
+  VR_PrecacheOwnModel, DP_QC_MINMAXBOUND in VR_Crate_FullHealth, ...). After a load OnLoadGame is the first `min`.
+  The engine has and advertises them all; only shown with `developer`.
+
+## Struggle 3: every humanoid flails; no sight cries; no force grab climbing; no bullet time in a scuffle; his defaults (worktree `tghost`, branch `agent/struggle3`, 2026-10-21)
+
+His VR notes: lifted by the chest and held by the head, the grunt and the knight struggle well, the enforcer, zombie and
+death knight too statically; the lifted grunt's cries include its sight sound; force grabs while climbing; bullet time
+started by accident while both hands fought a ragdoll; his parry, mantle and leg pull values as defaults.
+
+- **Why the others stood still** (measured: `vr_struggle_status`'s new `flail` (its free hands' speed in its chest's
+  frame) and `miss` (their distance from their goals); struggle_test.py on each class, the later two thirds):
+  - The enforcer, lifted at the chest, was held by his **forearm** (his forearms are before his chest, the rifle in both
+    hands): that arm hung slack, the other pried: flail 8.8 u/s (grunt 226). A lift now takes the torso when its
+    surface is within 10 units more than the arm's (`ragdollHoldSoft`'s `torso`): 113 u/s.
+  - The rigs' **arm masses**: grunt upper arms 3.3-4.1 kg with 0.9 kg forearms, knight 3.6 with 0.6 kg hands; enforcer
+    0.9 and 2.3 kg upper arms with 5.2 and 5.0 kg forearms (his gun hands) on a 57.5 kg chest; zombie 1.9-2.1 kg upper
+    arms, 0.5-0.7 kg forearms; death knight 12-15 kg upper arms. A Box3D joint's spring acts on its two bodies' own
+    inertia (the motor, at zero speed, only brakes), so the enforcer's hands missed their goals by 50-60 units (grunt
+    15-36) whatever the torque (`vr_ragdoll_active_torque_arms` 4: no better; `_hertz_arms` 2: better).
+  - The **zombie** did not struggle at all (not in `vr_struggle_classes`: only the lifted flail).
+- **Fixed:** `vr_struggle_classes` has a 5th field, arms (1..2.5): its arms' springs and their 20 Hz cap that many
+  times stiffer while it struggles. Shipped: enforcer 2.5, death knight 1.5, zombie (new: `monster_zombie:1:0.9:60:1.5`,
+  its voices z_pain, z_pain1, z_idle, z_idle1). Grunt, knight and AD's classes unchanged (1).
+
+| class | lift: flail u/s, arm to the holding hand | head lift: flail, arm to the holding hand (min) | head drag: flail, arm to the hand |
+|---|---|---|---|
+| grunt | 226, 14.9 (unchanged) | 40, 5.4 (3.4) | 81, 17.1 |
+| knight | 118 (unchanged) | 13 (unchanged) | 69 |
+| enforcer | 8.8 -> 238, 26.7 -> 15.1 | 58 -> 280, 17.6 -> 11.8 (12.3 -> 6.3) | 142 -> 206, 18.1 -> 10.6 |
+| death knight | 106 (chest held; 199 by the pelvis) -> 210, 24.5 -> 22.4 | 150 -> 232, 4.0 -> 4.3 | 115 -> 179, 14.0 -> 12.9 |
+| zombie | none -> 333, 15.5 | none -> 270, 11.9 (2.6) | none -> 285, 14.4 |
+
+  (Misses after: enforcer 28-30, death knight 19-37, zombie 32-37, grunt 15-37. One seed each: the numbers move a
+  good deal between seeds. The knight's arm-to-hand is not measured: no forearm.) The lift test's hands are raised 0.1
+  m for the enforcer and 0.2 m for the death knight (their chests are higher: at a grunt's height they held the pelvis).
+- **Voices:** no sight sounds (the table's sight samples gone, `ad_sight_sound` not read, any sample named sight
+  skipped). Checked: every struggle run's voices are pain/grunt samples (soldier pain1/pain2, enforcer pain1/pain2,
+  hknight pain1/grunt, knight khurt, zombie z_pain/z_pain1).
+- **Climbing:** the climb sets both QVR_VRBITS0_*HAND_CLIMBING bits while it mantles (before, none: the grips end as
+  the mantle begins); VR_Forcegrab_HandFrame takes nothing while either is set (`developer 2`: "forcegrab: off while
+  climbing"). Test (scratch/s3_climb.sh, vrclimb's jump wall, the main trigger held): 86 frames blocked hanging, 22
+  mantling, then free. Melee, reloads and grenades also see the hands as climbing during a mantle (as when hanging).
+- **Bullet time:** `vr_bullettime_tap_both_held` 1 (Advanced VR Options > Bullet Time "Not While Both Hands Hold"):
+  screen taps don't count while both hands hold an enemy (foegrab) or a ragdoll (`box3d::ragdollHeld`, the server's VM
+  pushed: it crashed in the client's frame without). `vr_debug_bullettime 1` prints the change. Test (scratch/s3_bt.sh):
+  lifted with both hands, "screen taps off", released, "on again". The mock's tapping hand is drawn on the held limb,
+  so the tap itself is not reproduced headless.
+- **His defaults** (configVersion 175, the migration takes a config at the old value): `vr_parry_timed` 1.25 -> 1.3,
+  `vr_climb_mantle_height` 18 -> 20, `vr_foegrab_legpull_onehand` 1.3 -> 1; `vr_struggle_classes` (the zombie and the
+  arm fields) migrates from the old default string. His other parry values already were the defaults.
+- **For VR:** lift an enforcer, a death knight and a zombie by the chest and hold each by the head: their arms should
+  swat and slap at your hands like a grunt's; listen for a grunt's cries (no "sight" bark); climb and mantle with a
+  trigger held (nothing pulled); fight a body with both hands near the gadget (no slow motion).
+## The super shotgun's shot refilled by the hip holster (worktree `gorefx`, branch `agent/cuptrigger`, 2026-10-21)
+
+grip_state "flick_anywhere" (bisected to the holsters3 merge, 81167de50): with the off hand let go at the cup and left
+there, the main hand's shot left the clip at 2. The shot fired (QC's W_Attack ran, attack_finished moved on): the
+super shotgun's firing animation kicks the drawn hand back about 13 units toward the body, and
+`vr_holster_zone_hand_point`'s palm sample, taken from the drawn hand, landed in the right hip's zone for 6 frames. A
+hip holster is a reload holster (`isReloadHolsterHotspot`), so the shot was refilled at once. The off hand only
+mattered because of where the mock put the main hand (with it moved away the palm kicked as far, outside the zone).
+
+`vr_holsterzones.cpp` `restingPalm`: the palm sample is the drawn palm while the gun is at rest (its weapon frame 0),
+and during a firing animation the last resting palm held in the hand's frame (the same gun model only; none
+otherwise). The probe now shows clip 0 and no zone change; grip_state, holsterzones_test.sh (13 PASS) and
+prop_climb_test.sh PASS.

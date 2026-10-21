@@ -518,7 +518,7 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 // its surface), by a spring of at most `force` N at `hertz`, let go of past `stuck` units (vr_foegrab.cpp: an enemy
 // thrown or lifted, held on). `head`: its head's part instead, if not cut off and its middle within `reach` and 12 units
 // more (a neck snapped: the hands held its head).
-bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
+bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head, bool torso)
 {
     GrabStart gs;
     if(!grabStart(ent, player, hand, gs))
@@ -538,6 +538,30 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
         {
             part = headPart;
             distance = za::min(distance, d);
+        }
+    }
+    else if(torso && part > 0 && part != headPart && std::strcmp(r->rig->bones[part].name, "chest") != 0)
+    {
+        // (Lifted: its torso rather than an arm across it, if near enough: an arm held hangs slack.)
+        int best = -1;
+        float bestD = distance + 10.f;
+        for(int b = 0; b < r->count; b++)
+        {
+            if((b == 0 || !std::strcmp(r->rig->bones[b].name, "chest")) && !partCut(*r, b))
+            {
+                b3Vec3 closest;
+                const float d = b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(b)], &closest, world->toM(at)) * world->m2u;
+                if(d <= bestD)
+                {
+                    best = b;
+                    bestD = d;
+                }
+            }
+        }
+        if(best >= 0 && bestD <= reach)
+        {
+            part = best;
+            distance = bestD;
         }
     }
     if(part < 0 || distance > reach)
@@ -943,9 +967,10 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
     return grabRagdoll(corpse, player, hand);
 }
 
-bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head)
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head,
+    bool torso)
 {
-    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head);
+    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head, torso);
 }
 
 float ragdollWeight(edict_t* ent)

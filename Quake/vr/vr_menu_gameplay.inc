@@ -615,10 +615,14 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 {
     za::Vector<Item> items{
         toggle("Shoulder Charges", vr_kdtrig_tackle_on)
-            .help("Running at full speed into a monster side-on, a shoulder leading, both hands low and close to your "
-                  "body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers back, "
-                  "shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
-                  "(Being tuned on recorded takes: Motion Recorder > Shoulder Charge.)"),
+            .help("Running into a monster with a shoulder leading, your head tucked down, both hands low and close to "
+                  "your body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers "
+                  "back, shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
+                  "(Tuned on recorded takes: Motion Recorder > Shoulder Charge.)"),
+        slider("Charge Leniency", vr_kdtrig_tackle_leniency, 0.f, 1.f, 0.05f, "%.2f")
+            .help("All of the charge's thresholds below together: 0.5 uses them as set; higher is easier (1: the least "
+                  "ones halved, the most ones and the speed's shortfall from full doubled), lower stricter (0: 1.5 "
+                  "times)."),
         slider("Chance", vr_kdtrig_tackle, 0.f, 1.f, 0.05f, "%.2f").help("The chance a light one falls."),
         slider("Push", vr_kdtrig_tackle_push, 0.25f, 2.f, 0.05f, "%.2fx")
             .help("How hard it is pushed over and back (a two-hand shove: 1; the knock times this)."),
@@ -636,6 +640,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Both hands at least this far below your head."),
         slider("Hands Close", vr_kdtrig_tackle_reach, 8.f, 40.f, 1.f, "%.0f units")
             .help("Both hands within this of your head's line, neither reaching ahead (the leading arm tucked)."),
+        slider("Head Down", vr_kdtrig_tackle_head, 0.f, 30.f, 0.5f, "%.1f deg")
+            .help("Your head tipped down at least this much (tucked into the charge; a plain run looks ahead)."),
+        slider("Facing", vr_kdtrig_tackle_face, 20.f, 90.f, 5.f, "%.0f deg")
+            .help("Running within this of the way you look (a sidestep doesn't charge)."),
         slider("Hold", vr_kdtrig_tackle_hold, 0.f, 1.f, 0.05f, "%.2f s").help("The pose held running before it counts."),
         slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s").help("You bounce back off it."),
         slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you charge again."),
@@ -886,9 +894,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Ledge Push", vr_knockdown_shove_ledge_push, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
             .help("How hard a shove over a ledge throws it off, times the shove's own push (it is always kept going "
                   "until it is past the edge). Less: it drops closer to the ledge's foot."),
-        toggle("Weapon Stays in Hand", vr_knockdown_weld)
-            .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
-                  "loose as a dead one's."),
+        cycle("Weapon Stays in Hand", vr_knockdown_weld, {{0.f, "Off"}, {1.f, "In the Hand"}, {2.f, "Where It Was (Old)"}})
+            .help("Its weapon stays in its hand while it is down or staggering, lifted or struggling (killed there, it "
+                  "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Where It "
+                  "Was (Old): fixed to the part nearest it where its frame had it (the enforcer's rifle hung at his side). "
+                  "Off: it flops loose as a dead one's."),
         header("Getting Up"),
         slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
             .help("Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle."),
@@ -1453,7 +1463,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A one-handed shove's or bash's push, times Shove and Bash Push."),
         slider("Two-Hand Push", vr_shove_push_twohand, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("A two-handed shove's or bash's push (both palms, or a weapon held in two hands), times Shove and "
-                  "Bash Push."),
+                  "Bash Push. Its distance goes by the push's square (1.12: 1.25 times as far as 1)."),
+        slider("Running Shove Carry", vr_shove_run_carry, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("Shoving or bashing while you run: this share of your speed along the shove is added to its push (by "
+                  "the monster's Shove Push over its weight, at most all of it), so it flies farther and faster. "
+                  "Standing shoves are unchanged. 0: off."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: silent)."),
         header("Counter-Attacks"),

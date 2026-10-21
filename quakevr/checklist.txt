@@ -19,6 +19,9 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Shove physics: shove while running: the monster carries your running speed; a two-hand shove pushes 1.25x a one-hand one; a grabbed enforcer's rifle stays in its hands and follows your hand (existing config migrates)
+Super shotgun no self-reload: fire the SSG held low by the right hip (off hand at the cup or anywhere): the clip empties and does not refill; holstering at the hip still reloads
+Struggle flails: grabbed enforcer, zombie and death knight flail harder; struggle voices never play sight barks; no force grab while climbing; bullet-time taps ignored while both hands hold a ragdoll; your parry/mantle/leg-pull values are the new defaults (existing config migrates)
 AD spawn stutter gone: walk into the first fights on ad_swampy (and ad_tears, ad_sepulcher): monsters appear with no stutter; AD maps load faster
 No stall when new monster sizes appear: on AD maps (ad_tears, ad_sepulcher) spawn an ogre and an enforcer from the toolgun or reach a delayed spawn: no freeze (was up to 1.3 s+)
 Load Autosave shows only this game's autosaves (first row switches to all games); no hitch opening it; on the death menu the row sits under Restart

@@ -235,6 +235,9 @@
             .help("Taps don't count for 0.3 s after the gadget's hand moves faster than this, or the tapping hand "
                   "sweeps across the screen this fast (blows and shoves take 3 m/s or more; a tap's own motion into the "
                   "screen is never counted). Lower: calmer hands only. 0: off."),
+        toggle("Not While Both Hands Hold", "vr_bullettime_tap_both_held")
+            .help("Taps don't count while both your hands hold an enemy or a body (fighting, pushing, shoving one): "
+                  "the gadget knocked in the scuffle."),
         slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "
                   "move). Higher: harder taps only. Single Tap's (Double Tap Force: the double tap's)."),

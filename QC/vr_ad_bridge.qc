@@ -36,6 +36,27 @@ float(entity client, float density, vector colour) VR_AD_Fog =
     return TRUE;
 };
 
+// An AD monster removed outright (the toolgun's remover, the scene's cleanup: VR_Scene_Remove): the entities it made for
+// itself go too, as AD's own monster removal does (ad_monsters.qc). A fishing ogre's is an invisible solid box that
+// fills its space (ad_mon_ogrextra.qc): left behind, a thing placed there later is pushed into the floor and lost.
+void(entity e) VR_AD_RemoveAttachments =
+{
+    if(!(e.flags & FL_MONSTER))
+    {
+        return;
+    }
+    entity a = e.ad_attachment, b = e.ad_attachment2, c = e.ad_attachment3;
+    e.ad_attachment = e.ad_attachment2 = e.ad_attachment3 = world;
+    for(float i = 0; i < 3; i++)
+    {
+        entity x = i == 0 ? a : (i == 1 ? b : c);
+        if(x != world && x != e && !(x.flags & (FL_CLIENT | FL_MONSTER)))
+        {
+            remove(x);
+        }
+    }
+};
+
 // An AD breakable (func_breakable, its models: the vase...; not its walls, spawners or rubble) for the props' impact rule
 // (vr_carry.qc VR_Prop_Kind): its material's kind, by its style (0: AD's default, rock). 0: not one.
 float(entity e) AD_BreakKind =

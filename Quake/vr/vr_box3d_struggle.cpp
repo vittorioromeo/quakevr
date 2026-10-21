@@ -21,11 +21,14 @@ namespace box3d::detail
 namespace
 {
 
-// A class that struggles (vr_struggle_classes: classname[:strength[:speed[:health]]]).
+// A class that struggles (vr_struggle_classes: classname[:strength[:speed[:health[:arms]]]]). `arms`: its arms' springs
+// this many times stiffer while it struggles (1..2.5): an enforcer's forearms (his gun hands, 5 kg) hang on 1-2 kg upper
+// arms and a zombie's whole arm is 2.4 kg, and a Box3D joint's spring acts on its two bodies' own inertia: their hands
+// lagged their goals (STRUGGLE.md, "Classes").
 struct StruggleClass
 {
     char classname[40]{};
-    float strength{1.f}, speed{1.f}, health{0.f};
+    float strength{1.f}, speed{1.f}, health{0.f}, arms{1.f};
 };
 constexpr int mostClasses = 64;
 
@@ -80,8 +83,8 @@ void parseClasses()
             *field++ = 0;
         }
         q_strlcpy(c.classname, word, sizeof(c.classname));
-        float* values[3] = {&c.strength, &c.speed, &c.health};
-        for(int i = 0; i < 3 && field && *field; i++)
+        float* values[4] = {&c.strength, &c.speed, &c.health, &c.arms};
+        for(int i = 0; i < 4 && field && *field; i++)
         {
             char* next = std::strchr(field, ':');
             if(next)
@@ -93,6 +96,7 @@ void parseClasses()
         }
         c.strength = za::clamp(c.strength, 0.f, 3.f);
         c.speed = za::clamp(c.speed, 0.2f, 3.f);
+        c.arms = za::clamp(c.arms, 1.f, 2.5f);
         sc.count++;
     }
 }
@@ -160,19 +164,21 @@ void parseClasses()
 
 // Its voice while it struggles (vr_struggle_voice): its own class's samples. AD's monsters name theirs in their fields
 // (ad_pain_sound, ad_pain_sound2, ad_sight_sound, ad_idle_sound); id1's from this table (each precached by its spawn).
-// Only those precached are played.
+// Only those precached are played. Never its sight sound (its cry on noticing the player: wrong in a struggle, his
+// note).
 struct VoiceSet
 {
     const char* classname;
     const char* samples[6];
 };
 constexpr VoiceSet voiceSets[] = {
-    {"monster_army", {"soldier/pain1.wav", "soldier/pain2.wav", "soldier/sight1.wav", "soldier/idle.wav"}},
-    {"monster_enforcer", {"enforcer/pain1.wav", "enforcer/pain2.wav", "enforcer/sight1.wav", "enforcer/sight3.wav", "enforcer/idle1.wav"}},
-    {"monster_knight", {"knight/khurt.wav", "knight/ksight.wav", "knight/idle.wav"}},
-    {"monster_hell_knight", {"hknight/pain1.wav", "hknight/grunt.wav", "hknight/sight1.wav", "hknight/idle.wav"}},
+    {"monster_army", {"soldier/pain1.wav", "soldier/pain2.wav", "soldier/idle.wav"}},
+    {"monster_enforcer", {"enforcer/pain1.wav", "enforcer/pain2.wav", "enforcer/idle1.wav"}},
+    {"monster_knight", {"knight/khurt.wav", "knight/idle.wav"}},
+    {"monster_hell_knight", {"hknight/pain1.wav", "hknight/grunt.wav", "hknight/idle.wav"}},
+    {"monster_zombie", {"zombie/z_pain.wav", "zombie/z_pain1.wav", "zombie/z_idle.wav", "zombie/z_idle1.wav"}},
 };
-constexpr const char* voiceFields[] = {"ad_pain_sound", "ad_pain_sound2", "ad_sight_sound", "ad_idle_sound"};
+constexpr const char* voiceFields[] = {"ad_pain_sound", "ad_pain_sound2", "ad_idle_sound"};
 constexpr int mostVoices = 10;
 
 [[nodiscard]] bool precachedSound(const char* sample)
@@ -202,7 +208,7 @@ int voicesOf(edict_t* ent, za::Array<const char*, mostVoices>& out, int& idleFro
     int n = 0;
     idleFrom = 0;
     const auto add = [&](const char* s) {
-        if(!s || !*s || n >= mostVoices || !precachedSound(s))
+        if(!s || !*s || n >= mostVoices || std::strstr(s, "sight") || !precachedSound(s))
         {
             return;
         }
@@ -319,6 +325,7 @@ void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in)
     }
     in.strength = sc->strength;
     in.speed = sc->speed;
+    in.arms = sc->arms;
     in.health = sc->health > 0.f ? za::clamp(ent->v.health / sc->health, 0.f, 1.f) : 1.f;
     // (Not while something else leads its body: a shove's topple, a stagger, a get-up, a climb, a liquid; a throw's
     // fall until a moment after it lands.)
@@ -411,7 +418,7 @@ void struggleStatus_f()
     const VmScope vm;
     uint64_t h = 1469598103934665603ull;
     int struggling = 0;
-    for(const RagdollBodies& r : world->ragdolls)
+    for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0)
         {
@@ -432,15 +439,17 @@ void struggleStatus_f()
             continue;
         }
         struggling++;
-        const ragactive::Struggle& g = r.active.struggle;
+        ragactive::Struggle& g = r.active.struggle;
         Con_Printf("struggle status: %d %s %.2f s: swat %.2f pry %.2f crunch %.2f claw %.2f brace %.2f kick %.2f thrash %.2f; "
                    "effort %.2f fatigue %.2f; floor %.2f drag %.2f prone %.2f inverted %.2f; grip lag %.1f (most %.1f) "
                    "guard %.2f; gap %.1f bend %.0f straight %.2f; its hands %.1f from its head, %.1f over it; upright %.2f "
-                   "held up %.0f N chest up %.2f; voices %d\n",
+                   "held up %.0f N chest up %.2f; voices %d; flail %.1f u/s miss %.1f u\n",
             r.num, PR_GetString(EDICT_NUM(r.num)->v.classname), qcvm->time - g.from, g.weight[0], g.weight[1], g.weight[2],
             g.weight[3], g.weight[4], g.weight[5], g.weight[6], g.effort, g.fatigue, g.contact, g.drag, g.prone, g.inverted,
             g.gripError, g.gripErrorMost, g.guard, g.handGap, g.bend, g.straight, g.handsToHead, g.handsOverHead, g.upright,
-            g.uprightForce, g.chestUp, g.voices);
+            g.uprightForce, g.chestUp, g.voices, g.handTime > 0.f ? g.handPath / g.handTime : 0.f,
+            g.handTime > 0.f ? g.goalMiss / g.handTime : 0.f);
+        g.handPath = g.handTime = g.goalMiss = 0.f; // (the next read's window)
     }
     // Each hand's hold (struggling or not: the tests' grip lag and pose with the struggle off too): the held point's lag
     // from the hand, and its body's pose (its waist's bend, belly down, its head over its pelvis, its nearest arm's

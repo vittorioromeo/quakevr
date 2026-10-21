@@ -288,8 +288,9 @@ bool ragdollFlail(edict_t* ent, bool on);
 // A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
 // s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
 bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
+// `farther`: its travel's limit (4 m) times this (at least 1; a two-hand shove's hands, a running shove: QC VR_Bash_Hit).
 bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
-    bool sure = false);
+    bool sure = false, float farther = 1.f);
 int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
 // A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
 // `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
@@ -354,9 +355,11 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
 // when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
 // let go of as any (ragdollRelease). `head`: its head's part instead of the nearest, if not cut off and its middle within
-// `reach` and 12 units more (the neck snap's: the hands held its head).
+// `reach` and 12 units more (the neck snap's: the hands held its head). `torso` (a lift): its chest or pelvis instead of
+// an arm across it (an enforcer's forearms before his chest, his rifle in both hands), the torso's surface within 10
+// units more than the arm's (else that arm: lifted by it, it hung slack and could not flail).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
-    bool head = false);
+    bool head = false, bool torso = false);
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
