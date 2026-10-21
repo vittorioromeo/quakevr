@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Spent chainsaws: run an ogre chainsaw out of fuel (in hand, or dropped running until it stalls): no loot pillar, force grab ignores it, a hand still picks it up and it still cuts as a blade; a fuelled saw still glows
 Spent enemy guns: empty a grunt (or enforcer) rifle and let it drop: no loot pillar or particles, force grab ignores it, a hand still picks it up; a gun with ammo still glows (Gameplay > Enemy Weapons > Spent Guns Stand Out brings the old way back)
 Ledge shove: on vrclimb shove grunts off the trench lip from different distances: they barely tip over and fall (about 50-60 units past the edge, was 350+); if the lip feels like an invisible wall raise Combat > Knockdowns > Ledge Carry Past the Edge (0.1)
 No blood from shoves: shove or shoulder-charge an unhurt grunt down: no blood trail from its limbs; shoot one first, then shove: it still bleeds
