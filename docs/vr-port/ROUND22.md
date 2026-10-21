@@ -15834,3 +15834,32 @@ range's grunt was nearer); the ragtool's runs cover it. The defender's strips sh
 In VR: the mummies in DoE's r2m4; AD's zombies and mummies (die gibbed: beheaded ones and the alive staggers) in
 ad_ac, ad_dm1, ad_e2m7, ad_sepulcher, ad_zendar, ad_swampy, start; defenders, eliminators and pyros in ad_crucial,
 ad_tfuma, ad_metmon, ad_ac.
+
+## Gore sounds: recordings (worktree `gorefx`, branch `agent/goresnd2`, 2026-10-21)
+
+The gore's placeholder sounds are replaced by cuts from CC0 recordings: `Misc/quakevr/make_gore_sounds.py` (its `CUTS`
+table records every cut; sources, authors and IDs in its header, CREDITS.md "Gore sounds" and SOUNDS_OURS.md "Gore").
+Freesound HQ previews (17 used of the 30 listed; every page checked: CC0 1.0) and OpenGameArt's *8 wet squish, slurp
+impacts* (Independent.nu, CC0; FLAC, decoded with the engine's libFLAC through ctypes). The `ph_` prefix is gone
+(`vr/gore/spurt1.wav`...; `vr_goresound.cpp`'s `kinds`); squelch gets a third variant (OGA `impactsplat04`).
+
+- Picked by listening proxies: per source its 10th-percentile 20 ms floor, its events (onset, length, centroid,
+  flatness, tonality), and spectrogram strips of the candidates. Dropped for quality: 345985 (a continuous spray, hiss
+  floor -48 dB), 453769 (long sponge squirt, not one pulse), 195952 (0.4 s, too short for a grain), 654044 (a clearly
+  human voiced moan), 461217 (floor -33 dB), 565633 (crunching, not a snap), 685654 (not needed), 266890 (bright,
+  floor -41 dB), 223965/223966 (223967 is the lowest of the three), 573937 and 670304 (outdoor, low step-to-floor
+  ratio), 641046 (a long impact, not a squelch), the OGA files with a tonal slurp (02, 07). 518474 was cut only from
+  1.9-4.45 s (a low hum before, a bird-like chirp near 5.5 s). No candidate failed the license check.
+- Layered: the tears (a rip, a wet layer, a crack 0.18-0.2 s in), the chokes (a gargle and a weak cough at 0.35-0.4 of
+  its peak, then pitched down: 0.85 and 0.9 speed). The sprays (spurt1, spurt3) are low-passed at 2.5 kHz into a lower
+  gush, the steps at 3 kHz (their outdoor hiss).
+- Levels on make_physics_sounds.py's scale (loudest 50 ms): spurt -13, choke -14, tear -12 (the knee leaves -13.3..-13.9),
+  squelch -14, step -16 (step3 -17.3), slap -13 dBFS; the pour grains -18 dBFS RMS. Within 1-4 dB of the placeholders',
+  so the kinds' gains are unchanged; the steps are about 4 dB quieter than the placeholders.
+- `vr_gore_sound_debug 1` now also prints each file loaded and its length at a map load. Headless (`-Sound`): all 18
+  load (none "Couldn't load"), `vr_gore_sound_test` played every kind (stats: all played, none dropped).
+- `make_gore_placeholders.py` is kept as a fallback (not shipped; its default output is now `scratch/gore_placeholders`).
+
+**In VR:** listen for the chokes (monster enough? choke1 is a man's gargle at 0.85 speed, choke2 a lower gargle), the
+tears' crack (audible over the rip?), the steps (quiet, a little hissy?), and the pour stream's loop (seams every
+0.52 s?). `vr_gore_sound_test <kind> 4 0.6` plays each kind round you.

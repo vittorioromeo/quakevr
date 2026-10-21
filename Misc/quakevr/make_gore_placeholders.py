@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-# make_gore_placeholders.py -- PLACEHOLDER gore sounds (vr_goresound.cpp; docs/vr-port/ROUND22.md, "Gore sounds";
-# SOUNDS_OURS.md, Gore). Synthesised stand-ins, every file named ph_*: Vittorio replaces them with his own recordings
-# (same names, or new names in vr_goresound.cpp's table). No recordings used.
+# make_gore_placeholders.py -- synthetic stand-ins for the gore sounds, NOT SHIPPED: the game plays the recordings cut by
+# make_gore_sounds.py (vr_goresound.cpp; SOUNDS_OURS.md, Gore). Kept as a fallback to compare with or to fill a kind no
+# recording fits (point its vr_goresound.cpp kinds entry at the ph_ file). Every file named ph_*. No recordings used.
 #
-#   quakevr/sound/vr/gore/ph_spurt1..3.wav   a stump's spurt: one wet pulse of blood (a low gush, bubbly)
-#   quakevr/sound/vr/gore/ph_pour1..2.wav    a stream's splatter on the floor: 0.6 s grains played back to back
+#   ph_spurt1..3.wav   a stump's spurt: one wet pulse of blood (a low gush, bubbly)
+#   ph_pour1..2.wav    a stream's splatter on the floor: 0.6 s grains played back to back
 #                                            (faded in and out: their fades cross), a dense patter of drops
-#   quakevr/sound/vr/gore/ph_choke1..2.wav   a wet choke / gargle (a voiced buzz through bubbling, a cough at the end)
-#   quakevr/sound/vr/gore/ph_tear1..2.wav    a limb or head torn off: a wet rip, then a bone crack
-#   quakevr/sound/vr/gore/ph_squelch1..2.wav a hand closing on a gib or a bloody body
-#   quakevr/sound/vr/gore/ph_step1..3.wav    a wet footstep (a thud, a short splash)
-#   quakevr/sound/vr/gore/ph_slap1..3.wav    a gib slapping into a wall
+#   ph_choke1..2.wav   a wet choke / gargle (a voiced buzz through bubbling, a cough at the end)
+#   ph_tear1..2.wav    a limb or head torn off: a wet rip, then a bone crack
+#   ph_squelch1..2.wav a hand closing on a gib or a bloody body
+#   ph_step1..3.wav    a wet footstep (a thud, a short splash)
+#   ph_slap1..3.wav    a gib slapping into a wall
 #
 # 22050 Hz, mono, 16 bit; peaks at -1 dBFS. Deterministic (a fixed seed). Pure Python (no numpy).
 #
-# Usage: python Misc/quakevr/make_gore_placeholders.py [output folder, default quakevr/sound/vr/gore]
+# Usage: python Misc/quakevr/make_gore_placeholders.py [output folder, default scratch/gore_placeholders]
 
 import math
 import os
@@ -223,7 +223,7 @@ def write_wav(path, samples):
 
 
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join("quakevr", "sound", "vr", "gore")
+    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join("scratch", "gore_placeholders")
     os.makedirs(folder, exist_ok=True)
     rng = random.Random(2210)
     files = {}
