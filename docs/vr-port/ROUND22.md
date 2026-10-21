@@ -15906,3 +15906,54 @@ His notes (vrragtriggers_2026-10-21_15-30-02, 15-32-24; and a coordinator item).
 still glows. Shove grunts off the vrclimb trench at different distances: they should tip over and drop near the wall
 (Ledge Carry Past the Edge 0.1; raise it if it looks like they hit an invisible wall). Shove an unhurt grunt down: no
 blood trail; shoot one, then shove it: it bleeds as before.
+## Chokes off, gore sound volumes, bloody footprints and handprints (worktree `gorefx`, branch `agent/bloodprints`, 2026-10-21)
+
+Voice notes 15:15-15:25. New cvars only (no default of an existing one changed, no config migration).
+
+- **Chokes off** (`vr_gore_sound_choke 0` shipped; Gore > Gore Sounds: Chokes): `goresound::send` refuses a choke
+  before anything else, so the server never mutes the monster's voice: its pain and death cries play. On, as before.
+- **Per-kind volumes** `vr_gore_sound_vol_<spurt|pour|choke|tear|squelch|step|slap|splash>` (1; 0..2, times
+  `vr_gore_sound`): the Gore page's rows under Gore Sounds.
+- **Pool splash**: a new client-only kind `Splash` (after `Slap`: the QC's numbers unchanged), played by the wet steps'
+  step check on the first step into a still-wet pool (the steps after it wet as before). `splash1..3.wav` cut by
+  `make_gore_sounds.py` from 531571 (the puddle steps, already credited) with OGA `impactsplat08`/`05` under two of
+  them (07 skipped: its tonal slurp), low-passed at 4 kHz, -14 dBFS (splash1 -17: peak-limited). CREDITS.md and
+  SOUNDS_OURS.md updated; the 18 other files regenerate byte-identical.
+- **Bloody footprints** (`vr_bloodprints.cpp`; `vr_footprints 1`, `vr_footprint_count 8` (1..32), `vr_footprint_fade 1`,
+  `vr_footprint_size 1` (0.5..2)): a foot of the posed body (`avatar::skeleton`, which now also gives each foot's toe tip
+  and sole height) coming down after it was lifted (> 2.5 cm over the other, back under 0.8 cm: the walk's swing, a
+  step turning on the spot) is a step; without the body's legs, every 0.7 m walked, the feet in turn. At a step: the
+  floor under the ankle (one trace), then the pools goresound already keeps (`goresound::poolUnder`, now public: 64
+  distances) and, not in one, the ragdolls with blood painted on them (`wounds::bloody`) within 22 units: either soaks
+  the feet (no print in the blood itself); else a print while any are left, strength 1 down to 1 - fade. The print lies
+  on the floor along ankle -> toe, the ankle a quarter of the sole from its heel (6.3 x 2.4 units at size 1, the drawn
+  foot's), the left one mirrored. A teleport (setpos, respawn) is not a step (10 frames to settle); water washes.
+- **Bloody handprints** (`vr_handprints 1`, `vr_handprint_count 6`, `vr_handprint_size 1`): the gore's blood smeared on
+  a hand (`wounds`' `smearHand`, theirs only: a gib taken 4 blots = soaked full, a bloody blow's or the saw's spray a
+  little, `vr_gore_hands_test`) fills a 0..1 level. While some is left, one trace a frame per hand from 8 cm behind the
+  palm to 6 cm in front of it (the drawn hand's pose); a surface facing the palm is a touch. A new touch, or one slid
+  12 cm, at most every 0.3 s, leaves a print (5.6 x 3.3 units at size 1) along the hand on the surface, mirrored so the
+  thumb lies on the index finger's side (`HandPose::up`, by geometry, not by hand), using up 1/count of the blood
+  (strong over 0.5, then faint). Water washes it.
+- **Decals**: two new gore kinds in the atlas, now 8 x 5 cells (2048 x 1280, +2.7 MB): a boot sole with lugs (3 cells:
+  strong, worn, faint) and a hand (2 cells), the gore's blood colours, drawn by `printTexel`. The layout is in three
+  places (static_assert'ed): `vr_glsl.h` (QVR_DECAL_FUNCTIONS and its retro sizes) and the permanent layer's bake shader
+  (`vr_permdecals.cpp`). `MarkOptions` gains `variant` (which cell) and `mirror`. The prints are ordinary decals: the
+  same ring (`vr_decal_max`), buckets and permanent layer.
+- Debug: Debug > Logs > Bloody Prints (`vr_bloodprints_debug 1`: each print with its ankle and toe or wrist, each
+  soaking; 2 adds the hands' palm tests); Debug > Test Effects: Blood Pool Under You (`vr_bloodprints_test pool`),
+  Bloody Feet (`... feet [n]`), Bloody Hands (`... hands [amount]`), Bloody Prints: Info (`vr_bloodprints_info`: counts,
+  the body's state, the cost).
+
+Tests (headless): walking e1m1 with bloody feet, 8 prints at the posed feet's touchdowns, alternating sides 5.4 units
+apart (the right foot on the right), each 1/3 of ankle->toe ahead of the ankle, yaw along the foot (90 walking +y),
+strength 1.00 .. 0.00 by 1/7, cells 0/1/2. Six grunts beheaded, a pool under you, walking out: the feet soaked 3 times by
+the corpses' pools, 8 prints, 2 splashes; a bloody hand dragged on the floor: 6 prints then none (blood 0). Cost over
+2966 frames there: 1.4 us a frame (worst 51 us; the bloody body search 1.2 us at worst, a footprint laid 4.7 us).
+Chokes: 3 beheaded grunts with `vr_gore_sound_choke 0`: 3 "not sent", no cry dropped; with 1: a choke played, its cry
+dropped. `-Sound`: the splashes load (0.28-0.34 s); `vr_gore_sound_vol_splash 0` silences it ("off").
+
+**In VR:** walk through a pool or over a bloody corpse: do the prints sit under your feet as you put them down, the
+right way round, the right size (6 units: the drawn boot's; `vr_footprint_size` if they read too small), and fade
+nicely? Hold a gib, then press your palm on a wall and grip a ledge: a handprint at the palm, thumb on the right side?
+The splash stepping into a pool. The Gore Sounds volume rows; chokes off by default.

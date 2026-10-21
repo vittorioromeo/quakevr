@@ -64,7 +64,9 @@ enum class Mark
     Splatter,
     Streak,
     Pool,
-    Splotch
+    Splotch,
+    Footprint, // a bloody boot print (vr_bloodprints.cpp): `along` its toes' way, `aspect` its length over its width,
+    Handprint  // a bloody hand print: `along` its fingers' way; `variant` 0 strong .. the most worn, `mirror` the other hand
 };
 
 struct MarkOptions
@@ -76,7 +78,12 @@ struct MarkOptions
     float growFrom = 1.f;   // from this part of it
     bool fromStart = false; // spreading from `where` along `along` (a run), not from its middle
     float darken = 0.f;     // how much darker it gets as it spreads and dries (0..0.9)
+    int variant = -1;       // which of its kind's cells (-1: one at random; clamped to its count)
+    bool mirror = false;    // mirrored across `along` (a print of the other foot or hand)
 };
+
+// How many cells `mark` has (its variants: the prints' strengths).
+[[nodiscard]] int variants(Mark mark);
 
 // Places a mark `size` units across on the surface at `where` (normal `normal`), shrunk where it
 // would hang over an edge; false if none fits (or decals are off).

@@ -227,7 +227,7 @@ also Quake's own `zombie/z_miss.wav` (the player's copy, not distributed).
 
 ### Gore sounds (`quakevr/sound/vr/gore/`)
 
-The gore's spurts, blood streams, chokes, tears, squelches, wet steps and wall slaps (`vr_goresound.cpp`; ROUND22.md,
+The gore's spurts, blood streams, chokes, tears, squelches, wet steps, pool splashes and wall slaps (`vr_goresound.cpp`; ROUND22.md,
 "Gore sounds: recordings"), all cut from sources released under
 [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (each page checked to say so; public domain: no attribution
 needed, credited here anyway). `Misc/quakevr/make_gore_sounds.py` cuts them from the downloads (Freesound's
@@ -253,6 +253,7 @@ the source.
 | `slap1.wav` | a gib slapping a wall | [540077](https://freesound.org/people/magnuswaker/sounds/540077/): *Meat Slap 1*, magnuswaker; 0.10-0.34 |
 | `slap2.wav` | the same | [223967](https://freesound.org/people/dav0r/sounds/223967/): *d0 Meatslap on Glass 1*, dav0r; 0.05-0.29 |
 | `slap3.wav` | the same | Independent.nu, *8 wet squish, slurp impacts*: `impactsplat03`; 0.09-0.31 |
+| `splash1..3.wav` | a foot stepping into a pool of blood (low-passed at 4 kHz) | 531571 (above): 7.10-7.40, 6.70-7.04, 2.28-2.56; under the second and third a wet splat: Independent.nu, *8 wet squish, slurp impacts*: `impactsplat08` 0.06-0.32, `impactsplat05` 0.04-0.32 |
 
 ### Wooden crates (`quakevr/progs/vr_crate*.mdl`, `vr_plank*.mdl`; `quakevr/sound/vr/crate_*.wav`)
 

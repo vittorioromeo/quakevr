@@ -58,6 +58,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
 #include "vr_goresound.hpp"
+#include "vr_bloodprints.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_melee_shared.h"
@@ -867,6 +868,7 @@ extern "C" void VR_OnClientClearState()
     selfcollide::reset();
     shells::clear();
     goresound::clear();
+    bloodprints::clear();
     autopump::clear();
     explosiondebris::clear();
     collectfx::clear();

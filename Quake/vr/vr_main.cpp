@@ -35,6 +35,7 @@
 #include "vr_gore.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_goresound.hpp"
+#include "vr_bloodprints.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
@@ -2100,6 +2101,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
     goresound::registerCommands(); // vr_gore_sound_stats, vr_gore_sound_test
+    bloodprints::registerCommands(); // vr_bloodprints_test, vr_bloodprints_info
     Cmd_AddCommand("vr_gore_streams_info", bloodstream::info_f);
     Cmd_AddCommand("vr_dummy_gore_reset", wounds::dummyReset_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);

@@ -2552,7 +2552,10 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             k.wrist[hand] = b.bones[clav + 3].pos;
             k.hip[side] = b.bones[side == 0 ? ThighL : ThighR].pos;
             k.knee[side] = b.bones[side == 0 ? CalfL : CalfR].pos;
-            k.ankle[side] = b.bones[side == 0 ? FootL : FootR].pos;
+            const Bone& foot = b.bones[side == 0 ? FootL : FootR];
+            k.ankle[side] = foot.pos;
+            k.toe[side] = foot.pos + foot.rot[0] * (toeLength(side) * b.m2w);
+            k.sole[side] = ankleHeight(side) * b.m2w;
         }
         // Body tracking's debug skeleton and error log (vr_bodytrack.cpp).
         bodytrack::Posed bt;

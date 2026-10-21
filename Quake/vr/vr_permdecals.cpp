@@ -745,8 +745,8 @@ void main()
 	}
 	if (any(lessThan(in_st, vec2(0.0))) || any(greaterThan(in_st, vec2(1.0))))
 		discard;
-	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);
-	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);
+	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1280.0);
+	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 5.0);
 	int cell = int(in_cell.x + 0.5);
 	vec2 at = vec2(float(cell % 8), float(cell / 8)) * cellsize + inset + in_st * (cellsize - 2.0 * inset);
 	vec4 t = texture(DecalAtlas, at);

@@ -8,9 +8,10 @@
 // farthest's place, a farther one is dropped) and at most one every so often (a much nearer one still plays), lower in
 // bullet time, vr_gore_sound loud. The QC's events (spurts, chokes, tears) and a ragdoll grabbed reach every client as
 // QVR_SVC_GORESOUND (QC goresound); the streams, the pools, the steps, the held gibs and the gibs' wall hits are the
-// client's own. Nothing with vr_gore 0 or vr_gore_sound 0. A choke mutes its monster's voice channel on the server for a
-// moment (its pain or death cry dropped: SV_StartSoundPitch asks voiceMuted), and plays on that channel (a cry already
-// playing cut).
+// client's own. Nothing with vr_gore 0 or vr_gore_sound 0; each kind times its own volume (vr_gore_sound_vol_<kind>).
+// With vr_gore_sound_choke 1 (0 shipped: never, the cries never muted) a choke mutes its monster's voice channel on the
+// server for a moment (its pain or death cry dropped: SV_StartSoundPitch asks voiceMuted), and plays on that channel (a
+// cry already playing cut). Stepping into a pool of blood splashes (Splash), the steps after it wet.
 #pragma once
 
 #include <glm/glm.hpp>
@@ -28,6 +29,7 @@ enum class Kind : int
     Squelch, // a hand taking a gib or a dead body
     Step,    // your wet steps
     Slap,    // a gib into a wall or a ceiling (vr_gore.cpp gibImpact)
+    Splash,  // your foot into a pool of blood (the client's own: stepFrame)
     Count
 };
 
@@ -53,6 +55,10 @@ void pour(int key, const glm::vec3& at, float flow);
 
 // A pool of blood laid (decals::place): wet underfoot for a while.
 void notePool(const glm::vec3& at, const glm::vec3& normal, float size);
+
+// Whether `feet` stand in a pool still wet (notePool's, the last 64; `margin` units round each): the wet steps', the
+// bloody footprints' (vr_bloodprints.cpp). A few dozen distances.
+[[nodiscard]] bool poolUnder(const glm::vec3& feet, float margin = 6.f);
 
 // A gib hit the world at `where` (normal `normal`) at `speed` units/s (gore::gibImpact): a wall's or a ceiling's slap.
 void gibHit(const glm::vec3& where, const glm::vec3& normal, float speed);

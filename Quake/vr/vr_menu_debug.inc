@@ -255,6 +255,9 @@ za::Vector<Item> pageDebugLogging()
         toggle("Gore Sounds", vr_gore_sound_debug)
             .help("vr_gore_sound_debug: each gore sound played or dropped (capped, rate-limited, too far, off) and why, "
                   "and a choking monster's cry dropped (Gore > Gore Sounds; vr_gore_sound_stats counts them)."),
+        toggle("Bloody Prints", vr_bloodprints_debug)
+            .help("vr_bloodprints_debug: each bloody footprint and handprint (where, its way, size, strength; the ankle and "
+                  "toe or the wrist it came from), each pool or body that bloodied your feet."),
         cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused, Refills"}, {2.f, "And the Screen Tap"}})
             .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and taps that never "
                   "stopped on the screen; And the Screen Tap: every frame near the gadget's screen, how far over it your "
@@ -1114,9 +1117,20 @@ za::Vector<Item> pageDebugTools()
             .help("vr_gore_sound_test tear 12 0.06: twelve limbs torn off round you in under a second: at most three at "
                   "once, the nearest (Gore Sounds log; vr_gore_sound_stats)."),
         command("Gore Sounds: Each Kind", "vr_gore_sound_test spurt; vr_gore_sound_test pour; vr_gore_sound_test choke; "
-                "vr_gore_sound_test tear; vr_gore_sound_test squelch; vr_gore_sound_test step; vr_gore_sound_test slap")
-            .help("vr_gore_sound_test <kind>: one of each gore sound round you, all at once."),
+                "vr_gore_sound_test tear; vr_gore_sound_test squelch; vr_gore_sound_test step; vr_gore_sound_test slap; "
+                "vr_gore_sound_test splash")
+            .help("vr_gore_sound_test <kind>: one of each gore sound round you, all at once (the choke even with Chokes off)."),
         command("Gore Sounds: Counts", "vr_gore_sound_stats").help("vr_gore_sound_stats: each gore sound kind played and dropped since the map began."),
+        command("Blood Pool Under You", "vr_bloodprints_test pool")
+            .help("vr_bloodprints_test pool: a pool of blood under you: step out of it for the splash, the wet steps and "
+                  "bloody footprints."),
+        command("Bloody Feet", "vr_bloodprints_test feet")
+            .help("vr_bloodprints_test feet: your feet bloodied as from a pool: walk to leave Footprints prints."),
+        command("Bloody Hands", "vr_bloodprints_test hands")
+            .help("vr_bloodprints_test hands: both hands soaked in blood: press them on a wall, the floor or a ledge for "
+                  "handprints."),
+        command("Bloody Prints: Info", "vr_bloodprints_info")
+            .help("vr_bloodprints_info: the prints your feet have left, your hands' blood, the prints laid since the map began."),
         command("Back-splatter: Shotgun", "vr_gore_test 30 pellets").help("vr_gore_test 30 pellets: a shotgun blast's blood 64 units ahead, its back-splatter close behind."),
         command("Blood Streams on Monster Ahead", "vr_gore_stream_test 3").help("vr_gore_stream_test 3: three bullet holes pouring blood on the monster or corpse nearest the middle of the view."),
         command("Knock Teeth Out", "impulse 198").help("impulse 198: the monster spawned last (impulse 241) punched in the face as hard as can be: its teeth fly (Gore > Knocked-out Teeth)."),

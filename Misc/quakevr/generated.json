@@ -1288,6 +1288,18 @@
   "sha256": "0da1a5de862d1136df440c945170f0bf8063e9e0e7bee44ca57b299072271926",
   "by": "make_gore_sounds.py"
  },
+ "quakevr/sound/vr/gore/splash1.wav": {
+  "sha256": "8d0b83f419b69a9e42c5f1f4844ad4ca0e751516001664575bb6a96893f687ac",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/splash2.wav": {
+  "sha256": "f66f2c14b68df41cab279c278be4bfbb6a1e5f1c0936c7d8ae7a66a42f9bce8b",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/splash3.wav": {
+  "sha256": "a435e132e0c1646e5e9651cd93b10d25f6091bbb8e0c9dcf68c5e7c832076ce8",
+  "by": "make_gore_sounds.py"
+ },
  "quakevr/sound/vr/gore/spurt1.wav": {
   "sha256": "455117d879d2b87e91bb1d4fbe99c395ab57c772b14e1fcd88b20c7ae53e2b43",
   "by": "make_gore_sounds.py"
