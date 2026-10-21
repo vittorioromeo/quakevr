@@ -51,6 +51,11 @@ knight variants, the death knights, guard, sergeant, fury, crossbow knight, zomb
 dying (stagger, get-up, lift flail, swim, active deaths); the zombie knight's head zone moved onto its head. Left out:
 the centurion (hover board) and the skull wizard (a robe, no legs). Awaiting his VR check.
 
+### Active ragdolls: research a reference video (author, 2026-10-22)
+
+Research https://www.youtube.com/watch?v=r8Q1nwHPwJ0 for active ragdoll improvements (stagger, balance, get-up, the
+active deaths). Not started.
+
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
 Research climbing by bracing a hand on each side of a pillar or pipe and moving upward hand-over-hand. Open.

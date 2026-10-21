@@ -2602,7 +2602,7 @@ QVR_CVAR(vr_chainsaw_pull_distance, "30", CVAR_ARCHIVE) // cm the cord must be p
 QVR_CVAR(vr_chainsaw_pull_speed, "1.2", CVAR_ARCHIVE) // m/s the hand must pull it at, there
 QVR_CVAR(vr_chainsaw_drop_fuel_min, "40", CVAR_ARCHIVE) // an ogre's dropped chainsaw has this much fuel (percent of a tank) or more, up to a full tank
 QVR_CVAR(vr_enemy_weapon_drop_max, "48", CVAR_ARCHIVE) // most single-use enemy weapons lying about (grunts' burst rifles, enforcers' laser rifles, ogres' chainsaws): past it the oldest fades away (not one in a hand, pulled or in flight); 0: no limit
-QVR_CVAR(vr_enemy_weapon_depleted_loot, "0", CVAR_ARCHIVE) // 0: a spent single-use enemy gun lying about (a grunt's burst rifle, an enforcer's laser rifle, AD's soldiers' guns: its clip empty, never refilled) has no loot beam and the force grab skips it (a hand still takes it); 1: as any weapon (before 2026-10-21)
+QVR_CVAR(vr_enemy_weapon_depleted_loot, "0", CVAR_ARCHIVE) // 0: a spent single-use enemy gun lying about (a grunt's burst rifle, an enforcer's laser rifle, AD's soldiers' guns: its clip empty, never refilled; an ogre's chainsaw out of fuel) has no loot beam and the force grab skips it (a hand still takes it); 1: as any weapon (before 2026-10-21)
 QVR_CVAR(vr_chainsaw_drop_run, "3", CVAR_ARCHIVE)  // seconds a running chainsaw dropped or thrown runs on (QC VR_Saw_PropRuns); taken back meanwhile, still running. 0: it stops at once
 // A running chainsaw (NOTES.md vrfiringrange_2026-10-01_16-37-54; Combat > Enemy Weapons > Chainsaw Engine): its engine's
 // faint exhaust smoke, in a hand and lying running (vr_chainsaw.cpp, QC VR_Saw_PropThink); its shake in the hand (drawn

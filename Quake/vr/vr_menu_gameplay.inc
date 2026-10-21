@@ -1002,8 +1002,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "many, the oldest fades away (never one in your hand, pulled to it or in flight). Every other weapon, "
                   "drop and prop stays. 0: no limit (vr_enemy_weapon_drop_max)."),
         toggle("Spent Guns Stand Out", vr_enemy_weapon_depleted_loot)
-            .help("Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun lying about (nothing ever "
-                  "refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
+            .help("Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun, or an ogre's chainsaw out "
+                  "of fuel, lying about (nothing ever refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
                   "weapon (vr_enemy_weapon_depleted_loot)."),
         header("Ogres' Chainsaws"),
         slider("Fuel When Dropped", vr_chainsaw_drop_fuel_min, 0.f, 100.f, 5.f, "%.0f%% or more")

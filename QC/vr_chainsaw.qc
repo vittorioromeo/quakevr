@@ -190,6 +190,7 @@ void(entity xProp, float xStop) VR_Saw_PropSettle =
 {
     WeaponInst_SetClip(xProp.weaponinst,
         max(0, xProp.weaponinst.wi_clip - (time - xProp.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use)));
+    xProp.vr_depleted = VR_Weapon_Spent(xProp.weapon, xProp.weaponinst); // (its last fuel burnt lying: spent)
     if(xStop)
     {
         xProp.vr_saw_prop_on = 0;
