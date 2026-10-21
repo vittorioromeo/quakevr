@@ -1260,6 +1260,78 @@
   "sha256": "7af8661ab78c6480d42ab78129ca7dc1749807cd9847b85e705b0e1a19e2f1f3",
   "by": "make_gadget_sounds.py"
  },
+ "quakevr/sound/vr/gore/choke1.wav": {
+  "sha256": "a06fc0759a43ac40841e8c216ee5724499034dbafd8eaf3a6d0c8815b812371f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/choke2.wav": {
+  "sha256": "5f595de3e0eac34b292fa0894115189f0adc53616528f312f20e229f33997d64",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/pour1.wav": {
+  "sha256": "b051bda6bff470a42973363f7740b2fe65fca91a30f538361688ce0160444f3f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/pour2.wav": {
+  "sha256": "249926820371870726b04fccb6f23015a2d30c1f375baf33948b37eb90bfaa90",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap1.wav": {
+  "sha256": "c86a4b3b8144797d12415fe869d75c6037ad4ea9fafb4aadd6708a25cf5a7ff1",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap2.wav": {
+  "sha256": "2eeacfa6b6e2b63e7334a11952c93b44107a00b22c205efeae318ecee75e06a0",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap3.wav": {
+  "sha256": "0da1a5de862d1136df440c945170f0bf8063e9e0e7bee44ca57b299072271926",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt1.wav": {
+  "sha256": "455117d879d2b87e91bb1d4fbe99c395ab57c772b14e1fcd88b20c7ae53e2b43",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt2.wav": {
+  "sha256": "52190abfa9df7eec2b2ce594c73ff3f129259222680729cfd34c19d6e95b559d",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt3.wav": {
+  "sha256": "6396b263e28c2e4893f5fc955b6889c301a1e39c2392181b149d2c69ce216a78",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch1.wav": {
+  "sha256": "317598682f8fd0adddf36f347e511902e783447f857063648bc3c2f2052b6376",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch2.wav": {
+  "sha256": "a02e51c76970e91ddcb6c1c056881e14b0befa04752171a730201f8ff368ed74",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch3.wav": {
+  "sha256": "e5b1a03b023c574e81280d2db45a431c544da00085e82c455f74aab286a5363f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step1.wav": {
+  "sha256": "2117f53e4ddd28399e915af3241ee7b8c11de1538cbf87730e40582ab0f11967",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step2.wav": {
+  "sha256": "b836a01b9dba5d1c80a17ff487bdec3128a0e8dc8188516c16e0e1f85b0044a0",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step3.wav": {
+  "sha256": "32b8f4311c243e654100632140a4e52964dd50772e237b00e0f4254f0838601c",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/tear1.wav": {
+  "sha256": "d44ed310fb67795401595164f6ec2621bfe8fa201b631c460f25cdf202c67e26",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/tear2.wav": {
+  "sha256": "623adfe884c0a624f6c5e8571301873e38336fa6d7ecb965630695b4cb1a1da4",
+  "by": "make_gore_sounds.py"
+ },
  "quakevr/sound/vr/magholster_draw.wav": {
   "sha256": "c8ec956e379fa7f381dba869d2072c820919bbc900efb14c52cbd7d849510e18",
   "by": "make_magholster_sounds.py"
@@ -1543,5 +1615,77 @@
  "quakevr/textures/vr/detail_wood.png": {
   "sha256": "256de31228fc61ec99437e58724613aa53853b8b6d3f8fb66f4e83f13b1a8fcb",
   "by": "make_detail.py"
+ },
+ "scratch/gore_out/choke1.wav": {
+  "sha256": "02821837226cbc148d55c939b11656f0312efd6837af77cbca766d8f0e22c982",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/choke2.wav": {
+  "sha256": "9cd72bdee29403d3a6f79e68c85f53281b10781c0ed3ea3e1b881e2006e91e96",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/pour1.wav": {
+  "sha256": "b051bda6bff470a42973363f7740b2fe65fca91a30f538361688ce0160444f3f",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/pour2.wav": {
+  "sha256": "249926820371870726b04fccb6f23015a2d30c1f375baf33948b37eb90bfaa90",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap1.wav": {
+  "sha256": "5dd3529cb619da97e5467b94925f01629dd9ae3b6bba92ea940e070a43728cdf",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap2.wav": {
+  "sha256": "ce310c429b47d8a35cd56c67481dc38a3329901543143d3da997c3cff38989c2",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap3.wav": {
+  "sha256": "284bd10a7734656de58cf3492ede7a5cde13abc160d0365d9580a60052a28535",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt1.wav": {
+  "sha256": "feb15a660f8cc8958ccdc63d24738eb9bf9c5093b3b1523d86b71f8bddc6c91b",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt2.wav": {
+  "sha256": "0b8b408259102870f526569329048ff14aadf1903b264899a3c8fc8889dbacf5",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt3.wav": {
+  "sha256": "48cb6acbee9c8e8b1cf7987159675e49a1d6b814dfeaf9cac336620393de6ee3",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch1.wav": {
+  "sha256": "ccbcd20b517936243a58693da55f0325894996213eed1104d5af04ac127fb708",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch2.wav": {
+  "sha256": "a02e51c76970e91ddcb6c1c056881e14b0befa04752171a730201f8ff368ed74",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch3.wav": {
+  "sha256": "e51de88386cc6de0ee04dd2d2883476508e81a01677525a861a85034a36b4eaa",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step1.wav": {
+  "sha256": "25949647f38c37d66cae6e1fe288f40d7797b95397409d4019ea56e69f5f3bb2",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step2.wav": {
+  "sha256": "7e1ba03abdbf5b4a1dd697963ee377c94ac16a23106e55cd68f90b7958c6b1c9",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step3.wav": {
+  "sha256": "969f2cb8535583dc34a9f9ec8c4294fcf96a22280dcb9a7bda759bb6e9cba090",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/tear1.wav": {
+  "sha256": "6da096df3b250a0d3efa73910bbbc8db4dbd980f36551434a9052f2b0ac3d796",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/tear2.wav": {
+  "sha256": "997dd75d454ed6a710cd1c65dc691d8085e9a3d0f939d4608ae043745f3633c4",
+  "by": "make_gore_sounds.py"
  }
 }

@@ -1,8 +1,8 @@
 // vr_goresound.hpp -- the gore's sounds (vr_gore_sound; docs/vr-port/ROUND22.md, "Gore sounds"): a stump's spurt with
 // each pulse of its fountain, a blood stream's splatter where it lands, a beheaded or face-smashed monster's wet choke
 // (instead of its cry), the wet rip and bone crack of a limb or a head torn off, a hand's squelch taking a gib or a dead
-// body, wet steps after a pool of blood, a gib slapping into a wall. All placeholders (quakevr/sound/vr/gore/ph_*.wav,
-// make_gore_placeholders.py) until Vittorio's recordings replace them.
+// body, wet steps after a pool of blood, a gib slapping into a wall. Cut from CC0 recordings (quakevr/sound/vr/gore/,
+// make_gore_sounds.py; docs/vr-port/SOUNDS_OURS.md, "Gore").
 //
 // The client plays them (S_StartSoundPitch): each kind at most so many at once (the nearest kept: a nearer one takes the
 // farthest's place, a farther one is dropped) and at most one every so often (a much nearer one still plays), lower in

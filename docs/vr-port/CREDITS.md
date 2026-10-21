@@ -225,6 +225,35 @@ also Quake's own `zombie/z_miss.wav` (the player's copy, not distributed).
 | `scrape_metal1..4.wav` | metal sliding | [844755](https://freesound.org/people/MeanRaccoon/sounds/844755/): *steel plate dragging on wooden floor B*, MeanRaccoon; 0.5 s at 1.28, 3.60, 17.52, 34.44 s |
 | `scrape_stone1..4.wav` | stone and brick sliding | [545562](https://freesound.org/people/rsellick/sounds/545562/): *kettlebell concrete drag metal rock stone earth.wav*, rsellick; 0.5 s at 11.16, 15.04, 27.12, 30.92 s |
 
+### Gore sounds (`quakevr/sound/vr/gore/`)
+
+The gore's spurts, blood streams, chokes, tears, squelches, wet steps and wall slaps (`vr_goresound.cpp`; ROUND22.md,
+"Gore sounds: recordings"), all cut from sources released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (each page checked to say so; public domain: no attribution
+needed, credited here anyway). `Misc/quakevr/make_gore_sounds.py` cuts them from the downloads (Freesound's
+high-quality MP3 previews and the OpenGameArt pack's FLAC files, not in the repository; the script's header has the
+links and every cut): mixed to mono, high-passed, resampled to 22050 Hz 16-bit, trimmed to the onset and faded, layered
+where noted, brought to one loudness per kind on the physics sounds' scale, peaks limited to -1 dBFS. Times are seconds in
+the source.
+
+| Files | Used for | Source |
+|---|---|---|
+| `spurt1.wav` | a stump's spurt (low-passed at 2.5 kHz) | [654101](https://freesound.org/people/FlaxGod/sounds/654101/): *Blood Gush*, FlaxGod; 3.22-3.62 |
+| `spurt2.wav` | the same | [563315](https://freesound.org/people/magnuswaker/sounds/563315/): *Gushing Flesh*, magnuswaker; 0.00-0.36 |
+| `spurt3.wav` | the same (low-passed at 2.5 kHz) | [800865](https://freesound.org/people/TyrantTim/sounds/800865/): *Blood squirting*, TyrantTim; 1.78-2.16 |
+| `pour1.wav`, `pour2.wav` | a blood stream splattering (0.6 s grains) | [518474](https://freesound.org/people/phonoflora/sounds/518474/): *wringing wet cloth onto paving.WAV*, phonoflora; 0.6 s at 2.76, 3.46 |
+| `choke1.wav` | a monster's choke (played at 0.85 speed) | [482836](https://freesound.org/people/craigsmith/sounds/482836/): *R08-56-Man Choking on Water.wav*, craigsmith; the gargle 0.22-0.98, the cough 11.53-11.76 |
+| `choke2.wav` | the same (played at 0.9 speed) | [545723](https://freesound.org/people/Bronxio/sounds/545723/): *Gargles*, Bronxio; 13.00-13.75; the cough: [826999](https://freesound.org/people/JadeW40/sounds/826999/): *Gurgling-Choking*, JadeW40; 4.58-4.78 |
+| `tear1.wav` | a limb or a head torn off | [411683](https://freesound.org/people/neilsher/sounds/411683/): *Cabbage Rip.wav*, neilsher; 1.20-1.62; with [814734](https://freesound.org/people/MalikArsYasakani/sounds/814734/): *Gore Tear 1*, MalikArsYasakani; 3.90-4.32; the crack: [574752](https://freesound.org/people/ericnorcross81/sounds/574752/): *Bone Breaks (celery snaps)*, ericnorcross81; 0.36-0.56 |
+| `tear2.wav` | the same | [697398](https://freesound.org/people/CJspellsfish/sounds/697398/): *Watermelon Ripping*, CJspellsfish; 4.84-5.30; with 411683 (above) 2.84-3.20; the crack: [762893](https://freesound.org/people/FelixL-H/sounds/762893/): *Bones Breaking*, FelixL-H; 0.14-0.42 |
+| `squelch1.wav` | a hand taking a gib or a body | [684877](https://freesound.org/people/ominouswhoosh/sounds/684877/): *Tomato Squish*, ominouswhoosh; 5.84-6.10 |
+| `squelch2.wav` | the same | [840618](https://freesound.org/people/MrGungus/sounds/840618/): *bloody_jab_squelch*, MrGungus; 0.00-0.28 |
+| `squelch3.wav` | the same | **Independent.nu** (Ljudbank), [*8 wet squish, slurp impacts*](https://opengameart.org/content/8-wet-squish-slurp-impacts) (OpenGameArt): `impactsplat04`; 0.12-0.40 |
+| `step1..3.wav` | wet steps after a pool of blood (low-passed at 3 kHz) | [531571](https://freesound.org/people/patchytherat/sounds/531571/): *squishy footsteps to walking in a puddle.wav*, patchytherat; 3.02-3.28, 3.75-4.01, 6.72-6.98 |
+| `slap1.wav` | a gib slapping a wall | [540077](https://freesound.org/people/magnuswaker/sounds/540077/): *Meat Slap 1*, magnuswaker; 0.10-0.34 |
+| `slap2.wav` | the same | [223967](https://freesound.org/people/dav0r/sounds/223967/): *d0 Meatslap on Glass 1*, dav0r; 0.05-0.29 |
+| `slap3.wav` | the same | Independent.nu, *8 wet squish, slurp impacts*: `impactsplat03`; 0.09-0.31 |
+
 ### Wooden crates (`quakevr/progs/vr_crate*.mdl`, `vr_plank*.mdl`; `quakevr/sound/vr/crate_*.wav`)
 
 The crates and their pieces, their skins and normal maps are the port's own, generated (`Misc/quakevr/make_crates.py`:

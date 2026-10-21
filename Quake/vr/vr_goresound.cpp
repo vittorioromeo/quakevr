@@ -32,8 +32,8 @@ constexpr int kindCount = static_cast<int>(Kind::Count);
 constexpr int maxVariants = 3;
 constexpr int maxCap = 4;
 
-// Each kind: its name, its placeholders (quakevr/sound/vr/gore, make_gore_placeholders.py: the author's recordings take
-// their names or new ones here), its loudness, how many may play at once (the nearest), the least real seconds between
+// Each kind: its name, its files (quakevr/sound/vr/gore, cut from CC0 recordings by make_gore_sounds.py; new variants
+// go here, up to maxVariants), its loudness, how many may play at once (the nearest), the least real seconds between
 // two (a much nearer one still plays: nearerShare), its attenuation, how far it is heard at all (0: always), and its
 // length when its file can't be loaded (no sound device: the caps counted as if it played).
 struct KindInfo
@@ -50,13 +50,13 @@ struct KindInfo
 };
 
 constexpr KindInfo kinds[kindCount] = {
-    {"spurt", {"vr/gore/ph_spurt1.wav", "vr/gore/ph_spurt2.wav", "vr/gore/ph_spurt3.wav"}, 3, 0.7f, 3, 0.08f, 1.f, 1200.f, 0.32f},
-    {"pour", {"vr/gore/ph_pour1.wav", "vr/gore/ph_pour2.wav", nullptr}, 2, 0.35f, 3, 0.f, 1.5f, 800.f, 0.6f},
-    {"choke", {"vr/gore/ph_choke1.wav", "vr/gore/ph_choke2.wav", nullptr}, 2, 1.f, 4, 0.f, 1.f, 0.f, 1.1f},
-    {"tear", {"vr/gore/ph_tear1.wav", "vr/gore/ph_tear2.wav", nullptr}, 2, 0.9f, 3, 0.05f, 1.f, 1500.f, 0.55f},
-    {"squelch", {"vr/gore/ph_squelch1.wav", "vr/gore/ph_squelch2.wav", nullptr}, 2, 0.6f, 2, 0.2f, 1.f, 600.f, 0.3f},
-    {"step", {"vr/gore/ph_step1.wav", "vr/gore/ph_step2.wav", "vr/gore/ph_step3.wav"}, 3, 0.45f, 1, 0.15f, 1.f, 0.f, 0.28f},
-    {"slap", {"vr/gore/ph_slap1.wav", "vr/gore/ph_slap2.wav", "vr/gore/ph_slap3.wav"}, 3, 0.7f, 3, 0.1f, 1.f, 1000.f, 0.24f},
+    {"spurt", {"vr/gore/spurt1.wav", "vr/gore/spurt2.wav", "vr/gore/spurt3.wav"}, 3, 0.7f, 3, 0.08f, 1.f, 1200.f, 0.36f},
+    {"pour", {"vr/gore/pour1.wav", "vr/gore/pour2.wav", nullptr}, 2, 0.35f, 3, 0.f, 1.5f, 800.f, 0.6f},
+    {"choke", {"vr/gore/choke1.wav", "vr/gore/choke2.wav", nullptr}, 2, 1.f, 4, 0.f, 1.f, 0.f, 1.05f},
+    {"tear", {"vr/gore/tear1.wav", "vr/gore/tear2.wav", nullptr}, 2, 0.9f, 3, 0.05f, 1.f, 1500.f, 0.41f},
+    {"squelch", {"vr/gore/squelch1.wav", "vr/gore/squelch2.wav", "vr/gore/squelch3.wav"}, 3, 0.6f, 2, 0.2f, 1.f, 600.f, 0.25f},
+    {"step", {"vr/gore/step1.wav", "vr/gore/step2.wav", "vr/gore/step3.wav"}, 3, 0.45f, 1, 0.15f, 1.f, 0.f, 0.24f},
+    {"slap", {"vr/gore/slap1.wav", "vr/gore/slap2.wav", "vr/gore/slap3.wav"}, 3, 0.7f, 3, 0.1f, 1.f, 1000.f, 0.2f},
 };
 
 constexpr float nearerShare = 0.5f;   // within a kind's gap, one this much nearer than the last played still plays
@@ -204,6 +204,11 @@ void load()
             const sfxcache_t* c = s ? S_LoadSound(s) : nullptr;
             sounds.seconds[k][v] = c && c->speed > 0 ? static_cast<float>(c->length) / static_cast<float>(c->speed)
                                                      : kinds[k].seconds;
+            if(vr_gore_sound_debug.value)
+            {
+                Con_Printf("goresound: %s %s %.2f s\n", kinds[k].files[v], c ? "loaded" : "NOT LOADED",
+                    sounds.seconds[k][v]);
+            }
         }
     }
     sounds.loaded = true;
