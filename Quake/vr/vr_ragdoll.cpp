@@ -347,7 +347,11 @@ constexpr Seed gremSeeds[] = {
 // and forearms (elbow hinges), thighs (the knee's ring) and shins (knee hinges). His ragdoll is made only when he is
 // beheaded (his death gibs him otherwise: mummy_die). Measured on his frames (Misc/quakevr/ragdoll/rig.py mummy
 // mummy_bones.json, RIG_PAK: Rogue's pak0): clusters 0.52 units rms, bones 0.72. The flesh he throws is the loose bone,
-// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's.
+// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's. His knees as
+// the enforcer's (rig.py's 'knee': the ring's lower edge, z -9.7 and -11.1, not the boot's top, -20; keepHinge). His
+// hips (the motions' fit) sit low and in front of the ring, so the thigh's line leans back past the shin's: at rest it
+// bends 12-20 degrees forward, though the leg he shows (the long triangles from his pelvis) bends 12-20 back. So the
+// knee straightens no further than his stand, and flex 118 folds it to 150 degrees as seen (150 would be 182).
 constexpr Seed mummySeeds[] = {
     {"pelvis", -1, Joint::Root, {-0.2f, 0.2f, 9.3f}, {-0.2f, 0.2f, 9.3f}, {-0.9f, -0.2f, 13.4f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-1.3f, 0.4f, 21.7f}, {-0.9f, -0.2f, 13.4f}, {-2.5f, 0.9f, 29.1f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -356,10 +360,10 @@ constexpr Seed mummySeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {1.f, 9.2f, 6.2f}, {0.5f, 8.6f, 14.1f}, {1.4f, 9.9f, -1.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-2.9f, -7.4f, 19.5f}, {-2.8f, -6.9f, 25.9f}, {-2.9f, -7.5f, 13.f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {-2.9f, -7.8f, 4.1f}, {-2.9f, -7.5f, 13.f}, {-3.f, -8.1f, -4.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {4.3f, 9.3f, -20.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {4.3f, 9.3f, -20.f}, {6.f, 8.6f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-8.5f, -5.2f, -20.2f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {5.2f, 6.6f, -9.7f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {5.2f, 6.6f, -9.7f}, {4.8f, 8.1f, -21.4f}, 2.8f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-3.4f, -5.8f, -11.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-3.4f, -5.8f, -11.1f}, {-7.8f, -6.8f, -21.4f}, 2.8f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
 };
 
 // The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames; 43 with its shove's, posed by these bones:
@@ -1413,7 +1417,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 // The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
 // which seed table it is.
 
-constexpr unsigned rigVersion = 2; // (2: the enforcer's and the zombie's knees)
+constexpr unsigned rigVersion = 3; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's)
 const za::String rigBuild = [] {
     const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
     return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
