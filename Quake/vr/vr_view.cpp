@@ -2900,6 +2900,7 @@ void dripBlood(const hands::State& s)
     }
     const bool alive = cl.stats[STAT_HEALTH] > 0;
     bodyblood::update(s, drawn, alive ? damageLevel() : 0);
+    bloodprints::frame(s, drawn); // bloody footprints and handprints (vr_bloodprints.cpp)
 }
 
 // The pauldrons (vr_body_pauldrons; make_pauldron.py), after the Quake ranger's: a cap over each

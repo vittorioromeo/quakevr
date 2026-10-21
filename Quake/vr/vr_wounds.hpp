@@ -60,6 +60,9 @@ void clear();
 // How many models have a mask now (vr_scene_count).
 [[nodiscard]] int liveCount();
 
+// Whether `e` has blood painted on it (a mask: hit, cut, bled on), for the bloody footprints (vr_bloodprints.cpp).
+[[nodiscard]] bool bloody(const entity_s* e);
+
 // The gore's bloody hands and washing (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; vr_wounds.cpp): with the wound
 // skins (vr_wounds 0), the damage skin the player's `part` (0 the off hand, 1 the main hand, 2 the body), drawn at
 // `origin` (null: unknown), shows for the damage skin `level`: none after a wash until the wounds re-open (or a new

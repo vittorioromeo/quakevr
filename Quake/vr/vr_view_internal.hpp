@@ -36,6 +36,7 @@
 #include "vr_body.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_bodyblood.hpp"
+#include "vr_bloodprints.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"

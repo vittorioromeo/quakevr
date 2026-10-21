@@ -343,9 +343,45 @@
             .help("Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip."),
         slider("Gore Sounds", vr_gore_sound, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
             .help("How loud the gore's own sounds are (0 none): stumps spurting with each pulse, streams splattering on the "
-                  "floor, a beheaded or face-smashed enemy's choke instead of its cry, limbs tearing off, a hand squelching "
-                  "into a gib or a body, wet steps after a pool of blood, gibs slapping walls. Placeholders for now "
-                  "(vr_gore_sound)."),
+                  "floor, limbs tearing off, a hand squelching into a gib or a body, a splash stepping into a pool of blood "
+                  "and wet steps after it, gibs slapping walls; a choke if on (below). Each kind's own volume below, times "
+                  "this (vr_gore_sound)."),
+        toggle("Gore Sounds: Chokes", vr_gore_sound_choke)
+            .help("A beheaded or face-smashed enemy gargles and chokes instead of crying out (its pain or death cry dropped "
+                  "for a moment). Off: never, every cry plays (vr_gore_sound_choke)."),
+        slider("Gore Sounds: Spurts", vr_gore_sound_vol_spurt, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A stump's spurt with each pulse of its fountain: its volume, times Gore Sounds (vr_gore_sound_vol_spurt)."),
+        slider("Gore Sounds: Streams", vr_gore_sound_vol_pour, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A blood stream splattering where it lands (vr_gore_sound_vol_pour)."),
+        slider("Gore Sounds: Tears", vr_gore_sound_vol_tear, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("The wet rip and bone crack of a limb or a head torn off (vr_gore_sound_vol_tear)."),
+        slider("Gore Sounds: Squelches", vr_gore_sound_vol_squelch, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A hand closing on a gib or a dead body (vr_gore_sound_vol_squelch)."),
+        slider("Gore Sounds: Pool Splash", vr_gore_sound_vol_splash, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("Your foot stepping into a pool of blood (vr_gore_sound_vol_splash)."),
+        slider("Gore Sounds: Wet Steps", vr_gore_sound_vol_step, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("Your steps for a few seconds after a pool of blood (vr_gore_sound_vol_step)."),
+        slider("Gore Sounds: Slaps", vr_gore_sound_vol_slap, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A gib slapping into a wall or a ceiling (vr_gore_sound_vol_slap)."),
+        slider("Gore Sounds: Chokes Volume", vr_gore_sound_vol_choke, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("The chokes, when on (vr_gore_sound_vol_choke)."),
+        header("Bloody Footprints and Handprints"),
+        toggle("Bloody Footprints", vr_footprints)
+            .help("Stepping in a pool of blood or on a bloody body bloodies your feet: your next steps leave bloody boot "
+                  "prints where your feet come down, fading (vr_footprints)."),
+        slider("Footprints", vr_footprint_count, 1.f, 16.f, 1.f, "%.0f").extend(1.f, 32.f)
+            .help("How many prints after the blood (vr_footprint_count)."),
+        slider("Footprint Fade", vr_footprint_fade, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much they fade from the first to the last (0: all as strong; 1: the last faint) (vr_footprint_fade)."),
+        slider("Footprint Size", vr_footprint_size, 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("Times your foot's own size (vr_footprint_size)."),
+        toggle("Bloody Handprints", vr_handprints)
+            .help("A hand soaked in blood (a gib held, a bloody blow or cut) pressed on a wall, the floor or a ledge leaves a "
+                  "bloody handprint there, one a touch, using its blood up (water washes it off) (vr_handprints)."),
+        slider("Handprints", vr_handprint_count, 1.f, 16.f, 1.f, "%.0f").extend(1.f, 32.f)
+            .help("How many prints a hand soaked full leaves, fainter as its blood runs out (vr_handprint_count)."),
+        slider("Handprint Size", vr_handprint_size, 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("Times your hand's own size (vr_handprint_size)."),
         header("Hits, Gibs and Corpses"),
         slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none)."),

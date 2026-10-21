@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_wounds_internal.hpp"
+#include "vr_bloodprints.hpp"
 #include "vr_dents.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
@@ -1743,6 +1744,10 @@ namespace detail
 {
 void smearHand(int hand, int blots, float amount, bool theirs)
 {
+    if(theirs && blots > 0 && amount > 0.f && cl.stats[STAT_HEALTH] > 0)
+    {
+        bloodprints::bloodyHand(hand, static_cast<float>(blots) * amount); // (its handprints: vr_bloodprints.cpp)
+    }
     entity_t* own[3]{};
     view::woundTargets(own);
     entity_t* e = own[1 + hand];
@@ -3380,6 +3385,11 @@ void clear()
 int liveCount()
 {
     return static_cast<int>(maskOf.size());
+}
+
+bool bloody(const entity_t* e)
+{
+    return e && maskOf.find(e) != maskOf.end();
 }
 
 int skinLevel(int part, int level, const float* origin)

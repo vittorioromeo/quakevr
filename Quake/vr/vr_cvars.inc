@@ -2111,6 +2111,26 @@ QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceil
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // their volume (0 none; up to 2)
 QVR_CVAR(vr_gore_sound_debug, "0", CVAR_NONE)          // 1: each gore sound played or dropped (capped, rate-limited, too far, off), and why; each file loaded and its length (at a map load)
+QVR_CVAR(vr_gore_sound_choke, "0", CVAR_ARCHIVE)       // a beheaded or face-smashed monster's wet choke instead of its cry (0: never, its cries never muted)
+// Each kind's volume, times vr_gore_sound (0 none; up to 2):
+QVR_CVAR(vr_gore_sound_vol_spurt, "1", CVAR_ARCHIVE)   // a stump's spurts
+QVR_CVAR(vr_gore_sound_vol_pour, "1", CVAR_ARCHIVE)    // blood streams splattering on the floor
+QVR_CVAR(vr_gore_sound_vol_choke, "1", CVAR_ARCHIVE)   // the chokes (vr_gore_sound_choke 1)
+QVR_CVAR(vr_gore_sound_vol_tear, "1", CVAR_ARCHIVE)    // limbs and heads torn off
+QVR_CVAR(vr_gore_sound_vol_squelch, "1", CVAR_ARCHIVE) // a hand taking a gib or a dead body
+QVR_CVAR(vr_gore_sound_vol_step, "1", CVAR_ARCHIVE)    // your wet steps after a pool
+QVR_CVAR(vr_gore_sound_vol_slap, "1", CVAR_ARCHIVE)    // gibs slapping into walls
+QVR_CVAR(vr_gore_sound_vol_splash, "1", CVAR_ARCHIVE)  // your foot splashing into a pool of blood
+// Bloody footprints and handprints (vr_bloodprints.cpp; ROUND22.md, "Bloody footprints and handprints"): decals as the
+// blood's, permanent as theirs (vr_decals 0: none).
+QVR_CVAR(vr_footprints, "1", CVAR_ARCHIVE)             // stepping in a pool of blood or on a bloody body leaves bloody footprints
+QVR_CVAR(vr_footprint_count, "8", CVAR_ARCHIVE)        // ... this many after it (1..32)
+QVR_CVAR(vr_footprint_fade, "1", CVAR_ARCHIVE)         // ... fading this much from the first to the last (0: all as strong; 1: the last faint)
+QVR_CVAR(vr_footprint_size, "1", CVAR_ARCHIVE)         // ... times your foot's size (0.5..2)
+QVR_CVAR(vr_handprints, "1", CVAR_ARCHIVE)             // a very bloody hand (a gib held, a bloody blow) touching a wall or a ledge leaves a bloody handprint
+QVR_CVAR(vr_handprint_count, "6", CVAR_ARCHIVE)        // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32)
+QVR_CVAR(vr_handprint_size, "1", CVAR_ARCHIVE)         // ... times your hand's size (0.5..2)
+QVR_CVAR(vr_bloodprints_debug, "0", CVAR_NONE)         // 1: each footprint and handprint (where, its foot's or hand's ankle/wrist and way), each pool or body that bloodied your feet; 2: also each bloody hand's palm test every 30 frames
 // Blood streaming out of bullet holes (vr_bloodstream.cpp; ROUND22.md, "More gore"): a thin stream pouring from a shot's
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
 QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on

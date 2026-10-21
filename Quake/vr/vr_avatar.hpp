@@ -194,6 +194,8 @@ struct Skeleton
     glm::vec3 hip[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 knee[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 ankle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 toe[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the foot's tip, as posed (the bloody footprints' way and length)
+    float sole[2]{0.f, 0.f};                          // the ankle's height over the sole, world units
 };
 [[nodiscard]] bool skeleton(Skeleton& out);
 

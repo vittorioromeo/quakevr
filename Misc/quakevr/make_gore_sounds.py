@@ -56,9 +56,10 @@ import make_physics_sounds as phys  # noqa: E402  (MP3 decoding, filters, resamp
 RATE = phys.RATE
 
 # Loudest 50 ms (dBFS) by kind; pour: the grains' RMS.
-LEVEL_DB = {"spurt": -13.0, "choke": -14.0, "tear": -12.0, "squelch": -14.0, "step": -16.0, "slap": -13.0}
+LEVEL_DB = {"spurt": -13.0, "choke": -14.0, "tear": -12.0, "squelch": -14.0, "step": -16.0, "slap": -13.0,
+            "splash": -14.0}
 POUR_RMS_DB = -18.0
-FADE_OUT = {"spurt": 0.08, "choke": 0.08, "tear": 0.08, "squelch": 0.05, "step": 0.08, "slap": 0.05}
+FADE_OUT = {"spurt": 0.08, "choke": 0.08, "tear": 0.08, "squelch": 0.05, "step": 0.08, "slap": 0.05, "splash": 0.07}
 
 # out name: layers, each (source file, start s, end s, gain, offset s in the mix); then options:
 #   lp: a low-pass (Hz, one pole, once) on the mix (the sprays darkened into a low gush; the steps' hiss),
@@ -94,6 +95,12 @@ CUTS = {
     "slap1": ([("fs_540077.mp3", 0.10, 0.34, 1.0, 0.0)], {}),                # a meat slap
     "slap2": ([("fs_223967.mp3", 0.05, 0.29, 1.0, 0.0)], {}),                # meat slapped on glass
     "slap3": ([("impactsplat03.mp3.flac", 0.09, 0.31, 1.0, 0.0)], {}),       # a wet splat (OpenGameArt)
+    # a foot stepping into a pool of blood: the puddle's heavier steps, a small wet splat under two of them
+    "splash1": ([("fs_531571.mp3", 7.10, 7.40, 1.0, 0.0)], {"lp": 4000.0}),
+    "splash2": ([("fs_531571.mp3", 6.70, 7.04, 1.0, 0.0),
+                 ("impactsplat08.mp3.flac", 0.06, 0.32, 0.45, 0.0)], {"lp": 4000.0}),
+    "splash3": ([("fs_531571.mp3", 2.28, 2.56, 1.0, 0.0),
+                 ("impactsplat05.mp3.flac", 0.04, 0.32, 0.4, 0.0)], {"lp": 4000.0}),
 }
 # The blood stream's grains: its steadiest 0.6 s windows (of 1.9..4.45 s: the stream on the paving, before the drips).
 POUR = {"pour1": ("fs_518474.mp3", 2.76), "pour2": ("fs_518474.mp3", 3.46)}

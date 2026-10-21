@@ -57,7 +57,13 @@ constexpr KindInfo kinds[kindCount] = {
     {"squelch", {"vr/gore/squelch1.wav", "vr/gore/squelch2.wav", "vr/gore/squelch3.wav"}, 3, 0.6f, 2, 0.2f, 1.f, 600.f, 0.25f},
     {"step", {"vr/gore/step1.wav", "vr/gore/step2.wav", "vr/gore/step3.wav"}, 3, 0.45f, 1, 0.15f, 1.f, 0.f, 0.24f},
     {"slap", {"vr/gore/slap1.wav", "vr/gore/slap2.wav", "vr/gore/slap3.wav"}, 3, 0.7f, 3, 0.1f, 1.f, 1000.f, 0.2f},
+    {"splash", {"vr/gore/splash1.wav", "vr/gore/splash2.wav", "vr/gore/splash3.wav"}, 3, 0.55f, 1, 0.25f, 1.f, 0.f, 0.3f},
 };
+
+// Each kind's own volume (vr_gore_sound_vol_<kind>, times vr_gore_sound), in Kind's order.
+cvar_t* const kindVolumes[kindCount] = {&vr_gore_sound_vol_spurt, &vr_gore_sound_vol_pour, &vr_gore_sound_vol_choke,
+    &vr_gore_sound_vol_tear, &vr_gore_sound_vol_squelch, &vr_gore_sound_vol_step, &vr_gore_sound_vol_slap,
+    &vr_gore_sound_vol_splash};
 
 constexpr float nearerShare = 0.5f;   // within a kind's gap, one this much nearer than the last played still plays
 constexpr int chanVoice = 2;          // QC CHAN_VOICE: the cries
@@ -149,6 +155,7 @@ struct State
     bool hasFeet = false;
     float walked = 0.f;
     double wetUntil = 0.0;
+    bool inPool = false; // the last step's in a pool (the next one out of it: no splash)
     int held[2]{};
     za::Vector<TestEvent> tests;
     int testKey = 0;
@@ -298,24 +305,7 @@ void pourFrame(float pitch)
     st.pourCount = 0;
 }
 
-[[nodiscard]] bool poolUnder(const glm::vec3& feet)
-{
-    for(const Pool& p : st.pools)
-    {
-        if(p.born < 0.0 || realtime - p.born > poolWetSeconds || realtime < p.born)
-        {
-            continue;
-        }
-        const glm::vec2 d{feet.x - p.at.x, feet.y - p.at.y};
-        if(glm::dot(d, d) <= (p.radius + 6.f) * (p.radius + 6.f) && za::fabs(feet.z - p.at.z) < 20.f)
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Your steps: wet for wetSeconds after one in a pool, fading.
+// Your steps: a splash stepping into a pool, wet for wetSeconds after one in a pool, fading.
 void stepFrame()
 {
     if(cl.viewentity <= 0 || cl.viewentity >= cl.num_entities || cl.stats[STAT_HEALTH] <= 0)
@@ -349,7 +339,16 @@ void stepFrame()
         return;
     }
     st.walked = 0.f;
-    if(poolUnder(feet))
+    const bool pool = poolUnder(feet);
+    if(pool && !st.inPool)
+    {
+        st.inPool = true;
+        playNow(Kind::Splash, 0, feet, 1.f); // (into it: the splash, not a wet step)
+        st.wetUntil = realtime + wetSeconds;
+        return;
+    }
+    st.inPool = pool;
+    if(pool)
     {
         st.wetUntil = realtime + wetSeconds;
     }
@@ -411,7 +410,7 @@ void test_f()
     const int k = Cmd_Argc() > 1 ? kindByName(Cmd_Argv(1)) : -1;
     if(k < 0)
     {
-        Con_Printf("usage: vr_gore_sound_test spurt|pour|choke|tear|squelch|step|slap [n] [interval] [spread]\n");
+        Con_Printf("usage: vr_gore_sound_test spurt|pour|choke|tear|squelch|step|slap|splash [n] [interval] [spread]\n");
         return;
     }
     const int n = Cmd_Argc() > 2 ? za::clamp(atoi(Cmd_Argv(2)), 1, 200) : 1;
@@ -447,6 +446,14 @@ bool send(Kind kind, int ent, const float* at, float strength)
     const auto recent = [](double then, double every) { return then >= 0.0 && then <= sv.qcvm.time && sv.qcvm.time - then < every; };
     if(kind == Kind::Choke)
     {
+        if(!vr_gore_sound_choke.value || vr_gore_sound_vol_choke.value <= 0.f)
+        {
+            if(vr_gore_sound_debug.value)
+            {
+                Con_Printf("goresound: choke not sent for ent %d (vr_gore_sound_choke 0: its cry plays)\n", ent);
+            }
+            return false; // (no mute: its cry plays)
+        }
         if(!e || ent <= 0 || recent(e->choke, chokeEvery) || recent(lastChokeAny, chokeAnyGap))
         {
             if(vr_gore_sound_debug.value)
@@ -536,7 +543,8 @@ void playNow(Kind kind, int ent, const glm::vec3& at, float strength)
     const KindInfo& ki = kinds[k];
     Stats& s = st.stats[k];
     const float pitch = slowPitch() * jitter();
-    const float vol = za::clamp(vr_gore_sound.value, 0.f, 2.f) * ki.gain * za::clamp(strength, 0.f, 1.f);
+    const float vol = za::clamp(vr_gore_sound.value, 0.f, 2.f) * za::clamp(kindVolumes[k]->value, 0.f, 2.f) * ki.gain *
+                      za::clamp(strength, 0.f, 1.f);
     const float dist = glm::distance(at, listener());
     if(!clientOn() || vol < 0.01f)
     {
@@ -656,6 +664,23 @@ void notePool(const glm::vec3& at, const glm::vec3& normal, float size)
     }
     st.pools[st.poolHead] = Pool{at, size * 0.5f, realtime};
     st.poolHead = (st.poolHead + 1) % maxPools;
+}
+
+bool poolUnder(const glm::vec3& feet, float margin)
+{
+    for(const Pool& p : st.pools)
+    {
+        if(p.born < 0.0 || realtime - p.born > poolWetSeconds || realtime < p.born)
+        {
+            continue;
+        }
+        const glm::vec2 d{feet.x - p.at.x, feet.y - p.at.y};
+        if(glm::dot(d, d) <= (p.radius + margin) * (p.radius + margin) && za::fabs(feet.z - p.at.z) < 20.f)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void gibHit(const glm::vec3& where, const glm::vec3& normal, float speed)

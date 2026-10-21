@@ -67,24 +67,30 @@ enum Kind : int
     Splotch,  // a gib's splat: a big blot with spikes and drops all round
     // The melee marks' (vr_decal_melee): a blunt blow's dent, a blade's groove (stretched along it), carved
     Scuff,    // the surface crushed a little darker in the middle, its dust lighter round it
+    // Bloody prints (vr_bloodprints.cpp), the gore's blood: a boot's sole (heel at the cell's -x, toes +x, its inner
+    // side +y: a right boot seen from above), by strength (cells: strong, worn, faint); a hand's (wrist -x, fingers +x,
+    // the thumb +y: a right hand seen from its back), strong and faint.
+    Footprint,
+    Handprint,
     KindCount
 };
 
-// The gore's own kinds (Splatter to Splotch): big, drawn by goreTexel.
+// The gore's own kinds (Splatter to Splotch, and the prints): big, drawn by goreTexel.
 [[nodiscard]] constexpr bool goreKind(int kind)
 {
-    return kind >= Splatter && kind <= Splotch;
+    return (kind >= Splatter && kind <= Splotch) || kind == Footprint || kind == Handprint;
 }
 
-// The atlas: 8 x 4 cells of 256 texels (2048 x 1024 RGBA, mipmapped: 11 MB). Blood splats 0-5,
-// drops 6-7, scorches 8-10, chips 11-15, splatters 16-19, streaks 20-22, pools 23-25, splotches 26-28, scuffs 29-30.
+// The atlas: 8 x 5 cells of 256 texels (2048 x 1280 RGBA, mipmapped: 14 MB). Blood splats 0-5, drops 6-7, scorches
+// 8-10, chips 11-15, splatters 16-19, streaks 20-22, pools 23-25, splotches 26-28, scuffs 29-30, footprints 31-33,
+// handprints 34-35 (36-39 free).
 constexpr int cellSize = 256;
 constexpr int cellsPerRow = 8;
-constexpr int cellRows = 4;
+constexpr int cellRows = 5;
 constexpr int atlasWidth = cellSize * cellsPerRow;
 constexpr int atlasHeight = cellSize * cellRows;
-constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26, 29};
-constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3, 2};
+constexpr int firstCell[KindCount] = {0, 6, 8, 11, 16, 20, 23, 26, 29, 31, 34};
+constexpr int cellCount[KindCount] = {6, 2, 3, 5, 4, 3, 3, 3, 2, 3, 2};
 // Every kind has cells, contiguous, and they all fit in the atlas (buildAtlas writes each cell's texels; a cell past the
 // last row would write past the image).
 constexpr bool atlasCellsValid()
@@ -559,6 +565,30 @@ struct GoreShape
             }
             break;
         }
+        case Footprint:
+        {
+            // A boot's sole, the cell stretched along it (vr_bloodprints.cpp's aspect, about 2.6): the heel block at -x,
+            // a lighter waist along the outer side (-y), the forefoot widest at the ball, the toe rounded at +x, its
+            // inner side (+y) further out.
+            s.ellipses.pushBack({{-0.6f, -0.04f}, {0.26f, 0.66f}});
+            s.ellipses.pushBack({{0.3f, 0.06f}, {0.48f, 0.8f}});
+            s.ellipses.pushBack({{0.6f, 0.12f}, {0.24f, 0.64f}});
+            s.capsules.pushBack({{-0.42f, -0.3f}, {0.02f, -0.26f}, 0.34f, 0.36f});
+            break;
+        }
+        case Handprint:
+        {
+            // A hand pressed flat, the cell stretched along it (aspect about 1.7): the palm and its heel at -x, the
+            // fingers out to +x (index at +y, little finger at -y), the thumb out to +y.
+            s.ellipses.pushBack({{-0.36f, -0.06f}, {0.46f, 0.64f}});
+            s.ellipses.pushBack({{-0.7f, -0.04f}, {0.2f, 0.5f}});
+            s.capsules.pushBack({{0.1f, 0.46f}, {0.74f, 0.52f}, 0.15f, 0.14f});
+            s.capsules.pushBack({{0.12f, 0.12f}, {0.86f, 0.14f}, 0.16f, 0.15f});
+            s.capsules.pushBack({{0.1f, -0.22f}, {0.8f, -0.27f}, 0.15f, 0.14f});
+            s.capsules.pushBack({{0.04f, -0.54f}, {0.58f, -0.66f}, 0.13f, 0.12f});
+            s.capsules.pushBack({{-0.45f, 0.42f}, {-0.02f, 0.74f}, 0.16f, 0.14f});
+            break;
+        }
         case Splotch:
         {
             // A ragged blot, spikes thrown out from it ending in drops, drops round it.
@@ -602,6 +632,34 @@ struct GoreShape
     const glm::vec3 thin = kind == Pool ? glm::vec3{0.72f, 0.04f, 0.03f} : glm::vec3{0.8f, 0.05f, 0.04f};
     const glm::vec3 deep = kind == Pool ? glm::vec3{0.38f, 0.015f, 0.01f} : glm::vec3{0.42f, 0.02f, 0.015f};
     const glm::vec3 color = glm::mix(thin, deep, thick * (0.75f + 0.25f * noise(p * 6.f, seed + 2)));
+    return glm::mix(glm::vec3{1.f}, color, za::clamp(alpha, 0.f, 1.f));
+}
+
+// A print's texel (Footprint, Handprint), variant `variant` (0 the strongest; the later ones more worn): the gore's blood
+// over its shape, a boot's tread across it, blotchy where it printed less, the worn ones in patches and lighter.
+[[nodiscard]] glm::vec3 printTexel(Kind kind, int variant, int seed, const GoreShape& s, glm::vec2 p)
+{
+    const float d = goreDistance(s, seed, p);
+    if(d > 0.02f)
+    {
+        return glm::vec3{1.f};
+    }
+    float cover = smoothstep(0.015f, -0.015f, d);
+    if(kind == Footprint)
+    {
+        // The tread: lugs across it, a slight chevron, and the waist printing less.
+        const float t = p.x * 6.5f + za::fabs(p.y) * 1.1f;
+        const float groove = t - za::floor(t);
+        cover *= 0.15f + 0.85f * smoothstep(0.12f, 0.22f, groove) * smoothstep(0.92f, 0.82f, groove);
+        cover *= p.x > -0.36f && p.x < -0.1f ? 0.7f : 1.f;
+    }
+    // Blotchy, as a print is; worn ones in patches.
+    const float blot = noise(p * 6.f, seed) * 0.6f + noise(p * 15.f, seed + 3) * 0.4f;
+    const float keep = variant == 0 ? 0.12f : variant == 1 ? 0.38f : 0.55f;
+    cover *= smoothstep(keep - 0.08f, keep + 0.08f, blot);
+    const float alpha = cover * (variant == 0 ? 0.9f : variant == 1 ? 0.75f : 0.6f) * (0.85f + 0.15f * noise(p * 30.f, seed + 1));
+    const float thick = smoothstep(0.f, -0.12f, d) * (variant == 0 ? 1.f : 0.5f);
+    const glm::vec3 color = glm::mix(glm::vec3{0.8f, 0.05f, 0.04f}, glm::vec3{0.42f, 0.02f, 0.015f}, thick);
     return glm::mix(glm::vec3{1.f}, color, za::clamp(alpha, 0.f, 1.f));
 }
 
@@ -702,6 +760,10 @@ jobs::Site atlasSite{"decal atlas"}; // (its parallelFor: vr_jobs_sites)
                     if(kind == Hole)
                     {
                         f = chipTexel(seed, chip, p);
+                    }
+                    else if(kind == Footprint || kind == Handprint)
+                    {
+                        f = printTexel(static_cast<Kind>(kind), cell - firstCell[kind], seed, gore, p);
                     }
                     else if(goreKind(kind))
                     {
@@ -1297,7 +1359,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         u = glm::normalize(a);
         along = true;
     }
-    glm::vec3 v = glm::cross(n, u);
+    glm::vec3 v = glm::cross(n, u) * (o.mirror ? -1.f : 1.f);
     if((kind == Hole || carve.x > 0.f) && !along)
     {
         // Its relief lit from where the light comes from (v: the cell's lit side; a carved crater's guess at where the
@@ -1313,8 +1375,8 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     // its top where it is.
     const bool big = goreKind(kind);
     const float halfV = size * 0.5f, halfU = halfV * za::max(0.25f, o.aspect);
-    Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + rand() % cellCount[kind],
-        cl.time + o.delay};
+    const int variant = o.variant >= 0 ? za::min(o.variant, cellCount[kind] - 1) : rand() % cellCount[kind];
+    Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + variant, cl.time + o.delay};
     d.grow = o.grow;
     d.growFrom = za::clamp(o.growFrom, 0.f, 1.f);
     d.fromStart = o.fromStart;
@@ -1645,13 +1707,19 @@ void drop(const glm::vec3& org, float size)
 
 bool place(Mark mark, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o)
 {
-    constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch};
+    constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch, Footprint, Handprint};
     const bool placed = vr_decals.value && cl.worldmodel && add(kinds[static_cast<int>(mark)], where, normal, size, o);
     if(placed && mark == Mark::Pool)
     {
         goresound::notePool(where, normal, size); // (wet underfoot: vr_goresound.cpp)
     }
     return placed;
+}
+
+int variants(Mark mark)
+{
+    constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch, Footprint, Handprint};
+    return cellCount[kinds[static_cast<int>(mark)]];
 }
 
 bool trace(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
@@ -1840,8 +1908,8 @@ struct WorldDecal
     glm::vec4 carve;  // Decal::carve
 };
 static_assert(sizeof(WorldDecal) == 96);
-static_assert(cellsPerRow == 8 && cellRows == 4 && atlasWidth == 2048 && atlasHeight == 1024,
-    "QVR_DECAL_FUNCTIONS (vr_glsl.h) has the atlas's layout");
+static_assert(cellsPerRow == 8 && cellRows == 5 && atlasWidth == 2048 && atlasHeight == 1280,
+    "QVR_DECAL_FUNCTIONS (vr_glsl.h) and the permanent layer's bake (vr_permdecals.cpp) have the atlas's layout");
 
 // The grid they are found in (DecalGrid): cells of 32 units, hashed into buckets as the shader hashes them. A mark is
 // listed in the buckets of the cells that reach its rectangle (at its full size, through the surface along its normal:
@@ -2676,9 +2744,9 @@ void count_f()
         grooves += d.carve.x > 0.f && d.carve.w >= 8.f ? 1 : 0;
     }
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches, %d "
-               "scuffs\n",
+               "scuffs, %d footprints, %d handprints\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
-        kinds[Streak], kinds[Pool], kinds[Splotch], kinds[Scuff]);
+        kinds[Streak], kinds[Pool], kinds[Splotch], kinds[Scuff], kinds[Footprint], kinds[Handprint]);
     Con_Printf("%d carved (vr_decal_carve %g, style %g): %d pits, %d nail holes, %d blast craters, %d melee dents, %d "
                "blade grooves\n",
         carved, vr_decal_carve.value, vr_decal_carve_style.value, carved - nailShaped - craters - dents - grooves,

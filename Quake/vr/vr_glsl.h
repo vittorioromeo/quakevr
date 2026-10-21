@@ -1372,7 +1372,7 @@ LIQUID_SWELL \
 #define QVR_DECAL_FUNCTIONS \
 "struct Decal\n" \
 "{\n" \
-"	vec4	centre; // xyz its middle, w its cell in the atlas (8 x 4)\n" \
+"	vec4	centre; // xyz its middle, w its cell in the atlas (8 x 5)\n" \
 "	vec4	u; // xyz its length's way (a unit), w half its length\n" \
 "	vec4	v; // xyz its width's way, w half its width\n" \
 "	vec4	n; // xyz the normal of the surface it was laid on, w how far from its plane a surface takes it\n" \
@@ -1607,8 +1607,8 @@ LIQUID_SWELL \
 "	uint mask = DecalGrid[0];\n" \
 "	uint bucket = DecalGrid[1u + (h & mask)];\n" \
 "	uint first = 2u + mask + (bucket >> 8), count = bucket & 255u;\n" \
-"	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);\n" \
-"	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);\n" \
+"	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1280.0);\n" \
+"	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 5.0);\n" \
 "	const vec2 span = cellsize - 2.0 * inset;\n" \
 "	for (uint k = 0u; k < count; k++)\n" \
 "	{\n" \
@@ -1654,7 +1654,7 @@ LIQUID_SWELL \
 "			vec2 world_grid = RetroGrid;\n" \
 "			float world_far = RetroFar;\n" \
 "			Retro = 0;\n" \
-"			RetroBegin(DecalClock.w, vec2(2048.0, 1024.0), gx, gy, dpdx, dpdy, facing);\n" \
+"			RetroBegin(DecalClock.w, vec2(2048.0, 1280.0), gx, gy, dpdx, dpdy, facing);\n" \
 "			if (Retro > 0)\n" \
 "			{\n" \
 "				float dk = 1.0 - darken * min(1.0, age / max(d.time.y, 8.0));\n" \
@@ -1676,7 +1676,7 @@ LIQUID_SWELL \
 "#endif\n" \
 "		// filtered over the pixel's footprint by hand: the mip level of its narrower way, up to 4 reads along the longer\n" \
 "		// (textureGrad's own, in llvmpipe, put a faint line along some rows of pixel quads)\n" \
-"		vec2 tx = gx * vec2(2048.0, 1024.0), ty = gy * vec2(2048.0, 1024.0);\n" \
+"		vec2 tx = gx * vec2(2048.0, 1280.0), ty = gy * vec2(2048.0, 1280.0);\n" \
 "		float lx = dot(tx, tx), ly = dot(ty, ty);\n" \
 "		vec2 major = lx > ly ? gx : gy;\n" \
 "		float lmajor = sqrt(max(lx, ly)), lminor = sqrt(min(lx, ly));\n" \
