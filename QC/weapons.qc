@@ -5412,8 +5412,9 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     }
 
     newmis.vr_drop_born = time;
-    // Spent, a single-use enemy gun is never fired again: no loot beam, no force grab (vr_enemy_weapon_depleted_loot).
-    newmis.vr_depleted = (VR_IsEnemyGun(xWeapon) && newmis.weaponinst != world && newmis.weaponinst.wi_clip < 1);
+    // Spent, a single-use enemy gun or a chainsaw is never fired again: no loot beam, no force grab
+    // (vr_enemy_weapon_depleted_loot).
+    newmis.vr_depleted = VR_Weapon_Spent(xWeapon, newmis.weaponinst);
     VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
 
     return newmis;

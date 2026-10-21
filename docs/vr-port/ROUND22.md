@@ -15906,6 +15906,17 @@ His notes (vrragtriggers_2026-10-21_15-30-02, 15-32-24; and a coordinator item).
 still glows. Shove grunts off the vrclimb trench at different distances: they should tip over and drop near the wall
 (Ledge Carry Past the Edge 0.1; raise it if it looks like they hit an invisible wall). Shove an unhurt grunt down: no
 blood trail; shoot one, then shove it: it bleeds as before.
+
+**Follow-up (branch `agent/spentsaw`, 2026-10-22): empty chainsaws are spent too.** His call: an ogre's chainsaw out of
+fuel (its record's `wi_clip`, the fuel, at 0; nothing refuels it) counts as spent under the same
+`vr_enemy_weapon_depleted_loot` (0): no loot pillar, no force grab (so no eligible particles); a hand still takes it, and
+it still cuts as a blade. `VR_Weapon_Spent` (vr_wpnforcegrab.qc) decides for both kinds: at the drop
+(`CreateThrownWeapon`) and as a running one let go burns its last fuel lying (`VR_Saw_PropSettle`). Headless (e1m1,
+`impulse 164`, the grip held, `impulse 220` drops it): emptied in the hand (`impulse 227`, started, the trigger held
+until it stalls): no beam ("spent enemy guns 1"), "never force grabbed"; let go running with its last fuel
+(`vr_chainsaw_idle_fuel_use 20`): stalls lying, then the same; with the cvar at 1, beamed and "may be force grabbed"; a
+fuelled one beamed and "may be force grabbed" as before.
+
 ## Chokes off, gore sound volumes, bloody footprints and handprints (worktree `gorefx`, branch `agent/bloodprints`, 2026-10-21)
 
 Voice notes 15:15-15:25. New cvars only (no default of an existing one changed, no config migration).

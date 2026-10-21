@@ -127,9 +127,22 @@ vector(entity e) VR_Forcegrab_GrabPoint =
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
 
 // A weapon prop that can never be fired again: a single-use enemy gun (a grunt's burst rifle, an enforcer's laser rifle,
-// AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty (CreateThrownWeapon). The engine reads it: no loot
-// beam (vr_server.cpp), unless vr_enemy_weapon_depleted_loot.
+// AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty, or a chainsaw out of fuel (an ogre's: never refuelled;
+// still a blade) (CreateThrownWeapon; a running one let go as it burns its last: VR_Saw_PropSettle). The engine reads
+// it: no loot beam (vr_server.cpp), unless vr_enemy_weapon_depleted_loot.
 .float vr_depleted;
+
+float(float xWid) VR_IsEnemyGun; // (vr_enemyguns.qc)
+
+// Whether weapon `xWid` with record `xInst` is spent for good (.vr_depleted above).
+float(float xWid, entity xInst) VR_Weapon_Spent =
+{
+    if(xInst == world || !(VR_IsEnemyGun(xWid) || xWid == WID_CHAINSAW))
+    {
+        return FALSE;
+    }
+    return xInst.wi_clip <= 0;
+};
 
 // Whether the force grab skips `e`, a spent enemy gun (vr_enemy_weapon_depleted_loot 0, the default): a hand takes it.
 float(entity e) VR_EnemyGun_DepletedSkipped =
