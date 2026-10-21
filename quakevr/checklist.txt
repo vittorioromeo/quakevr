@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Gore sounds, real recordings (CC0): listen in play or with vr_gore_sound_test <kind> 4 0.6 (spurt, pour, choke, tear, squelch, step, slap): chokes sound like a monster throat, not a man; the tear's bone crack comes through over the rip; wet steps quiet enough and not hissy; no audible seams in the stream splatter; spurts not too muffled
 Gore sounds (placeholders, replace with recordings, see SOUNDS_OURS.md): grab a gib and a dead ragdoll: squelch; behead a grunt/ogre: gargle, no death cry; hard punch to the jaw: gargle instead of the pain cry; stump spurts line up with the visible pulses; stream splatter quiet, not stuttering; walk through a corpse's pool: wet steps ~4 s; loudness per kind feels right ("Gore Sounds" slider on the Gore page)
 AD/Rogue knees: AD zombies and mummies (ad_sepulcher, ad_swampy, ad_zendar; behead or stagger them), defenders/eliminators/pyros (ad_crucial, ad_tfuma, ad_metmon), Rogue mummy (r2m4): knees bend backward at the knee only, no forward kink; drag a mummy by the leg: it folds at the knee
 Enforcer and zombie knees: shove/knock down an enforcer and a zombie, behead a zombie, kill enforcers, drag either by the leg: the knee bends where the trousers meet the boot, never forward, no seam tear (it used to bend at the ankle)
