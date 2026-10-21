@@ -126,6 +126,17 @@ vector(entity e) VR_Forcegrab_GrabPoint =
 
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
 
+// A weapon prop that can never be fired again: a single-use enemy gun (a grunt's burst rifle, an enforcer's laser rifle,
+// AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty (CreateThrownWeapon). The engine reads it: no loot
+// beam (vr_server.cpp), unless vr_enemy_weapon_depleted_loot.
+.float vr_depleted;
+
+// Whether the force grab skips `e`, a spent enemy gun (vr_enemy_weapon_depleted_loot 0, the default): a hand takes it.
+float(entity e) VR_EnemyGun_DepletedSkipped =
+{
+    return e.vr_depleted && !cvar_hget(cvarh_vr_enemy_weapon_depleted_loot);
+};
+
 float(entity e) VR_Forcegrab_IsEligible =
 {
     // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
@@ -151,8 +162,8 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
-    // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes).
-    if(!propvalue(e, "forcegrab"))
+    // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes), nor a spent enemy gun.
+    if(!propvalue(e, "forcegrab") || VR_EnemyGun_DepletedSkipped(e))
     {
         return FALSE;
     }

@@ -1165,7 +1165,14 @@ void driveShove(RagdollBodies& r, float dt)
             return;
         }
         const float along = glm::dot(level, d.dir);
-        const glm::vec3 add = gone < d.reach && !dropped && along < d.speed ? d.dir * ((d.speed - along) * g) : glm::vec3{0.f};
+        // Past the edge (vr_knockdown_shove_ledge_over): its speed along the shove eased down to `over` of the kept speed,
+        // so it tips over the lip and drops near the ledge's foot rather than flying on.
+        const float cap = d.speed * d.over;
+        glm::vec3 add = gone < d.reach && !dropped && along < d.speed ? d.dir * ((d.speed - along) * g) : glm::vec3{0.f};
+        if(gone >= d.reach && d.over < 1.f && along > cap)
+        {
+            add = d.dir * ((cap - along) * g);
+        }
         const glm::vec3 axis = glm::normalize(glm::cross(glm::vec3{0.f, 0.f, 1.f}, d.dir));
         float spinNum = 0.f, spinDen = 0.f;
         for(int b = 0; b < r.count; b++)
@@ -1924,6 +1931,15 @@ void shockRagdoll(edict_t* ent, Slot& s, float dt)
     }
 }
 
+bool limbsBleed(edict_t* ent)
+{
+    // Alive: knocked down (vr_knockdown 1, 2 getting up; Killed clears it), or a monster with health left (its get-up's
+    // last blend, after QC has stood it up). A corpse's limbs always bleed, as before.
+    const bool alive = fieldFloatOr(ent, fields().vr_knockdown, 0.f) != 0.f ||
+                       (ent->v.health > 0.f && (static_cast<int>(ent->v.flags) & FL_MONSTER) != 0);
+    return !alive || fieldFloatOr(ent, fields().vr_bloodied, 1.f) != 0.f;
+}
+
 // After the step: the entity where its frame would have its pelvis where the ragdoll has it (a saved game's ragdoll is
 // made again from its frame there: lying where it lay), its box round its parts (shots and blows meet the ragdoll's
 // box, then its mesh: vr_hitmodel.cpp; then the QC's corpse damage), on the ground and still to Quake; the parts
@@ -2046,6 +2062,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
             heldBy |= 1 << g.hand;
         }
     }
-    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut);
+    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut,
+        limbsBleed(ent));
 }
 } // namespace box3d::detail

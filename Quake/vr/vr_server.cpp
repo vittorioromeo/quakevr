@@ -1038,9 +1038,12 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
             return;
         }
         // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
-        // vr_hotblade.cpp draws it; 0 in older demos).
+        // vr_hotblade.cpp draws it; 0 in older demos), bit 31 a spent single-use enemy gun (QC .vr_depleted: its loot
+        // beam, vr_lootbeams.cpp; 0 in older demos).
         const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
-        MSG_WriteLong(msg, (weaponUid(inst) & 0xFFFFFF) | (hot << 24));
+        const uint32_t spent = fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f ? 0x80000000u : 0u;
+        MSG_WriteLong(msg, static_cast<int>((static_cast<uint32_t>(weaponUid(inst)) & 0xFFFFFFu) |
+                                            (static_cast<uint32_t>(hot) << 24) | spent));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
         MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
     }

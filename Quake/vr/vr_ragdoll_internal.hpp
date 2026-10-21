@@ -43,6 +43,7 @@ struct Published
     const Rig* rig{nullptr};
     int bodies{0}; // the bones from this on are hidden
     uint32_t cut{0}; // the bones cut off (its head: ROUND21.md, "Decapitation"), drawn at the neck
+    bool bleeds{true}; // its limbs flung fast leave blood trails (publish's `bleeds`: not an unwounded live one's)
     float scale{1.f};
     bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
     qmodel_t* skinned{nullptr}; // its skinned model as last found (skinnedOf: checked before each use, found again if stale)

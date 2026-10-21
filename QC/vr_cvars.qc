@@ -278,6 +278,7 @@ float cvarh_vr_debug_chainsaw;
 float cvarh_vr_chainsaw_drop_fuel_min;
 float cvarh_vr_chainsaw_drop_run;
 float cvarh_vr_enemy_weapon_drop_max;
+float cvarh_vr_enemy_weapon_depleted_loot;
 float cvarh_vr_chainsaw_smoke;
 float cvarh_vr_chainsaw_shake_ground;
 float cvarh_vr_gruntgun_damage;
@@ -1296,6 +1297,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_chainsaw_drop_fuel_min);
     VR_CVAR_HMAKE(vr_chainsaw_drop_run);
     VR_CVAR_HMAKE(vr_enemy_weapon_drop_max);
+    VR_CVAR_HMAKE(vr_enemy_weapon_depleted_loot);
     VR_CVAR_HMAKE(vr_chainsaw_smoke);
     VR_CVAR_HMAKE(vr_chainsaw_shake_ground);
     VR_CVAR_HMAKE(vr_gruntgun_damage);

@@ -50,8 +50,9 @@ void drop(const glm::vec3& org, float size);
 void chip(const glm::vec3& org);
 
 // A ragdoll's limb's end at `at` this frame (vr_ragdoll.cpp; `key`: its entity's and the limb's): flung fast, a blood
-// trail and drops as a gib's (vr_ragdoll_blood).
-void limbTrail(int key, const glm::vec3& at);
+// trail and drops as a gib's (vr_ragdoll_blood), if it `bleeds` (not an unwounded live one, shoved down: tracked all the
+// same).
+void limbTrail(int key, const glm::vec3& at, bool bleeds);
 
 // The marks the gore places (vr_gore.cpp), besides the splats and drops above: a hit's spray
 // (droplets flung along `along`), a run of blood down a wall (from its top along `along`, down), a

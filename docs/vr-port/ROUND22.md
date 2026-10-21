@@ -15863,3 +15863,46 @@ impacts* (Independent.nu, CC0; FLAC, decoded with the engine's libFLAC through c
 **In VR:** listen for the chokes (monster enough? choke1 is a man's gargle at 0.85 speed, choke2 a lower gargle), the
 tears' crack (audible over the rip?), the steps (quiet, a little hissy?), and the pour stream's loop (seams every
 0.52 s?). `vr_gore_sound_test <kind> 4 0.6` plays each kind round you.
+
+## Spent enemy guns, ledge shoves, shoves that bled (worktree `release`, branch `agent/ledgeshove`, 2026-10-21)
+
+His notes (vrragtriggers_2026-10-21_15-30-02, 15-32-24; and a coordinator item).
+
+- **Spent enemy guns** (`vr_enemy_weapon_depleted_loot`, new, 0; Gameplay > Enemy Weapons, "Spent Guns Stand Out"): a
+  single-use enemy gun (`VR_IsEnemyGun`: the grunts' burst rifle, the enforcers' laser rifle, AD's soldiers' guns, AD's
+  crossbow) dropped or thrown with its clip empty is marked `.vr_depleted` (`CreateThrownWeapon`). Then no loot pillar
+  (bit 31 of the weapon prop's networked id; `vr_lootbeams.cpp`, counted as "spent enemy guns" in
+  `vr_lootbeams_report`) and the force grab skips it (`VR_Forcegrab_IsEligible`; so no eligible particles either). A
+  hand still takes it. 1: as before. A gun with rounds left keeps both. The ogres' chainsaws (fuel, never refilled) are
+  not included: an empty one is still a heavy blade.
+- **Ledge shoves** (`vr_knockdown_shove_ledge_over`, new, 0.1; Combat > Knockdowns, "Ledge Carry Past the Edge", and
+  ragtool's Shove group with Ledge Topple and Ledge Push): the ledge drive (`box3d` `driveShove`, ledge mode) kept the
+  launch's speed (Ledge Push times it, at least 80 u/s) until its middle was past the edge, then let it fly on. Now,
+  past the edge, its middle's speed along the shove is eased down (0.06 s) to this times the kept speed, so it tips
+  over the lip and drops near the ledge's foot. 1: as before. Ledge Push (0.7) is unchanged, so it still reaches the
+  edge as briskly. A new cvar, so no config migration (configVersion stays 176).
+  Numbers (vrclimb, `setpos -150 Y 24 0 90 0`, `impulse 244`, `vr_knockdown_test 22`/`21`, the trench's edge at about
+  y 190 (+-4), a 192 drop; its pelvis's landing, units past the edge):
+
+  | its middle to the edge | 46 | 22 | 6 | ~0 |
+  |---|---|---|---|---|
+  | two hands, before (1) | 345 | 358 | 372 | 386 |
+  | two hands, 0.3 | 108 | 116 | 110 | 131 |
+  | two hands, now (0.1) | 59 | 62 | 64 | 58 |
+  | one hand, now (0.1) | 47 | 47 | 48 | 56 |
+
+  Every one fell to the trench's floor (feet 211-213 units down).
+- **Shoves that bled**: a shove's damage was already bloodless (`VR_HitBloodless`: no wound, no splash), but the
+  knocked-down ragdoll's limbs flung faster than 150 u/s left blood trails and drops (`decals::limbTrail`,
+  `vr_ragdoll_blood`) whether it had bled or not. Now a live ragdoll's limbs (knocked down, staggering, getting up, or a
+  monster with health left) bleed only once it has bled (`.vr_bloodied`, set by `VR_Wound_Hit` for any hit that is not
+  bloodless, a burn, a fall or a liquid; `box3d::limbsBleed`, passed with `ragdoll::publish`). Corpses bleed as before;
+  a real hit afterwards (a shot, a blow, a thrown body) makes it bleed from then. Covers one- and two-hand shoves,
+  running shoves and the shoulder charge (all knockdowns). `vr_decal_count` now also prints the limb frames that bled
+  and those spared. Headless: an unhurt grunt shoved down, 1630 limb frames bled before, 0 after (1754 spared); a
+  wounded knight (a shotgun hit first) shoved down: 1151 bled, 0 spared (unchanged).
+
+**In VR:** empty a grunt's rifle, drop it: no pillar, the force grab passes over it, a hand picks it up; a full one
+still glows. Shove grunts off the vrclimb trench at different distances: they should tip over and drop near the wall
+(Ledge Carry Past the Edge 0.1; raise it if it looks like they hit an invisible wall). Shove an unhurt grunt down: no
+blood trail; shoot one, then shove it: it bleeds as before.

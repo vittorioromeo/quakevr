@@ -2582,6 +2582,7 @@ QVR_CVAR(vr_chainsaw_pull_distance, "30", CVAR_ARCHIVE) // cm the cord must be p
 QVR_CVAR(vr_chainsaw_pull_speed, "1.2", CVAR_ARCHIVE) // m/s the hand must pull it at, there
 QVR_CVAR(vr_chainsaw_drop_fuel_min, "40", CVAR_ARCHIVE) // an ogre's dropped chainsaw has this much fuel (percent of a tank) or more, up to a full tank
 QVR_CVAR(vr_enemy_weapon_drop_max, "48", CVAR_ARCHIVE) // most single-use enemy weapons lying about (grunts' burst rifles, enforcers' laser rifles, ogres' chainsaws): past it the oldest fades away (not one in a hand, pulled or in flight); 0: no limit
+QVR_CVAR(vr_enemy_weapon_depleted_loot, "0", CVAR_ARCHIVE) // 0: a spent single-use enemy gun lying about (a grunt's burst rifle, an enforcer's laser rifle, AD's soldiers' guns: its clip empty, never refilled) has no loot beam and the force grab skips it (a hand still takes it); 1: as any weapon (before 2026-10-21)
 QVR_CVAR(vr_chainsaw_drop_run, "3", CVAR_ARCHIVE)  // seconds a running chainsaw dropped or thrown runs on (QC VR_Saw_PropRuns); taken back meanwhile, still running. 0: it stops at once
 // A running chainsaw (NOTES.md vrfiringrange_2026-10-01_16-37-54; Combat > Enemy Weapons > Chainsaw Engine): its engine's
 // faint exhaust smoke, in a hand and lying running (vr_chainsaw.cpp, QC VR_Saw_PropThink); its shake in the hand (drawn
@@ -3031,6 +3032,7 @@ QVR_CVAR(vr_legsweep_legs, "0.5", CVAR_ARCHIVE)          // s: swept (or its leg
 QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)            // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
 QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
 QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
+QVR_CVAR(vr_knockdown_shove_ledge_over, "0.1", CVAR_ARCHIVE) // shoved over a ledge, once past the edge its speed along the shove eased down to at most this times the speed it was kept at (0..1): it tips over the lip and drops near the ledge's foot; 1: flies on as it goes (before 2026-10-21)
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)

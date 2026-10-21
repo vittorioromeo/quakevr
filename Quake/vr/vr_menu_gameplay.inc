@@ -894,6 +894,9 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Ledge Push", vr_knockdown_shove_ledge_push, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
             .help("How hard a shove over a ledge throws it off, times the shove's own push (it is always kept going "
                   "until it is past the edge). Less: it drops closer to the ledge's foot."),
+        slider("Ledge Carry Past the Edge", vr_knockdown_shove_ledge_over, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Once a shove has taken it past the edge, how much of its speed it keeps as it falls: low, it just tips "
+                  "over the lip and drops near the ledge's foot; 1: it flies on as it goes (as before)."),
         cycle("Weapon Stays in Hand", vr_knockdown_weld, {{0.f, "Off"}, {1.f, "In the Hand"}, {2.f, "Where It Was (Old)"}})
             .help("Its weapon stays in its hand while it is down or staggering, lifted or struggling (killed there, it "
                   "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Where It "
@@ -998,6 +1001,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("The grunts' burst rifles, the enforcers' laser rifles and the ogres' chainsaws lying about: past this "
                   "many, the oldest fades away (never one in your hand, pulled to it or in flight). Every other weapon, "
                   "drop and prop stays. 0: no limit (vr_enemy_weapon_drop_max)."),
+        toggle("Spent Guns Stand Out", vr_enemy_weapon_depleted_loot)
+            .help("Off: an empty burst rifle, laser rifle or Arcane Dimensions soldier's gun lying about (nothing ever "
+                  "refills them) has no loot pillar and the force grab skips it; a hand still picks it up. On: as any "
+                  "weapon (vr_enemy_weapon_depleted_loot)."),
         header("Ogres' Chainsaws"),
         slider("Fuel When Dropped", vr_chainsaw_drop_fuel_min, 0.f, 100.f, 5.f, "%.0f%% or more")
             .help("The fuel an ogre's chainsaw has as it drops: at least this much of a full tank, at random up to full. "
