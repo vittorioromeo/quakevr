@@ -165,7 +165,10 @@ constexpr Seed ogreSeeds[] = {
 // Quake VR's enforcer (quakevr/progs/enforcer.mdl: 479 vertices, 108 frames). The rest pose ($stand1): x forward, y left,
 // z up; upright, his laser rifle in both hands before him, a pack on his back (on his chest bone). As the grunt's, his
 // legs' long triangles have no vertices of their own: a thigh's bone is its knee's ring, a shin's its boot. Measured on
-// his frames (Misc/quakevr/ragdoll/rig.py enforcer enforcer_bones.json): 0.97 units rms. His rifle is collapsed in his
+// his frames (Misc/quakevr/ragdoll/rig.py enforcer enforcer_bones.json): 0.97 units rms. His knees (rig.py's 'knee') at
+// the ring's lower edge the shin's triangles hang from, z -11.6 (the motions' fit put them at the boot's top, -18: his
+// shin stretches 8-12.6 units in his frames, so his ragdoll bent at the ankle); his shins down to the ankle, a hinge
+// across him (keepHinge: they lean back and out a little at rest). His rifle is collapsed in his
 // death frames (he drops it: vr_monstermods.cpp, vr_enemyguns.qc): the loose bone, hidden.
 // Death frames 41-54 ($death1-14) and 55-65 ($fdeath1-11).
 constexpr Seed enforcerSeeds[] = {
@@ -176,10 +179,10 @@ constexpr Seed enforcerSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {2.2f, 13.3f, 13.3f}, {-5.1f, 13.7f, 14.5f}, {9.6f, 12.8f, 12.1f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-4.3f, -14.6f, 19.4f}, {-6.2f, -11.3f, 21.8f}, {-1.6f, -17.8f, 15.2f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {2.f, -11.4f, 13.f}, {-1.6f, -17.8f, 15.2f}, {5.7f, -5.1f, 10.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {-2.4f, 5.8f, -9.2f}, {-4.f, 4.5f, -3.5f}, {-4.7f, 6.4f, -18.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {-3.3f, 8.f, -22.3f}, {-4.7f, 6.4f, -18.6f}, {-3.6f, 7.7f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-3.f, -7.3f, -9.3f}, {-3.1f, -7.8f, -3.7f}, {-6.8f, -7.6f, -17.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-6.8f, -7.6f, -17.6f}, {-5.f, -9.2f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-2.4f, 5.8f, -9.2f}, {-4.f, 4.5f, -3.5f}, {-3.8f, 6.7f, -11.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-3.3f, 8.f, -22.3f}, {-3.8f, 6.7f, -11.6f}, {-6.6f, 7.4f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-3.f, -7.3f, -9.3f}, {-3.1f, -7.8f, -3.7f}, {-4.4f, -8.3f, -11.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-4.4f, -8.3f, -11.5f}, {-7.8f, -8.8f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // Quake VR's hell knight, the death knight (quakevr/progs/hknight.mdl: 538 vertices, 167 frames). The rest pose
@@ -254,7 +257,8 @@ constexpr Seed wizardSeeds[] = {
 // Quake VR's zombie (quakevr/progs/zombie.mdl: 481 vertices, 199 frames). The rest pose ($stand1): x forward, y left, z up;
 // upright, his arms hanging at his sides, his left leg forward. His ragdoll is made only when he is beheaded (he is gibbed
 // otherwise), from any frame. Measured on his frames (Misc/quakevr/ragdoll/rig.py zombie zombie_bones.json): clusters 0.62
-// units rms, bones 0.79. The flesh he throws is a piece collapsed in some frames: the loose bone, hidden. No death frames:
+// units rms, bones 0.79. His knees as the enforcer's (rig.py's 'knee': the knee ring's lower edge, z -13.4 and -14.1, not
+// the boot's top; keepHinge). The flesh he throws is a piece collapsed in some frames: the loose bone, hidden. No death frames:
 // his falls stand in (their poses' occlusion, Go Limp At), painb1-14 (103-116) and paine1-17 (162-178).
 constexpr Seed zombieSeeds[] = {
     {"pelvis", -1, Joint::Root, {0.f, 0.2f, 4.1f}, {0.f, 0.2f, 4.1f}, {-0.6f, -0.3f, 8.2f}, 0.f, 0.f, 0.f, 0.f, {}},
@@ -264,10 +268,10 @@ constexpr Seed zombieSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {1.f, 8.1f, 0.f}, {0.5f, 7.5f, 6.9f}, {1.6f, 8.7f, -6.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-2.5f, -6.5f, 12.2f}, {-2.6f, -5.9f, 18.5f}, {-2.6f, -6.6f, 5.9f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {-2.4f, -6.9f, -2.1f}, {-2.6f, -6.6f, 5.9f}, {-2.3f, -7.2f, -10.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {4.1f, 5.2f, -10.f}, {4.9f, 4.7f, -6.4f}, {3.9f, 6.7f, -19.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {5.6f, 6.6f, -21.2f}, {3.9f, 6.7f, -19.1f}, {5.6f, 6.6f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.6f, -11.3f}, {-0.1f, -2.2f, -5.f}, {-5.8f, -3.6f, -18.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-5.8f, -3.6f, -18.5f}, {-4.8f, -5.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {4.1f, 5.2f, -10.f}, {4.9f, 4.7f, -6.4f}, {4.4f, 5.6f, -13.4f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {5.6f, 6.6f, -21.2f}, {4.4f, 5.6f, -13.4f}, {2.4f, 6.6f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.6f, -11.3f}, {-0.1f, -2.2f, -5.f}, {-3.7f, -4.8f, -14.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-3.7f, -4.8f, -14.1f}, {-8.4f, -5.4f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // Quake VR's fiend (quakevr/progs/demon.mdl: 1095 vertices, 69 frames). The rest pose ($stand1): x forward, y left, z up;
@@ -1409,7 +1413,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 // The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
 // which seed table it is.
 
-constexpr unsigned rigVersion = 1;
+constexpr unsigned rigVersion = 2; // (2: the enforcer's and the zombie's knees)
 const za::String rigBuild = [] {
     const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
     return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
