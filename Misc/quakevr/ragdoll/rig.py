@@ -14,7 +14,8 @@
 # A bone's list: its clusters, or "pN" a whole piece of its own (with "wholepieces": true, SeedTable::wholePieces: the
 # clusters only the body piece's; the centroid's legs, arms and pincers, meshes of their own moving alike).
 # A bone's flags after its capsule: 'tip' (its end its far tip, not its child's pivot), 'boundary' (its pivot the
-# boundary's middle with its parent, not the motions' fit).
+# boundary's middle with its parent, not the motions' fit), 'knee' (its pivot the parent's side of that boundary, the knee
+# ring's lower edge a long-triangled shin hangs from; its end down the shin through its own side, the ankle).
 # A seed's keepHinge (a hinge whose axis the rest pose's sideways lean would turn: the rottweiler's legs) is set by hand.
 # The loose pieces (a piece some pose hides, all of it at one point: the dropped weapon) are left out.
 import os, sys, json, tempfile
@@ -263,7 +264,7 @@ else:
     tr = fit(label, len(bones))
     E = np.stack([errs(tr, l) for l in range(len(bones))], 1)
     print('bones rms %.2f' % np.sqrt(E[np.arange(R), label].sum() / (R * nf)))
-    centre, pivot = {}, {}
+    centre, pivot, ankle = {}, {}, {}
     for b, bone in enumerate(bones):
         nm, par = bone[0], bone[1]
         m = label == b
@@ -282,6 +283,13 @@ else:
             piv = pivot[b] = np.linalg.lstsq(np.concatenate([A, lam * np.eye(3)]), np.concatenate([y, lam * pb]), rcond=None)[0]
             if 'boundary' in bone[5:]:
                 pivot[b] = pb  # (its pivot the boundary's middle: the fit's was off it, the motions too alike: the fiend's ankles)
+            if 'knee' in bone[5:]:
+                # (its pivot the parent's side of the boundary: the knee ring's lower edge its long triangles hang from,
+                # not the fit's, which a stretching shin pulls down to the boot: the enforcer's and the zombie's knees;
+                # its end down the line from there through its own side, the boot's top: the ankle, not the foot)
+                kb = [X[0, i] for i in np.where(label == par)[0] for u in adj[reps[i]] if u in idx and label[idx[u]] == b]
+                pivot[b] = np.mean(kb, 0)
+                ankle[b] = pb
             line += ' pivot %6.1f %6.1f %6.1f (boundary %6.1f %6.1f %6.1f)' % (*piv, *pb)
         print(line)
     # The seed table (vr_ragdoll.cpp Seed): a bone's 4th entry its joint ("root", ["ball", cone, twist], ["hinge", flex,
@@ -310,6 +318,8 @@ else:
         end = pivot[kids[0]] if kids and not tip else 2 * centre[b] - pivot[b]
         piv = pivot[b] if par >= 0 else centre[b]
         low = X[0, label == b][:, 2].min()
+        if b in ankle and not kids:
+            end = piv + (ankle[b] - piv) * (piv[2] - (low + cap)) / (piv[2] - ankle[b][2])  # ('knee': down the shin to the floor)
         if cap > 0 and not kids and end[2] - cap < low and piv[2] - end[2] > 1e-3:
             end = piv + (end - piv) * min(1, (piv[2] - (low + cap)) / (piv[2] - end[2]))  # (its capsule not below its foot)
         if joint == 'root':

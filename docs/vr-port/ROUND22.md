@@ -15724,3 +15724,36 @@ mattered because of where the mock put the main hand (with it moved away the pal
 and during a firing animation the last resting palm held in the hand's frame (the same gun model only; none
 otherwise). The probe now shows clip 0 and no zone change; grip_state, holsterzones_test.sh (13 PASS) and
 prop_climb_test.sh PASS.
+
+## The enforcer's and the zombie's ragdolls get a knee (worktree `goreflesh`, branch `agent/ragknee`, 2026-10-21)
+
+The staggeranim worker's open point: their shin hinge sat at the boot's top (enforcer z -18.6/-17.6, zombie
+-19.1/-18.5), so their ragdoll legs bent at the hip and the ankle. The meshes: the thigh bone is the knee ring (the
+trousers' lower part, z -6 to -12.5 on the enforcer), the shin bone the boot (-19 to -24), long triangles between them
+(textured as the boot). Every ring vertex follows the thigh in the frames (rms 0.3-1.0 units against 3.7-6.2 for the
+shin's motion), so the vertex weights stay as they were; only the joint moved. rig.py's motion fit put the joint at
+the boot because the animation stretches the shin (8.3-12.6 units on the enforcer, 4.9-9.3 on the zombie): no rigid
+hinge fits anywhere (gap rms 2.9 at the boot, 3.9 at the ring), so the knee is now placed by the mesh.
+
+- `rig.py` flag `'knee'` (enforcer_bones.json, zombie_bones.json, the shins): the pivot is the parent's side of the
+  boundary, the ring's lower edge the shin's triangles hang from (enforcer z -11.6/-11.5, zombie -13.4/-14.1); the end
+  runs down from there through the boot's top to the capsule's floor (the ankle, not the foot's middle).
+- `vr_ragdoll.cpp` seeds: thigh ends and shin pivots at those knees, shins to the ankle, `keepHinge` (the derived axis
+  would lean 35-44 degrees off the across-axis on the enforcer's left and the zombie's right, their shins leaning out):
+  hinge across him, bending backward only; the rest bends 9-17 degrees backward, so a knee straightens to 3 degrees
+  short of straight and folds to 150 (the grunt's and knight's limits). `rigVersion` 2 (the rig cache re-derives).
+
+**Measured** (ragtool, `vr_knockdown_debug` gait lines, shove1/shove2 looped 6 runs each; "knee" is the bend at the
+shin hinge from the stand's, least/most/mean deg): enforcer before (the ankle) shove1 -21/102/32, shove2 -23/87/22;
+after (the knee) -25/62/10, -29/60/5. Zombie before -34/88/31, -34/92/33; after -4/88/28, -5/77/20. Glide per step
+enforcer 12.8/22.1 -> 11.1/16.8 u, zombie 14.2/17.9 -> 10.6/16.9. The animations' own knee (hip-ring-boot, the ring's
+edge) bends up to 43 degrees (enforcer) and 42-49 (zombie). Suites, before and after alike: active_test.sh (MONS=8:
+deaths, head, off), stagger_test.sh (MONS="8 2", rates, getup: 0 FAIL), decap_test.sh zombie, grab_test.sh (MONS=8
+death PASS, shove INFO as before), selfcollide_test.sh overlap (0 deep with self-collision on); no crash or NaN.
+Ragtool runs of death, shove1/2, stagger, stagger_fall, struggle, drag (held by the leg), knockdown on both: nothing
+under the floor, no explosion. Frame strips (`scratch/rs_before_*.png`, `rs_after_*.png`: shove2, leg drag, struggle):
+the legs fold at the trousers' and boot's seam, not at the foot; no tear there.
+
+**Open:** the zombie's foot shows as a long noisy block when his leg is held up (drag, struggle), before and after
+alike (not looked into). AD's enforcer (mon_enforcer: shin pivot -16, its ring -10.7), AD's zombie and Rogue's mummy
+(-20.6, -20) have the same ankle knee: rig.py's `'knee'` would do for them too.
