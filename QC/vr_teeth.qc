@@ -153,6 +153,29 @@ void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow =
     VR_Teeth_Hard(targ, vr_hitdir, VR_Decap_BluntHardness(b.mh_speed, xDamage));
 };
 
+// A hand's blow about to deal `xDamage` to the live `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): a
+// heavy blow to the face (anything but a slap, at least as hard as vr_teeth_hardness's or 0.5, or one that kills it)
+// makes a mouthed monster choke instead of crying (vr_decap.qc VR_GoreSnd_Choke; the engine's vr_goresound.cpp).
+void(entity targ, entity attacker, float xDamage) VR_GoreSnd_FaceBlow =
+{
+    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
+       targ.health <= 0 || !(targ.flags & FL_MONSTER) || !VR_GoreSnd_Mouthed(targ))
+    {
+        return;
+    }
+    entity b = VR_Blow(vr_hithand);
+    if(b.mh_kind == VR_MKIND_SLAP || !VR_Teeth_OnFace(targ, b.mh_c_pos, vr_hitdir))
+    {
+        return;
+    }
+    float hard = VR_Decap_BluntHardness(b.mh_speed, xDamage);
+    if(hard < max(0.5, cvar_hget(cvarh_vr_teeth_hardness)) && xDamage < targ.health)
+    {
+        return;
+    }
+    VR_GoreSnd_Choke(targ, vr_teeth_mouth, min(1, 0.6 + 0.4 * hard));
+};
+
 // A hand's blow at a dead humanoid's ragdoll (VR_Corpse_Struck; self the player): a fist (or with vr_teeth_blunt a blunt
 // thing) at its head part's face knocks teeth out as a live one's punch does, from what it has left (.vr_teeth_lost is
 // the same entity's: the living one's count goes on). Its hardness from the blow's speed (m/s) and its corpse damage.

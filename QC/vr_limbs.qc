@@ -368,6 +368,7 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
             VR_Limb_Throw(e, m, xBone, mid, ragdollcut(e, 1), ragdollcut(e, 2), ragdollcut(e, 3));
         }
         vr_limb_cuts++;
+        VR_GoreSnd_Tear(e, ragdollcut(e, 4, xBone)); // (the rip and the bone's crack: vr_decap.qc)
         dprint(sprintf("limbs: %s's limb %g cut off by %s (%s at %.1f m/s): %s at %.0f u/s\n", e.classname, xBone, by.classname,
             VR_Decap_HowName(xHow), vlen(xVel) / VRMetersToUnits(), m, vlen(ragdollcut(e, 2))));
     }

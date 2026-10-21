@@ -7,6 +7,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gore.hpp"
+#include "vr_goresound.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
@@ -1645,7 +1646,12 @@ void drop(const glm::vec3& org, float size)
 bool place(Mark mark, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o)
 {
     constexpr Kind kinds[] = {Blood, BloodDrop, Splatter, Streak, Pool, Splotch};
-    return vr_decals.value && cl.worldmodel && add(kinds[static_cast<int>(mark)], where, normal, size, o);
+    const bool placed = vr_decals.value && cl.worldmodel && add(kinds[static_cast<int>(mark)], where, normal, size, o);
+    if(placed && mark == Mark::Pool)
+    {
+        goresound::notePool(where, normal, size); // (wet underfoot: vr_goresound.cpp)
+    }
+    return placed;
 }
 
 bool trace(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)

@@ -311,6 +311,7 @@ void(float dm) VR_Limb_GibAll;
 float() VR_Limb_GibsWanted;
 float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
 void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow; // (vr_teeth.qc)
+void(entity targ, entity attacker, float xDamage) VR_GoreSnd_FaceBlow; // (vr_teeth.qc)
 void() VR_Teeth_Test;
 void(entity c, float xHand, vector xAt, vector xDir, float xSpeed, float xDamage) VR_Teeth_CorpseBlow;
 void(entity targ) VR_Decap_After;
@@ -2771,6 +2772,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         pushDamage = damage;
     }
     VR_Teeth_Blow(targ, attacker, damage); // VR: a punch to the face knocks teeth out (vr_teeth.qc)
+    VR_GoreSnd_FaceBlow(targ, attacker, damage); // VR: a heavy blow to the face: a choke, not a cry (vr_teeth.qc)
     float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
     float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;

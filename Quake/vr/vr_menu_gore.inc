@@ -341,6 +341,11 @@
     return {
         cycle("Gore", vr_gore, {{0.f, "Quake VR"}, {1.f, "More"}, {2.f, "Over the top"}})
             .help("Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip."),
+        slider("Gore Sounds", vr_gore_sound, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("How loud the gore's own sounds are (0 none): stumps spurting with each pulse, streams splattering on the "
+                  "floor, a beheaded or face-smashed enemy's choke instead of its cry, limbs tearing off, a hand squelching "
+                  "into a gib or a body, wet steps after a pool of blood, gibs slapping walls. Placeholders for now "
+                  "(vr_gore_sound)."),
         header("Hits, Gibs and Corpses"),
         slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none)."),

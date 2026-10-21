@@ -149,6 +149,10 @@ string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
 void(entity e, vector org, vector dir, float kind, float amount, float extra) woundevent = #0; // a wound painted on e's model by every client (vr_wounds.qc)
 void(entity e, vector at, vector dir, float part, float damage, float share) hitreact = #0; // a living monster struck: its flinch drawn by every client (vr_hitreact.qc)
+float(float kind, entity e, vector at, float strength) goresound = #0; // a gore sound (QVR_GORESND_*; strength 0..1) played by every client (vr_goresound.cpp); a choke drops e's cry for a moment; 0: not sent (gore or its sounds off, a choke too soon)
+float QVR_GORESND_SPURT = 0;   // a stump's fountain's pulse
+float QVR_GORESND_CHOKE = 2;   // a beheaded or face-smashed monster's choke (instead of its cry)
+float QVR_GORESND_TEAR = 3;    // a limb or a head cut off: a wet rip and a bone crack
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
 // The `self` player's `hand` has just caught `e` from a force grab, which flew at `org` turned `ang`: its client eases the

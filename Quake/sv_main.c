@@ -381,6 +381,8 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	}
 
 	ent = NUM_FOR_EDICT(entity);
+	if (VR_GoreSoundMutes (ent, channel)) // QVR: its cry while it chokes (vr/vr_goresound.cpp)
+		return;
 
 // directed messages go only to the entity the are targeted on
 	for (i = 0; i < 3; i++)

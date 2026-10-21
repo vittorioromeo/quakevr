@@ -15724,3 +15724,41 @@ mattered because of where the mock put the main hand (with it moved away the pal
 and during a firing animation the last resting palm held in the hand's frame (the same gun model only; none
 otherwise). The probe now shows clip 0 and no zone change; grip_state, holsterzones_test.sh (13 PASS) and
 prop_climb_test.sh PASS.
+
+## Gore sounds (worktree `gorefx`, branch `agent/goresnd`, 2026-10-21)
+
+`vr_goresound.cpp`: the gore's own sounds, all **placeholders** (`quakevr/sound/vr/gore/ph_*.wav`, synthesised by
+`Misc/quakevr/make_gore_placeholders.py`; SOUNDS_OURS.md, Gore, lists each with what the recording should be). Hooks:
+
+- Stump spray: `VR_Decap_FountainThink` (neck and limb stumps) sends a spurt at each peak of its beat (2.2 Hz), as loud
+  as the fountain is strong (it fades with it); not on the first pulse (the cut's tear is there).
+- Blood streams on the floor (the waterfalls): `vr_bloodstream.cpp` hands each stream landing on the floor (not a thing,
+  not a liquid) to `goresound::pour` with its flow; the 3 nearest play 0.6 s splatter grains back to back (fades
+  crossed), each grain as loud as its stream flows then.
+- Choke: `VR_Decap_Effects` (killed by the cut, or dying: 1.5 s) and a heavy blow to the face (`VR_GoreSnd_FaceBlow`,
+  vr_teeth.qc: anything but a slap, hardness at least max(0.5, vr_teeth_hardness), or a killing one), for grunts,
+  enforcers, knights, hell knights and ogres (by their head gib). The server mutes that monster's CHAN_VOICE for 0.3 s
+  (`SV_StartSoundPitch` asks `VR_GoreSoundMutes`), so its pain or death cry is dropped, and the client plays the choke on
+  that same channel (a cry already playing is cut). One choke per monster per 3 s and any choke at most every 0.2 s: a
+  refused one mutes nothing, so its cry plays (never both, never neither).
+- Tear: `VR_Decap_Effects` and `VR_Limb_Cut` on a cut (not a pop: its burst and squish are there).
+- Squelch: a hand's carry stat turning to a gib (client), and `box3d::ragdollGrab` taking a dead body (server).
+- Wet steps: pools laid on the floor (`decals::place`, Mark::Pool) are remembered 90 s; a step (30 units walked on the
+  ground) on one makes the next 4 s of steps wet, fading.
+- Slap: `gore::gibImpact` on a wall or a ceiling, from 80 u/s (faint) to 500 (full).
+
+Each kind has a cap of voices at once (spurt 3, pour 3 streams, tear 3, squelch 2, step 1, slap 3), a gap (spurt 0.08 s,
+tear 0.05, squelch 0.2, step 0.15, slap 0.1: within it only one at half the distance or less plays) and a distance it
+is heard from; a frame's asks play nearest first, and a full cap's farthest voice gives way to a nearer one. Bullet
+time lowers the pitch by half its slowing (0.3x: 0.65). `vr_gore 0` or `vr_gore_sound 0`: nothing (the server sends
+nothing, so no cry is muted either). QVR_SVC_GORESOUND 35 carries the QC's events (`goresound` builtin). Cvars:
+`vr_gore_sound` 1 (Gore > Gore Sounds, 0..1, extends to 2), `vr_gore_sound_debug` 0 (Debug > Logging); commands
+`vr_gore_sound_stats [reset]`, `vr_gore_sound_test <kind> [n] [interval] [spread]` (Debug > Tools, Test Effects). No
+config migration (new cvars only).
+
+Tests (headless mock, no sound device: counted as played): 8 grunts beheaded at once (`vr_gore_test_crowd 1000;
+vr_decap_test 1`): 1 choke (the 7 others cry), 1 tear (7 rate-limited), 12 spurts of 104 asked (one per pulse), 2
+streams pouring 25 grains. `vr_gore_sound_test tear 12 0.06`: 7 played (3 replacing a farther one), 5 capped. 10 slaps
+at once: 1. A gibbed grunt by a wall: 4 slaps, 7 rate-limited. Bullet time: pitch 0.60-0.64. `vr_gore 0`: a head cut
+sends nothing, its cry plays; the test's 3 tears all "off". Not tested headless: the gib squelch and the ragdoll grab's
+(the mock's hand did not take the floor gib). `ad_import.py --check`: 0 of 142.

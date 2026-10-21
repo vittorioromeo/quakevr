@@ -384,6 +384,7 @@ void VR_BroadcastQCRun (void);							// PR_ExecuteProgram, a server QuakeC run f
 struct sizebuf_s *VR_BroadcastDest (int len);			// WriteDest's MSG_BROADCAST: where a QuakeC write of at most len bytes goes
 void VR_BroadcastWritten (struct sizebuf_s *dest);		// ... after it
 void VR_BroadcastMessageEnd (void);						// after the engine wrote a whole message to sv.datagram: a boundary
+int VR_GoreSoundMutes (int ent, int channel);			// SV_StartSoundPitch: 1 drops it (a choking monster's cry: vr_goresound.cpp)
 int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 

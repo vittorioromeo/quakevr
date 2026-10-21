@@ -2,6 +2,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
@@ -4997,6 +4998,7 @@ extern "C" void VR_SetupViewEntities()
         fireparticles::frame();
         flamewobble::frame(); // flames stirred by a fast hand (vr_flamewobble.cpp)
         bloodstream::frame(); // blood pouring from bullet holes (vr_bloodstream.cpp), the monsters and ragdolls posed
+        goresound::frame();   // the streams' splatter, wet steps, gibs taken (vr_goresound.cpp)
     }
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
