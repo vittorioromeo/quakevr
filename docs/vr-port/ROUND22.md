@@ -15498,6 +15498,49 @@ should be read against a few seeds (scratch `gc_seeds.sh` did it by editing the 
   (`vr_ragimpact_piece_hp` 0.65 x corpse health 80 x `vr_corpse_health_mult` 2), 32 when the test was written, so
   "popped" is out of reach by design; the weak strikes still need a look (not fixed). leggrab not run.
 
+## Stagger balance walk: stepping legs, bent knees, flailing arms (worktree `goreflesh`, branch `agent/staggeranim`, 2026-10-21)
+
+His notes: the shove stagger's balance walk glided on tiptoe (feet up and down, legs straight; worst the enforcer, then
+the zombie and the death knight), the upper body static, and the grunt always fell, even from one-hand shoves.
+
+**The grunt always falling** was the ragtool, not the balance: its onlooker is notarget, so the subject's `enemy` was
+never you and every test shove (`vr_knockdown_test 21/22`, the ragtool's shove1/shove2, ragtest's stagger) was a
+surprise (`vr_knockdown_surprise`: unaware, down for sure, balance 0). Test shoves 21/22 now make it aware of you (one
+from behind, Push From 180, still is a surprise). In a fight (its enemy you, shoved from the front) the roll decides as
+before: one-hand grunt shoves recover 13-16 in 20 (chance 0.45 x 0.6 = 0.27), two-hand 4-6 in 20.
+
+**The walk** (`vr_ragactive.cpp` staggerFrame, `vr_ragdoll_active_stagger_walk` 1; 0 is the old glide, for A/B):
+- its pin let down `vr_ragdoll_active_stagger_crouch` (0.08) of its pelvis height (eased in, out with its carry; a
+  parry's risen before its handback), and its planted legs reach (0.6) for where their feet were put down: the knees
+  bend (the clip's stand pose held them straight);
+- a planted foot is held where it was put down (its shin's level motion worked off) while its leg reaches it; it
+  steps when its capture-point distance says so (as before) or when its hip is 0.45 of a leg from it; feet step in turn
+  (the last step's foot passed over when the other is nearly as far off); the swinging foot rises early to
+  `vr_ragdoll_active_stagger_lift` (0.3) of a leg;
+- the arms are thrown out to the sides and wheel at their own paces (1.7 and 2.2 Hz), flapping a little
+  (`vr_ragdoll_active_stagger_arms` 1).
+All four are ragtool sliders (Stagger and Balance). `vr_knockdown_debug` prints a `gait:` line as a stagger ends:
+steps, stride, foot lift, knee bend from its stand (least, most, mean), the planted feet's slide (glide), the hands'
+rms motion about the shoulders.
+
+**Measured** (ragtool shove1/shove2, 20 each per class; old glide -> walk; one-hand/two-hand where they differ; recovered
+staggers): foot lift (u) grunt 2.0 -> 2.6, enforcer 2.0 -> 3.6, zombie 2.0 -> 2.8, death knight 2.4 -> 5.2, ogre 2.3 ->
+4.8, knight 1.0 -> 2.7; mean knee bend (deg) 8 -> 14, 9 -> 38, 0 -> 41, 18 -> 32, 8 -> 19, 17 -> 25; glide per step
+(u, both feet) grunt 14.5/18.6 -> 11.1/11.9, enforcer 13.9/16.2 -> 11.3/14.0, zombie 21.8/24.1 -> 12.1/13.3, death
+knight 15.4/24.0 -> 7.7/10.7, ogre 8.9/15.6 -> 5.6/9.5, knight 18.8/23.2 -> 12.3/13.9; steps 6-8 -> 7-9; arms rms (u)
+grunt 6.5 -> 8.5, zombie 6.2 -> 8.2, death knight 1.8 -> 3.7, knight 6.9 -> 8.7, ogre 3.9 -> 4.9, enforcer 1.8 -> 1.9.
+Recovery rates the same within the rolls (old/new, one-hand: grunt 16/13, enforcer 16/17, zombie 14/16, death knight
+20/18, ogre 19/20, knight 18/16 of 20). Frame strips: `scratch/strip_stagger_before.png`, `strip_stagger_after.png`
+(enforcer, grunt, death knight; the camera is the tool's default, small).
+
+**Open:**
+- The enforcer's and the zombie's rigs have no real knee: their shin hinge sits at the boot (enforcer z -18.6, zombie
+  -19.1, sole about -22), the knee ring of the mesh is on the thigh bone, so their visible leg can only bend at the hip
+  and the ankle; their "knee" numbers above are ankle bends. Their animations do bend the knee ring (enforcer
+  hip-ring-boot 9-59 deg over its frames). A real knee needs the rig's shin pivot moved up to the knee ring (about
+  z -11 on the enforcer) and the rig cache rebuilt: every ragdoll of theirs changes, so not done here.
+- The enforcer's arms barely move in any stagger (1.8 u rms, old and new): something holds them (its rifle?); not
+  looked into (the release worker is changing its gun attachment).
 ## Running shoves, two-hand shoves x1.25, the held weapon in the hand (worktree `release`, branch `agent/shovevel`, 2026-10-21)
 
 The author's notes: a shove while running at full speed should carry his speed into it; two-hand shoves 1.25 times as

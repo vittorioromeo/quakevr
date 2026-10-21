@@ -396,7 +396,9 @@ struct Stagger
     float noFloor{-1.f};    // s after the drive began: no floor under its pelvis since (-1: there is)
     // Its feet: each leg's place on the floor (planted), its stance (the foot from the pelvis, level), a step's way.
     za::Array<glm::vec3, 2> planted{}, stance{};
+    za::Array<glm::vec3, 2> footAt{}; // where each foot was put down (its planted reach: staggerPlant)
     int stepLeg{-1}; // Limb
+    int lastLeg{-1}; // the last step's (its feet in turn)
     double stepFrom{0.0};
     float stepTime{0.22f};  // s: this step's
     glm::vec3 stepA{0.f}, stepB{0.f};
@@ -405,6 +407,16 @@ struct Stagger
     int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
     float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
     bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
+    // Its walk measured (vr_knockdown_debug's "gait:" line as it recovers or falls; the ragtool's checks): its knees'
+    // bend (deg, least and most), each step's foot lift (m, its highest over where it rose and landed), the steps' level
+    // length, the planted feet's slide (the glide), its hands' reach about its shoulders (each arm's box of them).
+    float kneeLo{1e9f}, kneeHi{-1e9f}, kneeSum{0.f}; // (from its bend as the stagger began)
+    int kneeFrames{0}, handFrames{0};
+    za::Array<float, 2> knee0{};
+    za::Array<glm::vec3, 2> handSum{}, handSq{};
+    float stepLift{0.f}, liftSum{0.f}, liftMost{0.f}, strideSum{0.f}, glide{0.f};
+    za::Array<glm::vec3, 2> footWas{};
+    bool measured{false};
 };
 
 // A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
