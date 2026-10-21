@@ -326,7 +326,8 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
 // gravity-like curve, landing flat at a quarter), never faster than `maxSpin` rad/s, its feet `lag` of the travel behind.
 // `ledge`: shoved over one: pushed whole (its level launch times `keep`, at least `minSpeed` u/s) and turned `topple`
 // rad/s about the floor under its feet (ragdollTopple's whole), kept going so until it has gone `reach` units (past the
-// edge) or dropped, its turn kept at `topple` until it leans `angle`, never faster than `maxSpin`, until it lands.
+// edge) or dropped, its turn kept at `topple` until it leans `angle`, never faster than `maxSpin`, until it lands; past
+// the edge, its middle's speed along the shove eased down to `over` times the kept speed (1 or more: left as it is).
 // False: no ragdoll.
 struct RagdollShove
 {
@@ -340,6 +341,7 @@ struct RagdollShove
     float minSpeed{80.f};
     float reach{0.f};
     float topple{0.f};
+    float over{1.f};
 };
 bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of

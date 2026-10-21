@@ -98,6 +98,7 @@ struct Counts
     int carried{0};
     int moving{0};
     int emptyMags{0};
+    int spentGuns{0}; // spent single-use enemy guns (vr_enemy_weapon_depleted_loot 0)
 };
 
 struct State
@@ -266,6 +267,11 @@ void update()
             show = false; // carried in a hand
             state.counts.carried++;
         }
+        if(show && c == Category::Weapons && net && net->depleted && vr_enemy_weapon_depleted_loot.value == 0.f)
+        {
+            show = false; // a spent enemy gun: never fired again
+            state.counts.spentGuns++;
+        }
         if(show && c == Category::Mags && net && net->loot >= 0 && (net->loot & 127) != 127 &&
            static_cast<float>(net->loot & 127) / 100.f <= magMin)
         {
@@ -298,10 +304,11 @@ void update()
     {
         state.printedAt = realtime;
         Con_Printf("lootbeams: %d drawn (weapons %d mags %d ammo %d health %d armor %d powerups %d keys %d backpacks %d), "
-                   "carried %d, moving %d, empty mags %d\n",
+                   "carried %d, moving %d, empty mags %d, spent enemy guns %d\n",
             static_cast<int>(s.beams.size()), state.counts.drawn[0], state.counts.drawn[1], state.counts.drawn[2],
             state.counts.drawn[3], state.counts.drawn[4], state.counts.drawn[5], state.counts.drawn[6],
-            state.counts.drawn[7], state.counts.carried, state.counts.moving, state.counts.emptyMags);
+            state.counts.drawn[7], state.counts.carried, state.counts.moving, state.counts.emptyMags,
+            state.counts.spentGuns);
     }
 }
 
@@ -434,9 +441,9 @@ void report_f()
     }
     const Counts& n = state.counts;
     Con_Printf("lootbeams: %d drawn (weapons %d mags %d ammo %d health %d armor %d powerups %d keys %d backpacks %d), "
-               "carried %d, moving %d, empty mags %d\n",
+               "carried %d, moving %d, empty mags %d, spent enemy guns %d\n",
         static_cast<int>(s.beams.size()), n.drawn[0], n.drawn[1], n.drawn[2], n.drawn[3], n.drawn[4], n.drawn[5],
-        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags);
+        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags, n.spentGuns);
 }
 
 // What vr_lootbeam_test lays out, in turn: weapon props, magazines (full, nearly empty), boxes, armour, a power-up.

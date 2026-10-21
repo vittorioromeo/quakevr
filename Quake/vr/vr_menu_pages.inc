@@ -1985,7 +1985,7 @@ void retroAllUncheckCategories()
     return {
         toggle("Loot Beams", "vr_lootbeams").help("A soft pillar of light rising from things lying about to pick up, as in Diablo or Path of Exile, so loot stands out among corpses and gibs. Never while held, holstered or flying: it fades in once the thing comes to rest. Which things: below."),
         header("What Has One"),
-        toggle("Weapons", "vr_lootbeam_weapons").help("Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too)."),
+        toggle("Weapons", "vr_lootbeam_weapons").help("Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too); an enemy's gun that is empty for good only with Spent Guns Stand Out (Enemy Weapons)."),
         toggle("Magazines", "vr_lootbeam_mags").help("Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness)."),
         slider("Magazine Fullness", "vr_lootbeam_mag_min", 0.f, 1.f, 0.05f, "%.2f").help("A magazine has a beam only when fuller than this share of its rounds. 0: any magazine not empty."),
         toggle("Ammo Boxes", "vr_lootbeam_ammo"),

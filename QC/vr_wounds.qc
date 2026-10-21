@@ -85,9 +85,21 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
     woundevent(e, at, normalize(dir), QVR_WOUND_SHOT + VR_Wound_CleanFlag(e), damage, 1);
 };
 
+.float vr_bloodied; // it has bled: a blow, a shot, a blast that drew blood (not a shove's or a bash's, a burn, a fall, a
+                    // liquid); a live ragdoll's limbs flung fast bleed only then (the engine reads it: box3d limbsBleed)
+
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
+    if(take > 0 && inflictor != world && inflictor.classname != "vr_burn" && !VR_HitBloodless() && !targ.vr_bloodied)
+    {
+        targ.vr_bloodied = TRUE;
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("wound: %s bled first: %g damage from %s (%s), hit kind %g, health %g\n", targ.classname, take,
+                inflictor.classname, attacker.classname, vr_hitkind, targ.health));
+        }
+    }
     // (A fire paints its own burns, under its flames: vr_burning.qc.)
     if(take <= 0 || !VR_Wound_TakesHit(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
        VR_HitBloodless())

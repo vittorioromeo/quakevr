@@ -1556,6 +1556,8 @@ struct Limb
 };
 ankerl::unordered_dense::map<int, Limb> limbs;
 int limbsPrunedFrame = 0;
+int limbsBled = 0;      // frames a ragdoll's limb bled a trail (limbTrail), since the engine started (vr_decal_count)
+int limbsSpared = 0;    // ... and frames one was flung as fast without bleeding: an unwounded live one's (vr_decal_count)
 constexpr int limbDrops = 6;           // drops a limb leaves in all
 constexpr float limbBleedSpeed = 150.f; // units/s: a limb flung faster than this bleeds a trail
 
@@ -2684,6 +2686,7 @@ void count_f()
         carved, vr_decal_carve.value, vr_decal_carve_style.value, carved - nailShaped - craters - dents - grooves,
         nailShaped, craters, dents, grooves);
     Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
+    Con_Printf("ragdoll limbs flung: %d frames bled a trail, %d spared (an unwounded live one's)\n", limbsBled, limbsSpared);
     Con_Printf("%d marks on brush entities (vr_decal_entities %g), %d vertices drawn for them last\n",
         static_cast<int>(entityDecals.size()), vr_decal_entities.value, static_cast<int>(entityVertices.size()));
     Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
@@ -2848,7 +2851,7 @@ void liveStamps(za::Vector<permdecals::Stamp>& out)
 // A ragdoll's limb (vr_ragdoll.cpp, every frame it is drawn: `key` its entity's and the limb's), its end at `at`: flung
 // faster than limbBleedSpeed, it leaves a blood trail and drops on the floor as a gib does (vr_ragdoll_blood; the gibs'
 // density, vr_gib_blood_trail; fewer drops).
-void limbTrail(int key, const glm::vec3& at)
+void limbTrail(int key, const glm::vec3& at, bool bleeds)
 {
     if(!vr_ragdoll_blood.value || !vr_gib_blood.value || !cl.worldmodel)
     {
@@ -2871,9 +2874,14 @@ void limbTrail(int key, const glm::vec3& at)
     }
     const float travelled = glm::distance(l.at, at);
     const float density = za::clamp(vr_gib_blood_trail.value, 0.f, 4.f);
-    if(dt > 0.f && travelled > 0.01f && travelled / dt > limbBleedSpeed && density > 0.f)
+    if(!bleeds && dt > 0.f && travelled / dt > limbBleedSpeed)
+    {
+        limbsSpared++;
+    }
+    else if(dt > 0.f && travelled > 0.01f && travelled / dt > limbBleedSpeed && density > 0.f)
     {
         const glm::vec3 dir = (at - l.at) / travelled;
+        limbsBled++;
         if(particles::enabled())
         {
             along(l.at, at, 2.f * gibTrailSpacing / density, l.sinceTrail, 12,

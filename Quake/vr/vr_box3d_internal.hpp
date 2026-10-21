@@ -311,6 +311,7 @@ struct RagdollBodies
         glm::vec3 pelvis0{0.f}; // its pelvis at the start, and how high above its feet's floor (metres)
         float pelvisUp{0.f};
         float reach{0.f};       // metres (over a ledge)
+        float over{1.f};        // over a ledge, past `reach`: its speed along the shove at most this times `speed` (1: free)
         glm::vec3 from{0.f};    // its middle (centre of mass) at the start, metres
         float angle{0.f};       // rad: the turn about its feet, reached at `time` s
         float time{0.f};
@@ -768,6 +769,9 @@ void applySimdWidth(b3WorldId id);
 [[nodiscard]] Slot& slotOf(int num);
 
 void dropGrabsOf(int num); // (below: "Ragdolls")
+// Whether the ragdoll of `ent` bleeds from its limbs flung fast (ragdoll::publish's `bleeds`): a corpse's always, a live
+// one's (knocked down, staggering, getting up) only once it has bled (QC .vr_bloodied: a wound that bled, never a shove's).
+[[nodiscard]] bool limbsBleed(edict_t* ent);
 void destroyBody(Slot& s);
 
 // The world model's faces as a triangle mesh (metres), sky and liquids left out, wound counter-clockwise seen from

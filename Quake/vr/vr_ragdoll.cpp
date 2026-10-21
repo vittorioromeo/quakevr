@@ -2168,7 +2168,7 @@ bool collapsed(const Rig& rig, int pose, int b)
 }
 
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy, uint32_t cut)
+    int heldBy, uint32_t cut, bool bleeds)
 {
     if(num < 0)
     {
@@ -2208,6 +2208,7 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     p.rig = rig;
     p.bodies = bodies;
     p.cut = cut;
+    p.bleeds = bleeds;
     p.scale = scale;
     p.time = time;
     for(int b = 0; b < bodies; b++)
@@ -2645,13 +2646,14 @@ void swapModels()
                 out[row * 4 + 3] = t[row];
             }
         }
-        // Its limbs' ends: blood trails when flung (vr_ragdoll_blood).
+        // Its limbs' ends: blood trails when flung (vr_ragdoll_blood), a corpse's or a wounded one's (not shoved down unhurt).
         for(int b = 0; b < p.bodies; b++)
         {
             const Bone& bone = p.rig->bones[b];
             if(bone.joint != Joint::Loose && bone.parent >= 0 && !(p.cut & (1u << b)))
             {
-                decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)]);
+                decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)],
+                    p.bleeds);
             }
         }
         e->model = skinned;

@@ -134,9 +134,11 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // `time`: the server time of the message that follows the step (the client draws it between the last two steps at its
 // cl.time, as it lerps the props: vr_ragdoll_smooth). `heldBy`: the local player's hands holding a limb (bit 0 the off
 // hand, 1 the main): their places now are kept, the drawn ragdoll follows them between steps (vr_ragdoll_held_local).
-// `cut`: the bones cut off (bits: its head, ROUND21.md "Decapitation"), their vertices drawn at the neck.
+// `cut`: the bones cut off (bits: its head, ROUND21.md "Decapitation"), their vertices drawn at the neck. `bleeds`: its
+// limbs flung fast leave blood trails (vr_ragdoll_blood): a corpse's, or a live one's that has bled (box3d::limbsBleed;
+// a shove alone draws no blood).
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy, uint32_t cut);
+    int heldBy, uint32_t cut, bool bleeds);
 void unpublish(int num);
 void unpublishAll();
 

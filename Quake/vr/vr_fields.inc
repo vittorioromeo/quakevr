@@ -221,6 +221,8 @@ QVR_FIELD(vr_death_hitpos) // ... and the point, from its origin as it died ('0 
 QVR_FIELD(vr_deathdoll) // a player's ragdoll body's player (an entity; QC vr_deathdoll.qc) (vr_deathview.cpp: the camera follows its head)
 QVR_FIELD(vr_deathdoll_body) // a dead player's ragdoll body (an entity; QC vr_deathdoll.qc): he is not sent to the others while it is (sv_main.c)
 QVR_FIELD(vr_knockdown) // a monster knocked down by a shove (QC vr_knockdown.qc): 1 a ragdoll while alive (vr_box3d.cpp), 2 getting up
+QVR_FIELD(vr_bloodied) // it has bled (QC vr_wounds.qc VR_Wound_Hit: a wound that bleeds, not a shove's): a live ragdoll's limbs flung bleed (box3d::limbsBleed)
+QVR_FIELD(vr_depleted) // a weapon prop that can never be fired again: a single-use enemy gun, empty (QC vr_enemyguns.qc): no loot beam (vr_server.cpp, bit 31 of its id)
 QVR_FIELD(vr_shock_until) // lightning killed it or struck it dead (QC vr_shock.qc): its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
 QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over it
 

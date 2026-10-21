@@ -2111,6 +2111,7 @@ bool qvr::foegrab::shoveTopple(edict_t* m, const glm::vec3& dir, float strength,
     {
         p.topple = glm::radians(za::clamp(vr_knockdown_shove_ledge_topple.value, 0.f, 2000.f)) * k;
         p.keep = za::clamp(vr_knockdown_shove_ledge_push.value, 0.f, 3.f);
+        p.over = za::clamp(vr_knockdown_shove_ledge_over.value, 0.f, 1.f);
         p.reach = za::max(reach, 0.f);
     }
     else

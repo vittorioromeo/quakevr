@@ -22,6 +22,8 @@ struct EntityVr
     int weaponUid{0};     // a weapon prop's weapon id (QC vr_weaponinst.qc; 0: not a weapon): its blood (vr_wounds.cpp)
     int clip{-1};         // and the rounds in it (-1: not a weapon prop): its ammo screen (vr_view.cpp setupWorldWeapons)
     float hotGlow{0.f};   // and its incandescent blade's glow, 0..1 (U_QVR_WEAPONUID's bits 24-30: vr_hotblade.cpp)
+    bool depleted{false}; // and a spent single-use enemy gun, never fired again (bit 31; QC .vr_depleted): no loot beam
+                          // unless vr_enemy_weapon_depleted_loot (vr_lootbeams.cpp)
     bool noMag{false};    // a weapon prop with no magazine in (U_QVR_NOMAG: vr_view.cpp setupMagazines draws none)
     bool ssgOpen{false};  // a super shotgun prop broken open (U_QVR_SSGOPEN: vr_view.cpp setupSsgParts draws it open)
     int ssgLoaded{0};     // and its chambers loaded (0-2: the barrels' skin)

@@ -91,7 +91,8 @@ void updateRecoveries()
             rot[k] = glm::normalize(glm::slerp(rec.rot[k], ar, w));
             pos[k] = glm::mix(fromPivot, toPivot, w) - rot[k] * pivot;
         }
-        ragdoll::publish(rec.num, rec.rig, rec.count, rot.data(), pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0);
+        ragdoll::publish(rec.num, rec.rig, rec.count, rot.data(), pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0,
+            limbsBleed(ent));
         i++;
     }
 }
@@ -562,7 +563,8 @@ void handBack(edict_t* ent, RagdollBodies& r, int frame, float yaw, const glm::v
         ent->v.frame = static_cast<float>(frame);
     }
     // (Drawn as it lay until the step's blend: no frame of its animated model in between.)
-    ragdoll::publish(num, rec.rig, rec.count, rec.rot.data(), rec.pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0);
+    ragdoll::publish(num, rec.rig, rec.count, rec.rot.data(), rec.pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0,
+        limbsBleed(ent));
 }
 
 } // namespace
@@ -1062,13 +1064,15 @@ bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p)
         d.dir = dir;
         d.speed = za::max(speed / mass * p.keep, p.minSpeed / world->m2u);
         d.reach = p.reach / world->m2u;
+        d.over = p.over;
         d.from = com / mass;
         d.floor = glmv(world->toM(vec(ent->v.absmin))).z;
         if(vr_knockdown_debug.value || vr_debug_ragdoll.value)
         {
-            Con_Printf("ragdoll: %d shoved over a ledge: kept at %.0f u/s along the shove until %.0f units on, turning %.0f "
-                       "deg/s\n",
-                NUM_FOR_EDICT(ent), d.speed * world->m2u, p.reach, glm::degrees(p.topple));
+            Con_Printf("ragdoll: %d shoved over a ledge: kept at %.0f u/s along the shove until %.0f units on (then at most "
+                       "%.0f u/s), turning %.0f deg/s\n",
+                NUM_FOR_EDICT(ent), d.speed * world->m2u, p.reach, d.speed * world->m2u * za::min(d.over, 1.f),
+                glm::degrees(p.topple));
         }
         startFall(ent, r, dir, 0u, 0.f, false);
         return true;
