@@ -74,6 +74,36 @@ sound played by a constructed name may list only its table.
 | Files | Length | How made | For | Used (file:function) | Cvar |
 |---|---|---|---|---|---|
 | `vr/squish1.wav` ... `vr/squish_s4.wav` (8) | 0.26-0.42 s | synthesised: `Misc/quakevr/make_sounds.py` | gib landing / sticking (squish_s = small gibs) | vr_smallgibs.qc:VR_SmallGib_Precache; vr_smallgibs.qc:VR_Gib_SquishSound; vr_physsound.cpp:file scope |  |
+| `vr/gore/ph_spurt1..3.wav` | 0.32 s | **PLACEHOLDER**, synthesised: `make_gore_placeholders.py` | a stump's spurt, one per pulse of its fountain | vr_goresound.cpp:kinds; vr_decap.qc:VR_Decap_FountainThink | `vr_gore_sound` |
+| `vr/gore/ph_pour1..2.wav` | 0.60 s | **PLACEHOLDER**, synthesised (faded in and out 80 ms: grains played back to back) | a blood stream splattering on the floor | vr_goresound.cpp:pourFrame; vr_bloodstream.cpp:frame | `vr_gore_sound` |
+| `vr/gore/ph_choke1..2.wav` | 1.10 s | **PLACEHOLDER**, synthesised | a beheaded or face-smashed monster's choke (instead of its cry) | vr_goresound.cpp:playNow; vr_decap.qc:VR_GoreSnd_Choke | `vr_gore_sound` |
+| `vr/gore/ph_tear1..2.wav` | 0.55 s | **PLACEHOLDER**, synthesised | a limb or head cut off: wet rip, then a bone crack | vr_decap.qc:VR_GoreSnd_Tear; vr_limbs.qc:VR_Limb_Cut | `vr_gore_sound` |
+| `vr/gore/ph_squelch1..2.wav` | 0.30 s | **PLACEHOLDER**, synthesised | a hand taking a gib or a dead body | vr_goresound.cpp:handFrame; vr_box3d_ragparts.cpp:ragdollGrab | `vr_gore_sound` |
+| `vr/gore/ph_step1..3.wav` | 0.28 s | **PLACEHOLDER**, synthesised | your wet steps after a pool of blood | vr_goresound.cpp:stepFrame | `vr_gore_sound` |
+| `vr/gore/ph_slap1..3.wav` | 0.24 s | **PLACEHOLDER**, synthesised | a gib slapping into a wall or a ceiling | vr_goresound.cpp:gibHit; vr_gore.cpp:gibImpact | `vr_gore_sound` |
+
+### Gore placeholders to record (vr_goresound.cpp; ROUND22.md, "Gore sounds")
+
+Every `ph_` file is a synthetic stand-in. Replace a file with a recording of the same name (22050 or 44100 Hz mono,
+16 bit, no silence before the onset) or add names in `vr_goresound.cpp`'s `kinds` table (up to 3 variants a kind; its
+last column is the length used only when no sound device loads it). Lengths may differ from the placeholders', except
+the pour grains (keep them about 0.6 s with short fades: they are played back to back, crossing by 80 ms). Record each
+dry and close (no room), several takes, and keep the loudest variants about level.
+
+- `ph_spurt`: one pulse of blood forced out of a wound: a short low gush with a bubbly tail, 0.2-0.4 s. Squeeze a soaked
+  sponge or a wet cloth hard in one fist over a bowl, or squirt water from a bottle through a mouthful of thin juice.
+- `ph_pour`: a thin stream splattering on stone: a dense patter of drops, no clear start or end. Pour water (with a
+  little dish soap or syrup for body) from 30-50 cm onto a tile or a tray; cut steady 0.6 s pieces and fade them.
+- `ph_choke`: a wet choke or gargle, throat full of blood, 0.8-1.2 s, ending in a weak cough: a human voice gargling
+  water (low, strained), or a gurgle through a straw in thick liquid, pitched down a little.
+- `ph_tear`: a wet rip then a sharp bone crack, 0.4-0.6 s: twist and tear a raw chicken leg or a celery stalk wrapped
+  in a wet cloth; snap celery or a carrot for the crack; layer the two (the crack 0.15-0.25 s in).
+- `ph_squelch`: a hand closing on something soft and wet, 0.2-0.3 s: squeeze cooked pasta, an over-ripe tomato or a
+  soaked sponge in the fist.
+- `ph_step`: a footstep in a shallow puddle of something thick, 0.2-0.3 s, quieter than a normal step: step on a wet
+  towel or into a tray with a few mm of water and dish soap.
+- `ph_slap`: a wet lump hitting a wall, 0.15-0.25 s: throw a wet sponge, a soaked rag or a piece of raw meat at a
+  tile; or slap a wet cloth on a table.
 
 ## Water
 

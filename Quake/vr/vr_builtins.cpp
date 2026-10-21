@@ -5,6 +5,7 @@
 
 #include "vr_progs.hpp"
 #include "vr_brushes.hpp"
+#include "vr_goresound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
@@ -791,6 +792,19 @@ void sendWoundEvent(int num, const float* org, const float* dir, int kind, int a
         woundsSent.resize(static_cast<za::SizeT>(num) + 1, 0);
     }
     woundsSent[static_cast<za::SizeT>(num)] = 1;
+}
+
+// A gore sound (vr_goresound.cpp): float(float kind, entity e, vector at, float strength) goresound. `kind` QVR_GORESND_*,
+// `e` its entity (a choke's: the monster, whose cry is dropped for a moment), `strength` 0..1. Unreliable, to every
+// client. 1: sent; 0: not (vr_gore 0, vr_gore_sound 0, a choke too soon).
+void PF_goresound()
+{
+    const int kind = static_cast<int>(G_FLOAT(OFS_PARM0));
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM1));
+    G_FLOAT(OFS_RETURN) = kind >= 0 && kind < static_cast<int>(goresound::Kind::Count) &&
+                                  goresound::send(static_cast<goresound::Kind>(kind), num, G_VECTOR(OFS_PARM2), G_FLOAT(OFS_PARM3))
+                              ? 1.f
+                              : 0.f;
 }
 
 // A living monster struck (vr_hitreact.cpp: its hit reaction drawn): void(entity e, vector at, vector dir, float part,
@@ -2614,6 +2628,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"particle2", PF_particle2},
     {"woundevent", PF_woundevent},
     {"hitreact", PF_hitreact},
+    {"goresound", PF_goresound},
     {"haptic", PF_haptic},
     {"handimpact", PF_handimpact},
     {"carryangles", PF_carryangles},

@@ -252,6 +252,9 @@ za::Vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
+        toggle("Gore Sounds", vr_gore_sound_debug)
+            .help("vr_gore_sound_debug: each gore sound played or dropped (capped, rate-limited, too far, off) and why, "
+                  "and a choking monster's cry dropped (Gore > Gore Sounds; vr_gore_sound_stats counts them)."),
         cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused, Refills"}, {2.f, "And the Screen Tap"}})
             .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and taps that never "
                   "stopped on the screen; And the Screen Tap: every frame near the gadget's screen, how far over it your "
@@ -1107,6 +1110,13 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Gore Sounds: a Crowd's Tears", "vr_gore_sound_test tear 12 0.06")
+            .help("vr_gore_sound_test tear 12 0.06: twelve limbs torn off round you in under a second: at most three at "
+                  "once, the nearest (Gore Sounds log; vr_gore_sound_stats)."),
+        command("Gore Sounds: Each Kind", "vr_gore_sound_test spurt; vr_gore_sound_test pour; vr_gore_sound_test choke; "
+                "vr_gore_sound_test tear; vr_gore_sound_test squelch; vr_gore_sound_test step; vr_gore_sound_test slap")
+            .help("vr_gore_sound_test <kind>: one of each gore sound round you, all at once."),
+        command("Gore Sounds: Counts", "vr_gore_sound_stats").help("vr_gore_sound_stats: each gore sound kind played and dropped since the map began."),
         command("Back-splatter: Shotgun", "vr_gore_test 30 pellets").help("vr_gore_test 30 pellets: a shotgun blast's blood 64 units ahead, its back-splatter close behind."),
         command("Blood Streams on Monster Ahead", "vr_gore_stream_test 3").help("vr_gore_stream_test 3: three bullet holes pouring blood on the monster or corpse nearest the middle of the view."),
         command("Knock Teeth Out", "impulse 198").help("impulse 198: the monster spawned last (impulse 241) punched in the face as hard as can be: its teeth fly (Gore > Knocked-out Teeth)."),

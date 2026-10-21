@@ -2,6 +2,7 @@
 
 #include "vr_gore.hpp"
 #include "vr_bloodstream.hpp"
+#include "vr_goresound.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
@@ -593,6 +594,7 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
     {
         return false;
     }
+    goresound::gibHit(where, normal, strength); // (a wall's or a ceiling's wet slap)
     const float size = za::clamp(24.f + strength * 0.05f, 24.f, 64.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
     MarkOptions o;
     o.along = velocity;

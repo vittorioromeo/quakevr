@@ -644,6 +644,34 @@ entity(entity c, string m, vector xAt, vector xAng, vector xVel, vector xSpin) V
     return h;
 };
 
+// Gore sounds (the engine's vr_goresound.cpp; ROUND22.md, "Gore sounds"): a stump's spurt with each pulse, the cut's
+// tear, a choke instead of the cry.
+.float vr_goresnd_beat; // a fountain's next pulse to sound (s of its age)
+
+// Whether `e` chokes instead of crying: a mouth to choke with (by its head gib: a grunt, an enforcer, a knight, a hell
+// knight, an ogre).
+float(entity e) VR_GoreSnd_Mouthed =
+{
+    string h = VR_Decap_HeadModel(e);
+    return h == "progs/h_guard.mdl" || h == "progs/h_mega.mdl" || h == "progs/h_knight.mdl" || h == "progs/h_hellkn.mdl" ||
+           h == "progs/h_ogre.mdl";
+};
+
+// `e` (beheaded or struck hard in the face) chokes at `xAt`, its cry dropped (the engine mutes its voice a moment).
+void(entity e, vector xAt, float xStrength) VR_GoreSnd_Choke =
+{
+    if(VR_GoreSnd_Mouthed(e) && goresound(QVR_GORESND_CHOKE, e, xAt, xStrength))
+    {
+        dprint(sprintf("goresound: %s chokes\n", e.classname));
+    }
+};
+
+// `e`'s head or a limb just cut off at `xAt`: the wet rip and the bone's crack.
+void(entity e, vector xAt) VR_GoreSnd_Tear =
+{
+    goresound(QVR_GORESND_TEAR, e, xAt, 1);
+};
+
 // The stump's fountain (self; owner its body): spurts of blood out of the neck, pulsing and dying away over
 // vr_decap_fountain s; the drops fall and mark the floor (the particles' decals).
 void() VR_Decap_FountainThink =
@@ -663,6 +691,16 @@ void() VR_Decap_FountainThink =
     float fade = 1 - age / max(0.1, self.wait);
     float beat = 0.55 + 0.45 * cos(age * VR_DECAP_BEAT * 2 * 3.14159265);
     float s = fade * beat;
+    // Its sound with each pulse after the cut's (the beat's peaks), fading as it dies away.
+    if(!self.vr_goresnd_beat)
+    {
+        self.vr_goresnd_beat = 1 / VR_DECAP_BEAT;
+    }
+    if(age >= self.vr_goresnd_beat)
+    {
+        self.vr_goresnd_beat = (floor(age * VR_DECAP_BEAT) + 1) / VR_DECAP_BEAT;
+        goresound(QVR_GORESND_SPURT, c, neck, fade * ((bone < 0) ? 1 : 0.8));
+    }
     vector jitter;
     jitter_x = crandom() * 10;
     jitter_y = crandom() * 10;
@@ -727,6 +765,15 @@ void(entity e, vector xVel, float xHow) VR_Decap_Effects =
     woundevent(e, neck - side * 4, side, QVR_WOUND_MELEE, 50, 0);
     woundevent(e, neck + side2 * 4, side2 * -1, QVR_WOUND_MELEE, 50, 0);
     woundevent(e, neck - side2 * 4, side2, QVR_WOUND_MELEE, 50, 0);
+    // Its choke (killed by it, or dying: its cry dropped or cut), and a cut's tear (vr_goresound.cpp).
+    if(e.vr_decap_died && time - e.vr_decap_died < 1.5)
+    {
+        VR_GoreSnd_Choke(e, neck, 1);
+    }
+    if(!pop)
+    {
+        VR_GoreSnd_Tear(e, neck);
+    }
     if(!pop) // (a head pop's burst is there already)
     {
         VR_SoundVaried(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);

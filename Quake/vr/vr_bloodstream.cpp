@@ -8,6 +8,7 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_gore.hpp"
+#include "vr_goresound.hpp"
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -1158,6 +1159,12 @@ void frame()
             if(s.used)
             {
                 draw(s);
+                // Pouring onto the floor (not a thing, not a liquid): its splatter, as loud as it flows (vr_goresound.cpp:
+                // the nearest few).
+                if(s.emitting && s.lands && !s.landsOnThing && s.landN.z > 0.6f && !inLiquid(s.land + s.landN * 2.f))
+                {
+                    goresound::pour(static_cast<int>(&s - streams), s.land, za::clamp(s.lastStrength * s.power, 0.f, 1.f));
+                }
             }
         }
     }

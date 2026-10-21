@@ -34,6 +34,7 @@
 #include "vr_permdecals.hpp"
 #include "vr_gore.hpp"
 #include "vr_bloodstream.hpp"
+#include "vr_goresound.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
@@ -1895,6 +1896,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("gore sounds", goresound::prepare);
     step("auto pump", autopump::prepare);
     step("AD crossbow", adcrossbow::prepare); // AD support: its next bolt's sound
     step("Widowmaker", adweapons::prepare);   // AD support: its barrels' motor
@@ -2097,6 +2099,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
+    goresound::registerCommands(); // vr_gore_sound_stats, vr_gore_sound_test
     Cmd_AddCommand("vr_gore_streams_info", bloodstream::info_f);
     Cmd_AddCommand("vr_dummy_gore_reset", wounds::dummyReset_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);

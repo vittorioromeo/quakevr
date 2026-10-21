@@ -2107,6 +2107,10 @@ QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's spl
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
 QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceiling or a wall may stick there about this many seconds, then fall (0 never)
+// Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
+// wet steps, gibs slapping walls. Placeholders (sound/vr/gore/ph_*.wav). Silent with vr_gore 0.
+QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // their volume (0 none; up to 2)
+QVR_CVAR(vr_gore_sound_debug, "0", CVAR_NONE)          // 1: each gore sound played or dropped (capped, rate-limited, too far, off), and why
 // Blood streaming out of bullet holes (vr_bloodstream.cpp; ROUND22.md, "More gore"): a thin stream pouring from a shot's
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
 QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on

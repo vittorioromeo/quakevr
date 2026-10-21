@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_goresound.hpp"
 #include "vr_handfit.hpp"
 
 namespace box3d::detail
@@ -964,7 +965,12 @@ bool ragdollReach(int num, const glm::vec3& at)
 
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
 {
-    return grabRagdoll(corpse, player, hand);
+    const bool took = grabRagdoll(corpse, player, hand);
+    if(took && corpse && corpse->v.health <= 0.f)
+    {
+        qvr::goresound::send(qvr::goresound::Kind::Squelch, NUM_FOR_EDICT(corpse), corpse->v.origin, 0.8f); // (a dead body)
+    }
+    return took;
 }
 
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head,
