@@ -191,7 +191,9 @@ constexpr Seed adDfurySeeds[] = {
 };
 
 // AD's enforcer, id's model (progs/mon_enforcer.mdl: 222 vertices; 18 clusters, bones 1.07): the defender and the
-// eliminator; its muzzle effect and gun hidden on death. The left forearm is refit without the gun; knees set by hand.
+// eliminator; its muzzle effect and gun hidden on death. The left forearm is refit without the gun; the hips set by hand,
+// the knees as Quake VR's enforcer's (rig.py's 'knee': the ring's lower edge, z -11.7 and -11.5, not -16; the shins
+// down to the ankle, keepHinge).
 constexpr Seed adEnforcerSeeds[] = {
     {"pelvis", -1, Joint::Root, {-5.9f, -0.7f, 5.f}, {-5.9f, -0.7f, 5.f}, {-5.9f, 2.9f, 6.f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-9.2f, -0.2f, 18.f}, {-5.9f, 2.9f, 6.f}, {-5.7f, -1.6f, 25.3f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -200,10 +202,10 @@ constexpr Seed adEnforcerSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {7.1f, 12.2f, 13.2f}, {0.6f, 13.4f, 12.1f}, {13.5f, 11.f, 14.3f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-3.2f, -16.2f, 17.6f}, {-6.7f, -13.1f, 22.9f}, {0.4f, -17.3f, 14.7f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {2.7f, -8.5f, 12.1f}, {0.4f, -17.3f, 14.7f}, {5.1f, 0.4f, 9.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {-3.9f, 6.1f, -10.7f}, {-4.8f, 2.8f, -5.3f}, {-4.5f, 7.f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {-2.8f, 7.9f, -22.2f}, {-4.5f, 7.f, -16.f}, {-4.9f, 8.1f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-4.4f, -7.7f, -10.7f}, {-3.7f, -8.3f, -5.f}, {-4.5f, -8.5f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.1f, -9.7f, -22.1f}, {-4.5f, -8.5f, -16.f}, {-5.2f, -9.2f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-3.9f, 6.1f, -10.7f}, {-4.8f, 2.8f, -5.3f}, {-3.9f, 6.2f, -11.7f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-2.8f, 7.9f, -22.2f}, {-3.9f, 6.2f, -11.7f}, {-6.7f, 7.8f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-4.4f, -7.7f, -10.7f}, {-3.7f, -8.3f, -5.f}, {-4.4f, -7.9f, -11.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.1f, -9.7f, -22.1f}, {-4.4f, -7.9f, -11.5f}, {-8.f, -9.3f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // AD's gargoyle (progs/mon_gargoyle.mdl: 338 vertices, its first frame its death's; 18 clusters, bones 2.15): two wing
@@ -369,7 +371,8 @@ constexpr Seed adBoglordSeeds[] = {
     {"shin_r", 11, Joint::Hinge, {-3.6f, -21.7f, -18.3f}, {-3.5f, -18.5f, -9.f}, {-3.6f, -21.6f, -17.7f}, 6.5f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
-// AD's zombie (progs/mon_zombie.mdl: id's zombie): Rogue's mummy's mesh x0.833 (mummySeeds x0.833, 3.9 down).
+// AD's zombie (progs/mon_zombie.mdl: id's zombie): Rogue's mummy's mesh x0.833 (mummySeeds x0.833, 3.9 down): its knees
+// too (the ring's lower edge, keepHinge, flex 118).
 constexpr Seed adZombieSeeds[] = {
     {"pelvis", -1, Joint::Root, {-0.2f, 0.2f, 3.8f}, {-0.2f, 0.2f, 3.8f}, {-0.7f, -0.2f, 7.3f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-1.1f, 0.3f, 14.2f}, {-0.7f, -0.2f, 7.3f}, {-2.1f, 0.7f, 20.3f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -378,10 +381,10 @@ constexpr Seed adZombieSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {0.8f, 7.7f, 1.3f}, {0.4f, 7.2f, 7.8f}, {1.2f, 8.2f, -5.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-2.4f, -6.2f, 12.3f}, {-2.3f, -5.7f, 17.7f}, {-2.4f, -6.2f, 6.9f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {-2.4f, -6.5f, -0.5f}, {-2.4f, -6.2f, 6.9f}, {-2.5f, -6.7f, -7.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {4.4f, 5.3f, -11.1f}, {5.2f, 5.9f, -8.6f}, {3.6f, 7.7f, -20.6f}, 2.7f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {6.4f, 6.7f, -22.8f}, {3.6f, 7.7f, -20.6f}, {5.f, 7.2f, -21.7f}, 2.3f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.7f, -12.4f}, {0.8f, -3.1f, -9.2f}, {-7.1f, -4.3f, -20.7f}, 2.7f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.2f, -5.9f, -22.8f}, {-7.1f, -4.3f, -20.7f}, {-5.7f, -5.2f, -21.7f}, 2.3f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {4.4f, 5.3f, -11.1f}, {5.2f, 5.9f, -8.6f}, {4.3f, 5.5f, -12.f}, 2.7f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {6.4f, 6.7f, -22.8f}, {4.3f, 5.5f, -12.f}, {4.f, 6.7f, -21.7f}, 2.3f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.7f, -12.4f}, {0.8f, -3.1f, -9.2f}, {-2.8f, -4.8f, -13.1f}, 2.7f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.2f, -5.9f, -22.8f}, {-2.8f, -4.8f, -13.1f}, {-6.5f, -5.7f, -21.7f}, 2.3f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
 };
 
 // AD's seeker (progs/mon_seeker.mdl: 317 vertices; 24 clusters, bones 4.0: its arms swing wide in its firing);
@@ -400,7 +403,8 @@ constexpr Seed adSeekerSeeds[] = {
 };
 
 // AD's pyro and fumigator (one mesh: 277 vertices; 18 clusters, bones 1.35): id's enforcer's build with a tank on
-// the back; the gun, muzzle effect and hose are hidden on death. Left arm refit without the gun; knees set by hand.
+// the back; the gun, muzzle effect and hose are hidden on death. Left arm refit without the gun; hips set by hand; the
+// knees as AD's enforcer's (rig.py's 'knee', z -11.6 and -11.5; keepHinge).
 constexpr Seed adPyroSeeds[] = {
     {"pelvis", -1, Joint::Root, {-5.9f, -0.7f, 6.6f}, {-5.9f, -0.7f, 6.6f}, {-5.4f, -1.2f, 6.6f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-10.4f, -0.9f, 16.7f}, {-5.4f, -1.2f, 6.6f}, {-5.5f, -1.4f, 26.1f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -409,10 +413,10 @@ constexpr Seed adPyroSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {7.2f, 12.2f, 13.3f}, {0.7f, 13.4f, 12.2f}, {13.6f, 11.f, 14.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-1.5f, -17.7f, 15.2f}, {-4.2f, -14.9f, 16.5f}, {0.8f, -11.7f, 10.7f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {4.f, -5.6f, 12.3f}, {0.8f, -11.7f, 10.7f}, {7.2f, 0.4f, 13.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {-4.f, 6.1f, -10.6f}, {-5.2f, -0.6f, 2.2f}, {-4.5f, 7.5f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {-2.8f, 7.9f, -22.2f}, {-4.5f, 7.5f, -16.f}, {-4.1f, 8.1f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-4.5f, -7.6f, -10.6f}, {-4.2f, -2.6f, 2.f}, {-5.f, -8.5f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.2f, -9.8f, -22.1f}, {-5.f, -8.5f, -16.f}, {-4.9f, -9.3f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-4.f, 6.1f, -10.6f}, {-5.2f, -0.6f, 2.2f}, {-3.9f, 6.2f, -11.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-2.8f, 7.9f, -22.2f}, {-3.9f, 6.2f, -11.6f}, {-6.6f, 7.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-4.5f, -7.6f, -10.6f}, {-4.2f, -2.6f, 2.f}, {-4.5f, -7.8f, -11.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.2f, -9.8f, -22.1f}, {-4.5f, -7.8f, -11.5f}, {-7.9f, -9.4f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // AD's Freddie (progs/mon_freddie.mdl: 660 vertices; 18 clusters, bones 5.4: machine legs of many parts): hips set by
@@ -555,8 +559,8 @@ constexpr Seed adOgreSeeds[] = {
 // AD's deflector (progs/mon_deflector.mdl: 267 vertices; id's enforcer's body, 61-221, with a gun, a pack and field
 // rings of its own; 18 clusters, bones 1.17: mon_deflector_bones.json): its muzzle effect and three field rings (tucked in
 // its chest but in its field frames) hidden on death (vr_monstermods.cpp). The gun a bone of its own on the right hand
-// (it moves on it, the left hand on its front); the knees as the enforcer's (set by hand); the pelvis's, chest's and
-// head's centres moved so the waist's and the back pack's clusters go to the chest.
+// (it moves on it, the left hand on its front); the knees as AD's enforcer's (its legs' mesh: the ring 0.2 off); the
+// pelvis's, chest's and head's centres moved so the waist's and the back pack's clusters go to the chest.
 constexpr Seed adDeflectorSeeds[] = {
     {"pelvis", -1, Joint::Root, {-6.3f, -0.4f, 1.5f}, {-6.3f, -0.4f, 4.5f}, {-6.2f, 0.5f, 8.f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-9.5f, -1.5f, 20.f}, {-6.2f, 0.5f, 8.f}, {-5.5f, -1.2f, 25.1f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -566,10 +570,10 @@ constexpr Seed adDeflectorSeeds[] = {
     {"upperarm_r", 1, Joint::Ball, {-2.6f, -16.4f, 16.6f}, {-6.5f, -12.8f, 21.7f}, {1.f, -15.9f, 12.9f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {3.5f, -7.3f, 11.4f}, {1.f, -15.9f, 12.9f}, {3.6f, -7.7f, 14.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"gun", 6, Joint::Ball, {4.5f, 9.5f, 16.1f}, {3.6f, -7.7f, 14.7f}, {5.3f, 26.8f, 17.6f}, 0.f, 25.f, 15.f, 0.f, {}},
-    {"thigh_l", 0, Joint::Ball, {-3.8f, 5.9f, -10.7f}, {-4.8f, 2.8f, -5.3f}, {-4.5f, 7.f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 8, Joint::Hinge, {-2.8f, 8.f, -22.3f}, {-4.5f, 7.f, -16.f}, {-4.9f, 8.1f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-4.3f, -7.7f, -10.6f}, {-3.7f, -8.3f, -5.f}, {-4.5f, -8.5f, -16.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 10, Joint::Hinge, {-4.f, -9.7f, -22.2f}, {-4.5f, -8.5f, -16.f}, {-5.2f, -9.2f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-3.8f, 5.9f, -10.7f}, {-4.8f, 2.8f, -5.3f}, {-3.9f, 6.2f, -11.7f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 8, Joint::Hinge, {-2.8f, 8.f, -22.3f}, {-3.9f, 6.2f, -11.7f}, {-6.7f, 7.8f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-4.3f, -7.7f, -10.6f}, {-3.7f, -8.3f, -5.f}, {-4.4f, -7.9f, -11.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 10, Joint::Hinge, {-4.f, -9.7f, -22.2f}, {-4.4f, -7.9f, -11.5f}, {-8.f, -9.3f, -21.3f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 #else

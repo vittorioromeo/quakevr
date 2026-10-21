@@ -15757,3 +15757,43 @@ the legs fold at the trousers' and boot's seam, not at the foot; no tear there.
 **Open:** the zombie's foot shows as a long noisy block when his leg is held up (drag, struggle), before and after
 alike (not looked into). AD's enforcer (mon_enforcer: shin pivot -16, its ring -10.7), AD's zombie and Rogue's mummy
 (-20.6, -20) have the same ankle knee: rig.py's `'knee'` would do for them too.
+
+## The mummy's, AD's enforcers' and AD's zombie's ragdolls get a knee (worktree `goreflesh`, branch `agent/ragknee2`, 2026-10-21)
+
+The ragknee section's open point: Rogue's mummy (progs/mummy.mdl), AD's enforcer (progs/mon_enforcer.mdl, id's mesh:
+the defender and the eliminator) and AD's zombie (progs/mon_zombie.mdl, id's zombie: the mummy's mesh x0.833, its seeds
+scaled; AD's mummy too) bent at the boot. Their meshes are id's: none shares Quake VR's own enforcer's or zombie's
+mesh or rig. AD's deflector (id's enforcer's body) and pyro/fumigator (its build, a tank on the back) share the AD
+enforcer's legs (the ring 0.2 units off), so they got the same knee. Measured as ragknee did (`rig.py` fits, per ring
+vertex the rms following the thigh vs the shin): every ring vertex follows the thigh (enforcer 0.2-0.75 units against
+the shin's 3.9-5.5; mummy 0.2-0.8 against 5.5-6.9).
+
+- `rig.py`'s `'knee'` on the shins of `mummy_bones.json`, `mon_enforcer_bones.json`, `mon_deflector_bones.json`,
+  `mon_pyro_bones.json`: knees at the ring's lower edge (AD enforcer z -11.7/-11.5, was -16 set by hand; pyro
+  -11.6/-11.5; mummy -9.7/-11.1, was -20/-20.2: the boot), shins to the ankle, `keepHinge`. The AD enforcers' and
+  the pyro's hand-set hips are kept. AD's zombie: the mummy's new seeds x0.833, 3.9 down (z -12.0/-13.1).
+- The mummy's hips (the motions' fit) sit low and in front of his ring, so his thigh's line leans back past his
+  shin's: at rest the knee "bends" 12-20 degrees forward by the bone lines, while the leg he shows (his pelvis's
+  corners -> ring -> boot) bends 12-20 back. derive's limits (lower = rest - 3, only if positive; upper = flex - rest)
+  then let the knee straighten no further than his stand (already straight as seen) and fold 162-170 from it: his
+  (and AD's zombie's) shins have flex 118, folding to about 150 as seen. The enforcers keep flex 150 (rest +10..+24:
+  straighten to 3 short of straight, fold to 150, as Quake VR's enforcer). `rigVersion` 3.
+
+**Measured** (ragtool, `vr_knockdown_debug` gait lines, shove1/shove2 looped 6 runs each, the knee bend at the shin
+hinge from the stand's, least/most/mean deg; scratch `rk2_tool.sh`): AD defender before (the ankle) shove1 -20/66/14,
+shove2 -20/55/4; after (the knee) -28/52/4, -26/48/0. AD's mummy -30/78/20, -55/77/17 -> -15/61/12, -12/62/13. DoE
+mummy -25/81/33, -39/72/12 -> -21/63/11, -22/52/4. Glide per step down on all (defender 10.5/20.4 -> 10.2/17.4, AD
+mummy 11.6/23.4 -> 8.7/15.3, DoE mummy 10.3/18.8 -> 8.1/13.1). Death, stagger, stagger_fall, knockdown/getup, struggle
+and drag (held by the leg) on each: nothing under the floor (lowest part 2.9-11.5 u over it, as before), no explosion,
+error or NaN. Suites before and after alike: stagger_test.sh (MONS=14: rates and getup, 0 FAIL, the mummy recovers
+4/4 both ways), decap_test.sh monsters (MONS=14: beheaded, ragdoll), ad_active_test.py 212 217 232 255 238 (shove,
+getup, neck: 15 PASS, FAILS 0). Self-collision on (selfcollide_test's overlap measure, 4 beheaded DoE mummies and 8 AD
+enforcers of the four kinds killed by body/head/arm/leg shots): 0 deep but once (seed 7: one still-awake pyro at
+12.7 s, 1 deep; seed 11: 0). Strips (`scratch/rk2_pair_<defender|admummy|doemummy>.png`, before over after: shove2,
+leg drag, struggle): the mummies' legs fold at the knee ring now (they stayed straight, bending at the hip), no tear.
+
+**Open:** the mummies' AD runs: `vr_decap_test` beheads the nearest, so AD's mummy was not in the overlap count (the
+range's grunt was nearer); the ragtool's runs cover it. The defender's strips show its legs mostly under its body.
+In VR: the mummies in DoE's r2m4; AD's zombies and mummies (die gibbed: beheaded ones and the alive staggers) in
+ad_ac, ad_dm1, ad_e2m7, ad_sepulcher, ad_zendar, ad_swampy, start; defenders, eliminators and pyros in ad_crucial,
+ad_tfuma, ad_metmon, ad_ac.
