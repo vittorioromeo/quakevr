@@ -2,6 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Shoulder charge 3: after a long run (1.5 s at full speed) charge a grunt standing tall: your shoulder meets its body before it goes; a short sprint started next to it, or a crouched charge, does nothing (sliders: Run-Up, Standing Tall); your values are defaults (push 1.3, knock 148, leniency 0.2, bump 120, contact 0)
+AD Plasma Gun blasts now throw crates and bodies noticeably (AD weapons > Plasma Push 70)
+Gibs pop underfoot: jump or drop onto meat chunks and brain chunks: they burst (Small Gibs > Pop Underfoot); footprints now 16 by default
 AD Dark Prince (toolgun spawn): shove, knock down, lift, struggle and leg-pull it like a death knight; neck snap; it gets up
 AD ogre chainsaws: kill a nail/flak ogre and a hunter ogre: the chainsaw is gone from the corpse and ragdoll, a usable one lies next to it
 Flames on bodies: set monsters, corpses and yourself on fire (Debug > Burning Tests 13 for you): flames sit on the body, none floating in front; on a running monster do they lead the body?
