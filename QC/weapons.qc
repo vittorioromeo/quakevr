@@ -4788,9 +4788,11 @@ float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 
 // A force-grabbable thing's think (thrown and dropped weapons, pickups as objects): water, dust, settling after a throw.
 // In the engine (propthink, vr_propthink.cpp: 5-18% of all the QuakeC's statements were here; docs/vr-port/QC_VM.md).
+float(entity e) VR_EnemyGun_DepletedSkipped; // (vr_wpnforcegrab.qc)
 void() forcegrabbable_think_impl =
 {
-    propthink(vr_weapondrop_particles_on);
+    // A spent enemy gun (the force grab skips it) has no grab sparkles either: nothing says it could be force grabbed.
+    propthink(VR_EnemyGun_DepletedSkipped(self) ? 0 : vr_weapondrop_particles_on);
 }
 
 void() forcegrabbable_think =

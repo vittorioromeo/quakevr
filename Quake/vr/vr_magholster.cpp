@@ -152,7 +152,7 @@ mem::Scratch<MagScratch> scratch{"magholster"};
 }
 
 // Whether `hand`'s press of the stick (else the lower face button) is the bind button's, at a holster that has a
-// weapon in it or one bound (Weapon Mode Immersive).
+// weapon in it or one bound, or an empty one while that hand holds a weapon (Weapon Mode Immersive).
 [[nodiscard]] bool wants(int hand, bool stick)
 {
     if(!inGame() || key_dest != key_game || vr_holster_mode.value != 0.f)
@@ -167,8 +167,11 @@ mem::Scratch<MagScratch> scratch{"magholster"};
     }
     const hands::State& s = hands::current();
     const int slot = s.valid ? slotOfHotspot(s.hotspot[hand]) : -1;
-    return slot >= 0 &&
-           (cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + slot] != 0 || cl.stats[protocol::STAT_QVR_MAGBIND0 + slot] != 0);
+    // (Or an empty one while this hand holds a weapon: that weapon bound to it from the hand, not put away first; the
+    // author's 2026-10-22 note.)
+    const int held = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2];
+    return slot >= 0 && (cl.stats[protocol::STAT_QVR_HOLSTERWEAPONUID0 + slot] != 0 ||
+                            cl.stats[protocol::STAT_QVR_MAGBIND0 + slot] != 0 || held != 0);
 }
 
 // The point of a weapon drawn as `ve` the chains hang from: its model's bottom (vr_cellcord.cpp's: where a cell cord

@@ -152,6 +152,7 @@ QVR_CVAR(vr_throw_mass_light, "1.5", CVAR_ARCHIVE)      // kg: up to this heavy,
 QVR_CVAR(vr_throw_mass_exp, "0.9", CVAR_ARCHIVE)     // how fast the limit falls with mass beyond it (the author's 0.9, 2026-10-02)
 QVR_CVAR(vr_throw_mass_knee, "0.7", CVAR_ARCHIVE)     // 0..1: below this share of the limit a throw is untouched
 QVR_CVAR(vr_throw_2h_strength, "2", CVAR_ARCHIVE)     // two hands: as if the thing weighed 1 / this (1: no help)
+QVR_CVAR(vr_throw_2h_heave, "250", CVAR_ARCHIVE)      // J: two hands throw a heavy thing at up to sqrt(2 x this / its mass) m/s when that is more than the mass limit (40 kg: 3.5 m/s, 80 kg: 2.5); 0: the mass limit alone (before 2026-10-22: 2.7, 1.4)
 QVR_CVAR(vr_throw_2h_damage, "1.25", CVAR_ARCHIVE)    // a weapon or prop thrown with both hands: its hit damage times this (QC VR_Thrown_Damage; NOTES.md vrfiringrange_2026-10-09_15-44-39: they hurt no more than one-handed ones)
 QVR_CVAR(vr_throw_flick_mass, "2.5", CVAR_ARCHIVE)    // kg: up to this heavy, a wrist flick's whole speed
 QVR_CVAR(vr_throw_wrist_dist, "0.07", CVAR_ARCHIVE)   // metres from the wrist to the controller's point (the flick's lever)
@@ -3067,7 +3068,7 @@ QVR_CVAR(vr_legsweep_legs, "0.5", CVAR_ARCHIVE)          // s: swept (or its leg
 QVR_CVAR(vr_legsweep_debug, "0", CVAR_NONE)            // Debug > Tests > Holding Enemies: each leg contact's measure and verdict printed (legsweep:), and a sweep's fall traced for a second (legsweep trace:, legsweep fell:); 2: also each hand's thing every frame (its ends)
 QVR_CVAR(vr_knockdown_shove_ledge_topple, "100", CVAR_ARCHIVE) // deg/s (times the shove's strength): shoved over a ledge, pushed whole (it goes over) and turned over its feet as it falls this fast, up to vr_knockdown_shove_topple_angle (never faster than vr_knockdown_shove_max_spin); 0: it goes over upright
 QVR_CVAR(vr_knockdown_shove_ledge_push, "0.7", CVAR_ARCHIVE) // shoved over a ledge, its launch along the shove times this (kept up until it is past the edge: it always goes over); 1: the whole shove's
-QVR_CVAR(vr_knockdown_shove_ledge_over, "0.1", CVAR_ARCHIVE) // shoved over a ledge, once past the edge its speed along the shove eased down to at most this times the speed it was kept at (0..1): it tips over the lip and drops near the ledge's foot; 1: flies on as it goes (before 2026-10-21)
+QVR_CVAR(vr_knockdown_shove_ledge_over, "0.45", CVAR_ARCHIVE) // shoved over a ledge, once past the edge its speed along the shove eased down to at most this times the speed it was kept at (0..1): it tips over the lip and drops near the ledge's foot; 1: flies on as it goes (before 2026-10-21)
 QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
 QVR_CVAR(vr_knockdown_ledge_drop, "16", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_ledge_reach, "1.25", CVAR_ARCHIVE)    // how far ahead a ledge is looked for: times the shove's reckoned travel (the hop and the slide; 1: as far as it goes)

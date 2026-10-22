@@ -61,6 +61,10 @@
         slider("Two-Hand Strength", vr_throw_2h_strength, 1.f, 4.f, 0.1f, "%.1fx").extend(0.1f, 10.f)
             .help("Thrown with both hands, a thing is as if it weighed this many times less: heavy things go farther, "
                   "light ones no faster (1: no help)."),
+        slider("Two-Hand Heave", vr_throw_2h_heave, 0.f, 600.f, 10.f, "%.0f J").extend(0.f, 3000.f)
+            .help("Thrown with both hands, a heavy thing may leave as fast as this much energy gives its weight, when that "
+                  "beats the weight's limit: a 40 kg crate at 3.5 m/s, the big explosive box at 2.5 (250). 0: the "
+                  "weight's limit alone."),
         slider("Full Wrist Flick Up To", vr_throw_flick_mass, 0.5f, 10.f, 0.1f, "%.1f kg").extend(0.01f, 100.f)
             .help("A wrist flick throws things up to this heavy at its whole speed; a heavier one keeps only (this / "
                   "mass) of the speed the flick gives (the super nailgun a third)."),

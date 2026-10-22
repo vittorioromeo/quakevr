@@ -1054,6 +1054,23 @@ void touches(za::Vector<za::Pair<int, int>>& out)
                     continue;
                 }
             }
+            // Struck by a lighter loose thing (a thrown magazine, cell or shell into a crate: ROUND22.md, "Prop pushback,
+            // heavy throws, light ammo"), only what its momentum can do: the approach times twice its share of the two
+            // masses (at most 1: alike or heavier, a crate into a crate, as before; the level and held things, kinematic,
+            // as before). A 0.45 kg magazine at 14 m/s broke a 20 kg crate in two throws, its whole approach counted.
+            {
+                const b3BodyId own = b3Shape_GetBody(side ? e.shapeIdB : e.shapeIdA);
+                const b3BodyId by = b3Shape_GetBody(side ? e.shapeIdA : e.shapeIdB);
+                const float ownMass = b3Body_GetMass(own), byMass = b3Body_GetMass(by);
+                if(b3Body_GetType(by) == b3_dynamicBody && ownMass > 0.f && byMass > 0.f)
+                {
+                    speed *= za::min(1.f, 2.f * byMass / (ownMass + byMass));
+                    if(speed < 2.f)
+                    {
+                        continue;
+                    }
+                }
+            }
             auto it = za::findIf(world->shocks.begin(), world->shocks.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->shocks.end())
             {

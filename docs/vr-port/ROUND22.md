@@ -16009,6 +16009,40 @@ To check in VR: the first hard punch of a session (no hitch); a close head pop (
 Seconds first and send the framelog file); the flamethrower and poison sprayer with AD's Flames Frequency 2 and Our Fire
 Frequency 2 (worth making defaults?), the embers, the poison mist; Scorch Marks on (its cost).
 
+## Prop pushback, heavy throws, light ammo (worktree `release`, branch `agent/proppush`, 2026-10-22)
+
+From his notes of 2026-10-22 (vrragtriggers 01-04 to 01-50). Done:
+
+- **Light ammo vs crates.** A prop's own Box3D hit (`.vr_impact`: crates, explosive boxes) counted the whole approach
+  speed, whatever struck it: a 0.45 kg magazine (or a 0.04 kg shell) at 14 m/s "hit the crate at 14 m/s", 75 -> 18,
+  broken on the second. Now struck by a lighter loose body it counts the approach times twice its mass share (at most 1:
+  a crate into a crate, the level, held kinematic things as before; `vr_box3d_step.cpp`). Shells, shell pairs and the
+  three magazines also get Throw Damage x 0.25 (`vr_props.inc`; their throw damage on a monster 1.0-1.6). Test:
+  `vr_prop_impact_test 2` (Debug > Gore Tests, "Light Ammo Thrown at a Crate"): ammo 75 -> 75, a crate thrown into a
+  crate still breaks it.
+- **Spent guns' grab sparkles:** none on a spent enemy gun the force grab skips (`forcegrabbable_think_impl`).
+- **AD's explosions push props and ragdolls:** `ad_T_RadiusDamage` (AD's Plasma Gun, rockets, grenades, bosses) never
+  called `physicsblast`; patched in by `ad_import.py` (`--check` 0 of 142). Test `vr_prop_impact_test 3`: a crate 48
+  units from a 60 blast moved 0 units by AD's, 7.7 by Quake's; now 7.7 both. Other explosion paths audited: Quake VR's,
+  MG's and MG3's go through `T_RadiusDamage`; the rest flagged are visual-only death effects (no damage, no push).
+- **Magnetic holsters from the hand:** at an empty holster, the bind button binds (or unbinds) the weapon the pressing
+  hand holds (`vr_magholster.cpp` wants, `VR_MagHolster_Press`).
+- **Two-hand heavy throws:** the mass limit (`throwLimit`, two hands as half the mass) let an 80 kg box leave at 1.4
+  m/s and a 40 kg crate at 2.7 whatever the motion. New `vr_throw_2h_heave` (250 J, Physics > Throwing): two hands
+  throw at up to sqrt(2 E / mass) when that is more: 80.5 kg 2.5 m/s, 65 kg 2.8, 40 kg 3.5 (measured with
+  `prop_2h_test.sh`, the overhead throw: 1.4 -> 2.5 m/s). The "teleports in front of you" part did not show headless
+  (the back-projected start was within 1.5 units of the box's last carried place); left for his test.
+- **Defaults (configVersion 179):** `vr_knockdown_shove_ledge_over` 0.1 -> 0.45; the nailgun magazine's Fit Overlap
+  (`vr_prop_overlap_51`) 0.4 -> 0.385; `vr_prop_throw_dmg_49..53` 1 -> 0.25 (new `namedDefaultChanges` rows: prop
+  slots have no cvar of their own to point at).
+
+Not done (budget): crates sinking under a hand or held thing pressing down (pushback split by mass), a large crate on
+its long side climbable from every side, the climbing leg IK on props.
+
+**In VR:** throw a magazine, a cell, a shell at a crate: no damage. A Plasma Gun blast beside a crate or a body: thrown.
+Hold a gun over an empty holster and press the stick: bound (chain), again: unbound. A two-hand heave of a crate and
+the big explosive box released at the top of the swing: a metre or two, and does it still look like it jumps ahead?
+
 ## Death menu held, charge contact, leg-drag struggle, heavy AD melee, vial size (worktree `goreflesh`, branch `agent/round1022`, 2026-10-22)
 
 From the author's voice notes of 2026-10-22 (vrragtriggers).
