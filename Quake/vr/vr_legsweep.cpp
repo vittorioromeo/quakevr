@@ -76,6 +76,7 @@ constexpr double traceEvery = 0.1;  // s: a line every this often
 constexpr int maxSwept = 32;
 constexpr double strokeTime = 0.08; // s: a sweep's speed is held over this (its stroke), not one frame's jump
 constexpr int strokeSamples = 24;   // frames kept for it (more than strokeTime's at the fastest frames that matter)
+constexpr double lostFollow = 0.1;  // s: a prop broken in the hand mid-swing carries the swing on this long (lostProp)
 
 // A thing's measure (its model's: see the top). A prop's line from `a` to `b` (in its own axes) runs end to end through
 // the middle of its box; a weapon's from `along0` to `along1` along the line from its grip to its tip.
@@ -123,6 +124,9 @@ struct Track
     bool valid{false};
     const void* what{nullptr}; // its model
     int ent{0};                // a prop's edict (0: a weapon)
+    Measure measure;           // (a prop broken in the hand is followed on a moment: lostProp)
+    glm::vec3 handPos{0.f};    // the hand's place then
+    double lostUntil{0.0};     // a prop broken in the hand: followed until then (0: held, or none)
     glm::vec3 pts[sweepPoints]{};
     double time{0.0};
     float ptime{-1.f};  // its pose's own time (.vr_posetime; -1 unknown)
@@ -428,6 +432,48 @@ struct Held
     {
         const float s = glm::mix(out.measure.along0, out.measure.along1, static_cast<float>(i) / (sweepPoints - 1));
         out.pts[i] = grip + dir * (s * k);
+    }
+    return true;
+}
+
+// The hand's place (.handpos, .offhandpos) as the server has it this frame.
+[[nodiscard]] glm::vec3 handPlace(edict_t* player, int hand)
+{
+    const auto& f = progs::fields();
+    return progs::fieldVec(player, hand == HAND_MAIN ? f.handpos : f.offhandpos);
+}
+
+// A prop the hand held that broke in it (`tr`: its track; its edict freed or its model gone): where the hand's own move carries it on, for
+// lostFollow s. A crate's plank swung into the shins breaks at the monster's box (vr_carry.qc VR_Prop_HeldSmash, the
+// impact rule: out of the hand, gone), short of its legs, before the sweep is measured: the sweep found nothing in the
+// hand and never swept (legsweep_test's plank_lr since the impact rule). The blow goes through all the same: it breaks
+// and sweeps. (One let go of or thrown flies on by itself: not followed.)
+[[nodiscard]] bool lostProp(edict_t* player, int hand, Track& tr, Held& out, double now)
+{
+    if(!tr.valid || tr.ent <= 0 || !tr.measure.ok)
+    {
+        return false;
+    }
+    if(tr.lostUntil <= 0.0)
+    {
+        const edict_t* gone = EDICT_NUM(tr.ent);
+        if(!gone->free && gone->v.modelindex > 0.f) // (a broken piece: its model gone, removed the next frame)
+        {
+            return false;
+        }
+        tr.lostUntil = now + lostFollow;
+    }
+    if(now > tr.lostUntil)
+    {
+        return false;
+    }
+    out.what = tr.what;
+    out.ent = tr.ent;
+    out.measure = tr.measure;
+    const glm::vec3 moved = handPlace(player, hand) - tr.handPos;
+    for(int i = 0; i < sweepPoints; i++)
+    {
+        out.pts[i] = tr.pts[i] + moved;
     }
     return true;
 }
@@ -786,10 +832,16 @@ void qvr::legsweep::serverFrame()
     {
         Track& tr = state.hands[hand];
         Held held;
-        if(!on || !heldThing(player, hand, held))
+        const bool holding = on && heldThing(player, hand, held);
+        if(!holding && (!on || !lostProp(player, hand, tr, held, now)))
         {
             tr.valid = false;
+            tr.lostUntil = 0.0;
             continue;
+        }
+        if(holding)
+        {
+            tr.lostUntil = 0.0;
         }
         if(vr_legsweep_debug.value >= 2.f)
         {
@@ -849,6 +901,8 @@ void qvr::legsweep::serverFrame()
         tr.valid = true;
         tr.what = held.what;
         tr.ent = held.ent;
+        tr.measure = held.measure;
+        tr.handPos = handPlace(player, hand);
         tr.time = now;
         tr.ptime = ptime;
         tr.clock = body.time;

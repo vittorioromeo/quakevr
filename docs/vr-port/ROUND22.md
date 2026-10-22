@@ -16677,3 +16677,46 @@ Migration (`scratch/mig_test.sh`): a 184 config with `vr_adgun_fx_scorch "0"` ->
 
 **In VR:** hold the flamethrower on a wall, the floor and a ceiling for a while, then sweep it: the scorches build up
 where the fire licks, and the frame stays smooth (Debug > Profiling > Log Next 3 Seconds if it doesn't).
+## 1.1 sweep leftovers: plank sweep, leggrab, slams, the reload suites (worktree `dequant`, branch `agent/sweepfin`, 2026-10-23)
+
+- **legsweep `plank_lr` "no contact" (real).** Since the prop impact rule (2026-10-20) a held crate plank swung into the
+  shins at 6 m/s (1.5x the piece's break speed, `vr_prop_break_piece` 4) breaks at the grunt's box (vr_carry.qc
+  `VR_Prop_HeldSmash`), short of its legs and before the engine measures the sweep, so the sweep found nothing in the
+  hand. With 3.25 m/s needed to sweep and 4 to break, a plank sweep was all but impossible. Now a prop that breaks in the
+  hand (its edict freed or its model gone) is followed on by the hand's own move for 0.1 s (`vr_legsweep.cpp`
+  `lostProp`): it breaks and sweeps. One let go of or thrown is not followed. legsweep 16/20 -> 17/20 (the plank swept,
+  fell to its right); the other three are the known backward-fall shapes (this run: shotgun_toward, sword_hilt and
+  laser_lr, across 21.5 against 19.6 along; nailgun_lr passed).
+- **leggrab (first run since the struggle changes): 13/17 -> 17/17, stale expectations.** `pull_solo_weak` (1.4 m/s,
+  one hand) now pulls: One-Hand Pull is 1 since his configVersion 175 (was 1.3), so one hand needs 1.2 m/s like two; the
+  case now pulls at 1.07 m/s (not pulled, the hold breaks). `pull_left`, `thigh_half`, `pull_both_weak` failed the
+  fall's shape at the trace's end: a downed grunt still held by the legs struggles (vr_struggle, his feature) and
+  squirms its feet back out of the hands and slews aside (thigh_half's head 2 units aside at 0.2 s, 24 at 1.4 s; feet
+  10.8 towards you at most, 2.6 at the end). The fall is now judged as it lands (the trace line nearest 0.3 s: its head
+  against the pull, more than aside) and the feet by their most towards you; the end's facing verdict is still printed.
+- **ragimpact slam (harness made deterministic; the weak blows are by his numbers).** The case ran on the wall clock:
+  2 to 8 strikes of 10, or the hand missing the head, by the machine's load. `ragimpact_test.py` now runs on fixed
+  frames (`RI_REALTIME=1` for the old way). On fixed frames: 4 strikes at 2.6-3.2 m/s, 4.1-6.4 damage each, health
+  30 -> 5, head worn 22 of 104: not killed, not popped. With `vr_struggle 0`: 10 strikes (1.5-3.4 m/s), killed, worn 45.5.
+  The struggling grunt (held by the head: pry, squirm) keeps its head from striking on most slams (the hold's lag stays
+  2.6-4.8 units, under the grip guard's 6); not fixed. "Three slams kill and pop" is out of reach of his Impact values: a
+  held head strikes at 2-4 m/s (the hand's 5.7 m/s in the mock), and with `vr_ragimpact_damage` 0.08, curve 1.5 about 4,
+  head 1.5, 32.7 kg behind it, a 3 m/s strike deals ~5; killing a 30-health grunt in three needs ~10 a strike (4.3 m/s),
+  popping its head (0.65 x 160 = 104) in three needs 35 a strike (about 8.5 m/s, past the 40 cap's reach). Options for
+  him: count a held part's strike at the holding hand's speed into the surface (the hand drives it), ease the struggle
+  while the holding hand swings fast, or raise Impact Damage / lower Head and Limb Health. Left for his call.
+- **contact 23 PASS, gunshape 24 PASS, 0 FAIL** (first runs since the regfix/pouch/press changes).
+- **reload_test.sh: 109 PASS 2 FAIL -> 111 PASS, 0 FAIL (stale placements).** "A pair held near the open chambers
+  doesn't refuse a hit from below": at 0.7 of the way along the gun the pouch's pair now lies 3.1 units from the port,
+  inside Port Leniency 3.15, and loaded on arrival (nothing left to refuse); held at 0.8 it is 3.4 off and the hit from
+  below shuts it, 0 loaded. "A prop held in the other hand knocks the nailgun's magazine out by its surface": the held
+  head's shape stopped 2.10 units from the magazine at the case's 4 units (Hit Reach 2; 1.7 when written); from 3.5 off
+  it knocks it out at 1.8 units, the fist from as far off and the head's 6-off near miss still don't.
+- **Not done (budget): the knight's and the ogre's welded weapon giving on landing** (`weldLoose`: Box3D's weld at its
+  60 Hz constraint, the substep cap 72; the loose piece meets the level only) and **the stagger tests' failures under
+  load** (stagger_test.sh's cases are batched on fixed frames already, but `cost` times frames with `--exclusive`). Neither
+  reproduced here.
+- eval.sh: canary and full set verdicts unchanged (169/177; 3 rows differ by 0.1 damage, run to run).
+
+**In VR:** swing a crate's plank through a grunt's shins: it should break and sweep him down. Slam a held grunt's head
+on the floor a few times and say whether it hurts enough (the numbers above).
