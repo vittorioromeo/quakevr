@@ -3414,11 +3414,11 @@ void logFrame(const gfx::ParticleSplit& split, const int viewport[4], bool half)
         const glm::vec3 d = instances[i].org - eye;
         nearCount += glm::dot(d, d) < nearUnits * nearUnits ? 1 : 0;
     }
-    Con_Printf("framelog: %d particles %d live, %d drawn, %d within 0.5 m, cover %.2f views (large %.2f), half %d, "
-               "reverse %d\n",
+    profile::systems::frameLogLine(va("framelog: %d particles %d live, %d drawn, %d within 0.5 m, cover %.2f views (large %.2f), half %d, "
+               "reverse %d, view %dx%d, half targets made %d\n",
         host_framecount, liveCount(), static_cast<int>(instanceCount), nearCount,
         screenCover(split.pixelScale, viewport), largeCover(split, viewport), half ? 1 : 0,
-        reverseOrderThisFrame(split.pixelScale, viewport) ? 1 : 0);
+        reverseOrderThisFrame(split.pixelScale, viewport) ? 1 : 0, viewport[2], viewport[3], gfx::halfTargetsMade()));
 }
 
 } // namespace qvr::particles

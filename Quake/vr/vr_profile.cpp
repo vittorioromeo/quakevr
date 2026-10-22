@@ -1232,7 +1232,7 @@ extern "C" void VR_ProfileFrame()
     // Collecting: for the call tree's CSV (vr_profile), the panel or the systems' CSV. The call tree's capture starts
     // with vr_profile, and anew at each map (a file each).
     const bool record = vr_profile.value != 0.f;
-    const bool want = record || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f;
+    const bool want = record || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f || systems::frameLogOn();
     const bool longEnough = now - intervalStart > 500'000'000; // not just what followed a vr_profile_dump
     if(recording && (!record || !want || mapName != captureMap))
     {

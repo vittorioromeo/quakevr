@@ -498,6 +498,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_world_fragments [passes]: over the next 16 opaque world passes, the pixels its depth pre-pass and its "
                   "shading run the shader on, and those the shading keeps, in the console (shaded/kept: the work spent on "
                   "hidden pixels; Parallax Conservative Depth on the Views page is the A/B)."),
+        command("Log Next 3 Seconds", "vr_profile_gpu 1; vr_frame_log 270")
+            .help("vr_frame_log <frames>: each frame's CPU time (its top scopes), GPU time (its top systems and the "
+                  "particles') and the particles (live, within half a metre, how many views they cover, half size), in "
+                  "the console and quakevr/profile/framelog_<date>_<time>.txt: press, then punch or burn; a single "
+                  "event's cost. (It sets vr_profile_gpu 1: the GPU timed every frame until the game restarts.)"),
         command("Print Report", "vr_profile_report")
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")

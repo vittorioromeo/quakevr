@@ -178,6 +178,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 // `distances` (width x height, water::opaqueSceneDistances; `soft`: fading against them too), then blended into the
 // scene in one pass. A quarter of their fragments, a little softer. `retro`: their effective retro set (0 off). `viewport`: the
 // scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
+[[nodiscard]] int halfTargetsMade(); // its targets made so far (vr_frame_log)
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 

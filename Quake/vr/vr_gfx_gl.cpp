@@ -681,6 +681,7 @@ struct HalfTarget
 };
 HalfTarget halfTargets[2];
 int halfTargetNext = 0;
+int halfTargetsMadeCount = 0; // (vr_frame_log: made again each frame, they would thrash)
 GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
 GLuint halfDepthCompositeProgram = 0; // vr_particle_halfres_upsample's (halfDepthCompositeFs)
@@ -1729,6 +1730,11 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
         state.sceneDistances != 0, false, reverse);
 }
 
+int halfTargetsMade()
+{
+    return halfTargetsMadeCount;
+}
+
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)())
 {
@@ -1763,6 +1769,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     {
         target = &halfTargets[halfTargetNext];
         halfTargetNext ^= 1;
+        ++halfTargetsMadeCount;
         if(target->texture)
         {
             GL_DeleteFramebuffersFunc(1, &target->fbo);

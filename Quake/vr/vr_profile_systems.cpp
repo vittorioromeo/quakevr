@@ -962,14 +962,37 @@ void gpu(int system, int view, double ms)
 int frameLogUntil = -1;
 constexpr int frameLogGpuLag = 4;
 
+FILE* frameLogFile = nullptr; // each vr_frame_log's lines also in profile/framelog_<date>_<time>.txt (read after a VR session)
+
 bool frameLogOn()
 {
     return host_framecount <= frameLogUntil;
 }
 
+void frameLogLine(const char* text)
+{
+    Con_Printf("%s", text);
+    if(!frameLogFile)
+    {
+        const za::String path = files::profileFile("framelog_", ::time(nullptr));
+        frameLogFile = fopen(path.cStr(), "a");
+        Con_Printf("vr_frame_log: %s\n", path.cStr());
+    }
+    if(frameLogFile)
+    {
+        fputs(text, frameLogFile);
+        fflush(frameLogFile);
+    }
+}
+
 void frameLog_f()
 {
     frameLogUntil = host_framecount + (Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 30);
+    if(frameLogFile)
+    {
+        fclose(frameLogFile); // (a new file for each)
+        frameLogFile = nullptr;
+    }
 }
 
 // A GPU frame's line (vr_frame_log): its total and its four largest systems.
@@ -1003,7 +1026,14 @@ void frameLogGpu(double total)
             appendf(line, ", %s %.2f", defs[i].name, frameGpu[i]);
         }
     }
-    Con_Printf("framelog: %d gpu %.2f ms%s\n", host_framecount, total, line.cStr());
+    for(int i = 0; i < SysCount; i++)
+    {
+        if(!strcmp(defs[i].name, "particles"))
+        {
+            appendf(line, " (particles %.2f)", frameGpu[i]); // (always: the system these lines were made for)
+        }
+    }
+    frameLogLine(va("framelog: %d gpu %.2f ms%s\n", host_framecount, total, line.cStr()));
 }
 
 void gpuFrameDone(int queries)
@@ -1092,7 +1122,7 @@ void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& count
     const bool isHitch = vr_profile_hitch.value > 0.f && host > vr_profile_hitch.value * budget;
     if(frameLogOn())
     {
-        Con_Printf("framelog: %d cpu %.2f ms: %s\n", host_framecount, host, scopes.empty() ? "-" : scopes.cStr());
+        frameLogLine(va("framelog: %d cpu %.2f ms: %s\n", host_framecount, host, scopes.empty() ? "-" : scopes.cStr()));
     }
     if(isHitch)
     {
