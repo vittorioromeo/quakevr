@@ -2741,12 +2741,6 @@ bool trusted()
     return result.valid && result.trusted;
 }
 
-float standEyeHeight()
-{
-    const StepData& d = ses.data[Stand];
-    return !ses.seated && d.taken && !d.raw.empty() ? d.raw.front().headHeight : 0.f;
-}
-
 bool canUndo()
 {
     return vr_bodycal_undo.string[0] != 0 && ses.phase != Phase::Capturing;
@@ -3193,6 +3187,14 @@ void viewFrame(const hands::State& s)
     if(step == Stand)
     {
         ses.eyeHeight = capture.headHeight; // the chest frames of the steps after it
+        // Standing, the Height at once (the author's call, round 22): kept whatever happens to the steps after it (poses
+        // that don't agree, Cancel, a skip or a stop), as VR Calibration's separate height step set it; an applied result
+        // sets it again. It also restarts the learnt standing height (vr_hands.cpp senseLean).
+        if(!ses.seated && capture.headHeight >= 0.8f && capture.headHeight <= 2.4f)
+        {
+            Cvar_SetValueQuick(&vr_height_calibration, capture.headHeight);
+            Con_Printf("Body Calibration: height set: your eyes at %.2f m (Stand Tall)\n", capture.headHeight);
+        }
     }
     ses.gotIt = now;
     S_LocalSound("weapons/pkup.wav");

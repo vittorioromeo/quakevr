@@ -67,8 +67,6 @@ void cancel();
 void stop();
 // Whether the result can be applied (its poses agree).
 [[nodiscard]] bool trusted();
-// Standing, the eye height Stand Tall measured (metres) this session; 0 seated or not taken.
-[[nodiscard]] float standEyeHeight();
 [[nodiscard]] bool canUndo();
 void undo();
 // Previous Calibrations (bodycal_history.txt next to the config, kept across restarts): the settings each Apply, Undo or
