@@ -19,6 +19,10 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Footprints per step: walk and run out of a blood pool: one print per step, feet alternating, bigger now (1.6); tune with Gore > Footprint Frequency if the rate doesn't match
+Handprints round edges and on props: climb a ledge with a bloody hand: the print wraps onto the top; press a bloody palm on a crate or explosive box: blood on the prop, moving with it
+Bloody grips: with bloody hands hold a gun a while: blood builds up on its grip where you hold it and stays when you holster or drop it
+Drip sounds: at low health your blood drops land with a quiet drip; gore drips from ceilings and gibs too; sliders on the Gore page (volume, frequency); gore sound volumes now default to your 0.75
 Death menu: die on any map (also Quake VR's own maps): pressing a button only opens the menu in front of you, nothing respawns until you pick a row (Respawn / Restart / autosaves); Back closes it, a press reopens it
 Shoulder charge (now on by default, your settings): the charge connects only when you nearly touch the enemy; impact sound, rumble on both controllers, pain cry as it falls or staggers
 Dragged by a leg: pull a live grunt (belly up and belly down) by one leg: it claws at the floor and flails its arms instead of hanging dead
