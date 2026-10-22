@@ -8,6 +8,8 @@
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
 // (No main hand step: there is no main hand setting.)
+//  3. In single player, a dialog with the summary asks whether to set up the holsters now: Set Up Holsters starts
+//     Holster Setup (vr_holstersetup.hpp) at once, Not Now closes it (the author, 2026-10-22).
 //
 // Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The room is
 // calibration only (no buttons): the menu button pauses the setup on Body Calibration's page (its Position: standing or

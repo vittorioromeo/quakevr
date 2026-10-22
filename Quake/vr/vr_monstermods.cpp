@@ -272,6 +272,19 @@ const KnownSword knownSwords[] = {
          za::iota(v.begin(), v.end(), 216);
          return v;
      }(), 132, 155},
+    // AD's chainsaw ogres (QC VR_AD_DropChainsaw: Quake VR's chainsaw, as Quake VR's ogre's): the nail, flak and marksman
+    // ogre (progs/mon_ogre.mdl, id's mesh: the chainsaw its own piece, 20..51; deaths 112..135) and the hunter ogre
+    // (progs/mon_hogre.mdl: 210..332; deaths S, A and B 154..187). Their grenade launchers stay.
+    {qvr::modelmeta::Id::AdOgre, 169, 326, [] {
+         za::Vector<int> v(32);
+         za::iota(v.begin(), v.end(), 20);
+         return v;
+     }(), 112, 135},
+    {qvr::modelmeta::Id::AdHogre, 1017, 820, [] {
+         za::Vector<int> v(123);
+         za::iota(v.begin(), v.end(), 210);
+         return v;
+     }(), 154, 187},
     // AD's other sword users (QC VR_ADMelee_Drop: Quake VR's knight's and hell knight's swords): AD's knight, its hell
     // knight (id's mesh), the death lord and Quoth's death guard (Quoth's hell knight meshes); the sword a piece of its
     // own, hidden in the frames named death*.
@@ -334,7 +347,8 @@ const KnownSword knownSwords[] = {
     case qvr::modelmeta::Id::AdDeflector: return "muzzle effect and field rings";              // AD support
     default: break;
     }
-    if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket)
+    if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket || id == qvr::modelmeta::Id::AdOgre ||
+        id == qvr::modelmeta::Id::AdHogre) // (AD support: AD's chainsaw ogres)
     {
         return "chainsaw";
     }
@@ -547,7 +561,8 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
                          id == qvr::modelmeta::Id::AdDguard || id == qvr::modelmeta::Id::AdHogreham ||  // AD support
                          id == qvr::modelmeta::Id::AdHogremac || id == qvr::modelmeta::Id::AdKnight || // AD support
                          id == qvr::modelmeta::Id::AdHknight || id == qvr::modelmeta::Id::AdDlord ||    // AD support
-                         id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector;  // AD support
+                         id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector || // AD support
+                         id == qvr::modelmeta::Id::AdOgre || id == qvr::modelmeta::Id::AdHogre;        // AD support
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
                            id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
                            id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;

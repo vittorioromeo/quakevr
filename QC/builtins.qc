@@ -445,6 +445,13 @@ float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
 // as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents) and insets them (vr_body_monster_inset), not the
 // 32-wide ones QC sees. The shoulder charge's contact.
 float(entity player, entity monster) bodygap = #0;
+// The point of e's Quake .mdl as drawn (a monster's, a corpse's, a ragdoll's as its parts carry it, a player's) nearest
+// p, as an anchor on its surface (x its triangle, y and z where on it); trace_endpos the point, trace_plane_normal the way
+// out there, trace_plane_dist how far p is from it. x -1: no such model (the trace globals untouched).
+vector(entity e, vector p) modelanchor = #0;
+// Where that anchor is on e's model as drawn now (it moves with the model); trace_fraction 0 (and e's origin): no longer
+// there (another model).
+vector(entity e, vector anchor) modelanchorpoint = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;

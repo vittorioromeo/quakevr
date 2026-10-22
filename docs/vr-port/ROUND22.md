@@ -16452,6 +16452,97 @@ closed and reopened on leaving).
 
 New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
 
+## AD fixes: the Dark Prince, the ogres' chainsaws, flames on the body, the health vial (worktree `release`, branch `agent/adfixes1022`, 2026-10-22; vr_cfg_version 183)
+
+From his voice notes of 2026-10-22 (vrragtriggers 19-47, 19-54; vrstart 19-31).
+
+- **The Dark Prince** (`monster_dprince`, AD's progs/mon_dprince.mdl) took none of the humanoid ragdoll triggers: it was
+  in the Bosses group (vr_mgroups.cpp, mislabelled "demon prince": every trigger 0, no push), not among the active
+  ragdoll classes (vr_box3d_ragdoll.cpp), with no VR_AD_Mon setup (QC vr_ad_monsters.qc: no knockdown get-up, head
+  zone, parries, corpse health) and not in vr_struggle_classes. It already had a rig (AdDprince: the death knight's
+  mesh, frames and seeds). In AD it is no boss: AD's FGD calls it a "Mini Boss!" (as the baron, which is in Death
+  Knights), but its code is a plain monster's (ad_monster_start, 400 health, BBOX_TALL as the death knight, no boss
+  flags, no script or wave; placed in none of AD 1.80's maps). Now a Death Knight (group hknight; its health
+  multiplier that group's), active (knees as the knights'), set up as the death knight (VR_Knockdown_SetupReverse 223,
+  212, 243, 224; head 7 32 7; melee, armour), and it struggles: `monster_dprince:1.3:1:400` (the death lord's, a little
+  stronger). It keeps its own sword (AD's w_dprincesword.mdl, its gib): no sword drop (a follow-up if he wants one).
+  Tests: ad_active_test.py 256: shove (staggered, down), get-up (243-224, standing), neck snap (loose, 36-119 deg), as
+  the death knight's; struggle_test.py ad_dprince legpull/legdrag: it struggles (Claw leads the leg pull, as the death
+  knight, whose verdicts there fail the same, grunt-tuned, way).
+- **AD's chainsaw ogres drop their chainsaws**: the nail ogre (`monster_ogre_flak` and AD's `monster_ogre` code:
+  progs/mon_ogre.mdl, id's mesh, the chainsaw its own piece, vertices 20..51) and the hunter ogre (`monster_hogre`:
+  progs/mon_hogre.mdl, 210..332) drop Quake VR's chainsaw as Quake VR's ogre does (QC VR_AD_DropChainsaw, from
+  VR_AD_Dying: VR_DropOgreChainsaw); vr_monstermods.cpp hides it in their death frames (112..135; 154..187), AD's gib
+  throws no second one (its first gib, when the chainsaw: none; the grenade launcher kept). The mace and hammer ogres
+  already drop theirs; Freddie's chainsaw is his arm (no tool); the fishing ogre is scenery. Test: killed each
+  (vr_test_kill 1): "adogre: ... drops its chainsaw", "the chainsaw (32 / 123 vertices) hidden in 24 / 34 death
+  frames", the dropped progs/v_chainsaw.mdl lies there.
+- **Flames on the body**: VR_Burn_OnBody's points were a fat line's hit (4 units out) or, missed, the point clamped
+  into the bounding box (a box's side: well in front of a thin body); the player's flames, put by the Quake model or
+  the box, and spread along the body's tangent plane, sat off the body drawn in the headset. Now: every point is put
+  onto the model's surface (new builtin modelanchor: the nearest point of any entity's .mdl as drawn, a ragdoll's as
+  its parts carry it; no box fallback while there is a model), and each flame keeps an anchor on that triangle
+  (modelanchorpoint) so it moves with the animation between fits; a player's flames are put on, and every think fitted
+  to, the body's shapes as drawn (VR_Burn_OnYourBody: mapflametouch's nearest shape, its part: a hand or arm's flame
+  goes with the hand), the shapes kept built while the player burns (VR_Burn_MapFrame). Debug > Burning Tests: "How It
+  Burns" (vr_burn_test 4) also prints each flame's distance off the surface; new "Set Yourself on Fire" (13) and "How
+  Far Your Flames Sit Off You" (14). Numbers (a death knight, 4 flames): standing, between fits, at most 4.6 units
+  (measured at an arbitrary frame: the think is 20 Hz, the body animates and steps between); its corpse 0.0; you
+  (mock headset) 0.0 on the body shapes. Open: a running monster's drawn model lags its server origin (client lerp of
+  its 0.1 s steps) while the flames are placed by the server's: if he still sees them ahead of a running monster, the
+  flames need the client's lerp (a client-side attachment).
+- **The health vial's held offsets** (his Held Object Offsets: his slot 63, progs/health_5.mdl, Grip Mode 2: in the
+  palm; nothing else of the slot differs from the defaults) are the defaults: vr_props.inc slot 62 (cvars _63). The
+  migration (vr_props.cpp takeShippedSlots, from migrateConfig for configs below 183): the slot takes its defaults when
+  free or already the vial's (each key left at its own default); a slot of another model is kept; the vial claimed
+  before by another slot, nothing else set, is freed. Checked with a 182 config: vr_prop_id_63 progs/health_5.mdl,
+  vr_prop_grip_63 2, the old slot 58 freed; vr_struggle_classes the new default.
+
+Defaults: vr_struggle_classes + `monster_dprince:1.3:1:400` (183 row); vr_prop_id_63 "" -> progs/health_5.mdl,
+vr_prop_grip_63 0 -> 2 (takeShippedSlots). configVersion 182 -> 183.
+
+## VR Settings reorganized, death menu spacing, the clone in Holster Setup, holsters after calibrating (worktree `tghost`, branch `agent/menus1022`, 2026-10-22)
+
+His notes vrstart_2026-10-22_19-27-06 .. 19-29-24 and vrragtriggers_2026-10-22_19-41-52. No cvar changed (no migration).
+
+**Menus** (`vr_menu_settings.inc`, `vr_menu.cpp`, `vr_menu_pages.inc`):
+- The ammo pouch's five wobble rows left VR Settings > Body and Equipment (and its Ammo Pouch part) for Advanced VR
+  Options > Weapons > Reloading, a new header *Ammo Pouch Wobble* after the Ammo Pouch rows: Ammo Pouch Wobble, Wobble
+  Each Round, Wobble Springiness, Wobble Settle Time, Wobble Intensity.
+- *Carry Ammo and Health* and *Auto-Collect* left Body and Equipment for a new page, VR Settings > Playing > *Item
+  Collection* (after Weapons and Bullet Time; page "VR Settings - Item Collection"). Physics > Carrying Boxes still has
+  them too.
+- The holsters' rows left Body and Equipment for a new page, VR Settings > Body and Equipment > Holsters > *Holster
+  Calibration*: Holster Setup (drag and drop) first, the nine sliders, Seated Holsters, Reset Holsters, Shoulder Holster
+  Weapons. It shows the body's mirror image (menu::bodyClonePage) and syncs the holster wrappers (vrSettingsParts).
+  *Reset Body and Equipment* still resets the holsters.
+- Both pages are appended to `pages` (no page index moved). `menu_vr dump` before/after through `menu_coverage.py`:
+  only those rows moved (the 5 wobble rows "lost" from the VR Settings tree: they are on Advanced's Reloading, which
+  the dump does not walk; `vr_menu_search wobble springiness` finds it there). `vr_menu_path_check`: vrcalibration 6
+  found 0 missing, vrtesthall 14 found 0 missing (no board named a moved row). Help texts and SETTINGS.md follow.
+
+**Death menu** (menu.c, Load Autosave too: the same screen): its title is near the top of the VR menu's canvas (16
+under its top, which reaches far above Quake's 320 x 200), not at y 4 of the 320 x 200 middle; "You Died" twice the
+menu's letters (the big font lacks the capital Y and I; Load Autosave keeps the big font, 1.25x); the rows 30 apart
+(were 20), their two lines in the middle with a gap above and below. The laser and mouse pick rows from the same
+layout. `developer 1` prints it on opening: `Death menu: 2 autosaves (title at y -203, rows from y -167, 30 apart)`.
+
+**Holster Setup with the clone** (`vr_bodyclone.cpp`, `vr_holstersetup.cpp`): while Holster Setup runs, the body's
+mirror image (vr_menu_body_clone, the menus' clone) stands beside its panel (holstersetup::panelQuad as the panel; the
+side away from the main hand, vr_menu_body_clone_side), and every box and its label is drawn on the image too, at the
+same place, as it is dragged. Headless: `bodyclone: on, yaw 138.0 (view 90.0), its eyes 1.40 m off ... drawn 36
+entities, body 1`; off again after Cancel.
+
+**After VR Calibration** (`vr_setup.cpp`): in single player a dialog (M_Confirm) carries the summary (height, where the
+doorway leads) and asks "Set up your holsters now?": *Set Up Holsters* starts Holster Setup at once (no page reopened
+after it), *Not Now* closes it. Tested: `vr_setup here` then `vr_setup_skip` to the end prints `VR Calibration: asking
+to set up the holsters`; `vr_test_modal_answer 1` gives `Holster Setup: started`, `setup active 1 paused 1`.
+
+**In VR:** VR Settings: Item Collection under Playing, Holster Calibration on Body and Equipment; the wobble rows on
+Advanced > Weapons > Reloading. Die: is the death menu's spacing right, the title near the top? Holster Setup: is the
+clone where you can see it (about 48 degrees off the panel's middle at 1.4 m; vr_menu_body_clone_distance and _side
+move it), do its boxes follow the drags? Calibrate: the dialog after it, Set Up Holsters straight into the setup.
+
 ## Shoulder charge 3: body contact, run-up, standing tall (worktree `goreflesh`, branch `agent/charge3`, 2026-10-22)
 
 From the author's voice notes of 2026-10-22 evening (vrragtriggers 19-37 .. 19-44).

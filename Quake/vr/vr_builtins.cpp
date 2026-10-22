@@ -2517,6 +2517,63 @@ void PF_hitmodel_rest()
     r[2] = out.z;
 }
 
+// The entity's own Quake .mdl, a body's (a monster's, a corpse's, a player's): not a brush model, nor a weapon drawn by
+// its Weapon Offsets (modelanchor, modelanchorpoint).
+[[nodiscard]] bool bodyModel(const edict_t* e)
+{
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    return model && model->type == mod_alias && !weapons::modelTransform(model).active;
+}
+
+// modelanchor(e, p): the point of e's Quake .mdl as drawn (a monster's, a corpse's, a ragdoll's as its parts carry it, a
+// player's) nearest p, as an anchor on its surface: x its triangle, y and z where on it (modelanchorpoint finds it again
+// as the model moves); trace_endpos the point, trace_plane_normal its outward normal, trace_plane_dist how far p is from
+// it. x -1: no such model (the trace globals untouched). (A fire's flames on the body: QC vr_burning.qc.)
+void PF_modelanchor()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* p = G_VECTOR(OFS_PARM1);
+    float* r = G_VECTOR(OFS_RETURN);
+    r[0] = -1.f;
+    r[1] = r[2] = 0.f;
+    hitmodel::Hit h;
+    float dist = 0.f;
+    if(!bodyModel(e) || !hitmodel::nearestAny(e, glm::vec3{p[0], p[1], p[2]}, h, dist))
+    {
+        return;
+    }
+    r[0] = static_cast<float>(h.tri);
+    r[1] = h.u;
+    r[2] = h.v;
+    for(int i = 0; i < 3; i++)
+    {
+        pr_global_struct->trace_endpos[i] = h.surface[i];
+        pr_global_struct->trace_plane_normal[i] = h.normal[i];
+    }
+    pr_global_struct->trace_plane_dist = dist;
+}
+
+// modelanchorpoint(e, anchor): where modelanchor's anchor is on e's model as drawn now (trace_plane_normal its normal,
+// trace_fraction 1); trace_fraction 0 and e's origin when it is no longer there (another model: gibbed, made a ragdoll's).
+void PF_modelanchorpoint()
+{
+    edict_t* e = G_EDICT(OFS_PARM0);
+    const float* a = G_VECTOR(OFS_PARM1);
+    float* r = G_VECTOR(OFS_RETURN);
+    glm::vec3 point{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, normal{0.f, 0.f, 1.f};
+    const bool found = a[0] >= 0.f && bodyModel(e) && hitmodel::surfacePoint(e, static_cast<int>(a[0]), a[1], a[2], point, normal);
+    pr_global_struct->trace_fraction = found ? 1.f : 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        r[i] = point[i];
+        if(found)
+        {
+            pr_global_struct->trace_plane_normal[i] = normal[i];
+        }
+    }
+}
+
 // debughitzone(e, zone, lo, hi, radius): Show Hit Zones' zone of `e` this server frame (hitmodel::zoneAdd: in its own
 // frame, x forward, y left, z up from its origin; a box lo..hi, or a capsule of `radius` from lo to hi).
 void PF_debughitzone()
@@ -2693,6 +2750,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
     {"bodygap", PF_bodygap},
+    {"modelanchor", PF_modelanchor},
+    {"modelanchorpoint", PF_modelanchorpoint},
     {"hitmodel_rest", PF_hitmodel_rest},
     {"debughitzone", PF_debughitzone},
     {"torchflametouch", PF_torchflametouch},

@@ -587,6 +587,10 @@ za::Vector<Item> pageDebugAutomation()
         command("A Nail Through the Nearest Map Flame", "vr_burn_test 12")
             .help("vr_burn_test 12: a nail of yours shot level through the nearest of the map's flames (a flame, a brazier, a wall torch, a candle): it becomes a lava nail (the console says so)."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
+        command("Set Yourself on Fire", "developer 1; vr_burn_test 13")
+            .help("vr_burn_test 13: you set on fire as a monster's flame or a lava nail would (a hit at your chest): its flames sit on your body as drawn."),
+        command("How Far Your Flames Sit Off You", "developer 1; vr_burn_test 14")
+            .help("vr_burn_test 14: the console: how far each of your flames sits off your body (its shapes as drawn; 0: on it)."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         header("Incandescent Blades (developer 1: hotblade: ...)"),
         command("Heat the Held Blades", "developer 1; vr_hotblade_test 1")

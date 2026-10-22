@@ -33,7 +33,7 @@ ACTIVE = {227: "monster_army_grenade", 223: "monster_army_plasma", 211: "monster
           217: "monster_eliminator", 232: "monster_pyro", 235: "monster_fumigator", 202: "monster_dcrossbow",
           216: "monster_dfury", 205: "monster_dguard", 200: "monster_dknight", 225: "monster_dsergeant",
           201: "monster_zombiek", 238: "monster_mummy", 261: "monster_knight", 253: "monster_ogre_flak",
-          259: "monster_death_lord", 258: "monster_death_guard", 255: "monster_deflector", 250: "monster_hell_knight"}
+          259: "monster_death_lord", 258: "monster_death_guard", 255: "monster_deflector", 250: "monster_hell_knight", 256: "monster_dprince"}
 PICK = [int(a) for a in sys.argv[2:]] or list(ACTIVE)
 # Made only in an AD map (the spawner's MAPS_ONLY: ad_monsters_gen.py): tested in AD's start map (no monsters of its
 # own: in ad_dm1 its minotaur was the nearest).
