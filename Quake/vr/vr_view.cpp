@@ -4659,6 +4659,7 @@ extern "C" void VR_SetupViewEntities()
     // view's setup, restored after it. Tired arms shake (vr_fatigue.cpp) and hits knock them (vr_painknock.cpp) the same
     // way, looks only (their muzzles put back below: the shots and the aim don't move).
     glm::vec3 knockPos[2], knockAngles[2], shakePos[2], shakeAngles[2];
+    glm::vec3 pressPos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (vr_box3d_press_back: drawn held back on a prop, restored after)
     for(int hand = 0; hand < 2; hand++)
     {
         QVR_PROFILE("view shakes");
@@ -4687,6 +4688,16 @@ extern "C" void VR_SetupViewEntities()
     // posing: the floating weapon stays where it floats).
     if(!posingNow)
     {
+        // Held back on a prop they press into that has nowhere to go (vr_box3d_press_back): drawn where the physics has
+        // the hands' bodies (your own, hosting), before the models' push (which then finds them out already).
+        if(sv.active && s.valid)
+        {
+            for(int hand = 0; hand < 2; hand++)
+            {
+                pressPos[hand] = box3d::pressOffset(cl.viewentity, hand);
+                s.pos[hand] += pressPos[hand];
+            }
+        }
         {
             QVR_PROFILE("view model collide");
             modelcollide::beginView(s);
@@ -4869,7 +4880,7 @@ extern "C" void VR_SetupViewEntities()
     for(int hand = 0; hand < 2; hand++)
     {
         const glm::vec3 shakenPos = s.pos[hand], shakenRot = s.visualRot[hand];
-        s.pos[hand] -= knockPos[hand] + shakePos[hand];
+        s.pos[hand] -= knockPos[hand] + shakePos[hand] + pressPos[hand];
         s.rot[hand] -= knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] -= knockAngles[hand] + shakeAngles[hand];
         if(s.muzzleValid[hand] && (shakePos[hand] != glm::vec3{0.f} || shakeAngles[hand] != glm::vec3{0.f}))
@@ -4882,7 +4893,7 @@ extern "C" void VR_SetupViewEntities()
                 return glm::mat3{f, r, u};
             };
             const glm::mat3 shaken = axes(shakenRot), steady = axes(s.visualRot[hand] + knockAngles[hand]);
-            s.muzzle[hand] = s.pos[hand] + knockPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
+            s.muzzle[hand] = s.pos[hand] + knockPos[hand] + pressPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
         }
     }
     if(vr_debug_fatigue.value >= 2)

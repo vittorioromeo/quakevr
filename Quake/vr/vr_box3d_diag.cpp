@@ -1789,6 +1789,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_mtbench", mtbench_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
+        Cmd_AddCommand("vr_prop_press_test", pressTest_f);
         Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
         Cmd_AddCommand("vr_physics_approach", approach_f);
         Cmd_AddCommand("vr_physics_shotbench", shotBench_f);

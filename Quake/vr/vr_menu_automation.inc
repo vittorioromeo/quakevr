@@ -381,6 +381,12 @@ za::Vector<Item> pageDebugAutomation()
         command("Blasts Push Props: AD and Quake", "vr_prop_impact_test 3")
             .help("vr_prop_impact_test 3: a small crate beside a blast of Arcane Dimensions' radius damage (its Plasma "
                   "Gun's, rockets'...), then one beside Quake's: both throw it alike. The console (blastpush: lines)."),
+        command("Press Down on a Crate", "vr_test_spawn_hold 0; vr_test_spawn 108; vr_test_spawn_dist 48; impulse 241; "
+                                         "wait40; vr_prop_press_test main 50 20")
+            .help("vr_prop_press_test: a large crate 48 units ahead, then the main hand (empty, a weapon or a prop held) "
+                  "lowered onto its top and 20 cm on into it, held, and drawn up (the mock headset's hand; with a real "
+                  "one, press on it yourself for the test's 7 seconds). The crate must not sink or fly off; the hand is "
+                  "held back on its top (Physics: Pressing Props). The console (presstest: lines, PASS or FAIL)."),
         command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
             .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")

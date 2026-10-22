@@ -16100,3 +16100,37 @@ the drips: 39-44 played, 7-13 rate-limited, in 400 frames.
 **In VR:** walk and run with bloody feet: one print a step now? (Footprint Frequency if not.) Climb a ledge with a
 bloody hand: does the print go over the top? Press a bloody palm on a crate; hold your gun with a bloody hand: blood
 on its grip, kept when holstered? Listen for the drips when hurt (Gore Sounds: Drips, Drips Heard).
+
+## Pressing on props: the hand gives (worktree `release`, branch `agent/proppush2`, 2026-10-22)
+
+From his notes of 2026-10-22 (vrragtriggers 01-24 to 01-35), the item agent/proppush left.
+
+- **Cause.** The hands' bodies (the fist's spheres, the reach body of the open hand or the gun, a carried prop) are
+  kinematic: pressed lightly down on a crate on the floor they pushed it into the floor regardless, Box3D squeezing it
+  between the two (sunk, then shot out sideways or broken). QC's hand nudge of solid props (`vr_carry.qc`) pushed it
+  down along the hand's motion too, and lifted it with a hand drawn up off it.
+- **Fix (`vr_box3d_press_back` 1, `vr_box3d_press_max` 50 cm; Physics menu, Pressing Props).** Before each step the
+  props near the hands note what holds them (`noteBraces`: the level, doors and lifts, fixtures, a stack braced so, three
+  deep). A hand's body meeting such a prop against its support pushes nothing (`preSolve` -> `pressHit`; Box3D's
+  pre-solve now passes the contact's separation: a local change in `contact.c`, `mesh_contact.c`, `solver.c`, `types.h`)
+  and the hand is held back instead (`notePress`: the depth, moved on by the step, taken out of the hand; Gauss-Seidel
+  over the contacts). The bodies (`syncHands`, `syncReach`, a carried prop's `follow`) and the drawn hand
+  (`VR_SetupViewEntities`, restored for the game like the knocks) are moved back by it; clear of it, eased back at most
+  0.6 m/s (a drawn hand jumping is a swing). At the cap, its bodies go on into the prop, still pushing nothing.
+  `physicspush` (QC's nudges and blows) never pushes a prop into what holds it (`unbraced`), and QC's solid-prop nudge
+  only pushes into the box, not after a hand leaving it. Sideways pushes along the floor are as before (a support
+  counts only within ~40 degrees of straight against the push).
+- **Test:** `vr_prop_press_test [main|off [cm/s [cm past]]]` (Debug > Gore Tests, "Press Down on a Crate";
+  `vr_box3d_presstest.cpp`): the hand lowered onto a crate's top (moved by `vr_mock_hand_to by`, not to a point: the
+  view's pushes made the mock chase the drawn hand into the crate), then 40 cm on into it. A large crate, before -> after
+  (sink below the floor in units, the crate's fastest): shotgun 4.6 u, 1.7 m/s -> 0, 0 (held back 42 cm); a held plank
+  5.2 u, 7.2 m/s -> 0, 0 (held back 42 cm); the empty hand (absolute moves, 13 cm on) 1.5 u -> 0. Test crates lie 15
+  units over the floor asleep (lifted out of it as made); the test puts them down first.
+- **Not done (budget):** a large crate on its long side climbable from every side; the climbing leg IK on props.
+  Open: the empty hand never reaches the crate with the delta moves (the hand case used absolute moves); pressed past
+  the cap (50 cm), QC nudges with the mock's clamped hand still kick a crate (rare in play); a held plank pressed hard
+  can break a crate by its blows, as before.
+
+**In VR:** press a crate down lightly and then harder with the shotgun, a plank and the bare hand: the hand should stop
+on its top (drawn there), the crate stay put; lift off: no hop. Push a crate along the floor and against a wall:
+as before along the floor, stopped at the wall.

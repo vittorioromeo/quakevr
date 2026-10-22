@@ -86,7 +86,8 @@ typedef bool b3CustomFilterFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, void* co
 /// full contact manifold.
 /// @warning Do not attempt to modify the world inside this callback
 /// @ingroup world
-typedef bool b3PreSolveFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, b3Pos point, b3Vec3 normal, void* context );
+/// Quake VR: separation (m, negative for overlap) is the contact's least (0 from continuous collision).
+typedef bool b3PreSolveFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, b3Pos point, b3Vec3 normal, float separation, void* context );
 
 /// Prototype callback for overlap queries.
 /// Called for each shape found in the query.

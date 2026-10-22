@@ -342,6 +342,13 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         pushMass = max(0, cvar_hget(cvarh_vr_box3d_weapon_arm_mass)) +
                    weaponvalue(WeaponIdToModel(VRGetEntWeapon(xPlayer, xHand), VRGetEntWeaponFlags(xPlayer, xHand)), "w_mass");
     }
+    // Only into it: a hand drawn up off a crate it pressed (or holding a plank on it) lifted it with it (ROUND22.md,
+    // "Pressing on props: the hand gives").
+    if(xBox.vr_rigid == 2 && cvar_hget(cvarh_vr_box3d_press_back) &&
+       ((xBox.absmin + xBox.absmax) * 0.5 - VRGetEntHandPos(xPlayer, xHand)) * v <= 0)
+    {
+        return;
+    }
     if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v, pushMass))
     {
         xBox.carry_nudgetime = time + 0.05;

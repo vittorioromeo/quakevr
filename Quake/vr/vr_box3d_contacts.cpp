@@ -338,7 +338,7 @@ namespace
 // vr_box3d_hand_hold_mass (the prop on top: the normal from the hand's body within 60 degrees of up); pushed from the
 // side or below, it still is. (A fist that held up the big box toppled onto its player, its drawn fist dozens of
 // kinematic spheres, wedged it into the wall: Box3D threw it off at 10 to 15 m/s. ROUND21.md, "Props regressions".)
-bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
+bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, float separation, void*)
 {
     // The level's mesh asks too, point by point (a local change to Box3D's mesh contacts: a prop passing through a
     // teleporter must not meet the wall behind it): only the portal copies' clip planes concern it.
@@ -380,12 +380,27 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
             return false;
         }
         const b3BodyId propBody = b3Shape_GetBody(prop);
-        return mayHoldUp(propBody, towardsProp(propBody, point, normal));
+        const glm::vec3 n = towardsProp(propBody, point, normal);
+        if(pressHit(fist, prop, n, separation)) // (pressed into what holds it: the hand gives, notePress)
+        {
+            return false;
+        }
+        return mayHoldUp(propBody, n);
     }
     const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
     const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
     if((b3Shape_GetFilter(reach).categoryBits & catReach) == 0)
     {
+        // (A carried prop pressing one into what holds it: the hand gives, notePress.)
+        const bool aHeld = (b3Shape_GetFilter(a).categoryBits & catHeld) != 0;
+        if(aHeld || (b3Shape_GetFilter(b).categoryBits & catHeld) != 0)
+        {
+            const b3ShapeId carried = aHeld ? a : b, prop = aHeld ? b : a;
+            if(pressHit(carried, prop, towardsProp(b3Shape_GetBody(prop), point, normal), separation))
+            {
+                return false;
+            }
+        }
         return !passesGun(numOf(a), numOf(b)) && !passesGun(numOf(b), numOf(a));
     }
     const World::HandBody* hb = reachOf(b3Shape_GetBody(reach), numOf(reach));
@@ -395,6 +410,10 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     }
     const b3BodyId reachBody = b3Shape_GetBody(reach), propBody = b3Shape_GetBody(other);
     const glm::vec3 n = towardsProp(propBody, point, normal);
+    if(pressHit(reach, other, n, separation)) // (pressed into what holds it: the hand gives, notePress)
+    {
+        return false;
+    }
     // Moving apart faster than 0.5 m/s (a prop just struck, flying off ahead of the body: sweepReach): no contact, which
     // Box3D's continuous collision would otherwise make of the body it leaves (stopping the prop there).
     const glm::vec3 relative =

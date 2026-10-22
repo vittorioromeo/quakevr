@@ -412,6 +412,12 @@
             .extend(0.f, 5000.f)
             .help("After a hand or weapon has hit a thing, pushing on into it shoves it with no more than this force: a heavy "
                   "box moves as far as you push it and stops, a light one is carried along. 0: no limit."),
+        toggle("Pressing Props: Hand Gives", vr_box3d_press_back)
+            .help("A hand, a weapon or a held thing pressed into a crate that has nowhere to go (on the floor, against a wall) "
+                  "stops on its surface, drawn there too, instead of pushing the crate into the floor (where it was squeezed "
+                  "out and flew off or broke)."),
+        slider("Pressing Props: Most Held Back", vr_box3d_press_max, 5.f, 60.f, 5.f, "%.0f cm")
+            .help("With Hand Gives: how far the hand is held back at most; pressed deeper, it passes into the crate."),
         slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How hard a touch knocks a thing loose, or pushes what the hands' and weapons' bodies don't (both off)."),
         slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
