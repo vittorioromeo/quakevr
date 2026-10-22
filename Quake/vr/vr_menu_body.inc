@@ -35,6 +35,9 @@ const char* bodytrackAvailability(int)
             .help("How far below the hips the feet look for a foothold (1: down to nearly a straight leg)."),
         slider("Foothold Step Speed", vr_body_climb_feet_speed, 0.3f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast a foot steps to a new foothold (1: about a third of a second)."),
+        toggle("Footholds on Props", vr_body_climb_feet_props).extend()
+            .help("The feet also find footholds on physics props (a crate you climb: its top and its sides). Off: on the "
+                  "level only."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),

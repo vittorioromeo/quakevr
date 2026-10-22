@@ -175,6 +175,11 @@ za::Vector<Item> pageSaves()
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
                   "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
                   "> Body and Display."),
+        // (2026-10-22: Carry Ammo and Health also here, next to Auto-Collect, which only matters with it on; also
+        // Physics > Carrying Boxes.)
+        toggle("Carry Ammo and Health", vr_carry)
+            .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: classic Quake, walking into a "
+                  "box takes it (and Auto-Collect has no effect)."),
         // (2026-10-18: "Auto-collect works. It shouldn't be the default, but it should be an option in the basic VR
         // settings"; also Physics > Carrying Boxes.)
         cycle("Auto-Collect", vr_carry_autocollect, {{0.f, "Off"}, {1.f, "Ammo and Health"}, {2.f, "And Backpacks"}})

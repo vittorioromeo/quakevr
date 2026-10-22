@@ -247,6 +247,9 @@ struct ClimbBody
 void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
 // Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
 [[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
+// As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one
+// already (true, `hit` not set; `from` and `to` the same: only that). The climbing feet's traces (vr_avatar.cpp). False: none met (or no Box3D world).
+[[nodiscard]] bool propTrace(const glm::vec3& from, const glm::vec3& to, PropHit& hit, bool& inside);
 
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);

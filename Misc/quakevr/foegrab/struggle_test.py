@@ -15,6 +15,10 @@ Each case is one game on vrfiringrange (batched: testbatch.py), a grunt 36 units
   dead       as headdrag, its health taken at 2.5 s: its struggle ends (dead), its strengths let go
 Each also as <case>_off (vr_struggle 0): the holds' lag and the pose compared. PASS per case as above; the logs go to
 <agent>/scratch/struggle_<case>.txt.
+STRUGGLE_CLASSES=all (or id, ad, or labels joined by commas: HUMANOIDS) runs the cases for every humanoid that can be
+dragged (AD's through vr_campaign_native ad; its map-only ones in AD's start map) and ends with a LEGPULL line per class:
+its free arms' speed in its chest's frame (u/s), "smooth" the same path sampled every 8 frames (well under the speed:
+they jitter), the struggle off's, whether it was pulled down. E.g. `STRUGGLE_CLASSES=all struggle_test.py <agent> legpull`.
 """
 import os
 import re
@@ -29,16 +33,63 @@ ONLY = sys.argv[2] if len(sys.argv) > 2 else ""
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 CLASS = os.environ.get("STRUGGLE_CLASS", "monster_army")  # (another class: its dispenser number in STRUGGLE_SPAWN)
 SPAWN = os.environ.get("STRUGGLE_SPAWN", "0")
-LIFT_DY = {"monster_hell_knight": 0.2, "monster_enforcer": 0.1}.get(CLASS, 0.0)  # (m: its chest higher than a grunt's)
-TAG = ("" if CLASS == "monster_army" else "_" + CLASS.replace("monster_", "")) + os.environ.get("STRUGGLE_LABEL", "")
+AD = False  # (played through Arcane Dimensions: vr_campaign_native ad)
+MAP = "vrfiringrange"
+LIFT_DY = 0.0
+TAG = ""
+# Every humanoid that can be dragged (STRUGGLE_CLASSES: all, id, ad, or labels joined by commas): its label, classname,
+# the debug spawner's choice (buttons.qc; vr_ad_monsters.qc from 200), AD's, its map (AD's map-only ones: AD's start).
+HUMANOIDS = [
+    ("army", "monster_army", 0, False, "vrfiringrange"), ("enforcer", "monster_enforcer", 8, False, "vrfiringrange"),
+    ("knight", "monster_knight", 5, False, "vrfiringrange"), ("hell_knight", "monster_hell_knight", 6, False, "vrfiringrange"),
+    ("zombie", "monster_zombie", 2, False, "vrfiringrange"), ("mummy", "monster_mummy", 14, False, "vrfiringrange"),
+    ("ad_zombie", "monster_zombie", 2, True, "vrfiringrange"), ("ad_grenade", "monster_army_grenade", 227, True, "vrfiringrange"),
+    ("ad_plasma", "monster_army_plasma", 223, True, "vrfiringrange"), ("ad_rocket", "monster_army_rocket", 211, True, "vrfiringrange"),
+    ("ad_defender", "monster_defender", 212, True, "vrfiringrange"), ("ad_eliminator", "monster_eliminator", 217, True, "vrfiringrange"),
+    ("ad_pyro", "monster_pyro", 232, True, "vrfiringrange"), ("ad_fumigator", "monster_fumigator", 235, True, "vrfiringrange"),
+    ("ad_deflector", "monster_deflector", 255, True, "vrfiringrange"), ("ad_dcrossbow", "monster_dcrossbow", 202, True, "vrfiringrange"),
+    ("ad_dfury", "monster_dfury", 216, True, "vrfiringrange"), ("ad_dguard", "monster_dguard", 205, True, "vrfiringrange"),
+    ("ad_dknight", "monster_dknight", 200, True, "vrfiringrange"), ("ad_dsergeant", "monster_dsergeant", 225, True, "vrfiringrange"),
+    ("ad_zombiek", "monster_zombiek", 201, True, "vrfiringrange"), ("ad_mummy", "monster_mummy", 238, True, "vrfiringrange"),
+    ("ad_hell_knight", "monster_hell_knight", 250, True, "vrfiringrange"), ("ad_knight", "monster_knight", 261, True, "start"),
+    ("ad_death_lord", "monster_death_lord", 259, True, "start"), ("ad_death_guard", "monster_death_guard", 258, True, "start"),
+]
+
+
+def set_class(label, cls, spawn, ad, mapname):
+    global CLASS, SPAWN, AD, MAP, LIFT_DY, TAG
+    CLASS, SPAWN, AD, MAP = cls, str(spawn), ad, mapname
+    LIFT_DY = {"monster_hell_knight": 0.2, "monster_enforcer": 0.1}.get(CLASS, 0.0)  # (m: its chest higher than a grunt's)
+    TAG = ("" if label == "army" else "_" + label) + os.environ.get("STRUGGLE_LABEL", "")
+
+
+def classes():
+    want = os.environ.get("STRUGGLE_CLASSES", "")
+    if not want:
+        return [("army" if CLASS == "monster_army" else CLASS.replace("monster_", ""), CLASS, SPAWN, False, "vrfiringrange")]
+    if want in ("all", "id", "ad"):
+        return [h for h in HUMANOIDS if want == "all" or h[3] == (want == "ad")]
+    return [h for h in HUMANOIDS if h[0] in want.split(",")]
+
+
 MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
-PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 12;"
-       "vr_knockdown_debug 1;vr_struggle_debug 2;vr_foegrab_lift_time 9;vr_test_spawn " + SPAWN + ";vr_test_spawn_dist 36;"
-       "cl_backspeed 30;impulse 241;wait40")
-DOWN = ("vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait60;"
-        "vr_mock_walk_to nearest " + CLASS + " 24;wait200;vr_mock_walk_to off;wait90")
-FILTER = "struggle|lifted|leg diag|MARK|[Ee]rror|CRASH"
+
+
+def pre():
+    camp = "skill 1;vr_campaign_native ad;wait30;" if AD else ""
+    # (AD's start map: the player settles on its floor a while after the load; spawned sooner, it fell off a ledge.)
+    return (f"sv_random_seed 7;{camp}map {MAP};wait{150 if MAP == 'start' else 30};god;notarget;developer 1;{'vr_ad_everywhere 1;' if AD else ''}"
+            "vr_foegrab_debug 1;vr_foegrab_leniency 12;vr_knockdown_debug 1;vr_struggle_debug 2;vr_foegrab_lift_time 9;"
+            f"vr_test_spawn {SPAWN};vr_test_spawn_dist 36;cl_backspeed 30;impulse 241;wait40")
+
+
+def down(dist=24):
+    return ("vr_knockdown_push 0;vr_knockdown_time_min 12;vr_knockdown_time_max 12;vr_knockdown_test 0;wait60;"
+            f"vr_mock_walk_to nearest {CLASS} {dist};wait200;vr_mock_walk_to off;wait90")
+
+
+FILTER = "struggle|lifted|leg diag|legpull|pulled down|MARK|[Ee]rror|CRASH"
 FAILS = 0
 NAMES = ["swat", "pry", "crunch", "claw", "brace", "kick", "thrash"]
 
@@ -97,14 +148,14 @@ def drag_keys(part, dead=False, lift=False):
 
 
 CASES = {
-    "lift": (lift_keys, ""),
-    "leglift": (lambda: leg_keys("up"), ""),
-    "legdrag": (lambda: drag_keys("7 0"), DOWN.replace(CLASS + " 24", CLASS + " 44")),
-    "legpull": (lambda: leg_keys("back", walk=True), ""),
-    "headdrag": (lambda: drag_keys("head 0"), DOWN),
-    "headlift": (lambda: drag_keys("head 0", lift=True), DOWN),
-    "armdrag": (lambda: drag_keys("6 0"), DOWN),
-    "dead": (lambda: drag_keys("head 0", dead=True), DOWN),
+    "lift": (lift_keys, lambda: ""),
+    "leglift": (lambda: leg_keys("up"), lambda: ""),
+    "legdrag": (lambda: drag_keys("7 0"), lambda: down(44)),
+    "legpull": (lambda: leg_keys("back", walk=True), lambda: ""),
+    "headdrag": (lambda: drag_keys("head 0"), down),
+    "headlift": (lambda: drag_keys("head 0", lift=True), down),
+    "armdrag": (lambda: drag_keys("6 0"), down),
+    "dead": (lambda: drag_keys("head 0", dead=True), down),
 }
 LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "legpull": "claw","headdrag": "pry", "headlift": "pry", "armdrag": "pry"}
 
@@ -127,7 +178,8 @@ def parse(out):
         r"a hand ([\d.]+) from its head; chest up ([-\d.]+)", flat)]
     traces = re.findall(r"struggle: \d+ ([\d.]+) s w .*? effort ([\d.]+) .*? straight ([\d.]+) ", flat)
     cost = [float(x) for x in re.findall(r"struggling; ([\d.]+) ms a frame", flat)]
-    flail = [(float(a), float(b)) for a, b in re.findall(r"flail ([\d.]+) u/s miss ([\d.]+) u", flat)]
+    flail = [(float(a), float(b), float(c or 0)) for a, b, c in
+             re.findall(r"flail ([\d.]+) u/s miss ([\d.]+) u(?: smooth ([\d.]+) u/s)?", flat)]
     return flat, weights, holds, traces, cost, flail
 
 
@@ -139,26 +191,53 @@ def main():
     os.makedirs(SCRATCH, exist_ok=True)
     b = testbatch.Batch(AGENT, "struggle")
     handles = {}
-    for name, (keys, pre) in CASES.items():
-        for off in (False, True):
-            case = name + ("_off" if off else "")
-            if (ONLY and not re.search(ONLY, case)) or (off and name == "dead"):
-                continue
-            path = motion("struggle_" + case + TAG, keys())
-            script = (f"{PRE};{pre};{os.environ.get('STRUGGLE_EXTRA', '')};{'vr_struggle 0;' if off else ''}vr_mock_play {path};wait420;-grabmain;-graboff;"
-                      "-back;wait5;toggleconsole;quit")
-            handles[case] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "240"])
+    for entry in classes():
+        set_class(*entry)
+        for name, (keys, case_pre) in CASES.items():
+            for off in (False, True):
+                case = name + ("_off" if off else "")
+                if (ONLY and not re.search(ONLY, case)) or (off and name == "dead"):
+                    continue
+                path = motion("struggle_" + case + TAG, keys())
+                script = (f"{pre()};{case_pre()};{os.environ.get('STRUGGLE_EXTRA', '')};{'vr_struggle 0;' if off else ''}"
+                          f"vr_mock_play {path};wait420;-grabmain;-graboff;-back;wait5;toggleconsole;quit")
+                handles[(entry, case)] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "240"])
     b.run()
+    summary = []
+    for entry in classes():
+        set_class(*entry)
+        if len(classes()) > 1:
+            print(f"{entry[0]} ({CLASS}, {'AD ' if AD else ''}choice {SPAWN}):")
+        summary.append(check_class(b, handles, entry))
+    for line in summary:
+        if line:
+            print(line)
+    print(f"{FAILS} failed")
+    return 1 if FAILS else 0
+
+
+def check_class(b, handles, entry):
     res = {}
-    for case, h in handles.items():
+    for (e, case), h in handles.items():
+        if e != entry:
+            continue
         out = b.output(h).replace("\r", "")
         with open(os.path.join(SCRATCH, f"struggle_{case}{TAG}.txt"), "w") as f:
             f.write(out)
         res[case] = parse(out)
+    line = ""
     for name in CASES:
         if name not in res:
             continue
         flat, weights, holds, traces, cost, flail = res[name]
+        if name == "legpull":
+            fl_on = flail[len(flail) // 3:]
+            fo = res["legpull_off"][5][len(res["legpull_off"][5]) // 3:] if "legpull_off" in res else []
+            downed = "pulled down" if re.search(r"PULLED DOWN|pulled down by the legs", flat) else "NOT pulled down"
+            # (smooth: the hands' path sampled every 8 frames; far under the arms' speed, they jitter rather than swing.)
+            line = (f"LEGPULL {entry[0]:<16} arms {sum(x[0] for x in fl_on) / len(fl_on) if fl_on else 0.0:6.1f} u/s, smooth "
+                    f"{sum(x[2] for x in fl_on) / len(fl_on) if fl_on else 0.0:6.1f} (off "
+                    f"{sum(x[0] for x in fo) / len(fo) if fo else 0.0:5.1f}); {downed}; {len(weights)} statuses")
         fl = flail[len(flail) // 3:]
         flails = (f"; flail {sum(x[0] for x in fl) / len(fl):.1f} u/s (miss {sum(x[1] for x in fl) / len(fl):.1f})" if fl else "")
         bad = bool(re.search(r"\b[Ee]rror|CRASH", flat))
@@ -206,15 +285,14 @@ def main():
                 fo = offr[5][len(offr[5]) // 3:]
                 f_on = sum(x[0] for x in fl) / len(fl) if fl else 0.0
                 f_off = sum(x[0] for x in fo) / len(fo) if fo else 0.0
-                moved = f_on > max(1.5 * f_off, 20.0)
-                word = f"arms flail {f_on:.1f} u/s (off {f_off:.1f}, >1.5x and >20); belly down"
+                moved = f_on > max(1.5 * f_off, 25.0)
+                word = f"arms flail {f_on:.1f} u/s (off {f_off:.1f}, >1.5x and >25); belly down"
             ok = ok and moved
             extra = (f"; {word} {a:.2f} (off {z:.2f}: {'as meant' if moved else 'NOT as meant'}); bend "
                      f"{pose(on_p, 1)[0]:.0f} (off {pose(off_p, 1)[0]:.0f})")
         verdict(ok, f"{name}: leads {lead} ({ws}); lag mean/most {lag_on[0]:.1f}/{lag_on[1]:.1f} units (off "
                     f"{lag_off[0]:.1f}/{lag_off[1]:.1f}){extra}{flails}; cost {max(cost or [0]):.4f} ms/frame")
-    print(f"{FAILS} failed")
-    return 1 if FAILS else 0
+    return line
 
 
 if __name__ == "__main__":

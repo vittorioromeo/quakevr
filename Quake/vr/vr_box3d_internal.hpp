@@ -1194,6 +1194,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false);
 void driveShove(RagdollBodies& r, float dt);
 void feedRagdoll(edict_t* ent, Slot& s);
 float activeFloorBelow(const glm::vec3& at, float depth);
+bool activeOnFloor(b3BodyId body);
 
 [[nodiscard]] int liquidAt(const glm::vec3& p); // (below: "Ragdolls and corpses in water")
 

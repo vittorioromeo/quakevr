@@ -443,13 +443,13 @@ void struggleStatus_f()
         Con_Printf("struggle status: %d %s %.2f s: swat %.2f pry %.2f crunch %.2f claw %.2f brace %.2f kick %.2f thrash %.2f; "
                    "effort %.2f fatigue %.2f; floor %.2f drag %.2f prone %.2f inverted %.2f; grip lag %.1f (most %.1f) "
                    "guard %.2f; gap %.1f bend %.0f straight %.2f; its hands %.1f from its head, %.1f over it; upright %.2f "
-                   "held up %.0f N chest up %.2f; voices %d; flail %.1f u/s miss %.1f u\n",
+                   "held up %.0f N chest up %.2f; voices %d; flail %.1f u/s miss %.1f u smooth %.1f u/s\n",
             r.num, PR_GetString(EDICT_NUM(r.num)->v.classname), qcvm->time - g.from, g.weight[0], g.weight[1], g.weight[2],
             g.weight[3], g.weight[4], g.weight[5], g.weight[6], g.effort, g.fatigue, g.contact, g.drag, g.prone, g.inverted,
             g.gripError, g.gripErrorMost, g.guard, g.handGap, g.bend, g.straight, g.handsToHead, g.handsOverHead, g.upright,
             g.uprightForce, g.chestUp, g.voices, g.handTime > 0.f ? g.handPath / g.handTime : 0.f,
-            g.handTime > 0.f ? g.goalMiss / g.handTime : 0.f);
-        g.handPath = g.handTime = g.goalMiss = 0.f; // (the next read's window)
+            g.handTime > 0.f ? g.goalMiss / g.handTime : 0.f, g.handTime > 0.f ? g.handPathSlow / g.handTime : 0.f);
+        g.handPath = g.handTime = g.goalMiss = g.handPathSlow = 0.f; // (the next read's window)
     }
     // Each hand's hold (struggling or not: the tests' grip lag and pose with the struggle off too): the held point's lag
     // from the hand, and its body's pose (its waist's bend, belly down, its head over its pelvis, its nearest arm's
