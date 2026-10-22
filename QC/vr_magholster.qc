@@ -7,7 +7,8 @@
 //
 // A hand at a holster with a weapon in it presses the bind button (vr_magholster_button: the engine takes the press and
 // hands it over, magholsterpoll): that weapon is bound to that holster (its record's id, vr_weaponinst.qc, in
-// .vr_magbind<slot>); pressed again, unbound. One weapon a holster, one holster a weapon (binding it elsewhere moves the
+// .vr_magbind<slot>); pressed again, unbound. At an empty holster, the weapon the pressing hand holds is bound to it
+// (2026-10-22: not put away first). One weapon a holster, one holster a weapon (binding it elsewhere moves the
 // binding). Thrown or dropped (a prop: thrown_weapon), once it has been out of the hands vr_magholster_return_time
 // seconds or lies vr_magholster_return_distance metres from its holster (either; 0 turns one off), and has lain still
 // on the ground vr_magholster_land_time seconds (its throw let finish: never called back in the air), it flies back into
@@ -272,13 +273,25 @@ void(float xHand) VR_MagHolster_Press =
         dprint(sprintf("magholster: holster %g unbound (weapon %g)\n", s, uid));
         return;
     }
+    entity inst;
     if(getHolsterWeapon(hs) == WID_FIST)
     {
-        VRHolsterHapticBuzz(self, xHand, hs); // (nothing in it to bind)
-        return;
+        // Empty: the weapon in this hand is bound to it, held (the author's 2026-10-22 note: no need to holster it
+        // first); pressed again, unbound (above). An empty hand: nothing to bind.
+        float held = VRGetEntWeapon(self, xHand);
+        if(held == WID_FIST)
+        {
+            VRHolsterHapticBuzz(self, xHand, hs);
+            return;
+        }
+        inst = WeaponInst_Ensure(VRGetEntWeaponInst(self, xHand), held, 0);
+        VRSetEntWeaponInst(self, xHand, inst);
     }
-    entity inst = WeaponInst_Ensure(VRGetEntHolsterWeaponInst(self, hs), getHolsterWeapon(hs), 0);
-    VRSetEntHolsterWeaponInst(self, hs, inst);
+    else
+    {
+        inst = WeaponInst_Ensure(VRGetEntHolsterWeaponInst(self, hs), getHolsterWeapon(hs), 0);
+        VRSetEntHolsterWeaponInst(self, hs, inst);
+    }
     for(float k = 0; k < 6; k++)
     {
         if(VR_MagHolster_Bound(self, k) == inst.wi_uid)
