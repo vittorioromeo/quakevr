@@ -19,6 +19,7 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Pouch wobble per round: walk, stop and turn: each magazine and grenade leans its own way, shells slide and tilt a little within the pile; compare with Wobble Each Round off; try Springiness, Settle Time and Intensity (Settings > Ammo Pouch); grenades 6.7% and cluster grenades 15% bigger: compare with one in the hand; check the slightly deeper grenade pouch against belly/hip holsters
 Your flamethrower and drip values as defaults: stream alpha 0.25, our fire frequency 1.5, AD flame copies 2, drip volume 0.35, drip frequency 0.65 (a fresh config gets them; yours already has them)
 Calibration fixes: start the game sitting, stand up and walk around: legs straight, no crouch; lift the headset over your head a second and put it back: back to normal in a few seconds; run VR Calibration standing: your height is set the moment Stand Tall is taken (skip or cancel after it: kept); Apply then Undo brings back the height from before
 Leg-drag struggle for every humanoid: drag an enforcer, deflector, death knight, zombie, mummy and AD crossbow knight by one leg, belly up and down: arms claw and flail; held high by the legs they grasp at you; a shin grab on AD's long-coated knights starts the leg pull; do AD's hell knight, death fury, defender and eliminator flail too wildly?
