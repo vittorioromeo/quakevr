@@ -19,6 +19,8 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Leg-drag struggle for every humanoid: drag an enforcer, deflector, death knight, zombie, mummy and AD crossbow knight by one leg, belly up and down: arms claw and flail; held high by the legs they grasp at you; a shin grab on AD's long-coated knights starts the leg pull; do AD's hell knight, death fury, defender and eliminator flail too wildly?
+Fumigator damage now defaults to your 3
 Climb a crate from any side: spawn a crate on its side (vr_test_spawn 122) and climb it from all four sides, also after knocking it around or turning it: every side works
 Footholds on props: hang on a crate (or two stacked) and look down: your feet press on its face instead of dangling (VR Settings > Body > Footholds on Props)
 Carry Ammo and Health in VR Settings: the toggle now sits just before Auto-Collect (still in Physics too); off: walking into a box takes it, classic Quake
