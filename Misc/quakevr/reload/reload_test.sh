@@ -485,10 +485,14 @@ check $(echo "$log" | grep -q "spent gun: enforcer's rifle (hand 0) empty: smoki
 log=$(tb_run_sh -Script "$EG;vr_enemygun_spent_smoke 2;vr_enemygun_spent_crackle 1;impulse 165;wait3;$HANDS;impulse 214;wait3;+attack;wait3;-attack;wait20;vr_shock_info;wait300;toggleconsole;quit" -Filter "$FE" 2>&1)
 st=$(echo "$log" | grep -o "cues over after [0-9.]* s" | awk '{print $4}')
 check $(echo "$log" | grep -q "spent gun: grunt's burst rifle (hand 1) empty: smoking 2 s, crackling 1 s" && echo "$log" | grep -q "bodyshock: gun in hand 1 arcs=[1-9]" && awk -v t="$st" 'BEGIN { print (t != "" && t >= 1.9 && t <= 2.3) ? 1 : 0 }') "the grunt's burst rifle spent in the main hand: crackling; Spent Smoke 2, Spent Crackle 1: over after 2 s ($st)"
-# The ammo pouch's shells (the author's typed note: overly big, not symmetric): a held shell's width (0.66-0.8 units
-# across the middle one's rim; they were 1.07) and the row its own mirror image (they leaned and stood out at random).
-ps=$($PY Misc/quakevr/reload/ssg_checks.py pouchshells)
-check $(echo "$ps" | awk '{print ($3 >= 0.6 && $3 <= 0.8 && $5 <= 0.02) ? 1 : 0}') "the pouch's shells a held shell's size, the row symmetric ($ps)"
+# The ammo pouch's shells (the author's typed note: overly big, not symmetric). They were baked into vrpouch_ammo.mdl
+# (ssg_checks.py pouchshells measured them there); since agent/pouch they are the held vr_shell_live.mdl drawn at its
+# held size (vr_pouchitems.cpp): vr_ammo_pouch_layout's pouchsize line, a held shell's width (2.3-3.1 cm, 0.6-0.8
+# units), and its whole check OK (the pile and every kind inside the leather, nothing through anything, still and
+# wobbling).
+log=$(tb_run_sh -Script "$PRE;vr_ammo_pouch_layout;toggleconsole;quit" -Filter "^pouchsize: progs/vr_shell_live|^pouchlayout: (OK|FAIL)" 2>&1)
+ps=$(echo "$log" | grep -o "vr_shell_live.mdl *held and in the pouch x[0-9.]*: [0-9.]* x [0-9.]*" | awk '{print $7, $10}')
+check $(echo "$log" | grep -q "pouchlayout: OK" && echo "$ps" | awk '{print ($2 >= 2.3 && $2 <= 3.1) ? 1 : 0}' | grep -q 1 && echo 1 || echo 0) "the pouch's shells a held shell's size (${ps:-?} cm across), the layout check OK"
 # 12. Reloading on the move (the author's note, 2026-10-08 14:00: walking forward, the load point was a hand's reach ahead
 # of the receiver as drawn): a shell held 12 units off the drawn port is 12 units off the server's port at every frame,
 # standing, running forward, strafing and turning (it was tested where the last frame left it: 12.8 running).
