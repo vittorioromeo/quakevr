@@ -407,6 +407,12 @@ const DefaultChange defaultChanges[] = {
         "monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 "
         "monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 "
         "monster_dsergeant:1.15:1:120"},
+    // 182: the author's values (his config of 2026-10-22: the new flamethrower and sprayer effects, the drip sounds).
+    {182, &vr_adgun_stream_alpha, "0.5"}, // 0.25
+    {182, &vr_adgun_fx_rate, "1"},        // 1.5
+    {182, &vr_adgun_ad_copies, "0"},      // 2
+    {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
+    {182, &vr_gore_sound_drips, "1"},     // 0.65
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -425,7 +431,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 181;
+constexpr int configVersion = 182;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

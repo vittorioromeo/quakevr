@@ -16358,3 +16358,7 @@ traces), a search at most 0.008-0.014 ms (0.004-0.006 before); the per-frame upd
 **In VR:** spawn a large crate on its side (Debug > Tests > Climbing, `vr_test_spawn 122`) and climb it from all four
 sides, also after knocking it about; hang on a large crate (or two stacked) and look down: the feet should press on
 its face, not hang.
+
+## Defaults from his config of 2026-10-22 (vr_cfg_version 182)
+
+New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
