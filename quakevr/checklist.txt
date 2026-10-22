@@ -13,13 +13,14 @@ AD Dark Prince (toolgun spawn): shove, knock down, lift, struggle and leg-pull i
 AD ogre chainsaws: kill a nail/flak ogre and a hunter ogre: the chainsaw is gone from the corpse and ragdoll, a usable one lies next to it
 Flames on bodies: set monsters, corpses and yourself on fire (Debug > Burning Tests 13 for you): flames sit on the body, none floating in front; on a running monster do they lead the body?
 AD health vial sits in the palm when grabbed (your grip is the default)
-Menus: VR Settings > Playing > Item Collection (Carry Ammo and Health, Auto-Collect); Body and Equipment > Holsters > Holster Calibration (Holster Setup first, then the sliders); pouch wobble rows now in Advanced > Weapons > Reloading; death menu near the top with roomier rows; Holster Setup shows the body clone beside the panel (distance OK?); after VR Calibration a dialog offers Holster Setup
+Menus: Body and Equipment > Holsters > Holster Calibration (Holster Setup first, then the sliders); pouch wobble rows now in Advanced > Weapons > Reloading; death menu near the top with roomier rows; Holster Setup shows the body clone beside the panel (distance OK?); after VR Calibration a dialog offers Holster Setup
+Seated play before beta4 (Position: Seated, run VR Calibration seated; VR Settings > Height and Hand Calibration > Seated Play): eyes at standing height, body stands, feet on the floor while walking; hip holsters on your thighs, back holsters over the shoulders, pouches; pick something up off the floor beside the chair; duck in the chair; Holster Setup while seated edits the seated set (Holster Calibration > Seated Holsters)
 
 [Combat and ragdolls]
 AD humanoids (vrfiringrange, god + notarget): shove hard, lift by the chest, leg sweep on an AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 AD hit reactions: in AD maps shoot knights, death knights and soldiers in the body and legs: they flinch, buckle at the knee and limp a step; shoved, they stagger (death knights rarely go down)
 Hits Unbalance (Combat > Knockdowns): hard throw (crate/weapon) or strong punch/axe on a grunt staggers it like a shove (head counts more); light taps never; ogre seldom, shambler rarely; no re-stagger within 4 s; is Least Impact 0.5 too generous for punches?
-Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall (~3 kill, head pops); jump from a ledge onto a downed grunt (crush); Damage Curve 2 and Most per Strike change them; feel and amounts OK?
+Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall hard a few times (kills, dents, eventually pops); jump from a ledge onto a downed grunt (crush); Damage Curve 2 and Most per Strike change them; feel and amounts OK?
 Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?; Step In Depth 8: can't walk through it, slides aside, steps back freely; 0: walks through), let go inside: eases apart, never stuck
 Hit reactions and deaths: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider); kill grunts and knights by body vs head shots (different falls); a charging knight stumbles; grab a dying arm
 Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
@@ -47,10 +48,9 @@ AD gadget page: the outer button (next to the lights one) pages to artifacts wit
 AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
 
-[Bullet time, seated play, menus]
+[Bullet time and menus]
 Earned bullet time (default; VR Settings > Bullet Time > Meter Refill): empty the meter (Debug > Empty the Bullet Time Meter), fight grunts: the gadget TIME bar grows and flashes on each hit, six grunts fill it, it doesn't grow standing still; save/load and level exits keep it; Meter Refill > Over Time = old behaviour
 Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never starts slow motion; a calm double tap still does (Screen Tap > Quiet After Blows / Calm Hands Speed)
-Seated play (Position: Seated, run VR Calibration seated; VR Settings > Height and Hand Calibration > Seated Play): eyes at standing height, body stands, feet on the floor while walking (no leg tracking); hip holsters on your thighs, back holsters over the shoulders, pouches; pick something up off the floor beside the chair; duck in the chair; vr_crouch_toggle (no button yet); tune Holster Calibration > Seated Holsters
 VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps
 
 [Tools (toolgun, physgun, brushes, ragdoll tool)]
