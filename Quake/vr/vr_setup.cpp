@@ -447,6 +447,19 @@ void startBody()
     bodycal::setGhostYaw(ghostYaw);
 }
 
+// Standing, the height is Stand Tall's (the first pose): set even when the body's result is not applied (its poses
+// didn't agree, it was skipped or stopped after that pose), as the separate height step set it before round 22.
+void keepStandHeight()
+{
+    const float eyes = bodycal::standEyeHeight();
+    if(seated() || eyes < 0.8f || eyes > 2.4f)
+    {
+        return;
+    }
+    Cvar_SetValueQuick(&vr_height_calibration, eyes);
+    Con_Printf("VR Calibration: height set: your eyes at %.2f m (Stand Tall)\n", eyes);
+}
+
 void afterBody()
 {
     if(bodycal::phase() == bodycal::Phase::Result && bodycal::trusted())
@@ -456,6 +469,7 @@ void afterBody()
         finish();
         return;
     }
+    keepStandHeight();
     if(bodycal::phase() == bodycal::Phase::Result)
     {
         Con_Printf("VR Calibration: the body's poses didn't agree: its page shows why (redo a pose, Apply or Cancel); "
@@ -754,6 +768,7 @@ void skip_f()
         case Step::Height: startBody(); break;
         case Step::Body:
             bodycal::stop(); // its result, if any, is left to its page
+            keepStandHeight();
             finish();
             break;
         case Step::BodyReview: finish(); break;

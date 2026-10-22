@@ -185,6 +185,8 @@ struct LeanSense
 {
     bool valid{false};
     float standing{0.f};        // the head's standing height (metres), learnt while over the box and upright
+    bool standingSeen{false};   // ... taken from the head (not the Height setting it starts from)
+    float calibratedAt{0.f};    // the Height setting it was learnt with (a new one, measured standing, starts it over)
     float drop{0.f};            // how far below that it is, smoothed (a walk's bob evened out)
     glm::vec2 handsRef{0.f};    // the hands' middle off the box's middle (metres), learnt while the head is over it
     bool handsRefValid{false};
@@ -227,15 +229,32 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
     if(!ls.valid)
     {
         ls = LeanSense{};
-        ls.standing = height > 0.85f * calibrated ? height : calibrated;
         ls.valid = true;
+    }
+    // From the Height setting until the head is first high enough to be standing (not sitting down, the headset not on
+    // the desk), from the head then; a new Height (measured standing) starts it over. (It only sinks while the head is
+    // within 12 cm under it, so a start sitting down or a Height applied later left it at the old Height for good: the
+    // body, its legs fitted to it, crouched under the head; ROUND22.md, "Calibration audit".)
+    if(za::fabs(calibrated - ls.calibratedAt) > 0.005f)
+    {
+        ls.calibratedAt = calibrated;
+        ls.standing = calibrated;
+        ls.standingSeen = false;
+    }
+    if(!ls.standingSeen && height > 0.85f * calibrated)
+    {
+        ls.standing = height;
+        ls.standingSeen = true;
     }
 
     // The standing height: learnt while the head is over the box and not crouching, rising quickly (standing up
-    // straighter), sinking slowly (settling); kept while the head is off (a lean's drop is not forgotten).
+    // straighter) up to 8 cm over it, slowly further (a jump, tiptoes, the headset lifted off: a second of it took it
+    // over 12 cm above the head for good), sinking slowly (settling); kept while the head is off (a lean's drop is not
+    // forgotten).
     if(offLen < CENTRED && height > ls.standing - 0.12f)
     {
-        ls.standing += (height - ls.standing) * ease(height > ls.standing ? 0.4f : 4.f);
+        const bool quick = height > ls.standing && height < ls.standing + 0.08f;
+        ls.standing += (height - ls.standing) * ease(quick ? 0.4f : 4.f);
     }
     ls.standing = CLAMP(0.8f * calibrated, ls.standing, 1.25f * calibrated);
     ls.drop += (za::max(0.f, ls.standing - height) - ls.drop) * ease(0.15f);

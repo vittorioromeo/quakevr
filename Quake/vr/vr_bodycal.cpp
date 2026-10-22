@@ -2741,6 +2741,12 @@ bool trusted()
     return result.valid && result.trusted;
 }
 
+float standEyeHeight()
+{
+    const StepData& d = ses.data[Stand];
+    return !ses.seated && d.taken && !d.raw.empty() ? d.raw.front().headHeight : 0.f;
+}
+
 bool canUndo()
 {
     return vr_bodycal_undo.string[0] != 0 && ses.phase != Phase::Capturing;
