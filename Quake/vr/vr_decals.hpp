@@ -80,6 +80,11 @@ struct MarkOptions
     float darken = 0.f;     // how much darker it gets as it spreads and dries (0..0.9)
     int variant = -1;       // which of its kind's cells (-1: one at random; clamped to its count)
     bool mirror = false;    // mirrored across `along` (a print of the other foot or hand)
+    // With the permanent layer on (vr_permdecals), baked into it at once on the static world, never live: no live
+    // ring's grid made again for it (twice: as it comes, as it bakes). For marks that neither spread nor darken, so
+    // they look the same (the flamethrowers' scorches: vr_adgun_fx_scorch). Live as any other where the layer can't
+    // take it (off, a runtime brush, its bake budget spent this frame).
+    bool bakeNow = false;
 };
 
 // How many cells `mark` has (its variants: the prints' strengths).

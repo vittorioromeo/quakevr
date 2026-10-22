@@ -218,6 +218,7 @@ int builtFrame = -1; // the host frame `vertices` were built in (-1 after a clea
 int addedThisFrame = 0;
 int addedFrame = -1;
 int goreFrame = -1; // the host frame gore::frame last ran in
+long long bakedAtOnce = 0; // marks baked straight into the permanent layer (MarkOptions::bakeNow), never live (vr_decal_count)
 
 // ---- The atlas ---------------------------------------------------------------------------------
 
@@ -1407,6 +1408,18 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     {
         return onModels > 0;
     }
+    // Straight into the permanent layer (MarkOptions::bakeNow): what bakeSettled does a tenth of a second later, without
+    // the ring's grid made again as it comes and as it goes.
+    if(o.bakeNow && permdecals::on() && d.brush == 0 && o.delay <= 0.f && d.carve.x <= 0.f &&
+        permdecals::pendingPages() < za::max(1, static_cast<int>(vr_permdecal_bake_max.value)))
+    {
+        QVR_PROFILE("decal baked at once");
+        if(permdecals::bakeWorld(stampOf(d)) > 0)
+        {
+            bakedAtOnce++;
+            return true;
+        }
+    }
     // Drops (a steady drip from wounds, gibs and ceilings) take at most a quarter of the marks: the
     // oldest drop goes, not a splat or a pool (the others keep their order).
     if(kind == BloodDrop && dropCount >= za::max(16, max / 4))
@@ -1796,6 +1809,23 @@ void propHit(const glm::vec3& at, const glm::vec3& normal, float speed, float ma
 
 double nextScorch = 0.0; // fromEffect's flamethrower scorches: none before this (cl.time), a few a second at most
 
+// The live scorches among the newest 64 marks within `radius` of `where`, on a surface facing the same way (fromEffect's
+// flamethrower scorches with the permanent layer off: a few a spot, darkening it, then no more).
+[[nodiscard]] int liveScorchesAt(const glm::vec3& where, const glm::vec3& normal, float radius)
+{
+    int n = 0;
+    for(za::SizeT k = 0; k < decals.size() && k < 64; k++)
+    {
+        const Decal& e = decals[decals.size() - 1 - k];
+        if(e.cell >= firstCell[Scorch] && e.cell < firstCell[Scorch] + cellCount[Scorch] &&
+            glm::dot(e.normal, normal) > 0.9f && glm::distance(e.centre, where) < radius)
+        {
+            n++;
+        }
+    }
+    return n;
+}
+
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
 {
     using particles::Preset;
@@ -1838,12 +1868,20 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
             break;
         case Preset::AdFlame: // a flamethrower's flame licking a wall or floor: now and then a scorch (vr_adgun_fx_scorch)
         {
+            // Cheap (ROUND22.md, "Cheap scorch marks"): with the permanent layer, baked into it at once, never live
+            // (MarkOptions::bakeNow: no live grid made again); without it, live, three a spot at most (darkened, then
+            // none more there: the stream held on it makes the grid again only as it moves on).
             const float often = za::clamp(vr_adgun_fx_scorch.value, 0.f, 3.f);
             if(often > 0.f && (cl.time >= nextScorch || cl.time < nextScorch - 1.0) && random(0.f, 1.f) < 0.12f * often &&
                 nearest(org, 12.f, -back, where, normal))
             {
                 nextScorch = cl.time + 0.06 / often;
-                add(Scorch, where, normal, random(9.f, 15.f));
+                if(permdecals::on() || liveScorchesAt(where, normal, 6.f) < 3)
+                {
+                    MarkOptions o;
+                    o.bakeNow = true;
+                    add(Scorch, where, normal, random(9.f, 15.f), o);
+                }
             }
             break;
         }
@@ -2766,7 +2804,9 @@ void count_f()
                "blade grooves\n",
         carved, vr_decal_carve.value, vr_decal_carve_style.value, carved - nailShaped - craters - dents - grooves,
         nailShaped, craters, dents, grooves);
-    Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place)\n", showing, onBrushes);
+    Con_Printf("decals laid: %d (%d on runtime brushes; the rest removed in place); %lld baked at once, never live "
+               "(the flamethrowers' scorches)\n",
+        showing, onBrushes, bakedAtOnce);
     Con_Printf("ragdoll limbs flung: %d frames bled a trail, %d spared (an unwounded live one's)\n", limbsBled, limbsSpared);
     Con_Printf("%d marks on brush entities (vr_decal_entities %g), %d vertices drawn for them last\n",
         static_cast<int>(entityDecals.size()), vr_decal_entities.value, static_cast<int>(entityVertices.size()));

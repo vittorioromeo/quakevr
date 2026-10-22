@@ -108,8 +108,8 @@
         slider("Lingering Poison Mist", "vr_adgun_fx_mist", 0.f, 3.f, 0.25f, "%.2fx")
             .help("A faint green mist left hanging where the poison sprayers' poison went. 0: none."),
         slider("Scorch Marks", "vr_adgun_fx_scorch", 0.f, 3.f, 0.25f, "%.2fx")
-            .help("Scorch marks where the flamethrowers' fire licks a wall or the floor. 0: none (the default: each new mark "
-                  "rebuilds the decals, about 5 ms of CPU a frame while the stream licks a wall)."),
+            .help("Scorch marks where the flamethrowers' fire licks a wall or the floor, this many times as often (1 the "
+                  "default; 0 none). Cheap: with Permanent Decals on, each is baked straight into them."),
         toggle("Fuel Tank and Hose", "vr_adgun_hose")
             .help("Holding the pyro's flamethrower or the fumigator's poison sprayer: a small fuel tank on your back and "
                   "a hose from it to the gun, swinging as you move (seen in the body's mirror image too). Off: none."),
