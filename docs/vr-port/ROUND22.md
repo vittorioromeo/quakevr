@@ -16292,8 +16292,10 @@ straightness 1.000; the lift leaves 1.514 and settles to 1.450.
 step). Poses that didn't agree (then Cancel on the page), `vr_setup_skip` or a stop after Stand Tall left the Height as
 it was (the default 1.646). Now (the author's call) Stand Tall's eye height is the Height the moment the pose is taken,
 standing, 0.8 to 2.4 m (vr_bodycal.cpp, the capture; it also restarts the learnt standing height), as the height step
-set it before; an applied result sets it again (the same). Undo after an Apply no longer brings the old Height back
-(the snapshot is taken at Apply). Mock: Height 1.646, eyes 1.45, Stand Tall taken: Height 1.45 at once.
+set it before; an applied result sets it again (the same). The Height before the run's first Stand Tall is kept
+(`heightBeforeStand`) for Apply's Undo and history, so Undo still brings back the Height from before the calibration.
+Mock: Height 1.646, eyes 1.45, Stand Tall taken, skipped: 1.45 at once; a saved session refitted, Apply (1.5546), Undo:
+1.646.
 
 Not changed (plausible, for the author): the tracked legs (`vr_bodytrack_legs` 1 since 56fbea3e1) keep the tracked
 leg's bend and put the foot at that share of our leg from our hip, so Meta legs bent at rest bend ours and lift the feet
