@@ -19,6 +19,11 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+Light ammo throws: throw shells, magazines and cells at a crate: it doesn't break (was 2 hits); a crate thrown at a crate still breaks it
+AD explosions push physics: Plasma Gun blasts (and AD rockets/grenades) near crates and bodies push them away
+Holster a held gun: hold a gun over an empty magnetic holster and press the thumbstick: it links (press again: unlinks) without letting go
+Heavy two-hand throws: heave a crate or the explosive box with both hands, release at the top of the swing: it flies a metre or two; does it still jump ahead of your hands? (Physics > Throwing > two-hand heave)
+Spent guns: no floating force-grab particles over empty enemy guns
 Footprints per step: walk and run out of a blood pool: one print per step, feet alternating, bigger now (1.6); tune with Gore > Footprint Frequency if the rate doesn't match
 Handprints round edges and on props: climb a ledge with a bloody hand: the print wraps onto the top; press a bloody palm on a crate or explosive box: blood on the prop, moving with it
 Bloody grips: with bloody hands hold a gun a while: blood builds up on its grip where you hold it and stays when you holster or drop it
