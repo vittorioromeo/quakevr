@@ -118,6 +118,7 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   weapons.qc FireBullets: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
   mon_zombie.qc zombie_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
   mon_zombiek.qc zombiek_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
+  ai_combat.qc T_RadiusDamage: bridge: AD's explosions throw props and ragdolls (physicsblast)
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   ai_subs.qc: if (!ai_checkmelee(MONAI_MELEESIDE,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))

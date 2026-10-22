@@ -390,8 +390,28 @@ const DefaultChange defaultChanges[] = {
     {178, &vr_gore_sound_vol_step, "1"},    // 0.75
     {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
     {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
+    // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
+    // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
+    {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
 };
-constexpr int configVersion = 178;
+// Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
+struct NamedDefaultChange
+{
+    int version;
+    const char* name;
+    const char* before;
+};
+const NamedDefaultChange namedDefaultChanges[] = {
+    // 179: the nailgun magazine's fitted fingers sink less into it (his config of 2026-10-22: the pinky showed through).
+    {179, "vr_prop_overlap_51", "0.4"}, // 0.385
+    // 179: the shells and magazines thrown deal a quarter of a thing's damage (a magazine broke a crate in two throws).
+    {179, "vr_prop_throw_dmg_49", "1"}, // 0.25
+    {179, "vr_prop_throw_dmg_50", "1"},
+    {179, "vr_prop_throw_dmg_51", "1"},
+    {179, "vr_prop_throw_dmg_52", "1"},
+    {179, "vr_prop_throw_dmg_53", "1"},
+};
+constexpr int configVersion = 179;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -537,6 +557,15 @@ void migrateConfig()
         {
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
+        }
+    }
+    for(const NamedDefaultChange& c : namedDefaultChanges)
+    {
+        cvar_t* var = Cvar_FindVar(c.name);
+        if(var && c.version > from && sameValue(var->string, c.before))
+        {
+            Con_DPrintf("VR: %s: new default %s (was %s)\n", var->name, var->default_string, c.before);
+            Cvar_SetQuick(var, var->default_string);
         }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
