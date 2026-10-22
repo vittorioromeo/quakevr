@@ -1188,6 +1188,12 @@ void dumpView_f()
         Con_Printf("ammo pouch at (%.2f %.2f %.2f), reach %.1f: main hand %.1f units off (hotspot %d), off hand %.1f (%d)\n",
             pouch.x, pouch.y, pouch.z, body::ammoPouchReach(), glm::distance(s.pos[HAND_MAIN], pouch),
             s.hotspot[HAND_MAIN], glm::distance(s.pos[HAND_OFF], pouch), s.hotspot[HAND_OFF]);
+        // What it holds (vr_pouchitems.cpp): its leather's frame, the rounds placed in it, the first one's skin and model.
+        const int rounds = ammoPouchItemCount();
+        const entity_t& first = entities.ammoPouchItem[0].ent;
+        const glm::vec3 lag = pouchitems::wobble();
+        Con_Printf("ammo pouch: frame %d rounds %d skin %d %s wobble %.3f %.3f %.3f\n", entities.ammoPouch.ent.frame, rounds,
+            rounds ? first.skinnum : 0, rounds && first.model ? first.model->name : "-", lag.x, lag.y, lag.z);
         glm::vec3 centre;
         if(ammoPouchCentre(centre))
         {
@@ -1236,7 +1242,7 @@ bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove)
 // each hand's gun's load point against the nearest one drawn (across it, over its top, the well's cosine along it).
 void pouchMags_f()
 {
-    glm::vec3 drawn[3], found[3], box[4], up, foundUp;
+    glm::vec3 drawn[pouchitems::magsMost], found[pouchitems::magsMost], box[4], up, foundUp;
     if(!ammoPouchRounds(box))
     {
         Con_Printf("pouchmags: no ammo pouch\n");

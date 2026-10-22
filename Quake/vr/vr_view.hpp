@@ -6,6 +6,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_pouchitems.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -187,8 +188,8 @@ struct WeaponFrame
 [[nodiscard]] const ViewEntity* heldWeapon(int hand);
 
 // The cells the ammo pouch shows this frame (the lightning gun's, standing in it: 0 when it gives none, or none are left;
-// up to 3), and cell `index`'s copper contact on its top (world) and its up (the cell cords, vr_cellcord.cpp). False: no
-// pouch drawn.
+// up to vr_ammo_pouch_mags_max), and cell `index`'s copper contact on its top as drawn, wobbling (world), and its up (the
+// cell cords, vr_cellcord.cpp). False: no pouch drawn.
 [[nodiscard]] int ammoPouchCells();
 // The leather bag's centre, using the pouch's rendered pose (turn, crouch and size included).
 [[nodiscard]] bool ammoPouchCentre(glm::vec3& at);
@@ -199,11 +200,12 @@ struct WeaponFrame
 // False: no pouch (not immersive reloading, dead).
 [[nodiscard]] bool ammoPouchRounds(glm::vec3 (&box)[4]);
 // The magazines the ammo pouch shows (a nailgun's, the super nailgun's, cells: STAT_QVR_POUCHKIND 2..4), the first on its
-// right: how many, and each one's top middle (world) and their up. ammoPouchMags: as drawn, from the pouch's mesh in this
-// frame (its vertices through its own transform); ammoPouchMagSlots: through the rounds' box (ammoPouchRounds) as QC
+// right (vr_pouchitems.cpp magSlot: a row, then two): how many, and each one's top middle (world) and their up.
+// ammoPouchMags: as drawn this frame (each its own model, wobbling); ammoPouchMagSlots: at rest, through the rounds' box
+// (ammoPouchRounds) as QC
 // vr_reload.qc VR_Reload_PouchMagTop finds them (pouch reloading's magazine guns; vr_reload_pouch_mag_*). 0: none shown.
-[[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[3], glm::vec3& up);
-[[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[3], glm::vec3& up);
+[[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
+[[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).

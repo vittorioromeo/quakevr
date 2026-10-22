@@ -16140,3 +16140,53 @@ the drips: 39-44 played, 7-13 rate-limited, in 400 frames.
 **In VR:** walk and run with bloody feet: one print a step now? (Footprint Frequency if not.) Climb a ledge with a
 bloody hand: does the print go over the top? Press a bloody palm on a crate; hold your gun with a bloody hand: blood
 on its grip, kept when holstered? Listen for the drips when hurt (Gore Sounds: Drips, Drips Heard).
+## Ammo pouch contents: piled shells, two rows of magazines, 3+2 grenades and rockets, wobble (worktree `tghost`, branch `agent/pouch`, 2026-10-22)
+
+Voice notes `vrragtriggers_2026-10-22_01-37-58` to `01-44-24`. New cvars only (no default of an existing one changed, no
+config migration).
+
+- **The rounds are the held models now** (`vr_pouchitems.cpp`, drawn by `vr_view.cpp setupAmmoPouchItems` as up to 20
+  entities `entities.ammoPouchItem`): `vr_shell_live.mdl`, `vr_mag_nail/snail/light.mdl`, `vr_round_rocket.mdl` and
+  Quake's grenades, each at its prop Size times the pouch's scale (the renderer's `drawnSize`), so they match the ones in
+  a hand by construction (a changed Size follows). `vrpouch_ammo.mdl` (`make_ammo_pouch.py`) is the leather alone: 7
+  frames, one per kind, stretched round what it holds (the engine lerps as the kind changes); boxier (`BULGE_P` 6),
+  thinner leather (`INNER` 0.93). Frames (half width, depth, floor): 0 empty 4.6/1.3/0.6, 1 shells 4.6/3.0/0.8, 2 nail
+  magazines 4.6/3.0/0.6, 3 cells 4.6/3.5/0.6, 4 grenades 4.8/4.4/0.6, 5 proximity grenades 4.6/3.6/0.6, 6 rockets
+  5.2/3.5/-1.2 (was one shape, 4.4/2.5).
+- **Sizes, measured** (the old baked meshes against the held props): nail magazines were drawn 0.66 against the held
+  0.55 (20% too big, now x0.83), super nail 0.50 against 0.45 (11%, x0.90), cells 0.56 against 0.45 (24%, x0.80),
+  rockets 0.55 against 1.0 (45% too small, x1.82). `vr_ammo_pouch_layout` prints the held sizes in cm.
+- **Shells**: a loose pile, one a shell up to `vr_ammo_pouch_shells_max` (20; 1..20): a fixed table of 20 made offline
+  (each shell dropped in at a random turn and tilt, resting at the lowest place where it is 0.05 units clear of the
+  others and the walls, the middle preferred for the first six), so the first N always form a settled pile gathered
+  in the middle; brass either way.
+- **Magazines** (nails, super nails, cells): standing, feed end up; 1-3 a row in the middle of the inside, 4-6 a row of
+  three at the back and the rest in front, each row centred (`pouchitems::magSlot`); up to `vr_ammo_pouch_mags_max`
+  (6; 1..6, QC reads it too). Pouch reloading finds them there: QC `VR_Reload_PouchMagTop(p, w, slot, count)` has the
+  same layout through the rounds' box, now mid 1.8 0 2.2, half 1.6 3.6 0.7 (`vr_view.cpp pouchRoundsMid/Half`).
+  `vr_reload_pouch_mags` shows drawn against found 0.00 cm for every slot.
+- **Grenades** (grenade, multi-grenade, proximity): standing, 1-3 a row, 4-5 three at the back and two in the front
+  row's gaps; the multi-grenade's share 0.8 -> 0.7 (its 2.46-unit width would need a 5.1-deep pouch for five).
+- **Rockets**: lying along the pouch, three against its back and two against its front in a hexagonal stack (each
+  on the one below, clear of the one below that), noses either way, a little turned and shifted; up to 5.
+- **Wobble** (`vr_ammo_pouch_wobble` 1, 0..3): the pouch's acceleration along its own axes (velocity smoothed at 15/s,
+  so tracking jitter is no shake) drives one damped spring (2 Hz, damping 0.18, a quarter of the acceleration),
+  soft-clamped at 0.3 units sideways (about 1.1 cm), 0.12 up. Standing rounds lean about their foot on the floor so
+  their top moves by it, each 0.8-1.0 of it; lying ones shift by it (and only lift, never sink), 0.6 at the floor to
+  1.0 high in the pile. Headless: still 0.002, walking and stopping it reaches 0.3. Debug > Tests: **Shake the Ammo
+  Pouch** (`vr_ammo_pouch_wobble_test`), **Pouch Layout Check** (`vr_ammo_pouch_layout [1|2]`: every kind 1..most,
+  the closest two still and at the wobble's 8 extremes, the walls, the middle; OK or FAIL). Settings > Ammo Pouch:
+  Wobble, Shells Shown, Magazines Shown.
+- `vr_dumpview` prints `ammo pouch: frame F rounds N skin S <model> wobble x y z`; `pouchgren_test.sh` and
+  `reload_test.sh` read it (they read the pouch's frame as the count before). `pouch_test.sh` 8: six magazines of each
+  kind, the well on each in turn seats one.
+
+Tests: `vr_ammo_pouch_layout` OK (closest: shells 0.06 still / 0.04 wobbling, magazines 0.12 / 0.07, grenades 0.10 /
+0.04, rockets 0.06 / 0.06; all inside the leather); `pouch_test.sh` 29/29 (8 new: each of six
+magazines seats, every kind), `pouchgren_test.sh` 15/15, `reload_test.sh` 109 PASS with its two known failures (as on
+origin/next). Eye images (not committed): `scratch/pouch_sheet_v1.png` (every kind at a few counts),
+`scratch/pouch_wobble_sheet.png` (still and shaken), made by `scratch/pouch_eyes.sh` and `wobble_eyes.sh`.
+
+To check in VR: the pile and the rows read as counts looking down; the wobble walking, stopping and turning (too much,
+too little: Ammo Pouch Wobble); the deeper pouch for grenades (4.4) against the belly and the hip holsters; pouch
+reloading at each of six magazines; the cell cords plugging into a cell of the two rows.

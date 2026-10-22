@@ -201,6 +201,13 @@ za::Vector<Item> pageSaves()
                   "Weapons > Reloading > Reach)."),
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
+        slider("Ammo Pouch Wobble", vr_ammo_pouch_wobble, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How much the rounds in the ammo pouch sway and jostle as you walk and turn (0: still)."),
+        slider("Shells Shown in the Pouch", vr_ammo_pouch_shells_max, 1.f, 20.f, 1.f, "%.0f")
+            .help("The most shells piled in the ammo pouch: one a shell up to this many."),
+        slider("Magazines Shown in the Pouch", vr_ammo_pouch_mags_max, 1.f, 6.f, 1.f, "%.0f")
+            .help("The most magazines (or cells) standing in the ammo pouch: up to three in a row, then two rows. Pouch "
+                  "reloading takes the one your gun's well meets."),
     };
 }
 

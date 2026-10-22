@@ -92,14 +92,28 @@ check $([ "$(clip "$log" wins)" = 0 ] && [ "$(clip "$log" back)" = 2 ] && echo 1
 log=$(run "$(setup 155);vr_reload_test 5;impulse 125;wait2;vr_reload_test 15;impulse 125;wait20;$(to "0 0 0");$(mark filled);save pouch_test;wait5;$(away "0 0 0");load pouch_test;wait30;$(mark loaded);vr_reload_test 5;impulse 125;wait2;$(to "0 0 0");$(mark again)")
 check $([ "$(clip "$log" filled)" = 2 ] && [ "$(clip "$log" loaded)" = 2 ] && [ "$(clip "$log" again)" = 2 ] && echo 1 || echo 0) "save and load: filled $(clip "$log" filled), loaded $(clip "$log" loaded), emptied and filled again $(clip "$log" again)"
 
-# 7. The magazine drawn (vr_reload_pouch_mag_slots; the author's note 2026-10-19): one nailgun magazine left, on the
-#    pouch's right: the well at the empty middle slot (7.8 cm left of it), nothing; 5 cm left of it, 5 cm above it (the
-#    old contact 4 cm), on it, a magazine seats; the old way (vr_reload_pouch_mag_slots 0) the empty middle seats one too.
+# 7. The magazine drawn (vr_reload_pouch_mag_slots; the author's note 2026-10-19): one nailgun magazine left, in the
+#    pouch's middle (vr_pouchitems.cpp: centred): the well 7.8 cm left of it, where none stands, nothing; 5 cm left of
+#    it, 5 cm above it (the old contact 4 cm), on it, a magazine seats; the old way (vr_reload_pouch_mag_slots 0) the
+#    empty place seats one too (the whole row).
 #    (1.6 units: 5.1 cm at vr_world_scale 1.2.)
 D="$(away "50 0 0");vr_reload_test 6;impulse 125;wait30;give n 20;wait5"
 log=$(run "$(setup 156);$D;$(tomag "50 0 0" 0 0 2.45);$(mark mid);$D;$(tomag "50 0 0" 0 0 1.6);$(mark left);$D;$(tomag "50 0 0" 0 1.6);$(mark up);$D;$(tomag "50 0 0");$(mark on);vr_reload_pouch_mag_slots 0;$D;$(tomag "50 0 0" 0 0 2.45);$(mark old);vr_reload_pouch_mag_slots 1")
-check $([ "$(mag "$log" mid)" = 0 ] && [ "$(mag "$log" left)" = 1 ] && [ "$(mag "$log" up)" = 1 ] && [ "$(mag "$log" on)" = 1 ] && echo 1 || echo 0) "nailgun, one magazine drawn: the empty middle slot nothing ($(mag "$log" mid)); 5 cm left of it $(mag "$log" left), 5 cm above $(mag "$log" up), on it $(mag "$log" on)"
-check $([ "$(mag "$log" old)" = 1 ] && echo 1 || echo 0) "the old way (the whole row): the empty middle slot seats one ($(mag "$log" old))"
+check $([ "$(mag "$log" mid)" = 0 ] && [ "$(mag "$log" left)" = 1 ] && [ "$(mag "$log" up)" = 1 ] && [ "$(mag "$log" on)" = 1 ] && echo 1 || echo 0) "nailgun, one magazine drawn: 7.8 cm left of it nothing ($(mag "$log" mid)); 5 cm left of it $(mag "$log" left), 5 cm above $(mag "$log" up), on it $(mag "$log" on)"
+check $([ "$(mag "$log" old)" = 1 ] && echo 1 || echo 0) "the old way (the whole row): the empty place seats one ($(mag "$log" old))"
+
+# 8. Six magazines drawn (two rows of three, vr_ammo_pouch_mags_max 6; ROUND22.md, "Ammo pouch contents"): the well on
+#    each of them in turn seats one, for the nailgun's, the super nailgun's and the cells (the reserve topped up after
+#    each: six stay drawn; the super nailgun rolled onto its side, as in 3).
+for g in "156 n 200 50_0_0" "157 n 216 0_0_-90" "161 c 200 50_0_0"; do
+    set -- $g; turn=${4//_/ }
+    D6="$(away "$turn");vr_reload_test 6;impulse 125;wait30;give $2 $3;wait5"
+    S="$(setup $1)"
+    for j in 0 1 2 3 4 5; do S="$S;$D6;$(tomag "$turn" $j);$(mark s$j)"; done
+    log=$(run "$S")
+    seated=""; for j in 0 1 2 3 4 5; do seated="$seated$(mag "$log" s$j)"; done
+    check $([ "$seated" = 111111 ] && echo 1 || echo 0) "gun $1, six magazines drawn: the well on each seats one ($seated, want 111111)"
+done
 
 exit $fail
 }

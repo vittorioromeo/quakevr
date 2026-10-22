@@ -3957,6 +3957,16 @@ QVR_CVAR(vr_ammo_pouch_counter_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_counter_scale, "0.6", CVAR_ARCHIVE)
+// What the ammo pouch holds (vr_view.cpp setupAmmoPouchItems; ROUND22.md, "Ammo pouch contents"): the rounds' own held
+// models at their held sizes, a shell each up to vr_ammo_pouch_shells_max (1..20, a loose pile), a magazine each (a
+// nailgun's 24 nails, the super nailgun's or the thunderbolt's 36, part-filled counting) up to vr_ammo_pouch_mags_max
+// (1..6, two rows of three; QC vr_reload.qc VR_Reload_PouchMagCount reads it too), up to 5 rockets or grenades. Wobble:
+// how much they sway and jostle as the pouch moves (0 still, 1 as shipped, up to 3). Wobble Test (Debug): the pouch
+// shaken as if walking, headless or standing still.
+QVR_CVAR(vr_ammo_pouch_shells_max, "20", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_mags_max, "6", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_wobble, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_pouch_wobble_test, "0", CVAR_NONE)
 QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_shell_pairs, "1", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits); a single one when only one is left or the gun in the other hand has one place left (1.1: the default)

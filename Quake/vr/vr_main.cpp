@@ -28,6 +28,7 @@
 #include "vr_anchor.hpp"
 #include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
+#include "vr_pouchitems.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"
 #include "vr_decals.hpp"
@@ -2041,6 +2042,7 @@ extern "C" void VR_Init()
     gearlights::init();
     chainsaw::init();
     cellcord::init();
+    pouchitems::init();
     magholster::init();
     detail::init();
     extmaps::init();

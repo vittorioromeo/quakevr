@@ -43,6 +43,7 @@
 #include "vr_fatigue.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
+#include "vr_pouchitems.hpp"
 #include "vr_handrig.hpp"
 #include "vr_grasp.hpp"
 #include "vr_grip.hpp"
@@ -328,7 +329,7 @@ struct Entities
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
     view::ViewEntity ammoPouch;  // the ammo pouch on the front of the belt (vr_reload_mode 3)
-    view::ViewEntity ammoPouchGrenade[3]; // and the grenades standing in it (setupAmmoPouchGrenades)
+    view::ViewEntity ammoPouchItem[pouchitems::most]; // and the rounds in it (setupAmmoPouchItems; vr_pouchitems.cpp)
     view::ViewEntity mag[2];                       // the magazines in the guns in the hands (setupMagazines),
     view::ViewEntity holsterMag[HolsterCount];     // in the holstered ones,
     view::ViewEntity worldMag[maxWorldWeapons];    // and in the ones lying nearest (setupWorldWeapons' nearest)
@@ -393,7 +394,7 @@ void forEachEntity(F&& f)
     f(entities.flashlight);
     f(entities.pouch);
     f(entities.ammoPouch);
-    for(view::ViewEntity& ve : entities.ammoPouchGrenade)
+    for(view::ViewEntity& ve : entities.ammoPouchItem)
     {
         f(ve);
     }
@@ -891,24 +892,6 @@ struct HolsterSeen
 };
 inline HolsterSeen holsterSeen[HolsterCount];
 
-// The grenades standing in the ammo pouch (STAT_QVR_POUCHKIND 6, grenades, and 7, proximity grenades): Quake's own
-// models (progs/grenade.mdl, the multi-grenade's progs/mervup.mdl with the kind's 8, progs/proxbomb.mdl), drawn here as
-// the hands take them (QC vr_grenade.qc VR_HandGrenade_Make) rather than baked into the pouch's frames (make_ammo_pouch.py
-// draws its full front for them, no rounds: the models are the user's game's): muted (skin 1, unarmed, as one comes
-// out), nose up (the grenade's +x, the multi-grenade's +z), sunk in it with their tops out of its rim, as many as the
-// reserve has up to 3, spaced evenly about its middle. Near their own size with the pouch's (vr_grenade_scale: as in the
-// hand and in flight; a little smaller, the grenade 0.9 and the multi-grenade 0.8 of it, to stay inside the pouch's
-// leather), but the proximity grenades a third of it: Quake's is near the pouch's width. In the pouch's model units
-// (make_ammo_pouch.py: +x out of the body, +y left, +z up; its rim at 1.5).
-struct PouchGrenades
-{
-    const char* model;
-    float size; // times the pouch's scale (vr_grenade_scale on top: vr_props.cpp drawnSize)
-    float top;  // its top's height
-    float gap;  // between their middles
-};
-constexpr PouchGrenades pouchGrenades[] = {
-    {"progs/grenade.mdl", 0.9f, 3.4f, 2.45f}, {"progs/mervup.mdl", 0.8f, 3.3f, 2.4f}, {"progs/proxbomb.mdl", 0.36f, 3.1f, 2.6f}};
 [[nodiscard]] avatar::HandPose drawnHand(const hands::State& s, int hand);
 void gadgetTouches(const hands::State& s, bool posingNow);
 void quadArcs(const hands::State& s);
@@ -922,6 +905,7 @@ using namespace ::view_detail;
 namespace qvr::view
 {
 bool ammoPouchCentre(glm::vec3& at);
+[[nodiscard]] int ammoPouchItemCount(); // the rounds placed in the ammo pouch last frame (setupAmmoPouchItems)
 glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
 glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
 const ViewEntity* find(const entity_t* e);

@@ -2,7 +2,7 @@
 // Coiled) from its bottom into a cell standing in the ammo pouch, "as if draining the pouch" (the author,
 // vrfiringrange_2026-10-08_14-33-07): the laser cannon (vr_cellcord_laser), Mjolnir (vr_cellcord_hammer), the Super
 // Axe (vr_cellcord_superaxe). Held with its cord on, the pouch gives and shows cells (QC vr_reload.qc
-// VR_Reload_Corded: the lightning gun's, one a 36 up to 3, view::ammoPouchCells), and the cord's plug sits on a cell's
+// VR_Reload_Corded: the lightning gun's, one a 36 up to 6, view::ammoPouchCells), and the cord's plug sits on a cell's
 // copper contact (two such weapons: two cords, into the first and the last cell when two or more show). No cells
 // left: the plug comes off and the cord hangs loose off the weapon, swinging with it; cells again (picked up), the plug
 // flies back onto one. No pouch drawn (reloading not Immersive, the pouch hidden): no cord.
