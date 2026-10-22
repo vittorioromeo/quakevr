@@ -777,26 +777,45 @@ void drawPanel(const hands::State& s)
     for(int b = 0; b < BtnCount; b++)
     {
         const glm::vec3 at = buttonAt(b);
-        text3d::queue(buttonLabel(b), at, angles, text3d::Align::Centre, 0.045f, true);
         const bool hovered = ses.hoverButton[HAND_OFF] == b || ses.hoverButton[HAND_MAIN] == b;
-        const glm::vec4 color = hovered ? glm::vec4{1.f, 0.85f, 0.15f, 1.f} : glm::vec4{0.5f, 0.7f, 1.f, 0.5f};
+        const glm::vec4 color = hovered ? glm::vec4{1.f, 0.85f, 0.15f, 1.f} : glm::vec4{0.5f, 0.7f, 1.f, 0.8f};
         const glm::vec3 r = ses.panelRight * (BUTTON_WIDTH * 0.5f * m2u), u = ses.panelUp * (BUTTON_HEIGHT * 0.5f * m2u);
+        // Its face (dark, lighter while a hand is at it) just behind its label, and its frame.
+        const glm::vec3 back = at - ses.panelNormal * 0.15f;
+        const glm::vec4 face = hovered ? glm::vec4{0.35f, 0.3f, 0.05f, 0.85f} : glm::vec4{0.04f, 0.06f, 0.1f, 0.8f};
+        lines::triangle(back - r - u, back + r - u, back + r + u, face);
+        lines::triangle(back - r - u, back + r + u, back - r + u, face);
         const glm::vec3 c[4] = {at - r - u, at + r - u, at + r + u, at - r + u};
         for(int i = 0; i < 4; i++)
         {
-            (hovered ? lines::glow : lines::line)(c[i], c[(i + 1) % 4], hovered ? 0.25f : 0.1f, color, color);
+            (hovered ? lines::glow : lines::line)(c[i], c[(i + 1) % 4], hovered ? 0.25f : 0.12f, color, color);
         }
+        // The label, plain text, one size for all: the longest ("Symmetry: Off", 13 characters) in 85% of the width (each
+        // character 8 x scale units), at most 55% of the height.
+        const char* name = buttonLabel(b);
+        constexpr float chars = 13.f;
+        const float scale = za::min(BUTTON_WIDTH * 0.85f * m2u / (8.f * chars), BUTTON_HEIGHT * 0.55f * m2u / 8.f);
+        text3d::queue(name, at, angles, text3d::Align::Centre, scale);
     }
+    // The hints over the panel, in short lines (about the panel's width at HINT_SCALE), readable at its distance.
     za::String text = va("%c%c%c%c%c%c%c %c%c%c%c%c%s", 'H' | 0x80, 'O' | 0x80, 'L' | 0x80, 'S' | 0x80, 'T' | 0x80,
         'E' | 0x80, 'R' | 0x80, 'S' | 0x80, 'E' | 0x80, 'T' | 0x80, 'U' | 0x80, 'P' | 0x80,
         seated::active() ? " (seated)" : "");
-    text += "\ngrip a box: drag it   both grips on it: resize (or stick up/down)";
-    text += "\ntouch a button + trigger   B/Y: undo   menu: done";
+    text += "\ngrip a box: drag it";
+    text += "\nboth grips on it: resize it";
+    text += "\n(or hold it and push the stick)";
+    text += "\nbutton: touch it, pull the trigger";
+    text += "\nB/Y: undo     menu button: done";
+    int lineCount = 6;
     if(realtime < ses.feedbackUntil)
     {
         text += "\n" + ses.feedback;
+        lineCount++;
     }
-    text3d::queueOverlay(text, ses.panelAt + ses.panelUp * ((BUTTON_HEIGHT + BUTTON_GAP + 0.07f) * m2u), angles, 0.035f);
+    constexpr float HINT_SCALE = 0.055f;
+    const float half = 8.f * HINT_SCALE * (static_cast<float>(lineCount) * 0.5f + 0.4f); // (the backing's pad)
+    const float top = (BUTTON_HEIGHT * 1.5f + BUTTON_GAP * 0.5f + 0.02f) * m2u;          // the panel's top, and a gap
+    text3d::queueOverlay(text, ses.panelAt + ses.panelUp * (top + half), angles, HINT_SCALE);
     (void)s;
 }
 

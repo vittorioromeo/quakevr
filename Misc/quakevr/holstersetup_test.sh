@@ -20,7 +20,7 @@ z() { # $1 output, $2 zone, $3 which report (1 first): the zone's up from the ey
     echo "$1" | grep "^setup $2 at" | sed -n "${3}p" | awk '{print $6}'
 }
 if [ "$2" = "shot" ]; then
-    S="${P}vr_holstersetup;wait5;vr_mock_hand_to main zonebox 3;wait3;vr_mock_hand_to main zonebox 3;wait3;vr_mock_hand_to off setupbutton 0;wait3;vr_mock_hand_to off setupbutton 0;wait5;wait20;screenshot;vr_mock_look 65 0;wait20;screenshot;vr_mock_look 0 0;vr_mock_camera 0 1.3 -1.1 15 180;wait20;screenshot;vr_mock_camera;vr_mock_look 0 0;"
+    S="${P}vr_holstersetup;wait5;vr_mock_hand_to main zonebox 3;wait3;vr_mock_hand_to main zonebox 3;wait3;vr_mock_hand_to off zonebox 2;wait3;vr_mock_hand_to off zonebox 2;wait5;wait20;screenshot;vr_mock_look 65 0;wait20;screenshot;vr_mock_look 0 0;vr_mock_camera 0 1.3 -1.1 15 180;wait20;screenshot;vr_mock_camera;vr_mock_look 0 0;"
     bash $KIT/run.sh $AGENT -Clean -Out holstersetup.png -Script "${S}toggleconsole;quit" -Filter "composed|ERROR"
     exit 0
 fi
