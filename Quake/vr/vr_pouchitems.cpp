@@ -114,6 +114,7 @@ constexpr float wobbleTilt = 0.08f;   // and its ends either way of that (it til
 constexpr float wobbleSmooth = 15.f;  // the velocity's smoothing rate (1/s)
 constexpr float wobbleGap = 0.02f;    // each its own: kept this clear of the others and the walls (or as at rest),
                                       // times the strength over 1
+constexpr float wobbleSoft = 0.1f;    // the leather gives: they may press this far into it (0.1-0.3 thick)
 constexpr int wobbleIters = 10;       // the passes keeping them clear
 constexpr float wobbleEps = 0.02f;    // (the gaps' slopes: a step either way)
 
@@ -858,9 +859,9 @@ void buildRest(const Item* items, int n, int frame, float reach)
                     const glm::vec3& l = r.lines[q];
                     const float still = l.x * w.p.x + l.y * w.p.y - l.z - w.r;
                     const float m = l[axis] * move;
-                    if(m < 0.f && still + m < za::min(still, r.margin))
+                    if(m < 0.f && still + m < za::min(still, r.margin) - wobbleSoft)
                     {
-                        share = za::min(share, za::max(0.f, (za::min(still, r.margin) - still) / m));
+                        share = za::min(share, za::max(0.f, (za::min(still, r.margin) - wobbleSoft - still) / m));
                     }
                 }
             }
@@ -922,7 +923,7 @@ void solve(Ctl (&c)[most], int n)
                     }
                     const glm::vec3& l = r.lines[q];
                     const float still = l.x * w.p.x + l.y * w.p.y - l.z - w.r;
-                    const float v = za::min(still, r.margin) - (still + (l.x * e.x + l.y * e.y) * f);
+                    const float v = za::min(still, r.margin) - wobbleSoft - (still + (l.x * e.x + l.y * e.y) * f);
                     if(v > 1e-4f)
                     {
                         e.x += l.x * v / f;
@@ -1138,26 +1139,12 @@ void layoutCheck_f()
                     const Check m = check(moved, n, frame);
                     each = za::min(each, m.gap);
                     eachWall = za::min(eachWall, wallDrop(moved));
-                    for(int i = 0; verbose && Q_atoi(Cmd_Argv(1)) > 2 && i < n; i++)
-                    {
-                        const float got = rimWallGap(moved[i], shapes[frame], outline);
-                        if(got < -0.03f)
-                        {
-                            const WallPoint& w = restCache.walls[i][0];
-                            const glm::vec3 m0 = itemPoint(moved[i], moved[i].p0);
-                            Con_Printf("  wall %s n%d p%d i%d: %.3f lying %d e0 %.3f %.3f %.3f e1 %.3f %.3f %.3f p0 %.3f %.3f %.3f "
-                                       "rest %.3f %.3f %.3f r %.3f floor %.2f\n",
-                                c.name, n, p, i, got, moved[i].lying ? 1 : 0, ctl[i].e0.x, ctl[i].e0.y, ctl[i].e0.z,
-                                ctl[i].e1.x, ctl[i].e1.y, ctl[i].e1.z, m0.x, m0.y, m0.z, w.p.x, w.p.y, w.p.z, w.r,
-                                restCache.floor);
-                        }
-                    }
                 }
                 restCache.n = -1; // (drawn: built again)
             }
             worstEach = za::min(worstEach, each);
             worstEachWall = za::min(worstEachWall, eachWall);
-            bad += (n > 1 && each < 0.f) || eachWall < -0.05f ? 1 : 0;
+            bad += (n > 1 && each < 0.f) || eachWall < -wobbleSoft - 0.05f ? 1 : 0;
             worstGap = za::min(worstGap, rest.gap);
             worstWall = za::min(worstWall, rest.wall);
             worstWobble = za::min(worstWobble, wob);
@@ -1177,7 +1164,7 @@ void layoutCheck_f()
                         it.size);
                 }
             }
-            bad += (n > 1 && (rest.gap < 0.f || wob < 0.f)) || rest.wall < -0.05f || wobWall < -0.05f || !centred ? 1 : 0;
+            bad += (n > 1 && (rest.gap < 0.f || wob < 0.f)) || rest.wall < -0.05f || wobWall < -wobbleSoft - 0.05f || !centred ? 1 : 0;
         }
         Con_Printf("pouchlayout: %-16s 1..%2d: closest %.2f apart (wobbling %.2f, each its own %.2f), %.2f inside the "
                    "walls (to the rim wobbling %+.2f, each its own %+.2f), middle off %.2f at most\n",
