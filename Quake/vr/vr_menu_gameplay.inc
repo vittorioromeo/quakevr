@@ -647,6 +647,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Hold", vr_kdtrig_tackle_hold, 0.f, 1.f, 0.05f, "%.2f s").help("The pose held running before it counts."),
         slider("Bounce", vr_kdtrig_tackle_bump, 0.f, 300.f, 10.f, "%.0f u/s").help("You bounce back off it."),
         slider("Cooldown", vr_kdtrig_tackle_cooldown, 0.f, 5.f, 0.1f, "%.1f s").help("Before you charge again."),
+        slider("Contact", vr_kdtrig_tackle_contact, 0.f, 24.f, 1.f, "%.0f units")
+            .help("How near your body must be to the monster's for it to connect (0: touching)."),
+        toggle("Impact Feel", vr_kdtrig_tackle_feel)
+            .help("A thud on the body, both controllers rumble and the monster cries out as it goes."),
     };
     kdTrigWeightRows(items);
     items.pushBack(open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Tackle)>))

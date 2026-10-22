@@ -232,3 +232,16 @@ extern "C" float VR_StaminaSpeedScale(edict_t* ent)
     const float scale = fatigue::speedScaleFor(left);
     return scale;
 }
+
+// SV_AirMove: holding the hammer or the mace (QC .vr_heavy_move, vr_admelee_heavy_speed), times the most walking speed.
+// 1 without the VR progs or when it is unset.
+extern "C" float VR_HeavyMoveScale(edict_t* ent)
+{
+    using namespace qvr::progs;
+    if(!ent || !bindings().isVrProgs)
+    {
+        return 1.f;
+    }
+    const float share = fieldFloatOr(ent, fields().vr_heavy_move, 1.f);
+    return share > 0.f && share < 1.f ? share : 1.f;
+}

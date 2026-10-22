@@ -2247,7 +2247,8 @@ void M_Save_Mousemove (float cx, float cy)
 // player, dead for vr_death_menu_delay seconds: M_CheckDeathMenu; player feedback: an autosave in an ambush trapped
 // them). The rotating autosaves (vr_continue.cpp), newest first, each in two lines: its map and title; health, armor,
 // time into the level and how long ago. The death menu has Respawn (as fire does: the last save loaded, sv_autoload,
-// else the level again) and Restart the Level above them; Back from it to the dead player (fire respawns as ever).
+// else the level again) and Restart the Level above them; Back from it to the dead player (a press opens it again: only
+// its choices respawn).
 #define AUTOSAVES_TOP	32	// the first row's y (the title above)
 #define AUTOSAVES_ROWH	20	// a row's height (two lines; the laser's target)
 
@@ -2411,7 +2412,7 @@ void M_Autosaves_Key (int key)
 	case K_BBUTTON:
 	case K_MOUSE4:
 	case K_MOUSE2:
-		if (autosavesmenu.death) // back to the dead player: fire respawns as ever
+		if (autosavesmenu.death) // back to the dead player: a press opens it again (M_CheckDeathMenu)
 		{
 			autosavesmenu.dismissed = true;
 			M_Autosaves_Close ();
@@ -2433,7 +2434,10 @@ void M_Autosaves_Key (int key)
 			break;
 		}
 		M_Autosaves_Close ();
-		if (autosavesmenu.cursor < M_Autosaves_Actions ())
+		// (Respawn: QC's respawn, as a press did: a checkpoint's, else the restart; a progs without it, the restart)
+		if (autosavesmenu.cursor == 0 && autosavesmenu.death && autosavesmenu.deadsince && PR_SetServerGlobalFloat ("vr_death_menu_respawn", 1.f))
+			Con_DPrintf ("Death menu: Respawn\n");
+		else if (autosavesmenu.cursor < M_Autosaves_Actions ())
 			Cbuf_InsertText (autosavesmenu.cursor == 0 ? "restart\n" : "restart fresh\n"); // (next, before any command queued)
 		else
 			VR_AutosaveLoad (autosavesmenu.cursor - M_Autosaves_Actions ());
@@ -2476,16 +2480,20 @@ void M_Autosaves_Mousemove (float cx, float cy)
 void M_CheckDeathMenu (void)
 {
 	edict_t *player;
+	qboolean asked;
 
-	if (!sv.active || svs.maxclients != 1 || !svs.clients || !svs.clients[0].edict || cls.signon != SIGNONS ||
-		cl.intermission || !VR_AutosaveAllowed (sv.name))
+	// (On every map, Quake VR's own too: they had none, and a press respawned there: author's notes 2026-10-20, 2026-10-22,
+	// on vrfiringrange and vrragtriggers. A map with checkpoints respawns at its latest: QC's respawn.)
+	if (!sv.active || svs.maxclients != 1 || !svs.clients || !svs.clients[0].edict || cls.signon != SIGNONS)
 		return;
 	player = svs.clients[0].edict;
-	if (player->v.health > 0.f)
+	if (player->v.health > 0.f || cl.intermission)
 	{
 		// (alive again another way: its death menu closed; one opened alive, Debug's, stays)
 		if (autosavesmenu.deadsince && m_state == m_autosaves && autosavesmenu.death && key_dest == key_menu)
 			M_Autosaves_Close ();
+		if (autosavesmenu.deadsince)
+			PR_SetServerGlobalFloat ("vr_death_menu_hold", 0.f);
 		autosavesmenu.deadsince = 0.;
 		autosavesmenu.dismissed = false;
 		autosavesmenu.respawning = false;
@@ -2496,9 +2504,24 @@ void M_CheckDeathMenu (void)
 		autosavesmenu.deadsince = q_max (sv.qcvm.time, 0.001);
 		Con_DPrintf ("Death menu: the player died (key_dest %d, menu %d)\n", (int) key_dest, (int) m_state);
 	}
-	if (!Cvar_VariableValue ("vr_death_menu") || autosavesmenu.dismissed || sv.autoloading)
+	// The menu holds the respawn: a press only opens it (QC's PlayerDeathThink: vr_death_menu_asked), and only its
+	// choices respawn (author's note 2026-10-22). Off, or a load under way: a press respawns as in Quake.
+	if (!Cvar_VariableValue ("vr_death_menu") || sv.autoloading)
+	{
+		PR_SetServerGlobalFloat ("vr_death_menu_hold", 0.f);
 		return;
-	if (sv.qcvm.time - autosavesmenu.deadsince < Cvar_VariableValue ("vr_death_menu_delay"))
+	}
+	PR_SetServerGlobalFloat ("vr_death_menu_hold", 1.f);
+	asked = PR_ServerGlobalFloat ("vr_death_menu_asked") != 0.f;
+	if (asked)
+	{
+		PR_SetServerGlobalFloat ("vr_death_menu_asked", 0.f);
+		autosavesmenu.dismissed = false; // (closed with Back: a press opens it again)
+		Con_DPrintf ("Death menu: a press asked for it\n");
+	}
+	if (autosavesmenu.dismissed)
+		return;
+	if (!asked && sv.qcvm.time - autosavesmenu.deadsince < Cvar_VariableValue ("vr_death_menu_delay"))
 		return;
 	// (In the game, whatever m_state says: a map or a load started from a menu leaves key_dest key_game and m_state the
 	// menu it came from, and the death menu never opened in play, only in tests started by a script: author's note

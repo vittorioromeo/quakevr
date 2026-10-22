@@ -79,6 +79,10 @@ void() item_healthvial =
     if(self.healamount < 1) self.healamount = rint(2 + random() * 3);
     self.healtype = 0; // (not a megahealth: up to the maximum)
     self.handtouch = health_touch;
+    // Drawn vr_ad_healthvial_scale times AD's tiny model (author's note 2026-10-22: 2.5); as an object, its box with it
+    // (MakeItemGrabbable). Its touch box as ever.
+    self.vr_pickup_scale = max(0.1, cvar("vr_ad_healthvial_scale"));
+    VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(self.vr_pickup_scale));
     setsize(self, '-8 -8 0', '8 8 32');
     StartItem();
     self.think2 = AfterPlacementHealthBox;

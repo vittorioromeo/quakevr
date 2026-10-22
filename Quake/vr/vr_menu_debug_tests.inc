@@ -594,6 +594,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_kdtrig_test 7: a 60-damage blast 48 units before it (1 dealt)."),
         command("Knock Down the Nearest", "vr_kdtrig_test 10")
             .help("vr_kdtrig_test 10: the live monster nearest you knocked down at once (a body to throw)."),
+        command("Shoulder Charge the Nearest", "vr_kdtrig_test 14")
+            .help("vr_kdtrig_test 14: your shoulder charge connecting with the live monster nearest you at full speed: "
+                  "the thud, both controllers' rumble, its knock back and its pain cry."),
         command("Fling the Nearest Body", "vr_kdtrig_test 12")
             .help("vr_kdtrig_test 12: the ragdoll nearest you (a corpse or a knocked-down one) thrown at the live monster "
                   "nearest it at Test Throw Speed (Thrown Bodies: topples, staggers or nothing by their weights)."),

@@ -71,7 +71,7 @@ constexpr BehaviourData behaviourData[behaviourCount] = {
     {1.f, 1.f, 0.f, 0.5f, 0.5f},      // Swat
     {1.6f, 0.9f, 0.f, 0.45f, 0.4f},   // Pry
     {1.2f, 0.85f, 1.2f, 1.2f, 0.5f},  // Crunch
-    {0.9f, 0.85f, 0.f, 0.55f, 0.5f},  // Claw
+    {1.2f, 1.f, 0.f, 0.55f, 0.5f},    // Claw (quicker, harder: flailing for a hold; author's note 2026-10-22)
     {0.7f, 0.f, 1.1f, 0.5f, 0.45f},   // Brace
     {1.4f, 0.f, 0.7f, 0.f, 0.f},      // Kick
     {1.6f, 0.f, 0.f, 0.45f, 0.4f}     // Thrash
@@ -410,9 +410,11 @@ void weights(State& s, const Context& c)
                           za::clamp(vr_struggle_swat.value, 0.f, 2.f);
     at(Behaviour::Pry) = za::min(1.f, g.heldHead + 0.8f * g.heldArms + 0.25f * g.heldTorso * g.contact) *
                          za::clamp(vr_struggle_pry.value, 0.f, 2.f);
-    at(Behaviour::Crunch) = g.heldLegs * za::min(1.f, air * g.inverted + 0.6f * g.contact * (1.f - g.prone)) *
+    // (Dragged by the legs on the floor, belly up as much as down, it claws and flails for a hold: before, lying on its
+    // back it crunched at hands out of reach and its arms lay still, as if dead; author's note 2026-10-22.)
+    at(Behaviour::Crunch) = g.heldLegs * za::min(1.f, air * g.inverted + 0.25f * g.contact * (1.f - g.prone)) *
                             za::clamp(vr_struggle_crunch.value, 0.f, 2.f);
-    at(Behaviour::Claw) = g.heldLegs * g.contact * (0.35f + 0.65f * g.drag) * (0.4f + 0.6f * g.prone) *
+    at(Behaviour::Claw) = g.heldLegs * za::min(1.f, 1.4f * g.contact) * (0.6f + 0.4f * g.drag) * (0.8f + 0.2f * g.prone) *
                           za::clamp(vr_struggle_claw.value, 0.f, 2.f);
     // Fighting to stay up (dragged by an arm, not by its head or legs): its legs under it, its chest righted.
     const float up = g.heldArm * (1.f - g.heldLegs) * (1.f - g.heldHead) * za::clamp(vr_struggle_upright.value, 0.f, 2.f);
@@ -539,13 +541,21 @@ void armGoals(State& s, const Parts& p, const StruggleInput& in, float armsK, ui
         }
         if(const float w = weightOf(g, Behaviour::Claw); w > 0.01f)
         {
-            // A stroke ahead of its head along the floor (against its drag), pressed down, pulled back.
+            // A stroke ahead of its head along the floor (against its drag): flung out over the floor (lifted, each stroke
+            // its own spread aside), slammed down, pulled back pressed into it; frantic, its aim jitters (dragged by the
+            // legs it flails and claws for a hold, belly up or down: author's note 2026-10-22).
             const glm::vec3 lu = level(U);
             const glm::vec3 A = glm::length(lu) > 0.3f ? glm::normalize(lu) : -g.dragWay;
+            const glm::vec3 S = level(L) * side;
+            const uint32_t sd = g.seed ^ (0x6100u + static_cast<uint32_t>(arm) * 0x2Bu);
+            const float wide = 0.1f + 0.45f * roll(sd, k);
             const float e = u < 0.55f ? smooth01(u / 0.55f) : 1.f - smooth01((u - 0.55f) / 0.45f);
-            glm::vec3 goal = root + A * (len * (0.35f + 0.6f * e)) + level(L) * (side * 0.15f * len);
-            goal.z = g.floor > -1e29f ? g.floor + 0.02f : root.z - 0.3f * len;
-            add(goal, w);
+            const float lift = u < 0.5f ? za::sin(pi * u / 0.5f) : 0.f;
+            const float shake = 0.15f * len * za::min(frantic * g.heldLegs, 1.5f);
+            glm::vec3 goal = root + A * (len * (0.3f + 0.7f * e)) + S * (wide * len) +
+                             (A * noise(sd ^ 1u, ph * 1.3f) + S * noise(sd ^ 2u, ph * 1.3f + 5.f)) * shake;
+            goal.z = (g.floor > -1e29f ? g.floor + 0.02f : root.z - 0.3f * len) + lift * 0.4f * len;
+            add(within(root, goal, 1.05f * len), w);
         }
         if(wsum <= 0.01f)
         {
@@ -1039,16 +1049,19 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     // (Slapping at the hands on its head or legs: its arms harder, and kept at half against the guard: an arm's slap
     // barely loads the hold.)
     const float frantic = za::clamp(vr_struggle_frantic.value, 0.f, 2.f) * za::max(g.heldHead, g.heldLegs);
-    k[static_cast<int>(Channel::Arms)] +=
-        0.5f * frantic * (weightOf(g, Behaviour::Pry) * g.heldHead + weightOf(g, Behaviour::Crunch));
+    k[static_cast<int>(Channel::Arms)] += 0.5f * frantic *
+        (weightOf(g, Behaviour::Pry) * g.heldHead + weightOf(g, Behaviour::Crunch) + weightOf(g, Behaviour::Claw) * g.heldLegs);
     const float scale = g.effort * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
     const float most[channelCount] = {1.4f, 1.2f, 1.4f, 0.9f}; // (Legs, Torso, Arms, Head)
     for(int ch = 0; ch < channelCount; ch++)
     {
         // (Its legs keep half against the guard: bracing and kicking on the floor resist a drag by friction, the drag's
         // own lag is no reason to give that up; the hold's let-go stays the hold's.)
+        // (Its arms clawing the floor, dragged by the legs, keep more: they never load the hold; the drag's lag is the
+        // hold's spring pulling a body over the floor.)
         const bool keeps = ch == static_cast<int>(Channel::Legs) || (ch == static_cast<int>(Channel::Arms) && frantic > 0.01f);
-        const float guard = keeps ? za::max(g.guard, 0.5f) : g.guard;
+        const bool claws = ch == static_cast<int>(Channel::Arms) && g.heldLegs > 0.f && frantic > 0.01f;
+        const float guard = claws ? za::max(g.guard, 0.85f) : (keeps ? za::max(g.guard, 0.5f) : g.guard);
         const float v = za::clamp(k[ch], 0.f, most[ch]) * scale * guard;
         s.fade[static_cast<za::SizeT>(ch)] = Fade{v, v, t, t};
     }

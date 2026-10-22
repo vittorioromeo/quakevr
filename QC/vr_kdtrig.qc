@@ -885,6 +885,17 @@ void() VR_KdTrig_ChargeSample =
         '0 0 1' * (self.vr_kdt_charge_since ? time - self.vr_kdt_charge_since : 0));
 };
 
+string(entity m) VR_PainCrySound; // (vr_ad_monsters.qc: after AD's fields)
+void(entity best, vector run, float speed, float least, string how, float dummy) VR_KdTrig_ChargeHit;
+
+// The level gap between two boxes (units; 0 touching or overlapping).
+float(entity a, entity b) VR_KdTrig_BoxGap =
+{
+    float gx = max(0, max(b.absmin_x - a.absmax_x, a.absmin_x - b.absmax_x));
+    float gy = max(0, max(b.absmin_y - a.absmax_y, a.absmin_y - b.absmax_y));
+    return sqrt(gx * gx + gy * gy);
+};
+
 // PlayerVRMelee's, after the bash (client.qc; self the player): on the ground, running at vr_kdtrig_tackle_speed of
 // sv_maxspeed or faster the way he looks, in the charge's pose held vr_kdtrig_tackle_hold s, his box about to meet a
 // living monster's: a shoulder charge (a "shouldercharge" event for the motion takes). It knocks the monster back by
@@ -950,8 +961,10 @@ void() VR_KdTrig_Tackle =
     {
         self.vr_kdt_charge_since = time;
     }
-    // About to meet it: his box carried this frame's run and a bit on (blocked by it, his speed is gone next frame).
-    float reach = 8 + speed * max(frametime, 0.01) * 2;
+    // Meeting it: his box carried this frame's run and vr_kdtrig_tackle_contact units on touches its box (blocked by it,
+    // his speed is gone next frame: the grace's run). Was 8 units and two frames' run on: it connected with a lot of space
+    // left (author's note 2026-10-22).
+    float reach = max(0, cvar_hget(cvarh_vr_kdtrig_tackle_contact)) + speed * max(frametime, 0.01);
     vector lo = self.absmin + run * reach;
     vector hi = self.absmax + run * reach;
     entity best = world;
@@ -1002,15 +1015,51 @@ void() VR_KdTrig_Tackle =
     VR_Motion_Event("shouldercharge", side, -1, speed, (best.absmin + best.absmax) * 0.5, best, how);
     self.vr_kdt_tackle_next = time + max(0, cvar_hget(cvarh_vr_kdtrig_tackle_cooldown));
     self.vr_kdt_charge_since = 0;
+    VR_KdTrig_ChargeHit(best, run, speed, least, how, dummy);
+};
+
+// A shoulder charge of `self` (a player) running `speed` along level unit `run` connecting with `best` (VR_KdTrig_Tackle;
+// `vr_kdtrig_test 14`): he bounces back, the thud on its body and both controllers' rumble, its knock by weight
+// (VR_KdTrig_Bump: the strike speed over `least`) and its pain cry as it goes. The training dummy only stands.
+void(entity best, vector run, float speed, float least, string how, float dummy) VR_KdTrig_ChargeHit =
+{
+    float loud = cvar_hget(cvarh_vr_kdtrig_debug);
     // He bounces back off it (the hit's feel), whatever it does.
     self.velocity = run * (-max(0, cvar_hget(cvarh_vr_kdtrig_tackle_bump))) + '0 0 1' * self.velocity_z;
+    // The hit's sound on its body and both controllers' rumble (author's note 2026-10-22: "pretty silent").
+    float feel = cvar_hget(cvarh_vr_kdtrig_tackle_feel);
+    if(feel)
+    {
+        sound(best, CHAN_AUTO, "vr/shove.wav", 1, ATTN_NORM);
+        haptic(cVR_MainHand, 0.0, 0.25, 50, 1.0);
+        haptic(cVR_OffHand, 0.0, 0.25, 50, 1.0);
+    }
+    if(loud)
+    {
+        // (How near it connected: the boxes' gap, his head from its middle, level.)
+        vector toMid = (best.absmin + best.absmax) * 0.5 - VRGetHeadPos(self);
+        toMid_z = 0;
+        dprint(sprintf("kdtrig: charge contact: %.1f units between the boxes, %.0f from your head to its middle\n",
+            VR_KdTrig_BoxGap(self, best), vlen(toMid)));
+    }
     if(dummy)
     {
         dprint(sprintf("kdtrig: shoulder charge on the training dummy (it stands): %s\n", how));
         return;
     }
     float weight = max(1, cvar_hget(cvarh_vr_kdtrig_tackle_weight));
-    VR_KdTrig_Bump(VR_KDT_TACKLE, best, self, weight, run, speed / least, how);
+    float got = VR_KdTrig_Bump(VR_KDT_TACKLE, best, self, weight, run, speed / least, how);
+    // Toppled or staggered back: its pain cry as it goes.
+    string cry = (feel && got > 0) ? VR_PainCrySound(best) : "";
+    if(cry != "")
+    {
+        sound(best, CHAN_VOICE, cry, 1, ATTN_NORM);
+    }
+    if(loud)
+    {
+        dprint(sprintf("kdtrig: charge on %s: %s, cry \"%s\"\n", best.classname, got == 2 ? "down" : (got ? "staggered" : "stands"),
+            cry));
+    }
 };
 
 // ----------------------------------------------------------------------------
@@ -1178,7 +1227,8 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
     else if(xMode >= 8)
     {
         // 8 a two-hand open-palm shove (VR_Bash_Hit, a real one's), 9 it strikes you (a melee monster's blow: parried
-        // as your pose is, VR_Parry), 10 knocked down at once (vr_knockdown_test 0's); aware of you or not
+        // as your pose is, VR_Parry), 10 knocked down at once (vr_knockdown_test 0's), 14 your shoulder charge
+        // connecting (VR_KdTrig_ChargeHit); aware of you or not
         // (vr_kdtrig_test_aware), facing as vr_kdtrig_test_face put it.
         best.enemy = cvar("vr_kdtrig_test_aware") ? pl : world;
         if(xMode == 8)
@@ -1204,6 +1254,11 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
             VR_EnemyShove_Hit();
             vr_parry_test_force = 0;
             self = was;
+        }
+        else if(xMode == 14) // (14: your shoulder charge connecting at full speed: its feel, knock and cry)
+        {
+            float full = max(1, cvar("sv_maxspeed"));
+            VR_KdTrig_ChargeHit(best, dir, full, full, "a test charge", VR_IsDummy(best));
         }
         else if(canragdoll(best) && VR_Knockdown_MakeRoom(best))
         {
