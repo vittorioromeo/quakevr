@@ -855,6 +855,11 @@ void() set_suicide_frame;
 
 // called by ClientKill and DeadThink
 nosave float vr_restart_queued; // VR: respawn's "restart" asked for (a new server starts it at 0 again)
+// VR: the death menu (the engine's: menu.c M_CheckDeathMenu, M_Autosaves_Key): set by the engine while it holds the
+// respawn; a press while held (the engine opens the menu); its Respawn chosen (PlayerDeathThink respawns)
+nosave float vr_death_menu_hold;
+nosave float vr_death_menu_asked;
+nosave float vr_death_menu_respawn;
 
 void() respawn =
 {
@@ -1476,6 +1481,18 @@ void() PlayerDeathThink =
             self.velocity = forward * normalize(self.velocity);
     }
 
+    // VR: the death menu's Respawn (menu.c M_Autosaves_Key): as a press did
+    if(vr_death_menu_respawn)
+    {
+        vr_death_menu_respawn = FALSE;
+        self.button0 = 0;
+        self.button1 = 0;
+        self.button2 = 0;
+        if(MGH_Active()) { MGH_DeathThink(); return; }
+        respawn();
+        return;
+    }
+
 // wait for all buttons released
     if(self.deadflag == DEAD_DEAD)
     {
@@ -1492,6 +1509,14 @@ void() PlayerDeathThink =
     self.button0 = 0;
     self.button1 = 0;
     self.button2 = 0;
+    // VR: single player with the death menu (vr_death_menu): a press opens it (the engine: menu.c M_CheckDeathMenu), and
+    // only its choices respawn (author's note 2026-10-22); released and pressed again to ask again
+    if(vr_death_menu_hold)
+    {
+        vr_death_menu_asked = TRUE;
+        self.deadflag = DEAD_DEAD;
+        return;
+    }
     // MG1 Horde (official client.qc): the same release-then-press gate, then a team wipe restarts the arena.
     if(MGH_Active()) { MGH_DeathThink(); return; }
     respawn();

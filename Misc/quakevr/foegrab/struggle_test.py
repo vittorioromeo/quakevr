@@ -5,6 +5,8 @@ Each case is one game on vrfiringrange (batched: testbatch.py), a grunt 36 units
 `vr_struggle_status` every 0.3 s (its weights, the holds' lag and the body's pose) and vr_struggle_debug 2:
   lift       both hands at its shoulders, pulled up (the lift): Swat should lead; its arms come nearer your head
   leglift    both hands on its shins, pulled up 1.1 m (the leg lift), held: Crunch should lead; its waist bends up
+  legpull    both hands on its shins, pulled back (it falls), lowered and walked back: dragged by the legs on the
+             floor; Claw leads and its free arms flail (their speed over the struggle off's)
   legdrag    knocked down, you stop 44 units off, the main hand on its left thigh, you walk back (dragged by the
              leg): Claw leads; it turns belly down
   headdrag   knocked down (vr_knockdown_test 0), the main hand on its ragdoll's head, you walk back: Pry leads, Brace too
@@ -98,12 +100,13 @@ CASES = {
     "lift": (lift_keys, ""),
     "leglift": (lambda: leg_keys("up"), ""),
     "legdrag": (lambda: drag_keys("7 0"), DOWN.replace(CLASS + " 24", CLASS + " 44")),
+    "legpull": (lambda: leg_keys("back", walk=True), ""),
     "headdrag": (lambda: drag_keys("head 0"), DOWN),
     "headlift": (lambda: drag_keys("head 0", lift=True), DOWN),
     "armdrag": (lambda: drag_keys("6 0"), DOWN),
     "dead": (lambda: drag_keys("head 0", dead=True), DOWN),
 }
-LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "headdrag": "pry", "headlift": "pry", "armdrag": "pry"}
+LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "legpull": "claw","headdrag": "pry", "headlift": "pry", "armdrag": "pry"}
 
 
 def verdict(ok, what):
@@ -165,6 +168,8 @@ def main():
         late = weights[len(weights) // 3:] if weights else []
         mean = {n: sum(w[n] for w in late) / len(late) for n in NAMES} if late else {}
         lead = max(mean, key=mean.get) if mean else "-"
+        if name == "legpull" and mean:  # (its arms' lead: Thrash, the torso's squirm, moves no arm)
+            lead = max(("swat", "pry", "crunch", "claw"), key=mean.get)
         ws = " ".join(f"{n} {mean[n]:.2f}" for n in NAMES) if mean else "no weights"
         pose = lambda hs, i: stats([x[i] for x in hs])  # noqa: E731
         if name == "dead":
@@ -182,6 +187,7 @@ def main():
             col, word, more = {"lift": (4, "an arm from your head (min)", False),
                                "leglift": (3, "its head over its pelvis", True),
                                "legdrag": (2, "belly down", True),
+                               "legpull": (2, "belly down", True),
                                "headdrag": (5, "an arm from the holding hand", False),
                                "headlift": (5, "an arm from the holding hand", False),
                                "armdrag": (8, "chest up (Stay Upright)", True)}[name]
@@ -194,6 +200,14 @@ def main():
                 # dragged from flat it can't rise, so its chest is reported, not judged.)
                 moved = mean.get("swat", 0.0) > 0.4
                 word = f"swat {mean.get('swat', 0.0):.2f} (>0.4); chest up"
+            if name == "legpull":
+                # (Dragged by its legs, belly up or down: its free arms flail and claw, their speed in its chest's frame
+                # well over the struggle off's; author's note 2026-10-22: they hung still, as if dead.)
+                fo = offr[5][len(offr[5]) // 3:]
+                f_on = sum(x[0] for x in fl) / len(fl) if fl else 0.0
+                f_off = sum(x[0] for x in fo) / len(fo) if fo else 0.0
+                moved = f_on > max(1.5 * f_off, 20.0)
+                word = f"arms flail {f_on:.1f} u/s (off {f_off:.1f}, >1.5x and >20); belly down"
             ok = ok and moved
             extra = (f"; {word} {a:.2f} (off {z:.2f}: {'as meant' if moved else 'NOT as meant'}); bend "
                      f"{pose(on_p, 1)[0]:.0f} (off {pose(off_p, 1)[0]:.0f})")

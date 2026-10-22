@@ -3388,6 +3388,25 @@ float(float xCost, string xWhat) VR_Stamina_Effort =
     return share;
 };
 
+// Whether `p`'s hand `xHand` holds a very heavy melee weapon: the hunter ogres' hammer or mace (AD's: vr_ad_melee.qc).
+// Their blows cost vr_admelee_heavy_stamina times as much stamina; holding one you move at vr_admelee_heavy_speed
+// (VR_HeavyMelee_Frame).
+float(entity p, float xHand) VR_ADMelee_VeryHeavy =
+{
+    float wid = xHand == cVR_MainHand ? p.weapon : p.weapon2;
+    float flags = xHand == cVR_MainHand ? p.weaponflags : p.weaponflags2;
+    return wid == WID_SWORD && VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
+};
+
+// Each frame (VR_Stamina_Frame's caller): the move speed's share for the very heavy melee weapon in either hand (.vr_heavy_move:
+// the engine's SV_AirMove reads it; 0 or 1: full speed).
+.float vr_heavy_move;
+void() VR_HeavyMelee_Frame =
+{
+    float slow = VR_ADMelee_VeryHeavy(self, cVR_MainHand) || VR_ADMelee_VeryHeavy(self, cVR_OffHand);
+    self.vr_heavy_move = slow ? clamp(cvar_hget(cvarh_vr_admelee_heavy_speed), 0.05, 1) : 1;
+};
+
 // A blow of `xHand` of `self` (VR_Melee_Strike) landing on something that takes damage: its motion's stamina (once a
 // motion), and the damage multiplier that leaves it (mh_exhaust; 0 when paid in full or not counted).
 void(float xHand, entity b) VR_Stamina_Strike =
@@ -3413,6 +3432,12 @@ void(float xHand, entity b) VR_Stamina_Strike =
     {
         cost = cvar_hget(cvarh_vr_strike_stamina_cost_2h);
         what = "a blow, two hands";
+    }
+    // (The very heavy ones, the hunter ogres' hammer and mace: more; author's note 2026-10-22.)
+    if(b.mh_thing != VR_MTHING_FIST && VR_ADMelee_VeryHeavy(self, xHand))
+    {
+        cost = cost * max(0, cvar_hget(cvarh_vr_admelee_heavy_stamina));
+        what = strcat(what, ", very heavy");
     }
     float share = VR_Stamina_Effort(cost, what);
     if(share < 1)
@@ -4320,6 +4345,7 @@ void() VR_Melee_Frame =
         }
     }
     VR_Stamina_Frame();
+    VR_HeavyMelee_Frame();
     VR_Counter_Frame();
     VR_Parry_GuardFrame(); // (when each guard came up: a parry's timing, combat.qc)
     VR_Melee_Hud();

@@ -91,6 +91,8 @@ void(float request, entity p) AD_HealthItemsTest =
         self = p;
         float eligible = VR_Forcegrab_IsEligible(e);
         float amount = e.healamount;
+        bprint(sprintf("adhealth: %s drawn x%g (model_scale %v), box %v\n", e.classname, e.vr_pickup_scale, e.model_scale,
+            e.size));
         p.health = 50;
         setorigin(e, VRGetEntHandPos(p, cVR_MainHand));
         p.touchinghand = cVR_MainHand;
