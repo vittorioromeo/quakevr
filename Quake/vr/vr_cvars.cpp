@@ -5,6 +5,7 @@
 #include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
@@ -413,6 +414,15 @@ const DefaultChange defaultChanges[] = {
     {182, &vr_adgun_ad_copies, "0"},      // 2
     {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
     {182, &vr_gore_sound_drips, "1"},     // 0.65
+    // 184: the struggle's classes: AD's Dark Prince struggles too (the death knight's mesh and size, not a boss: ROUND22.md,
+    // "AD fixes: the Dark Prince, the ogres' chainsaws, flames on the body, the health vial").
+    {184, &vr_struggle_classes,
+        "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75:2 monster_hell_knight:1.25:1:250:1.5 "
+        "monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 "
+        "monster_defender:1.1:0.95:70:2.5 monster_eliminator:1.15:0.9:120:2.5 monster_pyro:1.1:0.9:80 "
+        "monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150:2.5 "
+        "monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120 monster_mummy:1.1:0.85:0:1.5 monster_zombiek:1.1:0.9:60:1.5 "
+        "monster_deflector:1.1:0.9:250:2.5 monster_death_lord:1.25:1:400 monster_death_guard:1.2:1:125"},
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -431,7 +441,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 182;
+constexpr int configVersion = 184;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -588,6 +598,7 @@ void migrateConfig()
             Cvar_SetQuick(var, var->default_string);
         }
     }
+    props::takeShippedSlots(from); // (the held objects' slots shipped since: 184 AD's health vial)
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 

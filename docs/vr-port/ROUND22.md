@@ -16451,3 +16451,52 @@ closed and reopened on leaving).
 ## Defaults from his config of 2026-10-22 (vr_cfg_version 182)
 
 New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
+
+## AD fixes: the Dark Prince, the ogres' chainsaws, flames on the body, the health vial (worktree `release`, branch `agent/adfixes1022`, 2026-10-22; vr_cfg_version 184)
+
+From his voice notes of 2026-10-22 (vrragtriggers 19-47, 19-54; vrstart 19-31).
+
+- **The Dark Prince** (`monster_dprince`, AD's progs/mon_dprince.mdl) took none of the humanoid ragdoll triggers: it was
+  in the Bosses group (vr_mgroups.cpp, mislabelled "demon prince": every trigger 0, no push), not among the active
+  ragdoll classes (vr_box3d_ragdoll.cpp), with no VR_AD_Mon setup (QC vr_ad_monsters.qc: no knockdown get-up, head
+  zone, parries, corpse health) and not in vr_struggle_classes. It already had a rig (AdDprince: the death knight's
+  mesh, frames and seeds). In AD it is no boss: AD's FGD calls it a "Mini Boss!" (as the baron, which is in Death
+  Knights), but its code is a plain monster's (ad_monster_start, 400 health, BBOX_TALL as the death knight, no boss
+  flags, no script or wave; placed in none of AD 1.80's maps). Now a Death Knight (group hknight; its health
+  multiplier that group's), active (knees as the knights'), set up as the death knight (VR_Knockdown_SetupReverse 223,
+  212, 243, 224; head 7 32 7; melee, armour), and it struggles: `monster_dprince:1.3:1:400` (the death lord's, a little
+  stronger). It keeps its own sword (AD's w_dprincesword.mdl, its gib): no sword drop (a follow-up if he wants one).
+  Tests: ad_active_test.py 256: shove (staggered, down), get-up (243-224, standing), neck snap (loose, 36-119 deg), as
+  the death knight's; struggle_test.py ad_dprince legpull/legdrag: it struggles (Claw leads the leg pull, as the death
+  knight, whose verdicts there fail the same, grunt-tuned, way).
+- **AD's chainsaw ogres drop their chainsaws**: the nail ogre (`monster_ogre_flak` and AD's `monster_ogre` code:
+  progs/mon_ogre.mdl, id's mesh, the chainsaw its own piece, vertices 20..51) and the hunter ogre (`monster_hogre`:
+  progs/mon_hogre.mdl, 210..332) drop Quake VR's chainsaw as Quake VR's ogre does (QC VR_AD_DropChainsaw, from
+  VR_AD_Dying: VR_DropOgreChainsaw); vr_monstermods.cpp hides it in their death frames (112..135; 154..187), AD's gib
+  throws no second one (its first gib, when the chainsaw: none; the grenade launcher kept). The mace and hammer ogres
+  already drop theirs; Freddie's chainsaw is his arm (no tool); the fishing ogre is scenery. Test: killed each
+  (vr_test_kill 1): "adogre: ... drops its chainsaw", "the chainsaw (32 / 123 vertices) hidden in 24 / 34 death
+  frames", the dropped progs/v_chainsaw.mdl lies there.
+- **Flames on the body**: VR_Burn_OnBody's points were a fat line's hit (4 units out) or, missed, the point clamped
+  into the bounding box (a box's side: well in front of a thin body); the player's flames, put by the Quake model or
+  the box, and spread along the body's tangent plane, sat off the body drawn in the headset. Now: every point is put
+  onto the model's surface (new builtin modelanchor: the nearest point of any entity's .mdl as drawn, a ragdoll's as
+  its parts carry it; no box fallback while there is a model), and each flame keeps an anchor on that triangle
+  (modelanchorpoint) so it moves with the animation between fits; a player's flames are put on, and every think fitted
+  to, the body's shapes as drawn (VR_Burn_OnYourBody: mapflametouch's nearest shape, its part: a hand or arm's flame
+  goes with the hand), the shapes kept built while the player burns (VR_Burn_MapFrame). Debug > Burning Tests: "How It
+  Burns" (vr_burn_test 4) also prints each flame's distance off the surface; new "Set Yourself on Fire" (13) and "How
+  Far Your Flames Sit Off You" (14). Numbers (a death knight, 4 flames): standing, between fits, at most 4.6 units
+  (measured at an arbitrary frame: the think is 20 Hz, the body animates and steps between); its corpse 0.0; you
+  (mock headset) 0.0 on the body shapes. Open: a running monster's drawn model lags its server origin (client lerp of
+  its 0.1 s steps) while the flames are placed by the server's: if he still sees them ahead of a running monster, the
+  flames need the client's lerp (a client-side attachment).
+- **The health vial's held offsets** (his Held Object Offsets: his slot 63, progs/health_5.mdl, Grip Mode 2: in the
+  palm; nothing else of the slot differs from the defaults) are the defaults: vr_props.inc slot 62 (cvars _63). The
+  migration (vr_props.cpp takeShippedSlots, from migrateConfig for configs below 184): the slot takes its defaults when
+  free or already the vial's (each key left at its own default); a slot of another model is kept; the vial claimed
+  before by another slot, nothing else set, is freed. Checked with a 182 config: vr_prop_id_63 progs/health_5.mdl,
+  vr_prop_grip_63 2, the old slot 58 freed; vr_struggle_classes the new default.
+
+Defaults: vr_struggle_classes + `monster_dprince:1.3:1:400` (184 row); vr_prop_id_63 "" -> progs/health_5.mdl,
+vr_prop_grip_63 0 -> 2 (takeShippedSlots). configVersion 182 -> 184 (183 is another branch's).

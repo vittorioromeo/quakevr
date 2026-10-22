@@ -20,6 +20,7 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
 
+#include <stdlib.h>
 #include <string.h>
 
 namespace qvr::props
@@ -169,7 +170,78 @@ void migrate()
     }
 }
 
+// A setting at a key's own default (as numbers when both are): untouched by its config.
+[[nodiscard]] bool atKeyDefault(int slot, int key)
+{
+    const char* s = cvarAt(slot, static_cast<Key>(key)).string;
+    const char* d = keyDefaults[key];
+    char* endS;
+    char* endD;
+    const double x = strtod(s, &endS);
+    const double y = strtod(d, &endD);
+    if(endS != s && !*endS && endD != d && !*endD)
+    {
+        return za::fabs(x - y) < 1e-6;
+    }
+    return !strcmp(s, d);
+}
+
+// The slots given shipped defaults since a config version (vr_props.inc): {the configVersion that gives it, the slot}.
+struct ShippedSlot
+{
+    int version;
+    int slot;
+};
+constexpr ShippedSlot shippedSlots[] = {
+    {184, 62}, // AD's health vial (progs/health_5.mdl): in the palm
+};
+
 } // namespace
+
+void takeShippedSlots(int fromConfigVersion)
+{
+    for(const ShippedSlot& s : shippedSlots)
+    {
+        if(fromConfigVersion >= s.version)
+        {
+            continue;
+        }
+        cvar_t& id = cvarAt(s.slot, Key::ID);
+        if(!freeId(id.string) && strcmp(id.string, id.default_string) != 0)
+        {
+            continue; // another model's (claimed by the config): kept; the shipped one's model claims a free slot as before
+        }
+        const za::String model = id.default_string;
+        // The slot: each setting the config left at its key's default takes the slot's own (a free slot: all of them).
+        for(int key = 0; key < numKeys; key++)
+        {
+            if(key == static_cast<int>(Key::ID) || atKeyDefault(s.slot, key))
+            {
+                cvar_t& var = cvarAt(s.slot, static_cast<Key>(key));
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+        // The model claimed by another slot before (by a hand: only its ID set): that slot freed, so this one is found.
+        for(int other = 0; other < numSlots; other++)
+        {
+            if(other == s.slot || strcmp(cvarAt(other, Key::ID).string, model.cStr()) != 0 ||
+                !freeId(cvarAt(other, Key::ID).default_string))
+            {
+                continue;
+            }
+            bool untouched = true;
+            for(int key = 0; key < numKeys && untouched; key++)
+            {
+                untouched = key == static_cast<int>(Key::ID) || atKeyDefault(other, key);
+            }
+            if(untouched)
+            {
+                resetSlot(other);
+            }
+        }
+        Con_DPrintf("props: slot %d (%s) takes its shipped defaults\n", s.slot, model.cStr());
+    }
+}
 
 void registerCvars()
 {

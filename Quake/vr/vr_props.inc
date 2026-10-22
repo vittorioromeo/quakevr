@@ -396,4 +396,9 @@ QVR_PROP_DEFAULT(55, ID, "progs/proxbomb.mdl")
 QVR_PROP_DEFAULT(55, Mass, "1.2")
 QVR_PROP_DEFAULT(55, TwoHands, "0")
 QVR_PROP_DEFAULT(55, GripMode, "2")
+// Arcane Dimensions' health vial (and gem: QC vr_ad_items.qc item_healthvial, AD's progs/health_5.mdl): in the palm (the
+// author's Held Object Offsets of 2026-10-22, his config's slot 63). configVersion 184 gives the slot to configs saved
+// before (takeShippedSlots: only a free one, or one already the vial's).
+QVR_PROP_DEFAULT(62, ID, "progs/health_5.mdl")
+QVR_PROP_DEFAULT(62, GripMode, "2")
 #endif
