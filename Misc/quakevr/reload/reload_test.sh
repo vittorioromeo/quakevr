@@ -206,7 +206,8 @@ check $(echo "$log" | grep -q "broken open by a hit from above" && echo "$log" |
 # more force and a more precise hit): the same tracked swings, glided (their speed exact), from the same poses after the
 # same visit to the pouch, empty or holding a pouch pair: from below the open gun, from above the shut one, at 2.5 m/s
 # (under Hit Speed) and 3.8 m/s: the same outcome at the same speed. And a pair 4-7 units from the open chambers no
-# longer refuses a hit from below (it did within the port's radius and 4 units more, as far as the hit zone's start).
+# longer refuses a hit from below (it did within the port's radius and 4 units more, as far as the hit zone's start). Held 0.8 of the way (3.4 units off,
+# just outside Port Leniency 3.15): at 0.7 the pouch pair now sits 3.1 off, in reach, and loads instead (2026-10-23).
 SAMEHIT=""
 for row in "close -0.197 -0.74" "open -0.197 -0.80"; do
     set -- $row
@@ -222,7 +223,7 @@ for row in "close -0.197 -0.74" "open -0.197 -0.80"; do
 done
 check $(echo "$SAMEHIT" | awk '{ ok = NF == 4; for(i = 1; i <= NF; i++) { split($i, a, ","); if(a[1] != a[2]) ok = 0 } print ok }') "the same swings with shells in the hand as empty: the same hits (empty,shells per swing: $SAMEHIT)"
 NEAR=$(for i in $(seq 14); do printf "vr_mock_hand_to main by 0 0 2.5;wait1;"; done)
-log=$(tb_run_sh -Script "$SSG;$FIRE;$BY;$POUCH;$GRIP;vr_mock_hand_to main held 0.7 0;wait3;vr_mock_hand_to main held 0.7 0;wait3;vr_mock_hand_to main by 0 0 -10;wait10;$NEAR wait20;toggleconsole;quit" -Filter "$F7" 2>&1)
+log=$(tb_run_sh -Script "$SSG;$FIRE;$BY;$POUCH;$GRIP;vr_mock_hand_to main held 0.8 0;wait3;vr_mock_hand_to main held 0.8 0;wait3;vr_mock_hand_to main by 0 0 -10;wait10;$NEAR wait20;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "closed by a hit from below.*: 0 loaded" && echo 1 || echo 0) "a pair held near the open chambers (not in them) doesn't refuse a hit from below ($(echo "$log" | grep -o "closed by a hit.*" | head -1))"
 # Shut straight after loading (the author's note of 2026-10-08: a long wait before the flick shut it): a pair loaded
 # while the gun hand turns (150 deg/s, over the old 86 deg/s rest), flicked 0.15 s after it went in, on fixed frames (fast mode: the same frames as at the cap; -RealTime made it hang on the machine's load, 2026-10-09): shut
@@ -442,12 +443,12 @@ log=$(tb_run_sh -Script "$SSG;$FIRE;$PROP;$(PHIT 45 20);$REP;$(PHIT -45 -20);$RE
 log2=$(tb_run_sh -Script "$SSG;$FIRE;$(PHIT 45 20);$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 check $(echo "$log" | grep -q "^test: progs/h_guard.mdl in the main hand" && echo "$log" | grep -q "broken open by a hit from above" && echo "$log" | grep -q "closed by a hit from below" && [ "$(opens "$log")" = 10 ] && [ "$(opens "$log2")" = 0 ] && echo 1 || echo 0) "a prop held in the other hand hits the barrels open and shut by its surface (prop $(opens "$log"), want 10; the fist as far off: $(opens "$log2"), want 0)"
 # The same for the nailgun's magazine (VR_Reload_HitFrame: the prop's shape as held, not its middle nor its box: the
-# author's note 10-42-18): the head brought fast from 30 units off the magazine's side to 4 off (the hand and the prop's
-# middle 3.5 off it, past Hit Reach 2; its shape 1.7 off) knocks it out; the fist stopping as far off doesn't; the head
+# author's note 10-42-18): the head brought fast from 30 units off the magazine's side to 3.5 off (the hand and the prop's
+# middle 3 off it, past Hit Reach 2; its shape 1.8 off; at 4 off it is 2.1 now, out of reach, 2026-10-23) knocks it out; the fist stopping as far off doesn't; the head
 # stopping 6 off (its shape 3.5 off, its box 1.2: the box's near miss) doesn't (vr_reload_test 25 prints both).
 MHIT() { echo "vr_mock_hand_to main mag 0 30;wait5;vr_mock_hand_to main mag 0 30;wait10;vr_mock_hand_to main mag 0 $1;wait10"; }
-log=$(tb_run_sh -Script "$MPRE;$PROP;$(MHIT 4);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)|^test:" 2>&1)
-log2=$(tb_run_sh -Script "$MPRE;$GRIP;$(MHIT 4);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)" 2>&1)
+log=$(tb_run_sh -Script "$MPRE;$PROP;$(MHIT 3.5);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)|^test:" 2>&1)
+log2=$(tb_run_sh -Script "$MPRE;$GRIP;$(MHIT 3.5);$REP;toggleconsole;quit" -Filter "^reload: (a mag|off hand)" 2>&1)
 log3=$(tb_run_sh -Script "$MPRE;$PROP;$(MHIT 6);vr_reload_test 25;impulse 125;wait3;toggleconsole;quit" -Filter "^reload: (a mag|off hand|the held)" 2>&1)
 check $(echo "$log" | grep -q "^test: progs/h_guard.mdl in the main hand" && echo "$log" | grep -q "knocked out by a hit" && echo "$log" | grep "^reload: off hand" | tail -1 | grep -q "clip 0 mag 0" && ! echo "$log2" | grep -q "knocked out by a hit" && echo "$log2" | grep "^reload: off hand" | tail -1 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "a prop held in the other hand knocks the nailgun's magazine out by its surface; the fist as far off doesn't ($(echo "$log" | grep -o "knocked out by a hit[^)]*" | head -1))"
 check $(echo "$log3" | grep "the held" | awk '{print ($9 + 0 > 2 && $11 + 0 <= 2) ? 1 : 0}' | grep -q 1 && ! echo "$log3" | grep -q "knocked out by a hit" && echo "$log3" | grep "^reload: off hand" | tail -1 | grep -q "clip 24 mag 1" && echo 1 || echo 0) "its box within Hit Reach but its shape not (a near miss): the magazine stays in ($(echo "$log3" | grep -o "from the magazine: shape [0-9.]* box [0-9.]*"))"
