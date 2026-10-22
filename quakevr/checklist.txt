@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Plank leg sweep: swing a crate plank hard through a grunt's shins: the plank breaks and the grunt is swept down
 Scorch marks (now on by default, cheap): hold the flamethrower on a wall, the floor and a ceiling for a while, then sweep it: scorches build up where the fire licks and the frame stays smooth
 Item Pickup Mode (VR Settings > Playing > Item Collection): the switch shows your current mode; try Immersive (carry, put away at a holster), Auto-Collect (grip or force grab takes it; Backpacks Too), Vanilla (walk into it); how does the dimmed Backpacks Too row look?
 Running legs: run straight with the body shown: the legs step about as often as the footprints, feet planted, not a blur (Advanced > Body > Running Cadence 0 = old legs); handprints now 8 by default
