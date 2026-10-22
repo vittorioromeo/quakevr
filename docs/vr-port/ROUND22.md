@@ -16595,6 +16595,44 @@ eval.sh: melee verdicts unchanged (six rows differ by 0.1 in an offset).
 a couple of steps away, or a crouched charge, does nothing. AD Plasma Gun next to crates and bodies: they fly. Jump
 onto small gibs and brain chunks: they pop.
 
+## Item Pickup Mode; running legs; handprints (worktree `tghost`, branch `agent/pickupmode`, 2026-10-22; vr_cfg_version 185)
+
+His approved asks of 2026-10-22: his handprint count as the default, the legs stepping as often as the footprints at a
+run, one switch for the pickup options, and a backlog entry for the swords.
+
+**Handprints** (configVersion 185; 186 is another branch's): `vr_handprint_count` 6 -> 8 (his config). Checked: a
+config at 184 with 6 moves to 8, a custom 12 stays.
+
+**Running legs.** The prints follow a person's stride at speed (0.55 m + 0.19 s, 0.6..2.2 m: the prints2 section); the
+legs capped their cadence at `vr_body_step_rate` (2.2) steps a second, half as often as the prints at a run. Now the cap
+rises at speed to that same cadence (`avatar::personStep`, shared with the prints; wading slows it as before) as far as
+`vr_body_step_run` says (new, 1; Advanced VR Options > Body > Running Cadence, 0..1.5; 0: the cap alone, the old walk exactly). The stride is
+the same, so the planted foot keeps up better (it slid back at 0.8 m x 2 steps/s against the ground's ~12 m/s; now
+x 5.2). Measured with `vr_bloodprints_info` (vrtesthall, 2.5 s straight, world scale 1):
+
+| | prints a second | legs before (`vr_body_step_run 0`) | legs now (1) |
+|---|---|---|---|
+| walk, 200 u/s | 3.97 | 1.98 | 3.57 |
+| run, 320 u/s | 5.15 | 1.98 | 5.16 |
+
+(The walk's legs count 9 touchdowns to the prints' 10 in the window: one step's phase.)
+
+**Item Pickup Mode.** VR Settings > Playing > Item Collection's two rows (Carry Ammo and Health, Auto-Collect) are one
+switch, `vr_menu_pickup_mode` (a menu wrapper, not saved, as Turning Mode: shown as the settings are, sets them):
+Immersive (`vr_carry` 1, `vr_carry_autocollect` 0), Auto-Collect (1, 1; or 2 as Backpacks Too last had it), Vanilla
+(`vr_carry` 0, Auto-Collect left as it is). Under it **Backpacks Too** (`vr_carry_autocollect` 1/2), dimmed unless the
+mode is Auto-Collect (the page rebuilds when the mode changes). Advanced VR Options > Carrying and Throwing > Carrying
+keeps its detailed rows. Checked: a config with `vr_carry 0`, autocollect 2 shows Vanilla; Auto-Collect then gives 1/2,
+Immersive 1/0, Auto-Collect again 1/2 (backpacks remembered), Vanilla 0/2. `vr_menu_path_check`: vrcalibration 0
+missing, vrtesthall 0 missing (no board names the old rows). SETTINGS.md updated.
+
+**Backlog:** "Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman" (a new melee weapon kind).
+
+**In VR:** run in a straight line with the full body: the legs should step about as often as the footprints, feet
+planted, not a blur; walk slowly: as before. Body > Running Cadence 0 gives the old legs to compare. VR Settings >
+Playing > Item Collection: the switch shows your mode; try each (grip a box, walk into one); Backpacks Too only lights
+up under Auto-Collect.
+
 ## Cheap scorch marks, on by default (worktree `gorefx`, branch `agent/scorch`, 2026-10-23; vr_cfg_version 186)
 
 The flamethrowers' scorch marks (`vr_adgun_fx_scorch`) were off because each new mark made the live decals' grid again

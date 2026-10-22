@@ -947,6 +947,10 @@ QVR_CVAR(vr_menu_hands_roll, "0", CVAR_NONE)
 // tap and its button), 1 the left stick's press, 2 the right stick's; shown only while a config has them: 3 off, 4 the
 // gadget's tap alone, 5 its button alone, 6 the gadget with neither.
 QVR_CVAR(vr_menu_bullettime, "0", CVAR_NONE)
+// VR Settings > Playing > Item Collection > Item Pickup Mode (over vr_carry and vr_carry_autocollect): 0 Immersive (boxes
+// carried by hand, put away at a holster: vr_carry 1, autocollect 0), 1 Auto-Collect (a box gripped or force-grabbed taken
+// at once: vr_carry 1, autocollect 1, or 2 as Backpacks Too last had it), 2 Vanilla (walking into it takes it: vr_carry 0).
+QVR_CVAR(vr_menu_pickup_mode, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_x, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_y, "0", CVAR_NONE)
 QVR_CVAR(vr_menu_holster_hip_z, "0", CVAR_NONE)
@@ -1483,6 +1487,7 @@ QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's 
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
+QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
@@ -2170,7 +2175,7 @@ QVR_CVAR(vr_footprint_fade, "1", CVAR_ARCHIVE)         // ... fading this much f
 QVR_CVAR(vr_footprint_size, "1.6", CVAR_ARCHIVE)       // ... times your foot's size (0.5..2)
 QVR_CVAR(vr_footprint_rate, "1", CVAR_ARCHIVE)         // ... times as many: a print a step's length walked (a person's at your speed: 0.7 m walking, up to 2.2 m at a run), over this (0.25..4)
 QVR_CVAR(vr_handprints, "1", CVAR_ARCHIVE)             // a very bloody hand (a gib held, a bloody blow) touching a wall or a ledge leaves a bloody handprint
-QVR_CVAR(vr_handprint_count, "6", CVAR_ARCHIVE)        // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32)
+QVR_CVAR(vr_handprint_count, "8", CVAR_ARCHIVE)        // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32) (his 8, 6 before vr_cfg_version 185)
 QVR_CVAR(vr_handprint_size, "1.6", CVAR_ARCHIVE)       // ... times your hand's size (0.5..2)
 QVR_CVAR(vr_handprint_props, "1", CVAR_ARCHIVE)        // ... on props too (crates, barrels, boxes, things lying about): its blood painted on it
 QVR_CVAR(vr_handprint_gear, "1", CVAR_ARCHIVE)         // ... and on what a bloody hand holds (its weapon, a prop it carries) where it grips it, building up as you hold it; the weapon's stays with it

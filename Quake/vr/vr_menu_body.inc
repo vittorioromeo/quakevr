@@ -20,6 +20,10 @@ const char* bodytrackAvailability(int)
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
+        slider("Running Cadence", vr_body_step_run, 0.f, 1.5f, 0.05f, "%.2fx")
+            .help("At speed the legs step as often as a person's stride there (the bloody footprints' steps): a run looks "
+                  "like a run. 1: a person's cadence; 0: only the Step Rate above (a run's legs step half as often as its "
+                  "prints)."),
         slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg").extend()
             .help("How far you turn over your planted feet before they step round to follow."),
         slider("Wading Heaviness", vr_body_wade, 0.f, 2.f, 0.1f, "%.1fx").extend()

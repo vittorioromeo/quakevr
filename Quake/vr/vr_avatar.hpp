@@ -206,4 +206,9 @@ void hide();
 // World units per model unit of the posed entity (0 for any other entity).
 [[nodiscard]] float modelScale(const entity_t* e);
 
+// A person's step length at a speed (metres of the body, metres a second of the body): a walk's 0.7 m at 1.4 m/s to a
+// sprint's 2.2 m (Quake's run is a sprint's). The bloody footprints' steps; the walk's legs step at that cadence at
+// speed as far as vr_body_step_run says.
+[[nodiscard]] float personStep(float speed);
+
 } // namespace qvr::avatar

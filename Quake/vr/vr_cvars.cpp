@@ -431,6 +431,9 @@ const DefaultChange defaultChanges[] = {
     {184, &vr_kdtrig_tackle_bump, "100"},      // 120
     {184, &vr_kdtrig_tackle_contact, "2"},     // 0
     {184, &vr_footprint_count, "8"},           // 16
+    // 185: the author's value (his config of 2026-10-22, approved): more bloody handprints from a soaked hand (ROUND22.md,
+    // "Item Pickup Mode; running legs; handprints").
+    {185, &vr_handprint_count, "6"}, // 8
     // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
     // scorch marks").
     {186, &vr_adgun_fx_scorch, "0"}, // 1
