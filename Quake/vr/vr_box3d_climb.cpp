@@ -191,4 +191,53 @@ bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip)
         &q);
     return q.hit;
 }
+
+bool propTrace(const glm::vec3& from, const glm::vec3& to, PropHit& hit, bool& inside)
+{
+    hit = PropHit{};
+    inside = false;
+    const glm::vec3 delta = to - from;
+    if(!world)
+    {
+        return false;
+    }
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.maskBits = catProp;
+    // In one already (a ray from inside a hull meets nothing): a tenth of a unit's ball at `from`.
+    const b3Vec3 zero = b3Vec3_zero;
+    const b3ShapeProxy proxy{&zero, 1, 0.1f / world->m2u};
+    b3World_OverlapShape(world->id, world->toM(from), &proxy, filter,
+        [](b3ShapeId shape, void* context) {
+            if(!solidProp(numOf(shape)))
+            {
+                return true; // (go on)
+            }
+            *static_cast<bool*>(context) = true;
+            return false;
+        },
+        &inside);
+    if(inside || glm::dot(delta, delta) < 1e-6f)
+    {
+        return inside; // (a point: whether it is in one)
+    }
+    b3World_CastRay(world->id, world->toM(from), world->toM(delta), filter,
+        [](b3ShapeId shape, b3Pos point, b3Vec3 normal, float fraction, uint64_t, int, int, void* context) -> float {
+            const int num = numOf(shape);
+            if(!solidProp(num))
+            {
+                return -1.f; // (not this one)
+            }
+            auto& h = *static_cast<PropHit*>(context);
+            if(fraction < h.fraction)
+            {
+                h.num = num;
+                h.fraction = fraction;
+                h.point = world->toU(point);
+                h.normal = glmv(normal);
+            }
+            return fraction; // (only nearer ones from here)
+        },
+        &hit);
+    return hit.num > 0;
+}
 } // namespace qvr::box3d

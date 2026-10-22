@@ -16224,3 +16224,54 @@ From his notes of 2026-10-22 (vrragtriggers 01-24 to 01-35), the item agent/prop
 **In VR:** press a crate down lightly and then harder with the shotgun, a plank and the bare hand: the hand should stop
 on its top (drawn there), the crate stay put; lift off: no hop. Push a crate along the floor and against a wall:
 as before along the floor, stopped at the wall.
+
+## Prop climbing from any side; climbing footholds on props (worktree `fastship`, branch `agent/propclimb`, 2026-10-22)
+
+Voice notes 01-07-09 (a large crate on its long side climbable only from some sides) and 01-24-46 (the climbing leg IK
+works on brushes, not on props).
+
+**Cause.** Box3D's hull of the large crate (40 x 40 x 48) has two corners cut at each end (the hull builder's
+simplification): lying on its side, the lip over each end ran into a sliver of a steep face (normal z 0.65) instead of
+the vertical end. `ledges::propLedges` took the face beyond the lip as falling the whole `minDrop` (32) at its slope,
+so the drop "started" 28 units out (over `edgeReach` 16): the two end lips were no ledge, only the long sides were.
+(Upright, all four lips held.)
+
+**Fix** (`vr_ledges.cpp`): the drop's start is measured from the prop's own shape (`dropFlare`): how far its points (and
+its edges' crossings at the band's foot) reach past the lip between the lip and `minDrop` under it, beside the lip
+only. A long slope (a wedge's) still reaches far: no ledge, as before. Lips shorter than 2 units after the bevel lift
+(a cut corner's edge) are none.
+
+**Test** `Misc/quakevr/climb/prop_sides_test.sh <agent> [up side sidex up45 side45]`: the large crate climbed from each
+side (the player square to it, 20 back; both hands onto the lip and pulled over, prop_climb_test.sh's plays), in five
+orientations: upright, on its long side with the long axis along x, along y, upright turned 45 degrees, lying turned
+45 degrees (the crate has only two resting shapes, 48 high and 40 high; "on its short side" is the lying one turned 90
+degrees, `sidex`). Pass: held and mantled onto, standing on the top.
+
+| orientation | before (sides 0 1 2 3) | after |
+|---|---|---|
+| upright | ok ok ok ok | ok ok ok ok |
+| lying, long axis x | ok FAIL ok FAIL | ok ok ok ok |
+| lying, long axis y | ok FAIL ok FAIL | ok ok ok ok |
+| upright, 45 deg | ok ok ok ok | ok ok ok ok |
+| lying, 45 deg | ok FAIL ok FAIL | ok ok ok ok |
+
+The FAILs were the crate's ends: no hold at all (`vr_climb_probe` listed only the two long lips). `prop_climb_test.sh`
+12/12 PASS after.
+
+**Footholds on props** (`vr_avatar.cpp` footTrace, `box3d::propTrace`): the climbing feet's traces were the level's
+only (`SV_Move` MOVE_NOMONSTERS skips SOLID_BBOX props, and their boxes don't turn anyway). Each now also casts against
+the solid props' Box3D shapes, up to where the level stopped it, and a point in one counts as solid (a tenth-unit
+overlap: a ray from inside a hull meets nothing). New setting `vr_body_climb_feet_props` 1 (archived; VR Settings >
+Body: Footholds on Props). Headless (`vr_debug_climb_feet 2`, the heavy crate hung on 6 s; two stacked mantled onto):
+
+| case | props 0 | props 1 |
+|---|---|---|
+| hang (1394 frames) | 46 searches, all none; feet on holds 0 / 0 | 2 face holds; feet on holds 1394 / 1350 (L/R) |
+| stack mantle (635 frames) | 18 searches, all none | 6 face, 1 none; feet on holds 333 / 290 |
+
+Feet inside something: 0 frames in all. Cost: 5.0-5.6 traces a search (3 before: the hold found takes the placement
+traces), a search at most 0.008-0.014 ms (0.004-0.006 before); the per-frame update median 0.4-0.6 us either way.
+
+**In VR:** spawn a large crate on its side (Debug > Tests > Climbing, `vr_test_spawn 122`) and climb it from all four
+sides, also after knocking it about; hang on a large crate (or two stacked) and look down: the feet should press on
+its face, not hang.
