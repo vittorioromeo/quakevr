@@ -1188,7 +1188,8 @@ extern "C" void VR_ProfileFrame()
         const double period = static_cast<double>(now - frameStart) / 1e6;
         const bool hitch = period > hitchMs;
         const double hitchAt = systems::hitchMs();
-        const za::String hitchScopes = hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt ? frameTopScopes() : "";
+        const za::String hitchScopes =
+            (hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt) || systems::frameLogOn() ? frameTopScopes() : "";
         foldCpu(!hitch);
         GpuSlot& s = slots[slotIndex];
         if(hitch)

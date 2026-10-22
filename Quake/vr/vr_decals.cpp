@@ -2840,6 +2840,13 @@ void prepare()
     {
         makeAtlas();
     }
+    // The world's shader with the decals' retro code (their retro set), made at the first mark otherwise: the first
+    // punch's 8 ms hitch (ROUND22.md, "Gore hitches").
+    if(vr_decals.value && onWorld() && retro::categorySet(retro::Category::Decals) > 0)
+    {
+        // (The opaque world's: with the parallax's depth written, as vr_lighting.cpp sets r_framedata.parallax2[3].)
+        R_PrewarmDecalPrograms(vr_parallax.value != 0.f && vr_normalmaps.value != 0.f && vr_parallax_depth_write.value != 0.f);
+    }
 }
 
 void clear()

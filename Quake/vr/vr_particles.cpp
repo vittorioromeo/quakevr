@@ -20,6 +20,7 @@
 #include "vr_weaponfx.hpp"
 #include "vr_lootbeams.hpp"
 #include "vr_profile.hpp"
+#include "vr_profile_systems.hpp"
 #include "vr_retro.hpp"
 #include "vr_water.hpp"
 
@@ -3398,6 +3399,28 @@ int reverseOrderFrame = -1;
     return reverseOrder;
 }
 
+// vr_frame_log: this frame's particles in its first view (`framelog:` lines): live, drawn, how many within half a metre
+// of the eye, how many times over they cover the view (and the large ones), and how they are drawn.
+int loggedFrame = -1;
+
+void logFrame(const gfx::ParticleSplit& split, const int viewport[4], bool half)
+{
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const float nearUnits = units::metresToUnits() * 0.5f;
+    int nearCount = 0;
+    for(za::SizeT i = 0; i < instanceCount; i++)
+    {
+        const glm::vec3 d = instances[i].org - eye;
+        nearCount += glm::dot(d, d) < nearUnits * nearUnits ? 1 : 0;
+    }
+    Con_Printf("framelog: %d particles %d live, %d drawn, %d within 0.5 m, cover %.2f views (large %.2f), half %d, "
+               "reverse %d\n",
+        host_framecount, liveCount(), static_cast<int>(instanceCount), nearCount,
+        screenCover(split.pixelScale, viewport), largeCover(split, viewport), half ? 1 : 0,
+        reverseOrderThisFrame(split.pixelScale, viewport) ? 1 : 0);
+}
+
 } // namespace qvr::particles
 
 // R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
@@ -3468,6 +3491,11 @@ extern "C" void VR_DrawSceneTranslucent()
                            vr_particle_halfres_dense.value == 0.f && reverseOrderThisFrame(split.pixelScale, viewport);
     const bool half = inView && allowHalf && !saturated &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
+    if(inView && loggedFrame != host_framecount && profile::systems::frameLogOn())
+    {
+        loggedFrame = host_framecount;
+        logFrame(split, viewport, half);
+    }
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
     // sprite or particle is drawn, or particles at half size (hidden behind them).
