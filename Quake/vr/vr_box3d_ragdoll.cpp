@@ -1453,6 +1453,34 @@ float activeFloorBelow(const glm::vec3& at, float depth)
     return hit.z;
 }
 
+// Whether `body` lies on the floor: a contact of its with the world or a mover pushing it up (its normal within 60
+// degrees of up), whatever its shape's height over it (a bulky part, a pack, lies on it with its middle high).
+bool activeOnFloor(b3BodyId body)
+{
+    za::Array<b3ContactData, 8> contacts;
+    const int count = b3Body_GetContactData(body, contacts.data(), static_cast<int>(contacts.size()));
+    for(int i = 0; i < count; i++)
+    {
+        const b3ContactData& d = contacts[static_cast<za::SizeT>(i)];
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(d.shapeIdA), body);
+        const b3ShapeId other = isA ? d.shapeIdB : d.shapeIdA;
+        if((b3Shape_GetFilter(other).categoryBits & (catWorld | catMover)) == 0)
+        {
+            continue;
+        }
+        for(int m = 0; m < d.manifoldCount; m++)
+        {
+            // (The normal points from A to B: the floor pushes its part up.)
+            const float up = isA ? -d.manifolds[m].normal.z : d.manifolds[m].normal.z;
+            if(d.manifolds[m].pointCount > 0 && up > 0.5f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 namespace
 {
 // The liquid at `at` (metres), for a dying body's swim (vr_ragactive.cpp, "Liquids").
@@ -1627,6 +1655,7 @@ void livingClimb(RagdollBodies& r, float dt)
     c.dt = dt;
     c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
     c.floorBelow = activeFloorBelow;
+    c.onFloor = activeOnFloor;
     c.rayHit = activeRayHit;
     c.num = r.num;
     c.born = r.born;
@@ -1721,6 +1750,7 @@ void driveActive(Slot& s, float dt)
         c.held |= g.num == r.num && g.part >= 0 && g.part < r.count ? (1u << g.part) : 0u;
     }
     c.floorBelow = activeFloorBelow;
+    c.onFloor = activeOnFloor;
     c.liquidAt = liquidFor(r.num); // (a test's swim on dry land: that liquid everywhere for its drive)
     c.rayHit = activeRayHit;
     c.num = r.num;

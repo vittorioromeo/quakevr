@@ -16190,3 +16190,50 @@ origin/next). Eye images (not committed): `scratch/pouch_sheet_v1.png` (every ki
 To check in VR: the pile and the rows read as counts looking down; the wobble walking, stopping and turning (too much,
 too little: Ammo Pouch Wobble); the deeper pouch for grenades (4.4) against the belly and the hip holsters; pouch
 reloading at each of six magazines; the cell cords plugging into a cell of the two rows.
+
+## Leg-drag struggle for every humanoid; the sprayer's damage (worktree `goreflesh`, branch `agent/legdrag2`, 2026-10-22)
+
+The leg drag's clawing (above, "Death menu held, ... leg-drag struggle") for every humanoid. `struggle_test.py`'s new
+`STRUGGLE_CLASSES=all` runs a case for 26 classes (id's 6, AD's 20 through `vr_campaign_native ad`; the death lord,
+Quoth death guard and AD's knight in AD's start map) and prints a `LEGPULL` line each: the free arms' speed in its chest's
+frame, and "smooth" (the same path sampled every 8 frames: well under the speed, a jitter). What blocked which:
+
+- **No leg pull** (AD's crossbow knight, death sergeant, zombie knight, hell knight, knight, death lord, death guard: a
+  hand on the shin took the thigh). Their rigs put the knee low (the crossbow knight's 8 units over its feet, a shin of
+  5): a hand on a thigh bone under `legLowShare` (0.27) of its height now counts as below the knee (`legPartAt`).
+- **No struggle**: mummies (Rogue's and AD's share `monster_mummy`), AD's zombie knight, deflector, death lord and Quoth
+  death guard were not in `vr_struggle_classes`. Added (configVersion 182 migrates the old default string): mummy
+  `1.1:0.85:0:1.5` (health 0: always full, Rogue's has 500, AD's 60), zombie knight `1.1:0.9:60:1.5`, deflector
+  `1.1:0.9:250:2.5`, death lord `1.25:1:400`, death guard `1.2:1:125`.
+- **Never clawing** (the enforcer, AD's defender, eliminator, pyro, fumigator, deflector): their parts' middles lie high
+  on their packs (an enforcer flat on its back: chest 0.36 m, head 0.35 m over the floor), so the floor sense read
+  them as off it (`floor 0.00`). A part now also lies on the floor while a contact of its with the world or a mover
+  pushes it up (`activeOnFloor`, `Context::onFloor`). Claw goes by the chest's and head's contact (dragged by the legs
+  the pelvis rides up: hung head down on its shoulders, a death knight or zombie never clawed); Crunch's "in the air"
+  by the pelvis's and chest's (hung by the legs its head may touch the floor: leglift still Crunch).
+- **Arms stuck** (missing their goals by 20-40 units, moving 0-1 u/s: AD's knight, defender, eliminator, death guard,
+  deflector): heavy arms (shields, guns) on weak springs; their 5th field (arms) 2 for `monster_knight`, 2.5 for the
+  others (as the enforcer's).
+- **Out of reach**: hung by the legs with you a step away, Crunch held its arms out at you, still. Now the farther you
+  are past its reach the wider it grasps about its arm's end (`beyond`, up to 0.5 of the arm).
+
+Arm speed (u/s, struggle on; before -> after; "-" no struggle or no pull): grunt 40.5 -> 47.3, enforcer 0.0 -> 53.2,
+knight 52.4 -> 131.9, death knight 62.8 -> 116.8, zombie 31.1 -> 36.0, Rogue mummy - -> 67.0; AD: zombie 24.3 -> 32.6,
+grenade/plasma/rocket grunts 25.9/19.4/19.4 -> 35.5/35.3/35.6, defender 0.1 -> 285.7, eliminator 0.1 -> 257.3, pyro
+7.2 -> 34.8, fumigator 7.2 -> 38.0, deflector - -> 23.7, crossbow knight - -> 105.5, death fury 163.4 -> 307.7, death
+guard 0.8 -> 174.8, death knight 86.4 -> 244.5, death sergeant - -> 31.5, zombie knight - -> 57.7, mummy - -> 48.0,
+hell knight - -> 429.6, knight - -> 36.5, death lord - -> 52.2, Quoth death guard - -> 131.1. Every one pulled down.
+The runs vary (a class's number moved 2-10x between builds as its fall changed), the fast ones (AD's hell knight, death
+fury, defender, eliminator: smooth 200+) may look frantic. The grunt's suite: 0 failed (lift, leglift, legpull,
+headdrag, headlift, armdrag, dead).
+
+Debug: `vr_struggle_debug 3` (Debug > Tests > Holding Enemies > Show Struggle "Panel, Log, Floor") prints the floor
+sense (`struggle sense:` pelvis, chest, head over the floor, ", on it"); `vr_struggle_status` adds `smooth`.
+
+**Fumigator's sprayer**: `vr_adgun_fumigator_damage` 2 -> 3 (his config; migration 182: a config at 2 goes to 3, 5
+stays, version 182).
+
+**In VR:** drag each kind by a leg, on its back and its front (an enforcer and a deflector on their packs, a death
+knight, a zombie, a mummy, AD's crossbow knight): its arms should claw and flail; held high by the legs, grasping at
+you. Grab AD's long-coated knights by the shin (not the ankle): the pull should take. Watch AD's hell knight and death
+fury for arms too wild. The sprayer's puffs a little harder.
