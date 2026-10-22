@@ -8,6 +8,8 @@
 #include "vr_goresound.hpp"
 #include "vr_handfit.hpp"
 
+#include <cstring>
+
 namespace box3d::detail
 {
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
