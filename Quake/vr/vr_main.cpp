@@ -85,6 +85,7 @@
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_posing.hpp"
 #include "vr_prepare.hpp"
 #include "vr_sightalign.hpp"
@@ -2034,6 +2035,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
     mdldequant::init();
     posing::init();
+    holstersetup::init();
     sightalign::init();
     bodycal::init();
     setup::init();
@@ -2238,6 +2240,7 @@ extern "C" void VR_BeginFrame()
         highlights::frame(); // the game's clock against realtime, a multi-kill's end
         motion::frame();     // the motion recorder's indicator, likewise
         posing::frame();     // the weapon posing mode's text, likewise
+        holstersetup::frame(); // Holster Setup: a held holster follows its hands; its boxes, labels and panel
         sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
         bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
         stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
@@ -2275,7 +2278,7 @@ extern "C" void VR_BeginFrame()
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    return runtimeMenuPaused() ? 1 : 0;
+    return runtimeMenuPaused() || holstersetup::pausesGame() ? 1 : 0; // (Holster Setup pauses it too)
 }
 
 extern "C" int VR_IsActive()

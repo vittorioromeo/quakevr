@@ -36,6 +36,24 @@ namespace
     return v;
 }
 
+// Holster Setup's own move of one holster (vr_holster_trim_<holster>_x/y/z; vr_holstersetup.cpp): on top of its pair's
+// offsets, as they are (forward, outwards, up), before they are placed.
+[[nodiscard]] glm::vec3 holsterTrim(int holster)
+{
+    switch(holster)
+    {
+        case LeftShoulder:
+            return {vr_holster_trim_lshoulder_x.value, vr_holster_trim_lshoulder_y.value, vr_holster_trim_lshoulder_z.value};
+        case RightShoulder:
+            return {vr_holster_trim_rshoulder_x.value, vr_holster_trim_rshoulder_y.value, vr_holster_trim_rshoulder_z.value};
+        case LeftHip: return {vr_holster_trim_lhip_x.value, vr_holster_trim_lhip_y.value, vr_holster_trim_lhip_z.value};
+        case RightHip: return {vr_holster_trim_rhip_x.value, vr_holster_trim_rhip_y.value, vr_holster_trim_rhip_z.value};
+        case LeftUpper: return {vr_holster_trim_lupper_x.value, vr_holster_trim_lupper_y.value, vr_holster_trim_lupper_z.value};
+        case RightUpper: return {vr_holster_trim_rupper_x.value, vr_holster_trim_rupper_y.value, vr_holster_trim_rupper_z.value};
+        default: return glm::vec3{0.f};
+    }
+}
+
 // Holsters move forward as the player crouches.
 [[nodiscard]] glm::vec3 crouchAdjustment(const hands::State& s, float mult)
 {
@@ -132,15 +150,16 @@ namespace
     const glm::vec3 upper{vr_upper_holster_offset_x.value, vr_upper_holster_offset_y.value,
         vr_upper_holster_offset_z.value};
 
+    const glm::vec3 trim = holsterTrim(holster);
     switch(holster)
     {
         case LeftShoulder:
-            return hands::bodyAnchor(s, negateY(shoulder + shoulderHolster)) + crouchAdjustment(s, 1.5f);
-        case RightShoulder: return hands::bodyAnchor(s, shoulder + shoulderHolster) + crouchAdjustment(s, 1.5f);
-        case LeftHip: return hands::bodyAnchor(s, negateY(hip)) + crouchAdjustment(s, -9.5f);
-        case RightHip: return hands::bodyAnchor(s, hip) + crouchAdjustment(s, -9.5f);
-        case LeftUpper: return hands::bodyAnchor(s, negateY(upper)) + crouchAdjustment(s, -1.5f);
-        default: return hands::bodyAnchor(s, upper) + crouchAdjustment(s, -1.5f);
+            return hands::bodyAnchor(s, negateY(shoulder + shoulderHolster + trim)) + crouchAdjustment(s, 1.5f);
+        case RightShoulder: return hands::bodyAnchor(s, shoulder + shoulderHolster + trim) + crouchAdjustment(s, 1.5f);
+        case LeftHip: return hands::bodyAnchor(s, negateY(hip + trim)) + crouchAdjustment(s, -9.5f);
+        case RightHip: return hands::bodyAnchor(s, hip + trim) + crouchAdjustment(s, -9.5f);
+        case LeftUpper: return hands::bodyAnchor(s, negateY(upper + trim)) + crouchAdjustment(s, -1.5f);
+        default: return hands::bodyAnchor(s, upper + trim) + crouchAdjustment(s, -1.5f);
     }
 }
 
@@ -237,7 +256,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float now = glm::dot(pos - standing.head, fwd);
     const bool hip = holster == LeftHip || holster == RightHip;
-    const float x = hip ? vr_hip_offset_x.value : vr_upper_holster_offset_x.value;
+    const float x = (hip ? vr_hip_offset_x.value : vr_upper_holster_offset_x.value) + holsterTrim(holster).x;
     const float at = frontOfTheBody(standing, holster, pos) + (x - (hip ? HIP_X_DEFAULT : UPPER_X_DEFAULT));
     return outOfTheTorso(standing, hip, pos + fwd * (at - now));
 }

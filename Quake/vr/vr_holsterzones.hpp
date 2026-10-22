@@ -16,6 +16,7 @@
 #pragma once
 
 #include "vr_body.hpp"
+#include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
 namespace qvr::zones
@@ -28,6 +29,26 @@ enum Zone : int
     ZoneGrenadePouch,
     ZoneCount
 };
+
+// A zone's box: its middle, axes (out, side, up) and half sizes.
+struct Box
+{
+    glm::vec3 centre{0.f};
+    glm::vec3 axis[3]{};
+    glm::vec3 half{1.f};
+};
+
+// Holster Setup's size of a zone's holster or pouch (vr_holster_size_<zone>, clamped): its box and its model, times.
+[[nodiscard]] float size(int zone);
+[[nodiscard]] cvar_t& sizeCvar(int zone);
+[[nodiscard]] const char* name(int zone); // "lhip", "ammopouch" (vr_holster_zones_report's)
+
+// For Holster Setup (vr_holstersetup.cpp): zone `zone`'s reach point now (body::holsterPositions, the pouches'), and its
+// box as the hands find it. False: a pouch not there.
+[[nodiscard]] bool pivotNow(const hands::State& s, int zone, glm::vec3& out);
+[[nodiscard]] bool boxNow(const hands::State& s, int zone, Box& out);
+// How deep `p` is in `b`: 0 at its middle, 1 on its surface, more outside.
+[[nodiscard]] float ratioIn(const Box& b, const glm::vec3& p);
 
 // The way a zone's holster or pouch is drawn this frame (vr_view.cpp): `pivot` its reach point (body::holsterPosition,
 // the pouches' positions), its turned frame (`out` away from the body, `side` outwards, `up`), `at` the holster model's

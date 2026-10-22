@@ -23,6 +23,7 @@
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
@@ -583,6 +584,12 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
                     continue;
                 }
+                // Holster Setup takes every button while it runs (vr_holstersetup.cpp): nothing reaches the game.
+                if(holstersetup::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "Holster Setup");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -693,7 +700,8 @@ void update(const InputState& tracked)
         const bool menuNow = in.hands[h].menu || menuGestures.press[h];
         const bool menuBefore = menuGestures.menuWas[h];
         menuGestures.menuWas[h] = menuNow;
-        if(menuNow == menuBefore || !posing::button(h, posing::Button::Menu, menuNow))
+        if(menuNow == menuBefore ||
+            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !posing::button(h, posing::Button::Menu, menuNow)))
         {
             menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
         }
@@ -751,6 +759,16 @@ void update(const InputState& tracked)
         }
         moveAxes = glm::vec2{0.f};
         toolgun::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
+    else if(holstersetup::active())
+    {
+        // Holster Setup: the player stands still (the game paused); the stick of a hand holding a holster resizes it.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        holstersetup::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(posing::active())
     {
@@ -878,7 +896,7 @@ bool jumping = false; // roomscaleJump: the jump key held (the head rising)
 void roomscaleJump(const hands::State& s)
 {
     // (Seated: never; sitting up quickly would raise the head over the standing height: vr_seated.hpp.)
-    const bool rising = vr_roomscale_jump.value && !seated::active() && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
+    const bool rising = vr_roomscale_jump.value && !seated::active() && vrActive() && s.valid && key_dest == key_game && !posing::active() && !holstersetup::active() &&
                         s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
     if(rising != jumping)
     {

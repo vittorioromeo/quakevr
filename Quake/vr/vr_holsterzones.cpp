@@ -78,14 +78,6 @@ struct State
 };
 State zoneState;
 
-// A zone's box: its middle, axes (out, side, up) and half sizes.
-struct Box
-{
-    glm::vec3 centre{0.f};
-    glm::vec3 axis[3]{};
-    glm::vec3 half{1.f};
-};
-
 // A kind's settings: hip, upper, shoulder, ammo pouch, grenade pouch.
 struct Kind
 {
@@ -220,14 +212,17 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, bodyUp);
     const glm::vec3 outwards = leftSide(zone) ? -right : right;
     b.centre = (at + pivot) * 0.5f + fwd * k.x->value + outwards * k.y->value + bodyUp * k.z->value;
+    // (Holster Setup's size, vr_holster_size_<zone>, about the middle.)
     b.half = (glm::max(glm::vec3{0.25f}, reach * glm::vec3{k.depth->value, k.width->value, k.height->value}) +
                  stretch * 0.5f) *
-             scale;
+             scale * size(zone);
     return b;
 }
 
+} // namespace
+
 // How deep `p` is in `b`: 0 at its middle, 1 on its surface, more outside (the largest of its axes' shares).
-[[nodiscard]] float ratioIn(const Box& b, const glm::vec3& p)
+float ratioIn(const Box& b, const glm::vec3& p)
 {
     const glm::vec3 d = p - b.centre;
     float r = 0.f;
@@ -237,6 +232,9 @@ void frameOf(const hands::State& s, int zone, const glm::vec3& pivot, glm::vec3&
     }
     return r;
 }
+
+namespace
+{
 
 [[nodiscard]] bool holdsGun(int hand)
 {
@@ -327,12 +325,14 @@ void edges(const Box& b, const glm::vec4& color, float width)
     }
 }
 
+} // namespace
+
 // Zone `zone`'s pivot this frame (false: a pouch not there).
-[[nodiscard]] bool pivotNow(const hands::State& s, int zone, glm::vec3& out)
+bool pivotNow(const hands::State& s, int zone, glm::vec3& out)
 {
     if(zone < body::HolsterCount)
     {
-        out = body::holsterPositions(s)[zone];
+        out = body::holsterPosition(s, static_cast<body::Holster>(zone)); // (as holsterPositions: one holster's)
         return true;
     }
     if(zone == ZoneAmmoPouch ? !body::ammoPouchEnabled() : !body::pouchEnabled())
@@ -342,6 +342,40 @@ void edges(const Box& b, const glm::vec4& color, float width)
     out = zone == ZoneAmmoPouch ? body::ammoPouchPosition(s) : body::pouchPosition(s);
     return true;
 }
+
+bool boxNow(const hands::State& s, int zone, Box& out)
+{
+    glm::vec3 pivot;
+    if(zone < 0 || zone >= ZoneCount || !pivotNow(s, zone, pivot))
+    {
+        return false;
+    }
+    out = zoneBox(s, zone, pivot);
+    return true;
+}
+
+cvar_t& sizeCvar(int zone)
+{
+    switch(zone)
+    {
+        case body::LeftShoulder: return vr_holster_size_lshoulder;
+        case body::RightShoulder: return vr_holster_size_rshoulder;
+        case body::LeftHip: return vr_holster_size_lhip;
+        case body::RightHip: return vr_holster_size_rhip;
+        case body::LeftUpper: return vr_holster_size_lupper;
+        case body::RightUpper: return vr_holster_size_rupper;
+        case ZoneAmmoPouch: return vr_holster_size_ammopouch;
+        default: return vr_holster_size_grenadepouch;
+    }
+}
+
+float size(int zone)
+{
+    return za::clamp(sizeCvar(zone).value, 0.25f, 4.f);
+}
+
+namespace
+{
 
 // `p` from zone `zone`'s pivot in the body's frame as its offsets are (forward, outwards: mirrored for the left ones,
 // up).
@@ -382,6 +416,11 @@ constexpr const char* zoneNames[ZoneCount] = {
     "lshoulder", "rshoulder", "lhip", "rhip", "lupper", "rupper", "ammopouch", "grenadepouch"};
 
 } // namespace
+
+const char* name(int zone)
+{
+    return zone >= 0 && zone < ZoneCount ? zoneNames[zone] : "none";
+}
 
 void publish(int zone, const glm::vec3& pivot, const glm::vec3& out, const glm::vec3& side, const glm::vec3& up,
     const glm::vec3& at, bool occupied)

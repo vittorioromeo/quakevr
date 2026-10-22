@@ -148,6 +148,11 @@ za::Vector<Item> pageSaves()
                               "from their shipped place (0), in Quake's units (about 3 cm). Shown on your body while "
                               "you choose here.";
     return {
+        action("Holster Setup (drag and drop)", holsterSetupStart)
+            .help("Recommended: the game pauses and every holster and pouch shows as a box on your body. Grip one and "
+                  "drag it where you want it; grip it with both hands and spread them to make it bigger (or push the "
+                  "stick up or down). Symmetry moves the other one of the pair mirrored. Done keeps it, Cancel puts "
+                  "everything back. Seated, it sets the seated places. Single player only."),
         slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
             .help(holsterHelp),
         slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)

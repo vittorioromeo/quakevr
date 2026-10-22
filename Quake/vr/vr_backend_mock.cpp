@@ -21,6 +21,7 @@
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -725,6 +726,19 @@ void mockHandTo_f()
                Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 2.f, target))
         {
             Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
+            return;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "setupbutton"))
+    {
+        // "setupbutton <index>": at Holster Setup's panel button `index` (vr_holstersetup.cpp: 0 Symmetry, 1 Undo, 2 Reset
+        // Holster, 3 Reset All, 4 Cancel, 5 Done).
+        glm::vec3 target;
+        if(!holstersetup::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
+        {
+            Con_Printf("vr_mock_hand_to: no Holster Setup button %s\n", Cmd_Argv(3));
             return;
         }
         moveHandTo(hand, target);

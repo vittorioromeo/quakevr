@@ -40,6 +40,7 @@
 #include "vr_motion_take.hpp"
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_setup.hpp"
@@ -2619,6 +2620,12 @@ void resetHandOffsets()
     {
         Cvar_SetQuick(var, var->default_string);
     }
+}
+
+// Holster Setup (drag and drop): the holsters placed by hand (vr_holstersetup.cpp), this page reopened on leaving.
+void holsterSetupStart()
+{
+    holstersetup::start(qvr::menu::currentPage());
 }
 
 // Reset Holsters: every pair of holsters back to its shipped place (Holster Calibration).
