@@ -340,6 +340,52 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 
 /*
 =================
+R_DrawSpriteModelCopies -- QVR
+
+A sprite, and AD's flamethrowers' flame and poison sprites again between each and where it came from
+(vr_adgun_ad_copies: a fuller stream, drawn only): spread over the tenth of a second of its way behind it (the
+flames' spacing), each a little younger (its frames: a tenth of a second each).
+=================
+*/
+static cvar_t *adcopiesvar; // (found once)
+
+static void R_DrawSpriteModelCopies (entity_t *e, qboolean showtris)
+{
+	entity_t copy;
+	vec3_t step;
+	double dt;
+	int n, k;
+
+	R_DrawSpriteModel_Real (e, showtris);
+	if (!adcopiesvar)
+		adcopiesvar = Cvar_FindVar ("vr_adgun_ad_copies");
+	n = adcopiesvar ? (int) CLAMP (0.f, adcopiesvar->value, 3.f) : 0;
+	if (n <= 0 || strncmp (e->model->name, "progs/s_burst_", 14))
+		return;
+	if (strcmp (e->model->name, "progs/s_burst_flame.spr") && strcmp (e->model->name, "progs/s_burst_poison.spr") &&
+		strcmp (e->model->name, "progs/s_burst_smoke.spr"))
+		return;
+	dt = cl.mtime[0] - cl.mtime[1];
+	VectorSubtract (e->msg_origins[0], e->msg_origins[1], step);
+	if (dt <= 0.001 || DotProduct (step, step) < 1.f)
+		return; // (not moving: just made, or stopped)
+	VectorScale (step, (float) (0.1 / q_max (dt, 0.01)), step);
+	if (DotProduct (step, step) > 120.f * 120.f)
+		return; // (a jump: not a flight)
+	copy = *e;
+	for (k = 1; k <= n; k++)
+	{
+		const float f = (float) k / (float) (n + 1);
+		VectorMA (e->origin, -f, step, copy.origin);
+		copy.frame = q_max (0, (int) floorf ((float) e->frame - f + 0.5f));
+		R_DrawSpriteModel_Real (&copy, showtris);
+	}
+	if (batchentity == &copy)
+		batchentity = e; // (the batch's retro set is its model's: not the copy's, gone after this)
+}
+
+/*
+=================
 R_DrawSpriteModels
 =================
 */
@@ -353,7 +399,7 @@ void R_DrawSpriteModels (entity_t **ents, int count)
 		return;
 	}
 	for (i = 0; i < count; i++)
-		R_DrawSpriteModel_Real (ents[i], false);
+		R_DrawSpriteModelCopies (ents[i], false);
 	R_FlushSpriteInstances ();
 }
 
@@ -385,7 +431,7 @@ void R_DrawSpriteModelsSoft (GLuint distances)
 	softpass = true;
 	softdistances = distances;
 	for (i = 0; i < numsoftsprites; i++)
-		R_DrawSpriteModel_Real (softsprites[i], false);
+		R_DrawSpriteModelCopies (softsprites[i], false);
 	R_FlushSpriteInstances ();
 	softpass = false;
 	numsoftsprites = 0;

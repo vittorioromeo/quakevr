@@ -15968,3 +15968,43 @@ dropped. `-Sound`: the splashes load (0.28-0.34 s); `vr_gore_sound_vol_splash 0`
 right way round, the right size (6 units: the drawn boot's; `vr_footprint_size` if they read too small), and fade
 nicely? Hold a gib, then press your palm on a wall and grip a ledge: a handprint at the palm, thumb on the right side?
 The splash stepping into a pool. The Gore Sounds volume rows; chokes off by default.
+
+
+## Gore hitches and flamethrower looks (worktree `dequant`, branch `agent/gorehitch`, 2026-10-22)
+
+From the author's 2026-10-22 notes (vrragtriggers 01-13 .. 01-22).
+
+**First-punch hitch.** Measured with the new `vr_frame_log <frames>` (each frame's CPU top scopes, GPU top systems and
+particles; Debug > Profiling > Log Next 3 Seconds, also written to `quakevr/profile/framelog_*.txt`): the first head
+pop of a session took 16.6 ms on the main thread, 7.9 of it `world+brush`: the world's program with the decals' retro
+code (`GL_WorldDecalRetroProgram`), made when the first mark showed (retro is on by default). Now made in the map's
+load (`decals::prepare` -> `R_PrewarmDecalPrograms`, the opaque world's variant the settings pick: +7 ms once a
+session): the first pop 6.2 ms, a later one 3 ms. The translucent brush models' variants stay lazy (1.6-1.7 s each to
+compile here, uncached by the driver: too long for every load; a translucent brush model drawn with marks about still
+makes it then). Gore sounds were already loaded in the load; the rest of the first pop (decal buffers 1.6 ms, the
+hologram's first message) is small.
+
+**Close head pop, every time.** Not reproduced as a particle cost in the mock (RTX 4090, 2048 an eye, the camera 0.5 m
+from the head): 3700 particles, 2000 within half a metre, 5 views of cover, yet the particles take 0.2 ms of GPU (half
+size and the size cap at work; 0.4 ms with half size off). The pop frame adds ~1.4 ms of GPU (wound paint 0.6, gibs'
+models, world) and ~2.3 ms of CPU (QuakeC 0.7, Box3D 0.6, decals 1.0). PARTICLES.md has the table and the untried
+leads; to capture it in the headset: Log Next 3 Seconds, then punch.
+
+**Particle review**: PARTICLES.md (instanced, one batch for every view, atlas, near fade, size cap, half-size target with
+depth-aware upsample, reverse compositing all already in; nothing larger measured worth building).
+
+**Flamethrower and poison sprayer.** Sliders on AD Guns > Flamethrowers' Look: ours `vr_adgun_stream_fire` (density,
+existing) and `vr_adgun_fx_rate` (frequency: each flame's tongues made 1-4 times, spread back along its way; 1); AD's
+`vr_adgun_stream_alpha` (existing) and `vr_adgun_ad_copies` (AD's sprites drawn 0-3 more times between each and where
+it came from, drawn only: r_sprite.c; 0). New effects: embers and dark smoke off the fire (`vr_adgun_fx_embers` 1),
+a green mist lingering after the poison (`vr_adgun_fx_mist` 1), scorch marks where the fire licks a wall
+(`vr_adgun_fx_scorch`, 0: each new mark rebuilds the decals, 1.2 -> 6 ms of CPU a frame while the stream licks a wall).
+Cost with embers, AD copies 2 and rate 2: 353 -> 468 particles, particles' GPU 0.04 -> 0.07 ms. Heat shimmer not done
+(a distortion pass); the stream's flickering lights already exist (`vr_flame_lights`).
+
+**Default**: `vr_adgun_pyro_damage` 3 -> 4.5 (his), config migration row at 180 (a 141 config: 4.5). His
+`vr_adgun_fumigator_damage` 3 (default 2) left alone: the notes named the flamethrower.
+
+To check in VR: the first hard punch of a session (no hitch); a close head pop (if a frame still drops, Log Next 3
+Seconds first and send the framelog file); the flamethrower and poison sprayer with AD's Flames Frequency 2 and Our Fire
+Frequency 2 (worth making defaults?), the embers, the poison mist; Scorch Marks on (its cost).

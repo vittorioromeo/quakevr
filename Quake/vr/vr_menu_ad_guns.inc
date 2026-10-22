@@ -86,9 +86,22 @@
         header("Flamethrowers' Look"),
         slider("AD's Flames Opacity", "vr_adgun_stream_alpha", 0.1f, 1.f, 0.05f, "%.2f")
             .help("How opaque AD's own flame and poison sprites are (the pyros' and fumigators', theirs and yours). 1: AD's."),
+        slider("AD's Flames Frequency", "vr_adgun_ad_copies", 0.f, 3.f, 1.f, "%.0f")
+            .help("AD's flame and poison sprites drawn this many more times, between each and where it came from: a "
+                  "fuller stream (drawn only: the flames that burn stay AD's). 0: AD's alone."),
         slider("Our Fire With Them", "vr_adgun_stream_fire", 0.f, 6.f, 1.f, "%.0f")
-            .help("Tongues of the torches' fire (green: poison) carried with each of AD's flames, a tenth of a second, "
-                  "and green smoke puffing off a poisoned body. 0: AD's alone."),
+            .help("Our particles' density: tongues of the torches' fire (green: poison) carried with each of AD's "
+                  "flames, a tenth of a second, and green smoke puffing off a poisoned body. 0: AD's alone."),
+        slider("Our Fire Frequency", "vr_adgun_fx_rate", 1.f, 4.f, 1.f, "%.0fx")
+            .help("How often our tongues are made along each flame: each time spread back along its way, a denser "
+                  "stream without gaps (each time as many as Our Fire With Them)."),
+        slider("Embers and Smoke", "vr_adgun_fx_embers", 0.f, 3.f, 0.25f, "%.2fx")
+            .help("Embers thrown off the flamethrowers' fire, arcing down, and wisps of dark smoke from it. 0: none."),
+        slider("Lingering Poison Mist", "vr_adgun_fx_mist", 0.f, 3.f, 0.25f, "%.2fx")
+            .help("A faint green mist left hanging where the poison sprayers' poison went. 0: none."),
+        slider("Scorch Marks", "vr_adgun_fx_scorch", 0.f, 3.f, 0.25f, "%.2fx")
+            .help("Scorch marks where the flamethrowers' fire licks a wall or the floor. 0: none (the default: each new mark "
+                  "rebuilds the decals, about 5 ms of CPU a frame while the stream licks a wall)."),
         toggle("Fuel Tank and Hose", "vr_adgun_hose")
             .help("Holding the pyro's flamethrower or the fumigator's poison sprayer: a small fuel tank on your back and "
                   "a hose from it to the gun, swinging as you move (seen in the body's mirror image too). Off: none."),
