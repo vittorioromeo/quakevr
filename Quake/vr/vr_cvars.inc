@@ -2690,6 +2690,9 @@ QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' 
 QVR_CVAR(vr_admelee_sword_damage, "1.25", CVAR_ARCHIVE) // ... their swords' damage, times the knight's sword's (vr_sword_damage_mult; the hell knight's: 1.25)
 QVR_CVAR(vr_admelee_heavy_damage, "1.6", CVAR_ARCHIVE) // ... the hammer's and the mace's, times the knight's sword's, held in both hands (their weight: Weapon Weights, slots 45-46)
 QVR_CVAR(vr_admelee_heavy_1h, "0.5", CVAR_ARCHIVE) // ... held in one hand: their damage's share (heavy: one hand swings them slowly and weakly)
+QVR_CVAR(vr_ad_healthvial_scale, "2.5", CVAR_ARCHIVE) // AD support: AD's health vials and gems drawn this many times bigger (QC vr_ad_items.qc item_healthvial; as objects times vr_forcegrabbable_box_scale: 0.5 of AD's model; author's note 2026-10-22: far too small)
+QVR_CVAR(vr_admelee_heavy_stamina, "1.5", CVAR_ARCHIVE) // ... their blows' stamina, times a weapon's (vr_strike_stamina_cost, _2h; QC vr_melee.qc VR_Stamina_Strike; author's note 2026-10-22)
+QVR_CVAR(vr_admelee_heavy_speed, "0.8", CVAR_ARCHIVE) // ... held in either hand, you move at this times the most speed (sv_maxspeed; QC .vr_heavy_move, sv_user.c SV_AirMove)
 QVR_CVAR(vr_adgun_stream_alpha, "0.5", CVAR_ARCHIVE) // AD support: AD's flame and poison sprites' opacity (the pyros' and fumigators' streams, theirs and the player's; 1: AD's)
 QVR_CVAR(vr_adgun_stream_fire, "2", CVAR_ARCHIVE) // AD support: our torches' fire tongues (green: poison) carried with each of AD's flames, every tenth of a second; a poisoned body's green puffs (0: AD's alone, its motes)
 QVR_CVAR(vr_adgun_bolt_fx, "1", CVAR_ARCHIVE) // AD support: AD's plasma rifles' bolts electric: a faint smoke, arcs and sparks along them, at the muzzle and the hit (0: AD's grenade smoke trail)
@@ -2923,9 +2926,9 @@ QVR_CVAR(vr_kdtrig_thrown_push, "2", CVAR_ARCHIVE)        // ... its push over a
 QVR_CVAR(vr_kdtrig_thrown_speed, "160", CVAR_ARCHIVE)     // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
 QVR_CVAR(vr_kdtrig_thrown_least, "0.05", CVAR_ARCHIVE)    // ... a weaker strike (that momentum share) does nothing; from it to 1 the topple's chance grows to its full (else a stagger back)
 QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
-QVR_CVAR(vr_kdtrig_tackle_on, "0", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
+QVR_CVAR(vr_kdtrig_tackle_on, "1", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
-QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1; the knock times it)
+QVR_CVAR(vr_kdtrig_tackle_push, "1.25", CVAR_ARCHIVE)     // ... its push over and back (two hands' shove 1; the knock times it)
 QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
 QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
@@ -2934,9 +2937,11 @@ QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both han
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
 QVR_CVAR(vr_kdtrig_tackle_head, "7.5", CVAR_ARCHIVE)      // ... deg: your head tipped down at least this much (tucked, as the author charges)
 QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
-QVR_CVAR(vr_kdtrig_tackle_leniency, "0.5", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
-QVR_CVAR(vr_kdtrig_tackle_knock, "96", CVAR_ARCHIVE)      // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.85", CVAR_ARCHIVE) // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
+QVR_CVAR(vr_kdtrig_tackle_knock, "152", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
 QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
+QVR_CVAR(vr_kdtrig_tackle_contact, "2", CVAR_ARCHIVE)     // ... units: it connects with your box this near the monster's (touching; plus this frame's run), not before (author's note 2026-10-22: it connected with a lot of space left)
+QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
 QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
 // Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's
