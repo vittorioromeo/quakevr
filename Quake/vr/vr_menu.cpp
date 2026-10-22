@@ -2080,7 +2080,7 @@ const Page pages[] = {
     {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
     {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
     {"Saves and Autosaves", pageSaves, pageMain, LevelStandard}, // (vr_menu_settings.inc; vr_continue.cpp)
-    // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing.)
+    // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing, then one Item Pickup Mode switch.)
     {"Holster Calibration", pageVrsHolsters, pageVrsBodyEquipment, LevelStandard},
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
 };
@@ -2417,14 +2417,15 @@ int drawnInstance = -1;    // drawing a panel's own canvas (menu::drawInstance):
 }
 
 // ----------------------------------------------------------------------------
-// Wrappers (VR Settings' own rows over other settings, vr_cvars.inc vr_menu_*): Turning Mode, Move Towards and the one
-// mirrored hand calibration. Their cvars aren't saved: each is shown as the settings it stands for are now (syncWrappers,
+// Wrappers (VR Settings' own rows over other settings, vr_cvars.inc vr_menu_*): Turning Mode, Move Towards, Item Pickup
+// Mode and the one mirrored hand calibration. Their cvars aren't saved: each is shown as the settings it stands for are now (syncWrappers,
 // as the pages are built and drawn) and, set, sets them (onWrapperSet). Their defaults are those settings' defaults, so
 // Reset This Page and Reset All reset them too.
 // ----------------------------------------------------------------------------
 
 bool wrapperBusy = false;      // a wrapper shown (syncWrappers): not a choice made
 float lastSnapAngle = 45.f;    // Turning Mode: Snap goes back to the angle last used (45 at first)
+float lastAutocollect = 1.f;   // Item Pickup Mode: Auto-Collect goes back to its kind last used (2: backpacks too)
 int mainPageSnap = -1;         // VR Settings built with snap turning (Snap Angle shown) or smooth (Turn Speed shown)
 
 // One hand-calibration row: the main hand's setting, the off hand's (nullptr: vr_handcal_off_mirror mirrors it) and
@@ -2474,7 +2475,7 @@ const HolsterWrapper holsterWrappers[] = {
 
 [[nodiscard]] bool wrapperCvar(const cvar_t& var)
 {
-    if(&var == &vr_menu_turning || &var == &vr_menu_move_towards)
+    if(&var == &vr_menu_turning || &var == &vr_menu_move_towards || &var == &vr_menu_pickup_mode)
     {
         return true;
     }
@@ -2552,6 +2553,11 @@ void syncWrappers()
         showWrapper(*w.wrapper, za::round(w.sign * (w.offset->value - defaultOf(*w.offset)) * 100.f) / 100.f);
     }
     showWrapper(vr_menu_bullettime, bulletTimeActivation());
+    if(vr_carry_autocollect.value != 0.f)
+    {
+        lastAutocollect = vr_carry_autocollect.value >= 2.f ? 2.f : 1.f;
+    }
+    showWrapper(vr_menu_pickup_mode, vr_carry.value == 0.f ? 2.f : vr_carry_autocollect.value != 0.f ? 1.f : 0.f);
     wrapperBusy = false;
 }
 
@@ -2610,6 +2616,17 @@ void onWrapperSet(cvar_t* var)
         if(choice == 0)
         {
             Cvar_SetValueQuick(&vr_bullettime_tap, 1.f);
+        }
+    }
+    if(var == &vr_menu_pickup_mode)
+    {
+        // Immersive and Auto-Collect carry boxes (Auto-Collect's kind: ammo and health, or backpacks too, as Backpacks
+        // Too last had it); Vanilla leaves Auto-Collect as it is (no effect without carrying).
+        const int mode = static_cast<int>(var->value);
+        Cvar_SetValueQuick(&vr_carry, mode == 2 ? 0.f : 1.f);
+        if(mode != 2)
+        {
+            Cvar_SetValueQuick(&vr_carry_autocollect, mode == 1 ? lastAutocollect : 0.f);
         }
     }
     wrapperBusy = false;
@@ -3085,6 +3102,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     if(pages[page].build == pageDebugTests && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
     {
         done[page] = false; // another Thing chosen (or set by a spawn row): Put It There locked or not
+    }
+    if(pages[page].build == pageVrsItemCollection && itemCollectionPageMode != static_cast<int>(vr_menu_pickup_mode.value))
+    {
+        done[page] = false; // another pickup mode: Backpacks Too dimmed or not
     }
     if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
@@ -5417,6 +5438,7 @@ void qvr::menu::init()
         Cvar_SetCallback(w.wrapper, onWrapperSet);
     }
     Cvar_SetCallback(&vr_menu_bullettime, onWrapperSet);
+    Cvar_SetCallback(&vr_menu_pickup_mode, onWrapperSet);
 }
 
 void qvr::menu::command_f()

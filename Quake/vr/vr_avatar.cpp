@@ -1186,8 +1186,9 @@ double legsPosedAt = -1.0; // legsDeltaTime's last call (vr_gametime; -1: never)
 // take turns: one on the ground going back under the body, the other swinging forward, lifted,
 // along the direction of travel. The cadence follows the speed over the stride (so the planted
 // foot keeps up with the ground), but only up to a natural rate (vr_body_step_rate steps per
-// second at full running speed, somewhat fewer walking): Quake moves far faster than anyone
-// walks, and legs spinning to keep up look silly. Strides lengthen and the feet lift higher with
+// second at full running speed, somewhat fewer walking; at speed a person's cadence there,
+// vr_body_step_run): Quake moves far faster than anyone walks, and legs spinning to keep up
+// with a stride as short as the legs' look silly. Strides lengthen and the feet lift higher with
 // speed, less so sideways and backwards; the whole of it eases in and out as the player starts
 // and stops, and the feet tuck up in the air. The legs' IK does the knees.
 struct Gait
@@ -1332,10 +1333,13 @@ void updateGait(const Body& b, float dt)
                       za::max(0.3f, 1.f - 0.2f * wade);
         gait.lift = 0.07f + 0.07f * run + 0.1f * wade;
 
-        // Steps per second: as many as it takes to cover the ground, up to the cap.
+        // Steps per second: as many as it takes to cover the ground, up to the cap. At speed the cap rises to a person's
+        // cadence there (the footprints' steps: a run's 5-6 a second), as far as vr_body_step_run says (0: the cap
+        // alone, the legs stepping half as often as the prints at a run); the planted foot slides less, not more.
         const float cap =
             CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * za::max(0.3f, 1.f - 0.3f * wade);
-        const float rate = za::min(speed / gait.stride, cap);
+        const float person = speed / personStep(speed) * za::max(0.3f, 1.f - 0.3f * wade);
+        const float rate = za::min(speed / gait.stride, za::max(cap, CLAMP(0.f, vr_body_step_run.value, 1.5f) * person));
         const float before = gait.phase;
         gait.phase = za::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
         // A foot's swing ends (its cycle wraps: the left's at the phase's wrap, the right's at half of it): a touchdown.
@@ -2843,6 +2847,13 @@ void shadowLight(const glm::vec3& light)
 {
     // Out to a light 30 cm from the eyes: the head (10 cm round them) and the head-mounted flashlight (9 cm out).
     posed.shadowHead = vr_shadow_head.value != 0.f && glm::distance(light, posed.eyes) > 0.3f * posed.m2w;
+}
+
+float personStep(float speed)
+{
+    constexpr float base = 0.55f;     // metres
+    constexpr float perSpeed = 0.19f; // metres per metre a second
+    return CLAMP(0.6f, base + perSpeed * speed, 2.2f);
 }
 } // namespace qvr::avatar
 

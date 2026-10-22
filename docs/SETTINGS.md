@@ -82,7 +82,7 @@ hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grena
 | **Flashlight** | Flashlight (on your belt), Flashlight Side (left or right hip) |
 | **Lighting** | Ambient Light, Light Contrast |
 | **Weapons** | Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock) |
-| **Item Collection** (under Playing) | Carry Ammo and Health (grip boxes and backpacks to carry them; off: walk into them, as in Quake), Auto-Collect (off, ammo and health, and backpacks: a box gripped is taken at once) |
+| **Item Collection** (under Playing) | Item Pickup Mode (Immersive: grip boxes and backpacks to carry them, put them away at a holster; Auto-Collect: a box gripped or force-grabbed is taken at once; Vanilla: walk into them, as in Quake), Backpacks Too (Auto-Collect takes backpacks at once too). The detailed rows: Advanced VR Options > Carrying and Throwing > Carrying |
 | **Body** | Body Type (full, torso and arms, only hands), Wrist Gadget Arm, *Reset Position* |
 | **Haptics** | Vibration Strength (0: none) |
 | **HUD** | HUD (wrist gadget or status bar), Crosshair |
