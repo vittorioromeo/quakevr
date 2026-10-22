@@ -29,6 +29,11 @@ void cpu(int system, int view, za::I64 ns);
 void gpu(int system, int view, double ms);
 void gpuFrameDone(int queries); // one frame's `queries` timer queries all read: into the sums
 
+// vr_frame_log <frames> (Debug > Profiling): each of the next frames' GPU time (its total and the largest systems) and,
+// from the systems that print one (the particles), a line of their own (`framelog:` lines): a single event's cost.
+[[nodiscard]] bool frameLogOn();
+void frameLogLine(const char* text); // one (ending in a newline): the console and the log's file
+
 // The profiler's own work this frame (vr_profile.cpp's frame processing), off the frame's "other".
 void profilerTime(za::I64 ns);
 

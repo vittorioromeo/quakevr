@@ -958,6 +958,84 @@ void gpu(int system, int view, double ms)
     frameViewGpu[view] += ms;
 }
 
+// vr_frame_log: the frames logged (to host_framecount), the GPU's lagging a few frames behind.
+int frameLogUntil = -1;
+constexpr int frameLogGpuLag = 4;
+
+FILE* frameLogFile = nullptr; // each vr_frame_log's lines also in profile/framelog_<date>_<time>.txt (read after a VR session)
+
+bool frameLogOn()
+{
+    return host_framecount <= frameLogUntil;
+}
+
+void frameLogLine(const char* text)
+{
+    Con_Printf("%s", text);
+    if(!frameLogFile)
+    {
+        const za::String path = files::profileFile("framelog_", ::time(nullptr));
+        frameLogFile = fopen(path.cStr(), "a");
+        Con_Printf("vr_frame_log: %s\n", path.cStr());
+    }
+    if(frameLogFile)
+    {
+        fputs(text, frameLogFile);
+        fflush(frameLogFile);
+    }
+}
+
+void frameLog_f()
+{
+    frameLogUntil = host_framecount + (Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 30);
+    if(frameLogFile)
+    {
+        fclose(frameLogFile); // (a new file for each)
+        frameLogFile = nullptr;
+    }
+}
+
+// A GPU frame's line (vr_frame_log): its total and its four largest systems.
+void frameLogGpu(double total)
+{
+    if(host_framecount > frameLogUntil + frameLogGpuLag)
+    {
+        return;
+    }
+    int top[4] = {-1, -1, -1, -1};
+    for(int i = 0; i < SysCount; i++)
+    {
+        for(int k = 0; k < 4; k++)
+        {
+            if(top[k] < 0 || frameGpu[i] > frameGpu[top[k]])
+            {
+                for(int j = 3; j > k; j--)
+                {
+                    top[j] = top[j - 1];
+                }
+                top[k] = i;
+                break;
+            }
+        }
+    }
+    za::String line;
+    for(const int i : top)
+    {
+        if(i >= 0 && frameGpu[i] >= 0.01)
+        {
+            appendf(line, ", %s %.2f", defs[i].name, frameGpu[i]);
+        }
+    }
+    for(int i = 0; i < SysCount; i++)
+    {
+        if(!strcmp(defs[i].name, "particles"))
+        {
+            appendf(line, " (particles %.2f)", frameGpu[i]); // (always: the system these lines were made for)
+        }
+    }
+    frameLogLine(va("framelog: %d gpu %.2f ms%s\n", host_framecount, total, line.cStr()));
+}
+
 void gpuFrameDone(int queries)
 {
     double total = 0.0;
@@ -967,6 +1045,7 @@ void gpuFrameDone(int queries)
         total += frameGpu[i];
         groups[defs[i].group] += frameGpu[i];
     }
+    frameLogGpu(total);
     for(Sum* s : {&second, &half})
     {
         ++s->gpuFrames;
@@ -1041,6 +1120,10 @@ void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& count
     // are paced by the runtime, in the frame) is left out: Windows' timer oversleeping it is not the game's doing.
     const double host = static_cast<double>(hostNs) / 1e6;
     const bool isHitch = vr_profile_hitch.value > 0.f && host > vr_profile_hitch.value * budget;
+    if(frameLogOn())
+    {
+        frameLogLine(va("framelog: %d cpu %.2f ms: %s\n", host_framecount, host, scopes.empty() ? "-" : scopes.cStr()));
+    }
     if(isHitch)
     {
         hitch(period, host, budget, n, scopes);
@@ -1160,6 +1243,7 @@ void init()
 {
     Cmd_AddCommand("vr_profile_report", report_f);
     Cmd_AddCommand("vr_profile_csv_toggle", csvToggle_f);
+    Cmd_AddCommand("vr_frame_log", frameLog_f);
 }
 
 void overlay()

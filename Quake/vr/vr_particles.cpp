@@ -20,6 +20,7 @@
 #include "vr_weaponfx.hpp"
 #include "vr_lootbeams.hpp"
 #include "vr_profile.hpp"
+#include "vr_profile_systems.hpp"
 #include "vr_retro.hpp"
 #include "vr_water.hpp"
 
@@ -1667,11 +1668,90 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     return surfaceAbove(org, 96.f, surface) ? za::max(0, static_cast<int>(45.f - 0.3f * (surface.z - org.z))) : 0;
 }
 
+void adStreamTongues(const glm::vec3& org, const glm::vec3& vel, int count, bool poison);
+
+// `n` rounded up or down at random (a fraction's share of the time up): a few a second from a fraction an emission.
+[[nodiscard]] float someOf(float n)
+{
+    return za::floor(n + rnd(0.f, 1.f));
+}
+
 // AD support: a flamethrower's stream (Preset::AdFlame, AdPoison): our torches' fire tongues (CellFire, as fireSource)
 // at random angles over AD's flame sprite, going its way (`dir` its velocity / 100) and slowing, rising, fading.
+// vr_adgun_fx_rate: each think's (0.05 s) tongues made this many times over, spread back along the way the flame came
+// (a denser stream, no gaps between the flames); then the stream's extras: embers and smoke off the fire, a green mist
+// lingering after the poison (vr_adgun_fx_embers, vr_adgun_fx_mist).
 void adStreamFire(const glm::vec3& org, const glm::vec3& dir, int count, bool poison)
 {
     const glm::vec3 vel = dir * 100.f;
+    const int times = za::clamp(static_cast<int>(vr_adgun_fx_rate.value + 0.5f), 1, 4);
+    for(int t = 0; t < times; t++)
+    {
+        adStreamTongues(org - vel * (0.05f * static_cast<float>(t) / static_cast<float>(times)), vel, count, poison);
+    }
+    const float embers = za::clamp(vr_adgun_fx_embers.value, 0.f, 3.f);
+    if(!poison && embers > 0.f)
+    {
+        // Embers thrown off the stream, arcing down and dimming; now and then a wisp of dark smoke from its tail.
+        make(someOf(0.35f * embers * static_cast<float>(count)), [&](Particle& p, int) {
+            p.cell = CellSpark;
+            p.type = Custom;
+            p.additive = true;
+            p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, rnd(0.f, 0.6f)), 1.f};
+            const float life = rnd(0.5f, 1.1f);
+            p.die = cl.time + life;
+            p.fade = -0.9f / life;
+            p.scale = rnd(0.25f, 0.45f);
+            p.grow = -0.15f;
+            p.drag = 1.2f;
+            p.org = org + inBox(4.f);
+            p.vel = vel * rnd(0.3f, 0.7f) + inBox(60.f) + glm::vec3{0.f, 0.f, rnd(20.f, 70.f)};
+            p.acc = gravity(0.35f);
+        });
+        make(someOf(0.15f * embers * static_cast<float>(count)), [&](Particle& p, int) {
+            p.cell = CellSmoke;
+            p.type = Custom;
+            const float g = rnd(0.12f, 0.2f);
+            p.color = glm::vec4{g, g * 0.95f, g * 0.9f, rnd(0.18f, 0.28f)};
+            const float life = rnd(1.f, 1.6f);
+            p.die = cl.time + life;
+            p.fade = -p.color.a / life;
+            p.scale = rnd(2.f, 3.f);
+            p.grow = 3.f;
+            p.spin = rnd(-0.8f, 0.8f);
+            p.drag = 1.5f;
+            p.org = org + vel * 0.08f + inBox(6.f);
+            p.vel = vel * 0.25f + inBox(8.f) + glm::vec3{0.f, 0.f, rnd(15.f, 30.f)};
+            p.acc = glm::vec3{0.f, 0.f, 12.f};
+        });
+    }
+    const float mist = za::clamp(vr_adgun_fx_mist.value, 0.f, 3.f);
+    if(poison && mist > 0.f)
+    {
+        // A faint green mist left hanging where the poison went, slowly spreading and settling.
+        make(someOf(0.2f * mist * static_cast<float>(count)), [&](Particle& p, int) {
+            p.cell = CellSmoke;
+            p.type = Custom;
+            p.additive = true;
+            const float g = rnd(0.8f, 1.1f);
+            p.color = glm::vec4{0.25f * g, 0.6f * g, 0.1f * g, rnd(0.08f, 0.13f)};
+            const float life = rnd(2.2f, 3.4f);
+            p.die = cl.time + life;
+            p.fade = -p.color.a / life;
+            p.scale = rnd(3.5f, 5.f);
+            p.grow = 1.5f;
+            p.spin = rnd(-0.3f, 0.3f);
+            p.drag = 3.f;
+            p.org = org + inBox(8.f);
+            p.vel = vel * 0.4f + inBox(10.f);
+            p.acc = glm::vec3{0.f, 0.f, -2.f};
+        });
+    }
+}
+
+// adStreamFire's tongues: `count` of them at `org`, the flame going at `vel`.
+void adStreamTongues(const glm::vec3& org, const glm::vec3& vel, int count, bool poison)
+{
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellFire;
         p.type = Custom;
@@ -3398,6 +3478,28 @@ int reverseOrderFrame = -1;
     return reverseOrder;
 }
 
+// vr_frame_log: this frame's particles in its first view (`framelog:` lines): live, drawn, how many within half a metre
+// of the eye, how many times over they cover the view (and the large ones), and how they are drawn.
+int loggedFrame = -1;
+
+void logFrame(const gfx::ParticleSplit& split, const int viewport[4], bool half)
+{
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const float nearUnits = units::metresToUnits() * 0.5f;
+    int nearCount = 0;
+    for(za::SizeT i = 0; i < instanceCount; i++)
+    {
+        const glm::vec3 d = instances[i].org - eye;
+        nearCount += glm::dot(d, d) < nearUnits * nearUnits ? 1 : 0;
+    }
+    profile::systems::frameLogLine(va("framelog: %d particles %d live, %d drawn, %d within 0.5 m, cover %.2f views (large %.2f), half %d, "
+               "reverse %d, view %dx%d, half targets made %d\n",
+        host_framecount, liveCount(), static_cast<int>(instanceCount), nearCount,
+        screenCover(split.pixelScale, viewport), largeCover(split, viewport), half ? 1 : 0,
+        reverseOrderThisFrame(split.pixelScale, viewport) ? 1 : 0, viewport[2], viewport[3], gfx::halfTargetsMade()));
+}
+
 } // namespace qvr::particles
 
 // R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
@@ -3468,6 +3570,11 @@ extern "C" void VR_DrawSceneTranslucent()
                            vr_particle_halfres_dense.value == 0.f && reverseOrderThisFrame(split.pixelScale, viewport);
     const bool half = inView && allowHalf && !saturated &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
+    if(inView && loggedFrame != host_framecount && profile::systems::frameLogOn())
+    {
+        loggedFrame = host_framecount;
+        logFrame(split, viewport, half);
+    }
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
     // sprite or particle is drawn, or particles at half size (hidden behind them).

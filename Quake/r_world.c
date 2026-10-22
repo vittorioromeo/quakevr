@@ -621,25 +621,42 @@ static void R_WorldFragmentsEnd (qboolean shading)
 R_ChooseBModelProgram
 =============
 */
-static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
+static int R_WorldDither (void)
 {
 	extern cvar_t r_softemu_lightmap_banding;
-	int dither;
 
 	switch (softemu)
 	{
 	case SOFTEMU_BANDED:
-		dither = r_softemu_lightmap_banding.value != 0.f ? 2 : 1;
-		break;
+		return r_softemu_lightmap_banding.value != 0.f ? 2 : 1;
 
 	case SOFTEMU_COARSE:
-		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 1;
-		break;
+		return r_softemu_lightmap_banding.value > 0.f ? 2 : 1;
 
 	default:
-		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
-		break;
+		return r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
 	}
+}
+
+/*
+=============
+R_PrewarmDecalPrograms
+
+QVR: the world's programs with the decals' retro textures' code, made in the map's load (vr/vr_decals.cpp prepare) when
+the decals have a retro set: made by the first mark's frame instead, they were the first punch's hitch (8 ms on the main
+thread; ROUND22.md, "Gore hitches"). Once a session (kept until a video restart). Only the opaque world's (`pdo`: the
+parallax's depth written, as R_DrawBrushModels_Real picks it): the translucent brush models' (non-pdo, OIT) are made
+when first drawn with marks about, as before (1.6-1.7 s each here, uncached by the driver: too long for every load).
+=============
+*/
+void R_PrewarmDecalPrograms (qboolean pdo)
+{
+	GL_WorldDecalRetroProgram (0, R_WorldDither (), pdo);
+}
+
+static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
+{
+	const int dither = R_WorldDither ();
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
 		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)

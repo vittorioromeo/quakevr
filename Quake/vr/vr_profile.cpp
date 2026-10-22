@@ -1188,7 +1188,8 @@ extern "C" void VR_ProfileFrame()
         const double period = static_cast<double>(now - frameStart) / 1e6;
         const bool hitch = period > hitchMs;
         const double hitchAt = systems::hitchMs();
-        const za::String hitchScopes = hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt ? frameTopScopes() : "";
+        const za::String hitchScopes =
+            (hitchAt > 0.0 && static_cast<double>(hostNs) / 1e6 > hitchAt) || systems::frameLogOn() ? frameTopScopes() : "";
         foldCpu(!hitch);
         GpuSlot& s = slots[slotIndex];
         if(hitch)
@@ -1231,7 +1232,7 @@ extern "C" void VR_ProfileFrame()
     // Collecting: for the call tree's CSV (vr_profile), the panel or the systems' CSV. The call tree's capture starts
     // with vr_profile, and anew at each map (a file each).
     const bool record = vr_profile.value != 0.f;
-    const bool want = record || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f;
+    const bool want = record || vr_profile_overlay.value != 0.f || vr_profile_csv.value != 0.f || systems::frameLogOn();
     const bool longEnough = now - intervalStart > 500'000'000; // not just what followed a vr_profile_dump
     if(recording && (!record || !want || mapName != captureMap))
     {

@@ -1794,6 +1794,8 @@ void propHit(const glm::vec3& at, const glm::vec3& normal, float speed, float ma
     VR_BroadcastMessageEnd();
 }
 
+double nextScorch = 0.0; // fromEffect's flamethrower scorches: none before this (cl.time), a few a second at most
+
 void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset preset, int count)
 {
     using particles::Preset;
@@ -1834,6 +1836,17 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
                 add(Scorch, where, normal, random(8.f, 14.f));
             }
             break;
+        case Preset::AdFlame: // a flamethrower's flame licking a wall or floor: now and then a scorch (vr_adgun_fx_scorch)
+        {
+            const float often = za::clamp(vr_adgun_fx_scorch.value, 0.f, 3.f);
+            if(often > 0.f && (cl.time >= nextScorch || cl.time < nextScorch - 1.0) && random(0.f, 1.f) < 0.12f * often &&
+                nearest(org, 12.f, -back, where, normal))
+            {
+                nextScorch = cl.time + 0.06 / often;
+                add(Scorch, where, normal, random(9.f, 15.f));
+            }
+            break;
+        }
         default: break;
     }
 }
@@ -2839,6 +2852,13 @@ void prepare()
     if(!atlas && vr_decals.value)
     {
         makeAtlas();
+    }
+    // The world's shader with the decals' retro code (their retro set), made at the first mark otherwise: the first
+    // punch's 8 ms hitch (ROUND22.md, "Gore hitches").
+    if(vr_decals.value && onWorld() && retro::categorySet(retro::Category::Decals) > 0)
+    {
+        // (The opaque world's: with the parallax's depth written, as vr_lighting.cpp sets r_framedata.parallax2[3].)
+        R_PrewarmDecalPrograms(vr_parallax.value != 0.f && vr_normalmaps.value != 0.f && vr_parallax_depth_write.value != 0.f);
     }
 }
 
