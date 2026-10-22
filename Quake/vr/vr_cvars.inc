@@ -2113,23 +2113,28 @@ QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // their volume (0 none; 
 QVR_CVAR(vr_gore_sound_debug, "0", CVAR_NONE)          // 1: each gore sound played or dropped (capped, rate-limited, too far, off), and why; each file loaded and its length (at a map load)
 QVR_CVAR(vr_gore_sound_choke, "0", CVAR_ARCHIVE)       // a beheaded or face-smashed monster's wet choke instead of its cry (0: never, its cries never muted)
 // Each kind's volume, times vr_gore_sound (0 none; up to 2):
-QVR_CVAR(vr_gore_sound_vol_spurt, "1", CVAR_ARCHIVE)   // a stump's spurts
-QVR_CVAR(vr_gore_sound_vol_pour, "1", CVAR_ARCHIVE)    // blood streams splattering on the floor
-QVR_CVAR(vr_gore_sound_vol_choke, "1", CVAR_ARCHIVE)   // the chokes (vr_gore_sound_choke 1)
-QVR_CVAR(vr_gore_sound_vol_tear, "1", CVAR_ARCHIVE)    // limbs and heads torn off
-QVR_CVAR(vr_gore_sound_vol_squelch, "1", CVAR_ARCHIVE) // a hand taking a gib or a dead body
-QVR_CVAR(vr_gore_sound_vol_step, "1", CVAR_ARCHIVE)    // your wet steps after a pool
-QVR_CVAR(vr_gore_sound_vol_slap, "1", CVAR_ARCHIVE)    // gibs slapping into walls
-QVR_CVAR(vr_gore_sound_vol_splash, "1", CVAR_ARCHIVE)  // your foot splashing into a pool of blood
+QVR_CVAR(vr_gore_sound_vol_spurt, "0.75", CVAR_ARCHIVE)   // a stump's spurts
+QVR_CVAR(vr_gore_sound_vol_pour, "0.75", CVAR_ARCHIVE)    // blood streams splattering on the floor
+QVR_CVAR(vr_gore_sound_vol_choke, "0.75", CVAR_ARCHIVE)   // the chokes (vr_gore_sound_choke 1)
+QVR_CVAR(vr_gore_sound_vol_tear, "0.75", CVAR_ARCHIVE)    // limbs and heads torn off
+QVR_CVAR(vr_gore_sound_vol_squelch, "0.75", CVAR_ARCHIVE) // a hand taking a gib or a dead body
+QVR_CVAR(vr_gore_sound_vol_step, "0.75", CVAR_ARCHIVE)    // your wet steps after a pool
+QVR_CVAR(vr_gore_sound_vol_slap, "0.75", CVAR_ARCHIVE)    // gibs slapping into walls
+QVR_CVAR(vr_gore_sound_vol_splash, "0.75", CVAR_ARCHIVE)  // your foot splashing into a pool of blood
+QVR_CVAR(vr_gore_sound_vol_drip, "1", CVAR_ARCHIVE)       // drops of blood hitting the floor: yours (vr_body_blood), the ceilings' and stuck gibs' (vr_gore_drips)
+QVR_CVAR(vr_gore_sound_drips, "1", CVAR_ARCHIVE)          // ... the share of the drops heard (1: every drop; 0 none)
 // Bloody footprints and handprints (vr_bloodprints.cpp; ROUND22.md, "Bloody footprints and handprints"): decals as the
 // blood's, permanent as theirs (vr_decals 0: none).
 QVR_CVAR(vr_footprints, "1", CVAR_ARCHIVE)             // stepping in a pool of blood or on a bloody body leaves bloody footprints
 QVR_CVAR(vr_footprint_count, "8", CVAR_ARCHIVE)        // ... this many after it (1..32)
 QVR_CVAR(vr_footprint_fade, "1", CVAR_ARCHIVE)         // ... fading this much from the first to the last (0: all as strong; 1: the last faint)
-QVR_CVAR(vr_footprint_size, "1", CVAR_ARCHIVE)         // ... times your foot's size (0.5..2)
+QVR_CVAR(vr_footprint_size, "1.6", CVAR_ARCHIVE)       // ... times your foot's size (0.5..2)
+QVR_CVAR(vr_footprint_rate, "1", CVAR_ARCHIVE)         // ... times as many: a print a step's length walked (a person's at your speed: 0.7 m walking, up to 2.2 m at a run), over this (0.25..4)
 QVR_CVAR(vr_handprints, "1", CVAR_ARCHIVE)             // a very bloody hand (a gib held, a bloody blow) touching a wall or a ledge leaves a bloody handprint
 QVR_CVAR(vr_handprint_count, "6", CVAR_ARCHIVE)        // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32)
-QVR_CVAR(vr_handprint_size, "1", CVAR_ARCHIVE)         // ... times your hand's size (0.5..2)
+QVR_CVAR(vr_handprint_size, "1.6", CVAR_ARCHIVE)       // ... times your hand's size (0.5..2)
+QVR_CVAR(vr_handprint_props, "1", CVAR_ARCHIVE)        // ... on props too (crates, barrels, boxes, things lying about): its blood painted on it
+QVR_CVAR(vr_handprint_gear, "1", CVAR_ARCHIVE)         // ... and on what a bloody hand holds (its weapon, a prop it carries) where it grips it, building up as you hold it; the weapon's stays with it
 QVR_CVAR(vr_bloodprints_debug, "0", CVAR_NONE)         // 1: each footprint and handprint (where, its foot's or hand's ankle/wrist and way), each pool or body that bloodied your feet; 2: also each bloody hand's palm test every 30 frames
 // Blood streaming out of bullet holes (vr_bloodstream.cpp; ROUND22.md, "More gore"): a thin stream pouring from a shot's
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
@@ -2685,6 +2690,9 @@ QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' 
 QVR_CVAR(vr_admelee_sword_damage, "1.25", CVAR_ARCHIVE) // ... their swords' damage, times the knight's sword's (vr_sword_damage_mult; the hell knight's: 1.25)
 QVR_CVAR(vr_admelee_heavy_damage, "1.6", CVAR_ARCHIVE) // ... the hammer's and the mace's, times the knight's sword's, held in both hands (their weight: Weapon Weights, slots 45-46)
 QVR_CVAR(vr_admelee_heavy_1h, "0.5", CVAR_ARCHIVE) // ... held in one hand: their damage's share (heavy: one hand swings them slowly and weakly)
+QVR_CVAR(vr_ad_healthvial_scale, "2.5", CVAR_ARCHIVE) // AD support: AD's health vials and gems drawn this many times bigger (QC vr_ad_items.qc item_healthvial; as objects times vr_forcegrabbable_box_scale: 0.5 of AD's model; author's note 2026-10-22: far too small)
+QVR_CVAR(vr_admelee_heavy_stamina, "1.5", CVAR_ARCHIVE) // ... their blows' stamina, times a weapon's (vr_strike_stamina_cost, _2h; QC vr_melee.qc VR_Stamina_Strike; author's note 2026-10-22)
+QVR_CVAR(vr_admelee_heavy_speed, "0.8", CVAR_ARCHIVE) // ... held in either hand, you move at this times the most speed (sv_maxspeed; QC .vr_heavy_move, sv_user.c SV_AirMove)
 QVR_CVAR(vr_adgun_stream_alpha, "0.5", CVAR_ARCHIVE) // AD support: AD's flame and poison sprites' opacity (the pyros' and fumigators' streams, theirs and the player's; 1: AD's)
 QVR_CVAR(vr_adgun_stream_fire, "2", CVAR_ARCHIVE) // AD support: our torches' fire tongues (green: poison) carried with each of AD's flames, every tenth of a second; a poisoned body's green puffs (0: AD's alone, its motes)
 QVR_CVAR(vr_adgun_fx_rate, "1", CVAR_ARCHIVE) // AD support: how often our tongues are made along each flame (1..4): each time's spread back along its way, a denser stream without gaps (each time as many as Our Fire With Them)
@@ -2923,9 +2931,9 @@ QVR_CVAR(vr_kdtrig_thrown_push, "2", CVAR_ARCHIVE)        // ... its push over a
 QVR_CVAR(vr_kdtrig_thrown_speed, "160", CVAR_ARCHIVE)     // ... units/s a body of the monster's own weight topples it at (its momentum over the monster's weight at this: 1); a quarter of it the least that counts
 QVR_CVAR(vr_kdtrig_thrown_least, "0.05", CVAR_ARCHIVE)    // ... a weaker strike (that momentum share) does nothing; from it to 1 the topple's chance grows to its full (else a stagger back)
 QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
-QVR_CVAR(vr_kdtrig_tackle_on, "0", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
+QVR_CVAR(vr_kdtrig_tackle_on, "1", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
-QVR_CVAR(vr_kdtrig_tackle_push, "1", CVAR_ARCHIVE)        // ... its push over and back (two hands' shove 1; the knock times it)
+QVR_CVAR(vr_kdtrig_tackle_push, "1.25", CVAR_ARCHIVE)     // ... its push over and back (two hands' shove 1; the knock times it)
 QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
 QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
@@ -2934,9 +2942,11 @@ QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both han
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
 QVR_CVAR(vr_kdtrig_tackle_head, "7.5", CVAR_ARCHIVE)      // ... deg: your head tipped down at least this much (tucked, as the author charges)
 QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
-QVR_CVAR(vr_kdtrig_tackle_leniency, "0.5", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
-QVR_CVAR(vr_kdtrig_tackle_knock, "96", CVAR_ARCHIVE)      // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.85", CVAR_ARCHIVE) // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
+QVR_CVAR(vr_kdtrig_tackle_knock, "152", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
 QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
+QVR_CVAR(vr_kdtrig_tackle_contact, "2", CVAR_ARCHIVE)     // ... units: it connects with your box this near the monster's (touching; plus this frame's run), not before (author's note 2026-10-22: it connected with a lot of space left)
+QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
 QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
 // Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's

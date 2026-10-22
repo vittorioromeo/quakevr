@@ -57,9 +57,10 @@ RATE = phys.RATE
 
 # Loudest 50 ms (dBFS) by kind; pour: the grains' RMS.
 LEVEL_DB = {"spurt": -13.0, "choke": -14.0, "tear": -12.0, "squelch": -14.0, "step": -16.0, "slap": -13.0,
-            "splash": -14.0}
+            "splash": -14.0, "drip": -18.0}
 POUR_RMS_DB = -18.0
-FADE_OUT = {"spurt": 0.08, "choke": 0.08, "tear": 0.08, "squelch": 0.05, "step": 0.08, "slap": 0.05, "splash": 0.07}
+FADE_OUT = {"spurt": 0.08, "choke": 0.08, "tear": 0.08, "squelch": 0.05, "step": 0.08, "slap": 0.05, "splash": 0.07,
+            "drip": 0.04}
 
 # out name: layers, each (source file, start s, end s, gain, offset s in the mix); then options:
 #   lp: a low-pass (Hz, one pole, once) on the mix (the sprays darkened into a low gush; the steps' hiss),
@@ -101,6 +102,11 @@ CUTS = {
                  ("impactsplat08.mp3.flac", 0.06, 0.32, 0.45, 0.0)], {"lp": 4000.0}),
     "splash3": ([("fs_531571.mp3", 2.28, 2.56, 1.0, 0.0),
                  ("impactsplat05.mp3.flac", 0.04, 0.32, 0.4, 0.0)], {"lp": 4000.0}),
+    # a drop of blood hitting the floor: the wrung cloth's last drips on the paving (after 4.45 s), each a lone tick
+    # (the next one 20 ms after its end or later), softened
+    "drip1": ([("fs_518474.mp3", 5.155, 5.29, 1.0, 0.0)], {"lp": 5000.0}),
+    "drip2": ([("fs_518474.mp3", 6.510, 6.60, 1.0, 0.0)], {"lp": 5000.0}),
+    "drip3": ([("fs_518474.mp3", 6.725, 6.85, 1.0, 0.0)], {"lp": 5000.0}),
 }
 # The blood stream's grains: its steadiest 0.6 s windows (of 1.9..4.45 s: the stream on the paving, before the drips).
 POUR = {"pour1": ("fs_518474.mp3", 2.76), "pour2": ("fs_518474.mp3", 3.46)}

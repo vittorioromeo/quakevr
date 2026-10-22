@@ -82,6 +82,7 @@ sound played by a constructed name may list only its table.
 | `vr/gore/step1..3.wav` | 0.23-0.24 s | downloaded: Freesound, CC0, cut by `make_gore_sounds.py` (times in CREDITS.md): 531571 patchytherat | your wet steps after a pool of blood | vr_goresound.cpp:stepFrame | `vr_gore_sound` |
 | `vr/gore/slap1..3.wav` | 0.18-0.23 s | downloaded: Freesound, CC0, cut by `make_gore_sounds.py` (times in CREDITS.md): 540077 magnuswaker, 223967 dav0r; OpenGameArt, CC0: Independent.nu *8 wet squish, slurp impacts* | a gib slapping into a wall or a ceiling | vr_goresound.cpp:gibHit; vr_gore.cpp:gibImpact | `vr_gore_sound` |
 | `vr/gore/splash1..3.wav` | 0.28-0.34 s | downloaded: Freesound, CC0, cut by `make_gore_sounds.py` (times in CREDITS.md): 531571 patchytherat; OpenGameArt, CC0: Independent.nu *8 wet squish, slurp impacts* | your foot stepping into a pool of blood | vr_goresound.cpp:stepFrame | `vr_gore_sound`, `vr_gore_sound_vol_splash` |
+| `vr/gore/drip1..3.wav` | 0.09-0.14 s | downloaded: Freesound, CC0, cut by `make_gore_sounds.py` (times in CREDITS.md): 518474 phonoflora (the wrung cloth's last drips on the paving) | a drop of blood hitting the floor: yours, a ceiling's, a stuck gib's | vr_goresound.cpp:drip; vr_bodyblood.cpp:land; vr_gore.cpp:frame | `vr_gore_sound`, `vr_gore_sound_vol_drip`, `vr_gore_sound_drips` |
 
 ### Gore sounds: what each should be (vr_goresound.cpp; ROUND22.md, "Gore sounds: recordings")
 
@@ -100,6 +101,7 @@ replaced are still made by `make_gore_placeholders.py` (`ph_*.wav`, not shipped:
 - `squelch`: a hand closing on something soft and wet, 0.2-0.3 s.
 - `step`: a footstep in a shallow puddle of something thick, 0.2-0.3 s, quieter than a normal step.
 - `slap`: a wet lump hitting a wall, 0.15-0.25 s.
+- `drip`: one drop of liquid hitting stone: a small soft tick, 0.08-0.15 s, quiet (heard for every drop).
 
 ## Water
 

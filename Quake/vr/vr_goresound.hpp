@@ -30,6 +30,7 @@ enum class Kind : int
     Step,    // your wet steps
     Slap,    // a gib into a wall or a ceiling (vr_gore.cpp gibImpact)
     Splash,  // your foot into a pool of blood (the client's own: stepFrame)
+    Drip,    // a drop of blood hitting the floor (the client's own: drip)
     Count
 };
 
@@ -49,6 +50,10 @@ void parseEvent();
 
 // One of `kind` from `at` (`ent` its entity, 0 none), `strength` 0..1 (the volume's share).
 void play(Kind kind, int ent, const glm::vec3& at, float strength);
+
+// A drop of blood landing at `at` (yours, vr_bodyblood.cpp; a ceiling's or a stuck gib's, vr_gore.cpp), `strength` 0..1:
+// a quiet drip, vr_gore_sound_drips of the drops (1: each), capped and rate-limited as the others.
+void drip(const glm::vec3& at, float strength);
 
 // A stream (`key`: its slot) pouring onto the floor at `at` this frame, `flow` 0..1 (vr_bloodstream.cpp).
 void pour(int key, const glm::vec3& at, float flow);

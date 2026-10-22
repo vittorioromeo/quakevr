@@ -12,6 +12,8 @@
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
@@ -30,13 +32,22 @@ constexpr float ankleShare = 0.75f;    // the ankle to the toe: this much of the
 constexpr float bootWidth = 0.38f;     // the sole's width over its length
 constexpr float handLength = 0.19f;
 constexpr float handWidth = 0.11f;
-// A foot is lifted above this (metres over the lower foot) and down again under footDown: a step.
-constexpr float footUp = 0.025f;
-constexpr float footDown = 0.008f;
 constexpr float bodyReach = 22.f;      // units: a bloody body's origin this near a foot (level), and
 constexpr float bodyHeight = 32.f;     // ... this near up or down, is stepped on
-constexpr float fallbackStride = 0.7f; // metres walked a step without the body's legs
-constexpr float fallbackApart = 0.1f;  // metres each foot is from the middle without them
+// A step's length, metres of the body, at a speed (metres a second of the body): a person's, from a walk's 0.7 m at
+// 1.4 m/s to a sprint's 2.2 m (Quake's run, 320 units/s, is a sprint's 8-12 m/s): stepBase + stepPerSpeed * speed within
+// stepLeast..stepMost, over vr_footprint_rate. The walk's legs step fewer times than that (vr_body_step_rate caps their
+// cadence: legs spinning look silly), so the prints don't wait for their touchdowns while you move.
+constexpr float stepBase = 0.55f;
+constexpr float stepPerSpeed = 0.19f;
+constexpr float stepLeast = 0.6f;
+constexpr float stepMost = 2.2f;
+constexpr double airGrace = 0.25;      // s off the ground still walking (a step down, the ground flickering off)
+constexpr float standSpeed = 0.3f;    // metres a second of the body: slower, the legs' own steps (turning on the spot)
+constexpr float fallbackApart = 0.1f;  // metres each foot is from the middle without the legs
+constexpr float apartLeast = 0.05f;    // ... with them: as posed, within these
+constexpr float apartMost = 0.2f;
+constexpr float fallbackFoot = 0.19f;  // metres from the ankle to the toe without them
 // Hands: the palm's line from this far behind its middle (the back's way) to this far in front of it, metres; the
 // surface must face the palm this much; a print at most every printGap s a hand, a touch slid this far another.
 constexpr float palmBehind = 0.08f;
@@ -45,10 +56,17 @@ constexpr float palmFacing = 0.6f;
 constexpr double printGap = 0.3;
 constexpr float slideAgain = 0.12f;
 constexpr float handLeast = 0.02f; // blood a hand needs left for a print (as a share of one print's)
+// What a bloody hand holds: its blood put where it grips it every gripGap s, a gripUse share of a print's blood each.
+constexpr double gripGap = 0.75;
+constexpr float gripUse = 0.25f;
+// A handprint over an edge: the face beyond it found this far past (units), and facing at least this much along the way
+// it goes; the part over it at least this share of the print's half-extent.
+constexpr float edgeProbe = 1.5f;
+constexpr float edgeFacing = 0.5f;
+constexpr float edgeLeast = 0.15f;
 
 struct Foot
 {
-    bool lifted = false;
     glm::vec3 last{0.f}; // where its last print (or step) was
 };
 
@@ -58,6 +76,7 @@ struct Hand
     bool touching = false;
     glm::vec3 at{0.f}; // where its last print was
     double printed = -1.0;
+    double gripped = -1.0; // when its blood was last put where it grips what it holds
 };
 
 struct State
@@ -65,8 +84,15 @@ struct State
     Foot feet[2]{};
     int feetLeft = 0;      // prints still to leave
     int feetFrom = 0;      // of how many (the fade's)
-    float walked = 0.f;    // without the legs: units walked since the last step
+    float walked = 0.f;    // units walked since the last step
     int nextSide = 0;
+    double grounded = -1.0;       // when you were last on the ground
+    unsigned legSteps[2]{0u, 0u}; // the posed legs' touchdowns at the last look (avatar::Skeleton::steps)
+    bool hasLegSteps = false;
+    // vr_bloodprints_info's step cadence (since the map began): steps taken moving, the legs' touchdowns meanwhile, the
+    // units walked and the seconds it took.
+    int steps = 0, legTouchdowns = 0;
+    double walkedUnits = 0.0, walkedSeconds = 0.0;
     glm::vec3 lastOrigin{0.f};
     bool hasOrigin = false;
     glm::vec3 lastSeen{0.f}; // your origin last frame (a teleport: settle)
@@ -74,6 +100,7 @@ struct State
     int settle = 0;          // frames left without steps
     Hand hands[2]{};
     int footprints = 0, handprints = 0, refills = 0; // since the map began (vr_bloodprints_info)
+    int wraps = 0, propPrints = 0, grips = 0;        // ... handprints' parts round an edge, on props, grips painted
     int frames = 0;                                  // frames the feet and hands were looked at
     double seconds = 0.0, worst = 0.0;               // their time in all, the worst frame's (vr_bloodprints_info)
     double searchWorst = 0.0, placeWorst = 0.0;      // the worst bloody body search, footprint laid
@@ -83,6 +110,12 @@ State st;
 [[nodiscard]] float metres()
 {
     return units::metresToUnits() * units::bodyScale();
+}
+
+// A step's length in metres of the body at `speed` (metres a second of the body), before vr_footprint_rate.
+[[nodiscard]] float stepLength(float speed)
+{
+    return za::clamp(stepBase + stepPerSpeed * speed, stepLeast, stepMost);
 }
 
 [[nodiscard]] bool liquidAt(const glm::vec3& p)
@@ -215,35 +248,41 @@ void feetFrame()
     if(st.settle > 0)
     {
         st.settle--;
-        st.feet[0].lifted = st.feet[1].lifted = false;
+        st.hasLegSteps = false;
         st.hasOrigin = false;
         return;
     }
+    const glm::vec2 vel{cl.velocity[0], cl.velocity[1]};
+    const float speed = glm::length(vel) / m2w; // metres a second of the body
+    const bool moving = speed >= standSpeed;
     avatar::Skeleton k;
-    if(avatar::skeleton(k) && k.legs)
+    const bool legs = avatar::skeleton(k) && k.legs;
+    // Standing (turning on the spot, squaring up): the legs' own steps, each where its foot came down.
+    if(legs)
     {
-        st.hasOrigin = false;
-        const float low = za::min(k.ankle[0].z, k.ankle[1].z);
         for(int side = 0; side < 2; side++)
         {
-            const float h = k.ankle[side].z - low;
-            Foot& ft = st.feet[side];
-            if(h > footUp * m2w)
+            if(st.hasLegSteps && k.steps[side] != st.legSteps[side])
             {
-                ft.lifted = true;
-            }
-            else if(ft.lifted && h < footDown * m2w)
-            {
-                ft.lifted = false;
-                if(cl.onground)
+                if(moving)
+                {
+                    st.legTouchdowns++;
+                }
+                else if(cl.onground)
                 {
                     footDown_(side, k.ankle[side], k.toe[side], k.sole[side]);
                 }
             }
+            st.legSteps[side] = k.steps[side];
         }
-        return;
+        st.hasLegSteps = true;
     }
-    // Without the legs: a step every stride walked on the ground, along the way you go.
+    else
+    {
+        st.hasLegSteps = false;
+    }
+    // Moving: a step every step's length walked on the ground (stepLength), the feet in turn, each beside the way you go
+    // as the legs stand apart, along its foot.
     if(!st.hasOrigin)
     {
         st.lastOrigin = origin;
@@ -253,24 +292,126 @@ void feetFrame()
     const glm::vec2 d{origin.x - st.lastOrigin.x, origin.y - st.lastOrigin.y};
     st.lastOrigin = origin;
     const float moved = glm::length(d);
-    if(moved > 64.f || !cl.onground)
+    // On the ground, or off it only a moment (a step down, the ground flickering off over a seam): still walking.
+    if(cl.onground || cl.time < st.grounded)
     {
-        st.walked = moved > 64.f ? 0.f : st.walked;
+        st.grounded = cl.time;
+    }
+    const bool walking = cl.time - st.grounded < airGrace;
+    if(moved > 64.f || !walking || !moving)
+    {
+        st.walked = moved > 64.f || !moving ? 0.f : st.walked;
         return;
     }
     st.walked += moved;
-    if(st.walked < fallbackStride * m2w || moved < 1e-3f)
+    st.walkedUnits += moved;
+    st.walkedSeconds += cl.time - cl.oldtime;
+    const float rate = za::clamp(vr_footprint_rate.value, 0.25f, 4.f);
+    if(st.walked < stepLength(speed) * m2w / rate || moved < 1e-3f)
     {
         return;
     }
     st.walked = 0.f;
-    const glm::vec3 fwd{d.x / moved, d.y / moved, 0.f};
-    const glm::vec3 left{-fwd.y, fwd.x, 0.f};
+    st.steps++;
     const int side = st.nextSide;
     st.nextSide ^= 1;
-    const float sole = 0.07f * m2w;
-    const glm::vec3 ankle = origin + glm::vec3{0.f, 0.f, -24.f + sole} + left * ((side == 0 ? 1.f : -1.f) * fallbackApart * m2w);
-    footDown_(side, ankle, ankle + fwd * (0.19f * m2w), sole);
+    const glm::vec3 way{d.x / moved, d.y / moved, 0.f};
+    glm::vec3 left{-way.y, way.x, 0.f};
+    glm::vec3 fwd = way;
+    float apart = fallbackApart * m2w, foot = fallbackFoot * m2w, sole = 0.07f * m2w;
+    if(legs)
+    {
+        const glm::vec3 hips{k.hip[0].x - k.hip[1].x, k.hip[0].y - k.hip[1].y, 0.f};
+        if(glm::length(hips) > 1e-3f)
+        {
+            left = glm::normalize(hips); // (the body's left: across its hips, whichever way it goes)
+            const glm::vec3 mid = (k.hip[0] + k.hip[1]) * 0.5f;
+            apart = za::clamp(za::fabs(glm::dot(k.ankle[side] - mid, left)), apartLeast * m2w, apartMost * m2w);
+        }
+        const glm::vec3 toe = k.toe[side] - k.ankle[side];
+        if(const glm::vec3 flat{toe.x, toe.y, 0.f}; glm::length(flat) > 0.02f * m2w)
+        {
+            fwd = glm::normalize(flat);
+            foot = glm::length(toe);
+        }
+        sole = k.sole[side];
+    }
+    const glm::vec3 ankle = origin + glm::vec3{0.f, 0.f, -24.f + sole} + left * ((side == 0 ? 1.f : -1.f) * apart);
+    footDown_(side, ankle, ankle + fwd * foot, sole);
+}
+
+// A handprint laid at `centre` on a face (`normal`), `along` its length, `halfLen` by `halfWidth` (`width` across, as
+// place takes it, with `o`): its part over an edge (a ledge's top beyond the wall a climbing hand is on, the floor at a
+// wall's foot) laid on the face beyond as well, the print unfolded onto it (turned about the edge, its two parts meeting
+// there: each cut where its face ends). How many such parts were laid (0..2).
+int wrapPrint(const glm::vec3& centre, const glm::vec3& normal, const glm::vec3& along, float halfLen, float halfWidth,
+    float width, const decals::MarkOptions& o)
+{
+    const glm::vec3 across = glm::cross(normal, along);
+    const glm::vec3 ways[4]{along, -along, across, -across};
+    const float extents[4]{halfLen, halfLen, halfWidth, halfWidth};
+    int laid = 0;
+    for(int i = 0; i < 4 && laid < 2; i++)
+    {
+        const glm::vec3& d = ways[i];
+        const float e = extents[i];
+        glm::vec3 hit, beyond;
+        float f;
+        // A face rising across the way (a wall's foot, an inside corner): met along the print, just over it.
+        const glm::vec3 a = centre + normal * edgeProbe;
+        if(decals::trace(a, a + d * e, hit, beyond, f))
+        {
+            if(glm::dot(beyond, -d) < edgeFacing)
+            {
+                continue;
+            }
+        }
+        else
+        {
+            // The face ending under the print (a ledge's edge): the face beyond it, met from over it, back the way.
+            const glm::vec3 q = centre + d * e;
+            glm::vec3 n;
+            if(decals::trace(q + normal * edgeProbe, q - normal * (2.f * edgeProbe), hit, n, f) && glm::dot(n, normal) > 0.9f)
+            {
+                continue; // (the face goes on)
+            }
+            const glm::vec3 b = q - normal * edgeProbe;
+            if(!decals::trace(b, b - d * e, hit, beyond, f) || glm::dot(beyond, d) < edgeFacing)
+            {
+                continue;
+            }
+        }
+        if(vr_bloodprints_debug.value >= 2.f)
+        {
+            Con_Printf("bloodprints: edge probe %d: a face beyond at %.1f %.1f %.1f facing %.2f %.2f %.2f\n", i, hit.x, hit.y,
+                hit.z, beyond.x, beyond.y, beyond.z);
+        }
+        const glm::vec3 edge = hit - normal * glm::dot(hit - centre, normal); // (on the print's face, at the edge)
+        const float over = e - glm::dot(edge - centre, d);
+        const glm::vec3 axis = glm::cross(normal, beyond);
+        const float sine = glm::length(axis);
+        if(over < edgeLeast * e || sine < 1e-3f)
+        {
+            continue;
+        }
+        // Turned about the edge, taking the face's normal onto the face beyond's (Rodrigues).
+        const glm::vec3 k = axis / sine;
+        const float cosine = glm::dot(normal, beyond);
+        const auto turn = [&](const glm::vec3& v) {
+            return v * cosine + glm::cross(k, v) * sine + k * (glm::dot(k, v) * (1.f - cosine));
+        };
+        decals::MarkOptions o2 = o;
+        o2.along = turn(o.along);
+        const glm::vec3 c2 = edge + turn(centre - edge);
+        const bool placed = decals::place(decals::Mark::Handprint, c2, beyond, width, o2);
+        laid += placed ? 1 : 0;
+        if(debug())
+        {
+            Con_Printf("bloodprints: handprint %s round an edge %.1f units over, onto %.2f %.2f %.2f at %.1f %.1f %.1f\n",
+                placed ? "laid" : "NOT laid", over, beyond.x, beyond.y, beyond.z, c2.x, c2.y, c2.z);
+        }
+    }
+    return laid;
 }
 
 // A hand's palm on the world: a print at a new touch (or one slid along), its blood used up.
@@ -290,19 +431,57 @@ void handFrame(int hand, const avatar::HandPose& hp)
         h.touching = false;
         return;
     }
+    const float size = za::clamp(vr_handprint_size.value, 0.5f, 2.f);
+    const float len = handLength * m2w * size, width = handWidth * m2w * size;
+    // What it holds (its weapon, a prop it carries): blood where it grips it, now and then while it holds it.
+    if(vr_handprint_gear.value && (h.gripped < 0.0 || cl.time - h.gripped >= gripGap || cl.time < h.gripped) &&
+        wounds::gripPrint(hand, mid, width * 0.5f, za::min(h.blood, 1.f)))
+    {
+        h.gripped = cl.time;
+        h.blood = za::max(0.f, h.blood - use * gripUse);
+        st.grips++;
+    }
     glm::vec3 where, normal;
     float f;
-    const bool touch = decals::trace(mid + hp.back * (palmBehind * m2w), mid - hp.back * (palmReach * m2w), where, normal, f) &&
-                       glm::dot(normal, hp.back) > palmFacing;
+    const glm::vec3 from = mid + hp.back * (palmBehind * m2w);
+    const float reach = (palmBehind + palmReach) * m2w;
+    bool touch = decals::trace(from, mid - hp.back * (palmReach * m2w), where, normal, f) && glm::dot(normal, hp.back) > palmFacing;
+    // A prop lying about, nearer than the world: its own blood painted on it.
+    glm::vec3 propAt, propNormal;
+    const int prop = wounds::palmTouch(from, -hp.back, touch ? f * reach : reach, propAt, propNormal);
+    if(prop && glm::dot(propNormal, hp.back) > palmFacing)
+    {
+        touch = true;
+        where = propAt;
+        normal = propNormal;
+    }
+    else if(prop)
+    {
+        touch = false; // (a prop in the way, not facing the palm)
+    }
     if(vr_bloodprints_debug.value >= 2.f && (st.frames % 30) == 0)
     {
-        Con_Printf("bloodprints: hand %d palm %.1f %.1f %.1f, its back's way %.2f %.2f %.2f: %s\n", hand, mid.x, mid.y, mid.z,
-            hp.back.x, hp.back.y, hp.back.z, touch ? "touching" : "free");
+        Con_Printf("bloodprints: hand %d palm %.1f %.1f %.1f, its back's way %.2f %.2f %.2f: %s%s\n", hand, mid.x, mid.y, mid.z,
+            hp.back.x, hp.back.y, hp.back.z, touch ? "touching" : "free", prop ? " a prop" : "");
     }
     const bool fresh = touch && (!h.touching || glm::distance(where, h.at) > slideAgain * m2w);
     h.touching = touch;
     if(!fresh || (h.printed >= 0.0 && cl.time - h.printed < printGap && cl.time >= h.printed))
     {
+        return;
+    }
+    if(prop)
+    {
+        const float strength = za::min(h.blood, 1.f);
+        const bool painted = wounds::handprintOn(prop, where, len * 0.5f, strength);
+        h.at = where;
+        h.printed = cl.time;
+        if(painted)
+        {
+            h.blood = za::max(0.f, h.blood - use);
+            st.handprints++;
+            st.propPrints++;
+        }
         return;
     }
     // Along the hand on the surface; the thumb (its index finger's side: hp.up) on the cell's +y or mirrored.
@@ -316,8 +495,6 @@ void handFrame(int hand, const avatar::HandPose& hp)
         return;
     }
     along = glm::normalize(along);
-    const float size = za::clamp(vr_handprint_size.value, 0.5f, 2.f);
-    const float len = handLength * m2w * size, width = handWidth * m2w * size;
     glm::vec3 centre = hp.wrist + along * (len * 0.5f);
     centre -= normal * glm::dot(centre - where, normal);
     const float strength = za::min(h.blood, 1.f);
@@ -333,6 +510,7 @@ void handFrame(int hand, const avatar::HandPose& hp)
     {
         h.blood = za::max(0.f, h.blood - use);
         st.handprints++;
+        st.wraps += wrapPrint(centre, normal, along, len * 0.5f, width * 0.5f, width, o);
     }
     if(debug())
     {
@@ -371,18 +549,87 @@ void test_f()
                           decals::place(decals::Mark::Pool, where, normal, size);
         Con_Printf("bloodprints: pool %s at %.1f %.1f %.1f\n", laid ? "laid" : "NOT laid", where.x, where.y, where.z);
     }
+    else if(!strcmp(what, "wall") || !strcmp(what, "prop") || !strcmp(what, "floor"))
+    {
+        // A full handprint pressed ahead of you (the view's yaw, level, from `height` units over your feet): on the wall
+        // there, fingers up, wrapping round an edge as a palm's would (wall); or on the prop it meets (prop).
+        const float height = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 24.f;
+        const entity_t& pl = cl_entities[cl.viewentity];
+        const float yaw = glm::radians(cl.viewangles[YAW]);
+        const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
+        const glm::vec3 from = glm::vec3{pl.origin[0], pl.origin[1], pl.origin[2] - 24.f + height};
+        const float m2w = metres();
+        const float size = za::clamp(vr_handprint_size.value, 0.5f, 2.f);
+        const float len = handLength * m2w * size, width = handWidth * m2w * size;
+        glm::vec3 where, normal;
+        float f;
+        if(!strcmp(what, "prop"))
+        {
+            // Pressed at the middle of the nearest thing ahead (within 128 units), at its middle's height.
+            glm::vec3 dir = fwd, at = from;
+            float nearest = 128.f;
+            for(int i = cl.maxclients + 1; i < cl.num_entities; i++)
+            {
+                const entity_t& e = cl_entities[i];
+                if(!e.model || e.model == cl.worldmodel || (e.model->type != mod_alias && e.model->type != mod_brush) ||
+                    e.msgtime < cl.mtime[0] - 0.001)
+                {
+                    continue;
+                }
+                const glm::vec3 mid = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} +
+                                      (e.model->type == mod_brush ? (glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]} +
+                                                                       glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]}) * 0.5f
+                                                                  : glm::vec3{0.f});
+                const glm::vec3 to{mid.x - from.x, mid.y - from.y, 0.f};
+                const float d = glm::length(to);
+                if(d > 1.f && d < nearest && glm::dot(to / d, fwd) > 0.7f)
+                {
+                    nearest = d;
+                    dir = to / d;
+                    at = glm::vec3{from.x, from.y, mid.z};
+                }
+            }
+            const int prop = wounds::palmTouch(at, dir, 128.f, where, normal);
+            const bool painted = prop && wounds::handprintOn(prop, where, len * 0.5f, 1.f);
+            Con_Printf("bloodprints: prop %d %s at %.1f %.1f %.1f\n", prop, painted ? "printed" : "NOT printed", where.x,
+                where.y, where.z);
+            return;
+        }
+        // floor <distance>: on the floor that far ahead instead, fingers ahead (over a step's edge: onto its riser).
+        const bool floor = !strcmp(what, "floor");
+        const glm::vec3 down = from + fwd * height;
+        if(floor ? !decals::trace(glm::vec3{down.x, down.y, pl.origin[2]}, down - glm::vec3{0.f, 0.f, 256.f}, where, normal, f)
+                 : !decals::trace(from, from + fwd * 128.f, where, normal, f))
+        {
+            Con_Printf("bloodprints: no %s ahead\n", floor ? "floor" : "wall");
+            return;
+        }
+        const glm::vec3 up = floor ? fwd : glm::vec3{0.f, 0.f, 1.f};
+        const glm::vec3 along = glm::normalize(up - normal * glm::dot(up, normal));
+        decals::MarkOptions o;
+        o.along = along;
+        o.aspect = len / width;
+        o.variant = 0;
+        const glm::vec3 centre = where;
+        const bool placed = decals::place(decals::Mark::Handprint, centre, normal, width, o);
+        const int wrapped = placed ? wrapPrint(centre, normal, along, len * 0.5f, width * 0.5f, width, o) : 0;
+        Con_Printf("bloodprints: wall print %s at %.1f %.1f %.1f, %d parts round an edge\n", placed ? "laid" : "NOT laid",
+            centre.x, centre.y, centre.z, wrapped);
+    }
     else
     {
-        Con_Printf("usage: vr_bloodprints_test feet [n] | hands [amount 0..1] | pool [size]\n");
+        Con_Printf("usage: vr_bloodprints_test feet [n] | hands [amount 0..1] | pool [size] | wall [height] | prop [height] | "
+                   "floor [distance]\n");
     }
 }
 
 // vr_bloodprints_info: the feet's prints left, the hands' blood, the prints laid since the map began.
 void info_f()
 {
-    Con_Printf("bloodprints: feet %d of %d left, hands' blood %.2f %.2f; %d footprints, %d handprints laid, feet bloodied "
-               "%d times\n",
-        st.feetLeft, st.feetFrom, st.hands[0].blood, st.hands[1].blood, st.footprints, st.handprints, st.refills);
+    Con_Printf("bloodprints: feet %d of %d left, hands' blood %.2f %.2f; %d footprints, %d handprints laid (%d parts round "
+               "an edge, %d on props), %d grips painted, feet bloodied %d times\n",
+        st.feetLeft, st.feetFrom, st.hands[0].blood, st.hands[1].blood, st.footprints, st.handprints, st.wraps,
+        st.propPrints, st.grips, st.refills);
     avatar::Skeleton k;
     const bool posed = avatar::skeleton(k);
     const entity_t& pl = cl_entities[cl.viewentity];
@@ -392,6 +639,20 @@ void info_f()
         !posed ? "not posed" : k.legs ? "posed with its legs" : "posed without legs", k.ankle[0].x, k.ankle[0].y,
         k.ankle[0].z, k.ankle[1].x, k.ankle[1].y, k.ankle[1].z, st.frames,
         st.frames > 0 ? st.seconds / st.frames * 1e6 : 0.0, st.worst * 1e6, st.searchWorst * 1e6, st.placeWorst * 1e6);
+    // The step cadence: the prints' steps moving, against the legs' touchdowns meanwhile.
+    const double perSecond = st.walkedSeconds > 0.0 ? 1.0 / st.walkedSeconds : 0.0;
+    const float m2w = metres();
+    const float speed = glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
+    Con_Printf("bloodprints: steps %d (%.2f a second, one every %.1f units) over %.0f units in %.2f s (%.0f u/s); the legs' "
+               "touchdowns meanwhile %d (%.2f a second); now %.0f u/s: a step every %.1f units\n",
+        st.steps, st.steps * perSecond, st.steps > 0 ? st.walkedUnits / st.steps : 0.0, st.walkedUnits, st.walkedSeconds,
+        st.walkedUnits * perSecond, st.legTouchdowns, st.legTouchdowns * perSecond, speed,
+        stepLength(speed / m2w) * m2w / za::clamp(vr_footprint_rate.value, 0.25f, 4.f));
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        st.steps = st.legTouchdowns = 0;
+        st.walkedUnits = st.walkedSeconds = 0.0;
+    }
 }
 
 } // namespace
@@ -411,7 +672,7 @@ void frame(const hands::State& s, const avatar::HandPose* const drawnHands[2])
     if(cls.state != ca_connected || !cl.worldmodel || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities ||
         cl.stats[STAT_HEALTH] <= 0 || !vr_decals.value)
     {
-        st.feet[0].lifted = st.feet[1].lifted = false;
+        st.hasLegSteps = false;
         st.hasOrigin = false;
         st.hasLast = false;
         if(cl.stats[STAT_HEALTH] <= 0)

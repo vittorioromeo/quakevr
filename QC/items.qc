@@ -1484,12 +1484,18 @@ void() forcegrabbable_item_think =
 
 // Ammo and health boxes as objects: drawn at vr_forcegrabbable_box_scale (brush models too),
 // centred on the origin, their touch box the drawn box, resting where the box stood.
+.float vr_pickup_scale; // VR: a pickup drawn bigger than its model (AD's health vials: vr_ad_items.qc), times the boxes' scale
+
 void() MakeItemGrabbable =
 {
     float scaleFactor = cvar_hget(cvarh_vr_forcegrabbable_box_scale);
     if(scaleFactor <= 0)
     {
         scaleFactor = 1;
+    }
+    if(self.vr_pickup_scale > 0)
+    {
+        scaleFactor = scaleFactor * self.vr_pickup_scale;
     }
 
     vector lo = modelbounds(self, 0);

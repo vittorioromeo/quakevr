@@ -411,6 +411,7 @@ float VR_WaterStickScale (struct edict_s *ent, int swimming); // SV_ClientThink,
 float VR_CarryMoveScale (struct edict_s *ent); // solid held props: mass/bulk stick locomotion fraction
 float VR_CrouchSpeedMax (struct edict_s *ent, float maxspeed); // SV_AirMove: crouched, slower (vr_crouch_speed; vr_hull.cpp)
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
+float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
 void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)
 void VR_GroundGravity (struct edict_s *ent, const float *before); // SV_Physics_Client, gravity added: on a walkable slope, only its part into the slope (vr_slope_walk)

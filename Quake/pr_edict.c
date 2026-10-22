@@ -398,6 +398,27 @@ float PR_ServerGlobalFloat (const char *name)
 	return value;
 }
 
+// QVR: sets the server's QC float global `name` (nothing without a server or such a global): the death menu's
+// vr_death_menu_hold, vr_death_menu_asked and vr_death_menu_respawn (menu.c M_CheckDeathMenu, client.qc PlayerDeathThink)
+qboolean PR_SetServerGlobalFloat (const char *name, float value)
+{
+	qcvm_t	*oldvm;
+	ddef_t	*def;
+	qboolean found = false;
+
+	if (!sv.active || !sv.qcvm.progs)
+		return false;
+	PR_PushQCVM (&sv.qcvm, &oldvm);
+	def = ED_FindGlobal (name);
+	if (def && (def->type & ~DEF_SAVEGLOBAL) == ev_float && def->ofs < qcvm->progs->numglobals)
+	{
+		G_FLOAT (def->ofs) = value;
+		found = true;
+	}
+	PR_PopQCVM (oldvm);
+	return found;
+}
+
 
 /*
 ============
