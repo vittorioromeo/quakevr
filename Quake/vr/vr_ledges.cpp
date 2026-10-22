@@ -744,6 +744,47 @@ namespace
     return za::min(walked, maxDepth);
 }
 
+// propLedges: a lip shorter than this is none (a cut corner's sliver of an edge).
+static constexpr float minPropLip = 2.f;
+
+// propLedges: how far out past the lip (from `a`, `len` along `dir`, out along `out`) the prop reaches between the
+// heights `lo` and `hi`, beside the lip only (a unit of slack at its ends): its points there and its edges' crossings
+// at `lo` (a convex piece reaches out furthest at one of them). Zero or more.
+[[nodiscard]] float dropFlare(const box3d::ClimbShape& shape, const box3d::ClimbBody& body, const glm::vec3& a,
+    const glm::vec3& dir, float len, const glm::vec3& out, float hi, float lo)
+{
+    float most = 0.f;
+    const auto reach = [&](const glm::vec3& q) {
+        const float along = glm::dot(q - a, dir);
+        if(along > -1.f && along < len + 1.f)
+        {
+            most = za::max(most, glm::dot(q - a, out));
+        }
+    };
+    const auto point = [&](int i) { return body.origin + body.turn * shape.points[static_cast<za::SizeT>(i)]; };
+    for(za::SizeT i = 0; i < shape.points.size(); i++)
+    {
+        const glm::vec3 q = point(static_cast<int>(i));
+        if(q.z >= lo && q.z <= hi)
+        {
+            reach(q);
+        }
+    }
+    for(const box3d::ClimbShape::Face& face : shape.faces)
+    {
+        for(int k = 0; k < face.count; k++)
+        {
+            const glm::vec3 p = point(shape.corner[static_cast<za::SizeT>(face.first + k)]);
+            const glm::vec3 q = point(shape.corner[static_cast<za::SizeT>(face.first + (k + 1) % face.count)]);
+            if((p.z - lo) * (q.z - lo) < 0.f)
+            {
+                reach(p + (q - p) * ((lo - p.z) / (q.z - p.z)));
+            }
+        }
+    }
+    return most;
+}
+
 } // namespace
 
 void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody& body, const glm::vec3& mins,
@@ -830,13 +871,16 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
                 b.z = bz;
             }
             len = glm::distance(a, b);
+            if(len < minPropLip)
+            {
+                continue; // (a sliver: a cut corner's edge, lifted to the top's plane)
+            }
             dir = (b - a) / len;
             const glm::vec3 eMins = glm::min(a, b), eMaxs = glm::max(a, b);
             if(eMins.x > maxs.x || eMins.y > maxs.y || eMins.z > maxs.z || eMaxs.x < mins.x || eMaxs.y < mins.y || eMaxs.z < mins.z)
             {
                 continue;
             }
-            // The drop: its own side under the lip, going down square to it, flares out this far over minDrop.
             glm::vec3 down = glm::cross(m, dir);
             if(down.z > 0.f)
             {
@@ -846,7 +890,10 @@ void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody&
             {
                 continue; // (the face beyond hardly falls away)
             }
-            const float dropOut = 0.5f + za::max(0.f, glm::dot(down, o)) / -down.z * minDrop;
+            // The drop: how far the prop's own side reaches out past the lip over minDrop under it (dropFlare). Not the
+            // face beyond's slope taken all the way down: a hull's cut corner (a sliver of a steep face under a lying
+            // crate's end) made the whole end no ledge.
+            const float dropOut = 0.5f + dropFlare(shape, body, a, dir, len, o, eMaxs.z, eMins.z - minDrop);
             if(dropOut > edgeReach)
             {
                 continue;

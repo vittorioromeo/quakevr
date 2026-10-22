@@ -8,6 +8,7 @@
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_bodytrack.hpp"
+#include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
@@ -1564,7 +1565,8 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
 }
 
 // Climbing (vr_body_climb_feet; BACKLOG "Climbing leg animation"): while a hand holds on (climb::heldAt), each foot
-// finds a foothold below its hip, within reach (findFoothold: a handful of traces, only when it looks for one): a
+// finds a foothold below its hip, within reach (findFoothold: a handful of traces, only when it looks for one; through
+// the level and, vr_body_climb_feet_props, the physics props' shapes as they lie: footTrace): a
 // ledge's, a rung's or the floor's top, else a spot on the face in front of it (at the 16-unit spacing of a flat
 // ladder's rungs), else none: it hangs, a little bent, swinging slightly and trailing the body's motion. A foot on a
 // hold stays where it is in the world while the body moves, until it is out of reach (the leg stretched, the knee
@@ -1634,12 +1636,31 @@ struct FootHit
     qcvm_t* old = nullptr;
     PR_PushQCVM(&sv.qcvm, &old); // (drawing: the client's VM, or none, is in)
     const trace_t tr = SV_Move(va, vec3_origin, vec3_origin, vz, MOVE_NOMONSTERS, svs.clients[0].edict);
-    PR_PopQCVM(old);
     h.solid = tr.startsolid || tr.allsolid;
     h.hit = !h.solid && tr.fraction < 1.f;
     h.frac = tr.fraction;
     h.pos = {tr.endpos[0], tr.endpos[1], tr.endpos[2]};
     h.normal = {tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+    // The physics props' shapes as they lie (a crate climbed: its top and its faces; the trace above passes them by), up
+    // to where the level stopped it.
+    box3d::PropHit p;
+    bool inside = false;
+    if(!h.solid && vr_body_climb_feet_props.value != 0.f && box3d::propTrace(a, h.pos, p, inside))
+    {
+        if(inside)
+        {
+            h.solid = true;
+            h.hit = false;
+        }
+        else
+        {
+            h.hit = true;
+            h.frac *= p.fraction;
+            h.pos = p.point;
+            h.normal = p.normal;
+        }
+    }
+    PR_PopQCVM(old);
     return h;
 }
 

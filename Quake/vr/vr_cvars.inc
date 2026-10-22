@@ -1455,6 +1455,7 @@ QVR_CVAR(vr_body_turn_step, "40", CVAR_ARCHIVE)       // degrees the body turns 
 QVR_CVAR(vr_body_climb_feet, "1", CVAR_ARCHIVE)       // climbing (a hand on a hold), the feet find footholds (ledges, rungs, the wall) and step between them; 0: they hang
 QVR_CVAR(vr_body_climb_feet_reach, "1", CVAR_ARCHIVE) // how far below the hips they look for one, times the default (0.5 .. 1.2)
 QVR_CVAR(vr_body_climb_feet_speed, "1", CVAR_ARCHIVE) // how fast a foot steps to a new hold, times the default (a 0.35 s step; 0.3 .. 3)
+QVR_CVAR(vr_body_climb_feet_props, "1", CVAR_ARCHIVE) // the footholds also on the physics props' shapes (a climbed crate's top and faces); 0: the level's only
 QVR_CVAR(vr_body_state, "1", CVAR_ARCHIVE)            // the body shows the armour worn and, bloodier, the damage taken
 QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad damage's glow or arcs, pentagram glow, ring translucency, biosuit tint
 // Quad Damage on you (vr_view.cpp quadGlow): 0 Quake's electric arcs over the hands and forearms (the look of being
