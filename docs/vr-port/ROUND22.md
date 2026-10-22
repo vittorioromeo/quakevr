@@ -16191,6 +16191,45 @@ To check in VR: the pile and the rows read as counts looking down; the wobble wa
 too little: Ammo Pouch Wobble); the deeper pouch for grenades (4.4) against the belly and the hip holsters; pouch
 reloading at each of six magazines; the cell cords plugging into a cell of the two rows.
 
+## Ammo pouch: each round its own wobble, wobble sliders, bigger grenades (worktree `tghost`, branch `agent/pouch2`, 2026-10-22)
+
+Voice notes `vrfiringrange_2026-10-22_12-20-08` to `12-21-57`: the rounds moved as one block; sliders for springiness and
+settling; grenades 5-8% and multi-grenades 15-20% bigger. New cvars only, no migration.
+
+- **Each its own** (`vr_ammo_pouch_wobble_each` 1; 0: one spring for all, as before): every slot has its own damped
+  spring (frequency 0.8-1.25x, damping 0.75-1.35x, drive 0.8-1.2x, the acceleration turned up to 30 deg about up;
+  golden-ratio steps) and a lying one a second, quicker one across it that tilts it (its ends +-0.08). Standing rounds
+  (magazines, grenades) lean each their own way; lying ones (the shell pile, the rocket stack) sway with the shared spring
+  as a block and slide up to 0.12 off it. Fixed arrays, no allocations.
+- **Never through each other or out of the leather** (`solve`, either mode): the rest layout's rules are built once per
+  layout change (`restCache`): each near pair's gap and its slopes (magazines), or the capsules' axes where they are now
+  (shells, rockets, grenades: pushed apart at their closest points); the inside's 22 edges as lines (convex), each
+  round's ends (lying) or its axis/corners at the rim's height (standing: above the rim there is no leather) kept off
+  them, the leather giving 0.1 (`wobbleSoft`; its wall is 0.1-0.3 thick); a lying one's ends never drawn nearer each other
+  (drawn rigid, they stay inside where they were kept clear). Up to 10 passes, stopping when nothing moved; a 0.02 margin
+  (more at Wobble above 1). The block's sway is cut where the walls stop the pile (`blockSway`).
+- **Sliders** (Settings > Ammo Pouch, after Ammo Pouch Wobble, which still caps how far): Wobble Each Round,
+  Springiness `vr_ammo_pouch_wobble_freq` (2 Hz, 0.5-5, extends 0.2-8), Settle Time `vr_ammo_pouch_wobble_settle` (1.3 s
+  to 5%, damping = 3 / (omega t): 0.18 as before; 0.2-4, extends 0.1-10), Intensity `vr_ammo_pouch_wobble_intensity`
+  (1, 0-3, extends 0-5: how hard a move drives them).
+- **Grenade sizes** (against the held ones, `vr_ammo_pouch_layout`'s `pouchsize` lines): the grenade 0.9 -> 0.96 of its
+  held size (+6.7%; 23.0 cm against 23.9), the multi-grenade 0.7 -> 0.805 (+15%; 18.7 cm against 23.2). Five
+  multi-grenades need a deeper pouch: frame 4 (grenades) 4.8 x 4.4 -> 5.0 x 5.0 (`make_ammo_pouch.py`, model rebuilt).
+- **Cost** (`vr_ammo_pouch_layout`'s `pouchwobble` line, 20 shells shaken hard every frame, fast mode): springs 0.2 us,
+  layout 0.5 us, layout + wobble 17 us at Wobble 1 (112 pairs), 28 us at 3; the rules' build 30 us once a layout change.
+
+Tests: `vr_ammo_pouch_layout` OK at Wobble 0, 1, 2 and 3 (each run checks both modes: one spring at its 8 corners, each its
+own at 40 patterns of every round at a corner of its own; at 1: shells 0.02 apart at worst, magazines 0.02, rockets 0.02,
+grenades 0.02, multi 0.02; walls no worse than still, or within the 0.1 give); `pouch_test.sh` 29/29, `pouchgren_test.sh`
+15/15, `reload_test.sh` 108 PASS, 3 FAIL: the two known, and "the pouch's shells a held shell's size" (`ssg_checks.py
+pouchshells` reads shells baked into `vrpouch_ammo.mdl`, gone since `agent/pouch`: origin/next's model gives the same
+"across 0.00"). Eye images (not committed): `scratch/pouch2_wobble_sheet.png` (one spring then each its own, Wobble 2,
+shaken: shells 20, nail magazines 6, grenades 5), by `scratch/pouch2_wobble_eyes.sh` and `pouch2_sheet.py`.
+
+To check in VR: walking and stopping with 20 shells, 6 magazines, 5 grenades: each its own against Wobble Each Round
+off; the three sliders; the grenades' and multi-grenades' size against one in the hand; the deeper grenade pouch (5.0)
+against the belly and the hip holsters.
+
 ## Leg-drag struggle for every humanoid; the sprayer's damage (worktree `goreflesh`, branch `agent/legdrag2`, 2026-10-22)
 
 The leg drag's clawing (above, "Death menu held, ... leg-drag struggle") for every humanoid. `struggle_test.py`'s new

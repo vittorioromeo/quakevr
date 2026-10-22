@@ -2046,10 +2046,9 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
     pouchitems::Item items[pouchitems::most];
     const int n = placed && pouch.ent.model
-                      ? pouchitems::layout(kind & 7, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
+                      ? pouchitems::posed(kind & 7, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
                       : 0;
     ammoPouchItems = n;
-    const glm::vec3 lag = pouchitems::wobble();
     for(int j = 0; j < pouchitems::most; j++)
     {
         view::ViewEntity& ve = entities.ammoPouchItem[j];
@@ -2058,8 +2057,7 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
             ve.visible = false;
             continue;
         }
-        pouchitems::Item it = items[j];
-        pouchitems::applyWobble(it, lag);
+        const pouchitems::Item& it = items[j];
         const glm::vec3 o = modelPoint(pouch, it.at);
         const glm::vec3 ax = modelPoint(pouch, it.at + it.axes[0]) - o;
         const glm::vec3 az = modelPoint(pouch, it.at + it.axes[2]) - o;

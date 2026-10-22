@@ -10,8 +10,9 @@
 //   grenades standing, a row of up to three, then two more in front in the back row's gaps (up to 5);
 //   rockets  lying along it in a zig-zag stack against its back and front, nose either way (up to 5).
 // The leather's frame (make_ammo_pouch.py FRAMES) stretches round them: shapeFor. The wobble: the pouch's own
-// acceleration (the body's walking and turning, the hips' IK) drives a damped spring a frame; standing rounds lean about
-// their foot, lying ones shift, the higher in the pile the more (vr_ammo_pouch_wobble; Debug's Wobble Test shakes it).
+// acceleration (the body's walking and turning, the hips' IK) drives a damped spring a round a frame; standing rounds
+// lean about their foot, lying ones shift and tilt, the higher in the pile the more, never through each other
+// (vr_ammo_pouch_wobble, _each, _freq, _settle, _intensity; Debug's Wobble Test shakes it).
 
 #pragma once
 
@@ -64,9 +65,12 @@ struct Item
 // Once a frame (the pouch placed): its origin and unit axes (world) and world units a pouch unit; the wobble's spring
 // steps by the time since.
 void wobbleStep(const glm::vec3& origin, const glm::mat3& axes, float k);
-// The wobble now (pouch units: how far the rounds lag, out, left, up), and an item moved by it.
+// The shared spring's wobble now (pouch units: how far the rounds lag, out, left, up; vr_dumpview).
 [[nodiscard]] glm::vec3 wobble();
-void applyWobble(Item& it, const glm::vec3& s);
+// The rounds as drawn now: layout's, each moved by the wobble: with vr_ammo_pouch_wobble_each each on its own spring
+// (its own frequency, damping and drive; a lying one also tilts), kept clear of the others and the walls; without, all
+// on the one spring (as one block).
+[[nodiscard]] int posed(int kind, bool variant, int left, Item (&out)[most]);
 
 void init(); // vr_ammo_pouch_layout
 
