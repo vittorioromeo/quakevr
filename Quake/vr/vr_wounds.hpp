@@ -63,6 +63,19 @@ void clear();
 // Whether `e` has blood painted on it (a mask: hit, cut, bled on), for the bloody footprints (vr_bloodprints.cpp).
 [[nodiscard]] bool bloody(const entity_s* e);
 
+// Bloody handprints on things (vr_bloodprints.cpp; vr_handprint_props): the thing a palm at `from` pressing along `dir`
+// (unit) meets within `reach` units, and where (`at`, its outward `normal`): a prop, a box, an item lying about (not a
+// weapon, not a gib, not what a hand carries: gripPrint's); a brush one by its box, a model by its triangles as drawn.
+// 0: none.
+[[nodiscard]] int palmTouch(const glm::vec3& from, const glm::vec3& dir, float reach, glm::vec3& at, glm::vec3& normal);
+// Blood painted on entity `num`'s mask at `at`, a palm's print `radius` units round, `strength` 0..1 (it stays as the
+// gear's blood does). False: none painted.
+bool handprintOn(int num, const glm::vec3& at, float radius, float strength);
+// A bloody hand's grip (`hand` 1 the main hand; vr_handprint_gear): blood painted on what it holds (its weapon, or the
+// prop it carries) where the palm is (`at`, `radius` units round), the weapon's going with it (dropped, holstered,
+// taken again). False: nothing held, or none painted.
+bool gripPrint(int hand, const glm::vec3& at, float radius, float strength);
+
 // The gore's bloody hands and washing (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; vr_wounds.cpp): with the wound
 // skins (vr_wounds 0), the damage skin the player's `part` (0 the off hand, 1 the main hand, 2 the body), drawn at
 // `origin` (null: unknown), shows for the damage skin `level`: none after a wash until the wounds re-open (or a new

@@ -378,6 +378,18 @@ const DefaultChange defaultChanges[] = {
     {177, &vr_kdtrig_tackle_knock, "96"},      // 152
     {177, &vr_kdtrig_tackle_push, "1"},        // 1.25
     {177, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
+    // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
+    // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
+    {178, &vr_footprint_size, "1"},         // 1.6
+    {178, &vr_handprint_size, "1"},         // 1.6
+    {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_tear, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_squelch, "1"}, // 0.75
+    {178, &vr_gore_sound_vol_step, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
     // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
     // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
     {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
