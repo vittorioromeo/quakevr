@@ -862,6 +862,12 @@ za::Vector<Item> pageDebugTests()
             .help("vr_reload_pouch_mags: each magazine drawn in the ammo pouch, where pouch reloading finds it and the "
                   "old row's middle (cm off it), and each gun's load point against the nearest one."),
         toggle("Show the Pouches' Reach", "vr_show_grenade_pouch").help("Spheres where the grenade pouch and the ammo pouch are reached."),
+        command("Pouch Layout Check", "vr_ammo_pouch_layout; toggleconsole")
+            .help("vr_ammo_pouch_layout: every kind of round in the ammo pouch, 1 to the most: how close the nearest two "
+                  "come (still and at the wobble's extremes), how far inside the leather, how far off its middle; the "
+                  "rounds' sizes as held. Ends OK or FAIL."),
+        toggle("Shake the Ammo Pouch", "vr_ammo_pouch_wobble_test")
+            .help("vr_ammo_pouch_wobble_test: the ammo pouch shaken as if walking, to see its rounds wobble standing still."),
         header("Tutorial (vrtutorial)"),
         command("The Tutorial", "skill 0; map vrtutorial")
             .help("skill 0; map vrtutorial: the tutorial (a military base by day, 12 lessons and an arena; "

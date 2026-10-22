@@ -1074,7 +1074,7 @@ void gearStatus_f()
         }
     }
     int pouchGrenades = 0, straps = 0, pauldrons = 0;
-    for(const view::ViewEntity& e : entities.ammoPouchGrenade)
+    for(const view::ViewEntity& e : entities.ammoPouchItem)
     {
         pouchGrenades += e.visible ? 1 : 0;
     }

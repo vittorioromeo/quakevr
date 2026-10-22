@@ -2383,36 +2383,64 @@ float(float xWeapon) VR_Reload_PouchContact =
 };
 
 // The magazines standing in the pouch for the gun `xWeapon` (a nailgun's, the super nailgun's, the thunderbolt's), as the
-// clients draw them (make_ammo_pouch.py MAGS and MAG_TOP; vr_view.cpp ammoPouchFrame, view::ammoPouchMags): as many as
-// `xHave` rounds of its ammo show (a nailgun's one a 24 up to 3; the super nailgun's one a 36 up to 2; the thunderbolt's
-// one a 36 up to 3), the first on the pouch's right. (The pouch shows the gun's own once its load point nears it:
-// VR_Reload_PlayerFrame, VR_Reload_PouchNearHand.)
+// clients draw them (vr_pouchitems.cpp magsShown, magSlot; view::ammoPouchMags): as many as `xHave` rounds of its ammo
+// show (a nailgun's one a 24, the others' one a 36; part-filled counting) up to vr_ammo_pouch_mags_max (1..6), the first
+// on the pouch's right. (The pouch shows the gun's own once its load point nears it: VR_Reload_PlayerFrame,
+// VR_Reload_PouchNearHand.)
 float(float xWeapon, float xHave) VR_Reload_PouchMagCount =
 {
-    if(xHave <= 0)
+    if(xHave <= 0 || !VR_Reload_UsesMag(xWeapon))
     {
         return 0;
     }
-    if(xWeapon == WID_NAILGUN)
-    {
-        return min(3, floor((xHave + 23) / 24));
-    }
+    float most = max(1, min(6, floor(cvar_hget(cvarh_vr_ammo_pouch_mags_max))));
+    return min(most, floor((xHave + (xWeapon == WID_NAILGUN ? 23 : 35)) / (xWeapon == WID_NAILGUN ? 24 : 36)));
+};
+
+// The top middle of magazine `xSlot` of `xCount` drawn (vr_pouchitems.cpp magSlot: up to three in a row in the middle of
+// the pouch's inside, then a row of three behind and the rest in front, each row centred; the pouch's model units: x out
+// of the body, y across its width, their tops 2.9 up), through the rounds' box of `p` (.ammopouch*: the model's 1.8 0 2.2,
+// half-axes 1.6, 3.6 and 0.7; vr_view.cpp ammoPouchRounds): the pouch's own transform as drawn, its scale and turn.
+// (The inside's middle out of the body, the magazines' pitch across it and half a row's out: their held widths and
+// thicknesses and the gaps between; cells stand in the deeper frame.)
+vector(entity p, float xWeapon, float xSlot, float xCount) VR_Reload_PouchMagTop =
+{
+    float cx = 1.5895;
+    float pitch = 2.228;
+    float row = 0.6155;
     if(xWeapon == WID_SUPER_NAILGUN)
     {
-        return min(2, floor((xHave + 35) / 36));
+        pitch = 2.392;
+        row = 0.6045;
     }
-    return xWeapon == WID_LIGHTNING ? min(3, floor((xHave + 35) / 36)) : 0;
+    else if(xWeapon == WID_LIGHTNING)
+    {
+        cx = 1.83775;
+        pitch = 1.825;
+        row = 0.78;
+    }
+    float inRow = xCount;
+    float col = xSlot;
+    float x = cx;
+    if(xCount > 3)
+    {
+        if(xSlot < 3)
+        {
+            inRow = 3;
+            x = cx - row;
+        }
+        else
+        {
+            inRow = xCount - 3;
+            col = xSlot - 3;
+            x = cx + row;
+        }
+    }
+    float y = (col - (inRow - 1) * 0.5) * pitch;
+    return p.ammopouchpos + p.ammopouchz + p.ammopouchx * ((x - 1.8) / 1.6) + p.ammopouchy * (y / 3.6);
 };
 
-// The top middle of magazine `xSlot` of those (the pouch's model units: 1.35 out of the body, y across its width, 2.9 up),
-// through the rounds' box of `p` (.ammopouch*: the model's 1.35 0 2.2, half-axes 1.25, 3.2 and 0.7; vr_view.cpp
-// ammoPouchRounds): the pouch's own transform as drawn, its scale and turn.
-vector(entity p, float xWeapon, float xSlot) VR_Reload_PouchMagTop =
-{
-    float y = xWeapon == WID_SUPER_NAILGUN ? (xSlot ? 1.75 : -1.75) : (xSlot - 1) * (xWeapon == WID_LIGHTNING ? 2.6 : 2.45);
-    return p.ammopouchpos + p.ammopouchz + p.ammopouchy * (y / 3.2);
-};
-
+float vr_pouch_mag_count;  // (VR_Reload_PouchMagDist: how many magazines it measured against)
 float vr_pouch_mag_slot;   // (VR_Reload_PouchMagDist: the nearest magazine's slot, -1 none; the load point's distance
 float vr_pouch_mag_across; // across it from the line up its middle and its height over its top, units)
 float vr_pouch_mag_up;
@@ -2430,11 +2458,12 @@ float(entity p, float xHand, vector xPoint) VR_Reload_PouchMagDist =
         return -1;
     }
     float n = VR_Reload_PouchMagCount(w, VR_AmmoUtil_GetAmmoCountByAmmoId(p, aid));
+    vr_pouch_mag_count = n;
     vector up = normalize(p.ammopouchz);
     float best = -1;
     for(float j = 0; j < n; j++)
     {
-        vector d = xPoint - VR_Reload_PouchMagTop(p, w, j);
+        vector d = xPoint - VR_Reload_PouchMagTop(p, w, j, n);
         float h = d * up;
         float across = vlen(d - up * h);
         float m = max(across, fabs(h));
@@ -2592,7 +2621,7 @@ void(float xHand) VR_Reload_PouchFrame =
     vector top = self.ammopouchpos + self.ammopouchz; // (where its rounds' tops are; the magazine's own, one met)
     if(slot >= 0)
     {
-        top = VR_Reload_PouchMagTop(self, w, slot);
+        top = VR_Reload_PouchMagTop(self, w, slot, vr_pouch_mag_count);
         if(debug)
         {
             VR_Reload_Log(sprintf("hand %g's well met the pouch's magazine %g (%.1f cm across it, %.1f cm over its top)",

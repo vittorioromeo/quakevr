@@ -21,7 +21,7 @@ tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 REP="vr_reload_test 0;impulse 125;wait2"
-F="^reload: (off hand|rockets|[0-9] into)|^grenade: (hand|proximity|the proximity|grenade|vr_ammo_front|an unarmed|let go)|vrpouch_ammo"
+F="^reload: (off hand|rockets|[0-9] into)|^grenade: (hand|proximity|the proximity|grenade|vr_ammo_front|an unarmed|let go)|^ammo pouch: frame"
 POUCH="vr_mock_hand_to main ammopouch;wait5;vr_mock_hand_to main ammopouch;wait5"
 BACK="vr_mock_hand_to main grenadepouch;wait5;vr_mock_hand_to main grenadepouch;wait5"
 GRIP="+grabmain;vr_mock_button main grip 1;wait10"
@@ -39,11 +39,13 @@ setup() {
 }
 last() { echo "$1" | grep "^reload: off hand" | tail -1; }
 clip() { last "$1" | sed -E 's/^reload: off hand weapon [0-9]+ clip ([0-9]+) .*/\1/'; }
-frames() { echo "$1" | grep "vrpouch_ammo.mdl" | sed -E 's/.* frame ([0-9]+) skin ([0-9]+) .*/\1.\2/' | tr '\n' ' ' | sed 's/ $//'; }
+# (vr_dumpview's "ammo pouch: frame F rounds N skin S <model>": the leather's frame, the rounds drawn in it, their skin.)
+frames() { echo "$1" | grep "^ammo pouch: frame" | sed -E 's/^ammo pouch: frame ([0-9]+) rounds ([0-9]+) skin ([0-9]+) .*/\1\/\2\/\3/' | tr -d '\r' | tr '\n' ' ' | sed 's/ $//'; }
+model() { echo "$1" | grep "^ammo pouch: frame" | tail -1 | sed -E 's/.* (progs\/[a-z_]+\.mdl).*/\1/' | tr -d '\r'; }
 
-# 1. The pouch's rounds by the reserve: 0, 1, 3, 9 (frames: the empty pouch 0; rockets 14-16, grenades 17-20, proximity
-# grenades 21-24).
-for row in "160 rocket_launcher 0.0_14.0_16.0_16.0" "158 grenade_launcher 0.0_17.0_19.0_20.0" "159 proximity_launcher 0.0_21.0_23.0_24.0"; do
+# 1. The pouch's rounds by the reserve: 0, 1, 3, 9 (frame/rounds/skin: the empty pouch 0; the leather's frame by the
+# kind, rockets 6, grenades 4, proximity grenades 5; a round each up to 5, the grenades muted, skin 1; vr_pouchitems.cpp).
+for row in "160 rocket_launcher 0/0/0_6/1/0_6/3/0_6/5/0" "158 grenade_launcher 0/0/0_4/1/1_4/3/1_4/5/1" "159 proximity_launcher 0/0/0_5/1/1_5/3/1_5/5/1"; do
     set -- $row; name=${2//_/ }; want=${3//_/ }
     S="$(setup $1)"
     log=$(tb_run_sh -Script "$S;give r 0;wait5;vr_dumpview;give r 1;wait5;vr_dumpview;give r 3;wait5;vr_dumpview;give r 9;wait5;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
@@ -51,8 +53,9 @@ for row in "160 rocket_launcher 0.0_14.0_16.0_16.0" "158 grenade_launcher 0.0_17
 done
 log=$(tb_run_sh -Script "$(setup 158);impulse 42;wait5;$REP;vr_dumpview;toggleconsole;quit" -Filter "$F" 2>&1)
 m=$(echo "$log" | grep "^reload: rockets" | tail -1 | sed -E 's/.*multi-rockets ([0-9]+).*/\1/')
-want="$((16 + (m < 4 ? m : 4))).1"; [ "$m" = 0 ] && want=0.1
-check $([ "$(frames "$log")" = "$want" ] && echo 1 || echo 0) "the multi-grenade mode: $m multi-rockets shown as $(frames "$log") (want $want: skin 1)"
+want="4/$((m < 5 ? m : 5))/1 progs/mervup.mdl"; [ "$m" = 0 ] && want="0/0/0 -"
+got="$(frames "$log") $(model "$log")"; [ "$m" = 0 ] && got="$(frames "$log") -"
+check $([ "$got" = "$want" ] && echo 1 || echo 0) "the multi-grenade mode: $m multi-rockets shown as $got (want $want: the multi-grenades)"
 
 # 2. The ammo pouch's grenade armed by hand goes off; armed, it doesn't load.
 log=$(tb_run_sh -Script "$(setup 158);$POUCH;$GRIP;$PIN;$AWAY;$LETGO;wait400;$REP;toggleconsole;quit" -Filter "$F" 2>&1)

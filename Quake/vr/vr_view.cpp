@@ -309,6 +309,7 @@ int lastAddedFrame = -1;
 const entity_t* worldWeaponsNear[maxWorldWeapons]{}; // setupWorldWeapons' nearest, for their magazines (setupMagazines)
 int pouchCounterFrame = -1; // the ammo pouch's counter queued in this frame (setupAmmoPouch: the view may be set up twice)
 bool ammoPouchPlaced = false; // the ammo pouch placed last frame, drawn or not (setupAmmoPouch; ammoPouchRounds)
+int ammoPouchItems = 0;       // the rounds placed in it (setupAmmoPouchItems: entities.ammoPouchItem's first)
 
 // Hidden for a clean shot (vr_shot_hide; Debug > Cheats and Recording): 1 the wrist gadget (setupGadget hides it whole,
 // its screen and messages with it), 2 the hands and what they hold, 4 the body and the holsters. Drawn only: they
@@ -340,7 +341,7 @@ bool ammoPouchPlaced = false; // the ammo pouch placed last frame, drawn or not 
     }
     return (hide & 4) && (&ve == &entities.body || among(entities.pauldron) || among(entities.pauldronArm) ||
                              among(entities.holster) || among(entities.holsterSlot) || among(entities.holsterButton) ||
-                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.ammoPouchGrenade) ||
+                             &ve == &entities.pouch || &ve == &entities.ammoPouch || among(entities.ammoPouchItem) ||
                              among(entities.holsterMag) || among(entities.holsterWell) ||
                              among(entities.holsterSsgFrame) || among(entities.holsterSsgBarrels));
 }
@@ -2029,65 +2030,44 @@ void setupPumps()
 // The ammo pouch (immersive reloading, vr_reload_mode 3; docs/vr-port/RELOAD.md): vrpouch_ammo.mdl (make_ammo_pouch.py:
 // as vrpouch.mdl, +x out of the body, its back at the origin) on the front of the belt between the hip holsters, facing
 // the belly's surface there (straight forward without the body), turned by vr_ammo_pouch_pitch/yaw/roll about where the
-// hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Its frame shows what it gives and how much is
-// left (ammoPouchFrame); lit up while a hand is at it.
-// The ammo pouch's frame (make_ammo_pouch.py frame_spec): what it gives (STAT_QVR_POUCHKIND) and how much of it is left
-// (STAT_QVR_POUCHCOUNT): a shell in sight each up to 5, a magazine (part-filled counting) up to 3 (the super nailgun's
-// 2); 0 empty.
+// hand reaches for it, scaled by vr_ammo_pouch_scale about its back. Its frame is its leather's shape for what it gives
+// (ammoPouchFrame); what it holds is drawn on its own (setupAmmoPouchItems); lit up while a hand is at it.
 [[nodiscard]] int ammoPouchFrame()
 {
-    struct Kind
-    {
-        int first, most, each; // its frames' first, the most it shows, the rounds one shows
-    };
-    // (Shells, nailgun and super nailgun magazines, cells; the launchers' rounds, one a round: rockets, grenades,
-    // proximity grenades. make_ammo_pouch.py's KINDS.)
-    constexpr Kind kinds[] = {{1, 5, 1}, {6, 3, 24}, {9, 2, 36}, {11, 3, 36}, {14, 3, 1}, {17, 4, 1}, {21, 4, 1}};
-    // (8: the lava nails' or plasma's, the multi-rockets' or multi-grenades': its skin 1)
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
-    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
-    if(kind < 1 || kind > 7 || left <= 0)
-    {
-        return 0;
-    }
-    const Kind& k = kinds[kind - 1];
-    return k.first + za::min(k.most, (left + k.each - 1) / k.each) - 1;
+    return pouchitems::frameFor(cl.stats[protocol::STAT_QVR_POUCHKIND] & 7, cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
 }
-constexpr float pouchGrenadeX = 1.35f; // their middles out of the body: the pouch's middle (make_pouch.py BACK_X + full DEPTH / 2)
 
-void setupAmmoPouchGrenades(const view::ViewEntity& pouch)
+// What the ammo pouch holds (vr_pouchitems.cpp: what it gives, STAT_QVR_POUCHKIND, its 8 the lava nails', plasma, the
+// multi-rockets' or multi-grenades' skin; how much is left, STAT_QVR_POUCHCOUNT): each round its own entity, its held
+// model at its held size times the pouch's scale, swayed by the pouch's wobble, lit as the pouch. Placed whenever the
+// pouch is (pouch reloading finds the magazines drawn: ammoPouchMags), drawn when it is.
+void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
 {
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
-    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
-    const PouchGrenades* g = !pouch.visible || left <= 0 ? nullptr
-                             : (kind & 7) == 6           ? &pouchGrenades[(kind & 8) ? 1 : 0]
-                             : (kind & 7) == 7           ? &pouchGrenades[2]
-                                                         : nullptr;
-    qmodel_t* const model = g ? viewModel(g->model) : nullptr;
-    const int n = model ? za::min(left, 3) : 0;
-    for(int j = 0; j < 3; j++)
+    pouchitems::Item items[pouchitems::most];
+    const int n = placed && pouch.ent.model
+                      ? pouchitems::layout(kind & 7, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
+                      : 0;
+    ammoPouchItems = n;
+    const glm::vec3 lag = pouchitems::wobble();
+    for(int j = 0; j < pouchitems::most; j++)
     {
-        view::ViewEntity& ve = entities.ammoPouchGrenade[j];
+        view::ViewEntity& ve = entities.ammoPouchItem[j];
         if(j >= n)
         {
             ve.visible = false;
             continue;
         }
-        // The pouch's axes and scale where it stands (its model space to the world).
-        const glm::vec3 at{pouchGrenadeX, (static_cast<float>(j) - static_cast<float>(n - 1) * 0.5f) * g->gap, g->top};
-        const glm::vec3 o = modelPoint(pouch, at);
-        const glm::vec3 ax = modelPoint(pouch, at + glm::vec3{1.f, 0.f, 0.f}) - o;
-        const glm::vec3 az = modelPoint(pouch, at + glm::vec3{0.f, 0.f, 1.f}) - o;
+        pouchitems::Item it = items[j];
+        pouchitems::applyWobble(it, lag);
+        const glm::vec3 o = modelPoint(pouch, it.at);
+        const glm::vec3 ax = modelPoint(pouch, it.at + it.axes[0]) - o;
+        const glm::vec3 az = modelPoint(pouch, it.at + it.axes[2]) - o;
         const float k = glm::length(az); // world units a pouch unit
-        const glm::vec3 out = glm::normalize(ax), up = glm::normalize(az);
-        const bool alongZ = modelmeta::is(model, modelmeta::Id::Mervup);
-        // Nose up: the grenade's +x up (its +z out), the multi-grenade's (and the ball's) +z up (its +x out).
-        const glm::vec3 angles = alongZ || modelmeta::is(model, modelmeta::Id::Proxbomb) ? aliasAngles(out, up) : aliasAngles(up, out);
-        const float size = k * g->size * props::drawnSize(model); // world units a model unit
-        const float nose = alongZ || modelmeta::is(model, modelmeta::Id::Proxbomb) ? model->maxs[2] : model->maxs[0];
-        place(ve, model, o - up * (nose * size), angles, 0, false);
-        ve.ent.skinnum = 1; // (muted: unarmed; make_grenade_skins.py)
-        ve.scale = glm::vec3{k * g->size};
+        place(ve, it.model, o, aliasAngles(glm::normalize(ax), glm::normalize(az)), 0, false);
+        ve.visible = pouch.visible;
+        ve.ent.skinnum = it.skin;
+        ve.scale = glm::vec3{k * it.share}; // (its held size on top: vr_props.cpp drawnSize)
         ve.lightMultiply = pouch.lightMultiply;
         ve.lightMod = pouch.lightMod;
     }
@@ -2103,7 +2083,7 @@ void setupAmmoPouch(const hands::State& s)
     if(!model)
     {
         ve.visible = false;
-        setupAmmoPouchGrenades(ve);
+        setupAmmoPouchItems(ve, false);
         return;
     }
     body::HolsterPlate plate;
@@ -2137,14 +2117,32 @@ void setupAmmoPouch(const hands::State& s)
         zones::publish(zones::ZoneAmmoPouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);
     }
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
-    ve.ent.skinnum = (cl.stats[protocol::STAT_QVR_POUCHKIND] & 8) ? 1 : 0;
+    ve.ent.skinnum = 0;
     ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
     ammoPouchPlaced = true;
+    {
+        // Its wobble's spring, driven by how it moves (its back's middle, its axes, world units a pouch unit).
+        const glm::vec3 o = modelPoint(ve, glm::vec3{0.f});
+        const glm::vec3 ax = modelPoint(ve, glm::vec3{1.f, 0.f, 0.f}) - o;
+        const glm::vec3 ay = modelPoint(ve, glm::vec3{0.f, 1.f, 0.f}) - o;
+        const glm::vec3 az = modelPoint(ve, glm::vec3{0.f, 0.f, 1.f}) - o;
+        pouchitems::wobbleStep(o, glm::mat3{glm::normalize(ax), glm::normalize(ay), glm::normalize(az)}, glm::length(az));
+    }
+    const bool shown = vr_ammo_pouch_show.value != 0.f;
+    if(shown)
+    {
+        highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
+    }
+    else
+    {
+        ve.visible = false;
+    }
+    setupAmmoPouchItems(ve, true);
     if(vr_reload_show_ports.value && cl.stats[protocol::STAT_QVR_RELOADMODE] == 3)
     {
         // Pouch reloading's magazines (vr_reload_pouch_mag_slots): each one's top as drawn (white), where the reload finds
         // it (cyan) and the well's load point's reach about it (vr_reload_pouch_mag_contact, green).
-        glm::vec3 drawn[3], found[3], up;
+        glm::vec3 drawn[pouchitems::magsMost], found[pouchitems::magsMost], up;
         const int n = view::ammoPouchMags(drawn, up);
         const int m = view::ammoPouchMagSlots(found, up);
         const float reach = za::max(vr_reload_pouch_mag_contact.value, 0.f) * 0.01f * units::metresToUnits();
@@ -2158,23 +2156,24 @@ void setupAmmoPouch(const hands::State& s)
             lines::point(found[j], 2.f * reach, glm::vec4{0.2f, 1.f, 0.3f, 0.3f});
         }
     }
-    if(vr_ammo_pouch_show.value == 0.f)
+    if(!shown)
     {
-        ve.visible = false;
-        setupAmmoPouchGrenades(ve);
         return;
     }
 
     // Its counter (vr_ammo_pouch_counter): how many of what it gives are left, on a small screen as the guns' ammo
-    // counters, at vr_ammo_pouch_counter_x/y/z off the pouch (out of the body, to the right, up) facing the eyes as they
-    // look down at it, turned by vr_ammo_pouch_counter_pitch/yaw/roll. Queued once a frame.
+    // counters, at vr_ammo_pouch_counter_x/y/z off the pouch (out of the body, to the right, up; x off its front: as
+    // far out again as its frame is deeper than 2.5) facing the eyes as they look down at it, turned by
+    // vr_ammo_pouch_counter_pitch/yaw/roll. Queued once a frame.
     if(vr_ammo_pouch_counter.value && cl.stats[protocol::STAT_QVR_POUCHKIND] > 0 && pouchCounterFrame != host_framecount)
     {
         pouchCounterFrame = host_framecount;
         const float k = CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f);
+        const float deeper = pouchitems::shapeOf(ammoPouchFrame()).depth - 2.5f;
         const glm::vec3 side = glm::normalize(glm::cross(frame.up, frame.out)); // (the body's right, looking out)
-        const glm::vec3 pos = at + (frame.out * vr_ammo_pouch_counter_x.value + side * vr_ammo_pouch_counter_y.value +
-                                       frame.up * vr_ammo_pouch_counter_z.value) * k;
+        const glm::vec3 pos = at + (frame.out * (vr_ammo_pouch_counter_x.value + deeper) +
+                                       side * vr_ammo_pouch_counter_y.value + frame.up * vr_ammo_pouch_counter_z.value) *
+                                       k;
         // Turned with the pouch alone (the author: it turned with the view): the way the eyes look down at it and its
         // top towards the pouch's front, both in the pouch's own frame, then the offsets in that frame.
         const glm::vec3 look = glm::normalize(frame.out * 0.35f - frame.up);
@@ -2186,32 +2185,14 @@ void setupAmmoPouch(const hands::State& s)
         text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * vr_ammo_pouch_counter_scale.value * k,
             vr_weapon_screen.value != 0.f);
     }
-    highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
-    setupAmmoPouchGrenades(ve);
 }
 
-// The cells standing in the ammo pouch (make_ammo_pouch.py MAGS[4]: the lightning gun's, feed end up along its width,
-// their copper contacts on top at MAG_TOP; in its model units, +x out of the body, +y left, +z up): as many as its frame
-// shows (ammoPouchFrame: one a 36 cells, up to 3), the first on its right.
-constexpr float pouchCellX = 1.35f;                           // as the model has them (pouchMagX; was 1.8: 1.4 cm out)
-constexpr float pouchCellTop = 2.9f;                          // MAG_TOP
-constexpr float pouchCellY[3] = {-2.6f, 0.f, 2.6f};           // MAGS[4]'s
-
-// The rounds' row in the ammo pouch (view::ammoPouchRounds), in its model units (make_ammo_pouch.py: +x out of the body, +y
-// left, +z up): the full pouch's depth (BACK_X 0.1 to 2.6), the rounds' row (the shells' and magazines' middles within 2.6
-// of its middle, their radii on top), from its rim (Z_TOP 1.5) up to the magazines' tops (MAG_TOP 2.9; the shells' 2.5 to
-// 2.7). QC vr_reload.qc VR_Reload_PouchMagTop has these.
-constexpr glm::vec3 pouchRoundsMid{1.35f, 0.f, 2.2f};
-constexpr glm::vec3 pouchRoundsHalf{1.25f, 3.2f, 0.7f};
-// The magazines standing in it (make_ammo_pouch.py MAGS: the nailgun's, the super nailgun's, the cells; their middles at
-// sx, their tops at MAG_TOP), the first on its right; their frames' first (ammoPouchFrame). QC vr_reload.qc
-// VR_Reload_PouchMagTop has these. (sx as the shipped model has it, 1.35 out of the body, the rounds' row's middle:
-// measured on its mesh, vr_reload_pouch_mags; the script's DEPTH now would put it at 1.8.)
-constexpr float pouchMagX = 1.35f;
-constexpr float pouchMagTop = 2.9f;
-constexpr float pouchMagRim = 1.7f; // (a little over Z_TOP: the leather's under it)
-constexpr float pouchMagY[3][3] = {{-2.45f, 0.f, 2.45f}, {-1.75f, 1.75f, 0.f}, {-2.6f, 0.f, 2.6f}};
-constexpr int pouchMagFirstFrame[3] = {6, 9, 11};
+// The rounds' box in the ammo pouch (view::ammoPouchRounds), in its model units (make_ammo_pouch.py: +x out of the body, +y
+// left, +z up): its inside out of the body (0.2 to 3.4: the frames' but the grenades'), across the magazines' rows and the
+// shells' pile (within 3.6 of its middle), from its rim (Z_TOP 1.5) up to the magazines' tops (pouchitems::magTop 2.9).
+// QC vr_reload.qc VR_Reload_PouchMagTop has these.
+constexpr glm::vec3 pouchRoundsMid{1.8f, 0.f, 2.2f};
+constexpr glm::vec3 pouchRoundsHalf{1.6f, 3.6f, 0.7f};
 
 // The chainsaw's cord's handle in a fist (or flying back to its seat): the chainsaw's model, its frame of the handle
 // alone, placed by vr_chainsaw.cpp, mirrored, scaled and lit as the chainsaw.
@@ -3356,7 +3337,7 @@ int drawGroup(const entity_t* e)
         QVR_DRAW_RANGE(holsterFrontButton, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldFrontButton, VR_DRAW_LYING),
         QVR_DRAW_RANGE(body, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldron, VR_DRAW_BODY), QVR_DRAW_RANGE(pauldronArm, VR_DRAW_BODY),
         QVR_DRAW_RANGE(gadget, VR_DRAW_WORN), QVR_DRAW_RANGE(gadgetStrap, VR_DRAW_WORN), QVR_DRAW_RANGE(flashlight, VR_DRAW_WORN),
-        QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchGrenade, VR_DRAW_WORN),
+        QVR_DRAW_RANGE(pouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouch, VR_DRAW_WORN), QVR_DRAW_RANGE(ammoPouchItem, VR_DRAW_WORN),
         QVR_DRAW_RANGE(mag, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterMag, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldMag, VR_DRAW_LYING),
         QVR_DRAW_RANGE(well, VR_DRAW_HELD), QVR_DRAW_RANGE(holsterWell, VR_DRAW_HOLSTERED), QVR_DRAW_RANGE(worldWell, VR_DRAW_LYING),
         QVR_DRAW_RANGE(pumpBody, VR_DRAW_HELD), QVR_DRAW_RANGE(pump, VR_DRAW_HELD), QVR_DRAW_RANGE(ssgFrame, VR_DRAW_HELD),
@@ -3758,12 +3739,15 @@ bool weaponMount(int hand, WeaponMount& out)
 
 int ammoPouchCells()
 {
-    const int left = cl.stats[protocol::STAT_QVR_POUCHCOUNT];
-    if(!entities.ammoPouch.visible || (cl.stats[protocol::STAT_QVR_POUCHKIND] & 7) != 4 || left <= 0)
-    {
-        return 0;
-    }
-    return za::min(3, (left + 35) / 36);
+    return ammoPouchPlaced && entities.ammoPouch.ent.model && (cl.stats[protocol::STAT_QVR_POUCHKIND] & 7) == 4 &&
+                   cl.stats[protocol::STAT_QVR_POUCHCOUNT] > 0
+               ? ammoPouchItems
+               : 0;
+}
+
+int ammoPouchItemCount()
+{
+    return ammoPouchPlaced ? ammoPouchItems : 0;
 }
 
 bool ammoPouchCentre(glm::vec3& at)
@@ -3773,24 +3757,32 @@ bool ammoPouchCentre(glm::vec3& at)
     {
         return false;
     }
-    // make_ammo_pouch.py/make_pouch.py: the leather's outline middle is BACK_X + depth * 0.45, z -2.3..1.5.
-    // Empty frame 0 has depth 1.3; all stocked frames have depth 2.5. Bounds including the rounds vary by ammo kind.
-    const float depth = pouch.ent.frame == 0 ? 1.3f : 2.5f;
-    at = modelPoint(pouch, {0.1f + depth * 0.45f, 0.f, -0.4f});
+    // make_ammo_pouch.py/make_pouch.py: the leather's outline middle is BACK_X + depth * 0.45, z -2.3..1.5; its depth
+    // the frame's (pouchitems::shapeOf).
+    at = modelPoint(pouch, {0.1f + pouchitems::shapeOf(pouch.ent.frame).depth * 0.45f, 0.f, -0.4f});
     return true;
 }
 
+namespace
+{
+// Round `j` drawn in the ammo pouch: its top's middle (its model's highest, along its +z) and its up (world).
+void pouchItemTop(int j, glm::vec3& top, glm::vec3& up)
+{
+    const ViewEntity& ve = entities.ammoPouchItem[j];
+    const float h = ve.ent.model ? ve.ent.model->maxs[2] : 0.f;
+    top = modelPoint(ve, {0.f, 0.f, h});
+    const glm::vec3 d = modelPoint(ve, {0.f, 0.f, h + 1.f}) - top;
+    up = glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+}
+} // namespace
+
 bool ammoPouchCell(int index, glm::vec3& at, glm::vec3& up)
 {
-    const ViewEntity& pouch = entities.ammoPouch;
-    if(!pouch.visible || !pouch.ent.model || index < 0 || index > 2)
+    if(!entities.ammoPouch.visible || index < 0 || index >= ammoPouchCells())
     {
         return false;
     }
-    const glm::vec3 top{pouchCellX, pouchCellY[index], pouchCellTop};
-    at = modelPoint(pouch, top);
-    const glm::vec3 d = modelPoint(pouch, top + glm::vec3{0.f, 0.f, 1.f}) - at;
-    up = glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+    pouchItemTop(index, at, up); // (its copper contact)
     return true;
 }
 
@@ -3811,7 +3803,7 @@ bool ammoPouchRounds(glm::vec3 (&box)[4])
     return true;
 }
 
-int ammoPouchMagSlots(glm::vec3 (&top)[3], glm::vec3& up)
+int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up)
 {
     glm::vec3 box[4];
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
@@ -3820,79 +3812,30 @@ int ammoPouchMagSlots(glm::vec3 (&top)[3], glm::vec3& up)
         return 0;
     }
     // (QC vr_reload.qc VR_Reload_PouchMagTop, the same way: through the rounds' box.)
-    const int n = za::max(0, ammoPouchFrame() - pouchMagFirstFrame[kind - 2] + 1);
+    const int n = pouchitems::magsShown(kind, cl.stats[protocol::STAT_QVR_POUCHCOUNT]);
     up = glm::length(box[3]) > 1e-6f ? glm::normalize(box[3]) : glm::vec3{0.f, 0.f, 1.f};
-    for(int j = 0; j < n && j < 3; j++)
+    for(int j = 0; j < n; j++)
     {
-        const glm::vec3 at{pouchMagX, pouchMagY[kind - 2][j], pouchMagTop};
+        const glm::vec2 at = pouchitems::magSlot(kind, j, n);
         top[j] = box[0] + box[1] * ((at.x - pouchRoundsMid.x) / pouchRoundsHalf.x) +
                  box[2] * ((at.y - pouchRoundsMid.y) / pouchRoundsHalf.y) +
-                 box[3] * ((at.z - pouchRoundsMid.z) / pouchRoundsHalf.z);
+                 box[3] * ((pouchitems::magTop - pouchRoundsMid.z) / pouchRoundsHalf.z);
     }
-    return za::min(n, 3);
+    return n;
 }
 
-int ammoPouchMags(glm::vec3 (&top)[3], glm::vec3& up)
+int ammoPouchMags(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up)
 {
-    const ViewEntity& pouch = entities.ammoPouch;
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
-    if(!ammoPouchPlaced || !pouch.ent.model || pouch.ent.model->type != mod_alias || kind < 2 || kind > 4)
+    if(!ammoPouchPlaced || !entities.ammoPouch.ent.model || kind < 2 || kind > 4)
     {
         return 0;
     }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(pouch.ent.model));
-    const int frame = pouch.ent.frame;
-    if(frame < 0 || frame >= hdr->numframes)
+    // (As drawn: each magazine's own model, wobbling.)
+    const int n = za::min(ammoPouchItems, pouchitems::magsMost);
+    for(int j = 0; j < n; j++)
     {
-        return 0;
-    }
-    const int pose = hdr->frames[frame].firstpose;
-    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    // The mesh as this frame has it (model units): each slot's vertices above the rim, out of the pouch's back (the rounds
-    // not shown are drawn to a speck under its floor), within a magazine's width of the slot; its top's middle the box of
-    // those within 0.45 of its highest (the feed lips, a cell's contact: square about the magazine's middle).
-    float high[3] = {-1e9f, -1e9f, -1e9f};
-    glm::vec3 lo[3], hi[3];
-    for(int pass = 0; pass < 2; pass++)
-    {
-        for(int v = 0; v < hdr->numverts; v++)
-        {
-            const glm::vec3 p = mdldequant::poseVertex(hdr, pose, v) * scale + origin;
-            if(p.z < pouchMagRim || p.x < 0.3f)
-            {
-                continue;
-            }
-            for(int j = 0; j < 3; j++)
-            {
-                if(za::fabs(p.y - pouchMagY[kind - 2][j]) > 1.25f || (kind == 3 && j == 2))
-                {
-                    continue;
-                }
-                if(pass == 0)
-                {
-                    high[j] = za::max(high[j], p.z);
-                }
-                else if(p.z >= high[j] - 0.45f)
-                {
-                    lo[j] = glm::min(lo[j], p);
-                    hi[j] = glm::max(hi[j], p);
-                }
-            }
-        }
-        for(int j = 0; j < 3 && pass == 0; j++)
-        {
-            lo[j] = glm::vec3{1e9f};
-            hi[j] = glm::vec3{-1e9f};
-        }
-    }
-    const ModelSpace m{pouch};
-    int n = 0;
-    for(int j = 0; j < 3 && high[j] > -1e8f; j++, n++)
-    {
-        top[j] = m.point({(lo[j].x + hi[j].x) * 0.5f, (lo[j].y + hi[j].y) * 0.5f, high[j]});
-        const glm::vec3 d = m.point({(lo[j].x + hi[j].x) * 0.5f, (lo[j].y + hi[j].y) * 0.5f, high[j] + 1.f}) - top[j];
-        up = glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
+        pouchItemTop(j, top[j], up);
     }
     return n;
 }

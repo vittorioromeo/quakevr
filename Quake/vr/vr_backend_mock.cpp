@@ -848,7 +848,7 @@ void mockHandTo_f()
         // magazine <slot> as drawn in the pouch (view::ammoPouchMags: its mesh), moved <up> units along it, <left> to
         // the pouch's left and <out> out of the body; the hand turned as it is.
         const hands::State& st = hands::current();
-        glm::vec3 top[3], up, box[4];
+        glm::vec3 top[pouchitems::magsMost], up, box[4];
         const int n = view::ammoPouchMags(top, up);
         const int j = Q_atoi(Cmd_Argv(3));
         if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box) || j < 0 || j >= n)

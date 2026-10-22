@@ -6,6 +6,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_pouchitems.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -202,8 +203,8 @@ struct WeaponFrame
 // right: how many, and each one's top middle (world) and their up. ammoPouchMags: as drawn, from the pouch's mesh in this
 // frame (its vertices through its own transform); ammoPouchMagSlots: through the rounds' box (ammoPouchRounds) as QC
 // vr_reload.qc VR_Reload_PouchMagTop finds them (pouch reloading's magazine guns; vr_reload_pouch_mag_*). 0: none shown.
-[[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[3], glm::vec3& up);
-[[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[3], glm::vec3& up);
+[[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
+[[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).

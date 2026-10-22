@@ -965,6 +965,7 @@ float cvarh_vr_reload_pouch_sshot_contact;
 float cvarh_vr_reload_pouch_sshot_angle;
 float cvarh_vr_reload_pouch_clearance;
 float cvarh_vr_reload_pouch_mag_slots;
+float cvarh_vr_ammo_pouch_mags_max;
 float cvarh_vr_reload_pouch_mag_contact;
 float cvarh_vr_reload_pouch_mag_angle;
 float cvarh_vr_reload_port_gl_radius;
@@ -1984,6 +1985,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_reload_pouch_sshot_angle);
     VR_CVAR_HMAKE(vr_reload_pouch_clearance);
     VR_CVAR_HMAKE(vr_reload_pouch_mag_slots);
+    VR_CVAR_HMAKE(vr_ammo_pouch_mags_max);
     VR_CVAR_HMAKE(vr_reload_pouch_mag_contact);
     VR_CVAR_HMAKE(vr_reload_pouch_mag_angle);
     VR_CVAR_HMAKE(vr_reload_port_gl_radius);
