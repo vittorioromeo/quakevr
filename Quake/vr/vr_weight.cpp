@@ -1023,7 +1023,16 @@ float throwLimit(float mass, int hands)
     const float m = throwMass(za::max(mass, 0.f), hands);
     const float light = za::max(vr_throw_mass_light.value, 0.01f);
     const float most = za::max(vr_throw_max_speed.value, 0.1f);
-    return m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
+    const float limit = m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
+    // Two hands heave a heavy thing with the whole body (ROUND22.md, "Prop pushback, heavy throws, light ammo"): at most
+    // the speed vr_throw_2h_heave joules give its mass, when that is more (a 40 kg crate 3.5 m/s, not 2.7; the 80 kg
+    // explosive box 2.5, not 1.4: it goes a metre or two, a light thing tens).
+    const float heave = za::max(vr_throw_2h_heave.value, 0.f);
+    if(hands >= 2 && heave > 0.f && mass > 0.f)
+    {
+        return za::min(most, za::max(limit, za::sqrt(2.f * heave / mass)));
+    }
+    return limit;
 }
 
 namespace
