@@ -3,17 +3,21 @@
 //
 // Feet: stepping in a pool of blood (the pools goresound keeps: notePool, poolUnder) or onto a bloody body (a ragdoll
 // with blood painted on it, vr_wounds) bloodies your feet: the next vr_footprint_count steps leave a bloody boot print
-// each, fading (vr_footprint_fade). A step is a foot of the posed body (avatar::skeleton) coming down after it was
-// lifted (the walk's swing, a step turning on the spot): the print lies on the floor under that foot, along it (ankle to
-// toe), as long as it (vr_footprint_size times), the left one mirrored. Without the body's legs, every stride's length
-// walked on the ground, the feet in turn, along where you go. The pool and body checks run at a step only (a few dozen
+// each, fading (vr_footprint_fade). Moving, a step is a person's step length at your speed walked on the ground (0.7 m
+// at a walk to 2.2 m at a run, over vr_footprint_rate; the walk's legs step fewer times: their cadence is capped), the
+// feet in turn, beside your way as the posed legs stand apart, along the posed foot; standing, a step is the posed
+// legs' own (avatar::Skeleton::steps: turning on the spot). The print lies on the floor, as long as the foot
+// (vr_footprint_size times), the left one mirrored. The pool and body checks run at a step only (a few dozen
 // distances; the entities near you once), never per frame.
 //
 // Hands: a hand's blood from the gore (wounds' smearHand: a gib taken or held, a bloody blow, vr_gore_hands_test)
 // gathers to 1 (soaked full); while some is left, each frame one short line from that hand's palm through its palm's
 // way finds what it presses on (a wall, the floor, a ledge it grips). A new touch (or one slid along) leaves a bloody
 // handprint there, along the hand, the thumb on its side, fainter as the blood runs out (each takes 1 /
-// vr_handprint_count), at most one every 0.3 s a hand. Water washes hands and feet.
+// vr_handprint_count), at most one every 0.3 s a hand; over an edge (a ledge's top, a wall's foot) a second print on
+// the face beyond, the first unfolded onto it. On a prop lying about (vr_handprint_props) its own blood mask takes the
+// print (wounds::palmTouch, handprintOn); what the hand holds takes its blood where it grips, every 0.75 s
+// (vr_handprint_gear; wounds::gripPrint). Water washes hands and feet.
 //
 // The prints are the decals' (decals::Mark::Footprint, Handprint: the blood's colours, its bucket and permanent layer).
 

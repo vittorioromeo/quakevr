@@ -378,8 +378,20 @@ const DefaultChange defaultChanges[] = {
     {177, &vr_kdtrig_tackle_knock, "96"},      // 152
     {177, &vr_kdtrig_tackle_push, "1"},        // 1.25
     {177, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
+    // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
+    // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
+    {178, &vr_footprint_size, "1"},         // 1.6
+    {178, &vr_handprint_size, "1"},         // 1.6
+    {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_tear, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_squelch, "1"}, // 0.75
+    {178, &vr_gore_sound_vol_step, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
 };
-constexpr int configVersion = 177;
+constexpr int configVersion = 178;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

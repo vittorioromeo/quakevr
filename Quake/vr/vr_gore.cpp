@@ -731,6 +731,10 @@ void frame()
                 decals::place(Mark::Drop, l.where, l.normal, l.size);
             }
             particles::bloodSpecks(l.where, l.normal, 3, l.color);
+            if(cl.time - l.time < 0.5)
+            {
+                goresound::drip(l.where, 1.f); // (not one long overdue: a time jump)
+            }
         }
         landings[i] = landings.back();
         landings.popBack();

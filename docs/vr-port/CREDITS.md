@@ -254,6 +254,7 @@ the source.
 | `slap2.wav` | the same | [223967](https://freesound.org/people/dav0r/sounds/223967/): *d0 Meatslap on Glass 1*, dav0r; 0.05-0.29 |
 | `slap3.wav` | the same | Independent.nu, *8 wet squish, slurp impacts*: `impactsplat03`; 0.09-0.31 |
 | `splash1..3.wav` | a foot stepping into a pool of blood (low-passed at 4 kHz) | 531571 (above): 7.10-7.40, 6.70-7.04, 2.28-2.56; under the second and third a wet splat: Independent.nu, *8 wet squish, slurp impacts*: `impactsplat08` 0.06-0.32, `impactsplat05` 0.04-0.32 |
+| `drip1..3.wav` | a drop of blood hitting the floor (low-passed at 5 kHz) | 518474 (above), the wrung cloth's last drips on the paving: 5.155-5.29, 6.51-6.60, 6.725-6.85 |
 
 ### Wooden crates (`quakevr/progs/vr_crate*.mdl`, `vr_plank*.mdl`; `quakevr/sound/vr/crate_*.wav`)
 

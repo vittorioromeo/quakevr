@@ -1201,6 +1201,10 @@ struct Gait
 
 Gait gait;
 
+// Each foot's touchdowns so far (side 0 the left): the walk's (its swing ending) and the standing steps' (Skeleton::steps,
+// the bloody footprints' steps).
+unsigned footSteps[2]{0u, 0u};
+
 // Full running speed (Quake's 320 units per second), in metres per second of the body at
 // vr_world_scale 1.
 constexpr float RUN_SPEED = 320.f / UNITS;
@@ -1331,7 +1335,20 @@ void updateGait(const Body& b, float dt)
         const float cap =
             CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * za::max(0.3f, 1.f - 0.3f * wade);
         const float rate = za::min(speed / gait.stride, cap);
+        const float before = gait.phase;
         gait.phase = za::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
+        // A foot's swing ends (its cycle wraps: the left's at the phase's wrap, the right's at half of it): a touchdown.
+        if(gait.amount > 0.5f)
+        {
+            if(gait.phase < before)
+            {
+                footSteps[0]++;
+            }
+            if(before < glm::pi<float>() && (gait.phase >= glm::pi<float>() || gait.phase < before))
+            {
+                footSteps[1]++;
+            }
+        }
     }
 }
 
@@ -1481,6 +1498,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         {
             f.step = -1.f;
             f.lift = 0.f;
+            footSteps[side]++;
             stance.follow = stance.follow == side ? -1 : 1 - side;
         }
         return;
@@ -2556,6 +2574,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             k.ankle[side] = foot.pos;
             k.toe[side] = foot.pos + foot.rot[0] * (toeLength(side) * b.m2w);
             k.sole[side] = ankleHeight(side) * b.m2w;
+            k.steps[side] = footSteps[side];
         }
         // Body tracking's debug skeleton and error log (vr_bodytrack.cpp).
         bodytrack::Posed bt;

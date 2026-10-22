@@ -38,6 +38,8 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include <string.h>
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
@@ -3390,6 +3392,204 @@ int liveCount()
 bool bloody(const entity_t* e)
 {
     return e && maskOf.find(e) != maskOf.end();
+}
+
+namespace
+{
+Surface palmSurface; // (palmTouch's: a thing's triangles as drawn)
+
+// The line `from` + `dir` * t, t in `lo`..`hi`, into brush entity `e`'s box (its model's bounds, as drawn: turned and
+// moved with it): t and the outward normal of the face it enters by.
+[[nodiscard]] bool lineIntoBox(entity_t& e, const glm::vec3& from, const glm::vec3& dir, float lo, float hi, float& t,
+    glm::vec3& normal)
+{
+    float mat[16];
+    VR_BModelMatrix(&e, mat);
+    const glm::mat4 toWorld = glm::make_mat4(mat);
+    const glm::mat4 toModel = glm::inverse(toWorld);
+    const glm::vec3 a{toModel * glm::vec4{from, 1.f}};
+    const glm::vec3 d{toModel * glm::vec4{dir, 0.f}};
+    const glm::vec3 mins{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
+    const glm::vec3 maxs{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+    float enter = lo, leave = hi;
+    int axis = -1;
+    float side = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        if(za::fabs(d[i]) < 1e-6f)
+        {
+            if(a[i] < mins[i] - 0.01f || a[i] > maxs[i] + 0.01f)
+            {
+                return false;
+            }
+            continue;
+        }
+        float t0 = (mins[i] - a[i]) / d[i], t1 = (maxs[i] - a[i]) / d[i];
+        float s = -1.f; // (entering by the min face: its normal -axis)
+        if(t0 > t1)
+        {
+            const float k = t0;
+            t0 = t1;
+            t1 = k;
+            s = 1.f;
+        }
+        if(t0 > enter)
+        {
+            enter = t0;
+            axis = i;
+            side = s;
+        }
+        leave = za::min(leave, t1);
+        if(enter > leave)
+        {
+            return false;
+        }
+    }
+    if(axis < 0)
+    {
+        return false; // (from inside it)
+    }
+    glm::vec3 n{0.f};
+    n[axis] = side;
+    normal = glm::normalize(glm::vec3{toWorld * glm::vec4{n, 0.f}});
+    t = enter;
+    return true;
+}
+
+// Blood painted on `e` (its mask, made if need be: a thing's, kept as gear is) at `at`, a palm's print `radius` units
+// round, `strength` 0..1; its weapon's (`weapon`, 0 none) wherever it goes.
+bool paintPalm(entity_t* e, int weapon, const glm::vec3& at, float radius, float strength)
+{
+    const int layer = acquire(e, false, true, true);
+    if(layer < 0)
+    {
+        return false;
+    }
+    masks[static_cast<za::SizeT>(layer)].gear = true;
+    if(weapon)
+    {
+        bindWeapon(layer, weapon);
+    }
+    const float s = za::clamp(strength, 0.f, 1.f);
+    za::Vector<Splat> splats;
+    splats.pushBack(spatterSplat(at, radius * 1.4f, radius * (0.35f + 0.4f * s), radius, 0.35f + 0.5f * s, 0.8f));
+    paint(layer, e, splats);
+    return true;
+}
+} // namespace
+
+int palmTouch(const glm::vec3& from, const glm::vec3& dir, float reach, glm::vec3& at, glm::vec3& normal)
+{
+    if(!enabled() || !vr_gore_gear.value || !vr_handprint_props.value)
+    {
+        return 0;
+    }
+    int best = 0;
+    float bestAlong = reach;
+    for(int num = cl.maxclients + 1; num < cl.num_entities; num++)
+    {
+        if(!liesAbout(num)) // (not what a hand carries: gripPrint's)
+        {
+            continue;
+        }
+        entity_t& e = cl_entities[num];
+        if(!e.model || entityWeapon(num) != 0 || isGib(num))
+        {
+            continue;
+        }
+        const float r = za::max(modelRadius(e.model), 4.f);
+        if(glm::distance(thingCentre(e), from) > r + reach + 4.f)
+        {
+            continue;
+        }
+        if(vr_bloodprints_debug.value >= 2.f)
+        {
+            Con_Printf("wounds: palm near entity %d (%s), %.1f units\n", num, e.model->name,
+                static_cast<double>(glm::distance(thingCentre(e), from)));
+        }
+        constexpr float lo = 0.f;
+        glm::vec3 p, n;
+        float along;
+        if(e.model->type == mod_brush)
+        {
+            if(!lineIntoBox(e, from, dir, lo, bestAlong, along, n))
+            {
+                continue;
+            }
+            p = from + dir * along;
+        }
+        else
+        {
+            if(e.model->type != mod_alias || !surfaceOf(e, num, palmSurface) || !strike(palmSurface, from, dir, p, n))
+            {
+                if(vr_bloodprints_debug.value >= 2.f)
+                {
+                    Con_Printf("wounds: palm on %d: no triangles struck (%d drawn)\n", num,
+                        static_cast<int>(palmSurface.tris.size() / 3));
+                }
+                continue;
+            }
+            along = glm::dot(p - from, dir);
+            const glm::vec3 off = p - from - dir * along;
+            if(vr_bloodprints_debug.value >= 2.f)
+            {
+                Con_Printf("wounds: palm on %d: struck at %.1f along, %.1f off the line, facing %.2f\n", num,
+                    static_cast<double>(along), static_cast<double>(glm::length(off)), static_cast<double>(glm::dot(n, dir)));
+            }
+            if(along < lo || along > bestAlong || glm::dot(off, off) > 16.f)
+            {
+                continue;
+            }
+        }
+        if(glm::dot(n, dir) > -0.3f)
+        {
+            continue; // (not facing the palm)
+        }
+        best = num;
+        bestAlong = along;
+        at = p;
+        normal = n;
+    }
+    return best;
+}
+
+bool handprintOn(int num, const glm::vec3& at, float radius, float strength)
+{
+    if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const bool painted = paintPalm(&cl_entities[num], 0, at, radius, strength);
+    if(vr_wounds_debug.value || vr_bloodprints_debug.value)
+    {
+        Con_Printf("wounds: a bloody palm on entity %d (%s) at %.1f %.1f %.1f, %.1f units, strength %.2f: %s\n", num,
+            cl_entities[num].model->name, at.x, at.y, at.z, static_cast<double>(radius), static_cast<double>(strength),
+            painted ? "painted" : "no mask");
+    }
+    return painted;
+}
+
+bool gripPrint(int hand, const glm::vec3& at, float radius, float strength)
+{
+    if(hand < 0 || hand > 1 || !enabled() || !vr_gore_gear.value || !vr_handprint_gear.value)
+    {
+        return false;
+    }
+    entity_t* g = gearOf(hand);
+    if(!g || !g->model)
+    {
+        return false;
+    }
+    const view::ViewEntity* ve = view::heldWeapon(hand);
+    const int weapon = ve && &ve->ent == g ? handWeapon(hand) : 0;
+    const bool painted = paintPalm(g, weapon, at, radius, strength);
+    if(vr_bloodprints_debug.value)
+    {
+        Con_Printf("wounds: hand %d's grip on %s (weapon #%d) at %.1f %.1f %.1f, %.1f units, strength %.2f: %s\n", hand,
+            g->model->name, weapon, at.x, at.y, at.z, static_cast<double>(radius), static_cast<double>(strength),
+            painted ? "painted" : "no mask");
+    }
+    return painted;
 }
 
 int skinLevel(int part, int level, const float* origin)

@@ -16016,3 +16016,53 @@ of AD's model, their box with them; `vr_ad_test 143`: drawn x2.5, still grabbed,
 **In VR:** die anywhere (vrragtriggers too): the menu in front of you, presses only open it, Respawn and the autosaves
 work. Charge a grunt: it should connect only as your body meets it, with a thud, a rumble and its cry. Drag a grunt by a
 leg on its back and front: arms clawing and flailing. The hammer: slower walking, stamina going faster. Vial size.
+
+## Bloody prints 2; drip sounds (worktree `gorefx`, branch `agent/prints2`, 2026-10-22)
+
+His notes of 2026-10-22 01:02-01:51 (vrragtriggers): prints too rare (a few steps a print), bigger prints, handprints
+not round a ledge's edge nor on props, his gore sound volumes, a drip sound for each drop of blood; then (asked) blood
+where his bloody hands grip his weapon.
+
+- **Defaults** (his config; migration 178, configs at the old defaults move, custom values stay): `vr_footprint_size`
+  and `vr_handprint_size` 1 -> 1.6; `vr_gore_sound_vol_*` (spurt, pour, choke, tear, squelch, step, slap, splash)
+  1 -> 0.75 (the master `vr_gore_sound` was his at 1 already). His counts (12 and 8) were not named: left at 8 and 6.
+- **Footprint cadence**: the prints followed the posed legs' touchdowns, and the walk's legs step at most
+  `vr_body_step_rate` (2.2) times a second at a full run (legs spinning look silly): at 320 u/s a touchdown every
+  ~130 units (5 m). Now, moving, a print every step's length walked on the ground: a person's at your speed, 0.55 m +
+  0.19 s (s in m/s of the body) within 0.6..2.2 m (0.7 m at a walk, 2.2 m at Quake's run, a sprint's), over
+  `vr_footprint_rate` (new, 1; Gore > Footprint Frequency, 0.25..4); the feet in turn, beside the way you go as the
+  posed legs stand apart (across the hips, 5-20 cm), along the posed foot. Standing (under 0.3 m/s), the legs' own
+  steps (turning on the spot) as before, now counted by the avatar (`Skeleton::steps`: the gait's swings ending, the
+  standing steps). A moment off the ground (0.25 s: a step down, the ground flickering off) still walks.
+  Measured (vrtesthall, world scale 1): 177 u/s, a print every 49.5 units, 3.6 a second (the legs 2.4); 319 u/s, every
+  57.5 units, 5.6 a second (the legs 2.5). At his world scale 1.2 a run's print is every ~69 units, 4.6 a second.
+- **Handprints round edges** (`wrapPrint`): after a print, each of its four sides is probed: a face rising across it
+  (a wall's foot) met along the print just off its face, or the face ending under it (a ledge's edge) and the face
+  beyond met from over it; at least 15% of the half-extent over: a second print on that face, the first unfolded onto
+  it (turned about the edge, Rodrigues), so the two halves meet at the edge (each cut where its face ends).
+- **Handprints on props** (`vr_handprint_props` 1): the palm's line also against the things lying about
+  (`wounds::palmTouch`: a model's triangles as drawn, a brush box by its turned bounds); the nearer of it and the
+  world. On a prop the gore's own mask takes the blood (`wounds::handprintOn`: a palm-sized spatter splat, the gear's
+  blood: moves with it, washes off), not a decal.
+- **Bloody grips** (`vr_handprint_gear` 1): what a bloody hand holds (its weapon, or a prop it carries:
+  `wounds::gripPrint`) takes its blood at the palm every 0.75 s, a quarter of a print's blood each, building up; the
+  weapon's mask is bound to the weapon (dropped, holstered, taken again keep it). Not saved (the masks are the
+  client's).
+- **Drip sounds** (`goresound::drip`, kind `drip`): each drop of yours landing on a floor (vr_bodyblood.cpp `land`)
+  and each of the gore's drops (ceilings, stuck gibs: vr_gore.cpp's landings) plays `vr/gore/drip1..3.wav` (0.09-0.14
+  s, cut from 518474's last drips on the paving, -18 dB, low-passed 5 kHz; CREDITS.md), gain 0.3, at most 4 at once,
+  one every 30 ms (a much nearer one still plays), attenuation 2, heard within 500 units. `vr_gore_sound_vol_drip` 1,
+  `vr_gore_sound_drips` 1 (the share heard: 1 each drop). Gore page rows for all the new settings.
+- Debug: Test Effects: Handprint on the Wall Ahead (`vr_bloodprints_test wall [height]`), on the Prop Ahead (`... prop`);
+  `... floor [distance]` too; `vr_bloodprints_info` adds the step cadence (`reset` clears it), wraps, prop prints,
+  grips; `vr_bloodprints_debug 2` the edge probes and the props near a palm.
+
+Tests (headless): migration from 176 (1 -> 1.6, 1.3 kept, 1 -> 0.75, 0.5 kept, version 178). vrclimb's thin wall
+(`setpos -270 -260 24 0 180 0`, its top at 96): a print at 94 wraps 2.5 units onto the top; at 2 over the floor onto
+the floor; at 91 none. e1m1: a crate (`vr_physics_stack vr_crate`) and an explosive box (b_explob.bsp) printed by
+the palm; a bloody main hand holding the shotgun painted its grip twice in 100 frames (blood 1.00 -> 0.92). At 15 hp
+the drips: 39-44 played, 7-13 rate-limited, in 400 frames.
+
+**In VR:** walk and run with bloody feet: one print a step now? (Footprint Frequency if not.) Climb a ledge with a
+bloody hand: does the print go over the top? Press a bloody palm on a crate; hold your gun with a bloody hand: blood
+on its grip, kept when holstered? Listen for the drips when hurt (Gore Sounds: Drips, Drips Heard).
