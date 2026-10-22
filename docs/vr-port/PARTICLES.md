@@ -40,8 +40,10 @@ The pop frame's CPU: 2.9 ms (QuakeC 0.7, box3d 0.6, decal buffers upload 1.0; 0.
 
 Flamethrower held and firing at a wall (`scratch/gh_flame.sh`, 1024 an eye): new effects off 353 particles, GPU
 particles 0.04 ms, frame CPU 1.30 / GPU 1.13 ms; embers, smoke, AD copies 2 and our rate 2 on: 468 particles, 0.07 ms,
-CPU 1.16 / GPU 1.19 ms. Scorch marks (`vr_adgun_fx_scorch 1`) cost 6 ms of CPU a frame (the decals' rebuild per new
-mark): off by default.
+CPU 1.16 / GPU 1.19 ms. Scorch marks (`vr_adgun_fx_scorch`, on by default since configVersion 186) are baked straight
+into the permanent layer, never live, so no new mark makes the live decals' grid again (ROUND22.md, "Cheap scorch
+marks"): held on a wall or swept across walls for 10 s, frame CPU 0.98 vs 0.97 ms and GPU 1.20 vs 1.19 with them off
+(the "6 ms" first noted was a 30-frame log right after the stream started, not the marks).
 
 ## Conclusions
 
@@ -52,4 +54,5 @@ mark): off by default.
   (0.7 + 0.6 ms CPU) and the decals' upload (1.0 ms). If the headset still drops a frame there, capture it with Debug
   > Profiling > Log Next 3 Seconds (`vr_frame_log`, written to `quakevr/profile/framelog_*.txt`) and punch.
 - Leads, untried: a near-eye spawn budget (bursts spawned within ~40 cm thinned: 2000 particles there show as one red
-  fog anyway); wound paint spread over two frames; the decal grid rebuilt incrementally (also what scorch marks need).
+  fog anyway); wound paint spread over two frames; the decal grid rebuilt incrementally (scorch marks no longer
+  need it: baked at once).

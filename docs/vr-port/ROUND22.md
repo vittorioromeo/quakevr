@@ -16632,3 +16632,48 @@ missing, vrtesthall 0 missing (no board names the old rows). SETTINGS.md updated
 planted, not a blur; walk slowly: as before. Body > Running Cadence 0 gives the old legs to compare. VR Settings >
 Playing > Item Collection: the switch shows your mode; try each (grip a box, walk into one); Backpacks Too only lights
 up under Auto-Collect.
+
+## Cheap scorch marks, on by default (worktree `gorefx`, branch `agent/scorch`, 2026-10-23; vr_cfg_version 186)
+
+The flamethrowers' scorch marks (`vr_adgun_fx_scorch`) were off because each new mark made the live decals' grid again
+(`buildWorld`: records, buckets, upload), and with the permanent layer twice: as it came, and 0.1 s later as it baked and
+left the ring. Now a scorch is baked straight into the permanent layer (`MarkOptions::bakeNow`, vr_decals.cpp `add`):
+the same stamp `bakeSettled` would have baked a tenth of a second later (a scorch neither spreads nor darkens, so it
+looks the same), never live, so the grid is not touched at all. Live as before where the layer can't take it (a runtime
+brush, the frame's bake budget `vr_permdecal_bake_max` spent, a brush entity). With the layer off (`vr_permdecals 0`)
+they stay live, three a spot at most (a fourth within 6 units on a surface facing the same way is not added: the stream
+held on one spot makes the grid again only as it moves on). `vr_decal_count` says how many were baked at once.
+
+**Default** `vr_adgun_fx_scorch` 0 -> 1; migration row at 186 (a config at 0 moves to 1, a custom value stays). Menu help
+(AD Guns > Flamethrowers' Look > Scorch Marks) updated.
+
+**Measured** (`scratch/sc_flame2.sh`, e1m1, AD flamethrower held on the wall and arch by the start, 2400 frames logged in
+fast mode, `--exclusive`; "heavy": 64 spreading pools live in the ring first):
+
+| case | scorches | grid builds | CPU mean / p99 / max ms | GPU mean |
+|---|---|---|---|---|
+| before, off, hold (720 frames) | 0 | | 0.89 / 2.22 / 6.2 | 1.17 |
+| before, 1, hold (720 frames) | (few) | | 0.93 / 3.63 / 7.6 | 1.53 |
+| before, heavy, off | 0 | | 1.02 / 2.35 / 7.6 | 1.28 |
+| before, heavy, 3 | (~50) | 2 a scorch | 0.96 / 2.35 / 29.6 (a particles stall) | 1.22 |
+| after, heavy, off | 0 | 5 | 0.97 / 1.88 / 7.5 | 1.19 |
+| after, heavy, 1 (default) | 17 baked at once | 7 | 0.98 / 1.94 / 5.9 | 1.20 |
+| after, heavy, 3 | 52 baked at once | 6 | 0.93 / 2.40 / 7.9 | 1.21 |
+| after, sweep across walls, off | 0 | 0 | 0.88 / 1.96 / 9.0 | 1.14 |
+| after, sweep, 1 | 14 baked at once | 0 | 0.89 / 2.11 / 7.3 | 1.16 |
+| before, heavy, 3, layer off | 44 live | | 0.84 / 1.79 / 5.0 | 1.22 |
+| after, heavy, 3, layer off | 12 live | 14 | 0.85 / 1.50 / 5.7 | 1.21 |
+
+With scorches on, the frame is the same as off (within run-to-run noise, 0.05 ms); no decal scope reaches a frame's top
+three; the layer's flush stays under 0.1 ms. The old "1.2 -> 6 ms" did not reproduce here even before the change: the
+ring is small with the layer on (marks bake after 0.1 s), so each rebuild was cheap in the mock; it was a 30-frame log
+right after the stream started (swap and scene stalls in its top scopes). The rebuilds per scorch are gone anyway: they
+cost more with a full ring (128 carved holes live, drying gore) and in the headset.
+
+Look: `scratch/sc_eyeup.png` (scorch 3 held 10 s on the arch over the start: lit, and fullbright). Most of the stream's
+scorches land on ceilings and arch undersides (the flames drift up).
+
+Migration (`scratch/mig_test.sh`): a 184 config with `vr_adgun_fx_scorch "0"` -> 1, with "2" -> 2 (both now 186).
+
+**In VR:** hold the flamethrower on a wall, the floor and a ceiling for a while, then sweep it: the scorches build up
+where the fire licks, and the frame stays smooth (Debug > Profiling > Log Next 3 Seconds if it doesn't).

@@ -434,6 +434,9 @@ const DefaultChange defaultChanges[] = {
     // 185: the author's value (his config of 2026-10-22, approved): more bloody handprints from a soaked hand (ROUND22.md,
     // "Item Pickup Mode; running legs; handprints").
     {185, &vr_handprint_count, "6"}, // 8
+    // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
+    // scorch marks").
+    {186, &vr_adgun_fx_scorch, "0"}, // 1
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -452,7 +455,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 185;
+constexpr int configVersion = 186;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

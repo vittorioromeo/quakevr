@@ -2746,7 +2746,7 @@ QVR_CVAR(vr_adgun_fx_rate, "1.5", CVAR_ARCHIVE) // AD support: how often our ton
 QVR_CVAR(vr_adgun_ad_copies, "2", CVAR_ARCHIVE) // AD support: AD's flame and poison sprites drawn this many more times, between each and where it came from (0..3; 0: AD's alone): a fuller stream, drawn only (his 2, 0 before vr_cfg_version 182)
 QVR_CVAR(vr_adgun_fx_embers, "1", CVAR_ARCHIVE) // AD support: embers thrown off the flamethrowers' fire and wisps of dark smoke from it, this many times (0..3; 0 none)
 QVR_CVAR(vr_adgun_fx_mist, "1", CVAR_ARCHIVE) // AD support: a faint green mist lingering where the poison sprayers' poison went, this many times (0..3; 0 none)
-QVR_CVAR(vr_adgun_fx_scorch, "0", CVAR_ARCHIVE) // AD support: scorch marks where the flamethrowers' fire licks a wall or floor, this many times as often (0..3; 0 none: off by default, each new mark costs the decals' rebuild, a held stream 1.2 -> 6 ms of CPU a frame in the mock; ROUND22.md)
+QVR_CVAR(vr_adgun_fx_scorch, "1", CVAR_ARCHIVE) // AD support: scorch marks where the flamethrowers' fire licks a wall or floor, this many times as often (0..3; 0 none). Cheap: baked straight into the permanent layer, never live (vr_decals.cpp MarkOptions::bakeNow; ROUND22.md, "Cheap scorch marks")
 QVR_CVAR(vr_adgun_bolt_fx, "1", CVAR_ARCHIVE) // AD support: AD's plasma rifles' bolts electric: a faint smoke, arcs and sparks along them, at the muzzle and the hit (0: AD's grenade smoke trail)
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
