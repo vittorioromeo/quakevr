@@ -441,6 +441,10 @@ float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segme
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
 float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
+// The level gap between a player's body and a monster's as their moves meet in the engine (units; 0 touching): the boxes
+// as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents) and insets them (vr_body_monster_inset), not the
+// 32-wide ones QC sees. The shoulder charge's contact.
+float(entity player, entity monster) bodygap = #0;
 // The point of e's Quake .mdl as drawn (a monster's, a corpse's, a ragdoll's as its parts carry it, a player's) nearest
 // p, as an anchor on its surface (x its triangle, y and z where on it); trace_endpos the point, trace_plane_normal the way
 // out there, trace_plane_dist how far p is from it. x -1: no such model (the trace globals untouched).

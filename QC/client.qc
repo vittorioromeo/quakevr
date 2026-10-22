@@ -2350,6 +2350,11 @@ void() PlayerPostThink =
             crushCushion = cvar_hget(cvarh_vr_ragimpact_crush_cushion) != 0;
         }
     }
+    // QVR: landing on small gibs pops them (vr_smallgibs.qc; from vr_smallgibs_stomp_speed).
+    if(self.jump_flag < 0 && (self.flags & FL_ONGROUND) && self.health > 0)
+    {
+        VR_SmallGib_Stomp(self, -self.jump_flag);
+    }
     if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
     else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {

@@ -45,6 +45,8 @@
 //  25 the impact rule (vr_carry.qc VR_Gib_Impact): a head held in the off hand smashed into the nearest wall at twice its
 //     burst speed (bursts) and a third (doesn't); a head falling, struck from below by the hand's touch and by a blow at
 //     0.6x (bounces up) and 1.5x (bursts) (VR_SmallGib_TestImpact; 12 is the thrown one)
+//  26 popped underfoot (vr_smallgibs_stomp): three meat and two brain chunks round your feet, you dropped 8 units (lands
+//     at about 110 u/s: they stay), then 64 (about 320: they pop); how many lie under you each time
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -725,7 +727,7 @@ void(float xCase) VR_SmallGib_TestStart =
         return;
     }
     if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22 &&
-       xCase != 25)
+       xCase != 25 && xCase != 26)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -1038,6 +1040,18 @@ void(float xCase) VR_SmallGib_TestStart =
         VR_SmallGib_TestImpact();
         vr_sgib_test = 0;
     }
+    else if(xCase == 26)
+    {
+        // Three meat chunks and two brain chunks round your feet (test 26: popped underfoot).
+        vector feet = self.origin + '0 0 1' * self.mins_z + '0 0 4';
+        for(float uf = 0; uf < 5; uf++)
+        {
+            vector ufd = '1 0 0' * cos(uf * 72) + '0 1 0' * sin(uf * 72);
+            VR_SmallGib_SpawnAs(feet + ufd * 6, '0 0 0', world, uf >= 3);
+        }
+        vr_sgib_test_step = 0;
+        vr_sgib_test_t = time;
+    }
     if(xCase == 14)
     {
         float crowd = cvar("vr_smallgibs_test_crowd");
@@ -1149,6 +1163,22 @@ void() VR_SmallGib_TraceFrame =
 };
 
 // Every server frame (StartFrame): a test asked for (vr_smallgibs_test), or the next step of one running.
+// Test 26: the small gibs lying under the player's (self's) feet (within 20 units of them, level, at the floor).
+float() VR_SmallGib_TestUnderfoot =
+{
+    vector feet = self.origin + '0 0 1' * self.mins_z;
+    float n = 0;
+    for(entity g = findradius(feet, 40); g; g = g.chain)
+    {
+        vector d = (g.absmin + g.absmax) * 0.5 - feet;
+        if(g.vr_sgib && g.vr_sgib_id && fabs(d_z) < 12 && vlen('1 0 0' * d_x + '0 1 0' * d_y) < 20)
+        {
+            n++;
+        }
+    }
+    return n;
+};
+
 void() VR_SmallGib_TestFrame =
 {
     VR_SmallGib_TraceFrame();
@@ -1170,7 +1200,32 @@ void() VR_SmallGib_TestFrame =
         float t = time - vr_sgib_test_t;
         entity m = vr_sgib_test_m;
         entity g = vr_sgib_test_g;
-        if(vr_sgib_test == 24)
+        if(vr_sgib_test == 26)
+        {
+            // Popped underfoot: a drop of 8 units (lands at about 110 u/s: none), then of 64 (about 320: all).
+            if(vr_sgib_test_step == 0 && t >= 1)
+            {
+                vr_sgib_test_a = VR_SmallGib_TestUnderfoot();
+                setorigin(self, self.origin + '0 0 8');
+                self.flags = self.flags - (self.flags & FL_ONGROUND);
+                vr_sgib_test_step = 1;
+            }
+            else if(vr_sgib_test_step == 1 && t >= 2)
+            {
+                vr_sgib_test_b = VR_SmallGib_TestUnderfoot();
+                setorigin(self, self.origin + '0 0 64');
+                self.flags = self.flags - (self.flags & FL_ONGROUND);
+                vr_sgib_test_step = 2;
+            }
+            else if(vr_sgib_test_step == 2 && t >= 3.5)
+            {
+                bprint(sprintf("sgibtest: underfoot: %d lying under you, after an 8-unit drop %d, after a 64-unit drop %d "
+                    "(Pop Underfoot %g, from %g u/s)\n", vr_sgib_test_a, vr_sgib_test_b, VR_SmallGib_TestUnderfoot(),
+                    cvar_hget(cvarh_vr_smallgibs_stomp), cvar_hget(cvarh_vr_smallgibs_stomp_speed)));
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 24)
         {
             // Blood streams by melee kind: a blow a frame, in turn a sword's blade, an axe's blade, the crowbar, a
             // punch and a thrown axe, vr_smallgibs_test_n of each; then vr_gore_streams_info's melee line has the rates.

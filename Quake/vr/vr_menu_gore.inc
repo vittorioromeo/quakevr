@@ -95,6 +95,10 @@
         slider("Most Lying About", vr_smallgibs_max, 1.f, 128.f, 1.f, "%.0f").extend(1.f, 256.f).help("Past it, the oldest go first (not one in your hand)."),
         slider("Last", vr_smallgibs_time, 0.f, 120.f, 5.f, "%.0f s").help("Then they fade away (0: never). Held, and in the air after, they wait."),
         toggle("Can Be Destroyed", vr_smallgibs_destroy).help("Shots and blows burst them into a puff of blood. Off: they pass through them."),
+        toggle("Pop Underfoot", vr_smallgibs_stomp)
+            .help("Landing on them (a jump, a drop, a stomp) pops the meat and brain chunks under your feet."),
+        slider("Pop Landing Speed", vr_smallgibs_stomp_speed, 50.f, 600.f, 10.f, "%.0f u/s")
+            .help("How fast you must land on them to pop them (a jump from the same level lands at about 270)."),
         open("Per Enemy", pageIndex(pageSmallGibsEnemies))
             .help("Each monster's own counts: a hit's, a gibbing's and a head or gib burst's, times these."),
     };

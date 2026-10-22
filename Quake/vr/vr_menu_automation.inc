@@ -355,6 +355,9 @@ za::Vector<Item> pageDebugAutomation()
         command("Burst a Gib and a Head", "vr_smallgibs_test 7"),
         command("Brain Chunks Ahead", "vr_smallgibs_test 21")
             .help("vr_smallgibs_test 21: a head pop's brain chunks (Small Gibs > From a Head Pop) burst just ahead of you, to look at, pick up and throw."),
+        command("Popped Underfoot", "vr_smallgibs_test 26")
+            .help("vr_smallgibs_test 26: three meat and two brain chunks round your feet; you are dropped 8 units (too "
+                  "soft: they stay), then 64 (they pop). The console (sgibtest: underfoot)."),
         command("Brain Jiggle Info", "vr_brain_jiggle_info")
             .help("vr_brain_jiggle_info: the brain chunks followed, those wobbling, the knocks that kicked them and the most squash since the last (Small Gibs > Brain Chunk Jiggle)."),
         command("Most Lying About", "vr_smallgibs_test 8").help("vr_smallgibs_test 8: 15 made with Most Lying About 10: the five oldest go."),
@@ -380,7 +383,8 @@ za::Vector<Item> pageDebugAutomation()
                   "scratches it; the crate breaks it. The console (lightthrow: lines)."),
         command("Blasts Push Props: AD and Quake", "vr_prop_impact_test 3")
             .help("vr_prop_impact_test 3: a small crate beside a blast of Arcane Dimensions' radius damage (its Plasma "
-                  "Gun's, rockets'...), then one beside Quake's: both throw it alike. The console (blastpush: lines)."),
+                  "Gun's, rockets'...), then one beside Quake's: both throw it alike; then an AD plasma bolt's blast (thrown "
+                  "as Plasma Blast Push) and Quake's of 20 (as the plasma threw before). The console (blastpush: lines)."),
         command("Press Down on a Crate", "vr_test_spawn_hold 0; vr_test_spawn 108; vr_test_spawn_dist 48; impulse 241; "
                                          "wait40; vr_prop_press_test main 50 20")
             .help("vr_prop_press_test: a large crate 48 units ahead, then the main hand (empty, a weapon or a prop held) "

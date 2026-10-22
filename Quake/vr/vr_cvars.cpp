@@ -423,6 +423,14 @@ const DefaultChange defaultChanges[] = {
         "monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150:2.5 "
         "monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120 monster_mummy:1.1:0.85:0:1.5 monster_zombiek:1.1:0.9:60:1.5 "
         "monster_deflector:1.1:0.9:250:2.5 monster_death_lord:1.25:1:400 monster_death_guard:1.2:1:125"},
+    // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
+    // (ROUND22.md, "Shoulder charge 3: body contact, run-up, standing tall").
+    {184, &vr_kdtrig_tackle_push, "1.25"},     // 1.3
+    {184, &vr_kdtrig_tackle_knock, "152"},     // 148
+    {184, &vr_kdtrig_tackle_leniency, "0.85"}, // 0.2
+    {184, &vr_kdtrig_tackle_bump, "100"},      // 120
+    {184, &vr_kdtrig_tackle_contact, "2"},     // 0
+    {184, &vr_footprint_count, "8"},           // 16
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -441,7 +449,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 183;
+constexpr int configVersion = 184;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

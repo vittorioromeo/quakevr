@@ -75,6 +75,7 @@ QVR_FIELD(offhand_hotspot)
 QVR_FIELD(sawcord)
 QVR_FIELD(vr_flatscreen) // this player plays flatscreen (-flatscreenmode: his client's move; vr_server.cpp): QC VR_FlatPlay
 QVR_FIELD(handdrop)
+QVR_FIELD(vr_stand) // the head's height, a share of his standing (calibrated) eye height (1 standing; vr_server.cpp): QC's shoulder charge
 QVR_FIELD(vr_posetime) // the client's poses' time (VrMove::poseClock): QC vr_melee.qc VR_Melee_Track
 QVR_FIELD(mainhand_hotspot)
 QVR_FIELD(button3)

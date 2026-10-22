@@ -30,6 +30,7 @@
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_body.hpp"
+#include "vr_bodycontact.hpp"
 #include "vr_magholster.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_server.hpp"
@@ -2495,6 +2496,13 @@ void PF_hitmodel_any()
     G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
 }
 
+// float(entity player, entity monster) bodygap: the level gap between the two bodies as their moves meet (units; 0
+// touching): the boxes as the hull code narrows and insets them (vr_bodycontact.cpp levelGap), not QC's 32-wide ones.
+void PF_bodygap()
+{
+    G_FLOAT(OFS_RETURN) = bodycontact::levelGap(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
+}
+
 // hitmodel_rest(e, p): the point p on e's drawn model, as it is on the model standing (its stand frame), placed at its
 // origin and turned with its yaw (positional damage's head sphere and regions); p itself if e is no target.
 void PF_hitmodel_rest()
@@ -2741,6 +2749,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_target", PF_hitmodel_target},
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
+    {"bodygap", PF_bodygap},
     {"modelanchor", PF_modelanchor},
     {"modelanchorpoint", PF_modelanchorpoint},
     {"hitmodel_rest", PF_hitmodel_rest},

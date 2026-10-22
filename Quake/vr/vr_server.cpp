@@ -20,7 +20,9 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
+#include "vr_seated.hpp"
 #include "vr_shock.hpp"
+#include "vr_units.hpp"
 #include "vr_portals.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
@@ -748,6 +750,14 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
+    // The head's height over the floor, a share of his standing eye height (vr_height_calibration; 1 standing): how the
+    // world places it (vr_hands.cpp: the head over the box's origin less vr_floor_offset, in metres times the units). Seated
+    // or flatscreen: 1. QC's shoulder charge asks for him standing tall (vr_kdtrig_tackle_stand).
+    const float standing = units::eyeHeight() * units::metresToUnits();
+    const bool upright = seated::active() || (move.vrBits0 & protocol::moveFlatplayBit) || move.headPos == glm::vec3{0.f} ||
+                         standing <= 0.f;
+    setFieldFloat(ent, f.vr_stand,
+        upright ? 1.f : (move.headPos.z - ent->v.origin[2] - vr_floor_offset.value) / standing);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.sawcord, move.sawCord);
     setFieldFloat(ent, f.handdrop, move.handDrop);

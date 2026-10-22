@@ -631,6 +631,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "heavier one staggers back 0.6 of it)."),
         slider("Least Speed", vr_kdtrig_tackle_speed, 0.3f, 1.f, 0.05f, "%.2f")
             .help("Your ground speed for it, as a share of the most (walking is about 0.6)."),
+        slider("Run-Up", vr_kdtrig_tackle_runup, 0.f, 4.f, 0.1f, "%.1f s")
+            .help("How long you must have been running at that speed before it counts (a sprint begun next to the "
+                  "monster doesn't; 0: none)."),
+        slider("Standing Tall", vr_kdtrig_tackle_stand, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Your head at least this share of your standing height (0.8: not crouched or half crouched; 0: any)."),
         slider("Your Weight", vr_kdtrig_tackle_weight, 40.f, 150.f, 5.f, "%.0f kg")
             .help("Your weight for the weight classes below."),
         slider("Side-On Turn", vr_kdtrig_tackle_turn, 10.f, 90.f, 5.f, "%.0f deg")
@@ -1159,6 +1164,9 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "cell a bolt, 5 a second."),
         slider("Plasma Gun Blast", vr_dmg_ad_plasmagun_splash, 0.f, 200.f, 5.f, "%.0f").extend().help("AD's 20. 0: none."),
         slider("Plasma Gun Bolt Speed", vr_ad_plasmagun_speed, 200.f, 2500.f, 25.f, "%.0f u/s").extend(100.f, 5000.f),
+        slider("Plasma Blast Push", vr_ad_plasma_push, 0.f, 200.f, 5.f, "%.0f").extend()
+            .help("A plasma bolt's blast (the Plasma Gun's, the plasma monsters') throws props and bodies as a blast of "
+                  "this much damage would (a rocket's 120; Rogue's plasma 70). Its own blast (20) when that is more."),
         slider("Plasma Soldier's Rifle", "vr_adgun_plasma_damage", 0.f, 100.f, 1.f, "%.0f a bolt").extend(0.f, 500.f)
             .help("The plasma soldier's dropped rifle (its blast, speed, bolts: Arcane Dimensions' Guns)."),
         slider("Centurion's Plasma Gun", "vr_adgun_centurion_damage", 0.f, 100.f, 1.f, "%.0f a bolt").extend(0.f, 500.f)

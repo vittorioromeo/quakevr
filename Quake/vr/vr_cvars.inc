@@ -2165,7 +2165,7 @@ QVR_CVAR(vr_gore_sound_drips, "0.65", CVAR_ARCHIVE)          // ... the share of
 // Bloody footprints and handprints (vr_bloodprints.cpp; ROUND22.md, "Bloody footprints and handprints"): decals as the
 // blood's, permanent as theirs (vr_decals 0: none).
 QVR_CVAR(vr_footprints, "1", CVAR_ARCHIVE)             // stepping in a pool of blood or on a bloody body leaves bloody footprints
-QVR_CVAR(vr_footprint_count, "8", CVAR_ARCHIVE)        // ... this many after it (1..32)
+QVR_CVAR(vr_footprint_count, "16", CVAR_ARCHIVE)       // ... this many after it (1..32) (his 16, 8 before vr_cfg_version 184)
 QVR_CVAR(vr_footprint_fade, "1", CVAR_ARCHIVE)         // ... fading this much from the first to the last (0: all as strong; 1: the last faint)
 QVR_CVAR(vr_footprint_size, "1.6", CVAR_ARCHIVE)       // ... times your foot's size (0.5..2)
 QVR_CVAR(vr_footprint_rate, "1", CVAR_ARCHIVE)         // ... times as many: a print a step's length walked (a person's at your speed: 0.7 m walking, up to 2.2 m at a run), over this (0.25..4)
@@ -2273,6 +2273,8 @@ QVR_CVAR(vr_smallgibs_blow_burst, "1", CVAR_ARCHIVE)    // in that time a blow (
 QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
 QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
+QVR_CVAR(vr_smallgibs_stomp, "1", CVAR_ARCHIVE)            // landing on them (a jump, a drop, a stomp) pops the meat and brain chunks under your feet (QC VR_SmallGib_Stomp)
+QVR_CVAR(vr_smallgibs_stomp_speed, "200", CVAR_ARCHIVE)    // ... landing at least this fast (units/s down: a jump from the same level lands at about 270, a step down under 100)
 QVR_CVAR(vr_smallgibs_brains, "1", CVAR_ARCHIVE)           // a head burst (a head gib destroyed, a head pop) throws brain chunks too (small gibs of brain matter: make_brains.py)
 QVR_CVAR(vr_smallgibs_brains_burst, "16", CVAR_ARCHIVE)     // brain chunks from a head gib destroyed
 QVR_CVAR(vr_smallgibs_brains_pop, "16", CVAR_ARCHIVE)       // brain chunks from a head pop (a headshot that bursts the head)
@@ -2635,6 +2637,7 @@ QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn 
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
+QVR_CVAR(vr_ad_plasma_push, "70", CVAR_ARCHIVE)       // a plasma bolt's blast (the Plasma Gun's, the plasma monsters'; QC VR_ADGun_BlastPush) throws props and ragdolls as a blast of this much damage (Rogue's plasma 70, a rocket's 120; its own splash, 20, when more): its 20 threw them within 60 units only, weakly
 QVR_CVAR(vr_chainsaw_damage, "120", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling
@@ -2972,19 +2975,21 @@ QVR_CVAR(vr_kdtrig_thrown_least, "0.05", CVAR_ARCHIVE)    // ... a weaker strike
 QVR_CVAR(vr_kdtrig_thrown_window, "1.5", CVAR_ARCHIVE)    // ... s after a hand lets go it counts as thrown (held and swung: while a hand swings)
 QVR_CVAR(vr_kdtrig_tackle_on, "1", CVAR_ARCHIVE)          // Shoulder Charges: on (the training dummy judges them, for the motion takes, also off)
 QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: the chance (Running at full speed into a monster side-on, a shoulder leading, both hands low and close to the body, knocks it back.)
-QVR_CVAR(vr_kdtrig_tackle_push, "1.25", CVAR_ARCHIVE)     // ... its push over and back (two hands' shove 1; the knock times it)
+QVR_CVAR(vr_kdtrig_tackle_push, "1.3", CVAR_ARCHIVE)      // ... its push over and back (two hands' shove 1; the knock times it) (his 1.3, 1.25 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
 QVR_CVAR(vr_kdtrig_tackle_turn, "50", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run (seen from your head: side-on, the torso turned)
 QVR_CVAR(vr_kdtrig_tackle_low, "5", CVAR_ARCHIVE)         // ... units: both hands at least this far below your head (low, by the body)
 QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.3 of it
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
+QVR_CVAR(vr_kdtrig_tackle_runup, "1.5", CVAR_ARCHIVE)     // ... s you have run at the least speed before it counts (a run-up: a sprint begun beside the monster doesn't; dips under 0.25 s and jumps keep it; 0 none)
+QVR_CVAR(vr_kdtrig_tackle_stand, "0.8", CVAR_ARCHIVE)     // ... your head's height at least this share of your standing (calibrated) height: standing tall, not crouched or half crouched (0 any)
 QVR_CVAR(vr_kdtrig_tackle_head, "7.5", CVAR_ARCHIVE)      // ... deg: your head tipped down at least this much (tucked, as the author charges)
 QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
-QVR_CVAR(vr_kdtrig_tackle_leniency, "0.85", CVAR_ARCHIVE) // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict)
-QVR_CVAR(vr_kdtrig_tackle_knock, "152", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it)
-QVR_CVAR(vr_kdtrig_tackle_bump, "100", CVAR_ARCHIVE)      // ... units/s you bounce back off it
-QVR_CVAR(vr_kdtrig_tackle_contact, "2", CVAR_ARCHIVE)     // ... units: it connects with your box this near the monster's (touching; plus this frame's run), not before (author's note 2026-10-22: it connected with a lot of space left)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.2", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.2, 0.85 before vr_cfg_version 184)
+QVR_CVAR(vr_kdtrig_tackle_knock, "148", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it) (his 148, 152 before vr_cfg_version 184)
+QVR_CVAR(vr_kdtrig_tackle_bump, "120", CVAR_ARCHIVE)      // ... units/s you bounce back off it (his 120, 100 before vr_cfg_version 184)
+QVR_CVAR(vr_kdtrig_tackle_contact, "0", CVAR_ARCHIVE)     // ... units: it connects with your body this near the monster's as the two meet (the engine's narrowed, inset boxes: QC bodygap; 0 touching; plus this frame's run), not before (his 0, 2 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
 QVR_CVAR(vr_kdtrig_tackle_cooldown, "1.5", CVAR_ARCHIVE)  // ... s before you charge again
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
