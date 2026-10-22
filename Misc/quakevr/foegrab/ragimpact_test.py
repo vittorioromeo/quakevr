@@ -34,7 +34,10 @@ TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 CASES = sys.argv[2:] or ["wall", "slam", "crush", "stompwear", "grab", "keep"]
 MOTIONS = os.path.join(TREE, "quakevr", "motions")  # (git-ignored)
 SCRATCH = os.path.join(TREE, "scratch")
-PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 6;"
+# vr_fixed_frames 1: the mock's motions on the game's clock, the same frames every run (on the wall clock the slam's hand
+# missed the head or struck 2 to 8 times of 10 by the machine's load; RI_REALTIME=1: the old wall-clock runs).
+PRE = ("" if os.environ.get("RI_REALTIME", "") == "1" else "vr_fixed_frames 1;") + \
+      ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_foegrab_debug 1;vr_foegrab_leniency 6;"
        "vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait40;vr_knockdown_debug 1;vr_knockdown_test 56")
 FILTER = ("ragimpact|manhandle|limb taken|limb lost|let go of by|foegrab: .*(takes|lifted|held on)|staggered and fell|"
           "knockdown: .*(kept down|get-up due)|decap:|limb:|rror|CRASH")
