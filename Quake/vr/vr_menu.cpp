@@ -1783,6 +1783,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageVrsHolsters();
 [[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
 [[nodiscard]] za::Vector<Item> pageVrsBodyEquipment();
+[[nodiscard]] za::Vector<Item> pageVrsItemCollection();
 [[nodiscard]] za::Vector<Item> pageVrsControls();
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion();
 [[nodiscard]] za::Vector<Item> pageVrsComfort();
@@ -2079,14 +2080,17 @@ const Page pages[] = {
     {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
     {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
     {"Saves and Autosaves", pageSaves, pageMain, LevelStandard}, // (vr_menu_settings.inc; vr_continue.cpp)
+    // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing.)
+    {"Holster Calibration", pageVrsHolsters, pageVrsBodyEquipment, LevelStandard},
+    {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
 };
 static_assert(mgroups::paramCount == 23, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
-const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsLocoControls,
-    pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
+const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsHolsters,
+    pageVrsLocoControls, pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsItemCollection, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
     pageVrsDisplayGraphics};
 
 [[nodiscard]] bool vrSettingsPage(int p)
@@ -5639,7 +5643,8 @@ bool qvr::menu::bodyClonePage()
     }
     const PageBuilder b = pages[ui().page].build;
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
-        b == pageHolsterZones || b == pageSeatedHolsters || b == pageVrsBodyEquipment || ui().bodyCloneLatch == ui().page)
+        b == pageHolsterZones || b == pageSeatedHolsters || b == pageVrsBodyEquipment || b == pageVrsHolsters ||
+        ui().bodyCloneLatch == ui().page)
     {
         return true;
     }

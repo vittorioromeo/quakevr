@@ -17,8 +17,8 @@ za::Vector<Item> pageMain()
                   "moved and turned on your controllers so they sit where your real hands are."),
         open("Body and Equipment", pageIndex(pageVrsBodyEquipment))
             .help("Fit the body to you (the legs to your height, the shoulders, the torso) and move what you wear: the "
-                  "belt's height, the flashlight, the ammo pouch, the hip, chest and back holsters. Your body is shown in "
-                  "front of you while you choose."),
+                  "belt's height, the flashlight, the ammo pouch, and Holster Calibration (the hip, chest and back "
+                  "holsters). Your body is shown in front of you while you choose."),
 
         header("Moving"),
         open("Locomotion and Controls", pageIndex(pageVrsLocoControls))
@@ -31,6 +31,10 @@ za::Vector<Item> pageMain()
         header("Playing"),
         open("Weapons and Bullet Time", pageIndex(pageVrsWeaponsBulletTime))
             .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
+        // (The author, 2026-10-22: its own page here, "easier to find"; Body and Equipment had it.)
+        open("Item Collection", pageIndex(pageVrsItemCollection))
+            .help("How you pick up ammo, health and backpacks: carry them in your hands, or walk into them as in Quake; "
+                  "whether a box you grip is taken at once (Auto-Collect)."),
         open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
             .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
         open("Player Appearance", pageIndex(pageVrsAppearance))
@@ -142,6 +146,8 @@ za::Vector<Item> pageSaves()
     };
 }
 
+// VR Settings > Body and Equipment > Holster Calibration (the author, 2026-10-22: the holsters' rows on a page of their
+// own, Holster Setup first, the recommended way; the body shown in front of you, menu::bodyClonePage).
 [[nodiscard]] za::Vector<Item> pageVrsHolsters()
 {
     const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
@@ -180,8 +186,14 @@ za::Vector<Item> pageSaves()
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
                   "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
                   "> Body and Display."),
-        // (2026-10-22: Carry Ammo and Health also here, next to Auto-Collect, which only matters with it on; also
-        // Physics > Carrying Boxes.)
+    };
+}
+
+// VR Settings > Item Collection (the author, 2026-10-22: out of Body and Equipment, under Playing, easier to find): Carry
+// Ammo and Health, and Auto-Collect, which only matters with it on; also Physics > Carrying Boxes.
+[[nodiscard]] za::Vector<Item> pageVrsItemCollection()
+{
+    return {
         toggle("Carry Ammo and Health", vr_carry)
             .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: classic Quake, walking into a "
                   "box takes it (and Auto-Collect has no effect)."),
@@ -211,18 +223,8 @@ za::Vector<Item> pageSaves()
                   "Weapons > Reloading > Reach)."),
         toggle("Ammo Counter", vr_ammo_pouch_counter)
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
-        slider("Ammo Pouch Wobble", vr_ammo_pouch_wobble, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
-            .help("How much the rounds in the ammo pouch sway and jostle as you walk and turn (0: still): how far they "
-                  "go at most."),
-        toggle("Ammo Pouch Wobble Each Round", vr_ammo_pouch_wobble_each)
-            .help("Each shell or magazine sways on its own (a little quicker or slower than the others; lying shells "
-                  "slide and tilt), never through each other. Off: they all sway together, as one block."),
-        slider("Ammo Pouch Wobble Springiness", vr_ammo_pouch_wobble_freq, 0.5f, 5.f, 0.1f, "%.1f Hz").extend(0.2f, 8.f)
-            .help("How fast the rounds sway back and forth: higher is stiffer and quicker, lower looser and slower."),
-        slider("Ammo Pouch Wobble Settle Time", vr_ammo_pouch_wobble_settle, 0.2f, 4.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
-            .help("How long the rounds take to settle after a move (their swing down to a twentieth)."),
-        slider("Ammo Pouch Wobble Intensity", vr_ammo_pouch_wobble_intensity, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 5.f)
-            .help("How hard a move swings the rounds (Ammo Pouch Wobble caps how far they go)."),
+        // (The wobble's rows: Advanced VR Options > Weapons > Reloading > Ammo Pouch Wobble; the author, 2026-10-22: "too
+        // fine-grained" for here.)
         slider("Shells Shown in the Pouch", vr_ammo_pouch_shells_max, 1.f, 20.f, 1.f, "%.0f")
             .help("The most shells piled in the ammo pouch: one a shell up to this many."),
         slider("Magazines Shown in the Pouch", vr_ammo_pouch_mags_max, 1.f, 6.f, 1.f, "%.0f")
@@ -246,8 +248,8 @@ void resetBodyEquipment()
 
 // VR Settings > Body and Equipment (ROUND22.md, "Body and Equipment"; players: the flashlight too far back, the ammo
 // belt too low, the legs broken by a change of height): the body's fit and the places of what you wear, on one page, the
-// body shown in front of you while it is open (menu::bodyClonePage). The holsters' and the ammo pouch's own rows (their
-// pages before) are here as parts.
+// body shown in front of you while it is open (menu::bodyClonePage). The ammo pouch's own rows (its page before) are
+// here as a part; the holsters' are on Holster Calibration, linked from here.
 [[nodiscard]] za::Vector<Item> pageVrsBodyEquipment()
 {
     const char* cm = "%+.2f m";
@@ -291,10 +293,9 @@ void resetBodyEquipment()
         out.pushBack(it);
     }
     out.pushBack(header("Holsters"));
-    for(Item& it : pageVrsHolsters())
-    {
-        out.pushBack(it);
-    }
+    out.pushBack(open("Holster Calibration", pageIndex(pageVrsHolsters))
+                     .help("Where the hip, chest and back holsters sit on you: Holster Setup (drag and drop, the "
+                           "recommended way), or each pair's sliders; the seated places; the guns over your shoulders."));
     out.pushBack(action("Reset Body and Equipment", resetBodyEquipment)
                      .help("The shoulders, torso, belt, flashlight, holsters and ammo pouch back to as shipped (not Height "
                            "nor Body Calibration's measurements)."));

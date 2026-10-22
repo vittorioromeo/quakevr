@@ -16451,3 +16451,45 @@ closed and reopened on leaving).
 ## Defaults from his config of 2026-10-22 (vr_cfg_version 182)
 
 New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
+
+## VR Settings reorganized, death menu spacing, the clone in Holster Setup, holsters after calibrating (worktree `tghost`, branch `agent/menus1022`, 2026-10-22)
+
+His notes vrstart_2026-10-22_19-27-06 .. 19-29-24 and vrragtriggers_2026-10-22_19-41-52. No cvar changed (no migration).
+
+**Menus** (`vr_menu_settings.inc`, `vr_menu.cpp`, `vr_menu_pages.inc`):
+- The ammo pouch's five wobble rows left VR Settings > Body and Equipment (and its Ammo Pouch part) for Advanced VR
+  Options > Weapons > Reloading, a new header *Ammo Pouch Wobble* after the Ammo Pouch rows: Ammo Pouch Wobble, Wobble
+  Each Round, Wobble Springiness, Wobble Settle Time, Wobble Intensity.
+- *Carry Ammo and Health* and *Auto-Collect* left Body and Equipment for a new page, VR Settings > Playing > *Item
+  Collection* (after Weapons and Bullet Time; page "VR Settings - Item Collection"). Physics > Carrying Boxes still has
+  them too.
+- The holsters' rows left Body and Equipment for a new page, VR Settings > Body and Equipment > Holsters > *Holster
+  Calibration*: Holster Setup (drag and drop) first, the nine sliders, Seated Holsters, Reset Holsters, Shoulder Holster
+  Weapons. It shows the body's mirror image (menu::bodyClonePage) and syncs the holster wrappers (vrSettingsParts).
+  *Reset Body and Equipment* still resets the holsters.
+- Both pages are appended to `pages` (no page index moved). `menu_vr dump` before/after through `menu_coverage.py`:
+  only those rows moved (the 5 wobble rows "lost" from the VR Settings tree: they are on Advanced's Reloading, which
+  the dump does not walk; `vr_menu_search wobble springiness` finds it there). `vr_menu_path_check`: vrcalibration 6
+  found 0 missing, vrtesthall 14 found 0 missing (no board named a moved row). Help texts and SETTINGS.md follow.
+
+**Death menu** (menu.c, Load Autosave too: the same screen): its title is near the top of the VR menu's canvas (16
+under its top, which reaches far above Quake's 320 x 200), not at y 4 of the 320 x 200 middle; "You Died" twice the
+menu's letters (the big font lacks the capital Y and I; Load Autosave keeps the big font, 1.25x); the rows 30 apart
+(were 20), their two lines in the middle with a gap above and below. The laser and mouse pick rows from the same
+layout. `developer 1` prints it on opening: `Death menu: 2 autosaves (title at y -203, rows from y -167, 30 apart)`.
+
+**Holster Setup with the clone** (`vr_bodyclone.cpp`, `vr_holstersetup.cpp`): while Holster Setup runs, the body's
+mirror image (vr_menu_body_clone, the menus' clone) stands beside its panel (holstersetup::panelQuad as the panel; the
+side away from the main hand, vr_menu_body_clone_side), and every box and its label is drawn on the image too, at the
+same place, as it is dragged. Headless: `bodyclone: on, yaw 138.0 (view 90.0), its eyes 1.40 m off ... drawn 36
+entities, body 1`; off again after Cancel.
+
+**After VR Calibration** (`vr_setup.cpp`): in single player a dialog (M_Confirm) carries the summary (height, where the
+doorway leads) and asks "Set up your holsters now?": *Set Up Holsters* starts Holster Setup at once (no page reopened
+after it), *Not Now* closes it. Tested: `vr_setup here` then `vr_setup_skip` to the end prints `VR Calibration: asking
+to set up the holsters`; `vr_test_modal_answer 1` gives `Holster Setup: started`, `setup active 1 paused 1`.
+
+**In VR:** VR Settings: Item Collection under Playing, Holster Calibration on Body and Equipment; the wobble rows on
+Advanced > Weapons > Reloading. Die: is the death menu's spacing right, the title near the top? Holster Setup: is the
+clone where you can see it (about 48 degrees off the panel's middle at 1.4 m; vr_menu_body_clone_distance and _side
+move it), do its boxes follow the drags? Calibrate: the dialog after it, Set Up Holsters straight into the setup.
