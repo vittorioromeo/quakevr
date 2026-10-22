@@ -137,7 +137,8 @@ sample named `sight` is skipped.
   position. `vr_struggle_status hurt <n>` takes health from the held ones, for the death fallback test.
 - `vr_struggle_force 1`: every living knockdown of a struggling class struggles as if held at its chest where it lies,
   for the cost with many.
-- `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legdrag (INFO: the mock cannot take a lying leg), headdrag, armdrag (each also with the
+- `Misc/quakevr/foegrab/struggle_test.py <agent> [regex]`: lift, leglift, legpull (both shins pulled over and walked back:
+  dragged by the legs, its free arms' flail speed against the struggle off's), legdrag (INFO: the mock cannot take a lying leg), headdrag, armdrag (each also with the
   struggle off) and dead.
 - `vr_struggle_status` ends each struggling line with `flail <u/s> miss <u>`: its free hands' speed in its chest's
   frame and their mean distance from their goals since the last call (the flailing's measure). `STRUGGLE_CLASS`,

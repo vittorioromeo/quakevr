@@ -318,7 +318,7 @@ QVR_PROP_DEFAULT(48, FingerCurlMiddle, "0.55")
 QVR_PROP_DEFAULT(48, FingerCurlRing, "0.9")
 QVR_PROP_DEFAULT(48, FingerCurlPinky, "0.95")
 // The shells and the magazines below are light and blunt: thrown, a quarter of a thing's damage (Throw Damage x; the
-// author's 2026-10-22 note: a magazine broke a crate in two throws; configVersion 178 gives it to configs saved before).
+// author's 2026-10-22 note: a magazine broke a crate in two throws; configVersion 179 gives it to configs saved before).
 QVR_PROP_DEFAULT(48, ThrowDamage, "0.25")
 QVR_PROP_DEFAULT(49, ThrowDamage, "0.25")
 QVR_PROP_DEFAULT(50, ThrowDamage, "0.25")
@@ -356,7 +356,7 @@ QVR_PROP_DEFAULT(50, Size, "0.55")
 QVR_PROP_DEFAULT(50, GripX, "-2.13")
 QVR_PROP_DEFAULT(50, GripY, "0.05")
 QVR_PROP_DEFAULT(50, GripZ, "-3.05")
-QVR_PROP_DEFAULT(50, Overlap, "0.385") // the author's (2026-10-22: the pinky kept out of it; configVersion 178)
+QVR_PROP_DEFAULT(50, Overlap, "0.385") // the author's (2026-10-22: the pinky kept out of it; configVersion 179)
 QVR_PROP_DEFAULT(51, ID, "progs/vr_mag_snail.mdl")
 QVR_PROP_DEFAULT(51, Mass, "0.7")
 QVR_PROP_DEFAULT(51, TwoHands, "0")

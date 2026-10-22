@@ -373,9 +373,14 @@ const DefaultChange defaultChanges[] = {
         "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120"},
     // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
     {176, &vr_shove_push_twohand, "1"}, // 1.12
-    // 178: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
+    // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
+    {177, &vr_kdtrig_tackle_on, "0"},          // 1
+    {177, &vr_kdtrig_tackle_knock, "96"},      // 152
+    {177, &vr_kdtrig_tackle_push, "1"},        // 1.25
+    {177, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
+    // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
     // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
-    {178, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
+    {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -385,16 +390,16 @@ struct NamedDefaultChange
     const char* before;
 };
 const NamedDefaultChange namedDefaultChanges[] = {
-    // 178: the nailgun magazine's fitted fingers sink less into it (his config of 2026-10-22: the pinky showed through).
-    {178, "vr_prop_overlap_51", "0.4"}, // 0.385
-    // 178: the shells and magazines thrown deal a quarter of a thing's damage (a magazine broke a crate in two throws).
-    {178, "vr_prop_throw_dmg_49", "1"}, // 0.25
-    {178, "vr_prop_throw_dmg_50", "1"},
-    {178, "vr_prop_throw_dmg_51", "1"},
-    {178, "vr_prop_throw_dmg_52", "1"},
-    {178, "vr_prop_throw_dmg_53", "1"},
+    // 179: the nailgun magazine's fitted fingers sink less into it (his config of 2026-10-22: the pinky showed through).
+    {179, "vr_prop_overlap_51", "0.4"}, // 0.385
+    // 179: the shells and magazines thrown deal a quarter of a thing's damage (a magazine broke a crate in two throws).
+    {179, "vr_prop_throw_dmg_49", "1"}, // 0.25
+    {179, "vr_prop_throw_dmg_50", "1"},
+    {179, "vr_prop_throw_dmg_51", "1"},
+    {179, "vr_prop_throw_dmg_52", "1"},
+    {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 178;
+constexpr int configVersion = 179;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

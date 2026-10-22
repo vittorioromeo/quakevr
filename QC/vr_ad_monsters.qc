@@ -1,6 +1,26 @@
 // Arcane Dimensions' monsters with Quake VR's treatment (docs/vr-port/ARCANE_DIMENSIONS.md, section 17; the fields and
 // declarations: vr_ad_mondefs.qc). After AD's files: it uses their names.
 //
+
+// A monster's pain cry (the shoulder charge's, vr_kdtrig.qc VR_KdTrig_Tackle): an AD monster's own (ad_pain_sound, or at
+// random its second), else the one the training dummy plays for its kind (vr_dummy_types.qc), else none ("").
+string(entity m) VR_PainCrySound =
+{
+    if(m.ad_pain_sound != "")
+    {
+        return (m.ad_pain_sound2 != "" && random() < 0.5) ? m.ad_pain_sound2 : m.ad_pain_sound;
+    }
+    for(float t = 0; t < VR_DUMMY_TYPES; t++)
+    {
+        VR_Dummy_Type(t);
+        if(vr_dt_class == m.classname)
+        {
+            return (vr_dt_snd2 != "" && random() < 0.5) ? vr_dt_snd2 : vr_dt_snd1;
+        }
+    }
+    return "";
+};
+//
 // What each AD monster gets, and where:
 // - its ragdoll on death (the engine: vr_ad_rigs.inc, by its model), its limbs cut and its head cut or popped off
 //   (vr_limbs.qc, vr_decap.qc: through VR_AD_Dying, from AD's Killed), its head zone (PositionalHead: head shots, melee

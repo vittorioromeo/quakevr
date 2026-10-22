@@ -15992,7 +15992,7 @@ From his notes of 2026-10-22 (vrragtriggers 01-04 to 01-50). Done:
   throw at up to sqrt(2 E / mass) when that is more: 80.5 kg 2.5 m/s, 65 kg 2.8, 40 kg 3.5 (measured with
   `prop_2h_test.sh`, the overhead throw: 1.4 -> 2.5 m/s). The "teleports in front of you" part did not show headless
   (the back-projected start was within 1.5 units of the box's last carried place); left for his test.
-- **Defaults (configVersion 178):** `vr_knockdown_shove_ledge_over` 0.1 -> 0.45; the nailgun magazine's Fit Overlap
+- **Defaults (configVersion 179):** `vr_knockdown_shove_ledge_over` 0.1 -> 0.45; the nailgun magazine's Fit Overlap
   (`vr_prop_overlap_51`) 0.4 -> 0.385; `vr_prop_throw_dmg_49..53` 1 -> 0.25 (new `namedDefaultChanges` rows: prop
   slots have no cvar of their own to point at).
 
@@ -16002,3 +16002,51 @@ its long side climbable from every side, the climbing leg IK on props.
 **In VR:** throw a magazine, a cell, a shell at a crate: no damage. A Plasma Gun blast beside a crate or a body: thrown.
 Hold a gun over an empty holster and press the stick: bound (chain), again: unbound. A two-hand heave of a crate and
 the big explosive box released at the top of the swing: a metre or two, and does it still look like it jumps ahead?
+
+## Death menu held, charge contact, leg-drag struggle, heavy AD melee, vial size (worktree `goreflesh`, branch `agent/round1022`, 2026-10-22)
+
+From the author's voice notes of 2026-10-22 (vrragtriggers).
+
+**Death menu.** Cause: his deaths were on Quake VR's own maps (vrragtriggers today, vrfiringrange on 10-20), which
+`M_CheckDeathMenu` skipped (`VR_AutosaveAllowed`), and any press within the delay respawned (QC `PlayerDeathThink`).
+Now it opens on every single-player map, and the engine holds the respawn: while dead it sets the QC global
+`vr_death_menu_hold` (`PR_SetServerGlobalFloat`, pr_edict.c); a press then only sets `vr_death_menu_asked` (the menu
+opens at once, release and press again to ask again), never `respawn()`. Respawn (row 1) sets `vr_death_menu_respawn`:
+`PlayerDeathThink` runs QC's own `respawn()` (a checkpoint's on vrtutorial, else the restart loading the last save;
+a progs without the global: the old "restart"). Back closes it; a press opens it again. `vr_death_menu 0`: Quake's
+press-to-respawn. Placement unchanged (in front of the head at `vr_menu_distance`, as the main menu: MENUPANEL "from
+head 0 150 0"). `Misc/quakevr/deathmenu_test.sh`: early (a press: "a press asked for it", menu, no SpawnServer),
+respawn ("Death menu: Respawn", the restart queued: "a respawn is under way"), vrmap (opens on vrragtriggers), back
+(reopens on a press). In a script the queued restart runs after the script's own commands (localcmd), so the reload
+itself is not in the log.
+
+**Shoulder charge.** Contact was 8 units plus two frames' run ahead of his box: about 13-17 units between the boxes.
+Now `vr_kdtrig_tackle_contact` (2) plus one frame's run: the author's 10 charge takes connect at 3.9 units mean between
+the boxes, his head 32 units from the dummy's middle (41 at about the old reach: contact 12), still caught 10/10, 0 false
+of 8 (eval.sh: no melee verdict changed). Box contact is as near as the hulls allow (a grunt's model is narrower than its
+box). On connecting (`vr_kdtrig_tackle_feel` 1): vr/shove.wav on its body, both controllers rumble (0.25 s), and toppled
+or staggered its pain cry (`VR_PainCrySound`, vr_ad_monsters.qc: AD's `ad_pain_sound`, else the training dummy's table
+by classname). `vr_kdtrig_test 14` (Debug > Tests > Ragdoll Triggers, Shoulder Charge the Nearest): grunt down, cry
+soldier/pain2.wav; AD defender down, enforcer/pain1.wav. His tackle settings are the defaults (configVersion 177, a
+config at the old values moves, a custom one stays: checked with leniency 0.7): `vr_kdtrig_tackle_on` 0 -> 1,
+`_knock` 96 -> 152, `_push` 1 -> 1.25, `_leniency` 0.5 -> 0.85.
+
+**Leg-drag struggle.** Dragged by the legs on the floor, belly up, Crunch (reaching for hands out of reach) led and the
+grip guard cut the arms to half: they lay still. Claw now holds belly up too (`heldLegs * min(1, 1.4 contact) * (0.6 +
+0.4 drag) * (0.8 + 0.2 prone)`; Crunch's on-floor share 0.6 -> 0.25), its stroke is flung out lifted (0.4 of the arm),
+spread aside (each stroke its own), slammed down and pulled back with a frantic jitter, at 1.2 Hz; the arms keep 0.85
+against the guard while clawing. struggle_test.py's new `legpull` (both hands on its shins, pulled over, lowered, walked
+back): free arms' speed in its chest frame 4.0 -> 40.4 u/s (grunt), knight 52.5, Claw leads the arms; leglift unchanged
+(PASS). The enforcer doesn't topple from the mock's leg pull (it stands held by the shins), so its case shows nothing.
+
+**Heavy AD melee.** The hunter ogres' hammer and mace (`VR_ADMelee_VeryHeavy`): their blows cost
+`vr_admelee_heavy_stamina` (1.5) times a weapon's; held in either hand you move at `vr_admelee_heavy_speed` (0.8: QC
+`.vr_heavy_move`, sv_user.c via `VR_HeavyMoveScale`). Sliders on the AD weapons page. Running forward: 256 u/s with the
+hammer, 320 without. The stamina multiply is not run in the mock (the mock swing never landed the hammer's head).
+
+**Health vials.** `vr_ad_healthvial_scale` 2.5: AD's vials and gems drawn 2.5 times bigger (as objects 0.2 x 2.5 = 0.5
+of AD's model, their box with them; `vr_ad_test 143`: drawn x2.5, still grabbed, held and healing).
+
+**In VR:** die anywhere (vrragtriggers too): the menu in front of you, presses only open it, Respawn and the autosaves
+work. Charge a grunt: it should connect only as your body meets it, with a thud, a rumble and its cry. Drag a grunt by a
+leg on its back and front: arms clawing and flailing. The hammer: slower walking, stamina going faster. Vial size.
