@@ -374,6 +374,10 @@ za::Vector<Item> pageDebugAutomation()
                   "box, a crate's piece and a wall with rubble each struck by a blow at 0.4x, 0.75x and 1.2x its Break Speed "
                   "(unhurt, damaged, broken) and with an axe's heft; held and smashed into the wall; thrown into it. The "
                   "console (propimpact: lines)."),
+        command("Light Ammo Thrown at a Crate", "vr_prop_impact_test 2")
+            .help("vr_prop_impact_test 2: a nailgun magazine, a super nailgun's, a cell, a shell and a small crate each "
+                  "thrown three times at 14 m/s into a fresh small crate ahead of you, one a second. The ammo hardly "
+                  "scratches it; the crate breaks it. The console (lightthrow: lines)."),
         command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
             .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")
