@@ -62,7 +62,16 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
-| **Holster Calibration** | Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+| **Holster Calibration** | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+
+**Holster Setup (drag and drop)** places the holsters and pouches by hand, no sliders needed. The game pauses (single
+player only) and every holster and pouch shows as a labelled see-through box on your body: grip one with either hand and
+drag it where you want it (it follows your body afterwards); grip it with both hands and spread or close them to make it
+bigger or smaller (or hold it with one hand and push that stick up or down). A panel in front of you (touch a button,
+pull the trigger): **Symmetry** (on: the other holster of the pair moves mirrored; off: each on its own), **Undo** (also
+B/Y), **Reset Holster** (the last one held or pointed at), **Reset All**, **Cancel** (everything back as it was) and
+**Done** (also the menu button). It sets the same settings as the sliders; played seated, it sets the seated places. The
+hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grenade pouch (hand grenades) are covered.
 | **Locomotion** | Move Towards (Head, Left Hand, Right Hand), Default Speed (run or walk), Stick Deadzone, Swap Stick Functions |
 | **Comfort** | Vignette (off, moving and turning, moving only, turning only), Vignette Strength |
 | **Teleportation** | Teleport, Teleport Range |

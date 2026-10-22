@@ -1417,6 +1417,41 @@ QVR_CVAR(vr_holster_zone_grenade_drag, "0", CVAR_NONE)
 // zone too (2026-10-17: "some weapons' handles pop out of the shoulder, and grabbing the holstered weapon by the handle
 // fails"). 0: the box alone.
 QVR_CVAR(vr_holster_zone_handle_radius, "3", CVAR_ARCHIVE)
+// Holster Setup (vr_holstersetup.cpp; ROUND22.md, "Holster Setup: drag and drop"; VR Settings > Holsters): 1 a holster
+// dragged there moves its pair mirrored (into the pair's offsets, vr_hip_offset_* and so on, or the seated ones while
+// seated); 0 it alone (its trim below). Remembered between sessions.
+QVR_CVAR(vr_holstersetup_symmetry, "1", CVAR_ARCHIVE)
+// One holster's own move on top of its pair's offsets (Holster Setup with Symmetry off): units forward, outwards (the
+// offsets' Y: away from the body's middle) and up, added to the pair's offsets before they are placed (both standing
+// and seated). 0: as its pair.
+QVR_CVAR(vr_holster_trim_lshoulder_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lshoulder_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lshoulder_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rshoulder_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rshoulder_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rshoulder_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lhip_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lhip_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lhip_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rhip_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rhip_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rhip_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lupper_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lupper_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_lupper_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rupper_x, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rupper_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_trim_rupper_z, "0", CVAR_ARCHIVE)
+// Each holster's and pouch's size (Holster Setup's pinch, or a stick while holding it): its zone's box and its model
+// (the holster sleeve, the pouch) this many times as large. 1: as set elsewhere.
+QVR_CVAR(vr_holster_size_lshoulder, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_rshoulder, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_lhip, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_rhip, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_lupper, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_rupper, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_ammopouch, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_holster_size_grenadepouch, "1", CVAR_ARCHIVE)
 // A hand grenade's turn in the hand as it is taken from the pouch (vr_grip.cpp serverFromPouch): on top of its grip
 // (Held Object Offsets), about its middle, in the hand's frame (pitch up, yaw left, roll right; mirrored for the left hand).
 QVR_CVAR(vr_grenade_pouch_hold_pitch, "90", CVAR_ARCHIVE)

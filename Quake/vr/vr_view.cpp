@@ -2,6 +2,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
@@ -1531,7 +1532,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredGrappleOut(model, pose.weaponPos) ? 2 : 0, mirrored);
-        highlight(ve, hover);
+        highlight(ve, hover || holstersetup::highlighted(static_cast<int>(bodyHolster[h])));
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);
         holsterLive[h] = model != nullptr && !previewHere && !posedHere;
@@ -1542,7 +1543,8 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         {
             place(entities.holsterSlot[h], slotModel, pose.slotPos,
                 pose.slotAngles, 0, mirrored);
-            highlight(entities.holsterSlot[h], hover);
+            entities.holsterSlot[h].scale = glm::vec3{zones::size(stat)}; // (Holster Setup's size: vr_holster_size_*)
+            highlight(entities.holsterSlot[h], hover || holstersetup::highlighted(stat));
         }
         else
         {
@@ -1612,7 +1614,9 @@ void setupPouch(const hands::State& s)
         zones::publish(zones::ZoneGrenadePouch, pos, frame.out, frame.side, frame.up, pose.slotPos, false);
     }
     place(ve, model, pose.slotPos, pose.slotAngles, cl.stats[STAT_ROCKETS] >= 1 ? 0 : 1, false);
-    highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
+    ve.scale = glm::vec3{zones::size(zones::ZoneGrenadePouch)}; // (Holster Setup's size: vr_holster_size_grenadepouch)
+    highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH ||
+                      holstersetup::highlighted(zones::ZoneGrenadePouch));
 }
 
 // The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in): its attached model, the
@@ -2116,7 +2120,7 @@ void setupAmmoPouch(const hands::State& s)
     }
     place(ve, model, pose.slotPos, pose.slotAngles, ammoPouchFrame(), false);
     ve.ent.skinnum = 0;
-    ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f)};
+    ve.scale = glm::vec3{CLAMP(0.25f, vr_ammo_pouch_scale.value, 4.f) * zones::size(zones::ZoneAmmoPouch)};
     ammoPouchPlaced = true;
     {
         // Its wobble's spring, driven by how it moves (its back's middle, its axes, world units a pouch unit).
@@ -2129,7 +2133,8 @@ void setupAmmoPouch(const hands::State& s)
     const bool shown = vr_ammo_pouch_show.value != 0.f;
     if(shown)
     {
-        highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH);
+        highlight(ve, s.hotspot[HAND_OFF] == body::HS_AMMO_POUCH || s.hotspot[HAND_MAIN] == body::HS_AMMO_POUCH ||
+                          holstersetup::highlighted(zones::ZoneAmmoPouch));
     }
     else
     {

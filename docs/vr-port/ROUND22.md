@@ -16398,6 +16398,56 @@ traces), a search at most 0.008-0.014 ms (0.004-0.006 before); the per-frame upd
 sides, also after knocking it about; hang on a large crate (or two stacked) and look down: the feet should press on
 its face, not hang.
 
+## Holster Setup: drag and drop (worktree `goreflesh`, branch `agent/holstersetup`, 2026-10-22)
+
+The player-facing way to place the holsters: VR Settings > Body and Equipment (Holster Calibration) > **Holster Setup
+(drag and drop)**, the first holster row, marked recommended. `vr_holstersetup.cpp`.
+
+- **Safe:** single player only (refused otherwise, and dead or at an intermission); the game pauses through the runtime
+  menu's pause (`VR_RuntimeMenuPause` now also true while it runs: no server frame, no monsters, no physics). Every
+  controller button is taken (vr_input.cpp, ahead of everything else), the sticks neither move nor turn.
+- **Shown:** each holster's and pouch's zone (the boxes the hands find them by, vr_holsterzones) as a see-through box over
+  it, labelled ("Left Chest", "Ammo Pouch 1.50x"); blue idle, yellow hovered (a hand within 1.2 of its size), green held,
+  cyan its mirrored pair; the holstered gun, sleeve and pouch models lit up as hovered or held. A panel 55 cm ahead
+  (placed on entering) with six buttons and the hints over it.
+- **Drag:** a grip with the hand in a box takes it (a tick); it follows only after the hand moves 0.75 units (no
+  accidental drags), then its reach point goes where the hand's move takes it, 1:1 in the world: the settings that place
+  it are solved for that point (their effect on it probed at the grab, one unit each, then a damped least-squares step
+  twice a frame), so the body's fitting, the torso's front and sides and the height scaling are all taken care of. Drag
+  6 units down: the hips' reach points 24.78 -> 30.81 below the eyes (`vr_hip_offset_z` 0 -> -3.9). A tick every unit
+  moved; near its shipped place it snaps there (a stronger tick). One holster at a time.
+- **What it writes:** with Symmetry (`vr_holstersetup_symmetry`, on, archived) a holster's pair's offsets
+  (`vr_hip_offset_*`, `vr_upper_holster_offset_*`, `vr_shoulder_holster_offset_*`: the Holster Calibration sliders show
+  it), the pair moving mirrored; seated (`vr_bodycal_seated`), the seated layout's (`vr_*_holster_seated_*`). Symmetry
+  off: the holster's own new trim `vr_holster_trim_<lshoulder|rshoulder|lhip|rhip|lupper|rupper>_x/y/z` (default 0,
+  added to its pair's offsets before they are placed: both standing and seated). The pouches: their own offsets
+  (`vr_ammo_pouch_*`, `vr_grenade_pouch_*`, or `_seated_*`). Covered: the six holsters, the ammo pouch (with Immersive
+  reloading) and the grenade pouch (with hand grenades); the magazines come from the ammo pouch.
+- **Resize:** both grips on the same box: its size times the hands' spread over the spread when the second took hold
+  (and it moves with their middle); or one hand holding it and its stick up/down (x e^(0.8 s^-1)). New
+  `vr_holster_size_<zone>` (default 1, 0.5-2.5 here): the zone's box and the model (the hip and chest sleeves, the
+  pouches; the guns keep their size), mirrored to the pair with Symmetry.
+- **Panel:** touch a button with either hand and pull the trigger: Symmetry, Undo (also B/Y), Reset Holster (the last
+  held or hovered: with Symmetry the pair to their shipped place, trims 0, sizes 1; without, this one's trim and size
+  only, back with its pair), Reset All (the current posture's), Cancel (every setting as on entering), Done (also the
+  menu button). Undo steps: each hold that changed something, each reset (64 kept).
+- Commands: `vr_holstersetup`, `_done`, `_cancel`, `_undo`, `_reset [all|<zone>]`, `_press <button>`, `_report` (each
+  zone's reach point from the eyes in the body's frame, its size); `vr_mock_hand_to <hand> setupbutton <index>`.
+
+Test: `Misc/quakevr/holstersetup_test.sh <agent>` (13 checks, all PASS): enter (paused) and Done; the right hip dragged 6
+down moves both hips 6.03 down; a gun put back at the right hip dragged 8 units out holsters at the new place, drops at
+the old one, and without the drag drops at the new one; Symmetry off moves the right hip alone (`vr_holster_trim_rhip_z`
+3.25); a pinch from 3 to 6 units: sizes 1.00 / 2.00 (Symmetry off), 2.00 / 2.00 on the chest (on); the stick: 2.00 ->
+2.50; Cancel puts all back; the panel's Undo and Done by the mock hand and trigger; seated, the seated hips move and the
+standing ones don't. `holstersetup_test.sh <agent> shot`: scratch/holstersetup.png (the panel, the hips from the eyes,
+the boxes from in front).
+
+**In VR:** from the menu, enter Holster Setup: is the panel easy to read and reach at 55 cm, the boxes clear; grab each
+holster (the back ones over the shoulders too) and drag it: does it stay under the hand, does the pair mirror, is the
+snap back to the shipped place felt; pinch to resize; Undo, Reset, Cancel, Done; then holster a gun at the new places.
+Seated: the seated places change. Not headless-tested: entering from the menu row itself (the same start, the menu
+closed and reopened on leaving).
+
 ## Defaults from his config of 2026-10-22 (vr_cfg_version 182)
 
 New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
