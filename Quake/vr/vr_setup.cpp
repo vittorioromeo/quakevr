@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
@@ -398,6 +399,32 @@ void begin(bool welcome)
                         : "VR Calibration: starting (body); the menu button stops it\n");
 }
 
+// The dialog's Set Up Holsters: Holster Setup at once, no menu page reopened after it.
+void startHolsterSetup()
+{
+    (void)holstersetup::start(-1);
+}
+
+// The author, 2026-10-22: after calibrating, a dialog asks whether to set up the holsters now (Holster Setup, single
+// player only, as it pauses the game). It carries the summary: the summary's text, floating where the dialog shows,
+// ends when it opens (flowFrame's Done step).
+void askHolsterSetup()
+{
+    if(!sv.active || svs.maxclients != 1 || cls.demoplayback)
+    {
+        return;
+    }
+    za::String text = va("VR Calibration done.\nHeight: eyes at %.2f m.\n", static_cast<double>(vr_height_calibration.value));
+    if(inRoom())
+    {
+        text += exitToTutorial() ? "The glowing doorway behind you\nleads to the tutorial.\n"
+                                 : "The glowing doorway behind you\nleads to the VR Hub.\n";
+    }
+    text += "\nSet up your holsters now?\nDrag and drop them on your body.";
+    Con_Printf("VR Calibration: asking to set up the holsters\n");
+    M_Confirm(text.cStr(), "Set Up Holsters", "Not Now", 0.f, startHolsterSetup);
+}
+
 void finish()
 {
     enter(Step::Done);
@@ -411,6 +438,7 @@ void finish()
                    "counted)\n", flow.ghostSeen ? "shown" : "never shown", flow.ghostShown, flow.ghostHidden);
     }
     saveConfigNow();
+    askHolsterSetup();
 }
 
 void startBody();

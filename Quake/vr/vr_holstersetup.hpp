@@ -1,5 +1,5 @@
-// vr_holstersetup.hpp -- Holster Setup (VR Settings > Holsters > Holster Setup; ROUND22.md, "Holster Setup: drag and
-// drop"): the player-facing way to place the holsters and pouches. The game pauses (single player only), every holster's
+// vr_holstersetup.hpp -- Holster Setup (VR Settings > Body and Equipment > Holster Calibration > Holster Setup; offered
+// after VR Calibration too; ROUND22.md, "Holster Setup: drag and drop"): the player-facing way to place the holsters and pouches. The game pauses (single player only), every holster's
 // and pouch's zone is drawn as a labelled see-through box over it, and a grip inside one takes hold of it: the hand's moves
 // move it (its zone and its model together, being where its offsets put it: the pair's offsets, vr_hip_offset_* and so
 // on, or the seated ones while seated, with Symmetry on; its own trim, vr_holster_trim_<holster>_*, with Symmetry off; a
@@ -41,5 +41,9 @@ void frame();
 // The panel's button `index` (0 Symmetry, 1 Undo, 2 Reset Holster, 3 Reset All, 4 Cancel, 5 Done): its middle, for the
 // mock hands (vr_mock_hand_to <hand> setupbutton <index>). False: not active, no such button.
 [[nodiscard]] bool buttonPoint(int index, glm::vec3& out);
+
+// The panel's quad with its hints (a corner, then the axes across and up, as panel::menuQuad's): the body's mirror image
+// beside it (vr_bodyclone.cpp; the author, 2026-10-22). False: not active.
+[[nodiscard]] bool panelQuad(glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis);
 
 } // namespace qvr::holstersetup

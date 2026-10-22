@@ -62,7 +62,8 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
-| **Holster Calibration** | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+| **Body and Equipment** | Height, Legs Fit Your Height, Gear Fits Your Body, *Body Calibration*; the shoulders, torso, belt and flashlight; the ammo pouch's place, size, counter and rounds shown (its wobble: Advanced VR Options > Weapons > Reloading > *Ammo Pouch Wobble*); *Holster Calibration* (below); *Reset Body and Equipment* |
+| **Holster Calibration** (Body and Equipment > *Holster Calibration*) | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Seated Holsters*, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
 
 **Holster Setup (drag and drop)** places the holsters and pouches by hand, no sliders needed. The game pauses (single
 player only) and every holster and pouch shows as a labelled see-through box on your body: grip one with either hand and
@@ -70,7 +71,9 @@ drag it where you want it (it follows your body afterwards); grip it with both h
 bigger or smaller (or hold it with one hand and push that stick up or down). A panel in front of you (touch a button,
 pull the trigger): **Symmetry** (on: the other holster of the pair moves mirrored; off: each on its own), **Undo** (also
 B/Y), **Reset Holster** (the last one held or pointed at), **Reset All**, **Cancel** (everything back as it was) and
-**Done** (also the menu button). It sets the same settings as the sliders; played seated, it sets the seated places. The
+**Done** (also the menu button). A mirror image of your body stands beside the panel, the boxes on it too, so you see
+each holster move from the front. VR Calibration offers it when it finishes (*Set Up Holsters* or *Not Now*). It sets
+the same settings as the sliders; played seated, it sets the seated places. The
 hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grenade pouch (hand grenades) are covered.
 | **Locomotion** | Move Towards (Head, Left Hand, Right Hand), Default Speed (run or walk), Stick Deadzone, Swap Stick Functions |
 | **Comfort** | Vignette (off, moving and turning, moving only, turning only), Vignette Strength |
@@ -79,6 +82,7 @@ hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grena
 | **Flashlight** | Flashlight (on your belt), Flashlight Side (left or right hip) |
 | **Lighting** | Ambient Light, Light Contrast |
 | **Weapons** | Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock) |
+| **Item Collection** (under Playing) | Carry Ammo and Health (grip boxes and backpacks to carry them; off: walk into them, as in Quake), Auto-Collect (off, ammo and health, and backpacks: a box gripped is taken at once) |
 | **Body** | Body Type (full, torso and arms, only hands), Wrist Gadget Arm, *Reset Position* |
 | **Haptics** | Vibration Strength (0: none) |
 | **HUD** | HUD (wrist gadget or status bar), Crosshair |

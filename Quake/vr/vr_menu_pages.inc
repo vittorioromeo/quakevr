@@ -1479,6 +1479,20 @@ void resetHandMoves()
         slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
             .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
                   "holsters' Follow Legs likewise). 0: fixed on the belly."),
+        // (VR Settings had these until the author's note of 2026-10-22: "too fine-grained" for the basic settings.)
+        header("Ammo Pouch Wobble"),
+        slider("Ammo Pouch Wobble", "vr_ammo_pouch_wobble", 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 3.f)
+            .help("How much the rounds in the ammo pouch sway and jostle as you walk and turn (0: still): how far they "
+                  "go at most."),
+        toggle("Wobble Each Round", "vr_ammo_pouch_wobble_each")
+            .help("Each shell or magazine sways on its own (a little quicker or slower than the others; lying shells "
+                  "slide and tilt), never through each other. Off: they all sway together, as one block."),
+        slider("Wobble Springiness", "vr_ammo_pouch_wobble_freq", 0.5f, 5.f, 0.1f, "%.1f Hz").extend(0.2f, 8.f)
+            .help("How fast the rounds sway back and forth: higher is stiffer and quicker, lower looser and slower."),
+        slider("Wobble Settle Time", "vr_ammo_pouch_wobble_settle", 0.2f, 4.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
+            .help("How long the rounds take to settle after a move (their swing down to a twentieth)."),
+        slider("Wobble Intensity", "vr_ammo_pouch_wobble_intensity", 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 5.f)
+            .help("How hard a move swings the rounds (Ammo Pouch Wobble caps how far they go)."),
         header("Feedback"),
         slider("Haptics", "vr_reload_haptics", 0.f, 3.f, 0.1f, "%.1fx")
             .help("Taking a shell, putting it back, loading it, and the empty pouch's dull knock (0: none)."),
