@@ -1129,6 +1129,12 @@ za::Vector<Item> pageDebugTools()
         command("Bloody Hands", "vr_bloodprints_test hands")
             .help("vr_bloodprints_test hands: both hands soaked in blood: press them on a wall, the floor or a ledge for "
                   "handprints."),
+        command("Handprint on the Wall Ahead", "vr_bloodprints_test wall 40")
+            .help("vr_bloodprints_test wall [height]: a handprint, fingers up, on the wall you face, 40 units over your "
+                  "feet: stand at a ledge (a step's riser, a crate-high wall) to see it wrap onto the top."),
+        command("Handprint on the Prop Ahead", "vr_bloodprints_test prop 24")
+            .help("vr_bloodprints_test prop [height]: a bloody palm's blood on the prop (a crate, a barrel, a box) you "
+                  "face, 24 units over your feet."),
         command("Bloody Prints: Info", "vr_bloodprints_info")
             .help("vr_bloodprints_info: the prints your feet have left, your hands' blood, the prints laid since the map began."),
         command("Back-splatter: Shotgun", "vr_gore_test 30 pellets").help("vr_gore_test 30 pellets: a shotgun blast's blood 64 units ahead, its back-splatter close behind."),

@@ -58,12 +58,13 @@ constexpr KindInfo kinds[kindCount] = {
     {"step", {"vr/gore/step1.wav", "vr/gore/step2.wav", "vr/gore/step3.wav"}, 3, 0.45f, 1, 0.15f, 1.f, 0.f, 0.24f},
     {"slap", {"vr/gore/slap1.wav", "vr/gore/slap2.wav", "vr/gore/slap3.wav"}, 3, 0.7f, 3, 0.1f, 1.f, 1000.f, 0.2f},
     {"splash", {"vr/gore/splash1.wav", "vr/gore/splash2.wav", "vr/gore/splash3.wav"}, 3, 0.55f, 1, 0.25f, 1.f, 0.f, 0.3f},
+    {"drip", {"vr/gore/drip1.wav", "vr/gore/drip2.wav", "vr/gore/drip3.wav"}, 3, 0.3f, 4, 0.03f, 2.f, 500.f, 0.1f},
 };
 
 // Each kind's own volume (vr_gore_sound_vol_<kind>, times vr_gore_sound), in Kind's order.
 cvar_t* const kindVolumes[kindCount] = {&vr_gore_sound_vol_spurt, &vr_gore_sound_vol_pour, &vr_gore_sound_vol_choke,
     &vr_gore_sound_vol_tear, &vr_gore_sound_vol_squelch, &vr_gore_sound_vol_step, &vr_gore_sound_vol_slap,
-    &vr_gore_sound_vol_splash};
+    &vr_gore_sound_vol_splash, &vr_gore_sound_vol_drip};
 
 constexpr float nearerShare = 0.5f;   // within a kind's gap, one this much nearer than the last played still plays
 constexpr int chanVoice = 2;          // QC CHAN_VOICE: the cries
@@ -161,6 +162,7 @@ struct State
     int testKey = 0;
     Pending pending[maxPending]{};
     int pendingCount = 0;
+    float dripShare = 0.f; // the drops' share heard (vr_gore_sound_drips), gathered: one heard each time it reaches 1
 };
 State st;
 
@@ -531,6 +533,22 @@ void play(Kind kind, int ent, const glm::vec3& at, float strength)
         return;
     }
     st.pending[st.pendingCount++] = Pending{kind, ent, at, strength, glm::distance(at, listener()), realtime};
+}
+
+void drip(const glm::vec3& at, float strength)
+{
+    const float share = za::clamp(vr_gore_sound_drips.value, 0.f, 1.f);
+    if(share <= 0.f || !clientOn())
+    {
+        return;
+    }
+    st.dripShare += share;
+    if(st.dripShare < 1.f - 1e-4f)
+    {
+        return;
+    }
+    st.dripShare = za::max(0.f, st.dripShare - 1.f);
+    play(Kind::Drip, 0, at, strength);
 }
 
 namespace

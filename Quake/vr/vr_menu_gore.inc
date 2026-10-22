@@ -365,6 +365,11 @@
             .help("A gib slapping into a wall or a ceiling (vr_gore_sound_vol_slap)."),
         slider("Gore Sounds: Chokes Volume", vr_gore_sound_vol_choke, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
             .help("The chokes, when on (vr_gore_sound_vol_choke)."),
+        slider("Gore Sounds: Drips", vr_gore_sound_vol_drip, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A quiet drip as a drop of blood hits the floor: yours dripping from your wounds, from ceilings and from "
+                  "gibs stuck there (vr_gore_sound_vol_drip)."),
+        slider("Gore Sounds: Drips Heard", vr_gore_sound_drips, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of the drops you hear (1: every drop; 0.5: every other) (vr_gore_sound_drips)."),
         header("Bloody Footprints and Handprints"),
         toggle("Bloody Footprints", vr_footprints)
             .help("Stepping in a pool of blood or on a bloody body bloodies your feet: your next steps leave bloody boot "
@@ -375,6 +380,9 @@
             .help("How much they fade from the first to the last (0: all as strong; 1: the last faint) (vr_footprint_fade)."),
         slider("Footprint Size", vr_footprint_size, 0.5f, 2.f, 0.05f, "%.2fx")
             .help("Times your foot's own size (vr_footprint_size)."),
+        slider("Footprint Frequency", vr_footprint_rate, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("A print each step: a step as long as a person's at your speed (0.7 m walking, longer running, up to "
+                  "2.2 m at a full run), times as many as this (vr_footprint_rate)."),
         toggle("Bloody Handprints", vr_handprints)
             .help("A hand soaked in blood (a gib held, a bloody blow or cut) pressed on a wall, the floor or a ledge leaves a "
                   "bloody handprint there, one a touch, using its blood up (water washes it off) (vr_handprints)."),
@@ -382,6 +390,13 @@
             .help("How many prints a hand soaked full leaves, fainter as its blood runs out (vr_handprint_count)."),
         slider("Handprint Size", vr_handprint_size, 0.5f, 2.f, 0.05f, "%.2fx")
             .help("Times your hand's own size (vr_handprint_size)."),
+        toggle("Handprints on Props", vr_handprint_props)
+            .help("A bloody hand pressed on a crate, a barrel, a box or anything lying about leaves its blood on it, "
+                  "moving with it (vr_handprint_props)."),
+        toggle("Bloody Grips", vr_handprint_gear)
+            .help("A bloody hand leaves its blood where it grips what it holds: your weapon (it stays on it, dropped, "
+                  "holstered or taken again) or a prop you carry, building up as you hold it, using the hand's blood up "
+                  "(vr_handprint_gear)."),
         header("Hits, Gibs and Corpses"),
         slider("Blood Sprays", vr_gore_spray, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("How many splats a hit or a gibbing throws onto the walls, floor and ceiling round it (0 none)."),
