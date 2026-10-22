@@ -16272,6 +16272,42 @@ From his notes of 2026-10-22 (vrragtriggers 01-24 to 01-35), the item agent/prop
 on its top (drawn there), the crate stay put; lift off: no hop. Push a crate along the floor and against a wall:
 as before along the floor, stopped at the wall.
 
+## Calibration audit: crouched body after calibrating (worktree `dequant`, branch `agent/calibaudit`, 2026-10-22)
+
+Players report a wrong height or a crouching stance after calibrating. Body tracking is not involved for players without
+it (no source: `bodytrack::place` returns before touching anything, weights 0); two regressions hit everyone.
+
+**Leg fit on a stuck learnt standing height** (8f101bb5a, "legs fitted to the standing height"). The body's standing
+pose and leg length follow the learnt standing height (`LeanSense::standing`, vr_hands.cpp `senseLean`), which sinks only
+while the head is within 12 cm under it. It started at the Height setting when the head was low on the first frame (a
+start sitting down, the headset on the desk) and rose with a 0.4 s ease on any spike (a jump, tiptoes, the headset lifted
+over the head): either left it over 12 cm above the head for the rest of the map, and a Height applied by calibration did
+not move it. Mock (Height 1.646, start at 1.0 m, stand at 1.45, calibrate to 1.45, 12 s later): learnt 1.646, legs'
+straightness 0.799 (knees bent); a 1 s lift to 1.75: learnt 1.726, straightness 0.773, 20 s later. Before the leg fit
+it only fed lean detection. Fixed: from the Height until the head is first over 0.85 of it, from the head then; a new
+Height starts it over; it rises quickly only up to 8 cm over itself, slowly (4 s) beyond. Same runs: learnt 1.450,
+straightness 1.000; the lift leaves 1.514 and settles to 1.450.
+
+**VR Calibration standing set no height unless the body's result applied** (b46870b93, Stand Tall replaced the height
+step). Poses that didn't agree (then Cancel on the page), `vr_setup_skip` or a stop after Stand Tall left the Height as
+it was (the default 1.646). Now (the author's call) Stand Tall's eye height is the Height the moment the pose is taken,
+standing, 0.8 to 2.4 m (vr_bodycal.cpp, the capture; it also restarts the learnt standing height), as the height step
+set it before; an applied result sets it again (the same). The Height before the run's first Stand Tall is kept
+(`heightBeforeStand`) for Apply's Undo and history, so Undo still brings back the Height from before the calibration.
+Mock: Height 1.646, eyes 1.45, Stand Tall taken, skipped: 1.45 at once; a saved session refitted, Apply (1.5546), Undo:
+1.646.
+
+Not changed (plausible, for the author): the tracked legs (`vr_bodytrack_legs` 1 since 56fbea3e1) keep the tracked
+leg's bend and put the foot at that share of our leg from our hip, so Meta legs bent at rest bend ours and lift the feet
+(synthetic body, its legs 0.908 straight: ankles 13.4 cm up against 7.8, straightness 0.909); his dump's legs are 0.98
+straight. Local reference space (no stage) puts the floor the Height under the head at session start, so calibrating
+there measures the old Height again (pre-existing). The upper-body joint set (no legs) never turns the torso blend on
+(it wants the upper legs).
+
+**In VR:** start the game sitting, stand up, walk around: the body's legs straight, no crouch (Debug > Views > Log Body
+Heights: `learnt` near `eye`, `straight` near 1). Lift the headset over your head for a second and put it back: the same
+within a few seconds. Run VR Calibration standing and skip after Stand Tall: the Height is your eyes'.
+
 ## Prop climbing from any side; climbing footholds on props (worktree `fastship`, branch `agent/propclimb`, 2026-10-22)
 
 Voice notes 01-07-09 (a large crate on its long side climbable only from some sides) and 01-24-46 (the climbing leg IK
