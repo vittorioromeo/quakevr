@@ -378,11 +378,75 @@ void() VR_PropImp_LightStep =
     vr_propimp_lt_next = time + 1;
 };
 
+// vr_prop_impact_test 3 (Debug > Gore Tests, "Blasts Push Props: AD and Quake"): a small crate 48 units from a blast of
+// 60 by Arcane Dimensions' radius damage (its Plasma Gun's, rockets'...: ad_T_RadiusDamage), then a fresh one by Quake's
+// (T_RadiusDamage); a quarter of a second later, "blastpush:" its speed. Both throw it alike (physicsblast).
+float vr_propimp_bl_next; // the next step's time (0: no test)
+float vr_propimp_bl_step;
+entity vr_propimp_bl_crate;
+vector vr_propimp_bl_org; // where it stood
+entity vr_propimp_bl_pending; // made, its blast next
+
+void() VR_PropImp_BlastStep =
+{
+    makevectors('0 1 0' * self.v_viewangle_y);
+    vector at = self.origin + v_forward * 128 + '0 0 -24';
+    if(vr_propimp_bl_crate != world)
+    {
+        float gone = VR_PropImp_Broken(vr_propimp_bl_crate);
+        bprint(sprintf("blastpush: %s blast: the crate %s, its speed %.0f u/s, moved %.1f units\n", vr_propimp_bl_step == 1 ? "AD's" : "Quake's",
+            gone ? "broken" : "whole", gone ? 0 : vlen(vr_propimp_bl_crate.velocity), gone ? 0 : vlen(vr_propimp_bl_crate.origin - vr_propimp_bl_org)));
+        VR_PropImp_Done(vr_propimp_bl_crate);
+        vr_propimp_bl_crate = world;
+    }
+    if(vr_propimp_bl_step >= 2)
+    {
+        bprint("blastpush: done\n");
+        vr_propimp_bl_next = 0;
+        return;
+    }
+    if(!vr_propimp_bl_pending)
+    {
+        // (Made now, blown a moment later: its rigid body is made with the physics' next step.)
+        vr_propimp_bl_pending = VR_Crate_TestSpawn(at, 1, 0, FALSE);
+        vr_propimp_bl_pending.health = 1000; // (thrown, not broken)
+        vr_propimp_bl_next = time + 0.5;
+        return;
+    }
+    vr_propimp_bl_crate = vr_propimp_bl_pending;
+    vr_propimp_bl_pending = world;
+    vr_propimp_bl_org = vr_propimp_bl_crate.origin;
+    entity boom = spawn();
+    setorigin(boom, (vr_propimp_bl_crate.absmin + vr_propimp_bl_crate.absmax) * 0.5 - v_forward * 48);
+    if(vr_propimp_bl_step == 0)
+    {
+        ad_T_RadiusDamage(boom, self, 60, world, ad_DAMAGEALL);
+    }
+    else
+    {
+        T_RadiusDamage(boom, self, 60, world);
+    }
+    remove(boom);
+    vr_propimp_bl_step++;
+    vr_propimp_bl_next = time + 0.25;
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
     entity p;
     entity oself;
+    if(vr_propimp_bl_next && time >= vr_propimp_bl_next)
+    {
+        p = find(world, classname, "player");
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_PropImp_BlastStep();
+            self = oself;
+        }
+    }
     if(vr_propimp_lt_next && time >= vr_propimp_lt_next)
     {
         p = find(world, classname, "player");
@@ -413,6 +477,13 @@ void() VR_PropImp_TestFrame =
         vr_propimp_lt_thing = world;
         vr_propimp_lt_crate = world;
         VR_PropImp_LightStep();
+    }
+    else if(ask == 3)
+    {
+        vr_propimp_bl_step = 0;
+        vr_propimp_bl_crate = world;
+        vr_propimp_bl_pending = world;
+        VR_PropImp_BlastStep();
     }
     else
     {

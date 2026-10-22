@@ -477,6 +477,16 @@ FUNC_PATCHES += [
      B + ": a zombie killed whole (beheaded, a limb cut) never gets up")
     for f, func in (("mon_zombie.qc", "zombie_wakeup"), ("mon_zombiek.qc", "zombiek_wakeup"))
 ]
+# AD's radius damage (every AD explosion: the Plasma Gun's, its rockets', grenades', mines', bosses'...) throws the
+# props and the ragdolls round it as Quake VR's T_RadiusDamage does (physicsblast; the author's 2026-10-22 note: the
+# Plasma Gun's blasts pushed no ragdolls; ROUND22.md, "Prop pushback, heavy throws, light ammo").
+FUNC_PATCHES += [
+    ("ai_combat.qc", "T_RadiusDamage", "\thead = findradius(imporg, damage+40);\n",
+     "\tphysicsblast(imporg, damage); // QVR: the props and ragdolls round it thrown (Box3D)\n"
+     "\thead = findradius(imporg, damage+40);\n",
+     B + ": AD's explosions throw props and ragdolls (physicsblast)"),
+]
+QVR_NAMES |= {"physicsblast"}
 # (file, function: a fire function with no arguments or the shot's frame, its kind): VR_AimCone_Wait at its start.
 AIM_WAITS = [
     ("mon_soldier.qc", "army_fire", "NARROW"), ("mon_soldier.qc", "army_fire_rocket", "NARROW"),
