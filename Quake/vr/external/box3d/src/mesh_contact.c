@@ -981,7 +981,7 @@ bool b3ComputeMeshManifolds( b3World* world, int workerIndex, b3Contact* contact
 			for ( int j = 0; j < m->pointCount; ++j )
 			{
 				b3Pos point = b3OffsetPos( xfB.p, b3RotateVector( xfB.q, m->points[j].point ) );
-				if ( world->preSolveFcn( shapeIdA, shapeIdB, point, b3RotateVector( xfB.q, m->normal ), world->preSolveContext ) )
+				if ( world->preSolveFcn( shapeIdA, shapeIdB, point, b3RotateVector( xfB.q, m->normal ), m->points[j].separation, world->preSolveContext ) )
 				{
 					m->points[pointCount++] = m->points[j];
 				}

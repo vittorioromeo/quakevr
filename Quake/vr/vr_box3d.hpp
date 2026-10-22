@@ -191,6 +191,9 @@ bool contactPoint(int num, glm::vec3& point);
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
 // the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
 [[nodiscard]] bool restsOnHand(int num, int player, int hand);
+// Units hand `hand` ([0] off, [1] main) of client `player` is held back from where it is tracked, pressed into a prop
+// with nowhere to go (vr_box3d_press_back): its bodies are there, and the view draws it there (0 without Box3D's world).
+[[nodiscard]] glm::vec3 pressOffset(int player, int hand);
 // A held prop `num` (its drawn box) moved from `fromPos` turned `fromRot` to `toPos` turned `toRot` (its origin, as its
 // entity's) kept out of the level (the world and its brush entities; vr_carry2h.cpp): `toPos` as far along the move as its
 // box stays out of it (overlap tests), then slid along what it met axis by axis; `toRot` the old turn if the new one would put it in. Already a
@@ -244,6 +247,9 @@ struct ClimbBody
 void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
 // Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
 [[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
+// As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one
+// already (true, `hit` not set; `from` and `to` the same: only that). The climbing feet's traces (vr_avatar.cpp). False: none met (or no Box3D world).
+[[nodiscard]] bool propTrace(const glm::vec3& from, const glm::vec3& to, PropHit& hit, bool& inside);
 
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);

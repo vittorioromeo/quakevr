@@ -172,6 +172,7 @@ float cvarh_vr_melee_butt_run;
 float cvarh_vr_box3d_hand_props;
 float cvarh_vr_box3d_weapon_push;
 float cvarh_vr_box3d_hand_mass;
+float cvarh_vr_box3d_press_back;
 float cvarh_vr_box3d_weapon_arm_mass;
 float cvarh_vr_carry_two_hands_solid;
 float cvarh_vr_box3d_hand_push;
@@ -1198,6 +1199,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_box3d_hand_props);
     VR_CVAR_HMAKE(vr_box3d_weapon_push);
     VR_CVAR_HMAKE(vr_box3d_hand_mass);
+    VR_CVAR_HMAKE(vr_box3d_press_back);
     VR_CVAR_HMAKE(vr_box3d_weapon_arm_mass);
     VR_CVAR_HMAKE(vr_carry_two_hands_solid);
     VR_CVAR_HMAKE(vr_box3d_hand_push);

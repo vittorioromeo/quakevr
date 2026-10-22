@@ -705,7 +705,13 @@ static bool b3UpdateConvexContact( b3World* world, int workerIndex, b3Contact* c
 		// this call assumes thread safety
 		b3Pos point = b3OffsetPos( xfA.p, contact->manifolds[0].points[0].anchorA );
 		b3Vec3 normal = contact->manifolds[0].normal;
-		touching = world->preSolveFcn( shapeIdA, shapeIdB, point, normal, world->preSolveContext );
+		// Quake VR: the least separation of the first manifold's points (the hands pressing on props: notePress).
+		float separation = contact->manifolds[0].points[0].separation;
+		for ( int i = 1; i < contact->manifolds[0].pointCount; ++i )
+		{
+			separation = b3MinFloat( separation, contact->manifolds[0].points[i].separation );
+		}
+		touching = world->preSolveFcn( shapeIdA, shapeIdB, point, normal, separation, world->preSolveContext );
 		if ( touching == false )
 		{
 			// disable contact

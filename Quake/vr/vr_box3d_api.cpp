@@ -394,12 +394,14 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
     {
         return false;
     }
-    const float speed = glm::length(velocity) / world->m2u; // m/s
+    // Never into what holds it (the floor under a crate pressed from above, a wall behind it: vr_box3d_press_back).
+    const glm::vec3 wanted = world->slots[num].ragdoll >= 0 ? velocity : unbraced(body, velocity);
+    const float speed = glm::length(wanted) / world->m2u; // m/s
     if(speed < 1e-3f)
     {
         return true;
     }
-    const glm::vec3 d = velocity / glm::length(velocity);
+    const glm::vec3 d = wanted / glm::length(wanted);
     const b3Vec3 point = world->toM(at);
     const b3Vec3 pv = b3Body_GetWorldPointVelocity(body, point);
     const float along = pv.x * d.x + pv.y * d.y + pv.z * d.z;
@@ -926,6 +928,15 @@ bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, f
         &q);
     fraction = q.fraction;
     return q.any;
+}
+
+glm::vec3 pressOffset(int player, int hand)
+{
+    if(!world || player < 1 || player >= static_cast<int>(world->hands.size()) || hand < 0 || hand > 1)
+    {
+        return glm::vec3{0.f};
+    }
+    return world->hands[static_cast<za::SizeT>(player)][static_cast<za::SizeT>(hand)].press;
 }
 
 bool restsOnHand(int num, int player, int hand)

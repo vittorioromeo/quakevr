@@ -406,7 +406,8 @@ void syncHands(float dt)
             const int heldOfs = h ? f.mainhand_held : f.offhand_held;
             const bool holding = heldOfs >= 0 && fieldInt(player, heldOfs) > 0;
             // The fist's middle: a radius behind the hand's point (the front of the fist), along its angles.
-            const glm::vec3 point = fieldVec(player, h ? f.handpos : f.offhandpos);
+            const glm::vec3 tracked = fieldVec(player, h ? f.handpos : f.offhandpos);
+            const glm::vec3 point = tracked == glm::vec3{0.f} ? tracked : tracked + hb.press; // (notePress)
             const glm::vec3 angles = fieldVec(player, h ? f.handrot : f.offhandrot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
@@ -1152,7 +1153,13 @@ void syncReach(float dt)
         for(int h = 0; h < 2; h++)
         {
             World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
-            const glm::vec3 point = live ? fieldVec(player, h ? f.handpos : f.offhandpos) : glm::vec3{0.f};
+            const glm::vec3 tracked = live ? fieldVec(player, h ? f.handpos : f.offhandpos) : glm::vec3{0.f};
+            if(!live)
+            {
+                hb.press = glm::vec3{0.f};
+                hb.pressFull = false;
+            }
+            const glm::vec3 point = tracked == glm::vec3{0.f} ? tracked : tracked + hb.press; // (notePress)
             const glm::vec3 angles = live ? fieldVec(player, h ? f.handrot : f.offhandrot) : glm::vec3{0.f};
             glm::mat4 inHand{1.f};
             const Key key = live && point != glm::vec3{0.f} ? reachKey(player, i, h, hb.key, point, angles, inHand) : Key{};
@@ -1230,5 +1237,384 @@ void syncReach(float dt)
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Pressing on props (vr_box3d_press_back; ROUND22.md, "Pressing on props: the hand gives"): the hands' bodies are
+// kinematic (of no give), so a hand, a gun or a plank pressed lightly down on a crate lying on the floor pushed it into
+// the floor, Box3D's contacts squeezing it between the two until it sank through, shot out sideways or broke. A prop
+// with nowhere to go along the push (braced: it rests against the level, a door or lift, a fixture, or a prop braced so,
+// the other way: noteBraces, before each step) is not pushed by a hand's body there (preSolve: pressHit) and holds the
+// hand back instead: after the frame's steps, how deep each of the hand's bodies would be in it (the contact's
+// separation, moved on by the step's motion) is taken out of the hand, which the next frame's bodies (and the drawn
+// hand: VR_SetupViewEntities) are moved back by. Clear of it, the hand goes back to where it is tracked (gently: a drawn
+// hand jumping is a swing). Held back vr_box3d_press_max at most; pressed deeper, its bodies go into the prop by the
+// rest, still without pushing it. Nor do QC's pushes (physicspush: the hands' nudges, blows) go into what holds a prop
+// (unbraced).
+namespace
+{
+constexpr float pressSlop = 0.004f;    // m: no deeper than this in a prop is resting on it
+constexpr float pressHoldGap = 0.01f;  // m: within this of a braced prop's surface the hand stays held back
+constexpr float pressReturn = 0.06f;   // s (time constant): let back towards the tracked hand once clear
+constexpr float pressReturnMost = 0.6f; // m/s: and no faster
+constexpr float braceAgainst = -0.75f; // a support's normal into the prop against the push at least this much (cos):
+                                       // pushed down and forward at 45 degrees, a crate still slides
+constexpr float braceGap = 0.01f;      // m: a support this near holds it
+constexpr int braceDepth = 3;          // props in a stack braced through
+
+za::Vector<b3ContactData> braceContacts; // (supportsOf: every contact, not the first few: a drawn fist touches in dozens)
+
+void addSupport(za::Array<glm::vec3, 4>& out, int& count, const glm::vec3& into)
+{
+    for(int i = 0; i < count; i++)
+    {
+        if(glm::dot(out[static_cast<za::SizeT>(i)], into) > 0.95f)
+        {
+            return;
+        }
+    }
+    if(count < static_cast<int>(out.size()))
+    {
+        out[static_cast<za::SizeT>(count++)] = into;
+    }
+}
+
+// The normals (into `prop`) of what holds it that won't give: the level, a door or lift, a fixture, a kinematic body;
+// through `depth` props more, one resting on a prop held so the same way.
+void supportsOf(b3BodyId prop, za::Array<glm::vec3, 4>& out, int& count, int depth)
+{
+    za::Vector<b3ContactData>& contacts = braceContacts;
+    contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(prop), 1)));
+    const int n = b3Body_GetContactData(prop, contacts.data(), static_cast<int>(contacts.size()));
+    struct Under
+    {
+        b3BodyId body;
+        glm::vec3 into;
+    };
+    za::Array<Under, 8> under; // (asked after the loop: the contacts' buffer is theirs then)
+    int unders = 0;
+    for(int c = 0; c < n; c++)
+    {
+        const b3ContactData& cd = contacts[static_cast<za::SizeT>(c)];
+        const bool propA = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), prop);
+        const b3ShapeId other = propA ? cd.shapeIdB : cd.shapeIdA;
+        const uint64_t cat = b3Shape_GetFilter(other).categoryBits;
+        if((cat & (catWorld | catMover | catFixture | catProp)) == 0 || (cat & (catHand | catReach | catHeld)) != 0)
+        {
+            continue;
+        }
+        const b3BodyId body = b3Shape_GetBody(other);
+        for(int i = 0; i < cd.manifoldCount; i++)
+        {
+            const b3Manifold& mf = cd.manifolds[i];
+            float nearest = 1e30f;
+            for(int k = 0; k < mf.pointCount; k++)
+            {
+                nearest = za::min(nearest, mf.points[k].separation);
+            }
+            if(mf.pointCount == 0 || nearest > braceGap)
+            {
+                continue;
+            }
+            const glm::vec3 into = propA ? -glmv(mf.normal) : glmv(mf.normal); // (Box3D's points from A to B)
+            if((cat & catProp) == 0 || b3Body_GetType(body) != b3_dynamicBody)
+            {
+                addSupport(out, count, into);
+            }
+            else if(depth > 0 && unders < static_cast<int>(under.size()))
+            {
+                under[static_cast<za::SizeT>(unders++)] = Under{body, into};
+            }
+        }
+    }
+    for(int u = 0; u < unders; u++)
+    {
+        za::Array<glm::vec3, 4> sub{};
+        int subs = 0;
+        supportsOf(under[static_cast<za::SizeT>(u)].body, sub, subs, depth - 1);
+        for(int k = 0; k < subs; k++)
+        {
+            if(glm::dot(sub[static_cast<za::SizeT>(k)], under[static_cast<za::SizeT>(u)].into) > 0.5f)
+            {
+                addSupport(out, count, under[static_cast<za::SizeT>(u)].into);
+                break;
+            }
+        }
+    }
+}
+
+// The bodies of hand `hb`: its fist's (armed), its reach body, what it carries.
+void handBodies(const World::HandBody& hb, b3BodyId (&out)[3])
+{
+    const Slot* held = hb.held > 0 && hb.held < static_cast<int>(world->slots.size()) ? &world->slots[hb.held] : nullptr;
+    out[0] = hb.armed ? hb.body : b3_nullBodyId;
+    out[1] = hb.reach;
+    out[2] = held && held->kind == Kind::Held ? held->body : b3_nullBodyId;
+}
+} // namespace
+
+void noteBraces(float dt)
+{
+    world->pressHitCount.storeRelaxed(0);
+    if(!vr_box3d_press_back.value)
+    {
+        return;
+    }
+    for(const auto& player : world->hands)
+    {
+        for(const World::HandBody& hb : player)
+        {
+            b3BodyId bodies[3];
+            handBodies(hb, bodies);
+            for(const b3BodyId body : bodies)
+            {
+                if(B3_IS_NULL(body) || !b3Body_IsValid(body) || !b3Body_IsEnabled(body))
+                {
+                    continue;
+                }
+                // The props near it: its box grown by how far it goes this step (and 5 cm).
+                b3AABB box = b3Body_ComputeAABB(body);
+                const float reach = 0.05f + glm::length(glmv(b3Body_GetLinearVelocity(body))) * dt;
+                box.lowerBound = b3v(glmv(box.lowerBound) - glm::vec3{reach});
+                box.upperBound = b3v(glmv(box.upperBound) + glm::vec3{reach});
+                b3QueryFilter filter = b3DefaultQueryFilter();
+                filter.maskBits = catProp;
+                b3World_OverlapAABB(world->id, box, filter,
+                    [](b3ShapeId shape, void*) {
+                        const int num = numOf(shape);
+                        if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()))
+                        {
+                            return true;
+                        }
+                        Slot& s = world->slots[static_cast<za::SizeT>(num)];
+                        if(s.kind != Kind::Prop || s.braceStep == world->steps || !b3Body_IsValid(s.body))
+                        {
+                            return true;
+                        }
+                        s.braceStep = world->steps;
+                        s.braceCount = 0;
+                        supportsOf(s.body, s.braces, s.braceCount, braceDepth);
+                        return true;
+                    },
+                    nullptr);
+            }
+        }
+    }
+}
+
+glm::vec3 unbraced(b3BodyId body, const glm::vec3& velocity)
+{
+    if(!vr_box3d_press_back.value || !b3Body_IsValid(body) || b3Body_GetType(body) != b3_dynamicBody)
+    {
+        return velocity;
+    }
+    za::Array<glm::vec3, 4> into{};
+    int count = 0;
+    supportsOf(body, into, count, braceDepth);
+    glm::vec3 v = velocity;
+    for(int i = 0; i < count; i++)
+    {
+        const float c = glm::dot(v, into[static_cast<za::SizeT>(i)]);
+        if(c < 0.f)
+        {
+            v -= into[static_cast<za::SizeT>(i)] * c;
+        }
+    }
+    return v;
+}
+
+bool pressHit(b3ShapeId hand, b3ShapeId prop, const glm::vec3& n, float separation)
+{
+    if(!vr_box3d_press_back.value)
+    {
+        return false;
+    }
+    const int num = numOf(prop);
+    if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[static_cast<za::SizeT>(num)];
+    if(s.kind != Kind::Prop || s.braceStep != world->steps)
+    {
+        return false;
+    }
+    // Whose: a carried prop's hand, or the client's hand whose fist or reach body it is.
+    const b3BodyId body = b3Shape_GetBody(hand);
+    int client = -1, which = -1;
+    if(b3Shape_GetFilter(hand).categoryBits & catHeld)
+    {
+        const int carried = numOf(hand);
+        for(za::SizeT i = 1; i < world->hands.size() && which < 0; i++)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                if(world->hands[i][static_cast<za::SizeT>(h)].held == carried)
+                {
+                    client = static_cast<int>(i);
+                    which = h;
+                }
+            }
+        }
+    }
+    else if(const int i = numOf(hand); i >= 1 && i < static_cast<int>(world->hands.size()))
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            const World::HandBody& hb = world->hands[static_cast<za::SizeT>(i)][static_cast<za::SizeT>(h)];
+            if(B3_ID_EQUALS(hb.body, body) || B3_ID_EQUALS(hb.reach, body))
+            {
+                client = i;
+                which = h;
+            }
+        }
+    }
+    if(which < 0)
+    {
+        return false;
+    }
+    // Braced against the push; or any way, once that hand is held back all it may be (pressed deep into it, its
+    // bodies meet it on every side).
+    const bool full = world->hands[static_cast<za::SizeT>(client)][static_cast<za::SizeT>(which)].pressFull;
+    bool braced = full && s.braceCount > 0;
+    for(int i = 0; i < s.braceCount && !braced; i++)
+    {
+        braced = glm::dot(s.braces[static_cast<za::SizeT>(i)], n) < braceAgainst;
+    }
+    if(!braced)
+    {
+        return false;
+    }
+    const int at = world->pressHitCount.fetchAddRelaxed(1);
+    if(at < static_cast<int>(world->pressHits.size()))
+    {
+        world->pressHits[static_cast<za::SizeT>(at)] = World::PressHit{client, which, num, n, separation, body};
+    }
+    return true;
+}
+
+void notePress(float dt)
+{
+    const bool on = vr_box3d_press_back.value != 0.f;
+    const float most = za::max(vr_box3d_press_max.value, 1.f) * world->m2u / 100.f;
+    const int hits = za::min(world->pressHitCount.loadRelaxed(), static_cast<int>(world->pressHits.size()));
+    for(za::SizeT i = 1; i < world->hands.size(); i++)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            World::HandBody& hb = world->hands[i][static_cast<za::SizeT>(h)];
+            if(!on)
+            {
+                hb.press = glm::vec3{0.f};
+                hb.pressFull = false;
+                continue;
+            }
+            // The planes it must be out of (each hit's, moved on by the step's motion), and the least move out of them
+            // all (Gauss-Seidel).
+            struct Plane
+            {
+                glm::vec3 n; // from the hand to the prop
+                float depth; // m
+            };
+            za::Array<Plane, 32> planes;
+            int count = 0;
+            bool touching = false;
+            int deepest = 0;
+            float depthMost = -1e30f;
+            for(int k = 0; k < hits; k++)
+            {
+                const World::PressHit& hit = world->pressHits[static_cast<za::SizeT>(k)];
+                if(hit.client != static_cast<int>(i) || hit.hand != h || !b3Body_IsValid(hit.body))
+                {
+                    continue;
+                }
+                const Slot& s = world->slots[static_cast<za::SizeT>(hit.prop)];
+                const glm::vec3 vProp = b3Body_IsValid(s.body) ? glmv(b3Body_GetLinearVelocity(s.body)) : glm::vec3{0.f};
+                const float sep = hit.sep - glm::dot(glmv(b3Body_GetLinearVelocity(hit.body)) - vProp, hit.n) * dt;
+                if(sep > pressHoldGap)
+                {
+                    continue;
+                }
+                touching = true;
+                const float depth = -sep - pressSlop;
+                if(depth > depthMost)
+                {
+                    depthMost = depth;
+                    deepest = hit.prop;
+                }
+                if(depth > 0.f && count < static_cast<int>(planes.size()))
+                {
+                    planes[static_cast<za::SizeT>(count++)] = Plane{hit.n, depth};
+                }
+            }
+            glm::vec3 out{0.f};
+            for(int sweep = 0; sweep < 8 && count > 0; sweep++)
+            {
+                float worst = 0.f;
+                for(int k = 0; k < count; k++)
+                {
+                    const Plane& pl = planes[static_cast<za::SizeT>(k)];
+                    const float short_ = pl.depth + glm::dot(out, pl.n);
+                    if(short_ > 0.f)
+                    {
+                        out -= pl.n * short_;
+                        worst = za::max(worst, short_);
+                    }
+                }
+                if(worst < 1e-4f)
+                {
+                    break;
+                }
+            }
+            const float length = glm::length(hb.press);
+            if(touching)
+            {
+                // Pressed deeper than vr_box3d_press_max: held back no further; its bodies go into the prop by the rest
+                // (still no push, whichever way they meet it: pressHit), drawn so, until they are clear of it.
+                if(!hb.pressFull)
+                {
+                    hb.press += out * world->m2u;
+                }
+                if(glm::length(hb.press) >= most)
+                {
+                    hb.press *= most / glm::length(hb.press);
+                    hb.pressFull = true;
+                }
+            }
+            else if(length > 0.f)
+            {
+                // Back to the tracked hand, eased and no faster than pressReturnMost (a hand drawn jumping back is a
+                // swing: a blow where it lands).
+                hb.pressFull = false;
+                const float back = za::min(length * (1.f - za::exp(-dt / pressReturn)), pressReturnMost * world->m2u * dt);
+                hb.press = length - back < 0.01f ? glm::vec3{0.f} : hb.press * ((length - back) / length);
+            }
+            if(vr_debug_box3d.value >= 2.f && (touching || hb.press != glm::vec3{0.f}))
+            {
+                Con_Printf("box3d: hand pressed %s: held back %.2f units (%.2f %.2f %.2f) out of %d\n",
+                    touching ? "on a braced prop" : "(clear)", glm::length(hb.press), hb.press.x, hb.press.y, hb.press.z,
+                    deepest);
+            }
+        }
+    }
+}
+
+glm::vec3 heldPress(int num)
+{
+    if(!world || num <= 0)
+    {
+        return glm::vec3{0.f};
+    }
+    for(const auto& player : world->hands)
+    {
+        for(const World::HandBody& hb : player)
+        {
+            if(hb.held == num)
+            {
+                return hb.press;
+            }
+        }
+    }
+    return glm::vec3{0.f};
 }
 } // namespace box3d::detail

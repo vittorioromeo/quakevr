@@ -16202,7 +16202,7 @@ frame, and "smooth" (the same path sampled every 8 frames: well under the speed,
   hand on the shin took the thigh). Their rigs put the knee low (the crossbow knight's 8 units over its feet, a shin of
   5): a hand on a thigh bone under `legLowShare` (0.27) of its height now counts as below the knee (`legPartAt`).
 - **No struggle**: mummies (Rogue's and AD's share `monster_mummy`), AD's zombie knight, deflector, death lord and Quoth
-  death guard were not in `vr_struggle_classes`. Added (configVersion 182 migrates the old default string): mummy
+  death guard were not in `vr_struggle_classes`. Added (configVersion 181 migrates the old default string): mummy
   `1.1:0.85:0:1.5` (health 0: always full, Rogue's has 500, AD's 60), zombie knight `1.1:0.9:60:1.5`, deflector
   `1.1:0.9:250:2.5`, death lord `1.25:1:400`, death guard `1.2:1:125`.
 - **Never clawing** (the enforcer, AD's defender, eliminator, pyro, fumigator, deflector): their parts' middles lie high
@@ -16230,10 +16230,95 @@ headdrag, headlift, armdrag, dead).
 Debug: `vr_struggle_debug 3` (Debug > Tests > Holding Enemies > Show Struggle "Panel, Log, Floor") prints the floor
 sense (`struggle sense:` pelvis, chest, head over the floor, ", on it"); `vr_struggle_status` adds `smooth`.
 
-**Fumigator's sprayer**: `vr_adgun_fumigator_damage` 2 -> 3 (his config; migration 182: a config at 2 goes to 3, 5
-stays, version 182).
+**Fumigator's sprayer**: `vr_adgun_fumigator_damage` 2 -> 3 (his config; migration 181: a config at 2 goes to 3, 5
+stays, version 181).
 
 **In VR:** drag each kind by a leg, on its back and its front (an enforcer and a deflector on their packs, a death
 knight, a zombie, a mummy, AD's crossbow knight): its arms should claw and flail; held high by the legs, grasping at
 you. Grab AD's long-coated knights by the shin (not the ankle): the pull should take. Watch AD's hell knight and death
 fury for arms too wild. The sprayer's puffs a little harder.
+
+## Pressing on props: the hand gives (worktree `release`, branch `agent/proppush2`, 2026-10-22)
+
+From his notes of 2026-10-22 (vrragtriggers 01-24 to 01-35), the item agent/proppush left.
+
+- **Cause.** The hands' bodies (the fist's spheres, the reach body of the open hand or the gun, a carried prop) are
+  kinematic: pressed lightly down on a crate on the floor they pushed it into the floor regardless, Box3D squeezing it
+  between the two (sunk, then shot out sideways or broken). QC's hand nudge of solid props (`vr_carry.qc`) pushed it
+  down along the hand's motion too, and lifted it with a hand drawn up off it.
+- **Fix (`vr_box3d_press_back` 1, `vr_box3d_press_max` 50 cm; Physics menu, Pressing Props).** Before each step the
+  props near the hands note what holds them (`noteBraces`: the level, doors and lifts, fixtures, a stack braced so, three
+  deep). A hand's body meeting such a prop against its support pushes nothing (`preSolve` -> `pressHit`; Box3D's
+  pre-solve now passes the contact's separation: a local change in `contact.c`, `mesh_contact.c`, `solver.c`, `types.h`)
+  and the hand is held back instead (`notePress`: the depth, moved on by the step, taken out of the hand; Gauss-Seidel
+  over the contacts). The bodies (`syncHands`, `syncReach`, a carried prop's `follow`) and the drawn hand
+  (`VR_SetupViewEntities`, restored for the game like the knocks) are moved back by it; clear of it, eased back at most
+  0.6 m/s (a drawn hand jumping is a swing). At the cap, its bodies go on into the prop, still pushing nothing.
+  `physicspush` (QC's nudges and blows) never pushes a prop into what holds it (`unbraced`), and QC's solid-prop nudge
+  only pushes into the box, not after a hand leaving it. Sideways pushes along the floor are as before (a support
+  counts only within ~40 degrees of straight against the push).
+- **Test:** `vr_prop_press_test [main|off [cm/s [cm past]]]` (Debug > Gore Tests, "Press Down on a Crate";
+  `vr_box3d_presstest.cpp`): the hand lowered onto a crate's top (moved by `vr_mock_hand_to by`, not to a point: the
+  view's pushes made the mock chase the drawn hand into the crate), then 40 cm on into it. A large crate, before -> after
+  (sink below the floor in units, the crate's fastest): shotgun 4.6 u, 1.7 m/s -> 0, 0 (held back 42 cm); a held plank
+  5.2 u, 7.2 m/s -> 0, 0 (held back 42 cm); the empty hand (absolute moves, 13 cm on) 1.5 u -> 0. Test crates lie 15
+  units over the floor asleep (lifted out of it as made); the test puts them down first.
+- **Not done (budget):** a large crate on its long side climbable from every side; the climbing leg IK on props.
+  Open: the empty hand never reaches the crate with the delta moves (the hand case used absolute moves); pressed past
+  the cap (50 cm), QC nudges with the mock's clamped hand still kick a crate (rare in play); a held plank pressed hard
+  can break a crate by its blows, as before.
+
+**In VR:** press a crate down lightly and then harder with the shotgun, a plank and the bare hand: the hand should stop
+on its top (drawn there), the crate stay put; lift off: no hop. Push a crate along the floor and against a wall:
+as before along the floor, stopped at the wall.
+
+## Prop climbing from any side; climbing footholds on props (worktree `fastship`, branch `agent/propclimb`, 2026-10-22)
+
+Voice notes 01-07-09 (a large crate on its long side climbable only from some sides) and 01-24-46 (the climbing leg IK
+works on brushes, not on props).
+
+**Cause.** Box3D's hull of the large crate (40 x 40 x 48) has two corners cut at each end (the hull builder's
+simplification): lying on its side, the lip over each end ran into a sliver of a steep face (normal z 0.65) instead of
+the vertical end. `ledges::propLedges` took the face beyond the lip as falling the whole `minDrop` (32) at its slope,
+so the drop "started" 28 units out (over `edgeReach` 16): the two end lips were no ledge, only the long sides were.
+(Upright, all four lips held.)
+
+**Fix** (`vr_ledges.cpp`): the drop's start is measured from the prop's own shape (`dropFlare`): how far its points (and
+its edges' crossings at the band's foot) reach past the lip between the lip and `minDrop` under it, beside the lip
+only. A long slope (a wedge's) still reaches far: no ledge, as before. Lips shorter than 2 units after the bevel lift
+(a cut corner's edge) are none.
+
+**Test** `Misc/quakevr/climb/prop_sides_test.sh <agent> [up side sidex up45 side45]`: the large crate climbed from each
+side (the player square to it, 20 back; both hands onto the lip and pulled over, prop_climb_test.sh's plays), in five
+orientations: upright, on its long side with the long axis along x, along y, upright turned 45 degrees, lying turned
+45 degrees (the crate has only two resting shapes, 48 high and 40 high; "on its short side" is the lying one turned 90
+degrees, `sidex`). Pass: held and mantled onto, standing on the top.
+
+| orientation | before (sides 0 1 2 3) | after |
+|---|---|---|
+| upright | ok ok ok ok | ok ok ok ok |
+| lying, long axis x | ok FAIL ok FAIL | ok ok ok ok |
+| lying, long axis y | ok FAIL ok FAIL | ok ok ok ok |
+| upright, 45 deg | ok ok ok ok | ok ok ok ok |
+| lying, 45 deg | ok FAIL ok FAIL | ok ok ok ok |
+
+The FAILs were the crate's ends: no hold at all (`vr_climb_probe` listed only the two long lips). `prop_climb_test.sh`
+12/12 PASS after.
+
+**Footholds on props** (`vr_avatar.cpp` footTrace, `box3d::propTrace`): the climbing feet's traces were the level's
+only (`SV_Move` MOVE_NOMONSTERS skips SOLID_BBOX props, and their boxes don't turn anyway). Each now also casts against
+the solid props' Box3D shapes, up to where the level stopped it, and a point in one counts as solid (a tenth-unit
+overlap: a ray from inside a hull meets nothing). New setting `vr_body_climb_feet_props` 1 (archived; VR Settings >
+Body: Footholds on Props). Headless (`vr_debug_climb_feet 2`, the heavy crate hung on 6 s; two stacked mantled onto):
+
+| case | props 0 | props 1 |
+|---|---|---|
+| hang (1394 frames) | 46 searches, all none; feet on holds 0 / 0 | 2 face holds; feet on holds 1394 / 1350 (L/R) |
+| stack mantle (635 frames) | 18 searches, all none | 6 face, 1 none; feet on holds 333 / 290 |
+
+Feet inside something: 0 frames in all. Cost: 5.0-5.6 traces a search (3 before: the hold found takes the placement
+traces), a search at most 0.008-0.014 ms (0.004-0.006 before); the per-frame update median 0.4-0.6 us either way.
+
+**In VR:** spawn a large crate on its side (Debug > Tests > Climbing, `vr_test_spawn 122`) and climb it from all four
+sides, also after knocking it about; hang on a large crate (or two stacked) and look down: the feet should press on
+its face, not hang.

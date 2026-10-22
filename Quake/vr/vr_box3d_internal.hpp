@@ -214,6 +214,11 @@ struct Slot // what one edict is in the world (by its number)
     physsound::Material sound{physsound::Material::None}; // what its knocks and scrapes sound like (vr_physsound.cpp)
     double born{0.0};     // the server's time its body was made (a prop: thrown, let go of, launched)
     int pushedStep{-100}; // props: the last step a hand's body pushed it (limitPushes: a hit, then a shove)
+    // Props near the hands (noteBraces, before each step): the normals (into it) of what it rests against that won't
+    // give (the level, a door, a prop braced so), for preSolve: a hand's body pressing it the other way doesn't push.
+    za::Array<glm::vec3, 4> braces{};
+    int braceCount{0};
+    int braceStep{-100}; // the step they are for
     bool flight{false};   // props: thrown by a hand and not yet touched anything (noteThrows; spinAlign)
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
     // Corpses (vr_corpse_collide): the setting and the mask (corpseMask) its body was made with, and whether it is
@@ -554,8 +559,25 @@ struct World
         float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
         za::Vector<glm::vec4> fist; // the push body's spheres (the drawn fist, in the hand's frame; empty: the one sphere)
         za::Vector<b3Vec3> outline; // a weapon in convex pieces: their hull's points (its frame, m: sweepReach's sweep)
+        // Pressing on props (vr_box3d_press_back): units the hand's bodies (the fist, the reach body, what it carries)
+        // are held back from the tracked hand, out of a prop they would push into what holds it (the floor, a wall).
+        glm::vec3 press{0.f};
+        bool pressFull{false}; // held back vr_box3d_press_max: its bodies push no braced prop whichever way they meet it
     };
     za::Vector<za::Array<HandBody, 2>> hands;
+    // Pressing on props (notePress): the hands' bodies' contacts with braced props in the step, found by preSolve on
+    // Box3D's workers (no push there: the hand is held back instead).
+    struct PressHit
+    {
+        int client{0};
+        int hand{0};
+        int prop{0};
+        glm::vec3 n{0.f}; // from the hand's body to the prop
+        float sep{0.f};   // m, at the step's start
+        b3BodyId body{b3_nullBodyId};
+    };
+    za::Array<PressHit, 128> pressHits;
+    za::Atomic<int> pressHitCount{0};
     za::Vector<glm::vec3> walkOrigins; // physical walking also nudges nonblocking corpses
     // Throws (vr_box3d_throw_grace, noteThrows): what was thrown passes through its thrower's hands' bodies a moment.
     struct Grace
@@ -1235,7 +1257,7 @@ void writeProp(edict_t* ent, Slot& s);
 [[nodiscard]] int partsOverlapping(const RagdollBodies& r, int& pairs, int& deep);
 [[nodiscard]] int armsInsideChest(const RagdollBodies& r, int& samples);
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*);
-bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*);
+bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, float separation, void*);
 void syncPortalCopies(float dt);
 void carryRagdolls();
 void carryCorpses();
@@ -1262,6 +1284,15 @@ void addProfile(b3Profile& a, const b3Profile& b);
 void playerOverProp(edict_t* p); // (below, with the players' shape against props)
 void watchInside();
 void registerCommands();
+void noteBraces(float dt);                      // before each step: what the props near the hands rest against
+// preSolve: a hand's body `hand` meeting `prop` (`n` from it to the prop) pressing it into what holds it: noted, no push.
+[[nodiscard]] bool pressHit(b3ShapeId hand, b3ShapeId prop, const glm::vec3& n, float separation);
+void notePress(float dt);                       // after a frame's steps (vr_box3d_hands.cpp)
+// `velocity` less what of it goes into what holds `body` (the level, a braced stack: vr_box3d_press_back; push).
+[[nodiscard]] glm::vec3 unbraced(b3BodyId body, const glm::vec3& velocity);
+[[nodiscard]] glm::vec3 heldPress(int num);     // the press of the hand carrying prop `num`
+void pressTest_f();    // vr_prop_press_test (vr_box3d_presstest.cpp)
+void pressTestFrame(); // (its next step, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();

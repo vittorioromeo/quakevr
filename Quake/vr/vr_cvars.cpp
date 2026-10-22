@@ -396,12 +396,12 @@ const DefaultChange defaultChanges[] = {
     // 180: the author's value (his config of 2026-10-22): the pyro's dropped flamethrower burns harder (ROUND22.md,
     // "Gore hitches and flamethrower looks").
     {180, &vr_adgun_pyro_damage, "3"}, // 4.5
-    // 182: the author's value (his config of 2026-10-22, approved): the fumigator's dropped poison sprayer's puffs hurt
+    // 181: the author's value (his config of 2026-10-22, approved): the fumigator's dropped poison sprayer's puffs hurt
     // more (ROUND22.md, "Leg-drag struggle for every humanoid; the sprayer's damage").
-    {182, &vr_adgun_fumigator_damage, "2"}, // 3
-    // 182: the struggle's classes: mummies, AD's zombie knight, deflector, death lord and Quoth death guard struggle too
+    {181, &vr_adgun_fumigator_damage, "2"}, // 3
+    // 181: the struggle's classes: mummies, AD's zombie knight, deflector, death lord and Quoth death guard struggle too
     // (the leg drag's for every humanoid: ROUND22.md, "Leg-drag struggle for every humanoid; the sprayer's damage").
-    {182, &vr_struggle_classes,
+    {181, &vr_struggle_classes,
         "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250:1.5 "
         "monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 "
         "monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 "
@@ -425,7 +425,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 182;
+constexpr int configVersion = 181;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
