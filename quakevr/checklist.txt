@@ -1,278 +1,59 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
-# Reload List refreshes this page; no rebuild needed. Older items are in git history.
-
-[Active ragdoll test plan (vrfiringrange; god + notarget; one grunt per line unless said)]
-Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Tests > Holding Enemies > Show Struggle on; spawn from the toolgun or the range dispensers (vr_test_spawn_facing 4/5 = side-on)
-1 Shove hard with two hands: it falls or staggers back 3-4 steps, then gets up where it lies and fights on; one-hand shove staggers, falls about half the time
-2 Lift by the chest (both hands, pull up fast): it swats at your face/hands and kicks; carry it, throw it down or into a wall (hard = kills); breaks free after ~2 s
-3 Head hold on a downed grunt: its hands go for yours and tug; neck snap: hands on head/neck, twist fast (Hand Line): crack, dies, stays limp in your hands
-4 Judo: grip at the belt and pull left/right: it falls that way and stays softly held; drag it with the hands lower
-5 Leg sweep with shotgun, then super shotgun and nailgun, front and side: falls the way you swept; walking into its legs or a light brush: nothing
-6 Leg pull: both hands on the shins, yank from the front, the side and from behind: it falls away from you each time
-7 Leg lift: both hands on the shins, pull up: it hangs head-down and crunches up toward you; swing it, throw it
-8 Drag a downed grunt by the legs: it rolls belly-down and claws (unverified; may not move at all if leg holds are too soft); drag by an arm: its legs brace
-9 Crush and stomps: jump on a downed grunt: parts jolt, thud, head pops on the 2nd-3rd jump; drop on a standing grunt's head from one storey: it goes down, you bounce
-10 Keep down: keep punching or dragging a downed grunt: stays down, rises about 1 s after you stop (never after 7 s)
-11 Dies while held: shoot or stab one you are lifting: the struggle fades, it goes limp
-12 After a load: make a NEW save, die, respawn, repeat 1 and 2: it still goes active ragdoll
-13 Other humanoids, steps 1, 2, 5, 7 each: enforcer, knight, death knight (struggle too); ogre (rarely falls, needs more to lift); zombie and mummy (no struggle, judo leaves them whole)
-14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
+# Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
-Holster Setup (VR Settings > Body and Equipment, first row): the game pauses and boxes show every holster and pouch; grip a box and drag it (the pair mirrors with Symmetry on), both grips on one box and spread/pinch to resize (or one hand + stick up/down); panel: Symmetry, Undo, Reset Holster, Reset All, Cancel, Done (B/Y undo, menu button done); check the panel is readable and reachable, back holsters grabbable over the shoulders, the holster stays under your hand, guns holster at the new places
-Pouch wobble per round: walk, stop and turn: each magazine and grenade leans its own way, shells slide and tilt a little within the pile; compare with Wobble Each Round off; try Springiness, Settle Time and Intensity (Settings > Ammo Pouch); grenades 6.7% and cluster grenades 15% bigger: compare with one in the hand; check the slightly deeper grenade pouch against belly/hip holsters
-Your flamethrower and drip values as defaults: stream alpha 0.25, our fire frequency 1.5, AD flame copies 2, drip volume 0.35, drip frequency 0.65 (a fresh config gets them; yours already has them)
-Calibration fixes: start the game sitting, stand up and walk around: legs straight, no crouch; lift the headset over your head a second and put it back: back to normal in a few seconds; run VR Calibration standing: your height is set the moment Stand Tall is taken (skip or cancel after it: kept); Apply then Undo brings back the height from before
-Leg-drag struggle for every humanoid: drag an enforcer, deflector, death knight, zombie, mummy and AD crossbow knight by one leg, belly up and down: arms claw and flail; held high by the legs they grasp at you; a shin grab on AD's long-coated knights starts the leg pull; do AD's hell knight, death fury, defender and eliminator flail too wildly?
-Fumigator damage now defaults to your 3
-Climb a crate from any side: spawn a crate on its side (vr_test_spawn 122) and climb it from all four sides, also after knocking it around or turning it: every side works
-Footholds on props: hang on a crate (or two stacked) and look down: your feet press on its face instead of dangling (VR Settings > Body > Footholds on Props)
-Carry Ammo and Health in VR Settings: the toggle now sits just before Auto-Collect (still in Physics too); off: walking into a box takes it, classic Quake
-Pressing on crates: press down on a crate lightly, then harder, with the shotgun, a plank and the bare hand: your hand stops on top (drawn there), the crate stays put and doesn't sink, hop or fly off when you lift away; pushing a crate along the floor works as before, against a wall it stops (Physics > Pressing Props)
-Ammo pouch rework: look down at the pouch with each ammo kind: shells lie in a loose pile (count readable up to 20), magazines/cells stand in up to 2 rows of 3, grenades 3+2, rockets lying 3+2 at full size; sizes match the held ones; walk, stop and turn: things wobble a little (Ammo Pouch Wobble slider); reload from all six magazine spots still works; check the deeper grenade pouch against the belly/hip holsters
-First punch hitch: first hard punch to a grunt's face in a session: no hitch (the decal shader is now built at map load)
-Close head pop: punch a grunt's head off from very close: if a frame still drops, use Debug > Profiling > Log Next 3 Seconds just before and tell me (it writes quakevr/profile/framelog_*.txt)
-Flamethrower and poison sprayer: embers and dark smoke off the fire, a lingering green mist after the poison; try AD Guns > Flamethrowers' Look: AD's Flames Frequency 2 and Our Fire Frequency 2; Scorch Marks (off by default, costly); flamethrower damage now your 4.5
-Light ammo throws: throw shells, magazines and cells at a crate: it doesn't break (was 2 hits); a crate thrown at a crate still breaks it
-AD explosions push physics: Plasma Gun blasts (and AD rockets/grenades) near crates and bodies push them away
-Holster a held gun: hold a gun over an empty magnetic holster and press the thumbstick: it links (press again: unlinks) without letting go
-Heavy two-hand throws: heave a crate or the explosive box with both hands, release at the top of the swing: it flies a metre or two; does it still jump ahead of your hands? (Physics > Throwing > two-hand heave)
-Spent guns: no floating force-grab particles over empty enemy guns
-Footprints per step: walk and run out of a blood pool: one print per step, feet alternating, bigger now (1.6); tune with Gore > Footprint Frequency if the rate doesn't match
-Handprints round edges and on props: climb a ledge with a bloody hand: the print wraps onto the top; press a bloody palm on a crate or explosive box: blood on the prop, moving with it
-Bloody grips: with bloody hands hold a gun a while: blood builds up on its grip where you hold it and stays when you holster or drop it
-Drip sounds: at low health your blood drops land with a quiet drip; gore drips from ceilings and gibs too; sliders on the Gore page (volume, frequency); gore sound volumes now default to your 0.75
-Death menu: die on any map (also Quake VR's own maps): pressing a button only opens the menu in front of you, nothing respawns until you pick a row (Respawn / Restart / autosaves); Back closes it, a press reopens it
-Shoulder charge (now on by default, your settings): the charge connects only when you nearly touch the enemy; impact sound, rumble on both controllers, pain cry as it falls or staggers
-Dragged by a leg: pull a live grunt (belly up and belly down) by one leg: it claws at the floor and flails its arms instead of hanging dead
-Hammer and mace: you walk/run at 0.8x speed holding one, attacks cost 1.5x stamina (sliders on the AD weapons page)
-AD health vials and gems: 2.5x bigger, still grabbable and still heal (slider for the size)
-Spent chainsaws: run an ogre chainsaw out of fuel (in hand, or dropped running until it stalls): no loot pillar, force grab ignores it, a hand still picks it up and it still cuts as a blade; a fuelled saw still glows
-Spent enemy guns: empty a grunt (or enforcer) rifle and let it drop: no loot pillar or particles, force grab ignores it, a hand still picks it up; a gun with ammo still glows (Gameplay > Enemy Weapons > Spent Guns Stand Out brings the old way back)
-Ledge shove: on vrclimb shove grunts off the trench lip from different distances: they barely tip over and fall (about 50-60 units past the edge, was 350+); if the lip feels like an invisible wall raise Combat > Knockdowns > Ledge Carry Past the Edge (0.1)
-No blood from shoves: shove or shoulder-charge an unhurt grunt down: no blood trail from its limbs; shoot one first, then shove: it still bleeds
-Gore sounds: chokes/gargles off by default (Gore page > Gore Sounds: Chokes); per-sound volume rows under Gore Sounds: tune them to the other sounds
-Bloody footprints: walk through a corpse's blood pool: a small splash on the first step, then 8 boot prints under your feet as they come down, right foot right, fading out; check size (they may read small: vr_footprint_size), alignment, colour matches the blood
-Bloody handprints: hold a gib (bloody hand), then press a palm on a wall and grip a ledge while climbing: handprints at the touch, a few per hand until the blood runs out; none while the hand only hovers
-Gore sounds, real recordings (CC0): listen in play or with vr_gore_sound_test <kind> 4 0.6 (spurt, pour, choke, tear, squelch, step, slap): chokes sound like a monster throat, not a man; the tear's bone crack comes through over the rip; wet steps quiet enough and not hissy; no audible seams in the stream splatter; spurts not too muffled
-Gore sounds (placeholders, replace with recordings, see SOUNDS_OURS.md): grab a gib and a dead ragdoll: squelch; behead a grunt/ogre: gargle, no death cry; hard punch to the jaw: gargle instead of the pain cry; stump spurts line up with the visible pulses; stream splatter quiet, not stuttering; walk through a corpse's pool: wet steps ~4 s; loudness per kind feels right ("Gore Sounds" slider on the Gore page)
-AD/Rogue knees: AD zombies and mummies (ad_sepulcher, ad_swampy, ad_zendar; behead or stagger them), defenders/eliminators/pyros (ad_crucial, ad_tfuma, ad_metmon), Rogue mummy (r2m4): knees bend backward at the knee only, no forward kink; drag a mummy by the leg: it folds at the knee
-Enforcer and zombie knees: shove/knock down an enforcer and a zombie, behead a zombie, kill enforcers, drag either by the leg: the knee bends where the trousers meet the boot, never forward, no seam tear (it used to bend at the ankle)
-Stagger walk: one- and two-hand shoves on each humanoid: hips dip, knees bend (enforcer/zombie bend at hip and ankle only), feet stay planted and step in turn instead of gliding, arms thrown out and wheeling; grunts often recover from a one-hand shove; A/B with vr_ragdoll_active_stagger_walk 0; lift/crouch/arms sliders in the ragdoll tool
-Shove physics: shove while running: the monster carries your running speed; a two-hand shove pushes 1.25x a one-hand one; a grabbed enforcer's rifle stays in its hands and follows your hand (existing config migrates)
-Super shotgun no self-reload: fire the SSG held low by the right hip (off hand at the cup or anywhere): the clip empties and does not refill; holstering at the hip still reloads
-Struggle flails: grabbed enforcer, zombie and death knight flail harder; struggle voices never play sight barks; no force grab while climbing; bullet-time taps ignored while both hands hold a ragdoll; your parry/mantle/leg-pull values are the new defaults (existing config migrates)
-AD spawn stutter gone: walk into the first fights on ad_swampy (and ad_tears, ad_sepulcher): monsters appear with no stutter; AD maps load faster
-No stall when new monster sizes appear: on AD maps (ad_tears, ad_sepulcher) spawn an ogre and an enforcer from the toolgun or reach a delayed spawn: no freeze (was up to 1.3 s+)
-Load Autosave shows only this game's autosaves (first row switches to all games); no hitch opening it; on the death menu the row sits under Restart
-Sounds after a load: spawn a monster with the toolgun/spawner, quicksave, quickload: it still makes its sounds; AD ad_tears: the trigger's ogre idle sound plays
-Autosaves (VR Settings > Saves and Autosaves): last 3 kept per map; main/pause menu Load Autosave lists them newest first (two lines, readable with the laser?); death menu ~2 s after dying: Respawn, Restart the Level, autosaves; get ambushed: no autosave until safe (alerted/near monsters, health < 40%); main menu still fits with the extra row
-VR Settings > Body and Equipment: set Height a little off: feet stay on the floor, knees bend only when crouching (Legs Fit Your Height); ammo pouch and hip holsters sit on the belt (Gear Fits Your Body); try Belt Height, Shoulders, Torso Back, Flashlight Forward/Out/Up with the body shown in front of you
-Pacing: the shotgun takes two shells from the pouch (one when only one is left or one slot is free); ogres 180 HP, shamblers 510, bigger monsters up to -20% (Combat > Monster Health: curve, per-group overrides, example lines: check they read right); fight ogres and shamblers
-Earned bullet time (default; VR Settings > Bullet Time > Meter Refill): empty the meter (Debug > Empty the Bullet Time Meter), fight grunts: the gadget TIME bar grows and flashes on each hit, six grunts fill it, it doesn't grow standing still; save/load and level exits keep it; Meter Refill > Over Time = old behaviour
+
+[Combat and ragdolls]
+AD humanoids (vrfiringrange, god + notarget): shove hard, lift by the chest, leg sweep on an AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 AD hit reactions: in AD maps shoot knights, death knights and soldiers in the body and legs: they flinch, buckle at the knee and limp a step; shoved, they stagger (death knights rarely go down)
-Ragdoll tool (flat: ironwail.exe -ragtool, add -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters; play a few behaviours on several models, Struggle with each hold while moving the hand (arrows, PgUp/PgDn), change a Joint Groups slider and replay, save/load a preset (docs/vr-port/RAGTOOL.md)
-Prop impacts (Crates > Breaking): light taps only move crates and boxes; hard punches or the axe break a crate in one or two hits; a hard punch or wall slam blows up an explosive box; a held crate slammed into a wall breaks out of your hands; crate pieces dust when punched or thrown hard; 9 m/s base / 8.4 m/s box feel right?
-AD zombie knight: behead one lying on the floor before its trigger, walk through the trigger: it stays down (no headless body running in place); vr_debug_deadanim 1 + developer 1 logs "deadanim:" if any dead monster animates again
-Weapons held off their handle collide: pick up a weapon by its barrel, a crowbar by its blade, hand a shotgun off to the other hand's barrel grip, push each into a wall and the floor (also two-handed): stops and slides, hands stay on their grips
-Shoulder charge (Ragdoll Triggers > Shoulder Charges, off by default): record takes first (Motion Recorder > Shoulder Charge / Not Expected; 16 positives, 20 negatives, see ROUND22); then turn it on: hands low and tucked, turned side-on, sprint into a grunt: launched back and toppled, you bounce back; ogre staggers
-Thrown bodies topple grunts more reliably and push them back (your values are defaults); at an ogre: stagger and push
-Mantle Height (Movement > Climbing, 18): lean up and down over a chest-high ledge without mantling (try 22-26 if still early); one hand on a shin: no drag, a yank pulls the legs out; one hand on the chest drags; one hand on the head holds without dragging (Holding Enemies > One Hand Drags By); dents a bit shallower (your 2.5)
-Gib impacts (Gibs page: Burst Speed, Head/Small multipliers, Bounce): toss a head up and tap it: bounces; slap it hard: bursts; slam a held head into a wall or floor fast: bursts, press slowly: stays; punch heads on the floor: bounce unless fast
-AD weapon reliefs (vr_weapon_relief 1, at load): hold the Shadow Axe, Widowmaker, Plasma Gun, grunt-gun variants, crossbow, AD swords, hammer and mace close under a torch and turn them: grooves, rivets, grain; look along blades and handles at grazing angles: no swimming paint
-Widowmaker spins up ~0.75 s before the first shot (sooner if still spinning); seated Crouch Button (off/left/right stick, warns if it's also the bullet-time trigger); enemies raise their arms only when alerted and facing you (sneak up from behind: no guard)
-Limb cuts: cut a limb with a sword and look at the cap (chunky flesh, bone) and the body stump, plus a decapitated neck: too bright/saturated? bone size? stump flesh area big enough vs the blood paint? the flying limb trails its own fountain
-Zombies fall as active ragdolls (SSG, grenades): grab, drag, behead or gib them while down; they get up after a few seconds (AD zombies, mummy, zombie knight too); no more untargetable lying zombies
-Body shield: hold a corpse in front of you (two hands, then one) while grunts and enforcers shoot: the body takes the hits; Widowmaker from the toolgun has 16 shells
-Ghost Hands look solid: no inner/back faces through the translucency (vr_ghost_hands_solid 0 = old look); fades from 6 cm over 7 cm (your values)
-Parry balance (Parry and Bash > Parry Balance; Monster Groups > Parry Poise): crossed arms vs a grunt's shove (ragdoll stagger) and a knight (short flinch); sword one- and two-handed vs knights (longer staggers); bare hands vs an ogre's chainsaw (blocked, still hurts); a guard raised just in time vs an ogre; a shambler (never); parry the same knight again and again (shorter each time)
-Melee at any headset rate: slashes and stabs should feel the same as before (strength matched at your 120 Hz); leg sweeps and the weapon wrench still trigger
-Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
-Thrown bodies and tackles (Ragdoll Triggers > Thrown Bodies / Tackles): throw or swing bodies at grunts (topple), ogres (short stagger), shamblers (nothing); sprint into grunts and ogres in guard, crossed hands, palm forward, shoving: tackles; a gun aimed two-handed while running never tackles
-Brain chunks: pop heads (Gore Tests > Brain Chunks Ahead): folds, gloss in light and shade, pick one up and shake/drop it (jiggle); Gore > Small Gibs > Brain Chunk Gloss / Jiggle
-Leg sweep direction: sweep a grunt's shins left to right with the nailgun or sword: does it topple away from the sweep, or backward (the test sees a 15-30 unit backward lean)? wanted or not?
-Holds and triggers: a hard crowbar/staff swing into shins sweeps even when strong (damage + sweep); hang on a ledge with one hand, yank a shin with the other (one-hand leg pull, 1.3x speed); full-speed judo throw in bullet time; drag a downed grunt into walls with the stick: no damage from dragging alone; slam its head into a wall: damage and face dents; head hold no longer lasts longer than a chest hold
-Toolgun: Shadow Axe, Widowmaker, Plasma Gun spawn as props (drop, rest, grab, upgraded in hand); Death Knight's Sword on the Weapons tab; Widowmaker shot louder (Shot Volume 3) and motor quieter (0.4); dead knight: no sword handle or loose triangles left on the hand; your wet duration (15 s) and Widowmaker weight/balance are defaults
-Heavy weapons settle: wiggle and flick the rocket launcher, chainsaw, hammer one-handed: lag and settle, never whip round (hard snap still drops); 2H hammer blows on the ground: if it still bounces, record "Hammer 2H blow on the ground" (Motion Recorder > No Hit; also Heavy RL wiggle, Chainsaw flick, Hammer 1H wiggle)
-Ghost Hands (Player Appearance > Ghost Hands: hands / hands + forearms, both or off hand, opacity, tint, fade): shows your real hands when the in-game hand lags (heavy weapons, two-hand grips)
-Swept blades (Debug > Tests > Melee Sweep; vr_melee_swept 0 = old): big sword swings with the blade's middle through an enemy land there (not a graze at the tip); flat chops at the floor mark mid-blade; graze enemies with the side of the AD hammer and mace heads: hits; slow moves near enemies still don't strike
-Struggle 2: head hold: arms come up over the head slapping at your hands; leg lift and on-the-back leg drag: squirms, crunches up, slaps; arm drag held high: free hand swats, tries to stay up; struggling enemies cry out with their own voices; a dying grunt (Crawl Away 1) landing on its back flails like a cockroach instead of rolling over; your palms sit on held limbs (less gap/sinking)
-Stagger fixes: parry a knight's blow and a grunt's shove on flat floor: steps back as a ragdoll, comes at you again (now actually fires); after a shove that doesn't drop it, fights on straight away (no end freeze); shove from behind or unaware: always down; slap at a ledge or top of stairs: falls, no air-walking; enforcers knocked down on ramps up to 30 deg get up (steeper: forced get-up ~4.5 s)
-Melee on ragdolls: chop corpses and downed enemies with sword, axe, hammer, mace: they jolt, not fly (Ragdoll Bounce / Most Speed rows)
-Batting projectiles on purpose: flick the wrist or bring a gun round in front of a spike: no bat; a timed swing or timed bash: bats (hand speed bar 2 m/s OK?)
-Parry stagger as an active ragdoll (Parry and Bash > Parry Ragdoll; off = old stagger): parry knights and grunts on flat floor (small step back, never falls, same recovery) and at the top of stairs (can go down)
-Box3D updated to upstream (solver rework, contact fixes): thrown axes and knives (spin, sticking: more stick now), piled and kicked props, ragdolls on stairs and in piles, physgun on a ragdoll (less jitter), judo throws and lifts: anything feel different or worse?
-Heavy weapons (Weapon Weights > Heavy Handling): one-handed snaps with laser cannon, hammer, rocket launcher lag and swing back springily (extreme snap still drops); one-handed droop (laser cannon ~18 deg below the controller: too harsh?); laser cannon bursts one-handed kick up and recover slowly; slow deliberate two-handed hammer/mace chops hit hard, slow repositioning doesn't
-Monster Groups (Combat > Monster Groups: a page per group and per trigger/action): Grunts: Shove Knockdown 0 = shoved grunts stay up, Shove Push 0 = don't move, Lift off = no lift; AD soldiers/enforcer types/crossbow and zombie knights can now be thrown; AD death knights/guards/fury/hunter ogres thrown when hurt
-AD flamethrower and poison sprayer reach ~236/197 units now (flames died at ~130 before): spray ad_dm1's minotaur, a golem, a bog lord from a few metres: they burn/turn green and lose health; nail/bolt head and limb pops on kills now 50%
-Seated play (Position: Seated, run VR Calibration seated; VR Settings > Height and Hand Calibration > Seated Play): eyes at standing height, body stands, feet on the floor while walking (no leg tracking); hip holsters on your thighs, back holsters over the shoulders, pouches; pick something up off the floor beside the chair; duck in the chair; vr_crouch_toggle (no button yet); tune Holster Calibration > Seated Holsters
-Your Widowmaker stats are defaults (refire 0.35, 8 pellets x 5, own tracer colour) and AD crossbow damage 30
-Pouch reload: with one or two magazines left, bring the nailgun's well (super nailgun on its side, thunderbolt) onto the drawn magazine: seats on it and a little off it (more lenient: 6 cm, 45 deg), never over an empty slot (Weapons > Reloading)
-Widowmaker round 4: heavy new shot sound (vs super shotgun and rocket); barrel motor whine rises and dies with the spin (Reloading > Widowmaker > Motor Volume); a picked-up Widowmaker is 16/16; your recoil/flash are defaults
-AD crossbow bolts 1.5x faster for you (1050); your AD sword grips (fury, DK, zombie knight, death guard) and flame wobble strength 2.5 are defaults
-Break free: lift a grunt (or hold one by hand/chest/head/leg) until it breaks free: shove sound plays and you're pushed back ~15 cm smoothly (Holding Enemies > Break-Free Push / Break-Free Sound); pulling a standing enemy free untested headless
-Projectiles all alike: crossbow bolts/AD plasma/lasers/nails pop heads and limbs, push corpses and ragdolls, knock wall torches off; nail headshots now pop (0.85, too often?); a grenade straight at a knocked-down enemy explodes
-Fury sword hits follow its curve (inside and outside of the bow); stray triangle by the sword handles gone; hammer and mace refused at holsters ("too big")
-Fall-damage "hnng" no longer cut off (by the next footstep or by menu/gadget/climb/flashlight sounds): land hard and walk on, open the menu right after
-AD grunt guns round 4: flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes; hose inlet further back near the stock; look straight into each muzzle and the rocket exhaust (hollow inside, no inner barrels); grenade launcher underside closed (plate colour OK?)
-Sounds: punch a wall: whoosh and hit both heard (were cutting each other); waving an open hand quieter (slap whoosh only for a slap motion); your swing values are defaults
-Own blood after a wash bleeds back over ~10 s (Re-open Bleed slider); Wet Duration slider (28 s), wet sheen 2 default; chainsaw +20% (120/s, swing 26); AD Fury sword, hammer, mace: your grips are defaults
-Widowmaker Gatling: barrels spin up while firing and coast to a stop with one on top; the top barrel fires; new auto-shotgun sound; side port half size, loads 2 shells; front handle gap closed; Cup grip now uses the virtual stock (Virtual Stock page toggle) Auto shotgun: hold the trigger (0.25 s refire), tube 16, spent shells out the other side; your grip 1 is default
-Plasma Gun: receiver hole black inside; trigger meets the body. Crossbow: soft shimmer as the next bolt morphs in (volume setting); cell pokes out a bit more; with the cell out, a real pocket with dark walls
-Ragdoll triggers (physical flinch removed; Combat > Ragdoll Triggers, one page each + Monster Resistance): enemies at the top of stairs and by ledges, the test-hall ramp, close shotgun/super shotgun blasts, punches and blunt weapons vs blades, rockets/grenades near grunts, a badly hurt enemy; ogres and death knights resist enough? hits play normal pains again
-Linux (for the Wayland player): VR now binds EGL contexts (XR_MNDX_egl_enable: WiVRn, Monado) and skips 32-bit runtime manifests; nothing to test on Windows
-Swing sounds by speed (Combat > Melee > Swing Sounds): slow moves silent, brisk wave a soft whoosh, punch/cut clearly louder, very fast punch louder than before; sword/axe strokes whoosh softly (too busy? raise Heard From)
-AD crossbow firing: a bolt sits in the groove and is the one that flies; next bolt morphs in like the rocket ammo; string snaps and limbs flex, then draw back; judge bolt size/height, snap strength, draw-back timing (AD Guns > crossbow Animation toggle)
-AD health vials and gems: force grab into the hand, holster or walk into them: heal, and you can still attack and jump after (was the lockout: health capped at 0); AD artifacts taken by hand (Debug "Artifacts Ahead"); toolgun keycards and runekeys open doors; DoE Vengeance Sphere, MG3 draughts in the toolgun
-Wet from liquids is back (glove shells had broken the masks: also your painted blood/burns): swim and climb out: hands, gloves, forearms and weapon evenly darker and glossy, drip, fade over ~25 s; wade knee-deep: only below the line; Gore > Wounds on Models > Wet Sheen slider
-AD melee models rebuilt: the four swords thinner with new guards, pommels and grips (Fury curve faces the other way); hammer spike faces away, new handles on hammer and mace; look close and edge-on; hand on each grip (your Fury sword, hammer and mace grips are defaults)
-AD weapons no longer inherit settings: plain axe back to its old smaller size, Shadow Axe keeps your size; crossbow feels as you tuned it (your 12 values are now defaults); nothing else should change
-AD guns round 3: flamethrower and poison sprayer hose goes round your forearm (across the body, low at the hip); empty flamethrower: pilot light out; Eliminator gone (eliminators drop the Centurion gun); Freddie drops the normal super nailgun; "Grunt Burst Rifle" tooltip; Weapon Damage > Arcane Dimensions sliders
-AD ragdolls part 2: AD knight, AD ogre (nail/flak/marksman), death lord, Quoth death guard, deflector now ragdoll: kill, shove, get-up, lift and neck snap (not the ogre's neck); deflector's gun swings on its hand; hunter ogres (hammer, mace), death guard, crossbow knight, fury, AD death knight/hell knight, ice golem likewise (right fist moves as its own bone)
-Flamethrower lights (Light Sources > Flamethrower Lights 3, Size): AD pyro gun and pyro monsters light walls, floor, your hands and gun orange; too strong? pops or lags when sweeping the stream?; your values are defaults (4 lights, size 2.5), grenade pouch reach 5.5
-AD weapons round 2: Widowmaker two-hander (front handle hotspot angle a guess; very dark skin); Plasma Gun side cell: eject and reload, receiver size; no ammo button; muzzle sparks/recoil; crossbow Align Sights now works (will change your Shot Pitch +7 vs rail -11); Shadow Axe chops downed AD zombies (your axe size now default for both axes); holster and drop each of Shadow Axe, Widowmaker, Plasma Gun (vr_ad_test 97-100 to test quickly)
-AD melee from the toolgun (the cause of "plain swords": toolgun rows had no weapon kind): spawn each AD melee weapon from the Weapons tab: own model; hammer and mace head-heavy, one hand slow and weak, two hands full; holster, draw, save, load, change level (was a crash)
-Your holster and glove values are now defaults (config 156, 27 cvars incl. glove thickness 2.25, relief 1.25, shoulder/upper holster thresholds 7.5/5.9): quick look at hip, upper, shoulder, ammo, grenade zones on a fresh config
-AD grunt guns round 2: rocket wide launch tube + slanted exhaust with rear bell (back-blast on fire); grenade hex muzzle + 4-grenade feed box; flamethrower/sprayer hose leaves under the gun between grip and stock; pyro pilot light particles (subtle enough?); per-variant recoil/flash/particles (rocket and grenade near the cap)
-AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46
-Glove leather relief (Player Appearance > Gloves > Leather Relief, vr_glove_relief 0-2, default 1): stitches, seams, knuckle/joint/palm creases catch the light like the bracers; grain too coarse up close? try 0.5-1.5
-AD soldier gun variants (AD on): kill each AD gun soldier, look at its rifle up close: each cue reads (rocket tube, grenade drum, plasma tubes, eliminator coils, centurion drum, defender pump, pyro nozzle/canister, fumigator sprayer); rocket tube/grenade body over the sights?
-Flamethrower/sprayer tank and hose (AD Guns page: Fuel Hose, route hip/shoulder): hose while aiming, walking, crouching on both routes; tank place on the back; hose in the mirror
-Physgun on ragdolls: grab a corpse by the chest, then an arm or leg: smooth, hangs and swings from that point, throw it; a knocked-down grunt; crates and standing monsters as before (vr_toolgun_physgun_ragdoll 0 = old)
-Gloves thickness (Player Appearance > Glove Thickness 1.5-3 mm): fingerless edge stands off the fingers with a dark rim; bend fingers (fist, point); cuff step on bare forearms
-Shub (end): once the ball moves, save and load, step into the teleporter as the ball reaches Shub: she dies
-Holsters: shells box to a hip slightly short of a gun's spot (goes in); put away shells when full (pat, tick); draw a holstered gun by its handle; magnetic binding survives a level change
-Magnetic chain: throw a bound gun across the floor and round a corner: lies on the floor, wraps the corner, links near, thin line far; swing the held gun fast and check the chain
-Loot beams (Graphics > Loot Beams): dropped guns and full magazines glow among gibs; nothing in hand glows; fades within 0.5 m
-Lava nails through map6's braziers; blood streams from sword/axe/crowbar/fist hits and a thrown axe
-Near-eye particles: grenade at arm's length with Largest Particle 0.15 vs 0.3 vs 0; walk through blood with the fade on/off
-Elbow: hand in front of face, elbow raised: Body Over Tracked yellow elbow follows magenta; Print Body Tracking Stats says arms on 100%
-Ranger head: Player Appearance > Ranger Head sliders with the body clone; melee wall hits (one thunk per hard swing, nothing on light drags); Create Bug Report buttons
-Auto-collect (Physics > Carrying Boxes > Auto-Collect on): grip or force-grab an ammo or health box: it shrinks straight into your hand (full: a dull pat, stays held); should it be the new default?
-Half-res particles A/B: vr_particle_halfres_force 1 vs 0 during a close blood burst and an explosion; look for fringes or blocky 2x2 edges at walls and monster outlines, retro grid misaligned (vr_particle_halfres_upsample 2 shows edge pixels in green); tell me which wins
-Quest body tracking (VD, Meta body tracking on; Body page > Body Tracking group): lean/twist your chest, bend elbows: the body follows you; legs off by default; drop to 0 confidence fades back to IK
-Per-weapon reload (Weapons > Reloading > Per-Weapon Reload Overrides): global Simple, shotgun Immersive: pouch appears, shotgun loads by hand, nailgun reloads at the hip
-Turning Mode Off (Comfort): the right stick never turns you, also in menus, climbing, swimming
-MG3 Dawn of the Machine map6 (Matriarch of Decay): press the palace button, fight, take an ammo box that appears: no crash
-Enemy Melee menu (Combat): Show Melee Arcs; sidestep a knight (narrow) and an ogre (wide, its overhead smash doesn't track); DoE Guardian stab and Overlord smash respect the arc
-Throws: weapon and brick thrown while running go a bit shorter; a gib thrown near a monster bends toward it; two-handed window 0.2 s for props and guns
-Graphics: Parallax Surface Level 0 / 0.5 / 1 with a crate on carved floors; TAA (off by default) on: railings while moving the head, fast axe swing trails, sharpen 0-0.6
-Motion recorder: record Leg Sweep Expected (shotgun, crowbar, super shotgun) and Not Expected (axe, slow swing) takes, then eval.sh
-Defaults: your tuned values are now built in (knockdown times, ragdoll hand stick, 192 others): a fresh config should feel like yours; Debug > Tests only has human tests now (agent ones under Automation & Self-Tests)
-Nothing should feel different after the cleanup (A/B switches removed): walk along walls, throw props and guns, drop a gun in water, catch a tossed weapon, press a wall button with a sword, parry a knight
-Enemy melee: sidestep a charging knight/death knight: it misses; sneak behind and wake it: it turns before the first blow lands
-Gib heads: rocket an AD crossbow knight or hunter ogre: pick up, throw and shoot its head (bursts into small gibs)
-Magnetic holsters: hand at a holster + click a stick binds it; throw/drop the gun: back after ~3 s or 4 m; grab it mid-flight; lanyard/tether/both, chain size and opacity
-Gore: thin blood streams from wounds pool on the floor (also corpses); back-splatter on walls behind; teeth from hard face punches; raw-flesh dents that stay on corpses, never on guns
-Gloves: Worn Leather painted layer (knuckle scuffs, joint creases, stitched seams) at arm's length in a few colours; no nails showing through full gloves
-Grip fit: grab a crate by the lid or a barrel by the rim with the hand pushed in: the hand rests on the surface; also by an edge: fingers sit at its surface; a normal grab doesn't move the prop
-Toolgun: megahealth/health/ammo in vrfiringrange appear small at once where the ghost was; AD monster ghosts not corrupted; AD/MG3 backpacks in any map
-Menu panels: grip one and pull your hand in / push out: it moves in depth (30 cm to 2 m), kept after reopening
-Impacts settings (Combat > Knockdowns > Impacts): Damage Curve 2 and Most per Strike change throws into walls; repeated head slams pop the head
-Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
-Neck snap: Hand Line only at your values (75 deg in 0.15 s); a snapped neck flops (carry the body by its head); Lift and Two-Hand Throw > Show Diagnostic panels make sense
-Step In Depth (Holding Enemies > Getting Close): walk into a held grunt: stop face to face, strafe/back off freely; try 4-12
-Vore: walk into one: two-handed shove reads, both hands at your chest, push not early
-VR Settings: 9 merged pages with part headers; Player Appearance: gloves none/fingerless/full + colour with bracers and skin tones; biosuit glow at your values
-Menu panels: grip-move one, Back to Game, reopen: same place and page (also after a map change, Esc, dashboard); Close Panel removes one
-Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button
-Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch; grunt idle gun must not pulse at loop boundaries with Ease 0
-Decals: retro textures on: baked blood shows the wall's blocks; gib against a door: blood lands on it when it lands
-Flat desktop main menu: balanced, title raised, nothing under the notice box
-If shoves/lifts ever stop working after a load: Debug > Combat > Why Can't I Knock It Down?, send me the console
-Corpses = Walk Through: walk over a dead grunt: limbs slide a few units ahead of your feet, never flung, walk not slowed (Feet Nudge Ragdolls off: they stay put); bullet time: two-hand throw a small gib: it flies, doesn't burst in your face
-AD pyro/fumigator streams (enemy and your dropped gun): see-through with fire (green) tongues, fire/smoke at the muzzle; poisoned monsters puff green until it wears off; plasma bolts: thin crackling trail, muzzle/hit sparks, electrocute monsters and bodies
-Hot blades: heat a blade red-hot, take a level exit: still glowing in the next level; aim the force grab at a dropped hot blade: it still shows incandescent
-Motion Recorder: Lift Expected (start, grip dummy with both hands, pull up hard) / Judo Throw Expected (turn it down) and their Not Expected (slow pull, slow/small turn): each saves, dummy stays holdable, Review Takes lists them
-Quick save then immediate quick load: loads fine (load now waits for the save to finish writing)
-Motion Recorder (vrmelee-recording): record Neck Snap Expected takes (start the take, then grip the dummy's head, twist hard) and Neck Snap Not Expected ones (shoulders, slow/small turn, pull, lift); dummy stays standing and holdable; Review Takes lists them; include a push-pull with wrist roll
-Neck snap: shoulders twisted hard = no snap; head/neck twist = snap with a loud crack in your hands; Neck Snap > Show Diagnostic matches what you feel; bullet time: grab-and-twist / grab-and-lift right away work; lying enemy: twist about its own neck; AD fumigator/centurion liftable; both hands on head/neck never judo/lift, one hand forward and the other back (quick) snaps, shoulder grab still judos
-Native prop think: throw/drop weapons and pickups into water and onto floors: float/sink, dust, settle flat as before; Debug > Profiling > Native Prop Think off/on changes nothing visible
-AD soldiers' guns: own single-use guns again; the grenade soldier's launcher fires your grenades (clean exit, also two-handed), the rocket soldier's your rockets; plasma rifles fire AD bolts that spark and push props
-Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall (~3 kill, head pops); jump from a ledge onto a downed grunt (crush); feel and amounts OK?
-Manhandle (Holding Enemies): one-hand grab of a just-shoved/staggered grunt or one at <=25% health takes it down and holds it; a healthy one is held standing as before
-Faster QuakeC loop: play e1m1 and an AD map, nothing behaves differently; Debug > Profiling > QuakeC Loop: Original vs Fast
-AD stealth: sneak up on AD soldiers/knights in the dark: they stay unaware; lit, they notice in ~1 s
-Hipend: shots hit the Armagon's torso, not only the legs
-vrfiringrange: reload a few times: laser cannons rest on their table, none inside it or thrown off
-VR menus: New Panel (corner) opens a 2nd menu to the right; a page in each, both hands point at once; same settings page in both: a change shows in the other; Weapon Offsets refused in the 2nd; Close Panel closes one, Back to Game all; New Panel again returns where you left it
-Bullet-time throws: re-grip tosses of guns/props stay small; a slowed full throw flies like a real-speed one; no threshold where throws suddenly get strong (Throwing > Slow Motion: Full Stroke Tempo; "Throws As In Real Time" on = every slowed throw as strong as a real-time one); a throw right as bullet time ends
-Axe flip-and-catch: a few-cm toss caught by the handle more easily (also in bullet time); force grab no longer grabs things behind an enemy (Bodies Block)
-Permanent Decals: big gore fight, no stutter as blood lands; off mid-room keeps the newest marks, on again brings all back (none darker, marks made while off included); save/load keeps the freshest marks too
-Pentagram / Biosuit (Debug > Test Effects): body and hands glow pulsing red / green with matching hand light; with Quad too the glows take turns; does the red read as red under the yellow flash? biosuit at 2 too strong? Glow 0 = old tint
-Your tweaks are now defaults (config 133): blood feedback, Quad 2/2/2, bash 5, neck snap Hand Line 210/80, throws, lift, limb grab, reload, decals, PBR, bare forearms; values you set by hand are kept
-Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never starts slow motion; a calm double tap still does (Screen Tap > Quiet After Blows / Calm Hands Speed)
-Get-up: shoved-over grunts and knights roll over and rise where they lie, no slide away and back (Ragdoll Settings > Get Up in Place)
-VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps
-Steady Model Vertices: idle grunt and knight over several loops: no itch at the loop restart, shading no longer flickers/pulses; toggle off/on to compare
-Melee Space (Combat > Enemy Melee): knights, a fiend and an ogre attacking while you stand still, then lean/step in; try 0 / 16 (default) / 24: nobody ends up in your face
-Enemy Melee (Combat > Enemy Melee, Show Melee Arcs on): a knight, an ogre, a shambler after you: the floor fans (red: you are in, green: out) match where blows land? sidestep a knight vs an ogre; tune Arc Growth / Reach Growth with Size, Swing Turn
-Toolgun Spawn: hold A on the gun hand and turn your wrist: the ghost stays put and turns 2x your hand (2x right?); let go: follows the gun again, still turned (jump back to the aim OK?); A held + stick press twice goes back twice
 Hits Unbalance (Combat > Knockdowns): hard throw (crate/weapon) or strong punch/axe on a grunt staggers it like a shove (head counts more); light taps never; ogre seldom, shambler rarely; no re-stagger within 4 s; is Least Impact 0.5 too generous for punches?
-Quad Damage (Debug > Cheats): hands/arms/body glow soft pulsing blue, hands throw blue light; nothing glows in your eyes; Body > Quad Damage Look: Lightning Arcs = old look, Both = both; glow/light sliders; lightning strike still arcs; glow goes when quad ends
-Blood Feedback: hits from left/right/above feel directional as you turn your head; duration/intensity/bias/coverage controls and hit toggle work; wider coverage is visible in the headset
-Blood Feedback: below Health Threshold pulses grow stronger/faster as health drops; healing stops them; pulse/intensity/curve/coverage controls and low-health toggle work independently
-Lift / judo throw diagnostics (Holding Enemies > Lift / Two-Hand Throw > Show Diagnostic, or Debug): hold a grunt with both hands; pull up: the arrow and panel show the pull vs Lift Speed and 45 deg, the reach circle, why not (one hand, at its head, too far); turn it over: turn vs Turn to Throw, hands vs Hands' Speed, the way arrow, the last try's result; do they match what you feel?
+Impacts (Combat > Knockdowns > Impacts): throw a lifted grunt hard into a wall (7 m/s kills); slam a held head into a wall (~3 kill, head pops); jump from a ledge onto a downed grunt (crush); Damage Curve 2 and Most per Strike change them; feel and amounts OK?
 Getting close (Holding Enemies > Getting Close): hands reach grunt/enforcer/ogre heads at Body Inset 0/4/8; grab a shoulder, step in (Step In on/off: net plus or minus?; Step In Depth 8: can't walk through it, slides aside, steps back freely; 0: walks through), let go inside: eases apart, never stuck
-Hot blades 2: glow and light only on the blade; light fades with it; dropped blade glows and cools; more embers (settings); swing trail; reheat buzz; thrown hot axe burns
-Two super shotguns: a left flick opens/closes only the left one, right only the right; both together toggle both; two-handed pry/lift still work
-AD pickups menu: the 8 soldier guns drop an arm's length ahead (vrfiringrange and AD map); range monster buttons spawn as before
-Incandescent blades: hold axe/sword/crowbar/chainsaw blade in a torch, brazier or lava ~2 s: glows orange-red 30 s, +10 dmg, sets enemies/corpses alight; water quenches (Weapons > Incandescent Blades)
-Stealth: brushing against an unaware enemy no longer alerts it; grabbing it does (Stealth AI > Touching Gives You Away, now off)
-Flatscreen play (desktop, launched with -flatscreenmode): hands look like natural viewmodels (turn, walk, idle); E grabs what you look at; 1 / 2 cycle the left / right hand's weapons; LMB and RMB fire and hit the crosshair; V melee; body hits press buttons; no reloading; flashlight always on the head (Debug > Reports > Flatscreen Play: reach, sway, bob)
-Flatscreen: what you grab stays grabbed and picked-up weapons stay in your hands (the flat hands are closed) — nothing lets go on its own; change a held weapon with 1 / 2, there is no drop key yet
-Without -flatscreenmode the desktop build and all VR gameplay are unchanged
-Magazines: pull out, push back, pull out again without letting go; bumped-out one: new one at the well seats after ~0.25 s (Reloading > Magazine Reinsertion Delay)
-Vore: walk into one, it turns and shoves you instead of firing; shoves, bashes, slaps draw no blood (punches/blades still do)
-Your bash/shove/parry tweaks are now defaults (bash 3 m/s, shove 3.5 m/s): feel the same as your config
-Main menu: list centred under MAIN and vertically in the VR panel (also with Continue after a save); Quit clear of Recording; VR banner left of the shortcut buttons, not cut off (Menu > Banner Beside the Buttons)
-Blood piles: dismember a corpse in one spot, FPS holds; pile looks OK at 32 (Gore > Marks > Decals Piled in One Spot; 255 = old)
-SSG Close by B/Y (Advanced > Weapons > Reloading > Super Shotgun, off by default): on, B/Y opens and B/Y closes it
-Generated relief strength: compare 0x/1x/4x on new brick bumps/parallax; authored components stay unchanged; seams and animation stable
-Existing relief: Quake/expansion walls and both explosive-box sizes retain their prior bumps/parallax with generated companions enabled; AD-only generated relief still works
-Performance pass (should feel unchanged): throws and bullet-time throws; underwater caustics in pools; grenade and rocket sizes in flight; map loads
-Menu shortcuts: top-left Quicksave/Quickload via laser or stick; disabled save after death; smallest panel targets fit above Recording
-Launchers: grenade, proximity and multi launcher shots leave from the barrel tip
-Vore: stand next to one (it shoves you away); parry one
-Prop climbing: large crate and stack, every side with bent and extended arms; grip and pull up on a small crate on top of a stack; failed grabs must not pull crates through your body
-Prop carrying: light vs heavy crate and explosive box; heavy/bulky loads slow thumbstick movement; pulling 60 kg line feels right?
-Toolgun: beam leaves the lens centre; a hard stick click while holding a prop keeps it; B/Y panel, tool tiles, stick-press cycles tools, spawn grid, physgun wrist rotation; panel readable and well placed?
-Spawn ghost by hand: choose an item, hold X in the off hand and reach forward/aside/up — the ghost follows your hand 1:1; hold A in the gun hand and turn your wrist — it yaws only, it does not move; both sticks still walk and turn you; let go and place it with the trigger; that hand's jump is quiet while you hold it — natural? turning yourself with the gun's stick swings the ghost too (by design), is that OK?
-Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; stand on, climb and shoot them
-Brush shapes: make a wedge, cylinder, pyramid; turn one with Rotate; Undo
-Brush light: a new box goes from flat light to shadows; next to a flickering light it flickers too; AD moving items/lifts and flashlight shadows through portals remain stable
-Brush saving: save/load restores brushes; Bake Map keeps original intact and creates a complete separate map with entities, old and new brushes
-Arms: bracers on/off same skin tone; skin slider affects only skin; two gadget straps and stable position; bent wrists fit hands; blood crosses hand/arm seam
-Box3D update: props, ragdolls, teleporter pass-through feel unchanged; Physics AVX2 on vs off feel the same; held/mirrored and dropped gun ports/wells still accept shells/magazines after hull reuse and voxel optimization
-Deaths: shoot grunts and knights in the body vs the head (different falls); a charging knight stumbles; grab a dying arm
-Hit reactions: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider)
-Dismemberment: axe cuts limbs; any weapon wears only its struck corpse piece until it pops, even at chance 0; torso gibs whole body; living leg loss balances/falls, both legs crawl
+Hit reactions and deaths: shoot a living grunt in the body, head, arm, leg: flinch, knee buckle, limp (Strength slider); kill grunts and knights by body vs head shots (different falls); a charging knight stumbles; grab a dying arm
+Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
+Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in; wet/burn wounds and drowning remain unchanged after save/load
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
-Holstered guns: shoulder (back) guns hidden by default; VR Settings > Shoulder Holster Weapons shows them; Advanced > Body and Display has all three pairs; grab and holster still work
-Holstered super shotgun stays open on a hip; a nailgun holstered without its magazine shows none
+New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
+Prop impacts (Crates > Breaking): light taps only move crates and boxes; hard punches or the axe break a crate in one or two hits; a hard punch or wall slam blows up an explosive box; a held crate slammed into a wall breaks out of your hands; crate pieces dust when punched or thrown hard; 9 m/s base / 8.4 m/s box feel right?
+AD zombie knight: behead one lying on the floor before its trigger, walk through the trigger: it stays down (no headless body running in place); vr_debug_deadanim 1 + developer 1 logs "deadanim:" if any dead monster animates again
 
-Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
-Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
-Ragdoll self-contact: shoulders, upper arms and elbows stay outside torso; piles and a held wound; dummy resumes idle after repeated knockdowns
-Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to where it can stand; stagger survives save/load
+[Arcane Dimensions]
+Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
 AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
 AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
 AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
-
-New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
-
 AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on
 AD corpses: disc/flamethrower grunts stable; carried gun disappears on death; each armed soldier drops its own gun
 AD soldiers' guns: rocket/grenade launchers, plasma guns, defender shotgun, flamethrower, poison sprayer: hold, aim, fire; balance in Enemy Weapons > Arcane Dimensions' Guns
+AD soldiers' guns up close (AD on): kill each gun soldier and look at its rifle: each cue reads (rocket tube and rear bell, grenade drum/feed box, plasma tubes, centurion drum, defender pump, pyro nozzle, fumigator sprayer); look straight into each muzzle and the rocket exhaust (hollow, no inner barrels); flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes
+AD melee models rebuilt: the four swords thinner with new guards, pommels and grips (Fury curve faces the other way); hammer spike faces away, new handles on hammer and mace; look close and edge-on; hand on each grip (your Fury sword, hammer and mace grips are defaults)
+AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46
 AD gadget page: the outer button (next to the lights one) pages to artifacts with timers, keys, debuffs, upgraded weapons
 AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
-Reloads: autosave reload briefly retains held guns; magazine reinsertion distance slider; ammo/shell/magazine collection ends at pouch centre
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
 
-Pouch reload: two super shotguns broken open, dip each barrel end into the ammo pouch (fills); shotgun port-down onto the shells (one per touch); empty nailgun well lowered onto the magazines (fresh mag); 35 deg / SSG 10 cm too strict or loose? (Weapons > Reloading > Reloading at the Pouch)
+[Bullet time, seated play, menus]
+Earned bullet time (default; VR Settings > Bullet Time > Meter Refill): empty the meter (Debug > Empty the Bullet Time Meter), fight grunts: the gadget TIME bar grows and flashes on each hit, six grunts fill it, it doesn't grow standing still; save/load and level exits keep it; Meter Refill > Over Time = old behaviour
+Bullet time: frantic melee (punches, shoves, bashes) near the wrist gadget never starts slow motion; a calm double tap still does (Screen Tap > Quiet After Blows / Calm Hands Speed)
+Seated play (Position: Seated, run VR Calibration seated; VR Settings > Height and Hand Calibration > Seated Play): eyes at standing height, body stands, feet on the floor while walking (no leg tracking); hip holsters on your thighs, back holsters over the shoulders, pouches; pick something up off the floor beside the chair; duck in the chair; vr_crouch_toggle (no button yet); tune Holster Calibration > Seated Holsters
+VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps
+
+[Tools (toolgun, physgun, brushes, ragdoll tool)]
+Ragdoll tool (flat: ironwail.exe -ragtool, add -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters; play a few behaviours on several models, Struggle with each hold while moving the hand (arrows, PgUp/PgDn), change a Joint Groups slider and replay, save/load a preset (docs/vr-port/RAGTOOL.md)
+Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
+Physgun on ragdolls: grab a corpse by the chest, then an arm or leg: smooth, hangs and swings from that point, throw it; a knocked-down grunt; crates and standing monsters as before (vr_toolgun_physgun_ragdoll 0 = old)
+Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
+Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button
+Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; wedge, cylinder, pyramid, Rotate, Undo; stand on, climb and shoot them; lighting goes from flat to shadowed (flickers next to a flickering light)
+Brush saving: save/load restores brushes; Bake Map keeps the original and writes a complete separate map with entities, old and new brushes
+Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch; grunt idle gun must not pulse at loop boundaries with Ease 0
+
+[Motion Recorder takes]
+Leg sweep takes (vrmelee-recording, Motion Recorder): Expected with shotgun, crowbar, super shotgun; Not Expected with the axe and slow swings
+Lift, judo and neck snap takes: Lift Expected (both hands, pull up hard), Judo Throw Expected (turn it down), Neck Snap Expected (grip the head, twist hard), and Not Expected for each (slow pull, small turn, shoulders, push-pull with wrist roll); the dummy stays holdable, Review Takes lists them
 
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
@@ -286,8 +67,7 @@ Relighting without ericw-tools: Download ericw-tools (27.5 MB) with progress and
 MG1 Horde (horde1, horde5): dead and holding fire does nothing; release and press restarts; coop teammate returns at wave end
 MG1 developer tests: rune returns, electrode buttons, revival; quake vibration comfortable
 
-[Tune / record]
+[Tune]
 Tracy (Debug > Reports, optional profiling build): save CPU/GPU/QC/jobs/loading/memory capture; coarse GPU includes 3D; detail changes and reconnect stay stable; assess overhead in VR during AD combat/held corpse; normal build stays unchanged
 Weapon damage, grapple, stamina costs, roll weight and throw damage
-Record new melee takes in vrmelee-recording (Motion Recorder); replay stays in that room
 Check holsters grab range and collision with holstered model (YT feedback)
