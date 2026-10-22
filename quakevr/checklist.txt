@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+AD Dark Prince (toolgun spawn): shove, knock down, lift, struggle and leg-pull it like a death knight; neck snap; it gets up
+AD ogre chainsaws: kill a nail/flak ogre and a hunter ogre: the chainsaw is gone from the corpse and ragdoll, a usable one lies next to it
+Flames on bodies: set monsters, corpses and yourself on fire (Debug > Burning Tests 13 for you): flames sit on the body, none floating in front; on a running monster do they lead the body?
+AD health vial sits in the palm when grabbed (your grip is the default)
 Menus: VR Settings > Playing > Item Collection (Carry Ammo and Health, Auto-Collect); Body and Equipment > Holsters > Holster Calibration (Holster Setup first, then the sliders); pouch wobble rows now in Advanced > Weapons > Reloading; death menu near the top with roomier rows; Holster Setup shows the body clone beside the panel (distance OK?); after VR Calibration a dialog offers Holster Setup
 
 [Combat and ragdolls]
