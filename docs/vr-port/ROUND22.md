@@ -15993,7 +15993,7 @@ of 8 (eval.sh: no melee verdict changed). Box contact is as near as the hulls al
 box). On connecting (`vr_kdtrig_tackle_feel` 1): vr/shove.wav on its body, both controllers rumble (0.25 s), and toppled
 or staggered its pain cry (`VR_PainCrySound`, vr_ad_monsters.qc: AD's `ad_pain_sound`, else the training dummy's table
 by classname). `vr_kdtrig_test 14` (Debug > Tests > Ragdoll Triggers, Shoulder Charge the Nearest): grunt down, cry
-soldier/pain2.wav; AD defender down, enforcer/pain1.wav. His tackle settings are the defaults (configVersion 180, a
+soldier/pain2.wav; AD defender down, enforcer/pain1.wav. His tackle settings are the defaults (configVersion 177, a
 config at the old values moves, a custom one stays: checked with leniency 0.7): `vr_kdtrig_tackle_on` 0 -> 1,
 `_knock` 96 -> 152, `_push` 1 -> 1.25, `_leniency` 0.5 -> 0.85.
 

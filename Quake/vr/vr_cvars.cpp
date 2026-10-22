@@ -373,13 +373,13 @@ const DefaultChange defaultChanges[] = {
         "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120"},
     // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
     {176, &vr_shove_push_twohand, "1"}, // 1.12
-    // 180: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
-    {180, &vr_kdtrig_tackle_on, "0"},          // 1
-    {180, &vr_kdtrig_tackle_knock, "96"},      // 152
-    {180, &vr_kdtrig_tackle_push, "1"},        // 1.25
-    {180, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
+    // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
+    {177, &vr_kdtrig_tackle_on, "0"},          // 1
+    {177, &vr_kdtrig_tackle_knock, "96"},      // 152
+    {177, &vr_kdtrig_tackle_push, "1"},        // 1.25
+    {177, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
 };
-constexpr int configVersion = 180;
+constexpr int configVersion = 177;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
