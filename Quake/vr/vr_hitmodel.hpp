@@ -81,6 +81,12 @@ bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
 // point (out.surface, .point), the triangle's outward normal, and how far `p` is from it (`dist`; inside or out). False:
 // `ent` is no target. (Holding enemies, vr_foegrab.cpp: where a hand takes hold.)
 bool nearest(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
+// ... any entity's Quake .mdl as drawn (a ragdoll's as its parts carry it), the option on or off (a fire's flames: QC
+// modelnearest). False: no such model.
+bool nearestAny(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
+// Where on `ent`'s model as drawn now triangle `tri`'s point (corner 0 + u (1 - 0) + v (2 - 0)) is (a point nearestAny
+// found, carried along as the model moves: a fire's flames), and its outward normal. False: no such model or triangle.
+bool surfacePoint(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm::vec3& normal);
 
 // nearest() for many points against one pose: pose() takes `ent`'s model as drawn now (its vertices posed once, each
 // triangle's bounds), then nearestPosed() finds a point's nearest on it, its result nearest()'s to the bit (the

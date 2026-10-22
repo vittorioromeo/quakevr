@@ -40,13 +40,14 @@ constexpr Member memberTable[] = {
     {"monster_knight", knightGroup}, {"monster_knight_infected", knightGroup}, {"monster_dcrossbow", knightGroup},
     // Death knights: id's (AD's point knight), the infected, Dawn of the Machine's ranged knight; AD's death knight (and
     // its ghost, Quoth's death knight), death guard (Quoth's too), death lord, death fury, death sergeant, justice knight
-    // (and the baron, its old name).
+    // (and the baron, its old name), Dark Prince (the death knight's mesh and size; AD's FGD calls it a "mini boss", as
+    // the baron, but its code is a plain monster's: 400 health, no boss flags or script, placed in no map of AD's).
     {"monster_hell_knight", hknightGroup}, {"monster_hell_knight_infected", hknightGroup},
     {"monster_hell_pointknight", hknightGroup}, {"monster_ranged_knight", hknightGroup},
     {"monster_dknight", hknightGroup}, {"monster_dknightghost", hknightGroup}, {"monster_death_knight", hknightGroup},
     {"monster_dguard", hknightGroup}, {"monster_death_guard", hknightGroup}, {"monster_death_lord", hknightGroup},
     {"monster_dfury", hknightGroup}, {"monster_dsergeant", hknightGroup}, {"monster_justice", hknightGroup},
-    {"monster_baron", hknightGroup},
+    {"monster_baron", hknightGroup}, {"monster_dprince", hknightGroup},
     // Ogres: id's, Scourge of Armagon's marksman, Dawn of the Machine's rocket ogre; AD's flak ogre, hunter ogres (cleaver,
     // mace, hammer), the fishing ones (scenery), Freddie (Quoth's Edie).
     {"monster_ogre", ogreGroup}, {"monster_ogre_real", ogreGroup}, {"monster_ogre_marksman", ogreGroup},
@@ -93,7 +94,7 @@ constexpr Member memberTable[] = {
     {"monster_floyd", machineGroup}, {"monster_sweeper", machineGroup}, {"monster_turretbal", machineGroup},
     // Bosses: Chthon and Shub (id's, Dawn of the Machine's, AD's), Armagon, the dragon, Hephaestus (the lava man; Dawn of
     // the Machine's too), the morph, Honey's spear knight, the bog lord (Quoth's gug); AD's eidolon, fire top, ice golem, judicator, mammoth, Nour
-    // (Quoth's vermis), demon prince.
+    // (Quoth's vermis).
     {"monster_boss", bossGroup}, {"monster_boss_final", bossGroup}, {"monster_chthon", bossGroup},
     {"monster_oldone", bossGroup}, {"monster_oldone_new", bossGroup}, {"monster_shub", bossGroup},
     {"monster_shubupsd", bossGroup}, {"monster_shub_eye", bossGroup}, {"monster_armagon", bossGroup},
@@ -102,7 +103,7 @@ constexpr Member memberTable[] = {
     {"monster_eidolon_wavetrig", bossGroup}, {"monster_firetopboss", bossGroup}, {"monster_icegolem", bossGroup},
     {"monster_icegolem_wavetrig", bossGroup}, {"monster_judicator", bossGroup}, {"monster_mammoth", bossGroup},
     {"monster_nour", bossGroup}, {"monster_nouronihar", bossGroup}, {"monster_vermis", bossGroup},
-    {"monster_dprince", bossGroup}, {"monster_boglord", bossGroup}, {"monster_gug", bossGroup}, {"monster_vomit", bossGroup}, // (Dissolution of Eternity's Vomitus: cut, named still)
+    {"monster_boglord", bossGroup}, {"monster_gug", bossGroup}, {"monster_vomit", bossGroup}, // (Dissolution of Eternity's Vomitus: cut, named still)
     // Others: AD's Christmas ones, Scourge of Armagon's decoy (a player's double), AD's fade.
     {"monster_xmas_elf", otherGroup}, {"monster_xmas_raindeer", otherGroup}, {"monster_xmas_santa", otherGroup},
     {"monster_santa", otherGroup}, {"monster_xmas_snowman", otherGroup}, {"monster_snowman", otherGroup},
@@ -137,7 +138,7 @@ cvar_t* const settings[groupCount][paramCount] = {
 // trick (id's Chthon by lightning, Shub by telefrag, and Arcane Dimensions' and Dawn of the Machine's own), or fought in
 // waves and phases whose health their code sets as they go (Arcane Dimensions' eidolon, ice golem, judicator, mammoth,
 // Nour, fire top; Dawn of the Machine's Chthon and Shub, set as they wake). The other bosses (Armagon, the dragon,
-// Hephaestus, the morph, the spear knight, the bog lord, the demon prince) are cut as any monster.
+// Hephaestus, the morph, the spear knight, the bog lord) are cut as any monster.
 constexpr const char* healthExempt[] = {
     "monster_boss", "monster_chthon", "monster_boss_final", "monster_oldone", "monster_oldone_new", "monster_shub",
     "monster_shubupsd", "monster_shub_eye", "monster_eidolon", "monster_eidolon_wavetrig", "monster_icegolem",

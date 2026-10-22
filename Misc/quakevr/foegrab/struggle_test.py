@@ -53,6 +53,7 @@ HUMANOIDS = [
     ("ad_zombiek", "monster_zombiek", 201, True, "vrfiringrange"), ("ad_mummy", "monster_mummy", 238, True, "vrfiringrange"),
     ("ad_hell_knight", "monster_hell_knight", 250, True, "vrfiringrange"), ("ad_knight", "monster_knight", 261, True, "start"),
     ("ad_death_lord", "monster_death_lord", 259, True, "start"), ("ad_death_guard", "monster_death_guard", 258, True, "start"),
+    ("ad_dprince", "monster_dprince", 256, True, "vrfiringrange"),
 ]
 
 

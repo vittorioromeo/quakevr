@@ -40,6 +40,8 @@
 .float burn_size;         // its full scale
 .float burn_born;         // when it came (it grows in)
 .float burn_part;         // a player's: 0 on the body (burn_off in its yaw's axes); a hand + 1: on that hand or its arm
+.vector burn_anchor;      // where on its body's model's surface (modelanchor: it goes with the model as drawn),
+.float burn_anchor_model; // ... while the body has this model (0: none)
 .float burn_bone;         // a ragdoll's: its limb + 1 (burn_off in the limb's space: it goes with it); 0 none
                           // (burn_off in the hand's axes: it goes with it)
 .vector burn_out;         // a player's: the way out of the body where it sits (its burns are painted from there)
@@ -171,12 +173,22 @@ vector(entity v, float xPart, vector o) VR_Burn_FromHand =
     return r;
 };
 
-// A flame's place on its body, as it is now: a ragdoll's on its limb (vr_ragdoll: it goes with the limb).
+// A flame's place on its body, as it is now: on its model's surface where it was put (its anchor there: it moves with
+// the model's animation, a ragdoll's parts), else a ragdoll's on its limb (vr_ragdoll: it goes with the limb).
 vector(entity v, entity fl) VR_Burn_FlameAt =
 {
     if((v.flags & FL_CLIENT) && fl.burn_part > 0)
     {
         return VR_Burn_FromHand(v, fl.burn_part, fl.burn_off);
+    }
+    if(fl.burn_anchor_model && fl.burn_anchor_model == v.modelindex)
+    {
+        vector at = modelanchorpoint(v, fl.burn_anchor);
+        if(trace_fraction > 0)
+        {
+            return at;
+        }
+        fl.burn_anchor_model = 0; // (no longer there: by its limb or origin, then fitted again)
     }
     if(fl.burn_bone > 0)
     {
@@ -190,9 +202,20 @@ vector(entity v, entity fl) VR_Burn_FlameAt =
     return VR_Burn_ToWorld(v, fl.burn_off);
 };
 
-// A flame put at `p` on its body: on a ragdoll, on its limb nearest (in the limb's space); else from its origin.
+// A flame put at `p` on its body: on its model's surface (modelanchor: not a player's Quake model, which isn't the body
+// drawn in the headset; not a crate's); and on a ragdoll, on its limb nearest (in the limb's space); else from its origin.
 void(entity v, entity fl, vector p) VR_Burn_Anchor =
 {
+    fl.burn_anchor_model = 0;
+    if(!(v.flags & FL_CLIENT) && !VR_Burn_Wood(v))
+    {
+        vector an = modelanchor(v, p);
+        if(an_x >= 0)
+        {
+            fl.burn_anchor = an;
+            fl.burn_anchor_model = v.modelindex;
+        }
+    }
     float bone = ragdollbone(v, p);
     if(bone >= 0)
     {
@@ -245,9 +268,23 @@ float(entity v, vector a, vector b) VR_Burn_CrateCast =
     return t0;
 };
 
+// A point onto the surface of the body's model as drawn (modelanchor: its triangles, a ragdoll's as its parts carry it),
+// so that a flame sits on it, not off it (a fatter line's hit a few units out, a box's side well in front of a body:
+// the author's note of 2026-10-22, "floating in front"). A crate's (a box) and a model the engine can't tell: `q` itself.
+vector(entity v, vector q) VR_Burn_Surface =
+{
+    if(VR_Burn_Wood(v))
+    {
+        return q;
+    }
+    vector an = modelanchor(v, q);
+    return an_x < 0 ? q : trace_endpos;
+};
+
 // The point on the body's model as drawn nearest `p` as a flame would sit on it: standing, met from outside level with
 // it, towards its middle; lying (dead), and a crate's top half, met from above. Missed (between its legs, past a lying body's end), tried again
-// nearer its drawn middle, a fatter line (it sits a few units off it). Not found (a model the engine doesn't test: its box): `p` kept in the box.
+// nearer its drawn middle, a fatter line. Either then put onto the surface (VR_Burn_Surface). Not met at all: the
+// surface's point nearest `p` kept in the box; a model the engine doesn't test: `p` kept in the box.
 // vr_burn_onbody: whether it was found.
 float vr_burn_onbody;
 vector(entity v, vector p) VR_Burn_OnBody =
@@ -299,7 +336,7 @@ vector(entity v, vector p) VR_Burn_OnBody =
         if(f >= 0)
         {
             vr_burn_onbody = TRUE;
-            return a + (b - a) * f;
+            return VR_Burn_Surface(v, a + (b - a) * f);
         }
         if(f == -2)
         {
@@ -311,7 +348,43 @@ vector(entity v, vector p) VR_Burn_OnBody =
     p_x = min(v.absmax_x, max(v.absmin_x, p_x));
     p_y = min(v.absmax_y, max(v.absmin_y, p_y));
     p_z = min(v.absmax_z, max(v.absmin_z, p_z));
+    if(f != -2 && !VR_Burn_Wood(v))
+    {
+        // Missed by every line (a thin model, a box much bigger than it): its surface's point nearest, never the box's.
+        vector an = modelanchor(v, p);
+        if(an_x >= 0)
+        {
+            vr_burn_onbody = TRUE;
+            return trace_endpos;
+        }
+    }
     return p;
+};
+
+// A player's body as its shapes are (the tracked body, as it is drawn: vr_selfcollide.cpp, mapflametouch; not its Quake
+// model): its point nearest `q` (within 48 units) vr_burn_yat, its part vr_burn_ypart (0 the torso, legs or head; a hand
+// + 1: that hand or its arm) and the way out of it there vr_burn_yout. FALSE: no shapes (not the player in the headset,
+// or not built this frame: asked for, for the next; VR_Burn_MapFrame keeps them while the player burns).
+float vr_burn_ypart;
+vector vr_burn_yat;
+vector vr_burn_yout;
+float(entity p, vector q) VR_Burn_OnYourBody =
+{
+    if(!(p.flags & FL_CLIENT) || !p.ishuman || p.health <= 0)
+    {
+        return FALSE;
+    }
+    float got = mapflametouch(p, q, q, 48, 63);
+    if(!got)
+    {
+        return FALSE;
+    }
+    float deep = floor(got / 256);
+    float side = (deep & 5) ? cVR_OffHand : cVR_MainHand;
+    vr_burn_ypart = (deep & 15) ? side + 1 : 0;
+    vr_burn_yat = trace_endpos;
+    vr_burn_yout = trace_plane_normal == '0 0 0' ? '0 0 1' : trace_plane_normal;
+    return TRUE;
 };
 
 // A burn painted under a flame (no wound: extra 1), met from outside the body.
@@ -347,9 +420,19 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
 {
     entity v = xFire.enemy;
     float you = (v.flags & FL_CLIENT) && vr_burn_out != '0 0 0';
+    float part = vr_burn_part;
+    vector out = vr_burn_out;
     vector p = at;
     vr_burn_onbody = TRUE;
-    if(!you)
+    if(VR_Burn_OnYourBody(v, at))
+    {
+        // A player: onto the body's shapes as they are drawn (where they touched, or its point nearest the hit).
+        you = TRUE;
+        p = vr_burn_yat;
+        part = vr_burn_ypart;
+        out = vr_burn_yout;
+    }
+    else if(!you)
     {
         p = VR_Burn_OnBody(v, at); // (a player set on fire by the body's shapes: where they touched)
     }
@@ -381,8 +464,8 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
     fl.angles_x = xMain ? 0 : crandom() * tilt;
     fl.angles_y = random() * 360;
     fl.angles_z = xMain ? 0 : crandom() * tilt;
-    fl.burn_part = you ? vr_burn_part : 0;
-    fl.burn_out = you ? vr_burn_out : '0 0 0';
+    fl.burn_part = you ? part : 0;
+    fl.burn_out = you ? out : '0 0 0';
     if(fl.burn_part > 0)
     {
         fl.burn_bone = 0;
@@ -441,6 +524,7 @@ void(entity xFire) VR_Burn_Spread =
         float pr = from.burn_part > 0 ? 2 + random() * 3 : 5 + random() * 6;
         vr_burn_part = from.burn_part;
         vr_burn_out = o;
+        // (off the curved body, a step along its tangent: AddFlame puts it back on the body's shapes, VR_Burn_OnYourBody)
         VR_Burn_AddFlame(xFire, from.origin + (side * cos(pa) + side2 * sin(pa)) * pr + '0 0 1' * random() * 2, FALSE);
         vr_burn_part = 0;
         vr_burn_out = '0 0 0';
@@ -700,10 +784,12 @@ void() VR_Burn_Think =
         VR_Burn_Smoke(self, self.burn_end + VR_BURN_FADE - time); // (lit, or burning on longer)
     }
 
-    // Fitted to the body (it moves, dies, falls): each flame onto the model again where it is. A crate's stay where they
-    // are on it (it is rigid: they turn with it).
-    float fit = !wood && !((v.flags & FL_CLIENT) && self.burn_flames.burn_out != '0 0 0') &&
-                (time >= self.burn_fit_next || dead != self.burn_dead); // (a player lit by the body's shapes: they stay put on it)
+    // Fitted to the body (it moves, dies, falls): each flame onto the model again where it is (between, carried on the
+    // model's surface by its anchor: VR_Burn_FlameAt); a player's onto the body's shapes every time (the tracked body
+    // leans, crouches and walks off its origin; VR_Burn_OnYourBody), and without them (not in the headset) those put
+    // there stay put. A crate's stay where they are on it (it is rigid: they turn with it).
+    float client = v.flags & FL_CLIENT;
+    float fit = !wood && (client || time >= self.burn_fit_next || dead != self.burn_dead);
     self.burn_dead = dead;
     if(fit)
     {
@@ -714,7 +800,15 @@ void() VR_Burn_Think =
     while(fl != world)
     {
         vector p = VR_Burn_FlameAt(v, fl);
-        if(fit)
+        if(fit && client && VR_Burn_OnYourBody(v, p))
+        {
+            p = vr_burn_yat;
+            fl.burn_part = vr_burn_ypart;
+            fl.burn_out = vr_burn_yout;
+            fl.burn_bone = 0;
+            fl.burn_off = fl.burn_part > 0 ? VR_Burn_ToHand(v, fl.burn_part, p) : VR_Burn_ToLocal(v, p);
+        }
+        else if(fit && !(client && fl.burn_out != '0 0 0'))
         {
             vector q = VR_Burn_OnBody(v, p);
             if(vr_burn_onbody)
@@ -1162,7 +1256,11 @@ void() VR_Burn_MapFrame =
     float anyFire = -1; // (any fire in the map: looked up once per frame, for the first player that needs it)
     for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
     {
-        if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)))
+        if(p.ishuman && p.health > 0 && p.burn_fire != world)
+        {
+            mapflametouch(p, '0 0 0', '0 0 0', -1, 63); // (burning: its flames are fitted to the body's shapes, VR_Burn_OnYourBody)
+        }
+        else if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)))
         {
             if(anyFire < 0)
             {

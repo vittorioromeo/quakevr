@@ -55,7 +55,8 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
     {"monster_defender", true}, {"monster_eliminator", true}, {"monster_pyro", true}, {"monster_fumigator", true},
     {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
     {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}, {"monster_death_lord", true},
-    {"monster_death_guard", true}, {"monster_deflector", true}, {"monster_ogre_flak", true}};
+    {"monster_death_guard", true}, {"monster_deflector", true}, {"monster_ogre_flak", true},
+    {"monster_dprince", true}}; // (the Dark Prince: the death knight's mesh and rig, AdDprince)
 
 // A joint's limits' share by its group (vr_ragdoll_limits_legs ...; the ragdoll tool's Joint Groups): times the global
 // one and its class's.

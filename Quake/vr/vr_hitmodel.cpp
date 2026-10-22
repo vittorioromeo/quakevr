@@ -970,8 +970,29 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
 
 bool nearest(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
 {
+    return target(ent) && nearestAny(ent, p, out, dist);
+}
+
+bool surfacePoint(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm::vec3& normal)
+{
     Drawn d;
-    if(!target(ent) || !drawnOf(ent, d) || d.mesh->tris.empty())
+    if(tri < 0 || !drawnOf(ent, d) || static_cast<za::SizeT>(tri) >= d.mesh->tris.size())
+    {
+        return false;
+    }
+    const Verts vs = vertsOf(d);
+    const auto& t = d.mesh->tris[static_cast<za::SizeT>(tri)];
+    const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
+    point = p0 + (p1 - p0) * u + (p2 - p0) * v;
+    const glm::vec3 n = glm::cross(p1 - p0, p2 - p0) * d.mesh->winding;
+    normal = glm::length(n) > 1e-9f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f};
+    return true;
+}
+
+bool nearestAny(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
+{
+    Drawn d;
+    if(!drawnOf(ent, d) || d.mesh->tris.empty())
     {
         return false;
     }

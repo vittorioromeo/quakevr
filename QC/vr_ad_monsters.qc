@@ -80,8 +80,10 @@ void() VR_AD_MonsterSetup =
     VR_ADGun_Prepare(t); // (an armed soldier's gun: made and precached as it spawns, not at its death: vr_ad_enemyguns.qc)
     VR_ADMelee_Prepare(t); // (a melee monster's weapons likewise: vr_ad_melee.qc)
     // Death knight (progs/mon_dknight.mdl: deaths 212-223, 224-243). Head zone: headfit.py mon_dknight 27 1 7 (middle
-    // 6.5 0.3 31.3, radius 7.3; its rig's head 8.2 -0.3 32.3).
-    if(t == ad_CT_MONDKNIGHT)
+    // 6.5 0.3 31.3, radius 7.3; its rig's head 8.2 -0.3 32.3). The Dark Prince is its mesh and frames
+    // (progs/mon_dprince.mdl: its rig AdDprince the death knight's seeds): the same; it keeps its sword (AD's own,
+    // w_dprincesword.mdl, its gib).
+    if(t == ad_CT_MONDKNIGHT || t == ad_CT_MONDPRINCE)
     {
         VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 7, 32, 7, cvarh_vr_corpse_health_hellknight);
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 223, 212, 243, 224);
@@ -519,11 +521,30 @@ float vr_ad_hl_score; // the highlight log's kill (VR_Highlight_Kill: 0 none) an
 string vr_ad_hl_what;
 
 // AD's Killed, self dying, before its death function: what Quake VR's Killed does then (combat.qc).
+// AD's chainsaw ogres, self dying: the nail, flak and marksman ogre (progs/mon_ogre.mdl) and the hunter ogre
+// (progs/mon_hogre.mdl) drop Quake VR's chainsaw as Quake VR's ogre does (orig_mon_ogre.qc ogre_die: VR_DropOgreChainsaw,
+// gibbed or not); their death frames are drawn without theirs (vr_monstermods.cpp), and AD's gibs throw no second one
+// (its first gib is the chainsaw or, at random, the grenade launcher: that one kept).
+void() VR_AD_DropChainsaw =
+{
+    if(self.ad_classtype != ad_CT_MONOGRE && self.ad_classtype != ad_CT_MONHOGRE)
+    {
+        return;
+    }
+    VR_DropOgreChainsaw();
+    if(self.ad_gib1mdl == "progs/w_chainsaw.mdl")
+    {
+        self.ad_gib1mdl = ad_string_null;
+    }
+    dprint(sprintf("adogre: %s drops its chainsaw\n", self.classname));
+};
+
 void(entity attacker) VR_AD_Dying =
 {
     vr_ad_kd_down = FALSE;
     vr_ad_hl_score = 0;
     VR_ADMelee_Drop(); // its own weapons, a melee monster's (vr_ad_melee.qc; Quoth's too, not set up as ours)
+    VR_AD_DropChainsaw(); // an ogre's chainsaw
     if(!self.vr_ad_mon)
     {
         return;

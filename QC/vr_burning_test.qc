@@ -74,6 +74,41 @@ void(entity p, float xAsk) VR_Burn_TestCrate =
     }
 };
 
+// How far each of v's flames sits off its body (tests 4 and 14): a player's from the body's shapes as drawn
+// (VR_Burn_OnYourBody), else from its model as drawn (modelanchor); "burning: flames off the surface: ..." and the most.
+void(entity v) VR_Burn_TestFlamesOff =
+{
+    entity f = v.burn_fire;
+    if(f == world)
+    {
+        return;
+    }
+    string list = "";
+    float most = 0;
+    float n = 0;
+    string how = "model";
+    entity fl = f.burn_flames;
+    while(fl != world)
+    {
+        float d = -1;
+        if(VR_Burn_OnYourBody(v, fl.origin))
+        {
+            d = vlen(fl.origin - vr_burn_yat);
+            how = "body shapes";
+        }
+        else
+        {
+            vector an = modelanchor(v, fl.origin);
+            d = an_x < 0 ? -1 : trace_plane_dist;
+        }
+        list = strcat(list, sprintf(" %.1f", d));
+        most = max(most, d);
+        n = n + 1;
+        fl = fl.burn_next;
+    }
+    dprint(sprintf("burning: flames off the surface (%s, %g):%s; most %.1f\n", how, n, list, most));
+};
+
 void() VR_Burn_TestFrame =
 {
     float ask = cvar("vr_burn_test");
@@ -85,6 +120,26 @@ void() VR_Burn_TestFrame =
     entity p = find(world, classname, "player");
     if(p == world)
     {
+        return;
+    }
+    if(ask == 13)
+    {
+        // You set on fire as a monster's flame or a lava nail does (a hit at your chest, from ahead).
+        makevectors(p.angles);
+        vector hit = p.origin + v_forward * 20 + '0 0 12';
+        dprint(sprintf("burning: test 13: you set on fire at %v\n", hit));
+        VR_Burn_Ignite(p, world, hit, v_forward * -1, VR_BURN_NAIL); // (not by you: your own fire never lights you)
+        return;
+    }
+    if(ask == 14)
+    {
+        float yourFlames = 0;
+        if(p.burn_fire != world)
+        {
+            yourFlames = p.burn_fire.burn_count;
+        }
+        dprint(sprintf("burning: test 14: your flames %g\n", yourFlames));
+        VR_Burn_TestFlamesOff(p);
         return;
     }
     if(ask == 5)
@@ -253,6 +308,7 @@ void() VR_Burn_TestFrame =
         }
         dprint(sprintf("burning: %s at %v, health %g, corpse %g, skin %g, charred %g: %s\n", best.classname, best.origin,
                        best.health, best.vr_corpse, best.skin, best.vr_charred, how));
+        VR_Burn_TestFlamesOff(best);
         return;
     }
     if(!VR_Burn_Can(best))
