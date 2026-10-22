@@ -10,7 +10,8 @@
 // zones drawn on the body for the page (body::queueDebug's holsters and pouches, the flashlight's zones) are drawn on the
 // image too, at the same places on it, as the sliders move. The mirror stays where it was put while you stand about the
 // same place (moved again 0.6 m off, or with the menu panel). Drawn only (no collision, no shadows); the window's
-// spectator view sees it too. Nothing is done while no such page is shown.
+// spectator view sees it too. Nothing is done while no such page is shown. Holster Setup (vr_holstersetup.hpp) shows it
+// too, beside its panel, with its boxes on the image (the author, 2026-10-22).
 
 #pragma once
 

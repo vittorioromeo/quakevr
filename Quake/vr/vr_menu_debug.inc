@@ -85,8 +85,8 @@ za::Vector<Item> pageDebugViews()
             .help("vr_holster_zones_report: each zone's middle and size (units from the eyes) and how deep each hand's "
                   "points are in each (under 1: inside), the old spheres' share beside."),
         command("Print Holster Setup", "vr_holstersetup_report")
-            .help("vr_holstersetup_report: whether Holster Setup runs (VR Settings > Body and Equipment), what is held, "
-                  "and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
+            .help("vr_holstersetup_report: whether Holster Setup runs (VR Settings > Body and Equipment > Holster "
+                  "Calibration), what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
             .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
                   "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "

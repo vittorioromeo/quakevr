@@ -193,7 +193,7 @@ struct ShippedSlot
     int slot;
 };
 constexpr ShippedSlot shippedSlots[] = {
-    {184, 62}, // AD's health vial (progs/health_5.mdl): in the palm
+    {183, 62}, // AD's health vial (progs/health_5.mdl): in the palm
 };
 
 } // namespace

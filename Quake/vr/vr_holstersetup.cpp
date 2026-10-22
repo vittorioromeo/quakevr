@@ -3,6 +3,7 @@
 #include "vr_holstersetup.hpp"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
+#include "vr_bodyclone.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
 #include "vr_holsterzones.hpp"
@@ -738,6 +739,9 @@ void box(const zones::Box& b, const glm::vec4& fill, const glm::vec4& edge, floa
 void drawZones(const hands::State& s)
 {
     const glm::vec3 angles{0.f, s.headAngles.y, 0.f};
+    // The body's mirror image beside the panel (vr_bodyclone.cpp): each box and its name on it too, at the same place.
+    glm::mat4 mirror;
+    const bool cloned = bodyclone::mirror(mirror);
     for(int z = 0; z < ZoneCount; z++)
     {
         zones::Box b;
@@ -761,6 +765,17 @@ void drawZones(const hands::State& s)
             text += va(" %.2fx", static_cast<double>(zones::size(z)));
         }
         text3d::queueOverlay(text, b.centre + b.axis[2] * (b.half.z + 1.2f), angles, 0.05f);
+        if(cloned)
+        {
+            zones::Box m = b;
+            m.centre = glm::vec3{mirror * glm::vec4{b.centre, 1.f}};
+            for(glm::vec3& axis : m.axis)
+            {
+                axis = glm::mat3{mirror} * axis;
+            }
+            box(m, fill, edge, held || hovered ? 0.2f : 0.12f);
+            text3d::queueOverlay(text, m.centre + m.axis[2] * (m.half.z + 1.2f), angles, 0.07f);
+        }
     }
     for(int h = 0; h < HAND_COUNT; h++)
     {
@@ -1106,6 +1121,20 @@ bool buttonPoint(int index, glm::vec3& out)
         return false;
     }
     out = buttonAt(index);
+    return true;
+}
+
+bool panelQuad(glm::vec3& corner, glm::vec3& xAxis, glm::vec3& yAxis)
+{
+    if(!active())
+    {
+        return false;
+    }
+    // The two rows of three buttons (buttonAt), centred on panelAt.
+    const float m2u = units::metresToUnits();
+    xAxis = ses.panelRight * ((3.f * BUTTON_WIDTH + 2.f * BUTTON_GAP) * m2u);
+    yAxis = ses.panelUp * ((2.f * BUTTON_HEIGHT + BUTTON_GAP) * m2u);
+    corner = ses.panelAt - 0.5f * (xAxis + yAxis);
     return true;
 }
 

@@ -2249,8 +2249,12 @@ void M_Save_Mousemove (float cx, float cy)
 // time into the level and how long ago. The death menu has Respawn (as fire does: the last save loaded, sv_autoload,
 // else the level again) and Restart the Level above them; Back from it to the dead player (a press opens it again: only
 // its choices respawn).
-#define AUTOSAVES_TOP	32	// the first row's y (the title above)
-#define AUTOSAVES_ROWH	20	// a row's height (two lines; the laser's target)
+// (The author, 2026-10-22: it sat low on the VR menu's canvas, its rows crammed: the title now near the canvas's top,
+// the rows further apart.)
+#define AUTOSAVES_PAD	16	// the title below the canvas's top
+#define AUTOSAVES_TITLEH	36	// the title's room (its big letters at AUTOSAVES_TITLESCALE, and a gap below)
+#define AUTOSAVES_TITLESCALE	1.25f
+#define AUTOSAVES_ROWH	30	// a row's height (two lines; the laser's target)
 
 static struct
 {
@@ -2280,15 +2284,40 @@ static int M_Autosaves_Rows (void)
 	return M_Autosaves_Actions () + autosavesmenu.count;
 }
 
-// How many rows the canvas has room for, below the title.
-static int M_Autosaves_Visible (void)
+// The canvas's top and bottom as shown (the VR panel's canvas reaches far above and below Quake's 320 x 200; a flat
+// screen's at least that).
+static void M_Autosaves_Bounds (float *top, float *bottom)
 {
 	drawtransform_t transform;
-	float left, top, right, bottom;
+	float left, right;
 
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
-	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
-	return q_max (3, (int) (q_min (bottom, 400.f) - 12 - AUTOSAVES_TOP) / AUTOSAVES_ROWH);
+	Draw_GetTransformBounds (&transform, &left, top, &right, bottom);
+	*top = CLAMP (-400.f, *top, 0.f);
+	*bottom = CLAMP (200.f, *bottom, 600.f);
+}
+
+// The title's y (near the canvas's top) and the first row's (below it).
+static int M_Autosaves_TitleY (void)
+{
+	float top, bottom;
+
+	M_Autosaves_Bounds (&top, &bottom);
+	return (int) top + AUTOSAVES_PAD;
+}
+
+static int M_Autosaves_Top (void)
+{
+	return M_Autosaves_TitleY () + AUTOSAVES_TITLEH;
+}
+
+// How many rows the canvas has room for, below the title (and a line for "more below...").
+static int M_Autosaves_Visible (void)
+{
+	float top, bottom;
+
+	M_Autosaves_Bounds (&top, &bottom);
+	return q_max (3, (int) (bottom - 16 - M_Autosaves_Top ()) / AUTOSAVES_ROWH);
 }
 
 static void M_Autosaves_KeepVisible (void)
@@ -2312,7 +2341,8 @@ static void M_Menu_Autosaves_Open (qboolean death)
 	autosavesmenu.count = VR_AutosaveListRefresh ();
 	autosavesmenu.cursor = !death && autosavesmenu.count ? M_Autosaves_Actions () : 0; // (the newest autosave; Respawn)
 	autosavesmenu.first = 0;
-	Con_DPrintf ("%s: %d autosaves\n", death ? "Death menu" : "Load Autosave", autosavesmenu.count);
+	Con_DPrintf ("%s: %d autosaves (title at y %d, rows from y %d, %d apart)\n", death ? "Death menu" : "Load Autosave",
+		autosavesmenu.count, M_Autosaves_TitleY (), M_Autosaves_Top (), AUTOSAVES_ROWH);
 }
 
 void M_Menu_Autosaves_f (void)
@@ -2351,12 +2381,13 @@ void M_Autosaves_Draw (void)
 {
 	const char *title = autosavesmenu.death ? "You Died" : "Load Autosave";
 	char line1[96], line2[96], scope[64];
-	int i, row, y, visible = M_Autosaves_Visible ();
+	int i, row, y, visible = M_Autosaves_Visible (), titley = M_Autosaves_TitleY (), rowstop = M_Autosaves_Top ();
 
 	if (VR_BigFont_CanDraw (title))
-		VR_BigFont_DrawScaled ((int) (160.f - VR_BigFont_WidthScaled (1.f, title) * 0.5f), 4, 1.f, title);
-	else
-		M_PrintWhite (160 - 4 * (int) strlen (title), 12, title);
+		VR_BigFont_DrawScaled ((int) (160.f - VR_BigFont_WidthScaled (AUTOSAVES_TITLESCALE, title) * 0.5f), titley,
+			AUTOSAVES_TITLESCALE, title);
+	else // (the big letters lack the capital Y and I: twice the menu's letters)
+		M_PrintWhiteEx (160 - 8 * (int) strlen (title), titley + 4, 16, title);
 
 	M_Autosaves_KeepVisible ();
 	for (i = 0; i < visible; i++)
@@ -2364,7 +2395,7 @@ void M_Autosaves_Draw (void)
 		row = autosavesmenu.first + i;
 		if (row >= M_Autosaves_Rows ())
 			break;
-		y = AUTOSAVES_TOP + i * AUTOSAVES_ROWH;
+		y = rowstop + i * AUTOSAVES_ROWH + 5; // (two lines 9 apart in the row's middle, a gap above and below)
 		if (row == M_Autosaves_ScopeRow ())
 		{
 			VR_AutosaveListScope (scope, sizeof (scope));
@@ -2395,9 +2426,9 @@ void M_Autosaves_Draw (void)
 		if (row == autosavesmenu.cursor)
 			M_DrawArrowCursor (12, y + 6);
 	}
-	y = AUTOSAVES_TOP + visible * AUTOSAVES_ROWH;
+	y = rowstop + visible * AUTOSAVES_ROWH + 4;
 	if (!autosavesmenu.count)
-		M_Autosaves_Print (24, AUTOSAVES_TOP + M_Autosaves_Actions () * AUTOSAVES_ROWH + 6, false, VR_AutosaveListHidden () ? "No autosaves of this game yet." : "No autosaves yet.");
+		M_Autosaves_Print (24, rowstop + M_Autosaves_Actions () * AUTOSAVES_ROWH + 11, false, VR_AutosaveListHidden () ? "No autosaves of this game yet." : "No autosaves yet.");
 	else if (autosavesmenu.first + visible < M_Autosaves_Rows ())
 		M_Print (24, y, "more below...");
 }
@@ -2466,7 +2497,7 @@ void M_Autosaves_Key (int key)
 void M_Autosaves_Mousemove (float cx, float cy)
 {
 	int prev = autosavesmenu.cursor;
-	int row = (int) floor ((cy - AUTOSAVES_TOP) / AUTOSAVES_ROWH);
+	int row = (int) floor ((cy - M_Autosaves_Top ()) / AUTOSAVES_ROWH);
 
 	if (row < 0 || row >= M_Autosaves_Visible () || autosavesmenu.first + row >= M_Autosaves_Rows ())
 		return;
