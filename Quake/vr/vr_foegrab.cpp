@@ -1587,6 +1587,7 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
     glm::vec3 end{0.f};
     const int b = box3d::boneAt(m, at, &name, &end);
     *bone = b >= 0 ? name : "";
+    const float h = (at.z - m->v.absmin[2]) / za::max(m->v.absmax[2] - m->v.absmin[2], 1.f);
     if(b >= 0)
     {
         if(!q_strncasecmp(name, "shin", 4) || !q_strncasecmp(name, "foot", 4) || !q_strncasecmp(name, "calf", 4))
@@ -1595,15 +1596,16 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
         }
         if(!q_strncasecmp(name, "thigh", 5))
         {
-            // (A thigh's vertices wrap its knee: a hand at the knee's bottom, no higher than its joint, is below it.)
-            return at.z <= end.z + kneeSlack ? LegPart::Lower : LegPart::Thigh;
+            // (A thigh's vertices wrap its knee: a hand at the knee's bottom, no higher than its joint, is below it. A
+            // hand as low as a shin's (legLowShare of its height) is too: AD's long-coated knights' rigs put the knee
+            // low, their shins short, and a hand on the shin took the thigh: no leg pull.)
+            return at.z <= end.z + kneeSlack || h < legLowShare ? LegPart::Lower : LegPart::Thigh;
         }
         if(q_strncasecmp(name, "leg", 3))
         {
             return LegPart::None;
         }
     }
-    const float h = (at.z - m->v.absmin[2]) / za::max(m->v.absmax[2] - m->v.absmin[2], 1.f);
     return h < legLowShare ? LegPart::Lower : h < legHighShare && b < 0 ? LegPart::Thigh : LegPart::None;
 }
 

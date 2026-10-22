@@ -528,6 +528,8 @@ struct Struggle
     // its pelvis (world, metres; -1e30 none).
     int frame{0};
     float contact{0.f}, lift{0.f}, drag{0.f}, prone{0.f}, inverted{0.f};
+    float contactUpper{0.f}; // its chest's and head's alone (0..1): dragged by the legs its pelvis rides up off the floor
+    float contactTorso{0.f}; // its pelvis's and chest's (0..1): hung by the legs its head may touch the floor
     float floor{-1e30f};
     glm::vec3 dragWay{0.f};
     // What holds it (0..1 each): its torso or a shoulder, its head, its legs, its arms (below the shoulder).
@@ -549,6 +551,11 @@ struct Struggle
     za::Array<glm::vec3, 2> handWas{};
     za::Array<bool, 2> handWasSet{};
     float handPath{0.f}, handTime{0.f}, goalMiss{0.f};
+    // The same path sampled every few frames (handSlowEvery): near handPath for a real swing, far under it for a jitter.
+    za::Array<glm::vec3, 2> handWasSlow{};
+    za::Array<bool, 2> handWasSlowSet{};
+    float handPathSlow{0.f};
+    uint32_t measured{0};
     // Its class's arm drive (StruggleInput::arms; the drive's arm springs times this, their cap too).
     float arms{1.f};
     // Its voice (vr_struggle_voice; vr_box3d_struggle.cpp): the next cry, how many so far, the last sample's index.
@@ -619,6 +626,8 @@ struct Context
     uint32_t held{0}; // the parts a hand holds or a throw pins: no strength (with their limb)
     // The floor's height (world, metres) below `at` (within `depth` metres), or -1e30 none.
     float (*floorBelow)(const glm::vec3& at, float depth){nullptr};
+    // Whether a part lies on the floor (a contact pushing it up); null: by its height over floorBelow alone.
+    bool (*onFloor)(b3BodyId body){nullptr};
     // The liquid at `at` (world, metres); null: liquids not looked at.
     Liquid (*liquidAt)(const glm::vec3& at){nullptr};
     // The world (and the movers) along `from` -> `to` (world, metres): the share of the way to the first hit (1 none),

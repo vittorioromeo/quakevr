@@ -611,10 +611,12 @@ za::Vector<Item> pageDebugTests()
             .help("vr_kdtrig_test 21: a test monster (vr_kdtrig_test_class: 0 a grunt, 4 an ogre, 8 a shambler) 160 "
                   "units ahead of you, facing you (run into it side-on: Shoulder Charges)."),
         header("Holding Enemies"),
-        cycle("Show Struggle", "vr_struggle_debug", {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}})
+        cycle("Show Struggle", "vr_struggle_debug",
+            {{0.f, "Off"}, {1.f, "Panel"}, {2.f, "Panel and Log"}, {3.f, "Panel, Log, Floor"}})
             .help("vr_struggle_debug: a panel over each knocked-down enemy struggling in your hands (its behaviours' "
-                  "weights, effort, fatigue, what you hold, the hold's lag); Panel and Log also prints `struggle:` lines "
-                  "(Combat > Holding Enemies > Struggle)."),
+                  "weights, effort, fatigue, what you hold, the hold's lag); Panel and Log also prints `struggle:` lines; "
+                  "Floor also its pelvis, chest and head over the floor (`struggle sense:`) (Combat > Holding Enemies > "
+                  "Struggle)."),
         command("Struggle Status", "vr_struggle_status")
             .help("vr_struggle_status: each struggling enemy's weights and measures, the struggles' cost since the last "
                   "call (ms a frame), and the ragdolls' positions' hash."),

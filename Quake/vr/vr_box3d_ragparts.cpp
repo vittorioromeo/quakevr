@@ -1312,6 +1312,7 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
         c.now = qcvm->time;
         c.gravity = za::max(-b3World_GetGravity(world->id).z, 0.f);
         c.floorBelow = activeFloorBelow;
+        c.onFloor = activeOnFloor;
         c.num = num;
         c.born = r->born;
         const ActiveClass* ac = activeClassOf(ent);
