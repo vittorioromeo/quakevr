@@ -19,6 +19,9 @@ Setup: Debug > Toolgun > Spawn With a Toolgun; console god, notarget; Debug > Te
 14 AD humanoids, steps 1, 2, 5: AD grunt/soldier, AD knight, fumigator, defender; then a small fight with notarget off: knockdowns from hits, held and downed crowds, frame rate
 
 [next branch: test these first]
+First punch hitch: first hard punch to a grunt's face in a session: no hitch (the decal shader is now built at map load)
+Close head pop: punch a grunt's head off from very close: if a frame still drops, use Debug > Profiling > Log Next 3 Seconds just before and tell me (it writes quakevr/profile/framelog_*.txt)
+Flamethrower and poison sprayer: embers and dark smoke off the fire, a lingering green mist after the poison; try AD Guns > Flamethrowers' Look: AD's Flames Frequency 2 and Our Fire Frequency 2; Scorch Marks (off by default, costly); flamethrower damage now your 4.5
 Light ammo throws: throw shells, magazines and cells at a crate: it doesn't break (was 2 hits); a crate thrown at a crate still breaks it
 AD explosions push physics: Plasma Gun blasts (and AD rockets/grenades) near crates and bodies push them away
 Holster a held gun: hold a gun over an empty magnetic holster and press the thumbstick: it links (press again: unlinks) without letting go
