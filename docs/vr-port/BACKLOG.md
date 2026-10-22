@@ -76,6 +76,10 @@ ML at runtime. Borrow ideas only unless noted. Not started.
   TildeAsterisk/Physicanim (Unity, Mixamo), kressdev/RagdollTrainer (Unity ML-Agents).
 - Research (heavy, offline training, not for runtime now): NVlabs/ProtoMotions, nv-tlabs/ASE, PARC (SIGGRAPH 2025,
   github.com/mshoe/PARC); push-recovery ideas only.
+- Delirium physics (author, 2026-10-23): research for future active ragdoll improvements:
+  https://github.com/PVCPC/delirium-physics, https://github.com/YoucefNabil/delirium-physics and
+  https://github.com/YoucefNabil/skyrim-delirium (a Skyrim port). Not read yet: check their licences before borrowing
+  anything beyond ideas.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
