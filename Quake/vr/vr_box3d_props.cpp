@@ -613,7 +613,9 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
 // rests on it rides it), or there at once for a jump (a teleport, a respawn).
 void follow(edict_t* ent, Slot& s, float dt)
 {
-    const glm::vec3 origin = vec(ent->v.origin), angles = vec(ent->v.angles);
+    // (A carried prop: held back with its hand, pressed into a prop with nowhere to go: notePress.)
+    const glm::vec3 origin = vec(ent->v.origin) + (s.kind == Kind::Held ? heldPress(NUM_FOR_EDICT(ent)) : glm::vec3{0.f});
+    const glm::vec3 angles = vec(ent->v.angles);
     const bool moved = origin != s.origin || angles != s.angles || s.spins;
     if(!moved && !b3Body_IsAwake(s.body))
     {

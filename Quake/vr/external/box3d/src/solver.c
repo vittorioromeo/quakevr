@@ -439,7 +439,7 @@ static bool b3ContinuousQueryCallback( int proxyId, uint64_t userData, void* con
 			b3ShapeId shapeIdA = { shape->id + 1, world->worldId, shape->generation };
 			b3ShapeId shapeIdB = { fastShape->id + 1, world->worldId, fastShape->generation };
 			b3Pos point = b3OffsetPos( continuousContext->base, output.point );
-			didHit = world->preSolveFcn( shapeIdA, shapeIdB, point, output.normal, world->preSolveContext );
+			didHit = world->preSolveFcn( shapeIdA, shapeIdB, point, output.normal, 0.0f, world->preSolveContext );
 		}
 
 		if ( didHit )

@@ -1364,6 +1364,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
     }
     ragtool::serverFrame(); // (the ragdoll tool's run, vr_ragtool: its next steps, the virtual hand, the log)
     ragtest::frame(); // (the ragdoll tests under way, vr_ragdoll_act: their next steps, whether each began)
+    {
+        const VmScope vm;
+        pressTestFrame(); // (vr_prop_press_test under way: the hand's next target)
+    }
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||
        !meshCurrent(sv.worldmodel, world->m2u, world->mesh))
@@ -1424,6 +1428,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             }
             feedPortalCopies();
             notePushed(dt / static_cast<float>(pieces));
+            noteBraces(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
             pressClimbing();
             noteFallSpeeds(dt / static_cast<float>(pieces));
@@ -1439,6 +1444,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             touches(impacts);
             traceGibContacts();
         }
+        notePress(dt / static_cast<float>(pieces)); // (the hands held back by the props they press: the next frame's)
     }
     world->climbPulls.clear(); // (this frame's: climbPull)
     carryRagdolls(); // (through teleporters)
