@@ -171,10 +171,18 @@ this file; the workers' ROUND22.md sections carry them.
 - **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
   split in half and drag the torso with a smear (a "finish it" beat).
 
+### Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman (the author, 2026-10-22)
+
+The author: droppable/usable swords for AD's Dark Prince and the Phantom Swordsman ("DoA", as he called it: Dissolution
+of Eternity's `monster_sword`, `rogue` QC). Each leaves its sword on death (dropped beside the corpse, or taken from its
+hand), to pick up and swing. Both need a new melee weapon kind: a sword held and swung as the axe is, with its own
+model, reach, hit sounds, held offsets and holster, and the melee rules (blade direction, parry, two hands) for a long
+blade. One kind for both; the swordsman's sword first (its model is Quake's own), the Dark Prince's after.
+
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
 - **Phantom Swordsman's sword** (Dissolution of Eternity's `monster_sword`, `rogue` QC): make its corpse, or the sword
-  it leaves behind, usable as a melee sword.
+  it leaves behind, usable as a melee sword (now with the Dark Prince's: "Droppable, usable swords", above).
 - **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
   already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
 

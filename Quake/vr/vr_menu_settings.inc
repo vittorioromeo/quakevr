@@ -33,8 +33,8 @@ za::Vector<Item> pageMain()
             .help("Holding the grip or sticky, two-handed guns, the reloading mode, and what starts and stops bullet time."),
         // (The author, 2026-10-22: its own page here, "easier to find"; Body and Equipment had it.)
         open("Item Collection", pageIndex(pageVrsItemCollection))
-            .help("How you pick up ammo, health and backpacks: carry them in your hands, or walk into them as in Quake; "
-                  "whether a box you grip is taken at once (Auto-Collect)."),
+            .help("How you pick up ammo, health and backpacks (Item Pickup Mode): carry them by hand and put them away at "
+                  "a holster, take them the moment you grip them, or walk into them as in Quake."),
         open("Body and Flashlight", pageIndex(pageVrsBodyFlashlight))
             .help("How much of your body you see, the wrist gadget's arm, leaning, Reset Position, and the flashlight."),
         open("Player Appearance", pageIndex(pageVrsAppearance))
@@ -189,20 +189,32 @@ za::Vector<Item> pageSaves()
     };
 }
 
-// VR Settings > Item Collection (the author, 2026-10-22: out of Body and Equipment, under Playing, easier to find): Carry
-// Ammo and Health, and Auto-Collect, which only matters with it on; also Physics > Carrying Boxes.
+// VR Settings > Item Collection (the author, 2026-10-22: out of Body and Equipment, under Playing, easier to find; then
+// one switch for the clumsy pair of rows): Item Pickup Mode (vr_menu_pickup_mode, a wrapper: vr_carry and
+// vr_carry_autocollect as one), and Backpacks Too, which only matters for Auto-Collect. The detailed rows: Advanced
+// VR Options > Carrying and Throwing > Carrying.
+int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks Too dimmed or not)
+
 [[nodiscard]] za::Vector<Item> pageVrsItemCollection()
 {
+    itemCollectionPageMode = static_cast<int>(vr_menu_pickup_mode.value);
+    // (2026-10-18: "Auto-collect works. It shouldn't be the default, but it should be an option in the basic VR
+    // settings".)
+    Item backpacks = cycle("Backpacks Too", vr_carry_autocollect, {{1.f, "Off"}, {2.f, "On"}})
+                         .help("Auto-Collect: a backpack you grip or force-grab is taken at once too, as the boxes are. "
+                               "Off: a backpack is carried and put away at a holster.");
+    if(itemCollectionPageMode != 1)
+    {
+        backpacks = backpacks.unavailableBecause("Only for the Auto-Collect pickup mode: a backpack you grip or "
+                                                 "force-grab is taken at once too, as the boxes are.");
+    }
     return {
-        toggle("Carry Ammo and Health", vr_carry)
-            .help("Grip a box or a backpack to carry it, push it with a hand or gun. Off: classic Quake, walking into a "
-                  "box takes it (and Auto-Collect has no effect)."),
-        // (2026-10-18: "Auto-collect works. It shouldn't be the default, but it should be an option in the basic VR
-        // settings"; also Physics > Carrying Boxes.)
-        cycle("Auto-Collect", vr_carry_autocollect, {{0.f, "Off"}, {1.f, "Ammo and Health"}, {2.f, "And Backpacks"}})
-            .help("Off: a box you grip is put away at a holster (let go of it there). Ammo and Health: an ammo or health "
-                  "box is taken the moment a hand grips it or a force grab brings it in, seen shrinking into the hand "
-                  "(full up of it: it stays in the hand). And Backpacks: a backpack too."),
+        cycle("Item Pickup Mode", vr_menu_pickup_mode, {{0.f, "Immersive"}, {1.f, "Auto-Collect"}, {2.f, "Vanilla"}})
+            .help("Immersive: grip ammo, health and backpacks to carry them, and let go of them at a holster to put them "
+                  "away. Auto-Collect: an ammo or health box is taken the moment a hand grips it or a force grab brings "
+                  "it in, seen shrinking into the hand. Vanilla: walking into it takes it, as in Quake. The details: "
+                  "Advanced VR Options > Carrying and Throwing > Carrying."),
+        backpacks,
     };
 }
 
