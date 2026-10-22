@@ -11,8 +11,8 @@ under its origin, then 'rel' keys aside in tracking space: x right, y up, z towa
   thigh_half_slow  Thigh Grip 0.5, the 1.8 m/s pull (under the doubled need: nothing)
   slow         a hand on each shin, pulled 0.45 m in 1 s (0.45 m/s: nothing)
   pull_solo    the main hand alone on its right shin (the off hand free), pulled 0.45 m in 0.25 s (1.8 m/s: pulled,
-               One-Hand Pull 1.3 needs 1.56); pull_solo_weak in 0.32 s (1.4 m/s: not); pull_both_weak the same with
-               both hands (pulled: two hands need 1.2)
+               One-Hand Pull 1, his default since configVersion 175: needs 1.2); pull_solo_weak in 0.42 s (1.07 m/s: not); pull_both_weak in 0.32 s with
+               both hands (1.4 m/s: pulled, two hands need 1.2)
   lift         a hand on each shin, pulled up 1.1 m in 0.6 s (1.8 m/s): lifted by the legs, its head below its feet,
                then swung away 0.5 m in 0.12 s and let go: thrown (its pelvis carried on away)
   lift_gentle  grunt, pulled up 0.55 m in 0.5 s (1.1 m/s, Leg Lift Speed 1.0): lifted
@@ -100,9 +100,9 @@ CASES = [
     ("thigh_half", 0, "monster_army", "both", THIGH, "towards", 0.6, 0.2, "vr_foegrab_leggrab_thigh 0.5", False),
     ("thigh_half_slow", 0, "monster_army", "both", THIGH, "towards", 0.45, 0.25, "vr_foegrab_leggrab_thigh 0.5", False),
     ("slow", 0, "monster_army", "both", SHIN, "towards", 0.45, 1.0, "", False),
-    # One hand alone (One-Hand Pull 1.3: a grunt needs 1.56 m/s): 1.8 m/s pulls; 1.4 m/s (enough for two hands) doesn't.
+    # One hand alone (One-Hand Pull 1, his default (configVersion 175; was 1.3): a grunt needs 1.2 m/s): 1.8 m/s pulls; 1.07 doesn't.
     ("pull_solo", 0, "monster_army", "solo", SHIN, "towards", 0.45, 0.25, "", False),
-    ("pull_solo_weak", 0, "monster_army", "solo", SHIN, "towards", 0.45, 0.32, "", False),
+    ("pull_solo_weak", 0, "monster_army", "solo", SHIN, "towards", 0.45, 0.42, "", False),
     ("pull_both_weak", 0, "monster_army", "both", SHIN, "towards", 0.45, 0.32, "", False),
     ("lift", 0, "monster_army", "both", SHIN, "up", 1.1, 0.6, "", True),
     ("lift_gentle", 0, "monster_army", "both", SHIN, "up", 0.55, 0.5, "", False),
@@ -159,10 +159,23 @@ def main():
             by = re.search(r"legpull trace done: by its facing, its head ([-\d.]+) ahead of its feet, ([-\d.]+) to its "
                            r"left: fell (\w+(?: \w+ \w+)?)", flat)
             fell = by.group(3) if by else "-"
+            # Judged as it lands (the trace's line nearest 0.3 s), not at its end: held by the legs, a downed one
+            # struggles (vr_struggle, struggle2/3, his defaults): it squirms its feet back out of the hands and slews
+            # aside over the next second (thigh_half's head 2 aside at 0.2 s, 24 at 1.4 s). Its feet's most towards you
+            # over the trace; at landing its head against the pull, more than aside (FELL by its own facing).
+            lines = [(float(t), float(f), float(h), float(a)) for t, f, h, a in re.findall(
+                r"legpull trace: ([\d.]+) s tilt .*?feet moved [\d.]+ \(([-\d.]+) along the legpull.*?head ([-\d.]+) "
+                r"along the legpull from the feet \(([-\d.]+) aside", flat)]
+            if lines:
+                feet = max(f for _, f, _, _ in lines)
+                land = min(lines, key=lambda x: abs(x[0] - 0.3))
+                head = land[2]
+                fell = FELL[name] if abs(land[3]) < -land[2] else f"aside ({land[3]:.1f}) at {land[0]:.2f} s"
             ok = pulled and done and feet > 2 and head < -15 and not lifted and fell == FELL[name]
-            verdict(ok and not bad, f"{name}: {'pulled down' if pulled else 'NOT pulled'}; feet {feet:.1f} towards you, "
-                                    f"its head {head:.1f} along the pull from its feet; fell {fell} (should: "
-                                    f"{FELL[name]}){' by ' + by.group(1) + ' ahead, ' + by.group(2) + ' left' if by else ''} "
+            verdict(ok and not bad, f"{name}: {'pulled down' if pulled else 'NOT pulled'}; feet {feet:.1f} towards you "
+                                    f"at most, its head {head:.1f} along the pull from its feet at landing; fell {fell} "
+                                    f"(should: {FELL[name]}; at the end "
+                                    f"{by.group(3) + ' by ' + by.group(1) + ' ahead, ' + by.group(2) + ' left' if by else '-'}) "
                                     f"({info})")
         elif name in ("thigh", "thigh_half_slow", "slow", "pull_solo_weak"):
             ok = not pulled and not lifted
