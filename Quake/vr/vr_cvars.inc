@@ -3970,6 +3970,10 @@ QVR_CVAR(vr_ammo_pouch_shells_max, "20", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_mags_max, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_wobble, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_wobble_test, "0", CVAR_NONE)
+QVR_CVAR(vr_ammo_pouch_wobble_each, "1", CVAR_ARCHIVE)      // each round on its own spring (its own frequency, damping, drive; lying ones tilt too), kept clear of the others; 0: one spring for all, as one block
+QVR_CVAR(vr_ammo_pouch_wobble_freq, "2", CVAR_ARCHIVE)      // springiness: how fast they sway, Hz (0.2..8)
+QVR_CVAR(vr_ammo_pouch_wobble_settle, "1.3", CVAR_ARCHIVE)  // how long a swing takes to die down to 5%, s (0.1..10)
+QVR_CVAR(vr_ammo_pouch_wobble_intensity, "1", CVAR_ARCHIVE) // how hard a move swings them (0..5; Wobble caps how far)
 QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_shell_pairs, "1", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits); a single one when only one is left or the gun in the other hand has one place left (1.1: the default)

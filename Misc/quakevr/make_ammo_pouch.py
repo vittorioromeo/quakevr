@@ -37,7 +37,7 @@ FRAMES = [
     (4.6, 3.0, 0.8, True),   # 1 shells
     (4.6, 3.0, 0.6, True),   # 2 nailgun and super nailgun magazines
     (4.6, 3.5, 0.6, True),   # 3 cells
-    (4.8, 4.4, 0.6, True),   # 4 grenades, multi-grenades
+    (5.0, 5.0, 0.6, True),   # 4 grenades, multi-grenades (5.0 deep for five multi-grenades at 0.805)
     (4.6, 3.6, 0.6, True),   # 5 proximity grenades
     (5.2, 3.5, -1.2, True),  # 6 rockets
 ]
