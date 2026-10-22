@@ -1539,6 +1539,8 @@ void write(const za::Vector<Setting>& list)
 }
 
 za::Vector<Setting> originals;   // the settings before the preview
+za::String heightBeforeStand;     // vr_height_calibration before this run's Stand Tall set it ("": not set): Apply's Undo
+                                  // and history take it back
 bool previewOn = false;           // the result's values set for the preview
 bool calibratedBefore = false;    // the settings before the preview: calibrated, tweaked (the page's note)
 bool tweakedBefore = false;
@@ -2671,6 +2673,7 @@ bool restart(int returnPage)
     }
     ses.seated = seated;
     ses.eyeHeight = units::eyeHeight();
+    heightBeforeStand = za::String{}; // a new run
     result = Result{};
     return begin(allSteps(seated), returnPage);
 }
@@ -2697,6 +2700,13 @@ void apply()
     }
     setPreview(false);
     const za::Vector<Setting> list = candidate();
+    // The Height as it was before Stand Tall set it at its capture, for Undo and the history (put back for the snapshots
+    // only: the list's write below sets the new one again in the same frame).
+    if(!heightBeforeStand.empty())
+    {
+        Cvar_SetQuick(&vr_height_calibration, heightBeforeStand.cStr());
+        heightBeforeStand = za::String{};
+    }
     const za::String before = historyText();
     saveUndo(snapshot(list));
     write(list);
@@ -3192,6 +3202,10 @@ void viewFrame(const hands::State& s)
         // sets it again. It also restarts the learnt standing height (vr_hands.cpp senseLean).
         if(!ses.seated && capture.headHeight >= 0.8f && capture.headHeight <= 2.4f)
         {
+            if(heightBeforeStand.empty())
+            {
+                heightBeforeStand = vr_height_calibration.string; // once a run (a redo keeps the first)
+            }
             Cvar_SetValueQuick(&vr_height_calibration, capture.headHeight);
             Con_Printf("Body Calibration: height set: your eyes at %.2f m (Stand Tall)\n", capture.headHeight);
         }
