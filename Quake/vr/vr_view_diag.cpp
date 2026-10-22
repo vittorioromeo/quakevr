@@ -1191,8 +1191,9 @@ void dumpView_f()
         // What it holds (vr_pouchitems.cpp): its leather's frame, the rounds placed in it, the first one's skin and model.
         const int rounds = ammoPouchItemCount();
         const entity_t& first = entities.ammoPouchItem[0].ent;
-        Con_Printf("ammo pouch: frame %d rounds %d skin %d %s\n", entities.ammoPouch.ent.frame, rounds,
-            rounds ? first.skinnum : 0, rounds && first.model ? first.model->name : "-");
+        const glm::vec3 lag = pouchitems::wobble();
+        Con_Printf("ammo pouch: frame %d rounds %d skin %d %s wobble %.3f %.3f %.3f\n", entities.ammoPouch.ent.frame, rounds,
+            rounds ? first.skinnum : 0, rounds && first.model ? first.model->name : "-", lag.x, lag.y, lag.z);
         glm::vec3 centre;
         if(ammoPouchCentre(centre))
         {

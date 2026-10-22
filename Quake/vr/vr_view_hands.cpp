@@ -1073,10 +1073,10 @@ void gearStatus_f()
             gunParts += e->visible ? 1 : 0;
         }
     }
-    int pouchGrenades = 0, straps = 0, pauldrons = 0;
+    int pouchRounds = 0, straps = 0, pauldrons = 0;
     for(const view::ViewEntity& e : entities.ammoPouchItem)
     {
-        pouchGrenades += e.visible ? 1 : 0;
+        pouchRounds += e.visible ? 1 : 0;
     }
     for(int side = 0; side < 2; side++)
     {
@@ -1084,10 +1084,10 @@ void gearStatus_f()
         pauldrons += (entities.pauldron[side].visible ? 1 : 0) + (entities.pauldronArm[side].visible ? 1 : 0);
     }
     Con_Printf("gear: health %d, hidden for death %d; holstered guns %d (their parts %d), holster sleeves %d, ammo pouch %d "
-               "(grenades %d), grenade pouch %d, flashlight %d (cord %d), wrist gadget %d (drawn %d, straps %d), body %d "
+               "(rounds %d), grenade pouch %d, flashlight %d (cord %d), wrist gadget %d (drawn %d, straps %d), body %d "
                "(pauldrons %d), status bar on a hand %d\n",
         cl.stats[STAT_HEALTH], body::gearHiddenForDeath() ? 1 : 0, guns, gunParts, sleeves, entities.ammoPouch.visible ? 1 : 0,
-        pouchGrenades, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
+        pouchRounds, entities.pouch.visible ? 1 : 0, entities.flashlight.visible ? 1 : 0, flashlight::cordDrawn() ? 1 : 0,
         gadget::active() ? 1 : 0, entities.gadget.visible ? 1 : 0, straps, entities.body.visible ? 1 : 0, pauldrons,
         panel::statusBarOnHand() ? 1 : 0);
     // Each pair's guns drawn, of those it holds (vr_holster_weapons_draw_*).

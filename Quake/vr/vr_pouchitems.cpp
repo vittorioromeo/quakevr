@@ -55,7 +55,7 @@ constexpr MagFoot magFeet[3] = {{"progs/vr_mag_nail.mdl", 2.068f, 1.111f}, {"pro
 constexpr float magGapY = 0.16f;
 constexpr float magGapX = 0.12f;
 
-// The shells' pile (Misc/quakevr scratch generator, ROUND22.md: each shell dropped in at random turns, resting at the
+// The shells' pile (Misc/quakevr/pouch_pile.py shells 0.04: each shell dropped in at a random turn, resting at the
 // lowest place it fits without touching the others or the walls, the middle preferred; 0.05 apart), in the order they
 // went in, at the shipped held Size 1.25: middle (pouch units), its axis's turn about up and its tilt (degrees).
 struct PileShell
