@@ -16451,3 +16451,55 @@ closed and reopened on leaving).
 ## Defaults from his config of 2026-10-22 (vr_cfg_version 182)
 
 New defaults from his tweaks: vr_adgun_stream_alpha 0.5 -> 0.25, vr_adgun_fx_rate 1 -> 1.5, vr_adgun_ad_copies 0 -> 2, vr_gore_sound_vol_drip 1 -> 0.35, vr_gore_sound_drips 1 -> 0.65. The rest of the Flamethrowers' Look group (stream_fire, fx_embers, fx_mist, fx_scorch) already matched. Configs at the old values move; custom values stay.
+
+## Shoulder charge 3: body contact, run-up, standing tall (worktree `goreflesh`, branch `agent/charge3`, 2026-10-22)
+
+From the author's voice notes of 2026-10-22 evening (vrragtriggers 19-37 .. 19-44).
+
+**Contact.** Cause: QC tested Quake's 32-wide player box against the monster's QC box, while the engine lets the two
+bodies meet much deeper: the player is `vr_hull_ent_width` wide against monsters (16 with the defaults) and both
+boxes are inset `vr_body_monster_inset` (4) a side (vr_bodycontact.cpp). Face to face the bodies meet 16 units nearer
+than QC's boxes touch, so even at `vr_kdtrig_tackle_contact` 0 it fired a body's width early. Now the engine reports
+the real gap (`bodycontact::levelGap`, QC builtin `bodygap(player, monster)`: the pair hull world.c collides with), and
+the charge connects when that gap is within `vr_kdtrig_tackle_contact` plus this frame's run, the monster ahead within
+60 deg of the run and at his height. Measured on his 10 charge takes (replayed at his leniency 0.2; `vr_kdtrig_debug 1`
+prints the contact line, now with the body gap and the gap from his chest and waist line to the model as drawn along
+the run, `hitmodel_any`): before, bodies 19.6 units apart (18.5..20.9), his head 29.4 from the dummy's middle, chest to
+model 18.3 (about 58 cm), leading shoulder (0.18 m ahead of that line) 12.6; now bodies 2.1 apart (0.2..3.7), head 11.9
+from its middle, chest to model 0.4, the shoulder 4.7 into it (touching). Head ahead of the origin at contact: 0..5
+units (no roomscale offset to speak of); the monster's box against its model: the inset covers it.
+
+**Run-up.** `vr_kdtrig_tackle_runup` (1.5 s, Shoulder Charges > Run-Up): he must have run at the least speed (Least
+Speed, scaled by the leniency as before) for that long; dips under 0.25 s and jumps keep the run, the bounce off a
+charge ends it. Not scaled by the leniency (the slider's value is literal). His 10 takes have run-ups of 0.26-0.60 s
+(each starts about 130 units from the dummy): all 10 fail it, as a sprint begun near the enemy should. Defaults keep
+1.5 s as he asked; the eval's charge set at the defaults reads 0/10 caught for that reason (10/10 with
+`vr_kdtrig_tackle_runup 0`). New takes with a long run-up, or `vr_kdtrig_tackle_runup 0` in eval.sh's charge replay,
+would make that set meaningful again.
+
+**Standing tall.** `vr_kdtrig_tackle_stand` (0.8, Standing Tall): his head's height over the floor at least that share
+of his calibrated standing eye height. The engine writes `.vr_stand` from each move (vr_server.cpp: the head over the
+origin less `vr_floor_offset`, over `vr_height_calibration` in units; seated or flatscreen 1). His 10 charges connect
+at 0.91-0.95: all pass. New take column `charge_rs` (run-up so far, standing share).
+
+**His defaults** (configVersion 184; 183 is another branch's): `vr_kdtrig_tackle_push` 1.25 -> 1.3, `_knock` 152 ->
+148, `_leniency` 0.85 -> 0.2, `_bump` 100 -> 120, `_contact` 2 -> 0, `vr_footprint_count` 8 -> 16. Checked: a config at
+182 with the old values moves, a custom leniency (0.7) stays.
+
+**AD plasma blasts.** Cause: AD's radius damage throws props with its own damage (physicsblast), and the plasma bolt's
+splash is 20 (a rocket's 120): within 60 units only, a crate 48 units off didn't move. Now `VR_ADGun_BlastPush`
+(ad_import.py patch on `ad_T_RadiusDamage`; `--check` 0 of 142) throws with `vr_ad_plasma_push` (70: Rogue's plasma
+blast; AD > Plasma Blast Push) for an AD plasma bolt's blast, when more than its own. `vr_prop_impact_test 3` now also
+does an AD plasma blast and Quake's of 20: the crate 48 units off moved 0.0 -> 12.8 units (a 60 blast: 7.7).
+
+**Gibs underfoot.** `vr_smallgibs_stomp` (1) and `_stomp_speed` (200 u/s; Small Gibs > Pop Underfoot): landing (a
+jump, a drop) at that speed or faster pops the meat and brain chunks under his feet (within 12 units of their middle,
+at his soles; not teeth, not one in a hand) as a shot does (`VR_Gib_Burst`). Checked once per landing in
+PlayerPostThink. `vr_smallgibs_test 26` (Debug > Gore Tests > Popped Underfoot): 5 lying under him, an 8-unit drop
+leaves 5, a 64-unit drop 0.
+
+eval.sh: melee verdicts unchanged (six rows differ by 0.1 in an offset).
+
+**In VR:** charge a grunt after a long run: your shoulder should meet its body, not the air before it. A sprint begun
+a couple of steps away, or a crouched charge, does nothing. AD Plasma Gun next to crates and bodies: they fly. Jump
+onto small gibs and brain chunks: they pop.

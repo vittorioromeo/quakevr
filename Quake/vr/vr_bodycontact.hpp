@@ -30,6 +30,12 @@ void init(); // registers vr_body_contact_status
 // (VR_ServerFrameEnd).
 void serverFrame();
 
+// The level gap between a player's body and a monster's as their moves meet (units; 0 touching or overlapping): his box
+// and its as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents), each inset (vr_body_monster_inset). QC's
+// boxes are Quake's 32 wide: 16 units more each way face to face with the defaults. The shoulder charge's contact (QC
+// bodygap).
+[[nodiscard]] float levelGap(edict_t* player, edict_t* monster);
+
 // Show Melee Arcs (vr_enemy_melee_arc_show): each melee monster after a player that QC (fight.qc VR_MeleeArc_ShowFrame)
 // set this frame: its arc and reach on the floor (red: its enemy inside; orange: inside only its sweeping blows';
 // green: outside), its numbers above it facing `eye`. The view's (vr_view.cpp), from what serverFrame gathered.

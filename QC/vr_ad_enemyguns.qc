@@ -287,6 +287,19 @@ float(entity bolt) VR_ADGun_IsElectric =
     return !bolt.ad_poisonous && (k == ad_CT_MONARMYPLASMA || k == ad_CT_MONELIMATOR || k == ad_CT_MONCENTURION);
 };
 
+// The damage AD's radius damage throws props and ragdolls with (physicsblast, from ad_T_RadiusDamage: ad_import.py): a
+// plasma bolt's blast (the Plasma Gun's, the plasma monsters') as a blast of vr_ad_plasma_push damage when that is more
+// (its splash is 20: within 60 units, a tenth of a rocket's throw a step from it; the author's 2026-10-22 note: "very
+// very subtle"), every other blast its own damage.
+float(entity xInflictor, float xDamage) VR_ADGun_BlastPush =
+{
+    if(xInflictor.ad_classtype == ad_CT_PROJ_PLASMA)
+    {
+        return max(xDamage, cvar("vr_ad_plasma_push"));
+    }
+    return xDamage;
+};
+
 // An electric bolt leaving a muzzle at `org` going `dir`, or (`xHit`) striking there: blue-white sparks and crackling
 // arcs (vr_adgun_bolt_fx; its trail is the engine's: vr_particles.cpp electricTrail).
 void(vector org, vector dir, float xHit) VR_ADGun_BoltFx =

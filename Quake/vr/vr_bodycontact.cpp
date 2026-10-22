@@ -631,6 +631,20 @@ void aimConeGather()
 
 } // namespace
 
+float qvr::bodycontact::levelGap(edict_t* player, edict_t* monster)
+{
+    if(!player || !monster || player->free || monster->free)
+    {
+        return ZA_FLOAT_INFINITY;
+    }
+    float hullMins[3], hullMaxs[3];
+    pairHull(player, monster, player->v.mins, player->v.maxs, hullMins, hullMaxs);
+    const glm::vec3 d = vec(player->v.origin) - vec(monster->v.origin);
+    const float gx = za::max(0.f, za::max(hullMins[0] - d.x, d.x - hullMaxs[0]));
+    const float gy = za::max(0.f, za::max(hullMins[1] - d.y, d.y - hullMaxs[1]));
+    return glm::length(glm::vec2{gx, gy});
+}
+
 // Each ranged monster's cones at its middle, level, as long as its enemy is far (100..400 units): the fire cone past the
 // aim cone on each side (orange with its enemy there: it fires at once, bent; faint else), the aim cone (red with its
 // enemy inside: its shot goes straight at him; else green: outside both, it waits, turning). Its numbers above it.

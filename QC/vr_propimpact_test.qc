@@ -380,7 +380,9 @@ void() VR_PropImp_LightStep =
 
 // vr_prop_impact_test 3 (Debug > Gore Tests, "Blasts Push Props: AD and Quake"): a small crate 48 units from a blast of
 // 60 by Arcane Dimensions' radius damage (its Plasma Gun's, rockets'...: ad_T_RadiusDamage), then a fresh one by Quake's
-// (T_RadiusDamage); a quarter of a second later, "blastpush:" its speed. Both throw it alike (physicsblast).
+// (T_RadiusDamage); a quarter of a second later, "blastpush:" its speed. Both throw it alike (physicsblast). Then an AD
+// plasma bolt's blast (its splash 20, thrown as vr_ad_plasma_push: VR_ADGun_BlastPush) and Quake's of 20 (as the plasma
+// threw before).
 float vr_propimp_bl_next; // the next step's time (0: no test)
 float vr_propimp_bl_step;
 entity vr_propimp_bl_crate;
@@ -394,12 +396,14 @@ void() VR_PropImp_BlastStep =
     if(vr_propimp_bl_crate != world)
     {
         float gone = VR_PropImp_Broken(vr_propimp_bl_crate);
-        bprint(sprintf("blastpush: %s blast: the crate %s, its speed %.0f u/s, moved %.1f units\n", vr_propimp_bl_step == 1 ? "AD's" : "Quake's",
+        bprint(sprintf("blastpush: %s blast: the crate %s, its speed %.0f u/s, moved %.1f units\n",
+            vr_propimp_bl_step == 1 ? "AD's" : (vr_propimp_bl_step == 3 ? "AD's plasma (20)" :
+            (vr_propimp_bl_step == 4 ? "Quake's 20 (plasma's before)" : "Quake's")),
             gone ? "broken" : "whole", gone ? 0 : vlen(vr_propimp_bl_crate.velocity), gone ? 0 : vlen(vr_propimp_bl_crate.origin - vr_propimp_bl_org)));
         VR_PropImp_Done(vr_propimp_bl_crate);
         vr_propimp_bl_crate = world;
     }
-    if(vr_propimp_bl_step >= 2)
+    if(vr_propimp_bl_step >= 4)
     {
         bprint("blastpush: done\n");
         vr_propimp_bl_next = 0;
@@ -422,9 +426,15 @@ void() VR_PropImp_BlastStep =
     {
         ad_T_RadiusDamage(boom, self, 60, world, ad_DAMAGEALL);
     }
+    else if(vr_propimp_bl_step == 2)
+    {
+        // An AD plasma bolt's blast (the Plasma Gun's splash, 20): thrown as vr_ad_plasma_push (VR_ADGun_BlastPush).
+        boom.ad_classtype = ad_CT_PROJ_PLASMA;
+        ad_T_RadiusDamage(boom, self, 20, world, ad_DAMAGEALL);
+    }
     else
     {
-        T_RadiusDamage(boom, self, 60, world);
+        T_RadiusDamage(boom, self, vr_propimp_bl_step == 3 ? 20 : 60, world);
     }
     remove(boom);
     vr_propimp_bl_step++;

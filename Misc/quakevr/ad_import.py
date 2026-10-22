@@ -482,11 +482,11 @@ FUNC_PATCHES += [
 # Plasma Gun's blasts pushed no ragdolls; ROUND22.md, "Prop pushback, heavy throws, light ammo").
 FUNC_PATCHES += [
     ("ai_combat.qc", "T_RadiusDamage", "\thead = findradius(imporg, damage+40);\n",
-     "\tphysicsblast(imporg, damage); // QVR: the props and ragdolls round it thrown (Box3D)\n"
+     "\tphysicsblast(imporg, VR_ADGun_BlastPush(inflictor, damage)); // QVR: the props and ragdolls round it thrown (Box3D; a plasma blast harder)\n"
      "\thead = findradius(imporg, damage+40);\n",
      B + ": AD's explosions throw props and ragdolls (physicsblast)"),
 ]
-QVR_NAMES |= {"physicsblast"}
+QVR_NAMES |= {"physicsblast", "VR_ADGun_BlastPush"}
 # (file, function: a fire function with no arguments or the shot's frame, its kind): VR_AimCone_Wait at its start.
 AIM_WAITS = [
     ("mon_soldier.qc", "army_fire", "NARROW"), ("mon_soldier.qc", "army_fire_rocket", "NARROW"),

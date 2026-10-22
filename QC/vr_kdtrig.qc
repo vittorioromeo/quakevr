@@ -771,8 +771,10 @@ void(entity m, entity body, float xMass, vector xVel) VR_KdTrig_BodyHit =
 float VR_KDT_CHARGE_AHEAD = 0.3;  // a hand reaching ahead past this share of the reach: not tucked (a shove's, a guard's)
 float VR_KDT_CHARGE_UNDER = 2;    // the hands' middle within this of the head's line (level): under it, side-on enough
 float VR_KDT_CHARGE_GRACE = 0.25; // s: the least speed reached this recently still counts (a replay's or a step's dip)
+float VR_KDT_CHARGE_CONE = 0.5;   // cos: the monster's middle within 60 deg of the run (level) for the charge to meet it
 .float vr_kdt_tackle_next;  // a player's: when he may charge again
 .float vr_kdt_charge_fast;  // a player's: when he last ran at the least speed
+.float vr_kdt_charge_runfrom; // a player's: since when he has run at it (the run-up; 0 not)
 .float vr_kdt_charge_since; // a player's: since when he holds the charge's pose (0: not)
 .float vr_kdt_charge_said;  // (vr_kdtrig_debug 2: the pose's why-not, each half second while running fast)
 float vr_kdt_charge_side;   // VR_KdTrig_ChargePose's: the leading shoulder (1 the left, -1 the right),
@@ -789,6 +791,13 @@ string vr_kdt_charge_why;   // and why it doesn't hold ("" it does)
 float() VR_KdTrig_ChargeStrict =
 {
     return 1.5 - clamp(cvar_hget(cvarh_vr_kdtrig_tackle_leniency), 0, 1);
+};
+
+// How tall player `p` stands: his head's height over the floor as a share of his standing (calibrated) height (the
+// engine's .vr_stand from his move; 1 not known: a bot, a flatscreen player).
+float(entity p) VR_KdTrig_ChargeStand =
+{
+    return p.vr_stand > 0 ? p.vr_stand : 1;
 };
 
 // Whether `self` (a player) running along level unit `run` is in the shoulder charge's pose (above).
@@ -868,6 +877,7 @@ float(vector run) VR_KdTrig_ChargePose =
 //             it has been held running (s)
 //  charge_hd  x the head's tip down (deg), y the hand farther ahead of the head along the run (units), z the
 //             strictness (VR_KdTrig_ChargeStrict)
+//  charge_rs  x the run-up so far (s at the least speed), y how tall he stands (VR_KdTrig_ChargeStand)
 void() VR_KdTrig_ChargeSample =
 {
     vector run = self.velocity;
@@ -883,6 +893,9 @@ void() VR_KdTrig_ChargeSample =
     motionvalue("charge_hd", '1 0 0' * vr_kdt_charge_head + '0 1 0' * vr_kdt_charge_out + '0 0 1' * VR_KdTrig_ChargeStrict());
     motionvalue("charge_ok", '1 0 0' * (ok * vr_kdt_charge_side) + '0 1 0' * speed +
         '0 0 1' * (self.vr_kdt_charge_since ? time - self.vr_kdt_charge_since : 0));
+    float fast = self.vr_kdt_charge_fast && time - self.vr_kdt_charge_fast <= VR_KDT_CHARGE_GRACE;
+    motionvalue("charge_rs", '1 0 0' * ((fast && self.vr_kdt_charge_runfrom) ? time - self.vr_kdt_charge_runfrom : 0) +
+        '0 1 0' * VR_KdTrig_ChargeStand(self));
 };
 
 string(entity m) VR_PainCrySound; // (vr_ad_monsters.qc: after AD's fields)
@@ -897,33 +910,40 @@ float(entity a, entity b) VR_KdTrig_BoxGap =
 };
 
 // PlayerVRMelee's, after the bash (client.qc; self the player): on the ground, running at vr_kdtrig_tackle_speed of
-// sv_maxspeed or faster the way he looks, in the charge's pose held vr_kdtrig_tackle_hold s, his box about to meet a
-// living monster's: a shoulder charge (a "shouldercharge" event for the motion takes). It knocks the monster back by
+// sv_maxspeed or faster the way he looks for vr_kdtrig_tackle_runup s or more (a run-up), standing tall (his head at
+// vr_kdtrig_tackle_stand of his height or more), in the charge's pose held vr_kdtrig_tackle_hold s, his body meeting a
+// living monster's (bodygap): a shoulder charge (a "shouldercharge" event for the motion takes). It knocks the monster back by
 // weight (VR_KdTrig_Bump: his vr_kdtrig_tackle_weight; vr_kdtrig_tackle_knock units for one of his weight, more for a
 // lighter one, then toppled; a heavier one staggers back less; the heaviest stand) and he bounces back
 // (vr_kdtrig_tackle_bump). Cooldown vr_kdtrig_tackle_cooldown. The training dummy (the takes' target) is only judged,
 // with the Tackles off too: the event and the bounce, it stands.
 void() VR_KdTrig_Tackle =
 {
-    if(self.health <= 0 || time < self.vr_kdt_tackle_next || !(self.flags & FL_ONGROUND))
-    {
-        self.vr_kdt_charge_since = 0;
-        return;
-    }
     vector run = self.velocity;
     run_z = 0;
     float speed = vlen(run);
     float k = VR_KdTrig_ChargeStrict();
     // (The least speed's shortfall from the most is a "most" one: divided by the strictness.)
     float least = max(1, cvar("sv_maxspeed")) * clamp(1 - (1 - cvar_hget(cvarh_vr_kdtrig_tackle_speed)) / k, 0, 1);
+    // The run-up (vr_kdtrig_tackle_runup): since when he runs at the least speed, in the air too (a jump on the way keeps
+    // it); a dip under it shorter than the grace is the same run. The bounce off a charge ends it.
+    if(self.health > 0 && speed >= least)
+    {
+        if(!self.vr_kdt_charge_fast || time - self.vr_kdt_charge_fast > VR_KDT_CHARGE_GRACE)
+        {
+            self.vr_kdt_charge_runfrom = time;
+        }
+        self.vr_kdt_charge_fast = time;
+    }
+    if(self.health <= 0 || time < self.vr_kdt_tackle_next || !(self.flags & FL_ONGROUND))
+    {
+        self.vr_kdt_charge_since = 0;
+        return;
+    }
     float loud = cvar_hget(cvarh_vr_kdtrig_debug);
     vector fwd = VRForwardOf('0 1 0' * self.v_viewangle_y);
     fwd_z = 0;
     fwd = normalize(fwd);
-    if(speed >= least)
-    {
-        self.vr_kdt_charge_fast = time;
-    }
     // (A dip below the least speed this recently, a step's or a replay's frame: still running.)
     float fast = self.vr_kdt_charge_fast && time - self.vr_kdt_charge_fast <= VR_KDT_CHARGE_GRACE;
     // (Standing or walking: the pose along the way he looks, so that one taken before the run-up counts as held.)
@@ -961,23 +981,27 @@ void() VR_KdTrig_Tackle =
     {
         self.vr_kdt_charge_since = time;
     }
-    // Meeting it: his box carried this frame's run and vr_kdtrig_tackle_contact units on touches its box (blocked by it,
-    // his speed is gone next frame: the grace's run). Was 8 units and two frames' run on: it connected with a lot of space
-    // left (author's note 2026-10-22).
+    // Meeting it: his body within this frame's run and vr_kdtrig_tackle_contact units of its body as the two meet in the
+    // engine (bodygap: the boxes the hull code narrows and insets, 16 units deeper face to face than QC's 32-wide boxes
+    // with the defaults), the monster ahead within VR_KDT_CHARGE_CONE of the run, at his height. Blocked by it, his speed
+    // is gone next frame: the grace's run. Was QC's boxes: it connected with a lot of space left even at contact 0
+    // (author's notes 2026-10-22).
     float reach = max(0, cvar_hget(cvarh_vr_kdtrig_tackle_contact)) + speed * max(frametime, 0.01);
-    vector lo = self.absmin + run * reach;
-    vector hi = self.absmax + run * reach;
     entity best = world;
     float bestD = 100000;
     for(entity e = findradius(self.origin + run * reach, reach + 96); e; e = e.chain)
     {
-        if(e == self || !(e.flags & FL_MONSTER) || e.health <= 0 || e.solid == SOLID_NOT || e.vr_knockdown ||
-           (e.origin - self.origin) * run <= 0)
+        if(e == self || !(e.flags & FL_MONSTER) || e.health <= 0 || e.solid == SOLID_NOT || e.vr_knockdown)
         {
             continue;
         }
-        if(lo_x > e.absmax_x || hi_x < e.absmin_x || lo_y > e.absmax_y || hi_y < e.absmin_y || lo_z > e.absmax_z ||
-           hi_z < e.absmin_z)
+        vector to = e.origin - self.origin;
+        to_z = 0;
+        if(to * run < vlen(to) * VR_KDT_CHARGE_CONE || self.absmin_z > e.absmax_z || self.absmax_z < e.absmin_z)
+        {
+            continue;
+        }
+        if(bodygap(self, e) > reach)
         {
             continue;
         }
@@ -999,19 +1023,40 @@ void() VR_KdTrig_Tackle =
     }
     self.vr_kdt_tackle_next = time + 0.3; // (a strike that did nothing: not every frame)
     float held = time - self.vr_kdt_charge_since;
-    if(!fast || held < max(0, cvar_hget(cvarh_vr_kdtrig_tackle_hold)) * k)
+    float runup = (fast && self.vr_kdt_charge_runfrom) ? time - self.vr_kdt_charge_runfrom : 0;
+    float stand = VR_KdTrig_ChargeStand(self);
+    float needRun = max(0, cvar_hget(cvarh_vr_kdtrig_tackle_runup));
+    float needStand = clamp(cvar_hget(cvarh_vr_kdtrig_tackle_stand), 0, 1);
+    string no = "";
+    if(!fast)
+    {
+        no = "too slow";
+    }
+    else if(held < max(0, cvar_hget(cvarh_vr_kdtrig_tackle_hold)) * k)
+    {
+        no = "the pose not held long enough";
+    }
+    else if(runup < needRun)
+    {
+        no = sprintf("no run-up: %.2f s at speed, %.2f asked", runup, needRun);
+    }
+    else if(stand < needStand)
+    {
+        no = sprintf("not standing tall: the head at %.2f of your height, %.2f asked", stand, needStand);
+    }
+    if(no != "")
     {
         if(loud)
         {
             dprint(sprintf("kdtrig: charge on %s: none (%.0f u/s, the pose held %.2f s: %s)\n", best.classname, speed, held,
-                !fast ? "too slow" : "not long enough"));
+                no));
         }
         return;
     }
     speed = max(speed, least); // (a dip of the grace's: the run's speed)
     string side = vr_kdt_charge_side > 0 ? "left" : "right";
-    string how = sprintf("running %.0f u/s, %s shoulder, turn %.0f deg, hands %.0f below the head, %.0f out", speed, side,
-        vr_kdt_charge_m_x, vr_kdt_charge_m_y, vr_kdt_charge_m_z);
+    string how = sprintf("running %.0f u/s for %.1f s, %s shoulder, turn %.0f deg, hands %.0f below the head, %.0f out, "
+        "head at %.2f of your height", speed, runup, side, vr_kdt_charge_m_x, vr_kdt_charge_m_y, vr_kdt_charge_m_z, stand);
     VR_Motion_Event("shouldercharge", side, -1, speed, (best.absmin + best.absmax) * 0.5, best, how);
     self.vr_kdt_tackle_next = time + max(0, cvar_hget(cvarh_vr_kdtrig_tackle_cooldown));
     self.vr_kdt_charge_since = 0;
@@ -1036,11 +1081,26 @@ void(entity best, vector run, float speed, float least, string how, float dummy)
     }
     if(loud)
     {
-        // (How near it connected: the boxes' gap, his head from its middle, level.)
-        vector toMid = (best.absmin + best.absmax) * 0.5 - VRGetHeadPos(self);
+        // (How near it connected: QC's boxes' gap, the bodies' as they meet (bodygap), his head from its middle, level;
+        // and from his body to its model as drawn along the run: from under his head at the chest and the waist (0.25 and
+        // 0.5 m under the eyes), the nearer; his leading shoulder side-on is about 0.18 m ahead of that line.)
+        vector head = VRGetHeadPos(self);
+        vector toMid = (best.absmin + best.absmax) * 0.5 - head;
         toMid_z = 0;
-        dprint(sprintf("kdtrig: charge contact: %.1f units between the boxes, %.0f from your head to its middle\n",
-            VR_KdTrig_BoxGap(self, best), vlen(toMid)));
+        float m2u = 26.2467 * (cvar("vr_world_scale") > 0 ? cvar("vr_world_scale") : 1);
+        float model = -1;
+        for(float i = 0; i < 2; ++i)
+        {
+            vector at = head - '0 0 1' * (m2u * (i ? 0.5 : 0.25));
+            float f = hitmodel_any(best, at, at + run * 96, 0);
+            if(f >= 0 && (model < 0 || f * 96 < model))
+            {
+                model = f * 96;
+            }
+        }
+        dprint(sprintf("kdtrig: charge contact: %.1f units between the boxes, %.1f between the bodies, %.0f from your head "
+            "to its middle, body to model %.1f, shoulder to model %.1f\n", VR_KdTrig_BoxGap(self, best),
+            bodygap(self, best), vlen(toMid), model, model < 0 ? -1 : model - 0.18 * m2u));
     }
     if(dummy)
     {

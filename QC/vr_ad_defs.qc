@@ -154,6 +154,7 @@ void(entity missile) VR_AD_Ordnance;
 void(entity flame, float poison) VR_ADGun_StreamFx;        // a flamethrower's flame (a pyro's, a fumigator's): our fire too
 void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock; // a plasma rifle's bolt's hit: electrocuted
 float(entity bolt) VR_ADGun_IsElectric;                   // a plasma rifle's bolt (the soldiers', eliminators', centurions')
+float(entity xInflictor, float xDamage) VR_ADGun_BlastPush; // the damage AD's blast throws props and ragdolls with (plasma: more)
 void(vector org, vector dir, float xHit) VR_ADGun_BoltFx;  // ... its muzzle's or its hit's sparks and arcs
 void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle; // a flamethrower's muzzle: fire, smoke
 void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun_Poison; // poisoned for a while: damage, green puffs

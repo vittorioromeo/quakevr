@@ -1154,3 +1154,46 @@ void(vector org, vector xDir, float xPop, entity xFrom) VR_SmallGib_Brains =
     dprint(sprintf("smallgib: brains: %d (%s)\n", n, xPop ? "a head pop" : "a head gib burst"));
     VR_SmallGib_BurstOf(org, xDir, n, TRUE, xFrom);
 };
+
+// ----------------------------------------------------------------------------
+// Popped underfoot
+
+float VR_SGIB_STOMP_REACH = 12; // units: a small gib's box this near the middle of his feet (level) is under them
+float VR_SGIB_STOMP_ABOVE = 6;  // units: its top no lower than this under his soles,
+float VR_SGIB_STOMP_BELOW = 4;  // and its bottom no higher than this over them
+
+// Player `p` landing at xSpeed units/s (client.qc PlayerPostThink, the frame he lands: a jump, a drop, a stomp onto it;
+// the author's 2026-10-22 note): vr_smallgibs_stomp_speed or faster pops the small gibs under his feet, meat and brain
+// chunks (VR_Gib_Burst: a puff of blood and the gib sound, as a shot pops one), not teeth, not one in a hand. Only on a
+// landing: a find of a few units round his feet, nothing a frame.
+void(entity p, float xSpeed) VR_SmallGib_Stomp =
+{
+    if(!cvar_hget(cvarh_vr_smallgibs_stomp) || xSpeed < cvar_hget(cvarh_vr_smallgibs_stomp_speed))
+    {
+        return;
+    }
+    vector feet = p.origin + '0 0 1' * p.mins_z;
+    float n = 0;
+    for(entity g = findradius(feet, VR_SGIB_STOMP_REACH + 24); g; g = g.chain)
+    {
+        if(!g.vr_sgib || !g.vr_sgib_id || g.vr_sgib_tooth || g.carry_player != world ||
+           g.absmax_z < feet_z - VR_SGIB_STOMP_ABOVE || g.absmin_z > feet_z + VR_SGIB_STOMP_BELOW)
+        {
+            continue;
+        }
+        float gx = max(0, max(g.absmin_x - feet_x, feet_x - g.absmax_x));
+        float gy = max(0, max(g.absmin_y - feet_y, feet_y - g.absmax_y));
+        if(gx * gx + gy * gy > VR_SGIB_STOMP_REACH * VR_SGIB_STOMP_REACH)
+        {
+            continue;
+        }
+        vector away = (g.absmin + g.absmax) * 0.5 - feet;
+        away_z = 0;
+        VR_Gib_Burst(g, normalize(away) + '0 0 0.5');
+        n = n + 1;
+    }
+    if(n > 0)
+    {
+        dprint(sprintf("smallgib: %d popped underfoot (landed at %.0f u/s)\n", n, xSpeed));
+    }
+};

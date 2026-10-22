@@ -413,6 +413,14 @@ const DefaultChange defaultChanges[] = {
     {182, &vr_adgun_ad_copies, "0"},      // 2
     {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
     {182, &vr_gore_sound_drips, "1"},     // 0.65
+    // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
+    // (ROUND22.md, "Shoulder charge 3: body contact, run-up, standing tall").
+    {184, &vr_kdtrig_tackle_push, "1.25"},     // 1.3
+    {184, &vr_kdtrig_tackle_knock, "152"},     // 148
+    {184, &vr_kdtrig_tackle_leniency, "0.85"}, // 0.2
+    {184, &vr_kdtrig_tackle_bump, "100"},      // 120
+    {184, &vr_kdtrig_tackle_contact, "2"},     // 0
+    {184, &vr_footprint_count, "8"},           // 16
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -431,7 +439,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 182;
+constexpr int configVersion = 184;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

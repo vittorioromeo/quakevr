@@ -505,7 +505,7 @@ void(entity ad_inflictor, entity ad_attacker, float ad_damage, entity ad_ignore,
 	if (ad_inflictor.ad_bsporigin) ad_imporg = ad_bmodel_origin(ad_inflictor);
 	else ad_imporg = ad_inflictor.origin;
 		
-	physicsblast(ad_imporg, ad_damage); // QVR: the props and ragdolls round it thrown (Box3D)
+	physicsblast(ad_imporg, VR_ADGun_BlastPush(ad_inflictor, ad_damage)); // QVR: the props and ragdolls round it thrown (Box3D; a plasma blast harder)
 	ad_head = findradius(ad_imporg, ad_damage+40);
 	
 	while (ad_head) {
