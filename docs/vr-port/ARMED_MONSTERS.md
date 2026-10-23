@@ -36,7 +36,7 @@ name; the settings keep their cvars): read "AG" as "armed".
 | `vr_am_f_atk` | 9 aiming frames (one shot in the 5th; streams 4th..8th) | 81 (shoot1) | 32 (attack2: its shot in attack6) |
 | `vr_am_f_shove` | 6 shove frames (a gun's butt) | 114 | 102 |
 | `vr_am_f_reload`, `_n_reload` | reload frames (11 drawn, these repeating) | 29, 11 (load) | 0, 7 (stand) |
-| `vr_am_f_take` | picking a weapon up: this and the next 3 frames and back | 29 (load1) | 87 (paind5: a knee) |
+| `vr_am_f_take` | picking a weapon up: this and the next 3 frames and back, a crouch or a knee (the hand reaches down to it) | 63 (painc4: a crouch) | 87 (paind5: a knee) |
 | `vr_am_pain1`, `_pain2` | its pain sounds (tugs, disarms) | soldier/pain1, 2 | enforcer/pain1, 2 |
 | `vr_am_loot_aid`, `_loot_n` | its backpack with no reserve | 5 shells | 5 cells |
 | `vr_am_classes` | the weapon classes it may hold (1 << `VR_AG_CLASS_*`) | all | all |
@@ -66,6 +66,19 @@ The left weapon's pose: `VR_AGP_MeleeLeft` (ready, carried at its side, swung on
 QVR_SVC_ARMPOSE behind flag 8 (its entity, its turn), drawn by the client at the left hand's target (`relinkArms`), the
 left arm's IK on it. Lost one: out of a fight it goes for another one-handed weapon (`VR_AG_WantsSecond`). Dying: both
 fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` (a sword in each left hand).
+
+## The tug, its ragdoll, pickups, parries (ROUND22.md, "Armed monsters: the physical tug, ...")
+
+- The tug (`vr_agrunt_tug_ragdoll`): `VR_AG_TugRagBegin` (a sure-footed stagger, the hand holding its forearm through the
+  weapon: `ragdolltug`), `VR_AG_TugRagFrame` (the hold's force against `vr_agrunt_tug_break_force` / `_impulse`), the
+  engine's `tugRagdoll` (vr_box3d_ragparts.cpp) and `Stagger.tug` (vr_ragactive.cpp: its arms' pull). Generic: any row
+  whose monster can stagger as a ragdoll.
+- On a ragdoll its weapons ride the limb nearest their grip (`VR_AG_RagProp`); the client's kicks (a guard, a hit
+  reaction) carry them with the forearms (vr_hitreact.cpp `relinkArms`).
+- Pickups: `VR_AG_TakeBegin` / `VR_AG_TakeGrab` (the weapon where it lay until the hand closes, then lifted:
+  vr_armedgrunt_pose.qc `VR_AGP_Pose`); a new row needs only a crouching or kneeling `vr_am_f_take`.
+- Parries: `T_Damage_VRMelee` runs `VR_Parry` for an armed monster's blow (combat.qc).
+- Tests 31..35 (`QC/vr_armedgrunt_play_test.qc`); scenarios `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`, `agrunt_guard`.
 
 ## The toolgun's spawn page
 
