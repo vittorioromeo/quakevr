@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed grunts presentation: fists: guard and punch combos (jab, cross, hooks, uppercut); axe, sword, crowbar, hammer: held blade up, wind-up over the shoulder and a real swing, each with its own hit sounds (crowbar ring); chainsaw: engine runs, thrust and held cut, refuels; shotgun grunt running and shooting: both hands steady on the gun (no jitter), visible recoil
 One wall blow a swing: crowbar, shotgun, axe and sword swung hard into a wall from arm's length and from close: one thunk, spark and mark per swing (also when the weapon ends lying along the wall); two quick blows with a hand's length of draw-back between: both thunk; a corner: both walls thunk
 Parallax depth write: now off by default (High), on in Ultra, and ~0.8 ms cheaper when on (only near relief surfaces write depth); pick Ultra and look at monsters' feet and props on carved/raised floors near and far: same look as before; on High (off): do things meeting the relief look acceptable?
 Shoulder charge with your leniency 0.4 and standing 0.75 as defaults: feels right?
