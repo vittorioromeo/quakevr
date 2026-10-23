@@ -1224,6 +1224,15 @@ void(float xHand, entity xBox) VR_Carry_Take =
     }
 };
 
+// Whether `xBox` is carried by hand: always, but a pickup (an item: ammo, health, armour, a key, a backpack, a weapon
+// lying about) with Item Pickup Mode Vanilla (vr_carry 0: walking into it takes it, the engine's body touch). The rest
+// (the ammo pouch's rounds and magazines, crates, gibs, torches) are carried as in the other modes (the author's notes
+// 2026-10-23: "nothing else should be broken").
+float(entity xBox) VR_Carry_On =
+{
+    return cvar_hget(cvarh_vr_carry) || !(xBox.flags & FL_ITEM);
+};
+
 // vr_carry_autocollect (2026-10-17: "auto-collect ammo boxes and health boxes as soon as they're grabbed"): a box just
 // taken in one hand (a grip, a force grab's catch) is taken at once, drawn shrinking into the hand; full up, the full cue
 // and it stays held (to put away later, or throw). Once a carry (.carry_autotried, cleared by VR_Carry_Start). TRUE:
@@ -1272,7 +1281,7 @@ void(float xHand) VR_Carry_HandFrame =
         return; // (held in both hands: VR_Carry_TwoHandFrame)
     }
 
-    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
+    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !VR_Carry_On(box))
     {
         dprint("carry: lost\n");
         VR_Carry_SetHeld(self, xHand, world);
@@ -1619,7 +1628,7 @@ void() VR_Carry_TwoHandFrame =
     entity box = self.mainhand_held;
     if(box == world || box != self.offhand_held)
     {
-        if(cvar_hget(cvarh_vr_carry_two_hands) && cvar_hget(cvarh_vr_carry) && self.health > 0)
+        if(cvar_hget(cvarh_vr_carry_two_hands) && self.health > 0)
         {
             VR_Carry_TrySecondHand(cVR_MainHand);
             VR_Carry_TrySecondHand(cVR_OffHand);
@@ -1631,7 +1640,7 @@ void() VR_Carry_TwoHandFrame =
         return; // (a ragdoll's limbs in both hands: each hand its own, VR_Ragdoll_HandFrame)
     }
 
-    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
+    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !VR_Carry_On(box))
     {
         dprint("carry: lost (both hands)\n");
         VR_Carry_SetHeld(self, cVR_MainHand, world);
@@ -1895,7 +1904,7 @@ float(float xHand, entity xBox) VR_Ragdoll_HandFrame =
 // A hand touching the box (handtouch): press the grip on it to hold it, else nudge it.
 void() VR_Carry_Handtouch =
 {
-    if(!cvar_hget(cvarh_vr_carry) || other.classname != "player" || VRIsTouchingHandFake(other))
+    if(!VR_Carry_On(self) || other.classname != "player" || VRIsTouchingHandFake(other))
     {
         self.carry_use(); // the old way: touching takes it
         return;
@@ -1932,7 +1941,7 @@ void() VR_Carry_Handtouch =
 // A gun poking the box (vr_wpntouch): nudge it.
 void() VR_Carry_Weapontouch =
 {
-    if(!cvar_hget(cvarh_vr_carry) || other.classname != "player")
+    if(!VR_Carry_On(self) || other.classname != "player")
     {
         return;
     }

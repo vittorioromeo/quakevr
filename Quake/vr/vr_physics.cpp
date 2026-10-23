@@ -526,8 +526,11 @@ void touch(edict_t* ent, edict_t* target)
     }
 
     const func_t handtouch = fieldFunc(target, f().handtouch);
+    // (Item Pickup Mode Vanilla, vr_carry 0: walking into a pickup takes it, as in Quake; QC's handtouch with the fake
+    // hand. Only pickups: the rest of the body's touches stay vr_body_interactions'.)
+    const bool vanillaPickup = vr_carry.value == 0.f && (static_cast<int>(target->v.flags) & FL_ITEM) != 0;
     if(handtouch && !target->free && isClient(ent) &&
-        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value ||
+        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || vanillaPickup ||
             fieldFloatOr(ent, f().vr_flatscreen, 0.f) != 0.f || !handsTracked(ent))) // (flatscreen: this player's own)
     {
         setHandtouchParams(HAND_FAKE, ent, target);
