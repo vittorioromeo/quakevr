@@ -1,0 +1,6 @@
+title Blade editor handles at the hand: a sword in one hand, a shotgun in the other
+map vrtesthall
+god
+give "Knight's Sword" main
+give "Shotgun" off
+hint Edit Blade Shape: the near-end dot (7 cm above the forearm) and the hand-side curve point must be easy to grab with a sword and with a gun; the handle under the other hand glows yellow.
