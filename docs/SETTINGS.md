@@ -260,7 +260,7 @@ death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether 
 | **Lights** | Light contrast, coloured lights, dynamic lights (falloff, uncapped, on models, angle); the lights of muzzle flashes, explosions, projectiles, lava nails, lightning beams, torches (count, brightness, shadows) and ammo screens |
 | **Shadows** | Shadow-casting dynamic lights and map lights (count, detail, strength), muzzle-flash shadows, your shadow, softness, distance, atlas, bias, statistics; blob shadows |
 | **Surfaces** | Light sheen and its anti-aliasing; bump maps (depth, in map light, real light directions, on models); parallax (depth, distance, items, models); detail textures |
-| **Liquids** | Waves, reflection, refraction, glints, lava glow, real waves, shoreline foam, heat haze; under water (caustics, the view, wobble); splashes, rings, ripples and water sounds |
+| **Liquids** | Waves, reflection, refraction, glints, lava glow, real waves, shoreline foam, heat haze; under water (caustics, the view, wobble); splashes, rings, ripples and water sounds. *Shoreline Foam Settings*: each liquid's foam (water, lava, slime: on, opacity, frequency, strength, breathing, colour, foam particles) |
 | **Post-processing** | Bloom (threshold, size, white and coloured lights, adapt); tone mapping, exposure, colour grade, dither |
 | **Models and Effects** | Model lighting, models lit as the world, directional ambient, rim light, hands' least light, weapon reflections; screen, text and sight glow, sight hue; soft particles, decals, gib blood |
 | **Particles** | Particles on/off, Quake VR particles, particle multiplier; large fireballs per explosion; *Explosion Debris* (physical chunks) and *Fire Particles* pages |
@@ -480,6 +480,8 @@ built-in ones.
 | `vid_fsaa` | 4 | anti-aliasing samples (0, 2, 4, 8) |
 | `r_wateralpha` | | water transparency (needs water-vised maps) |
 | `vr_water_waves` and the other `vr_water_*` | | waves, refraction, caustics, splashes, ripples |
+| `vr_water_foam` | 1 | every liquid's shoreline foam (0 off .. 2) |
+| `vr_water_foam_*`, `vr_lava_foam_*`, `vr_slime_foam_*` | | each liquid's foam: `_on`, `_opacity`, `_frequency`, `_strength`, `_breathe` (how much the band grows and shrinks), `_breathe_speed`, `_breathe_irregularity` (how unevenly along the shore), `_red`/`_green`/`_blue`, and the foam particles along the shore `_particles`, `_particle_life`, `_particle_opacity`, `_particle_size`. Water 0.5 / 1.75 / 1.75 (opacity, frequency, strength); lava a strong yellow-orange crust; slime a green scum |
 
 ### Headset
 
@@ -541,6 +543,7 @@ changed yourself is left alone.
 | `vr_dumpview` | The drawn hands, weapons and finger curls |
 | `vr_profile 1` / `2`, `vr_profile_dump` | Per-frame CPU and GPU timings to `quakevr\profile\` (2: also on the wrist) |
 | `vr_memstats` | GPU and game memory, live OpenGL objects, average frame time. `vr_memstats_log` writes a row a minute. |
+| `vr_water_foam_info` | The shoreline foam particles: the map's shore segments, those near you, the last frame's spawned, how many the rates ask to be alive (capped at 600), their cost |
 | `vr_shadow_stats 1` | Shadow lights, faces and cost each second |
 | `vr_shadow_layered 0` / `1`, `vr_shadow_layered_check 20` | Shadow casters drawn a face at a time / once per light (default); both ways compared in one frame |
 | `vr_light_test`, `vr_particle_test <0..11>`, `vr_gore_test` | Spawn a light, a particle effect or gore in front of you |

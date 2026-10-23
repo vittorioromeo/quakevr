@@ -129,7 +129,9 @@ QVR_TONE_GLSL
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
 "	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \
-"	vec4	Foam; // QVR: the shoreline foam's look (vr/vr_water.cpp, LiquidFoam): x its opacity, y how finely it is broken up, z how far it reaches (times), w unused\n" \
+"	vec4	Foam[3]; // QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook, LiquidFoam; 0 water, 1 lava, 2 slime): x its opacity (0 off), y how finely it is broken up, z how far it reaches (times), w unused\n" \
+"	vec4	FoamColor[3]; // QVR: ... its colour (rgb), w unused\n" \
+"	vec4	FoamBreath[3]; // QVR: ... its breathing: x how much the band grows and shrinks (a share of its width, 0 none), y how fast, z how unevenly along the shore, w unused\n" \
 "	vec4	BloodInfo; // QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood; LiquidBlood): x how many clouds (0 none), yzw unused\n" \
 "	vec4	BloodAt[16]; // QVR: ... each's centre (xy), the surface's height (z), its radius now (w)\n" \
 "	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n"
@@ -1191,12 +1193,16 @@ LIQUID_SWELL \
 "// 0 unknown: brush entities' liquids), and with the scene's distances (CausticsScale.w) how far behind the surface\n"\
 "// the scene is along the view ray (a step, an object in the water, a wall seen at a slant). Water: white foam, its\n"\
 "// edge broken by a crawling noise, wider where the swells push against the shore, and faint whitecaps on the swells'\n"\
-"// crests; slime: a dark green scum; lava: a hot yellow rim at the rock (to bloom), a darker crust beyond. All in the\n"\
-"// world (both eyes alike), fading out from 600 to 1000 units. tex the texture's colour, light the light on it (1\n"\
-"// Quake's full); lit: the world program's (the unlit water's foam is as bright as its texture). alpha: its opacity.\n"\
+"// crests; slime: a green scum; lava: a molten crust, hot at the rock (to bloom). Each liquid's own look (Foam[i],\n"\
+"// FoamColor[i], FoamBreath[i]; i 0 water, 1 lava, 2 slime: vr_water_foam_*, vr_lava_foam_*, vr_slime_foam_*), and\n"\
+"// its band breathing: wider and narrower in turn, each stretch of shore in its own phase (a slow noise in the world).\n"\
+"// All in the world (both eyes alike), fading out from 600 to 1000 units. tex the texture's colour, light the light on\n"\
+"// it (1 Quake's full); lit: the world program's (the unlit water's foam is as bright as its texture). alpha: its opacity.\n"\
 "vec3 LiquidFoam(vec3 c, vec3 tex, vec3 light, vec3 pos, vec3 facing, float h, float rim, uint kind, bool lit, inout float alpha)\n"\
 "{\n"\
-"	if (Water3.x <= 0. || kind == 3u || facing.z < 0.7 || rim < 0.) // (rim < 0: a surface under more of the liquid)\n"\
+"	int li = kind == 1u ? 1 : kind == 2u ? 2 : 0;\n"\
+"	vec4 look = Foam[li];\n"\
+"	if (Water3.x <= 0. || look.x <= 0. || kind == 3u || facing.z < 0.7 || rim < 0.) // (rim < 0: a surface under more of the liquid)\n"\
 "		return c;\n"\
 "	float dist = distance(pos, EyePos);\n"\
 "	float fade = 1.0 - smoothstep(600.0, 1000.0, dist);\n"\
@@ -1204,7 +1210,14 @@ LIQUID_SWELL \
 "		return c;\n"\
 "	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
 "	float swell = amp > 0. ? (LiquidSwellHere.y > 0. ? LiquidSwellHere.x : LiquidSwell(pos.xy, kind).z) / amp : 0.0; // -1 .. 1\n"\
-"	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0)) * Foam.z; // (Foam.z: vr_water_foam_strength)\n"\
+"	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0)) * look.z; // (look.z: strength)\n"\
+"	vec4 breath = FoamBreath[li];\n"\
+"	if (breath.x > 0.) // breathing: a phase from a slow noise along the shore (z: how much it varies), a sine in time\n"\
+"	{\n"\
+"		float nb = LiquidNoise(pos.xy * 0.0125 + vec2(37.0 * float(li)));\n"\
+"		float s = sin(6.2831853 * (Time * 0.25 * breath.y + 2.0 * breath.z * nb)) * (1.0 - 0.5 * breath.z + breath.z * nb);\n"\
+"		width *= max(1.0 + breath.x * s, 0.1);\n"\
+"	}\n"\
 "	float d = rim > 0. ? rim - 1.0 : 1e4;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
@@ -1218,7 +1231,7 @@ LIQUID_SWELL \
 "	if (f <= -1. && !crest) // (to twice the width: flecks drifting off it)\n"\
 "		return c;\n"\
 "	float t = Time * (kind == 1u ? 0.25 : kind == 2u ? 0.4 : 1.0);\n"\
-"	vec2 p = pos.xy * Foam.y; // (vr_water_foam_frequency: how finely it is broken up)\n"\
+"	vec2 p = pos.xy * look.y; // (frequency: how finely it is broken up)\n"\
 "	float n = LiquidNoise(p * 0.19 + vec2(t * 0.31, -t * 0.23)) * 0.6 + LiquidNoise(p * 0.47 - vec2(t * 0.47, t * 0.38)) * 0.4;\n"\
 "	float fine = LiquidNoise(p * 0.6 + vec2(t * 0.7, t * 0.5));\n"\
 "	float foam = smoothstep(n - 0.12, n + 0.12, f) * (0.6 + 0.4 * fine); // the foam reaches further where the noise is low\n"\
@@ -1226,16 +1239,20 @@ LIQUID_SWELL \
 "	foam = max(foam, smoothstep(0.7, 0.85, fine) * smoothstep(0.45, 0.6, n) * 0.5 * clamp(f + 1.0, 0.0, 1.0)); // and flecks\n"\
 "	if (crest)\n"\
 "		foam = max(foam, smoothstep(0.75, 1.0, swell) * smoothstep(0.55, 0.8, n) * fine * 0.35);\n"\
-"	fade *= Foam.x; // (vr_water_foam_opacity)\n"\
+"	fade *= look.x; // (opacity)\n"\
 "	foam = min(foam * fade * min(Water3.x, 1.0), 1.0);\n"\
 "	float b = lit ? min(dot(light, vec3(1.0 / 3.0)), 1.3) : clamp(dot(tex, vec3(0.3, 0.59, 0.11)) * 3.0 + 0.2, 0.4, 1.0);\n"\
-"	if (kind == 1u) // lava: hot where it touches the rock, a cooler crust beyond\n"\
+"	vec3 col = FoamColor[li].rgb;\n"\
+"	if (kind == 1u) // lava: a molten crust in its colour, glowing (unlit), darker in its cracks; hot where it touches the rock\n"\
 "	{\n"\
 "		float hot = smoothstep(n * 0.7 + 0.2, n * 0.7 + 0.45, f) * (0.75 + 0.25 * sin(Time * 2.3 + n * 9.0));\n"\
-"		c *= 1.0 - 0.45 * foam * (1.0 - hot) * smoothstep(0.3, 0.7, fine);\n"\
-"		return c + vec3(1.2, 0.55, 0.12) * (hot * fade * min(Water3.x, 1.0) * (0.6 + 0.6 * Water2.x));\n"\
+"		float glow = 0.6 + 0.6 * Water2.x;\n"\
+"		c = mix(c, col * (0.55 + 0.45 * fine) * glow, foam * 0.85 * (1.0 - 0.5 * hot));\n"\
+"		c *= 1.0 - 0.35 * foam * (1.0 - hot) * smoothstep(0.55, 0.85, 1.0 - fine);\n"\
+"		return c + col * (hot * fade * min(Water3.x, 1.0) * glow);\n"\
 "	}\n"\
-"	vec3 col = kind == 2u ? vec3(0.28, 0.34, 0.1) * (0.7 + 0.3 * fine) : vec3(0.85, 0.9, 0.92);\n"\
+"	if (kind == 2u)\n"\
+"		col *= 0.7 + 0.3 * fine;\n"\
 "	alpha = mix(alpha, 1.0, foam * 0.9);\n"\
 "	return mix(c, col * b, foam * (kind == 2u ? 0.75 : 0.85));\n"\
 "}\n"\

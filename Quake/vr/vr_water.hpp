@@ -59,6 +59,35 @@ struct LavaTop
 // Whether a lava top is in this view's PVS (VR_WaterMarkVis, this view).
 [[nodiscard]] bool lavaTopInPvs(const LavaTop& top);
 
+// The shoreline foam's settings for one liquid (0 water: vr_water_foam_*, 1 lava: vr_lava_foam_*, 2 slime:
+// vr_slime_foam_*), clamped to their ranges; `on` false when it is off (or vr_water_foam is 0). The shaders get them in
+// the frame data (Foam, FoamColor, FoamBreath), the shore's particles (vr_particles.cpp) from here.
+struct FoamLook
+{
+    bool on = false;
+    float opacity = 0.f, frequency = 1.f, strength = 1.f;
+    float breathe = 0.f, breatheSpeed = 1.f, breatheIrregularity = 0.f;
+    glm::vec3 color{1.f};
+    float particles = 0.f, particleLife = 1.f, particleOpacity = 0.f, particleSize = 1.f;
+};
+[[nodiscard]] FoamLook foamLook(int liquid);
+[[nodiscard]] int foamLiquid(int contents); // CONTENTS_LAVA 1, CONTENTS_SLIME 2, else (water) 0
+[[nodiscard]] int foamContents(int liquid); // and back
+
+// The world's shore (made with the geometric waves' mesh): the parts of the level liquid tops' edges where the liquid
+// meets rock or another liquid (the foam's rim), a, b their ends at height z, `in` the way into the liquid (a unit
+// vector), `face` the mesh's face (shoreSeen), `liquid` foamLiquid's. A number that changes when they are made anew.
+struct ShoreSegment
+{
+    glm::vec2 a{0.f}, b{0.f}, in{0.f};
+    float z = 0.f;
+    int face = 0;
+    int liquid = 0;
+};
+[[nodiscard]] const za::Vector<ShoreSegment>& shoreSegments(unsigned& generation);
+// Whether a shore segment's face was in a view's PVS lately (the last few views: VR_WaterMarkVis).
+[[nodiscard]] bool shoreSeen(const ShoreSegment& s);
+
 // Ripples (vr_water_ripples): a splash `strength` hard (Preset::Splash's count: 4 a shot, 6-15 a hand or a thrown
 // thing, 20-50 a body) at `at` on a liquid's surface, rings of waves spreading from it in the liquid's shading and,
 // on the geometric waves' mesh, in its geometry. The client's; each frame's are in the frame data (gl_shaders.h,
