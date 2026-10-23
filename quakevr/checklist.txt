@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Shooting weapons out of armed humanoids' hands: point-blank shotgun on the gun knocks it away ~2 times in 3, far grunts mostly hold on; a single nail never does; the hand/forearm counts too; Debug > Show Shot Disarms prints the part hit (does it match where you aimed?); VR Settings > Armed Grunts > Disarming: Shooting It Out {test:agrunt_shootout}
+Fuel tank burst fields look (improve): denser rising flames, 3D flame models spreading out, smoke; poison: a real green cloud; both expand from the tank instead of popping in (being worked on)
 No crash killing with a fast melee strike: kill monsters with hard sword/axe chops (Strike Past the Floor active) as they turn into ragdolls, including at a corpse on the floor {test:sword_floor}
 Armed humanoids' weapons stay in their hands: grunts and enforcers with two axes and with one: runs, reloads, crouching pains, pickups and swings, with Model Animation on Smooth and on Linear: each weapon stays in its hand (was up to 40 units off on the left) {test:agrunt_weapon_hands}
 Parrying armed humanoids: block their sword/axe swings and the chainsaw's cut with a held weapon {test:agrunt_parry}
