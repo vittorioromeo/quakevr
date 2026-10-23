@@ -5,6 +5,7 @@
 
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/FunctionRef.hpp"
 
 namespace qvr::menu
 {
@@ -50,6 +51,10 @@ bool pathTo(za::StringView spec, za::String& out);
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities, a file or the text given; "menu paths: N
 // found, M missing".
 void pathCheck_f();
+// Every setting's row on the pages under the VR Settings and the Advanced VR Options, whatever Menu Detail shows (Search's
+// index, built afresh): its cvar, the pages above it ("Advanced VR Options > Combat") and its label, nearest the roots
+// first (a setting on two pages: twice). vr_propose_defaults (vr_propose_defaults.cpp).
+void forEachSettingPath(za::FunctionRef<void(const struct cvar_s& var, const char* page, const char* label)> f);
 // vr_menu_dump [level]: the pages' texts as MD| console lines (the copy review).
 void dump_f();
 // vr_menu_press <page title> > <row label>: that button pressed (its command run, its function called), whatever Menu

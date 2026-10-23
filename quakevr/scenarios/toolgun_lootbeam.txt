@@ -1,0 +1,14 @@
+# toolgun_lootbeam: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A dropped toolgun among many weapons: its own loot beam
+map vrtesthall
+god
+spawn "Shotgun" 120 -60
+spawn "Super Shotgun" 150 -20
+spawn "Nailgun" 180 20
+spawn "Super Nailgun" 210 60
+spawn "Toolgun" 190 -40
+spawn "Grenade Launcher" 240 -80
+spawn "Rocket Launcher" 260 0
+spawn "Thunderbolt" 280 80
+spawn "Axe" 300 -30
+hint Weapons lie ahead; the toolgun's pillar should be magenta and twice as tall (Graphics > Loot Beams > Toolgun Hue, Toolgun Beam Length).

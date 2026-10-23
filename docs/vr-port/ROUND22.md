@@ -18925,3 +18925,46 @@ Scenarios: `sword_floor` (vrtesthall: a sword, Show Melee Blades, two grunt corp
 should go into the floor/wall a little and cut instead of bouncing up; chop the bare floor and a wall: sparks and marks
 as before. Tune Strike Past: Length Held Out (lower: more of the blade goes in). Phantom Swordsman: open the toolgun's
 DoE group; if its tile is greyed, press it and record a note (the console line says why).
+
+## Save My Settings as Defaults; the dropped toolgun's own loot beam (worktree `tghost`, branch `agent/savedefaults`, 2026-10-23)
+
+**Proposing defaults.** A developer-only way for the author to hand his tweaks to the coordinator without anything in
+the game changing (vr_propose_defaults.hpp/.cpp). `vr_propose_defaults`, *Debug > Save My Settings as Defaults* and a
+new corner button *Save Default* (vr_menuui.cpp `ToolSaveDefaults`, between Toolgun and Checklist; shown only at Menu
+Detail: Developer, as those two) write every cvar whose value differs from its shipped default (`default_string`, which
+`vr_default` in `vr_defaults.cfg` replaces; numbers compared as numbers; read-only cvars skipped) to
+`quakevr/proposed_defaults/<YYYY-MM-DD_HH-MM-SS>.cfg` (`_2`... for two in a second; git-ignored). The button's first
+press arms it ("Press again" on the button for 3 s, a console line), the second writes; the button then says
+"Saved N" (or "Not saved") for 5 s and the console prints `Saved N settings for review: <path>`.
+
+The file: a header, then sections `// == <area> ==` sorted by area: the menu pages first (the path of the setting's
+nearest row, from Search's index: `menu::forEachSettingPath`, every page under VR Settings and Advanced VR Options
+whatever Menu Detail shows), then `Weapon slot NN (<model>)` for `vr_wofs_*_NN`, `Held object slot NN (<model>)` for
+`vr_prop_*_NN`, then `Not in the menus: <prefix>_*` (the name up to its second underscore for `vr_`, its first
+otherwise). One line a setting: `name "value" // default "old", <menu row path | its weapon's tuning pages | not in
+the menus>, archived|not archived[, personal?|debug?]`. Everything is written; the tags are name heuristics for
+filtering: `debug?` (debug, test, show, dump, profile, trace, mock, dryrun, developer, verbose, `_log`), else
+`personal?` (calib, bodycal, handcal, comfort, height, handed, seated, floor_offset, gunangle/gunyaw, offhandpitch/yaw,
+dominant, body_tweak/arm/elbow/shoulder/forearm/wrist/eye/torso, xr_runtime, `_version`, tips_seen, tutorial,
+note_device, vr_motion_, vr_menu_, vignette, snapturn). Decision: "hand" alone is not a personal tag (it would catch
+every hand gameplay setting); handedness and the hand-angle calibration are.
+
+Tested headless: with `vr_menu_level 1` the button is not there (`vr_mock_laser savedefaults` + two trigger clicks: no
+press, no file); at 2 the first click printed the "press again" line, the second `Saved 40 settings for review`. The
+file had `vr_lootbeam_opacity "0.4" // default "0.15", Advanced VR Options > Graphics > Loot Beams > Opacity, archived`,
+`vr_wofs_2h_dispmd_05` under `Weapon slot 05 (progs/v_nail2.mdl)`, `vr_prop_mass_01` under `Held object slot 01
+(maps/b_explob.bsp)`, `vr_gunangle ... personal?`, `vr_lootbeam_debug ... not archived, debug?`.
+
+**The toolgun's loot beam** (his note vrfiringrange_2026-10-23_21-18-02: dropped toolguns are hard to find among many
+weapons). A weapon prop drawn as `progs/v_toolgun.mdl` gets `vr_lootbeam_hue_toolgun` (305, magenta) and a beam
+`vr_lootbeam_toolgun_length` (2) times Length (Graphics > Loot Beams, Developer rows). `vr_lootbeams_report` adds
+`toolgun: hue 305, length x2.00` to its line and `toolguns N` to the counts; `vr_lootbeam_test <count> <gibs> 1` lays a
+toolgun too (Debug > Tests > Loot Beams: Lay Out Loot does). Checked: `vr_scenario toolgun_lootbeam` (nine weapons and
+a toolgun on vrtesthall): 12 beams, `toolguns 1`, the toolgun's at hue 305, x2.
+
+Scenarios: `save_defaults` (vrtesthall, Menu Detail: Developer for the test), `toolgun_lootbeam`. `vr_scenario
+validate`: 57 files, 0 errors; `runall` of both: OK.
+
+**In VR:** at Menu Detail: Developer, press the corner's *Save Default* twice: it says "Saved N"; the file in
+`quakevr/proposed_defaults` lists your changes with their menu rows. Drop a toolgun among other weapons: its pillar is
+magenta and twice as tall.
