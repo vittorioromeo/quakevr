@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Graphics Presets (VR Settings > Sight > Graphics Presets): Now: line shows your state; pick Low, Medium, Ultra: the look changes, then My Settings brings back exactly your own; change one setting: Now shows Custom; Medium's parallax without depth acceptable where things meet carved walls? Ultra visibly better than High?
 Struggle per monster group (Combat > Monster Groups > a group > Struggle; Holding Enemies > Struggle > Each Monster Group): turn Struggle off for Grunts and lift a knocked-down one: no struggle; Struggle Strength 2: much harder; other groups unchanged
 Shadow atlas grows only when you can't feel it (menu, pause, death): in a big fight with many lights no shadow hitch; afterwards open the menu with Shadow Statistics on (vr_shadow_stats 1) to see squeezed frames and growth
 Armed grunts polish: a row of grunts (Debug > Tests: vr_agrunt_test 7, notarget): both hands sit on the guns while running and shooting; melee swings carry the arms; the flash shows at their gun's muzzle; AD weapons from the toolgun work; a grenade grunt backed against a wall steps aside instead of blowing itself up
