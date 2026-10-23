@@ -226,6 +226,19 @@ void error(int line, const char* text)
     return -1;
 }
 
+// A spawn function's name in the server's progs; with no server running (validate from the menu or console, a scene
+// started before any map: no progs loaded), anything shaped like a classname (an underscore). The server's VM made
+// current for the lookup: the console runs with none (qcvm null).
+[[nodiscard]] bool isClassname(const char* what)
+{
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return strchr(what, '_') != nullptr && strchr(what, ' ') == nullptr;
+    }
+    const ServerVm vm;
+    return progs::findFunction(what) != 0;
+}
+
 // A console command's first word: a command, an alias or a setting.
 [[nodiscard]] bool knownCommand(const za::String& line)
 {
@@ -365,7 +378,7 @@ bool read(const char* id, Scenario& out)
             s.yaw = n[3];
             s.hasYaw = nums >= 4;
             s.entry = findEntry(s.what.cStr());
-            if(s.entry < 0 && (sv.active ? !progs::findFunction(s.what.cStr()) : strchr(s.what.cStr(), '_') == nullptr))
+            if(s.entry < 0 && !isClassname(s.what.cStr()))
             {
                 error(lineNo, va("\"%s\" is no toolgun spawn entry nor classname", s.what.cStr()));
                 return;
