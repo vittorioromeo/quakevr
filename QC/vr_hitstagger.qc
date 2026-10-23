@@ -106,7 +106,7 @@ float(entity e, entity xBy, vector xDir, float xImpact, float xDamage, string xW
        ragdollcanstagger(e))
     {
         float kd = monstergroupget(e, MGP_SHOVE) * VR_Poise_Factor(e) * max(0, cvar_hget(cvarh_vr_knockdown_chance)) *
-                   min(1.5, xImpact);
+                   min(1.5, xImpact) * VR_KD_Scale(e);
         float kdRoll = random();
         float balance = min(1, max(0, 0.5 + (kdRoll - kd) * VR_KD_STAGGER_SLOPE));
         if(VR_Knockdown_Stagger(e, xDir, bashPush, balance))

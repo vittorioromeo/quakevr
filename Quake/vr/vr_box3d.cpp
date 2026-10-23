@@ -731,4 +731,96 @@ void syncToolJoints()
         b3Body_SetAwake(b, true);
     }
 }
+
+// The fuelled guns' tanks lying about (QC vr_ad_enemyguns.qc "Fuel tanks"): each tank (classname vr_fueltank) and its
+// gun (a thrown_weapon), each naming the other by .vr_fuellink, held together by a rope from the gun's origin (its
+// grip) to the tank's (its middle): Box3D's distance joint, slack to its most, vr_adgun_tank_rope m (or as far apart as
+// they are when it is made, a little more). Found again each frame, so a saved game, a new world or a body made again
+// (a hand carrying either: a kinematic body) has its rope again; a pair gone, its joint goes.
+void syncFuelRopes()
+{
+    const int link = fields().vr_fuellink;
+    if(link < 0)
+    {
+        return;
+    }
+    const int frame = ++world->fuelFrame;
+    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
+    {
+        edict_t* t = EDICT_NUM(n);
+        if(t->free || fieldInt(t, link) == 0 || strcmp(PR_GetString(t->v.classname), "vr_fueltank"))
+        {
+            continue;
+        }
+        edict_t* g = PROG_TO_EDICT(fieldInt(t, link));
+        const int gn = NUM_FOR_EDICT(g);
+        if(gn <= svs.maxclients || g->free || fieldInt(g, link) != EDICT_TO_PROG(t) ||
+            strcmp(PR_GetString(g->v.classname), "thrown_weapon"))
+        {
+            continue;
+        }
+        World::FuelRope* r = nullptr;
+        for(World::FuelRope& x : world->fuelRopes)
+        {
+            if(x.tank == n)
+            {
+                r = &x;
+                break;
+            }
+        }
+        if(!r)
+        {
+            world->fuelRopes.pushBack(World::FuelRope{});
+            r = &world->fuelRopes.back();
+            r->tank = n;
+        }
+        r->seen = frame;
+        const b3BodyId gb = toolJointBody(gn), tb = toolJointBody(n);
+        const bool live = B3_IS_NON_NULL(r->id) && b3Joint_IsValid(r->id);
+        if(live && r->gun == gn && B3_ID_EQUALS(gb, r->gunBody) && B3_ID_EQUALS(tb, r->tankBody))
+        {
+            continue;
+        }
+        if(live)
+        {
+            b3DestroyJoint(r->id, true);
+        }
+        r->id = b3_nullJointId;
+        r->gun = gn;
+        r->gunBody = gb;
+        r->tankBody = tb;
+        if(B3_IS_NULL(gb) || B3_IS_NULL(tb) || (b3Body_GetType(gb) != b3_dynamicBody && b3Body_GetType(tb) != b3_dynamicBody))
+        {
+            continue; // (made once both are there and one of them moves)
+        }
+        const float apart = glm::length(glmv(b3Body_GetPosition(gb)) - glmv(b3Body_GetPosition(tb)));
+        r->length = za::max(za::max(vr_adgun_tank_rope.value, 0.1f), apart + 0.02f);
+        b3DistanceJointDef jd = b3DefaultDistanceJointDef();
+        jd.base.bodyIdA = gb;
+        jd.base.bodyIdB = tb;
+        jd.base.localFrameA = b3Transform{b3v(glm::vec3{0.f}), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})};
+        jd.base.localFrameB = jd.base.localFrameA;
+        jd.base.collideConnected = false;
+        jd.length = r->length;
+        jd.enableSpring = true; // (a rope: no stiffness, held within its length by the limit; the toolgun's)
+        jd.hertz = 0.f;
+        jd.enableLimit = true;
+        jd.minLength = 0.f;
+        jd.maxLength = r->length;
+        r->id = b3CreateDistanceJoint(world->id, &jd);
+        b3Body_SetAwake(gb, true);
+        b3Body_SetAwake(tb, true);
+    }
+    za::vectorEraseIf(world->fuelRopes, [frame](const World::FuelRope& r) {
+        if(r.seen == frame)
+        {
+            return false;
+        }
+        if(B3_IS_NON_NULL(r.id) && b3Joint_IsValid(r.id))
+        {
+            b3DestroyJoint(r.id, true);
+        }
+        return true;
+    });
+}
 } // namespace box3d::detail

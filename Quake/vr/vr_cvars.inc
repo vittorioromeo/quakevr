@@ -2701,7 +2701,11 @@ QVR_CVAR(vr_adgun_hose_arms, "1", CVAR_ARCHIVE) // ... kept out of the drawn arm
 QVR_CVAR(vr_adgun_tank_x, "-9", CVAR_ARCHIVE) // ... the tank's middle carried by the chest (body anchor units: forward, as the holsters' offsets)
 QVR_CVAR(vr_adgun_tank_y, "0", CVAR_ARCHIVE)  // ... right
 QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibration)
-QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled)
+QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, thrown, a monster's): the gun's tank beside it, a prop held to it by a rope, a hose between them (QC vr_ad_enemyguns.qc "Fuel tanks"; vr_box3d.cpp, vr_adtank.cpp); 0 none
+QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
+QVR_CVAR(vr_adgun_tank_mass, "3", CVAR_ARCHIVE) // ... the tank's mass, kg (a gun dragging it, it dragging the gun)
+QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
+QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
 QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // the grenade soldier's dropped launcher (Quake VR's grenades: vr_dmg_grenade): the grenades it holds
 QVR_CVAR(vr_adgun_grenade_refire, "0.8", CVAR_ARCHIVE) // ... seconds from a shot to the next
@@ -3017,7 +3021,9 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
 // _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large), _poise its Parry Poise
 // (a parry's strength over it: blocked, flinch or stagger; above 1 also the melee's knockdown chances over it; -1 Off:
 // a parry never staggers it; QC combat.qc VR_Parry_Outcome).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise) \
+// _kdscale every chance to knock it down times this (a sure one by this chance too), _downtime its time down times this,
+// _getup its get-up's speed times this, _snapkills the neck snap kills it (0: it only hurts: vr_foegrab_necksnap_tough).
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills) \
     QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
     QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
@@ -3040,7 +3046,11 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE)
+    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_kdscale, #kdscale, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_downtime, #downtime, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_getup, #getup, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 // Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
@@ -3819,6 +3829,7 @@ QVR_CVAR(vr_foegrab_necksnap_loose, "1", CVAR_ARCHIVE)    // 1: a snapped neck's
 QVR_CVAR(vr_foegrab_necksnap_cone, "120", CVAR_ARCHIVE)   // degrees: a snapped neck's swing limit (a living neck's: the rig's, 45 for the grunt; past about 120 the head sinks into its chest, which it never meets)
 QVR_CVAR(vr_foegrab_necksnap_twist, "140", CVAR_ARCHIVE)  // degrees: a snapped neck's twist limit either way (a living neck's: 50 for the grunt)
 QVR_CVAR(vr_foegrab_necksnap_friction, "0.1", CVAR_ARCHIVE) // a snapped neck's joint friction, a share of the body's (no spring: nothing holds the head up)
+QVR_CVAR(vr_foegrab_necksnap_tough, "0.25", CVAR_ARCHIVE) // a tough one's (its monster group's Neck Snap Kills off: the Mini Bosses) neck holds: the twist deals this share of its full health (QC VR_FoeGrab_NeckSnap)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.6", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

@@ -513,7 +513,8 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
     for(i = 0; i < VR_KDT_COUNT; i = i + 1)
     {
         float base = cvar_hget(vr_kdt_on_h[i]) ? max(0, cvar_hget(vr_kdt_chance_h[i])) : 0;
-        base = base * max(0, monstergroupget(targ, MGP_LEDGE + i)); // (its monster group's share of this trigger)
+        base = base * max(0, monstergroupget(targ, MGP_LEDGE + i)) * VR_KD_Scale(targ); // (its monster group's share of
+        // this trigger, times its Knockdown Chance)
         if(base <= 0)
         {
             continue;
@@ -642,7 +643,7 @@ float(float i, entity m, entity by, float xMass, vector dir, float xStrike, stri
         VR_KdTrig_Stands(i, m, VR_KdTrig_WhyNot(m));
         return 0;
     }
-    float base = max(0, cvar_hget(vr_kdt_chance_h[i])) * max(0, monstergroupget(m, MGP_LEDGE + i));
+    float base = max(0, cvar_hget(vr_kdt_chance_h[i])) * max(0, monstergroupget(m, MGP_LEDGE + i)) * VR_KD_Scale(m);
     if(base <= 0)
     {
         VR_KdTrig_Stands(i, m, "its group's share 0");

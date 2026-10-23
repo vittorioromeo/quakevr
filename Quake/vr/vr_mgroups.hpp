@@ -38,6 +38,10 @@ enum class Param : int
     Hold,      // one hand's hold on it, 0..1 (-1: by its size)
     Poise,     // its Parry Poise: a parry's strength over it decides its stagger (below 0: never staggered)
     Health,    // its health times this as it appears (with Monster Health's curve: vr_monster_health)
+    KdScale,   // every chance to knock it down times this (a sure knockdown by this chance too)
+    DownTime,  // its time down times this (its own timer, the most it is kept down)
+    GetUp,     // its get-up's speed times this
+    SnapKills, // the neck snap kills it (0: it only hurts)
     Count
 };
 inline constexpr int paramCount = static_cast<int>(Param::Count);

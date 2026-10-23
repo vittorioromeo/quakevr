@@ -124,6 +124,20 @@
             .help("The tank's place on your back (carried by the chest): forward (more negative: further behind)."),
         slider("Tank Up", "vr_adgun_tank_z", -5.f, 15.f, 0.5f, "%.1f").extend(-20.f, 30.f)
             .help("The tank's height on your back (times your height calibration)."),
+        toggle("Holstered Guns' Hoses", "vr_adgun_hose_holstered")
+            .help("A holstered flamethrower or poison sprayer has its hose to the tank on your back too. Several carried, "
+                  "in the hands or the holsters: one tank, the last one held's colour, every gun's hose to it. Off: only "
+                  "the guns in your hands have a tank and hose."),
+        toggle("Tank Lying About", "vr_adgun_tank_world")
+            .help("A flamethrower or poison sprayer lying about (dropped, thrown, a monster's) has its tank beside it, a "
+                  "hose between them and a rope holding them together: grab and drag either and the other follows. A "
+                  "hand carries the tank (it can't be force grabbed). Taking the gun puts the tank back on your back; "
+                  "dropping it drops the tank too. Off: no tank lying about."),
+        slider("Tank Rope", "vr_adgun_tank_rope", 0.4f, 1.6f, 0.05f, "%.2f m")
+            .help("How far a tank lying about can be from its gun (the gun's grip to the tank's middle); its hose is "
+                  "that long and a little more."),
+        slider("Tank Weight", "vr_adgun_tank_mass", 0.5f, 10.f, 0.5f, "%.1f kg")
+            .help("A tank lying about's weight: how hard it drags its gun, and its gun it."),
         toggle("Electric Bolts", "vr_adgun_bolt_fx")
             .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
                   "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),

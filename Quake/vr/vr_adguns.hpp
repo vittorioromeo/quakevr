@@ -116,4 +116,13 @@ inline constexpr const char* flashSuffix = "#adf";
 // vr_adgun_variants: each variant made now (triangles, vertices, its box, whether the settings' corner held, the time).
 void variants_f();
 
+// The fuelled guns' tank lying about (QC vr_ad_enemyguns.qc VR_FuelTank_*; vr_adtank.hpp): "progs/vr_fueltank.mdl#6"
+// (the pyro's, red) and "#7" (the fumigator's, green), made as it loads: the back tank's bottle (vr_adtank.cpp) as an
+// alias model, upright along +z round its middle (the origin), its hose's outlet under it. 12 sides, 3 rects of skin.
+inline constexpr const char* tankSuffix = "vr_fueltank.mdl#";
+[[nodiscard]] int tankVariantOf(const char* name); // Pyro, Fumigator; -1 not a tank's
+[[nodiscard]] byte* tankFile(const char* name, unsigned int* path_id);
+// The tank model's outlet (model units: the end of the neck under it), for the world hose.
+[[nodiscard]] glm::vec3 tankOutlet();
+
 } // namespace qvr::adguns

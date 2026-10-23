@@ -3881,6 +3881,16 @@ entity_t* holsteredWeapon(int stat)
     return nullptr;
 }
 
+const ViewEntity* holsterGun(int index)
+{
+    if(index < 0 || index >= HolsterCount)
+    {
+        return nullptr;
+    }
+    const ViewEntity& ve = entities.holster[index];
+    return holsterLive[index] && ve.visible && ve.ent.model && ve.ent.model->type == mod_alias ? &ve : nullptr;
+}
+
 int gunPartsOf(const entity_t* gun, entity_t* out[2])
 {
     if(!gun)
