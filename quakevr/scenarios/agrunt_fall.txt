@@ -1,0 +1,9 @@
+# agrunt_fall: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts next to you and the pool, to shove down
+map vrtesthall
+start 150 -264 40 0
+god
+notarget
+spawn "Armed Grunt: Shotgun" 60 70
+spawn "Armed Grunt: Axe" 60 -70
+spawn "Armed Grunt: Nailgun" 110 0

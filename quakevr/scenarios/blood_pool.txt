@@ -1,0 +1,13 @@
+# blood_pool: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Grunts standing in the vrtesthall pool; a shotgun in hand, your health at 60
+map vrtesthall
+start 150 -264 40 0
+god
+notarget
+health 60
+give "Super Shotgun" main
+cmd impulse 9
+spawn "Grunt" 150 0
+spawn "Grunt" 220 90
+spawn "Grunt" 260 -60
+spawn "Grunt" 330 40

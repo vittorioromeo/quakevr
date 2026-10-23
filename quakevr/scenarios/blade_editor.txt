@@ -1,0 +1,6 @@
+# blade_editor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Blade shape editor: the Fury sword and the mace in hand
+map vrtesthall
+god
+give "AD Death Fury's Sword" main
+give "AD Hunter Ogre's Mace" off

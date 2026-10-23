@@ -1,0 +1,6 @@
+# pyro_water: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Standing in the pool, an AD pyro on the bank
+map vrtesthall
+start 300 -264 40 180
+god
+spawn "AD Pyro" 400 -40

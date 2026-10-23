@@ -1,0 +1,8 @@
+# agrunt_disarm: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A calm shotgun grunt close by, a crowbar in hand
+map vrtesthall
+god
+notarget
+give "Crowbar" main
+spawn "Armed Grunt: Shotgun" 70 0
+spawn "Armed Grunt: Super Shotgun" 200 140

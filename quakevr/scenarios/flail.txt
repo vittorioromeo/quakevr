@@ -1,0 +1,7 @@
+# flail: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Death Sergeant's flail: one in hand, a Death Sergeant and a grunt to try it on
+map vrtesthall
+god
+give "AD Death Sergeant's Flail" main
+spawn "AD Death Sergeant" 420 60
+spawn "Grunt" 160 -40

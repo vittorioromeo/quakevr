@@ -1,0 +1,6 @@
+# scorch_wall: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Facing a wall with the flamethrower
+map vrtesthall
+start 0 -400 25 -90
+god
+give "AD Flamethrower" main

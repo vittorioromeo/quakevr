@@ -1,0 +1,12 @@
+# melee_blades: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Show Melee Blades on; a sword and an axe in hand, grunts to hit
+map vrtesthall
+god
+notarget
+cvar vr_debug_melee_blades 1
+give "Knight's Sword" main
+give "Axe" off
+spawn "Grunt" 90 0
+spawn "Grunt" 110 110
+spawn "Shotgun" 40 60
+spawn "Armed Grunt: Hunter Ogre's Hammer" 300 -60
