@@ -17042,6 +17042,47 @@ weapon; only in a fight.
 **In VR:** spawn Armed Grunts from the toolgun (Monsters > Armed Grunts): check the weapon sits in its hands while it
 runs and shoots, a rocket hurts about half, shoot its gun hand with the shotgun up close, grab its weapon out of its
 hand, kill one and take its gun (its rounds in it), knock one down. Combat > Armed Grunts for the damage and the pool.
+
+### Armed grunts: polish (worktree `tghost`, branch `agent/armedgrunt2`, 2026-10-23)
+
+- **Hands on the grips** (`vr_agrunt_ik` 1; client, `vr_hitreact.cpp` armsNow, layered through kickInstance's bone
+  rows like the hit kicks, kicks composed on top). The held weapon carries effects bit 128 (QC `VR_AG_EF_HELD`); a
+  vrgrunt.mdl drawn alive finds the held weapon nearest its right hand (vertices 32/26/31, within 28 units) and bends
+  each arm by two-bone IK (upperarm + forearm, the elbow kept on the animation's side): the right hand to the grip (the
+  weapon's origin), the left to its first Grip hotspot (Weapon Offsets; a Cup: under the right hand; none: hanging by
+  its side, elbow back). Every weapon in the arsenal has a Grip hotspot, so all are held two-handed, melee ones too
+  (decision: kept). A melee swing moves the grip: QC `VR_AG_PlaceProp` swings the hand round the right shoulder (0.6 of
+  the blade's turn), both arms follow. Measured (`vr_agrunt_ik_debug 1`, tests 1 and 12, `scratch/ik_stats.py`): before
+  IK the drawn right hand is 1.4-9 units (max 28) from the grip, the left 4-21 (max 36) from the second grip; after,
+  0.0-0.3 average; max misses (out of reach) 3.4 (melee swings), 5-6.5 (launchers' run), 10 (chainsaw swing).
+  `vr_agrunt_ik_info` prints the solve now.
+- **Muzzle flash on the held weapon**: `weaponfired(prop, -1)` after each shot; `vr_weaponfx.cpp` monsterFired sees a
+  weapon model (its slot) and draws that slot's own flash (size, time, an AD gun variant's flash model and feel) at its
+  Muzzle anchor (as the server's `weapondrawnpose(e, 0, 6)`). `vr_debug_weaponfx 1`: the flash 0.1-0.6 units from the
+  QC's muzzle (shotgun, 3 shots). Streams (flamethrowers) and melee: none.
+- **Arcane Dimensions' weapons** (with AD's data): the soldiers' guns (WID 20-28, their own `VR_ADGun_Fire*`), the
+  Shadow Axe / Widowmaker / Plasma Gun ("weapon" 101-103: the record's upgrade, where AD's upgrades play), AD's swords,
+  hammer and mace (111-116: WID_SWORD of that kind). Weights `vr_agrunt_w_adrocket` .. `_adcrossbow`, `_shadowaxe`,
+  `_widowmaker`, `_plasmagun`, `_adsword`, `_adheavy`; toolgun entries; plasma guns three bolts an attack,
+  flamethrowers two flames a fire frame within 0.8 of their range, the stream's off sound after. `vr_agrunt_test 12`:
+  17 passed, 0 failed (each hurt you: 38-286). **Fuel tank and hose: not done** (the player's `vr_adtank.cpp` is built
+  on the player's body and Verlet hose; a monster's needs its own placement on the chest bone, stepping and drawing).
+- **Idle re-arm** (`vr_agrunt_rearm_idle` 1): ai_stand/ai_walk call `VR_AG_Idle`: unarmed, it goes for a weapon lying
+  near, takes it up, then stands again unless it saw you. `vr_agrunt_test 13`: PASS (picked up in 1.5 s, no enemy).
+- **Launchers fired safely** (`vr_agrunt_blast_safe` 1): the round's burst predicted (`VR_AG_BlastPoint`: a rocket's
+  line; a grenade's arc, 600 ahead and 200 up with gravity and 1.5 bounces, a 10-unit box so a near miss of its target
+  bursts there; a mine's landing) must be 180 units (mines 230) from it, checked as it decides and again as it fires
+  (held back: a step aside); grenade launchers back off to 210 (160 off); it keeps away from mines; cornered, it slides
+  along the wall. `vr_agrunt_test 11` (60 launcher grunts on headings all round you, often backed against a wall, 7 s
+  each): off 3 self-kills (all grenades), 220 self damage, 125 shots; on 1 self-kill, 68 self damage, 70 shots (5 held).
+  The one left: a grenade grunt spawned 93 units from you, cornered.
+- Debug > Tests: Armed Grunts: AD's Weapons (12), Launchers by Walls (11), Idle Re-Arm (13), Grip Distances. Test 1:
+  16 of 17 (the proximity gun's grunt often doesn't fire in its 5 s now: it fires only from 230 units).
+  `vr_agrunt_test 2` alone: 4 passed.
+
+**In VR:** a row of armed grunts (`vr_agrunt_test 7`, notarget): both hands on the guns while they run and shoot;
+melee grunts swinging (the arms with the blade); one shooting you: the flash at its gun's muzzle; AD's guns from the
+toolgun (Monsters > Armed Grunts); a grenade grunt backed against a wall should step aside, not fire.
 ## Shoulder charge: hands above the chest; crates break from fewer blows; Vanilla pickups (worktree `goreflesh`, branch `agent/charge4`, 2026-10-23; vr_cfg_version 189)
 
 From his notes of 2026-10-23 (vrmelee-recording 01-01-34, vrragtriggers 00-54-11, vrtesthall 01-44-55 and 01-45-50).
