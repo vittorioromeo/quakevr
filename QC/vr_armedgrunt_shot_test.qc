@@ -25,6 +25,7 @@ float vr_agst_hh0;      // ... vr_ags_hits_h
 float vr_agst_r0;       // ... vr_ags_rolls
 float vr_agst_loss;     // ... health lost in all
 float vr_agst_ab0;      // ... vr_ags_absorbed at its start
+float vr_agst_h0;       // the trial's grunt's health before its shots
 float vr_agst_passed;
 float vr_agst_failed;
 entity vr_agst_g;
@@ -215,7 +216,7 @@ void() VR_AGST_Report =
     if(c == 14)
     {
         VR_AGST_Check(sprintf("absorb: pellets stopped, no more health lost than passing through (%.1f):", vr_agst_loss0),
-            ab >= 3 && loss <= vr_agst_loss0);
+            ab >= 3 && loss < vr_agst_loss0);
     }
     if(c == 15) { VR_AGST_Check(sprintf("dual: the left's alone (%g wrong), over 0.3:", vr_agst_wrong), vr_agst_wrong == 0 && rate > 0.3); }
 };
@@ -284,6 +285,7 @@ void(float t) VR_AGS_TestFrame =
         if(vr_agst_shots == 0)
         {
             vr_agst_d0 = vr_ags_disarms;
+            vr_agst_h0 = g.health; // (its spawn may have set its own since)
             vr_agst_right = vr_agst_dual ? (g.vr_ag_prop == p ? g.vr_ag_prop2 : g.vr_ag_prop) : world;
         }
         if(p && vr_ags_disarms == vr_agst_d0)
@@ -308,7 +310,7 @@ void(float t) VR_AGS_TestFrame =
             vr_agst_wrong = vr_agst_wrong + 1;
         }
     }
-    vr_agst_loss = vr_agst_loss + (5000 - g.health);
+    vr_agst_loss = vr_agst_loss + (vr_agst_h0 - g.health);
     vr_agst_trial = vr_agst_trial + 1;
     vr_agst_step = 1;
     if(vr_agst_trial >= vr_agst_n)

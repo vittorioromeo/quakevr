@@ -19107,3 +19107,52 @@ vrmelee-recording, 2 of 8 copies in both the canary and the full set (open, not 
 
 **In VR:** run the `flail` scene (or any with a give) with grip mode Hold: the weapon is in your hand without gripping
 and stays; grip and let go: it drops as usual. Same in Sticky: a squeeze and a release drops it.
+
+### Armed grunts: shooting the weapon out (worktree `tghost`, branch `agent/shootdisarm`, 2026-10-24)
+
+A new way to disarm an armed monster: shoot its weapon, or the hand holding it, precisely. QC
+`vr_armedgrunt_shot.qc` (hooks in `vr_armedgrunt_shot_defs.qc`; ARMED_MONSTERS.md, "Shooting the weapon out").
+
+- **What is hit.** A player's pellet (its traced path up to where it stopped), lightning bolt, or nail, rocket or grenade
+  (its flight each frame, a frame back and a frame ahead; the grunt's own model in the way first: not counted) meeting a
+  held weapon (its line from 8 units behind the grip to the muzzle, 3 units round) or the hand holding it (the grip to
+  11 units towards its shoulder, 3.5 round). The first met along the path counts. `vr_agrunt_shotdisarm_size` scales
+  both volumes; a path within `vr_agrunt_shotdisarm_near` units beyond them counts at half; `_parts` 0 the weapon only,
+  1 the hand only, 2 either. Each held weapon (dual wielding: each hand's) counts on its own.
+- **What counts.** The shot's damage (a pellet 4, a nail 9, a super nail 18, a bolt 30, a rocket's direct hit ~110; not
+  the positional factor) times its kind's weight (`_w_pellet` 1, `_w_nail` 1, `_w_lightning` 0.3, `_w_blast` 1,
+  `_w_splash` 0: explosions never count unless raised) and the part's (`_weapon_w` 1, `_hand_w` 1).
+- **The roll.** Hits add up over `_window` (0.5 s) from the first. Reaching `_damage` (16) it rolls once (the next frame,
+  so a blast's pellets all count first) at `_chance` (0.25) plus `_chance_scale` (0.8) for each threshold past it (at most
+  0.95), and starts over; a failed roll: nothing adds up for `_cooldown` (0.3 s). Won: the weapon flies off along the
+  shots (VR_AG_Disarm: its clatter and grunt), sparks and a ricochet. Every weapon hit sparks a little.
+- **The shots themselves.** A hand hit hurts the grunt as ever (it is its body). A pellet on the weapon goes on into the
+  body behind, or with `_absorb` 1 (off by default: today's damage unchanged) stops there: no damage (the test: 29 health
+  lost a 2 m blast passing through, 0 absorbed). While `vr_agrunt_shotdisarm` is on, a player's shot no longer disarms by
+  the old blow rule (`vr_agrunt_disarm_damage` near the gun hand, which disarmed a shotgun blast or a super nail near the
+  hand every time); melee blows, throws, parries and rockets' direct hits keep theirs.
+- **Settings:** VR Settings > Armed Grunts > "Disarming: Shooting It Out" (all of the above). **Debug:** Debug > Show
+  Shot Disarms (`vr_agrunt_shotdisarm_debug` 1: `shotdisarm:` each player's shot on an armed grunt, its part weapon,
+  hand or body, the damage adding up, each roll's chance and result; 2: also each weapon's line and hand as sparks).
+  Debug > Tests: "Armed Grunts: Shooting Weapons Out".
+- **Defaults, why.** 16 is between a single nail (9: never alone) and two (18); a shotgun's six pellets all on the gun are
+  24 (1.5 thresholds: 0.65), the super shotgun's ~13 on it 0.95: rewarding at close range, a gamble from afar, never a
+  single chip shot. Lightning at 0.3: a roll every 0.4 s held on the gun (~35% each), not a sure thing at 0.2 s.
+
+Measured (`vr_agrunt_test 50`, vrtesthall, fresh shotgun grunts, the player's own pellets/nails/bolts aimed at the
+gun's middle; 100 trials a case, 40 for the modes): shotgun on the gun 2 m 0.60, 5 m 0.52, 15 m 0.18 (3.3 pellets on
+it); super shotgun 2 m 0.96; 3 nails in 0.4 s at 5 m 0.36; one nail at 10 m 0, one pellet at 10 m 0; lightning 0.2 s
+at 5 m 0.33; shotgun on the forearm 2 m 0.60 (6 hand hits); hand only: on the muzzle end 0, on the forearm 0.62;
+weapon only, on the forearm 0; size 0.5 at 15 m 0 (1.2 hits), size 2 at 15 m 0.68 (6 hits); absorb 0.60 (6 pellets
+stopped, 0 damage); dual (a sword and a crowbar), the left crowbar shot: 0.65, the right one never lost. 10/10 PASS.
+eval.sh unchanged (26/34 canary, 127/133 full, pass for pass). Scene `agrunt_shootout` (grunts at 2, 5, 10, 15 m,
+a shotgun and a nailgun given, the debug prints on).
+
+Open: AD's projectile pellets (`vr_ad_projectiles`) and AD's own bolts/lightning don't count yet (their own touch
+functions); the hand's forearm direction is guessed (grip towards the shoulder), not read from the drawn arm.
+
+**In VR:** run the `agrunt_shootout` scene. Shoot the nearest grunt's gun point-blank with the shotgun a few times:
+it should fly out of its hand about two times in three, along your shot, with sparks and a ricochet; from the far
+ones it should hold on mostly. A quick nail burst on a gun: sometimes. Shoot its gun hand and forearm: the same,
+and it bleeds. With Show Shot Disarms on, the printed part (weapon/hand/body) should match where you aimed; in Print
+and Volumes, the sparks should sit on the gun and the forearm: if the forearm line points the wrong way, say so.
