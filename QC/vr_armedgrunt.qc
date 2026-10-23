@@ -395,7 +395,6 @@ void(entity g, entity p) VR_AG_PlacePropOld =
 };
 
 void() VR_AG_PropHandTouch;
-void(entity g) VR_AG_KnockedDown;
 
 // Every server frame: to its hand; gone with its grunt.
 void() VR_AG_PropThink =
@@ -411,9 +410,20 @@ void() VR_AG_PropThink =
         remove(self);
         return;
     }
-    if(g.vr_knockdown && cvar_hget(cvarh_vr_agrunt_disarm))
+    if(VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
     {
-        VR_AG_KnockedDown(g);
+        if(g.vr_ag_prop == self)
+        {
+            self.nextthink = time;
+        }
+        return;
+    }
+    if(VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
+    {
+        return;
+    }
+    if(g.vr_knockdown && cvar_hget(cvarh_vr_agrunt_disarm) && VR_AG_FallDrop(g)) // (on the floor: it lets go)
+    {
         return;
     }
     VR_AG_PlaceProp(g, self);
@@ -493,20 +503,36 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     }
     dir_z = 0;
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
+    float wid = g.vr_ag_wid;
     VR_AG_DropHeld(g, vel);
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
     g.vr_ag_reserve = 0; // (its spare clips are no use without the gun)
-    sound(g, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
+    VR_AG_DisarmFeedback(g, wid); // (its clatter, its grunt: vr_armedgrunt_play.qc)
     VR_AG_Log(sprintf("disarmed (%s)", why));
 };
 
-void(entity g) VR_AG_KnockedDown =
+// Its weapon yours, in `pl`'s hand `h` (a grab: at once, or a tug won).
+void(entity g, entity pl, float h) VR_AG_Yank =
 {
-    makevectors(g.angles);
-    VR_AG_Disarm(g, v_forward + v_right * crandom(), 60, "knocked down");
+    float wid = g.vr_ag_wid;
+    entity w = VR_AG_DropHeld(g, '0 0 0');
+    if(!w)
+    {
+        return;
+    }
+    VR_AG_DisarmFeedback(g, wid);
+    g.vr_ag_disarms = g.vr_ag_disarms + 1;
+    g.vr_ag_reserve = 0;
+    w.handtouch_ent = pl;
+    w.handtouch_hand = h;
+    float catching = forcegrabCatching;
+    forcegrabCatching = TRUE; // (caught however long ago the grab began: a tug won)
+    wpnthrow_handtouch_ent(w);
+    forcegrabCatching = catching;
+    VR_AG_Log(sprintf("yanked out of its hand by %s (hand %g)", pl.netname, h));
 };
 
-// Your hand grabbing its weapon takes it: the weapon is yours, in that hand (the grab started now).
+// Your hand grabbing its weapon (the grab started now): a tug-of-war, or it is yours (VR_AG_GrabBy).
 void() VR_AG_PropHandTouch =
 {
     entity pl = self.handtouch_ent;
@@ -524,18 +550,7 @@ void() VR_AG_PropHandTouch =
     {
         return;
     }
-    entity g = self.owner;
-    entity w = VR_AG_DropHeld(g, '0 0 0');
-    if(!w)
-    {
-        return;
-    }
-    g.vr_ag_disarms = g.vr_ag_disarms + 1;
-    g.vr_ag_reserve = 0;
-    w.handtouch_ent = pl;
-    w.handtouch_hand = h;
-    wpnthrow_handtouch_ent(w);
-    VR_AG_Log(sprintf("yanked out of its hand by %s (hand %g)", pl.netname, h));
+    VR_AG_GrabBy(self.owner, pl, h);
 };
 
 // ----------------------------------------------------------------------------
@@ -1031,10 +1046,10 @@ entity() VR_AG_FindWeapon =
             {
                 safe = vlen(e.origin - self.enemy.origin) > d; // (one at its feet it takes up whatever)
             }
-            if(safe && d < bestDist && fabs(e.origin_z - self.origin_z) < 64)
+            if(safe && d < bestDist && fabs(e.origin_z - self.origin_z) < 64 && !VR_AG_Shunned(self, e))
             {
                 traceline(self.origin + '0 0 16', e.origin, TRUE, self);
-                if(trace_fraction == 1 || trace_ent == e)
+                if((trace_fraction == 1 || trace_ent == e) && VR_AG_Reachable(self, e)) // (walkable: vr_armedgrunt_play.qc)
                 {
                     best = e;
                     bestDist = d;
@@ -1059,12 +1074,22 @@ float() VR_AG_Seeking =
     {
         self.vr_ag_seek = world; // (taken by someone else, or flying)
     }
-    if(!self.vr_ag_seek && time >= self.vr_ag_seek_next)
+    if(self.vr_ag_seek && !VR_AG_SeekCheck(self))
+    {
+        self.vr_ag_seek = world; // (out of its reach after all: given up for a while)
+        self.vr_ag_seek_next = time + 0.5;
+    }
+    if(!self.vr_ag_seek && (time >= self.vr_ag_seek_next || self.vr_ag_own))
     {
         self.vr_ag_seek_next = time + 0.5;
-        self.vr_ag_seek = VR_AG_FindWeapon();
+        self.vr_ag_seek = VR_AG_OwnBack(self); // (its own, dropped as it fell: first)
+        if(!self.vr_ag_seek)
+        {
+            self.vr_ag_seek = VR_AG_FindWeapon();
+        }
         if(self.vr_ag_seek)
         {
+            VR_AG_SeekStart(self);
             VR_AG_Log(sprintf("going for %s, %.0f away", self.vr_ag_seek.netname, vlen(self.vr_ag_seek.origin - self.origin)));
         }
     }
@@ -1074,6 +1099,10 @@ float() VR_AG_Seeking =
 // Its run frames: to a weapon it goes for, away from a target too near its explosive weapon, else the grunt's run.
 void(float d) VR_AG_Run =
 {
+    if(VR_AG_TugResume())
+    {
+        return; // (a tug-of-war over its weapon: its hold, vr_armedgrunt_play.qc)
+    }
     self.vr_ag_myrun = time;
     if(VR_AG_Seeking())
     {
@@ -1263,7 +1292,7 @@ float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
     if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) ||
-       take < cvar_hget(cvarh_vr_agrunt_disarm_damage) || inflictor == world || inflictor.classname == "vr_burn")
+       take < VR_AG_DisarmDamage(targ) || inflictor == world || inflictor.classname == "vr_burn")
     {
         return;
     }
@@ -1308,33 +1337,25 @@ float() VR_AG_SoldierDrop =
     return TRUE;
 };
 
-void() VR_AG_Die =
+// army_die, an armed grunt's (its death is the grunt's own: its th_die army_die, so its corpse, its ragdoll, its gibs,
+// limbs and blood are the grunt's everywhere they're keyed on it): its weapon falls from its hand with what is left in
+// it (gibbed too). FALSE: not an armed grunt (the grunt's gun drops).
+float() VR_AG_Dying =
 {
+    if(!self.vr_ag)
+    {
+        return FALSE;
+    }
     if(damage_attacker == self)
     {
         vr_ag_self_kills = vr_ag_self_kills + 1; // (the tests)
         VR_AG_Log(sprintf("killed by its own %s", self.vr_ag_prop ? self.vr_ag_prop.netname : "weapon"));
     }
-    // Its weapon falls from its hand, with what is left in it (gibbed too).
     makevectors(self.angles);
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
-
-    if(self.health < -35)
-    {
-        sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
-        ThrowHead("progs/h_guard.mdl", self.health);
-        ThrowGib("progs/gib1.mdl", self.health);
-        ThrowGib("progs/gib2.mdl", self.health);
-        ThrowGib("progs/gib3.mdl", self.health);
-        SoldierDrop();
-        return;
-    }
-    sound(self, CHAN_VOICE, "soldier/death1.wav", 1, ATTN_NORM);
-    if(random() < 0.5)
-        army_die1();
-    else
-        army_cdie1();
+    return TRUE;
 };
+void() VR_AG_Die = { army_die(); }; // (a save from before: its th_die)
 
 /*QUAKED monster_vr_grunt (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 An armed grunt (experimental): a grunt holding one of your weapons. "weapon": its weapon (WID_*: 2 axe, 4 shotgun,
@@ -1396,13 +1417,13 @@ void() monster_vr_grunt =
     precache_sound("weapons/pkup.wav");
     precache_sound("weapons/ax1.wav");
     precache_sound("weapons/tink1.wav");
+    VR_AG_PlayPrecache(); // (its headbutt, its disarms' clatters: vr_armedgrunt_play.qc)
     setmodel(self, "progs/vrgrunt.mdl");
     setsize(self, '-12 -12 -24', '12 12 27');
     self.vr_ag = 1;
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
-    self.th_die = VR_AG_Die;
     VR_AG_Arm(self, want, flags, inst);
     VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :

@@ -438,12 +438,12 @@ const DefaultChange defaultChanges[] = {
     // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
     // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
     {192, &vr_parallax_depth_write, "1"}, // 0
-    // 194: the author's water foam (his config of 2026-10-23; ROUND22.md, "Shoreline foam: per liquid, breathing,
+    // 193: the author's water foam (his config of 2026-10-23; ROUND22.md, "Shoreline foam: per liquid, breathing,
     // particles"): fainter, finer, reaching further. Water's own now (lava and slime have their own vr_lava_foam_*,
     // vr_slime_foam_*).
-    {194, &vr_water_foam_opacity, "1"},   // 0.5
-    {194, &vr_water_foam_frequency, "1"}, // 1.75
-    {194, &vr_water_foam_strength, "1"},  // 1.75
+    {193, &vr_water_foam_opacity, "1"},   // 0.5
+    {193, &vr_water_foam_frequency, "1"}, // 1.75
+    {193, &vr_water_foam_strength, "1"},  // 1.75
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -462,7 +462,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 194;
+constexpr int configVersion = 193;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

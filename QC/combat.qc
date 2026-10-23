@@ -1890,6 +1890,7 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
            e.vr_dummy_striking || e.vr_eshove_striking ||
+           (e.vr_ag && VR_AG_Striking(e)) || // an armed grunt's punch, swing or thrust (vr_armedgrunt_play.qc)
            (e.vr_ad_mon & VR_ADM_MELEE); // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
 };
 
@@ -2638,6 +2639,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint(twoHanded ? " (two hands)\n" : "\n");
         VR_Motion_Event("parry", VR_Motion_HandSub(hand), hand, damage, vr_parry_at, attacker, twoHanded ? "two hands" : "");
         vr_parried = 1;
+        VR_AG_Parried(attacker, targ); // VR: an armed grunt's weapon may be knocked out of its hand (vr_armedgrunt_play.qc)
 
         // What the parry costs: with parry stamina on, the parry that empties it knocks the weapon away (one hand or
         // two); else, held in one hand, the drop chance may.
