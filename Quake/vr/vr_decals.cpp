@@ -1808,6 +1808,14 @@ void propHit(const glm::vec3& at, const glm::vec3& normal, float speed, float ma
 }
 
 double nextScorch = 0.0; // fromEffect's flamethrower scorches: none before this (cl.time), a few a second at most
+// fromEffect's Preset::AdFlameHit: where the last flameHitRing flames' scorches went (far away at first).
+constexpr int flameHitRing = 24;
+constexpr int flameHitStack = 6;
+glm::vec3 flameHits[flameHitRing]{glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f},
+    glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}, glm::vec3{1e9f}};
+int flameHitNext = 0;
 
 // The live scorches among the newest 64 marks within `radius` of `where`, on a surface facing the same way (fromEffect's
 // flamethrower scorches with the permanent layer off: a few a spot, darkening it, then no more).
@@ -1881,6 +1889,41 @@ void fromEffect(const glm::vec3& org, const glm::vec3& dir, particles::Preset pr
                     MarkOptions o;
                     o.bakeNow = true;
                     add(Scorch, where, normal, random(9.f, 15.f), o);
+                }
+            }
+            break;
+        }
+        case Preset::AdFlameHit: // a flamethrower's flame spent on a wall, the floor or a brush: a scorch every time
+        {
+            // (The flames die on what they touch, so the stream's own scorches above, as they fly by close to a
+            // surface, came only at a slant: ROUND22.md, "Flamethrower scorches on every hit".) As big as the flame's
+            // sprite; vr_adgun_fx_scorch under 1 the share of hits that mark, over it a little bigger. Baked at once
+            // as above; with the layer off, three a spot at most.
+            // Each a little aside and drawn out (the stream's spread: a ragged patch, not one disc stamped dark), and
+            // no more once a spot has flameHitStack of the last flameHitRing (black already: held there, the stream
+            // marks again as it moves on).
+            const float often = za::clamp(vr_adgun_fx_scorch.value, 0.f, 3.f);
+            if(often > 0.f && (often >= 1.f || random(0.f, 1.f) < often) && nearest(org, 16.f, -back, where, normal))
+            {
+                const float size = random(16.f, 26.f) * (0.85f + 0.15f * za::max(1.f, often));
+                int stacked = 0;
+                for(const glm::vec3& p : flameHits)
+                {
+                    stacked += glm::distance(p, where) < size * 0.4f ? 1 : 0;
+                }
+                const glm::vec3 t1 = glm::normalize(glm::cross(normal, glm::abs(normal.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+                const glm::vec3 t2 = glm::cross(normal, t1);
+                const float a = random(0.f, 6.2831853f);
+                const glm::vec3 side = t1 * za::cos(a) + t2 * za::sin(a);
+                if(stacked < flameHitStack && (permdecals::on() || liveScorchesAt(where, normal, size * 0.5f) < 3))
+                {
+                    flameHits[flameHitNext] = where;
+                    flameHitNext = (flameHitNext + 1) % flameHitRing;
+                    MarkOptions o;
+                    o.bakeNow = true;
+                    o.along = t1 * za::cos(a + 1.3f) + t2 * za::sin(a + 1.3f);
+                    o.aspect = random(1.f, 1.6f);
+                    add(Scorch, where + side * (size * random(0.f, 0.3f)), normal, size, o);
                 }
             }
             break;

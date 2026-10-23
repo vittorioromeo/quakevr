@@ -59,6 +59,11 @@ void frame(const hands::State& s);
 // from the fingers to the elbow at `longChance`; `seed` shapes them (the same in both eyes: once per frame).
 void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance);
 
+// AD support: a plasma bolt in flight (entity `ent` at `at`, going `along`, a direction or zero): a few small arcs
+// crackling round it, trailing back, reshaped every frame, some flickering out (vr_adgun_plasma_fx: how many, 0 none).
+// Once a frame per bolt (vr_emissive.cpp VR_ProjectileLight).
+void projectileArcs(int ent, const glm::vec3& at, const glm::vec3& along);
+
 // Forgets them all (a new map, a disconnect).
 void clear();
 

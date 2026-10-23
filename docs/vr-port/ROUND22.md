@@ -16722,7 +16722,7 @@ where the fire licks, and the frame stays smooth (Debug > Profiling > Log Next 3
 on the floor a few times and say whether it hurts enough (the numbers above).
 
 
-## Mini bosses: toughness against ragdoll cheese; Death Fury swords, zombie knight blade, crossbow bolt, toolgun bosses (worktree `release`, branch `agent/minibosses`, 2026-10-23; vr_cfg_version 189)
+## Mini bosses: toughness against ragdoll cheese; Death Fury swords, zombie knight blade, crossbow bolt, toolgun bosses (worktree `release`, branch `agent/minibosses`, 2026-10-23; vr_cfg_version 187)
 
 The author's notes of 2026-10-23 (vrmelee-recording 01-09-55, 01-10-59; vrragtriggers 01-24-49 .. 01-39-21).
 
@@ -16758,12 +16758,12 @@ The author's notes of 2026-10-23 (vrmelee-recording 01-09-55, 01-10-59; vrragtri
   rules for loose pieces). rigVersion 5 (the rig cache).
 - **The death fury's head gib could not be resized while held**: the author's config had all 64 Held Object slots
   claimed (`vr_prop_id_01` .. `_64`), so `progs/h_dfury.mdl` got none (props::claimSlot: -1). 80 slots now; slot 65
-  (index 64) ships `progs/h_dfury.mdl` at Size 0.65, a head's mass (configVersion 189 gives it to older configs).
+  (index 64) ships `progs/h_dfury.mdl` at Size 0.65, a head's mass (configVersion 187 gives it to older configs).
 - **The AD crossbow's bolt held another way** (the off hand, a grip taken where the hand met it): the bolt was laid along
   the shot computed from the hand's controller and the slot's own hold, not the drawn gun. It lies along the shot only
   while that is within 3 degrees of the rail (`railShotCos`), else on the rail (`vr_adcrossbow.cpp` boltPose). Built,
   not tested in a run (the mock has no off-hand grip of a two-hand gun to aim).
-- **The rocket soldier's dropped launcher** holds 4 rockets (`vr_adgun_rocket_ammo` 4; 5 before vr_cfg_version 189).
+- **The rocket soldier's dropped launcher** holds 4 rockets (`vr_adgun_rocket_ammo` 4; 5 before vr_cfg_version 187).
 - **Toolgun bosses**: AD's boss judicator (`monster_judicator`) and ice golem (`monster_icegolem`) wait for their map's
   trigger: with no targetname their spawn functions leave an invisible marker ("Missing targetname name!"). The debug
   spawner names them first and uses them after (`VR_AD_DispenserBossPrepare`, `_Wake`); the toolgun's live spawn
@@ -16784,3 +16784,48 @@ about half the time and faster; twist their necks: they survive (a quarter of th
 sergeant a little tougher. Knock the death fury down: a sword in each hand. Kill a zombie knight: no blade on its corpse.
 Hold the death fury's head: 0.65 of its size, and its Held Object page should change it. Hold the AD crossbow in the
 off hand: the bolt on the rail. Spawn the boss judicator and the ice golem from the toolgun: they wake and fight.
+
+## Fire and water: scorches on every hit, map flames burn monsters, water douses fire, plasma arcs, foam sliders (worktree `gorefx`, branch `agent/firewater`, 2026-10-23)
+
+His notes vrragtriggers_2026-10-23_00-51-41, vrtesthall_2026-10-23_01-41-13 .. 01-43-54. New cvars only; no default
+changed (no configVersion bump).
+
+- **Flamethrower scorches on every hit.** Why they were rare: a flame (QC `vr_adflame`, size 0) is removed the moment it
+  touches a wall (VR_ADGun_FlameTouch), and the only scorches came from the stream's in-flight particles (Preset::AdFlame
+  every think, 12% of them, rate-limited, only within 12 units of a surface): a flame passes that close only flying
+  along a wall at a slant. Now the touch on the world or a brush sends Preset::AdFlameHit (23) at the contact point: a
+  scorch there every flame (vr_decals.cpp fromEffect; `vr_adgun_fx_scorch` under 1 the share, over 1 a little bigger),
+  16-26 units (was 9-15), each a little aside and drawn out (a ragged patch, not a stamped disc), and a tongue of fire
+  licking up off the wall (vr_particles.cpp). A spot already holding 6 of the last 24 hits takes no more (it is black;
+  the stream marks again as it moves). Baked at once into the permanent layer as before (bakeNow). Props: not marked
+  (decals are world-only). Measured (`scratch/fw_perf.sh`, e1m1, held on the side wall by the start, 500-frame logs,
+  `--exclusive`): scorch 0 vs 3 in one run, CPU mean 0.80 / 0.83 ms, p99 2.06 / 1.75, max 2.9 / 2.7 (103 scorches
+  baked); scorch 0 vs 1: 0.92 / 2.05 mean, the second log's spikes all `screen/swap` (6-31 ms, another game's GPU load:
+  no decal scope in any frame's top three). Look: `scratch/sc_wall1.png` (bottom left).
+- **Map flames burn monsters and bodies** (`vr_burn_map_monsters` 1; QC vr_burning.qc VR_Burn_MapBodiesFrame): a monster
+  awake, a ragdoll (alive or dead) or a corpse whose box comes within the flame's capsule (+2 units) of a fire spot
+  (flames, braziers, static wall torches; not candles), a lit torch on its wall or the toolgun's resting flame catches
+  fire (VR_Burn_Ignite, VR_BURN_TOUCH; lit again only as it is about to go out). A sleeping monster is left alone (a
+  mapper's monster by a brazier is not lit before you come). Fixed cost: three bodies a server frame in turn. Test aid:
+  `developer 1; vr_burn_test 15` (Debug > Burning Tests > Nearest Monster Into a Map Flame) sets the nearest monster
+  or body against the nearest flame. `map start`: a live grunt "(alive) touches a map flame ...: catches fire", then a
+  dead one's ragdoll "(a ragdoll) touches a map flame".
+- **Water puts fire out** (`vr_burn_water_douse` 1): a flamethrower flame (the player's) meeting water or slime is
+  removed at the surface (six halvings between its last two thinks) in a puff of white steam (Preset::Steam, 24) with a
+  hiss (the nail sizzle, at most every 0.12 s, Nail Sizzle Volume; the two sizzles now precached in every map); a lava
+  nail about to go in becomes a plain nail (its touch, model and damage; no glow, no trail) at the surface, steam and
+  hiss. vrfiringrange's pool from above (`scratch/fw_water.sh`): 13 flames "put out" at z -3.8 (the surface), 5 lava
+  nails likewise. The AD monsters' own flames (pyros) are AD's code (not patched): they still go through.
+- **Plasma bolts** (progs/proj_plasma.mdl: the Plasma Gun's, the plasma soldiers', centurions'): a flickering blue light
+  (vr_projectile_lights) and 3 small arcs a frame round each bolt, trailing back (vr_shock.cpp projectileArcs, the
+  electrocution's lines; `vr_adgun_plasma_fx` 0..3, AD Guns > Plasma Bolt Arcs). About 36 line quads a bolt.
+- **Foam sliders** (Graphics > water page, under Shoreline Foam): Foam Opacity `vr_water_foam_opacity`, Foam Frequency
+  `vr_water_foam_frequency` (the noise's scale: smaller, more patches), Foam Strength `vr_water_foam_strength` (its
+  reach from the shore). New frame-data vec4 `Foam` (vr_glsl.h, glquake.h `foam[4]`); 1/1/1 is the old look.
+- **Blood in water: backlog** (BACKLOG.md, "Blood in water"): the bloody surface needs a new liquid-shader input and
+  hooks in every blood source, the slowed sprays a water test in each of the gore's particle paths; a concrete plan is
+  there.
+
+**In VR:** hold the flamethrower on a wall, the floor and a crate (no mark on props), then sweep; spray it into water
+(steam, no flames under it) and shoot lava nails into water. Lure a grunt past a brazier, kill one next to it. Fire the
+Plasma Gun in a dark room. Tune the three foam sliders by a shore.

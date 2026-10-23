@@ -128,7 +128,8 @@ QVR_TONE_GLSL
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
 "	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
-"	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n"
+"	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \
+"	vec4	Foam; // QVR: the shoreline foam's look (vr/vr_water.cpp, LiquidFoam): x its opacity, y how finely it is broken up, z how far it reaches (times), w unused\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
 // view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
@@ -1199,7 +1200,7 @@ LIQUID_SWELL \
 "		return c;\n"\
 "	float amp = Water2.w * (kind == 1u ? 1.3 : kind == 2u ? 0.6 : 1.0);\n"\
 "	float swell = amp > 0. ? (LiquidSwellHere.y > 0. ? LiquidSwellHere.x : LiquidSwell(pos.xy, kind).z) / amp : 0.0; // -1 .. 1\n"\
-"	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0));\n"\
+"	float width = (kind == 1u ? 8.0 : kind == 2u ? 7.0 : 10.0) * (0.5 + 0.5 * Water3.x) * (1.0 + 0.3 * swell + 0.1 * clamp(h, -1.0, 1.0)) * Foam.z; // (Foam.z: vr_water_foam_strength)\n"\
 "	float d = rim > 0. ? rim - 1.0 : 1e4;\n"\
 "	if (CausticsScale.w != 0.)\n"\
 "	{\n"\
@@ -1213,7 +1214,7 @@ LIQUID_SWELL \
 "	if (f <= -1. && !crest) // (to twice the width: flecks drifting off it)\n"\
 "		return c;\n"\
 "	float t = Time * (kind == 1u ? 0.25 : kind == 2u ? 0.4 : 1.0);\n"\
-"	vec2 p = pos.xy;\n"\
+"	vec2 p = pos.xy * Foam.y; // (vr_water_foam_frequency: how finely it is broken up)\n"\
 "	float n = LiquidNoise(p * 0.19 + vec2(t * 0.31, -t * 0.23)) * 0.6 + LiquidNoise(p * 0.47 - vec2(t * 0.47, t * 0.38)) * 0.4;\n"\
 "	float fine = LiquidNoise(p * 0.6 + vec2(t * 0.7, t * 0.5));\n"\
 "	float foam = smoothstep(n - 0.12, n + 0.12, f) * (0.6 + 0.4 * fine); // the foam reaches further where the noise is low\n"\
@@ -1221,7 +1222,8 @@ LIQUID_SWELL \
 "	foam = max(foam, smoothstep(0.7, 0.85, fine) * smoothstep(0.45, 0.6, n) * 0.5 * clamp(f + 1.0, 0.0, 1.0)); // and flecks\n"\
 "	if (crest)\n"\
 "		foam = max(foam, smoothstep(0.75, 1.0, swell) * smoothstep(0.55, 0.8, n) * fine * 0.35);\n"\
-"	foam *= fade * min(Water3.x, 1.0);\n"\
+"	fade *= Foam.x; // (vr_water_foam_opacity)\n"\
+"	foam = min(foam * fade * min(Water3.x, 1.0), 1.0);\n"\
 "	float b = lit ? min(dot(light, vec3(1.0 / 3.0)), 1.3) : clamp(dot(tex, vec3(0.3, 0.59, 0.11)) * 3.0 + 0.2, 0.4, 1.0);\n"\
 "	if (kind == 1u) // lava: hot where it touches the rock, a cooler crust beyond\n"\
 "	{\n"\

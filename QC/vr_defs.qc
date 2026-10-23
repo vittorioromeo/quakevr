@@ -381,6 +381,8 @@ float QVR_PARTICLE_PRESET_ADFLAME        = 19;
 float QVR_PARTICLE_PRESET_ADPOISON       = 20;
 float QVR_PARTICLE_PRESET_POISONPUFF     = 21;
 float QVR_PARTICLE_PRESET_ELECTRICSPARKS = 22;
+float QVR_PARTICLE_PRESET_ADFLAMEHIT     = 23; // a flamethrower's flame spent on a wall: its scorch, a tongue of fire (vr_ad_enemyguns.qc)
+float QVR_PARTICLE_PRESET_STEAM          = 24; // fire put out by water: count puffs of white steam (a flame, a lava nail going in)
 
 //
 //

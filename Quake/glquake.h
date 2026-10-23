@@ -477,6 +477,7 @@ typedef struct gpuframedata_s {
 	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
 	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
 	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
+	float	foam[4];		// QVR: the shoreline foam's look (vr/vr_water.cpp: vr_water_foam_opacity, _frequency, _strength), unused
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

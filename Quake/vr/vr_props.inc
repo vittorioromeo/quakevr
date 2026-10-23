@@ -402,7 +402,7 @@ QVR_PROP_DEFAULT(55, GripMode, "2")
 QVR_PROP_DEFAULT(62, ID, "progs/health_5.mdl")
 QVR_PROP_DEFAULT(62, GripMode, "2")
 // Arcane Dimensions' death fury's head (progs/h_dfury.mdl): 0.65 of its size to fit the monster (the author's note of
-// 2026-10-23), a head's mass. configVersion 189 gives the slot to configs saved before (takeShippedSlots).
+// 2026-10-23), a head's mass. configVersion 187 gives the slot to configs saved before (takeShippedSlots).
 QVR_PROP_DEFAULT(64, ID, "progs/h_dfury.mdl")
 QVR_PROP_DEFAULT(64, Size, "0.65")
 QVR_PROP_DEFAULT(64, Mass, "-1")

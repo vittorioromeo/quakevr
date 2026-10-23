@@ -437,8 +437,8 @@ const DefaultChange defaultChanges[] = {
     // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
     // scorch marks").
     {186, &vr_adgun_fx_scorch, "0"}, // 1
-    // 189: the rocket soldier's dropped launcher holds 4 rockets (the author's 2026-10-23 note; ROUND22.md, "Mini bosses").
-    {189, &vr_adgun_rocket_ammo, "5"}, // 4
+    // 187: the rocket soldier's dropped launcher holds 4 rockets (the author's 2026-10-23 note; ROUND22.md, "Mini bosses").
+    {187, &vr_adgun_rocket_ammo, "5"}, // 4
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -457,7 +457,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 189;
+constexpr int configVersion = 187;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

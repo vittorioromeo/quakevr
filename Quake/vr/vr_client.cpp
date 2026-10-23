@@ -586,6 +586,8 @@ void parseParticle2()
         case Preset::AdPoison: break;
         case Preset::PoisonPuff: puff(56 + (rand() & 7), count * 2); break; // (the greens)
         case Preset::ElectricSparks: puff(244, count); break;
+        case Preset::AdFlameHit: break; // (its scorch alone)
+        case Preset::Steam: puff(12, count * 2); break;
         default: puff(73, count); break;
     }
 }

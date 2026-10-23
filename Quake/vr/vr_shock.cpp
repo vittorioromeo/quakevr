@@ -1026,6 +1026,28 @@ void test_f()
 
 } // namespace
 
+void projectileArcs(int ent, const glm::vec3& at, const glm::vec3& along)
+{
+    const float amount = za::clamp(vr_adgun_plasma_fx.value, 0.f, 3.f);
+    if(amount <= 0.f)
+    {
+        return;
+    }
+    Random rnd{static_cast<unsigned>(host_framecount) * 2654435761u + static_cast<unsigned>(ent) * 40503u + 7u};
+    const int count = za::clamp(static_cast<int>(3.f * amount + 0.5f), 1, 9);
+    for(int k = 0; k < count; k++)
+    {
+        if(rnd() < 0.3f)
+        {
+            continue; // flicker
+        }
+        const glm::vec3 from = at + rnd.dir() * (1.5f + 2.f * rnd());
+        const float reach = 5.f + 7.f * rnd();
+        const glm::vec3 dir = glm::normalize(rnd.dir() - along * 0.7f + glm::vec3{1e-3f}); // (trailing back)
+        arc(rnd, from, from + dir * reach, 4, reach * 0.25f, 1.f, false, 0.8f, true, true);
+    }
+}
+
 void armArcs(const hands::State& s, unsigned seed, int bolts, float longChance)
 {
     Random rnd{seed};
