@@ -2724,7 +2724,8 @@ void shoreFoam()
             const float life = l.particleLife * rnd(0.7f, 1.3f);
             const float alpha = l.particleOpacity * rnd(0.7f, 1.f);
             const glm::vec2 along = d / len;
-            const glm::vec3 org{at + s.in * (rnd(0.5f, 3.5f) * size), s.z};
+            // on the shore's line (the particle shore setting out from it), a little either side: over the hard edge
+            const glm::vec3 org{at + s.in * (l.particleShore + rnd(-0.5f, 1.5f) * size), s.z};
             Particle p;
             p.angle = rndAngle();
             p.cell = CellFoam;
@@ -2741,7 +2742,7 @@ void shoreFoam()
             // a little above the surface (the bottom in the liquid), drifting along the shore and out
             p.org = org + glm::vec3{0.f, 0.f, rnd(0.1f, 0.5f) * 0.75f * p.scale};
             const float drift = rnd(-4.f, 4.f);
-            p.vel = glm::vec3{along * drift + s.in * rnd(1.f, 4.f), rnd(0.f, 1.5f)};
+            p.vel = glm::vec3{along * drift + s.in * rnd(0.5f, 2.5f), rnd(0.f, 1.5f)};
             pool.pushBack(p);
             shoreNear.spawned++;
         }

@@ -964,7 +964,17 @@ QVR_ZFIX_FUNCTION \
 "	float above = EyePos.z - pos.z - swell;\n"\
 "	float room = max(abs(above) - 6.0, 0.0) + max(distance(pos.xy, EyePos.xy) - 24.0, 0.0);\n"\
 "	rip = above >= 0. ? min(rip, room) : max(rip, -room);\n"\
-"	return vec3(pos.xy, pos.z + swell + rip);\n"\
+"	// the wavy edge (Foam[i].w, LiquidFoam): the rim raised up its wall in slow curves drifting along the shore, up to\n"\
+"	// 0.6 of its units, fading out 12 units in; only up (no gap opens; a liquid seen opaque gets an uneven line too)\n"\
+"	int li = kind == 1u ? 1 : kind == 2u ? 2 : 0;\n"\
+"	float lift = 0.0;\n"\
+"	if (Foam[li].w > 0. && Foam[li].x > 0. && Water3.x > 0. && kind != 3u && rim < 13.0)\n"\
+"	{\n"\
+"		float t = Time * 0.5;\n"\
+"		float n = sin(pos.x * 0.11 + pos.y * 0.07 + t) * sin(pos.y * 0.13 - pos.x * 0.05 - t * 0.8) * 0.5 + 0.5;\n"\
+"		lift = 0.6 * Foam[li].w * n * (1.0 - smoothstep(1.0, 13.0, rim)) * fade;\n"\
+"	}\n"\
+"	return vec3(pos.xy, pos.z + swell + rip + lift);\n"\
 "}\n"\
 "\n"\
 
@@ -1196,8 +1206,11 @@ LIQUID_SWELL \
 "// crests; slime: a green scum; lava: a molten crust, hot at the rock (to bloom). Each liquid's own look (Foam[i],\n"\
 "// FoamColor[i], FoamBreath[i]; i 0 water, 1 lava, 2 slime: vr_water_foam_*, vr_lava_foam_*, vr_slime_foam_*), and\n"\
 "// its band breathing: wider and narrower in turn, each stretch of shore in its own phase (a slow noise in the world).\n"\
+"// Its wavy edge (Foam[i].w units): the shore's line drawn back in drifting curves, the liquid see-through past it\n"\
+"// (LiquidEdge; LiquidDisplace raises the rim alike, for liquids drawn opaque).\n"\
 "// All in the world (both eyes alike), fading out from 600 to 1000 units. tex the texture's colour, light the light on\n"\
 "// it (1 Quake's full); lit: the world program's (the unlit water's foam is as bright as its texture). alpha: its opacity.\n"\
+"float LiquidEdge = 1.0; // the wavy edge's opacity here (LiquidFoam), the liquid's whole output's alpha times it\n"\
 "vec3 LiquidFoam(vec3 c, vec3 tex, vec3 light, vec3 pos, vec3 facing, float h, float rim, uint kind, bool lit, inout float alpha)\n"\
 "{\n"\
 "	int li = kind == 1u ? 1 : kind == 2u ? 2 : 0;\n"\
@@ -1225,6 +1238,16 @@ LIQUID_SWELL \
 "		float behind = LiquidSceneDistanceHere() - w;\n"\
 "		if (behind >= 0.) // (less: something in front, beside it)\n"\
 "			d = min(d, behind * dist / w);\n"\
+"	}\n"\
+"	if (look.w > 0. && d < look.w + 8.0) // the wavy edge (look.w units): the shore's line drawn back in slow curves\n"\
+"	{ // drifting along it, wider where the swells push in; the liquid see-through past it (LiquidEdge), the foam following it\n"\
+"		float te = Time * (kind == 1u ? 0.15 : kind == 2u ? 0.3 : 0.6);\n"\
+"		vec2 q = pos.xy * (0.5 + 0.5 * look.y);\n"\
+"		float e = LiquidNoise(q * 0.045 + vec2(te * 0.5, -te * 0.4)) * 0.65 + LiquidNoise(q * 0.13 - vec2(te * 0.7, te * 0.6)) * 0.35;\n"\
+"		float shift = look.w * fade * clamp((e - 0.3) * 2.0 + 0.3 * swell, 0.0, 1.0);\n"\
+"		float soft = 1.0 + dist * 0.003; // (wider far off: no shimmer)\n"\
+"		d -= shift;\n"\
+"		LiquidEdge = 1.0 - (1.0 - smoothstep(-soft, soft, d)) * min(shift / soft, 1.0);\n"\
 "	}\n"\
 "	float f = 1.0 - d / width; // 1 at the shore, 0 width away\n"\
 "	bool crest = kind == 4u && swell > 0.75;\n"\
@@ -2111,6 +2134,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "	result.a = liquid_alpha; // QVR: and what is behind it bent by the waves\n" \
 "	result = LiquidRefract(result, in_pos, bumped, facing, liquid);\n" \
 "	result = LiquidBlood(result, in_pos, facing, liquid, min(dot(total_light, vec3(1.0 / 3.0)), 1.3));\n" \
+"	result.a *= LiquidEdge; // (the wavy edge: what is behind seen past it)\n" \
 "#endif\n"
 
 // the recoil steadied (ZeroBlend), the poses' occlusion
