@@ -981,6 +981,21 @@ bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float
     return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head, torso);
 }
 
+float ragdollHoldForce(edict_t* player, int hand, float force)
+{
+    const int index = world && player ? grabIndex(NUM_FOR_EDICT(player), hand) : -1;
+    World::RagdollGrab* g = index >= 0 ? &world->ragdollGrabs[static_cast<za::SizeT>(index)] : nullptr;
+    if(!g || g->force < 0.f)
+    {
+        return -1.f; // (none, or the usual hold: vr_ragdoll_grab_force)
+    }
+    if(force >= 0.f)
+    {
+        g->force = force; // (syncRagdollGrabs sets the joint's)
+    }
+    return g->force;
+}
+
 float ragdollWeight(edict_t* ent)
 {
     const RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
@@ -1103,7 +1118,7 @@ bool ragdollHoldPoint(int player, int hand, glm::vec3& out)
     return true;
 }
 
-int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
+int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const char* name)
 {
     if(!world)
     {
@@ -1131,6 +1146,18 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
     if(best && part == -2) // (its head)
     {
         part = best->rig->head >= 0 && !partCut(*best, best->rig->head) ? best->rig->head : best->count;
+    }
+    else if(best && part == -4) // (the first named so)
+    {
+        part = best->count;
+        for(int b = 0; b < best->count && name; b++)
+        {
+            if(!partCut(*best, b) && !std::strncmp(best->rig->bones[b].name, name, std::strlen(name)))
+            {
+                part = b;
+                break;
+            }
+        }
     }
     else if(best && part < 0) // (the part nearest `from`)
     {

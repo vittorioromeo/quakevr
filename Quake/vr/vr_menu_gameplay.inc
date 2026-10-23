@@ -398,6 +398,10 @@
         slider("Pull Hold Strength", vr_foegrab_legpull_hold_strength, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("Pulled down, how hard your hands still holding its legs pull them: a share of its weight. Softer than a "
                   "throw's hold, so it topples the way you pulled instead of pivoting on its pinned shins."),
+        slider("Pull Drag Strength", vr_foegrab_legpull_drag_strength, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Once it lies after the pull, how hard your hands still holding its legs drag it in all (one hand or "
+                  "both): a share of its weight. The soft hold above firms up to this so you can walk back and drag it by "
+                  "the legs; too weak and it lies still, its weight on the floor, until the hold lets go."),
         slider("Leg Lift Speed", vr_foegrab_leglift_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
             .help("How fast your hands must pull its legs up together (within 45 degrees of straight up) to lift it by "
                   "them (standing within Lift Reach)."),

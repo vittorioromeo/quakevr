@@ -382,6 +382,9 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // units more than the arm's (else that arm: lifted by it, it hung slack and could not flail).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
     bool head = false, bool torso = false);
+// That soft hold's most force (N), changed to `force` unless it is < 0 (the leg pull's: firmed up once it lies, to drag
+// it); -1 if the hand has no soft hold (none, or the usual hold of a hand taking a limb: vr_ragdoll_grab_force's).
+float ragdollHoldForce(edict_t* player, int hand, float force = -1.f);
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
@@ -422,10 +425,10 @@ struct RagdollHold
 // nearest the box's middle.
 [[nodiscard]] int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after);
 [[nodiscard]] int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at);
-// Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head) of the ragdoll nearest `from`
-// (units); its edict number,
-// 0 if none (or no such part).
-int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out);
+// Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head; -4 the first
+// whose bone's name begins with `name`, e.g. "shin_r": rigs number their parts differently) of the ragdoll nearest
+// `from` (units); its edict number, 0 if none (or no such part).
+int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const char* name = nullptr);
 [[nodiscard]] glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld);
 
 // Decapitation (ROUND21.md, "Decapitation"; QC vr_decap.qc). `ent`'s ragdoll loses its head (its rig's head bone and the
