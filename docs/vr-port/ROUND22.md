@@ -17588,3 +17588,41 @@ bullet time; tune slot 47 so the hand holds the handle.
   6 m/s (at most every 0.3 s) and with each blow; `vr_flail_rattle` 0.7 its volume (AD Weapons page: Chain Rattle).
 - Tests: `vr_ad_test 145` all PASS (kind 11); full-speed swings (real time) 8.8-21.5 m/s, 35-111 damage; floor slams:
   14 hits, never through, never put back; `eval.sh` 169/177 as the baseline (verdicts unchanged).
+## Show Melee Blades; the sweep test's D and F (worktree `tghost`, branch `agent/meleeview`, 2026-10-23)
+
+- **Show Melee Blades** (`vr_debug_melee_blades`, default 0; Debug > Views): for each hand's melee sweep (swords, axes,
+  AD's weapons, fists, guns used as clubs, a wall torch), drawn live over everything: the blow line from the hand to the
+  tip (`VR_Melee_Line`'s, bold; the near end behind the hand thin), the lines the sweep tested this frame and the last
+  0.3 s (`VR_Melee_Ribs`: each striking point's way from the pose before, with `vr_melee_swept` the whole blade's) and
+  the blade's surface between successive poses, fading out; a hammer's or mace's head as its box (`admeleehead`, as the
+  ribs use it). White idle; yellow while the motion is a blow (`VR_Melee_ShowFast`: `VR_Melee_Decide` would land one
+  with the outermost striking point now, its speed for its kind, the arm driving it, no wiggle, not pulled back; the
+  fields Decide sets are put back); red for 0.4 s after a blow landed (the sweep of that frame red too), a white cross
+  with a red dot at the contact (`mh_c_pos`) and the damage above it (`T_Damage_VRMelee`'s, after positional), for 1.5 s.
+- How: QC `VR_Melee_Show` (vr_melee.qc, from `VR_Melee_Sweep` after the ribs, not for the sweep test's probes) sends
+  them through the new builtin `meleeshow(hand, what, a, b, v)`, only while the cvar is on (off: one `cvar_hget` a
+  sweep, nothing sent, the draw returns at once). `Quake/vr/vr_meleeshow.cpp` keeps 24 sweeps (48 lines each) and 8
+  hits per hand (file-scope) by the server's time and draws them with the view (`vr_view.cpp`, beside Show Melee Arcs).
+  A mock swing (`vr_mock_swing`) is mostly white with the knight's sword: its grip moves under the 4 m/s a slash needs
+  (`melee debug: ... grip 0.9 far 44.0 ... need 4.0`), so it never lands; the author's takes do.
+- **D and F (fixed; the test):** `VR_MSWT_Probe` never set `mh_pgrip`. Since b039bd88f (frame-rate independence)
+  `VR_Melee_ArcRib` bends a point's line round the grip's way from `mh_pgrip` to `mh_grip` when the chord cuts the arc;
+  with `mh_pgrip` '0 0 0' every point's "arc" was taken round the map's origin, so the probe's lines ran far off the
+  blade (F: a box 3 units past the tip struck "44.7 along the blade"; D: a floor contact 829 units along it on ad_dm1,
+  -16..-25 on vrfiringrange). Not a blind spot in play: `VR_Melee_Track` sets `mh_pgrip` every frame. The probe now sets
+  it to the pose before's grip (its moves are straight, so no arc: the chords as when the test was written). After: PASS
+  on ad_dm1 and vrfiringrange for the Dark Prince's, the knight's, the justice knight's and the judicator's swords, the
+  hammer and the mace (`vr_ad_test 137/117/138/139/128/129`); D lands 22.2 along the knight's sword (its striking
+  part's middle 22.0; old 829.4), as in the swept blades' notes.
+- eval.sh: canary and full 169/177, every verdict as the baseline; 3 takes differ by 0.1 unit in a contact offset. The
+  base commit (8652036b9, without these changes) gives 169/177 with 6 such 0.1-unit differences (a different set): run
+  to run noise, not this change.
+- Eyeshots: `scratch/mshow_hit.png` (the axe take `slash_backswing_up_left_..._12-30-44` played back: the hit, red line,
+  cross and "23.1", then the swept surface fading); `scratch/mshow_swing_hammer.png` (the AD hammer swung by the mock:
+  its head box yellow mid-swing, white after, the sweep fading).
+
+**In VR:** Debug > Views > Show Melee Blades. Swing a sword, an axe, the AD hammer, fists and a gun at a grunt or the
+dummy: the line follows the weapon from the hand to its tip (the head's box round the hammer's head); slow moves stay
+white, real blows turn yellow before they land and red where they land, the dot at the point struck and the damage over
+it. Swings that "should have hit": see whether the swept lines went through the target (a miss there is a detection
+bug) or past it (the weapon's drawn length or the reach).

@@ -38,6 +38,9 @@ void(entity b, float xThing, vector xG0, vector xA0, vector xG1, vector xA1, vec
         vr_mline_near = xG1 - xA1 * xLen * 0.2;
         b.mh_cp[i] = VR_Melee_At(vr_mpt_f[i]);
     }
+    // The grip at both poses: VR_Melee_ArcRib bends a point's line round the grip's way from mh_pgrip to mh_grip (left
+    // '0 0 0', the lines were bent round the map's origin: F and D failed wherever the test ran far from it).
+    b.mh_pgrip = xG0;
     b.mh_grip = xG1;
     b.mh_far = xG1 + xA1 * xLen;
     b.mh_hd_pg = xG0;

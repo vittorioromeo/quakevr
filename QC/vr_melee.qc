@@ -2299,6 +2299,55 @@ float(entity b, entity e, vector xP0, vector xP1, float xIn) VR_Melee_RibScore =
     return (xIn ? 2 : 0) + (inner ? 1 : 0) + VR_Melee_SegDist(xP0, xP1, c) / max(1, vlen(e.absmax - e.absmin) * 0.5);
 };
 
+// Show Melee Blades (vr_debug_melee_blades, Debug > Views; vr_meleeshow.hpp). Fast enough: VR_Melee_Decide would land a blow of its outermost striking point now (the speed its kind needs, the arm
+// driving it, not drawn back, wiggled or turned in place); what it sets on `b` is put back (the blow's own comes after).
+float(float xHand, entity b) VR_Melee_ShowFast =
+{
+    float i;
+    float tip = -1;
+    for(i = 0; i < vr_mpt_n; ++i)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[i]))
+        {
+            tip = i;
+        }
+    }
+    if(tip < 0 || b.mh_fast < VR_Melee_MinSpeedOf(b) * 0.5)
+    {
+        return FALSE;
+    }
+    float kind = b.mh_kind, strength = b.mh_strength, speed = b.mh_speed, dmgspeed = b.mh_dmgspeed, core = b.mh_core;
+    string part = b.mh_part, way = b.mh_way;
+    float fast = VR_Melee_Decide(xHand, b, tip, vr_mpt_kind[tip]);
+    b.mh_kind = kind;
+    b.mh_strength = strength;
+    b.mh_speed = speed;
+    b.mh_dmgspeed = dmgspeed;
+    b.mh_core = core;
+    b.mh_part = part;
+    b.mh_way = way;
+    return fast;
+};
+
+// The sweep of `xHand` this frame to the view: its blow line, whether it is fast enough to strike (VR_Melee_ShowFast),
+// the lines VR_Melee_Ribs made, a head's box. Only while the view is on.
+void(float xHand, entity b) VR_Melee_Show =
+{
+    meleeshow(xHand, 0, b.mh_grip, b.mh_far, VR_Melee_ShowFast(xHand, b));
+    meleeshow(xHand, 1, b.mh_near, '0 0 0', 0);
+    float k;
+    for(k = 0; k < vr_rib_n; ++k)
+    {
+        meleeshow(xHand, 2, vr_rib_p0[k], vr_rib_p1[k], vr_rib_r[k]);
+    }
+    if(b.mh_hd_hi != '0 0 0' && cvar_hget(cvarh_vr_melee_swept))
+    {
+        meleeshow(xHand, 3, b.mh_hd_lo, b.mh_hd_hi, 0);
+        meleeshow(xHand, 4, b.mh_hd_cg, b.mh_hd_cf, 0);
+        meleeshow(xHand, 5, b.mh_hd_cy, '0 0 0', 0);
+    }
+};
+
 // VR_Melee_SweepTest's probe: VR_Melee_Sweep finds the contacts and stops (no speeds, nothing armed or decided), into
 // vr_msw_*.
 float vr_msw_probe;
@@ -2328,6 +2377,10 @@ float(float xHand, entity b) VR_Melee_Sweep =
     float swept = cvar_hget(cvarh_vr_melee_swept);
     vector hand = b.mh_grip;
     VR_Melee_Ribs(b, r, swept);
+    if(!vr_msw_probe && cvar_hget(cvarh_vr_debug_melee_blades))
+    {
+        VR_Melee_Show(xHand, b);
+    }
 
     // The best contact of each class: the striking part's (edge, fist) and the near end's (pommel, butt).
     float edgeT = 2;
@@ -4419,6 +4472,10 @@ void(float xHand) VR_Melee_Landed =
         cvar_hget(cvarh_vr_stealth_noise_melee), self, STL_N_MELEE);
     b.mh_hit_ent = b.mh_c_ent;
     b.mh_struck = b.mh_c_ent;
+    if(cvar_hget(cvarh_vr_debug_melee_blades))
+    {
+        meleeshow(xHand, 6, b.mh_c_pos, '0 0 0', -1); // (Show Melee Blades: where it landed)
+    }
     b.mh_hit_time = VR_PlayerTime();
     b.mh_hit_touch = VR_PlayerTime();
     vector v = b.mh_vfar;

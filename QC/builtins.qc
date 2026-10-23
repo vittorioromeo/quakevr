@@ -549,6 +549,11 @@ vector(entity b, float xBack) meleegripago = #0;
 // Heavy handling (vr_heavy*): meleearc, the far end's smooth arc just now (m: steady way, no reversal, at least `xFloor`
 // m/s; 0 if under vr_heavy_swing_time); weaponheft, a weapon's weight class (0 light .. 1; Weapon Weights' Heft).
 float(entity b, float xFloor) meleearc = #0;
+// Show Melee Blades (vr_debug_melee_blades; vr_meleeshow.hpp): a hand's sweep or blow for the view, only while it is on
+// (VR_Melee_Show). `xWhat` 0 begins the hand's frame (xA the hand, xB the tip, xV 1 fast enough to strike); 1 the near
+// end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
+// 6 a blow landed (xA where, xV its damage or -1).
+void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
 float(string model) weaponheft = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there

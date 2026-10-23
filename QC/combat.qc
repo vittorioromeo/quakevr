@@ -2786,6 +2786,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         VR_Decap_After(targ);
     }
+    if(hotHand >= 0 && cvar_hget(cvarh_vr_debug_melee_blades))
+    {
+        meleeshow(hotHand, 6, hotAt, '0 0 0', damage); // VR: Show Melee Blades: the blow's damage (vr_meleeshow.hpp)
+    }
     // VR: an incandescent blade sets what it struck on fire (vr_hotblade.qc).
     if(hotHand >= 0 && damage > 0)
     {

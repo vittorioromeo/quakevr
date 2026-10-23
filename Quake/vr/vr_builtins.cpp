@@ -43,6 +43,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
+#include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 #include "vr_walltorch.hpp"
@@ -2332,6 +2333,16 @@ void PF_admeleehead()
     }
 }
 
+// void(float hand, float what, vector a, vector b, float v) meleeshow: Show Melee Blades' data (vr_meleeshow.hpp; QC
+// VR_Melee_Show, sent only while vr_debug_melee_blades is on).
+void PF_meleeshow()
+{
+    const float* a = G_VECTOR(OFS_PARM2);
+    const float* b = G_VECTOR(OFS_PARM3);
+    meleeshow::add(static_cast<int>(G_FLOAT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
+        glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, G_FLOAT(OFS_PARM4));
+}
+
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
 // player asked since the last call, taken (1 the off hand's bind button at a holster, 2 the main hand's, 4 every bound
 // weapon home at once: vr_magholster_return); others' 0. vector(entity player, float slot) holsterpos: holster `slot`'s
@@ -2644,6 +2655,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapondrawnpose", PF_weapondrawnpose},
     {"admeleebend", PF_admeleebend},
     {"admeleehead", PF_admeleehead},
+    {"meleeshow", PF_meleeshow},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},
