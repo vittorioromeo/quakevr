@@ -197,6 +197,13 @@ its death frames 223-254). Next to the Dark Prince's and the Phantom Swordsman's
   it leaves behind, usable as a melee sword (now with the Dark Prince's: "Droppable, usable swords", above).
 - **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
   already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
+- **AD Deflector's gun (after 1.1; the author, 2026-10-23):** left out of `VR_ADGun_ForClass` by scope (the guns were
+  built for the soldier family; ROUND22.md "Infected drops, Freddie gibbed, Deflector"). It has no single gun to copy:
+  the yellow skin fires a flame wall plus 1-3 drunk rockets, the blue (PLASMA spawnflag) 3 plasma bolts plus rockets;
+  AD gibs it as an inert `w_enforcergun.mdl`. To do: pick the attack(s) and one gun or one per skin, then a new WID and
+  a ninth burst-rifle variant (`vr_adgunart.cpp`), weapon offsets, a `VR_ADGun_Fire` branch and `ForClass` entry, its
+  gun hidden in its death frames and its rig re-measured without it, the gib cleared on a drop, a toolgun row and a
+  test.
 
 ### AD soldiers' guns: refine their VR models (author, 2026-10-15)
 
