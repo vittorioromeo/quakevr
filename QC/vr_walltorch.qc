@@ -343,7 +343,7 @@ float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 // Whether `xPlayer`'s hand `xHand` may take hold of torch `t` on its wall now (its grip fresh, nothing in it).
 float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 {
-    return t.wt_state == 0 && t.wt_gripper == world && cvar_hget(cvarh_vr_carry) &&
+    return t.wt_state == 0 && t.wt_gripper == world && // (Item Pickup Mode Vanilla too: not a pickup)
            VR_WallTorch_GripFresh(xPlayer, xHand) && VRIsHandEmpty(xPlayer, xHand) &&
            !VR_Forcegrab_IsHandBusy(xPlayer, xHand) && VR_WallTorch_Gripped(xPlayer, xHand) == world;
 };

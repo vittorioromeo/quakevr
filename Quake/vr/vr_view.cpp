@@ -4849,7 +4849,14 @@ extern "C" void VR_SetupViewEntities()
                 return glm::mat3{f, r, u};
             };
             const glm::mat3 shaken = axes(shakenRot), steady = axes(s.visualRot[hand] + knockAngles[hand]);
-            s.muzzle[hand] = s.pos[hand] + knockPos[hand] + pressPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
+            s.muzzle[hand] = s.pos[hand] + knockPos[hand] + steady * (glm::transpose(shaken) * (s.muzzle[hand] - shakenPos));
+        }
+        else if(s.muzzleValid[hand])
+        {
+            // Nor held back on a prop (vr_box3d_press_back): the game's muzzle is the far end of a melee weapon's line
+            // (QC VR_Blow_Points). Held back, it lagged the hand and then caught up at once as the press let go: a blow
+            // at two or three times the hand's speed, a crate broken by one (ROUND22.md, "Crates break from fewer blows").
+            s.muzzle[hand] -= pressPos[hand];
         }
     }
     if(vr_debug_fatigue.value >= 2)

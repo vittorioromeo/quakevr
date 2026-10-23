@@ -1367,6 +1367,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     {
         const VmScope vm;
         pressTestFrame(); // (vr_prop_press_test under way: the hand's next target)
+        strikeTestFrame(); // (vr_prop_strike_test under way: the hand's next move)
     }
     QVR_PROFILE("box3d");
     if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||

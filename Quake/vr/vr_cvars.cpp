@@ -444,6 +444,12 @@ const DefaultChange defaultChanges[] = {
     // menu delay, Vomit Mode, Holster Calibration on VR Settings, smoothed view text, bullet time's empty notice").
     {188, &vr_death_menu_delay, "2"},      // 5
     {188, &vr_hip_holster_seated_y, "-3"}, // 1.25
+    // 189: the shoulder charge with the hands a bit above the chest (his takes of 2026-10-23: the hands low, the head
+    // down less, side-on as the two meet) and his run-up (ROUND22.md, "Shoulder charge: hands above the chest").
+    {189, &vr_kdtrig_tackle_runup, "1.5"}, // 0.5
+    {189, &vr_kdtrig_tackle_low, "5"},     // 0.5
+    {189, &vr_kdtrig_tackle_head, "7.5"},  // 5
+    {189, &vr_kdtrig_tackle_turn, "50"},   // 60
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -462,7 +468,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 188;
+constexpr int configVersion = 189;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
