@@ -7,6 +7,7 @@
 #include "vr_adcrossbow.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_meleeshow.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 
@@ -4741,6 +4742,7 @@ extern "C" void VR_SetupViewEntities()
         box3d::struggleDraw(s.head);    // vr_struggle_debug
         bodycontact::meleeArcDraw(s.head); // vr_enemy_melee_arc_show
         bodycontact::aimConeDraw(s.head);  // vr_enemy_aim_show
+        meleeshow::draw(s.head);           // vr_debug_melee_blades
         if(vr_debug_hand_bones.value)
         {
             drawHandBones();

@@ -114,6 +114,12 @@ za::Vector<Item> pageDebugViews()
             .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
                   "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
                   "printed. Hits and Misses: also the shots that went through a monster's box beside its model (orange)."),
+        toggle("Show Melee Blades", vr_debug_melee_blades)
+            .help("vr_debug_melee_blades: what each hand's blows strike with, live (swords, axes, fists, guns used as clubs, "
+                  "torches): the blow line from the hand to the tip (bold; the near end behind the hand thinner), white "
+                  "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
+                  "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
+                  "mace's head as its box. A red dot where a blow landed, its damage above it."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),

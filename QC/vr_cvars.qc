@@ -191,6 +191,7 @@ float cvarh_vr_weapon_throw_velocity_mult;
 float cvarh_vr_weapondrop_particles;
 float cvarh_vr_2h_spread_reduction;
 float cvarh_vr_debug_shots;
+float cvarh_vr_debug_melee_blades;
 float cvarh_vr_debug_damage_numbers;
 float cvarh_vr_2h_throw_velocity_mult;
 float cvarh_vr_2h_handoff;
@@ -1249,6 +1250,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_weapondrop_particles);
     VR_CVAR_HMAKE(vr_2h_spread_reduction);
     VR_CVAR_HMAKE(vr_debug_shots);
+    VR_CVAR_HMAKE(vr_debug_melee_blades);
     VR_CVAR_HMAKE(vr_debug_damage_numbers);
     VR_CVAR_HMAKE(vr_2h_throw_velocity_mult);
     VR_CVAR_HMAKE(vr_2h_handoff);
