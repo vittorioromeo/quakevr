@@ -114,6 +114,12 @@ void(entity g) VR_AGT_Remove =
         remove(g.vr_ag_prop);
     }
     g.vr_ag_prop = world;
+    if(g.vr_ag_prop2)
+    {
+        g.vr_ag_prop2.weaponinst = world;
+        remove(g.vr_ag_prop2);
+    }
+    g.vr_ag_prop2 = world;
     remove(g);
 };
 
@@ -656,11 +662,17 @@ void() VR_AGTest_Sweep =
     {
         VR_AGT_ClearWeapons();
         p.flags = p.flags | FL_NOTARGET;
-        vr_agt_weapon2 = WID_AXE;
-        vr_agt_grunt = VR_AGT_Spawn(WID_AXE, 90);
+        if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); } // (a rerun's)
+        if(vr_agt_sweep2 && vr_agt_sweep2.classname != "" && vr_agt_sweep2.health > 0) { VR_AGT_Remove(vr_agt_sweep2); }
+        // (eyeshots: scratch2 its right hand's weapon id + 1, scratch3 its left's + 1 (-1 none), scratch4 how far,
+        // temp1 its turn from facing you (degrees); 0 each: an axe in each hand, 90 units, side on)
+        float w1 = cvar("scratch2") ? cvar("scratch2") - 1 : WID_AXE;
+        float w2 = cvar("scratch3") ? cvar("scratch3") - 1 : WID_AXE;
+        vr_agt_weapon2 = w2 >= 0 ? w2 : 0;
+        vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 90);
         vr_agt_weapon2 = 0;
         g = vr_agt_grunt;
-        g.angles_y = vectoyaw(p.origin - g.origin) + 90; // (side on: its right hand towards you)
+        g.angles_y = vectoyaw(p.origin - g.origin) + (cvar("temp1") ? cvar("temp1") : 90); // (side on: its right hand towards you)
         vr_agt_sweep2 = VR_AGT_Spawn(WID_AXE, -200); // (behind you, not drawn, until its turn)
         vr_agt_sweep2.angles_y = g.angles_y;
         vr_agt_sweep_n = cvar("vr_agrunt_test_kind") == 1 ? 108 : 120;
