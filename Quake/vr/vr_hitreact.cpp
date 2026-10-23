@@ -783,6 +783,7 @@ constexpr double armPoseStale = 0.3; // seconds without a message: back to findi
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
 constexpr int apLeftWeapon = 8;      // ... the left holding its own weapon at its target (dual wielding: propL, its turn)
+constexpr int apBody = 16;           // its body's turns in a strike follow (torso, elbows: bodyTurn)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
@@ -799,6 +800,8 @@ struct ArmPoseMsg
     glm::vec3 vl{0.f};
     int propL{0};   // apLeftWeapon: the left hand's weapon, its turn in its body's space
     glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
+    glm::vec3 torso{0.f};                  // apBody: its torso's turn in a strike (yaw, pitch, roll; degrees)
+    glm::vec3 elbowR{0.f}, elbowL{0.f};    // ... its elbows' poles (its body's space; their length the share)
 };
 
 struct ArmPose
@@ -814,6 +817,8 @@ struct ArmPose
     glm::vec3 fw{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}; // the weapon's turn (model space)
     int propL{0};                                // the left hand's weapon (apLeftWeapon), drawn at `left`
     glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
+    glm::vec3 torso{0.f};                        // its torso's turn now (degrees: bodyTurn), its elbows' poles
+    glm::vec3 elbowR{0.f}, elbowL{0.f};
 };
 
 struct ArmPoses
@@ -928,6 +933,9 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
             m.fwL = nlerp(p.fwL, m.fwL, f);
             m.upL = nlerp(p.upL, m.upL, f);
         }
+        m.torso = p.torso + (m.torso - p.torso) * f;
+        m.elbowR = p.elbowR + (m.elbowR - p.elbowR) * f;
+        m.elbowL = p.elbowL + (m.elbowL - p.elbowL) * f;
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
@@ -966,6 +974,9 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.fwL = m.fwL;
     s.upL = m.upL;
     s.left = m.vl / scale;
+    s.torso = m.torso;
+    s.elbowR = m.elbowR;
+    s.elbowL = m.elbowL;
     if((m.flags & apLeft) && m.wl > 0.f)
     {
         const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
@@ -990,6 +1001,66 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
 {
     const ArmPose* s = armPoseOf(numberOf(e), false);
     return (s && s->frame == host_framecount) ? s : nullptr;
+}
+
+// A strike's body (QC vr_armedgrunt_pose.qc VR_AGP_TorsoNow; ROUND22.md, "Armed monsters: the body in their strikes"):
+// its chest turned about its waist (its joint with the pelvis) by s.torso (yaw about z, pitch about y, roll about x: as
+// QC turned the hands' targets and the weapons), its pelvis by vr_agrunt_strike_hips of the yaw (the legs left planted),
+// its head turned back by vr_agrunt_strike_head (its eyes kept on its target), every other bone on the chest (the arms)
+// carried. Out: every bone's turn on `posed` (none: unturned). False: no turn now.
+bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPose& s, rigpose::Rigid* out)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        out[b] = rigpose::Rigid{};
+    }
+    const glm::vec3 t = s.torso * (3.14159265f / 180.f);
+    if(glm::dot(t, t) < 1e-8f)
+    {
+        return false;
+    }
+    const int chest = chestOf(rig);
+    const int pelvis = chest >= 0 ? rig.bones[chest].parent : -1;
+    if(pelvis < 0 || rig.bones[pelvis].parent >= 0)
+    {
+        return false;
+    }
+    const glm::vec3 X{1.f, 0.f, 0.f}, Y{0.f, 1.f, 0.f}, Z{0.f, 0.f, 1.f};
+    const auto about = [](const glm::quat& r, const glm::vec3& j) {
+        rigpose::Rigid k;
+        k.rot = r;
+        k.pos = j - r * j;
+        return k;
+    };
+    const glm::quat q = glm::angleAxis(t.x, Z) * glm::angleAxis(t.y, Y) * glm::angleAxis(t.z, X);
+    const glm::quat qp = glm::angleAxis(za::clamp(vr_agrunt_strike_hips.value, 0.f, 1.f) * t.x, Z);
+    out[pelvis] = about(qp, rigpose::apply(posed[pelvis], rig.bones[pelvis].pivot));
+    out[chest] = composeRigid(out[pelvis], about(glm::inverse(qp) * q, rigpose::apply(posed[chest], rig.bones[chest].pivot)));
+    const int head = rig.head >= 0 ? rig.head : boneNamed(rig, "head");
+    const float hs = za::clamp(vr_agrunt_strike_head.value, 0.f, 1.f);
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        if(b == chest || b == pelvis || rig.bones[b].joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        bool onChest = false;
+        for(int p = rig.bones[b].parent, n = 0; p >= 0 && n < ragdoll::maxBones; p = rig.bones[p].parent, n++)
+        {
+            onChest = onChest || p == chest;
+        }
+        if(!onChest)
+        {
+            continue; // (the legs: planted)
+        }
+        out[b] = out[chest];
+        if(b == head && hs > 0.f)
+        {
+            const glm::quat back = glm::angleAxis(-hs * t.x, Z) * glm::angleAxis(-hs * t.y, Y);
+            out[b] = composeRigid(out[chest], about(back, rigpose::apply(posed[b], rig.bones[b].pivot)));
+        }
+    }
+    return true;
 }
 
 // How far its rig's forearm, in each pose, misplaces each hand's vertices (units; [side][pose], side 0 right): the IK
@@ -1174,6 +1245,19 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     const ArmPose* ap = armPoseNow(e);
     gatherProps();
     const glm::vec3 hrWorld = toWorld(e, hr);
+    // A strike's body (bodyTurn): the arms solved on the turned torso, their turns on its.
+    rigpose::Rigid body[ragdoll::maxBones];
+    rigpose::Rigid turned[ragdoll::maxBones];
+    const bool bodied = ap && bodyTurn(rig, posed, *ap, body);
+    if(bodied)
+    {
+        for(int b = 0; b < rig.numBones; b++)
+        {
+            turned[b] = composeRigid(body[b], posed[b]);
+        }
+        posed = turned;
+        hr = rigpose::apply(body[fr], hr);
+    }
     int prop = -1;
     float best = propReach;
     if(ap)
@@ -1207,12 +1291,34 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     const int slot = pe ? weapons::slotForModel(pe->model) : -1;
     for(int b = 0; b < rig.numBones; b++)
     {
-        out[b] = rigpose::Rigid{};
+        out[b] = bodied ? body[b] : rigpose::Rigid{};
     }
+    // An arm's turns (solveArm's, on the turned body) after the body's; its elbow's pole drawn to the strike's (its share
+    // the vector's length; its body's space, on the torso).
+    const auto solveOn = [&](int u, int lo, const glm::vec3& H, const glm::vec3& T, const glm::vec3& pole) {
+        out[u] = out[lo] = rigpose::Rigid{};
+        const float miss = solveArm(rig, posed, u, lo, H, T, pole, out);
+        if(bodied)
+        {
+            out[u] = composeRigid(out[u], body[u]);
+            out[lo] = composeRigid(out[lo], body[lo]);
+        }
+        return miss;
+    };
+    const auto strikePole = [&](const glm::vec3& pole, const glm::vec3& want, int u) {
+        const float share = za::min(glm::length(want), 1.f);
+        if(!bodied || share < 1e-3f)
+        {
+            return pole;
+        }
+        const glm::vec3 p = glm::length(pole) > 1e-4f ? glm::normalize(pole) : glm::vec3{0.f, 0.f, -1.f};
+        return p * (1.f - share) + (body[u].rot * want);
+    };
 
     // The right hand on the grip (the weapon's handle: its origin; its fist's target), the elbow where the animation has it.
     const glm::vec3 tr = ap ? ap->right : toLocal(e, glm::vec3{pe->origin[0], pe->origin[1], pe->origin[2]}, true);
-    const glm::vec3 er = rigpose::apply(posed[fr], rig.bones[fr].pivot) - rigpose::apply(posed[ur], rig.bones[ur].pivot);
+    const glm::vec3 er = strikePole(
+        rigpose::apply(posed[fr], rig.bones[fr].pivot) - rigpose::apply(posed[ur], rig.bones[ur].pivot), ap ? ap->elbowR : glm::vec3{0.f}, ur);
     const float mainBefore = glm::length(hr - tr);
     // Aimed by the hand as it is drawn (kickInstance's fit: Model Animation's spline, swings and rebuild move the drawn
     // hand off the frames' lerp, and a vertex fitted worse takes only its share of the turn): drawn D + W K(P) on target.
@@ -1225,8 +1331,8 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
             hr.y, hr.z, handsDrawn.left.ok ? 1 : 0, handsDrawn.left.W);
     }
     const float mainAfter = (fitted && fitR.ok)
-                                ? solveArm(rig, posed, ur, fr, fitR.P, (tr - fitR.D) / fitR.W, er, out) * fitR.W
-                                : solveArm(rig, posed, ur, fr, hr, tr, er, out);
+                                ? solveOn(ur, fr, bodied ? rigpose::apply(body[fr], fitR.P) : fitR.P, (tr - fitR.D) / fitR.W, er) * fitR.W
+                                : solveOn(ur, fr, hr, tr, er);
 
     // The left hand on its second grip, under the right one (a Cup), or hanging free.
     const LeftHand& lh = findLeftHand(*a, e->model, rig, hdr, fl);
@@ -1242,6 +1348,10 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     for(int i = 0; i < lh.num; i++)
     {
         hl += poseVertex(hdr, pose1, pose2, blend, lh.verts[i]) / static_cast<float>(lh.num);
+    }
+    if(bodied)
+    {
+        hl = rigpose::apply(body[fl], hl);
     }
     int kind = 0; // 0 free, 1 a grip, 2 a cup, 3 its own target (a punch, a guard), 4 the animation's
     glm::vec3 tl{0.f};
@@ -1284,13 +1394,14 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     }
     if(kind == 3)
     {
-        pole = glm::vec3{-0.3f, 0.6f, -1.f}; // (a fist's elbow down and out, its left)
+        pole = strikePole(glm::vec3{-0.3f, 0.6f, -1.f}, ap ? ap->elbowL : glm::vec3{0.f}, ul); // (a fist's elbow down and out, its left)
     }
     const float secondBefore = glm::length(hl - tl);
     const hitreact::HandFit& fitL = handsDrawn.left;
-    const float secondAfter = kind == 4                              ? secondBefore
-                              : (fitted && fitL.ok && kind != 0) ? solveArm(rig, posed, ul, fl, fitL.P, (tl - fitL.D) / fitL.W, pole, out) * fitL.W
-                                                                  : solveArm(rig, posed, ul, fl, hl, tl, pole, out);
+    const float secondAfter = kind == 4 ? secondBefore
+                              : (fitted && fitL.ok && kind != 0)
+                                  ? solveOn(ul, fl, bodied ? rigpose::apply(body[fl], fitL.P) : fitL.P, (tl - fitL.D) / fitL.W, pole) * fitL.W
+                                  : solveOn(ul, fl, hl, tl, pole);
     if(vr_agrunt_ik_debug.value >= 3.f)
     {
         const glm::vec3 S = rigpose::apply(posed[ul], rig.bones[ul].pivot);
@@ -1353,6 +1464,20 @@ void parseArmPose()
         m.propL = MSG_ReadShort();
         readDir(m.fwL);
         readDir(m.upL);
+    }
+    if(m.flags & apBody)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            m.torso[i] = static_cast<float>(MSG_ReadShort()) / 100.f;
+        }
+        for(glm::vec3* v : {&m.elbowR, &m.elbowL})
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                (*v)[i] = static_cast<float>(MSG_ReadShort()) / 32000.f;
+            }
+        }
     }
     m.t = cl.mtime[0];
     ArmPose* s = armPoseOf(ent, true);
@@ -1419,8 +1544,16 @@ void relinkArms()
                 posed[i].pos = glm::mix(k1.pos, k2.pos, b);
             }
             // Its weapons where its arms reach (a reload's, a pain's bent body moves its shoulders off a pose made upright;
-            // a swing's arc out past the arm): drawn there, the hands' IK on them (armsNow reads s).
-            reachIn(*rig, *armedRigOf(e->model), posed, s);
+            // a swing's arc out past the arm; a strike's turned torso, its shoulders with it): drawn there, the hands' IK
+            // on them (armsNow reads s).
+            rigpose::Rigid body[ragdoll::maxBones];
+            rigpose::Rigid turned[ragdoll::maxBones];
+            const bool bodied = bodyTurn(*rig, posed, s, body);
+            for(int i = 0; i < rig->numBones; i++)
+            {
+                turned[i] = bodied ? composeRigid(body[i], posed[i]) : posed[i];
+            }
+            reachIn(*rig, *armedRigOf(e->model), turned, s);
             misfitToHands(*armedRigOf(e->model), e->model, *rig, hdr, pose1, pose2, pose1 == pose2 ? 0.f : za::clamp(blend, 0.f, 1.f), s);
         }
         if(vr_hit_react.value == 1.f && rigged && reacting(e))

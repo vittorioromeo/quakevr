@@ -24,6 +24,7 @@ float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
+float VR_AGP_BODY = 16;     // ... its body's turns in a strike (VR_AGP_TorsoNow: the torso's, the elbows' poles)
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -41,6 +42,7 @@ vector VR_AGP_SAW_FW = '0.95 0.05 0.25';
 .float vr_ag_act_tick; // its frames' last think (stale: interrupted, a pain)
 .float vr_ag_act_hit;  // its blow struck
 .float vr_ag_act_combo; // punches in a row
+.float vr_ag_act_var;  // its variation (0..1, each attack: VR_AGP_TorsoNow's amounts)
 .float vr_ag_aimw;     // a gun's aim's share (0 its rifle line .. 1 at the target), eased
 .vector vr_ag_aimdir;  // the last aim
 .float vr_ag_readyw;   // its stance's share (a guard, a melee weapon ready), eased
@@ -579,6 +581,189 @@ void(vector v) VR_AGP_WriteVec =
     WriteCoord(MSG_BROADCAST, v_z);
 };
 
+// ----------------------------------------------------------------------------
+// The body in a strike (vr_agrunt_strike_*; ROUND22.md, "Armed monsters: the body in their strikes")
+// ----------------------------------------------------------------------------
+// Wound up (the torso twisted back, the striking shoulder up and back, its hand drawn back by the head, its elbow
+// raised), driven through the blow (the torso twisting and leaning the other way, the shoulder forward, the arm
+// extending), followed through and recovered. The torso's turn (yaw, pitch: leaning forward, roll: bent to its right;
+// degrees, about its waist) carries both hands' targets and the weapons (the arms ride it: the client turns the rig's
+// chest by the same, its hips and head by their shares, before the arms' IK). Both shares pass through nothing as the
+// blow is struck and the blow is worked out from the pose without them: the blow's frame, its line, its parry and damage
+// are the arms-only pose's.
+
+float vr_agp_ww;     // the wind-up's share: 1 at its end, back to 0 by the blow
+float vr_agp_wf;     // the follow-through's: from the blow, 1 at the strike's end, back to 0 over the recovery
+vector vr_agp_tq;    // the torso's turn now: yaw, pitch, roll (degrees)
+vector vr_agp_drawr; // the hands drawn back in the wind-up (its body's space, before the turn)
+vector vr_agp_drawl;
+vector vr_agp_elr;   // the elbows' poles (its body's space; their length the share: 0 the animation's)
+vector vr_agp_ell;
+vector VR_AGP_WAIST = '-4.7 0.9 4.8'; // the grunt's waist (its rig's pelvis's end: the chest's turn's pivot)
+
+// The shares at `g`'s attack's time now (its strike's parameter as its pose's: a swing's smoothed, a punch's not).
+void(entity g) VR_AGP_Phase =
+{
+    VR_AGP_Times(g);
+    float s = time - g.vr_ag_act_at;
+    float tS = vr_agp_tw + vr_agp_ts;
+    float punch = g.vr_ag_act == VR_AGP_PUNCH;
+    float follow = g.vr_ag_act == VR_AGP_SAW ? 0 : 1; // (the saw's bar held still in its cut)
+    float h = punch ? 0.8 : 0.55;                      // (the blow: VR_AGP_Fists', VR_AGP_Melee's)
+    vr_agp_ww = 0;
+    vr_agp_wf = 0;
+    if(s < vr_agp_tw)
+    {
+        vr_agp_ww = VR_AGP_Smooth(s / vr_agp_tw);
+    }
+    else if(s < tS)
+    {
+        float u = (s - vr_agp_tw) / vr_agp_ts;
+        if(!punch)
+        {
+            u = VR_AGP_Smooth(u);
+        }
+        if(u < h)
+        {
+            vr_agp_ww = cos(1.5708 * u / h); // (fastest as it passes the blow)
+        }
+        else
+        {
+            vr_agp_wf = follow * sin(1.5708 * (u - h) / (1 - h));
+        }
+    }
+    else if(s < tS + vr_agp_th)
+    {
+        vr_agp_wf = follow;
+    }
+    else
+    {
+        vr_agp_wf = follow * (1 - VR_AGP_Smooth((s - tS - vr_agp_th) / max(vr_agp_tr, 0.01)));
+    }
+};
+
+// `g`'s body now (out: vr_agp_tq, vr_agp_drawr/l, vr_agp_elr/l). False: no attack, nothing turned.
+float(entity g) VR_AGP_TorsoNow =
+{
+    vr_agp_tq = '0 0 0';
+    vr_agp_drawr = '0 0 0';
+    vr_agp_drawl = '0 0 0';
+    vr_agp_elr = '0 0 0';
+    vr_agp_ell = '0 0 0';
+    float act = g.vr_ag_act;
+    if(act != VR_AGP_PUNCH && act != VR_AGP_SWING && act != VR_AGP_SAW)
+    {
+        return FALSE;
+    }
+    float torso = cvar_hget(cvarh_vr_agrunt_strike_torso);
+    float shoulder = cvar_hget(cvarh_vr_agrunt_strike_shoulder);
+    if(torso <= 0 && shoulder <= 0)
+    {
+        return FALSE;
+    }
+    VR_AGP_Phase(g);
+    // Each kind's turns wound up (w) and followed through (f) as the right hand strikes (yaw, pitch, roll); its hand's
+    // draw back and its elbow's pole in the wind-up. The left's mirrored.
+    vector w; vector f; vector draw; vector elbow;
+    float left = FALSE;
+    float both = FALSE;
+    float kind = g.vr_ag_act_kind;
+    if(act == VR_AGP_PUNCH)
+    {
+        left = (kind == 0 || kind == 2);
+        if(kind == 0)      { w = '-6 -1 -1';  f = '12 4 2';   draw = '-2 0 1';  elbow = '-1 -0.3 -0.5'; } // a jab
+        else if(kind == 1) { w = '-16 -3 -3'; f = '26 6 4';   draw = '-4 0 1';  elbow = '-1 -0.4 -0.3'; } // a cross
+        else if(kind == 4) { w = '-12 8 5';   f = '16 -7 -4'; draw = '-2 0 -4'; elbow = '-0.6 -0.3 -1'; } // an uppercut
+        else               { w = '-22 0 -4';  f = '30 4 5';   draw = '-2 -3 1'; elbow = '-0.3 -1 0.5';  } // a hook
+    }
+    else if(act == VR_AGP_SAW)
+    {
+        w = '-14 -5 -2'; f = '0 0 0'; draw = '-4 0 0'; elbow = '-1 -0.5 -0.3';
+    }
+    else
+    {
+        if(kind == 0)      { w = '-14 -9 -7'; f = '12 15 6';   draw = '-5 0 5';  elbow = '-0.4 -0.7 0.8'; } // overhead
+        else if(kind == 1) { w = '-28 -5 -8'; f = '24 10 8';   draw = '-5 -1 4'; elbow = '-0.5 -0.8 0.6'; } // diagonal
+        else if(kind == 2) { w = '-32 0 -3';  f = '28 4 3';    draw = '-5 -2 1'; elbow = '-0.6 -0.8 0.3'; } // horizontal
+        else               { w = '24 5 6';    f = '-20 -5 -6'; draw = '-3 2 -1'; elbow = '0.3 -0.6 0.5';  } // backhand
+        if(g.vr_ag_prop && VR_AGP_TwoHanded(g.vr_ag_prop))
+        {
+            w = w * 1.15;
+            f = f * 1.15;
+        }
+        if(g.vr_ag_prop2)
+        {
+            left = g.vr_ag_act_hand == 1;
+            both = g.vr_ag_act_hand == 2; // (a scissor: the twists cancel, the lean stays)
+        }
+    }
+    // Each attack its own: the twist and the lean apart
+    float v = g.vr_ag_act_var;
+    float a = 0.8 + 0.4 * v;
+    float v2 = v * 7.31;
+    float b = 0.8 + 0.4 * (v2 - floor(v2));
+    float side = left ? -1 : 1;
+    float twist = both ? 0 : 1;
+    vr_agp_tq_x = (w_x * vr_agp_ww + f_x * vr_agp_wf) * a * torso * side * twist;
+    vr_agp_tq_y = (w_y * vr_agp_ww + f_y * vr_agp_wf) * b * torso;
+    vr_agp_tq_z = (w_z * vr_agp_ww + f_z * vr_agp_wf) * b * shoulder * side * twist;
+    draw = draw * (vr_agp_ww * shoulder * b);
+    elbow = normalize(elbow) * (0.8 * vr_agp_ww * min(1, shoulder));
+    if(!left || both)
+    {
+        vr_agp_drawr = draw;
+        vr_agp_elr = elbow;
+    }
+    if(left || both)
+    {
+        vr_agp_drawl = VR_AGP_Mirror(draw);
+        vr_agp_ell = VR_AGP_Mirror(elbow);
+    }
+    return TRUE;
+};
+
+// A direction in its body's space turned by vr_agp_tq (roll about x, pitch about y, yaw about z: the client's chest turn).
+vector(vector d) VR_AGP_TurnDir =
+{
+    float r = vr_agp_tq_z * (3.14159265 / 180);
+    float p = vr_agp_tq_y * (3.14159265 / 180);
+    float y = vr_agp_tq_x * (3.14159265 / 180);
+    vector o;
+    o_x = d_x;
+    o_y = d_y * cos(r) - d_z * sin(r);
+    o_z = d_y * sin(r) + d_z * cos(r);
+    d = o;
+    o_x = d_x * cos(p) + d_z * sin(p);
+    o_z = -d_x * sin(p) + d_z * cos(p);
+    d = o;
+    o_x = d_x * cos(y) - d_y * sin(y);
+    o_y = d_x * sin(y) + d_y * cos(y);
+    return o;
+};
+
+// `g`'s pose (vr_agp_*: computed, its right grip `posL`) carried by its torso's turn now: the hands' targets drawn back,
+// turned about its waist; the weapons' turns. Its right grip as turned (vr_agp_v moved by as much: the client's target is
+// its drawn hand times wr plus v).
+vector(entity g, vector posL) VR_AGP_TurnPose =
+{
+    vector piv = VR_AM_Fit(g, VR_AGP_WAIST);
+    vector o = VR_AM_Fit(g, '0 0 0');
+    vector pr = posL + VR_AM_Fit(g, vr_agp_drawr) - o;
+    pr = piv + VR_AGP_TurnDir(pr - piv);
+    vr_agp_v = vr_agp_v + (pr - posL);
+    vector pl = vr_agp_vl + VR_AM_Fit(g, vr_agp_drawl) - o;
+    vr_agp_vl = piv + VR_AGP_TurnDir(pl - piv);
+    VR_AGP_Body(g);
+    vr_agp_fw = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_fw)));
+    vr_agp_up = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_up)));
+    if(vr_agp_flags & VR_AGP_LEFTWPN)
+    {
+        vr_agp_fwl = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_fwl)));
+        vr_agp_upl = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_upl)));
+    }
+    return pr;
+};
+
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
@@ -673,6 +858,12 @@ void(entity g, entity p) VR_AGP_Pose =
             vr_agp_up = normalize(vr_agp_up - vr_agp_fw * (vr_agp_up * vr_agp_fw));
         }
     }
+    float body = g.vr_ag_took_at <= 0 && VR_AGP_TorsoNow(g);
+    if(body)
+    {
+        posL = VR_AGP_TurnPose(g, posL);
+        vr_agp_flags = vr_agp_flags | VR_AGP_BODY;
+    }
     if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
         dprint(sprintf("agpose %s act %g kind %g s %.3f wr %.2f grip %v", p ? p.netname : "fists", g.vr_ag_act,
@@ -731,6 +922,15 @@ void(entity g, entity p) VR_AGP_Pose =
         WriteEntity(MSG_BROADCAST, pL);
         VR_AGP_WriteDir(VR_AGP_ToLocal(vr_agp_fwl));
         VR_AGP_WriteDir(VR_AGP_ToLocal(vr_agp_upl));
+    }
+    if(body)
+    {
+        // The torso's turn (degrees x 100), the elbows' poles (x 32000)
+        WriteShort(MSG_BROADCAST, rint(vr_agp_tq_x * 100));
+        WriteShort(MSG_BROADCAST, rint(vr_agp_tq_y * 100));
+        WriteShort(MSG_BROADCAST, rint(vr_agp_tq_z * 100));
+        VR_AGP_WriteDir(vr_agp_elr);
+        VR_AGP_WriteDir(vr_agp_ell);
     }
 };
 
@@ -811,6 +1011,7 @@ void(float act) VR_AGP_Begin =
         self.vr_ag_act_kind = 0;
     }
     self.vr_ag_act_at = time;
+    self.vr_ag_act_var = random();
     self.vr_ag_act_hit = 0;
     self.vr_ag_act_hitl = 0;
     self.vr_ag_act_tick = time;
