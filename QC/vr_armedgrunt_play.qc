@@ -208,7 +208,8 @@ float(entity g, entity pl, float h) VR_AG_TugBegin =
         self.enemy = pl;
         FoundTarget();
     }
-    sound(self, CHAN_VOICE, "soldier/pain2.wav", 1, ATTN_NORM);
+    VR_AM_Row(self.vr_ag_kind);
+    sound(self, CHAN_VOICE, vr_am_pain2, 1, ATTN_NORM); // (its monster's own pain: vr_armedmon.qc)
     self.vr_ag_act = 0; // (an attack under way: given up for the struggle)
     self.think = vr_ag_tughold;
     self.nextthink = time + 0.05;
@@ -323,8 +324,9 @@ void() VR_AG_TugFight =
 };
 
 // Its hold while you tug (the aiming frame: the weapon held out), facing you.
-void() vr_ag_tughold = [81, vr_ag_tughold]
+void() vr_ag_tughold =
 {
+    VR_AM_Anim(VR_AM_A_ATK, 0, vr_ag_tughold);
     entity pl = self.vr_ag_tug_pl;
     if(!pl || !self.vr_ag_prop)
     {
@@ -416,7 +418,7 @@ void(entity g, float wid) VR_AG_DisarmFeedback =
     if(time >= g.vr_ag_snd_at)
     {
         g.vr_ag_snd_at = time + 0.6;
-        sound(g, CHAN_VOICE, random() < 0.5 ? "soldier/pain1.wav" : "soldier/pain2.wav", 1, ATTN_NORM);
+        sound(g, CHAN_VOICE, VR_AM_Pain(g), 1, ATTN_NORM);
     }
     VR_AG_Log(sprintf("disarm feedback: %s", vr_ag_feedback));
 };

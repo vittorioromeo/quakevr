@@ -18227,3 +18227,37 @@ small crate's 75 health; wood x1). At 12: a punch breaks it from 12 m/s (two fro
   a full swing breaks it, a moderate one takes two.
 - [ ] Swing the axe or crowbar along the floor into a crate (the head scraping first): no one-hit break from a slow
   scrape.
+### Armed monsters: the generic layer and the armed enforcer (worktree `release`, branch `agent/armedmon`, 2026-10-23)
+
+His request: "a robust, extensible and generic system, and only add the enforcer as a second choice." Stages 1 (the
+layer) and 2 (the enforcer) done; 3 (dual wielding) and 4 (the toolgun's spawn UI) left for a follow-up.
+
+- **The table** (QC `vr_armedmon.qc` `VR_AM_Row`, `.vr_ag_kind`; engine `vr_hitreact.cpp` `armedRigs`): each armed
+  monster's classname and spawn function (kept: its health, sounds, pains, deaths, ragdoll, hit zones, struggles), its
+  gunless model, right-hand vertices, the hidden gun's line, its frames (stand, run and steps, aim, shove, reload, take),
+  pain sounds, loot, the weapon classes it may hold, the poses' fit onto its body; the engine's: model id, the hand's and
+  gun's vertices, arm bones (each row's left hand found once). `VR_AM_Spawn(kind)` is the spawn; the layer's frame
+  functions take their frames from the row (`VR_AM_Anim`; their names kept, so saves keep working). Hooks in the
+  monster's own code: its death (`VR_AG_Dying`) and loot (`VR_AG_SoldierDrop`); `CheckAnyAttack` takes any `.vr_ag`.
+  How to add one: `docs/vr-port/ARMED_MONSTERS.md`. Names stay `VR_AG_*` / `vr_agrunt_*` (saves, settings: no
+  migration, no config version).
+- **The armed enforcer** (`monster_vr_enforcer`, classname `monster_enforcer`; `progs/vrenforcer.mdl` from
+  `make_vrgrunt.py`, now a table of models: the rifle's 118 triangles dropped; vrgrunt.mdl rebuilt byte-identical).
+  Its right hand: vertices 41, 364, 365 (still in the rifle's space over its living frames: 1.0-1.6 units rms;
+  `scratch/am_analyse.py`); the rifle's rear 425/420, muzzle 407/100, top 409, bottom 412; its run (23..30, its own
+  steps), aim attack2..10 (the shot in attack6, as id's), shove 102, reload on its stand frames, take paind5..8 (a
+  knee); 5 cells as loot; the poses fitted (y times 1.35, z 1.1, moved -3 0 7: its shoulders). Model id `VrEnforcer`,
+  the enforcer's rig. The shared pool (`vr_agrunt_w_*`). Toolgun: Monsters > Armed Enforcers (pool, fists, 13 stock
+  weapons), appended. FGD regenerated.
+- **Tests** (`vr_agrunt_test_kind` 0 grunt / 1 enforcer; Debug > Tests: "Armed Grunts: Tests Spawn Enforcers"). The
+  grunt after the refactor: test 1 16/17 (the proximity gun, as before), 2 4/4, 3, 20-30: 25 PASS, 0 FAIL; eyeshots
+  (tests 14 and 15) against origin/next's build: the same poses (test 14's 500 pixels differ, test 15's 11k: the
+  skins' random blood). The enforcer: test 1 16/17, 2 4/4, 20 and 22-30 PASS; 3 and 21 FAIL: the scripted mock hand
+  (`vr_mock_hand main 0.1 0.72 -1.2`) is at the grunt's gun height, the enforcer's gun 14 units higher (open). Tests
+  run one after another need `wait5` between them (their state resets on a frame with `vr_agrunt_test 0`).
+- **Left**: dual wielding; the toolgun spawn UI; the enforcer's gun carry when not aiming (down by its side in test
+  15's standing row: check); tests 3/21 for the enforcer; the Combat > Armed Grunts page keeps its name.
+
+**In VR:** spawn Armed Enforcers from the toolgun: the weapon in its right hand as it runs and shoots, both hands on
+guns, punches and swings at its height, its pains and death (the weapon falls; 5 cells or its reserve in the pack),
+grab its gun; armed grunts as before.

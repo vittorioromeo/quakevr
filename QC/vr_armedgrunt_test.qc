@@ -21,6 +21,11 @@ entity vr_agt_grunt;
 entity vr_agt_player;
 float VR_AGT_COUNT = 17;
 
+// The armed monster the tests spawn: vr_agrunt_test_kind (vr_armedmon.qc VR_AM_*: 0 the grunt, 1 the enforcer).
+float() VR_AGT_Kind = { return min(VR_AM_COUNT - 1, max(0, rint(cvar("vr_agrunt_test_kind")))); };
+// ... its classname (its monster's).
+string() VR_AGT_Classname = { VR_AM_Row(VR_AGT_Kind()); return vr_am_classname; };
+
 float(float i) VR_AGT_Wid =
 {
     if(i == 0) { return -1; }
@@ -81,7 +86,7 @@ entity(float wid, float dist) VR_AGT_Spawn =
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
     self.weapon = wid;
-    monster_vr_grunt();
+    VR_AM_Spawn(VR_AGT_Kind());
     entity g = self;
     self = oldself;
     return g;
@@ -298,7 +303,7 @@ void() VR_AGTest_Yank =
 void() VR_AGTest_State =
 {
     float n = 0;
-    entity e = find(world, classname, "monster_army");
+    entity e = find(world, classname, VR_AGT_Classname());
     while(e)
     {
         if(e.vr_ag)
@@ -307,14 +312,14 @@ void() VR_AGTest_State =
             entity q = e.vr_ag_prop;
             VR_AGT_Print(sprintf("state: %s health %g, holds %s (clip %g, reserve %g), its weapon %.1f from its hand",
                 VR_AGT_Name(e.vr_ag_wid), e.health, q ? q.netname : "nothing", q.weaponinst.wi_clip,
-                e.vr_ag_reserve, q ? vlen(q.origin - modelvertex(e, VR_AG_HAND_V1)) : -1));
+                e.vr_ag_reserve, q ? vlen(q.origin - VR_AM_Hand(e)) : -1));
             if(q)
             {
                 VR_AGT_Print(sprintf("state:   %s at %v (the grunt's origin + %v), angles %v, muzzle %v", q.model, q.origin,
                     q.origin - e.origin, q.angles, weaponmuzzle(q)));
             }
         }
-        e = find(e, classname, "monster_army");
+        e = find(e, classname, VR_AGT_Classname());
     }
     VR_AGT_Print(sprintf("state: %g armed grunts", n));
     cvar_set("vr_agrunt_test", "0");
@@ -563,14 +568,14 @@ void() VR_AGTest_Frame =
     }
     else if(t == 10) // every armed grunt hunts you now
     {
-        entity h = find(world, classname, "monster_army");
+        entity h = find(world, classname, VR_AGT_Classname());
         while(h)
         {
             if(h.vr_ag && h.health > 0)
             {
                 VR_AGT_Hunt(h);
             }
-            h = find(h, classname, "monster_army");
+            h = find(h, classname, VR_AGT_Classname());
         }
         cvar_set("vr_agrunt_test", "0");
     }

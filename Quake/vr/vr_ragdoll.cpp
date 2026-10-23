@@ -547,12 +547,14 @@ constexpr Seed playerSeeds[] = {
 constexpr SeedTable seedTables[] = {
 #include "vr_ad_rigs.inc" // AD support: their tables
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
-    // The armed grunt (QC vr_armedgrunt.qc): the grunt's model without its gun's triangles (its vertices kept: the same
+    // The armed grunt (QC vr_armedgrunt.qc, vr_armedmon.qc): the grunt's model without its gun's triangles (its vertices kept: the same
     // numbering, frames and rig).
     {modelmeta::Id::VrGrunt, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
     {modelmeta::Id::Enforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
+    // The armed enforcer (QC vr_armedmon.qc): the enforcer's model without its rifle's triangles (as the armed grunt).
+    {modelmeta::Id::VrEnforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
     {modelmeta::Id::Hknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Dog, 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Wizard, 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
