@@ -940,13 +940,13 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
                 b.q = qt;
                 b.v = glm::vec3{0.f};
                 b.w = glm::vec3{0.f};
-                if(flipped)
+                if(snapped || flipped)
                 {
                     // The melee takes it for a jump, not a swing. (Once only the half turn: a hand's own jump was thought
-                    // one already, but the melee's own test misses one under 30 cm. Its target moved by the walls'
-                    // hold (a weapon slid along the floor, let go) or a frame's hitch put a lagging weapon back in the
-                    // hand at once, 20-25 cm in a frame: a blow at 3-4 times the hand's speed, a crate broken by one;
-                    // ROUND22.md, "Crates: one hit".)
+                    // one already, but the melee's own test misses one under 30 cm. A target moved at once by the walls'
+                    // hold (a weapon slid along the floor, then let go) put a lagging weapon back in the hand 20-25 cm
+                    // in a frame: a blow at 3-4 times the hand's speed, a crate broken by one; ROUND22.md, "Crates: one
+                    // hit".)
                     b.jumpUntil = vr_gametime + jumpLatch;
                 }
                 if((snapped || flipped) && vr_debug_weight.value)
