@@ -2513,6 +2513,15 @@ extern "C" void VR_PushMapLights(void)
     // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
     // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
     r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
+    // The depth write's split (r_world.c: R_DrawSolidSplit): how far ahead of the eye (view depth, units) the world's
+    // relief writes its depth; beyond, and on textures without relief, the plain programs, which the driver still
+    // tests early against the pre-pass's depth. Its most: where the parallax ends (no reach beyond: the same depth).
+    // 0: no split (the depth write off, its debug view, or vr_parallax_depth_split 0).
+    const float pdoReach = vr_parallax_depth_distance.value > 0.f
+                               ? za::min(vr_parallax_depth_distance.value, r_framedata.parallax[1])
+                               : r_framedata.parallax[1];
+    r_framedata.parallax3[1] =
+        r_framedata.parallax2[3] == 1.f && vr_parallax_depth_split.value != 0.f ? za::max(pdoReach, 16.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

@@ -263,6 +263,7 @@ static union {
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
+static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
 
 /*
 =============
@@ -504,7 +505,9 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
 	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
 	VR_PBRStrength (nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
-	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
+	if (bmodel_relief_filter && (extmat[3] > 0.f) != (bmodel_relief_filter == 1)) // QVR: the depth write's split (R_DrawSolidSplit): extmat[3] the relief's height (the shader's in_pdepth: 0 none)
+		return;
+	flags =zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
 	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
 		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;
 	alpha = t ? GL_WaterAlphaForTextureType (t->type) : 1.f;
@@ -566,6 +569,7 @@ typedef struct
 	int		left, passes;
 	GLuint	queries[2];		// fragment shader invocations, samples passed
 	double	prepass, shaded, kept;
+	int		splits;			// the passes drawn split (R_DrawSolidSplit)
 } worldfragments_t;
 static worldfragments_t worldfragments;
 
@@ -607,8 +611,9 @@ static void R_WorldFragmentsEnd (qboolean shading)
 	worldfragments.passes++;
 	if (--worldfragments.left > 0)
 		return;
-	Con_Printf ("vr_world_fragments: %d passes (pdo %d): a pass's pre-pass shaded %.0f, "
+	Con_Printf ("vr_world_fragments: %d passes (pdo %d, split %d at %.0f): a pass's pre-pass shaded %.0f, "
 		"shading shaded %.0f, kept %.0f: shaded/kept %.3f\n", worldfragments.passes, r_framedata.parallax2[3] > 0.f ? 1 : 0,
+		worldfragments.splits, r_framedata.parallax3[1],
 		worldfragments.prepass / worldfragments.passes,
 		worldfragments.shaded / worldfragments.passes, worldfragments.kept / worldfragments.passes,
 		worldfragments.shaded / q_max (worldfragments.kept, 1.0));
@@ -652,6 +657,8 @@ when first drawn with marks about, as before (1.6-1.7 s each here, uncached by t
 void R_PrewarmDecalPrograms (qboolean pdo)
 {
 	GL_WorldDecalRetroProgram (0, R_WorldDither (), pdo);
+	if (pdo) // its plain twin too: the depth write's split draws the far and flat surfaces with it (R_DrawSolidSplit)
+		GL_WorldDecalRetroProgram (0, R_WorldDither (), false);
 }
 
 static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
@@ -677,6 +684,47 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 
 /*
 =============
+R_DrawSolidSplit
+
+QVR: the opaque world's draws with the parallax depth write (vr_parallax_depth_write) split three ways, `reliefprog`
+writing gl_FragDepth, `flatprog` not. This NVIDIA driver runs every fragment of a program that writes gl_FragDepth
+(no early depth test, whatever its layout), so the pre-pass's depth saved it nothing and the costly shading ran on
+every hidden pixel too (2.5-3.2x the pixels kept in ad_tfuma; ROUND22.md, "Parallax depth write's cost"). Here only
+the textures with relief (extmat[3] > 0), nearer than Parallax3.y in view depth (GL_CLIP_DISTANCE2, the world vertex
+shader), go to `reliefprog`; the same textures further away, and the textures without relief, to `flatprog`, whose
+fragments the driver still rejects early. The picture is the same: further than the parallax's reach and without
+relief, `reliefprog` writes the surface's own depth too. Parallax3.y 0 (no split): all to `reliefprog`, as before.
+=============
+*/
+static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, textype_t texend, GLuint reliefprog, GLuint flatprog)
+{
+	if (r_framedata.parallax3[1] <= 0.f || reliefprog == flatprog)
+	{
+		R_ResetBModelCalls (reliefprog);
+		R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+		R_FlushBModelCalls ();
+		return;
+	}
+	if (worldfragments.left > 0) // (vr_world_fragments)
+		worldfragments.splits++;
+	glEnable (GL_CLIP_DISTANCE2);
+	bmodel_relief_filter = 1;
+	R_ResetBModelCalls (reliefprog); // the relief, near
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	R_ResetBModelCalls (flatprog); // the relief, far
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	glDisable (GL_CLIP_DISTANCE2);
+	bmodel_relief_filter = 2;
+	R_ResetBModelCalls (flatprog); // no relief
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	bmodel_relief_filter = 0;
+}
+
+/*
+=============
 R_DrawBrushModels_Real
 =============
 */
@@ -686,6 +734,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	int totalinst;
 	unsigned state;
 	GLuint program;
+	GLuint flatprog = 0; // QVR: the opaque pass's plain program beside the depth-writing one (R_DrawSolidSplit)
 	GLuint buf;
 	GLbyte *ofs;
 	textype_t texbegin, texend;
@@ -710,6 +759,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		texbegin = 0;
 		texend = TEXTYPE_CUTOUT;
 		program = R_ChooseBModelProgram (oit, false, !translucent && r_framedata.parallax2[3] > 0.f); // QVR: pdo
+		flatprog = !translucent && r_framedata.parallax3[1] > 0.f ? R_ChooseBModelProgram (oit, false, false) : program; // QVR: the depth write's split (R_DrawSolidSplit)
 		break;
 	case BP_ALPHATEST:
 		texbegin = TEXTYPE_CUTOUT;
@@ -805,11 +855,10 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass == BP_SOLID && !translucent)
 	{
 		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
-		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
+		GLuint depthprog = r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth; // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_WorldFragmentsBegin (false); // QVR: (vr_world_fragments)
-		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
-		R_FlushBModelCalls ();
+		R_DrawSolidSplit (ents, count, texbegin, texend, depthprog, flatprog != program ? glprogs.world_depth : depthprog); // QVR: split as the shading is
 		R_WorldFragmentsEnd (false); // QVR
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		R_ResetBModelCalls (program);
@@ -822,10 +871,17 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		pass == BP_ALPHATEST ? "shading: fences" : pass == BP_SHOWTRIS ? "shading: showtris" : "shading: sky");
 	if (pass == BP_SOLID && !translucent)
 		R_WorldFragmentsBegin (true); // QVR: (vr_world_fragments)
-	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
-
-	VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
-	R_FlushBModelCalls ();
+	if (pass == BP_SOLID && !translucent) // QVR: the depth write's split (R_DrawSolidSplit)
+	{
+		VR_TemporalMotionWrites (1); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
+		R_DrawSolidSplit (ents, count, texbegin, texend, program, flatprog);
+	}
+	else
+	{
+		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+		VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
+		R_FlushBModelCalls ();
+	}
 	VR_TemporalMotionWrites (0); // QVR
 	if (pass == BP_SOLID && !translucent)
 		R_WorldFragmentsEnd (true); // QVR

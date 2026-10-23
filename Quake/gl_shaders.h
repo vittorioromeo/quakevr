@@ -665,6 +665,14 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "#endif\n"
 "	if ((call.flags & CF_USE_POLYGON_OFFSET) != 0u)\n" // QVR: pushed back a fixed fraction of its distance (QVR_ZFIX)
 "		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
+	// QVR: the depth write's split (r_world.c R_DrawSolidSplit; GL_CLIP_DISTANCE2 on only there): the programs writing
+	// the relief's depth keep what is nearer than Parallax3.y in view depth (gl_Position.w, invariant, linear: exact
+	// on any polygon), the plain ones what is further, overlapping by 2 units (no seam; the same depth there)
+"#if defined(PDO) && PDO\n"
+"	gl_ClipDistance[2] = Parallax3.y + 1.0 - gl_Position.w;\n"
+"#else\n"
+"	gl_ClipDistance[2] = gl_Position.w - (Parallax3.y - 1.0);\n"
+"#endif\n"
 "	out_prevclip = vec4(0.0); // QVR: temporal AA (vr/vr_temporal.cpp): where it was a frame ago, if it moves by itself or is a liquid\n"
 "#ifndef QVR_MULTIVIEW\n"
 "	if (TemporalJitter.w > 0.0 && (instance.prevmat[0] != instance.mat[0] || instance.prevmat[1] != instance.mat[1] || instance.prevmat[2] != instance.mat[2]))\n"

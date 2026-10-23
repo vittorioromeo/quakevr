@@ -435,6 +435,9 @@ const DefaultChange defaultChanges[] = {
     // "Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords").
     {191, &vr_kdtrig_tackle_leniency, "0.2"}, // 0.4
     {191, &vr_kdtrig_tackle_stand, "0.8"},    // 0.75
+    // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
+    // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
+    {192, &vr_parallax_depth_write, "1"}, // 0
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -453,7 +456,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 191;
+constexpr int configVersion = 192;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

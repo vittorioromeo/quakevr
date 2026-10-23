@@ -83,9 +83,9 @@ constexpr Row presetRows[] = {
     // Surfaces: bumps, parallax, detail, carved holes, marks
     {&vr_normalmaps,                  {"0",     "0",     D,       D,    D}}, // (next map)
     {&vr_parallax,                    {"0",     "0",     D,       D,    D}},
-    // Medium: the relief's own depth not written (its pixels keep early depth testing): on an AD fight that halves the
-    // eyes' GPU time, nearly all of what parallax costs (ROUND22.md, "Graphics presets")
-    {&vr_parallax_depth_write,        {D,       D,       "0",     D,    D}},
+    // The relief's own depth written only in Ultra (off by default since config 192): its programs lose early depth
+    // testing, 1.3 ms of an AD fight's 3.3 ms eye frame even split (ROUND22.md, "Parallax depth write's cost")
+    {&vr_parallax_depth_write,        {D,       D,       D,       D,    "1"}},
     {&vr_parallax_steps,              {D,       D,       D,       D,    "24"}},
     {&vr_detail,                      {"0",     "0",     D,       D,    D}}, // (off by default)
     {&vr_decal_carve,                 {"0",     "0",     D,       D,    D}},

@@ -17786,3 +17786,60 @@ In VR: shoulder charge as usual (a little more lenient, standing a little lower)
 stone golem, a drole, a justice knight (AD) and a point knight: they fight back. Let a pyro flame you while you stand in
 shallow water: steam and hiss at the surface, no flames under it; burnt marks on the floor round you. Spawn the four new
 armed grunts from the toolgun (Monsters > Armed Grunts, the last four) and look at how each holds its sword.
+
+## Parallax depth write's cost (worktree `goreflesh`, branch `agent/pdepth`, 2026-10-23)
+
+Why: "Graphics presets" measured `vr_parallax_depth_write` at about 2 ms of a 4.3 ms eye frame (AD fight).
+
+**Cause** (`vr_world_fragments` at ad_tfuma's spawn, mock VR, 2048-pixel eyes, 4x MSAA, per eye pass): the world's
+fragment shader runs on 5.30 M fragments with the depth write and 1.68 M without; 10.67 M against 4.33 M with
+foveation off (4.19 M pixels). This NVIDIA driver drops early depth testing for any program that writes
+`gl_FragDepth`. The conservative-depth layouts don't change that (see "Conservative depth for the parallax depth write").
+So the depth pre-pass saved the shading nothing: every hidden fragment ran the full shader (parallax, bumps, PBR, the
+lights' shadows). AD's deep scenes give 2.5-3.2x overdraw, where start and hip1m1 gave 1.15-2x. That is why the AD
+fight paid 2 ms and the older measurements 0.1-0.6. The pre-pass also ran its own small shader on all 5.30 M. It isn't
+the parallax walk (`vr_parallax_steps 8` saved nothing), and it isn't the shadow maps (their programs don't write
+depth; 0.057 ms either way). The cost is all in `world+brush` (3.04 against 1.06 ms).
+
+**Kept: the split** (`R_DrawSolidSplit`, r_world.c). The opaque world's pre-pass and shading are now drawn three ways:
+- the textures with relief (`extmat[3] > 0`) nearer than the split distance, with the depth-writing programs;
+- the same textures further away, with the plain programs;
+- the textures without relief, with the plain programs.
+
+The split is in view depth, `gl_Position.w` (invariant, and linear, so exact on any polygon). It is cut by
+`GL_CLIP_DISTANCE2` in the world vertex shader: the PDO programs keep `w < D + 1`, the plain ones `w > D - 1`. The 2-unit
+overlap means there's no seam, and both write the same depth there. The plain programs keep early depth testing against
+the pre-pass. `D` is `Parallax3.y`: `vr_parallax_depth_distance` (archived, default 0 = `vr_parallax_distance`, at
+most that). Beyond the parallax's distance `ParallaxReach` is 0, so the depth-writing shader wrote the surface's own
+depth there anyway. At the default the picture is the same: paused eyeshots with the split on and off differ by 88k/66k
+pixels (L/R), and two shots with it off differ by 84k/67k (the scene's own flicker); peak 92/102 both ways.
+`scratch/pdw_look_nosplit_split_debug.png` shows them (no split | split | `vr_parallax_debug`). The retro decals'
+plain twin (`world_decal_retro`) is now made at map load beside the PDO one (`R_PrewarmDecalPrograms`), only while the
+depth write is on. `vr_parallax_depth_split` (CVAR_NONE, 1; Debug > Views > Parallax Depth Split) is the A/B.
+`vr_world_fragments` prints `split N at D`.
+
+| AD fight (`play_ad_tfuma_fight`, 2 x 600 frames, exclusive, High) | shaded / pass | eyes GPU ms | world+brush |
+|---|---|---|---|
+| depth write on, no split (as before) | 5.30 M | 4.10 | 2.94 |
+| split at the parallax distance (1024, the default; same picture) | 3.35 M | 3.30 | 2.13 |
+| split at 512 (`vr_parallax_depth_distance 512`; flat depth past 512) | 2.52 M | 2.87 | 1.73 |
+| split at 256 | 1.85 M | not timed | |
+| depth write off | 1.68 M | 2.01 | 1.02 |
+| Ultra preset (depth write on, split) | | 3.57 | 2.29 |
+
+**Defaults (his decision):** the split saves 0.8 ms, but the depth write still costs 1.3 ms, more than the 0.4 ms
+target. So `vr_parallax_depth_write` is now 0 by default (High) and 1 in Ultra (`presetRows`; Medium's own 0 is gone, it
+is the default now). Config 192 moves configs still at the old default 1 to 0; custom values stay (checked:
+`vr_cfg_version` 141 → 192, the value 1 → 0; Ultra sets 1 and High sets it back to 0). SETTINGS.md's preset table is
+updated: High 2.0 ms, Ultra 3.6 ms.
+
+**Not tried / next:** early rejection inside the depth-writing shader. After the pre-pass, a compute pass would build a
+4x4-tile "farthest depth" copy of the eye's depth (all MSAA samples). The PDO shading would discard at once any fragment
+whose nearest possible hit (the relief's top) is behind its tile's farthest. That's exact, and it would cut most of the
+remaining 1.67 M hidden fragments (an estimated 0.6-0.8 ms). Its cost: the tile pass (about 0.05-0.1 ms an eye), each
+eye/multiview/mirror FBO's depth as a texture, and the coarse-shading tiles. That could bring the depth write under
+0.4 ms. Also open: drawing the far relief with flat depth (`vr_parallax_depth_distance 512`, 0.86 ms over off) changes
+how things meet the relief past 512 units.
+
+In VR: Graphics > Surfaces > Parallax Depth Write is off now. Turn it on (or pick Ultra) and look at monsters' feet and
+props on raised floors near and far: it should look as before, for about 1.3 ms in big AD maps (0.8 ms less than before).
