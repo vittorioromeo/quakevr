@@ -2099,8 +2099,8 @@ void retroAllUncheckCategories()
 struct FoamRows
 {
     cvar_t &on, &opacity, &frequency, &strength, &breathe, &breatheSpeed, &breatheIrregularity, &red, &green, &blue,
-        &particles, &particleLife, &particleOpacity, &particleSize;
-    const char* label[15]; // the header, then each row's
+        &particles, &particleLife, &particleOpacity, &particleSize, &particleShore, &edge;
+    const char* label[17]; // the header, then each row's
 };
 
 void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
@@ -2120,6 +2120,8 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     items.pushBack(slider(r.label[12], r.particleLife, 0.2f, 4.f, 0.1f, "%.1f s").extend().help("How long each foam particle lasts, drifting and fading out."));
     items.pushBack(slider(r.label[13], r.particleOpacity, 0.f, 1.f, 0.05f, "%.2f").extend().help("How opaque the foam particles are."));
     items.pushBack(slider(r.label[14], r.particleSize, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("How big the foam particles are (1: about 3 units across, growing to 9 as they fade)."));
+    items.pushBack(slider(r.label[15], r.particleShore, -4.f, 16.f, 0.5f, "%.1f").extend().help("Where the foam particles are born: units out from the line where the liquid meets the rock (0: on it, a little either side, over the hard edge; more: out in the foam band)."));
+    items.pushBack(slider(r.label[16], r.edge, 0.f, 12.f, 0.5f, "%.1f").extend().help("A wavy edge: the liquid's edge at the shore drawn back in slow curves that drift along it, the foam following them, so it is not one straight cut. How far, units (0 off)."));
 }
 
 [[nodiscard]] za::Vector<Item> pageGraphicsFoam()
@@ -2129,24 +2131,27 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
         vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
         vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,
-        vr_water_foam_particle_opacity, vr_water_foam_particle_size,
+        vr_water_foam_particle_opacity, vr_water_foam_particle_size, vr_water_foam_particle_shore, vr_water_foam_edge,
         {"Water", "Water Foam", "Water Opacity", "Water Frequency", "Water Strength", "Water Breathing",
             "Water Breathing Speed", "Water Breathing Irregularity", "Water Red", "Water Green", "Water Blue",
-            "Water Particles", "Water Particle Life", "Water Particle Opacity", "Water Particle Size"}});
+            "Water Particles", "Water Particle Life", "Water Particle Opacity", "Water Particle Size",
+            "Water Particle Shore", "Water Wavy Edge"}});
     addFoamRows(items, {vr_lava_foam_on, vr_lava_foam_opacity, vr_lava_foam_frequency, vr_lava_foam_strength,
         vr_lava_foam_breathe, vr_lava_foam_breathe_speed, vr_lava_foam_breathe_irregularity, vr_lava_foam_red,
         vr_lava_foam_green, vr_lava_foam_blue, vr_lava_foam_particles, vr_lava_foam_particle_life,
-        vr_lava_foam_particle_opacity, vr_lava_foam_particle_size,
+        vr_lava_foam_particle_opacity, vr_lava_foam_particle_size, vr_lava_foam_particle_shore, vr_lava_foam_edge,
         {"Lava", "Lava Foam", "Lava Opacity", "Lava Frequency", "Lava Strength", "Lava Breathing",
             "Lava Breathing Speed", "Lava Breathing Irregularity", "Lava Red", "Lava Green", "Lava Blue",
-            "Lava Particles", "Lava Particle Life", "Lava Particle Opacity", "Lava Particle Size"}});
+            "Lava Particles", "Lava Particle Life", "Lava Particle Opacity", "Lava Particle Size",
+            "Lava Particle Shore", "Lava Wavy Edge"}});
     addFoamRows(items, {vr_slime_foam_on, vr_slime_foam_opacity, vr_slime_foam_frequency, vr_slime_foam_strength,
         vr_slime_foam_breathe, vr_slime_foam_breathe_speed, vr_slime_foam_breathe_irregularity, vr_slime_foam_red,
         vr_slime_foam_green, vr_slime_foam_blue, vr_slime_foam_particles, vr_slime_foam_particle_life,
-        vr_slime_foam_particle_opacity, vr_slime_foam_particle_size,
+        vr_slime_foam_particle_opacity, vr_slime_foam_particle_size, vr_slime_foam_particle_shore, vr_slime_foam_edge,
         {"Slime", "Slime Foam", "Slime Opacity", "Slime Frequency", "Slime Strength", "Slime Breathing",
             "Slime Breathing Speed", "Slime Breathing Irregularity", "Slime Red", "Slime Green", "Slime Blue",
-            "Slime Particles", "Slime Particle Life", "Slime Particle Opacity", "Slime Particle Size"}});
+            "Slime Particles", "Slime Particle Life", "Slime Particle Opacity", "Slime Particle Size",
+            "Slime Particle Shore", "Slime Wavy Edge"}});
     return items;
 }
 

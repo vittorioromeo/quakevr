@@ -18785,3 +18785,34 @@ His notes (vrfiringrange_2026-10-23_21-23-16, 21-24-32, 21-25-15, 21-25-53). New
   pose of the back (not the drawn pose's vertices: its offset carried onto the drawn body), so in hit reactions and IK
   it can be a few units off. The worn hose is a listen server's (as the world hoses). Dual-wielding monsters: only the
   first weapon's tank.
+## Shoreline foam: his values, particles on the shore's line, a wavy edge (worktree `fastship`, branch `agent/foam3`, 2026-10-23)
+
+His notes (start 21-30, vrfiringrange 21-28, e1m1 21-33): his water particle, lava foam and particle, and slime values
+as the defaults; the particles sat in the middle of the band, not over the hard edge; the surface's edge at the shore
+less straight, more organic.
+
+- **Defaults (configVersion 196, migrated where the config still holds the old value)**: water `_breathe` 0.35 -> 0.45,
+  `_breathe_speed` 1 -> 2, `_particle_size` 1 -> 1.5, `_particles` 1 -> 2; lava `_breathe` 0.3 -> 0.65,
+  `_breathe_speed` 0.5 -> 2.7, `_particle_opacity` 0.6 -> 0.55, `_particle_size` 1 -> 3.05, `_particles` 0.6 -> 1.5;
+  slime `_blue` 0.14 -> 0.16, `_breathe` 0.25 -> 0.7, `_breathe_speed` 0.6 -> 3.4, `_frequency` 1.5 -> 1.6, `_green`
+  0.62 -> 0.56, `_strength` 1.5 -> 1.9, `_particles` 0.6 -> 1.5. Every other foam cvar of his config already matched.
+- **Particles on the line** (vr_particles.cpp `shoreFoam`): born `particle_shore + (-0.5 .. 1.5) * size` units out from
+  the shore's line (before `0.5 .. 3.5 * size`, in the band), drifting out at 0.5-2.5 u/s (was 1-4). New per liquid
+  `vr_water_foam_particle_shore`, `vr_lava_foam_particle_shore`, `vr_slime_foam_particle_shore` (0; -4..16 units).
+- **Wavy edge** (new `vr_water_foam_edge` 4, `vr_lava_foam_edge` 3, `vr_slime_foam_edge` 3; units, 0 off; in the
+  frame data's `Foam[i].w`, unused before): in `LiquidFoam` the shore distance is pulled back by up to that many units
+  by a slow two-octave world noise drifting along the shore (more where the swells push in), the foam follows the new
+  line and the liquid's output alpha is times `LiquidEdge` (see-through past it, a soft 1-unit edge, wider far off),
+  both liquid programs. Liquids drawn opaque (id maps without watervis, e1m1's water) don't blend, so
+  `LiquidDisplace` also raises the swells' mesh's rim vertices by up to 0.6x the edge (fading out 12 units in; only up,
+  no gap opens): the waterline climbs the wall in curves. The mesh's 16-unit cells make those curves gentle polylines.
+  Where two kinds of liquid meet with different edges a thin slit could open (not seen in the test maps).
+- **Cost** (`--exclusive`, `vr_profile_report 3`, vrtesthall's pool shore filling the view, 250 fps fast mode): GPU
+  `water` 0.138 (edges 0) / 0.136 (defaults) / 0.137 (edges 0) ms: within noise.
+- Eyeshots: `scratch/foam3_pool_pair2.png` (vrtesthall pool's west wall, his values with edges 0 and particles at the
+  old distance / defaults), `scratch/foam3_e1m1_pair.png` (e1m1 water, alpha only: no change on its opaque water),
+  `scratch/foam3_pair2.png` (e1m1 with the rim raise: the far shore curves).
+- Checklist test scenario: `foam_pool` (unchanged; the pool's edge).
+
+**In VR:** vrtesthall's pool and e1m1's water: the shore line should wander in soft curves, the puffs sitting on it.
+Shoreline Foam Settings: Water/Lava/Slime Wavy Edge (0 to compare), Particle Shore (more: out into the band).
