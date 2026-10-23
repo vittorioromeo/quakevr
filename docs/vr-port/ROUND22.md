@@ -19293,3 +19293,57 @@ build, and run the checks below.
 
 **In VR:** punch (straight, hook, uppercut) with both hands: the fist's line should feel like his edit; swing the
 shotgun, the fury's sword and the mace; the shotgun's shots must still leave its muzzle where they did.
+## The held flail moves with you and is drawn smooth (worktree `gorefx`, branch `agent/flail4`, 2026-10-24)
+
+His notes vrtesthall_2026-10-24_00-54-30 ("if I move the thumbstick, the flail starts spazzing out and going super,
+super fast") and 00-55-37 ("it feels like it's following the server tick rate but not the client FPS").
+
+- **Why it flung itself.** The head was simulated in the world: the anchor (QC `.muzzlepos`) ran with his stick walk
+  at about 8 m/s (under the 25 m/s "a jump" guard, so taken as a swing), the start of each walk whipped the head, and
+  the air drag (0.6 a second, against the world) dragged it behind him for as long as he walked; snap and smooth turns
+  swung the anchor round his head in one tick. In his replay, running with a still hand: the head moved 7.1 m/s
+  (mean; p95 14.2, max 17.8) in his own frame.
+- **Fix: the head in his moving frame** (`vr_box3d_flail.cpp carryWithPlayer`, before each step): his own move since
+  the last tick, his origin's (the stick, a push, a lift, a fall, a teleport within 1.5 m) and his play space's turn
+  (QC `.vryaw`, the client's turnYaw sent with the hands) about his head (`.headpos`: the play space turns about it),
+  carries the head and its anchor rigidly (their speeds and the head's spin turned too); the step then moves it only by
+  the hand's move on the body and its own swing, the air slowing it in his frame. `vr_flail_inertia` (new, 0.2; Flail
+  page, "Flail Body Inertia") of his change of speed is still given to it (at most 10 m/s a tick), so a hard stop swings
+  it on a little; a stair's step (faster than 25 m/s) is carried but not counted. QC's `.vr_flail_headvel` (the dropped
+  head's speed) gets his speed back on. Hits are the head's speed in his frame (running into something with it hanging
+  hits as it swings, not at his run's speed). `vr_flail_frame 0` (debug) is the old world simulation.
+- **Why it was jerky.** The view drew the head where each server step left it (72 Hz), under the hand drawn at the
+  headset's rate. **Fix** (`vr_flail_smooth`, debug, 1): after each step its place from the anchor and its turn are kept
+  in the play space's frame (turned back by `.vryaw`), stamped with the server time its message carries (qcvm->time
+  after the step); the view (`vr_flail.cpp`, `box3d::flailHeadAt`) interpolates the last steps at `cl.time` (the
+  entities' own lerp) and puts the result on the handle's end as drawn now, turned by the turn now: the head and chain
+  follow the hand every frame, their own swing interpolated (a tick behind, as every entity). `vr_flail_debug 3` prints
+  the drawn head and handle each drawn frame ("flail drawn"); the step line (2) now has the server time, his origin and
+  yaw.
+- **Measured** (`scratch/fl4_replay.sh`, `fl4_mock.sh`, `fl4_sum.py`; his notes replayed in the `flail` scene with
+  `noplace`, the flail given by `vr_ad_test 146` after the replay's setup, which gives weapon 13 without the AD melee
+  flags; "body frame": the head's place from his origin turned back by his yaw):
+
+  | | before | after |
+  | --- | --- | --- |
+  | 00-54-30, running with a still hand: head in his frame, mean / p95 / max m/s | 7.06 / 14.2 / 17.8 | 2.24 / 4.55 / 13.9 |
+  | ... head's world speed max (he ran at 7.4) | 22.9 | 14.6 |
+  | ... within 0.3 s of a turn: head in his frame mean / p95 | 5.94 / 11.5 | 2.60 / 4.32 |
+  | ... drawn head, 2nd difference a frame (units), mean / p95 | 2.43 / 6.96 | 0.32 / 0.91 |
+  | 00-55-37, running with a still hand: mean / p95 | 5.38 / 8.10 | 2.78 / 5.29 |
+  | ... turns: mean / p95 | 4.51 / 7.89 | 2.70 / 6.28 |
+  | ... drawn 2nd difference mean / p95 | 2.34 / 5.87 | 0.34 / 1.02 |
+  | mock at 90 Hz (stick walk 1.25 s, still hand): head in his frame mean / p95 | 5.14 / 9.33 | 0.90 / 1.68 (as standing: 0.89) |
+  | ... drawn head from the handle, 2nd difference mean: still / walk / swing (`vr_mock_swing 1.2`) | 0.18 / 1.86 / 1.39 | 0.03 / 0.06 / 0.27 |
+
+  The stray 60 m/s rows in both are the flail being given mid-replay. The flail tests (166 drop, 167 take with
+  `+grabmain`, 168 kick, 169 spawn, 170 carry, 165 count): pairs joined, ropes within, 0 orphans, the taken flail held.
+  `eval.sh`: canary 37/45, 3 PASS -> PASS drifts as above (the full set's step stopped on a take missing from his
+  motions folder, `no_hit_2026-10-12_12-28-17.csv`: the kit's, not this change's; the flail runs only with a held flail).
+- **Menus:** Flail page: Flail Body Inertia. Debug > AD Monsters: Flail Head in Your Frame (`vr_flail_frame`), Flail
+  Head Drawn Smooth (`vr_flail_smooth`). Test scene: `flail` reused.
+
+**In VR:** take the flail (`flail` scene), hold the hand still and walk with the stick: the ball should hang and come
+along, swaying a little as you start and stop (Flail Body Inertia: higher swings it more, 0 none); snap and smooth turn:
+it turns with you. Swing it while walking: it swings as when standing. Look at the ball and chain while moving your
+hand slowly: they should move as smoothly as the hand (toggle Flail Head Drawn Smooth in the Debug menu to compare).
