@@ -1034,6 +1034,18 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "not nearer to it than it is (vr_agrunt_rearm)."),
         slider("Looks For Weapons Within", vr_agrunt_rearm_range, 64.f, 1024.f, 32.f, "%.0f units").extend(0.f, 4096.f)
             .help("How far it looks for a weapon to pick up (vr_agrunt_rearm_range)."),
+        toggle("Re-Arms Out of a Fight", vr_agrunt_rearm_idle)
+            .help("Unarmed and not fighting, it also walks over to a weapon lying near and takes it up "
+                  "(vr_agrunt_rearm_idle; with Picks Weapons Up)."),
+        header("Behaviour"),
+        toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
+            .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
+                  "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
+                  "steps aside first, and keeps away from its mines (vr_agrunt_blast_safe)."),
+        toggle("Hands on the Grips", vr_agrunt_ik)
+            .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
+                  "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "
+                  "(vr_agrunt_ik)."),
         header("The Pool"),
         weight("Fists", vr_agrunt_w_fists),
         weight("Axe", vr_agrunt_w_axe),
@@ -1050,6 +1062,20 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
         weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
         weight("Mission Packs' (Each)", vr_agrunt_w_packs),
+        header("The Pool: Arcane Dimensions (With Its Data)"),
+        weight("Rocket Soldier's Launcher", vr_agrunt_w_adrocket),
+        weight("Grenade Soldier's Launcher", vr_agrunt_w_adgrenade),
+        weight("Plasma Soldier's Rifle", vr_agrunt_w_adplasma),
+        weight("Defender's Shotgun", vr_agrunt_w_addefender),
+        weight("Centurion's Plasma Gun", vr_agrunt_w_adcenturion),
+        weight("Pyro's Flamethrower", vr_agrunt_w_adpyro),
+        weight("Fumigator's Poison Sprayer", vr_agrunt_w_adfumigator),
+        weight("Crossbow Knight's Crossbow", vr_agrunt_w_adcrossbow),
+        weight("Shadow Axe", vr_agrunt_w_shadowaxe),
+        weight("Widowmaker", vr_agrunt_w_widowmaker),
+        weight("Plasma Gun", vr_agrunt_w_plasmagun),
+        weight("AD Swords (Each)", vr_agrunt_w_adsword),
+        weight("Hammer and Mace (Each)", vr_agrunt_w_adheavy),
     };
 }
 

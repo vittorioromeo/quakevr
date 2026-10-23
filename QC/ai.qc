@@ -854,6 +854,9 @@ void(float dist) ai_walk =
     if(VR_Stealth_Walk(dist)) // QVR: Alert: walking to what it noticed, or back to its post (vr_stealth.qc)
         return;
 
+    if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near (vr_armedgrunt.qc)
+        return;
+
 //MED 11/02/96
    if(self.huntingcharmer)
       {
@@ -882,6 +885,9 @@ void() ai_stand =
       return;
 
     if(VR_Stealth_Stand()) // QVR: Alert: turning to look, searching (vr_stealth.qc)
+        return;
+
+    if(self.vr_ag && VR_AG_Idle()) // QVR: an unarmed armed grunt off to a weapon lying near (vr_armedgrunt.qc)
         return;
 
     if(time > self.pausetime)

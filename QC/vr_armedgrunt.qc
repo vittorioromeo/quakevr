@@ -46,6 +46,8 @@ float VR_AG_GRIP_REACH = 52;     // a melee attack starts this near (the boxes' 
 float VR_AG_PICKUP_REACH = 40;   // it takes a weapon this near
 float VR_AG_DISARM_HAND = 10;    // a blow this near its gun hand (units) disarms it
 float VR_AG_SWING_TIME = 0.4;    // a melee swing's drawn arc (seconds)
+float VR_AG_EF_HELD = 128;       // the held weapon's effects bit: a weapon in a monster's hand (the engine's vr_armik.cpp,
+                                 // vr_weaponfx.cpp: the arms' grips, its muzzle flash); no other effect uses it
 
 // Its right hand's vertices (their middle: where it holds the weapon) and its hidden gun's: the rear, the muzzle, the
 // top and the bottom (Quake VR's soldier.mdl, vertices 463..548 the gun: scratch analysis, ROUND22.md).
@@ -69,6 +71,7 @@ vector(entity e, float v) modelvertex =
 };
 vector(entity e) weaponmuzzle = { return weapondrawnpose(e, 0, 6); };
 
+.float vr_ag_code;      // its "weapon" key as spawned (a weapon id, or VR_AG_CODE_*: the tests' names)
 .vector vr_ag_aim;      // the way it aims now (a unit vector; '0 0 0': as its animation holds the gun)
 .float vr_ag_myrun;     // when its own run frames last ran (VR_AG_CheckAttack sends it back to them)
 .float vr_ag_lastwid;   // the last weapon it held (its backpack's ammo: VR_AG_SoldierDrop)
@@ -95,27 +98,53 @@ float(float wid) VR_AG_Class =
     {
         return VR_AG_CLASS_MELEE;
     }
-    if(wid == WID_GRENADE_LAUNCHER || wid == WID_ROCKET_LAUNCHER || wid == WID_PROXIMITY_GUN) { return VR_AG_CLASS_EXPLOSIVE; }
-    if(wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN || wid == WID_LIGHTNING || wid == WID_LASER_CANNON) { return VR_AG_CLASS_AUTO; }
-    if(wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) { return VR_AG_CLASS_BURST; }
+    if(wid == WID_GRENADE_LAUNCHER || wid == WID_ROCKET_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADROCKET ||
+       wid == WID_ADGRENADE)
+    {
+        return VR_AG_CLASS_EXPLOSIVE;
+    }
+    if(wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN || wid == WID_LIGHTNING || wid == WID_LASER_CANNON ||
+       wid == WID_ADPYRO || wid == WID_ADFUMIGATOR)
+    {
+        return VR_AG_CLASS_AUTO;
+    }
+    if((wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) || wid == WID_ADPLASMA || wid == WID_ADCENTURION)
+    {
+        return VR_AG_CLASS_BURST; // (AD's plasma guns: three bolts an attack)
+    }
     return VR_AG_CLASS_GUN;
 };
 
+// A flamethrower's stream (AD's pyro's and fumigator's: two flames a fire frame, near only).
+float(float wid) VR_AG_Stream = { return wid == WID_ADPYRO || wid == WID_ADFUMIGATOR; };
+
 // Whether it can use `wid` (what it can pick up, what the pool and the keys may give it): your weapons, the enemy guns
-// it knows (not AD's: their fire is AD's own code), not the grapple or the toolgun.
+// it knows, Arcane Dimensions' soldiers' guns while AD's data is loaded; not the grapple or the toolgun.
 float(float wid) VR_AG_Usable =
 {
     if(wid == WID_FIST) { return TRUE; }
+    if(VR_IsADGun(wid)) { return wid != WID_ADELIMINATOR && VR_ADGun_Available(); }
     if(wid < WID_AXE || wid > WID_SUPERAXE || wid == WID_TOOLGUN) { return FALSE; }
     return VR_Pack_WeaponAvailable(wid);
 };
 
-// A full clip of `wid` (your guns' reloading clip; one that has none: 20).
+// A full clip of `wid` (your guns' reloading clip; one that has none: 20; AD's guns' rounds or fuel).
 float(float wid) VR_AG_ClipSize =
 {
     if(VR_AG_Class(wid) == VR_AG_CLASS_MELEE || VR_AG_Class(wid) == VR_AG_CLASS_FISTS) { return 0; }
+    if(VR_IsADGun(wid)) { return VR_ADGun_ClipSize(wid); }
     float c = WeaponIdToBaseClipSize(wid);
     return c > 0 ? c : 20;
+};
+
+// ... of the weapon `wid` whose record is `inst` (the Widowmaker's: its whole tube).
+float(float wid, entity inst) VR_AG_ClipOf =
+{
+    if(wid == WID_SUPER_SHOTGUN && inst && AD_Widowmaker(inst))
+    {
+        return VR_ClipSizeOf(wid, inst);
+    }
+    return VR_AG_ClipSize(wid);
 };
 
 // Its ammo is a clip of its own only (single use): the enemy guns.
@@ -124,8 +153,12 @@ float(float wid) VR_AG_SingleUse = { return VR_IsEnemyGun(wid); };
 // Nearer than this, it doesn't fire an explosive weapon (its own blast).
 float(float wid) VR_AG_MinRange =
 {
-    if(wid == WID_ROCKET_LAUNCHER) { return 190; }
-    if(wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN) { return 160; }
+    if(wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET) { return 190; }
+    if(wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADGRENADE)
+    {
+        // (a grenade bursting on its target there still reaches it: further with vr_agrunt_blast_safe)
+        return cvar_hget(cvarh_vr_agrunt_blast_safe) ? 210 : 160;
+    }
     return 0;
 };
 
@@ -139,7 +172,7 @@ float(float wid, float r) VR_AG_Chance =
         if(r == RANGE_MID) { return 0.25; }
         return (wid == WID_ROCKET_LAUNCHER && r == RANGE_FAR) ? 0.05 : 0;
     }
-    if(wid == WID_LIGHTNING)
+    if(wid == WID_LIGHTNING || VR_AG_Stream(wid))
     {
         return r == RANGE_MELEE ? 0.9 : r == RANGE_NEAR ? 0.5 : 0;
     }
@@ -158,16 +191,62 @@ float(float wid, float r) VR_AG_Chance =
 // Its weapon: the pool, the held prop
 // ----------------------------------------------------------------------------
 
-void(float wid, float w) VR_AG_PoolAdd =
+// The "weapon" keys beyond the weapon ids (the toolgun's and the pool's): AD's upgrades (the weapon it upgrades, its
+// record's upgrade) and AD's melee weapons (the knight's sword of that kind: VR_ADMelee_Flags).
+float VR_AG_CODE_SHADOWAXE = 101;
+float VR_AG_CODE_WIDOWMAKER = 102;
+float VR_AG_CODE_PLASMAGUN = 103;
+float VR_AG_CODE_ADMELEE = 110; // 111..116: kind 1..6 (VR_ADMELEE_*)
+
+float vr_ag_dec_wid;   // VR_AG_Decode's: the weapon,
+float vr_ag_dec_flags; // ... its flags,
+float vr_ag_dec_up;    // ... its record's AD upgrade (0: none)
+
+// A "weapon" key `code` as a weapon, its flags and its upgrade (vr_ag_dec_*); FALSE: none it can hold.
+float(float code) VR_AG_Decode =
 {
-    if(w <= 0 || !VR_AG_Usable(wid))
+    vr_ag_dec_wid = code;
+    vr_ag_dec_flags = 0;
+    vr_ag_dec_up = 0;
+    if(code == VR_AG_CODE_SHADOWAXE || code == VR_AG_CODE_WIDOWMAKER || code == VR_AG_CODE_PLASMAGUN)
+    {
+        vr_ag_dec_wid = code == VR_AG_CODE_SHADOWAXE ? WID_AXE : code == VR_AG_CODE_WIDOWMAKER ? WID_SUPER_SHOTGUN : WID_LIGHTNING;
+        vr_ag_dec_up = AD_UpgradeFor(vr_ag_dec_wid);
+        return vr_ad_data && VR_AD_FeatureScope(AD_UpgradeScope()); // (elsewhere a plain one: not this)
+    }
+    if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_MACE) // (AD's own six: the later kinds aren't in its arsenal)
+    {
+        vr_ag_dec_wid = WID_SWORD;
+        vr_ag_dec_flags = VR_ADMelee_Flags(code - VR_AG_CODE_ADMELEE);
+        return cvar("vr_ad_mounted") != 0;
+    }
+    return VR_AG_Usable(code);
+};
+
+// Its name (the tests, the log).
+string(float wid, float flags, entity inst) VR_AG_NameOf =
+{
+    if(wid < 0) { return "fists"; }
+    if(inst && inst.wi_adup && vr_ad_data)
+    {
+        if(wid == WID_AXE) { return "Shadow Axe"; }
+        if(wid == WID_SUPER_SHOTGUN) { return "Widowmaker"; }
+        if(wid == WID_LIGHTNING) { return "Plasma Gun"; }
+    }
+    if(VR_IsADGun(wid)) { return VR_ADGun_Name(wid); }
+    return WeaponNameOf(wid, flags);
+};
+
+void(float code, float w) VR_AG_PoolAdd =
+{
+    if(w <= 0 || !VR_AG_Decode(code))
     {
         return;
     }
     vr_ag_pool_total = vr_ag_pool_total + w;
     if(random() * vr_ag_pool_total < w)
     {
-        vr_ag_pool_pick = wid;
+        vr_ag_pool_pick = code;
     }
 };
 
@@ -193,6 +272,22 @@ float() VR_AG_PickWeapon =
     VR_AG_PoolAdd(WID_MJOLNIR, cvar_hget(cvarh_vr_agrunt_w_packs));
     VR_AG_PoolAdd(WID_LASER_CANNON, cvar_hget(cvarh_vr_agrunt_w_packs));
     VR_AG_PoolAdd(WID_PROXIMITY_GUN, cvar_hget(cvarh_vr_agrunt_w_packs));
+    // Arcane Dimensions' (VR_AG_Decode: only with its data; the upgrades where AD's upgrades play).
+    VR_AG_PoolAdd(WID_ADROCKET, cvar("vr_agrunt_w_adrocket"));
+    VR_AG_PoolAdd(WID_ADGRENADE, cvar("vr_agrunt_w_adgrenade"));
+    VR_AG_PoolAdd(WID_ADPLASMA, cvar("vr_agrunt_w_adplasma"));
+    VR_AG_PoolAdd(WID_ADDEFENDER, cvar("vr_agrunt_w_addefender"));
+    VR_AG_PoolAdd(WID_ADCENTURION, cvar("vr_agrunt_w_adcenturion"));
+    VR_AG_PoolAdd(WID_ADPYRO, cvar("vr_agrunt_w_adpyro"));
+    VR_AG_PoolAdd(WID_ADFUMIGATOR, cvar("vr_agrunt_w_adfumigator"));
+    VR_AG_PoolAdd(WID_ADCROSSBOW, cvar("vr_agrunt_w_adcrossbow"));
+    VR_AG_PoolAdd(VR_AG_CODE_SHADOWAXE, cvar("vr_agrunt_w_shadowaxe"));
+    VR_AG_PoolAdd(VR_AG_CODE_WIDOWMAKER, cvar("vr_agrunt_w_widowmaker"));
+    VR_AG_PoolAdd(VR_AG_CODE_PLASMAGUN, cvar("vr_agrunt_w_plasmagun"));
+    for(float k = 1; k <= VR_ADMELEE_MACE; k++)
+    {
+        VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + k, cvar(VR_ADMelee_Heavy(k) ? "vr_agrunt_w_adheavy" : "vr_agrunt_w_adsword"));
+    }
     if(vr_ag_pool_pick == WID_FIST)
     {
         return -1;
@@ -253,6 +348,11 @@ void(entity g, entity p) VR_AG_PlaceProp =
         float deg = 60 - 150 * (s * s * (3 - 2 * s));
         fw = VR_AG_Rotate(fw, right, deg);
         up = VR_AG_Rotate(up, right, deg);
+        // The hand goes with it (the client's arm follows the grip: vr_agrunt_ik): round its right shoulder (the rig's
+        // upperarm_r joint, about), most of the blade's turn.
+        makevectors([0, g.angles_y, 0]);
+        vector shoulder = g.origin + v_up * 12 + v_right * 9.7;
+        hand = shoulder + VR_AG_Rotate(hand - shoulder, v_right, deg * 0.6);
     }
 
     // A shot's kick: back along it and its muzzle up, dying out in 0.15 s.
@@ -313,9 +413,12 @@ void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
     p.weapon = wid;
     p.weaponflags = flags;
     p.weaponinst = inst ? inst : WeaponInst_New(VR_AG_ClipSize(wid));
-    p.netname = WeaponNameOf(wid, flags);
+    p.netname = VR_AG_NameOf(wid, flags, p.weaponinst);
     p.movetype = MOVETYPE_NONE;
     p.solid = SOLID_TRIGGER;
+    p.effects = VR_AG_EF_HELD; // (the client finds it so: its muzzle flash, the arms' grips)
+    VR_ADGun_Placed(wid); // (AD's guns' and melee weapons' models made, their sounds precached: any map)
+    VR_ADMelee_Placed(wid, flags);
     string m = AD_WeaponModel(wid, flags, p.weaponinst);
     precache_model(m);
     setmodel(p, m);
@@ -454,6 +557,107 @@ void(entity p, vector dir) VR_AG_SetHand =
     makevectors(self.handrot);
 };
 
+// ----------------------------------------------------------------------------
+// Its launchers fired safely (vr_agrunt_blast_safe): the round's burst predicted, kept clear of itself
+// ----------------------------------------------------------------------------
+
+.float vr_ag_dodge_until; // stepping aside (a launcher's shot not clear) until then
+.float vr_ag_held;        // the launcher shots it held back (the tests)
+float vr_ag_self_kills;   // armed grunts killed by their own weapon (the tests)
+float vr_ag_self_dmg;     // ... the damage they dealt themselves
+float vr_ag_held_fire;    // ... the launcher shots held back
+vector vr_ag_blast_at;    // VR_AG_BlastPoint's last
+
+// Where a round of `wid` fired from `from` along `dir` (unit) bursts, as the launchers' code flies it: a rocket at what
+// its line meets; a grenade along its arc (600 ahead, 200 up, gravity; bounced as MOVETYPE_BOUNCE, 1.5 off a surface,
+// resting on a floor once slow) at its fuse or at the first thing it may hurt; a mine where it first lands (it sits there
+// and blows at anything near).
+vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
+{
+    if(wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET)
+    {
+        traceline(from, from + dir * 4096, FALSE, self);
+        return trace_endpos;
+    }
+    vector a = vectoangles(dir);
+    a_x = -a_x;
+    makevectors(a);
+    vector vel = v_forward * 600 + v_up * 200;
+    vector pos = from;
+    float g = cvar("sv_gravity");
+    float mine = (wid == WID_PROXIMITY_GUN);
+    float dt = 0.05;
+    float t;
+    for(t = 0; t < 2.5; t = t + dt)
+    {
+        vector next = pos + vel * dt;
+        vel_z = vel_z - g * dt;
+        // (a box about it: a near miss of its target's body, which may be bigger than its box, bursts there too)
+        tracebox(pos, '-10 -10 -10', '10 10 10', next, FALSE, self);
+        if(trace_startsolid)
+        {
+            traceline(pos, next, FALSE, self);
+        }
+        if(trace_fraction == 1)
+        {
+            pos = next;
+            continue;
+        }
+        pos = trace_endpos + trace_plane_normal * 0.5;
+        if(mine || (trace_ent != world && trace_ent.takedamage == DAMAGE_AIM))
+        {
+            return trace_endpos; // (a mine lands; a grenade bursts on what it may hurt)
+        }
+        vel = vel - trace_plane_normal * ((vel * trace_plane_normal) * 1.5);
+        if(trace_plane_normal_z > 0.7 && vel_z < 60)
+        {
+            return pos; // (at rest on the floor till its fuse)
+        }
+    }
+    return pos;
+};
+
+// The least distance from itself its round of `wid` may burst at: a blast reaches 160 units (T_RadiusDamage's 120 + 40),
+// and a margin (a mine's more: it blows at anything within 140 of it, the grunt too when it comes back by).
+float(float wid) VR_AG_SafeDist =
+{
+    if(wid == WID_PROXIMITY_GUN) { return 230; }
+    return 180;
+};
+
+// Whether its launcher's round fired along `dir` from the held weapon `p` would burst far enough from it (TRUE for any
+// other weapon, or vr_agrunt_blast_safe 0).
+float(entity p, vector dir) VR_AG_BlastSafe =
+{
+    float wid = p.weapon;
+    if(VR_AG_Class(wid) != VR_AG_CLASS_EXPLOSIVE || !cvar_hget(cvarh_vr_agrunt_blast_safe))
+    {
+        return TRUE;
+    }
+    vector from = weaponmuzzle(p);
+    vr_ag_blast_at = VR_AG_BlastPoint(wid, from, dir);
+    return vlen(vr_ag_blast_at - self.origin) >= VR_AG_SafeDist(wid);
+};
+
+// Its own (or any) proximity mine near it (within 200 units, in sight), to keep away from (world: none).
+entity() VR_AG_NearMine =
+{
+    entity e = findradius(self.origin, 200);
+    while(e)
+    {
+        if(e.classname == "proximity_grenade")
+        {
+            traceline(self.origin, e.origin, TRUE, self);
+            if(trace_fraction == 1)
+            {
+                return e;
+            }
+        }
+        e = e.chain;
+    }
+    return world;
+};
+
 // One shot (or round, or nail, or bolt) of the gun it holds, from its clip.
 void() VR_AG_Shoot =
 {
@@ -470,6 +674,18 @@ void() VR_AG_Shoot =
     float wid = p.weapon;
     vector dir = VR_AG_AimDir(p.origin);
     VR_AG_SetHand(p, dir);
+    if(!VR_AG_BlastSafe(p, dir))
+    {
+        // Its own blast would reach it (the target came near, a wall ahead): held back, a step aside.
+        self.vr_ag_held = self.vr_ag_held + 1;
+        vr_ag_held_fire = vr_ag_held_fire + 1;
+        self.vr_ag_dodge_until = time + 0.6 + random() * 0.6;
+        self.lefty = !self.lefty;
+        self.weaponinst = world;
+        VR_AG_Log(sprintf("%s held back: it would burst %.0f from it", p.netname, vlen(vr_ag_blast_at - self.origin)));
+        return;
+    }
+    makevectors(self.handrot); // (VR_AG_BlastSafe's arc used the globals)
     float aid = WeaponIdToAmmoId(wid, p.weaponflags);
     float single = VR_AG_SingleUse(wid) || aid == AID_NONE;
     if(!single)
@@ -478,8 +694,26 @@ void() VR_AG_Shoot =
     }
 
     float h = cVR_MainHand;
+    float rounds = 1;
     self.button0 = 1; // (its trigger held: the laser cannon fires only so)
     if(wid == WID_SHOTGUN)              { W_FireShotgun(h); }
+    else if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) { AD_FireWidowmaker(h); } // (AD's upgrades: vr_ad_bridge.qc)
+    else if(wid == WID_LIGHTNING && AD_PlasmaGun(h, p.weaponflags)) { AD_FirePlasma(h); }
+    else if(wid == WID_ADROCKET)        { VR_ADGun_FireRocket(h); } // (AD's soldiers' guns: vr_ad_enemyguns.qc)
+    else if(wid == WID_ADGRENADE)       { VR_ADGun_FireGrenade(h); }
+    else if(wid == WID_ADDEFENDER)      { VR_ADGun_FireDefender(h); }
+    else if(wid == WID_ADCROSSBOW)      { VR_ADGun_FireCrossbow(h); }
+    else if(wid == WID_ADPLASMA || wid == WID_ADCENTURION) { VR_ADGun_FirePlasma(h, wid); }
+    else if(VR_AG_Stream(wid))
+    {
+        // Two flames a fire frame (the player's stream is one a tick), from its fuel.
+        rounds = min(2, inst.wi_clip);
+        VR_ADGun_FireFlame(h, wid);
+        if(rounds > 1)
+        {
+            VR_ADGun_FireFlame(h, wid);
+        }
+    }
     else if(wid == WID_SUPER_SHOTGUN)   { W_FireSuperShotgun(h); }
     else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
     else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
@@ -519,9 +753,13 @@ void() VR_AG_Shoot =
     self.button0 = 0;
     self.weaponinst = world; // (the record is its weapon's: nothing else may take the grunt for its holder)
 
+    if(VR_AG_Class(wid) != VR_AG_CLASS_MELEE && !VR_AG_Stream(wid))
+    {
+        weaponfired(p, -1); // its muzzle flash on the held weapon, as yours (the engine's vr_weaponfx.cpp)
+    }
     if(single)
     {
-        inst.wi_clip = max(0, inst.wi_clip - 1);
+        inst.wi_clip = max(0, inst.wi_clip - rounds);
     }
     else
     {
@@ -534,7 +772,8 @@ void() VR_AG_Shoot =
     self.vr_ag_kick_at = time;
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.show_hostile = time + 1; // wakes monsters up, as your shots do
-    VR_AG_Log(sprintf("%s fired at %s (%g left in the clip)", p.netname, self.enemy.classname, inst.wi_clip));
+    VR_AG_Log(sprintf("%s fired at %s (%g left in the clip), muzzle %v", p.netname, self.enemy.classname, inst.wi_clip,
+        self.muzzlepos));
 };
 
 // A melee blow (its weapon's, or a punch) from its hand towards its target.
@@ -606,7 +845,14 @@ void() VR_AG_AfterAttack =
 {
     self.vr_ag_aim = '0 0 0';
     entity p = self.vr_ag_prop;
-    if(p && p.weaponinst.wi_clip < 1 && VR_AG_ClipSize(p.weapon) > 0)
+    if(self.vr_adgun_stream)
+    {
+        // A flamethrower's stream ends with its sound (the player's: VR_ADGun_Frame).
+        self.vr_adgun_stream = 0;
+        sound(self, CHAN_WEAPON, self.vr_ag_wid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav",
+            1, ATTN_NORM);
+    }
+    if(p && p.weaponinst.wi_clip < 1 && VR_AG_ClipOf(p.weapon, p.weaponinst) > 0)
     {
         if(self.vr_ag_reserve > 0)
         {
@@ -696,7 +942,7 @@ void() vr_ag_reload11 = [39, vr_ag_run1]
     entity p = self.vr_ag_prop;
     if(p)
     {
-        float n = min(VR_AG_ClipSize(p.weapon) - p.weaponinst.wi_clip, self.vr_ag_reserve);
+        float n = min(VR_AG_ClipOf(p.weapon, p.weaponinst) - p.weaponinst.wi_clip, self.vr_ag_reserve);
         p.weaponinst.wi_clip = p.weaponinst.wi_clip + n;
         self.vr_ag_reserve = self.vr_ag_reserve - n;
         self.vr_ag_reloads = self.vr_ag_reloads + 1;
@@ -817,12 +1063,50 @@ void(float d) VR_AG_Run =
         }
         return;
     }
-    if(self.enemy && self.vr_ag_prop && VR_AG_MinRange(self.vr_ag_wid) > 0 && visible(self.enemy) &&
-       vlen(self.enemy.origin - self.origin) < VR_AG_MinRange(self.vr_ag_wid))
+    if(!self.enemy)
     {
-        // Backing off: its own blast would reach it.
+        // Out of a fight (it went for a weapon: VR_AG_Idle): looking about as it stands.
+        if(!FindTarget())
+        {
+            self.th_stand();
+        }
+        return;
+    }
+    float safe = cvar_hget(cvarh_vr_agrunt_blast_safe);
+    entity mine = safe ? VR_AG_NearMine() : world;
+    if(mine)
+    {
+        // Away from a mine (its own blows at anything near).
+        self.ideal_yaw = vectoyaw(self.origin - mine.origin);
+        ChangeYaw();
+        if(!walkmove(self.ideal_yaw, d))
+        {
+            walkmove(self.ideal_yaw + (self.lefty ? 60 : -60), d);
+        }
+        return;
+    }
+    float explosive = self.vr_ag_prop && VR_AG_MinRange(self.vr_ag_wid) > 0;
+    if(explosive && safe && time < self.vr_ag_dodge_until)
+    {
+        // A step aside (its last shot wasn't clear), facing its target.
         ai_face();
-        walkmove(self.angles_y + 180 + (self.lefty ? 30 : -30), d);
+        if(!walkmove(self.angles_y + (self.lefty ? 90 : -90), d))
+        {
+            self.lefty = !self.lefty;
+            walkmove(self.angles_y + 180, d * 0.5);
+        }
+        return;
+    }
+    if(explosive && visible(self.enemy) && vlen(self.enemy.origin - self.origin) < VR_AG_MinRange(self.vr_ag_wid))
+    {
+        // Backing off: its own blast would reach it (cornered: along the wall, either way).
+        ai_face();
+        if(!walkmove(self.angles_y + 180 + (self.lefty ? 30 : -30), d) && safe &&
+           !walkmove(self.angles_y + 180 + (self.lefty ? -30 : 30), d))
+        {
+            self.lefty = !self.lefty;
+            walkmove(self.angles_y + (self.lefty ? 90 : -90), d);
+        }
         if(vlen(self.enemy.origin - self.origin) < 60 && time >= self.attack_finished)
         {
             self.th_melee();
@@ -833,6 +1117,18 @@ void(float d) VR_AG_Run =
     ai_run(d);
 };
 
+// ai_stand, ai_walk (vr_agrunt_rearm_idle): unarmed and out of a fight, off to a weapon lying near (its run frames:
+// VR_AG_Run walks it there and takes it up; then back to standing).
+float() VR_AG_Idle =
+{
+    if(self.vr_ag_prop || self.health <= 0 || !cvar_hget(cvarh_vr_agrunt_rearm_idle) || !VR_AG_Seeking())
+    {
+        return FALSE;
+    }
+    vr_ag_run1();
+    return TRUE;
+};
+
 // CheckAnyAttack (ai.qc): an armed grunt's attack by its weapon; its own run frames for going for a weapon or backing
 // off (the grunt's pains end in the grunt's run).
 float() VR_AG_CheckAttack =
@@ -841,10 +1137,21 @@ float() VR_AG_CheckAttack =
     float c = VR_AG_Class(self.vr_ag_wid);
     float d = vlen(VR_AI_Origin(targ) - self.origin);
     float mine = time - self.vr_ag_myrun < 0.15;
-    if(!mine && (VR_AG_Seeking() || (VR_AG_MinRange(self.vr_ag_wid) > 0 && d < VR_AG_MinRange(self.vr_ag_wid))))
+    float explosive = VR_AG_MinRange(self.vr_ag_wid) > 0;
+    float blastSafe = cvar_hget(cvarh_vr_agrunt_blast_safe);
+    if(!mine && (VR_AG_Seeking() || (explosive && d < VR_AG_MinRange(self.vr_ag_wid)) ||
+                 (explosive && blastSafe && (time < self.vr_ag_dodge_until || VR_AG_NearMine()))))
     {
         vr_ag_run1();
         return TRUE;
+    }
+    if(explosive && blastSafe && (time < self.vr_ag_dodge_until || VR_AG_NearMine()))
+    {
+        return FALSE; // (stepping aside, or away from a mine: VR_AG_Run)
+    }
+    if(VR_AG_Stream(self.vr_ag_wid) && d > 0.8 * VR_ADGun_Value(self.vr_ag_wid, "range"))
+    {
+        return FALSE; // (a flamethrower's stream reaches so far)
     }
     if(self.vr_ag_seek)
     {
@@ -879,6 +1186,16 @@ float() VR_AG_CheckAttack =
     {
         return FALSE; // (backing off: VR_AG_Run)
     }
+    if(explosive && blastSafe && self.vr_ag_prop &&
+       !VR_AG_BlastSafe(self.vr_ag_prop, normalize(VR_AI_Origin(targ) - weaponmuzzle(self.vr_ag_prop))))
+    {
+        // Its round wouldn't burst clear of it from here (a wall, a ledge ahead): a step aside first.
+        self.vr_ag_dodge_until = time + 0.5 + random() * 0.5;
+        self.lefty = !self.lefty;
+        VR_AG_Log(sprintf("not clear to fire: it would burst %.0f from it (%s at %v)", vlen(vr_ag_blast_at - self.origin),
+            trace_ent.classname, vr_ag_blast_at));
+        return FALSE;
+    }
     if(random() < VR_AG_Chance(self.vr_ag_wid, enemy_range))
     {
         self.th_missile();
@@ -898,6 +1215,10 @@ void() VR_AG_Melee = { vr_ag_swing1(); };
 // T_DamageDeal: its weapon's damage to a player.
 float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
 {
+    if(attacker == targ && targ.vr_ag && targ.health > 0)
+    {
+        vr_ag_self_dmg = vr_ag_self_dmg + damage; // (the tests: its own blast)
+    }
     if(attacker.vr_ag && (targ.flags & FL_CLIENT) && attacker != targ)
     {
         damage = damage * max(0, cvar_hget(cvarh_vr_agrunt_damage_scale));
@@ -958,6 +1279,11 @@ float() VR_AG_SoldierDrop =
 
 void() VR_AG_Die =
 {
+    if(damage_attacker == self)
+    {
+        vr_ag_self_kills = vr_ag_self_kills + 1; // (the tests)
+        VR_AG_Log(sprintf("killed by its own %s", self.vr_ag_prop ? self.vr_ag_prop.netname : "weapon"));
+    }
     // Its weapon falls from its hand, with what is left in it (gibbed too).
     makevectors(self.angles);
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
@@ -982,8 +1308,10 @@ void() VR_AG_Die =
 /*QUAKED monster_vr_grunt (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 An armed grunt (experimental): a grunt holding one of your weapons. "weapon": its weapon (WID_*: 2 axe, 4 shotgun,
 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword,
-14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; -1 its fists; 0 or unset: one from the pool). "weaponflags":
-that weapon's flags.
+14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; with Arcane Dimensions' data 20 AD rocket launcher, 21 AD
+grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer,
+28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace; -1 its fists; 0 or
+unset: one from the pool). "weaponflags": that weapon's flags.
 */
 void() monster_vr_grunt =
 {
@@ -1002,10 +1330,27 @@ void() monster_vr_grunt =
         want = VR_AG_PickWeapon();
         flags = 0;
     }
-    else if(want > 0 && !VR_AG_Usable(want))
+    entity inst = world;
+    self.vr_ag_code = want;
+    if(want > 0)
     {
-        dprint(sprintf("monster_vr_grunt: weapon %g can't be held: its fists\n", want));
-        want = -1;
+        if(!VR_AG_Decode(want))
+        {
+            dprint(sprintf("monster_vr_grunt: weapon %g can't be held here: its fists\n", want));
+            want = -1;
+        }
+        else
+        {
+            // (AD's upgrades: on its record; its melee weapons: the sword's kind in its flags)
+            want = vr_ag_dec_wid;
+            flags = flags | vr_ag_dec_flags;
+            if(vr_ag_dec_up)
+            {
+                inst = WeaponInst_New(0);
+                inst.wi_adup = vr_ag_dec_up;
+                inst.wi_clip = VR_AG_ClipOf(want, inst);
+            }
+        }
     }
     if(!VR_OtherFlags())
     {
@@ -1026,9 +1371,9 @@ void() monster_vr_grunt =
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
     self.th_die = VR_AG_Die;
-    VR_AG_Arm(self, want, flags, world);
+    VR_AG_Arm(self, want, flags, inst);
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
-                         VR_AG_ClipSize(self.vr_ag_wid) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+                         VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
     VR_AG_Log(sprintf("spawned with %s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
         self.vr_ag_reserve));
 };
