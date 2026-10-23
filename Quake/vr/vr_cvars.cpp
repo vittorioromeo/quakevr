@@ -451,6 +451,25 @@ const DefaultChange defaultChanges[] = {
     // 195: crates need two strong hits (his note: one hard punch or swing broke one; ROUND22.md, "Crates: two strong
     // hits"): a blow breaks a small crate from 18 m/s (with the new vr_prop_blow_wear 0.25, two strong ones do).
     {195, &vr_prop_break_speed, "9"}, // 18
+    // 196: the author's shoreline foam (his config of 2026-10-23, notes start_2026-10-23_21-30-29,
+    // vrfiringrange_2026-10-23_21-28-18, e1m1_2026-10-23_21-33-57; ROUND22.md, "Shoreline foam: at the shore's edge"):
+    // every liquid breathing more and faster, more and bigger particles, slime's scum greener and reaching further.
+    {196, &vr_water_foam_breathe, "0.35"},         // 0.45
+    {196, &vr_water_foam_breathe_speed, "1"},      // 2
+    {196, &vr_water_foam_particle_size, "1"},      // 1.5
+    {196, &vr_water_foam_particles, "1"},          // 2
+    {196, &vr_lava_foam_breathe, "0.3"},           // 0.65
+    {196, &vr_lava_foam_breathe_speed, "0.5"},     // 2.7
+    {196, &vr_lava_foam_particle_opacity, "0.6"},  // 0.55
+    {196, &vr_lava_foam_particle_size, "1"},       // 3.05
+    {196, &vr_lava_foam_particles, "0.6"},         // 1.5
+    {196, &vr_slime_foam_blue, "0.14"},            // 0.16
+    {196, &vr_slime_foam_breathe, "0.25"},         // 0.7
+    {196, &vr_slime_foam_breathe_speed, "0.6"},    // 3.4
+    {196, &vr_slime_foam_frequency, "1.5"},        // 1.6
+    {196, &vr_slime_foam_green, "0.62"},           // 0.56
+    {196, &vr_slime_foam_strength, "1.5"},         // 1.9
+    {196, &vr_slime_foam_particles, "0.6"},        // 1.5
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -469,7 +488,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 195;
+constexpr int configVersion = 196;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

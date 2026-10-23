@@ -129,7 +129,7 @@ QVR_TONE_GLSL
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
 "	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \
-"	vec4	Foam[3]; // QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook, LiquidFoam; 0 water, 1 lava, 2 slime): x its opacity (0 off), y how finely it is broken up, z how far it reaches (times), w unused\n" \
+"	vec4	Foam[3]; // QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook, LiquidFoam; 0 water, 1 lava, 2 slime): x its opacity (0 off), y how finely it is broken up, z how far it reaches (times), w its wavy edge (units, 0 off)\n" \
 "	vec4	FoamColor[3]; // QVR: ... its colour (rgb), w unused\n" \
 "	vec4	FoamBreath[3]; // QVR: ... its breathing: x how much the band grows and shrinks (a share of its width, 0 none), y how fast, z how unevenly along the shore, w unused\n" \
 "	vec4	BloodInfo; // QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood; LiquidBlood): x how many clouds (0 none), yzw unused\n" \

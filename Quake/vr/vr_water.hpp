@@ -69,6 +69,8 @@ struct FoamLook
     float breathe = 0.f, breatheSpeed = 1.f, breatheIrregularity = 0.f;
     glm::vec3 color{1.f};
     float particles = 0.f, particleLife = 1.f, particleOpacity = 0.f, particleSize = 1.f;
+    float particleShore = 0.f; // where the particles are born: units out from the shore's line
+    float edge = 0.f;          // the wavy edge (LiquidFoam): how far the liquid's edge is drawn back, units (0 off)
 };
 [[nodiscard]] FoamLook foamLook(int liquid);
 [[nodiscard]] int foamLiquid(int contents); // CONTENTS_LAVA 1, CONTENTS_SLIME 2, else (water) 0
