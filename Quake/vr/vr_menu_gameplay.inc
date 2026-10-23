@@ -1036,6 +1036,14 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage)."),
         toggle("Grab Its Weapon", vr_agrunt_disarm_yank)
             .help("Your empty hand closing on its weapon takes it out of its hand: it is yours (vr_agrunt_disarm_yank)."),
+        slider("Blow on Its Weapon", vr_agrunt_disarm_swing, 1.f, 10.f, 0.25f, "%.2f m/s").extend(0.f, 50.f)
+            .help("How fast your hand (a punch, or the weapon it holds) must be going when it lands on the weapon an "
+                  "armed grunt holds to knock it out of its hands, along the blow. A melee hit lands from 3.2 m/s "
+                  "(vr_melee_speed): 4.5 is a deliberate hard swing (vr_agrunt_disarm_swing)."),
+        slider("Throw at Its Weapon", vr_agrunt_disarm_throw, 1.f, 100.f, 1.f, "%.0f kg m/s").extend(0.f, 1000.f)
+            .help("The momentum (its mass times its speed) a thrown weapon, prop or gib must carry when it lands on the "
+                  "weapon an armed grunt holds to knock it out: 20 is a 2 kg weapon thrown at 10 m/s; a gib or a shell "
+                  "tossed is far under it (vr_agrunt_disarm_throw)."),
         toggle("Tug-of-War", vr_agrunt_tug)
             .help("Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
                   "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "

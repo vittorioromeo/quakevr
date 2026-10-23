@@ -318,6 +318,8 @@ float cvarh_vr_agrunt_w_enfrifle;
 float cvarh_vr_agrunt_w_packs;
 float cvarh_vr_agrunt_rearm_idle;
 float cvarh_vr_agrunt_blast_safe;
+float cvarh_vr_agrunt_disarm_swing;
+float cvarh_vr_agrunt_disarm_throw;
 float cvarh_vr_agrunt_tug;
 float cvarh_vr_agrunt_tug_pull;
 float cvarh_vr_agrunt_tug_time;
@@ -1385,6 +1387,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_w_packs);
     VR_CVAR_HMAKE(vr_agrunt_rearm_idle);
     VR_CVAR_HMAKE(vr_agrunt_blast_safe);
+    VR_CVAR_HMAKE(vr_agrunt_disarm_swing);
+    VR_CVAR_HMAKE(vr_agrunt_disarm_throw);
     VR_CVAR_HMAKE(vr_agrunt_tug);
     VR_CVAR_HMAKE(vr_agrunt_tug_pull);
     VR_CVAR_HMAKE(vr_agrunt_tug_time);

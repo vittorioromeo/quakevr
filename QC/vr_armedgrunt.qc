@@ -418,6 +418,10 @@ void() VR_AG_PropThink =
         }
         return;
     }
+    if(VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
+    {
+        return;
+    }
     if(g.vr_knockdown && cvar_hget(cvarh_vr_agrunt_disarm) && VR_AG_FallDrop(g)) // (on the floor: it lets go)
     {
         return;
@@ -499,21 +503,24 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     }
     dir_z = 0;
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
+    float wid = g.vr_ag_wid;
     VR_AG_DropHeld(g, vel);
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
     g.vr_ag_reserve = 0; // (its spare clips are no use without the gun)
-    sound(g, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
+    VR_AG_DisarmFeedback(g, wid); // (its clatter, its grunt: vr_armedgrunt_play.qc)
     VR_AG_Log(sprintf("disarmed (%s)", why));
 };
 
 // Its weapon yours, in `pl`'s hand `h` (a grab: at once, or a tug won).
 void(entity g, entity pl, float h) VR_AG_Yank =
 {
+    float wid = g.vr_ag_wid;
     entity w = VR_AG_DropHeld(g, '0 0 0');
     if(!w)
     {
         return;
     }
+    VR_AG_DisarmFeedback(g, wid);
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
     g.vr_ag_reserve = 0;
     w.handtouch_ent = pl;
@@ -1410,7 +1417,7 @@ void() monster_vr_grunt =
     precache_sound("weapons/pkup.wav");
     precache_sound("weapons/ax1.wav");
     precache_sound("weapons/tink1.wav");
-    precache_sound("zombie/z_hit.wav"); // (its headbutt in a tug: vr_armedgrunt_play.qc)
+    VR_AG_PlayPrecache(); // (its headbutt, its disarms' clatters: vr_armedgrunt_play.qc)
     setmodel(self, "progs/vrgrunt.mdl");
     setsize(self, '-12 -12 -24', '12 12 27');
     self.vr_ag = 1;

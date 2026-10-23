@@ -51,13 +51,13 @@ entity(float dist, float side) VR_AGPT_Grunt =
     return g;
 };
 
-// Pellets from the player's eye at e's torso (`n` of them): what the line meets first.
+// Pellets from just above e's torso (`n` of them): what the line meets first.
 string(entity e, float n) VR_AGPT_Shoot =
 {
     entity p = vr_agt_player;
     vector at = isragdoll(e) ? limbplace(e, 1, 3) : e.origin + '0 0 10';
     if(at == '0 0 0') { at = e.origin + '0 0 4'; }
-    vector from = p.origin + p.view_ofs;
+    vector from = at + '0 0 40'; // (from above it: the other body never in the way)
     vector dir = normalize(at - from);
     traceline(from, at + dir * 32, MOVE_HITGIBS | MOVE_HITMODEL, p);
     string what = trace_ent.classname;
@@ -111,11 +111,13 @@ void() VR_AGPT_Ragdoll =
     }
     if(vr_agt_step == 2 || vr_agt_step == 5)
     {
+        VR_AGT_ClearWeapons(); // (the armed one's gun, lying on it, would take the pellets)
         vr_agpt_h0a = vr_agt_step == 2 ? a.health : a.vr_corpse_hp;
         vr_agpt_h0b = vr_agt_step == 2 ? b.health : b.vr_corpse_hp;
         string ta = VR_AGPT_Shoot(a, 2);
         string tb = VR_AGPT_Shoot(b, 2);
         VR_AGPT_Print(sprintf("rag shots (%s): grunt traced %s, armed traced %s", vr_agt_step == 2 ? "alive" : "corpse", ta, tb));
+        VR_AGPT_Print(sprintf("rag state: armed corpse %g dying %g hp %g take %g solid %g, grunt corpse %g hp %g", b.vr_corpse, b.vr_corpse_dying, b.vr_corpse_hp, b.takedamage, b.solid, a.vr_corpse, a.vr_corpse_hp));
         vr_agt_step = vr_agt_step + 1;
         vr_agt_until = time + 0.3;
         return;
@@ -514,6 +516,129 @@ void() VR_AGPT_GiveUp =
     }
 };
 
+// Test 28: a held weapon is no loot. You unseen, a shotgun grunt 120 ahead: its held weapon not force-grab eligible;
+// dropped (struck on the hand), the lying shotgun is. The script runs vr_lootbeams_report while it holds it (step 1:
+// `agtest: loot: holding`) and after (`agtest: loot: dropped`).
+void() VR_AGPT_Loot =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 120);
+        vr_agt_step = 1;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(time < vr_agt_until) { return; }
+    if(vr_agt_step == 1)
+    {
+        VR_AGT_Check(sprintf("loot: holding: its weapon eligible %g (flags %g):", VR_Forcegrab_IsEligible(g.vr_ag_prop),
+            g.vr_ag_prop.flags), g.vr_ag_prop && !VR_Forcegrab_IsEligible(g.vr_ag_prop));
+        vr_agt_step = 2;
+        vr_agt_until = time + 2;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        cvar_set("vr_agrunt_rearm", "0"); // (it lies there)
+        VR_AG_Disarm(g, '1 0 0', 30, "the test");
+        vr_agt_step = 3;
+        vr_agt_until = time + 1.5;
+        return;
+    }
+    entity w = VR_AGT_LyingNear(g.origin);
+    VR_AGT_Check(sprintf("loot: dropped: the lying %s eligible %g:", w.netname, VR_Forcegrab_IsEligible(w)),
+        w && VR_Forcegrab_IsEligible(w));
+    cvar_set("vr_agrunt_rearm", "1");
+    p.flags = p.flags - (p.flags & FL_NOTARGET);
+    cvar_set("vr_agrunt_test", "0");
+};
+
+// Test 29: a blow on the held weapon itself. You unseen, your main hand empty, a shotgun grunt moved so its gun is at
+// your hand; your hand going 2 m/s through it: it keeps it; 6 m/s: knocked out (a feedback sound).
+void() VR_AGPT_WeaponBlow =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        p.flags = p.flags | FL_NOTARGET;
+        VR_AGPT_EmptyHand(p);
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.5;
+        return;
+    }
+    if(time < vr_agt_until) { return; }
+    VR_AGPT_ToHand(g, p);
+    VR_AG_WeaponLine(g.vr_ag_prop);
+    float near = VR_AG_SegDist(p.handpos, p.handpos, vr_ag_wa, vr_ag_wb);
+    makevectors(p.angles);
+    float m2u = VRMetersToUnits();
+    float fb = vr_ag_feedbacks;
+    p.handvel = v_forward * 2 * m2u;
+    p.vr_ag_knock_at = 0;
+    float slow = VR_AG_WeaponStruck(g, g.vr_ag_prop);
+    p.handvel = v_forward * 6 * m2u;
+    p.vr_ag_knock_at = 0;
+    float hard = VR_AG_WeaponStruck(g, g.vr_ag_prop);
+    VR_AGT_Check(sprintf("weapon blow: the hand %.1f units from its line; 2 m/s %s, 6 m/s %s, %g sounds (%s):", near,
+        slow ? "disarmed" : "kept", hard ? "disarmed" : "kept", vr_ag_feedbacks - fb, vr_ag_feedback),
+        !slow && hard && !g.vr_ag_prop && vr_ag_feedbacks == fb + 1);
+    p.flags = p.flags - (p.flags & FL_NOTARGET);
+    cvar_set("vr_agrunt_test", "0");
+};
+
+// Test 30: a throw at the held weapon. You unseen, a shotgun grunt 150 ahead: a nailgun tossed at its gun at 3 m/s (it
+// hits, too light a throw: kept), then one thrown at 14 m/s: knocked out.
+void() VR_AGPT_WeaponThrow =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 150);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.5;
+        return;
+    }
+    if(time < vr_agt_until) { return; }
+    if(vr_agt_step == 1 || vr_agt_step == 3)
+    {
+        float speed = (vr_agt_step == 1 ? 3 : 14) * VRMetersToUnits();
+        VR_AG_WeaponLine(g.vr_ag_prop);
+        vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
+        makevectors('0 1 0' * g.angles_y);
+        vector from = mid + v_forward * 30;
+        entity w = VR_AGPT_Weapon(WID_NAILGUN, from, FALSE);
+        w.velocity = normalize(mid - from) * speed;
+        w.movetype = MOVETYPE_FLY;
+        vr_agpt_h0a = VR_Thrown_Mass(w);
+        vr_agpt_h0b = vr_ag_feedbacks;
+        vr_agt_step = vr_agt_step + 1;
+        vr_agt_until = time + (vr_agt_step == 2 ? 0.6 : 0.3);
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        VR_AGT_Check(sprintf("weapon throw: a %.1f kg nailgun at 3 m/s: it holds %s:", vr_agpt_h0a,
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), g.vr_ag_prop != world);
+        VR_AGT_ClearWeapons();
+        vr_agt_step = 3;
+        return;
+    }
+    VR_AGT_Check(sprintf("weapon throw: at 14 m/s: it holds %s, %g sounds (%s):", g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing",
+        vr_ag_feedbacks - vr_agpt_h0b, vr_ag_feedback), !g.vr_ag_prop && vr_ag_feedbacks == vr_agpt_h0b + 1);
+    p.flags = p.flags - (p.flags & FL_NOTARGET);
+    cvar_set("vr_agrunt_test", "0");
+};
+
 void(float t) VR_AGPT_Frame =
 {
     if(t == 20) { VR_AGPT_Ragdoll(); }
@@ -523,4 +648,7 @@ void(float t) VR_AGPT_Frame =
     else if(t == 25) { VR_AGPT_Fall(); }
     else if(t == 26) { VR_AGPT_Reach(); }
     else if(t == 27) { VR_AGPT_GiveUp(); }
+    else if(t == 28) { VR_AGPT_Loot(); }
+    else if(t == 29) { VR_AGPT_WeaponBlow(); }
+    else if(t == 30) { VR_AGPT_WeaponThrow(); }
 };

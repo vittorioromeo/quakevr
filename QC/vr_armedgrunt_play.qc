@@ -19,6 +19,12 @@
 //   that while it is shaky (as above).
 // - Parries (VR_AG_Parried): your weapon's parry of its melee blow knocks its weapon away with the chance
 //   vr_agrunt_parry_disarm (a well-timed parry 1.5x).
+// - Blows and throws on the weapon itself (VR_AG_WeaponStruck): your hand or what it holds (its line from the hand to
+//   the weapon's muzzle) meeting the held weapon (its line from behind its grip to its muzzle, 5 units round) at
+//   vr_agrunt_disarm_swing m/s or faster, or a thrown weapon, prop or gib (its last frame's path) meeting it with a
+//   momentum (its mass x its speed) of vr_agrunt_disarm_throw kg m/s or more: knocked out along the blow or the throw.
+// - Every disarm (all of the above, a tug won, a fall) clatters by the weapon's kind (a gun: heavy metal; a blade:
+//   metal; Mjolnir, a haft: wood) and the grunt grunts (its pain sounds, at most every 0.6 s): VR_AG_DisarmFeedback.
 // - Shoves and falls (VR_AG_FallDrop, vr_agrunt_fall_drop): a stagger never drops the weapon. Knocked down onto the
 //   floor, it lets go as it lands (0.4 s on): the weapon falls beside it; getting up, it goes back for it first (its
 //   own, within 160 units, whoever is nearer), if you haven't taken it.
@@ -48,6 +54,13 @@
 .entity vr_ag_shun;       // a weapon it gave up on
 .float vr_ag_shun_until;  // ... until then
 string vr_ag_tug_why;     // the last tug's end (the tests)
+.float vr_ag_snd_at;      // its next disarm grunt not before
+.float vr_ag_knock_at;    // a thrown thing's knock (once), a player's main hand's blow on a held weapon
+.float vr_ag_knock_off;   // ... the off hand's
+float vr_ag_feedbacks;    // disarms' feedback sounds (the tests)
+string vr_ag_feedback;    // ... the last clatter
+vector vr_ag_wa;          // VR_AG_WeaponLine's: behind its grip,
+vector vr_ag_wb;          // ... its muzzle
 string vr_ag_reach_why;   // VR_AG_Reachable's last no (the tests)
 float vr_ag_tug_stretch;  // the last tug frame's stretch (the tests)
 
@@ -372,6 +385,180 @@ void(entity attacker, entity targ) VR_AG_Parried =
 };
 
 // ----------------------------------------------------------------------------
+// Blows and throws on the held weapon; every disarm's sound
+// ----------------------------------------------------------------------------
+
+void() VR_AG_PlayPrecache =
+{
+    precache_sound("zombie/z_hit.wav"); // (its headbutt)
+    float i;
+    for(i = 1; i <= 4; i++)
+    {
+        precache_sound(sprintf("vr/phys/metal_h%g.wav", i));
+        precache_sound(sprintf("vr/phys/metal_m%g.wav", i));
+        precache_sound(sprintf("vr/phys/wood_h%g.wav", i));
+    }
+};
+
+// A disarm's sound: the weapon knocked loose (a gun heavy metal, a blade metal, Mjolnir wood), and its grunt.
+void(entity g, float wid) VR_AG_DisarmFeedback =
+{
+    if(wid < 0 || wid == WID_FIST)
+    {
+        return;
+    }
+    string kind = VR_AG_Class(wid) != VR_AG_CLASS_MELEE ? "metal_h" : (wid == WID_MJOLNIR ? "wood_h" : "metal_m");
+    vr_ag_feedback = sprintf("vr/phys/%s%g.wav", kind, 1 + min(3, floor(random() * 4)));
+    sound(g, CHAN_AUTO, vr_ag_feedback, 1, ATTN_NORM);
+    vr_ag_feedbacks = vr_ag_feedbacks + 1;
+    if(time >= g.vr_ag_snd_at)
+    {
+        g.vr_ag_snd_at = time + 0.6;
+        sound(g, CHAN_VOICE, random() < 0.5 ? "soldier/pain1.wav" : "soldier/pain2.wav", 1, ATTN_NORM);
+    }
+    VR_AG_Log(sprintf("disarm feedback: %s", vr_ag_feedback));
+};
+
+// The least distance between the segments a0..a1 and b0..b1.
+float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
+{
+    vector d1 = a1 - a0;
+    vector d2 = b1 - b0;
+    vector r = a0 - b0;
+    float a = d1 * d1;
+    float e = d2 * d2;
+    float f = d2 * r;
+    float s = 0;
+    float t = 0;
+    if(a <= 0.001 && e <= 0.001)
+    {
+        return vlen(r);
+    }
+    if(a <= 0.001)
+    {
+        t = min(1, max(0, f / e));
+    }
+    else
+    {
+        float c = d1 * r;
+        if(e <= 0.001)
+        {
+            s = min(1, max(0, -c / a));
+        }
+        else
+        {
+            float b = d1 * d2;
+            float den = a * e - b * b;
+            s = den != 0 ? min(1, max(0, (b * f - c * e) / den)) : 0;
+            t = (b * s + f) / e;
+            if(t < 0)
+            {
+                t = 0;
+                s = min(1, max(0, -c / a));
+            }
+            else if(t > 1)
+            {
+                t = 1;
+                s = min(1, max(0, (b - c) / a));
+            }
+        }
+    }
+    return vlen(a0 + d1 * s - (b0 + d2 * t));
+};
+
+// The held weapon `p`'s line (vr_ag_wa: 8 units behind its grip, vr_ag_wb: its muzzle; one too near: 24 ahead).
+void(entity p) VR_AG_WeaponLine =
+{
+    makevectors(p.v_angle);
+    vector m = weaponmuzzle(p);
+    if(vlen(m - p.origin) < 8 || vlen(m - p.origin) > 80)
+    {
+        m = p.origin + v_forward * 24;
+    }
+    vr_ag_wa = p.origin - normalize(m - p.origin) * 8;
+    vr_ag_wb = m;
+};
+
+// A player's hand (or what it holds) striking the held weapon hard enough: knocked out along the blow. TRUE: disarmed.
+float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
+{
+    vector hp = VRGetEntHandPos(pl, h);
+    vector mz = h == cVR_MainHand ? pl.muzzlepos : pl.offmuzzlepos;
+    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
+    {
+        mz = hp;
+    }
+    if(VR_AG_SegDist(hp, mz, vr_ag_wa, vr_ag_wb) > 5)
+    {
+        return FALSE;
+    }
+    float last = h == cVR_MainHand ? pl.vr_ag_knock_at : pl.vr_ag_knock_off;
+    if(time - last < 0.3)
+    {
+        return FALSE;
+    }
+    vector hv = VRGetEntHandVel(pl, h);
+    float sp = vlen(hv) / VRMetersToUnits();
+    float need = cvar_hget(cvarh_vr_agrunt_disarm_swing);
+    if(sp < need)
+    {
+        if(sp > need * 0.5)
+        {
+            VR_AG_Log(sprintf("a blow of %.1f m/s on its weapon: under %g", sp, need));
+        }
+        return FALSE;
+    }
+    if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
+    VR_AG_Disarm(g, hv, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
+    return TRUE;
+};
+
+// VR_AG_PropThink, every frame: a hard blow or a throw on the held weapon itself (not only its hand). TRUE: disarmed.
+float(entity g, entity p) VR_AG_WeaponStruck =
+{
+    if(!cvar_hget(cvarh_vr_agrunt_disarm) || g.vr_ag_tug_pl)
+    {
+        return FALSE;
+    }
+    VR_AG_WeaponLine(p);
+    vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
+    entity pl = find(world, classname, "player");
+    while(pl)
+    {
+        if(pl.health > 0 && vlen(pl.origin - mid) < 128 &&
+           (VR_AG_HandStrike(g, p, pl, cVR_MainHand) || VR_AG_HandStrike(g, p, pl, cVR_OffHand)))
+        {
+            return TRUE;
+        }
+        pl = find(pl, classname, "player");
+    }
+    entity e = findradius(mid, 48);
+    while(e)
+    {
+        if((e.classname == "thrown_weapon" || e.vr_gib || (e.flags & FL_FORCEGRABBABLE)) && e != p &&
+           !(e.flags & (FL_CLIENT | FL_MONSTER)) && time - e.vr_ag_knock_at > 0.5 && vlen(e.velocity) >= 100 &&
+           e.velocity * (mid - e.origin) > 0)
+        {
+            float reach = 5 + min(12, max(4, max(e.maxs_x, e.maxs_z)));
+            if(VR_AG_SegDist(e.origin - e.velocity * frametime, e.origin, vr_ag_wa, vr_ag_wb) <= reach)
+            {
+                float mom = VR_Thrown_Mass(e) * vlen(e.velocity) / VRMetersToUnits();
+                e.vr_ag_knock_at = time;
+                if(mom >= cvar_hget(cvarh_vr_agrunt_disarm_throw))
+                {
+                    VR_AG_Disarm(g, e.velocity, 120, sprintf("a %s thrown at its weapon, %.1f kg m/s", e.classname, mom));
+                    return TRUE;
+                }
+                VR_AG_Log(sprintf("a %s thrown at its weapon, %.1f kg m/s: under %g", e.classname, mom,
+                    cvar_hget(cvarh_vr_agrunt_disarm_throw)));
+            }
+        }
+        e = e.chain;
+    }
+    return FALSE;
+};
+
+// ----------------------------------------------------------------------------
 // Falls
 // ----------------------------------------------------------------------------
 
@@ -392,10 +579,11 @@ float(entity g) VR_AG_FallDrop =
     setorigin(p, at);
     makevectors('0 1 0' * random() * 360);
     vector vel = v_forward * (20 + random() * 30) + '0 0 60';
+    float wid = g.vr_ag_wid;
     entity w = VR_AG_DropHeld(g, vel);
     g.vr_ag_own = w;
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
-    sound(g, CHAN_AUTO, "weapons/tink1.wav", 1, ATTN_NORM);
+    VR_AG_DisarmFeedback(g, wid);
     VR_AG_Log("dropped its weapon as it fell");
     return TRUE;
 };

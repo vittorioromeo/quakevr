@@ -2700,6 +2700,8 @@ QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
 QVR_CVAR(vr_agrunt_disarm_damage, "10", CVAR_ARCHIVE)  // a blow's least damage there to disarm it
 QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand
+QVR_CVAR(vr_agrunt_disarm_swing, "4.5", CVAR_ARCHIVE) // m/s a blow (your hand or what it holds) landing on its held weapon must reach to knock it out
+QVR_CVAR(vr_agrunt_disarm_throw, "20", CVAR_ARCHIVE) // kg m/s a thrown weapon, prop or gib landing on its held weapon must carry (mass x speed) to knock it out
 QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war (pull to win; 0: the grab takes it at once)
 QVR_CVAR(vr_agrunt_tug_pull, "10", CVAR_ARCHIVE)  // the tug: how far (units) you must pull your hand back from where you grabbed, away from it, to be winning
 QVR_CVAR(vr_agrunt_tug_time, "1.2", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)

@@ -42,6 +42,7 @@ enum class Category : int
     Count
 };
 constexpr int categoryCount = static_cast<int>(Category::Count);
+constexpr int monsterHeldEffect = 128; // QC VR_AG_EF_HELD (vr_armedgrunt.qc): a weapon in an armed grunt's hand
 constexpr const char* categoryNames[categoryCount] = {"weapons", "mags", "ammo", "health", "armor", "powerups", "keys",
     "backpacks"};
 cvar_t* const categoryOn[categoryCount] = {&vr_lootbeam_weapons, &vr_lootbeam_mags, &vr_lootbeam_ammo,
@@ -127,6 +128,10 @@ State state;
 {
     using T = modelmeta::Trait;
     const qmodel_t* m = e.model;
+    if(e.effects & monsterHeldEffect)
+    {
+        return Category::None; // a weapon in an armed grunt's hand: loot once it lies about
+    }
     if(net && (net->weaponUid != 0 || net->spin))
     {
         return Category::Weapons; // a weapon prop (dropped, thrown, a map's drawn as its prop: any weapon, AD's too)

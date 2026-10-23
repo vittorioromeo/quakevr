@@ -44,3 +44,6 @@ float(entity g) VR_AG_SeekCheck;
 entity(entity g) VR_AG_OwnBack;
 void(entity g) VR_AG_SeekStart;
 float() VR_AG_TugResume;
+void(entity g, float wid) VR_AG_DisarmFeedback;
+void() VR_AG_PlayPrecache;
+float(entity g, entity p) VR_AG_WeaponStruck;
