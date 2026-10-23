@@ -51,15 +51,30 @@ entity(float dist, float side) VR_AGPT_Grunt =
     return g;
 };
 
-// Pellets from just above e's torso (`n` of them): what the line meets first.
+// Pellets at e's torso (`n` of them), from 40 units off it along the first way whose line meets e itself (above, then
+// eight ways round and up): what the line meets first.
 string(entity e, float n) VR_AGPT_Shoot =
 {
     entity p = vr_agt_player;
     vector at = isragdoll(e) ? limbplace(e, 1, 3) : e.origin + '0 0 10';
     if(at == '0 0 0') { at = e.origin + '0 0 4'; }
-    vector from = at + '0 0 40'; // (from above it: the other body never in the way)
-    vector dir = normalize(at - from);
-    traceline(from, at + dir * 32, MOVE_HITGIBS | MOVE_HITMODEL, p);
+    vector from = at + '0 0 40';
+    vector dir = '0 0 -1';
+    float k;
+    for(k = 0; k < 9; k++)
+    {
+        if(k > 0)
+        {
+            makevectors('0 1 0' * k * 45);
+            from = at + normalize(v_forward + '0 0 0.7') * 40;
+        }
+        dir = normalize(at - from);
+        traceline(from, at + dir * 32, MOVE_HITGIBS | MOVE_HITMODEL, p);
+        if(trace_ent == e)
+        {
+            break;
+        }
+    }
     string what = trace_ent.classname;
     entity oldself = self;
     self = p;

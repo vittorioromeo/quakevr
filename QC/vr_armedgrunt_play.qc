@@ -136,6 +136,8 @@ void(entity g, float won, string why) VR_AG_TugEnd =
 {
     entity pl = g.vr_ag_tug_pl;
     g.vr_ag_tug_pl = world;
+    pl.vr_ag_knock_at = time + 0.5; // (no blow on its weapon from your hands as the struggle ends: a headbutt's or a shove's push)
+    pl.vr_ag_knock_off = time + 0.5;
     vr_ag_tug_why = why;
     if(won)
     {
