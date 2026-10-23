@@ -108,16 +108,13 @@ void(entity p) VR_Melee_SweepTest =
         return;
     }
     float len = vlen(vr_mline_far - vr_mline_grip);
-    vector hlo = '0 0 0';
-    vector hhi = '0 0 0';
-    float hk = VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand));
-    if(thing == VR_MTHING_AXE && hk > 0 && VR_ADMelee_Blunt(hk))
-    {
-        hlo = admeleehead(hk, 0);
-        hhi = admeleehead(hk, 1);
-    }
+    // Its head's box and width as the track keeps them (an AD hammer's or mace's, or the weapon's own: Edit Blade Shape).
+    VR_Melee_HeadOf(p, cVR_MainHand, thing);
+    vector hlo = vr_mhead_lo;
+    vector hhi = vr_mhead_hi;
+    float width = vr_mline_shape_y;
     VR_Melee_Layout(thing);
-    float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
+    float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * width;
     bprint(sprintf("meleesweep: %s (thing %g), its line %.1f units, %g points, head %v .. %v\n", p.weaponmodel, thing, len,
         vr_mpt_n, hlo, hhi));
     vr_mswt_fail = FALSE;
@@ -136,6 +133,7 @@ void(entity p) VR_Melee_SweepTest =
     entity b = spawn();
     b.mh_hd_lo = hlo;
     b.mh_hd_hi = hhi;
+    b.mh_bwidth = width;
     entity t = spawn();
     t.classname = "vr_meleesweep_target";
     t.solid = SOLID_BBOX;
@@ -290,16 +288,158 @@ void(entity p) VR_Melee_SweepTest =
     bprint(vr_mswt_fail ? "meleesweep: FAIL\n" : "meleesweep: PASS\n");
 };
 
-// Every server frame (StartFrame): the test asked for (vr_melee_sweep_test).
+// vr_melee_sweep_test 3 (the blade shape editor, ROUND22.md "Blade shape editor"): the main hand's weapon's own shape
+// (Weapon Offsets' Blade keys) strikes as it is drawn. "bladeshape:" lines, then PASS or FAIL:
+//   curve  (its line bent: a curve of its own or an AD sword's) the blade's points swept 24 units across its flat in one
+//          frame (VR_Melee_Sweep, swept): a small box just outside the bow is struck along the curve and missed by the
+//          straight line; one just inside it (across the line) struck by the line, missed by the curve.
+//   width  a small box beside the blade's middle, 1.5 radii off the swept plane: missed at width 1; struck at the weapon's
+//          Blade Width (when it is 2 or more).
+//   near   the near end's share behind the hand (Blade Near End, or the kind's).
+// The curve probe: the main hand's line as VR_Melee_Line left it, its points moved by `xD` in one frame; `xBent` FALSE the
+// line straight. TRUE if `xT` is struck.
+float(entity b, entity xT, float xThing, vector xD, float xBent, float xWidth) VR_MSWT_LineProbe =
+{
+    float i;
+    VR_Melee_Line(self, cVR_MainHand, xThing); // (afresh: the sweep's own may have laid out another)
+    float bend = vr_mline_bend;
+    if(!xBent)
+    {
+        vr_mline_bend = 0;
+    }
+    VR_Melee_Layout(xThing);
+    b.mh_thing = xThing;
+    b.mh_free = FALSE;
+    b.mh_struck = world;
+    b.mh_hit_ent = world;
+    b.mh_n = vr_mpt_n;
+    b.mh_bwidth = xWidth;
+    for(i = 0; i < vr_mpt_n; ++i)
+    {
+        b.mh_pp[i] = VR_Melee_At(vr_mpt_f[i]);
+        b.mh_cp[i] = b.mh_pp[i] + xD;
+    }
+    vr_mline_bend = bend;
+    b.mh_pgrip = vr_mline_grip;
+    b.mh_grip = vr_mline_grip + xD;
+    b.mh_far = vr_mline_far + xD;
+    b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
+    float was = cvar("vr_melee_swept");
+    cvar_set("vr_melee_swept", "1");
+    vr_msw_probe = TRUE;
+    VR_Melee_Sweep(cVR_MainHand, b);
+    vr_msw_probe = FALSE;
+    cvar_set("vr_melee_swept", ftos(was));
+    return vr_msw_edge == xT;
+};
+
+void(entity p) VR_Melee_BladeShapeTest =
+{
+    entity was = self;
+    self = p;
+    float thing = VR_Melee_Thing(p, cVR_MainHand);
+    if(!VR_Melee_Line(p, cVR_MainHand, thing) || thing == VR_MTHING_FIST || thing == VR_MTHING_NONE)
+    {
+        bprint(sprintf("bladeshape: the main hand holds no weapon (thing %g, %s): FAIL\n", thing, p.weaponmodel));
+        self = was;
+        return;
+    }
+    vector grip = vr_mline_grip, far = vr_mline_far;
+    float len = vlen(far - grip);
+    float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
+    bprint(sprintf("bladeshape: %s slot %g shape %v bend %g, line %.1f units, near end %.3f behind\n", p.weaponmodel,
+        vr_mline_slot, vr_mline_shape, vr_mline_bend, len, vlen(vr_mline_near - grip) / max(1, len)));
+    float fail = FALSE;
+    entity b = spawn();
+    entity t = spawn();
+    t.classname = "vr_meleesweep_target";
+    t.solid = SOLID_BBOX;
+    t.movetype = MOVETYPE_NONE;
+    t.takedamage = DAMAGE_AIM;
+    t.health = 1000;
+    setsize(t, '-1 -1 -1', '1 1 1');
+    // Across the flat (the model's +y: VR_Melee_BendLine's), and the line's normal in the blade's plane.
+    vector across = VR_Melee_ModelY(p, cVR_MainHand, far - grip);
+    vector a = normalize(far - grip);
+    vector pn = normalize(VR_Melee_Cross(across, a));
+    vector d = across * 24;
+
+    // The curve: the point farthest off the line.
+    if(vr_mline_bend)
+    {
+        float most = 0;
+        vector mostAt = grip;
+        vector mostLine = grip;
+        float f;
+        for(f = 0.2; f < 1.001; f = f + 0.05)
+        {
+            vector at = VR_Melee_At(f);
+            vector line = grip + (far - grip) * f;
+            if(vlen(at - line) > most)
+            {
+                most = vlen(at - line);
+                mostAt = at;
+                mostLine = line;
+            }
+        }
+        vector out = normalize(mostAt - mostLine);
+        vector outer = mostAt + out * (1 + rBase * 0.5) + d * 0.5;
+        vector inner = mostLine - out * (1 + rBase * 0.5) + d * 0.5;
+        setorigin(t, outer);
+        float co = VR_MSWT_LineProbe(b, t, thing, d, TRUE, 1);
+        float so = VR_MSWT_LineProbe(b, t, thing, d, FALSE, 1);
+        setorigin(t, inner);
+        float ci = VR_MSWT_LineProbe(b, t, thing, d, TRUE, 1);
+        float si = VR_MSWT_LineProbe(b, t, thing, d, FALSE, 1);
+        float ok = ((most > 2) && co && !so && !ci && si);
+        bprint(sprintf("bladeshape: curve %.2f units off the line at most (%.2f along): outside struck by the curve %g, "
+            "the line %g; inside %g, %g: %s\n", most, ((mostLine - grip) * a) / max(1, len), co, so, ci, si,
+            ok ? "PASS" : "FAIL"));
+        fail = (fail || !ok);
+    }
+    else
+    {
+        bprint("bladeshape: curve: straight\n");
+    }
+
+    // The width: a box over the blade's middle, its near face 1.5 radii off the swept plane.
+    vector mid = VR_Melee_At(0.72);
+    setorigin(t, mid + d * 0.5 + pn * (rBase * 1.5 + 1));
+    float w1 = VR_MSWT_LineProbe(b, t, thing, d, TRUE, 1);
+    float ww = VR_MSWT_LineProbe(b, t, thing, d, TRUE, vr_mline_shape_y);
+    float wok = (!w1 && (vr_mline_shape_y < 2 || ww));
+    bprint(sprintf("bladeshape: width %.2f: a box %.1f units off the blade struck at width 1 %g, at its own %g: %s\n",
+        vr_mline_shape_y, rBase * 1.5, w1, ww, wok ? "PASS" : "FAIL"));
+    fail = (fail || !wok);
+    self = was;
+    remove(t);
+    remove(b);
+    bprint(fail ? "bladeshape: FAIL\n" : "bladeshape: PASS\n");
+};
+
+// Every server frame (StartFrame): the test asked for (vr_melee_sweep_test: 1 the sweep, 2 the blade's dump, 3 its shape).
 void() VR_Melee_SweepTestFrame =
 {
-    if(!cvar("vr_melee_sweep_test"))
+    float mode = cvar("vr_melee_sweep_test");
+    if(!mode)
     {
         return;
     }
     cvar_set("vr_melee_sweep_test", "0");
     entity p = find(world, classname, "player");
-    if(p != world)
+    if(p == world)
+    {
+        return;
+    }
+    if(mode == 2)
+    {
+        VR_BladeDump(p);
+    }
+    else if(mode == 3)
+    {
+        VR_Melee_BladeShapeTest(p);
+    }
+    else
     {
         VR_Melee_SweepTest(p);
     }
