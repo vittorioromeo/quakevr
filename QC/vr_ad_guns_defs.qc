@@ -83,21 +83,25 @@ float(float wid) VR_ADGun_ClipSize =
 
 // ---------------------------------------------------------------------------------------------------------------------
 // AD's melee monsters' weapons (vr_ad_melee.qc drops them): the knight's sword (WID_SWORD: its swing, its two-hand grip,
-// its holsters) with a kind in its weapon flags, bits 8-10 (the grapple's hook tag's bits: a grapple's only, so a
+// its holsters) with a kind in its weapon flags, bits 8-11 (the grapple's hook tag's bits: a grapple's only, so a
 // level change keeps a sword's kind: DecodeLevelParms). 0: Quake VR's knight's or hell knight's sword. Their models are
 // AD's own weapon models laid as the knight's sword (the engine's vr_admelee.cpp: "<AD weapon model>#melee"; nothing of
 // AD's in Quake VR's files); without AD's data the knight's sword stands in. The hammer and the mace are heavy (Weapon
 // Weights: their mass slows a one-handed swing; vr_admelee_heavy_1h: its damage) and blunt (VR_Melee_Thing: an axe's
 // head that cuts no heads off; client.qc: a blunt blow's sounds and wounds).
 float QVR_WPNFLAG_SWORD_KIND_UNIT = 256;
-float QVR_WPNFLAG_SWORD_KIND = 1792; // (bits 8-10: 256 .. 1792)
+float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4)
 float VR_ADMELEE_FURY = 1;     // the death fury's sword (it drops two: progs/w_dfurysword1.mdl)
 float VR_ADMELEE_DKNIGHT = 2;  // the death knight's (progs/w_dknightsword.mdl)
 float VR_ADMELEE_ZKNIGHT = 3;  // the zombie knight's (progs/w_zombiesword.mdl)
 float VR_ADMELEE_DGUARD = 4;   // the death guard's (progs/w_dguardsword.mdl)
 float VR_ADMELEE_HAMMER = 5;   // the hammer hunter ogre's (progs/w_ogreham.mdl)
 float VR_ADMELEE_MACE = 6;     // the mace hunter ogre's (progs/w_ogremac.mdl)
-float VR_ADMELEE_LAST = 6;
+float VR_ADMELEE_PHANTOM = 7;  // Rogue's Phantom Swordsman, which is the sword (progs/sword.mdl, Rogue's data): very heavy
+float VR_ADMELEE_DPRINCE = 8;  // AD's Dark Prince's (progs/w_dprincesword.mdl)
+float VR_ADMELEE_JUSTICE = 9;  // AD's justice knight's flat sword (progs/w_justicesword.mdl)
+float VR_ADMELEE_JUDGE = 10;   // AD's judicator's (boss) glowing sword (progs/w_judgesword.mdl): too big for a holster
+float VR_ADMELEE_LAST = 10;
 
 // A sword's kind (0: Quake VR's own), from its weapon flags.
 float(float xFlags) VR_ADMelee_Kind =
@@ -111,21 +115,36 @@ float(float xKind) VR_ADMelee_Flags =
     return xKind * QVR_WPNFLAG_SWORD_KIND_UNIT;
 };
 
+// Heavy: its damage needs both hands (vr_admelee_heavy_damage, vr_admelee_heavy_1h of it in one hand), its blows cost
+// more stamina and slow the walk (VR_ADMelee_VeryHeavy). The hammer, the mace and the Phantom Swordsman's sword.
 float(float xKind) VR_ADMelee_Heavy =
+{
+    return xKind == VR_ADMELEE_HAMMER || xKind == VR_ADMELEE_MACE || xKind == VR_ADMELEE_PHANTOM;
+};
+
+// Blunt: it strikes with a head, as an axe's that cuts nothing off (VR_Melee_Thing, admeleehead), a club's knock. The
+// hammer and the mace (the heavy sword cuts as a sword).
+float(float xKind) VR_ADMelee_Blunt =
 {
     return xKind == VR_ADMELEE_HAMMER || xKind == VR_ADMELEE_MACE;
 };
 
-// Whether a kind's weapon fits a holster (WeaponIdToHolsterable): the hammer and the mace are too big (carried by hand,
-// or left); the swords fit.
+// Whether a kind's weapon fits a holster (WeaponIdToHolsterable): the hammer, the mace, the Phantom Swordsman's sword
+// and the judicator's are too big (carried by hand, or left); the other swords fit.
 float(float xKind) VR_ADMelee_Holsterable =
 {
-    return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE;
+    return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE && xKind != VR_ADMELEE_PHANTOM &&
+           xKind != VR_ADMELEE_JUDGE;
 };
 
-// Its model (vr_admelee.cpp makes it from AD's), or the knight's sword without AD's data.
+// Its model (vr_admelee.cpp makes it from AD's, the Phantom Swordsman's from Rogue's), or the knight's sword without
+// that data.
 string(float xKind) VR_ADMelee_Model =
 {
+    if(xKind == VR_ADMELEE_PHANTOM)
+    {
+        return VR_Has("progs/sword.mdl") ? "progs/sword.mdl#melee" : "progs/v_ksword.mdl";
+    }
     if(!cvar("vr_ad_mounted"))
     {
         return "progs/v_ksword.mdl";
@@ -135,6 +154,9 @@ string(float xKind) VR_ADMelee_Model =
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "progs/w_zombiesword.mdl#melee"; }
     if(xKind == VR_ADMELEE_DGUARD)   { return "progs/w_dguardsword.mdl#melee"; }
     if(xKind == VR_ADMELEE_HAMMER)   { return "progs/w_ogreham.mdl#melee"; }
+    if(xKind == VR_ADMELEE_DPRINCE)  { return "progs/w_dprincesword.mdl#melee"; }
+    if(xKind == VR_ADMELEE_JUSTICE)  { return "progs/w_justicesword.mdl#melee"; }
+    if(xKind == VR_ADMELEE_JUDGE)    { return "progs/w_judgesword.mdl#melee"; }
     return "progs/w_ogremac.mdl#melee";
 };
 
@@ -145,6 +167,10 @@ string(float xKind) VR_ADMelee_Name =
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "Zombie Knight's Sword"; }
     if(xKind == VR_ADMELEE_DGUARD)   { return "Death Guard's Sword"; }
     if(xKind == VR_ADMELEE_HAMMER)   { return "Hunter Ogre's Hammer"; }
+    if(xKind == VR_ADMELEE_PHANTOM)  { return "Phantom Sword"; }
+    if(xKind == VR_ADMELEE_DPRINCE)  { return "Dark Prince's Sword"; }
+    if(xKind == VR_ADMELEE_JUSTICE)  { return "Justice Knight's Sword"; }
+    if(xKind == VR_ADMELEE_JUDGE)    { return "Judicator's Sword"; }
     return "Hunter Ogre's Mace";
 };
 
@@ -153,6 +179,8 @@ void() VR_ADMelee_Drop;                          // VR_AD_Dying: self, an AD mel
 void(float xClass) VR_ADMelee_Prepare;           // VR_AD_MonsterSetup: its weapons' models made and precached now
 void(float wid, float xFlags) VR_ADMelee_Placed; // a sword of a kind laid or carried: its model made and precached
 void(entity p) VR_ADMelee_EnsureCarried;         // DecodeLevelParms: p's carried ones made and precached
+void(float xKind) VR_ADMelee_Ensure;             // a kind's model made and precached now (rogue_invis_sw.qc's spawn)
+float() VR_ADMelee_PhantomDrop;                  // rogue_invis_sw.qc sword_die: self, the Phantom Swordsman, falls as one
 void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests
 
 // vr_ad_enemyguns.qc (after AD's files) defines these.
