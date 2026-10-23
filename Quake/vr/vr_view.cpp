@@ -3742,6 +3742,18 @@ bool weaponMount(int hand, WeaponMount& out)
     return true;
 }
 
+bool muzzleWithOffset(int hand, const glm::vec3& offset, glm::vec3& out)
+{
+    const ViewEntity& ve = entities.weapon[hand];
+    const int slot = weapons::slotForModel(ve.ent.model);
+    if(!ve.visible || !ve.ent.model || slot < 0 || isHandModel(ve.ent.model))
+    {
+        return false;
+    }
+    out = anchorPosition(ve, weapons::anchor(slot, Key::MuzzleAnchor), offset);
+    return true;
+}
+
 int ammoPouchCells()
 {
     return ammoPouchPlaced && entities.ammoPouch.ent.model && (cl.stats[protocol::STAT_QVR_POUCHKIND] & 7) == 4 &&

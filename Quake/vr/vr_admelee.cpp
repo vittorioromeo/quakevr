@@ -1437,6 +1437,24 @@ bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
     return false;
 }
 
+int kindOfModel(const char* model)
+{
+    if(!model)
+    {
+        return 0;
+    }
+    for(size_t w = 0; w < weaponCount; w++)
+    {
+        char name[MAX_QPATH];
+        q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
+        if(!strcmp(name, model))
+        {
+            return static_cast<int>(w) + 1;
+        }
+    }
+    return 0;
+}
+
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* at = strstr(name, suffix);

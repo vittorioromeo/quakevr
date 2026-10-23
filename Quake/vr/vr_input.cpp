@@ -24,6 +24,7 @@
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_holstersetup.hpp"
+#include "vr_bladeedit.hpp"
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
@@ -590,6 +591,12 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "Holster Setup");
                     continue;
                 }
+                // So does Edit Blade Shape (vr_bladeedit.cpp).
+                if(bladeedit::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "Edit Blade Shape");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -701,7 +708,8 @@ void update(const InputState& tracked)
         const bool menuBefore = menuGestures.menuWas[h];
         menuGestures.menuWas[h] = menuNow;
         if(menuNow == menuBefore ||
-            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !posing::button(h, posing::Button::Menu, menuNow)))
+            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
+                !posing::button(h, posing::Button::Menu, menuNow)))
         {
             menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
         }
@@ -769,6 +777,16 @@ void update(const InputState& tracked)
         }
         moveAxes = glm::vec2{0.f};
         holstersetup::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
+    else if(bladeedit::active())
+    {
+        // Edit Blade Shape: the player stands still while the hands shape the blade.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        bladeedit::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(posing::active())
     {

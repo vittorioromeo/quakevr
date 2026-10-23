@@ -43,6 +43,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
+#include "vr_blade.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
@@ -2289,6 +2290,17 @@ void PF_weapondrawnpose()
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
         return;
     }
+    if(what == 7)
+    {
+        // x: the Weapon Offsets slot (-1 none) of the weapon `player`'s `hand` holds (its weaponmodel, weaponmodel2): the
+        // blade's shape (QC VR_Melee_ShapeOf; admeleebend, admeleehead with -1 - slot).
+        const FieldOffsets& f = fields();
+        const char* name = hand ? PR_GetString(player->v.weaponmodel)
+                                : (f.weaponmodel2 >= 0 ? PR_GetString(fieldInt(player, f.weaponmodel2)) : "");
+        G_VECTOR(OFS_RETURN)[0] = static_cast<float>(name && *name ? weapons::slotForName(name) : -1);
+        G_VECTOR(OFS_RETURN)[1] = G_VECTOR(OFS_RETURN)[2] = 0.f;
+        return;
+    }
     const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
     bool mirrored = false;
@@ -2308,8 +2320,18 @@ void PF_weapondrawnpose()
 // vector(float kind, float f) admeleebend: AD sword kind `kind`'s blade at share `f` of the line from the hand to its tip,
 // off that line (admelee::bend, as shares of its length): x in the blade's plane (the model's +y crossed with the line),
 // y along the model's +y; z 1 if the blade is curved (0: straight, nothing off it). QC VR_Melee_At.
+// A kind below 0: Weapon Offsets slot -1 - kind's own curve (Blade Spine, vr_blade.hpp; z 1 if it has one: Edit Blade Shape).
 void PF_admeleebend()
 {
+    if(const int kind = static_cast<int>(G_FLOAT(OFS_PARM0)); kind < 0)
+    {
+        const blade::Shape s = blade::shape(-1 - kind);
+        const glm::vec2 k = s.spine ? blade::spineAt(s, G_FLOAT(OFS_PARM1)) : glm::vec2{0.f};
+        G_VECTOR(OFS_RETURN)[0] = k.x;
+        G_VECTOR(OFS_RETURN)[1] = k.y;
+        G_VECTOR(OFS_RETURN)[2] = s.spine ? 1.f : 0.f;
+        return;
+    }
     const glm::vec2 b = admelee::bend(static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1));
     G_VECTOR(OFS_RETURN)[0] = b.x;
     G_VECTOR(OFS_RETURN)[1] = b.y;
@@ -2319,9 +2341,26 @@ void PF_admeleebend()
 // vector(float kind, float which) admeleehead: AD heavy kind `kind`'s (the hammer, the mace) head's box (admelee::head,
 // shares of the line from the hand to its tip): `which` 0 its low corner, 1 its high; '0 0 0' for none. QC
 // VR_Melee_Sweep (the head's volume strikes).
+// A kind below 0: Weapon Offsets slot -1 - kind's own blade shape (vr_blade.hpp; Edit Blade Shape): `which` 0 and 1 its
+// own head's corners ('0 0 0': none of its own), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1
+// the kind's own, QC VR_Melee_NearBack; the swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own).
 void PF_admeleehead()
 {
     glm::vec3 lo{0.f}, hi{0.f};
+    if(const int kind = static_cast<int>(G_FLOAT(OFS_PARM0)); kind < 0)
+    {
+        const blade::Shape s = blade::shape(-1 - kind);
+        const int which = static_cast<int>(G_FLOAT(OFS_PARM1));
+        const glm::vec3 out = which == 2   ? glm::vec3{s.nearBack, s.width, (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f)}
+                              : !s.head    ? glm::vec3{0.f}
+                              : which == 1 ? s.headHi
+                                           : s.headLo;
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
+        return;
+    }
     if(!admelee::head(static_cast<int>(G_FLOAT(OFS_PARM0)), lo, hi))
     {
         lo = hi = glm::vec3{0.f};

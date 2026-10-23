@@ -46,6 +46,10 @@ void info_f();
 // weapon's plane, z along the model's +y (even about the line). False for a sword, or none made (AD's data not there).
 [[nodiscard]] bool head(int kind, glm::vec3& lo, glm::vec3& hi);
 
+// The kind (as bend's and head's; 0 none) of the made model named `model` (".../...#melee"): the blade shape editor's
+// seed of a slot's curve and head (vr_bladeedit.cpp).
+[[nodiscard]] int kindOfModel(const char* model);
+
 // The spine's point at share `f` of the line, in the model's frame, of the made model named `model` (".../...#melee";
 // vr_admelee_spine shows it on the hand's weapon). False if it is not a sword of these, or not made.
 [[nodiscard]] bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line); // line: the straight line's point there

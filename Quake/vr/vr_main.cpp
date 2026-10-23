@@ -87,6 +87,8 @@
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
 #include "vr_holstersetup.hpp"
+#include "vr_blade.hpp"
+#include "vr_bladeedit.hpp"
 #include "vr_posing.hpp"
 #include "vr_prepare.hpp"
 #include "vr_sightalign.hpp"
@@ -2038,6 +2040,8 @@ extern "C" void VR_Init()
     mdldequant::init();
     posing::init();
     holstersetup::init();
+    blade::init();
+    bladeedit::init();
     sightalign::init();
     bodycal::init();
     setup::init();
@@ -2248,6 +2252,7 @@ extern "C" void VR_BeginFrame()
         motion::frame();     // the motion recorder's indicator, likewise
         posing::frame();     // the weapon posing mode's text, likewise
         holstersetup::frame(); // Holster Setup: a held holster follows its hands; its boxes, labels and panel
+        bladeedit::frame();  // Edit Blade Shape: a held handle follows its hand; the blade, its handles and panel
         sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
         bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
         stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)

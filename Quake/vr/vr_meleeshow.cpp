@@ -184,6 +184,23 @@ void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3
     }
 }
 
+bool qvr::meleeshow::lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1 || meleeShows[hand].last < 0)
+    {
+        return false;
+    }
+    const ShowFrame& f = meleeShows[hand].frames[meleeShows[hand].last];
+    if(f.time < 0.f || showNow() - f.time > 0.5f)
+    {
+        return false;
+    }
+    nearEnd = f.nearEnd;
+    grip = f.grip;
+    tip = f.tip;
+    return true;
+}
+
 void qvr::meleeshow::draw(const glm::vec3& eye)
 {
     if(vr_debug_melee_blades.value == 0.f || !sv.active)

@@ -120,6 +120,11 @@ za::Vector<Item> pageDebugViews()
                   "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
                   "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
+        command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
+            .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
+                  "Shape): its tip, near end, width, curve and head box."),
+        command("Print Blade Shape", "vr_blade_dump")
+            .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),

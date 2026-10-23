@@ -172,6 +172,21 @@ void weaponOffsetsPoseWeapon()
     weaponOffsetsPose(-2);
 }
 
+// Edit Blade Shape (vr_bladeedit.cpp) on the page's weapon in its hand, this page reopened on leaving.
+void weaponOffsetsEditBlade()
+{
+    if(weapons::slotForModel(weapons::heldModel(weaponOffsetsHand)) != weaponOffsetsHeldSlot)
+    {
+        Con_Printf("Edit Blade Shape: the %s hand holds another weapon now: reopen the page.\n",
+            weaponOffsetsHand == 1 ? "main" : "off");
+        return;
+    }
+    if(bladeedit::start(weaponOffsetsHand, qvr::menu::currentPage()))
+    {
+        weaponOffsetsStale = true;
+    }
+}
+
 void weaponOffsetsPoseHotspot()
 {
     weaponOffsetsPose(editedHotspot());
@@ -352,6 +367,11 @@ za::Vector<Item> pageWeaponOffsets()
                 .help("The weapon floats still in front of you: put the weapon hand on it as you want to hold it and "
                       "press the other hand's A/X to set its place in the hand. B/Y undoes, the trigger goes on to the "
                       "hotspots, the stick turns the weapon, the menu button comes back here."),
+            action("Edit Blade Shape", weaponOffsetsEditBlade)
+                .help("What this weapon's blows strike with, shaped by hand with the weapon in its hand (Show Melee "
+                      "Blades on): the other hand's grip drags the tip, the near end, the width, five points of the "
+                      "curve and a head's corners. A panel: Undo, Reset Blade, Straighten, Head Box, Cancel, Done (its "
+                      "values printed to the console). B/Y undoes, the menu button is Done."),
             cycle("Weapon Hand", vr_pose_weapon_hand, {{1.f, "Main Hand"}, {0.f, "Off Hand (Mirrored)"}})
                 .help("The hand that poses the weapon (the settings are shared: the off hand's are mirrored). The other "
                       "hand poses the hotspots and confirms."),
