@@ -1036,6 +1036,37 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage)."),
         toggle("Grab Its Weapon", vr_agrunt_disarm_yank)
             .help("Your empty hand closing on its weapon takes it out of its hand: it is yours (vr_agrunt_disarm_yank)."),
+        slider("Blow on Its Weapon", vr_agrunt_disarm_swing, 1.f, 10.f, 0.25f, "%.2f m/s").extend(0.f, 50.f)
+            .help("How fast your hand (a punch, or the weapon it holds) must be going when it lands on the weapon an "
+                  "armed grunt holds to knock it out of its hands, along the blow. A melee hit lands from 3.2 m/s "
+                  "(vr_melee_speed): 4.5 is a deliberate hard swing (vr_agrunt_disarm_swing)."),
+        slider("Throw at Its Weapon", vr_agrunt_disarm_throw, 1.f, 100.f, 1.f, "%.0f kg m/s").extend(0.f, 1000.f)
+            .help("The momentum (its mass times its speed) a thrown weapon, prop or gib must carry when it lands on the "
+                  "weapon an armed grunt holds to knock it out: 20 is a 2 kg weapon thrown at 10 m/s; a gib or a shell "
+                  "tossed is far under it (vr_agrunt_disarm_throw)."),
+        toggle("Tug-of-War", vr_agrunt_tug)
+            .help("Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
+                  "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "
+                  "by a parry or badly hurt, it lets go at once; hurt or in pain, sooner. Off: the grab takes it at once "
+                  "(vr_agrunt_tug)."),
+        slider("Tug: Pull Distance", vr_agrunt_tug_pull, 2.f, 40.f, 1.f, "%.0f units").extend(0.f, 200.f)
+            .help("How far you must pull your hand back from where you grabbed its weapon, away from it, to be "
+                  "winning (vr_agrunt_tug_pull)."),
+        slider("Tug: Pull Time", vr_agrunt_tug_time, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 30.f)
+            .help("How long you must keep it pulled that far against a calm grunt at full health; less as it is hurt, "
+                  "half while it flinches from a hit. 0: any pull wins (vr_agrunt_tug_time)."),
+        slider("Tug: It Fights Back Every", vr_agrunt_tug_fight, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 30.f)
+            .help("About how often it fights back during the struggle: a shove or a headbutt breaks your grip, a gun "
+                  "fires at you. 0: never (vr_agrunt_tug_fight)."),
+        slider("Tug: Lets Go When Hurt Below", vr_agrunt_tug_hurt, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("A grab takes the weapon at once from a grunt down to this share of its health "
+                  "(vr_agrunt_tug_hurt)."),
+        slider("Parry Disarm Chance", vr_agrunt_parry_disarm, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("The chance your weapon's parry of its melee blow knocks its weapon out of its hand; a well-timed "
+                  "parry's 1.5 times (vr_agrunt_parry_disarm)."),
+        toggle("Drops It When Floored", vr_agrunt_fall_drop)
+            .help("Knocked down onto the floor (not just staggered by a shove) it drops its weapon beside it, and "
+                  "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
         toggle("Picks Weapons Up", vr_agrunt_rearm)
             .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
                   "not nearer to it than it is (vr_agrunt_rearm)."),
@@ -1044,6 +1075,12 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         toggle("Re-Arms Out of a Fight", vr_agrunt_rearm_idle)
             .help("Unarmed and not fighting, it also walks over to a weapon lying near and takes it up "
                   "(vr_agrunt_rearm_idle; with Picks Weapons Up)."),
+        slider("Gives Up on a Weapon After", vr_agrunt_seek_timeout, 1.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving "
+                  "it up for a while; it only goes for weapons it can walk to on the floor, not in liquid or up a "
+                  "ledge (vr_agrunt_seek_timeout)."),
+        slider("Leaves It Alone For", vr_agrunt_seek_shun, 0.f, 120.f, 1.f, "%.0f s").extend(0.f, 600.f)
+            .help("How long it leaves a weapon it gave up on before trying it again (vr_agrunt_seek_shun)."),
         header("Behaviour"),
         toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
             .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "

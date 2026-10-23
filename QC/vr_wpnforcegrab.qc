@@ -159,6 +159,11 @@ float(entity e) VR_Forcegrab_IsEligible =
     {
         return FALSE;
     }
+    // A weapon in an armed grunt's hand (vr_armedgrunt.qc): grabbed by hand (its tug-of-war), never pulled.
+    if(e.classname == "vr_ag_weapon")
+    {
+        return FALSE;
+    }
     // Bodies may be grabbed by hand, never summoned with a force grab.
     if(isragdoll(e))
     {
