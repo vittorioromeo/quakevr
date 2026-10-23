@@ -2699,100 +2699,8 @@ extern "C" float VR_ViewModelMinLight(void)
     return za::clamp(vr_viewmodel_minlight.value, 0.f, 128.f);
 }
 
-// ----------------------------------------------------------------------------
-// Presets
-
-void lighting::applyPreset(int preset)
-{
-    struct Preset
-    {
-        float dlights, dlightSize, maplights, maplightSize, filter, atlasSize, distance, models, angle, entityShadows,
-            modelLighting, look, // look: contrast, bloom, coloured uncapped DarkPlaces lights, sheen, models on a
-                                 // par with the world, smooth replacement textures (0: Quake's)
-            normalmaps, parallax;
-    };
-    static constexpr Preset presets[] = {
-        // off: Quake's own look (flat dynamic lights, no shadows)
-        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0, 0, 0, 0},
-        // low
-        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1, 1, 0, 0},
-        // medium
-        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1, 1, 1, 1},
-        // high (8192: its 10 shadowed lights' 512 faces fill only 8 of 4096's 3x2-face blocks)
-        {6, 512, 4, 512, 2, 8192, 2048, 1, 1, 1, 1, 1, 1, 1},
-        // ultra
-        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1, 1, 1},
-    };
-    preset = za::clamp(preset, 0, 4);
-    const Preset& p = presets[preset];
-    Cvar_SetValueQuick(&vr_shadow_dlights, p.dlights);
-    Cvar_SetValueQuick(&vr_shadow_dlight_size, p.dlightSize);
-    Cvar_SetValueQuick(&vr_shadow_maplights, p.maplights);
-    Cvar_SetValueQuick(&vr_shadow_maplight_size, p.maplightSize);
-    Cvar_SetValueQuick(&vr_shadow_filter, p.filter);
-    Cvar_SetValueQuick(&vr_shadow_atlas, p.atlasSize);
-    Cvar_SetValueQuick(&vr_shadow_distance, p.distance);
-    Cvar_SetValueQuick(&vr_dlight_models, p.models);
-    Cvar_SetValueQuick(&vr_dlight_angle, p.angle);
-    Cvar_SetValueQuick(&vr_entity_shadows, p.entityShadows);
-    Cvar_SetValueQuick(&vr_model_lighting, p.modelLighting);
-    const auto look = [&](cvar_t& var, float quake) {
-        Cvar_SetQuick(&var, p.look != 0.f ? var.default_string : va("%g", quake));
-    };
-    look(vr_light_contrast, 1.f);
-    look(vr_ambient_light, 0.f); // Quake's maps have no fill light of their own
-    look(vr_bloom, 0.f);
-    look(vr_tonemap, 0.f); // the eyes' float scene and tone curve, the grade (vr_tonemap.cpp)
-    look(vr_grade, 0.f);
-    look(vr_flash_scale, 1.f);
-    look(vr_explosion_light_scale, 1.f);
-    look(vr_colored_lights, 0.f);
-    look(vr_projectile_lights, 0.f);
-    // The lava nails' lights (a few on Low) and the lightning's stream of lights (Medium and up).
-    Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
-    Cvar_SetQuick(&vr_lavagun_light, preset >= 1 ? vr_lavagun_light.default_string : "0"); // the lava guns' glow (vr_emissive.cpp): Low and up
-    Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
-    Cvar_SetQuick(&vr_flame_lights, preset >= 2 ? vr_flame_lights.default_string : preset == 1 ? "1" : "0"); // the flamethrowers' (vr_emissive.cpp)
-    Cvar_SetQuick(&vr_torch_lights, preset >= 2 ? vr_torch_lights.default_string : preset == 1 ? "4" : "0"); // torches' flicker
-    look(vr_weapon_screen_light, 0.f);
-    look(vr_gadget_light, 0.f);
-    look(vr_screen_glow, 0.f);
-    look(vr_screen_text_glow, 0.f);
-    look(vr_weapon_glow, 0.f);
-    look(vr_dlight_uncapped, 0.f);
-    look(vr_dlight_falloff, 0.f);
-    look(vr_specular, 0.f);
-    look(vr_model_light_parity, 0.f);
-    look(vr_model_ambient_dir, 0.f); // directional ambient on models (vr_ambient.cpp)
-    look(vr_rim_light, 0.f); // rim light on models (vr_envmap.cpp)
-    Cvar_SetQuick(&vr_weapon_reflections, preset >= 2 ? "1" : "0"); // weapons' reflections (vr_envmap.cpp): Medium and up
-    look(vr_viewmodel_minlight, 24.f);
-    look(vr_texture_smooth, 0.f);
-    look(vr_alpha_coverage, 0.f); // fences' mips as Quake's (thinning out with distance)
-    look(vr_water_splash, 0.f); // liquid splashes (vr_particles.cpp)
-    look(vr_particle_light, 0.f); // lit particles (vr_particles.cpp): Quake's were all as bright as their colours
-    Cvar_SetQuick(&vr_soft_particles, preset >= 2 ? "1" : "0"); // soft particles and sprites (vr_particles.cpp): Medium and up
-    Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
-    Cvar_SetValueQuick(&vr_parallax, p.parallax);
-    Cvar_SetQuick(&vr_detail, preset >= 2 ? vr_detail.default_string : "0"); // detail textures (vr_detail.cpp): Medium and up, at the default (off)
-    // Dynamic ambient occlusion (vr_ao.cpp): Medium and up.
-    Cvar_SetQuick(&vr_ao_dynamic, preset >= 2 ? vr_ao_dynamic.default_string : "0");
-    Cvar_SetQuick(&vr_ao_brush, preset >= 2 ? vr_ao_brush.default_string : "0");
-    Cvar_SetQuick(&vr_ao_models, preset >= 2 ? vr_ao_models.default_string : "0");
-    water::applyPreset(preset); // liquids (vr_water.cpp)
-}
-
 namespace
 {
-
-// vr_graphics_preset (not saved: the settings it sets are): applies the preset chosen.
-void onPreset(cvar_t* var)
-{
-    if(var->value >= 0.f)
-    {
-        lighting::applyPreset(static_cast<int>(var->value));
-    }
-}
 
 // vr_alpha_coverage: the alpha-tested textures' mips made again (with or without their coverage kept).
 void onAlphaCoverage(cvar_t*)
@@ -2867,7 +2775,6 @@ void lightProbe_f()
 
 void lighting::init()
 {
-    Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);

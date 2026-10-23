@@ -677,11 +677,6 @@ unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int vie
     return copy.texture;
 }
 
-void applyPreset(int preset)
-{
-    Cvar_SetQuick(&vr_heat_haze, preset > 1 ? vr_heat_haze.default_string : "0");
-}
-
 } // namespace qvr::haze
 
 using namespace qvr;

@@ -1525,28 +1525,6 @@ constexpr Look looks[3] = {
 
 } // namespace
 
-void applyPreset(int preset)
-{
-    // off: Quake's; low: the surfaces' look without refraction or caustics; medium and up: everything
-    const bool on = preset > 0;
-    const bool more = preset > 1;
-    const auto set = [](cvar_t& var, bool enabled) { Cvar_SetQuick(&var, enabled ? var.default_string : "0"); };
-    set(vr_water_waves, on);
-    set(vr_water_fresnel, on);
-    set(vr_water_reflections, on);
-    set(vr_water_glints, on);
-    set(vr_water_lava_glow, on);
-    set(vr_water_underwater, on);
-    set(vr_water_wobble, on);
-    set(vr_water_refraction, more);
-    set(vr_portals, more); // the teleporters' views (vr_portals.cpp): the scene again, Medium and up
-    set(vr_water_caustics, more);
-    set(vr_water_geo_waves, more);
-    set(vr_water_foam, more);
-    set(vr_water_ripples, more);
-    haze::applyPreset(preset); // the heat haze (vr_haze.cpp)
-}
-
 const za::Vector<LavaTop>& lavaTops(unsigned& generation)
 {
     generation = mesh.built ? mesh.generation : 0;

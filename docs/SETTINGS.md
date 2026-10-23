@@ -90,13 +90,14 @@ hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grena
 | **Display** | Headset Gamma, Headset Contrast |
 | **Scaling** | Render Scale, Upscaling (bilinear, FSR, NIS), Sharpening, Foveated Rendering (off, conservative, balanced, aggressive) |
 | **Graphics** | Retro Textures, Retro Lighting, Antialiasing (off, 2x, 4x, 8x), Bloom, Tone Mapping, Bump Mapping, Parallax Mapping |
+| **Graphics Presets** | The [presets](#graphics-presets) (Off, Low, Medium, High as shipped, Ultra), *My Settings*, *Save as My Settings*, and a line saying which the settings match now |
 | **Reset** | *Reset All to Defaults* (press twice within 3 seconds) |
 
 The settings that were on this page before (October 2026) are on their topic's pages: the Comfort preset, Turning
 (smooth or snap 30/45/90 in one row), Move Towards with the moving stick's hand, Teleport Range and Room Scale on
 **Locomotion**; Handedness on **Body and Display**; Gun Angle and Off Hand Angle on **Hand/Gun Calibration**; Dominant
 Eye, Two-Handed and Two-Handed Hand-Off on **Aiming**; Haptics on or off on **Immersion**; Throw Speed and Throw Gravity
-on **Carrying and Throwing**; Force Grab on **Force Grab**; the Graphics Preset on **Graphics**. *Body and Display*,
+on **Carrying and Throwing**; Force Grab on **Force Grab**. *Body and Display*,
 *Headset*, *Sound*, *Tips*, *Changed Settings* and *Run VR Calibration Again* are under Advanced VR Options > **Setup**.
 
 **Body and Display:** Handedness (a preset: right- or left-handed, or Custom), Swap Stick Functions, Wrist Gadget Arm
@@ -251,7 +252,7 @@ death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether 
 
 | Page | What's on it |
 |---|---|
-| **Graphics** | The [preset](#graphics-presets); anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
+| **Graphics** | Which [preset](#graphics-presets) the settings match, and a link to the presets; anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
 | **Relighting** | Relighting maps in the game: this map or many, the light sliders, the progress ([RELIGHTING.md](RELIGHTING.md#relighting-in-the-game)) |
 | **Teleporters** | Teleporter views and seamless teleporters (walking through), enemies seeing and shooting through them, the gates' look |
 | **Retro Textures**, **Retro Lighting** | The retro look: blocky, palette-snapped textures per category of thing, and banded, dithered or blocky light (presets: Software Quake, Blocky Lightmaps, Banded and Dithered) |
@@ -267,23 +268,32 @@ death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether 
 
 ## Graphics presets
 
-*Graphics > Preset* sets the shadows, dynamic lights, model lighting and the look of every Graphics page all at
-once. Change single settings afterwards to taste. The preset then shows *Custom*.
+**VR Settings > Graphics Presets** (also linked from Advanced VR Options > Graphics) sets all the graphics settings at
+once: shadows and dynamic lights, the look (contrast, bloom, tone mapping, sheen), lights from torches, flames and
+projectiles, bumps and parallax, carved bullet holes, permanent marks, ambient occlusion, particles, liquids,
+teleporter views and the heat haze. It never touches comfort, gameplay, your body, calibration or sound. Change single
+settings afterwards to taste. Its first line says what the settings match now: a preset's name, *My Settings*, or
+*Custom*.
 
-| Preset | Shadow-casting dynamic lights | Map lights casting shadows | Shadow quality | Shadow distance |
-|---|---|---|---|---|
-| Off (Quake) | none | none | – | – |
-| Low | 2 | none | 256, 4 taps | 1024 |
-| Medium | 4 | 2 | 512, 4 taps | 1536 |
-| High | 6 | 4 | 512, 9 taps | 2048 |
-| Ultra | 8 | 4 | 1024, 16 taps | 3072 |
+| Preset | Shadowed dynamic lights | Map lights casting shadows | Shadow size, distance | What else | GPU |
+|---|---|---|---|---|---|
+| Off (Quake) | none | none | – | Quake's own look: flat lights, no bumps, AO, bloom, tone mapping, liquid effects | 1.3 ms |
+| Low | 2 | none | 256, 1024 | no bumps, parallax, AO, carved holes, refraction, teleporter views, heat haze; fewer lights from things | 1.4 ms |
+| Medium | 4 | 2 | 512, 1536 | everything, parallax without its depth (things meet the surface, not its relief) | 2.0 ms |
+| High (as shipped) | 8 | 4 | 1024, 3072 | the shipped defaults | 4.3 ms |
+| Ultra | 12 | 6 | 1024, 4096 | more torch lights, particles at full resolution, the finer bloom, more parallax steps | 4.5 ms |
 
-*Off (Quake)* also turns off model lighting, per-pixel dynamic lights on models and blob shadows, and restores
-Quake's look. The shipped settings go beyond Ultra in places (12 shadow-casting dynamic lights). They were tuned on a
-fast PC, so pick a preset if your frame rate suffers.
+GPU: the eyes' GPU time a frame in a 90 Hz benchmark of an Arcane Dimensions fight (`play_ad_tfuma_fight`,
+2048-pixel eyes, a fast card). In a firing range fight with gore Low and Medium take 55% and 66% of High's; the CPU
+time hardly changes (it is the game's, not the drawing's).
 
-Everything else on the Graphics pages (bloom, bumps, parallax, detail textures, tone mapping, water, and so on) has
-its own switch or slider. For the cost of each, see the profiler in [INSTALL.md](INSTALL.md#performance).
+**My Settings:** the first time you pick a preset, your own values of every setting a preset changes are kept (in
+`graphics_my_settings.cfg` in the game folder, next to `ironwail.cfg`). Switching between presets never changes them.
+*My Settings* sets them all back exactly; *Save as My Settings* (press it twice) keeps the current values instead.
+
+Everything else on the Graphics pages has its own switch or slider. Anti-aliasing is not part of a preset (VR Settings
+> Display and Graphics): 2x instead of 4x saves about 15% of the GPU time. For the cost of each effect, see the
+profiler in [INSTALL.md](INSTALL.md#performance).
 
 ## Weapon offsets
 
@@ -457,7 +467,9 @@ built-in ones.
 
 | Variable | Default | |
 |---|---|---|
-| `vr_graphics_preset` | (not saved) | 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra |
+| `vr_graphics_preset` | (not saved) | applies 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra, 5 My Settings, then goes back to -1 |
+| `vr_graphics_preset_save` | (command) | *Save as My Settings* |
+| `vr_graphics_preset_status` | (command) | prints which preset the settings match, and when Custom the settings that differ from the nearest |
 | `vr_relit_maps` | 1 | use the relit maps when present (next map) |
 | `vr_bloom` | 0.08 (shipped) | bloom strength |
 | `vr_light_contrast` | 2.5 (shipped) | how dark the shade is |

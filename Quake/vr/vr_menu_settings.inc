@@ -55,6 +55,10 @@ za::Vector<Item> pageMain()
         open("Display and Graphics", pageIndex(pageVrsDisplayGraphics))
             .help("The headset's brightness and contrast, the light where no lamp reaches, the eyes' render resolution, "
                   "upscaling and foveated rendering, retro looks, antialiasing, bloom and bump mapping."),
+        // (The author, 2026-10-23: presets easy to find, with My Settings to go back to; vr_gfxpresets.cpp.)
+        open("Graphics Presets", pageIndex(pageGraphicsPresets))
+            .help("Off (Quake), Low, Medium, High (as shipped) or Ultra: all the graphics settings at once, for your "
+                  "graphics card. My Settings sets your own back; the first line says which the settings match now."),
 
         header("Reset"),
         action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)

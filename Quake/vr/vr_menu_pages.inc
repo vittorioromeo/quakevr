@@ -1522,12 +1522,50 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
+[[nodiscard]] za::Vector<Item> pageGraphics();
+
+// VR Settings > Graphics Presets (vr_gfxpresets.cpp): the presets, My Settings, and which the settings match now.
+[[nodiscard]] za::Vector<Item> pageGraphicsPresets()
+{
+    return {
+        info(gfxpresets::menuStateLine),
+        info(gfxpresets::menuNoteLine),
+        header("Presets"),
+        action("Off (Quake)", []() { gfxpresets::menuApply(0); })
+            .help("Quake's own look: flat dynamic lights, no shadows, bumps, ambient occlusion, bloom or tone mapping, "
+                  "plain liquids, no teleporter views. The least GPU time."),
+        action("Low", []() { gfxpresets::menuApply(1); })
+            .help("For weaker graphics cards: Quake VR's lighting and look with few shadows (2 dynamic lights, none from "
+                  "the map), no bumps, parallax, ambient occlusion, refraction, teleporter views or heat haze. About a "
+                  "third of High's GPU time."),
+        action("Medium", []() { gfxpresets::menuApply(2); })
+            .help("Most of it at about half High's GPU time: bumps, parallax (without its depth: things meet the wall's "
+                  "surface, not its carved relief), ambient occlusion, every liquid effect and teleporter views, with "
+                  "fewer and smaller shadows (4 dynamic lights, 2 map lights)."),
+        action("High (as shipped)", []() { gfxpresets::menuApply(3); })
+            .help("The game's defaults: everything on, 8 shadowed dynamic lights and 4 map lights out to 3072 units."),
+        action("Ultra", []() { gfxpresets::menuApply(4); })
+            .help("Past the defaults, for fast graphics cards: 12 shadowed dynamic lights and 6 map lights out to 4096 "
+                  "units, more torch lights, particles at full resolution, the finer bloom, deeper parallax steps."),
+        header("Your Own"),
+        action("My Settings", gfxpresets::menuRestoreMine)
+            .help("Your own graphics settings back, exactly as they were before you first picked a preset (or as you "
+                  "last saved them). Switching between presets never changes them."),
+        action("Save as My Settings", gfxpresets::menuSaveMine)
+            .help("Keep the graphics settings as they are now as My Settings, in place of the ones kept. Press it twice."),
+        open("Every Graphics Setting", pageIndex(pageGraphics))
+            .help("Each setting on its own page (Advanced VR Options > Graphics): change any after picking a preset; "
+                  "the line above then says Custom."),
+    };
+}
+
 // Graphics, in pages: this one, the preset and the image, and links to the others (Memory Log is on Debug).
 [[nodiscard]] za::Vector<Item> pageGraphics()
 {
     return {
-        cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
-            .help("Sets the settings on all the Graphics pages: lights, shadows, surfaces, liquids, post-processing, models and effects. Change them after to taste."),
+        info(gfxpresets::menuStateLine),
+        open("Presets", pageIndex(pageGraphicsPresets))
+            .help("Off (Quake), Low, Medium, High (as shipped) and Ultra set the settings on the Graphics pages at once; My Settings sets yours back. Also on VR Settings."),
         header("Image"),
         cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges; thin lines such as the gaps between planks stop crawling as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more."),
         cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})

@@ -30,9 +30,6 @@
 namespace qvr::water
 {
 
-// Sets the vr_water_* cvars for a graphics preset (0 off .. 4 ultra).
-void applyPreset(int preset);
-
 // How far the opaque scene is from the eye in this view, along the view (an R32F texture of half the scene's size,
 // each texel the nearest of its four; 0: none, as without a depth texture to read): the liquids' refraction's, made
 // now if they did not make it this view. After the translucent pass only (the soft particles, vr_particles.cpp): it

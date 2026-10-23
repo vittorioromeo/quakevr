@@ -4,6 +4,7 @@
 #include "vr_voicenotes.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"
@@ -220,7 +221,7 @@ void writeContext(const za::String& path, const za::String& when)
     fprintf(f, "main hand: weapon %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON], modelName(cl.stats[STAT_WEAPON]));
     fprintf(f, "off hand: weapon %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON2],
         modelName(cl.stats[protocol::STAT_QVR_WEAPONMODEL2]));
-    fprintf(f, "skill: %.0f  graphics preset: %s  vr: %s\n", Cvar_VariableValue("skill"), vr_graphics_preset.string,
+    fprintf(f, "skill: %.0f  graphics preset: %s  vr: %s\n", Cvar_VariableValue("skill"), gfxpresets::stateName(),
         vrActive() ? "on" : "off");
     fclose(f);
 }

@@ -16,8 +16,6 @@
 namespace qvr::haze
 {
 
-// Sets vr_heat_haze for a graphics preset (0 off .. 4 ultra): off in Off (Quake) and Low.
-void applyPreset(int preset);
 
 // The scene's colour under (x0, y0) .. (x1, y1) of `viewport` (the scene's, VR_SceneTarget) copied (resolved) to the
 // same place in a texture of the viewport's size, kept for this view's slot (the eyes', the spectator camera's), for a

@@ -25,6 +25,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_gadget.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_mapindex.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_main.hpp"
@@ -2099,6 +2100,7 @@ const Page pages[] = {
     {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
     {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
+    {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
 };
 static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
