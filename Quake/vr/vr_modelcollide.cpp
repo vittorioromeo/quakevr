@@ -138,7 +138,14 @@ struct Posed
     int frame{-1}; // host_framecount it was placed for
     bool valid{false};
     const ModelTris* model{nullptr};
+    // What it was placed from: placed again when any differs, even within a frame (the melee strike pass,
+    // strikeTarget, places monsters as the hands move, before the frame's server update, which may give that slot
+    // another model, e.g. a dying monster's ragdoll "progs/soldier.mdl#rag" with no Quake alias header, or move it on;
+    // the view's test and the gore after it want it as drawn).
     const entity_t* ent{nullptr};
+    const qmodel_t* entModel{nullptr};
+    double msgtime{0.0}, clTime{0.0};
+    const aliashdr_t* hdr{nullptr}; // the alias model's header it was posed from (its vertices: vertsOf)
     glm::mat4 m{1.f};           // its model's coordinates to the world, as drawn
     int pose1{0}, pose2{0};     // an alias model's poses and the blend between them
     float blend{0.f};
@@ -253,7 +260,7 @@ struct Lerped
 const Posed* posed(int num, const entity_t& e)
 {
     Posed& p = qza::stableAt<Posed>(posedCache, num);
-    if(p.frame == host_framecount)
+    if(p.frame == host_framecount && p.ent == &e && p.entModel == e.model && p.msgtime == e.msgtime && p.clTime == cl.time)
     {
         return p.valid ? &p : nullptr;
     }
@@ -261,6 +268,10 @@ const Posed* posed(int num, const entity_t& e)
     p.vertsFrame = -1;
     p.valid = false;
     p.ent = &e;
+    p.entModel = e.model;
+    p.msgtime = e.msgtime;
+    p.clTime = cl.time;
+    p.hdr = nullptr;
     // A ragdoll drawn with its skinned model (vr_ragdoll.cpp): its own .mdl's triangles, its vertices as the parts carry
     // them (in the world).
     const qmodel_t* rag = ragdoll::sourceModel(&e);
@@ -298,6 +309,7 @@ const Posed* posed(int num, const entity_t& e)
         {
             return nullptr;
         }
+        p.hdr = hdr;
         const Lerped l = lerpOf(e, hdr);
         p.pose1 = l.pose1;
         p.pose2 = l.pose2;
@@ -353,7 +365,12 @@ const za::Vector<glm::vec3>& vertsOf(Posed& p)
     p.vertsFrame = host_framecount;
     if(p.model->alias)
     {
-        const aliashdr_t* hdr = quakeAlias(p.ent->model);
+        const aliashdr_t* hdr = p.hdr;
+        if(!hdr) // (a ragdoll's: posed already)
+        {
+            p.verts.clear();
+            return p.verts;
+        }
         const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
         const trivertx_t* v1 = base + static_cast<za::SizeT>(p.pose1) * static_cast<za::SizeT>(hdr->numverts);
         const trivertx_t* v2 = base + static_cast<za::SizeT>(p.pose2) * static_cast<za::SizeT>(hdr->numverts);
@@ -1397,6 +1414,10 @@ bool drawnTriangles(const entity_t& e, int num, za::Vector<glm::vec3>& out)
     out.reserve(p->model->tris.size() * 3);
     for(const auto& t : p->model->tris)
     {
+        if(t[0] >= v.size() || t[1] >= v.size() || t[2] >= v.size())
+        {
+            continue; // (as gather)
+        }
         out.pushBack(v[t[0]]);
         out.pushBack(v[t[1]]);
         out.pushBack(v[t[2]]);
