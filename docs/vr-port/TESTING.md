@@ -166,7 +166,10 @@ hint Swing at them: ...                             # optional; default the chec
   can stand on another: `spawn "Wooden Crate" 90 30 34`); monsters face you unless a yaw (relative) is given.
 - Spots: `map <name>` then `vr_scenario where` prints a `start` line for where you stand, the free distance ahead, left,
   behind and right, and the nearest liquid with its surface and extent. vrtesthall: start 0 -288 25 facing 90, 640
-  free ahead, 616 left; its pool x 224..528, y -416..-112 (surface -9); `start 0 -400 25 -90` faces the south wall.
+  free ahead, 616 left; its pool x 224..528, y -416..-112 (surface -9, 119 deep: monsters placed in it sink; no
+  shallow water), `start 150 -264 40 0` at its west edge; `start -400 -400 25 -90` faces a plain stretch of the south
+  wall (its middle has the New Game buttons: keep melee away from them). `developer 1` prints each spawn's edict and
+  place.
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
   every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn, SCNRUN OK/FAIL with
   the first problem: an entry not available here, a spot in a wall, a QC error; SCNRUNSUM). A one-off eyeshot:
