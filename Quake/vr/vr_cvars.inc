@@ -255,6 +255,7 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // would; 0 (the default): none (only vr_mock_play's motions carry it).
 QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)          // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
+QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)

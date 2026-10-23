@@ -6,8 +6,9 @@
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
 //   its gun lies about, its clip with it), goes back for it (`rearm PASS`), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
-// - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand emptied, put on its gun
-//   (vr_mock_hand_to) and closed (+grabmain): `yank PASS` when the shotgun is in that hand and the grunt holds nothing.
+// - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
+//   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
+//   test's +grabmain): `yank PASS` when the shotgun is in that hand and the grunt holds nothing.
 // - 4: armed grunts' state printed (`agtest: state: ...`: run it again after a save and a load).
 
 float vr_agt_step;      // the test's step
@@ -258,6 +259,20 @@ void() VR_AGTest_Sequence =
     }
 };
 
+// The mock hand (a script's vr_mock_hand) brought up or down to height `z` (each kind's own weapon height, not the
+// grunt's the scripts were written for): vr_mock_hand_lift (a cvar: at once, not after the script's waits as a command
+// would be), taken up on the next frames; the tests set it back to 0.
+void(entity p, float z) VR_AGT_HandToHeight =
+{
+    float dz = z - p.handpos_z;
+    if(fabs(dz) > 1)
+    {
+        cvar_set("vr_mock_hand_lift", ftos(cvar("vr_mock_hand_lift") + dz / VRMetersToUnits()));
+    }
+};
+
+void(entity g, entity p) VR_AGPT_ToHand; // (vr_armedgrunt_play_test.qc)
+
 void() VR_AGTest_Yank =
 {
     entity g = vr_agt_grunt;
@@ -270,7 +285,8 @@ void() VR_AGTest_Yank =
         p.weaponinst = world;
         p.weaponflags = 0;
         cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
-        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+        cvar_set("vr_mock_hand_lift", "0");
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 100); // (out of the hand's reach until it is brought there)
         vr_agt_step = 1;
         vr_agt_until = time + 1;
         return;
@@ -278,14 +294,22 @@ void() VR_AGTest_Yank =
     if(vr_agt_step == 1)
     {
         if(time < vr_agt_until) { return; }
-        // The grunt moved so that its gun is at your main hand (the script holds it out: vr_mock_hand), then the script
-        // closes it (+grabmain) within 3 s.
-        vector off = p.handpos - g.vr_ag_prop.origin;
-        off_z = 0;
-        setorigin(g, g.origin + off);
-        VR_AG_PlaceProp(g, g.vr_ag_prop);
-        VR_AGT_Print(sprintf("yank: the hand at %v, the gun at %v", p.handpos, g.vr_ag_prop.origin));
+        // The grunt moved so that its gun is at your main hand (the script holds it out: vr_mock_hand, and holds
+        // +grabmain) and the hand to its gun's height (each kind's own); then the hand closes on it (its grab's time now:
+        // as the button's press).
+        VR_AGPT_ToHand(g, p);
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z); // (its kind's gun height: an enforcer's is higher)
         vr_agt_step = 2;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        if(time < vr_agt_until) { return; }
+        VR_AGPT_ToHand(g, p);
+        VR_AGT_Print(sprintf("yank: the hand at %v, the gun at %v", p.handpos, g.vr_ag_prop.origin));
+        p.mainhand_lastgrabtime = time;
+        vr_agt_step = 3;
         vr_agt_until = time + 3;
         return;
     }
@@ -293,7 +317,8 @@ void() VR_AGTest_Yank =
     {
         return;
     }
-    VR_AGT_Check(sprintf("yank: your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
+    cvar_set("vr_mock_hand_lift", "0");
+    VR_AGT_Check(sprintf("yank:your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug", "1");
     p.flags = p.flags - (p.flags & FL_NOTARGET);
