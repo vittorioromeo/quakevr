@@ -756,15 +756,16 @@ QVR_CVAR(vr_melee_curved_blades, "1", CVAR_ARCHIVE) // a curved sword (AD's deat
 // The empty hand's blow line (QC vr_melee.qc VR_Melee_Line, a fist's; ROUND22.md "The fist's blow line"): its two ends in
 // the hand's frame (units along its forward, right, up from the tracked hand), what strikes between them (the layout's
 // fist and knuckles); the near end behind it a quarter of the line back. Gloved, bare and ghost hands alike. Edited in VR
-// by Weapon Offsets > Edit Blade Shape with the hand empty; vr_blade_dump fist prints them. The defaults are the code's
-// before (the hand to 4 units ahead of it).
-QVR_CVAR(vr_melee_fist_from_x, "0", CVAR_ARCHIVE) // the line's first end (the fist): forward
-QVR_CVAR(vr_melee_fist_from_y, "0", CVAR_ARCHIVE) // right (the off hand's mirrored: vr_melee_fist_mirror)
-QVR_CVAR(vr_melee_fist_from_z, "0", CVAR_ARCHIVE) // up
-QVR_CVAR(vr_melee_fist_to_x, "4", CVAR_ARCHIVE)   // the line's other end (the knuckles): forward
-QVR_CVAR(vr_melee_fist_to_y, "0", CVAR_ARCHIVE)   // right (mirrored for the off hand)
-QVR_CVAR(vr_melee_fist_to_z, "0", CVAR_ARCHIVE)   // up
-QVR_CVAR(vr_melee_fist_width, "1", CVAR_ARCHIVE)  // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
+// by Weapon Offsets > Edit Blade Shape with the hand empty; vr_blade_dump fist prints them. The defaults are the author's
+// (his config of 2026-10-24, config 198; Misc/quakevr/blade_defaults.py); the code's before: the hand to 4 units ahead
+// of it, width 1.
+QVR_CVAR(vr_melee_fist_from_x, "-0.34", CVAR_ARCHIVE)  // the line's first end (the fist): forward
+QVR_CVAR(vr_melee_fist_from_y, "0.5039", CVAR_ARCHIVE) // right (the off hand's mirrored: vr_melee_fist_mirror)
+QVR_CVAR(vr_melee_fist_from_z, "-1.0026", CVAR_ARCHIVE) // up
+QVR_CVAR(vr_melee_fist_to_x, "-0.4123", CVAR_ARCHIVE)  // the line's other end (the knuckles): forward
+QVR_CVAR(vr_melee_fist_to_y, "0.7656", CVAR_ARCHIVE)   // right (mirrored for the off hand)
+QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
+QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
 QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // Debug > Tools: 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
 QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:")

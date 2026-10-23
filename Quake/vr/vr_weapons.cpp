@@ -158,7 +158,9 @@ namespace
 // 56: the shotgun's (slot 1) first hotspot 9.66, -0.67 (his config of 2026-10-19; was 9.6656, -0.7315).
 // 57: the justice knight's and judicator's swords (indices 48-49) his (takeMonsterSwords57).
 // 58: the flail's handle smaller (index 50; takeFlailHandle58).
-constexpr int settingsVersion = 58;
+// 59: his blade shapes (the shotgun's, the AD fury's sword's, the AD mace's: indices 1, 40, 45, their tips too) and the
+// axe's head box corners where the config still holds the zeros of before they shipped (takeBladeShapes59).
+constexpr int settingsVersion = 59;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -547,6 +549,50 @@ void takeFlailHandle58()
     }
 }
 
+// 59: his blade shapes (his config of 2026-10-24, edited with Edit Blade Shape; ROUND22.md, "His blade shapes and fist
+// line as defaults"; the rows from Misc/quakevr/blade_defaults.py): each key taken where the config still holds its old
+// default. And the axe's head box corners (index 0; the Head Box On seed, shipped without a migration while the config
+// kept 0 for each): taken where all six are still 0.
+void takeBladeShapes59()
+{
+    constexpr OldValue old[] = {{1, Key::BladeWidth, 1.f}, {1, Key::MuzzleOffsetX, 0.9f}, {1, Key::MuzzleOffsetY, 0.4f},
+        {1, Key::MuzzleOffsetZ, 0.6f}, {40, Key::BladeNear, -1.f}, {40, Key::BladeWidth, 1.f}, {40, Key::BladeSpine, 0.f},
+        {40, Key::BladeSpine1Off, 0.f}, {40, Key::BladeSpine1Side, 0.f}, {40, Key::BladeSpine2Off, 0.f},
+        {40, Key::BladeSpine2Side, 0.f}, {40, Key::BladeSpine3Off, 0.f}, {40, Key::BladeSpine3Side, 0.f},
+        {40, Key::BladeSpine4Off, 0.f}, {40, Key::BladeSpine4Side, 0.f}, {40, Key::BladeSpine5Off, 0.f},
+        {40, Key::BladeSpine5Side, 0.f}, {40, Key::MuzzleOffsetX, 0.f}, {40, Key::MuzzleOffsetY, 0.f},
+        {40, Key::MuzzleOffsetZ, 0.f}, {45, Key::BladeNear, -1.f}, {45, Key::BladeWidth, 1.f}, {45, Key::BladeHead, 0.f},
+        {45, Key::BladeHeadLoX, 0.f}, {45, Key::BladeHeadLoY, 0.f}, {45, Key::BladeHeadLoZ, 0.f},
+        {45, Key::BladeHeadHiX, 0.f}, {45, Key::BladeHeadHiY, 0.f}, {45, Key::BladeHeadHiZ, 0.f}};
+    int taken = 0;
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    constexpr Key axeBox[] = {Key::BladeHeadLoX, Key::BladeHeadLoY, Key::BladeHeadLoZ, Key::BladeHeadHiX,
+        Key::BladeHeadHiY, Key::BladeHeadHiZ};
+    bool zero = true;
+    for(const Key key : axeBox)
+    {
+        zero = zero && fabsf(cvarAt(0, key).value) < 1e-4f;
+    }
+    if(zero)
+    {
+        for(const Key key : axeBox)
+        {
+            cvar_t& var = cvarAt(0, key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    Con_DPrintf("Weapon settings: the blade shapes took %d of the author's values%s\n", taken,
+        zero ? ", the axe its head box" : "");
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -572,6 +618,7 @@ constexpr Step steps[] = {
     {56, takeShotgunHotspot56},
     {57, takeMonsterSwords57},
     {58, takeFlailHandle58},
+    {59, takeBladeShapes59},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
