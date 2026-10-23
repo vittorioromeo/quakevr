@@ -631,7 +631,8 @@ int looseHolder(const ragdoll::Rig& rig, int loose)
     float bestD = 1e30f;
     for(int o = 0; o < rig.numBones; o++)
     {
-        if(rig.bones[o].joint == ragdoll::Joint::Loose)
+        if(rig.bones[o].joint == ragdoll::Joint::Loose ||
+            (rig.looseInHands && strncmp(rig.bones[o].name, "forearm", 7) != 0)) // (held in a hand: Rig::looseInHands)
         {
             continue;
         }

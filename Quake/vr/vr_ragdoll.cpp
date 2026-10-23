@@ -1396,6 +1396,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
     const SeedTable& tb = table;
     rig.hideLoose = tb.looseWeapons;
+    rig.looseInHands = tb.loosePerPiece || tb.looseKept;
     // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
     // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
     // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
@@ -1435,8 +1436,8 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 // The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
 // which seed table it is.
 
-constexpr unsigned rigVersion = 4; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's;
-                                   // 4: the death fury's two loose swords, the zombie knight's kept blade)
+constexpr unsigned rigVersion = 5; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's;
+                                   // 5: the death fury's two loose swords, the zombie knight's kept blade, in their hands)
 const za::String rigBuild = [] {
     const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
     return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
@@ -1567,6 +1568,7 @@ bool rigFields(S& s, Rig& r)
     s.pod(r.deathFirst);
     s.pod(r.deathLast);
     s.pod(r.hideLoose);
+    s.pod(r.looseInHands);
     s.pod(r.clusterRms);
     s.pod(r.boneRms);
     return true;

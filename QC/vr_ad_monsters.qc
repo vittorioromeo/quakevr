@@ -936,3 +936,29 @@ void() VR_AD_DispenserBossWake =
     dprint(sprintf("admon: %s woken (a scripted boss: its map's trigger's use), health %g, solid %g\n", self.classname,
         self.health, self.solid));
 };
+
+// The toolgun's live spawn (box3d::spawnClass, then AD_SpawnLive_Finish): its spawn function already ran without a
+// name and left the boss a marker (no use, no model). Named, its spawn function run again (as a map's named one), and
+// woken.
+void() VR_AD_LiveBossStart =
+{
+    if(self.targetname != "" || self.use || self.health <= 0)
+    {
+        return;
+    }
+    if(self.ad_classtype == ad_CT_MONJUDGE)
+    {
+        self.targetname = "vr_test_boss";
+        ad_monster_judicator();
+    }
+    else if(self.ad_classtype == ad_CT_MONICEGOLEM)
+    {
+        self.targetname = "vr_test_boss";
+        ad_monster_icegolem();
+    }
+    else
+    {
+        return;
+    }
+    VR_AD_DispenserBossWake();
+};

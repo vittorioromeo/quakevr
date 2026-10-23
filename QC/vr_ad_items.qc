@@ -542,6 +542,7 @@ float() VR_AD_BackpackRestore =
 // it is drawn where it lands from its first frame, not half a second later.
 void() AD_SpawnLive_Finish =
 {
+    VR_AD_LiveBossStart(); // (a scripted boss, the judicator's or the ice golem's: named and woken, vr_ad_monsters.qc)
     float n = 0;
     while(n < 3) // (a removed one: its think is cleared)
     {
