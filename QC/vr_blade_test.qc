@@ -1,5 +1,5 @@
 // vr_melee_sweep_test 2 (the blade shape editor's check, ROUND22.md "Blade shape editor"): the main hand's melee blade as
-// the melee lays it out now, in the hand's frame (units from the grip along its forward, right, up: the same in any game
+// the melee lays it out now, in the hand's frame (units from the hand along its forward, right, up: the same in any game
 // for the same mock hand), one "bladedump:" line a point: the line's near end, grip and far end, each layout point
 // (VR_Melee_At: on a curve if it has one), the head's box the track keeps (VR_Blow: shares of the line) and the swept
 // points' radius. Uses only what the melee had before the editor's keys (so the same file run on the old code gives the
@@ -8,7 +8,8 @@
 vector(entity p, vector xAt) VR_BladeDump_Local =
 {
     makevectors(VRGetEntHandRot(p, cVR_MainHand));
-    vector d = xAt - vr_mline_grip;
+    // (The hand: the line's start unless it has one of its own; carried off its handle, the grip on its line.)
+    vector d = xAt - (vr_mline_free ? vr_mline_grip : VRGetEntHandPos(p, cVR_MainHand));
     vector r;
     r_x = d * v_forward;
     r_y = d * v_right;

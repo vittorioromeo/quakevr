@@ -6,4 +6,4 @@ notarget
 cvar vr_debug_melee_blades 1
 give "Axe" main
 spawn "Grunt" 110 0
-hint Debug > Views > Edit Blade Shape (Main Hand): drag the purple Blade Start onto the low corner of the axe's edge, the red tip onto its top corner; Head Box On for a box over the head; Done, then swing at the grunt
+hint Debug > Views > Edit Blade Shape (Main Hand): drag the teal Line Start (lifted above your hand) onto the low corner of the axe's edge and the red Tip onto its top corner: the white line lies along the edge; slide the purple Blade Start down to the Line Start so the whole edge strikes; orange Handle Length the part behind; Head Box On for a box over the head; Done, then swing at the grunt

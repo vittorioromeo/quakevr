@@ -393,6 +393,16 @@ QVR_WEAPON_KEY(BladeHeadHiZ, "bl_head_hi_z")
 QVR_WEAPON_KEY(BladeFrom, "bl_from")
 QVR_WEAPON_KEY(BladeFromOff, "bl_from_off")
 QVR_WEAPON_KEY(BladeFromSide, "bl_from_side")
+// The line's two ends of its own (ROUND22.md, "The blade's line start"): Org the line's start (Edit Blade Shape's Line
+// Start) off the holding hand, Tip the line's far end off the Muzzle anchor and offset (a gun's Tip handle: its Muzzle
+// offset is where its shots start, so a gun's bash line has its own); both in units along the hand's forward, right, up
+// (right mirrored in the off hand, as its model is). 0 0 0: the hand and the muzzle, as before. New cvars: no migration.
+QVR_WEAPON_KEY(BladeOrgX, "bl_org_x")
+QVR_WEAPON_KEY(BladeOrgY, "bl_org_y")
+QVR_WEAPON_KEY(BladeOrgZ, "bl_org_z")
+QVR_WEAPON_KEY(BladeTipX, "bl_tip_x")
+QVR_WEAPON_KEY(BladeTipY, "bl_tip_y")
+QVR_WEAPON_KEY(BladeTipZ, "bl_tip_z")
 #endif
 
 
@@ -4514,10 +4524,14 @@ QVR_WEAPON_DEFAULT(49, Hotspot1Roll, "3.97255") // (his, vr_wofs_version 53)
 QVR_WEAPON_DEFAULT(49, Hotspot1Yaw, "13.860517") // (his, vr_wofs_version 53)
 // His blade shapes (Edit Blade Shape; his config of 2026-10-24, vr_wofs_version 59: vr_weapons.cpp takeBladeShapes59).
 // Made by Misc/quakevr/blade_defaults.py from vr_propose_defaults; the next round's go here too (a slot's tip, its
-// Muzzle offsets, edited in its own lines above: a melee weapon's only, as a gun's is where its shots start). The
-// shotgun (slot 1, Weapon Offsets 02): a narrower blade (his tip, muzzle -0.2229 0.2441 0.4977, not shipped: it would
-// move the shots).
+// Muzzle offsets, edited in its own lines above: a melee weapon's only, as a gun's is where its shots start; a gun's tip
+// is its Blade Tip). The shotgun (slot 1, Weapon Offsets 02): a narrower blade, and his tip (dragged into the muzzle,
+// -0.2229 0.2441 0.4977, which moved the shots) as its own Blade Tip: the same line, measured in the hand's frame (wofs
+// 60 puts a config's muzzle back; ROUND22.md, "The blade's line start").
 QVR_WEAPON_DEFAULT(1, BladeWidth, "0.594")
+QVR_WEAPON_DEFAULT(1, BladeTipX, "-1.0821")
+QVR_WEAPON_DEFAULT(1, BladeTipY, "0.1403")
+QVR_WEAPON_DEFAULT(1, BladeTipZ, "-0.0605")
 // The AD death fury's sword (slot 40, Weapon Offsets 41): his near end, a narrower blade, a curve of its own.
 QVR_WEAPON_DEFAULT(40, BladeNear, "0.1854")
 QVR_WEAPON_DEFAULT(40, BladeWidth, "0.3022")

@@ -19410,3 +19410,72 @@ super fast") and 00-55-37 ("it feels like it's following the server tick rate bu
 along, swaying a little as you start and stop (Flail Body Inertia: higher swings it more, 0 none); snap and smooth turn:
 it turns with you. Swing it while walking: it swings as when standing. Look at the ball and chain while moving your
 hand slowly: they should move as smoothly as the hand (toggle Flail Head Drawn Smooth in the Debug menu to compare).
+
+## The blade's line start (worktree `release`, branch `agent/bladeorigin`, 2026-10-24; vr_wofs_version 60)
+
+Vittorio (note vrtesthall_2026-10-24_00-57-50, the axe in the main hand): he still could not move the line's start, the
+point near the hand at the handle's end; the purple handle moved "some point", the orange one only how much of the line
+counts as the handle. The line ran from the holding hand (fixed) to the tip.
+
+**Line Start** (new keys `vr_wofs_bl_org_x/y/z_NN`, 0 0 0, no migration): the line's start off the holding hand, units
+along its forward, right, up (right mirrored in the off hand, as its model). QC `VR_Melee_Line` lays the held weapon's
+line from it (`vr_mline_grip`) to the tip; the near end is its Handle Length behind it along the new line; every
+consumer of the line (layout points, sweeps, the decapitation share, parry, the motion recorder) reads the track's
+grip/far, so all follow. The defaults' arithmetic is the old code's (grip = the hand). `admeleehead(-1 - slot, 4)` gives
+it, flag 8 says the slot has one (vr_builtins.cpp). The editor's teal **Line Start** handle (index 11, `bladehandle 11`)
+sits at it, lifted 11 cm out of the hand while it is at the hand (above the orange one's 7 cm), tied down; dragging it
+moves the start in 3D, the tip staying.
+
+**A gun's Tip** (new keys `vr_wofs_bl_tip_x/y/z_NN`, 0 0 0): a gun's Muzzle offset is where its shots and flash start
+(Weapon Offsets' "Muzzle X" help, `view::anchorPosition`), and the editor's Tip handle moved it, so editing a gun's bash
+line moved its shots. Now on a gun (any weapon but the fists, axe, Mjolnir, swords, chainsaw, crowbar, Super Axe) the
+Tip handle moves Blade Tip, the line's tip off the muzzle in the hand's frame; melee weapons keep moving their Muzzle
+offset (their tip, as shipped). His shotgun tip (bladedefaults left it out: it lived in the muzzle) ships as Blade Tip
+-1.0821 0.1403 -0.0605: the same line measured in the hand's frame (the dump's far end with his muzzle 12.9094 0.9031
+-0.1114, with the shipped muzzle and the tip 12.9094 0.9031 -0.1114, 3e-5 apart). **wofs 60** (`takeShotgunTip60`): a
+config whose shotgun muzzle still holds his -0.2229 0.2441 0.4977 gets the shipped 0.9 0.4 0.6 back (his own config does:
+his shots start where they did before his edit); another value stays.
+
+**Blade Start: kept, along the line only.** Line Start lays the line itself along an edge, which the start's off-line
+bend did (the part he found confusing); but where the striking part begins along the line is still the weapon's own (an
+axe's head from 0.75, a sword's past its guard), and Line Start can't say it. So the purple handle now slides along the
+line only (`bl_from`); a bend set before is kept and Straighten takes it off. With the line along the axe's edge (Line
+Start at the edge's low corner) he slides Blade Start down to the start for the whole edge to strike.
+
+**Names and panel.** Handles: Line Start (teal), Tip (red), Handle Length (orange; was Near End), Blade Start (purple),
+Width (blue), Curve (green), Head (pink; was Head Corner). The panel says what each does: "teal Line Start, red Tip: the
+line's ends / orange Handle Length: the part behind it / purple Blade Start: strikes from there on / blue Width, green
+Curve, pink Head", on a gun also "(a gun: Tip moves the bash line, not shots)"; its height counts its lines. Reset Blade,
+Undo and Cancel cover the new keys; Done's `vr_blade_dump` prints them (`blade_defaults.py` ships them as blade keys).
+Scene `blade_editor_axe`'s hint: Line Start onto the edge's low corner, Tip onto its top, Blade Start down to the start.
+
+**Tests** (scripts `scratch/bo_dump.sh`, `bo_line.sh`, `bo_edit.sh`, `bo_shottip.sh`, `bo_mig.sh`; vrtesthall, mock):
+- Defaults: `vr_melee_sweep_test 2` (now in the hand's frame from the hand: the same as before for the defaults) on
+  axe, shotgun, super shotgun, nailgun, knight's sword, chainsaw, crowbar, origin/next's QC against this branch's
+  (before the merge): 54 lines, the largest difference 0.0001 (the mock's noise). After the merge the shotgun's line is
+  his (shipped tip).
+- `vr_melee_sweep_test 5` (new, QC `VR_Melee_LineEndsTest`): the line's start and tip off the hand and muzzle, each layout
+  point's distance from the new line, and a box one swept radius off the new line (away from the default one) by the
+  striking point the ends moved most, swept across by both lines. Axe defaults: PASS (no point moved). Axe start 0 3 2:
+  the start 0 3 2 off the hand, every point on the new line (0.000), line 8.55 -> 7.43; the points moved 3.6 (the
+  start) down to 0.9 (0.75 along), the tip not; the box (3.5 units off the default line) struck by both (the axe strikes
+  from 0.75 only, 0.9 units moved there): PASS. Start 0 8 4 with Blade Start 0.3: the box 7.24
+  units off the default line, struck by the new line only: PASS. The shotgun's tip dragged: struck by the new only.
+- Editor, the axe, each handle with the mock off hand (hovered, grip, moved, let go): Line Start 3 along the line's
+  normal and 2 across its flat -> `bl_org` 2.55 -2.00 -1.58 (3.61 units: the hand's move), the Handle Length then 0.25
+  of the new 9.3-unit line; Tip 2 along (melee: Muzzle offset moved); Handle Length 2 back -> 0.43; Blade Start 1 back ->
+  0.66 (`bl_from_off` stays 0); Width -> 1.33; a curve point -> spine 1; Head Box On and a corner -> hi x 1.32; Done
+  printed 13 changed lines with BladeOrgX/Y/Z. The shotgun's Tip 3 along, 2 across: `bl_tip` 3.10 -1.83 -0.01, its
+  Muzzle offsets untouched (0.9 0.4 0.6, the defaults).
+- wofs 60: his muzzle at version 59 -> 0.9 0.4 0.6, version 60; a muzzle x of 0.5 stays.
+- `eval.sh`: before the merge 164/172 (the 8 known failures), no verdict changed (0.1 noise; the sword slash 12-34-13
+  18.2 -> 21.6 is the baseline's known drift). After merging origin/next the differences are the merged fist line's
+  (bladedefaults: punches and slaps), no weapon take moved past 0.1.
+- Eyeshots: `scratch/bladeorigin_axe_1_enter.png`, `_2_linestart.png` (the panel's new text; the mock arms hide most of
+  the axe).
+
+- [ ] Edit Blade Shape on the axe (Test scene `blade_editor_axe`): the teal Line Start above your hand: drag it onto the
+  low corner of the axe's edge, the red Tip onto its top corner, the purple Blade Start down to the Line Start; the white
+  line lies along the edge; Done; swing at the grunt with Show Melee Blades on.
+- [ ] The shotgun: its bash line's tip is his (shipped); Edit Blade Shape's Tip moves the line, and the shots still leave
+  its muzzle.
