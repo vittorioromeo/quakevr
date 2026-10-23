@@ -294,6 +294,7 @@ void(entity targ, entity attacker) Killed =
 
 // Decapitation (vr_decap.qc): its head cut off (its ragdoll headless; gibbed, no head thrown); the blows that cut it.
 .float vr_headless;
+.float vr_necksnapped; // its ragdoll's neck snapped (the engine sets it, vr_box3d_knockdown.cpp): a saved game's made loose again
 .float vr_limbcut; // its ragdoll's bones cut off (bits; the engine sets it, vr_box3d.cpp cutLimb): a saved game's made so again (vr_limbs.qc)
 void(entity e) VR_Decap_Killed;
 // The trailer scene (vr_trailer.qc, after the monsters' files): T_Damage's, DecodeLevelParms's and StartFrame's.

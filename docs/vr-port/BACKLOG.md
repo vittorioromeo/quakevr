@@ -7,14 +7,21 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 **Before 1.1.0:**
 - His VR test pass of the 2026-10-17 ships (checklist top, tracker v7), then a fresh VR Tracy capture
   (`vr_tracy_preset full`) and a VR RenderDoc capture (passes now named) to confirm the perf work on real hardware.
-- Decisions still his: Auto-Collect as default. Done 2026-10-23 (branch `agent/dec11`; ROUND22.md, "1.1 decisions:
-  particle cap, shadow atlas on demand, struggle in the groups"): particle size cap 0.15 (already the default), the shadow
-  atlas sized per map (352 -> 256 MB on lit id1 maps), awaiting his VR check.
-- Open issues to clear: crowbar/shotgun double wall hits (meleewall); dragging an enemy by the legs unverified, leg
-  holds may be too soft to drag (struggle); close two-hand crate grips pull one hand in (gripfit2); AD crossbow hold
-  floats (tune slot 33); `weapons::value` ignores an inheriting slot's own defaults (likely the AD soldier guns,
-  slots 28-32); chain stretch on fast swings (magchain2); stiff neck after a save load; flame crackle lost on load;
-  AD ogre smash too wide; the Italian player's startup crash (waiting on his beta2 bug report).
+- Decisions: all settled on next (checked 2026-10-23, branch `agent/open11`): particle size cap 0.15
+  (`vr_particle_max_screen`), Item Pickup Mode Immersive by default with Auto-Collect an option (his 2026-10-18 note),
+  the shadow atlas sized per map (`vr_shadow_atlas_grow` 1; branch `agent/dec11`, ROUND22.md "1.1 decisions"), awaiting
+  his VR check.
+- Open issues (checked 2026-10-23; ROUND22.md, "1.1 open issues: checked on next, three fixed"):
+  - Fixed on `agent/open11`, awaiting his VR check: AD ogre smash too wide (comes down ahead, normal arc); stiff neck
+    after a save load (`.vr_necksnapped`); flame crackle lost on load (restarted after the load).
+  - Closed, already fixed: `weapons::value` and an inheriting slot's own defaults (adgunvariants' `QVR_WEAPON_OWN`;
+    AD slots inherit nothing since adnoinherit); AD crossbow hold floats (adcrossbow2's turned model and his pose,
+    adnoinherit's values; his VR check).
+  - Still open: dragging an enemy by the legs (real: after the leg pull the body doesn't follow the hands at any Pull
+    Hold Strength, while a head drag does; cause not found); crowbar/shotgun double wall hits (meleewall; needs the
+    takes-at-a-wall harness rebuilt); close two-hand crate grips pull one hand in (gripfit2); chain stretch on fast
+    swings (magchain2: worst piece 78 % now, not fixed by more iterations); the Italian player's startup crash (waiting
+    on his beta2 bug report; the OpenXR layer skip `f3bbe28ae` covers the likely cause).
 - Release: a beta2 feedback window, then merge next into vr-ironwail and release 1.1.0 as Latest. If 1.1.0 is more
   than about a week away, a 1.0.2 from vr-ironwail with just the Matriarch/Sacrifice/Shub fixes.
 

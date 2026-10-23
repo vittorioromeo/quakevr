@@ -98,7 +98,7 @@ void(float ad_side, float ad_dmgmultipler) ad_chainsaw =
 	if (self.health < 1) return;
 
 	ad_ai_damagebreakable(20);							// Damage any breakables
-	if (!(ad_ai_checkmelee(self.ad_meleerange,ad_FALSE) && VR_MeleeArc_Hits(ad_TRUE))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
+	if (!(ad_ai_checkmelee(self.ad_meleerange,ad_FALSE) && VR_MeleeArc_Hits(!vr_melee_ahead))) return;	// Too far away // AD support: melee arc (fight.qc VR_MeleeArc_Hits)
 
 	// Can the target bleed? - generate blood
 	if (!ad_CanDamage (self.enemy, self)) return;
@@ -137,12 +137,12 @@ void() ad_ogre_smash2	=[	$smash2,		ad_ogre_smash3	] {ad_ai_charge(0);};
 void() ad_ogre_smash3	=[	$smash3,		ad_ogre_smash4	] {ad_ai_charge(0);};
 void() ad_ogre_smash4	=[	$smash4,		ad_ogre_smash5	] {ad_ai_charge(1);};
 void() ad_ogre_smash5	=[	$smash5,		ad_ogre_smash6	] {ad_ai_charge(4);};
-void() ad_ogre_smash6	=[	$smash6,		ad_ogre_smash7	] {ad_ai_charge(4); ad_chainsaw(0,1);};
-void() ad_ogre_smash7	=[	$smash7,		ad_ogre_smash8	] {ad_ai_charge(4); ad_chainsaw(0,1);};
-void() ad_ogre_smash8	=[	$smash8,		ad_ogre_smash9	] {ad_ai_charge(10); ad_chainsaw(0,1);};
-void() ad_ogre_smash9	=[	$smash9,		ad_ogre_smash10 ] {ad_monster_footstep(ad_FALSE); ad_ai_charge(13); ad_chainsaw(0,1);};
-void() ad_ogre_smash10	=[	$smash10,		ad_ogre_smash11 ] {ad_chainsaw(1,1);};
-void() ad_ogre_smash11	=[	$smash11,		ad_ogre_smash12 ] {ad_ai_charge(2); ad_chainsaw(0,1);
+void() ad_ogre_smash6	=[	$smash6,		ad_ogre_smash7	] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(4); else ad_ai_charge(4); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_ogre_smash7	=[	$smash7,		ad_ogre_smash8	] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(4); else ad_ai_charge(4); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_ogre_smash8	=[	$smash8,		ad_ogre_smash9	] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(10); else ad_ai_charge(10); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_ogre_smash9	=[	$smash9,		ad_ogre_smash10 ] {ad_monster_footstep(ad_FALSE); if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(13); else ad_ai_charge(13); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_ogre_smash10	=[	$smash10,		ad_ogre_smash11 ] {vr_melee_ahead = ad_TRUE; ad_chainsaw(1,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_ogre_smash11	=[	$smash11,		ad_ogre_smash12 ] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(2); else ad_ai_charge(2); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE; // AD support: melee arc: the smash comes down ahead (fight.qc)
 self.nextthink = self.nextthink + random()*0.2;};	// slight variation
 void() ad_ogre_smash12	=[	$smash12,		ad_ogre_smash13 ] {ad_ai_charge(0);};
 void() ad_ogre_smash13	=[	$smash13,		ad_ogre_smash14 ] {ad_ai_charge(4);};

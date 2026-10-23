@@ -1079,6 +1079,11 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             startActiveDeath(ent, num, r, joints.data(), drawnOrigin, drawnPose != pose ? frame - 1 : frame, jointFriction, stiffness);
         }
     }
+    // Its neck snapped before (a saved game's): loose again (ragdollNeckSnapped).
+    if(fieldFloatOr(ent, fields().vr_necksnapped, 0.f) != 0.f)
+    {
+        (void)qvr::box3d::loosenNeck(r, ent);
+    }
     // Its limbs taken by hand (vr_ragdoll_grab; QC's VR_Ragdoll_Handtouch), unless the QC gave it a hand touch of its own.
     if(const func_t touch = bindings().Ragdoll_Handtouch; touch && fields().handtouch >= 0 && !fieldFunc(ent, fields().handtouch))
     {

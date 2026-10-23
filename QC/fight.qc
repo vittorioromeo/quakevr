@@ -220,6 +220,7 @@ float vr_meleearc_last_off; // the last blow's angle off its facing (the test, v
 float vr_meleearc_last_time; // ... and when (time)
 float vr_meleearc_last_hit; // ... and whether it was inside the arc
 float vr_meleearc_reach_base; // the last reach check's own reach (VR_MeleeReach: Quake's or AD's, before the growth)
+float vr_melee_ahead; // set around an AD ogre's smash blow (ad_import.py SMASH_AHEAD): the normal arc, not the swing's wide one
 
 float() VR_MeleeArc_On =
 {

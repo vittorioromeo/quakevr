@@ -190,9 +190,12 @@ void() OnSpawnServerAfterLoad =
     }
 }
 
+void() VR_Crackles_AfterLoad; // (vr_burning.qc)
+
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
     AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)
     VR_ADGun_LegacyWorld(); // AD support: an older save's eliminator's plasma guns the centurion's (vr_ad_enemyguns.qc)
