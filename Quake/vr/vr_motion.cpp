@@ -724,21 +724,82 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     return out;
 }
 
+// " name=value" (no space first in an empty line), the value's spaces made `_` if `underscores`: appended in place (a
+// header's settings are thousands: no temporary strings, the voice note's replay builds one as the note starts).
+void appendSetting(za::String& out, const char* name, const char* value, bool underscores)
+{
+    if(!out.empty())
+    {
+        out += ' ';
+    }
+    out += name;
+    out += '=';
+    const za::SizeT at = out.size();
+    out += value;
+    if(underscores)
+    {
+        za::replace(out.begin() + static_cast<za::PtrDiffT>(at), out.end(), ' ', '_');
+    }
+}
+
+// The settings a header lists (the vr_ cvars but the weapons' offsets, sv_maxspeed, host_maxfps) copied as they are now,
+// in the cvars' order: what meleeSettings and allSettings read, here or on the pool (a voice note's replay: its header's
+// longest lines made there).
+struct SettingsSnap
+{
+    struct Var
+    {
+        za::SizeT name{0}, value{0}; // offsets in text (each ends with a '\0')
+        bool archived{false};
+    };
+    za::Vector<Var> vars;
+    za::String text;
+    za::String maxfps;
+};
+
+[[nodiscard]] SettingsSnap snapSettings()
+{
+    SettingsSnap s;
+    s.text.reserve(131072);
+    for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
+    {
+        const bool vr = !strncmp(var->name, "vr_", 3) && strncmp(var->name, "vr_wofs_", 8) != 0;
+        if(!vr && strcmp(var->name, "sv_maxspeed") != 0)
+        {
+            continue;
+        }
+        SettingsSnap::Var v;
+        v.name = s.text.size();
+        s.text += var->name;
+        s.text += '\0';
+        v.value = s.text.size();
+        s.text += var->string;
+        s.text += '\0';
+        v.archived = (var->flags & CVAR_ARCHIVE) != 0;
+        s.vars.pushBack(v);
+    }
+    const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
+    s.maxfps = maxfps ? maxfps->string : "0";
+    return s;
+}
+
 // The settings the melee reads, for the header.
-[[nodiscard]] za::String meleeSettings()
+[[nodiscard]] za::String meleeSettings(const SettingsSnap& s)
 {
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
         "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw",
         "vr_legsweep", "vr_kdtrig_tackle", "vr_movement_mode", "sv_maxspeed"};
     za::String out;
-    for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
+    out.reserve(16384);
+    for(const SettingsSnap::Var& v : s.vars)
     {
+        const char* name = s.text.cStr() + v.name;
         for(const char* p : prefixes)
         {
-            if(!strncmp(var->name, p, strlen(p)))
+            if(!strncmp(name, p, strlen(p)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                appendSetting(out, name, s.text.cStr() + v.value, false);
                 break;
             }
         }
@@ -748,22 +809,40 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
 // Every Quake VR setting a player keeps (archived vr_ cvars; the weapons' offsets are weaponSettings'),
 // for playback to place the hands and weapons as they were (vr_motion_play applies the ones that do).
-[[nodiscard]] za::String allSettings()
+[[nodiscard]] za::String allSettings(const SettingsSnap& s)
 {
     za::String out;
-    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    out.reserve(65536);
+    for(const SettingsSnap::Var& v : s.vars)
     {
-        if(strncmp(var->name, "vr_", 3) != 0 || !strncmp(var->name, "vr_wofs_", 8) || !strncmp(var->name, "vr_motion_", 10))
+        const char* name = s.text.cStr() + v.name;
+        if(!v.archived || strncmp(name, "vr_", 3) != 0 || !strncmp(name, "vr_motion_", 10))
         {
             continue;
         }
-        za::String value = var->string;
-        za::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
-        out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
+        appendSetting(out, name, s.text.cStr() + v.value, true); // (none has spaces that matter here)
     }
-    const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
-    out += za::String{" host_maxfps="} + (maxfps ? maxfps->string : "0");
+    out += " host_maxfps=";
+    out += s.maxfps;
     return out;
+}
+
+// A header made with its settings deferred (takeHeaderOf's `settings` null) has these in their lines' place.
+constexpr const char* meleeMark = "\x01melee\x01";
+constexpr const char* settingsMark = "\x01settings\x01";
+
+// Those lines filled in from `s` (on the pool).
+void fillSettings(za::String& header, const SettingsSnap& s)
+{
+    const auto fill = [&](const char* mark, const za::String& value) {
+        const za::SizeT at = za::StringView{header}.find(za::StringView{mark});
+        if(at != za::StringView::nPos)
+        {
+            header = za::String{header.substrByPosLen(0, at)} + value + za::String{header.substrByPosLen(at + strlen(mark))};
+        }
+    };
+    fill(meleeMark, meleeSettings(s));
+    fill(settingsMark, allSettings(s));
 }
 
 // The weapon offsets (vr_wofs_*) of the empty hand's slot and of the weapons in the hands.
@@ -782,9 +861,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
             {
-                za::String value = var->string;
-                za::replace(value.begin(), value.end(), ' ', '_'); // an anchor's numbers (playback reads them back)
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
+                appendSetting(out, var->name, var->string, true); // an anchor's numbers (playback reads them back)
             }
         }
     }
@@ -800,8 +877,9 @@ za::String weaponSettingsLine()
 }
 
 // A take's header: its first row (the first of phase rec, else the first), how many rows in each phase, whether the
-// training dummy struck back in any.
-za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks);
+// training dummy struck back in any. `settings` null: the settings' lines left as marks (fillSettings).
+za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks,
+    const SettingsSnap* settings);
 
 za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 {
@@ -821,11 +899,13 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     {
         first = &rows.front();
     }
+    const SettingsSnap settings = snapSettings();
     return takeHeaderOf(info, first, pre, rec, tail,
-        za::anyOf(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }));
+        za::anyOf(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }), &settings);
 }
 
-za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks)
+za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks,
+    const SettingsSnap* settings)
 {
     za::String h = "# Quake VR motion take (docs/vr-port/MOTIONS.md)\n";
     const auto line = [&](const char* key, za::String value) {
@@ -903,8 +983,8 @@ za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec
                           vr_dummy_type.string, vr_dummy_health.string, vr_dummy_gore.string, vr_dummy_gib.string,
                           vr_dummy_regen.string, vr_dummy_anchored.string));
     }
-    line("melee settings", meleeSettings());
-    line("settings", allSettings());
+    line("melee settings", settings ? meleeSettings(*settings) : za::String{meleeMark});
+    line("settings", settings ? allSettings(*settings) : za::String{settingsMark});
     line("weapon settings", weaponSettings());
     line("rows", va("%d (pre-roll %d, held %d, tail %d)", pre + rec + tail, pre, rec, tail));
     return h;
@@ -1491,6 +1571,12 @@ struct EntitySnap
 TimeRing<Row> replayRows;
 TimeRing<EntitySnap> replayEnts;
 double replayEntsNext = 0.0;
+za::String replayMap; // the map the rings are of
+// Their cost on the main thread (vr_note_replay_stats): the host frames' rows and the entity snapshots, seconds and counts.
+double replayRowCost = 0.0;
+int replayRowCount = 0;
+double replayEntCost = 0.0;
+int replayEntCount = 0;
 int replayAgFieldWid = -2; // vr_ag_wid's offset (-1: none; -2: not looked up since the progs loaded)
 const void* replayAgProgs = nullptr;
 
@@ -1504,8 +1590,32 @@ const void* replayAgProgs = nullptr;
     return za::min(static_cast<double>(vr_note_replay_seconds.value), 600.0);
 }
 
+// A new map (or a saved game loaded: the server's clock went back): the replay starts again (a take spans one map).
+void replayRestartOnNewMap(const Row& r)
+{
+    if(replayRows.items.empty())
+    {
+        return;
+    }
+    const za::SizeT n = replayRows.items.size();
+    const Row& newest = replayRows.items[(replayRows.head + n - 1) % n];
+    if(replayMap != cl.mapname || (newest.sv && r.sv && r.sv->time + 0.001 < newest.sv->time))
+    {
+        replayRows.items.clear();
+        replayRows.head = 0;
+        replayEnts.items.clear();
+        replayEnts.head = 0;
+    }
+}
+
 void replayPush(Row&& r)
 {
+    if(cls.signon != SIGNONS || !r.sv) // (loading, or no server sample yet: the player not placed)
+    {
+        return;
+    }
+    replayRestartOnNewMap(r);
+    replayMap = cl.mapname;
     replayRows.push(ZA_MOVE(r), replayWindow(), [](const Row& t) { return t.realtime; });
 }
 
@@ -1517,7 +1627,7 @@ void copyName(char* out, za::SizeT size, const char* s)
 // The server's entities near the player, every entityStep (the server frame's end; its VM current).
 void sampleEntities(edict_t* player)
 {
-    if(realtime < replayEntsNext)
+    if(realtime < replayEntsNext || cls.signon != SIGNONS)
     {
         return;
     }
@@ -1857,7 +1967,9 @@ bool saveReplay(const za::String& takePath, const za::String& entsPath, za::Stri
     info.t0 = first->realtime;
     info.heldMain = heldProp(HAND_MAIN);
     info.heldOff = heldProp(HAND_OFF);
-    const za::String header = takeHeaderOf(info, first, 0, count, 0, dummyAttacks);
+    // The header's settings lines (thousands of settings, a few ms to write) made on the pool from a copy.
+    za::String header = takeHeaderOf(info, first, 0, count, 0, dummyAttacks, nullptr);
+    SettingsSnap settings = snapSettings();
     const double seconds = newest.realtime - first->realtime;
     summary = va("%d frames, %.1f s", count, seconds);
 
@@ -1868,7 +1980,9 @@ bool saveReplay(const za::String& takePath, const za::String& entsPath, za::Stri
     PendingReplay p;
     p.path = takePath;
     p.done = jobs::async([rows = ZA_MOVE(taken), oldestRow, ents = ZA_MOVE(takenEnts), oldestEnt, from, takePath, entsPath,
-                             header, info, u2m = 1.f / units::metresToUnits()]() mutable {
+                             header = ZA_MOVE(header), settings = ZA_MOVE(settings), info,
+                             u2m = 1.f / units::metresToUnits()]() mutable {
+        fillSettings(header, settings);
         straighten(rows, oldestRow, from, [](const Row& r) { return r.realtime; });
         straighten(ents, oldestEnt, from, [](const EntitySnap& e) { return e.realtime; });
         const bool take = writeTakeFile(takePath, header, info, u2m, rows);
@@ -1881,6 +1995,12 @@ bool saveReplay(const za::String& takePath, const za::String& entsPath, za::Stri
 void finishReplays()
 {
     pollReplays(true);
+}
+
+void replayCost(double& rowMicros, double& serverMicros)
+{
+    rowMicros = replayRowCount > 0 ? replayRowCost / replayRowCount * 1e6 : 0.0;
+    serverMicros = replayEntCount > 0 ? replayEntCost / replayEntCount * 1e6 : 0.0;
 }
 
 void replayStats(za::SizeT& bytes, int& rows, int& ents, double& seconds)
@@ -1977,6 +2097,7 @@ void serverFrame()
         return;
     }
 
+    const double sampleStart = Sys_DoubleTime();
     edict_t* player = svs.clients[0].edict;
     ServerSample s;
     s.time = qcvm->time;
@@ -2017,6 +2138,11 @@ void serverFrame()
     if(replayWanted())
     {
         sampleEntities(player);
+        if(!qcWanted) // (the sample and the snapshot, the replay's alone)
+        {
+            replayEntCost += Sys_DoubleTime() - sampleStart;
+            replayEntCount++;
+        }
     }
 }
 
@@ -2034,7 +2160,10 @@ void hostFrameEnd()
     {
         if(replay)
         {
+            const double t = Sys_DoubleTime();
             replayPush(makeRow(hands::current(), tick, svDt));
+            replayRowCost += Sys_DoubleTime() - t;
+            replayRowCount++;
         }
         frameEvents.clear();
         preroll.clear();

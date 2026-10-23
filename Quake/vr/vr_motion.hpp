@@ -79,6 +79,9 @@ void qcValue(const char* key, const float* value);
 // The rings' memory (bytes, their capacity), rows, entity snapshots and the seconds the rows span.
 void replayStats(za::SizeT& bytes, int& rows, int& ents, double& seconds);
 void finishReplays(); // waits for the replays being written
+// Their mean cost on the main thread (microseconds): a host frame's row, a server frame's sample and entity snapshot
+// (when the replay alone wants them: no take armed or played).
+void replayCost(double& rowMicros, double& serverMicros);
 
 // For the menu (vr_menu.cpp): the chosen label's takes so far, the button, the last saved file.
 [[nodiscard]] const char* labelStatus();

@@ -423,8 +423,9 @@ void context_f()
     }
     za::String when;
     newBase(when);
+    const double t = Sys_DoubleTime();
     saveContext(baseName, when);
-    Con_Printf("VR notes: context saved as %s.txt\n", baseName.cStr());
+    Con_Printf("VR notes: context saved as %s.txt (gathered in %.2f ms)\n", baseName.cStr(), (Sys_DoubleTime() - t) * 1000.0);
 }
 
 // vr_note_replay_stats: what the instant replay and the context's rings keep now (their memory).

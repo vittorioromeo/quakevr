@@ -96,6 +96,13 @@ position, view, health, what each hand held). The microphone is Virtual Desktop'
 (`vr_note_device "Virtual Desktop"`; `vr_note_devices` lists them); Gameplay > Voice Notes turns it off.
 `+vr_note` records from a bound key too.
 
+Each note also keeps what the workers need to find what you meant and do it again ([VOICENOTES.md](VOICENOTES.md)):
+the checklist item you last had the menu's cursor on, what each hand held (weapon, clip, a prop, an enemy and where you
+held it, a ragdoll's limb), the monsters within 5 m, the settings you changed this session (old -> new), and an
+**instant replay**: the last 30 seconds before the note (your head and hands, the buttons, the monsters around), which
+`vr_motion_play` plays back in the mock headset, with the console's lines and the frame times (hitches) of those
+seconds. `vr_note_replay 0` turns the replay off, `vr_note_replay_seconds` sets its length.
+
 To turn the notes into text (Whisper, on your PC; the model is already downloaded):
 
     python Misc/quakevr/transcribe_notes.py

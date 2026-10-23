@@ -40,7 +40,7 @@ constexpr const char* weaponNames[] = {"fists", "grapple", "axe", "Mjolnir", "sh
     return wid >= 0 && wid < static_cast<int>(za::getArraySize(weaponNames)) ? weaponNames[wid] : "?";
 }
 
-constexpr float closeBybyMetres = 5.f;
+constexpr float nearbyMetres = 5.f;
 
 // The console's lines (Con_Printf's chunks, each with its time): a ring of the last ones.
 constexpr int consoleCap = 2048;
@@ -140,11 +140,11 @@ void describeHand(za::String& out, edict_t* player, int hand)
     }
 }
 
-// The monsters within closeBybyMetres, closeByest first: "closeByby: ..." lines.
+// The monsters within nearbyMetres, the nearest first: "nearby: ..." lines.
 void describeNearby(za::String& out, edict_t* player)
 {
     const auto& f = progs::fields();
-    const float reach = closeBybyMetres * units::metresToUnits();
+    const float reach = nearbyMetres * units::metresToUnits();
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     za::Vector<za::Pair<float, int>> closeBy;
     for(int i = 1; i < qcvm->num_edicts; i++)
@@ -169,7 +169,7 @@ void describeNearby(za::String& out, edict_t* player)
         const int think = static_cast<int>(e->v.think);
         const char* thinkName =
             think > 0 && think < qcvm->progs->numfunctions ? PR_GetString(qcvm->functions[think].s_name) : "-";
-        out += va("closeByby: %s #%d at %.1f m, health %.0f, think %s, frame %.0f", PR_GetString(e->v.classname), i,
+        out += va("nearby: %s #%d at %.1f m, health %.0f, think %s, frame %.0f", PR_GetString(e->v.classname), i,
             d / units::metresToUnits(), e->v.health, thinkName, e->v.frame);
         if(edict_t* enemy = entityOf(e->v.enemy))
         {
@@ -206,7 +206,7 @@ void describeNearby(za::String& out, edict_t* player)
     }
     if(closeBy.empty())
     {
-        out += va("closeByby: no monster within %.0f m\n", closeBybyMetres);
+        out += va("nearby: no monster within %.0f m\n", nearbyMetres);
     }
 }
 
@@ -236,7 +236,7 @@ void describe(za::String& out)
     double when = 0.0;
     if(checklist::lastHovered(text, section, item, when))
     {
-        out += va("checklist: %s%s%s (%s), under the cursor %.0f s before the note\n", section.empty() ? "" : "[",
+        out += va("checklist: %s%s%s%s (%s), under the cursor %.0f s before the note\n", section.empty() ? "" : "[",
             section.cStr(), section.empty() ? "" : "] ", text.cStr(),
             item < 0 ? "no longer listed" : checklist::ticked(item) ? "ticked" : "open", realtime - when);
     }
@@ -249,7 +249,7 @@ void describe(za::String& out)
         out += va("last test: %s (%.0f s before the note)\n", lastTest.cStr(), realtime - lastTestAt);
     }
 
-    // The hands and the monsters closeBy: the server's (a local game).
+    // The hands and the monsters near: the server's (a local game).
     if(sv.active && svs.maxclients >= 1 && svs.clients && svs.clients[0].active && sv.qcvm.progs &&
         sv.qcvm.num_edicts > 1)
     {
@@ -410,7 +410,10 @@ void stats(za::String& out)
     {
         consoleBytes += c.text.capacity();
     }
-    out = va("instant replay: %d rows (%.1f s), %d entity snapshots, %.2f MB; console ring %d lines %.2f MB; frame ring "
+    double rowMicros = 0.0, serverMicros = 0.0;
+    motion::replayCost(rowMicros, serverMicros);
+    out = va("cost: %.1f us a host frame, %.1f us a server frame; ", rowMicros, serverMicros);
+    out += va("instant replay: %d rows (%.1f s), %d entity snapshots, %.2f MB; console ring %d lines %.2f MB; frame ring "
              "%d frames %.2f MB; %d settings changed",
         rows, seconds, ents, static_cast<double>(bytes) / (1024.0 * 1024.0), consoleCount,
         static_cast<double>(consoleBytes) / (1024.0 * 1024.0), frameCount,
