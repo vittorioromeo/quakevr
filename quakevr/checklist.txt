@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Fist blow line editable: with an empty hand, Weapon Offsets > Posing Mode > Edit Blade Shape: drag the orange Fist End and red Knuckles End onto the knuckles, blue Width; Mirror On/Off; Done prints the vr_melee_fist_* lines (send them if they should ship); punches with Show Melee Blades on follow the edited line
+Blade editor handles at the hand: near-end dot (now 7 cm above the forearm) and hand-side curve point are easy to grab with a sword and a gun; the handle under the other hand glows yellow with a line to it
 Crates need two strong hits: hardest punch or full axe/crowbar swing: 2 hits; medium punch: 3-4; explosive box blows up on the second strong hit; held crate smashed into a wall: two; overhead slam still breaks at once (Crates > Breaking: Break Speed 18, Blows Wear From 0.25); AD metal/stone breakables are tougher too (metal ~8 axe blows): OK?
 Dual-wielding armed humanoids: set Armed Grunts > Dual Wielding to 1 (or vr_agrunt_dual_chance 1) and spawn sword/axe/crowbar grunts: two blades, swung in turn and together, left arm on its weapon; knock or pull out either weapon (it keeps fighting with the other, then re-arms); kill it: both fall; armed enforcers' chainsaw height OK?
 Blade shape editor (Weapon Offsets > Posing Mode > Edit Blade Shape): hold the Fury sword, drag the green curve points onto the drawn bow and the red tip onto its point (other hand's grip), then swing and watch the sweep follow; mace: Head Box corners; Done prints vr_weapons.inc lines to paste me; is the 5 cm grab reach and the panel position right?
