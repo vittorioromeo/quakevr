@@ -18718,3 +18718,52 @@ its label, the other hand's dot turns yellow with a thin line to it. `vr_bladeed
 white line lies along your knuckles, the blue one out to the fist's width; punch a target with Show Melee Blades on; Done
 and send the printed lines if they should ship. With a sword and a gun: the orange near end is now a dot above the
 forearm tied to the line: check it (and the curve point next to the hand) is easy to take, and the hover highlight.
+
+
+## Swords past the floor; the toolgun's unavailable entries say why (worktree `tghost`, branch `agent/meleeworld`, 2026-10-23)
+
+Notes vrfiringrange_2026-10-23_21-11-40 (swords awkward near floors and walls: chopping a body lying on the floor, the
+blade meets the floor first and is pushed back up, the cut misses) and 21-15-21 (the Phantom Swordsman "not available"
+from the toolgun).
+
+**Swords past the floor (`vr_melee_world_pass`).** The game's hand is the one held out of the level (vr_handpose.cpp
+`gunOutOfWalls`: the weapon's points slide along what they meet, the hand moved with them up to `vr_gun_wall_max`), and
+the melee judges blows there; so a chop at a limb on the floor had its blade held up off the floor, the hand slowed and
+lifted with it. Now, while the hand swings at least `vr_melee_world_pass_speed` (2.5 m/s) and the weapon's far part
+(beyond the share still held out, as it is and a frame ahead at the hand's velocity) is within
+`vr_melee_world_pass_reach` (12 units) of a monster, a corpse or a ragdoll as drawn (`modelcollide::strikeTarget`: the
+entities "Swing Through Enemies" passes; a fist or a melee weapon, a gun or prop only with `vr_melee_phase_hold`), only
+`vr_melee_world_pass_length` (0.35) of the weapon from the hand is held out of the walls and the floor: the rest goes in
+and reaches the body. It lasts `vr_melee_world_pass_time` (0.25 s) after the hand slowed, then the length is eased back
+to all of it over 0.15 s (no snap out of the floor read as a new stroke). With no body near, nothing changes (wall
+blows, sparks, marks). Gameplay > Melee: "Strike Past the Floor" (the toggle and four sliders); `vr_debug_hand_offset
+1` prints `strike pass main: on|off`, 3 each fast frame's test (the far part's box, the body found). Defaults are a
+first guess: the length (0.35) is what to tune in VR.
+
+Measured (vrfiringrange, a synthetic downward sword chop, `scratch/mw_deepchop.py`: the hand down to the floor; a fresh
+grunt corpse 40 units ahead each swing, the player 0..20 units nearer; `developer 2`'s `corpse strike` and `limbs:
+... cut off`): pass off 4 of 6 swings struck and cut, the two farthest (36 and 40 units) only hit the floor; pass on 5
+of 6 struck, 4 cut, both farthest cut. With motion_synth's shallower `chop_down_gib` (the hand stopping 25 cm over the
+floor) the pass did not help (3 of 6 struck off, 2 on): the gain is in the hard, deep chops he described. A ragdoll's pose differs run
+to run, so single swings are noisy. eval.sh --full: 177 takes, 0 verdict changes (3 takes' damage differs by 0.1:
+punch_straight x2, slash_backswing_up_left; the canary flagged them).
+
+**Phantom Swordsman unavailable.** Not reproduced: with Rogue's data in the base folder (as his Steam install has it:
+rogue/pak0.pak holds progs/sword.mdl, and his log says "rogue available") the DoE entries are available in any
+campaign: `vr_toolgun_spawn_test` on e1m1 spawned every SoA and DoE monster (the Phantom Swordsman alive, drawn), and
+`vr_toolgun_select DoE Phantom Swordsman` selects it on vrfiringrange. The mission packs are already mounted in every
+campaign whenever their data is valid (VR_BeforeAddGameDirectory), and MG3's entries read in place ("owned/mg3/..."),
+so no per-campaign restriction was found to lift. What was added to find it next time: pressing a greyed toolgun tile,
+or `vr_toolgun_select` of an unavailable entry, prints `toolgun: <label> unavailable: <why>` (the file missing from the
+search path, AD's data or rules, MG3's campaign); `vr_toolgun_spawnlist` lists every unavailable entry with its reason.
+Open question: what exactly did the toolgun show (a greyed tile, the Armed page, a message)? A note with it pressed would
+name the cause.
+
+Scenarios: `sword_floor` (vrtesthall: a sword, Show Melee Blades, two grunt corpses, one against the wall),
+`phantom_swordsman` (e1m1: the DoE Phantom Swordsman spawned ahead). `vr_scenario validate`: 49 files, 0 errors;
+`runall`: both OK.
+
+**In VR:** with the sword, chop hard down at a corpse's arm or leg on the floor and at one against the wall: the blade
+should go into the floor/wall a little and cut instead of bouncing up; chop the bare floor and a wall: sparks and marks
+as before. Tune Strike Past: Length Held Out (lower: more of the blade goes in). Phantom Swordsman: open the toolgun's
+DoE group; if its tile is greyed, press it and record a note (the console line says why).

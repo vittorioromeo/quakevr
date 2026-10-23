@@ -339,10 +339,10 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
 float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 {
     StrikePass& p = strikePasses[h];
-    const bool on = vr_melee_world_pass.value != 0.f && s.valid;
+    const bool on = vr_melee_world_pass.value != 0.f; // (s.valid: set after the walls)
     const float keep = za::clamp(vr_melee_world_pass_length.value, 0.f, 1.f);
     const float dt = newFrame ? frameDt : 0.f;
-    const float speed = s.valid ? glm::length(s.vel[h]) : 0.f;
+    const float speed = glm::length(s.vel[h]);
     int target = 0;
     if(on && keep < 1.f && speed >= za::max(vr_melee_world_pass_speed.value, 0.1f) && shape[h].size() > 1)
     {
