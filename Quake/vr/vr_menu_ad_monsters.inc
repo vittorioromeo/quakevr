@@ -90,7 +90,10 @@
                   "wobble, the draw and the next bolt's morph, frame by frame. -1: as they are."),
         command("Freddie's Gun Arm Cut Off", "vr_ad_test 95")
             .help("Destructive: the Freddie nearest you killed and his gun arm cut off: a super nailgun of ours drops "
-                  "there, loaded, and goes into your main hand (adfred: lines)."),
+                  "there, loaded, and goes into your main hand; his body then gibbed drops no second one (adfred: lines)."),
+        command("Freddie Gibbed Whole", "vr_ad_test 102")
+            .help("Destructive: the Freddie nearest you gibbed, his arm not cut: one super nailgun of ours drops, "
+                  "loaded, and goes into your main hand (adfred: lines)."),
         command("Gun Models", "vr_adgun_models").help("The guns made from AD's monster models: triangles, box, muzzle."),
         command("Gun Variants", "vr_adgun_variants")
             .help("The soldiers' guns as our burst rifle's variants (the models they drop now): each one's triangles, "

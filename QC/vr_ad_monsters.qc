@@ -631,6 +631,7 @@ float(entity m) VR_AD_FleshGibs =
 
 void() VR_AD_Gibbed =
 {
+    VR_ADGun_FreddieGibbed(); // (his super nailgun, whoever's gibs: vr_ad_enemyguns.qc)
     if(!VR_AD_GibsOurs(self) || !VR_AD_FleshGibs(self))
     {
         return;
@@ -892,7 +893,7 @@ float(float choice) VR_AD_DispenserSpawn =
     else if(choice == 343) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1024; func_weapon_grabbable(); }
     else if(choice == 344) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1280; func_weapon_grabbable(); }
     else if(choice == 345) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1536; func_weapon_grabbable(); }
-    else if(choice == 346) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 1792; func_weapon_grabbable(); }
+    else if(choice == 346) { self.classname = "func_weapon_grabbable"; self.weapon = 13; self.weaponflags = 2816; func_weapon_grabbable(); }
     else
     {
         dprint(sprintf("admon: no AD monster %g\n", choice));

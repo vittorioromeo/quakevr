@@ -175,13 +175,11 @@ this file; the workers' ROUND22.md sections carry them.
 - **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
   split in half and drag the torso with a smear (a "finish it" beat).
 
-### Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman (the author, 2026-10-22)
+### Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman (the author, 2026-10-22) -- done
 
-The author: droppable/usable swords for AD's Dark Prince and the Phantom Swordsman ("DoA", as he called it: Dissolution
-of Eternity's `monster_sword`, `rogue` QC). Each leaves its sword on death (dropped beside the corpse, or taken from its
-hand), to pick up and swing. Both need a new melee weapon kind: a sword held and swung as the axe is, with its own
-model, reach, hit sounds, held offsets and holster, and the melee rules (blade direction, parry, two hands) for a long
-blade. One kind for both; the swordsman's sword first (its model is Quake's own), the Dark Prince's after.
+Done (ROUND22.md, "Four monster swords", branch `agent/swords4`, 2026-10-23): the Phantom Swordsman falls as its very
+heavy two-handed sword (Rogue's data), the Dark Prince, the justice knight and the judicator drop theirs (AD's), as the
+other AD melee weapons (QC `vr_ad_melee.qc`, kinds 7-10; Weapon Offsets slots 47-50). Left: VR checks of the grips.
 
 ### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
 
@@ -193,10 +191,16 @@ hanging from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
-- **Phantom Swordsman's sword** (Dissolution of Eternity's `monster_sword`, `rogue` QC): make its corpse, or the sword
-  it leaves behind, usable as a melee sword (now with the Dark Prince's: "Droppable, usable swords", above).
+- **Phantom Swordsman's sword**: done ("Droppable, usable swords", above).
 - **AD enemies with unique weapons:** review AD's monsters that carry their own weapons (beyond the soldiers' guns
   already usable, and separate from "AD soldiers' guns: refine their VR models") and make each usable by the player.
+- **AD Deflector's gun (after 1.1; the author, 2026-10-23):** left out of `VR_ADGun_ForClass` by scope (the guns were
+  built for the soldier family; ROUND22.md "Infected drops, Freddie gibbed, Deflector"). It has no single gun to copy:
+  the yellow skin fires a flame wall plus 1-3 drunk rockets, the blue (PLASMA spawnflag) 3 plasma bolts plus rockets;
+  AD gibs it as an inert `w_enforcergun.mdl`. To do: pick the attack(s) and one gun or one per skin, then a new WID and
+  a ninth burst-rifle variant (`vr_adgunart.cpp`), weapon offsets, a `VR_ADGun_Fire` branch and `ForClass` entry, its
+  gun hidden in its death frames and its rig re-measured without it, the gib cleared on a drop, a toolgun row and a
+  test.
 
 ### AD soldiers' guns: refine their VR models (author, 2026-10-15)
 
@@ -471,10 +475,19 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
 
-## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed, not built: agent/firewater)
+## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed by agent/firewater)
 
-Not simple enough for the round: both halves touch the water shader and the gore's many particle paths, and neither has
-a hook today. Concrete plan, cheap by construction:
+**Built** 2026-10-23 (branch `agent/bloodwater`; ROUND22.md, "Blood in water"): (a) as planned below (`vr_water_blood`,
+`vr_water_blood_time`), and (b)'s first step, one test a burst (his choice): no per-particle test. Left for later:
+- (b)'s per-particle surface crossing: a stream or spray made above the surface carried into it (a ragdoll half in;
+  `Particle::waterCheck`, every 4th frame a particle) turning to a cloud as it goes in. The streams already end their
+  points at the surface they pour into and bloom puffs there; the particles' sprays and drops from above still fall
+  through the water.
+- Underwater blood decals of their own (pools on a pool's floor under a corpse): only the gore rays' marks are smaller
+  and later under water now.
+- The clouds drifting with the swells or a current (they stay where they were let; only their noisy edge drifts).
+
+The plan as designed:
 
 - **(a) Bloody water surface.** A client-side list of up to 16 blood clouds on liquid surfaces, each {centre xy, surface
   z, radius, strength, born}, uploaded with the frame data as `vec4 BloodWater[16]` beside `RippleAt` (vr_glsl.h

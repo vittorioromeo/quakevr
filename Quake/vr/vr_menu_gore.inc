@@ -643,6 +643,10 @@
         slider("Mist Darkness", vr_gore_mist_dark, 0.f, 1.f, 0.05f, "%.2f").help("How dark their red is (0 bright, 1 nearly black)."),
         slider("Mist Clear of Eyes", vr_gore_mist_near, 0.f, 128.f, 4.f, "%.0f u").extend(0.f, 512.f)
             .help("No mist closer to your eyes than this: your own bleeding is not in your face."),
+        header("Blood in Water"),
+        slider("Blood in Water", vr_water_blood, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Blood spreads on water and slime as dark red clouds where something bleeds into it, a hit, a gib, a corpse, a wounded body or you wading (0 none). Under water, sprays and streams of blood slow into slowly sinking clouds."),
+        slider("Blood in Water Lifetime", vr_water_blood_time, 2.f, 120.f, 2.f, "%.0f s").help("How long a cloud of blood on the water takes to fade."),
         header("Dying Bodies"),
         toggle("Hit While Dying", vr_corpse_dying)
             .help("A monster dying takes damage as a corpse while it falls (once it drops what it drops): a chainsaw, a blow or a shot can gib it. Never killed twice. Needs Gib Corpses (Carrying and Throwing > Gibs and Corpses)."),

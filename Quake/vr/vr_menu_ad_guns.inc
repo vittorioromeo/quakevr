@@ -75,18 +75,23 @@
         header("Melee Monsters' Weapons"),
         toggle("Melee Monsters Drop Their Weapons", "vr_admelee_drops")
             .help("The death fury drops its two swords, the death knight, zombie knight and death guard their swords, "
-                  "the hunter ogres their hammer and mace, the death sergeant its flail: yours to swing (Weapon Offsets slots 41-47)."),
+                  "the hunter ogres their hammer and mace, the Dark Prince, the justice knight and the judicator their "
+                  "swords, the death sergeant its flail; Rogue's Phantom Swordsman falls as its sword: yours to swing (Weapon Offsets slots 41-46, "
+                  "47-51)."),
         slider("Sword Damage", "vr_admelee_sword_damage", 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Their swords' blows, times the knight's sword's (the hell knight's: 1.25)."),
         slider("Hammer and Mace Damage", "vr_admelee_heavy_damage", 0.25f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("The hunter ogres' hammer's and mace's blows held in both hands, times the knight's sword's."),
+            .help("The heavy weapons' blows held in both hands (the hunter ogres' hammer and mace, the Phantom "
+                  "Swordsman's sword), times the knight's sword's."),
         slider("One Hand's Share", "vr_admelee_heavy_1h", 0.f, 1.f, 0.05f, "%.2f")
-            .help("The hammer and the mace held in one hand: this share of their damage (their weight also swings "
-                  "them slowly in one hand; two hands swing them faster)."),
+            .help("The hammer, the mace and the Phantom Swordsman's sword held in one hand: this share of their damage "
+                  "(their weight also swings them slowly in one hand; two hands swing them faster)."),
         slider("Hammer and Mace Stamina", "vr_admelee_heavy_stamina", 1.f, 3.f, 0.05f, "%.2fx").extend(0.f, 5.f)
-            .help("Their blows cost this times another weapon's stamina."),
+            .help("The heavy weapons' blows (the hammer, the mace, the Phantom Swordsman's sword) cost this times "
+                  "another weapon's stamina."),
         slider("Hammer and Mace Move Speed", "vr_admelee_heavy_speed", 0.5f, 1.f, 0.05f, "%.2fx").extend(0.2f, 1.f)
-            .help("Holding the hammer or the mace in either hand, you move at this times your full speed."),
+            .help("Holding the hammer, the mace or the Phantom Swordsman's sword in either hand, you move at this "
+                  "times your full speed."),
         header("Death Sergeant's Flail"),
         slider("Chain Length", "vr_flail_chain", 0.2f, 1.f, 0.05f, "%.2f m").extend(0.1f, 2.f)
             .help("The flail's chain, from the handle's end to its spiked head, which swings on it as a body of its own "

@@ -133,8 +133,10 @@ void(float request, entity p) AD_RulesTest =
     if(request >= 142 && request <= 144) { AD_HealthItemsTest(request, p); return; } // AD's health vials and gems
     if(request >= 61 && request <= 64) { AD_WorldTest(request, p); return; } // AD support
     if(request >= 150 && request <= 160) { AD_GunTest(request, p); return; } // the fuelled guns' tanks lying about: vr_ad_enemyguns_test.qc
-    if(request >= 70 && request <= 101) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (91: the flamethrowers draw no blood, 101: their flames hurt a monster, a big one too; 93, 94: the crossbow; 95: Freddie's super nailgun; 96-100: the upgraded weapons' VR models)
-    if((request >= 110 && request <= 129) || request == 131 || request == 132) { AD_MeleeTest(request, p); return; } // AD melee weapons: vr_ad_melee.qc (126 the fury's curve, 127 the holsters, 128-129 the hammer or mace in the main hand)
+    if(request >= 70 && request <= 102) { AD_GunTest(request, p); return; } // AD guns: vr_ad_enemyguns.qc (102: Freddie gibbed drops his super nailgun; 91: the flamethrowers draw no blood, 101: their flames hurt a monster, a big one too; 93, 94: the crossbow; 95: Freddie's super nailgun; 96-100: the upgraded weapons' VR models)
+    if(request >= 110 && request <= 129) { AD_MeleeTest(request, p); return; } // AD melee weapons: vr_ad_melee.qc (126 the fury's curve, 127 the holsters, 128-129 the hammer or mace in the main hand)
+    if(request >= 131 && request <= 139) { AD_MeleeTest(request, p); return; } // the four monster swords: vr_ad_melee.qc (131-134 killed and swung, 135 the holsters, 136-139 held)
+    if(request >= 145 && request <= 147) { AD_MeleeTest(request, p); return; } // the death sergeant's flail: vr_ad_melee.qc (145 killed and taken, 146 in the main hand, 147 the main hand's hold)
     if(request == 140 || request == 141 || request == 148 || request == 149) { AD_UpgradesTest(request, p); return; } // the upgrades' rules: vr_ad_upgrades_test.qc (148: the toolgun's Widowmaker loaded)
 
     makevectors(p.angles);

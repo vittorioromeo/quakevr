@@ -35,6 +35,20 @@ void parseEvent();
 
 bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out);
 
+// Armed grunts' arms on their weapon (vr_agrunt_ik; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts: polish"): an armed
+// grunt's model (progs/vrgrunt.mdl) drawn alive, its held weapon found (the weapon model nearest its right hand with the
+// held effects bit, 128): its arms bent by two-bone IK (upper arm and forearm, the elbow kept where the animation had it)
+// so the right hand is on the weapon's grip (its handle: its origin) and the left on its second grip (its Weapon
+// Offsets' first Grip hotspot; under the right hand for a Cup), or, a one-handed or melee weapon, hanging free by its
+// side. Layered on the animation as the kicks are (and the kicks on top).
+[[nodiscard]] bool armsWanted(const entity_t* e);
+
+// Whether `e` has bone turns now (kicks or arms), and them (boneKicks' form): kickInstance's (vr_animsmooth.cpp).
+// `aliashdr`, `pose1`, `pose2`, `blend`: the poses drawn (the hands' vertices).
+[[nodiscard]] bool bonesWanted(const entity_t* e);
+bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const void* aliashdr, int pose1,
+    int pose2, float blend, rigpose::Rigid* out);
+
 // The whole-model tilt (models with no rig, or vr_hit_react 2): `matrix` (R_EntityMatrix's) turned about the model's
 // feet. VR_AliasPreTransform's.
 void tiltModel(const entity_t* e, float matrix[16]);

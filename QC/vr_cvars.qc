@@ -315,6 +315,8 @@ float cvarh_vr_agrunt_w_lg;
 float cvarh_vr_agrunt_w_gruntgun;
 float cvarh_vr_agrunt_w_enfrifle;
 float cvarh_vr_agrunt_w_packs;
+float cvarh_vr_agrunt_rearm_idle;
+float cvarh_vr_agrunt_blast_safe;
 float cvarh_vr_enemygun_spent_smoke;
 float cvarh_vr_enemygun_spent_crackle;
 float cvarh_vr_enemygun_spent_volume;
@@ -1370,6 +1372,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_w_gruntgun);
     VR_CVAR_HMAKE(vr_agrunt_w_enfrifle);
     VR_CVAR_HMAKE(vr_agrunt_w_packs);
+    VR_CVAR_HMAKE(vr_agrunt_rearm_idle);
+    VR_CVAR_HMAKE(vr_agrunt_blast_safe);
     VR_CVAR_HMAKE(vr_enemygun_spent_smoke);
     VR_CVAR_HMAKE(vr_enemygun_spent_crackle);
     VR_CVAR_HMAKE(vr_enemygun_spent_volume);

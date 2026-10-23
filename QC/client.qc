@@ -3051,7 +3051,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
             vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
                              ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
-                              VR_ADMelee_Heavy(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
+                              VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
             vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
             vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
             vr_melee_blowhand = xHand + 1; // a prop it breaks by the impact rule (T_Damage_VRMelee, VR_Prop_BlowDamage)

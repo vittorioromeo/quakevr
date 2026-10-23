@@ -68,6 +68,22 @@ struct LavaTop
 // LiquidRipples).
 void addRipple(const glm::vec3& at, float strength);
 
+// Blood in the liquids (vr_water_blood; vr_glsl.h, LiquidBlood): blood let at `at`, `amount` of it (1 a hard hit's,
+// 1.5 at most), leaves a cloud spreading and fading on the surface of the water or slime it is in (up to it, 192 units
+// at most) or falls onto (`above` units at most below `at`; 0: none). False: no liquid there (nothing done); true:
+// in or over one (a cloud added, or none: lava, too deep, a teleport). A few point tests (CL_PointContents' leaf walk).
+// surfaceZ: the surface's height, when one was found.
+bool addBlood(const glm::vec3& at, float amount, float above = 24.f, float* surfaceZ = nullptr);
+// ... a cloud with its surface already known (`surface` on it: the wounds' waterline).
+void addBloodAt(const glm::vec3& surface, float amount);
+// Whether blood let at `at` is in a liquid (one point test), with vr_water_blood on: it slows to a cloud there (the
+// particles' and the streams' blood).
+[[nodiscard]] bool bloodInLiquid(const glm::vec3& at);
+// vr_water_blood_test [distance] [amount]: a cloud on the liquid below a point that far ahead (96); vr_water_blood_info:
+// the clouds now.
+void bloodTest_f();
+void bloodInfo_f();
+
 // How fast the ripples spread on a liquid (CONTENTS_*: lava's slow, slime's slower than water's), in units a second:
 // the splash's rings ride their crest.
 [[nodiscard]] float rippleSpeed(int contents);

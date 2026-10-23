@@ -129,7 +129,10 @@ QVR_TONE_GLSL
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
 "	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \
-"	vec4	Foam; // QVR: the shoreline foam's look (vr/vr_water.cpp, LiquidFoam): x its opacity, y how finely it is broken up, z how far it reaches (times), w unused\n"
+"	vec4	Foam; // QVR: the shoreline foam's look (vr/vr_water.cpp, LiquidFoam): x its opacity, y how finely it is broken up, z how far it reaches (times), w unused\n" \
+"	vec4	BloodInfo; // QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood; LiquidBlood): x how many clouds (0 none), yzw unused\n" \
+"	vec4	BloodAt[16]; // QVR: ... each's centre (xy), the surface's height (z), its radius now (w)\n" \
+"	vec4	BloodAmp[4]; // QVR: ... each's strength now (four a vec4)\n"
 
 // Single-pass stereo (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): a multiview twin (QVR_MULTIVIEW) reads each
 // view's view-projection and eye position from this block; the blocks that declare ViewProj, EyePos, FrameViewProj and
@@ -1236,6 +1239,40 @@ LIQUID_SWELL \
 "	return mix(c, col * b, foam * (kind == 2u ? 0.75 : 0.85));\n"\
 "}\n"\
 "\n"\
+"// Blood in a liquid (BloodInfo.x clouds, 0 none: vr/vr_water.cpp's, vr_water_blood): dark red clouds on water (a\n"\
+"// brown on slime; none on lava or teleports), spreading from where something bled into it, thickest at the centre,\n"\
+"// their edges broken by a slowly drifting noise. On the surface (either side) over what is behind it: c the liquid as\n"\
+"// drawn (refracted), lit by b (1 Quake's full light). The clouds' list is short (16) and each is two tests away.\n"\
+"vec4 LiquidBlood(vec4 c, vec3 pos, vec3 facing, uint kind, float b)\n"\
+"{\n"\
+"	int n = int(BloodInfo.x);\n"\
+"	if (n <= 0 || kind == 1u || kind == 3u || abs(facing.z) < 0.5)\n"\
+"		return c;\n"\
+"	float k = 0.0, nz = -1.0;\n"\
+"	for (int i = 0; i < n; i++)\n"\
+"	{\n"\
+"		vec4 e = BloodAt[i];\n"\
+"		vec2 d = pos.xy - e.xy;\n"\
+"		float r2 = dot(d, d);\n"\
+"		if (r2 >= e.w * e.w * 1.3 || abs(pos.z - e.z) > 40.0)\n"\
+"			continue;\n"\
+"		if (nz < 0.)\n"\
+"		{\n"\
+"			float t = Time * (kind == 2u ? 0.4 : 1.0);\n"\
+"			vec2 p = pos.xy * 0.035 + vec2(t * 0.04, -t * 0.03);\n"\
+"			nz = LiquidNoise(p) * 0.75 + LiquidNoise(p * 2.3 - vec2(t * 0.07, t * 0.05)) * 0.25;\n"\
+"		}\n"\
+"		float r = sqrt(r2) / e.w + (nz - 0.5) * 0.5;\n"\
+"		float m = BloodAmp[i >> 2][i & 3] * (1.0 - smoothstep(0.3, 1.0, r)) * (1.15 - 0.3 * clamp(r, 0.0, 1.0));\n"\
+"		k += m * (1.0 - min(k, 1.0));\n"\
+"	}\n"\
+"	if (k <= 0.)\n"\
+"		return c;\n"\
+"	k = min(k * 0.75, 0.88) * (1.0 - smoothstep(1200.0, 2000.0, distance(pos, EyePos)));\n"\
+"	vec3 col = kind == 2u ? vec3(0.2, 0.09, 0.02) : vec3(0.32, 0.02, 0.015);\n"\
+"	return vec4(mix(c.rgb, col * min(b, 1.1), k), mix(c.a, 1.0, k));\n"\
+"}\n"\
+"\n"\
 "// Caustics: the light on what is under water (the liquid a cell out from the surface, towards the eye) dappled by the\n"\
 "// waves above, 1 elsewhere; two warped\n"\
 "// sine lattices, bright along their lines, in the world (stretched down walls, weaker there: facing the surface's normal).\n"\
@@ -2055,6 +2092,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	result.a = liquid_alpha; // QVR: and what is behind it bent by the waves\n" \
 "	result = LiquidRefract(result, in_pos, bumped, facing, liquid);\n" \
+"	result = LiquidBlood(result, in_pos, facing, liquid, min(dot(total_light, vec3(1.0 / 3.0)), 1.3));\n" \
 "#endif\n"
 
 // the recoil steadied (ZeroBlend), the poses' occlusion

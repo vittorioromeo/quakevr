@@ -67,6 +67,17 @@ constexpr Sword knightSword{-3.5f, 0.62f, 4.1f, 6.f, 0.f, 0.52f, 0.44f, 0.3f, 1.
     {{4.45f, 0.f, 1.85f}, {20.f, 0.f, 1.72f}, {31.5f, 0.f, 1.5f}, {36.3f, 0.f, 0.95f}, {39.7f, 0.f, 0.f}}};
 constexpr Sword zombieSword{-3.f, 0.58f, 3.55f, 3.8f, 0.f, 0.42f, 0.36f, 0.26f, 1.1f, 5,
     {{3.85f, 0.f, 1.35f}, {20.f, 0.f, 1.25f}, {31.f, 0.f, 1.1f}, {35.6f, 0.f, 0.7f}, {38.8f, 0.f, 0.f}}};
+// The four monster swords (swords4): Rogue's Phantom Swordsman (its whole model, stand1: a long two-handed hilt, a
+// wide guard, a narrow blade 3.4 units across), AD's justice knight's flat sword (a broad blade, its point clipped:
+// made a broad point) and the judicator's (the same mesh 1.28 times bigger; the grip and the blade's thickness kept to
+// the hand). The Dark Prince's is the death knight's mesh (knightSword).
+constexpr Sword phantomSword{-13.f, 0.68f, 10.7f, 10.f, 0.f, 0.9f, 0.7f, 0.42f, 0.85f, 6,
+    {{11.f, 0.f, 2.1f}, {18.3f, 0.f, 2.05f}, {32.f, 0.f, 1.9f}, {46.f, 0.f, 1.6f}, {56.4f, 0.f, 1.f}, {60.4f, 0.f, 0.f}}};
+constexpr Sword justiceSword{-8.6f, 0.66f, 6.6f, 7.6f, 0.f, 0.85f, 0.6f, 0.34f, 1.2f, 6,
+    {{7.f, 0.f, 3.2f}, {9.3f, 0.f, 3.25f}, {20.f, 0.f, 3.1f}, {31.f, 0.f, 2.9f}, {38.5f, 0.f, 1.9f}, {41.8f, 0.f, 0.f}}};
+constexpr Sword judgeSword{-11.f, 0.68f, 8.45f, 9.7f, 0.f, 1.f, 0.7f, 0.38f, 1.2f, 6,
+    {{8.96f, 0.f, 4.1f}, {11.9f, 0.f, 4.15f}, {25.6f, 0.f, 3.95f}, {39.7f, 0.f, 3.7f}, {49.3f, 0.f, 2.4f},
+        {53.5f, 0.f, 0.f}}};
 constexpr Heavy hammer{{-6.f, -0.55f, 0.f}, {22.9f, 2.f, 0.f}, 22.5f, {5.f, 10.f}, {10.f, 21.f}, {21.f, 64.f},
     {54.f, 60.f}, {100.f, 105.f}, {37.f, 51.f}};
 constexpr Heavy mace{{-6.f, 0.f, -0.15f}, {17.7f, 0.f, -0.3f}, 17.6f, {5.f, 9.f}, {9.f, 20.f}, {20.f, 64.f},
@@ -85,6 +96,15 @@ constexpr Weapon weapons[] = {
         {-0.9948f, -0.1008f, 0.0133f}, true, nullptr, &hammer},
     {"progs/w_ogremac.mdl", {0.0002f, 16.4026f, 1.7803f}, {-0.0002f, -0.9833f, 0.1820f}, {0.9996f, -0.0055f, -0.0284f},
         false, nullptr, &mace},
+    // (Kinds 7-10, QC VR_ADMELEE_PHANTOM.._JUDGE; the Phantom Swordsman's from Rogue's data, its first frame.)
+    {"progs/sword.mdl", {10.738f, -7.879f, -11.0194f}, {-0.0036f, -0.0059f, 1.f}, {-0.0119f, 0.9999f, 0.0059f}, false,
+        &phantomSword, nullptr},
+    {"progs/w_dprincesword.mdl", {-0.0255f, -17.3005f, 3.8529f}, {0.f, 0.9969f, -0.0784f}, {1.f, 0.f, -0.0009f}, false,
+        &knightSword, nullptr},
+    {"progs/w_justicesword.mdl", {-11.5218f, -3.2068f, 1.1592f}, {0.9696f, 0.2444f, -0.009f},
+        {0.2414f, -0.9623f, -0.1253f}, false, &justiceSword, nullptr},
+    {"progs/w_judgesword.mdl", {-14.752f, -4.1064f, 1.486f}, {0.9696f, 0.2444f, -0.009f}, {0.2414f, -0.9623f, -0.1253f},
+        false, &judgeSword, nullptr},
     // The death sergeant's flail (AD's gib lies flat: its handle from the pommel at 10.5 -11.3 to the chain's ring at
     // 3 -8.5; the hand 40% along it from the pommel).
     {"progs/w_blueflail.mdl", {7.506f, -10.16f, 1.56f}, {-0.9345f, 0.3523f, 0.0371f}, {0.f, 0.f, 1.f}, false, nullptr,

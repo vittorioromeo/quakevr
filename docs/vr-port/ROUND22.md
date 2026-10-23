@@ -17042,6 +17042,47 @@ weapon; only in a fight.
 **In VR:** spawn Armed Grunts from the toolgun (Monsters > Armed Grunts): check the weapon sits in its hands while it
 runs and shoots, a rocket hurts about half, shoot its gun hand with the shotgun up close, grab its weapon out of its
 hand, kill one and take its gun (its rounds in it), knock one down. Combat > Armed Grunts for the damage and the pool.
+
+### Armed grunts: polish (worktree `tghost`, branch `agent/armedgrunt2`, 2026-10-23)
+
+- **Hands on the grips** (`vr_agrunt_ik` 1; client, `vr_hitreact.cpp` armsNow, layered through kickInstance's bone
+  rows like the hit kicks, kicks composed on top). The held weapon carries effects bit 128 (QC `VR_AG_EF_HELD`); a
+  vrgrunt.mdl drawn alive finds the held weapon nearest its right hand (vertices 32/26/31, within 28 units) and bends
+  each arm by two-bone IK (upperarm + forearm, the elbow kept on the animation's side): the right hand to the grip (the
+  weapon's origin), the left to its first Grip hotspot (Weapon Offsets; a Cup: under the right hand; none: hanging by
+  its side, elbow back). Every weapon in the arsenal has a Grip hotspot, so all are held two-handed, melee ones too
+  (decision: kept). A melee swing moves the grip: QC `VR_AG_PlaceProp` swings the hand round the right shoulder (0.6 of
+  the blade's turn), both arms follow. Measured (`vr_agrunt_ik_debug 1`, tests 1 and 12, `scratch/ik_stats.py`): before
+  IK the drawn right hand is 1.4-9 units (max 28) from the grip, the left 4-21 (max 36) from the second grip; after,
+  0.0-0.3 average; max misses (out of reach) 3.4 (melee swings), 5-6.5 (launchers' run), 10 (chainsaw swing).
+  `vr_agrunt_ik_info` prints the solve now.
+- **Muzzle flash on the held weapon**: `weaponfired(prop, -1)` after each shot; `vr_weaponfx.cpp` monsterFired sees a
+  weapon model (its slot) and draws that slot's own flash (size, time, an AD gun variant's flash model and feel) at its
+  Muzzle anchor (as the server's `weapondrawnpose(e, 0, 6)`). `vr_debug_weaponfx 1`: the flash 0.1-0.6 units from the
+  QC's muzzle (shotgun, 3 shots). Streams (flamethrowers) and melee: none.
+- **Arcane Dimensions' weapons** (with AD's data): the soldiers' guns (WID 20-28, their own `VR_ADGun_Fire*`), the
+  Shadow Axe / Widowmaker / Plasma Gun ("weapon" 101-103: the record's upgrade, where AD's upgrades play), AD's swords,
+  hammer and mace (111-116: WID_SWORD of that kind). Weights `vr_agrunt_w_adrocket` .. `_adcrossbow`, `_shadowaxe`,
+  `_widowmaker`, `_plasmagun`, `_adsword`, `_adheavy`; toolgun entries; plasma guns three bolts an attack,
+  flamethrowers two flames a fire frame within 0.8 of their range, the stream's off sound after. `vr_agrunt_test 12`:
+  17 passed, 0 failed (each hurt you: 38-286). **Fuel tank and hose: not done** (the player's `vr_adtank.cpp` is built
+  on the player's body and Verlet hose; a monster's needs its own placement on the chest bone, stepping and drawing).
+- **Idle re-arm** (`vr_agrunt_rearm_idle` 1): ai_stand/ai_walk call `VR_AG_Idle`: unarmed, it goes for a weapon lying
+  near, takes it up, then stands again unless it saw you. `vr_agrunt_test 13`: PASS (picked up in 1.5 s, no enemy).
+- **Launchers fired safely** (`vr_agrunt_blast_safe` 1): the round's burst predicted (`VR_AG_BlastPoint`: a rocket's
+  line; a grenade's arc, 600 ahead and 200 up with gravity and 1.5 bounces, a 10-unit box so a near miss of its target
+  bursts there; a mine's landing) must be 180 units (mines 230) from it, checked as it decides and again as it fires
+  (held back: a step aside); grenade launchers back off to 210 (160 off); it keeps away from mines; cornered, it slides
+  along the wall. `vr_agrunt_test 11` (60 launcher grunts on headings all round you, often backed against a wall, 7 s
+  each): off 3 self-kills (all grenades), 220 self damage, 125 shots; on 1 self-kill, 68 self damage, 70 shots (5 held).
+  The one left: a grenade grunt spawned 93 units from you, cornered.
+- Debug > Tests: Armed Grunts: AD's Weapons (12), Launchers by Walls (11), Idle Re-Arm (13), Grip Distances. Test 1:
+  16 of 17 (the proximity gun's grunt often doesn't fire in its 5 s now: it fires only from 230 units).
+  `vr_agrunt_test 2` alone: 4 passed.
+
+**In VR:** a row of armed grunts (`vr_agrunt_test 7`, notarget): both hands on the guns while they run and shoot;
+melee grunts swinging (the arms with the blade); one shooting you: the flash at its gun's muzzle; AD's guns from the
+toolgun (Monsters > Armed Grunts); a grenade grunt backed against a wall should step aside, not fire.
 ## Shoulder charge: hands above the chest; crates break from fewer blows; Vanilla pickups (worktree `goreflesh`, branch `agent/charge4`, 2026-10-23; vr_cfg_version 189)
 
 From his notes of 2026-10-23 (vrmelee-recording 01-01-34, vrragtriggers 00-54-11, vrtesthall 01-44-55 and 01-45-50).
@@ -17142,6 +17183,193 @@ wall within about 1.5 arm lengths of its chest (or one its fall carries it into)
 throw a hand out to the wall beside them and slide down it into a slump, the super shotgun's slamming them into it
 first. Shoot one standing away from walls, and one with a headshot: no change. Wall Slide 0 gives back the drop.
 
+## Monster weapon drops: the infected's weapons as they turn, Freddie gibbed (worktree `release`, branch `agent/drops1023`, 2026-10-23)
+
+From the read-only audit of monster weapons (approved by Vittorio).
+
+- **Dawn of the Machine's infected** (`monster_army_infected`, `_knight_`, `_enforcer_`, `_hell_knight_infected`): their
+  first death is `MG3_Infected_Turn` (combat.qc Killed hands them over before any death function), so `army_die`,
+  `knight_die`, `enf_die` and `hknight_die` never ran and nothing fell. Now `MG3_Infected_DropWeapon`
+  (vr_mg3_infected.qc), first thing in the turn while he is still the old monster: the grunt's gun and the enforcer's
+  rifle through `VR_DropEnemyGun` (full), the knight's sword and the death knight's (`QVR_WPNFLAG_USE_SECONDARY_AMMO`)
+  through `VR_DropKnightSword`, the same calls and the same statue exception (`spawnflags & 2`) as the stock deaths.
+  A wedged one (no room for the new body: killed again at once) has dropped it already. The zombie or fiend he becomes
+  is set to `progs/zombie.mdl` / `progs/demon.mdl`, which hold no weapon; their own deaths drop nothing.
+- **AD's Freddie**: his super nailgun dropped only with his gun arm cut off (`VR_ADGun_LimbCut`). Now also when he is
+  gibbed (`VR_ADGun_FreddieGibbed`, from `VR_AD_Gibbed`, AD's `monster_ThrowGib` hook: gibbed in his death or his body
+  gibbed later): thrown from where his left forearm was, up and out to his left, a full clip. Once per Freddie: the new
+  field `.vr_adgun_freddie_off` is set by whichever comes first (a cut arm, a blast's popped arm or the gibbing).
+  `vr_adgun_drops 0` still drops nothing. No AD source change (ad_import.py `--check`: 0 of 142 differ).
+- **AD's deflector** (`monster_deflector`): not in `VR_ADGun_ForClass`, by scope rather than a decision against it. The
+  guns were made for AD's soldier family (above, "Armed AD soldiers, defender/eliminator, centurion, pyro and
+  fumigator"; `vr_adguns.hpp` `variantCount` 8: rocket, grenade, plasma, defender, eliminator, centurion, pyro,
+  fumigator). The deflector got Quake VR's treatment later in the rig batch (head zone, knockdown, its rig with a `gun`
+  bone on the right hand), and `vr_monstermods.cpp` hides only its muzzle effect and field rings in its deaths: "It
+  keeps its gun". It also has no one gun to map: `ad_mon_deflector.qc` gives it two attacks per skin (yellow, the
+  default: a wall of flame up close, `ad_deflect_fireflame`, and a volley of 1-3 drunk rockets, `ad_deflect_fire_rocket`;
+  blue, `spawnflags` PLASMA: three plasma bolts, `ad_deflect_fireplasma`, and the rockets), its shield (reflects nails,
+  lightning, plasma and the axe) is the monster's, not the gun's, and AD gibs it as an inert `progs/w_enforcergun.mdl`
+  (skin 3 on the blue one). Not implemented.
+
+Tests: `vr_mg3_mtest 2` (developer 1) now also checks each infected dropped one weapon as he turned (its kind and flags,
+its model, grabbable, a full clip, near him; he is the zombie or fiend model) and that killing the zombies and fiends
+again adds none. `vr_ad_test 95` gibs Freddie's body after the arm cut: no second gun. New `vr_ad_test 102`: a Freddie
+near you gibbed whole drops one super nailgun, full, taken into the main hand. Debug > AD Monsters > Soldiers' Guns >
+"Freddie Gibbed Whole" runs it.
+
+Results: `vr_mg3_mtest 2` on e1m1: 19 passed, 0 failed (the grunt's `v_gruntgun.mdl` clip 30, the knight's
+`v_ksword.mdl`, the enforcer's `v_enfrifle.mdl` clip 20, the death knight's `v_hksword.mdl` flags 1, each 14-15 units
+from him; 6 -> 6 weapons lying after the second kills). ad_dm1 (`-game ad`): `vr_ad_test 102` PASS (gibbed, health
+-100: one SNG, 36 in it, 138 units out); `vr_ad_test 95` PASS (cut: one SNG; the body then gibbed: 0 more).
+
+What it would take to give the deflector a gun: a design choice first (which attack the dropped gun fires: the rockets,
+the flame wall as the pyro's flamethrower, or the blue skin's plasma as the plasma rifle; one gun or one per skin); then
+a WID (29 on), a ninth burst-rifle variant in `vr_adgunart.cpp` (add-ons, skin, `fireFeels`, `variantCount`), its
+weapon-offset slot defaults, a `VR_ADGun_Fire` branch, its `VR_ADGun_ForClass` entry, its gun hidden in its deaths in
+`vr_monstermods.cpp` (vertices of its rig's `gun` bone, now kept, and the rig re-measured without them), AD's
+`w_enforcergun.mdl` gib cleared on a drop (as the crossbow's), a toolgun row (`ad_monsters_gen.py` GUNS) and a test.
+
+**In VR:** Dawn of the Machine (or the Debug menu's infected spawns): kill an infected grunt, knight, enforcer and death
+knight: each should burst with his gun or sword falling beside him, grabbable, the zombie or fiend that gets up holding
+nothing. AD: blow a Freddie apart with rockets: a super nailgun should fly out of the gibs (one, even if his arm was
+cut first).
+
+## Blood in water (worktree `release`, branch `agent/bloodwater`, 2026-10-23)
+
+Built from the BACKLOG design (agent/firewater; his notes vrtesthall_2026-10-23_01-42-34, _01-43-54), both halves. No
+protocol change, new cvars only (`vr_water_blood` 1, `vr_water_blood_time` 30; Gore > Blood in Water).
+
+**(a) Bloody water surface** (`vr_water.cpp`, "Blood in the liquids"; `vr_glsl.h` `LiquidBlood`). Up to 16 clouds, each
+{centre, surface height, size, peak, born, fade-from}, in the frame data beside the ripples (`BloodInfo`, `BloodAt[16]`
+xy centre, z surface, w radius now; `BloodAmp[4]` strength now; `gpuframedata_t` `bloodinfo`, `bloodat`, `bloodamp`).
+Radius `size * (8 + 52 * sqrt(age / 20 s))` (8 -> 60 units over 20 s; `size` sqrt(amount), 0.6..1.4), strength
+`peak * (1 - t / vr_water_blood_time)^1.3` (a half-second rise in), times `vr_water_blood`. A new cloud within a living
+one's radius (x0.8 + 12 units, same height within 8) tops it up (`peak = min(now + 0.6 * amount, 1.5)`, its fade
+restarted) instead of taking a slot; full, the weakest now goes. The shader (both liquid programs, after the
+refraction: the colour over what is behind it): one loop over the clouds on level-ish faces (|facing.z| > 0.5, both
+sides: the surface seen from under water too) that skips any further than 1.14 radii or 40 units off its height; the
+edge broken by two octaves of `LiquidNoise` drifting slowly (slime's slower); `mix(c, vec3(0.32, 0.02, 0.015) * light,
+min(0.75 k, 0.88))` (slime a brown `vec3(0.2, 0.09, 0.02)`; none on lava or teleports), its alpha raised as much
+(without refraction), faded out from 1200 to 2000 units.
+
+Sources (`water::addBlood(at, amount, above)`: in a liquid, up to its surface in 16-unit steps, 192 at most, then six
+halvings; out of one, a liquid at most `above` units under it, six halvings; lava, a teleport's leaf, too deep: none):
+- `particles::spawn` Preset::Blood (amount count / 20, 0.15..1) and BloodTrail (0.1 a count, 0.3 at most), with or
+  without `vr_particles`;
+- the gore's EventBurst (0.7 x size) and EventCorpse (0.8, 40 units above);
+- the gore's drops: your own bleeding (`playerBleed` -> `fall`) let in the water you wade in (0.12 x drop), a ceiling's
+  drip falling into a pool (the drop now ends at the surface, no mark under the water);
+- the blood streams (`vr_bloodstream.cpp`): once a second at the surface over a wound under water, or where a stream
+  pours in (0.3 x strength x power);
+- a body or a thing standing in water that blood was painted on in the last 15 s (`Mask::bled`, set in
+  `detail::paint` for blood splats): QC's four-a-second `QVR_WOUND_WATER` events (monsters, you) and `washGear` (a
+  bloody prop or weapon afloat or dropped in) add a cloud at the waterline once a second (`Mask::bloodCloud`), 0.3
+  fading to 0 over those 15 s.
+
+**(b) Blood slowed in water** (his first step: no per-particle collision). One `water::bloodInLiquid` (one leaf walk)
+a burst: `blood()` (its drops and the tiny droplets, a quarter as many, and its mist puff), `bloodTrail` (its smear; no
+falling drops), the gore's mist (`mist(..., wet)`: twice as long, drag 3, sinking 4 u/s, 0.3 of the speed), the
+streams' spurts (`bloodDroplet(..., wet)`). `soak()`: velocity x 0.25, drag 5 (stopped in ~0.3 s), gravity 0.03
+(sinking ~5 u/s), 2-4 s, alpha x 0.7 fading out, 1.6x the size growing to about 3x: a slowly blooming cloud. A stream
+whose wound is under water (tested with its landing arc, 12 a second) pours no chain: 14 soaked puffs a second off the
+wound; one pouring into a liquid ends its points at the surface (the arc's crossing time, from the surface found below
+the landing) and blooms puffs there. The gore's hit and burst rays under water reach 0.3 as far, no back-splatter and no
+rays to the ceiling; their marks 0.6 the size, showing 1 s + flight / 40 later, no drips or runs from them.
+
+Debug menu (Gore tools): Blood in Water (`vr_water_blood_test [distance] [amount]`: a cloud on the liquid below a
+point ahead), Blood Spray Ahead (`vr_water_blood_spray [distance] [count]`: a hit's blood, Preset::Blood), Blood in
+Water: Clouds (`vr_water_blood_info`).
+
+**Cost.** GPU: vrfiringrange's pool from above with 16 clouds in view, eyes 2048 x 2048, `vr_profile_report 6` x3
+(on, off, on): eyes' GPU 1.659, 1.678, 1.659 ms: no difference beyond noise. CPU: a fight's worth (10 Preset::Blood
+sprays a second for 6 s, half under water, half over it, 30 clouds made or merged): `particles` 0.130 ms, `particle sim`
+0.033 ms a frame; the `water blood` scope never shows in the report (under 0.001 ms); at most 18 leaf walks an
+`addBlood`, one a `bloodInLiquid`.
+
+**Checked** (mock headset): `scratch/bw_pool.png` (the pool from above, blood off / on, five clouds 13 s old),
+`scratch/bw_spray.png` (a spray under water at 0.35 s and 2 s, a spray in the air), `scratch/bw_grunt_underwater.png`
+(a grunt in the pool with three streams: puffs at its chest, its cloud on the surface seen from below; streams info: 3
+pouring, 0 chain pieces drawn).
+
+**In VR:** fight in the firing range's pool (or vrtesthall's): shoot and gib monsters standing in the water: dark red
+clouds should spread on the surface where they bleed and fade over half a minute; wade while hurt (under 75 health):
+your own cloud follows you. Dive and shoot one under water: the spray should stop short and hang as a sinking cloud,
+with no splats flying across the pool. Say whether the red is too strong or too faint (Gore > Blood in Water).
+
+Not done (BACKLOG): the per-particle surface crossing (a spray from above the surface carried into it, a ragdoll half
+in), clouds drifting with the swells or currents, underwater blood decals on the pool's floor (only the rays' marks
+are smaller and later).
+## Four monster swords: the Phantom Swordsman, the Dark Prince, the justice knight, the judicator (worktree `goreflesh`, branch `agent/swords4`, 2026-10-23)
+
+The author's approval (BACKLOG.md, "Droppable, usable swords"; the justice knight and the judicator added). Each drops
+its sword as AD's melee monsters do theirs (QC `vr_ad_melee.qc`): the knight's sword (`WID_SWORD`) of a new kind, its
+model made anew by `vr_admelee.cpp` from the monster's own sword model ("#melee"), laid as the knight's sword.
+
+- **Kinds 7-10** (`vr_ad_guns_defs.qc`): the kind's bits widened to 8-11 (`QVR_WPNFLAG_SWORD_KIND` 3840; the toolgun's
+  `swordKindBits` too): `VR_ADMELEE_PHANTOM` (Rogue's `progs/sword.mdl`), `_DPRINCE` (`w_dprincesword.mdl`, the death
+  knight's mesh, its own skins), `_JUSTICE` (`w_justicesword.mdl`), `_JUDGE` (`w_judgesword.mdl`, the same mesh 1.28
+  times bigger; ROUND22's old note that the justice knight's flat sword has no model was wrong: AD's pak0 has both).
+- **Models** (`vr_admelee.cpp`, measured with `scratch/sw4_slice.py`, `sw4_verts.py`): the Phantom Swordsman's from its
+  first frame (stand1: a hilt of 18 units, a guard 22 across, a narrow blade, 60 from the grip to the tip); the justice
+  knight's a broad blade (half-width 3.2, AD's clipped point made a broad ogive); the judicator's the same 1.28 times
+  bigger, the grip and the blade's thickness kept to the hand; the Dark Prince's the death knight's sword's measures.
+  `vr_admelee_models`: 0 open edges, outward on all four. Their skins are their own (the Phantom's blade bloody towards
+  the tip, as Rogue's skin). Without Rogue's data the Phantom's falls back to the knight's sword (`VR_Has`); in AD's
+  maps Rogue's pak is not mounted, so the Phantom Swordsman (Quake VR's `monster_sword`, which needs Rogue's data) and
+  its sword exist only with Rogue's data. AD's own `monster_sword` (`ad_mon_invsword.qc`, `progs/mon_sword.mdl`, not in
+  AD 1.80's paks; never spawned: Quake VR's own owns the classname) sets its class to its knight's:
+  `VR_ADMelee_Drop` checks the classname first, so it would drop the Phantom's sword, never a plain knight's sword.
+- **Weight and rules**: the Phantom's sword is heavy (`VR_ADMelee_Heavy`, now hammer, mace, Phantom): one hand slow and
+  weak as the hammer's (its mass 13 kg in Weapon Weights, `vr_admelee_heavy_1h` 0.5 of `vr_admelee_heavy_damage` 1.6),
+  its blows `vr_admelee_heavy_stamina`, walking `vr_admelee_heavy_speed`; it still cuts as a sword (beheads, cuts
+  limbs): the hammer's and mace's blunt head is `VR_ADMelee_Blunt` now (client.qc's blunt blow, `VR_Melee_Thing`, the
+  head box, the blunt hit layer). The others are swords as the death knight's (`vr_admelee_sword_damage`): the Dark
+  Prince's 4.5 kg (the death knight's), the justice knight's 6 kg, the judicator's 8 kg (one hand swings them more
+  slowly by their mass alone). **Holsters**: the Phantom's and the judicator's are too big (`VR_ADMelee_Holsterable`:
+  refused with a buzz, they fall; my call for the judicator's 1.5 m blade); the Dark Prince's and the justice knight's
+  holster.
+- **Weapon Offsets slots 47-50** (`numSlots` 50; new cvars, no migration): slot 42's (the death knight's) settings,
+  each with its tip (MuzzleAnchor from `vr_admelee_models`), its offsets (below: "Held up the blade"), its second hand towards the handle's end (`TwoHHandAnchor`:
+  5 AD units below the grip on the long hilts), mass, balance and Heft (0.9, 0.35, 0.5, 0.6).
+- **Corpses** (`vr_monstermods.cpp`): the Dark Prince's sword (870-910, the death knight's), the justice knight's
+  (0-91) and the judicator's (680-779) hidden in their deaths (103-121): "the sword (92 vertices) hidden in 19 death
+  frames"; their rigs make it a loose piece as the death knight's (gone from the dead ragdoll, welded in the hand while
+  knocked down; the rig cache's key holds the poses). The Phantom Swordsman is its sword: killed, it falls as the
+  weapon and its body is removed (`rogue_invis_sw.qc` sword_die).
+- **Toolgun**: four entries at the end of the list (the others' numbers stay; `vr_toolgun_packs.inc`): "DoE Phantom
+  Sword" (DoE group, with Rogue's data), "AD Dark Prince's Sword", "AD Justice Knight's Sword", "AD Judicator's Sword"
+  (AD group); entries 241-244.
+- **Settings**: the AD Guns page's help lines name the new swords (the rows' labels unchanged).
+- **Tests** (`-Games "-game hipnotic -game rogue -game ad -game quakevr"`, ad_dm1): `vr_ad_test 131`-`134` (spawn
+  first: `vr_test_spawn 15` / `256` / `231` / `242; impulse 241`): killed, one drop, AD's gib none, lying on its own
+  model and name, taken, strikes as a sword, holsterable / very heavy as above, blows one hand / two hands: Phantom 24 /
+  47 (0.51), the others 31 / 31: all PASS (the judicator boss woken by the spawner, killed at its first wave). `135`
+  the holsters: Phantom and judicator refused and lying, the others holstered: PASS. Save, load and `changelevel` with
+  each pair in hand (`136`, `137`, `124`): kinds 7-10 on their own models each time. The toolgun's four
+  (`vr_toolgun_spawn_trace 241`..`244`, then `vr_ad_test 123`): each lying on its own model, taken, holstered, drawn:
+  PASS. `vr_admelee_spine`: all four straight, on their lines. ad_import --check 0 of 142; eval.sh verdicts unchanged.
+- Eyeshots: `scratch/sw4_held_v2.png` (left: the Phantom's above, the justice knight's below; right: the Dark Prince's
+  above, the judicator's below).
+- **Held up the blade (fixed)**: the justice knight's, judicator's and Phantom's tips were 27.8, 34.4 and 38.3 units
+  from the hand (`muzzlepos`, and the drawn model's farthest point the same: `vr_model_collide_bench`), not about 37, 47
+  and 53. The blow's line (`VR_Melee_Line`) runs from the hand to `muzzlepos`, the drawn tip, so it matched what was
+  drawn: the drawn sword was held a third of the way up its blade. Why: a slot's Scale scales the model about its box's
+  corner (`hdr->scale_origin`; vr_render.cpp: S(Scale) after T(scale_origin) S(hdr->scale)), not about the grip. With
+  HandAnchor retired, the slot's Offset puts the hand: slot 42's offsets put it at the grip of a model whose box corner
+  is the death knight's sword's (the Dark Prince's: the same). The new models' corners lie lower (their longer hilts
+  and blades), so the same offsets left the grip 12-19 units below the hand. Slots 47, 49 and 50's OffsetX/Y/Z now
+  add (1 - 0.34) x (the death knight's corner - theirs). After: tips 55.1, 36.8 and 48.3 from the hand (drawn 55.5,
+  37.0, 48.6), the Dark Prince's 34.7 as before. `vr_melee_sweep_test` gained case E (a 6-unit box only the outer third
+  of the line crosses, at 0.85): hit by the tip with all four, before and after (the line always matched the drawn
+  tip; what was short was the drawn sword in the hand). `vr_ad_test 138`, `139`: the justice knight's or the
+  judicator's in the main hand (for the sweep test). The sweep test's F and D cases fail on ad_dm1 for these swords and
+  for the Dark Prince's (the death knight's own slot) alike: not from this change.
+
+**In VR:** with Rogue's data, kill a Phantom Swordsman: no body, its sword lies; two hands swing it, one slowly and
+weakly; a hip or chest holster refuses it. In AD kill the Dark Prince, a justice knight and the judicator (its last
+wave): each drops its sword and its corpse holds none. Check each grip (Weapon Offsets slots 47-50: main hand at the
+middle of the hilt, the second towards the pommel), the swords' sizes against their monsters, and whether a blow near
+each long blade's tip lands.
 ## The death sergeant's flail (worktree `gorefx`, branch `agent/flail`, 2026-10-23)
 
 The author approved it (BACKLOG.md, "Droppable, usable mace: AD's Death Sergeant"): AD's death sergeant drops its flail

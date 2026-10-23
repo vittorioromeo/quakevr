@@ -258,6 +258,23 @@ const KnownSword knownSwords[] = {
          za::iota(v.begin(), v.end(), 870);
          return v;
      }(), 212, 243},
+    // The Dark Prince (the death knight's mesh and frames), the justice knight (its flat sword 0..91; deaths B 103..111,
+    // A 112..121) and the judicator (its sword 680..779, the same deaths): their swords drop (swords4).
+    {qvr::modelmeta::Id::AdDprince, 911, 802, [] {
+         za::Vector<int> v(41);
+         za::iota(v.begin(), v.end(), 870);
+         return v;
+     }(), 212, 243},
+    {qvr::modelmeta::Id::AdJustice, 1008, 1148, [] {
+         za::Vector<int> v(92);
+         za::iota(v.begin(), v.end(), 0);
+         return v;
+     }(), 103, 121},
+    {qvr::modelmeta::Id::AdJudge, 1016, 1156, [] {
+         za::Vector<int> v(100);
+         za::iota(v.begin(), v.end(), 680);
+         return v;
+     }(), 103, 121},
     {qvr::modelmeta::Id::AdDguard, 585, 564, [] {
          za::Vector<int> v(41);
          za::iota(v.begin(), v.end(), 544);
@@ -345,6 +362,9 @@ const KnownSword knownSwords[] = {
     case qvr::modelmeta::Id::AdDcrossbow: return "crossbow";                                   // AD support
     case qvr::modelmeta::Id::AdDfury: return "two swords";                                     // AD support
     case qvr::modelmeta::Id::AdDknight:                                                        // AD support
+    case qvr::modelmeta::Id::AdDprince:                                                        // AD support
+    case qvr::modelmeta::Id::AdJustice:                                                        // AD support
+    case qvr::modelmeta::Id::AdJudge:                                                          // AD support
     case qvr::modelmeta::Id::AdDguard: return "sword";                                         // AD support
     case qvr::modelmeta::Id::AdHogreham: return "hammer";                                      // AD support
     case qvr::modelmeta::Id::AdHogremac: return "mace";                                        // AD support
@@ -573,7 +593,9 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
                          id == qvr::modelmeta::Id::AdDsergeant ||                                      // AD support
                          id == qvr::modelmeta::Id::AdHknight || id == qvr::modelmeta::Id::AdDlord ||    // AD support
                          id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector || // AD support
-                         id == qvr::modelmeta::Id::AdOgre || id == qvr::modelmeta::Id::AdHogre;        // AD support
+                         id == qvr::modelmeta::Id::AdOgre || id == qvr::modelmeta::Id::AdHogre ||      // AD support
+                         id == qvr::modelmeta::Id::AdDprince || id == qvr::modelmeta::Id::AdJustice || // AD support
+                         id == qvr::modelmeta::Id::AdJudge;                                            // AD support
     const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
                            id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
                            id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;
