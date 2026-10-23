@@ -11,7 +11,7 @@
 // its row here (`.vr_ag_kind`: VR_AM_Row fills the vr_am_* globals). The monster keeps its own classname, health,
 // sounds, pains, deaths, ragdoll and every system keyed on it: it is that monster to the rest of the game.
 //
-// Adding one: a row (VR_AM_Row), its stripped model (Misc/quakevr/make_vrgrunt.py), its spawn function
+// Adding one: a row (VR_AM_Row; its back vertices too: a flamethrower's worn tank, vr_adtankworn.qc), its stripped model (Misc/quakevr/make_vrgrunt.py), its spawn function
 // (monster_vr_<name> = VR_AM_Spawn(kind)), the hooks in its own code (its death: VR_AG_Dying before its gun falls; its
 // loot: VR_AG_SoldierDrop; CheckAnyAttack: VR_AG_CheckAttack for any .vr_ag), the engine's row (vr_hitreact.cpp
 // armedRigs: its hands' IK) and its model id (vr_modelmetadata.inc, the ragdoll's seeds in vr_ragdoll.cpp).

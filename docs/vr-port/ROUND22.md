@@ -18718,3 +18718,70 @@ its label, the other hand's dot turns yellow with a thin line to it. `vr_bladeed
 white line lies along your knuckles, the blue one out to the fist's width; punch a target with Show Melee Blades on; Done
 and send the printed lines if they should ship. With a sword and a gun: the orange near end is now a dot above the
 forearm tied to the line: check it (and the curve point next to the hand) is easy to take, and the hover highlight.
+
+## Fuel tanks: the burst's field, no blood, the pickup's flight, armed monsters' back tanks (worktree `gorefx`, branch `agent/tanks2`, 2026-10-23)
+
+His notes (vrfiringrange_2026-10-23_21-23-16, 21-24-32, 21-25-15, 21-25-53). New cvars only (no vr_cfg_version change).
+
+- **The hiss that never stopped**: the burst played `pyro_flameon.wav` / `fum_poisonon.wav` (AD's loops: a stream's
+  "on", stopped by its "off" on the same channel) on CHAN_AUTO of the tank, which then went: nothing could stop them.
+  Every burst sound is now its field's (`VR_TankField_Make`): the whoosh on CHAN_WEAPON, its "off" 0.7 s later (the
+  loop's end and tail); the blast on CHAN_BODY; the field's loop on CHAN_BURN, stopped (`misc/null.wav`) as it goes. A
+  tank going any other way (its gun taken, removed, burst) has its channels hushed (`VR_FuelTank_Hush`).
+- **No blood**: `VR_Prop_Metal` (vr_crates.qc) counts `vr_fueltank` and `vr_fueltank_worn` as metal: shots, blows and
+  splashes give sparks and a tink (VR_HitBlood, the pellets' check, spawn_touchblood), the metal grab sound, and they
+  are never set on fire.
+- **The field** (QC `vr_ad_enemyguns.qc` "A burst's field", `vr_tankfield` entities): where a tank with fuel burst, on
+  the ground under it, for `vr_adgun_tank_field_time` (6 s) x (0.4 + 0.6 x the fuel's share), reach
+  `vr_adgun_tank_field_radius` (96) x the same. Every 0.5 s what is in its circle (its box within 48 units of the
+  ground for fire, 72 for the cloud), in sight of its middle: the flamethrower's sets it on fire (VR_Burn_Ignite, the
+  burst's burning time: monsters, players, corpses, crates) and deals the living `vr_burn_damage` a second x
+  `vr_adgun_tank_field_damage` (1) on top; the sprayer's poisons it (the burst's 8/s x the damage scale, for its time).
+  Another tank in the flames bursts (a chain). Look: AD flame tongues licking up off the floor through the circle, or
+  green poison and puffs (not through walls, not past ledges); sound: `ambience/fire1.wav` or AD's
+  `traps/steam_loop.wav`. Both fade over its second half (the loop's volume in four steps). The one who burst it is
+  hurt as anyone, not credited to himself.
+- **The pickup's flight** (`vr_adtank.cpp` "The pickup's flight"): the tanks drawn near the eyes are remembered each
+  frame (where, which way up); a fuelled gun newly in a hand (not from a holster nor the other hand) takes the nearest
+  tank of its kind within 1.6 m drawn within the last 0.3 s, which flies to the back over `vr_adgun_tank_pickup_time`
+  (0.25 s; smoothstep, rising 10 cm on the way, turning upright): the back tank itself (its hoses' outlet follows it,
+  `back.axis`), or one more tank joining it when one was already on the back. `buildTank` takes an axis.
+- **Armed monsters' back tanks** (QC `vr_adtankworn.qc`, new; `VR_FuelTank_Wear` called from `VR_AG_PropThink`, a one-line
+  hook): a monster holding a flamethrower or sprayer wears `vr_fueltank_worn` (the lying tank's model), placed every
+  frame between its row's back vertices (`vr_am_back_lo`, `_hi` in vr_armedmon.qc: the grunt's waist 93/95 and shoulder
+  blades 160/162; the enforcer's power pack 328/332 and 343/351), upright along them, its radius behind;
+  MOVETYPE_NOCLIP (NONE made Killed skip `.enemy`: no credit), `.owner` the monster (its own shots pass it). Health
+  `vr_adgun_tank_health`; burst (`VR_FuelTank_BurstNow`, worn branch): its gun spent (TANK_BURST, fuel 0) and dropped
+  (`VR_AG_DropHeld`; lying spent, no tank), then the blast, fire or poison and the field as a lying tank's (the monster
+  is reached). Dying with it, the gun falls with a lying tank (unchanged). The engine (`relinkWorn`, `VR_RelinkWornTanks`
+  after VR_RelinkArmedGrunts in CL_RelinkEntities) carries the tank's place relative to the server's monster onto the
+  drawn monster (smooth), and hoses it to the held gun (the world hose, its length 1.15 x their distance + 12 cm, kept
+  out of the torso: an ellipse from the chest to the tank). `vr_adgun_tank_worn` 1 (0 none). `vr_adgun_hose_info`
+  prints the flight and each worn tank.
+- **Settings**: AD Guns > Burst Field Time, Burst Field Reach, Burst Field Damage, Tank Pickup Flight, Armed Monsters'
+  Tanks. **Debug** > Tests > Arcane Dimensions Monsters: `vr_ad_test 175` fields and sounds, 176/177 a grunt beside /
+  into the nearest field, 178 an armed pyro grunt (temp1 1: sprayer) its back to you, 179 its tank's place and a
+  bullet's trace, 180 shoot it for 10, 181 a hit on the nearest tank (metal, blood count). (165-171 are the flail's.)
+- **Measured** (e1m1 and vrtesthall, AD mounted, headless; `scratch/tf_field.sh 1|2`, `tf_flight.sh`, `tf_worn.sh`;
+  `vr_weapon_grip_mode 1` now needed for 151/152 to keep the gun in the mock hand):
+  - hits on a tank: metal 1, 0 blood particles (lying and worn).
+  - a full flamethrower tank: field 6.0 s, reach 96; whoosh off after 0.7 s; a grunt beside it (48 past the edge)
+    untouched (30); moved in: burning, 30 -> 20 -> dead in ~2 s, its corpse burning on; the field gone after 6.0 s;
+    loops playing 1 -> 0, whooshes 0.
+  - a full sprayer tank: poison 8/s for 6 s on the grunt walking in (30 -> 13 -> dead); field gone after 6.0 s, loops 0.
+  - the flight: its first frame 0.00 units from where the tank lay; 0.13 s in 22 units on, 15 from the back spot,
+    tilted (up 0.74); 0.24 s in 0.2 from it; then the back tank, its hose following.
+  - an armed pyro grunt: its tank 10.2 behind, 10.1 above its origin; a bullet's trace from your eyes meets the tank;
+    hose drawn (127 rings); shots of 10: 20, 10, burst on it (credited to the player): the flamethrower dropped spent
+    (fuel 0, no tank, force grab skips it), the grunt 30 -> dead (blast and fire), the fire field 6.1 s.
+  - eyeshots: `scratch/tank_eyeshots.png` (two armed grunts' back tanks and hose; the sprayer's tank burst on its
+    grunt, its gun flying).
+- **Scenarios**: `tank_burst_field` (both guns lying with tanks, grunts beyond, a crate), `agrunt_tanks` (a pyro and a
+  sprayer grunt, backs to you, 180 apart: one burst doesn't chain the other). validate SCNOK, runall 2 OK.
+- **For him in VR**: shoot a tank: sparks, no blood; the hiss and fire stop with the field; walk into the flames and the
+  cloud; the field's look and fade. Take a lying flamethrower: the tank's flight (Tank Pickup Flight to taste). Armed
+  pyro and sprayer grunts: the tank and hose on their backs while they run and shoot, shoot the tank from behind.
+- **Not done / notes**: a loaded game's fields are silent (sounds aren't saved). The worn tank sits on the server's
+  pose of the back (not the drawn pose's vertices: its offset carried onto the drawn body), so in hit reactions and IK
+  it can be a few units off. The worn hose is a listen server's (as the world hoses). Dual-wielding monsters: only the
+  first weapon's tank.
