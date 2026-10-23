@@ -5376,6 +5376,18 @@ za::String qvr::menu::expandPaths(za::StringView text, int width, int* missing)
     return out;
 }
 
+void qvr::menu::forEachSettingPath(za::FunctionRef<void(const cvar_t& var, const char* page, const char* label)> f)
+{
+    buildSearchIndex(); // (Search's index: every page under the VR Settings and the Advanced VR Options, breadth first)
+    for(const SearchEntry& e : search.index)
+    {
+        if(e.cvar && !e.isPage)
+        {
+            f(*e.cvar, e.path.cStr(), e.label.cStr());
+        }
+    }
+}
+
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities (or in a text file of the game's, as
 // maps/vrcalibration.map; or in the text given, starting with "{"), each with its path; "menu paths: N found, M missing"
 // last.

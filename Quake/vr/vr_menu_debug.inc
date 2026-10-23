@@ -8,6 +8,11 @@
         open("Checklist", pageIndex(pageChecklist))
             .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
                   "menu's corner button."),
+        command("Save My Settings as Defaults", "vr_propose_defaults")
+            .help("vr_propose_defaults: every setting you changed from its shipped default (weapon and held object "
+                  "slots too) written to quakevr/proposed_defaults/<date>_<time>.cfg for review, sorted by menu page, "
+                  "the personal and debug ones marked. Nothing changes in the game. Also the menu's corner button "
+                  "Save Default (press twice)."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         open("Cheats and Recording", pageIndex(pageDebugCheats))
             .help("God, noclip, the weapons and powerups; a scene set up for footage: saved and loaded, cleaned of gibs, "

@@ -48,6 +48,7 @@
 #include "vr_obs.hpp"
 #include "vr_renderdoc.hpp"
 #include "vr_panel.hpp"
+#include "vr_propose_defaults.hpp"
 #include "vr_stereo.hpp"
 #include "vr_protocol.hpp"
 #include "vr_toolgun.hpp"
@@ -582,8 +583,9 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 // "Quicksave" and "Quickload" (the same quick slot as the keyboard bindings), "Main Menu" (Quake's main menu),
 // "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "VR Settings" (the VR
 // Settings page), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list), "Map Library",
-// "Relighting" (Graphics > Relighting) and "Checklist" (the playtest checklist, its open items counted on it;
-// vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
+// "Relighting" (Graphics > Relighting) and, at Menu Detail: Developer, "Toolgun", "Save Default" (the settings changed
+// from their defaults written for review, a second press confirming: vr_propose_defaults.hpp) and "Checklist" (the
+// playtest checklist, its open items counted on it; vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
 // on any menu, or on a VR page up from its first setting (down from its last).
 enum Tool
 {
@@ -600,17 +602,32 @@ enum Tool
     ToolRelighting, // Graphics > Relighting (the map's lights baked again: vr_relight)
     ToolNewPanel, // another menu panel (MULTI_MENU.md): in the headset only
     ToolToolgun, // a toolgun in the main hand, the off hand when the main hand holds something (Developer only)
+    ToolSaveDefaults, // the settings changed from their defaults written for review (vr_propose_defaults; Developer only)
     ToolChecklist, // (the last: shown at Menu Detail: Developer only)
     ToolCount
 };
 
-// (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
+// (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game": "Save Default" too.)
 constexpr const char* toolLabels[ToolCount]{"Back to game", "Quicksave", "Quickload", "Main Menu", "Search", "Console",
-    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "New Panel", "Toolgun", "Checklist 99"};
+    "VR Settings", "Advanced VR", "Levels", "Map Library", "Relighting", "New Panel", "Toolgun", "Save Default",
+    "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
 constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "main", "search", "console", "settings",
-    "advanced", "levels", "maps", "relighting", "newpanel", "toolgun", "checklist"};
+    "advanced", "levels", "maps", "relighting", "newpanel", "toolgun", "savedefaults", "checklist"};
+
+// Save Default: a first press arms it ("Press again", saveDefaultsConfirm seconds), a second writes the proposal file
+// (vr_propose_defaults.hpp); then it says "Saved N" for saveDefaultsShown seconds.
+constexpr double saveDefaultsConfirm = 3.0;
+constexpr double saveDefaultsShown = 5.0;
+struct SaveDefaultsButton
+{
+    double armedAt{-1e9}; // realtime of the first press
+    double savedAt{-1e9}; // of the save
+    int saved{0};         // settings written (-1: the file could not be written)
+    char label[16]{};     // "Saved 123", "Not saved"
+};
+SaveDefaultsButton saveDefaultsButton;
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
@@ -651,6 +668,23 @@ constexpr const char* toolNames[ToolCount]{"back", "quicksave", "quickload", "ma
 // A button's label: on a menu panel after the first (MULTI_MENU.md), Back to game closes that panel only.
 [[nodiscard]] const char* toolLabel(int tool)
 {
+    if(tool == ToolSaveDefaults)
+    {
+        SaveDefaultsButton& s = saveDefaultsButton;
+        if(realtime - s.armedAt <= saveDefaultsConfirm)
+        {
+            return "Press again";
+        }
+        if(realtime - s.savedAt <= saveDefaultsShown)
+        {
+            if(s.saved < 0)
+            {
+                return "Not saved";
+            }
+            q_snprintf(s.label, sizeof(s.label), "Saved %d", s.saved);
+            return s.label;
+        }
+    }
     return tool == ToolBack && menu::currentInstance() > 0 ? "Close Panel" : toolLabels[tool];
 }
 
@@ -1595,7 +1629,7 @@ void mockLaser_f()
             return;
         }
         Con_Printf("vr_mock_laser <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-                   "checklist | spectator | recording | obs | kofi | update | yes | no | frame | off [panel <n>] [hand off]: a hand's laser (the main one's; hand off: the other's) on that spot of the menu (panel <n>: of that menu panel) "
+                   "toolgun | savedefaults | checklist | spectator | recording | obs | kofi | update | yes | no | frame | off [panel <n>] [hand off]: a hand's laser (the main one's; hand off: the other's) on that spot of the menu (panel <n>: of that menu panel) "
                    "(yes, no: a confirmation dialog's buttons)\n");
     }();
     menu::selectInstance(was);
@@ -1657,7 +1691,7 @@ void mockMouse_f()
     if(next == 0)
     {
         Con_Printf("vr_mock_mouse <x> <y> | back | quicksave | quickload | main | search | console | settings | advanced | levels | maps | relighting | "
-                   "checklist | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
+                   "toolgun | savedefaults | checklist | recording | kofi | update | yes | no [click]: the desktop mouse on that spot of the menu (yes, no: a "
                    "confirmation dialog's buttons), clicked with click\n");
         return;
     }
@@ -1951,6 +1985,27 @@ void useTool(int tool, int hand)
             }
             Cbuf_InsertText(mainWpn != 0 ? "wait; impulse 189\n" : "wait; impulse 169\n");
             Con_Printf("Toolgun: in the %s hand.\n", mainWpn != 0 ? "off" : "main");
+            break;
+        }
+        case ToolSaveDefaults:
+        {
+            SaveDefaultsButton& s = saveDefaultsButton;
+            if(realtime - s.armedAt > saveDefaultsConfirm)
+            {
+                s.armedAt = realtime;
+                s.savedAt = -1e9;
+                Con_Printf("Save Default: press again within %.0f seconds to write your changed settings for review.\n",
+                    saveDefaultsConfirm);
+                S_LocalSound("misc/menu1.wav");
+                haptic(hand, 0.04f, 0.4f);
+                break;
+            }
+            s.armedAt = -1e9;
+            za::String path;
+            s.saved = proposedefaults::write(path); // (prints "Saved N settings for review: <path>")
+            s.savedAt = realtime;
+            S_LocalSound(s.saved >= 0 ? "misc/menu2.wav" : "misc/menu1.wav");
+            haptic(hand, 0.08f, 0.8f);
             break;
         }
         case ToolChecklist: menu::jumpToChecklist(); break;
@@ -2598,6 +2653,19 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             p.band(x, x + w, yc, -3.f, 0.f, ink);
             p.band(x + 1.f, x + 4.f, yc, 0.f, 4.5f, ink);
             p.band(x + w - 1.2f, x + w, yc, -4.f, -3.f, ink);
+            break;
+        case ToolSaveDefaults:
+            // Two sliders over a tray (settings kept).
+            p.band(x, x + 1.3f, yc, 1.5f, 4.5f, ink);
+            p.band(x + w - 1.3f, x + w, yc, 1.5f, 4.5f, ink);
+            p.rect(x, x + w, yc + 4.f / p.k, 0.6f, ink);
+            for(int i = 0; i < 2; i++)
+            {
+                const float y = yc + (-3.5f + i * 3.f) / p.k;
+                const float knob = x + (i == 0 ? 3.f : 6.f);
+                p.rect(x + 1.f, x + w - 1.f, y, 0.6f, ink);
+                p.rect(knob - 1.f, knob + 1.f, y, 1.3f, ink);
+            }
             break;
         case ToolChecklist:
             // Three lines, each after a box.

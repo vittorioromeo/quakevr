@@ -4826,6 +4826,8 @@ QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
 QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
 QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
 QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
+QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
 QVR_CVAR(vr_lootbeam_settle, "0.3", CVAR_ARCHIVE)       // seconds a thing must lie still (within a few units) before its beam shows
 QVR_CVAR(vr_lootbeam_near, "0.5", CVAR_ARCHIVE)         // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)

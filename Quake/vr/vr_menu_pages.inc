@@ -2073,6 +2073,8 @@ void retroAllUncheckCategories()
         slider("Power-ups Hue", "vr_lootbeam_hue_powerups", 0.f, 355.f, 5.f, "%.0f"),
         slider("Keys and Runes Hue", "vr_lootbeam_hue_keys", 0.f, 355.f, 5.f, "%.0f"),
         slider("Backpacks Hue", "vr_lootbeam_hue_backpacks", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Toolgun Hue", "vr_lootbeam_hue_toolgun", 0.f, 355.f, 5.f, "%.0f").developer().help("A dropped toolgun's own colour (it is a weapon, but easy to lose among many): 305 magenta."),
+        slider("Toolgun Beam Length", "vr_lootbeam_toolgun_length", 1.f, 4.f, 0.25f, "x%.2f").developer().help("A dropped toolgun's beam this many times Length, so it stands above the weapons'."),
     };
 }
 

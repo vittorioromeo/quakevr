@@ -323,9 +323,10 @@ za::Vector<Item> pageDebugTests()
     testsPageSpawn = static_cast<int>(vr_test_spawn.value);
     return {
         header("Loot Beams"),
-        command("Loot Beams: Lay Out Loot", "vr_lootbeam_test 24 18")
-            .help("vr_lootbeam_test 24 18: 24 things ahead of you in rows (weapons, nailgun magazines full and nearly "
-                  "empty, ammo, health, armour, quad damage) and 18 gibs among them. Graphics > Loot Beams sets which glow."),
+        command("Loot Beams: Lay Out Loot", "vr_lootbeam_test 24 18 1")
+            .help("vr_lootbeam_test 24 18 1: 24 things ahead of you in rows (weapons, nailgun magazines full and nearly "
+                  "empty, ammo, health, armour, quad damage), 18 gibs among them and a toolgun nearer (its own colour, "
+                  "a beam twice as high). Graphics > Loot Beams sets which glow."),
         command("Loot Beams: Report", "vr_lootbeams_report")
             .help("vr_lootbeams_report: each beam this frame (entity, category, model, fade) and the things skipped "
                   "(carried, moving, empty magazines), on the console."),
