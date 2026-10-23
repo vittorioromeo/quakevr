@@ -520,3 +520,24 @@ The plan as designed:
   surface (a ragdoll half in) needs a per-particle test where it is advanced, at most every 4th frame per particle
   (`Particle::waterCheck` counter), turning the same way when it enters. The decals under water (vr_decals.cpp blood
   pools on a pool's floor) would get the same slowing as their `delay` (longer) and a smaller size.
+
+## His decisions, 2026-10-23 (agent/dec1023)
+
+- **Fuel tanks and hoses for the armed pyro and fumigator grunts.** An armed grunt holding the flamethrower or the poison
+  sprayer (QC vr_armedgrunt.qc, weapons 26 and 27) has no tank on its back and no hose to the gun. The player's
+  (vr_adtank.cpp) is built around the player's body (his torso frame, the hand's gun, his view): a monster's version
+  needs its own anchor (the grunt's back from its model's frame, as the held prop's VR_AG_PlaceProp) and a hose from the
+  tank to the prop's muzzle end, drawn per grunt (a small list of entities, not the player's one state).
+- **Close two-hand crate grips pull a hand in** (seen after agent/gripfit2's drawn-hand-on-the-surface pass, ROUND22.md
+  "Second pass: the drawn hand on the surface"): two hands on a crate close together (vr_crates.cpp, vr_twohand.cpp,
+  vr_gripfit.cpp), the second grip drags its hand towards the first instead of keeping it where it closed.
+- **The magnetic holster chain stretches on fast swings** (after agent/magchain, ROUND22.md "Magnetic holster chains
+  fixed"; vr_magholster.cpp; `Misc/quakevr/magchain_test.sh`): its worst link 78% off its length on a fast swing, and
+  the links bunch up as the hand comes back. More substeps or a stiffer distance constraint for the swing's frames, and
+  a minimum spacing between links.
+- **The judicator's sword glow.** The held/dropped judicator's sword (VR_ADMELEE_JUDGE, progs/w_judgesword.mdl#melee)
+  has no glow: it is not in the sword's skin. AD draws it apart from the model (QC/ad/ad_mon_bossjudicator.qc): an
+  attachment entity (`ad_justice_setup_attachment`, its `ad_weaponglow` progs/s_judgemagic.spr, kept at its melee
+  offset by `ad_justice_update_attachment`) with yellow imploding particles (`ad_particle_implode`, its magic attack),
+  `EF_MUZZLEFLASH` lights on its attacks and flames off its swings (`ad_PreCache_Flame`). A held sword's equivalent: that
+  sprite (or a glow) on the blade (vr_admelee.cpp's model) and a dim light.

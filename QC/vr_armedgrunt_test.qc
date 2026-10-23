@@ -52,9 +52,9 @@ float(float i) VR_AGT_Wid =
     if(i == 25) { return VR_AG_CODE_SHADOWAXE; }
     if(i == 26) { return VR_AG_CODE_WIDOWMAKER; }
     if(i == 27) { return VR_AG_CODE_PLASMAGUN; }
-    return VR_AG_CODE_ADMELEE + (i - 27); // (28..33: kinds 1..6)
+    return VR_AG_CODE_ADMELEE + (i - 27); // (28..37: kinds 1..10)
 };
-float VR_AGT_ALL = 34; // test 12 runs 17..33
+float VR_AGT_ALL = 38; // test 12 runs 17..37
 
 // The class of a "weapon" key's weapon (VR_AG_Decode).
 float(float code) VR_AGT_Class =

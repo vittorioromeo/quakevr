@@ -88,6 +88,8 @@ void() ad_pyroflame_touch =
 {
 	if (other == self.owner) return;
 	if (other.solid == ad_SOLID_TRIGGER) return;
+	// Quake VR: spent on a wall or the floor, a scorch where it struck, once (vr_ad_enemyguns.qc: as the player's)
+	if (other == world || other.solid == ad_SOLID_BSP) VR_ADGun_FlameScorch(self);
 	if (other.health < 1) return;
 	if (other.takedamage == ad_DAMAGE_NO) return;
 	if (self.ad_attack_finished > time) return;
@@ -128,6 +130,8 @@ void() ad_pyroflame_touch =
 //----------------------------------------------------------------------
 void() ad_pyroflame_think =
 {
+	// Quake VR: into water, out at the surface in a puff of steam (vr_ad_enemyguns.qc: as the player's flames)
+	if (VR_ADGun_FlameDoused(self, 0.1)) { remove(self); return; }
 	self.cnt = self.cnt + 1;
 	if (self.cnt > 6) remove(self);
 	else {

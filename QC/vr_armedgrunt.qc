@@ -196,7 +196,8 @@ float(float wid, float r) VR_AG_Chance =
 float VR_AG_CODE_SHADOWAXE = 101;
 float VR_AG_CODE_WIDOWMAKER = 102;
 float VR_AG_CODE_PLASMAGUN = 103;
-float VR_AG_CODE_ADMELEE = 110; // 111..116: kind 1..6 (VR_ADMELEE_*)
+float VR_AG_CODE_ADMELEE = 110; // 111..120: kind 1..10 (VR_ADMELEE_*; not the flail, 11: its head on its chain is only
+                                // a player's hand's, vr_box3d_flail.cpp: a grunt would swing a bare handle)
 
 float vr_ag_dec_wid;   // VR_AG_Decode's: the weapon,
 float vr_ag_dec_flags; // ... its flags,
@@ -214,10 +215,15 @@ float(float code) VR_AG_Decode =
         vr_ag_dec_up = AD_UpgradeFor(vr_ag_dec_wid);
         return vr_ad_data && VR_AD_FeatureScope(AD_UpgradeScope()); // (elsewhere a plain one: not this)
     }
-    if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_MACE) // (AD's own six: the later kinds aren't in its arsenal)
+    if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE) // (the flail, 11: not a grunt's)
     {
+        float kind = code - VR_AG_CODE_ADMELEE;
         vr_ag_dec_wid = WID_SWORD;
-        vr_ag_dec_flags = VR_ADMelee_Flags(code - VR_AG_CODE_ADMELEE);
+        vr_ag_dec_flags = VR_ADMelee_Flags(kind);
+        if(kind == VR_ADMELEE_PHANTOM)
+        {
+            return VR_Has("progs/sword.mdl"); // (the Phantom Swordsman's: Rogue's data, AD's or not)
+        }
         return cvar("vr_ad_mounted") != 0;
     }
     return VR_AG_Usable(code);
@@ -288,6 +294,12 @@ float() VR_AG_PickWeapon =
     {
         VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + k, cvar(VR_ADMelee_Heavy(k) ? "vr_agrunt_w_adheavy" : "vr_agrunt_w_adsword"));
     }
+    // The monster swords (rare: low weights): the Phantom Swordsman's (with Rogue's data), the Dark Prince's, the justice
+    // knight's, the judicator's.
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_PHANTOM, cvar("vr_agrunt_w_phantom"));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_DPRINCE, cvar("vr_agrunt_w_dprince"));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUSTICE, cvar("vr_agrunt_w_justice"));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE, cvar("vr_agrunt_w_judge"));
     if(vr_ag_pool_pick == WID_FIST)
     {
         return -1;
@@ -1310,8 +1322,9 @@ An armed grunt (experimental): a grunt holding one of your weapons. "weapon": it
 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword,
 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; with Arcane Dimensions' data 20 AD rocket launcher, 21 AD
 grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer,
-28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace; -1 its fists; 0 or
-unset: one from the pool). "weaponflags": that weapon's flags.
+28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace, 118 Dark Prince's
+sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; -1 its fists; 0 or unset: one from
+the pool). "weaponflags": that weapon's flags.
 */
 void() monster_vr_grunt =
 {

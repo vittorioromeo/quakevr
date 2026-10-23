@@ -116,7 +116,10 @@ Strength, Speed and Arm Drive (times each class's own) and Weaker When Hurt, per
 full health and arm drive are `vr_mgroups.cpp`'s `struggleProfiles` (`vr_struggle_classes` until configVersion 190).
 The profiles: grunt, enforcer, knight, death knight, zombie, mummy, and AD's soldiers and knights (defender, eliminator,
 pyro, fumigator, deflector, crossbow, fury, guard, dknight, sergeant, zombie knight, death lord, Dark Prince; Quoth's
-death guard). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
+death guard). A struggling group's member with no profile struggles with its group's base profile (`struggleBases`,
+2026-10-23: the minotaur, golem, drole and justice knight as the Dark Prince, the point and ranged knights as the death
+knight, Honey's soldier as the grunt...); left out: the centurion, the death knight ghost, the Shub zombie
+(`struggleLeftOut`). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
 effort. Arms (1..2.5, 1 if left out): while it struggles its arms' joint springs (and their 20 Hz cap) are that many
 times stiffer. A Box3D joint's spring acts on its two bodies' own inertia, so an arm whose forearm outweighs its upper
 arm lags its goals: the enforcer's forearms (his gun hands) are 5 kg on 0.9-2.3 kg upper arms and a 58 kg chest (the

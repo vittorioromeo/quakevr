@@ -2732,6 +2732,13 @@ QVR_CVAR(vr_agrunt_w_widowmaker, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_plasmagun, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_adsword, "0.5", CVAR_ARCHIVE)     // each of AD's four swords
 QVR_CVAR(vr_agrunt_w_adheavy, "0.5", CVAR_ARCHIVE)     // the hunter ogres' hammer and mace, each
+// ... the monster swords, rare (the author, 2026-10-23; not the death sergeant's flail: its head on its chain swings
+// only in a player's hand): the Phantom Swordsman's (with Rogue's data, AD's or not), the Dark Prince's, the justice
+// knight's, the judicator's.
+QVR_CVAR(vr_agrunt_w_phantom, "0.15", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_dprince, "0.15", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_justice, "0.15", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_judge, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
 QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
@@ -3058,10 +3065,10 @@ QVR_CVAR(vr_kdtrig_tackle_low, "0.5", CVAR_ARCHIVE)       // ... units: both han
 QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.3 of it
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
 QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run at the least speed before it counts (a run-up: a sprint begun beside the monster doesn't; dips under 0.25 s and jumps keep it; 0 none) (his 0.5, 1.5 before vr_cfg_version 189)
-QVR_CVAR(vr_kdtrig_tackle_stand, "0.8", CVAR_ARCHIVE)     // ... your head's height at least this share of your standing (calibrated) height: standing tall, not crouched or half crouched (0 any)
+QVR_CVAR(vr_kdtrig_tackle_stand, "0.75", CVAR_ARCHIVE)    // ... your head's height at least this share of your standing (calibrated) height: standing tall, not crouched or half crouched (0 any) (his 0.75, 0.8 before vr_cfg_version 192)
 QVR_CVAR(vr_kdtrig_tackle_head, "5", CVAR_ARCHIVE)        // ... deg: your head tipped down at least this much (tucked, as the author charges) (5, 7.5 before vr_cfg_version 189)
 QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
-QVR_CVAR(vr_kdtrig_tackle_leniency, "0.2", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.2, 0.85 before vr_cfg_version 184)
+QVR_CVAR(vr_kdtrig_tackle_leniency, "0.4", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.4, 0.2 before vr_cfg_version 192, 0.85 before 184)
 QVR_CVAR(vr_kdtrig_tackle_knock, "148", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it) (his 148, 152 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_bump, "120", CVAR_ARCHIVE)      // ... units/s you bounce back off it (his 120, 100 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_contact, "0", CVAR_ARCHIVE)     // ... units: it connects with your body this near the monster's as the two meet (the engine's narrowed, inset boxes: QC bodygap; 0 touching; plus this frame's run), not before (his 0, 2 before vr_cfg_version 184)

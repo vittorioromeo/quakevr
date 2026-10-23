@@ -93,7 +93,9 @@ struct StruggleProfile
 };
 // Its own profile, or nullptr: a class without one never struggles (ogres, fiends...).
 [[nodiscard]] const StruggleProfile* struggleProfile(const char* classname);
-// A class's struggle as its group sets it (vr_box3d_struggle.cpp): its profile with the group's Struggle on, strength,
+// A class's struggle as its group sets it (vr_box3d_struggle.cpp): its profile (none of its own: its group's base
+// profile, struggleBaseOf, unless it is one of the few left out: the centurion, the death knight ghost, the Shub zombie)
+// with the group's Struggle on, strength,
 // speed and arms times the group's (clamped 0..3, 0.2..3, 1..2.5), its full health 0 without Weaker When Hurt. False:
 // it does not struggle.
 [[nodiscard]] bool struggleOfClass(const char* classname, StruggleProfile& out);
