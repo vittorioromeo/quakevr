@@ -1083,6 +1083,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         weight("Plasma Gun", vr_agrunt_w_plasmagun),
         weight("AD Swords (Each)", vr_agrunt_w_adsword),
         weight("Hammer and Mace (Each)", vr_agrunt_w_adheavy),
+        weight("Dark Prince's Sword", vr_agrunt_w_dprince),
+        weight("Justice Knight's Sword", vr_agrunt_w_justice),
+        weight("Judicator's Sword", vr_agrunt_w_judge),
+        weight("Phantom Sword (Rogue's Data)", vr_agrunt_w_phantom),
     };
 }
 

@@ -30,6 +30,7 @@
 .float vr_adgun_burn;    // a flame's: seconds what it touches burns (0: none)
 .float vr_adgun_poison;  // a poison puff's: damage a second of the poison it leaves
 .float vr_adgun_ptime;   // ... and how long it lasts
+.float vr_adgun_scorched; // a flame's: its scorch made (VR_ADGun_FlameScorch: once; AD's slide along a wall)
 .float vr_adgun_stream;  // a player's main hand's flamethrower stream: its last flame's time (0: not streaming)
 .float vr_adgun_stream2; // ... the off hand's
 .entity vr_adpoison;     // a poisoned thing's poison (a vr_adpoison: enemy the poisoned, owner who poisoned it)
@@ -795,21 +796,56 @@ void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
 // its speed lost a frame, gone after seven), at twice their thinks (the fire carried with it: VR_ADGun_StreamFx), so
 // each think half of theirs. (It once took a whole frame's slowing and a frame a think: it died at half AD's reach, a
 // third of the range set, short of a big monster held off at a distance, the minotaur: ROUND22.md.)
+// A flame (AD's fire sprite: the player's, a pyro's) each think, `xStep` s since its last: gone into water or slime, out
+// at the surface in a puff of steam with a hiss (vr_burn_water_douse; vr_burning.qc VR_Burn_Doused): TRUE, its caller
+// removes it. Its last think's place is its oldorigin (a pyro's first think: where its speed had it a step before).
+// (The player's flames: VR_ADGun_FlameThink; a pyro's: AD's pyroflame_think, ad_import.py's patch.)
+float(entity flame, float xStep) VR_ADGun_FlameDoused =
+{
+    vector before = flame.oldorigin;
+    flame.oldorigin = flame.origin;
+    if(flame.model != ad_SBURST_FLAME || !VR_Burn_InWater(flame.origin) || cvar("vr_burn_water_douse") <= 0)
+    {
+        return FALSE;
+    }
+    if(before == '0 0 0')
+    {
+        before = flame.origin - flame.velocity * xStep;
+    }
+    vector at = VR_Burn_InWater(before) ? flame.origin : VR_Burn_WaterSurface(before, flame.origin);
+    VR_Burn_Doused(at, 2, flame);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("adgun: a flame (%s's) into water at %v: put out\n", flame.owner.classname, at));
+    }
+    return TRUE;
+};
+
+// A flame spent on a wall, the floor or a brush: a scorch where it struck (vr_decals.cpp fromEffect: as
+// vr_adgun_fx_scorch says) and a tongue of fire licking over it (ROUND22.md, "Flamethrower scorches on every hit"). Once
+// a flame (a pyro's slides along the wall, touching it each frame). Fire only (not poison, not smoke).
+void(entity flame) VR_ADGun_FlameScorch =
+{
+    if(flame.vr_adgun_scorched || flame.model != ad_SBURST_FLAME || cvar("vr_adgun_fx_scorch") <= 0)
+    {
+        return;
+    }
+    flame.vr_adgun_scorched = TRUE;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("adgun: a flame (%s's) scorches at %v\n", flame.owner.classname, flame.origin));
+    }
+    particle2(flame.origin, normalize(flame.velocity) * 2, QVR_PARTICLE_PRESET_ADFLAMEHIT,
+        cvar("vr_adgun_stream_fire") > 0 ? 1 : 0);
+};
+
 void() VR_ADGun_FlameThink =
 {
-    // Into water or slime: out at the surface in a puff of steam (vr_burn_water_douse; vr_burning.qc VR_Burn_Doused).
-    if(self.model == ad_SBURST_FLAME && VR_Burn_InWater(self.origin) && cvar("vr_burn_water_douse") > 0)
+    if(VR_ADGun_FlameDoused(self, 0.05))
     {
-        vector at = VR_Burn_InWater(self.oldorigin) ? self.origin : VR_Burn_WaterSurface(self.oldorigin, self.origin);
-        VR_Burn_Doused(at, 2, self);
-        if(cvar_hget(cvarh_vr_debug_shots))
-        {
-            dprint(sprintf("adgun: a flame into water at %v: put out\n", at));
-        }
         remove(self);
         return;
     }
-    self.oldorigin = self.origin;
     self.cnt = self.cnt + 1;
     if(self.cnt > 13 || time >= self.attack_finished)
     {
@@ -830,16 +866,9 @@ void() VR_ADGun_FlameTouch =
     {
         return;
     }
-    float fire = self.model == ad_SBURST_FLAME;
     if(other.solid == SOLID_BSP || other == world)
     {
-        // Spent on a wall, the floor or a brush: a scorch where it struck, every flame (vr_decals.cpp fromEffect: as
-        // vr_adgun_fx_scorch says), and a tongue of fire licking over it (ROUND22.md, "Flamethrower scorches on every hit").
-        if(fire && cvar("vr_adgun_fx_scorch") > 0)
-        {
-            particle2(self.origin, normalize(self.velocity) * 2, QVR_PARTICLE_PRESET_ADFLAMEHIT,
-                cvar("vr_adgun_stream_fire") > 0 ? 1 : 0);
-        }
+        VR_ADGun_FlameScorch(self); // (spent on a wall, the floor or a brush: a scorch where it struck)
         if(!other.takedamage)
         {
             remove(self);

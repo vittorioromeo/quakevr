@@ -52,6 +52,7 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_bossicegolem.qc: bridge: the ice golem (a boss: no monster_start) registered as it wakes
   monsters.qc: bridge: the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)
   mon_pyro.qc: Quake VR: the pyro's flames look like the player's
+  mon_pyro.qc: Quake VR: the pyro's flames go out in water
   lights.qc light_torch_small_walltorch: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
   lights.qc light_flame_large_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
   lights.qc light_flame_small_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
@@ -96,6 +97,7 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_pyro.qc pyroflame_spawn: Quake VR: the pyro's flames look like the player's
   lights.qc setup_light_sound: Quake VR: a torch made live by the toolgun keeps its sound
   lights.qc setup_light_static: Quake VR: a torch made live by the toolgun is not made static
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's flames scorch where they strike
   ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_Begin)
   ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_End)
   ai_projectiles.qc Touch_Projectile: Quake VR: a bolt's, laser's or lump's hit (VR_Proj_Begin)
