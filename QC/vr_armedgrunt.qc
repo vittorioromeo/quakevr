@@ -500,6 +500,43 @@ float(float wid, float flags) VR_AG_OneHanded =
     return wid == WID_CROWBAR || wid == WID_AXE;
 };
 
+// The armed table's "too big to dual wield" flag, per weapon (Vittorio's list, ROUND22.md "Armed monsters: dual-wielded
+// guns"): the hammers (Mjolnir, AD's hammer and mace), the rocket launchers, the Laser Cannon, the chainsaw; the two-handed
+// melee weapons besides (VR_AG_OneHanded) and the flamethrowers (their tank on its back: one back, one tank).
+float(float wid, float flags) VR_AG_Big =
+{
+    if(wid == WID_SWORD)
+    {
+        return VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
+    }
+    return wid == WID_MJOLNIR || wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET || wid == WID_LASER_CANNON ||
+           wid == WID_CHAINSAW || wid == WID_SUPERAXE || VR_AG_Stream(wid);
+};
+
+// A gun one hand holds in a pair (dual wielding: a two-handed gun in each hand, as you can): any gun not too big.
+float(float wid, float flags) VR_AG_DualGun =
+{
+    float c = VR_AG_Class(wid);
+    return c != VR_AG_CLASS_MELEE && c != VR_AG_CLASS_FISTS && !VR_AG_Big(wid, flags);
+};
+
+// It may go in a pair at all (VR_AG_Pairs: with one of its own kind).
+float(float wid, float flags) VR_AG_Pairable = { return VR_AG_OneHanded(wid, flags) || VR_AG_DualGun(wid, flags); };
+
+// Two weapons held one in each hand: two one-handed melee weapons, or two guns not too big (never a blade and a gun:
+// the poses are the melee pair's or the guns' pair's).
+float(float w1, float f1, float w2, float f2) VR_AG_Pairs =
+{
+    if(VR_AG_OneHanded(w1, f1))
+    {
+        return VR_AG_OneHanded(w2, f2);
+    }
+    return VR_AG_DualGun(w1, f1) && VR_AG_DualGun(w2, f2);
+};
+
+// Holding two guns (dual wielding them: the penalties, both fired).
+float(entity g) VR_AG_DualGuns = { return g.vr_ag_prop2 && VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE; };
+
 // The weapon slots swapped (the layer acts on the first: a hand's event on the second's weapon swaps them first). Which
 // hand holds each stays its prop's (.vr_ag_left).
 void(entity g) VR_AG_Swap =
@@ -549,10 +586,10 @@ void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
     VR_AG_PlaceProp(g, g.vr_ag_prop);
 };
 
-// ... a second weapon, in its left hand (both one-handed; FALSE: not taken).
+// ... a second weapon, in its left hand (a pair: VR_AG_Pairs; FALSE: not taken).
 float(entity g, float wid, float flags, entity inst) VR_AG_ArmLeft =
 {
-    if(!g.vr_ag_prop || g.vr_ag_prop2 || !VR_AG_OneHanded(g.vr_ag_wid, g.vr_ag_wflags) || !VR_AG_OneHanded(wid, flags))
+    if(!g.vr_ag_prop || g.vr_ag_prop2 || !VR_AG_Pairs(g.vr_ag_wid, g.vr_ag_wflags, wid, flags))
     {
         return FALSE;
     }
@@ -703,6 +740,30 @@ void() VR_AG_PropHandTouch =
 // Firing and swinging: your weapons' own functions, `self` the grunt
 // ----------------------------------------------------------------------------
 
+// Dual-wielded guns' penalties (vr_agrunt_dual_penalty; ROUND22.md "Armed monsters: dual-wielded guns"): as yours in one
+// hand. A shot's spread and aim error lose the two-hand spread reduction (times 1 / vr_2h_spread_reduction: x2), a heavy
+// gun's aim is kicked up a shot (its heavy recoil: weaponheft(model, 1), deg/s, over VR_AG_KICK_TIME) and comes back over
+// vr_heavy_recoil_time (a later shot from that gun before then: still up by what is left).
+float VR_AG_KICK_TIME = 0.1;    // s: a kick's speed (deg/s) to the aim it throws up (the wrist's give, about)
+.float vr_ag_hk;                // a held gun's prop: its aim's kick up (degrees) at its last shot,
+.float vr_ag_hk_at;             // ... then
+float vr_ag_aim_mult;           // VR_AG_AimDir's error times 1 + this (the shot under way's dual penalty)
+float vr_ag_last_aimdev;        // the last shot's aim off its target (degrees; the tests)
+float vr_ag_last_kick;          // ... its kick up then
+
+// The penalties' share now (0: one gun, or vr_agrunt_dual_penalty 0).
+float(entity g) VR_AG_DualPenalty =
+{
+    return VR_AG_DualGuns(g) ? max(0, cvar("vr_agrunt_dual_penalty")) : 0;
+};
+
+// What is left of the gun `p`'s kick now (degrees up).
+float(entity p) VR_AG_KickLeft =
+{
+    float t = max(0.01, cvar("vr_heavy_recoil_time"));
+    return p.vr_ag_hk * max(0, 1 - (time - p.vr_ag_hk_at) / t);
+};
+
 // Where it aims: at its target's middle, a little behind it as it moves (the grunt's), up to vr_agrunt_aim_error off.
 vector(vector from) VR_AG_AimDir =
 {
@@ -713,7 +774,7 @@ vector(vector from) VR_AG_AimDir =
         at_z = at_z + 6; // (a player's chest, not his origin's waist)
     }
     vector dir = normalize(at - from);
-    float err = cvar_hget(cvarh_vr_agrunt_aim_error);
+    float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult);
     if(err > 0)
     {
         vector a = vectoangles(dir);
@@ -850,10 +911,10 @@ entity() VR_AG_NearMine =
     return world;
 };
 
-// One shot (or round, or nail, or bolt) of the gun it holds, from its clip.
-void() VR_AG_Shoot =
+// One shot (or round, or nail, or bolt) of the gun `p` it holds (either hand's), from its clip; two guns held, with the
+// dual penalties.
+void(entity p) VR_AG_ShootProp =
 {
-    entity p = self.vr_ag_prop;
     if(!p || !self.enemy)
     {
         return;
@@ -864,7 +925,28 @@ void() VR_AG_Shoot =
         return;
     }
     float wid = p.weapon;
+    float pen = VR_AG_DualPenalty(self);
+    vr_ag_aim_mult = pen * (1 / max(0.05, cvar_hget(cvarh_vr_2h_spread_reduction)) - 1);
     vector dir = VR_AG_AimDir(p.origin);
+    vr_ag_aim_mult = -1; // (no error: the straight line, the tests' measure)
+    vector straight = VR_AG_AimDir(p.origin);
+    vr_ag_aim_mult = 0;
+    float kick = pen > 0 ? VR_AG_KickLeft(p) : 0;
+    if(kick > 0)
+    {
+        // Its aim still up from its last shot (a heavy gun in one hand): turned up about its own right.
+        vector side;
+        side_x = dir_y;
+        side_y = -dir_x;
+        side_z = 0;
+        side = normalize(side);
+        if(side != '0 0 0')
+        {
+            dir = VR_AG_Rotate(dir, side, kick);
+        }
+    }
+    vr_ag_last_kick = kick;
+    vr_ag_last_aimdev = atan2(vlen(dir - straight * (dir * straight)), dir * straight) * 57.29578;
     VR_AG_SetHand(p, dir);
     if(!VR_AG_BlastSafe(p, dir))
     {
@@ -888,6 +970,7 @@ void() VR_AG_Shoot =
     float h = cVR_MainHand;
     float rounds = 1;
     self.button0 = 1; // (its trigger held: the laser cannon fires only so)
+    vr_fire_spread_extra = pen * (1 / max(0.05, cvar_hget(cvarh_vr_2h_spread_reduction)) - 1); // (FireBullets: x2 at 1)
     if(wid == WID_SHOTGUN)              { W_FireShotgun(h); }
     else if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) { AD_FireWidowmaker(h); } // (AD's upgrades: vr_ad_bridge.qc)
     else if(wid == WID_LIGHTNING && AD_PlasmaGun(h, p.weaponflags)) { AD_FirePlasma(h); }
@@ -925,6 +1008,7 @@ void() VR_AG_Shoot =
         {
             self.button0 = 0;
             self.weaponinst = world;
+            vr_fire_spread_extra = 0;
             return; // (it would discharge: never under water)
         }
         W_FireLightning(h);
@@ -944,6 +1028,15 @@ void() VR_AG_Shoot =
     else if(wid == WID_ENFRIFLE)        { VR_FireEnforcerRifle(h); }
     self.button0 = 0;
     self.weaponinst = world; // (the record is its weapon's: nothing else may take the grunt for its holder)
+    vr_fire_spread_extra = 0;
+    if(pen > 0)
+    {
+        // A heavy gun in one hand: its aim kicked up (what is left of the last kick and this one's).
+        float up = weaponheft(WeaponIdToModel(wid, p.weaponflags), 1) * VR_AG_KICK_TIME * pen;
+        p.vr_ag_hk = VR_AG_KickLeft(p) + up;
+        p.vr_ag_hk_at = time;
+    }
+    p.vr_ag_kick_at = time; // (its own kick drawn: two guns fire in turn)
 
     if(VR_AG_Class(wid) != VR_AG_CLASS_MELEE && !VR_AG_Stream(wid))
     {
@@ -966,7 +1059,15 @@ void() VR_AG_Shoot =
     self.show_hostile = time + 1; // wakes monsters up, as your shots do
     VR_AG_Log(sprintf("%s fired at %s (%g left in the clip), muzzle %v", p.netname, self.enemy.classname, inst.wi_clip,
         self.muzzlepos));
+    if(pen > 0)
+    {
+        VR_AG_Log(sprintf("  dual: %s hand, aim %.2f deg off, kicked up %.2f (now %.2f)", p.vr_ag_left ? "left" : "right",
+            vr_ag_last_aimdev, vr_ag_last_kick, p.vr_ag_hk));
+    }
 };
+
+// Its first slot's gun fired (the single-gun callers).
+void() VR_AG_Shoot = { VR_AG_ShootProp(self.vr_ag_prop); };
 
 // A melee blow (its weapon's, or a punch) from its hand towards its target.
 void() VR_AG_Strike =
@@ -1046,17 +1147,44 @@ void() VR_AG_AfterAttack =
         sound(self, CHAN_WEAPON, self.vr_ag_wid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav",
             1, ATTN_NORM);
     }
-    if(p && p.weaponinst.wi_clip < 1 && VR_AG_ClipOf(p.weapon, p.weaponinst) > 0)
+    float reload = FALSE;
+    entity q = self.vr_ag_prop2;
+    if(VR_AG_Spent(q))
+    {
+        // Its second gun (dual wielding) spent: reloaded with the first, or thrown away (it fights on with the other).
+        if(self.vr_ag_reserve2 > 0)
+        {
+            reload = TRUE;
+        }
+        else
+        {
+            float sideQ = q.vr_ag_left ? -1 : 1;
+            VR_AG_Swap(self);
+            makevectors(self.angles);
+            VR_AG_DropHeld(self, v_right * (90 * sideQ) + v_forward * 40 + '0 0 120');
+            VR_AG_Log("its second gun spent: thrown away");
+            p = self.vr_ag_prop;
+        }
+    }
+    if(VR_AG_Spent(p))
     {
         if(self.vr_ag_reserve > 0)
         {
-            vr_ag_reload1();
-            return;
+            reload = TRUE;
         }
-        // Spent, nothing to reload: thrown away; it fights on with its fists.
-        makevectors(self.angles);
-        VR_AG_DropHeld(self, v_right * 90 + v_forward * 40 + '0 0 120');
-        VR_AG_Log("its weapon spent: thrown away");
+        else
+        {
+            // Spent, nothing to reload: thrown away; it fights on with its fists (or its other gun).
+            float sideP = p.vr_ag_left ? -1 : 1;
+            makevectors(self.angles);
+            VR_AG_DropHeld(self, v_right * (90 * sideP) + v_forward * 40 + '0 0 120');
+            VR_AG_Log("its weapon spent: thrown away");
+        }
+    }
+    if(reload)
+    {
+        vr_ag_reload1();
+        return;
     }
     vr_ag_run1();
 };
@@ -1087,6 +1215,30 @@ void(float n) VR_AG_AtkFrame =
     {
         VR_AG_Shoot();
     }
+    // Two guns: the second fires too, a frame behind the first's (a shot, a round, a burst: in turn; the nail guns' and
+    // the thunderbolt's streams: both at once).
+    entity q = self.vr_ag_prop2;
+    if(q && VR_AG_DualGuns(self))
+    {
+        float c2 = VR_AG_Class(q.weapon);
+        if((c2 == VR_AG_CLASS_AUTO && n >= 4 && n <= 8) || (c2 == VR_AG_CLASS_BURST && n >= 6 && n <= 8) ||
+           (n == 7 && (c2 == VR_AG_CLASS_GUN || c2 == VR_AG_CLASS_EXPLOSIVE)))
+        {
+            VR_AG_ShootProp(q);
+        }
+    }
+};
+
+// A gun of its out of rounds (its clip empty; not a melee weapon).
+float(entity p) VR_AG_Spent = { return p && p.weaponinst.wi_clip < 1 && VR_AG_ClipOf(p.weapon, p.weaponinst) > 0; };
+
+// Either gun it holds can fire on (the nail guns' stream goes on).
+float() VR_AG_StreamOn =
+{
+    entity p = self.vr_ag_prop;
+    entity q = self.vr_ag_prop2;
+    return (p && p.weaponinst.wi_clip > 0 && VR_AG_Class(p.weapon) == VR_AG_CLASS_AUTO) ||
+           (q && VR_AG_DualGuns(self) && q.weaponinst.wi_clip > 0 && VR_AG_Class(q.weapon) == VR_AG_CLASS_AUTO);
 };
 
 void() vr_ag_atk1 = { VR_AM_Anim(VR_AM_A_ATK, 0, vr_ag_atk2); self.vr_ag_shots = 0; VR_AG_AtkFrame(1); };
@@ -1099,7 +1251,7 @@ void() vr_ag_atk7 =
 {
     VR_AM_Anim(VR_AM_A_ATK, 6, vr_ag_atk8);
     VR_AG_AtkFrame(7);
-    if(self.vr_ag_prop.weaponinst.wi_clip > 0 && VR_AG_Class(self.vr_ag_wid) == VR_AG_CLASS_AUTO)
+    if(VR_AG_StreamOn())
     {
         SUB_CheckRefire(vr_ag_atk4); // (a nail gun's or the thunderbolt's stream goes on while it sees its target)
     }
@@ -1144,6 +1296,14 @@ void() vr_ag_reload11 =
         self.vr_ag_reloads = self.vr_ag_reloads + 1;
         VR_AG_Log(sprintf("reloaded: %g in the clip, %g in reserve", p.weaponinst.wi_clip, self.vr_ag_reserve));
     }
+    entity q = self.vr_ag_prop2;
+    if(q && VR_AG_DualGuns(self))
+    {
+        float n2 = min(VR_AG_ClipOf(q.weapon, q.weaponinst) - q.weaponinst.wi_clip, self.vr_ag_reserve2);
+        q.weaponinst.wi_clip = q.weaponinst.wi_clip + n2;
+        self.vr_ag_reserve2 = self.vr_ag_reserve2 - n2;
+        VR_AG_Log(sprintf("reloaded its second: %g in the clip, %g in reserve", q.weaponinst.wi_clip, self.vr_ag_reserve2));
+    }
 };
 
 // Taking up a weapon lying at its feet (the row's take frames: down on a knee, a crouch): it bends down, its hand
@@ -1159,7 +1319,7 @@ void() VR_AG_TakeBegin =
     entity w = self.vr_ag_seek;
     self.vr_ag_seek = world;
     if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
-       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_OneHanded(w.weapon, w.weaponflags))))
+       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_Pairs(self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
     {
         return;
     }
@@ -1233,7 +1393,7 @@ entity() VR_AG_FindWeapon =
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
-           (!self.vr_ag_prop || VR_AG_OneHanded(e.weapon, e.weaponflags))) // (armed: a second one-handed one only)
+           (!self.vr_ag_prop || VR_AG_Pairs(self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
             float d = vlen(e.origin - self.origin);
             float safe = TRUE;
@@ -1257,10 +1417,12 @@ entity() VR_AG_FindWeapon =
 };
 
 // Disarmed: whether to go for a weapon (it looks now and then).
-// Dual wielding: one of its two weapons lost, it goes for a second one-handed one (out of its target's reach).
+// Dual wielding: one of its two weapons lost (or, with vr_agrunt_dual_pickup, holding one that pairs), it goes for a
+// second that pairs with it (VR_AG_Pairs; out of its target's reach).
 float(entity g) VR_AG_WantsSecond =
 {
-    return g.vr_ag_dual && g.vr_ag_prop && !g.vr_ag_prop2 && VR_AG_OneHanded(g.vr_ag_wid, g.vr_ag_wflags) &&
+    return (g.vr_ag_dual || cvar("vr_agrunt_dual_pickup")) && g.vr_ag_prop && !g.vr_ag_prop2 &&
+           VR_AG_Pairable(g.vr_ag_wid, g.vr_ag_wflags) &&
            (!g.enemy || g.enemy.health <= 0 || vlen(VR_AI_Origin(g.enemy) - g.origin) > 160);
 };
 
@@ -1612,14 +1774,16 @@ void(float kind) VR_AM_Spawn =
         flags = 0;
     }
     if(want2 == 0 && pooled && random() < cvar("vr_agrunt_dual_chance") && VR_AG_Decode(want) &&
-       VR_AG_OneHanded(vr_ag_dec_wid, vr_ag_dec_flags))
+       VR_AG_Pairable(vr_ag_dec_wid, vr_ag_dec_flags))
     {
-        // A second one-handed weapon from the pool (its weights; a few tries: none, one alone).
+        // A second weapon that pairs with it from the pool (its weights; a few tries: none, one alone).
+        float w1 = vr_ag_dec_wid;
+        float f1 = vr_ag_dec_flags;
         float tries;
         for(tries = 0; tries < 12 && want2 == 0; tries++)
         {
             float c2 = VR_AG_PickWeapon();
-            if(c2 > 0 && VR_AG_Decode(c2) && VR_AG_OneHanded(vr_ag_dec_wid, vr_ag_dec_flags))
+            if(c2 > 0 && VR_AG_Decode(c2) && VR_AG_Pairs(w1, f1, vr_ag_dec_wid, vr_ag_dec_flags))
             {
                 want2 = c2;
             }
@@ -1685,15 +1849,21 @@ void(float kind) VR_AM_Spawn =
         {
             inst2 = WeaponInst_New(0);
             inst2.wi_adup = vr_ag_dec_up;
+            inst2.wi_clip = VR_AG_ClipOf(vr_ag_dec_wid, inst2); // (the Plasma Gun's, the Widowmaker's: full)
         }
         if(!VR_AG_ArmLeft(self, vr_ag_dec_wid, flags2 | vr_ag_dec_flags, inst2))
         {
-            dprint(sprintf("armed monster: weapon2 %g with weapon %g: not a one-handed pair, one weapon\n", want2, want));
+            dprint(sprintf("armed monster: weapon2 %g with weapon %g: not a pair (VR_AG_Pairs), one weapon\n", want2, want));
         }
     }
     VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+    if(self.vr_ag_prop2)
+    {
+        self.vr_ag_reserve2 = VR_AG_SingleUse(self.vr_ag_wid2) ? 0 :
+            VR_AG_ClipOf(self.vr_ag_wid2, self.vr_ag_prop2.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+    }
     VR_AG_Log(sprintf("spawned with %s%s%s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
         self.vr_ag_prop2 ? " and in its left hand " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : "", self.vr_ag_reserve));
 };

@@ -971,6 +971,10 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     {
         pattern = pattern * cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    if(shotgun)
+    {
+        pattern = pattern * (1 + vr_fire_spread_extra); // (an armed monster's dual-wielded gun: vr_armedgrunt.qc)
+    }
     float pellets = shotcount;
     vr_sgib_blastserial++;
     float serial = vr_sgib_blastserial;
