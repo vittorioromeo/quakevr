@@ -1,0 +1,6 @@
+title The motion-recorder dummy map with a shotgun and a crowbar (leg sweep takes)
+map vrmelee-recording
+god
+give "Shotgun" main
+give "Crowbar" off
+hint Record leg sweep takes at the dummy: Expected with shotgun, crowbar, super shotgun; Not Expected with the axe and slow swings (swap weapons with the impulses).

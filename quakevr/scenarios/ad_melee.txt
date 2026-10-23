@@ -1,0 +1,18 @@
+title AD's rebuilt swords, hammer and mace on the floor, and the monsters that drop them
+map vrtesthall
+god
+give "Rocket Launcher" main
+give "AD Death Fury's Sword" off
+cmd impulse 9
+spawn "AD Death Knight's Sword" 100 -80
+spawn "AD Zombie Knight's Sword" 100 -30
+spawn "AD Death Guard's Sword" 100 20
+spawn "AD Hunter Ogre's Hammer" 100 70
+spawn "AD Hunter Ogre's Mace" 100 120
+spawn "AD Death Fury" 450 -120
+spawn "AD Death Knight" 450 -60
+spawn "AD Zombie Knight" 450 0
+spawn "AD Death Guard" 450 60
+spawn "AD Hunter Ogre" 450 140
+spawn "AD's Hell Knight" 450 220
+hint Look at the swords, hammer and mace close up and edge-on; then kill the monsters (rocket launcher) and check what each drops: the corpses hold nothing.

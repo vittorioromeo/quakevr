@@ -1,0 +1,12 @@
+title AD's gun soldiers in a calm row (kill each, look at its rifle)
+map vrtesthall
+god
+notarget
+spawn "AD Rocket Soldier" 300 -110
+spawn "AD Grenade Soldier" 300 -50
+spawn "AD Plasma Soldier" 300 10
+spawn "AD Centurion" 300 70
+spawn "AD Defender" 300 130
+spawn "AD Pyro" 300 190
+spawn "AD Fumigator" 300 250
+hint Calm AD soldiers (notarget): kill each (give yourself a weapon with impulses) and look at its rifle up close; take it and aim, fire.

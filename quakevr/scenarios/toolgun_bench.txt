@@ -1,0 +1,13 @@
+title Toolgun in hand: corpses, crates, a grunt and a knight, open floor for brushes
+map vrtesthall
+god
+notarget
+give "Toolgun" main
+spawn "Wooden Crate" 150 -60
+spawn "Wooden Crate" 150 -10
+spawn "Barrel" 150 40
+spawn "Grunt Corpse" 220 -90
+spawn "Enforcer Corpse" 220 90
+spawn "Grunt" 260 0
+spawn "Knight" 260 -130
+hint Toolgun: Fire tab, pack groups, Brush tool (boxes, wedge, cylinder, Undo; stand on and shoot them), Physgun on the corpses (by the chest, then an arm or leg), crates and standing monsters.
