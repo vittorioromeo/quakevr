@@ -899,3 +899,66 @@ float(float choice) VR_AD_DispenserSpawn =
     return TRUE;
 };
 // ad_monsters_gen.py: end
+
+// The debug spawner's (and the toolgun's) scripted bosses (the author's 2026-10-23 note: their previews showed,
+// spawning made nothing). AD's boss judicator (242) and ice golem (239) wait for their map's trigger: with no targetname
+// their spawn functions leave an invisible, untouchable marker ("Missing targetname"), and woken they need their
+// trigger's use. Named before the spawn (VR_AD_DispenserBossPrepare), woken after (VR_AD_DispenserBossWake: the
+// judicator's ad_judge_awake: its intro, a tether point made where it stands, four waves of 500 health, its gaunts
+// summoned at each; the ice golem's ad_iceg_setup, its statue, then ad_iceg_wake1: it breaks free, its waves with no
+// columns to smash). The normal judicator, AD's justice knight (231), needs none.
+void(float choice) VR_AD_DispenserBossPrepare =
+{
+    if((choice == 239 || choice == 242) && self.targetname == "")
+    {
+        self.targetname = "vr_test_boss";
+    }
+};
+
+void() VR_AD_DispenserBossWake =
+{
+    if(self.targetname != "vr_test_boss" || !self.use)
+    {
+        return;
+    }
+    entity was = activator;
+    if(activator.classname != "player")
+    {
+        activator = find(world, classname, "player");
+    }
+    float t = self.ad_classtype;
+    self.use();
+    if(t == ad_CT_MONICEGOLEM && self.use == ad_iceg_wake1)
+    {
+        self.use(); // (its statue set up: now it breaks free)
+    }
+    activator = was;
+    dprint(sprintf("admon: %s woken (a scripted boss: its map's trigger's use), health %g, solid %g\n", self.classname,
+        self.health, self.solid));
+};
+
+// The toolgun's live spawn (box3d::spawnClass, then AD_SpawnLive_Finish): its spawn function already ran without a
+// name and left the boss a marker (no use, no model). Named, its spawn function run again (as a map's named one), and
+// woken.
+void() VR_AD_LiveBossStart =
+{
+    if(self.targetname != "" || self.use || self.health <= 0)
+    {
+        return;
+    }
+    if(self.ad_classtype == ad_CT_MONJUDGE)
+    {
+        self.targetname = "vr_test_boss";
+        ad_monster_judicator();
+    }
+    else if(self.ad_classtype == ad_CT_MONICEGOLEM)
+    {
+        self.targetname = "vr_test_boss";
+        ad_monster_icegolem();
+    }
+    else
+    {
+        return;
+    }
+    VR_AD_DispenserBossWake();
+};

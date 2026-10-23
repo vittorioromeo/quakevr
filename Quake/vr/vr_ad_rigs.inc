@@ -585,13 +585,21 @@ constexpr Seed adDeflectorSeeds[] = {
 // ... a model of separate pieces (legs) moving alike: each piece one bone's (SeedTable::wholePieces).
 #define QVR_AD_RIG_PIECES(id, verts, seeds, deaths, firstA, firstB, lastA, lastB, k) \
     {modelmeta::Id::id, verts, seeds, static_cast<int>(sizeof(seeds) / sizeof(seeds[0])), deaths, {firstA, firstB}, {lastA, lastB}, k, true},
+// ... a model whose loose pieces are held apart (the death fury's two swords, one in each hand): one loose bone each
+// (SeedTable::loosePerPiece), each welded to its own hand knocked down (it floated, both welded as one: 2026-10-23).
+#define QVR_AD_RIG_SPLIT(id, verts, seeds, deaths, firstA, firstB, lastA, lastB, k) \
+    {modelmeta::Id::id, verts, seeds, static_cast<int>(sizeof(seeds) / sizeof(seeds[0])), deaths, {firstA, firstB}, {lastA, lastB}, k, false, false, true},
+// ... a model whose weapon no frame hides (the zombie knight's blade: its falls are its knockdown's): loose all the same
+// (SeedTable::looseKept), held alive, gone from its dead ragdoll (it drops the blade: QC VR_ADMelee_Drop).
+#define QVR_AD_RIG_KEPT(id, verts, seeds, deaths, firstA, firstB, lastA, lastB, k) \
+    {modelmeta::Id::id, verts, seeds, static_cast<int>(sizeof(seeds) / sizeof(seeds[0])), deaths, {firstA, firstB}, {lastA, lastB}, k, false, false, false, true},
 QVR_AD_RIG(AdDknight, 911, adDknightSeeds, 2, 212, 224, 223, 243, 24)
 QVR_AD_RIG(AdDprince, 911, adDknightSeeds, 2, 212, 224, 223, 243, 24)
 // AD's soldiers (progs/mon_soldier.mdl: Quake VR's grunt's mesh, 555 vertices, id's 114 frames: Quake VR's appends 6):
 // the grunt's seeds, his deaths 8-17, 18-28.
 QVR_AD_RIG(AdSoldier, 555, gruntSeeds, 2, 8, 18, 17, 28, 18)
 // The zombie knight has no death (AD's zombies die gibbed): its two falls (paine 121-132, paind 98-109).
-QVR_AD_RIG(AdZombiek, 161, adZombiekSeeds, 2, 121, 98, 132, 109, 24)
+QVR_AD_RIG_KEPT(AdZombiek, 161, adZombiekSeeds, 2, 121, 98, 132, 109, 24)
 QVR_AD_RIG(AdDcrossbow, 1120, adDcrossbowSeeds, 2, 225, 236, 235, 255, 24)
 // The hunter ogres' deaths A and B (the cleaver's rare third, S 154-163, goes limp as a corpse).
 QVR_AD_RIG(AdHogre, 1017, adHogreSeeds, 2, 164, 174, 173, 187, 24)
@@ -605,7 +613,7 @@ QVR_AD_RIG(AdDguard, 585, adDguardSeeds, 2, 195, 207, 206, 226, 24)
 QVR_AD_RIG(AdSkullwiz, 632, adSkullwizSeeds, 1, 0, 0, 14, 0, 18)
 QVR_AD_RIG(AdHogreham, 1306, adHogrehamSeeds, 2, 137, 147, 146, 160, 24)
 QVR_AD_RIG(AdMinotaur, 514, adMinotaurSeeds, 1, 36, 0, 60, 0, 24)
-QVR_AD_RIG(AdDfury, 1376, adDfurySeeds, 2, 224, 241, 240, 254, 24)
+QVR_AD_RIG_SPLIT(AdDfury, 1376, adDfurySeeds, 2, 224, 241, 240, 254, 24)
 // AD's enforcer is id's model (progs/mon_enforcer.mdl: 222 vertices; Quake VR's own enforcer.mdl is another mesh).
 QVR_AD_RIG(AdEnforcer, 222, adEnforcerSeeds, 2, 41, 55, 54, 65, 18)
 QVR_AD_RIG(AdGargoyle, 338, adGargoyleSeeds, 1, 0, 0, 13, 0, 18)
@@ -656,5 +664,7 @@ QVR_AD_RIG(AdDeflector, 267, adDeflectorSeeds, 2, 51, 65, 64, 75, 18)
 // those that die exploding or vanish: the boil, jim, the lost soul, the sentinel, the wraith (hidden after its death).
 #undef QVR_AD_RIG
 #undef QVR_AD_RIG_PIECES
+#undef QVR_AD_RIG_SPLIT
+#undef QVR_AD_RIG_KEPT
 
 #endif

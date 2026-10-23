@@ -758,6 +758,19 @@ void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
 // third of the range set, short of a big monster held off at a distance, the minotaur: ROUND22.md.)
 void() VR_ADGun_FlameThink =
 {
+    // Into water or slime: out at the surface in a puff of steam (vr_burn_water_douse; vr_burning.qc VR_Burn_Doused).
+    if(self.model == ad_SBURST_FLAME && VR_Burn_InWater(self.origin) && cvar("vr_burn_water_douse") > 0)
+    {
+        vector at = VR_Burn_InWater(self.oldorigin) ? self.origin : VR_Burn_WaterSurface(self.oldorigin, self.origin);
+        VR_Burn_Doused(at, 2, self);
+        if(cvar_hget(cvarh_vr_debug_shots))
+        {
+            dprint(sprintf("adgun: a flame into water at %v: put out\n", at));
+        }
+        remove(self);
+        return;
+    }
+    self.oldorigin = self.origin;
     self.cnt = self.cnt + 1;
     if(self.cnt > 13 || time >= self.attack_finished)
     {
@@ -778,12 +791,24 @@ void() VR_ADGun_FlameTouch =
     {
         return;
     }
+    float fire = self.model == ad_SBURST_FLAME;
+    if(other.solid == SOLID_BSP || other == world)
+    {
+        // Spent on a wall, the floor or a brush: a scorch where it struck, every flame (vr_decals.cpp fromEffect: as
+        // vr_adgun_fx_scorch says), and a tongue of fire licking over it (ROUND22.md, "Flamethrower scorches on every hit").
+        if(fire && cvar("vr_adgun_fx_scorch") > 0)
+        {
+            particle2(self.origin, normalize(self.velocity) * 2, QVR_PARTICLE_PRESET_ADFLAMEHIT,
+                cvar("vr_adgun_stream_fire") > 0 ? 1 : 0);
+        }
+        if(!other.takedamage)
+        {
+            remove(self);
+            return;
+        }
+    }
     if(!other.takedamage)
     {
-        if(other.solid == SOLID_BSP || other == world)
-        {
-            remove(self); // (spent on the wall)
-        }
         return;
     }
     vector dir = normalize(self.velocity);
@@ -851,6 +876,7 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     float water = (pointcontents(org) <= CONTENT_WATER);
     setmodel(f, poison ? ad_SBURST_POISON : (water ? ad_SBURST_SMOKE : ad_SBURST_FLAME));
     setorigin(f, org);
+    f.oldorigin = org; // (where it was at its last think: VR_ADGun_FlameThink's surface, going into water)
     setsize(f, '0 0 0', '0 0 0');
     float speed = max(100, VR_ADGun_Value(xWid, "speed"));
     f.movedir = dir * speed + randomVec(10);

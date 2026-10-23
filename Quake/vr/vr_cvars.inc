@@ -1282,6 +1282,8 @@ QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing th
 QVR_CVAR(vr_burn_nail_burning, "1", CVAR_ARCHIVE)        // 1: a burning monster's, corpse's or crate's flames do too
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
+QVR_CVAR(vr_burn_map_monsters, "1", CVAR_ARCHIVE)      // 1: monsters awake, ragdolls and corpses touching the map's flames (flames, braziers, wall torches, the toolgun's) catch fire, as you do (QC vr_burning.qc VR_Burn_MapBodiesFrame)
+QVR_CVAR(vr_burn_water_douse, "1", CVAR_ARCHIVE)       // 1: water and slime put fire out: a flamethrower's flame meeting the surface goes out in a puff of steam, a lava nail going in becomes a plain nail (QC vr_burning.qc)
 QVR_CVAR(vr_burn_sound, "0.6", CVAR_ARCHIVE)             // the volume of the crackle a burning body, crate or piece makes (ambience/fire1.wav looped, heard near; QC vr_burning.qc VR_Burn_Crackle; 0 none)
 QVR_CVAR(vr_burn_sound_max, "4", CVAR_ARCHIVE)         // at most this many burning things crackle at once (the rest burn silent till one goes out)
 QVR_CVAR(vr_burn_self, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
@@ -2497,6 +2499,9 @@ QVR_CVAR(vr_water_geo_waves, "1", CVAR_ARCHIVE)       // real waves: the level l
 QVR_CVAR(vr_water_geo_amplitude, "8", CVAR_ARCHIVE)   // ... their height in units (water's; lava's more, slime's less)
 QVR_CVAR(vr_water_geo_cell, "16", CVAR_ARCHIVE)       // ... the grid's cell in units (smaller: smoother, more triangles; remade on change)
 QVR_CVAR(vr_water_foam, "1", CVAR_ARCHIVE)            // shoreline foam where water meets walls, steps and things standing in it (slime: a scum, lava: a hot rim): 0 off .. 2
+QVR_CVAR(vr_water_foam_opacity, "1", CVAR_ARCHIVE)    // ... how opaque it is (0..1.5, times; vr_glsl.h LiquidFoam)
+QVR_CVAR(vr_water_foam_frequency, "1", CVAR_ARCHIVE)  // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
+QVR_CVAR(vr_water_foam_strength, "1", CVAR_ARCHIVE)   // ... how far it reaches out from the shore (0.25..3, times its width)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
 QVR_CVAR(vr_water_ripples, "1", CVAR_ARCHIVE)         // ripples: rings of waves spreading from splashes, wading and strokes, in the lighting and (with the real waves' grid) the geometry
 QVR_CVAR(vr_water_ripple_amplitude, "16", CVAR_ARCHIVE)   // ... how high they rise in the geometry (with the real waves' grid), units for a hand's slap (a shot's about half, a body's two to three times)
@@ -2698,7 +2703,7 @@ QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, th
 QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
 QVR_CVAR(vr_adgun_tank_mass, "3", CVAR_ARCHIVE) // ... the tank's mass, kg (a gun dragging it, it dragging the gun)
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
-QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled)
+QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
 QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // the grenade soldier's dropped launcher (Quake VR's grenades: vr_dmg_grenade): the grenades it holds
 QVR_CVAR(vr_adgun_grenade_refire, "0.8", CVAR_ARCHIVE) // ... seconds from a shot to the next
@@ -2750,7 +2755,8 @@ QVR_CVAR(vr_adgun_fx_rate, "1.5", CVAR_ARCHIVE) // AD support: how often our ton
 QVR_CVAR(vr_adgun_ad_copies, "2", CVAR_ARCHIVE) // AD support: AD's flame and poison sprites drawn this many more times, between each and where it came from (0..3; 0: AD's alone): a fuller stream, drawn only (his 2, 0 before vr_cfg_version 182)
 QVR_CVAR(vr_adgun_fx_embers, "1", CVAR_ARCHIVE) // AD support: embers thrown off the flamethrowers' fire and wisps of dark smoke from it, this many times (0..3; 0 none)
 QVR_CVAR(vr_adgun_fx_mist, "1", CVAR_ARCHIVE) // AD support: a faint green mist lingering where the poison sprayers' poison went, this many times (0..3; 0 none)
-QVR_CVAR(vr_adgun_fx_scorch, "1", CVAR_ARCHIVE) // AD support: scorch marks where the flamethrowers' fire licks a wall or floor, this many times as often (0..3; 0 none). Cheap: baked straight into the permanent layer, never live (vr_decals.cpp MarkOptions::bakeNow; ROUND22.md, "Cheap scorch marks")
+QVR_CVAR(vr_adgun_plasma_fx, "1", CVAR_ARCHIVE) // AD support: the plasma bolts (progs/proj_plasma.mdl: the Plasma Gun's, the plasma soldiers' and centurions') crackle with small lightning arcs round them, this many (0..3; 0 none); their blue light: vr_projectile_lights (vr_emissive.cpp, vr_shock.cpp projectileArcs)
+QVR_CVAR(vr_adgun_fx_scorch, "1", CVAR_ARCHIVE) // AD support: scorch marks where the flamethrowers' fire licks a wall or floor: one where every flame is spent on one (under 1: that share of them; over: a little bigger), and now and then as the stream flies by close (0..3; 0 none). Cheap: baked straight into the permanent layer, never live (vr_decals.cpp MarkOptions::bakeNow; ROUND22.md, "Cheap scorch marks")
 QVR_CVAR(vr_adgun_bolt_fx, "1", CVAR_ARCHIVE) // AD support: AD's plasma rifles' bolts electric: a faint smoke, arcs and sparks along them, at the muzzle and the hit (0: AD's grenade smoke trail)
 QVR_CVAR(vr_debug_chainsaw, "0", CVAR_NONE)           // 1: print the chainsaws' pulls, starts, stalls and cuts; 2: also draw the cord's reach
 QVR_CVAR(vr_wofs_version, "0", CVAR_ARCHIVE)          // the weapon settings changes the config has taken (vr_weapons.cpp)
@@ -3013,7 +3019,9 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
 // _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large), _poise its Parry Poise
 // (a parry's strength over it: blocked, flinch or stagger; above 1 also the melee's knockdown chances over it; -1 Off:
 // a parry never staggers it; QC combat.qc VR_Parry_Outcome).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise) \
+// _kdscale every chance to knock it down times this (a sure one by this chance too), _downtime its time down times this,
+// _getup its get-up's speed times this, _snapkills the neck snap kills it (0: it only hurts: vr_foegrab_necksnap_tough).
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills) \
     QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
     QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
@@ -3036,7 +3044,11 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE)
+    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_kdscale, #kdscale, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_downtime, #downtime, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_getup, #getup, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 // Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
@@ -3815,6 +3827,7 @@ QVR_CVAR(vr_foegrab_necksnap_loose, "1", CVAR_ARCHIVE)    // 1: a snapped neck's
 QVR_CVAR(vr_foegrab_necksnap_cone, "120", CVAR_ARCHIVE)   // degrees: a snapped neck's swing limit (a living neck's: the rig's, 45 for the grunt; past about 120 the head sinks into its chest, which it never meets)
 QVR_CVAR(vr_foegrab_necksnap_twist, "140", CVAR_ARCHIVE)  // degrees: a snapped neck's twist limit either way (a living neck's: 50 for the grunt)
 QVR_CVAR(vr_foegrab_necksnap_friction, "0.1", CVAR_ARCHIVE) // a snapped neck's joint friction, a share of the body's (no spring: nothing holds the head up)
+QVR_CVAR(vr_foegrab_necksnap_tough, "0.25", CVAR_ARCHIVE) // a tough one's (its monster group's Neck Snap Kills off: the Mini Bosses) neck holds: the twist deals this share of its full health (QC VR_FoeGrab_NeckSnap)
 QVR_CVAR(vr_foegrab_throw_grace, "0.75", CVAR_ARCHIVE)    // s: the thrown enemy's ragdoll passes through your hands (and your body: vr_box3d_throw_grace_body) this long; 0: they knock it as it goes
 QVR_CVAR(vr_foegrab_debug, "0", CVAR_NONE)                      // 1: logs holds taken and let go (and why); 2: and each held frame
 QVR_CVAR(vr_push, "0.6", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

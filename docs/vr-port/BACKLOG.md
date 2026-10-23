@@ -76,6 +76,10 @@ ML at runtime. Borrow ideas only unless noted. Not started.
   TildeAsterisk/Physicanim (Unity, Mixamo), kressdev/RagdollTrainer (Unity ML-Agents).
 - Research (heavy, offline training, not for runtime now): NVlabs/ProtoMotions, nv-tlabs/ASE, PARC (SIGGRAPH 2025,
   github.com/mshoe/PARC); push-recovery ideas only.
+- Delirium physics (author, 2026-10-23): research for future active ragdoll improvements:
+  https://github.com/PVCPC/delirium-physics, https://github.com/YoucefNabil/delirium-physics and
+  https://github.com/YoucefNabil/skyrim-delirium (a Skyrim port). Not read yet: check their licences before borrowing
+  anything beyond ideas.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
@@ -178,6 +182,14 @@ of Eternity's `monster_sword`, `rogue` QC). Each leaves its sword on death (drop
 hand), to pick up and swing. Both need a new melee weapon kind: a sword held and swung as the axe is, with its own
 model, reach, hit sounds, held offsets and holster, and the melee rules (blade direction, parry, two hands) for a long
 blade. One kind for both; the swordsman's sword first (its model is Quake's own), the Dark Prince's after.
+
+### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23)
+
+The author: "add to the backlog to eventually make the [mace] that he holds a usable weapon". AD's death sergeant
+(`monster_dsergeant`, `progs/mon_dsergeant.mdl`: its flail/mace its own bone, `vr_ad_rigs.inc` adDsergeantSeeds) drops
+it as the death fury drops its swords (QC `vr_ad_melee.qc` VR_ADMelee_ForClass: a new kind, blunt and heavy as the
+hunter ogres' hammer and mace, Weapon Weights; its vertices hidden in its deaths, `vr_monstermods.cpp` knownSwords, with
+its death frames 223-254). Next to the Dark Prince's and the Phantom Swordsman's swords above.
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
@@ -458,3 +470,31 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
     how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).
 
 - **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
+
+## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed, not built: agent/firewater)
+
+Not simple enough for the round: both halves touch the water shader and the gore's many particle paths, and neither has
+a hook today. Concrete plan, cheap by construction:
+
+- **(a) Bloody water surface.** A client-side list of up to 16 blood clouds on liquid surfaces, each {centre xy, surface
+  z, radius, strength, born}, uploaded with the frame data as `vec4 BloodWater[16]` beside `RippleAt` (vr_glsl.h
+  QVR_FRAMEDATA_FIELDS; glquake.h gpuframedata_t) and read only by the liquid shader (LiquidFoam's neighbour: one loop of
+  16 distance tests a liquid fragment, skipped when the count is 0, about as costly as the ripples' 32). Each cloud's
+  radius grows as sqrt(age) (spreading, 8 -> 60 units over ~20 s), its strength fades to 0 over vr_water_blood_time
+  (30 s), and its edge is broken by the foam's LiquidNoise drifting with the swells; colour: a dark red mixed into the
+  refracted colour (more at the centre, `mix(c, vec3(0.35, 0.02, 0.02) * light, k * 0.6)`), not on lava, a brown on
+  slime. Sources, all client side (no protocol change): parseParticle2's Preset::Blood and the gore's EventHit/Burst/
+  Corpse (vr_gore.cpp `event`) when their origin is in water or within 24 units above a surface (CL_PointContents +
+  the WaterSurface halving search, as QC VR_Burn_WaterSurface); a bleeding body or ragdoll standing in water (the
+  wounds' bleeding, vr_wounds.cpp, already knows when a body bleeds: one cloud a second at its waterline); the player's
+  own blood (vr_wounds.cpp's self wounds, or the bloody-hands state) when wading; a bloody prop (vr_props.cpp's blood
+  coat) floating. A new cloud within a living one's radius adds to it (strength up, capped) instead of taking a slot;
+  the list full, the weakest goes. Cvars: `vr_water_blood` (0 off, strength), `vr_water_blood_time`. Cost: the CPU side
+  a handful of point-contents a hit; the GPU side the 16-cloud loop only on liquid fragments.
+- **(b) Blood slowed in water.** Each blood particle (vr_particles.cpp blood, bloodTrail, the gore's sprays, streams,
+  waterfalls and drips in vr_gore.cpp) tests, when made, whether its origin is in water (one CL_PointContents a burst,
+  not a particle) and if so gets `drag` 4-6 (stops in ~0.3 s), gravity 0.1 (sinks slowly), a bigger, fainter, longer
+  life (a cloud, 2-4 s, growing), so a spray under water puffs into a slowly sinking cloud; a stream crossing the
+  surface (a ragdoll half in) needs a per-particle test where it is advanced, at most every 4th frame per particle
+  (`Particle::waterCheck` counter), turning the same way when it enters. The decals under water (vr_decals.cpp blood
+  pools on a pool's floor) would get the same slowing as their `delay` (longer) and a smaller size.

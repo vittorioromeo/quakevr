@@ -586,6 +586,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
         command("A Nail Through the Nearest Map Flame", "vr_burn_test 12")
             .help("vr_burn_test 12: a nail of yours shot level through the nearest of the map's flames (a flame, a brazier, a wall torch, a candle): it becomes a lava nail (the console says so)."),
+        command("Nearest Monster Into a Map Flame", "developer 1; vr_burn_test 15")
+            .help("vr_burn_test 15: the monster or body nearest you set against the nearest of the map's flames (woken): it catches fire within a few tenths of a second (Map Flames Burn Monsters; the console says so)."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("Set Yourself on Fire", "developer 1; vr_burn_test 13")
             .help("vr_burn_test 13: you set on fire as a monster's flame or a lava nail would (a hit at your chest): its flames sit on your body as drawn."),

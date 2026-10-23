@@ -2,6 +2,16 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Mini bosses (Combat > Monster Groups > Mini Bosses: Dark Prince, Minotaur, Judicator; Elite Knights: Death Fury, Death Sergeant; new Toughness block on every group): they go down about half as often, stay down shorter, get up faster; a neck snap on a mini boss only hurts it
+Death Fury: knocked down it holds a sword in each hand; its head gib is smaller and its Held Object page now changes it
+AD zombie knight corpse: no blade left on it (the dropped sword is the usable one)
+AD crossbow held off the main grip (off hand or anywhere): the bolt lies on the rail
+Toolgun boss Judicator and Ice Golem: spawn, wake and fight (waves); AD enemy rocket launcher holds 4
+Scorch marks 2: hold the flamethrower on a wall: a ragged scorch where each flame lands (bigger now), building up but capped per spot; size look right?
+Map flames burn monsters: lure an awake grunt past a brazier, a lit wall torch or a toolgun flame (also a ragdoll or corpse dragged into one): it catches fire (Debug > Burning Tests 15)
+Water puts fire out: flamethrower into a pool: flames die at the surface with steam and a hiss; lava nails into water become plain nails
+Plasma bolts: AD Plasma Gun in a dark room: bolts light the walls blue and crackle with small arcs (AD Guns > Plasma Bolt Arcs)
+Water foam sliders (Shoreline Foam: Opacity, Frequency = how finely broken up, Strength): tune on a shoreline
 Plank leg sweep: swing a crate plank hard through a grunt's shins: the plank breaks and the grunt is swept down
 Scorch marks (now on by default, cheap): hold the flamethrower on a wall, the floor and a ceiling for a while, then sweep it: scorches build up where the fire licks and the frame stays smooth
 Item Pickup Mode (VR Settings > Playing > Item Collection): the switch shows your current mode; try Immersive (carry, put away at a holster), Auto-Collect (grip or force grab takes it; Backpacks Too), Vanilla (walk into it); how does the dimmed Backpacks Too row look?

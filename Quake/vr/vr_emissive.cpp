@@ -15,6 +15,7 @@
 #include "vr_view.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_portals.hpp"
+#include "vr_shock.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Algorithm/MaxElement.hpp"
@@ -58,6 +59,7 @@ constexpr Glow cannonLaser{{1.8f, 0.45f, 0.3f}, 200.f}; // the laser cannon's re
 constexpr Glow lavaNail{{1.9f, 0.62f, 0.16f}, 110.f};    // molten orange-red (many at a time: small)
 constexpr Glow beamBolt{{0.85f, 1.1f, 2.1f}, 170.f};      // the lightning's blue-white, along the beam
 constexpr Glow beamEnd{{1.1f, 1.35f, 2.3f}, 230.f};       // and where it strikes
+constexpr Glow plasmaBolt{{0.7f, 1.f, 2.2f}, 160.f};      // AD support: a plasma bolt's, the lightning's blue, flickering
 
 
 // The lava nails' lights: only the nearest vr_lavanail_lights, each frame (the super nailgun has a
@@ -738,6 +740,25 @@ extern "C" void VR_ProjectileLight(int ent)
         {
             flamePuffs[flamePuffCount++] = FlamePuff{glm::vec3{e.origin[0], e.origin[1], e.origin[2]},
                 za::clamp(1.f - static_cast<float>(e.frame) * 0.12f, 0.25f, 1.f)};
+        }
+        return;
+    }
+    if(modelmeta::is(e.model, modelmeta::Id::AdProjPlasma))
+    {
+        // AD support: a plasma bolt (the Plasma Gun's, the soldiers' and centurions'): small arcs crackling round it
+        // (vr_adgun_plasma_fx) and a flickering blue light (author's note vrtesthall_2026-10-23_01-41-51).
+        const glm::vec3 at{e.origin[0], e.origin[1], e.origin[2]};
+        glm::vec3 along{e.msg_origins[0][0] - e.msg_origins[1][0], e.msg_origins[0][1] - e.msg_origins[1][1],
+            e.msg_origins[0][2] - e.msg_origins[1][2]};
+        along = glm::dot(along, along) > 1e-4f ? glm::normalize(along) : glm::vec3{0.f};
+        shock::projectileArcs(ent, at, along);
+        if(scale > 0.f)
+        {
+            dlight_t* dl = CL_AllocDlight(ent);
+            VectorCopy(e.origin, dl->origin);
+            dl->die = static_cast<float>(cl.time + 0.01);
+            const float flicker = 0.75f + 0.35f * hash01(static_cast<unsigned>(cl.time * 30.0), static_cast<unsigned>(ent), 5u);
+            setGlow(dl, plasmaBolt.color * flicker, plasmaBolt.radius * scale * (0.9f + 0.1f * flicker), 0.f);
         }
         return;
     }

@@ -16788,3 +16788,111 @@ carried share one back tank, the last held one's.
   `func_weapon_grabbable` (a pickup spot) has no tank until its gun is taken and dropped. A better idea than the shared
   tank, for him to consider: a two-cylinder pack (both colours side by side) when both kinds are carried, each kind's
   guns hosed to its own cylinder.
+
+## Mini bosses: toughness against ragdoll cheese; Death Fury swords, zombie knight blade, crossbow bolt, toolgun bosses (worktree `release`, branch `agent/minibosses`, 2026-10-23; vr_cfg_version 187)
+
+The author's notes of 2026-10-23 (vrmelee-recording 01-09-55, 01-10-59; vrragtriggers 01-24-49 .. 01-39-21).
+
+- **Toughness, per monster group** (Combat > Monster Groups, a "Toughness" block on each group's page, and a page each
+  by action): four new settings, `vr_mgrp_<group>_kdscale` (every chance to knock it down times this: the shove's and
+  bash's, the ragdoll triggers', the hits' unbalancing knockdown, the stomp's, the leg sweep's; a sure one, over a ledge
+  or unaware or from behind, by this chance too: QC `VR_KD_Scale`, `VR_KD_SureRoll`; the engine's leg sweep rolls it),
+  `_downtime` (its own timer, `vr_knockdown_time_min`/`_max`, and `vr_knockdown_keep_max` and each hit's and hand's keep,
+  times this: `VR_KD_DownScale`), `_getup` (its get-up's frames' speed times this: QC `VR_Knockdown_Interval`, the
+  engine's active get-up `ri.fps` and the blended get-up's interval) and `_snapkills` (1: the neck snap kills; 0: its
+  neck holds: the crack, softer, and `vr_foegrab_necksnap_tough` of its full health as damage, 0.25; it fights on in the
+  hands, QC `VR_FoeGrab_NeckSnap` returns 2 as the dummy's). Every existing group 1, 1, 1, 1 (unchanged).
+- **Two new groups** (the death knights' settings otherwise): **Mini Bosses** (`miniboss`: kdscale 0.5, downtime 0.5,
+  getup 1.5, snapkills 0): AD's Dark Prince (`monster_dprince`), the minotaur (`monster_minotaur`, out of Giants: it was
+  never knocked down, no ragdoll triggers, no neck snap), the justice knight (`monster_justice`, AD's normal judicator,
+  and `monster_baron`, its old name: the author's "Justice Knight"). **Elite Knights** (`eliteknight`: kdscale 0.72,
+  getup 1.25, downtime 1, the neck snap still kills): the death fury and the death sergeant (my call: the neck snap kills
+  them; they are commoner than the mini bosses).
+- **Active ragdolls**: the minotaur and the justice knight (and baron) added to `vr_box3d_ragdoll.cpp` activeClasses
+  (their rigs were there: AdMinotaur, AdJustice). ad_active_test.py now includes them (215, 231) and sets
+  `vr_mgrp_miniboss_snapkills 1` for its neck check.
+- **Measured** (vrfiringrange, AD's data): a two-hand shove's chance, Dark Prince 0.07, death knight 0.13, death fury
+  0.09. Forced down with 4 s timers: the death knight's get-up due at 4.00 s, rising over 2.97 s; the Dark Prince's due
+  at 2.0 s, rising over 1.98 s. The Dark Prince's neck snapped: "its neck holds", 88 damage of 350.
+  ad_active_test.py 215 231 256 216 201: 15/15 PASS.
+- **The death fury's swords floated as a ragdoll**: every loose piece of a rig was one loose bone, welded to the part
+  nearest the middle of them all (between its two swords: its pelvis). `SeedTable::loosePerPiece` (QVR_AD_RIG_SPLIT,
+  the fury's rig): one loose bone per piece; `Rig::looseInHands`: each welded to the forearm nearest it in the rest pose
+  (its left sword hangs by its hip there). Now: "welded to its forearm_l", "welded to its forearm_r".
+- **The zombie knight's corpse kept its blade** (it drops it as a weapon now): no death frames to hide it in (its falls
+  are its knockdown's). `SeedTable::looseKept` (QVR_AD_RIG_KEPT): its blade a loose piece though no frame hides it, held
+  (welded to its right forearm) while it lives, gone from its dead ragdoll (killed down, or beheaded or cut: the existing
+  rules for loose pieces). rigVersion 5 (the rig cache).
+- **The death fury's head gib could not be resized while held**: the author's config had all 64 Held Object slots
+  claimed (`vr_prop_id_01` .. `_64`), so `progs/h_dfury.mdl` got none (props::claimSlot: -1). 80 slots now; slot 65
+  (index 64) ships `progs/h_dfury.mdl` at Size 0.65, a head's mass (configVersion 187 gives it to older configs).
+- **The AD crossbow's bolt held another way** (the off hand, a grip taken where the hand met it): the bolt was laid along
+  the shot computed from the hand's controller and the slot's own hold, not the drawn gun. It lies along the shot only
+  while that is within 3 degrees of the rail (`railShotCos`), else on the rail (`vr_adcrossbow.cpp` boltPose). Built,
+  not tested in a run (the mock has no off-hand grip of a two-hand gun to aim).
+- **The rocket soldier's dropped launcher** holds 4 rockets (`vr_adgun_rocket_ammo` 4; 5 before vr_cfg_version 187).
+- **Toolgun bosses**: AD's boss judicator (`monster_judicator`) and ice golem (`monster_icegolem`) wait for their map's
+  trigger: with no targetname their spawn functions leave an invisible marker ("Missing targetname name!"). The debug
+  spawner names them first and uses them after (`VR_AD_DispenserBossPrepare`, `_Wake`); the toolgun's live spawn
+  (`AD_SpawnLive_Finish` -> `VR_AD_LiveBossStart`) names one and runs its spawn function again, then wakes it. What AD
+  expects of the judicator: a targetname and a trigger; a tether point (made where it stands when none: "Generated
+  tetherpoint!"), four waves of 500 health (2000), summoning its gaunts at each; the ice golem: a statue woken by a
+  second use, five waves of 500, column-smash events (`monster_icegolem_wavetrig`) none here. Both woke in a run
+  ("[BOSS] Wave (1 / 4) HP (2000)", "(1 / 5) HP (2500)"), by impulse 241 and by `vr_toolgun_spawn_trace 98` / `96`.
+- **Backlog**: the death sergeant's mace as a usable weapon (BACKLOG.md, next to the Dark Prince's sword).
+
+**Suggested, not applied** (rare, strong humanoids; AD's own health, before Monster Health's cut): the death lord
+(`monster_death_lord`, 400, the fury's and the sergeant's: Elite Knights); the stone golem and the drole (500 each, the
+minotaur's: Giants, never knocked down now; Mini Bosses if they should go down at all). The justice knight has 600; the
+fury, the sergeant and the Dark Prince 400. How often each is placed in AD's maps was not counted (no map scan).
+
+**In VR:** shove, sweep and stomp the Dark Prince, the minotaur and the justice knight: about half as often down, up in
+about half the time and faster; twist their necks: they survive (a quarter of their health). The death fury and
+sergeant a little tougher. Knock the death fury down: a sword in each hand. Kill a zombie knight: no blade on its corpse.
+Hold the death fury's head: 0.65 of its size, and its Held Object page should change it. Hold the AD crossbow in the
+off hand: the bolt on the rail. Spawn the boss judicator and the ice golem from the toolgun: they wake and fight.
+
+## Fire and water: scorches on every hit, map flames burn monsters, water douses fire, plasma arcs, foam sliders (worktree `gorefx`, branch `agent/firewater`, 2026-10-23)
+
+His notes vrragtriggers_2026-10-23_00-51-41, vrtesthall_2026-10-23_01-41-13 .. 01-43-54. New cvars only; no default
+changed (no configVersion bump).
+
+- **Flamethrower scorches on every hit.** Why they were rare: a flame (QC `vr_adflame`, size 0) is removed the moment it
+  touches a wall (VR_ADGun_FlameTouch), and the only scorches came from the stream's in-flight particles (Preset::AdFlame
+  every think, 12% of them, rate-limited, only within 12 units of a surface): a flame passes that close only flying
+  along a wall at a slant. Now the touch on the world or a brush sends Preset::AdFlameHit (23) at the contact point: a
+  scorch there every flame (vr_decals.cpp fromEffect; `vr_adgun_fx_scorch` under 1 the share, over 1 a little bigger),
+  16-26 units (was 9-15), each a little aside and drawn out (a ragged patch, not a stamped disc), and a tongue of fire
+  licking up off the wall (vr_particles.cpp). A spot already holding 6 of the last 24 hits takes no more (it is black;
+  the stream marks again as it moves). Baked at once into the permanent layer as before (bakeNow). Props: not marked
+  (decals are world-only). Measured (`scratch/fw_perf.sh`, e1m1, held on the side wall by the start, 500-frame logs,
+  `--exclusive`): scorch 0 vs 3 in one run, CPU mean 0.80 / 0.83 ms, p99 2.06 / 1.75, max 2.9 / 2.7 (103 scorches
+  baked); scorch 0 vs 1: 0.92 / 2.05 mean, the second log's spikes all `screen/swap` (6-31 ms, another game's GPU load:
+  no decal scope in any frame's top three). Look: `scratch/sc_wall1.png` (bottom left).
+- **Map flames burn monsters and bodies** (`vr_burn_map_monsters` 1; QC vr_burning.qc VR_Burn_MapBodiesFrame): a monster
+  awake, a ragdoll (alive or dead) or a corpse whose box comes within the flame's capsule (+2 units) of a fire spot
+  (flames, braziers, static wall torches; not candles), a lit torch on its wall or the toolgun's resting flame catches
+  fire (VR_Burn_Ignite, VR_BURN_TOUCH; lit again only as it is about to go out). A sleeping monster is left alone (a
+  mapper's monster by a brazier is not lit before you come). Fixed cost: three bodies a server frame in turn. Test aid:
+  `developer 1; vr_burn_test 15` (Debug > Burning Tests > Nearest Monster Into a Map Flame) sets the nearest monster
+  or body against the nearest flame. `map start`: a live grunt "(alive) touches a map flame ...: catches fire", then a
+  dead one's ragdoll "(a ragdoll) touches a map flame".
+- **Water puts fire out** (`vr_burn_water_douse` 1): a flamethrower flame (the player's) meeting water or slime is
+  removed at the surface (six halvings between its last two thinks) in a puff of white steam (Preset::Steam, 24) with a
+  hiss (the nail sizzle, at most every 0.12 s, Nail Sizzle Volume; the two sizzles now precached in every map); a lava
+  nail about to go in becomes a plain nail (its touch, model and damage; no glow, no trail) at the surface, steam and
+  hiss. vrfiringrange's pool from above (`scratch/fw_water.sh`): 13 flames "put out" at z -3.8 (the surface), 5 lava
+  nails likewise. The AD monsters' own flames (pyros) are AD's code (not patched): they still go through.
+- **Plasma bolts** (progs/proj_plasma.mdl: the Plasma Gun's, the plasma soldiers', centurions'): a flickering blue light
+  (vr_projectile_lights) and 3 small arcs a frame round each bolt, trailing back (vr_shock.cpp projectileArcs, the
+  electrocution's lines; `vr_adgun_plasma_fx` 0..3, AD Guns > Plasma Bolt Arcs). About 36 line quads a bolt.
+- **Foam sliders** (Graphics > water page, under Shoreline Foam): Foam Opacity `vr_water_foam_opacity`, Foam Frequency
+  `vr_water_foam_frequency` (the noise's scale: smaller, more patches), Foam Strength `vr_water_foam_strength` (its
+  reach from the shore). New frame-data vec4 `Foam` (vr_glsl.h, glquake.h `foam[4]`); 1/1/1 is the old look.
+- **Blood in water: backlog** (BACKLOG.md, "Blood in water"): the bloody surface needs a new liquid-shader input and
+  hooks in every blood source, the slowed sprays a water test in each of the gore's particle paths; a concrete plan is
+  there.
+
+**In VR:** hold the flamethrower on a wall, the floor and a crate (no mark on props), then sweep; spray it into water
+(steam, no flames under it) and shoot lava nails into water. Lure a grunt past a brazier, kill one next to it. Fire the
+Plasma Gun in a dark room. Tune the three foam sliders by a shore.
