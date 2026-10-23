@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed grunts (experimental; toolgun Monsters > Armed Grunts, settings Combat > Armed Grunts): the weapon sits in its hands while it runs and shoots; a rocket costs about half your health; shoot its gun hand up close: the gun drops and it punches, then grabs a nearby weapon; grab its gun out of its hand; take a dead one's gun with rounds left; thunderbolt/super nailgun grunts too strong at 0.5 damage?
 Tougher AD monsters: shove, sweep and stomp a stone golem and a drole (now Mini Bosses, active ragdolls): the drole rises with its body, the golem staggers and falls then blends up; their necks survive a snap; the death lord (Elite Knights) goes down less and gets up faster
 Vomit Mode (Advanced VR Options > Body, under Death View): Debug > Cheats > Die Now, Blown Back: you look straight out of the ragdoll's head as it tumbles; opening a menu still pulls out; death menu now appears after 5 s
 Holster Calibration is now directly in VR Settings under Calibration; calibration-map texts trail a little behind head turns (HUD and Menus > Messages > smoothing); empty bullet-time tap in earned mode: the gadget says "Bullet time empty: hurt enemies to refill"; seated hip holsters at your height
