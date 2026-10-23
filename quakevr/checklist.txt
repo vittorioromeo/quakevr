@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Dragging by the legs: pull a grunt and a death knight down by the shins, keep holding and walk back: it slides after you, arms clawing (one hand works too); run away hard or drag it against a step: the hold lets go; tune Holding Enemies > Leg Grabs > Pull Drag Strength (1.5)
 AD ogre smash: step aside as an AD ogre winds up its overhead smash: it comes down where it faced (the side swing still sweeps)
 After a load: snap a neck, save, load, carry the body by the head: it lolls; set something alight with a toolgun flame, save, load: torch and fire still crackle
 AD crossbow in either hand sits in the hand, doesn't float
