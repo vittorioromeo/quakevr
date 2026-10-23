@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed grunts polish: a row of grunts (Debug > Tests: vr_agrunt_test 7, notarget): both hands sit on the guns while running and shooting; melee swings carry the arms; the flash shows at their gun's muzzle; AD weapons from the toolgun work; a grenade grunt backed against a wall steps aside instead of blowing itself up
 Monster swords: kill a Dark Prince, Justice Knight and Judicator (AD), and a Phantom Swordsman (Rogue): each leaves its sword, the corpse holds none; grips and second hand OK (Weapon Offsets 47-50)? sizes match the monsters? a blow near each long blade's tip lands; Phantom is heavy (one hand slow, two hands full) and, like the Judicator's, too big to holster
 Blood in water: shoot and gib monsters standing in the firing-range or vrtesthall pool: red clouds spread on the surface and fade over ~30 s (Gore > Blood in Water); wade below 75 health: your own clouds; shoot a monster under water: the spray hangs as a slowly sinking cloud (stream puffs may look like solid red balls); red too strong or too faint?
 MG3 infected drops: kill an infected grunt, knight, enforcer and death knight: each drops its weapon as it turns, and the zombie/fiend holds nothing
