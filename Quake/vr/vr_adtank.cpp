@@ -809,7 +809,7 @@ void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g
     za::Vector<float>& rests = scratch.rests;
     rests.clear();
     rests.resize(static_cast<za::SizeT>(worldNodes - 1), rest);
-    verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), rests.data(), 12, 1.f);
+    verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), rests.data(), 30, 1.f);
     verlet::collide(h.p.data(), h.prev.data(), h.from.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), hoseRadius * m2u,
         0.2f, nullptr, h.touching.data());
     h.lastDt = dt;

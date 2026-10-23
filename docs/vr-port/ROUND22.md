@@ -16720,3 +16720,71 @@ where the fire licks, and the frame stays smooth (Debug > Profiling > Log Next 3
 
 **In VR:** swing a crate's plank through a grunt's shins: it should break and sweep him down. Slam a held grunt's head
 on the floor a few times and say whether it hurts enough (the numbers above).
+
+## Fuel tanks lying about; one back tank for every fuelled gun carried (worktree `tghost`, branch `agent/tankhose`, 2026-10-23)
+
+His voice note (vrmelee-recording_2026-10-23_01-06-09): the pyro's flamethrower and the fumigator's poison sprayer lying
+about always have their tank beside them, joined by a visible hose (the player's hose system) and a Box3D rope; the tank
+is a prop a hand can drag but not force grab, and dragging either drags the other. In a hand the tank is on the back
+(as before); dropping the gun drops the tank with it; holstered guns get a hose to the back tank; several fuelled guns
+carried share one back tank, the last held one's.
+
+- **The tank lying about** (QC `vr_ad_enemyguns.qc`, "Fuel tanks"): `CreateThrownWeapon` (every gun made lying about:
+  a player's drop or throw, a monster's death drop, the toolgun's spawner) calls `VR_FuelTank_Attach`: a fuelled gun
+  gets a `vr_fueltank` entity, model `progs/vr_fueltank.mdl#6` (red) or `#7` (green), `vr_rigid` (a Box3D prop),
+  `.vr_prop_mass` `vr_adgun_tank_mass` (3 kg), carried by a hand (`VR_Carry_Setup`; no `FL_FORCEGRABBABLE`: no force
+  grab). Placed off the dropper's back (a player: 10 units behind his origin, his velocity, `.owner` him for a second so
+  it leaves his body), behind a monster, or beside the gun (any other maker: the spawner, an older save's gun). Gun and
+  tank name each other by `.vr_fuellink` (saved with the game); the tank's `.owner` is its gun after that (Box3D's
+  contact filter: they never collide, the rope holds them). The tank thinks every frame and goes when its gun is no
+  longer its gun lying about (taken into a hand, removed, capped, freed: `modelindex` 0), or `vr_adgun_tank_world` is 0.
+  `VR_FuelTank_Frame` (StartFrame, every 0.5 s) gives a tank to any fuelled gun lying about without one (an older save,
+  a tank removed by the toolgun).
+- **The model** (`vr_adgunart.cpp` `makeTank`, `adguns::tankFile`): the back tank's own profile (6 cm round, 27 cm tall,
+  a neck under it, a valve) turned as an alias model, 12 sides, 336 triangles, a 64 x 16 skin (the colour, a hazard
+  band, metal), round its body's middle; the writer of the gun variants (`writeMdl`, split out of `makeVariant`).
+- **The rope** (`vr_box3d.cpp` `syncFuelRopes`, each step after the toolgun's joints): each tank and its gun found
+  again from their `.vr_fuellink` (a saved game, a new world, a body made again when a hand carries either: its joint
+  made again); a Box3D distance joint between their origins, slack up to `vr_adgun_tank_rope` (0.9 m; or as far apart
+  as they are when it is made, plus 2 cm), no spring. `box3d::forEachFuelRope` lists them (the hose, the info).
+- **The world hose** (`vr_adtank.cpp` `setupWorld`/`stepWorld`): each rope within 15 m of the eyes (the nearest 8) a
+  hose from the tank's outlet to the gun's inlet, 22 Verlet points, as long as the rope plus both ends' reach from the
+  bodies' middles (never stretched by the rope), falling and lying on the world (`verlet::collide`), the player's cord
+  and colours; left as it lies once both ends have stayed still for 90 steps. A listen server's (it reads the server's
+  ropes).
+- **Carried** (`vr_adtank.cpp`): one tank on the back while any fuelled gun is in a hand or a drawn holster; its colour
+  the gun last taken into a hand (both at once: the main hand's), kept while that kind is carried. Each hand's gun has
+  its hose through the hip or shoulder clip as before (no more two tanks side by side); each holstered one
+  (`view::holsterGun`) a hose straight from the tank (the torso and arms kept out). `vr_adgun_hose_holstered` 1 (0: the
+  hands' only). The mirror image draws them all.
+- **Settings** (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns): Holstered Guns' Hoses, Tank Lying
+  About (`vr_adgun_tank_world` 1), Tank Rope (`vr_adgun_tank_rope` 0.9 m), Tank Weight (`vr_adgun_tank_mass` 3 kg). Debug
+  > Tests > Arcane Dimensions Monsters: Poison Sprayer Lying With Its Tank (`vr_ad_test 158`), Kick the Nearest Fuelled
+  Gun (159), Fuel Tanks Count (150). `vr_adgun_hose_info` now also prints the back tank, every carried hose, and the
+  world: the server's tanks, fuelled guns, pairs, orphan tanks, guns without a tank, ropes (joined), and each rope's
+  most, the distance apart and its hose.
+- **Tests** (`vr_ad_test 150`..`160`, `vr_ad_enemyguns_test.qc`; one `vr_ad_test` a frame: it is a cvar read once a
+  frame), e1m1, headless; scripts `scratch/t1.sh`..`t7.sh`:
+  - drop from the hand (151, 153): 1 tank made off the back, 1 pair, 0 orphans, rope joined, 0.40 m apart; the back
+    tank gone. Taken again (155): the tank goes the next frame, 0 tanks, the back tank back.
+  - two guns in the hands and two holstered (151, 152, 156): one back tank (variant 7, the sprayer, taken last), three
+    hoses (the left shoulder holster isn't drawn: no hose); the main hand's dropped: 1 world tank, the back keeps 2.
+  - save and load with a tank lying about: 1 tank (not 2), its rope joined again; `changelevel e1m2` holding the
+    sprayer: 0 world tanks, the back tank on; dropped there: 1 pair, joined.
+  - a dead pyro's drop (`vr_test_spawn 232; impulse 241; vr_test_kill 1`): its tank made behind it, 2 pairs with the
+    spawner's sprayer, 0 orphans.
+  - kicked at 700 u/s (159): the rope held them within 0.92 m of 0.9 (in flight), 0.80 at rest; removed (157): its
+    tank went the next frame. The tank carried in a hand (160) lifted the sprayer: 0.88 m apart, joined.
+  - `vr_ad_test 71` (each AD gun dropped): 9 passed, 0 failed, 2 tanks, 2 pairs. `ad_import.py --check`: 0 of 142.
+  - cost: a resting world hose isn't stepped (0.002 ms a frame for two); a moving one about 0.01 ms; the rope sync one
+    pass over the edicts a step (an int read each).
+  - pictures (worktree `scratch/`): `tank_world.png` (the sprayer lying with its tank and hose; a pyro's drop),
+    `tank_carried.png` (one back tank, hoses to two hands and the hip holster), `tank_drop.png`, `tank_carry.png`.
+- **For him in VR**: drop a flamethrower and watch the tank fall off the back; drag the tank by hand (the gun follows)
+  and force grab the gun (the tank trails it); the hose's look lying and swinging; the holstered guns' hoses and the
+  one back tank's colour with two guns; Tank Rope's length.
+- **Not done / notes**: the world hose doesn't collide with props (the world only), and is a listen server's only (a
+  remote client sees the tank and rope, no hose); the tank model is built at the world scale at load. A map's
+  `func_weapon_grabbable` (a pickup spot) has no tank until its gun is taken and dropped. A better idea than the shared
+  tank, for him to consider: a two-cylinder pack (both colours side by side) when both kinds are carried, each kind's
+  guns hosed to its own cylinder.

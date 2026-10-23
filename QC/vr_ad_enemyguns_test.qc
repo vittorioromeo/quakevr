@@ -629,7 +629,9 @@ void() VR_ADFred_Think =
 // 151 the pyro's flamethrower in the main hand, 152 the fumigator's sprayer in the off hand (vr_weapon_grip_mode 1);
 // 153 the main hand's gun dropped, 154 the off hand's; 155 the nearest fuelled gun lying about taken into the empty
 // main hand; 156 the sprayer in holster 0 (the left shoulder's), the flamethrower in holster 2 (the left hip's); 157 the
-// nearest fuelled gun lying about removed; 158 a sprayer made lying 64 ahead (the toolgun's spawner).
+// nearest fuelled gun lying about removed; 158 a sprayer made lying 64 ahead (the toolgun's spawner); 159 the nearest
+// kicked hard (its rope drags its tank: vr_adgun_hose_info says whether they stay within it); 160 its tank carried in
+// the empty main hand.
 entity(entity p) AD_FuelTank_Nearest =
 {
     entity best = world;
@@ -735,6 +737,30 @@ void(float request, entity p) AD_FuelTankTest =
         bprint("fueltank: the sprayer in holster 0, the flamethrower in holster 2\n");
         return;
     }
+    if(request == 160)
+    {
+        // The tank of the nearest fuelled gun lying about taken into the empty main hand, as a grip closing on it does
+        // (carried: its gun hangs from it by the rope).
+        entity ct = VR_FuelTank_Of(AD_FuelTank_Nearest(p));
+        if(ct)
+        {
+            VR_Carry_Start(p, cVR_MainHand, ct);
+        }
+        bprint(sprintf("fueltank: tank %s, carried by %s\n", ct ? "there" : "none", ct.carry_player.classname));
+        return;
+    }
+    if(request == 159)
+    {
+        // The nearest fuelled gun lying about kicked hard up and sideways: its rope drags its tank after it.
+        entity k = AD_FuelTank_Nearest(p);
+        if(k)
+        {
+            makevectors(p.angles_y * '0 1 0');
+            k.velocity = v_right * 700 + '0 0 250';
+            bprint(sprintf("fueltank: %s kicked from %v\n", k.netname, k.origin));
+        }
+        return;
+    }
     if(request == 158)
     {
         entity m = VR_ADWeapons_Make(p, 319, 64);
@@ -745,7 +771,7 @@ void(float request, entity p) AD_FuelTankTest =
 
 void(float request, entity p) AD_GunTest =
 {
-    if(request >= 150 && request <= 159)
+    if(request >= 150 && request <= 160)
     {
         AD_FuelTankTest(request, p);
         return;
