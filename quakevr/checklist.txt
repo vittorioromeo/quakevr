@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed enforcers (toolgun Monsters > Armed Enforcers): weapon in the right hand running and shooting, both hands on guns, punches and swings at its height; grab its gun; its death drops the weapon (pack: 5 cells); idle gun carry by its side looks OK? armed grunts behave as before
 Crates and melee: a hard punch breaks a crate in one, a medium one in two or three; a full weapon swing breaks it, a moderate one takes two; a slow scrape of the axe or crowbar along the floor into a crate doesn't break it in one (if you want them tougher: Crates > Breaking > Break Speed, 9 now)
 Flail feel: whirl it: heavier, can't spin unrealistically fast; damage between 10 and 120; smaller handle sits in the hand (dropped flail still shows only the handle: being fixed)
 Fuel tanks burst: shoot a lying flamethrower's tank near monsters (and near yourself): fire burst sets everything close alight; the sprayer's poisons; an empty tank only puffs; the gun is then spent (no hose, no force grab, can't fire)
