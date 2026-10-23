@@ -2250,11 +2250,44 @@ void PF_weaponanygrip()
 // weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried, or another player),
 // 3 its tip (the melee's line: QC VR_Melee_Line); 4 its handle and 5 its tip in the frame of the hand carrying it as drawn
 // (forward, right, up: QC places them on the hand of the move it runs, VR_Melee_FreeLine). QC: thrown from where it is drawn.
+// weapondrawnpose(e, hand, 6): the muzzle of the weapon model `e` itself is drawn with, at its origin and angles, as a
+// weapon lying there or held is drawn (its Weapon Offsets' model transform, its Muzzle anchor and offset, at its first
+// frame); e's origin if its model is no weapon's (an armed grunt's held weapon, QC vr_armedgrunt.qc: its shots' start).
+static void weaponModelMuzzle(edict_t* e, float* r)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        r[i] = e->v.origin[i];
+    }
+    const int index = static_cast<int>(e->v.modelindex);
+    qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const int slot = model && model->type == mod_alias ? weapons::slotForModel(model) : -1;
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return;
+    }
+    entity_t ent{};
+    ent.model = model;
+    VectorCopy(e->v.origin, ent.origin);
+    VectorCopy(e->v.angles, ent.angles);
+    const glm::vec3 muzzle = view::anchorPosition(ent, false, 1.f, weapons::anchor(slot, weapons::Key::MuzzleAnchor),
+        weapons::vec(slot, weapons::Key::MuzzleOffsetX, weapons::Key::MuzzleOffsetY, weapons::Key::MuzzleOffsetZ));
+    for(int i = 0; i < 3; i++)
+    {
+        r[i] = muzzle[i];
+    }
+}
+
 void PF_weapondrawnpose()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
     const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(what == 6)
+    {
+        weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
+        return;
+    }
     const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
     bool mirrored = false;
@@ -2556,12 +2589,24 @@ void PF_modelanchor()
 
 // modelanchorpoint(e, anchor): where modelanchor's anchor is on e's model as drawn now (trace_plane_normal its normal,
 // trace_fraction 1); trace_fraction 0 and e's origin when it is no longer there (another model: gibbed, made a ragdoll's).
+// An anchor whose x is -2 - n is vertex n of the model (the armed grunts, QC vr_armedgrunt.qc modelvertex: their hands
+// and their model's hidden gun's line; its normal not set).
 void PF_modelanchorpoint()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
     const float* a = G_VECTOR(OFS_PARM1);
     float* r = G_VECTOR(OFS_RETURN);
     glm::vec3 point{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, normal{0.f, 0.f, 1.f};
+    if(a[0] <= -2.f)
+    {
+        const bool found = hitmodel::vertexPoint(e, static_cast<int>(-a[0] - 2.f + 0.5f), point);
+        pr_global_struct->trace_fraction = found ? 1.f : 0.f;
+        for(int i = 0; i < 3; i++)
+        {
+            r[i] = point[i];
+        }
+        return;
+    }
     const bool found = a[0] >= 0.f && bodyModel(e) && hitmodel::surfacePoint(e, static_cast<int>(a[0]), a[1], a[2], point, normal);
     pr_global_struct->trace_fraction = found ? 1.f : 0.f;
     for(int i = 0; i < 3; i++)

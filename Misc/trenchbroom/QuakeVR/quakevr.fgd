@@ -1449,6 +1449,17 @@ delay - seconds after first sighting before it attacks (default 10)"
 	]
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": "progs/vrgrunt.mdl" }) =
+	monster_vr_grunt : "An armed grunt (experimental): a grunt holding one of your weapons. 'weapon': its weapon (WID_*: 2 axe, 4 shotgun, 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword, 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; -1 its fists; 0 or unset: one from the pool). 'weaponflags':
+that weapon's flags."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/wizard.mdl" }) =
 	monster_wizard : "Scrag (wizard)
 

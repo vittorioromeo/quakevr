@@ -547,6 +547,9 @@ constexpr Seed playerSeeds[] = {
 constexpr SeedTable seedTables[] = {
 #include "vr_ad_rigs.inc" // AD support: their tables
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
+    // The armed grunt (QC vr_armedgrunt.qc): the grunt's model without its gun's triangles (its vertices kept: the same
+    // numbering, frames and rig).
+    {modelmeta::Id::VrGrunt, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
     {modelmeta::Id::Enforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},

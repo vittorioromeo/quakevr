@@ -2686,6 +2686,33 @@ QVR_CVAR(vr_gruntgun_damage, "6", CVAR_ARCHIVE)      // a grunt's dropped burst 
 QVR_CVAR(vr_gruntgun_ammo, "30", CVAR_ARCHIVE)       // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too
 QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each round's damage to what it hits (id's shotgun: 4 pellets of 4)
+// Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
+QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
+QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
+QVR_CVAR(vr_agrunt_reload_time, "1.5", CVAR_ARCHIVE)   // seconds a reload takes
+QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off at most (each shot, besides the weapon's own spread)
+QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
+QVR_CVAR(vr_agrunt_disarm_damage, "10", CVAR_ARCHIVE)  // a blow's least damage there to disarm it
+QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand
+QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough
+QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
+QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
+QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its weapon, shots, reloads, disarms and pickups
+QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
+QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_sword, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_crowbar, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_chainsaw, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_shotgun, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_ssg, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_nailgun, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_sng, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_gl, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_rl, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_lg, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_gruntgun, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_enfrifle, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_packs, "1", CVAR_ARCHIVE)          // the mission packs' guns while theirs is installed (Mjolnir, laser cannon, proximity gun), each
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)

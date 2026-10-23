@@ -112,4 +112,22 @@ QVR_PACK("Props", "Honey", "Honey Tree", "misc_tree", "progs/tree1.mdl", 0.f, nu
 QVR_PACK("Fire", nullptr, "Fireball Spout", "misc_fireball", "progs/lavaball.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
 QVR_PACK("Fire", "MG", "MG Gas Flare", "light_flame_gas", "progs/flame3.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
+// Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding any of your weapons, its
+// "weapon" key the weapon (QC's WID_*; 0 one from Combat > Armed Grunts' pool, -1 its fists).
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt (Pool)", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Fists", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", -1.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Axe", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 2.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 13.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Crowbar", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 17.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Chainsaw", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 14.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Shotgun", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 4.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Super Shotgun", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 5.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Nailgun", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 6.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Super Nailgun", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 7.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Grenade Launcher", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 8.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Rocket Launcher", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 10.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Thunderbolt", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 11.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Grunt's Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 15.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Laser Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 16.f, 0, 0, nullptr, 0)
+
 #undef QVR_PACK

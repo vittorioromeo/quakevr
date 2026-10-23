@@ -200,7 +200,9 @@ float(entity player, float hand, entity weapon) weapongrabspot = #0;
 float(entity player, float hand) weaponanygrip = #0;
 // The weapon the local player's `hand` carries off its handle, as drawn: what 0 its handle's place, 1 its angles as
 // CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
-// the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles).
+// the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles). what 6, any entity: the muzzle of
+// the weapon model `player` itself is drawn with at its origin and angles (its origin if no weapon's: an armed grunt's
+// held weapon, vr_armedgrunt.qc weaponmuzzle).
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
@@ -455,6 +457,8 @@ float(entity player, entity monster) bodygap = #0;
 vector(entity e, vector p) modelanchor = #0;
 // Where that anchor is on e's model as drawn now (it moves with the model); trace_fraction 0 (and e's origin): no longer
 // there (another model).
+// An anchor whose x is -2 - n: vertex n (the .mdl's order) of e's model, as drawn now (vr_armedgrunt.qc modelvertex: an
+// armed grunt's hands and its model's hidden gun).
 vector(entity e, vector anchor) modelanchorpoint = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.

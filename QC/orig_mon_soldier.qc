@@ -256,6 +256,10 @@ void() SoldierDrop =
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
+    if(VR_AG_SoldierDrop())
+    {
+        return; // VR: an armed grunt's loot: its reserve's ammo (vr_armedgrunt.qc; its weapon fell as it died)
+    }
     if(self.vr_dummy_dead)
     {
         return; // VR: the firing range's training dummy killed as a grunt (vr_dummy.qc): no loot

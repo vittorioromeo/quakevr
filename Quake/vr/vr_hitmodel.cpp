@@ -989,6 +989,17 @@ bool surfacePoint(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm
     return true;
 }
 
+bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
+{
+    Drawn d;
+    if(vert < 0 || !drawnOf(ent, d) || vert >= d.mesh->numverts)
+    {
+        return false;
+    }
+    point = vertsOf(d).at(d, vert, 0.f);
+    return true;
+}
+
 bool nearestAny(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
 {
     Drawn d;
