@@ -39,7 +39,29 @@ float(float i) VR_AGT_Wid =
     if(i == 13) { return WID_LASER_CANNON; }
     if(i == 14) { return WID_PROXIMITY_GUN; }
     if(i == 15) { return WID_GRUNTGUN; }
-    return WID_ENFRIFLE;
+    if(i == 16) { return WID_ENFRIFLE; }
+    // Test 12: Arcane Dimensions' (with its data): the soldiers' guns, the upgrades, the melee weapons.
+    if(i == 17) { return WID_ADROCKET; }
+    if(i == 18) { return WID_ADGRENADE; }
+    if(i == 19) { return WID_ADPLASMA; }
+    if(i == 20) { return WID_ADDEFENDER; }
+    if(i == 21) { return WID_ADCENTURION; }
+    if(i == 22) { return WID_ADPYRO; }
+    if(i == 23) { return WID_ADFUMIGATOR; }
+    if(i == 24) { return WID_ADCROSSBOW; }
+    if(i == 25) { return VR_AG_CODE_SHADOWAXE; }
+    if(i == 26) { return VR_AG_CODE_WIDOWMAKER; }
+    if(i == 27) { return VR_AG_CODE_PLASMAGUN; }
+    return VR_AG_CODE_ADMELEE + (i - 27); // (28..33: kinds 1..6)
+};
+float VR_AGT_ALL = 34; // test 12 runs 17..33
+
+// The class of a "weapon" key's weapon (VR_AG_Decode).
+float(float code) VR_AGT_Class =
+{
+    if(code < 0) { return VR_AG_CLASS_FISTS; }
+    VR_AG_Decode(code);
+    return VR_AG_Class(vr_ag_dec_wid);
 };
 
 string(float wid) VR_AGT_Name = { return wid < 0 ? "fists" : WeaponNameOf(wid, 0); };
@@ -129,7 +151,7 @@ void() VR_AGTest_Weapons =
     entity g = vr_agt_grunt;
     if(vr_agt_step == 0)
     {
-        if(vr_agt_index >= VR_AGT_COUNT)
+        if(vr_agt_index >= (cvar_hget(cvarh_vr_agrunt_test) == 1 ? VR_AGT_COUNT : VR_AGT_ALL))
         {
             VR_AGT_Print(sprintf("every weapon: %g passed, %g failed", vr_agt_passed, vr_agt_failed));
             cvar_set("vr_agrunt_test", "0");
@@ -137,7 +159,7 @@ void() VR_AGTest_Weapons =
         }
         VR_AGT_ClearWeapons();
         float wid = VR_AGT_Wid(vr_agt_index);
-        float c = VR_AG_Class(wid);
+        float c = VR_AGT_Class(wid);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
         vr_agt_grunt = VR_AGT_Spawn(wid, dist);
         vr_agt_step = 1;
@@ -158,8 +180,9 @@ void() VR_AGTest_Weapons =
         return;
     }
     float dmg = vr_ag_player_dmg - vr_agt_dmg0;
+    string nm = g.vr_ag_prop ? g.vr_ag_prop.netname : sprintf("%s (code %g)", VR_AGT_Name(g.vr_ag_lastwid), g.vr_ag_code);
     VR_AGT_Check(sprintf("%s: %g shots, %g blows, %g damage to you, clip %g, reserve %g, %g reloads, %g disarms:",
-        VR_AGT_Name(g.vr_ag_lastwid), g.vr_ag_total_shots, g.vr_ag_strikes, dmg, g.vr_ag_prop.weaponinst.wi_clip,
+        nm, g.vr_ag_total_shots, g.vr_ag_strikes, dmg, g.vr_ag_prop.weaponinst.wi_clip,
         g.vr_ag_reserve, g.vr_ag_reloads, g.vr_ag_disarms), dmg > 0);
     VR_AGT_Remove(g);
     vr_agt_index = vr_agt_index + 1;
@@ -295,6 +318,122 @@ void() VR_AGTest_State =
     cvar_set("vr_agrunt_test", "0");
 };
 
+// Test 11: launcher grunts near walls (vr_agrunt_blast_safe 0 / 1: before / after). VR_AGT_BLAST engagements, each a
+// grenade launcher's, a rocket launcher's or a proximity gun's grunt (in turn) spawned up to 120..420 units ahead of
+// you on a random heading (a wall nearer: 24 units from it, its back to it), hunting you for 8 s or till it dies. Then
+// `agtest: blast: <n> engagements, <k> self-kills (<g> gl, <r> rl, <p> prox), <d> self damage, <s> shots, <h> held,
+// <y> damage to you`.
+float VR_AGT_BLAST = 60;
+float vr_agt_kills0;
+float vr_agt_kills_by[3];
+float vr_agt_yaw0;
+void() VR_AGTest_Blast =
+{
+    entity g = vr_agt_grunt;
+    entity p = vr_agt_player;
+    if(vr_agt_step == 0)
+    {
+        if(vr_agt_index == 0)
+        {
+            vr_ag_self_kills = 0;
+            vr_ag_self_dmg = 0;
+            vr_ag_held_fire = 0;
+            vr_ag_shots_fired = 0;
+            vr_agt_dmg0 = vr_ag_player_dmg;
+            vr_agt_yaw0 = p.angles_y;
+            vr_agt_kills_by[0] = 0;
+            vr_agt_kills_by[1] = 0;
+            vr_agt_kills_by[2] = 0;
+        }
+        if(vr_agt_index >= VR_AGT_BLAST)
+        {
+            p.angles_y = vr_agt_yaw0;
+            // (a builtin takes 8 arguments at most: two lines)
+            VR_AGT_Print(sprintf("blast: %g engagements, %g self-kills (%g gl, %g rl, %g prox), %.0f self damage",
+                VR_AGT_BLAST, vr_ag_self_kills, vr_agt_kills_by[0], vr_agt_kills_by[1], vr_agt_kills_by[2], vr_ag_self_dmg));
+            VR_AGT_Print(sprintf("blast: %g shots, %g held, %.0f damage to you", vr_ag_shots_fired, vr_ag_held_fire,
+                vr_ag_player_dmg - vr_agt_dmg0));
+            cvar_set("vr_agrunt_test", "0");
+            return;
+        }
+        VR_AGT_ClearWeapons();
+        entity e = find(world, classname, "proximity_grenade");
+        while(e)
+        {
+            entity n = find(e, classname, "proximity_grenade");
+            remove(e);
+            e = n;
+        }
+        NumProximityGrenades = 0;
+        float k = vr_agt_index - 3 * floor(vr_agt_index / 3);
+        float wid = k == 0 ? WID_GRENADE_LAUNCHER : k == 1 ? WID_ROCKET_LAUNCHER : WID_PROXIMITY_GUN;
+        p.angles_y = vr_agt_yaw0 + vr_agt_index * 137.5; // (headings spread round: the golden angle)
+        vr_agt_grunt = VR_AGT_Spawn(wid, 120 + 300 * random());
+        vr_agt_kills0 = vr_ag_self_kills;
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.4;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        if(time < vr_agt_until) { return; }
+        VR_AGT_Hunt(g);
+        vr_agt_step = 2;
+        vr_agt_until = time + 7;
+        return;
+    }
+    if(time < vr_agt_until && g.health > 0)
+    {
+        return;
+    }
+    if(vr_ag_self_kills > vr_agt_kills0)
+    {
+        float kk = vr_agt_index - 3 * floor(vr_agt_index / 3);
+        vr_agt_kills_by[kk] = vr_agt_kills_by[kk] + 1;
+    }
+    VR_AGT_Print(sprintf("blast: #%g %s: %g shots, %g held, %s, %.0f from you", vr_agt_index,
+        VR_AGT_Name(g.vr_ag_lastwid), g.vr_ag_total_shots, g.vr_ag_held,
+        vr_ag_self_kills > vr_agt_kills0 ? "killed itself" : g.health > 0 ? "alive" : "dead", vlen(g.origin - p.origin)));
+    if(g.health > 0)
+    {
+        VR_AGT_Remove(g);
+    }
+    vr_agt_index = vr_agt_index + 1;
+    vr_agt_step = 0;
+};
+
+// Test 13: idle re-arm. You unseen (notarget), an unarmed armed grunt ahead and a shotgun lying 140 units to its side:
+// `rearm idle PASS` when it holds it within 12 s, never having had an enemy.
+void() VR_AGTest_IdleRearm =
+{
+    entity g = vr_agt_grunt;
+    entity p = vr_agt_player;
+    if(vr_agt_step == 0)
+    {
+        VR_AGT_ClearWeapons();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_grunt = VR_AGT_Spawn(-1, 260);
+        makevectors(p.angles);
+        p.angles_y = p.angles_y + 30;
+        entity src = VR_AGT_Spawn(WID_SHOTGUN, 200); // (a grunt dropping its shotgun: it lies there)
+        p.angles_y = p.angles_y - 30;
+        VR_AG_DropHeld(src, '0 0 0');
+        VR_AGT_Remove(src);
+        vr_agt_step = 1;
+        vr_agt_until = time + 12;
+        return;
+    }
+    if(!g.vr_ag_prop && time < vr_agt_until)
+    {
+        return;
+    }
+    VR_AGT_Check(sprintf("rearm idle: %g pickups, holds %s, enemy %s, after %.1f s:", g.vr_ag_pickups,
+        g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.enemy ? g.enemy.classname : "none", 12 - (vr_agt_until - time)),
+        g.vr_ag_prop != world && !g.enemy);
+    p.flags = p.flags - (p.flags & FL_NOTARGET);
+    cvar_set("vr_agrunt_test", "0");
+};
+
 void() VR_AGTest_Frame =
 {
     float t = cvar_hget(cvarh_vr_agrunt_test);
@@ -316,14 +455,20 @@ void() VR_AGTest_Frame =
         }
     }
     vr_agt_player.health = max(vr_agt_player.health, 500); // (kept alive)
-    if(t == 1 || t >= 100)
+    if(t == 1 || t == 12 || t >= 100)
     {
         if(t >= 100 && vr_agt_step == 0 && vr_agt_index == 0)
         {
             vr_agt_index = t - 100; // (`100+i`: weapon i alone)
         }
+        if(t == 12 && vr_agt_step == 0 && vr_agt_index == 0)
+        {
+            vr_agt_index = VR_AGT_COUNT; // (Arcane Dimensions' weapons)
+        }
         VR_AGTest_Weapons();
     }
+    else if(t == 11) { VR_AGTest_Blast(); }
+    else if(t == 13) { VR_AGTest_IdleRearm(); }
     else if(t == 2) { VR_AGTest_Sequence(); }
     else if(t == 3) { VR_AGTest_Yank(); }
     else if(t == 4) { VR_AGTest_State(); }

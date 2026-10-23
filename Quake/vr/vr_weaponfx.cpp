@@ -78,6 +78,11 @@ struct EnemyFlash
     int ent{0};
     double at{-1.0};
     float roll{0.f};
+    // A weapon a monster holds (QC vr_armedgrunt.qc: an armed grunt's, drawn as a lying weapon): its slot's own flash at
+    // its Muzzle anchor, as yours (-1: a monster's own gun, monsterGuns).
+    int slot{-1};
+    int variant{-1};
+    bool told{false}; // (vr_debug_weaponfx: its place printed)
 };
 EnemyFlash enemyFlashes[maxEnemyFlashes];
 
@@ -312,11 +317,26 @@ void monsterSmoke(int ent)
     }
 }
 
+// The weapon slot of a weapon held by a monster (an armed grunt's: a weapon model, not the empty hand's), else -1.
+[[nodiscard]] int heldPropSlot(const entity_t& e)
+{
+    if(!e.model || e.model->type != mod_alias)
+    {
+        return -1;
+    }
+    const int slot = weapons::slotForModel(e.model);
+    return slot == weapons::fistSlot() ? -1 : slot;
+}
+
 void monsterFired(int ent)
 {
-    monsterSmoke(ent);
+    const int propSlot = ent > 0 && ent < cl.num_entities ? heldPropSlot(cl_entities[ent]) : -1;
+    if(propSlot < 0)
+    {
+        monsterSmoke(ent); // (a held weapon's: the QC's, at its muzzle)
+    }
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
-        !monsterGun(cl_entities[ent]))
+        (propSlot < 0 && !monsterGun(cl_entities[ent])))
     {
         return;
     }
@@ -337,9 +357,12 @@ void monsterFired(int ent)
     slot->ent = ent;
     slot->at = cl.time;
     slot->roll = random01() * 360.f;
+    slot->slot = propSlot;
+    slot->told = false;
+    slot->variant = propSlot >= 0 ? adguns::variantOf(cl_entities[ent].model->name) : -1;
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx monster fired t %.3f ent %d (%s)\n", cl.time, ent, cl_entities[ent].model->name);
+        Con_Printf("weaponfx monster fired t %.3f ent %d (%s) slot %d\n", cl.time, ent, cl_entities[ent].model->name, propSlot);
     }
     if(vr_debug_weaponfx.value >= 3)
     {
@@ -702,6 +725,40 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         const float age = static_cast<float>(cl.time - f.at);
         glm::vec3 muzzle, dir;
         float gunLength;
+        if(f.slot >= 0)
+        {
+            // A held weapon's: its own flash (size, time, an AD gun's colour and feel) at its Muzzle anchor, as yours.
+            const entity_t* e = f.ent > 0 && f.ent < cl.num_entities ? &cl_entities[f.ent] : nullptr;
+            const adguns::FireFeel feel = f.variant >= 0 ? adguns::fireFeel(f.variant) : adguns::FireFeel{};
+            if(!e || !vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || heldPropSlot(*e) != f.slot || age < 0.f ||
+                age >= za::max(weapons::value(f.slot, Key::FlashTime) * feel.flashTime, 0.01f))
+            {
+                f.at = -1.0;
+                continue;
+            }
+            const char* anchor = weapons::anchor(f.slot, Key::MuzzleAnchor);
+            const glm::vec3 off = weapons::vec(f.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
+            muzzle = view::anchorPosition(*e, false, 1.f, anchor, off);
+            const glm::vec3 ax = view::anchorPosition(*e, false, 1.f, anchor, off + glm::vec3{1.f, 0.f, 0.f}) - muzzle;
+            const glm::vec3 az = view::anchorPosition(*e, false, 1.f, anchor, off + glm::vec3{0.f, 0.f, 1.f}) - muzzle;
+            const float perUnit = glm::length(ax);
+            const float weaponScale = weapons::value(f.slot, Key::Scale);
+            if(perUnit < 1e-5f || weaponScale <= 0.f)
+            {
+                continue;
+            }
+            qmodel_t* own = feel.flashModel ? view::viewModel(feel.flashModel) : nullptr;
+            model = own ? own : view::viewModel(flashModelName);
+            place(fve, muzzle, ax / perUnit, az, f.roll,
+                perUnit / weaponScale * za::max(weapons::value(f.slot, Key::FlashSize), 0.f) * feel.flash);
+            model = view::viewModel(flashModelName);
+            if(vr_debug_weaponfx.value && !f.told)
+            {
+                f.told = true;
+                Con_Printf("weaponfx prop flash ent %d slot %d at %.1f %.1f %.1f\n", f.ent, f.slot, muzzle.x, muzzle.y, muzzle.z);
+            }
+            continue;
+        }
         if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || age < 0.f || age >= enemyTime ||
             f.ent <= 0 || f.ent >= cl.num_entities || !monsterMuzzle(cl_entities[f.ent], muzzle, dir, gunLength))
         {

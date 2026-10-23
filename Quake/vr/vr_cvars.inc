@@ -2713,6 +2713,25 @@ QVR_CVAR(vr_agrunt_w_lg, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_gruntgun, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_enfrifle, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_packs, "1", CVAR_ARCHIVE)          // the mission packs' guns while theirs is installed (Mjolnir, laser cannon, proximity gun), each
+// Armed grunts, polish (ROUND22.md "Armed grunts: polish"): Arcane Dimensions' weapons in the pool while AD's data is
+// loaded (the soldiers' guns each; the upgrades where AD's upgrades play; the swords, hammer and mace each).
+QVR_CVAR(vr_agrunt_w_adrocket, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adgrenade, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adplasma, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_addefender, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adcenturion, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adpyro, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adfumigator, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adcrossbow, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_shadowaxe, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_widowmaker, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_plasmagun, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_adsword, "0.5", CVAR_ARCHIVE)     // each of AD's four swords
+QVR_CVAR(vr_agrunt_w_adheavy, "0.5", CVAR_ARCHIVE)     // the hunter ogres' hammer and mace, each
+QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
+QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
+QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
+QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // 1: prints each armed grunt's hands' distances to the grips as drawn (agik lines)
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)

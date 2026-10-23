@@ -212,6 +212,18 @@ za::Vector<Item> pageDebugAutomation()
                   "notarget to look at them. vr_agrunt_test 4 prints every armed grunt's weapon, clip and reserve."),
         command("Armed Grunts: Spawn a Row (Melee)", "vr_agrunt_test 6"),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
+        command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
+            .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
+                  "Axe, Widowmaker and Plasma Gun, AD's swords, hammer and mace."),
+        command("Armed Grunts: Launchers by Walls", "vr_agrunt_test 11")
+            .help("vr_agrunt_test 11: 36 launcher grunts in turn (grenades, rockets, mines) on headings all round you, "
+                  "often with their backs to a wall, 8 s each: how many killed themselves (vr_agrunt_blast_safe off "
+                  "to compare)."),
+        command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
+            .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
+        toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
+            .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
+                  "vr_agrunt_ik)."),
         toggle("Armed Grunts: Log", vr_agrunt_debug)
             .help("Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug)."),
         toggle("Load Stuck", vr_grapple_test_stuck)

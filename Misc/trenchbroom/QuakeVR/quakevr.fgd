@@ -1450,8 +1450,8 @@ delay - seconds after first sighting before it attacks (default 10)"
 ]
 
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": "progs/vrgrunt.mdl" }) =
-	monster_vr_grunt : "An armed grunt (experimental): a grunt holding one of your weapons. 'weapon': its weapon (WID_*: 2 axe, 4 shotgun, 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword, 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; -1 its fists; 0 or unset: one from the pool). 'weaponflags':
-that weapon's flags."
+	monster_vr_grunt : "An armed grunt (experimental): a grunt holding one of your weapons. 'weapon': its weapon (WID_*: 2 axe, 4 shotgun, 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword, 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; with Arcane Dimensions' data 20 AD rocket launcher, 21 AD grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer, 28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace; -1 its fists; 0 or
+unset: one from the pool). 'weaponflags': that weapon's flags."
 [
 	spawnflags(flags) =
 	[
