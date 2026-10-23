@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Shoulder charge with your leniency 0.4 and standing 0.75 as defaults: feels right?
+More monsters struggle when held: minotaur, golem, drole, Justice Knight, AD point knight: they fight back (heavy ones drag only a little)
+AD pyro flames into water: stand in shallow water and let a pyro flame you: steam and hiss at the surface, scorch marks where its flames hit the floor
+Armed grunts with the new swords (toolgun Armed Grunts, the last four entries): how do they hold them?
 Dragging by the legs: pull a grunt and a death knight down by the shins, keep holding and walk back: it slides after you, arms clawing (one hand works too); run away hard or drag it against a step: the hold lets go; tune Holding Enemies > Leg Grabs > Pull Drag Strength (1.5)
 AD ogre smash: step aside as an AD ogre winds up its overhead smash: it comes down where it faced (the side swing still sweeps)
 After a load: snap a neck, save, load, carry the body by the head: it lolls; set something alight with a toolgun flame, save, load: torch and fire still crackle
