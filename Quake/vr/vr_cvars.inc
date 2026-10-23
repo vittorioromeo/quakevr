@@ -255,6 +255,7 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // would; 0 (the default): none (only vr_mock_play's motions carry it).
 QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)          // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
+QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -1014,6 +1015,8 @@ QVR_CVAR(vr_lg_water_tick_damage, "10", CVAR_ARCHIVE) // each bolt into water fr
 QVR_CVAR(vr_lg_water_flash, "1", CVAR_ARCHIVE)        // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 QVR_CVAR(vr_body_interactions, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_notes, "0", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp); off in a new install (a playtesting tool: a saved config keeps its own, no migration)
+QVR_CVAR(vr_note_replay, "1", CVAR_ARCHIVE)            // with vr_notes on: the last seconds kept (poses, buttons, the player, nearby entities) and saved beside each note as a motion take (vr_notectx.cpp, vr_motion.cpp)
+QVR_CVAR(vr_note_replay_seconds, "30", CVAR_ARCHIVE)   // how many seconds that instant replay keeps (and the console lines and frame times saved with a note)
 QVR_CVAR(vr_note_device, "Virtual Desktop", CVAR_ARCHIVE) // the microphone: part of its name (none such, or empty: the default; vr_note_devices lists them)
 // The motion recorder (vr_motion.cpp, docs/vr-port/MOTIONS.md): takes of the player's motions for tuning the melee.
 QVR_CVAR(vr_motion_armed, "0", CVAR_NONE)          // 1: the record button (vr_motion_button) starts and ends takes of the chosen category
@@ -2737,6 +2740,7 @@ QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each ro
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
+QVR_CVAR(vr_agrunt_dual_chance, "0.25", CVAR_ARCHIVE)  // 0..1: one from the pool with a one-handed weapon (a sword, the crowbar, the axe) gets a second in its left hand
 QVR_CVAR(vr_agrunt_reload_time, "1.5", CVAR_ARCHIVE)   // seconds a reload takes
 QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off at most (each shot, besides the weapon's own spread)
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
@@ -4727,6 +4731,10 @@ QVR_CVAR(vr_toolgun_brush_grid, "8", CVAR_ARCHIVE)      // ... its grid (units: 
 QVR_CVAR(vr_toolgun_brush_paint_all, "1", CVAR_ARCHIVE) // ... painting textures the whole brush (0: the face shot)
 QVR_CVAR(vr_toolgun_brush_shape, "0", CVAR_ARCHIVE)     // ... what Create makes in the box dragged: 0 a box, 1 a wedge (rising away from the gun), 2 a cylinder, 3 a pyramid
 QVR_CVAR(vr_toolgun_brush_sides, "8", CVAR_ARCHIVE)     // ... a cylinder's or pyramid's sides (3..12)
+QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Armed Humanoid page: its kind (QC vr_armedmon.qc's row: 0 grunt, 1 enforcer, ...)
+QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
+QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
+QVR_CVAR(vr_toolgun_armed_tiles, "0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.

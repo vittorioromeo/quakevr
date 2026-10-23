@@ -1340,6 +1340,7 @@ int checklistHidden = -1;     // and Hide Ticked's
 void checklistButtonPress(int arg, int b)
 {
     const int item = arg >> 8;
+    checklist::hovered(item); // (a voice note's context: the item picked)
     Con_DPrintf("checklist: item %d, %s pressed\n", item, checklistButtonLabel(arg, b));
     if(b < 2)
     {
@@ -6716,6 +6717,10 @@ extern "C" void VR_Menu_Draw()
 
     if(cursor < n && rowSelected)
     {
+        if(list[cursor].helpArg == checklistHelp)
+        {
+            checklist::hovered(list[cursor].arg >> 8); // (a checklist item under the cursor: a voice note's context)
+        }
         const char* help = itemHelp(list[cursor]);
         if(help)
         {

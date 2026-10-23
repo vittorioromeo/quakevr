@@ -6,8 +6,9 @@
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
 //   its gun lies about, its clip with it), goes back for it (`rearm PASS`), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
-// - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand emptied, put on its gun
-//   (vr_mock_hand_to) and closed (+grabmain): `yank PASS` when the shotgun is in that hand and the grunt holds nothing.
+// - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
+//   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
+//   test's +grabmain): `yank PASS` when the shotgun is in that hand and the grunt holds nothing.
 // - 4: armed grunts' state printed (`agtest: state: ...`: run it again after a save and a load).
 
 float vr_agt_step;      // the test's step
@@ -72,6 +73,8 @@ float(float code) VR_AGT_Class =
 string(float wid) VR_AGT_Name = { return wid < 0 ? "fists" : WeaponNameOf(wid, 0); };
 
 // An armed grunt with `wid` (-1 its fists), `dist` ahead of the player on the floor, facing him.
+float vr_agt_weapon2; // VR_AGT_Spawn's left hand's weapon ("weapon2"; 0 none)
+
 entity(float wid, float dist) VR_AGT_Spawn =
 {
     entity p = vr_agt_player;
@@ -86,6 +89,7 @@ entity(float wid, float dist) VR_AGT_Spawn =
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
     self.weapon = wid;
+    self.weapon2 = vr_agt_weapon2; // (the dual wielding test's left hand)
     VR_AM_Spawn(VR_AGT_Kind());
     entity g = self;
     self = oldself;
@@ -258,6 +262,20 @@ void() VR_AGTest_Sequence =
     }
 };
 
+// The mock hand (a script's vr_mock_hand) brought up or down to height `z` (each kind's own weapon height, not the
+// grunt's the scripts were written for): vr_mock_hand_lift (a cvar: at once, not after the script's waits as a command
+// would be), taken up on the next frames; the tests set it back to 0.
+void(entity p, float z) VR_AGT_HandToHeight =
+{
+    float dz = z - p.handpos_z;
+    if(fabs(dz) > 1)
+    {
+        cvar_set("vr_mock_hand_lift", ftos(cvar("vr_mock_hand_lift") + dz / VRMetersToUnits()));
+    }
+};
+
+void(entity g, entity p) VR_AGPT_ToHand; // (vr_armedgrunt_play_test.qc)
+
 void() VR_AGTest_Yank =
 {
     entity g = vr_agt_grunt;
@@ -270,7 +288,8 @@ void() VR_AGTest_Yank =
         p.weaponinst = world;
         p.weaponflags = 0;
         cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
-        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+        cvar_set("vr_mock_hand_lift", "0");
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 100); // (out of the hand's reach until it is brought there)
         vr_agt_step = 1;
         vr_agt_until = time + 1;
         return;
@@ -278,14 +297,22 @@ void() VR_AGTest_Yank =
     if(vr_agt_step == 1)
     {
         if(time < vr_agt_until) { return; }
-        // The grunt moved so that its gun is at your main hand (the script holds it out: vr_mock_hand), then the script
-        // closes it (+grabmain) within 3 s.
-        vector off = p.handpos - g.vr_ag_prop.origin;
-        off_z = 0;
-        setorigin(g, g.origin + off);
-        VR_AG_PlaceProp(g, g.vr_ag_prop);
-        VR_AGT_Print(sprintf("yank: the hand at %v, the gun at %v", p.handpos, g.vr_ag_prop.origin));
+        // The grunt moved so that its gun is at your main hand (the script holds it out: vr_mock_hand, and holds
+        // +grabmain) and the hand to its gun's height (each kind's own); then the hand closes on it (its grab's time now:
+        // as the button's press).
+        VR_AGPT_ToHand(g, p);
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z); // (its kind's gun height: an enforcer's is higher)
         vr_agt_step = 2;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        if(time < vr_agt_until) { return; }
+        VR_AGPT_ToHand(g, p);
+        VR_AGT_Print(sprintf("yank: the hand at %v, the gun at %v", p.handpos, g.vr_ag_prop.origin));
+        p.mainhand_lastgrabtime = time;
+        vr_agt_step = 3;
         vr_agt_until = time + 3;
         return;
     }
@@ -293,7 +320,8 @@ void() VR_AGTest_Yank =
     {
         return;
     }
-    VR_AGT_Check(sprintf("yank: your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
+    cvar_set("vr_mock_hand_lift", "0");
+    VR_AGT_Check(sprintf("yank:your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug", "1");
     p.flags = p.flags - (p.flags & FL_NOTARGET);
@@ -465,7 +493,9 @@ void(float t) VR_AGT_PoseRow =
             side_z = 0;
             vector keep = vr_agt_player.origin;
             setorigin(vr_agt_player, keep + side * ((k - 1.5) * 40));
-            entity r = VR_AGT_Spawn(wid, 120);
+            vr_agt_weapon2 = (t == 14 && k > 0 && cvar("scratch4") > 0) ? WID_SWORD : 0; // (scratch4: a sword in each left hand)
+            entity r = VR_AGT_Spawn(wid, cvar("scratch1") > 0 ? cvar("scratch1") : 120); // (scratch1: further off)
+            vr_agt_weapon2 = 0;
             r.angles_y = vectoyaw(keep - r.origin) + 60;
             setorigin(vr_agt_player, keep);
             vr_agt_row[k] = r;
@@ -483,6 +513,7 @@ void(float t) VR_AGT_PoseRow =
         g.vr_ag_act = !p ? VR_AGP_PUNCH : p.weapon == WID_CHAINSAW ? VR_AGP_SAW : VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE ?
             VR_AGP_SWING : 0;
         g.vr_ag_act_kind = cvar("scratch3");
+        g.vr_ag_act_hand = 2; // (two held: both swing)
         if(g.vr_ag_act == VR_AGP_PUNCH)
         {
             g.vr_ag_act_kind = min(4, g.vr_ag_act_kind);
@@ -498,6 +529,93 @@ void(float t) VR_AGT_PoseRow =
         g.vr_ag_aim = (!g.vr_ag_act && ph >= 2) ? VR_AGP_ToWorld('1 0 0') : '0 0 0';
         g.vr_ag_kick_at = (!g.vr_ag_act && ph == 2) ? time - 0.03 : 0;
         g.nextthink = time + 1; // (held: its AI stands)
+    }
+};
+
+// Test 40: dual wielding (`vr_agrunt_test_kind` the kind). A sword and a crowbar ("weapon2"): both held, the crowbar in
+// its left hand; hunting you, both hands strike within 8 s; its left hand's weapon knocked out, it keeps the sword (in
+// its right hand) and, out of a fight, takes the crowbar up again in its left; dying, both fall.
+float vr_agt_count;
+float vr_agt_keep_disarm;
+float vr_agt_keep_parry;
+void() VR_AGTest_Dual =
+{
+    entity g = vr_agt_grunt;
+    entity p = vr_agt_player;
+    if(vr_agt_step == 0)
+    {
+        VR_AGT_ClearWeapons();
+        vr_agt_weapon2 = WID_CROWBAR;
+        vr_agt_grunt = VR_AGT_Spawn(WID_SWORD, 60);
+        vr_agt_weapon2 = 0;
+        g = vr_agt_grunt;
+        entity pr = g.vr_ag_prop;
+        entity pl = g.vr_ag_prop2;
+        VR_AGT_Check(sprintf("dual: holds %s (left %g) and %s (left %g):", pr ? pr.netname : "nothing", pr.vr_ag_left,
+            pl ? pl.netname : "nothing", pl.vr_ag_left), pr && pl && !pr.vr_ag_left && pl.vr_ag_left && pl.weapon == WID_CROWBAR);
+        VR_AGT_Hunt(g);
+        vr_agt_keep_disarm = cvar("vr_agrunt_disarm");
+        vr_agt_keep_parry = cvar("vr_agrunt_parry_disarm");
+        cvar_set("vr_agrunt_disarm", "0"); // (the fight's own disarms off: the test's blow below)
+        cvar_set("vr_agrunt_parry_disarm", "0");
+        vr_agt_step = 1;
+        vr_agt_until = time + 8;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        if(time < vr_agt_until && (g.vr_ag_strikes_l < 1 || g.vr_ag_strikes - g.vr_ag_strikes_l < 1)) { return; }
+        cvar_set("vr_agrunt_disarm", ftos(vr_agt_keep_disarm));
+        cvar_set("vr_agrunt_parry_disarm", ftos(vr_agt_keep_parry));
+        VR_AGT_Check(sprintf("dual: blows right %g, left %g:", g.vr_ag_strikes - g.vr_ag_strikes_l, g.vr_ag_strikes_l),
+            g.vr_ag_strikes_l >= 1 && g.vr_ag_strikes - g.vr_ag_strikes_l >= 1);
+        // Its left hand's weapon knocked out (the first slot's rules: swapped there first, as a blow on it does).
+        if(g.vr_ag_prop2 && !g.vr_ag_prop.vr_ag_left)
+        {
+            VR_AG_Swap(g);
+        }
+        VR_AG_Disarm(g, '0 1 0', 60, "the test's blow on its left hand's weapon");
+        VR_AGT_Check(sprintf("dual: left disarmed: holds %s (left %g), second %s:", g.vr_ag_prop.netname, g.vr_ag_prop.vr_ag_left,
+            g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "none"), g.vr_ag_prop.weapon == WID_SWORD && !g.vr_ag_prop.vr_ag_left &&
+            !g.vr_ag_prop2);
+        p.flags = p.flags | FL_NOTARGET; // (out of the fight: it goes for a second weapon)
+        g.enemy = world;
+        vr_agt_step = 2;
+        vr_agt_until = time + 10;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        if(time < vr_agt_until && !g.vr_ag_prop2) { return; }
+        VR_AGT_Check(sprintf("dual: re-armed: %g pickups, second %s (left %g):", g.vr_ag_pickups,
+            g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "none", g.vr_ag_prop2.vr_ag_left), g.vr_ag_prop2 && g.vr_ag_prop2.vr_ag_left);
+        VR_AGT_ClearWeapons();
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        g.health = -10; // (killed outright: a blow from you its blades would parry)
+        Killed(g, p);
+        VR_AGT_Print(sprintf("dual: killed: health %g, holds %g %g", g.health, g.vr_ag_prop != world, g.vr_ag_prop2 != world));
+        vr_agt_step = 3;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(vr_agt_step == 3)
+    {
+        if(time < vr_agt_until) { return; }
+        vr_agt_count = 0;
+        entity e = find(world, classname, "thrown_weapon");
+        while(e)
+        {
+            vr_agt_count = vr_agt_count + 1;
+            e = find(e, classname, "thrown_weapon");
+        }
+        // (one landing on you may be in your hand: its auto-pickup)
+        if(p.weapon == WID_SWORD || p.weapon == WID_CROWBAR) { vr_agt_count = vr_agt_count + 1; }
+        if(p.weapon2 == WID_SWORD || p.weapon2 == WID_CROWBAR) { vr_agt_count = vr_agt_count + 1; }
+        VR_AGT_Check(sprintf("dual: died: %g weapons fell (your hands %s, %s):", vr_agt_count, VR_AGT_Name(p.weapon),
+            VR_AGT_Name(p.weapon2)), vr_agt_count == 2);
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        VR_AGT_Print(sprintf("dual: %g passed, %g failed", vr_agt_passed, vr_agt_failed));
+        cvar_set("vr_agrunt_test", "0");
     }
 };
 
@@ -539,6 +657,7 @@ void() VR_AGTest_Frame =
     else if(t == 13) { VR_AGTest_IdleRearm(); }
     else if(t == 2) { VR_AGTest_Sequence(); }
     else if(t == 3) { VR_AGTest_Yank(); }
+    else if(t == 40) { VR_AGTest_Dual(); }
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest

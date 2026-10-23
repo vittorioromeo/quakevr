@@ -310,6 +310,57 @@ void struggleDraw(const glm::vec3& eye)
     }
 }
 
+za::String noteRagdoll(int num)
+{
+    if(!world || !sv.active || num <= 0)
+    {
+        return {};
+    }
+    const VmScope vm;
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num != num)
+        {
+            continue;
+        }
+        za::String out = r.active.on ? "active ragdoll" : "ragdoll";
+        if(r.active.on && r.active.struggle.on)
+        {
+            const ragactive::Struggle& g = r.active.struggle;
+            out += va(", struggling %.1f s: effort %.2f fatigue %.2f", qcvm->time - g.from, g.effort, g.fatigue);
+            for(int b = 0; b < ragactive::behaviourCount; b++)
+            {
+                out += va(" %s %.2f", ragactive::behaviourName(b), g.weight[static_cast<za::SizeT>(b)]);
+            }
+            out += va("; held%s%s%s%s; floor %.2f drag %.2f prone %.2f head-down %.2f grip lag %.1f", g.heldTorso > 0.f ? " torso" : "",
+                g.heldHead > 0.f ? " head" : "", g.heldLegs > 0.f ? " legs" : "", g.heldArms > 0.f ? " arm" : "", g.contact,
+                g.drag, g.prone, g.inverted, g.gripError);
+        }
+        return out;
+    }
+    return {};
+}
+
+za::String noteRagdollHold(int player, int hand)
+{
+    RagdollHold h;
+    if(!world || !sv.active || !ragdollHold(player, hand, h) || h.num <= 0)
+    {
+        return {};
+    }
+    const VmScope vm;
+    const char* part = "?";
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num == h.num && r.rig && h.part >= 0 && h.part < r.rig->numBones)
+        {
+            part = r.rig->bones[h.part].name;
+        }
+    }
+    edict_t* e = EDICT_NUM(h.num);
+    return va("%s #%d part %s, health %.0f: ", PR_GetString(e->v.classname), h.num, part, e->v.health) + noteRagdoll(h.num);
+}
+
 // vr_struggle_status: each struggling one's weights and measures, the cost since the last call, the ragdolls' hash.
 } // namespace qvr::box3d
 

@@ -778,6 +778,7 @@ constexpr int maxArmPoses = 64;
 constexpr double armPoseStale = 0.3; // seconds without a message: back to finding its weapon by its hand
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
+constexpr int apLeftWeapon = 8;      // ... the left holding its own weapon at its target (dual wielding: propL, its turn)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
@@ -792,6 +793,8 @@ struct ArmPoseMsg
     float wo{1.f};                                     // ... the second's share
     float wl{0.f};  // the left hand's target: wl * the drawn left hand + vl
     glm::vec3 vl{0.f};
+    int propL{0};   // apLeftWeapon: the left hand's weapon, its turn in its body's space
+    glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
 };
 
 struct ArmPose
@@ -805,6 +808,8 @@ struct ArmPose
     double handTime{0.0};
     glm::vec3 right{0.f}, left{0.f};             // the hands' targets (model space, units)
     glm::vec3 fw{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}; // the weapon's turn (model space)
+    int propL{0};                                // the left hand's weapon (apLeftWeapon), drawn at `left`
+    glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
 };
 
 struct ArmPoses
@@ -914,6 +919,11 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
         m.wo = p.wo + (m.wo - p.wo) * f;
         m.wl = p.wl + (m.wl - p.wl) * f;
         m.vl = p.vl + (m.vl - p.vl) * f;
+        if(p.propL == m.propL)
+        {
+            m.fwL = nlerp(p.fwL, m.fwL, f);
+            m.upL = nlerp(p.upL, m.upL, f);
+        }
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
@@ -948,6 +958,9 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.up = up;
     s.prop = m.prop;
     s.flags = m.flags;
+    s.propL = (m.flags & apLeftWeapon) ? m.propL : 0;
+    s.fwL = m.fwL;
+    s.upL = m.upL;
     s.left = m.vl / scale;
     if((m.flags & apLeft) && m.wl > 0.f)
     {
@@ -1171,6 +1184,12 @@ void parseArmPose()
     m.wo = static_cast<float>(MSG_ReadByte()) / 255.f;
     m.wl = static_cast<float>(MSG_ReadByte()) / 255.f;
     readVec(m.vl);
+    if(m.flags & apLeftWeapon)
+    {
+        m.propL = MSG_ReadShort();
+        readDir(m.fwL);
+        readDir(m.upL);
+    }
     m.t = cl.mtime[0];
     ArmPose* s = armPoseOf(ent, true);
     if(!s)
@@ -1224,6 +1243,21 @@ void relinkArms()
         {
             p.origin[i] = at[i];
             p.angles[i] = a[i];
+        }
+        // Dual wielding: its left hand's weapon at the left's target (the left arm's IK reaches it: armsNow's own target).
+        if(s.propL > 0 && s.propL < cl.num_entities)
+        {
+            entity_t& pl = cl_entities[s.propL];
+            if(pl.model && (pl.effects & heldEffect) && pl.msgtime == cl.mtime[0])
+            {
+                const glm::vec3 atL = toWorld(e, s.left);
+                const glm::vec3 aL = weaponAngles(turnYaw(yaw, s.fwL), turnYaw(yaw, s.upL));
+                for(int i = 0; i < 3; i++)
+                {
+                    pl.origin[i] = atL[i];
+                    pl.angles[i] = aL[i];
+                }
+            }
         }
     }
 }

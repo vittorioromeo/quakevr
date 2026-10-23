@@ -17,6 +17,7 @@ Rows now: the grunt (`monster_vr_grunt`, row 0) and the enforcer (`monster_vr_en
 | Tests (`vr_agrunt_test N`, `vr_agrunt_test_kind` the row) | `QC/vr_armedgrunt_test.qc`, `QC/vr_armedgrunt_play_test.qc` |
 | The engine's table (the hands' IK, the held weapon drawn on the body) | `Quake/vr/vr_hitreact.cpp` `armedRigs` |
 | The models without their gun | `Misc/quakevr/make_vrgrunt.py` (`MODELS`) |
+| The toolgun's spawn page: the table's lists, the ghost's weapons | `QC/vr_armedmon_ui.qc`, `vr_toolgun.cpp` (`armed`), `vr_toolgun_panel.cpp` (`armedPage`) |
 
 The names keep the armed grunts' `VR_AG_*` / `vr_ag_*` / `vr_agrunt_*` (saves store think functions and fields by
 name; the settings keep their cvars): read "AG" as "armed".
@@ -25,6 +26,7 @@ name; the settings keep their cvars): read "AG" as "armed".
 
 | Field | What | Grunt | Enforcer |
 | --- | --- | --- | --- |
+| `vr_am_spawnname` | its spawn function (the toolgun's page makes it so) | `monster_vr_grunt` | `monster_vr_enforcer` |
 | `vr_am_classname`, `vr_am_spawn` | its monster: the classname and spawn function it keeps (health, sounds, pains, deaths, ragdoll, hit zones, struggles: every system keyed on it) | `monster_army`, `monster_army` | `monster_enforcer`, `monster_enforcer` |
 | `vr_am_model` | its model without the gun | `progs/vrgrunt.mdl` | `progs/vrenforcer.mdl` |
 | `vr_am_hand` | its right hand's three vertices (their middle: the grip) | 32 26 31 | 41 364 365 |
@@ -51,6 +53,34 @@ vertices (ranges: never a hand's), the gun's line, its arm bones' names (the rag
 - Its pains end in its own run (`enf_run1`, `army_run1`): `ai_run` -> `CheckAnyAttack` -> `VR_AG_CheckAttack` puts it
   back on the layer's run (no change needed).
 
+## Dual wielding
+
+Two slots: `vr_ag_wid/wflags/prop/reserve` and `vr_ag_wid2/...2`. The layer acts on the first; an event on the second
+weapon (a grab, a blow near it, a blow on it, a parried left-hand swing) swaps the slots first (`VR_AG_Swap`), so every
+rule (tugs, yanks, disarms, drops) is the one-weapon code. Which hand holds a weapon is its prop's `.vr_ag_left`; a
+weapon left alone is passed to the right hand (`VR_AG_Settle`, after every drop). Pairs: one-handed weapons only
+(`VR_AG_OneHanded`: swords but AD's hammer and mace, the crowbar, the axe; no gun: they are long guns). Map keys
+`weapon2`/`weaponflags2`; from the pool `vr_agrunt_dual_chance` (Armed Grunts page: Dual Wielding). Attacks: the hands
+in turn, a quarter of them both at once (mirrored keys), the other hand following up (`VR_AGP_Begin`, `vr_ag_act_hand`).
+The left weapon's pose: `VR_AGP_MeleeLeft` (ready, carried at its side, swung on the right's keys mirrored); sent in
+QVR_SVC_ARMPOSE behind flag 8 (its entity, its turn), drawn by the client at the left hand's target (`relinkArms`), the
+left arm's IK on it. Lost one: out of a fight it goes for another one-handed weapon (`VR_AG_WantsSecond`). Dying: both
+fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` (a sword in each left hand).
+
+## The toolgun's spawn page
+
+Spawn > Monsters > Armed Humanoid (`vr_toolgun_panel.cpp` `armedPage`; `docs/vr-port/TOOLGUN.md`): Kind, Right Hand,
+Left Hand as dropdowns (the panel's `dropdown` widget, reusable). The lists are the table's, asked of QC once a map
+(`QC/vr_armedmon_ui.qc`; `vr_toolgun.cpp` `armedRefresh`): the kinds `VR_AM_UiCount` and each row's name, spawn function
+(`vr_am_spawnname`), model and stand frame; the weapons every "weapon" code 1..127 `VR_AM_UiWeapon` says a row holds
+(`VR_AG_Decode`: its data there; the row's `vr_am_classes`), one-handed or not (`VR_AG_OneHanded`), by class. Right Hand:
+Random from Pool ("weapon" 0: the pool and `vr_agrunt_dual_chance`), Unarmed (-1), a weapon; Left Hand ("weapon2"): None
+or a one-handed weapon, only with a one-handed one in the right. The choice is `vr_toolgun_armed_kind`, `_weapon`,
+`_weapon2` (kept), made the spawn tool's with each pick (`vr_toolgun_select_armed [kind [weapon [weapon2]]]` from the
+console). The ghost holds the weapons where the layer's own pose holds them a moment after it is made
+(`VR_AM_UiGhost`: `VR_AGP_Pose` on stand-ins, quiet: placed, nothing sent; the melee stance settled), turned with the
+ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Humanoid Lists" (`vr_toolgun_armed_list`).
+
 ## Adding a monster
 
 1. Find its gun's vertices (vr_monstermods.cpp `knownSwords` has the stock monsters'), add a `MODELS` row to
@@ -58,12 +88,15 @@ vertices (ranges: never a hand's), the gun's line, its arm bones' names (the rag
 2. Find its right hand's vertices and the gun's line: the vertices that stay still in the gun's space over its living
    frames, on its right (an analysis like ROUND22.md's, "Armed monsters"); the gun's two farthest vertex pairs along
    it (which end is the muzzle: an attack frame), a top and a bottom near its middle.
-3. A row in `VR_AM_Row` (a `VR_AM_<NAME>` number, `VR_AM_COUNT` up one), its frames from its `$frame` lines.
+3. A row in `VR_AM_Row` (a `VR_AM_<NAME>` number, `VR_AM_COUNT` up one, `vr_am_spawnname` its spawn function: the
+   toolgun's Armed Humanoid page lists it by itself), its frames from its `$frame` lines.
 4. Its spawn function in `vr_armedgrunt.qc`: `void() monster_vr_<name> = { VR_AM_Spawn(VR_AM_<NAME>); };` with a QUAKED
    comment, then `python Misc/trenchbroom/fgdgen.py`.
 5. The two hooks in its death and loot functions (above).
 6. The engine: its model id (`vr_modelmetadata.inc`), its monster file prefix (`vr_modelmetadata.cpp` `monsterFiles`),
    its ragdoll row (`vr_ragdoll.cpp`, the monster's seeds with the new id), its `armedRigs` row.
-7. Toolgun entries appended at the end of `vr_toolgun_packs.inc` (no number above moves).
+7. The toolgun: nothing (the Armed Humanoid page asks the table). Per-weapon entries in `vr_toolgun_packs.inc` only if
+   wanted for `vr_toolgun_select` (appended: no number above moves; pack "Armed <Name>s": off the grid unless
+   `vr_toolgun_armed_tiles 1`).
 8. Test: `vr_agrunt_test_kind <row>`, then `vr_agrunt_test 1, 2, 3, 20..30` and the eyeshots (`vr_agrunt_test 14`,
    `15` with `scratch2` the phase).

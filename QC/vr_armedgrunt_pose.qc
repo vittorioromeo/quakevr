@@ -23,6 +23,7 @@ float VR_AGP_PUNCH = 1;
 float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
+float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -79,6 +80,7 @@ vector vr_agp_vl;
 vector vr_agp_f;     // the body's flat forward and right (VR_AGP_Body)
 vector vr_agp_r;
 float vr_agp_events; // blows and cuts struck (the tests)
+float vr_agp_quiet;  // the pose only placed, not sent nor run (the toolgun's ghost: vr_armedmon_ui.qc VR_AM_UiGhost)
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -111,6 +113,10 @@ float(float x, float to, float rate) VR_AGP_Ease = { return x < to ? min(to, x +
 // Two-handed melee weapons (the left hand on the weapon's second grip); the others are swung in the right hand.
 float(entity p) VR_AGP_TwoHanded =
 {
+    if(p.owner.vr_ag_prop2)
+    {
+        return FALSE; // (two held: one in each hand)
+    }
     float wid = p.weapon;
     if(wid == WID_SWORD)
     {
@@ -274,6 +280,25 @@ void(entity g, vector handL) VR_AGP_Fists =
     vr_agp_vl = VR_AM_Fit(g, l) * k;
 };
 
+// A swing's keys (the right hand's; the left's: y the other way): its wind-up (vr_agp_kw, the blade vr_agp_kwfw), its
+// arc's control (vr_agp_kc), its end (vr_agp_ke, vr_agp_kefw). Kinds: 0 overhead, 1 diagonal, 2 horizontal, 3 backhand.
+vector vr_agp_kw;
+vector vr_agp_kwfw;
+vector vr_agp_kc;
+vector vr_agp_ke;
+vector vr_agp_kefw;
+void(float kind) VR_AGP_SwingKeys =
+{
+    if(kind == 0)      { vr_agp_kw = '0 -7 24'; vr_agp_kwfw = '-0.55 0.05 0.83'; vr_agp_kc = '16 -6 22'; vr_agp_ke = '17 -3 2'; vr_agp_kefw = '0.6 0 -0.8'; }
+    else if(kind == 1) { vr_agp_kw = '1 -14 21'; vr_agp_kwfw = '-0.4 -0.55 0.73'; vr_agp_kc = '17 -10 16'; vr_agp_ke = '14 7 0'; vr_agp_kefw = '0.5 0.55 -0.67'; }
+    else if(kind == 2) { vr_agp_kw = '3 -17 12'; vr_agp_kwfw = '-0.45 -0.85 0.25'; vr_agp_kc = '20 -6 12'; vr_agp_ke = '9 13 10'; vr_agp_kefw = '0.25 0.95 0.1'; }
+    else               { vr_agp_kw = '8 12 6'; vr_agp_kwfw = '0.1 0.8 -0.55'; vr_agp_kc = '19 2 12'; vr_agp_ke = '10 -14 20'; vr_agp_kefw = '0.3 -0.7 0.65'; }
+};
+vector(vector v) VR_AGP_Mirror = { v_y = -v_y; return v; };
+
+// Whether the right hand's weapon swings in its attack (two held: VR_AGP_Begin's hands).
+float(entity g) VR_AGP_RightSwings = { return !g.vr_ag_prop2 || g.vr_ag_act_hand != 1; };
+
 // A melee weapon: ready (blade up, mostly its own place), a swing's arc through the target; a chainsaw at the hip,
 // running, thrust into the target and held there cutting.
 void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Melee =
@@ -287,7 +312,7 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
     vector fw = readyFw;
     vector edge = '1 0 0';
     float s = time - g.vr_ag_act_at;
-    if(g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_SAW)
+    if((g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_SAW) && VR_AGP_RightSwings(g))
     {
         VR_AGP_Times(g);
         vector tl = VR_AGP_TargetLocal(g);
@@ -301,10 +326,11 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
             efw = normalize(tl - e);
             c = (w + e) * 0.5;
         }
-        else if(kind == 0) { w = '0 -7 24'; wfw = '-0.55 0.05 0.83'; c = '16 -6 22'; e = '17 -3 2'; efw = '0.6 0 -0.8'; }
-        else if(kind == 1) { w = '1 -14 21'; wfw = '-0.4 -0.55 0.73'; c = '17 -10 16'; e = '14 7 0'; efw = '0.5 0.55 -0.67'; }
-        else if(kind == 2) { w = '3 -17 12'; wfw = '-0.45 -0.85 0.25'; c = '20 -6 12'; e = '9 13 10'; efw = '0.25 0.95 0.1'; }
-        else               { w = '8 12 6'; wfw = '0.1 0.8 -0.55'; c = '19 2 12'; e = '10 -14 20'; efw = '0.3 -0.7 0.65'; }
+        else
+        {
+            VR_AGP_SwingKeys(kind);
+            w = vr_agp_kw; wfw = vr_agp_kwfw; c = vr_agp_kc; e = vr_agp_ke; efw = vr_agp_kefw;
+        }
         if(!saw)
         {
             c_z = c_z + dz * 0.5;
@@ -372,6 +398,74 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
         vr_agp_wl = 1 - k;
         vr_agp_vl = VR_AM_Fit(g, VR_AGP_FREE_L) * k;
     }
+};
+
+// Dual wielding: the left hand's weapon (its own target: wl 0, vl its grip), ready as the right's (mirrored), hanging
+// forward at its side as it carries it; swung in its attacks (VR_AGP_Begin: vr_ag_act_hand 1 or 2) on the right's keys
+// mirrored. Out: vr_agp_vl (its grip, its body's space), vr_agp_fwl and vr_agp_upl (the weapon's turn, world).
+vector VR_AGP_READY_L = '10 7 4';
+vector VR_AGP_READY_L_FW = '0.3 -0.1 0.95';
+vector VR_AGP_CARRY_L = '5 10 -1';
+vector VR_AGP_CARRY_L_FW = '0.45 0.1 -0.9';
+vector vr_agp_fwl;
+vector vr_agp_upl;
+void(entity g, entity p) VR_AGP_MeleeLeft =
+{
+    float r = VR_AGP_Smooth(g.vr_ag_readyw / 0.7);
+    vector pos = VR_AGP_Lerp(VR_AGP_CARRY_L, VR_AGP_READY_L, r);
+    vector readyFw = VR_AGP_Nlerp(normalize(VR_AGP_CARRY_L_FW), normalize(VR_AGP_READY_L_FW), r);
+    vector fw = readyFw;
+    vector ready = pos;
+    vector edge = '1 0 0';
+    float s = time - g.vr_ag_act_at;
+    if(g.vr_ag_act == VR_AGP_SWING && g.vr_ag_act_hand != 0)
+    {
+        VR_AGP_Times(g);
+        vector tl = VR_AGP_TargetLocal(g);
+        float dz = min(12, max(-12, tl_z - 8));
+        VR_AGP_SwingKeys(g.vr_ag_act_kind);
+        vector w = VR_AGP_Mirror(vr_agp_kw);
+        vector wfw = normalize(VR_AGP_Mirror(vr_agp_kwfw));
+        vector c = VR_AGP_Mirror(vr_agp_kc);
+        vector e = VR_AGP_Mirror(vr_agp_ke);
+        vector efw = normalize(VR_AGP_Mirror(vr_agp_kefw));
+        c_z = c_z + dz * 0.5;
+        e_z = e_z + dz;
+        vector cfw = normalize(c - VR_AGP_SHOULDER_L) * 2;
+        edge = normalize(efw - wfw);
+        float tStrike = vr_agp_tw + vr_agp_ts;
+        if(s < vr_agp_tw)
+        {
+            float u = VR_AGP_Smooth(s / vr_agp_tw);
+            pos = VR_AGP_Lerp(ready, w, u);
+            fw = VR_AGP_Nlerp(readyFw, wfw, u);
+        }
+        else if(s < tStrike)
+        {
+            float u1 = VR_AGP_Smooth((s - vr_agp_tw) / vr_agp_ts);
+            pos = VR_AGP_Bezier(w, c, e, u1);
+            fw = normalize(VR_AGP_Bezier(wfw, cfw, efw, u1));
+            if(!g.vr_ag_act_hitl && g.vr_ag_act_hit != 2 && u1 >= 0.55)
+            {
+                g.vr_ag_act_hitl = 1;
+                VR_AGP_Body(g);
+                VR_AGP_Strike(g, p, g.origin + VR_AGP_ToWorld(pos), normalize(VR_AGP_ToWorld(tl - pos)));
+                g.vr_ag_strikes_l = g.vr_ag_strikes_l + 1;
+            }
+        }
+        else
+        {
+            float u2 = VR_AGP_Smooth((s - tStrike) / vr_agp_tr);
+            pos = VR_AGP_Lerp(e, ready, u2);
+            fw = VR_AGP_Nlerp(efw, readyFw, u2);
+        }
+    }
+    edge = normalize(edge - fw * (edge * fw));
+    if(edge == '0 0 0') { edge = '0 0 1'; }
+    VR_AGP_Body(g);
+    vr_agp_vl = VR_AM_Fit(g, pos);
+    vr_agp_fwl = VR_AGP_ToWorld(fw);
+    vr_agp_upl = VR_AGP_ToWorld(edge);
 };
 
 // A chainsaw's engine: idling (its fuel), revving through an attack, cutting what its bar is in (the player's chain's
@@ -504,6 +598,14 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         g.vr_ag_act = 0; // (its attack's frames stopped: a pain, a knockdown)
     }
+    entity pL = world; // (two held: the right hand's in `p`, the left's here; the slots don't say which)
+    if(p && g.vr_ag_prop2)
+    {
+        entity pa = g.vr_ag_prop;
+        entity pb = g.vr_ag_prop2;
+        p = pa.vr_ag_left ? pb : pa;
+        pL = pa.vr_ag_left ? pa : pb;
+    }
     VR_AGP_Body(g);
     vector handL = VR_AGP_ToLocal(hand - g.origin);
     vr_agp_flags = 0;
@@ -526,6 +628,16 @@ void(entity g, entity p) VR_AGP_Pose =
         vector right = VR_AGP_Cross(vr_agp_fw, vr_agp_up);
         vr_agp_fw = VR_AG_Rotate(vr_agp_fw, right, -tilt);
         vr_agp_up = VR_AG_Rotate(vr_agp_up, right, -tilt);
+        if(pL)
+        {
+            VR_AGP_MeleeLeft(g, pL);
+            float tiltL = VR_AGP_BladeTilt(pL);
+            vector rightL = VR_AGP_Cross(vr_agp_fwl, vr_agp_upl);
+            vr_agp_fwl = VR_AG_Rotate(vr_agp_fwl, rightL, -tiltL);
+            vr_agp_upl = VR_AG_Rotate(vr_agp_upl, rightL, -tiltL);
+            vr_agp_flags = VR_AGP_LEFT | VR_AGP_LEFTWPN;
+            vr_agp_wl = 0;
+        }
     }
     else
     {
@@ -546,11 +658,23 @@ void(entity g, entity p) VR_AGP_Pose =
         p.angles = a;
         p.angles_x = -a_x; // (a model's pitch)
         setorigin(p, g.origin + VR_AGP_ToWorld(posL));
-        if(p.weapon == WID_CHAINSAW)
+        if(vr_agp_flags & VR_AGP_LEFTWPN)
+        {
+            vector al = VR_AxeStick_Angles(vr_agp_fwl, vr_agp_upl);
+            pL.v_angle = al;
+            pL.angles = al;
+            pL.angles_x = -al_x;
+            setorigin(pL, g.origin + VR_AGP_ToWorld(vr_agp_vl));
+        }
+        if(p.weapon == WID_CHAINSAW && !vr_agp_quiet)
         {
             VR_AGP_Saw(g, p);
             VR_AGP_Body(g);
         }
+    }
+    if(vr_agp_quiet)
+    {
+        return;
     }
 
     WriteByte(MSG_BROADCAST, 39); // svc_quakevr
@@ -570,6 +694,12 @@ void(entity g, entity p) VR_AGP_Pose =
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wo)) * 255));
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wl)) * 255));
     VR_AGP_WriteVec(vr_agp_vl);
+    if(vr_agp_flags & VR_AGP_LEFTWPN)
+    {
+        WriteEntity(MSG_BROADCAST, pL);
+        VR_AGP_WriteDir(VR_AGP_ToLocal(vr_agp_fwl));
+        VR_AGP_WriteDir(VR_AGP_ToLocal(vr_agp_upl));
+    }
 };
 
 // The fists' pose sender: every server frame while its grunt lives and holds nothing (a weapon sends its own).
@@ -632,6 +762,17 @@ void(float act) VR_AGP_Begin =
         float k2 = floor(random() * 4);
         if(k2 == last) { k2 = (k2 + 1 + floor(random() * 3)) & 3; }
         self.vr_ag_act_kind = min(3, k2);
+        // Two held: the hands in turn, now and then both at once (mirrored: a scissor).
+        float hand = 0;
+        if(self.vr_ag_prop2)
+        {
+            hand = self.vr_ag_act_hand == 0 ? 1 : 0;
+            if(random() < 0.25)
+            {
+                hand = 2;
+            }
+        }
+        self.vr_ag_act_hand = hand;
     }
     else
     {
@@ -639,6 +780,7 @@ void(float act) VR_AGP_Begin =
     }
     self.vr_ag_act_at = time;
     self.vr_ag_act_hit = 0;
+    self.vr_ag_act_hitl = 0;
     self.vr_ag_act_tick = time;
     self.vr_ag_aim = '0 0 0';
     if(act == VR_AGP_SWING)
@@ -698,6 +840,12 @@ void() VR_AGP_Frame =
     {
         self.vr_ag_act_combo = self.vr_ag_act_combo + 1;
         VR_AGP_Begin(VR_AGP_PUNCH);
+        return;
+    }
+    if(was == VR_AGP_SWING && self.vr_ag_prop2 && self.vr_ag_act_hand != 2 && self.enemy && self.enemy.health > 0 &&
+       random() < 0.45 && vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_GRIP_REACH + 10)
+    {
+        VR_AGP_Begin(VR_AGP_SWING); // (two held: the other hand follows up)
         return;
     }
     VR_AG_AfterAttack();

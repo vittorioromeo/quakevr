@@ -225,6 +225,12 @@ struct Selection
     bool setModel{false};
     bool wall{false}; // hung on the wall aimed at (Spawnable::wall)
     float weaponFlags{0.f}; // a weapon's flags (Spawnable::weaponFlags; a picked weapon's kept ones)
+    // The Armed Humanoid page's choice (armed::choose): an armed monster of the table's row `kind`, its "weapon" in
+    // `key`/`value` and its left hand's "weapon2" in `key2`/`value2`.
+    bool armed{false};
+    int kind{0};
+    char key2[16]{};
+    float value2{0.f};
 };
 
 // Where the gun points this frame.
@@ -342,6 +348,7 @@ struct ToolgunState
     float glow{0.f};
     int glow2{0};
     const entity_t* ghostEnt{nullptr}; // the ghost's temp entity this frame (glowing as a hologram)
+    const entity_t* ghostParts[2]{};   // and an armed monster's held weapons' (ArmedGhost)
     bool ghostLooked{false};           // and it is drawn as its probe saw it (ghostVr: its scale and offsets)
     Tool lastTool{Tool::Spawn};        // last frame's (the Brush tool's holds let go when it changes)
 };
@@ -439,6 +446,280 @@ void select(int i)
     sel.setModel = s.setModel;
     sel.wall = s.wall;
     sel.weaponFlags = s.weaponFlags;
+    tg.picking = false;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Armed humanoids (the panel's Armed Humanoid page; QC vr_armedmon_ui.qc; docs/vr-port/ARMED_MONSTERS.md): the armed
+// monsters' table's rows (the kinds) and the weapons each may hold, asked of QC once a map (and again when AD's data
+// comes or goes); the choice made of vr_toolgun_armed_kind, _weapon and _weapon2; its ghost's held weapons (QC
+// VR_AM_UiGhost: the layer's own pose of them on the body standing).
+
+constexpr int armedMaxKinds = 8;
+constexpr int armedMaxWeapons = 96;
+constexpr int armedCodeTop = 128; // the "weapon" keys asked: 1..127 (QC VR_AG_Decode's codes; 120 the last now)
+constexpr float armedLift = 24.f;  // (the armed entries' lift: a monster's)
+
+struct ArmedKind
+{
+    char name[32]{};
+    char spawn[48]{}; // its spawn function (monster_vr_grunt)
+    char model[64]{}; // its gunless model
+    int frame{0};     // its stand frame (the ghost's)
+};
+
+struct ArmedWeapon
+{
+    int code{0};
+    int fits[armedMaxKinds]{}; // QC VR_AM_UiWeapon's for each kind: 0 not; 1 + 2 one-handed + 4 * its class
+    char name[40]{};
+};
+
+struct ArmedCatalogue
+{
+    bool valid{false};
+    int generation{0}; // counts the rebuilds (the panel's lists follow)
+    char map[64]{};    // made for this map, these progs, AD's data in or out
+    const void* progs{nullptr};
+    float ad{-1.f};
+    int kindCount{0};
+    ArmedKind kinds[armedMaxKinds];
+    za::InPlaceVector<ArmedWeapon, armedMaxWeapons> weapons; // by class (melee first), then code
+};
+ArmedCatalogue armedCat;
+
+// The ghost's held weapons for a choice (QC VR_AM_UiGhost), the monster at the origin facing +x.
+struct ArmedGhost
+{
+    int generation{-1}; // the catalogue's it was made with
+    int kind{-1};
+    float code{0.f}, code2{0.f};
+    int count{0};
+    char model[2][64]{};
+    glm::vec3 origin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 angles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+};
+ArmedGhost armedGhost;
+
+// QC function `fn` of the server's (its VM pushed) called with these parameters; false: none.
+bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    if(!fn)
+    {
+        return false;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM0) = a;
+    G_FLOAT(OFS_PARM1) = b;
+    G_FLOAT(OFS_PARM2) = c;
+    PR_ExecuteProgram(fn);
+    return true;
+}
+
+[[nodiscard]] float qcFloat(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    return callQc(fn, a, b, c) ? G_FLOAT(OFS_RETURN) : 0.f;
+}
+
+void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
+{
+    copyText(dst, size, callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "");
+}
+
+[[nodiscard]] glm::vec3 qcVec(func_t fn, float a = 0.f)
+{
+    return callQc(fn, a) ? glm::vec3{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)} : glm::vec3{0.f};
+}
+
+// The catalogue made again when the map, the progs or AD's data changed (the host frame, a game running).
+void armedRefresh()
+{
+    ArmedCatalogue& c = armedCat;
+    if(!sv.active)
+    {
+        c.valid = false;
+        return;
+    }
+    const float ad = Cvar_VariableValue("vr_ad_mounted");
+    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && !strcmp(c.map, sv.name))
+    {
+        return;
+    }
+    const ServerVm vm;
+    const func_t count = findFunction("VR_AM_UiCount");
+    const func_t kindName = findFunction("VR_AM_UiKindName");
+    const func_t kindSpawn = findFunction("VR_AM_UiKindSpawn");
+    const func_t kindModel = findFunction("VR_AM_UiKindModel");
+    const func_t kindFrame = findFunction("VR_AM_UiKindFrame");
+    const func_t weapon = findFunction("VR_AM_UiWeapon");
+    const func_t weaponName = findFunction("VR_AM_UiWeaponName");
+    c.valid = true;
+    c.generation++;
+    c.progs = sv.qcvm.progs;
+    c.ad = ad;
+    copyText(c.map, sizeof(c.map), sv.name);
+    c.kindCount = za::clamp(static_cast<int>(qcFloat(count)), 0, armedMaxKinds);
+    for(int k = 0; k < c.kindCount; k++)
+    {
+        ArmedKind& r = c.kinds[k];
+        qcText(r.name, sizeof(r.name), kindName, static_cast<float>(k));
+        qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
+        qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
+        r.frame = static_cast<int>(qcFloat(kindFrame, static_cast<float>(k)));
+    }
+    c.weapons.clear();
+    for(int code = 1; code < armedCodeTop && c.weapons.size() < c.weapons.capacity(); code++)
+    {
+        ArmedWeapon w;
+        w.code = code;
+        bool any = false;
+        for(int k = 0; k < c.kindCount; k++)
+        {
+            w.fits[k] = static_cast<int>(qcFloat(weapon, static_cast<float>(k), static_cast<float>(code)));
+            any = any || w.fits[k] != 0;
+        }
+        if(!any)
+        {
+            continue;
+        }
+        qcText(w.name, sizeof(w.name), weaponName, static_cast<float>(code));
+        // Its place: after the weapons of a lower class (VR_AG_CLASS_*: melee, guns, launchers, streams, bursts).
+        const auto classOf = [&](const ArmedWeapon& x) {
+            int f = 0;
+            for(int k = 0; k < c.kindCount && !f; k++)
+            {
+                f = x.fits[k];
+            }
+            return f / 4;
+        };
+        c.weapons.pushBack(w);
+        for(int i = static_cast<int>(c.weapons.size()) - 1; i > 0 && classOf(c.weapons[i - 1]) > classOf(c.weapons[i]); i--)
+        {
+            const ArmedWeapon t = c.weapons[i - 1];
+            c.weapons[i - 1] = c.weapons[i];
+            c.weapons[i] = t;
+        }
+    }
+}
+
+[[nodiscard]] const ArmedWeapon* armedWeaponOf(int code)
+{
+    for(const ArmedWeapon& w : armedCat.weapons)
+    {
+        if(w.code == code)
+        {
+            return &w;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] int armedFits(int kind, int code)
+{
+    const ArmedWeapon* w = armedWeaponOf(code);
+    return w && kind >= 0 && kind < armedMaxKinds ? w->fits[kind] : 0;
+}
+
+[[nodiscard]] bool armedOneHanded(int kind, int code)
+{
+    return (armedFits(kind, code) & 2) != 0;
+}
+
+[[nodiscard]] const char* armedCodeName(int code)
+{
+    if(code == 0)
+    {
+        return "Random from Pool";
+    }
+    if(code < 0)
+    {
+        return "Unarmed";
+    }
+    const ArmedWeapon* w = armedWeaponOf(code);
+    return w ? w->name : "?";
+}
+
+// The ghost's held weapons made again for the choice (the host frame).
+void armedGhostRefresh()
+{
+    const Selection& sel = tg.sel;
+    ArmedGhost& g = armedGhost;
+    if(!sel.armed || !armedCat.valid || !sv.active)
+    {
+        return;
+    }
+    if(g.generation == armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
+    {
+        return;
+    }
+    g = {};
+    g.generation = armedCat.generation;
+    g.kind = sel.kind;
+    g.code = sel.value;
+    g.code2 = sel.value2;
+    const ServerVm vm;
+    const func_t ghost = findFunction("VR_AM_UiGhost");
+    const func_t model = findFunction("VR_AM_UiGhostModel");
+    const func_t origin = findFunction("VR_AM_UiGhostOrigin");
+    const func_t angles = findFunction("VR_AM_UiGhostAngles");
+    g.count = za::clamp(static_cast<int>(qcFloat(ghost, static_cast<float>(sel.kind), sel.value, sel.value2)), 0, 2);
+    for(int h = 0; h < g.count; h++)
+    {
+        qcText(g.model[h], sizeof(g.model[h]), model, static_cast<float>(h));
+        g.origin[h] = qcVec(origin, static_cast<float>(h));
+        g.angles[h] = qcVec(angles, static_cast<float>(h));
+    }
+}
+
+// The choice made of the cvars (each made one the kind can have first: a weapon it can't hold random, a left hand's
+// weapon without a one-handed pair none).
+void armedChoose()
+{
+    armedRefresh();
+    const ArmedCatalogue& c = armedCat;
+    if(!c.valid || c.kindCount <= 0)
+    {
+        Con_Printf("toolgun: no armed monsters here (no game running)\n");
+        return;
+    }
+    const int kind = za::clamp(static_cast<int>(vr_toolgun_armed_kind.value), 0, c.kindCount - 1);
+    int code = static_cast<int>(vr_toolgun_armed_weapon.value);
+    int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
+    code = code < 0 ? -1 : (code > 0 && !armedFits(kind, code) ? 0 : code);
+    code2 = code > 0 && armedOneHanded(kind, code) && armedOneHanded(kind, code2) ? code2 : 0;
+    const auto keep = [](cvar_t& cv, float v) {
+        if(cv.value != v)
+        {
+            Cvar_SetValueQuick(&cv, v);
+        }
+    };
+    keep(vr_toolgun_armed_kind, static_cast<float>(kind));
+    keep(vr_toolgun_armed_weapon, static_cast<float>(code));
+    keep(vr_toolgun_armed_weapon2, static_cast<float>(code2));
+    const ArmedKind& r = c.kinds[kind];
+    Selection& sel = tg.sel;
+    sel = {};
+    sel.valid = true;
+    sel.entry = -1;
+    sel.armed = true;
+    sel.kind = kind;
+    if(code2 > 0)
+    {
+        q_snprintf(sel.label, sizeof(sel.label), "Armed %s: %s + %s", r.name, armedCodeName(code), armedCodeName(code2));
+    }
+    else
+    {
+        q_snprintf(sel.label, sizeof(sel.label), "Armed %s: %s", r.name, armedCodeName(code));
+    }
+    copyText(sel.classname, sizeof(sel.classname), r.spawn);
+    copyText(sel.model, sizeof(sel.model), r.model);
+    copyText(sel.key, sizeof(sel.key), "weapon");
+    sel.value = static_cast<float>(code);
+    copyText(sel.key2, sizeof(sel.key2), "weapon2");
+    sel.value2 = static_cast<float>(code2);
+    sel.lift = armedLift;
+    sel.frame = r.frame;
     tg.picking = false;
 }
 
@@ -742,6 +1023,11 @@ void updateGhost()
     }
     tg.ghost = true;
     probeLook();
+    if(tg.sel.armed)
+    {
+        armedRefresh();
+        armedGhostRefresh();
+    }
 }
 
 // Whether the choice is an item (the Items tab's, or a picked item_): its ghost is drawn from a probe (GhostLook).
@@ -806,7 +1092,7 @@ void spawnHere()
     const Selection& sel = tg.sel;
     if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
-        sel.key[0] ? sel.key : nullptr, sel.value, false, sel.weaponFlags);
+        sel.key[0] ? sel.key : nullptr, sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
     if(e)
     {
         const glm::vec3 off = fieldVec(e, fields().model_offset);
@@ -1840,6 +2126,7 @@ void frame(const hands::State& s)
 void tempEntities()
 {
     tg.ghostEnt = nullptr;
+    tg.ghostParts[0] = tg.ghostParts[1] = nullptr;
     if(!tg.ghost || !tg.sel.valid || !tg.sel.model[0])
     {
         return;
@@ -1848,27 +2135,56 @@ void tempEntities()
     // model, its scale and offsets, its origin moved). A map's own models (loaded with it; the toolgun's brush-model items
     // are precached with every map: QC VR_Toolgun_Precache), or an alias model loaded now; a brush model not loaded with
     // the map (its lightmaps are made at the map's load) only as a point.
+    const auto modelNamed = [](const char* name) -> qmodel_t* {
+        qmodel_t* model = nullptr;
+        for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+        {
+            if(!strcmp(cl.model_precache[i]->name, name))
+            {
+                model = cl.model_precache[i];
+                break;
+            }
+        }
+        const size_t n = strlen(name);
+        const bool derivedGun = strstr(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
+        if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
+        {
+            model = Mod_ForName(name, false);
+        }
+        return model && !client::lateBrushModel(model) ? model : nullptr;
+    };
     const GhostLook& look = ghostLook;
     const bool looked = look.valid && probedChoice(tg.sel) && look.entry == tg.sel.entry && !strcmp(look.classname, tg.sel.classname);
-    const char* const name = looked ? look.model : tg.sel.model;
-    qmodel_t* model = nullptr;
-    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
-    {
-        if(!strcmp(cl.model_precache[i]->name, name))
-        {
-            model = cl.model_precache[i];
-            break;
-        }
-    }
-    const size_t n = strlen(name);
-    const bool derivedGun = strstr(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
-    if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
-    {
-        model = Mod_ForName(name, false);
-    }
-    if(!model || client::lateBrushModel(model))
+    qmodel_t* model = modelNamed(looked ? look.model : tg.sel.model);
+    if(!model)
     {
         return;
+    }
+    // An armed monster's held weapons (ArmedGhost: where the layer's pose holds them on the body standing, turned with
+    // the ghost).
+    const ArmedGhost& ag = armedGhost;
+    if(tg.sel.armed && ag.kind == tg.sel.kind && ag.code == tg.sel.value && ag.code2 == tg.sel.value2)
+    {
+        const glm::mat3 body = held::axesFromAngles(&tg.ghostAngles[0], false);
+        for(int h = 0; h < ag.count; h++)
+        {
+            qmodel_t* wm = ag.model[h][0] ? modelNamed(ag.model[h]) : nullptr;
+            entity_t* we = wm ? CL_NewTempEntity() : nullptr;
+            if(!we)
+            {
+                continue;
+            }
+            const glm::vec3 at = tg.ghostOrigin + body * ag.origin[h];
+            const glm::mat3 turn = body * held::axesFromAngles(&ag.angles[h][0], false);
+            held::anglesFromAxes(turn, we->angles, false);
+            for(int k = 0; k < 3; k++)
+            {
+                we->origin[k] = at[k];
+            }
+            we->model = wm;
+            we->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
+            tg.ghostParts[h] = we;
+        }
     }
     entity_t* ent = CL_NewTempEntity();
     if(!ent)
@@ -1897,7 +2213,7 @@ const client::EntityVr* ghostVr(const entity_t* e)
 
 float entityGlow(const entity_t* e)
 {
-    if(e && e == tg.ghostEnt)
+    if(e && (e == tg.ghostEnt || e == tg.ghostParts[0] || e == tg.ghostParts[1]))
     {
         return 0.7f; // (the ghost: a hologram in the tool's hue)
     }
@@ -1973,6 +2289,35 @@ void selectSpawnable(int i)
     select(i);
     Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
 }
+
+namespace armed
+{
+void refresh() { armedRefresh(); }
+int generation() { return armedCat.valid ? armedCat.generation : 0; }
+int kindCount() { return armedCat.valid ? armedCat.kindCount : 0; }
+const char* kindName(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].name : ""; }
+const char* kindModel(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].model : ""; }
+int weaponCount() { return armedCat.valid ? static_cast<int>(armedCat.weapons.size()) : 0; }
+int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i].code : 0; }
+const char* codeName(int code) { return armedCodeName(code); }
+int fits(int kind, int code) { return armedFits(kind, code); }
+bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
+bool chosen() { return tg.sel.valid && tg.sel.armed; }
+
+void choose()
+{
+    armedChoose();
+    Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+}
+
+const char* ghostModel(int hand)
+{
+    const ArmedGhost& g = armedGhost;
+    return hand >= 0 && hand < g.count && chosen() && g.kind == tg.sel.kind && g.code == tg.sel.value && g.code2 == tg.sel.value2
+               ? g.model[hand]
+               : "";
+}
+} // namespace armed
 
 const char* toolName(int tool)
 {
@@ -2357,6 +2702,47 @@ void select_f()
     Con_Printf("vr_toolgun_select: no entry labelled \"%s\"\n", label);
 }
 
+// vr_toolgun_select_armed [<kind> [<weapon> [<weapon2>]]]: the Armed Humanoid page's choice (vr_toolgun_armed_kind,
+// _weapon, _weapon2 set to those given first): the table's row, its right hand's "weapon" (0 random from the pool, -1
+// unarmed, a weapon's code: vr_toolgun_armed_list), its left hand's (0 none).
+void selectArmed_f()
+{
+    cvar_t* const cvars[3] = {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2};
+    for(int a = 1; a < Cmd_Argc() && a <= 3; a++)
+    {
+        Cvar_SetValueQuick(cvars[a - 1], Q_atof(Cmd_Argv(a)));
+    }
+    toolgun::armed::choose();
+}
+
+// vr_toolgun_armed_list: the Armed Humanoid page's lists: the kinds (the armed monsters' table's rows), each weapon's
+// code and name and what each kind makes of it ("1h": one-handed, it pairs; "-": not held).
+void armedList_f()
+{
+    armedRefresh();
+    const ArmedCatalogue& c = armedCat;
+    if(!c.valid)
+    {
+        Con_Printf("armedlist: no game running\n");
+        return;
+    }
+    for(int k = 0; k < c.kindCount; k++)
+    {
+        Con_Printf("armedlist: kind %d %s %s %s frame %d\n", k, c.kinds[k].name, c.kinds[k].spawn, c.kinds[k].model,
+            c.kinds[k].frame);
+    }
+    for(const ArmedWeapon& w : c.weapons)
+    {
+        char fits[64] = "";
+        for(int k = 0; k < c.kindCount; k++)
+        {
+            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " 1h" : " 2h", sizeof(fits));
+        }
+        Con_Printf("armedlist: weapon %d \"%s\" class %d:%s\n", w.code, w.name, w.fits[0] / 4, fits);
+    }
+    Con_Printf("armedlist: %d kinds, %d weapons\n", c.kindCount, static_cast<int>(c.weapons.size()));
+}
+
 void pick_f()
 {
     tg.picking = !tg.picking;
@@ -2455,6 +2841,17 @@ void status_f()
             Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f\n", tg.ghostEnt->model ? tg.ghostEnt->model->name : "?",
                 tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2]);
         }
+        for(int h = 0; h < 2; h++)
+        {
+            if(const entity_t* w = tg.ghostParts[h]; w && tg.ghostEnt)
+            {
+                // (an armed monster's held weapon: its place from the body's)
+                Con_Printf("toolgun: ghost holds %s in its %s hand at %.1f %.1f %.1f from it, angles %.0f %.0f %.0f\n",
+                    w->model ? w->model->name : "?", h ? "left" : "right", w->origin[0] - tg.ghostEnt->origin[0],
+                    w->origin[1] - tg.ghostEnt->origin[1], w->origin[2] - tg.ghostEnt->origin[2], w->angles[0], w->angles[1],
+                    w->angles[2]);
+            }
+        }
         if(ghostHold.move >= 0)
         {
             const glm::vec3& p = hands::current().pos[ghostHold.move];
@@ -2499,6 +2896,8 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_spawn_test", spawnTest_f);
     Cmd_AddCommand("vr_toolgun_spawn_trace", spawnTrace_f);
     Cmd_AddCommand("vr_toolgun_select", select_f);
+    Cmd_AddCommand("vr_toolgun_select_armed", selectArmed_f);
+    Cmd_AddCommand("vr_toolgun_armed_list", armedList_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);

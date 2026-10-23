@@ -9,6 +9,7 @@
 #include "vr_files.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
+#include "vr_notectx.hpp"
 #include "vr_progs.hpp"
 #include "vr_setup.hpp"
 #include "vr_toolgun.hpp"
@@ -793,6 +794,10 @@ bool start(const char* id, const char* hint)
     phaseSince = realtime;
     Con_Printf("vr_scenario: %s: loading %s\n", id, state.run.map.cStr());
     Cbuf_AddText(va("map %s\n", state.run.map.cStr()));
+    if(!runAll)
+    {
+        notectx::testRun(state.run.id.cStr()); // (named in the voice notes that follow)
+    }
     return true;
 }
 

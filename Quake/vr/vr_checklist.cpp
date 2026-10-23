@@ -546,4 +546,45 @@ void command_f()
     }
 }
 
+// The item last hovered or picked in the menu, for a voice note's context (vr_notectx.cpp): by its text (the list may
+// change before the note).
+za::String hoveredItemText;
+za::String hoveredItemSection;
+double hoveredItemAt = -1.0;
+
+void hovered(int item)
+{
+    if(item < 0 || item >= itemCount())
+    {
+        return;
+    }
+    hoveredItemAt = realtime;
+    if(hoveredItemText != state.texts[item])
+    {
+        hoveredItemText = state.texts[item];
+        hoveredItemSection = sectionName(sectionOf(item));
+    }
+}
+
+bool lastHovered(za::String& text, za::String& section, int& item, double& when)
+{
+    if(hoveredItemAt < 0.0)
+    {
+        return false;
+    }
+    text = hoveredItemText;
+    section = hoveredItemSection;
+    when = hoveredItemAt;
+    item = -1;
+    for(int i = 0; i < itemCount(); i++)
+    {
+        if(state.texts[i] == hoveredItemText)
+        {
+            item = i;
+            break;
+        }
+    }
+    return true;
+}
+
 } // namespace qvr::checklist

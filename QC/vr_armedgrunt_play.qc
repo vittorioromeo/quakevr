@@ -384,6 +384,12 @@ void(entity attacker, entity targ) VR_AG_Parried =
     float chance = cvar_hget(cvarh_vr_agrunt_parry_disarm) * (vr_parry_welltimed ? 1.5 : 1);
     if(random() < chance)
     {
+        // (two weapons: the striking hand's; both swinging, either)
+        float left = attacker.vr_ag_act_hand == 1 || (attacker.vr_ag_act_hand == 2 && random() < 0.5);
+        if(attacker.vr_ag_prop2 && !attacker.vr_ag_tug_pl && left != attacker.vr_ag_prop.vr_ag_left)
+        {
+            VR_AG_Swap(attacker);
+        }
         VR_AG_Disarm(attacker, attacker.origin - targ.origin, 120, "its blow parried");
     }
 };
@@ -589,6 +595,12 @@ float(entity g) VR_AG_FallDrop =
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
     VR_AG_DisarmFeedback(g, wid);
     VR_AG_Log("dropped its weapon as it fell");
+    if(g.vr_ag_prop) // (its other hand's too)
+    {
+        makevectors('0 1 0' * random() * 360);
+        setorigin(g.vr_ag_prop, vlen(g.vr_ag_prop.origin - g.origin) < 48 ? g.vr_ag_prop.origin : g.origin + '0 0 4');
+        VR_AG_DropHeld(g, v_forward * (20 + random() * 30) + '0 0 60');
+    }
     return TRUE;
 };
 

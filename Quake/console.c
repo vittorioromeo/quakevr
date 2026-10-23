@@ -1425,6 +1425,7 @@ void Con_Printf (const char *fmt, ...)
 		return;
 
 	VR_TestConsolePrint (msg); // QVR: vr_waitprint's wait for a line
+	VR_NoteConsolePrint (msg); // QVR: the voice notes' console ring (vr_notectx.cpp)
 
 	if (!con_initialized)
 		return;

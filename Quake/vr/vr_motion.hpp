@@ -20,6 +20,9 @@
 
 #include "vr_backend.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/String/String.hpp"
+
 
 struct edict_s;
 
@@ -66,6 +69,19 @@ void qcEvent(const char* kind, const char* sub, int hand, float value, const flo
     const char* detail);
 void qcPoint(int hand, const float* at, const char* name);
 void qcValue(const char* key, const float* value);
+
+// The instant replay (vr_note_replay; vr_notectx.cpp, docs/vr-port/VOICENOTES.md): while voice notes are on (vr_notes),
+// the last vr_note_replay_seconds of host frames are kept as a take's rows (the tracking, the controls, the weapons, the
+// player, the nearest monster, the melee events; no QC sample) and the entities near the player 10 times a second.
+// saveReplay hands them to the thread pool (the rings start again): a take (label "replay", vr_motion_play plays it) at
+// takePath and the entities' CSV at entsPath; `summary` says how much. False: nothing kept.
+[[nodiscard]] bool saveReplay(const za::String& takePath, const za::String& entsPath, za::String& summary);
+// The rings' memory (bytes, their capacity), rows, entity snapshots and the seconds the rows span.
+void replayStats(za::SizeT& bytes, int& rows, int& ents, double& seconds);
+void finishReplays(); // waits for the replays being written
+// Their mean cost on the main thread (microseconds): a host frame's row, a server frame's sample and entity snapshot
+// (when the replay alone wants them: no take armed or played).
+void replayCost(double& rowMicros, double& serverMicros);
 
 // For the menu (vr_menu.cpp): the chosen label's takes so far, the button, the last saved file.
 [[nodiscard]] const char* labelStatus();
