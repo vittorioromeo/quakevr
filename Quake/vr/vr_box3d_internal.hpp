@@ -1469,6 +1469,7 @@ float headPropMass(const char* model);
 int nearestProp();
 float propMass(edict_t* ent);
 bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass, float restitution, float most);
+bool loosenNeck(RagdollBodies& r, edict_t* ent); // (ragdollNeckSnapped's joints; a saved game's snapped neck made so again)
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model,
     const char* key, float value, bool probe, float weaponFlags);
 } // namespace qvr::box3d

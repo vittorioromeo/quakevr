@@ -127,7 +127,7 @@ Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
   mon_drole.qc: if (!ai_checkmelee(MONAI_MELEEDROLE1,MONAI_MELEEZTALL): melee arc hit test (VR_MeleeArc_Hits(side != 0))
   mon_freddie.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(side != 0))
   mon_minotaur.qc: if (!ai_checkmelee(MONAI_MELEEMINOTAUR, MONAI_MELEEZTALL) ||: melee arc hit test (VR_MeleeArc_Hits(side != 0))
-  mon_ogre.qc: if (!ai_checkmelee(self.meleerange,FALSE)): melee arc hit test (VR_MeleeArc_Hits(TRUE))
+  mon_ogre.qc: if (!ai_checkmelee(self.meleerange,FALSE)): melee arc hit test (VR_MeleeArc_Hits(!vr_melee_ahead))
   mon_seeker.qc: if (!ai_checkmelee(MONAI_MELEESEEKER, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
   mon_shambler.qc: if (!ai_checkmelee(MONAI_MELEESHAM, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(side != 0))
   mon_dog.qc: if (!ai_checkmelee(MONAI_MELEEDOG,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))

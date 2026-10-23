@@ -435,7 +435,7 @@ ARC_HITS = [
     ("mon_drole.qc", "if (!ai_checkmelee(MONAI_MELEEDROLE1,MONAI_MELEEZTALL)", "side != 0"),
     ("mon_freddie.qc", "if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL))", "side != 0"),
     ("mon_minotaur.qc", "if (!ai_checkmelee(MONAI_MELEEMINOTAUR, MONAI_MELEEZTALL) ||", "side != 0"),
-    ("mon_ogre.qc", "if (!ai_checkmelee(self.meleerange,FALSE))", "TRUE"),
+    ("mon_ogre.qc", "if (!ai_checkmelee(self.meleerange,FALSE))", "!vr_melee_ahead"),
     ("mon_seeker.qc", "if (!ai_checkmelee(MONAI_MELEESEEKER, MONAI_MELEEZTALL))", "FALSE"),
     ("mon_shambler.qc", "if (!ai_checkmelee(MONAI_MELEESHAM, MONAI_MELEEZTALL))", "side != 0"),
 ] + [
@@ -446,6 +446,13 @@ ARC_HITS = [
                       ("xmas_santa", "SANTA"), ("xmas_snowman", "SNOWMAN"))
 ]
 ARC_LAUNCHES = 21  # ai_checkattack.qc's `self.th_melee ();` calls, each behind VR_MeleeArc_Launch (it turns first)
+# The ogres' overhead smash comes down ahead, as id's ogre's (orig_mon_ogre.qc; ROUND22.md, "Melee arc: ... the ogre's
+# smash", "1.1 open issues"): (file, frame function prefix, first and last hit frame). On those frames, with the arc on,
+# ai_charge steps straight ahead (VR_MeleeArc_ChargeAhead), ai_face doesn't turn, and the chainsaw's blow is tested
+# with the normal arc, not the swing's wide one (vr_melee_ahead around the call: mon_ogre.qc's ARC_HITS side).
+SMASH_AHEAD = [("mon_ogre.qc", "ogre_smash", 6, 11), ("mon_hogre.qc", "hogre_smash", 6, 11)]
+_SMASH = " // AD support: melee arc: the smash comes down ahead (fight.qc)"
+QVR_NAMES |= {"VR_MeleeArc_On", "VR_MeleeArc_ChargeAhead", "vr_melee_ahead"}
 
 # Ranged aim cone (vr_aimcone.qc; ROUND22.md, "Ranged aim cone"): AD's launchers bend a monster's shot toward the player
 # at most its aim cone off its facing (VR_AimCone_Bend: its shooter's facing; the player's, traps' and monster-on-monster
@@ -921,6 +928,12 @@ def main():
         src[fn] = line_patch(src[fn], fn, needle, lambda l: l.replace(
             needle, needle.replace(call, "(%s && VR_MeleeArc_Hits(%s))" % (call, side))),
             " // AD support: melee arc (fight.qc VR_MeleeArc_Hits)")
+    for fn, prefix, first, last in SMASH_AHEAD:
+        for n in range(first, last + 1):
+            src[fn] = line_patch(src[fn], fn, "void() %s%d" % (prefix, n), lambda l: re.sub(
+                r"\bchainsaw\(([^()]*)\);", r"vr_melee_ahead = TRUE; chainsaw(\1); vr_melee_ahead = FALSE;",
+                re.sub(r"\bai_charge\((\d+)\);", r"if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(\1); else ai_charge(\1);",
+                       l.replace("ai_face();", "if (!VR_MeleeArc_On()) ai_face();"))), _SMASH)
     for fn, func, kind in AIM_WAITS:
         src[fn] = aim_wait_patch(src[fn], fn, func, kind)
     src["ai_checkattack.qc"] = line_patch(

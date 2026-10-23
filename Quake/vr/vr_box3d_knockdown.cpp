@@ -654,11 +654,24 @@ bool ragdollDrowning(edict_t* ent)
 bool ragdollNeckSnapped(edict_t* ent)
 {
     RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
-    if(!rp || !rp->rig || vr_foegrab_necksnap_loose.value == 0.f)
+    if(!rp || !loosenNeck(*rp, ent))
     {
         return false;
     }
-    RagdollBodies& r = *rp;
+    // (Kept on the entity: a saved game's ragdoll, made again, is loosened so too: vr_box3d_ragdoll.cpp.)
+    if(fields().vr_necksnapped >= 0)
+    {
+        fieldFloat(ent, fields().vr_necksnapped) = 1.f;
+    }
+    return true;
+}
+
+bool loosenNeck(RagdollBodies& r, edict_t* ent)
+{
+    if(!r.rig || vr_foegrab_necksnap_loose.value == 0.f)
+    {
+        return false;
+    }
     const uint32_t neck = neckBones(r);
     if(neck == 0u)
     {

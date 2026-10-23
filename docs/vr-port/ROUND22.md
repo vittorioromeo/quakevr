@@ -17626,3 +17626,64 @@ dummy: the line follows the weapon from the hand to its tip (the head's box roun
 white, real blows turn yellow before they land and red where they land, the dot at the point struck and the damage over
 it. Swings that "should have hit": see whether the swept lines went through the target (a miss there is a detection
 bug) or past it (the weapon's drawn length or the reach).
+
+## 1.1 open issues: checked on next, three fixed (worktree `goreflesh`, branch `agent/open11`, 2026-10-23)
+
+BACKLOG's "Open issues to clear" before 1.1, each checked on next (code and a headless run where one reproduces it).
+
+Fixed here:
+- **AD ogre smash too wide.** id's ogre's smash was made narrow in "Melee arc: ... the ogre's smash"; AD's (`mon_ogre.qc`
+  `chainsaw`, shared with the hunter ogre) still tested every blow with the swing's wide arc and kept turning after you
+  (`ai_charge`'s held turn, the hunter ogre's `ai_face`). `ad_import.py` `SMASH_AHEAD`: on smash6-11 of the ogre and the
+  hunter ogre, with the arc on, `ai_charge` steps straight ahead (`VR_MeleeArc_ChargeAhead`), `ai_face` doesn't turn,
+  and the chainsaw's blow is tested with the normal arc (`vr_melee_ahead`, fight.qc, set around the call; the swing stays
+  wide). Arc off: AD's own code. `--check` 0 of 142. Test (`scratch/ogre_smash.sh`: AD start, ogre, seeds 1-8, facing
+  and a 100-degree step aside, `vr_enemy_melee_arc_debug 1`): 132 smash blows at arc 69, every one 45 degrees or more
+  off (24, at 93-99 degrees after the step) misses; the swing's 169 at arc 89 land to 87 degrees as before. The hunter
+  ogre's smash has the same patch (compiled, not run); its thrust is left wide.
+- **Stiff neck after a save load.** A snapped neck's loose joints lived only in the ragdoll; a loaded game's ragdoll was
+  made again stiff. `ragdollNeckSnapped` now writes `.vr_necksnapped` (QVR_FIELD; QC combat.qc), and a ragdoll made for
+  an entity with it is loosened again (`loosenNeck`, the old body; vr_box3d_ragdoll.cpp after the active death's
+  start). Test (`scratch/neck_load.sh`, vrfiringrange grunt, `vr_foegrab_necksnap_test`, save, load,
+  `vr_foegrab_necksnap_debug 1`): after the load "necksnap: 261 monster_army's head joint loose: swing 45 -> 120 deg"
+  is printed again for the remade ragdoll (before: nothing, its neck at 45 degrees).
+- **Flame crackle lost on load.** Sounds are not saved; `.wt_crackle` was, so a flame prop's or a wall torch's crackle
+  never started again. `OnLoadGame` schedules `VR_Crackles_AfterLoad` (vr_burning.qc, 0.1 s later: a sound started in
+  the load's own frame never reaches the client): each `wt_crackle` loop started again, each burning fire's crackle
+  marked silent so its next look (0.25 s) starts it. Test (`scratch/crackle_load.sh`, `-Sound`, a toolgun Small Flame,
+  save, load, `snd_show 2`): "crackles: 1 started again after the load", fire1.wav on the flame's entity after the load
+  (a burning body's restart not run headless).
+
+Already fixed (closed):
+- **`weapons::value` and an inheriting slot's own defaults**: fixed in "AD guns as burst rifle variants"
+  (`QVR_WEAPON_OWN`, merge 2f1e952c0), then moot for AD: "AD weapons inherit no weapon settings" (merge bc62f558e).
+  `vr_wofs_dump` now: 6 slots inherit (11-15, 25), none of AD's 27-35.
+- **AD crossbow hold floats**: the model turned to face +x with his pose converted exactly, anchors and the off hand's
+  hotspot under the fore-stock ("AD crossbow: turned to face +x", merge daacc1b81), his tuned values as defaults
+  (adnoinherit), the bolt on the rail (xbowanim, 8bd671ca6). Nothing reproduces "floating" headless: his VR check.
+- Decisions: particle cap 0.15 (`vr_particle_max_screen`), Item Pickup Mode Immersive by default (`vr_carry` 1; Auto-
+  Collect an option, his 2026-10-18 note), the shadow atlas on demand (`vr_shadow_atlas_grow` 1): all on next.
+
+Still open (reported, not fixed here):
+- **Dragging an enemy by the legs: real, the legs don't drag.** `struggle_test.py legpull` (pulled down by both shins,
+  then walked back): the hands move 56 units, the grunt's pelvis 0-2 (275.3 -562.5 throughout), the holds' lag 12 -> 68
+  units (under the 72-unit let-go). The same at `vr_foegrab_legpull_hold_strength` 0.1 / 0.5 / 1 (lag 68 / 53 / 51,
+  pelvis still), with the struggle off (lag 41/71), and at a 150 u/s walk. A head drag (`headdrag`) moves the pelvis
+  85 units at a lag of 2-10. So it is not the hold's strength: the leg pull's hand-over hold (`handOver`,
+  `ragdollHoldSoft`) doesn't pull the body; cause not found (next: `vr_debug_ragdoll` on the hold's joint, the QC's
+  `mainhand_held` check in `ragparts.cpp` that ends a grab silently).
+- **Crowbar/shotgun double wall hits**: no change since "Melee on walls and floors" (takes with two wall blows: crowbar
+  8 -> 13, shotgun 3 -> 16 of 70; the 0.35 s re-hit wait, `VR_MELEE_WALL_AGAIN`). The takes-at-a-wall harness was in
+  that branch's scratch (not committed); a fix (re-arm only after the hand leaves the wall) needs it rebuilt.
+- **Close two-hand crate grips pull one hand in** (gripfit2's "Open"): untouched since; the two-hand turn from grips
+  about 13 cm apart (`vr_carry2h.cpp`, `noLine` 3 cm) wants more turn than the prop keeps. Its test scripts were scratch.
+- **Chain stretch on fast swings**: `magchain_test.sh` now: fast tether worst piece 78 % off its length (mean 19 %;
+  magchain2 had 89 %), lanyard 16.7 %. `vr_magholster_chain_iterations` 40 instead of 12: 74.6 % (mean 15.8): not the
+  solver's convergence; the pull-only pieces bunching as the hand comes back.
+- **The Italian player's startup crash**: no report yet. `f3bbe28ae` (known-incompatible OpenXR layers skipped, after
+  the 1.0.1 OBSMirror/VDXR crash) and the always-on run logs cover the likely cause; the motion recorder's real-play
+  crash around a map load (`7b1f18b66`) only with a take recording.
+
+In VR: an AD ogre's overhead smash (ad_start, or the toolgun): step aside as it winds up: it comes down where it faced;
+its side swing still sweeps. Snap a grunt's neck, save, load, carry the body by the head: it lolls. Spawn a flame with the
+toolgun (and set a crate alight), save, load: both crackle.

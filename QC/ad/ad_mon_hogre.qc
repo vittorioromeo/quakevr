@@ -154,12 +154,12 @@ void() ad_hogre_smash2	=[	$smash2,	ad_hogre_smash3	] {ad_ai_charge(9);};
 void() ad_hogre_smash3	=[	$smash3,	ad_hogre_smash4	] {ad_monster_footstep(ad_FALSE); ad_ai_charge(9);};
 void() ad_hogre_smash4	=[	$smash4,	ad_hogre_smash5	] {ad_ai_charge(12);};
 void() ad_hogre_smash5	=[	$smash5,	ad_hogre_smash6	] {ad_ai_charge(12);};
-void() ad_hogre_smash6	=[	$smash6,	ad_hogre_smash7	] {ad_ai_charge(5); ad_chainsaw(0,1); ad_monster_footstep(ad_FALSE);};
-void() ad_hogre_smash7	=[	$smash7,	ad_hogre_smash8	] {ad_ai_charge(5); ad_chainsaw(0,1);};
-void() ad_hogre_smash8	=[	$smash8,	ad_hogre_smash9	] {ad_ai_face(); ad_chainsaw(0,1);};
-void() ad_hogre_smash9	=[	$smash9,	ad_hogre_smash10 ] {ad_ai_face(); ad_chainsaw(0,1);};
-void() ad_hogre_smash10=[	$smash10,	ad_hogre_smash11 ] {ad_ai_face(); ad_chainsaw(0,1);};
-void() ad_hogre_smash11=[	$smash11,	ad_hogre_smash12 ] {ad_ai_face(); ad_chainsaw(0,1);
+void() ad_hogre_smash6	=[	$smash6,	ad_hogre_smash7	] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(5); else ad_ai_charge(5); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE; ad_monster_footstep(ad_FALSE);}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_hogre_smash7	=[	$smash7,	ad_hogre_smash8	] {if (VR_MeleeArc_On()) VR_MeleeArc_ChargeAhead(5); else ad_ai_charge(5); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_hogre_smash8	=[	$smash8,	ad_hogre_smash9	] {if (!VR_MeleeArc_On()) ad_ai_face(); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_hogre_smash9	=[	$smash9,	ad_hogre_smash10 ] {if (!VR_MeleeArc_On()) ad_ai_face(); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_hogre_smash10=[	$smash10,	ad_hogre_smash11 ] {if (!VR_MeleeArc_On()) ad_ai_face(); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE;}; // AD support: melee arc: the smash comes down ahead (fight.qc)
+void() ad_hogre_smash11=[	$smash11,	ad_hogre_smash12 ] {if (!VR_MeleeArc_On()) ad_ai_face(); vr_melee_ahead = ad_TRUE; ad_chainsaw(0,1); vr_melee_ahead = ad_FALSE; // AD support: melee arc: the smash comes down ahead (fight.qc)
 self.nextthink = self.nextthink + random()*0.2;};	// slight variation
 void() ad_hogre_smash12=[	$smash12,	ad_hogre_smash13 ] {ad_ai_face();};
 void() ad_hogre_smash13=[	$smash13,	ad_hogre_smash14 ] {ad_ai_face();};
