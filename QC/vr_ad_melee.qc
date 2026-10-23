@@ -599,12 +599,15 @@ void(float request, entity p) AD_MeleeTest =
     if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
     if(request == 126) { VR_ADMelee_CurveTest(p); return; }
     if(request == 127 || request == 135) { VR_ADMelee_HolsterTest(p, request == 135); return; }
-    if(request == 136 || request == 137)
+    if(request >= 136 && request <= 139)
     {
-        // The four monster swords held, two at a time (to look at them): 136 the Phantom Swordsman's and the justice
-        // knight's, 137 the Dark Prince's and the judicator's.
-        float m1 = request == 136 ? VR_ADMELEE_PHANTOM : VR_ADMELEE_DPRINCE;
-        float m2 = request == 136 ? VR_ADMELEE_JUSTICE : VR_ADMELEE_JUDGE;
+        // The four monster swords held, two at a time (to look at them; the main hand's for vr_melee_sweep_test): 136
+        // the Phantom Swordsman's and the justice knight's, 137 the Dark Prince's and the judicator's, 138 and 139 the
+        // other way round.
+        float m1 = request == 136 ? VR_ADMELEE_PHANTOM : (request == 137 ? VR_ADMELEE_DPRINCE :
+            (request == 138 ? VR_ADMELEE_JUSTICE : VR_ADMELEE_JUDGE));
+        float m2 = request == 136 ? VR_ADMELEE_JUSTICE : (request == 137 ? VR_ADMELEE_JUDGE :
+            (request == 138 ? VR_ADMELEE_PHANTOM : VR_ADMELEE_DPRINCE));
         VR_ADMelee_Ensure(m1);
         VR_ADMelee_Ensure(m2);
         VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(m1));

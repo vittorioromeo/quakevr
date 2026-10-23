@@ -5,6 +5,7 @@
 // the striking point, the contact), then PASS or FAIL:
 //   A  the blade's middle swept across a box (20 units), its tip past it: both strike; swept, the contact is where the
 //      blade crossed the box's middle (old: its outermost point, at its edge).
+//   E  a small box (6 units) only the blade's outer third crosses (0.85 of its line): swept strikes it.
 //   B  a thin pole (1 unit) halfway between the two striking points farthest apart: swept strikes it.
 //   C  a hammer's or mace's head (when it has one) swept by a small box beside its line, within the head: swept strikes it.
 //   F  a box the sweep passes 3 units clear of (past the tip, past a head's face): neither strikes.
@@ -159,6 +160,19 @@ void(entity p) VR_Melee_SweepTest =
         bprint("meleesweep: A FAIL\n");
         vr_mswt_fail = TRUE;
     }
+
+    // E: a small box (6 units) only the blade's outer third crosses (0.85 of its line): swept strikes it.
+    float fE = 0.85;
+    vector cE = O - side * (len * 0.5) + side * (len * fE);
+    setorigin(t, cE);
+    setsize(t, '-3 -3 -3', '3 3 3');
+    VR_MSWT_Case("E (only the outer third across a box)", b, t, thing, g0, side, g1, side, up, len, cE);
+    if(!vr_mswt_hit1)
+    {
+        bprint("meleesweep: E FAIL\n");
+        vr_mswt_fail = TRUE;
+    }
+    setsize(t, '-10 -10 -10', '10 10 10');
 
     // B: a thin pole halfway between the two striking points farthest apart.
     float i;

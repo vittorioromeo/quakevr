@@ -17172,7 +17172,7 @@ model made anew by `vr_admelee.cpp` from the monster's own sword model ("#melee"
   refused with a buzz, they fall; my call for the judicator's 1.5 m blade); the Dark Prince's and the justice knight's
   holster.
 - **Weapon Offsets slots 47-50** (`numSlots` 50; new cvars, no migration): slot 42's (the death knight's) settings,
-  each with its tip (MuzzleAnchor from `vr_admelee_models`), its second hand towards the handle's end (`TwoHHandAnchor`:
+  each with its tip (MuzzleAnchor from `vr_admelee_models`), its offsets (below: "Held up the blade"), its second hand towards the handle's end (`TwoHHandAnchor`:
   5 AD units below the grip on the long hilts), mass, balance and Heft (0.9, 0.35, 0.5, 0.6).
 - **Corpses** (`vr_monstermods.cpp`): the Dark Prince's sword (870-910, the death knight's), the justice knight's
   (0-91) and the judicator's (680-779) hidden in their deaths (103-121): "the sword (92 vertices) hidden in 19 death
@@ -17193,11 +17193,20 @@ model made anew by `vr_admelee.cpp` from the monster's own sword model ("#melee"
   PASS. `vr_admelee_spine`: all four straight, on their lines. ad_import --check 0 of 142; eval.sh verdicts unchanged.
 - Eyeshots: `scratch/sw4_held_v2.png` (left: the Phantom's above, the justice knight's below; right: the Dark Prince's
   above, the judicator's below).
-- **Open**: the hold report (`VR_ADMelee_Hold`, QC's `muzzlepos`) gives the justice knight's, judicator's and Phantom's
-  tips at 27.8, 34.4 and 38.3 units from the hand, where their anchors (bound right: `vr_anchor_info`) and the drawn
-  blades (`vr_admelee_spine`) say about 37, 47 and 53; the Dark Prince's (the death knight's slot) 34.7 as expected.
-  Not found why (not Heft, mass or the second hand's anchor); if the blow's far end uses it, their last third may not
-  reach.
+- **Held up the blade (fixed)**: the justice knight's, judicator's and Phantom's tips were 27.8, 34.4 and 38.3 units
+  from the hand (`muzzlepos`, and the drawn model's farthest point the same: `vr_model_collide_bench`), not about 37, 47
+  and 53. The blow's line (`VR_Melee_Line`) runs from the hand to `muzzlepos`, the drawn tip, so it matched what was
+  drawn: the drawn sword was held a third of the way up its blade. Why: a slot's Scale scales the model about its box's
+  corner (`hdr->scale_origin`; vr_render.cpp: S(Scale) after T(scale_origin) S(hdr->scale)), not about the grip. With
+  HandAnchor retired, the slot's Offset puts the hand: slot 42's offsets put it at the grip of a model whose box corner
+  is the death knight's sword's (the Dark Prince's: the same). The new models' corners lie lower (their longer hilts
+  and blades), so the same offsets left the grip 12-19 units below the hand. Slots 47, 49 and 50's OffsetX/Y/Z now
+  add (1 - 0.34) x (the death knight's corner - theirs). After: tips 55.1, 36.8 and 48.3 from the hand (drawn 55.5,
+  37.0, 48.6), the Dark Prince's 34.7 as before. `vr_melee_sweep_test` gained case E (a 6-unit box only the outer third
+  of the line crosses, at 0.85): hit by the tip with all four, before and after (the line always matched the drawn
+  tip; what was short was the drawn sword in the hand). `vr_ad_test 138`, `139`: the justice knight's or the
+  judicator's in the main hand (for the sweep test). The sweep test's F and D cases fail on ad_dm1 for these swords and
+  for the Dark Prince's (the death knight's own slot) alike: not from this change.
 
 **In VR:** with Rogue's data, kill a Phantom Swordsman: no body, its sword lies; two hands swing it, one slowly and
 weakly; a hip or chest holster refuses it. In AD kill the Dark Prince, a justice knight and the judicator (its last
