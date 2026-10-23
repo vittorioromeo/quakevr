@@ -154,7 +154,11 @@ float(float wid) VR_AG_SingleUse = { return VR_IsEnemyGun(wid); };
 float(float wid) VR_AG_MinRange =
 {
     if(wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET) { return 190; }
-    if(wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADGRENADE) { return 160; }
+    if(wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADGRENADE)
+    {
+        // (a grenade bursting on its target there still reaches it: further with vr_agrunt_blast_safe)
+        return cvar_hget(cvarh_vr_agrunt_blast_safe) ? 210 : 160;
+    }
     return 0;
 };
 
@@ -588,7 +592,12 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
     {
         vector next = pos + vel * dt;
         vel_z = vel_z - g * dt;
-        traceline(pos, next, FALSE, self);
+        // (a box about it: a near miss of its target's body, which may be bigger than its box, bursts there too)
+        tracebox(pos, '-10 -10 -10', '10 10 10', next, FALSE, self);
+        if(trace_startsolid)
+        {
+            traceline(pos, next, FALSE, self);
+        }
         if(trace_fraction == 1)
         {
             pos = next;
@@ -608,13 +617,12 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
     return pos;
 };
 
-// The least distance from itself its round of `wid` may burst at (its blast's reach and a margin: the grenades' and the
-// mines' a little more, their path less sure).
+// The least distance from itself its round of `wid` may burst at: a blast reaches 160 units (T_RadiusDamage's 120 + 40),
+// and a margin (a mine's more: it blows at anything within 140 of it, the grunt too when it comes back by).
 float(float wid) VR_AG_SafeDist =
 {
     if(wid == WID_PROXIMITY_GUN) { return 230; }
-    if(wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET) { return 180; }
-    return 200;
+    return 180;
 };
 
 // Whether its launcher's round fired along `dir` from the held weapon `p` would burst far enough from it (TRUE for any
@@ -1184,6 +1192,8 @@ float() VR_AG_CheckAttack =
         // Its round wouldn't burst clear of it from here (a wall, a ledge ahead): a step aside first.
         self.vr_ag_dodge_until = time + 0.5 + random() * 0.5;
         self.lefty = !self.lefty;
+        VR_AG_Log(sprintf("not clear to fire: it would burst %.0f from it (%s at %v)", vlen(vr_ag_blast_at - self.origin),
+            trace_ent.classname, vr_ag_blast_at));
         return FALSE;
     }
     if(random() < VR_AG_Chance(self.vr_ag_wid, enemy_range))

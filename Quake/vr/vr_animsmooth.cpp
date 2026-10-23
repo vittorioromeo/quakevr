@@ -953,14 +953,22 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     int channel, int on, int smooth[4], float weights[4])
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    if(vr_hit_react.value != 1.f || zeroblend || !e->model || hdr->poseverttype != aliashdr_t::PV_QUAKE1 ||
-        VR_IsViewEntity(e) || pose1 < 0 || pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes || !hitreact::reacting(e))
+    // (an armed grunt's arms on its weapon's grips too: hitreact::armsWanted)
+    if(zeroblend || !e->model || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || VR_IsViewEntity(e) || pose1 < 0 ||
+        pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes || !hitreact::bonesWanted(e))
     {
         return on;
     }
     SmoothModel& m = modelData(e->model, hdr);
     if(!rigData(m, e->model, hdr))
     {
+        if(vr_agrunt_ik_debug.value >= 3.f)
+        {
+            const ragdoll::Rig* r = ragdoll::rigFor(e->model);
+            Con_Printf("agik kick: no rig (%s: rig %d, its vertices %d poses %d bones %d; the model's %d %d, next surface %d)\n",
+                e->model->name, r ? 1 : 0, r ? r->numVerts : -1, r ? r->numPoses : -1, r ? r->numBones : -1, hdr->numverts,
+                hdr->numposes, Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ? 1 : 0);
+        }
         return on;
     }
     const ragdoll::Rig& rig = *m.rig;
@@ -974,7 +982,7 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
     rigpose::Rigid kick[ragdoll::maxBones];
-    if(!hitreact::boneKicks(e, rig, posed, kick))
+    if(!hitreact::boneTurns(e, rig, posed, aliashdr, pose1, pose2, b, kick))
     {
         return on;
     }
