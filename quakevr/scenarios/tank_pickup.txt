@@ -1,0 +1,6 @@
+title A flamethrower and a poison sprayer lying on the floor, empty hands
+map vrtesthall
+god
+spawn "AD Flamethrower" 80 -40
+spawn "AD Poison Sprayer" 80 40
+hint Pick up each gun: its tank flies to your back in about a quarter second, the hose following.

@@ -31,6 +31,7 @@ struct ShowFrame
     bool hit = false;  // a blow landed on this sweep
     bool head = false; // a hammer's or mace's head
     glm::vec3 nearEnd{0.f};
+    glm::vec3 strikeFrom{0.f}; // its first striking point (where its blade starts; zero: not sent)
     glm::vec3 grip{0.f};
     glm::vec3 tip{0.f};
     glm::vec3 headLo{0.f};
@@ -124,6 +125,7 @@ void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3
         f.grip = a;
         f.tip = b;
         f.nearEnd = a;
+        f.strikeFrom = glm::vec3{0.f};
         f.ribs = 0;
         return;
     }
@@ -160,6 +162,7 @@ void qvr::meleeshow::add(int hand, int what, const glm::vec3& a, const glm::vec3
     if(what == 1)
     {
         f.nearEnd = a;
+        f.strikeFrom = b;
     }
     else if(what == 2 && f.ribs < ribMost)
     {
@@ -199,6 +202,17 @@ bool qvr::meleeshow::lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm
     grip = f.grip;
     tip = f.tip;
     return true;
+}
+
+bool qvr::meleeshow::lastStrikeFrom(int hand, glm::vec3& at)
+{
+    glm::vec3 n, g, t;
+    if(!lastLine(hand, n, g, t))
+    {
+        return false;
+    }
+    at = meleeShows[hand].frames[meleeShows[hand].last].strikeFrom;
+    return at != glm::vec3{0.f};
 }
 
 void qvr::meleeshow::draw(const glm::vec3& eye)

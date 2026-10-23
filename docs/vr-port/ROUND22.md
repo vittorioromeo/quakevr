@@ -18719,6 +18719,75 @@ white line lies along your knuckles, the blue one out to the fist's width; punch
 and send the printed lines if they should ship. With a sword and a gun: the orange near end is now a dot above the
 forearm tied to the line: check it (and the curve point next to the hand) is easy to take, and the hover highlight.
 
+## The blade's start; the axe's head box (worktree `fastship`, branch `agent/bladeend`, 2026-10-23; vr_cfg_version 197)
+
+Vittorio (note vrstart_2026-10-23_22-34-28, the axe in the main hand): on the axe he can move the tip and the near end
+but not "where the line that belongs to the blade ends"; he wants the blade to match the axe; maybe a volume over the
+whole axe head instead.
+
+**Which point.** The axe's blow line runs from the hand to its tip, the Muzzle anchor (24.18, -0.10, 27.30): the top
+corner of the front bit's edge (vr_axestick.cpp's edge (20.13, 15.81) .. (24.18, 27.30)). Only its striking part
+strikes: QC `VR_Melee_Layout`'s first striking point to the tip (the axe's "head" points at 0.75 and 1: a sword's from
+0.27, the chainsaw's 0.55, the crowbar's 0.2, a gun's 0.5). That start was a fixed share of whatever line the tip and
+near end made: no handle, and not even drawn (the editor drew the whole line alike, its width tube from an arbitrary
+0.2). On the default axe it falls 1.2 units off the edge's lower corner; once the tip moves it drifts with it.
+
+**Blade Start** (new keys, `vr_wofs_bl_from_NN` -1 (the kind's), `bl_from_off_NN`, `bl_from_side_NN` 0; no migration):
+where the striking part starts, a share of the line, and its point off the line (shares, as the curve's points). The line
+runs straight from the hand to it and on to the tip (`blade::fromAt`, added to the curve in `admeleebend`'s slot kinds:
+QC `VR_Melee_BendLine` bends with flag 4 too; `vr_melee_curved_blades 0` straightens it with the rest); the layout's
+striking points are laid from it to the tip, the handle's points before it squeezed into hand .. start (QC
+`VR_Melee_LayoutFrom`, by the track's new `mh_bfrom`; names and parts unchanged). QC sends the first striking point with
+Show Melee Blades (`meleeshow` 1's second vector, `meleeshow::lastStrikeFrom`), so the editor shows the kind's start.
+Editor: a purple "Blade Start" handle (index 10: `bladehandle 10`) at that point, shown 3.5 cm out of the blade's flat on
+the eyes' side (it lies in the axe head) with a tie; dragging it sets all three keys; the line before it is drawn thin
+and grey, the striking part bold with the width tube; Straighten puts it back on the line; the panel's text names it;
+`vr_bladeedit_report` prints `from`, the head and the model's head box.
+
+**Head Box On seeds round the drawn head** (`modelHead`): the drawn model's first-pose vertices past 0.3 of the line (or
+0.25 before the blade start), the box's near end at the lowest vertex 0.15 shares off the line; a slot's stored corners
+come first. **The axe's head box is opt-in** (the author): slot 0 keeps `bl_head 0` but ships the corners 0.5 -1.1077
+-0.0919 .. 1.2303 0.1013 0.0701 (both bits, as the seed gives it), so Head Box On starts from them; on, its volume
+strikes as the head (`VR_Melee_Ribs`), as the mace's. The crowbar: no box (a bar; its striking points cover it).
+
+**Tests** (`scratch/be_test.txt`, `be_test3.txt`, `be_probe4.txt`; vrtesthall, scenario `blade_editor_axe`; the mock
+needs `vr_weapon_grip_mode 1` and the grip held, else the given axe goes to the hip holster):
+- Defaults: the axe's `vr_melee_sweep_test 2` on origin/next and here: near, far and every point the same to 1e-4 (only
+  the head line is new). `eval.sh`: 169/177, no verdict changed; the axe's takes as the baseline. With the head box on by
+  default (an earlier try) 16 moved: the axe's slashes 19.8 -> 49.5, 21.3 -> 35.4, 36.7 -> 49.5, a backswing 39.6 ->
+  14.6 with its decapitation yes -> no (the box met the dummy earlier); hence opt-in. Left: 0.1 noise on punches and a
+  stab, and a sword slash (12-34-13, "the tip") 18.2 -> 21.6, the same in both runs (not the axe; the baseline's drift).
+- Config 197 (`vr_migrate_config` at 196): metal 1.5 / stone 1.5 -> 1 / 0.75; metal 2.2 stays 2.2; at 197, 1.5 stays.
+  `vr_scenario validate`: SCNOK blade_editor_axe; SCNSUM 48 files, 0 with errors, 0 missing tags. Head Box On on the axe
+  seeds 0.5 -1.1077 -0.0919 .. 1.2303 0.1013 0.0701.
+- Handles with the mock other hand at each grab point (hovered, grip, moved, let go), the axe: tip 2 along -> line 8.55
+  -> 10.55; near end 2 back -> 0.25 -> 0.44; head corner 1 along -> hi x 1.23 -> 1.33; Blade Start 1 back, 3 out -> 0.75
+  -> 0.655, off 0.284; Done printed the 7 changed lines. QC's point 3 (the head's first) lands on the dragged start (5.62
+  units from the grip, the editor's 5.61).
+- `vr_melee_sweep_test 3` with that start: a box just outside the bend struck by the edited line, missed by the default
+  one. Its "inside" and "width" probes fail on the axe with the old straight line too (struck by both; also with the head
+  box off): the axe's sweep reaches past them in that probe; not looked into.
+- `vr_melee_sweep_test 1` on the edited axe: PASS (C: a box beside the head struck by the head).
+- Eyeshots: `scratch/bladeend_axe_before_crop.png` (before: the line to the edge's top corner, no start shown),
+  `scratch/bladeend_axe_edited.png` (the start dragged out, the head box).
+
+**Breakables** (his request through the coordinator: AD's metal took ~8 axe blows after "Crates: two strong hits"):
+`vr_prop_break_metal` 1.5 -> **1**, `vr_prop_break_stone` 1.5 -> **0.75** (config 197: 1.5 moves, custom values stay).
+Measured with `vr_prop_strike_test down` (-RealTime), the axe on a small crate whose Wood multiplier stands in for the
+breakable (its multiplier x its health's scale: metal 200 health x 1.633, a rubble wall's 10 x 0.5); blows to break from
+the first blow's wear (the test's later strikes missed the moved crate), strong 9 m/s / medium 7 m/s:
+
+| | before 195 | 195 (now) | metal 0.9 | metal 1.0 | stone 0.75 |
+|---|---|---|---|---|---|
+| metal 200 | 2 / 6 | 6 / 15 | 3 / 4 | **3 / 4** | |
+| stone 10 | 1 / 1 | 1 / 2 | | | **1 / 1** |
+
+- [ ] An AD metal breakable: 3-4 full axe blows; a stone one (a rubble wall) one blow.
+- [ ] Edit Blade Shape on the axe (Test scene `blade_editor_axe`): the purple Blade Start out of the head's flat: drag it
+  onto the lower corner of the front edge and the red tip onto its top corner; the bold part follows the edge; Head Box
+  On: the pink box covers both bits (opt-in); Done; swing at the grunt with Show Melee Blades on.
+(The breakables' counts were measured while the axe's head box was still on by default; the axe's first blow read
+16.8 m/s x heft, as the crates' table's 16.2: the counts hold with it off.)
 ## Fuel tanks: the burst's field, no blood, the pickup's flight, armed monsters' back tanks (worktree `gorefx`, branch `agent/tanks2`, 2026-10-23)
 
 His notes (vrfiringrange_2026-10-23_21-23-16, 21-24-32, 21-25-15, 21-25-53). New cvars only (no vr_cfg_version change).
@@ -19012,3 +19081,29 @@ Pictures: `scratch/flail3_eyes.png` (the head hanging under the hand; the hand s
 the hand slowly and turn: it trails and swings; flick it: it swings up and dies down over a few seconds; whirl it: it
 still takes work. Drop it and pick it up: the head swings up from where it lay. Search "flail" in the menus: the Flail
 page first; try Flail Air Drag (lower: swings longer).
+
+## Test scenes: given weapons stay in hand; a bad spawn name no crash; eval's table again (worktree `gorefx`, branch `agent/scnfix`, 2026-10-24)
+
+**Given weapons.** A scene's `give` left the weapon in a hand whose grip was not pressed: with `vr_weapon_grip_mode 0`
+(hold, his setting) the let-go check dropped it or holstered it at once (the mock's hands never grip, so every give
+scene lost its weapons; in VR he had to grab the flail again). Now a give holds it as if just grabbed (QC
+`VRWeaponGivenHeld`, `VR_Scene_HoldGiven` called by vr_scenario.cpp after each give; fields `vr_weapon_given_main/off`):
+it stays until that hand's grip is pressed; from then on the grip holds it as usual (released: let go). Sticky mode
+needed nothing (it already waits for a squeeze and a release) and is unchanged. `vr_scenario runall` now runs each
+scene 3 s of game time and prints SCNHANDS (each hand's given weapon then and now; FAIL when one is gone). Before: the 5
+scenes tried lost every given weapon in hold mode, kept them in sticky. After: all 74 scenes (43 with gives) kept both
+hands' weapons in both modes; with the mock, `+grabmain` then `-grabmain` lets go of it (weapon 13 -> 0).
+
+**Spawn names.** `vr_scenario validate` (and a scene start) from the console crashed on a `spawn` name neither a toolgun
+entry nor a classname with a map loaded: the classname lookup ran with no VM current. It now makes the server's VM
+current (`isClassname`): the line is an SCNERR (`"AD Hell Knight" is no toolgun spawn entry nor classname`), the scene
+not started.
+
+**Kit (eval.sh, not in the repo).** The compare step read each shard's table without checking it had rows: a copy that
+crashed leaves its table empty (made empty before the run), so `lines[1]` raised IndexError and no table printed. Now an
+empty or headless table is reported (`shard N: no table, its K takes not judged (...)` with the crash) and the rest are
+compared. The crashes themselves: `vertsOf` (Quake/vr/vr_modelcollide.cpp:357) reads a null alias header in
+vrmelee-recording, 2 of 8 copies in both the canary and the full set (open, not fixed here).
+
+**In VR:** run the `flail` scene (or any with a give) with grip mode Hold: the weapon is in your hand without gripping
+and stays; grip and let go: it drops as usual. Same in Sticky: a squeeze and a release drops it.

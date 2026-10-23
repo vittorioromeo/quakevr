@@ -665,6 +665,7 @@ void registerCvars()
         // head (Spine, Head 0).
         cvarAt(slot, Key::BladeNear).string = "-1";
         cvarAt(slot, Key::BladeWidth).string = "1";
+        cvarAt(slot, Key::BladeFrom).string = "-1"; // (the kind's own blade start)
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;

@@ -5861,12 +5861,51 @@ float(entity ent, float xHand) VRWeaponLoadProtected =
     return time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand);
 }
 
+// A test scene's weapon given into this hand (vr_scenario's give: VR_Scene_HoldGiven) is held as if just grabbed: with
+// vr_weapon_grip_mode 0 it stays, its grip unpressed, until that hand's grip is pressed; from then on the grip holds it
+// as usual (let go on release). Sticky mode needs nothing: it waits for a squeeze and a release already.
+float(entity ent, float xHand) VRWeaponGivenHeld =
+{
+    entity given = xHand == cVR_MainHand ? ent.vr_weapon_given_main : ent.vr_weapon_given_off;
+    if(given == world)
+    {
+        return FALSE;
+    }
+    if(given != VRGetEntWeaponInst(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    {
+        // Gone from the hand, or the grip took it.
+        if(xHand == cVR_MainHand)
+        {
+            ent.vr_weapon_given_main = world;
+        }
+        else
+        {
+            ent.vr_weapon_given_off = world;
+        }
+        return FALSE;
+    }
+    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1;
+}
+
+// (Engine, vr_scenario: a give placed the weapon in `xHand` of `p`.)
+void(entity p, float xHand) VR_Scene_HoldGiven =
+{
+    if(xHand == cVR_MainHand)
+    {
+        p.vr_weapon_given_main = VRGetEntWeaponInst(p, cVR_MainHand);
+    }
+    else
+    {
+        p.vr_weapon_given_off = VRGetEntWeaponInst(p, cVR_OffHand);
+    }
+}
+
 // Whether the weapon in `xHand` is let go of (to be thrown, holstered or switched to the other
 // hand): with vr_weapon_grip_mode 0 whenever its grip is not held; with 1 ("sticky") only once
 // the grip is let go a second time since the weapon came to the hand.
 float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 {
-    if(VRWeaponLoadProtected(ent, xHand))
+    if(VRWeaponLoadProtected(ent, xHand) || VRWeaponGivenHeld(ent, xHand))
     {
         return FALSE;
     }
@@ -5931,7 +5970,8 @@ float(float xHotspot) VRLetGoDropsAt =
 // a throw fires no last shot as the weapon leaves.
 float(entity ent, float xHand) VRWeaponLeavingHand =
 {
-    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand) || VRWeaponLoadProtected(ent, xHand))
+    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand) || VRWeaponLoadProtected(ent, xHand) ||
+       VRWeaponGivenHeld(ent, xHand))
     {
         return FALSE;
     }

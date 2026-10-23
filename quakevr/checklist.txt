@@ -2,13 +2,16 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Test scenes keep the given weapons in hand: run the flail scene in Hold grip mode: the flail is in hand without gripping and stays; grip and release drops it (Sticky mode: squeeze and release drops it) {test:flail}
+Axe Blade Start: in Edit Blade Shape with the axe, a purple Blade Start handle (just off the head's flat) places where the striking part begins: put it on the edge's lower corner and the red tip on its top corner; the non-striking part draws thin grey; Head Box On starts from a box over both bits (opt-in); Done prints the lines {test:blade_editor_axe}
+AD breakables as before: an AD metal breakable takes ~3 strong (4 medium) axe blows, a stone one breaks in one (vr_prop_break_metal 1, vr_prop_break_stone 0.75)
 Save My Settings as Defaults: at Menu Detail Developer, the corner "Save Default" button (between Toolgun and Checklist): press twice; it says "Saved N"; the file in quakevr/proposed_defaults/ lists every changed setting with its menu path and personal?/debug? tags (also Debug > Playtesting) {test:save_defaults}
 Toolgun loot pillar: a dropped toolgun's pillar is magenta and twice as tall as other weapons' (Graphics > Loot Beams, Developer rows) {test:toolgun_lootbeam}
 Flail ball hangs on its chain: hold still and it hangs below the handle; lower the hand or turn and it trails; a flick swings it up and it dies down over a few seconds; whirling still takes work; drop and re-take it {test:flail}
 Flail sliders: search "flail" in the menus: Combat > Melee > Flail opens the Death Sergeant's Flail page (chain length, head mass, air drag, damage, speeds, two hands, rattle)
 Shoreline foam 2: your water/lava/slime foam values are the defaults; puffs sit on the shore line (Particle Shore moves them out); Wavy Edge: the shore line wanders softly (see-through liquids fade, solid water's rim curves up the wall; 0 for comparison); check the pool and e1m1's water {test:foam_pool}
 Fuel tank burst: sound stops when the field ends; shooting a tank gives sparks and a tink, no blood; the burst leaves a fire field (sets you/monsters/corpses alight) or a poison cloud, up to 6 s by the fuel left, fading over its second half {test:tank_burst_field}
-Tank pickup: picking up a flamethrower/sprayer, its tank flies to your back in ~0.25 s, the hose following
+Tank pickup: picking up a flamethrower/sprayer, its tank flies to your back in ~0.25 s, the hose following {test:tank_pickup}
 Armed grunts' back tanks: pyro/sprayer grunts wear the tank and hose while running and shooting; shoot the tank from behind: it bursts on them (field, gun spent, they fight with fists) {test:agrunt_tanks}
 Armed grunt physical tug: grab a calm grunt's weapon and pull: it staggers after your hand, leaning and pulling back; a sharp yank (or a long hard pull) tears it out, letting go lets it keep it; does its weapon stay in its hand while tugged? {test:agrunt_tug}
 Armed grunts after a disarm fight or go for a weapon at once (no more standing frozen); weapons stay in their hands in guard, stagger and hit poses {test:agrunt_guard}
@@ -16,10 +19,10 @@ Armed grunt pickup: crouches, reaches down, the hand closes on the weapon before
 Parrying an armed grunt's sword (still failing in the headless test: tell me if it works in VR) {test:agrunt_parry}
 Swords past the floor: a hard chop at a corpse limb on the floor or by a wall goes in a little and cuts instead of bouncing up; bare floor and walls still spark (Gameplay > Melee > Strike Past the Floor: tune Length Held Out) {test:sword_floor}
 Phantom Swordsman from the toolgun: if its DoE tile is greyed, press it: the console now says why; record a note {test:phantom_swordsman}
-Fist blow line editable: with an empty hand, Weapon Offsets > Posing Mode > Edit Blade Shape: drag the orange Fist End and red Knuckles End onto the knuckles, blue Width; Mirror On/Off; Done prints the vr_melee_fist_* lines (send them if they should ship); punches with Show Melee Blades on follow the edited line
-Blade editor handles at the hand: near-end dot (now 7 cm above the forearm) and hand-side curve point are easy to grab with a sword and a gun; the handle under the other hand glows yellow with a line to it
-Crates need two strong hits: hardest punch or full axe/crowbar swing: 2 hits; medium punch: 3-4; explosive box blows up on the second strong hit; held crate smashed into a wall: two; overhead slam still breaks at once (Crates > Breaking: Break Speed 18, Blows Wear From 0.25); AD metal/stone breakables are tougher too (metal ~8 axe blows): OK?
-Dual-wielding armed humanoids: set Armed Grunts > Dual Wielding to 1 (or vr_agrunt_dual_chance 1) and spawn sword/axe/crowbar grunts: two blades, swung in turn and together, left arm on its weapon; knock or pull out either weapon (it keeps fighting with the other, then re-arms); kill it: both fall; armed enforcers' chainsaw height OK?
+Fist blow line editable: with an empty hand, Weapon Offsets > Posing Mode > Edit Blade Shape: drag the orange Fist End and red Knuckles End onto the knuckles, blue Width; Mirror On/Off; Done prints the vr_melee_fist_* lines (send them if they should ship); punches with Show Melee Blades on follow the edited line {test:fist_editor}
+Blade editor handles at the hand: near-end dot (now 7 cm above the forearm) and hand-side curve point are easy to grab with a sword and a gun; the handle under the other hand glows yellow with a line to it {test:blade_handles}
+Crates need two strong hits: hardest punch or full axe/crowbar swing: 2 hits; medium punch: 3-4; explosive box blows up on the second strong hit; held crate smashed into a wall: two; overhead slam still breaks at once (Crates > Breaking: Break Speed 18, Blows Wear From 0.25); AD metal/stone breakables are tougher too (metal ~8 axe blows): OK? {test:crates_melee}
+Dual-wielding armed humanoids: set Armed Grunts > Dual Wielding to 1 (or vr_agrunt_dual_chance 1) and spawn sword/axe/crowbar grunts: two blades, swung in turn and together, left arm on its weapon; knock or pull out either weapon (it keeps fighting with the other, then re-arms); kill it: both fall; armed enforcers' chainsaw height OK? {test:dual_wield}
 Blade shape editor (Weapon Offsets > Posing Mode > Edit Blade Shape): hold the Fury sword, drag the green curve points onto the drawn bow and the red tip onto its point (other hand's grip), then swing and watch the sweep follow; mace: Head Box corners; Done prints vr_weapons.inc lines to paste me; is the 5 cm grab reach and the panel position right? {test:blade_editor}
 Dropped flail keeps its head and chain: drop it standing and mid-swing/throw (head doesn't jump), pick it up with the head lying away (swings up on the chain), drag it by the head, force grab the handle, kill a Death Sergeant; how the lying chain looks {test:flail}
 Struggling enemies look at you: drag grunts by the legs (belly up and down), hold one up by the legs and by the shoulders, drag one by an arm: the head finds and follows you with small darts, no side flip when you're straight behind; hold its head: no look; kill it while held: head goes limp (Enemies > Struggle > Behaviours: Look at You 0.9, Look Strength 0.6; twitchy?) {test:struggle_grunts}
@@ -97,23 +100,23 @@ Shoves backpedal 3-4 steps, then fall or recover; knocked into water: paddles to
 Water: carry a knocked-down grunt into deep water and hold it: stays down; let go: floats, then stands where it is or on the bank (never back on land it came from)
 Bodies in liquids: kill in water (paddles, floats; knights sink), in lava or slime (flails, burns); throw corpses in; wet/burn wounds and drowning remain unchanged after save/load
 Bodies by walls: kill next to a wall (leans, slides), at a ledge (hangs), by a crate (braces)
-New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards)
+New ragdoll behaviours: hold a grunt under water 12 s (struggles to its feet); topple/drop a knocked-down grunt off a ledge (grabs the lip, pulls up); shoot one of two grunts standing close (grabs the other); swing a sword at a grunt's head (guards) {test:ragdoll_behaviours}
 Prop impacts (Crates > Breaking): light taps only move crates and boxes; hard punches or the axe break a crate in one or two hits; a hard punch or wall slam blows up an explosive box; a held crate slammed into a wall breaks out of your hands; crate pieces dust when punched or thrown hard; 9 m/s base / 8.4 m/s box feel right?
 AD zombie knight: behead one lying on the floor before its trigger, walk through the trigger: it stays down (no headless body running in place); vr_debug_deadanim 1 + developer 1 logs "deadanim:" if any dead monster animates again
 
 [Arcane Dimensions]
 Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
-AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera
+AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera {test:ad_weapon_pickups}
 AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
-AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched
-AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades
-AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on
-AD corpses: disc/flamethrower grunts stable; carried gun disappears on death; each armed soldier drops its own gun
-AD soldiers' guns: rocket/grenade launchers, plasma guns, defender shotgun, flamethrower, poison sprayer: hold, aim, fire; balance in Enemy Weapons > Arcane Dimensions' Guns
-AD soldiers' guns up close (AD on): kill each gun soldier and look at its rifle: each cue reads (rocket tube and rear bell, grenade drum/feed box, plasma tubes, centurion drum, defender pump, pyro nozzle, fumigator sprayer); look straight into each muzzle and the rocket exhaust (hollow, no inner barrels); flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes
-AD melee models rebuilt: the four swords thinner with new guards, pommels and grips (Fury curve faces the other way); hammer spike faces away, new handles on hammer and mace; look close and edge-on; hand on each grip (your Fury sword, hammer and mace grips are defaults)
-AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46
+AD monsters: ragdolls, knockdowns and get-ups, beheading, limbs (gaunt, seeker, Freddie fit worst); Evil (Nightmare + AD); hide while crouched {test:ad_monsters}
+AD projectiles: SG/SSG/Enforcer head, limb and torso damage; pop one live/corpse limb without whole-body gib; shoot incoming rockets; grab and bat enemy grenades {test:ad_projectiles}
+AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
+AD corpses: disc/flamethrower grunts stable; carried gun disappears on death; each armed soldier drops its own gun {test:ad_gun_soldiers}
+AD soldiers' guns: rocket/grenade launchers, plasma guns, defender shotgun, flamethrower, poison sprayer: hold, aim, fire; balance in Enemy Weapons > Arcane Dimensions' Guns {test:ad_gun_soldiers}
+AD soldiers' guns up close (AD on): kill each gun soldier and look at its rifle: each cue reads (rocket tube and rear bell, grenade drum/feed box, plasma tubes, centurion drum, defender pump, pyro nozzle, fumigator sprayer); look straight into each muzzle and the rocket exhaust (hollow, no inner barrels); flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes {test:ad_gun_soldiers}
+AD melee models rebuilt: the four swords thinner with new guards, pommels and grips (Fury curve faces the other way); hammer spike faces away, new handles on hammer and mace; look close and edge-on; hand on each grip (your Fury sword, hammer and mace grips are defaults) {test:ad_melee}
+AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46 {test:ad_melee}
 AD gadget page: the outer button (next to the lights one) pages to artifacts with timers, keys, debuffs, upgraded weapons
 AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
@@ -125,23 +128,23 @@ VR menu panel: point just outside its edge (frame lights) and hold grip: it foll
 
 [Tools (toolgun, physgun, brushes, ragdoll tool)]
 Ragdoll tool (flat: ironwail.exe -ragtool, add -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters; play a few behaviours on several models, Struggle with each hold while moving the hand (arrows, PgUp/PgDn), change a Joint Groups slider and replay, save/load a preset (docs/vr-port/RAGTOOL.md)
-Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour
-Physgun on ragdolls: grab a corpse by the chest, then an arm or leg: smooth, hangs and swings from that point, throw it; a knocked-down grunt; crates and standing monsters as before (vr_toolgun_physgun_ragdoll 0 = old)
-Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays
-Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button
-Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; wedge, cylinder, pyramid, Rotate, Undo; stand on, climb and shoot them; lighting goes from flat to shadowed (flickers next to a flickering light)
-Brush saving: save/load restores brushes; Bake Map keeps the original and writes a complete separate map with entities, old and new brushes
-Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch; grunt idle gun must not pulse at loop boundaries with Ease 0
+Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour {test:ragdoll_behaviours}
+Physgun on ragdolls: grab a corpse by the chest, then an arm or leg: smooth, hangs and swings from that point, throw it; a knocked-down grunt; crates and standing monsters as before (vr_toolgun_physgun_ragdoll 0 = old) {test:toolgun_bench}
+Physgun: while holding a prop both sticks move and turn it (no button), you stay put; X/A snaps and the angle stays {test:toolgun_bench}
+Toolgun: Fire tab (wall torches snap to walls, grab/throw flames); pack groups with >> (SoA wetsuit, MG3 shards, DoE dragon, AD extras: ghost heights); Developer corner Toolgun button {test:toolgun_bench}
+Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; wedge, cylinder, pyramid, Rotate, Undo; stand on, climb and shoot them; lighting goes from flat to shadowed (flickers next to a flickering light) {test:toolgun_bench}
+Brush saving: save/load restores brushes; Bake Map keeps the original and writes a complete separate map with entities, old and new brushes {test:toolgun_bench}
+Models: Rebuild From Skeleton on/off on idle grunt/knight; Smooth: idle knight, ogre, shambler with no loop twitch; grunt idle gun must not pulse at loop boundaries with Ease 0 {test:models_idle}
 
 [Motion Recorder takes]
-Leg sweep takes (vrmelee-recording, Motion Recorder): Expected with shotgun, crowbar, super shotgun; Not Expected with the axe and slow swings
-Lift, judo and neck snap takes: Lift Expected (both hands, pull up hard), Judo Throw Expected (turn it down), Neck Snap Expected (grip the head, twist hard), and Not Expected for each (slow pull, small turn, shoulders, push-pull with wrist roll); the dummy stays holdable, Review Takes lists them
+Leg sweep takes (vrmelee-recording, Motion Recorder): Expected with shotgun, crowbar, super shotgun; Not Expected with the axe and slow swings {test:leg_takes}
+Lift, judo and neck snap takes: Lift Expected (both hands, pull up hard), Judo Throw Expected (turn it down), Neck Snap Expected (grip the head, twist hard), and Not Expected for each (slow pull, small turn, shoulders, push-pull with wrist roll); the dummy stays holdable, Review Takes lists them {test:lift_takes}
 
 [Still open from 1.0.x]
 MG1 west stairs: walk up slowly and jump, head low (a short catch at the top crest may remain); lava: you keep burning 3 s after stepping out
 Shoved into water: a grunt shoved off vrstart's island near the shore gets up; far out, gives up after ~3 s and sinks
-MG3/MG1 placed corpses (MG3 start, map2b): ogres and shamblers lie down; walk up, grab a limb, cut it, gib it
-MG3 armour shards: force-grab then hip / pouch / chest gives armour; walking over them doesn't
+MG3/MG1 placed corpses (MG3 start, map2b): ogres and shamblers lie down; walk up, grab a limb, cut it, gib it {test:corpses_placed}
+MG3 armour shards: force-grab then hip / pouch / chest gives armour; walking over them doesn't {test:mg3_shards}
 MG3 campaign: Dawn of the Machine start to both endings: Super Axe, axe buttons, lore, hub upgrades, new monsters' hits and ragdolls
 MG3 Shub (boss2): sinking pillars comfortable; zombies rise and ragdoll; beam readable; lights out and credits at her death
 MG3 Chthon (boss map): fade at both arena moves comfortable; bat his spheres back; fight length fair

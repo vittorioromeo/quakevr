@@ -1,0 +1,10 @@
+title Pool's edge with grunts: water, close pairs, a sword (Debug > Tests > Ragdoll Behaviours)
+map vrtesthall
+start 150 -264 40 0
+god
+notarget
+give "Knight's Sword" main
+spawn "Grunt" 40 0
+spawn "Grunt" 20 90
+spawn "Grunt" 20 125
+hint A grunt ahead for each Ragdoll Behaviours button; hold one under water (the pool is just ahead); two close grunts to the left; swing the sword at a head. There is no ledge here: use the lip of the pool or another map for the ledge test.

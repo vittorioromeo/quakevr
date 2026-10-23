@@ -1,0 +1,20 @@
+title AD's Shadow Axe, Widowmaker, Plasma Gun, artifacts, boots and backpacks on the floor, with plain ones
+map vrtesthall
+god
+spawn "AD Shadow Axe" 90 -120
+spawn "Axe" 90 -80
+spawn "AD Widowmaker" 90 -30
+spawn "Super Nailgun" 90 10
+spawn "AD Plasma Gun" 90 60
+spawn "Nailgun" 90 100
+spawn "AD Tome of Power" 160 -120
+spawn "AD Sharp Shooter" 160 -80
+spawn "AD Nail Piercer" 160 -40
+spawn "AD Jump Boots" 160 0
+spawn "AD Lava Shield" 160 40
+spawn "AD Blast Belt" 160 80
+spawn "AD Air Tank" 160 120
+spawn "AD Ammo Backpack" 230 -60
+spawn "AD Green Armour Backpack" 230 0
+spawn "AD Shards Backpack" 230 60
+hint Take an AD weapon: only that weapon upgrades (a plain one found later stays plain; holster, drop, save). Artifacts and boots; grab and holster the backpacks. Buttons, ladders and the book need an AD map.

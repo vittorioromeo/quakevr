@@ -385,6 +385,14 @@ QVR_WEAPON_KEY(BladeHeadLoZ, "bl_head_lo_z")
 QVR_WEAPON_KEY(BladeHeadHiX, "bl_head_hi_x")
 QVR_WEAPON_KEY(BladeHeadHiY, "bl_head_hi_y")
 QVR_WEAPON_KEY(BladeHeadHiZ, "bl_head_hi_z")
+// Where the blade proper (the part that strikes: an axe's head, a sword's blade past its guard) starts (ROUND22.md, "The
+// blade's start; the axe's head box"): From the share of the line from the hand (-1: the kind's own, QC VR_Melee_Layout's
+// first striking point, nothing bent), FromOff and FromSide the point off the line (shares of its length, as the curve's
+// points): the line runs straight from the hand to it and from it to the tip, its striking points from it to the tip.
+// New cvars: no migration.
+QVR_WEAPON_KEY(BladeFrom, "bl_from")
+QVR_WEAPON_KEY(BladeFromOff, "bl_from_off")
+QVR_WEAPON_KEY(BladeFromSide, "bl_from_side")
 #endif
 
 
@@ -437,6 +445,17 @@ QVR_WEAPON_DEFAULT(0, MuzzleAnchor, "24.18 -0.0977 27.2955")
 QVR_WEAPON_DEFAULT(0, MuzzleOffsetX, "-0.700006")
 QVR_WEAPON_DEFAULT(0, MuzzleOffsetY, "0")
 QVR_WEAPON_DEFAULT(0, MuzzleOffsetZ, "-2.100002")
+// The axe's head as a box (ROUND22.md, "The blade's start; the axe's head box"): both bits, as Edit Blade Shape's Head Box
+// On seeds it round the drawn head (shares of the hand-to-tip line: along it, its normal, the model's +y). Opt-in (the
+// author): BladeHead stays 0; Head Box On starts from these corners, and its volume then strikes as the head (QC
+// VR_Melee_Ribs), as the AD mace's and hammer's.
+QVR_WEAPON_DEFAULT(0, BladeHead, "0")
+QVR_WEAPON_DEFAULT(0, BladeHeadLoX, "0.5")
+QVR_WEAPON_DEFAULT(0, BladeHeadLoY, "-1.1077")
+QVR_WEAPON_DEFAULT(0, BladeHeadLoZ, "-0.0919")
+QVR_WEAPON_DEFAULT(0, BladeHeadHiX, "1.2303")
+QVR_WEAPON_DEFAULT(0, BladeHeadHiY, "0.1013")
+QVR_WEAPON_DEFAULT(0, BladeHeadHiZ, "0.0701")
 QVR_WEAPON_DEFAULT(0, Pitch, "0")
 QVR_WEAPON_DEFAULT(0, Roll, "0")
 QVR_WEAPON_DEFAULT(0, Scale, "0.34")

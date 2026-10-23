@@ -171,9 +171,14 @@ hint Swing at them: ...                             # optional; default the chec
   wall (its middle has the New Game buttons: keep melee away from them). `developer 1` prints each spawn's edict and
   place.
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
-  every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn, SCNRUN OK/FAIL with
-  the first problem: an entry not available here, a spot in a wall, a QC error; SCNRUNSUM). A one-off eyeshot:
+  every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn for 3 s of game time,
+  SCNRUN OK/FAIL with the first problem: an entry not available here, a spot in a wall, a QC error, a given weapon no
+  longer in its hand; SCNHANDS per scene: each hand's given weapon then and now; SCNRUNSUM). A one-off eyeshot:
   `vr_scenario <id>;wait120;screenshot`.
+- A `give` puts the weapon in the hand as if just grabbed, in either grip mode: with `vr_weapon_grip_mode 0` (hold) it
+  stays, the grip unpressed, until that hand's grip is pressed (from then on the grip holds it: let go on release);
+  sticky mode lets go after a squeeze and a release as usual (QC `VRWeaponGivenHeld`). The mock's hands never grip:
+  runall checks the weapons stay in both modes.
 - No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged.
 
 Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
@@ -1553,8 +1558,10 @@ the same file built into an older QC gives lines to compare); `vr_melee_sweep_te
 strikes as drawn ("bladeshape:": the curve's outside struck and inside missed, the width past the tip; PASS or FAIL);
 `vr_melee_sweep_test 1` uses the weapon's own head and width. Shapes are edited with the `vr_wofs_bl_*_NN` cvars or in
 the editor: `vr_bladeedit [main|off]`, then `vr_mock_hand_to off bladehandle <i> [<along> <normal> <flat>]` (0 tip, 1
-near end, 2 width, 3..7 curve, 8 and 9 head corners), `vr_mock_button off grip 1`, move, `grip 0`;
+near end, 2 width, 3..7 curve, 8 and 9 head corners, 10 blade start), `vr_mock_button off grip 1`, move, `grip 0`;
 `vr_mock_hand_to <hand> bladebutton <i>` and the trigger (or `vr_bladeedit_press <i>`: 0 Undo, 1 Reset Blade, 2
 Straighten, 3 Head Box, 4 Cancel, 5 Done); `vr_bladeedit_report`, `vr_blade_dump [slot]` (the scripts gave each drag 60
 frames). Its lines show in `vr_eyeshot 3` (with the UI), not `vr_eyeshot
 1`. AD's weapons: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`, `vr_ad_test 116` (the fury's sword).
+The axe in the mock's main hand: `vr_weapon_grip_mode 1; vr_mock_button main grip 1` before and after `vr_scenario
+blade_editor_axe` (`vr_waitprint 3000 SCNPLACED`): without the grip held the given axe goes to the hip holster.

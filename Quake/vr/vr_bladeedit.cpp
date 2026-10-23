@@ -42,7 +42,7 @@ constexpr Key managedKeys[] = {Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::Muzz
     Key::BladeSpine, Key::BladeSpine1Off, Key::BladeSpine1Side, Key::BladeSpine2Off, Key::BladeSpine2Side,
     Key::BladeSpine3Off, Key::BladeSpine3Side, Key::BladeSpine4Off, Key::BladeSpine4Side, Key::BladeSpine5Off,
     Key::BladeSpine5Side, Key::BladeHead, Key::BladeHeadLoX, Key::BladeHeadLoY, Key::BladeHeadLoZ, Key::BladeHeadHiX,
-    Key::BladeHeadHiY, Key::BladeHeadHiZ};
+    Key::BladeHeadHiY, Key::BladeHeadHiZ, Key::BladeFrom, Key::BladeFromOff, Key::BladeFromSide};
 constexpr int managedCount = static_cast<int>(sizeof(managedKeys) / sizeof(managedKeys[0]));
 constexpr Key spineKeys[blade::spinePoints][2] = {{Key::BladeSpine1Off, Key::BladeSpine1Side},
     {Key::BladeSpine2Off, Key::BladeSpine2Side}, {Key::BladeSpine3Off, Key::BladeSpine3Side},
@@ -78,6 +78,7 @@ enum HandleId : int
     HSpine1,
     HHeadLo = HSpine1 + blade::spinePoints,
     HHeadHi,
+    HFrom, // the blade's start: where its striking part (an axe's head, a sword's blade) begins
     HCount
 };
 
@@ -103,6 +104,12 @@ constexpr float HANDLE_KEEP = 1.5f;     // the handle under the hand stays its o
 constexpr float HANDLE_SWITCH = 0.6f;   // ...unless another is nearer than this share of its distance
 constexpr float LIFT = 0.07f;           // metres a handle at or behind the holding hand is shown (and taken) out of it
 constexpr float LIFT_NEAR = 0.12f;      // metres: a handle this near the holding hand is lifted (the near end always)
+constexpr float LIFT_FACE = 0.035f;     // metres the blade's start is shown out of the blade's flat (towards the eyes)
+constexpr float FROM_MIN = 0.05f;       // the blade's start's share of the line: at least this...
+constexpr float FROM_MAX = 0.95f;       // ...and at most this
+constexpr float HEAD_FROM = 0.3f;       // Head Box On seeds the box round the model's vertices past this share at least...
+constexpr float HEAD_BEFORE = 0.25f;    // ...or this much before the blade's start, if that is further out; the box's
+constexpr float HEAD_OFF = 0.15f;       // near end the lowest vertex at least this far off the line (the head's, not the handle's)
 constexpr float FIST_REACH = 16.f;      // units: the fist line's ends at most this far from the hand along each axis
 constexpr float MELEE_RADIUS = 3.f;     // units: QC VR_MELEE_RADIUS (the swept points' radius at width 1)
 constexpr float DEFAULT_NEAR = 0.3f;    // the near end's share when QC's isn't known (a sword's, a gun's: VR_Melee_NearBack)
@@ -124,6 +131,8 @@ struct Geo
     bool modelCurve{false};  // the model's own curve shown (no curve of its own)
     bool hasHead{false};
     glm::vec3 headLo{0.f}, headHi{0.f};
+    float from{0.5f};        // where its striking part starts, a share of the line (its own, else the kind's as QC laid it)
+    glm::vec3 eye{0.f};      // (the blade's start is lifted out of the flat towards them)
     glm::vec3 origin{0.f};                                     // the holding hand (the line's start, but the fist's)
     glm::vec3 f{1.f, 0.f, 0.f}, r{0.f, -1.f, 0.f}, u{0.f, 0.f, 1.f}; // its frame (QC makevectors of its turn)
     float mirror{1.f};                                         // the fist's right offsets: -1 the off hand's mirrored
@@ -361,6 +370,17 @@ void haptic(int hand, float seconds, float amplitude)
             g.nearBack = glm::length(n - gr) / glm::length(t - gr);
         }
     }
+    // The blade's start: its own, else the kind's first striking point as QC laid it last (on the line), else half way.
+    g.eye = s.head;
+    g.from = 0.5f;
+    if(blade::hasFrom(g.shape))
+    {
+        g.from = g.shape.from;
+    }
+    else if(glm::vec3 at; meleeshow::lastStrikeFrom(h, at))
+    {
+        g.from = za::clamp(glm::dot(at - g.hand, g.a) / g.len, FROM_MIN, FROM_MAX);
+    }
     g.radius = MELEE_RADIUS * za::max(0.25f, vr_melee_range_multiplier.value) * g.shape.width;
     g.hasHead = g.shape.head || (g.kind > 0 && admelee::head(g.kind, g.headLo, g.headHi));
     if(g.shape.head)
@@ -371,20 +391,29 @@ void haptic(int hand, float seconds, float amplitude)
     return true;
 }
 
-// The curve's way off the line at share `f` (shares of its length): its own, the model's, or none.
-[[nodiscard]] glm::vec2 curveAt(const Geo& g, float f)
+// The curve's way off the line at share `f` (shares of its length): its own, the model's, or none; with the blade's
+// start's bend (its own: the line straight to its point and on to the tip) unless `withFrom` is false. As QC VR_Melee_At
+// (admeleebend: vr_melee_curved_blades 0 straightens both).
+[[nodiscard]] glm::vec2 curveAt(const Geo& g, float f, bool withFrom = true)
 {
-    if(g.shape.spine)
+    if(vr_melee_curved_blades.value == 0.f)
     {
-        return vr_melee_curved_blades.value != 0.f ? blade::spineAt(g.shape, f) : glm::vec2{0.f};
+        return glm::vec2{0.f};
     }
-    return g.modelCurve && f > 0.f ? admelee::bend(g.kind, f) : glm::vec2{0.f};
+    const glm::vec2 k = g.shape.spine ? blade::spineAt(g.shape, f)
+                        : g.modelCurve && f > 0.f ? admelee::bend(g.kind, f)
+                                                  : glm::vec2{0.f};
+    return withFrom ? k + blade::fromAt(g.shape, f) : k;
+}
+
+[[nodiscard]] glm::vec3 offLine(const Geo& g, const glm::vec2& k)
+{
+    return (g.p * k.x + g.y * k.y) * g.len;
 }
 
 [[nodiscard]] glm::vec3 pointAt(const Geo& g, float f)
 {
-    const glm::vec2 k = curveAt(g, f);
-    return g.hand + g.a * (g.len * f) + (g.p * k.x + g.y * k.y) * g.len;
+    return g.hand + g.a * (g.len * f) + offLine(g, curveAt(g, f));
 }
 
 [[nodiscard]] glm::vec3 boxPoint(const Geo& g, const glm::vec3& s)
@@ -398,7 +427,7 @@ void haptic(int hand, float seconds, float amplitude)
     {
         return h == HTip || h == HNear || h == HWidth; // (the fist's two ends and its width)
     }
-    return h >= 0 && h < HCount && (h < HHeadLo || g.hasHead);
+    return h >= 0 && h < HCount && ((h != HHeadLo && h != HHeadHi) || g.hasHead);
 }
 
 [[nodiscard]] glm::vec3 nearEnd(const Geo& g)
@@ -416,6 +445,7 @@ void haptic(int hand, float seconds, float amplitude)
         case HWidth: return pointAt(g, WIDTH_AT) + g.p * g.radius;
         case HHeadLo: return boxPoint(g, g.headLo);
         case HHeadHi: return boxPoint(g, g.headHi);
+        case HFrom: return pointAt(g, g.from);
         default: return pointAt(g, blade::spineShare(h - HSpine1));
     }
 }
@@ -431,7 +461,16 @@ void haptic(int hand, float seconds, float amplitude)
     }
     const float m2u = units::metresToUnits();
     const bool lifted = ses.fist || h == HNear || glm::length(handleAt(g, h) - g.origin) < LIFT_NEAR * m2u;
-    return lifted ? g.lift * (LIFT * m2u) : glm::vec3{0.f};
+    if(lifted)
+    {
+        return g.lift * (LIFT * m2u);
+    }
+    if(h == HFrom)
+    {
+        // (On the blade, often inside the drawn head: out of its flat, on the side the eyes see.)
+        return g.y * ((glm::dot(g.y, g.eye - handleAt(g, h)) >= 0.f ? LIFT_FACE : -LIFT_FACE) * m2u);
+    }
+    return glm::vec3{0.f};
 }
 
 // Where the handle is drawn and taken (its point, lifted out of the hand if at it).
@@ -449,6 +488,7 @@ void haptic(int hand, float seconds, float amplitude)
         case HWidth: return "Width";
         case HHeadLo: return "Head Corner";
         case HHeadHi: return "Head Corner";
+        case HFrom: return "Blade Start";
         default: return "Curve";
     }
 }
@@ -457,6 +497,7 @@ void haptic(int hand, float seconds, float amplitude)
 {
     switch(h)
     {
+        case HFrom: return {0.65f, 0.4f, 1.f, 1.f};
         case HTip: return {1.f, 0.3f, 0.25f, 1.f};
         case HNear: return {1.f, 0.6f, 0.15f, 1.f};
         case HWidth: return {0.3f, 0.85f, 1.f, 1.f};
@@ -475,22 +516,84 @@ void ensureSpine(const Geo& g)
     }
     for(int i = 0; i < blade::spinePoints; i++)
     {
-        const glm::vec2 k = curveAt(g, blade::spineShare(i));
+        const glm::vec2 k = curveAt(g, blade::spineShare(i), false);
         set(spineKeys[i][0], k.x);
         set(spineKeys[i][1], k.y);
     }
     set(Key::BladeSpine, 1.f);
 }
 
-// A head's box of its own, seeded from the model's (an AD hammer's or mace's) or a small box at the far end.
+// The drawn weapon's head as a box in the line's frame (shares, as Blade Head's): round its model's vertices (the first
+// pose's) past HEAD_FROM of the line, or HEAD_BEFORE before the blade's start if that is further out (an axe's: both
+// bits of the head, the handle's top inside them). False if the model has none there.
+[[nodiscard]] bool modelHead(const Geo& g, glm::vec3& lo, glm::vec3& hi)
+{
+    const qmodel_t* model = weapons::heldModel(ses.hand);
+    if(!model || model->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || hdr->numframes <= 0)
+    {
+        return false;
+    }
+    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
+                        hdr->frames[0].firstpose * hdr->numverts;
+    const float past = za::max(HEAD_FROM, g.from - HEAD_BEFORE);
+    lo = glm::vec3{1e9f};
+    hi = glm::vec3{-1e9f};
+    float outLo = 1e9f;
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        const trivertx_t& v = verts[i];
+        const glm::vec3 m{hdr->scale[0] * v.v[0] + hdr->scale_origin[0], hdr->scale[1] * v.v[1] + hdr->scale_origin[1],
+            hdr->scale[2] * v.v[2] + hdr->scale_origin[2]};
+        glm::vec3 w;
+        if(!view::gunToWorld(ses.hand, m, w))
+        {
+            return false;
+        }
+        const glm::vec3 d = (w - g.hand) / g.len;
+        const glm::vec3 s{glm::dot(d, g.a), glm::dot(d, g.p), glm::dot(d, g.y)};
+        if(s.x >= past)
+        {
+            lo = glm::min(lo, s);
+            hi = glm::max(hi, s);
+            if(glm::length(glm::vec2{s.y, s.z}) >= HEAD_OFF)
+            {
+                outLo = za::min(outLo, s.x);
+            }
+        }
+    }
+    lo.x = za::max(lo.x, za::min(outLo, hi.x)); // (from the lowest of the head's outer vertices: not the handle in it)
+    return hi.x >= lo.x;
+}
+
+// A head's box of its own, seeded from the model's (an AD hammer's or mace's), else the corners the slot keeps (the axe's
+// shipped box, Blade Head off), else round the drawn head (modelHead), else a small box at the far end.
 void ensureHead(const Geo& g)
 {
     if(g.shape.head)
     {
         return;
     }
-    const glm::vec3 lo = g.hasHead ? g.headLo : glm::vec3{0.8f, -0.1f, -0.06f};
-    const glm::vec3 hi = g.hasHead ? g.headHi : glm::vec3{1.f, 0.1f, 0.06f};
+    glm::vec3 lo{0.8f, -0.1f, -0.06f}, hi{1.f, 0.1f, 0.06f};
+    if(g.hasHead)
+    {
+        lo = g.headLo;
+        hi = g.headHi;
+    }
+    else if(g.shape.headHi.x > g.shape.headLo.x)
+    {
+        lo = g.shape.headLo;
+        hi = g.shape.headHi;
+    }
+    else if(glm::vec3 mlo, mhi; modelHead(g, mlo, mhi))
+    {
+        lo = mlo;
+        hi = mhi;
+    }
     set(Key::BladeHeadLoX, lo.x);
     set(Key::BladeHeadLoY, lo.y);
     set(Key::BladeHeadLoZ, lo.z);
@@ -577,11 +680,23 @@ void drag(const Geo& g, int h, const glm::vec3& t)
             set(lo ? Key::BladeHeadLoZ : Key::BladeHeadHiZ, s.z);
             break;
         }
+        case HFrom:
+        {
+            // Its share along the line and its point off it (less the curve's there: the start's own bend).
+            const glm::vec3 d = t - g.hand;
+            const float f = za::clamp(glm::dot(d, g.a) / g.len, FROM_MIN, FROM_MAX);
+            const glm::vec2 k = glm::vec2{glm::dot(d, g.p), glm::dot(d, g.y)} / g.len - curveAt(g, f, false);
+            set(Key::BladeFrom, f);
+            set(Key::BladeFromOff, za::clamp(k.x, -0.6f, 0.6f));
+            set(Key::BladeFromSide, za::clamp(k.y, -0.6f, 0.6f));
+            break;
+        }
         default:
         {
             ensureSpine(g);
             const int i = h - HSpine1;
-            const glm::vec3 d = t - (g.hand + g.a * (g.len * blade::spineShare(i)));
+            const float f = blade::spineShare(i);
+            const glm::vec3 d = t - (g.hand + g.a * (g.len * f)) - offLine(g, blade::fromAt(g.shape, f));
             set(spineKeys[i][0], za::clamp(glm::dot(d, g.p) / g.len, -0.6f, 0.6f));
             set(spineKeys[i][1], za::clamp(glm::dot(d, g.y) / g.len, -0.6f, 0.6f));
             break;
@@ -610,6 +725,10 @@ void drag(const Geo& g, int h, const glm::vec3& t)
             return va("%.2f %.2f %.2f%s", static_cast<double>(s.x), static_cast<double>(s.y), static_cast<double>(s.z),
                 g.shape.head ? "" : " (model's)");
         }
+        case HFrom:
+            return blade::hasFrom(g.shape) ? va("%.2f, off %+.3f %+.3f", static_cast<double>(g.from),
+                                                 static_cast<double>(g.shape.fromOff.x), static_cast<double>(g.shape.fromOff.y))
+                                           : va("%.2f (kind's)", static_cast<double>(g.from));
         default:
         {
             const glm::vec2 k = curveAt(g, blade::spineShare(h - HSpine1));
@@ -693,6 +812,8 @@ void straighten()
         set(k[1], 0.f);
     }
     set(Key::BladeSpine, 1.f);
+    set(Key::BladeFromOff, 0.f); // (the blade's start back onto the line, where along it kept)
+    set(Key::BladeFromSide, 0.f);
     say("straight (Reset Blade: the model's own curve again)");
 }
 
@@ -850,15 +971,21 @@ void drawBlade(const Geo& g)
     const glm::vec4 bladeColour{0.9f, 0.95f, 1.f, 0.9f};
     const glm::vec4 tube{0.3f, 0.85f, 1.f, 0.35f};
     // From the near end straight to the hand, then along the curve to the tip; its width as four lines beside it.
-    lines::line(nearEnd(g), g.hand, 0.18f, glm::vec4{1.f, 0.6f, 0.15f, 0.8f}, bladeColour);
+    // The striking part (from the blade's start to the tip) bold with its width's tube, the handle's part before it thin.
+    const glm::vec4 handlePart{0.75f, 0.75f, 0.8f, 0.6f};
+    lines::line(nearEnd(g), g.hand, 0.18f, glm::vec4{1.f, 0.6f, 0.15f, 0.8f}, handlePart);
+    const float from = ses.fist ? 0.f : g.from;
     glm::vec3 prev = g.hand;
+    float prevF = 0.f;
     for(int i = 1; i <= CURVE_STEPS; i++)
     {
         const float f = static_cast<float>(i) / CURVE_STEPS;
-        const glm::vec3 at = pointAt(g, f);
-        lines::line(prev, at, 0.22f, bladeColour, bladeColour);
-        const float f0 = static_cast<float>(i - 1) / CURVE_STEPS;
-        if(f0 >= 0.2f || ses.fist)
+        // (A step through the blade's start ends there: the line's corner when it is off the line.)
+        const float to = prevF < from && f > from ? from : f;
+        const glm::vec3 at = pointAt(g, to);
+        const bool striking = prevF >= from - 1e-4f;
+        lines::line(prev, at, striking ? 0.22f : 0.12f, striking ? bladeColour : handlePart, striking ? bladeColour : handlePart);
+        if(striking)
         {
             for(const glm::vec3& side : {g.p, -g.p, g.y, -g.y})
             {
@@ -866,6 +993,11 @@ void drawBlade(const Geo& g)
             }
         }
         prev = at;
+        prevF = to;
+        if(to < f)
+        {
+            i--; // (the rest of this step)
+        }
     }
     // The curve's points off the line: a thin tie from the line to each.
     for(int i = 0; i < blade::spinePoints && !ses.fist; i++)
@@ -971,8 +1103,8 @@ void drawPanel()
         const cvar_t* id = weapons::cvar(ses.slot, Key::ID);
         text += va(" (slot %d: %s)", ses.slot + 1, id ? COM_SkipPath(id->string) : "?");
         text += "\nother hand's grip on a dot: drag it";
-        text += "\nred tip, orange near end, blue width,";
-        text += "\ngreen curve, pink head corners";
+        text += "\nred tip, purple blade start, orange near";
+        text += "\nend, blue width, green curve, pink head";
     }
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
@@ -1056,9 +1188,21 @@ void report_f()
             vr_melee_fist_from_y.string, vr_melee_fist_from_z.string, vr_melee_fist_to_x.string, vr_melee_fist_to_y.string,
             vr_melee_fist_to_z.string, vr_melee_fist_width.string, vr_melee_fist_mirror.string);
     }
-    Con_Printf("bladeedit line %.2f near %.3f radius %.2f spine %d curve %d head %d\n", static_cast<double>(g.len),
-        static_cast<double>(g.nearBack), static_cast<double>(g.radius), g.shape.spine ? 1 : 0, g.modelCurve ? 1 : 0,
-        g.hasHead ? 1 : 0);
+    Con_Printf("bladeedit line %.2f near %.3f radius %.2f spine %d curve %d head %d from %.3f own %d\n",
+        static_cast<double>(g.len), static_cast<double>(g.nearBack), static_cast<double>(g.radius), g.shape.spine ? 1 : 0,
+        g.modelCurve ? 1 : 0, g.hasHead ? 1 : 0, static_cast<double>(g.from), blade::hasFrom(g.shape) ? 1 : 0);
+    if(g.hasHead)
+    {
+        Con_Printf("bladeedit head %.4f %.4f %.4f .. %.4f %.4f %.4f\n", static_cast<double>(g.headLo.x),
+            static_cast<double>(g.headLo.y), static_cast<double>(g.headLo.z), static_cast<double>(g.headHi.x),
+            static_cast<double>(g.headHi.y), static_cast<double>(g.headHi.z));
+    }
+    if(glm::vec3 mlo, mhi; !ses.fist && modelHead(g, mlo, mhi))
+    {
+        Con_Printf("bladeedit model head %.4f %.4f %.4f .. %.4f %.4f %.4f\n", static_cast<double>(mlo.x),
+            static_cast<double>(mlo.y), static_cast<double>(mlo.z), static_cast<double>(mhi.x), static_cast<double>(mhi.y),
+            static_cast<double>(mhi.z));
+    }
     for(int h = 0; h < HCount; h++)
     {
         if(!shown(g, h))

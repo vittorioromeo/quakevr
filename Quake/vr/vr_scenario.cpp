@@ -100,6 +100,10 @@ bool runAll = false;        // vr_scenario runall in progress
 bool runAllQuit = false;    // and the game quit after it
 int runAllFrames = 0;       // its frames since the current one was placed
 int runAllCount = 0, runAllFailed = 0;
+float givenWeapon[2] = {-1.f, -1.f}; // per QC hand (0 off, 1 main): the weapon its give left there (-1: none given)
+double placedAt = 0.0;      // the server's time when the current one was placed
+// runall: each scene runs this long in game time; a hand given a weapon must still hold it then (it stays until let go).
+static constexpr double runAllHoldSeconds = 3.0;
 bool swapped = false;       // the config's write: the saved values swapped in (VR_ScenarioConfigWrite)
 
 struct ServerVm
@@ -220,6 +224,19 @@ void error(int line, const char* text)
         }
     }
     return -1;
+}
+
+// A spawn function's name in the server's progs; with no server running (validate from the menu or console, a scene
+// started before any map: no progs loaded), anything shaped like a classname (an underscore). The server's VM made
+// current for the lookup: the console runs with none (qcvm null).
+[[nodiscard]] bool isClassname(const char* what)
+{
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return strchr(what, '_') != nullptr && strchr(what, ' ') == nullptr;
+    }
+    const ServerVm vm;
+    return progs::findFunction(what) != 0;
 }
 
 // A console command's first word: a command, an alias or a setting.
@@ -361,7 +378,7 @@ bool read(const char* id, Scenario& out)
             s.yaw = n[3];
             s.hasYaw = nums >= 4;
             s.entry = findEntry(s.what.cStr());
-            if(s.entry < 0 && (sv.active ? !progs::findFunction(s.what.cStr()) : strchr(s.what.cStr(), '_') == nullptr))
+            if(s.entry < 0 && !isClassname(s.what.cStr()))
             {
                 error(lineNo, va("\"%s\" is no toolgun spawn entry nor classname", s.what.cStr()));
                 return;
@@ -538,6 +555,7 @@ void place()
     }
 
     za::Vector<int> taken;
+    bool gaveTo[2] = {false, false};
     for(const Give& g : s.gives)
     {
         edict_t* w = toolgun::spawnEntryAt(g.entry, glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]}, yaw);
@@ -549,8 +567,25 @@ void place()
         if(!takeIntoHand(p, w, g.hand, taken))
         {
             note(va("line %d: \"%s\" left at your feet (no weapon a hand can take found)", g.line, g.what.cStr()));
+            continue;
+        }
+        gaveTo[g.hand == 0 ? 0 : 1] = true;
+    }
+    const int weapon2 = ED_FindFieldOffset("weapon2");
+    // Held as if just grabbed: in the hand until its grip is let go there (QC VR_Scene_HoldGiven), whatever the grip mode.
+    const func_t hold = progs::findFunction("VR_Scene_HoldGiven");
+    for(const int h : {0, 1})
+    {
+        givenWeapon[h] = !gaveTo[h] ? -1.f : h == 1 ? p->v.weapon : weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f;
+        if(gaveTo[h] && hold)
+        {
+            pr_global_struct->time = qcvm->time;
+            G_INT(OFS_PARM0) = EDICT_TO_PROG(p);
+            G_FLOAT(OFS_PARM1) = static_cast<float>(h);
+            PR_ExecuteProgram(hold);
         }
     }
+    placedAt = qcvm->time;
 
     const glm::vec3 feet{p->v.origin[0], p->v.origin[1], p->v.origin[2] + p->v.mins[2]};
     const float a = glm::radians(yaw);
@@ -601,7 +636,6 @@ void place()
     {
         SCR_CenterPrintFor(state.hint.cStr(), vr_scenario_hint_time.value);
     }
-    const int weapon2 = ED_FindFieldOffset("weapon2");
     Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f\n", s.id.cStr(), made,
         static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
         p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f);
@@ -890,8 +924,25 @@ void frame()
     {
         return;
     }
-    if(runAll && ++runAllFrames >= 30)
+    if(runAll && ++runAllFrames >= 30 && (!sv.active || sv.qcvm.time - placedAt >= runAllHoldSeconds))
     {
+        // The hands given a weapon still hold it (nothing let go of it: the grips stay unpressed throughout).
+        bool held = true;
+        if(sv.active)
+        {
+            const ServerVm vm;
+            edict_t* p = player();
+            const int weapon2 = ED_FindFieldOffset("weapon2");
+            const float now[2] = {!p ? -1.f : weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f, !p ? -1.f : p->v.weapon};
+            held = givenWeapon[0] == now[0] || givenWeapon[0] < 0.f;
+            held = held && (givenWeapon[1] == now[1] || givenWeapon[1] < 0.f);
+            Con_Printf("SCNHANDS|%s|%s|after %.1f s|main given %.0f now %.0f|off given %.0f now %.0f\n", state.run.id.cStr(),
+                held ? "HELD" : "LOST", sv.qcvm.time - placedAt, givenWeapon[1], now[1], givenWeapon[0], now[0]);
+        }
+        if(!held)
+        {
+            state.notes.pushBack(za::String{"a given weapon left its hand"});
+        }
         const bool ok = state.notes.empty() && sv.active; // (a QC error ends the server)
         runAllFailed += ok ? 0 : 1;
         Con_Printf("SCNRUN|%s|%s|%d problems%s%s\n", state.run.id.cStr(), ok ? "OK" : "FAIL",
