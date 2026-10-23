@@ -254,8 +254,7 @@ float(entity g, entity p) VR_AG_TugFrame =
         VR_AG_Yank(g, pl, h);
         return TRUE;
     }
-    // Drawn between its hand and yours; your hand jerked towards it, buzzing harder as you gain.
-    setorigin(p, grip + (hand - g.vr_ag_tug_off - grip) * 0.5);
+    // Your hand jerked towards it, buzzing harder as you gain (the weapon stays in its hand: drawn from its body).
     if(time >= g.vr_ag_tug_buzz)
     {
         g.vr_ag_tug_buzz = time + 0.2 + random() * 0.15;

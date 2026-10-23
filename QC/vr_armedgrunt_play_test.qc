@@ -241,8 +241,9 @@ void() VR_AGPT_Tug =
         VR_AGT_Check(sprintf("tug held still 2 s: it holds %s, tug on %g, pulled %.2f s:",
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_tug_pl != world, g.vr_ag_tug_prog),
             g.vr_ag_prop != world && g.vr_ag_tug_pl == p);
-        // Your hand pulled back 16 units (the grunt stepped from it: the same stretch).
-        setorigin(g, g.origin - g.vr_ag_tug_away * 16);
+        // Your hand pulled back 16 units from where it grabbed (its grab place moved 16 units towards the grunt: the
+        // same stretch; the mock hand stays put).
+        g.vr_ag_tug_off = g.vr_ag_tug_off - g.vr_ag_tug_away * 16;
         vr_agt_clip = time;
         vr_agt_step = 4;
         vr_agt_until = time + 5;
@@ -311,7 +312,6 @@ void() VR_AGPT_Easy =
         VR_AGT_Hunt(vr_agt_grunt);
         vr_agt_grunt.health = 8;
         VR_AG_GrabBy(vr_agt_grunt, p, cVR_MainHand);
-        VR_AGT_Print(sprintf("easy: after the grab: your hand %g, lying %s", p.weapon, VR_AGT_LyingNear(vr_agt_grunt.origin).classname));
         vr_agt_step = 4;
         vr_agt_until = time + 0.3;
         return;
@@ -322,8 +322,7 @@ void() VR_AGPT_Easy =
 };
 
 // Test 24: blows and parries. A calm grunt's gun hand struck for 6 (under vr_agrunt_disarm_damage 10): it keeps it; the
-// same, badly hurt: dropped (half). Then an axe grunt hunting you, every blow parried (a forced parry), the chance 1:
-// disarmed.
+// same, badly hurt: dropped (half). Then an axe grunt's swing parried (forced: your axe), the chance 1: disarmed.
 void() VR_AGPT_Blows =
 {
     entity p = vr_agt_player;
@@ -363,15 +362,11 @@ void() VR_AGPT_Blows =
         vr_agt_until = time + 0.3;
         return;
     }
-    if(vr_agt_step == 2)
-    {
-        VR_AGT_Hunt(g);
-        vr_agt_step = 3;
-        vr_agt_until = time + 6;
-        return;
-    }
-    if(g.vr_ag_prop && time < vr_agt_until) { return; }
-    VR_AGT_Check(sprintf("parry: %g blows, the grunt holds %s, %g disarms:", g.vr_ag_strikes,
+    // Its swing (VR_AGP_SWING under way) lands a blow of 10 on you, parried (forced: your main hand's weapon).
+    VR_AGT_Hunt(g);
+    g.vr_ag_act = VR_AGP_SWING;
+    T_Damage(p, g, g, 10);
+    VR_AGT_Check(sprintf("parry: parried %g, the grunt holds %s, %g disarms:", vr_parried,
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_disarms), !g.vr_ag_prop && g.vr_ag_disarms == 1);
     vr_parry_test_force = 0;
     cvar_set("vr_enemy_shove", ftos(vr_agpt_h0a));
@@ -473,16 +468,50 @@ void() VR_AGPT_Reach =
         return;
     }
     if(!g.vr_ag_prop && time < vr_agt_until) { return; }
-    entity oldself = self;
-    self = g;
-    entity fw = VR_AG_FindWeapon();
-    self = oldself;
-    entity dw = find(world, classname, "thrown_weapon");
-    VR_AGT_Print(sprintf("reach: frame %g, seek next %.1f, finds %s, a weapon at %v reachable %g (%s), shun %s", g.frame, g.vr_ag_seek_next - time, fw.netname, dw.origin, VR_AG_Reachable(g, dw), vr_ag_reach_why, g.vr_ag_shun.netname));
     VR_AGT_Check(sprintf("reach: the floor's taken: holds %s, %g pickups:", g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing",
         g.vr_ag_pickups), g.vr_ag_prop != world && g.vr_ag_prop.weapon == WID_NAILGUN);
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     cvar_set("vr_agrunt_test", "0");
+};
+
+// Test 27: giving up. You unseen; an unarmed grunt goes for a shotgun lying 150 units ahead of it, made no nearer for
+// 2.5 s (its progress set back): it gives it up, and doesn't look at it again within vr_agrunt_seek_shun.
+void() VR_AGPT_GiveUp =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_grunt = VR_AGT_Spawn(-1, 260);
+        makevectors(p.angles);
+        vector fw = v_forward;
+        fw_z = 0;
+        VR_AGPT_Weapon(WID_SHOTGUN, p.origin + normalize(fw) * 110 - '0 0 16', FALSE);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.6;
+        return;
+    }
+    if(time < vr_agt_until) { return; }
+    if(vr_agt_step == 1)
+    {
+        entity oldself = self;
+        self = g;
+        float seeking = VR_AG_Seeking();
+        self = oldself;
+        entity w = g.vr_ag_seek;
+        g.vr_ag_seek_prog = time - 3; // (no nearer for 3 s)
+        float kept = VR_AG_SeekCheck(g);
+        self = g;
+        g.vr_ag_seek = world;
+        entity again = VR_AG_FindWeapon();
+        self = oldself;
+        VR_AGT_Check(sprintf("give up: seeking %g (%s), kept on %g, shunned %g, found again %s:", seeking, w.netname, kept,
+            VR_AG_Shunned(g, w), again ? again.netname : "nothing"), seeking && w && !kept && VR_AG_Shunned(g, w) && !again);
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        cvar_set("vr_agrunt_test", "0");
+    }
 };
 
 void(float t) VR_AGPT_Frame =
@@ -493,4 +522,5 @@ void(float t) VR_AGPT_Frame =
     else if(t == 24) { VR_AGPT_Blows(); }
     else if(t == 25) { VR_AGPT_Fall(); }
     else if(t == 26) { VR_AGPT_Reach(); }
+    else if(t == 27) { VR_AGPT_GiveUp(); }
 };
