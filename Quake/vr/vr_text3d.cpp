@@ -12,6 +12,7 @@
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_magholster.hpp"
+#include "vr_flail.hpp"
 #include "vr_hue.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_flashlight.hpp"
@@ -1353,6 +1354,7 @@ extern "C" void VR_DrawSceneOpaque()
     cellcord::drawOpaque();   // the cell cords (vr_cellcord.cpp)
     adtank::drawOpaque();     // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
     magholster::drawOpaque(); // the magnetic holsters' chains (vr_magholster.cpp)
+    flail::drawOpaque();      // AD support: the death sergeant's flail's chain (vr_flail.cpp)
     rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR))

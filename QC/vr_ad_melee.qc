@@ -32,6 +32,7 @@ float(float t) VR_ADMelee_ForClass =
     if(t == ad_CT_MONDPRINCE)  { return VR_ADMELEE_DPRINCE; }
     if(t == ad_CT_MONJUSTICE)  { return VR_ADMELEE_JUSTICE; }
     if(t == ad_CT_MONJUDGE)    { return VR_ADMELEE_JUDGE; }
+    if(t == ad_CT_MONDSERG)    { return VR_ADMELEE_FLAIL; }
     return 0;
 };
 
@@ -46,6 +47,10 @@ void(float xKind) VR_ADMelee_Ensure =
     entity e = spawn();
     setmodel(e, VR_ADMelee_Model(xKind));
     remove(e);
+    if(xKind == VR_ADMELEE_FLAIL && cvar("vr_ad_mounted"))
+    {
+        precache_sound("gibs/gibchain.wav"); // (its chain's rattle: VR_Flail_Rattle)
+    }
 };
 
 void(float xClass) VR_ADMelee_Prepare =
@@ -164,6 +169,105 @@ void() VR_ADMelee_Drop =
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
+// The death sergeant's flail (VR_ADMELEE_FLAIL): its handle in the hand strikes nothing (VR_Melee_Thing); its spiked head
+// hangs from the handle's end on a chain, a body of its own in the physics (the engine's vr_box3d_flail.cpp: a rope
+// vr_flail_chain m long, the head vr_flail_mass kg), swung by the hand: a lazy wave barely lifts it, a full swing or a
+// whirl lands it hard. Each frame its hardest hit on something (a monster, a ragdoll, a prop, the level) comes here at
+// the head's speed into it (m/s, real time's: bullet time's slowing taken out) and its mass (and, held in both hands,
+// vr_flail_2h more): dealt as the hand's sword blow (W_SwordMelee: blood, a blunt blow's sounds and wounds, dents, the
+// impact rule for a prop, knockdowns), its damage vr_flail_damage x mass x (speed - vr_flail_min_speed), at most
+// vr_flail_max_damage. vr_flail_debug 1: "flail:" lines.
+
+float vr_flail_hits;      // the head's blows dealt (the tests)
+float vr_flail_rattles;   // the chain's rattles played (the tests)
+string VR_FLAIL_RATTLE = "gibs/gibchain.wav"; // (AD's: its flail's gib's)
+
+// The chain rattling (the engine's, its head swung faster than 6 m/s, at most every 0.3 s; and each blow): AD's chain
+// sound from `p`, louder the faster (`xSpeed` m/s).
+void(entity p, float xHand, float xSpeed) VR_Flail_Rattle =
+{
+    if(!cvar("vr_flail_rattle") || !cvar("vr_ad_mounted"))
+    {
+        return;
+    }
+    vr_flail_rattles++;
+    sound(p, CHAN_AUTO, VR_FLAIL_RATTLE, min(1, cvar("vr_flail_rattle") * (0.25 + xSpeed / 25)), ATTN_NORM);
+};
+float vr_flail_last;      // and the last one's damage
+float vr_flail_last_speed;
+
+void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, float xMass) VR_Flail_Hit =
+{
+    float least = max(0, cvar("vr_flail_min_speed"));
+    if(xSpeed <= least || p.health <= 0 || !(p.flags & FL_CLIENT))
+    {
+        return;
+    }
+    float xBoth = VRGet2HAiming(p) && VRIsHandEmpty(p, VRGetOtherHand(xHand)); // (the other hand on its handle)
+    if(t != world && !t.takedamage && t.solid != SOLID_BSP)
+    {
+        return; // (a prop that takes no damage: the head knocks it, in the physics)
+    }
+    float dmg = cvar("vr_flail_damage") * xMass * (xSpeed - least) * (xBoth ? max(0, cvar("vr_flail_2h")) : 1);
+    dmg = min(dmg, max(0, cvar("vr_flail_max_damage")));
+    if(dmg <= 0)
+    {
+        return;
+    }
+    entity was = self;
+    self = p;
+    entity b = VR_Blow(xHand);
+    entity cEnt = b.mh_c_ent;
+    vector cPos = b.mh_c_pos;
+    vector cDir = b.mh_c_dir;
+    vector cNormal = b.mh_c_normal;
+    float strength = b.mh_strength;
+    float counter = b.mh_counter;
+    float speed = b.mh_speed;
+    float dmgSpeed = b.mh_dmgspeed;
+    b.mh_c_ent = t;
+    b.mh_c_pos = xAt;
+    b.mh_c_dir = normalize(xDir);
+    b.mh_c_normal = -b.mh_c_dir;
+    b.mh_strength = 1;
+    b.mh_counter = 0;
+    b.mh_speed = xSpeed;
+    b.mh_dmgspeed = xSpeed;
+    VRSetMeleeHitSoundPlayed(xHand, FALSE);
+    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+    vr_mdmg_core = 0; // (no strength cap: its damage is its own)
+    vr_melee_blunt = TRUE;
+    vr_sgib_at = xAt;
+    vr_melee_blowhand = xHand + 1;
+    vr_flail_damage = dmg;
+    float before = t.health;
+    VR_Flail_Rattle(p, xHand, xSpeed);
+    W_SwordMelee(xHand);
+    vr_flail_damage = 0;
+    vr_melee_blowhand = 0;
+    vr_melee_blunt = FALSE;
+    vr_sgib_at = '0 0 0';
+    VR_ClearHitKind();
+    b.mh_c_ent = cEnt;
+    b.mh_c_pos = cPos;
+    b.mh_c_dir = cDir;
+    b.mh_c_normal = cNormal;
+    b.mh_strength = strength;
+    b.mh_counter = counter;
+    b.mh_speed = speed;
+    b.mh_dmgspeed = dmgSpeed;
+    self = was;
+    vr_flail_hits++;
+    vr_flail_last = dmg;
+    vr_flail_last_speed = xSpeed;
+    if(cvar("vr_flail_debug"))
+    {
+        bprint(sprintf("flail: hand %g hit %s at %.1f m/s, %.1f kg%s: damage %.1f (health %g before)\n", xHand,
+            t == world ? "the level" : t.classname, xSpeed, xMass, xBoth ? ", two hands" : "", dmg, before));
+    }
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Tests
 
 float vr_admelee_step;
@@ -262,6 +366,7 @@ float(float xKind) VR_ADMelee_ClassOf =
     if(xKind == VR_ADMELEE_DPRINCE) { return ad_CT_MONDPRINCE; }
     if(xKind == VR_ADMELEE_JUSTICE) { return ad_CT_MONJUSTICE; }
     if(xKind == VR_ADMELEE_JUDGE)   { return ad_CT_MONJUDGE; }
+    if(xKind == VR_ADMELEE_FLAIL)   { return ad_CT_MONDSERG; }
     return ad_CT_MONHOGREMAC;
 };
 
@@ -349,6 +454,16 @@ void() VR_ADMelee_Think =
         VRGetEntWeapon(p, cVR_MainHand) == WID_SWORD &&
         (VRGetEntWeaponFlags(p, cVR_MainHand) & (QVR_WPNFLAG_SWORD_KIND | QVR_WPNFLAG_USE_SECONDARY_AMMO)) == vr_admelee_flags);
     float thing = VR_Melee_Thing(p, cVR_MainHand);
+    if(VR_ADMelee_Flail(k))
+    {
+        VR_ADMelee_Report(sprintf("its handle strikes nothing (thing %g)", thing), thing == VR_MTHING_NONE);
+        VR_ADMelee_Report(sprintf("no holster takes it (%g)", WeaponIdToHolsterable(WID_SWORD, vr_admelee_flags)),
+            !WeaponIdToHolsterable(WID_SWORD, vr_admelee_flags));
+        bprint(sprintf("admelee: %s test %s\n", WeaponNameOf(WID_SWORD, vr_admelee_flags), vr_admelee_ok ? "PASS" : "FAIL"));
+        cvar_set("vr_weapon_grip_mode", ftos(vr_admelee_grip));
+        remove(self);
+        return;
+    }
     VR_ADMelee_Report(sprintf("strikes as %s", thing == VR_MTHING_AXE ? "a head (blunt)" : "a sword"),
         thing == (VR_ADMelee_Blunt(k) ? VR_MTHING_AXE : VR_MTHING_SWORD));
     VR_ADMelee_Report(sprintf("holsterable %g, very heavy %g", VR_ADMelee_Holsterable(k), VR_ADMelee_VeryHeavy(p, cVR_MainHand)),
@@ -616,6 +731,20 @@ void(float request, entity p) AD_MeleeTest =
         VR_ADMelee_Hold(p, cVR_OffHand);
         return;
     }
+    if(request == 147)
+    {
+        VR_ADMelee_Hold(p, cVR_MainHand); // (the hold as drawn now: the tip from the hand)
+        return;
+    }
+    if(request == 146)
+    {
+        // The flail in the main hand alone (its head's mock swings: vr_flail_test.cfg).
+        VR_ADMelee_Ensure(VR_ADMELEE_FLAIL);
+        VRSetHandEmpty(p, cVR_OffHand);
+        VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(VR_ADMELEE_FLAIL));
+        VR_ADMelee_Hold(p, cVR_MainHand);
+        return;
+    }
     if(request == 128 || request == 129)
     {
         // The hammer (128) or the mace (129) in the main hand alone (heavy handling's mock swings: vr_heavy_test.cfg).
@@ -656,6 +785,11 @@ void(float request, entity p) AD_MeleeTest =
     {
         vr_admelee_class = request == 120 ? ad_CT_MONHELLK : (request == 121 ? ad_CT_MONDLORD : ad_CT_MONDGUARDQ);
         vr_admelee_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (Quake VR's hell knight's sword)
+    }
+    else if(request == 145)
+    {
+        vr_admelee_class = ad_CT_MONDSERG; // (the death sergeant's flail)
+        vr_admelee_flags = VR_ADMelee_Flags(VR_ADMELEE_FLAIL);
     }
     else
     {

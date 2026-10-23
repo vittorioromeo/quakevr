@@ -88,7 +88,9 @@ float(float wid) VR_ADGun_ClipSize =
 // AD's own weapon models laid as the knight's sword (the engine's vr_admelee.cpp: "<AD weapon model>#melee"; nothing of
 // AD's in Quake VR's files); without AD's data the knight's sword stands in. The hammer and the mace are heavy (Weapon
 // Weights: their mass slows a one-handed swing; vr_admelee_heavy_1h: its damage) and blunt (VR_Melee_Thing: an axe's
-// head that cuts no heads off; client.qc: a blunt blow's sounds and wounds).
+// head that cuts no heads off; client.qc: a blunt blow's sounds and wounds). The death sergeant's flail is its own: its
+// handle in the hand strikes nothing; its spiked head, on a chain, is a body of its own in the physics (the engine's
+// vr_box3d_flail.cpp) and strikes by its own speed and mass (VR_Flail_Hit, vr_ad_melee.qc).
 float QVR_WPNFLAG_SWORD_KIND_UNIT = 256;
 float QVR_WPNFLAG_SWORD_KIND = 3840; // (bits 8-11: 256 .. 3840; bit 11 since the four monster swords, swords4)
 float VR_ADMELEE_FURY = 1;     // the death fury's sword (it drops two: progs/w_dfurysword1.mdl)
@@ -101,7 +103,9 @@ float VR_ADMELEE_PHANTOM = 7;  // Rogue's Phantom Swordsman, which is the sword 
 float VR_ADMELEE_DPRINCE = 8;  // AD's Dark Prince's (progs/w_dprincesword.mdl)
 float VR_ADMELEE_JUSTICE = 9;  // AD's justice knight's flat sword (progs/w_justicesword.mdl)
 float VR_ADMELEE_JUDGE = 10;   // AD's judicator's (boss) glowing sword (progs/w_judgesword.mdl): too big for a holster
-float VR_ADMELEE_LAST = 10;
+float VR_ADMELEE_FLAIL = 11;   // the death sergeant's flail (progs/w_blueflail.mdl: its head on a chain, vr_box3d_flail.cpp)
+float VR_ADMELEE_LAST = 11;
+float vr_flail_damage; // the flail's head's blow being dealt (VR_Flail_Hit: W_SwordMelee deals it)
 
 // A sword's kind (0: Quake VR's own), from its weapon flags.
 float(float xFlags) VR_ADMelee_Kind =
@@ -113,6 +117,12 @@ float(float xFlags) VR_ADMelee_Kind =
 float(float xKind) VR_ADMelee_Flags =
 {
     return xKind * QVR_WPNFLAG_SWORD_KIND_UNIT;
+};
+
+// The flail (its head swung on its chain strikes, not the handle).
+float(float xKind) VR_ADMelee_Flail =
+{
+    return xKind == VR_ADMELEE_FLAIL;
 };
 
 // Heavy: its damage needs both hands (vr_admelee_heavy_damage, vr_admelee_heavy_1h of it in one hand), its blows cost
@@ -130,11 +140,12 @@ float(float xKind) VR_ADMelee_Blunt =
 };
 
 // Whether a kind's weapon fits a holster (WeaponIdToHolsterable): the hammer, the mace, the Phantom Swordsman's sword
-// and the judicator's are too big (carried by hand, or left); the other swords fit.
+// and the judicator's are too big (carried by hand, or left); the flail too (its head swings on its chain only in a
+// hand); the other swords fit.
 float(float xKind) VR_ADMelee_Holsterable =
 {
     return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE && xKind != VR_ADMELEE_PHANTOM &&
-           xKind != VR_ADMELEE_JUDGE;
+           xKind != VR_ADMELEE_JUDGE && xKind != VR_ADMELEE_FLAIL;
 };
 
 // Its model (vr_admelee.cpp makes it from AD's, the Phantom Swordsman's from Rogue's), or the knight's sword without
@@ -157,6 +168,7 @@ string(float xKind) VR_ADMelee_Model =
     if(xKind == VR_ADMELEE_DPRINCE)  { return "progs/w_dprincesword.mdl#melee"; }
     if(xKind == VR_ADMELEE_JUSTICE)  { return "progs/w_justicesword.mdl#melee"; }
     if(xKind == VR_ADMELEE_JUDGE)    { return "progs/w_judgesword.mdl#melee"; }
+    if(xKind == VR_ADMELEE_FLAIL)    { return "progs/w_blueflail.mdl#melee"; }
     return "progs/w_ogremac.mdl#melee";
 };
 
@@ -171,6 +183,7 @@ string(float xKind) VR_ADMelee_Name =
     if(xKind == VR_ADMELEE_DPRINCE)  { return "Dark Prince's Sword"; }
     if(xKind == VR_ADMELEE_JUSTICE)  { return "Justice Knight's Sword"; }
     if(xKind == VR_ADMELEE_JUDGE)    { return "Judicator's Sword"; }
+    if(xKind == VR_ADMELEE_FLAIL)    { return "Death Sergeant's Flail"; }
     return "Hunter Ogre's Mace";
 };
 
@@ -181,7 +194,7 @@ void(float wid, float xFlags) VR_ADMelee_Placed; // a sword of a kind laid or ca
 void(entity p) VR_ADMelee_EnsureCarried;         // DecodeLevelParms: p's carried ones made and precached
 void(float xKind) VR_ADMelee_Ensure;             // a kind's model made and precached now (rogue_invis_sw.qc's spawn)
 float() VR_ADMelee_PhantomDrop;                  // rogue_invis_sw.qc sword_die: self, the Phantom Swordsman, falls as one
-void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests
+void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests (145-147: the flail)
 
 // vr_ad_enemyguns.qc (after AD's files) defines these.
 float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack: TRUE fired

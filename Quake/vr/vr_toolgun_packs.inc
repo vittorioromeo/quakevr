@@ -161,5 +161,9 @@ QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Zombie Knight's Sword", "mons
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Death Guard's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 114.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Hunter Ogre's Hammer", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 115.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Hunter Ogre's Mace", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 116.f, 0, 0, nullptr, 0)
+// The death sergeant's flail (QC VR_ADMELEE_FLAIL, kind 11: weapon flags 2816; its head on a chain, vr_box3d_flail.cpp),
+// at the end so the entries' numbers stay (the Weapons tab's AD group; QC's dispenser choice 346, vr_ad_monsters.qc).
+    {"Weapons", "AD Death Sergeant's Flail", "func_weapon_grabbable", "progs/w_blueflail.mdl#melee", 8.f, "weapon", 13.f, 0,
+        false, true, false, 346, false, 0, nullptr, nullptr, 0, 2816.f},
 
 #undef QVR_PACK

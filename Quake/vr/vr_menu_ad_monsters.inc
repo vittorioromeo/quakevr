@@ -134,6 +134,15 @@
         command("Melee Weapons: Fury's Swords in Hand", "vr_ad_test 116")
             .help("Both hands get the death fury's swords. 117: the death knight's and zombie knight's; 118: the death "
                   "guard's and the hammer; 119: the mace and the knight's own sword (console)."),
+        command("Melee Weapons Dropped: Death Sergeant's Flail", "vr_ad_test 131")
+            .help("Destructive: the death sergeant nearest you killed; its flail lies (its corpse holds none), goes into "
+                  "your main hand; its handle strikes nothing, no holster takes it (admelee: lines)."),
+        command("Flail in Hand", "vr_ad_test 132")
+            .help("The death sergeant's flail in your main hand: its head hangs on its chain, a body of its own; swing "
+                  "it (vr_flail_debug 1: each blow's speed and damage)."),
+        command("Flail Info", "vr_flail_info")
+            .help("In the console, since the last: the frames a head was held, its chain's most stretch, the frames a wall "
+                  "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits."),
         command("Melee Weapon Models", "vr_admelee_models")
             .help("The melee weapons made from AD's weapon models: triangles, box, tip. 'vr_admelee_models write' "
                   "(console): each made file into the game folder (admelee_<n>.mdl)."),

@@ -183,13 +183,13 @@ Done (ROUND22.md, "Four monster swords", branch `agent/swords4`, 2026-10-23): th
 heavy two-handed sword (Rogue's data), the Dark Prince, the justice knight and the judicator drop theirs (AD's), as the
 other AD melee weapons (QC `vr_ad_melee.qc`, kinds 7-10; Weapon Offsets slots 47-50). Left: VR checks of the grips.
 
-### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23)
+### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
 
-The author: "add to the backlog to eventually make the [mace] that he holds a usable weapon". AD's death sergeant
-(`monster_dsergeant`, `progs/mon_dsergeant.mdl`: its flail/mace its own bone, `vr_ad_rigs.inc` adDsergeantSeeds) drops
-it as the death fury drops its swords (QC `vr_ad_melee.qc` VR_ADMelee_ForClass: a new kind, blunt and heavy as the
-hunter ogres' hammer and mace, Weapon Weights; its vertices hidden in its deaths, `vr_monstermods.cpp` knownSwords, with
-its death frames 223-254). Next to the Dark Prince's and the Phantom Swordsman's swords above.
+Done in round 22 (ROUND22.md, "The death sergeant's flail"): it drops its flail, the head a Box3D body on a rope,
+striking by its own speed and mass (its handle placed in the hand, slow motion in the hands' time, the chain's rattle:
+"The flail after swords4"). Left: the hand's grip pose round its short handle and two-hand grips (Weapon Offsets slot
+51, his tuning); a chain of a few links that wraps round things instead of one rope; holstering it (its head hanging
+from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 

@@ -17498,3 +17498,93 @@ its baseline): the state High, the file kept; My Settings sets 5 / 0.123 / 0 bac
 (menu, `vr_menu_press`) then a preset and My Settings: bloom 0.2 kept. `vr_menu_path_check` vrcalibration 6 found,
 vrtesthall 14 found, 0 missing. Screenshot of the page after `vr_menu_press Graphics Presets > Medium`: "Now: Medium",
 "Medium set.".
+## The death sergeant's flail (worktree `gorefx`, branch `agent/flail`, 2026-10-23)
+
+The author approved it (BACKLOG.md, "Droppable, usable mace: AD's Death Sergeant"): AD's death sergeant drops its flail
+and the player swings it, its spiked head a body of its own on a chain.
+
+- **Drop:** a new AD melee kind, `VR_ADMELEE_FLAIL` 7 (the knight's sword, `WID_SWORD`, with the kind in its weapon flags:
+  saves, level changes and the toolgun as the other AD melee weapons). `VR_ADMelee_Drop` drops it for
+  `ad_CT_MONDSERG` (AD's gib1, `w_blueflail.mdl`, no longer thrown). `vr_monstermods.cpp` hides its 395 vertices
+  (870..1264) in the deaths (223..254); the rig (`vr_ad_rigs.inc` adDsergeantSeeds) loses its dangling "flail" bone,
+  so the flail is a loose piece as the hunter ogres' weapons are (shin parents renumbered).
+- **Models** (`vr_admelee.cpp`, from the player's AD file, nothing of AD's written): `progs/w_blueflail.mdl#melee` its
+  handle alone (AD's vertices 0..63, 207..212), laid as the knight's sword (the hand 40% up from the pommel);
+  `#flailhead` its spiked ball and ring (64..206, 213..218), its middle at the origin, +x to the ring, at the held
+  weapons' drawn size. AD's chain is not used: the engine draws its own. Weapon Offsets slot 47 (index 46: the mace's
+  settings, its own tip `3.4688 1.2836 9.1007`, mass 1.2 kg); `weapons::numSlots` 47; toolgun Weapons choice 346
+  (`ad_monsters_gen.py`'s GUNS row; its QC rows added by hand: the generator would undo 309-311).
+- **Held** (not holsterable: the head swings only in a hand; the hammer's and mace's rule): the handle strikes nothing
+  (`VR_Melee_Thing` none). The head (`vr_box3d_flail.cpp`): for each hand holding `#melee`, a shapeless kinematic anchor
+  at the hand's muzzle (QC .muzzlepos: the handle's end as drawn), led each frame like the reach bodies, and a dynamic
+  sphere (4.4 u, `vr_flail_mass` kg, a bullet: continuous) held to it by Box3D's distance joint as a rope
+  (`vr_flail_chain` m plus the ring's reach). Categories: catProp plus its own catFlail; it meets the level, doors,
+  monsters, props and corpses, never the player, his hands or what they carry. Its user number is negative (no
+  entity: every contact consumer checks for > 0). Carried on a jump the hand never makes (over 1.5 m, or faster than
+  25 m/s real: a stale muzzle as it is taken, a teleport, a load), placed short of the level; no faster than 40 m/s;
+  its middle never crosses the level's surface (put back if it did: none in the tests). Made again when the chain
+  length or mass changes; gone when the hand lets go.
+- **Blows:** Box3D's hit events of the head, each hand's hardest of the frame, the same thing again no sooner than
+  0.2 s, none in its first 0.3 s, go to QC `VR_Flail_Hit(player, hand, target, at, dir, speed, mass)` (`speed` real:
+  bullet time's scale divided out). Damage `vr_flail_damage` 3 x mass x (speed - `vr_flail_min_speed` 3 m/s), at most
+  `vr_flail_max_damage` 150, `vr_flail_2h` 1.3x with the other hand on its handle; dealt as the hand's blunt sword blow
+  (W_SwordMelee with the blow's contact and speed set to the head's: blood, blunt sounds and haptics, wall marks, the
+  impact rule for props, knockdowns), the blow's own fields put back after.
+- **Drawn** (`vr_flail.cpp`): the head model where the last step left it (a listen server's), turned with its ring to
+  the chain's last link; the chain from the drawn muzzle to the ring as the flashlight's rigid chain of links
+  (`coil::Cord`, blue steel), in each eye's opaque scene.
+- **Settings:** AD Weapons page, "Death Sergeant's Flail": Chain Length, Head Mass, Damage, Least Speed, Most Damage,
+  Two Hands. Debug (AD Monsters page): Melee Weapons Dropped: Death Sergeant's Flail (`vr_ad_test 131`), Flail in Hand
+  (`132`), Flail Info (`vr_flail_info`). `vr_flail_debug` 1: each blow, 2: the head every frame.
+
+**Tests** (`-Games "-game hipnotic -game rogue -game ad -game quakevr"`, vrfiringrange):
+- `vr_ad_test 131` (a death sergeant spawned 128 ahead): killed, dropped 1, AD's gib none, lying with its model and
+  name, taken (weapon 13 kind 7), handle strikes nothing, no holster: PASS. The flail's vertices hidden in 32 death
+  frames.
+- Mock swings at a shambler 56 ahead (`scratch/flail_swing.sh`, `vr_flail_debug 1`): lazy wave (vr_mock_swing 2.5)
+  hits at 5.5, 5.9, 3.3 m/s (15, 17, 2 damage; slower ones none); full swing (0.4) at 35, 21, 17, 18, 11 m/s
+  (150, 107, 84, 89, 46). The head hangs 17.7 u from the handle at rest.
+- Floor slams and a low whirl (`scratch/flail_floor.py`, the hand moved every frame, 10 m/s): 508 frames, 14 hits on
+  the level, the level never between the handle and the head, never put back, no NaN; the chain stretched 7.4 u at
+  most at the fastest (the joint's softness at 40 m/s). (A scripted hand that jumps 1.35 m in a frame sank the head
+  into the floor before the jump rule placed it short of the level.)
+- Bullet time (`vr_bullettime`, x0.30): the head slowed with the world; hits' real speeds 0.4-3.8 m/s. Save and load:
+  the head made again, hanging, no hits.
+- `eval.sh`: verdicts as the baseline (4 takes differ by 0.1 in an offset, PASS -> PASS).
+
+**Open:** the eyeshot (`scratch/flail_eye.png`, `flail_vs_mace.png`) shows the handle drawn away from the main hand
+(the mace's offsets do not fit a 20 cm handle): Weapon Offsets slot 47 needs his tuning (hand offsets, grips, 2H). In
+bullet time a full swing lands weakly (the head lags a hand that is fast in game time); a lazy wave as in normal time.
+Chain rattle sound not done (AD's `gibs/gibchain.wav` would do). One rope, no links: it does not wrap round things.
+
+**In VR:** kill a death sergeant (it should hold no flail dead), take its flail; swing lazily (barely hurts), fully and
+whirl-and-release (hard); slam it on the floor and into walls (bounces, never through); two hands on the handle;
+bullet time; tune slot 47 so the hand holds the handle.
+
+### The flail after swords4 (merged; worktree `gorefx`, branch `agent/flail`, 2026-10-23)
+
+- **Renumbered** after swords4 took kinds 7-10, slots 47-50 and `vr_ad_test` 131-139: the flail is kind 11 (weapon
+  flags 2816; the kind's bits 8-11 hold it), Weapon Offsets slot 51 (index 50, `numSlots` 51), `vr_ad_test` 145
+  (killed, dropped, taken), 146 (in the main hand), 147 (the main hand's hold as drawn: the tip from the hand). Its
+  toolgun entry is the table's last (`vr_toolgun_packs.inc`: no entry's number moves; it was among AD's guns, which
+  moved every entry after it), its QC dispenser choice still 346 (`ad_monsters_gen.py`'s row taken out: its rerun would
+  move the entries).
+- **The handle in the hand:** the mace's offsets put it 25 units from the hand (the slot's Scale scales the model about
+  its box's corner, swords4's "Held up the blade (fixed)"). Offsets now the mace's + 0.66 x (the mace's corner - the
+  flail's), then 3.2 units along the handle to land its grip where the mace's is: X 1.79, Y 3.886, Z 4.70. Its tip
+  2.3 units from the hand (the mace's grip 3 below the hand point, as his tuning has it); eyeshot
+  `scratch/flail_held3.png`: the handle in the hand, the chain to the head on the floor.
+- **Slow motion:** the hands are slowed with the world (`timescale::filterHands`: they follow their controllers at the
+  game's pace), so the head lives in its hand's time: `handTime()` = scale / `timescale::handScale()` (1 in bullet
+  time, the scale in Sandevistan), its gravity 1/handTime^2, its rope's stiffness and its speeds by it; a blow's speed
+  is the hand's time's, as melee's. Before, the speeds were taken to real time (x0.3) and the head made 11 times as
+  heavy: full swings hit at 0.4-3.8 m/s. Real-time runs (`-RealTime`, `vr_timescale 0.3`): hits 4.4-12.5 m/s (57, 46,
+  44 damage), against 8.8-21.5 at full speed; the slowed hand itself reaches 13.7 m/s at the handle's end against 22
+  (its own speed limit, vr_timescale_hand_speed). (Fast-mode runs time the mock swing by the wall clock: they don't
+  compare slow motion.) A hand's place arriving in bursts is no jump under 0.5 m.
+- **The chain's length:** its rope 120 Hz (Box3D's joints' 60), and after each step the head held to its length,
+  pulled position-based (the pull given as speed too); the stretch 7.4 -> 0.00 units; the speed limit (40 m/s) after.
+- **Rattle:** AD's `gibs/gibchain.wav` (precached with the flail's model) from the player as the head goes faster than
+  6 m/s (at most every 0.3 s) and with each blow; `vr_flail_rattle` 0.7 its volume (AD Weapons page: Chain Rattle).
+- Tests: `vr_ad_test 145` all PASS (kind 11); full-speed swings (real time) 8.8-21.5 m/s, 35-111 damage; floor slams:
+  14 hits, never through, never put back; `eval.sh` 169/177 as the baseline (verdicts unchanged).

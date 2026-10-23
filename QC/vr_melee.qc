@@ -552,6 +552,11 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         // AD support: the hunter ogres' hammer and mace strike with their heads, as an axe's (cutting nothing off, as
         // Mjolnir: vr_decap.qc VR_Decap_Blade; vr_ad_guns_defs.qc).
+        // The death sergeant's flail: its head on its chain strikes (a body of its own: VR_Flail_Hit), its handle nothing.
+        if(VR_ADMelee_Flail(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) && cvar("vr_ad_mounted"))
+        {
+            return VR_MTHING_NONE;
+        }
         return VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) ? VR_MTHING_AXE : VR_MTHING_SWORD;
     }
     if(wid == WID_CROWBAR)

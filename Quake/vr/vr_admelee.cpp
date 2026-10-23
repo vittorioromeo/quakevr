@@ -57,6 +57,7 @@ struct Weapon
     bool flip; // turned half round the handle: the fury's curve, the hammer's spike away from the player
     const Sword* sword;
     const Heavy* heavy;
+    bool flail{false}; // the death sergeant's flail: AD's handle kept (its chain and head the engine's: flailPart)
 };
 
 constexpr Sword furySword{-4.f, 0.62f, 3.5f, 5.8f, 0.18f, 0.5f, 0.42f, 0.32f, 1.25f, 6,
@@ -104,6 +105,10 @@ constexpr Weapon weapons[] = {
         {0.2414f, -0.9623f, -0.1253f}, false, &justiceSword, nullptr},
     {"progs/w_judgesword.mdl", {-14.752f, -4.1064f, 1.486f}, {0.9696f, 0.2444f, -0.009f}, {0.2414f, -0.9623f, -0.1253f},
         false, &judgeSword, nullptr},
+    // The death sergeant's flail (AD's gib lies flat: its handle from the pommel at 10.5 -11.3 to the chain's ring at
+    // 3 -8.5; the hand 40% along it from the pommel).
+    {"progs/w_blueflail.mdl", {7.506f, -10.16f, 1.56f}, {-0.9345f, 0.3523f, 0.0371f}, {0.f, 0.f, 1.f}, false, nullptr,
+        nullptr, true},
 };
 
 // The knight's sword (v_ksword.mdl, slot 19's HandAnchor and MuzzleAnchor): the hand's place, and its blade's line to
@@ -172,6 +177,24 @@ constexpr float swordScale = 2.6f;
     return true;
 }
 
+// "<the flail's model>#flailhead" taken apart; false if it isn't one.
+[[nodiscard]] bool flailHeadOf(const char* name, char* base, size_t baseSize)
+{
+    const char* at = strstr(name, flailHeadSuffix);
+    if(!at || at[strlen(flailHeadSuffix)] != '\0')
+    {
+        return false;
+    }
+    const size_t n = static_cast<size_t>(at - name);
+    if(n + 1 > baseSize)
+    {
+        return false;
+    }
+    memcpy(base, name, n);
+    base[n] = '\0';
+    return true;
+}
+
 struct Built
 {
     za::Vector<byte> file;
@@ -190,6 +213,8 @@ struct Frame
     glm::vec3 grip, a, g, n; // source
     glm::vec3 A, G, N;       // the knight's sword's
     bool flip{false};
+    glm::vec3 base{swordHand}; // where the source's grip goes, and its scale (the flail's head: 0, flailHeadScale)
+    float k{swordScale};
     [[nodiscard]] glm::vec3 local(const glm::vec3& p) const
     {
         const glm::vec3 d = p - grip;
@@ -210,7 +235,7 @@ struct Frame
     }
     [[nodiscard]] glm::vec3 place(const glm::vec3& l) const
     {
-        return swordHand + swordScale * dir(l);
+        return base + k * dir(l);
     }
 };
 
@@ -960,10 +985,107 @@ void check(const Mesh& m, Built& out)
     }
 }
 
-// AD's weapon made anew (its skins and, on the heavy ones, its head kept), laid as the knight's sword.
-[[nodiscard]] bool build(const Weapon& w, const byte* src, size_t size, Built& out, const char*& why)
+// The death sergeant's flail (AD's release's w_blueflail.mdl: 384 vertices, 286 triangles): its handle's vertices
+// (0..63, 207..212), its head's (the spiked ball 64..122 and its spikes to 206, the ring the chain holds 123..158 and
+// 213..218); the chain (219..383) is drawn by the engine (vr_flail.cpp), from the handle's end to the head.
+constexpr int flailVerts = 384, flailTris = 286;
+[[nodiscard]] bool flailHandleVert(int v)
 {
-    const Frame fr = frameOf(w);
+    return v < 64 || (v >= 207 && v <= 212);
+}
+[[nodiscard]] bool flailHeadVert(int v)
+{
+    return (v >= 64 && v < 207) || (v >= 213 && v <= 218);
+}
+
+// AD's triangles of the flail's handle (or its head) kept as they are, skinned as AD's.
+[[nodiscard]] bool flailPart(Mesh& m, const Source& src, bool head)
+{
+    za::Vector<int> keyed;
+    keyed.resize(src.pos.size(), -1);
+    for(const Source::Tri& t : src.tris)
+    {
+        bool in = true;
+        for(int c = 0; c < 3; c++)
+        {
+            in = in && (head ? flailHeadVert(t.v[c]) : flailHandleVert(t.v[c]));
+        }
+        if(!in)
+        {
+            continue;
+        }
+        for(int c = 0; c < 3; c++)
+        {
+            int& k = keyed[t.v[c]];
+            if(k < 0 || m.uv[k] != glm::vec2{t.s[c], t.t[c]})
+            {
+                k = m.vert(src.pos[t.v[c]], -1, -1, glm::vec2{t.s[c], t.t[c]}, src.nrm[t.v[c]]);
+            }
+            m.tri.pushBack(k);
+        }
+    }
+    return m.tri.size() >= 24;
+}
+
+// The flail's head's frame: its ball's middle at the origin, +x towards the ring the chain holds, at the size the
+// held weapons are drawn (the knight sword's 2.6 times AD's, drawn at 0.34): drawn at scale 1 where the physics has it.
+constexpr float flailHeadScale = swordScale * 0.34f;
+[[nodiscard]] bool flailHeadFrame(const byte* src, size_t size, Frame& out, const char*& why)
+{
+    Frame raw;
+    raw.grip = glm::vec3{0.f};
+    raw.a = glm::vec3{1.f, 0.f, 0.f};
+    raw.g = glm::vec3{0.f, 1.f, 0.f};
+    raw.n = glm::vec3{0.f, 0.f, 1.f};
+    raw.A = raw.a;
+    raw.G = raw.g;
+    raw.N = raw.n;
+    Source s;
+    if(!readSource(raw, src, size, s, why))
+    {
+        return false;
+    }
+    if(static_cast<int>(s.pos.size()) != flailVerts || static_cast<int>(s.tris.size()) != flailTris)
+    {
+        why = "not the flail AD's release has";
+        return false;
+    }
+    glm::vec3 ball{0.f}, ring{0.f};
+    int rings = 0;
+    for(int v = 64; v < 123; v++)
+    {
+        ball += s.pos[v];
+    }
+    ball /= 59.f;
+    for(int v = 123; v < 219; v++)
+    {
+        if(v < 159 || v >= 213)
+        {
+            ring += s.pos[v];
+            rings++;
+        }
+    }
+    ring /= static_cast<float>(rings);
+    out = raw;
+    out.grip = ball;
+    out.a = glm::normalize(ring - ball);
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    out.g = glm::normalize(glm::cross(up, out.a));
+    out.n = glm::cross(out.a, out.g);
+    out.base = glm::vec3{0.f};
+    out.k = flailHeadScale;
+    return true;
+}
+
+// AD's weapon made anew (its skins and, on the heavy ones, its head kept), laid as the knight's sword; `flailHead`: the
+// flail's head alone (flailHeadFrame).
+[[nodiscard]] bool build(const Weapon& w, const byte* src, size_t size, Built& out, const char*& why, bool flailHead = false)
+{
+    Frame fr = frameOf(w);
+    if(flailHead && !flailHeadFrame(src, size, fr, why))
+    {
+        return false;
+    }
     Source s;
     if(!readSource(fr, src, size, s, why))
     {
@@ -971,7 +1093,20 @@ void check(const Mesh& m, Built& out)
     }
     Mesh m;
     size_t headVerts = 0; // (the head's vertices come first)
-    if(w.sword)
+    if(w.flail)
+    {
+        if(static_cast<int>(s.pos.size()) != flailVerts || static_cast<int>(s.tris.size()) != flailTris)
+        {
+            why = "not the flail AD's release has";
+            return false;
+        }
+        if(!flailPart(m, s, flailHead))
+        {
+            why = "its part not found";
+            return false;
+        }
+    }
+    else if(w.sword)
     {
         swordHandle(m, *w.sword);
         guard(m, *w.sword);
@@ -1065,7 +1200,7 @@ void check(const Mesh& m, Built& out)
     float farthest = -1e30f;
     for(const glm::vec3& p : pts)
     {
-        farthest = za::max(farthest, glm::dot(p - swordHand, A));
+        farthest = za::max(farthest, glm::dot(p - fr.base, A));
     }
     out.tip = glm::vec3{0.f};
     int tipCount = 0;
@@ -1080,7 +1215,7 @@ void check(const Mesh& m, Built& out)
             hi[i] = za::max(hi[i], f[at + i]);
         }
         f[at + 3] = nearestNormal(fr.dir(m.nrm[v]));
-        if(glm::dot(p - swordHand, A) > farthest - 2.f)
+        if(glm::dot(p - fr.base, A) > farthest - (w.flail ? 0.5f : 2.f))
         {
             out.tip += p;
             tipCount++;
@@ -1105,7 +1240,8 @@ void check(const Mesh& m, Built& out)
 [[nodiscard]] bool buildNamed(const char* name, unsigned int* path_id, Built& out, const char*& why)
 {
     char base[MAX_QPATH];
-    if(!parse(name, base, sizeof(base)))
+    const bool flailHead = flailHeadOf(name, base, sizeof(base));
+    if(!flailHead && !parse(name, base, sizeof(base)))
     {
         why = "not an AD melee weapon's model";
         return false;
@@ -1124,7 +1260,7 @@ void check(const Mesh& m, Built& out)
         return false;
     }
     const size_t size = static_cast<size_t>(com_filesize);
-    const bool ok = build(*w, src, size, out, why);
+    const bool ok = build(*w, src, size, out, why, flailHead);
     VR_HeapFree(src);
     if(path_id)
     {
@@ -1304,7 +1440,8 @@ bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* at = strstr(name, suffix);
-    if(!at || at[strlen(suffix)] != '\0')
+    char base[MAX_QPATH];
+    if((!at || at[strlen(suffix)] != '\0') && !flailHeadOf(name, base, sizeof(base)))
     {
         return nullptr;
     }
@@ -1312,6 +1449,11 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     const char* why = "";
     if(!buildNamed(name, path_id, b, why))
     {
+        if(flailHeadOf(name, base, sizeof(base)))
+        {
+            Con_DPrintf("AD melee model: %s: %s: none\n", name, why); // (the flail's head not drawn: vr_flail.cpp)
+            return nullptr;
+        }
         // Not made (AD's data not there, another release's file): the knight's own sword's file under the weapon's
         // name (as QC's VR_ADMelee_Model without AD's data), never a failed map load.
         Con_DPrintf("AD melee model: %s: %s: progs/v_ksword.mdl stands in\n", name, why);

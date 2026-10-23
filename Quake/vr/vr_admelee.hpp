@@ -23,6 +23,11 @@ namespace qvr::admelee
 {
 
 inline constexpr const char* suffix = "#melee";
+// "<the death sergeant's flail>#flailhead" (progs/w_blueflail.mdl#flailhead): its spiked head alone, its ball's middle at
+// the origin and +x towards the ring its chain holds, at the held weapons' drawn size (drawn at scale 1: vr_flail.cpp).
+inline constexpr const char* flailHeadSuffix = "#flailhead";
+inline constexpr const char* flailModel = "progs/w_blueflail.mdl#melee";
+inline constexpr const char* flailHeadModel = "progs/w_blueflail.mdl#flailhead";
 
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a weapon model named so (allocated with VR_HeapMalloc), or null.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);

@@ -129,6 +129,14 @@ void toolForget(int num);
 // (vr_adtank.cpp: a listen server's).
 void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool joined)> fn);
 
+// AD support: the death sergeant's flail's head of client `client`'s hand `hand` (1 the main hand) as the last step left
+// it, and its chain's anchor (the handle's end), world units; false if that hand holds none (vr_box3d_flail.cpp). The
+// server's; the view draws it (vr_flail.cpp: a listen server's).
+[[nodiscard]] bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor);
+// vr_flail_info: the heads' stats since the last (frames held, the chain's most stretch, the frames the level stood
+// between the handle and the head, the fastest, hits dealt); then cleared.
+void flailInfo_f();
+
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
 // that it sees are thrown.
 void blast(const glm::vec3& at, float damage);

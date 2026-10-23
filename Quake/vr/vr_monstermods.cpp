@@ -290,6 +290,14 @@ const KnownSword knownSwords[] = {
          za::iota(v.begin(), v.end(), 216);
          return v;
      }(), 132, 155},
+    // AD's death sergeant's flail (its handle, chain and spiked head: 870..1264, the model's last pieces, AD's gib's mesh
+    // w_blueflail.mdl), hidden in its deaths (223..254, the rig's: vr_ad_rigs.inc, whose seeds no longer give it a bone
+    // of its own); QC VR_ADMelee_Drop drops it, vr_admelee.cpp makes it.
+    {qvr::modelmeta::Id::AdDsergeant, 1265, 1042, [] {
+         za::Vector<int> v(395);
+         za::iota(v.begin(), v.end(), 870);
+         return v;
+     }(), 223, 254},
     // AD's chainsaw ogres (QC VR_AD_DropChainsaw: Quake VR's chainsaw, as Quake VR's ogre's): the nail, flak and marksman
     // ogre (progs/mon_ogre.mdl, id's mesh: the chainsaw its own piece, 20..51; deaths 112..135) and the hunter ogre
     // (progs/mon_hogre.mdl: 210..332; deaths S, A and B 154..187). Their grenade launchers stay.
@@ -360,6 +368,7 @@ const KnownSword knownSwords[] = {
     case qvr::modelmeta::Id::AdDguard: return "sword";                                         // AD support
     case qvr::modelmeta::Id::AdHogreham: return "hammer";                                      // AD support
     case qvr::modelmeta::Id::AdHogremac: return "mace";                                        // AD support
+    case qvr::modelmeta::Id::AdDsergeant: return "flail";                                      // AD support
     case qvr::modelmeta::Id::AdSoldier: return "burst rifle";                                 // AD support
     case qvr::modelmeta::Id::AdEnforcer: return "gun and muzzle effect";                       // AD support
     case qvr::modelmeta::Id::AdCenturion: return "gun, muzzle effect and hover board";         // AD support
@@ -581,6 +590,7 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
                          id == qvr::modelmeta::Id::AdDfury || id == qvr::modelmeta::Id::AdDknight ||    // AD support
                          id == qvr::modelmeta::Id::AdDguard || id == qvr::modelmeta::Id::AdHogreham ||  // AD support
                          id == qvr::modelmeta::Id::AdHogremac || id == qvr::modelmeta::Id::AdKnight || // AD support
+                         id == qvr::modelmeta::Id::AdDsergeant ||                                      // AD support
                          id == qvr::modelmeta::Id::AdHknight || id == qvr::modelmeta::Id::AdDlord ||    // AD support
                          id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector || // AD support
                          id == qvr::modelmeta::Id::AdOgre || id == qvr::modelmeta::Id::AdHogre ||      // AD support

@@ -5,6 +5,7 @@
 #include "vr_holstersetup.hpp"
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
+#include "vr_flail.hpp"
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_seated.hpp"
@@ -4969,6 +4970,7 @@ extern "C" void VR_SetupViewEntities()
         // Spent casings thrown out of the weapons (vr_shells.cpp).
         shells::frame(entities.weapon);
         collectfx::frame(s); // things put away, going into their holster or pouch (vr_collectfx.cpp)
+        flail::frame(s); // AD support: the death sergeant's flail's head and chain (vr_flail.cpp)
         explosiondebris::frame();
         fireparticles::frame();
         flamewobble::frame(); // flames stirred by a fast hand (vr_flamewobble.cpp)

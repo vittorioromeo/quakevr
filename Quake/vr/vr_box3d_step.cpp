@@ -1018,6 +1018,7 @@ void touches(za::Vector<za::Pair<int, int>>& out)
         }
     }
     noteRagImpacts(events);
+    noteFlailHits(events); // AD support: the death sergeant's flail's head (vr_box3d_flail.cpp)
     // A prop that wants to know how hard it hits (.vr_impact): its hardest hit on anything (the level too).
     const int impactField = fields().vr_impact;
     if(impactField < 0)
@@ -1398,6 +1399,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_TRACY_CALL("box3d sync portal copies", syncPortalCopies(dt));
         QVR_TRACY_CALL("box3d sync tool joints", syncToolJoints());
         QVR_TRACY_CALL("box3d sync fuel ropes", syncFuelRopes());
+        QVR_TRACY_CALL("box3d sync flails", syncFlails(dt)); // AD support: the death sergeant's flail's heads
     }
     const double tSync = Sys_DoubleTime();
     {
@@ -1587,6 +1589,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         callShocks();
         callFalls();
         callRagImpacts();
+        callFlailHits(); // AD support (vr_box3d_flail.cpp)
         callBodyHits();
         watchInside();
         physsound::frameEnd(); // the frame's knocks and scrapes

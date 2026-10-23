@@ -76,8 +76,8 @@
         toggle("Melee Monsters Drop Their Weapons", "vr_admelee_drops")
             .help("The death fury drops its two swords, the death knight, zombie knight and death guard their swords, "
                   "the hunter ogres their hammer and mace, the Dark Prince, the justice knight and the judicator their "
-                  "swords; Rogue's Phantom Swordsman falls as its sword: yours to swing (Weapon Offsets slots 41-46, "
-                  "47-50)."),
+                  "swords, the death sergeant its flail; Rogue's Phantom Swordsman falls as its sword: yours to swing (Weapon Offsets slots 41-46, "
+                  "47-51)."),
         slider("Sword Damage", "vr_admelee_sword_damage", 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Their swords' blows, times the knight's sword's (the hell knight's: 1.25)."),
         slider("Hammer and Mace Damage", "vr_admelee_heavy_damage", 0.25f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
@@ -92,6 +92,22 @@
         slider("Hammer and Mace Move Speed", "vr_admelee_heavy_speed", 0.5f, 1.f, 0.05f, "%.2fx").extend(0.2f, 1.f)
             .help("Holding the hammer, the mace or the Phantom Swordsman's sword in either hand, you move at this "
                   "times your full speed."),
+        header("Death Sergeant's Flail"),
+        slider("Chain Length", "vr_flail_chain", 0.2f, 1.f, 0.05f, "%.2f m").extend(0.1f, 2.f)
+            .help("The flail's chain, from the handle's end to its spiked head, which swings on it as a body of its own "
+                  "(it falls, bounces off walls, wraps a little round what it meets)."),
+        slider("Head Mass", "vr_flail_mass", 0.5f, 6.f, 0.1f, "%.1f kg").extend(0.2f, 30.f)
+            .help("Its head's weight: heavier swings slower and hits harder (a blow's damage goes by its mass and speed)."),
+        slider("Damage", "vr_flail_damage", 0.5f, 8.f, 0.1f, "%.1fx").extend(0.f, 30.f)
+            .help("A blow of its head: this times its mass (kg) times its speed into what it hits (m/s) beyond Least "
+                  "Speed. A full swing or a whirl lands hard, a lazy wave barely."),
+        slider("Least Speed", "vr_flail_min_speed", 0.f, 8.f, 0.25f, "%.2f m/s").extend(0.f, 20.f)
+            .help("Its head hitting slower than this deals nothing (it only knocks)."),
+        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f),
+        slider("Two Hands", "vr_flail_2h", 1.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("Held in both hands (the other on its handle), its blows are this many times harder."),
+        slider("Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("Its chain rattles (AD's own chain sound) as its head swings fast and as it strikes: the volume (0: none)."),
         header("Health Vials"),
         slider("Health Vial Size", "vr_ad_healthvial_scale", 1.f, 4.f, 0.1f, "%.1fx").extend(0.5f, 6.f)
             .help("AD's health vials and gems drawn this many times bigger (as objects: times the ammo and health "
