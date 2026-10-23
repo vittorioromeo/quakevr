@@ -773,7 +773,8 @@ QVR_ZFIX_FUNCTION \
 // of such a shader either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
 // Declaring the depth never nearer (depth_less/depth_greater) where nothing is raised was tried in round 22 and removed:
 // this NVIDIA driver shaded the same fragments either way (vr_world_fragments; ROUND22.md, "Conservative depth for the
-// parallax depth write", and "Removed perf attempts").
+// parallax depth write", and "Removed perf attempts"). What it costs now: only the textures with relief, nearer than
+// the parallax's reach, are drawn by these programs (r_world.c R_DrawSolidSplit; "Parallax depth write's cost").
 #define QVR_PARALLAX_DEPTH_OUT \
 "#ifndef PDO\n"\
 "	#define PDO 0\n"\

@@ -279,9 +279,9 @@ settings afterwards to taste. Its first line says what the settings match now: a
 |---|---|---|---|---|---|
 | Off (Quake) | none | none | – | Quake's own look: flat lights, no bumps, AO, bloom, tone mapping, liquid effects | 1.3 ms |
 | Low | 2 | none | 256, 1024 | no bumps, parallax, AO, carved holes, refraction, teleporter views, heat haze; fewer lights from things | 1.4 ms |
-| Medium | 4 | 2 | 512, 1536 | everything, parallax without its depth (things meet the surface, not its relief) | 2.0 ms |
-| High (as shipped) | 8 | 4 | 1024, 3072 | the shipped defaults | 4.3 ms |
-| Ultra | 12 | 6 | 1024, 4096 | more torch lights, particles at full resolution, the finer bloom, more parallax steps | 4.5 ms |
+| Medium | 4 | 2 | 512, 1536 | everything (parallax without its depth, as in High: things meet the surface, not its relief) | 2.0 ms |
+| High (as shipped) | 8 | 4 | 1024, 3072 | the shipped defaults (the parallax depth write off since config 192) | 2.0 ms |
+| Ultra | 12 | 6 | 1024, 4096 | the parallax depth write (things meet the relief), more torch lights, particles at full resolution, the finer bloom, more parallax steps | 3.6 ms |
 
 GPU: the eyes' GPU time a frame in a 90 Hz benchmark of an Arcane Dimensions fight (`play_ad_tfuma_fight`,
 2048-pixel eyes, a fast card). In a firing range fight with gore Low and Medium take 55% and 66% of High's; the CPU

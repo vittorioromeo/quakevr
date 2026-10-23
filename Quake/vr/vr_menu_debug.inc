@@ -247,6 +247,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
                   "(Parallax Surface Level); dark blue: the surface's own depth."),
+        toggle("Parallax Depth Split", "vr_parallax_depth_split")
+            .help("vr_parallax_depth_split: with Parallax Depth Write on, only the textures with relief nearer than the "
+                  "parallax's reach (vr_parallax_depth_distance) use the depth-writing shader; the rest keep the early depth "
+                  "test, which that shader loses (the same picture, about 0.8 ms less in an AD fight). Off: all of it, as before."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
@@ -506,7 +510,7 @@ za::Vector<Item> pageDebugProfiling()
         command("World Fragment Counts", "vr_world_fragments")
             .help("vr_world_fragments [passes]: over the next 16 opaque world passes, the pixels its depth pre-pass and its "
                   "shading run the shader on, and those the shading keeps, in the console (shaded/kept: the work spent on "
-                  "hidden pixels; Parallax Conservative Depth on the Views page is the A/B)."),
+                  "hidden pixels; Parallax Depth Split on the Views page is the A/B)."),
         command("Log Next 3 Seconds", "vr_profile_gpu 1; vr_frame_log 270")
             .help("vr_frame_log <frames>: each frame's CPU time (its top scopes), GPU time (its top systems and the "
                   "particles') and the particles (live, within half a metre, how many views they cover, half size), in "
