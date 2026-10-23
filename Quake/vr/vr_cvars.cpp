@@ -437,12 +437,12 @@ const DefaultChange defaultChanges[] = {
     // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
     // scorch marks").
     {186, &vr_adgun_fx_scorch, "0"}, // 1
-    // 188: the shoulder charge with the hands a bit above the chest (his takes of 2026-10-23: the hands low, the head
+    // 189: the shoulder charge with the hands a bit above the chest (his takes of 2026-10-23: the hands low, the head
     // down less, side-on as the two meet) and his run-up (ROUND22.md, "Shoulder charge: hands above the chest").
-    {188, &vr_kdtrig_tackle_runup, "1.5"}, // 0.5
-    {188, &vr_kdtrig_tackle_low, "5"},     // 0.5
-    {188, &vr_kdtrig_tackle_head, "7.5"},  // 5
-    {188, &vr_kdtrig_tackle_turn, "50"},   // 60
+    {189, &vr_kdtrig_tackle_runup, "1.5"}, // 0.5
+    {189, &vr_kdtrig_tackle_low, "5"},     // 0.5
+    {189, &vr_kdtrig_tackle_head, "7.5"},  // 5
+    {189, &vr_kdtrig_tackle_turn, "50"},   // 60
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -461,7 +461,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 188;
+constexpr int configVersion = 189;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 

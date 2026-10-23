@@ -2983,13 +2983,13 @@ QVR_CVAR(vr_kdtrig_tackle, "1", CVAR_ARCHIVE)             // Shoulder Charges: t
 QVR_CVAR(vr_kdtrig_tackle_push, "1.3", CVAR_ARCHIVE)      // ... its push over and back (two hands' shove 1; the knock times it) (his 1.3, 1.25 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_speed, "0.75", CVAR_ARCHIVE)    // ... your ground speed for it, a share of the most (sv_maxspeed; reached within 0.25 s before)
 QVR_CVAR(vr_kdtrig_tackle_weight, "80", CVAR_ARCHIVE)     // ... kg: your weight for the weight classes
-QVR_CVAR(vr_kdtrig_tackle_turn, "60", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run as you meet it (seen from your head: side-on, the torso turned; not held) (60, 50 before vr_cfg_version 188)
-QVR_CVAR(vr_kdtrig_tackle_low, "0.5", CVAR_ARCHIVE)       // ... units: both hands at least this far below your head (by the body: a bit above the chest counts) (0.5, 5 before vr_cfg_version 188)
+QVR_CVAR(vr_kdtrig_tackle_turn, "60", CVAR_ARCHIVE)       // ... deg: your hands' middle at least this far round from the run as you meet it (seen from your head: side-on, the torso turned; not held) (60, 50 before vr_cfg_version 189)
+QVR_CVAR(vr_kdtrig_tackle_low, "0.5", CVAR_ARCHIVE)       // ... units: both hands at least this far below your head (by the body: a bit above the chest counts) (0.5, 5 before vr_cfg_version 189)
 QVR_CVAR(vr_kdtrig_tackle_reach, "20", CVAR_ARCHIVE)      // ... units: both hands within this of your head's line (level: close to the body), neither reaching ahead past 0.3 of it
 QVR_CVAR(vr_kdtrig_tackle_hold, "0.15", CVAR_ARCHIVE)     // ... s the pose is held running before it counts
-QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run at the least speed before it counts (a run-up: a sprint begun beside the monster doesn't; dips under 0.25 s and jumps keep it; 0 none) (his 0.5, 1.5 before vr_cfg_version 188)
+QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run at the least speed before it counts (a run-up: a sprint begun beside the monster doesn't; dips under 0.25 s and jumps keep it; 0 none) (his 0.5, 1.5 before vr_cfg_version 189)
 QVR_CVAR(vr_kdtrig_tackle_stand, "0.8", CVAR_ARCHIVE)     // ... your head's height at least this share of your standing (calibrated) height: standing tall, not crouched or half crouched (0 any)
-QVR_CVAR(vr_kdtrig_tackle_head, "5", CVAR_ARCHIVE)        // ... deg: your head tipped down at least this much (tucked, as the author charges) (5, 7.5 before vr_cfg_version 188)
+QVR_CVAR(vr_kdtrig_tackle_head, "5", CVAR_ARCHIVE)        // ... deg: your head tipped down at least this much (tucked, as the author charges) (5, 7.5 before vr_cfg_version 189)
 QVR_CVAR(vr_kdtrig_tackle_face, "60", CVAR_ARCHIVE)       // ... deg: running within this of the way you look (not a sidestep)
 QVR_CVAR(vr_kdtrig_tackle_leniency, "0.2", CVAR_ARCHIVE)  // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.2, 0.85 before vr_cfg_version 184)
 QVR_CVAR(vr_kdtrig_tackle_knock, "148", CVAR_ARCHIVE)     // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it) (his 148, 152 before vr_cfg_version 184)
