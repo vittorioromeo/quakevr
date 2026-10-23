@@ -606,6 +606,18 @@ struct World
     };
     za::Vector<Grace> graces;
     za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
+    // The fuelled guns' tanks lying about, each held to its gun by a rope (syncFuelRopes; QC vr_ad_enemyguns.qc "Fuel
+    // tanks"): found again each frame from their .vr_fuellink, the joint made again whenever either body is.
+    struct FuelRope
+    {
+        int tank{0}, gun{0};
+        b3BodyId tankBody{b3_nullBodyId}, gunBody{b3_nullBodyId};
+        b3JointId id{b3_nullJointId};
+        float length{0.f}; // metres: the rope's most
+        int seen{0};       // the frame (serverFrames) it was last found
+    };
+    za::Vector<FuelRope> fuelRopes;
+    int fuelFrame{0};
     // Small gibs and monster drops whose bodies were made inside a monster's or a player's (noteBornInside): they pass
     // through it until clear of it (shouldCollide), as a hand's reach body passes through what was inside it
     // (HandBody::ignore).
@@ -1296,6 +1308,7 @@ void pressTestFrame(); // (its next step, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();
+void syncFuelRopes(); // (vr_box3d.cpp: the fuelled guns' tanks held to their guns)
 void beforeStanding();
 [[nodiscard]] bool solidProp(int num);
 void nudgeWalkedRagdolls(float dt);

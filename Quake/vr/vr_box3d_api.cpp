@@ -297,6 +297,19 @@ void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3
     }
 }
 
+void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool joined)> fn)
+{
+    if(!world)
+    {
+        return;
+    }
+    for(const World::FuelRope& r : world->fuelRopes)
+    {
+        fn(r.gun, r.tank, (r.length > 0.f ? r.length : za::max(vr_adgun_tank_rope.value, 0.1f)) * world->m2u,
+            B3_IS_NON_NULL(r.id) && b3Joint_IsValid(r.id));
+    }
+}
+
 void toolForget(int num)
 {
     if(toolPinned(num))

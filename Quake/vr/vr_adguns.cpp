@@ -707,6 +707,10 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     {
         return variantFile(name, path_id); // (our burst rifle's variants: vr_adgunart.cpp)
     }
+    if(strstr(name, tankSuffix))
+    {
+        return tankFile(name, path_id); // (the fuelled guns' tank lying about: vr_adgunart.cpp)
+    }
     if(!strstr(name, suffix))
     {
         return nullptr;
