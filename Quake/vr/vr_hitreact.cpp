@@ -783,7 +783,6 @@ constexpr double armPoseStale = 0.3; // seconds without a message: back to findi
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
 constexpr int apLeftWeapon = 8;      // ... the left holding its own weapon at its target (dual wielding: propL, its turn)
-constexpr int apLeftMirror = 16;     // ... its target wl * the drawn right hand mirrored (to the body's left) + vl (dual guns)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
@@ -967,12 +966,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.fwL = m.fwL;
     s.upL = m.upL;
     s.left = m.vl / scale;
-    if((m.flags & apLeft) && (m.flags & apLeftMirror))
-    {
-        // Two guns: the left one held as the right one is, mirrored (the model's +y its left).
-        s.left += glm::vec3{hr.x, -hr.y, hr.z} * m.wl;
-    }
-    else if((m.flags & apLeft) && m.wl > 0.f)
+    if((m.flags & apLeft) && m.wl > 0.f)
     {
         const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
         const int fl = rig ? boneNamed(*rig, a->foreL) : -1;

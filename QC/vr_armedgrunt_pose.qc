@@ -24,7 +24,7 @@ float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
-float VR_AGP_LEFTMIRROR = 16; // ... its target wl times the drawn right hand mirrored (to its left) + vl (dual guns)
+float VR_AGP_LEFTMIRROR = 16; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -572,7 +572,7 @@ void(entity g, entity p, vector gx, vector gz, float kickAt) VR_AGP_GunTurn =
 // A gun: carried along its animation's rifle line; aimed (VR_AG_AtkFrame sets vr_ag_aim), turned at its target
 // (eased); a shot's kick back and up. Two guns (`pL` the left's: dual wielding, ROUND22.md "Armed monsters: dual-wielded
 // guns"): each in one hand, the rifle line's pitch straight ahead (no hand across to hold it), the left one at the right
-// hand as drawn mirrored (QVR_SVC_ARMPOSE flag 16: the client mirrors its drawn right hand), each kicked by its own shots.
+// hand mirrored (VR_AGP_LEFTMIRROR, made whole in VR_AGP_Pose), each kicked by its own shots.
 void(entity g, entity p, entity pL, vector gx, vector gz) VR_AGP_Gun =
 {
     if(g.vr_ag_aim != '0 0 0')
@@ -693,17 +693,13 @@ void(entity g, entity p) VR_AGP_Pose =
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;
-    vector vlSent = vr_agp_vl; // (what the client adds to its share of the drawn hand)
     if(vr_agp_flags & VR_AGP_LEFTMIRROR)
     {
-        // (The left's target where the server has it: its weapon's place for the game; a reach for a weapon below
-        // lerps from it, the target then sent whole.)
+        // Two guns: the left's target is the right hand (as the server has it) mirrored, sent whole (wl 0: the client's
+        // left target as for a blade in the left hand; the hands' IK is the engine's, vr_hitreact.cpp, untouched).
         vr_agp_vl = VR_AGP_Mirror(handL) * vr_agp_wl + vr_agp_vl;
-        if(g.vr_ag_took_at > 0)
-        {
-            vr_agp_wl = 0;
-            vr_agp_flags = vr_agp_flags - VR_AGP_LEFTMIRROR;
-        }
+        vr_agp_wl = 0;
+        vr_agp_flags = vr_agp_flags - VR_AGP_LEFTMIRROR;
     }
     if(g.vr_ag_took_at > 0 && p)
     {
@@ -785,7 +781,7 @@ void(entity g, entity p) VR_AGP_Pose =
     VR_AGP_WriteDir(f);
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wo)) * 255));
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wl)) * 255));
-    VR_AGP_WriteVec((vr_agp_flags & VR_AGP_LEFTMIRROR) ? vlSent : vr_agp_vl);
+    VR_AGP_WriteVec(vr_agp_vl);
     if(vr_agp_flags & VR_AGP_LEFTWPN)
     {
         WriteEntity(MSG_BROADCAST, pL);

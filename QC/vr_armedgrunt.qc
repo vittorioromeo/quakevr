@@ -1053,6 +1053,7 @@ void(entity p) VR_AG_ShootProp =
     }
     self.vr_ag_shots = self.vr_ag_shots + 1;
     self.vr_ag_total_shots = self.vr_ag_total_shots + 1;
+    p.vr_ag_total_shots = p.vr_ag_total_shots + 1; // (each gun's: the tests)
     vr_ag_shots_fired = vr_ag_shots_fired + 1;
     self.vr_ag_kick_at = time;
     self.effects = self.effects | EF_MUZZLEFLASH;
