@@ -370,14 +370,20 @@ void() VR_FuelTank_Frame =
 // Freddie's gun arm: his rig's left forearm (vr_ad_rigs.inc adFreddieSeeds: bone 4, forearm_l), the super nailgun's
 // five barrels on it (mon_freddie.mdl vertices 88..182: the engine leaves them off his limbs' models, vr_limbmodel.cpp).
 float VR_AD_FREDDIE_GUNBONE = 4;
-float vr_adgun_freddie_drops; // the super nailguns his cut arms dropped (the tests)
+float vr_adgun_freddie_drops; // the super nailguns his cut arms or gibbed bodies dropped (the tests)
+.float vr_adgun_freddie_off;  // his gun arm cut off or his body gibbed: its super nailgun gone (dropped once)
 
 // `e`'s limb just cut off or popped (VR_Limb_Cut; `xTakes` the bones it took): Freddie's gun arm (the forearm, or the
 // whole arm) drops the super nailgun on it as Quake VR's, loaded as a dropped enemy gun is (VR_DropEnemyGun: a full
 // clip), where the piece was, turned and moving as it (his gun's barrels along his model's +x, as the nailgun's).
 void(entity e, float xTakes) VR_ADGun_LimbCut =
 {
-    if(e.ad_classtype != ad_CT_MONFREDDIE || !(xTakes & VR_Limb_Bit(VR_AD_FREDDIE_GUNBONE)) || !cvar("vr_adgun_drops"))
+    if(e.ad_classtype != ad_CT_MONFREDDIE || !(xTakes & VR_Limb_Bit(VR_AD_FREDDIE_GUNBONE)) || e.vr_adgun_freddie_off)
+    {
+        return;
+    }
+    e.vr_adgun_freddie_off = TRUE;
+    if(!cvar("vr_adgun_drops"))
     {
         return;
     }
@@ -393,6 +399,39 @@ void(entity e, float xTakes) VR_ADGun_LimbCut =
         vr_adgun_freddie_drops++;
     }
     dprint(sprintf("adgun: %s's gun arm off: a super nailgun (%g in it) at %v\n", e.classname,
+        WeaponIdToBaseClipSize(WID_SUPER_NAILGUN), at));
+};
+
+// Self gibbed by AD's code (VR_AD_Gibbed: killed past his gib health, or his body gibbed later): Freddie's super nailgun,
+// unless his gun arm was cut off before (it dropped then), thrown from where his left forearm was, up and out to his
+// left, loaded as VR_ADGun_LimbCut's.
+void() VR_ADGun_FreddieGibbed =
+{
+    if(self.ad_classtype != ad_CT_MONFREDDIE || self.vr_adgun_freddie_off)
+    {
+        return;
+    }
+    self.vr_adgun_freddie_off = TRUE;
+    if(!cvar("vr_adgun_drops"))
+    {
+        return;
+    }
+    makevectors('0 1 0' * self.angles_y);
+    vector from = self.origin + '0 0 24';
+    vector at = from + v_forward * 16 - v_right * 24;
+    traceline(from, at, TRUE, self);
+    at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
+    vector vel = v_forward * 40 - v_right * 120 + randomVec(40) + '0 0 200';
+    entity g = CreateThrownWeapon(self, WID_SUPER_NAILGUN, 0, WeaponInst_New(WeaponIdToBaseClipSize(WID_SUPER_NAILGUN)),
+        at, '0 1 0' * self.angles_y, vel, randomVec(120),
+        FALSE /* disappear on hit */,
+        FALSE /* deal damage */,
+        WeaponIdToThrowDamage(WID_SUPER_NAILGUN));
+    if(g != world)
+    {
+        vr_adgun_freddie_drops++;
+    }
+    dprint(sprintf("adgun: %s gibbed: a super nailgun (%g in it) at %v\n", self.classname,
         WeaponIdToBaseClipSize(WID_SUPER_NAILGUN), at));
 };
 

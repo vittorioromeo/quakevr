@@ -160,6 +160,7 @@ float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinish
 void(float xHand) VR_ADGun_Frame;   // VR_EnemyGuns_Frame: a hand's flamethrower stream's end
 void() VR_ADGun_Drop;               // VR_AD_Dying: self, an armed AD soldier, drops its own gun
 void(entity e, float xTakes) VR_ADGun_LimbCut; // VR_Limb_Cut: a limb cut off or popped (the bones it took): Freddie's gun falls
+void() VR_ADGun_FreddieGibbed;      // VR_AD_Gibbed: self gibbed; Freddie's gun falls (unless his gun arm was cut first)
 void(float xClass) VR_ADGun_Prepare; // VR_AD_MonsterSetup: an armed AD soldier's gun model made and precached now
 void(float wid) VR_ADGun_Placed;     // VR_WeaponGrabbable_Make: one of these guns laid (a map's, the toolgun's)
 void(float request, entity p) AD_GunTest; // vr_ad_test 70..89: the AD soldiers' guns' tests

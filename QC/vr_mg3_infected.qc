@@ -142,6 +142,36 @@ float(vector xAt) MG3_Infected_Room =
     return FALSE;
 };
 
+// His weapon falls as the stock monster's does (army_die, knight_die, enf_die, hknight_die: never run for him, the turn
+// takes their place): the grunt's gun, the knight's or death knight's sword, the enforcer's rifle. The zombie or fiend he
+// becomes is drawn with its own model, which holds none.
+float vr_mg3_infected_drops; // the weapons infected dropped as they turned (the tests)
+
+void() MG3_Infected_DropWeapon =
+{
+    float before = vr_mg3_infected_drops;
+    if(self.classname == "monster_army")
+    {
+        VR_DropEnemyGun(WID_GRUNTGUN);
+        vr_mg3_infected_drops++;
+    }
+    else if(self.classname == "monster_enforcer")
+    {
+        VR_DropEnemyGun(WID_ENFRIFLE);
+        vr_mg3_infected_drops++;
+    }
+    else if((self.classname == "monster_knight" || self.classname == "monster_hell_knight") &&
+            !(!VR_OtherFlags() && (self.spawnflags & 2))) // (a statue has none: knight_die's test)
+    {
+        VR_DropKnightSword(self.classname == "monster_hell_knight");
+        vr_mg3_infected_drops++;
+    }
+    if(vr_mg3_infected_drops > before)
+    {
+        dprint(sprintf("mg3: the infected %s drops his weapon as he turns\n", self.classname));
+    }
+};
+
 // Killed's turn (combat.qc Killed, before it counts or does any of Quake VR's dying): the burst, then the new body.
 void(entity attacker) MG3_Infected_Turn =
 {
@@ -152,6 +182,7 @@ void(entity attacker) MG3_Infected_Turn =
     self.vr_mg3_infected = 0;
     self.enemy = attacker;
     vr_mg3_infected_turned = vr_mg3_infected_turned + 1;
+    MG3_Infected_DropWeapon(); // (before the new body: his class and spawnflags still the old monster's)
 
     // The burst: the gib sound and the old body's gibs (the grunt's head among them, thrown as a gib: never a head to
     // carry, nor a beheading).
