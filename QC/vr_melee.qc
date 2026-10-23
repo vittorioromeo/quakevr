@@ -112,6 +112,10 @@ float VR_MELEE_WALL_SAME = 0.7;    // the same surface (cosine of the normals),
 float VR_MELEE_WALL_LEAVE = 0.5;   // not moving out of it (cosine of their way to its normal at most)
 float VR_MELEE_WALL_AGAIN = 0.35;  // s: a hand strikes a wall again only this long after its last blow on one (the wall stops the hand,
                                    // which re-arms it at once: VR_Melee_Rearm; it bounced off and struck twice)
+float VR_MELEE_WALL_OFF = 0.2;     // m: and the same wall only once its weapon has been this far off it since (all of it: near end,
+                                   // grip, far end); a weapon lying on the wall struck it again with another part (round 22 wallhit2)
+float VR_MELEE_WALL_FOLLOW = 1.2;  // s: and within this of its blow on that wall, only a blow as fast as this share of it at least
+float VR_MELEE_WALL_WEAKER = 0.6;  // (the swing's own tail: its recovery poking the wall again, slow; wallhit2)
 float VR_MELEE_POMMEL_SWORD = 0.6; // weights: a sword's pommel strike,
 float VR_MELEE_POMMEL_AXE = 0.5;   // an axe's or Mjolnir's handle's end,
 float VR_MELEE_POMMEL_CROWBAR = 0.6; // the crowbar's chisel end (a steel bar's end: as a sword's pommel),
@@ -250,6 +254,10 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_wall_vgrip;
 .vector mh_wall_vfar;
 .float mh_wall_blow;   // when its last blow on a wall landed (VR_MELEE_WALL_AGAIN)
+.vector mh_wall_bn;    // and that wall's plane (its normal, and the normal times a point of it: VR_Melee_WallFresh),
+.float mh_wall_bd;
+.float mh_wall_bspeed; // that blow's speed (m/s),
+.float mh_wall_on;     // and the weapon not yet off that wall since (VR_Melee_WallLeft)
 .float mh_free;      // a weapon carried off its handle: laid out along all of it (VR_Melee_FreeLayout), with
 .float mh_free_hs;     // the hand's share of the way from its near end to its tip,
 .float mh_free_tip;    // the far end its tip (else its near end),
@@ -2095,6 +2103,53 @@ float(entity b, float xI, vector xP0, vector xP1, float xR) VR_Melee_WallHeld =
     return TRUE;
 };
 
+// Each frame (VR_Melee_Strike): whether the weapon of `b` is now off the wall it last struck (VR_MELEE_WALL_OFF, every
+// part in front of that wall's plane by that much); then that wall may be struck again (VR_Melee_WallFresh).
+void(entity b) VR_Melee_WallLeft =
+{
+    if(!b.mh_wall_on)
+    {
+        return;
+    }
+    float off = min(min(b.mh_near * b.mh_wall_bn, b.mh_grip * b.mh_wall_bn), b.mh_far * b.mh_wall_bn) - b.mh_wall_bd;
+    if(off >= VR_MELEE_WALL_OFF * VRMetersToUnits())
+    {
+        b.mh_wall_on = FALSE;
+    }
+};
+
+// Whether a contact at `xAt` on a wall facing `xNormal` is a new blow of `b` (its speed in mh_speed: after
+// VR_Melee_WallDecide) and not the swing that struck that wall last again: one wall blow a swing. The same wall (its
+// plane: the normals within VR_MELEE_WALL_SAME, the contact within 4 units of it) is struck again only once the weapon
+// has left it (VR_Melee_WallLeft: a weapon lying on the wall, swept along it, struck it again with another part), and
+// within VR_MELEE_WALL_FOLLOW of the last blow only as fast as VR_MELEE_WALL_WEAKER of it (the swing's recovery poking
+// the wall). Two real blows in a row (the weapon drawn back and swung again) both land. Another wall: at once.
+float(entity b, vector xNormal, vector xAt) VR_Melee_WallFresh =
+{
+    if(vr_melee_wallwin <= 0 || b.mh_wall_blow <= 0 || xNormal * b.mh_wall_bn < VR_MELEE_WALL_SAME ||
+       fabs(xAt * b.mh_wall_bn - b.mh_wall_bd) > 4)
+    {
+        return TRUE;
+    }
+    float fresh = TRUE;
+    string why = "";
+    if(b.mh_wall_on)
+    {
+        fresh = FALSE;
+        why = "the weapon still on it";
+    }
+    else if(VR_PlayerTime() - b.mh_wall_blow < VR_MELEE_WALL_FOLLOW && b.mh_speed < VR_MELEE_WALL_WEAKER * b.mh_wall_bspeed)
+    {
+        fresh = FALSE;
+        why = sprintf("%.1f m/s after %.1f, %.2f s ago", b.mh_speed, b.mh_wall_bspeed, VR_PlayerTime() - b.mh_wall_blow);
+    }
+    if(!fresh && cvar("developer") >= 2)
+    {
+        dprint(sprintf("melee debug: the wall struck again by the same swing (%s): no blow\n", why));
+    }
+    return fresh;
+};
+
 // Whether the hands' blows find `e` by its box (VR_Melee_Sweep, after VR_Blow_Strikable): a solid one; a living monster
 // knocked down (vr_knockdown.qc: not solid, its ragdoll struck as drawn, vr_hit_precise; a blow on it is a live one's:
 // its head cut off, its limbs, by the same rules as standing; his note 2026-10-09); a loose gib or head, an exploding
@@ -2809,7 +2864,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     }
     if(edgeI < 0 && hiltI < 0 && wallI >= 0 && !VRGetMeleeHitSoundPlayed(xHand) &&
        (vr_melee_wallwin <= 0 || VR_PlayerTime() - b.mh_wall_blow >= VR_MELEE_WALL_AGAIN) &&
-       VR_Melee_WallDecide(xHand, b, wallI) && VR_Melee_SlapLands(b, wallEnt))
+       VR_Melee_WallDecide(xHand, b, wallI) && VR_Melee_SlapLands(b, wallEnt) && VR_Melee_WallFresh(b, wallNormal, wallAt))
     {
         b.mh_c_ent = wallEnt;
         b.mh_c_pos = wallAt;
@@ -4419,6 +4474,7 @@ float(float xHand) VR_Melee_Strike =
     {
         return FALSE;
     }
+    VR_Melee_WallLeft(b);
     if(!VR_Throw_HandMayStrike(self, xHand))
     {
         return FALSE; // a two-handed throw's follow-through, not a blow (vr_throw_2h_nomelee)
@@ -4488,6 +4544,10 @@ void(float xHand) VR_Melee_Landed =
     if(!b.mh_c_ent.takedamage && !b.mh_c_gib)
     {
         b.mh_wall_blow = VR_PlayerTime();
+        b.mh_wall_bn = b.mh_c_normal; // (VR_Melee_WallFresh: that wall, until the weapon is off it)
+        b.mh_wall_bd = b.mh_c_normal * b.mh_c_pos;
+        b.mh_wall_bspeed = b.mh_speed;
+        b.mh_wall_on = TRUE;
     }
     string what =sprintf("%s, hand %g, %s (%s) with %s", VR_Melee_Category(b.mh_kind, b.mh_thing), xHand,
         VR_Melee_KindName(b.mh_kind, b.mh_thing), b.mh_way, b.mh_part);
