@@ -93,9 +93,11 @@ void reset();
 // model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
 // and the toolgun's. An item is placed at once (QC VR_SpawnLive_Finish): its final size and place from its first frame.
 // `probe`: made only to be looked at and removed at once (the toolgun's ghost: QC vr_spawn_live 2). `weaponFlags`:
-// its "weaponflags" when not 0 (a grabbable weapon's: an AD melee weapon's kind).
+// its "weaponflags" when not 0 (a grabbable weapon's: an AD melee weapon's kind). `key2`: a second float field set to
+// `value2` (an armed monster's left hand's "weapon2").
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
-    const char* key = nullptr, float value = 0.f, bool probe = false, float weaponFlags = 0.f);
+    const char* key = nullptr, float value = 0.f, bool probe = false, float weaponFlags = 0.f, const char* key2 = nullptr,
+    float value2 = 0.f);
 
 // The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
 // unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict

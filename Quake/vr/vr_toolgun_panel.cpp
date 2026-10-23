@@ -90,11 +90,29 @@ struct Spot
     Rect r;
 };
 
+// A dropdown's list (dropdown, listOverlay): the one open, by its label ("": none), its page; from the pass that laid the
+// dropdown out (valid until that pass's end: the list is laid out last), its rows' names and the one chosen; a row
+// clicked, for the dropdown labelled `pickedFor` to return on its next pass.
+struct DropList
+{
+    char name[48]{};
+    int page{0};
+    const char* const* labels{nullptr};
+    int count{0};
+    int chosen{-1};
+    bool seen{false}; // its dropdown laid out this pass (one gone, its page left: the list closes)
+    char pickedFor[48]{};
+    int picked{-1};
+};
+
 // The panel's state (the main thread: the input, the host frame, the 2D pass).
 struct PanelState
 {
     bool open{false};
     bool more{false};            // More's page instead of the tool's
+    bool armed{false};           // Spawn > Monsters' Armed Humanoid page instead of its grid (armedPage)
+    DropList drop;               // a dropdown's list open over the panel
+    bool overlayNow{false};      // the list's widgets being laid out (the others sleep while it is open)
     int shownTool{-1};           // the tool the last frame saw (another, from the stick press: More's page closes)
     int section{0};             // the spawn grid's tab
     int gridPage[sectionCount]{}; // and each tab's page
@@ -126,6 +144,7 @@ struct Ui
     Mode mode;
     int counter{0};
     int hovered{-1};
+    bool modal{false}; // a dropdown's list is open: only its own widgets wake (listOverlay)
 };
 
 [[nodiscard]] Tool currentTool()
@@ -422,13 +441,14 @@ void tile(const Rect& r, bool chosen, bool hover)
 
 [[nodiscard]] bool hovering(const Rect& r)
 {
-    return ps.hit && r.contains(ps.cursor);
+    return ps.hit && r.contains(ps.cursor) && (!ps.drop.name[0] || ps.overlayNow); // (under an open list: nothing)
 }
 
 // The widget's interaction: lit under the laser; in the input pass, true when a press landed on it (taken).
 bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = true) // AD support
 {
     id = ui.counter++;
+    enabled = enabled && (!ui.modal || ps.overlayNow); // (a dropdown's list open: only its own)
     const bool over = enabled && hovering(r); // AD support
     if(ui.mode != Mode::Input)
     {
@@ -535,6 +555,160 @@ void sliderRow(Ui& ui, const Rect& r, const char* label, cvar_t& cvar, float min
         q_snprintf(value, sizeof(value), format, cvar.value);
         menuui::paintSlider(static_cast<int>(x), static_cast<int>(r.cy() - 4.f), (cvar.value - min) / (max - min), value);
     }
+}
+
+// A dropdown's list: rows a column (two for a long list), a page at a time.
+constexpr int listRows = 8;
+constexpr float listPitch = 13.f; // a row's height and the gap under it
+
+[[nodiscard]] int listPerPage(int n)
+{
+    return n > listRows ? listRows * 2 : listRows;
+}
+
+void closeList()
+{
+    ps.drop.name[0] = '\0';
+    ps.drop.seen = false;
+}
+
+// A dropdown (a list picker; any page may use one): its label on the left, the choice's name in a box with a chevron;
+// clicked, its list opens over the panel (listOverlay: laid out last, a page of rows, < > for more), a row clicked
+// chooses it and closes the list, a click off the list closes it. While a list is open the panel's other widgets
+// sleep. Returns the row chosen (once, the pass after its click), -1 none. `labels` must live to the layout's end;
+// `enabled` false: shown dimmed, not opened.
+int dropdown(Ui& ui, const Rect& r, const char* label, const char* const* labels, int n, int chosen, bool enabled = true)
+{
+    DropList& d = ps.drop;
+    int picked = -1;
+    if(d.picked >= 0 && !strcmp(d.pickedFor, label))
+    {
+        picked = d.picked < n ? d.picked : -1;
+        d.picked = -1;
+        d.pickedFor[0] = '\0';
+    }
+    const Rect box{r.x0 + za::min(64.f, r.w() * 0.35f), r.y0, r.x1, r.y1};
+    int id = 0;
+    if(interact(ui, box, label, id, enabled && n > 0))
+    {
+        q_strlcpy(d.name, label, sizeof(d.name));
+        d.page = chosen >= 0 ? chosen / listPerPage(n) : 0;
+    }
+    const bool open = d.name[0] && !strcmp(d.name, label);
+    if(open)
+    {
+        d.labels = labels;
+        d.count = n;
+        d.chosen = chosen;
+        d.seen = enabled;
+    }
+    if(ui.mode == Mode::Draw)
+    {
+        if(!enabled)
+        {
+            GL_PushCanvasColor(1.f, 1.f, 1.f, 0.4f);
+        }
+        text(r.x0 + 2.f, r.cy() - 3.f, 6.f, label, true);
+        const bool hover = enabled && hovering(box);
+        tile(box, open, hover);
+        const char* value = chosen >= 0 && chosen < n ? labels[chosen] : "";
+        textFit((box.x0 + box.x1 - 10.f) * 0.5f, box.cy() - 3.f, box.w() - 16.f, 6.f, value, !hover && !open);
+        // Its chevron (down: the list opens below).
+        const Painter p;
+        const float cx = box.x1 - 7.f, cy = box.cy();
+        const glm::vec4 c = hover || open ? glm::vec4{1.f} : colors::boxBorder;
+        line(p, cx - 3.f, cy - 1.5f, cx, cy + 1.5f, 1.f, c);
+        line(p, cx, cy + 1.5f, cx + 3.f, cy - 1.5f, 1.f, c);
+        if(!enabled)
+        {
+            GL_PopCanvasColor();
+        }
+    }
+    return picked;
+}
+
+// The open dropdown's list over the panel (the layout's last: drawn over the rest, its rows the only widgets awake): its
+// label and Close, its rows (the chosen one lit), its pages. A click off it closes it.
+void listOverlay(Ui& ui)
+{
+    DropList& d = ps.drop;
+    if(!d.name[0])
+    {
+        return;
+    }
+    if(!d.seen || !d.labels || d.count <= 0)
+    {
+        if(ui.mode == Mode::Input)
+        {
+            closeList(); // (its dropdown is gone: another page, another tool)
+        }
+        return;
+    }
+    ps.overlayNow = true;
+    const Rect area{pad, 44.f, panelWidth - pad, panelHeight - pad};
+    if(ui.mode == Mode::Draw)
+    {
+        fill(area, colors::boxBorder);
+        fill(Rect{area.x0 + 1.f, area.y0 + 1.f, area.x1 - 1.f, area.y1 - 1.f}, glm::vec4{0.05f, 0.04f, 0.03f, 1.f});
+        text(area.x0 + 5.f, 48.f, 7.f, d.name, true);
+    }
+    const char* const* labels = d.labels; // (a row's click closes the list: its rows are still drawn this pass)
+    const int count = d.count;
+    const int chosen = d.chosen;
+    char name[48];
+    q_strlcpy(name, d.name, sizeof(name));
+    bool done = button(ui, Rect{area.x1 - 44.f, 46.f, area.x1 - 3.f, 57.f}, "Close", false, 6.f);
+    const int per = listPerPage(count);
+    const int cols = per / listRows;
+    const int pages = (count + per - 1) / per;
+    d.page = za::clamp(d.page, 0, pages - 1);
+    const int page = d.page;
+    const float cw = (area.w() - 8.f - (cols - 1) * 4.f) / cols;
+    for(int k = 0; k < per; k++)
+    {
+        const int i = page * per + k;
+        if(i >= count)
+        {
+            break;
+        }
+        const int col = k / listRows, row = k % listRows;
+        const float y = 60.f + row * listPitch;
+        const Rect rr{area.x0 + 4.f + col * (cw + 4.f), y, area.x0 + 4.f + col * (cw + 4.f) + cw, y + listPitch - 1.f};
+        if(button(ui, rr, labels[i], i == chosen, 6.f))
+        {
+            ps.drop.picked = i;
+            q_strlcpy(ps.drop.pickedFor, name, sizeof(ps.drop.pickedFor));
+            done = true;
+        }
+    }
+    if(pages > 1)
+    {
+        const float y0 = 172.f, y1 = 185.f;
+        if(button(ui, Rect{area.x0 + 4.f, y0, area.x0 + 22.f, y1}, "<"))
+        {
+            d.page = (page + pages - 1) % pages;
+        }
+        if(button(ui, Rect{area.x0 + 54.f, y0, area.x0 + 72.f, y1}, ">"))
+        {
+            d.page = (page + 1) % pages;
+        }
+        if(ui.mode == Mode::Draw)
+        {
+            char t[16];
+            q_snprintf(t, sizeof(t), "%d/%d", page + 1, pages);
+            textFit(area.x0 + 38.f, (y0 + y1) * 0.5f - 3.f, 28.f, 6.f, t, false);
+        }
+    }
+    if(ui.mode == Mode::Input && ps.pressed)
+    {
+        ps.pressed = false; // (a click off its rows: it closes, nothing under it clicked)
+        done = true;
+    }
+    if(done && ui.mode == Mode::Input)
+    {
+        closeList();
+    }
+    ps.overlayNow = false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -647,10 +821,21 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
 
 // The Spawn tab's grid for its section (spawnPage): made again only when the section (or the list's size) changes, not
 // each frame. The list is fixed (vr_toolgun.cpp spawnables); whether an entry is available is asked as it is drawn.
+constexpr int armedEntry = -2; // the grid's Armed Humanoid tile (Monsters, after id's and Quake VR's own: armedPage)
+
+// The armed monsters' per-weapon entries (vr_toolgun_packs.inc's "Armed Grunts" and "Armed Enforcers"): left off the
+// grid, the Armed Humanoid page makes them all (vr_toolgun_armed_tiles 1: listed too). Their numbers stay
+// (vr_toolgun_select, the Debug menus).
+[[nodiscard]] bool armedPackHidden(int i)
+{
+    return vr_toolgun_armed_tiles.value == 0.f && !strncmp(toolgun::spawnablePack(i), "Armed ", 6);
+}
+
 struct SpawnGrid
 {
     int section{-1};
     int count{-1}; // toolgun::spawnableCount() it was made for
+    float tiles{-1.f}; // and vr_toolgun_armed_tiles
     int perPage{0};
     za::InPlaceVector<int, maxEntries> entries; // spawnable index, -1: an empty cell
     za::InPlaceVector<int, maxPacks> groupPages; // each group's first page (">>": the next group's)
@@ -660,16 +845,18 @@ SpawnGrid spawnGridMade;
 const SpawnGrid& spawnGrid(int perPage)
 {
     SpawnGrid& g = spawnGridMade;
-    if(g.section == ps.section && g.count == toolgun::spawnableCount() && g.perPage == perPage)
+    if(g.section == ps.section && g.count == toolgun::spawnableCount() && g.perPage == perPage &&
+        g.tiles == vr_toolgun_armed_tiles.value)
     {
         return g;
     }
     g.section = ps.section;
     g.count = toolgun::spawnableCount();
+    g.tiles = vr_toolgun_armed_tiles.value;
     g.perPage = perPage;
     g.entries.clear();
     g.groupPages.clear();
-    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]); };
+    const auto inSection = [](int i) { return !strcmp(toolgun::spawnableSection(i), sections[ps.section]) && !armedPackHidden(i); };
     za::InPlaceVector<const char*, maxPacks> packs;
     packs.pushBack("");
     for(int i = 0; i < toolgun::spawnableCount(); i++)
@@ -710,8 +897,221 @@ const SpawnGrid& spawnGrid(int perPage)
                 entries.pushBack(i);
             }
         }
+        if(k == 0 && ps.section == 0 && entries.size() < entries.capacity())
+        {
+            entries.pushBack(armedEntry); // (Monsters: after id's and Quake VR's own, the Armed Humanoid page's tile)
+        }
     }
     return g;
+}
+
+// The spawn tool's commands at the bar's right: Pick, Reset, Clear.
+void spawnCommands(Ui& ui, const Rect& bar)
+{
+    const float bw = 52.f;
+    const char* const labels[] = {"Pick", "Reset", "Clear"};
+    const char* const commands[] = {"vr_toolgun_pick\n", "vr_toolgun_reset\n", "vr_toolgun_select clear\n"};
+    for(int i = 0; i < 3; i++)
+    {
+        const float x1 = bar.x1 - (2 - i) * (bw + 4.f);
+        if(button(ui, Rect{x1 - bw, bar.y0, x1, bar.y1}, labels[i], false, 6.f))
+        {
+            Cbuf_AddText(commands[i]);
+        }
+    }
+}
+
+// A model's thumbnail (vr_toolgun_icons.cpp) in a box, its caption under it; a word instead when there is no model.
+void pictureBox(const Rect& r, const char* model, bool side, const char* caption, const char* word)
+{
+    tile(r, false, false);
+    const gfx::Picture* pic = model && model[0] ? toolgun::icons::get(model, 0, side) : nullptr;
+    const float size = za::min(r.w() - 4.f, r.h() - 12.f);
+    if(pic)
+    {
+        gfx::draw2D::picture(*pic, r.cx() - size * 0.5f, r.y0 + 2.f, size, size);
+    }
+    else if(word)
+    {
+        textFit(r.cx(), r.y0 + 2.f + size * 0.5f - 4.f, r.w() - 4.f, 8.f, word, true);
+    }
+    textFit(r.cx(), r.y1 - 9.f, r.w() - 3.f, 5.f, caption, true);
+}
+
+// The Monsters tab's Armed Humanoid tile: opens its page (armedPage); lit while its choice is the spawn tool's.
+bool armedTile(Ui& ui, const Rect& r)
+{
+    int id = 0;
+    const bool clicked = interact(ui, r, "Armed Humanoid", id);
+    if(ui.mode == Mode::Draw)
+    {
+        const bool chosen = toolgun::armed::chosen();
+        const bool hover = hovering(r);
+        tile(r, chosen, hover);
+        const char* model = toolgun::armed::kindModel(za::max(0, static_cast<int>(vr_toolgun_armed_kind.value)));
+        const gfx::Picture* pic = toolgun::icons::get(model[0] ? model : "progs/vrgrunt.mdl", 0, false);
+        if(pic)
+        {
+            gfx::draw2D::picture(*pic, r.cx() - 18.f, r.y0 + 2.f, 36.f, 36.f);
+        }
+        textFit(r.cx(), r.y1 - 14.f, r.w() - 3.f, 6.f, "Armed", !chosen && !hover);
+        textFit(r.cx(), r.y1 - 7.5f, r.w() - 3.f, 6.f, "Humanoid", !chosen && !hover);
+    }
+    return clicked;
+}
+
+// The Armed Humanoid page's lists for a kind (dropdown's rows: the names live in the toolgun's catalogue), made again
+// when the kind or the catalogue changes.
+constexpr int armedListMax = 100;
+struct ArmedLists
+{
+    int generation{-1};
+    int kind{-1};
+    za::InPlaceVector<const char*, 8> kinds;
+    za::InPlaceVector<const char*, armedListMax> right; // Random from Pool, Unarmed, its weapons
+    za::InPlaceVector<int, armedListMax> rightCode;
+    za::InPlaceVector<const char*, armedListMax> left; // None, its one-handed weapons
+    za::InPlaceVector<int, armedListMax> leftCode;
+};
+ArmedLists armedLists;
+
+const ArmedLists& armedListsFor(int kind)
+{
+    ArmedLists& l = armedLists;
+    if(l.generation == toolgun::armed::generation() && l.kind == kind)
+    {
+        return l;
+    }
+    l = {};
+    l.generation = toolgun::armed::generation();
+    l.kind = kind;
+    for(int k = 0; k < toolgun::armed::kindCount() && l.kinds.size() < l.kinds.capacity(); k++)
+    {
+        l.kinds.pushBack(toolgun::armed::kindName(k));
+    }
+    for(const int code : {0, -1})
+    {
+        l.right.pushBack(toolgun::armed::codeName(code));
+        l.rightCode.pushBack(code);
+    }
+    l.left.pushBack("None");
+    l.leftCode.pushBack(0);
+    for(int i = 0; i < toolgun::armed::weaponCount(); i++)
+    {
+        const int code = toolgun::armed::weaponCode(i);
+        if(toolgun::armed::fits(kind, code) && l.right.size() < l.right.capacity())
+        {
+            l.right.pushBack(toolgun::armed::codeName(code));
+            l.rightCode.pushBack(code);
+        }
+        if(toolgun::armed::oneHanded(kind, code) && l.left.size() < l.left.capacity())
+        {
+            l.left.pushBack(toolgun::armed::codeName(code));
+            l.leftCode.pushBack(code);
+        }
+    }
+    return l;
+}
+
+template <typename Codes>
+[[nodiscard]] int indexOfCode(const Codes& codes, int code)
+{
+    for(int i = 0; i < static_cast<int>(codes.size()); i++)
+    {
+        if(codes[i] == code)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Spawn > Monsters > Armed Humanoid (ROUND22.md, "Armed monsters: the toolgun's spawn page"): an armed monster made to
+// order: its kind (every row of the armed monsters' table: QC vr_armedmon.qc), its right hand's weapon (any its row
+// holds, one from the pool at random, or none), its left hand's (none, or a one-handed weapon with a one-handed one in
+// the right: dual wielding). Each choice is the spawn tool's at once (its ghost holds them); the pictures under them,
+// a word on what it will do; Back to the grid.
+void armedPage(Ui& ui)
+{
+    const int kind = za::clamp(static_cast<int>(vr_toolgun_armed_kind.value), 0, za::max(0, toolgun::armed::kindCount() - 1));
+    const ArmedLists& l = armedListsFor(kind);
+    const int code = static_cast<int>(vr_toolgun_armed_weapon.value);
+    const int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
+    const float x0 = pad, x1 = panelWidth - pad;
+    if(l.kinds.empty())
+    {
+        if(ui.mode == Mode::Draw)
+        {
+            paragraph(x0 + 4.f, 70.f, x1 - x0 - 8.f, 7.f, "No armed monsters here: start a game.", true);
+        }
+    }
+    else
+    {
+        const int k = dropdown(ui, Rect{x0, 64.f, x1, 77.f}, "Kind", l.kinds.data(), static_cast<int>(l.kinds.size()), kind);
+        if(k >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(k));
+            toolgun::armed::choose();
+        }
+        const int r = dropdown(ui, Rect{x0, 81.f, x1, 94.f}, "Right Hand", l.right.data(), static_cast<int>(l.right.size()),
+            indexOfCode(l.rightCode, code));
+        if(r >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_weapon, static_cast<float>(l.rightCode[r]));
+            toolgun::armed::choose();
+        }
+        const bool pairs = code > 0 && toolgun::armed::oneHanded(kind, code);
+        const int lc = dropdown(ui, Rect{x0, 98.f, x1, 111.f}, "Left Hand", l.left.data(), static_cast<int>(l.left.size()),
+            pairs ? za::max(0, indexOfCode(l.leftCode, code2)) : 0, pairs);
+        if(lc >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, static_cast<float>(l.leftCode[lc]));
+            toolgun::armed::choose();
+        }
+        if(ui.mode == Mode::Draw && !ps.drop.name[0]) // (none under an open list: the pictures are drawn after it)
+        {
+            // The pictures: the kind, its right hand's, its left hand's; a word on what it will do.
+            const float y0 = 116.f, y1 = 170.f, w = 50.f;
+            pictureBox(Rect{x0, y0, x0 + w, y1}, toolgun::armed::kindModel(kind), false, toolgun::armed::kindName(kind), nullptr);
+            pictureBox(Rect{x0 + w + 3.f, y0, x0 + 2.f * w + 3.f, y1}, toolgun::armed::ghostModel(0), true,
+                code == 0 ? "Random" : code < 0 ? "Fists" : toolgun::armed::codeName(code), code == 0 ? "?" : "-");
+            pictureBox(Rect{x0 + 2.f * w + 6.f, y0, x0 + 3.f * w + 6.f, y1}, toolgun::armed::ghostModel(1), true,
+                pairs && code2 > 0 ? toolgun::armed::codeName(code2) : "Left: none", "-");
+            char note[160];
+            if(code == 0)
+            {
+                q_snprintf(note, sizeof(note), "Random: a weapon from the pool (Combat > Armed Grunts), a second one-handed one %.0f%% of the time.",
+                    Cvar_VariableValue("vr_agrunt_dual_chance") * 100.f);
+            }
+            else if(code < 0)
+            {
+                q_strlcpy(note, "Unarmed: it fights with its fists.", sizeof(note));
+            }
+            else if(pairs && code2 > 0)
+            {
+                q_strlcpy(note, "Dual wielding: it swings them in turn, now and then both at once.", sizeof(note));
+            }
+            else if(pairs)
+            {
+                q_strlcpy(note, "One-handed: a second one-handed weapon can go in its left hand.", sizeof(note));
+            }
+            else
+            {
+                q_strlcpy(note, "Two-handed or a gun: its left hand stays on it.", sizeof(note));
+            }
+            paragraph(x0 + 3.f * w + 12.f, y0 + 2.f, x1 - (x0 + 3.f * w + 12.f), 5.f, note, false);
+        }
+    }
+    const Rect bar{pad, 175.f, panelWidth - pad, 189.f};
+    if(button(ui, Rect{bar.x0, bar.y0, bar.x0 + 36.f, bar.y1}, "Back", false, 6.f))
+    {
+        ps.armed = false;
+    }
+    if(button(ui, Rect{bar.x0 + 40.f, bar.y0, bar.x0 + 80.f, bar.y1}, "Choose", toolgun::armed::chosen(), 6.f))
+    {
+        toolgun::armed::choose();
+    }
+    spawnCommands(ui, bar);
 }
 
 void spawnPage(Ui& ui)
@@ -725,7 +1125,13 @@ void spawnPage(Ui& ui)
         if(button(ui, r, sections[i], ps.section == i, 6.f))
         {
             ps.section = i;
+            ps.armed = false;
         }
+    }
+    if(ps.armed && ps.section == 0)
+    {
+        armedPage(ui);
+        return;
     }
     // The section's entries, a page of them: id's and Quake VR's own first, then each pack's (the Scourge of Armagon's,
     // the Dissolution of Eternity's, the Machine packs', ...: toolgun::spawnablePack) as a group of its own from a fresh
@@ -746,12 +1152,21 @@ void spawnPage(Ui& ui)
         {
             break;
         }
-        if(entries[n] < 0)
+        if(entries[n] < 0 && entries[n] != armedEntry)
         {
             continue; // AD support: the cell before Arcane Dimensions' group
         }
         const int col = k % gridColumns, row = k / gridColumns;
         const Rect r{pad + col * (cw + gap), 63.f + row * (ch + gap), pad + col * (cw + gap) + cw, 63.f + row * (ch + gap) + ch};
+        if(entries[n] == armedEntry)
+        {
+            if(armedTile(ui, r))
+            {
+                ps.armed = true;
+                toolgun::armed::choose(); // (its choice the spawn tool's at once: the ghost shows it)
+            }
+            continue;
+        }
         if(thumbTile(ui, r, entries[n]))
         {
             toolgun::selectSpawnable(entries[n]);
@@ -786,17 +1201,7 @@ void spawnPage(Ui& ui)
             textFit(bar.x0 + 30.f, bar.cy() - 3.f, 24.f, 6.f, t, false);
         }
     }
-    const float bw = 52.f;
-    const char* const labels[] = {"Pick", "Reset", "Clear"};
-    const char* const commands[] = {"vr_toolgun_pick\n", "vr_toolgun_reset\n", "vr_toolgun_select clear\n"};
-    for(int i = 0; i < 3; i++)
-    {
-        const float x1 = bar.x1 - (2 - i) * (bw + 4.f);
-        if(button(ui, Rect{x1 - bw, bar.y0, x1, bar.y1}, labels[i], false, 6.f))
-        {
-            Cbuf_AddText(commands[i]);
-        }
-    }
+    spawnCommands(ui, bar);
 }
 
 void removePage(Ui& ui)
@@ -1059,23 +1464,28 @@ void layout(Ui& ui)
         fill(Rect{0.f, 0.f, panelWidth, panelHeight}, colors::boxBorder);
         fill(Rect{1.f, 1.f, panelWidth - 1.f, panelHeight - 1.f}, glm::vec4{0.07f, 0.055f, 0.04f, 1.f});
     }
+    ui.modal = ps.drop.name[0] != '\0';
+    ps.drop.seen = false;
     toolRow(ui);
     infoLine(ui);
     if(ps.more)
     {
         morePage(ui);
-        return;
     }
-    switch(currentTool())
+    else
     {
-    case Tool::Spawn: spawnPage(ui); break;
-    case Tool::Remove: removePage(ui); break;
-    case Tool::Physgun: physgunPage(ui); break;
-    case Tool::Scale: scalePage(ui); break;
-    case Tool::Joint: jointPage(ui); break;
-    case Tool::Brush: brushPage(ui); break;
-    default: break;
+        switch(currentTool())
+        {
+        case Tool::Spawn: spawnPage(ui); break;
+        case Tool::Remove: removePage(ui); break;
+        case Tool::Physgun: physgunPage(ui); break;
+        case Tool::Scale: scalePage(ui); break;
+        case Tool::Joint: jointPage(ui); break;
+        case Tool::Brush: brushPage(ui); break;
+        default: break;
+        }
     }
+    listOverlay(ui); // (last: over the rest)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1165,6 +1575,7 @@ void close()
         Con_Printf("toolgun: panel closed\n");
     }
     ps.open = false;
+    closeList();
     ps.held = ps.pressed = false;
     ps.dragging = -1;
     ps.hit = false;
@@ -1209,6 +1620,7 @@ void frame(const hands::State& s)
         ps.hit = false;
         return;
     }
+    toolgun::armed::refresh(); // (the Armed Humanoid page's lists: asked of QC once a map)
     glm::vec3 point;
     ps.hit = laserHit(s, point, ps.cursor);
     Ui ui{Mode::Input};
