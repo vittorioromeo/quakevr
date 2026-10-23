@@ -17966,3 +17966,67 @@ up and swung, the crowbar sounding like a crowbar, a running chainsaw, the hands
 **In VR:** a fists grunt's guard and punches (`vr_agrunt_test 100`, or the toolgun); axe, sword, crowbar and hammer
 grunts: blade up, the swings and their sounds (crowbar's ring); the chainsaw grunt's engine, its thrust and cut; a
 shotgun grunt running and shooting: both hands still on the gun, the kick.
+
+### Armed grunts: gameplay (worktree `release`, branch `agent/agplay`, 2026-10-23)
+
+The author's notes (vrtesthall_2026-10-23_15-38-47 .. 15-44-27): disarming was too easy (walk up, grab the shotgun);
+an armed grunt's ragdoll and corpse took no gunfire or melee; a shove always dropped the weapon; grunts ran forever at
+a weapon floating in water. New file `QC/vr_armedgrunt_play.qc` (its header has the rules), tests in
+`QC/vr_armedgrunt_play_test.qc` (`vr_agrunt_test 20..27`).
+
+**Ragdoll and corpse (the cause).** The armed grunt had its own `th_die` (`VR_AG_Die`, a copy of `army_die`), and the
+corpse code keys the grunt on `th_die == army_die` (combat.qc `VR_Corpse_Parts`: corpse health, head, gibs; also
+vr_smallgibs.qc): its corpse was never armed as a gibbable body (no `takedamage`, shots went through to the floor).
+Fix: its `th_die` is the grunt's `army_die`; `army_die` asks `VR_AG_Dying()` (its weapon falls instead of the grunt's
+rifle). The engine side already shared the grunt's rig (`vr_ragdoll.cpp` seeds `Id::VrGrunt` as `Id::Soldier`).
+`VR_AG_Die` stays as a stub calling `army_die` (old saves). Test 20: a grunt and an armed grunt side by side, knocked
+down alive then killed: both take the same pellets alive (8, 8) and as corpses (8, 8 of 160), both gib.
+
+**Disarming rules** (Combat > Armed Grunts, Disarming):
+- Grabbing its weapon starts a tug-of-war (`vr_agrunt_tug` 1). It holds on, faces you, your hand is jerked towards it
+  with haptics (`handimpact`, rising buzz as you gain). You win by keeping your hand pulled back
+  `vr_agrunt_tug_pull` (10 units) or more from where you grabbed, away from it, for `vr_agrunt_tug_time` (1.2 s) in all
+  (easing off loses progress at half the rate). Hurt, the time is times its share of health (at least 0.35); while it
+  flinches from a hit, half. About every `vr_agrunt_tug_fight` (1 s) it fights back: a gun fires at you (40%), shoves
+  you off (30%) or headbutts you (30%, 6 damage times `vr_agrunt_damage_scale`, a view punch, a push); fists and melee
+  weapons only headbutt (they never shove). A shove or a headbutt breaks your grip; letting go, or your hand ending 64
+  units from the weapon, loses too; 0.8 s before you can grab again. Won: the weapon is in your hand.
+- A grab takes it at once when it is staggering or knocked down, stunned by a parry (`vr_parry_stagger_until`), down to
+  `vr_agrunt_tug_hurt` (0.35) of its health, or taken unawares (not fighting you, you behind it).
+- A blow on its gun hand or arm of `vr_agrunt_disarm_damage` (10) knocks it loose, half that while it is shaky (above).
+- Your weapon's parry of its melee blow (its punch, swing or thrust: `VR_AG_Striking`, now a melee monster's blow for
+  `VR_Parry_MeleeMonster`) knocks the weapon away with the chance `vr_agrunt_parry_disarm` (0.35; a well-timed parry
+  1.5x). Its shoves' parries don't.
+
+**Shoves and falls** (`vr_agrunt_fall_drop` 1): a stagger never drops the weapon. Knocked down onto the floor, it lets
+go 0.4 s into the fall, beside it (20-50 u/s); getting up it goes for its own weapon first (within 160 units, whoever is
+nearer), if you haven't taken it. Off: a knockdown keeps the weapon.
+
+**Weapon reach** (`VR_AG_Reachable`): it only goes for a weapon not in a liquid, resting on a floor (within 40 units
+under it), the way there probed every 12 units: a floor all along, no step up or down over 18 units, no liquid, no wall
+at 24 units up. Going for one, it gives it up when it gets no nearer for 2.5 s, after `vr_agrunt_seek_timeout` (6 s),
+or when the weapon is out of reach on a recheck (every 0.5 s), and leaves it alone for `vr_agrunt_seek_shun` (20 s).
+Also: an unarmed grunt goes for a weapon before the stealth AI's walk or look-about (ai.qc: the `VR_AG_Idle` check moved
+ahead of `VR_Stealth_Walk`/`VR_Stealth_Stand`; an alerted unarmed grunt walking to its post never re-armed).
+
+**Notes.** The grabbing bit reads clear in other entities' thinks (fast mode at least): the tug's "let go" uses the
+release time (`mainhand_lastreleasetime`, kept in the player's think). A tug won hands over the weapon with
+`forcegrabCatching` (`wpnthrow_handtouch_ent` wants a grab begun in the last 0.125 s). The held weapon is drawn
+client-side from the body (agent/agpresent): the tug doesn't move it towards your hand (the feel is haptics and the
+hand's jerks).
+
+**Tests** (vrtesthall, `vr_mock_hand main 0.1 0.72 -1.2 65 0 0`; 21-23 with `+grabmain` held): 20 ragdoll/corpse PASS 3;
+21 tug: begun, held still 2 s it holds on, pulled 16 units it is yours after 1.21 s (need 1.20) PASS 3; 22 an axe grunt
+fighting back every 0.3 s headbutts you off, keeps the axe PASS 2; 23 calm '' / stunned / hurt / staggering / knocked
+down, a hurt grunt's gun grabbed at once PASS 3; 24 a blow of 6 on the hand: calm keeps it, hurt drops it; its swing
+parried: disarmed PASS 2; 25 staggered keeps it, floored drops it 14-22 units away, gets up and takes it back PASS 3;
+26 a shotgun floating in the pool and one in the air ignored (4 s, it never steps into the pool), one on the floor taken
+PASS 2; 27 no nearer for 3 s: given up, shunned, not found again PASS 1. `vr_agrunt_test 3` now sets `vr_agrunt_tug 0`
+(the grab at once) and puts it back.
+
+**In VR:** grab a calm shotgun grunt's gun from the front and pull back hard (about 25 cm) for a second or so: the
+hand should buzz and jerk, it should headbutt, shove or fire at you now and then; grab one that's staggered by a shove,
+hurt or parried: yours at once; shove one: it keeps the gun unless it falls, then the gun lies beside it and it picks
+it up as it rises; drop a weapon into the pool at vrtesthall's side: grunts should leave it alone. Sliders: Combat >
+Armed Grunts (Disarming: Tug-of-War and its four sliders, Parry Disarm Chance, Drops It When Floored; Gives Up on a
+Weapon After, Leaves It Alone For).
