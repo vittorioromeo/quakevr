@@ -1,0 +1,15 @@
+# agrunt_shootout: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts at 2, 5, 10 and 15 m to shoot the weapons out of their hands
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Nailgun" off
+spawn "Armed Grunt: Shotgun" 64 50
+spawn "Armed Grunt: Shotgun" 160 -60
+spawn "Armed Grunt: Super Nailgun" 160 120
+spawn "Armed Grunt: Sword" 320 150
+spawn "Armed Grunt: Shotgun" 320 -150
+spawn "Armed Grunt: Rocket Launcher" 480 0
+cvar vr_agrunt_shotdisarm_debug 1
+hint Shoot their guns or gun hands: a close blast on the gun usually knocks it away, a nail burst sometimes, a far shot seldom (each hit and roll printed)

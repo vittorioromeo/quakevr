@@ -758,6 +758,10 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 // VR_AG_PropThink, every frame: a hard blow or a throw on the held weapon itself (not only its hand). TRUE: disarmed.
 float(entity g, entity p) VR_AG_WeaponStruck =
 {
+    if(VR_AGS_Frame(g, p)) // (shot out of its hand: vr_armedgrunt_shot.qc)
+    {
+        return TRUE;
+    }
     if(!cvar_hget(cvarh_vr_agrunt_disarm) || g.vr_ag_tug_pl)
     {
         return FALSE;

@@ -24,6 +24,7 @@ vr_spawnflags.qc
 vr_ad_mondefs.qc
 // Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
 vr_armedgrunt_defs.qc
+vr_armedgrunt_shot_defs.qc
 ai.qc
 combat.qc
 combat_test.qc
@@ -497,7 +498,9 @@ vr_armedmon.qc
 vr_armedgrunt.qc
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
+vr_armedgrunt_shot.qc
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
 vr_armedgrunt_play_test.qc
+vr_armedgrunt_shot_test.qc
