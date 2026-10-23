@@ -17744,13 +17744,13 @@ In VR: pull a grunt (and a death knight) down by the shins, then keep holding an
 back, arms clawing; with one hand too. Run from it, or drag it against a step: the hold lets go. Combat > Holding Enemies
 > Leg Grabs > Pull Drag Strength sets how hard (1.5).
 
-## Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords (worktree `tghost`, branch `agent/dec1023`, 2026-10-23; vr_cfg_version 192)
+## Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords (worktree `tghost`, branch `agent/dec1023`, 2026-10-23; vr_cfg_version 191)
 
 The author's decisions of 2026-10-23.
 
 - **Shoulder charge defaults** (his config): `vr_kdtrig_tackle_leniency` 0.2 -> 0.4, `vr_kdtrig_tackle_stand` 0.8 ->
-  0.75. configVersion 192 (191 is another branch's; renumbered at ship) moves a config still at the old values.
-  Checked: `vr_migrate_config` from 190 at 0.2/0.8 gives 0.4/0.75; a custom 0.3 stays. eval.sh: 169/177 (as before),
+  0.75. configVersion 191 moves a config still at the old values.
+  Checked: `vr_migrate_config` from 190 at 0.2/0.8 (to 191) gives 0.4/0.75; a custom 0.3 stays. eval.sh: 169/177 (as before),
   shoulder charge caught 22/22, false 0/15.
 - **Humanoids without a profile struggle** (vr_mgroups.cpp `struggleBases`): a member of a struggling group with no
   profile of its own struggles with its group's base profile: Grunts as id's grunt (Honey's soldier; Dawn of the

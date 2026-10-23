@@ -431,10 +431,10 @@ const DefaultChange defaultChanges[] = {
     {189, &vr_kdtrig_tackle_low, "5"},     // 0.5
     {189, &vr_kdtrig_tackle_head, "7.5"},  // 5
     {189, &vr_kdtrig_tackle_turn, "50"},   // 60
-    // 192: the author's shoulder charge values (his config of 2026-10-23): more lenient, a little less tall (ROUND22.md,
+    // 191: the author's shoulder charge values (his config of 2026-10-23): more lenient, a little less tall (ROUND22.md,
     // "Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords").
-    {192, &vr_kdtrig_tackle_leniency, "0.2"}, // 0.4
-    {192, &vr_kdtrig_tackle_stand, "0.8"},    // 0.75
+    {191, &vr_kdtrig_tackle_leniency, "0.2"}, // 0.4
+    {191, &vr_kdtrig_tackle_stand, "0.8"},    // 0.75
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -453,7 +453,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 192; // (191: another branch's, renumbered at ship)
+constexpr int configVersion = 191;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
