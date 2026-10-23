@@ -998,6 +998,59 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
+// Combat > Armed Grunts (Experimental) (QC vr_armedgrunt.qc; ROUND22.md, "Armed grunts"): grunts holding your weapons.
+[[nodiscard]] za::Vector<Item> pageArmedGrunts()
+{
+    const auto weight = [](const char* label, cvar_t& c) {
+        return slider(label, c, 0.f, 5.f, 0.25f, "%.2f").extend(0.f, 100.f)
+            .help("How often an armed grunt from the pool (the toolgun's Armed Grunt (Pool), a map's with no weapon "
+                  "set) holds this, against the others' weights. 0: never.");
+    };
+    return {
+        header("Their Weapons"),
+        slider("Damage to You", vr_agrunt_damage_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Their weapon's damage to you, times this (its damage to monsters is your weapon's own): a rocket "
+                  "isn't a one-shot (vr_agrunt_damage_scale)."),
+        slider("Spare Clips", vr_agrunt_reserve, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 100.f)
+            .help("The clips each carries beyond the one in its gun; each reload takes one. With none left it throws the "
+                  "gun away and fights with its fists. Not the grunts' and enforcers' rifles: their clip is all they "
+                  "have (vr_agrunt_reserve)."),
+        slider("Reload Time", vr_agrunt_reload_time, 0.2f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
+            .help("How long it stands reloading (vr_agrunt_reload_time)."),
+        slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
+            .help("How far off its aim is at most, each shot, besides the weapon's own spread (vr_agrunt_aim_error)."),
+        header("Disarming"),
+        toggle("Hits Disarm", vr_agrunt_disarm)
+            .help("A hard blow on its gun hand (a shot, a melee blow, a thrown thing) or a knockdown knocks the "
+                  "weapon out of its hand, its rounds with it (vr_agrunt_disarm)."),
+        slider("Disarming Blow", vr_agrunt_disarm_damage, 1.f, 50.f, 1.f, "%.0f damage").extend(0.f, 500.f)
+            .help("A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage)."),
+        toggle("Grab Its Weapon", vr_agrunt_disarm_yank)
+            .help("Your empty hand closing on its weapon takes it out of its hand: it is yours (vr_agrunt_disarm_yank)."),
+        toggle("Picks Weapons Up", vr_agrunt_rearm)
+            .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
+                  "not nearer to it than it is (vr_agrunt_rearm)."),
+        slider("Looks For Weapons Within", vr_agrunt_rearm_range, 64.f, 1024.f, 32.f, "%.0f units").extend(0.f, 4096.f)
+            .help("How far it looks for a weapon to pick up (vr_agrunt_rearm_range)."),
+        header("The Pool"),
+        weight("Fists", vr_agrunt_w_fists),
+        weight("Axe", vr_agrunt_w_axe),
+        weight("Knight's Sword", vr_agrunt_w_sword),
+        weight("Crowbar", vr_agrunt_w_crowbar),
+        weight("Ogre's Chainsaw", vr_agrunt_w_chainsaw),
+        weight("Shotgun", vr_agrunt_w_shotgun),
+        weight("Super Shotgun", vr_agrunt_w_ssg),
+        weight("Nailgun", vr_agrunt_w_nailgun),
+        weight("Super Nailgun", vr_agrunt_w_sng),
+        weight("Grenade Launcher", vr_agrunt_w_gl),
+        weight("Rocket Launcher", vr_agrunt_w_rl),
+        weight("Thunderbolt", vr_agrunt_w_lg),
+        weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
+        weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
+        weight("Mission Packs' (Each)", vr_agrunt_w_packs),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons()
 {
     return {

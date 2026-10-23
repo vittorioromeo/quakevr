@@ -887,6 +887,7 @@ void selectCampaignRow(int index)
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
+[[nodiscard]] za::Vector<Item> pageArmedGrunts();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageKdTriggers();
 [[nodiscard]] za::Vector<Item> pageKdTrigLedge();
@@ -2092,6 +2093,7 @@ const Page pages[] = {
     // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing, then one Item Pickup Mode switch.)
     {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
+    {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
 };
 static_assert(mgroups::paramCount == 27, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

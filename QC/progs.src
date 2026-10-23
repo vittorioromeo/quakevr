@@ -22,6 +22,8 @@ vr_ad_guns_defs.qc
 vr_spawnflags.qc
 // AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
 vr_ad_mondefs.qc
+// Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
+vr_armedgrunt_defs.qc
 ai.qc
 combat.qc
 combat_test.qc
@@ -489,3 +491,6 @@ vr_limbs_wear_test.qc
 vr_dmgcredit_test.qc
 // The props' impact rule (vr_prop_impact_test; after AD's files: its breakables' kinds).
 vr_propimpact_test.qc
+// Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
+vr_armedgrunt.qc
+vr_armedgrunt_test.qc

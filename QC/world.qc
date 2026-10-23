@@ -562,6 +562,7 @@ void() worldspawn =
 };
 
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
@@ -625,6 +626,7 @@ void() StartFrame =
     VR_Limb_TestFrame(); // VR: limb gore's tests (vr_limb_test, vr_limbs_test.qc)
     VR_PickupTest_Frame(); // VR: the weapon pickups' tests (vr_pickup_test, vr_pickup_test.qc)
     VR_DCTest_Frame(); // VR: the weapons' damage credit test (vr_dmgcredit_test, vr_dmgcredit_test.qc)
+    VR_AGTest_Frame(); // VR: the armed grunts' tests (vr_agrunt_test, vr_armedgrunt_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)

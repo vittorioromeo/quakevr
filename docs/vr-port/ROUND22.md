@@ -16965,3 +16965,80 @@ From the author's voice notes of 2026-10-23 (vrfiringrange 01-16-39 and 01-18-00
 **In VR:** die with Vomit Mode on (Debug > Cheats > Die Now, Blown Back). Check that the death menu now opens after 5 s.
 Walk through VR Calibration and turn your head: the texts should trail a little. Find Holster Calibration on VR Settings'
 first page. Tap bullet time with an empty meter while looking at the gadget.
+
+## Armed grunts (experimental; feature branch, 2026-10-23, worktree `tghost`, branch `agent/armedgrunt`)
+
+His request: a grunt whose weapon can be any weapon you can use, held as the weapon's prop and fired the way you fire
+it (same projectiles, effects, sounds, damage path), so it can be disarmed. Stages 1-4 done and part of 5 (below).
+
+**What it is.** `monster_vr_grunt` (QC `vr_armedgrunt.qc`; fields and hooks in `vr_armedgrunt_defs.qc`): its spawn
+function picks the weapon, then becomes a grunt (`classname` `monster_army`, `.vr_ag` 1): ragdolls, knockdowns, hit
+reactions, decapitation, limb gore, holding, shoves, hulls and every grunt table in the engine treat it as one. Map key
+`weapon` (WID_*; -1 fists; 0/unset: the pool), `weaponflags`. Toolgun: Monsters > Armed Grunts (the pool, fists, axe,
+sword, crowbar, chainsaw, shotgun, super shotgun, nailguns, launchers, thunderbolt, the grunt's and the enforcer's
+rifles; `vr_toolgun_packs.inc`, appended so the old numbers stay). FGD regenerated.
+
+**The model.** `progs/vrgrunt.mdl` (`Misc/quakevr/make_vrgrunt.py`): Quake VR's soldier.mdl with the gun's 116
+triangles dropped and its vertices (463..548) kept, so the numbering, frames, skin and rig are the grunt's
+(`modelmeta::Id::VrGrunt`, the grunt's seed table in `vr_ragdoll.cpp`, `vrgrunt.` a monster file; its limbs build).
+
+**The held weapon.** An entity of its own (`vr_ag_weapon`, the weapon's record in `.weaponinst`, SOLID_TRIGGER for the
+hands, MOVETYPE_NONE) drawn with the weapon's model, so the engine draws it as a lying weapon is (Weapon Offsets' model
+transform at its origin: the hand). Every server frame it goes to the grunt's right hand as the server poses it
+(vertices 32, 26, 31), along the line the hidden gun has in that frame (vertices 497/545 to 498/514, its roll from 529
+over 496): the animations' hands close round it as they did round the rifle. Melee weapons lie along that line the other
+way. Aiming, it points at the target; a shot kicks it back (2.5 units, 9 degrees, 0.15 s); a melee blow swings it
+(raised 60 degrees, down through 90 more in 0.4 s). Two engine helpers through existing builtins (the VR builtin range
+is full): `modelanchorpoint` with an anchor x of -2-n is vertex n as drawn (`hitmodel::vertexPoint`);
+`weapondrawnpose(e, 0, 6)` is the muzzle of the weapon model e is drawn with (its Muzzle anchor and offset).
+
+**Firing: your code.** `VR_AG_Shoot` sets the grunt's hand fields as a player's would be (`handpos`, `handrot` aimed at
+the target, `muzzlepos` from the held weapon, `weapon`, `weaponflags`, the record) and calls `W_FireShotgun`,
+`W_FireSuperShotgun`, `W_FireSpikes`, `W_FireSuperSpikes`, `W_FireGrenade`/`W_FireMultiGrenade`, `W_FireRocket`/
+`W_FireMultiRocket`, `W_FireProximityGrenade`, `HIP_FireLaser`, `W_FireLightning` (plus Quake's beam for it),
+`VR_FireBurstRound`/`VR_FireGruntGun`, `VR_FireEnforcerRifle`; melee: `W_FireAxe`, `W_ChainsawMelee`,
+`HIP_FireMjolnir`, `W_FistMelee`, a gun's butt `W_GunMelee`. Their haptics, casings and kicks go to clients only and
+do nothing for a monster; the player animations (`player_shot1`, ...) are never called. Damage to players times
+`vr_agrunt_damage_scale` (0.5) in `T_DamageDeal`; to monsters it is the weapon's own (monsters' stock values, as
+`VR_WpnDmg` gives a non-player).
+
+**AI.** `CheckAnyAttack` sends an armed grunt to `VR_AG_CheckAttack`: the grunt's clear-shot test and chances by
+range per weapon (the thunderbolt only near, the shotguns near, the nail guns near and middle, the launchers middle),
+fire frames shoot1..9 (one shot in shoot5; the burst rifle shoot5..7; nail guns, thunderbolt and laser cannon one a
+frame in shoot4..8), aimed a little behind a moving target and up to `vr_agrunt_aim_error` (3) degrees off. Explosive
+weapons back away from a target nearer than 160 (rocket launcher 190) units and club one within 60. Melee weapons and
+fists run in and swing (the shove frames) within 52 units. Its own run frames (`vr_ag_run1..8`) do the backing off and
+the walk to a weapon; the grunt's pains end in the grunt's run, so `VR_AG_CheckAttack` puts it back on its own.
+
+**Ammo.** The weapon's record's clip (your reloading clip sizes; 20 for one with none), `vr_agrunt_reserve` (2) clips
+more (the grunt's and enforcer's rifles: their clip only). Empty: a reload (the grunt's unused load frames,
+`vr_agrunt_reload_time` 1.5 s); nothing left: it throws the gun away. Dying (gibbed too) it drops the weapon with its
+rounds; its backpack holds the reserve (none: the grunt's 5 shells).
+
+**Disarming and re-arming.** A blow of `vr_agrunt_disarm_damage` (10) or more within 10 units of its gun hand (16 on
+an arm), a knockdown, or your empty hand closing on the weapon (`vr_agrunt_disarm_yank`: through the weapon's
+handtouch it becomes a lying weapon and `wpnthrow_handtouch_ent` puts it in that hand) knocks it out. Disarmed it
+fights with its fists and, with `vr_agrunt_rearm`, goes for a usable weapon lying within `vr_agrunt_rearm_range` (384)
+in sight, not spent, when you are not nearer to it than it is (one at its feet: always), takes it up (load frames) and
+fights with it. Settings: Combat > Armed Grunts (Experimental) (and the pool's weights `vr_agrunt_w_*`).
+
+**Tests** (vrtesthall; Debug > Tests > Armed Grunts): `vr_agrunt_test 1`, every weapon hunting you for 5 s: 17 passed,
+0 failed (damage to you at 0.5: fists/melee 37-47, shotgun 38, super shotgun 56, nailgun 79, super nailgun 155,
+grenades 72, rockets 155, thunderbolt 227, laser cannon 115, proximity 40, burst rifle 29, laser rifle 21; the
+grenadier sometimes kills itself with its own grenade). `vr_agrunt_test 2`: reload (8 shots, 1 reload, clip 8),
+disarm by a hand hit (the shotgun lying with 8), re-arm (1 pickup), drop on death (8 in it): 4 passed.
+`vr_agrunt_test 3` with `vr_mock_hand main 0.1 0.72 -1.2 65 0 0` and `+grabmain`: the shotgun in your hand, the grunt
+empty-handed: PASS. `vr_knockdown_test 0` on a row: the super shotgun drops (2 in its clip), the grunt gets up with
+its fists. Save and load: the three grunts' weapons 1.4-2.1 units from their hands after the load and after their AI ran.
+e1m1 and normal grunts unchanged (their hooks return at once without `.vr_ag`). Rows of them: `vr_agrunt_test 6-9`.
+
+**Left.** No IK: the arms keep the grunt's rifle animation, which suits two-handed guns in most frames; one-handed and
+melee weapons are held in the right hand with the left hand on nothing. True IK would be per-bone turns on the client
+as `vr_hitreact.cpp`'s kicks are. No muzzle flash of the held weapon on clients (`weaponfired` draws none for a monster
+hand): a dynamic light (EF_MUZZLEFLASH) and your weapons' gunsmoke at its muzzle. Arcane Dimensions' guns and the
+Super Axe's special are not in its arsenal (their fire is AD's/MG3's own code). An idle grunt doesn't walk to a
+weapon; only in a fight.
+
+**In VR:** spawn Armed Grunts from the toolgun (Monsters > Armed Grunts): check the weapon sits in its hands while it
+runs and shoots, a rocket hurts about half, shoot its gun hand with the shotgun up close, grab its weapon out of its
+hand, kill one and take its gun (its rounds in it), knock one down. Combat > Armed Grunts for the damage and the pool.
