@@ -22,6 +22,8 @@ void() VR_Toolgun_Precache =
     precache_sound("vr/torch_out.wav");
     precache_sound("vr/torch_light.wav");
     precache_sound("vr/torch_hit.wav");
+    precache_sound("vr/nail_sizzle1.wav"); // (also fire put out by water: vr_burning.qc VR_Burn_Doused)
+    precache_sound("vr/nail_sizzle2.wav");
     precache_sound("misc/null.wav");
     // Its brush-model items and boxes (health, ammo, explosive boxes): a brush model's lightmaps and vertices are built
     // with the map, so one first loaded later is never drawn (vr_client.cpp parsePrecacheModel). Small files; the

@@ -108,8 +108,12 @@
         slider("Lingering Poison Mist", "vr_adgun_fx_mist", 0.f, 3.f, 0.25f, "%.2fx")
             .help("A faint green mist left hanging where the poison sprayers' poison went. 0: none."),
         slider("Scorch Marks", "vr_adgun_fx_scorch", 0.f, 3.f, 0.25f, "%.2fx")
-            .help("Scorch marks where the flamethrowers' fire licks a wall or the floor, this many times as often (1 the "
-                  "default; 0 none). Cheap: with Permanent Decals on, each is baked straight into them."),
+            .help("Scorch marks where the flamethrowers' fire licks a wall or the floor: one where every flame is spent "
+                  "(under 1: that share of them; over 1: a little bigger). 0: none. Cheap: with Permanent Decals on, "
+                  "each is baked straight into them."),
+        slider("Plasma Bolt Arcs", "vr_adgun_plasma_fx", 0.f, 3.f, 0.25f, "%.2fx")
+            .help("Small lightning arcs crackling round the plasma bolts (the Plasma Gun's, the plasma soldiers' and "
+                  "centurions'). 0: none. Their blue light: Projectile Lights."),
         toggle("Fuel Tank and Hose", "vr_adgun_hose")
             .help("Holding the pyro's flamethrower or the fumigator's poison sprayer: a small fuel tank on your back and "
                   "a hose from it to the gun, swinging as you move (seen in the body's mirror image too). Off: none."),

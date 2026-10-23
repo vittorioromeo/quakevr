@@ -436,6 +436,21 @@ void smoke(const glm::vec3& org, int count, bool big)
     });
 }
 
+// Fire put out by water (Preset::Steam): thin white puffs rising quickly off the surface and gone in a second or so.
+void steam(const glm::vec3& org, int count)
+{
+    make(count, [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        setColor(p, rndi(11, 15), rnd(70, 110));
+        p.die = cl.time + rnd(0.7f, 1.3f);
+        p.scale = rnd(0.9f, 1.4f) * 0.9f;
+        p.type = TxSmoke;
+        p.acc = gravity(-0.3f);
+        p.org = org + glm::vec3{rnd(-3, 3), rnd(-3, 3), rnd(0, 2)};
+        p.vel = {rnd(-14, 14), rnd(-14, 14), rnd(20, 45)};
+    });
+}
+
 // Sparks thrown up and falling (sparks, teleport): colours [lo, hi), scale factor, life.
 void sparks(const glm::vec3& org, int count, int lo, int hi, float scale, double life)
 {
@@ -1942,6 +1957,13 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::AdPoison: adStreamFire(org, dir, count, true); break;
         case Preset::PoisonPuff: poisonPuff(org, dir, count); break;
         case Preset::ElectricSparks: electricSparks(org, dir, count); break;
+        case Preset::AdFlameHit: // a flame spent on a wall: a tongue or two licking up off it (its scorch: vr_decals.cpp)
+        {
+            const glm::vec3 back = glm::dot(dir, dir) > 1e-4f ? -glm::normalize(dir) : glm::vec3{0.f, 0.f, 1.f};
+            adStreamFire(org + back * 3.f, back * 0.15f + glm::vec3{0.f, 0.f, 0.35f}, count, false);
+            break;
+        }
+        case Preset::Steam: steam(org, count); break;
         default: blood(org, dir, count); break;
     }
     return true;

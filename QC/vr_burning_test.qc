@@ -235,6 +235,67 @@ void() VR_Burn_TestFrame =
                        fk, fm, bd, back));
         return;
     }
+    if(ask == 15)
+    {
+        // The monster or body nearest you set against the nearest of the map's flames (a fire spot but a candle, or a
+        // lit torch on its wall), its box's side a unit into the flame on your side, woken (an awake monster's): the
+        // frame's look (VR_Burn_MapBodiesFrame, vr_burn_map_monsters) lights it within a few tenths of a second
+        // ("burning: ... touches a map flame").
+        entity m13 = world;
+        float d13 = 100000;
+        for(entity e13 = findflags(world, flags, FL_MONSTER); e13; e13 = findflags(e13, flags, FL_MONSTER))
+        {
+            if(e13.modelindex && !e13.vr_gib && vlen(e13.origin - p.origin) < d13)
+            {
+                d13 = vlen(e13.origin - p.origin);
+                m13 = e13;
+            }
+        }
+        vector f13 = '0 0 0';
+        float fd13 = 100000;
+        float k13 = -1;
+        float i13;
+        for(i13 = 0; i13 < vr_fire_spots; i13++)
+        {
+            vector s13 = vr_fire_spot[i13];
+            float sk13 = vr_fire_spot_large[i13];
+            if(sk13 != 3 && vlen(s13 - p.origin) < fd13)
+            {
+                fd13 = vlen(s13 - p.origin);
+                f13 = s13;
+                k13 = sk13;
+            }
+        }
+        for(entity t13 = find(world, classname, "light_torch_small_walltorch"); t13; t13 = find(t13, classname, "light_torch_small_walltorch"))
+        {
+            if(t13.wt_state == 0 && t13.wt_fire > 0 && t13.modelindex && vlen(t13.origin - p.origin) < fd13)
+            {
+                fd13 = vlen(t13.origin - p.origin);
+                f13 = t13.origin;
+                k13 = 2;
+            }
+        }
+        if(m13 == world || k13 < 0)
+        {
+            dprint(sprintf("burning: test 15: monster '%s', flame kind %g (none: -1; a monster: vr_test_spawn 0; impulse 241)\n",
+                           m13.classname, k13));
+            return;
+        }
+        vector w13 = p.origin - f13;
+        w13_z = 0;
+        w13 = normalize(w13);
+        float half13 = max(m13.maxs_x, m13.maxs_y);
+        vector o13 = f13 + w13 * (half13 - 1);
+        o13_z = f13_z + 6 - m13.mins_z - (m13.maxs_z - m13.mins_z) * 0.5;
+        setorigin(m13, o13);
+        if(m13.health > 0)
+        {
+            m13.enemy = p;
+        }
+        dprint(sprintf("burning: test 15: %s (health %g%s) set against the map's flame (kind %g) at %v\n", m13.classname,
+                       m13.health, isragdoll(m13) ? ", a ragdoll" : "", k13, f13));
+        return;
+    }
     if(ask == 8 || ask == 9)
     {
         VR_Burn_TestCrate(p, ask);

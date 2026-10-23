@@ -75,7 +75,14 @@ enum class Preset : int
     PoisonPuff,
     // AD support: an electric gun's muzzle and its bolt's hit (AD's plasma rifles: vr_ad_enemyguns.qc): `count` blue-white
     // sparks thrown along `dir` (a direction) and short crackling arcs.
-    ElectricSparks
+    ElectricSparks,
+    // AD support: a flamethrower's flame spent on a wall, the floor or other geometry (QC vr_ad_enemyguns.qc
+    // VR_ADGun_FlameTouch; `dir` the way it flew): a scorch there every time (vr_adgun_fx_scorch, vr_decals.cpp
+    // fromEffect) and `count` tongues of fire licking over it.
+    AdFlameHit,
+    // Fire put out by water (QC: a flamethrower's flame meeting the surface, a lava nail going in): `count` puffs of
+    // white steam rising off `org`, quick and thin.
+    Steam
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
