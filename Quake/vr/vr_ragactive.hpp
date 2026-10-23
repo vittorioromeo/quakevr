@@ -505,8 +505,8 @@ struct StruggleInput
     za::Array<StruggleHold, 2> hold{};
     glm::vec3 eye{0.f}, feet{0.f}; // the holding player's head and feet (world, metres)
     float health{1.f};             // its health over its class's (0..1)
-    float strength{1.f}, speed{1.f}; // its class's (vr_struggle_classes)
-    float arms{1.f};                 // its class's arm drive: its arms' springs this many times stiffer (vr_struggle_classes)
+    float strength{1.f}, speed{1.f}; // its class's (its monster group's Struggle: mgroups::struggleOfClass)
+    float arms{1.f};                 // its class's arm drive: its arms' springs this many times stiffer (its monster group's Struggle: mgroups::struggleOfClass)
 };
 
 struct Struggle

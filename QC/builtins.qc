@@ -337,6 +337,7 @@ float MGP_KDSCALE = 23;  // every chance to knock it down times this (vr_knockdo
 float MGP_DOWNTIME = 24; // its time down times this (VR_KD_DownScale)
 float MGP_GETUP = 25;    // its get-up's speed times this (VR_Knockdown_Interval; the engine's active get-up too)
 float MGP_SNAPKILLS = 26; // the neck snap kills it (0: it only hurts: vr_foegrab_throw.qc VR_FoeGrab_NeckSnap)
+// (27 .. 31: the struggle's Struggle, Strength, Speed, Arm Drive and Weaker When Hurt, the engine's alone: vr_mgroups.hpp Param.)
 // A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
 // kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
 float(entity e, float begin) ragdolldrown = #0;

@@ -17329,3 +17329,60 @@ weakly; a hip or chest holster refuses it. In AD kill the Dark Prince, a justice
 wave): each drops its sword and its corpse holds none. Check each grip (Weapon Offsets slots 47-50: main hand at the
 middle of the hilt, the second towards the pommel), the swords' sizes against their monsters, and whether a blow near
 each long blade's tip lands.
+
+## 1.1 decisions: particle cap, shadow atlas on demand, struggle in the groups (worktree `goreflesh`, branch `agent/dec11`, 2026-10-23)
+
+His 1.1 decisions (BACKLOG.md, "The 1.1.0 plan").
+
+**Particle size cap 0.15.** `vr_particle_max_screen` (Graphics > Effects: Largest Particle) has shipped at 0.15 since it
+was added (5f65185a1, "Particles near the eyes, a size cap..."); no build had 0.3, so no config holds an older default:
+nothing changed, no migration.
+
+**Shadow atlas on demand** (`vr_shadow_atlas_grow` 1, archived; Graphics > Shadows: Grow Shadow Atlas). The atlas was
+always 8192 x 8192 D32F (256 MB) and the static atlas (the map lights' cached world depth) 6144 x 4096 (96 MB): 352 MB.
+- Making a texture that size mid-play is a hitch: the driver allocates at the framebuffer's completeness check, 2.5-5 ms,
+  with the storage and attachment 0.4-3.3 ms more: 7.2-7.7 ms CPU for a growth to 8192 x 6144 (12.5 ms with the GPU
+  synced and the new atlas cleared). Over the brief's 2 ms, so the atlas does not grow mid-play.
+- At a map's load the atlas is sized for its lights: its map light slots (with growing on, `vr_shadow_maplights` but no
+  more than the map has lights), the dynamic lights' budget at a typical 256-texel face (a muzzle flash, a rocket, an
+  explosion near you: `selectDlights`' size), the flashlight's tile; rounded up to 32 MB bands (1024 rows at 8192),
+  still 8192 wide, so the faces pack exactly where they did. The shader samples by `textureSize`, so a non-square atlas
+  needed no shader change.
+- Each frame the faces' full-size rows are measured (`packRows`); when they need more than the atlas has, the frame packs
+  them smaller (as an over-full 8192 atlas always did: halved, the map lights' moving casters skipped) and the atlas grows
+  to the most this map has needed at the next moment a hitch goes unfelt: the menu or console up, paused, the
+  intermission, dead. A new map sizes it again. `vr_shadow_stats 1` prints the atlas sizes, MB, the rows the faces want
+  (and the peak), the frames squeezed, the growths and the last one's cost; with it on, a growth is timed GPU-synced.
+- Measured (headless, defaults): e1m1, e2m6, e3m3, e4m7 all 8192 x 5120 + 6144 x 4096 = **256 MB** (was 352); their
+  frames wanted 2048-4352 rows standing about (three or four map lights near you: the player is always a caster). Five
+  1024-face lights (`vr_light_test 2000`) wanted 8704 rows: squeezed (168 frames) until the menu opened, then grew to
+  8192 x 8192 in 16.4 ms (GPU-synced, under the menu). A "start at 64 MB" was not possible without losing shadows: the
+  map lights' moving casters alone take 4096 rows (128 MB) wherever three or four lights reach you.
+- `vr_shadow_atlas_grow 0`: square at once, as before (352 MB).
+
+**Struggle in the monster groups** (config 190). `vr_struggle_classes` retired; each group has Struggle (on/off: on for
+Grunts, Enforcers, Knights, Death Knights, Mini Bosses, Elite Knights, Zombies, Mummies; a new `struggle` column in
+`vr_mgroups.inc`), Struggle Strength, Speed, Arm Drive (times each class's own, 1) and Weaker When Hurt (1):
+`vr_mgrp_<g>_struggle`, `_struggle_strength`, `_struggle_speed`, `_struggle_arms`, `_struggle_hurt`.
+- Each class's own strength, speed, full health and arm drive are the old list's, a table in `vr_mgroups.cpp`
+  (`struggleProfiles`, 23 classes); `mgroups::struggleOfClass` resolves a class's (clamped as the list was: strength 0-3,
+  speed 0.2-3, arms 1-2.5). A member of a struggling group without a profile does not struggle, as before: Honey's
+  soldier, the infected, AD's point knight, ranged knight, death knight ghost, Quoth's death knight, the minotaur, golem,
+  drole, justice knight, centurion, the Shub zombie (the per-class exceptions a group can't express).
+- Menu: each group's page has a Struggle header (the five rows and Struggle Profiles: its classes' strength / speed /
+  full health / arm drive in the help); a page per setting (Monster Groups - Struggle ...); Holding Enemies > Struggle:
+  Each Monster Group. `vr_mgroup_list` adds `; struggles s sp h a` to each struggling class's line.
+- Migration (190): the retired line's value is kept as the config runs (`VR_RetiredCvar`); a list that is not one of its
+  four defaults (before 175, 181, 183, and 183's) is moved: a group with none of its profiled classes listed: Struggle off;
+  the strength, speed and arm ratios to the profiles: the group's multipliers (their mean, noted when uneven); all its
+  listed classes at health 0: Weaker When Hurt off; classes without a profile (an ogre added) left out, noted. The rows
+  175, 181 and 183 that moved the list are dropped.
+- Checked: every one of the 134 classnames resolves to the old list's values (or none) through `vr_mgroup_list`
+  (scratch/check_profiles.py: 23 struggle before and now, 0 differ). Migration: a custom list (enforcers x1.2, zombies
+  removed, the knight's speed 1.2, an ogre added) gave enforcer strength 1.2, zombies off, knights' speed 1.05 (noted
+  uneven), the ogre noted; the pre-175 default changed nothing. `STRUGGLE_CLASSES=all struggle_test.py` (27 humanoids,
+  243 cases) before and after: every verdict and every leading behaviour the same (69 failing both times, as before).
+  eval.sh: 169/177, its differences 0.1-damage noise, verdicts unchanged. Menu paths (vrcalibration): 0 missing.
+- In VR: Combat > Monster Groups > Grunts: Struggle off, knock one down and lift it (it hangs, no struggle); back on,
+  Struggle Strength 2 (it fights harder). Note the shadows on a big fight: no hitch; open the menu after one and check
+  the atlas line with Shadow Statistics.

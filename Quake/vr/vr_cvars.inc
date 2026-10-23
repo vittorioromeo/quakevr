@@ -3053,7 +3053,7 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
 // a parry never staggers it; QC combat.qc VR_Parry_Outcome).
 // _kdscale every chance to knock it down times this (a sure one by this chance too), _downtime its time down times this,
 // _getup its get-up's speed times this, _snapkills the neck snap kills it (0: it only hurts: vr_foegrab_necksnap_tough).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills) \
+#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills, struggle) \
     QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
     QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
@@ -3080,7 +3080,12 @@ QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance 
     QVR_CVAR(vr_mgrp_##g##_kdscale, #kdscale, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_downtime, #downtime, CVAR_ARCHIVE) \
     QVR_CVAR(vr_mgrp_##g##_getup, #getup, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE)
+    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_struggle, #struggle, CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_struggle_strength, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_struggle_speed, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_struggle_arms, "1", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_mgrp_##g##_struggle_hurt, "1", CVAR_ARCHIVE)
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 // Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
@@ -3418,7 +3423,7 @@ QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)        // dragged by an arm: it
 QVR_CVAR(vr_struggle_arm_reach, "150", CVAR_ARCHIVE)    // degrees: its shoulders' cone while it struggles, for its hands over its head (the rig's 85 about the hanging arm reach no higher than the shoulder; 0: the rig's)
 QVR_CVAR(vr_struggle_voice, "1", CVAR_ARCHIVE)          // its own pain, grunt, sight and idle sounds while it struggles: their volume (0..2; 0 silent), quieter as it weakens
 QVR_CVAR(vr_struggle_voice_gap, "1.8", CVAR_ARCHIVE)    // s: about this between its cries at full effort (longer as it tires)
-QVR_CVAR(vr_struggle_classes, "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75:2 monster_hell_knight:1.25:1:250:1.5 monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70:2.5 monster_eliminator:1.15:0.9:120:2.5 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150:2.5 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120 monster_mummy:1.1:0.85:0:1.5 monster_zombiek:1.1:0.9:60:1.5 monster_deflector:1.1:0.9:250:2.5 monster_death_lord:1.25:1:400 monster_death_guard:1.2:1:125 monster_dprince:1.3:1:400", CVAR_ARCHIVE) // the classes that struggle: classname[:strength[:speed[:health[:arms]]]] (health: its full health, for its effort, 0: always full; arms: its arms' springs that many times stiffer, 1..2.5; never ogres or fiends; zombies since configVersion 175; mummies, AD's zombie knight, deflector, death lord and Quoth death guard since 181, AD's Dark Prince since 183, and the knight's, defender's, eliminator's, death guard's and deflector's arms driven harder)
+// (Which classes struggle and how: their monster group's Struggle settings, vr_mgrp_<group>_struggle*, and vr_mgroups.cpp's struggleProfiles; vr_struggle_classes before configVersion 190.)
 QVR_CVAR(vr_struggle_debug, "0", CVAR_NONE)             // 1: a panel over each struggling enemy (its behaviours' weights, effort, fatigue, what holds it, the grip's lag); 2: also a `struggle:` line 4 times a second; 3: also its floor sense every 30 frames (`struggle sense:` its pelvis, chest and head over the floor, middle and lowest) (Debug > Tests > Holding Enemies)
 QVR_CVAR(vr_struggle_force, "0", CVAR_NONE)             // tests: every living knockdown of a struggling class struggles as if held by the chest where it lies (the cost with many: vr_struggle_status)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")

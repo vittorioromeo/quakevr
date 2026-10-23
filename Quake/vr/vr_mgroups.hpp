@@ -42,6 +42,11 @@ enum class Param : int
     DownTime,  // its time down times this (its own timer, the most it is kept down)
     GetUp,     // its get-up's speed times this
     SnapKills, // the neck snap kills it (0: it only hurts)
+    Struggle,         // held while knocked down, it struggles (its class's profile: struggleProfile)
+    StruggleStrength, // its struggle's strength times this
+    StruggleSpeed,    // its struggle's speed times this
+    StruggleArms,     // its arms' drive while it struggles times this
+    StruggleHurt,     // it struggles weaker as it is hurt (0: always at full effort)
     Count
 };
 inline constexpr int paramCount = static_cast<int>(Param::Count);
@@ -78,6 +83,24 @@ void PF_monstergroupget();
 [[nodiscard]] float healthMultiplier(const char* classname, float full);
 // The menu's examples: line `i` (an example monster's health now), or nullptr past the last.
 [[nodiscard]] const char* healthExampleLine(int i);
+
+// A class's struggle in a player's hands (vr_box3d_struggle.cpp; STRUGGLE.md, "Classes"): its strength, speed, full
+// health (for its effort as it is hurt; 0: always full) and its arms' springs that many times stiffer (1..2.5).
+struct StruggleProfile
+{
+    const char* classname;
+    float strength, speed, health, arms;
+};
+// Its own profile, or nullptr: a class without one never struggles (ogres, fiends...).
+[[nodiscard]] const StruggleProfile* struggleProfile(const char* classname);
+// A class's struggle as its group sets it (vr_box3d_struggle.cpp): its profile with the group's Struggle on, strength,
+// speed and arms times the group's (clamped 0..3, 0.2..3, 1..2.5), its full health 0 without Weaker When Hurt. False:
+// it does not struggle.
+[[nodiscard]] bool struggleOfClass(const char* classname, StruggleProfile& out);
+// Group `g`'s members with a profile, each "name strength/speed/health/arms", comma-separated (its menu page's help).
+[[nodiscard]] const char* struggleProfilesText(int g);
+// A config older than 190: its vr_struggle_classes (retired; the value its line had) into the groups' Struggle settings.
+void migrateStruggleClasses(const char* classes);
 
 void registerCommands();
 

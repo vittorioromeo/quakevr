@@ -5,6 +5,7 @@
 #include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
@@ -367,11 +368,6 @@ const DefaultChange defaultChanges[] = {
     {175, &vr_parry_timed, "1.25"},                // 1.3
     {175, &vr_climb_mantle_height, "18"},          // 20
     {175, &vr_foegrab_legpull_onehand, "1.3"},     // 1
-    {175, &vr_struggle_classes,
-        "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250 "
-        "monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 "
-        "monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 "
-        "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120"},
     // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
     {176, &vr_shove_push_twohand, "1"}, // 1.12
     // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
@@ -400,29 +396,14 @@ const DefaultChange defaultChanges[] = {
     // 181: the author's value (his config of 2026-10-22, approved): the fumigator's dropped poison sprayer's puffs hurt
     // more (ROUND22.md, "Leg-drag struggle for every humanoid; the sprayer's damage").
     {181, &vr_adgun_fumigator_damage, "2"}, // 3
-    // 181: the struggle's classes: mummies, AD's zombie knight, deflector, death lord and Quoth death guard struggle too
-    // (the leg drag's for every humanoid: ROUND22.md, "Leg-drag struggle for every humanoid; the sprayer's damage").
-    {181, &vr_struggle_classes,
-        "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75 monster_hell_knight:1.25:1:250:1.5 "
-        "monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 "
-        "monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 "
-        "monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 "
-        "monster_dsergeant:1.15:1:120"},
+    // (181's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 182: the author's values (his config of 2026-10-22: the new flamethrower and sprayer effects, the drip sounds).
     {182, &vr_adgun_stream_alpha, "0.5"}, // 0.25
     {182, &vr_adgun_fx_rate, "1"},        // 1.5
     {182, &vr_adgun_ad_copies, "0"},      // 2
     {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
     {182, &vr_gore_sound_drips, "1"},     // 0.65
-    // 183: the struggle's classes: AD's Dark Prince struggles too (the death knight's mesh and size, not a boss: ROUND22.md,
-    // "AD fixes: the Dark Prince, the ogres' chainsaws, flames on the body, the health vial").
-    {183, &vr_struggle_classes,
-        "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75:2 monster_hell_knight:1.25:1:250:1.5 "
-        "monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 "
-        "monster_defender:1.1:0.95:70:2.5 monster_eliminator:1.15:0.9:120:2.5 monster_pyro:1.1:0.9:80 "
-        "monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150:2.5 "
-        "monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120 monster_mummy:1.1:0.85:0:1.5 monster_zombiek:1.1:0.9:60:1.5 "
-        "monster_deflector:1.1:0.9:250:2.5 monster_death_lord:1.25:1:400 monster_death_guard:1.2:1:125"},
+    // (183's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
     // (ROUND22.md, "Shoulder charge 3: body contact, run-up, standing tall").
     {184, &vr_kdtrig_tackle_push, "1.25"},     // 1.3
@@ -468,7 +449,11 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 189;
+constexpr int configVersion = 190;
+// 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
+// executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
+za::String retiredStruggleClasses;
+bool retiredStruggleSeen = false;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -625,6 +610,11 @@ void migrateConfig()
             Cvar_SetQuick(var, var->default_string);
         }
     }
+    if(from < 190 && retiredStruggleSeen)
+    {
+        mgroups::migrateStruggleClasses(retiredStruggleClasses.cStr()); // (a custom list into the groups' Struggle)
+    }
+    retiredStruggleSeen = false;
     props::takeShippedSlots(from); // (the held objects' slots shipped since: 183 AD's health vial)
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
@@ -758,6 +748,9 @@ constexpr const char* retiredCvars[] = {
     "vr_foegrab_lift_classes",
     "vr_foegrab_throw_always",
     "vr_foegrab_throw_when_hurt",
+    // 2026-10-23: the struggling classes' list, replaced by the monster groups' Struggle settings (vr_mgrp_<group>_struggle*;
+    // ROUND22.md, "Struggle in the monster groups"); a config older than 190 has its value moved (retiredStruggleClasses).
+    "vr_struggle_classes",
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
     "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
     "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")
@@ -892,6 +885,11 @@ extern "C" int VR_RetiredCvar(const char* name)
     {
         if(!q_strcasecmp(name, retired))
         {
+            if(!q_strcasecmp(name, "vr_struggle_classes") && Cmd_Argc() > 1)
+            {
+                qvr::retiredStruggleClasses = Cmd_Argv(1); // (its config line's value, for the migration to 190)
+                qvr::retiredStruggleSeen = true;
+            }
             return 1;
         }
     }

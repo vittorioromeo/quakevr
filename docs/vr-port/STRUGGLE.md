@@ -12,7 +12,7 @@ hands".
 all of these hold:
 
 - `vr_struggle` is on and `vr_ragdoll_active` is on.
-- The enemy is alive and knocked down (its ragdoll stands for it). Its class is in `vr_struggle_classes`.
+- The enemy is alive and knocked down (its ragdoll stands for it). Its class has a struggle profile and its monster group's Struggle is on (`vr_mgrp_<group>_struggle`).
 - A player's hand holds a part of it (`World::ragdollGrabs`). That covers the generic limb hold, a throw held on, a
   lift and a leg lift (`handOver`).
 - Nothing else leads its body: no shove topple, stagger, get-up, ledge climb, death, dismemberment or liquid. A throw's
@@ -111,9 +111,12 @@ effort = ramp in (0.35 s) x (1 - fatigue x (1 - Effort When Tired)) x burst x fl
 
 ## Classes
 
-`vr_struggle_classes`: `classname[:strength[:speed[:health[:arms]]]]` words. The shipped list: grunt, enforcer, knight,
-death knight, zombie (since configVersion 175), and AD's soldiers and knights (defender, eliminator, pyro, fumigator,
-crossbow, fury, guard, dknight, sergeant). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
+The monster groups' Struggle settings (Combat > Monster Groups; ROUND22.md, "Struggle in the monster groups"): on/off,
+Strength, Speed and Arm Drive (times each class's own) and Weaker When Hurt, per group; each class's own strength, speed,
+full health and arm drive are `vr_mgroups.cpp`'s `struggleProfiles` (`vr_struggle_classes` until configVersion 190).
+The profiles: grunt, enforcer, knight, death knight, zombie, mummy, and AD's soldiers and knights (defender, eliminator,
+pyro, fumigator, deflector, crossbow, fury, guard, dknight, sergeant, zombie knight, death lord, Dark Prince; Quoth's
+death guard). Not ogres, fiends, shamblers or vores. Health is its full health, used for its
 effort. Arms (1..2.5, 1 if left out): while it struggles its arms' joint springs (and their 20 Hz cap) are that many
 times stiffer. A Box3D joint's spring acts on its two bodies' own inertia, so an arm whose forearm outweighs its upper
 arm lags its goals: the enforcer's forearms (his gun hands) are 5 kg on 0.9-2.3 kg upper arms and a 58 kg chest (the

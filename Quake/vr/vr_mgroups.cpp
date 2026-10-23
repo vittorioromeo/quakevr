@@ -8,6 +8,7 @@
 #include "Zancle/Math/MinMax.hpp"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
@@ -132,7 +133,9 @@ cvar_t* const settings[groupCount][paramCount] = {
         &vr_mgrp_##g##_thrown, &vr_mgrp_##g##_tackle, &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
         &vr_mgrp_##g##_leggrab, &vr_mgrp_##g##_lift, &vr_mgrp_##g##_necksnap, &vr_mgrp_##g##_manhandle,                  \
         &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise, &vr_mgrp_##g##_health,                      \
-        &vr_mgrp_##g##_kdscale, &vr_mgrp_##g##_downtime, &vr_mgrp_##g##_getup, &vr_mgrp_##g##_snapkills},
+        &vr_mgrp_##g##_kdscale, &vr_mgrp_##g##_downtime, &vr_mgrp_##g##_getup, &vr_mgrp_##g##_snapkills,               \
+        &vr_mgrp_##g##_struggle, &vr_mgrp_##g##_struggle_strength, &vr_mgrp_##g##_struggle_speed,                          \
+        &vr_mgrp_##g##_struggle_arms, &vr_mgrp_##g##_struggle_hurt},
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 };
@@ -237,7 +240,18 @@ void list_f()
     }
     for(const Member& m : memberTable)
     {
-        Con_Printf("mgroup class %s -> %s\n", m.classname, groupInfo[m.group].id);
+        // (and its struggle as its group sets it: strength, speed, full health, arm drive)
+        StruggleProfile s{};
+        if(struggleOfClass(m.classname, s))
+        {
+            Con_Printf("mgroup class %s -> %s; struggles %g %g %g %g\n", m.classname, groupInfo[m.group].id,
+                static_cast<double>(s.strength), static_cast<double>(s.speed), static_cast<double>(s.health),
+                static_cast<double>(s.arms));
+        }
+        else
+        {
+            Con_Printf("mgroup class %s -> %s\n", m.classname, groupInfo[m.group].id);
+        }
     }
     if(!sv.active)
     {
@@ -265,6 +279,140 @@ void list_f()
     }
     Con_Printf("mgroup live: %d monsters\n", count);
     PR_PopQCVM(old);
+}
+
+// The classes that struggle in a player's hands, each its own (STRUGGLE.md, "Classes"; vr_struggle_classes's last
+// default, configVersion 183): strength, speed, full health (0: always full effort), arm drive. A member of a struggling
+// group missing here does not struggle (no rig tuned for it). Zombies since configVersion 175; mummies, AD's zombie
+// knight, deflector, death lord and Quoth's death guard since 181; AD's Dark Prince since 183. Arms: an enforcer's
+// forearms (his gun hands, 5 kg) hang on 1-2 kg upper arms and a zombie's whole arm is 2.4 kg, and a Box3D joint's spring
+// acts on its two bodies' own inertia: their hands lagged their goals.
+constexpr StruggleProfile struggleProfiles[] = {
+    {"monster_army", 1.f, 1.f, 30.f, 1.f},
+    {"monster_enforcer", 1.1f, 0.9f, 80.f, 2.5f},
+    {"monster_knight", 1.f, 1.1f, 75.f, 2.f},
+    {"monster_hell_knight", 1.25f, 1.f, 250.f, 1.5f},
+    {"monster_zombie", 1.f, 0.9f, 60.f, 1.5f},
+    {"monster_army_grenade", 1.f, 1.f, 30.f, 1.f},
+    {"monster_army_plasma", 1.f, 1.f, 30.f, 1.f},
+    {"monster_army_rocket", 1.f, 1.f, 30.f, 1.f},
+    {"monster_defender", 1.1f, 0.95f, 70.f, 2.5f},
+    {"monster_eliminator", 1.15f, 0.9f, 120.f, 2.5f},
+    {"monster_pyro", 1.1f, 0.9f, 80.f, 1.f},
+    {"monster_fumigator", 1.1f, 0.9f, 80.f, 1.f},
+    {"monster_dcrossbow", 1.f, 1.05f, 90.f, 1.f},
+    {"monster_dfury", 1.2f, 1.15f, 150.f, 1.f},
+    {"monster_dguard", 1.2f, 1.f, 150.f, 2.5f},
+    {"monster_dknight", 1.2f, 1.f, 150.f, 1.f},
+    {"monster_dsergeant", 1.15f, 1.f, 120.f, 1.f},
+    {"monster_mummy", 1.1f, 0.85f, 0.f, 1.5f},
+    {"monster_zombiek", 1.1f, 0.9f, 60.f, 1.5f},
+    {"monster_deflector", 1.1f, 0.9f, 250.f, 2.5f},
+    {"monster_death_lord", 1.25f, 1.f, 400.f, 1.f},
+    {"monster_death_guard", 1.2f, 1.f, 125.f, 1.f},
+    {"monster_dprince", 1.3f, 1.f, 400.f, 1.f},
+};
+// The menu's lists of each group's profiles (struggleProfilesText), made once.
+char struggleText[groupCount][512];
+bool struggleTextMade = false;
+
+// vr_struggle_classes's earlier defaults (before configVersion 175, 181 and 183): a config still holding one is at its
+// default (it was moved to the next at each of those), so nothing to move.
+constexpr const char* formerStruggleDefaults[] = {
+    // (175's before)
+    "monster_army:1:1:30 monster_enforcer:1.1:0.9:80 monster_knight:1:1.1:75 "
+    "monster_hell_knight:1.25:1:250 monster_army_grenade:1:1:30 monster_army_plasma:1:1:30 "
+    "monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 monster_eliminator:1.15:0.9:120 "
+    "monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 monster_dcrossbow:1:1.05:90 "
+    "monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 monster_dknight:1.2:1:150 "
+    "monster_dsergeant:1.15:1:120",
+    // (181's before)
+    "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75 "
+    "monster_hell_knight:1.25:1:250:1.5 monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 "
+    "monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70 "
+    "monster_eliminator:1.15:0.9:120 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 "
+    "monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150 "
+    "monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120",
+    // (183's before)
+    "monster_army:1:1:30 monster_enforcer:1.1:0.9:80:2.5 monster_knight:1:1.1:75:2 "
+    "monster_hell_knight:1.25:1:250:1.5 monster_zombie:1:0.9:60:1.5 monster_army_grenade:1:1:30 "
+    "monster_army_plasma:1:1:30 monster_army_rocket:1:1:30 monster_defender:1.1:0.95:70:2.5 "
+    "monster_eliminator:1.15:0.9:120:2.5 monster_pyro:1.1:0.9:80 monster_fumigator:1.1:0.9:80 "
+    "monster_dcrossbow:1:1.05:90 monster_dfury:1.2:1.15:150 monster_dguard:1.2:1:150:2.5 "
+    "monster_dknight:1.2:1:150 monster_dsergeant:1.15:1:120 monster_mummy:1.1:0.85:0:1.5 "
+    "monster_zombiek:1.1:0.9:60:1.5 monster_deflector:1.1:0.9:250:2.5 monster_death_lord:1.25:1:400 "
+    "monster_death_guard:1.2:1:125",
+};
+
+
+// vr_struggle_classes's entries (classname[:strength[:speed[:health[:arms]]]], space or comma separated), as it parsed
+// them; the most it took.
+constexpr int oldStruggleMost = 64;
+struct OldStruggleList
+{
+    StruggleProfile entry[oldStruggleMost]{};
+    char names[oldStruggleMost][40]{};
+    int count = 0;
+};
+
+void parseOldStruggle(const char* src, OldStruggleList& out)
+{
+    out.count = 0;
+    const char* p = src ? src : "";
+    while(*p && out.count < oldStruggleMost)
+    {
+        while(*p == ' ' || *p == ',' || *p == '\t')
+        {
+            p++;
+        }
+        char word[96];
+        int n = 0;
+        while(*p && *p != ' ' && *p != ',' && *p != '\t')
+        {
+            if(n < static_cast<int>(sizeof(word)) - 1)
+            {
+                word[n++] = *p;
+            }
+            p++;
+        }
+        word[n] = 0;
+        if(n == 0)
+        {
+            continue;
+        }
+        char* field = std::strchr(word, ':');
+        if(field)
+        {
+            *field++ = 0;
+        }
+        const int i = out.count++;
+        q_strlcpy(out.names[i], word, sizeof(out.names[i]));
+        StruggleProfile& e = out.entry[i];
+        e = StruggleProfile{out.names[i], 1.f, 1.f, 0.f, 1.f};
+        float* values[4] = {&e.strength, &e.speed, &e.health, &e.arms};
+        for(int k = 0; k < 4 && field && *field; k++)
+        {
+            char* next = std::strchr(field, ':');
+            if(next)
+            {
+                *next++ = 0;
+            }
+            *values[k] = static_cast<float>(std::atof(field));
+            field = next;
+        }
+    }
+}
+
+[[nodiscard]] const StruggleProfile* findOld(const OldStruggleList& l, const char* classname)
+{
+    for(int i = 0; i < l.count; i++)
+    {
+        if(std::strcmp(l.entry[i].classname, classname) == 0)
+        {
+            return &l.entry[i];
+        }
+    }
+    return nullptr;
 }
 
 } // namespace
@@ -384,6 +532,162 @@ void PF_monstergroupget()
 {
     const int p = static_cast<int>(G_FLOAT(OFS_PARM1));
     G_FLOAT(OFS_RETURN) = p >= 0 && p < paramCount ? value(G_EDICT(OFS_PARM0), static_cast<Param>(p)) : 0.f;
+}
+
+const StruggleProfile* struggleProfile(const char* classname)
+{
+    for(const StruggleProfile& p : struggleProfiles)
+    {
+        if(classname && std::strcmp(p.classname, classname) == 0)
+        {
+            return &p;
+        }
+    }
+    return nullptr;
+}
+
+bool struggleOfClass(const char* classname, StruggleProfile& out)
+{
+    const StruggleProfile* p = struggleProfile(classname);
+    const int g = groupOfClass(classname);
+    if(!p || setting(g, Param::Struggle).value == 0.f)
+    {
+        return false;
+    }
+    out.classname = p->classname;
+    out.strength = za::clamp(p->strength * setting(g, Param::StruggleStrength).value, 0.f, 3.f);
+    out.speed = za::clamp(p->speed * setting(g, Param::StruggleSpeed).value, 0.2f, 3.f);
+    out.arms = za::clamp(p->arms * setting(g, Param::StruggleArms).value, 1.f, 2.5f);
+    out.health = setting(g, Param::StruggleHurt).value != 0.f ? p->health : 0.f;
+    return true;
+}
+
+const char* struggleProfilesText(int g)
+{
+    if(g < 0 || g >= groupCount)
+    {
+        return "";
+    }
+    if(!struggleTextMade)
+    {
+        struggleTextMade = true;
+        for(int k = 0; k < groupCount; ++k)
+        {
+            char* out = struggleText[k];
+            size_t used = 0;
+            out[0] = '\0';
+            for(const StruggleProfile& p : struggleProfiles)
+            {
+                if(groupOfClass(p.classname) != k)
+                {
+                    continue;
+                }
+                const int n = std::snprintf(out + used, sizeof(struggleText[k]) - used, "%s%s %g/%g/%g/%g", used ? ", " : "",
+                    p.classname + (std::strncmp(p.classname, "monster_", 8) == 0 ? 8 : 0), static_cast<double>(p.strength),
+                    static_cast<double>(p.speed), static_cast<double>(p.health), static_cast<double>(p.arms));
+                if(n < 0 || used + static_cast<size_t>(n) >= sizeof(struggleText[k]))
+                {
+                    break;
+                }
+                used += static_cast<size_t>(n);
+            }
+        }
+    }
+    return struggleText[g];
+}
+
+void migrateStruggleClasses(const char* classes)
+{
+    OldStruggleList old;
+    parseOldStruggle(classes, old);
+    // A list of exactly the profiles (as the last default had it): nothing to move.
+    bool same = old.count == static_cast<int>(sizeof(struggleProfiles) / sizeof(struggleProfiles[0]));
+    for(const StruggleProfile& p : struggleProfiles)
+    {
+        const StruggleProfile* o = findOld(old, p.classname);
+        same = same && o && std::fabs(o->strength - p.strength) < 1e-3f && std::fabs(o->speed - p.speed) < 1e-3f &&
+               std::fabs(o->health - p.health) < 1e-3f && std::fabs(o->arms - p.arms) < 1e-3f;
+    }
+    for(const char* former : formerStruggleDefaults)
+    {
+        OldStruggleList f;
+        parseOldStruggle(former, f);
+        bool match = f.count == old.count;
+        for(int i = 0; i < f.count && match; i++)
+        {
+            const StruggleProfile* o = findOld(old, f.entry[i].classname);
+            match = o && std::fabs(o->strength - f.entry[i].strength) < 1e-3f && std::fabs(o->speed - f.entry[i].speed) < 1e-3f &&
+                    std::fabs(o->health - f.entry[i].health) < 1e-3f && std::fabs(o->arms - f.entry[i].arms) < 1e-3f;
+        }
+        same = same || match;
+    }
+    if(same)
+    {
+        return;
+    }
+    Con_Printf("VR: vr_struggle_classes (retired) moved into the monster groups' Struggle settings:\n");
+    for(int i = 0; i < old.count; i++)
+    {
+        if(!struggleProfile(old.entry[i].classname))
+        {
+            Con_Printf("  %s: no struggle of its own (ogres, fiends...); left out\n", old.entry[i].classname);
+        }
+    }
+    for(int g = 0; g < groupCount; g++)
+    {
+        int profiled = 0, present = 0, hurtless = 0;
+        float sums[3] = {0.f, 0.f, 0.f}, lows[3] = {1e9f, 1e9f, 1e9f}, highs[3] = {-1e9f, -1e9f, -1e9f};
+        for(const StruggleProfile& p : struggleProfiles)
+        {
+            if(groupOfClass(p.classname) != g)
+            {
+                continue;
+            }
+            profiled++;
+            const StruggleProfile* o = findOld(old, p.classname);
+            if(!o)
+            {
+                continue;
+            }
+            present++;
+            const float ratios[3] = {p.strength > 0.f ? o->strength / p.strength : 1.f, p.speed > 0.f ? o->speed / p.speed : 1.f,
+                p.arms > 0.f ? o->arms / p.arms : 1.f};
+            for(int k = 0; k < 3; k++)
+            {
+                sums[k] += ratios[k];
+                lows[k] = za::min(lows[k], ratios[k]);
+                highs[k] = za::max(highs[k], ratios[k]);
+            }
+            hurtless += o->health <= 0.f && p.health > 0.f ? 1 : 0;
+        }
+        if(profiled == 0)
+        {
+            continue;
+        }
+        Cvar_SetValueQuick(&setting(g, Param::Struggle), present > 0 ? 1.f : 0.f);
+        if(present == 0)
+        {
+            Con_Printf("  %s: none of its classes listed: Struggle off\n", label(g));
+            continue;
+        }
+        if(present < profiled)
+        {
+            Con_Printf("  %s: %d of its %d struggling classes listed: Struggle on for all of them\n", label(g), present, profiled);
+        }
+        const Param params[3] = {Param::StruggleStrength, Param::StruggleSpeed, Param::StruggleArms};
+        const char* names[3] = {"strength", "speed", "arms"};
+        for(int k = 0; k < 3; k++)
+        {
+            const float mean = sums[k] / static_cast<float>(present);
+            Cvar_SetValueQuick(&setting(g, params[k]), std::round(mean * 100.f) / 100.f);
+            if(highs[k] - lows[k] > 1e-3f)
+            {
+                Con_Printf("  %s: its classes' %s changed unevenly (x%.2f .. x%.2f): x%.2f for all\n", label(g), names[k],
+                    static_cast<double>(lows[k]), static_cast<double>(highs[k]), static_cast<double>(mean));
+            }
+        }
+        Cvar_SetValueQuick(&setting(g, Param::StruggleHurt), hurtless == present ? 0.f : 1.f);
+    }
 }
 
 void registerCommands()
