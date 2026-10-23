@@ -1501,3 +1501,17 @@ Each suite run alone (`TB_SLOW=1`) and batched, one after the other, the machine
   without it every case prints "no AD monster", alone and batched alike.
 - Outputs, times and the compare scripts: `scratch/parity/` (`parity.sh`, `parity_cmp.py`, `parity_pair.py`,
   `parity_words.py`) in worktree `fastship`.
+
+## Blade shapes and Edit Blade Shape (2026-10-23)
+
+ROUND22.md, "Blade shape editor". `vr_melee_sweep_test 2` prints the main hand's melee blade ("bladedump:": the near
+and far ends and every layout point in the hand's frame, the head box, the radius; it uses only the older melee code, so
+the same file built into an older QC gives lines to compare); `vr_melee_sweep_test 3` checks the weapon's own shape
+strikes as drawn ("bladeshape:": the curve's outside struck and inside missed, the width past the tip; PASS or FAIL);
+`vr_melee_sweep_test 1` uses the weapon's own head and width. Shapes are edited with the `vr_wofs_bl_*_NN` cvars or in
+the editor: `vr_bladeedit [main|off]`, then `vr_mock_hand_to off bladehandle <i> [<along> <normal> <flat>]` (0 tip, 1
+near end, 2 width, 3..7 curve, 8 and 9 head corners), `vr_mock_button off grip 1`, move, `grip 0`;
+`vr_mock_hand_to <hand> bladebutton <i>` and the trigger (or `vr_bladeedit_press <i>`: 0 Undo, 1 Reset Blade, 2
+Straighten, 3 Head Box, 4 Cancel, 5 Done); `vr_bladeedit_report`, `vr_blade_dump [slot]` (the scripts gave each drag 60
+frames). Its lines show in `vr_eyeshot 3` (with the UI), not `vr_eyeshot
+1`. AD's weapons: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`, `vr_ad_test 116` (the fury's sword).

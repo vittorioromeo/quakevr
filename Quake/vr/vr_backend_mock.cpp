@@ -22,6 +22,7 @@
 #include "vr_held.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_holstersetup.hpp"
+#include "vr_bladeedit.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -739,6 +740,28 @@ void mockHandTo_f()
         if(!holstersetup::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
         {
             Con_Printf("vr_mock_hand_to: no Holster Setup button %s\n", Cmd_Argv(3));
+            return;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 4 &&
+        (!q_strcasecmp(Cmd_Argv(2), "bladehandle") || !q_strcasecmp(Cmd_Argv(2), "bladebutton")))
+    {
+        // "bladehandle <index> [<along> <normal> <flat>]": at Edit Blade Shape's handle `index` (vr_bladeedit.cpp: 0 the
+        // tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's corners), plus units along the
+        // blade's line, its normal in the blade's plane and the model's +y; "bladebutton <index>": at its panel button (0
+        // Undo, 1 Reset Blade, 2 Straighten, 3 Head Box, 4 Cancel, 5 Done).
+        const bool isHandle = !q_strcasecmp(Cmd_Argv(2), "bladehandle");
+        glm::vec3 offset{0.f}, target;
+        for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
+        {
+            offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
+        }
+        if(isHandle ? !bladeedit::handlePoint(Q_atoi(Cmd_Argv(3)), offset, target)
+                    : !bladeedit::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
+        {
+            Con_Printf("vr_mock_hand_to: no Edit Blade Shape %s %s\n", isHandle ? "handle" : "button", Cmd_Argv(3));
             return;
         }
         moveHandTo(hand, target);

@@ -18090,3 +18090,79 @@ slime (and other liquids) tuned separately, with colours (lava a stronger yellow
 **In VR:** vrtesthall's pool: the band breathing (Breathing, Speed, Irregularity), the puffs along the wall line (Water
 Particles, Life, Opacity, Size). e1m7's lava: the yellow crust and its glow (Lava Red/Green/Blue, Strength). e1m1's or
 e3m1's slime: the green scum. Each liquid's toggle.
+
+## Blade shape editor (worktree `fastship`, branch `agent/bladeedit`, 2026-10-23)
+
+Approved by the author: an in-VR editor for what a weapon's blows strike with, curved blades first.
+
+**Per-slot data** (vr_weapons.inc, "The blade's shape"; `Quake/vr/vr_blade.hpp`). New Weapon Offsets keys, cvars
+`vr_wofs_bl_*_NN`; every default keeps the shape the code gave before (no migration, no wofs version bump):
+- `bl_near` (BladeNear, -1): the near end (pommel, butt, handle's end) behind the hand, a share of the hand-to-tip line;
+  -1 the kind's own (QC `VR_Melee_NearBack`: a sword 0.3, an axe 0.25, the chainsaw 0.1, the crowbar 0.78, a gun 0.3).
+- `bl_width` (BladeWidth, 1): times the swept points' radius (`VR_MELEE_RADIUS` 3 x `vr_melee_range_multiplier`).
+- `bl_spine` (BladeSpine, 0) and `bl_s1_off`/`_side` .. `bl_s5_off`/`_side`: 0 the model's own curve (the curved AD
+  swords' made spine, `admelee::bend`; else straight), 1 a Catmull-Rom spline through the hand, five points at 1/6 ..
+  5/6 of the line and the tip, each off the line along its normal in the blade's plane and along the model's +y (shares
+  of its length, as `admeleebend`). Any weapon held by its handle can have one (not only swords); `vr_melee_curved_blades
+  0` still straightens all.
+- `bl_head` (BladeHead, 0) and `bl_head_lo_x/y/z`, `bl_head_hi_x/y/z`: 0 the model's own head (the AD hammer's and
+  mace's), 1 this box (shares of the line, as `admeleehead`): any weapon can get a head that strikes as a volume.
+- The tip stays the Muzzle anchor plus Muzzle X/Y/Z (the editor's tip handle edits the offset).
+
+**QC** (`vr_melee.qc`): `VR_Melee_ShapeOf` (in `VR_Melee_Line`) reads the hand's weapon's slot and shape; the near end
+(`VR_Melee_NearBackOf`, held or carried off its handle), the curve (`VR_Melee_BendLine`: `vr_mline_bend` -1 - slot, read
+by `VR_Melee_At`), the head (`VR_Melee_HeadOf`, the track's `mh_hd_lo/hi`) and the width (`mh_bwidth`, the radius in
+`VR_Melee_Sweep`) follow. Every consumer of the layout goes through these (the swept ribs, the decapitation share, the
+hit sounds and parts, the wall checks, parry's and the wall buttons' near-to-far line, the Shadow Axe's floor chops,
+the hot blade, the motion recorder's points). Parry keeps the chord (near end to tip), as before for the fury's curve.
+The VR builtin numbers are all taken (900 + 179 < 1080): no new builtins. `weapondrawnpose(p, hand, 7)_x` is the slot
+(from the hand's weaponmodel/weaponmodel2, server side), and `admeleebend`/`admeleehead` with a kind below 0 read slot
+-1 - kind's own curve, head and '<near> <width> <flags>' (vr_builtins.cpp).
+
+**Editor** (`Quake/vr/vr_bladeedit.cpp`; Weapon Offsets > Posing Mode > Edit Blade Shape; Debug > Views > Edit Blade
+Shape (Main Hand), Print Blade Shape). Holster Setup's pattern, but the game goes on (the hands strike as they would;
+the buttons are the editor's, the sticks don't move the player) and Show Melee Blades is forced on (put back on
+leaving), so QC's own blow line and sweeps show the edited shape live. Over it, the blade as its settings lay it
+(computed client-side from the hand and muzzle the server gets: the same point as QC's `VR_Melee_At(0.5)` to 0.01
+unit), its width as a tube, and handles the other hand's grip drags (the grabbed point keeps its offset to the hand):
+red tip (Muzzle X/Y/Z, solved through the drawn weapon's muzzle per unit of offset), orange near end, blue width,
+green curve points (the first drag seeds all five from the curve shown: the model's or straight), pink head corners
+(when it has a head). Haptics on reaching a handle, on grabbing, every unit dragged, on letting go. Panel: Undo, Reset
+Blade (the blade keys and the tip offset to the shipped defaults), Straighten (a straight curve of its own), Head Box
+On/Off (a box of its own, seeded from the model's head or a small box at the tip), Cancel (everything as on entering),
+Done (prints `vr_blade_dump`). B/Y undoes, the menu button is Done; it leaves (keeping) if the weapon leaves the hand,
+the map changes or a menu opens. Commands: `vr_bladeedit [main|off]`, `vr_bladeedit_done|_cancel|_undo|_reset`,
+`vr_bladeedit_press <0..5>`, `vr_bladeedit_report` (each handle along the line, P, Y; the curve's 0.5 point),
+`vr_blade_dump [slot 1..]` (the slot's tip offset and blade keys as `QVR_WEAPON_DEFAULT` lines, `//*` changed). Mock:
+`vr_mock_hand_to <hand> bladehandle <i> [<along> <normal> <flat>]`, `bladebutton <i>`.
+
+**Tests** (scripts in `scratch/`: `bl_dump.sh`, `bl_shape.sh`, `bl_edit.sh`; `-Games "-game hipnotic -game rogue
+-game ad -game quakevr"`, ad_dm1):
+- Defaults unchanged: `vr_melee_sweep_test 2` (new `QC/vr_blade_test.qc`: the main hand's near end, far end, every
+  layout point in the hand's frame, the head box and radius) for 16 melee weapons (axe, Mjolnir, knight sword, chainsaw,
+  crowbar, MG3 hammer, shotgun, the fury's, death knight's, death guard's swords, mace, hammer, the four monster swords):
+  origin/next's QC (built with the dump added) and this branch's give the same 147 lines; the largest number difference
+  0.0004 units, the run-to-run noise of the mock hand (two runs of this branch: 0.0003). `eval.sh`: 169/177 pass (the 8
+  known failures), no verdict changed; 4 takes' damage moved by 0.1, among them a straight punch (the fist's path does
+  not touch the new code: the baseline's drift).
+- Edited shapes strike as drawn: `vr_melee_sweep_test 3` (new): a box just outside the curve's bow is struck by the
+  curve and missed by the straight line, one just inside the other way; a box 1.5 radii past the tip missed at width 1,
+  struck at the weapon's width (2). Fury's model curve: PASS; the death knight's straight sword given a curve of its own
+  (bow 4.8 units), width 2, near end 0.5, tip offset 6 (line 34.7 -> 36.9 units): PASS. `vr_melee_sweep_test 1` with
+  heads of their own: the mace's box replaced, the knight's sword given a head at its tip: C and F PASS.
+- The editor with the mock hands (`bl_edit.sh`, the fury's sword): a curve point dragged 5 units along the normal moves
+  it 4.99 (off 0.122 -> 0.273), the width handle 3 units out -> 1.99x, the tip 4 units along -> line 33.2 -> 37.1, the near
+  end 4 back -> 0.41; the panel's Undo (touched, trigger) puts the near end back; Head Box On and a corner dragged; QC's
+  tests pass on the result; Done printed 22 changed lines; a second session's drag then Cancel: 0 changed.
+- Eyeshots (`vr_eyeshot 3`: lines and overlays only show in the UI eyeshot): `scratch/bladeedit_fury_1_start.png`
+  (entering), `_2_edited.png` (the bowed curve, the width tube, the panel), `_3_headbox.png` (a head box of its own).
+
+**Notes.** The sweep strikes with the layout's points (9 on a sword) and the straight lines between neighbours: a very
+sharp bulge between two points is cut by that chord (the curve test checks at the layout's points). The stage-1 commit
+put `sightalign::frame()` behind a comment in vr_main.cpp (an edit's lost newline); the editor's commit fixes it.
+
+**In VR:** Weapon Offsets on the fury's sword > Edit Blade Shape: drag the green curve points to follow the drawn
+blade's bow and the tip to its point; swing it at a target and watch Show Melee Blades' sweep follow; Done and paste
+the printed lines to us if they should ship. A straight sword: Straighten / Reset Blade; the mace: Head Box and its
+corners round the drawn head. Whether the handles are easy to reach and grab (5 cm), and the panel's place (below the
+eyes, ahead).

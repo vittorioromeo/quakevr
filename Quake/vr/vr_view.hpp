@@ -157,6 +157,10 @@ struct WeaponMount
 };
 [[nodiscard]] bool weaponMount(int hand, WeaponMount& out);
 
+// The muzzle of the weapon drawn in `hand` this frame with Muzzle X/Y/Z `offset` instead of its own (the blade shape
+// editor's tip handle: how the offset moves it, vr_bladeedit.cpp). False when the hand holds no weapon.
+[[nodiscard]] bool muzzleWithOffset(int hand, const glm::vec3& offset, glm::vec3& out);
+
 // Body Calibration (vr_bodycal.cpp): the empty hand as drawn on the calibrated controller (Hand Calibration's place,
 // with the fist's own offsets), whatever the hand holds: its wrist (world) and axes (towards the fingers, the thumb's
 // side, the back of the hand). Without the jointed hand, the hand as drawn (jointed false).

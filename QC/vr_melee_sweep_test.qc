@@ -293,8 +293,8 @@ void(entity p) VR_Melee_SweepTest =
 //   curve  (its line bent: a curve of its own or an AD sword's) the blade's points swept 24 units across its flat in one
 //          frame (VR_Melee_Sweep, swept): a small box just outside the bow is struck along the curve and missed by the
 //          straight line; one just inside it (across the line) struck by the line, missed by the curve.
-//   width  a small box beside the blade's middle, 1.5 radii off the swept plane: missed at width 1; struck at the weapon's
-//          Blade Width (when it is 2 or more).
+//   width  a small box past the tip, 1.5 radii from its sweep: missed at width 1; struck at the weapon's Blade Width (when
+//          it is 2 or more).
 //   near   the near end's share behind the hand (Blade Near End, or the kind's).
 // The curve probe: the main hand's line as VR_Melee_Line left it, its points moved by `xD` in one frame; `xBent` FALSE the
 // line straight. TRUE if `xT` is struck.
@@ -349,6 +349,9 @@ void(entity p) VR_Melee_BladeShapeTest =
     float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
     bprint(sprintf("bladeshape: %s slot %g shape %v bend %g, line %.1f units, near end %.3f behind\n", p.weaponmodel,
         vr_mline_slot, vr_mline_shape, vr_mline_bend, len, vlen(vr_mline_near - grip) / max(1, len)));
+    vector half = VR_Melee_At(0.5);
+    bprint(sprintf("bladeshape: at 0.5 world %.2f %.2f %.2f (Edit Blade Shape's report: its curve 0.5)\n", half_x, half_y,
+        half_z));
     float fail = FALSE;
     entity b = spawn();
     entity t = spawn();
@@ -358,21 +361,28 @@ void(entity p) VR_Melee_BladeShapeTest =
     t.takedamage = DAMAGE_AIM;
     t.health = 1000;
     setsize(t, '-1 -1 -1', '1 1 1');
-    // Across the flat (the model's +y: VR_Melee_BendLine's), and the line's normal in the blade's plane.
+    // Across the flat (the model's +y: VR_Melee_BendLine's).
     vector across = VR_Melee_ModelY(p, cVR_MainHand, far - grip);
     vector a = normalize(far - grip);
-    vector pn = normalize(VR_Melee_Cross(across, a));
     vector d = across * 24;
 
-    // The curve: the point farthest off the line.
+    // The curve: the layout's point farthest off the line (the sweep strikes with them, the blade between two of them
+    // as the straight line joining them).
     if(vr_mline_bend)
     {
         float most = 0;
         vector mostAt = grip;
         vector mostLine = grip;
         float f;
-        for(f = 0.2; f < 1.001; f = f + 0.05)
+        float i;
+        VR_Melee_Layout(thing);
+        for(i = 0; i < vr_mpt_n; ++i)
         {
+            f = vr_mpt_f[i];
+            if(f <= 0)
+            {
+                continue;
+            }
             vector at = VR_Melee_At(f);
             vector line = grip + (far - grip) * f;
             if(vlen(at - line) > most)
@@ -402,9 +412,8 @@ void(entity p) VR_Melee_BladeShapeTest =
         bprint("bladeshape: curve: straight\n");
     }
 
-    // The width: a box over the blade's middle, its near face 1.5 radii off the swept plane.
-    vector mid = VR_Melee_At(0.72);
-    setorigin(t, mid + d * 0.5 + pn * (rBase * 1.5 + 1));
+    // The width: a box past the tip (on the line, where no curve goes), its near face 1.5 radii from the tip's sweep.
+    setorigin(t, far + d * 0.5 + a * (rBase * 1.5 + 1));
     float w1 = VR_MSWT_LineProbe(b, t, thing, d, TRUE, 1);
     float ww = VR_MSWT_LineProbe(b, t, thing, d, TRUE, vr_mline_shape_y);
     float wok = (!w1 && (vr_mline_shape_y < 2 || ww));

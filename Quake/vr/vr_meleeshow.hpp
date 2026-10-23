@@ -23,6 +23,10 @@ namespace qvr::meleeshow
 // model +y (a); 6 a blow landed (a where; v its damage, -1 not known: a wall, or the contact before the damage).
 void add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v);
 
+// Hand `hand`'s (QC's: 1 main, 0 off) blow line as QC last sent it (within half a second): its near end, grip and tip. The
+// blade shape editor's (vr_bladeedit.cpp) near end where the weapon has none of its own (the kind's).
+[[nodiscard]] bool lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm::vec3& tip);
+
 // Draws the hands' last frames (the view's, facing `eye`); nothing when vr_debug_melee_blades is off.
 void draw(const glm::vec3& eye);
 
