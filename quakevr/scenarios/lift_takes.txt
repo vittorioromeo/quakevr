@@ -1,0 +1,4 @@
+title The motion-recorder dummy map, empty hands (lift, judo and neck snap takes)
+map vrmelee-recording
+god
+hint Record Lift (both hands, pull up hard), Judo Throw (turn it down) and Neck Snap (grip the head, twist hard), then the Not Expected versions; the dummy stays holdable; Review Takes lists them.

@@ -265,6 +265,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_free_back;   // and how far its near end is behind its handle (a share of the handle to the tip)
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
 .float mh_bwidth;      // the blade's width: its swept points' radius's multiplier (the weapon's Blade Width; 0 taken as 1)
+.float mh_bfrom;       // its blade start of its own (the weapon's Blade From: VR_Melee_LayoutFrom; 0 or below: the kind's)
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_heavy2h;     // heavy handling: the weapon's weight class held two-handed (VR_Heavy_TwoHanded; 0: not)
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
@@ -660,12 +661,16 @@ float(float xThing) VR_Melee_NearBack =
 // club) and '<near end> <width> <flags>' (the near end's share behind the hand, -1 the kind's own; the swept points'
 // radius's multiplier; 1 a curve of its own, 2 a head's box of its own). Every default keeps the shape as it was before
 // (the kind's near end, the model's curve and head).
+// '<blade start> <off> <side>' (Blade From, admeleehead 3): the share of the line where its striking part starts (-1 the
+// kind's own: VR_Melee_Layout's first striking point) and that point off the line (its bend: VR_Melee_BendLine).
 float vr_mline_slot;
 vector vr_mline_shape;
+vector vr_mline_from;
 void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
 {
     vr_mline_slot = -1;
     vr_mline_shape = '-1 1 0';
+    vr_mline_from = '-1 0 0';
     if(xThing == VR_MTHING_FIST)
     {
         vr_mline_shape_y = max(0.1, cvar_hget(cvarh_vr_melee_fist_width)); // (its blow line's width: vr_melee_fist_width)
@@ -680,6 +685,10 @@ void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
     if(vr_mline_slot >= 0)
     {
         vr_mline_shape = admeleehead(-1 - vr_mline_slot, 2);
+        if(vr_mline_shape_z & 4)
+        {
+            vr_mline_from = admeleehead(-1 - vr_mline_slot, 3);
+        }
     }
 };
 
@@ -800,7 +809,7 @@ void(entity p, float xHand, float xThing, vector xLine) VR_Melee_BendLine =
         return;
     }
     float kind = xThing == VR_MTHING_SWORD ? VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand)) : 0;
-    if(vr_mline_slot >= 0 && (vr_mline_shape_z & 1))
+    if(vr_mline_slot >= 0 && (vr_mline_shape_z & 5)) // (a curve or a blade start of its own: admeleebend adds them)
     {
         kind = -1 - vr_mline_slot;
     }
@@ -1146,6 +1155,38 @@ void(float xThing, float xHs, float xTip, float xGw, float xBack) VR_Melee_FreeL
     vr_mpt_n = 9;
 };
 
+// The layout's points moved for a blade start of its own at share `xFrom` (Blade From, Edit Blade Shape): its striking
+// part (from its first striking point to the tip) laid from `xFrom` to the tip, the points before it (the handle's)
+// squeezed or stretched into the hand .. `xFrom`; the near end (-1) and the hand (0) stay. Their names and parts stay.
+void(float xFrom) VR_Melee_LayoutFrom =
+{
+    if(xFrom <= 0 || xFrom >= 1)
+    {
+        return;
+    }
+    float i;
+    float f0 = -1;
+    for(i = 0; i < vr_mpt_n && f0 < 0; ++i)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[i]) && vr_mpt_f[i] > 0 && vr_mpt_f[i] < 1)
+        {
+            f0 = vr_mpt_f[i];
+        }
+    }
+    if(f0 <= 0)
+    {
+        return;
+    }
+    for(i = 0; i < vr_mpt_n; ++i)
+    {
+        float f = vr_mpt_f[i];
+        if(f > 0 && f < 1)
+        {
+            vr_mpt_f[i] = f >= f0 ? xFrom + (f - f0) * (1 - xFrom) / (1 - f0) : f * xFrom / f0;
+        }
+    }
+};
+
 // The points of what `b`'s hand holds (as it was last tracked).
 void(entity b) VR_Melee_LayoutOf =
 {
@@ -1156,6 +1197,7 @@ void(entity b) VR_Melee_LayoutOf =
     else
     {
         VR_Melee_Layout(b.mh_thing);
+        VR_Melee_LayoutFrom(b.mh_bfrom);
     }
 };
 
@@ -1552,6 +1594,7 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_free_tip = vr_mline_tip;
     b.mh_free_gw = vr_mline_gw;
     b.mh_free_back = vr_mline_back;
+    b.mh_bfrom = vr_mline_free ? -1 : vr_mline_from_x;
 
     // The points: kept from the last pose, laid out now.
     VR_Melee_LayoutOf(b);
@@ -2492,8 +2535,16 @@ float(float xHand, entity b) VR_Melee_ShowFast =
 void(float xHand, entity b) VR_Melee_Show =
 {
     meleeshow(xHand, 0, b.mh_grip, b.mh_far, VR_Melee_ShowFast(xHand, b));
-    meleeshow(xHand, 1, b.mh_near, '0 0 0', 0);
     float k;
+    vector from = '0 0 0'; // (its first striking point: where its blade starts, Edit Blade Shape's Blade Start)
+    for(k = 0; k < vr_mpt_n && from == '0 0 0'; ++k)
+    {
+        if(VR_Melee_Strikes(vr_mpt_kind[k]) && vr_mpt_f[k] > 0)
+        {
+            from = b.mh_cp[k];
+        }
+    }
+    meleeshow(xHand, 1, b.mh_near, from, 0);
     for(k = 0; k < vr_rib_n; ++k)
     {
         meleeshow(xHand, 2, vr_rib_p0[k], vr_rib_p1[k], vr_rib_r[k]);
