@@ -290,6 +290,7 @@ extern "C" void VR_OnProgsLoaded()
         b.KdTrig_BodyHit = findFunction("VR_KdTrig_BodyHit");
         b.RagImpact_Hit = findFunction("VR_RagImpact_Hit");
         b.Flail_Hit = findFunction("VR_Flail_Hit");
+        b.Flail_Rattle = findFunction("VR_Flail_Rattle");
         b.Monster_Fall = findFunction("VR_Monster_Fall");
         b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");

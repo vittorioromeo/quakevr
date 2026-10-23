@@ -15,12 +15,13 @@
 // Its hits (Box3D's hit events, the head faster than 1 m/s into something), each hand's hardest of the frame on one
 // thing, go to QC (VR_Flail_Hit: the hand's blow, its damage the head's mass and speed) after the step, the same thing
 // again no sooner than hitCooldown s. The speed is the real one: bullet time slows the head with the world (its fall,
-// its swing) while the hand moves at its own speed, so its game-time speed is divided out (VR_TimeScale).
+// its swing) with the hand: speeds are the hand's time's (handTime).
 // The view draws the head and its chain (vr_flail.cpp) where the step left them (flailHead).
 
 #include "vr_box3d_internal.hpp"
 
 #include "vr_admelee.hpp"
+#include "vr_timescale.hpp"
 
 namespace box3d::detail
 {
@@ -34,7 +35,11 @@ constexpr float ringReach = 3.5f;   // units: from the ball's middle to the ring
 constexpr float hitCooldown = 0.2f; // s (game): the same thing struck again by the same head
 constexpr float teleport = 1.5f;    // m: the anchor further than this from where it was: carried there
 constexpr float handJump = 25.f;    // m/s (real): the handle's end moving faster than this jumped (carried, not swung)
-constexpr float mostSpeed = 40.f;   // m/s (game): the head never faster (a whip beyond any arm's)
+constexpr float jumpLeast = 0.5f;   // m: and never a move shorter than this (the hand's place arrives in bursts in slow motion)
+constexpr float mostSpeed = 40.f;   // m/s (real): the head never faster (a whip beyond any arm's)
+constexpr float ropeHertz = 120.f;  // its rope's stiffness (Box3D's joints' 60: a fast whirl stretched it 7 units)
+constexpr float rattleSpeed = 6.f;  // m/s (real): the chain rattles (QC VR_Flail_Rattle) with the head this fast
+constexpr float rattleEvery = 0.3f; // s (real): at most this often
 constexpr float grace = 0.3f;      // s (game): a head just made (or carried) strikes nothing (pushed out of what it was in)
 
 struct Head
@@ -46,7 +51,8 @@ struct Head
     glm::quat rot{1.f, 0.f, 0.f, 0.f};
     int lastTarget{-1};
     double lastTime{-1.0};
-    double madeTime{0.0}; // (made or carried: grace)
+    double madeTime{0.0}; // (made or carried: grace; real time, as the cooldown's)
+    double lastRattle{-1.0};
     glm::vec3 lastGood{0.f}; // units: its middle after the last frame, on the right side of the level's surfaces
 };
 
@@ -56,7 +62,7 @@ struct Head
 struct Info
 {
     int frames{0}, blocked{0}, hits{0}, made{0}, putBack{0};
-    float stretch{0.f}, fastest{0.f};
+    float stretch{0.f}, fastest{0.f}, handle{0.f}; // (speeds real: bullet time's taken out)
 };
 
 struct Hit
@@ -78,6 +84,18 @@ FlailState flails;
 [[nodiscard]] bool sameWorld(b3WorldId a, b3WorldId b)
 {
     return a.index1 == b.index1 && a.generation == b.generation;
+}
+
+// Game seconds to a second of the hand's own time. Slow motion slows the hands with the world (they follow their
+// controllers at the game's pace, timescale::filterHands): a swing is then the same swing in game time, and the head's
+// game-time speed is the hand's (1). In Sandevistan the hands keep real time in the slowed world: a game second is the
+// scale's share of one of theirs. The head lives in its hand's time: its fall (gravity), its rope's stiffness, its
+// speed limits and its blows' speed (as melee's: the real motion counts the same in bullet time).
+[[nodiscard]] float handTime()
+{
+    const float scale = za::clamp(qvr::timescale::current(), 0.05f, 1.f);
+    const float hands = za::clamp(qvr::timescale::handScale(), 0.05f, 1.f);
+    return za::clamp(scale / hands, 0.05f, 1.f);
 }
 
 void drop(Head& h)
@@ -158,6 +176,7 @@ void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, c
     jd.base.localFrameA = b3Transform{b3v(glm::vec3{0.f}), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})};
     jd.base.localFrameB = jd.base.localFrameA;
     jd.base.collideConnected = false;
+    jd.base.constraintHertz = ropeHertz;
     const float rope = length + ringReach / world->m2u; // (to the ball's middle)
     jd.length = rope;
     jd.enableSpring = true; // (a rope: no stiffness, held within its length by the limit; the fuel tanks')
@@ -171,7 +190,7 @@ void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, c
     h.anchorAt = at;
     h.pos = start;
     h.vel = glm::vec3{0.f};
-    h.madeTime = qcvm->time;
+    h.madeTime = realtime;
     h.lastGood = start;
     flails.info.made++;
     if(vr_flail_debug.value)
@@ -227,9 +246,9 @@ void syncFlails(float dt)
             const glm::vec3 now = world->toU(b3Body_GetPosition(head.anchor));
             // (A jump no hand makes, faster than handJump in real time: a stale muzzle as the flail is taken, a new
             // weapon's; carried too, not whipping the head at it.)
-            const float realDt = dt / za::clamp(static_cast<float>(VR_TimeScale()), 0.01f, 1.f);
+            const float realDt = dt / handTime();
             const float moved = glm::distance(now, at) / world->m2u;
-            if(moved > teleport || moved > handJump * realDt)
+            if(moved > teleport || moved > za::max(jumpLeast, handJump * realDt))
             {
                 // (A teleport, a load: the head carried along, as it hung from the anchor.)
                 // (Not into the level: short of what lies between the anchor and there, by its radius.)
@@ -240,12 +259,18 @@ void syncFlails(float dt)
                 b3Body_SetTransform(head.head, world->toM(place), b3Body_GetRotation(head.head));
                 b3Body_SetLinearVelocity(head.head, b3Vec3_zero);
                 b3Body_SetAngularVelocity(head.head, b3Vec3_zero);
-                head.madeTime = qcvm->time;
+                head.madeTime = realtime;
                 head.lastGood = place;
                 continue;
             }
             b3Body_SetTargetTransform(
                 head.anchor, b3WorldTransform{world->toM(at), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})}, dt, true);
+            // In its hand's time (handTime): Sandevistan's hand swings 1/scale as fast in game time, so the head falls
+            // 1/scale^2 as hard and its rope is 1/scale as stiff: the same swing as at full speed, sped up as the hand
+            // is. (Slowed hands: as at full speed.)
+            const float scale = handTime();
+            b3Body_SetGravityScale(head.head, 1.f / (scale * scale));
+            b3Joint_SetConstraintTuning(head.rope, ropeHertz / scale, 2.f);
             b3Body_SetAwake(head.head, true);
         }
     }
@@ -254,7 +279,7 @@ void syncFlails(float dt)
 // After each step: the heads' hits, each hand's hardest (flailHits gathers them for the frame).
 void noteFlailHits(const b3ContactEvents& events)
 {
-    const float timeScale = za::clamp(static_cast<float>(VR_TimeScale()), 0.01f, 1.f);
+    const float timeScale = handTime();
     for(int i = 0; i < events.hitCount; i++)
     {
         const b3ContactHitEvent& e = events.hitEvents[i];
@@ -314,9 +339,40 @@ void callFlailHits()
                 continue;
             }
             head.pos = world->toU(b3Body_GetPosition(head.head));
-            if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) > mostSpeed)
+            const float scale = handTime();
+            if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > mostSpeed)
             {
-                b3Body_SetLinearVelocity(head.head, b3v(v * (mostSpeed / glm::length(v))));
+                b3Body_SetLinearVelocity(head.head, b3v(v * (mostSpeed / (glm::length(v) * scale))));
+            }
+            // The chain never longer than it is (the joint is soft: a fast whirl stretched it 7 units): the head put
+            // back on its length, its speed outwards from the anchor taken away.
+            {
+                const glm::vec3 anchorNow = world->toU(b3Body_GetPosition(head.anchor));
+                const float most = head.length * world->m2u + ringReach;
+                const glm::vec3 d = head.pos - anchorNow;
+                const float len = glm::length(d);
+                if(len > most && len > 0.01f)
+                {
+                    const glm::vec3 n = d / len;
+                    const glm::vec3 pulled = anchorNow + n * most;
+                    // (Pulled as a rope pulls: the move given as speed too, position-based, so that the hand's pull
+                    // whirls the head however the joint's softness lagged it this frame: in bullet time it is soft to
+                    // a hand moving 1/scale as fast.)
+                    const float frame = za::max(static_cast<float>(host_frametime), 1e-4f);
+                    glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)) + (pulled - head.pos) / (world->m2u * frame);
+                    head.pos = pulled;
+                    const float out = glm::dot(v - glmv(b3Body_GetLinearVelocity(head.anchor)), n);
+                    if(out > 0.f)
+                    {
+                        v -= n * out;
+                    }
+                    if(glm::length(v) * scale > mostSpeed)
+                    {
+                        v *= mostSpeed / (glm::length(v) * scale);
+                    }
+                    b3Body_SetTransform(head.head, world->toM(head.pos), b3Body_GetRotation(head.head));
+                    b3Body_SetLinearVelocity(head.head, b3v(v));
+                }
             }
             // Its middle never crosses the level's surface (the ball keeps its radius off it): one that did (slammed
             // through the floor's mesh, which a sphere sunk past its middle is pushed further through) is put back
@@ -340,11 +396,23 @@ void callFlailHits()
                 head.lastGood = head.pos;
             }
             head.vel = world->toU(b3Body_GetLinearVelocity(head.head));
+            if(const float real = glm::length(head.vel) / world->m2u * scale;
+                real > rattleSpeed && realtime - head.lastRattle > rattleEvery && qvr::progs::bindings().Flail_Rattle)
+            {
+                head.lastRattle = realtime;
+                QcCallGuard guard;
+                pr_global_struct->time = qcvm->time;
+                G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(i));
+                G_FLOAT(OFS_PARM1) = static_cast<float>(h);
+                G_FLOAT(OFS_PARM2) = real;
+                PR_ExecuteProgram(qvr::progs::bindings().Flail_Rattle);
+            }
             head.rot = fromB3(b3Body_GetRotation(head.head));
             head.anchorAt = world->toU(b3Body_GetPosition(head.anchor));
             Info& info = flails.info;
             info.frames++;
-            info.fastest = za::max(info.fastest, glm::length(head.vel) / world->m2u);
+            info.fastest = za::max(info.fastest, glm::length(head.vel) / world->m2u * scale);
+            info.handle = za::max(info.handle, glm::length(glmv(b3Body_GetLinearVelocity(head.anchor))) * scale);
             info.stretch = za::max(info.stretch, glm::distance(head.pos, head.anchorAt) - (head.length * world->m2u + ringReach));
             vec3_t from, to, zero{0.f, 0.f, 0.f};
             store(head.anchorAt, from);
@@ -373,17 +441,17 @@ void callFlailHits()
         {
             continue;
         }
-        if((head.lastTarget == hit.target && qcvm->time - head.lastTime < hitCooldown) || qcvm->time - head.madeTime < grace)
+        if((head.lastTarget == hit.target && realtime - head.lastTime < hitCooldown) || realtime - head.madeTime < grace)
         {
             continue;
         }
         flails.info.hits++;
         head.lastTarget = hit.target;
-        head.lastTime = qcvm->time;
+        head.lastTime = realtime;
         if(vr_flail_debug.value)
         {
-            Con_Printf("flail: client %d hand %d struck %d %s at %.1f m/s (time x%.2f)\n", hit.client, hit.hand, hit.target,
-                hit.target ? PR_GetString(target->v.classname) : "the level", hit.speed, VR_TimeScale());
+            Con_Printf("flail: client %d hand %d struck %d %s at %.1f m/s (hand time x%.2f)\n", hit.client, hit.hand, hit.target,
+                hit.target ? PR_GetString(target->v.classname) : "the level", hit.speed, handTime());
         }
         QcCallGuard guard;
         pr_global_struct->time = qcvm->time;
@@ -411,8 +479,8 @@ void flailInfo_f()
     using namespace ::box3d::detail;
     const Info& i = flails.info;
     Con_Printf("flail info: %d frames held, %d heads made, chain stretched %.2f units at most, the level between "
-               "handle and head %d frames, fastest %.1f m/s, %d hits dealt, put back out of the level %d times\n",
-        i.frames, i.made, i.stretch, i.blocked, i.fastest, i.hits, i.putBack);
+               "handle and head %d frames, fastest %.1f m/s (the handle's end %.1f), %d hits dealt, put back out of the level %d times\n",
+        i.frames, i.made, i.stretch, i.blocked, i.fastest, i.handle, i.hits, i.putBack);
     flails.info = Info{};
 }
 

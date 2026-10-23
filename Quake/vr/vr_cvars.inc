@@ -2802,6 +2802,7 @@ QVR_CVAR(vr_flail_damage, "3", CVAR_ARCHIVE) // ... its head's blow: this times 
 QVR_CVAR(vr_flail_min_speed, "3", CVAR_ARCHIVE) // ... its head hitting slower than this (m/s) deals nothing (a lazy wave), only knocks
 QVR_CVAR(vr_flail_max_damage, "150", CVAR_ARCHIVE) // ... a blow's damage at most
 QVR_CVAR(vr_flail_2h, "1.3", CVAR_ARCHIVE) // ... held in both hands (the other on its handle): its blows this many times harder
+QVR_CVAR(vr_flail_rattle, "0.7", CVAR_ARCHIVE) // ... its chain's rattle (AD's gibs/gibchain.wav) as its head swings fast and strikes: its volume (0 none)
 QVR_CVAR(vr_flail_debug, "0", CVAR_NONE) // debug: 1 each blow of its head ("flail:" lines, QC's and the engine's hits), 2 its head's state every frame
 QVR_CVAR(vr_ad_healthvial_scale, "2.5", CVAR_ARCHIVE) // AD support: AD's health vials and gems drawn this many times bigger (QC vr_ad_items.qc item_healthvial; as objects times vr_forcegrabbable_box_scale: 0.5 of AD's model; author's note 2026-10-22: far too small)
 QVR_CVAR(vr_admelee_heavy_stamina, "1.5", CVAR_ARCHIVE) // ... their blows' stamina, times a weapon's (vr_strike_stamina_cost, _2h; QC vr_melee.qc VR_Stamina_Strike; author's note 2026-10-22)

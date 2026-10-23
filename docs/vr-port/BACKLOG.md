@@ -184,10 +184,10 @@ other AD melee weapons (QC `vr_ad_melee.qc`, kinds 7-10; Weapon Offsets slots 47
 ### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
 
 Done in round 22 (ROUND22.md, "The death sergeant's flail"): it drops its flail, the head a Box3D body on a rope,
-striking by its own speed and mass. Left: Weapon Offsets slot 47 tuned so the hand holds the short handle (the mace's
-offsets stand in); a full swing in bullet time lands weakly (the head lags the hand); a chain rattle sound (AD's
-`gibs/gibchain.wav`); a chain of a few links that wraps round things instead of one rope; holstering it (its head
-hanging from the holster).
+striking by its own speed and mass (its handle placed in the hand, slow motion in the hands' time, the chain's rattle:
+"The flail after swords4"). Left: the hand's grip pose round its short handle and two-hand grips (Weapon Offsets slot
+51, his tuning); a chain of a few links that wraps round things instead of one rope; holstering it (its head hanging
+from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 

@@ -47,6 +47,10 @@ void(float xKind) VR_ADMelee_Ensure =
     entity e = spawn();
     setmodel(e, VR_ADMelee_Model(xKind));
     remove(e);
+    if(xKind == VR_ADMELEE_FLAIL && cvar("vr_ad_mounted"))
+    {
+        precache_sound("gibs/gibchain.wav"); // (its chain's rattle: VR_Flail_Rattle)
+    }
 };
 
 void(float xClass) VR_ADMelee_Prepare =
@@ -175,6 +179,20 @@ void() VR_ADMelee_Drop =
 // vr_flail_max_damage. vr_flail_debug 1: "flail:" lines.
 
 float vr_flail_hits;      // the head's blows dealt (the tests)
+float vr_flail_rattles;   // the chain's rattles played (the tests)
+string VR_FLAIL_RATTLE = "gibs/gibchain.wav"; // (AD's: its flail's gib's)
+
+// The chain rattling (the engine's, its head swung faster than 6 m/s, at most every 0.3 s; and each blow): AD's chain
+// sound from `p`, louder the faster (`xSpeed` m/s).
+void(entity p, float xHand, float xSpeed) VR_Flail_Rattle =
+{
+    if(!cvar("vr_flail_rattle") || !cvar("vr_ad_mounted"))
+    {
+        return;
+    }
+    vr_flail_rattles++;
+    sound(p, CHAN_AUTO, VR_FLAIL_RATTLE, min(1, cvar("vr_flail_rattle") * (0.25 + xSpeed / 25)), ATTN_NORM);
+};
 float vr_flail_last;      // and the last one's damage
 float vr_flail_last_speed;
 
@@ -223,8 +241,8 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     vr_melee_blowhand = xHand + 1;
     vr_flail_damage = dmg;
     float before = t.health;
+    VR_Flail_Rattle(p, xHand, xSpeed);
     W_SwordMelee(xHand);
-    float after = t.health;
     vr_flail_damage = 0;
     vr_melee_blowhand = 0;
     vr_melee_blunt = FALSE;
@@ -240,12 +258,12 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     b.mh_dmgspeed = dmgSpeed;
     self = was;
     vr_flail_hits++;
-    vr_flail_last = before - after;
+    vr_flail_last = dmg;
     vr_flail_last_speed = xSpeed;
     if(cvar("vr_flail_debug"))
     {
-        bprint(sprintf("flail: hand %g hit %s at %.1f m/s, %.1f kg%s: damage %.1f (health %g -> %g)\n", xHand,
-            t == world ? "the level" : t.classname, xSpeed, xMass, xBoth ? ", two hands" : "", dmg, before, after));
+        bprint(sprintf("flail: hand %g hit %s at %.1f m/s, %.1f kg%s: damage %.1f (health %g before)\n", xHand,
+            t == world ? "the level" : t.classname, xSpeed, xMass, xBoth ? ", two hands" : "", dmg, before));
     }
 };
 
