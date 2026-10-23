@@ -19170,3 +19170,22 @@ shoulder and elbow: the rig's chest and head can take a turn before the arms' IK
 **In VR:** spawn armed grunts and enforcers with two axes (toolgun's Armed Humanoid page) and one: watch them run, reload,
 take pains (the crouching ones), pick weapons up and swing: each weapon should stay in its hand. Both with Model
 Animation on Smooth and on Linear.
+
+## The melee eval's crash in `vertsOf`: a monster placed before the update, drawn as its ragdoll after (worktree `gorefx`, branch `agent/vertsof`, 2026-10-24)
+
+**Cause.** `posed` (Quake/vr/vr_modelcollide.cpp) cached an entity's placement per entity number for the whole host
+frame. Since `agent/meleeworld` (f3b9bcce7, `vr_melee_world_pass`) `strikeTarget` places monsters from the hands'
+update, before the frame's server update; the view's `test` then reused that placement after the update. On
+vrmelee-recording the dummy soldier dies in that update and its slot now draws `progs/soldier.mdl#rag` (a skinned
+alias model: `quakeAlias` gives no header), while the cached placement still said "soldier.mdl, alias", so `vertsOf`
+read the vertices through a null header (seen with a temporary print: ent 8, soldier.mdl to soldier.mdl#rag, 3 times
+in the full set). Another alias model in the slot (a gib head) would have read past its vertices instead.
+
+**Fix.** A placement is reused only while the entity, its model, its `msgtime` and `cl.time` are the ones it was made
+from; otherwise it is made again (the ragdoll then takes the ragdoll path, as before f3b9bcce7). `vertsOf` uses the
+alias header the placement was made from instead of looking it up again from the entity's model now;
+`drawnTriangles` skips a triangle whose corner is past the vertices (as `gather` already did).
+
+**Tests.** `eval.sh` before: canary 26/34 and full 127/133, 2 copies crashed in each (11 and 44 takes unjudged).
+After: canary 37/45, full 169/177, no copy crashed; no verdict changes against the baseline (only PASS -> PASS drifts
+of 0.1 in a hit's numbers, which differ run to run; slash_horizontal_ltr's as before).
