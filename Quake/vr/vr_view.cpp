@@ -3893,6 +3893,11 @@ const ViewEntity* holsterGun(int index)
     return holsterLive[index] && ve.visible && ve.ent.model && ve.ent.model->type == mod_alias ? &ve : nullptr;
 }
 
+int holsterFlags(int index)
+{
+    return index < 0 || index >= HolsterCount ? 0 : holsterStat(index, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0);
+}
+
 int gunPartsOf(const entity_t* gun, entity_t* out[2])
 {
     if(!gun)

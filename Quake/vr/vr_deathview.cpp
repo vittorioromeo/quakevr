@@ -8,7 +8,8 @@
 //
 // Vomit Mode (vr_death_view_vomit; the author's note vrfiringrange_2026-10-23_01-18-00, a player's request): over the
 // rest, the view is the head bone's own: the eyes where they are this frame and its whole turn (pitch, yaw and roll),
-// no smoothing, no turn limit; your own head's motion is left out (only the eyes' spacing kept, turned with the bone).
+// no smoothing, no turn limit; your own head's steps are left out (only the eyes' spacing kept), its turn is put on top of
+// the bone's (its yaw from where you faced as the view went there), as if turning the body's head.
 // It needs a body (vr_death_view 1 or 2); a menu still takes the view out to Third Person's place.
 
 #include "vr_deathview.hpp"
@@ -54,6 +55,8 @@ struct State
     // author's note vrfiringrange_2026-10-08_22-42-47: a menu was nearly unusable from the head), in again after,
     // eased over vr_death_view_menu_time each way.
     float inHead{1.f};
+    bool vomitRefSet{false}; // Vomit Mode: your head's yaw taken as the bone's straight ahead
+    float vomitYawRef{0.f};
 };
 State state;
 
@@ -167,6 +170,7 @@ void deactivate()
     state.doll = 0;
     state.headValid = false;
     state.yaw = 0.f;
+    state.vomitRefSet = false;
     ragdoll::hideHeadOf(0);
 }
 
@@ -284,12 +288,21 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
     {
         // Vomit Mode: the eye where the head bone's eyes are, its spacing from your head's centre turned from your head's
         // axes into the bone's, and the bone's whole turn as the view's (as far in as the menu lets it: weight).
+        // Your own head's turn on top of the bone's (the author's note vrfiringrange_2026-10-23_17-45-04): its yaw from
+        // where it faced as the view went there, its pitch and roll as they are; looking straight ahead is the bone's.
         const float w = weight();
+        if(!state.vomitRefSet)
+        {
+            state.vomitRefSet = true;
+            state.vomitYawRef = angles.y;
+        }
         const glm::mat3 own = hands::basisOf(angles); // (forward, left, up)
-        const glm::mat3 bone = glm::mat3_cast(state.headRot);
+        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, wrap180(angles.y - state.vomitYawRef), angles.z});
+        const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
+        const glm::mat3 view = glm::mat3_cast(full);
         const glm::vec3 spacing = glm::transpose(own) * (origin - s.head);
-        origin = glm::mix(origin, state.anchor + bone * spacing, w);
-        const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), state.headRot, w));
+        origin = glm::mix(origin, state.anchor + view * spacing, w);
+        const glm::mat3 turn = glm::mat3_cast(glm::slerp(glm::quat_cast(own), full, w));
         angles = hands::anglesFromVectors(turn[0], turn[2]);
     }
     else if(state.active)

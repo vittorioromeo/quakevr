@@ -122,6 +122,15 @@
         command("Kick the Nearest Fuelled Gun", "vr_ad_test 159")
             .help("The flamethrower or sprayer lying nearest you kicked hard sideways: its rope drags its tank after it "
                   "(Fuel Hose Info: the rope's length and how far apart they are)."),
+        command("Shoot the Nearest Tank", "vr_ad_test 161")
+            .help("The tank of the flamethrower or sprayer lying nearest you takes a shot of 10 from you (Arcane "
+                  "Dimensions' Guns > Tank Health: 30 bursts it on the third)."),
+        command("Burst the Nearest Tank", "vr_ad_test 162")
+            .help("The tank of the flamethrower or sprayer lying nearest you bursts now, with the fuel its gun holds "
+                  "set first to temp1 of its full (temp1 0: empty, a puff of smoke; 1: the biggest burst)."),
+        command("Nearest Fuelled Gun's State", "vr_ad_test 163")
+            .help("In the console: the nearest flamethrower or sprayer lying about: its tank burst, spent, its fuel, its "
+                  "tank, whether the force grab skips it; and your hands' guns' flags and fuel."),
         command("Fuel Tanks Count", "vr_ad_test 150")
             .help("In the console: the tanks lying about, the fuelled guns lying about, the pairs, tanks without their gun "
                   "and guns without a tank (both 0 when right), each pair's distance; Fuel Hose Info has the ropes and the "
