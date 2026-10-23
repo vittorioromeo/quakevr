@@ -714,6 +714,7 @@ constexpr int gunTop = 529, gunBottom = 496;
 constexpr double armPoseStale = 0.3; // seconds without a message: back to finding its weapon by its hand
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
+constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
 {
@@ -736,6 +737,8 @@ struct ArmPose
     int frame{-1};   // host_framecount its targets were placed on
     int prop{0};
     int flags{0};
+    glm::vec3 hand{0.f};                         // the animation's right hand, eased (handEase)
+    double handTime{0.0};
     glm::vec3 right{0.f}, left{0.f};             // the hands' targets (model space, units)
     glm::vec3 fw{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}; // the weapon's turn (model space)
 };
@@ -869,6 +872,12 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     glm::vec3 up = nlerp(m.upB, upG, m.wo);
     up -= fw * glm::dot(up, fw);
     up = glm::length(up) > 1e-4f ? glm::normalize(up) : glm::vec3{0.f, 0.f, 1.f};
+    // The animation's hand eased (a frame drawn unlerped, the shot's, moved it 7 units at once): the weapon and both
+    // hands follow it without the jolt.
+    const float dt = static_cast<float>(cl.time - s.handTime);
+    s.hand = (s.handTime <= 0.0 || dt < 0.f || dt > 0.2f) ? hr : s.hand + (hr - s.hand) * (1.f - za::exp(-dt / handEase));
+    s.handTime = cl.time;
+    hr = s.hand;
     s.right = hr * m.wr + m.v / scale;
     s.fw = fw;
     s.up = up;

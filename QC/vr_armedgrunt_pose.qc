@@ -47,6 +47,26 @@ vector VR_AGP_SAW_FW = '0.95 0.05 0.25';
 .float vr_ag_saw_next; // its next cut tick, its next puff of smoke
 .float vr_ag_saw_puff;
 .entity vr_ag_poser;   // the fists' pose sender (a held weapon sends it otherwise)
+.float vr_ag_tilt;     // a held melee weapon's blade's turn up from its entity's forward (degrees; VR_AGP_BladeTilt)
+.float vr_ag_tilt_set;
+
+// How far up from its entity's forward a weapon model's muzzle (a melee weapon's tip) is drawn: its angles zeroed a
+// moment, its drawn muzzle measured (weapondrawnpose), found once a weapon.
+float(entity p) VR_AGP_BladeTilt =
+{
+    if(p.vr_ag_tilt_set)
+    {
+        return p.vr_ag_tilt;
+    }
+    vector keep = p.angles;
+    p.angles = '0 0 0';
+    vector m = weaponmuzzle(p) - p.origin;
+    p.angles = keep;
+    p.vr_ag_tilt_set = 1;
+    p.vr_ag_tilt = (m_x * m_x + m_z * m_z) > 1 ? atan2(m_z, m_x) * (180 / 3.14159265) : 0;
+    VR_AG_Log(sprintf("agp: %s's tip %v from its grip: tilted %.1f degrees", p.netname, m, p.vr_ag_tilt));
+    return p.vr_ag_tilt;
+};
 
 float vr_agp_wr;
 vector vr_agp_v;
@@ -500,6 +520,12 @@ void(entity g, entity p) VR_AGP_Pose =
     else if(c == VR_AG_CLASS_MELEE)
     {
         VR_AGP_Melee(g, p, handL, -gx, -gz);
+        // The pose is the blade's (or the head's, the bar's) line; the model is drawn turned up from its entity's
+        // forward by its Weapon Offsets (a hand's hold): the entity turned down by that so the blade lies where wanted.
+        float tilt = VR_AGP_BladeTilt(p);
+        vector right = VR_AGP_Cross(vr_agp_fw, vr_agp_up);
+        vr_agp_fw = VR_AG_Rotate(vr_agp_fw, right, -tilt);
+        vr_agp_up = VR_AG_Rotate(vr_agp_up, right, -tilt);
     }
     else
     {
@@ -507,6 +533,12 @@ void(entity g, entity p) VR_AGP_Pose =
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;
+    if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+    {
+        dprint(sprintf("agpose %s act %g kind %g s %.3f wr %.2f grip %v", p ? p.netname : "fists", g.vr_ag_act,
+            g.vr_ag_act_kind, time - g.vr_ag_act_at, vr_agp_wr, posL)); // (sprintf: 7 arguments at most)
+        dprint(sprintf(" fw %v up %v\n", VR_AGP_ToLocal(vr_agp_fw), VR_AGP_ToLocal(vr_agp_up)));
+    }
     if(p)
     {
         vector a = VR_AxeStick_Angles(vr_agp_fw, vr_agp_up);
