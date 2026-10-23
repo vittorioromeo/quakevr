@@ -87,7 +87,8 @@ void() barrel_explode; // (misc.qc)
 float(entity e) VR_Prop_Metal =
 {
     return e.th_die == barrel_explode || e.classname == "explo_box" || e.classname == "misc_explobox" ||
-           e.classname == "misc_explobox2";
+           e.classname == "misc_explobox2" ||
+           e.classname == "vr_fueltank" || e.classname == "vr_fueltank_worn"; // (the flamethrowers' tanks: never blood)
 };
 
 // Wood: a crate, a piece of one (not an explosive box: metal, VR_Prop_Metal). Shot or struck, it throws splinters, not

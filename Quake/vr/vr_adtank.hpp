@@ -25,4 +25,9 @@ void setupView(const hands::State& s);
 // The tanks and hoses, in each eye's opaque scene (and their mirror image).
 void drawOpaque();
 
+// Once a frame at the end of CL_RelinkEntities (VR_RelinkWornTanks, after the armed monsters' weapons are on their drawn
+// hands): the armed monsters' back tanks (QC vr_adtankworn.qc) found and carried onto their drawn bodies (a listen
+// server's), for the hoses to their guns.
+void relinkWorn();
+
 } // namespace qvr::adtank

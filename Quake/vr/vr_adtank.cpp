@@ -94,11 +94,52 @@ struct BackTank
     int variant{-1};
     bool live{false};
     glm::vec3 tank{0.f}; // its bottom middle (world)
+    glm::vec3 axis{0.f, 0.f, 1.f}; // its up (upright; another way while it flies there: Flight)
     gfx::TubeBatch rings, mirror;
     int builtFrame{-1};
 };
 BackTank back;
 int lastHeld[2]{-1, -1}; // each hand's fuelled gun last frame (-1: none): a gun newly in a hand gives the tank its colour
+int lastWant[carriedCount]{}; // every carried slot's fuelled gun last frame, its variant + 1 (0 none): a draw from a holster
+
+// The pickup's flight (Vittorio, 2026-10-23, vrfiringrange_2026-10-23_21-24-32: the tank shouldn't teleport to the back):
+// a gun taken into a hand whose tank lay about (or was on an armed monster's back), the tank flies from where it was
+// drawn last to its place on the back over vr_adgun_tank_pickup_time (rising a little on the way, turning upright), its
+// hose following; then it is the back tank. The tanks drawn lately are remembered (where, which way up, when last drawn)
+// so the one that just went is found: the nearest of the gun's kind to the gun, drawn within the last 0.3 s.
+struct SeenTank
+{
+    int num{0};
+    int variant{-1};
+    glm::vec3 bottom{0.f}, axis{0.f, 0.f, 1.f};
+    double seen{-1.0}; // vr_gametime last drawn (-1: none)
+};
+constexpr int seenMax = 16;
+SeenTank seenTanks[seenMax];
+struct Flight
+{
+    bool on{false};
+    bool own{false};  // it is the back tank (none was on the back): the hoses run to it; else one more tank, drawn alone
+    int variant{-1};
+    glm::vec3 from{0.f}, fromAxis{0.f, 0.f, 1.f};
+    double start{0.0};
+    glm::vec3 tank{0.f}, axis{0.f, 0.f, 1.f}; // where it is now (drawn alone)
+    gfx::TubeBatch rings;
+    int builtFrame{-1};
+    int flights{0};   // flights flown (vr_adgun_hose_info)
+    float firstGap{0.f}; // its first frame: how far from where the tank lay (units: 0 when seamless)
+};
+Flight flight;
+
+// The armed monsters' back tanks (QC vr_adtankworn.qc; a listen server's), found each frame (relinkWorn): the tank, its
+// gun as held, its wearer (edict numbers).
+struct Worn
+{
+    int tank{0}, gun{0}, wearer{0};
+};
+constexpr int wornMax = 16;
+Worn worn[wornMax];
+int wornCount = 0;
 
 // The body's frame this frame (forward, right; up the world's).
 glm::vec3 bodyFwd{1.f, 0.f, 0.f}, bodyRight{0.f, -1.f, 0.f};
@@ -208,24 +249,33 @@ constexpr int weaponFlagTankBurst = 4096;
 
 // The torso as an upright elliptic cylinder round `axis` (its middle line, world), from `bottom` to `top` (world z): a
 // point inside pushed out to its surface (sideways semi-axis `side`, forwards `depth`, metres in units).
-void pushOutOfTorso(glm::vec3& p, const glm::vec3& axis, float bottom, float top, float side, float depth)
+// (`fwd`, `right`: the body's frame; yours by default, an armed monster's for its hose.)
+void pushOutOfTorso(glm::vec3& p, const glm::vec3& axis, float bottom, float top, float side, float depth,
+    const glm::vec3& fwd = bodyFwd, const glm::vec3& right = bodyRight)
 {
     if(p.z < bottom || p.z > top)
     {
         return;
     }
     const glm::vec3 d{p.x - axis.x, p.y - axis.y, 0.f};
-    const float x = glm::dot(d, bodyRight) / side, y = glm::dot(d, bodyFwd) / depth;
+    const float x = glm::dot(d, right) / side, y = glm::dot(d, fwd) / depth;
     const float k = x * x + y * y;
     if(k >= 1.f)
     {
         return;
     }
     const float s = k > 1e-8f ? 1.f / sqrtf(k) : 0.f;
-    const glm::vec3 out = k > 1e-8f ? (bodyRight * (x * s * side) + bodyFwd * (y * s * depth)) : bodyRight * side;
+    const glm::vec3 out = k > 1e-8f ? (right * (x * s * side) + fwd * (y * s * depth)) : right * side;
     p.x = axis.x + out.x;
     p.y = axis.y + out.y;
 }
+
+// An armed monster's torso round which its hose goes (pushOutOfTorso's): from its front to its back tank.
+struct WornBody
+{
+    glm::vec3 axis{0.f}, fwd{1.f, 0.f, 0.f}, right{0.f, -1.f, 0.f};
+    float bottom{0.f}, top{0.f}, side{0.f}, depth{0.f};
+};
 
 // The drawn body's arms as capsules (Vittorio, 2026-10-18: the hose went through the arms), from the body as last posed
 // (avatar::skeleton; sized as vr_selfcollide.cpp's: the upper arm, the forearm's thick half and its bracer), the hose's
@@ -408,11 +458,13 @@ void hide(Hose& h)
 
 // The tank's rings: an upright bottle (an outlet's neck under it, domes, a valve on top), its band in the hazard colour
 // (the rings' rust). (Its model lying about, vr_adgunart.cpp makeTank, is turned from the same profile.)
-void buildTank(const glm::vec3& tank, za::Vector<gfx::TubeRing>& out)
+// `up`: its axis (upright on the back; another way flying there from where it lay: the pickup's flight).
+void buildTank(const glm::vec3& tank, const glm::vec3& up, za::Vector<gfx::TubeRing>& out)
 {
     out.clear();
     const float m2u = units::metresToUnits();
-    const glm::vec3 up{0.f, 0.f, 1.f};
+    const glm::vec3 side = glm::cross(bodyFwd, up); // (upright: the body's right)
+    const glm::vec3 across = glm::dot(side, side) > 1e-6f ? glm::normalize(side) : bodyRight;
     const glm::vec3 light = coil::lightAt(tank + up * (tankHeight * 0.5f * m2u));
     // (height from the bottom, radius's share, the band's)
     constexpr float r = tankRadius;
@@ -425,7 +477,7 @@ void buildTank(const glm::vec3& tank, za::Vector<gfx::TubeRing>& out)
     {
         gfx::TubeRing ring{};
         ring.mid = glm::vec4{tank + up * (a[0] * m2u), za::max(a[1] * r * m2u, 1e-4f)};
-        ring.across = glm::vec4{bodyRight, 0.f};
+        ring.across = glm::vec4{across, 0.f};
         ring.along = glm::vec4{up, 0.f};
         ring.ambient = glm::vec4{light, a[2]};
         ring.lamp = glm::vec4{0.f};
@@ -530,6 +582,29 @@ void info_f()
     {
         carriedLive += h.live ? 1 : 0;
     }
+    Con_Printf("adgun tank flight: %s (%s), variant %d, %.2f s in, at %.1f units from where it lay, %.1f from its place on the "
+               "back, its up %.2f; %d flown, the first frame %.2f units from where it lay; worn tanks %d\n",
+        flight.on ? "flying" : "none", flight.own ? "the back tank" : "one more", flight.variant,
+        flight.on ? static_cast<float>(vr_gametime - flight.start) : 0.f,
+        glm::distance(flight.own ? back.tank : flight.tank, flight.from),
+        glm::distance(flight.own ? back.tank : flight.tank,
+            body::chestAnchor(hands::current(), glm::vec3{vr_adgun_tank_x.value, vr_adgun_tank_y.value, vr_adgun_tank_z.value}) -
+                glm::vec3{0.f, 0.f, tankHeight * 0.5f * units::metresToUnits()}),
+        (flight.own ? back.axis : flight.axis).z, flight.flights, flight.firstGap, wornCount);
+    for(int k = 0; k < wornCount; k++)
+    {
+        const entity_t& t = cl_entities[worn[k].tank];
+        const entity_t& m = cl_entities[worn[k].wearer];
+        const Hose* drawn = nullptr;
+        for(const Hose& h : worldHoses)
+        {
+            drawn = h.live && h.tank == worn[k].tank ? &h : drawn;
+        }
+        Con_Printf("adgun worn tank %d on %d (gun %d): %.1f units from its wearer's origin; hose %s, %d rings\n", worn[k].tank,
+            worn[k].wearer, worn[k].gun,
+            glm::distance(glm::vec3{t.origin[0], t.origin[1], t.origin[2]}, glm::vec3{m.origin[0], m.origin[1], m.origin[2]}),
+            drawn ? "drawn" : "none", drawn ? static_cast<int>(drawn->hoseRings.count) : 0);
+    }
     Con_Printf("adgun back tank: %s, variant %d, %d hose(s) to it, %d tank rings drawn (%d in the body's mirror image)\n",
         back.live ? "on the back" : "none", back.variant, carriedLive, static_cast<int>(back.rings.count),
         static_cast<int>(back.mirror.count));
@@ -632,7 +707,7 @@ void stepCarried(int i, int variant, const view::ViewEntity& ve, const glm::vec3
     const bool shoulder = vr_adgun_hose_route.value != 0.f;
     // (each hose's outlet a little apart from the others': not one inside another)
     const float spread = (static_cast<float>(i % 4) - 1.5f) * 0.006f * m2u;
-    h.outlet = back.tank - worldUp * (0.03f * m2u) + bodyRight * spread;
+    h.outlet = back.tank - back.axis * (0.03f * m2u) + bodyRight * spread;
     h.clipped = hand;
     h.clip = shoulder ? torso + bodyRight * (side * 0.14f * m2u) + worldUp * (0.24f * m2u)
                       : torso + bodyRight * (side * 0.22f * m2u) - worldUp * (0.3f * m2u);
@@ -709,7 +784,7 @@ void stepCarried(int i, int variant, const view::ViewEntity& ve, const glm::vec3
     // Leaving the gun along its inlet's way (a stiff stub at each end).
     h.p[static_cast<za::SizeT>(nodes - 2)] = h.inlet + glm::normalize(inletDir + glm::vec3{1e-6f}) * pieceRest(nodes - 2);
     pinned[static_cast<za::SizeT>(nodes - 2)] = 1;
-    h.p[1] = h.outlet - worldUp * pieceRest(0);
+    h.p[1] = h.outlet - back.axis * pieceRest(0);
     pinned[1] = 1;
     verlet::fall(h.p.data(), h.prev.data(), pinned.data(), static_cast<za::SizeT>(nodes), dt, h.lastDt, 2.5f, 9.81f * m2u);
     za::Vector<float>& rests = scratch.rests;
@@ -773,9 +848,10 @@ void stepCarried(int i, int variant, const view::ViewEntity& ve, const glm::vec3
 // A world line (a hose, a flail's chain lying about) of `length` units from `outlet` (leaving it along `outletDir`) to
 // `inlet` (`inletDir`), `radius` metres thick, stepped into `h` and shaped in `style`.
 void stepLine(Hose& h, int gun, int tank, int variant, const glm::vec3& outlet, const glm::vec3& outletDir, const glm::vec3& inlet,
-    const glm::vec3& inletDir, float length, float radius, const coil::Style& style);
+    const glm::vec3& inletDir, float length, float radius, const coil::Style& style, const WornBody* body = nullptr);
 
-void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g, const view::ViewEntity& t)
+void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g, const view::ViewEntity& t,
+    const WornBody* body = nullptr)
 {
     const int variant = adguns::variantOf(g.ent.model->name);
     glm::vec3 inletModel, inletDirModel;
@@ -791,7 +867,7 @@ void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g
     style.turns = 0;
     style.wireRadius = hoseRadius;
     style.albedo = hoseColour(variant);
-    stepLine(h, gun, tank, variant, outlet, outletDir, inlet, inletDir, length, hoseRadius, style);
+    stepLine(h, gun, tank, variant, outlet, outletDir, inlet, inletDir, length, hoseRadius, style, body);
 }
 
 // A flail lying about's chain (QC vr_ad_melee.qc "The flail lying about"): from the head's ring to the handle's tip, as
@@ -808,7 +884,7 @@ void stepFlail(Hose& h, int handle, int head, float rope, const view::ViewEntity
 }
 
 void stepLine(Hose& h, int gun, int tank, int variant, const glm::vec3& outlet, const glm::vec3& outletDir, const glm::vec3& inlet,
-    const glm::vec3& inletDir, float length, float radius, const coil::Style& style)
+    const glm::vec3& inletDir, float length, float radius, const coil::Style& style, const WornBody* body)
 {
     const float m2u = units::metresToUnits();
     const float rest = length / static_cast<float>(worldNodes - 1);
@@ -867,6 +943,19 @@ void stepLine(Hose& h, int gun, int tank, int variant, const glm::vec3& outlet, 
     rests.clear();
     rests.resize(static_cast<za::SizeT>(worldNodes - 1), rest);
     verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), rests.data(), 30, 1.f);
+    for(int pass = 0; body && pass < 3; pass++)
+    {
+        // (an armed monster's: round its torso, from its back tank to its gun in front)
+        for(int k = 0; k < worldNodes; k++)
+        {
+            if(!pinned[static_cast<za::SizeT>(k)])
+            {
+                pushOutOfTorso(h.p[static_cast<za::SizeT>(k)], body->axis, body->bottom, body->top, body->side, body->depth,
+                    body->fwd, body->right);
+            }
+        }
+        verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), rests.data(), 8, 1.f);
+    }
     verlet::collide(h.p.data(), h.prev.data(), h.from.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), radius * m2u,
         0.2f, nullptr, h.touching.data());
     h.lastDt = dt;
@@ -883,10 +972,11 @@ void setupWorld(const hands::State& s)
         int gun, tank;
         float rope, dist;
         bool flail; // a flail lying about's chain (gun its handle, tank its head)
+        int wearer; // an armed monster's back tank and the gun it holds: the monster (0: lying about)
     };
     Pair pairs[worldHoseMax];
     int count = 0;
-    const auto consider = [&](int gun, int tank, float rope, bool flail) {
+    const auto consider = [&](int gun, int tank, float rope, bool flail, int wearer) {
         if(tank <= 0 || tank >= cl.num_entities)
         {
             return;
@@ -909,16 +999,29 @@ void setupWorld(const hands::State& s)
         }
         if(at >= 0)
         {
-            pairs[at] = Pair{gun, tank, rope, d, flail};
+            pairs[at] = Pair{gun, tank, rope, d, flail, wearer};
         }
     };
     if(cl.worldmodel && sv.active && vr_adgun_tank_world.value != 0.f)
     {
-        box3d::forEachFuelRope([&](int gun, int tank, float rope, bool) { consider(gun, tank, rope, false); });
+        box3d::forEachFuelRope([&](int gun, int tank, float rope, bool) { consider(gun, tank, rope, false, 0); });
     }
     if(cl.worldmodel && sv.active && vr_flail_world.value != 0.f)
     {
-        box3d::forEachFlailRope([&](int handle, int head, float rope, bool, float) { consider(handle, head, rope, true); });
+        box3d::forEachFlailRope([&](int handle, int head, float rope, bool, float) { consider(handle, head, rope, true, 0); });
+    }
+    const float m2u = units::metresToUnits();
+    for(int k = 0; k < wornCount; k++)
+    {
+        // (its "rope": round the body from the back to the gun in front, as far as they are apart and some)
+        const Worn& w = worn[k];
+        if(w.gun > 0 && w.gun < cl.num_entities && w.tank < cl.num_entities)
+        {
+            const entity_t& g = cl_entities[w.gun];
+            const entity_t& t = cl_entities[w.tank];
+            const float apart = glm::distance(glm::vec3{g.origin[0], g.origin[1], g.origin[2]}, glm::vec3{t.origin[0], t.origin[1], t.origin[2]});
+            consider(w.gun, w.tank, apart * 1.15f + 0.12f * m2u, false, w.wearer);
+        }
     }
     const int frame = host_framecount;
     for(int k = 0; k < count; k++)
@@ -951,6 +1054,27 @@ void setupWorld(const hands::State& s)
         if(pairs[k].flail)
         {
             stepFlail(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t);
+        }
+        else if(pairs[k].wearer > 0 && pairs[k].wearer < cl.num_entities)
+        {
+            // Round its torso: an upright ellipse from its chest's front (8 units ahead of its origin) to its tank's
+            // front, as wide as its shoulders, from under the tank's bottom to over its top.
+            const entity_t& m = cl_entities[pairs[k].wearer];
+            WornBody b;
+            glm::vec3 fwd, right, up;
+            hands::angleVectors({0.f, m.angles[1], 0.f}, fwd, right, up);
+            b.fwd = glm::normalize(glm::vec3{fwd.x, fwd.y, 0.f});
+            b.right = glm::normalize(glm::vec3{right.x, right.y, 0.f});
+            const glm::vec3 o{m.origin[0], m.origin[1], m.origin[2]};
+            const glm::vec3 tm{t.ent.origin[0], t.ent.origin[1], t.ent.origin[2]};
+            const float backFace = glm::dot(tm - o, b.fwd) + (tankRadius * m2u + 0.5f);
+            const float front = 8.f;
+            b.depth = za::max((front - backFace) * 0.5f, 4.f) + hoseRadius * m2u;
+            b.axis = o + b.fwd * ((front + backFace) * 0.5f);
+            b.side = 9.f + hoseRadius * m2u;
+            b.bottom = tm.z - tankHeight * 0.5f * m2u - 4.f;
+            b.top = tm.z + tankHeight * 0.5f * m2u + 6.f;
+            stepWorld(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t, &b);
         }
         else
         {
@@ -998,7 +1122,151 @@ void drawHose(Hose& h, bool cloned, const glm::mat4& mirror)
     }
 }
 
+// The tanks drawn this frame near the eyes (lying about, on an armed monster's back) remembered: where, which way up.
+void updateSeen(const glm::vec3& eye)
+{
+    const float m2u = units::metresToUnits();
+    const double now = vr_gametime;
+    for(int n = 1; n < cl.num_entities; n++)
+    {
+        const entity_t& e = cl_entities[n];
+        if(!e.model || e.model->type != mod_alias || strncmp(e.model->name, "progs/vr_fueltank", 17) != 0 ||
+            e.msgtime != cl.mtime[0])
+        {
+            continue;
+        }
+        const int variant = adguns::tankVariantOf(e.model->name);
+        view::ViewEntity ve;
+        if(variant < 0 || !drawnEntity(n, ve) ||
+            glm::distance(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2]}) > 6.f * m2u)
+        {
+            continue;
+        }
+        SeenTank* slot = nullptr;
+        for(SeenTank& t : seenTanks)
+        {
+            slot = t.num == n ? &t : slot;
+        }
+        for(SeenTank& t : seenTanks)
+        {
+            slot = !slot && t.seen < now - 1.0 ? &t : slot; // (a free one: none drawn within the last second)
+        }
+        if(!slot)
+        {
+            continue;
+        }
+        slot->num = n;
+        slot->variant = variant;
+        slot->bottom = view::modelPoint(ve, glm::vec3{0.f, 0.f, -tankHeight * 0.5f * m2u});
+        const glm::vec3 top = view::modelPoint(ve, glm::vec3{0.f, 0.f, tankHeight * 0.5f * m2u});
+        slot->axis = glm::distance(top, slot->bottom) > 1e-3f ? glm::normalize(top - slot->bottom) : glm::vec3{0.f, 0.f, 1.f};
+        slot->seen = now;
+    }
+}
+
+// Gun `variant` just taken into a hand at `gunAt`: the tank drawn there lately (the nearest of its kind within 1.6 m,
+// drawn within the last 0.3 s) flies to the back.
+void startFlight(int variant, const glm::vec3& gunAt)
+{
+    const float m2u = units::metresToUnits();
+    const double now = vr_gametime;
+    SeenTank* best = nullptr;
+    float bestD = 1.6f * m2u;
+    for(SeenTank& t : seenTanks)
+    {
+        const float d = glm::distance(t.bottom, gunAt);
+        if(t.variant == variant && t.seen >= now - 0.3 && d < bestD)
+        {
+            best = &t;
+            bestD = d;
+        }
+    }
+    if(!best || vr_adgun_tank_pickup_time.value <= 0.f)
+    {
+        return;
+    }
+    flight.on = true;
+    flight.own = !back.live;
+    flight.variant = variant;
+    flight.from = best->bottom;
+    flight.fromAxis = best->axis;
+    flight.start = now;
+    flight.flights++;
+    flight.firstGap = -1.f;
+    best->seen = -1.0; // (taken: not another hand's too)
+}
+
+// The flight now, from where the tank was to `target` (the back tank's bottom, upright): its place and its up; false
+// once it has arrived.
+bool flyNow(const glm::vec3& target, glm::vec3& at, glm::vec3& axis)
+{
+    const float dur = vr_adgun_tank_pickup_time.value;
+    const float t = dur > 0.f ? static_cast<float>(vr_gametime - flight.start) / dur : 1.f;
+    if(!flight.on || t >= 1.f || t < 0.f)
+    {
+        flight.on = false;
+        return false;
+    }
+    const float m2u = units::metresToUnits();
+    const float e = t * t * (3.f - 2.f * t);
+    const glm::vec3 up{0.f, 0.f, 1.f};
+    at = glm::mix(flight.from, target, e) + up * (sinf(t * 3.14159265f) * 0.1f * m2u);
+    const glm::vec3 a = glm::mix(flight.fromAxis, up, e);
+    axis = glm::dot(a, a) > 1e-6f ? glm::normalize(a) : up;
+    if(flight.firstGap < 0.f)
+    {
+        flight.firstGap = glm::distance(at, flight.from);
+    }
+    return true;
+}
+
 } // namespace
+
+void relinkWorn()
+{
+    wornCount = 0;
+    const int link = progs::fields().vr_fuellink;
+    if(!sv.active || !cl.worldmodel || link < 0 || vr_adgun_tank_worn.value == 0.f)
+    {
+        return;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    for(int n = svs.maxclients + 1; n < qcvm->num_edicts && wornCount < wornMax; n++)
+    {
+        edict_t* e = EDICT_NUM(n);
+        if(e->free || !e->v.modelindex || strcmp(PR_GetString(e->v.classname), "vr_fueltank_worn") != 0)
+        {
+            continue;
+        }
+        const int wearer = e->v.owner ? NUM_FOR_EDICT(PROG_TO_EDICT(e->v.owner)) : 0;
+        const int ofs = progs::fieldInt(e, link);
+        const int gun = ofs ? NUM_FOR_EDICT(PROG_TO_EDICT(ofs)) : 0;
+        if(wearer <= 0 || wearer >= cl.num_entities || n >= cl.num_entities)
+        {
+            continue;
+        }
+        // Its place on its wearer as the server has it, carried onto the wearer as drawn (its movement smoothed, its
+        // turn): on the drawn body, as its weapon is on the drawn hands (vr_hitreact.cpp relinkArms).
+        entity_t& ce = cl_entities[n];
+        const entity_t& cm = cl_entities[wearer];
+        const edict_t* m = EDICT_NUM(wearer);
+        if(ce.model && cm.model && ce.msgtime == cl.mtime[0] && cm.msgtime == cl.mtime[0])
+        {
+            const float turn = (cm.angles[1] - m->v.angles[1]) * (3.14159265f / 180.f);
+            const float c = cosf(turn), s = sinf(turn);
+            const float dx = e->v.origin[0] - m->v.origin[0], dy = e->v.origin[1] - m->v.origin[1];
+            ce.origin[0] = cm.origin[0] + dx * c - dy * s;
+            ce.origin[1] = cm.origin[1] + dx * s + dy * c;
+            ce.origin[2] = cm.origin[2] + (e->v.origin[2] - m->v.origin[2]);
+            ce.angles[0] = e->v.angles[0];
+            ce.angles[1] = e->v.angles[1] + (cm.angles[1] - m->v.angles[1]);
+            ce.angles[2] = e->v.angles[2];
+        }
+        worn[wornCount++] = Worn{n, gun, wearer};
+    }
+    PR_PopQCVM(old);
+}
 
 void init()
 {
@@ -1018,6 +1286,7 @@ void setupView(const hands::State& s)
     if(s.valid)
     {
         setupWorld(s);
+        updateSeen(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]));
     }
     // What is carried: the hands' guns, the holsters'.
     const bool alive = living && vr_adgun_hose.value != 0.f;
@@ -1041,6 +1310,29 @@ void setupView(const hands::State& s)
             back.variant = want[hand];
         }
     }
+    // A gun newly in a hand, not from a holster nor the other hand: taken from where it lay (or from an armed monster):
+    // its tank flies to the back.
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int v = want[hand];
+        if(v < 0 || lastHeld[hand] == v)
+        {
+            continue;
+        }
+        bool moved = lastWant[1 - hand] == v + 1 && want[1 - hand] != v;
+        for(int i = 2; i < carriedCount; i++)
+        {
+            moved = moved || (lastWant[i] == v + 1 && want[i] != v);
+        }
+        if(!moved)
+        {
+            startFlight(v, glm::vec3{ve[hand]->ent.origin[0], ve[hand]->ent.origin[1], ve[hand]->ent.origin[2]});
+        }
+    }
+    for(int i = 0; i < carriedCount; i++)
+    {
+        lastWant[i] = want[i] + 1;
+    }
     lastHeld[0] = want[0];
     lastHeld[1] = want[1];
     bool kept = false;
@@ -1061,6 +1353,7 @@ void setupView(const hands::State& s)
         }
         back.live = false;
         back.variant = -1;
+        flight.on = false;
         const double cost = Sys_DoubleTime() - t0;
         setupCost = setupCost * 0.9 + cost * 0.1;
         return;
@@ -1076,6 +1369,14 @@ void setupView(const hands::State& s)
     const glm::vec3 centre = body::chestAnchor(s, glm::vec3{vr_adgun_tank_x.value, vr_adgun_tank_y.value, vr_adgun_tank_z.value});
     const glm::vec3 torso = centre + bodyFwd * (0.15f * m2u);
     back.tank = centre - glm::vec3{0.f, 0.f, tankHeight * 0.5f * m2u};
+    back.axis = glm::vec3{0.f, 0.f, 1.f};
+    glm::vec3 flyAt, flyAxis;
+    if(flyNow(back.tank, flyAt, flyAxis))
+    {
+        // (taken just now: flying there from where it lay; the back tank itself, its hoses following, or one more)
+        (flight.own ? back.tank : flight.tank) = flyAt;
+        (flight.own ? back.axis : flight.axis) = flyAxis;
+    }
     gatherArms();
     const bool armsCollide = vr_adgun_hose_arms.value != 0.f;
     for(int i = 0; i < carriedCount; i++)
@@ -1114,9 +1415,14 @@ void drawOpaque()
     if(back.builtFrame != host_framecount)
     {
         back.builtFrame = host_framecount;
-        buildTank(back.tank, scratch.rings);
+        buildTank(back.tank, back.axis, scratch.rings);
         back.rings = gfx::uploadTube(scratch.rings);
         back.mirror = cloned ? (reflect(scratch.rings, mirror, scratch.mirrored), gfx::uploadTube(scratch.mirrored)) : gfx::TubeBatch{};
+        if(flight.on && !flight.own)
+        {
+            buildTank(flight.tank, flight.axis, scratch.rings);
+            flight.rings = gfx::uploadTube(scratch.rings);
+        }
     }
     QVR_GPU_PROFILE("ad hoses draw");
     gfx::drawTube(back.rings, 14, tankColour(back.variant), keyLight, hazardBand);
@@ -1124,6 +1430,15 @@ void drawOpaque()
     {
         gfx::drawTube(back.mirror, 14, tankColour(back.variant), keyLight, hazardBand);
     }
+    if(flight.on && !flight.own && flight.rings.count)
+    {
+        gfx::drawTube(flight.rings, 14, tankColour(flight.variant), keyLight, hazardBand); // (one more, flying to join it)
+    }
 }
 
 } // namespace qvr::adtank
+
+extern "C" void VR_RelinkWornTanks(void)
+{
+    qvr::adtank::relinkWorn();
+}

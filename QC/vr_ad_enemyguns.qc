@@ -96,6 +96,7 @@ void() AD_WeaponsOnDemand =
     precache_sound(ad_SOUND_PLASMA_HIT);
     precache_sound(ad_SOUND_MISFIRE);
     precache_sound("enforcer/def_ssg_fire.wav");
+    precache_sound("traps/steam_loop.wav"); // (a poison tank's burst's cloud: VR_TankField_Loop)
     precache_sound("enforcer/pyro_flameon.wav");
     precache_sound("enforcer/pyro_flameoff.wav");
     precache_sound("enforcer/fum_poisonon.wav");
@@ -256,6 +257,26 @@ float vr_fueltank_made;   // tanks made (the tests)
 
 float(float xWid) VR_FuelTank_Fuelled = { return xWid == WID_ADPYRO || xWid == WID_ADFUMIGATOR; };
 
+// An armed monster's back tank (Vittorio, 2026-10-23, vrfiringrange_2026-10-23_21-24-32, 21-25-15): a monster holding a
+// flamethrower or poison sprayer wears its tank on its back as you do (classname vr_fueltank_worn, the same model; placed
+// on its back each frame by its weapon's think, VR_FuelTank_Wear in vr_adtankworn.qc, from its row's back vertices in the
+// armed monsters' table; drawn on the drawn body and hosed to the gun by the engine, vr_adtank.cpp). It takes damage as a
+// tank lying about does and bursts on the monster (VR_FuelTank_BurstNow): its gun spent and dropped. Its .owner the
+// monster, its .vr_fuellink the weapon it holds (vr_ag_weapon).
+void(entity xProp) VR_FuelTank_Wear;
+float vr_fueltank_worn_made; // worn tanks made (the tests)
+
+// A tank, lying about or worn by a monster (hits on it: metal, never blood: vr_crates.qc VR_Prop_Metal).
+float(entity e) VR_FuelTank_Is = { return e.classname == "vr_fueltank" || e.classname == "vr_fueltank_worn"; };
+
+// Its loops stopped (a tank gone, burst or taken: Vittorio, 2026-10-23, its hiss never stopped). Its burst's own sounds
+// are its field's (VR_TankField_*), which stops them as it goes.
+void(entity t) VR_FuelTank_Hush =
+{
+    sound(t, CHAN_WEAPON, "misc/null.wav", 0.1, ATTN_NORM);
+    sound(t, CHAN_BURN, "misc/null.wav", 0.1, ATTN_NORM);
+};
+
 // `g`'s tank lying about (world: none).
 entity(entity g) VR_FuelTank_Of =
 {
@@ -278,6 +299,20 @@ entity(entity t) VR_FuelTank_Gun =
     return g;
 };
 
+// A worn tank `t`'s gun: the fuelled weapon its wearer holds (world: no longer).
+entity(entity t) VR_FuelTank_WornGun =
+{
+    entity m = t.owner;
+    entity p = t.vr_fuellink;
+    if(!p || !m || p.classname != "vr_ag_weapon" || p.owner != m || m.vr_ag_prop != p || !VR_FuelTank_Fuelled(p.weapon) ||
+       (p.weaponflags & QVR_WPNFLAG_TANK_BURST))
+    {
+        return world;
+    }
+    return p;
+};
+entity(entity g, vector vel) VR_AG_DropHeld; // (vr_armedgrunt.qc: a worn tank's burst drops its gun)
+
 void() VR_FuelTank_Think =
 {
     entity g = VR_FuelTank_Gun(self);
@@ -291,6 +326,7 @@ void() VR_FuelTank_Think =
         {
             dprint(sprintf("adgun: a tank at %v goes with its gun\n", self.origin));
         }
+        VR_FuelTank_Hush(self);
         remove(self);
         return;
     }
@@ -789,6 +825,256 @@ void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun
     p.attack_finished = max(p.attack_finished, time + xTime);
 };
 
+// A burst's field (Vittorio, 2026-10-23, vrfiringrange_2026-10-23_21-25-15): where a tank burst with fuel in it, a field
+// lingers (vr_adgun_tank_field_time at a full tank, 40% of it near empty): flames on the ground (the flamethrower's)
+// setting on fire everything that enters it (monsters, players, corpses, crates: its burning as the burst's, and the
+// flames' own vr_burn_damage a second on the living, times vr_adgun_tank_field_damage), or a green cloud (the sprayer's)
+// poisoning everything that enters it (the burst's poison a second times vr_adgun_tank_field_damage, for its time). Its
+// reach vr_adgun_tank_field_radius at a full tank (40% near empty). Its look and its sound (a fire's crackle, a hiss)
+// fade out with it over its second half. It plays the burst's sounds too, and stops every loop of them as it goes
+// (they never outlive it: the hiss that never stopped). A burst with no field (time 0) still has one, silent and empty,
+// for its sounds' 0.7 s.
+float VR_TANKFIELD_TICK = 0.5;   // s between its damages
+float VR_TANKFIELD_HUSH = 0.7;   // s the burst's whoosh plays (its "off" then: the loop's end)
+.float vr_tf_kind;   // 1 fire, 2 poison
+.float vr_tf_start;  // when it began,
+.float vr_tf_end;    // ... when it goes
+.float vr_tf_radius; // its reach (units)
+.float vr_tf_s;      // the fuel's share of the burst (0.4 .. 1): its burning's and poison's
+.float vr_tf_level;  // its loop's volume step now (0..4; 0 silent)
+.float vr_tf_tick;   // its next damage
+.float vr_tf_hush;   // when the burst's whoosh stops (0: stopped)
+float vr_tankfield_made;  // fields made (the tests)
+float vr_tankfield_hits;  // what the fields reached, tick by tick (the tests)
+float vr_tankfield_loops; // fields' loops playing now (the tests: 0 once they are gone)
+float vr_tankfield_whoosh; // bursts' whooshes playing now (the tests: 0 a moment after each)
+
+// How strong it is now: 1 over its first half, fading to 0 over the second.
+float(entity f) VR_TankField_Strength =
+{
+    float life = max(0.01, f.vr_tf_end - f.vr_tf_start);
+    return clamp((f.vr_tf_end - time) / (life * 0.5), 0, 1);
+};
+
+// Its loop at volume step `xLevel` (0..4: silent .. full), started again only when the step changes.
+void(entity f, float xLevel) VR_TankField_Loop =
+{
+    if(xLevel == f.vr_tf_level)
+    {
+        return;
+    }
+    string loop = f.vr_tf_kind == 1 ? "ambience/fire1.wav" : (cvar("vr_ad_mounted") ? "traps/steam_loop.wav" : "");
+    if(xLevel > 0 && loop != "")
+    {
+        sound(f, CHAN_BURN, loop, (f.vr_tf_kind == 1 ? 0.9 : 0.6) * xLevel / 4, ATTN_NORM);
+        vr_tankfield_loops += (f.vr_tf_level <= 0);
+    }
+    else if(f.vr_tf_level > 0)
+    {
+        sound(f, CHAN_BURN, "misc/null.wav", 0.1, ATTN_NORM);
+        vr_tankfield_loops = max(0, vr_tankfield_loops - 1);
+    }
+    f.vr_tf_level = loop != "" ? xLevel : 0;
+};
+
+// The burst's whoosh stopped (its "off": the loop's end, its tail).
+void(entity f) VR_TankField_Unwhoosh =
+{
+    if(!f.vr_tf_hush)
+    {
+        return;
+    }
+    f.vr_tf_hush = 0;
+    if(cvar("vr_ad_mounted"))
+    {
+        sound(f, CHAN_WEAPON, f.vr_tf_kind == 2 ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav", 0.6, ATTN_NORM);
+    }
+    vr_tankfield_whoosh = max(0, vr_tankfield_whoosh - 1);
+};
+
+// What it reaches now: in its circle, its body near the ground there (fire 48 units up, a cloud 72), in sight of it.
+void(entity f) VR_TankField_Damage =
+{
+    float fire = f.vr_tf_kind == 1;
+    float scale = max(0, cvar("vr_adgun_tank_field_damage"));
+    float top = f.origin_z + (fire ? 48 : 72);
+    float burn = max(0, cvar("vr_adgun_tank_burst_burn")) * f.vr_tf_s;
+    float dps = max(0, cvar("vr_adgun_tank_burst_poison")) * f.vr_tf_s * scale;
+    float ptime = max(0, cvar("vr_adgun_tank_burst_poisontime")) * f.vr_tf_s;
+    vector eye = f.origin + '0 0 16';
+    for(entity e = findradius(f.origin, f.vr_tf_radius + 24); e; e = e.chain)
+    {
+        if(e == f || (!e.takedamage && !(fire && VR_Burn_Can(e))) || e.absmin_z > top || e.absmax_z < f.origin_z - 12)
+        {
+            continue;
+        }
+        vector mid = e.origin + (e.mins + e.maxs) * 0.5;
+        vector flat = mid - f.origin;
+        flat_z = 0;
+        if(vlen(flat) > f.vr_tf_radius + max(e.maxs_x, 8))
+        {
+            continue; // (outside its circle: findradius's ball is wider)
+        }
+        traceline(eye, mid, TRUE, f);
+        if(trace_fraction < 1 && vlen(trace_endpos - mid) > 24)
+        {
+            continue; // (behind a wall)
+        }
+        entity by = e == f.owner ? world : f.owner; // (the one who burst it: as anyone, not by himself)
+        if(VR_FuelTank_Is(e))
+        {
+            if(fire && !e.vr_fueltank_burstat && e.takedamage)
+            {
+                e.vr_fueltank_burstat = time + 0.15 + random() * 0.15; // (another tank in the flames: it bursts too)
+                e.enemy = by;
+            }
+            continue;
+        }
+        vr_tankfield_hits++;
+        vector at = mid;
+        at_z = max(e.absmin_z + 4, f.origin_z + 4); // (its feet in the flames)
+        if(!fire)
+        {
+            VR_ADGun_Poison(e, f, by, dps, ptime);
+            continue;
+        }
+        if(pointcontents(at) <= CONTENT_WATER)
+        {
+            continue;
+        }
+        vr_burn_len = burn;
+        VR_Burn_Ignite(e, by, at, '0 0 1', VR_BURN_TOUCH);
+        vr_burn_len = 0;
+        float d = cvar_hget(cvarh_vr_burn_damage) * VR_TANKFIELD_TICK * scale;
+        if(d > 0 && e.takedamage && e.health > 0 && (e.flags & (FL_CLIENT | FL_MONSTER)))
+        {
+            VR_SetHitKind(QVR_HITKIND_NONE, -1, at, '0 0 1');
+            T_Damage(e, f, by, d);
+            VR_ClearHitKind();
+        }
+    }
+};
+
+// Its look: flames licking up off the ground through its circle, or a green cloud, as strong as it is now.
+void(entity f, float xStrength) VR_TankField_Look =
+{
+    float fire = f.vr_tf_kind == 1;
+    float n = ceil(xStrength * clamp(f.vr_tf_radius * f.vr_tf_radius / 1600, 1, 7));
+    for(float i = 0; i < n; i++)
+    {
+        float a = random() * 6.2831853;
+        float r = sqrt(random()) * f.vr_tf_radius;
+        vector p = f.origin + '1 0 0' * (cos(a) * r) + '0 1 0' * (sin(a) * r);
+        traceline(f.origin + '0 0 16', p + '0 0 16', TRUE, f);
+        if(trace_fraction < 1)
+        {
+            continue; // (a wall in the way: not through it)
+        }
+        traceline(p + '0 0 16', p - '0 0 48', TRUE, f);
+        if(trace_fraction >= 1)
+        {
+            continue; // (no ground there: a ledge)
+        }
+        p = trace_endpos + '0 0 1';
+        if(fire)
+        {
+            if(pointcontents(p + '0 0 4') > CONTENT_WATER)
+            {
+                particle2(p, '0 0 0.6' + randomVec(0.15), QVR_PARTICLE_PRESET_ADFLAME, 1 + floor(2 * xStrength * random() + 0.5));
+            }
+        }
+        else
+        {
+            particle2(p + '0 0 6', '0 0 0.15' + randomVec(0.15), QVR_PARTICLE_PRESET_ADPOISON, 1 + floor(xStrength + random()));
+            if(random() < 0.35 * xStrength)
+            {
+                particle2(p + '0 0 10', '1.5 1.5 0.8', QVR_PARTICLE_PRESET_POISONPUFF, 1);
+            }
+        }
+    }
+};
+
+void() VR_TankField_Think =
+{
+    if(self.vr_tf_hush && time >= self.vr_tf_hush)
+    {
+        VR_TankField_Unwhoosh(self);
+    }
+    if(time >= self.vr_tf_end)
+    {
+        VR_TankField_Loop(self, 0);
+        if(!self.vr_tf_hush)
+        {
+            if(cvar("developer"))
+            {
+                dprint(sprintf("adgun: a tank's %s field at %v gone after %.1f s\n", self.vr_tf_kind == 1 ? "fire" : "poison",
+                    self.origin, time - self.vr_tf_start));
+            }
+            remove(self);
+            return;
+        }
+        self.nextthink = self.vr_tf_hush;
+        return;
+    }
+    float k = VR_TankField_Strength(self);
+    VR_TankField_Loop(self, ceil(k * 4));
+    VR_TankField_Look(self, k);
+    if(time >= self.vr_tf_tick)
+    {
+        self.vr_tf_tick = time + VR_TANKFIELD_TICK;
+        VR_TankField_Damage(self);
+    }
+    self.nextthink = time + 0.1;
+};
+
+// The field of a tank burst at `at` (its fuel's share `s`: 0.4 .. 1; `xFuel` 0: empty, no field), `xBy` who burst it:
+// it plays the burst's sounds (the whoosh, the blast) and lingers there as long as its time.
+entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_Make =
+{
+    entity f = spawn();
+    f.classname = "vr_tankfield";
+    f.movetype = MOVETYPE_NONE;
+    f.solid = SOLID_NOT;
+    traceline(at, at - '0 0 96', TRUE, world);
+    setorigin(f, trace_endpos + '0 0 1'); // (on the ground under it)
+    f.owner = xBy;
+    f.vr_tf_kind = poison ? 2 : 1;
+    f.vr_tf_s = s;
+    f.vr_tf_start = time;
+    float life = xFuel > 0 ? max(0, cvar("vr_adgun_tank_field_time")) * s : 0;
+    f.vr_tf_end = time + life;
+    f.vr_tf_radius = max(16, cvar("vr_adgun_tank_field_radius")) * s;
+    f.vr_tf_tick = time + 0.2; // (the burst's own reach first)
+    f.think = VR_TankField_Think;
+    f.nextthink = time + 0.1;
+    if(xFuel > 0)
+    {
+        if(cvar("vr_ad_mounted"))
+        {
+            AD_WeaponsOnDemand(); // (the whoosh, its end, the hiss: precached as a burst comes, any map)
+            sound(f, CHAN_WEAPON, poison ? "enforcer/fum_poisonon.wav" : "enforcer/pyro_flameon.wav", 1, ATTN_NORM);
+            f.vr_tf_hush = time + VR_TANKFIELD_HUSH;
+            vr_tankfield_whoosh++;
+        }
+        sound(f, CHAN_BODY, "weapons/r_exp3.wav", 0.4 + 0.6 * (s - 0.4) / 0.6, ATTN_NORM);
+    }
+    if(life > 0)
+    {
+        vr_tankfield_made++;
+        VR_TankField_Loop(f, 4);
+        if(cvar("developer"))
+        {
+            dprint(sprintf("adgun: a tank's %s field at %v: %.1f s, reach %.0f\n", poison ? "poison" : "fire", f.origin, life,
+                f.vr_tf_radius));
+        }
+    }
+    else if(!f.vr_tf_hush)
+    {
+        f.nextthink = time + 0.1; // (nothing to play: gone at its first think)
+    }
+    return f;
+};
+
 // Fuel tanks bursting (above, "Fuel tanks"). Self: a tank its damage killed (Killed: .enemy who did it).
 void() VR_FuelTank_Burst =
 {
@@ -798,17 +1084,22 @@ void() VR_FuelTank_Burst =
 // Tank `t` bursts now, `xBy` the one who did it (world: none known).
 void(entity t, entity xBy) VR_FuelTank_BurstNow =
 {
-    if(t.classname != "vr_fueltank" || !t.modelindex)
+    if(!VR_FuelTank_Is(t) || !t.modelindex)
     {
         return;
     }
-    entity g = VR_FuelTank_Gun(t);
+    float worn = t.classname == "vr_fueltank_worn";
+    entity m = worn ? t.owner : world; // (its wearer)
+    entity g = worn ? VR_FuelTank_WornGun(t) : VR_FuelTank_Gun(t);
     float poison = g ? (g.weapon == WID_ADFUMIGATOR) : (t.model == "progs/vr_fueltank.mdl#7");
     float full = g ? WeaponIdToBaseClipSize(g.weapon) : 0;
     float fuel = (g && g.weaponinst) ? g.weaponinst.wi_clip : 0;
     float f = full > 0 ? clamp(fuel / full, 0, 1) : 0;
     vector at = t.origin + (t.mins + t.maxs) * 0.5;
-    VR_Carry_Forget(t); // (a hand holding it lets go)
+    if(!worn)
+    {
+        VR_Carry_Forget(t); // (a hand holding it lets go)
+    }
     // Its gun spent for good: no tank, no fuel, no force grab, no loot pillar (a hand still takes it).
     if(g)
     {
@@ -820,9 +1111,22 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         g.vr_depleted = TRUE;
         g.vr_fuellink = world;
     }
+    if(worn && g)
+    {
+        // Its wearer's gun spent: it lets go of it (lying about spent: no tank) and fights on with its fists.
+        m.vr_ag_wflags = m.vr_ag_wflags | QVR_WPNFLAG_TANK_BURST;
+        m.vr_ag_reserve = 0;
+        makevectors('0 1 0' * m.angles_y);
+        entity dropped = VR_AG_DropHeld(m, v_forward * 120 + v_right * crandom() * 60 + '0 0 140');
+        if(dropped)
+        {
+            dropped.vr_depleted = TRUE;
+        }
+    }
     vr_fueltank_bursts++;
     vr_fueltank_burst_hit = 0;
     // The tank itself gone (Killed carries on after its th_die: no model, nothing more done to it).
+    VR_FuelTank_Hush(t);
     t.takedamage = DAMAGE_NO;
     t.th_die = SUB_Null;
     t.solid = SOLID_NOT;
@@ -863,7 +1167,6 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
     if(poison)
     {
         particle2(at, '0 0 0', QVR_PARTICLE_PRESET_POISONPUFF, 3 + floor(5 * f));
-        sound(t, CHAN_AUTO, "enforcer/fum_poisonon.wav", 1, ATTN_NORM);
     }
     else
     {
@@ -872,9 +1175,9 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         WriteCoord(MSG_BROADCAST, at_x);
         WriteCoord(MSG_BROADCAST, at_y);
         WriteCoord(MSG_BROADCAST, at_z);
-        sound(t, CHAN_AUTO, "enforcer/pyro_flameon.wav", 1, ATTN_NORM);
     }
-    sound(t, CHAN_BODY, "weapons/r_exp3.wav", 0.4 + 0.6 * f, ATTN_NORM);
+    // Its sounds (the whoosh, stopped a moment after; the blast) and the field it leaves: its field's (VR_TankField_Make).
+    entity field = VR_TankField_Make(at, poison, s, fuel, xBy);
     // What it reaches (in sight of it): its blast, then set on fire or poisoned. Another tank: it bursts a moment after.
     for(entity e = findradius(at, radius); e; e = e.chain)
     {
@@ -888,7 +1191,7 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         {
             continue; // (behind a wall)
         }
-        if(e.classname == "vr_fueltank")
+        if(VR_FuelTank_Is(e))
         {
             if(!e.vr_fueltank_burstat)
             {
@@ -926,8 +1229,10 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
     {
         dprint(sprintf("adgun: a %s tank bursts at %v (%s): fuel %g of %g, reach %.0f, ", poison ? "poison" : "fuel", at,
             xBy.classname, fuel, full, radius));
-        dprint(sprintf("blast %.0f, %s, %g reached\n", blast,
+        dprint(sprintf("blast %.0f, %s, %g reached; ", blast,
             poison ? sprintf("poison %.1f/s for %.1f s", dps, ptime) : sprintf("burning %.1f s", burn), vr_fueltank_burst_hit));
+        dprint(sprintf("its field %.1f s, reach %.0f%s\n", field.vr_tf_end - time, field.vr_tf_radius,
+            worn ? sprintf(" (worn by %s)", m.classname) : ""));
     }
 };
 

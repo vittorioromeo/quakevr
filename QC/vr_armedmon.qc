@@ -50,6 +50,8 @@ float vr_am_loot_n;         // ... this many
 float vr_am_classes;        // the weapon classes it may hold (VR_AM_CLASSES_ALL: any; others: its fists)
 vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, made on the grunt) to its: scaled,
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
+vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
+vector vr_am_back_hi;       // ... a flamethrower's or poison sprayer's tank worn there, upright along them (vr_adtankworn.qc)
 
 void(float k) VR_AM_Row =
 {
@@ -86,6 +88,8 @@ void(float k) VR_AM_Row =
         // (x 0, y +-9.7, z 12).
         vr_am_fit_scale = '1 1.35 1.1';
         vr_am_fit_shift = '-3 0 7';
+        vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
+        vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
         return;
     }
     // The grunt (the first row; k 0, an armed grunt from before the table): Quake VR's soldier.mdl, the gun's vertices
@@ -116,6 +120,8 @@ void(float k) VR_AM_Row =
     vr_am_classes = VR_AM_CLASSES_ALL;
     vr_am_fit_scale = '1 1 1';
     vr_am_fit_shift = '0 0 0';
+    vr_am_back_lo = '93 95 0';   // (its back at the waist, x -8.9 / -8.0, z 5.3, standing)
+    vr_am_back_hi = '160 162 0'; // (... at the shoulder blades, x -6.2, z 14.8)
 };
 
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).
