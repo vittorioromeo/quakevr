@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Axe Blade Start: in Edit Blade Shape with the axe, a purple Blade Start handle (just off the head's flat) places where the striking part begins: put it on the edge's lower corner and the red tip on its top corner; the non-striking part draws thin grey; Head Box On starts from a box over both bits (opt-in); Done prints the lines {test:blade_editor_axe}
+AD breakables as before: an AD metal breakable takes ~3 strong (4 medium) axe blows, a stone one breaks in one (vr_prop_break_metal 1, vr_prop_break_stone 0.75)
 Save My Settings as Defaults: at Menu Detail Developer, the corner "Save Default" button (between Toolgun and Checklist): press twice; it says "Saved N"; the file in quakevr/proposed_defaults/ lists every changed setting with its menu path and personal?/debug? tags (also Debug > Playtesting) {test:save_defaults}
 Toolgun loot pillar: a dropped toolgun's pillar is magenta and twice as tall as other weapons' (Graphics > Loot Beams, Developer rows) {test:toolgun_lootbeam}
 Flail ball hangs on its chain: hold still and it hangs below the handle; lower the hand or turn and it trails; a flick swings it up and it dies down over a few seconds; whirling still takes work; drop and re-take it {test:flail}
