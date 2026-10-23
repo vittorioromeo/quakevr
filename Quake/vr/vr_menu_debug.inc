@@ -122,9 +122,11 @@ za::Vector<Item> pageDebugViews()
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
         command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
             .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
-                  "Shape): its tip, near end, width, curve and head box."),
+                  "Shape): its tip, near end, width, curve and head box. With the hand empty: the fist's blow line."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
+        command("Print Fist Line", "vr_blade_dump fist")
+            .help("vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*) as vr_cvars.inc lines (* changed)."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
