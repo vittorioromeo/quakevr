@@ -431,6 +431,10 @@ const DefaultChange defaultChanges[] = {
     {189, &vr_kdtrig_tackle_low, "5"},     // 0.5
     {189, &vr_kdtrig_tackle_head, "7.5"},  // 5
     {189, &vr_kdtrig_tackle_turn, "50"},   // 60
+    // 191: the author's shoulder charge values (his config of 2026-10-23): more lenient, a little less tall (ROUND22.md,
+    // "Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords").
+    {191, &vr_kdtrig_tackle_leniency, "0.2"}, // 0.4
+    {191, &vr_kdtrig_tackle_stand, "0.8"},    // 0.75
     // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
     // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
     {192, &vr_parallax_depth_write, "1"}, // 0

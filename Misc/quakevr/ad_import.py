@@ -286,6 +286,7 @@ QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_Mele
              "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "vr_hit_nobleed",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
 QVR_NAMES |= {"VR_HitReact_Dist"}  # (the hit reactions' patches above)
+QVR_NAMES |= {"VR_ADGun_FlameDoused", "VR_ADGun_FlameScorch"}  # (the pyro's flames: water, scorch)
 _STAMP = "\tself.vr_melee_time = time; // QVR: kept out of the player's head meanwhile (vr_enemy_melee_space)\n"
 _STEP = " // QVR: (VR_MeleeSpace_Step: fight.qc)"
 _FACE = "VR_MeleeArc_TurnBegin(); %s VR_MeleeArc_TurnEnd(); // AD support: melee arc: the swing's turn held (fight.qc)"
@@ -386,6 +387,18 @@ PATCHES += [
      "\t\tself.velocity = self.velocity - (self.movedir * 0.125);\n\t\tself.nextthink = time + 0.1;\n"
      "\t\tVR_ADGun_StreamFx(self, self.owner.classtype != CT_MONPYRO); // Quake VR: our fire with it "
      "(vr_ad_enemyguns.qc)\n", 1, Q + ": the pyro's flames look like the player's"),
+    ("mon_pyro.qc", "\tself.cnt = self.cnt + 1;\n\tif (self.cnt > 6) remove(self);\n",
+     "\t// Quake VR: into water, out at the surface in a puff of steam (vr_ad_enemyguns.qc: as the player's flames)\n"
+     "\tif (VR_ADGun_FlameDoused(self, 0.1)) { remove(self); return; }\n"
+     "\tself.cnt = self.cnt + 1;\n\tif (self.cnt > 6) remove(self);\n", 1,
+     Q + ": the pyro's flames go out in water"),
+]
+FUNC_PATCHES += [
+    ("mon_pyro.qc", "pyroflame_touch", "\tif (other.solid == SOLID_TRIGGER) return;\n",
+     "\tif (other.solid == SOLID_TRIGGER) return;\n"
+     "\t// Quake VR: spent on a wall or the floor, a scorch where it struck, once (vr_ad_enemyguns.qc: as the player's)\n"
+     "\tif (other == world || other.solid == SOLID_BSP) VR_ADGun_FlameScorch(self);\n",
+     Q + ": the pyro's flames scorch where they strike"),
 ]
 # Every projectile's hit through one path (weapons.qc VR_Proj_Begin/End: pushes, where it struck, a corpse's wear,
 # pops) and the small ones marked to meet corpses, gibs, knocked-down bodies (VR_Proj_Mark).

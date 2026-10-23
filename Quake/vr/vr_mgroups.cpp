@@ -283,7 +283,7 @@ void list_f()
 
 // The classes that struggle in a player's hands, each its own (STRUGGLE.md, "Classes"; vr_struggle_classes's last
 // default, configVersion 183): strength, speed, full health (0: always full effort), arm drive. A member of a struggling
-// group missing here does not struggle (no rig tuned for it). Zombies since configVersion 175; mummies, AD's zombie
+// group missing here struggles with its group's base profile (struggleBases, since 2026-10-23), a few left out. Zombies since configVersion 175; mummies, AD's zombie
 // knight, deflector, death lord and Quoth's death guard since 181; AD's Dark Prince since 183. Arms: an enforcer's
 // forearms (his gun hands, 5 kg) hang on 1-2 kg upper arms and a zombie's whole arm is 2.4 kg, and a Box3D joint's spring
 // acts on its two bodies' own inertia: their hands lagged their goals.
@@ -312,6 +312,24 @@ constexpr StruggleProfile struggleProfiles[] = {
     {"monster_death_guard", 1.2f, 1.f, 125.f, 1.f},
     {"monster_dprince", 1.3f, 1.f, 400.f, 1.f},
 };
+// A struggling group's base profile: the one its members without a profile of their own struggle with (the author,
+// 2026-10-23: the minotaur, golem, drole and justice knight as the Dark Prince; AD's point knight, Dawn of the Machine's
+// ranged knight and Quoth's death knight as a death knight; Dawn of the Machine's infected as the class they look like;
+// Honey's soldier as a grunt). Groups not here (ogres, fiends...) have no humanoid rig to struggle with.
+struct StruggleBase
+{
+    int group;
+    const char* classname;
+};
+constexpr StruggleBase struggleBases[] = {
+    {armyGroup, "monster_army"}, {enforcerGroup, "monster_enforcer"}, {knightGroup, "monster_knight"},
+    {hknightGroup, "monster_hell_knight"}, {minibossGroup, "monster_dprince"},
+    {zombieGroup, "monster_zombie"}, {mummyGroup, "monster_mummy"}, {eliteknightGroup, "monster_dsergeant"},
+};
+// Members of a struggling group left without a struggle: AD's centurion (on its hover board, a flyer), the death knight
+// ghost (AD's: no body to hold), Dawn of the Machine's Shub zombie (rising from the floor, scripted).
+constexpr const char* struggleLeftOut[] = {"monster_centurion", "monster_dknightghost", "monster_szombie"};
+
 // The menu's lists of each group's profiles (struggleProfilesText), made once.
 char struggleText[groupCount][512];
 bool struggleTextMade = false;
@@ -546,10 +564,34 @@ const StruggleProfile* struggleProfile(const char* classname)
     return nullptr;
 }
 
+// The profile a class struggles with: its own, else its group's base (struggleBases) unless it is left out.
+const StruggleProfile* struggleProfileOrBase(const char* classname, int g)
+{
+    if(const StruggleProfile* own = struggleProfile(classname))
+    {
+        return own;
+    }
+    for(const char* c : struggleLeftOut)
+    {
+        if(classname && std::strcmp(c, classname) == 0)
+        {
+            return nullptr;
+        }
+    }
+    for(const StruggleBase& b : struggleBases)
+    {
+        if(b.group == g && classname)
+        {
+            return struggleProfile(b.classname);
+        }
+    }
+    return nullptr;
+}
+
 bool struggleOfClass(const char* classname, StruggleProfile& out)
 {
-    const StruggleProfile* p = struggleProfile(classname);
     const int g = groupOfClass(classname);
+    const StruggleProfile* p = struggleProfileOrBase(classname, g);
     if(!p || setting(g, Param::Struggle).value == 0.f)
     {
         return false;
@@ -590,6 +632,13 @@ const char* struggleProfilesText(int g)
                     break;
                 }
                 used += static_cast<size_t>(n);
+            }
+            for(const StruggleBase& b : struggleBases)
+            {
+                if(b.group == k && used)
+                {
+                    std::snprintf(out + used, sizeof(struggleText[k]) - used, "; the rest as %s", b.classname + 8);
+                }
             }
         }
     }

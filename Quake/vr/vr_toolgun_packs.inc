@@ -165,5 +165,11 @@ QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Hunter Ogre's Mace", "monster
 // at the end so the entries' numbers stay (the Weapons tab's AD group; QC's dispenser choice 346, vr_ad_monsters.qc).
     {"Weapons", "AD Death Sergeant's Flail", "func_weapon_grabbable", "progs/w_blueflail.mdl#melee", 8.f, "weapon", 13.f, 0,
         false, true, false, 346, false, 0, nullptr, nullptr, 0, 2816.f},
+// Armed grunts holding the monster swords (117..120: kinds 7..10; the Phantom Swordsman's with Rogue's data, the others
+// with AD's; not the flail: its head swings only in a player's hand), at the end so the entries' numbers stay.
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Phantom Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 117.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Dark Prince's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 118.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Justice Knight's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 119.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Judicator's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 120.f, 0, 0, nullptr, 0)
 
 #undef QVR_PACK

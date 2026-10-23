@@ -17744,6 +17744,49 @@ In VR: pull a grunt (and a death knight) down by the shins, then keep holding an
 back, arms clawing; with one hand too. Run from it, or drag it against a step: the hold lets go. Combat > Holding Enemies
 > Leg Grabs > Pull Drag Strength sets how hard (1.5).
 
+## Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords (worktree `tghost`, branch `agent/dec1023`, 2026-10-23; vr_cfg_version 191)
+
+The author's decisions of 2026-10-23.
+
+- **Shoulder charge defaults** (his config): `vr_kdtrig_tackle_leniency` 0.2 -> 0.4, `vr_kdtrig_tackle_stand` 0.8 ->
+  0.75. configVersion 191 moves a config still at the old values.
+  Checked: `vr_migrate_config` from 190 at 0.2/0.8 (to 191) gives 0.4/0.75; a custom 0.3 stays. eval.sh: 169/177 (as before),
+  shoulder charge caught 22/22, false 0/15.
+- **Humanoids without a profile struggle** (vr_mgroups.cpp `struggleBases`): a member of a struggling group with no
+  profile of its own struggles with its group's base profile: Grunts as id's grunt (Honey's soldier; Dawn of the
+  Machine's infected already spawn with the stock classnames), Enforcers as the enforcer, Knights as the knight, Death
+  Knights as the death knight (AD's point knight, Dawn of the Machine's ranged knight, Quoth's death knight), Mini
+  Bosses as the Dark Prince (the minotaur, stone golem, drole, justice knight/baron), Elite Knights as the death
+  sergeant, Zombies and Mummies as theirs. Left out (`struggleLeftOut`): the centurion (hover board), the death knight
+  ghost, the Shub zombie. The group page's profile list ends "; the rest as <base>". `vr_mgroup_list` shows each
+  class's struggle. struggle_test.py (new entries ad_minotaur, ad_golem, ad_drole, ad_justice, mg3_infected,
+  mg3_rknight; `STRUGGLE_SPAWN_DIST` for the big ones: at 36 units AD's minotaur spawned into the player and was
+  telefragged): headdrag at 80 units, all four mini bosses struggle (Pry leads, as the Dark Prince and death knight);
+  they are too heavy to be dragged far (pelvis 4-41% of the walk; the Dark Prince 23%, as before); the drole's hold
+  let go. lift: the justice knight and ranged knight pass (Swat leads), the death knight and Dark Prince unchanged;
+  the ranged knight's legpull passes (dragged 83%). No error or blow-up in any log. (The AD drag cases at 36 units
+  fail for every AD class, the old ones too: they spawn into the walked-forward player.)
+- **AD's pyro's flames go out in water and scorch** (vr_ad_enemyguns.qc `VR_ADGun_FlameDoused`,
+  `VR_ADGun_FlameScorch`, shared with the player's flamethrower; ad_import.py patches on AD's `pyroflame_think` and
+  `pyroflame_touch`): into water or slime they go out at the surface in the steam puff with the hiss
+  (`vr_burn_water_douse`); spent on the world they leave the scorch and fire tongue (`vr_adgun_fx_scorch`), once a
+  flame (AD's slide along a wall). A pyro on vrtesthall's pool edge flaming the player on the first step: 66 flames put
+  out at z -7.9 (the surface -8); on the floor: 31 flames, 31 scorches. `vr_debug_shots 1` prints both.
+- **Armed grunts' monster swords**: the pool's AD melee part adds the Phantom Swordsman's sword (with Rogue's data),
+  the Dark Prince's, the justice knight's and the judicator's (weapon codes 117..120; `vr_agrunt_w_phantom`,
+  `_dprince`, `_justice` 0.15, `_judge` 0.1; Armed Grunts page sliders; toolgun entries appended after the flail).
+  Not the death sergeant's flail: its spiked head on its chain is a physics body only for a player's hand
+  (vr_box3d_flail.cpp, drawn by vr_flail.cpp), so a grunt would swing a bare handle and strike with it. `vr_agrunt_test
+  134..137` (test 12 runs them too now): each PASS (3-4 blows, 32-48 damage).
+- **Backlog** (BACKLOG.md, "His decisions, 2026-10-23"): armed pyro/fumigator grunts' tanks and hoses, close two-hand
+  crate grips pulling a hand in, the magnetic holster chain stretching on fast swings, the judicator's sword glow (AD
+  draws it as an attachment sprite, progs/s_judgemagic.spr, with particles and muzzle-flash lights: not the skin).
+
+In VR: shoulder charge as usual (a little more lenient, standing a little lower). Knock down and hold a minotaur, a
+stone golem, a drole, a justice knight (AD) and a point knight: they fight back. Let a pyro flame you while you stand in
+shallow water: steam and hiss at the surface, no flames under it; burnt marks on the floor round you. Spawn the four new
+armed grunts from the toolgun (Monsters > Armed Grunts, the last four) and look at how each holds its sword.
+
 ## Parallax depth write's cost (worktree `goreflesh`, branch `agent/pdepth`, 2026-10-23)
 
 Why: "Graphics presets" measured `vr_parallax_depth_write` at about 2 ms of a 4.3 ms eye frame (AD fight).

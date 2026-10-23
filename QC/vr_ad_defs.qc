@@ -157,6 +157,8 @@ void(entity pellet) VR_AD_PelletLaunch;
 float(entity shooter, float speed) VR_AD_PelletSpeed;
 void(entity missile) VR_AD_Ordnance;
 void(entity flame, float poison) VR_ADGun_StreamFx;        // a flamethrower's flame (a pyro's, a fumigator's): our fire too
+float(entity flame, float xStep) VR_ADGun_FlameDoused;     // ... into water: out at the surface (TRUE: remove it)
+void(entity flame) VR_ADGun_FlameScorch;                   // ... spent on a wall or the floor: its scorch, once
 void(entity t, float xAlive, vector xAt, vector xDir) VR_ADGun_BoltShock; // a plasma rifle's bolt's hit: electrocuted
 float(entity bolt) VR_ADGun_IsElectric;                   // a plasma rifle's bolt (the soldiers', eliminators', centurions')
 float(entity xInflictor, float xDamage) VR_ADGun_BlastPush; // the damage AD's blast throws props and ragdolls with (plasma: more)

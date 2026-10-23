@@ -60,6 +60,11 @@ HUMANOIDS = [
     ("ad_hell_knight", "monster_hell_knight", 250, True, "vrfiringrange"), ("ad_knight", "monster_knight", 261, True, "start"),
     ("ad_death_lord", "monster_death_lord", 259, True, "start"), ("ad_death_guard", "monster_death_guard", 258, True, "start"),
     ("ad_dprince", "monster_dprince", 256, True, "vrfiringrange"),
+    # (Struggling with their group's base profile since 2026-10-23: vr_mgroups.cpp struggleBases.)
+    ("ad_minotaur", "monster_minotaur", 215, True, "vrfiringrange"), ("ad_golem", "monster_golem", 222, True, "vrfiringrange"),
+    ("ad_drole", "monster_drole", 226, True, "vrfiringrange"), ("ad_justice", "monster_justice", 231, True, "vrfiringrange"),
+    ("mg3_infected", "monster_army", 30, False, "vrfiringrange"),  # (spawned with the stock grunt's classname)
+    ("mg3_rknight", "monster_ranged_knight", 36, False, "vrfiringrange"),
 ]
 
 
@@ -101,7 +106,8 @@ def pre(case=""):
     # (AD's start map: the player settles on its floor a while after the load; spawned sooner, it fell off a ledge.)
     return (f"sv_random_seed 7;{camp}map {MAP};wait{150 if MAP == 'start' else 30};god;notarget;{setpos}developer 1;{'vr_ad_everywhere 1;' if AD else ''}"
             "vr_foegrab_debug 1;vr_foegrab_leniency 12;vr_knockdown_debug 1;vr_struggle_debug 2;vr_foegrab_lift_time 9;"
-            f"vr_test_spawn {SPAWN};vr_test_spawn_dist 36;cl_backspeed 30;impulse 241;wait40")
+            f"vr_test_spawn {SPAWN};vr_test_spawn_dist {os.environ.get('STRUGGLE_SPAWN_DIST', '36')};cl_backspeed 30;"
+            "impulse 241;wait40")  # (a bigger one, AD's minotaur: STRUGGLE_SPAWN_DIST 72, or it spawns into you: telefragged)
 
 
 def down(dist=24):
