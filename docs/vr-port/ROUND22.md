@@ -17097,3 +17097,47 @@ Not looked into (time): see the report.
 Hit crates and barrels with the fist, crowbar, axe and sword: as many blows as before the press fix. Press a crate down:
 still no sinking. Vanilla: walk over ammo, health, armour and a key: taken; take a round from the ammo pouch: it stays
 in the hand; carry a crate.
+
+## Dying against a wall: the hand to it, a slide down it (worktree `goreflesh`, branch `agent/walldeath`, 2026-10-23)
+
+Voice note (vrtesthall 01-44-55): grunts shot with a shotgun next to a wall never reach for it or slow their fall; they
+flop. What the lean (ROUND22 "Active ragdolls: environment", `vr_ragdoll_active_env_lean`) needs, in plain words: a
+body-shot death (not a headshot: half the pellets that hit in the head, nor a beheading) of a monster with an active
+death; within its first second, still up (chest an arm's length over the floor, pelvis not far over it); a near-vertical
+wall within about 1.5 arm lengths of its chest (or one its fall carries it into); a 10% chance of no hand.
+
+- **Why it didn't show** (`scratch/wall_test.py`: real shotgun and super shotgun kills by vrtesthall's south wall,
+  grunts 8 to 64 units off it, the player 50 or 90 units away; awake grunts shot twice, or still ones once):
+  - The lean was found in nearly every body-shot kill, but the hand reached the wall at 0.3 to 0.5 s, when the grunt
+    was already down (pelvis 30 -> 19 units in 0.5 s); only about half the hands held at all (shotgun: 12 of 22 still,
+    7 of 16 awake), and the hold (0.42 body weights) never slowed the fall: nothing looked like a slide.
+  - A wall behind him: the hand went straight back to the nearest point behind his shoulder, hidden by his body.
+  - The super shotgun's kill push slams him up against the wall (pelvis 50 units up, his chest sometimes inside the
+    wall's brush): "not upright" (pelvis too high), and the chest's probe rays start inside the wall and meet nothing:
+    no lean in about half of those kills (11 of 24).
+- **Fix** (`vr_ragactive.cpp`):
+  - **The slide** (new `vr_ragdoll_active_env_slide`, 0.6 body weights; the "Wall Slide" slider under "Lean on
+    Walls"): while his chest is against the wall he leans on (within 0.7 arm lengths of it), his pelvis's and chest's
+    sinking is held to 0.5 m/s by at most that much of his weight, fading over 1.8 s: he slides down it into a slump.
+  - The hand grabs the wall sooner (within 0.35 arm lengths of its goal, or 0.3 off the wall; retargeted to the
+    wall from where it is after 0.15 s, was 0.3), the hold slapping it on.
+  - His back to the wall: the palm goes out beside him and lower (0.6 arm lengths to his side, 0.25 down), where it
+    is seen; sometimes (60%) both hands, when neither is on a wound. No-hand chance 20% -> 10%.
+  - Slammed up off the floor he stood on (same floor under him as at the start): still "up" with the pelvis up to 2.6
+    arm lengths over it, and the fall's ray leans on a wall he is thrown across into (not one he falls down past: a
+    ledge's floor is another floor, so the ledge cases are unchanged). The round probe also casts from the pelvis when
+    the chest's ray meets nothing (a chest inside the wall).
+  - Blown away from the wall (moving off it faster than 2.5 m/s as the lean starts): no lean ("ragenv: N no lean:
+    blown away from the wall"). Never fired in the tallies (the kill pushes him towards it there).
+- **Checked** (body-shot kills that braced a hand on the wall and held, of kills; every one of them leaned and slid):
+  shotgun, still grunts 38 of 43; shotgun, awake grunts 19 of 22 (plus a headshot and one killed 154 units off the
+  wall: nothing, as it should); super shotgun, awake grunts 37 of 42. The rest: the no-hand roll (5) or a hand that
+  didn't get there (8). Pelvis heights now e.g. 30 24 22 22 22 15 at 0/0.25/0.5/0.75/1/1.5 s (slumped against the wall),
+  the super shotgun's 49 41 26 28 28 17. Eyeshots: `scratch/eyes_c1.png` (shotgun, the arm out to the wall, debug
+  lines), `scratch/eyes_final_ssg.png` (super shotgun). env_test.sh wall/along/ledge/thrown/crate/open: as before (the
+  ledge grabs and hangs, the open case nothing). eval.sh: the same 169/177 passes as the baseline (3 takes differ by
+  0.1 unit in their offsets, verdicts unchanged).
+
+**In VR:** shoot grunts (shotgun and super shotgun, body shots) standing a step or two in front of a wall: most should
+throw a hand out to the wall beside them and slide down it into a slump, the super shotgun's slamming them into it
+first. Shoot one standing away from walls, and one with a headshot: no change. Wall Slide 0 gives back the drop.

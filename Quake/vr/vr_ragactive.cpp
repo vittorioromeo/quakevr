@@ -1841,6 +1841,12 @@ constexpr float catchGive = 0.35f;  // s: a landed hand's push gives over this
 constexpr float leanWithin = 1.f;   // s from his death: a wall found later is no lean (he is down)
 constexpr float leanPull = 1.5f;    // s: the pelvis drawn to the wall he leans on, fading over this
 constexpr float leanSlide = 0.45f;  // m/s: a lean's hold slides down at most this fast
+constexpr float slideTime = 1.8f;   // s: his body's slide down the wall he leans on (vr_ragdoll_active_env_slide) fades over this
+constexpr float slideSpeed = 0.5f;  // m/s: his pelvis and chest sink down it at most this fast (while it holds)
+constexpr float slideGive = 0.08f;  // s: the slide's brake takes up a faster sinking over about this
+constexpr float slideNear = 0.7f;   // (of its arm's length) his chest this near the wall's plane: against it (he slides)
+constexpr float leanAway = 2.5f;    // m/s: blown away from the wall faster than this as he dies: no lean (slower: a body
+                                    // slammed into it bouncing off, or pushed out of it, still leans)
 constexpr float slipTime = 0.25f;   // s: a hold at its most this long slips off
 constexpr float reachTime = 1.f;    // s: a hand not on its surface by then gives up
 constexpr float handOff = 1.5f;     // units: a hand's goal off its surface (its thickness)
@@ -2117,6 +2123,16 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
     Env& e = s.env;
     const Death& d = s.death;
     e.leaned = true;
+    // Blown away from it (the kill's push): no lean (he would hang back towards a wall going away from him).
+    const float away = glm::dot(glmv(b3Body_GetLinearVelocity(p.body[0])), levelDir(r.n));
+    if(away > leanAway)
+    {
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragenv: %d no lean: blown away from the wall at %.1f m/s\n", c.num, away);
+        }
+        return;
+    }
     e.lean = !r.loose; // (a prop: braced on, not drawn to)
     e.leanFrom = c.now;
     e.wallAt = r.at;
@@ -2131,16 +2147,26 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
     {
         arm = 1 - arm;
     }
-    const bool hand = roll(e.seed, 21u) >= 0.2f && limbWhole(s, p, arm) && arm != d.woundArm;
-    if(hand)
+    const bool hand = roll(e.seed, 21u) >= 0.1f && limbWhole(s, p, arm) && arm != d.woundArm;
+    // His back to it (behind him, or thrown back into it): often both hands go to it, one each side.
+    const int other = 1 - arm;
+    const bool both = hand && (which == 0 || which == 3) && !r.loose && roll(e.seed, 23u) < 0.6f && limbWhole(s, p, other) &&
+                      other != d.woundArm && B3_IS_NULL(e.hand[static_cast<za::SizeT>(other)].joint) &&
+                      (e.hand[static_cast<za::SizeT>(other)].mode == Grip::None || e.hand[static_cast<za::SizeT>(other)].mode == Grip::Curl);
+    for(int k = 0; k < (both ? 2 : hand ? 1 : 0); k++)
     {
-        EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
-        const glm::vec3 shoulder = shoulderOf(s, p, arm);
+        const int a = k == 0 ? arm : other;
+        EnvHand& h = e.hand[static_cast<za::SizeT>(a)];
+        const glm::vec3 shoulder = shoulderOf(s, p, a);
         glm::vec3 sideDir = shoulder - glmv(b3Body_GetWorldCenter(p.body[chestOf(p)]));
         sideDir -= r.n * glm::dot(sideDir, r.n);
         sideDir = glm::length(sideDir) > 1e-4f ? glm::normalize(sideDir) : glm::vec3{0.f};
         h.mode = r.loose ? Grip::Brace : Grip::Lean;
-        h.goal = surfaceGoal(p, shoulder, r.at, r.n, glm::vec3{0.f, 0.f, -0.05f * L}, sideDir * (0.3f * L), 0.95f * L);
+        // (His back to it: the palm out to his side and lower, beside him on the wall, where it is seen; else at the
+        // shoulder's height, a little to its side.)
+        const bool back = which == 0 || which == 3;
+        h.goal = surfaceGoal(p, shoulder, r.at, r.n, glm::vec3{0.f, 0.f, (back ? -0.25f : -0.05f) * L},
+            sideDir * ((back ? 0.6f : 0.3f) * L), 0.95f * L);
         h.normal = r.n;
         h.on = r.body;
         h.since = c.now;
@@ -2155,7 +2181,7 @@ void startLean(State& s, const Parts& p, const Context& c, const EnvRay& r, int 
                           r.at.z * p.m2u)
                     : "the wall",
             which == 0 ? "behind him" : which <= 2 ? "beside him" : which == 3 ? "he falls into" : "in front of him",
-            r.dist * p.m2u, hand ? va("the %s hand on it", armName(arm)) : "no hand");
+            r.dist * p.m2u, both ? "both hands on it" : hand ? va("the %s hand on it", armName(arm)) : "no hand");
     }
 }
 
@@ -2279,13 +2305,14 @@ void keepHold(State& s, const Parts& p, const Context& c, int arm, float L)
         // it is.
         const float off = glm::dot(hand - h.goal, h.normal);
         const glm::vec3 along = (hand - h.goal) - h.normal * off;
-        if(!ledge && c.now - h.since > 0.3)
+        if(!ledge && c.now - h.since > 0.15)
         {
             h.goal = hand - h.normal * off;
         }
-        // (A ledge's lip falling past: grabbed farther off the faster it goes, a quarter of an arm per m/s, its hold pulling the hand in.)
-        const float within = ledge ? za::clamp(0.25f * glm::length(glmv(b3Body_GetLinearVelocity(p.body[0]))), 0.25f, 1.f) : 0.25f;
-        if(glm::length(hand - h.goal) < within * L || (off < 0.2f * L && glm::length(along) < 0.5f * L))
+        // (A ledge's lip falling past: grabbed farther off the faster it goes, a quarter of an arm per m/s, its hold pulling the hand in.
+        // A wall's: a little farther off than it was, the hold slapping the hand onto it; he is falling meanwhile.)
+        const float within = ledge ? za::clamp(0.25f * glm::length(glmv(b3Body_GetLinearVelocity(p.body[0]))), 0.25f, 1.f) : 0.35f;
+        if(glm::length(hand - h.goal) < within * L || (off < 0.3f * L && glm::length(along) < 0.6f * L))
         {
             const glm::vec3 at = hand - h.normal * off; // (on the goal's plane: already handOff off the surface)
             if(!ledge)
@@ -2989,6 +3016,7 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     if(!e.started)
     {
         e.started = true;
+        e.floorSet = false;
         e.on = vr_ragdoll_active_env.value != 0.f && d.on && !d.collapse && armLength(s, p) > 0.f;
         e.seed = hash(static_cast<uint32_t>(c.num), static_cast<uint32_t>(s.begun * 72.0)) ^
                  static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 2246822519u;
@@ -3110,8 +3138,32 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             pushPart(p, 0, to * f);
         }
     }
+    // The slide: his back (or side) against the wall, his fall slowed to a slide down it (its friction and his legs as
+    // they give): his pelvis's and chest's sinking held to slideSpeed by at most vr_ragdoll_active_env_slide body
+    // weights, fading. (Not once he has toppled off it: his chest away from the wall.)
+    const float slideMost = za::max(vr_ragdoll_active_env_slide.value, 0.f);
+    if(e.lean && !done && slideMost > 0.f && c.now - e.leanFrom < slideTime &&
+        glm::dot(chestAt - e.wallAt, e.wallN) < slideNear * L)
+    {
+        const float fade = 1.f - smooth01(static_cast<float>(c.now - e.leanFrom) / slideTime);
+        const float cap = slideMost * s.totalMass * c.gravity * fade / za::max(m0 + mc, 1e-3f);
+        for(const int b : {0, chest})
+        {
+            const float vz = b3Body_GetLinearVelocity(p.body[b]).z;
+            const float m = b3Body_GetMass(p.body[b]);
+            if(vz < -slideSpeed)
+            {
+                pushPart(p, b, up * za::min(m * (-slideSpeed - vz) / slideGive, cap * m));
+            }
+        }
+    }
     // The floor under his pelvis (one query a frame: the sense's and the tumble's below).
     const float under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
+    if(!e.floorSet && under > -1e29f)
+    {
+        e.floorSet = true;
+        e.floorAt = under;
+    }
     // Sense: every few frames.
     if((brace || lean || ledge || grab) && e.frame % envEvery == 1)
     {
@@ -3119,8 +3171,10 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         const bool holding = B3_IS_NON_NULL(e.hand[0].joint) || B3_IS_NON_NULL(e.hand[1].joint);
         const bool reaching = e.hand[0].mode == Grip::Catch || e.hand[1].mode == Grip::Catch;
         // (Still up, for a lean: his chest an arm's length over the floor at least, his pelvis not far over it: on his
-        // feet, not falling past a wall.)
-        const bool upright = chestAt.z - under > 0.9f * L && pelvis.z - under < 1.6f * L;
+        // feet, not falling past a wall. Or thrown up off the floor he stood on by the kill (a super shotgun's blast
+        // slams him up against the wall): higher, over that same floor.)
+        const bool sameFloor = e.floorSet && za::abs(under - e.floorAt) < 0.5f * L;
+        const bool upright = chestAt.z - under > 0.9f * L && (pelvis.z - under < 1.6f * L || (sameFloor && pelvis.z - under < 2.6f * L));
         // Another monster near a hand as he falls (the first second of his death): he grabs at it.
         if(grab && speed > 0.8f && !holding && !reaching && t < 1.2f && findGrab(s, p, c, chestAt, v, L))
         {
@@ -3142,7 +3196,9 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
                 {
                     startCatch(s, p, c, r, v, chestAt, left, L, speed); // (ahead of him or beside)
                 }
-                else if(wall && lean && upright && !e.leaned && t < leanWithin)
+                // (Thrown into it by the kill, his pelvis maybe off the floor: not falling down past it but across to it.)
+                else if(wall && lean && (upright || (sameFloor && chestAt.z - under > 0.9f * L && v.z > -0.6f * speed)) && !e.leaned &&
+                        t < leanWithin)
                 {
                     startLean(s, p, c, r, 3, L, t); // (falling back into it)
                 }
@@ -3159,7 +3215,13 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             // (From a little inside his body: his back against the wall, the chest's middle may be past its face.)
             const float in = 0.3f * L;
             const float len = 1.5f * L + in; // (the shoulder is beside the chest: an arm reaches that far from its middle)
-            const EnvRay r = envCast(e, p, c, chestAt - dir * in, dir * len);
+            EnvRay r = envCast(e, p, c, chestAt - dir * in, dir * len);
+            if(!r.hit)
+            {
+                // (Slammed into it by the kill, his chest may start inside the wall, where a ray meets nothing: from
+                // his pelvis too.)
+                r = envCast(e, p, c, pelvis - dir * in, dir * len);
+            }
             if(r.hit && za::abs(r.n.z) < 0.5f && glm::dot(r.n, -dir) > 0.5f)
             {
                 const float side = glm::dot(dir, levelDir(left));
