@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Death Sergeant's flail: kill a Death Sergeant (corpse holds no flail), take its flail: lazy waves barely hurt, full swings and whirls land hard; slam it into floor and walls (no tunnelling, chain rattle); two hands hit harder; bullet time still works (a bit weaker); tune grip in Weapon Offsets slot 51 (hand pose open round the short handle); AD Weapons > Death Sergeant's Flail sliders
 Graphics Presets (VR Settings > Sight > Graphics Presets): Now: line shows your state; pick Low, Medium, Ultra: the look changes, then My Settings brings back exactly your own; change one setting: Now shows Custom; Medium's parallax without depth acceptable where things meet carved walls? Ultra visibly better than High?
 Struggle per monster group (Combat > Monster Groups > a group > Struggle; Holding Enemies > Struggle > Each Monster Group): turn Struggle off for Grunts and lift a knocked-down one: no struggle; Struggle Strength 2: much harder; other groups unchanged
 Shadow atlas grows only when you can't feel it (menu, pause, death): in a big fight with many lights no shadow hitch; afterwards open the menu with Shadow Statistics on (vr_shadow_stats 1) to see squeezed frames and growth
