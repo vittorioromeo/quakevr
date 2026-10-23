@@ -430,8 +430,14 @@ float(float xHand) VR_Chainsaw_Cut =
         // At the neck: a corpse beheaded instead of cut, a live one beheaded if the tick kills it (a zombie: whatever)
         // (vr_decap.qc).
         float decap = VR_Decap_Saw(e, xHand, at);
+        // An armed monster's chain on a player (vr_armedgrunt_pose.qc VR_AGP_Saw): parried as its other blows are
+        // (T_Damage_VRMelee's VR_Parry; each tick a blow: a parried one then its cooldown, its stagger ends the cut).
+        if(self.vr_ag && (self.flags & FL_MONSTER) && (e.flags & FL_CLIENT) && decap != 2)
+        {
+            hurt = VR_Parry(e, self, self, hurt);
+        }
         vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
-        float cut = decap == 2 ? TRUE : T_DamageImpl(e, self, self, hurt, 1);
+        float cut = decap == 2 ? TRUE : hurt > 0 ? T_DamageImpl(e, self, self, hurt, 1) : FALSE;
         vr_grenshot_saw = FALSE;
         if(decap == 1)
         {
