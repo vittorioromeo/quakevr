@@ -981,7 +981,7 @@ bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float
     return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head, torso);
 }
 
-float ragdollHoldForce(edict_t* player, int hand, float force)
+float ragdollHoldForce(edict_t* player, int hand, float force, float hertz)
 {
     const int index = world && player ? grabIndex(NUM_FOR_EDICT(player), hand) : -1;
     World::RagdollGrab* g = index >= 0 ? &world->ragdollGrabs[static_cast<za::SizeT>(index)] : nullptr;
@@ -992,6 +992,12 @@ float ragdollHoldForce(edict_t* player, int hand, float force)
     if(force >= 0.f)
     {
         g->force = force; // (syncRagdollGrabs sets the joint's)
+    }
+    if(hertz > 0.f && hertz != g->hertz && B3_IS_NON_NULL(g->joint) && b3Joint_IsValid(g->joint))
+    {
+        g->hertz = hertz; // (its turn half that: startHold's)
+        b3MotorJoint_SetLinearHertz(g->joint, hertz);
+        b3MotorJoint_SetAngularHertz(g->joint, hertz * 0.5f);
     }
     return g->force;
 }

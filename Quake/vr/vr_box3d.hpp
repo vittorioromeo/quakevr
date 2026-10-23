@@ -382,9 +382,10 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // units more than the arm's (else that arm: lifted by it, it hung slack and could not flail).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
     bool head = false, bool torso = false);
-// That soft hold's most force (N), changed to `force` unless it is < 0 (the leg pull's: firmed up once it lies, to drag
-// it); -1 if the hand has no soft hold (none, or the usual hold of a hand taking a limb: vr_ragdoll_grab_force's).
-float ragdollHoldForce(edict_t* player, int hand, float force = -1.f);
+// That soft hold's most force (N), changed to `force` unless it is < 0, and its spring's rate to `hertz` (Hz) unless it
+// is <= 0 (the leg pull's: firmed up once it lies, to drag it); -1 if the hand has no soft hold (none, or the usual hold
+// of a hand taking a limb: vr_ragdoll_grab_force's).
+float ragdollHoldForce(edict_t* player, int hand, float force = -1.f, float hertz = 0.f);
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);

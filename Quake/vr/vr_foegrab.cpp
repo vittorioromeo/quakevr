@@ -816,9 +816,12 @@ void breakFree(int c, edict_t* m)
 // half a second) the holds firm up over legDragRamp until the hands drag it with Pull Drag Strength of its weight
 // (vr_foegrab_legpull_drag_strength) in all, shared by the hands still holding it (one hand alone drags it as two do;
 // a grip taken again is the usual one's, left alone). Still let go of when stretched too far (softStuck: run from it,
-// or it caught on a step).
+// or it caught on a step). Its spring stiffens too (Held On Spring, 4 Hz, to legDragHertz): a spring's rate is the held
+// part's own, and a death knight's foot of a few kilograms at 4 Hz pulled its 3300 N far under the most force before
+// the hold let go (at 12 Hz two hands dragged it).
 constexpr double legDragDelay = 0.5; // s
 constexpr double legDragRamp = 0.5;  // s
+constexpr float legDragHertz = 20.f; // Hz
 void legDragStep(int c, edict_t* m)
 {
     Holder& hd = holders[c];
@@ -844,11 +847,13 @@ void legDragStep(int c, edict_t* m)
     const float hold = za::clamp(vr_foegrab_legpull_hold_strength.value, 0.f, 10.f) * weight; // (a hand's, falling)
     const float drag = za::clamp(vr_foegrab_legpull_drag_strength.value, 0.f, 10.f) * weight / static_cast<float>(hands);
     const float force = hold + (drag - hold) * k;
+    const float hz0 = za::clamp(vr_foegrab_throw_hold_hertz.value, 0.5f, 30.f);
+    const float hertz = hz0 + (za::max(legDragHertz, hz0) - hz0) * k;
     for(int h = 0; h < 2; h++)
     {
         if(soft[h])
         {
-            (void)box3d::ragdollHoldForce(player, h, force);
+            (void)box3d::ragdollHoldForce(player, h, force, hertz);
         }
     }
     if(k >= 1.f && !hd.legDragFull && debug())

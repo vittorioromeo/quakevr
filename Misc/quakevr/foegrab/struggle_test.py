@@ -8,12 +8,13 @@ Each case is one game on vrfiringrange (batched: testbatch.py), a grunt 36 units
   legpull    both hands on its shins, pulled back (it falls), lowered and walked back: dragged by the legs on the
              floor; Claw leads and its free arms flail (their speed over the struggle off's)
   legpull1   as legpull with the main hand alone (the one-hand leg pull): dragged by one leg
-  legyank    as legpull, then run back from it (400 u/s): it can't keep up and the holds let go
+  legyank    as legpull, then lying, run back from it (400 u/s) and the hands thrown 2.5 m back: the holds
+             stretch past their let-go and let go
   legdrag    knocked down, you stop 44 units off, the main hand on its left shin, you walk back (dragged by the
              leg): Claw leads; it turns belly down
-The drags (legpull, legpull1, legyank, legdrag, headdrag) walk off vrfiringrange's start dais first (a body at its foot
-was pulled into its riser) and check the drag: its pelvis at least 0.6 of the walk (the viewpos lines), no hold let go
-(ROUND22.md "Dragging by the legs").
+The drags (legpull, legpull1, legyank, legdrag, headdrag) walk off vrfiringrange's start dais first (a body at its
+foot was pulled into its riser) and check the drag: its pelvis at least 0.6 of the walk (the viewpos lines), no hold
+let go (ROUND22.md "Dragging by the legs").
   headdrag   knocked down (vr_knockdown_test 0), the main hand on its ragdoll's head, you walk back: Pry leads, Brace too
   armdrag    knocked down, the main hand on its right forearm, you walk back: Pry leads, its free hand swats (Swat over
              0.4); its chest's uprightness (Stay Upright) reported
@@ -140,7 +141,7 @@ def lift_keys():
     return k + statuses(1.2, 4.2) + [(4.4, "cmd -grabmain"), (4.4, "cmd -graboff")]
 
 
-def leg_keys(way, walk=False, one=False):
+def leg_keys(way, walk=False, one=False, yank=0.0):
     side, back, shin = 0.17, 0.38, -21
     main, off = (side, -0.15, -back), (-side, 0.0, 0.0)
     k = [(0.0, f"cmd vr_mock_hand_to main nearest {CLASS} {shin}"),
@@ -155,6 +156,10 @@ def leg_keys(way, walk=False, one=False):
         k += at(1.4, dist) + at(1.7, dist, float(os.environ.get("LEGPULL_LOW", "0.2")))  # (the hands lowered to it lying)
         # (Where you stood as the walk began and ended: the hands' walk, against its pelvis's drag.)
         k += [(1.79, "cmd viewpos"), (1.8, "cmd +back"), (3.6, "cmd -back"), (3.65, "cmd viewpos")]
+    if yank:  # (lying, the hands thrown `yank` m further back at once and kept there, as a teleport would)
+        k += at(1.4, dist) + at(1.7, dist, 0.2) + at(2.2, dist, 0.2)
+        k += [(2.25, "rel %s %.3f %.3f %.3f" % (n, h[0], h[1] - 0.2, h[2] + dist + yank))
+              for n, h in (("main", main), ("off", off))]
     if one:  # (the main hand alone on its shin: the one-hand leg pull, vr_foegrab_legpull_onehand)
         k = [x for x in k if "graboff" not in x[1] and "vr_mock_hand_to off" not in x[1]]
     return k + statuses(1.2, 4.2) + [(4.4, "cmd -grabmain"), (4.4, "cmd -graboff")]
@@ -178,8 +183,10 @@ CASES = {
     "legdrag": (lambda: drag_keys("shin_l 0"), lambda: down(44)),
     "legpull": (lambda: leg_keys("back", walk=True), lambda: ""),
     "legpull1": (lambda: leg_keys("back", walk=True, one=True), lambda: ""),
-    # (Pulled down as legpull, then run back from it (400 u/s, Quake's run): it can't keep up, the holds let go.)
-    "legyank": (lambda: leg_keys("back", walk=True), lambda: "cl_backspeed 400"),
+    # (Pulled down as legpull, lying, run back from it and the hands thrown 2.5 m back: the holds stretch past their
+    # let-go and let go. Either alone drags it at Pull Drag Strength 1.5, held: the run (an enforcer came 186 of 231
+    # units) or the throw (the mock's hands reach only so far: 52-93 units, caught up in 0.3 s).)
+    "legyank": (lambda: leg_keys("back", walk=True, yank=2.5), lambda: "cl_backspeed 400"),
     "headdrag": (lambda: drag_keys("head 0"), down),
     "headlift": (lambda: drag_keys("head 0", lift=True), down),
     "armdrag": (lambda: drag_keys("6 0"), down),
@@ -272,9 +279,10 @@ def check_class(b, handles, entry):
         if name in DRAGS:
             walk, moved, letgo = drag(flat)
             if name == "legyank":
-                # (Run back from it: the holds stretch past their let-go and let go.)
+                # (The hands thrown far back: the holds stretch past their let-go and let go.)
                 verdict(letgo and not re.search(r"\b[Ee]rror|CRASH", flat),
-                        f"legyank: run back {walk:.0f} units, its pelvis {moved:.0f}: {'let go' if letgo else 'NOT let go'}")
+                        f"legyank: run back {walk:.0f} units, the hands thrown 2.5 m back, its pelvis {moved:.0f}: "
+                        f"{'let go' if letgo else 'NOT let go'}")
                 continue
             # (Dragged: its pelvis comes most of the way you walked, none let go. A lying legdrag hold not taken: below.)
             if holds:
@@ -301,7 +309,7 @@ def check_class(b, handles, entry):
         late = weights[len(weights) // 3:] if weights else []
         mean = {n: sum(w[n] for w in late) / len(late) for n in NAMES} if late else {}
         lead = max(mean, key=mean.get) if mean else "-"
-        if name == "legpull" and mean:  # (its arms' lead: Thrash, the torso's squirm, moves no arm)
+        if name in ("legpull", "legdrag") and mean:  # (its arms' lead: Thrash, the torso's squirm, moves no arm)
             lead = max(("swat", "pry", "crunch", "claw"), key=mean.get)
         ws = " ".join(f"{n} {mean[n]:.2f}" for n in NAMES) if mean else "no weights"
         pose = lambda hs, i: stats([x[i] for x in hs])  # noqa: E731
