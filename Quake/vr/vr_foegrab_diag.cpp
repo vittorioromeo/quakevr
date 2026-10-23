@@ -827,6 +827,49 @@ void legDebugDraw(const GrabDiag& g, const glm::vec3& eye)
 
 } // namespace foegrab::detail
 
+za::String qvr::foegrab::noteHand(int hand)
+{
+    if(!sv.active || svs.maxclients < 1 || hand < 0 || hand > 1)
+    {
+        return {};
+    }
+    const VmScope vm;
+    const Holder& holder = holders[0];
+    const Hold& g = holder.holds[hand];
+    za::String out;
+    if(g.active && g.ent > 0 && g.ent < qcvm->num_edicts)
+    {
+        edict_t* m = EDICT_NUM(g.ent);
+        const char* where = "";
+        const bool drags = oneHandDrags(0, hand, m, &where);
+        out = va("%s #%d by %s, hand's hold %.2f (held %.2f), stretch %.1f cm, %.1f s, health %.0f%s",
+            PR_GetString(m->v.classname), g.ent, where && where[0] ? where : "?", g.strength,
+            fieldFloatOr(m, fields().vr_foegrab_hold, 0.f), g.stretch / cm(), qcvm->time - g.since, m->v.health,
+            drags ? ", drags it" : "");
+    }
+    // The two-hand moves' state (the same for both hands: on the main hand's line, or the off's when only it holds).
+    if(hand == 1 || !holder.holds[1].active)
+    {
+        if(holder.twoHanded)
+        {
+            out += va("%sboth hands: hardest turn %.0f deg/s at %.2f m/s", out.empty() ? "" : "; ", holder.peakTwist,
+                holder.peakSpeed);
+        }
+        if(holder.neckEnt != 0)
+        {
+            out += va("%sneck twist: last %.0f deg, largest %.0f deg", out.empty() ? "" : "; ", holder.neckWinLast,
+                holder.neckWinPeak);
+        }
+        if(holder.carried != 0 && holder.carried < qcvm->num_edicts)
+        {
+            out += va("%scarrying %s #%d as a ragdoll for %.1f s%s%s%s", out.empty() ? "" : "; ",
+                PR_GetString(EDICT_NUM(holder.carried)->v.classname), holder.carried, qcvm->time - holder.carriedSince,
+                holder.lifted ? ", lifted" : "", holder.flailing ? ", flailing" : "", holder.snapped ? ", neck snapped" : "");
+        }
+    }
+    return out;
+}
+
 void qvr::foegrab::init()
 {
     Cmd_AddCommand("vr_foegrab_status", status_f);

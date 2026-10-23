@@ -8,6 +8,8 @@
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"
+#include "vr_motion.hpp"
+#include "vr_notectx.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
@@ -25,6 +27,8 @@
 #include "Zancle/String/StringView.hpp"
 
 #endif
+
+#include "Zancle/Math/MinMax.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -202,28 +206,94 @@ void saveFile(const za::String& path, const za::String& name, const za::String& 
     return index > 0 && index < MAX_MODELS && cl.model_precache[index] ? cl.model_precache[index]->name : "-";
 }
 
-// The moment's context, as the note starts.
-void writeContext(const za::String& path, const za::String& when)
+[[nodiscard]] bool writeText(const za::String& path, const za::String& text)
 {
-    FILE* f = fopen(path.cStr(), "w");
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
-        return;
+        return false;
     }
+    fputs(text.cStr(), f);
+    const bool ok = !ferror(f);
+    return fclose(f) == 0 && ok;
+}
+
+[[nodiscard]] za::String fileOf(const za::String& path)
+{
+    const za::SizeT slash = path.findLastOf("/\\");
+    return slash == za::StringView::nPos ? path : za::String{path.substrByPosLen(slash + 1)};
+}
+
+// The moment's context, as the note starts: <base>.txt (vr_notectx.hpp: the checklist, the hands, the monsters near, the
+// settings changed) and its sidecars, the instant replay (<base>_replay.csv, _entities.csv), the console's last lines
+// (_log.txt) and the frame times (_frames.csv). Gathered here, written on the pool.
+void saveContext(const za::String& base, const za::String& when)
+{
     const entity_t& player = cl_entities[cl.viewentity];
     const hands::State& s = hands::current();
-    fprintf(f, "time: %s\n", when.cStr());
-    fprintf(f, "map: %s (%s)\n", cl.mapname, cl.levelname);
-    fprintf(f, "game time: %.1f s\n", cl.time);
-    fprintf(f, "position: %.0f %.0f %.0f\n", player.origin[0], player.origin[1], player.origin[2]);
-    fprintf(f, "view: pitch %.0f yaw %.0f\n", s.headAngles.x, s.headAngles.y);
-    fprintf(f, "health: %d  armour: %d  ammo: %d\n", cl.stats[STAT_HEALTH], cl.stats[STAT_ARMOR], cl.stats[STAT_AMMO]);
-    fprintf(f, "main hand: weapon %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON], modelName(cl.stats[STAT_WEAPON]));
-    fprintf(f, "off hand: weapon %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON2],
+    za::String text;
+    text += va("time: %s\n", when.cStr());
+    text += va("map: %s (%s)\n", cl.mapname, cl.levelname);
+    text += va("game time: %.1f s\n", cl.time);
+    text += va("position: %.0f %.0f %.0f\n", player.origin[0], player.origin[1], player.origin[2]);
+    text += va("view: pitch %.0f yaw %.0f\n", s.headAngles.x, s.headAngles.y);
+    text += va("health: %d  armour: %d  ammo: %d\n", cl.stats[STAT_HEALTH], cl.stats[STAT_ARMOR], cl.stats[STAT_AMMO]);
+    text += va("main weapon: %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON], modelName(cl.stats[STAT_WEAPON]));
+    text += va("off weapon: %d, %s\n", cl.stats[protocol::STAT_QVR_WEAPON2],
         modelName(cl.stats[protocol::STAT_QVR_WEAPONMODEL2]));
-    fprintf(f, "skill: %.0f  graphics preset: %s  vr: %s\n", Cvar_VariableValue("skill"), gfxpresets::stateName(),
+    text += va("skill: %.0f  graphics preset: %s  vr: %s\n", Cvar_VariableValue("skill"), gfxpresets::stateName(),
         vrActive() ? "on" : "off");
-    fclose(f);
+    notectx::describe(text);
+
+    const za::String name = fileOf(base);
+    za::String summary;
+    if(motion::saveReplay(base + "_replay.csv", base + "_entities.csv", summary))
+    {
+        text += va("replay: %s_replay.csv (%s; vr_motion_play plays it), entities: %s_entities.csv\n", name.cStr(),
+            summary.cStr(), name.cStr());
+    }
+    else
+    {
+        text += vr_note_replay.value != 0.f ? "replay: none kept (no VR hands)\n" : "replay: off (vr_note_replay 0)\n";
+    }
+    notectx::Logs logs = notectx::takeLogs(za::max(static_cast<double>(vr_note_replay_seconds.value), 1.0));
+    text += va("console: %s_log.txt (%d prints)\n", name.cStr(), static_cast<int>(logs.console.size()));
+    text += va("frame times: %s_frames.csv (%s)\n", name.cStr(), notectx::frameSummary(logs).cStr());
+
+    saveFile(base + ".txt", {}, {}, [text](const za::String& part) { return writeText(part, text); });
+    saveFile(base + "_log.txt", {}, {},
+        [console = notectx::Logs{logs.noteAt, ZA_MOVE(logs.console), {}}](const za::String& part) {
+            return notectx::writeConsole(part, console);
+        });
+    saveFile(base + "_frames.csv", {}, {},
+        [frames = notectx::Logs{logs.noteAt, {}, ZA_MOVE(logs.frames)}](const za::String& part) {
+            return notectx::writeFrames(part, frames);
+        });
+}
+
+// A note dropped (too short): its context and sidecars too, once written.
+void dropContext(const za::String& base)
+{
+    pollFiles(true);
+    motion::finishReplays();
+    for(const char* suffix : {".txt", "_replay.csv", "_entities.csv", "_log.txt", "_frames.csv"})
+    {
+        remove((base + suffix).cStr()); // (<stdio.h>'s)
+    }
+}
+
+// The note's name: notes/<map>_<date>_<time>, as Ironwail names screenshots; and the time, written.
+void newBase(za::String& when)
+{
+    const time_t now = time(nullptr);
+    char stamp[64];
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
+    const za::String dir = za::String{com_gamedir} + "/notes";
+    Sys_mkdir(dir.cStr());
+    baseName = dir + "/" + (cl.mapname[0] ? cl.mapname : "menu") + "_" + stamp;
+    char text[64];
+    strftime(text, sizeof(text), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    when = text;
 }
 
 void start(bool fromButton)
@@ -249,16 +319,9 @@ void start(bool fromButton)
     samples.clear();
     SDL_PauseAudioDevice(device, 0);
 
-    // notes/<map>_<date>_<time>, as Ironwail names screenshots.
-    const time_t now = time(nullptr);
-    char stamp[64];
-    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-    const za::String dir = za::String{com_gamedir} + "/notes";
-    Sys_mkdir(dir.cStr());
-    baseName = dir + "/" + (cl.mapname[0] ? cl.mapname : "menu") + "_" + stamp;
-    char when[64];
-    strftime(when, sizeof(when), "%Y-%m-%d %H:%M:%S", localtime(&now));
-    writeContext(baseName + ".txt", when);
+    za::String when;
+    newBase(when);
+    saveContext(baseName, when);
 
     recording = true;
     byButton = fromButton;
@@ -295,7 +358,7 @@ void stop()
     const double seconds = static_cast<double>(samples.size()) / rate;
     if(seconds < minSeconds)
     {
-        remove((baseName + ".txt").cStr());
+        dropContext(baseName);
         Con_Printf("VR notes: too short, dropped\n");
         haptic(0.03f, 0.3f);
         return;
@@ -350,6 +413,28 @@ void devices_f()
     Con_Printf("vr_note_device \"<part of a name>\" picks one (empty: the default)\n");
 }
 
+// vr_note_context: a note's context and sidecars saved now, without a sound (tests; the Debug menu): notes/<name>.txt ...
+void context_f()
+{
+    if(recording)
+    {
+        Con_Printf("vr_note_context: a note is being recorded\n");
+        return;
+    }
+    za::String when;
+    newBase(when);
+    saveContext(baseName, when);
+    Con_Printf("VR notes: context saved as %s.txt\n", baseName.cStr());
+}
+
+// vr_note_replay_stats: what the instant replay and the context's rings keep now (their memory).
+void replayStats_f()
+{
+    za::String text;
+    notectx::stats(text);
+    Con_Printf("NOTESTATS|%s\n", text.cStr());
+}
+
 } // namespace
 
 void init()
@@ -357,10 +442,13 @@ void init()
     Cmd_AddCommand("+vr_note", noteDown_f);
     Cmd_AddCommand("-vr_note", noteUp_f);
     Cmd_AddCommand("vr_note_devices", devices_f);
+    Cmd_AddCommand("vr_note_context", context_f);
+    Cmd_AddCommand("vr_note_replay_stats", replayStats_f);
 }
 
 void frame()
 {
+    notectx::frame();
     pollFiles(false);
     if(!recording)
     {

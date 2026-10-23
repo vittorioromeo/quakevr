@@ -8,6 +8,7 @@
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
 namespace qvr::ragactive
@@ -155,6 +156,11 @@ void debugDraw();
 void activeRagdollDraw();
 // vr_struggle_debug: a panel over each struggling enemy (vr_box3d_struggle.cpp), turned to `eye` (world units).
 void struggleDraw(const glm::vec3& eye);
+// A voice note's context (vr_notectx.cpp): the limb edict `player`'s `hand` (0 the off hand, 1 the main) holds, a line
+// ("monster_army #34 part head, alive (knocked down), struggling 2.1 s: effort ..."), "" none. Also, without a hold, an
+// edict's ragdoll's state (`num` > 0: "ragdoll, struggling ..."; "" no ragdoll).
+[[nodiscard]] za::String noteRagdollHold(int player, int hand);
+[[nodiscard]] za::String noteRagdoll(int num);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);

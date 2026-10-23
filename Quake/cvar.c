@@ -523,6 +523,8 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 		if (!strcmp(var->string, value))
 			return;	// no change
 
+		VR_NoteCvarChanging (var, value); // QVR: the settings changed this session, for voice notes (vr_notectx.cpp)
+
 		var->flags |= CVAR_CHANGED;
 		len = Q_strlen (value);
 		if (len != Q_strlen(var->string))
