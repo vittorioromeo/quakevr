@@ -17687,3 +17687,59 @@ Still open (reported, not fixed here):
 In VR: an AD ogre's overhead smash (ad_start, or the toolgun): step aside as it winds up: it comes down where it faced;
 its side swing still sweeps. Snap a grunt's neck, save, load, carry the body by the head: it lolls. Spawn a flame with the
 toolgun (and set a crate alight), save, load: both crackle.
+
+## Dragging by the legs: the leg pull's hold firms up once it lies (worktree `goreflesh`, branch `agent/legdrag3`, 2026-10-23)
+
+"1.1 open issues"'s still-open item: after a leg pull takes a humanoid down, holding its shins and walking back left it
+where it lay (the hold stretching until it let go).
+
+**Causes** (two):
+- **The test was against a wall.** vrfiringrange's start is a dais (x 284-332, its top at z 32) 15 units over the
+  stone floor before it; a grunt spawned 36 units ahead stands at its foot, and pulled down its legs lie against the
+  riser (face 1487 of the BSP, x 284, z 17-32). Walking back pulled it into the riser: box3d contacts on the pelvis and
+  both thighs at x 284 with their normals along the pull, the parts' speed 0 under a hold of 2 x 2055 N. That is why
+  `struggle_test.py legpull` showed the same at every Pull Hold Strength (and a head drag, knocked down elsewhere,
+  moved).
+- **On a flat floor the hold was too weak.** The leg pull hands its enemy over at Pull Hold Strength (0.1 of its weight
+  a hand: held harder, it pivoted on its pinned shins and fell the wrong way) and left it there. Lying, its weight on
+  the floor holds it more than two hands at 0.1 (or 0.3) pull: it lay still until the hold let go (grunt, flat floor:
+  0.1 and 0.3 a hand left it; 0.5 dragged it 90 of 102 units at a lag of 4). And the spring's rate (Held On Spring,
+  4 Hz) is the held part's own: a death knight held by its feet (light parts) was pulled far under the most force
+  before the 72-unit let-go (two hands at 0.75 of its 3343 N: still; at 12 Hz: dragged).
+
+**Fix** (`vr_foegrab.cpp` `legDragStep`, from `carryStep`): from 0.5 s after the leg pull's hand-over (its fall over)
+the holds firm up over 0.5 s: their most force to **Pull Drag Strength** (`vr_foegrab_legpull_drag_strength`, new,
+1.5 of its weight in all, shared by the hands still holding it: one hand alone drags it too; Combat > Holding Enemies >
+Leg Grabs, after Pull Hold Strength) and their spring to 20 Hz (`legDragHertz`). The fall is untouched (soft as
+before: the leggrab suite's directions all as before). The let-go is unchanged (72 units for half a second). A grip
+taken again later is the usual hold's, not touched (`box3d::ragdollHoldForce` changes soft holds only). New cvar, no
+default changed: no config version.
+
+**Test** (`struggle_test.py`): the drags (legpull, legdrag, headdrag and the new legpull1, legyank) walk off the dais
+first (`+forward` 25 frames: x 147, the stone floor; `setpos` doesn't move the VR player) and check the drag (its
+pelvis at least 0.6 of the walk, no hold let go: `vr_debug_ragdoll`'s "left behind"); legpull1 is the one-hand pull,
+legyank the let-go (lying, run back at 400 u/s and the hands thrown 2.5 m back); legdrag takes its left shin by name
+(`vr_mock_hand_to <hand> ragdoll shin_l`: a part number took the grunt's "loose" piece, its gun, by its thigh), and its
+arms' lead is judged as legpull's (Thrash, the torso's squirm, left out). Pelvis moved of the walk (units, flat floor):
+
+| class | legpull before (0.1 a hand) | legpull after | legpull1 before | legpull1 after | legyank (let go) | legdrag (shin) |
+|---|---|---|---|---|---|---|
+| grunt | 1 of 102, let go | 96 | 1, let go | 90 | yes | 103-108 of 113 |
+| enforcer | 5, let go | 103 | 7, let go | 100 | yes | 108 of 114 |
+| knight | 1, let go | 88 | 2, let go | 81 | yes | 99 of 113 |
+| death knight | 1, let go | 90 | 0, let go | 69 | yes | no hold (mock misses) |
+| zombie | 1, let go | 84 | 2, let go | 72 | yes | 106 of 113 |
+| mummy | 7, let go | 79 | (no one-hand pull) | (no one-hand pull) | yes | no hold (mock misses) |
+| AD knight (start map) | 2, let go | 92 | 1, let go | 87 | no: its run is 104 units (a wall) | 106 of 114 |
+
+Either half of legyank alone drags it, held: a run back at 400 u/s (an enforcer came 186 of 231 units) or the hands
+thrown back (the mock's hands reach only so far: 52-93 units, caught up in 0.3 s). Grunt suite: all pass but legdrag's
+pose (by a shin it stays belly up: -0.50, off -0.25; Claw leads the arms, 0.33). Leggrab suite 0 failed; eval.sh 169/177
+as the baseline (two takes' offsets 0.1 unit off, verdicts the same).
+
+**Open**: legdrag by a shin doesn't turn belly down (the struggle's pose; this case held the gun before); the mummy
+isn't pulled down by the mock's one hand; the death knight's and mummy's lying legs are missed by the mock's legdrag hand.
+
+In VR: pull a grunt (and a death knight) down by the shins, then keep holding and walk back: it slides after you on its
+back, arms clawing; with one hand too. Run from it, or drag it against a step: the hold lets go. Combat > Holding Enemies
+> Leg Grabs > Pull Drag Strength sets how hard (1.5).
