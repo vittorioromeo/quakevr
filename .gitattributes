@@ -1,2 +1,5 @@
 # The PBR companion indexes (Quake/vr/vr_pbr.cpp parses CRLF too, but the shipped files stay LF everywhere).
 quakevr/textures/pbr/*.txt text eol=lf
+# Round notes: every branch appends its own section at the end, so a merge keeps both sides' lines (union) instead of
+# stopping on a conflict.
+docs/vr-port/ROUND22.md merge=union
