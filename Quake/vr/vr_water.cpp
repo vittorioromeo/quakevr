@@ -558,6 +558,7 @@ struct Mesh
     za::Vector<unsigned> ranges;
     za::Vector<int> texBegin, texEnd;
     za::Vector<LavaTop> lava; // the heat haze's (vr_haze.cpp)
+    za::Vector<ShoreSegment> shore; // the shore's foam particles' (vr_particles.cpp shoreFoam)
     unsigned generation = 0;   // made anew each build
 };
 Mesh mesh;
@@ -935,6 +936,7 @@ void freeMesh()
     mesh.faces.clear();
     mesh.leaves.clear();
     mesh.lava.clear();
+    mesh.shore.clear();
     mesh.generation++;
     mesh.built = false;
 }
@@ -1275,6 +1277,21 @@ void buildMesh(qmodel_t* m, float cell)
             out.lava = static_cast<int>(mesh.lava.size());
             mesh.lava.pushBack(ZA_MOVE(top));
         }
+        if(f.level && !f.submerged && f.normal[2] > 0.f)
+        {
+            // the shore along this top's rim (into the liquid: left of a->b on a face wound CCW in xy)
+            const int liquid = tex->type == TEXTYPE_LAVA ? 1 : tex->type == TEXTYPE_SLIME ? 2 : 0;
+            for(const Segment& r : faceRims[static_cast<za::SizeT>(fi)])
+            {
+                const glm::vec2 d = r.b - r.a;
+                const float len = glm::length(d);
+                if(len >= 0.5f)
+                {
+                    mesh.shore.pushBack(ShoreSegment{r.a, r.b, glm::vec2(-d.y, d.x) / len * f.winding, f.poly[0].z,
+                        static_cast<int>(mesh.faces.size()), liquid});
+                }
+            }
+        }
 
         out.full = fullTotal;
         out.fullCount = static_cast<unsigned>(f.level ? fm.full.size() : fm.flat.size());
@@ -1535,6 +1552,74 @@ bool lavaTopInPvs(const LavaTop& top)
 {
     return top.face >= 0 && static_cast<za::SizeT>(top.face) < mesh.faces.size() &&
            mesh.faces[static_cast<za::SizeT>(top.face)].pvsFrame == r_framecount;
+}
+
+const za::Vector<ShoreSegment>& shoreSegments(unsigned& generation)
+{
+    generation = mesh.built ? mesh.generation : 0;
+    return mesh.shore;
+}
+
+bool shoreSeen(const ShoreSegment& s)
+{
+    // (the particles run once a frame, before its views: the last frame's, every eye and the spectator)
+    return s.face >= 0 && static_cast<za::SizeT>(s.face) < mesh.faces.size() &&
+           mesh.faces[static_cast<za::SizeT>(s.face)].pvsFrame >= r_framecount - 6;
+}
+
+namespace
+{
+
+// Each liquid's foam settings (FoamLook), water's, lava's, slime's.
+struct FoamCvars
+{
+    cvar_t *on, *opacity, *frequency, *strength, *breathe, *breatheSpeed, *breatheIrregularity, *red, *green, *blue,
+        *particles, *particleLife, *particleOpacity, *particleSize;
+};
+const FoamCvars foamCvars[3] = {
+    {&vr_water_foam_on, &vr_water_foam_opacity, &vr_water_foam_frequency, &vr_water_foam_strength, &vr_water_foam_breathe,
+        &vr_water_foam_breathe_speed, &vr_water_foam_breathe_irregularity, &vr_water_foam_red, &vr_water_foam_green,
+        &vr_water_foam_blue, &vr_water_foam_particles, &vr_water_foam_particle_life, &vr_water_foam_particle_opacity,
+        &vr_water_foam_particle_size},
+    {&vr_lava_foam_on, &vr_lava_foam_opacity, &vr_lava_foam_frequency, &vr_lava_foam_strength, &vr_lava_foam_breathe,
+        &vr_lava_foam_breathe_speed, &vr_lava_foam_breathe_irregularity, &vr_lava_foam_red, &vr_lava_foam_green,
+        &vr_lava_foam_blue, &vr_lava_foam_particles, &vr_lava_foam_particle_life, &vr_lava_foam_particle_opacity,
+        &vr_lava_foam_particle_size},
+    {&vr_slime_foam_on, &vr_slime_foam_opacity, &vr_slime_foam_frequency, &vr_slime_foam_strength, &vr_slime_foam_breathe,
+        &vr_slime_foam_breathe_speed, &vr_slime_foam_breathe_irregularity, &vr_slime_foam_red, &vr_slime_foam_green,
+        &vr_slime_foam_blue, &vr_slime_foam_particles, &vr_slime_foam_particle_life, &vr_slime_foam_particle_opacity,
+        &vr_slime_foam_particle_size},
+};
+
+} // namespace
+
+FoamLook foamLook(int liquid)
+{
+    const FoamCvars& v = foamCvars[za::clamp(liquid, 0, 2)];
+    FoamLook l;
+    l.opacity = za::clamp(v.opacity->value, 0.f, 1.5f);
+    l.on = vr_water_foam.value > 0.f && v.on->value != 0.f && l.opacity > 0.f;
+    l.frequency = za::clamp(v.frequency->value, 0.25f, 4.f);
+    l.strength = za::clamp(v.strength->value, 0.25f, 3.f);
+    l.breathe = za::clamp(v.breathe->value, 0.f, 1.f);
+    l.breatheSpeed = za::clamp(v.breatheSpeed->value, 0.1f, 4.f);
+    l.breatheIrregularity = za::clamp(v.breatheIrregularity->value, 0.f, 1.f);
+    l.color = {za::clamp(v.red->value, 0.f, 2.f), za::clamp(v.green->value, 0.f, 2.f), za::clamp(v.blue->value, 0.f, 2.f)};
+    l.particles = za::clamp(v.particles->value, 0.f, 4.f);
+    l.particleLife = za::clamp(v.particleLife->value, 0.2f, 4.f);
+    l.particleOpacity = za::clamp(v.particleOpacity->value, 0.f, 1.f);
+    l.particleSize = za::clamp(v.particleSize->value, 0.25f, 4.f);
+    return l;
+}
+
+int foamLiquid(int contents)
+{
+    return contents == CONTENTS_LAVA ? 1 : contents == CONTENTS_SLIME ? 2 : 0;
+}
+
+int foamContents(int liquid)
+{
+    return liquid == 1 ? CONTENTS_LAVA : liquid == 2 ? CONTENTS_SLIME : CONTENTS_WATER;
 }
 
 // ----------------------------------------------------------------------------
@@ -2179,9 +2264,18 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // The shoreline foam (vr_water_foam); the scene's distances for the refraction and the foam (VR_WaterSceneDepth:
     // made as liquids draw), if the scene's depth can be read.
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
-    r_framedata.foam[0] = za::clamp(vr_water_foam_opacity.value, 0.f, 1.5f);
-    r_framedata.foam[1] = za::clamp(vr_water_foam_frequency.value, 0.25f, 4.f);
-    r_framedata.foam[2] = za::clamp(vr_water_foam_strength.value, 0.25f, 3.f);
+    for(int i = 0; i < 3; i++) // each liquid's look (water, lava, slime)
+    {
+        const water::FoamLook l = water::foamLook(i);
+        const float look[3][4] = {{l.on ? l.opacity : 0.f, l.frequency, l.strength, 0.f}, {l.color.r, l.color.g, l.color.b, 0.f},
+            {l.breathe, l.breatheSpeed, l.breatheIrregularity, 0.f}};
+        for(int a = 0; a < 4; a++)
+        {
+            r_framedata.foam[i][a] = look[0][a];
+            r_framedata.foamcolor[i][a] = look[1][a];
+            r_framedata.foambreath[i][a] = look[2][a];
+        }
+    }
     envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
     VR_PortalFrameData(r_framedata.portalplane, r_framedata.portalmin, r_framedata.portalmax); // teleporters (vr_portals.cpp)
     r_framedata.teleportlook[0] = vr_teleporters.value > 0.f ? za::clamp(

@@ -18049,3 +18049,44 @@ it up as it rises; drop a weapon into the pool at vrtesthall's side: grunts shou
 hard into a grunt's gun, throw a weapon at it: knocked out, with a clang and a grunt; no loot beam on a held gun.
 Sliders: Combat > Armed Grunts (Disarming: Blow on Its Weapon, Throw at Its Weapon, Tug-of-War and its four sliders,
 Parry Disarm Chance, Drops It When Floored; Gives Up on a Weapon After, Leaves It Alone For).
+
+## Shoreline foam: per liquid, breathing, particles (worktree `fastship`, branch `agent/foam2`, 2026-10-23)
+
+His notes (e5start 17-51, 17-52, start 17-53): his water foam values as the defaults; the band "breathing" in and out
+unevenly round the shore; foam particles where the foam meets the rock so the edge isn't one straight line; lava,
+slime (and other liquids) tuned separately, with colours (lava a stronger yellow-orange, slime greenish).
+
+- **Defaults (configVersion 193)**: `vr_water_foam_opacity` 1 -> 0.5, `_frequency` 1 -> 1.75, `_strength` 1 -> 1.75
+  (his config); a config still at 1 takes them. These are water's own now.
+- **Per liquid** (Graphics > Liquids > *Shoreline Foam Settings*, a section each; `vr_water_foam` stays every liquid's
+  amount): water `vr_water_foam_*`, lava `vr_lava_foam_*`, slime `vr_slime_foam_*`, each `_on`, `_opacity`,
+  `_frequency`, `_strength`, `_breathe`, `_breathe_speed`, `_breathe_irregularity`, `_red`/`_green`/`_blue` (0..2: over 1
+  glows), `_particles`, `_particle_life`, `_particle_opacity`, `_particle_size`. Teleports have no foam. Water: his
+  values, white (0.85 0.9 0.92, as before), breathe 0.35 / 1 / 0.6, particles 1, life 0.8, opacity 0.5. Lava: opacity 1,
+  frequency 1.25, strength 2.5, colour 1.5 1.1 0.3 (a molten yellow-orange crust over the band, glowing, darker in its
+  cracks, the hot rim at the rock in the same colour: before, a fixed orange rim and a dark crust), breathe 0.3 / 0.5 /
+  0.7, particles 0.6, life 1. Slime: 0.8 / 1.5 / 1.5, colour 0.38 0.62 0.14 (before a dark olive), breathe 0.25 / 0.6 /
+  0.6, particles 0.6. The shader cost stays flat: the frame data's `Foam` became `Foam[3]`, `FoamColor[3]`,
+  `FoamBreath[3]` (glquake.h `foam`, `foamcolor`, `foambreath`), indexed by the liquid's kind.
+- **Breathing** (LiquidFoam): the band's width times `1 + amount * s`, s a sine in time (a breath in 4 s at speed 1)
+  whose phase, and amount, vary along the shore by a slow world noise (80 units; irregularity 0: all together).
+- **Particles** (vr_particles.cpp `shoreFoam`): the shore is the liquid mesh's rim (the level tops' edges where the
+  liquid meets rock or another liquid, not under more liquid), kept as segments when the mesh is made
+  (`water::shoreSegments`; vrtesthall 13, e1m7 52, e1m1 337). Once a frame: the segments within 704 units (listed again
+  when the eye moved 64), whose faces were in a view's PVS lately; per segment `len * 0.15 * particles * dt` puffs
+  (CellFoam, standing, soft on the rock: 3 to 4.5 units growing to 7 to 11, drifting along the shore and out, fading
+  over their life), fewer past 320 units, none past 640; at most about 600 alive (the rate scaled down). Lava's glow
+  (emissive), the others lit. `vr_water_foam_info` (Debug menu, next to *Blood in Water: Clouds*: *Shoreline Foam
+  Particles*): segments, near, spawned, alive asked, cost.
+- **Cost** (`--exclusive`, `vr_profile_report 5`, 250 fps fast mode; vrtesthall's pool filling the view / e1m7's lava
+  by a wall): GPU `water` pool 0.177 ms (old look: breathing and particles off) -> 0.178 (defaults), foam off 0.171;
+  lava 0.081 -> 0.082, off 0.057. Particles pool CPU 0.017 -> 0.025 ms, GPU 0.030 -> 0.036 (154 alive asked); lava
+  CPU 0.015 -> 0.036 (225 alive asked; its foam-off pass read 0.026: noise), GPU 0.009 both. `shoreFoam` itself
+  0.001 ms. Eyeshots: `scratch/foam_water_old_new_breath.png` (pool: old look, defaults, 2 s later),
+  `scratch/foam_lava_slime.png`.
+- Seen, left: with a strength over about 1.6 (his 1.75) the shore distance (capped at 32 units by the mesh's pins) puts
+  the faint flecks (`f > -1`) over the whole of a pool: as before, his tuned look; not changed.
+
+**In VR:** vrtesthall's pool: the band breathing (Breathing, Speed, Irregularity), the puffs along the wall line (Water
+Particles, Life, Opacity, Size). e1m7's lava: the yellow crust and its glow (Lava Red/Green/Blue, Strength). e1m1's or
+e3m1's slime: the green scum. Each liquid's toggle.

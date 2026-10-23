@@ -2504,10 +2504,51 @@ QVR_CVAR(vr_water_wobble, "1", CVAR_ARCHIVE)          // ... and a slow wobble o
 QVR_CVAR(vr_water_geo_waves, "1", CVAR_ARCHIVE)       // real waves: the level liquid surfaces cut into a grid whose vertices rise and fall with long swells
 QVR_CVAR(vr_water_geo_amplitude, "8", CVAR_ARCHIVE)   // ... their height in units (water's; lava's more, slime's less)
 QVR_CVAR(vr_water_geo_cell, "16", CVAR_ARCHIVE)       // ... the grid's cell in units (smaller: smoother, more triangles; remade on change)
-QVR_CVAR(vr_water_foam, "1", CVAR_ARCHIVE)            // shoreline foam where water meets walls, steps and things standing in it (slime: a scum, lava: a hot rim): 0 off .. 2
-QVR_CVAR(vr_water_foam_opacity, "1", CVAR_ARCHIVE)    // ... how opaque it is (0..1.5, times; vr_glsl.h LiquidFoam)
-QVR_CVAR(vr_water_foam_frequency, "1", CVAR_ARCHIVE)  // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
-QVR_CVAR(vr_water_foam_strength, "1", CVAR_ARCHIVE)   // ... how far it reaches out from the shore (0.25..3, times its width)
+QVR_CVAR(vr_water_foam, "1", CVAR_ARCHIVE)            // shoreline foam where water meets walls, steps and things standing in it (slime: a scum, lava: a hot rim): 0 off .. 2, every liquid's
+// Each liquid's foam (vr_water.cpp foamLook, vr_glsl.h LiquidFoam; ROUND22.md, "Shoreline foam: per liquid, breathing,
+// particles"): water's vr_water_foam_*, lava's vr_lava_foam_*, slime's vr_slime_foam_* (teleports have none).
+QVR_CVAR(vr_water_foam_on, "1", CVAR_ARCHIVE)         // water's foam: 1 on, 0 off
+QVR_CVAR(vr_water_foam_opacity, "0.5", CVAR_ARCHIVE)  // ... how opaque it is (0..1.5, times)
+QVR_CVAR(vr_water_foam_frequency, "1.75", CVAR_ARCHIVE) // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
+QVR_CVAR(vr_water_foam_strength, "1.75", CVAR_ARCHIVE) // ... how far it reaches out from the shore (0.25..3, times its width)
+QVR_CVAR(vr_water_foam_breathe, "0.35", CVAR_ARCHIVE) // ... breathing: how much the band grows and shrinks over time, unevenly along the shore (0 off .. 1, a share of its width)
+QVR_CVAR(vr_water_foam_breathe_speed, "1", CVAR_ARCHIVE) // ... how fast it breathes (0.1..4; 1: a breath in about 4 seconds)
+QVR_CVAR(vr_water_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE) // ... how unevenly along the shore (0: all of it together .. 1: each stretch on its own)
+QVR_CVAR(vr_water_foam_red, "0.85", CVAR_ARCHIVE)     // ... its colour, red (0..2; over 1 glows)
+QVR_CVAR(vr_water_foam_green, "0.9", CVAR_ARCHIVE)    // ... green
+QVR_CVAR(vr_water_foam_blue, "0.92", CVAR_ARCHIVE)    // ... blue
+QVR_CVAR(vr_water_foam_particles, "1", CVAR_ARCHIVE)  // ... foam particles along the shore (vr_particles.cpp shoreFoam): how many (0 off .. 4; 1 about 15 a second for each 100 units of shore near you)
+QVR_CVAR(vr_water_foam_particle_life, "0.8", CVAR_ARCHIVE) // ... how long each lasts, seconds (0.2..4)
+QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
+QVR_CVAR(vr_water_foam_particle_size, "1", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
+QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
+QVR_CVAR(vr_lava_foam_opacity, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_frequency, "1.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_strength, "2.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_breathe, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_breathe_speed, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_breathe_irregularity, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_red, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_green, "1.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_blue, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particles, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_life, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_opacity, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_size, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_on, "1", CVAR_ARCHIVE)         // slime's foam (a green scum), as water's above
+QVR_CVAR(vr_slime_foam_opacity, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_frequency, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_strength, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_breathe, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_breathe_speed, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_red, "0.38", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_green, "0.62", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_blue, "0.14", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particles, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particle_life, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particle_opacity, "0.45", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particle_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
 QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
