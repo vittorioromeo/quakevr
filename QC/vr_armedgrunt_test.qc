@@ -211,6 +211,11 @@ void() VR_AGTest_Sequence =
     if(vr_agt_step == 3) // goes back for it
     {
         if(!g.vr_ag_prop && time < vr_agt_until) { return; }
+        entity lying = VR_AGT_LyingNear(g.origin);
+        VR_AGT_Print(sprintf("rearm: frame %g, enemy %s, health %g, a weapon %.0f away (speed %.0f, depleted %g)", g.frame,
+            g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
+        VR_AGT_Print(sprintf("rearm: next think in %g, knockdown %g, movetype %g, seek %s, seek next in %g", g.nextthink - time,
+            g.vr_knockdown, g.movetype, g.vr_ag_seek.classname, g.vr_ag_seek_next - time));
         VR_AGT_Check(sprintf("rearm: %g pickups, holds %s:", g.vr_ag_pickups, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
             g.vr_ag_pickups >= 1 && g.vr_ag_prop != world);
         vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
@@ -340,6 +345,19 @@ void() VR_AGTest_Frame =
                 r.angles_y = vectoyaw(keep - r.origin);
                 setorigin(vr_agt_player, keep);
             }
+        }
+        cvar_set("vr_agrunt_test", "0");
+    }
+    else if(t == 10) // every armed grunt hunts you now
+    {
+        entity h = find(world, classname, "monster_army");
+        while(h)
+        {
+            if(h.vr_ag && h.health > 0)
+            {
+                VR_AGT_Hunt(h);
+            }
+            h = find(h, classname, "monster_army");
         }
         cvar_set("vr_agrunt_test", "0");
     }

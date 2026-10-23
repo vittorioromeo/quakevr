@@ -32,7 +32,8 @@
 // - Disarming: a blow of at least vr_agrunt_disarm_damage on its gun hand (vr_agrunt_disarm), your empty hand grabbing
 //   its weapon (vr_agrunt_disarm_yank: it is yours), a knockdown: the weapon falls (a lying weapon, its clip with it).
 // - Re-arming (vr_agrunt_rearm): disarmed it fights with its fists and goes for a weapon lying within
-//   vr_agrunt_rearm_range when its target is not nearer to that weapon than it is, then fights with that one.
+//   vr_agrunt_rearm_range when its target is not nearer to that weapon than it is (one at its feet, within 64 units:
+//   always), then fights with that one.
 
 float VR_AG_CLASS_FISTS = 0;     // its fists
 float VR_AG_CLASS_MELEE = 1;     // a melee weapon
@@ -350,14 +351,14 @@ entity(entity g, vector vel) VR_AG_DropHeld =
 };
 
 // Disarmed: the weapon knocked out of its hand (`dir`: the blow's way).
-void(entity g, vector dir, string why) VR_AG_Disarm =
+void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
 {
     if(!g.vr_ag_prop)
     {
         return;
     }
     dir_z = 0;
-    vector vel = normalize(dir) * (120 + random() * 60) + '0 0 140';
+    vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
     VR_AG_DropHeld(g, vel);
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
     g.vr_ag_reserve = 0; // (its spare clips are no use without the gun)
@@ -368,7 +369,7 @@ void(entity g, vector dir, string why) VR_AG_Disarm =
 void(entity g) VR_AG_KnockedDown =
 {
     makevectors(g.angles);
-    VR_AG_Disarm(g, v_forward + v_right * crandom(), "knocked down");
+    VR_AG_Disarm(g, v_forward + v_right * crandom(), 60, "knocked down");
 };
 
 // Your hand grabbing its weapon takes it: the weapon is yours, in that hand (the grab started now).
@@ -497,6 +498,7 @@ void() VR_AG_Shoot =
         if(self.waterlevel > 1)
         {
             self.button0 = 0;
+            self.weaponinst = world;
             return; // (it would discharge: never under water)
         }
         W_FireLightning(h);
@@ -515,6 +517,7 @@ void() VR_AG_Shoot =
     }
     else if(wid == WID_ENFRIFLE)        { VR_FireEnforcerRifle(h); }
     self.button0 = 0;
+    self.weaponinst = world; // (the record is its weapon's: nothing else may take the grunt for its holder)
 
     if(single)
     {
@@ -575,6 +578,7 @@ void() VR_AG_Strike =
     else if(VR_AG_Class(wid) == VR_AG_CLASS_MELEE) { W_FireAxe(h); }
     else                               { W_GunMelee(h); } // (a gun's butt: an explosive one at arm's length)
     self.ammo_cells = cells;
+    self.weaponinst = world;
     self.vr_ag_aim = '0 0 0';
     self.vr_ag_strikes = self.vr_ag_strikes + 1;
     VR_AG_Log(sprintf("struck at %s with %s", self.enemy.classname, p ? p.netname : "its fists"));
@@ -746,9 +750,9 @@ entity() VR_AG_FindWeapon =
         {
             float d = vlen(e.origin - self.origin);
             float safe = TRUE;
-            if(self.enemy && self.enemy.health > 0)
+            if(self.enemy && self.enemy.health > 0 && d > 64)
             {
-                safe = vlen(e.origin - self.enemy.origin) > d + 32;
+                safe = vlen(e.origin - self.enemy.origin) > d; // (one at its feet it takes up whatever)
             }
             if(safe && d < bestDist && fabs(e.origin_z - self.origin_z) < 64)
             {
@@ -923,7 +927,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     }
     if(near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6))
     {
-        VR_AG_Disarm(targ, vr_hr_dir, sprintf("a blow of %g on its gun hand", take));
+        VR_AG_Disarm(targ, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));
     }
 };
 

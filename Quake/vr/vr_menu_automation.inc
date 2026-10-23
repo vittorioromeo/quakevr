@@ -200,6 +200,20 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_dmgcredit_test 1: every weapon (the mission packs' and AD's when there) fired from your main hand at a "
                   "target ahead that takes only one weapon's damage (as Honey's weapon-specific buttons): the weapon each "
                   "shot is credited with printed (dmgcredit: ... PASS when its own); about 6 s a weapon."),
+        command("Armed Grunts: Every Weapon", "vr_agrunt_test 1")
+            .help("vr_agrunt_test 1 (an open map: vrtesthall): an armed grunt with each weapon in turn ahead of you, "
+                  "hunting you for 5 s (you are kept alive): its shots, blows, damage to you, clip, reloads printed "
+                  "(agtest: ... PASS when it hurt you). 100+i: weapon i alone."),
+        command("Armed Grunts: Reload, Disarm, Re-Arm, Drop", "vr_agrunt_test 2")
+            .help("vr_agrunt_test 2: a shotgun grunt fires its clip, reloads, is struck on its gun hand (disarmed), "
+                  "goes back for its gun and is killed: the gun lies there with its rounds (agtest: ... PASS)."),
+        command("Armed Grunts: Spawn a Row (Guns)", "vr_agrunt_test 7")
+            .help("vr_agrunt_test 6-9: four armed grunts in a row ahead of you (6 melee weapons, 7 and 8 guns, 9 the rest); "
+                  "notarget to look at them. vr_agrunt_test 4 prints every armed grunt's weapon, clip and reserve."),
+        command("Armed Grunts: Spawn a Row (Melee)", "vr_agrunt_test 6"),
+        command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
+        toggle("Armed Grunts: Log", vr_agrunt_debug)
+            .help("Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug)."),
         toggle("Load Stuck", vr_grapple_test_stuck)
             .help("What hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged: walk away and the "
                   "rope should hold you back."),
