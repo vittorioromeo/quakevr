@@ -778,6 +778,7 @@ float vr_agt_keep_pickup;
 entity vr_agt_g2;
 float vr_agt_kick_sum;
 float vr_agt_kick_sum1;
+float vr_agt_keep_heft;
 
 entity(float w1, float w2, float dist) VR_AGT_SpawnPair =
 {
@@ -864,6 +865,8 @@ void() VR_AGTest_DualGuns =
         p.flags = p.flags | FL_GODMODE;
         entity a = VR_AGT_Spawn(WID_SHOTGUN, 220);
         entity b = VR_AGT_SpawnPair(WID_SHOTGUN, WID_SHOTGUN, 220);
+        a.takedamage = DAMAGE_NO; // (side by side: the other's pellets)
+        b.takedamage = DAMAGE_NO;
         VR_AGT_Volley(a, a.vr_ag_prop, 40);
         float sp1 = vr_agt_kick_sum;
         float aim1 = vr_agt_kick_sum1;
@@ -884,6 +887,7 @@ void() VR_AGTest_DualGuns =
             fabs(vr_agt_kick_sum / max(0.001, sp1) - 1) < 0.15);
         cvar_set("vr_agrunt_dual_penalty", ftos(keepPen));
         cvar_set("vr_agrunt_aim_error", ftos(vr_agt_keep_err));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
         VR_AGT_Remove(a);
         VR_AGT_RemovePair(b);
         VR_AGT_Print(sprintf("guns: kicks (deg/s a shot in one hand): shotgun %.0f, super shotgun %.0f, nailgun %.0f, super "
@@ -891,9 +895,17 @@ void() VR_AGTest_DualGuns =
             weaponheft(WeaponIdToModel(WID_SUPER_SHOTGUN, 0), 1), weaponheft(WeaponIdToModel(WID_NAILGUN, 0), 1),
             weaponheft(WeaponIdToModel(WID_SUPER_NAILGUN, 0), 1), weaponheft(WeaponIdToModel(WID_GRENADE_LAUNCHER, 0), 1),
             weaponheft(WeaponIdToModel(WID_LIGHTNING, 0), 1)));
-        // C: the kick
+        // C: the kick (the dual-wieldable guns are all Heft 0 but AD's Widowmaker: the super nail gun's made 0.5 here,
+        // the super nail gun's slot 5's Weapon Weights setting)
+        vr_agt_keep_heft = cvar("vr_wofs_w_heft_05");
+        cvar_set("vr_wofs_w_heft_05", "0.5");
         vr_agt_grunt = VR_AGT_SpawnPair(WID_SUPER_NAILGUN, WID_SUPER_NAILGUN, 220);
+        p.angles_y = p.angles_y + 25; // (side by side: neither in the other's line of fire)
         vr_agt_g2 = VR_AGT_Spawn(WID_SUPER_NAILGUN, 260);
+        p.angles_y = p.angles_y - 25;
+        vr_agt_grunt.takedamage = DAMAGE_NO;
+        vr_agt_g2.takedamage = DAMAGE_NO;
+        p.flags = p.flags | FL_GODMODE;
         vr_agt_kick_sum = 0;
         vr_agt_kick_sum1 = 0;
         vr_agt_index = 0;
@@ -925,9 +937,10 @@ void() VR_AGTest_DualGuns =
         vr_agt_kick_sum1 = vr_agt_kick_sum1 + k1;
         vr_agt_index = vr_agt_index + 1;
         if(vr_agt_index < 6) { return; }
-        float wantKick = weaponheft(WeaponIdToModel(WID_SUPER_NAILGUN, 0), 1) > 0;
-        VR_AGT_Check(sprintf("guns: kick: two super nailguns' aims up %.2f deg in all, one's %.2f:", vr_agt_kick_sum,
-            vr_agt_kick_sum1), vr_agt_kick_sum1 == 0 && (vr_agt_kick_sum > 0) == wantKick);
+        float kickNow = weaponheft(WeaponIdToModel(WID_SUPER_NAILGUN, 0), 1);
+        cvar_set("vr_wofs_w_heft_05", ftos(vr_agt_keep_heft));
+        VR_AGT_Check(sprintf("guns: kick (%.0f deg/s at Heft 0.5): two super nailguns' aims up %.2f deg in all, one's %.2f:",
+            kickNow, vr_agt_kick_sum, vr_agt_kick_sum1), vr_agt_kick_sum1 == 0 && vr_agt_kick_sum > 0);
         // ... recovered before an aimed shot a second later (the single-shot guns' pace)
         VR_AGT_RemovePair(g);
         VR_AGT_Remove(vr_agt_g2);

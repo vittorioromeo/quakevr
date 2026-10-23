@@ -1,0 +1,6 @@
+# agrunt_dual_guns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids dual wielding guns: a row that shoots at you (god)
+map vrtesthall
+god
+cmd vr_agrunt_test 44
+hint Five armed humanoids, a gun in each hand (two shotguns, two nailguns, a super shotgun and a grenade launcher; enforcers: two super nailguns, a shotgun and a thunderbolt). They fire both guns in turn, less accurate than with one gun (Combat > Armed Grunts: Dual Guns' Penalty), heavy guns kicking up; they reload both and drop both when killed.
