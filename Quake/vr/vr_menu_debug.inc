@@ -251,6 +251,12 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_depth_split: with Parallax Depth Write on, only the textures with relief nearer than the "
                   "parallax's reach (vr_parallax_depth_distance) use the depth-writing shader; the rest keep the early depth "
                   "test, which that shader loses (the same picture, about 0.8 ms less in an AD fight). Off: all of it, as before."),
+        cycle("Parallax Depth Early-Out", vr_parallax_depth_cull,
+            {{0.f, "Off"}, {1.f, "On"}, {2.f, "Drop All (Test)"}, {3.f, "Tiles Only (Cost)"}})
+            .help("vr_parallax_depth_cull: with Parallax Depth Write on, each 4x4 pixels' farthest depth after the pre-pass, "
+                  "and the depth-writing shader drops what is behind it at once (the same picture). Measured in an AD fight: "
+                  "the tiles cost 0.36 ms and save 0.41, so off by default. Drop All: everything that shader draws goes (shows "
+                  "what it draws); Tiles Only: the tiles built, not used."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),

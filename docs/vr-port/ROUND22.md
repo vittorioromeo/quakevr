@@ -17901,3 +17901,55 @@ In VR:
   one spark and one mark a swing, also when the weapon ends lying along the wall.
 - [ ] Two quick blows on the same wall (draw back a hand's length or more between them): both thunk.
 - [ ] A corner: a swing that strikes one wall and then the other still thunks on both.
+
+## Parallax depth write: the tiles' early-out (worktree `goreflesh`, branch `agent/pdepthhiz`, 2026-10-23)
+
+Why: the open item of "Parallax depth write's cost". Even split, the depth-writing programs run on every hidden
+fragment, because this driver drops early depth testing for them. The idea was to cull those fragments in the shader.
+
+**Design** (`vr_parallax_depth_cull`, archived, default 0):
+- **The tiles.** After the opaque world's depth pre-pass, `R_PdoTilesBuild` (r_world.c) queries the bound draw
+  framebuffer's depth attachment (`glGetFramebufferAttachmentParameteriv`, plus the DSA texture queries). So it works
+  for any view: either eye, the multiview pass (its two layers, by the OVR view index), a mirror or portal view, the
+  flat window.
+- **Fallback.** Where the depth is a renderbuffer, or the queries are missing, there are no tiles and nothing is tested.
+- **The reduction.** A compute pass (`glprogs.pdo_tiles[ms][array]`, gl_shaders.h `pdo_tiles_compute_shader`) reduces
+  the depth to each 4x4-pixel tile's farthest depth, over every MSAA sample. It writes an R32F array texture (image
+  unit 5), kept in 4 sets by size, which is bound on unit 19.
+- **The test.** In the depth-writing world shader (vr_glsl.h `QVR_PDO_TILE_CULL`, right after `facing`), a fragment
+  works out the nearest its hit can be: the relief's top, `ParallaxReach` times `vr_parallax_plane`, plus 1 % and
+  0.01 unit, through `ParallaxFragDepth` with the polygon offset. If that is further than its tile's farthest, the
+  fragment is discarded before the walk and the lighting.
+- **Why it keeps the look.** Anything the fragment could hit lies behind something the pre-pass already has nearer at
+  every sample of the tile, so the culled fragment could never show.
+- **Quad-wide decision.** It is made for the whole 2x2 quad (`GL_KHR_shader_subgroup_quad`: the quad's nearest against
+  its tiles' farthest), so no surviving lane loses its derivatives' neighbours. Without that extension nothing is
+  tested.
+- **Other modes.** 2 drops everything those programs draw (proof that the path runs: 3.9 M pixels change). 3 builds
+  the tiles but doesn't use them (their own cost). Both are on Debug > Views > Parallax Depth Early-Out.
+
+**Measured** (`play_ad_tfuma_fight`, 2 x 600 frames, exclusive, depth write on with the split):
+
+| | eyes GPU ms | over off | world+brush | CPU busy |
+|---|---|---|---|---|
+| depth write off | 2.01 | | 1.02 | 3.35 |
+| on, split, no early-out | 3.40 | +1.39 | 2.20 | 3.61 |
+| on, split, tiles built, not used (`3`) | 3.76 | +1.75 | 2.59 | 3.81 |
+| on, split, early-out (`1`) | 3.35 | +1.33 | 2.16 | 3.86 |
+
+- **What the tiles cost and save.** The tile pass costs 0.36 ms a frame (0.18 an eye). Reading the 4x MSAA depth as a
+  texture likely makes the driver decompress it. The early-out then saves 0.41 ms, so the net gain is 0.05 ms, inside
+  the noise.
+- **Even with free tiles it doesn't reach the target.** The depth write would still cost about 0.9 ms over off. Most
+  of its cost is not the hidden fragments' shading: the pre-pass's own depth-writing shader, and the late depth test,
+  remain.
+- **CPU.** CPU busy rises 0.25 ms with the early-out on. The per-pass GL queries probably stall the driver's thread,
+  but that isn't measured separately.
+- **Verdict.** It doesn't pay: off by default, no default changed, no config migration.
+
+**Picture:** paused eyeshots looking down at the relief floor and the hands (pitch 45, yaw 90) with the early-out off
+and on differ by 190k/114k pixels (peak 48). Two shots both off differ by 223k, both on by 170k, so that is the
+scene's flicker. At the spawn view, off against on differs by 94k/66k pixels, and off against off by 88k/68k.
+
+In VR (optional): Debug > Views > Parallax Depth Early-Out On, with Parallax Depth Write on: nothing should change.
+Drop All (Test) makes the near relief textures vanish.

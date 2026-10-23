@@ -169,6 +169,8 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 			"#extension GL_OVR_multiview2 : require\nlayout(num_views = 2) in;\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n" :
 			"#extension GL_OVR_multiview2 : require\n#define QVR_MULTIVIEW 1\n#define QVR_VIEW int(gl_ViewID_OVR)\n";
 
+	if (type == GL_FRAGMENT_SHADER && extradefs && strstr (extradefs, "PDO 1")) // QVR: the depth-writing world's quad-wide early-out (QVR_PDO_TILE_CULL; none without it)
+		strings[numstrings++] = "#extension GL_KHR_shader_subgroup_quad : enable\n";
 	if (extradefs && *extradefs)
 		strings[numstrings++] = extradefs;
 	strings[numstrings++] = source;
@@ -607,6 +609,9 @@ void GL_CreateShaders (void)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 
+	for (mode = 0; mode < 2; mode++) // QVR: the parallax depth write's tiles (vr_parallax_depth_cull)
+		for (dither = 0; dither < 2; dither++)
+			glprogs.pdo_tiles[mode][dither] = GL_CreateComputeProgram (pdo_tiles_compute_shader, "pdo tiles|MS %d; ARRAY %d", mode, dither);
 	glprogs.clear_indirect = GL_CreateComputeProgram (clear_indirect_compute_shader, "clear indirect draw params");
 	glprogs.gather_indirect = GL_CreateComputeProgram (gather_indirect_compute_shader, "indirect draw gather");
 	glprogs.cull_mark = GL_CreateComputeProgram (cull_mark_compute_shader, "cull/mark");

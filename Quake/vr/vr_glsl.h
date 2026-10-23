@@ -782,8 +782,53 @@ QVR_ZFIX_FUNCTION \
 "#if PDO\n"\
 "	#define QVR_PDO 1\n"\
 "	layout(depth_any) out float gl_FragDepth;\n"\
+"	layout(location=20) uniform vec4 PdoTiles; // x 1: the tiles are there (r_world.c R_PdoTilesBuild), y z how many\n"\
+"	layout(binding=19) uniform sampler2DArray PdoTileTex; // each 4x4 pixels' farthest depth after the pre-pass\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
+"#endif\n"
+
+// The depth-writing world shader's early-out (vr_parallax_depth_cull; ROUND22.md, "Parallax depth write: the tiles'
+// early-out"): this driver runs every fragment of a program writing gl_FragDepth, hidden or not, so the shader tests
+// for itself. The nearest its hit can be (the relief's top, vr_parallax_plane's share of ParallaxReach over the
+// surface, a little more) against the farthest depth the pre-pass left in its 4x4-pixel tile (every sample;
+// R_PdoTilesBuild): further than that, something nearer covers the whole tile, so the fragment can't be seen and is
+// dropped before the walk and the lighting. Decided for the whole quad (its nearest, its tiles' farthest: no lane left
+// without its derivatives' neighbours); needs GL_KHR_shader_subgroup_quad, none without it. After `facing`.
+#define QVR_PDO_TILE_CULL \
+"#if QVR_PDO && defined(GL_KHR_shader_subgroup_quad)\n"\
+"	if (PdoTiles.x > 1.5) // vr_parallax_depth_cull 2: all of it dropped (the test: what these programs draw goes)\n"\
+"		discard;\n"\
+"	if (PdoTiles.x > 0.)\n"\
+"	{\n"\
+"		vec3 cull_ray = in_pos - EyePos;\n"\
+"		float cull_dist = length(cull_ray);\n"\
+"		cull_ray /= max(cull_dist, 1e-3);\n"\
+"		float cull_reach = in_pdepth > 0. ? ParallaxReach(cull_dist, -dot(cull_ray, facing), in_pdepth) : 0.;\n"\
+"		float cull_near = ParallaxFragDepth(ViewProj, in_pos, cull_ray, -(cull_reach * clamp(Parallax3.x, 0., 1.) * 1.01 + 0.01),\n"\
+"			(in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"\
+"		ivec2 cull_tile = clamp(ivec2(gl_FragCoord.xy) >> 2, ivec2(0), ivec2(PdoTiles.yz) - 1);\n"\
+"	#ifdef QVR_MULTIVIEW\n"\
+"		float cull_far = texelFetch(PdoTileTex, ivec3(cull_tile, QVR_VIEW), 0).r;\n"\
+"	#else\n"\
+"		float cull_far = texelFetch(PdoTileTex, ivec3(cull_tile, 0), 0).r;\n"\
+"	#endif\n"\
+"	#if REVERSED_Z\n"\
+"		cull_near = max(cull_near, subgroupQuadSwapHorizontal(cull_near));\n"\
+"		cull_near = max(cull_near, subgroupQuadSwapVertical(cull_near));\n"\
+"		cull_far = min(cull_far, subgroupQuadSwapHorizontal(cull_far));\n"\
+"		cull_far = min(cull_far, subgroupQuadSwapVertical(cull_far));\n"\
+"		if (cull_near < cull_far * (1.0 - 1e-5))\n"\
+"			discard;\n"\
+"	#else\n"\
+"		cull_near = min(cull_near, subgroupQuadSwapHorizontal(cull_near));\n"\
+"		cull_near = min(cull_near, subgroupQuadSwapVertical(cull_near));\n"\
+"		cull_far = max(cull_far, subgroupQuadSwapHorizontal(cull_far));\n"\
+"		cull_far = max(cull_far, subgroupQuadSwapVertical(cull_far));\n"\
+"		if (cull_near > cull_far + 1e-6)\n"\
+"			discard;\n"\
+"	#endif\n"\
+"	}\n"\
 "#endif\n"
 
 // the opaque world's depth pre-pass with pixel depth offset (glprogs.world_depth_pdo, r_world.c): the shading pass

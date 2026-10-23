@@ -620,6 +620,7 @@ typedef struct glprogs_s {
 	GLuint		debug3d;
 
 	/* compute */
+	GLuint		pdo_tiles[2][2];	// QVR: [multisampled][layered] the parallax depth write's tiles (r_world.c R_PdoTilesBuild)
 	GLuint		clear_indirect;
 	GLuint		gather_indirect;
 	GLuint		cull_mark;

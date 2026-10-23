@@ -818,6 +818,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
 "	vec3 facing = normalize(cross(dpdx, dpdy)); // QVR: the surface's normal, towards the viewer\n"
 "	facing = dot(facing, EyePos - in_pos) < 0. ? -facing : facing;\n"
+QVR_PDO_TILE_CULL // QVR: the depth-writing programs drop what can't be seen (vr_parallax_depth_cull; vr_glsl.h)
 "	vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
 "	vec3 specular_map = vec3(1.); // QVR: an external pack's specular map's colour here (QVR_WORLD_FS_LIGHT)\n"
 "#if BINDLESS\n"
@@ -1969,6 +1970,72 @@ static const char oit_resove_fragment_shader[] =
 //
 // COMPUTE SHADERS
 //
+////////////////////////////////////////////////////////////////
+//
+// QVR: the parallax depth write's tiles (r_world.c R_PdoTilesBuild, vr_parallax_depth_cull): after the opaque
+// world's depth pre-pass, each 4x4-pixel tile's farthest depth (every sample) of the view's depth buffer, read as a
+// texture (MS: multisampled; ARRAY: the multiview pass's two layers), into layer z of Tiles. The depth-writing world
+// shader then drops at once a fragment whose nearest possible hit is further than that (QVR_PDO_TILE_CULL).
+//
+////////////////////////////////////////////////////////////////
+
+static const char pdo_tiles_compute_shader[] =
+"layout(local_size_x=8, local_size_y=8) in;\n"
+"\n"
+"#if MS && ARRAY\n"
+"	layout(binding=0) uniform sampler2DMSArray Depth;\n"
+"#elif MS\n"
+"	layout(binding=0) uniform sampler2DMS Depth;\n"
+"#elif ARRAY\n"
+"	layout(binding=0) uniform sampler2DArray Depth;\n"
+"#else\n"
+"	layout(binding=0) uniform sampler2D Depth;\n"
+"#endif\n"
+"layout(binding=5, r32f) uniform writeonly image2DArray Tiles; // image unit 5 (0-3 and 7 are others')\n"
+"layout(location=0) uniform vec4 Params; // x y the depth's size in pixels, z its samples, w the first layer read\n"
+"\n"
+"void main()\n"
+"{\n"
+"	ivec2 tile = ivec2(gl_GlobalInvocationID.xy);\n"
+"	ivec2 size = ivec2(Params.xy);\n"
+"	if (tile.x * 4 >= size.x || tile.y * 4 >= size.y)\n"
+"		return;\n"
+"	int layer = int(gl_GlobalInvocationID.z);\n"
+"#if REVERSED_Z\n"
+"	float far = 1.0; // nearer is larger: the farthest the smallest\n"
+"#else\n"
+"	float far = 0.0;\n"
+"#endif\n"
+"	for (int y = 0; y < 4; y++)\n"
+"		for (int x = 0; x < 4; x++)\n"
+"		{\n"
+"			ivec2 p = min(tile * 4 + ivec2(x, y), size - 1);\n"
+"#if MS\n"
+"			for (int s = 0; s < int(Params.z); s++)\n"
+"			{\n"
+"	#if ARRAY\n"
+"				float d = texelFetch(Depth, ivec3(p, layer + int(Params.w)), s).r;\n"
+"	#else\n"
+"				float d = texelFetch(Depth, p, s).r;\n"
+"	#endif\n"
+"#else\n"
+"			{\n"
+"	#if ARRAY\n"
+"				float d = texelFetch(Depth, ivec3(p, layer + int(Params.w)), 0).r;\n"
+"	#else\n"
+"				float d = texelFetch(Depth, p, 0).r;\n"
+"	#endif\n"
+"#endif\n"
+"#if REVERSED_Z\n"
+"				far = min(far, d);\n"
+"#else\n"
+"				far = max(far, d);\n"
+"#endif\n"
+"			}\n"
+"		}\n"
+"	imageStore(Tiles, ivec3(tile, layer), vec4(far));\n"
+"}\n";
+
 ////////////////////////////////////////////////////////////////
 //
 // Clear indirect draws

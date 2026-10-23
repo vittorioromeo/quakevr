@@ -264,6 +264,7 @@ static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
 static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
+static const float					*bmodel_pdo_tiles; // QVR: set as the batch program's PdoTiles (location 20) when not NULL: the depth-writing shading's (R_DrawSolidSplit)
 
 /*
 =============
@@ -425,6 +426,8 @@ static void R_FlushBModelCalls (void)
 	GL_EndGroup (); // QVR
 
 	GL_UseProgram (bmodel_batch_program);
+	if (bmodel_pdo_tiles) // QVR: the depth-writing shading program's tiles (R_PdoTilesBuild; PdoTiles, location 20)
+		GL_Uniform4fvFunc (20, 1, bmodel_pdo_tiles);
 	VR_RetroBind (QVR_RETRO_LUT_UNIT_WORLD); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
 	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
@@ -684,6 +687,127 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 
 /*
 =============
+R_PdoTilesBuild
+
+QVR: the parallax depth write's tiles (vr_parallax_depth_cull, r_framedata.parallax3[2]; vr_glsl.h
+QVR_PDO_TILE_CULL): after the opaque world's depth pre-pass, the bound framebuffer's depth (a texture: any view's,
+multisampled or not, the multiview pass's two layers) reduced to each 4x4-pixel tile's farthest depth
+(glprogs.pdo_tiles), bound on unit 19 for the depth-writing shading. `out` its PdoTiles: x 1 (0: no tiles, a
+renderbuffer's depth or no DSA queries: the shader tests nothing), y z the tiles across and down. A few tile textures
+kept by size (the eyes, the mirror's, the flat window's).
+=============
+*/
+#define QVR_PDO_TILE_SETS 4
+typedef void (APIENTRY *qvr_getfbattach_t) (GLenum target, GLenum attachment, GLenum pname, GLint *params);
+typedef void (APIENTRY *qvr_gettexlevel_t) (GLuint texture, GLint level, GLenum pname, GLint *params);
+typedef void (APIENTRY *qvr_gettexparam_t) (GLuint texture, GLenum pname, GLint *params);
+typedef struct
+{
+	qboolean			tried;
+	qvr_getfbattach_t	attach;
+	qvr_gettexlevel_t	level;
+	qvr_gettexparam_t	param;
+	GLuint				tex[QVR_PDO_TILE_SETS];
+	int					w[QVR_PDO_TILE_SETS], h[QVR_PDO_TILE_SETS], layers[QVR_PDO_TILE_SETS];
+	int					next;		// the set replaced next
+	int					built;		// tile passes built (vr_world_fragments)
+} pdotiles_t;
+static pdotiles_t pdotiles;
+
+static qboolean R_PdoTilesBuild (float out[4])
+{
+	GLint type = 0, name = 0, target = 0, w = 0, h = 0, samples = 0, views = 0, base = 0;
+	float params[4];
+	int tw, th, layers, set;
+	qboolean ms, array;
+
+	out[0] = out[1] = out[2] = out[3] = 0.f;
+	if (r_framedata.parallax3[2] <= 0.f)
+		return false;
+	if (!pdotiles.tried)
+	{
+		pdotiles.tried = true;
+		pdotiles.attach = (qvr_getfbattach_t) SDL_GL_GetProcAddress ("glGetFramebufferAttachmentParameteriv");
+		pdotiles.level = (qvr_gettexlevel_t) SDL_GL_GetProcAddress ("glGetTextureLevelParameteriv");
+		pdotiles.param = (qvr_gettexparam_t) SDL_GL_GetProcAddress ("glGetTextureParameteriv");
+	}
+	if (!pdotiles.attach || !pdotiles.level || !pdotiles.param)
+		return false;
+	pdotiles.attach (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &type);
+	if (type != GL_TEXTURE)
+		return false;
+	pdotiles.attach (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &name);
+	pdotiles.param ((GLuint) name, GL_TEXTURE_TARGET, &target);
+	pdotiles.level ((GLuint) name, 0, GL_TEXTURE_WIDTH, &w);
+	pdotiles.level ((GLuint) name, 0, GL_TEXTURE_HEIGHT, &h);
+	ms = target == GL_TEXTURE_2D_MULTISAMPLE || target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+	array = target == GL_TEXTURE_2D_ARRAY || target == GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
+	if (!ms && !array && target != GL_TEXTURE_2D)
+		return false;
+	if (ms)
+		pdotiles.level ((GLuint) name, 0, GL_TEXTURE_SAMPLES, &samples);
+	layers = 1;
+	if (array)
+	{
+		if (gl_multiview_draw)
+		{
+			pdotiles.attach (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 0x9630 /* GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR */, &views);
+			pdotiles.attach (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 0x9632 /* GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR */, &base);
+			layers = q_max (views, 1);
+		}
+		else
+			pdotiles.attach (GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER, &base);
+	}
+	if (w <= 0 || h <= 0)
+		return false;
+	tw = (w + 3) / 4;
+	th = (h + 3) / 4;
+
+	for (set = 0; set < QVR_PDO_TILE_SETS; set++)
+		if (pdotiles.tex[set] && pdotiles.w[set] == tw && pdotiles.h[set] == th && pdotiles.layers[set] == layers)
+			break;
+	if (set == QVR_PDO_TILE_SETS)
+	{
+		set = pdotiles.next;
+		pdotiles.next = (pdotiles.next + 1) % QVR_PDO_TILE_SETS;
+		if (pdotiles.tex[set])
+		{
+			GL_BindNative (GL_TEXTURE19, GL_TEXTURE_2D_ARRAY, 0);
+			glDeleteTextures (1, &pdotiles.tex[set]);
+		}
+		glGenTextures (1, &pdotiles.tex[set]);
+		GL_BindNative (GL_TEXTURE19, GL_TEXTURE_2D_ARRAY, pdotiles.tex[set]);
+		GL_TexStorage3DFunc (GL_TEXTURE_2D_ARRAY, 1, GL_R32F, tw, th, layers);
+		glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		pdotiles.w[set] = tw;
+		pdotiles.h[set] = th;
+		pdotiles.layers[set] = layers;
+	}
+
+	GL_BeginGroup ("cs: parallax depth tiles"); // (vr_gl_markers)
+	GL_UseProgram (glprogs.pdo_tiles[ms][array]);
+	GL_BindNative (GL_TEXTURE0, target, (GLuint) name);
+	GL_BindImageTextureFunc (5, pdotiles.tex[set], 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R32F);
+	params[0] = (float) w;
+	params[1] = (float) h;
+	params[2] = (float) q_max (samples, 1);
+	params[3] = (float) base;
+	GL_Uniform4fvFunc (0, 1, params);
+	GL_DispatchComputeFunc ((tw + 7) / 8, (th + 7) / 8, layers);
+	GL_MemoryBarrierFunc (GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	GL_BindNative (GL_TEXTURE0, target, 0); // (not left bound while it is the framebuffer's depth)
+	GL_BindNative (GL_TEXTURE19, GL_TEXTURE_2D_ARRAY, pdotiles.tex[set]);
+	GL_EndGroup ();
+	pdotiles.built++;
+	out[0] = r_framedata.parallax3[2] > 2.5f ? 0.f : r_framedata.parallax3[2]; // (2: the test, everything dropped; 3: built, unused)
+	out[1] = (float) tw;
+	out[2] = (float) th;
+	return true;
+}
+
+/*
+=============
 R_DrawSolidSplit
 
 QVR: the opaque world's draws with the parallax depth write (vr_parallax_depth_write) split three ways, `reliefprog`
@@ -696,13 +820,15 @@ fragments the driver still rejects early. The picture is the same: further than 
 relief, `reliefprog` writes the surface's own depth too. Parallax3.y 0 (no split): all to `reliefprog`, as before.
 =============
 */
-static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, textype_t texend, GLuint reliefprog, GLuint flatprog)
+static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, textype_t texend, GLuint reliefprog, GLuint flatprog, const float *tiles)
 {
 	if (r_framedata.parallax3[1] <= 0.f || reliefprog == flatprog)
 	{
 		R_ResetBModelCalls (reliefprog);
+		bmodel_pdo_tiles = tiles;
 		R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
 		R_FlushBModelCalls ();
+		bmodel_pdo_tiles = NULL;
 		return;
 	}
 	if (worldfragments.left > 0) // (vr_world_fragments)
@@ -710,8 +836,10 @@ static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, te
 	glEnable (GL_CLIP_DISTANCE2);
 	bmodel_relief_filter = 1;
 	R_ResetBModelCalls (reliefprog); // the relief, near
+	bmodel_pdo_tiles = tiles;
 	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
 	R_FlushBModelCalls ();
+	bmodel_pdo_tiles = NULL;
 	R_ResetBModelCalls (flatprog); // the relief, far
 	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
 	R_FlushBModelCalls ();
@@ -735,6 +863,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	unsigned state;
 	GLuint program;
 	GLuint flatprog = 0; // QVR: the opaque pass's plain program beside the depth-writing one (R_DrawSolidSplit)
+	float pdotiles_now[4] = {0.f, 0.f, 0.f, 0.f}; // QVR: its PdoTiles this pass (R_PdoTilesBuild; 0: none)
 	GLuint buf;
 	GLbyte *ofs;
 	textype_t texbegin, texend;
@@ -858,11 +987,17 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		GLuint depthprog = r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth; // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		R_WorldFragmentsBegin (false); // QVR: (vr_world_fragments)
-		R_DrawSolidSplit (ents, count, texbegin, texend, depthprog, flatprog != program ? glprogs.world_depth : depthprog); // QVR: split as the shading is
+		R_DrawSolidSplit (ents, count, texbegin, texend, depthprog, flatprog != program ? glprogs.world_depth : depthprog, NULL); // QVR: split as the shading is
 		R_WorldFragmentsEnd (false); // QVR
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		R_ResetBModelCalls (program);
 		VR_GPUZoneEnd ();
+		if (r_framedata.parallax2[3] > 0.f) // QVR: the depth-writing shading's early-out (vr_parallax_depth_cull)
+		{
+			VR_GPUZoneBegin ("parallax depth tiles");
+			R_PdoTilesBuild (pdotiles_now);
+			VR_GPUZoneEnd ();
+		}
 	}
 
 	// QVR: the shading (profiling builds: a GPU zone with vr_tracy_gpu_detail): the opaque pass's holds the parallax,
@@ -874,7 +1009,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	if (pass == BP_SOLID && !translucent) // QVR: the depth write's split (R_DrawSolidSplit)
 	{
 		VR_TemporalMotionWrites (1); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
-		R_DrawSolidSplit (ents, count, texbegin, texend, program, flatprog);
+		R_DrawSolidSplit (ents, count, texbegin, texend, program, flatprog, r_framedata.parallax2[3] > 0.f ? pdotiles_now : NULL);
 	}
 	else
 	{

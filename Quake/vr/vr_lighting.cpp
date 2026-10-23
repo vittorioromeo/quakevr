@@ -2522,6 +2522,11 @@ extern "C" void VR_PushMapLights(void)
                                : r_framedata.parallax[1];
     r_framedata.parallax3[1] =
         r_framedata.parallax2[3] == 1.f && vr_parallax_depth_split.value != 0.f ? za::max(pdoReach, 16.f) : 0.f;
+    // The depth-writing shading's early-out by the pre-pass's tiles (r_world.c R_PdoTilesBuild; vr_glsl.h
+    // QVR_PDO_TILE_CULL): 1 on, 2 its test (every fragment of those programs dropped), 3 the tiles built but not
+    // used (their own cost); read in r_world.c only.
+    r_framedata.parallax3[2] =
+        r_framedata.parallax2[3] > 0.f ? za::clamp(za::round(vr_parallax_depth_cull.value), 0.f, 3.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);
