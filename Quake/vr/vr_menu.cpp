@@ -1258,6 +1258,7 @@ int checklistHidden = -1;     // and Hide Ticked's
 
 void checklistToggle(int arg)
 {
+    checklist::hovered(arg >> 8);
     checklist::toggle(arg >> 8);
 }
 
@@ -6501,6 +6502,10 @@ extern "C" void VR_Menu_Draw()
 
     if(cursor < n && rowSelected)
     {
+        if(list[cursor].helpArg == checklistHelp)
+        {
+            checklist::hovered(list[cursor].arg >> 8); // (a checklist item under the cursor: a voice note's context)
+        }
         const char* help = itemHelp(list[cursor]);
         if(help)
         {

@@ -18496,3 +18496,131 @@ with its heft) breaks a crate; two strong blows do, medium ones take 3-4.
 - [ ] A full axe or crowbar swing: two; a moderate swing: three or four. The same on an explosive box (it blows up on
   the second strong hit).
 - [ ] Smash a held crate into a wall hard twice: broken; the overhead slam still breaks it at once.
+### Armed monsters: dual wielding, the enforcer's tests (worktree `release`, branch `agent/armedmon2`, 2026-10-23)
+
+Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not started (budget).
+
+- **Tests 3 and 21 for the enforcer**: the scripts' mock hand sat at the grunt's gun height (14 units under the
+  enforcer's). The tests now bring it to the held weapon's own height: `vr_mock_hand_lift` (new, metres, the main mock
+  hand raised; a cvar so QC sets it at once: a command from QC would wait behind the script's `wait`s), set back to 0 at
+  the tests' ends. Test 3 also moves the grunt to the hand, then closes the hand itself (its grab time now: the script
+  holds `+grabmain` as before; a grunt spawned at 100, out of the held grab's reach). Grunt and enforcer: 3 PASS, 21
+  3/3 PASS. Test 1 (grunt) 17/17, test 2 4/4 after the dual-wielding change.
+- **Dual wielding** (`docs/vr-port/ARMED_MONSTERS.md`, "Dual wielding"): a second slot (`vr_ag_*2`); the layer acts on
+  the first and an event on the second weapon swaps them first, so tugs, yanks, blows, throws, parries and falls are the
+  one-weapon rules per hand; the weapon left alone goes to the right hand. One-handed pairs only: swords (not AD's hammer
+  and mace), crowbar, axe (two-handed alone); no gun qualifies (all long guns held on the animations' rifle lines).
+  Map keys `weapon2`/`weaponflags2` (FGD regenerated); from the pool `vr_agrunt_dual_chance` (new, 0.25; Armed Grunts
+  page: "Dual Wielding"). Swings alternate hands, 25% both at once (mirrored), the other hand following up 45%; the left
+  weapon ready (mirrored), carried hanging forward at its side, swung on the right's keys mirrored; sent in
+  QVR_SVC_ARMPOSE behind flag 8 and drawn by the client at the left hand's IK target. Lost one: out of a fight (or its
+  target over 160 units off) it goes for another one-handed weapon. Dying: both fall. Test `vr_agrunt_test 40`: grunt
+  and enforcer 5/5 PASS (both held, the crowbar left; both hands strike; the left knocked out, the sword kept in the right;
+  re-armed out of the fight; both fall). Eyeshots: `vr_agrunt_test 14` with `scratch4 1` (a sword in each left hand;
+  `scratch1` the row's distance).
+- **The enforcer's carry** (checked, not changed): test 15's rows at 170 units (`scratch1`): standing, its guns at its
+  chest along its rifle line (not hanging), aiming forward; the left hand on each weapon's second grip (IK misses 0.00;
+  the chainsaw's 7.9 units against the grunt's 6.7). The chainsaw rides higher on it (the fit's +7 z moves hip poses as
+  much as shoulders): look in VR.
+- **Left**: stage 4, the toolgun's spawn UI (kind and loadout pickers, ghost preview); the enforcer's pose per weapon class
+  in VR (idle, run, aim, melee) if it looks off.
+
+**In VR:** spawn armed grunts from the pool with `vr_agrunt_dual_chance 1` (or a map's `weapon2`): two blades, swung in
+turn and together, the left arm on its weapon; knock or pull out either (it fights on with the other, then picks one up);
+kill it: both fall.
+
+### Armed monsters: the toolgun's spawn page (worktree `release`, branch `agent/armedui`, 2026-10-23)
+
+Stage 4 of the armed-monster brief. Vittorio: pick the kind of humanoid and its weapons separately, dual wielding and
+unarmed included, with dropdowns or the like.
+
+- **The page** (`docs/vr-port/ARMED_MONSTERS.md`, "The toolgun's spawn page"; `docs/vr-port/TOOLGUN.md`): Spawn >
+  Monsters' new **Armed Humanoid** tile (the 16th cell, after id's and Quake VR's own: the tiles before it don't move)
+  opens a page of three dropdowns: Kind, Right Hand (Random from Pool, Unarmed, then every weapon the kind holds: melee
+  first, then guns, launchers, streams, bursts; AD's and the packs' only with their data), Left Hand (None, or a
+  one-handed weapon; dimmed and closed unless the right hand's is one-handed). Under them the kind's and the two weapons'
+  thumbnails and a line on what it will do (Random: the pool's dual-wield chance). Each pick is the spawn tool's choice
+  at once (the info line: "Armed Enforcer: Axe + Knight's Sword"); Back to the grid, Choose (again, after another
+  entry), Pick, Reset, Clear as on the grid.
+- **Filled from the table**: the kinds and the weapons are asked of QC once a map (and when AD's data comes or goes):
+  `QC/vr_armedmon_ui.qc` (`VR_AM_UiCount`, the row's name, spawn function: the new row field `vr_am_spawnname`, model,
+  stand frame; `VR_AM_UiWeapon(kind, code)` for every "weapon" code 1..127: held, one-handed, its class). A new row shows
+  up by itself. 38 weapons with AD's and the packs' data here, both rows holding all.
+- **The dropdown** (`vr_toolgun_panel.cpp` `dropdown` + `listOverlay`, reusable by any panel page): the label, the choice
+  in a box with a chevron; clicked, its list opens over the panel (laid out last: one column up to 8 rows, two beyond,
+  16 a page with `<` `>`, Close); a row clicked chooses and closes; a click off it closes it; the panel's other widgets
+  sleep meanwhile (no hover, no clicks). Its rows are named by their labels for `vr_toolgun_mock_laser`.
+- **The ghost holds the weapons**: `VR_AM_UiGhost` puts stand-ins (the kind's model at its stand frame, the weapons'
+  models) through the layer's own pose (`VR_AGP_Pose`, with `vr_agp_quiet`: placed, nothing sent, the chainsaw's engine
+  not run; the melee stance settled as it is a moment after a spawn), reads the weapons' places and angles and removes
+  them; the engine draws them as ghost parts turned with the ghost (hologram glow too). The arms are the model's (no IK
+  on a temp entity). `vr_toolgun_status` prints "ghost holds <model> in its right/left hand at ... from it".
+- **Kept**: every entry's number (the Armed Grunt / Armed Enforcer entries stay in the list: `vr_toolgun_select`, the
+  Debug menus); they are left off the grid since the page makes them all (`vr_toolgun_armed_tiles 1`, new, Debug >
+  Toolgun "Armed Tiles on the Spawn Grid": listed too). New archived cvars: `vr_toolgun_armed_kind` 0,
+  `vr_toolgun_armed_weapon` 0 (0 random, -1 unarmed, a code), `vr_toolgun_armed_weapon2` 0. `box3d::spawnClass` takes a
+  second key (`weapon2`). The armed log line at a spawn names the left hand's weapon.
+- **Console and Debug**: `vr_toolgun_select_armed [kind [weapon [weapon2]]]`, `vr_toolgun_armed_list` (Debug > Toolgun
+  "Armed Humanoid Lists": each weapon's code, name and 1h/2h per kind).
+- **Tests** (scratch scripts, headless): the lists (2 kinds, 38 weapons); grunt sword + crowbar, enforcer shotgun +
+  crowbar (the crowbar dropped: not a pair), enforcer chainsaw, unarmed, random: each spawned with what was chosen
+  ("agrunt: spawned with Knight's Sword and in its left hand Crowbar"); an old entry still selects. The panel by the
+  mock laser: the tile, Kind > Enforcer, a click off an open list (closed, nothing chosen), Right Hand > Knight's Sword,
+  Left Hand > Crowbar, the list's second page > Shotgun (Left Hand back to None and asleep), spawned from the trigger.
+  Ghost against the monster made there (sword + crowbar, axe + sword on the enforcer, its chainsaw, a grunt's shotgun):
+  the weapons in the same places.
+- **Left**: the enforcer's per-class pose pass (its chainsaw riding high: the fit's +7 z) not done (budget). No
+  checklist scenario: agent/checktest is not on next.
+
+**In VR:** toolgun, B, Spawn > Monsters, page 2's last tile (Armed Humanoid): pick Kind, Right Hand, Left Hand with the
+laser (the lists' rows big enough? the second column readable?); the ghost holds the chosen weapons; spawn a few,
+dual-wielding ones too.
+
+## Voice notes carry more context and an instant replay (worktree `fastship`, branch `agent/notectx`, 2026-10-23)
+
+So that a worker can tell what he meant and reproduce it, each voice note now keeps (docs: [VOICENOTES.md](VOICENOTES.md)):
+
+- **The checklist item** last under the Checklist page's cursor (or picked), its section and state, how long before the
+  note (`checklist::hovered`, called by the menu for the cursor's row: two lines in `vr_menu.cpp`, an accessor at the end
+  of `vr_checklist.cpp`, for the merge with `agent/checktest`), and the scenario the checklist's Test last ran:
+  `notectx::testRun(scenario)` is the hook; **checktest's Test button should call it** (not wired here: that button is
+  on the other branch).
+- **The hands:** weapon id and name, model, offsets slot, flags, clip/size, ammo, spent; a carried prop; an enemy held
+  (`foegrab::noteHand`: by which part, the holds, the stretch, the two-hand moves); a ragdoll's limb (`box3d::noteRagdollHold`:
+  the rig's part, its struggle's weights, effort, fatigue); the force grab's target.
+- **The monsters within 5 m:** class, distance, health, think function (its animation state), frame, enemy, an armed
+  grunt's weapon, knocked down, dying/corpse, held, headless, its ragdoll's struggle.
+- **The settings changed this session** (archived cvars; `cvar.c` calls `VR_NoteCvarChanging` before a change): first
+  value -> now, count, when; not a take's playback's own swaps.
+- **An instant replay:** with `vr_notes 1`, the motion recorder's row of every host frame (no QC sample) kept in a ring of
+  `vr_note_replay_seconds` (30, new cvar; `vr_note_replay 1`, new), the nearby entities every 0.1 s in another; at the note
+  both rings go to the pool as they are and are written as `<note>_replay.csv` (a take, label `replay`) and
+  `<note>_entities.csv`; the console's last lines (`console.c` -> `VR_NoteConsolePrint`) as `<note>_log.txt`; the frame
+  times as `<note>_frames.csv` (hitches marked; the .txt has the summary). A new map starts the rings again.
+- The .txt is written on the pool too now; a dropped (too short) note removes its sidecars.
+- `transcribe_notes.py` groups each note's context in NOTES.md (Where, Checklist, Hands, Nearby, Settings changed, Files,
+  Other: nothing dropped); `--md-only` rebuilds NOTES.md without Whisper.
+- Debug > (the commands list) **Save Note Context** (`vr_note_context`: everything but the sound, now) and **Note Replay
+  Cost** (`vr_note_replay_stats`).
+- `vr_motion.cpp`: the take header's settings lines are built from a copy (`SettingsSnap`), without temporary strings
+  (the same text); for a replay on the pool. That took the note start from 4-5 ms to about 1 ms.
+
+**Tests (headless, vrfiringrange).** A shotgun in the main hand (`vr_weapon_grip_mode 1; impulse 9; impulse 154`), a grunt
+50 units ahead (`vr_test_spawn 0; impulse 241`), the off hand gripping it (`vr_mock_hand_to off nearest monster_army 6;
++graboff`), a checklist item picked (`vr_menu_press Checklist > ...`, then `vr_checklist undo`), `vr_note_replay_seconds 29`,
+then `vr_note_context`: the .txt has `checklist: [next branch: test these first] Blade shape editor ... (open)`, `main hand:
+weapon 4 shotgun, model progs/v_shot.mdl, offsets slot 1, flags 0, clip 8/8, ammo 1`, `off enemy: monster_army #266 by its
+torso or shoulders, hand's hold 0.85 ...`, `nearby: monster_army #266 at 1.6 m, health 30, think army_stand7, ... held 0.85`,
+`setting: vr_note_replay_seconds 30 -> 29`, `setting: vr_weapon_grip_mode 0 -> 1`, the replay 1393 frames 8.4 s (since the map
+loaded), the console 149 prints, the frames' summary. Cost (`NOTESTATS`): 3 us a host frame, 1.2 us a server frame; rows
+about 2.2 KB (a 30 s ring at 90 Hz about 6 MB; on disk about 2 KB a row, 5.6 MB a note); the note start 1.05 ms.
+Replay: `map vrfiringrange; vr_motion_play <note>_replay.csv map vrfiringrange save` played its 1393 frames; against the
+take (`scratch/compare_takes.py`, row by row) the head's and both controllers' tracking fed in are identical (max 0.0000 m),
+no frame's buttons differ, the hands as the game placed them (player frame) mean 0.25 / 0.03 units off, max 3.1 (main) and
+40.9 (off: its grip on the grunt, which the replay doesn't bring back: playback stands only the take's target monster; the
+others are in `_entities.csv`). The report's "hands vs the take, relative to the dummy" is large (rms 115 units) for this
+take: its nearest monster changes from the training dummy to the spawned grunt halfway, which that measure doesn't follow.
+`eval.sh`: runs as before.
+
+**In VR:** record a few notes as usual (with a weapon, holding an enemy, after picking a checklist item, after changing a
+setting); check nothing hitches as a note starts; then `python Misc/quakevr/transcribe_notes.py` and look at NOTES.md.

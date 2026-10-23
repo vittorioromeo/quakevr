@@ -22,6 +22,17 @@
 .float vr_ag_reloads;      // reloads (the tests)
 .float vr_ag_disarms;      // times it was disarmed (the tests)
 .float vr_ag_pickups;      // weapons it picked up (the tests)
+// Dual wielding (vr_armedgrunt.qc VR_AG_Swap): the second slot, the same fields' (the layer acts on the first: a hand's
+// event on the second's weapon swaps the slots first). Which hand a weapon is in is its prop's .vr_ag_left.
+.float vr_ag_wid2;         // the second weapon (one-handed: VR_AG_OneHanded), or -1: none
+.float vr_ag_wflags2;
+.entity vr_ag_prop2;
+.float vr_ag_reserve2;
+.float vr_ag_left;         // a held weapon's prop: in its left hand
+.float vr_ag_dual;         // spawned with two: it goes for a second one-handed weapon when it lost one
+.float vr_ag_act_hand;     // a dual swing's hands: 0 the right, 1 the left, 2 both
+.float vr_ag_act_hitl;     // ... the left's blow struck
+.float vr_ag_strikes_l;    // its left hand's blows (the tests)
 
 float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
 float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)

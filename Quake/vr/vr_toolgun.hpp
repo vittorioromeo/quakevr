@@ -88,6 +88,27 @@ edict_t* spawnEntryAt(int i, const glm::vec3& feet, float yaw);
 [[nodiscard]] int selectedSpawnable();
 void selectSpawnable(int i); // (-1: nothing)
 
+// The Armed Humanoid page (the panel's; QC vr_armedmon_ui.qc; docs/vr-port/ARMED_MONSTERS.md): the armed monsters'
+// table's rows (the kinds) and the weapons they may hold, asked of QC once a map (refresh: the host frame); the choice
+// is vr_toolgun_armed_kind, _weapon (0 random from the pool, -1 unarmed, else a weapon's "weapon" code) and _weapon2
+// (its left hand's: 0 none).
+namespace armed
+{
+void refresh();
+[[nodiscard]] int generation(); // counts the lists' rebuilds
+[[nodiscard]] int kindCount();
+[[nodiscard]] const char* kindName(int k);
+[[nodiscard]] const char* kindModel(int k);
+[[nodiscard]] int weaponCount(); // every kind's weapons (melee first)
+[[nodiscard]] int weaponCode(int i);
+[[nodiscard]] const char* codeName(int code); // "Random from Pool", "Unarmed", a weapon's name
+[[nodiscard]] int fits(int kind, int code);    // 0: not held by that kind; else 1, + 2 one-handed, + 4 * its class
+[[nodiscard]] bool oneHanded(int kind, int code);
+[[nodiscard]] bool chosen(); // the spawn tool's choice is the page's
+void choose();               // the page's choice made the spawn tool's (the cvars made valid for the kind first)
+[[nodiscard]] const char* ghostModel(int hand); // the choice's held weapons' models (0 right, 1 left; "": none)
+} // namespace armed
+
 // The tools' and the joints' names (vr_toolgun_tool, vr_toolgun_joint), and the tool chosen (said on the console, a tick
 // in the gun's hand).
 [[nodiscard]] const char* toolName(int tool);

@@ -8,6 +8,7 @@
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
 
 namespace qvr::ragactive
@@ -93,9 +94,11 @@ void reset();
 // model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
 // and the toolgun's. An item is placed at once (QC VR_SpawnLive_Finish): its final size and place from its first frame.
 // `probe`: made only to be looked at and removed at once (the toolgun's ghost: QC vr_spawn_live 2). `weaponFlags`:
-// its "weaponflags" when not 0 (a grabbable weapon's: an AD melee weapon's kind).
+// its "weaponflags" when not 0 (a grabbable weapon's: an AD melee weapon's kind). `key2`: a second float field set to
+// `value2` (an armed monster's left hand's "weapon2").
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
-    const char* key = nullptr, float value = 0.f, bool probe = false, float weaponFlags = 0.f);
+    const char* key = nullptr, float value = 0.f, bool probe = false, float weaponFlags = 0.f, const char* key2 = nullptr,
+    float value2 = 0.f);
 
 // The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
 // unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict
@@ -155,6 +158,11 @@ void debugDraw();
 void activeRagdollDraw();
 // vr_struggle_debug: a panel over each struggling enemy (vr_box3d_struggle.cpp), turned to `eye` (world units).
 void struggleDraw(const glm::vec3& eye);
+// A voice note's context (vr_notectx.cpp): the limb edict `player`'s `hand` (0 the off hand, 1 the main) holds, a line
+// ("monster_army #34 part head, alive (knocked down), struggling 2.1 s: effort ..."), "" none. Also, without a hold, an
+// edict's ragdoll's state (`num` > 0: "ragdoll, struggling ..."; "" no ragdoll).
+[[nodiscard]] za::String noteRagdollHold(int player, int hand);
+[[nodiscard]] za::String noteRagdoll(int num);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
