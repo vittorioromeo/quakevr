@@ -99,6 +99,15 @@ float() VR_ADGun_LegacyWorld;            // OnLoadGame: an older save's eliminat
 .entity vr_fuellink;
 void(entity xGun, entity xFrom) VR_FuelTank_Attach; // CreateThrownWeapon: a fuelled gun made lying about gets its tank
 void() VR_FuelTank_Frame;                           // StartFrame: any fuelled gun lying about without one gets it
+// The death sergeant's flail lying about keeps its head on its chain (vr_ad_melee.qc, "The flail lying about"): the
+// handle's .vr_fuellink its head ("vr_flailhead"), the head's its handle; roped by the engine (vr_box3d.cpp).
+void(entity xGun, entity xFrom) VR_FlailHead_Attach;               // CreateThrownWeapon: a flail made lying about gets its head
+void(entity xGun, entity xPlayer, float xHand) VR_FlailHead_Taken; // wpnthrow_handtouch_impl: its head handed to the hand's
+void() VR_FlailHead_Frame;                                         // StartFrame: any flail lying about without one gets it
+// A player's flails' heads (the engine's: vr_box3d_flail.cpp writes where each hand's is after each step; QC writes
+// where the head lying about was as a hand takes its flail, and when).
+.vector vr_flail_head, vr_flail_headvel, vr_flail_offhead, vr_flail_offheadvel;
+.float vr_flail_taken, vr_flail_offtaken;
 void(entity p) AD_UpgradesToWeapons;     // PutClientInServer, OnLoadGame: a player's own upgrades (before 2026-10-12) onto his weapons
 float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
 void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map

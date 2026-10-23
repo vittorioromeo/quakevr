@@ -56,6 +56,8 @@
 
 #include "vr_box3d_internal.hpp"
 
+#include "vr_admelee.hpp"
+
 namespace box3d::detail
 {
 [[nodiscard]] const char* kindName(Kind k)
@@ -732,12 +734,28 @@ void syncToolJoints()
     }
 }
 
-// The fuelled guns' tanks lying about (QC vr_ad_enemyguns.qc "Fuel tanks"): each tank (classname vr_fueltank) and its
-// gun (a thrown_weapon), each naming the other by .vr_fuellink, held together by a rope from the gun's origin (its
-// grip) to the tank's (its middle): Box3D's distance joint, slack to its most, vr_adgun_tank_rope m (or as far apart as
-// they are when it is made, a little more). Found again each frame, so a saved game, a new world or a body made again
-// (a hand carrying either: a kinematic body) has its rope again; a pair gone, its joint goes.
-void syncFuelRopes()
+namespace
+{
+// Where a rope holds a body, in its frame (units; the body's frame is its edict's origin and angles, its shapes the model
+// as drawn: vr_box3d_props.cpp createBody): the model's point `p` as drawn.
+[[nodiscard]] glm::vec3 drawnEnd(edict_t* e, const glm::vec3& p)
+{
+    const int index = static_cast<int>(e->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const FieldOffsets& f = fields();
+    return held::drawnPoint(model, fieldVec(e, f.model_scale), fieldVec(e, f.model_scale_origin), fieldVec(e, f.model_offset), p);
+}
+} // namespace
+
+// The things lying about held to a weapon lying about (a thrown_weapon) by a rope, each naming the other by
+// .vr_fuellink: the fuelled guns' tanks (QC vr_ad_enemyguns.qc "Fuel tanks"; classname vr_fueltank), from the gun's origin
+// (its grip) to the tank's (its middle), slack to vr_adgun_tank_rope m (or as far apart as they are when it is made, a
+// little more); the death sergeant's flails' heads (QC vr_ad_melee.qc "The flail lying about"; vr_flailhead), from the
+// handle's tip (its made model's: admelee::tipOf) to the head's ring (+x ringReach from its ball's middle), slack to the
+// chain's length, vr_flail_chain m (the held head's rope: vr_box3d_flail.cpp). Box3D's distance joint, no spring.
+// Found again each frame, so a saved game, a new world or a body made again (a hand carrying either: a kinematic body)
+// has its rope again; a pair gone, its joint goes.
+void syncPropRopes()
 {
     const int link = fields().vr_fuellink;
     if(link < 0)
@@ -748,21 +766,29 @@ void syncFuelRopes()
     for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
     {
         edict_t* t = EDICT_NUM(n);
-        if(t->free || fieldInt(t, link) == 0 || strcmp(PR_GetString(t->v.classname), "vr_fueltank"))
+        if(t->free || fieldInt(t, link) == 0)
         {
             continue;
         }
+        const char* cls = PR_GetString(t->v.classname);
+        const bool tank = !strcmp(cls, "vr_fueltank");
+        if(!tank && strcmp(cls, "vr_flailhead"))
+        {
+            continue;
+        }
+        const World::RopeKind kind = tank ? World::RopeKind::Tank : World::RopeKind::Flail;
         edict_t* g = PROG_TO_EDICT(fieldInt(t, link));
         const int gn = NUM_FOR_EDICT(g);
         if(gn <= svs.maxclients || g->free || fieldInt(g, link) != EDICT_TO_PROG(t) ||
-            strcmp(PR_GetString(g->v.classname), "thrown_weapon"))
+            strcmp(PR_GetString(g->v.classname), "thrown_weapon") ||
+            (!tank && strcmp(PR_GetString(g->v.model), qvr::admelee::flailModel)))
         {
             continue;
         }
         World::FuelRope* r = nullptr;
         for(World::FuelRope& x : world->fuelRopes)
         {
-            if(x.tank == n)
+            if(x.tank == n && x.kind == kind)
             {
                 r = &x;
                 break;
@@ -773,6 +799,7 @@ void syncFuelRopes()
             world->fuelRopes.pushBack(World::FuelRope{});
             r = &world->fuelRopes.back();
             r->tank = n;
+            r->kind = kind;
         }
         r->seen = frame;
         const b3BodyId gb = toolJointBody(gn), tb = toolJointBody(n);
@@ -793,13 +820,28 @@ void syncFuelRopes()
         {
             continue; // (made once both are there and one of them moves)
         }
-        const float apart = glm::length(glmv(b3Body_GetPosition(gb)) - glmv(b3Body_GetPosition(tb)));
-        r->length = za::max(za::max(vr_adgun_tank_rope.value, 0.1f), apart + 0.02f);
+        if(tank)
+        {
+            const float apart = glm::length(glmv(b3Body_GetPosition(gb)) - glmv(b3Body_GetPosition(tb)));
+            r->length = za::max(za::max(vr_adgun_tank_rope.value, 0.1f), apart + 0.02f);
+            r->gunEnd = r->tankEnd = glm::vec3{0.f};
+        }
+        else
+        {
+            glm::vec3 tip, hand;
+            if(!qvr::admelee::tipOf(qvr::admelee::flailModel, tip, hand))
+            {
+                continue; // (no flail made: AD's data not there)
+            }
+            r->gunEnd = drawnEnd(g, tip);
+            r->tankEnd = drawnEnd(t, glm::vec3{qvr::admelee::flailRingReach, 0.f, 0.f});
+            r->length = za::clamp(vr_flail_chain.value, 0.1f, 2.f);
+        }
         b3DistanceJointDef jd = b3DefaultDistanceJointDef();
         jd.base.bodyIdA = gb;
         jd.base.bodyIdB = tb;
-        jd.base.localFrameA = b3Transform{b3v(glm::vec3{0.f}), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})};
-        jd.base.localFrameB = jd.base.localFrameA;
+        jd.base.localFrameA = b3Transform{world->toM(r->gunEnd), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})};
+        jd.base.localFrameB = b3Transform{world->toM(r->tankEnd), toB3(glm::quat{1.f, 0.f, 0.f, 0.f})};
         jd.base.collideConnected = false;
         jd.length = r->length;
         jd.enableSpring = true; // (a rope: no stiffness, held within its length by the limit; the toolgun's)

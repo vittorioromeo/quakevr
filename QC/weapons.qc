@@ -5016,6 +5016,7 @@ void(float xHand, entity ent, entity entPlayer,
     {
         dprint(sprintf("weapon: %s hand takes %s\n", xHand == cVR_MainHand ? "main" : "off", VRWeaponInstDesc(entPlayer, xHand)));
     }
+    VR_FlailHead_Taken(ent, entPlayer, xHand); // AD support: a flail's head lying about becomes the hand's (vr_ad_melee.qc)
     remove(ent);
 
     self = entPlayer;
@@ -5423,6 +5424,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     newmis.vr_depleted = VR_Weapon_Spent(xWeapon, newmis.weaponinst);
     VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
     VR_FuelTank_Attach(newmis, thrower); // AD support: a flamethrower's or poison sprayer's tank with it (vr_ad_enemyguns.qc)
+    VR_FlailHead_Attach(newmis, thrower); // AD support: the death sergeant's flail's head on its chain (vr_ad_melee.qc)
 
     return newmis;
 }

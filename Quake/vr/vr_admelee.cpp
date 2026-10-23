@@ -1455,6 +1455,18 @@ int kindOfModel(const char* model)
     return 0;
 }
 
+bool tipOf(const char* model, glm::vec3& tip, glm::vec3& hand)
+{
+    const Bend* b = bendOfKind(kindOfModel(model));
+    if(!b || !b->length)
+    {
+        return false;
+    }
+    hand = b->hand;
+    tip = b->hand + b->line * b->length;
+    return true;
+}
+
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* at = strstr(name, suffix);

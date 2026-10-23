@@ -50,6 +50,7 @@ void(float xKind) VR_ADMelee_Ensure =
     if(xKind == VR_ADMELEE_FLAIL && cvar("vr_ad_mounted"))
     {
         precache_sound("gibs/gibchain.wav"); // (its chain's rattle: VR_Flail_Rattle)
+        precache_model("progs/w_blueflail.mdl#flailhead"); // (its head lying about: VR_FlailHead_Attach)
     }
 };
 
@@ -267,6 +268,194 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     {
         bprint(sprintf("flail: hand %g hit %s at %.1f m/s, %.1f kg%s: damage %.1f (health %g before)\n", xHand,
             t == world ? "the level" : t.classname, xSpeed, xMass, xBoth ? ", two hands" : "", dmg, before));
+    }
+};
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The flail lying about (Vittorio, 2026-10-23: as the fuel tanks, it always keeps its ball and chain): a flail lying about
+// (dropped, thrown, a death sergeant's, the toolgun's) has its spiked head beside it, a prop of its own ("vr_flailhead",
+// progs/w_blueflail.mdl#flailhead: its ball's middle at its origin, its ring along +x), held to the handle's end by a rope
+// at the chain's length (the engine's, vr_box3d.cpp syncPropRopes: from the handle's tip to the head's ring) and drawn
+// joined to it by its chain (vr_adtank.cpp's world lines, vr_flail.cpp's links). A hand carries the head (no force grab:
+// no FL_FORCEGRABBABLE; force grab the handle, the head trails it); either drags the other. Let go of from a hand, the
+// head lying about is made where the hand's was, at its speed (the engine leaves it on the player: .vr_flail_head);
+// a hand taking the handle takes the head with it (VR_FlailHead_Taken: the hand's head made where this one lay, at its
+// speed, then this one goes). The handle gone any other way, its head goes (VR_FlailHead_Think); a handle found without
+// one (an older save, a head the toolgun removed) gets one (VR_FlailHead_Frame). vr_flail_world 0: none (the handle
+// alone, as before). handle.vr_fuellink is its head, head.vr_fuellink its handle (the fuel tanks' field).
+float vr_flailhead_made;    // heads made (the tests)
+float vr_flailhead_next;    // VR_FlailHead_Frame's next look
+float vr_flailhead_handed;  // heads made from a hand's (the tests)
+float vr_flailhead_taken;   // heads handed to a hand taking the flail (the tests)
+.float vr_flailhead_grace;  // let go of from a hand: until when it spares its dropper's body (.owner him, then its handle)
+string VR_FLAILHEAD_MODEL = "progs/w_blueflail.mdl#flailhead";
+
+float(entity w) VR_FlailHead_IsFlail =
+{
+    return w.classname == "thrown_weapon" && w.weapon == WID_SWORD && VR_ADMelee_Kind(w.weaponflags) == VR_ADMELEE_FLAIL;
+};
+
+// `w`'s head lying about (world: none).
+entity(entity w) VR_FlailHead_Of =
+{
+    entity h = w.vr_fuellink;
+    if(!h || !h.modelindex || h.classname != "vr_flailhead" || h.vr_fuellink != w)
+    {
+        return world;
+    }
+    return h;
+};
+
+// `h`'s flail, while it is still its flail lying about (world: not).
+entity(entity h) VR_FlailHead_Handle =
+{
+    entity w = h.vr_fuellink;
+    if(!w || !w.modelindex || w.vr_fuellink != h || !VR_FlailHead_IsFlail(w))
+    {
+        return world;
+    }
+    return w;
+};
+
+void() VR_FlailHead_Think =
+{
+    entity w = VR_FlailHead_Handle(self);
+    if(!w || !cvar("vr_flail_world"))
+    {
+        if(w)
+        {
+            w.vr_fuellink = world;
+        }
+        if(cvar("developer"))
+        {
+            dprint(sprintf("admelee: a flail's head at %v goes with its handle\n", self.origin));
+        }
+        remove(self);
+        return;
+    }
+    if(self.vr_flailhead_grace && time >= self.vr_flailhead_grace)
+    {
+        self.vr_flailhead_grace = 0;
+        self.owner = w; // (it meets its dropper again; its handle never: the rope's joint keeps them apart)
+    }
+    self.nextthink = time + 0.01;
+};
+
+void(entity xGun, entity xFrom) VR_FlailHead_Attach =
+{
+    if(!VR_FlailHead_IsFlail(xGun) || !cvar("vr_flail_world") || !cvar("vr_ad_mounted") || VR_FlailHead_Of(xGun))
+    {
+        return; // (without AD's data there is no head to make: the handle is the knight's sword standing in)
+    }
+    entity h = spawn();
+    h.classname = "vr_flailhead";
+    h.netname = "flail head";
+    h.movetype = MOVETYPE_TOSS;
+    h.solid = SOLID_NOT_BUT_TOUCHABLE;
+    setmodel(h, VR_FLAILHEAD_MODEL);
+    setsize(h, modelbounds(h, 0), modelbounds(h, 1));
+    h.owner = xGun;
+    vector at = '0 0 0', vel = '0 0 0';
+    if(xFrom.flags & FL_CLIENT)
+    {
+        // A hand's: where the engine left that hand's head at the last step (the one nearer the handle, two flails held).
+        float dm = xFrom.vr_flail_head != '0 0 0' ? vlen(xFrom.vr_flail_head - xGun.origin) : 1000000;
+        float doff = xFrom.vr_flail_offhead != '0 0 0' ? vlen(xFrom.vr_flail_offhead - xGun.origin) : 1000000;
+        if(dm < 1000000 && dm <= doff)
+        {
+            at = xFrom.vr_flail_head;
+            vel = xFrom.vr_flail_headvel;
+            xFrom.vr_flail_head = '0 0 0'; // (taken: not a second flail's)
+        }
+        else if(doff < 1000000)
+        {
+            at = xFrom.vr_flail_offhead;
+            vel = xFrom.vr_flail_offheadvel;
+            xFrom.vr_flail_offhead = '0 0 0';
+        }
+    }
+    if(at != '0 0 0')
+    {
+        h.owner = xFrom; // (out of his body before it meets it)
+        h.vr_flailhead_grace = time + 1;
+        vr_flailhead_handed++;
+    }
+    else
+    {
+        // Beside the handle (a death sergeant's drop, the toolgun's, an older save's), within its chain: lying off its
+        // right, falling as it falls.
+        makevectors('0 1 0' * xGun.angles_y);
+        at = xGun.origin + v_right * min(24, max(2, cvar("vr_flail_chain") * VRMetersToUnits() * 0.9)) + '0 0 4';
+        traceline(xGun.origin, at, TRUE, xGun);
+        if(trace_fraction < 1)
+        {
+            at = xGun.origin + (trace_endpos - xGun.origin) * 0.7; // (short of a wall)
+        }
+        vel = xGun.velocity;
+    }
+    h.angles = vectoangles(xGun.origin - at); // (its ring, +x, towards the handle)
+    setorigin(h, at);
+    h.velocity = vel;
+    h.vr_fuellink = xGun;
+    xGun.vr_fuellink = h;
+    h.vr_prop_mass = max(0.2, cvar("vr_flail_mass"));
+    h.touch = SUB_Null;
+    h.handtouch = SUB_Null; // (nothing to take: a hand carries it, VR_Carry_Setup)
+    VR_Carry_Setup(h);
+    h.think = VR_FlailHead_Think;
+    h.nextthink = time + 0.01;
+    vr_flailhead_made++;
+    if(cvar("developer"))
+    {
+        dprint(sprintf("admelee: a flail's head made at %v, %.1f from its handle (%s)\n", at, vlen(at - xGun.origin),
+            h.vr_flailhead_grace ? "the hand's" : "beside it"));
+    }
+};
+
+void(entity xGun, entity xPlayer, float xHand) VR_FlailHead_Taken =
+{
+    entity h = VR_FlailHead_Of(xGun);
+    if(!h)
+    {
+        return;
+    }
+    if(xPlayer.flags & FL_CLIENT)
+    {
+        if(xHand == cVR_MainHand)
+        {
+            xPlayer.vr_flail_head = h.origin;
+            xPlayer.vr_flail_headvel = h.velocity;
+            xPlayer.vr_flail_taken = time;
+        }
+        else
+        {
+            xPlayer.vr_flail_offhead = h.origin;
+            xPlayer.vr_flail_offheadvel = h.velocity;
+            xPlayer.vr_flail_offtaken = time;
+        }
+        vr_flailhead_taken++;
+    }
+    xGun.vr_fuellink = world;
+    remove(h);
+};
+
+void() VR_FlailHead_Frame =
+{
+    if(time < vr_flailhead_next)
+    {
+        return;
+    }
+    vr_flailhead_next = time + 0.5;
+    if(!cvar("vr_flail_world") || !cvar("vr_ad_mounted"))
+    {
+        return;
+    }
+    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    {
+        if(VR_FlailHead_IsFlail(w) && !VR_FlailHead_Of(w))
+        {
+            VR_FlailHead_Attach(w, world);
+        }
     }
 };
 
@@ -706,6 +895,106 @@ void(entity p, float xNew) VR_ADMelee_HolsterTest =
     bprint(sprintf("admelee holster: %s\n", pass ? "PASS" : "FAIL"));
 };
 
+// The flail lying about's tests (ROUND22.md, "The flail lying about keeps its ball and chain"): 165 the count (handles,
+// heads, paired, orphans; heads made, from a hand, handed back), 166 the main hand's flail let go of, 167 the nearest
+// flail lying about taken into the empty main hand, 168 it kicked hard up and sideways, 169 one made 64 ahead (the
+// toolgun's dispenser), 170 its head carried in the empty main hand. A death sergeant's drop: vr_test_spawn 225, impulse
+// 241, vr_test_kill 1.
+entity(entity p) VR_FlailHead_Nearest =
+{
+    entity best = world;
+    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    {
+        if(VR_FlailHead_IsFlail(w) && (!best || vlen(w.origin - p.origin) < vlen(best.origin - p.origin)))
+        {
+            best = w;
+        }
+    }
+    return best;
+};
+
+void(float request, entity p) VR_FlailHead_Test =
+{
+    entity was = self;
+    if(request == 165)
+    {
+        float handles = 0, heads = 0, paired = 0, orphans = 0, bare = 0;
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(e.classname == "vr_flailhead")
+            {
+                heads++;
+                entity g = VR_FlailHead_Handle(e);
+                if(g)
+                {
+                    paired++;
+                    bprint(sprintf("flailhead: handle at %v, head at %v, %.1f units apart, head speed %.0f\n", g.origin,
+                        e.origin, vlen(e.origin - g.origin), vlen(e.velocity)));
+                }
+                else
+                {
+                    orphans++;
+                }
+            }
+            else if(VR_FlailHead_IsFlail(e))
+            {
+                handles++;
+                bare += VR_FlailHead_Of(e) ? 0 : 1;
+            }
+        }
+        bprint(sprintf("flailhead: %g handles lying about, %g heads, %g paired, %g orphan heads, %g handles without a head\n",
+            handles, heads, paired, orphans, bare));
+        bprint(sprintf("flailhead: %g made (%g from a hand), %g handed to a hand; main hand weapon %g kind %g\n",
+            vr_flailhead_made, vr_flailhead_handed, vr_flailhead_taken, p.weapon, VR_ADMelee_Kind(p.weaponflags)));
+        return;
+    }
+    if(request == 166)
+    {
+        float dw = VRGetEntWeapon(p, cVR_MainHand);
+        self = p;
+        DropWeaponInHand(p, cVR_MainHand, dw, VRGetEntWeaponFlags(p, cVR_MainHand));
+        self = was;
+        bprint(sprintf("flailhead: dropped %s from the main hand (its head was at %v)\n", WeaponIdToWeaponName(dw), p.vr_flail_head));
+        return;
+    }
+    entity n = VR_FlailHead_Nearest(p);
+    if(request == 169)
+    {
+        entity m = VR_ADWeapons_Make(p, 346, 64);
+        bprint(sprintf("flailhead: made %s, its head %s\n", m ? m.netname : "nothing", VR_FlailHead_Of(m) ? "there" : "none"));
+        return;
+    }
+    if(!n)
+    {
+        bprint("flailhead: no flail lying about\n");
+        return;
+    }
+    entity h = VR_FlailHead_Of(n);
+    if(request == 167)
+    {
+        bprint(sprintf("flailhead: the flail at %v (its head %s at %v) taken\n", n.origin, h ? "there" : "none", h.origin));
+        VR_ADMelee_Take(p, n, cVR_MainHand);
+        return;
+    }
+    if(request == 168)
+    {
+        makevectors(p.angles_y * '0 1 0');
+        n.velocity = v_right * 700 + '0 0 250';
+        bprint(sprintf("flailhead: the flail kicked from %v\n", n.origin));
+        return;
+    }
+    if(request == 170)
+    {
+        if(h)
+        {
+            VRSetHandEmpty(p, cVR_MainHand);
+            VR_Carry_Start(p, cVR_MainHand, h);
+        }
+        bprint(sprintf("flailhead: head %s, carried by %s\n", h ? "there" : "none", h.carry_player.classname));
+        return;
+    }
+};
+
 void(float request, entity p) AD_MeleeTest =
 {
     if(!cvar("vr_ad_mounted"))
@@ -713,6 +1002,7 @@ void(float request, entity p) AD_MeleeTest =
         bprint("admelee: Arcane Dimensions' data is not loaded\n");
         return;
     }
+    if(request >= 165 && request <= 170) { VR_FlailHead_Test(request, p); return; }
     if(request == 123 || request == 125) { VR_ADMelee_TakeNearest(p, request == 125); return; }
     if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
     if(request == 126) { VR_ADMelee_CurveTest(p); return; }

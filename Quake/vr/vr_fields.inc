@@ -206,7 +206,13 @@ QVR_FIELD(vr_bullettime_earned) // the damage the player dealt living monsters s
 QVR_FIELD(vr_sgib) // a small gib: when it was made (QC vr_smallgibs.qc; vr_box3d.cpp: its blow grace, vr_smallgibs_blow_grace)
 QVR_FIELD(vr_sgib_id) // its serial (vr_smallgibs_trace's lines)
 QVR_FIELD(vr_monster_drop) // a weapon or backpack a monster dropped: when (QC vr_carry.qc; vr_box3d.cpp: made inside a body it passes through it, vr_prop_drop_pass_inside)
-QVR_FIELD(vr_fuellink) // AD support: a fuelled gun lying about's tank, the tank's gun (QC vr_ad_enemyguns.qc; vr_box3d.cpp syncFuelRopes)
+QVR_FIELD(vr_fuellink) // AD support: a fuelled gun lying about's tank, the tank's gun; a flail lying about's head, the head's flail (QC vr_ad_enemyguns.qc, vr_ad_melee.qc; vr_box3d.cpp syncPropRopes)
+QVR_FIELD(vr_flail_head) // AD support: a player's main hand's flail's head, after the last step (vr_box3d_flail.cpp; 0 none); QC VR_FlailHead_Taken: where the head lying about was, the hand taking its flail
+QVR_FIELD(vr_flail_headvel) // ... its velocity (units/s)
+QVR_FIELD(vr_flail_offhead) // ... the off hand's
+QVR_FIELD(vr_flail_offheadvel)
+QVR_FIELD(vr_flail_taken) // ... QC: when the main hand took a flail lying about with its head (vr_flail_head its place then): the hand's head made there (vr_box3d_flail.cpp make)
+QVR_FIELD(vr_flail_offtaken)
 QVR_FIELD(vr_prop_mass) // a prop's own mass, kg (0: its model's, Held Object Offsets): a small gib (QC vr_smallgibs.qc; vr_box3d.cpp massSetting)
 QVR_FIELD(vr_xdebris) // an explosion's chunk (vr_explosiondebris.cpp): when it was made (its entry's check; 0: not one)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time

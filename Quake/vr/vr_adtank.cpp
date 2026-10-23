@@ -11,6 +11,7 @@
 #include "vr_bodyclone.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flail.hpp"
 #include "vr_gfx.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
@@ -48,8 +49,10 @@ const glm::vec3 hazardBand{0.78f, 0.6f, 0.08f};
     return variant == adguns::Pyro ? glm::vec3{0.09f, 0.05f, 0.04f} : glm::vec3{0.05f, 0.08f, 0.04f};
 }
 
-constexpr int worldNodes = 22;   // a world hose's points (the tank's outlet .. the gun's inlet)
-constexpr int worldHoseMax = 8;  // the world hoses drawn (the nearest pairs)
+constexpr int worldNodes = 22;   // a world hose's points (the tank's outlet .. the gun's inlet; a flail's chain's: the ring .. the tip)
+constexpr int worldHoseMax = 8;  // the world hoses drawn (the nearest pairs: the tanks' and the flails' lying about)
+constexpr int flailVariant = -2; // a world line that is a flail's chain lying about (vr_flail.cpp's links)
+constexpr float flailChainRadius = 0.006f; // metres: its links lying on the floor (vr_flail.cpp's 1.1 cm wide)
 constexpr float worldReach = 1500.f; // units: a pair farther from the eyes has no hose
 constexpr int carriedCount = 2 + body::HolsterCount; // the hands, then the holsters
 
@@ -600,6 +603,21 @@ void info_f()
             drawn ? "drawn" : "none", drawn ? hoseLength(*drawn) / m2u : 0.f, drawn ? drawn->length / m2u : 0.f, inSolid,
             drawn ? static_cast<int>(drawn->hoseRings.count) : 0);
     });
+    // The flails' chains lying about (the same world lines: vr_flail_info has their ropes).
+    for(const Hose& h : worldHoses)
+    {
+        if(!h.live || h.variant != flailVariant)
+        {
+            continue;
+        }
+        int inSolid = 0;
+        for(glm::vec3 q : h.p)
+        {
+            inSolid += cl.worldmodel && Mod_PointInLeaf(&q.x, cl.worldmodel)->contents == CONTENTS_SOLID ? 1 : 0;
+        }
+        Con_Printf("adgun world flail chain: handle %d, head %d: %.2f m of %.2f m, %d points in the world, %d links, %s\n",
+            h.gun, h.tank, hoseLength(h) / m2u, h.length / m2u, inSolid, h.cord.links(), h.still > 90 ? "lying still" : "moving");
+    }
 }
 
 // A carried gun's hose (in hand `i` < 2, or holster i - 2) stepped from the back tank to the gun `ve` (variant
@@ -752,9 +770,13 @@ void stepCarried(int i, int variant, const view::ViewEntity& ve, const glm::vec3
 // The world hose of the pair (`gun`, `tank`) lying about, its rope `rope` units at most, stepped into `h`: from the
 // tank's outlet to the gun's inlet, as long as the rope and its ends' reach from the bodies' middles (never stretched),
 // falling, lying on the world (Verlet's collide). Left as it lies once its ends have stayed still a while.
+// A world line (a hose, a flail's chain lying about) of `length` units from `outlet` (leaving it along `outletDir`) to
+// `inlet` (`inletDir`), `radius` metres thick, stepped into `h` and shaped in `style`.
+void stepLine(Hose& h, int gun, int tank, int variant, const glm::vec3& outlet, const glm::vec3& outletDir, const glm::vec3& inlet,
+    const glm::vec3& inletDir, float length, float radius, const coil::Style& style);
+
 void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g, const view::ViewEntity& t)
 {
-    const float m2u = units::metresToUnits();
     const int variant = adguns::variantOf(g.ent.model->name);
     glm::vec3 inletModel, inletDirModel;
     (void)adguns::hoseInlet(variant, inletModel, inletDirModel);
@@ -765,6 +787,30 @@ void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g
     const glm::vec3 outletDir = view::modelPoint(t, outletModel - glm::vec3{0.f, 0.f, 1.f}) - outlet;
     const glm::vec3 gunMid{g.ent.origin[0], g.ent.origin[1], g.ent.origin[2]}, tankMid{t.ent.origin[0], t.ent.origin[1], t.ent.origin[2]};
     const float length = (rope + glm::distance(gunMid, inlet) + glm::distance(tankMid, outlet)) * 1.02f;
+    coil::Style style;
+    style.turns = 0;
+    style.wireRadius = hoseRadius;
+    style.albedo = hoseColour(variant);
+    stepLine(h, gun, tank, variant, outlet, outletDir, inlet, inletDir, length, hoseRadius, style);
+}
+
+// A flail lying about's chain (QC vr_ad_melee.qc "The flail lying about"): from the head's ring to the handle's tip, as
+// long as its rope (vr_box3d.cpp syncPropRopes: tip to ring), the hands' chain's links (vr_flail.cpp).
+void stepFlail(Hose& h, int handle, int head, float rope, const view::ViewEntity& g, const view::ViewEntity& t)
+{
+    glm::vec3 tip, tipDir, ring, ringDir;
+    if(!flail::lyingEnds(g, t, tip, tipDir, ring, ringDir))
+    {
+        hide(h);
+        return;
+    }
+    stepLine(h, handle, head, flailVariant, ring, ringDir, tip, tipDir, rope * 1.02f, flailChainRadius, flail::chainStyle());
+}
+
+void stepLine(Hose& h, int gun, int tank, int variant, const glm::vec3& outlet, const glm::vec3& outletDir, const glm::vec3& inlet,
+    const glm::vec3& inletDir, float length, float radius, const coil::Style& style)
+{
+    const float m2u = units::metresToUnits();
     const float rest = length / static_cast<float>(worldNodes - 1);
     const bool fresh = !h.live || h.gun != gun || h.tank != tank || h.variant != variant ||
                        h.p.size() != static_cast<za::SizeT>(worldNodes) || glm::distance(outlet, h.lastOutlet) > 2.f * m2u ||
@@ -821,14 +867,10 @@ void stepWorld(Hose& h, int gun, int tank, float rope, const view::ViewEntity& g
     rests.clear();
     rests.resize(static_cast<za::SizeT>(worldNodes - 1), rest);
     verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), rests.data(), 30, 1.f);
-    verlet::collide(h.p.data(), h.prev.data(), h.from.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), hoseRadius * m2u,
+    verlet::collide(h.p.data(), h.prev.data(), h.from.data(), pinned.data(), static_cast<za::SizeT>(worldNodes), radius * m2u,
         0.2f, nullptr, h.touching.data());
     h.lastDt = dt;
     h.time = vr_gametime;
-    coil::Style style;
-    style.turns = 0;
-    style.wireRadius = hoseRadius;
-    style.albedo = hoseColour(variant);
     h.cord.shape(h.p.data(), h.p.size(), style);
 }
 
@@ -840,43 +882,50 @@ void setupWorld(const hands::State& s)
     {
         int gun, tank;
         float rope, dist;
+        bool flail; // a flail lying about's chain (gun its handle, tank its head)
     };
     Pair pairs[worldHoseMax];
     int count = 0;
+    const auto consider = [&](int gun, int tank, float rope, bool flail) {
+        if(tank <= 0 || tank >= cl.num_entities)
+        {
+            return;
+        }
+        const float d = glm::distance(eye, glm::vec3{cl_entities[tank].origin[0], cl_entities[tank].origin[1], cl_entities[tank].origin[2]});
+        if(d > worldReach)
+        {
+            return;
+        }
+        int at = count < worldHoseMax ? count++ : -1;
+        if(at < 0)
+        {
+            // (full: the farthest given way)
+            int farthest = 0;
+            for(int k = 1; k < worldHoseMax; k++)
+            {
+                farthest = pairs[k].dist > pairs[farthest].dist ? k : farthest;
+            }
+            at = pairs[farthest].dist > d ? farthest : -1;
+        }
+        if(at >= 0)
+        {
+            pairs[at] = Pair{gun, tank, rope, d, flail};
+        }
+    };
     if(cl.worldmodel && sv.active && vr_adgun_tank_world.value != 0.f)
     {
-        box3d::forEachFuelRope([&](int gun, int tank, float rope, bool) {
-            if(tank <= 0 || tank >= cl.num_entities)
-            {
-                return;
-            }
-            const float d = glm::distance(eye, glm::vec3{cl_entities[tank].origin[0], cl_entities[tank].origin[1], cl_entities[tank].origin[2]});
-            if(d > worldReach)
-            {
-                return;
-            }
-            int at = count < worldHoseMax ? count++ : -1;
-            if(at < 0)
-            {
-                // (full: the farthest given way)
-                int farthest = 0;
-                for(int k = 1; k < worldHoseMax; k++)
-                {
-                    farthest = pairs[k].dist > pairs[farthest].dist ? k : farthest;
-                }
-                at = pairs[farthest].dist > d ? farthest : -1;
-            }
-            if(at >= 0)
-            {
-                pairs[at] = Pair{gun, tank, rope, d};
-            }
-        });
+        box3d::forEachFuelRope([&](int gun, int tank, float rope, bool) { consider(gun, tank, rope, false); });
+    }
+    if(cl.worldmodel && sv.active && vr_flail_world.value != 0.f)
+    {
+        box3d::forEachFlailRope([&](int handle, int head, float rope, bool, float) { consider(handle, head, rope, true); });
     }
     const int frame = host_framecount;
     for(int k = 0; k < count; k++)
     {
         view::ViewEntity g, t;
-        if(!drawnEntity(pairs[k].gun, g) || !drawnEntity(pairs[k].tank, t) || !fuelled(adguns::variantOf(g.ent.model->name)))
+        if(!drawnEntity(pairs[k].gun, g) || !drawnEntity(pairs[k].tank, t) ||
+            (!pairs[k].flail && !fuelled(adguns::variantOf(g.ent.model->name))))
         {
             continue;
         }
@@ -899,7 +948,14 @@ void setupWorld(const hands::State& s)
             continue;
         }
         h->seen = frame;
-        stepWorld(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t);
+        if(pairs[k].flail)
+        {
+            stepFlail(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t);
+        }
+        else
+        {
+            stepWorld(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t);
+        }
         setupHoses++;
     }
     for(Hose& h : worldHoses)
@@ -931,13 +987,14 @@ void drawHose(Hose& h, bool cloned, const glm::mat4& mirror)
     }
     QVR_GPU_PROFILE("ad hoses draw");
     const glm::vec3 albedo = h.cord.albedo();
+    const glm::vec3 rust = h.cord.flat() ? h.cord.rust() : glm::vec3{0.f}; // (a flail's chain: rusted links, faceted)
     if(h.hoseRings.count)
     {
-        gfx::drawTube(h.hoseRings, h.sides, albedo, keyLight);
+        gfx::drawTube(h.hoseRings, h.sides, albedo, keyLight, rust, h.cord.flat());
     }
     if(h.hoseMirror.count)
     {
-        gfx::drawTube(h.hoseMirror, h.sides, albedo, keyLight);
+        gfx::drawTube(h.hoseMirror, h.sides, albedo, keyLight, rust, h.cord.flat());
     }
 }
 

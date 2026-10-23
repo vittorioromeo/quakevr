@@ -1398,7 +1398,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_TRACY_CALL("box3d sync reach", syncReach(dt));
         QVR_TRACY_CALL("box3d sync portal copies", syncPortalCopies(dt));
         QVR_TRACY_CALL("box3d sync tool joints", syncToolJoints());
-        QVR_TRACY_CALL("box3d sync fuel ropes", syncFuelRopes());
+        QVR_TRACY_CALL("box3d sync prop ropes", syncPropRopes());
         QVR_TRACY_CALL("box3d sync flails", syncFlails(dt)); // AD support: the death sergeant's flail's heads
     }
     const double tSync = Sys_DoubleTime();

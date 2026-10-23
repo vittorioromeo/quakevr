@@ -31,7 +31,7 @@ constexpr uint64_t catFlail = 8192; // its head's shape (as well as catProp: all
 constexpr uint64_t flailMask = catWorld | catMover | catActor | catProp | catFixture | catCorpse;
 constexpr int userBase = -1000;     // its head's shape's user number: userBase - (client * 2 + hand), no entity's
 constexpr float headRadius = 4.4f;  // units: its ball and its spikes' bases (vr_admelee.cpp's head, drawn at its size)
-constexpr float ringReach = 3.5f;   // units: from the ball's middle to the ring its chain holds
+constexpr float ringReach = qvr::admelee::flailRingReach; // units: from the ball's middle to the ring its chain holds
 constexpr float hitCooldown = 0.2f; // s (game): the same thing struck again by the same head
 constexpr float teleport = 1.5f;    // m: the anchor further than this from where it was: carried there
 constexpr float handJump = 25.f;    // m/s (real): the handle's end moving faster than this jumped (carried, not swung)
@@ -52,6 +52,7 @@ constexpr float ropeHertz = 120.f;  // its rope's stiffness (Box3D's joints' 60:
 constexpr float rattleSpeed = 6.f;  // m/s (real): the chain rattles (QC VR_Flail_Rattle) with the head this fast
 constexpr float rattleEvery = 0.3f; // s (real): at most this often
 constexpr float grace = 0.3f;      // s (game): a head just made (or carried) strikes nothing (pushed out of what it was in)
+constexpr float takenFresh = 0.5f; // s (game): a flail taken from where it lay this long ago still gives the hand's head its head's place
 
 struct Head
 {
@@ -72,7 +73,7 @@ struct Head
 // a corner, or through a wall), its fastest, its hits dealt.
 struct Info
 {
-    int frames{0}, blocked{0}, hits{0}, made{0}, putBack{0};
+    int frames{0}, blocked{0}, hits{0}, made{0}, putBack{0}, taken{0}; // (taken: made where a head lying about was)
     float stretch{0.f}, fastest{0.f}, handle{0.f}; // (speeds real: bullet time's taken out)
 };
 
@@ -154,7 +155,6 @@ void drop(Head& h)
 
 void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, const glm::vec3& out)
 {
-    const float length = za::clamp(vr_flail_chain.value, 0.1f, 2.f);
     const float mass = za::clamp(vr_flail_mass.value, 0.2f, 30.f);
     b3BodyDef def = b3DefaultBodyDef();
     def.type = b3_kinematicBody;
@@ -163,10 +163,38 @@ void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, c
     h.anchor = b3CreateBody(world->id, &def);
 
     // The head just past the handle's end (out of it, along it), to fall from there: not in a wall the hand isn't in.
-    const glm::vec3 start = clearOf(player, at, at + out * (headRadius + ringReach));
+    // The flail just taken from where it lay with its head (QC VR_FlailHead_Taken: .vr_flail_taken, its head's place
+    // and speed then): the head where that one was (no further than its chain), at its speed.
+    const float length = za::clamp(vr_flail_chain.value, 0.1f, 2.f);
+    glm::vec3 start = clearOf(player, at, at + out * (headRadius + ringReach));
+    glm::vec3 startVel{0.f};
+    const FieldOffsets& f = fields();
+    const int takenOfs = hand ? f.vr_flail_taken : f.vr_flail_offtaken;
+    const int posOfs = hand ? f.vr_flail_head : f.vr_flail_offhead;
+    const int velOfs = hand ? f.vr_flail_headvel : f.vr_flail_offheadvel;
+    bool taken = false;
+    if(takenOfs >= 0 && posOfs >= 0 && velOfs >= 0 && fieldFloat(player, takenOfs) > 0.f)
+    {
+        const float since = static_cast<float>(qcvm->time) - fieldFloat(player, takenOfs);
+        const glm::vec3 was = fieldVec(player, posOfs);
+        if(since >= 0.f && since < takenFresh && was != glm::vec3{0.f})
+        {
+            glm::vec3 off = was - at;
+            const float reach = length * world->m2u + ringReach;
+            if(glm::length(off) > reach)
+            {
+                off *= reach / glm::length(off);
+            }
+            start = clearOf(player, at, at + off);
+            startVel = fieldVec(player, velOfs);
+            taken = true;
+        }
+        fieldFloat(player, takenOfs) = 0.f;
+    }
     b3BodyDef hd = b3DefaultBodyDef();
     hd.type = b3_dynamicBody;
     hd.position = world->toM(start);
+    hd.linearVelocity = b3v(startVel / world->m2u);
     hd.userData = def.userData;
     hd.isBullet = true;
     hd.linearDamping = drag();
@@ -200,13 +228,46 @@ void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, c
     h.mass = mass;
     h.anchorAt = at;
     h.pos = start;
-    h.vel = glm::vec3{0.f};
+    h.vel = startVel;
     h.madeTime = realtime;
     h.lastGood = start;
     flails.info.made++;
+    flails.info.taken += taken ? 1 : 0;
     if(vr_flail_debug.value)
     {
-        Con_Printf("flail: client %d hand %d: head made (%.2f m chain, %.1f kg)\n", client, hand, length, mass);
+        Con_Printf("flail: client %d hand %d: head made (%.2f m chain, %.1f kg)%s at %.1f %.1f %.1f\n", client, hand, length,
+            mass, taken ? ", the one lying about's" : "", start.x, start.y, start.z);
+    }
+}
+
+// After the frame's steps: where each hand's head is, on the player for QC (VR_FlailHead_Attach: the flail let go of,
+// its head lying about made there, at its speed); none: 0 (but for a head a hand is about to take: .vr_flail_taken).
+void noteHeldHeads(edict_t* player, int client)
+{
+    const FieldOffsets& f = fields();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int posOfs = hand ? f.vr_flail_head : f.vr_flail_offhead;
+        const int velOfs = hand ? f.vr_flail_headvel : f.vr_flail_offheadvel;
+        const int takenOfs = hand ? f.vr_flail_taken : f.vr_flail_offtaken;
+        if(posOfs < 0 || velOfs < 0 || takenOfs < 0)
+        {
+            return;
+        }
+        const Head& h = flails.heads[client][hand];
+        if(B3_IS_NON_NULL(h.head) && b3Body_IsValid(h.head))
+        {
+            setFieldVec(player, posOfs, h.pos);
+            setFieldVec(player, velOfs, h.vel);
+            continue;
+        }
+        if(fieldFloat(player, takenOfs) > 0.f && static_cast<float>(qcvm->time) - fieldFloat(player, takenOfs) < takenFresh)
+        {
+            continue; // (a hand about to take its head: VR_FlailHead_Taken's place kept for make)
+        }
+        fieldFloat(player, takenOfs) = 0.f;
+        setFieldVec(player, posOfs, glm::vec3{0.f});
+        setFieldVec(player, velOfs, glm::vec3{0.f});
     }
 }
 } // namespace
@@ -334,6 +395,106 @@ void noteFlailHits(const b3ContactEvents& events)
     }
 }
 
+namespace
+{
+// After the frame's steps: head `head` (client `i`'s hand `h`) as the step left it, kept on its chain's length and
+// out of the level, its speed capped; the chain's rattle; the info.
+void stepped(Head& head, int i, int h)
+{
+    const float scale = handTime();
+    const float most = mostSpeed();
+    if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > most)
+    {
+        b3Body_SetLinearVelocity(head.head, b3v(v * (most / (glm::length(v) * scale))));
+    }
+    // The chain never longer than it is (the joint is soft: a fast whirl stretched it 7 units): the head put
+    // back on its length, its speed outwards from the anchor taken away.
+    {
+        const glm::vec3 anchorNow = world->toU(b3Body_GetPosition(head.anchor));
+        const float reach = head.length * world->m2u + ringReach;
+        const glm::vec3 d = head.pos - anchorNow;
+        const float len = glm::length(d);
+        if(len > reach && len > 0.01f)
+        {
+            const glm::vec3 n = d / len;
+            const glm::vec3 pulled = anchorNow + n * reach;
+            // (Pulled as a rope pulls: the move given as speed too, position-based, so that the hand's pull
+            // whirls the head however the joint's softness lagged it this frame: in bullet time it is soft to
+            // a hand moving 1/scale as fast.)
+            const float frame = za::max(static_cast<float>(host_frametime), 1e-4f);
+            glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)) + (pulled - head.pos) / (world->m2u * frame);
+            head.pos = pulled;
+            const float out = glm::dot(v - glmv(b3Body_GetLinearVelocity(head.anchor)), n);
+            if(out > 0.f)
+            {
+                v -= n * out;
+            }
+            if(glm::length(v) * scale > most)
+            {
+                v *= most / (glm::length(v) * scale);
+            }
+            b3Body_SetTransform(head.head, world->toM(head.pos), b3Body_GetRotation(head.head));
+            b3Body_SetLinearVelocity(head.head, b3v(v));
+        }
+    }
+    // Its middle never crosses the level's surface (the ball keeps its radius off it): one that did (slammed
+    // through the floor's mesh, which a sphere sunk past its middle is pushed further through) is put back
+    // where it crossed, off the surface, its speed into it taken away.
+    {
+        vec3_t was, now, none{0.f, 0.f, 0.f};
+        store(head.lastGood, was);
+        store(head.pos, now);
+        const trace_t back = SV_Move(was, none, none, now, MOVE_NOMONSTERS, EDICT_NUM(i));
+        if(back.fraction < 1.f && !back.startsolid && !back.allsolid)
+        {
+            const glm::vec3 n{back.plane.normal[0], back.plane.normal[1], back.plane.normal[2]};
+            const glm::vec3 at = glm::vec3{back.endpos[0], back.endpos[1], back.endpos[2]} + n * (headRadius + 0.5f);
+            glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head));
+            v -= n * za::min(0.f, glm::dot(v, n));
+            b3Body_SetTransform(head.head, world->toM(at), b3Body_GetRotation(head.head));
+            b3Body_SetLinearVelocity(head.head, b3v(v));
+            head.pos = at;
+            flails.info.putBack++;
+        }
+        head.lastGood = head.pos;
+    }
+    head.vel = world->toU(b3Body_GetLinearVelocity(head.head));
+    if(const float real = glm::length(head.vel) / world->m2u * scale;
+        real > rattleSpeed && realtime - head.lastRattle > rattleEvery && qvr::progs::bindings().Flail_Rattle)
+    {
+        head.lastRattle = realtime;
+        QcCallGuard guard;
+        pr_global_struct->time = qcvm->time;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(i));
+        G_FLOAT(OFS_PARM1) = static_cast<float>(h);
+        G_FLOAT(OFS_PARM2) = real;
+        PR_ExecuteProgram(qvr::progs::bindings().Flail_Rattle);
+    }
+    head.rot = fromB3(b3Body_GetRotation(head.head));
+    head.anchorAt = world->toU(b3Body_GetPosition(head.anchor));
+    Info& info = flails.info;
+    info.frames++;
+    info.fastest = za::max(info.fastest, glm::length(head.vel) / world->m2u * scale);
+    info.handle = za::max(info.handle, glm::length(glmv(b3Body_GetLinearVelocity(head.anchor))) * scale);
+    info.stretch = za::max(info.stretch, glm::distance(head.pos, head.anchorAt) - (head.length * world->m2u + ringReach));
+    vec3_t from, to, zero{0.f, 0.f, 0.f};
+    store(head.anchorAt, from);
+    store(head.pos, to);
+    const trace_t tr = SV_Move(from, zero, zero, to, MOVE_NOMONSTERS, EDICT_NUM(i));
+    info.blocked += tr.fraction < 1.f && !tr.startsolid ? 1 : 0;
+    if(tr.fraction < 1.f && !tr.startsolid && vr_flail_debug.value >= 1.f && info.blocked % 20 == 1)
+    {
+        Con_Printf("flail: the level between the handle %.1f %.1f %.1f and the head %.1f %.1f %.1f (at %.2f, %s)\n",
+            head.anchorAt.x, head.anchorAt.y, head.anchorAt.z, head.pos.x, head.pos.y, head.pos.z, tr.fraction, tr.ent ? PR_GetString(tr.ent->v.classname) : "-");
+    }
+    if(vr_flail_debug.value >= 2.f)
+    {
+        Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle\n", i, h,
+            head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt));
+    }
+}
+} // namespace
+
 // After the frame's steps: the heads' places for the view, and their hits to QC.
 void callFlailHits()
 {
@@ -351,98 +512,11 @@ void callFlailHits()
             {
                 continue;
             }
-            head.pos = world->toU(b3Body_GetPosition(head.head));
-            const float scale = handTime();
-            const float most = mostSpeed();
-            if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > most)
-            {
-                b3Body_SetLinearVelocity(head.head, b3v(v * (most / (glm::length(v) * scale))));
-            }
-            // The chain never longer than it is (the joint is soft: a fast whirl stretched it 7 units): the head put
-            // back on its length, its speed outwards from the anchor taken away.
-            {
-                const glm::vec3 anchorNow = world->toU(b3Body_GetPosition(head.anchor));
-                const float reach = head.length * world->m2u + ringReach;
-                const glm::vec3 d = head.pos - anchorNow;
-                const float len = glm::length(d);
-                if(len > reach && len > 0.01f)
-                {
-                    const glm::vec3 n = d / len;
-                    const glm::vec3 pulled = anchorNow + n * reach;
-                    // (Pulled as a rope pulls: the move given as speed too, position-based, so that the hand's pull
-                    // whirls the head however the joint's softness lagged it this frame: in bullet time it is soft to
-                    // a hand moving 1/scale as fast.)
-                    const float frame = za::max(static_cast<float>(host_frametime), 1e-4f);
-                    glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)) + (pulled - head.pos) / (world->m2u * frame);
-                    head.pos = pulled;
-                    const float out = glm::dot(v - glmv(b3Body_GetLinearVelocity(head.anchor)), n);
-                    if(out > 0.f)
-                    {
-                        v -= n * out;
-                    }
-                    if(glm::length(v) * scale > most)
-                    {
-                        v *= most / (glm::length(v) * scale);
-                    }
-                    b3Body_SetTransform(head.head, world->toM(head.pos), b3Body_GetRotation(head.head));
-                    b3Body_SetLinearVelocity(head.head, b3v(v));
-                }
-            }
-            // Its middle never crosses the level's surface (the ball keeps its radius off it): one that did (slammed
-            // through the floor's mesh, which a sphere sunk past its middle is pushed further through) is put back
-            // where it crossed, off the surface, its speed into it taken away.
-            {
-                vec3_t was, now, none{0.f, 0.f, 0.f};
-                store(head.lastGood, was);
-                store(head.pos, now);
-                const trace_t back = SV_Move(was, none, none, now, MOVE_NOMONSTERS, EDICT_NUM(i));
-                if(back.fraction < 1.f && !back.startsolid && !back.allsolid)
-                {
-                    const glm::vec3 n{back.plane.normal[0], back.plane.normal[1], back.plane.normal[2]};
-                    const glm::vec3 at = glm::vec3{back.endpos[0], back.endpos[1], back.endpos[2]} + n * (headRadius + 0.5f);
-                    glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head));
-                    v -= n * za::min(0.f, glm::dot(v, n));
-                    b3Body_SetTransform(head.head, world->toM(at), b3Body_GetRotation(head.head));
-                    b3Body_SetLinearVelocity(head.head, b3v(v));
-                    head.pos = at;
-                    flails.info.putBack++;
-                }
-                head.lastGood = head.pos;
-            }
-            head.vel = world->toU(b3Body_GetLinearVelocity(head.head));
-            if(const float real = glm::length(head.vel) / world->m2u * scale;
-                real > rattleSpeed && realtime - head.lastRattle > rattleEvery && qvr::progs::bindings().Flail_Rattle)
-            {
-                head.lastRattle = realtime;
-                QcCallGuard guard;
-                pr_global_struct->time = qcvm->time;
-                G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(i));
-                G_FLOAT(OFS_PARM1) = static_cast<float>(h);
-                G_FLOAT(OFS_PARM2) = real;
-                PR_ExecuteProgram(qvr::progs::bindings().Flail_Rattle);
-            }
-            head.rot = fromB3(b3Body_GetRotation(head.head));
-            head.anchorAt = world->toU(b3Body_GetPosition(head.anchor));
-            Info& info = flails.info;
-            info.frames++;
-            info.fastest = za::max(info.fastest, glm::length(head.vel) / world->m2u * scale);
-            info.handle = za::max(info.handle, glm::length(glmv(b3Body_GetLinearVelocity(head.anchor))) * scale);
-            info.stretch = za::max(info.stretch, glm::distance(head.pos, head.anchorAt) - (head.length * world->m2u + ringReach));
-            vec3_t from, to, zero{0.f, 0.f, 0.f};
-            store(head.anchorAt, from);
-            store(head.pos, to);
-            const trace_t tr = SV_Move(from, zero, zero, to, MOVE_NOMONSTERS, EDICT_NUM(i));
-            info.blocked += tr.fraction < 1.f && !tr.startsolid ? 1 : 0;
-            if(tr.fraction < 1.f && !tr.startsolid && vr_flail_debug.value >= 1.f && info.blocked % 20 == 1)
-            {
-                Con_Printf("flail: the level between the handle %.1f %.1f %.1f and the head %.1f %.1f %.1f (at %.2f, %s)\n",
-                    head.anchorAt.x, head.anchorAt.y, head.anchorAt.z, head.pos.x, head.pos.y, head.pos.z, tr.fraction, tr.ent ? PR_GetString(tr.ent->v.classname) : "-");
-            }
-            if(vr_flail_debug.value >= 2.f)
-            {
-                Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle\n", i, h,
-                    head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt));
-            }
+            stepped(head, i, h);
+        }
+        if(i <= svs.maxclients && i < qcvm->num_edicts && !EDICT_NUM(i)->free)
+        {
+            noteHeldHeads(EDICT_NUM(i), i);
         }
     }
     const func_t fn = qvr::progs::bindings().Flail_Hit;
@@ -492,10 +566,57 @@ void flailInfo_f()
 {
     using namespace ::box3d::detail;
     const Info& i = flails.info;
-    Con_Printf("flail info: %d frames held, %d heads made, chain stretched %.2f units at most, the level between "
+    Con_Printf("flail info: %d frames held, %d heads made (%d where a head lying about was), chain stretched %.2f units at most, the level between "
                "handle and head %d frames, fastest %.1f m/s (the handle's end %.1f), %d hits dealt, put back out of the level %d times\n",
-        i.frames, i.made, i.stretch, i.blocked, i.fastest, i.handle, i.hits, i.putBack);
+        i.frames, i.made, i.taken, i.stretch, i.blocked, i.fastest, i.handle, i.hits, i.putBack);
     flails.info = Info{};
+    // Lying about (QC vr_ad_melee.qc "The flail lying about"): the handles and heads, paired (each naming the other),
+    // heads without their handle, handles without a head; the ropes (syncPropRopes), each's ends apart against its most.
+    const int link = fields().vr_fuellink;
+    if(!world || !sv.active || link < 0)
+    {
+        return;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    int handles = 0, heads = 0, paired = 0, orphans = 0, bare = 0;
+    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
+    {
+        edict_t* e = EDICT_NUM(n);
+        if(e->free)
+        {
+            continue;
+        }
+        const char* cls = PR_GetString(e->v.classname);
+        const bool head = !strcmp(cls, "vr_flailhead");
+        const bool handle = !strcmp(cls, "thrown_weapon") && !strcmp(PR_GetString(e->v.model), qvr::admelee::flailModel);
+        if(!head && !handle)
+        {
+            continue;
+        }
+        const int ofs = fieldInt(e, link);
+        edict_t* other = ofs ? PROG_TO_EDICT(ofs) : nullptr;
+        const bool mutual = other && !other->free && fieldInt(other, link) == EDICT_TO_PROG(e) &&
+                            !strcmp(PR_GetString(other->v.classname), head ? "thrown_weapon" : "vr_flailhead");
+        heads += head ? 1 : 0;
+        handles += handle ? 1 : 0;
+        paired += head && mutual ? 1 : 0;
+        orphans += head && !mutual ? 1 : 0;
+        bare += handle && !mutual ? 1 : 0;
+    }
+    int ropes = 0, joined = 0;
+    forEachFlailRope([&](int, int, float, bool j, float) {
+        ropes++;
+        joined += j ? 1 : 0;
+    });
+    Con_Printf("flail world: %d handles lying about, %d heads, %d paired, %d orphan heads, %d handles without a head; %d ropes "
+               "(%d joined)\n",
+        handles, heads, paired, orphans, bare, ropes, joined);
+    forEachFlailRope([&](int handle, int head, float length, bool j, float apart) {
+        Con_Printf("flail world rope: handle %d, head %d, %s, most %.2f units, the tip and the ring %.2f apart (%s)\n", handle,
+            head, j ? "joined" : "not joined", length, apart, apart <= length + 1.f ? "within" : "PAST");
+    });
+    PR_PopQCVM(old);
 }
 
 bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor)

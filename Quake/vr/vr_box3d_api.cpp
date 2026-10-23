@@ -305,8 +305,37 @@ void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool 
     }
     for(const World::FuelRope& r : world->fuelRopes)
     {
+        if(r.kind != World::RopeKind::Tank)
+        {
+            continue;
+        }
         fn(r.gun, r.tank, (r.length > 0.f ? r.length : za::max(vr_adgun_tank_rope.value, 0.1f)) * world->m2u,
             B3_IS_NON_NULL(r.id) && b3Joint_IsValid(r.id));
+    }
+}
+
+void forEachFlailRope(za::FunctionRef<void(int handle, int head, float length, bool joined, float apart)> fn)
+{
+    if(!world)
+    {
+        return;
+    }
+    for(const World::FuelRope& r : world->fuelRopes)
+    {
+        if(r.kind != World::RopeKind::Flail)
+        {
+            continue;
+        }
+        const bool joined = B3_IS_NON_NULL(r.id) && b3Joint_IsValid(r.id);
+        float apart = -1.f;
+        if(joined && b3Body_IsValid(r.gunBody) && b3Body_IsValid(r.tankBody))
+        {
+            const b3Transform a = b3Body_GetTransform(r.gunBody), b = b3Body_GetTransform(r.tankBody);
+            const glm::vec3 pa = glmv(a.p) + fromB3(a.q) * glmv(world->toM(r.gunEnd));
+            const glm::vec3 pb = glmv(b.p) + fromB3(b.q) * glmv(world->toM(r.tankEnd));
+            apart = glm::distance(pa, pb) * world->m2u;
+        }
+        fn(r.gun, r.tank, (r.length > 0.f ? r.length : za::clamp(vr_flail_chain.value, 0.1f, 2.f)) * world->m2u, joined, apart);
     }
 }
 
