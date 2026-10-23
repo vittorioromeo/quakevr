@@ -17012,6 +17012,10 @@ Not looked into (time): see the report.
 - **Fix.** The engine's body touch calls a pickup's (FL_ITEM) hand touch with vr_carry 0 (`vr_physics.cpp`). QC
   `VR_Carry_On(box)`: vr_carry 0 stops only pickups being carried; the pouch's rounds, crates, gibs and wall torches as
   in the other modes.
+- **Checked** (`scratch/vanilla_test.py 0`, e1m1): walked onto a shells box: "You got the shells"; the main hand at the
+  pouch takes a grenade for the off hand's launcher ("a grenade taken from the pouch", 29 left) and holds it, no
+  "carry: lost". Not confirmed: the silver key (test spawn 113) was not taken in that run (the walk may not have reached
+  it); the health box was walked over at full health (not taken, as in Quake). eval.sh not run (time).
 
 **In VR:** charge with the hands a bit above the chest (and as before); run past a grunt with the hands up: no charge.
 Hit crates and barrels with the fist, crowbar, axe and sword: as many blows as before the press fix. Press a crate down:
