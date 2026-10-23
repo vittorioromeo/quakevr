@@ -3360,6 +3360,7 @@ QVR_CVAR(vr_test_hurt, "0", CVAR_NONE)                  // damage: the live mons
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
 QVR_CVAR(vr_ragdoll_active_env_brace, "1", CVAR_ARCHIVE) // falling onto a floor, a wall or a crate within reach: his arms go out to it and take the landing, giving
 QVR_CVAR(vr_ragdoll_active_env_lean, "1", CVAR_ARCHIVE)  // dying with a wall behind or beside him: a hand braced on it, he slumps down it (a crate: braced, not held)
+QVR_CVAR(vr_ragdoll_active_env_slide, "0.6", CVAR_ARCHIVE) // body weights a wall he leans on (env_lean) holds his body up at most, fading: he slides down it slowly, not dropping (0: off)
 QVR_CVAR(vr_ragdoll_active_env_ledge, "1", CVAR_ARCHIVE) // falling past a ledge's lip near a hand: he grabs it and hangs a moment before dropping
 QVR_CVAR(vr_ragdoll_active_env_grip, "1.2", CVAR_ARCHIVE) // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
 QVR_CVAR(vr_ragdoll_active_env_hang, "1.8", CVAR_ARCHIVE) // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)

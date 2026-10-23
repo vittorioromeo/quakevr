@@ -186,9 +186,11 @@ struct Pin
 // act):
 // - Catch: a surface he falls onto soon within reach (the floor ahead, a wall, a crate): the arms out to it, landing
 //   with a strength that gives (a capped push: never held).
-// - Lean: a wall within reach behind or beside his chest as he dies: a hand on it at shoulder height, held by a capped
-//   hand-to-world joint that slides down as he weakens, the knees buckling, the pelvis drawn weakly to the wall: he
-//   slumps down it. The hand lets go on its load, its timer, a hit, at the floor.
+// - Lean: a wall within reach behind or beside his chest as he dies (or one the kill throws him into, even up off the
+//   floor): a hand on it (9 in 10; his back to it: out beside him, lower, sometimes both hands), held by a capped
+//   hand-to-world joint that slides down as he weakens, the knees buckling, the pelvis drawn weakly to the wall, his
+//   sinking held to a slide down it while his chest is against it (vr_ragdoll_active_env_slide): he slumps down it.
+//   Not when blown away from it. The hand lets go on its load, its timer, a hit, at the floor.
 // - Ledge: falling past a lip (vr_ledges) near a hand: it grabs the lip (the same joint, at the hold), hangs a moment,
 //   drops on its timer, its load or a hit.
 // - Curl: tumbling with nothing to catch: the arms in to the chest, the knees up.
@@ -249,6 +251,8 @@ struct Env
     double leanFrom{-1.0};
     glm::vec3 wallAt{0.f}, wallN{0.f};
     bool leaned{false};
+    float floorAt{0.f};  // metres: the floor under his pelvis as it began (floorSet): one he was thrown up off, not left
+    bool floorSet{false};
     float curl{0.f};    // the curl's weight now
     double nextCatch{0.0}; // no new catch before this (one landing at a time)
     bool hung{false};   // a hand grabbed a ledge this death (once)

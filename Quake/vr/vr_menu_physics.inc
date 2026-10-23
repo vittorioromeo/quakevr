@@ -1103,6 +1103,10 @@
         toggle("Lean on Walls", vr_ragdoll_active_env_lean)
             .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
                   "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
+        slider("Wall Slide", vr_ragdoll_active_env_slide, 0.f, 1.5f, 0.1f, "%.1f").extend(0.f, 5.f)
+            .help("Leaning on a wall as he dies, how much of his weight the wall takes at most (body weights), fading "
+                  "over two seconds: his back slides down it slowly instead of dropping. 0 off "
+                  "(vr_ragdoll_active_env_slide)."),
         slider("Arms' Strength", vr_ragdoll_active_env_arms, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How strongly his arms reach for what is round him (a catch, a lean, a ledge's hold, a brace), times the "
                   "default; 0 they don't (vr_ragdoll_active_env_arms)."),
