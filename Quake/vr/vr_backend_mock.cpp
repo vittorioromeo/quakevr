@@ -1009,16 +1009,21 @@ void mockHandTo_f()
         {
             qcvm_t* oldVm = nullptr;
             PR_PushQCVM(&sv.qcvm, &oldVm);
-            // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint.)
+            // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint; a name (its
+            // beginning, e.g. "shin_r"): the first part so named; else its number.)
             const edict_t* player = EDICT_NUM(1);
-            const bool nearest = !q_strcasecmp(Cmd_Argv(3), "near");
+            const char* which = Cmd_Argv(3);
+            const bool nearest = !q_strcasecmp(which, "near");
+            const bool named = !nearest && q_strcasecmp(which, "head") && q_strcasecmp(which, "neck") &&
+                               ((which[0] >= 'a' && which[0] <= 'z') || (which[0] >= 'A' && which[0] <= 'Z'));
             const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
                                                              : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
-                nearest                                ? -1
-                : !q_strcasecmp(Cmd_Argv(3), "head") ? -2
-                : !q_strcasecmp(Cmd_Argv(3), "neck") ? -3
-                                                       : Q_atoi(Cmd_Argv(3)),
-                target);
+                nearest                          ? -1
+                : named                          ? -4
+                : !q_strcasecmp(which, "head") ? -2
+                : !q_strcasecmp(which, "neck") ? -3
+                                                 : Q_atoi(which),
+                target, named ? which : nullptr);
             PR_PopQCVM(oldVm);
             if(!num)
             {

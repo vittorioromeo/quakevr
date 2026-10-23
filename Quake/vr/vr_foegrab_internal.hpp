@@ -121,6 +121,10 @@ struct Holder
     bool flailing{false}; // its lift's flail begun (box3d::ragdollFlail): ended when let go of, even killed in the hands
     bool snapped{false};
     double breakAt{-1.0};
+    // A leg pull's hold (legCheck's handOver): when it was handed over (-1: none). Soft while it falls (Pull Hold
+    // Strength), it firms up to Pull Drag Strength once it lies (legDragStep), to be dragged by the legs.
+    double legDragFrom{-1.0};
+    bool legDragFull{false}; // (firmed up all the way: printed once)
     // The neck snap (neckStep, neckCheck): the enemy both hands hold by the head (0: none), how far it has turned within
     // the window (rad: a third of Twist Angle or more, else 0: a turn under way), the hands' turns at the last frame
     // (play space: their wrists' roll), no snap before neckAgain.

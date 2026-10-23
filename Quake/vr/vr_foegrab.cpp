@@ -724,6 +724,7 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
     hd.lifted = lift;
     hd.snapped = why == Why::Snapped;
     hd.breakAt = -1.0;
+    hd.legDragFrom = -1.0; // (a leg pull's: legCheck sets it after)
     const int hands = (bits & 1) + ((bits >> 1) & 1);
     if(debug())
     {
@@ -808,6 +809,63 @@ void breakFree(int c, edict_t* m)
     hd.carried = 0;
 }
 
+// A leg pull's hold firming up (ROUND22.md "Dragging by the legs"): pulled down, the hands still holding its legs hold
+// them softly (Pull Hold Strength, 0.1 of its weight a hand: held harder, it pivoted on its pinned shins and fell the
+// wrong way); lying, that soft a hold can't drag it (its weight on the floor holds it more than the hands' pull: it lay
+// still, the hold stretching until it let go). From legDragDelay after the hand-over (its fall over: it topples in about
+// half a second) the holds firm up over legDragRamp until the hands drag it with Pull Drag Strength of its weight
+// (vr_foegrab_legpull_drag_strength) in all, shared by the hands still holding it (one hand alone drags it as two do;
+// a grip taken again is the usual one's, left alone). Still let go of when stretched too far (softStuck: run from it,
+// or it caught on a step). Its spring stiffens too (Held On Spring, 4 Hz, to legDragHertz): a spring's rate is the held
+// part's own, and a death knight's foot of a few kilograms at 4 Hz pulled its 3300 N far under the most force before
+// the hold let go (at 12 Hz two hands dragged it).
+constexpr double legDragDelay = 0.5; // s
+constexpr double legDragRamp = 0.5;  // s
+constexpr float legDragHertz = 20.f; // Hz
+void legDragStep(int c, edict_t* m)
+{
+    Holder& hd = holders[c];
+    const float k = za::clamp(static_cast<float>((qcvm->time - hd.legDragFrom - legDragDelay) / legDragRamp), 0.f, 1.f);
+    if(k <= 0.f)
+    {
+        return;
+    }
+    edict_t* player = EDICT_NUM(c + 1);
+    bool soft[2]{false, false};
+    int hands = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        const int heldOfs = h ? fields().mainhand_held : fields().offhand_held;
+        soft[h] = heldOfs >= 0 && fieldInt(player, heldOfs) == EDICT_TO_PROG(m) && box3d::ragdollHoldForce(player, h) >= 0.f;
+        hands += soft[h];
+    }
+    if(hands == 0)
+    {
+        return;
+    }
+    const float weight = box3d::ragdollWeight(m);
+    const float hold = za::clamp(vr_foegrab_legpull_hold_strength.value, 0.f, 10.f) * weight; // (a hand's, falling)
+    const float drag = za::clamp(vr_foegrab_legpull_drag_strength.value, 0.f, 10.f) * weight / static_cast<float>(hands);
+    const float force = hold + (drag - hold) * k;
+    const float hz0 = za::clamp(vr_foegrab_throw_hold_hertz.value, 0.5f, 30.f);
+    const float hertz = hz0 + (za::max(legDragHertz, hz0) - hz0) * k;
+    for(int h = 0; h < 2; h++)
+    {
+        if(soft[h])
+        {
+            (void)box3d::ragdollHoldForce(player, h, force, hertz);
+        }
+    }
+    if(k >= 1.f && !hd.legDragFull && debug())
+    {
+        Con_Printf("foegrab: %s (%d) lies held by the legs: the hold firmed up to %.0f N a hand, %d hand%s (Pull Drag "
+                   "Strength %.2f of its %.0f N)\n",
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), force, hands, hands == 1 ? "" : "s",
+            vr_foegrab_legpull_drag_strength.value, weight);
+    }
+    hd.legDragFull = k >= 1.f;
+}
+
 // Each frame, the enemy player `c` holds on as a ragdoll (handOver), while a hand holds it: it passes through his hands
 // (carryGrace: they hold it, they don't knock it); lifted, it breaks free at breakAt (breakFree), its flail over once let
 // go of or dead. Let go of (the grips, its get-up, a hold left behind): over.
@@ -832,9 +890,14 @@ void carryStep(int c)
         }
         hd.carried = 0;
         hd.flailing = false;
+        hd.legDragFrom = -1.0;
         return;
     }
     (void)box3d::ragdollGrace(m, c + 1, carryGrace);
+    if(hd.legDragFrom >= 0.0)
+    {
+        legDragStep(c, m);
+    }
     if(hd.lifted && m->v.health <= 0.f)
     {
         hd.lifted = false; // (killed in the hands: a body held, no break free; its flail ended when let go of)
@@ -1899,6 +1962,11 @@ bool legCheck(int c, edict_t* player, edict_t* m, const VrMove& move, int mask)
                     release(player, h, Why::Thrown, "pulled down by the legs");
                 }
             }
+        }
+        else
+        {
+            hd.legDragFrom = qcvm->time; // (soft while it falls; firmed up to drag it once it lies: legDragStep)
+            hd.legDragFull = false;
         }
         return true;
     }
