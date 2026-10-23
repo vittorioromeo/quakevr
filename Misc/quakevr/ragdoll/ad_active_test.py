@@ -7,7 +7,7 @@ vrfiringrange through AD's campaign (AD's data linked into the agent's base, qba
            ragdoll ("stagger: <n> <class> shoved") and falls ("staggered and fell"): knocked down;
   getup    it rises through its get-up with its body ("getup: <n> rises through frames", then "rises through its
            get-up"), handed back standing;
-  neck     its neck snapped standing (vr_foegrab_necksnap_test): its head joint loose, its head flops (NECKANGLE every 12
+  neck     its neck snapped standing (vr_foegrab_necksnap_test; the Mini Bosses' killing too: vr_mgrp_miniboss_snapkills 1): its head joint loose, its head flops (NECKANGLE every 12
            frames: the swing of its head from its chest past 50 degrees, beyond a living neck's 45-degree cone). First,
            then a second one spawned for the shove (risen, one may walk off: the range's grunt would be nearest).
 
@@ -33,7 +33,8 @@ ACTIVE = {227: "monster_army_grenade", 223: "monster_army_plasma", 211: "monster
           217: "monster_eliminator", 232: "monster_pyro", 235: "monster_fumigator", 202: "monster_dcrossbow",
           216: "monster_dfury", 205: "monster_dguard", 200: "monster_dknight", 225: "monster_dsergeant",
           201: "monster_zombiek", 238: "monster_mummy", 261: "monster_knight", 253: "monster_ogre_flak",
-          259: "monster_death_lord", 258: "monster_death_guard", 255: "monster_deflector", 250: "monster_hell_knight", 256: "monster_dprince"}
+          259: "monster_death_lord", 258: "monster_death_guard", 255: "monster_deflector", 250: "monster_hell_knight", 256: "monster_dprince",
+          215: "monster_minotaur", 231: "monster_justice"}  # (the Mini Bosses: ROUND22.md, "Mini bosses")
 PICK = [int(a) for a in sys.argv[2:]] or list(ACTIVE)
 # Made only in an AD map (the spawner's MAPS_ONLY: ad_monsters_gen.py): tested in AD's start map (no monsters of its
 # own: in ad_dm1 its minotaur was the nearest).
@@ -42,7 +43,7 @@ AD_MAP_ONLY = {258, 259, 261}
 NO_NECK = {253}
 
 PRE = ("sv_random_seed 7;skill 1;vr_campaign_native ad;wait30;map {map};wait60;god;notarget;developer 1;"
-       "vr_ad_everywhere 1;vr_knockdown_debug 1;vr_ragdoll_active_seed 0;vr_test_spawn {mon};vr_test_spawn_dist 64;"
+       "vr_ad_everywhere 1;vr_mgrp_miniboss_snapkills 1;vr_knockdown_debug 1;vr_ragdoll_active_seed 0;vr_test_spawn {mon};vr_test_spawn_dist 64;"
        "impulse 241;wait60")
 SAMPLES = "".join(";wait12;vr_foegrab_neck_angle" for _ in range(8))
 # (The neck first: risen, one may walk off, and the neck snapped would be the range's grunt's. A second one spawned for

@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_mgroups.hpp"
 
 namespace box3d::detail
 {
@@ -68,7 +69,9 @@ void updateRecoveries()
         }
         rec.due = ent->v.nextthink;
         const double interval = rec.due > rec.changed ? rec.due - rec.changed
-                                                      : 0.1 / za::clamp(static_cast<double>(vr_knockdown_getup_speed.value), 0.1, 10.0);
+                                                      : 0.1 / za::clamp(static_cast<double>(vr_knockdown_getup_speed.value) *
+                                                                            za::max(mgroups::value(ent, mgroups::Param::GetUp), 0.1f),
+                                                            0.1, 10.0); // (its monster group's Get-Up Speed)
         const float lerp = za::clamp(static_cast<float>((now - rec.changed) / interval), 0.f, 1.f);
         const int pose1 = ragdoll::poseOfFrame(rec.rig->model, rec.prevFrame), pose2 = ragdoll::poseOfFrame(rec.rig->model, rec.frame);
         const glm::quat turn = glm::angleAxis(glm::radians(ent->v.angles[1]), glm::vec3{0.f, 0.f, 1.f});
@@ -1353,7 +1356,9 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
             ragactive::RiseInfo ri;
             ri.first = chosen;
             ri.last = last;
-            ri.fps = 10.f * za::clamp(vr_knockdown_getup_speed.value, 0.1f, 10.f) * za::clamp(vr_ragdoll_active_getup_pace.value, 0.1f, 3.f);
+            // (Times its monster group's Get-Up Speed: the Mini Bosses rise faster.)
+            ri.fps = 10.f * za::clamp(vr_knockdown_getup_speed.value * za::max(mgroups::value(ent, mgroups::Param::GetUp), 0.1f), 0.1f, 10.f) *
+                     za::clamp(vr_ragdoll_active_getup_pace.value, 0.1f, 3.f);
             ri.prep = 0.35f + 0.4f * turn / glm::pi<float>() + 0.3f * za::min(away / 48.f, 1.f);
             ri.origin = glmv(world->toM(spot));
             ri.yaw = yaw;

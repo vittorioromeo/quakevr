@@ -40,9 +40,27 @@
 // knocked-down `m`, a hit, a stomp or a hand on it (xWhat) now, stays down at least xFor s more, past its own timer, but
 // never more than vr_knockdown_keep_max s down in all; its own timer never cut short. Left alone, it gets up on its own
 // time, or xFor after the last if that has passed. Not once its get-up began, nor a staggering one, nor a corpse.
+// Its monster group's toughness (Combat > Monster Groups, "Toughness"; the Mini Bosses' and Elite Knights' below 1):
+// every chance to knock `m` down times this (a sure knockdown too: by this chance), and its time down times this.
+float(entity m) VR_KD_Scale =
+{
+    return max(0, monstergroupget(m, MGP_KDSCALE));
+};
+float(entity m) VR_KD_DownScale =
+{
+    return max(0.05, monstergroupget(m, MGP_DOWNTIME));
+};
+// A sure knockdown (over a ledge, unaware, from behind) of `m` still is: by its group's Knockdown Chance below 1.
+float(entity m) VR_KD_SureRoll =
+{
+    float k = VR_KD_Scale(m);
+    return k >= 1 || random() < k;
+};
+
 void(entity m, float xFor, string xWhat) VR_Knockdown_Keep =
 {
-    float most = cvar_hget(cvarh_vr_knockdown_keep_max);
+    float most = cvar_hget(cvarh_vr_knockdown_keep_max) * VR_KD_DownScale(m);
+    xFor = xFor * VR_KD_DownScale(m);
     if(m.health <= 0 || m.vr_knockdown != 1 || m.vr_kd_stagger || m.vr_kd_rise || xFor <= 0 || most <= 0)
     {
         return;
@@ -100,7 +118,8 @@ void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) V
 
 float() VR_Knockdown_Interval =
 {
-    return 0.1 / min(10, max(0.1, cvar_hget(cvarh_vr_knockdown_getup_speed)));
+    // (self the monster getting up: times its monster group's Get-Up Speed.)
+    return 0.1 / min(10, max(0.1, cvar_hget(cvarh_vr_knockdown_getup_speed) * max(0.1, monstergroupget(self, MGP_GETUP))));
 };
 
 // Its body gone (a dead one's, or one killed to make room): as a corpse is removed.
@@ -438,8 +457,8 @@ void() VR_Knockdown_Think =
             dprint(sprintf("parry interrupt: %s went down from a ragdoll's stagger after %.2f s\n", self.classname,
                 time - self.vr_kd_since));
         }
-        float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min));
-        float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max));
+        float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min)) * VR_KD_DownScale(self);
+        float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max) * VR_KD_DownScale(self));
         self.vr_kd_since = time;
         self.vr_kd_until = time + lo + random() * (hi - lo);
         self.vr_kd_due = self.vr_kd_until;
@@ -575,8 +594,8 @@ float(entity e) VR_Knockdown_Start =
         e.solid = oldSolid;
         return FALSE;
     }
-    float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min));
-    float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max));
+    float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min)) * VR_KD_DownScale(e);
+    float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max) * VR_KD_DownScale(e));
     e.vr_kd_since = time;
     e.vr_kd_until = time + lo + random() * (hi - lo);
     e.vr_kd_due = e.vr_kd_until;
@@ -806,12 +825,13 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         float left = most > 0 ? VR_Stamina_Left(self) / most : 1;
         stamina = max(0, 1 - max(0, cvar_hget(cvarh_vr_knockdown_stamina)) * (1 - left));
     }
-    chance = chance * stamina;
-    // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all.
-    float ledge = chance > 0 && VR_Knockdown_Ledge(e);
+    chance = chance * stamina * VR_KD_Scale(e); // (its group's Knockdown Chance: the Mini Bosses' half)
+    // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all (a tough
+    // group's: by its Knockdown Chance).
+    float ledge = chance > 0 && VR_Knockdown_Ledge(e) && VR_KD_SureRoll(e);
     // Unaware of the shover or shoved from behind (vr_knockdown_surprise; VR_Bash_Hit took it): down for sure (a stagger
-    // that gives way after its steps), if this shove could knock it down at all.
-    float surprise = chance > 0 ? vr_kd_surprise : 0;
+    // that gives way after its steps), if this shove could knock it down at all (likewise).
+    float surprise = (chance > 0 && VR_KD_SureRoll(e)) ? vr_kd_surprise : 0;
     float roll = random();
     // A stagger (vr_ragdoll_active_stagger; not over a ledge): every shove that could knock it down makes it stagger as a
     // ragdoll, its balance by the roll against the chance (below it: likely to go over), the shove's push on it; it falls

@@ -81,7 +81,7 @@ float(entity m, float xHand, float xHold) VR_FoeGrab_Manhandle =
         m.velocity = was;
         return 0;
     }
-    m.vr_kd_until = max(m.vr_kd_until, time + xHold);
+    m.vr_kd_until = max(m.vr_kd_until, time + xHold * VR_KD_DownScale(m));
     haptic(xHand, 0, 0.12, 50, 0.7);
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
@@ -390,6 +390,14 @@ float(entity m, entity p, float xSpeed) VR_RagImpact_Stomp =
         {
             dprint(sprintf("ragimpact stomp: %s (%.0f kg) stands: landed at %.0f u/s, under %.0f\n", m.classname, mass,
                 xSpeed, need));
+        }
+        return FALSE;
+    }
+    if(!VR_KD_SureRoll(m)) // (a tough monster group's: by its Knockdown Chance)
+    {
+        if(loud)
+        {
+            dprint(sprintf("ragimpact stomp: %s stands: its group's Knockdown Chance %.2f\n", m.classname, VR_KD_Scale(m)));
         }
         return FALSE;
     }

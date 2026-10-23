@@ -1003,6 +1003,7 @@ void() func_enemy_dispenser_use =
     // Where it is before its spawn function too, as a map's entity is: a spawn function that makes something at its
     // own origin (func_weapon_grabbable: AD's soldiers' guns, 312..319) made it at the world's origin, far away.
     setorigin(self, org);
+    VR_AD_DispenserBossPrepare(choice); // AD support: a scripted boss named, or its spawn drops it (no trigger)
 
     VR_EnemyDispenser_Spawn(choice);
 
@@ -1011,6 +1012,7 @@ void() func_enemy_dispenser_use =
     {
         self.use(); // (Rogue's statue knight or hell knight: stone come alive)
     }
+    VR_AD_DispenserBossWake(); // AD support: the scripted boss woken, as its map's trigger would
 }
 
 void() func_enemy_dispenser =

@@ -18,8 +18,10 @@
 namespace qvr::props
 {
 
-// 48 until vr_props_version 55, whose shipped items took 11 of the 12 free slots: 16 more for Held Object Offsets.
-inline constexpr int numSlots = 64;
+// 48 until vr_props_version 55, whose shipped items took 11 of the 12 free slots: 16 more for Held Object Offsets. 64
+// until configVersion 187: the author's config had all 64 claimed (Arcane Dimensions' heads and props), so a new model
+// held got no slot and its settings could not be changed (the death fury's head, 2026-10-23): 16 more.
+inline constexpr int numSlots = 80;
 
 enum class Key : int
 {
