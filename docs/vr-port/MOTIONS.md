@@ -459,12 +459,18 @@ takes did live. Options: `recorded` (the takes' melee settings: to check that th
 events), `rate <hz>` (every take resampled, as above), `save` (every replay as a take), `verbose` (each playback's report), `watch`, `map <name>`, `out <file>`,
 `quit` (quits when done: for scripts), `list <file>` (the takes named in a file, a path a line; relative to `motions/`),
 `progress <file>` (a file told `k/N <take>` after each take and `done N` at the end: the review's re-evaluation).
+Test options (`vr_motion_play` takes them too): `at <x> <y> <z> <yaw>` (the take's dummy put at that point, not at a
+target: the player in front of it as of a thing there facing `yaw`; stepped back where his box would be in a wall),
+`weapon <id>` (the main hand's weapon another, QC `WID_*`). A `list` line may carry its own after a bar
+(`<take> | at 0 652 24 270 weapon 17`; the console's and the table's `file` show them): one evaluation, each take at its
+spot (`Misc/quakevr/melee_wall_takes.sh`: his takes swung into a wall).
 `vr_motion_eval stop` stops it (and writes what it has).
 
 Besides the table, each take's verdict goes into **`eval_status.csv` next to the takes** (`motions/eval_status.csv`;
 for a folder, in that folder): the verdict, the reason, the expectation, the replay's and the take's own events, when it
 was evaluated. Merged: an evaluation of some takes (`punch_*`) updates theirs and keeps the others'. Only from an
-evaluation that judges the takes as they are: not with `rate`, `recorded` or another `map` (the console says so). The
+evaluation that judges the takes as they are: not with `rate`, `recorded`, another `map`, `at` or `weapon` (the
+console says so). The
 takes themselves are never written. The review (below) reads it.
 
 ```

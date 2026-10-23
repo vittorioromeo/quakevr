@@ -17,9 +17,11 @@ Items the author approved or asked about, not yet started. Each has a note on wh
   - Closed, already fixed: `weapons::value` and an inheriting slot's own defaults (adgunvariants' `QVR_WEAPON_OWN`;
     AD slots inherit nothing since adnoinherit); AD crossbow hold floats (adcrossbow2's turned model and his pose,
     adnoinherit's values; his VR check).
+  - Fixed on `agent/wallhit2`, awaiting his VR check: crowbar/shotgun double wall hits (one wall blow a swing: not
+    again until the weapon is off that wall, nor a much slower one within 1.2 s; `Misc/quakevr/melee_wall_takes.sh`
+    replays his takes at a wall; ROUND22.md "One wall blow a swing").
   - Still open: dragging an enemy by the legs (real: after the leg pull the body doesn't follow the hands at any Pull
-    Hold Strength, while a head drag does; cause not found); crowbar/shotgun double wall hits (meleewall; needs the
-    takes-at-a-wall harness rebuilt); close two-hand crate grips pull one hand in (gripfit2); chain stretch on fast
+    Hold Strength, while a head drag does; cause not found); close two-hand crate grips pull one hand in (gripfit2); chain stretch on fast
     swings (magchain2: worst piece 78 % now, not fixed by more iterations); the Italian player's startup crash (waiting
     on his beta2 bug report; the OpenXR layer skip `f3bbe28ae` covers the likely cause).
 - Release: a beta2 feedback window, then merge next into vr-ironwail and release 1.1.0 as Latest. If 1.1.0 is more

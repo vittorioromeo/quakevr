@@ -17843,3 +17843,61 @@ how things meet the relief past 512 units.
 
 In VR: Graphics > Surfaces > Parallax Depth Write is off now. Turn it on (or pick Ultra) and look at monsters' feet and
 props on raised floors near and far: it should look as before, for about 1.3 ms in big AD maps (0.8 ms less than before).
+## One wall blow a swing (worktree `gorefx`, branch `agent/wallhit2`, 2026-10-23)
+
+1.1 open issue (meleewall's numbers): crowbar and shotgun swings into a wall sometimes struck it twice, a doubled thunk,
+sparks and mark.
+
+The harness, committed this time: `Misc/quakevr/melee_wall_takes.sh <agent> [sets] [name]` (and `.py`). Every melee
+take of his (`motions/`, eval.sh's TAKES; not poses, misses, grabs or charges) with its weapon, the axe takes also with
+the crowbar and the shotgun (gun bash), replayed in one `vr_motion_eval` in vrmelee-recording with the take's dummy put
+at the north wall: the wall at the dummy's front, 8, 16 and 24 units nearer (the player stepped back off the wall where
+his box would be in it) and 10 past it. It counts each replay's wall blows (`melee event: ..., a wall`, developer 1).
+New for it (`vr_motion_play.cpp`, test options of `vr_motion_play` and `vr_motion_eval`, MOTIONS.md "Evaluation"):
+`at <x y z yaw>` (the take's dummy at a point), `weapon <id>` (the main hand's weapon), and per-take options on a
+`list` line after a bar. The axe slash takes are also swung twice (the blow's 0.7 s played again straight after it:
+two real blows) to check that a second real blow still lands.
+
+Why a swing struck twice (each pair of wall blows logged with the weapon's distance off the wall between them):
+
+- **The weapon still on the wall** (the crowbar): an overhead or diagonal swing laid the bar along the wall; its chisel
+  end struck, the hand slowed against the wall (VR_Melee_Rearm re-arms a slowed hand), and 0.4-0.6 s later, past the
+  0.35 s re-hit wait, the hook struck the same wall, the bar never more than 4 units off it.
+- **The swing's recovery poking the wall again** (the sword's tip, the shotgun's muzzle): a strong blow (6-30 m/s), then
+  0.6-1.1 s later, the weapon drawn 13-24 units back, a slow jab or stab (2.6-4.6 m/s) of the same motion's return.
+- Left as they are: **a wind-up bump**, only with the wall 8-24 units nearer than the dummy was (the gun's barrel already
+  at the wall as the take starts): a slow muzzle jab (2.6-3.5 m/s, a gun bash counts from 2 m/s) as the gun comes up,
+  then the real blow. The first can't be told from a light jab when it lands; none at the dummy's front.
+- Not the cause: separate hand and blade contacts (one decision a frame, VR_Melee_Sweep), the sweep on two frames in a
+  row (the 0.35 s wait): every second blow came 0.36-1.1 s after the first.
+
+The fix (`QC/vr_melee.qc`, VR_Melee_WallFresh, VR_Melee_WallLeft): a hand's wall blow remembers that wall's plane. The
+same wall (normals within VR_MELEE_WALL_SAME, the contact within 4 units of the plane) is struck again only once the
+weapon has been **0.2 m off it** since (VR_MELEE_WALL_OFF: near end, grip and far end), and within **1.2 s** of the blow
+only by one at least **0.6 times as fast** (VR_MELEE_WALL_FOLLOW, VR_MELEE_WALL_WEAKER). Another wall (a corner) at
+once; `vr_melee_wall_hold 0` as before. No cvar or default changed. Developer 2 prints each refused one.
+
+Numbers (mock, 625 replays: replays struck / with two or more wall blows):
+
+| weapon (takes x 5 spots) | struck before / after | two+ before | after |
+|---|---|---|---|
+| axe (20) | 71 / 71 | 0 | 0 |
+| crowbar (the axe's 20) | 76 / 76 | 9 | 1 |
+| shotgun (the axe's 20) | 74 / 74-75 | 19 | 11 |
+| sword (29) | 125 / 125 | 7 | 2 |
+| fists (36 punches, slaps) | 88 / 88 | 0 | 0 |
+| two real blows 0.7 s apart (13 axe slashes; axe, crowbar, shotgun) | - | - | 13/13, 12/12, 13/13 struck twice |
+
+At the dummy's front: crowbar 0, shotgun 3 -> 0, sword 0. What is left is at 8-24 units nearer: the shotgun's wind-up
+bumps (10), one shotgun jab at 10.6 m/s then a swing at 8.0 with the gun drawn 15 units back between (two blows by the
+rules), one crowbar (chisel 4.9 then 5.9 m/s, the bar drawn 10 units off between), one sword recovery stab (refused
+at 3.1 m/s, struck a frame later at 3.9) and one sword's wind-up stab. The same list in one run can differ by a replay
+from another (state carried from take to take: shotgun 74 / 75 struck). eval.sh: verdicts as the baseline (169/177;
+five damage readings 0.1 off, PASS -> PASS).
+
+In VR:
+
+- [ ] Crowbar, shotgun (gun bash), axe and sword swung hard into a wall, from arm's length and from close: one thunk,
+  one spark and one mark a swing, also when the weapon ends lying along the wall.
+- [ ] Two quick blows on the same wall (draw back a hand's length or more between them): both thunk.
+- [ ] A corner: a swing that strikes one wall and then the other still thunks on both.

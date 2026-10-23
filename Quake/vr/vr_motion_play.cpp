@@ -698,7 +698,54 @@ struct Options
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
     float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
     int stutter{0};       // with rate: every this many frames one is dropped (the frame before lasts two; 0 none)
+    // Tests (Misc/quakevr/melee_wall_takes.sh): the take's monster put at a point, not at a target (`at <x y z yaw>`:
+    // the player in front of it as a thing there facing `yaw` would have him, as for another target), and the main
+    // hand's weapon another (`weapon <id>`, QC WID_*; -1 the take's).
+    bool atSet{false};
+    glm::vec3 at{0.f};
+    float atYaw{0.f};
+    int weapon{-1};
 };
+
+// The test options shared by vr_motion_play and vr_motion_eval (`at`, `weapon`): whether Cmd_Argv(i) is one (its
+// arguments taken: `i` moved past them).
+[[nodiscard]] bool parseTestOption(int& i, Options& o)
+{
+    const char* a = Cmd_Argv(i);
+    if(!q_strcasecmp(a, "at") && i + 4 < Cmd_Argc())
+    {
+        o.atSet = true;
+        o.at = glm::vec3{Q_atof(Cmd_Argv(i + 1)), Q_atof(Cmd_Argv(i + 2)), Q_atof(Cmd_Argv(i + 3))};
+        o.atYaw = Q_atof(Cmd_Argv(i + 4));
+        i += 4;
+        return true;
+    }
+    if(!q_strcasecmp(a, "weapon") && i + 1 < Cmd_Argc())
+    {
+        o.weapon = Q_atoi(Cmd_Argv(++i));
+        return true;
+    }
+    return false;
+}
+
+// The same options from a vr_motion_eval list line's text after its take ("at <x y z yaw> weapon <id>").
+void applyLineOptions(const char* s, Options& o)
+{
+    float x, y, z, yaw;
+    const char* at = strstr(s, "at ");
+    if(at && sscanf(at + 3, "%f %f %f %f", &x, &y, &z, &yaw) == 4)
+    {
+        o.atSet = true;
+        o.at = glm::vec3{x, y, z};
+        o.atYaw = yaw;
+    }
+    int id;
+    const char* w = strstr(s, "weapon ");
+    if(w && sscanf(w + 7, "%d", &id) == 1)
+    {
+        o.weapon = id;
+    }
+}
 
 // A repeatable jitter: frame k's time off by up to `amount` frames (a hash of k: the same every run), none for frame 0.
 [[nodiscard]] double frameJitter(za::U64 k, double amount)
@@ -887,12 +934,12 @@ void workOutPlacement(edict_t* player)
 {
     const Frame& f0 = take.frames.front();
     const glm::vec3 here{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
+    edict_t* target = opts.atSet ? nullptr : findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
     report.targetClass = target ? progs::targetClass(target) : "";
     report.targetName = target ? PR_GetString(target->v.classname) : "";
     placed = true;
-    if(!target || !opts.place)
+    if((!target && !opts.atSet) || !opts.place)
     {
         delta = opts.yawSet ? opts.yaw - take.yaw0 : 0.f;
         placeOrigin = here;
@@ -902,10 +949,10 @@ void workOutPlacement(edict_t* player)
         }
         return;
     }
-    const glm::vec3 tOrigin{target->v.origin[0], target->v.origin[1], target->v.origin[2]};
-    const float tYaw = target->v.angles[1];
+    const glm::vec3 tOrigin = opts.atSet ? opts.at : glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]};
+    const float tYaw = opts.atSet ? opts.atYaw : target->v.angles[1];
 
-    if(f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
+    if(!opts.atSet && f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
     {
         // The same kind of target: as recorded, moved with it but not turned (its box doesn't turn: the
         // training dummy's yaw changes as it is hit, which must not turn the take about it).
@@ -965,11 +1012,12 @@ void placePlayer(edict_t* player)
         }
     }
     // Into the target (a take recorded in noclip, or a synthetic take against a box turned another way):
-    // stepped back from it until the boxes are apart.
-    if(!free && targetEnt > 0)
+    // stepped back from it until the boxes are apart (from a point given, `at`: from a wall there, as one stands).
+    if(!free && (targetEnt > 0 || opts.atSet))
     {
-        edict_t* t = EDICT_NUM(targetEnt);
-        glm::vec3 away{placeOrigin.x - t->v.origin[0], placeOrigin.y - t->v.origin[1], 0.f};
+        const glm::vec3 t = opts.atSet ? opts.at
+                                       : glm::vec3{EDICT_NUM(targetEnt)->v.origin[0], EDICT_NUM(targetEnt)->v.origin[1], 0.f};
+        glm::vec3 away{placeOrigin.x - t.x, placeOrigin.y - t.y, 0.f};
         away = glm::length(away) > 0.01f ? glm::normalize(away) : glm::vec3{1.f, 0.f, 0.f};
         for(float back = 0.5f; back <= 32.f && !free; back += 0.5f)
         {
@@ -1012,7 +1060,7 @@ void equip(edict_t* player)
         pr_global_struct->self = EDICT_TO_PROG(player);
         pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
         G_FLOAT(OFS_PARM0) = static_cast<float>(h);
-        G_FLOAT(OFS_PARM1) = static_cast<float>(f0.wid[h]);
+        G_FLOAT(OFS_PARM1) = static_cast<float>(h == HAND_MAIN && opts.weapon >= 0 ? opts.weapon : f0.wid[h]);
         G_FLOAT(OFS_PARM2) = static_cast<float>(f0.wflags[h]);
         PR_ExecuteProgram(fn);
     }
@@ -1335,7 +1383,7 @@ void stopPlayback(const char* why)
     }
     for(const int h : {HAND_MAIN, HAND_OFF})
     {
-        report.wid[h] = take.frames[take.firstRec].wid[h];
+        report.wid[h] = h == HAND_MAIN && opts.weapon >= 0 ? opts.weapon : take.frames[take.firstRec].wid[h];
     }
     applySettings(take, opts.recorded);
     // The training dummy's attacks off (put back afterwards): in a replay it strikes only as the take has it.
@@ -1384,13 +1432,14 @@ void stopPlayback(const char* why)
 }
 
 // vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
+// [at <x> <y> <z> <yaw>] [weapon <id>] (Options)
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
         Con_Printf("usage: vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
-                   "[save] [recorded] [quiet]; vr_motion_play stop\n");
+                   "[save] [recorded] [quiet] [at <x> <y> <z> <yaw>] [weapon <id>]; vr_motion_play stop\n");
         return;
     }
     if(!q_strcasecmp(Cmd_Argv(1), "stop"))
@@ -1443,6 +1492,9 @@ void play_f()
         else if(!q_strcasecmp(a, "quiet"))
         {
             o.quiet = true;
+        }
+        else if(parseTestOption(i, o))
+        {
         }
         else
         {
@@ -2184,6 +2236,7 @@ enum class Eval
 
 Eval evalState = Eval::Idle;
 za::Vector<za::String> evalFiles;
+za::Vector<za::String> evalFileOpts; // a list line's test options after its take ("<take> | at <x y z yaw> weapon <id>")
 size_t evalIndex = 0;
 za::String evalMap = "vrmelee-recording";
 za::String evalOut;
@@ -2259,6 +2312,10 @@ void evalDone(const Report& r)
     Result res;
     res.path = evalIndex < evalFiles.size() ? evalFiles[evalIndex] : r.file;
     res.file = r.file;
+    if(evalIndex < evalFileOpts.size() && !evalFileOpts[evalIndex].empty())
+    {
+        res.file += " | " + evalFileOpts[evalIndex]; // (the same take at several spots: told apart)
+    }
     za::String label = take.label;
     res.label = label;
     const Expectation* e = nullptr;
@@ -2365,9 +2422,14 @@ void writeResults()
 
     // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
     // judged: the current melee settings, the takes' own rate, the melee recording room.
-    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
+    bool lineOpts = false;
+    for(const za::String& s : evalFileOpts)
     {
-        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv "
+        lineOpts = lineOpts || !s.empty();
+    }
+    if(evalOpts.rate > 0.f || evalOpts.recorded || evalOpts.atSet || evalOpts.weapon >= 0 || lineOpts || q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
+    {
+        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded, another map, at or weapon; eval_status.csv "
                    "unchanged)\n");
     }
     else
@@ -2427,7 +2489,12 @@ void evalFrame()
         quietLoad(false);
         fixedLoading = false;
         onDone = evalDone;
-        if(!startPlayback(evalFiles[evalIndex], evalOpts))
+        Options o = evalOpts;
+        if(evalIndex < evalFileOpts.size())
+        {
+            applyLineOptions(evalFileOpts[evalIndex].cStr(), o);
+        }
+        if(!startPlayback(evalFiles[evalIndex], o))
         {
             Result res;
             res.path = evalFiles[evalIndex];
@@ -2504,7 +2571,7 @@ void evalFrame()
 }
 
 // vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz> [jitter <fraction>]] [save] [recorded] [verbose]
-// [watch] [progress <file>] [quit];
+// [watch] [progress <file>] [at <x> <y> <z> <yaw>] [weapon <id>] [quit];
 // vr_motion_eval stop
 void eval_f()
 {
@@ -2599,6 +2666,9 @@ void eval_f()
         {
             evalProgress = Cmd_Argv(++i);
         }
+        else if(parseTestOption(i, evalOpts))
+        {
+        }
         else if(arg.empty())
         {
             arg = a;
@@ -2620,10 +2690,26 @@ void eval_f()
             return;
         }
         evalFiles.clear();
+        evalFileOpts.clear();
         files::forLines(text, [](za::StringView line) {
             while(line.endsWith('\r') || line.endsWith(' '))
             {
                 line.removeSuffix(1);
+            }
+            // "<take> | <test options>" (Options' at, weapon): that take with them.
+            za::StringView lineOpts;
+            if(const size_t bar = line.find('|'); bar != za::StringView::nPos)
+            {
+                lineOpts = line.substrByPosLen(bar + 1);
+                line = line.substrByPosLen(0, bar);
+                while(line.endsWith(' '))
+                {
+                    line.removeSuffix(1);
+                }
+                while(lineOpts.startsWith(' '))
+                {
+                    lineOpts.removePrefix(1);
+                }
             }
             if(line.empty())
             {
@@ -2633,6 +2719,7 @@ void eval_f()
             if(files::isFile(p.cStr()))
             {
                 evalFiles.pushBack(p);
+                evalFileOpts.pushBack(za::String{lineOpts});
             }
             else
             {
@@ -2643,6 +2730,7 @@ void eval_f()
     else
     {
         evalFiles = collectTakes(arg);
+        evalFileOpts.clear();
     }
     if(evalFiles.empty())
     {
