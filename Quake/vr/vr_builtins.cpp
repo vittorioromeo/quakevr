@@ -2368,7 +2368,9 @@ void PF_admeleebend()
 // A kind below 0: Weapon Offsets slot -1 - kind's own blade shape (vr_blade.hpp; Edit Blade Shape): `which` 0 and 1 its
 // own head's corners ('0 0 0': none of its own), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1
 // the kind's own, QC VR_Melee_NearBack; the swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own
-// + 4 a blade start of its own), 3 '<blade start> <off> <side>' (Blade From: its share of the line, -1 the kind's own).
+// + 4 a blade start of its own + 8 a line start or tip of its own), 3 '<blade start> <off> <side>' (Blade From: its share
+// of the line, -1 the kind's own), 4 the line's start off the hand and 5 its tip off the muzzle (Blade Org, Blade Tip:
+// units along the hand's forward, right, up).
 void PF_admeleehead()
 {
     glm::vec3 lo{0.f}, hi{0.f};
@@ -2377,8 +2379,11 @@ void PF_admeleehead()
         const blade::Shape s = blade::shape(-1 - kind);
         const int which = static_cast<int>(G_FLOAT(OFS_PARM1));
         const glm::vec3 out = which == 2   ? glm::vec3{s.nearBack, s.width,
-                                                 (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f) + (blade::hasFrom(s) ? 4.f : 0.f)}
+                                                 (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f) + (blade::hasFrom(s) ? 4.f : 0.f) +
+                                                     (blade::hasEnds(s) ? 8.f : 0.f)}
                               : which == 3 ? glm::vec3{blade::hasFrom(s) ? s.from : -1.f, s.fromOff.x, s.fromOff.y}
+                              : which == 4 ? s.origin
+                              : which == 5 ? s.tipOffset
                               : !s.head    ? glm::vec3{0.f}
                               : which == 1 ? s.headHi
                                            : s.headLo;

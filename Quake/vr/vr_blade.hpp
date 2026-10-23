@@ -28,7 +28,15 @@ struct Shape
     glm::vec3 headLo{0.f}, headHi{0.f}; // x along the line from the hand, y along its normal, z along the model's +y
     float from{-1.f};          // where the blade proper starts, a share of the line (-1: the kind's own, nothing bent)
     glm::vec2 fromOff{0.f};    // that point off the line, as the curve's points
+    glm::vec3 origin{0.f};     // the line's start off the holding hand (units along its forward, right, up; Line Start)
+    glm::vec3 tipOffset{0.f};  // the line's far end off the muzzle (the same frame; a gun's Tip, its shots' muzzle kept)
 };
+
+// Whether `s` moves the line's ends (Blade Org, Blade Tip: QC VR_Melee_Line's line start and tip).
+[[nodiscard]] inline bool hasEnds(const Shape& s)
+{
+    return s.origin != glm::vec3{0.f} || s.tipOffset != glm::vec3{0.f};
+}
 
 // Whether `s` has a blade start of its own (Blade From: a share inside the line).
 [[nodiscard]] inline bool hasFrom(const Shape& s)

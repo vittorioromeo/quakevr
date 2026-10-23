@@ -513,7 +513,134 @@ void(entity p) VR_Melee_FistLineTest =
     remove(b);
 };
 
-// Every server frame (StartFrame): the test asked for (vr_melee_sweep_test: 1 the sweep, 2 the blade's dump, 3 its shape).
+// vr_melee_sweep_test 5 (the blade's line start, ROUND22.md "The blade's line start"): the main hand's weapon's line with
+// its own ends (Blade Org, Blade Tip) against the default line (the hand to the muzzle). "bladeline:" lines: the line's
+// start and tip off the hand and the muzzle (the hand's frame), each layout point's distance from the line start .. tip
+// (0: on the new line); then a small box at the striking point the ends moved most, swept across (24 units in one frame,
+// square to the line and to that move) by the line as it is and by the default one. PASS: every point on the new line,
+// the new line strikes the box, and the default line strikes it only if it reaches it (as test 4's).
+float(entity b, entity xT, float xThing, vector xGrip, vector xFar, vector xD) VR_MSWT_EndsProbe =
+{
+    vector g = vr_mline_grip, f = vr_mline_far;
+    float bend = vr_mline_bend;
+    vr_mline_grip = xGrip;
+    vr_mline_far = xFar;
+    vr_mline_bend = 0;
+    VR_Melee_Layout(xThing);
+    VR_Melee_LayoutFrom(vr_mline_from_x);
+    b.mh_thing = xThing;
+    b.mh_free = FALSE;
+    b.mh_struck = world;
+    b.mh_hit_ent = world;
+    b.mh_n = vr_mpt_n;
+    b.mh_bwidth = vr_mline_shape_y;
+    float i;
+    for(i = 0; i < vr_mpt_n; ++i)
+    {
+        b.mh_pp[i] = VR_Melee_At(vr_mpt_f[i]);
+        b.mh_cp[i] = b.mh_pp[i] + xD;
+    }
+    b.mh_pgrip = xGrip;
+    b.mh_grip = xGrip + xD;
+    b.mh_far = xFar + xD;
+    b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
+    vr_mline_grip = g;
+    vr_mline_far = f;
+    vr_mline_bend = bend;
+    float was = cvar("vr_melee_swept");
+    cvar_set("vr_melee_swept", "1");
+    vr_msw_probe = TRUE;
+    VR_Melee_Sweep(cVR_MainHand, b);
+    vr_msw_probe = FALSE;
+    cvar_set("vr_melee_swept", ftos(was));
+    return vr_msw_edge == xT;
+};
+
+void(entity p) VR_Melee_LineEndsTest =
+{
+    entity was = self;
+    self = p;
+    float thing = VR_Melee_Thing(p, cVR_MainHand);
+    if(!VR_Melee_Line(p, cVR_MainHand, thing) || thing == VR_MTHING_FIST || thing == VR_MTHING_NONE || vr_mline_free)
+    {
+        bprint(sprintf("bladeline: the main hand holds no weapon by its handle (thing %g, %s): FAIL\n", thing,
+            p.weaponmodel));
+        self = was;
+        return;
+    }
+    vector h = VRGetEntHandPos(p, cVR_MainHand);
+    vector m = p.muzzlepos;
+    vector grip = vr_mline_grip, far = vr_mline_far;
+    makevectors(VRGetEntHandRot(p, cVR_MainHand));
+    vector fwd = v_forward, rt = v_right, up = v_up;
+    vector lg, lt;
+    lg_x = (grip - h) * fwd; lg_y = (grip - h) * rt; lg_z = (grip - h) * up;
+    lt_x = (far - m) * fwd; lt_y = (far - m) * rt; lt_z = (far - m) * up;
+    bprint(sprintf("bladeline: %s slot %g: line start %v off the hand, tip %v off the muzzle, line %.2f units (default "
+        "%.2f)\n", p.weaponmodel, vr_mline_slot, lg, lt, vlen(far - grip), vlen(m - h)));
+    // Every layout point on the new line (its curve and blade start's bend aside: a straight weapon's).
+    VR_Melee_Layout(thing);
+    VR_Melee_LayoutFrom(vr_mline_from_x);
+    float i;
+    float worst = 0;
+    float best = -1;
+    float bestF = 0;
+    float bestMove = 0;
+    for(i = 0; i < vr_mpt_n; ++i)
+    {
+        vector at = VR_Melee_At(vr_mpt_f[i]);
+        float off = VR_SegmentDistance(at, at, vr_mpt_f[i] < 0 ? vr_mline_near : grip, far);
+        worst = max(worst, off);
+        vector was0 = h + (m - h) * vr_mpt_f[i];
+        bprint(sprintf("bladeline: pt %g f %.2f off the new line %.3f, moved %.2f from the default line's\n", i,
+            vr_mpt_f[i], off, vlen(at - was0)));
+        if(VR_Melee_Strikes(vr_mpt_kind[i]) && vr_mpt_f[i] > 0 && vlen(at - was0) > bestMove)
+        {
+            bestMove = vlen(at - was0);
+            best = i;
+            bestF = vr_mpt_f[i];
+        }
+    }
+    float onLine = worst < 0.05 || vr_mline_bend;
+    if(best < 0)
+    {
+        bprint("bladeline: no striking point: FAIL\n");
+        self = was;
+        return;
+    }
+    vector pt = VR_Melee_At(bestF);
+    vector moved = pt - (h + (m - h) * bestF);
+    vector across = VR_Melee_Cross(normalize(far - grip), moved);
+    if(vlen(across) < 0.01)
+    {
+        across = up;
+    }
+    vector d = normalize(across) * 24;
+    entity b = spawn();
+    entity t = spawn();
+    t.classname = "vr_meleesweep_target";
+    t.solid = SOLID_BBOX;
+    t.movetype = MOVETYPE_NONE;
+    t.takedamage = DAMAGE_AIM;
+    t.health = 1000;
+    setsize(t, '-1 -1 -1', '1 1 1');
+    setorigin(t, pt + d * 0.5);
+    float now = VR_MSWT_EndsProbe(b, t, thing, grip, far, d);
+    float def = VR_MSWT_EndsProbe(b, t, thing, h, m, d);
+    float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * vr_mline_shape_y;
+    float apart = VR_SegmentDistance(pt, pt, h, m);
+    float reaches = apart < rBase + 1;
+    float ok = onLine && now && (def == reaches || fabs(apart - rBase - 1) < 0.5);
+    bprint(sprintf("bladeline: points on the new line %g (worst %.3f); a box at point %g (%.2f along, %.2f units off the "
+        "default line): struck by it %g, by the default line %g: %s\n", onLine, worst, best, bestF, apart, now, def,
+        ok ? "PASS" : "FAIL"));
+    self = was;
+    remove(t);
+    remove(b);
+};
+
+// Every server frame (StartFrame): the test asked for (vr_melee_sweep_test: 1 the sweep, 2 the blade's dump, 3 its shape,
+// 4 the fist's line, 5 the line's own ends).
 void() VR_Melee_SweepTestFrame =
 {
     float mode = cvar("vr_melee_sweep_test");
@@ -538,6 +665,10 @@ void() VR_Melee_SweepTestFrame =
     else if(mode == 4)
     {
         VR_Melee_FistLineTest(p);
+    }
+    else if(mode == 5)
+    {
+        VR_Melee_LineEndsTest(p);
     }
     else
     {

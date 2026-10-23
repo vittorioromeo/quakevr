@@ -393,6 +393,16 @@ QVR_WEAPON_KEY(BladeHeadHiZ, "bl_head_hi_z")
 QVR_WEAPON_KEY(BladeFrom, "bl_from")
 QVR_WEAPON_KEY(BladeFromOff, "bl_from_off")
 QVR_WEAPON_KEY(BladeFromSide, "bl_from_side")
+// The line's two ends of its own (ROUND22.md, "The blade's line start"): Org the line's start (Edit Blade Shape's Line
+// Start) off the holding hand, Tip the line's far end off the Muzzle anchor and offset (a gun's Tip handle: its Muzzle
+// offset is where its shots start, so a gun's bash line has its own); both in units along the hand's forward, right, up
+// (right mirrored in the off hand, as its model is). 0 0 0: the hand and the muzzle, as before. New cvars: no migration.
+QVR_WEAPON_KEY(BladeOrgX, "bl_org_x")
+QVR_WEAPON_KEY(BladeOrgY, "bl_org_y")
+QVR_WEAPON_KEY(BladeOrgZ, "bl_org_z")
+QVR_WEAPON_KEY(BladeTipX, "bl_tip_x")
+QVR_WEAPON_KEY(BladeTipY, "bl_tip_y")
+QVR_WEAPON_KEY(BladeTipZ, "bl_tip_z")
 #endif
 
 
