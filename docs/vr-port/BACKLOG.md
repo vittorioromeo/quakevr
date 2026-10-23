@@ -39,6 +39,10 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 **Later, lower priority:**
 - Parallax option B (about a day; recovers about 15% wasted world shading, roughly 0.05-0.15 ms per eye net; extra
   depth copy pass and buffer; correctness risk for depth readers). Only if world shading stays the top GPU cost.
+- Parallax depth write (off in High, on in Ultra since 2026-10-23; ~1.3 ms over off in an AD fight even with the near
+  split): a tiled-depth early-out was tried and didn't pay (ROUND22.md "Parallax depth write: the tiles' early-out";
+  local branch `agent/pdepthhiz`). Revisit only with a cheaper depth source (no MSAA decompress) or a driver that keeps
+  early depth with conservative depth.
 - Physics world built once per map (about 33 ms per load; props would keep their spawn-frame bodies). Cleanup only.
 - Body triangles reordered arms-first (most of the pre-pass gain without the pass).
 - View-entity leftovers (easeWrist 27-30 us, lying guns' buttons 19 us, tap verts 8 us, rig hand 10-13 us).

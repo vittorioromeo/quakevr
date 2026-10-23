@@ -17901,3 +17901,17 @@ In VR:
   one spark and one mark a swing, also when the weapon ends lying along the wall.
 - [ ] Two quick blows on the same wall (draw back a hand's length or more between them): both thunk.
 - [ ] A corner: a swing that strikes one wall and then the other still thunks on both.
+
+## Parallax depth write: the tiles' early-out (tried 2026-10-23, not shipped)
+
+Kept for reference on the local branch `agent/pdepthhiz` (b0ac8d3f4), not merged (the author, 2026-10-23: "Don't ship the
+pre-pass"). After the opaque world's depth pre-pass a compute pass reduced the eye's depth to each 4x4 tile's farthest
+depth (every MSAA sample), and the depth-writing parallax programs discarded, per 2x2 quad, any fragment whose nearest
+reachable relief depth was behind its tile (`vr_parallax_depth_cull`). The picture was unchanged (eyeshot diffs within
+the scene's own flicker), but it didn't pay on the author's NVIDIA driver, AD fight bench (exclusive, 2 x 600 frames,
+depth write on with the split, eyes' GPU ms): off 2.01; on 3.40; on with tiles built but unused 3.76; on with the
+early-out 3.35. The tile pass costs ~0.36 ms (likely the driver decompressing the 4x MSAA depth to read it as a
+texture), the early-out saves ~0.41: net ~0.05, noise; even free tiles would leave the depth write ~0.9 ms over off
+(the pre-pass's own depth-writing shader and the late depth test remain), and CPU busy rose ~0.25 ms (per-pass GL
+queries). So `vr_parallax_depth_write` stays off in High and on in Ultra with the near split (section "Parallax depth
+write's cost").
