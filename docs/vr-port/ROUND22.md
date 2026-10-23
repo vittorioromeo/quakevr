@@ -17141,3 +17141,54 @@ wall within about 1.5 arm lengths of its chest (or one its fall carries it into)
 **In VR:** shoot grunts (shotgun and super shotgun, body shots) standing a step or two in front of a wall: most should
 throw a hand out to the wall beside them and slide down it into a slump, the super shotgun's slamming them into it
 first. Shoot one standing away from walls, and one with a headshot: no change. Wall Slide 0 gives back the drop.
+
+## Monster weapon drops: the infected's weapons as they turn, Freddie gibbed (worktree `release`, branch `agent/drops1023`, 2026-10-23)
+
+From the read-only audit of monster weapons (approved by Vittorio).
+
+- **Dawn of the Machine's infected** (`monster_army_infected`, `_knight_`, `_enforcer_`, `_hell_knight_infected`): their
+  first death is `MG3_Infected_Turn` (combat.qc Killed hands them over before any death function), so `army_die`,
+  `knight_die`, `enf_die` and `hknight_die` never ran and nothing fell. Now `MG3_Infected_DropWeapon`
+  (vr_mg3_infected.qc), first thing in the turn while he is still the old monster: the grunt's gun and the enforcer's
+  rifle through `VR_DropEnemyGun` (full), the knight's sword and the death knight's (`QVR_WPNFLAG_USE_SECONDARY_AMMO`)
+  through `VR_DropKnightSword`, the same calls and the same statue exception (`spawnflags & 2`) as the stock deaths.
+  A wedged one (no room for the new body: killed again at once) has dropped it already. The zombie or fiend he becomes
+  is set to `progs/zombie.mdl` / `progs/demon.mdl`, which hold no weapon; their own deaths drop nothing.
+- **AD's Freddie**: his super nailgun dropped only with his gun arm cut off (`VR_ADGun_LimbCut`). Now also when he is
+  gibbed (`VR_ADGun_FreddieGibbed`, from `VR_AD_Gibbed`, AD's `monster_ThrowGib` hook: gibbed in his death or his body
+  gibbed later): thrown from where his left forearm was, up and out to his left, a full clip. Once per Freddie: the new
+  field `.vr_adgun_freddie_off` is set by whichever comes first (a cut arm, a blast's popped arm or the gibbing).
+  `vr_adgun_drops 0` still drops nothing. No AD source change (ad_import.py `--check`: 0 of 142 differ).
+- **AD's deflector** (`monster_deflector`): not in `VR_ADGun_ForClass`, by scope rather than a decision against it. The
+  guns were made for AD's soldier family (above, "Armed AD soldiers, defender/eliminator, centurion, pyro and
+  fumigator"; `vr_adguns.hpp` `variantCount` 8: rocket, grenade, plasma, defender, eliminator, centurion, pyro,
+  fumigator). The deflector got Quake VR's treatment later in the rig batch (head zone, knockdown, its rig with a `gun`
+  bone on the right hand), and `vr_monstermods.cpp` hides only its muzzle effect and field rings in its deaths: "It
+  keeps its gun". It also has no one gun to map: `ad_mon_deflector.qc` gives it two attacks per skin (yellow, the
+  default: a wall of flame up close, `ad_deflect_fireflame`, and a volley of 1-3 drunk rockets, `ad_deflect_fire_rocket`;
+  blue, `spawnflags` PLASMA: three plasma bolts, `ad_deflect_fireplasma`, and the rockets), its shield (reflects nails,
+  lightning, plasma and the axe) is the monster's, not the gun's, and AD gibs it as an inert `progs/w_enforcergun.mdl`
+  (skin 3 on the blue one). Not implemented.
+
+Tests: `vr_mg3_mtest 2` (developer 1) now also checks each infected dropped one weapon as he turned (its kind and flags,
+its model, grabbable, a full clip, near him; he is the zombie or fiend model) and that killing the zombies and fiends
+again adds none. `vr_ad_test 95` gibs Freddie's body after the arm cut: no second gun. New `vr_ad_test 102`: a Freddie
+near you gibbed whole drops one super nailgun, full, taken into the main hand. Debug > AD Monsters > Soldiers' Guns >
+"Freddie Gibbed Whole" runs it.
+
+Results: `vr_mg3_mtest 2` on e1m1: 19 passed, 0 failed (the grunt's `v_gruntgun.mdl` clip 30, the knight's
+`v_ksword.mdl`, the enforcer's `v_enfrifle.mdl` clip 20, the death knight's `v_hksword.mdl` flags 1, each 14-15 units
+from him; 6 -> 6 weapons lying after the second kills). ad_dm1 (`-game ad`): `vr_ad_test 102` PASS (gibbed, health
+-100: one SNG, 36 in it, 138 units out); `vr_ad_test 95` PASS (cut: one SNG; the body then gibbed: 0 more).
+
+What it would take to give the deflector a gun: a design choice first (which attack the dropped gun fires: the rockets,
+the flame wall as the pyro's flamethrower, or the blue skin's plasma as the plasma rifle; one gun or one per skin); then
+a WID (29 on), a ninth burst-rifle variant in `vr_adgunart.cpp` (add-ons, skin, `fireFeels`, `variantCount`), its
+weapon-offset slot defaults, a `VR_ADGun_Fire` branch, its `VR_ADGun_ForClass` entry, its gun hidden in its deaths in
+`vr_monstermods.cpp` (vertices of its rig's `gun` bone, now kept, and the rig re-measured without them), AD's
+`w_enforcergun.mdl` gib cleared on a drop (as the crossbow's), a toolgun row (`ad_monsters_gen.py` GUNS) and a test.
+
+**In VR:** Dawn of the Machine (or the Debug menu's infected spawns): kill an infected grunt, knight, enforcer and death
+knight: each should burst with his gun or sword falling beside him, grabbable, the zombie or fiend that gets up holding
+nothing. AD: blow a Freddie apart with rockets: a super nailgun should fly out of the gibs (one, even if his arm was
+cut first).

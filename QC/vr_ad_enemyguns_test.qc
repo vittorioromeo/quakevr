@@ -552,9 +552,12 @@ void() VR_ADXbow_Think =
 
 // vr_ad_test 95 (ROUND22 "Freddie's super nailgun"): a Freddie near you (the toolgun's or `vr_test_spawn 234; impulse
 // 241`) is killed and his gun arm (the left forearm) cut off: a super nailgun of ours lies where it was, loaded as a
-// dropped enemy gun (a full clip), and is taken into your main hand. "adfred:" lines, then PASS or FAIL.
+// dropped enemy gun (a full clip), and is taken into your main hand; his body then gibbed: no second one. vr_ad_test 102
+// (ROUND22 "Monster weapon drops"): a Freddie near you gibbed whole (his arm not cut): one super nailgun lies, loaded,
+// taken into your main hand. "adfred:" lines, then PASS or FAIL.
 float vr_adfred_step;
 float vr_adfred_ok;
+float vr_adfred_gib; // vr_ad_test 102: gibbed whole
 float vr_adfred_drops;
 
 void(string xWhat, float xOk) VR_ADFred_Report =
@@ -582,10 +585,22 @@ void() VR_ADFred_Think =
             remove(self);
             return;
         }
+        self.enemy = k;
+        if(vr_adfred_gib)
+        {
+            vr_adfred_drops = vr_adgun_freddie_drops;
+            k.health = 1; // (gibbed whole: far past his gib health)
+            T_Damage(k, p, p, 1000);
+            VR_ADFred_Report(sprintf("gibbed whole (health %g, gibbed %g)", k.health, k.ad_gibbed), k.ad_gibbed);
+            VR_ADFred_Report(sprintf("a super nailgun dropped (%g)", vr_adgun_freddie_drops - vr_adfred_drops),
+                vr_adgun_freddie_drops == vr_adfred_drops + 1);
+            vr_adfred_step = 2;
+            self.nextthink = time + 1.5; // (the drop lands)
+            return;
+        }
         k.health = 1; // (killed, not gibbed: a body to cut)
         T_Damage(k, p, p, 5);
         VR_ADFred_Report(sprintf("killed (health %g)", k.health), k.health <= 0);
-        self.enemy = k;
         vr_adfred_step = 1;
         self.nextthink = time + 0.3;
         return;
@@ -619,6 +634,17 @@ void() VR_ADFred_Think =
         VR_ADWeapons_Take(p, w);
         VR_ADFred_Report(sprintf("taken into the main hand (weapon %g)", VRGetEntWeapon(p, cVR_MainHand)),
             VRGetEntWeapon(p, cVR_MainHand) == WID_SUPER_NAILGUN);
+    }
+    if(!vr_adfred_gib && self.enemy.ad_classtype == ad_CT_MONFREDDIE && !self.enemy.ad_gibbed)
+    {
+        // His body, the arm cut off, gibbed (AD's gibbing, as a blast's on a body: VR_AD_Gibbed): no second gun.
+        vr_adfred_drops = vr_adgun_freddie_drops;
+        entity os = self;
+        self = self.enemy;
+        ad_monster_ThrowGib();
+        self = os;
+        VR_ADFred_Report(sprintf("his body gibbed after the cut: no second super nailgun (%g)",
+            vr_adgun_freddie_drops - vr_adfred_drops), self.enemy.ad_gibbed && vr_adgun_freddie_drops == vr_adfred_drops);
     }
     bprint(sprintf("adfred: Freddie's super nailgun test %s\n", vr_adfred_ok ? "PASS" : "FAIL"));
     remove(self);
@@ -833,7 +859,7 @@ void(float request, entity p) AD_GunTest =
             p.weaponmodel, p.holsterweaponmodel2, p.holsterweaponmodel3));
         return;
     }
-    if(request == 95)
+    if(request == 95 || request == 102)
     {
         if(!cvar("vr_ad_mounted"))
         {
@@ -845,6 +871,7 @@ void(float request, entity p) AD_GunTest =
         fr.owner = p;
         vr_adfred_step = 0;
         vr_adfred_ok = TRUE;
+        vr_adfred_gib = request == 102;
         fr.think = VR_ADFred_Think;
         fr.nextthink = time + 0.1;
         return;

@@ -631,6 +631,7 @@ float(entity m) VR_AD_FleshGibs =
 
 void() VR_AD_Gibbed =
 {
+    VR_ADGun_FreddieGibbed(); // (his super nailgun, whoever's gibs: vr_ad_enemyguns.qc)
     if(!VR_AD_GibsOurs(self) || !VR_AD_FleshGibs(self))
     {
         return;

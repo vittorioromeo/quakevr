@@ -2,7 +2,8 @@
 // docs/vr-port/MG3.md M3-15..18, docs/vr-port/TESTING.md. Prints "mg3mtest: PASS/FAIL <what>" and a total.
 //   1 report: the data, the map's Dawn of the Machine monsters by kind, the kills
 //   2 the infected (any campaign): a grunt, a knight, an enforcer and a death knight ahead, each killed: burst into a
-//     zombie or a fiend (its model, class, health, box), not counted; then each killed again (gibbed): counted once
+//     zombie or a fiend (its model, class, health, box), not counted, its weapon dropped (the grunt's gun, the swords, the
+//     enforcer's rifle); then each killed again (gibbed): counted once, no second weapon
 //   3 the death knight lying as a corpse (MG3's corpse A): not solid, in his last death frame; woken, he rises
 //   4 every infected on the map killed once: each bursts (a zombie or a fiend, or gibbed where wedged), no kill counted
 //   5 the rocket ogre (Dawn of the Machine's data): spawned ahead (its model, class, head zone), made to shoot: a volley
@@ -92,6 +93,46 @@ void(entity m, string xFrom, string xClass, string xModel, float xHealth) MG3_MT
         sprintf("%s burst into a %s (%s %s health %g solid %g)", xFrom, xClass, m.classname, m.model, m.health, m.solid));
 };
 
+// The weapons `m` dropped (thrown_weapon, `m` its thrower), how many; the last one in `mg3mt_drop`.
+entity mg3mt_drop;
+float(entity m) MG3_MT_Drops =
+{
+    float n = 0;
+    mg3mt_drop = world;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        if(t.owner == m)
+        {
+            n = n + 1;
+            mg3mt_drop = t;
+        }
+    }
+    return n;
+};
+
+float() MG3_MT_AllDrops =
+{
+    float n = 0;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        n = n + 1;
+    }
+    return n;
+};
+
+// `m`, turned, dropped one weapon as it turned: `xWid` (`xFlags` its flags), a grabbable one lying (its model, a full
+// clip); his new body the zombie's or fiend's model (none drawn on it).
+void(entity m, string xFrom, float xWid, float xFlags) MG3_MT_CheckDrop =
+{
+    float n = MG3_MT_Drops(m);
+    entity w = mg3mt_drop;
+    MG3_MT_Check(n == 1 && w.weapon == xWid && w.weaponflags == xFlags && w.modelindex > 0 && w.touch == wpnthrow_touch &&
+        w.weaponinst.wi_clip == WeaponIdToBaseClipSize(xWid) && vlen(w.origin - m.origin) < 96 &&
+        (m.model == "progs/zombie.mdl" || m.model == "progs/demon.mdl"),
+        sprintf("%s dropped his weapon as he turned (%g dropped: %s flags %g clip %g, %.0f away; he is %s)", xFrom, n,
+        w ? w.model : "none", w.weaponflags, w.weaponinst.wi_clip, w ? vlen(w.origin - m.origin) : -1, m.model));
+};
+
 void() MG3_MT_Step =
 {
     entity p = MG3_MT_Player();
@@ -145,6 +186,10 @@ void() MG3_MT_Step =
         MG3_MT_CheckTurned(mg3mt_m2, "the knight", "monster_zombie", "progs/zombie.mdl", 60);
         MG3_MT_CheckTurned(mg3mt_m3, "the enforcer", "monster_demon1", "progs/demon.mdl", 300);
         MG3_MT_CheckTurned(mg3mt_m4, "the death knight", "monster_demon1", "progs/demon.mdl", 300);
+        MG3_MT_CheckDrop(mg3mt_m1, "the grunt", WID_GRUNTGUN, 0);
+        MG3_MT_CheckDrop(mg3mt_m2, "the knight", WID_SWORD, 0);
+        MG3_MT_CheckDrop(mg3mt_m3, "the enforcer", WID_ENFRIFLE, 0);
+        MG3_MT_CheckDrop(mg3mt_m4, "the death knight", WID_SWORD, QVR_WPNFLAG_USE_SECONDARY_AMMO);
         MG3_MT_Check(mg3mt_m3.maxs_x == 16 && (mg3mt_m1.maxs_x == 12 || mg3mt_m1.maxs_x == 16), sprintf("their boxes the "
             "fiend's and the zombie's, or (crowded) the old ones (%v %v)",
             mg3mt_m3.maxs, mg3mt_m1.maxs));
@@ -155,11 +200,14 @@ void() MG3_MT_Step =
     {
         MG3_MT_Check(mg3mt_m1.health > 0 && mg3mt_m3.health > 0 && mg3mt_m1.th_die == zombie_die && mg3mt_m3.th_die == demon_die,
             sprintf("alive a second later, a zombie's and a fiend's death (%g %g)", mg3mt_m1.health, mg3mt_m3.health));
-        // Killed again, gibbed: counted now, once each.
+        // Killed again, gibbed: counted now, once each; no second weapon.
+        float drops = MG3_MT_AllDrops();
         MG3_MT_Hurt(p, mg3mt_m1, 200);
         MG3_MT_Hurt(p, mg3mt_m2, 200);
         MG3_MT_Hurt(p, mg3mt_m3, 500);
         MG3_MT_Hurt(p, mg3mt_m4, 500);
+        MG3_MT_Check(MG3_MT_AllDrops() == drops, sprintf("the zombies and fiends killed drop no weapon (%g -> %g lying)",
+            drops, MG3_MT_AllDrops()));
         MG3_MT_Check(killed_monsters == mg3mt_killed + 4, sprintf("killed again: four kills counted (%g -> %g)",
             mg3mt_killed, killed_monsters));
         MG3_MT_Check(mg3mt_total + 4 == total_monsters, sprintf("the monster total unchanged by the bursts (%g)", total_monsters));
