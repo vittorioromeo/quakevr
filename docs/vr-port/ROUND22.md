@@ -17192,3 +17192,69 @@ weapon-offset slot defaults, a `VR_ADGun_Fire` branch, its `VR_ADGun_ForClass` e
 knight: each should burst with his gun or sword falling beside him, grabbable, the zombie or fiend that gets up holding
 nothing. AD: blow a Freddie apart with rockets: a super nailgun should fly out of the gibs (one, even if his arm was
 cut first).
+
+## Blood in water (worktree `release`, branch `agent/bloodwater`, 2026-10-23)
+
+Built from the BACKLOG design (agent/firewater; his notes vrtesthall_2026-10-23_01-42-34, _01-43-54), both halves. No
+protocol change, new cvars only (`vr_water_blood` 1, `vr_water_blood_time` 30; Gore > Blood in Water).
+
+**(a) Bloody water surface** (`vr_water.cpp`, "Blood in the liquids"; `vr_glsl.h` `LiquidBlood`). Up to 16 clouds, each
+{centre, surface height, size, peak, born, fade-from}, in the frame data beside the ripples (`BloodInfo`, `BloodAt[16]`
+xy centre, z surface, w radius now; `BloodAmp[4]` strength now; `gpuframedata_t` `bloodinfo`, `bloodat`, `bloodamp`).
+Radius `size * (8 + 52 * sqrt(age / 20 s))` (8 -> 60 units over 20 s; `size` sqrt(amount), 0.6..1.4), strength
+`peak * (1 - t / vr_water_blood_time)^1.3` (a half-second rise in), times `vr_water_blood`. A new cloud within a living
+one's radius (x0.8 + 12 units, same height within 8) tops it up (`peak = min(now + 0.6 * amount, 1.5)`, its fade
+restarted) instead of taking a slot; full, the weakest now goes. The shader (both liquid programs, after the
+refraction: the colour over what is behind it): one loop over the clouds on level-ish faces (|facing.z| > 0.5, both
+sides: the surface seen from under water too) that skips any further than 1.14 radii or 40 units off its height; the
+edge broken by two octaves of `LiquidNoise` drifting slowly (slime's slower); `mix(c, vec3(0.32, 0.02, 0.015) * light,
+min(0.75 k, 0.88))` (slime a brown `vec3(0.2, 0.09, 0.02)`; none on lava or teleports), its alpha raised as much
+(without refraction), faded out from 1200 to 2000 units.
+
+Sources (`water::addBlood(at, amount, above)`: in a liquid, up to its surface in 16-unit steps, 192 at most, then six
+halvings; out of one, a liquid at most `above` units under it, six halvings; lava, a teleport's leaf, too deep: none):
+- `particles::spawn` Preset::Blood (amount count / 20, 0.15..1) and BloodTrail (0.1 a count, 0.3 at most), with or
+  without `vr_particles`;
+- the gore's EventBurst (0.7 x size) and EventCorpse (0.8, 40 units above);
+- the gore's drops: your own bleeding (`playerBleed` -> `fall`) let in the water you wade in (0.12 x drop), a ceiling's
+  drip falling into a pool (the drop now ends at the surface, no mark under the water);
+- the blood streams (`vr_bloodstream.cpp`): once a second at the surface over a wound under water, or where a stream
+  pours in (0.3 x strength x power);
+- a body or a thing standing in water that blood was painted on in the last 15 s (`Mask::bled`, set in
+  `detail::paint` for blood splats): QC's four-a-second `QVR_WOUND_WATER` events (monsters, you) and `washGear` (a
+  bloody prop or weapon afloat or dropped in) add a cloud at the waterline once a second (`Mask::bloodCloud`), 0.3
+  fading to 0 over those 15 s.
+
+**(b) Blood slowed in water** (his first step: no per-particle collision). One `water::bloodInLiquid` (one leaf walk)
+a burst: `blood()` (its drops and the tiny droplets, a quarter as many, and its mist puff), `bloodTrail` (its smear; no
+falling drops), the gore's mist (`mist(..., wet)`: twice as long, drag 3, sinking 4 u/s, 0.3 of the speed), the
+streams' spurts (`bloodDroplet(..., wet)`). `soak()`: velocity x 0.25, drag 5 (stopped in ~0.3 s), gravity 0.03
+(sinking ~5 u/s), 2-4 s, alpha x 0.7 fading out, 1.6x the size growing to about 3x: a slowly blooming cloud. A stream
+whose wound is under water (tested with its landing arc, 12 a second) pours no chain: 14 soaked puffs a second off the
+wound; one pouring into a liquid ends its points at the surface (the arc's crossing time, from the surface found below
+the landing) and blooms puffs there. The gore's hit and burst rays under water reach 0.3 as far, no back-splatter and no
+rays to the ceiling; their marks 0.6 the size, showing 1 s + flight / 40 later, no drips or runs from them.
+
+Debug menu (Gore tools): Blood in Water (`vr_water_blood_test [distance] [amount]`: a cloud on the liquid below a
+point ahead), Blood Spray Ahead (`vr_water_blood_spray [distance] [count]`: a hit's blood, Preset::Blood), Blood in
+Water: Clouds (`vr_water_blood_info`).
+
+**Cost.** GPU: vrfiringrange's pool from above with 16 clouds in view, eyes 2048 x 2048, `vr_profile_report 6` x3
+(on, off, on): eyes' GPU 1.659, 1.678, 1.659 ms: no difference beyond noise. CPU: a fight's worth (10 Preset::Blood
+sprays a second for 6 s, half under water, half over it, 30 clouds made or merged): `particles` 0.130 ms, `particle sim`
+0.033 ms a frame; the `water blood` scope never shows in the report (under 0.001 ms); at most 18 leaf walks an
+`addBlood`, one a `bloodInLiquid`.
+
+**Checked** (mock headset): `scratch/bw_pool.png` (the pool from above, blood off / on, five clouds 13 s old),
+`scratch/bw_spray.png` (a spray under water at 0.35 s and 2 s, a spray in the air), `scratch/bw_grunt_underwater.png`
+(a grunt in the pool with three streams: puffs at its chest, its cloud on the surface seen from below; streams info: 3
+pouring, 0 chain pieces drawn).
+
+**In VR:** fight in the firing range's pool (or vrtesthall's): shoot and gib monsters standing in the water: dark red
+clouds should spread on the surface where they bleed and fade over half a minute; wade while hurt (under 75 health):
+your own cloud follows you. Dive and shoot one under water: the spray should stop short and hang as a sinking cloud,
+with no splats flying across the pool. Say whether the red is too strong or too faint (Gore > Blood in Water).
+
+Not done (BACKLOG): the per-particle surface crossing (a spray from above the surface carried into it, a ragdoll half
+in), clouds drifting with the swells or currents, underwater blood decals on the pool's floor (only the rays' marks
+are smaller and later).
