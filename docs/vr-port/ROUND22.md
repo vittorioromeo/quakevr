@@ -18172,3 +18172,58 @@ hotspot 2 X 0.7 -> 0. The Phantom's and Dark Prince's, the flail's: untouched. N
 Shoot a dropped flamethrower's tank (3 pistol-ish hits) near monsters, a sprayer's near yourself; an empty one; pick
 up the spent gun (no hose, no back tank, clicks). The Plasma Gun's bolts in a dark room. Die in Vomit Mode and look
 around.
+## Crates: one hit (worktree `gorefx`, branch `agent/cratehit`, 2026-10-23)
+
+His note (vrstart 2026-10-23 15-29-14): one very strong punch or melee-weapon hit still breaks a crate; the press fix
+(agent/proppush2) suspected.
+
+**The test was misleading.** `vr_prop_strike_test` stepped the mock hand once per server frame; the client's frames are
+not the server's (fast mode: fewer, real time: more), so the hand reached the game in jumps and the poses' clock (real
+time) did not match: blows read from 0.5 to 4.6 times the strike's speed (an axe at 5 m/s: 5.3, 18.1, 23 m/s). The
+earlier "18.24 m/s before the fix" was very likely this too. Now the strike is one move the mock glides through on its
+own frames (`vr_mock_hand_glide`, real time): **run it with `-RealTime`** (a fist reads 5.00, 7.00, 9.00, 12.00 m/s).
+Developer 3 traces the hand each frame (tracked, drawn, the game's, held off the level); `vr_debug_weight 1` now says
+why a held weapon was put back in the hand.
+
+**Old build vs next** (crate 107, the strike down onto its top, default hand pose, -RealTime; strikes to break, the
+blows' read speeds in m/s; old = 4a7269606, the merge before proppush2, with the test added):
+
+| weapon (heft) | 5 m/s old / next | 7 | 9 | 12 |
+|---|---|---|---|---|
+| fist (1.00) | no blow / no blow | no blow / no blow | 2 (9.00) / 1 (8.99) | 1 / 1 (12.0) |
+| crowbar (1.41) | 2 (6.30, 6.48) / 1 (6.47) | 1 (8.63) / 1 (8.84) | 1 / 1 (8.65) | no blow / no blow |
+| axe (1.41) | 2 (5.76, 5.74) / 2 (5.75, 5.76) | 1 (9.27) / 1 (9.23) | 1 (11.9) / 1 (11.6) | 1 / 1 (10.4) |
+| sword (1.48) | 1 (6.30) / 1 (6.47) | 1 (8.65) / 1 (8.83) | 1 / 1 (8.4) | 1 / 1 (7.2) |
+
+Next is the old build within noise (crowbar 5 m/s: 6.30 is 0.99 of the break, 6.47 just over). The press fix and the
+muzzle fix leave nothing behind. (A fist straight ahead, in the earlier matrix: 5 m/s 8.3 a blow, 7 m/s two, 9 and
+12 one, as designed. Down at 5-7 m/s a hammer fist is under the punch's need; the crowbar's chop at 12 ends past the
+top before its arc reads: test geometry, the same in both.)
+
+**By design.** Intensity = blow speed x heft / 9 m/s; from 1 the crate breaks, from 0.5 it loses (2i - 1) of 75. So a
+punch breaks a small crate at 9 m/s (two at 7, nine at 5), and the crowbar and axe (heft 1.41) at 6.4 m/s, the
+sword (1.48) at 6.1 m/s, of the hand's speed. Held weapons also read 1.2-1.3 times the hand's speed in this test: the
+weight's spring lags a hand that starts at full speed at once, then catches up faster than it (real swings speed up
+gradually, less of it). A strong swing (8-12 m/s at the hand) breaks a crate with any weapon, a strong punch (9+) too.
+
+**What did inflate blows (fixed).** With the weapon tipped down (the strike ahead, `vr_mock_hand main 0.15 1.25 -0.35
+-45 0 0`) its head slid along the floor: the level's hold (vr_handpose) moved the hand's target 26 cm at once as it took
+hold and let go; the weight took the target's jump for a hand's jump and put the lagging weapon back in the hand at once
+(20-25 cm in a frame), unmarked: the melee's own jump test starts at 30 cm, so it read a blow at 17-25 m/s. Only the
+half-turn flip set `VR_HANDJUMP_*` before; now every put-back does (`vr_weight.cpp`). The same strikes:
+
+| strike ahead, head on the floor | crowbar 5 / 7 / 9 m/s | axe 5 / 7 / 9 / 12 |
+|---|---|---|
+| next | 6.30, 17.67 / 24.96 / 19.93 | 5.81, 5.74 / 9.28 / 23.76 / 4.49, 10.35 |
+| fixed | 6.27, 6.28 / 8.85 / 8.35 | 6.03, 9.50 / 9.24 / 11.88 / 10.36 |
+
+In play: a heavy weapon swung along or off the floor or a wall into a crate or a monster. eval.sh: verdicts as the baseline (169/177, none changed; 8 takes differ in an event or the hand error, the canary escalated to the full set).
+
+**If he wants crates tougher** (not changed): Crates > Breaking > Break Speed (`vr_prop_break_speed`, 9 m/s for a
+small crate's 75 health; wood x1). At 12: a punch breaks it from 12 m/s (two from about 9), a crowbar or axe from
+8.5 m/s; at 14: 14 and 9.9. Large crates and barrels scale by the square root of their health already.
+
+- [ ] Punch a small crate hard (as hard as you can): one; a medium punch: two or three. Same for the crowbar and axe:
+  a full swing breaks it, a moderate one takes two.
+- [ ] Swing the axe or crowbar along the floor into a crate (the head scraping first): no one-hit break from a slow
+  scrape.

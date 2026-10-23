@@ -5,6 +5,7 @@
 // Split from vr_box3d_diag.cpp's tests; the shared declarations are in vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 
 namespace box3d::detail
@@ -226,15 +227,36 @@ void strikeTestFrame()
             const glm::vec3 p = strikePoint(st), press = qvr::box3d::pressOffset(1, HAND_MAIN);
             Con_Printf("striketest: strike %d begins: the point %.1f %.1f %.1f, the prop %.1f %.1f %.1f .. %.1f %.1f %.1f, "
                        "held back %.1f\n", strike.count, p.x, p.y, p.z, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z, glm::length(press));
+            // The strike in one move the mock glides through itself, frame by frame of its own (vr_mock_hand_glide, real
+            // time: run the game with -RealTime). Moved a step each server frame, the hand jumped a step at a time on the
+            // client's faster frames: the weight's spring took a held weapon for jumping (put back in the hand each time),
+            // and its blows read up to 3-4 times the strike's speed (ROUND22.md, "Crates: one hit").
+            const float secs = strike.travel / za::max(strike.speed, 1.f);
+            const float glideWas = vr_mock_hand_glide.value;
+            Cvar_SetValueQuick(&vr_mock_hand_glide, secs);
+            by(strike.dir * strike.travel);
+            Cvar_SetValueQuick(&vr_mock_hand_glide, glideWas);
+            strike.phaseEnd = qcvm->time + static_cast<double>(secs);
         }
         return;
     }
+    if((strike.phase == 2 || strike.phase == 3) && developer.value >= 3.f)
+    {
+        // Developer 3: the hand each frame of the strike: as tracked (before the weight's spring and the walls), as the
+        // client has it and as the game has it (units along the strike, from the prop's middle).
+        const FieldOffsets& f = fields();
+        const glm::vec3 g = f.handpos >= 0 ? fieldVec(EDICT_NUM(1), f.handpos) : glm::vec3{0.f};
+        const b3AABB box = b3Body_ComputeAABB(s->body);
+        const glm::vec3 mid = (world->toU(box.lowerBound) + world->toU(box.upperBound)) * 0.5f;
+        const auto at = [&](const glm::vec3& p) { return glm::dot(p - mid, strike.dir); };
+        const glm::vec3 wall = qvr::handpose::wallPush(HAND_MAIN);
+        Con_Printf("striketest: t %.4f tracked %.1f (up %.1f) hand %.1f (up %.1f) game %.1f; held off the level %.1f %.1f %.1f\n",
+            qcvm->time, at(st.unresolvedPos[HAND_MAIN]), st.unresolvedPos[HAND_MAIN].z, at(st.pos[HAND_MAIN]),
+            st.pos[HAND_MAIN].z, at(g), wall.x, wall.y, wall.z);
+    }
     if(strike.phase == 2)
     {
-        const float step = za::min(strike.speed * dt, strike.travel - strike.done);
-        by(strike.dir * step);
-        strike.done += step;
-        if(strike.done >= strike.travel - 1e-3f)
+        if(qcvm->time >= strike.phaseEnd)
         {
             strike.phase = 3;
             strike.phaseEnd = qcvm->time + 0.15;
