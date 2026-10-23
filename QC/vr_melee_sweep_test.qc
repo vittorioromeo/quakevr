@@ -290,7 +290,7 @@ void(entity p) VR_Melee_SweepTest =
 
 // vr_melee_sweep_test 3 (the blade shape editor, ROUND22.md "Blade shape editor"): the main hand's weapon's own shape
 // (Weapon Offsets' Blade keys) strikes as it is drawn. "bladeshape:" lines, then PASS or FAIL:
-//   curve  (its line bent: a curve of its own or an AD sword's) the blade's points swept 24 units across its flat in one
+//   curve  (its line bent: a curve or a blade start of its own, or an AD sword's) the blade's points swept 24 units across its flat in one
 //          frame (VR_Melee_Sweep, swept): a small box just outside the bow is struck along the curve and missed by the
 //          straight line; one just inside it (across the line) struck by the line, missed by the curve.
 //   width  a small box past the tip, 1.5 radii from its sweep: missed at width 1; struck at the weapon's Blade Width (when
@@ -308,6 +308,7 @@ float(entity b, entity xT, float xThing, vector xD, float xBent, float xWidth) V
         vr_mline_bend = 0;
     }
     VR_Melee_Layout(xThing);
+    VR_Melee_LayoutFrom(vr_mline_from_x); // (a blade start of its own: its striking points from it)
     b.mh_thing = xThing;
     b.mh_free = FALSE;
     b.mh_struck = world;
@@ -376,6 +377,7 @@ void(entity p) VR_Melee_BladeShapeTest =
         float f;
         float i;
         VR_Melee_Layout(thing);
+        VR_Melee_LayoutFrom(vr_mline_from_x);
         for(i = 0; i < vr_mpt_n; ++i)
         {
             f = vr_mpt_f[i];

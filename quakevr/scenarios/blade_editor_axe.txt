@@ -1,0 +1,9 @@
+# blade_editor_axe: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Blade shape editor on the axe in the main hand, a grunt to hit
+map vrtesthall
+god
+notarget
+cvar vr_debug_melee_blades 1
+give "Axe" main
+spawn "Grunt" 110 0
+hint Debug > Views > Edit Blade Shape (Main Hand): drag the purple Blade Start onto the low corner of the axe's edge, the red tip onto its top corner; the pink box is the head; Done, then swing at the grunt

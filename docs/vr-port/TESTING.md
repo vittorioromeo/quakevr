@@ -1553,8 +1553,10 @@ the same file built into an older QC gives lines to compare); `vr_melee_sweep_te
 strikes as drawn ("bladeshape:": the curve's outside struck and inside missed, the width past the tip; PASS or FAIL);
 `vr_melee_sweep_test 1` uses the weapon's own head and width. Shapes are edited with the `vr_wofs_bl_*_NN` cvars or in
 the editor: `vr_bladeedit [main|off]`, then `vr_mock_hand_to off bladehandle <i> [<along> <normal> <flat>]` (0 tip, 1
-near end, 2 width, 3..7 curve, 8 and 9 head corners), `vr_mock_button off grip 1`, move, `grip 0`;
+near end, 2 width, 3..7 curve, 8 and 9 head corners, 10 blade start), `vr_mock_button off grip 1`, move, `grip 0`;
 `vr_mock_hand_to <hand> bladebutton <i>` and the trigger (or `vr_bladeedit_press <i>`: 0 Undo, 1 Reset Blade, 2
 Straighten, 3 Head Box, 4 Cancel, 5 Done); `vr_bladeedit_report`, `vr_blade_dump [slot]` (the scripts gave each drag 60
 frames). Its lines show in `vr_eyeshot 3` (with the UI), not `vr_eyeshot
 1`. AD's weapons: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`, `vr_ad_test 116` (the fury's sword).
+The axe in the mock's main hand: `vr_weapon_grip_mode 1; vr_mock_button main grip 1` before and after `vr_scenario
+blade_editor_axe` (`vr_waitprint 3000 SCNPLACED`): without the grip held the given axe goes to the hip holster.

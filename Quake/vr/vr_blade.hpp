@@ -26,7 +26,19 @@ struct Shape
     glm::vec2 point[spinePoints]{}; // each point off the line: x along its normal in the blade's plane, y along the model's +y
     bool head{false};     // the head's box below (false: the model's own: the AD hammer's and mace's)
     glm::vec3 headLo{0.f}, headHi{0.f}; // x along the line from the hand, y along its normal, z along the model's +y
+    float from{-1.f};          // where the blade proper starts, a share of the line (-1: the kind's own, nothing bent)
+    glm::vec2 fromOff{0.f};    // that point off the line, as the curve's points
 };
+
+// Whether `s` has a blade start of its own (Blade From: a share inside the line).
+[[nodiscard]] inline bool hasFrom(const Shape& s)
+{
+    return s.from > 0.f && s.from < 1.f;
+}
+
+// The blade start's bend at share `f` (shares of the length, as spineAt): the line straight from the hand to the start's
+// point and from it to the tip (0 at both ends, its offset at the start's share). Zero without a start of its own.
+[[nodiscard]] glm::vec2 fromAt(const Shape& s, float f);
 
 // Slot `slot`'s shape (its defaults for no slot).
 [[nodiscard]] Shape shape(int slot);
