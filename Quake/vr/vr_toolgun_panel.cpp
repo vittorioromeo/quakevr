@@ -5,7 +5,8 @@
 //
 //   the tools     a row of tiles, each with its icon (a tap switches; the gun's stick press does too), and More;
 //   the tool's    only its own choices: Spawn the spawn list as a grid of thumbnails (vr_toolgun_icons.cpp) in tabs
-//                 (Monsters, Props, Weapons, Items), a page at a time, and Pick, Reset, Clear; Joint its joints as tiles;
+//                 (Monsters, Props, Weapons, Items), a page at a time, and Pick, Reset, Clear (Monsters' Armed Humanoid
+//                 tile: its page of dropdowns, the kind and each hand's weapon: armedPage); Joint its joints as tiles;
 //                 Physgun and Scale their switches; Remove a word on how;
 //   More          the cheats (Debug > Cheats and Recording's rows: vr_menu_toolgun.inc) and the panel's size.
 //
