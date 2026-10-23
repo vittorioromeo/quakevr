@@ -2841,6 +2841,11 @@ QVR_CVAR(vr_adgun_tank_burst_damage, "30", CVAR_ARCHIVE) // ... its burst's blas
 QVR_CVAR(vr_adgun_tank_burst_burn, "6", CVAR_ARCHIVE) // ... the flamethrower's: seconds what it reaches burns at a full tank (40% near empty)
 QVR_CVAR(vr_adgun_tank_burst_poison, "8", CVAR_ARCHIVE) // ... the poison sprayer's: the poison it leaves, damage a second at a full tank (40% near empty; weaker at the edge)
 QVR_CVAR(vr_adgun_tank_burst_poisontime, "6", CVAR_ARCHIVE) // ... and for how many seconds at a full tank (40% near empty)
+QVR_CVAR(vr_adgun_tank_field_time, "6", CVAR_ARCHIVE) // ... the field a burst leaves (flames on the ground, a poison cloud: QC VR_TankField_*): seconds at a full tank (40% near empty); 0 none
+QVR_CVAR(vr_adgun_tank_field_radius, "96", CVAR_ARCHIVE) // ... its reach at a full tank, units (40% near empty)
+QVR_CVAR(vr_adgun_tank_field_damage, "1", CVAR_ARCHIVE) // ... its damage times this: the cloud's poison a second (the burst's), the flames' own burning damage a second on the living (vr_burn_damage's) as well as setting them on fire
+QVR_CVAR(vr_adgun_tank_pickup_time, "0.25", CVAR_ARCHIVE) // ... a tank lying about flying to your back as you take its gun, seconds (vr_adtank.cpp); 0 at once
+QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next

@@ -186,6 +186,22 @@
                   "empty, 40% of it; weaker at the edge)."),
         slider("Tank Burst Poison Time", "vr_adgun_tank_burst_poisontime", 0.f, 20.f, 0.5f, "%.1f s")
             .help("How long that poison lasts at a full tank (near empty, 40% of it)."),
+        slider("Burst Field Time", "vr_adgun_tank_field_time", 0.f, 15.f, 0.5f, "%.1f s")
+            .help("How long a full tank's burst leaves its field behind (near empty, 40% of it): flames on the ground "
+                  "that set on fire whatever walks in (you, monsters, bodies, crates), or a green cloud that poisons it. It "
+                  "fades out, sound and all, over its second half. 0: no field."),
+        slider("Burst Field Reach", "vr_adgun_tank_field_radius", 16.f, 300.f, 8.f, "%.0f")
+            .help("How far a full tank's field reaches from where it burst (units; near empty, 40% of it)."),
+        slider("Burst Field Damage", "vr_adgun_tank_field_damage", 0.f, 4.f, 0.1f, "%.1fx")
+            .help("The field's damage: the cloud's poison a second (the burst's own at 1), the flames' burning damage a "
+                  "second while you stand in them (a fire's own at 1), on top of the burning they set."),
+        slider("Tank Pickup Flight", "vr_adgun_tank_pickup_time", 0.f, 1.f, 0.05f, "%.2f s")
+            .help("Taking a flamethrower or sprayer that lies with its tank: the tank flies to your back over this long, "
+                  "its hose following. 0: on your back at once."),
+        toggle("Armed Monsters' Tanks", "vr_adgun_tank_worn")
+            .help("Armed monsters holding a flamethrower or sprayer wear its tank on their back, hosed to the gun. Shoot "
+                  "it enough (Tank Health) and it bursts on them: hurt, set on fire or poisoned, the field round them, and "
+                  "their gun spent: they drop it."),
         toggle("Electric Bolts", "vr_adgun_bolt_fx")
             .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
                   "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),

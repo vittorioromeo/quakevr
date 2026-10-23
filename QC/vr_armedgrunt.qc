@@ -434,6 +434,7 @@ void() VR_AG_PropThink =
         return;
     }
     VR_AG_PlaceProp(g, self);
+    VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
     self.nextthink = time;
 };
 

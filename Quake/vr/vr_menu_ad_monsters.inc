@@ -131,6 +131,23 @@
         command("Nearest Fuelled Gun's State", "vr_ad_test 163")
             .help("In the console: the nearest flamethrower or sprayer lying about: its tank burst, spent, its fuel, its "
                   "tank, whether the force grab skips it; and your hands' guns' flags and fuel."),
+        command("Burst Fields and Sounds", "vr_ad_test 175")
+            .help("In the console: each burst tank's field (fire or poison, the time left, its reach, its loop's volume), "
+                  "the loops and whooshes still playing (0 once the fields are gone), the test grunt's health, burning "
+                  "and poison."),
+        command("Grunt Beside the Nearest Field", "vr_ad_test 176")
+            .help("A grunt made just outside the nearest burst field (to your right of it); then Grunt Into the Field."),
+        command("Grunt Into the Field", "vr_ad_test 177")
+            .help("That grunt moved into the field's middle: it burns or is poisoned (Burst Fields and Sounds)."),
+        command("Armed Pyro Grunt, Its Back to You", "vr_ad_test 178")
+            .help("An armed grunt with a flamethrower (temp1 1: a poison sprayer) 4 m ahead, its back to you: its tank on "
+                  "its back, hosed to its gun."),
+        command("Worn Tank's Place", "vr_ad_test 179")
+            .help("In the console: the nearest armed monster's back tank: where on its back, its health, whether a shot "
+                  "from your eyes meets it."),
+        command("Shoot the Worn Tank", "vr_ad_test 180")
+            .help("That tank takes a shot of 10 from you (the third bursts it on its wearer: hurt, burning or poisoned, "
+                  "the field round it, its gun dropped spent)."),
         command("Fuel Tanks Count", "vr_ad_test 150")
             .help("In the console: the tanks lying about, the fuelled guns lying about, the pairs, tanks without their gun "
                   "and guns without a tank (both 0 when right), each pair's distance; Fuel Hose Info has the ropes and the "
