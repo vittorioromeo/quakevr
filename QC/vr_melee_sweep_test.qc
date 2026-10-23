@@ -604,13 +604,23 @@ void(entity p) VR_Melee_LineEndsTest =
     float onLine = worst < 0.05 || vr_mline_bend;
     if(best < 0)
     {
-        bprint("bladeline: no striking point: FAIL\n");
+        bprint(sprintf("bladeline: no striking point moved (the default ends; points on the line %g): %s\n", onLine,
+            onLine ? "PASS" : "FAIL"));
         self = was;
         return;
     }
+    float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * vr_mline_shape_y;
     vector pt = VR_Melee_At(bestF);
     vector moved = pt - (h + (m - h) * bestF);
-    vector across = VR_Melee_Cross(normalize(far - grip), moved);
+    // (The box one swept radius off the new line, on the side away from the default one: within the new line's reach,
+    // out of the default's once the ends moved the point more than the box's half.)
+    vector ax = normalize(far - grip);
+    vector out = moved - ax * (moved * ax);
+    if(vlen(out) > 0.01)
+    {
+        pt = pt + normalize(out) * rBase;
+    }
+    vector across = VR_Melee_Cross(ax, moved);
     if(vlen(across) < 0.01)
     {
         across = up;
@@ -627,13 +637,13 @@ void(entity p) VR_Melee_LineEndsTest =
     setorigin(t, pt + d * 0.5);
     float now = VR_MSWT_EndsProbe(b, t, thing, grip, far, d);
     float def = VR_MSWT_EndsProbe(b, t, thing, h, m, d);
-    float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * vr_mline_shape_y;
     float apart = VR_SegmentDistance(pt, pt, h, m);
     float reaches = apart < rBase + 1;
     float ok = onLine && now && (def == reaches || fabs(apart - rBase - 1) < 0.5);
-    bprint(sprintf("bladeline: points on the new line %g (worst %.3f); a box at point %g (%.2f along, %.2f units off the "
-        "default line): struck by it %g, by the default line %g: %s\n", onLine, worst, best, bestF, apart, now, def,
-        ok ? "PASS" : "FAIL"));
+    bprint(sprintf("bladeline: points on the new line %g (worst %.3f); a box by point %g (%.2f along)\n", onLine, worst,
+        best, bestF));
+    bprint(sprintf("bladeline: the box %.2f units off the default line: struck by the new %g, the default %g: %s\n",
+        apart, now, def, ok ? "PASS" : "FAIL"));
     self = was;
     remove(t);
     remove(b);
