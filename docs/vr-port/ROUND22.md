@@ -18490,7 +18490,13 @@ torso or shoulders, hand's hold 0.85 ...`, `nearby: monster_army #266 at 1.6 m, 
 `setting: vr_note_replay_seconds 30 -> 29`, `setting: vr_weapon_grip_mode 0 -> 1`, the replay 1393 frames 8.4 s (since the map
 loaded), the console 149 prints, the frames' summary. Cost (`NOTESTATS`): 3 us a host frame, 1.2 us a server frame; rows
 about 2.2 KB (a 30 s ring at 90 Hz about 6 MB; on disk about 2 KB a row, 5.6 MB a note); the note start 1.05 ms.
-REPLAYTEST
+Replay: `map vrfiringrange; vr_motion_play <note>_replay.csv map vrfiringrange save` played its 1393 frames; against the
+take (`scratch/compare_takes.py`, row by row) the head's and both controllers' tracking fed in are identical (max 0.0000 m),
+no frame's buttons differ, the hands as the game placed them (player frame) mean 0.25 / 0.03 units off, max 3.1 (main) and
+40.9 (off: its grip on the grunt, which the replay doesn't bring back: playback stands only the take's target monster; the
+others are in `_entities.csv`). The report's "hands vs the take, relative to the dummy" is large (rms 115 units) for this
+take: its nearest monster changes from the training dummy to the spawned grunt halfway, which that measure doesn't follow.
+`eval.sh`: runs as before.
 
 **In VR:** record a few notes as usual (with a weapon, holding an enemy, after picking a checklist item, after changing a
 setting); check nothing hitches as a note starts; then `python Misc/quakevr/transcribe_notes.py` and look at NOTES.md.
