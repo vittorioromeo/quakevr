@@ -441,6 +441,7 @@ float cvarh_vr_gib_burst_small;
 float cvarh_vr_gib_bounce;
 float cvarh_vr_prop_break_speed;
 float cvarh_vr_prop_break_wood;
+float cvarh_vr_prop_blow_wear;
 float cvarh_vr_prop_break_glass;
 float cvarh_vr_prop_break_stone;
 float cvarh_vr_prop_break_metal;
@@ -1510,6 +1511,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_gib_bounce);
     VR_CVAR_HMAKE(vr_prop_break_speed);
     VR_CVAR_HMAKE(vr_prop_break_wood);
+    VR_CVAR_HMAKE(vr_prop_blow_wear);
     VR_CVAR_HMAKE(vr_prop_break_glass);
     VR_CVAR_HMAKE(vr_prop_break_stone);
     VR_CVAR_HMAKE(vr_prop_break_metal);
