@@ -2,6 +2,11 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Scorch marks 2: hold the flamethrower on a wall: a ragged scorch where each flame lands (bigger now), building up but capped per spot; size look right?
+Map flames burn monsters: lure an awake grunt past a brazier, a lit wall torch or a toolgun flame (also a ragdoll or corpse dragged into one): it catches fire (Debug > Burning Tests 15)
+Water puts fire out: flamethrower into a pool: flames die at the surface with steam and a hiss; lava nails into water become plain nails
+Plasma bolts: AD Plasma Gun in a dark room: bolts light the walls blue and crackle with small arcs (AD Guns > Plasma Bolt Arcs)
+Water foam sliders (Shoreline Foam: Opacity, Frequency = how finely broken up, Strength): tune on a shoreline
 Plank leg sweep: swing a crate plank hard through a grunt's shins: the plank breaks and the grunt is swept down
 Scorch marks (now on by default, cheap): hold the flamethrower on a wall, the floor and a ceiling for a while, then sweep it: scorches build up where the fire licks and the frame stays smooth
 Item Pickup Mode (VR Settings > Playing > Item Collection): the switch shows your current mode; try Immersive (carry, put away at a holster), Auto-Collect (grip or force grab takes it; Backpacks Too), Vanilla (walk into it); how does the dimmed Backpacks Too row look?
