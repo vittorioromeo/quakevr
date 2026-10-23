@@ -18238,3 +18238,216 @@ weapon slot's).
 **Notes:** the chain lying about collides with the world only, not with props (as the hoses). The head lying about
 is a prop: thrown, it hurts as props do, not as the held head's blows (`VR_Flail_Hit`). A remote client sees the head
 and its rope, but no chain (a listen server's, as the hoses).
+## Crates: one hit (worktree `gorefx`, branch `agent/cratehit`, 2026-10-23)
+
+His note (vrstart 2026-10-23 15-29-14): one very strong punch or melee-weapon hit still breaks a crate; the press fix
+(agent/proppush2) suspected.
+
+**The test was misleading.** `vr_prop_strike_test` stepped the mock hand once per server frame; the client's frames are
+not the server's (fast mode: fewer, real time: more), so the hand reached the game in jumps and the poses' clock (real
+time) did not match: blows read from 0.5 to 4.6 times the strike's speed (an axe at 5 m/s: 5.3, 18.1, 23 m/s). The
+earlier "18.24 m/s before the fix" was very likely this too. Now the strike is one move the mock glides through on its
+own frames (`vr_mock_hand_glide`, real time): **run it with `-RealTime`** (a fist reads 5.00, 7.00, 9.00, 12.00 m/s).
+Developer 3 traces the hand each frame (tracked, drawn, the game's, held off the level); `vr_debug_weight 1` now says
+why a held weapon was put back in the hand.
+
+**Old build vs next** (crate 107, the strike down onto its top, default hand pose, -RealTime; strikes to break, the
+blows' read speeds in m/s; old = 4a7269606, the merge before proppush2, with the test added):
+
+| weapon (heft) | 5 m/s old / next | 7 | 9 | 12 |
+|---|---|---|---|---|
+| fist (1.00) | no blow / no blow | no blow / no blow | 2 (9.00) / 1 (8.99) | 1 / 1 (12.0) |
+| crowbar (1.41) | 2 (6.30, 6.48) / 1 (6.47) | 1 (8.63) / 1 (8.84) | 1 / 1 (8.65) | no blow / no blow |
+| axe (1.41) | 2 (5.76, 5.74) / 2 (5.75, 5.76) | 1 (9.27) / 1 (9.23) | 1 (11.9) / 1 (11.6) | 1 / 1 (10.4) |
+| sword (1.48) | 1 (6.30) / 1 (6.47) | 1 (8.65) / 1 (8.83) | 1 / 1 (8.4) | 1 / 1 (7.2) |
+
+Next is the old build within noise (crowbar 5 m/s: 6.30 is 0.99 of the break, 6.47 just over). The press fix and the
+muzzle fix leave nothing behind. (A fist straight ahead, in the earlier matrix: 5 m/s 8.3 a blow, 7 m/s two, 9 and
+12 one, as designed. Down at 5-7 m/s a hammer fist is under the punch's need; the crowbar's chop at 12 ends past the
+top before its arc reads: test geometry, the same in both.)
+
+**By design.** Intensity = blow speed x heft / 9 m/s; from 1 the crate breaks, from 0.5 it loses (2i - 1) of 75. So a
+punch breaks a small crate at 9 m/s (two at 7, nine at 5), and the crowbar and axe (heft 1.41) at 6.4 m/s, the
+sword (1.48) at 6.1 m/s, of the hand's speed. Held weapons also read 1.2-1.3 times the hand's speed in this test: the
+weight's spring lags a hand that starts at full speed at once, then catches up faster than it (real swings speed up
+gradually, less of it). A strong swing (8-12 m/s at the hand) breaks a crate with any weapon, a strong punch (9+) too.
+
+**What did inflate blows (fixed).** With the weapon tipped down (the strike ahead, `vr_mock_hand main 0.15 1.25 -0.35
+-45 0 0`) its head slid along the floor: the level's hold (vr_handpose) moved the hand's target 26 cm at once as it took
+hold and let go; the weight took the target's jump for a hand's jump and put the lagging weapon back in the hand at once
+(20-25 cm in a frame), unmarked: the melee's own jump test starts at 30 cm, so it read a blow at 17-25 m/s. Only the
+half-turn flip set `VR_HANDJUMP_*` before; now every put-back does (`vr_weight.cpp`). The same strikes:
+
+| strike ahead, head on the floor | crowbar 5 / 7 / 9 m/s | axe 5 / 7 / 9 / 12 |
+|---|---|---|
+| next | 6.30, 17.67 / 24.96 / 19.93 | 5.81, 5.74 / 9.28 / 23.76 / 4.49, 10.35 |
+| fixed | 6.27, 6.28 / 8.85 / 8.35 | 6.03, 9.50 / 9.24 / 11.88 / 10.36 |
+
+In play: a heavy weapon swung along or off the floor or a wall into a crate or a monster. eval.sh: verdicts as the baseline (169/177, none changed; 8 takes differ in an event or the hand error, the canary escalated to the full set).
+
+**If he wants crates tougher** (not changed): Crates > Breaking > Break Speed (`vr_prop_break_speed`, 9 m/s for a
+small crate's 75 health; wood x1). At 12: a punch breaks it from 12 m/s (two from about 9), a crowbar or axe from
+8.5 m/s; at 14: 14 and 9.9. Large crates and barrels scale by the square root of their health already.
+
+- [ ] Punch a small crate hard (as hard as you can): one; a medium punch: two or three. Same for the crowbar and axe:
+  a full swing breaks it, a moderate one takes two.
+- [ ] Swing the axe or crowbar along the floor into a crate (the head scraping first): no one-hit break from a slow
+  scrape.
+### Armed monsters: the generic layer and the armed enforcer (worktree `release`, branch `agent/armedmon`, 2026-10-23)
+
+His request: "a robust, extensible and generic system, and only add the enforcer as a second choice." Stages 1 (the
+layer) and 2 (the enforcer) done; 3 (dual wielding) and 4 (the toolgun's spawn UI) left for a follow-up.
+
+- **The table** (QC `vr_armedmon.qc` `VR_AM_Row`, `.vr_ag_kind`; engine `vr_hitreact.cpp` `armedRigs`): each armed
+  monster's classname and spawn function (kept: its health, sounds, pains, deaths, ragdoll, hit zones, struggles), its
+  gunless model, right-hand vertices, the hidden gun's line, its frames (stand, run and steps, aim, shove, reload, take),
+  pain sounds, loot, the weapon classes it may hold, the poses' fit onto its body; the engine's: model id, the hand's and
+  gun's vertices, arm bones (each row's left hand found once). `VR_AM_Spawn(kind)` is the spawn; the layer's frame
+  functions take their frames from the row (`VR_AM_Anim`; their names kept, so saves keep working). Hooks in the
+  monster's own code: its death (`VR_AG_Dying`) and loot (`VR_AG_SoldierDrop`); `CheckAnyAttack` takes any `.vr_ag`.
+  How to add one: `docs/vr-port/ARMED_MONSTERS.md`. Names stay `VR_AG_*` / `vr_agrunt_*` (saves, settings: no
+  migration, no config version).
+- **The armed enforcer** (`monster_vr_enforcer`, classname `monster_enforcer`; `progs/vrenforcer.mdl` from
+  `make_vrgrunt.py`, now a table of models: the rifle's 118 triangles dropped; vrgrunt.mdl rebuilt byte-identical).
+  Its right hand: vertices 41, 364, 365 (still in the rifle's space over its living frames: 1.0-1.6 units rms;
+  `scratch/am_analyse.py`); the rifle's rear 425/420, muzzle 407/100, top 409, bottom 412; its run (23..30, its own
+  steps), aim attack2..10 (the shot in attack6, as id's), shove 102, reload on its stand frames, take paind5..8 (a
+  knee); 5 cells as loot; the poses fitted (y times 1.35, z 1.1, moved -3 0 7: its shoulders). Model id `VrEnforcer`,
+  the enforcer's rig. The shared pool (`vr_agrunt_w_*`). Toolgun: Monsters > Armed Enforcers (pool, fists, 13 stock
+  weapons), appended. FGD regenerated.
+- **Tests** (`vr_agrunt_test_kind` 0 grunt / 1 enforcer; Debug > Tests: "Armed Grunts: Tests Spawn Enforcers"). The
+  grunt after the refactor: test 1 16/17 (the proximity gun, as before), 2 4/4, 3, 20-30: 25 PASS, 0 FAIL; eyeshots
+  (tests 14 and 15) against origin/next's build: the same poses (test 14's 500 pixels differ, test 15's 11k: the
+  skins' random blood). The enforcer: test 1 16/17, 2 4/4, 20 and 22-30 PASS; 3 and 21 FAIL: the scripted mock hand
+  (`vr_mock_hand main 0.1 0.72 -1.2`) is at the grunt's gun height, the enforcer's gun 14 units higher (open). Tests
+  run one after another need `wait5` between them (their state resets on a frame with `vr_agrunt_test 0`).
+- **Left**: dual wielding; the toolgun spawn UI; the enforcer's gun carry when not aiming (down by its side in test
+  15's standing row: check); tests 3/21 for the enforcer; the Combat > Armed Grunts page keeps its name.
+
+**In VR:** spawn Armed Enforcers from the toolgun: the weapon in its right hand as it runs and shoots, both hands on
+guns, punches and swings at its height, its pains and death (the weapon falls; 5 cells or its reserve in the pack),
+grab its gun; armed grunts as before.
+
+### Struggling enemies look at you
+
+Author's note (2026-10-23): a living humanoid in active ragdoll form, dragged or held by its legs, torso or shoulders
+(or lifted), should turn its head to look at him where it can: straight at him with its belly towards him or held up
+before him, to the side when it faces away, trying to see him. It reads as alive, less uncanny.
+
+`vr_ragstruggle.cpp`, `lookAtHolder`, after `bodyTargets` each struggle frame: its head's target (its turn in its
+parent's rest space) slerped towards a look at the holder's head over the struggle's own head moves. The aim: his head
+from its neck in its parent's (the chest's) frame, as a turn about the spine (yaw) and a nod (pitch), each clamped to
+0.9 of its neck's twist and cone (the drive clamps again at 0.95). With him behind it the yaw goes as far as the neck
+turns, to the side he is on; that side is kept while he is straight behind (within about 12 degrees), so the head
+doesn't flip. The aim eases (0.12 s) and makes small quick re-aims (saccades: up to 4.6 degrees of turn and 2.9 of nod,
+every 0.3-1.2 s, seeded per enemy). The look's weight eases (0.25 s) to `vr_struggle_look` times (1 - held by its
+head) times its effort's ramp (none at no effort: a flinch dips it); none beheaded or with the neck snapped (`headPart`,
+`jointOk`: a cut or loose joint). The head channel's strength is at least `vr_struggle_look_strength` times the
+weight (then times effort, `vr_struggle_strength` and the grip guard, like every struggling muscle). Dying ends the
+struggle and its strengths let go, as before.
+
+New cvars (Enemies > Struggle > Behaviours, and the ragdoll tool's Struggle group): `vr_struggle_look` 0.9 (0..1; 0
+never), `vr_struggle_look_strength` 0.6 (0..0.9).
+
+`vr_struggle_status`'s hold line ends with "its head looks N deg from you, turning M deg/s" (its head's rest +x from
+the way to your head; its spin against its parent's). `struggle_test.py`: new case `shoulderdrag` (the right upper arm,
+walked back; judged on the drag only), `STRUGGLE_LOOK=1` adds `<case>_nolook` runs (`vr_struggle_look 0`) and a LOOK
+line per case, `STRUGGLE_STATUS_EVERY` (s, default 0.3) for more samples.
+
+Grunt, the later two thirds' mean (status every 0.1 s; three runs identical), look on (no look):
+
+| case | head from you | head spin |
+|---|---|---|
+| lift (shoulders, held up) | 9 deg (9) | 25 deg/s (26) |
+| leglift (hung by the legs) | 56 (80) | 0 (20) |
+| legdrag (one shin, lying) | 48 (100) | 29 (30) |
+| legpull (both shins, pulled down, dragged) | 67 (110) | 45 (34) |
+| armdrag (forearm) | 27 (73) | 87 (168) |
+| shoulderdrag (upper arm) | 20 (22) | 25 (17) |
+| headdrag (head held: no look) | 28 (28) | 65 (65) |
+
+Held up by the shoulders it already looked at you (Swat's aim); held by the head nothing changes. The spin's rise in
+legpull and shoulderdrag is the saccades (each a quick dart). The struggle cases with `_off` all pass (leads, lag
+against off, poses; the drags 71-94 percent), `dead` passes, `eval.sh` as the baseline. Eyeshots (looking down 50
+degrees, 3 s in; `scratch/hl_<case>_<1|0>.png`, 1 the look on): legpull's grunt, belly up, faces you; without, its head
+lolls aside.
+
+**In VR:** drag a grunt by its legs (belly up and belly down), hold one up by the legs, by the shoulders, drag one by
+an arm: its head should find you and follow you as you move, with small darts, never snapping from side to side when
+you are straight behind it. Hold its head: no look. Kill it while held: its head goes limp. Tune Look at You / Look
+Strength (Enemies > Struggle) if it stares too hard or too weakly.
+## Blade shape editor (worktree `fastship`, branch `agent/bladeedit`, 2026-10-23)
+
+Approved by the author: an in-VR editor for what a weapon's blows strike with, curved blades first.
+
+**Per-slot data** (vr_weapons.inc, "The blade's shape"; `Quake/vr/vr_blade.hpp`). New Weapon Offsets keys, cvars
+`vr_wofs_bl_*_NN`; every default keeps the shape the code gave before (no migration, no wofs version bump):
+- `bl_near` (BladeNear, -1): the near end (pommel, butt, handle's end) behind the hand, a share of the hand-to-tip line;
+  -1 the kind's own (QC `VR_Melee_NearBack`: a sword 0.3, an axe 0.25, the chainsaw 0.1, the crowbar 0.78, a gun 0.3).
+- `bl_width` (BladeWidth, 1): times the swept points' radius (`VR_MELEE_RADIUS` 3 x `vr_melee_range_multiplier`).
+- `bl_spine` (BladeSpine, 0) and `bl_s1_off`/`_side` .. `bl_s5_off`/`_side`: 0 the model's own curve (the curved AD
+  swords' made spine, `admelee::bend`; else straight), 1 a Catmull-Rom spline through the hand, five points at 1/6 ..
+  5/6 of the line and the tip, each off the line along its normal in the blade's plane and along the model's +y (shares
+  of its length, as `admeleebend`). Any weapon held by its handle can have one (not only swords); `vr_melee_curved_blades
+  0` still straightens all.
+- `bl_head` (BladeHead, 0) and `bl_head_lo_x/y/z`, `bl_head_hi_x/y/z`: 0 the model's own head (the AD hammer's and
+  mace's), 1 this box (shares of the line, as `admeleehead`): any weapon can get a head that strikes as a volume.
+- The tip stays the Muzzle anchor plus Muzzle X/Y/Z (the editor's tip handle edits the offset).
+
+**QC** (`vr_melee.qc`): `VR_Melee_ShapeOf` (in `VR_Melee_Line`) reads the hand's weapon's slot and shape; the near end
+(`VR_Melee_NearBackOf`, held or carried off its handle), the curve (`VR_Melee_BendLine`: `vr_mline_bend` -1 - slot, read
+by `VR_Melee_At`), the head (`VR_Melee_HeadOf`, the track's `mh_hd_lo/hi`) and the width (`mh_bwidth`, the radius in
+`VR_Melee_Sweep`) follow. Every consumer of the layout goes through these (the swept ribs, the decapitation share, the
+hit sounds and parts, the wall checks, parry's and the wall buttons' near-to-far line, the Shadow Axe's floor chops,
+the hot blade, the motion recorder's points). Parry keeps the chord (near end to tip), as before for the fury's curve.
+The VR builtin numbers are all taken (900 + 179 < 1080): no new builtins. `weapondrawnpose(p, hand, 7)_x` is the slot
+(from the hand's weaponmodel/weaponmodel2, server side), and `admeleebend`/`admeleehead` with a kind below 0 read slot
+-1 - kind's own curve, head and '<near> <width> <flags>' (vr_builtins.cpp).
+
+**Editor** (`Quake/vr/vr_bladeedit.cpp`; Weapon Offsets > Posing Mode > Edit Blade Shape; Debug > Views > Edit Blade
+Shape (Main Hand), Print Blade Shape). Holster Setup's pattern, but the game goes on (the hands strike as they would;
+the buttons are the editor's, the sticks don't move the player) and Show Melee Blades is forced on (put back on
+leaving), so QC's own blow line and sweeps show the edited shape live. Over it, the blade as its settings lay it
+(computed client-side from the hand and muzzle the server gets: the same point as QC's `VR_Melee_At(0.5)` to 0.01
+unit), its width as a tube, and handles the other hand's grip drags (the grabbed point keeps its offset to the hand):
+red tip (Muzzle X/Y/Z, solved through the drawn weapon's muzzle per unit of offset), orange near end, blue width,
+green curve points (the first drag seeds all five from the curve shown: the model's or straight), pink head corners
+(when it has a head). Haptics on reaching a handle, on grabbing, every unit dragged, on letting go. Panel: Undo, Reset
+Blade (the blade keys and the tip offset to the shipped defaults), Straighten (a straight curve of its own), Head Box
+On/Off (a box of its own, seeded from the model's head or a small box at the tip), Cancel (everything as on entering),
+Done (prints `vr_blade_dump`). B/Y undoes, the menu button is Done; it leaves (keeping) if the weapon leaves the hand,
+the map changes or a menu opens. Commands: `vr_bladeedit [main|off]`, `vr_bladeedit_done|_cancel|_undo|_reset`,
+`vr_bladeedit_press <0..5>`, `vr_bladeedit_report` (each handle along the line, P, Y; the curve's 0.5 point),
+`vr_blade_dump [slot 1..]` (the slot's tip offset and blade keys as `QVR_WEAPON_DEFAULT` lines, `//*` changed). Mock:
+`vr_mock_hand_to <hand> bladehandle <i> [<along> <normal> <flat>]`, `bladebutton <i>`.
+
+**Tests** (scripts in `scratch/`: `bl_dump.sh`, `bl_shape.sh`, `bl_edit.sh`; `-Games "-game hipnotic -game rogue
+-game ad -game quakevr"`, ad_dm1):
+- Defaults unchanged: `vr_melee_sweep_test 2` (new `QC/vr_blade_test.qc`: the main hand's near end, far end, every
+  layout point in the hand's frame, the head box and radius) for 16 melee weapons (axe, Mjolnir, knight sword, chainsaw,
+  crowbar, MG3 hammer, shotgun, the fury's, death knight's, death guard's swords, mace, hammer, the four monster swords):
+  origin/next's QC (built with the dump added) and this branch's give the same 147 lines; the largest number difference
+  0.0004 units, the run-to-run noise of the mock hand (two runs of this branch: 0.0003). `eval.sh`: 169/177 pass (the 8
+  known failures), no verdict changed; 4 takes' damage moved by 0.1, among them a straight punch (the fist's path does
+  not touch the new code: the baseline's drift).
+- Edited shapes strike as drawn: `vr_melee_sweep_test 3` (new): a box just outside the curve's bow is struck by the
+  curve and missed by the straight line, one just inside the other way; a box 1.5 radii past the tip missed at width 1,
+  struck at the weapon's width (2). Fury's model curve: PASS; the death knight's straight sword given a curve of its own
+  (bow 4.8 units), width 2, near end 0.5, tip offset 6 (line 34.7 -> 36.9 units): PASS. `vr_melee_sweep_test 1` with
+  heads of their own: the mace's box replaced, the knight's sword given a head at its tip: C and F PASS.
+- The editor with the mock hands (`bl_edit.sh`, the fury's sword): a curve point dragged 5 units along the normal moves
+  it 4.99 (off 0.122 -> 0.273), the width handle 3 units out -> 1.99x, the tip 4 units along -> line 33.2 -> 37.1, the near
+  end 4 back -> 0.41; the panel's Undo (touched, trigger) puts the near end back; Head Box On and a corner dragged; QC's
+  tests pass on the result; Done printed 22 changed lines; a second session's drag then Cancel: 0 changed.
+- Eyeshots (`vr_eyeshot 3`: lines and overlays only show in the UI eyeshot): `scratch/bladeedit_fury_1_start.png`
+  (entering), `_2_edited.png` (the bowed curve, the width tube, the panel), `_3_headbox.png` (a head box of its own).
+
+**Notes.** The sweep strikes with the layout's points (9 on a sword) and the straight lines between neighbours: a very
+sharp bulge between two points is cut by that chord (the curve test checks at the layout's points). The stage-1 commit
+put `sightalign::frame()` behind a comment in vr_main.cpp (an edit's lost newline); the editor's commit fixes it.
+
+**In VR:** Weapon Offsets on the fury's sword > Edit Blade Shape: drag the green curve points to follow the drawn
+blade's bow and the tip to its point; swing it at a target and watch Show Melee Blades' sweep follow; Done and paste
+the printed lines to us if they should ship. A straight sword: Straighten / Reset Blade; the mace: Head Box and its
+corners round the drawn head. Whether the handles are easy to reach and grab (5 cm), and the panel's place (below the
+eyes, ahead).

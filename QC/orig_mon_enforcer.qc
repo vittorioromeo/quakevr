@@ -297,6 +297,10 @@ void() EnforcerDrop =
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
+    if(VR_AG_SoldierDrop())
+    {
+        return; // VR: an armed enforcer's loot: its reserve's ammo (vr_armedgrunt.qc; its weapon fell as it died)
+    }
     self.ammo_cells = 5;
     DropBackpack();
 
@@ -348,8 +352,12 @@ void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] { monster_check_remo
 
 void() enf_die =
 {
-    // VR: its laser rifle falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
-    VR_DropEnemyGun(WID_ENFRIFLE);
+    // VR: its laser rifle falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not;
+    // an armed enforcer's own weapon instead (vr_armedgrunt.qc, vr_armedmon.qc: its death is the enforcer's).
+    if(!VR_AG_Dying())
+    {
+        VR_DropEnemyGun(WID_ENFRIFLE);
+    }
 
 // check for gib
     if(self.health < -35)

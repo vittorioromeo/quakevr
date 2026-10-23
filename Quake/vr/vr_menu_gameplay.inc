@@ -171,6 +171,11 @@
                   "back and struck in, erratic. 0: they only tug and grasp."),
         slider("Squirm", vr_struggle_squirm, 0.f, 2.f, 0.05f, "%.2f")
             .help("Held by the head or the legs: its body squirms, more thrashing over Flail."),
+        slider("Look at You", vr_struggle_look, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Its head turns to look at you, as far as its neck goes: straight at you with its belly towards you or "
+                  "held up before you, to the side you are on when turned away. Not while you hold its head. 0: never."),
+        slider("Look Strength", vr_struggle_look_strength, 0.f, 0.9f, 0.05f, "%.2f")
+            .help("Its neck's strength while it looks at you (times its effort: weaker as it tires or is hurt)."),
         slider("Stay Upright", vr_struggle_upright, 0.f, 2.f, 0.05f, "%.2f")
             .help("Dragged by an arm: it fights to stay up, its legs under it and its chest righted, rather than flopping "
                   "down. 0: it flops."),

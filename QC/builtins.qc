@@ -212,6 +212,11 @@ vector(float kind, float f) admeleebend = #0;
 // along it from the hand, y along its normal in the weapon's plane, z along the model's +y): which 0 its low corner, 1
 // its high; '0 0 0' for none (AD's data not there). QC VR_Melee_Sweep: the head's volume strikes.
 vector(float kind, float which) admeleehead = #0;
+// The blade's shape per weapon (vr_blade.hpp; Weapon Offsets > Edit Blade Shape; the VR builtins' numbers are all taken):
+// weapondrawnpose(player, hand, 7)_x, the Weapon Offsets slot of the weapon `hand` holds (-1 none); a kind below 0 is
+// slot -1 - kind's own shape: admeleebend its own curve (z 1 if it has one), admeleehead `which` 0 and 1 its own head's
+// corners ('0 0 0': none), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1 the kind's own; the
+// swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own).
 // Magnetic holsters (vr_magholster.qc): what the local player asked since the last call, taken (1 the off hand's bind
 // button at a holster, 2 the main hand's, 4 every bound weapon home now: vr_magholster_return); others' 0. And holster
 // `slot`'s place (0..5: the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown).

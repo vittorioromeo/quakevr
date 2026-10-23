@@ -20,10 +20,10 @@ void(string s) VR_AGPT_Print = { bprint(sprintf("agplay: %s\n", s)); };
 void() VR_AGPT_Clear =
 {
     VR_AGT_ClearWeapons();
-    entity e = find(world, classname, "monster_army");
+    entity e = find(world, classname, VR_AGT_Classname());
     while(e)
     {
-        entity n = find(e, classname, "monster_army");
+        entity n = find(e, classname, VR_AGT_Classname());
         VR_AGT_Remove(e);
         e = n;
     }
@@ -44,8 +44,9 @@ entity(float dist, float side) VR_AGPT_Grunt =
     self = spawn();
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
-    self.classname = "monster_army";
-    monster_army();
+    VR_AM_Row(VR_AGT_Kind()); // (the test's armed monster's own monster)
+    self.classname = vr_am_classname;
+    vr_am_spawn();
     entity g = self;
     self = oldself;
     return g;
@@ -192,7 +193,7 @@ entity(float wid, vector at, float stay) VR_AGPT_Weapon =
     self = spawn();
     setorigin(self, vr_agt_player.origin + '0 0 8');
     self.weapon = wid;
-    monster_vr_grunt();
+    VR_AM_Spawn(VR_AGT_Kind());
     entity src = self;
     self = oldself;
     entity w = VR_AG_DropHeld(src, '0 0 0');
@@ -455,7 +456,7 @@ void() VR_AGPT_Reach =
         setorigin(self, '180 -256 24');
         self.angles_y = 0;
         self.weapon = -1;
-        monster_vr_grunt();
+        VR_AM_Spawn(VR_AGT_Kind());
         vr_agt_grunt = self;
         self = oldself;
         g = vr_agt_grunt;

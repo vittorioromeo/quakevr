@@ -1005,8 +1005,8 @@ float() CheckAnyAttack =
     if(!enemy_vis)
         return FALSE;
 
-    if(self.classname == "monster_army" && self.vr_ag)
-        return VR_AG_CheckAttack(); // VR: an armed grunt (vr_armedgrunt.qc): by its weapon
+    if(self.vr_ag)
+        return VR_AG_CheckAttack(); // VR: an armed monster (vr_armedgrunt.qc, vr_armedmon.qc): by its weapon
 
     if(self.classname == "monster_army")
         return SoldierCheckAttack();

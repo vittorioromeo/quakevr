@@ -143,6 +143,7 @@ vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_crouch_test.qc
 vr_melee_sweep_test.qc
+vr_blade_test.qc
 world.qc
 vr_dummy.qc
 vr_dummy_test.qc
@@ -492,6 +493,7 @@ vr_dmgcredit_test.qc
 // The props' impact rule (vr_prop_impact_test; after AD's files: its breakables' kinds).
 vr_propimpact_test.qc
 // Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
+vr_armedmon.qc
 vr_armedgrunt.qc
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc

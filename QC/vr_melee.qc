@@ -264,6 +264,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_free_gw;     // the hand's half width (a share of its length),
 .float mh_free_back;   // and how far its near end is behind its handle (a share of the handle to the tip)
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
+.float mh_bwidth;      // the blade's width: its swept points' radius's multiplier (the weapon's Blade Width; 0 taken as 1)
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_heavy2h;     // heavy handling: the weapon's weight class held two-handed (VR_Heavy_TwoHanded; 0: not)
 .float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
@@ -654,6 +655,65 @@ float(float xThing) VR_Melee_NearBack =
     return 0.3; // a gun: the butt behind the grip
 };
 
+// The blade's shape of what a hand holds by its Weapon Offsets slot (Edit Blade Shape; the engine's vr_blade.hpp, read
+// through weapondrawnpose 7, admeleehead and admeleebend with -1 - slot: builtins.qc): its slot (-1: none, a fist, a
+// club) and '<near end> <width> <flags>' (the near end's share behind the hand, -1 the kind's own; the swept points'
+// radius's multiplier; 1 a curve of its own, 2 a head's box of its own). Every default keeps the shape as it was before
+// (the kind's near end, the model's curve and head).
+float vr_mline_slot;
+vector vr_mline_shape;
+void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
+{
+    vr_mline_slot = -1;
+    vr_mline_shape = '-1 1 0';
+    if(xThing == VR_MTHING_NONE || xThing == VR_MTHING_FIST || xThing == VR_MTHING_CLUB)
+    {
+        return;
+    }
+    vector s = weapondrawnpose(p, xHand, 7);
+    vr_mline_slot = s_x;
+    if(vr_mline_slot >= 0)
+    {
+        vr_mline_shape = admeleehead(-1 - vr_mline_slot, 2);
+    }
+};
+
+// The near end's share behind the handle of what the hand VR_Melee_ShapeOf last saw holds (`xThing`): its weapon's own
+// (Blade Near End), else the kind's (VR_Melee_NearBack).
+float(float xThing) VR_Melee_NearBackOf =
+{
+    return vr_mline_shape_x >= 0 ? vr_mline_shape_x : VR_Melee_NearBack(xThing);
+};
+
+// The head's box (shares of the line, as admeleehead's) of what the hand VR_Melee_Line last laid out holds (`xThing`), into
+// vr_mhead_lo, _hi ('0 0 0': none): its weapon's own (Blade Head), else an AD hammer's or mace's made head. None carried off
+// its handle.
+vector vr_mhead_lo;
+vector vr_mhead_hi;
+void(entity p, float xHand, float xThing) VR_Melee_HeadOf =
+{
+    vr_mhead_lo = vr_mhead_hi = '0 0 0';
+    if(vr_mline_free)
+    {
+        return;
+    }
+    if(vr_mline_slot >= 0 && (vr_mline_shape_z & 2))
+    {
+        vr_mhead_lo = admeleehead(-1 - vr_mline_slot, 0);
+        vr_mhead_hi = admeleehead(-1 - vr_mline_slot, 1);
+        return;
+    }
+    if(xThing == VR_MTHING_AXE)
+    {
+        float hk = VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand));
+        if(hk > 0 && VR_ADMelee_Blunt(hk))
+        {
+            vr_mhead_lo = admeleehead(hk, 0);
+            vr_mhead_hi = admeleehead(hk, 1);
+        }
+    }
+};
+
 // The line of what `xHand` of `p` holds, into vr_mline_near, _grip, _far (world): FALSE for nothing to strike with.
 vector vr_mline_near;
 vector vr_mline_grip;
@@ -701,7 +761,7 @@ float(entity p, float xHand, float xThing, vector xHandPos) VR_Melee_FreeLine =
     {
         return FALSE;
     }
-    vr_mline_back = VR_Melee_NearBack(xThing);
+    vr_mline_back = VR_Melee_NearBackOf(xThing);
     vector e1 = g - (t - g) * vr_mline_back;
     vector ax = t - e1;
     float l2 = ax * ax;
@@ -726,17 +786,30 @@ float(entity p, float xHand, float xThing, vector xHandPos) VR_Melee_FreeLine =
 // A sword held by its handle along `xLine` (the hand to its tip, world): if it is a curved AD sword (admeleebend), its
 // bend's axes into vr_mline_bend_*. The model's +y (the blade's flat's normal: the knight's sword's slot draws it with no
 // roll) is the hand's left; a mirrored model (the off hand's) keeps the bend, which lies in the blade's plane.
+// A weapon whose slot has a curve of its own (Blade Spine: VR_Melee_ShapeOf's flags) bends along it instead, whatever it
+// is (vr_mline_bend -1 - its slot: VR_Melee_At's admeleebend reads its curve).
 void(entity p, float xHand, float xThing, vector xLine) VR_Melee_BendLine =
 {
-    float kind = xThing == VR_MTHING_SWORD ? VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand)) : 0;
-    if(kind <= 0 || !cvar_hget(cvarh_vr_melee_curved_blades))
+    if(!cvar_hget(cvarh_vr_melee_curved_blades))
     {
         return;
     }
-    vector curved = admeleebend(kind, 0.5);
-    if(curved_z == 0)
+    float kind = xThing == VR_MTHING_SWORD ? VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand)) : 0;
+    if(vr_mline_slot >= 0 && (vr_mline_shape_z & 1))
+    {
+        kind = -1 - vr_mline_slot;
+    }
+    else if(kind <= 0)
     {
         return;
+    }
+    else
+    {
+        vector curved = admeleebend(kind, 0.5);
+        if(curved_z == 0)
+        {
+            return;
+        }
     }
     vector oldF = v_forward, oldR = v_right, oldU = v_up;
     makevectors(VRGetEntHandRot(p, xHand));
@@ -786,6 +859,7 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     vr_mline_grip = h;
     vr_mline_free = FALSE;
     vr_mline_bend = 0;
+    VR_Melee_ShapeOf(p, xHand, xThing);
     if(xThing == VR_MTHING_NONE)
     {
         return FALSE;
@@ -827,7 +901,7 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     vector a = m - h;
     vr_mline_far = m;
     VR_Melee_BendLine(p, xHand, xThing, a);
-    float back = VR_Melee_NearBack(xThing);
+    float back = VR_Melee_NearBackOf(xThing);
     if(xThing == VR_MTHING_GUN && VRIsHandCarryingByForegrip(p, xHand))
     {
         back = 0.8; // held by its pump: the stock is well behind the hand
@@ -1062,7 +1136,7 @@ vector(float xF) VR_Melee_At =
     vector at = vr_mline_grip + (vr_mline_far - vr_mline_grip) * xF;
     if(vr_mline_bend && xF > 0)
     {
-        vector k = admeleebend(vr_mline_bend, xF); // (a curved blade: on its spine)
+        vector k = admeleebend(vr_mline_bend, xF); // (a curved blade: on its spine; below 0 its weapon's own curve)
         at = at + vr_mline_bend_p * k_x + vr_mline_bend_y * k_y;
     }
     return at;
@@ -1466,16 +1540,11 @@ float(float xHand, entity b) VR_Melee_Track =
 #undef VR_MELEE_KEEP
     b.mh_n = vr_mpt_n;
     // A hammer's or mace's head: its box (made from AD's model) and the line's frame, kept from the last pose.
-    b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
-    if(thing == VR_MTHING_AXE && !vr_mline_free)
-    {
-        float hk = VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand));
-        if(hk > 0 && VR_ADMelee_Blunt(hk))
-        {
-            b.mh_hd_lo = admeleehead(hk, 0);
-            b.mh_hd_hi = admeleehead(hk, 1);
-        }
-    }
+    // (Or the weapon's own head and width: Edit Blade Shape.)
+    VR_Melee_HeadOf(self, xHand, thing);
+    b.mh_hd_lo = vr_mhead_lo;
+    b.mh_hd_hi = vr_mhead_hi;
+    b.mh_bwidth = vr_mline_shape_y;
     vector hy = VR_Melee_ModelY(self, xHand, vr_mline_far - vr_mline_grip);
     b.mh_hd_pg = same ? b.mh_hd_cg : vr_mline_grip;
     b.mh_hd_pf = same ? b.mh_hd_cf : vr_mline_far;
@@ -2428,7 +2497,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     }
     VR_Melee_LayoutOf(b); // (this hand's: the globals hold the last hand tracked)
     vr_melee_wallwin = cvar_hget(cvarh_vr_melee_wall_hold);
-    float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
+    float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * (b.mh_bwidth > 0 ? b.mh_bwidth : 1);
     float swept = cvar_hget(cvarh_vr_melee_swept);
     vector hand = b.mh_grip;
     VR_Melee_Ribs(b, r, swept);

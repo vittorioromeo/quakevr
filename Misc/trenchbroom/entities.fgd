@@ -15,6 +15,10 @@
 //! internal trigger_reactivate       id leftover: never used, sets nothing up
 //! internal monster_spikemine        Hipnotic leftover: an unfinished copy of the fiend (trap_spike_mine is the mine)
 //! internal vr_dummy_attack_toggle_show  a helper of vr_dummy_attack_toggle: shows its label, not a map entity
+//! internal vr_ag_atk1             an armed monster's aim frame (vr_armedgrunt.qc: its row's frames, vr_armedmon.qc)
+//! internal vr_ag_reload1          an armed monster's reload frame (vr_armedgrunt.qc)
+//! internal vr_ag_swing1           an armed monster's gun-butt frame (vr_armedgrunt.qc)
+//! internal vr_ag_take1            an armed monster's pickup frame (vr_armedgrunt.qc)
 
 // Entities with no spawn function: the compilers' and the editor's.
 //! editor func_group

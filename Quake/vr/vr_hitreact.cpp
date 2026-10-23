@@ -556,12 +556,72 @@ void traceLine(const entity_t* e, Reaction& r, const ragdoll::Rig* rig, const gl
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Armed grunts' arms on their weapon (armsWanted; QC vr_armedgrunt.qc)
+// Armed monsters' arms on their weapon (armsWanted; QC vr_armedgrunt.qc, vr_armedmon.qc)
 
 constexpr int heldEffect = 128;                // QC VR_AG_EF_HELD: a weapon in a monster's hand
 constexpr float propReach = 28.f;              // units: its weapon is the held one nearest its right hand within this
-constexpr int rightHandVerts[] = {32, 26, 31}; // QC VR_AG_HAND_V*: where the server puts its weapon's grip
-constexpr int gunFirst = 463, gunLast = 548;   // its hidden rifle's vertices (make_vrgrunt.py): never a hand's
+
+// The armed monsters' table (QC vr_armedmon.qc VR_AM_Row; docs/vr-port/ARMED_MONSTERS.md): the model it is drawn with
+// (its gun's triangles dropped: Misc/quakevr/make_vrgrunt.py), its right hand's vertices (where the server puts its
+// weapon's grip), its hidden gun's vertices (never a hand's) and their line (the carry's turn), its arms' bones.
+struct VertRange
+{
+    int first;
+    int last;
+};
+struct ArmedRig
+{
+    modelmeta::Id model;
+    int numVerts;
+    int rightHand[3];
+    VertRange gun[4];
+    int numGun;
+    int gunRear[2];
+    int gunMuzzle[2];
+    int gunTop;
+    int gunBottom;
+    const char* upperR;
+    const char* foreR;
+    const char* upperL;
+    const char* foreL;
+};
+constexpr ArmedRig armedRigs[] = {
+    {modelmeta::Id::VrGrunt, 555, {32, 26, 31}, {{463, 548}}, 1, {497, 545}, {498, 514}, 529, 496, "upperarm_r", "forearm_r",
+        "upperarm_l", "forearm_l"},
+    {modelmeta::Id::VrEnforcer, 479, {41, 364, 365}, {{22, 23}, {100, 100}, {400, 430}, {455, 478}}, 4, {425, 420},
+        {407, 100}, 409, 412, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l"},
+};
+constexpr int numArmedRigs = static_cast<int>(sizeof(armedRigs) / sizeof(armedRigs[0]));
+
+// `model`'s row (nullptr: not an armed monster's model).
+[[nodiscard]] const ArmedRig* armedRigOf(const qmodel_t* model)
+{
+    if(!model || model->type != mod_alias)
+    {
+        return nullptr;
+    }
+    const modelmeta::ModelMetadata& meta = modelmeta::get(model);
+    for(const ArmedRig& a : armedRigs)
+    {
+        if(meta.is(a.model))
+        {
+            return &a;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] bool isGunVertex(const ArmedRig& a, int v)
+{
+    for(int i = 0; i < a.numGun; i++)
+    {
+        if(v >= a.gun[i].first && v <= a.gun[i].last)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 constexpr int maxProps = 32;
 constexpr int maxHandVerts = 16;
 constexpr float hangReach = 0.95f;             // a free arm's hand this share of its reach below its shoulder
@@ -569,14 +629,19 @@ constexpr glm::vec3 hangDir{0.15f, 0.12f, -1.f}; // ... that way (model space: a
 constexpr glm::vec3 hangElbow{-1.f, 0.3f, 0.f};  // ... its elbow back
 constexpr glm::vec3 cupOffset{0.f, 1.2f, -2.5f}; // a Cup grip: the left hand under and round the right (model units)
 
+struct LeftHand
+{
+    const qmodel_t* model{nullptr}; // the model its vertices were found on
+    int verts[maxHandVerts]{};
+    int num{0};
+};
+
 struct ArmIk
 {
     int frame{-1};                  // host_framecount the held weapons were gathered on
     int numProps{0};
     int props[maxProps]{};          // their cl_entities numbers
-    const qmodel_t* model{nullptr}; // the model the left hand's vertices were found on
-    int leftVerts[maxHandVerts]{};
-    int numLeft{0};
+    LeftHand left[numArmedRigs];    // each row's left hand
     bool forcePrint{false};          // (vr_agrunt_ik_info: printed whatever vr_agrunt_ik_debug)
 };
 ArmIk armIk;
@@ -636,31 +701,33 @@ void gatherProps()
 }
 
 // Its left hand: the vertices about the left forearm's far end (its seed's end: the hand), within 3 units of it in its
-// first pose (none: the 4 nearest), found once a model.
-void findLeftHand(const qmodel_t* model, const ragdoll::Rig& rig, const aliashdr_t* hdr, int fl)
+// first pose (none: the 4 nearest), found once a model (each row's kept).
+const LeftHand& findLeftHand(const ArmedRig& a, const qmodel_t* model, const ragdoll::Rig& rig, const aliashdr_t* hdr, int fl)
 {
-    if(armIk.model == model)
+    LeftHand& lh = armIk.left[&a - armedRigs];
+    if(lh.model == model)
     {
-        return;
+        return lh;
     }
-    armIk.model = model;
-    armIk.numLeft = 0;
+    lh.model = model;
+    lh.num = 0;
     const glm::vec3 end = rigpose::apply(rigpose::key(rig, 0, fl), rig.bones[fl].end);
-    for(float within = 3.f; within < 12.f && armIk.numLeft < 4; within += 1.f)
+    for(float within = 3.f; within < 12.f && lh.num < 4; within += 1.f)
     {
-        armIk.numLeft = 0;
+        lh.num = 0;
         for(int v = 0; v < hdr->numverts; v++)
         {
-            if((v >= gunFirst && v <= gunLast) || armIk.numLeft >= maxHandVerts)
+            if(isGunVertex(a, v) || lh.num >= maxHandVerts)
             {
                 continue;
             }
             if(glm::length(poseVertex(hdr, 0, 0, 0.f, v) - end) <= within)
             {
-                armIk.leftVerts[armIk.numLeft++] = v;
+                lh.verts[lh.num++] = v;
             }
         }
     }
+    return lh;
 }
 
 // Bends the arm (upper arm `u`, forearm `lo`) so its hand point `H` (posed, on the forearm) reaches `T` (reach allowing),
@@ -708,9 +775,6 @@ float solveArm(const ragdoll::Rig& rig, const rigpose::Rigid* posed, int u, int 
 // (the held entity's origin and angles replaced after the relink; the server's own is for the game) and the hands on it.
 
 constexpr int maxArmPoses = 64;
-constexpr int gunRear[] = {497, 545};   // QC VR_AG_GUN_*: its hidden rifle's line (the carry's turn)
-constexpr int gunMuzzle[] = {498, 514};
-constexpr int gunTop = 529, gunBottom = 496;
 constexpr double armPoseStale = 0.3; // seconds without a message: back to finding its weapon by its hand
 constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
@@ -830,7 +894,8 @@ void drawnPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2
 // Its arm pose's targets now (`s` fresh), on the poses drawn: s.right, s.left, s.fw, s.up. False: none now.
 bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, ArmPose& s)
 {
-    if(hdr->numverts <= gunLast || s.cur.t < cl.mtime[0] - armPoseStale)
+    const ArmedRig* a = armedRigOf(e->model);
+    if(!a || hdr->numverts != a->numVerts || s.cur.t < cl.mtime[0] - armPoseStale)
     {
         return false;
     }
@@ -852,17 +917,17 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
-    for(const int v : rightHandVerts)
+    for(const int v : a->rightHand)
     {
-        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(rightHandVerts));
+        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(a->rightHand));
     }
     // Its drawn rifle's line: the carry's turn.
-    const glm::vec3 rear = (poseVertex(hdr, pose1, pose2, blend, gunRear[0]) + poseVertex(hdr, pose1, pose2, blend, gunRear[1])) * 0.5f;
+    const glm::vec3 rear = (poseVertex(hdr, pose1, pose2, blend, a->gunRear[0]) + poseVertex(hdr, pose1, pose2, blend, a->gunRear[1])) * 0.5f;
     const glm::vec3 muzzle =
-        (poseVertex(hdr, pose1, pose2, blend, gunMuzzle[0]) + poseVertex(hdr, pose1, pose2, blend, gunMuzzle[1])) * 0.5f;
+        (poseVertex(hdr, pose1, pose2, blend, a->gunMuzzle[0]) + poseVertex(hdr, pose1, pose2, blend, a->gunMuzzle[1])) * 0.5f;
     glm::vec3 gx = muzzle - rear;
     gx = glm::length(gx) > 1e-4f ? glm::normalize(gx) : glm::vec3{1.f, 0.f, 0.f};
-    glm::vec3 gz = poseVertex(hdr, pose1, pose2, blend, gunTop) - poseVertex(hdr, pose1, pose2, blend, gunBottom);
+    glm::vec3 gz = poseVertex(hdr, pose1, pose2, blend, a->gunTop) - poseVertex(hdr, pose1, pose2, blend, a->gunBottom);
     gz -= gx * glm::dot(gz, gx);
     gz = glm::length(gz) > 1e-4f ? glm::normalize(gz) : glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 gy = glm::cross(gz, gx);
@@ -887,14 +952,14 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     if((m.flags & apLeft) && m.wl > 0.f)
     {
         const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
-        const int fl = rig ? boneNamed(*rig, "forearm_l") : -1;
+        const int fl = rig ? boneNamed(*rig, a->foreL) : -1;
         if(fl >= 0)
         {
-            findLeftHand(e->model, *rig, hdr, fl);
+            const LeftHand& lh = findLeftHand(*a, e->model, *rig, hdr, fl);
             glm::vec3 hl{0.f};
-            for(int i = 0; i < armIk.numLeft; i++)
+            for(int i = 0; i < lh.num; i++)
             {
-                hl += poseVertex(hdr, pose1, pose2, blend, armIk.leftVerts[i]) / static_cast<float>(za::max(armIk.numLeft, 1));
+                hl += poseVertex(hdr, pose1, pose2, blend, lh.verts[i]) / static_cast<float>(za::max(lh.num, 1));
             }
             s.left += hl * m.wl;
         }
@@ -914,7 +979,8 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
 bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const aliashdr_t* hdr, int pose1,
     int pose2, float blend, rigpose::Rigid* out)
 {
-    if(hdr->numverts <= gunLast || rig.numVerts != hdr->numverts)
+    const ArmedRig* a = armedRigOf(e->model);
+    if(!a || hdr->numverts != a->numVerts || rig.numVerts != hdr->numverts)
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
@@ -933,8 +999,8 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
             return false; // (dying: its weapon dropped)
         }
     }
-    const int ur = boneNamed(rig, "upperarm_r"), fr = boneNamed(rig, "forearm_r");
-    const int ul = boneNamed(rig, "upperarm_l"), fl = boneNamed(rig, "forearm_l");
+    const int ur = boneNamed(rig, a->upperR), fr = boneNamed(rig, a->foreR);
+    const int ul = boneNamed(rig, a->upperL), fl = boneNamed(rig, a->foreL);
     if(ur < 0 || fr < 0 || ul < 0 || fl < 0)
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
@@ -944,9 +1010,9 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
         return false;
     }
     glm::vec3 hr{0.f};
-    for(const int v : rightHandVerts)
+    for(const int v : a->rightHand)
     {
-        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(rightHandVerts));
+        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(a->rightHand));
     }
     // Its arm pose from the server (QVR_SVC_ARMPOSE): the hands' targets and its weapon; else its weapon is the held one
     // nearest its right hand.
@@ -996,8 +1062,8 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     const float mainAfter = solveArm(rig, posed, ur, fr, hr, tr, er, out);
 
     // The left hand on its second grip, under the right one (a Cup), or hanging free.
-    findLeftHand(e->model, rig, hdr, fl);
-    if(armIk.numLeft == 0)
+    const LeftHand& lh = findLeftHand(*a, e->model, rig, hdr, fl);
+    if(lh.num == 0)
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
@@ -1006,9 +1072,9 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
         return true;
     }
     glm::vec3 hl{0.f};
-    for(int i = 0; i < armIk.numLeft; i++)
+    for(int i = 0; i < lh.num; i++)
     {
-        hl += poseVertex(hdr, pose1, pose2, blend, armIk.leftVerts[i]) / static_cast<float>(armIk.numLeft);
+        hl += poseVertex(hdr, pose1, pose2, blend, lh.verts[i]) / static_cast<float>(lh.num);
     }
     int kind = 0; // 0 free, 1 a grip, 2 a cup, 3 its own target (a punch, a guard), 4 the animation's
     glm::vec3 tl{0.f};
@@ -1132,7 +1198,7 @@ void relinkArms()
         }
         const entity_t* e = &cl_entities[s.ent];
         if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||
-            !modelmeta::get(e->model).is(modelmeta::Id::VrGrunt))
+            !armedRigOf(e->model))
         {
             continue;
         }
@@ -1406,7 +1472,7 @@ bool reacting(const entity_t* e)
 bool armsWanted(const entity_t* e)
 {
     const bool want = vr_agrunt_ik.value != 0.f && e && e->model && e->model->type == mod_alias && numberOf(e) > 0 &&
-                      modelmeta::get(e->model).is(modelmeta::Id::VrGrunt);
+                      armedRigOf(e->model) != nullptr;
     if(!want && vr_agrunt_ik_debug.value >= 2.f && e && e->model && strstr(e->model->name, "vrgrunt"))
     {
         Con_Printf("agik ent %d: not wanted (%s)\n", numberOf(e), e->model->name);

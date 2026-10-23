@@ -356,6 +356,35 @@ QVR_WEAPON_KEY(TorchClip, "torch_clip")
 QVR_WEAPON_KEY(Heft, "w_heft")
 QVR_WEAPON_KEY(Droop, "w_droop")
 QVR_WEAPON_KEY(HeavyRecoil, "w_hrecoil")
+// The blade's shape for melee (ROUND22.md, "Blade shape editor"; vr_blade.hpp; edited in VR by Weapon Offsets > Edit Blade
+// Shape, vr_bladeedit.cpp; QC VR_Melee_Line, _At, _Sweep through meleeblade). The blow line runs from the hand to the tip
+// (the Muzzle anchor and offset, as before); each key's default keeps the shape the code gave before (registerCvars):
+// the near end (pommel, butt, handle's end) behind the hand, a share of the hand-to-tip line (-1: the kind's own, QC
+// VR_Melee_NearBack); the blade's width (times the swept points' radius, VR_MELEE_RADIUS); the curve (Spine 0: the
+// model's own, the curved AD swords' made spine, else straight; 1: a smooth spline through five points at 1/6 .. 5/6 of
+// the line, each off it along the line's normal in the blade's plane and along the model's +y, shares of its length);
+// a head's box (Head 0: the model's own, the AD hammer's and mace's; 1: the box below, shares of the line: x along it
+// from the hand, y along its normal in the weapon's plane, z along the model's +y). New cvars: no migration.
+QVR_WEAPON_KEY(BladeNear, "bl_near")
+QVR_WEAPON_KEY(BladeWidth, "bl_width")
+QVR_WEAPON_KEY(BladeSpine, "bl_spine")
+QVR_WEAPON_KEY(BladeSpine1Off, "bl_s1_off")
+QVR_WEAPON_KEY(BladeSpine1Side, "bl_s1_side")
+QVR_WEAPON_KEY(BladeSpine2Off, "bl_s2_off")
+QVR_WEAPON_KEY(BladeSpine2Side, "bl_s2_side")
+QVR_WEAPON_KEY(BladeSpine3Off, "bl_s3_off")
+QVR_WEAPON_KEY(BladeSpine3Side, "bl_s3_side")
+QVR_WEAPON_KEY(BladeSpine4Off, "bl_s4_off")
+QVR_WEAPON_KEY(BladeSpine4Side, "bl_s4_side")
+QVR_WEAPON_KEY(BladeSpine5Off, "bl_s5_off")
+QVR_WEAPON_KEY(BladeSpine5Side, "bl_s5_side")
+QVR_WEAPON_KEY(BladeHead, "bl_head")
+QVR_WEAPON_KEY(BladeHeadLoX, "bl_head_lo_x")
+QVR_WEAPON_KEY(BladeHeadLoY, "bl_head_lo_y")
+QVR_WEAPON_KEY(BladeHeadLoZ, "bl_head_lo_z")
+QVR_WEAPON_KEY(BladeHeadHiX, "bl_head_hi_x")
+QVR_WEAPON_KEY(BladeHeadHiY, "bl_head_hi_y")
+QVR_WEAPON_KEY(BladeHeadHiZ, "bl_head_hi_z")
 #endif
 
 

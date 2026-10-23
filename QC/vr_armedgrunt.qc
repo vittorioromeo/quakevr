@@ -49,17 +49,8 @@ float VR_AG_SWING_TIME = 0.4;    // a melee swing's drawn arc (seconds)
 float VR_AG_EF_HELD = 128;       // the held weapon's effects bit: a weapon in a monster's hand (the engine's vr_armik.cpp,
                                  // vr_weaponfx.cpp: the arms' grips, its muzzle flash); no other effect uses it
 
-// Its right hand's vertices (their middle: where it holds the weapon) and its hidden gun's: the rear, the muzzle, the
-// top and the bottom (Quake VR's soldier.mdl, vertices 463..548 the gun: scratch analysis, ROUND22.md).
-float VR_AG_HAND_V1 = 32;
-float VR_AG_HAND_V2 = 26;
-float VR_AG_HAND_V3 = 31;
-float VR_AG_GUN_REAR1 = 497;
-float VR_AG_GUN_REAR2 = 545;
-float VR_AG_GUN_MUZZLE1 = 498;
-float VR_AG_GUN_MUZZLE2 = 514;
-float VR_AG_GUN_TOP = 529;
-float VR_AG_GUN_BOTTOM = 496;
+// Its right hand's vertices (their middle: where it holds the weapon) and its hidden gun's (the rear, the muzzle, the
+// top and the bottom) are its row's in the armed monsters' table (vr_armedmon.qc: VR_AM_Hand, VR_AM_GunRear, ...).
 
 // Where vertex `v` of e's model is as drawn now (trace_fraction 0: none), and the muzzle of the weapon model e is drawn
 // with (the engine's modelanchorpoint and weapondrawnpose: builtins.qc).
@@ -335,14 +326,14 @@ void(entity g, entity p) VR_AG_PlaceProp =
 // The old carry (before vr_armedgrunt_pose.qc): kept for reference, unused.
 void(entity g, entity p) VR_AG_PlacePropOld =
 {
-    vector hand =(modelvertex(g, VR_AG_HAND_V1) + modelvertex(g, VR_AG_HAND_V2) + modelvertex(g, VR_AG_HAND_V3)) * (1 / 3);
+    vector hand = VR_AM_Hand(g);
     if(trace_fraction == 0)
     {
         return; // (no such model now: a ragdoll's, another's; it stays where it was)
     }
-    vector rear = (modelvertex(g, VR_AG_GUN_REAR1) + modelvertex(g, VR_AG_GUN_REAR2)) * 0.5;
-    vector muzzle = (modelvertex(g, VR_AG_GUN_MUZZLE1) + modelvertex(g, VR_AG_GUN_MUZZLE2)) * 0.5;
-    vector up = modelvertex(g, VR_AG_GUN_TOP) - modelvertex(g, VR_AG_GUN_BOTTOM);
+    vector rear = VR_AM_GunRear(g);
+    vector muzzle = VR_AM_GunMuzzle(g);
+    vector up = VR_AM_GunUp(g);
     vector fw = normalize(muzzle - rear);
     if(VR_AG_Class(g.vr_ag_wid) == VR_AG_CLASS_MELEE && g.vr_ag_wid != WID_CHAINSAW)
     {
@@ -831,7 +822,8 @@ void() VR_AG_Strike =
     if(!p)
     {
         // A punch from its right hand.
-        from = (modelvertex(self, VR_AG_HAND_V1) + modelvertex(self, VR_AG_HAND_V2)) * 0.5;
+        VR_AM_Row(self.vr_ag_kind);
+        from = (modelvertex(self, vr_am_hand_x) + modelvertex(self, vr_am_hand_y)) * 0.5;
         if(trace_fraction == 0) { from = self.origin + '0 0 16'; }
     }
     vector dir = normalize(VR_AI_Origin(self.enemy) + '0 0 8' - from);
@@ -870,21 +862,22 @@ void() VR_AG_Strike =
 };
 
 // ----------------------------------------------------------------------------
-// Animations: its own run, attacks, reload and pickup (the grunt's frames); stand, walk, pain, death are the grunt's
+// Animations: its own run, attacks, reload and pickup (its row's frames: vr_armedmon.qc VR_AM_Anim); stand, walk, pain,
+// death are its monster's own
 // ----------------------------------------------------------------------------
 
 void(float d) VR_AG_Run;
 void() vr_ag_reload1;
 void() vr_ag_take1;
 
-void() vr_ag_run1 = [73, vr_ag_run2] { VR_AG_Run(11); };
-void() vr_ag_run2 = [74, vr_ag_run3] { VR_AG_Run(15); };
-void() vr_ag_run3 = [75, vr_ag_run4] { VR_AG_Run(10); };
-void() vr_ag_run4 = [76, vr_ag_run5] { VR_AG_Run(10); };
-void() vr_ag_run5 = [77, vr_ag_run6] { VR_AG_Run(8); };
-void() vr_ag_run6 = [78, vr_ag_run7] { VR_AG_Run(15); };
-void() vr_ag_run7 = [79, vr_ag_run8] { VR_AG_Run(10); };
-void() vr_ag_run8 = [80, vr_ag_run1] { VR_AG_Run(8); };
+void() vr_ag_run1 = { VR_AM_Anim(VR_AM_A_RUN, 0, vr_ag_run2); VR_AG_Run(VR_AM_RunStep(0)); };
+void() vr_ag_run2 = { VR_AM_Anim(VR_AM_A_RUN, 1, vr_ag_run3); VR_AG_Run(VR_AM_RunStep(1)); };
+void() vr_ag_run3 = { VR_AM_Anim(VR_AM_A_RUN, 2, vr_ag_run4); VR_AG_Run(VR_AM_RunStep(2)); };
+void() vr_ag_run4 = { VR_AM_Anim(VR_AM_A_RUN, 3, vr_ag_run5); VR_AG_Run(VR_AM_RunStep(3)); };
+void() vr_ag_run5 = { VR_AM_Anim(VR_AM_A_RUN, 4, vr_ag_run6); VR_AG_Run(VR_AM_RunStep(4)); };
+void() vr_ag_run6 = { VR_AM_Anim(VR_AM_A_RUN, 5, vr_ag_run7); VR_AG_Run(VR_AM_RunStep(5)); };
+void() vr_ag_run7 = { VR_AM_Anim(VR_AM_A_RUN, 6, vr_ag_run8); VR_AG_Run(VR_AM_RunStep(6)); };
+void() vr_ag_run8 = { VR_AM_Anim(VR_AM_A_RUN, 7, vr_ag_run1); VR_AG_Run(VR_AM_RunStep(7)); };
 
 // After an attack: a reload if its clip is empty, else on running.
 void() VR_AG_AfterAttack =
@@ -941,49 +934,51 @@ void(float n) VR_AG_AtkFrame =
     }
 };
 
-void() vr_ag_atk1 = [81, vr_ag_atk2] { self.vr_ag_shots = 0; VR_AG_AtkFrame(1); };
-void() vr_ag_atk2 = [82, vr_ag_atk3] { VR_AG_AtkFrame(2); };
-void() vr_ag_atk3 = [83, vr_ag_atk4] { VR_AG_AtkFrame(3); };
-void() vr_ag_atk4 = [84, vr_ag_atk5] { VR_AG_AtkFrame(4); };
-void() vr_ag_atk5 = [85, vr_ag_atk6] { VR_AG_AtkFrame(5); };
-void() vr_ag_atk6 = [86, vr_ag_atk7] { VR_AG_AtkFrame(6); };
-void() vr_ag_atk7 = [87, vr_ag_atk8]
+void() vr_ag_atk1 = { VR_AM_Anim(VR_AM_A_ATK, 0, vr_ag_atk2); self.vr_ag_shots = 0; VR_AG_AtkFrame(1); };
+void() vr_ag_atk2 = { VR_AM_Anim(VR_AM_A_ATK, 1, vr_ag_atk3); VR_AG_AtkFrame(2); };
+void() vr_ag_atk3 = { VR_AM_Anim(VR_AM_A_ATK, 2, vr_ag_atk4); VR_AG_AtkFrame(3); };
+void() vr_ag_atk4 = { VR_AM_Anim(VR_AM_A_ATK, 3, vr_ag_atk5); VR_AG_AtkFrame(4); };
+void() vr_ag_atk5 = { VR_AM_Anim(VR_AM_A_ATK, 4, vr_ag_atk6); VR_AG_AtkFrame(5); };
+void() vr_ag_atk6 = { VR_AM_Anim(VR_AM_A_ATK, 5, vr_ag_atk7); VR_AG_AtkFrame(6); };
+void() vr_ag_atk7 =
 {
+    VR_AM_Anim(VR_AM_A_ATK, 6, vr_ag_atk8);
     VR_AG_AtkFrame(7);
     if(self.vr_ag_prop.weaponinst.wi_clip > 0 && VR_AG_Class(self.vr_ag_wid) == VR_AG_CLASS_AUTO)
     {
         SUB_CheckRefire(vr_ag_atk4); // (a nail gun's or the thunderbolt's stream goes on while it sees its target)
     }
 };
-void() vr_ag_atk8 = [88, vr_ag_atk9] { VR_AG_AtkFrame(8); };
-void() vr_ag_atk9 = [89, vr_ag_atk9] { VR_AG_AtkFrame(9); VR_AG_AfterAttack(); };
+void() vr_ag_atk8 = { VR_AM_Anim(VR_AM_A_ATK, 7, vr_ag_atk9); VR_AG_AtkFrame(8); };
+void() vr_ag_atk9 = { VR_AM_Anim(VR_AM_A_ATK, 8, vr_ag_atk9); VR_AG_AtkFrame(9); VR_AG_AfterAttack(); };
 
 // A melee blow (the shove's frames: a step in, the arm out); its swing drawn from the second.
-void() vr_ag_swing1 = [114, vr_ag_swing2] { ai_face(); ai_charge(4); };
-void() vr_ag_swing2 = [115, vr_ag_swing3] { ai_face(); ai_charge(4); self.vr_ag_swing_at = time;
+void() vr_ag_swing1 = { VR_AM_Anim(VR_AM_A_SHOVE, 0, vr_ag_swing2); ai_face(); ai_charge(4); };
+void() vr_ag_swing2 = { VR_AM_Anim(VR_AM_A_SHOVE, 1, vr_ag_swing3); ai_face(); ai_charge(4); self.vr_ag_swing_at = time;
     VR_SoundVaried(self, CHAN_WEAPON, self.vr_ag_prop ? "weapons/ax1.wav" : "knight/sword1.wav", 1, ATTN_NORM); };
-void() vr_ag_swing3 = [116, vr_ag_swing4] { ai_face(); ai_charge(2); };
-void() vr_ag_swing4 = [117, vr_ag_swing5] { ai_face(); VR_AG_Strike(); };
-void() vr_ag_swing5 = [118, vr_ag_swing6] {};
-void() vr_ag_swing6 = [119, vr_ag_swing6] { VR_AG_AfterAttack(); };
+void() vr_ag_swing3 = { VR_AM_Anim(VR_AM_A_SHOVE, 2, vr_ag_swing4); ai_face(); ai_charge(2); };
+void() vr_ag_swing4 = { VR_AM_Anim(VR_AM_A_SHOVE, 3, vr_ag_swing5); ai_face(); VR_AG_Strike(); };
+void() vr_ag_swing5 = { VR_AM_Anim(VR_AM_A_SHOVE, 4, vr_ag_swing6); };
+void() vr_ag_swing6 = { VR_AM_Anim(VR_AM_A_SHOVE, 5, vr_ag_swing6); VR_AG_AfterAttack(); };
 
 // The reload: the grunt's load frames (unused by id's), over vr_agrunt_reload_time; a clip out of its reserve at the end.
 void() VR_AG_ReloadFrame =
 {
     self.nextthink = time + max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time)) / 11;
 };
-void() vr_ag_reload1 = [29, vr_ag_reload2] { VR_AG_ReloadFrame(); VR_AG_Log("reloading"); };
-void() vr_ag_reload2 = [30, vr_ag_reload3] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload3 = [31, vr_ag_reload4] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload4 = [32, vr_ag_reload5] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload5 = [33, vr_ag_reload6] { VR_AG_ReloadFrame(); sound(self, CHAN_WEAPON, "weapons/lock4.wav", 1, ATTN_NORM); };
-void() vr_ag_reload6 = [34, vr_ag_reload7] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload7 = [35, vr_ag_reload8] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload8 = [36, vr_ag_reload9] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload9 = [37, vr_ag_reload10] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload10 = [38, vr_ag_reload11] { VR_AG_ReloadFrame(); };
-void() vr_ag_reload11 = [39, vr_ag_run1]
+void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); VR_AG_Log("reloading"); };
+void() vr_ag_reload2 = { VR_AM_Anim(VR_AM_A_RELOAD, 1, vr_ag_reload3); VR_AG_ReloadFrame(); };
+void() vr_ag_reload3 = { VR_AM_Anim(VR_AM_A_RELOAD, 2, vr_ag_reload4); VR_AG_ReloadFrame(); };
+void() vr_ag_reload4 = { VR_AM_Anim(VR_AM_A_RELOAD, 3, vr_ag_reload5); VR_AG_ReloadFrame(); };
+void() vr_ag_reload5 = { VR_AM_Anim(VR_AM_A_RELOAD, 4, vr_ag_reload6); VR_AG_ReloadFrame(); sound(self, CHAN_WEAPON, "weapons/lock4.wav", 1, ATTN_NORM); };
+void() vr_ag_reload6 = { VR_AM_Anim(VR_AM_A_RELOAD, 5, vr_ag_reload7); VR_AG_ReloadFrame(); };
+void() vr_ag_reload7 = { VR_AM_Anim(VR_AM_A_RELOAD, 6, vr_ag_reload8); VR_AG_ReloadFrame(); };
+void() vr_ag_reload8 = { VR_AM_Anim(VR_AM_A_RELOAD, 7, vr_ag_reload9); VR_AG_ReloadFrame(); };
+void() vr_ag_reload9 = { VR_AM_Anim(VR_AM_A_RELOAD, 8, vr_ag_reload10); VR_AG_ReloadFrame(); };
+void() vr_ag_reload10 = { VR_AM_Anim(VR_AM_A_RELOAD, 9, vr_ag_reload11); VR_AG_ReloadFrame(); };
+void() vr_ag_reload11 =
 {
+    VR_AM_Anim(VR_AM_A_RELOAD, 10, vr_ag_run1);
     VR_AG_ReloadFrame();
     entity p = self.vr_ag_prop;
     if(p)
@@ -1016,12 +1011,12 @@ void() VR_AG_TakeIt =
     sound(self, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
     VR_AG_Log(sprintf("picked up %s (%g in its clip)", self.vr_ag_prop.netname, inst.wi_clip));
 };
-void() vr_ag_take1 = [29, vr_ag_take2] { self.nextthink = time + 0.06; };
-void() vr_ag_take2 = [30, vr_ag_take3] { self.nextthink = time + 0.06; };
-void() vr_ag_take3 = [31, vr_ag_take4] { self.nextthink = time + 0.06; };
-void() vr_ag_take4 = [32, vr_ag_take5] { self.nextthink = time + 0.06; VR_AG_TakeIt(); };
-void() vr_ag_take5 = [31, vr_ag_take6] { self.nextthink = time + 0.06; };
-void() vr_ag_take6 = [30, vr_ag_run1] { self.nextthink = time + 0.06; };
+void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + 0.06; };
+void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + 0.06; };
+void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + 0.06; };
+void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + 0.06; VR_AG_TakeIt(); };
+void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + 0.06; };
+void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + 0.06; };
 
 // ----------------------------------------------------------------------------
 // Its AI
@@ -1330,7 +1325,8 @@ float() VR_AG_SoldierDrop =
     }
     else
     {
-        self.ammo_shells = 5;
+        VR_AM_Row(self.vr_ag_kind); // (its monster's own loot: a grunt's 5 shells, an enforcer's 5 cells)
+        VR_AmmoUtil_SetAmmoCountByAmmoId(self, vr_am_loot_aid, vr_am_loot_n);
     }
     self.vr_ag_reserve = 0;
     DropBackpack();
@@ -1366,9 +1362,21 @@ grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma 
 sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; -1 its fists; 0 or unset: one from
 the pool). "weaponflags": that weapon's flags.
 */
-void() monster_vr_grunt =
+void() monster_vr_grunt = { VR_AM_Spawn(VR_AM_GRUNT); };
+
+/*QUAKED monster_vr_enforcer (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+An armed enforcer (experimental): an enforcer holding one of your weapons (its laser rifle's place). "weapon": its weapon
+(as monster_vr_grunt's: WID_*, -1 its fists, 0 or unset: one from the pool). "weaponflags": that weapon's flags.
+*/
+void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
+
+// An armed monster of the table's row `kind` (vr_armedmon.qc): its weapon picked, then its monster's own spawn (its
+// classname, health, sounds, pains, deaths: that monster to the rest of the game), its gunless model, the layer's run,
+// attacks and weapon.
+void(float kind) VR_AM_Spawn =
 {
     if(MG_MonsterInhibited()) return;
+    self.vr_ag_kind = kind;
     if(deathmatch)
     {
         remove(self);
@@ -1389,7 +1397,7 @@ void() monster_vr_grunt =
     {
         if(!VR_AG_Decode(want))
         {
-            dprint(sprintf("monster_vr_grunt: weapon %g can't be held here: its fists\n", want));
+            dprint(sprintf("armed monster: weapon %g can't be held here: its fists\n", want));
             want = -1;
         }
         else
@@ -1410,17 +1418,27 @@ void() monster_vr_grunt =
         self.spawnflags = self.spawnflags - (self.spawnflags & (SPAWNFLAG_TRIGGER_SPAWN | SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE));
     }
 
-    self.classname = "monster_army";
-    monster_army();
-    precache_model("progs/vrgrunt.mdl");
+    if(want > 0 && !VR_AM_Holds(self, VR_AG_Class(want)))
+    {
+        want = -1; // (not a weapon its row holds: its fists)
+    }
+
+    VR_AM_Row(kind);
+    string mdl = vr_am_model;
+    self.classname = vr_am_classname;
+    vr_am_spawn();
+    precache_model(mdl);
     precache_sound("weapons/lock4.wav");
     precache_sound("weapons/pkup.wav");
     precache_sound("weapons/ax1.wav");
     precache_sound("weapons/tink1.wav");
     VR_AG_PlayPrecache(); // (its headbutt, its disarms' clatters: vr_armedgrunt_play.qc)
-    setmodel(self, "progs/vrgrunt.mdl");
-    setsize(self, '-12 -12 -24', '12 12 27');
+    vector mn = self.mins;
+    vector mx = self.maxs;
+    setmodel(self, mdl);
+    setsize(self, mn, mx); // (its monster's own box)
     self.vr_ag = 1;
+    self.vr_ag_kind = kind;
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;

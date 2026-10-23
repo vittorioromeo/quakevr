@@ -19,8 +19,13 @@ let go (ROUND22.md "Dragging by the legs").
   armdrag    knocked down, the main hand on its right forearm, you walk back: Pry leads, its free hand swats (Swat over
              0.4); its chest's uprightness (Stay Upright) reported
   dead       as headdrag, its health taken at 2.5 s: its struggle ends (dead), its strengths let go
+  shoulderdrag  knocked down, the main hand on its right upper arm (a shoulder hold), you walk back: not judged
+             but for the drag (its weights and its head's look reported)
 Each also as <case>_off (vr_struggle 0): the holds' lag and the pose compared. PASS per case as above; the logs go to
 <agent>/scratch/struggle_<case>.txt.
+STRUGGLE_LOOK=1 also runs each as <case>_nolook (vr_struggle_look 0) and ends with a LOOK line per case: its head's
+front from the way to your head (deg, the later two thirds' mean; with the look less, as near as its neck allows), and
+its head's spin against its chest (deg/s: a jitter's measure), against the no-look run's.
 STRUGGLE_CLASSES=all (or id, ad, or labels joined by commas: HUMANOIDS) runs the cases for every humanoid that can be
 dragged (AD's through vr_campaign_native ad; its map-only ones in AD's start map) and ends with a LEGPULL line per class:
 its free arms' speed in its chest's frame (u/s), "smooth" the same path sampled every 8 frames (well under the speed:
@@ -88,7 +93,7 @@ MOTIONS = os.path.join(TREE, "quakevr", "motions")
 SCRATCH = os.path.join(TREE, "scratch")
 
 
-DRAGS = ("legpull", "legpull1", "legyank", "legdrag", "headdrag")  # (walked back dragging it: on the flat floor, its drag measured)
+DRAGS = ("legpull", "legpull1", "legyank", "legdrag", "headdrag", "shoulderdrag")  #(walked back dragging it: on the flat floor, its drag measured)
 
 
 def pre(case=""):
@@ -133,7 +138,7 @@ def statuses(t0, t1):
     out, t = [], t0
     while t <= t1 + 1e-6:
         out.append((t, "cmd vr_struggle_status"))
-        t += 0.3
+        t += float(os.environ.get("STRUGGLE_STATUS_EVERY", "0.3"))  # (s; less: more samples, e.g. the LOOK lines')
     return out
 
 
@@ -196,7 +201,8 @@ CASES = {
     "headdrag": (lambda: drag_keys("head 0"), down),
     "headlift": (lambda: drag_keys("head 0", lift=True), down),
     "armdrag": (lambda: drag_keys("6 0"), down),
-    "dead": (lambda: drag_keys("head 0", dead=True), down),
+    "shoulderdrag": (lambda: drag_keys("upperarm_r 0"), down),
+    "dead":(lambda: drag_keys("head 0", dead=True), down),
 }
 LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "legpull": "claw", "legyank": "claw", "headdrag": "pry",
         "headlift": "pry", "armdrag": "pry"}
@@ -222,7 +228,9 @@ def parse(out):
     cost = [float(x) for x in re.findall(r"struggling; ([\d.]+) ms a frame", flat)]
     flail = [(float(a), float(b), float(c or 0)) for a, b, c in
              re.findall(r"flail ([\d.]+) u/s miss ([\d.]+) u(?: smooth ([\d.]+) u/s)?", flat)]
-    return flat, weights, holds, traces, cost, flail
+    looks = [(float(a), float(b)) for a, b in
+             re.findall(r"its head looks ([-\d.]+) deg from you, turning ([\d.]+) deg/s", flat)]
+    return flat, weights, holds, traces, cost, flail, looks
 
 
 def stats(xs):
@@ -246,12 +254,14 @@ def main():
     for entry in classes():
         set_class(*entry)
         for name, (keys, case_pre) in CASES.items():
-            for off in (False, True):
-                case = name + ("_off" if off else "")
+            for var in ("", "_off") + (("_nolook",) if os.environ.get("STRUGGLE_LOOK") else ()):
+                off = var != ""
+                case = name + var
                 if (ONLY and not re.search(ONLY, case)) or (off and name in ("dead", "legyank", "legpull1")):
                     continue
                 path = motion("struggle_" + case + TAG, keys())
-                script = (f"{pre(name)};{case_pre()};{os.environ.get('STRUGGLE_EXTRA', '')};{'vr_struggle 0;' if off else ''}"
+                cut = {"": "", "_off": "vr_struggle 0;", "_nolook": "vr_struggle_look 0;"}[var]
+                script = (f"{pre(name)};{case_pre()};{os.environ.get('STRUGGLE_EXTRA', '')};{cut}"
                           f"vr_mock_play {path};wait420;-grabmain;-graboff;-back;wait5;toggleconsole;quit")
                 handles[(entry, case)] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "240"])
     b.run()
@@ -281,7 +291,14 @@ def check_class(b, handles, entry):
     for name in CASES:
         if name not in res:
             continue
-        flat, weights, holds, traces, cost, flail = res[name]
+        flat, weights, holds, traces, cost, flail, looks = res[name]
+        if name + "_nolook" in res:
+            # (Its head's look at you, the later two thirds' mean, against the no-look run's; its head's spin: jitter.)
+            nl = res[name + "_nolook"][6]
+            on_l, no_l = looks[len(looks) // 3:], nl[len(nl) // 3:]
+            avg = lambda xs, i: sum(x[i] for x in xs) / len(xs) if xs else -1.0  # noqa: E731
+            print(f"  LOOK {name}: its head {avg(on_l, 0):.0f} deg from you (no look {avg(no_l, 0):.0f}); its head's spin "
+                  f"{avg(on_l, 1):.0f} deg/s (no look {avg(no_l, 1):.0f}); {len(on_l)}/{len(no_l)} samples")
         if name in DRAGS:
             walk, moved, letgo = drag(flat)
             if name == "legyank":
@@ -297,6 +314,11 @@ def check_class(b, handles, entry):
                         f"{'; a hold let go' if letgo else ''}")
             if name == "legpull1":
                 continue  # (its struggle as legpull's)
+        if name not in LEAD and name != "dead":
+            late = weights[len(weights) // 3:]
+            print(f"  INFO {name}: " + (" ".join(f"{n} {sum(w[n] for w in late) / len(late):.2f}" for n in NAMES)
+                                        if late else "no weights"))
+            continue
         if name == "legpull":
             fl_on = flail[len(flail) // 3:]
             fo = res["legpull_off"][5][len(res["legpull_off"][5]) // 3:] if "legpull_off" in res else []

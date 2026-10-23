@@ -236,6 +236,9 @@ za::Vector<Item> pageDebugAutomation()
                   "vr_agrunt_ik)."),
         toggle("Armed Grunts: Log", vr_agrunt_debug)
             .help("Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug)."),
+        toggle("Armed Grunts: Tests Spawn Enforcers", vr_agrunt_test_kind)
+            .help("The Armed Grunts tests above spawn armed enforcers (monster_vr_enforcer, the armed monsters' second "
+                  "row) instead of armed grunts (vr_agrunt_test_kind 1; 0 grunts)."),
         toggle("Load Stuck", vr_grapple_test_stuck)
             .help("What hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged: walk away and the "
                   "rope should hold you back."),
