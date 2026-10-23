@@ -18719,7 +18719,7 @@ white line lies along your knuckles, the blue one out to the fist's width; punch
 and send the printed lines if they should ship. With a sword and a gun: the orange near end is now a dot above the
 forearm tied to the line: check it (and the curve point next to the hand) is easy to take, and the hover highlight.
 
-## The blade's start; the axe's head box (worktree `fastship`, branch `agent/bladeend`, 2026-10-23; vr_cfg_version 199)
+## The blade's start; the axe's head box (worktree `fastship`, branch `agent/bladeend`, 2026-10-23; vr_cfg_version 197)
 
 Vittorio (note vrstart_2026-10-23_22-34-28, the axe in the main hand): on the axe he can move the tip and the near end
 but not "where the line that belongs to the blade ends"; he wants the blade to match the axe; maybe a volume over the
@@ -18745,16 +18745,21 @@ and grey, the striking part bold with the width tube; Straighten puts it back on
 `vr_bladeedit_report` prints `from`, the head and the model's head box.
 
 **Head Box On seeds round the drawn head** (`modelHead`): the drawn model's first-pose vertices past 0.3 of the line (or
-0.25 before the blade start), the box's near end at the lowest vertex 0.15 shares off the line. **The axe ships a head
-box** (slot 0: `bl_head 1`, 0.5 -1.1077 -0.0919 .. 1.2303 0.1013 0.0701: both bits, as the seed gives it): its volume
+0.25 before the blade start), the box's near end at the lowest vertex 0.15 shares off the line; a slot's stored corners
+come first. **The axe's head box is opt-in** (the author): slot 0 keeps `bl_head 0` but ships the corners 0.5 -1.1077
+-0.0919 .. 1.2303 0.1013 0.0701 (both bits, as the seed gives it), so Head Box On starts from them; on, its volume
 strikes as the head (`VR_Melee_Ribs`), as the mace's. The crowbar: no box (a bar; its striking points cover it).
 
 **Tests** (`scratch/be_test.txt`, `be_test3.txt`, `be_probe4.txt`; vrtesthall, scenario `blade_editor_axe`; the mock
 needs `vr_weapon_grip_mode 1` and the grip held, else the given axe goes to the hip holster):
 - Defaults: the axe's `vr_melee_sweep_test 2` on origin/next and here: near, far and every point the same to 1e-4 (only
-  the head line is new). `eval.sh`: 169/177, no verdict changed; 16 takes' numbers moved, the axe's slashes by the head
-  box (e.g. 19.8 -> 49.5, 21.3 -> 35.4, 36.7 -> 49.5; one 39.6 -> 14.6 with its decapitation yes -> no: the box met the
-  dummy earlier in that backswing), two punches by 0.1 (noise).
+  the head line is new). `eval.sh`: 169/177, no verdict changed; the axe's takes as the baseline. With the head box on by
+  default (an earlier try) 16 moved: the axe's slashes 19.8 -> 49.5, 21.3 -> 35.4, 36.7 -> 49.5, a backswing 39.6 ->
+  14.6 with its decapitation yes -> no (the box met the dummy earlier); hence opt-in. Left: 0.1 noise on punches and a
+  stab, and a sword slash (12-34-13, "the tip") 18.2 -> 21.6, the same in both runs (not the axe; the baseline's drift).
+- Config 197 (`vr_migrate_config` at 196): metal 1.5 / stone 1.5 -> 1 / 0.75; metal 2.2 stays 2.2; at 197, 1.5 stays.
+  `vr_scenario validate`: SCNOK blade_editor_axe; SCNSUM 48 files, 0 with errors, 0 missing tags. Head Box On on the axe
+  seeds 0.5 -1.1077 -0.0919 .. 1.2303 0.1013 0.0701.
 - Handles with the mock other hand at each grab point (hovered, grip, moved, let go), the axe: tip 2 along -> line 8.55
   -> 10.55; near end 2 back -> 0.25 -> 0.44; head corner 1 along -> hi x 1.23 -> 1.33; Blade Start 1 back, 3 out -> 0.75
   -> 0.655, off 0.284; Done printed the 7 changed lines. QC's point 3 (the head's first) lands on the dragged start (5.62
@@ -18767,7 +18772,7 @@ needs `vr_weapon_grip_mode 1` and the grip held, else the given axe goes to the 
   `scratch/bladeend_axe_edited.png` (the start dragged out, the head box).
 
 **Breakables** (his request through the coordinator: AD's metal took ~8 axe blows after "Crates: two strong hits"):
-`vr_prop_break_metal` 1.5 -> **1**, `vr_prop_break_stone` 1.5 -> **0.75** (config 199: 1.5 moves, custom values stay).
+`vr_prop_break_metal` 1.5 -> **1**, `vr_prop_break_stone` 1.5 -> **0.75** (config 197: 1.5 moves, custom values stay).
 Measured with `vr_prop_strike_test down` (-RealTime), the axe on a small crate whose Wood multiplier stands in for the
 breakable (its multiplier x its health's scale: metal 200 health x 1.633, a rubble wall's 10 x 0.5); blows to break from
 the first blow's wear (the test's later strikes missed the moved crate), strong 9 m/s / medium 7 m/s:
@@ -18779,5 +18784,7 @@ the first blow's wear (the test's later strikes missed the moved crate), strong 
 
 - [ ] An AD metal breakable: 3-4 full axe blows; a stone one (a rubble wall) one blow.
 - [ ] Edit Blade Shape on the axe (Test scene `blade_editor_axe`): the purple Blade Start out of the head's flat: drag it
-  onto the lower corner of the front edge and the red tip onto its top corner; the bold part follows the edge; the pink
-  head box covers both bits; Done; swing at the grunt with Show Melee Blades on.
+  onto the lower corner of the front edge and the red tip onto its top corner; the bold part follows the edge; Head Box
+  On: the pink box covers both bits (opt-in); Done; swing at the grunt with Show Melee Blades on.
+(The breakables' counts were measured while the axe's head box was still on by default; the axe's first blow read
+16.8 m/s x heft, as the crates' table's 16.2: the counts hold with it off.)

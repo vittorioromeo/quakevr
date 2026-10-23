@@ -570,8 +570,8 @@ void ensureSpine(const Geo& g)
     return hi.x >= lo.x;
 }
 
-// A head's box of its own, seeded from the model's (an AD hammer's or mace's), else round the drawn head (modelHead),
-// else a small box at the far end.
+// A head's box of its own, seeded from the model's (an AD hammer's or mace's), else the corners the slot keeps (the axe's
+// shipped box, Blade Head off), else round the drawn head (modelHead), else a small box at the far end.
 void ensureHead(const Geo& g)
 {
     if(g.shape.head)
@@ -583,6 +583,11 @@ void ensureHead(const Geo& g)
     {
         lo = g.headLo;
         hi = g.headHi;
+    }
+    else if(g.shape.headHi.x > g.shape.headLo.x)
+    {
+        lo = g.shape.headLo;
+        hi = g.shape.headHi;
     }
     else if(glm::vec3 mlo, mhi; modelHead(g, mlo, mhi))
     {

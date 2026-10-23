@@ -446,9 +446,10 @@ QVR_WEAPON_DEFAULT(0, MuzzleOffsetX, "-0.700006")
 QVR_WEAPON_DEFAULT(0, MuzzleOffsetY, "0")
 QVR_WEAPON_DEFAULT(0, MuzzleOffsetZ, "-2.100002")
 // The axe's head as a box (ROUND22.md, "The blade's start; the axe's head box"): both bits, as Edit Blade Shape's Head Box
-// On seeds it round the drawn head (shares of the hand-to-tip line: along it, its normal, the model's +y). Its volume
-// strikes as the head (QC VR_Melee_Ribs), as the AD mace's and hammer's.
-QVR_WEAPON_DEFAULT(0, BladeHead, "1")
+// On seeds it round the drawn head (shares of the hand-to-tip line: along it, its normal, the model's +y). Opt-in (the
+// author): BladeHead stays 0; Head Box On starts from these corners, and its volume then strikes as the head (QC
+// VR_Melee_Ribs), as the AD mace's and hammer's.
+QVR_WEAPON_DEFAULT(0, BladeHead, "0")
 QVR_WEAPON_DEFAULT(0, BladeHeadLoX, "0.5")
 QVR_WEAPON_DEFAULT(0, BladeHeadLoY, "-1.1077")
 QVR_WEAPON_DEFAULT(0, BladeHeadLoZ, "-0.0919")
