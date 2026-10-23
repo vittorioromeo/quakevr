@@ -1813,6 +1813,7 @@ void registerCommands()
         Cmd_AddCommand("vr_ragdoll_active_list", ragdollActiveList_f);
 
         Cmd_AddCommand("vr_ragdoll_env_hit", ragdollEnvHit_f);
+        Cmd_AddCommand("vr_prop_strike_test", strikeTest_f);
     }
 }
 

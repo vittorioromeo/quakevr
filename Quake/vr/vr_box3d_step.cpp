@@ -1353,6 +1353,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
         destroyWorld();
         return;
     }
+    {
+        const VmScope vm;
+        strikeTestFrame();
+    }
     const float dt = static_cast<float>(host_frametime);
     if(dt <= 0.f)
     {

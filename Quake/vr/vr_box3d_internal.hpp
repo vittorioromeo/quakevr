@@ -1187,6 +1187,8 @@ void driveActive(Slot& s, float dt);
 // its class's profile; in.want false: none), its drive and its struggle begun when it should (driveActive, each frame).
 void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in);
 void struggleStatus_f(); // vr_struggle_status
+void strikeTest_f();    // vr_prop_strike_test (vr_box3d_striketest.cpp)
+void strikeTestFrame(); // (its next step)
 [[nodiscard]] float shockLeft(edict_t* ent);
 void shockRagdoll(edict_t* ent, Slot& s, float dt);
 void writeRagdoll(edict_t* ent, Slot& s);
