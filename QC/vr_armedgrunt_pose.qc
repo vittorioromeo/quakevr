@@ -645,6 +645,34 @@ void(entity g, entity p) VR_AGP_Pose =
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;
+    if(g.vr_ag_took_at > 0 && p)
+    {
+        // A weapon just taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin): where it lay until its hand closes on
+        // it (the hand's IK reaching down to it), then carried up to its hold.
+        float u = min(1, max(0, (time - g.vr_ag_took_grab) / VR_AG_LIFT_TIME));
+        if(u >= 1 && !vr_agp_quiet)
+        {
+            g.vr_ag_took_at = 0;
+        }
+        u = u * u * (3 - 2 * u);
+        vector lay = VR_AGP_ToLocal(g.vr_ag_took_org - g.origin);
+        if(pL)
+        {
+            vr_agp_vl = lay + (vr_agp_vl - lay) * u;
+            vr_agp_fwl = normalize(g.vr_ag_took_fw + (vr_agp_fwl - g.vr_ag_took_fw) * u);
+            vr_agp_upl = normalize(g.vr_ag_took_up + (vr_agp_upl - g.vr_ag_took_up) * u);
+            vr_agp_upl = normalize(vr_agp_upl - vr_agp_fwl * (vr_agp_upl * vr_agp_fwl));
+        }
+        else
+        {
+            posL = lay + (posL - lay) * u;
+            vr_agp_wr = 0;
+            vr_agp_v = posL;
+            vr_agp_fw = normalize(g.vr_ag_took_fw + (vr_agp_fw - g.vr_ag_took_fw) * u);
+            vr_agp_up = normalize(g.vr_ag_took_up + (vr_agp_up - g.vr_ag_took_up) * u);
+            vr_agp_up = normalize(vr_agp_up - vr_agp_fw * (vr_agp_up * vr_agp_fw));
+        }
+    }
     if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
         dprint(sprintf("agpose %s act %g kind %g s %.3f wr %.2f grip %v", p ? p.netname : "fists", g.vr_ag_act,
@@ -657,6 +685,8 @@ void(entity g, entity p) VR_AGP_Pose =
         p.v_angle = a;
         p.angles = a;
         p.angles_x = -a_x; // (a model's pitch)
+        p.vr_ag_pfw = vr_agp_fw; // (a ragdoll's weapon rides its limb from here: VR_AG_RagProp)
+        p.vr_ag_pup = vr_agp_up;
         setorigin(p, g.origin + VR_AGP_ToWorld(posL));
         if(vr_agp_flags & VR_AGP_LEFTWPN)
         {
@@ -664,6 +694,8 @@ void(entity g, entity p) VR_AGP_Pose =
             pL.v_angle = al;
             pL.angles = al;
             pL.angles_x = -al_x;
+            pL.vr_ag_pfw = vr_agp_fwl;
+            pL.vr_ag_pup = vr_agp_upl;
             setorigin(pL, g.origin + VR_AGP_ToWorld(vr_agp_vl));
         }
         if(p.weapon == WID_CHAINSAW && !vr_agp_quiet)

@@ -256,6 +256,7 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)          // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
 QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
+QVR_CVAR(vr_mock_hand_pull, "0", CVAR_NONE)           // m: the main mock hand drawn back this much (tracking +z; QC tests set it: a tug's pull)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -2750,6 +2751,11 @@ QVR_CVAR(vr_agrunt_tug_pull, "10", CVAR_ARCHIVE)  // the tug: how far (units) yo
 QVR_CVAR(vr_agrunt_tug_time, "1.2", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
 QVR_CVAR(vr_agrunt_tug_fight, "1", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
 QVR_CVAR(vr_agrunt_tug_hurt, "0.35", CVAR_ARCHIVE) // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
+QVR_CVAR(vr_agrunt_tug_ragdoll, "1", CVAR_ARCHIVE) // 1: the tug is physical: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (0: the old tug)
+QVR_CVAR(vr_agrunt_tug_break_force, "500", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once
+QVR_CVAR(vr_agrunt_tug_break_impulse, "220", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a fifth of the break force) that tears it out
+QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
+QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_seek_timeout, "6", CVAR_ARCHIVE) // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up

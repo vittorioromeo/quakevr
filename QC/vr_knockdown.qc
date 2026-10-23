@@ -418,7 +418,7 @@ void() VR_Knockdown_Think =
         // Staggering (the engine's ragdoll, pinned up): on, back on its feet (its AI on), or gone over (down from now).
         float st = ragdollstaggered(self, self.vr_kd_mins, self.vr_kd_maxs);
         // (Never on for long: a loaded game's whose ragdoll is never made again goes down.)
-        if(st == 1 && time - self.vr_kd_since < VR_KD_STAGGER_MOST)
+        if(st == 1 && (time - self.vr_kd_since < VR_KD_STAGGER_MOST || self.vr_ag_tug_rag)) // (a tug's: its own end)
         {
             self.nextthink = time + 0.05;
             return;

@@ -298,7 +298,18 @@ float(entity e, vector at, vector vel, optional float mass, optional float bounc
 // limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from
 // the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
 float(entity e) isragdoll = #0;
-float(entity e, entity player, float hand) ragdollgrab = #0;
+// (Its optional `tug`: ragdolltug's what + 1, below: the builtins' table is full.)
+float(entity e, entity player, float hand, optional float tug, optional vector grip, optional float strength,
+      optional float force) ragdollgrab = #0;
+// The armed monsters' tug-of-war (vr_armedgrunt_play.qc): what 0, e staggering (standing its ground), the hand holds e's
+// limb nearest the weapon's `grip` by a spring of at most `force` N where the hand is (the weapon's lever), e's arm
+// pulling it in at `strength` (0..3): 1 if it does; 1 the hold's pull now (N; -1 none: let go of, torn off); 2 over
+// (let go of; its stagger up again `strength` s on).
+float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
+      optional float force) ragdolltug =
+{
+    return ragdollgrab(e, player, hand, what + 1, grip, strength, force);
+};
 // Knockdowns (vr_knockdown.qc; the engine's vr_box3d.cpp, "Knockdowns"): whether e can be knocked down as a ragdoll (a
 // monster with a rig, ragdolls on); e's ragdoll made now, alive (.vr_knockdown 1, touchable, not solid); e getting up
 // from it: the get-up's first frame (frameA, or frameB if that fits how it lies better; -1 none), room for its box

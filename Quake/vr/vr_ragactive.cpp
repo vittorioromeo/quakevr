@@ -1504,6 +1504,19 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         const int u = s.chain[static_cast<za::SizeT>(arm)][0];
         const float len = limbLength(s, p, arm);
         const glm::vec3 shoulder = worldPoint(p, u, p.rig->bones[u].pivot);
+        if(g.tug)
+        {
+            // (A tug over its weapon: the arm whose hand holds it pulls it in low before its chest, towards its middle; the
+            // other hand reaches for the same hand, both on the weapon. No wheeling: it stands its ground.)
+            const bool holds = arm == g.tugArm;
+            const glm::vec3 held =
+                g.tugArm >= 0 && limbWhole(s, p, g.tugArm) ? limbEnd(s, p, g.tugArm) : shoulder + ahead * (0.5f * len);
+            r.goal = holds ? shoulder + ahead * (0.3f * len) - up * (0.3f * len) + left * ((arm == 0 ? -0.25f : 0.25f) * len)
+                           : held;
+            r.weight = holds ? 1.f : 0.7f;
+            r.strength = za::clamp(g.tugStrength * (holds ? 1.f : 0.7f), 0.f, 3.f);
+            continue;
+        }
         if(!walks)
         {
             const float a = 2.f * 3.14159265f * 2.f * t + (arm == 0 ? 0.f : 3.14159265f);

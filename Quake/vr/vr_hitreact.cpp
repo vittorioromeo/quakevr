@@ -1217,9 +1217,9 @@ void relinkArms()
         }
         const entity_t* e = &cl_entities[s.ent];
         if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||
-            !armedRigOf(e->model))
+            !armedRigOf(e->model) || ragdoll::sourceModel(e))
         {
-            continue;
+            continue; // (a ragdoll now, a stagger's, a tug's: the server keeps its weapon on its hand's limb, QC VR_AG_RagProp)
         }
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
         int pose1 = 0, pose2 = 0;
@@ -1237,8 +1237,37 @@ void relinkArms()
         }
         float yaw = 0.f;
         (void)drawnOrigin(e, &yaw);
-        const glm::vec3 at = toWorld(e, s.right);
-        const glm::vec3 a = weaponAngles(turnYaw(yaw, s.fw), turnYaw(yaw, s.up));
+        // A hit reaction's or a guard's turns on its arms (boneTurns: the kick on the arms' IK, as it is drawn): its
+        // weapons carried by its forearms' turns, not left floating where its hands were.
+        rigpose::Rigid kick[ragdoll::maxBones];
+        int foreR = -1, foreL = -1;
+        const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
+        if(vr_hit_react.value == 1.f && rig && reacting(e) && rig->numPoses == hdr->numposes && rig->numVerts == hdr->numverts)
+        {
+            rigpose::Rigid posed[ragdoll::maxBones];
+            const float b = pose1 == pose2 ? 0.f : za::clamp(blend, 0.f, 1.f);
+            for(int i = 0; i < rig->numBones; i++)
+            {
+                const rigpose::Rigid k1 = rigpose::key(*rig, pose1, i), k2 = rigpose::key(*rig, pose2, i);
+                posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
+                posed[i].pos = glm::mix(k1.pos, k2.pos, b);
+            }
+            if(boneKicks(e, *rig, posed, kick))
+            {
+                const ArmedRig* ar = armedRigOf(e->model);
+                foreR = boneNamed(*rig, ar->foreR);
+                foreL = boneNamed(*rig, ar->foreL);
+            }
+        }
+        glm::vec3 right = s.right, fw = s.fw, up = s.up;
+        if(foreR >= 0)
+        {
+            right = rigpose::apply(kick[foreR], right);
+            fw = kick[foreR].rot * fw;
+            up = kick[foreR].rot * up;
+        }
+        const glm::vec3 at = toWorld(e, right);
+        const glm::vec3 a = weaponAngles(turnYaw(yaw, fw), turnYaw(yaw, up));
         for(int i = 0; i < 3; i++)
         {
             p.origin[i] = at[i];
@@ -1250,8 +1279,15 @@ void relinkArms()
             entity_t& pl = cl_entities[s.propL];
             if(pl.model && (pl.effects & heldEffect) && pl.msgtime == cl.mtime[0])
             {
-                const glm::vec3 atL = toWorld(e, s.left);
-                const glm::vec3 aL = weaponAngles(turnYaw(yaw, s.fwL), turnYaw(yaw, s.upL));
+                glm::vec3 left = s.left, fwL = s.fwL, upL = s.upL;
+                if(foreL >= 0)
+                {
+                    left = rigpose::apply(kick[foreL], left);
+                    fwL = kick[foreL].rot * fwL;
+                    upL = kick[foreL].rot * upL;
+                }
+                const glm::vec3 atL = toWorld(e, left);
+                const glm::vec3 aL = weaponAngles(turnYaw(yaw, fwL), turnYaw(yaw, upL));
                 for(int i = 0; i < 3; i++)
                 {
                     pl.origin[i] = atL[i];

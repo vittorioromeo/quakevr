@@ -1058,6 +1058,22 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "
                   "by a parry or badly hurt, it lets go at once; hurt or in pain, sooner. Off: the grab takes it at once "
                   "(vr_agrunt_tug)."),
+        toggle("Tug: Physical", vr_agrunt_tug_ragdoll)
+            .help("The tug as physics: it stands its ground as an active ragdoll, your hand holding its weapon in its "
+                  "hand, its arms pulling back; pull hard enough, or long enough, and its grip breaks: the weapon is "
+                  "yours, it staggers a moment and fights on unarmed. Let go first and it keeps it. Off: the old tug "
+                  "(the distance and time below; it fights back) (vr_agrunt_tug_ragdoll)."),
+        slider("Tug: Break Force", vr_agrunt_tug_break_force, 50.f, 2000.f, 25.f, "%.0f N").extend(0.f, 20000.f)
+            .help("A pull this hard on its weapon tears it out of its hand at once (the physical tug; less as it is "
+                  "hurt) (vr_agrunt_tug_break_force)."),
+        slider("Tug: Break Impulse", vr_agrunt_tug_break_impulse, 10.f, 1000.f, 10.f, "%.0f N s").extend(0.f, 10000.f)
+            .help("Pulling over time: the pull's force times its time (above a fifth of the break force) that tears it "
+                  "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse)."),
+        slider("Tug: Its Pull", vr_agrunt_tug_strength, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 3.f)
+            .help("How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength)."),
+        slider("Tug: Longest", vr_agrunt_tug_hold_max, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("The physical tug lasts at most this long: then it wrenches its weapon free. 0: no limit "
+                  "(vr_agrunt_tug_hold_max)."),
         slider("Tug: Pull Distance", vr_agrunt_tug_pull, 2.f, 40.f, 1.f, "%.0f units").extend(0.f, 200.f)
             .help("How far you must pull your hand back from where you grabbed its weapon, away from it, to be "
                   "winning (vr_agrunt_tug_pull)."),

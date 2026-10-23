@@ -318,8 +318,44 @@ void(entity g, entity p) VR_AGP_Pose; // (vr_armedgrunt_pose.qc: the pose, its a
 void() VR_AGP_Attack;
 void(entity g) VR_AGP_Spawn;
 
+float(entity g) VR_AG_Taking;
+
 void(entity g, entity p) VR_AG_PlaceProp =
 {
+    // A weapon being taken up from the floor, its reach cut short (a pain, a shove, a death) before its hand closed on
+    // it: it stays on the floor where it lay (VR_AG_TakeBegin).
+    if(g.vr_ag_took_at > 0 && time < g.vr_ag_took_grab && !VR_AG_Taking(g))
+    {
+        g.vr_ag_took_at = 0;
+        if(g.vr_ag_prop2 && !g.vr_ag_prop.vr_ag_left)
+        {
+            VR_AG_Swap(g); // (its second, its left hand's, was the one it reached for)
+        }
+        entity t = g.vr_ag_prop;
+        if(t)
+        {
+            setorigin(t, g.vr_ag_took_org);
+            VR_AG_DropHeld(g, '0 0 0');
+            VR_AG_Log("its reach for a weapon cut short: it stays on the floor");
+            return;
+        }
+    }
+    if(isragdoll(g))
+    {
+        // A ragdoll now (a stagger, a tug, falling): its weapons ride its hands' limbs as they were held when it began
+        // (the client draws them where the server has them: vr_hitreact.cpp relinkArms leaves a ragdoll's alone).
+        VR_AG_RagProp(g, p);
+        if(g.vr_ag_prop2 && g.vr_ag_prop2 != p)
+        {
+            VR_AG_RagProp(g, g.vr_ag_prop2);
+        }
+        return;
+    }
+    p.vr_ag_rb = 0;
+    if(g.vr_ag_prop2)
+    {
+        g.vr_ag_prop2.vr_ag_rb = 0;
+    }
     VR_AGP_Pose(g, p);
 };
 
@@ -409,6 +445,10 @@ void() VR_AG_PropThink =
     }
     if(g.vr_ag_prop != self || !g.vr_ag || g.health <= 0)
     {
+        if(g.vr_ag_tug_pl && (g.vr_ag_prop == self || !g.vr_ag_prop))
+        {
+            VR_AG_TugEnd(g, FALSE, "its weapon gone"); // (never left on: its hold, its stagger)
+        }
         if(self.weapon == WID_CHAINSAW)
         {
             sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop)
@@ -550,6 +590,13 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     {
         return world;
     }
+    if(g.vr_ag_tug_pl)
+    {
+        // (A tug over it still on: over now, lost. Left on, its run went back to the tug's hold every frame with no
+        // weapon: frozen, unarmed. A tug won ends it first: VR_AG_Yank.)
+        VR_AG_TugEnd(g, FALSE, "disarmed otherwise");
+    }
+    g.vr_ag_took_at = 0;
     entity inst = p.weaponinst;
     if(p.weapon == WID_CHAINSAW)
     {
@@ -1084,8 +1131,15 @@ void() vr_ag_reload11 =
     }
 };
 
-// Taking up a weapon lying at its feet: bent down (the load frames' first half), up with it.
-void() VR_AG_TakeIt =
+// Taking up a weapon lying at its feet (the row's take frames: down on a knee, a crouch): it bends down, its hand
+// reaching for the weapon where it lies (VR_AG_TakeBegin: the weapon its own at once, drawn where it lay, its hand's IK
+// on it: vr_armedgrunt_pose.qc VR_AGP_Pose), its hand closes on it at the deepest frame (VR_AG_TakeGrab), and it comes
+// up with it, the weapon carried from the floor to its hold over VR_AG_LIFT_TIME. Cut short before its hand closes (a
+// pain, a shove: VR_AG_PlaceProp), the weapon stays on the floor.
+float VR_AG_TAKE_FRAME = 0.06;  // s each take frame
+float VR_AG_LIFT_TIME = 0.3;    // s from the floor to its hold
+
+void() VR_AG_TakeBegin =
 {
     entity w = self.vr_ag_seek;
     self.vr_ag_seek = world;
@@ -1097,28 +1151,55 @@ void() VR_AG_TakeIt =
     entity inst = w.weaponinst;
     float wid = w.weapon;
     float flags = w.weaponflags;
+    vector a = w.angles;
+    a_x = -a_x; // (a model's pitch: back to its forward and up)
+    makevectors(a);
+    self.vr_ag_took_org = w.origin;
+    self.vr_ag_took_fw = v_forward;
+    self.vr_ag_took_up = v_up;
     w.weaponinst = world;
     remove(w);
+    self.vr_ag_took_at = time;
+    self.vr_ag_took_grab = time + 3 * VR_AG_TAKE_FRAME;
     if(self.vr_ag_prop)
     {
         VR_AG_ArmLeft(self, wid, flags, inst); // (its second hand's again: VR_AG_WantsSecond)
-        self.vr_ag_pickups = self.vr_ag_pickups + 1;
-        sound(self, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
-        VR_AG_Log(sprintf("picked up %s in its left hand", self.vr_ag_prop2.netname));
+    }
+    else
+    {
+        VR_AG_Arm(self, wid, flags, inst);
+        self.vr_ag_reserve = 0;
+    }
+    self.vr_ag_took_at = time; // (VR_AG_Arm's prop placed: still where it lay)
+    VR_AG_Log(sprintf("reaching down for %s", wid == self.vr_ag_wid ? self.vr_ag_prop.netname : self.vr_ag_prop2.netname));
+};
+
+// Its hand closed on it: taken up.
+void() VR_AG_TakeGrab =
+{
+    if(self.vr_ag_took_at <= 0 || !self.vr_ag_prop)
+    {
         return;
     }
-    VR_AG_Arm(self, wid, flags, inst);
-    self.vr_ag_reserve = 0;
     self.vr_ag_pickups = self.vr_ag_pickups + 1;
     sound(self, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
-    VR_AG_Log(sprintf("picked up %s (%g in its clip)", self.vr_ag_prop.netname, inst.wi_clip));
+    entity p = self.vr_ag_prop2 ? self.vr_ag_prop2 : self.vr_ag_prop;
+    VR_AG_Log(sprintf("picked up %s (%g in its clip)%s", p.netname, p.weaponinst.wi_clip,
+        self.vr_ag_prop2 ? " in its left hand" : ""));
 };
-void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + 0.06; };
-void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + 0.06; };
-void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + 0.06; };
-void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + 0.06; VR_AG_TakeIt(); };
-void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + 0.06; };
-void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + 0.06; };
+void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeBegin(); };
+void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + VR_AG_TAKE_FRAME; };
+void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + VR_AG_TAKE_FRAME; };
+void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeGrab(); };
+void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + VR_AG_TAKE_FRAME; };
+void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + VR_AG_TAKE_FRAME; };
+
+// Its take frames on (its reach for a weapon not cut short).
+float(entity g) VR_AG_Taking =
+{
+    return g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 || g.think == vr_ag_take5 ||
+           g.think == vr_ag_take6 || g.think == vr_ag_run1;
+};
 
 // ----------------------------------------------------------------------------
 // Its AI

@@ -386,12 +386,14 @@ namespace
 }
 
 // Grab `g`'s hold: its body at the hand, its joint to the limb holding the limb's point `grip` (its body's space, m) at
-// the hand, the limb turned in the hand as it is now; `grip` moved for the limb to rest on the palm (handFit).
-void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip)
+// the hand, the limb turned in the hand as it is now; `grip` moved for the limb to rest on the palm (handFit; not with
+// `fit` false: a tug's, the hand on the weapon the limb holds, its lever kept).
+void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip, bool fit = true)
 {
     glm::vec3 at;
     glm::quat turn;
     handPose(player, g.hand, at, turn);
+    if(fit)
     {
         const b3BodyId body = r.body[static_cast<za::SizeT>(g.part)];
         float moved = 0.f;
@@ -475,7 +477,7 @@ void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int 
     g.hand = hand;
     g.num = gs.num;
     g.part = part;
-    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)));
+    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)), !g.tug);
     world->ragdollGrabs.pushBack(g);
 }
 
@@ -582,6 +584,82 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
             part, r->rig->bones[part].name, hand, distance, g.force, g.hertz);
     }
     return true;
+}
+
+// ragdolltug (QC vr_armedgrunt_play.qc, the tug-of-war): `ent` (alive, its stagger begun: standing its ground) and hand
+// `hand` of `player` on its weapon. what 0: the hand holds the limb nearest the weapon's grip `grip` (units) by a spring
+// of at most `force` N, where the hand is (the weapon's lever: no palm fit), its arm pulling at `strength`: 1 if it does;
+// 1: the hold's pull now (N; -1 none); 2: over, let go, its stagger up again `strength` s on.
+float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force)
+{
+    const int pnum = NUM_FOR_EDICT(player);
+    const int num = NUM_FOR_EDICT(ent);
+    const int index = grabIndex(pnum, hand);
+    World::RagdollGrab* g = index >= 0 ? &world->ragdollGrabs[static_cast<za::SizeT>(index)] : nullptr;
+    const bool ours = g && g->tug && g->num == num;
+    RagdollBodies* r = ragdollOf(num);
+    if(what == 1)
+    {
+        if(!ours || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint))
+        {
+            return -1.f;
+        }
+        return glm::length(glmv(b3Joint_GetConstraintForce(g->joint)));
+    }
+    if(what == 2)
+    {
+        if(ours)
+        {
+            endGrab(index);
+        }
+        if(r && r->active.on && r->active.stagger.on)
+        {
+            ragactive::Stagger& st = r->active.stagger;
+            st.tug = false;
+            st.tugArm = -1;
+            if(st.outcome == ragactive::Outcome::Going)
+            {
+                st.recoverAt = static_cast<float>(qcvm->time - r->active.begun) + za::max(strength, 0.05f);
+            }
+        }
+        return 1.f;
+    }
+    GrabStart gs;
+    if(!r || !r->rig || !r->active.on || !r->active.stagger.on || !grabStart(ent, player, hand, gs))
+    {
+        return 0.f;
+    }
+    float distance = 0.f;
+    const int part = nearestPart(*r, grip, distance);
+    if(part < 0)
+    {
+        return 0.f;
+    }
+    ragactive::Stagger& st = r->active.stagger;
+    st.tug = true;
+    st.tugStrength = za::clamp(strength, 0.f, 3.f);
+    st.tugArm = -1;
+    const int parent = r->rig->bones[part].parent;
+    for(int arm = 0; arm < 2; arm++)
+    {
+        const auto& ch = r->active.chain[static_cast<za::SizeT>(arm)];
+        if(ch[0] == part || ch[1] == part || (parent >= 0 && ch[1] == parent))
+        {
+            st.tugArm = arm;
+        }
+    }
+    World::RagdollGrab ng;
+    ng.force = za::max(force, 0.f);
+    ng.stuck = 64.f;
+    ng.tug = true;
+    beginGrab(ng, gs, player, hand, part);
+    if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+    {
+        Con_Printf("tug: %d %s: hand %d holds its part %d (%s, arm %d) %.1f units from the grip, %.0f N at most, its pull %.2f\n",
+            num, PR_GetString(ent->v.classname), hand, part, r->rig->bones[part].name, st.tugArm, distance, ng.force,
+            st.tugStrength);
+    }
+    return 1.f;
 }
 
 // ragdollrelease: hand `hand` of `player` lets go: a held limb keeps `velocity` (units/s: the hand's throw, times
@@ -842,9 +920,9 @@ void syncRagdollGrabs(float dt)
             endGrab(i);
             continue;
         }
-        // (A hold the QC no longer has: its hand holds something else, or nothing.)
+        // (A hold the QC no longer has: its hand holds something else, or nothing. A tug's: the QC's to end.)
         const int heldOfs = g.hand ? fields().mainhand_held : fields().offhand_held;
-        if(heldOfs >= 0 && fieldInt(player, heldOfs) != EDICT_TO_PROG(EDICT_NUM(g.num)))
+        if(!g.tug && heldOfs >= 0 && fieldInt(player, heldOfs) != EDICT_TO_PROG(EDICT_NUM(g.num)))
         {
             endGrab(i);
             continue;
@@ -973,6 +1051,11 @@ bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
         qvr::goresound::send(qvr::goresound::Kind::Squelch, NUM_FOR_EDICT(corpse), corpse->v.origin, 0.8f); // (a dead body)
     }
     return took;
+}
+
+float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force)
+{
+    return world && ent && player ? tugRagdoll(ent, player, hand, what, grip, strength, force) : (what == 1 ? -1.f : 0.f);
 }
 
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head,

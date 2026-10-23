@@ -45,6 +45,23 @@ float() VR_AG_Dying;                                                       // ar
 void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
 float(entity e) VR_AG_Striking;                                            // VR_Parry_MeleeMonster: its melee blow under way
 
+// The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
+// limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).
+.float vr_ag_tug_rag;      // the physical tug on: it stands as an active ragdoll, a hand holding its weapon
+.float vr_ag_rb;           // a held weapon's prop on a ragdoll: the limb it rides (+1; 0: none yet)
+.vector vr_ag_rbo;         // ... its origin, a point ahead and a point above it, in that limb's space
+.vector vr_ag_rbf;
+.vector vr_ag_rbu;
+.vector vr_ag_pfw;         // a held weapon's prop: its forward and up as last posed
+.vector vr_ag_pup;
+.float vr_ag_took_at;      // a weapon taken up from the floor: its reach began (0: none),
+.float vr_ag_took_grab;    // ... its hand closes on it then (it lies where it was until then)
+.vector vr_ag_took_org;    // ... where it lay, its forward and up there
+.vector vr_ag_took_fw;
+.vector vr_ag_took_up;
+void(entity g, entity p) VR_AG_RagProp;
+void(entity g, float won, string why) VR_AG_TugEnd;
+
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;
 float(entity g) VR_AG_FallDrop;
