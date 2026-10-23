@@ -203,6 +203,10 @@
                   "swing dies down sooner and whirling it takes more work; lower, it swings on longer. 0: none."),
         slider("Flail Most Head Speed", "vr_flail_max_speed", 4.f, 40.f, 0.5f, "%.1f m/s")
             .help("The maximum speed of the flail's head: a heavy ball can't be whirled up without end."),
+        slider("Flail Body Inertia", "vr_flail_inertia", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The flail's head moves with you when you move with the stick, turn, teleport or ride a lift: only your "
+                  "hand swings it. This share of your body's speeding up and slowing down still swings it (a hard stop "
+                  "swings it on a little). 0: none; 1: all, as a real one would."),
         header("Its Blows"),
         slider("Flail Damage", "vr_flail_damage", 0.5f, 8.f, 0.1f, "%.1fx").extend(0.f, 30.f)
             .help("A blow of the flail's head: this times its mass (kg) times its speed into what it hits (m/s) beyond "

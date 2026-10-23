@@ -1094,6 +1094,7 @@ void() VR_AGTest_Frame =
     else if(t == 44) { VR_AGTest_DualRow(); }
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
+    else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

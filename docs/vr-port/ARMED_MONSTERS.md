@@ -13,6 +13,7 @@ Rows now: the grunt (`monster_vr_grunt`, row 0) and the enforcer (`monster_vr_en
 | The layer: pool, picking, prop, firing, melee, ammo, reloads, drops, AI | `QC/vr_armedgrunt.qc` |
 | Its poses and attacks (punches, swings, the chainsaw; sent to clients) | `QC/vr_armedgrunt_pose.qc` |
 | Disarming, tugs, falls, reach | `QC/vr_armedgrunt_play.qc` |
+| Shooting the weapon out (hits on the held weapon or its hand adding up, the roll) | `QC/vr_armedgrunt_shot.qc` (hooks: `vr_armedgrunt_shot_defs.qc`) |
 | Fields and hooks other files call | `QC/vr_armedgrunt_defs.qc` |
 | Tests (`vr_agrunt_test N`, `vr_agrunt_test_kind` the row) | `QC/vr_armedgrunt_test.qc`, `QC/vr_armedgrunt_play_test.qc` |
 | The engine's table (the hands' IK, the held weapon drawn on the body) | `Quake/vr/vr_hitreact.cpp` `armedRigs` |
@@ -88,6 +89,18 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
   vr_armedgrunt_pose.qc `VR_AGP_Pose`); a new row needs only a crouching or kneeling `vr_am_f_take`.
 - Parries: `T_Damage_VRMelee` runs `VR_Parry` for an armed monster's blow (combat.qc).
 - Tests 31..35 (`QC/vr_armedgrunt_play_test.qc`); scenarios `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`, `agrunt_guard`.
+
+## Shooting the weapon out (ROUND22.md, "Armed grunts: shooting the weapon out")
+
+- Generic: the volumes are the held prop's own (`VR_AG_WeaponLine`: behind the grip to the muzzle) and its hand's (the
+  grip to `VR_AGS_FOREARM` units towards the shoulder, guessed from the monster's yaw, its height and the prop's
+  `vr_ag_left`). A row with a very different build (a wide or tall monster) may want its shoulder guess
+  (`VR_AGS_HandLine`) to read the row.
+- Hooks: `FireBulletsImpl` (each pellet's path, `VR_AGS_Shot`; TRUE stops it on the weapon), `LightningDamage`,
+  `T_DamageDeal` (`VR_AGS_Hit`: splash; a player's shot skips `VR_AG_Hit`'s blow rule) and `VR_AG_WeaponStruck` (each
+  held weapon's frame: the nails, rockets and grenades flying through it, the roll: `VR_AGS_Frame`). Each weapon keeps
+  its own count on its prop (`.vr_ags_acc`): dual wielding needs nothing more.
+- Test `vr_agrunt_test 50` (`QC/vr_armedgrunt_shot_test.qc`); scenario `agrunt_shootout`.
 
 ## The toolgun's spawn page
 

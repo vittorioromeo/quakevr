@@ -19253,3 +19253,160 @@ shoot at you): validate and runall OK.
 **In VR:** the scene: watch them fire both guns (in turn), the misses wider than a single gunner's; kill one (both guns
 fall); the toolgun's Armed Humanoid page: Right Hand a gun, Left Hand lists the guns. The hands themselves: judge after the
 IK rework.
+### Armed grunts: shooting the weapon out (worktree `tghost`, branch `agent/shootdisarm`, 2026-10-24)
+
+A new way to disarm an armed monster: shoot its weapon, or the hand holding it, precisely. QC
+`vr_armedgrunt_shot.qc` (hooks in `vr_armedgrunt_shot_defs.qc`; ARMED_MONSTERS.md, "Shooting the weapon out").
+
+- **What is hit.** A player's pellet (its traced path up to where it stopped), lightning bolt, or nail, rocket or grenade
+  (its flight each frame, a frame back and a frame ahead; the grunt's own model in the way first: not counted) meeting a
+  held weapon (its line from 8 units behind the grip to the muzzle, 3 units round) or the hand holding it (the grip to
+  11 units towards its shoulder, 3.5 round). The first met along the path counts. `vr_agrunt_shotdisarm_size` scales
+  both volumes; a path within `vr_agrunt_shotdisarm_near` units beyond them counts at half; `_parts` 0 the weapon only,
+  1 the hand only, 2 either. Each held weapon (dual wielding: each hand's) counts on its own.
+- **What counts.** The shot's damage (a pellet 4, a nail 9, a super nail 18, a bolt 30, a rocket's direct hit ~110; not
+  the positional factor) times its kind's weight (`_w_pellet` 1, `_w_nail` 1, `_w_lightning` 0.3, `_w_blast` 1,
+  `_w_splash` 0: explosions never count unless raised) and the part's (`_weapon_w` 1, `_hand_w` 1).
+- **The roll.** Hits add up over `_window` (0.5 s) from the first. Reaching `_damage` (16) it rolls once (the next frame,
+  so a blast's pellets all count first) at `_chance` (0.25) plus `_chance_scale` (0.8) for each threshold past it (at most
+  0.95), and starts over; a failed roll: nothing adds up for `_cooldown` (0.3 s). Won: the weapon flies off along the
+  shots (VR_AG_Disarm: its clatter and grunt), sparks and a ricochet. Every weapon hit sparks a little.
+- **The shots themselves.** A hand hit hurts the grunt as ever (it is its body). A pellet on the weapon goes on into the
+  body behind, or with `_absorb` 1 (off by default: today's damage unchanged) stops there: no damage (the test: 29 health
+  lost a 2 m blast passing through, 0 absorbed). While `vr_agrunt_shotdisarm` is on, a player's shot no longer disarms by
+  the old blow rule (`vr_agrunt_disarm_damage` near the gun hand, which disarmed a shotgun blast or a super nail near the
+  hand every time); melee blows, throws, parries and rockets' direct hits keep theirs.
+- **Settings:** VR Settings > Armed Grunts > "Disarming: Shooting It Out" (all of the above). **Debug:** Debug > Show
+  Shot Disarms (`vr_agrunt_shotdisarm_debug` 1: `shotdisarm:` each player's shot on an armed grunt, its part weapon,
+  hand or body, the damage adding up, each roll's chance and result; 2: also each weapon's line and hand as sparks).
+  Debug > Tests: "Armed Grunts: Shooting Weapons Out".
+- **Defaults, why.** 16 is between a single nail (9: never alone) and two (18); a shotgun's six pellets all on the gun are
+  24 (1.5 thresholds: 0.65), the super shotgun's ~13 on it 0.95: rewarding at close range, a gamble from afar, never a
+  single chip shot. Lightning at 0.3: a roll every 0.4 s held on the gun (~35% each), not a sure thing at 0.2 s.
+
+Measured (`vr_agrunt_test 50`, vrtesthall, fresh shotgun grunts, the player's own pellets/nails/bolts aimed at the
+gun's middle; 100 trials a case, 40 for the modes): shotgun on the gun 2 m 0.60, 5 m 0.52, 15 m 0.18 (3.3 pellets on
+it); super shotgun 2 m 0.96; 3 nails in 0.4 s at 5 m 0.36; one nail at 10 m 0, one pellet at 10 m 0; lightning 0.2 s
+at 5 m 0.33; shotgun on the forearm 2 m 0.60 (6 hand hits); hand only: on the muzzle end 0, on the forearm 0.62;
+weapon only, on the forearm 0; size 0.5 at 15 m 0 (1.2 hits), size 2 at 15 m 0.68 (6 hits); absorb 0.60 (6 pellets
+stopped, 0 damage); dual (a sword and a crowbar), the left crowbar shot: 0.65, the right one never lost. 10/10 PASS.
+eval.sh unchanged (26/34 canary, 127/133 full, pass for pass). Scene `agrunt_shootout` (grunts at 2, 5, 10, 15 m,
+a shotgun and a nailgun given, the debug prints on).
+
+Open: AD's projectile pellets (`vr_ad_projectiles`) and AD's own bolts/lightning don't count yet (their own touch
+functions); the hand's forearm direction is guessed (grip towards the shoulder), not read from the drawn arm.
+
+**In VR:** run the `agrunt_shootout` scene. Shoot the nearest grunt's gun point-blank with the shotgun a few times:
+it should fly out of its hand about two times in three, along your shot, with sparks and a ricochet; from the far
+ones it should hold on mostly. A quick nail burst on a gun: sometimes. Shoot its gun hand and forearm: the same,
+and it bleeds. With Show Shot Disarms on, the printed part (weapon/hand/body) should match where you aimed; in Print
+and Volumes, the sparks should sit on the gun and the forearm: if the forearm line points the wrong way, say so.
+## His blade shapes and fist line as defaults (worktree `dequant`, branch `agent/bladedefaults`, 2026-10-24)
+
+**What shipped.** His Edit Blade Shape work from his config of 2026-10-24 (the same values in his Save Defaults file
+`proposed_defaults/2026-10-24_00-59-24.cfg`), compared with origin/next's defaults as numbers (within 1e-4, so a saved
+`-0.7` for `-0.700006` is no change):
+
+- The fist's blow line (`vr_cvars.inc`): from `0 0 0` -> `-0.34 0.5039 -1.0026`, to `4 0 0` -> `-0.4123 0.7656 -4.2209`,
+  width `1` -> `0.291` (`vr_melee_fist_mirror` unchanged, 1). Config 198 (`vr_cvars.cpp` defaultChanges, renumbered at
+  ship): each key still holding the old default takes the new one; a custom value stays.
+- Weapon Offsets 02, the shotgun (index 1): Blade Width `1` -> `0.594`. His tip there (`vr_wofs_muzzle_x/y/z_02`
+  `0.9 0.4 0.6` -> `-0.2229 0.2441 0.4977`) is **not** shipped: a gun's Muzzle offset is where its shots, flash and
+  tracers start (Weapon Offsets' Muzzle X help), so the editor's tip handle moved his shotgun's firing muzzle. An editor
+  design bug for a later round: a gun's blade tip should be its own key, not the Muzzle.
+- Weapon Offsets 41, AD's death fury's sword (index 40): Near `-1` -> `0.1854`, Width `1` -> `0.3022`, Spine `0` -> `1`
+  with the five points (off/side) `0.0764/0.0141`, `0.1383/0.0028`, `0.1726/-0.0048`, `0.17/-0.0035`, `0.1416/-0.0032`;
+  its tip (Muzzle offsets) `0 0 0` -> `0.0932 0.0209 0.367`.
+- Weapon Offsets 46, AD's hunter ogre's mace (index 45): Near `-1` -> `0.4531`, Width `1` -> `0.4819`, Head `0` -> `1`
+  with the box lo `0.4409 -0.2983 -0.1909`, hi `0.9599 0.2109 0.2221`.
+
+The blade keys sit in one block at the end of vr_weapons.inc's defaults ("His blade shapes"), the sword's tip in its own
+Muzzle lines. `vr_wofs_version` 59 (`vr_weapons.cpp` `takeBladeShapes59`): each of those keys taken where the config
+still holds its old default.
+
+**Not his edit: the axe's head box.** His config holds 0 for all six of the axe's head box corners (`vr_wofs_bl_head_*_01`)
+while the shipped default is the Head Box On seed (`0.5 -1.1077 -0.0919` .. `1.2303 0.1013 0.0701`): those cvars existed
+at 0 before the seed shipped ("The blade's start; the axe's head box") with no migration, so an older config kept the
+zeros. Step 59 also gives the axe the seed where all six are still 0 (Head stays off: only Head Box On's starting box).
+
+**The process, for his next tweaks.** Load his config (copied over the worktree's `quakevr/ironwail.cfg`; run.sh puts the
+baseline back afterwards) and run `vr_propose_defaults` (or take his own Save Defaults file), then `python
+Misc/quakevr/blade_defaults.py <the proposed file> [--skip NN]`: it prints the fist line's new defaults and config rows,
+each slot's QVR_WEAPON_DEFAULT lines and the OldValue rows of the next wofs step. A slot's tip goes only for a melee
+weapon (Quake VR's own, or an ID ending `#melee`); a gun's tip change is printed to stderr as not shipped. `--skip NN`
+leaves a slot out (a stale value, as the axe's here). Then bump the config version and `settingsVersion`, add the step,
+build, and run the checks below.
+
+**Tests** (`scratch/mk_oldcfg.py`, the run scripts in this section):
+- Migration: the baseline config with `vr_cfg_version 197`, `vr_wofs_version 58`, the old defaults and one custom value
+  each (`vr_melee_fist_width 0.7`, `vr_wofs_bl_width_41 0.5`), the axe's box all 0: after `map e1m1` every old default
+  became the new one, the two custom values stayed, the shotgun's muzzle stayed 0.9 0.4 0.6, the axe took its seed,
+  `vr_cfg_version` 198, `vr_wofs_version` 59.
+- `vr_blade_dump 2`, `41`, `46`, `fist`: the new values, no line marked changed.
+- `vr_melee_sweep_test 2` and `3` (vrtesthall, `vr_weapon_grip_mode 1`, grip held, AD game): the fury's sword bends
+  (bend 1, 8 points, near end 0.185 behind), its shape test PASS (curve outside struck, inside missed; width 0.30
+  PASS); the mace: its head box as above, width 0.48 PASS; the shotgun: width 0.59 PASS. `vr_melee_sweep_test 4`: the
+  fist line as above, PASS.
+- `eval.sh` (his archived takes, replayed with his old hand settings, gun angle 39.5, while he drew the new fist line
+  with today's): 122/133 pass (canary 25/34); five verdicts went PASS -> FAIL, all empty-hand: punch_hook 12-22-53,
+  punch_overhead 12-23-29, punch_uppercut 12-23-12 and 12-23-15 (no blow now), no_hit 12-28-17 (no hit either way; its
+  other expectation). 14 other punch takes moved damage (e.g. a straight 18.7 -> 25.7, a hook 24.0 -> 17.8) and the
+  hit point fist/knuckles swapped in two. The line's ends are in the hand's frame, so old takes replayed at another hand
+  angle meet it turned: these takes say little about the new line; his new punches in VR do.
+
+**In VR:** punch (straight, hook, uppercut) with both hands: the fist's line should feel like his edit; swing the
+shotgun, the fury's sword and the mace; the shotgun's shots must still leave its muzzle where they did.
+## The held flail moves with you and is drawn smooth (worktree `gorefx`, branch `agent/flail4`, 2026-10-24)
+
+His notes vrtesthall_2026-10-24_00-54-30 ("if I move the thumbstick, the flail starts spazzing out and going super,
+super fast") and 00-55-37 ("it feels like it's following the server tick rate but not the client FPS").
+
+- **Why it flung itself.** The head was simulated in the world: the anchor (QC `.muzzlepos`) ran with his stick walk
+  at about 8 m/s (under the 25 m/s "a jump" guard, so taken as a swing), the start of each walk whipped the head, and
+  the air drag (0.6 a second, against the world) dragged it behind him for as long as he walked; snap and smooth turns
+  swung the anchor round his head in one tick. In his replay, running with a still hand: the head moved 7.1 m/s
+  (mean; p95 14.2, max 17.8) in his own frame.
+- **Fix: the head in his moving frame** (`vr_box3d_flail.cpp carryWithPlayer`, before each step): his own move since
+  the last tick, his origin's (the stick, a push, a lift, a fall, a teleport within 1.5 m) and his play space's turn
+  (QC `.vryaw`, the client's turnYaw sent with the hands) about his head (`.headpos`: the play space turns about it),
+  carries the head and its anchor rigidly (their speeds and the head's spin turned too); the step then moves it only by
+  the hand's move on the body and its own swing, the air slowing it in his frame. `vr_flail_inertia` (new, 0.2; Flail
+  page, "Flail Body Inertia") of his change of speed is still given to it (at most 10 m/s a tick), so a hard stop swings
+  it on a little; a stair's step (faster than 25 m/s) is carried but not counted. QC's `.vr_flail_headvel` (the dropped
+  head's speed) gets his speed back on. Hits are the head's speed in his frame (running into something with it hanging
+  hits as it swings, not at his run's speed). `vr_flail_frame 0` (debug) is the old world simulation.
+- **Why it was jerky.** The view drew the head where each server step left it (72 Hz), under the hand drawn at the
+  headset's rate. **Fix** (`vr_flail_smooth`, debug, 1): after each step its place from the anchor and its turn are kept
+  in the play space's frame (turned back by `.vryaw`), stamped with the server time its message carries (qcvm->time
+  after the step); the view (`vr_flail.cpp`, `box3d::flailHeadAt`) interpolates the last steps at `cl.time` (the
+  entities' own lerp) and puts the result on the handle's end as drawn now, turned by the turn now: the head and chain
+  follow the hand every frame, their own swing interpolated (a tick behind, as every entity). `vr_flail_debug 3` prints
+  the drawn head and handle each drawn frame ("flail drawn"); the step line (2) now has the server time, his origin and
+  yaw.
+- **Measured** (`scratch/fl4_replay.sh`, `fl4_mock.sh`, `fl4_sum.py`; his notes replayed in the `flail` scene with
+  `noplace`, the flail given by `vr_ad_test 146` after the replay's setup, which gives weapon 13 without the AD melee
+  flags; "body frame": the head's place from his origin turned back by his yaw):
+
+  | | before | after |
+  | --- | --- | --- |
+  | 00-54-30, running with a still hand: head in his frame, mean / p95 / max m/s | 7.06 / 14.2 / 17.8 | 2.24 / 4.55 / 13.9 |
+  | ... head's world speed max (he ran at 7.4) | 22.9 | 14.6 |
+  | ... within 0.3 s of a turn: head in his frame mean / p95 | 5.94 / 11.5 | 2.60 / 4.32 |
+  | ... drawn head, 2nd difference a frame (units), mean / p95 | 2.43 / 6.96 | 0.32 / 0.91 |
+  | 00-55-37, running with a still hand: mean / p95 | 5.38 / 8.10 | 2.78 / 5.29 |
+  | ... turns: mean / p95 | 4.51 / 7.89 | 2.70 / 6.28 |
+  | ... drawn 2nd difference mean / p95 | 2.34 / 5.87 | 0.34 / 1.02 |
+  | mock at 90 Hz (stick walk 1.25 s, still hand): head in his frame mean / p95 | 5.14 / 9.33 | 0.90 / 1.68 (as standing: 0.89) |
+  | ... drawn head from the handle, 2nd difference mean: still / walk / swing (`vr_mock_swing 1.2`) | 0.18 / 1.86 / 1.39 | 0.03 / 0.06 / 0.27 |
+
+  The stray 60 m/s rows in both are the flail being given mid-replay. The flail tests (166 drop, 167 take with
+  `+grabmain`, 168 kick, 169 spawn, 170 carry, 165 count): pairs joined, ropes within, 0 orphans, the taken flail held.
+  `eval.sh`: canary 37/45, 3 PASS -> PASS drifts as above (the full set's step stopped on a take missing from his
+  motions folder, `no_hit_2026-10-12_12-28-17.csv`: the kit's, not this change's; the flail runs only with a held flail).
+- **Menus:** Flail page: Flail Body Inertia. Debug > AD Monsters: Flail Head in Your Frame (`vr_flail_frame`), Flail
+  Head Drawn Smooth (`vr_flail_smooth`). Test scene: `flail` reused.
+
+**In VR:** take the flail (`flail` scene), hold the hand still and walk with the stick: the ball should hang and come
+along, swaying a little as you start and stop (Flail Body Inertia: higher swings it more, 0 none); snap and smooth turn:
+it turns with you. Swing it while walking: it swings as when standing. Look at the ball and chain while moving your
+hand slowly: they should move as smoothly as the hand (toggle Flail Head Drawn Smooth in the Debug menu to compare).
