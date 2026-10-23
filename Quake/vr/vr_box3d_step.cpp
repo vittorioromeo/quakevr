@@ -1396,6 +1396,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_TRACY_CALL("box3d sync reach", syncReach(dt));
         QVR_TRACY_CALL("box3d sync portal copies", syncPortalCopies(dt));
         QVR_TRACY_CALL("box3d sync tool joints", syncToolJoints());
+        QVR_TRACY_CALL("box3d sync fuel ropes", syncFuelRopes());
     }
     const double tSync = Sys_DoubleTime();
     {

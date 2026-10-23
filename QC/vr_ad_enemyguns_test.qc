@@ -624,8 +624,132 @@ void() VR_ADFred_Think =
     remove(self);
 };
 
+// The fuelled guns' tanks lying about (vr_ad_enemyguns.qc "Fuel tanks"; ROUND22.md "Fuel tanks lying about"): 150 the
+// count (tanks, fuelled guns lying about, pairs, tanks without their gun, guns without a tank) and each pair's distance;
+// 151 the pyro's flamethrower in the main hand, 152 the fumigator's sprayer in the off hand (vr_weapon_grip_mode 1);
+// 153 the main hand's gun dropped, 154 the off hand's; 155 the nearest fuelled gun lying about taken into the empty
+// main hand; 156 the sprayer in holster 0 (the left shoulder's), the flamethrower in holster 2 (the left hip's); 157 the
+// nearest fuelled gun lying about removed; 158 a sprayer made lying 64 ahead (the toolgun's spawner).
+entity(entity p) AD_FuelTank_Nearest =
+{
+    entity best = world;
+    for(entity t = find(world, classname, "thrown_weapon"); t; t = find(t, classname, "thrown_weapon"))
+    {
+        if(VR_FuelTank_Fuelled(t.weapon) && (!best || vlen(t.origin - p.origin) < vlen(best.origin - p.origin)))
+        {
+            best = t;
+        }
+    }
+    return best;
+};
+
+void(float request, entity p) AD_FuelTankTest =
+{
+    entity was = self;
+    if(request == 150)
+    {
+        float tanks = 0, guns = 0, paired = 0, orphans = 0, bare = 0;
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(e.classname == "vr_fueltank")
+            {
+                tanks++;
+                entity g = VR_FuelTank_Gun(e);
+                if(g)
+                {
+                    paired++;
+                    bprint(sprintf("fueltank: gun %s at %v, tank %s at %v, %.2f m apart\n", g.netname, g.origin, e.model,
+                        e.origin, vlen(e.origin - g.origin) / VRMetersToUnits()));
+                }
+                else
+                {
+                    orphans++;
+                }
+            }
+            else if(e.classname == "thrown_weapon" && VR_FuelTank_Fuelled(e.weapon))
+            {
+                guns++;
+                bare += !VR_FuelTank_Of(e);
+            }
+        }
+        bprint(sprintf("fueltank: %g tanks, %g fuelled guns lying about, %g paired, %g orphan tanks, %g guns without a tank; "
+            "%g made\n", tanks, guns, paired, orphans, bare, vr_fueltank_made));
+        bprint(sprintf("fueltank: hands %g %g, holsters %g %g\n", p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon2));
+        return;
+    }
+    if(request == 151 || request == 152)
+    {
+        float gw = request == 151 ? WID_ADPYRO : WID_ADFUMIGATOR;
+        float hand = request == 151 ? cVR_MainHand : cVR_OffHand;
+        self = p;
+        VR_ADGun_Ensure(gw);
+        VR_WeaponUtil_EntAddWeapon(self, gw);
+        VRGiveEntWeapon(self, hand, gw, 0, WeaponIdToBaseClipSize(gw));
+        W_SetCurrentAmmoFor(hand);
+        self = was;
+        bprint(sprintf("fueltank: %s in the %s hand\n", VR_ADGun_Name(gw), request == 151 ? "main" : "off"));
+        return;
+    }
+    if(request == 153 || request == 154)
+    {
+        float dh = request == 153 ? cVR_MainHand : cVR_OffHand;
+        float dw = VRGetEntWeapon(p, dh);
+        self = p;
+        DropWeaponInHand(p, dh, dw, VRGetEntWeaponFlags(p, dh));
+        self = was;
+        bprint(sprintf("fueltank: dropped %s from the %s hand\n", WeaponIdToWeaponName(dw), request == 153 ? "main" : "off"));
+        return;
+    }
+    if(request == 155 || request == 157)
+    {
+        entity n = AD_FuelTank_Nearest(p);
+        if(!n)
+        {
+            bprint("fueltank: no fuelled gun lying about\n");
+            return;
+        }
+        bprint(sprintf("fueltank: %s at %v (its tank %s) %s\n", n.netname, n.origin, VR_FuelTank_Of(n) ? "there" : "none",
+            request == 155 ? "taken" : "removed"));
+        if(request == 155)
+        {
+            VR_ADWeapons_Take(p, n);
+        }
+        else
+        {
+            remove(n);
+        }
+        return;
+    }
+    if(request == 156)
+    {
+        VR_ADGun_Ensure(WID_ADFUMIGATOR);
+        VR_ADGun_Ensure(WID_ADPYRO);
+        p.holsterweapon0 = WID_ADFUMIGATOR;
+        p.holsterweaponflags0 = 0;
+        p.holsterweaponinst0 = WeaponInst_Carried(WID_ADFUMIGATOR, WeaponIdToBaseClipSize(WID_ADFUMIGATOR), 0);
+        p.holsterweaponmodel0 = WeaponIdToModel(WID_ADFUMIGATOR, 0);
+        p.holsterweapon2 = WID_ADPYRO;
+        p.holsterweaponflags2 = 0;
+        p.holsterweaponinst2 = WeaponInst_Carried(WID_ADPYRO, WeaponIdToBaseClipSize(WID_ADPYRO), 0);
+        p.holsterweaponmodel2 = WeaponIdToModel(WID_ADPYRO, 0);
+        bprint("fueltank: the sprayer in holster 0, the flamethrower in holster 2\n");
+        return;
+    }
+    if(request == 158)
+    {
+        entity m = VR_ADWeapons_Make(p, 319, 64);
+        bprint(sprintf("fueltank: made %s, its tank %s\n", m ? m.netname : "nothing", VR_FuelTank_Of(m) ? "there" : "none"));
+        return;
+    }
+};
+
 void(float request, entity p) AD_GunTest =
 {
+    if(request >= 150 && request <= 159)
+    {
+        AD_FuelTankTest(request, p);
+        return;
+    }
     if(request >= 96 && request <= 100)
     {
         // AD's upgraded weapons' VR models (vr_adweapons.cpp; ROUND22.md "AD's weapons as VR models"): 96 the three

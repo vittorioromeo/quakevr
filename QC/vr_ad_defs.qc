@@ -94,6 +94,11 @@ float(entity p) AD_PackWeaponUpgrades;   // SetChangeParms: the upgrades of p's 
 void(entity p, float xPacked) AD_UnpackWeaponUpgrades; // DecodeLevelParms: ... back on the weapons carried
 void(entity p) VR_ADGun_EnsureCarried;   // DecodeLevelParms: AD soldiers' guns carried from the last level precached
 float() VR_ADGun_LegacyWorld;            // OnLoadGame: an older save's eliminator's guns the centurion's (vr_ad_enemyguns.qc)
+// The fuelled guns' tank lying about (vr_ad_enemyguns.qc, "Fuel tanks"): a gun's its tank, a tank's its gun (the engine's
+// too: vr_fields.inc; the rope and the hose between them, vr_box3d.cpp and vr_adtank.cpp).
+.entity vr_fuellink;
+void(entity xGun, entity xFrom) VR_FuelTank_Attach; // CreateThrownWeapon: a fuelled gun made lying about gets its tank
+void() VR_FuelTank_Frame;                           // StartFrame: any fuelled gun lying about without one gets it
 void(entity p) AD_UpgradesToWeapons;     // PutClientInServer, OnLoadGame: a player's own upgrades (before 2026-10-12) onto his weapons
 float(entity p) AD_MegaRot;          // health_touch: AD's megahealth rot in an AD map; TRUE: taken
 void(entity xItem) AD_ItemTaken;     // VR_PickupObj_Taken: AD's item respawn in an AD map

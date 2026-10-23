@@ -5418,6 +5418,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     // (vr_enemy_weapon_depleted_loot).
     newmis.vr_depleted = VR_Weapon_Spent(xWeapon, newmis.weaponinst);
     VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
+    VR_FuelTank_Attach(newmis, thrower); // AD support: a flamethrower's or poison sprayer's tank with it (vr_ad_enemyguns.qc)
 
     return newmis;
 }

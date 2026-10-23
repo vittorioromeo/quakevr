@@ -2694,6 +2694,10 @@ QVR_CVAR(vr_adgun_hose_arms, "1", CVAR_ARCHIVE) // ... kept out of the drawn arm
 QVR_CVAR(vr_adgun_tank_x, "-9", CVAR_ARCHIVE) // ... the tank's middle carried by the chest (body anchor units: forward, as the holsters' offsets)
 QVR_CVAR(vr_adgun_tank_y, "0", CVAR_ARCHIVE)  // ... right
 QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibration)
+QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, thrown, a monster's): the gun's tank beside it, a prop held to it by a rope, a hose between them (QC vr_ad_enemyguns.qc "Fuel tanks"; vr_box3d.cpp, vr_adtank.cpp); 0 none
+QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
+QVR_CVAR(vr_adgun_tank_mass, "3", CVAR_ARCHIVE) // ... the tank's mass, kg (a gun dragging it, it dragging the gun)
+QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "5", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
 QVR_CVAR(vr_adgun_grenade_ammo, "6", CVAR_ARCHIVE) // the grenade soldier's dropped launcher (Quake VR's grenades: vr_dmg_grenade): the grenades it holds

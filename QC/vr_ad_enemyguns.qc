@@ -222,6 +222,151 @@ void() VR_ADGun_Drop =
     }
 };
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Fuel tanks
+//
+// The pyro's flamethrower and the fumigator's poison sprayer lying about (Vittorio, 2026-10-23: dropped, thrown, a
+// monster's) always have their tank beside them: a prop of its own ("vr_fueltank", "progs/vr_fueltank.mdl#6" red, "#7"
+// green: vr_adgunart.cpp), held to the gun by a rope (the engine's, vr_box3d.cpp syncFuelRopes: Box3D's distance joint
+// no longer than vr_adgun_tank_rope m) and drawn joined to it by a hose (vr_adtank.cpp, as the back tank's). A hand
+// carries the tank (no force grab: it has no FL_FORCEGRABBABLE); either drags the other by the rope. In a hand or a
+// holster the gun has no tank lying about: it is the one on the back (vr_adtank.cpp). Dropped by a player, the tank falls
+// off his back (spared his body for a second); by a monster, from behind it. The gun gone any way (taken, removed, its
+// cap), its tank goes with it (VR_FuelTank_Think); a gun found without one (an older save, a test's) gets one
+// (VR_FuelTank_Frame). gun.vr_fuellink is its tank, tank.vr_fuellink its gun. vr_adgun_tank_world 0: none.
+
+.float vr_fueltank_grace; // a tank dropped off a player's back: until when it spares his body (.owner him, then its gun)
+float vr_fueltank_next;   // VR_FuelTank_Frame's next look
+float vr_fueltank_made;   // tanks made (the tests)
+
+float(float xWid) VR_FuelTank_Fuelled = { return xWid == WID_ADPYRO || xWid == WID_ADFUMIGATOR; };
+
+// `g`'s tank lying about (world: none).
+entity(entity g) VR_FuelTank_Of =
+{
+    entity t = g.vr_fuellink;
+    if(!t || !t.modelindex || t.classname != "vr_fueltank" || t.vr_fuellink != g)
+    {
+        return world;
+    }
+    return t;
+};
+
+// `t`'s gun, while it is still its gun lying about (world: not).
+entity(entity t) VR_FuelTank_Gun =
+{
+    entity g = t.vr_fuellink;
+    if(!g || !g.modelindex || g.vr_fuellink != t || g.classname != "thrown_weapon" || !VR_FuelTank_Fuelled(g.weapon))
+    {
+        return world;
+    }
+    return g;
+};
+
+void() VR_FuelTank_Think =
+{
+    entity g = VR_FuelTank_Gun(self);
+    if(!g || !cvar("vr_adgun_tank_world"))
+    {
+        if(g)
+        {
+            g.vr_fuellink = world;
+        }
+        if(cvar("developer"))
+        {
+            dprint(sprintf("adgun: a tank at %v goes with its gun\n", self.origin));
+        }
+        remove(self);
+        return;
+    }
+    if(self.vr_fueltank_grace && time >= self.vr_fueltank_grace)
+    {
+        self.vr_fueltank_grace = 0;
+        self.owner = g; // (it meets its dropper again; never its own gun: the rope holds them)
+    }
+    self.nextthink = time + 0.01;
+};
+
+// `xGun`, a gun lying about, given its tank if it is a fuelled one without one: off `xFrom`'s back (a player dropping it:
+// where his back tank was; a monster: behind it), else beside the gun.
+void(entity xGun, entity xFrom) VR_FuelTank_Attach =
+{
+    if(!xGun || xGun.classname != "thrown_weapon" || !VR_FuelTank_Fuelled(xGun.weapon) || !cvar("vr_adgun_tank_world") ||
+       VR_FuelTank_Of(xGun))
+    {
+        return;
+    }
+    entity t = spawn();
+    t.classname = "vr_fueltank";
+    t.netname = "fuel tank";
+    t.movetype = MOVETYPE_TOSS;
+    t.solid = SOLID_NOT_BUT_TOUCHABLE;
+    setmodel(t, xGun.weapon == WID_ADPYRO ? "progs/vr_fueltank.mdl#6" : "progs/vr_fueltank.mdl#7");
+    setsize(t, modelbounds(t, 0), modelbounds(t, 1));
+    vector from = xGun.origin, at;
+    t.owner = xGun;
+    if(xFrom && xFrom != xGun && (xFrom.flags & (FL_CLIENT | FL_MONSTER)))
+    {
+        makevectors('0 1 0' * xFrom.angles_y);
+        from = xFrom.origin;
+        at = from - v_forward * ((xFrom.flags & FL_CLIENT) ? 10 : 14) + '0 0 6';
+        t.velocity = xFrom.velocity * ((xFrom.flags & FL_CLIENT) ? 1 : 0.5);
+        t.angles = '0 1 0' * xFrom.angles_y;
+        if(xFrom.flags & FL_CLIENT)
+        {
+            t.owner = xFrom; // (out of his body before it meets it)
+            t.vr_fueltank_grace = time + 1;
+        }
+    }
+    else
+    {
+        makevectors('0 1 0' * xGun.angles_y);
+        at = xGun.origin + v_right * 14 + '0 0 4';
+        t.velocity = xGun.velocity;
+        t.angles = '90 0 0' + '0 1 0' * xGun.angles_y; // (lying on its side)
+    }
+    traceline(from, at, TRUE, xGun);
+    if(trace_fraction < 1)
+    {
+        at = from + (trace_endpos - from) * 0.7; // (short of a wall)
+    }
+    setorigin(t, at);
+    t.vr_fuellink = xGun;
+    xGun.vr_fuellink = t;
+    t.vr_prop_mass = max(0.2, cvar("vr_adgun_tank_mass"));
+    t.touch = SUB_Null;
+    t.handtouch = SUB_Null; // (nothing to take: a hand carries it, VR_Carry_Setup)
+    VR_Carry_Setup(t);
+    t.think = VR_FuelTank_Think;
+    t.nextthink = time + 0.01;
+    vr_fueltank_made++;
+    if(cvar("developer"))
+    {
+        dprint(sprintf("adgun: %s's tank made at %v (%s)\n", xGun.netname, t.origin,
+            xFrom.classname != "" ? xFrom.classname : "beside it"));
+    }
+};
+
+void() VR_FuelTank_Frame =
+{
+    if(time < vr_fueltank_next)
+    {
+        return;
+    }
+    vr_fueltank_next = time + 0.5;
+    if(!cvar("vr_adgun_tank_world"))
+    {
+        return;
+    }
+    for(entity g = find(world, classname, "thrown_weapon"); g; g = find(g, classname, "thrown_weapon"))
+    {
+        if(VR_FuelTank_Fuelled(g.weapon) && !VR_FuelTank_Of(g))
+        {
+            VR_FuelTank_Attach(g, world);
+        }
+    }
+};
+
 // Freddie's gun arm: his rig's left forearm (vr_ad_rigs.inc adFreddieSeeds: bone 4, forearm_l), the super nailgun's
 // five barrels on it (mon_freddie.mdl vertices 88..182: the engine leaves them off his limbs' models, vr_limbmodel.cpp).
 float VR_AD_FREDDIE_GUNBONE = 4;

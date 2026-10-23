@@ -123,6 +123,12 @@ int removeToolJoints(int num); // `num`'s (0: all); how many
 void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3& atB, ToolJoint kind)> fn);
 void toolForget(int num);
 
+// AD support: the fuelled guns' tanks lying about, each held to its gun by a rope (QC vr_ad_enemyguns.qc "Fuel tanks";
+// vr_box3d.cpp syncFuelRopes): each pair found at the last step, its gun's and tank's edict numbers, the rope's most
+// (units) and whether its joint is made now (both bodies there). The server's; the hose drawn between them reads it
+// (vr_adtank.cpp: a listen server's).
+void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool joined)> fn);
+
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
 // that it sees are thrown.
 void blast(const glm::vec3& at, float damage);
