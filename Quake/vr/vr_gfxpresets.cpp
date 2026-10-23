@@ -83,6 +83,9 @@ constexpr Row presetRows[] = {
     // Surfaces: bumps, parallax, detail, carved holes, marks
     {&vr_normalmaps,                  {"0",     "0",     D,       D,    D}}, // (next map)
     {&vr_parallax,                    {"0",     "0",     D,       D,    D}},
+    // Medium: the relief's own depth not written (its pixels keep early depth testing): on an AD fight that halves the
+    // eyes' GPU time, nearly all of what parallax costs (ROUND22.md, "Graphics presets")
+    {&vr_parallax_depth_write,        {D,       D,       "0",     D,    D}},
     {&vr_parallax_steps,              {D,       D,       D,       D,    "24"}},
     {&vr_detail,                      {"0",     "0",     D,       D,    D}}, // (off by default)
     {&vr_decal_carve,                 {"0",     "0",     D,       D,    D}},

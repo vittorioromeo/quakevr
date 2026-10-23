@@ -17329,3 +17329,75 @@ weakly; a hip or chest holster refuses it. In AD kill the Dark Prince, a justice
 wave): each drops its sword and its corpse holds none. Check each grip (Weapon Offsets slots 47-50: main hand at the
 middle of the hilt, the second towards the pommel), the swords' sizes against their monsters, and whether a blow near
 each long blade's tip lands.
+
+## Graphics presets: one table, My Settings, VR Settings > Graphics Presets (worktree `release`, branch `agent/gfxpresets`, 2026-10-23)
+
+Approved by the author. Before, `vr_graphics_preset` (0 off .. 4 ultra) wrote some 60 cvars one way through three
+functions (`lighting::applyPreset`, `water::applyPreset`, `haze::applyPreset`); nothing kept the player's own values,
+and nothing said whether the settings still matched a preset. Its High was not the defaults (6 shadowed dynamic lights
+of 512, 9 taps, 2048 units against the shipped 8 of 1024, 16 taps, 3072): the shipped game was the old Ultra.
+
+**One table** (`vr_gfxpresets.cpp`, `presetRows`, 73 rows): each row a cvar and its value at Off, Low, Medium, High
+and Ultra, `D` for the cvar's default (its `default_string`, so `vr_defaults.cfg` too). High is all `D`: the game as
+shipped, so nobody's game changes unless they pick a preset. The same table applies a preset, finds the one the
+settings match (every row equal, as numbers when both are; Custom otherwise), and is what My Settings keeps. Graphics
+only: no comfort, gameplay, body, calibration or audio cvar is in it (checked: a config written before and after a
+preset differs only in table rows).
+
+**My Settings:** the first preset applied in a game folder first writes every row's current value to
+`<gamedir>/graphics_my_settings.cfg` (`name "value"` lines, through a temporary file; git-ignored in `quakevr/`).
+Switching presets never writes it again. *My Settings* sets the kept values back exactly (only names in the table are
+read back); *Save as My Settings* (pressed twice within 3 s when some are kept) replaces them. A row added later is
+simply not in an older file: My Settings leaves it as it is and ignores it when matching.
+
+**Menu:** VR Settings (Sight) > **Graphics Presets** (`pageGraphicsPresets`, LevelStandard): "Now: <state>" (a preset's
+name, "My Settings", "High (My Settings)" when both, or "Custom"), a note line for 5 s after a press (the first preset
+says your settings were kept), Off (Quake) / Low / Medium / High (as shipped) / Ultra, then My Settings and Save as My
+Settings, and a link to the Graphics page (shown from Advanced detail). Advanced VR Options > Graphics lost its Preset
+cycle: it shows the state line and links to the page.
+
+**Console:** `vr_graphics_preset 0..4` applies a preset, `5` My Settings, then sets itself back to -1 (a button, not a
+state; the voice notes print the state name instead of its value). `vr_graphics_preset_save`;
+`vr_graphics_preset_status` prints the state and, when Custom, every row that differs from the nearest preset.
+
+**What the presets now hold** (new rows marked +): Off: Quake's look as before, plus no muzzle-flash shadows+, plasma
+arcs+, carved holes+, permanent marks+, scorch marks+, particle size cap 0.1+. Low: as before (2 shadowed dynamic lights
+of 256, no map light shadows, no bumps/parallax/AO/refraction/teleporter views/haze, fewer projectile, flame and torch
+lights) plus no muzzle-flash shadows+, no carved holes+, particle cap 0.1+. Medium: as before (4 dynamic lights of 512,
+2 map lights, 1536 units, 4 taps) plus parallax without its depth write+ (`vr_parallax_depth_write 0`), no muzzle-flash
+shadows+, particle cap 0.12+. High: the defaults. Ultra: 12 shadowed dynamic lights, 6 map lights, 4096 units, 12 torch
+lights, `vr_bloom_fast 0` (the four-level glow), `vr_particle_halfres 0`, `vr_parallax_steps 24`.
+
+**Cost** (`bench.sh --settings`, a cfg `vr_graphics_preset N`, 2 reps of 600 frames, 90 Hz paced, 2048-pixel eyes,
+exclusive; ms a frame, eyes' GPU avg / p95, CPU busy avg; labels `gp_v1_*`, Medium `gp_v2_2`):
+
+| Preset | AD fight (`play_ad_tfuma_fight`) | Gore fight (`play_gore_fight`) | Water (`water_range_surface`) |
+|---|---|---|---|
+| Off | 1.30 / 1.98, CPU 3.03 | 1.66 / 2.53, CPU 2.20 | 0.71 / 1.04 |
+| Low | 1.39 / 1.93, CPU 3.57 | 2.07 / 3.03, CPU 1.97 | 1.01 / 1.39 |
+| Medium | 2.03 / 2.47, CPU 3.31 | 2.49 / 3.19, CPU 1.93 | 1.12 / 1.41 |
+| High | 4.27 / 4.86, CPU 3.30 | 3.75 / 5.01, CPU 2.39 | 1.25 / 1.72 |
+| Ultra | 4.45 / 5.05, CPU 3.51 | 3.85 / 5.21, CPU 2.04 | 1.21 / 1.51 |
+
+The first Medium (the old one: parallax on with its depth) measured 4.75 ms on the AD fight, no cheaper than High.
+Single changes over High (AD fight / gore fight GPU ms; High 4.27 / 3.75): parallax off 1.95 / 2.42, normal maps off
+1.87 / 2.35, **`vr_parallax_depth_write 0` 2.10 / 2.49**, `vr_parallax_steps 8` 4.25 / 3.65, `vr_parallax_distance
+512` 4.11 / 3.62, `vr_parallax_refine 0` 4.09 / 3.67, carved holes off 4.16 / 3.38, AO off 4.00 / 3.34, tone mapping
+and bloom off 4.02 / 3.44, `vid_fsaa 2` 3.68 / 3.14, `vr_taa 1` 3.80 / 3.67. Parallax's cost is nearly all its depth
+write (the world's pixels lose early depth testing), not its steps: Medium keeps parallax and drops the depth write.
+Worth the author's look: the shipped default pays about 2 ms of a 4.3 ms frame on this card for the relief's depth
+(things meeting the carved relief rather than the flat surface); no default changed here. Shadows cost little in these
+scenes (0.04-0.06 ms). CPU time barely moves with the preset (the game, not the drawing).
+
+Left out on purpose: anti-aliasing (`vid_fsaa`, its own row on VR Settings > Display and Graphics; 2x saves ~0.6 ms)
+and TAA (opt-in, a look of its own), the weapons' and gloves' relief (`vr_weapon_relief`, `vr_glove_relief`: made as
+models load, no frame cost), decals themselves (`vr_decals`: gore), render scale and foveation (the headset's).
+
+Tests (headless, e1m1): personal values set (`vr_shadow_dlights 5; vr_bloom 0.123; vr_water_foam 0`), then each preset
+applied: the status names each (Custom before, nearest High, 3 differ); one change after High: Custom, 1 differs;
+`vr_graphics_preset 5`: My Settings with the three personal values; configs written before and after the round trip
+are identical (0 differences), and before/Low differ in 28 rows, all in the table. A second start (the config back to
+its baseline): the state High, the file kept; My Settings sets 5 / 0.123 / 0 back; two presses of Save as My Settings
+(menu, `vr_menu_press`) then a preset and My Settings: bloom 0.2 kept. `vr_menu_path_check` vrcalibration 6 found,
+vrtesthall 14 found, 0 missing. Screenshot of the page after `vr_menu_press Graphics Presets > Medium`: "Now: Medium",
+"Medium set.".

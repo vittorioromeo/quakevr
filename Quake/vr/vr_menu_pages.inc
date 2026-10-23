@@ -1536,10 +1536,12 @@ void resetHandMoves()
                   "plain liquids, no teleporter views. The least GPU time."),
         action("Low", []() { gfxpresets::menuApply(1); })
             .help("For weaker graphics cards: Quake VR's lighting and look with few shadows (2 dynamic lights, none from "
-                  "the map), no bumps, parallax, ambient occlusion, refraction, teleporter views or heat haze."),
+                  "the map), no bumps, parallax, ambient occlusion, refraction, teleporter views or heat haze. About a "
+                  "third of High's GPU time."),
         action("Medium", []() { gfxpresets::menuApply(2); })
-            .help("Most of it: bumps, parallax, ambient occlusion, every liquid effect and teleporter views, with fewer "
-                  "and smaller shadows (4 dynamic lights, 2 map lights) than High."),
+            .help("Most of it at about half High's GPU time: bumps, parallax (without its depth: things meet the wall's "
+                  "surface, not its carved relief), ambient occlusion, every liquid effect and teleporter views, with "
+                  "fewer and smaller shadows (4 dynamic lights, 2 map lights)."),
         action("High (as shipped)", []() { gfxpresets::menuApply(3); })
             .help("The game's defaults: everything on, 8 shadowed dynamic lights and 4 map lights out to 3072 units."),
         action("Ultra", []() { gfxpresets::menuApply(4); })
