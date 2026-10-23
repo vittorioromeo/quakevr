@@ -760,7 +760,8 @@ QVR_CVAR(vr_gun_z_offset, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_sbar_mode, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a hand (vr_sbar_mode), 1 the wrist gadget
 QVR_CVAR(vr_death_view, "2", CVAR_ARCHIVE)           // dying (not gibbed), your body a ragdoll (vr_deathview.cpp, QC vr_deathdoll.qc): 0 off (as before: no body), 1 third person (the view stays where your eyes were, the body there to look at), 2 immersive (the view in the body's head)
-QVR_CVAR(vr_death_view_turn, "0", CVAR_ARCHIVE)      // immersive death view: the view turns with the body's head (its yaw only, smoothed; never pitch or roll); 0 only its place follows
+QVR_CVAR(vr_death_view_vomit, "0", CVAR_ARCHIVE)     // Vomit Mode (the author's note vrfiringrange_2026-10-23_01-18-00, a player's request): dead, the view is the ragdoll's head itself, its place and its exact turn (pitch, yaw and roll), no smoothing, your own head's turns ignored; over vr_death_view 1 or 2 (0: no body) and every Immersive setting (still out to Third Person's place for a menu)
+QVR_CVAR(vr_death_view_turn, "0", CVAR_ARCHIVE)     // immersive death view: the view turns with the body's head (its yaw only, smoothed; never pitch or roll); 0 only its place follows
 QVR_CVAR(vr_death_view_turn_speed, "30", CVAR_ARCHIVE) // ... at most this fast (degrees a second)
 QVR_CVAR(vr_death_view_smooth, "0.25", CVAR_ARCHIVE) // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
 QVR_CVAR(vr_death_view_fade, "0.2", CVAR_ARCHIVE)    // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
@@ -859,6 +860,7 @@ QVR_CVAR(vr_messages_hologram_time, "5", CVAR_ARCHIVE) // seconds a message stay
 QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: about 8 mm characters)
 QVR_CVAR(vr_messages_hologram_height, "10", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
+QVR_CVAR(vr_view_text_smooth, "0.12", CVAR_ARCHIVE)     // the messages in front of you (the maps' view messages: VR Calibration's boards' texts, its steps, Body Calibration's poses; and the centre prints on the head's panel) follow your head's turn smoothed: seconds to catch up most of the way (0 at once; the author's note vrstart_2026-10-23_01-23-46)
 QVR_CVAR(vr_messages_hologram_only, "1", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
 QVR_CVAR(vr_loading_notice, "1", CVAR_ARCHIVE)        // (off in 1.0.0, config 122: its campaign-switch crash, fixed in 1.0.1: ROUND22.md, "The Loading... crash, root cause") "Loading..." in front of you before a level change (changelevel, a map transition, map, load, restart: vr_loading.cpp): the load waits until two headset frames showed it, as the runtime keeps showing the last frame while the game loads; 0 off, 1 in the headset, 2 the mock headset too (tests)
 QVR_CVAR(vr_loading_hold, "0", CVAR_NONE)            // Debug > Tests, Loading Notice Hold: seconds the notice stays before the load starts (0: two frames), to look at it
@@ -1877,7 +1879,7 @@ QVR_CVAR(vr_seated_crouch_button, "0", CVAR_ARCHIVE)  // seated, a stick press t
 // layout. The grenade pouch's X moves it round the hips as its own X does (from the small of the back, against the
 // chair, to the side).
 QVR_CVAR(vr_hip_holster_seated_x, "6", CVAR_ARCHIVE)   // onto the thighs, off the chair's sides
-QVR_CVAR(vr_hip_holster_seated_y, "-3", CVAR_ARCHIVE)
+QVR_CVAR(vr_hip_holster_seated_y, "1.25", CVAR_ARCHIVE) // (the author's, 2026-10-23: a little out; was -3, in)
 QVR_CVAR(vr_hip_holster_seated_z, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_seated_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_seated_yaw, "0", CVAR_ARCHIVE)
@@ -4457,7 +4459,7 @@ QVR_CVAR(vr_autosave_safe_radius, "600", CVAR_ARCHIVE) // not while a living mon
 QVR_CVAR(vr_autosave_safe_health, "40", CVAR_ARCHIVE) // not while your health is below this percent of its maximum (0: off); the longest wait doesn't end this one
 QVR_CVAR(vr_autosave_safe_maxdelay, "60", CVAR_ARCHIVE) // seconds an autosave due waits for the monsters (alerted, near) before it is made anyway (a monster stuck hunting you); 0: waits as long as it takes
 QVR_CVAR(vr_death_menu, "1", CVAR_ARCHIVE)           // single player, dead: the death menu (Respawn, Restart the Level, the autosaves newest first) opens after vr_death_menu_delay seconds (menu.c M_Autosaves)
-QVR_CVAR(vr_death_menu_delay, "2", CVAR_ARCHIVE)     // seconds dead before the death menu opens
+QVR_CVAR(vr_death_menu_delay, "5", CVAR_ARCHIVE)     // seconds dead before the death menu opens (the author's 5, 2026-10-23; was 2)
 
 QVR_CVAR(vr_mg_world_test, "0", CVAR_NONE) // Debug > Tests: 1 report authored native fog; 2 environment acceptance with a destructive e5m1 barrel test
 

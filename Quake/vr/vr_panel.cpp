@@ -38,6 +38,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
@@ -338,7 +339,9 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     }
     else
     {
-        const float t = 1.f - za::exp(-dt * 10.f);
+        // (vr_view_text_smooth: as the view messages; 0.1 s fixed before 2026-10-23.)
+        const float tau = za::max(vr_view_text_smooth.value, 0.f);
+        const float t = tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
         hudAngles.x += (head.x - hudAngles.x) * t;
         hudAngles.y += za::remainder(head.y - hudAngles.y, 360.f) * t;
     }

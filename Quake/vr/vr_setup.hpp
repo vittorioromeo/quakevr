@@ -31,6 +31,11 @@
 
 #include "Zancle/String/StringView.hpp"
 
+namespace qvr::hands
+{
+struct State;
+} // namespace qvr::hands
+
 namespace qvr::setup
 {
 
@@ -53,5 +58,10 @@ void frame();
 // `text` floating ahead of the eyes (0.9 m, turned with the head's yaw), `drop` metres below them: the calibration's steps
 // and welcome (0), the view messages (QC viewmessage: vr_worldtext.cpp). Queued for this frame (text3d's overlay).
 void drawViewText(za::StringView text, float drop);
+
+// The yaw that text follows (degrees): the head's, smoothed over vr_view_text_smooth (the author's note
+// vrstart_2026-10-23_01-23-46); a second call in a frame moves it no further; after half a second with none drawn, the
+// head's at once.
+[[nodiscard]] float viewTextYaw(const hands::State& s);
 
 } // namespace qvr::setup

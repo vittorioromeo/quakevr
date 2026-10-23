@@ -59,8 +59,32 @@ struct State
     bool startValid = false;           // start (frameStartOffset)
     float written = -1.f;              // the player's .vr_bullettime_spent as last written (another value: a load, a level)
     double earnedAt = -1e9;            // realtime the meter last grew by damage dealt (the gadget's frame lights)
+    double emptyNoticeAt = -1e9;       // realtime the gadget last said the meter is empty (emptyNotice)
 };
 State state;
+
+// Earned bullet time pressed with too little in the meter (the author's note vrtesthall_2026-10-23_01-47-31): the wrist
+// gadget's hologram says how to fill it, at most every few seconds (another press while it shows keeps it on). No
+// hologram (the HUD not the gadget, or vr_messages_hologram 0): a centre print.
+constexpr const char* emptyNoticeText = "Bullet time empty:\nhurt enemies to refill";
+constexpr double emptyNoticeEvery = 4.0; // real seconds
+
+void emptyNotice()
+{
+    if(realtime - state.emptyNoticeAt < emptyNoticeEvery && state.emptyNoticeAt <= realtime)
+    {
+        return;
+    }
+    state.emptyNoticeAt = realtime;
+    if(!gadget::notice(emptyNoticeText, 3.f))
+    {
+        SCR_CenterPrintFor(emptyNoticeText, 2.5f);
+    }
+    if(vr_debug_bullettime.value)
+    {
+        Con_Printf("bullet time: empty notice\n");
+    }
+}
 
 // The "off" sound (vr_bullettime_sound_off: a placeholder 3 s long, longer than a short burst): played for at most
 // vr_bullettime_sound_off_max real seconds, then faded out over offFade; cut (faded over offCut) as bullet time starts
@@ -754,6 +778,10 @@ void toggle()
     {
         cutOffSound(offCut);
         playSound(vr_bullettime_sound_denied);
+        if(earnedMode() && state.level < za::clamp(vr_bullettime_min.value, 0.01f, 1.f))
+        {
+            emptyNotice(); // (not for a cooldown alone: the meter is full enough, it only waits)
+        }
         if(vr_debug_bullettime.value)
         {
             Con_Printf("bullet time: not ready (meter %.2f, cooldown %.1f s)\n", state.level, state.cooldown);

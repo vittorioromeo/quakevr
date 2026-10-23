@@ -13,6 +13,7 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_still.hpp"
+#include "vr_setup.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -2462,9 +2463,10 @@ void drawText(const hands::State& s, int step, double now)
     }
     text += va("\n%s: stop", input::menuButtonName());
     const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+    const float yaw = setup::viewTextYaw(s); // (smoothed, as VR Calibration's other texts)
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, yaw, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.18f * m2u};
-    text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
+    text3d::queueOverlay(text, at, glm::vec3{0.f, yaw, 0.f}, 0.045f);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
