@@ -306,7 +306,7 @@ void() VR_AGPT_Easy =
         vr_agt_until = time + 0.05;
         return;
     }
-    // A fresh calm grunt, badly hurt: the grab takes its gun at once (in your hand the next frame).
+    // A fresh calm grunt, badly hurt: the grab takes its gun at once (in your hand this frame).
     if(vr_agt_step == 3)
     {
         VR_AGPT_Clear();
@@ -314,9 +314,7 @@ void() VR_AGPT_Easy =
         VR_AGT_Hunt(vr_agt_grunt);
         vr_agt_grunt.health = 8;
         VR_AG_GrabBy(vr_agt_grunt, p, cVR_MainHand);
-        vr_agt_step = 4;
-        vr_agt_until = time + 0.3;
-        return;
+        g = vr_agt_grunt; // (yours at once: checked in this frame)
     }
     VR_AGT_Check(sprintf("easy: hurt grabbed (%s): your hand %s, the grunt holds %s:", vr_ag_tug_why, VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
@@ -576,6 +574,8 @@ void() VR_AGPT_WeaponBlow =
     if(time < vr_agt_until) { return; }
     VR_AGPT_ToHand(g, p);
     VR_AG_WeaponLine(g.vr_ag_prop);
+    p.handpos = (vr_ag_wa + vr_ag_wb) * 0.5; // (your hand on its weapon this frame)
+    p.velocity = '0 0 0';
     float near = VR_AG_SegDist(p.handpos, p.handpos, vr_ag_wa, vr_ag_wb);
     makevectors(p.angles);
     float m2u = VRMetersToUnits();

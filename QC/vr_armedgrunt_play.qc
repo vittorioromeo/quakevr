@@ -497,7 +497,7 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     {
         return FALSE;
     }
-    vector hv = VRGetEntHandVel(pl, h);
+    vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (the blow's own: not your walk or a push)
     float sp = vlen(hv) / VRMetersToUnits();
     float need = cvar_hget(cvarh_vr_agrunt_disarm_swing);
     if(sp < need)

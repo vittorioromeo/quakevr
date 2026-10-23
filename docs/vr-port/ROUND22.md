@@ -18024,9 +18024,28 @@ parried: disarmed PASS 2; 25 staggered keeps it, floored drops it 14-22 units aw
 PASS 2; 27 no nearer for 3 s: given up, shunned, not found again PASS 1. `vr_agrunt_test 3` now sets `vr_agrunt_tug 0`
 (the grab at once) and puts it back.
 
+**Blows and throws on the weapon itself** (`VR_AG_WeaponStruck`, every frame in the prop's think): your hand, or what
+it holds (its line from the hand to its muzzle), meeting the held weapon's line (8 units behind its grip to its muzzle,
+5 units round) at `vr_agrunt_disarm_swing` (4.5 m/s: a hit lands from `vr_melee_speed` 3.2, so a deliberate hard swing,
+not a tap) knocks it out along the blow; a thrown weapon, prop or gib whose last frame's path meets it with a momentum
+of `vr_agrunt_disarm_throw` (20 kg m/s: a 2 kg weapon at 10 m/s; a gib or a shell tossed is far under; a full hit
+stagger is `vr_hit_stagger_throw_ref` 60) knocks it out along the throw. Tests 29 (2 m/s kept, 6 m/s out) and 30 (a
+nailgun at 3 m/s kept, at 14 m/s out).
+
+**Every disarm's sound** (`VR_AG_DisarmFeedback`: hand and weapon hits, throws, parries, tugs and grabs, falls): the
+weapon's clatter by kind (a gun `vr/phys/metal_h1-4`, a blade `metal_m1-4`, Mjolnir `wood_h1-4`: the physics props'
+own) and the grunt's pain sound, at most every 0.6 s.
+
+**Held weapons are no loot** (the author's note): the loot beams skip an entity with the held flag (`vr_lootbeams.cpp`,
+effects 128: QC `VR_AG_EF_HELD`), and `VR_Forcegrab_IsEligible` names `vr_ag_weapon` (it was already not eligible: no
+`FL_FORCEGRABBABLE`, not `weapon_touch`; the pointing sparkles only follow eligible targets). Test 28 with
+`vr_lootbeams_report`: holding, the weapon not eligible and only the map's own weapon beamed (before: the held shotgun
+too); dropped, the lying shotgun eligible and beamed.
+
 **In VR:** grab a calm shotgun grunt's gun from the front and pull back hard (about 25 cm) for a second or so: the
 hand should buzz and jerk, it should headbutt, shove or fire at you now and then; grab one that's staggered by a shove,
 hurt or parried: yours at once; shove one: it keeps the gun unless it falls, then the gun lies beside it and it picks
-it up as it rises; drop a weapon into the pool at vrtesthall's side: grunts should leave it alone. Sliders: Combat >
-Armed Grunts (Disarming: Tug-of-War and its four sliders, Parry Disarm Chance, Drops It When Floored; Gives Up on a
-Weapon After, Leaves It Alone For).
+it up as it rises; drop a weapon into the pool at vrtesthall's side: grunts should leave it alone; swing the crowbar
+hard into a grunt's gun, throw a weapon at it: knocked out, with a clang and a grunt; no loot beam on a held gun.
+Sliders: Combat > Armed Grunts (Disarming: Blow on Its Weapon, Throw at Its Weapon, Tug-of-War and its four sliders,
+Parry Disarm Chance, Drops It When Floored; Gives Up on a Weapon After, Leaves It Alone For).
