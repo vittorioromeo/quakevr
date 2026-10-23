@@ -638,6 +638,9 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
     ragactive::Stagger& st = r->active.stagger;
     st.tug = true;
     st.tugStrength = za::clamp(strength, 0.f, 3.f);
+    // (Its pelvis's pin harder by its pull: it leans back against your hand rather than following it, its feet stepping
+    // after it when it must; its resistance is what your pull measures.)
+    r->active.pin.force *= 1.f + st.tugStrength;
     st.tugArm = -1;
     const int parent = r->rig->bones[part].parent;
     for(int arm = 0; arm < 2; arm++)

@@ -2752,8 +2752,8 @@ QVR_CVAR(vr_agrunt_tug_time, "1.2", CVAR_ARCHIVE) // ... how long (s) you must k
 QVR_CVAR(vr_agrunt_tug_fight, "1", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
 QVR_CVAR(vr_agrunt_tug_hurt, "0.35", CVAR_ARCHIVE) // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
 QVR_CVAR(vr_agrunt_tug_ragdoll, "1", CVAR_ARCHIVE) // 1: the tug is physical: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (0: the old tug)
-QVR_CVAR(vr_agrunt_tug_break_force, "500", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once
-QVR_CVAR(vr_agrunt_tug_break_impulse, "220", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a fifth of the break force) that tears it out
+QVR_CVAR(vr_agrunt_tug_break_force, "900", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
+QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
 QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)

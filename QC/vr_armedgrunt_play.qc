@@ -66,6 +66,7 @@ float vr_ag_tug_stretch;  // the last tug frame's stretch (the tests)
 .float vr_ag_tug_imp;     // the physical tug: its pull's force times time so far (N s)
 .float vr_ag_tug_peak;    // ... its hardest pull (N; the tests)
 float vr_ag_tug_force;    // ... the last frame's pull (N; the tests)
+float vr_ag_parried_n;    // its blows your weapons parried (VR_AG_Parried; the tests)
 float VR_AG_TUG_STAGGER = 0.35; // s its stumble as you tear its weapon away (its active ragdoll's, then its AI)
 float VR_AG_TUG_RECOVER = 0.2;  // s up again as you let go (or it wrenches free)
 
@@ -217,7 +218,8 @@ float(entity g, entity pl, float h) VR_AG_TugRagBegin =
     g.vr_kd_dir = way;
     g.nextthink = time + 0.05;
     float strength = cvar_hget(cvarh_vr_agrunt_tug_strength);
-    float grip = max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 3; // (your hold never gives first)
+    // (Your hold never gives first; at most 6000 N: a stiffer spring shakes the ragdoll apart.)
+    float grip = min(6000, max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 3);
     if(!ragdolltug(g, pl, h, 0, p.origin, strength, grip))
     {
         ragdolltug(g, pl, h, 2, '0 0 0', 0.1); // (up again at once; the grab takes it: staggering)
@@ -228,7 +230,7 @@ float(entity g, entity pl, float h) VR_AG_TugRagBegin =
 };
 
 // The physical tug's frame (VR_AG_TugFrame): its pull on your hand's hold (the force between its hand and the weapon);
-// a pull of vr_agrunt_tug_break_force, or force times time (counted above a fifth of it) of vr_agrunt_tug_break_impulse,
+// a pull of vr_agrunt_tug_break_force, or force times time (counted above a tenth of it) of vr_agrunt_tug_break_impulse,
 // breaks its grip (less hurt, half in pain): the weapon is yours. vr_agrunt_tug_hold_max s on, it wrenches it free.
 float(entity g, entity p, entity pl, float h) VR_AG_TugRagFrame =
 {
@@ -256,7 +258,7 @@ float(entity g, entity p, entity pl, float h) VR_AG_TugRagFrame =
     float need = max(0.01, cvar_hget(cvarh_vr_agrunt_tug_break_impulse)) * share;
     vr_ag_tug_force = f;
     g.vr_ag_tug_peak = max(g.vr_ag_tug_peak, f);
-    if(f > brk * 0.2)
+    if(f > brk * 0.1)
     {
         g.vr_ag_tug_imp = g.vr_ag_tug_imp + f * dt;
     }
@@ -299,6 +301,10 @@ float(entity g, entity p, entity pl, float h) VR_AG_TugRagFrame =
 // the ragdoll began (the limb nearest it then; its forward and up as last posed).
 void(entity g, entity p) VR_AG_RagProp =
 {
+    if(!p)
+    {
+        return;
+    }
     if(!p.vr_ag_rb)
     {
         float b = ragdollbone(g, p.origin);
@@ -597,6 +603,11 @@ float(entity e) VR_AG_Striking =
 // combat.qc VR_Parry: `targ`'s weapon parried `attacker`'s blow.
 void(entity attacker, entity targ) VR_AG_Parried =
 {
+    if(attacker.vr_ag)
+    {
+        vr_ag_parried_n = vr_ag_parried_n + 1;
+        VR_AG_Log(sprintf("its blow parried (%s)", attacker.vr_ag_prop ? attacker.vr_ag_prop.netname : "its fist"));
+    }
     if(!attacker.vr_ag || !attacker.vr_ag_prop || attacker.health <= 0 || attacker.vr_eshove_striking ||
        !VR_AG_Striking(attacker))
     {

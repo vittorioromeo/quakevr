@@ -56,6 +56,7 @@ float(entity e) VR_AG_Striking;                                            // VR
 .vector vr_ag_pup;
 .float vr_ag_took_at;      // a weapon taken up from the floor: its reach began (0: none),
 .float vr_ag_took_grab;    // ... its hand closes on it then (it lies where it was until then)
+.float vr_ag_took_done;    // ... its hand closed (counted: VR_AG_TakeGrab)
 .vector vr_ag_took_org;    // ... where it lay, its forward and up there
 .vector vr_ag_took_fw;
 .vector vr_ag_took_up;

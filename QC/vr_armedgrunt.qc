@@ -319,6 +319,7 @@ void() VR_AGP_Attack;
 void(entity g) VR_AGP_Spawn;
 
 float(entity g) VR_AG_Taking;
+void() VR_AG_TakeGrab;
 
 void(entity g, entity p) VR_AG_PlaceProp =
 {
@@ -339,6 +340,15 @@ void(entity g, entity p) VR_AG_PlaceProp =
             VR_AG_Log("its reach for a weapon cut short: it stays on the floor");
             return;
         }
+    }
+    if(g.vr_ag_took_at > 0 && time >= g.vr_ag_took_grab && !g.vr_ag_took_done)
+    {
+        // (Its hand closed on it: by time, not its take frame: a sighting's FoundTarget may send it on to its run.)
+        g.vr_ag_took_done = 1;
+        entity oldself = self;
+        self = g;
+        VR_AG_TakeGrab();
+        self = oldself;
     }
     if(isragdoll(g))
     {
@@ -637,6 +647,10 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
 void(entity g, entity pl, float h) VR_AG_Yank =
 {
     float wid = g.vr_ag_wid;
+    if(g.vr_ag_prop)
+    {
+        setorigin(g.vr_ag_prop, VRGetEntHandPos(pl, h)); // (into your hand: a tug's pulled it a little behind it)
+    }
     entity w = VR_AG_DropHeld(g, '0 0 0');
     if(!w)
     {
@@ -1161,6 +1175,7 @@ void() VR_AG_TakeBegin =
     remove(w);
     self.vr_ag_took_at = time;
     self.vr_ag_took_grab = time + 3 * VR_AG_TAKE_FRAME;
+    self.vr_ag_took_done = 0;
     if(self.vr_ag_prop)
     {
         VR_AG_ArmLeft(self, wid, flags, inst); // (its second hand's again: VR_AG_WantsSecond)
@@ -1190,7 +1205,7 @@ void() VR_AG_TakeGrab =
 void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeBegin(); };
 void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + VR_AG_TAKE_FRAME; };
 void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeGrab(); };
+void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + VR_AG_TAKE_FRAME; };
 void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + VR_AG_TAKE_FRAME; };
 void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + VR_AG_TAKE_FRAME; };
 

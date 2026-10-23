@@ -1067,7 +1067,7 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A pull this hard on its weapon tears it out of its hand at once (the physical tug; less as it is "
                   "hurt) (vr_agrunt_tug_break_force)."),
         slider("Tug: Break Impulse", vr_agrunt_tug_break_impulse, 10.f, 1000.f, 10.f, "%.0f N s").extend(0.f, 10000.f)
-            .help("Pulling over time: the pull's force times its time (above a fifth of the break force) that tears it "
+            .help("Pulling over time: the pull's force times its time (above a tenth of the break force) that tears it "
                   "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse)."),
         slider("Tug: Its Pull", vr_agrunt_tug_strength, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 3.f)
             .help("How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength)."),

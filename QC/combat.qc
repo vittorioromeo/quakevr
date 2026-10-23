@@ -2437,6 +2437,26 @@ void(entity m, entity p) VR_Parry_Interrupt =
     vr_parry_rag_nofall = FALSE;
 };
 
+// The hand whose weapon parries a blow from `to` (-1: none), the player's hands looked at with self the player: an armed
+// monster's blow is dealt by your weapons' own code with self the monster (its hand and weapon fields its own), and the
+// line's helpers that read self saw those: it never parried.
+float(entity targ, vector to) VR_Parry_HandFor =
+{
+    entity was = self;
+    self = targ;
+    float h = -1;
+    if(VR_Parry_Blocks(targ, cVR_MainHand, to))
+    {
+        h = cVR_MainHand;
+    }
+    else if(VR_Parry_Blocks(targ, cVR_OffHand, to))
+    {
+        h = cVR_OffHand;
+    }
+    self = was;
+    return h;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
@@ -2469,15 +2489,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
     float hand = -1;
     vr_parry_from = attacker.origin;
-    if(VR_Parry_Blocks(targ, cVR_MainHand, to))
-    {
-        hand = cVR_MainHand;
-    }
-    else if(VR_Parry_Blocks(targ, cVR_OffHand, to))
-    {
-        hand = cVR_OffHand;
-    }
-    else
+    hand = VR_Parry_HandFor(targ, to);
+    if(hand < 0)
     {
         // Why not (developer 1): where the blow came from (0 ahead, 90 on the left) and how far.
         float fromYaw = anglemod(vectoyaw(to) - targ.v_viewangle_y + 180) - 180;
@@ -2749,6 +2762,17 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     // instead (VR_Prop_BlowDamage: from the blow's speed; a light one none, it only pushes). Else positional damage
     // (vr_melee_positional): the zone of the point on the model it met, the same the guns use. Off: 1, and nothing is
     // recorded - exactly the flat melee damage of before.
+    // An armed monster's blow (your weapons' own code, dealt by it: vr_armedgrunt_pose.qc VR_AGP_Strike) parried as any
+    // monster's melee (VR_Parry: its windows, stamina, stagger, sounds, haptics). This path never went through T_Damage:
+    // its blows could not be parried.
+    if(attacker.vr_ag && (attacker.flags & FL_MONSTER) && (targ.flags & FL_CLIENT))
+    {
+        damage = VR_Parry(targ, inflictor, attacker, damage);
+        if(damage <= 0)
+        {
+            return FALSE;
+        }
+    }
     float prop = -1;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_blowhand == vr_hithand + 1 && attacker == self &&
        (attacker.flags & FL_CLIENT))
