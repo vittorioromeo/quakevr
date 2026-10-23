@@ -171,6 +171,13 @@
                   "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits; "
                   "the flails lying about: handles, heads, pairs, heads without their handle, handles without a head (both "
                   "0 when right), each rope's ends apart against its length."),
+        toggle("Flail Head in Your Frame", "vr_flail_frame")
+            .help("Debug: the held flail's head simulated in your moving frame (the stick's walk and turn carry it; Flail "
+                  "Body Inertia's share of your speeding up swings it). Off: in the world's, as before (the stick's walk "
+                  "flung it)."),
+        toggle("Flail Head Drawn Smooth", "vr_flail_smooth")
+            .help("Debug: the held flail's head drawn between the server's steps, on the hand as drawn, at the headset's "
+                  "frame rate. Off: where each 72 Hz step left it (jerky under the hand)."),
         command("Flail Lying With Its Head", "vr_ad_test 169")
             .help("A death sergeant's flail made 64 units ahead (the toolgun's dispenser): its head beside it on its "
                   "chain, a body of its own you can carry; force grab the handle, the head trails it."),

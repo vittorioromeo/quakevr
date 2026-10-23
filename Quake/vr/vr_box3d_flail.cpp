@@ -23,6 +23,10 @@
 #include "vr_admelee.hpp"
 #include "vr_timescale.hpp"
 
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 namespace box3d::detail
 {
 namespace
@@ -66,6 +70,21 @@ struct Head
     double madeTime{0.0}; // (made or carried: grace; real time, as the cooldown's)
     double lastRattle{-1.0};
     glm::vec3 lastGood{0.f}; // units: its middle after the last frame, on the right side of the level's surfaces
+    // The player's own frame at the last frame (carryWithPlayer): his origin, his play space's turn (QC .vryaw) and the
+    // head it turns about (.headpos), his speed then (units/s; zero with vr_flail_frame 0).
+    glm::vec3 frameOrigin{0.f}, framePivot{0.f}, frameVel{0.f};
+    float frameYaw{0.f};
+    bool frameKnown{false};
+    // The view's (vr_flail_smooth, flailHeadAt): the last steps' head from its anchor and its turn, both in the play
+    // space's frame (turned back by .vryaw then), at the server's time after each step (what its message carries).
+    struct Sample
+    {
+        double time{-1.0};
+        glm::vec3 off{0.f};
+        glm::quat rot{1.f, 0.f, 0.f, 0.f};
+    };
+    Sample samples[3];
+    int newest{0};
 };
 
 // vr_flail_info: since the last one, the frames a head was held, the most its chain was stretched past its length
@@ -258,7 +277,7 @@ void noteHeldHeads(edict_t* player, int client)
         if(B3_IS_NON_NULL(h.head) && b3Body_IsValid(h.head))
         {
             setFieldVec(player, posOfs, h.pos);
-            setFieldVec(player, velOfs, h.vel);
+            setFieldVec(player, velOfs, h.vel + h.frameVel); // (the world's: the player's own speed back on it)
             continue;
         }
         if(fieldFloat(player, takenOfs) > 0.f && static_cast<float>(qcvm->time) - fieldFloat(player, takenOfs) < takenFresh)
@@ -269,6 +288,83 @@ void noteHeldHeads(edict_t* player, int client)
         setFieldVec(player, posOfs, glm::vec3{0.f});
         setFieldVec(player, velOfs, glm::vec3{0.f});
     }
+}
+
+[[nodiscard]] glm::vec3 turnZ(const glm::vec3& v, float degrees)
+{
+    const float r = glm::radians(degrees);
+    const float c = za::cos(r), s = za::sin(r);
+    return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
+}
+
+// The head simulated in the player's moving frame (vr_flail_frame 1; the note vrtesthall_2026-10-24_00-54-30: the
+// stick's walk flung it, "spazzing out, super fast": the anchor ran at his 8 m/s and the air dragged the head behind).
+// Before the step, his own move since the last frame -- his origin's (the stick's walk, a push, a lift, a fall, a
+// teleport within reach) and his play space's turn about his head (the stick's snap or smooth turn; QC .vryaw, the
+// client's turnYaw, sent with the hands it placed) -- carries the head and its anchor rigidly (its speed turned with
+// them), so only the hand's move on his body and the head's own swing move it in the step, and the air slows its speed
+// in his frame. vr_flail_inertia of his change of speed is still given to it (a hard stop swings it on a little). A
+// jump past `teleport`: syncFlails' own carry.
+void carryWithPlayer(Head& head, edict_t* player, float dt)
+{
+    const FieldOffsets& f = fields();
+    const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    const float yaw = fieldFloatOr(player, f.vryaw, 0.f);
+    glm::vec3 pivot = f.headpos >= 0 ? fieldVec(player, f.headpos) : origin;
+    if(pivot == glm::vec3{0.f})
+    {
+        pivot = origin;
+    }
+    const bool on = vr_flail_frame.value != 0.f;
+    const glm::vec3 shift = origin - head.frameOrigin;
+    glm::vec3 vel{0.f};
+    if(on && head.frameKnown && dt > 0.f && glm::length(shift) / world->m2u <= teleport)
+    {
+        const float turn = za::remainder(yaw - head.frameYaw, 360.f);
+        // (His speed this frame, units/s; a step up a stair, faster than a hand, kept out of it: the last one stands.)
+        const glm::vec3 now = shift / dt;
+        const bool plausible = glm::length(now) / world->m2u <= handJump;
+        vel = plausible ? now : head.frameVel;
+        if(shift != glm::vec3{0.f} || turn != 0.f)
+        {
+            const glm::vec3 from = head.framePivot;
+            const auto carry = [&](const glm::vec3& p) { return from + shift + turnZ(p - from, turn); };
+            const glm::quat spin = glm::angleAxis(glm::radians(turn), glm::vec3{0.f, 0.f, 1.f});
+            b3Body_SetTransform(head.anchor, world->toM(carry(world->toU(b3Body_GetPosition(head.anchor)))),
+                toB3(glm::quat{1.f, 0.f, 0.f, 0.f}));
+            b3Body_SetTransform(head.head, world->toM(carry(world->toU(b3Body_GetPosition(head.head)))),
+                toB3(spin * fromB3(b3Body_GetRotation(head.head))));
+            b3Body_SetLinearVelocity(head.head, b3v(turnZ(glmv(b3Body_GetLinearVelocity(head.head)), turn)));
+            b3Body_SetAngularVelocity(head.head, b3v(turnZ(glmv(b3Body_GetAngularVelocity(head.head)), turn)));
+        }
+        // (His change of speed, m/s, at most 10 a frame: in his frame the head is pushed against it; this share kept.)
+        glm::vec3 change = (vel - head.frameVel) / world->m2u;
+        if(const float len = glm::length(change); len > 10.f)
+        {
+            change *= 10.f / len;
+        }
+        const float share = za::clamp(vr_flail_inertia.value, 0.f, 1.f);
+        if(share > 0.f && change != glm::vec3{0.f})
+        {
+            b3Body_SetLinearVelocity(head.head, b3v(glmv(b3Body_GetLinearVelocity(head.head)) - change * share));
+        }
+    }
+    head.frameOrigin = origin;
+    head.framePivot = pivot;
+    head.frameYaw = yaw;
+    head.frameVel = on ? vel : glm::vec3{0.f};
+    head.frameKnown = true;
+}
+
+// The head's place for the view after the step (vr_flail_smooth): from its anchor, turned back by the play space's turn.
+void sample(Head& head, edict_t* player)
+{
+    const float yaw = fieldFloatOr(player, fields().vryaw, 0.f);
+    head.newest = (head.newest + 1) % 3;
+    Head::Sample& s = head.samples[head.newest];
+    s.time = qcvm->time + host_frametime; // (the time this frame's message carries: qcvm->time goes on after the step)
+    s.off = turnZ(head.pos - head.anchorAt, -yaw);
+    s.rot = glm::angleAxis(glm::radians(-yaw), glm::vec3{0.f, 0.f, 1.f}) * head.rot;
 }
 } // namespace
 
@@ -313,8 +409,10 @@ void syncFlails(float dt)
             {
                 drop(head);
                 make(head, player, i, h, at, out);
+                carryWithPlayer(head, player, dt); // (his frame noted)
                 continue;
             }
+            carryWithPlayer(head, player, dt);
             const glm::vec3 now = world->toU(b3Body_GetPosition(head.anchor));
             // (A jump no hand makes, faster than handJump in real time: a stale muzzle as the flail is taken, a new
             // weapon's; carried too, not whipping the head at it.)
@@ -477,6 +575,7 @@ void stepped(Head& head, int i, int h)
     }
     head.rot = fromB3(b3Body_GetRotation(head.head));
     head.anchorAt = world->toU(b3Body_GetPosition(head.anchor));
+    sample(head, EDICT_NUM(i));
     Info& info = flails.info;
     info.frames++;
     info.fastest = za::max(info.fastest, glm::length(head.vel) / world->m2u * scale);
@@ -494,9 +593,11 @@ void stepped(Head& head, int i, int h)
     }
     if(vr_flail_debug.value >= 2.f)
     {
-        Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle (%.1f %.1f %.1f)\n", i, h,
-            head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt),
-            head.anchorAt.x, head.anchorAt.y, head.anchorAt.z);
+        Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle (%.1f %.1f %.1f) at %.4f, "
+                   "player %.1f %.1f %.1f yaw %.1f\n",
+            i, h, head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt),
+            head.anchorAt.x, head.anchorAt.y, head.anchorAt.z, qcvm->time, head.frameOrigin.x, head.frameOrigin.y,
+            head.frameOrigin.z, head.frameYaw);
     }
 }
 } // namespace
@@ -640,6 +741,48 @@ bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& 
     pos = h.pos;
     rot = h.rot;
     anchor = h.anchorAt;
+    return true;
+}
+
+bool flailHeadAt(int client, int hand, double time, glm::vec3& off, glm::quat& rot)
+{
+    using namespace ::box3d::detail;
+    if(!world || client < 1 || client > MAX_SCOREBOARD || hand < 0 || hand > 1 || !sameWorld(flails.world, world->id))
+    {
+        return false;
+    }
+    const Head& h = flails.heads[client][hand];
+    if(B3_IS_NULL(h.head) || !b3Body_IsValid(h.head))
+    {
+        return false;
+    }
+    // The samples newest first; the two about `time` (none newer: the newest; none older: the oldest).
+    const Head::Sample* s[3];
+    int n = 0;
+    for(int k = 0; k < 3; k++)
+    {
+        const Head::Sample& one = h.samples[(h.newest + 3 - k) % 3];
+        if(one.time < 0.0 || (n > 0 && one.time >= s[n - 1]->time))
+        {
+            break;
+        }
+        s[n++] = &one;
+    }
+    if(n == 0)
+    {
+        return false;
+    }
+    const Head::Sample* a = s[0];
+    const Head::Sample* b = s[0];
+    for(int k = 1; k < n && time < a->time; k++)
+    {
+        b = a;
+        a = s[k];
+    }
+    const double span = b->time - a->time;
+    const float t = span > 1e-6 ? static_cast<float>(za::clamp((time - a->time) / span, 0.0, 1.0)) : 1.f;
+    off = glm::mix(a->off, b->off, t);
+    rot = glm::slerp(a->rot, b->rot, t);
     return true;
 }
 } // namespace qvr::box3d
