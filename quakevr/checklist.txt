@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Blood in water: shoot and gib monsters standing in the firing-range or vrtesthall pool: red clouds spread on the surface and fade over ~30 s (Gore > Blood in Water); wade below 75 health: your own clouds; shoot a monster under water: the spray hangs as a slowly sinking cloud (stream puffs may look like solid red balls); red too strong or too faint?
 MG3 infected drops: kill an infected grunt, knight, enforcer and death knight: each drops its weapon as it turns, and the zombie/fiend holds nothing
 Freddie gibbed: rocket a Freddie apart: exactly one super nailgun comes out (also after cutting the arm first: still only one)
 Dying against a wall: body-shot grunts standing a step or two from a wall with the shotgun and super shotgun: most throw a hand out to the wall and slide down into a slump (Ragdoll > Lean on Walls > Wall Slide); away from walls and headshots look unchanged
