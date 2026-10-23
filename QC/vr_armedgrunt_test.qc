@@ -656,8 +656,9 @@ void() VR_AGTest_Sweep =
     {
         VR_AGT_ClearWeapons();
         p.flags = p.flags | FL_NOTARGET;
-        vr_agt_weapon2 = WID_AXE;
-        vr_agt_grunt = VR_AGT_Spawn(WID_AXE, 90);
+        float t43 = cvar_hget(cvarh_vr_agrunt_test) == 43; // (43: a shotgun and a nail gun, every frame only)
+        vr_agt_weapon2 = t43 ? WID_NAILGUN : WID_AXE;
+        vr_agt_grunt = VR_AGT_Spawn(t43 ? WID_SHOTGUN : WID_AXE, 90);
         vr_agt_weapon2 = 0;
         g = vr_agt_grunt;
         g.angles_y = vectoyaw(p.origin - g.origin) + 90; // (side on: its right hand towards you)
@@ -711,7 +712,7 @@ void() VR_AGTest_Sweep =
             vr_agt_until = time + 0.15;
             if(vr_agt_index >= vr_agt_sweep_n)
             {
-                vr_agt_step = 2;
+                vr_agt_step = cvar_hget(cvarh_vr_agrunt_test) == 43 ? 4 : 2; // (43: the guns' frames alone)
                 vr_agt_index = 0;
                 g.vr_ag_act_at = time;
             }
@@ -765,6 +766,290 @@ void() VR_AGTest_Sweep =
     cvar_set("vr_agrunt_ik_tag", ftos(tag));
 };
 
+// Test 42: dual-wielded guns (`vr_agrunt_test_kind` the kind; ROUND22.md "Armed monsters: dual-wielded guns"). A the
+// pairs: gun pairs held, the big weapons and blade + gun refused (the left hand empty); B the penalty: a single shotgun
+// and two shotguns fire 40 shots each at you (its kick zeroed each: spread alone; vr_agrunt_aim_error 4 meanwhile), the
+// pellets' and the aims' mean angles off their lines (ratio ~ 1 / vr_2h_spread_reduction); C the kick: two nail guns and
+// one, six shots 0.1 s apart (the kick left at each shot), two super shotguns' one shot; D a fight: two nail guns
+// hunting you (god), their clips short: both fire, a reload; killed, both fall; E the pickup option: a shotgun alone,
+// you unseen, a nail gun lying near it: vr_agrunt_dual_pickup 0 it leaves it, 1 it takes it in its left hand.
+float vr_agt_keep_err;
+float vr_agt_keep_pickup;
+entity vr_agt_g2;
+float vr_agt_kick_sum;
+float vr_agt_kick_sum1;
+float vr_agt_keep_heft;
+
+entity(float w1, float w2, float dist) VR_AGT_SpawnPair =
+{
+    vr_agt_weapon2 = w2;
+    entity g = VR_AGT_Spawn(w1, dist);
+    vr_agt_weapon2 = 0;
+    return g;
+};
+
+void(entity g) VR_AGT_RemovePair =
+{
+    if(g.vr_ag_prop2)
+    {
+        g.vr_ag_prop2.weaponinst = world;
+        remove(g.vr_ag_prop2);
+        g.vr_ag_prop2 = world;
+    }
+    VR_AGT_Remove(g);
+};
+
+// A pair spawned: held both or not (`want`).
+void(float w1, float w2, float want) VR_AGT_PairCheck =
+{
+    entity g = VR_AGT_SpawnPair(w1, w2, 400);
+    float both = g.vr_ag_prop != world && g.vr_ag_prop2 != world;
+    VR_AGT_Check(sprintf("guns: %s + %s: %s (left %s):", VR_AGT_Name(w1), VR_AGT_Name(w2), both ? "both held" : "one",
+        g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "none"), both == want);
+    VR_AGT_RemovePair(g);
+};
+
+// `n` shots of `g`'s gun `pr` at you, the kick zeroed each; the means off (pellets, aims) in vr_agt_kick_sum, _sum1.
+void(entity g, entity pr, float n) VR_AGT_Volley =
+{
+    entity oldself = self;
+    self = g;
+    g.enemy = vr_agt_player;
+    vr_fire_dev_sum = 0;
+    vr_fire_dev_n = 0;
+    float aims = 0;
+    float k;
+    for(k = 0; k < n; k++)
+    {
+        pr.weaponinst.wi_clip = 8;
+        pr.vr_ag_hk = 0;
+        VR_AG_ShootProp(pr);
+        aims = aims + vr_ag_last_aimdev;
+    }
+    self = oldself;
+    vr_agt_kick_sum = vr_fire_dev_n > 0 ? vr_fire_dev_sum / vr_fire_dev_n : 0;
+    vr_agt_kick_sum1 = aims / n;
+};
+
+void() VR_AGTest_DualGuns =
+{
+    entity g = vr_agt_grunt;
+    entity p = vr_agt_player;
+    if(vr_agt_step == 0)
+    {
+        VR_AGT_ClearWeapons();
+        // A: the pairs
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_SHOTGUN, TRUE);
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_NAILGUN, TRUE);
+        VR_AGT_PairCheck(WID_SUPER_SHOTGUN, WID_GRENADE_LAUNCHER, TRUE);
+        VR_AGT_PairCheck(WID_SUPER_NAILGUN, WID_LIGHTNING, TRUE);
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_ROCKET_LAUNCHER, FALSE);
+        VR_AGT_PairCheck(WID_ROCKET_LAUNCHER, WID_SHOTGUN, FALSE);
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_CHAINSAW, FALSE);
+        VR_AGT_PairCheck(WID_SHOTGUN, WID_AXE, FALSE);
+        VR_AGT_PairCheck(WID_AXE, WID_SHOTGUN, FALSE);
+        VR_AGT_PairCheck(WID_AXE, WID_SWORD, TRUE);
+        // (the big weapons' flag itself: the packs' Mjolnir and Laser Cannon whether or not their data is here)
+        VR_AGT_Check(sprintf("guns: the big ones pair: rocket launcher %g, Laser Cannon %g, chainsaw %g, Mjolnir %g, AD's "
+            "rocket launcher %g:", VR_AG_Pairable(WID_ROCKET_LAUNCHER, 0), VR_AG_Pairable(WID_LASER_CANNON, 0),
+            VR_AG_Pairable(WID_CHAINSAW, 0), VR_AG_Pairable(WID_MJOLNIR, 0), VR_AG_Pairable(WID_ADROCKET, 0)),
+            !VR_AG_Pairable(WID_ROCKET_LAUNCHER, 0) && !VR_AG_Pairable(WID_LASER_CANNON, 0) &&
+            !VR_AG_Pairable(WID_CHAINSAW, 0) && !VR_AG_Pairable(WID_MJOLNIR, 0) && !VR_AG_Pairable(WID_ADROCKET, 0));
+        VR_AGT_Check(sprintf("guns: these pair: grenade launcher %g, thunderbolt %g, proximity gun %g, AD's plasma %g:",
+            VR_AG_Pairable(WID_GRENADE_LAUNCHER, 0), VR_AG_Pairable(WID_LIGHTNING, 0), VR_AG_Pairable(WID_PROXIMITY_GUN, 0),
+            VR_AG_Pairable(WID_ADPLASMA, 0)), VR_AG_Pairable(WID_GRENADE_LAUNCHER, 0) && VR_AG_Pairable(WID_LIGHTNING, 0));
+        // B: the penalty
+        float keepPen = cvar("vr_agrunt_dual_penalty");
+        vr_agt_keep_err = cvar("vr_agrunt_aim_error");
+        cvar_set("vr_agrunt_aim_error", "4");
+        p.flags = p.flags | FL_GODMODE;
+        entity a = VR_AGT_Spawn(WID_SHOTGUN, 220);
+        entity b = VR_AGT_SpawnPair(WID_SHOTGUN, WID_SHOTGUN, 220);
+        a.takedamage = DAMAGE_NO; // (side by side: the other's pellets)
+        b.takedamage = DAMAGE_NO;
+        VR_AGT_Volley(a, a.vr_ag_prop, 40);
+        float sp1 = vr_agt_kick_sum;
+        float aim1 = vr_agt_kick_sum1;
+        VR_AGT_Volley(b, b.vr_ag_prop, 20);
+        float sp2 = vr_agt_kick_sum;
+        float aim2 = vr_agt_kick_sum1;
+        VR_AGT_Volley(b, b.vr_ag_prop2, 20);
+        sp2 = (sp2 + vr_agt_kick_sum) * 0.5;
+        aim2 = (aim2 + vr_agt_kick_sum1) * 0.5;
+        float want = 1 + keepPen * (1 / max(0.05, cvar("vr_2h_spread_reduction")) - 1);
+        VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", keepPen,
+            sp1, sp2, sp2 / max(0.001, sp1), want), fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want);
+        VR_AGT_Check(sprintf("guns: aims %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", aim1, aim2,
+            aim2 / max(0.001, aim1), want), fabs(aim2 / max(0.001, aim1) - want) < 0.25 * want);
+        cvar_set("vr_agrunt_dual_penalty", "0");
+        VR_AGT_Volley(b, b.vr_ag_prop, 40);
+        VR_AGT_Check(sprintf("guns: penalty 0: two shotguns' pellets %.2f deg off (one gun %.2f):", vr_agt_kick_sum, sp1),
+            fabs(vr_agt_kick_sum / max(0.001, sp1) - 1) < 0.15);
+        cvar_set("vr_agrunt_dual_penalty", ftos(keepPen));
+        cvar_set("vr_agrunt_aim_error", ftos(vr_agt_keep_err));
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        VR_AGT_Remove(a);
+        VR_AGT_RemovePair(b);
+        VR_AGT_Print(sprintf("guns: kicks (deg/s a shot in one hand): shotgun %.0f, super shotgun %.0f, nailgun %.0f, super "
+            "nailgun %.0f, grenade launcher %.0f, thunderbolt %.0f", weaponheft(WeaponIdToModel(WID_SHOTGUN, 0), 1),
+            weaponheft(WeaponIdToModel(WID_SUPER_SHOTGUN, 0), 1), weaponheft(WeaponIdToModel(WID_NAILGUN, 0), 1),
+            weaponheft(WeaponIdToModel(WID_SUPER_NAILGUN, 0), 1), weaponheft(WeaponIdToModel(WID_GRENADE_LAUNCHER, 0), 1),
+            weaponheft(WeaponIdToModel(WID_LIGHTNING, 0), 1)));
+        // C: the kick (the dual-wieldable guns are all Heft 0 but AD's Widowmaker: the super nail gun's made 0.5 here,
+        // the super nail gun's slot 5's Weapon Weights setting)
+        vr_agt_keep_heft = cvar("vr_wofs_w_heft_05");
+        cvar_set("vr_wofs_w_heft_05", "0.5");
+        vr_agt_grunt = VR_AGT_SpawnPair(WID_SUPER_NAILGUN, WID_SUPER_NAILGUN, 220);
+        p.angles_y = p.angles_y + 25; // (side by side: neither in the other's line of fire)
+        vr_agt_g2 = VR_AGT_Spawn(WID_SUPER_NAILGUN, 260);
+        p.angles_y = p.angles_y - 25;
+        vr_agt_grunt.takedamage = DAMAGE_NO;
+        vr_agt_g2.takedamage = DAMAGE_NO;
+        p.flags = p.flags | FL_GODMODE;
+        vr_agt_kick_sum = 0;
+        vr_agt_kick_sum1 = 0;
+        vr_agt_index = 0;
+        vr_agt_until = time;
+        vr_agt_step = 1;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        g.nextthink = time + 1;
+        vr_agt_g2.nextthink = time + 1;
+        if(time < vr_agt_until) { return; }
+        vr_agt_until = time + 0.1;
+        entity oldself = self;
+        self = g;
+        g.enemy = p;
+        g.vr_ag_prop.weaponinst.wi_clip = 50;
+        VR_AG_ShootProp(g.vr_ag_prop);
+        float k2 = vr_ag_last_kick;
+        self = vr_agt_g2;
+        vr_agt_g2.enemy = p;
+        vr_agt_g2.vr_ag_prop.weaponinst.wi_clip = 50;
+        VR_AG_ShootProp(vr_agt_g2.vr_ag_prop);
+        float k1 = vr_ag_last_kick;
+        self = oldself;
+        VR_AGT_Print(sprintf("guns: kick: shot %g: two super nailguns' aim up %.2f deg at it (%.2f after), one's %.2f",
+            vr_agt_index + 1, k2, g.vr_ag_prop.vr_ag_hk, k1));
+        vr_agt_kick_sum = vr_agt_kick_sum + k2;
+        vr_agt_kick_sum1 = vr_agt_kick_sum1 + k1;
+        vr_agt_index = vr_agt_index + 1;
+        if(vr_agt_index < 6) { return; }
+        float kickNow = weaponheft(WeaponIdToModel(WID_SUPER_NAILGUN, 0), 1);
+        cvar_set("vr_wofs_w_heft_05", ftos(vr_agt_keep_heft));
+        VR_AGT_Check(sprintf("guns: kick (%.0f deg/s at Heft 0.5): two super nailguns' aims up %.2f deg in all, one's %.2f:",
+            kickNow, vr_agt_kick_sum, vr_agt_kick_sum1), vr_agt_kick_sum1 == 0 && vr_agt_kick_sum > 0);
+        // ... recovered before an aimed shot a second later (the single-shot guns' pace)
+        VR_AGT_RemovePair(g);
+        VR_AGT_Remove(vr_agt_g2);
+        // D: a fight
+        vr_agt_grunt = VR_AGT_SpawnPair(WID_NAILGUN, WID_SHOTGUN, 200);
+        g = vr_agt_grunt;
+        g.vr_ag_prop.weaponinst.wi_clip = 6;
+        g.vr_ag_prop2.weaponinst.wi_clip = 2;
+        g.vr_ag_reserve2 = 8;
+        VR_AGT_Hunt(g);
+        vr_agt_step = 2;
+        vr_agt_until = time + 12;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        entity pa = g.vr_ag_prop.vr_ag_left ? g.vr_ag_prop2 : g.vr_ag_prop;
+        entity pb = g.vr_ag_prop.vr_ag_left ? g.vr_ag_prop : g.vr_ag_prop2;
+        if(time < vr_agt_until && (g.vr_ag_reloads < 1 || pa.vr_ag_total_shots < 1 || pb.vr_ag_total_shots < 1)) { return; }
+        VR_AGT_Check(sprintf("guns: fight: right %s %g shots, left %s %g shots, %g reloads, holds %g:", pa.netname,
+            pa.vr_ag_total_shots, pb.netname, pb.vr_ag_total_shots, g.vr_ag_reloads, (g.vr_ag_prop != world) + (g.vr_ag_prop2 != world)),
+            pa.vr_ag_total_shots >= 1 && pb.vr_ag_total_shots >= 1 && g.vr_ag_reloads >= 1 && g.vr_ag_prop2);
+        VR_AGT_ClearWeapons();
+        g.health = -10;
+        Killed(g, p);
+        vr_agt_step = 3;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(vr_agt_step == 3)
+    {
+        if(time < vr_agt_until) { return; }
+        vr_agt_count = 0;
+        entity e = find(world, classname, "thrown_weapon");
+        while(e)
+        {
+            vr_agt_count = vr_agt_count + 1;
+            e = find(e, classname, "thrown_weapon");
+        }
+        VR_AGT_Check(sprintf("guns: died: %g weapons fell:", vr_agt_count), vr_agt_count == 2);
+        p.flags = p.flags - (p.flags & FL_GODMODE);
+        // E: the pickup option, off
+        VR_AGT_ClearWeapons();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_keep_pickup = cvar("vr_agrunt_dual_pickup");
+        cvar_set("vr_agrunt_dual_pickup", "0");
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 260);
+        p.angles_y = p.angles_y + 25;
+        entity src = VR_AGT_Spawn(WID_NAILGUN, 220); // (a grunt dropping its nail gun: it lies there)
+        p.angles_y = p.angles_y - 25;
+        VR_AG_DropHeld(src, '0 0 0');
+        VR_AGT_Remove(src);
+        vr_agt_step = 4;
+        vr_agt_until = time + 6;
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        if(time < vr_agt_until && !g.vr_ag_prop2) { return; }
+        VR_AGT_Check(sprintf("guns: pickup 0: left hand %s:", g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "empty"), !g.vr_ag_prop2);
+        cvar_set("vr_agrunt_dual_pickup", "1");
+        vr_agt_step = 5;
+        vr_agt_until = time + 12;
+        return;
+    }
+    if(vr_agt_step == 5)
+    {
+        if(time < vr_agt_until && !(g.vr_ag_prop2 && g.vr_ag_took_at <= 0)) { return; }
+        entity l = g.vr_ag_prop.vr_ag_left ? g.vr_ag_prop : g.vr_ag_prop2;
+        VR_AGT_Check(sprintf("guns: pickup 1: %g pickups, left hand %s:", g.vr_ag_pickups, l ? l.netname : "empty"),
+            l && l.weapon == WID_NAILGUN);
+        cvar_set("vr_agrunt_dual_pickup", ftos(vr_agt_keep_pickup));
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        VR_AGT_Print(sprintf("guns: %g passed, %g failed", vr_agt_passed, vr_agt_failed));
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
+// Test 44: a row of dual-gun humanoids ahead, 40 units apart, 300 off (the checklist scene agrunt_dual_guns): grunts with
+// two shotguns, two nail guns, a super shotgun and a grenade launcher, enforcers with two super nail guns and a shotgun
+// and a thunderbolt.
+void() VR_AGTest_DualRow =
+{
+    entity p = vr_agt_player;
+    float keepKind = cvar("vr_agrunt_test_kind");
+    float w1[5];
+    float w2[5];
+    w1[0] = WID_SHOTGUN;        w2[0] = WID_SHOTGUN;
+    w1[1] = WID_NAILGUN;        w2[1] = WID_NAILGUN;
+    w1[2] = WID_SUPER_SHOTGUN;  w2[2] = WID_GRENADE_LAUNCHER;
+    w1[3] = WID_SUPER_NAILGUN;  w2[3] = WID_SUPER_NAILGUN;
+    w1[4] = WID_SHOTGUN;        w2[4] = WID_LIGHTNING;
+    float k;
+    for(k = 0; k < 5; k++)
+    {
+        cvar_set("vr_agrunt_test_kind", k >= 3 ? "1" : "0");
+        makevectors(p.angles);
+        vector side = v_right;
+        side_z = 0;
+        vector keep = p.origin;
+        setorigin(p, keep + side * ((k - 2) * 40));
+        entity r = VR_AGT_SpawnPair(w1[k], w2[k], 300);
+        r.angles_y = vectoyaw(keep - r.origin);
+        setorigin(p, keep);
+    }
+    cvar_set("vr_agrunt_test_kind", ftos(keepKind));
+    cvar_set("vr_agrunt_test", "0");
+};
+
 void() VR_AGTest_Frame =
 {
     float t = cvar_hget(cvarh_vr_agrunt_test);
@@ -804,7 +1089,9 @@ void() VR_AGTest_Frame =
     else if(t == 2) { VR_AGTest_Sequence(); }
     else if(t == 3) { VR_AGTest_Yank(); }
     else if(t == 40) { VR_AGTest_Dual(); }
-    else if(t == 41) { VR_AGTest_Sweep(); }
+    else if(t == 41 || t == 43) { VR_AGTest_Sweep(); }
+    else if(t == 42) { VR_AGTest_DualGuns(); }
+    else if(t == 44) { VR_AGTest_DualRow(); }
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)

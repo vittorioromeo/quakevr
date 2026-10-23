@@ -19190,6 +19190,69 @@ alias header the placement was made from instead of looking it up again from the
 After: canary 37/45, full 169/177, no copy crashed; no verdict changes against the baseline (only PASS -> PASS drifts
 of 0.1 in a hit's numbers, which differ run to run; slash_horizontal_ltr's as before).
 
+## Armed monsters: dual-wielded guns (worktree `goreflesh`, branch `agent/agguns2`, 2026-10-24)
+
+Note vrtesthall 2026-10-23 22:46:49, item 1 (agent/agdual2 did 2, 3, 5): armed humanoids dual wield two-handed guns, one
+per hand, with the player's one-hand penalties. Vittorio's decisions: the hammers, the rocket launcher, the Laser Cannon
+and the chainsaw stay single; the grenade launcher and the Plasma Gun pair; the penalty is the player's (slider 1).
+
+- **Pairs** (`QC/vr_armedgrunt.qc`; `docs/vr-port/ARMED_MONSTERS.md`, "Dual wielding"): `VR_AG_Big`, the table's
+  per-weapon "too big to dual wield" flag (the hammers: Mjolnir, AD's hammer and mace; the rocket launchers, ours and AD's;
+  the Laser Cannon; the chainsaw; the two-handed melee weapons; AD's flamethrowers too: their fuel tank on its back).
+  `VR_AG_Pairs`: two one-handed melee weapons, or two guns not too big (any two: a shotgun and a nail gun); never a blade
+  and a gun. Map keys, the pool (`vr_agrunt_dual_chance` now draws a second gun for a gun from the pool too), pickups and
+  the toolgun all go through it. A Plasma Gun or Widowmaker as `weapon2` now spawns with a full clip (was 0).
+- **The pose** (`QC/vr_armedgrunt_pose.qc` `VR_AGP_Gun`): each gun along its rifle line's pitch, straight ahead (no hand
+  across to hold it), the left gun at the right hand mirrored; aimed together; each kicked by its own shots. The left's
+  target is sent whole (the left-hand-weapon message agent/armedmon2 made for blades). No engine change: the hands' IK
+  (vr_hitreact.cpp) is another worker's now.
+- **Firing** (`VR_AG_ShootProp`, `VR_AG_AtkFrame`): the second gun fires a frame (0.1 s) behind the first: shots and
+  rounds in turn, the nail guns' and the thunderbolt's streams together, a burst on frames 6..8. Both reload in the one
+  reload (`vr_ag_reserve2`: spare clips for the second too); a spent gun with no reserve is thrown away to its side and
+  the other fights on (passed to the right hand). Dying: both fall.
+- **The penalty** (`vr_agrunt_dual_penalty`, new, 1; Combat > Armed Grunts "Dual Guns' Penalty"): as yours in one hand.
+  Spread (FireBullets, AD's pellets: `vr_fire_spread_extra`) and the aim error (`vr_agrunt_aim_error`) times
+  1 + penalty x (1 / `vr_2h_spread_reduction` - 1): x2 at the defaults. A heavy gun's aim kicked up a shot by its heavy
+  recoil (`weaponheft(model, 1)`: `weight::kickSpeed`, deg/s, an optional argument since the builtins' table is full)
+  over 0.1 s, times the penalty, coming back over `vr_heavy_recoil_time` (a shot before then starts from what is left).
+  Of the guns that pair only AD's Widowmaker has Heft (0.6, Heavy Recoil x 1.5): the others kick only as before (the
+  shot's visual kick), as yours do.
+- **Pickup option** (`vr_agrunt_dual_pickup`, new, 0; Combat > Armed Grunts "Pick Up a Second"): one holding a single
+  weapon that pairs goes for a second (out of a fight, as a dual wielder that lost one does).
+- **Toolgun** (`vr_toolgun.cpp` `armedPairs`, `vr_toolgun_panel.cpp`): the Left Hand list is the right weapon's pairs
+  (guns for a gun, one-handed melee for a blade), its note says so; `vr_toolgun_armed_list` marks "pair"/"one" (was
+  "1h"/"2h").
+
+**Decision:** a single gun held in both hands keeps today's spread (monsters never had the two-hand reduction): the dual
+penalty multiplies on top of it, so the pair is x2 against one gun, as the brief measures, and single armed grunts'
+balance is unchanged.
+
+**Tests** (`vr_agrunt_test 42`, grunt and enforcer: 20/20 PASS each): the pairs (shotgun + shotgun, + nail gun, super
+shotgun + grenade launcher, super nail gun + thunderbolt held; shotgun + rocket launcher, rocket launcher + shotgun,
+shotgun + chainsaw, shotgun + axe, axe + shotgun refused; axe + sword still held; the big flag: rocket launchers, Laser
+Cannon, chainsaw, Mjolnir 0). The penalty, 40 shots each at aim error 4 (kick zeroed):
+
+| | one shotgun | two shotguns | ratio |
+| --- | --- | --- | --- |
+| grunt: pellets off their line (deg) | 0.43 | 0.88 | 2.02 |
+| grunt: aim off the target (deg) | 2.99 | 6.63 | 2.21 |
+| enforcer: pellets | 0.44 | 0.85 | 1.93 |
+| enforcer: aim | 3.44 | 6.07 | 1.76 |
+
+Penalty 0: two shotguns 0.42 vs 0.43. The kick (the super nail gun's Heft set to 0.5 for the test: 50 deg/s): two super
+nail guns' aim up 0, 3.6, 6.2, 8.1, 9.4, 10.4 deg at six shots 0.1 s apart (5 deg a shot, 0.4 s back); one super nail gun
+0. A fight (nail gun + shotgun, short clips): both fire (6 and 2 shots), a reload, both held; killed: 2 fell. Pickup 0:
+the lying nail gun left; 1: taken into the left hand. Toolgun: `vr_toolgun_select_armed 1 4 6` "Armed Enforcer: Shotgun +
+Nailgun", `0 5 8` kept, shotgun + axe, shotgun + rocket launcher, rocket launcher + shotgun, axe + shotgun: one weapon.
+`vr_agrunt_test 41` unchanged (grunt frames 0.54 / 0.41, swings 0 / 0; enforcer 2.75 / 0, swings 0); `vr_agrunt_test
+43` (test 41's frames with a shotgun and a nail gun): grunt 0.50 / 0.00, enforcer 0.00 / 0.00. eval.sh: 0 verdict changes.
+
+Scenario `agrunt_dual_guns` (vrtesthall, god: `vr_agrunt_test 44`, a row of five dual-gun humanoids 300 ahead that
+shoot at you): validate and runall OK.
+
+**In VR:** the scene: watch them fire both guns (in turn), the misses wider than a single gunner's; kill one (both guns
+fall); the toolgun's Armed Humanoid page: Right Hand a gun, Left Hand lists the guns. The hands themselves: judge after the
+IK rework.
 ### Armed grunts: shooting the weapon out (worktree `tghost`, branch `agent/shootdisarm`, 2026-10-24)
 
 A new way to disarm an armed monster: shoot its weapon, or the hand holding it, precisely. QC

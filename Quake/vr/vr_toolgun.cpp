@@ -637,9 +637,18 @@ void armedRefresh()
     return w && kind >= 0 && kind < armedMaxKinds ? w->fits[kind] : 0;
 }
 
+// It may go in a pair (QC VR_AG_Pairable: a one-handed melee weapon, or a gun not too big to dual wield).
 [[nodiscard]] bool armedOneHanded(int kind, int code)
 {
     return (armedFits(kind, code) & 2) != 0;
+}
+
+// The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
+[[nodiscard]] bool armedPairs(int kind, int code, int code2)
+{
+    constexpr int classMelee = 1; // (QC VR_AG_CLASS_MELEE: the fits' class, 4 x)
+    const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == classMelee) == ((f2 >> 2) == classMelee);
 }
 
 [[nodiscard]] const char* armedCodeName(int code)
@@ -703,7 +712,7 @@ void armedChoose()
     int code = static_cast<int>(vr_toolgun_armed_weapon.value);
     int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
     code = code < 0 ? -1 : (code > 0 && !armedFits(kind, code) ? 0 : code);
-    code2 = code > 0 && armedOneHanded(kind, code) && armedOneHanded(kind, code2) ? code2 : 0;
+    code2 = armedPairs(kind, code, code2) ? code2 : 0;
     const auto keep = [](cvar_t& cv, float v) {
         if(cv.value != v)
         {
@@ -2319,6 +2328,7 @@ int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i]
 const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
+bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
 bool chosen() { return tg.sel.valid && tg.sel.armed; }
 
 void choose()
@@ -2738,7 +2748,7 @@ void selectArmed_f()
 }
 
 // vr_toolgun_armed_list: the Armed Humanoid page's lists: the kinds (the armed monsters' table's rows), each weapon's
-// code and name and what each kind makes of it ("1h": one-handed, it pairs; "-": not held).
+// code and name and what each kind makes of it ("pair": it pairs, one in each hand; "one": held alone; "-": not held).
 void armedList_f()
 {
     armedRefresh();
@@ -2758,7 +2768,7 @@ void armedList_f()
         char fits[64] = "";
         for(int k = 0; k < c.kindCount; k++)
         {
-            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " 1h" : " 2h", sizeof(fits));
+            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " pair" : " one", sizeof(fits));
         }
         Con_Printf("armedlist: weapon %d \"%s\" class %d:%s\n", w.code, w.name, w.fits[0] / 4, fits);
     }

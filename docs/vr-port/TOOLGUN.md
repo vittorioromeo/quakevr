@@ -44,7 +44,8 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
     monsters and backpacks AD's maps only (ROUND22.md, "The rest of AD's monsters and pickups in the spawn panel").
     Monsters' **Armed Humanoid** tile (after id's and Quake VR's own) opens its page: three dropdowns, Kind (every row of
     the armed monsters' table), Right Hand (Random from Pool, Unarmed, every weapon that kind holds, AD's with its data)
-    and Left Hand (None, or a one-handed weapon; asleep unless the right one is one-handed), the kind's and the weapons'
+    and Left Hand (None, or a weapon pairing with the right one: one-handed melee, or a gun not too big; asleep
+    otherwise), the kind's and the weapons'
     pictures and a line on what it will do; each choice is the spawn tool's at once and its ghost holds the weapons
     (`docs/vr-port/ARMED_MONSTERS.md`, "The toolgun's spawn page"). Back, Choose. It replaces the per-weapon Armed
     Grunt / Armed Enforcer tiles on the grid (their entries stay: `vr_toolgun_select`; `vr_toolgun_armed_tiles 1` lists

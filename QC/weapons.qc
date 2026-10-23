@@ -2210,6 +2210,8 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
+        vr_fire_dev_sum = vr_fire_dev_sum + atan2(vlen(direction - dir * (direction * dir)), direction * dir) * 57.29578;
+        vr_fire_dev_n = vr_fire_dev_n + 1;
 
         traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through teleporters (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
@@ -2289,6 +2291,7 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = spread * (1 + vr_fire_spread_extra); // VR: an armed monster's dual-wielded gun (vr_armedgrunt.qc VR_AG_ShootProp)
     spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.

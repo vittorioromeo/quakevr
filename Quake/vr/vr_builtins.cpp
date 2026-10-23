@@ -1137,11 +1137,20 @@ void PF_meleearc()
     }
 }
 
-// float(string model) weaponheft: heavy handling's weight class of the weapon drawn with `model` (weight::heft: 0 light ..
-// 1; 0 for no such weapon or vr_heavy 0).
+// float(string model, optional float kick) weaponheft: heavy handling's weight class of the weapon drawn with `model`
+// (weight::heft: 0 light .. 1; 0 for no such weapon or vr_heavy 0). `kick` 1: its heavy recoil fired in one hand instead
+// (deg/s its muzzle is flung up: weight::kickSpeed, vr_heavy_recoil*; 0 for a light one or vr_heavy_recoil 0): armed
+// monsters' dual-wielded guns kick so (QC vr_armedgrunt.qc VR_AG_ShootProp). (An argument, not a builtin: the table is
+// full.)
 void PF_weaponheft()
 {
-    G_FLOAT(OFS_RETURN) = weight::heft(weapons::slotForName(G_STRING(OFS_PARM0)));
+    const int slot = weapons::slotForName(G_STRING(OFS_PARM0));
+    if(qcvm->argc >= 2 && G_FLOAT(OFS_PARM1) == 1.f)
+    {
+        G_FLOAT(OFS_RETURN) = slot < 0 ? 0.f : weight::kickSpeed(slot, 0.f);
+        return;
+    }
+    G_FLOAT(OFS_RETURN) = weight::heft(slot);
 }
 
 // vector meleegripago(entity b, float xBack): where the grip was xBack s ago (from the head, in the play space, metres;

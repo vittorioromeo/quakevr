@@ -570,7 +570,8 @@ float(entity b, float xFloor) meleearc = #0;
 // end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
 // 6 a blow landed (xA where, xV its damage or -1).
 void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
-float(string model) weaponheft = #0;
+// weaponheft's `kick` 1: its heavy recoil in one hand instead (deg/s up a shot: vr_heavy_recoil_kick x heft x its own).
+float(string model, optional float kick) weaponheft = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 
