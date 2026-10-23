@@ -797,6 +797,7 @@ void CL_RelinkEntities (void)
 
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
 	VR_RagdollSwap (); // QVR: the ragdolls drawn with their skinned models (vr/vr_ragdoll.cpp)
+	VR_RelinkArmedGrunts (); // QVR: armed grunts' weapons on their drawn hands (vr/vr_hitreact.cpp)
 }
 
 
