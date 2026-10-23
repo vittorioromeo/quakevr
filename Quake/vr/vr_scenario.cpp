@@ -14,6 +14,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_zancle.hpp"
 
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
@@ -443,7 +444,7 @@ void end()
 // Takes the weapon a toolgun Weapons entry made (`spawner`: a func_weapon_grabbable makes the weapon itself as a new
 // entity, or an AD upgrade's prop is one) into `hand` of `p`, as a grab does (QC VR_ADMelee_Take: either hand, any
 // grabbable weapon). False: none found that a hand can take.
-bool takeIntoHand(edict_t* p, edict_t* spawner, int hand)
+bool takeIntoHand(edict_t* p, edict_t* spawner, int hand, za::Vector<int>& taken)
 {
     const func_t fn = progs::findFunction("VR_ADMelee_Take");
     const int handtouch = ED_FindFieldOffset("handtouch");
@@ -451,11 +452,26 @@ bool takeIntoHand(edict_t* p, edict_t* spawner, int hand)
     {
         return false;
     }
+    // The weapon made now (QC CreateThrownWeapon: its vr_drop_born this frame's time; any free slot, below the
+    // spawner's too), a hand able to take it; else the spawner itself (an upgrade's prop). The nearest to it.
+    const int born = ED_FindFieldOffset("vr_drop_born");
     edict_t* w = nullptr;
-    for(int n = NUM_FOR_EDICT(spawner); n < qcvm->num_edicts && !w; n++)
+    float best = 1e9f;
+    for(int n = 1; n < qcvm->num_edicts; n++)
     {
         edict_t* e = EDICT_NUM(n);
-        w = !e->free && e != p && progs::fieldInt(e, handtouch) != 0 ? e : nullptr;
+        if(e->free || e == p || za::find(taken.begin(), taken.end(), n) != taken.end() || progs::fieldInt(e, handtouch) == 0 ||
+            (e != spawner && (born < 0 || progs::fieldFloat(e, born) != static_cast<float>(qcvm->time))))
+        {
+            continue;
+        }
+        const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]},
+            glm::vec3{spawner->v.origin[0], spawner->v.origin[1], spawner->v.origin[2]});
+        if(d < best)
+        {
+            best = d;
+            w = e;
+        }
     }
     if(!w)
     {
@@ -468,6 +484,10 @@ bool takeIntoHand(edict_t* p, edict_t* spawner, int hand)
     G_INT(OFS_PARM1) = EDICT_TO_PROG(w);
     G_FLOAT(OFS_PARM2) = static_cast<float>(hand);
     PR_ExecuteProgram(fn);
+    if(!w->free)
+    {
+        taken.pushBack(NUM_FOR_EDICT(w)); // (still an entity: the next give mustn't take it again; a freed slot may be the next weapon's)
+    }
     pr_global_struct->self = oldSelf;
     pr_global_struct->other = oldOther;
     return true;
@@ -516,6 +536,7 @@ void place()
         p->v.health = s.health;
     }
 
+    za::Vector<int> taken;
     for(const Give& g : s.gives)
     {
         edict_t* w = toolgun::spawnEntryAt(g.entry, glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]}, yaw);
@@ -524,7 +545,7 @@ void place()
             note(va("line %d: \"%s\" not available here (its pack's data missing?)", g.line, g.what.cStr()));
             continue;
         }
-        if(!takeIntoHand(p, w, g.hand))
+        if(!takeIntoHand(p, w, g.hand, taken))
         {
             note(va("line %d: \"%s\" left at your feet (no weapon a hand can take found)", g.line, g.what.cStr()));
         }
@@ -577,8 +598,10 @@ void place()
     {
         SCR_CenterPrintFor(state.hint.cStr(), vr_scenario_hint_time.value);
     }
-    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems\n", s.id.cStr(), made,
-        static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()));
+    const int weapon2 = ED_FindFieldOffset("weapon2");
+    Con_Printf("SCNPLACED|%s|%d of %d spawned|%d given|%d problems|hands: main %.0f, off %.0f\n", s.id.cStr(), made,
+        static_cast<int>(s.spawns.size()), static_cast<int>(s.gives.size()), static_cast<int>(state.notes.size()),
+        p->v.weapon, weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f);
 }
 
 void runNext()
