@@ -1341,7 +1341,8 @@ int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, co
     // get-up's frames from the chosen one (its own fall-and-rise on to its end, or a death backwards to its first),
     // after a moment pulled into it (longer the more its pelvis must turn and the farther the place).
     const int chosen = which == 2 ? frameB : frameA;
-    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !anywhere && !liquidAt(from) && r->riseLapses < riseLapsesMost)
+    if(vr_ragdoll_active_getup.value != 0.f && activeLiving(ent) && !activeClassOf(ent)->blendsUp && !anywhere &&
+       !liquidAt(from) && r->riseLapses < riseLapsesMost)
     {
         const int last = getupEnd(rig, chosen, 12, ragdoll::deathProgress(rig, chosen) >= 0.f);
         if(last != chosen)

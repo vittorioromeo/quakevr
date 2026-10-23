@@ -16852,6 +16852,33 @@ sergeant a little tougher. Knock the death fury down: a sword in each hand. Kill
 Hold the death fury's head: 0.65 of its size, and its Held Object page should change it. Hold the AD crossbow in the
 off hand: the bolt on the rail. Spawn the boss judicator and the ice golem from the toolgun: they wake and fight.
 
+## Toughness for the death lord, golem, drole (worktree `release`, branch `agent/tough2`, 2026-10-23)
+
+The Mini bosses' suggestion, approved by the author ("assuming they can be active ragdolled"). Group membership only:
+no setting's default changed, no configVersion bump.
+
+- **Death lord** (`monster_death_lord`, 400): Death Knights -> **Elite Knights**. It already was an active ragdoll.
+- **Stone golem** (`monster_golem`, 500) and **drole** (`monster_drole`, 500): Giants -> **Mini Bosses**, and both made
+  active ragdolls (`vr_box3d_ragdoll.cpp` activeClasses). Both rigs were already there (AdGolem: a humanoid's pelvis, chest,
+  head, arms and legs, 105 units tall; AdDrole: two legs, two raised scythes, two lower claws hanging from its hips) and
+  both already had QC knockdowns (their deaths backwards, `vr_ad_monsters.qc`). The drole is a biped, so it is not too
+  beast-like to be a Mini Boss. In Giants they were only ever pushed (shove 0.03, no triggers, no lift, no neck snap,
+  no sweep); now they get the Mini Bosses' settings.
+- **The golem's get-up is blended from the floor** (`ActiveClass::blendsUp`, the golem's alone): when its body rose
+  through its death played backwards, the pelvis lagged the get-up by 20-30 units (the minotaur's lags 13), and it lost
+  the get-up and slumped on the first try, twice in three runs (`riseLost`: 1 m). A stronger pin did not help
+  (`vr_ragdoll_active_getup_pin` 5: lost both tries). Its shove, stagger and fall stay active, and it then gets up
+  blended, like a ragdoll that is not active.
+- **Giants** has no members now. It is kept so its settings' names stay, and its menu help says "no monster now".
+- **ad_active_test.py**: now covers the golem (222, spawned 160 ahead, because at 64 the second golem stood on the first
+  one's corpse: "no room to stand"; its get-up checked as blended) and the drole (226). Run on 222 226 259 215:
+  12/12 PASS. With the shipped `vr_mgrp_miniboss_snapkills 0`, the golem's and the drole's necks hold (108 damage of
+  431 each).
+
+**In VR:** shove, sweep and stomp a stone golem and a drole. They go down half as often as a death knight (the shove's
+base 0.12 x 0.5; as Giants it was 0.03, with no sweep or ragdoll triggers). The drole rises with its body; the golem staggers and falls with its body, then blends up. Twist their necks:
+they survive. The death lord is a little tougher to knock down and gets up faster; its neck snap still kills.
+
 ## Fire and water: scorches on every hit, map flames burn monsters, water douses fire, plasma arcs, foam sliders (worktree `gorefx`, branch `agent/firewater`, 2026-10-23)
 
 His notes vrragtriggers_2026-10-23_00-51-41, vrtesthall_2026-10-23_01-41-13 .. 01-43-54. New cvars only; no default

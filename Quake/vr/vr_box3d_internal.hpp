@@ -1152,6 +1152,9 @@ struct ActiveClass
 {
     const char* classname;
     bool crawls;
+    // Its get-up blended from the floor, never risen with its body (the stone golem's: its body lagged its death
+    // backwards by 30 units or lost it, 2026-10-23); its stagger and fall still active.
+    bool blendsUp{false};
 };
 [[nodiscard]] const ActiveClass* activeClassOf(const edict_t* ent);
 [[nodiscard]] int ragdollCount();
