@@ -2838,6 +2838,11 @@ QVR_CVAR(vr_agrunt_w_judge, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
 QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
+QVR_CVAR(vr_agrunt_ik_drawn, "1", CVAR_NONE)           // 1: armed monsters' arms aimed by their hands as drawn (Model Animation's spline, swings, rebuild: the hands on their weapons every frame); 0: by the frames' lerp (before)
+QVR_CVAR(vr_agrunt_ik_misfit, "3", CVAR_NONE)          // armed monsters: where the rig's forearm misplaces its hand by more than this (units; a grunt's crouching pains), the weapon goes to the animation's hand (wholly at twice it); 0 off (before)
+QVR_CVAR(vr_agrunt_ik_hands,"4", CVAR_NONE)           // armed monsters' models: vertices within this of a forearm's end (units, its first frame) drawn wholly on that forearm (their hands follow their arms' IK onto their weapons); 0: the rig's fit (before; read when the model's rest data is made: a map load)
+QVR_CVAR(vr_agrunt_ik_reach,"0.96", CVAR_NONE)        // armed monsters' weapons (and their hands' targets) brought within this share of their arm's length from its shoulder as drawn (a bent body's, a swing's far end): the hand on its weapon; 0 off (before)
+QVR_CVAR(vr_agrunt_ik_tag, "-1", CVAR_NONE)          // 0..1023: the drawn hands' distances to their weapons counted under this tag (QC's sweeps set it: a frame, an attack's phase); vr_agrunt_ik_err prints them; -1 none
 QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; vr_agrunt_ik_info: now)
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)

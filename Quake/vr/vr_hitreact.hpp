@@ -54,6 +54,30 @@ bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const void* aliashdr, int pose1,
     int pose2, float blend, rigpose::Rigid* out);
 
+// An armed monster's hand as the shader draws it (kickInstance): its vertices' places before the bones' turns, their bones'
+// share of a turn (the vertex's fit), their rig places. Drawn after a turn K: D + W * K(P) (model space, units).
+struct HandFit
+{
+    bool ok{false};
+    glm::vec3 P{0.f}; // the rig's places, weighted by their shares (W)
+    glm::vec3 D{0.f}; // the mean of (drawn - share * rig place)
+    float W{0.f};     // the mean share
+};
+
+// The hands' vertices of an armed monster's model (right: its row's; left: found once a model). False: not one.
+bool armedHandVerts(const entity_t* e, const void* aliashdr, const ragdoll::Rig& rig, const int*& right, int& numRight,
+    const int*& left, int& numLeft);
+
+// The bone an armed monster's model's vertex `v` is drawn on if it is one of its hands' (-1: not; vr_animsmooth.cpp's rest
+// data): its forearm's, wholly (the rig's fit put the left hand on its upper arm, the right's old rifle grip at a sixth of its
+// forearm's turns: the hands left their weapons as the IK bent the arms).
+[[nodiscard]] int armedHandBone(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v);
+
+// kickInstance, before boneTurns: the hands as they will be drawn (the IK aims them so the drawn hands reach the targets,
+// whatever Model Animation and the rebuild do to them); after it: where they were drawn (vr_agrunt_ik_err's numbers).
+void setHandsDrawn(const entity_t* e, const HandFit& right, const HandFit& left);
+void noteHandsDrawn(const entity_t* e, const glm::vec3& right, const glm::vec3& left);
+
 // The whole-model tilt (models with no rig, or vr_hit_react 2): `matrix` (R_EntityMatrix's) turned about the model's
 // feet. VR_AliasPreTransform's.
 void tiltModel(const entity_t* e, float matrix[16]);

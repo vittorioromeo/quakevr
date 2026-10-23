@@ -1,0 +1,10 @@
+# agrunt_weapon_hands: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids' weapons on their hands: melee strikers to watch (axe, sword, fists, an enforcer's axe)
+map vrtesthall
+god
+notarget
+spawn "Armed Grunt: Axe" 260 -90
+spawn "Armed Grunt: Sword" 260 0
+spawn "Armed Grunt: Fists" 260 90
+spawn "Armed Enforcer: Axe" 260 180
+hint Watch their hands: each weapon stays in its hand through every frame (runs, pains, reloads, crouches, swings). Turn notarget off (or shoot one) to see them strike: no weapon left behind by its hand.
