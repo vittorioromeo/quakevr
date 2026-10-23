@@ -19170,3 +19170,59 @@ shoulder and elbow: the rig's chest and head can take a turn before the arms' IK
 **In VR:** spawn armed grunts and enforcers with two axes (toolgun's Armed Humanoid page) and one: watch them run, reload,
 take pains (the crouching ones), pick weapons up and swing: each weapon should stay in its hand. Both with Model
 Animation on Smooth and on Linear.
+
+## His blade shapes and fist line as defaults (worktree `dequant`, branch `agent/bladedefaults`, 2026-10-24)
+
+**What shipped.** His Edit Blade Shape work from his config of 2026-10-24 (the same values in his Save Defaults file
+`proposed_defaults/2026-10-24_00-59-24.cfg`), compared with origin/next's defaults as numbers (within 1e-4, so a saved
+`-0.7` for `-0.700006` is no change):
+
+- The fist's blow line (`vr_cvars.inc`): from `0 0 0` -> `-0.34 0.5039 -1.0026`, to `4 0 0` -> `-0.4123 0.7656 -4.2209`,
+  width `1` -> `0.291` (`vr_melee_fist_mirror` unchanged, 1). Config 198 (`vr_cvars.cpp` defaultChanges, renumbered at
+  ship): each key still holding the old default takes the new one; a custom value stays.
+- Weapon Offsets 02, the shotgun (index 1): Blade Width `1` -> `0.594`. His tip there (`vr_wofs_muzzle_x/y/z_02`
+  `0.9 0.4 0.6` -> `-0.2229 0.2441 0.4977`) is **not** shipped: a gun's Muzzle offset is where its shots, flash and
+  tracers start (Weapon Offsets' Muzzle X help), so the editor's tip handle moved his shotgun's firing muzzle. An editor
+  design bug for a later round: a gun's blade tip should be its own key, not the Muzzle.
+- Weapon Offsets 41, AD's death fury's sword (index 40): Near `-1` -> `0.1854`, Width `1` -> `0.3022`, Spine `0` -> `1`
+  with the five points (off/side) `0.0764/0.0141`, `0.1383/0.0028`, `0.1726/-0.0048`, `0.17/-0.0035`, `0.1416/-0.0032`;
+  its tip (Muzzle offsets) `0 0 0` -> `0.0932 0.0209 0.367`.
+- Weapon Offsets 46, AD's hunter ogre's mace (index 45): Near `-1` -> `0.4531`, Width `1` -> `0.4819`, Head `0` -> `1`
+  with the box lo `0.4409 -0.2983 -0.1909`, hi `0.9599 0.2109 0.2221`.
+
+The blade keys sit in one block at the end of vr_weapons.inc's defaults ("His blade shapes"), the sword's tip in its own
+Muzzle lines. `vr_wofs_version` 59 (`vr_weapons.cpp` `takeBladeShapes59`): each of those keys taken where the config
+still holds its old default.
+
+**Not his edit: the axe's head box.** His config holds 0 for all six of the axe's head box corners (`vr_wofs_bl_head_*_01`)
+while the shipped default is the Head Box On seed (`0.5 -1.1077 -0.0919` .. `1.2303 0.1013 0.0701`): those cvars existed
+at 0 before the seed shipped ("The blade's start; the axe's head box") with no migration, so an older config kept the
+zeros. Step 59 also gives the axe the seed where all six are still 0 (Head stays off: only Head Box On's starting box).
+
+**The process, for his next tweaks.** Load his config (copied over the worktree's `quakevr/ironwail.cfg`; run.sh puts the
+baseline back afterwards) and run `vr_propose_defaults` (or take his own Save Defaults file), then `python
+Misc/quakevr/blade_defaults.py <the proposed file> [--skip NN]`: it prints the fist line's new defaults and config rows,
+each slot's QVR_WEAPON_DEFAULT lines and the OldValue rows of the next wofs step. A slot's tip goes only for a melee
+weapon (Quake VR's own, or an ID ending `#melee`); a gun's tip change is printed to stderr as not shipped. `--skip NN`
+leaves a slot out (a stale value, as the axe's here). Then bump the config version and `settingsVersion`, add the step,
+build, and run the checks below.
+
+**Tests** (`scratch/mk_oldcfg.py`, the run scripts in this section):
+- Migration: the baseline config with `vr_cfg_version 197`, `vr_wofs_version 58`, the old defaults and one custom value
+  each (`vr_melee_fist_width 0.7`, `vr_wofs_bl_width_41 0.5`), the axe's box all 0: after `map e1m1` every old default
+  became the new one, the two custom values stayed, the shotgun's muzzle stayed 0.9 0.4 0.6, the axe took its seed,
+  `vr_cfg_version` 198, `vr_wofs_version` 59.
+- `vr_blade_dump 2`, `41`, `46`, `fist`: the new values, no line marked changed.
+- `vr_melee_sweep_test 2` and `3` (vrtesthall, `vr_weapon_grip_mode 1`, grip held, AD game): the fury's sword bends
+  (bend 1, 8 points, near end 0.185 behind), its shape test PASS (curve outside struck, inside missed; width 0.30
+  PASS); the mace: its head box as above, width 0.48 PASS; the shotgun: width 0.59 PASS. `vr_melee_sweep_test 4`: the
+  fist line as above, PASS.
+- `eval.sh` (his archived takes, replayed with his old hand settings, gun angle 39.5, while he drew the new fist line
+  with today's): 122/133 pass (canary 25/34); five verdicts went PASS -> FAIL, all empty-hand: punch_hook 12-22-53,
+  punch_overhead 12-23-29, punch_uppercut 12-23-12 and 12-23-15 (no blow now), no_hit 12-28-17 (no hit either way; its
+  other expectation). 14 other punch takes moved damage (e.g. a straight 18.7 -> 25.7, a hook 24.0 -> 17.8) and the
+  hit point fist/knuckles swapped in two. The line's ends are in the hand's frame, so old takes replayed at another hand
+  angle meet it turned: these takes say little about the new line; his new punches in VR do.
+
+**In VR:** punch (straight, hook, uppercut) with both hands: the fist's line should feel like his edit; swing the
+shotgun, the fury's sword and the mace; the shotgun's shots must still leave its muzzle where they did.
