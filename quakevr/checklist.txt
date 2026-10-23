@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Save My Settings as Defaults: at Menu Detail Developer, the corner "Save Default" button (between Toolgun and Checklist): press twice; it says "Saved N"; the file in quakevr/proposed_defaults/ lists every changed setting with its menu path and personal?/debug? tags (also Debug > Playtesting) {test:save_defaults}
+Toolgun loot pillar: a dropped toolgun's pillar is magenta and twice as tall as other weapons' (Graphics > Loot Beams, Developer rows) {test:toolgun_lootbeam}
+Flail ball hangs on its chain: hold still and it hangs below the handle; lower the hand or turn and it trails; a flick swings it up and it dies down over a few seconds; whirling still takes work; drop and re-take it {test:flail}
+Flail sliders: search "flail" in the menus: Combat > Melee > Flail opens the Death Sergeant's Flail page (chain length, head mass, air drag, damage, speeds, two hands, rattle)
 Shoreline foam 2: your water/lava/slime foam values are the defaults; puffs sit on the shore line (Particle Shore moves them out); Wavy Edge: the shore line wanders softly (see-through liquids fade, solid water's rim curves up the wall; 0 for comparison); check the pool and e1m1's water {test:foam_pool}
 Fuel tank burst: sound stops when the field ends; shooting a tank gives sparks and a tink, no blood; the burst leaves a fire field (sets you/monsters/corpses alight) or a poison cloud, up to 6 s by the fuel left, fading over its second half {test:tank_burst_field}
 Tank pickup: picking up a flamethrower/sprayer, its tank flies to your back in ~0.25 s, the hose following
