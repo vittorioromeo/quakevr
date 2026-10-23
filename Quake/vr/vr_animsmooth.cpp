@@ -513,6 +513,14 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
         r[0] = glm::vec4{at(0, v), static_cast<float>(rig.vertBone[static_cast<za::SizeT>(v)]) + 0.5f * za::min(share, 0.999f)};
         r[1] = rebuilt[2u * static_cast<za::SizeT>(v)];
         r[2] = rebuilt[2u * static_cast<za::SizeT>(v) + 1u];
+        // An armed monster's hand: wholly on its forearm (its turns, its IK's), its frames' place not rebuilt (that is on the
+        // fit's bone).
+        const int hand = hitreact::armedHandBone(model, hdr, rig, v);
+        if(hand >= 0)
+        {
+            r[0].w = static_cast<float>(hand) + 0.5f * 0.999f;
+            r[1].w = 0.f;
+        }
         m.rebuiltVerts += r[1].w >= 1.f ? 1 : 0;
         m.rebuildFaded += r[1].w > 0.f && r[1].w < 1.f ? 1 : 0;
         rms[static_cast<za::SizeT>(i)] = za::min(rebuildRms[static_cast<za::SizeT>(v)], 99.f);
@@ -945,6 +953,101 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     return 1;
 }
 
+// How an instance's vertices are drawn before its bones' turns (traceDraw's reading of smoothInstance's outputs).
+struct HandDraw
+{
+    int poses[4]{};
+    float w[4]{};
+    bool rows{false};    // its swings' or rebuild's rows, at `rowsAt` in its channel's
+    bool rebuild{false};
+    za::SizeT rowsAt{0};
+};
+
+[[nodiscard]] HandDraw handDrawOf(int pose1, int pose2, float blend, int on, const int smooth[4], const float weights[4])
+{
+    HandDraw d;
+    const float b = pose1 == pose2 ? 0.f : blend;
+    d.poses[0] = on ? smooth[0] : pose1;
+    d.poses[1] = pose1;
+    d.poses[2] = pose2;
+    d.poses[3] = on ? smooth[1] : pose2;
+    for(int k = 0; k < 4; k++)
+    {
+        d.w[k] = on ? weights[k] : k == 1 ? 1.f - b : k == 2 ? b : 0.f;
+    }
+    d.rows = on && smooth[2] != 0;
+    d.rebuild = on && smooth[2] < 0;
+    d.rowsAt = d.rows ? static_cast<za::SizeT>(d.rebuild ? -smooth[2] - 1 : smooth[2] - 1) : 0;
+    return d;
+}
+
+// A VBO vertex drawing vertex `v` (-1: none), the map made once a model.
+[[nodiscard]] int vboOf(SmoothModel& m, const aliashdr_t* hdr, int v)
+{
+    if(m.vboOfVert.size() != static_cast<za::SizeT>(hdr->numverts))
+    {
+        m.vboOfVert.clear();
+        m.vboOfVert.resize(static_cast<za::SizeT>(hdr->numverts), -1);
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        for(int i = hdr->numverts_vbo - 1; i >= 0; i--)
+        {
+            const int dv = desc[i].vertindex;
+            if(dv >= 0 && dv < hdr->numverts)
+            {
+                m.vboOfVert[static_cast<za::SizeT>(dv)] = i;
+            }
+        }
+    }
+    return v >= 0 && v < hdr->numverts ? m.vboOfVert[static_cast<za::SizeT>(v)] : -1;
+}
+
+// An armed monster's hand (`verts`) as the shader draws it (model space, units): before the turns (`kick` null) its
+// HandFit; with `kick` (the bones' turns, RigKick's) its drawn middle in D.
+[[nodiscard]] hitreact::HandFit handFit(SmoothModel& m, const aliashdr_t* hdr, const HandDraw& d, const za::Vector<glm::vec4>& swing,
+    const rigpose::Rigid* posed, const rigpose::Rigid* kick, const int* verts, int n)
+{
+    hitreact::HandFit f;
+    const glm::vec4* rows = d.rows && d.rowsAt < swing.size() ? swing.data() + d.rowsAt : nullptr;
+    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    glm::vec3 sumP{0.f}, sumD{0.f};
+    float sumW = 0.f;
+    int count = 0;
+    for(int k = 0; k < n; k++)
+    {
+        const int i = vboOf(m, hdr, verts[k]);
+        if(i < 0 || static_cast<za::SizeT>(i + 1) * restStride > m.rest.size() || !m.rig)
+        {
+            continue;
+        }
+        const glm::vec4* r = m.rest.data() + static_cast<za::SizeT>(i) * restStride;
+        const int bone = za::clamp(static_cast<int>(za::floor(r[0].w)), 0, m.rig->numBones - 1);
+        const float w = (r[0].w - za::floor(r[0].w)) * 2.f;
+        const glm::vec3 drawn = drawnVertex(&m, hdr, i, d.poses, d.w, rows, d.rebuild) * scale + origin;
+        const glm::vec3 place = rigpose::apply(posed[bone], glm::vec3{r[0].x, r[0].y, r[0].z});
+        if(kick)
+        {
+            sumD += drawn + w * (rigpose::apply(kick[bone], place) - place);
+        }
+        else
+        {
+            sumD += drawn - w * place;
+        }
+        sumP += w * place;
+        sumW += w;
+        count++;
+    }
+    if(count == 0)
+    {
+        return f;
+    }
+    f.W = sumW / static_cast<float>(count);
+    f.P = sumP / za::max(sumW, 1e-4f);
+    f.D = sumD / static_cast<float>(count);
+    f.ok = kick || f.W > 0.2f;
+    return f;
+}
+
 // Hit reactions (vr_hitreact.cpp; vr_hit_react 1): a rigged monster's bones kicked, whatever Model Animation is: 3 rows a
 // bone after its swings, each the bone's kick less no kick (the delta its posed vertices take, from their rest places),
 // added whole by the shader (RigKick; Smooth.w 2 + their first row). Not smoothed (`on` 0), it is drawn on Quake's
@@ -981,10 +1084,29 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    // An armed monster's hands as they will be drawn (before the bones' turns: Model Animation's spline, swings, rebuild):
+    // its arms' IK aims them by that (hitreact::HandFit), so the drawn hands reach their weapons.
+    const int* handR = nullptr;
+    const int* handL = nullptr;
+    int numR = 0, numL = 0;
+    const bool hands = hitreact::armsWanted(e) && hitreact::armedHandVerts(e, aliashdr, rig, handR, numR, handL, numL);
+    const HandDraw hd = handDrawOf(pose1, pose2, blend, on, smooth, weights);
+    if(hands)
+    {
+        hitreact::setHandsDrawn(e, handFit(m, hdr, hd, swingsOf(channel), posed, nullptr, handR, numR),
+            handFit(m, hdr, hd, swingsOf(channel), posed, nullptr, handL, numL));
+    }
     rigpose::Rigid kick[ragdoll::maxBones];
     if(!hitreact::boneTurns(e, rig, posed, aliashdr, pose1, pose2, b, kick))
     {
         return on;
+    }
+    if(hands)
+    {
+        // (where they are drawn, the turns on: vr_agrunt_ik_err)
+        const hitreact::HandFit r = handFit(m, hdr, hd, swingsOf(channel), posed, kick, handR, numR);
+        const hitreact::HandFit l = handFit(m, hdr, hd, swingsOf(channel), posed, kick, handL, numL);
+        hitreact::noteHandsDrawn(e, r.ok ? r.D : glm::vec3{0.f}, l.ok ? l.D : glm::vec3{0.f});
     }
     za::Vector<glm::vec4>& swing = swingsOf(channel);
     const za::SizeT at = swing.size();

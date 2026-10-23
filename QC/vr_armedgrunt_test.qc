@@ -624,6 +624,147 @@ void() VR_AGTest_Dual =
     }
 };
 
+// Test 41: the weapons on the hands (vr_agrunt_ik_err; `vr_agrunt_test_kind` the kind). You unseen; an armed monster with
+// an axe in each hand 90 units ahead, turned side on, its AI held: A every frame of its model held 0.15 s (tag = the
+// frame), its weapons in their ready poses; B every swing (4 kinds) by the right, the left and both hands (tags 200 +
+// 8 x (kind + 4 x hand) + the swing's eighth); C a second one with one axe in both hands, every swing (tags 400 + 8 x
+// kind + eighth). The engine counts each drawn frame's hands' distances to their weapons under the tag
+// (vr_agrunt_ik_tag) and prints them at the end (agerr lines). scratch1 N: hold tag N (an eyeshot), no end.
+float vr_agt_sweep_n;  // its frames: the kind's model's
+entity vr_agt_sweep2;  // C's monster
+void(entity g, float a, float base) VR_AGT_SweepSwing =
+{
+    g.vr_ag_act = VR_AGP_SWING;
+    g.vr_ag_act_kind = a & 3;
+    g.vr_ag_act_hand = floor(a / 4);
+    g.vr_ag_act_hit = 2; // (no blow)
+    g.vr_ag_act_hitl = 1;
+    g.vr_ag_act_tick = time;
+    g.vr_ag_readyw = 0.7;
+    float len = VR_AGP_Length(g);
+    float s = time - g.vr_ag_act_at;
+    g.frame = VR_AM_StandFrame(g, floor(s * 10));
+    cvar_set("vr_agrunt_ik_tag", ftos(base + a * 8 + min(7, floor(s / len * 8))));
+};
+
+void() VR_AGTest_Sweep =
+{
+    entity g = vr_agt_grunt;
+    entity p = vr_agt_player;
+    float hold = cvar("scratch1");
+    if(vr_agt_step == 0)
+    {
+        VR_AGT_ClearWeapons();
+        p.flags = p.flags | FL_NOTARGET;
+        vr_agt_weapon2 = WID_AXE;
+        vr_agt_grunt = VR_AGT_Spawn(WID_AXE, 90);
+        vr_agt_weapon2 = 0;
+        g = vr_agt_grunt;
+        g.angles_y = vectoyaw(p.origin - g.origin) + 90; // (side on: its right hand towards you)
+        vr_agt_sweep2 = VR_AGT_Spawn(WID_AXE, -200); // (behind you, not drawn, until its turn)
+        vr_agt_sweep2.angles_y = g.angles_y;
+        vr_agt_sweep_n = cvar("vr_agrunt_test_kind") == 1 ? 108 : 120;
+        localcmd("vr_agrunt_ik_err\n"); // (counted afresh)
+        VR_AGT_Print(sprintf("sweep: %s holds %s and %s; the second %s", g.classname, g.vr_ag_prop.netname,
+            g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "nothing", vr_agt_sweep2.vr_ag_prop.netname));
+        vr_agt_step = 1;
+        vr_agt_index = 0;
+        vr_agt_until = time + 0.15;
+        return;
+    }
+    entity h = vr_agt_sweep2;
+    g.nextthink = time + 1; // (held: its AI stands)
+    h.nextthink = time + 1;
+    g.enemy = world;
+    h.enemy = world;
+    float tag = -1;
+    if(hold >= 200 && vr_agt_step == 1)
+    {
+        vr_agt_step = 2; // (held further on: straight there)
+    }
+    if(hold >= 400 && vr_agt_step == 2)
+    {
+        vector at0 = g.origin;
+        setorigin(g, h.origin);
+        setorigin(h, at0);
+        vr_agt_step = 3;
+    }
+    if(vr_agt_step == 1)
+    {
+        // A: every frame
+        if(hold > 0 && hold < 200)
+        {
+            vr_agt_index = hold;
+            if(time >= vr_agt_until)
+            {
+                VR_AGT_Print(sprintf("sweep: held: %s health %g frame %g model %s at %v", g.classname, g.health, g.frame,
+                    g.model, g.origin));
+            }
+            vr_agt_until = time + 1;
+        }
+        g.vr_ag_act = 0;
+        g.frame = vr_agt_index;
+        tag = vr_agt_index;
+        if(time >= vr_agt_until)
+        {
+            vr_agt_index = vr_agt_index + 1;
+            vr_agt_until = time + 0.15;
+            if(vr_agt_index >= vr_agt_sweep_n)
+            {
+                vr_agt_step = 2;
+                vr_agt_index = 0;
+                g.vr_ag_act_at = time;
+            }
+        }
+    }
+    if(vr_agt_step == 2 || vr_agt_step == 3)
+    {
+        // B, C: every swing
+        entity s = vr_agt_step == 2 ? g : h;
+        float base = vr_agt_step == 2 ? 200 : 400;
+        float count = vr_agt_step == 2 ? 12 : 4;
+        if(hold >= base && hold < base + count * 8)
+        {
+            // (held at that eighth of that swing)
+            vr_agt_index = floor((hold - base) / 8);
+            s.vr_ag_act_kind = vr_agt_index & 3;
+            s.vr_ag_act_hand = floor(vr_agt_index / 4);
+            float len0 = VR_AGP_Length(s);
+            s.vr_ag_act_at = time - len0 * ((hold - base - vr_agt_index * 8) + 0.5) / 8;
+        }
+        VR_AGT_SweepSwing(s, vr_agt_index, base);
+        if(time - s.vr_ag_act_at >= VR_AGP_Length(s))
+        {
+            vr_agt_index = vr_agt_index + 1;
+            s.vr_ag_act_at = time;
+            if(vr_agt_index >= count)
+            {
+                s.vr_ag_act = 0;
+                vr_agt_index = 0;
+                vr_agt_step = vr_agt_step + 1;
+                h.vr_ag_act_at = time;
+                if(vr_agt_step == 3)
+                {
+                    vector at = g.origin; // (the two change places)
+                    setorigin(g, h.origin);
+                    setorigin(h, at);
+                }
+            }
+        }
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        cvar_set("vr_agrunt_ik_tag", "-1");
+        localcmd("vr_agrunt_ik_err\n");
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        VR_AGT_Print("sweep: done");
+        cvar_set("vr_agrunt_test", "0");
+        return;
+    }
+    cvar_set("vr_agrunt_ik_tag", ftos(tag));
+};
+
 void() VR_AGTest_Frame =
 {
     float t = cvar_hget(cvarh_vr_agrunt_test);
@@ -663,6 +804,7 @@ void() VR_AGTest_Frame =
     else if(t == 2) { VR_AGTest_Sequence(); }
     else if(t == 3) { VR_AGTest_Yank(); }
     else if(t == 40) { VR_AGTest_Dual(); }
+    else if(t == 41) { VR_AGTest_Sweep(); }
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest

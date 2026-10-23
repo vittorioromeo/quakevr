@@ -19107,3 +19107,66 @@ vrmelee-recording, 2 of 8 copies in both the canary and the full set (open, not 
 
 **In VR:** run the `flail` scene (or any with a give) with grip mode Hold: the weapon is in your hand without gripping
 and stays; grip and let go: it drops as usual. Same in Sticky: a squeeze and a release drops it.
+## Armed monsters: weapons on their hands every frame, the chainsaw parried (worktree `goreflesh`, branch `agent/agdual2`, 2026-10-24)
+
+Note vrtesthall 2026-10-23 22:46:49 (two axes: the left weapon left behind by its hand in some animations; melee swings
+where the hand and the weapon part). Brief items 2, 3 and 5 done; 1 (dual guns) and 4 (body in the strikes) not started
+(budget).
+
+**Why the weapons left the hands.** The weapon is drawn at the server's target and the arm's IK was meant to bring the
+hand there, but the hand drawn was not the hand the IK moved:
+- The rig's fit put the grunt's **left hand on its upper arm** (vertBone: the 13 vertices about the left forearm's end are
+  bone 3, upperarm_l): bending the elbow moved the forearm to the weapon and left the hand with the upper arm.
+- The **right hand's** vertices (its row's 32 26 31, the old rifle grip, and those about its forearm's end) fit their bone
+  so badly that the shader gives them 0-0.39 of its turns (the swing share, mean 0.13): the hand stayed mostly where the
+  animation had it.
+- Model Animation (r_lerpmodels 3: spline, swings, rebuild) draws the hand off the frames' lerp the IK aimed.
+- In some poses (the grunt's painc and painb crouches, the take frames) the rig's forearm is 10-35 units off its hand.
+- Swings and bent bodies put targets past the arm's reach.
+
+**Fixes** (vr_hitreact.cpp, vr_animsmooth.cpp; all for the armed rigs' models only):
+- `vr_agrunt_ik_hands` (4 units): an armed model's vertices within that of a forearm's end (its first frame) are drawn
+  wholly on that forearm (rest data: bone, full share, not rebuilt). Read when the model's rest data is made (a map load).
+- `vr_agrunt_ik_drawn` (1): kickInstance works out each hand as the shader will draw it (`hitreact::HandFit`: drawn D + W
+  K(P), the spline's poses and rows, each vertex's share) and the IK aims K(P) at (target - D) / W: the drawn hand lands on
+  the target exactly.
+- `vr_agrunt_ik_reach` (0.96): targets (and the weapons drawn there) within that share of the arm's length from its
+  shoulder as posed.
+- `vr_agrunt_ik_misfit` (3 units): where the rig's forearm misplaces the hand by more than that (per pose, found once a
+  model), the target eases to the animation's hand (wholly at twice it): the weapon rides the hand as drawn.
+
+**Measured** (`vr_agrunt_test 41`, `vr_agrunt_test_kind` the kind; new: `vr_agrunt_ik_tag`, `vr_agrunt_ik_err`): an axe in
+each hand, AI held, side on: A every frame of the model held 0.15 s, B every swing kind by the right, the left and both
+hands (eighths), C one axe in both hands, every swing. The engine counts each drawn frame's hands (the vertices about the
+forearms' ends, as the shader draws them, turns included) against their weapons' drawn origins. r_lerpmodels 3, units:
+
+| | before right / left (max) | after right / left (max) |
+| --- | --- | --- |
+| grunt, frames | 18.2 / 40.2 (pains 41-43, reload 31-34) | 1.2 / 0.8 |
+| grunt, dual swings | 17.8 / 18.1 | 0.00 / 0.00 |
+| grunt, two-handed swings (right) | 17.9 | 0.00 |
+| enforcer, frames | 9.5 / 36.0 | 2.8 / 0.0 |
+| enforcer, dual swings | 11.2 / 21.2 | 0.00 / 0.00 |
+| enforcer, two-handed swings | 11.1 | 0.00 |
+
+Before = `vr_agrunt_ik_drawn 0; vr_agrunt_ik_reach 0; vr_agrunt_ik_hands 0; vr_agrunt_ik_misfit 0` (set before the map).
+Death frames are left out (no IK: the weapons drop). `scratch1 N` holds tag N (an eyeshot): `scratch/hands_before.png`,
+`scratch/hands_after.png` (frame 62 and swing tag 267; the grunt is close and low in the shot: the numbers are the check).
+
+**Parries (item 5).** On next test 35 already parried every blow but the chainsaw's (agfix3's last commit, the grunt spawned
+ahead of the head, was the fix for the "parry: none" lines): the chain's ticks went through `VR_Chainsaw_Cut`'s own
+`T_DamageImpl`. Now an armed monster's tick on a player runs `VR_Parry` first. Test 35, grunt and enforcer: axe, sword,
+crowbar, chainsaw, Mjolnir, fists each 1 blow, 1 parried, stagger: 6/6 PASS (the chainsaw 15 blows, 0 parried before).
+
+eval.sh: 0 verdict changes (3 takes' damage within 3.4, the ragdoll's pose noise).
+
+Scenario `agrunt_weapon_hands` (vrtesthall, god, notarget: armed grunts with an axe, a sword, fists and an armed enforcer's
+axe, 260 units off): validate OK, runall OK.
+
+**Left:** item 1 (dual-wielded two-handed guns, the spread and kick penalties and their slider, the "big" weapon flag,
+the toolgun's pairs, the pickup option, a dual-gun scene) and item 4 (the strikes' wind-up and follow-through with torso,
+shoulder and elbow: the rig's chest and head can take a turn before the arms' IK, as the hit reactions' kicks do).
+
+**In VR:** spawn armed grunts and enforcers with two axes (toolgun's Armed Humanoid page) and one: watch them run, reload,
+take pains (the crouching ones), pick weapons up and swing: each weapon should stay in its hand. Both with Model
+Animation on Smooth and on Linear.
