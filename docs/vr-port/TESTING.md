@@ -171,9 +171,14 @@ hint Swing at them: ...                             # optional; default the chec
   wall (its middle has the New Game buttons: keep melee away from them). `developer 1` prints each spawn's edict and
   place.
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
-  every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn, SCNRUN OK/FAIL with
-  the first problem: an entry not available here, a spot in a wall, a QC error; SCNRUNSUM). A one-off eyeshot:
+  every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn for 3 s of game time,
+  SCNRUN OK/FAIL with the first problem: an entry not available here, a spot in a wall, a QC error, a given weapon no
+  longer in its hand; SCNHANDS per scene: each hand's given weapon then and now; SCNRUNSUM). A one-off eyeshot:
   `vr_scenario <id>;wait120;screenshot`.
+- A `give` puts the weapon in the hand as if just grabbed, in either grip mode: with `vr_weapon_grip_mode 0` (hold) it
+  stays, the grip unpressed, until that hand's grip is pressed (from then on the grip holds it: let go on release);
+  sticky mode lets go after a squeeze and a release as usual (QC `VRWeaponGivenHeld`). The mock's hands never grip:
+  runall checks the weapons stay in both modes.
 - No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged.
 
 Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
