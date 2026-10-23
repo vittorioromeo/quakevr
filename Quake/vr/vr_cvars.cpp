@@ -448,6 +448,9 @@ const DefaultChange defaultChanges[] = {
     // blows at most 120 (with its new least damage, speed limit and drag; ROUND22.md, "The flail: heavier, smaller").
     {194, &vr_flail_mass, "2"},         // 3
     {194, &vr_flail_max_damage, "150"}, // 120
+    // 195: crates need two strong hits (his note: one hard punch or swing broke one; ROUND22.md, "Crates: two strong
+    // hits"): a blow breaks a small crate from 18 m/s (with the new vr_prop_blow_wear 0.25, two strong ones do).
+    {195, &vr_prop_break_speed, "9"}, // 18
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -466,7 +469,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 194;
+constexpr int configVersion = 195;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

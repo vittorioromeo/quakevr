@@ -1,0 +1,6 @@
+# pyro_water: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title At the pool's edge, an AD pyro across it (vrtesthall's pool is 119 deep: no shallow water here)
+map vrtesthall
+start 150 -264 40 0
+god
+spawn "AD Pyro" 420 0

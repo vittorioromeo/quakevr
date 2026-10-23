@@ -489,7 +489,9 @@ void Host_WriteConfigurationToFile (const char *name)
 
 		Key_WriteBindings (f);
 		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
+		VR_ScenarioConfigWrite (1); // QVR: a test scene's settings written as they were before it (vr/vr_scenario.cpp)
 		Cvar_WriteVariables (f);
+		VR_ScenarioConfigWrite (0);
 
 		//johnfitz -- extra commands to preserve state
 		fprintf (f, "vid_restart\n");

@@ -1,0 +1,11 @@
+# agrunt_row_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A row of armed grunts: fists, axe, sword, crowbar, hammer, chainsaw, shotgun
+map vrtesthall
+god
+spawn "Armed Grunt: Fists" 300 -90
+spawn "Armed Grunt: Axe" 300 -15
+spawn "Armed Grunt: Sword" 300 60
+spawn "Armed Grunt: Crowbar" 300 135
+spawn "Armed Grunt: Hunter Ogre's Hammer" 300 210
+spawn "Armed Grunt: Chainsaw" 300 285
+spawn "Armed Grunt: Shotgun" 300 360

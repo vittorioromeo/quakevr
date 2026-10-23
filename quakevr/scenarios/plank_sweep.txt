@@ -1,0 +1,8 @@
+# plank_sweep: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A crate to break for a plank, a calm grunt to sweep
+map vrtesthall
+god
+notarget
+give "Crowbar" main
+spawn "Wooden Crate" 70 60
+spawn "Grunt" 150 -30

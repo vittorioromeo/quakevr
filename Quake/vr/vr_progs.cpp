@@ -27,6 +27,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
+#include "vr_scenario.hpp"
 #include "vr_tips.hpp"
 #include "vr_melee_shared.h"
 
@@ -372,6 +373,7 @@ void resetServerWorld()
     qvr::crates::reset();
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
+    qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
     resetBuiltinState();
 }
 

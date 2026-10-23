@@ -49,6 +49,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_bodytrack.hpp"
 #include "vr_checklist.hpp"
+#include "vr_scenario.hpp"
 #include "vr_view.hpp"
 #include "vr_units.hpp"
 #include "vr_flashlight.hpp"
@@ -177,6 +178,19 @@ struct Item
     // above (a long text's next line: selected with it, never on its own).
     bool (*dimArg)(int){nullptr};
     int partOf{0};
+
+    // A row of buttons side by side (the Checklist's Pass, Fail and Test under each item; ROUND22.md, "Checklist: Pass,
+    // Fail and Test"): `buttons` of them, each `buttonLabel(arg, b)`, dimmed while `buttonDim(arg, b)`, its text tinted
+    // by `buttonTint(arg, b)` (0 none, 1 green, 2 red). The item's first row (the one selected) has `buttonPress`: left
+    // and right pick a button (MenuInstance::button), a press presses it; the mouse or laser over the button row picks
+    // the one under it, a click there presses it (a click on the item's text does nothing). `markArg`: the item's text
+    // tinted likewise (its state).
+    int buttons{0};
+    const char* (*buttonLabel)(int, int){nullptr};
+    bool (*buttonDim)(int, int){nullptr};
+    int (*buttonTint)(int, int){nullptr};
+    void (*buttonPress)(int, int){nullptr};
+    int (*markArg)(int){nullptr};
 
     // The menu detail level (vr_menu_level: MenuLevel, below) it is shown from: a row for the curious (advanced()) or for
     // tuning and testing (developer()) is left out of the pages below that level.
@@ -552,6 +566,7 @@ struct MenuReadouts
 {
     za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
     za::String checklistUndoHelp;      // checklistUndoHelp
+    za::String checklistItemHelp;      // checklistHelp
     za::String weight[2];              // weightReadout, by hand
     za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
     za::String heldObjectMass;
@@ -561,13 +576,14 @@ struct MenuReadouts
     za::String weaponWeightsHits[2];   // weaponWeightsHitsReadout, by line
     za::String weaponOffsetsStock;     // weaponOffsetsStockReadout
     char checklistSummary[48];         // checklistSummary
-    char stamina[96];                  // staminaReadout
+    char checklistTesting[48];         // checklistTesting
+    char stamina[96];                 // staminaReadout
     char renderScaleHelp[192];         // renderScaleHelp
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistUndoHelp, stamina, renderScaleHelp, buildVersion);
+            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistUndoHelp, checklistItemHelp, stamina, renderScaleHelp, buildVersion);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
@@ -1227,7 +1243,27 @@ int checklistHidden = -1;     // and Hide Ticked's
     {
         return "No quakevr/checklist.txt";
     }
-    q_snprintf(text, sizeof(text), "%d open of %d", checklist::openCount(), checklist::itemCount());
+    if(checklist::failedCount() > 0)
+    {
+        q_snprintf(text, sizeof(text), "%d open of %d, %d failed", checklist::openCount(), checklist::itemCount(),
+            checklist::failedCount());
+    }
+    else
+    {
+        q_snprintf(text, sizeof(text), "%d open of %d", checklist::openCount(), checklist::itemCount());
+    }
+    return text;
+}
+
+// The test running (vr_scenario.hpp): its id, or none.
+[[nodiscard]] const char* checklistTesting()
+{
+    char(&text)[48] = readouts.checklistTesting;
+    if(!*scenario::current())
+    {
+        return "No test running";
+    }
+    q_snprintf(text, sizeof(text), "Testing: %s", scenario::current());
     return text;
 }
 
@@ -1251,14 +1287,83 @@ int checklistHidden = -1;     // and Hide Ticked's
     return checklist::ticked(arg >> 8);
 }
 
-[[nodiscard]] const char* checklistHelp(int arg)
+[[nodiscard]] int checklistMark(int arg)
 {
-    return checklist::ticked(arg >> 8) ? "Ticked. Pick it again to untick it." : "Pick it (the trigger, or A) once done to tick it.";
+    const int m = checklist::mark(arg >> 8);
+    return m == checklist::Passed ? 1 : m == checklist::Failed ? 2 : 0;
 }
 
-void checklistToggle(int arg)
+[[nodiscard]] const char* checklistHelp(int arg)
 {
-    checklist::toggle(arg >> 8);
+    const int item = arg >> 8;
+    const int m = checklist::mark(item);
+    za::String& text = readouts.checklistItemHelp;
+    text = m == checklist::Passed ? "Passed. " : m == checklist::Failed ? "Failed: kept on the list until it is replaced. " : "";
+    text += "Pick Pass, Fail or Test under it (left and right, or point at one); Pass or Fail again puts it back to "
+            "untested. ";
+    const char* id = checklist::scenario(item);
+    if(*id)
+    {
+        text += "Test sets up its scene (";
+        text += id;
+        text += ") and puts you in it; Reset Test above runs it again.";
+    }
+    else
+    {
+        text += "No test scene for this one.";
+    }
+    return text.cStr();
+}
+
+// The buttons under each item: Pass, Fail, Test.
+[[nodiscard]] const char* checklistButtonLabel(int, int b)
+{
+    return b == 0 ? "Pass" : b == 1 ? "Fail" : "Test";
+}
+
+[[nodiscard]] bool checklistButtonDim(int arg, int b)
+{
+    return b == 2 && !*checklist::scenario(arg >> 8);
+}
+
+[[nodiscard]] int checklistButtonTint(int arg, int b)
+{
+    const int m = checklist::mark(arg >> 8);
+    return b == 0 && m == checklist::Passed ? 1 : b == 1 && m == checklist::Failed ? 2 : 0;
+}
+
+[[nodiscard]] const char* checklistButtonsText(int)
+{
+    return "Pass  Fail  Test"; // (what a search or a dump of the page shows)
+}
+
+void checklistButtonPress(int arg, int b)
+{
+    const int item = arg >> 8;
+    checklist::hovered(item); // (a voice note's context: the item picked)
+    Con_DPrintf("checklist: item %d, %s pressed\n", item, checklistButtonLabel(arg, b));
+    if(b < 2)
+    {
+        checklist::press(item, b == 0 ? checklist::Passed : checklist::Failed);
+        return;
+    }
+    if(scenario::start(checklist::scenario(item), checklist::text(item)))
+    {
+        menuui::backToGame(1); // (the main hand's buzz; the menu reopens here)
+    }
+}
+
+void checklistResetTest()
+{
+    if(scenario::reset())
+    {
+        menuui::backToGame(1);
+    }
+}
+
+void checklistEndTest()
+{
+    scenario::stop();
 }
 
 void checklistReload()
@@ -1281,7 +1386,11 @@ void checklistReload()
     text = checklist::undoCount() == 0 ? "Nothing to undo: each tick and untick made since the game started can be "
                                          "taken back here, the last first."
                                        : count;
-    text += checklist::undoCount() == 0 ? "" : checklist::undoTicks() ? "Next ticks again: " : "Next unticks: ";
+    const int restores = checklist::undoRestores();
+    text += checklist::undoCount() == 0               ? ""
+            : restores == checklist::Passed ? "Next makes it passed again: "
+            : restores == checklist::Failed ? "Next makes it failed again: "
+                                            : "Next makes it untested again: ";
     if(checklist::undoCount() > 0)
     {
         text += checklist::undoText();
@@ -1328,10 +1437,17 @@ void checklistUndo()
 
     za::Vector<Item> items = {
         info(checklistSummary),
-        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the ticked items out of the list. Off: every item, the ticked ones dimmed."),
+        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the passed items out of the list. Off: every item, the passed ones dimmed."),
         action("Reload List", checklistReload)
-            .help("Reads quakevr/checklist.txt again (done by itself too when the file changes). Ticks are kept by each "
-                  "item's text, in quakevr/checklist_ticks.txt."),
+            .help("Reads quakevr/checklist.txt again (done by itself too when the file changes). Passes and fails are "
+                  "kept by each item's text, in quakevr/checklist_ticks.txt."),
+        info(checklistTesting),
+        action("Reset Test", checklistResetTest)
+            .help("Runs the last test scene again from the start (the map loaded fresh, everything placed again), and "
+                  "closes the menu. Bind a key to vr_scenario reset for the same."),
+        action("End Test", checklistEndTest)
+            .help("Ends the test scene: the settings it changed put back (also done by the next test, another map, a "
+                  "load, or quitting). You stay where you are."),
     };
     Item undo = action("Undo Last Tick", checklistUndo);
     undo.helpArg = checklistUndoHelp;
@@ -1361,14 +1477,29 @@ void checklistUndo()
             items.pushBack(info(checklistBlank)); // vertical padding: long entries no longer run into a wall of text
         }
         shown++;
-        const int lines = q_min(checklist::lineCount(i), 256);
+        const int lines = q_min(checklist::lineCount(i), 255);
         for(int l = 0; l < lines; l++)
         {
-            Item r = row(checklistLine, checklistHelp, checklistToggle, (i << 8) | l, -1);
+            Item r = row(checklistLine, checklistHelp, nullptr, (i << 8) | l, -1);
             r.dimArg = checklistDim;
+            r.markArg = checklistMark;
             r.partOf = l;
+            if(l == 0)
+            {
+                r.buttons = 3;
+                r.buttonPress = checklistButtonPress;
+                r.buttonDim = checklistButtonDim;
+            }
             items.pushBack(r);
         }
+        // Its buttons, under it (part of it: selected with it).
+        Item b = row(checklistButtonsText, checklistHelp, nullptr, (i << 8) | lines, -1);
+        b.partOf = lines;
+        b.buttons = 3;
+        b.buttonLabel = checklistButtonLabel;
+        b.buttonDim = checklistButtonDim;
+        b.buttonTint = checklistButtonTint;
+        items.pushBack(b);
     }
     if(shown == 0)
     {
@@ -2424,6 +2555,7 @@ struct MenuInstance
     int refusedBy{-1};
     float drawnValue{0.f}; // the selected row's value as last drawn, and when (vr_menu_panels: the panels kept in step)
     int drawnFrame{-1};
+    int button{0}; // a button row's button picked (Item::buttons; kept from item to item: Pass, Pass, Pass...)
 };
 
 MenuInstance menuInstances[menu::instanceCount];
@@ -4058,6 +4190,18 @@ void change(const Item& item, int dir, bool repeat = false)
             break;
         }
         case Item::Action:
+            if(dir > 0 && item.buttonPress)
+            {
+                const int b = CLAMP(0, ui().button, item.buttons - 1);
+                if(item.buttonDim && item.buttonDim(item.arg, b))
+                {
+                    S_LocalSound("misc/menu1.wav"); // (a dimmed button: Test without a scenario)
+                    return;
+                }
+                S_LocalSound("misc/menu3.wav");
+                item.buttonPress(item.arg, b); // (`item` may be gone after this)
+                return;
+            }
             if(dir > 0)
             {
                 const int page = item.page;
@@ -4094,6 +4238,32 @@ void change(const Item& item, int dir, bool repeat = false)
 {
     return item.choices.size() == 2 && item.choices[0].value == 0.f && item.choices[1].value == 1.f &&
            !strcmp(item.choices[0].label, "Off") && !strcmp(item.choices[1].label, "On");
+}
+
+// The list row under the mouse as drawn (a long text's next line itself, a button row), or -1.
+[[nodiscard]] int rowAtRaw(float cy)
+{
+    const auto& list = items(ui().page);
+    const float yrel = cy - static_cast<float>(layout().listTop);
+    const int first = ui().scrolls[ui().page];
+    const int last = first + visibleRows(list);
+    float y = 0.f;
+    for(int k = first; k < last && yrel >= y; k++)
+    {
+        y += static_cast<float>(rowGap(list, k));
+        if(yrel >= y && yrel < y + 8.f)
+        {
+            return k;
+        }
+        y += 8.f;
+    }
+    return -1;
+}
+
+// A button row's button under the mouse at `cx` (Item::buttons: side by side across the row's 320 columns).
+[[nodiscard]] int buttonAt(const Item& row, float cx)
+{
+    return CLAMP(0, static_cast<int>(cx * static_cast<float>(row.buttons) / 320.f), row.buttons - 1);
 }
 
 // The list row under the mouse, or -1.
@@ -4562,21 +4732,67 @@ void drawItem(const Item& item, int y, bool selected)
         return;
     }
 
+    // A tint: 1 green (passed), 2 red (failed); `alpha` the row's dimming.
+    const auto pushTint = [](int tint, float alpha) {
+        if(tint == 1)
+        {
+            GL_PushCanvasColor(0.45f, 1.f, 0.45f, alpha);
+        }
+        else if(tint == 2)
+        {
+            GL_PushCanvasColor(1.f, 0.4f, 0.35f, alpha);
+        }
+        else
+        {
+            GL_PushCanvasColor(1.f, 1.f, 1.f, alpha);
+        }
+    };
+    if(item.wide && item.buttons > 0 && item.buttonLabel)
+    {
+        // A button row: its buttons side by side, the one picked bracketed while the item is selected.
+        if(selected)
+        {
+            VR_MenuDrawHighlight(4, y);
+        }
+        const int cell = 320 / item.buttons;
+        for(int b = 0; b < item.buttons; b++)
+        {
+            char text[41];
+            const bool picked = selected && b == CLAMP(0, ui().button, item.buttons - 1);
+            q_snprintf(text, sizeof(text), picked ? "[ %s ]" : "%s", item.buttonLabel(item.arg, b));
+            const int x = b * cell + (cell - 8 * static_cast<int>(strlen(text))) / 2;
+            const bool dim = item.buttonDim && item.buttonDim(item.arg, b);
+            const int tint = item.buttonTint ? item.buttonTint(item.arg, b) : 0;
+            pushTint(tint, dim ? 0.35f : 1.f);
+            if(picked || tint != 0)
+            {
+                M_PrintWhite(x, y, text);
+            }
+            else
+            {
+                M_Print(x, y, text);
+            }
+            GL_PopCanvasColor();
+        }
+        return;
+    }
     if(item.wide)
     {
         // A row of a list: its text across the width, white while selected.
         char text[41];
         q_strlcpy(text, item.infoArg ? item.infoArg(item.arg) : item.label, sizeof(text));
         const bool dim = item.dimArg && item.dimArg(item.arg);
+        const int tint = item.markArg ? item.markArg(item.arg) : 0;
         if(selected && item.dimArg)
         {
             VR_MenuDrawHighlight(4, y); // (the Checklist's: each line of the item picked; the VR style's only)
         }
-        if(dim)
+        const bool tinted = dim || tint != 0;
+        if(tinted)
         {
-            GL_PushCanvasColor(1.f, 1.f, 1.f, 0.4f);
+            pushTint(tint, dim ? 0.4f : 1.f);
         }
-        if(selected)
+        if(selected || tint != 0)
         {
             M_PrintWhite(0, y, text);
         }
@@ -4584,7 +4800,7 @@ void drawItem(const Item& item, int y, bool selected)
         {
             M_Print(0, y, text);
         }
-        if(dim)
+        if(tinted)
         {
             GL_PopCanvasColor();
         }
@@ -6501,6 +6717,10 @@ extern "C" void VR_Menu_Draw()
 
     if(cursor < n && rowSelected)
     {
+        if(list[cursor].helpArg == checklistHelp)
+        {
+            checklist::hovered(list[cursor].arg >> 8); // (a checklist item under the cursor: a voice note's context)
+        }
         const char* help = itemHelp(list[cursor]);
         if(help)
         {
@@ -6590,8 +6810,21 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             moveCursor(list, 1);
             break;
 
-        case K_LEFTARROW: change(list[cursor], -1, repeat); break;
-        case K_RIGHTARROW: change(list[cursor], 1, repeat); break;
+        case K_LEFTARROW:
+        case K_RIGHTARROW:
+            if(list[cursor].buttonPress)
+            {
+                // A button row: left and right pick its button.
+                const int b = CLAMP(0, ui().button + (key == K_RIGHTARROW ? 1 : -1), list[cursor].buttons - 1);
+                if(b != ui().button)
+                {
+                    ui().button = b;
+                    S_LocalSound("misc/menu1.wav");
+                }
+                break;
+            }
+            change(list[cursor], key == K_RIGHTARROW ? 1 : -1, repeat);
+            break;
 
         case K_MOUSE1:
             // On the scrollbar: it is dragged.
@@ -6633,6 +6866,16 @@ extern "C" void VR_Menu_Key(int key, int repeat)
             {
                 openDropDown(list[cursor], cursor);
                 break;
+            }
+            if(list[cursor].buttonPress)
+            {
+                // An item with a button row: a click on one of its buttons presses it; on its text, nothing.
+                const int raw = rowAtRaw(m_mousey);
+                if(raw < 0 || list[raw].buttons <= 0 || list[raw].partOf <= 0)
+                {
+                    break;
+                }
+                ui().button = buttonAt(list[raw], m_mousex);
             }
             change(list[cursor], 1);
             break;
@@ -6721,6 +6964,16 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
             setSliderAt(list[cursor], cx);
         }
         return;
+    }
+
+    // Over a button row: the button under it picked.
+    if(const int raw = rowAtRaw(cy); raw >= 0 && list[raw].buttons > 0 && list[raw].partOf > 0 && buttonAt(list[raw], cx) != ui().button)
+    {
+        ui().button = buttonAt(list[raw], cx);
+        if(ui_mouse_sound.value)
+        {
+            S_LocalSound("misc/menu1.wav");
+        }
     }
 
     const int i = rowAt(cy);

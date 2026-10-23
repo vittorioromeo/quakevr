@@ -122,9 +122,11 @@ za::Vector<Item> pageDebugViews()
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
         command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
             .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
-                  "Shape): its tip, near end, width, curve and head box."),
+                  "Shape): its tip, near end, width, curve and head box. With the hand empty: the fist's blow line."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
+        command("Print Fist Line", "vr_blade_dump fist")
+            .help("vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*) as vr_cvars.inc lines (* changed)."),
         toggle("Show Hand Bones", vr_debug_hand_bones)
             .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
                   "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
@@ -1027,6 +1029,12 @@ za::Vector<Item> pageDebugReports()
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
+        command("Save Note Context", "vr_note_context")
+            .help("vr_note_context: a voice note's context saved now without a sound (quakevr/notes): the .txt (checklist "
+                  "item, hands, monsters near, settings changed), the instant replay take, the console's lines, the frame times."),
+        command("Note Replay Cost", "vr_note_replay_stats")
+            .help("vr_note_replay_stats: the instant replay's cost a frame, its rows and memory, the console and frame "
+                  "rings (Voice Notes on: vr_note_replay, vr_note_replay_seconds)."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
         command("External Maps", "vr_extmaps_stats all")
             .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "

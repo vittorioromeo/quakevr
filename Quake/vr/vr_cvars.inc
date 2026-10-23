@@ -753,8 +753,21 @@ QVR_CVAR(vr_melee_phase, "1", CVAR_ARCHIVE)          // 1: on (the author's, 202
 QVR_CVAR(vr_melee_phase_speed, "4", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (the author's 4; 2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
 QVR_CVAR(vr_melee_phase_time, "0.2", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
 QVR_CVAR(vr_melee_curved_blades, "1", CVAR_ARCHIVE) // a curved sword (AD's death fury's) strikes along its curve: its blade's points on its spine (the engine's admeleebend, QC VR_Melee_At); 0 on the straight line from the hand to its tip, as before
+// The empty hand's blow line (QC vr_melee.qc VR_Melee_Line, a fist's; ROUND22.md "The fist's blow line"): its two ends in
+// the hand's frame (units along its forward, right, up from the tracked hand), what strikes between them (the layout's
+// fist and knuckles); the near end behind it a quarter of the line back. Gloved, bare and ghost hands alike. Edited in VR
+// by Weapon Offsets > Edit Blade Shape with the hand empty; vr_blade_dump fist prints them. The defaults are the code's
+// before (the hand to 4 units ahead of it).
+QVR_CVAR(vr_melee_fist_from_x, "0", CVAR_ARCHIVE) // the line's first end (the fist): forward
+QVR_CVAR(vr_melee_fist_from_y, "0", CVAR_ARCHIVE) // right (the off hand's mirrored: vr_melee_fist_mirror)
+QVR_CVAR(vr_melee_fist_from_z, "0", CVAR_ARCHIVE) // up
+QVR_CVAR(vr_melee_fist_to_x, "4", CVAR_ARCHIVE)   // the line's other end (the knuckles): forward
+QVR_CVAR(vr_melee_fist_to_y, "0", CVAR_ARCHIVE)   // right (mirrored for the off hand)
+QVR_CVAR(vr_melee_fist_to_z, "0", CVAR_ARCHIVE)   // up
+QVR_CVAR(vr_melee_fist_width, "1", CVAR_ARCHIVE)  // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
+QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
 QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // Debug > Tools: 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL)
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
@@ -991,6 +1004,7 @@ QVR_CVAR(vr_comfort_teleport_fade, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.cpp MenuLevel): 0 Standard (what every player sets), 1 Advanced (every gameplay, display and graphics setting), 2 Developer (tuning, recording, debug and tests too)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
+QVR_CVAR(vr_scenario_hint_time, "12", CVAR_ARCHIVE)    // a checklist test scene's hint (vr_scenario.cpp): seconds it floats ahead after Test (vr_scenario hint: again)
 QVR_CVAR(vr_melee_dmg_multiplier, "1.1", CVAR_ARCHIVE)
 // Hard damage caps per melee blow (QC combat.qc VR_Melee_CapDamage; ROUND22.md): the blow's strength from speed times its
 // zone's multiplier is kept within these multiples of the weapon's own base damage, before vr_melee_dmg_multiplier and
@@ -1015,6 +1029,8 @@ QVR_CVAR(vr_lg_water_tick_damage, "10", CVAR_ARCHIVE) // each bolt into water fr
 QVR_CVAR(vr_lg_water_flash, "1", CVAR_ARCHIVE)        // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
 QVR_CVAR(vr_body_interactions, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_notes, "0", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp); off in a new install (a playtesting tool: a saved config keeps its own, no migration)
+QVR_CVAR(vr_note_replay, "1", CVAR_ARCHIVE)            // with vr_notes on: the last seconds kept (poses, buttons, the player, nearby entities) and saved beside each note as a motion take (vr_notectx.cpp, vr_motion.cpp)
+QVR_CVAR(vr_note_replay_seconds, "30", CVAR_ARCHIVE)   // how many seconds that instant replay keeps (and the console lines and frame times saved with a note)
 QVR_CVAR(vr_note_device, "Virtual Desktop", CVAR_ARCHIVE) // the microphone: part of its name (none such, or empty: the default; vr_note_devices lists them)
 // The motion recorder (vr_motion.cpp, docs/vr-port/MOTIONS.md): takes of the player's motions for tuning the melee.
 QVR_CVAR(vr_motion_armed, "0", CVAR_NONE)          // 1: the record button (vr_motion_button) starts and ends takes of the chosen category
@@ -1198,12 +1214,13 @@ QVR_CVAR(vr_crate_impact, "16", CVAR_ARCHIVE)            // m/s: a crate hitting
 // The props' impact rule (QC vr_carry.qc VR_Prop_Impact; ROUND22.md "Prop impacts"): a hand's or weapon's hit on a prop that
 // breaks (a crate, a barrel, an explosive box, AD's and the expansions' breakables), or one held and smashed into something,
 // at its break speed or faster breaks it; from half of it, it is damaged by (2 x speed / break speed - 1) of its full health.
-QVR_CVAR(vr_prop_break_speed, "9", CVAR_ARCHIVE)         // m/s: a small crate's break speed (75 health); others' by the square root of their health over 75 (0.5x .. 2.5x) times their material's
+QVR_CVAR(vr_prop_break_speed, "18", CVAR_ARCHIVE)        // m/s: a small crate's break speed (75 health); others' by the square root of their health over 75 (0.5x .. 2.5x) times their material's
+QVR_CVAR(vr_prop_blow_wear, "0.25", CVAR_ARCHIVE)        // a hand's blow (or a prop held and smashed) from this much of the break speed wears a prop: (i - w) / (1 - w) of its health (0.5: 2i - 1, the thrown and dropped props' rule)
 QVR_CVAR(vr_prop_break_wood, "1", CVAR_ARCHIVE)          // times vr_prop_break_speed for wood (crates, barrels, AD's wooden breakables)
 QVR_CVAR(vr_prop_break_glass, "0.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for glass and pottery (AD's windows, vases)
 QVR_CVAR(vr_prop_break_stone, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for rock and brick (AD's, Scourge of Armagon's walls with rubble)
 QVR_CVAR(vr_prop_break_metal, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for AD's metal breakables
-QVR_CVAR(vr_prop_break_explosive, "1.8", CVAR_ARCHIVE)   // times vr_prop_break_speed for an explosive box (it blows up: 20 health, so 8.4 m/s)
+QVR_CVAR(vr_prop_break_explosive, "1.8", CVAR_ARCHIVE)   // times vr_prop_break_speed for an explosive box (it blows up: 20 health, so 16.7 m/s)
 QVR_CVAR(vr_prop_break_piece, "4", CVAR_ARCHIVE)         // m/s: a crate's piece's break speed (a hand's hit, held and smashed)
 QVR_CVAR(vr_crate_piece_impact, "8", CVAR_ARCHIVE)       // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
 // Overhead slams (QC vr_crates.qc VR_Crate_SlamFrame; NOTES.md vrfiringrange_2026-10-07_23-08-07): a crate or barrel held

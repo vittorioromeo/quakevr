@@ -1,0 +1,6 @@
+# foam_pool: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title At the vrtesthall pool's edge (shoreline foam)
+map vrtesthall
+start 150 -264 40 0
+god
+notarget

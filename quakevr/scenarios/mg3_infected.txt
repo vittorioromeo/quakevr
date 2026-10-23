@@ -1,0 +1,10 @@
+# mg3_infected: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title MG3 infected grunt, enforcer, knight and death knight to kill
+map vrtesthall
+god
+give "Super Shotgun" main
+cmd impulse 9
+spawn "MG3 Infected Grunt" 420 -40
+spawn "MG3 Infected Enforcer" 420 70
+spawn "MG3 Infected Knight" 420 180
+spawn "MG3 Infected Death Knight" 420 290

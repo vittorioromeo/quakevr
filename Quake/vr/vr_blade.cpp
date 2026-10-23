@@ -1,6 +1,7 @@
 // vr_blade.cpp -- see vr_blade.hpp.
 
 #include "vr_blade.hpp"
+#include "vr_cvars.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -39,8 +40,17 @@ constexpr Named dumped[] = {{Key::MuzzleOffsetX, "MuzzleOffsetX"}, {Key::MuzzleO
     return i <= 0 || i > spinePoints ? glm::vec2{0.f} : s.point[i - 1];
 }
 
+// The fist's blow line's settings (vr_blade_dump fist).
+const cvar_t* const fistDumped[] = {&vr_melee_fist_from_x, &vr_melee_fist_from_y, &vr_melee_fist_from_z, &vr_melee_fist_to_x,
+    &vr_melee_fist_to_y, &vr_melee_fist_to_z, &vr_melee_fist_width, &vr_melee_fist_mirror};
+
 void dump_f()
 {
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "fist"))
+    {
+        dumpFist();
+        return;
+    }
     dump(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) - 1 : weapons::heldSlot(1));
 }
 
@@ -108,6 +118,16 @@ void dump(int slot)
         }
         const bool changed = var->default_string && strcmp(var->string, var->default_string) != 0;
         Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\")%s\n", slot, n.name, var->string, changed ? " //*" : "");
+    }
+}
+
+void dumpFist()
+{
+    Con_Printf("// the fist's blow line (vr_cvars.inc lines, their comments left out; * changed)\n");
+    for(const cvar_t* var : fistDumped)
+    {
+        const bool changed = var->default_string && strcmp(var->string, var->default_string) != 0;
+        Con_Printf("QVR_CVAR(%s, \"%s\", CVAR_ARCHIVE)%s\n", var->name, var->string, changed ? " //*" : "");
     }
 }
 

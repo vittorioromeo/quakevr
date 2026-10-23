@@ -2227,7 +2227,8 @@ float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact =
 // 2.5x: as hard to break as its health, the impact's energy its speed's square) and its material's multiplier,
 // vr_prop_break_wood / _glass / _stone / _metal / _explosive). From 1 it breaks (Killed: a crate into pieces, an explosive
 // box blows up, AD's breakable into rubble); from half it takes (2i - 1) of its full health; under half nothing (a light
-// tap only pushes it: the hand's body). The paths:
+// tap only pushes it: the hand's body). A hand's hit (a blow, one held and smashed) wears it from vr_prop_blow_wear
+// instead, (i - w) / (1 - w) of it (ROUND22.md, "Crates: two strong hits"). The paths:
 // - a hand's or a weapon's melee blow (T_Damage_VRMelee: VR_Prop_BlowDamage): the blow's speed, weaker short of
 //   stamina, times its weapon's heft (the square root of its damage over a punch's: the axe 1.4x), the blow's damage
 //   replaced by the rule's. A crate's piece is also struck by the hand's touch (VR_CratePiece_Struck).
@@ -2358,9 +2359,21 @@ float(entity e, float xKind) VR_Prop_BreakSpeed =
     return max(0.1, cvar_hget(cvarh_vr_prop_break_speed) * max(0.01, mult) * scale);
 };
 
+// The intensity a hand's hit wears a prop of `xKind` from (a blow, one held and smashed: vr_prop_blow_wear; ROUND22.md,
+// "Crates: two strong hits"); a crate's piece's, and every Box3D impact (thrown, dropped), from half, as before.
+float(float xKind) VR_Prop_HandWearFrom =
+{
+    if(xKind == VR_PROPK_PIECE || xKind == VR_PROPK_GIB)
+    {
+        return 0.5;
+    }
+    return min(0.95, max(0.05, cvar_hget(cvarh_vr_prop_blow_wear)));
+};
+
 // The damage the rule deals `e` (not a gib) meeting something at `xIntensity` (its break speed's): at 1 or more all its
-// health; from half (2i - 1) of its full health; under half none. `xHow` for the console.
-float(entity e, float xKind, float xIntensity, string xHow) VR_Prop_Wear =
+// health; from `xFrom` (half; a hand's hit VR_Prop_HandWearFrom) (i - from) / (1 - from) of its full health, so (2i - 1)
+// from half; under it none. `xHow` for the console.
+float(entity e, float xKind, float xIntensity, float xFrom, string xHow) VR_Prop_WearFrom =
 {
     float full = VR_Prop_Full(e);
     float wear = 0;
@@ -2368,14 +2381,20 @@ float(entity e, float xKind, float xIntensity, string xHow) VR_Prop_Wear =
     {
         wear = max(full, e.health);
     }
-    else if(xIntensity >= 0.5)
+    else if(xIntensity >= xFrom)
     {
-        wear = full * (xIntensity * 2 - 1);
+        wear = full * (xIntensity - xFrom) / (1 - xFrom);
     }
     dprint(sprintf("prop: %s (%s) impact (%s) at %.2f of its break speed (%.2f m/s): %s\n", e.classname,
         VR_Prop_KindName(xKind), xHow, xIntensity, VR_Prop_BreakSpeed(e, xKind), wear <= 0 ? "unhurt" :
         (wear >= e.health ? "broken" : sprintf("damaged by %.1f, %.1f of %.0f left", wear, e.health - wear, full))));
     return wear;
+};
+
+// The same from half (its Box3D impacts: thrown, dropped; the test's).
+float(entity e, float xKind, float xIntensity, string xHow) VR_Prop_Wear =
+{
+    return VR_Prop_WearFrom(e, xKind, xIntensity, 0.5, xHow);
 };
 
 // `e` met something at `xIntensity` (VR_Prop_BreakSpeed's), pushed along `xDir`, by `xBy` (its damage's inflictor and
@@ -2391,7 +2410,7 @@ float(entity e, float xIntensity, vector xDir, string xHow, entity xBy) VR_Prop_
     {
         return FALSE;
     }
-    float wear = VR_Prop_Wear(e, kind, xIntensity, xHow);
+    float wear = VR_Prop_WearFrom(e, kind, xIntensity, vr_prop_held_hit ? VR_Prop_HandWearFrom(kind) : 0.5, xHow);
     if(wear <= 0)
     {
         return FALSE;
@@ -2429,7 +2448,7 @@ float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage =
     float heft = punch > 0 ? sqrt(min(4, max(0.25, xDamage / punch))) : 1;
     float speed = VR_Blow(xHand).mh_speed;
     float intensity = speed * VR_Blow_Exhaust(xHand) * heft / VR_Prop_BreakSpeed(targ, kind);
-    return VR_Prop_Wear(targ, kind, intensity, sprintf("the %s hand's blow at %.2f m/s, heft %.2f",
+    return VR_Prop_WearFrom(targ, kind, intensity, VR_Prop_HandWearFrom(kind), sprintf("the %s hand's blow at %.2f m/s, heft %.2f",
         xHand == cVR_MainHand ? "main" : "off", speed, heft));
 };
 
@@ -2486,7 +2505,7 @@ float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash =
         float hand = self.mainhand_held == box ? cVR_MainHand : cVR_OffHand;
         float into = min(-((box.velocity - otherVel) * n) * (1 / VRMetersToUnits()), -(VRGetEntHandVel(self, hand) * n));
         float intensity = into / VR_Prop_BreakSpeed(box, kind);
-        if(intensity >= 0.5)
+        if(intensity >= VR_Prop_HandWearFrom(kind))
         {
             vr_prop_held_hit = TRUE;
             burst = VR_Prop_Impact(box, intensity, box.velocity, sprintf("held, smashed into %s at %.2f m/s", what, into), self);

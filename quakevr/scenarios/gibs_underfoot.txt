@@ -1,0 +1,10 @@
+# gibs_underfoot: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Grunts to gib with rockets, then step on the chunks
+map vrtesthall
+god
+notarget
+give "Rocket Launcher" main
+cmd impulse 9
+spawn "Grunt" 260 0
+spawn "Grunt" 280 90
+spawn "Grunt" 300 -60
