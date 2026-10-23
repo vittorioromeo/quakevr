@@ -2248,6 +2248,12 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             else if(trace_ent == world) { hitsWorld++; }
             else { hitsTarget++; targetName = trace_ent.classname; }
         }
+        // VR: a held weapon or its hand on the pellet's way (vr_armedgrunt_shot.qc); stopped on the weapon: no further
+        if(VR_AGS_Shot(self, shotFrom, trace_endpos, shotDir, vr_pellet_damage ? vr_pellet_damage : 4, QVR_AGS_PELLET))
+        {
+            shotcount = shotcount - 1;
+            continue;
+        }
         if(trace_fraction != 1.0)
         //JIM
         {
@@ -2630,6 +2636,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
+    VR_AGS_Shot(from, p1, trace_endpos, p2 - p1, damage, QVR_AGS_LIGHTNING); // VR: through a held weapon or its hand (vr_armedgrunt_shot.qc)
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
