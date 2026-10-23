@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Dual-wielding armed humanoids: set Armed Grunts > Dual Wielding to 1 (or vr_agrunt_dual_chance 1) and spawn sword/axe/crowbar grunts: two blades, swung in turn and together, left arm on its weapon; knock or pull out either weapon (it keeps fighting with the other, then re-arms); kill it: both fall; armed enforcers' chainsaw height OK?
 Blade shape editor (Weapon Offsets > Posing Mode > Edit Blade Shape): hold the Fury sword, drag the green curve points onto the drawn bow and the red tip onto its point (other hand's grip), then swing and watch the sweep follow; mace: Head Box corners; Done prints vr_weapons.inc lines to paste me; is the 5 cm grab reach and the panel position right?
 Dropped flail keeps its head and chain: drop it standing and mid-swing/throw (head doesn't jump), pick it up with the head lying away (swings up on the chain), drag it by the head, force grab the handle, kill a Death Sergeant; how the lying chain looks
 Struggling enemies look at you: drag grunts by the legs (belly up and down), hold one up by the legs and by the shoulders, drag one by an arm: the head finds and follows you with small darts, no side flip when you're straight behind; hold its head: no look; kill it while held: head goes limp (Enemies > Struggle > Behaviours: Look at You 0.9, Look Strength 0.6; twitchy?)
