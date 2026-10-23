@@ -3517,7 +3517,9 @@ QVR_CVAR(vr_struggle_held_share, "0.5", CVAR_ARCHIVE)   // the joints above a he
 QVR_CVAR(vr_struggle_grip_guard, "6", CVAR_ARCHIVE)     // units: a held point this far from the hand (the hold lagging) eases the struggle, to a quarter at 2.5 times it (0: never)
 QVR_CVAR(vr_struggle_frantic, "1", CVAR_ARCHIVE)        // held by the head or the legs (or an arm): its free hands slap at the holding hands, erratic, pulled back and struck in (0..2; 0 the plain pry and grasp)
 QVR_CVAR(vr_struggle_squirm, "1", CVAR_ARCHIVE)         // held by the head or the legs: its body squirms (more thrashing over Flail; 0..2)
-QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)        // dragged by an arm: it fights to stay up, its legs under it holding it up and its chest righted (0..2; 0 it flops down)
+QVR_CVAR(vr_struggle_look, "0.9", CVAR_ARCHIVE)        // its head turns to look at you (belly towards you or held up before you: straight at you; turned away: to the side you are on), within its neck's range, with small quick re-aims; not while you hold its head (0..1: the look's share over the struggle's own head moves; 0 never)
+QVR_CVAR(vr_struggle_look_strength, "0.6", CVAR_ARCHIVE) // its neck's strength while it looks at you (0..0.9: its head's muscles at least this, times its effort)
+QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)       // dragged by an arm: it fights to stay up, its legs under it holding it up and its chest righted (0..2; 0 it flops down)
 QVR_CVAR(vr_struggle_arm_reach, "150", CVAR_ARCHIVE)    // degrees: its shoulders' cone while it struggles, for its hands over its head (the rig's 85 about the hanging arm reach no higher than the shoulder; 0: the rig's)
 QVR_CVAR(vr_struggle_voice, "1", CVAR_ARCHIVE)          // its own pain, grunt, sight and idle sounds while it struggles: their volume (0..2; 0 silent), quieter as it weakens
 QVR_CVAR(vr_struggle_voice_gap, "1.8", CVAR_ARCHIVE)    // s: about this between its cries at full effort (longer as it tires)

@@ -247,6 +247,8 @@ const ragtool::Param params[] = {
     {GroupStruggle, "vr_struggle_held_share", "Held Part's Share", 0.f, 1.f, 0.05f, "%.2f", false},
     {GroupStruggle, "vr_struggle_swat", "Swats", 0.f, 2.f, 0.05f, "%.2f", false},
     {GroupStruggle, "vr_struggle_squirm", "Squirm", 0.f, 2.f, 0.05f, "%.2f", false},
+    {GroupStruggle, "vr_struggle_look", "Look at You", 0.f, 1.f, 0.05f, "%.2f", false},
+    {GroupStruggle, "vr_struggle_look_strength", "Look Strength", 0.f, 0.9f, 0.05f, "%.2f", false},
     {GroupStruggle, "vr_struggle_upright", "Upright on Arm Drag", 0.f, 2.f, 0.05f, "%.2f", false},
     {GroupStruggle, "vr_struggle_frantic", "Frantic", 0.f, 2.f, 0.05f, "%.2f", false},
     {GroupStruggle, "vr_struggle_flail", "Flail", 0.f, 2.f, 0.05f, "%.2f", false},

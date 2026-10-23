@@ -422,14 +422,28 @@ void struggleStatus_f()
         const float headUp = head > 0 && head < r->count
                                  ? (b3Body_GetWorldCenter(r->body[static_cast<za::SizeT>(head)]).z - b3Body_GetWorldCenter(r->body[0]).z) * world->m2u
                                  : 0.f;
+        // (Its head's front (its rest +x) from the way to your head, degrees: vr_struggle_look's measure.)
+        // (And its head's spin against its parent's, deg/s: a jitter's measure.)
+        float looks = -1.f, headSpin = 0.f;
+        if(head > 0 && head < r->count && !(r->cut & (1u << head)))
+        {
+            const int parent = r->rig->bones[head].parent >= 0 ? r->rig->bones[head].parent : 0;
+            headSpin = glm::degrees(glm::length(glmv(b3Body_GetAngularVelocity(r->body[static_cast<za::SizeT>(head)])) -
+                                                glmv(b3Body_GetAngularVelocity(r->body[static_cast<za::SizeT>(parent)]))));
+            const glm::vec3 fwd = fromB3(b3Body_GetRotation(r->body[static_cast<za::SizeT>(head)])) * glm::vec3{1.f, 0.f, 0.f};
+            const glm::vec3 to = eye - ownHead;
+            looks = glm::length(to) > 1e-3f
+                        ? glm::degrees(za::atan2(glm::length(glm::cross(fwd, to)), glm::dot(fwd, to)))
+                        : 0.f;
+        }
         Con_Printf("struggle hold: %d hand %d part %d (%s) lag %.2f units; bend %.0f prone %.2f head %.1f over its pelvis; "
                    "an arm %.1f from your head, %.1f from this hand; legs straight %.2f; pelvis %.1f %.1f %.1f; a hand %.1f "
-                   "from its head; chest up %.2f\n",
+                   "from its head; chest up %.2f; its head looks %.0f deg from you, turning %.0f deg/s\n",
             g.num, g.hand, g.part, r->rig->bones[g.part].name, glm::distance(at, grip) * world->m2u, bend,
             -(qc * glm::vec3{1.f, 0.f, 0.f}).z, headUp, gap * world->m2u, toHand * world->m2u,
             legCount > 0 ? legs / static_cast<float>(legCount) : 0.f, world->toU(b3Body_GetPosition(r->body[0])).x,
             world->toU(b3Body_GetPosition(r->body[0])).y, world->toU(b3Body_GetPosition(r->body[0])).z,
-            toHead * world->m2u, cu.z);
+            toHead * world->m2u, cu.z, looks, headSpin);
     }
     // vr_struggle_status hurt <n>: the held ones' health down by n (tests: at 0 or less its struggle ends as dead).
     if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "hurt"))

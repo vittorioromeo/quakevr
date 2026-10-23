@@ -18172,3 +18172,52 @@ hotspot 2 X 0.7 -> 0. The Phantom's and Dark Prince's, the flail's: untouched. N
 Shoot a dropped flamethrower's tank (3 pistol-ish hits) near monsters, a sprayer's near yourself; an empty one; pick
 up the spent gun (no hose, no back tank, clicks). The Plasma Gun's bolts in a dark room. Die in Vomit Mode and look
 around.
+
+### Struggling enemies look at you
+
+Author's note (2026-10-23): a living humanoid in active ragdoll form, dragged or held by its legs, torso or shoulders
+(or lifted), should turn its head to look at him where it can: straight at him with its belly towards him or held up
+before him, to the side when it faces away, trying to see him. It reads as alive, less uncanny.
+
+`vr_ragstruggle.cpp`, `lookAtHolder`, after `bodyTargets` each struggle frame: its head's target (its turn in its
+parent's rest space) slerped towards a look at the holder's head over the struggle's own head moves. The aim: his head
+from its neck in its parent's (the chest's) frame, as a turn about the spine (yaw) and a nod (pitch), each clamped to
+0.9 of its neck's twist and cone (the drive clamps again at 0.95). With him behind it the yaw goes as far as the neck
+turns, to the side he is on; that side is kept while he is straight behind (within about 12 degrees), so the head
+doesn't flip. The aim eases (0.12 s) and makes small quick re-aims (saccades: up to 4.6 degrees of turn and 2.9 of nod,
+every 0.3-1.2 s, seeded per enemy). The look's weight eases (0.25 s) to `vr_struggle_look` times (1 - held by its
+head) times its effort's ramp (none at no effort: a flinch dips it); none beheaded or with the neck snapped (`headPart`,
+`jointOk`: a cut or loose joint). The head channel's strength is at least `vr_struggle_look_strength` times the
+weight (then times effort, `vr_struggle_strength` and the grip guard, like every struggling muscle). Dying ends the
+struggle and its strengths let go, as before.
+
+New cvars (Enemies > Struggle > Behaviours, and the ragdoll tool's Struggle group): `vr_struggle_look` 0.9 (0..1; 0
+never), `vr_struggle_look_strength` 0.6 (0..0.9).
+
+`vr_struggle_status`'s hold line ends with "its head looks N deg from you, turning M deg/s" (its head's rest +x from
+the way to your head; its spin against its parent's). `struggle_test.py`: new case `shoulderdrag` (the right upper arm,
+walked back; judged on the drag only), `STRUGGLE_LOOK=1` adds `<case>_nolook` runs (`vr_struggle_look 0`) and a LOOK
+line per case, `STRUGGLE_STATUS_EVERY` (s, default 0.3) for more samples.
+
+Grunt, the later two thirds' mean (status every 0.1 s; three runs identical), look on (no look):
+
+| case | head from you | head spin |
+|---|---|---|
+| lift (shoulders, held up) | 9 deg (9) | 25 deg/s (26) |
+| leglift (hung by the legs) | 56 (80) | 0 (20) |
+| legdrag (one shin, lying) | 48 (100) | 29 (30) |
+| legpull (both shins, pulled down, dragged) | 67 (110) | 45 (34) |
+| armdrag (forearm) | 27 (73) | 87 (168) |
+| shoulderdrag (upper arm) | 20 (22) | 25 (17) |
+| headdrag (head held: no look) | 28 (28) | 65 (65) |
+
+Held up by the shoulders it already looked at you (Swat's aim); held by the head nothing changes. The spin's rise in
+legpull and shoulderdrag is the saccades (each a quick dart). The struggle cases with `_off` all pass (leads, lag
+against off, poses; the drags 71-94 percent), `dead` passes, `eval.sh` as the baseline. Eyeshots (looking down 50
+degrees, 3 s in; `scratch/hl_<case>_<1|0>.png`, 1 the look on): legpull's grunt, belly up, faces you; without, its head
+lolls aside.
+
+**In VR:** drag a grunt by its legs (belly up and belly down), hold one up by the legs, by the shoulders, drag one by
+an arm: its head should find you and follow you as you move, with small darts, never snapping from side to side when
+you are straight behind it. Hold its head: no look. Kill it while held: its head goes limp. Tune Look at You / Look
+Strength (Enemies > Struggle) if it stares too hard or too weakly.
