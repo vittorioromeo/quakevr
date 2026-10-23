@@ -40,4 +40,7 @@ void init(); // the commands (vr_blade_dump)
 // vr_blade_dump [slot 1..]: the slot's (default: the main hand's weapon's) blade keys as vr_weapons.inc lines.
 void dump(int slot);
 
+// vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*: QC VR_Melee_Line's fist) as vr_cvars.inc lines.
+void dumpFist();
+
 } // namespace qvr::blade

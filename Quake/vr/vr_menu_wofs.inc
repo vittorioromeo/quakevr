@@ -175,7 +175,9 @@ void weaponOffsetsPoseWeapon()
 // Edit Blade Shape (vr_bladeedit.cpp) on the page's weapon in its hand, this page reopened on leaving.
 void weaponOffsetsEditBlade()
 {
-    if(weapons::slotForModel(weapons::heldModel(weaponOffsetsHand)) != weaponOffsetsHeldSlot)
+    // (The empty hand's page: the fist's line; bladeedit::start checks the hand is still empty.)
+    if(weaponOffsetsHeldSlot != weapons::fistSlot() &&
+        weapons::slotForModel(weapons::heldModel(weaponOffsetsHand)) != weaponOffsetsHeldSlot)
     {
         Con_Printf("Edit Blade Shape: the %s hand holds another weapon now: reopen the page.\n",
             weaponOffsetsHand == 1 ? "main" : "off");
@@ -381,6 +383,16 @@ za::Vector<Item> pageWeaponOffsets()
             s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
             s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
         );
+    }
+    else
+    {
+        // The empty hand's blow line (vr_bladeedit.cpp's fist session: vr_melee_fist_*).
+        list.pushBackMultiple(header("Posing Mode"),
+            action("Edit Blade Shape", weaponOffsetsEditBlade)
+                .help("The empty hand's blow line (what a punch strikes with, gloved, bare or ghost hands alike), shaped "
+                      "by hand (Show Melee Blades on): the other hand's grip drags its knuckles end, its fist end and "
+                      "its width. A panel: Undo, Reset Line, Mirror (the off hand's line the main hand's mirrored), "
+                      "Cancel, Done (its values printed to the console). B/Y undoes, the menu button is Done."));
     }
     list.pushBack(header("Settings"));
     for(const WeaponOffsetsPartPage& part : weaponOffsetsPartPages)

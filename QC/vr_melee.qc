@@ -666,7 +666,12 @@ void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
 {
     vr_mline_slot = -1;
     vr_mline_shape = '-1 1 0';
-    if(xThing == VR_MTHING_NONE || xThing == VR_MTHING_FIST || xThing == VR_MTHING_CLUB)
+    if(xThing == VR_MTHING_FIST)
+    {
+        vr_mline_shape_y = max(0.1, cvar_hget(cvarh_vr_melee_fist_width)); // (its blow line's width: vr_melee_fist_width)
+        return;
+    }
+    if(xThing == VR_MTHING_NONE || xThing == VR_MTHING_CLUB)
     {
         return;
     }
@@ -866,9 +871,38 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     }
     if(xThing == VR_MTHING_FIST)
     {
-        vector fwd = VRForwardOf(VRGetEntHandRot(p, xHand));
-        vr_mline_near = h - fwd * 1;
-        vr_mline_far = h + fwd * 4;
+        // Its blow line (vr_melee_fist_*: the two ends in the hand's frame, edited by Edit Blade Shape with the hand
+        // empty): the layout's fist (0) to its knuckles (1), the near end a quarter of it behind. The defaults are the
+        // hand to 4 units ahead (the near end 1 behind), as exactly as before.
+        vector hr = VRGetEntHandRot(p, xHand);
+        vector fwd = VRForwardOf(hr);
+        vector fa, fb;
+        fa_x = cvar_hget(cvarh_vr_melee_fist_from_x);
+        fa_y = cvar_hget(cvarh_vr_melee_fist_from_y);
+        fa_z = cvar_hget(cvarh_vr_melee_fist_from_z);
+        fb_x = cvar_hget(cvarh_vr_melee_fist_to_x);
+        fb_y = cvar_hget(cvarh_vr_melee_fist_to_y);
+        fb_z = cvar_hget(cvarh_vr_melee_fist_to_z);
+        if(xHand == cVR_OffHand && cvar_hget(cvarh_vr_melee_fist_mirror))
+        {
+            fa_y = -fa_y;
+            fb_y = -fb_y;
+        }
+        vector fn = fa - (fb - fa) * 0.25;
+        vr_mline_grip = h + fwd * fa_x;
+        vr_mline_far = h + fwd * fb_x;
+        vr_mline_near = h + fwd * fn_x;
+        if(fa_y || fa_z || fb_y || fb_z)
+        {
+            vector oldF = v_forward, oldR = v_right, oldU = v_up;
+            makevectors(hr);
+            vr_mline_grip = vr_mline_grip + v_right * fa_y + v_up * fa_z;
+            vr_mline_far = vr_mline_far + v_right * fb_y + v_up * fb_z;
+            vr_mline_near = vr_mline_near + v_right * fn_y + v_up * fn_z;
+            v_forward = oldF;
+            v_right = oldR;
+            v_up = oldU;
+        }
         return TRUE;
     }
     if(xThing == VR_MTHING_CLUB)

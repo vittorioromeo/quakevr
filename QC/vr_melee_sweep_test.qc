@@ -426,6 +426,91 @@ void(entity p) VR_Melee_BladeShapeTest =
     bprint(fail ? "bladeshape: FAIL\n" : "bladeshape: PASS\n");
 };
 
+// vr_melee_sweep_test 4 (the fist's blow line, ROUND22.md "The fist's blow line"): the main hand empty. "fistline:" lines:
+// its ends and near end in the hand's frame (forward, right, up from the hand) and its width; then a small box at the
+// line's knuckles end, swept across (24 units in one frame, square to the line and to the way the edit moved the end) by
+// the line as it is now and by the default one (the hand to 4 units ahead, width 1). PASS: the line now strikes it, and
+// the default line strikes it only if it reaches it (its swept radius plus the box's half from it): an edited line far
+// enough from the default one strikes what the default misses.
+float(entity b, entity xT, vector xGrip, vector xFar, vector xD, float xWidth) VR_MSWT_FistProbe =
+{
+    VR_Melee_Layout(VR_MTHING_FIST);
+    b.mh_thing = VR_MTHING_FIST;
+    b.mh_free = FALSE;
+    b.mh_struck = world;
+    b.mh_hit_ent = world;
+    b.mh_n = vr_mpt_n;
+    b.mh_bwidth = xWidth;
+    b.mh_pp[0] = xGrip;
+    b.mh_cp[0] = xGrip + xD;
+    b.mh_pp[1] = xFar;
+    b.mh_cp[1] = xFar + xD;
+    b.mh_pgrip = xGrip;
+    b.mh_grip = xGrip + xD;
+    b.mh_far = xFar + xD;
+    b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
+    float was = cvar("vr_melee_swept");
+    cvar_set("vr_melee_swept", "1");
+    vr_msw_probe = TRUE;
+    VR_Melee_Sweep(cVR_MainHand, b);
+    vr_msw_probe = FALSE;
+    cvar_set("vr_melee_swept", ftos(was));
+    return vr_msw_edge == xT;
+};
+
+void(entity p) VR_Melee_FistLineTest =
+{
+    entity was = self;
+    self = p;
+    float thing = VR_Melee_Thing(p, cVR_MainHand);
+    if(thing != VR_MTHING_FIST || !VR_Melee_Line(p, cVR_MainHand, thing))
+    {
+        bprint(sprintf("fistline: the main hand is not empty (thing %g, %s): FAIL\n", thing, p.weaponmodel));
+        self = was;
+        return;
+    }
+    vector h = VRGetEntHandPos(p, cVR_MainHand);
+    vector grip = vr_mline_grip, far = vr_mline_far, nearEnd = vr_mline_near;
+    float width = vr_mline_shape_y;
+    makevectors(VRGetEntHandRot(p, cVR_MainHand));
+    vector fwd = v_forward, up = v_up;
+    vector lg, lf, ln;
+    lg_x = (grip - h) * v_forward; lg_y = (grip - h) * v_right; lg_z = (grip - h) * v_up;
+    lf_x = (far - h) * v_forward; lf_y = (far - h) * v_right; lf_z = (far - h) * v_up;
+    ln_x = (nearEnd - h) * v_forward; ln_y = (nearEnd - h) * v_right; ln_z = (nearEnd - h) * v_up;
+    bprint(sprintf("fistline: from %v to %v near %v width %.3f\n", lg, lf, ln, width));
+    vector dGrip = h;
+    vector dFar = h + VRForwardOf(VRGetEntHandRot(p, cVR_MainHand)) * 4;
+    // Across: square to the line and to the edit's move of the far end (the hand's up when it did not move).
+    vector moved = far - dFar;
+    vector across = VR_Melee_Cross(fwd, moved);
+    if(vlen(across) < 0.01)
+    {
+        across = up;
+    }
+    vector d = normalize(across) * 24;
+    entity b = spawn();
+    entity t = spawn();
+    t.classname = "vr_meleesweep_target";
+    t.solid = SOLID_BBOX;
+    t.movetype = MOVETYPE_NONE;
+    t.takedamage = DAMAGE_AIM;
+    t.health = 1000;
+    setsize(t, '-1 -1 -1', '1 1 1');
+    setorigin(t, far + d * 0.5);
+    float now = VR_MSWT_FistProbe(b, t, grip, far, d, width);
+    float def = VR_MSWT_FistProbe(b, t, dGrip, dFar, d, 1);
+    float rBase = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
+    float apart = VR_SegmentDistance(far, far, dGrip, dFar);
+    float reaches = apart < rBase + 1;
+    float ok = now && (def == reaches || fabs(apart - rBase - 1) < 0.5);
+    bprint(sprintf("fistline: a box at its knuckles end (%.2f units off the default line): struck by it %g, by the "
+        "default line %g: %s\n", apart, now, def, ok ? "PASS" : "FAIL"));
+    self = was;
+    remove(t);
+    remove(b);
+};
+
 // Every server frame (StartFrame): the test asked for (vr_melee_sweep_test: 1 the sweep, 2 the blade's dump, 3 its shape).
 void() VR_Melee_SweepTestFrame =
 {
@@ -447,6 +532,10 @@ void() VR_Melee_SweepTestFrame =
     else if(mode == 3)
     {
         VR_Melee_BladeShapeTest(p);
+    }
+    else if(mode == 4)
+    {
+        VR_Melee_FistLineTest(p);
     }
     else
     {
