@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 #include "vr_view.hpp"
+#include "vr_render.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -156,11 +157,27 @@ void countCost(long long ns)
     return za::exp(-zeta * omega * t) * za::sin(wd * t) / peak;
 }
 
-// The entity's space (its yaw and scale; a monster has no pitch or roll): world -> model units.
+// Where the renderer draws it (R_SetupEntityTransform's step lerp; called while it is drawn, after that has run): its
+// origin and yaw. Not e->origin: a stepping monster's is where its next step ends, up to a step (15 units) ahead of
+// the drawn body (the armed grunts' hands jumped by that at every step: ROUND22, "Armed grunts: presentation").
+[[nodiscard]] glm::vec3 drawnOrigin(const entity_t* e, float* yawDeg)
+{
+    glm::vec3 o, a;
+    render::drawnPlace(*e, o, a);
+    if(yawDeg)
+    {
+        *yawDeg = a[1];
+    }
+    return o;
+}
+
+// The entity's space as drawn (its yaw and scale; a monster has no pitch or roll): world -> model units.
 [[nodiscard]] glm::vec3 toLocal(const entity_t* e, const glm::vec3& v, bool point)
 {
-    glm::vec3 d = point ? v - glm::vec3{e->origin[0], e->origin[1], e->origin[2]} : v;
-    const float yaw = e->angles[1] * (3.14159265f / 180.f);
+    float yawDeg = 0.f;
+    const glm::vec3 o = drawnOrigin(e, &yawDeg);
+    glm::vec3 d = point ? v - o : v;
+    const float yaw = yawDeg * (3.14159265f / 180.f);
     const float c = za::cos(yaw), s = za::sin(yaw);
     glm::vec3 out{c * d.x + s * d.y, -s * d.x + c * d.y, d.z};
     if(point)
@@ -566,10 +583,12 @@ ArmIk armIk;
 
 [[nodiscard]] glm::vec3 toWorld(const entity_t* e, const glm::vec3& local)
 {
-    const float yaw = e->angles[1] * (3.14159265f / 180.f);
+    float yawDeg = 0.f;
+    const glm::vec3 o = drawnOrigin(e, &yawDeg);
+    const float yaw = yawDeg * (3.14159265f / 180.f);
     const float c = za::cos(yaw), s = za::sin(yaw);
     const glm::vec3 d = local * za::max(ENTSCALE_DECODE(e->scale), 0.01f);
-    return glm::vec3{e->origin[0], e->origin[1], e->origin[2]} + glm::vec3{c * d.x - s * d.y, s * d.x + c * d.y, d.z};
+    return o + glm::vec3{c * d.x - s * d.y, s * d.x + c * d.y, d.z};
 }
 
 // Vertex `v` of the poses drawn (posed model space, units).
@@ -682,6 +701,206 @@ float solveArm(const ragdoll::Rig& rig, const rigpose::Rigid* posed, int u, int 
     return glm::length(rigpose::apply(out[lo], H) - T);
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Armed grunts' arm poses (QVR_SVC_ARMPOSE, QC VR_AG_SendPose; ROUND22.md, "Armed grunts: presentation"): where the server
+// wants its hands and its weapon, relative to its drawn body and its drawn right hand, every server frame. The client puts
+// them on the body as drawn now (its step lerp, its poses' lerp), between the last two messages: the weapon drawn there
+// (the held entity's origin and angles replaced after the relink; the server's own is for the game) and the hands on it.
+
+constexpr int maxArmPoses = 64;
+constexpr int gunRear[] = {497, 545};   // QC VR_AG_GUN_*: its hidden rifle's line (the carry's turn)
+constexpr int gunMuzzle[] = {498, 514};
+constexpr int gunTop = 529, gunBottom = 496;
+constexpr double armPoseStale = 0.3; // seconds without a message: back to finding its weapon by its hand
+constexpr int apLeft = 2;            // the left hand to its own target (else on the weapon's second grip, or free)
+constexpr int apLeftFree = 4;        // ... the left as the animation has it
+
+struct ArmPoseMsg
+{
+    double t{-1.0}; // cl.mtime[0] it came with
+    int prop{0};
+    int flags{0};
+    float wr{1.f};  // the right hand's target: wr * the drawn right hand + v (its body's space, units)
+    glm::vec3 v{0.f};
+    glm::vec3 fwB{1.f, 0.f, 0.f}, upB{0.f, 0.f, 1.f}; // the weapon's turn in its body's space,
+    glm::vec3 fwG{1.f, 0.f, 0.f}, upG{0.f, 0.f, 1.f}; // ... in its drawn rifle line's,
+    float wo{1.f};                                     // ... the second's share
+    float wl{0.f};  // the left hand's target: wl * the drawn left hand + vl
+    glm::vec3 vl{0.f};
+};
+
+struct ArmPose
+{
+    int ent{0};
+    ArmPoseMsg prev, cur;
+    int frame{-1};   // host_framecount its targets were placed on
+    int prop{0};
+    int flags{0};
+    glm::vec3 right{0.f}, left{0.f};             // the hands' targets (model space, units)
+    glm::vec3 fw{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}; // the weapon's turn (model space)
+};
+
+struct ArmPoses
+{
+    ArmPose slots[maxArmPoses];
+};
+ArmPoses armPoses;
+
+[[nodiscard]] ArmPose* armPoseOf(int ent, bool make)
+{
+    ArmPose* free = nullptr;
+    for(ArmPose& s : armPoses.slots)
+    {
+        if(s.ent == ent)
+        {
+            return &s;
+        }
+        if(!free && (s.ent == 0 || s.cur.t < cl.mtime[0] - armPoseStale || s.cur.t > cl.mtime[0] + 1.0))
+        {
+            free = &s;
+        }
+    }
+    if(!make || !free)
+    {
+        return nullptr;
+    }
+    *free = ArmPose{};
+    free->ent = ent;
+    return free;
+}
+
+[[nodiscard]] glm::vec3 nlerp(const glm::vec3& a, const glm::vec3& b, float t)
+{
+    const glm::vec3 m = a + (b - a) * t;
+    return glm::length(m) > 1e-4f ? glm::normalize(m) : b;
+}
+
+// The poses it is drawn between now: R_SetupAliasFrame's lerp read without changing it (a frame begun this frame: the
+// pose it leaves, as it will be drawn).
+void drawnPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2, float& blend)
+{
+    const int frame = (e->frame >= 0 && e->frame < hdr->numframes) ? e->frame : 0;
+    int posenum = hdr->frames[frame].firstpose;
+    if(hdr->frames[frame].numposes > 1)
+    {
+        posenum += static_cast<int>(cl.time / hdr->frames[frame].interval) % hdr->frames[frame].numposes;
+    }
+    const bool valid = e->currentpose >= 0 && e->currentpose < hdr->numposes && e->previouspose >= 0 &&
+                       e->previouspose < hdr->numposes;
+    if(!valid || e->currentpose != posenum || !r_lerpmodels.value)
+    {
+        pose1 = pose2 = valid ? e->currentpose : posenum;
+        blend = 0.f;
+        return;
+    }
+    pose1 = e->previouspose;
+    pose2 = e->currentpose;
+    blend = za::clamp(static_cast<float>(cl.time - e->lerpstart) / za::max(e->lerptime, 1e-3f), 0.f, 1.f);
+}
+
+// The entity angles (a model's pitch) that turn a weapon model's forward to `fw` and its up to `up` (QC VR_AxeStick_Angles).
+[[nodiscard]] glm::vec3 weaponAngles(const glm::vec3& fw, const glm::vec3& up)
+{
+    vec3_t a, f, r, u;
+    a[YAW] = za::atan2(fw.y, fw.x) * (180.f / 3.14159265f);
+    a[PITCH] = -za::atan2(fw.z, za::sqrt(fw.x * fw.x + fw.y * fw.y)) * (180.f / 3.14159265f);
+    a[ROLL] = 0.f;
+    AngleVectors(a, f, r, u);
+    const glm::vec3 u0{u[0], u[1], u[2]};
+    const float roll = za::atan2(glm::dot(glm::cross(u0, up), fw), glm::dot(u0, up)) * (180.f / 3.14159265f);
+    a[ROLL] = roll;
+    AngleVectors(a, f, r, u);
+    if(glm::dot(glm::vec3{u[0], u[1], u[2]}, up) < 0.999f)
+    {
+        a[ROLL] = -roll;
+    }
+    return {-a[PITCH], a[YAW], a[ROLL]};
+}
+
+[[nodiscard]] glm::vec3 turnYaw(float yawDeg, const glm::vec3& d)
+{
+    const float yaw = yawDeg * (3.14159265f / 180.f);
+    const float c = za::cos(yaw), s = za::sin(yaw);
+    return {c * d.x - s * d.y, s * d.x + c * d.y, d.z};
+}
+
+// Its arm pose's targets now (`s` fresh), on the poses drawn: s.right, s.left, s.fw, s.up. False: none now.
+bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, ArmPose& s)
+{
+    if(hdr->numverts <= gunLast || s.cur.t < cl.mtime[0] - armPoseStale)
+    {
+        return false;
+    }
+    // Between the last two messages, as the entities' origins are (CL_RelinkEntities' lerp).
+    ArmPoseMsg m = s.cur;
+    if(s.prev.t > 0.0 && s.cur.t > s.prev.t && s.prev.prop == s.cur.prop && (s.prev.flags == s.cur.flags))
+    {
+        const float f = za::clamp(static_cast<float>((cl.time - s.prev.t) / (s.cur.t - s.prev.t)), 0.f, 1.f);
+        const ArmPoseMsg& p = s.prev;
+        m.wr = p.wr + (m.wr - p.wr) * f;
+        m.v = p.v + (m.v - p.v) * f;
+        m.fwB = nlerp(p.fwB, m.fwB, f);
+        m.upB = nlerp(p.upB, m.upB, f);
+        m.fwG = nlerp(p.fwG, m.fwG, f);
+        m.upG = nlerp(p.upG, m.upG, f);
+        m.wo = p.wo + (m.wo - p.wo) * f;
+        m.wl = p.wl + (m.wl - p.wl) * f;
+        m.vl = p.vl + (m.vl - p.vl) * f;
+    }
+    const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
+    glm::vec3 hr{0.f};
+    for(const int v : rightHandVerts)
+    {
+        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(rightHandVerts));
+    }
+    // Its drawn rifle's line: the carry's turn.
+    const glm::vec3 rear = (poseVertex(hdr, pose1, pose2, blend, gunRear[0]) + poseVertex(hdr, pose1, pose2, blend, gunRear[1])) * 0.5f;
+    const glm::vec3 muzzle =
+        (poseVertex(hdr, pose1, pose2, blend, gunMuzzle[0]) + poseVertex(hdr, pose1, pose2, blend, gunMuzzle[1])) * 0.5f;
+    glm::vec3 gx = muzzle - rear;
+    gx = glm::length(gx) > 1e-4f ? glm::normalize(gx) : glm::vec3{1.f, 0.f, 0.f};
+    glm::vec3 gz = poseVertex(hdr, pose1, pose2, blend, gunTop) - poseVertex(hdr, pose1, pose2, blend, gunBottom);
+    gz -= gx * glm::dot(gz, gx);
+    gz = glm::length(gz) > 1e-4f ? glm::normalize(gz) : glm::vec3{0.f, 0.f, 1.f};
+    const glm::vec3 gy = glm::cross(gz, gx);
+    const glm::vec3 fwG = gx * m.fwG.x + gy * m.fwG.y + gz * m.fwG.z;
+    const glm::vec3 upG = gx * m.upG.x + gy * m.upG.y + gz * m.upG.z;
+    glm::vec3 fw = nlerp(m.fwB, fwG, m.wo);
+    glm::vec3 up = nlerp(m.upB, upG, m.wo);
+    up -= fw * glm::dot(up, fw);
+    up = glm::length(up) > 1e-4f ? glm::normalize(up) : glm::vec3{0.f, 0.f, 1.f};
+    s.right = hr * m.wr + m.v / scale;
+    s.fw = fw;
+    s.up = up;
+    s.prop = m.prop;
+    s.flags = m.flags;
+    s.left = m.vl / scale;
+    if((m.flags & apLeft) && m.wl > 0.f)
+    {
+        const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
+        const int fl = rig ? boneNamed(*rig, "forearm_l") : -1;
+        if(fl >= 0)
+        {
+            findLeftHand(e->model, *rig, hdr, fl);
+            glm::vec3 hl{0.f};
+            for(int i = 0; i < armIk.numLeft; i++)
+            {
+                hl += poseVertex(hdr, pose1, pose2, blend, armIk.leftVerts[i]) / static_cast<float>(za::max(armIk.numLeft, 1));
+            }
+            s.left += hl * m.wl;
+        }
+    }
+    s.frame = host_framecount;
+    return true;
+}
+
+// The arm pose of `e` placed this frame (relinkArms'), or none.
+[[nodiscard]] const ArmPose* armPoseNow(const entity_t* e)
+{
+    const ArmPose* s = armPoseOf(numberOf(e), false);
+    return (s && s->frame == host_framecount) ? s : nullptr;
+}
+
 // The arms' turns now (armsWanted), out: every bone's (none but the arms' turned). False: not now (dead, no weapon).
 bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const aliashdr_t* hdr, int pose1,
     int pose2, float blend, rigpose::Rigid* out)
@@ -720,12 +939,22 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(rightHandVerts));
     }
-    // Its weapon: the held one nearest its right hand.
+    // Its arm pose from the server (QVR_SVC_ARMPOSE): the hands' targets and its weapon; else its weapon is the held one
+    // nearest its right hand.
+    const ArmPose* ap = armPoseNow(e);
     gatherProps();
     const glm::vec3 hrWorld = toWorld(e, hr);
     int prop = -1;
     float best = propReach;
-    for(int i = 0; i < armIk.numProps; i++)
+    if(ap)
+    {
+        prop = (ap->prop > 0 && ap->prop < cl.num_entities && cl_entities[ap->prop].model &&
+                   (cl_entities[ap->prop].effects & heldEffect))
+                   ? ap->prop
+                   : -1;
+        best = -1.f; // (no search)
+    }
+    for(int i = 0; i < armIk.numProps && !ap; i++)
     {
         const entity_t& p = cl_entities[armIk.props[i]];
         const float d = glm::length(glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - hrWorld);
@@ -735,7 +964,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
             prop = armIk.props[i];
         }
     }
-    if(prop < 0)
+    if(prop < 0 && !ap)
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
@@ -744,15 +973,15 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
         }
         return false; // (its fists: the animation's arms)
     }
-    const entity_t& pe = cl_entities[prop];
-    const int slot = weapons::slotForModel(pe.model);
+    const entity_t* pe = prop >= 0 ? &cl_entities[prop] : nullptr;
+    const int slot = pe ? weapons::slotForModel(pe->model) : -1;
     for(int b = 0; b < rig.numBones; b++)
     {
         out[b] = rigpose::Rigid{};
     }
 
-    // The right hand on the grip (the weapon's handle: its origin), the elbow where the animation has it.
-    const glm::vec3 tr = toLocal(e, glm::vec3{pe.origin[0], pe.origin[1], pe.origin[2]}, true);
+    // The right hand on the grip (the weapon's handle: its origin; its fist's target), the elbow where the animation has it.
+    const glm::vec3 tr = ap ? ap->right : toLocal(e, glm::vec3{pe->origin[0], pe->origin[1], pe->origin[2]}, true);
     const glm::vec3 er = rigpose::apply(posed[fr], rig.bones[fr].pivot) - rigpose::apply(posed[ur], rig.bones[ur].pivot);
     const float mainBefore = glm::length(hr - tr);
     const float mainAfter = solveArm(rig, posed, ur, fr, hr, tr, er, out);
@@ -772,8 +1001,17 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         hl += poseVertex(hdr, pose1, pose2, blend, armIk.leftVerts[i]) / static_cast<float>(armIk.numLeft);
     }
-    int kind = 0; // 0 free, 1 a grip, 2 a cup
+    int kind = 0; // 0 free, 1 a grip, 2 a cup, 3 its own target (a punch, a guard), 4 the animation's
     glm::vec3 tl{0.f};
+    if(ap && (ap->flags & apLeft))
+    {
+        kind = 3;
+        tl = ap->left;
+    }
+    else if(ap && (ap->flags & apLeftFree))
+    {
+        kind = 4;
+    }
     for(int i = 0; slot >= 0 && i < weapons::maxHotspots && kind == 0; i++)
     {
         const weapons::Hotspot h = weapons::hotspot(slot, i);
@@ -798,19 +1036,129 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
         tl = sl + glm::normalize(hangDir) * (hangReach * reach);
         pole = hangElbow;
     }
+    if(kind == 4)
+    {
+        tl = hl; // (the animation's: unturned)
+    }
+    if(kind == 3)
+    {
+        pole = glm::vec3{-0.3f, 0.6f, -1.f}; // (a fist's elbow down and out, its left)
+    }
     const float secondBefore = glm::length(hl - tl);
-    const float secondAfter = solveArm(rig, posed, ul, fl, hl, tl, pole, out);
+    const float secondAfter = kind == 4 ? secondBefore : solveArm(rig, posed, ul, fl, hl, tl, pole, out);
+    if(vr_agrunt_ik_debug.value < 0.f)
+    {
+        // The jitter trace (scratch/agjit.py): the targets and the animation's hands in its model space, each frame.
+        Con_Printf("agj %d %.4f %d %d %.3f tr %.3f %.3f %.3f tl %.3f %.3f %.3f hr %.3f %.3f %.3f kind %d\n", numberOf(e),
+            cl.time, pose1, pose2, blend, tr.x, tr.y, tr.z, tl.x, tl.y, tl.z, hr.x, hr.y, hr.z, kind);
+    }
     const int every = static_cast<int>(vr_agrunt_ik_debug.value);
     if((every > 0 && host_framecount % every == 0) || armIk.forcePrint)
     {
         const float sc = ENTSCALE_DECODE(e->scale);
         Con_Printf("agik ent %d hf %d frame %d slot %d %s kind %d main %.2f %.2f second %.2f %.2f\n", numberOf(e), host_framecount,
-            pose1, slot, pe.model->name, kind, mainBefore * sc, mainAfter * sc, secondBefore * sc, secondAfter * sc);
+            pose1, slot, pe ? pe->model->name : "(fists)", kind, mainBefore * sc, mainAfter * sc, secondBefore * sc,
+            secondAfter * sc);
     }
     return true;
 }
 
 } // namespace
+
+namespace qvr::hitreact
+{
+
+void parseArmPose()
+{
+    ArmPoseMsg m;
+    const int ent = MSG_ReadShort();
+    m.prop = MSG_ReadShort();
+    m.flags = MSG_ReadByte();
+    m.wr = static_cast<float>(MSG_ReadByte()) / 255.f;
+    const auto readVec = [](glm::vec3& v) {
+        for(int i = 0; i < 3; i++)
+        {
+            v[i] = MSG_ReadCoord(cl.protocolflags);
+        }
+    };
+    const auto readDir = [](glm::vec3& v) {
+        for(int i = 0; i < 3; i++)
+        {
+            v[i] = static_cast<float>(MSG_ReadShort()) / 32000.f;
+        }
+        v = glm::length(v) > 1e-4f ? glm::normalize(v) : glm::vec3{1.f, 0.f, 0.f};
+    };
+    readVec(m.v);
+    readDir(m.fwB);
+    readDir(m.upB);
+    readDir(m.fwG);
+    readDir(m.upG);
+    m.wo = static_cast<float>(MSG_ReadByte()) / 255.f;
+    m.wl = static_cast<float>(MSG_ReadByte()) / 255.f;
+    readVec(m.vl);
+    m.t = cl.mtime[0];
+    ArmPose* s = armPoseOf(ent, true);
+    if(!s)
+    {
+        return;
+    }
+    if(m.t > s->cur.t)
+    {
+        s->prev = s->cur;
+    }
+    s->cur = m;
+}
+
+void relinkArms()
+{
+    if(!vr_agrunt_ik.value)
+    {
+        return;
+    }
+    for(ArmPose& s : armPoses.slots)
+    {
+        if(s.ent <= 0 || s.ent >= cl.num_entities || s.cur.t < cl.mtime[0] - armPoseStale)
+        {
+            continue;
+        }
+        const entity_t* e = &cl_entities[s.ent];
+        if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||
+            !modelmeta::get(e->model).is(modelmeta::Id::VrGrunt))
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+        int pose1 = 0, pose2 = 0;
+        float blend = 0.f;
+        drawnPoses(e, hdr, pose1, pose2, blend);
+        if(!placeArmPose(e, hdr, pose1, pose2, blend, s) || s.prop <= 0 || s.prop >= cl.num_entities)
+        {
+            continue;
+        }
+        // Its weapon drawn on the drawn body (the hands' IK reaches the same place: armsNow).
+        entity_t& p = cl_entities[s.prop];
+        if(!p.model || !(p.effects & heldEffect) || p.msgtime != cl.mtime[0])
+        {
+            continue;
+        }
+        float yaw = 0.f;
+        (void)drawnOrigin(e, &yaw);
+        const glm::vec3 at = toWorld(e, s.right);
+        const glm::vec3 a = weaponAngles(turnYaw(yaw, s.fw), turnYaw(yaw, s.up));
+        for(int i = 0; i < 3; i++)
+        {
+            p.origin[i] = at[i];
+            p.angles[i] = a[i];
+        }
+    }
+}
+
+} // namespace qvr::hitreact
+
+extern "C" void VR_RelinkArmedGrunts(void)
+{
+    qvr::hitreact::relinkArms();
+}
 
 namespace qvr::hitreact
 {

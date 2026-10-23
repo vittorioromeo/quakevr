@@ -27,6 +27,11 @@ namespace qvr::hitreact
 // QVR_SVC_HITREACT (vr_client.cpp's dispatch).
 void parseEvent();
 
+// QVR_SVC_ARMPOSE (vr_client.cpp's dispatch): an armed grunt's hands and weapon this server frame. relinkArms (the end of
+// CL_RelinkEntities): its weapon drawn where its drawn body holds it, the hands' targets for armsWanted's IK.
+void parseArmPose();
+void relinkArms();
+
 // A rigged entity's bones kicked now: for each bone, the rigid motion (posed model space, units) its posed vertices
 // take on top of the animation: p' = rot[b] * p + pos[b]. `posed`: each bone's transform from the rest pose to the pose
 // drawn. False if `e` reacts to nothing now (outputs untouched).
