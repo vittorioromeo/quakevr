@@ -640,9 +640,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Your weight for the weight classes below."),
         slider("Side-On Turn", vr_kdtrig_tackle_turn, 10.f, 90.f, 5.f, "%.0f deg")
             .help("Your hands' middle, seen from your head, at least this far round to the side of the run (your torso "
-                  "turned side-on, a shoulder leading)."),
-        slider("Hands Low", vr_kdtrig_tackle_low, 0.f, 30.f, 1.f, "%.0f units")
-            .help("Both hands at least this far below your head."),
+                  "turned side-on, a shoulder leading) as you meet it: you may turn into the shoulder at the last "
+                  "moment."),
+        slider("Hands Low", vr_kdtrig_tackle_low, 0.f, 30.f, 0.5f, "%.1f units")
+            .help("Both hands at least this far below your head (a bit above the chest counts: only hands at or over "
+                  "the head fail)."),
         slider("Hands Close", vr_kdtrig_tackle_reach, 8.f, 40.f, 1.f, "%.0f units")
             .help("Both hands within this of your head's line, neither reaching ahead (the leading arm tucked)."),
         slider("Head Down", vr_kdtrig_tackle_head, 0.f, 30.f, 0.5f, "%.1f deg")
