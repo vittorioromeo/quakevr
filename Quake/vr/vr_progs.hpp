@@ -65,6 +65,7 @@ struct Bindings
     // makeRagdollRoom): resolved here, not by name each frame (findFunction scans every function).
     func_t KdTrig_BodyHit{0};
     func_t RagImpact_Hit{0};
+    func_t Flail_Hit{0}; // AD support: the death sergeant's flail's head striking (QC vr_ad_melee.qc; vr_box3d_flail.cpp)
     func_t Monster_Fall{0};
     func_t Knockdown_MakeRoom{0};
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.

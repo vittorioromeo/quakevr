@@ -336,8 +336,9 @@ constexpr Seed adIcegolemSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-22.5f, -29.5f, -13.7f}, {-8.9f, -25.5f, 9.3f}, {-24.f, -29.4f, -18.2f}, 7.5f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
-// AD's death sergeant (progs/mon_dsergeant.mdl: 1265 vertices; 24 clusters, bones 1.10): the flail's handle in the
-// right hand, its chain and ball a dangling bone.
+// AD's death sergeant (progs/mon_dsergeant.mdl: 1265 vertices; 24 clusters, bones 1.10): the flail in the right hand
+// (vertices 870..1264) no bone of its own (its chain and ball were one, dangling, before it dropped the flail: a loose
+// piece now, as the hunter ogres' weapons, held alive and hidden in its deaths: vr_monstermods.cpp).
 constexpr Seed adDsergeantSeeds[] = {
     {"pelvis", -1, Joint::Root, {2.2f, -0.5f, 7.2f}, {2.2f, -0.5f, 7.2f}, {1.7f, 0.1f, 15.8f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {5.4f, 0.5f, 26.4f}, {1.7f, 0.1f, 15.8f}, {6.4f, 0.1f, 26.8f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -347,11 +348,10 @@ constexpr Seed adDsergeantSeeds[] = {
     {"upperarm_r", 1, Joint::Ball, {1.9f, -14.1f, 17.f}, {4.4f, -11.4f, 25.1f}, {5.6f, -16.2f, 8.1f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {11.1f, -17.2f, 5.2f}, {5.6f, -16.2f, 8.1f}, {17.6f, -13.f, 14.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"hand_r", 6, Joint::Ball, {13.5f, -17.6f, 7.f}, {17.6f, -13.f, 14.6f}, {17.9f, -18.6f, 11.1f}, 0.f, 40.f, 30.f, 0.f, {}},
-    {"flail", 7, Joint::Ball, {17.8f, -18.4f, -4.3f}, {17.9f, -18.6f, 11.1f}, {17.7f, -18.1f, -19.7f}, 0.f, 90.f, 60.f, 0.f, {}},
     {"thigh_l", 0, Joint::Ball, {1.5f, 5.8f, -4.4f}, {0.f, 0.4f, 6.f}, {-0.1f, 5.3f, -13.5f}, 3.5f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 9, Joint::Hinge, {2.f, 9.3f, -22.f}, {-0.1f, 5.3f, -13.5f}, {1.8f, 8.9f, -21.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"shin_l", 8, Joint::Hinge, {2.f, 9.3f, -22.f}, {-0.1f, 5.3f, -13.5f}, {1.8f, 8.9f, -21.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
     {"thigh_r", 0, Joint::Ball, {5.3f, -6.4f, -3.6f}, {2.f, -0.3f, 7.3f}, {4.3f, -7.9f, -12.9f}, 3.5f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 11, Joint::Hinge, {6.5f, -10.f, -21.9f}, {4.3f, -7.9f, -12.9f}, {6.4f, -9.8f, -21.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"shin_r", 10, Joint::Hinge, {6.5f, -10.f, -21.9f}, {4.3f, -7.9f, -12.9f}, {6.4f, -9.8f, -21.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
 // AD's bog lord (progs/mon_bossboglord.mdl): the shambler's mesh x1.3 (seedscale.py: shamblerSeeds x1.3, 6.7 up).

@@ -15,3 +15,4 @@ QVR_AD_GUN("AD Zombie Knight's Sword", "progs/w_zombiesword.mdl#melee", 13, 342,
 QVR_AD_GUN("AD Death Guard's Sword", "progs/w_dguardsword.mdl#melee", 13, 343, 1024)
 QVR_AD_GUN("AD Hunter Ogre's Hammer", "progs/w_ogreham.mdl#melee", 13, 344, 1280)
 QVR_AD_GUN("AD Hunter Ogre's Mace", "progs/w_ogremac.mdl#melee", 13, 345, 1536)
+QVR_AD_GUN("AD Death Sergeant's Flail", "progs/w_blueflail.mdl#melee", 13, 346, 1792)

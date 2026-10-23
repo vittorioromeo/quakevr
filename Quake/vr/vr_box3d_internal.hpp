@@ -1314,6 +1314,11 @@ void strikeTestFrame(); // (its next step, each server frame)
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();
 void syncFuelRopes(); // (vr_box3d.cpp: the fuelled guns' tanks held to their guns)
+// AD support: the death sergeant's flail's heads (vr_box3d_flail.cpp): made and led before the step, their hits after
+// each step, dealt (QC VR_Flail_Hit) after the frame's.
+void syncFlails(float dt);
+void noteFlailHits(const b3ContactEvents& events);
+void callFlailHits();
 void beforeStanding();
 [[nodiscard]] bool solidProp(int num);
 void nudgeWalkedRagdolls(float dt);

@@ -88,7 +88,9 @@ float(float wid) VR_ADGun_ClipSize =
 // AD's own weapon models laid as the knight's sword (the engine's vr_admelee.cpp: "<AD weapon model>#melee"; nothing of
 // AD's in Quake VR's files); without AD's data the knight's sword stands in. The hammer and the mace are heavy (Weapon
 // Weights: their mass slows a one-handed swing; vr_admelee_heavy_1h: its damage) and blunt (VR_Melee_Thing: an axe's
-// head that cuts no heads off; client.qc: a blunt blow's sounds and wounds).
+// head that cuts no heads off; client.qc: a blunt blow's sounds and wounds). The death sergeant's flail is its own: its
+// handle in the hand strikes nothing; its spiked head, on a chain, is a body of its own in the physics (the engine's
+// vr_box3d_flail.cpp) and strikes by its own speed and mass (VR_Flail_Hit, vr_ad_melee.qc).
 float QVR_WPNFLAG_SWORD_KIND_UNIT = 256;
 float QVR_WPNFLAG_SWORD_KIND = 1792; // (bits 8-10: 256 .. 1792)
 float VR_ADMELEE_FURY = 1;     // the death fury's sword (it drops two: progs/w_dfurysword1.mdl)
@@ -97,7 +99,9 @@ float VR_ADMELEE_ZKNIGHT = 3;  // the zombie knight's (progs/w_zombiesword.mdl)
 float VR_ADMELEE_DGUARD = 4;   // the death guard's (progs/w_dguardsword.mdl)
 float VR_ADMELEE_HAMMER = 5;   // the hammer hunter ogre's (progs/w_ogreham.mdl)
 float VR_ADMELEE_MACE = 6;     // the mace hunter ogre's (progs/w_ogremac.mdl)
-float VR_ADMELEE_LAST = 6;
+float VR_ADMELEE_FLAIL = 7;    // the death sergeant's flail (progs/w_blueflail.mdl: its head on a chain, vr_box3d_flail.cpp)
+float VR_ADMELEE_LAST = 7;
+float vr_flail_damage; // the flail's head's blow being dealt (VR_Flail_Hit: W_SwordMelee deals it)
 
 // A sword's kind (0: Quake VR's own), from its weapon flags.
 float(float xFlags) VR_ADMelee_Kind =
@@ -111,16 +115,22 @@ float(float xKind) VR_ADMelee_Flags =
     return xKind * QVR_WPNFLAG_SWORD_KIND_UNIT;
 };
 
+// The flail (its head swung on its chain strikes, not the handle).
+float(float xKind) VR_ADMelee_Flail =
+{
+    return xKind == VR_ADMELEE_FLAIL;
+};
+
 float(float xKind) VR_ADMelee_Heavy =
 {
     return xKind == VR_ADMELEE_HAMMER || xKind == VR_ADMELEE_MACE;
 };
 
 // Whether a kind's weapon fits a holster (WeaponIdToHolsterable): the hammer and the mace are too big (carried by hand,
-// or left); the swords fit.
+// or left); the flail too (its head swings on its chain only in a hand: carried, or left); the swords fit.
 float(float xKind) VR_ADMelee_Holsterable =
 {
-    return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE;
+    return xKind != VR_ADMELEE_HAMMER && xKind != VR_ADMELEE_MACE && xKind != VR_ADMELEE_FLAIL;
 };
 
 // Its model (vr_admelee.cpp makes it from AD's), or the knight's sword without AD's data.
@@ -135,6 +145,7 @@ string(float xKind) VR_ADMelee_Model =
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "progs/w_zombiesword.mdl#melee"; }
     if(xKind == VR_ADMELEE_DGUARD)   { return "progs/w_dguardsword.mdl#melee"; }
     if(xKind == VR_ADMELEE_HAMMER)   { return "progs/w_ogreham.mdl#melee"; }
+    if(xKind == VR_ADMELEE_FLAIL)    { return "progs/w_blueflail.mdl#melee"; }
     return "progs/w_ogremac.mdl#melee";
 };
 
@@ -145,6 +156,7 @@ string(float xKind) VR_ADMelee_Name =
     if(xKind == VR_ADMELEE_ZKNIGHT)  { return "Zombie Knight's Sword"; }
     if(xKind == VR_ADMELEE_DGUARD)   { return "Death Guard's Sword"; }
     if(xKind == VR_ADMELEE_HAMMER)   { return "Hunter Ogre's Hammer"; }
+    if(xKind == VR_ADMELEE_FLAIL)    { return "Death Sergeant's Flail"; }
     return "Hunter Ogre's Mace";
 };
 
@@ -153,7 +165,7 @@ void() VR_ADMelee_Drop;                          // VR_AD_Dying: self, an AD mel
 void(float xClass) VR_ADMelee_Prepare;           // VR_AD_MonsterSetup: its weapons' models made and precached now
 void(float wid, float xFlags) VR_ADMelee_Placed; // a sword of a kind laid or carried: its model made and precached
 void(entity p) VR_ADMelee_EnsureCarried;         // DecodeLevelParms: p's carried ones made and precached
-void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests
+void(float request, entity p) AD_MeleeTest;      // vr_ad_test 110..122: the AD melee weapons' tests (131-132: the flail)
 
 // vr_ad_enemyguns.qc (after AD's files) defines these.
 float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_ADGun_Attack; // VR_EnemyGun_Attack: TRUE fired

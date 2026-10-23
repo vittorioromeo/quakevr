@@ -1443,7 +1443,11 @@ void(float xHand) W_SwordMelee =
 {
     float xdmg = VRMeleeDmg(xHand, 20) * cvar_hget(cvarh_vr_sword_damage_mult);
     float kind = VR_ADMelee_Kind(VRGetWeaponFlags(xHand));
-    if(VR_ADMelee_Heavy(kind))
+    if(VR_ADMelee_Flail(kind))
+    {
+        xdmg = vr_flail_damage; // (its head's blow: VR_Flail_Hit)
+    }
+    else if(VR_ADMelee_Heavy(kind))
     {
         float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
         xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar("vr_admelee_heavy_1h"));
@@ -1476,7 +1480,7 @@ void(float xHand) W_SwordMelee =
         {
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
-            if(VR_ADMelee_Heavy(kind))
+            if(VR_ADMelee_Heavy(kind) || VR_ADMelee_Flail(kind))
             {
                 VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim); // (a hammer's, a mace's weight: the chainsaw's)
             }

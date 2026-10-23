@@ -2775,6 +2775,13 @@ QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' 
 QVR_CVAR(vr_admelee_sword_damage, "1.25", CVAR_ARCHIVE) // ... their swords' damage, times the knight's sword's (vr_sword_damage_mult; the hell knight's: 1.25)
 QVR_CVAR(vr_admelee_heavy_damage, "1.6", CVAR_ARCHIVE) // ... the hammer's and the mace's, times the knight's sword's, held in both hands (their weight: Weapon Weights, slots 45-46)
 QVR_CVAR(vr_admelee_heavy_1h, "0.5", CVAR_ARCHIVE) // ... held in one hand: their damage's share (heavy: one hand swings them slowly and weakly)
+QVR_CVAR(vr_flail_chain, "0.45", CVAR_ARCHIVE) // AD support: the death sergeant's flail: its chain's length, metres, from the handle's end to the head (vr_box3d_flail.cpp: a rope)
+QVR_CVAR(vr_flail_mass, "2", CVAR_ARCHIVE) // ... its spiked head's mass, kg (its swing's weight; its blows' damage goes by it)
+QVR_CVAR(vr_flail_damage, "3", CVAR_ARCHIVE) // ... its head's blow: this times its mass (kg) times its speed into what it hits beyond vr_flail_min_speed (m/s)
+QVR_CVAR(vr_flail_min_speed, "3", CVAR_ARCHIVE) // ... its head hitting slower than this (m/s) deals nothing (a lazy wave), only knocks
+QVR_CVAR(vr_flail_max_damage, "150", CVAR_ARCHIVE) // ... a blow's damage at most
+QVR_CVAR(vr_flail_2h, "1.3", CVAR_ARCHIVE) // ... held in both hands (the other on its handle): its blows this many times harder
+QVR_CVAR(vr_flail_debug, "0", CVAR_NONE) // debug: 1 each blow of its head ("flail:" lines, QC's and the engine's hits), 2 its head's state every frame
 QVR_CVAR(vr_ad_healthvial_scale, "2.5", CVAR_ARCHIVE) // AD support: AD's health vials and gems drawn this many times bigger (QC vr_ad_items.qc item_healthvial; as objects times vr_forcegrabbable_box_scale: 0.5 of AD's model; author's note 2026-10-22: far too small)
 QVR_CVAR(vr_admelee_heavy_stamina, "1.5", CVAR_ARCHIVE) // ... their blows' stamina, times a weapon's (vr_strike_stamina_cost, _2h; QC vr_melee.qc VR_Stamina_Strike; author's note 2026-10-22)
 QVR_CVAR(vr_admelee_heavy_speed, "0.8", CVAR_ARCHIVE) // ... held in either hand, you move at this times the most speed (sv_maxspeed; QC .vr_heavy_move, sv_user.c SV_AirMove)

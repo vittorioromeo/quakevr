@@ -125,6 +125,8 @@ GUNS = [
     (343, "AD Death Guard's Sword", 13, "progs/w_dguardsword.mdl#melee", "progs/w_dguardsword.mdl", 1024),
     (344, "AD Hunter Ogre's Hammer", 13, "progs/w_ogreham.mdl#melee", "progs/w_ogreham.mdl", 1280),
     (345, "AD Hunter Ogre's Mace", 13, "progs/w_ogremac.mdl#melee", "progs/w_ogremac.mdl", 1536),
+    # The death sergeant's flail (its head on a chain: the engine's vr_box3d_flail.cpp).
+    (346, "AD Death Sergeant's Flail", 13, "progs/w_blueflail.mdl#melee", "progs/w_blueflail.mdl", 1792),
 ]
 
 
