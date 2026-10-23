@@ -103,7 +103,14 @@
                   "Speed. A full swing or a whirl lands hard, a lazy wave barely."),
         slider("Least Speed", "vr_flail_min_speed", 0.f, 8.f, 0.25f, "%.2f m/s").extend(0.f, 20.f)
             .help("Its head hitting slower than this deals nothing (it only knocks)."),
-        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f),
+        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f)
+            .help("A blow of its head deals at most this."),
+        slider("Least Damage", "vr_flail_min_damage", 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
+            .help("A blow of its head faster than Least Speed deals at least this."),
+        slider("Most Head Speed", "vr_flail_max_speed", 4.f, 40.f, 0.5f, "%.1f m/s")
+            .help("Its head never goes faster than this: a heavy ball can't be whirled up without end."),
+        slider("Head Drag", "vr_flail_drag", 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the air slows its head (and its spin): higher, it feels heavier and whirling it takes work."),
         slider("Two Hands", "vr_flail_2h", 1.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("Held in both hands (the other on its handle), its blows are this many times harder."),
         slider("Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")
@@ -159,6 +166,23 @@
                   "that long and a little more."),
         slider("Tank Weight", "vr_adgun_tank_mass", 0.5f, 10.f, 0.5f, "%.1f kg")
             .help("A tank lying about's weight: how hard it drags its gun, and its gun it."),
+        slider("Tank Health", "vr_adgun_tank_health", 0.f, 200.f, 5.f, "%.0f")
+            .help("How much a tank lying about takes (shots, blasts, blows, flames) before it bursts. With fuel in its "
+                  "gun it explodes, as big as the fuel left: the flamethrower's sets everything near on fire, the poison "
+                  "sprayer's poisons it (a trap). Empty, it just breaks with a puff of smoke. Its gun is spent after: a "
+                  "hand still takes it, it never fires, no tank, no hose, no force grab. 0: tanks never burst."),
+        slider("Tank Burst Reach", "vr_adgun_tank_burst_radius", 40.f, 400.f, 10.f, "%.0f")
+            .help("How far a full tank's burst reaches (units); near empty, 40% of it."),
+        slider("Tank Burst Blast", "vr_adgun_tank_burst_damage", 0.f, 150.f, 5.f, "%.0f")
+            .help("A full tank's burst's blast at its middle, weaker at the edge and as the fuel runs low (the poison "
+                  "sprayer's half)."),
+        slider("Tank Burst Burning", "vr_adgun_tank_burst_burn", 0.f, 20.f, 0.5f, "%.1f s")
+            .help("How long what a full flamethrower tank's burst reaches burns (near empty, 40% of it)."),
+        slider("Tank Burst Poison", "vr_adgun_tank_burst_poison", 0.f, 30.f, 1.f, "%.0f/s")
+            .help("The poison a full poison sprayer tank's burst leaves on what it reaches, damage a second (near "
+                  "empty, 40% of it; weaker at the edge)."),
+        slider("Tank Burst Poison Time", "vr_adgun_tank_burst_poisontime", 0.f, 20.f, 0.5f, "%.1f s")
+            .help("How long that poison lasts at a full tank (near empty, 40% of it)."),
         toggle("Electric Bolts", "vr_adgun_bolt_fx")
             .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
                   "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),

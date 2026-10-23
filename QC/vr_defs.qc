@@ -27,6 +27,10 @@ float QVR_WPNFLAG_NOMAG = VRUTIL_POWER_OF_TWO(4);
 float QVR_WPNFLAG_SSG_OPEN = VRUTIL_POWER_OF_TWO(5);
 float QVR_WPNFLAG_SSG_SPENT_ONE = VRUTIL_POWER_OF_TWO(6);
 float QVR_WPNFLAG_SSG_SPENT = 192; // (both bits: 64 and 128)
+// (Bits 8-11: an AD melee weapon's kind, QVR_WPNFLAG_SWORD_KIND, on WID_SWORD only.)
+// AD support: a flamethrower or poison sprayer whose tank burst (vr_ad_enemyguns.qc VR_FuelTank_Burst): spent, never a
+// tank again (none lying about, none on the back, no hose: the engine's vr_adtank.cpp). Travels with the gun as its flags do.
+float QVR_WPNFLAG_TANK_BURST = VRUTIL_POWER_OF_TWO(12);
 
 //
 //

@@ -106,6 +106,7 @@ QVR_MODEL_ID(AdVrAxe, "progs/v_shadaxe3.mdl#vr")
 QVR_MODEL_ID(AdVrWidowmaker, "progs/v_shot3.mdl#vr")
 QVR_MODEL_ID(AdVrPlasma, "progs/v_plasma.mdl#vr")
 QVR_MODEL_ID(AdProjPlasma, "progs/proj_plasma.mdl") // AD support: a plasma bolt in flight (vr_emissive.cpp: its blue light, its arcs)
+QVR_MODEL_ID(AdProjPgPlasma, "progs/proj_pgplasma.mdl") // AD support: the player's Plasma Gun's bolt (the same light and arcs)
 QVR_MODEL_ID(Missile, "progs/missile.mdl") // the rocket in flight, drawn at vr_rocket_scale (vr_props.cpp ownScale)
 
 QVR_MODEL_TRAIT(Progs, Prefix, "progs/")

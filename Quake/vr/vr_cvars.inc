@@ -2815,6 +2815,12 @@ QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibra
 QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, thrown, a monster's): the gun's tank beside it, a prop held to it by a rope, a hose between them (QC vr_ad_enemyguns.qc "Fuel tanks"; vr_box3d.cpp, vr_adtank.cpp); 0 none
 QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
 QVR_CVAR(vr_adgun_tank_mass, "3", CVAR_ARCHIVE) // ... the tank's mass, kg (a gun dragging it, it dragging the gun)
+QVR_CVAR(vr_adgun_tank_health, "30", CVAR_ARCHIVE) // ... the tank's health (a grunt's): shot, blasted or struck enough it bursts (QC VR_FuelTank_Burst), its gun spent for good; 0: it never bursts
+QVR_CVAR(vr_adgun_tank_burst_radius, "160", CVAR_ARCHIVE) // ... its burst's reach at a full tank, units (40% of it near empty; an empty tank only breaks with a puff of smoke)
+QVR_CVAR(vr_adgun_tank_burst_damage, "30", CVAR_ARCHIVE) // ... its burst's blast at its middle at a full tank (as the fuel left; the poison sprayer's half; weaker at the edge)
+QVR_CVAR(vr_adgun_tank_burst_burn, "6", CVAR_ARCHIVE) // ... the flamethrower's: seconds what it reaches burns at a full tank (40% near empty)
+QVR_CVAR(vr_adgun_tank_burst_poison, "8", CVAR_ARCHIVE) // ... the poison sprayer's: the poison it leaves, damage a second at a full tank (40% near empty; weaker at the edge)
+QVR_CVAR(vr_adgun_tank_burst_poisontime, "6", CVAR_ARCHIVE) // ... and for how many seconds at a full tank (40% near empty)
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
@@ -2860,10 +2866,13 @@ QVR_CVAR(vr_admelee_sword_damage, "1.25", CVAR_ARCHIVE) // ... their swords' dam
 QVR_CVAR(vr_admelee_heavy_damage, "1.6", CVAR_ARCHIVE) // ... the hammer's and the mace's, times the knight's sword's, held in both hands (their weight: Weapon Weights, slots 45-46)
 QVR_CVAR(vr_admelee_heavy_1h, "0.5", CVAR_ARCHIVE) // ... held in one hand: their damage's share (heavy: one hand swings them slowly and weakly)
 QVR_CVAR(vr_flail_chain, "0.45", CVAR_ARCHIVE) // AD support: the death sergeant's flail: its chain's length, metres, from the handle's end to the head (vr_box3d_flail.cpp: a rope)
-QVR_CVAR(vr_flail_mass, "2", CVAR_ARCHIVE) // ... its spiked head's mass, kg (its swing's weight; its blows' damage goes by it)
+QVR_CVAR(vr_flail_mass, "3", CVAR_ARCHIVE) // ... its spiked head's mass, kg (its swing's weight; its blows' damage goes by it; 2 before vr_cfg_version 194)
 QVR_CVAR(vr_flail_damage, "3", CVAR_ARCHIVE) // ... its head's blow: this times its mass (kg) times its speed into what it hits beyond vr_flail_min_speed (m/s)
 QVR_CVAR(vr_flail_min_speed, "3", CVAR_ARCHIVE) // ... its head hitting slower than this (m/s) deals nothing (a lazy wave), only knocks
-QVR_CVAR(vr_flail_max_damage, "150", CVAR_ARCHIVE) // ... a blow's damage at most
+QVR_CVAR(vr_flail_max_damage, "120", CVAR_ARCHIVE) // ... a blow's damage at most (150 before vr_cfg_version 194)
+QVR_CVAR(vr_flail_min_damage, "10", CVAR_ARCHIVE) // ... and at least, a blow faster than vr_flail_min_speed (the author's note vrfiringrange_2026-10-23_17-33-56)
+QVR_CVAR(vr_flail_max_speed, "16", CVAR_ARCHIVE) // ... its head never faster than this, m/s (vr_box3d_flail.cpp; was a fixed 40: whirled up without end)
+QVR_CVAR(vr_flail_drag, "0.6", CVAR_ARCHIVE) // ... the air slowing its head (Box3D's linear damping, a second's share; its spin 1 + 4x it; was 0.05): whirling it takes work
 QVR_CVAR(vr_flail_2h, "1.3", CVAR_ARCHIVE) // ... held in both hands (the other on its handle): its blows this many times harder
 QVR_CVAR(vr_flail_rattle, "0.7", CVAR_ARCHIVE) // ... its chain's rattle (AD's gibs/gibchain.wav) as its head swings fast and strikes: its volume (0 none)
 QVR_CVAR(vr_flail_debug, "0", CVAR_NONE) // debug: 1 each blow of its head ("flail:" lines, QC's and the engine's hits), 2 its head's state every frame

@@ -36,7 +36,18 @@ constexpr float hitCooldown = 0.2f; // s (game): the same thing struck again by 
 constexpr float teleport = 1.5f;    // m: the anchor further than this from where it was: carried there
 constexpr float handJump = 25.f;    // m/s (real): the handle's end moving faster than this jumped (carried, not swung)
 constexpr float jumpLeast = 0.5f;   // m: and never a move shorter than this (the hand's place arrives in bursts in slow motion)
-constexpr float mostSpeed = 40.f;   // m/s (real): the head never faster (a whip beyond any arm's)
+// The head never faster than vr_flail_max_speed m/s (real; the author's note vrfiringrange_2026-10-23_17-33-56: a
+// heavy ball can't be whirled up without end), and slowed by the air as much as vr_flail_drag (Box3D's linear damping, a
+// second's share lost; its spin's damping 1 + 4x it): whirling it takes the hand's work.
+[[nodiscard]] float mostSpeed()
+{
+    return za::clamp(vr_flail_max_speed.value, 2.f, 40.f);
+}
+
+[[nodiscard]] float drag()
+{
+    return za::clamp(vr_flail_drag.value, 0.f, 10.f);
+}
 constexpr float ropeHertz = 120.f;  // its rope's stiffness (Box3D's joints' 60: a fast whirl stretched it 7 units)
 constexpr float rattleSpeed = 6.f;  // m/s (real): the chain rattles (QC VR_Flail_Rattle) with the head this fast
 constexpr float rattleEvery = 0.3f; // s (real): at most this often
@@ -158,8 +169,8 @@ void make(Head& h, edict_t* player, int client, int hand, const glm::vec3& at, c
     hd.position = world->toM(start);
     hd.userData = def.userData;
     hd.isBullet = true;
-    hd.linearDamping = 0.05f;
-    hd.angularDamping = 1.f;
+    hd.linearDamping = drag();
+    hd.angularDamping = 1.f + 4.f * drag();
     h.head = b3CreateBody(world->id, &hd);
     const float r = headRadius / world->m2u;
     b3ShapeDef shape = shapeDef(userBase - (client * 2 + hand), catProp | catFlail, flailMask);
@@ -271,6 +282,8 @@ void syncFlails(float dt)
             const float scale = handTime();
             b3Body_SetGravityScale(head.head, 1.f / (scale * scale));
             b3Joint_SetConstraintTuning(head.rope, ropeHertz / scale, 2.f);
+            b3Body_SetLinearDamping(head.head, drag() / scale); // (the air in its hand's time too)
+            b3Body_SetAngularDamping(head.head, (1.f + 4.f * drag()) / scale);
             b3Body_SetAwake(head.head, true);
         }
     }
@@ -340,21 +353,22 @@ void callFlailHits()
             }
             head.pos = world->toU(b3Body_GetPosition(head.head));
             const float scale = handTime();
-            if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > mostSpeed)
+            const float most = mostSpeed();
+            if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > most)
             {
-                b3Body_SetLinearVelocity(head.head, b3v(v * (mostSpeed / (glm::length(v) * scale))));
+                b3Body_SetLinearVelocity(head.head, b3v(v * (most / (glm::length(v) * scale))));
             }
             // The chain never longer than it is (the joint is soft: a fast whirl stretched it 7 units): the head put
             // back on its length, its speed outwards from the anchor taken away.
             {
                 const glm::vec3 anchorNow = world->toU(b3Body_GetPosition(head.anchor));
-                const float most = head.length * world->m2u + ringReach;
+                const float reach = head.length * world->m2u + ringReach;
                 const glm::vec3 d = head.pos - anchorNow;
                 const float len = glm::length(d);
-                if(len > most && len > 0.01f)
+                if(len > reach && len > 0.01f)
                 {
                     const glm::vec3 n = d / len;
-                    const glm::vec3 pulled = anchorNow + n * most;
+                    const glm::vec3 pulled = anchorNow + n * reach;
                     // (Pulled as a rope pulls: the move given as speed too, position-based, so that the hand's pull
                     // whirls the head however the joint's softness lagged it this frame: in bullet time it is soft to
                     // a hand moving 1/scale as fast.)
@@ -366,9 +380,9 @@ void callFlailHits()
                     {
                         v -= n * out;
                     }
-                    if(glm::length(v) * scale > mostSpeed)
+                    if(glm::length(v) * scale > most)
                     {
-                        v *= mostSpeed / (glm::length(v) * scale);
+                        v *= most / (glm::length(v) * scale);
                     }
                     b3Body_SetTransform(head.head, world->toM(head.pos), b3Body_GetRotation(head.head));
                     b3Body_SetLinearVelocity(head.head, b3v(v));

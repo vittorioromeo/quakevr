@@ -793,11 +793,63 @@ void(float request, entity p) AD_FuelTankTest =
         bprint(sprintf("fueltank: made %s, its tank %s\n", m ? m.netname : "nothing", VR_FuelTank_Of(m) ? "there" : "none"));
         return;
     }
+    // Bursting (ROUND22.md "Fuel tanks burst"): 161 the nearest fuelled gun's tank shot by you for 10 (its health and
+    // whether it burst); 162 the same gun's fuel set to `temp1` of its full (0 empty; set first) and its tank
+    // shot for 1000; 163 the nearest fuelled gun's state: its flags' burst bit, spent, fuel, tank, force grab.
+    if(request == 161 || request == 162)
+    {
+        entity bg = AD_FuelTank_Nearest(p);
+        entity bt = VR_FuelTank_Of(bg);
+        if(!bt)
+        {
+            bprint("fueltank: no tank to shoot\n");
+            return;
+        }
+        if(request == 162 && bg.weaponinst)
+        {
+            bg.weaponinst.wi_clip = floor(WeaponIdToBaseClipSize(bg.weapon) * clamp(cvar("temp1"), 0, 1));
+        }
+        float bursts = vr_fueltank_bursts;
+        T_Damage(bt, p, p, request == 161 ? 10 : 1000);
+        bprint(sprintf("fueltank: shot %s's tank: health %g, burst %g, reached %g, fuel %g\n", bg.netname, bt.health,
+            vr_fueltank_bursts - bursts, vr_fueltank_burst_hit, bg.weaponinst.wi_clip));
+        return;
+    }
+    if(request == 164)
+    {
+        // A flamethrower whose tank burst in the main hand (spent: no fuel, no back tank, no hose).
+        self = p;
+        VR_ADGun_Ensure(WID_ADPYRO);
+        VR_WeaponUtil_EntAddWeapon(self, WID_ADPYRO);
+        VRGiveEntWeapon(self, cVR_MainHand, WID_ADPYRO, QVR_WPNFLAG_TANK_BURST, 0);
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        self = was;
+        bprint(sprintf("fueltank: a burst flamethrower in the main hand (flags %g)\n", p.weaponflags));
+        return;
+    }
+    if(request == 163)
+    {
+        entity sg = AD_FuelTank_Nearest(p);
+        if(!sg)
+        {
+            bprint(sprintf("fueltank: no fuelled gun lying about; hands %g (flags %g, clip %g) %g (flags %g, clip %g)\n",
+                p.weapon, p.weaponflags, VRGetEntWeaponClip(p, cVR_MainHand), p.weapon2, p.weaponflags2,
+                VRGetEntWeaponClip(p, cVR_OffHand)));
+            return;
+        }
+        bprint(sprintf("fueltank: %s at %v: burst %g, depleted %g, fuel %g, ", sg.netname, sg.origin,
+            (sg.weaponflags & QVR_WPNFLAG_TANK_BURST) ? 1 : 0, sg.vr_depleted, sg.weaponinst.wi_clip));
+        bprint(sprintf("tank %s, force grab skips %g, bursts %g\n", VR_FuelTank_Of(sg) ? "there" : "none",
+            VR_EnemyGun_DepletedSkipped(sg), vr_fueltank_bursts));
+        bprint(sprintf("fueltank: hands %g (flags %g, clip %g) %g (flags %g, clip %g)\n", p.weapon, p.weaponflags,
+            VRGetEntWeaponClip(p, cVR_MainHand), p.weapon2, p.weaponflags2, VRGetEntWeaponClip(p, cVR_OffHand)));
+        return;
+    }
 };
 
 void(float request, entity p) AD_GunTest =
 {
-    if(request >= 150 && request <= 160)
+    if(request >= 150 && request <= 164)
     {
         AD_FuelTankTest(request, p);
         return;

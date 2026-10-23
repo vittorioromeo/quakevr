@@ -192,6 +192,17 @@ mem::Scratch<AdTankScratch> scratch{"adtank"};
     return variant == adguns::Pyro || variant == adguns::Fumigator;
 }
 
+// A carried gun whose tank burst lying about (QC's QVR_WPNFLAG_TANK_BURST, vr_defs.qc; vr_ad_enemyguns.qc
+// VR_FuelTank_Burst): spent, no tank on the back for it, no hose. `i`: 0..1 the hands, 2.. the drawn holsters.
+constexpr int weaponFlagTankBurst = 4096;
+
+[[nodiscard]] bool tankBurst(int i)
+{
+    const int flags = i < 2 ? cl.stats[i == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]
+                            : view::holsterFlags(i - 2);
+    return (flags & weaponFlagTankBurst) != 0;
+}
+
 // The torso as an upright elliptic cylinder round `axis` (its middle line, world), from `bottom` to `top` (world z): a
 // point inside pushed out to its surface (sideways semi-axis `side`, forwards `depth`, metres in units).
 void pushOutOfTorso(glm::vec3& p, const glm::vec3& axis, float bottom, float top, float side, float depth)
@@ -961,7 +972,7 @@ void setupView(const hands::State& s)
     {
         ve[i] = !alive ? nullptr : i < 2 ? view::heldWeapon(i) : holstered ? view::holsterGun(i - 2) : nullptr;
         const int v = ve[i] && ve[i]->ent.model ? adguns::variantOf(ve[i]->ent.model->name) : -1;
-        want[i] = fuelled(v) ? v : -1;
+        want[i] = fuelled(v) && !tankBurst(i) ? v : -1;
         any = any || want[i] >= 0;
     }
     // The tank's colour: the gun last taken into a hand (the main hand's, both at once), kept while that kind is carried.

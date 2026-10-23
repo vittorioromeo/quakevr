@@ -743,10 +743,11 @@ extern "C" void VR_ProjectileLight(int ent)
         }
         return;
     }
-    if(modelmeta::is(e.model, modelmeta::Id::AdProjPlasma))
+    if(modelmeta::is(e.model, modelmeta::Id::AdProjPlasma) || modelmeta::is(e.model, modelmeta::Id::AdProjPgPlasma))
     {
-        // AD support: a plasma bolt (the Plasma Gun's, the soldiers' and centurions'): small arcs crackling round it
-        // (vr_adgun_plasma_fx) and a flickering blue light (author's note vrtesthall_2026-10-23_01-41-51).
+        // AD support: a plasma bolt (the soldiers', eliminators' and centurions' and their guns', proj_plasma; the
+        // player's Plasma Gun's, proj_pgplasma): small arcs crackling round it (vr_adgun_plasma_fx) and a flickering blue
+        // light (author's notes vrtesthall_2026-10-23_01-41-51, vrfiringrange_2026-10-23_17-49-22).
         const glm::vec3 at{e.origin[0], e.origin[1], e.origin[2]};
         glm::vec3 along{e.msg_origins[0][0] - e.msg_origins[1][0], e.msg_origins[0][1] - e.msg_origins[1][1],
             e.msg_origins[0][2] - e.msg_origins[1][2]};
