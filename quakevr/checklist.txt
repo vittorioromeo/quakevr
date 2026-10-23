@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Struggling enemies look at you: drag grunts by the legs (belly up and down), hold one up by the legs and by the shoulders, drag one by an arm: the head finds and follows you with small darts, no side flip when you're straight behind; hold its head: no look; kill it while held: head goes limp (Enemies > Struggle > Behaviours: Look at You 0.9, Look Strength 0.6; twitchy?)
 Armed enforcers (toolgun Monsters > Armed Enforcers): weapon in the right hand running and shooting, both hands on guns, punches and swings at its height; grab its gun; its death drops the weapon (pack: 5 cells); idle gun carry by its side looks OK? armed grunts behave as before
 Crates and melee: a hard punch breaks a crate in one, a medium one in two or three; a full weapon swing breaks it, a moderate one takes two; a slow scrape of the axe or crowbar along the floor into a crate doesn't break it in one (if you want them tougher: Crates > Breaking > Break Speed, 9 now)
 Flail feel: whirl it: heavier, can't spin unrealistically fast; damage between 10 and 120; smaller handle sits in the hand (dropped flail still shows only the handle: being fixed)
