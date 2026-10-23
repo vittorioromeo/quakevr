@@ -183,13 +183,13 @@ hand), to pick up and swing. Both need a new melee weapon kind: a sword held and
 model, reach, hit sounds, held offsets and holster, and the melee rules (blade direction, parry, two hands) for a long
 blade. One kind for both; the swordsman's sword first (its model is Quake's own), the Dark Prince's after.
 
-### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23)
+### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
 
-The author: "add to the backlog to eventually make the [mace] that he holds a usable weapon". AD's death sergeant
-(`monster_dsergeant`, `progs/mon_dsergeant.mdl`: its flail/mace its own bone, `vr_ad_rigs.inc` adDsergeantSeeds) drops
-it as the death fury drops its swords (QC `vr_ad_melee.qc` VR_ADMelee_ForClass: a new kind, blunt and heavy as the
-hunter ogres' hammer and mace, Weapon Weights; its vertices hidden in its deaths, `vr_monstermods.cpp` knownSwords, with
-its death frames 223-254). Next to the Dark Prince's and the Phantom Swordsman's swords above.
+Done in round 22 (ROUND22.md, "The death sergeant's flail"): it drops its flail, the head a Box3D body on a rope,
+striking by its own speed and mass. Left: Weapon Offsets slot 47 tuned so the hand holds the short handle (the mace's
+offsets stand in); a full swing in bullet time lands weakly (the head lags the hand); a chain rattle sound (AD's
+`gibs/gibchain.wav`); a chain of a few links that wraps round things instead of one rope; holstering it (its head
+hanging from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 

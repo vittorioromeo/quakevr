@@ -382,8 +382,8 @@ void callFlailHits()
         head.lastTime = qcvm->time;
         if(vr_flail_debug.value)
         {
-            Con_Printf("flail: client %d hand %d struck %d %s at %.1f m/s\n", hit.client, hit.hand, hit.target,
-                hit.target ? PR_GetString(target->v.classname) : "the level", hit.speed);
+            Con_Printf("flail: client %d hand %d struck %d %s at %.1f m/s (time x%.2f)\n", hit.client, hit.hand, hit.target,
+                hit.target ? PR_GetString(target->v.classname) : "the level", hit.speed, VR_TimeScale());
         }
         QcCallGuard guard;
         pr_global_struct->time = qcvm->time;
