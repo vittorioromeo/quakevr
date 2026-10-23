@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Vomit Mode (Advanced VR Options > Body, under Death View): Debug > Cheats > Die Now, Blown Back: you look straight out of the ragdoll's head as it tumbles; opening a menu still pulls out; death menu now appears after 5 s
+Holster Calibration is now directly in VR Settings under Calibration; calibration-map texts trail a little behind head turns (HUD and Menus > Messages > smoothing); empty bullet-time tap in earned mode: the gadget says "Bullet time empty: hurt enemies to refill"; seated hip holsters at your height
 Fuel tanks: drop the flamethrower or sprayer: its tank falls off your back and lies beside it, joined by the hose; drag the tank by hand, force grab the gun: the tank trails it (force grab ignores the tank); pick the gun up: tank back on your back; hose look lying and swinging; two fuel guns (hands/holsters): one back tank, hoses to each; AD Guns: Tank Rope 0.9 m right?
 Mini bosses (Combat > Monster Groups > Mini Bosses: Dark Prince, Minotaur, Judicator; Elite Knights: Death Fury, Death Sergeant; new Toughness block on every group): they go down about half as often, stay down shorter, get up faster; a neck snap on a mini boss only hurts it
 Death Fury: knocked down it holds a sword in each hand; its head gib is smaller and its Held Object page now changes it
