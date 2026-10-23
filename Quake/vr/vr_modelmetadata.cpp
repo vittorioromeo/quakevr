@@ -68,7 +68,7 @@ constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_p
     "candle", "barrel", "vr_barrel"};
 // Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
 // dragons) and the player's model (other players, statues)
-constexpr const char* monsterFiles[] = {"soldier.", "vrgrunt.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
+constexpr const char* monsterFiles[] = {"soldier.", "vrgrunt.", "vrenforcer.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
     "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
     "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman",
     "dog_explosive.", "rknight.", "teleporter_eye", "shambler_blood.", // (the last four Dawn of the Machine's: read in place, owned/mg3/progs/)

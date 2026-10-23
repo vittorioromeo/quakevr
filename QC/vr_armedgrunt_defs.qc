@@ -6,6 +6,7 @@
 // ----------------------------------------------------------------------------
 
 .float vr_ag;              // 1: an armed grunt (monster_vr_grunt; its classname is monster_army: a grunt to the rest)
+.float vr_ag_kind;         // its row in the armed monsters' table (vr_armedmon.qc VR_AM_*: 0 the grunt)
 .float vr_ag_wid;          // the weapon it holds (WID_*), or -1: none (its fists)
 .float vr_ag_wflags;       // that weapon's flags
 .entity vr_ag_prop;        // the weapon as it holds it (classname vr_ag_weapon: its record in .weaponinst), or world

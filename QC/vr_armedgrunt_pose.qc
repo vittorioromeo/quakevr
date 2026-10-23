@@ -268,10 +268,10 @@ void(entity g, vector handL) VR_AGP_Fists =
         if(left) { l = fist; } else { r = fist; }
     }
     vr_agp_wr = 1 - k;
-    vr_agp_v = r * k;
+    vr_agp_v = VR_AM_Fit(g, r) * k; // (the grunt-made pose on its body: vr_armedmon.qc)
     vr_agp_flags = VR_AGP_LEFT;
     vr_agp_wl = 1 - k;
-    vr_agp_vl = l * k;
+    vr_agp_vl = VR_AM_Fit(g, l) * k;
 };
 
 // A melee weapon: ready (blade up, mostly its own place), a swing's arc through the target; a chainsaw at the hip,
@@ -362,7 +362,7 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
     vector fwW = VR_AGP_Nlerp(fwCarry, VR_AGP_ToWorld(fw), k);
     vector upW = VR_AGP_Nlerp(upCarry, VR_AGP_ToWorld(edge), k);
     vr_agp_wr = 1 - k;
-    vr_agp_v = pos * k;
+    vr_agp_v = VR_AM_Fit(g, pos) * k;
     vr_agp_fw = fwW;
     vr_agp_up = upW;
     vr_agp_wo = 0;
@@ -370,7 +370,7 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
     {
         vr_agp_flags = VR_AGP_LEFT;
         vr_agp_wl = 1 - k;
-        vr_agp_vl = VR_AGP_FREE_L * k;
+        vr_agp_vl = VR_AM_Fit(g, VR_AGP_FREE_L) * k;
     }
 };
 
@@ -488,15 +488,15 @@ void(vector v) VR_AGP_WriteVec =
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
-    vector hand = (modelvertex(g, VR_AG_HAND_V1) + modelvertex(g, VR_AG_HAND_V2) + modelvertex(g, VR_AG_HAND_V3)) * (1 / 3);
+    vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)
     if(trace_fraction == 0)
     {
         return; // (no such model now: a ragdoll's, another's; it stays where it was)
     }
-    vector rear = (modelvertex(g, VR_AG_GUN_REAR1) + modelvertex(g, VR_AG_GUN_REAR2)) * 0.5;
-    vector muzzle = (modelvertex(g, VR_AG_GUN_MUZZLE1) + modelvertex(g, VR_AG_GUN_MUZZLE2)) * 0.5;
+    vector rear = VR_AM_GunRear(g);
+    vector muzzle = VR_AM_GunMuzzle(g);
     vector gx = normalize(muzzle - rear);
-    vector gz = modelvertex(g, VR_AG_GUN_TOP) - modelvertex(g, VR_AG_GUN_BOTTOM);
+    vector gz = VR_AM_GunUp(g);
     gz = normalize(gz - gx * (gz * gx));
     if(gz == '0 0 0') { gz = '0 0 1'; }
     vector gy = VR_AGP_Cross(gz, gx);
@@ -679,7 +679,7 @@ void() VR_AGP_Frame =
     ai_face();
     float s = time - self.vr_ag_act_at;
     VR_AGP_Times(self);
-    self.frame = floor(s * 10) & 7; // (the stand frames: its legs under the arms)
+    self.frame = VR_AM_StandFrame(self, floor(s * 10)); // (its stand frames: its legs under the arms)
     if(s < vr_agp_tw + vr_agp_ts)
     {
         ai_charge(s < vr_agp_tw ? 1 : 3);

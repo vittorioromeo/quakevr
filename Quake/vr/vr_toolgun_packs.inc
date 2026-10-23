@@ -171,5 +171,21 @@ QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Phantom Sword", "monster_vr_g
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Dark Prince's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 118.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Justice Knight's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 119.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Judicator's Sword", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 120.f, 0, 0, nullptr, 0)
+// Armed enforcers (QC vr_armedmon.qc's second row: monster_vr_enforcer), appended: no number above moves.
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer (Pool)", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, nullptr, 0.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Fists", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", -1.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Axe", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 2.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Sword", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 13.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Crowbar", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 17.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Chainsaw", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 14.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Shotgun", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 4.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Super Shotgun", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 5.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Nailgun", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 6.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Super Nailgun", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 7.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Grenade Launcher", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 8.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Rocket Launcher", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 10.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Thunderbolt", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 11.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Grunt's Rifle", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 15.f, 0, 0, nullptr, 0)
+QVR_PACK("Monsters", "Armed Enforcers", "Armed Enforcer: Laser Rifle", "monster_vr_enforcer", "progs/vrenforcer.mdl", 24.f, "weapon", 16.f, 0, 0, nullptr, 0)
 
 #undef QVR_PACK
