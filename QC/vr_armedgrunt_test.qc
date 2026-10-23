@@ -264,6 +264,7 @@ void() VR_AGTest_Yank =
         p.weapon = WID_FIST; // (the main hand empty)
         p.weaponinst = world;
         p.weaponflags = 0;
+        cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
         vr_agt_step = 1;
         vr_agt_until = time + 1;
@@ -289,6 +290,7 @@ void() VR_AGTest_Yank =
     }
     VR_AGT_Check(sprintf("yank: your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
+    cvar_set("vr_agrunt_tug", "1");
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     cvar_set("vr_agrunt_test", "0");
 };

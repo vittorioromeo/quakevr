@@ -28,3 +28,16 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T
 float() VR_AG_SoldierDrop;                                                 // SoldierDrop: its own loot (TRUE: done)
 float() VR_AG_Idle;                                                        // ai_stand, ai_walk: unarmed, off to a weapon (TRUE: gone)
 float() VR_AG_Dying;                                                       // army_die: its weapon falls (TRUE: an armed grunt)
+void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
+
+// Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
+float(entity g, entity p) VR_AG_TugFrame;
+float(entity g) VR_AG_FallDrop;
+void(entity g, entity pl, float h) VR_AG_GrabBy;
+float(entity g) VR_AG_DisarmDamage;
+float(entity g, entity w) VR_AG_Shunned;
+float(entity g, entity w) VR_AG_Reachable;
+float(entity g) VR_AG_SeekCheck;
+entity(entity g) VR_AG_OwnBack;
+void(entity g) VR_AG_SeekStart;
+float() VR_AG_TugResume;
