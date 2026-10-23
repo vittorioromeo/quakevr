@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Parallax depth write: now off by default (High), on in Ultra, and ~0.8 ms cheaper when on (only near relief surfaces write depth); pick Ultra and look at monsters' feet and props on carved/raised floors near and far: same look as before; on High (off): do things meeting the relief look acceptable?
 Shoulder charge with your leniency 0.4 and standing 0.75 as defaults: feels right?
 More monsters struggle when held: minotaur, golem, drole, Justice Knight, AD point knight: they fight back (heavy ones drag only a little)
 AD pyro flames into water: stand in shallow water and let a pyro flame you: steam and hiss at the surface, scorch marks where its flames hit the floor
