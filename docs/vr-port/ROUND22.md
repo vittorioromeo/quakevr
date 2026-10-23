@@ -18530,3 +18530,52 @@ unarmed included, with dropdowns or the like.
 **In VR:** toolgun, B, Spawn > Monsters, page 2's last tile (Armed Humanoid): pick Kind, Right Hand, Left Hand with the
 laser (the lists' rows big enough? the second column readable?); the ghost holds the chosen weapons; spawn a few,
 dual-wielding ones too.
+
+## Voice notes carry more context and an instant replay (worktree `fastship`, branch `agent/notectx`, 2026-10-23)
+
+So that a worker can tell what he meant and reproduce it, each voice note now keeps (docs: [VOICENOTES.md](VOICENOTES.md)):
+
+- **The checklist item** last under the Checklist page's cursor (or picked), its section and state, how long before the
+  note (`checklist::hovered`, called by the menu for the cursor's row: two lines in `vr_menu.cpp`, an accessor at the end
+  of `vr_checklist.cpp`, for the merge with `agent/checktest`), and the scenario the checklist's Test last ran:
+  `notectx::testRun(scenario)` is the hook; **checktest's Test button should call it** (not wired here: that button is
+  on the other branch).
+- **The hands:** weapon id and name, model, offsets slot, flags, clip/size, ammo, spent; a carried prop; an enemy held
+  (`foegrab::noteHand`: by which part, the holds, the stretch, the two-hand moves); a ragdoll's limb (`box3d::noteRagdollHold`:
+  the rig's part, its struggle's weights, effort, fatigue); the force grab's target.
+- **The monsters within 5 m:** class, distance, health, think function (its animation state), frame, enemy, an armed
+  grunt's weapon, knocked down, dying/corpse, held, headless, its ragdoll's struggle.
+- **The settings changed this session** (archived cvars; `cvar.c` calls `VR_NoteCvarChanging` before a change): first
+  value -> now, count, when; not a take's playback's own swaps.
+- **An instant replay:** with `vr_notes 1`, the motion recorder's row of every host frame (no QC sample) kept in a ring of
+  `vr_note_replay_seconds` (30, new cvar; `vr_note_replay 1`, new), the nearby entities every 0.1 s in another; at the note
+  both rings go to the pool as they are and are written as `<note>_replay.csv` (a take, label `replay`) and
+  `<note>_entities.csv`; the console's last lines (`console.c` -> `VR_NoteConsolePrint`) as `<note>_log.txt`; the frame
+  times as `<note>_frames.csv` (hitches marked; the .txt has the summary). A new map starts the rings again.
+- The .txt is written on the pool too now; a dropped (too short) note removes its sidecars.
+- `transcribe_notes.py` groups each note's context in NOTES.md (Where, Checklist, Hands, Nearby, Settings changed, Files,
+  Other: nothing dropped); `--md-only` rebuilds NOTES.md without Whisper.
+- Debug > (the commands list) **Save Note Context** (`vr_note_context`: everything but the sound, now) and **Note Replay
+  Cost** (`vr_note_replay_stats`).
+- `vr_motion.cpp`: the take header's settings lines are built from a copy (`SettingsSnap`), without temporary strings
+  (the same text); for a replay on the pool. That took the note start from 4-5 ms to about 1 ms.
+
+**Tests (headless, vrfiringrange).** A shotgun in the main hand (`vr_weapon_grip_mode 1; impulse 9; impulse 154`), a grunt
+50 units ahead (`vr_test_spawn 0; impulse 241`), the off hand gripping it (`vr_mock_hand_to off nearest monster_army 6;
++graboff`), a checklist item picked (`vr_menu_press Checklist > ...`, then `vr_checklist undo`), `vr_note_replay_seconds 29`,
+then `vr_note_context`: the .txt has `checklist: [next branch: test these first] Blade shape editor ... (open)`, `main hand:
+weapon 4 shotgun, model progs/v_shot.mdl, offsets slot 1, flags 0, clip 8/8, ammo 1`, `off enemy: monster_army #266 by its
+torso or shoulders, hand's hold 0.85 ...`, `nearby: monster_army #266 at 1.6 m, health 30, think army_stand7, ... held 0.85`,
+`setting: vr_note_replay_seconds 30 -> 29`, `setting: vr_weapon_grip_mode 0 -> 1`, the replay 1393 frames 8.4 s (since the map
+loaded), the console 149 prints, the frames' summary. Cost (`NOTESTATS`): 3 us a host frame, 1.2 us a server frame; rows
+about 2.2 KB (a 30 s ring at 90 Hz about 6 MB; on disk about 2 KB a row, 5.6 MB a note); the note start 1.05 ms.
+Replay: `map vrfiringrange; vr_motion_play <note>_replay.csv map vrfiringrange save` played its 1393 frames; against the
+take (`scratch/compare_takes.py`, row by row) the head's and both controllers' tracking fed in are identical (max 0.0000 m),
+no frame's buttons differ, the hands as the game placed them (player frame) mean 0.25 / 0.03 units off, max 3.1 (main) and
+40.9 (off: its grip on the grunt, which the replay doesn't bring back: playback stands only the take's target monster; the
+others are in `_entities.csv`). The report's "hands vs the take, relative to the dummy" is large (rms 115 units) for this
+take: its nearest monster changes from the training dummy to the spawned grunt halfway, which that measure doesn't follow.
+`eval.sh`: runs as before.
+
+**In VR:** record a few notes as usual (with a weapon, holding an enemy, after picking a checklist item, after changing a
+setting); check nothing hitches as a note starts; then `python Misc/quakevr/transcribe_notes.py` and look at NOTES.md.

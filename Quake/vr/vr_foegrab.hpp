@@ -33,6 +33,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/String/String.hpp"
+
 extern "C" void VR_FoeGrabPreThink(edict_t* ent); // SV_Physics_Client, after VR_ClimbPreThink
 
 namespace qvr::hands
@@ -80,6 +82,10 @@ void calcStats(edict_t* ent, int* statsi);
 
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
+
+// A voice note's context (vr_notectx.cpp): what the first player's `hand` (HAND_OFF, HAND_MAIN) holds of an enemy now, a
+// line ("monster_army #34 by the head, hold 0.80 ..."; the two-hand moves' state after it), "" nothing. The server's.
+[[nodiscard]] za::String noteHand(int hand);
 
 // Client: the drawn `hand`'s place (its controller's `pos`, turned `rot`) moved so that its palm is on the spot it holds,
 // eased on and off. Returns how far it is on it, 0 (the controller's) .. 1.

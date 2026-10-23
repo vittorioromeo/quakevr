@@ -1027,6 +1027,12 @@ za::Vector<Item> pageDebugReports()
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
+        command("Save Note Context", "vr_note_context")
+            .help("vr_note_context: a voice note's context saved now without a sound (quakevr/notes): the .txt (checklist "
+                  "item, hands, monsters near, settings changed), the instant replay take, the console's lines, the frame times."),
+        command("Note Replay Cost", "vr_note_replay_stats")
+            .help("vr_note_replay_stats: the instant replay's cost a frame, its rows and memory, the console and frame "
+                  "rings (Voice Notes on: vr_note_replay, vr_note_replay_seconds)."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
         command("External Maps", "vr_extmaps_stats all")
             .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "

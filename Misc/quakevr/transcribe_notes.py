@@ -6,8 +6,10 @@
 # transcribes every note that has no transcript yet (<note>.transcript.txt) with Whisper, locally
 # (faster-whisper; https://github.com/SYSTRAN/faster-whisper, MIT; the model is downloaded once
 # from Hugging Face into your user cache), and writes quakevr/notes/NOTES.md: the notes in order,
-# each with its context, transcript and the screenshot taken as it started (screenshots/, same
-# name).
+# each with its transcript, its context grouped (where; the checklist item; what the hands hold;
+# the monsters near; the settings changed; the instant replay take, console and frame-time files
+# beside it: docs/vr-port/VOICENOTES.md) and the screenshot taken as it started (screenshots/,
+# same name). `--md-only` rebuilds NOTES.md without transcribing (no Whisper needed).
 #
 # Usage:
 #   python Misc/quakevr/transcribe_notes.py [--notes quakevr/notes] [--model large-v3-turbo]
@@ -28,6 +30,48 @@ VOCABULARY = ("Quake VR playtest notes. Quake, Ironwail, cvar, hitbox, headshot,
               "ammo box, health box, bloom, normal maps, relit, e1m1, vrfiringrange, Quest, Virtual Desktop.")
 
 
+# A note's context (<note>.txt, vr_voicenotes.cpp / vr_notectx.cpp): "key: value" lines, grouped here for NOTES.md.
+# Every line is kept (a key not listed goes under "Other"): which of it matters is the reader's call.
+GROUPS = [
+    ("Where", ("time", "map", "game time", "position", "view", "health", "skill")),
+    ("Checklist", ("checklist", "last test")),
+    ("Hands", ("main ", "off ")),
+    ("Nearby", ("nearby",)),
+    ("Settings changed", ("setting",)),
+    ("Files", ("replay", "console", "frame times")),
+]
+
+
+def context_lines(context):
+    groups = {name: [] for name, _ in GROUPS}
+    other = []
+    for line in context.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        key = line.split(":", 1)[0]
+        for name, keys in GROUPS:
+            if any(key == k or (k.endswith(" ") and key.startswith(k)) for k in keys):
+                groups[name].append(line)
+                break
+        else:
+            other.append(line)
+    out = []
+    for name, _ in GROUPS:
+        items = groups[name]
+        if not items:
+            continue
+        if name == "Where":  # one line: the moment's basics
+            out.append("- **Where**: " + "; ".join(items))
+            continue
+        out.append("- **%s**:" % name)
+        out.extend("  - " + l for l in items)
+    if other:
+        out.append("- **Other**:")
+        out.extend("  - " + l for l in other)
+    return out
+
+
 def main():
     # A note may transcribe to any script (Whisper mishears noise as other languages): print it as UTF-8, not the
     # console's code page, which stopped the run on the first character it couldn't show.
@@ -40,6 +84,7 @@ def main():
     parser.add_argument("--model", default="large-v3-turbo")
     parser.add_argument("--device", default="auto", help="cpu, cuda or auto")
     parser.add_argument("--again", action="store_true", help="transcribe notes that already have a transcript")
+    parser.add_argument("--md-only", action="store_true", help="only NOTES.md, from the transcripts there are")
     args = parser.parse_args()
 
     notes = sorted(glob.glob(os.path.join(args.notes, "*.wav")))
@@ -48,7 +93,7 @@ def main():
         return 0
 
     todo = [n for n in notes if args.again or not os.path.isfile(n[:-4] + ".transcript.txt")]
-    if todo:
+    if todo and not args.md_only:
         from faster_whisper import WhisperModel
 
         compute = "int8" if args.device == "cpu" else "default"
@@ -82,12 +127,10 @@ def main():
         lines.append("")
         lines.append("> " + (transcript or "(nothing heard)"))
         lines.append("")
-        if context:
-            lines.extend("    " + l for l in context.splitlines())
-            lines.append("")
+        lines.extend(context_lines(context))
         if shot:
-            lines.append("Screenshot: `%s`" % os.path.relpath(shot, args.notes).replace(os.sep, "/"))
-            lines.append("")
+            lines.append("- **Screenshot**: `%s`" % os.path.relpath(shot, args.notes).replace(os.sep, "/"))
+        lines.append("")
     out = os.path.join(args.notes, "NOTES.md")
     with open(out, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

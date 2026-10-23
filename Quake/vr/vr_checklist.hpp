@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "Zancle/String/String.hpp"
+
 namespace qvr::checklist
 {
 
@@ -44,5 +46,10 @@ int undo();
 // vr_checklist [reload | tick <n> | undo]: the list (CLSUM/CLITEM lines, for tests), read again, item n ticked or
 // unticked, or the last tick undone (CLUNDO: the item, the undos left).
 void command_f();
+
+// The item the menu's cursor is on (or picked): kept for a voice note's context (vr_notectx.cpp). lastHovered: its text
+// and section, its index now (-1: no longer listed) and when (realtime); false: none since the start.
+void hovered(int item);
+[[nodiscard]] bool lastHovered(za::String& text, za::String& section, int& item, double& when);
 
 } // namespace qvr::checklist
