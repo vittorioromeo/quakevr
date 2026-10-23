@@ -33,6 +33,7 @@
 #include "vr_magholster.hpp"
 #include "vr_decals.hpp"
 #include "vr_permdecals.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_gore.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_goresound.hpp"
@@ -2117,6 +2118,7 @@ extern "C" void VR_Init()
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
+    gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
     stereosingle::init(); // vr_stereo_single_info
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
