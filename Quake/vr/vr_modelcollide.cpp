@@ -1180,6 +1180,55 @@ void drawDebug(const hands::State& s, int hand, const Result& res)
 
 } // namespace
 
+int strikeTarget(int hand, const glm::vec3& lo, const glm::vec3& hi)
+{
+    if(hand < 0 || hand > 1 || !phaseable(hand))
+    {
+        return 0;
+    }
+    const bool hosting = sv.active && svs.maxclients >= 1;
+    qcvm_t* oldvm = nullptr;
+    if(hosting)
+    {
+        PR_PushQCVM(&sv.qcvm, &oldvm);
+    }
+    const int heldA = held::heldEntity(0), heldB = held::heldEntity(1);
+    const auto apart = [&](const glm::vec3& a, const glm::vec3& b) {
+        return b.x < lo.x || b.y < lo.y || b.z < lo.z || a.x > hi.x || a.y > hi.y || a.z > hi.z;
+    };
+    int found = 0;
+    for(int num = 1; num < cl.num_entities && !found; num++)
+    {
+        const entity_t& e = cl_entities[num];
+        if(!e.model || e.msgtime != cl.mtime[0] || num == cl.viewentity || num == heldA || num == heldB ||
+            e.alpha == ENTALPHA_ZERO || e.model->type != mod_alias)
+        {
+            continue;
+        }
+        const float grow = VR_EntityScale(&e);
+        glm::vec3 elo, ehi;
+        for(int i = 0; i < 3; i++)
+        {
+            elo[i] = e.origin[i] + e.model->rmins[i] * grow;
+            ehi[i] = e.origin[i] + e.model->rmaxs[i] * grow;
+        }
+        if(apart(elo, ehi) || kindOf(num, e, hosting) != Kind::Monster)
+        {
+            continue;
+        }
+        const Posed* p = posed(num, e);
+        if(p && !apart(p->lo, p->hi))
+        {
+            found = num;
+        }
+    }
+    if(hosting)
+    {
+        PR_PopQCVM(oldvm);
+    }
+    return found;
+}
+
 void beginView(hands::State& s)
 {
     const bool again = appliedFrame == host_framecount;

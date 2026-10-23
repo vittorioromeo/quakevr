@@ -202,6 +202,17 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
     return s.needs == 0 || (COM_FileExists(s.model, nullptr) && (!s.probe || COM_FileExists(s.probe, nullptr)));
 }
 
+// Why entryAvailable says no (for the console: vr_toolgun_spawnlist, a selection refused), "" when it is available.
+[[nodiscard]] const char* unavailableWhy(const Spawnable& s)
+{
+    if(entryAvailable(s)) { return ""; }
+    if(s.adOnly) { return "Arcane Dimensions' data not in play here (vr_ad_mounted, its rules, Additional Content)"; }
+    if(s.needs == 2) { return "only in a map played by Arcane Dimensions' rules"; }
+    if(s.needs == 3) { return "only in Dawn of the Machine's campaign"; }
+    const char* missing = !COM_FileExists(s.model, nullptr) ? s.model : s.probe ? s.probe : s.model;
+    return va("%s is not on the search path (its pack's data missing or not mounted: vr_pack_status)", missing);
+}
+
 constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
 constexpr const char* jointNames[] = {"Weld", "Ball", "Hinge", "Slider", "Rope", "Spring", "Unjoin"};
 constexpr int unjoin = static_cast<int>(box3d::ToolJoint::Count); // vr_toolgun_joint's last: removes a prop's joints
@@ -430,7 +441,12 @@ void select(int i)
         return;
     }
     const Spawnable& s = spawnables[i];
-    if(!entryAvailable(s)) { tg.sel = {}; return; }
+    if(!entryAvailable(s))
+    {
+        Con_Printf("toolgun: %s unavailable: %s\n", s.label, unavailableWhy(s));
+        tg.sel = {};
+        return;
+    }
     Selection& sel = tg.sel;
     sel = {};
     sel.valid = true;
@@ -2270,6 +2286,7 @@ bool spawnableAvailable(int i)
 {
     return i >= 0 && i < spawnableTotal && entryAvailable(spawnables[i]);
 }
+const char* spawnableUnavailableWhy(int i) { return i >= 0 && i < spawnableTotal ? unavailableWhy(spawnables[i]) : ""; }
 bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
 const char* spawnablePack(int i)
 {
@@ -2653,6 +2670,11 @@ void spawnlist_f()
     int adCount = 0, available = 0;
     for(int i = 0; i < spawnableTotal; ++i)
     {
+        if(!spawnables[i].adOnly && !entryAvailable(spawnables[i])) // (the packs' and the rest's: only those refused, and why)
+        {
+            Con_Printf("toolgun spawn: %d %s %s unavailable: %s\n", i, spawnables[i].section, spawnables[i].label,
+                unavailableWhy(spawnables[i]));
+        }
         if(!spawnables[i].adOnly) { continue; }
         ++adCount;
         const bool ready = toolgun::spawnableAvailable(i);
