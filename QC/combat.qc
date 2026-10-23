@@ -1890,7 +1890,7 @@ float(entity e) VR_Parry_MeleeMonster =
            c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
            c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
            e.vr_dummy_striking || e.vr_eshove_striking ||
-           (e.vr_ag && e.vr_ag_swing_at > 0 && time - e.vr_ag_swing_at < 0.6) || // an armed grunt's swing (vr_armedgrunt.qc)
+           (e.vr_ag && VR_AG_Striking(e)) || // an armed grunt's punch, swing or thrust (vr_armedgrunt_play.qc)
            (e.vr_ad_mon & VR_ADM_MELEE); // AD support: AD's monsters that strike in melee (vr_ad_monsters.qc)
 };
 

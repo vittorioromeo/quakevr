@@ -194,6 +194,7 @@ float(entity g, entity pl, float h) VR_AG_TugBegin =
         FoundTarget();
     }
     sound(self, CHAN_VOICE, "soldier/pain2.wav", 1, ATTN_NORM);
+    self.vr_ag_act = 0; // (an attack under way: given up for the struggle)
     self.think = vr_ag_tughold;
     self.nextthink = time + 0.05;
     self = oldself;
@@ -290,7 +291,7 @@ void() VR_AG_TugFight =
         self.th_missile(); // (its attack frames; back to the hold after: VR_AG_TugResume)
         return;
     }
-    if(r < (gun ? 0.7 : 0.5) && self.th_vrshove)
+    if(gun && r < 0.7 && self.th_vrshove) // (fists and melee weapons never shove: a headbutt)
     {
         VR_AG_TugEnd(self, FALSE, "shoved off");
         self.vr_eshove_target = pl;
@@ -349,11 +350,18 @@ float(entity g) VR_AG_DisarmDamage =
     return VR_AG_Shaky(g) != "" ? need * 0.5 : need;
 };
 
+// Its melee blow under way (a punch, a swing, the chainsaw's thrust: vr_armedgrunt_pose.qc; a gun's butt: its swing
+// frames): parried as a melee monster's (combat.qc VR_Parry_MeleeMonster).
+float(entity e) VR_AG_Striking =
+{
+    return e.vr_ag_act != 0 || (e.vr_ag_swing_at > 0 && time - e.vr_ag_swing_at < 0.6);
+};
+
 // combat.qc VR_Parry: `targ`'s weapon parried `attacker`'s blow.
 void(entity attacker, entity targ) VR_AG_Parried =
 {
     if(!attacker.vr_ag || !attacker.vr_ag_prop || attacker.health <= 0 || attacker.vr_eshove_striking ||
-       time - attacker.vr_ag_swing_at > 0.6)
+       !VR_AG_Striking(attacker))
     {
         return; // (its weapon's swing only: not its shove)
     }

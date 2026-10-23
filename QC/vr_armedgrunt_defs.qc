@@ -22,6 +22,8 @@
 .float vr_ag_disarms;      // times it was disarmed (the tests)
 .float vr_ag_pickups;      // weapons it picked up (the tests)
 
+float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
+float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)
 float() VR_AG_CheckAttack;                                                 // ai.qc CheckAnyAttack: an armed grunt's
 float(entity targ, entity attacker, float damage) VR_AG_DamageScale;       // T_DamageDeal: its weapon's damage to players
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
@@ -29,6 +31,7 @@ float() VR_AG_SoldierDrop;                                                 // So
 float() VR_AG_Idle;                                                        // ai_stand, ai_walk: unarmed, off to a weapon (TRUE: gone)
 float() VR_AG_Dying;                                                       // army_die: its weapon falls (TRUE: an armed grunt)
 void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
+float(entity e) VR_AG_Striking;                                            // VR_Parry_MeleeMonster: its melee blow under way
 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;

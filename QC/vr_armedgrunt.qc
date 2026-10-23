@@ -131,6 +131,7 @@ float(float wid) VR_AG_Usable =
 // A full clip of `wid` (your guns' reloading clip; one that has none: 20; AD's guns' rounds or fuel).
 float(float wid) VR_AG_ClipSize =
 {
+    if(wid == WID_CHAINSAW) { return VR_CHAINSAW_TANK; } // (its fuel: a full tank; its reserve's tanks refuel it)
     if(VR_AG_Class(wid) == VR_AG_CLASS_MELEE || VR_AG_Class(wid) == VR_AG_CLASS_FISTS) { return 0; }
     if(VR_IsADGun(wid)) { return VR_ADGun_ClipSize(wid); }
     float c = WeaponIdToBaseClipSize(wid);
@@ -322,9 +323,19 @@ vector(vector v, vector k, float deg) VR_AG_Rotate =
 // The held weapon to the grunt's right hand as drawn now, along its hidden gun's line (a melee weapon upright),
 // pointing where it aims, kicked back by a shot, swung by a blow. Its view angles (VR_AxeStick_Angles') in .v_angle:
 // the shots' and a drop's.
+void(entity g, entity p) VR_AGP_Pose; // (vr_armedgrunt_pose.qc: the pose, its attacks, sent to the clients)
+void() VR_AGP_Attack;
+void(entity g) VR_AGP_Spawn;
+
 void(entity g, entity p) VR_AG_PlaceProp =
 {
-    vector hand = (modelvertex(g, VR_AG_HAND_V1) + modelvertex(g, VR_AG_HAND_V2) + modelvertex(g, VR_AG_HAND_V3)) * (1 / 3);
+    VR_AGP_Pose(g, p);
+};
+
+// The old carry (before vr_armedgrunt_pose.qc): kept for reference, unused.
+void(entity g, entity p) VR_AG_PlacePropOld =
+{
+    vector hand =(modelvertex(g, VR_AG_HAND_V1) + modelvertex(g, VR_AG_HAND_V2) + modelvertex(g, VR_AG_HAND_V3)) * (1 / 3);
     if(trace_fraction == 0)
     {
         return; // (no such model now: a ragdoll's, another's; it stays where it was)
@@ -391,6 +402,10 @@ void() VR_AG_PropThink =
     entity g = self.owner;
     if(g.vr_ag_prop != self || !g.vr_ag || g.health <= 0)
     {
+        if(self.weapon == WID_CHAINSAW)
+        {
+            sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop)
+        }
         self.weaponinst = world; // (its record goes with a drop, if any: never freed here)
         remove(self);
         return;
@@ -458,6 +473,10 @@ entity(entity g, vector vel) VR_AG_DropHeld =
         return world;
     }
     entity inst = p.weaponinst;
+    if(p.weapon == WID_CHAINSAW)
+    {
+        sound(p, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop: vr_armedgrunt_pose.qc VR_AGP_Saw)
+    }
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
     VR_AG_Log(sprintf("%s dropped (%g in its clip, %g in reserve)", p.netname, inst.wi_clip, g.vr_ag_reserve));
@@ -1244,7 +1263,7 @@ float() VR_AG_CheckAttack =
 };
 
 void() VR_AG_Missile = { vr_ag_atk1(); };
-void() VR_AG_Melee = { vr_ag_swing1(); };
+void() VR_AG_Melee = { VR_AGP_Attack(); }; // (punches, swings, the chainsaw's thrust: vr_armedgrunt_pose.qc)
 
 // T_DamageDeal: its weapon's damage to a player.
 float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
@@ -1399,6 +1418,7 @@ void() monster_vr_grunt =
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
     VR_AG_Arm(self, want, flags, inst);
+    VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
     VR_AG_Log(sprintf("spawned with %s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",

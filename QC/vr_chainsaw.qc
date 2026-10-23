@@ -332,7 +332,7 @@ float(float xHand) VR_Chainsaw_Cut =
     entity e = findradius(mid, vlen(tip - root) * 0.5 + VR_HITMODEL_REACH);
     while(e)
     {
-        if(e != self && e.takedamage && (!(e.flags & FL_CLIENT) || deathmatch || teamplay))
+        if(e != self && e.takedamage && (!(e.flags & FL_CLIENT) || deathmatch || teamplay || (self.flags & FL_MONSTER)))
         {
             float along = hitmodel_segment(e, root, tip, 1, HITCLASS_MELEE);
             if(along == -2 && e.vr_gib)

@@ -437,6 +437,64 @@ void() VR_AGTest_IdleRearm =
 };
 
 void(float t) VR_AGPT_Frame; // (vr_armedgrunt_play_test.qc)
+// Tests 14 and 15 (Debug > Tests > Armed Grunts: Attack Poses): four armed grunts in a row ahead (14: fists, axe, sword,
+// crowbar; 15: chainsaw, Mjolnir, shotgun, super shotgun), turned 60 degrees, each held at an attack's phase every frame:
+// scratch2 1 the wind-up's end, 2 the strike's middle, 3 its end (the chainsaw's cut), 4 the recovery's middle (0: as
+// they are); scratch3 the variation (a punch's: 0 jab, 1 cross, 2 hook left, 3 hook right, 4 uppercut; a swing's: 0
+// overhead, 1 diagonal, 2 horizontal, 3 backhand). No blow is struck. vr_agrunt_test 0 ends it.
+entity vr_agt_row[4];
+float vr_agt_row_made;
+
+void(float t) VR_AGT_PoseRow =
+{
+    float k;
+    if(vr_agt_row_made != t)
+    {
+        vr_agt_row_made = t;
+        for(k = 0; k < 4; k++)
+        {
+            float wid = t == 14 ? VR_AGT_Wid(k == 0 ? 0 : k) : (k == 0 ? WID_CHAINSAW : k == 1 ? WID_MJOLNIR : k == 2 ? WID_SHOTGUN :
+                WID_SUPER_SHOTGUN);
+            makevectors(vr_agt_player.angles);
+            vector side = v_right;
+            side_z = 0;
+            vector keep = vr_agt_player.origin;
+            setorigin(vr_agt_player, keep + side * ((k - 1.5) * 40));
+            entity r = VR_AGT_Spawn(wid, 120);
+            r.angles_y = vectoyaw(keep - r.origin) + 60;
+            setorigin(vr_agt_player, keep);
+            vr_agt_row[k] = r;
+        }
+    }
+    float ph = cvar("scratch2");
+    for(k = 0; k < 4; k++)
+    {
+        entity g = vr_agt_row[k];
+        if(!g || !g.vr_ag || ph <= 0)
+        {
+            continue;
+        }
+        entity p = g.vr_ag_prop;
+        g.vr_ag_act = !p ? VR_AGP_PUNCH : p.weapon == WID_CHAINSAW ? VR_AGP_SAW : VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE ?
+            VR_AGP_SWING : 0;
+        g.vr_ag_act_kind = cvar("scratch3");
+        if(g.vr_ag_act == VR_AGP_PUNCH)
+        {
+            g.vr_ag_act_kind = min(4, g.vr_ag_act_kind);
+        }
+        g.vr_ag_readyw = 0.7;
+        VR_AGP_Times(g);
+        float s = ph == 1 ? vr_agp_tw : ph == 2 ? vr_agp_tw + vr_agp_ts * 0.6 : ph == 3 ? vr_agp_tw + vr_agp_ts + vr_agp_th * 0.5 :
+            vr_agp_tw + vr_agp_ts + vr_agp_th + vr_agp_tr * 0.5;
+        g.vr_ag_act_at = time - s;
+        g.vr_ag_act_tick = time;
+        g.vr_ag_act_hit = 2; // (no blow, no cut)
+        VR_AGP_Body(g);
+        g.vr_ag_aim = (!g.vr_ag_act && ph >= 2) ? VR_AGP_ToWorld('1 0 0') : '0 0 0';
+        g.vr_ag_kick_at = (!g.vr_ag_act && ph == 2) ? time - 0.03 : 0;
+        g.nextthink = time + 1; // (held: its AI stands)
+    }
+};
 
 void() VR_AGTest_Frame =
 {
@@ -444,6 +502,7 @@ void() VR_AGTest_Frame =
     if(!t)
     {
         vr_agt_player = world;
+        vr_agt_row_made = 0;
         return;
     }
     if(!vr_agt_player)
@@ -497,6 +556,10 @@ void() VR_AGTest_Frame =
             }
         }
         cvar_set("vr_agrunt_test", "0");
+    }
+    else if(t == 14 || t == 15) // the attacks' eyeshots: a row turned side-on, held at an attack's phase (VR_AGT_PosePhase)
+    {
+        VR_AGT_PoseRow(t);
     }
     else if(t == 10) // every armed grunt hunts you now
     {

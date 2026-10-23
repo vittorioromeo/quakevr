@@ -979,6 +979,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_HITREACT: hitreact::parseEvent(); break;
+        case QVR_SVC_ARMPOSE: hitreact::parseArmPose(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;

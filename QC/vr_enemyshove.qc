@@ -85,6 +85,10 @@ entity(entity m) VR_EnemyShove_Target =
 float() VR_EnemyShove_Check =
 {
     vr_eshove_holdfire = FALSE;
+    if(self.vr_ag && (self.vr_ag_wid < 0 || VR_AG_Class(self.vr_ag_wid) <= VR_AG_CLASS_MELEE_DEF))
+    {
+        return FALSE; // (an armed grunt's fists or melee weapon: its own blows, vr_armedgrunt_pose.qc, never the shove)
+    }
     if(!self.th_vrshove || self.vr_oblivious)
     {
         return FALSE; // (oblivious until hurt: it never shoves, however near you stand)
