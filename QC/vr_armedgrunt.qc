@@ -1289,33 +1289,25 @@ float() VR_AG_SoldierDrop =
     return TRUE;
 };
 
-void() VR_AG_Die =
+// army_die, an armed grunt's (its death is the grunt's own: its th_die army_die, so its corpse, its ragdoll, its gibs,
+// limbs and blood are the grunt's everywhere they're keyed on it): its weapon falls from its hand with what is left in
+// it (gibbed too). FALSE: not an armed grunt (the grunt's gun drops).
+float() VR_AG_Dying =
 {
+    if(!self.vr_ag)
+    {
+        return FALSE;
+    }
     if(damage_attacker == self)
     {
         vr_ag_self_kills = vr_ag_self_kills + 1; // (the tests)
         VR_AG_Log(sprintf("killed by its own %s", self.vr_ag_prop ? self.vr_ag_prop.netname : "weapon"));
     }
-    // Its weapon falls from its hand, with what is left in it (gibbed too).
     makevectors(self.angles);
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
-
-    if(self.health < -35)
-    {
-        sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
-        ThrowHead("progs/h_guard.mdl", self.health);
-        ThrowGib("progs/gib1.mdl", self.health);
-        ThrowGib("progs/gib2.mdl", self.health);
-        ThrowGib("progs/gib3.mdl", self.health);
-        SoldierDrop();
-        return;
-    }
-    sound(self, CHAN_VOICE, "soldier/death1.wav", 1, ATTN_NORM);
-    if(random() < 0.5)
-        army_die1();
-    else
-        army_cdie1();
+    return TRUE;
 };
+void() VR_AG_Die = { army_die(); }; // (a save from before: its th_die)
 
 /*QUAKED monster_vr_grunt (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 An armed grunt (experimental): a grunt holding one of your weapons. "weapon": its weapon (WID_*: 2 axe, 4 shotgun,
@@ -1383,7 +1375,6 @@ void() monster_vr_grunt =
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
-    self.th_die = VR_AG_Die;
     VR_AG_Arm(self, want, flags, inst);
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));

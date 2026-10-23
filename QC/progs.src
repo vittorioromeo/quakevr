@@ -494,3 +494,4 @@ vr_propimpact_test.qc
 // Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
 vr_armedgrunt.qc
 vr_armedgrunt_test.qc
+vr_armedgrunt_play_test.qc

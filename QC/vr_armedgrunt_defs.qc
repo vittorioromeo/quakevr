@@ -27,3 +27,4 @@ float(entity targ, entity attacker, float damage) VR_AG_DamageScale;       // T_
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
 float() VR_AG_SoldierDrop;                                                 // SoldierDrop: its own loot (TRUE: done)
 float() VR_AG_Idle;                                                        // ai_stand, ai_walk: unarmed, off to a weapon (TRUE: gone)
+float() VR_AG_Dying;                                                       // army_die: its weapon falls (TRUE: an armed grunt)
