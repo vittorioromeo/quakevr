@@ -20,7 +20,7 @@ struct StrikeTest
     float speed{0.f};         // units/s of the strike
     int most{0};              // strikes at most
     int count{0};             // strikes so far
-    int phase{0};             // 0 aim, 1 settle, 2 strike, 3 hold, 4 back
+    int phase{0};             // 0 draw back, 6 glide, 7 step up, 5 aim, 8, 1 settle, 2 strike, 3 hold, 4 back
     double phaseEnd{0.0};     // server time the settle or the hold ends
     glm::vec3 dir{0.f};       // the strike's way
     float travel{0.f};        // units the strike goes
@@ -28,6 +28,9 @@ struct StrikeTest
     float health{0.f};        // the prop's health as the strike began
     float first{0.f};         // and at the start
     double start{0.0};
+    glm::vec3 glideTo{0.f};   // the hand's slow glide (phase 6): where to, until when, the phase after
+    double glideUntil{0.0};
+    int after{0};
 };
 StrikeTest strike;
 
@@ -35,6 +38,7 @@ constexpr float strikeRise = 16.f;  // units before the prop the strike starts
 constexpr float strikeDepth = 10.f; // units into it the strike goes on
 constexpr float strikeBack = 10.f;  // units/s back out (slow: a fast return reads as a blow)
 constexpr float strikeStand = 34.f; // units: you step up to this from its middle before each strike
+constexpr float strikeDrawBack = 14.f; // units the hand is drawn back from it before you step up
 
 void strikeFinish(const char* why)
 {
@@ -131,6 +135,32 @@ void strikeTestFrame()
             strikeFinish("strikes done");
             return;
         }
+        // The hand drawn back slowly from it first (stepping up with the hand ahead would sweep it into the prop).
+        const b3AABB box0 = b3Body_ComputeAABB(s->body);
+        const glm::vec3 mid0 = (world->toU(box0.lowerBound) + world->toU(box0.upperBound)) * 0.5f;
+        glm::vec3 toward = mid0 - vec(EDICT_NUM(1)->v.origin);
+        toward.z = 0.f;
+        toward = glm::length(toward) > 1.f ? glm::normalize(toward) : glm::vec3{1.f, 0.f, 0.f};
+        strike.glideTo = st.pos[HAND_MAIN] - toward * strikeDrawBack + glm::vec3{0.f, 0.f, strike.down ? 8.f : 0.f};
+        strike.glideUntil = qcvm->time + 4.0;
+        strike.after = 7;
+        strike.phase = 6;
+        return;
+    }
+    if(strike.phase == 6)
+    {
+        // A slow glide of the hand to glideTo (no blow: under any strike's speed).
+        const glm::vec3 d = strike.glideTo - st.pos[HAND_MAIN];
+        if(glm::length(d) < 0.3f || qcvm->time >= strike.glideUntil)
+        {
+            strike.phase = strike.after;
+            return;
+        }
+        by(glm::normalize(d) * za::min(glm::length(d), strikeBack * dt));
+        return;
+    }
+    if(strike.phase == 7)
+    {
         // You step up to it as it lies now (knocked away by the last strike: out of the arm's reach), then aim.
         const b3AABB box0 = b3Body_ComputeAABB(s->body);
         const glm::vec3 mid0 = (world->toU(box0.lowerBound) + world->toU(box0.upperBound)) * 0.5f;
@@ -171,8 +201,14 @@ void strikeTestFrame()
             from = mid - strike.dir * (half + strikeRise);
             strike.travel = strikeRise + strikeDepth;
         }
-        const glm::vec3 hand = from - (strikePoint(st) - st.pos[HAND_MAIN]);
-        Cmd_ExecuteString(va("vr_mock_hand_to main %.2f %.2f %.2f", hand.x, hand.y, hand.z), src_command);
+        strike.glideTo = from - (strikePoint(st) - st.pos[HAND_MAIN]);
+        strike.glideUntil = qcvm->time + 6.0;
+        strike.after = 8;
+        strike.phase = 6;
+        return;
+    }
+    if(strike.phase == 8)
+    {
         strike.phase = 1;
         strike.phaseEnd = qcvm->time + 0.6;
         return;
