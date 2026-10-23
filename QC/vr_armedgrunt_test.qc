@@ -505,6 +505,11 @@ void(float t) VR_AGT_PoseRow =
     for(k = 0; k < 4; k++)
     {
         entity g = vr_agt_row[k];
+        if(g && g.vr_ag && g.health > 0 && cvar("scratch5") > 0)
+        {
+            // (scratch5: each guards its head from you, as from a melee wind-up: its weapon carried by its hands)
+            VR_Guard_Raise(g, vr_agt_player.origin + '0 0 22', normalize(g.origin - vr_agt_player.origin));
+        }
         if(!g || !g.vr_ag || ph <= 0)
         {
             continue;

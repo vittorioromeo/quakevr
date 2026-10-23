@@ -1659,7 +1659,8 @@ public:
             {
                 // (vr_mock_hand_lift: the main hand raised, a test's own: QC sets it at once, no command buffer)
                 tracking.hands[h].position =
-                    mockHandPos[h] + glm::vec3{0.f, h == HAND_MAIN ? vr_mock_hand_lift.value : 0.f, 0.f};
+                    mockHandPos[h] + (h == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value}
+                                                     : glm::vec3{0.f});
             }
             if(mockHandRotSet[h])
             {

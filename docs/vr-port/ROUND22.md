@@ -18816,3 +18816,64 @@ less straight, more organic.
 
 **In VR:** vrtesthall's pool and e1m1's water: the shore line should wander in soft curves, the puffs sitting on it.
 Shoreline Foam Settings: Water/Lava/Slime Wavy Edge (0 to compare), Particle Shore (more: out into the band).
+## Armed monsters: the physical tug, frozen after a disarm, weapons on the hands, parries, pickups (worktree `goreflesh`, branch `agent/agfix3`, 2026-10-23)
+
+Vittorio's notes (vrfiringrange 2026-10-23 21:07:48, 21:09:18, 21:09:44, 21:10:08, 21:14:15).
+
+**1. The physical tug** (`vr_agrunt_tug_ragdoll 1`, Armed Grunts page "Tug: Physical"). A full grab of a calm armed
+monster's weapon (not shaky, not from behind: those still give it at once) makes it an active ragdoll standing its
+ground: a stagger begun sure-footed, steady, not carried (`ragdollstagger(g, away from you, 0, 1, 0, cap + 2, TRUE)`),
+up again only when the tug ends (vr_knockdown.qc keeps a tug's stagger past `VR_KD_STAGGER_MOST`). Your hand holds the
+limb nearest the weapon's grip (its forearm) where your hand is: the weapon's lever (engine `tugRagdoll`,
+vr_box3d_ragparts.cpp: a ragdoll grab's motor joint without the palm fit, `RagdollGrab.tug`: the QC's hand holds nothing,
+so the held-field check never lets it go; at most 3x the break force, 6000 N). The weapon is drawn riding that limb
+(`VR_AG_RagProp`), so hand, weapon and its hand form one chain: the hold's constraint force
+(`b3Joint_GetConstraintForce`) is the force between its hand and the weapon. Its arms (`ragactive::Stagger.tug`): the
+holding arm pulls its hand in low before its chest, the other hand reaches for the same hand; no wheeling; its pelvis's
+pin times 1 + its pull. Its grip breaks at `vr_agrunt_tug_break_force` (900 N: a sharp yank) or at
+`vr_agrunt_tug_break_impulse` (350 N s of force x time counted above a tenth of the break force, eased off at half the
+need a second: a steady far pull), both times its health share (at least 0.35), half in pain; badly hurt or gone down:
+at once. Broken: the weapon is put in your hand (`VR_AG_Yank` now moves it to the hand first: a tug left it a little
+behind), it stumbles `VR_AG_TUG_STAGGER` (0.35 s) as a ragdoll and is handed back to its AI unarmed. Let go first (or
+`vr_agrunt_tug_hold_max`, 6 s: it wrenches free): up again in 0.2 s, it keeps it. Haptics every 0.1 s, stronger with the
+pull's share of the break (and jerks). Sliders: Tug: Physical, Break Force, Break Impulse, Its Pull
+(`vr_agrunt_tug_strength` 1.5), Longest. No per-kind table rows (the enforcer's body resists as its ragdoll does). The
+builtin: `ragdolltug` (QC wrapper over `ragdollgrab`'s optional `tug` argument: the builtins' table is full).
+Measured (test 31, a grunt): held still 13-40 N; drawn back 0.1 m/s to 0.4 m: 30-50 N for the first 20 cm (its body
+leans and follows), about 280 N at 35-40 cm; a yank at 0.6 m/s tears it out at 950 N after 0.29 s (17 cm).
+
+**2. Frozen after a disarm.** Cause: a tug's `vr_ag_tug_pl` left set when its weapon left by another way (a blow on its
+hand or on the weapon, a throw, a parry, its death) while the old tug was on: `VR_AG_Run` sent it to `vr_ag_tughold` every
+frame, which, with no weapon, set `think` to its run without a `nextthink`: standing, doing nothing. Fix: `VR_AG_DropHeld`
+ends a tug first (lost), the prop's removal ends it, `vr_ag_tughold`/`VR_AG_TugResume` end a tug with no weapon and go on
+running. Test 33: every path (the physical tug, a hand blow, a weapon blow, a throw, a parry, a fall, and the old tug
+then a hand blow) then fights or goes for a weapon within 2 s: 7 PASS (0.10 .. 1.18 s).
+
+**3. Weapons on the hands.** A guard's or a hit reaction's turns (client kicks on the arms after the arms' IK) moved the
+hands off the weapon drawn at the IK target. `relinkArms` now poses the kicks as drawn (`boneKicks` on the lerped keys)
+and carries each weapon by its forearm's kick (both hands). A ragdoll (a stagger, a tug, a fall, a struggle): the server
+no longer leaves the weapon where it was: `VR_AG_PlaceProp` rides it on the limb nearest its grip as it was posed when
+the ragdoll began (`ragdollpoint` there and back; the prop's posed forward and up kept: `.vr_ag_pfw`, `.vr_ag_pup`), and the
+client leaves a ragdoll's weapon to the server. Death: it drops (unchanged). Eyeshots: `vr_agrunt_test 14` with
+`scratch5 1` (each guards its head from you), test 31 with `scratch1 1` (unbreakable) for the standing tug.
+
+**4. Parries.** Cause: their blows are your weapons' own code (`VR_AGP_Strike`), which deals damage through
+`T_Damage_VRMelee` and `T_DamageImpl`, never `T_Damage`'s `VR_Parry`. Fix: `T_Damage_VRMelee` runs `VR_Parry` for an
+armed monster's blow on a player (windows, cooldown, stamina, its stagger, sounds, haptics, the disarm chance), and the
+parry's hand test runs with `self` the player (`VR_Parry_HandFor`: during its blow `self` is the monster with its own
+hand fields). Test 35: each melee weapon and fists against the crowbar held across (TESTING.md's parry pose).
+
+**5. Pickups reach down** (note 21:14:15). Its take frames from the row (`vr_am_f_take`): the grunt's now painc4..7 (a
+crouch: its top 28, 24, 17, 15 units; load1..4 stood upright), the enforcer's paind5..8 (a knee) as before. The weapon is
+its own from the first take frame but drawn where it lay (`VR_AG_TakeBegin`: `.vr_ag_took_*`), its hand's IK reaching down
+to it; its hand closes at the third frame (`vr_ag_took_grab`, by time: `VR_AG_TakeGrab` counts it, the sound), then it is
+carried up to its hold over `VR_AG_LIFT_TIME` (0.3 s, eased; both hands for a second weapon). Cut short before its hand
+closes (a pain, a shove, anything but its take frames or its run): dropped where it lay. Test 34: it lay still until the
+hand closed (moved 0.0 units), carried up over 0.49 s, 1 pickup PASS; hit as it reaches: untaken, lying PASS.
+
+**Tests** (vrtesthall, `vr_mock_hand main 0.1 0.72 -1.2 65 0 0`, `+grabmain`): 31 the tug pulled (yank, and a slow pull
+with `scratch2 0.25; scratch3 0.12`): begun standing, holds still, torn out, up in 0.4 s, then fights: PASS; 32 let go:
+keeps it, up, fights PASS; 33 paths 7 PASS; 34 pickup 2 PASS; 35 parries (with `vr_weapon_grip_mode 1; impulse 167;
+vr_mock_hand main 0.15 1.35 -0.35 0 90 0`). 21/22 (the old tug) set `vr_agrunt_tug_ragdoll 0` themselves. The mock:
+`vr_mock_hand_pull` (m, the main hand drawn back). Scenarios: `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`,
+`agrunt_guard`.

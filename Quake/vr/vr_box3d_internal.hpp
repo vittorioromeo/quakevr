@@ -743,6 +743,9 @@ struct World
         float force{-1.f};
         float hertz{0.f};
         float stuck{0.f};
+        // A tug-of-war's hold (ragdollTug: a hand on an armed monster's weapon, holding its hand's limb at the weapon's
+        // lever): the QC's hand holds nothing, so that never lets it go; the QC ends it.
+        bool tug{false};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};

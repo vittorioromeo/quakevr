@@ -1756,8 +1756,21 @@ void PF_ragdollgetup()
 }
 
 // float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on.
+// [float tug, vector grip, float strength, float force]: the armed monsters' tug-of-war instead (QC ragdolltug,
+// vr_armedgrunt_play.qc; the builtins' table is full): tug 1 the hand holds e's limb nearest the weapon's grip (e
+// staggering: standing its ground), its arm pulling at `strength`, the hold `force` N at most (1: it does); 2 the hold's
+// pull now (N; -1 none); 3 over (let go; its stagger up again `strength` s on).
 void PF_ragdollgrab()
 {
+    const int tug = qcvm->argc > 3 ? static_cast<int>(G_FLOAT(OFS_PARM3)) : 0;
+    if(tug > 0)
+    {
+        const float* g = qcvm->argc > 4 ? G_VECTOR(OFS_PARM4) : nullptr;
+        G_FLOAT(OFS_RETURN) = box3d::ragdollTug(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
+            tug - 1, g ? glm::vec3{g[0], g[1], g[2]} : glm::vec3{0.f}, qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 1.f,
+            qcvm->argc > 6 ? G_FLOAT(OFS_PARM6) : 0.f);
+        return;
+    }
     G_FLOAT(OFS_RETURN) =
         box3d::ragdollGrab(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
 }

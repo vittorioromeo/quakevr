@@ -221,6 +221,7 @@ void() VR_AGPT_Tug =
         VR_AGPT_EmptyHand(p);
         cvar_set("vr_mock_hand_lift", "0");
         cvar_set("vr_agrunt_tug_fight", t == 21 ? "0" : "0.3");
+        cvar_set("vr_agrunt_tug_ragdoll", "0"); // (the old tug's: the physical one is tests 31..33)
         vr_agt_grunt = VR_AGT_Spawn(t == 21 ? WID_SHOTGUN : WID_AXE, 60);
         vr_agt_step = 1;
         vr_agt_until = time + 1;
@@ -263,7 +264,8 @@ void() VR_AGPT_Tug =
                 g.vr_ag_tug_fights, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", VR_AGT_Name(p.weapon)),
                 !g.vr_ag_tug_pl && g.vr_ag_tug_losses >= 1 && g.vr_ag_prop != world && p.weapon == WID_FIST);
             cvar_set("vr_agrunt_tug_fight", "1");
-        cvar_set("vr_mock_hand_lift", "0");
+            cvar_set("vr_mock_hand_lift", "0");
+            cvar_set("vr_agrunt_tug_ragdoll", "1");
             cvar_set("vr_agrunt_test", "0");
             return;
         }
@@ -285,7 +287,399 @@ void() VR_AGPT_Tug =
         g.vr_ag_tug_wins == 1 && p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug_fight", "1");
     cvar_set("vr_mock_hand_lift", "0");
+    cvar_set("vr_agrunt_tug_ragdoll", "1");
     cvar_set("vr_agrunt_test", "0");
+};
+
+// ----------------------------------------------------------------------------
+// Tests 31..35 (ROUND22.md, "Armed monsters: the physical tug, disarms, pickups, parries")
+// ----------------------------------------------------------------------------
+
+float vr_agpt_d0;   // VR_AGPT_Watch's: its distance to you,
+float vr_agpt_s0;   // ... its blows, its pickups, your damage from it then
+float vr_agpt_k0;
+float vr_agpt_dmg0;
+float vr_agpt_path; // test 33's disarm path
+float vr_agpt_t0;
+float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand closed
+float vr_agpt_n0;   // test 35's: weapon index
+
+void(entity g) VR_AGPT_Watch =
+{
+    vr_agpt_d0 = vlen(g.origin - vr_agt_player.origin);
+    vr_agpt_s0 = g.vr_ag_strikes;
+    vr_agpt_k0 = g.vr_ag_pickups;
+    vr_agpt_dmg0 = vr_ag_player_dmg;
+};
+
+// What it did since VR_AGPT_Watch ("": nothing: frozen).
+string(entity g) VR_AGPT_Active =
+{
+    if(g.vr_ag_pickups > vr_agpt_k0) { return "took a weapon up"; }
+    if(g.vr_ag_strikes > vr_agpt_s0) { return "struck"; }
+    if(vr_ag_player_dmg > vr_agpt_dmg0) { return "hurt you"; }
+    if(g.vr_ag_seek) { return sprintf("going for %s", g.vr_ag_seek.netname); }
+    if(vlen(g.origin - vr_agt_player.origin) < vr_agpt_d0 - 24) { return "closing in"; }
+    return "";
+};
+
+// The grunt grabbed by your main hand at its weapon (the physical tug).
+void(entity g, entity p) VR_AGPT_GrabRag =
+{
+    if(g.vr_ag_tug_pl || !g.vr_ag_prop)
+    {
+        return; // (the held grab's touch began it already)
+    }
+    VR_AGPT_ToHand(g, p);
+    VR_AG_GrabBy(g, p, cVR_MainHand);
+};
+
+// Tests 31, 32: the physical tug (vr_agrunt_tug_ragdoll). 31: grabbed, it stands (an active ragdoll), holding on with
+// your hand still; your hand drawn back (vr_mock_hand_pull) tears the shotgun out of its hand: yours, it staggers a
+// moment and is up, then fights unarmed within 2 s. 32: you let go early: it keeps it, up again, and fights.
+// (scratch1 1: unbreakable, for the eyeshot of the standing tug.)
+void() VR_AGPT_RagTug =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    float t = cvar_hget(cvarh_vr_agrunt_test);
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_lift", "0");
+        cvar_set("vr_mock_hand_pull", "0");
+        vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
+        vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
+        cvar_set("vr_agrunt_disarm_yank", "0"); // (the held grab's touch not before its hand is placed: step 2)
+        if(cvar("scratch1") > 0)
+        {
+            cvar_set("vr_agrunt_tug_break_force", "100000");
+            cvar_set("vr_agrunt_tug_break_impulse", "100000");
+        }
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+        vr_agt_step = 1;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(g.vr_ag_tug_pl && cvar("developer") && floor(time * 4) != floor((time - frametime) * 4))
+    {
+        VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N, impulse %.0f, its hand %.1f from yours, standing %g", time - g.vr_ag_tug_since,
+            vr_ag_tug_force, g.vr_ag_tug_imp, ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
+    }
+    if(time < vr_agt_until && vr_agt_step != 4 && vr_agt_step != 6) { return; }
+    if(vr_agt_step == 1)
+    {
+        VR_AGT_Hunt(g);
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        vr_agt_step = 2;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        VR_AGPT_GrabRag(g, p);
+        VR_AGT_Check(sprintf("ragtug begun: tug %g, physical %g, ragdoll %g, standing %g:", g.vr_ag_tug_pl != world,
+            g.vr_ag_tug_rag, isragdoll(g), g.vr_kd_stagger), g.vr_ag_tug_pl == p && g.vr_ag_tug_rag && isragdoll(g));
+        vr_agt_step = 3;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(vr_agt_step == 3) // held still 1 s: it holds on, standing
+    {
+        VR_AGT_Check(sprintf("ragtug still 1 s: it holds %s, tug %g, pull %.0f N (peak %.0f), impulse %.0f, standing %g:",
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_tug_pl != world, vr_ag_tug_force, g.vr_ag_tug_peak,
+            g.vr_ag_tug_imp, g.vr_kd_stagger), g.vr_ag_prop != world && g.vr_ag_tug_pl == p && g.vr_kd_stagger == 1);
+        vr_agt_clip = time;
+        vr_agt_step = 4;
+        vr_agt_until = time + 5;
+        if(t == 32)
+        {
+            cvar_set("vr_mock_hand_pull", "0.05"); // (a little pull, then let go)
+            vr_agt_until = time + 0.5;
+        }
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        if(t == 31)
+        {
+            // Drawn back 0.6 m/s to 0.35 m (each 0.1 s: the print).
+            // (scratch2: m drawn back, scratch3: m/s; a slow one: the long pull's impulse)
+            float pull = min(cvar("scratch2") > 0 ? cvar("scratch2") : 0.35,
+                (time - vr_agt_clip) * (cvar("scratch3") > 0 ? cvar("scratch3") : 0.6));
+            cvar_set("vr_mock_hand_pull", ftos(pull));
+            if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
+            VR_AGT_Check(sprintf("ragtug pulled: %s after %.2f s (peak %.0f N), your hand %s, the grunt holds %s:", vr_ag_tug_why,
+                time - vr_agt_clip, g.vr_ag_tug_peak, VR_AGT_Name(p.weapon), g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
+                g.vr_ag_tug_wins == 1 && p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
+        }
+        else
+        {
+            if(time < vr_agt_until) { return; }
+            p.mainhand_lastreleasetime = time; // (your grip let go)
+            vr_agt_step = 7;
+            vr_agt_until = time + 0.2;
+            return;
+        }
+        cvar_set("vr_mock_hand_pull", "0");
+        vr_agt_clip = time;
+        vr_agt_step = 6;
+        vr_agt_until = time + 2;
+        return;
+    }
+    if(vr_agt_step == 7) // let go: it keeps it
+    {
+        cvar_set("vr_mock_hand_pull", "0");
+        VR_AGT_Check(sprintf("ragtug let go: %s, the grunt holds %s, your hand %s, tug %g:", vr_ag_tug_why,
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", VR_AGT_Name(p.weapon), g.vr_ag_tug_pl != world),
+            g.vr_ag_prop != world && !g.vr_ag_tug_pl && p.weapon == WID_FIST && g.vr_ag_tug_losses == 1);
+        vr_agt_clip = time;
+        vr_agt_step = 6;
+        vr_agt_until = time + 2;
+        return;
+    }
+    if(vr_agt_step == 6) // up again (a short stagger)
+    {
+        if(g.vr_knockdown && time < vr_agt_until) { return; }
+        VR_AGT_Check(sprintf("ragtug: up again after %.2f s (knockdown %g, ragdoll %g):", time - vr_agt_clip, g.vr_knockdown,
+            isragdoll(g)), !g.vr_knockdown && time - vr_agt_clip < 1.2);
+        VR_AGPT_Watch(g);
+        vr_agt_step = 8;
+        vr_agt_until = time + 2;
+        return;
+    }
+    string act = VR_AGPT_Active(g);
+    if(act == "" && time < vr_agt_until) { return; }
+    VR_AGT_Check(sprintf("ragtug: then %s within 2 s (%s, think %s):", act == "" ? "nothing" : act,
+        g.vr_ag_prop ? g.vr_ag_prop.netname : "unarmed", ftos(g.think == g.th_run)), act != "");
+    cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
+    cvar_set("vr_agrunt_tug_break_impulse", ftos(vr_agpt_h0b));
+    cvar_set("vr_mock_hand_lift", "0");
+    cvar_set("vr_agrunt_test", "0");
+};
+
+// Test 33: disarmed by every path, it fights or goes for a weapon within 2 s of being free to (up, the tug over): the
+// physical tug won (grab), a blow on its gun hand, a blow on its weapon, a throw at it, its axe's swing parried, a fall
+// (knocked down: it drops it), and the old tug with its gun knocked out of its hand meanwhile (it was left on: frozen).
+string(float i) VR_AGPT_PathName =
+{
+    return i == 0 ? "grab (physical tug)" : i == 1 ? "hand hit" : i == 2 ? "weapon hit" : i == 3 ? "throw" : i == 4 ? "parry" :
+           i == 5 ? "fall" : "old tug, then a hand hit";
+};
+
+void() VR_AGPT_Paths =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_lift", "0");
+        cvar_set("vr_mock_hand_pull", "0");
+        cvar_set("vr_agrunt_disarm_yank", "0"); // (only the test's own grab)
+        vr_agt_grunt = VR_AGT_Spawn(vr_agpt_path == 4 ? WID_AXE : WID_SHOTGUN, 80);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.5;
+        return;
+    }
+    if(time < vr_agt_until && vr_agt_step != 2 && vr_agt_step != 3) { return; }
+    if(vr_agt_step == 1)
+    {
+        VR_AGT_Hunt(g);
+        float i = vr_agpt_path;
+        if(i == 0 || i == 6)
+        {
+            cvar_set("vr_agrunt_tug_ragdoll", i == 0 ? "1" : "0");
+            vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
+            cvar_set("vr_agrunt_tug_break_force", "1"); // (torn out at once: the path's end, not the pull, is tested)
+            VR_AGPT_GrabRag(g, p);
+            if(i == 6)
+            {
+                cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
+                VR_AGT_Print(sprintf("paths: old tug on %g", g.vr_ag_tug_pl != world));
+                VR_AG_Disarm(g, g.origin - p.origin, 150, "a blow on its gun hand (test), the tug on");
+                cvar_set("vr_agrunt_tug_ragdoll", "1");
+            }
+        }
+        else if(i == 1)
+        {
+            VR_AG_Disarm(g, g.origin - p.origin, 150, "a blow on its gun hand (test)"); // (VR_AG_Hit's own: test 24 hits)
+        }
+        else if(i == 2 || i == 3)
+        {
+            VR_AG_Disarm(g, g.origin - p.origin, 120, i == 2 ? "a blow on its weapon (test)" : "a throw at it (test)");
+        }
+        else if(i == 4)
+        {
+            cvar_set("vr_agrunt_parry_disarm", "1");
+            g.vr_ag_act = VR_AGP_SWING;
+            g.vr_ag_act_tick = time;
+            VR_AG_Parried(g, p);
+            g.vr_ag_act = 0;
+            cvar_set("vr_agrunt_parry_disarm", "0.35");
+        }
+        else
+        {
+            VR_Knockdown_Start(g);
+            makevectors('0 1 0' * g.angles_y);
+            ragdollshovetopple(g, v_forward * -1, 1, FALSE, 40);
+        }
+        vr_agt_clip = time;
+        vr_agt_step = 2;
+        vr_agt_until = time + 8;
+        return;
+    }
+    if(vr_agt_step == 2) // free to act: up, no tug, disarmed
+    {
+        if((g.vr_knockdown || g.vr_ag_tug_pl || g.vr_ag_prop) && time < vr_agt_until) { return; }
+        if(vr_agpt_path == 0)
+        {
+            cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
+        }
+        VR_AGT_Print(sprintf("paths: %s: disarmed %g, free after %.2f s (knockdown %g, tug %g)", VR_AGPT_PathName(vr_agpt_path),
+            g.vr_ag_disarms, time - vr_agt_clip, g.vr_knockdown, g.vr_ag_tug_pl != world));
+        VR_AGPT_Watch(g);
+        vr_agt_clip = time;
+        vr_agt_step = 3;
+        vr_agt_until = time + 2;
+        return;
+    }
+    string act = VR_AGPT_Active(g);
+    if(act == "" && time < vr_agt_until) { return; }
+    VR_AGT_Check(sprintf("paths: %s: then %s within 2 s (%.2f s; unarmed %g, tug %g):", VR_AGPT_PathName(vr_agpt_path),
+        act == "" ? "nothing" : act, time - vr_agt_clip, !g.vr_ag_prop || g.vr_ag_pickups > vr_agpt_k0,
+        g.vr_ag_tug_pl != world), act != "" && !g.vr_ag_tug_pl && g.vr_ag_disarms >= 1);
+    vr_agpt_path = vr_agpt_path + 1;
+    vr_agt_step = 0;
+    if(vr_agpt_path > 6)
+    {
+        vr_agpt_path = 0;
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
+// Test 34: a weapon taken up from the floor (an unarmed grunt, a shotgun lying beside it): it lies where it was until its
+// hand closes on it (the take frames' crouch), then carried up into its hold (no jump); a second grunt hit (its pain)
+// while it reaches: the weapon stays on the floor, untaken.
+void() VR_AGPT_Pickup =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0 || vr_agt_step == 10)
+    {
+        VR_AGPT_Clear();
+        vr_agt_grunt = VR_AGT_Spawn(-1, 140);
+        g = vr_agt_grunt;
+        makevectors('0 1 0' * g.angles_y);
+        VR_AGPT_Weapon(WID_SHOTGUN, g.origin + v_forward * 20 + v_right * 24 - '0 0 18', FALSE);
+        vr_agpt_m0 = 0;
+        vr_agpt_t0 = 0;
+        vr_agt_step = vr_agt_step + 1;
+        vr_agt_until = time + 6;
+        return;
+    }
+    if(vr_agt_step == 1 || vr_agt_step == 11)
+    {
+        if(g.vr_ag_took_at > 0)
+        {
+            if(vr_agpt_t0 == 0)
+            {
+                vr_agpt_t0 = time;
+                VR_AGT_Print(sprintf("pickup: reaching (frame %g), the weapon %.0f units under its middle", g.frame,
+                    g.origin_z - g.vr_ag_took_org_z));
+                if(vr_agt_step == 11)
+                {
+                    entity os = self;
+                    self = g;
+                    self.pain_finished = 0;
+                    self.th_pain(p, 4); // (hit as it reaches)
+                    self = os;
+                }
+            }
+            if(time < g.vr_ag_took_grab && g.vr_ag_prop)
+            {
+                vr_agpt_m0 = max(vr_agpt_m0, vlen(g.vr_ag_prop.origin - g.vr_ag_took_org));
+            }
+            return;
+        }
+        if(vr_agpt_t0 == 0 && time < vr_agt_until) { return; }
+        if(vr_agt_step == 11)
+        {
+            entity w = VR_AGT_LyingNear(g.origin);
+            VR_AGT_Check(sprintf("pickup cut short by a pain: it holds %s, %g pickups, the shotgun lying %s:",
+                g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_pickups, w ? "yes" : "no"),
+                vr_agpt_t0 > 0 && !g.vr_ag_prop && g.vr_ag_pickups == 0 && w != world);
+            cvar_set("vr_agrunt_test", "0");
+            return;
+        }
+        VR_AGT_Check(sprintf("pickup: it lay still until its hand closed (moved %.1f units), carried up over %.2f s, it holds %s, "
+            "%g pickups:", vr_agpt_m0, time - vr_agpt_t0, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_pickups),
+            vr_agpt_t0 > 0 && vr_agpt_m0 < 1 && g.vr_ag_prop != world && g.vr_ag_pickups == 1);
+        vr_agt_step = 10;
+        return;
+    }
+};
+
+// Test 35: its melee blows parried by your weapon held across (the script's mock hand: vr_mock_hand main 0.15 1.35
+// -0.35 0 90 0, a crowbar given), each melee weapon (and its fists, your arms crossed... not here: a weapon's parry): it
+// strikes within 5 s and at least one blow is parried (VR_Parry, its pose not forced), the parry's consequences on it
+// (its stagger).
+float(float i) VR_AGPT_MeleeWid =
+{
+    return i == 0 ? WID_AXE : i == 1 ? WID_SWORD : i == 2 ? WID_CROWBAR : i == 3 ? WID_CHAINSAW : i == 4 ? WID_MJOLNIR :
+           i == 5 ? WID_FIST : -2;
+};
+
+void() VR_AGPT_Parry =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_Clear();
+        if(p.weapon == WID_FIST)
+        {
+            VRGiveEntWeapon(p, cVR_MainHand, WID_CROWBAR, 0, 0); // (the script's own: vr_weapon_grip_mode 1; impulse 167)
+        }
+        VR_AGT_Print(sprintf("parry: your main hand holds %s", VR_AGT_Name(p.weapon)));
+        vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_parry_disarm);
+        cvar_set("vr_agrunt_parry_disarm", "0"); // (it keeps its weapon: every blow counted)
+        float wid = VR_AGPT_MeleeWid(vr_agpt_n0);
+        // (Ahead of your head, not along your body's angles: they follow the main hand's aim, the crowbar's, held across.)
+        vector keepAngles = p.angles;
+        p.angles_y = p.v_viewangle_y;
+        vr_agt_grunt = VR_AGT_Spawn(wid == WID_FIST ? -1 : wid, 70);
+        p.angles = keepAngles;
+        VR_AGT_Hunt(vr_agt_grunt);
+        VR_AGPT_Watch(vr_agt_grunt);
+        vr_agpt_m0 = vr_ag_parried_n;
+        vr_agpt_t0 = 0;
+        vr_agt_step = 1;
+        vr_agt_until = time + 6;
+        return;
+    }
+    if(vr_ag_parried_n > vr_agpt_m0 && vr_agpt_t0 == 0)
+    {
+        vr_agpt_t0 = time;
+        vr_agt_until = min(vr_agt_until, time + 0.3); // (its stagger seen)
+    }
+    if(time < vr_agt_until) { return; }
+    VR_AGT_Check(sprintf("parry %s: %g blows, %g parried, %.0f damage to you, its parry stagger %g:",
+        VR_AGT_Name(VR_AGPT_MeleeWid(vr_agpt_n0)), g.vr_ag_strikes - vr_agpt_s0, vr_ag_parried_n - vr_agpt_m0,
+        vr_ag_player_dmg - vr_agpt_dmg0, g.vr_parry_stagger_until > time - 0.3 || g.vr_kd_parry),
+        vr_ag_parried_n > vr_agpt_m0);
+    cvar_set("vr_agrunt_parry_disarm", ftos(vr_agpt_h0a));
+    vr_agpt_n0 = vr_agpt_n0 + 1;
+    vr_agt_step = 0;
+    if(VR_AGPT_MeleeWid(vr_agpt_n0) == -2)
+    {
+        vr_agpt_n0 = 0;
+        cvar_set("vr_agrunt_test", "0");
+    }
 };
 
 // Test 23: when a grab takes it at once: calm (no), badly hurt, staggering, knocked down, stunned by a parry; then a
@@ -679,4 +1073,8 @@ void(float t) VR_AGPT_Frame =
     else if(t == 28) { VR_AGPT_Loot(); }
     else if(t == 29) { VR_AGPT_WeaponBlow(); }
     else if(t == 30) { VR_AGPT_WeaponThrow(); }
+    else if(t == 31 || t == 32) { VR_AGPT_RagTug(); }
+    else if(t == 33) { VR_AGPT_Paths(); }
+    else if(t == 34) { VR_AGPT_Pickup(); }
+    else if(t == 35) { VR_AGPT_Parry(); }
 };

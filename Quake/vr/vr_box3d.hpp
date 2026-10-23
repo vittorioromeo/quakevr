@@ -386,6 +386,10 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
 // units/s).
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// The armed monsters' tug-of-war (QC ragdolltug; vr_box3d_ragparts.cpp tugRagdoll): what 0 begin (the hand holds the
+// limb nearest `grip` at the weapon's lever, `force` N at most, its arm pulling at `strength`), 1 the hold's pull (N; -1
+// none), 2 over (its stagger up again `strength` s on).
+float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force);
 // A soft hold (vr_foegrab.cpp: an enemy thrown or lifted, held on): hand `hand` (QC's) of `player` holds the limb of
 // `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
 // when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
