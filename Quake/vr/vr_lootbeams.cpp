@@ -13,6 +13,7 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
@@ -55,6 +56,7 @@ cvar_t* const categoryHue[categoryCount] = {&vr_lootbeam_hue_weapons, &vr_lootbe
 constexpr const char* powerupNames[] = {"/quaddama.mdl", "/invulner.mdl", "/invisibl.mdl", "/suit.mdl", "/empathy.mdl",
     "/wetsuit.mdl", "/horn.mdl", "/sphere.mdl"};
 constexpr const char* runeNames[] = {"/end1.mdl", "/end2.mdl", "/end3.mdl", "/end4.mdl"};
+constexpr const char* toolgunModel = "_toolgun.mdl"; // a dropped toolgun, drawn as progs/v_toolgun.mdl (vr_toolgun.cpp)
 
 constexpr float moveSlack = 4.f;      // units a thing may drift (a rigid body settling, a bob) and still be at rest
 constexpr float fadeOutTime = 0.1f;   // seconds its beam takes to go as it is picked up and moves
@@ -79,8 +81,10 @@ struct Beam
     glm::vec3 origin;     // the entity's origin (vr_lootbeam_debug)
     glm::vec3 color;
     float alpha;     // its fade (0..1)
+    float lengthScale; // times vr_lootbeam_length (a toolgun's: vr_lootbeam_toolgun_length)
     int num;         // its entity (vr_lootbeams_report)
     Category category;
+    bool toolgun;    // a dropped toolgun (a weapon, its own hue and length: found among many weapons)
 };
 
 struct LootBeamScratch
@@ -100,6 +104,7 @@ struct Counts
     int moving{0};
     int emptyMags{0};
     int spentGuns{0}; // spent single-use enemy guns (vr_enemy_weapon_depleted_loot 0)
+    int toolguns{0};  // of the weapons' beams, dropped toolguns'
 };
 
 struct State
@@ -294,15 +299,18 @@ void update()
         {
             continue;
         }
-        const float hue = categoryHue[static_cast<int>(c)]->value;
         Beam b{};
+        b.toolgun = c == Category::Weapons && strstr(e->model->name, toolgunModel) != nullptr;
+        const float hue = (b.toolgun ? &vr_lootbeam_hue_toolgun : categoryHue[static_cast<int>(c)])->value;
         place(*e, num, b);
         b.color = hsv(hue, saturation, 1.f);
         b.alpha = t.alpha;
+        b.lengthScale = b.toolgun ? za::max(vr_lootbeam_toolgun_length.value, 0.f) : 1.f;
         b.num = num;
         b.category = c;
         s.beams.pushBack(b);
         state.counts.drawn[static_cast<int>(c)]++;
+        state.counts.toolguns += b.toolgun ? 1 : 0;
     }
 
     if(vr_lootbeam_debug.value != 0.f && realtime >= state.printedAt + 1.0)
@@ -439,16 +447,22 @@ void report_f()
             carrier = carrier > 0 ? NUM_FOR_EDICT(PROG_TO_EDICT(carrier)) : 0;
             PR_PopQCVM(old);
         }
-        Con_Printf("lootbeam %d %s %s fade %.2f at %.0f %.0f %.0f (server's byte %d, carried by %d)\n", b.num,
+        Con_Printf("lootbeam %d %s %s fade %.2f at %.0f %.0f %.0f (server's byte %d, carried by %d)", b.num,
             categoryNames[static_cast<int>(b.category)], e.model ? e.model->name : "?", static_cast<double>(b.alpha),
             static_cast<double>(b.base.x), static_cast<double>(b.base.y), static_cast<double>(b.base.z),
             net ? net->loot : -1, carrier);
+        if(b.toolgun)
+        {
+            Con_Printf(" toolgun: hue %.0f, length x%.2f", static_cast<double>(vr_lootbeam_hue_toolgun.value),
+                static_cast<double>(b.lengthScale));
+        }
+        Con_Printf("\n");
     }
     const Counts& n = state.counts;
     Con_Printf("lootbeams: %d drawn (weapons %d mags %d ammo %d health %d armor %d powerups %d keys %d backpacks %d), "
-               "carried %d, moving %d, empty mags %d, spent enemy guns %d\n",
+               "carried %d, moving %d, empty mags %d, spent enemy guns %d, toolguns %d\n",
         static_cast<int>(s.beams.size()), n.drawn[0], n.drawn[1], n.drawn[2], n.drawn[3], n.drawn[4], n.drawn[5],
-        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags, n.spentGuns);
+        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags, n.spentGuns, n.toolguns);
 }
 
 // What vr_lootbeam_test lays out, in turn: weapon props, magazines (full, nearly empty), boxes, armour, a power-up.
@@ -476,7 +490,8 @@ constexpr TestThing testThings[] = {
 
 // vr_lootbeam_test [count] [gibs]: `count` things to pick up (12) laid out in rows ahead of the player, 40 units apart,
 // in turn weapon props, nailgun magazines (full, nearly empty), ammo, health, armour, quad damage; with `gibs` (0..),
-// that many gibs thrown among them (the look among the gore; the cost with Performance Profile).
+// that many gibs thrown among them (the look among the gore; the cost with Performance Profile); with `toolgun` (1), a
+// toolgun too, nearer (its own hue and taller beam).
 void test_f()
 {
     if(!sv.active || svs.maxclients < 1)
@@ -564,7 +579,12 @@ void test_f()
         }
         PR_PopQCVM(old);
     }
-    Con_Printf("lootbeam test: %d of %d made (%d magazines), %d gibs thrown\n", made, count, mags, thrown);
+    // A toolgun among them (its own hue and a beam twice as high), nearer than the rows.
+    const bool toolgunToo = Cmd_Argc() > 3 && Q_atoi(Cmd_Argv(3)) != 0;
+    const bool toolgunMade = toolgunToo && box3d::spawnClass("func_weapon_grabbable", feet + fwd * 64.f + glm::vec3{0.f, 0.f, 9.f},
+        glm::vec3{0.f, yaw + 90.f, 0.f}, nullptr, "weapon", static_cast<float>(toolgun::weaponId)) != nullptr;
+    Con_Printf("lootbeam test: %d of %d made (%d magazines), %d gibs thrown%s\n", made, count, mags, thrown,
+        toolgunToo ? (toolgunMade ? ", a toolgun" : ", no toolgun") : "");
 }
 
 } // namespace
@@ -603,7 +623,7 @@ void drawTranslucent()
     out.reserve(s.beams.size() * 42);
     for(const Beam& b : s.beams)
     {
-        appendBeam(out, b, eye, right, up, length, half, opacity, m2u);
+        appendBeam(out, b, eye, right, up, length * b.lengthScale, half, opacity, m2u);
     }
     if(!out.empty())
     {

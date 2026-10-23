@@ -1,0 +1,7 @@
+# phantom_swordsman: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Dissolution of Eternity's Phantom Swordsman in Quake's e1m1 (Rogue's data installed)
+map e1m1
+god
+give "Knight's Sword" main
+spawn "DoE Phantom Swordsman" 200 0
+hint A Phantom Swordsman stands ahead. Open the toolgun's Monsters tab: the DoE Phantom Swordsman tile should not be greyed out; spawn another. A greyed tile, pressed, prints why in the console.

@@ -1574,21 +1574,21 @@ namespace
 struct FoamCvars
 {
     cvar_t *on, *opacity, *frequency, *strength, *breathe, *breatheSpeed, *breatheIrregularity, *red, *green, *blue,
-        *particles, *particleLife, *particleOpacity, *particleSize;
+        *particles, *particleLife, *particleOpacity, *particleSize, *particleShore, *edge;
 };
 const FoamCvars foamCvars[3] = {
     {&vr_water_foam_on, &vr_water_foam_opacity, &vr_water_foam_frequency, &vr_water_foam_strength, &vr_water_foam_breathe,
         &vr_water_foam_breathe_speed, &vr_water_foam_breathe_irregularity, &vr_water_foam_red, &vr_water_foam_green,
         &vr_water_foam_blue, &vr_water_foam_particles, &vr_water_foam_particle_life, &vr_water_foam_particle_opacity,
-        &vr_water_foam_particle_size},
+        &vr_water_foam_particle_size, &vr_water_foam_particle_shore, &vr_water_foam_edge},
     {&vr_lava_foam_on, &vr_lava_foam_opacity, &vr_lava_foam_frequency, &vr_lava_foam_strength, &vr_lava_foam_breathe,
         &vr_lava_foam_breathe_speed, &vr_lava_foam_breathe_irregularity, &vr_lava_foam_red, &vr_lava_foam_green,
         &vr_lava_foam_blue, &vr_lava_foam_particles, &vr_lava_foam_particle_life, &vr_lava_foam_particle_opacity,
-        &vr_lava_foam_particle_size},
+        &vr_lava_foam_particle_size, &vr_lava_foam_particle_shore, &vr_lava_foam_edge},
     {&vr_slime_foam_on, &vr_slime_foam_opacity, &vr_slime_foam_frequency, &vr_slime_foam_strength, &vr_slime_foam_breathe,
         &vr_slime_foam_breathe_speed, &vr_slime_foam_breathe_irregularity, &vr_slime_foam_red, &vr_slime_foam_green,
         &vr_slime_foam_blue, &vr_slime_foam_particles, &vr_slime_foam_particle_life, &vr_slime_foam_particle_opacity,
-        &vr_slime_foam_particle_size},
+        &vr_slime_foam_particle_size, &vr_slime_foam_particle_shore, &vr_slime_foam_edge},
 };
 
 } // namespace
@@ -1609,6 +1609,8 @@ FoamLook foamLook(int liquid)
     l.particleLife = za::clamp(v.particleLife->value, 0.2f, 4.f);
     l.particleOpacity = za::clamp(v.particleOpacity->value, 0.f, 1.f);
     l.particleSize = za::clamp(v.particleSize->value, 0.25f, 4.f);
+    l.particleShore = za::clamp(v.particleShore->value, -4.f, 16.f);
+    l.edge = za::clamp(v.edge->value, 0.f, 12.f);
     return l;
 }
 
@@ -2267,7 +2269,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     for(int i = 0; i < 3; i++) // each liquid's look (water, lava, slime)
     {
         const water::FoamLook l = water::foamLook(i);
-        const float look[3][4] = {{l.on ? l.opacity : 0.f, l.frequency, l.strength, 0.f}, {l.color.r, l.color.g, l.color.b, 0.f},
+        const float look[3][4] = {{l.on ? l.opacity : 0.f, l.frequency, l.strength, l.edge}, {l.color.r, l.color.g, l.color.b, 0.f},
             {l.breathe, l.breatheSpeed, l.breatheIrregularity, 0.f}};
         for(int a = 0; a < 4; a++)
         {

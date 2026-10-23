@@ -5,7 +5,9 @@
 // vr_lootbeam_mag_min on by default; ammo, health, armour, power-ups, keys and runes, backpacks off. Never while held,
 // holstered (both drawn by the view, not lying about), carried (the server says so: vr_server.cpp lootByte) or moving
 // (thrown, falling, flying home): it fades in once the thing has lain still vr_lootbeam_settle seconds. Opacity, length
-// and thickness are settings; it fades out as your head comes near it (vr_lootbeam_near), and far away if wanted.
+// and thickness are settings; it fades out as your head comes near it (vr_lootbeam_near), and far away if wanted. A
+// dropped toolgun (a weapon prop drawn as progs/v_toolgun.mdl) has its own hue and a longer beam (vr_lootbeam_hue_toolgun,
+// vr_lootbeam_toolgun_length: magenta, twice as high), found among many weapons.
 //
 // Cost: the things are found once a frame (the visible entities), each eye draws all the beams in one draw: two soft
 // crossed shells turned towards the eye about the vertical (a core and its glow) and a small flare at the base, 42

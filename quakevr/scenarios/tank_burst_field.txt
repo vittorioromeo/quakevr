@@ -1,0 +1,11 @@
+# tank_burst_field: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Arcane Dimensions)
+title A flamethrower and a poison sprayer lying with their tanks, grunts beyond them
+map vrtesthall
+god
+give "Shotgun" main
+spawn "AD Flamethrower" 200 70
+spawn "AD Poison Sprayer" 200 -70
+spawn "Grunt" 340 70
+spawn "Grunt" 340 -70
+spawn "Wooden Crate" 230 0
+hint Shoot a tank: sparks, no blood; it bursts and leaves fire or a poison cloud that burns or poisons the grunts walking in, fading out with its sound. Take the other gun: its tank flies to your back.

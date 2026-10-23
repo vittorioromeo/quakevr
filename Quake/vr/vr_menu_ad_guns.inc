@@ -92,32 +92,9 @@
         slider("Hammer and Mace Move Speed", "vr_admelee_heavy_speed", 0.5f, 1.f, 0.05f, "%.2fx").extend(0.2f, 1.f)
             .help("Holding the hammer, the mace or the Phantom Swordsman's sword in either hand, you move at this "
                   "times your full speed."),
-        header("Death Sergeant's Flail"),
-        slider("Chain Length", "vr_flail_chain", 0.2f, 1.f, 0.05f, "%.2f m").extend(0.1f, 2.f)
-            .help("The flail's chain, from the handle's end to its spiked head, which swings on it as a body of its own "
-                  "(it falls, bounces off walls, wraps a little round what it meets)."),
-        slider("Head Mass", "vr_flail_mass", 0.5f, 6.f, 0.1f, "%.1f kg").extend(0.2f, 30.f)
-            .help("Its head's weight: heavier swings slower and hits harder (a blow's damage goes by its mass and speed)."),
-        slider("Damage", "vr_flail_damage", 0.5f, 8.f, 0.1f, "%.1fx").extend(0.f, 30.f)
-            .help("A blow of its head: this times its mass (kg) times its speed into what it hits (m/s) beyond Least "
-                  "Speed. A full swing or a whirl lands hard, a lazy wave barely."),
-        slider("Least Speed", "vr_flail_min_speed", 0.f, 8.f, 0.25f, "%.2f m/s").extend(0.f, 20.f)
-            .help("Its head hitting slower than this deals nothing (it only knocks)."),
-        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f)
-            .help("A blow of its head deals at most this."),
-        slider("Least Damage", "vr_flail_min_damage", 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
-            .help("A blow of its head faster than Least Speed deals at least this."),
-        slider("Most Head Speed", "vr_flail_max_speed", 4.f, 40.f, 0.5f, "%.1f m/s")
-            .help("Its head never goes faster than this: a heavy ball can't be whirled up without end."),
-        slider("Head Drag", "vr_flail_drag", 0.f, 3.f, 0.05f, "%.2f")
-            .help("How much the air slows its head (and its spin): higher, it feels heavier and whirling it takes work."),
-        slider("Two Hands", "vr_flail_2h", 1.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("Held in both hands (the other on its handle), its blows are this many times harder."),
-        slider("Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")
-            .help("Its chain rattles (AD's own chain sound) as its head swings fast and as it strikes: the volume (0: none)."),
-        toggle("Head Lying About", "vr_flail_world")
-            .help("A flail lying about (dropped, thrown, a death sergeant's) keeps its head on its chain: a body of its "
-                  "own you can carry, dragged by the handle and dragging it. Off: the handle alone."),
+        open("Death Sergeant's Flail", pageIndex(pageFlail))
+            .help("Its flail, its spiked head swinging on a chain: the chain's length, the head's mass and air drag, its "
+                  "blows' damage and speeds, its rattle, its head lying about (also under Combat > Melee: Flail)."),
         header("Health Vials"),
         slider("Health Vial Size", "vr_ad_healthvial_scale", 1.f, 4.f, 0.1f, "%.1fx").extend(0.5f, 6.f)
             .help("AD's health vials and gems drawn this many times bigger (as objects: times the ammo and health "
@@ -186,9 +163,65 @@
                   "empty, 40% of it; weaker at the edge)."),
         slider("Tank Burst Poison Time", "vr_adgun_tank_burst_poisontime", 0.f, 20.f, 0.5f, "%.1f s")
             .help("How long that poison lasts at a full tank (near empty, 40% of it)."),
+        slider("Burst Field Time", "vr_adgun_tank_field_time", 0.f, 15.f, 0.5f, "%.1f s")
+            .help("How long a full tank's burst leaves its field behind (near empty, 40% of it): flames on the ground "
+                  "that set on fire whatever walks in (you, monsters, bodies, crates), or a green cloud that poisons it. It "
+                  "fades out, sound and all, over its second half. 0: no field."),
+        slider("Burst Field Reach", "vr_adgun_tank_field_radius", 16.f, 300.f, 8.f, "%.0f")
+            .help("How far a full tank's field reaches from where it burst (units; near empty, 40% of it)."),
+        slider("Burst Field Damage", "vr_adgun_tank_field_damage", 0.f, 4.f, 0.1f, "%.1fx")
+            .help("The field's damage: the cloud's poison a second (the burst's own at 1), the flames' burning damage a "
+                  "second while you stand in them (a fire's own at 1), on top of the burning they set."),
+        slider("Tank Pickup Flight", "vr_adgun_tank_pickup_time", 0.f, 1.f, 0.05f, "%.2f s")
+            .help("Taking a flamethrower or sprayer that lies with its tank: the tank flies to your back over this long, "
+                  "its hose following. 0: on your back at once."),
+        toggle("Armed Monsters' Tanks", "vr_adgun_tank_worn")
+            .help("Armed monsters holding a flamethrower or sprayer wear its tank on their back, hosed to the gun. Shoot "
+                  "it enough (Tank Health) and it bursts on them: hurt, set on fire or poisoned, the field round them, and "
+                  "their gun spent: they drop it."),
         toggle("Electric Bolts", "vr_adgun_bolt_fx")
             .help("The plasma rifles' bolts (the soldiers', eliminators' and centurions', theirs and yours): a faint "
                   "smoke and electric arcs and sparks along them, at the muzzle and where they strike. Off: AD's smoke."),
         // (their tests: Debug > Tests > Arcane Dimensions Monsters, vr_menu_ad_monsters.inc)
+    };
+}
+
+// AD support: the death sergeant's flail (QC vr_ad_melee.qc VR_ADMELEE_FLAIL; vr_box3d_flail.cpp): its head a body of
+// its own on its chain. Combat > Melee > Flail, and Arcane Dimensions > Soldiers' Guns (the melee monsters' weapons).
+// (The author's note vrtesthall_2026-10-23_22-41-32: searching "flail" found none of these, a group on the guns' page.)
+[[nodiscard]] za::Vector<Item> pageFlail()
+{
+    return {
+        slider("Flail Chain Length", "vr_flail_chain", 0.2f, 1.f, 0.05f, "%.2f m").extend(0.1f, 2.f)
+            .help("The flail's chain, from the handle's end to its spiked head, which hangs and swings on it as a body of "
+                  "its own (it falls, bounces off walls, wraps a little round what it meets)."),
+        slider("Flail Head Mass", "vr_flail_mass", 0.5f, 6.f, 0.1f, "%.1f kg").extend(0.2f, 30.f)
+            .help("The flail head's weight: heavier swings slower and hits harder (a blow's damage goes by its mass and "
+                  "speed)."),
+        slider("Flail Air Drag", "vr_flail_drag", 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the air slows the flail's head (and its spin), a second's share of its speed: higher, a "
+                  "swing dies down sooner and whirling it takes more work; lower, it swings on longer. 0: none."),
+        slider("Flail Most Head Speed", "vr_flail_max_speed", 4.f, 40.f, 0.5f, "%.1f m/s")
+            .help("The maximum speed of the flail's head: a heavy ball can't be whirled up without end."),
+        header("Its Blows"),
+        slider("Flail Damage", "vr_flail_damage", 0.5f, 8.f, 0.1f, "%.1fx").extend(0.f, 30.f)
+            .help("A blow of the flail's head: this times its mass (kg) times its speed into what it hits (m/s) beyond "
+                  "Least Speed. A full swing or a whirl lands hard, a lazy wave barely."),
+        slider("Flail Least Speed", "vr_flail_min_speed", 0.f, 8.f, 0.25f, "%.2f m/s").extend(0.f, 20.f)
+            .help("The minimum speed of a blow: the flail's head hitting slower than this deals nothing (it only knocks)."),
+        slider("Flail Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f)
+            .help("The maximum damage of a blow of the flail's head."),
+        slider("Flail Least Damage", "vr_flail_min_damage", 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
+            .help("The minimum damage of a blow of the flail's head faster than Least Speed."),
+        slider("Flail in Two Hands", "vr_flail_2h", 1.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("The flail held in both hands (the other on its handle): its blows this many times harder."),
+        header("Sound and Lying About"),
+        slider("Flail Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The flail's chain rattles (Arcane Dimensions' chain sound) as its head swings fast and as it strikes: "
+                  "the volume (0: none)."),
+        toggle("Flail Head Lying About", "vr_flail_world")
+            .help("A flail lying about (dropped, thrown, a death sergeant's) keeps its head on its chain: a body of its "
+                  "own you can carry, dragged by the handle and dragging it. Off: the handle alone."),
+        // (its tests: Debug > Tests > Arcane Dimensions Monsters, vr_menu_ad_monsters.inc)
     };
 }

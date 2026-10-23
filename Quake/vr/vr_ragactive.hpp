@@ -411,6 +411,12 @@ struct Stagger
     int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
     float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
     bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
+    // A tug-of-war over its weapon (box3d ragdollTug; QC vr_armedgrunt_play.qc): standing its ground, the arm `tugArm`
+    // (Limb; -1 none) pulling its hand (a player's hand holds its weapon) in before its chest at `tugStrength` (a reach's
+    // strength, 0..3), the other hand reaching for it too.
+    bool tug{false};
+    int tugArm{-1};
+    float tugStrength{1.f};
     // Its walk measured (vr_knockdown_debug's "gait:" line as it recovers or falls; the ragtool's checks): its knees'
     // bend (deg, least and most), each step's foot lift (m, its highest over where it rose and landed), the steps' level
     // length, the planted feet's slide (the glide), its hands' reach about its shoulders (each arm's box of them).

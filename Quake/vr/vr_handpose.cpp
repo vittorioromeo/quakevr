@@ -68,6 +68,17 @@ double lastTime = -1.0;
 float frameDt = 0.f;
 bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
 
+// A strike let past the level (vr_melee_world_pass): how long it still lasts after the hand slowed, how far it is let in
+// (1 all the way, eased back to 0), and the body it was going for.
+struct StrikePass
+{
+    float left{0.f};
+    float level{0.f};
+    int target{0};
+};
+StrikePass strikePasses[HAND_COUNT];
+constexpr float strikePassEase = 0.15f; // s from let in to held out whole again
+
 // Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
 // faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
 // Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
@@ -320,6 +331,72 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
     return false;
 }
 
+// Strikes let past the level (vr_melee_world_pass; ROUND22.md, "Swords past the floor"): the share of the weapon in hand
+// `h` (at `pos`; its points `shape[h]`) still held out of the walls and the floor now: 1 all of it; less while the hand
+// swings fast with the weapon's far part (beyond that share, as it is and a frame ahead) near a monster, a corpse or a
+// ragdoll, and for vr_melee_world_pass_time after it slowed, then eased back. A blade chopping at a body lying on the
+// floor reached the floor first and was pushed back up, its cut missing; the game's blow is judged where it is held.
+float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
+{
+    StrikePass& p = strikePasses[h];
+    const bool on = vr_melee_world_pass.value != 0.f; // (s.valid: set after the walls)
+    const float keep = za::clamp(vr_melee_world_pass_length.value, 0.f, 1.f);
+    const float dt = newFrame ? frameDt : 0.f;
+    const float speed = glm::length(s.vel[h]);
+    int target = 0;
+    if(on && keep < 1.f && speed >= za::max(vr_melee_world_pass_speed.value, 0.1f) && shape[h].size() > 1)
+    {
+        float reach = 0.f;
+        for(const glm::vec3& o : shape[h])
+        {
+            reach = za::max(reach, glm::length(o));
+        }
+        const glm::vec3 ahead = s.vel[h] * (units::metresToUnits() * za::max(frameDt, 1.f / 90.f));
+        const float grow = za::max(vr_melee_world_pass_reach.value, 0.f);
+        glm::vec3 lo{1e9f}, hi{-1e9f};
+        for(const glm::vec3& o : shape[h])
+        {
+            if(glm::length(o) >= reach * keep)
+            {
+                lo = glm::min(lo, glm::min(pos + o, pos + o + ahead));
+                hi = glm::max(hi, glm::max(pos + o, pos + o + ahead));
+            }
+        }
+        target = lo.x <= hi.x ? modelcollide::strikeTarget(h, lo - glm::vec3{grow}, hi + glm::vec3{grow}) : 0;
+        if(vr_debug_hand_offset.value == 3.f)
+        {
+            Con_Printf("strike pass %d: %.2f m/s, far part %.0f %.0f %.0f .. %.0f %.0f %.0f, target %d\n", h,
+                static_cast<double>(speed), static_cast<double>(lo.x), static_cast<double>(lo.y), static_cast<double>(lo.z),
+                static_cast<double>(hi.x), static_cast<double>(hi.y), static_cast<double>(hi.z), target);
+        }
+    }
+    const bool was = p.level > 0.f;
+    if(!on)
+    {
+        p = {};
+    }
+    else if(target)
+    {
+        p.left = za::max(vr_melee_world_pass_time.value, 0.f);
+        p.level = 1.f;
+        p.target = target;
+    }
+    else if(p.left > 0.f)
+    {
+        p.left = za::max(p.left - dt, 0.f);
+    }
+    else
+    {
+        p.level = za::max(p.level - dt / strikePassEase, 0.f);
+    }
+    if(vr_debug_hand_offset.value != 0.f && was != (p.level > 0.f))
+    {
+        Con_Printf("strike pass %s: %s at %.2f m/s, entity %d\n", h == HAND_MAIN ? "main" : "off",
+            p.level > 0.f ? "on" : "off", static_cast<double>(speed), p.target);
+    }
+    return 1.f - p.level * (1.f - keep);
+}
+
 } // namespace
 
 void resolvePositions(hands::State& s, float /* turnYaw */)
@@ -368,6 +445,13 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                 const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
                 const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
                 makeShape(h, s.rot[h], muzzleOffset);
+                if(const float length = strikeLength(h, s, pos); length < 1.f)
+                {
+                    for(glm::vec3& o : shape[h])
+                    {
+                        o *= length; // (the hand's own point, the first, stays at the hand)
+                    }
+                }
                 colliding[h] = gunOutOfWalls(m, pos, shape[h]);
             }
             else

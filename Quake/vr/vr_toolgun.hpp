@@ -77,6 +77,9 @@ void tempEntities();
 [[nodiscard]] const char* spawnableModel(int i);
 [[nodiscard]] int spawnableSkin(int i);
 [[nodiscard]] bool spawnableAvailable(int i); // AD support
+// Why entry `i` is unavailable (the file missing, the rules it needs), "" when it is available: printed when its greyed
+// tile is pressed, and by vr_toolgun_spawnlist.
+[[nodiscard]] const char* spawnableUnavailableWhy(int i);
 [[nodiscard]] bool spawnableAD(int i); // AD support
 // The pack an entry comes from: its group on the panel ("" id's and Quake VR's own, "AD", "SoA", "DoE", "MG3", ...).
 [[nodiscard]] const char* spawnablePack(int i);

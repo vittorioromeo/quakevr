@@ -1133,6 +1133,7 @@ QVR_TEMPORAL_FS_OUTPUT
 "	result.a *= alpha; // QVR\n"
 "	result = LiquidRefract(result, pos, n, facing, liquid); // QVR\n"
 "	result = LiquidBlood(result, pos, facing, liquid, clamp(dot(liquid_tex, vec3(0.3, 0.59, 0.11)) * 3.0 + 0.2, 0.4, 1.0)); // QVR: blood in it (vr_water_blood)\n"
+"	result.a *= LiquidEdge; // QVR: the wavy edge (LiquidFoam): what is behind seen past it\n"
 "	out_fragcolor = result;\n"
 "#if DITHER\n"
 "	if (Fog.w > 0.)\n"

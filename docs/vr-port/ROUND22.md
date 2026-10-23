@@ -18788,3 +18788,296 @@ the first blow's wear (the test's later strikes missed the moved crate), strong 
   On: the pink box covers both bits (opt-in); Done; swing at the grunt with Show Melee Blades on.
 (The breakables' counts were measured while the axe's head box was still on by default; the axe's first blow read
 16.8 m/s x heft, as the crates' table's 16.2: the counts hold with it off.)
+## Fuel tanks: the burst's field, no blood, the pickup's flight, armed monsters' back tanks (worktree `gorefx`, branch `agent/tanks2`, 2026-10-23)
+
+His notes (vrfiringrange_2026-10-23_21-23-16, 21-24-32, 21-25-15, 21-25-53). New cvars only (no vr_cfg_version change).
+
+- **The hiss that never stopped**: the burst played `pyro_flameon.wav` / `fum_poisonon.wav` (AD's loops: a stream's
+  "on", stopped by its "off" on the same channel) on CHAN_AUTO of the tank, which then went: nothing could stop them.
+  Every burst sound is now its field's (`VR_TankField_Make`): the whoosh on CHAN_WEAPON, its "off" 0.7 s later (the
+  loop's end and tail); the blast on CHAN_BODY; the field's loop on CHAN_BURN, stopped (`misc/null.wav`) as it goes. A
+  tank going any other way (its gun taken, removed, burst) has its channels hushed (`VR_FuelTank_Hush`).
+- **No blood**: `VR_Prop_Metal` (vr_crates.qc) counts `vr_fueltank` and `vr_fueltank_worn` as metal: shots, blows and
+  splashes give sparks and a tink (VR_HitBlood, the pellets' check, spawn_touchblood), the metal grab sound, and they
+  are never set on fire.
+- **The field** (QC `vr_ad_enemyguns.qc` "A burst's field", `vr_tankfield` entities): where a tank with fuel burst, on
+  the ground under it, for `vr_adgun_tank_field_time` (6 s) x (0.4 + 0.6 x the fuel's share), reach
+  `vr_adgun_tank_field_radius` (96) x the same. Every 0.5 s what is in its circle (its box within 48 units of the
+  ground for fire, 72 for the cloud), in sight of its middle: the flamethrower's sets it on fire (VR_Burn_Ignite, the
+  burst's burning time: monsters, players, corpses, crates) and deals the living `vr_burn_damage` a second x
+  `vr_adgun_tank_field_damage` (1) on top; the sprayer's poisons it (the burst's 8/s x the damage scale, for its time).
+  Another tank in the flames bursts (a chain). Look: AD flame tongues licking up off the floor through the circle, or
+  green poison and puffs (not through walls, not past ledges); sound: `ambience/fire1.wav` or AD's
+  `traps/steam_loop.wav`. Both fade over its second half (the loop's volume in four steps). The one who burst it is
+  hurt as anyone, not credited to himself.
+- **The pickup's flight** (`vr_adtank.cpp` "The pickup's flight"): the tanks drawn near the eyes are remembered each
+  frame (where, which way up); a fuelled gun newly in a hand (not from a holster nor the other hand) takes the nearest
+  tank of its kind within 1.6 m drawn within the last 0.3 s, which flies to the back over `vr_adgun_tank_pickup_time`
+  (0.25 s; smoothstep, rising 10 cm on the way, turning upright): the back tank itself (its hoses' outlet follows it,
+  `back.axis`), or one more tank joining it when one was already on the back. `buildTank` takes an axis.
+- **Armed monsters' back tanks** (QC `vr_adtankworn.qc`, new; `VR_FuelTank_Wear` called from `VR_AG_PropThink`, a one-line
+  hook): a monster holding a flamethrower or sprayer wears `vr_fueltank_worn` (the lying tank's model), placed every
+  frame between its row's back vertices (`vr_am_back_lo`, `_hi` in vr_armedmon.qc: the grunt's waist 93/95 and shoulder
+  blades 160/162; the enforcer's power pack 328/332 and 343/351), upright along them, its radius behind;
+  MOVETYPE_NOCLIP (NONE made Killed skip `.enemy`: no credit), `.owner` the monster (its own shots pass it). Health
+  `vr_adgun_tank_health`; burst (`VR_FuelTank_BurstNow`, worn branch): its gun spent (TANK_BURST, fuel 0) and dropped
+  (`VR_AG_DropHeld`; lying spent, no tank), then the blast, fire or poison and the field as a lying tank's (the monster
+  is reached). Dying with it, the gun falls with a lying tank (unchanged). The engine (`relinkWorn`, `VR_RelinkWornTanks`
+  after VR_RelinkArmedGrunts in CL_RelinkEntities) carries the tank's place relative to the server's monster onto the
+  drawn monster (smooth), and hoses it to the held gun (the world hose, its length 1.15 x their distance + 12 cm, kept
+  out of the torso: an ellipse from the chest to the tank). `vr_adgun_tank_worn` 1 (0 none). `vr_adgun_hose_info`
+  prints the flight and each worn tank.
+- **Settings**: AD Guns > Burst Field Time, Burst Field Reach, Burst Field Damage, Tank Pickup Flight, Armed Monsters'
+  Tanks. **Debug** > Tests > Arcane Dimensions Monsters: `vr_ad_test 175` fields and sounds, 176/177 a grunt beside /
+  into the nearest field, 178 an armed pyro grunt (temp1 1: sprayer) its back to you, 179 its tank's place and a
+  bullet's trace, 180 shoot it for 10, 181 a hit on the nearest tank (metal, blood count). (165-171 are the flail's.)
+- **Measured** (e1m1 and vrtesthall, AD mounted, headless; `scratch/tf_field.sh 1|2`, `tf_flight.sh`, `tf_worn.sh`;
+  `vr_weapon_grip_mode 1` now needed for 151/152 to keep the gun in the mock hand):
+  - hits on a tank: metal 1, 0 blood particles (lying and worn).
+  - a full flamethrower tank: field 6.0 s, reach 96; whoosh off after 0.7 s; a grunt beside it (48 past the edge)
+    untouched (30); moved in: burning, 30 -> 20 -> dead in ~2 s, its corpse burning on; the field gone after 6.0 s;
+    loops playing 1 -> 0, whooshes 0.
+  - a full sprayer tank: poison 8/s for 6 s on the grunt walking in (30 -> 13 -> dead); field gone after 6.0 s, loops 0.
+  - the flight: its first frame 0.00 units from where the tank lay; 0.13 s in 22 units on, 15 from the back spot,
+    tilted (up 0.74); 0.24 s in 0.2 from it; then the back tank, its hose following.
+  - an armed pyro grunt: its tank 10.2 behind, 10.1 above its origin; a bullet's trace from your eyes meets the tank;
+    hose drawn (127 rings); shots of 10: 20, 10, burst on it (credited to the player): the flamethrower dropped spent
+    (fuel 0, no tank, force grab skips it), the grunt 30 -> dead (blast and fire), the fire field 6.1 s.
+  - eyeshots: `scratch/tank_eyeshots.png` (two armed grunts' back tanks and hose; the sprayer's tank burst on its
+    grunt, its gun flying).
+- **Scenarios**: `tank_burst_field` (both guns lying with tanks, grunts beyond, a crate), `agrunt_tanks` (a pyro and a
+  sprayer grunt, backs to you, 180 apart: one burst doesn't chain the other). validate SCNOK, runall 2 OK.
+- **For him in VR**: shoot a tank: sparks, no blood; the hiss and fire stop with the field; walk into the flames and the
+  cloud; the field's look and fade. Take a lying flamethrower: the tank's flight (Tank Pickup Flight to taste). Armed
+  pyro and sprayer grunts: the tank and hose on their backs while they run and shoot, shoot the tank from behind.
+- **Not done / notes**: a loaded game's fields are silent (sounds aren't saved). The worn tank sits on the server's
+  pose of the back (not the drawn pose's vertices: its offset carried onto the drawn body), so in hit reactions and IK
+  it can be a few units off. The worn hose is a listen server's (as the world hoses). Dual-wielding monsters: only the
+  first weapon's tank.
+## Shoreline foam: his values, particles on the shore's line, a wavy edge (worktree `fastship`, branch `agent/foam3`, 2026-10-23)
+
+His notes (start 21-30, vrfiringrange 21-28, e1m1 21-33): his water particle, lava foam and particle, and slime values
+as the defaults; the particles sat in the middle of the band, not over the hard edge; the surface's edge at the shore
+less straight, more organic.
+
+- **Defaults (configVersion 196, migrated where the config still holds the old value)**: water `_breathe` 0.35 -> 0.45,
+  `_breathe_speed` 1 -> 2, `_particle_size` 1 -> 1.5, `_particles` 1 -> 2; lava `_breathe` 0.3 -> 0.65,
+  `_breathe_speed` 0.5 -> 2.7, `_particle_opacity` 0.6 -> 0.55, `_particle_size` 1 -> 3.05, `_particles` 0.6 -> 1.5;
+  slime `_blue` 0.14 -> 0.16, `_breathe` 0.25 -> 0.7, `_breathe_speed` 0.6 -> 3.4, `_frequency` 1.5 -> 1.6, `_green`
+  0.62 -> 0.56, `_strength` 1.5 -> 1.9, `_particles` 0.6 -> 1.5. Every other foam cvar of his config already matched.
+- **Particles on the line** (vr_particles.cpp `shoreFoam`): born `particle_shore + (-0.5 .. 1.5) * size` units out from
+  the shore's line (before `0.5 .. 3.5 * size`, in the band), drifting out at 0.5-2.5 u/s (was 1-4). New per liquid
+  `vr_water_foam_particle_shore`, `vr_lava_foam_particle_shore`, `vr_slime_foam_particle_shore` (0; -4..16 units).
+- **Wavy edge** (new `vr_water_foam_edge` 4, `vr_lava_foam_edge` 3, `vr_slime_foam_edge` 3; units, 0 off; in the
+  frame data's `Foam[i].w`, unused before): in `LiquidFoam` the shore distance is pulled back by up to that many units
+  by a slow two-octave world noise drifting along the shore (more where the swells push in), the foam follows the new
+  line and the liquid's output alpha is times `LiquidEdge` (see-through past it, a soft 1-unit edge, wider far off),
+  both liquid programs. Liquids drawn opaque (id maps without watervis, e1m1's water) don't blend, so
+  `LiquidDisplace` also raises the swells' mesh's rim vertices by up to 0.6x the edge (fading out 12 units in; only up,
+  no gap opens): the waterline climbs the wall in curves. The mesh's 16-unit cells make those curves gentle polylines.
+  Where two kinds of liquid meet with different edges a thin slit could open (not seen in the test maps).
+- **Cost** (`--exclusive`, `vr_profile_report 3`, vrtesthall's pool shore filling the view, 250 fps fast mode): GPU
+  `water` 0.138 (edges 0) / 0.136 (defaults) / 0.137 (edges 0) ms: within noise.
+- Eyeshots: `scratch/foam3_pool_pair2.png` (vrtesthall pool's west wall, his values with edges 0 and particles at the
+  old distance / defaults), `scratch/foam3_e1m1_pair.png` (e1m1 water, alpha only: no change on its opaque water),
+  `scratch/foam3_pair2.png` (e1m1 with the rim raise: the far shore curves).
+- Checklist test scenario: `foam_pool` (unchanged; the pool's edge).
+
+**In VR:** vrtesthall's pool and e1m1's water: the shore line should wander in soft curves, the puffs sitting on it.
+Shoreline Foam Settings: Water/Lava/Slime Wavy Edge (0 to compare), Particle Shore (more: out into the band).
+## Armed monsters: the physical tug, frozen after a disarm, weapons on the hands, parries, pickups (worktree `goreflesh`, branch `agent/agfix3`, 2026-10-23)
+
+Vittorio's notes (vrfiringrange 2026-10-23 21:07:48, 21:09:18, 21:09:44, 21:10:08, 21:14:15).
+
+**1. The physical tug** (`vr_agrunt_tug_ragdoll 1`, Armed Grunts page "Tug: Physical"). A full grab of a calm armed
+monster's weapon (not shaky, not from behind: those still give it at once) makes it an active ragdoll standing its
+ground: a stagger begun sure-footed, steady, not carried (`ragdollstagger(g, away from you, 0, 1, 0, cap + 2, TRUE)`),
+up again only when the tug ends (vr_knockdown.qc keeps a tug's stagger past `VR_KD_STAGGER_MOST`). Your hand holds the
+limb nearest the weapon's grip (its forearm) where your hand is: the weapon's lever (engine `tugRagdoll`,
+vr_box3d_ragparts.cpp: a ragdoll grab's motor joint without the palm fit, `RagdollGrab.tug`: the QC's hand holds nothing,
+so the held-field check never lets it go; at most 3x the break force, 6000 N). The weapon is drawn riding that limb
+(`VR_AG_RagProp`), so hand, weapon and its hand form one chain: the hold's constraint force
+(`b3Joint_GetConstraintForce`) is the force between its hand and the weapon. Its arms (`ragactive::Stagger.tug`): the
+holding arm pulls its hand in low before its chest, the other hand reaches for the same hand; no wheeling; its pelvis's
+pin times 1 + its pull. Its grip breaks at `vr_agrunt_tug_break_force` (900 N: a sharp yank) or at
+`vr_agrunt_tug_break_impulse` (350 N s of force x time counted above a tenth of the break force, eased off at half the
+need a second: a steady far pull), both times its health share (at least 0.35), half in pain; badly hurt or gone down:
+at once. Broken: the weapon is put in your hand (`VR_AG_Yank` now moves it to the hand first: a tug left it a little
+behind), it stumbles `VR_AG_TUG_STAGGER` (0.35 s) as a ragdoll and is handed back to its AI unarmed. Let go first (or
+`vr_agrunt_tug_hold_max`, 6 s: it wrenches free): up again in 0.2 s, it keeps it. Haptics every 0.1 s, stronger with the
+pull's share of the break (and jerks). Sliders: Tug: Physical, Break Force, Break Impulse, Its Pull
+(`vr_agrunt_tug_strength` 1.5), Longest. No per-kind table rows (the enforcer's body resists as its ragdoll does). The
+builtin: `ragdolltug` (QC wrapper over `ragdollgrab`'s optional `tug` argument: the builtins' table is full).
+Measured (test 31, a grunt): held still 13-40 N; drawn back 0.1 m/s to 0.4 m: 30-50 N for the first 20 cm (its body
+leans and follows), about 280 N at 35-40 cm; a yank at 0.6 m/s tears it out at 950 N after 0.29 s (17 cm).
+
+**2. Frozen after a disarm.** Cause: a tug's `vr_ag_tug_pl` left set when its weapon left by another way (a blow on its
+hand or on the weapon, a throw, a parry, its death) while the old tug was on: `VR_AG_Run` sent it to `vr_ag_tughold` every
+frame, which, with no weapon, set `think` to its run without a `nextthink`: standing, doing nothing. Fix: `VR_AG_DropHeld`
+ends a tug first (lost), the prop's removal ends it, `vr_ag_tughold`/`VR_AG_TugResume` end a tug with no weapon and go on
+running. Test 33: every path (the physical tug, a hand blow, a weapon blow, a throw, a parry, a fall, and the old tug
+then a hand blow) then fights or goes for a weapon within 2 s: 7 PASS (0.10 .. 1.18 s).
+
+**3. Weapons on the hands.** A guard's or a hit reaction's turns (client kicks on the arms after the arms' IK) moved the
+hands off the weapon drawn at the IK target. `relinkArms` now poses the kicks as drawn (`boneKicks` on the lerped keys)
+and carries each weapon by its forearm's kick (both hands). A ragdoll (a stagger, a tug, a fall, a struggle): the server
+no longer leaves the weapon where it was: `VR_AG_PlaceProp` rides it on the limb nearest its grip as it was posed when
+the ragdoll began (`ragdollpoint` there and back; the prop's posed forward and up kept: `.vr_ag_pfw`, `.vr_ag_pup`), and the
+client leaves a ragdoll's weapon to the server. Death: it drops (unchanged). Eyeshots: `vr_agrunt_test 14` with
+`scratch5 1` (each guards its head from you), test 31 with `scratch1 1` (unbreakable) for the standing tug.
+
+**4. Parries.** Cause: their blows are your weapons' own code (`VR_AGP_Strike`), which deals damage through
+`T_Damage_VRMelee` and `T_DamageImpl`, never `T_Damage`'s `VR_Parry`. Fix: `T_Damage_VRMelee` runs `VR_Parry` for an
+armed monster's blow on a player (windows, cooldown, stamina, its stagger, sounds, haptics, the disarm chance), and the
+parry's hand test runs with `self` the player (`VR_Parry_HandFor`: during its blow `self` is the monster with its own
+hand fields). Test 35: each melee weapon and fists against the crowbar held across (TESTING.md's parry pose).
+
+**5. Pickups reach down** (note 21:14:15). Its take frames from the row (`vr_am_f_take`): the grunt's now painc4..7 (a
+crouch: its top 28, 24, 17, 15 units; load1..4 stood upright), the enforcer's paind5..8 (a knee) as before. The weapon is
+its own from the first take frame but drawn where it lay (`VR_AG_TakeBegin`: `.vr_ag_took_*`), its hand's IK reaching down
+to it; its hand closes at the third frame (`vr_ag_took_grab`, by time: `VR_AG_TakeGrab` counts it, the sound), then it is
+carried up to its hold over `VR_AG_LIFT_TIME` (0.3 s, eased; both hands for a second weapon). Cut short before its hand
+closes (a pain, a shove, anything but its take frames or its run): dropped where it lay. Test 34: it lay still until the
+hand closed (moved 0.0 units), carried up over 0.49 s, 1 pickup PASS; hit as it reaches: untaken, lying PASS.
+
+**Tests** (vrtesthall, `vr_mock_hand main 0.1 0.72 -1.2 65 0 0`, `+grabmain`): 31 the tug pulled (yank, and a slow pull
+with `scratch2 0.25; scratch3 0.12`): begun standing, holds still, torn out, up in 0.4 s, then fights: PASS; 32 let go:
+keeps it, up, fights PASS; 33 paths 7 PASS; 34 pickup 2 PASS; 35 parries (with `vr_weapon_grip_mode 1; impulse 167;
+vr_mock_hand main 0.15 1.35 -0.35 0 90 0`). 21/22 (the old tug) set `vr_agrunt_tug_ragdoll 0` themselves. The mock:
+`vr_mock_hand_pull` (m, the main hand drawn back). Scenarios: `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`,
+`agrunt_guard`.
+
+## Swords past the floor; the toolgun's unavailable entries say why (worktree `tghost`, branch `agent/meleeworld`, 2026-10-23)
+
+Notes vrfiringrange_2026-10-23_21-11-40 (swords awkward near floors and walls: chopping a body lying on the floor, the
+blade meets the floor first and is pushed back up, the cut misses) and 21-15-21 (the Phantom Swordsman "not available"
+from the toolgun).
+
+**Swords past the floor (`vr_melee_world_pass`).** The game's hand is the one held out of the level (vr_handpose.cpp
+`gunOutOfWalls`: the weapon's points slide along what they meet, the hand moved with them up to `vr_gun_wall_max`), and
+the melee judges blows there; so a chop at a limb on the floor had its blade held up off the floor, the hand slowed and
+lifted with it. Now, while the hand swings at least `vr_melee_world_pass_speed` (2.5 m/s) and the weapon's far part
+(beyond the share still held out, as it is and a frame ahead at the hand's velocity) is within
+`vr_melee_world_pass_reach` (12 units) of a monster, a corpse or a ragdoll as drawn (`modelcollide::strikeTarget`: the
+entities "Swing Through Enemies" passes; a fist or a melee weapon, a gun or prop only with `vr_melee_phase_hold`), only
+`vr_melee_world_pass_length` (0.35) of the weapon from the hand is held out of the walls and the floor: the rest goes in
+and reaches the body. It lasts `vr_melee_world_pass_time` (0.25 s) after the hand slowed, then the length is eased back
+to all of it over 0.15 s (no snap out of the floor read as a new stroke). With no body near, nothing changes (wall
+blows, sparks, marks). Gameplay > Melee: "Strike Past the Floor" (the toggle and four sliders); `vr_debug_hand_offset
+1` prints `strike pass main: on|off`, 3 each fast frame's test (the far part's box, the body found). Defaults are a
+first guess: the length (0.35) is what to tune in VR.
+
+Measured (vrfiringrange, a synthetic downward sword chop, `scratch/mw_deepchop.py`: the hand down to the floor; a fresh
+grunt corpse 40 units ahead each swing, the player 0..20 units nearer; `developer 2`'s `corpse strike` and `limbs:
+... cut off`): pass off 4 of 6 swings struck and cut, the two farthest (36 and 40 units) only hit the floor; pass on 5
+of 6 struck, 4 cut, both farthest cut. With motion_synth's shallower `chop_down_gib` (the hand stopping 25 cm over the
+floor) the pass did not help (3 of 6 struck off, 2 on): the gain is in the hard, deep chops he described. A ragdoll's pose differs run
+to run, so single swings are noisy. eval.sh --full: 177 takes, 0 verdict changes (3 takes' damage differs by 0.1:
+punch_straight x2, slash_backswing_up_left; the canary flagged them).
+
+**Phantom Swordsman unavailable.** Not reproduced: with Rogue's data in the base folder (as his Steam install has it:
+rogue/pak0.pak holds progs/sword.mdl, and his log says "rogue available") the DoE entries are available in any
+campaign: `vr_toolgun_spawn_test` on e1m1 spawned every SoA and DoE monster (the Phantom Swordsman alive, drawn), and
+`vr_toolgun_select DoE Phantom Swordsman` selects it on vrfiringrange. The mission packs are already mounted in every
+campaign whenever their data is valid (VR_BeforeAddGameDirectory), and MG3's entries read in place ("owned/mg3/..."),
+so no per-campaign restriction was found to lift. What was added to find it next time: pressing a greyed toolgun tile,
+or `vr_toolgun_select` of an unavailable entry, prints `toolgun: <label> unavailable: <why>` (the file missing from the
+search path, AD's data or rules, MG3's campaign); `vr_toolgun_spawnlist` lists every unavailable entry with its reason.
+Open question: what exactly did the toolgun show (a greyed tile, the Armed page, a message)? A note with it pressed would
+name the cause.
+
+Scenarios: `sword_floor` (vrtesthall: a sword, Show Melee Blades, two grunt corpses, one against the wall),
+`phantom_swordsman` (e1m1: the DoE Phantom Swordsman spawned ahead). `vr_scenario validate`: 49 files, 0 errors;
+`runall`: both OK.
+
+**In VR:** with the sword, chop hard down at a corpse's arm or leg on the floor and at one against the wall: the blade
+should go into the floor/wall a little and cut instead of bouncing up; chop the bare floor and a wall: sparks and marks
+as before. Tune Strike Past: Length Held Out (lower: more of the blade goes in). Phantom Swordsman: open the toolgun's
+DoE group; if its tile is greyed, press it and record a note (the console line says why).
+
+## Save My Settings as Defaults; the dropped toolgun's own loot beam (worktree `tghost`, branch `agent/savedefaults`, 2026-10-23)
+
+**Proposing defaults.** A developer-only way for the author to hand his tweaks to the coordinator without anything in
+the game changing (vr_propose_defaults.hpp/.cpp). `vr_propose_defaults`, *Debug > Save My Settings as Defaults* and a
+new corner button *Save Default* (vr_menuui.cpp `ToolSaveDefaults`, between Toolgun and Checklist; shown only at Menu
+Detail: Developer, as those two) write every cvar whose value differs from its shipped default (`default_string`, which
+`vr_default` in `vr_defaults.cfg` replaces; numbers compared as numbers; read-only cvars skipped) to
+`quakevr/proposed_defaults/<YYYY-MM-DD_HH-MM-SS>.cfg` (`_2`... for two in a second; git-ignored). The button's first
+press arms it ("Press again" on the button for 3 s, a console line), the second writes; the button then says
+"Saved N" (or "Not saved") for 5 s and the console prints `Saved N settings for review: <path>`.
+
+The file: a header, then sections `// == <area> ==` sorted by area: the menu pages first (the path of the setting's
+nearest row, from Search's index: `menu::forEachSettingPath`, every page under VR Settings and Advanced VR Options
+whatever Menu Detail shows), then `Weapon slot NN (<model>)` for `vr_wofs_*_NN`, `Held object slot NN (<model>)` for
+`vr_prop_*_NN`, then `Not in the menus: <prefix>_*` (the name up to its second underscore for `vr_`, its first
+otherwise). One line a setting: `name "value" // default "old", <menu row path | its weapon's tuning pages | not in
+the menus>, archived|not archived[, personal?|debug?]`. Everything is written; the tags are name heuristics for
+filtering: `debug?` (debug, test, show, dump, profile, trace, mock, dryrun, developer, verbose, `_log`), else
+`personal?` (calib, bodycal, handcal, comfort, height, handed, seated, floor_offset, gunangle/gunyaw, offhandpitch/yaw,
+dominant, body_tweak/arm/elbow/shoulder/forearm/wrist/eye/torso, xr_runtime, `_version`, tips_seen, tutorial,
+note_device, vr_motion_, vr_menu_, vignette, snapturn). Decision: "hand" alone is not a personal tag (it would catch
+every hand gameplay setting); handedness and the hand-angle calibration are.
+
+Tested headless: with `vr_menu_level 1` the button is not there (`vr_mock_laser savedefaults` + two trigger clicks: no
+press, no file); at 2 the first click printed the "press again" line, the second `Saved 40 settings for review`. The
+file had `vr_lootbeam_opacity "0.4" // default "0.15", Advanced VR Options > Graphics > Loot Beams > Opacity, archived`,
+`vr_wofs_2h_dispmd_05` under `Weapon slot 05 (progs/v_nail2.mdl)`, `vr_prop_mass_01` under `Held object slot 01
+(maps/b_explob.bsp)`, `vr_gunangle ... personal?`, `vr_lootbeam_debug ... not archived, debug?`.
+
+**The toolgun's loot beam** (his note vrfiringrange_2026-10-23_21-18-02: dropped toolguns are hard to find among many
+weapons). A weapon prop drawn as `progs/v_toolgun.mdl` gets `vr_lootbeam_hue_toolgun` (305, magenta) and a beam
+`vr_lootbeam_toolgun_length` (2) times Length (Graphics > Loot Beams, Developer rows). `vr_lootbeams_report` adds
+`toolgun: hue 305, length x2.00` to its line and `toolguns N` to the counts; `vr_lootbeam_test <count> <gibs> 1` lays a
+toolgun too (Debug > Tests > Loot Beams: Lay Out Loot does). Checked: `vr_scenario toolgun_lootbeam` (nine weapons and
+a toolgun on vrtesthall): 12 beams, `toolguns 1`, the toolgun's at hue 305, x2.
+
+Scenarios: `save_defaults` (vrtesthall, Menu Detail: Developer for the test), `toolgun_lootbeam`. `vr_scenario
+validate`: 57 files, 0 errors; `runall` of both: OK.
+
+**In VR:** at Menu Detail: Developer, press the corner's *Save Default* twice: it says "Saved N"; the file in
+`quakevr/proposed_defaults` lists your changes with their menu rows. Drop a toolgun among other weapons: its pillar is
+magenta and twice as tall.
+## The held flail's head hangs again; its settings on a Flail page (worktree `gorefx`, branch `agent/flail3`, 2026-10-23)
+
+His note vrtesthall_2026-10-23_22-41-32 (the `flail` scene, the flail in the main hand): "the ball hovers there; it
+doesn't seem to react to gravity anymore, maybe the drag is too high", and searching the menus for "flail" found none
+of its settings.
+
+- **The cause** (not the drag): the flailprop split (`agent/flailprop`, "The flail lying about keeps its ball and
+  chain") moved the after-step work into `vr_box3d_flail.cpp stepped` and lost its first line,
+  `head.pos = world->toU(b3Body_GetPosition(head.head))`. The head's place after the step was never read again: the
+  view drew it where it was made, QC's `.vr_flail_head` (where a dropped flail's head lying about is made) stayed
+  there, and the chain's length guard, measuring from that stale place, set the body back onto it every frame once the
+  hand moved off: the body whirled round a fixed spot at the speed cap (504 u/s) while the ball hung in the air.
+  Restored (with a comment); `vr_flail_debug 2`'s line now also prints the handle's end.
+- **Measured** (`scratch/fl_t1.sh`, `fl_t2.sh`, `fl_sum.py`; the `flail` scene, `+grabmain`, `notarget`; the head
+  against the handle's end over 3 s):
+
+  | case | before | after |
+  | --- | --- | --- |
+  | from the scene's give | drawn head fixed, at the speed cap | 8 below the handle's end, falls to 17.6 (the chain), swings (sway 15 -> 7 units, speed peaks 106 -> 55 u/s) |
+  | still hand, after it settled | z fixed 38.0, then 43.2 (above the hand), 504 u/s | hangs 17.7 below, sway 7 -> 3 units |
+  | 90-degree arm flick (0.68 m in 0.125 s) | z 43.2 throughout, 504 u/s | swings up to 5 above the handle and back; at 3 s still swinging (sway 11-14, speed peaks 177 -> 86 u/s) |
+  | taken from the floor (`vr_ad_test` 166, 167) | z, x, y fixed at the lying head's | starts 15 below, swings up to 4 above, settles (17.4 below) |
+
+- **The drag kept at 0.6:** with the head free again a flick's swing halves in about 2 s and still goes after 3 s
+  (0.15: barely dies down; 0.3 between). A whirl (`vr_mock_swing 0.4`) reaches the 16 m/s cap at 0.15, 0.3 and 0.6
+  alike: the cap, not the drag, bounds a whirl. No default changed, no migration.
+- **The Flail page** (`vr_menu_ad_guns.inc pageFlail`, the last page, 280): Combat > Melee > Flail (where the melee
+  settings are), also linked from Arcane Dimensions > Soldiers' Guns (where the group was, under a header search never
+  matches). Rows: Flail Chain Length, Flail Head Mass, Flail Air Drag (was Head Drag), Flail Most Head Speed; Its
+  Blows: Flail Damage, Flail Least Speed, Flail Most Damage, Flail Least Damage, Flail in Two Hands; Sound and Lying
+  About: Flail Chain Rattle, Flail Head Lying About. The helps say "maximum"/"minimum" for Most/Least.
+  `vr_menu_search flail`: the page first (1.62); "air drag": Flail Air Drag 4th (after the grappling hook's);
+  "maximum damage": Flail Most Damage first; "chain length": Flail Chain Length first. `vr_menu_slider_step` steps
+  each of the 10 sliders' cvars (0.45 -> 0.5 m, 3 -> 3.1 kg, ... 0.6 -> 0.65 drag). `vr_menu_path_check
+  maps/vrcalibration.map`: 6 found, 0 missing.
+- **Test scene:** `flail` reused unchanged. Headless, the scene's give is let go of 26 frames later unless the mock
+  grips (`+grabmain`): every `give` scene's mock behaviour, not the flail's.
+
+Pictures: `scratch/flail3_eyes.png` (the head hanging under the hand; the hand swept right; the Flail page).
+
+**In VR:** take the flail (the `flail` scene) and hold still: the ball should hang under the handle on its chain; lower
+the hand slowly and turn: it trails and swings; flick it: it swings up and dies down over a few seconds; whirl it: it
+still takes work. Drop it and pick it up: the head swings up from where it lay. Search "flail" in the menus: the Flail
+page first; try Flail Air Drag (lower: swings longer).

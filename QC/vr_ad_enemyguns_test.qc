@@ -847,11 +847,162 @@ void(float request, entity p) AD_FuelTankTest =
     }
 };
 
+// The burst's field and the armed monsters' tanks (ROUND22.md "Fuel tanks: the burst's field, the pickup, armed monsters'
+// tanks"): 175 the fields now (each one's kind, time left, reach, its loop's volume step) and the sounds' state (loops
+// and whooshes playing: 0 when they are all gone), the test grunt's health and state; 176 a grunt made just outside the
+// nearest field (its edge and 48 more, to your right of it); 177 that grunt into the field's middle (it walks in);
+// 178 an armed grunt with a flamethrower (temp1 1: a poison sprayer) 160 ahead, its back to you; 179 the nearest worn
+// tank: its place on its wearer's back, its health, whether a shot from your eyes meets it; 180 that tank shot by you
+// for 10 (three burst it: its wearer's state after).
+entity vr_tankfield_testmon; // 176's grunt
+entity(entity p) VR_FuelTank_TestWorn;
+entity(entity p, float xWid, float xDist) VR_FuelTank_TestWearer;
+
+entity(entity p) AD_TankField_Nearest =
+{
+    entity best = world;
+    for(entity f = find(world, classname, "vr_tankfield"); f; f = find(f, classname, "vr_tankfield"))
+    {
+        if(f.vr_tf_end > time && (!best || vlen(f.origin - p.origin) < vlen(best.origin - p.origin)))
+        {
+            best = f;
+        }
+    }
+    return best;
+};
+
+void(entity e) AD_TankField_PrintMon =
+{
+    if(!e)
+    {
+        return;
+    }
+    float burning = (e.burn_fire != world && e.burn_fire.enemy == e);
+    float poisoned = (e.vr_adpoison != world && e.vr_adpoison.enemy == e);
+    bprint(sprintf("tankfield: %s at %v: health %g, burning %g (%.1f s more), ", e.classname, e.origin, e.health, burning,
+        burning ? e.burn_fire.burn_end - time : 0));
+    bprint(sprintf("poisoned %g (%.1f/s, %.1f s more)\n", poisoned, poisoned ? e.vr_adpoison.dmg : 0,
+        poisoned ? e.vr_adpoison.attack_finished - time : 0));
+};
+
+void(float request, entity p) AD_TankFieldTest =
+{
+    if(request == 175)
+    {
+        float n = 0;
+        for(entity f = find(world, classname, "vr_tankfield"); f; f = find(f, classname, "vr_tankfield"))
+        {
+            n++;
+            // (sprintf takes 7 values at most: two prints)
+            bprint(sprintf("tankfield: %s at %v: %.1f s left of %.1f, reach %.0f, ", f.vr_tf_kind == 1 ? "fire" : "poison",
+                f.origin, f.vr_tf_end - time, f.vr_tf_end - f.vr_tf_start, f.vr_tf_radius));
+            bprint(sprintf("strength %.2f, loop step %g, whoosh %s\n", VR_TankField_Strength(f), f.vr_tf_level,
+                f.vr_tf_hush ? "on" : "off"));
+        }
+        bprint(sprintf("tankfield: time %.2f: %g fields (%g made), %g reached, loops playing %g, whooshes playing %g, ", time,
+            n, vr_tankfield_made, vr_tankfield_hits, vr_tankfield_loops, vr_tankfield_whoosh));
+        bprint(sprintf("bursts %g, worn tanks made %g\n", vr_fueltank_bursts, vr_fueltank_worn_made));
+        AD_TankField_PrintMon(vr_tankfield_testmon);
+        return;
+    }
+    if(request == 176 || request == 177)
+    {
+        entity nf = AD_TankField_Nearest(p);
+        if(!nf)
+        {
+            bprint("tankfield: no field\n");
+            return;
+        }
+        makevectors('0 1 0' * p.angles_y);
+        if(request == 176)
+        {
+            entity was = self;
+            self = spawn();
+            setorigin(self, nf.origin + v_right * (nf.vr_tf_radius + 48) + '0 0 25');
+            self.angles_y = p.angles_y + 90;
+            self.classname = "monster_army";
+            monster_army();
+            vr_tankfield_testmon = self;
+            self = was;
+        }
+        else if(vr_tankfield_testmon)
+        {
+            setorigin(vr_tankfield_testmon, nf.origin + '0 0 25');
+        }
+        AD_TankField_PrintMon(vr_tankfield_testmon);
+        return;
+    }
+    if(request == 181)
+    {
+        // A hit on the nearest tank (lying or worn): metal, never blood (VR_HitBlood and the shotgun's pellets' check).
+        entity ht = world;
+        for(entity e = nextent(world); e; e = nextent(e))
+        {
+            if(VR_FuelTank_Is(e) && e.modelindex && (!ht || vlen(e.origin - p.origin) < vlen(ht.origin - p.origin)))
+            {
+                ht = e;
+            }
+        }
+        if(!ht)
+        {
+            bprint("tankfield: no tank to hit\n");
+            return;
+        }
+        float blood = vr_blood_sent;
+        VR_HitBlood(ht, ht.origin, '0 0 -100', 10);
+        VR_HitBloodSplash(ht, ht.origin, 10);
+        bprint(sprintf("tankfield: hits on %s: metal %g, blood particles sent %g\n", ht.classname, VR_Hit_Metal(ht),
+            vr_blood_sent - blood));
+        return;
+    }
+    if(request == 178)
+    {
+        entity w = VR_FuelTank_TestWearer(p, cvar("temp1") == 1 ? WID_ADFUMIGATOR : WID_ADPYRO, 160);
+        bprint(sprintf("tankfield: %s armed with %s at %v\n", w.classname, w.vr_ag_prop.netname, w.origin));
+        return;
+    }
+    entity t = VR_FuelTank_TestWorn(p);
+    if(!t)
+    {
+        bprint("tankfield: no worn tank\n");
+        return;
+    }
+    entity m = t.owner;
+    if(request == 179)
+    {
+        makevectors('0 1 0' * m.angles_y);
+        vector d = t.origin - m.origin;
+        vector eye = p.origin + p.view_ofs;
+        traceline(eye, t.origin, MOVE_HITGIBS | MOVE_HITMODEL, p); // (as a bullet: weapons.qc FireBullets)
+        bprint(sprintf("tankfield: worn tank %s on %s: %.1f forward, %.1f right, %.1f up of its origin, ", t.model,
+            m.classname, d * v_forward, d * v_right, d * v_up));
+        bprint(sprintf("angles %v, health %g; a shot from your eyes meets %s\n", t.angles, t.health,
+            trace_ent == t ? "the tank" : trace_ent.classname));
+        return;
+    }
+    if(request == 180)
+    {
+        float bursts = vr_fueltank_bursts;
+        float hp = m.health;
+        T_Damage(t, p, p, 10);
+        bprint(sprintf("tankfield: shot %s's worn tank: health %g, burst %g, reached %g; its wearer: health %g -> %g, "
+            "holds %s\n", m.classname, t.health, vr_fueltank_bursts - bursts, vr_fueltank_burst_hit, hp, m.health,
+            m.vr_ag_prop ? m.vr_ag_prop.netname : "nothing"));
+        AD_TankField_PrintMon(m);
+        return;
+    }
+};
+
 void(float request, entity p) AD_GunTest =
 {
     if(request >= 150 && request <= 164)
     {
         AD_FuelTankTest(request, p);
+        return;
+    }
+    if(request >= 175 && request <= 181)
+    {
+        AD_TankFieldTest(request, p);
         return;
     }
     if(request >= 96 && request <= 100)

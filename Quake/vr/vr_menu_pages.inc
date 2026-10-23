@@ -504,6 +504,9 @@ void resetHandMoves()
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
         open("Incandescent Blades", pageIndex(pageHotBlades))
             .help("A melee weapon held in a flame or lava glows red-hot: harder blows that set what they strike on fire."),
+        open("Flail", pageIndex(pageFlail)) // AD support (vr_menu_ad_guns.inc)
+            .help("Arcane Dimensions' death sergeant's flail, its spiked head swinging on a chain: the chain's length, the "
+                  "head's mass and air drag, its blows' damage and speeds, its rattle, its head lying about."),
         header("Swing Sounds"),
         toggle("Whoosh by Speed", "vr_melee_swish").help("Every swing of a fist, an open hand or a melee weapon that moves air whooshes, louder the faster: softly short of a blow, a blow at full volume, the fastest blows louder still and a little higher. Off: only a blow whooshes, always at full volume. A gun's swing whooshes only as a blow."),
         slider("Heard From", "vr_melee_swish_min", 0.2f, 0.9f, 0.05f, "%.2fx").extend(0.05f, 0.95f).help("The slowest swing heard, as a share of the speed its blow would land at (slower: silent)."),
@@ -515,6 +518,12 @@ void resetHandMoves()
         slider("Swing Through Speed", "vr_melee_phase_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows."),
         slider("Swing Through Follow-Through", "vr_melee_phase_time", 0.f, 0.5f, 0.01f, "%.2f s").extend(0.f, 2.f).help("How long the hand still passes through after it slowed down, so a blow's end isn't stopped inside the enemy."),
         toggle("Swing Through: Guns and Props", "vr_melee_phase_hold").help("Also a gun or a prop held in one hand, swung as a club. Off: only fists and melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)."),
+        header("Strike Past the Floor"),
+        toggle("Strike Past Walls and Floor", "vr_melee_world_pass").help("While your hand swings fast at an enemy, a corpse or a ragdoll near the wall or the floor, most of your weapon is let into the level instead of being held out of it, so a cut at a body lying on the floor reaches it instead of the blade bouncing up off the floor first. Swung at the floor or a wall with no body near, it meets the level as before (sparks, marks, the wall blow). Off: always held out of the level whole."),
+        slider("Strike Past: Length Held Out", "vr_melee_world_pass_length", 0.f, 1.f, 0.05f, "%.2f").help("During such a strike, the share of the weapon (from your hand) still held out of the walls and the floor: lower lets more of the blade in. 0: only your hand; 1: all of it (as off)."),
+        slider("Strike Past: Speed", "vr_melee_world_pass_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move for a strike to be let past the level."),
+        slider("Strike Past: Follow-Through", "vr_melee_world_pass_time", 0.f, 0.5f, 0.05f, "%.2f s").extend(0.f, 2.f).help("How long the weapon stays let in after the hand slowed (the end of the cut), before it is eased back out."),
+        slider("Strike Past: Target Reach", "vr_melee_world_pass_reach", 0.f, 32.f, 1.f, "%.0f units").extend(0.f, 64.f).help("How near the weapon's far end (and where it is going) the body must be for the strike to be let past the level."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
@@ -2067,6 +2076,8 @@ void retroAllUncheckCategories()
         slider("Power-ups Hue", "vr_lootbeam_hue_powerups", 0.f, 355.f, 5.f, "%.0f"),
         slider("Keys and Runes Hue", "vr_lootbeam_hue_keys", 0.f, 355.f, 5.f, "%.0f"),
         slider("Backpacks Hue", "vr_lootbeam_hue_backpacks", 0.f, 355.f, 5.f, "%.0f"),
+        slider("Toolgun Hue", "vr_lootbeam_hue_toolgun", 0.f, 355.f, 5.f, "%.0f").developer().help("A dropped toolgun's own colour (it is a weapon, but easy to lose among many): 305 magenta."),
+        slider("Toolgun Beam Length", "vr_lootbeam_toolgun_length", 1.f, 4.f, 0.25f, "x%.2f").developer().help("A dropped toolgun's beam this many times Length, so it stands above the weapons'."),
     };
 }
 
@@ -2099,8 +2110,8 @@ void retroAllUncheckCategories()
 struct FoamRows
 {
     cvar_t &on, &opacity, &frequency, &strength, &breathe, &breatheSpeed, &breatheIrregularity, &red, &green, &blue,
-        &particles, &particleLife, &particleOpacity, &particleSize;
-    const char* label[15]; // the header, then each row's
+        &particles, &particleLife, &particleOpacity, &particleSize, &particleShore, &edge;
+    const char* label[17]; // the header, then each row's
 };
 
 void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
@@ -2120,6 +2131,8 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     items.pushBack(slider(r.label[12], r.particleLife, 0.2f, 4.f, 0.1f, "%.1f s").extend().help("How long each foam particle lasts, drifting and fading out."));
     items.pushBack(slider(r.label[13], r.particleOpacity, 0.f, 1.f, 0.05f, "%.2f").extend().help("How opaque the foam particles are."));
     items.pushBack(slider(r.label[14], r.particleSize, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("How big the foam particles are (1: about 3 units across, growing to 9 as they fade)."));
+    items.pushBack(slider(r.label[15], r.particleShore, -4.f, 16.f, 0.5f, "%.1f").extend().help("Where the foam particles are born: units out from the line where the liquid meets the rock (0: on it, a little either side, over the hard edge; more: out in the foam band)."));
+    items.pushBack(slider(r.label[16], r.edge, 0.f, 12.f, 0.5f, "%.1f").extend().help("A wavy edge: the liquid's edge at the shore drawn back in slow curves that drift along it, the foam following them, so it is not one straight cut. How far, units (0 off)."));
 }
 
 [[nodiscard]] za::Vector<Item> pageGraphicsFoam()
@@ -2129,24 +2142,27 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
         vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
         vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,
-        vr_water_foam_particle_opacity, vr_water_foam_particle_size,
+        vr_water_foam_particle_opacity, vr_water_foam_particle_size, vr_water_foam_particle_shore, vr_water_foam_edge,
         {"Water", "Water Foam", "Water Opacity", "Water Frequency", "Water Strength", "Water Breathing",
             "Water Breathing Speed", "Water Breathing Irregularity", "Water Red", "Water Green", "Water Blue",
-            "Water Particles", "Water Particle Life", "Water Particle Opacity", "Water Particle Size"}});
+            "Water Particles", "Water Particle Life", "Water Particle Opacity", "Water Particle Size",
+            "Water Particle Shore", "Water Wavy Edge"}});
     addFoamRows(items, {vr_lava_foam_on, vr_lava_foam_opacity, vr_lava_foam_frequency, vr_lava_foam_strength,
         vr_lava_foam_breathe, vr_lava_foam_breathe_speed, vr_lava_foam_breathe_irregularity, vr_lava_foam_red,
         vr_lava_foam_green, vr_lava_foam_blue, vr_lava_foam_particles, vr_lava_foam_particle_life,
-        vr_lava_foam_particle_opacity, vr_lava_foam_particle_size,
+        vr_lava_foam_particle_opacity, vr_lava_foam_particle_size, vr_lava_foam_particle_shore, vr_lava_foam_edge,
         {"Lava", "Lava Foam", "Lava Opacity", "Lava Frequency", "Lava Strength", "Lava Breathing",
             "Lava Breathing Speed", "Lava Breathing Irregularity", "Lava Red", "Lava Green", "Lava Blue",
-            "Lava Particles", "Lava Particle Life", "Lava Particle Opacity", "Lava Particle Size"}});
+            "Lava Particles", "Lava Particle Life", "Lava Particle Opacity", "Lava Particle Size",
+            "Lava Particle Shore", "Lava Wavy Edge"}});
     addFoamRows(items, {vr_slime_foam_on, vr_slime_foam_opacity, vr_slime_foam_frequency, vr_slime_foam_strength,
         vr_slime_foam_breathe, vr_slime_foam_breathe_speed, vr_slime_foam_breathe_irregularity, vr_slime_foam_red,
         vr_slime_foam_green, vr_slime_foam_blue, vr_slime_foam_particles, vr_slime_foam_particle_life,
-        vr_slime_foam_particle_opacity, vr_slime_foam_particle_size,
+        vr_slime_foam_particle_opacity, vr_slime_foam_particle_size, vr_slime_foam_particle_shore, vr_slime_foam_edge,
         {"Slime", "Slime Foam", "Slime Opacity", "Slime Frequency", "Slime Strength", "Slime Breathing",
             "Slime Breathing Speed", "Slime Breathing Irregularity", "Slime Red", "Slime Green", "Slime Blue",
-            "Slime Particles", "Slime Particle Life", "Slime Particle Opacity", "Slime Particle Size"}});
+            "Slime Particles", "Slime Particle Life", "Slime Particle Opacity", "Slime Particle Size",
+            "Slime Particle Shore", "Slime Wavy Edge"}});
     return items;
 }
 

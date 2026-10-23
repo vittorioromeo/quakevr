@@ -23,6 +23,7 @@ struct SearchEntry
     za::String lowHelp;
     za::String lowPath;
     za::String lowCvar;
+    const cvar_t* cvar{nullptr}; // a setting's row: its cvar (menu::forEachSettingPath)
     int page{-1};         // where it is (a page: itself)
     int level{0};         // the Menu Detail it shows from
     bool isPage{false};
@@ -472,6 +473,7 @@ void buildSearchIndex()
             e.lowHelp = lowered(item.helpText);
             e.lowPath = lowered(e.path.cStr());
             e.lowCvar = item.cvar ? lowered(item.cvar->name) : za::String{};
+            e.cvar = item.kind != Item::Action ? item.cvar : nullptr;
             search.index.pushBack(ZA_MOVE(e));
         }
     }

@@ -524,6 +524,16 @@ makes the value its default, so resets and presets go back to it. `vr_savedefaul
 current settings that differ from the built-in defaults. Personal settings are left out: your height, the runtime,
 the microphone and the per-weapon offsets.
 
+**Proposing your settings as defaults (developers):** *Debug > Save My Settings as Defaults*, `vr_propose_defaults`,
+or the menu's corner button *Save Default* (shown at Menu Detail: Developer only; press it twice within 3 seconds; it
+then says *Saved N*) writes every setting that differs from its shipped default to
+`quakevr/proposed_defaults/<date>_<time>.cfg`, for review. Nothing changes in the game. One line a setting,
+`name "value" // default "old", <menu row>, archived|not archived`, grouped by menu page, then the weapon slots
+(`vr_wofs_*`), the held object slots (`vr_prop_*`) and the settings not in the menus (by name prefix). Rows that look
+personal (calibration, comfort, height, handedness, the hands' angles, the body, the menus' own state) end in
+`personal?`, debug aids (debug, test, show, dump, profile, trace, mock) in `debug?`: the reviewer filters those and
+promotes the rest to the shipped defaults (`vr_cvars.inc`, `vr_weapons.inc`, `vr_props.inc`, `vr_defaults.cfg`).
+
 **When defaults change in an update:** a setting still at its old default moves to the new one, once. A setting you
 changed yourself is left alone.
 

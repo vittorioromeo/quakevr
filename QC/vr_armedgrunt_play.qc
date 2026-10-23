@@ -63,6 +63,12 @@ vector vr_ag_wa;          // VR_AG_WeaponLine's: behind its grip,
 vector vr_ag_wb;          // ... its muzzle
 string vr_ag_reach_why;   // VR_AG_Reachable's last no (the tests)
 float vr_ag_tug_stretch;  // the last tug frame's stretch (the tests)
+.float vr_ag_tug_imp;     // the physical tug: its pull's force times time so far (N s)
+.float vr_ag_tug_peak;    // ... its hardest pull (N; the tests)
+float vr_ag_tug_force;    // ... the last frame's pull (N; the tests)
+float vr_ag_parried_n;    // its blows your weapons parried (VR_AG_Parried; the tests)
+float VR_AG_TUG_STAGGER = 0.35; // s its stumble as you tear its weapon away (its active ragdoll's, then its AI)
+float VR_AG_TUG_RECOVER = 0.2;  // s up again as you let go (or it wrenches free)
 
 float VR_AG_TUG_SLIP = 64;      // the hand this far from the weapon: the tug is over
 float VR_AG_TUG_COOL = 0.8;     // s before a new grab after it shook you off
@@ -135,6 +141,13 @@ float(entity g) VR_AG_TugNeed =
 void(entity g, float won, string why) VR_AG_TugEnd =
 {
     entity pl = g.vr_ag_tug_pl;
+    if(g.vr_ag_tug_rag)
+    {
+        // The physical tug's: your hand's hold let go, its stagger over in a moment (won: a short stumble, its grip
+        // broken), then its AI again (vr_knockdown.qc VR_Knockdown_Think: recovered).
+        g.vr_ag_tug_rag = 0;
+        ragdolltug(g, pl, g.vr_ag_tug_hand, 2, '0 0 0', won ? VR_AG_TUG_STAGGER : VR_AG_TUG_RECOVER);
+    }
     g.vr_ag_tug_pl = world;
     pl.vr_ag_knock_at = time + 0.5; // (no blow on its weapon from your hands as the struggle ends: a headbutt's or a shove's push)
     pl.vr_ag_knock_off = time + 0.5;
@@ -164,6 +177,164 @@ void(entity g, float won, string why) VR_AG_TugEnd =
     }
 };
 
+// The physical tug (vr_agrunt_tug_ragdoll): `g` stands its ground as an active ragdoll (a stagger that never goes over,
+// up again only when the tug ends: vr_knockdown.qc), `pl`'s hand `h` holding its weapon: the hand holds its hand's limb
+// at the weapon's lever (ragdolltug), its arms pull back (vr_agrunt_tug_strength). FALSE: it can't (no ragdoll, no
+// room): the old tug.
+float(entity g, entity pl, float h) VR_AG_TugRagBegin =
+{
+    if(g.vr_knockdown || !canragdoll(g) || !ragdollcanstagger(g) || !g.vr_ag_prop)
+    {
+        return FALSE;
+    }
+    entity p = g.vr_ag_prop;
+    vector way = g.origin - pl.origin;
+    way_z = 0;
+    if(vlen(way) < 1)
+    {
+        makevectors('0 1 0' * g.angles_y);
+        way = v_forward * -1;
+    }
+    way = normalize(way);
+    float cap = max(0, cvar_hget(cvarh_vr_agrunt_tug_hold_max));
+    vector wasVel = g.velocity;
+    float wasFlags = g.flags;
+    g.velocity = '0 0 0';
+    g.flags = g.flags | FL_ONGROUND;
+    if(!VR_Knockdown_Start(g))
+    {
+        g.velocity = wasVel;
+        g.flags = wasFlags;
+        return FALSE;
+    }
+    // (Sure-footed, steady, not carried: it stands where it stood. Up again when the tug ends: VR_AG_TugEnd.)
+    if(!ragdollstagger(g, way, 0, 1, 0, cap > 0 ? cap + 2 : 600, TRUE))
+    {
+        ragdollshovetopple(g, way, 0.3, FALSE, 0); // (its ragdoll made, no stagger: down; the grab takes it: shaky)
+        return FALSE;
+    }
+    g.vr_kd_stagger = 1;
+    g.vr_kd_balance = 1;
+    g.vr_kd_dir = way;
+    g.nextthink = time + 0.05;
+    float strength = cvar_hget(cvarh_vr_agrunt_tug_strength);
+    // (Your hold never gives first; at most 6000 N: a stiffer spring shakes the ragdoll apart.)
+    float grip = min(6000, max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 3);
+    if(!ragdolltug(g, pl, h, 0, p.origin, strength, grip))
+    {
+        ragdolltug(g, pl, h, 2, '0 0 0', 0.1); // (up again at once; the grab takes it: staggering)
+        return FALSE;
+    }
+    g.vr_ag_tug_rag = 1;
+    return TRUE;
+};
+
+// The physical tug's frame (VR_AG_TugFrame): its pull on your hand's hold (the force between its hand and the weapon);
+// a pull of vr_agrunt_tug_break_force, or force times time (counted above a tenth of it) of vr_agrunt_tug_break_impulse,
+// breaks its grip (less hurt, half in pain): the weapon is yours. vr_agrunt_tug_hold_max s on, it wrenches it free.
+float(entity g, entity p, entity pl, float h) VR_AG_TugRagFrame =
+{
+    float f = ragdolltug(g, pl, h, 1);
+    if(f < 0)
+    {
+        VR_AG_TugEnd(g, FALSE, "torn away"); // (the hold lost: the limb left far behind your hand)
+        return FALSE;
+    }
+    if(g.vr_knockdown == 1 && !g.vr_kd_stagger)
+    {
+        VR_AG_TugEnd(g, TRUE, "it went down"); // (no room to stand: down, it lets go)
+        VR_AG_Yank(g, pl, h);
+        return TRUE;
+    }
+    VR_AG_RagProp(g, p);
+    float dt = min(0.1, time - g.vr_ag_tug_last);
+    g.vr_ag_tug_last = time;
+    float share = min(1, max(0.35, VR_AG_HealthShare(g)));
+    if(time < g.pain_finished)
+    {
+        share = share * 0.5;
+    }
+    float brk = max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * share;
+    float need = max(0.01, cvar_hget(cvarh_vr_agrunt_tug_break_impulse)) * share;
+    vr_ag_tug_force = f;
+    g.vr_ag_tug_peak = max(g.vr_ag_tug_peak, f);
+    if(f > brk * 0.1)
+    {
+        g.vr_ag_tug_imp = g.vr_ag_tug_imp + f * dt;
+    }
+    else
+    {
+        g.vr_ag_tug_imp = max(0, g.vr_ag_tug_imp - need * 0.5 * dt); // (eased off: it gets its grip back)
+    }
+    g.vr_ag_tug_prog = g.vr_ag_tug_imp / need;
+    if(f >= brk || g.vr_ag_tug_imp >= need)
+    {
+        VR_AG_TugEnd(g, TRUE, f >= brk ? sprintf("torn out of its hand (%.0f N)", f) :
+            sprintf("pulled out of its hand (%.0f N s)", g.vr_ag_tug_imp));
+        VR_AG_Yank(g, pl, h);
+        return TRUE;
+    }
+    float cap = cvar_hget(cvarh_vr_agrunt_tug_hold_max);
+    if(cap > 0 && time - g.vr_ag_tug_since >= cap)
+    {
+        VR_AG_TugEnd(g, FALSE, "wrenched free");
+        return TRUE;
+    }
+    // Your hand jerked by its pull, harder as its grip gives.
+    if(time >= g.vr_ag_tug_buzz)
+    {
+        g.vr_ag_tug_buzz = time + 0.1;
+        float gain = min(1, max(f / brk, g.vr_ag_tug_prog));
+        entity oldself = self;
+        self = pl;
+        haptic(h, 0, 0.1, 40 + 140 * gain, 0.25 + 0.75 * gain);
+        if(random() < 0.3 + 0.5 * gain)
+        {
+            handimpact(h, 0.5 + 2 * gain, normalize(g.origin + '0 0 16' - VRGetEntHandPos(pl, h)));
+        }
+        self = oldself;
+    }
+    return TRUE;
+};
+
+// A held weapon on its ragdoll (VR_AG_PlaceProp: a stagger, a tug, a fall): riding its hand's limb as it was held when
+// the ragdoll began (the limb nearest it then; its forward and up as last posed).
+void(entity g, entity p) VR_AG_RagProp =
+{
+    if(!p)
+    {
+        return;
+    }
+    if(!p.vr_ag_rb)
+    {
+        float b = ragdollbone(g, p.origin);
+        if(b < 0)
+        {
+            return; // (not a ragdoll: it stays)
+        }
+        vector fw0 = p.vr_ag_pfw != '0 0 0' ? p.vr_ag_pfw : '1 0 0';
+        vector up0 = p.vr_ag_pup != '0 0 0' ? p.vr_ag_pup : '0 0 1';
+        p.vr_ag_rb = b + 1;
+        p.vr_ag_rbo = ragdollpoint(g, b, p.origin, 0);
+        p.vr_ag_rbf = ragdollpoint(g, b, p.origin + fw0 * 16, 0);
+        p.vr_ag_rbu = ragdollpoint(g, b, p.origin + up0 * 16, 0);
+    }
+    float bone = p.vr_ag_rb - 1;
+    vector o = ragdollpoint(g, bone, p.vr_ag_rbo, 1);
+    vector fw = normalize(ragdollpoint(g, bone, p.vr_ag_rbf, 1) - o);
+    vector up = normalize(ragdollpoint(g, bone, p.vr_ag_rbu, 1) - o);
+    up = normalize(up - fw * (up * fw));
+    if(fw == '0 0 0' || up == '0 0 0')
+    {
+        return;
+    }
+    vector a = VR_AxeStick_Angles(fw, up);
+    p.v_angle = a;
+    p.angles = a;
+    p.angles_x = -a_x;
+    setorigin(p, o);
+};
+
 // The grab: `pl`'s `h` closed on its weapon. TRUE: a tug (begun, or not now); FALSE: take it at once (VR_AG_Yank).
 float(entity g, entity pl, float h) VR_AG_TugBegin =
 {
@@ -181,6 +352,40 @@ float(entity g, entity pl, float h) VR_AG_TugBegin =
     if(time < g.vr_ag_tug_cool)
     {
         return TRUE; // (it just shook you off)
+    }
+    if(cvar_hget(cvarh_vr_agrunt_tug_ragdoll))
+    {
+        // The physical tug: facing you, its attack given up, standing its ground as a ragdoll.
+        entity oldself0 = self;
+        self = g;
+        if(self.enemy != pl)
+        {
+            self.enemy = pl;
+            FoundTarget();
+        }
+        self.vr_ag_act = 0;
+        self = oldself0;
+        if(VR_AG_TugRagBegin(g, pl, h))
+        {
+            g.vr_ag_tug_pl = pl;
+            g.vr_ag_tug_hand = h;
+            g.vr_ag_tug_since = time;
+            g.vr_ag_tug_last = time;
+            g.vr_ag_tug_prog = 0;
+            g.vr_ag_tug_imp = 0;
+            g.vr_ag_tug_peak = 0;
+            g.vr_ag_tug_buzz = time;
+            VR_AM_Row(g.vr_ag_kind);
+            sound(g, CHAN_VOICE, vr_am_pain2, 1, ATTN_NORM);
+            VR_AG_Log(sprintf("physical tug begun by %s (hand %g): break %g N or %g N s", pl.netname, h,
+                cvar_hget(cvarh_vr_agrunt_tug_break_force), cvar_hget(cvarh_vr_agrunt_tug_break_impulse)));
+            return TRUE;
+        }
+        if(g.vr_knockdown)
+        {
+            vr_ag_tug_why = "knocked down";
+            return FALSE; // (it went down instead: the grab takes it)
+        }
     }
     entity p = g.vr_ag_prop;
     vector hand = VRGetEntHandPos(pl, h);
@@ -234,6 +439,16 @@ float(entity g, entity p) VR_AG_TugFrame =
     {
         VR_AG_TugEnd(g, FALSE, "let go");
         return FALSE;
+    }
+    if(g.vr_ag_tug_rag)
+    {
+        if(VR_AG_HealthShare(g) <= cvar_hget(cvarh_vr_agrunt_tug_hurt))
+        {
+            VR_AG_TugEnd(g, TRUE, "badly hurt");
+            VR_AG_Yank(g, pl, h);
+            return TRUE;
+        }
+        return VR_AG_TugRagFrame(g, p, pl, h);
     }
     string easy = VR_AG_Shaky(g);
     if(easy != "")
@@ -328,9 +543,16 @@ void() vr_ag_tughold =
 {
     VR_AM_Anim(VR_AM_A_ATK, 0, vr_ag_tughold);
     entity pl = self.vr_ag_tug_pl;
-    if(!pl || !self.vr_ag_prop)
+    if(!pl || !self.vr_ag_prop || self.vr_ag_tug_rag)
     {
+        // (No tug, or no weapon to tug at: back to its run, the tug over. It used to keep the tug on with no weapon, its
+        // run sending it back here every frame: frozen.)
+        if(pl)
+        {
+            VR_AG_TugEnd(self, FALSE, "no weapon");
+        }
         self.think = self.th_run;
+        self.nextthink = time + 0.05;
         return;
     }
     self.ideal_yaw = vectoyaw(pl.origin - self.origin);
@@ -341,8 +563,13 @@ void() vr_ag_tughold =
 // Its run frames (VR_AG_Run) while a tug is on: back to the hold (after a pain or a shot). TRUE: it is.
 float() VR_AG_TugResume =
 {
-    if(!self.vr_ag_tug_pl)
+    if(!self.vr_ag_tug_pl || self.vr_ag_tug_rag)
     {
+        return FALSE;
+    }
+    if(!self.vr_ag_prop || self.vr_ag_tug_pl.health <= 0)
+    {
+        VR_AG_TugEnd(self, FALSE, "no weapon"); // (never left on: frozen in the hold, unarmed)
         return FALSE;
     }
     vr_ag_tughold();
@@ -376,6 +603,11 @@ float(entity e) VR_AG_Striking =
 // combat.qc VR_Parry: `targ`'s weapon parried `attacker`'s blow.
 void(entity attacker, entity targ) VR_AG_Parried =
 {
+    if(attacker.vr_ag)
+    {
+        vr_ag_parried_n = vr_ag_parried_n + 1;
+        VR_AG_Log(sprintf("its blow parried (%s)", attacker.vr_ag_prop ? attacker.vr_ag_prop.netname : "its fist"));
+    }
     if(!attacker.vr_ag || !attacker.vr_ag_prop || attacker.health <= 0 || attacker.vr_eshove_striking ||
        !VR_AG_Striking(attacker))
     {

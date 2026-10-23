@@ -256,6 +256,7 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)          // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
 QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
+QVR_CVAR(vr_mock_hand_pull, "0", CVAR_NONE)           // m: the main mock hand drawn back this much (tracking +z; QC tests set it: a tug's pull)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -768,6 +769,16 @@ QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is t
 QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // Debug > Tools: 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
 QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
+// Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
+// the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
+// let into the walls and the floor: only the share vr_melee_world_pass_length of it (from the hand) is held out of them,
+// so a blade chopping at a body lying on the floor reaches it instead of being pushed back up; for vr_melee_world_pass_time
+// after it slowed, then eased back out. Without such a target nearby the weapon meets the level as before (a wall blow).
+QVR_CVAR(vr_melee_world_pass, "1", CVAR_ARCHIVE)        // 1 on; 0 the weapon is always held out of the level whole (as before)
+QVR_CVAR(vr_melee_world_pass_length, "0.35", CVAR_ARCHIVE) // the share of the weapon's length (from the hand) still held out of the level during such a strike (0: only the hand; 1: all of it, as without)
+QVR_CVAR(vr_melee_world_pass_speed, "2.5", CVAR_ARCHIVE) // m/s the hand (its grip) swings at from which (a blow's least speed is about 2.25)
+QVR_CVAR(vr_melee_world_pass_time, "0.25", CVAR_ARCHIVE) // s it stays let in after the hand slowed (the cut's follow-through), then eased back out over 0.15 s
+QVR_CVAR(vr_melee_world_pass_reach, "12", CVAR_ARCHIVE) // units: how near the weapon's far part (as it is and a frame ahead) the body must be
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
 QVR_CVAR(vr_gunyaw, "0", CVAR_ARCHIVE)
@@ -2529,44 +2540,50 @@ QVR_CVAR(vr_water_foam_on, "1", CVAR_ARCHIVE)         // water's foam: 1 on, 0 o
 QVR_CVAR(vr_water_foam_opacity, "0.5", CVAR_ARCHIVE)  // ... how opaque it is (0..1.5, times)
 QVR_CVAR(vr_water_foam_frequency, "1.75", CVAR_ARCHIVE) // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
 QVR_CVAR(vr_water_foam_strength, "1.75", CVAR_ARCHIVE) // ... how far it reaches out from the shore (0.25..3, times its width)
-QVR_CVAR(vr_water_foam_breathe, "0.35", CVAR_ARCHIVE) // ... breathing: how much the band grows and shrinks over time, unevenly along the shore (0 off .. 1, a share of its width)
-QVR_CVAR(vr_water_foam_breathe_speed, "1", CVAR_ARCHIVE) // ... how fast it breathes (0.1..4; 1: a breath in about 4 seconds)
+QVR_CVAR(vr_water_foam_breathe, "0.45", CVAR_ARCHIVE) // ... breathing: how much the band grows and shrinks over time, unevenly along the shore (0 off .. 1, a share of its width)
+QVR_CVAR(vr_water_foam_breathe_speed, "2", CVAR_ARCHIVE) // ... how fast it breathes (0.1..4; 1: a breath in about 4 seconds)
 QVR_CVAR(vr_water_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE) // ... how unevenly along the shore (0: all of it together .. 1: each stretch on its own)
 QVR_CVAR(vr_water_foam_red, "0.85", CVAR_ARCHIVE)     // ... its colour, red (0..2; over 1 glows)
 QVR_CVAR(vr_water_foam_green, "0.9", CVAR_ARCHIVE)    // ... green
 QVR_CVAR(vr_water_foam_blue, "0.92", CVAR_ARCHIVE)    // ... blue
-QVR_CVAR(vr_water_foam_particles, "1", CVAR_ARCHIVE)  // ... foam particles along the shore (vr_particles.cpp shoreFoam): how many (0 off .. 4; 1 about 15 a second for each 100 units of shore near you)
+QVR_CVAR(vr_water_foam_particles, "2", CVAR_ARCHIVE)  // ... foam particles along the shore (vr_particles.cpp shoreFoam): how many (0 off .. 4; 1 about 15 a second for each 100 units of shore near you)
 QVR_CVAR(vr_water_foam_particle_life, "0.8", CVAR_ARCHIVE) // ... how long each lasts, seconds (0.2..4)
 QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
-QVR_CVAR(vr_water_foam_particle_size, "1", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
+QVR_CVAR(vr_water_foam_particle_size, "1.5", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
+QVR_CVAR(vr_water_foam_particle_shore, "0", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side)
+QVR_CVAR(vr_water_foam_edge, "4", CVAR_ARCHIVE)       // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
 QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
 QVR_CVAR(vr_lava_foam_opacity, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_frequency, "1.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_strength, "2.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_breathe, "0.3", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_breathe_speed, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_breathe, "0.65", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_breathe_speed, "2.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_breathe_irregularity, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_red, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_green, "1.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_blue, "0.3", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particles, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particles, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_particle_life, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_opacity, "0.6", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_size, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_opacity, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_size, "3.05", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_particle_shore, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_lava_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_on, "1", CVAR_ARCHIVE)         // slime's foam (a green scum), as water's above
 QVR_CVAR(vr_slime_foam_opacity, "0.8", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_frequency, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_strength, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_breathe, "0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_breathe_speed, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_frequency, "1.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_strength, "1.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_breathe, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_breathe_speed, "3.4", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_red, "0.38", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_green, "0.62", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_blue, "0.14", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_particles, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_green, "0.56", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_blue, "0.16", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particles, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_particle_life, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_particle_opacity, "0.45", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_particle_size, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_particle_shore, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_slime_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
 QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
@@ -2767,6 +2784,11 @@ QVR_CVAR(vr_agrunt_tug_pull, "10", CVAR_ARCHIVE)  // the tug: how far (units) yo
 QVR_CVAR(vr_agrunt_tug_time, "1.2", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
 QVR_CVAR(vr_agrunt_tug_fight, "1", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
 QVR_CVAR(vr_agrunt_tug_hurt, "0.35", CVAR_ARCHIVE) // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
+QVR_CVAR(vr_agrunt_tug_ragdoll, "1", CVAR_ARCHIVE) // 1: the tug is physical: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (0: the old tug)
+QVR_CVAR(vr_agrunt_tug_break_force, "900", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
+QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
+QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
+QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_seek_timeout, "6", CVAR_ARCHIVE) // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
@@ -2841,6 +2863,11 @@ QVR_CVAR(vr_adgun_tank_burst_damage, "30", CVAR_ARCHIVE) // ... its burst's blas
 QVR_CVAR(vr_adgun_tank_burst_burn, "6", CVAR_ARCHIVE) // ... the flamethrower's: seconds what it reaches burns at a full tank (40% near empty)
 QVR_CVAR(vr_adgun_tank_burst_poison, "8", CVAR_ARCHIVE) // ... the poison sprayer's: the poison it leaves, damage a second at a full tank (40% near empty; weaker at the edge)
 QVR_CVAR(vr_adgun_tank_burst_poisontime, "6", CVAR_ARCHIVE) // ... and for how many seconds at a full tank (40% near empty)
+QVR_CVAR(vr_adgun_tank_field_time, "6", CVAR_ARCHIVE) // ... the field a burst leaves (flames on the ground, a poison cloud: QC VR_TankField_*): seconds at a full tank (40% near empty); 0 none
+QVR_CVAR(vr_adgun_tank_field_radius, "96", CVAR_ARCHIVE) // ... its reach at a full tank, units (40% near empty)
+QVR_CVAR(vr_adgun_tank_field_damage, "1", CVAR_ARCHIVE) // ... its damage times this: the cloud's poison a second (the burst's), the flames' own burning damage a second on the living (vr_burn_damage's) as well as setting them on fire
+QVR_CVAR(vr_adgun_tank_pickup_time, "0.25", CVAR_ARCHIVE) // ... a tank lying about flying to your back as you take its gun, seconds (vr_adtank.cpp); 0 at once
+QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next
@@ -4081,7 +4108,7 @@ QVR_CVAR(vr_model_collide_max, "20", CVAR_ARCHIVE)    // cm a weapon or hand is 
 QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's push while a model stops it; 2: and draw its rays (grey as tracked, green/red as drawn) and the push (yellow)
 QVR_CVAR(vr_gun_wall_slide, "1", CVAR_ARCHIVE)       // a held weapon against the level: 1 slides along what it meets (rests on a table top, held off a wall along its surface: vr_handpose.cpp); 0 the old push-back along the aim (the hand moved back until the muzzle stops at the wall)
 QVR_CVAR(vr_gun_wall_max, "40", CVAR_ARCHIVE)        // with vr_gun_wall_slide: cm, the most a held weapon and its hand are held out of the level (pushed further, they go in by the rest; the weapon keeps resting where it was held)
-QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
+QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_facing, "0", CVAR_NONE)        // the test spawners' monsters (impulse 241 and 244, vr_physics_spawn): 0 as each did (241 and 244 facing you, vr_physics_spawn its own angle), 1 facing you, 2 facing away (trailer shots), 3 their own angle (a map's 0), 4 its left side to you, 5 its right side to you
@@ -4799,6 +4826,8 @@ QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
 QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
 QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
 QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
+QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
 QVR_CVAR(vr_lootbeam_settle, "0.3", CVAR_ARCHIVE)       // seconds a thing must lie still (within a few units) before its beam shows
 QVR_CVAR(vr_lootbeam_near, "0.5", CVAR_ARCHIVE)         // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)

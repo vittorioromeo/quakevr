@@ -512,6 +512,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
 [[nodiscard]] za::Vector<Item> pageHotBlades();
+[[nodiscard]] za::Vector<Item> pageFlail(); // AD support (vr_menu_ad_guns.inc)
 [[nodiscard]] za::Vector<Item> pageDamage();
 [[nodiscard]] za::Vector<Item> pageBloodFeedback();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
@@ -2234,6 +2235,7 @@ const Page pages[] = {
     {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
     {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
     {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
+    {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)
 };
 static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
@@ -5374,6 +5376,18 @@ za::String qvr::menu::expandPaths(za::StringView text, int width, int* missing)
     }
     out.append(text.substrByPosLen(at));
     return out;
+}
+
+void qvr::menu::forEachSettingPath(za::FunctionRef<void(const cvar_t& var, const char* page, const char* label)> f)
+{
+    buildSearchIndex(); // (Search's index: every page under the VR Settings and the Advanced VR Options, breadth first)
+    for(const SearchEntry& e : search.index)
+    {
+        if(e.cvar && !e.isPage)
+        {
+            f(*e.cvar, e.path.cStr(), e.label.cStr());
+        }
+    }
 }
 
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities (or in a text file of the game's, as

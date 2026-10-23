@@ -774,6 +774,11 @@ bool thumbTile(Ui& ui, const Rect& r, int entry)
     int id = 0;
     const bool available = toolgun::spawnableAvailable(entry); // AD support
     const bool clicked = interact(ui, r, name, id, available); // AD support
+    if(!available && ui.mode == Mode::Input && ps.pressed && (!ui.modal || ps.overlayNow) && hovering(r))
+    {
+        ps.pressed = false; // (a greyed tile pressed: why, in the console and its log)
+        Con_Printf("toolgun: %s unavailable: %s\n", toolgun::spawnableName(entry), toolgun::spawnableUnavailableWhy(entry));
+    }
     if(ui.mode == Mode::Draw)
     {
         if(!available) { GL_PushCanvasColor(1.f, 1.f, 1.f, 0.4f); } // AD support

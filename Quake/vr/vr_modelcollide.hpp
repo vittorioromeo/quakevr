@@ -60,6 +60,12 @@ bool drawnWeaponPoints(int hand, za::Vector<glm::vec3>& out, glm::vec3& from);
 // (vr_wounds.cpp): where a hit meets the model's surface.
 bool drawnTriangles(const entity_s& e, int num, za::Vector<glm::vec3>& out);
 
+// A monster, a corpse or a ragdoll (an alias model's entity of the monsters' kind: another player too) whose box as
+// drawn this frame meets the world box `lo`..`hi`, while `hand` holds what may swing through them (a fist, a melee
+// weapon; a gun or a prop with vr_melee_phase_hold): its entity number, else 0. For the strikes let past the level
+// (vr_melee_world_pass: vr_handpose.cpp).
+[[nodiscard]] int strikeTarget(int hand, const glm::vec3& lo, const glm::vec3& hi);
+
 // A new map: nothing pushed, nothing recorded.
 void reset();
 // A model made again in place (a runtime brush's, vr_brushes.cpp): its triangles made again when next needed.
