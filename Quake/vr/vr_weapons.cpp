@@ -157,7 +157,8 @@ namespace
 // the config still holds the old defaults (mass 6, balance 22, readout y -0.85, z 0.4).
 // 56: the shotgun's (slot 1) first hotspot 9.66, -0.67 (his config of 2026-10-19; was 9.6656, -0.7315).
 // 57: the justice knight's and judicator's swords (indices 48-49) his (takeMonsterSwords57).
-constexpr int settingsVersion = 57;
+// 58: the flail's handle smaller (index 50; takeFlailHandle58).
+constexpr int settingsVersion = 58;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -507,7 +508,7 @@ void takeShotgunHotspot56()
 }
 
 // 57: his monster swords (his config of 2026-10-23, vrfiringrange_2026-10-23_17-40-11): the justice knight's sword
-// (Weapon Offsets slot 50, index 48) its grip, weight and balance point; the judicator's (slot 51, index 49) its weight,
+// (Weapon Offsets slot 49, index 48) its grip, weight and balance point; the judicator's (slot 50, index 49) its weight,
 // balance point and spring sag, its second hand's grip at the handle (hotspot 2 X 0). Taken where the config still holds
 // the swords4 defaults.
 void takeMonsterSwords57()
@@ -527,6 +528,23 @@ void takeMonsterSwords57()
         }
     }
     Con_DPrintf("Weapon settings: the monster swords took %d of the author's values\n", taken);
+}
+
+// 58: the death sergeant's flail's handle drawn smaller (Weapon Offsets slot 51, index 50; the author's note
+// vrfiringrange_2026-10-23_17-33-56): Scale 0.34 -> 0.255, its offsets moved so that the grip stays in the hand (a
+// slot's Scale scales the model about its box's corner: swords4's rule). Taken where the config holds the old values.
+void takeFlailHandle58()
+{
+    constexpr OldValue old[] = {{50, Key::Scale, 0.34f}, {50, Key::OffsetX, 1.79f}, {50, Key::OffsetY, 3.886f},
+        {50, Key::OffsetZ, 4.70f}};
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
 }
 
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
@@ -553,6 +571,7 @@ constexpr Step steps[] = {
     {55, takeWidowmakerTuning55},
     {56, takeShotgunHotspot56},
     {57, takeMonsterSwords57},
+    {58, takeFlailHandle58},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

@@ -103,7 +103,14 @@
                   "Speed. A full swing or a whirl lands hard, a lazy wave barely."),
         slider("Least Speed", "vr_flail_min_speed", 0.f, 8.f, 0.25f, "%.2f m/s").extend(0.f, 20.f)
             .help("Its head hitting slower than this deals nothing (it only knocks)."),
-        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f),
+        slider("Most Damage", "vr_flail_max_damage", 20.f, 400.f, 5.f, "%.0f").extend(1.f, 2000.f)
+            .help("A blow of its head deals at most this."),
+        slider("Least Damage", "vr_flail_min_damage", 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
+            .help("A blow of its head faster than Least Speed deals at least this."),
+        slider("Most Head Speed", "vr_flail_max_speed", 4.f, 40.f, 0.5f, "%.1f m/s")
+            .help("Its head never goes faster than this: a heavy ball can't be whirled up without end."),
+        slider("Head Drag", "vr_flail_drag", 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the air slows its head (and its spin): higher, it feels heavier and whirling it takes work."),
         slider("Two Hands", "vr_flail_2h", 1.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("Held in both hands (the other on its handle), its blows are this many times harder."),
         slider("Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")

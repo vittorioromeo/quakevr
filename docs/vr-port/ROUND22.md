@@ -17966,3 +17966,86 @@ up and swung, the crowbar sounding like a crowbar, a running chainsaw, the hands
 **In VR:** a fists grunt's guard and punches (`vr_agrunt_test 100`, or the toolgun); axe, sword, crowbar and hammer
 grunts: blade up, the swings and their sounds (crowbar's ring); the chainsaw grunt's engine, its thrust and cut; a
 shotgun grunt running and shooting: both hands still on the gun, the kick.
+
+
+## Flail heavier and smaller, fuel tanks burst, the player's plasma bolts, Vomit Mode's head turn, his monster swords (worktree `tghost`, branch `agent/weapons1023`, 2026-10-23; vr_cfg_version 194, vr_wofs_version 57-58)
+
+His notes vrfiringrange_2026-10-23_17-33-56 .. 17-49-22.
+
+### The flail: heavier, smaller
+
+- **Heavier** (`vr_box3d_flail.cpp`): the head's top speed is `vr_flail_max_speed` (new, 16 m/s, real; was a fixed 40)
+  and the air slows it, `vr_flail_drag` (new, 0.6: Box3D's linear damping, its spin's 1 + 4x it, in its hand's time;
+  was 0.05 and 1). `vr_flail_mass` 2 -> 3 kg (configVersion 194).
+- **Damage caps**: `vr_flail_min_damage` (new, 10): a blow faster than Least Speed deals at least this;
+  `vr_flail_max_damage` 150 -> 120 (configVersion 194). QC `VR_Flail_Hit`. AD Weapons > Death Sergeant's Flail: Least
+  Damage, Most Head Speed, Head Drag (new rows), Most Damage got its help.
+- **Smaller handle**: Weapon Offsets slot 51 (index 50) Scale 0.34 -> 0.255 (0.75x). A slot's Scale scales about the
+  model's box corner (`vr_admelee_models`: -5.82 -6.31 -11.00), so the offsets move to keep the held point in the
+  hand: X 1.79 -> 2.825, Y 3.886 -> 4.491, Z 4.70 -> 5.97 (computed from the corner, then corrected on two
+  `vr_ad_test 147` readings: the tip from the hand -1.4/0.0/1.8 at the old size, -1.1/0.1/1.5 at the new, against
+  0.75x = -1.05/0/1.35). `vr_wofs_version` 58 (`takeFlailHandle58`: where the config holds the old four values).
+- **Mock full swings** (`scratch/flail_swing.sh`: `vr_ad_test 146`, a shambler 60 ahead, `vr_mock_swing 0.4` 600
+  frames): fastest 16.0 m/s (the cap), 24 hits at 3.5-13.9 m/s, damage 10 (the floor) .. 98.5; the chain never
+  stretched, never put back.
+- **Not done: the prop form keeping its ball and chain** (a dropped flail is still the handle alone). Plan: a QC
+  `vr_flailhead` prop (`progs/w_blueflail.mdl#flailhead`, `vr_rigid`, carried by a hand, no force grab) made by
+  `CreateThrownWeapon` as the fuel tanks are (`VR_FuelTank_Attach`'s pattern, `.vr_fuellink` both ways, made again by a
+  frame check after a load), roped by `syncFuelRopes` generalized (its classname, the rope's length the chain plus the
+  ring's reach, its anchor on the handle's tip: localFrameA from the slot's MuzzleAnchor), the chain drawn as the world
+  hose is (`vr_adtank.cpp setupWorld` with `vr_flail.cpp`'s coil style), the head removed as a hand takes the handle.
+
+### Fuel tanks burst
+
+- A tank lying about takes damage (`vr_adgun_tank_health`, new, 30: a grunt's; 0 never): shots and missiles stop at
+  it (a touchable that takes damage: MOVE_HITGIBS), blasts, blows, flames. A hit that leaves it whole: sparks.
+- At 0 (`VR_FuelTank_Burst`, `vr_ad_enemyguns.qc`), as big as the fuel left in its gun (f = clip / full): reach
+  `vr_adgun_tank_burst_radius` (160) x (0.4 + 0.6f), blast `vr_adgun_tank_burst_damage` (30) x f (the sprayer's half,
+  60% weaker at the edge), in sight of its middle. The flamethrower's: an explosion (TE_EXPLOSION, fire bursts through
+  its reach, r_exp3 by the fuel) and everything reached set on fire for `vr_adgun_tank_burst_burn` (6 s) x (0.4 +
+  0.6f) (`VR_Burn_Ignite`: monsters, corpses, props, the player). The sprayer's: green poison through its reach and
+  everything reached poisoned (`VR_ADGun_Poison`, the fumigator's) `vr_adgun_tank_burst_poison` (8/s) for
+  `vr_adgun_tank_burst_poisontime` (6 s), both x (0.4 + 0.6f). The one who burst it is reached as anyone (no credit to
+  himself). Another tank reached bursts 0.15-0.3 s later (traps chain). Empty: a puff of smoke and a clank, nothing more.
+- Its gun is spent for good: `QVR_WPNFLAG_TANK_BURST` (4096, bit 12; travels with the gun as its flags do), its fuel
+  0, `.vr_depleted` (no force grab, no loot pillar). No tank lying about again (`VR_FuelTank_Attach` skips it), none
+  on the back and no hose in a hand or holster (`vr_adtank.cpp tankBurst`: the hands' STAT_QVR_WEAPONFLAGS*, the
+  holsters' `view::holsterFlags`), no pilot flame (fuel 0), it clicks.
+- Settings: AD Guns > Tank Health, Tank Burst Reach, Blast, Burning, Poison, Poison Time. Debug > Tests > Arcane
+  Dimensions Monsters: Shoot the Nearest Tank (`vr_ad_test 161`, 10 a shot), Burst the Nearest Tank (162, its fuel
+  set to `temp1` of full first), Nearest Fuelled Gun's State (163); `vr_ad_test 164` a burst flamethrower in the hand.
+- Tests (`scratch/tank_burst.sh spray|pyro|hand|empty|mon`, e1m1, AD mounted): three shots of 10 burst a full
+  sprayer's tank (health 20, 10, burst; reach 160, blast 15, poison 8/s for 6 s, the player reached); its gun: burst 1,
+  depleted 1, fuel 0, no tank, force grab skips it; 80 frames on still no tank (0 tanks, 1 gun without). A full
+  flamethrower's: reach 160, blast 30, burning 6 s; with a grunt and a corpse ahead 2 reached. A quarter tank: reach
+  88, blast 8, burning 3.3 s. Empty: "bursts empty", nothing reached. A burst flamethrower in the hand: back tank
+  none, 0 hoses (an unburst one: on the back, 1 hose); dropped: no tank made.
+
+### The player's plasma bolts
+
+The Plasma Gun's bolt is `progs/proj_pgplasma.mdl` (AD's player bolt), not `proj_plasma.mdl`: it now has the same
+flickering blue light and arcs (`vr_emissive.cpp` `VR_ProjectileLight`: one branch for both models, model id
+`AdProjPgPlasma`; `vr_adgun_plasma_fx`, `vr_projectile_lights`). Not checked by picture (the headless shot shows the
+bolt too small to judge): in VR.
+
+### Vomit Mode turns with your head
+
+`vr_deathview.cpp eyeView`: the view is the head bone's turn times your head's: its yaw from where you faced as the
+view went there, its pitch and roll as they are (straight ahead: the bone's own). `vr_death_view_status` dead on
+e1m1: looking ahead, the camera 29.9 142.0 (the bone's); head turned 60 left: 24.7 73.8 158.4 (the bone lies on its
+side, upside down: a left turn in its frame); 30 down: 0.5 135.6; back ahead: the bone's again.
+
+### His monster swords
+
+From his config (`scratch/wofs_diff.py`: his `vr_wofs_*_47..51` against a fresh config's): the justice knight's sword
+(slot 49, index 48) grip (hotspot 1 -7.185 -0.144 -17.851, pitch 13.15, roll 3.08, yaw 12.90), mass 6 -> 8, balance
+18 -> 28; the judicator's (slot 50, index 49) mass 8 -> 12.16, balance 22 -> 41.1, spring sag 1 -> 1.1,
+hotspot 2 X 0.7 -> 0. The Phantom's and Dark Prince's, the flail's: untouched. No sword cvar changed. vr_wofs_version
+57 (`takeMonsterSwords57`): checked, a config at 56 reads -7.185089 and 12.16 after.
+
+`eval.sh`: 169/177 as the baseline, verdicts unchanged (5 differ by 0.1 in an offset).
+
+**In VR:** whirl the flail (heavier, slower, no endless spin-up), lazy taps deal 10; the handle's size and grip.
+Shoot a dropped flamethrower's tank (3 pistol-ish hits) near monsters, a sprayer's near yourself; an empty one; pick
+up the spent gun (no hose, no back tank, clicks). The Plasma Gun's bolts in a dark room. Die in Vomit Mode and look
+around.

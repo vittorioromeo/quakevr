@@ -209,7 +209,10 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
         return; // (a prop that takes no damage: the head knocks it, in the physics)
     }
     float dmg = cvar("vr_flail_damage") * xMass * (xSpeed - least) * (xBoth ? max(0, cvar("vr_flail_2h")) : 1);
-    dmg = min(dmg, max(0, cvar("vr_flail_max_damage")));
+    // A landed blow (faster than the least speed) deals at least vr_flail_min_damage, at most vr_flail_max_damage (the
+    // author's note vrfiringrange_2026-10-23_17-33-56).
+    float most = max(0, cvar("vr_flail_max_damage"));
+    dmg = min(max(dmg, max(0, cvar("vr_flail_min_damage"))), most);
     if(dmg <= 0)
     {
         return;

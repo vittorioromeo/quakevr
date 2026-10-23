@@ -438,6 +438,11 @@ const DefaultChange defaultChanges[] = {
     // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
     // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
     {192, &vr_parallax_depth_write, "1"}, // 0
+    // 194: the death sergeant's flail heavier (the author's note vrfiringrange_2026-10-23_17-33-56): its head 3 kg, its
+    // blows at most 120 (with its new least damage, speed limit and drag; ROUND22.md, "The flail: heavier, smaller").
+    // (193 is another branch's.)
+    {194, &vr_flail_mass, "2"},         // 3
+    {194, &vr_flail_max_damage, "150"}, // 120
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -456,7 +461,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 192;
+constexpr int configVersion = 194;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
