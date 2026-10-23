@@ -1,0 +1,9 @@
+# agrunt_swords: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts with the Phantom, Dark Prince's, Justice Knight's and Judicator's swords
+map vrtesthall
+god
+notarget
+spawn "Armed Grunt: Phantom Sword" 170 -60
+spawn "Armed Grunt: Dark Prince's Sword" 170 20
+spawn "Armed Grunt: Justice Knight's Sword" 170 100
+spawn "Armed Grunt: Judicator's Sword" 170 180

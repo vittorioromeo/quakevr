@@ -1,0 +1,6 @@
+# ad_dark_prince: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title An AD Dark Prince close by (calm)
+map vrtesthall
+god
+notarget
+spawn "AD Dark Prince" 110 0

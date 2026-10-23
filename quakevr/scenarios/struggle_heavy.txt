@@ -1,0 +1,10 @@
+# struggle_heavy: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Minotaur, golem, drole, Justice Knight, death knight to lift (calm)
+map vrtesthall
+god
+notarget
+spawn "AD Minotaur" 260 -60
+spawn "AD Stone Golem" 260 60
+spawn "AD Drole" 260 180
+spawn "AD Justice Knight" 260 300
+spawn "Death Knight" 260 420
