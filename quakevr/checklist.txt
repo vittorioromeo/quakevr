@@ -2,6 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Flail feel: whirl it: heavier, can't spin unrealistically fast; damage between 10 and 120; smaller handle sits in the hand (dropped flail still shows only the handle: being fixed)
+Fuel tanks burst: shoot a lying flamethrower's tank near monsters (and near yourself): fire burst sets everything close alight; the sprayer's poisons; an empty tank only puffs; the gun is then spent (no hose, no force grab, can't fire)
+Your Plasma Gun bolts in a dark room: blue light and crackling arcs like the enemies'; Vomit Mode: turning your head while dead turns the view; your Justice Knight and Judicator sword values are defaults
 Shoreline foam (Graphics > Liquids > Shoreline Foam Settings): vrtesthall pool: the foam band breathes in and out unevenly, soft foam puffs along the wall line; e1m7 lava: glowing yellow-orange crust (strong enough, right colour?); e1m1 slime: green scum; each liquid's toggle and colour sliders
 Armed grunts disarming: grab a calm grunt's gun and pull back hard (~25 cm) for over a second: a tug-of-war, it headbutts, shoves or fires at you (do 10 units / 1.2 s / fight-back every 1 s feel right?); a staggered, hurt or just-parried grunt lets go at once; a hard crowbar swing or a thrown weapon into its gun knocks it out (a tap or a tossed shell doesn't); every disarm clatters
 Armed grunts after a fall: a shove that doesn't floor it keeps the gun; floored, the gun lies beside it and it picks it up as it rises; weapons in water or mid-air are ignored; no loot beam or sparkles on held guns (tell me if you still see sparkles)
