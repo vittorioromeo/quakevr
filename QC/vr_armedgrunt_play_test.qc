@@ -649,7 +649,11 @@ void() VR_AGPT_Parry =
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_parry_disarm);
         cvar_set("vr_agrunt_parry_disarm", "0"); // (it keeps its weapon: every blow counted)
         float wid = VR_AGPT_MeleeWid(vr_agpt_n0);
+        // (Ahead of your head, not along your body's angles: they follow the main hand's aim, the crowbar's, held across.)
+        vector keepAngles = p.angles;
+        p.angles_y = p.v_viewangle_y;
         vr_agt_grunt = VR_AGT_Spawn(wid == WID_FIST ? -1 : wid, 70);
+        p.angles = keepAngles;
         VR_AGT_Hunt(vr_agt_grunt);
         VR_AGPT_Watch(vr_agt_grunt);
         vr_agpt_m0 = vr_ag_parried_n;
