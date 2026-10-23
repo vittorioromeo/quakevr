@@ -1,12 +1,12 @@
 # wall_deaths: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
 title Grunts a step from the wall, a shotgun and a super shotgun in hand
 map vrtesthall
-start 0 -250 25 -90
+start -400 -250 25 -90
 god
 notarget
 give "Shotgun" main
 give "Super Shotgun" off
 spawn "Grunt" 195 0
-spawn "Grunt" 195 -80
-spawn "Grunt" 195 -160
-spawn "Grunt" 195 -240
+spawn "Grunt" 195 80
+spawn "Grunt" 195 160
+spawn "Grunt" 195 240

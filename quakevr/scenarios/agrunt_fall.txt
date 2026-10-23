@@ -4,6 +4,6 @@ map vrtesthall
 start 150 -264 40 0
 god
 notarget
-spawn "Armed Grunt: Shotgun" 60 70
-spawn "Armed Grunt: Axe" 60 -70
-spawn "Armed Grunt: Nailgun" 110 0
+spawn "Armed Grunt: Shotgun" 40 70
+spawn "Armed Grunt: Axe" 40 -70
+spawn "Armed Grunt: Nailgun" 45 0

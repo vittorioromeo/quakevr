@@ -585,6 +585,8 @@ void place()
             continue;
         }
         made++;
+        Con_DPrintf("vr_scenario: line %d: \"%s\" (edict %d) at %.0f %.0f %.0f\n", sp.line, sp.what.cStr(),
+            NUM_FOR_EDICT(e), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
 
     for(const za::String& c : s.cmds)
@@ -754,8 +756,15 @@ void where()
             }
             ext[k] = r[axis] - step;
         }
-        Con_Printf("SCNWHERE|liquid %d nearest at %.0f %.0f %.0f (%.0f away), surface z %.0f, x %.0f..%.0f, y %.0f..%.0f\n",
-            kind, water.x, water.y, water.z, glm::sqrt(best), surface, ext[0], ext[1], ext[2], ext[3]);
+        // Its depth in the middle of that extent (the floor under it).
+        vec3_t zero{0.f, 0.f, 0.f};
+        vec3_t mid{(ext[0] + ext[1]) * 0.5f, (ext[2] + ext[3]) * 0.5f, surface - 1.f};
+        vec3_t deep{mid[0], mid[1], surface - 1024.f};
+        const trace_t tr = SV_Move(mid, zero, zero, deep, MOVE_NOMONSTERS, p);
+        Con_Printf("SCNWHERE|liquid %d nearest at %.0f %.0f %.0f (%.0f away), surface z %.0f, x %.0f..%.0f, y %.0f..%.0f, "
+                   "%.0f deep in its middle\n",
+            kind, water.x, water.y, water.z, glm::sqrt(best), surface, ext[0], ext[1], ext[2], ext[3],
+            surface - tr.endpos[2]);
     }
 }
 
@@ -793,7 +802,7 @@ bool start(const char* id, const char* hint)
     reloaded = false;
     phaseSince = realtime;
     Con_Printf("vr_scenario: %s: loading %s\n", id, state.run.map.cStr());
-    Cbuf_AddText(va("map %s\n", state.run.map.cStr()));
+    Cbuf_InsertText(va("map %s\n", state.run.map.cStr())); // (next: before the rest of a script)
     if(!runAll)
     {
         notectx::testRun(state.run.id.cStr()); // (named in the voice notes that follow)
@@ -861,6 +870,12 @@ void frame()
                 Con_Printf("SCNRUN|%s|FAIL|%s\n", state.run.id.cStr(), state.error.cStr());
                 runNext();
             }
+            return;
+        }
+        if(reloaded && sv.active && cls.signon == SIGNONS && q_strcasecmp(sv.name, state.run.map.cStr()) != 0)
+        {
+            Con_Printf("vr_scenario: %s abandoned: %s loaded instead\n", state.run.id.cStr(), sv.name);
+            end(); // (another map asked for meanwhile: the settings back)
             return;
         }
         if(reloaded && sv.active && cls.signon == SIGNONS && !q_strcasecmp(sv.name, state.run.map.cStr()) && sv.qcvm.time >= 1.5)
