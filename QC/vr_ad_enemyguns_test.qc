@@ -877,9 +877,12 @@ void(entity e) AD_TankField_PrintMon =
     {
         return;
     }
-    bprint(sprintf("tankfield: %s at %v: health %g, burning %g (till %.1f), poisoned %g (%.1f/s till %.1f)\n", e.classname,
-        e.origin, e.health, e.burn_fire != world && e.burn_fire.enemy == e, e.burn_fire.burn_end - time,
-        e.vr_adpoison != world && e.vr_adpoison.enemy == e, e.vr_adpoison.dmg, e.vr_adpoison.attack_finished - time));
+    float burning = (e.burn_fire != world && e.burn_fire.enemy == e);
+    float poisoned = (e.vr_adpoison != world && e.vr_adpoison.enemy == e);
+    bprint(sprintf("tankfield: %s at %v: health %g, burning %g (%.1f s more), ", e.classname, e.origin, e.health, burning,
+        burning ? e.burn_fire.burn_end - time : 0));
+    bprint(sprintf("poisoned %g (%.1f/s, %.1f s more)\n", poisoned, poisoned ? e.vr_adpoison.dmg : 0,
+        poisoned ? e.vr_adpoison.attack_finished - time : 0));
 };
 
 void(float request, entity p) AD_TankFieldTest =
@@ -890,13 +893,15 @@ void(float request, entity p) AD_TankFieldTest =
         for(entity f = find(world, classname, "vr_tankfield"); f; f = find(f, classname, "vr_tankfield"))
         {
             n++;
-            bprint(sprintf("tankfield: %s at %v: %.1f s left of %.1f, reach %.0f, strength %.2f, loop step %g, whoosh %s\n",
-                f.vr_tf_kind == 1 ? "fire" : "poison", f.origin, f.vr_tf_end - time, f.vr_tf_end - f.vr_tf_start,
-                f.vr_tf_radius, VR_TankField_Strength(f), f.vr_tf_level, f.vr_tf_hush ? "on" : "off"));
+            // (sprintf takes 7 values at most: two prints)
+            bprint(sprintf("tankfield: %s at %v: %.1f s left of %.1f, reach %.0f, ", f.vr_tf_kind == 1 ? "fire" : "poison",
+                f.origin, f.vr_tf_end - time, f.vr_tf_end - f.vr_tf_start, f.vr_tf_radius));
+            bprint(sprintf("strength %.2f, loop step %g, whoosh %s\n", VR_TankField_Strength(f), f.vr_tf_level,
+                f.vr_tf_hush ? "on" : "off"));
         }
-        bprint(sprintf("tankfield: time %.2f: %g fields (%g made), %g reached, loops playing %g, whooshes playing %g, bursts %g, "
-            "worn tanks made %g\n", time, n, vr_tankfield_made, vr_tankfield_hits, vr_tankfield_loops, vr_tankfield_whoosh,
-            vr_fueltank_bursts, vr_fueltank_worn_made));
+        bprint(sprintf("tankfield: time %.2f: %g fields (%g made), %g reached, loops playing %g, whooshes playing %g, ", time,
+            n, vr_tankfield_made, vr_tankfield_hits, vr_tankfield_loops, vr_tankfield_whoosh));
+        bprint(sprintf("bursts %g, worn tanks made %g\n", vr_fueltank_bursts, vr_fueltank_worn_made));
         AD_TankField_PrintMon(vr_tankfield_testmon);
         return;
     }
@@ -968,10 +973,11 @@ void(float request, entity p) AD_TankFieldTest =
         makevectors('0 1 0' * m.angles_y);
         vector d = t.origin - m.origin;
         vector eye = p.origin + p.view_ofs;
-        traceline(eye, t.origin, FALSE, p);
-        bprint(sprintf("tankfield: worn tank %s on %s: %.1f forward, %.1f right, %.1f up of its origin, angles %v, "
-            "health %g; a shot from your eyes meets %s\n", t.model, m.classname, d * v_forward, d * v_right, d * v_up,
-            t.angles, t.health, trace_ent == t ? "the tank" : trace_ent.classname));
+        traceline(eye, t.origin, MOVE_HITGIBS | MOVE_HITMODEL, p); // (as a bullet: weapons.qc FireBullets)
+        bprint(sprintf("tankfield: worn tank %s on %s: %.1f forward, %.1f right, %.1f up of its origin, ", t.model,
+            m.classname, d * v_forward, d * v_right, d * v_up));
+        bprint(sprintf("angles %v, health %g; a shot from your eyes meets %s\n", t.angles, t.health,
+            trace_ent == t ? "the tank" : trace_ent.classname));
         return;
     }
     if(request == 180)

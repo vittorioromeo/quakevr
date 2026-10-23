@@ -1,0 +1,9 @@
+# agrunt_tanks: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Arcane Dimensions)
+title Armed grunts with a flamethrower and a poison sprayer, their tanks on their backs
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Armed Grunt: Flamethrower" 150 90 0 0
+spawn "Armed Grunt: Poison Sprayer" 150 -90 0 0
+hint Their backs to you: tank on the back, hose to the gun. Shoot a tank (three hits): it bursts on the grunt (burning or poisoned, a field round it) and it drops its spent gun. Kill the other: its gun falls with its tank.

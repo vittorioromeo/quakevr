@@ -72,7 +72,7 @@ entity(entity p, entity m) VR_FuelTank_WornMake =
     entity t = spawn();
     t.classname = "vr_fueltank_worn";
     t.netname = "fuel tank";
-    t.movetype = MOVETYPE_NONE;
+    t.movetype = MOVETYPE_NOCLIP; // (placed each frame; not NONE: Killed then skips .enemy, who burst it)
     t.solid = SOLID_NOT_BUT_TOUCHABLE;
     setmodel(t, p.weapon == WID_ADPYRO ? "progs/vr_fueltank.mdl#6" : "progs/vr_fueltank.mdl#7");
     setsize(t, modelbounds(t, 0), modelbounds(t, 1));
