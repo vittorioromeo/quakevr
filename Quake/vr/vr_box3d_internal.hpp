@@ -1293,6 +1293,8 @@ void notePress(float dt);                       // after a frame's steps (vr_box
 [[nodiscard]] glm::vec3 heldPress(int num);     // the press of the hand carrying prop `num`
 void pressTest_f();    // vr_prop_press_test (vr_box3d_presstest.cpp)
 void pressTestFrame(); // (its next step, each server frame)
+void strikeTest_f();    // vr_prop_strike_test (vr_box3d_striketest.cpp)
+void strikeTestFrame(); // (its next step, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();
