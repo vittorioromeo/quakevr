@@ -107,7 +107,7 @@ void(entity p) VR_Melee_SweepTest =
     vector hlo = '0 0 0';
     vector hhi = '0 0 0';
     float hk = VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand));
-    if(thing == VR_MTHING_AXE && hk > 0 && VR_ADMelee_Heavy(hk))
+    if(thing == VR_MTHING_AXE && hk > 0 && VR_ADMelee_Blunt(hk))
     {
         hlo = admeleehead(hk, 0);
         hhi = admeleehead(hk, 1);

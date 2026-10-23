@@ -552,7 +552,7 @@ float(entity p, float xHand) VR_Melee_Thing =
     {
         // AD support: the hunter ogres' hammer and mace strike with their heads, as an axe's (cutting nothing off, as
         // Mjolnir: vr_decap.qc VR_Decap_Blade; vr_ad_guns_defs.qc).
-        return VR_ADMelee_Heavy(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) ? VR_MTHING_AXE : VR_MTHING_SWORD;
+        return VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) ? VR_MTHING_AXE : VR_MTHING_SWORD;
     }
     if(wid == WID_CROWBAR)
     {
@@ -1457,7 +1457,7 @@ float(float xHand, entity b) VR_Melee_Track =
     if(thing == VR_MTHING_AXE && !vr_mline_free)
     {
         float hk = VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand));
-        if(hk > 0 && VR_ADMelee_Heavy(hk))
+        if(hk > 0 && VR_ADMelee_Blunt(hk))
         {
             b.mh_hd_lo = admeleehead(hk, 0);
             b.mh_hd_hi = admeleehead(hk, 1);

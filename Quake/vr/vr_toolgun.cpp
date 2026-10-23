@@ -313,7 +313,7 @@ GhostHold ghostHold;
 
 // The ghost's turn for a degree of the gun hand's way (ghostHoldFrame).
 constexpr float ghostTurnRate = 2.f;
-constexpr int swordKindBits = 1792; // AD support: QC QVR_WPNFLAG_SWORD_KIND (an AD melee weapon's kind)
+constexpr int swordKindBits = 3840; // AD support: QC QVR_WPNFLAG_SWORD_KIND (an AD melee weapon's kind)
 
 struct ToolgunState
 {
@@ -628,7 +628,7 @@ void pick(int num)
         copyText(sel.key, sizeof(sel.key), "weapon");
         sel.value = static_cast<float>(wid);
         sel.lift = 8.f;
-        // AD support: an AD melee weapon's kind (QC vr_ad_guns_defs.qc: the sword's weapon flags, bits 8-10) kept;
+        // AD support: an AD melee weapon's kind (QC vr_ad_guns_defs.qc: the sword's weapon flags, bits 8-11) kept;
         // the rest of its flags are the one picked's state (a new one is made, loaded).
         const int flagsOfs = ED_FindFieldOffset("weaponflags");
         if(flagsOfs >= 0)

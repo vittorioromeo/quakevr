@@ -129,5 +129,17 @@ QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Rocket Launcher", "monster_vr
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Thunderbolt", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 11.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Grunt's Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 15.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Laser Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 16.f, 0, 0, nullptr, 0)
+// The four monster swords (swords4; QC vr_ad_guns_defs.qc VR_ADMELEE_PHANTOM.._JUDGE: the knight's sword, 13, of a kind,
+// its weapon flags kind x 256), here at the end so the entries' numbers stay: the Phantom Swordsman's (Rogue's data: the
+// DoE group) and AD's Dark Prince's, justice knight's and judicator's (the Weapons tab's AD group, as AD's other melee
+// weapons: vr_ad_spawnguns.inc).
+    {"Weapons", "DoE Phantom Sword", "func_weapon_grabbable", "progs/sword.mdl#melee", 8.f, "weapon", 13.f, 0, false, false,
+        false, -1, false, 1, "progs/sword.mdl", "DoE", 0, 1792.f},
+    {"Weapons", "AD Dark Prince's Sword", "func_weapon_grabbable", "progs/w_dprincesword.mdl#melee", 8.f, "weapon", 13.f, 0,
+        false, true, false, -1, false, 0, nullptr, nullptr, 0, 2048.f},
+    {"Weapons", "AD Justice Knight's Sword", "func_weapon_grabbable", "progs/w_justicesword.mdl#melee", 8.f, "weapon", 13.f,
+        0, false, true, false, -1, false, 0, nullptr, nullptr, 0, 2304.f},
+    {"Weapons", "AD Judicator's Sword", "func_weapon_grabbable", "progs/w_judgesword.mdl#melee", 8.f, "weapon", 13.f, 0,
+        false, true, false, -1, false, 0, nullptr, nullptr, 0, 2560.f},
 
 #undef QVR_PACK

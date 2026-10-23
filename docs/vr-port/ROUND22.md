@@ -17141,3 +17141,66 @@ wall within about 1.5 arm lengths of its chest (or one its fall carries it into)
 **In VR:** shoot grunts (shotgun and super shotgun, body shots) standing a step or two in front of a wall: most should
 throw a hand out to the wall beside them and slide down it into a slump, the super shotgun's slamming them into it
 first. Shoot one standing away from walls, and one with a headshot: no change. Wall Slide 0 gives back the drop.
+
+## Four monster swords: the Phantom Swordsman, the Dark Prince, the justice knight, the judicator (worktree `goreflesh`, branch `agent/swords4`, 2026-10-23)
+
+The author's approval (BACKLOG.md, "Droppable, usable swords"; the justice knight and the judicator added). Each drops
+its sword as AD's melee monsters do theirs (QC `vr_ad_melee.qc`): the knight's sword (`WID_SWORD`) of a new kind, its
+model made anew by `vr_admelee.cpp` from the monster's own sword model ("#melee"), laid as the knight's sword.
+
+- **Kinds 7-10** (`vr_ad_guns_defs.qc`): the kind's bits widened to 8-11 (`QVR_WPNFLAG_SWORD_KIND` 3840; the toolgun's
+  `swordKindBits` too): `VR_ADMELEE_PHANTOM` (Rogue's `progs/sword.mdl`), `_DPRINCE` (`w_dprincesword.mdl`, the death
+  knight's mesh, its own skins), `_JUSTICE` (`w_justicesword.mdl`), `_JUDGE` (`w_judgesword.mdl`, the same mesh 1.28
+  times bigger; ROUND22's old note that the justice knight's flat sword has no model was wrong: AD's pak0 has both).
+- **Models** (`vr_admelee.cpp`, measured with `scratch/sw4_slice.py`, `sw4_verts.py`): the Phantom Swordsman's from its
+  first frame (stand1: a hilt of 18 units, a guard 22 across, a narrow blade, 60 from the grip to the tip); the justice
+  knight's a broad blade (half-width 3.2, AD's clipped point made a broad ogive); the judicator's the same 1.28 times
+  bigger, the grip and the blade's thickness kept to the hand; the Dark Prince's the death knight's sword's measures.
+  `vr_admelee_models`: 0 open edges, outward on all four. Their skins are their own (the Phantom's blade bloody towards
+  the tip, as Rogue's skin). Without Rogue's data the Phantom's falls back to the knight's sword (`VR_Has`); in AD's
+  maps Rogue's pak is not mounted, so the Phantom Swordsman (Quake VR's `monster_sword`, which needs Rogue's data) and
+  its sword exist only with Rogue's data. AD's own `monster_sword` (`ad_mon_invsword.qc`, `progs/mon_sword.mdl`, not in
+  AD 1.80's paks; never spawned: Quake VR's own owns the classname) sets its class to its knight's:
+  `VR_ADMelee_Drop` checks the classname first, so it would drop the Phantom's sword, never a plain knight's sword.
+- **Weight and rules**: the Phantom's sword is heavy (`VR_ADMelee_Heavy`, now hammer, mace, Phantom): one hand slow and
+  weak as the hammer's (its mass 13 kg in Weapon Weights, `vr_admelee_heavy_1h` 0.5 of `vr_admelee_heavy_damage` 1.6),
+  its blows `vr_admelee_heavy_stamina`, walking `vr_admelee_heavy_speed`; it still cuts as a sword (beheads, cuts
+  limbs): the hammer's and mace's blunt head is `VR_ADMelee_Blunt` now (client.qc's blunt blow, `VR_Melee_Thing`, the
+  head box, the blunt hit layer). The others are swords as the death knight's (`vr_admelee_sword_damage`): the Dark
+  Prince's 4.5 kg (the death knight's), the justice knight's 6 kg, the judicator's 8 kg (one hand swings them more
+  slowly by their mass alone). **Holsters**: the Phantom's and the judicator's are too big (`VR_ADMelee_Holsterable`:
+  refused with a buzz, they fall; my call for the judicator's 1.5 m blade); the Dark Prince's and the justice knight's
+  holster.
+- **Weapon Offsets slots 47-50** (`numSlots` 50; new cvars, no migration): slot 42's (the death knight's) settings,
+  each with its tip (MuzzleAnchor from `vr_admelee_models`), its second hand towards the handle's end (`TwoHHandAnchor`:
+  5 AD units below the grip on the long hilts), mass, balance and Heft (0.9, 0.35, 0.5, 0.6).
+- **Corpses** (`vr_monstermods.cpp`): the Dark Prince's sword (870-910, the death knight's), the justice knight's
+  (0-91) and the judicator's (680-779) hidden in their deaths (103-121): "the sword (92 vertices) hidden in 19 death
+  frames"; their rigs make it a loose piece as the death knight's (gone from the dead ragdoll, welded in the hand while
+  knocked down; the rig cache's key holds the poses). The Phantom Swordsman is its sword: killed, it falls as the
+  weapon and its body is removed (`rogue_invis_sw.qc` sword_die).
+- **Toolgun**: four entries at the end of the list (the others' numbers stay; `vr_toolgun_packs.inc`): "DoE Phantom
+  Sword" (DoE group, with Rogue's data), "AD Dark Prince's Sword", "AD Justice Knight's Sword", "AD Judicator's Sword"
+  (AD group); entries 241-244.
+- **Settings**: the AD Guns page's help lines name the new swords (the rows' labels unchanged).
+- **Tests** (`-Games "-game hipnotic -game rogue -game ad -game quakevr"`, ad_dm1): `vr_ad_test 131`-`134` (spawn
+  first: `vr_test_spawn 15` / `256` / `231` / `242; impulse 241`): killed, one drop, AD's gib none, lying on its own
+  model and name, taken, strikes as a sword, holsterable / very heavy as above, blows one hand / two hands: Phantom 24 /
+  47 (0.51), the others 31 / 31: all PASS (the judicator boss woken by the spawner, killed at its first wave). `135`
+  the holsters: Phantom and judicator refused and lying, the others holstered: PASS. Save, load and `changelevel` with
+  each pair in hand (`136`, `137`, `124`): kinds 7-10 on their own models each time. The toolgun's four
+  (`vr_toolgun_spawn_trace 241`..`244`, then `vr_ad_test 123`): each lying on its own model, taken, holstered, drawn:
+  PASS. `vr_admelee_spine`: all four straight, on their lines. ad_import --check 0 of 142; eval.sh verdicts unchanged.
+- Eyeshots: `scratch/sw4_held_v2.png` (left: the Phantom's above, the justice knight's below; right: the Dark Prince's
+  above, the judicator's below).
+- **Open**: the hold report (`VR_ADMelee_Hold`, QC's `muzzlepos`) gives the justice knight's, judicator's and Phantom's
+  tips at 27.8, 34.4 and 38.3 units from the hand, where their anchors (bound right: `vr_anchor_info`) and the drawn
+  blades (`vr_admelee_spine`) say about 37, 47 and 53; the Dark Prince's (the death knight's slot) 34.7 as expected.
+  Not found why (not Heft, mass or the second hand's anchor); if the blow's far end uses it, their last third may not
+  reach.
+
+**In VR:** with Rogue's data, kill a Phantom Swordsman: no body, its sword lies; two hands swing it, one slowly and
+weakly; a hip or chest holster refuses it. In AD kill the Dark Prince, a justice knight and the judicator (its last
+wave): each drops its sword and its corpse holds none. Check each grip (Weapon Offsets slots 47-50: main hand at the
+middle of the hilt, the second towards the pommel), the swords' sizes against their monsters, and whether a blow near
+each long blade's tip lands.

@@ -8,6 +8,9 @@
 // corpses and ragdolls hold none (vr_monstermods.cpp hides them in their death frames; the zombie knight's rig, whose falls
 // are its knockdown's too). vr_admelee_drops 0: none dropped.
 //
+// `vr_ad_test 131`..`134`: the same for the four monster swords (Rogue's Phantom Swordsman, which falls as its very heavy
+// sword and leaves no body; AD's Dark Prince, justice knight, judicator); `135` their holsters (as 127: the Phantom's and
+// the judicator's too big); `136`, `137` two of them held.
 // `vr_ad_test 110`..`115` (the fury, the death knight, the zombie knight, the death guard, the hammer's ogre, the mace's):
 // the nearest such monster (the toolgun's, or `vr_test_spawn <n>; impulse 241`) is killed; its weapon (the fury's two)
 // lies, is taken (the fury's into both hands) and swung once with one hand and once with two at a target. "admelee:"
@@ -26,6 +29,9 @@ float(float t) VR_ADMelee_ForClass =
     if(t == ad_CT_MONDGUARD)   { return VR_ADMELEE_DGUARD; }
     if(t == ad_CT_MONHOGREHAM) { return VR_ADMELEE_HAMMER; }
     if(t == ad_CT_MONHOGREMAC) { return VR_ADMELEE_MACE; }
+    if(t == ad_CT_MONDPRINCE)  { return VR_ADMELEE_DPRINCE; }
+    if(t == ad_CT_MONJUSTICE)  { return VR_ADMELEE_JUSTICE; }
+    if(t == ad_CT_MONJUDGE)    { return VR_ADMELEE_JUDGE; }
     return 0;
 };
 
@@ -98,10 +104,32 @@ float(float t) VR_ADMelee_KnightSwordOf =
     return 0;
 };
 
+// The Phantom Swordsman (Rogue's monster_sword; AD's own, which AD sets up as its knight) is the sword itself: killed,
+// it falls as the weapon (VR_ADMELEE_PHANTOM) and its body goes (rogue_invis_sw.qc sword_die removes it). TRUE: dropped.
+float() VR_ADMelee_PhantomDrop =
+{
+    if(!cvar("vr_admelee_drops") || self.classname != "monster_sword")
+    {
+        return FALSE;
+    }
+    VR_ADMelee_DropOne(VR_ADMELEE_PHANTOM, 1);
+    dprint(sprintf("admelee: %s drops its %s\n", self.classname, VR_ADMelee_Name(VR_ADMELEE_PHANTOM)));
+    return TRUE;
+};
+
 void() VR_ADMelee_Drop =
 {
     if(!cvar("vr_admelee_drops"))
     {
+        return;
+    }
+    if(self.classname == "monster_sword") // (AD's: its class is its knight's, its sword no knight's sword)
+    {
+        if(VR_ADMelee_PhantomDrop())
+        {
+            self.ad_gib1mdl = self.ad_gib2mdl = self.ad_gib3mdl = ad_string_null;
+            setmodel(self, ad_string_null);
+        }
         return;
     }
     float ks = VR_ADMelee_KnightSwordOf(self.ad_classtype);
@@ -201,7 +229,7 @@ float(entity p, float xHand, float xBoth) VR_ADMelee_Blow =
     float bits = p.vrbits0;
     p.vrbits0 = xBoth ? (p.vrbits0 | QVR_VRBITS0_2H_AIMING) : (p.vrbits0 - (p.vrbits0 & QVR_VRBITS0_2H_AIMING));
     VRSetMeleeHitSoundPlayed(xHand, FALSE);
-    vr_melee_blunt = VR_ADMelee_Heavy(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))); // (as client.qc's blow)
+    vr_melee_blunt = VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))); // (as client.qc's blow)
     W_SwordMelee(xHand);
     vr_melee_blunt = FALSE;
     p.vrbits0 = bits;
@@ -230,6 +258,10 @@ float(float xKind) VR_ADMelee_ClassOf =
     if(xKind == VR_ADMELEE_ZKNIGHT) { return ad_CT_MONZOMBIEK; }
     if(xKind == VR_ADMELEE_DGUARD)  { return ad_CT_MONDGUARD; }
     if(xKind == VR_ADMELEE_HAMMER)  { return ad_CT_MONHOGREHAM; }
+    if(xKind == VR_ADMELEE_PHANTOM) { return -1; } // (Rogue's: found by its classname, monster_sword)
+    if(xKind == VR_ADMELEE_DPRINCE) { return ad_CT_MONDPRINCE; }
+    if(xKind == VR_ADMELEE_JUSTICE) { return ad_CT_MONJUSTICE; }
+    if(xKind == VR_ADMELEE_JUDGE)   { return ad_CT_MONJUDGE; }
     return ad_CT_MONHOGREMAC;
 };
 
@@ -263,7 +295,7 @@ void() VR_ADMelee_Think =
         entity m = world;
         for(entity e = nextent(world); e; e = nextent(e))
         {
-            if(e.ad_classtype == vr_admelee_class && e.health > 0 &&
+            if((vr_admelee_class < 0 ? e.classname == "monster_sword" : e.ad_classtype == vr_admelee_class) && e.health > 0 &&
                (!m || vlen(e.origin - p.origin) < vlen(m.origin - p.origin)))
             {
                 m = e;
@@ -282,6 +314,10 @@ void() VR_ADMelee_Think =
         VR_ADMelee_Report(sprintf("AD's gibs throw none (gib1 '%s', gib2 '%s')", m.ad_gib1mdl, m.ad_gib2mdl),
             (vr_admelee_class == ad_CT_MONDLORD) ? (m.ad_gib2mdl == ad_string_null) :
                 (m.ad_gib1mdl == ad_string_null && (want == 1 || m.ad_gib2mdl == ad_string_null)));
+        if(k == VR_ADMELEE_PHANTOM)
+        {
+            VR_ADMelee_Report(sprintf("its body gone (model index %g)", m.modelindex), m.modelindex == 0);
+        }
         vr_admelee_step = 1;
         self.nextthink = time + 1.5; // (the drop lands)
         return;
@@ -314,7 +350,9 @@ void() VR_ADMelee_Think =
         (VRGetEntWeaponFlags(p, cVR_MainHand) & (QVR_WPNFLAG_SWORD_KIND | QVR_WPNFLAG_USE_SECONDARY_AMMO)) == vr_admelee_flags);
     float thing = VR_Melee_Thing(p, cVR_MainHand);
     VR_ADMelee_Report(sprintf("strikes as %s", thing == VR_MTHING_AXE ? "a head (blunt)" : "a sword"),
-        thing == (VR_ADMelee_Heavy(k) ? VR_MTHING_AXE : VR_MTHING_SWORD));
+        thing == (VR_ADMelee_Blunt(k) ? VR_MTHING_AXE : VR_MTHING_SWORD));
+    VR_ADMelee_Report(sprintf("holsterable %g, very heavy %g", VR_ADMelee_Holsterable(k), VR_ADMelee_VeryHeavy(p, cVR_MainHand)),
+        VR_ADMelee_VeryHeavy(p, cVR_MainHand) == VR_ADMelee_Heavy(k));
     VR_ADGun_TestPlace(p, 32);
     float one = VR_ADMelee_Blow(p, cVR_MainHand, FALSE);
     float two = VR_ADMelee_Blow(p, cVR_MainHand, TRUE);
@@ -503,13 +541,17 @@ void(entity p) VR_ADMelee_CurveTest =
 // empty left hip holster (VRLetGoAtHolster, as the hand's letting go there): the hammer and the mace are refused (the
 // holster stays empty, the weapon falls: the hand empty, a weapon lying about), the sword goes in. "admelee holster:"
 // lines, then PASS or FAIL.
-void(entity p) VR_ADMelee_HolsterTest =
+void(entity p, float xNew) VR_ADMelee_HolsterTest =
 {
     float pass = TRUE;
     float hs = QVR_HS_LEFT_HIP_HOLSTER;
-    for(float k = 0; k < 3; k++)
+    for(float k = 0; k < (xNew ? 4 : 3); k++)
     {
         float kind = (k == 0) ? VR_ADMELEE_HAMMER : ((k == 1) ? VR_ADMELEE_MACE : VR_ADMELEE_FURY);
+        if(xNew) // (`vr_ad_test 135`: the four monster swords)
+        {
+            kind = VR_ADMELEE_PHANTOM + k;
+        }
         float flags = VR_ADMelee_Flags(kind);
         VR_ADMelee_Ensure(kind);
         VR_ADMelee_Hand(p, cVR_MainHand, flags);
@@ -556,7 +598,21 @@ void(float request, entity p) AD_MeleeTest =
     if(request == 123 || request == 125) { VR_ADMelee_TakeNearest(p, request == 125); return; }
     if(request == 124) { VR_ADMelee_ReportCarried(p); return; }
     if(request == 126) { VR_ADMelee_CurveTest(p); return; }
-    if(request == 127) { VR_ADMelee_HolsterTest(p); return; }
+    if(request == 127 || request == 135) { VR_ADMelee_HolsterTest(p, request == 135); return; }
+    if(request == 136 || request == 137)
+    {
+        // The four monster swords held, two at a time (to look at them): 136 the Phantom Swordsman's and the justice
+        // knight's, 137 the Dark Prince's and the judicator's.
+        float m1 = request == 136 ? VR_ADMELEE_PHANTOM : VR_ADMELEE_DPRINCE;
+        float m2 = request == 136 ? VR_ADMELEE_JUSTICE : VR_ADMELEE_JUDGE;
+        VR_ADMelee_Ensure(m1);
+        VR_ADMelee_Ensure(m2);
+        VR_ADMelee_Hand(p, cVR_MainHand, VR_ADMelee_Flags(m1));
+        VR_ADMelee_Hand(p, cVR_OffHand, VR_ADMelee_Flags(m2));
+        VR_ADMelee_Hold(p, cVR_MainHand);
+        VR_ADMelee_Hold(p, cVR_OffHand);
+        return;
+    }
     if(request == 128 || request == 129)
     {
         // The hammer (128) or the mace (129) in the main hand alone (heavy handling's mock swings: vr_heavy_test.cfg).
@@ -593,15 +649,16 @@ void(float request, entity p) AD_MeleeTest =
     entity t = spawn();
     t.classname = "vr_admelee_test";
     t.owner = p;
-    if(request >= 120)
+    if(request >= 120 && request <= 122)
     {
         vr_admelee_class = request == 120 ? ad_CT_MONHELLK : (request == 121 ? ad_CT_MONDLORD : ad_CT_MONDGUARDQ);
         vr_admelee_flags = QVR_WPNFLAG_USE_SECONDARY_AMMO; // (Quake VR's hell knight's sword)
     }
     else
     {
-        vr_admelee_class = VR_ADMelee_ClassOf(request - 109);
-        vr_admelee_flags = VR_ADMelee_Flags(request - 109);
+        float kind = request >= 131 ? request - 124 : request - 109; // (131-134: the four monster swords, kinds 7-10)
+        vr_admelee_class = VR_ADMelee_ClassOf(kind);
+        vr_admelee_flags = VR_ADMelee_Flags(kind);
     }
     vr_admelee_step = 0;
     vr_admelee_ok = TRUE;
