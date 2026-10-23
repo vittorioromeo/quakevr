@@ -1,0 +1,7 @@
+# ad_crossbow: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title An AD crossbow in each hand
+map vrtesthall
+god
+give "AD Crossbow Knight's Crossbow" main
+give "AD Crossbow Knight's Crossbow" off
+spawn "Grunt" 500 60

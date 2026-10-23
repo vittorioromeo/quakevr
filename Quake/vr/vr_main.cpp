@@ -83,6 +83,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_checklist.hpp"
+#include "vr_scenario.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
@@ -2024,6 +2025,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);
+    Cmd_AddCommand("vr_scenario", scenario::command_f);
     Cmd_AddCommand("vr_handcal_match", menu::handCalMatch_f);
     Cmd_AddCommand("vr_recenter", hands::recenter_f);
     Cmd_AddCommand("vr_body_error", hands::bodyError_f);
@@ -2258,6 +2260,7 @@ extern "C" void VR_BeginFrame()
         stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
         setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
         worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
+        scenario::frame();   // a checklist test scene: placed once its map is in, its hint
         loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
         retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
     }

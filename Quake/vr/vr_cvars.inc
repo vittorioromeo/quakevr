@@ -1003,6 +1003,7 @@ QVR_CVAR(vr_comfort_teleport_fade, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.cpp MenuLevel): 0 Standard (what every player sets), 1 Advanced (every gameplay, display and graphics setting), 2 Developer (tuning, recording, debug and tests too)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
+QVR_CVAR(vr_scenario_hint_time, "12", CVAR_ARCHIVE)    // a checklist test scene's hint (vr_scenario.cpp): seconds it floats ahead after Test (vr_scenario hint: again)
 QVR_CVAR(vr_melee_dmg_multiplier, "1.1", CVAR_ARCHIVE)
 // Hard damage caps per melee blow (QC combat.qc VR_Melee_CapDamage; ROUND22.md): the blow's strength from speed times its
 // zone's multiplier is kept within these multiples of the weapon's own base damage, before vr_melee_dmg_multiplier and

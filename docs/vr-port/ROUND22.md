@@ -18496,6 +18496,47 @@ with its heft) breaks a crate; two strong blows do, medium ones take 3-4.
 - [ ] A full axe or crowbar swing: two; a moderate swing: three or four. The same on an explosive box (it blows up on
   the second strong hit).
 - [ ] Smash a held crate into a wall hard twice: broken; the overhead slam still breaks it at once.
+
+## Checklist: Pass, Fail and Test (worktree `tghost`, branch `agent/checktest`, 2026-10-23)
+
+To make headset testing faster, every checklist item now has three buttons on a row under its text: **Pass**, **Fail**,
+**Test**. Left and right (or pointing the laser at one) pick a button; the pick stays from item to item, so a run of
+passes is one press each. A click on the item's text does nothing (no accidental passes).
+
+- **Pass** retires the item as a tick did (green `[x]`, dimmed; left out with Hide Ticked). **Fail** marks it red
+  `[!]` and keeps it listed until a new line replaces it (its key is its text). Pressing the same again puts it back
+  to untested; Undo Last Tick restores the previous mark (its help says which). The summary line counts the failed.
+  Stored in `quakevr/checklist_ticks.txt` as before: passed items' text a line, failed ones after `[fail] `; an older
+  file's lines are passes. `vr_checklist tick <n>` still toggles a pass; new `pass|fail|test <n>`.
+- **Test** (dimmed when the item has no scene) runs the item's scenario: the line's trailing `{test:<id>}` (hidden,
+  not part of its key) names `quakevr/scenarios/<id>.txt` (Quake/vr/vr_scenario.cpp; the format and how to write one:
+  TESTING.md, "Checklist scenarios: how to write one"). One press loads the map fresh, sets the scenario's settings
+  first, then once the map is in places you (spot and facing), puts its weapons in your hands (the toolgun's
+  Weapons entries, taken as a grab takes them), places its toolgun spawns around you on the floor (monsters, armed
+  grunts and enforcers with any weapon, crates, barrels, explosive boxes, corpses, flames, items), sets god/notarget/
+  health, runs its commands, closes the menu and floats the hint (the line's text) ahead and a little low for
+  `vr_scenario_hint_time` (new, 12 s; `vr_scenario hint` shows it again).
+- The Checklist page's top: the test running, **Reset Test** (the same scene again from scratch; `vr_scenario reset`
+  can be bound) and **End Test**. Settings a scene changes are put back by End Test, the next test, another map or a
+  load; while the config is written they are written as they were before the test (their strings swapped for the
+  file's write, no callbacks), so quitting mid-test never keeps them.
+- Checks for workers and the coordinator: `vr_scenario validate` (every file: map present, spawn and weapon names in
+  the toolgun's list, settings and commands exist; every checklist tag has its file), `vr_scenario runall quit [ids]`
+  (each scene run headless in turn: SCNRUN OK/FAIL with the first problem), `vr_scenario where` (a `start` line, free
+  distances, the nearest liquid's surface and extent). `cl_insert.py`'s lines stay plain text; a tag is just appended.
+
+Scenes written for the [next branch] items (47 files, 59 of 65 lines tagged). No scene: parallax depth write and
+graphics presets (look at his own maps through menu presets), Holster Calibration / menus / seated play (menus and
+calibration), running legs (any floor). Shared scenes: `flail` (dropped flail, flail feel, Death Sergeant's flail),
+`struggle_grunts` (head-look, struggle per group), `shoulder_charge` (all three charge items, an 800-unit lane),
+`crates_melee` (both crate items), `mini_bosses` (tougher AD monsters, mini bosses, Death Fury), `ad_crossbow`,
+`plasma_bolts`, `foam_pool`, `scorch_wall` (two each). Most are in vrtesthall (its pool for foam, blood in water, pyro
+steam, flame into water, armed grunts falling near water; its south wall for wall blows, scorches and wall deaths).
+
+**In VR:** Checklist page: pick Pass / Fail / Test with the stick and with the laser; the colours (green passed, red
+failed) and the bracketed pick; Test on a few items (armed grunts row, crates, the pool with grunts, mini bosses):
+right map, you face the scene, weapons in the right hands, the hint readable and not in the way; Reset Test; End Test
+(Show Melee Blades goes off again after `melee_blades`).
 ### Armed monsters: dual wielding, the enforcer's tests (worktree `release`, branch `agent/armedmon2`, 2026-10-23)
 
 Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not started (budget).
