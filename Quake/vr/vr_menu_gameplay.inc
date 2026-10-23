@@ -1040,7 +1040,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         header("Disarming"),
         toggle("Hits Disarm", vr_agrunt_disarm)
             .help("A hard blow on its gun hand (a shot, a melee blow, a thrown thing) or a knockdown knocks the "
-                  "weapon out of its hand, its rounds with it (vr_agrunt_disarm)."),
+                  "weapon out of its hand, its rounds with it; your shots by Shooting It Out's rule below while that is "
+                  "on (vr_agrunt_disarm)."),
         slider("Disarming Blow", vr_agrunt_disarm_damage, 1.f, 50.f, 1.f, "%.0f damage").extend(0.f, 500.f)
             .help("A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage)."),
         toggle("Grab Its Weapon", vr_agrunt_disarm_yank)
@@ -1106,6 +1107,54 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "ledge (vr_agrunt_seek_timeout)."),
         slider("Leaves It Alone For", vr_agrunt_seek_shun, 0.f, 120.f, 1.f, "%.0f s").extend(0.f, 600.f)
             .help("How long it leaves a weapon it gave up on before trying it again (vr_agrunt_seek_shun)."),
+        header("Disarming: Shooting It Out"),
+        toggle("Shoot Weapons Out", vr_agrunt_shotdisarm)
+            .help("Your shots on the weapon an armed grunt holds, or the hand holding it, add up; each time they pass "
+                  "the threshold within the time window, a roll may knock the weapon out of its hand, along your shots. "
+                  "A close shotgun blast on the gun likely does, a quick nail burst may, a chip shot from afar seldom. "
+                  "Each hand's weapon on its own. While on, your shots disarm only this way (vr_agrunt_shotdisarm)."),
+        cycle("What Counts", vr_agrunt_shotdisarm_parts, {{0.f, "The Weapon"}, {1.f, "The Hand"}, {2.f, "Weapon or Hand"}})
+            .help("Which hits add up: on the weapon itself, on the hand and forearm holding it, or either "
+                  "(vr_agrunt_shotdisarm_parts)."),
+        slider("Weapon Hits Count", vr_agrunt_shotdisarm_weapon_w, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A hit on the weapon counts its damage times this (vr_agrunt_shotdisarm_weapon_w)."),
+        slider("Hand Hits Count", vr_agrunt_shotdisarm_hand_w, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A hit on the hand or forearm counts its damage times this; it hurts the grunt as usual "
+                  "(vr_agrunt_shotdisarm_hand_w)."),
+        slider("Hit Volume Size", vr_agrunt_shotdisarm_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The weapon's and the hand's hit volumes times this: under 1 only precise shots count, over 1 near ones "
+                  "too (vr_agrunt_shotdisarm_size)."),
+        slider("Near Misses Count Within", vr_agrunt_shotdisarm_near, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 64.f)
+            .help("A shot passing this close to the weapon or the hand, but not on it, counts at half. 0: only hits "
+                  "(vr_agrunt_shotdisarm_near)."),
+        slider("Damage to a Roll", vr_agrunt_shotdisarm_damage, 1.f, 100.f, 1.f, "%.0f damage").extend(0.f, 1000.f)
+            .help("The damage adding up to a roll: a shotgun blast's six pellets are 24, a nail 9, a super nail 18, a "
+                  "bolt 30 (times its weight below). Each crossing rolls once, then it starts over "
+                  "(vr_agrunt_shotdisarm_damage)."),
+        slider("Time Window", vr_agrunt_shotdisarm_window, 0.05f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("How long hits add up, from the first: then it starts over (vr_agrunt_shotdisarm_window)."),
+        slider("Chance a Roll", vr_agrunt_shotdisarm_chance, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("The roll's chance right at the threshold (vr_agrunt_shotdisarm_chance)."),
+        slider("Chance Past the Threshold", vr_agrunt_shotdisarm_chance_scale, 0.f, 2.f, 0.05f, "+%.2f").extend(0.f, 10.f)
+            .help("Added to the chance for each threshold's worth past it (half past: half of it); at most 0.95. A "
+                  "shotgun blast all on the gun, 24 on 16: 0.25 + 0.4 (vr_agrunt_shotdisarm_chance_scale)."),
+        slider("After a Failed Roll", vr_agrunt_shotdisarm_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("No hits add up for this long after a roll that failed (vr_agrunt_shotdisarm_cooldown)."),
+        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_absorb)
+            .help("A pellet or a nail on the weapon stops there: it doesn't hurt the grunt. Off: it goes on into the body "
+                  "behind (vr_agrunt_shotdisarm_absorb)."),
+        slider("Shotgun Pellets", vr_agrunt_shotdisarm_w_pellet, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the shotguns' pellets count (vr_agrunt_shotdisarm_w_pellet)."),
+        slider("Nails", vr_agrunt_shotdisarm_w_nail, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the nailguns' nails count (vr_agrunt_shotdisarm_w_nail)."),
+        slider("Lightning", vr_agrunt_shotdisarm_w_lightning, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the lightning gun's bolts count, 30 each tenth of a second (vr_agrunt_shotdisarm_w_lightning)."),
+        slider("Rockets and Grenades", vr_agrunt_shotdisarm_w_blast, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much a rocket or a grenade flying through the weapon or the hand counts, its direct hit's damage "
+                  "(vr_agrunt_shotdisarm_w_blast)."),
+        slider("Explosions", vr_agrunt_shotdisarm_w_splash, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much an explosion's damage to the grunt counts on its weapons. 0: never "
+                  "(vr_agrunt_shotdisarm_w_splash)."),
         header("Behaviour"),
         toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
             .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
