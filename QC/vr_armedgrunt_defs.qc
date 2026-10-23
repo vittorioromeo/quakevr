@@ -22,6 +22,8 @@
 .float vr_ag_disarms;      // times it was disarmed (the tests)
 .float vr_ag_pickups;      // weapons it picked up (the tests)
 
+float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
+float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)
 float() VR_AG_CheckAttack;                                                 // ai.qc CheckAnyAttack: an armed grunt's
 float(entity targ, entity attacker, float damage) VR_AG_DamageScale;       // T_DamageDeal: its weapon's damage to players
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
