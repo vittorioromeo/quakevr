@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Dying against a wall: body-shot grunts standing a step or two from a wall with the shotgun and super shotgun: most throw a hand out to the wall and slide down into a slump (Ragdoll > Lean on Walls > Wall Slide); away from walls and headshots look unchanged
 Shoulder charge 4: charge with your hands a bit above your chest (tucked, head down) after a 0.5 s run: it connects, turning side-on as you meet; running with your hands up without charging: nothing
 Crates and barrels from melee: count blows to break with fist (~4), crowbar, axe, sword (~2): like before the press fix; pressing a crate down still doesn't sink it
 Vanilla pickup mode: walk over ammo, health (when hurt), armour and a key: taken; take shells/magazines from the pouch; carry a crate
