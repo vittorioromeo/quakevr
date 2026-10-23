@@ -7,7 +7,8 @@ the blade-shape part of it as the source edits that ship it (ROUND22.md, "His bl
   - the fist line (vr_melee_fist_*): the vr_cvars.inc defaults, and the vr_cvars.cpp defaultChanges rows (old default:
     a config still holding it takes the new one);
   - each weapon slot's blade keys (vr_wofs_bl_*_NN) and, for a slot whose blade keys changed, its tip (the Muzzle
-    offsets, vr_wofs_muzzle_x/y/z_NN: Edit Blade Shape's tip handle moves them): the vr_weapons.inc QVR_WEAPON_DEFAULT
+    offsets, vr_wofs_muzzle_x/y/z_NN: Edit Blade Shape's tip handle moves them; a melee weapon's only: a gun's Muzzle is
+    where its shots start, so its tip change is reported, not shipped): the vr_weapons.inc QVR_WEAPON_DEFAULT
     lines and the vr_weapons.cpp OldValue rows of a wofs-version step (a config still holding the old value takes the
     new).
 
@@ -29,6 +30,10 @@ LINE = re.compile(r'^(\S+)\s+"([^"]*)"\s*//\s*default\s+"([^"]*)"')
 KEY = re.compile(r'^QVR_WEAPON_KEY\((\w+),\s*"([^"]+)"\)')
 FIST = re.compile(r'^vr_melee_fist_\w+$')
 WOFS = re.compile(r'^vr_wofs_(\w+?)_(\d\d)$')
+ID = re.compile(r'^QVR_WEAPON_DEFAULT\((\d+),\s*ID,\s*"([^"]+)"\)')
+# Quake VR's own melee weapons (vr_weapons.inc's TorchClip list: the axe, Mjolnir, the two swords, the chainsaw, the
+# crowbar); the AD and monster melee weapons are the IDs ending "#melee".
+MELEE = (0, 8, 18, 19, 20, 23)
 
 
 def number(s):
@@ -55,11 +60,15 @@ def main():
     args = ap.parse_args()
 
     keys = {}  # "bl_near" -> "BladeNear"
+    melee = set(MELEE)  # the slots (indices) whose tip is only a blade's: the rest are guns, their Muzzle where shots start
     with open(args.inc, encoding="utf-8", errors="replace") as f:
         for line in f:
             m = KEY.match(line)
             if m:
                 keys[m.group(2)] = m.group(1)
+            m = ID.match(line)
+            if m and m.group(2).endswith("#melee"):
+                melee.add(int(m.group(1)))
 
     fist = []
     slots = {}  # cvar suffix NN -> {suffix key: (value, old)}
@@ -96,6 +105,9 @@ def main():
                 print(f"unknown key {k} (slot {nn})", file=sys.stderr)
                 continue
             value, old = keyvals[k]
+            if k.startswith("muzzle_") and slot not in melee:
+                print(f"slot {nn}: {k} {old} -> {value} not shipped: a gun's tip is its firing muzzle", file=sys.stderr)
+                continue
             lines.append(f'QVR_WEAPON_DEFAULT({slot}, {keys[k]}, "{value}") // was {old}')
             literal = old if "." in old else old + "."
             rows.append(f"{{{slot}, Key::{keys[k]}, {literal}f}}")

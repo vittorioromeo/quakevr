@@ -519,9 +519,9 @@ QVR_WEAPON_DEFAULT(1, FingerThumbX, "0.3")
 QVR_WEAPON_DEFAULT(1, FingerOpen, "0.6")
 QVR_WEAPON_DEFAULT(1, Length, "0.0")
 QVR_WEAPON_DEFAULT(1, MuzzleAnchor, "33.0657 -0.6615 3.013")
-QVR_WEAPON_DEFAULT(1, MuzzleOffsetX, "-0.2229") // his blade's tip (wofs 59; was 0.9 0.4 0.6): the blades' block below
-QVR_WEAPON_DEFAULT(1, MuzzleOffsetY, "0.2441")
-QVR_WEAPON_DEFAULT(1, MuzzleOffsetZ, "0.4977")
+QVR_WEAPON_DEFAULT(1, MuzzleOffsetX, "0.9")
+QVR_WEAPON_DEFAULT(1, MuzzleOffsetY, "0.4")
+QVR_WEAPON_DEFAULT(1, MuzzleOffsetZ, "0.6")
 QVR_WEAPON_DEFAULT(1, Pitch, "-9")
 QVR_WEAPON_DEFAULT(1, Roll, "0")
 QVR_WEAPON_DEFAULT(1, Scale, "0.44")
@@ -4514,7 +4514,9 @@ QVR_WEAPON_DEFAULT(49, Hotspot1Roll, "3.97255") // (his, vr_wofs_version 53)
 QVR_WEAPON_DEFAULT(49, Hotspot1Yaw, "13.860517") // (his, vr_wofs_version 53)
 // His blade shapes (Edit Blade Shape; his config of 2026-10-24, vr_wofs_version 59: vr_weapons.cpp takeBladeShapes59).
 // Made by Misc/quakevr/blade_defaults.py from vr_propose_defaults; the next round's go here too (a slot's tip, its
-// Muzzle offsets, edited in its own lines above). The shotgun (slot 1, Weapon Offsets 02): a narrower blade.
+// Muzzle offsets, edited in its own lines above: a melee weapon's only, as a gun's is where its shots start). The
+// shotgun (slot 1, Weapon Offsets 02): a narrower blade (his tip, muzzle -0.2229 0.2441 0.4977, not shipped: it would
+// move the shots).
 QVR_WEAPON_DEFAULT(1, BladeWidth, "0.594")
 // The AD death fury's sword (slot 40, Weapon Offsets 41): his near end, a narrower blade, a curve of its own.
 QVR_WEAPON_DEFAULT(40, BladeNear, "0.1854")

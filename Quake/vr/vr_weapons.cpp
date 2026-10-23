@@ -158,7 +158,7 @@ namespace
 // 56: the shotgun's (slot 1) first hotspot 9.66, -0.67 (his config of 2026-10-19; was 9.6656, -0.7315).
 // 57: the justice knight's and judicator's swords (indices 48-49) his (takeMonsterSwords57).
 // 58: the flail's handle smaller (index 50; takeFlailHandle58).
-// 59: his blade shapes (the shotgun's, the AD fury's sword's, the AD mace's: indices 1, 40, 45, their tips too) and the
+// 59: his blade shapes (the shotgun's, the AD fury's sword's, the AD mace's: indices 1, 40, 45; the sword's tip) and the
 // axe's head box corners where the config still holds the zeros of before they shipped (takeBladeShapes59).
 constexpr int settingsVersion = 59;
 
@@ -555,8 +555,7 @@ void takeFlailHandle58()
 // kept 0 for each): taken where all six are still 0.
 void takeBladeShapes59()
 {
-    constexpr OldValue old[] = {{1, Key::BladeWidth, 1.f}, {1, Key::MuzzleOffsetX, 0.9f}, {1, Key::MuzzleOffsetY, 0.4f},
-        {1, Key::MuzzleOffsetZ, 0.6f}, {40, Key::BladeNear, -1.f}, {40, Key::BladeWidth, 1.f}, {40, Key::BladeSpine, 0.f},
+    constexpr OldValue old[] = {{1, Key::BladeWidth, 1.f}, {40, Key::BladeNear, -1.f}, {40, Key::BladeWidth, 1.f}, {40, Key::BladeSpine, 0.f},
         {40, Key::BladeSpine1Off, 0.f}, {40, Key::BladeSpine1Side, 0.f}, {40, Key::BladeSpine2Off, 0.f},
         {40, Key::BladeSpine2Side, 0.f}, {40, Key::BladeSpine3Off, 0.f}, {40, Key::BladeSpine3Side, 0.f},
         {40, Key::BladeSpine4Off, 0.f}, {40, Key::BladeSpine4Side, 0.f}, {40, Key::BladeSpine5Off, 0.f},
