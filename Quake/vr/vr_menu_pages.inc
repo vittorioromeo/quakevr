@@ -504,6 +504,9 @@ void resetHandMoves()
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
         open("Incandescent Blades", pageIndex(pageHotBlades))
             .help("A melee weapon held in a flame or lava glows red-hot: harder blows that set what they strike on fire."),
+        open("Flail", pageIndex(pageFlail)) // AD support (vr_menu_ad_guns.inc)
+            .help("Arcane Dimensions' death sergeant's flail, its spiked head swinging on a chain: the chain's length, the "
+                  "head's mass and air drag, its blows' damage and speeds, its rattle, its head lying about."),
         header("Swing Sounds"),
         toggle("Whoosh by Speed", "vr_melee_swish").help("Every swing of a fist, an open hand or a melee weapon that moves air whooshes, louder the faster: softly short of a blow, a blow at full volume, the fastest blows louder still and a little higher. Off: only a blow whooshes, always at full volume. A gun's swing whooshes only as a blow."),
         slider("Heard From", "vr_melee_swish_min", 0.2f, 0.9f, 0.05f, "%.2fx").extend(0.05f, 0.95f).help("The slowest swing heard, as a share of the speed its blow would land at (slower: silent)."),

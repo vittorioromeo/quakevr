@@ -401,6 +401,11 @@ namespace
 // out of the level, its speed capped; the chain's rattle; the info.
 void stepped(Head& head, int i, int h)
 {
+    // Where the step left it, first: everything below (the chain's length, the level's surface, the view, QC's
+    // .vr_flail_head) goes by it. (Lost once in the flailprop split: the head was then drawn, and pinned by the chain's
+    // guard, where it was made, the body whirling at the speed cap round that spot: "it hovers", note
+    // vrtesthall_2026-10-23_22-41-32.)
+    head.pos = world->toU(b3Body_GetPosition(head.head));
     const float scale = handTime();
     const float most = mostSpeed();
     if(const glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head)); glm::length(v) * scale > most)
@@ -489,8 +494,9 @@ void stepped(Head& head, int i, int h)
     }
     if(vr_flail_debug.value >= 2.f)
     {
-        Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle\n", i, h,
-            head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt));
+        Con_Printf("flail: client %d hand %d: head %.1f %.1f %.1f, %.1f u/s, %.1f from the handle (%.1f %.1f %.1f)\n", i, h,
+            head.pos.x, head.pos.y, head.pos.z, glm::length(head.vel), glm::distance(head.pos, head.anchorAt),
+            head.anchorAt.x, head.anchorAt.y, head.anchorAt.z);
     }
 }
 } // namespace

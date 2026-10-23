@@ -18925,3 +18925,48 @@ Scenarios: `sword_floor` (vrtesthall: a sword, Show Melee Blades, two grunt corp
 should go into the floor/wall a little and cut instead of bouncing up; chop the bare floor and a wall: sparks and marks
 as before. Tune Strike Past: Length Held Out (lower: more of the blade goes in). Phantom Swordsman: open the toolgun's
 DoE group; if its tile is greyed, press it and record a note (the console line says why).
+
+## The held flail's head hangs again; its settings on a Flail page (worktree `gorefx`, branch `agent/flail3`, 2026-10-23)
+
+His note vrtesthall_2026-10-23_22-41-32 (the `flail` scene, the flail in the main hand): "the ball hovers there; it
+doesn't seem to react to gravity anymore, maybe the drag is too high", and searching the menus for "flail" found none
+of its settings.
+
+- **The cause** (not the drag): the flailprop split (`agent/flailprop`, "The flail lying about keeps its ball and
+  chain") moved the after-step work into `vr_box3d_flail.cpp stepped` and lost its first line,
+  `head.pos = world->toU(b3Body_GetPosition(head.head))`. The head's place after the step was never read again: the
+  view drew it where it was made, QC's `.vr_flail_head` (where a dropped flail's head lying about is made) stayed
+  there, and the chain's length guard, measuring from that stale place, set the body back onto it every frame once the
+  hand moved off: the body whirled round a fixed spot at the speed cap (504 u/s) while the ball hung in the air.
+  Restored (with a comment); `vr_flail_debug 2`'s line now also prints the handle's end.
+- **Measured** (`scratch/fl_t1.sh`, `fl_t2.sh`, `fl_sum.py`; the `flail` scene, `+grabmain`, `notarget`; the head
+  against the handle's end over 3 s):
+
+  | case | before | after |
+  | --- | --- | --- |
+  | from the scene's give | drawn head fixed, at the speed cap | 8 below the handle's end, falls to 17.6 (the chain), swings (sway 15 -> 7 units, speed peaks 106 -> 55 u/s) |
+  | still hand, after it settled | z fixed 38.0, then 43.2 (above the hand), 504 u/s | hangs 17.7 below, sway 7 -> 3 units |
+  | 90-degree arm flick (0.68 m in 0.125 s) | z 43.2 throughout, 504 u/s | swings up to 5 above the handle and back; at 3 s still swinging (sway 11-14, speed peaks 177 -> 86 u/s) |
+  | taken from the floor (`vr_ad_test` 166, 167) | z, x, y fixed at the lying head's | starts 15 below, swings up to 4 above, settles (17.4 below) |
+
+- **The drag kept at 0.6:** with the head free again a flick's swing halves in about 2 s and still goes after 3 s
+  (0.15: barely dies down; 0.3 between). A whirl (`vr_mock_swing 0.4`) reaches the 16 m/s cap at 0.15, 0.3 and 0.6
+  alike: the cap, not the drag, bounds a whirl. No default changed, no migration.
+- **The Flail page** (`vr_menu_ad_guns.inc pageFlail`, the last page, 280): Combat > Melee > Flail (where the melee
+  settings are), also linked from Arcane Dimensions > Soldiers' Guns (where the group was, under a header search never
+  matches). Rows: Flail Chain Length, Flail Head Mass, Flail Air Drag (was Head Drag), Flail Most Head Speed; Its
+  Blows: Flail Damage, Flail Least Speed, Flail Most Damage, Flail Least Damage, Flail in Two Hands; Sound and Lying
+  About: Flail Chain Rattle, Flail Head Lying About. The helps say "maximum"/"minimum" for Most/Least.
+  `vr_menu_search flail`: the page first (1.62); "air drag": Flail Air Drag 4th (after the grappling hook's);
+  "maximum damage": Flail Most Damage first; "chain length": Flail Chain Length first. `vr_menu_slider_step` steps
+  each of the 10 sliders' cvars (0.45 -> 0.5 m, 3 -> 3.1 kg, ... 0.6 -> 0.65 drag). `vr_menu_path_check
+  maps/vrcalibration.map`: 6 found, 0 missing.
+- **Test scene:** `flail` reused unchanged. Headless, the scene's give is let go of 26 frames later unless the mock
+  grips (`+grabmain`): every `give` scene's mock behaviour, not the flail's.
+
+Pictures: `scratch/flail3_eyes.png` (the head hanging under the hand; the hand swept right; the Flail page).
+
+**In VR:** take the flail (the `flail` scene) and hold still: the ball should hang under the handle on its chain; lower
+the hand slowly and turn: it trails and swings; flick it: it swings up and dies down over a few seconds; whirl it: it
+still takes work. Drop it and pick it up: the head swings up from where it lay. Search "flail" in the menus: the Flail
+page first; try Flail Air Drag (lower: swings longer).
