@@ -5,7 +5,7 @@
 // damage, vr_admelee_*); the hammer and the mace heavy (their mass, Weapon Weights slots 45-46: one hand swings them
 // slowly; vr_admelee_heavy_1h of their damage, two hands all of it) and blunt. Their models are AD's own weapon models
 // (their gibs), laid as the knight's sword by the engine (vr_admelee.cpp); AD's gibs throw no second one, and their
-// corpses and ragdolls hold none (vr_monstermods.cpp hides them in their death frames; not the zombie knight's: its falls
+// corpses and ragdolls hold none (vr_monstermods.cpp hides them in their death frames; the zombie knight's rig, whose falls
 // are its knockdown's too). vr_admelee_drops 0: none dropped.
 //
 // `vr_ad_test 110`..`115` (the fury, the death knight, the zombie knight, the death guard, the hammer's ogre, the mace's):

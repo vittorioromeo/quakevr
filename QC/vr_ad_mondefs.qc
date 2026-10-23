@@ -32,6 +32,8 @@ float(entity e, entity by) VR_AD_NeckSnapKilled; // VR_FoeGrab_NeckSnap: an AD m
 void() VR_AD_RunNow;                     // a knockdown's get-up over: self runs (AD's th_run)
 string(float choice) VR_AD_DispenserModel; // VR_EnemyDispenser_Model: an AD monster (200..), "" none
 float(float choice) VR_AD_DispenserSpawn;  // VR_EnemyDispenser_Spawn: TRUE when it was one
+void(float choice) VR_AD_DispenserBossPrepare; // ... before it: a scripted boss (the judicator, the ice golem) named
+void() VR_AD_DispenserBossWake;            // ... after it: that boss woken (its map's trigger's use), to fight now
 void() AD_MonstersTestFrame;             // StartFrame: vr_ad_mtest (vr_ad_monsters_test.qc)
 
 // AD's patched code calls these (ad_import.py MON_PATCHES; the renaming keeps every VR_AD_ name).

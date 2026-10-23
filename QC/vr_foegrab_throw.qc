@@ -142,7 +142,7 @@ float(entity m, float xUp, float xHold) VR_FoeGrab_Lift =
         result = VR_Knockdown_Start(m) ? 1 : -2;
         if(result == 1)
         {
-            m.vr_kd_until = max(m.vr_kd_until, time + xHold);
+            m.vr_kd_until = max(m.vr_kd_until, time + xHold * VR_KD_DownScale(m));
         }
         else
         {
@@ -247,6 +247,22 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     if(m.health <= 0 || !(m.flags & FL_MONSTER) || m.takedamage == DAMAGE_NO)
     {
         return 0;
+    }
+    // A tough one (its monster group's Neck Snap Kills off: the Mini Bosses, the author's 2026-10-23 note): its neck holds.
+    // The crack, softer, and a blow of vr_foegrab_necksnap_tough of its full health (it may die of that, hurt enough);
+    // it fights on in the hands as it was (2: the engine leaves its holds be, as the training dummy's).
+    if(!monstergroupget(m, MGP_SNAPKILLS))
+    {
+        float full = m.max_health > 0 ? m.max_health : m.health;
+        float dmg = max(1, rint(full * max(0, cvar("vr_foegrab_necksnap_tough"))));
+        VR_FoeGrab_Crack(m, xVolume * 0.6);
+        haptic(cVR_OffHand, 0, 0.2, 45, 0.9);
+        haptic(cVR_MainHand, 0, 0.2, 45, 0.9);
+        floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "its neck holds", '1 0.7 0.3', 0.6);
+        dprint(sprintf("necksnap: %s's neck holds (its monster group's Neck Snap Kills off): %g damage, health %g of %g\n",
+            m.classname, dmg, m.health, full));
+        T_Damage(m, self, self, dmg);
+        return 2;
     }
     string was = m.vr_knockdown == 1 ? (m.vr_kd_stagger ? "staggering" : "knocked down") : "standing";
     float down = m.vr_knockdown == 1 && isragdoll(m);

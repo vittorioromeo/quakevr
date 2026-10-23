@@ -26,6 +26,7 @@
 // over the other way (forward or backward of its own facing, or to a side: whichever way the sweep goes past it).
 
 #include "vr_legsweep.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_melee_shared.h"
 
 #include "vr_anchor.hpp"
@@ -723,6 +724,14 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
         if(speed < need)
         {
             note(hand, m, va("%s: too slow (%.0f kg: %.2f m/s needed)", why, mass, need / units::metresToUnits()));
+            continue;
+        }
+        // A tough monster group (Monster Groups > Knockdown Chance below 1: the Mini Bosses) keeps its feet by chance.
+        if(const float kd = mgroups::value(m, mgroups::Param::KdScale); kd < 1.f && static_cast<float>(rand()) / RAND_MAX >= kd)
+        {
+            note(hand, m, va("%s: it keeps its feet (its monster group's Knockdown Chance %.2f)", why, kd));
+            state.swept[state.sweptNext] = Swept{e, qcvm->time};
+            state.sweptNext = (state.sweptNext + 1) % maxSwept;
             continue;
         }
         const glm::vec3 along = level / speed;

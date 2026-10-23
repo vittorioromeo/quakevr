@@ -194,6 +194,7 @@ struct ShippedSlot
 };
 constexpr ShippedSlot shippedSlots[] = {
     {183, 62}, // AD's health vial (progs/health_5.mdl): in the palm
+    {189, 64}, // AD's death fury's head (progs/h_dfury.mdl): 0.65 of its size
 };
 
 } // namespace

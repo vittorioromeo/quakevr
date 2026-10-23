@@ -45,6 +45,9 @@ constexpr float stringBow[3] = {0.f, 0.f, 1.6f};
 constexpr glm::vec3 nock{6.9f, 0.f, 3.43f - 0.1935f * 6.9f + 0.8f};
 constexpr glm::vec3 railAhead{1.f, 0.f, -0.1935f};
 constexpr glm::vec3 railUp{0.1935f, 0.f, 1.f};
+// The bolt lies along the shot while the shot is within this of the rail (cos 3 degrees: the slot's own hold, 0.3);
+// further off, the gun is held another way and the bolt lies on the rail (boltPose).
+constexpr float railShotCos = 0.99863f;
 constexpr float boltScale = 0.75f; // (12/16: exact as an entity's networked scale)
 constexpr float boltBack = 10.f * boltScale;
 constexpr const char* boltModelName = "progs/proj_bolt1.mdl";
@@ -160,8 +163,15 @@ void boltPose(int hand, const view::ViewEntity& w, glm::vec3& centre, glm::vec3&
     const int slot = weapons::heldSlot(hand);
     if(slot >= 0)
     {
-        glm::vec3 r, u;
-        hands::angleVectors(weapons::shotAngles(hands::current().rot[hand], slot, hand == HAND_OFF), fwd, r, u);
+        // Along the shot only while the shot runs along the rail (the hold its slot's: the shot from the hand's
+        // controller and the slot's hold). Held another way (the off hand's grip, taken where the hand met it, a second
+        // hand's: the author's 2026-10-23 note) the shot's line is not the drawn gun's: the bolt lies on the rail.
+        glm::vec3 shot, r, u;
+        hands::angleVectors(weapons::shotAngles(hands::current().rot[hand], slot, hand == HAND_OFF), shot, r, u);
+        if(glm::dot(shot, fwd) >= railShotCos)
+        {
+            fwd = shot;
+        }
     }
     up = view::modelPoint(w, nock + railUp) - at;
     up = glm::normalize(up - fwd * glm::dot(up, fwd) + glm::vec3{0.f, 0.f, 1e-6f});
