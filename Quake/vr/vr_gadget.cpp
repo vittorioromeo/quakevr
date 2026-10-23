@@ -2330,6 +2330,24 @@ bool tip(za::StringView text, float seconds)
     return true;
 }
 
+bool notice(za::StringView text, float seconds)
+{
+    if(!hologramOn())
+    {
+        return false;
+    }
+    HoloMessage m;
+    makeMessage(text, m);
+    if(m.rows == 0)
+    {
+        return false;
+    }
+    m.start = m.appeared = realtime;
+    m.life = za::max(seconds, 1.f); // (not a notification: no waiting, no chime; the same text again keeps it on)
+    addMessage(ZA_MOVE(m));
+    return true;
+}
+
 bool testMessage()
 {
     if(!hologramOn())
@@ -2700,6 +2718,14 @@ void gadgetInfo_f()
     const glm::mat3& a = current.axes;
     Con_Printf("gadget: origin %.3f %.3f %.3f right %.4f %.4f %.4f up %.4f %.4f %.4f out %.4f %.4f %.4f\n", o.x, o.y, o.z,
         a[0].x, a[0].y, a[0].z, a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z);
+    for(const HoloMessage& m : queue) // (the hologram's messages up now: tests)
+    {
+        if(alive(m))
+        {
+            Con_Printf("gadget: hologram message (%.1f s left%s) \"%s\"\n",
+                lifeOf(m) - static_cast<float>(realtime - m.start), m.notify ? ", notification" : "", m.text.cStr());
+        }
+    }
 }
 
 // vr_gadget_screen_dump [name]: the screen's image as drawn this frame (before the CRT and the glow), flat, to screenshots/<name>.png (default gadget_screen), for tests.

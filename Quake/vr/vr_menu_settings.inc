@@ -17,8 +17,12 @@ za::Vector<Item> pageMain()
                   "moved and turned on your controllers so they sit where your real hands are."),
         open("Body and Equipment", pageIndex(pageVrsBodyEquipment))
             .help("Fit the body to you (the legs to your height, the shoulders, the torso) and move what you wear: the "
-                  "belt's height, the flashlight, the ammo pouch, and Holster Calibration (the hip, chest and back "
-                  "holsters). Your body is shown in front of you while you choose."),
+                  "belt's height, the flashlight and the ammo pouch. Your body is shown in front of you while you "
+                  "choose."),
+        // (The author's note vrragtriggers_2026-10-23_01-28-41: a page of VR Settings itself, not Body and Equipment's.)
+        open("Holster Calibration", pageIndex(pageVrsHolsters))
+            .help("Where the hip, chest and back holsters sit on you: Holster Setup (drag and drop, the recommended "
+                  "way), or each pair's sliders; the seated places; the guns over your shoulders."),
 
         header("Moving"),
         open("Locomotion and Controls", pageIndex(pageVrsLocoControls))
@@ -95,7 +99,7 @@ za::Vector<Item> pageSaves()
         toggle("Death Menu", "vr_death_menu")
             .help("A moment after you die: Respawn (your last save), Restart the Level, or any autosave kept, newest "
                   "first. Back: you stay dead, fire respawns as ever."),
-        slider("Death Menu After", "vr_death_menu_delay", 0.5f, 5.f, 0.5f, "%.1f s"),
+        slider("Death Menu After", "vr_death_menu_delay", 0.5f, 10.f, 0.5f, "%.1f s"),
         cycle("Respawn", "sv_autoload", {{0.f, "Restarts the Level"}, {2.f, "Loads the Last Save"}})
             .help("What respawning does (fire when dead, the death menu's Respawn): load your last save (manual or "
                   "auto), or start the level again."),
@@ -146,8 +150,9 @@ za::Vector<Item> pageSaves()
     };
 }
 
-// VR Settings > Body and Equipment > Holster Calibration (the author, 2026-10-22: the holsters' rows on a page of their
-// own, Holster Setup first, the recommended way; the body shown in front of you, menu::bodyClonePage).
+// VR Settings > Holster Calibration (the author, 2026-10-22: the holsters' rows on a page of their own, Holster Setup
+// first, the recommended way; the body shown in front of you, menu::bodyClonePage; 2026-10-23: out of Body and
+// Equipment, under VR Settings' Calibration header).
 [[nodiscard]] za::Vector<Item> pageVrsHolsters()
 {
     const char* holsterHelp = "Both holsters of the pair, mirrored: moves them forward, inward (towards your middle) or up "
@@ -261,7 +266,7 @@ void resetBodyEquipment()
 // VR Settings > Body and Equipment (ROUND22.md, "Body and Equipment"; players: the flashlight too far back, the ammo
 // belt too low, the legs broken by a change of height): the body's fit and the places of what you wear, on one page, the
 // body shown in front of you while it is open (menu::bodyClonePage). The ammo pouch's own rows (its page before) are
-// here as a part; the holsters' are on Holster Calibration, linked from here.
+// here as a part; the holsters' are on VR Settings > Holster Calibration (linked from here before 2026-10-23).
 [[nodiscard]] za::Vector<Item> pageVrsBodyEquipment()
 {
     const char* cm = "%+.2f m";
@@ -304,13 +309,9 @@ void resetBodyEquipment()
     {
         out.pushBack(it);
     }
-    out.pushBack(header("Holsters"));
-    out.pushBack(open("Holster Calibration", pageIndex(pageVrsHolsters))
-                     .help("Where the hip, chest and back holsters sit on you: Holster Setup (drag and drop, the "
-                           "recommended way), or each pair's sliders; the seated places; the guns over your shoulders."));
     out.pushBack(action("Reset Body and Equipment", resetBodyEquipment)
-                     .help("The shoulders, torso, belt, flashlight, holsters and ammo pouch back to as shipped (not Height "
-                           "nor Body Calibration's measurements)."));
+                     .help("The shoulders, torso, belt, flashlight, holsters (VR Settings > Holster Calibration's) and "
+                           "ammo pouch back to as shipped (not Height nor Body Calibration's measurements)."));
     return out;
 }
 

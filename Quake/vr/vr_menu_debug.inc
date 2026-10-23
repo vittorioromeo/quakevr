@@ -85,8 +85,8 @@ za::Vector<Item> pageDebugViews()
             .help("vr_holster_zones_report: each zone's middle and size (units from the eyes) and how deep each hand's "
                   "points are in each (under 1: inside), the old spheres' share beside."),
         command("Print Holster Setup", "vr_holstersetup_report")
-            .help("vr_holstersetup_report: whether Holster Setup runs (VR Settings > Body and Equipment > Holster "
-                  "Calibration), what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
+            .help("vr_holstersetup_report: whether Holster Setup runs (VR Settings > Holster Calibration), "
+                  "what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
             .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
                   "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "
@@ -997,7 +997,8 @@ za::Vector<Item> pageDebugReports()
         command("Weapon Anchors", "vr_anchor_where").help("vr_anchor_where: where the held weapons' anchors are this frame (muzzle, ammo button and screen, magazine and well); vr_anchor_info <model> <anchor> where one binds on its model."),
         command("Sight Lines", "vr_sight_lines").help("vr_sight_lines: every weapon's sight line (Align Sights)."),
         command("Sight Check", "vr_sight_check").help("vr_sight_check: the held weapon's sights against its aim."),
-        command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn)."),
+        command("Wrist Gadget", "vr_gadget_info").help("vr_gadget_info: the gadget's pose (once it has been drawn) and the hologram's messages up now."),
+        command("View Text Follow", "vr_view_text_status").help("vr_view_text_status: the messages in front of you: the yaw they follow now (vr_view_text_smooth) and the head's."),
         header("Other"),
         command("Limits", "vr_limits")
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
@@ -1181,6 +1182,7 @@ za::Vector<Item> pageDebugTools()
         command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
+        command("Test Bullet Time Empty Notice", "vr_bullettime_meter 0; vr_bullettime").help("vr_bullettime_meter 0; vr_bullettime: bullet time pressed with its meter empty (earned bullet time: the gadget's hologram says how to refill it)."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
         command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),

@@ -16896,3 +16896,45 @@ changed (no configVersion bump).
 **In VR:** hold the flamethrower on a wall, the floor and a crate (no mark on props), then sweep; spray it into water
 (steam, no flames under it) and shoot lava nails into water. Lure a grunt past a brazier, kill one next to it. Fire the
 Plasma Gun in a dark room. Tune the three foam sliders by a shore.
+
+## Death menu delay, Vomit Mode, Holster Calibration on VR Settings, smoothed view text, bullet time's empty notice, seated hips (worktree `gorefx`, branch `agent/small1023`, 2026-10-23; vr_cfg_version 188)
+
+From the author's voice notes of 2026-10-23 (vrfiringrange 01-16-39 and 01-18-00, vrragtriggers 01-28-41, vrstart
+01-23-46, vrtesthall 01-47-31, vrmelee-recording 01-14-52).
+
+- **Death menu later.** `vr_death_menu_delay` 2 -> 5 (his config). The Death Menu After slider (Saves and Autosaves)
+  now goes to 10 s.
+- **Seated hip holsters.** `vr_hip_holster_seated_y` -3 -> 1.25 (his config: a little out instead of in). His other
+  seated holster and pouch values already were the defaults. SEATED.md updated.
+- **Migration** at 188 (after 187, the mini bosses' rocket ammo): a config at the old value (2, -3) takes the new default, a
+  custom value stays. Checked: a config at 186 with both old values loads as 5 and 1.25 (and rocket ammo 4 from 187), version 188.
+- **Vomit Mode** (`vr_death_view_vomit`, 0; Advanced VR Options > Body, under Death View): dead, the view is the
+  ragdoll head bone's own, with the eyes where they are this frame and the bone's whole turn (pitch, yaw and roll). There
+  is no smoothing and no turn limit. Your own head's turns and steps are left out; only the eyes' spacing is kept, turned
+  with the bone. It overrides every Immersive row and works with Death View Third Person or Immersive (Off has no body).
+  Two things stay: a menu still eases the view out to Third Person's place (the death menu stays usable), and the short
+  fade-in as the view enters the head (`vr_death_view_fade`, it hides the jump) is kept. The help text warns. Checked
+  with `impulse 196` on e1m1: `vr_death_view_status` gives camera angles equal to the head bone's (51.4 106.3 -112.5,
+  then 48.3 102.6 -112.9 as it settles), the camera 1.0 unit from the eyes (half the eye spacing), Immersive's
+  0 90 0 with it off.
+- **Holster Calibration** is a page of VR Settings itself, under Calibration after Body and Equipment (was Body and
+  Equipment > Holsters). Its Back goes to VR Settings. Body and Equipment's help and Reset (still resets the holsters)
+  say so. SETTINGS.md, the Debug menu help and the comments were updated. `vr_menu_path_check`: vrcalibration 6 found 0
+  missing, vrtesthall 14 found 0 missing (neither board names the page).
+- **View text follows the head smoothly** (`vr_view_text_smooth`, 0.12 s; HUD and Menus > Messages > Messages in View:
+  Follow Smoothing). This covers the texts floating in front of you: the maps' view messages (VR Calibration's boards,
+  QC viewmessage), the calibration's steps and welcome, and Body Calibration's poses. They followed the head's yaw at
+  once. Now their yaw eases after it (`setup::viewTextYaw`, exponential, the time constant the setting). After half a
+  second with none shown, the next starts where you look. The head panel's centre prints had a fixed 0.1 s and now use
+  the same setting. Checked in vrcalibration with a 90 degree mock turn: 95.8, 121.6, 178.3 degrees after 1, 3 and 30
+  frames; at 0, instant. Debug > Reports: View Text Follow (`vr_view_text_status`).
+- **Bullet time's empty notice.** In earned bullet time (`vr_bullettime_meter_mode` 1), pressing bullet time with
+  too little in the meter (under `vr_bullettime_min`) plays the denied sound and also puts "Bullet time empty: hurt
+  enemies to refill" in the wrist gadget's hologram for 3 s (`gadget::notice`). It is not a notification, so there is
+  no waiting to be seen and no chime. It shows at most every 4 s, and a cooldown alone gives none. Without a hologram
+  (Status Bar HUD, or holograms off) it is a centre print. Checked: the meter at 0 and two presses give one notice
+  (`vr_gadget_info` now lists the hologram's messages: "2.9 s left"). Debug > Tools: Test Bullet Time Empty Notice.
+
+**In VR:** die with Vomit Mode on (Debug > Cheats > Die Now, Blown Back). Check that the death menu now opens after 5 s.
+Walk through VR Calibration and turn your head: the texts should trail a little. Find Holster Calibration on VR Settings'
+first page. Tap bullet time with an empty meter while looking at the gadget.

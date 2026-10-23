@@ -21,7 +21,8 @@ Standing play doesn't change: with Position: Standing every new path is skipped 
   blend in.
 - **Seated holster/pouch layout.** This is an offset set on top of the standing layout (and the crouched one), with
   all of it applied when seated:
-  - `vr_hip_holster_seated_*`: x 6, y -3, z 3, which puts them forward onto the thighs, in from the chair's sides and up.
+  - `vr_hip_holster_seated_*`: x 6, y 1.25, z 3, which puts them forward onto the thighs, a little out, and up (y was -3, in
+    from the chair's sides, until the author's values of 2026-10-23).
   - `vr_shoulder_holster_seated_*`: x 3, z 1, which puts them forward over the shoulders, off the chair's back.
   - `vr_upper_holster_seated_*`: 0.
   - `vr_ammo_pouch_seated_*`: x 2, z 3, which puts it up off the lap.
