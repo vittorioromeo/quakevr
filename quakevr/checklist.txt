@@ -2,6 +2,16 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Shoreline foam 2: your water/lava/slime foam values are the defaults; puffs sit on the shore line (Particle Shore moves them out); Wavy Edge: the shore line wanders softly (see-through liquids fade, solid water's rim curves up the wall; 0 for comparison); check the pool and e1m1's water {test:foam_pool}
+Fuel tank burst: sound stops when the field ends; shooting a tank gives sparks and a tink, no blood; the burst leaves a fire field (sets you/monsters/corpses alight) or a poison cloud, up to 6 s by the fuel left, fading over its second half {test:tank_burst_field}
+Tank pickup: picking up a flamethrower/sprayer, its tank flies to your back in ~0.25 s, the hose following
+Armed grunts' back tanks: pyro/sprayer grunts wear the tank and hose while running and shooting; shoot the tank from behind: it bursts on them (field, gun spent, they fight with fists) {test:agrunt_tanks}
+Armed grunt physical tug: grab a calm grunt's weapon and pull: it staggers after your hand, leaning and pulling back; a sharp yank (or a long hard pull) tears it out, letting go lets it keep it; does its weapon stay in its hand while tugged? {test:agrunt_tug}
+Armed grunts after a disarm fight or go for a weapon at once (no more standing frozen); weapons stay in their hands in guard, stagger and hit poses {test:agrunt_guard}
+Armed grunt pickup: crouches, reaches down, the hand closes on the weapon before it moves; hit mid-reach it stays on the floor {test:agrunt_pickup}
+Parrying an armed grunt's sword (still failing in the headless test: tell me if it works in VR) {test:agrunt_parry}
+Swords past the floor: a hard chop at a corpse limb on the floor or by a wall goes in a little and cuts instead of bouncing up; bare floor and walls still spark (Gameplay > Melee > Strike Past the Floor: tune Length Held Out) {test:sword_floor}
+Phantom Swordsman from the toolgun: if its DoE tile is greyed, press it: the console now says why; record a note {test:phantom_swordsman}
 Fist blow line editable: with an empty hand, Weapon Offsets > Posing Mode > Edit Blade Shape: drag the orange Fist End and red Knuckles End onto the knuckles, blue Width; Mirror On/Off; Done prints the vr_melee_fist_* lines (send them if they should ship); punches with Show Melee Blades on follow the edited line
 Blade editor handles at the hand: near-end dot (now 7 cm above the forearm) and hand-side curve point are easy to grab with a sword and a gun; the handle under the other hand glows yellow with a line to it
 Crates need two strong hits: hardest punch or full axe/crowbar swing: 2 hits; medium punch: 3-4; explosive box blows up on the second strong hit; held crate smashed into a wall: two; overhead slam still breaks at once (Crates > Breaking: Break Speed 18, Blows Wear From 0.25); AD metal/stone breakables are tougher too (metal ~8 axe blows): OK?
