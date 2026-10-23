@@ -13,6 +13,7 @@
 #include "vr_meleeshow.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -47,6 +48,23 @@ constexpr Key spineKeys[blade::spinePoints][2] = {{Key::BladeSpine1Off, Key::Bla
     {Key::BladeSpine2Off, Key::BladeSpine2Side}, {Key::BladeSpine3Off, Key::BladeSpine3Side},
     {Key::BladeSpine4Off, Key::BladeSpine4Side}, {Key::BladeSpine5Off, Key::BladeSpine5Side}};
 
+// The empty hand's session (the fist's blow line, QC VR_Melee_Line's fist: vr_melee_fist_*): its settings, in this order.
+enum FistVar : int
+{
+    FFromX,
+    FFromY,
+    FFromZ,
+    FToX,
+    FToY,
+    FToZ,
+    FWidth,
+    FMirror,
+    FCount
+};
+cvar_t* const fistVars[FCount] = {&vr_melee_fist_from_x, &vr_melee_fist_from_y, &vr_melee_fist_from_z, &vr_melee_fist_to_x,
+    &vr_melee_fist_to_y, &vr_melee_fist_to_z, &vr_melee_fist_width, &vr_melee_fist_mirror};
+static_assert(FCount <= managedCount);
+
 struct Snapshot
 {
     float v[managedCount]{};
@@ -80,7 +98,12 @@ constexpr float BUTTON_WIDTH = 0.17f;   // metres
 constexpr float BUTTON_HEIGHT = 0.055f;
 constexpr float BUTTON_GAP = 0.015f;
 constexpr float BUTTON_DEPTH = 0.08f;   // a hand this near the panel's plane (metres) is at a button
-constexpr float HANDLE_REACH = 0.05f;   // metres: a hand this near a handle is at it
+constexpr float HANDLE_REACH = 0.06f;   // metres: a hand this near a handle is at it
+constexpr float HANDLE_KEEP = 1.5f;     // the handle under the hand stays its own out to this many reaches...
+constexpr float HANDLE_SWITCH = 0.6f;   // ...unless another is nearer than this share of its distance
+constexpr float LIFT = 0.07f;           // metres a handle at or behind the holding hand is shown (and taken) out of it
+constexpr float LIFT_NEAR = 0.12f;      // metres: a handle this near the holding hand is lifted (the near end always)
+constexpr float FIST_REACH = 16.f;      // units: the fist line's ends at most this far from the hand along each axis
 constexpr float MELEE_RADIUS = 3.f;     // units: QC VR_MELEE_RADIUS (the swept points' radius at width 1)
 constexpr float DEFAULT_NEAR = 0.3f;    // the near end's share when QC's isn't known (a sword's, a gun's: VR_Melee_NearBack)
 constexpr float WIDTH_AT = 0.6f;        // the width's handle beside the blade at this share of the line
@@ -101,6 +124,10 @@ struct Geo
     bool modelCurve{false};  // the model's own curve shown (no curve of its own)
     bool hasHead{false};
     glm::vec3 headLo{0.f}, headHi{0.f};
+    glm::vec3 origin{0.f};                                     // the holding hand (the line's start, but the fist's)
+    glm::vec3 f{1.f, 0.f, 0.f}, r{0.f, -1.f, 0.f}, u{0.f, 0.f, 1.f}; // its frame (QC makevectors of its turn)
+    float mirror{1.f};                                         // the fist's right offsets: -1 the off hand's mirrored
+    glm::vec3 lift{0.f, 0.f, 1.f};                             // the way a handle at the hand is lifted out of it
 };
 
 struct Session
@@ -109,6 +136,7 @@ struct Session
     int world{0};
     int returnPage{-1};
     int hand{HAND_MAIN}; // the weapon's
+    bool fist{false};    // the hand empty: the fist's blow line (vr_melee_fist_*), not a weapon's blade
     int slot{-1};
     int owner[managedCount]{}; // the slot each managed key is written to (an inheriting weapon's source's)
     Snapshot entry;
@@ -134,9 +162,30 @@ Session ses;
     return ses.hand == HAND_MAIN ? HAND_OFF : HAND_MAIN;
 }
 
+// No weapon in `hand` (QC's WID_FIST: empty, or a prop in it): it strikes with the fist's line.
+[[nodiscard]] bool emptyHand(int hand)
+{
+    return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] == 0;
+}
+
+// The settings the session changes: the weapon's keys, or the fist's line's.
+[[nodiscard]] int count()
+{
+    return ses.fist ? FCount : managedCount;
+}
+
 [[nodiscard]] cvar_t* var(int i)
 {
-    return weapons::cvar(ses.owner[i], managedKeys[i]);
+    return ses.fist ? fistVars[i] : weapons::cvar(ses.owner[i], managedKeys[i]);
+}
+
+void setAt(int i, float v)
+{
+    cvar_t* c = i >= 0 && i < count() ? var(i) : nullptr;
+    if(c && za::fabs(c->value - v) > 1e-5f)
+    {
+        Cvar_SetValueQuick(c, roundf(v * 10000.f) / 10000.f);
+    }
 }
 
 [[nodiscard]] int indexOf(Key key)
@@ -153,18 +202,16 @@ Session ses;
 
 void set(Key key, float v)
 {
-    const int i = indexOf(key);
-    cvar_t* c = i >= 0 ? var(i) : nullptr;
-    if(c && za::fabs(c->value - v) > 1e-5f)
+    if(!ses.fist)
     {
-        Cvar_SetValueQuick(c, roundf(v * 10000.f) / 10000.f);
+        setAt(indexOf(key), v);
     }
 }
 
 [[nodiscard]] Snapshot take()
 {
     Snapshot s;
-    for(int i = 0; i < managedCount; i++)
+    for(int i = 0; i < count(); i++)
     {
         const cvar_t* c = var(i);
         s.v[i] = c ? c->value : 0.f;
@@ -174,9 +221,9 @@ void set(Key key, float v)
 
 void restore(const Snapshot& s)
 {
-    for(int i = 0; i < managedCount; i++)
+    for(int i = 0; i < count(); i++)
     {
-        set(managedKeys[i], s.v[i]);
+        setAt(i, s.v[i]);
     }
 }
 
@@ -184,7 +231,7 @@ void restore(const Snapshot& s)
 {
     const Snapshot now = take();
     int n = 0;
-    for(int i = 0; i < managedCount; i++)
+    for(int i = 0; i < count(); i++)
     {
         n += za::fabs(now.v[i] - s.v[i]) > 1e-5f ? 1 : 0;
     }
@@ -227,10 +274,57 @@ void haptic(int hand, float seconds, float amplitude)
 
 // The blade now (Geo), from the weapon hand as the client sends it to the server (its place and turn, its muzzle as drawn
 // moved with the hand since: vr_client.cpp handMuzzle).
+// `v` square to the line `a` (unit), else `fallback`.
+[[nodiscard]] glm::vec3 squareTo(const glm::vec3& v, const glm::vec3& a, const glm::vec3& fallback)
+{
+    const glm::vec3 w = v - a * glm::dot(v, a);
+    return glm::length(w) > 0.3f ? glm::normalize(w) : fallback;
+}
+
+// The fist's line's end at `base` (FFromX or FToX) in the world: its offsets along the hand's forward, right, up.
+[[nodiscard]] glm::vec3 fistEnd(const Geo& g, int base)
+{
+    return g.origin + g.f * fistVars[base]->value + g.r * (fistVars[base + 1]->value * g.mirror) +
+           g.u * fistVars[base + 2]->value;
+}
+
+// The empty hand's line as QC VR_Melee_Line lays a fist's: from its first end (Geo's hand) to the other (its tip); the
+// near end a quarter of it behind; its width beside it on the hand's inner side (towards the other hand), the handles at
+// the hand lifted along its up.
+[[nodiscard]] bool layOutFist(const hands::State& s, Geo& g)
+{
+    const int h = ses.hand;
+    g.origin = s.pos[h];
+    hands::angleVectors(s.rot[h], g.f, g.r, g.u);
+    g.mirror = h == HAND_OFF && vr_melee_fist_mirror.value != 0.f ? -1.f : 1.f;
+    g.hand = fistEnd(g, FFromX);
+    g.tip = fistEnd(g, FToX);
+    g.len = glm::length(g.tip - g.hand);
+    g.a = g.len > 0.05f ? (g.tip - g.hand) / g.len : g.f;
+    g.p = squareTo(h == HAND_MAIN ? -g.r : g.r, g.a, g.u);
+    g.y = glm::normalize(glm::cross(g.a, g.p));
+    g.lift = squareTo(g.u, g.a, g.y);
+    g.shape = blade::Shape{};
+    g.shape.width = za::max(0.1f, vr_melee_fist_width.value);
+    g.nearBack = 0.25f;
+    g.radius = MELEE_RADIUS * za::max(0.25f, vr_melee_range_multiplier.value) * g.shape.width;
+    g.kind = 0;
+    g.modelCurve = g.hasHead = false;
+    return true;
+}
+
 [[nodiscard]] bool layOut(const hands::State& s, Geo& g)
 {
     const int h = ses.hand;
-    if(!s.valid || !s.muzzleValid[h])
+    if(!s.valid)
+    {
+        return false;
+    }
+    if(ses.fist)
+    {
+        return layOutFist(s, g);
+    }
+    if(!s.muzzleValid[h])
     {
         return false;
     }
@@ -242,15 +336,16 @@ void haptic(int hand, float seconds, float amplitude)
         return false;
     }
     g.a = (g.tip - g.hand) / g.len;
-    glm::vec3 f, r, u;
-    hands::angleVectors(s.rot[h], f, r, u);
-    glm::vec3 y = -r - g.a * glm::dot(-r, g.a);
+    g.origin = g.hand;
+    hands::angleVectors(s.rot[h], g.f, g.r, g.u);
+    glm::vec3 y = -g.r - g.a * glm::dot(-g.r, g.a);
     if(glm::length(y) < 1e-4f)
     {
         return false;
     }
     g.y = glm::normalize(y);
     g.p = glm::normalize(glm::cross(g.y, g.a));
+    g.lift = squareTo(glm::vec3{0.f, 0.f, 1.f}, g.a, g.p); // (above the forearm behind the hand)
     g.shape = blade::shape(ses.slot);
     g.kind = admelee::kindOfModel(modelName());
     g.modelCurve = !g.shape.spine && g.kind > 0 && vr_melee_curved_blades.value != 0.f &&
@@ -299,15 +394,25 @@ void haptic(int hand, float seconds, float amplitude)
 
 [[nodiscard]] bool shown(const Geo& g, int h)
 {
+    if(ses.fist)
+    {
+        return h == HTip || h == HNear || h == HWidth; // (the fist's two ends and its width)
+    }
     return h >= 0 && h < HCount && (h < HHeadLo || g.hasHead);
 }
 
+[[nodiscard]] glm::vec3 nearEnd(const Geo& g)
+{
+    return g.hand - g.a * (g.len * g.nearBack);
+}
+
+// The handle's point: what it moves (the fist's near-end handle is its line's first end).
 [[nodiscard]] glm::vec3 handleAt(const Geo& g, int h)
 {
     switch(h)
     {
         case HTip: return g.tip;
-        case HNear: return g.hand - g.a * (g.len * g.nearBack);
+        case HNear: return ses.fist ? g.hand : nearEnd(g);
         case HWidth: return pointAt(g, WIDTH_AT) + g.p * g.radius;
         case HHeadLo: return boxPoint(g, g.headLo);
         case HHeadHi: return boxPoint(g, g.headHi);
@@ -315,12 +420,32 @@ void haptic(int hand, float seconds, float amplitude)
     }
 }
 
+// A handle at or behind the holding hand is shown and taken a little out of it, tied to its point (the author, in VR:
+// the near end could not be taken: the other hand cannot reach into the holding hand or the forearm behind it). The
+// fist's ends are both at the hand. The width's handle is out beside the line already.
+[[nodiscard]] glm::vec3 liftOf(const Geo& g, int h)
+{
+    if(h == HWidth)
+    {
+        return glm::vec3{0.f};
+    }
+    const float m2u = units::metresToUnits();
+    const bool lifted = ses.fist || h == HNear || glm::length(handleAt(g, h) - g.origin) < LIFT_NEAR * m2u;
+    return lifted ? g.lift * (LIFT * m2u) : glm::vec3{0.f};
+}
+
+// Where the handle is drawn and taken (its point, lifted out of the hand if at it).
+[[nodiscard]] glm::vec3 grabAt(const Geo& g, int h)
+{
+    return handleAt(g, h) + liftOf(g, h);
+}
+
 [[nodiscard]] const char* handleName(int h)
 {
     switch(h)
     {
-        case HTip: return "Tip";
-        case HNear: return "Near End";
+        case HTip: return ses.fist ? "Knuckles End" : "Tip";
+        case HNear: return ses.fist ? "Fist End" : "Near End";
         case HWidth: return "Width";
         case HHeadLo: return "Head Corner";
         case HHeadHi: return "Head Corner";
@@ -375,9 +500,30 @@ void ensureHead(const Geo& g)
     set(Key::BladeHead, 1.f);
 }
 
+// The fist's held handle to `t` (the world): an end's offsets in the hand's frame, or the width.
+void dragFist(const Geo& g, int h, const glm::vec3& t)
+{
+    if(h == HWidth)
+    {
+        const float base = MELEE_RADIUS * za::max(0.25f, vr_melee_range_multiplier.value);
+        setAt(FWidth, za::clamp(glm::length(t - (g.hand + g.a * (g.len * WIDTH_AT))) / base, 0.2f, 5.f));
+        return;
+    }
+    const int base = h == HTip ? FToX : FFromX;
+    const glm::vec3 d = t - g.origin;
+    setAt(base, za::clamp(glm::dot(d, g.f), -FIST_REACH, FIST_REACH));
+    setAt(base + 1, za::clamp(glm::dot(d, g.r) * g.mirror, -FIST_REACH, FIST_REACH));
+    setAt(base + 2, za::clamp(glm::dot(d, g.u), -FIST_REACH, FIST_REACH));
+}
+
 // The held handle to `t` (the world).
 void drag(const Geo& g, int h, const glm::vec3& t)
 {
+    if(ses.fist)
+    {
+        dragFist(g, h, t);
+        return;
+    }
     switch(h)
     {
         case HTip:
@@ -446,6 +592,12 @@ void drag(const Geo& g, int h, const glm::vec3& t)
 // The handle's value, for its label.
 [[nodiscard]] const char* valueText(const Geo& g, int h) // (va's)
 {
+    if(ses.fist && h != HWidth)
+    {
+        const int base = h == HTip ? FToX : FFromX;
+        return va("%+.1f %+.1f %+.1f (ahead, right, up)", static_cast<double>(fistVars[base]->value),
+            static_cast<double>(fistVars[base + 1]->value), static_cast<double>(fistVars[base + 2]->value));
+    }
     switch(h)
     {
         case HTip: return va("%.1f units", static_cast<double>(g.len));
@@ -514,19 +666,27 @@ void undo()
 void resetBlade()
 {
     pushUndo();
-    for(int i = 0; i < managedCount; i++)
+    for(int i = 0; i < count(); i++)
     {
         if(cvar_t* c = var(i); c && c->default_string)
         {
-            set(managedKeys[i], static_cast<float>(Q_atof(c->default_string)));
+            setAt(i, static_cast<float>(Q_atof(c->default_string)));
         }
     }
-    say("the blade's shape and tip back to their defaults");
+    say(ses.fist ? "the fist's line back to its defaults" : "the blade's shape and tip back to their defaults");
 }
 
 void straighten()
 {
     pushUndo();
+    if(ses.fist)
+    {
+        // (The fist's: Mirror, its third button.)
+        setAt(FMirror, vr_melee_fist_mirror.value != 0.f ? 0.f : 1.f);
+        say(vr_melee_fist_mirror.value != 0.f ? "the off hand's line is the main hand's mirrored"
+                                              : "the off hand's line as its offsets are, not mirrored");
+        return;
+    }
     for(const auto& k : spineKeys)
     {
         set(k[0], 0.f);
@@ -538,7 +698,7 @@ void straighten()
 
 void toggleHead()
 {
-    if(!ses.geoValid)
+    if(!ses.geoValid || ses.fist)
     {
         return;
     }
@@ -574,8 +734,8 @@ void press(int b)
     switch(b)
     {
         case BtnUndo: return "Undo";
-        case BtnReset: return "Reset Blade";
-        case BtnStraighten: return "Straighten";
+        case BtnReset: return ses.fist ? "Reset Line" : "Reset Blade";
+        case BtnStraighten: return !ses.fist ? "Straighten" : vr_melee_fist_mirror.value != 0.f ? "Mirror: On" : "Mirror: Off";
         case BtnHead: return ses.geoValid && ses.geo.shape.head ? "Head Box: On" : "Head Box: Off";
         case BtnCancel: return "Cancel";
         default: return "Done";
@@ -590,11 +750,21 @@ void press(int b)
            ses.panelUp * ((0.5f - row) * (BUTTON_HEIGHT + BUTTON_GAP) * m2u);
 }
 
+// The fist's panel has no Head Box.
+[[nodiscard]] bool buttonShown(int b)
+{
+    return !(ses.fist && b == BtnHead);
+}
+
 [[nodiscard]] int buttonAtHand(const glm::vec3& p)
 {
     const float m2u = units::metresToUnits();
     for(int b = 0; b < BtnCount; b++)
     {
+        if(!buttonShown(b))
+        {
+            continue;
+        }
         const glm::vec3 d = p - buttonAt(b);
         if(za::fabs(glm::dot(d, ses.panelRight)) <= (BUTTON_WIDTH * 0.5f + 0.01f) * m2u &&
             za::fabs(glm::dot(d, ses.panelUp)) <= (BUTTON_HEIGHT * 0.5f + 0.01f) * m2u &&
@@ -606,25 +776,36 @@ void press(int b)
     return -1;
 }
 
-// The other hand's handle (the nearest within HANDLE_REACH) and each hand's panel button; a tick on reaching a new one.
+// The other hand's handle (the nearest within HANDLE_REACH; the one under it kept while it stays near it, unless another
+// is clearly nearer: the handles at the hand lie close together) and each hand's panel button; a tick on reaching a new
+// one.
 void hoverFrame(const hands::State& s)
 {
     const int other = otherHand();
     int best = -1;
     if(ses.geoValid)
     {
-        float bestD = HANDLE_REACH * units::metresToUnits();
+        const float reach = HANDLE_REACH * units::metresToUnits();
+        float bestD = reach;
         for(int h = 0; h < HCount; h++)
         {
             if(!shown(ses.geo, h))
             {
                 continue;
             }
-            const float d = glm::length(handleAt(ses.geo, h) - s.pos[other]);
+            const float d = glm::length(grabAt(ses.geo, h) - s.pos[other]);
             if(d <= bestD)
             {
                 best = h;
                 bestD = d;
+            }
+        }
+        if(ses.hover >= 0 && shown(ses.geo, ses.hover))
+        {
+            const float d = glm::length(grabAt(ses.geo, ses.hover) - s.pos[other]);
+            if(d <= reach * HANDLE_KEEP && (best < 0 || bestD > d * HANDLE_SWITCH))
+            {
+                best = ses.hover;
             }
         }
     }
@@ -669,7 +850,7 @@ void drawBlade(const Geo& g)
     const glm::vec4 bladeColour{0.9f, 0.95f, 1.f, 0.9f};
     const glm::vec4 tube{0.3f, 0.85f, 1.f, 0.35f};
     // From the near end straight to the hand, then along the curve to the tip; its width as four lines beside it.
-    lines::line(handleAt(g, HNear), g.hand, 0.18f, glm::vec4{1.f, 0.6f, 0.15f, 0.8f}, bladeColour);
+    lines::line(nearEnd(g), g.hand, 0.18f, glm::vec4{1.f, 0.6f, 0.15f, 0.8f}, bladeColour);
     glm::vec3 prev = g.hand;
     for(int i = 1; i <= CURVE_STEPS; i++)
     {
@@ -677,7 +858,7 @@ void drawBlade(const Geo& g)
         const glm::vec3 at = pointAt(g, f);
         lines::line(prev, at, 0.22f, bladeColour, bladeColour);
         const float f0 = static_cast<float>(i - 1) / CURVE_STEPS;
-        if(f0 >= 0.2f)
+        if(f0 >= 0.2f || ses.fist)
         {
             for(const glm::vec3& side : {g.p, -g.p, g.y, -g.y})
             {
@@ -687,7 +868,7 @@ void drawBlade(const Geo& g)
         prev = at;
     }
     // The curve's points off the line: a thin tie from the line to each.
-    for(int i = 0; i < blade::spinePoints; i++)
+    for(int i = 0; i < blade::spinePoints && !ses.fist; i++)
     {
         const float f = blade::spineShare(i);
         lines::line(g.hand + g.a * (g.len * f), pointAt(g, f), 0.06f, glm::vec4{0.35f, 1.f, 0.45f, 0.4f},
@@ -722,7 +903,14 @@ void drawBlade(const Geo& g)
         }
         const bool held = ses.grab == h, hovered = ses.hover == h;
         const glm::vec4 col = held ? glm::vec4{0.2f, 1.f, 0.35f, 1.f} : hovered ? glm::vec4{1.f, 0.9f, 0.2f, 1.f} : handleColour(h);
-        const glm::vec3 at = handleAt(g, h);
+        const glm::vec3 at = grabAt(g, h);
+        if(glm::dot(liftOf(g, h), liftOf(g, h)) > 0.f)
+        {
+            // (Lifted out of the hand: a tie down to the point it moves, and a small dot there.)
+            const glm::vec4 tie{col.r, col.g, col.b, 0.6f};
+            lines::line(handleAt(g, h), at, 0.07f, tie, tie);
+            lines::point(handleAt(g, h), 0.3f, tie);
+        }
         (held || hovered ? lines::glowPoint : lines::point)(at, held || hovered ? 1.1f : 0.75f, col);
         if(held || hovered)
         {
@@ -730,8 +918,16 @@ void drawBlade(const Geo& g)
             text3d::queueOverlay(text, at + glm::vec3{0.f, 0.f, 1.5f}, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.04f);
         }
     }
-    lines::point(s.pos[otherHand()], ses.grab >= 0 ? 0.5f : 0.35f,
-        ses.grab >= 0 ? glm::vec4{0.2f, 1.f, 0.35f, 1.f} : glm::vec4{1.f, 1.f, 1.f, 0.8f});
+    // The other hand's grab point: green holding, yellow at a handle (a thin line to it), else white.
+    const glm::vec3 other = s.pos[otherHand()];
+    const glm::vec4 otherCol = ses.grab >= 0  ? glm::vec4{0.2f, 1.f, 0.35f, 1.f}
+                               : ses.hover >= 0 ? glm::vec4{1.f, 0.9f, 0.2f, 1.f}
+                                                : glm::vec4{1.f, 1.f, 1.f, 0.8f};
+    if(ses.grab < 0 && ses.hover >= 0 && shown(g, ses.hover))
+    {
+        lines::line(other, grabAt(g, ses.hover), 0.05f, otherCol, otherCol);
+    }
+    lines::point(other, ses.grab >= 0 || ses.hover >= 0 ? 0.5f : 0.35f, otherCol);
 }
 
 void drawPanel()
@@ -740,6 +936,10 @@ void drawPanel()
     const glm::vec3 angles{0.f, ses.panelYaw, 0.f};
     for(int b = 0; b < BtnCount; b++)
     {
+        if(!buttonShown(b))
+        {
+            continue;
+        }
         const glm::vec3 at = buttonAt(b);
         const bool hovered = ses.hoverButton[HAND_OFF] == b || ses.hoverButton[HAND_MAIN] == b;
         const glm::vec4 color = hovered ? glm::vec4{1.f, 0.85f, 0.15f, 1.f} : glm::vec4{0.5f, 0.7f, 1.f, 0.8f};
@@ -759,11 +959,21 @@ void drawPanel()
     }
     za::String text = va("%c%c%c%c%c %c%c%c%c%c", 'B' | 0x80, 'L' | 0x80, 'A' | 0x80, 'D' | 0x80, 'E' | 0x80, 'S' | 0x80,
         'H' | 0x80, 'A' | 0x80, 'P' | 0x80, 'E' | 0x80);
-    const cvar_t* id = weapons::cvar(ses.slot, Key::ID);
-    text += va(" (slot %d: %s)", ses.slot + 1, id ? COM_SkipPath(id->string) : "?");
-    text += "\nother hand's grip on a dot: drag it";
-    text += "\nred tip, orange near end, blue width,";
-    text += "\ngreen curve, pink head corners";
+    if(ses.fist)
+    {
+        text += ses.hand == HAND_MAIN ? " (the main hand's fist)" : " (the off hand's fist)";
+        text += "\nother hand's grip on a dot: drag it";
+        text += "\nred knuckles end, orange fist end,";
+        text += "\nblue width (both hands: Mirror)";
+    }
+    else
+    {
+        const cvar_t* id = weapons::cvar(ses.slot, Key::ID);
+        text += va(" (slot %d: %s)", ses.slot + 1, id ? COM_SkipPath(id->string) : "?");
+        text += "\nother hand's grip on a dot: drag it";
+        text += "\nred tip, orange near end, blue width,";
+        text += "\ngreen curve, pink head corners";
+    }
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
     int lineCount = 6;
@@ -833,13 +1043,19 @@ void press_f()
 // line, its normal P and the model's +y Y) and the curve's point at 0.5 in the world (QC's VR_Melee_At(0.5) is there).
 void report_f()
 {
-    Con_Printf("bladeedit active %d slot %d hand %d grab %d hover %d undo %d\n", ses.active ? 1 : 0, ses.slot + 1, ses.hand,
-        ses.grab, ses.hover, static_cast<int>(ses.undo.size()));
+    Con_Printf("bladeedit active %d fist %d slot %d hand %d grab %d hover %d undo %d\n", ses.active ? 1 : 0, ses.fist ? 1 : 0,
+        ses.slot + 1, ses.hand, ses.grab, ses.hover, static_cast<int>(ses.undo.size()));
     if(!ses.active || !ses.geoValid)
     {
         return;
     }
     const Geo& g = ses.geo;
+    if(ses.fist)
+    {
+        Con_Printf("bladeedit fist from %s %s %s to %s %s %s width %s mirror %s\n", vr_melee_fist_from_x.string,
+            vr_melee_fist_from_y.string, vr_melee_fist_from_z.string, vr_melee_fist_to_x.string, vr_melee_fist_to_y.string,
+            vr_melee_fist_to_z.string, vr_melee_fist_width.string, vr_melee_fist_mirror.string);
+    }
     Con_Printf("bladeedit line %.2f near %.3f radius %.2f spine %d curve %d head %d\n", static_cast<double>(g.len),
         static_cast<double>(g.nearBack), static_cast<double>(g.radius), g.shape.spine ? 1 : 0, g.modelCurve ? 1 : 0,
         g.hasHead ? 1 : 0);
@@ -849,9 +1065,10 @@ void report_f()
         {
             continue;
         }
-        const glm::vec3 d = handleAt(g, h) - g.hand;
-        Con_Printf("bladeedit handle %d %s at %.2f %.2f %.2f: %s\n", h, handleName(h), static_cast<double>(glm::dot(d, g.a)),
-            static_cast<double>(glm::dot(d, g.p)), static_cast<double>(glm::dot(d, g.y)), valueText(g, h));
+        const glm::vec3 d = handleAt(g, h) - g.hand, lift = liftOf(g, h);
+        Con_Printf("bladeedit handle %d %s at %.2f %.2f %.2f (lifted %.2f): %s\n", h, handleName(h),
+            static_cast<double>(glm::dot(d, g.a)), static_cast<double>(glm::dot(d, g.p)), static_cast<double>(glm::dot(d, g.y)),
+            static_cast<double>(glm::length(lift)), valueText(g, h));
     }
     const glm::vec3 o = hands::current().pos[otherHand()] - g.hand, push = handpose::wallPush(otherHand());
     Con_Printf("bladeedit other hand at %.2f %.2f %.2f, pushed %.2f %.2f %.2f\n", static_cast<double>(glm::dot(o, g.a)),
@@ -902,12 +1119,15 @@ bool start(int hand, int returnPage)
     {
         return refuse("not now");
     }
-    const int slot = weapons::heldSlot(hand);
-    if(slot < 0 || slot == weapons::fistSlot())
+    // An empty hand (QC's WID_FIST: a prop in it too) edits the fist's blow line.
+    const bool fist = emptyHand(hand);
+    const int slot = fist ? -1 : weapons::heldSlot(hand);
+    if(!fist && (slot < 0 || slot == weapons::fistSlot()))
     {
-        return refuse(hand == HAND_MAIN ? "hold a weapon in the main hand" : "hold a weapon in the off hand");
+        return refuse(hand == HAND_MAIN ? "hold a weapon in the main hand (or nothing: the fist's line)"
+                                        : "hold a weapon in the off hand (or nothing: the fist's line)");
     }
-    if(twohand::carrying(hand))
+    if(!fist && twohand::carrying(hand))
     {
         return refuse("hold the weapon by its handle");
     }
@@ -929,10 +1149,11 @@ bool start(int hand, int returnPage)
     ses.world = worldGeneration();
     ses.returnPage = returnPage;
     ses.hand = hand;
+    ses.fist = fist;
     ses.slot = slot;
     for(int i = 0; i < managedCount; i++)
     {
-        ses.owner[i] = weapons::ownerSlot(slot, managedKeys[i]);
+        ses.owner[i] = fist ? -1 : weapons::ownerSlot(slot, managedKeys[i]);
     }
     ses.entry = take();
     ses.undo.clear();
@@ -947,8 +1168,15 @@ bool start(int hand, int returnPage)
     Cvar_SetValueQuick(&vr_debug_melee_blades, 1.f);
     placePanel(hands::current());
     ses.geoValid = layOut(hands::current(), ses.geo);
-    const cvar_t* id = weapons::cvar(slot, Key::ID);
-    say(va("started on %s (slot %d)", id ? id->string : "?", slot + 1));
+    if(fist)
+    {
+        say(hand == HAND_MAIN ? "started on the main hand's fist line" : "started on the off hand's fist line");
+    }
+    else
+    {
+        const cvar_t* id = weapons::cvar(slot, Key::ID);
+        say(va("started on %s (slot %d)", id ? id->string : "?", slot + 1));
+    }
     S_LocalSound("misc/menu3.wav");
     return true;
 }
@@ -972,7 +1200,14 @@ void finish(bool keep)
     Con_Printf("Edit Blade Shape: %s (%d settings changed)\n", keep ? "done" : "cancelled, everything put back", changed);
     if(keep && changed > 0)
     {
-        blade::dump(ses.slot);
+        if(ses.fist)
+        {
+            blade::dumpFist();
+        }
+        else
+        {
+            blade::dump(ses.slot);
+        }
     }
     S_LocalSound(keep ? "misc/menu2.wav" : "misc/menu1.wav");
     if(page >= 0)
@@ -1040,7 +1275,7 @@ void frame()
     }
     // Leaving with the map, the game, the headset, the menu opened, the weapon gone from the hand (the changes kept).
     if(ses.world != worldGeneration() || cls.state != ca_connected || !vrActive() || key_dest == key_menu ||
-        weapons::heldSlot(ses.hand) != ses.slot)
+        (ses.fist ? !emptyHand(ses.hand) : weapons::heldSlot(ses.hand) != ses.slot))
     {
         ses.returnPage = -1;
         finish(true);
@@ -1068,7 +1303,7 @@ bool handlePoint(int index, const glm::vec3& offset, glm::vec3& out)
         return false;
     }
     const Geo& g = ses.geo;
-    out = handleAt(g, index) + g.a * offset.x + g.p * offset.y + g.y * offset.z;
+    out = grabAt(g, index) + g.a * offset.x + g.p * offset.y + g.y * offset.z;
     return true;
 }
 

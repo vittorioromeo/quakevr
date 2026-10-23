@@ -1,11 +1,12 @@
 // vr_checklist.cpp -- the playtest checklist (vr_checklist.hpp): quakevr/checklist.txt read at runtime ("[Section]"
-// lines, one item a line, '#' or "//" comments), its ticks in quakevr/checklist_ticks.txt (one ticked item's text a
-// line).
+// lines, one item a line, '#' or "//" comments, an item's trailing "{test:<id>}" its scenario), its marks in
+// quakevr/checklist_ticks.txt (a passed item's text a line, a failed one's after "[fail] ").
 
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
+#include "vr_scenario.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -28,25 +29,32 @@ namespace
 struct State
 {
     za::Vector<za::String> sections;
-    za::Vector<za::String> texts;                // each item's text as in the file (its key in the ticks)
+    za::Vector<za::String> texts;                // each item's text as in the file, its tag left out (its key in the ticks)
+    za::Vector<za::String> scenarios;            // each item's "{test:<id>}" tag's id ("" none)
     za::Vector<za::String> shown;                // as drawn: characters the menu's font lacks replaced
     za::Vector<int> section;                      // each item's (-1: none)
     za::Vector<int> firstLine;                    // each item's first wrapped line in `lines`
     za::Vector<za::Pair<int, int>> lines;        // start and length in its `shown` text
-    ankerl::unordered_dense::set<za::String> tickedTexts;   // every ticked item's text, those no longer listed too
-    za::Vector<za::String> undoTexts;            // the ticks and unticks made this session, the last at the end
-    za::Vector<int> undoWasTicked;               // and whether each item was ticked before (what undo() restores)
+    ankerl::unordered_dense::set<za::String> tickedTexts;   // every passed item's text, those no longer listed too
+    ankerl::unordered_dense::set<za::String> failedTexts;   // every failed item's, likewise
+    za::Vector<za::String> undoTexts;            // the presses made this session, the last at the end
+    za::Vector<int> undoWasTicked;               // and each item's Mark before (what undo() restores)
     auto members()
     {
-        return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts, undoTexts, undoWasTicked);
+        return qvr::mem::list(sections, texts, scenarios, shown, section, firstLine, lines, tickedTexts, failedTexts,
+            undoTexts, undoWasTicked);
     }
 };
 mem::Cache<State> state{"checklist", mem::Never};
+
+constexpr const char* failPrefix = "[fail] "; // a failed item's line in the ticks file
+constexpr size_t failPrefixLength = 7;
 
 bool ticksRead = false;
 bool fileFound = false;
 int gen = 0;
 int open = 0;
+int failed = 0;
 double lastLook = -1e9;
 za::I64 fileTime{0}; // (files::lastWriteTime's stamp)
 char lineText[64];
@@ -173,9 +181,30 @@ void wrap(const za::String& text, za::Vector<za::Pair<int, int>>& out)
 void countOpen()
 {
     open = 0;
+    failed = 0;
     for(const za::String& t : state.texts)
     {
         open += state.tickedTexts.count(t) ? 0 : 1;
+        failed += state.failedTexts.count(t) ? 1 : 0;
+    }
+}
+
+[[nodiscard]] int markOf(const za::String& t)
+{
+    return state.tickedTexts.count(t) ? Passed : state.failedTexts.count(t) ? Failed : Untested;
+}
+
+void setMarkOf(const za::String& t, int m)
+{
+    state.tickedTexts.erase(t);
+    state.failedTexts.erase(t);
+    if(m == Passed)
+    {
+        state.tickedTexts.insert(t);
+    }
+    else if(m == Failed)
+    {
+        state.failedTexts.insert(t);
     }
 }
 
@@ -183,14 +212,19 @@ void readTicks()
 {
     ticksRead = true;
     state.tickedTexts.clear();
+    state.failedTexts.clear();
     za::Vector<za::String> lines;
     if(readLines(ticksPath(), lines))
     {
         for(za::String& l : lines)
         {
-            if(!l.empty())
+            if(l.size() > failPrefixLength && !strncmp(l.cStr(), failPrefix, failPrefixLength))
             {
-                state.tickedTexts.insert(ZA_MOVE(l));
+                state.failedTexts.insert(za::String{l.cStr() + failPrefixLength});
+            }
+            else if(!l.empty())
+            {
+                state.tickedTexts.insert(ZA_MOVE(l)); // (an older file's: every line a tick)
             }
         }
     }
@@ -221,13 +255,46 @@ void writeTicks()
             fprintf(f, "%s\n", t.cStr());
         }
     }
+    written.clear();
+    for(const za::String& t : state.texts)
+    {
+        if(state.failedTexts.count(t) && written.insert(t).second)
+        {
+            fprintf(f, "%s%s\n", failPrefix, t.cStr());
+        }
+    }
+    for(const za::String& t : state.failedTexts)
+    {
+        if(!written.count(t))
+        {
+            fprintf(f, "%s%s\n", failPrefix, t.cStr());
+        }
+    }
     fclose(f);
+}
+
+// A line's trailing "{test:<id>}" tag: its id (out), the line without it (returned).
+[[nodiscard]] za::String withoutTag(const za::String& l, za::String& id)
+{
+    id.clear();
+    if(l.empty() || l.back() != '}')
+    {
+        return l;
+    }
+    const size_t open = l.rfind('{');
+    if(open == za::StringView::nPos || l.size() - open < 7 || strncmp(l.cStr() + open, "{test:", 6) != 0)
+    {
+        return l;
+    }
+    id = trimmed(l.substrByPosLen(open + 6, l.size() - open - 7));
+    return trimmed(l.substrByPosLen(0, open));
 }
 
 void readList()
 {
     state.sections.clear();
     state.texts.clear();
+    state.scenarios.clear();
     state.shown.clear();
     state.section.clear();
     state.firstLine.clear();
@@ -248,8 +315,11 @@ void readList()
             current = static_cast<int>(state.sections.size()) - 1;
             continue;
         }
-        state.texts.pushBack(l);
-        state.shown.pushBack(drawable(l));
+        za::String id;
+        za::String text = withoutTag(l, id);
+        state.shown.pushBack(drawable(text));
+        state.texts.pushBack(ZA_MOVE(text));
+        state.scenarios.pushBack(ZA_MOVE(id));
         state.section.pushBack(current);
         state.firstLine.pushBack(static_cast<int>(state.lines.size()));
         wrap(state.shown.back(), state.lines);
@@ -313,33 +383,55 @@ const char* sectionName(int section)
     return section >= 0 && section < static_cast<int>(state.sections.size()) ? state.sections[section].cStr() : "";
 }
 
-bool ticked(int item)
+int mark(int item)
 {
-    return item >= 0 && item < itemCount() && state.tickedTexts.count(state.texts[item]) != 0;
+    return item >= 0 && item < itemCount() ? markOf(state.texts[item]) : Untested;
 }
 
-void toggle(int item)
+bool ticked(int item)
 {
-    if(item < 0 || item >= itemCount())
+    return mark(item) == Passed;
+}
+
+int failedCount()
+{
+    return failed;
+}
+
+const char* scenario(int item)
+{
+    return item >= 0 && item < itemCount() ? state.scenarios[item].cStr() : "";
+}
+
+const char* text(int item)
+{
+    return item >= 0 && item < itemCount() ? state.texts[item].cStr() : "";
+}
+
+void press(int item, int m)
+{
+    if(item < 0 || item >= itemCount() || (m != Passed && m != Failed))
     {
         return;
     }
     const za::String& t = state.texts[item];
-    const bool was = state.tickedTexts.erase(t) != 0;
-    if(!was)
-    {
-        state.tickedTexts.insert(t);
-    }
+    const int was = markOf(t);
+    setMarkOf(t, was == m ? Untested : m);
     if(static_cast<int>(state.undoTexts.size()) >= undoDepth)
     {
         state.undoTexts.erase(state.undoTexts.begin());
         state.undoWasTicked.erase(state.undoWasTicked.begin());
     }
     state.undoTexts.pushBack(t);
-    state.undoWasTicked.pushBack(was ? 1 : 0);
+    state.undoWasTicked.pushBack(was);
     writeTicks();
     countOpen();
     gen++;
+}
+
+void toggle(int item)
+{
+    press(item, Passed);
 }
 
 int undoCount()
@@ -352,9 +444,9 @@ const char* undoText()
     return state.undoTexts.empty() ? "" : state.undoTexts.back().cStr();
 }
 
-bool undoTicks()
+int undoRestores()
 {
-    return !state.undoWasTicked.empty() && state.undoWasTicked.back() != 0;
+    return state.undoWasTicked.empty() ? Untested : state.undoWasTicked.back();
 }
 
 int undo()
@@ -364,17 +456,10 @@ int undo()
         return -1;
     }
     const za::String t = state.undoTexts.back();
-    const bool was = state.undoWasTicked.back() != 0;
+    const int was = state.undoWasTicked.back();
     state.undoTexts.popBack();
     state.undoWasTicked.popBack();
-    if(was)
-    {
-        state.tickedTexts.insert(t);
-    }
-    else
-    {
-        state.tickedTexts.erase(t);
-    }
+    setMarkOf(t, was);
     writeTicks();
     countOpen();
     gen++;
@@ -400,7 +485,8 @@ const char* line(int item, int l)
         return "";
     }
     const auto [start, len] = state.lines[state.firstLine[item] + l];
-    const char* prefix = l > 0 ? "    " : ticked(item) ? "[x] " : "[ ] ";
+    const int m = mark(item);
+    const char* prefix = l > 0 ? "    " : m == Passed ? "[x] " : m == Failed ? "[!] " : "[ ] ";
     q_snprintf(lineText, sizeof(lineText), "%s%.*s", prefix, len, state.shown[item].cStr() + start);
     return lineText;
 }
@@ -416,6 +502,23 @@ void command_f()
         refresh();
         toggle(Q_atoi(Cmd_Argv(2)));
     }
+    else if(Cmd_Argc() >= 3 && (!q_strcasecmp(Cmd_Argv(1), "pass") || !q_strcasecmp(Cmd_Argv(1), "fail")))
+    {
+        refresh();
+        press(Q_atoi(Cmd_Argv(2)), !q_strcasecmp(Cmd_Argv(1), "pass") ? Passed : Failed);
+    }
+    else if(Cmd_Argc() >= 3 && !q_strcasecmp(Cmd_Argv(1), "test"))
+    {
+        refresh();
+        const int item = Q_atoi(Cmd_Argv(2));
+        if(!*scenario(item))
+        {
+            Con_Printf("vr_checklist: item %d has no {test:...} scenario\n", item);
+            return;
+        }
+        scenario::start(scenario(item), text(item));
+        return;
+    }
     else if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "undo"))
     {
         refresh();
@@ -424,19 +527,22 @@ void command_f()
     }
     else if(Cmd_Argc() >= 2)
     {
-        Con_Printf("vr_checklist [reload | tick <n> | undo]: the checklist (quakevr/checklist.txt), read again, item n "
-                   "ticked or unticked, or the last tick or untick undone\n");
+        Con_Printf("vr_checklist [reload | tick <n> | pass <n> | fail <n> | test <n> | undo]: the checklist "
+                   "(quakevr/checklist.txt), read again, item n ticked or unticked, passed or failed (again: back to "
+                   "untested), its scenario run, or the last press undone\n");
         return;
     }
     else
     {
         refresh();
     }
-    Con_Printf("CLSUM|%s|%d open|%d items|%d sections\n", fileFound ? "found" : "missing", open, itemCount(),
-        static_cast<int>(state.sections.size()));
+    Con_Printf("CLSUM|%s|%d open|%d items|%d sections|%d failed\n", fileFound ? "found" : "missing", open, itemCount(),
+        static_cast<int>(state.sections.size()), failed);
     for(int i = 0; i < itemCount(); i++)
     {
-        Con_Printf("CLITEM|%d|%s|%s|%s\n", i, ticked(i) ? "x" : " ", sectionName(sectionOf(i)), state.shown[i].cStr());
+        const int m = mark(i);
+        Con_Printf("CLITEM|%d|%s|%s|%s|%s\n", i, m == Passed ? "x" : m == Failed ? "!" : " ", sectionName(sectionOf(i)),
+            state.shown[i].cStr(), state.scenarios[i].cStr());
     }
 }
 

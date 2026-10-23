@@ -18496,6 +18496,47 @@ with its heft) breaks a crate; two strong blows do, medium ones take 3-4.
 - [ ] A full axe or crowbar swing: two; a moderate swing: three or four. The same on an explosive box (it blows up on
   the second strong hit).
 - [ ] Smash a held crate into a wall hard twice: broken; the overhead slam still breaks it at once.
+
+## Checklist: Pass, Fail and Test (worktree `tghost`, branch `agent/checktest`, 2026-10-23)
+
+To make headset testing faster, every checklist item now has three buttons on a row under its text: **Pass**, **Fail**,
+**Test**. Left and right (or pointing the laser at one) pick a button; the pick stays from item to item, so a run of
+passes is one press each. A click on the item's text does nothing (no accidental passes).
+
+- **Pass** retires the item as a tick did (green `[x]`, dimmed; left out with Hide Ticked). **Fail** marks it red
+  `[!]` and keeps it listed until a new line replaces it (its key is its text). Pressing the same again puts it back
+  to untested; Undo Last Tick restores the previous mark (its help says which). The summary line counts the failed.
+  Stored in `quakevr/checklist_ticks.txt` as before: passed items' text a line, failed ones after `[fail] `; an older
+  file's lines are passes. `vr_checklist tick <n>` still toggles a pass; new `pass|fail|test <n>`.
+- **Test** (dimmed when the item has no scene) runs the item's scenario: the line's trailing `{test:<id>}` (hidden,
+  not part of its key) names `quakevr/scenarios/<id>.txt` (Quake/vr/vr_scenario.cpp; the format and how to write one:
+  TESTING.md, "Checklist scenarios: how to write one"). One press loads the map fresh, sets the scenario's settings
+  first, then once the map is in places you (spot and facing), puts its weapons in your hands (the toolgun's
+  Weapons entries, taken as a grab takes them), places its toolgun spawns around you on the floor (monsters, armed
+  grunts and enforcers with any weapon, crates, barrels, explosive boxes, corpses, flames, items), sets god/notarget/
+  health, runs its commands, closes the menu and floats the hint (the line's text) ahead and a little low for
+  `vr_scenario_hint_time` (new, 12 s; `vr_scenario hint` shows it again).
+- The Checklist page's top: the test running, **Reset Test** (the same scene again from scratch; `vr_scenario reset`
+  can be bound) and **End Test**. Settings a scene changes are put back by End Test, the next test, another map or a
+  load; while the config is written they are written as they were before the test (their strings swapped for the
+  file's write, no callbacks), so quitting mid-test never keeps them.
+- Checks for workers and the coordinator: `vr_scenario validate` (every file: map present, spawn and weapon names in
+  the toolgun's list, settings and commands exist; every checklist tag has its file), `vr_scenario runall quit [ids]`
+  (each scene run headless in turn: SCNRUN OK/FAIL with the first problem), `vr_scenario where` (a `start` line, free
+  distances, the nearest liquid's surface and extent). `cl_insert.py`'s lines stay plain text; a tag is just appended.
+
+Scenes written for the [next branch] items (47 files, 59 of 65 lines tagged). No scene: parallax depth write and
+graphics presets (look at his own maps through menu presets), Holster Calibration / menus / seated play (menus and
+calibration), running legs (any floor). Shared scenes: `flail` (dropped flail, flail feel, Death Sergeant's flail),
+`struggle_grunts` (head-look, struggle per group), `shoulder_charge` (all three charge items, an 800-unit lane),
+`crates_melee` (both crate items), `mini_bosses` (tougher AD monsters, mini bosses, Death Fury), `ad_crossbow`,
+`plasma_bolts`, `foam_pool`, `scorch_wall` (two each). Most are in vrtesthall (its pool for foam, blood in water, pyro
+steam, flame into water, armed grunts falling near water; its south wall for wall blows, scorches and wall deaths).
+
+**In VR:** Checklist page: pick Pass / Fail / Test with the stick and with the laser; the colours (green passed, red
+failed) and the bracketed pick; Test on a few items (armed grunts row, crates, the pool with grunts, mini bosses):
+right map, you face the scene, weapons in the right hands, the hint readable and not in the way; Reset Test; End Test
+(Show Melee Blades goes off again after `melee_blades`).
 ### Armed monsters: dual wielding, the enforcer's tests (worktree `release`, branch `agent/armedmon2`, 2026-10-23)
 
 Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not started (budget).
@@ -18624,3 +18665,56 @@ take: its nearest monster changes from the training dummy to the spawned grunt h
 
 **In VR:** record a few notes as usual (with a weapon, holding an enemy, after picking a checklist item, after changing a
 setting); check nothing hitches as a note starts; then `python Misc/quakevr/transcribe_notes.py` and look at NOTES.md.
+
+## The fist's blow line; the blade editor's handles at the hand (worktree `fastship`, branch `agent/fistblade`, 2026-10-23)
+
+Vittorio: let Edit Blade Shape edit the unarmed case, to move the fist's blow line to match the fists; and (in VR) the tip
+handle drags easily but the near end (at or behind the holding hand) does not.
+
+**The fist's line, data-driven** (new cvars, no migration; `vr_cvars.inc`): `vr_melee_fist_from_x/y/z` (0 0 0) and
+`vr_melee_fist_to_x/y/z` (4 0 0): the line's two ends in the hand's frame (units along its forward, right, up from the
+tracked hand), what strikes between them (the layout's fist, point 0, and knuckles, point 1); `vr_melee_fist_width` (1,
+times the swept radius); `vr_melee_fist_mirror` (1: the off hand's right offsets negated, so one set fits both hands). The
+near end stays a quarter of the line behind the first end (before: 1 unit behind the hand, a quarter of 4). Shared by the
+gloved, bare and ghost hands (QC's fist thing, whatever the model). QC `VR_Melee_Line`'s fist branch builds it (the
+defaults' arithmetic is the old code's, bit for bit: `h + fwd * 0`, `h + fwd * 4`, `h + fwd * -1`; the right/up terms only
+when one is set) and `VR_Melee_ShapeOf` gives the fist its width; every consumer reads the track (`mh_near/grip/far`,
+`mh_bwidth`): punches' hits and sounds, wall punches, shoves' blows, the decapitation and limb checks, the motion recorder.
+
+**The editor with an empty hand** (`vr_bladeedit.cpp`; Weapon Offsets on the empty hand > Posing Mode > Edit Blade Shape,
+or `vr_bladeedit main|off`, or Debug > Edit Blade Shape (Main Hand)): a fist session (any hand with QC's WID_FIST, a prop
+in it too): handles red Knuckles End, orange Fist End (both lifted out of the fist, tied to their points), blue Width
+(beside the line on the inner side). Show Melee Blades forced on as for weapons. Panel: Undo, Reset Line, Mirror On/Off
+(the third button), Cancel, Done (no Head Box). It ends (keeping) if a weapon comes into the hand. Done prints
+`vr_blade_dump fist` (new; Debug > Print Fist Line): the eight `QVR_CVAR(...)` lines with the values, `//*` changed.
+
+**The handles at the hand (the near end in VR).** The grip itself was not the cause: while the editor runs every button
+goes to it before the two-hand grips, holsters and grabs (vr_input.cpp; `client::grabbing` never sees it). The near end
+lies on the line behind the holding hand (a gun's or sword's 0.3 of the line: 4 to 10 units, 10-40 cm, into the wrist
+and the forearm), and the hand-side curve point next to the hand: the other controller cannot get its grip point within
+5 cm of a point inside the holding hand or arm. Now: a handle at or behind the holding hand (the near end always, any
+other within 12 cm of the hand; the fist's two ends) is drawn and taken 7 cm out of it (weapons: above the line, square
+to it; the fist: along the hand's up), a thin tie down to the point it moves (the drag moves that point by the hand's
+motion, so the lift changes nothing in the values). Reach 5 -> 6 cm, the nearest handle taken; the one under the hand
+stays its own out to 1.5 reaches unless another is nearer than 0.6 of its distance. The hovered handle glows yellow with
+its label, the other hand's dot turns yellow with a thin line to it. `vr_bladeedit_report` prints each handle's lift.
+
+**Tests** (scripts `scratch/fb_edit.sh`, `fb_edit2.sh`; e1m1, mock):
+- Defaults: `vr_melee_sweep_test 2` on the empty hand: near -1 0 0, far 4 0 0, points 0 and 4 ahead (the mock hand's
+  makevectors noise 1e-5), radius 3; `vr_blade_dump fist`: all eight at their defaults. `eval.sh` twice: 169/177 (the 8
+  known failures), no verdict changed; punch damage moved by 0.1 on one take per run (a different take each run, as the
+  slashes: the takes' noise).
+- `vr_melee_sweep_test 4` (new, QC `VR_Melee_FistLineTest`): a box at the line's knuckles end swept across by the line
+  and by the default one: defaults struck by both PASS; `to_x 10`: 6 units off the default line, struck only by the edited
+  PASS; `to 4 7 0, from 0 0 2`: 7 off, only the edited PASS; after the editor's drags (3 7 0, width 1.41) PASS.
+- Handles with the mock other hand at each grab point, grip, moved, let go: shotgun near end (lifted 2.2 units) hovered,
+  taken, 2 back: 0.30 -> 0.44; hand-side curve point (2.3 units ahead, lifted) taken (its curve seeded); tip 14.0 -> 12.0;
+  width 1.0 -> 1.2. Fist: Fist End 0 -> -2 / 3 ahead, Knuckles End 4 -> 7 / 2, Width 1.41 / 1.2; the off hand's fist
+  edited by the main hand 2 units inward: `to_y -2` (mirrored: inward on both hands); Done printed 3 changed lines;
+  Cancel put everything back (0 changed).
+- Checklist test scenario: none (agent/checktest is not on next).
+
+**In VR:** with the hand empty, Weapon Offsets > Edit Blade Shape: drag the orange and red dots (above the fist) so the
+white line lies along your knuckles, the blue one out to the fist's width; punch a target with Show Melee Blades on; Done
+and send the printed lines if they should ship. With a sword and a gun: the orange near end is now a dot above the
+forearm tied to the line: check it (and the curve point next to the hand) is easy to take, and the hover highlight.

@@ -133,6 +133,49 @@ rebuild, and a running game reads it again within a second. Ticks live in `quake
 by each item's exact text: rewording an item un-ticks it, moving or removing others does not. `vr_checklist` prints the
 list (CLSUM/CLITEM lines), `vr_checklist tick <n>` ticks or unticks item n, `vr_checklist undo` takes the last tick or untick back (CLUNDO: the item, the undos left; the page's Undo Last Tick), `vr_checklist reload` reads the file now;
 the page is `menu_vr 72` (Debug > Checklist).
+Each item has Pass, Fail and Test buttons under it (ROUND22.md, "Checklist: Pass, Fail and Test"): marks live in the
+same ticks file (a passed item's text a line, a failed one's after `[fail] `; an old file's lines read as passes);
+`vr_checklist pass|fail|test <n>`, CLITEM's mark is `x` passed, `!` failed, its last field the item's scenario. On the
+mock: `menu_vr 72`, five `vr_mock_key downarrow` select the first item, `rightarrow`/`leftarrow` pick its button,
+`enter` presses it; `developer 1` prints `checklist: item <n>, <button> pressed`.
+
+### Checklist scenarios: how to write one
+
+A checklist line gets a one-press test scene by ending with ` {test:<id>}` (the tag is not shown, not part of the
+item's key: adding one keeps its tick). `<id>` names `quakevr/scenarios/<id>.txt`; several lines may share one. Test
+loads the map fresh, places everything, closes the menu and floats the hint (the line's text, or the file's `hint`)
+ahead for `vr_scenario_hint_time` seconds; Reset Test (the page, or `vr_scenario reset`, bindable) runs it again, End
+Test (`vr_scenario stop`) puts its settings back. The file, one directive a line (`#` comments, "quoted" names):
+
+```
+title Armed grunts with each melee weapon          # what it is (vr_scenario list)
+map vrtesthall                                      # required; loaded fresh every run
+start 0 -400 25 -90                                 # optional: your origin and yaw (default: the map's start)
+god                                                 # and/or notarget; health 50
+give "Crowbar" main                                 # a toolgun Weapons entry into a hand (main|off)
+spawn "Armed Grunt: Axe" 240 -80                     # toolgun entry (label or classname): fwd, left, [up], [yaw]
+cvar vr_debug_melee_blades 1                        # set for the test, put back after (never saved)
+cmd impulse 9                                       # console commands, after everything is placed
+hint Swing at them: ...                             # optional; default the checklist line's text
+```
+
+- Spawn names are the toolgun panel's labels exactly (`vr_toolgun_spawnlist`, Quake/vr/vr_toolgun.cpp `spawnables`,
+  vr_toolgun_packs.inc, vr_ad_spawns.inc): "Grunt", "Wooden Crate", "Explosive Box", "Armed Grunt: Shotgun",
+  "Armed Enforcer: Axe", "AD Death Sergeant", "AD Death Sergeant's Flail"... Offsets are units from your feet in the
+  direction you face (`left` positive to your left); each lands on the floor under its point (`up` above it, so a crate
+  can stand on another: `spawn "Wooden Crate" 90 30 34`); monsters face you unless a yaw (relative) is given.
+- Spots: `map <name>` then `vr_scenario where` prints a `start` line for where you stand, the free distance ahead, left,
+  behind and right, and the nearest liquid with its surface and extent. vrtesthall: start 0 -288 25 facing 90, 640
+  free ahead, 616 left; its pool x 224..528, y -416..-112 (surface -9, 119 deep: monsters placed in it sink; no
+  shallow water), `start 150 -264 40 0` at its west edge; `start -400 -400 25 -90` faces a plain stretch of the south
+  wall (its middle has the New Game buttons: keep melee away from them). `developer 1` prints each spawn's edict and
+  place.
+- Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
+  every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn, SCNRUN OK/FAIL with
+  the first problem: an entry not available here, a spot in a wall, a QC error; SCNRUNSUM). A one-off eyeshot:
+  `vr_scenario <id>;wait120;screenshot`.
+- No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged.
+
 Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
 in, the movers near it and how often `vr_unstick` freed it; `vr_stuck_test <x> <y> <z>` puts the player there as if it
 had walked there (so Quake's return to the last free spot can't free it). `setpos` with angles turns noclip on: follow

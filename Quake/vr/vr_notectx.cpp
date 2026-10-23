@@ -236,9 +236,15 @@ void describe(za::String& out)
     double when = 0.0;
     if(checklist::lastHovered(text, section, item, when))
     {
-        out += va("checklist: %s%s%s%s (%s), under the cursor %.0f s before the note\n", section.empty() ? "" : "[",
+        const int mark = item < 0 ? checklist::Untested : checklist::mark(item);
+        out += va("checklist: %s%s%s%s (%s%s%s), under the cursor %.0f s before the note\n", section.empty() ? "" : "[",
             section.cStr(), section.empty() ? "" : "] ", text.cStr(),
-            item < 0 ? "no longer listed" : checklist::ticked(item) ? "ticked" : "open", realtime - when);
+            item < 0                       ? "no longer listed"
+            : mark == checklist::Passed ? "passed"
+            : mark == checklist::Failed ? "failed"
+                                        : "open (untested)",
+            item >= 0 && *checklist::scenario(item) ? ", test scene " : "", item >= 0 ? checklist::scenario(item) : "",
+            realtime - when);
     }
     else
     {
