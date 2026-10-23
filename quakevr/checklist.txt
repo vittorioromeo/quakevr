@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed humanoids' weapons stay in their hands: grunts and enforcers with two axes and with one: runs, reloads, crouching pains, pickups and swings, with Model Animation on Smooth and on Linear: each weapon stays in its hand (was up to 40 units off on the left) {test:agrunt_weapon_hands}
+Parrying armed humanoids: block their sword/axe swings and the chainsaw's cut with a held weapon {test:agrunt_parry}
 Test scenes keep the given weapons in hand: run the flail scene in Hold grip mode: the flail is in hand without gripping and stays; grip and release drops it (Sticky mode: squeeze and release drops it) {test:flail}
 Axe Blade Start: in Edit Blade Shape with the axe, a purple Blade Start handle (just off the head's flat) places where the striking part begins: put it on the edge's lower corner and the red tip on its top corner; the non-striking part draws thin grey; Head Box On starts from a box over both bits (opt-in); Done prints the lines {test:blade_editor_axe}
 AD breakables as before: an AD metal breakable takes ~3 strong (4 medium) axe blows, a stone one breaks in one (vr_prop_break_metal 1, vr_prop_break_stone 0.75)
