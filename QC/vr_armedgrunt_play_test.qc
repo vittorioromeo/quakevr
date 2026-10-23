@@ -219,6 +219,7 @@ void() VR_AGPT_Tug =
     {
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_lift", "0");
         cvar_set("vr_agrunt_tug_fight", t == 21 ? "0" : "0.3");
         vr_agt_grunt = VR_AGT_Spawn(t == 21 ? WID_SHOTGUN : WID_AXE, 60);
         vr_agt_step = 1;
@@ -228,7 +229,16 @@ void() VR_AGPT_Tug =
     if(time < vr_agt_until && vr_agt_step != 2 && vr_agt_step != 4) { return; }
     if(vr_agt_step == 1)
     {
+        // The hand to its weapon's height first (each kind's: the scripts' hand is at the grunt's), then the grab.
         VR_AGT_Hunt(g);
+        VR_AGPT_ToHand(g, p);
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        vr_agt_step = 10;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 10)
+    {
         VR_AGPT_ToHand(g, p);
         VR_AG_GrabBy(g, p, cVR_MainHand); // (the hand closed on it: the script holds +grabmain)
         vr_agt_step = 2;
@@ -253,6 +263,7 @@ void() VR_AGPT_Tug =
                 g.vr_ag_tug_fights, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", VR_AGT_Name(p.weapon)),
                 !g.vr_ag_tug_pl && g.vr_ag_tug_losses >= 1 && g.vr_ag_prop != world && p.weapon == WID_FIST);
             cvar_set("vr_agrunt_tug_fight", "1");
+        cvar_set("vr_mock_hand_lift", "0");
             cvar_set("vr_agrunt_test", "0");
             return;
         }
@@ -273,6 +284,7 @@ void() VR_AGPT_Tug =
         vr_ag_tug_why, VR_AGT_Name(p.weapon), g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
         g.vr_ag_tug_wins == 1 && p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
     cvar_set("vr_agrunt_tug_fight", "1");
+    cvar_set("vr_mock_hand_lift", "0");
     cvar_set("vr_agrunt_test", "0");
 };
 

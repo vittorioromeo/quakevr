@@ -1029,6 +1029,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("The clips each carries beyond the one in its gun; each reload takes one. With none left it throws the "
                   "gun away and fights with its fists. Not the grunts' and enforcers' rifles: their clip is all they "
                   "have (vr_agrunt_reserve)."),
+        slider("Dual Wielding", vr_agrunt_dual_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance one from the pool holding a one-handed weapon (a sword, the crowbar, the axe) gets a second "
+                  "in its left hand: it swings them in turn or both at once, each can be knocked or pulled out of its "
+                  "hand, and it goes for another (vr_agrunt_dual_chance)."),
         slider("Reload Time", vr_agrunt_reload_time, 0.2f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
             .help("How long it stands reloading (vr_agrunt_reload_time)."),
         slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)

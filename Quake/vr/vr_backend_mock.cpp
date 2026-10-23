@@ -1657,7 +1657,9 @@ public:
             }
             if(mockHandSet[h])
             {
-                tracking.hands[h].position = mockHandPos[h];
+                // (vr_mock_hand_lift: the main hand raised, a test's own: QC sets it at once, no command buffer)
+                tracking.hands[h].position =
+                    mockHandPos[h] + glm::vec3{0.f, h == HAND_MAIN ? vr_mock_hand_lift.value : 0.f, 0.f};
             }
             if(mockHandRotSet[h])
             {
@@ -1957,8 +1959,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_button", mockButton_f);
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
-    Cmd_AddCommand("vr_mock_hand_turn", mockHandTurn_f);
-    Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
+    Cmd_AddCommand("vr_mock_hand_turn", mockHandTurn_f);    Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
     Cmd_AddCommand("vr_mock_hand_aim", mockHandAim_f);
     Cmd_AddCommand("vr_mock_walk_to", mockWalkTo_f);
     Cmd_AddCommand("vr_mock_turn_to", mockTurnTo_f);

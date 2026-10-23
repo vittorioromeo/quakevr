@@ -391,6 +391,22 @@ void() VR_AG_PropHandTouch;
 void() VR_AG_PropThink =
 {
     entity g = self.owner;
+    if(g.vr_ag_prop2 == self && g.vr_ag && g.health > 0)
+    {
+        // The second weapon: placed with the first (VR_AGP_Pose: both hands); a blow or a throw on it, the first slot's
+        // rules (swapped there and back).
+        self.nextthink = time;
+        if(!g.vr_ag_tug_pl)
+        {
+            VR_AG_Swap(g);
+            float struck = VR_AG_WeaponStruck(g, self);
+            if(!struck && g.vr_ag_prop2 && g.vr_ag_prop == self)
+            {
+                VR_AG_Swap(g);
+            }
+        }
+        return;
+    }
     if(g.vr_ag_prop != self || !g.vr_ag || g.health <= 0)
     {
         if(self.weapon == WID_CHAINSAW)
@@ -421,6 +437,49 @@ void() VR_AG_PropThink =
     self.nextthink = time;
 };
 
+// A weapon one hand swings (dual wielding pairs these: VR_AG_ArmLeft): a sword (not AD's hammer and mace), the crowbar,
+// the axe (two-handed alone: vr_armedgrunt_pose.qc VR_AGP_TwoHanded). No gun: they are long guns its animations hold in
+// both hands (the grunt's and the enforcer's rifle lines).
+float(float wid, float flags) VR_AG_OneHanded =
+{
+    if(wid == WID_SWORD)
+    {
+        return !VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
+    }
+    return wid == WID_CROWBAR || wid == WID_AXE;
+};
+
+// The weapon slots swapped (the layer acts on the first: a hand's event on the second's weapon swaps them first). Which
+// hand holds each stays its prop's (.vr_ag_left).
+void(entity g) VR_AG_Swap =
+{
+    float w = g.vr_ag_wid;       g.vr_ag_wid = g.vr_ag_wid2;         g.vr_ag_wid2 = w;
+    float f = g.vr_ag_wflags;    g.vr_ag_wflags = g.vr_ag_wflags2;   g.vr_ag_wflags2 = f;
+    entity p = g.vr_ag_prop;     g.vr_ag_prop = g.vr_ag_prop2;       g.vr_ag_prop2 = p;
+    float r = g.vr_ag_reserve;   g.vr_ag_reserve = g.vr_ag_reserve2; g.vr_ag_reserve2 = r;
+};
+
+// After a weapon left a hand: the other (if any) to the first slot, in its right hand (passed over: its poses are the
+// right hand's alone).
+void(entity g) VR_AG_Settle =
+{
+    if(!g.vr_ag_prop && g.vr_ag_prop2)
+    {
+        VR_AG_Swap(g);
+    }
+    if(g.vr_ag_prop && !g.vr_ag_prop2)
+    {
+        g.vr_ag_prop.vr_ag_left = 0;
+    }
+    if(!g.vr_ag_prop2)
+    {
+        g.vr_ag_wid2 = -1;
+        g.vr_ag_wflags2 = 0;
+    }
+};
+
+entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp;
+
 // `g` takes up a weapon (its record `inst`: its magazine).
 void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
 {
@@ -435,6 +494,31 @@ void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
         g.vr_ag_prop = world;
         return;
     }
+    g.vr_ag_prop = VR_AG_MakeProp(g, wid, flags, inst);
+    VR_AG_PlaceProp(g, g.vr_ag_prop);
+};
+
+// ... a second weapon, in its left hand (both one-handed; FALSE: not taken).
+float(entity g, float wid, float flags, entity inst) VR_AG_ArmLeft =
+{
+    if(!g.vr_ag_prop || g.vr_ag_prop2 || !VR_AG_OneHanded(g.vr_ag_wid, g.vr_ag_wflags) || !VR_AG_OneHanded(wid, flags))
+    {
+        return FALSE;
+    }
+    g.vr_ag_wid2 = wid;
+    g.vr_ag_wflags2 = flags;
+    g.vr_ag_reserve2 = 0;
+    g.vr_ag_prop2 = VR_AG_MakeProp(g, wid, flags, inst);
+    g.vr_ag_prop2.vr_ag_left = 1;
+    g.vr_ag_prop.vr_ag_left = 0;
+    g.vr_ag_dual = 1;
+    VR_AG_PlaceProp(g, g.vr_ag_prop);
+    return TRUE;
+};
+
+// The held weapon's entity (classname vr_ag_weapon), its record `inst` (world: a new one, full).
+entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp =
+{
     entity p = spawn();
     p.classname = "vr_ag_weapon";
     p.owner = g;
@@ -454,8 +538,7 @@ void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
     p.handtouch = VR_AG_PropHandTouch;
     p.think = VR_AG_PropThink;
     p.nextthink = time;
-    g.vr_ag_prop = p;
-    VR_AG_PlaceProp(g, p);
+    return p;
 };
 
 // Its weapon leaves its hand as a weapon lying about (its record and magazine with it), flying at `vel`; world if it
@@ -482,6 +565,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     g.vr_ag_wflags = 0;
     g.vr_ag_aim = '0 0 0';
     g.vr_ag_seek_next = time + 0.5 + random() * 0.5;
+    VR_AG_Settle(g); // (two held: the other to the first slot)
     return w;
 };
 
@@ -541,7 +625,16 @@ void() VR_AG_PropHandTouch =
     {
         return;
     }
-    VR_AG_GrabBy(self.owner, pl, h);
+    entity g = self.owner;
+    if(g.vr_ag_prop2 == self)
+    {
+        if(g.vr_ag_tug_pl)
+        {
+            return; // (a tug over its other weapon: one at a time)
+        }
+        VR_AG_Swap(g); // (its left hand's weapon grabbed: the first slot's, for the tug and the yank)
+    }
+    VR_AG_GrabBy(g, pl, h);
 };
 
 // ----------------------------------------------------------------------------
@@ -996,7 +1089,8 @@ void() VR_AG_TakeIt =
 {
     entity w = self.vr_ag_seek;
     self.vr_ag_seek = world;
-    if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 || self.vr_ag_prop)
+    if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
+       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_OneHanded(w.weapon, w.weaponflags))))
     {
         return;
     }
@@ -1005,6 +1099,14 @@ void() VR_AG_TakeIt =
     float flags = w.weaponflags;
     w.weaponinst = world;
     remove(w);
+    if(self.vr_ag_prop)
+    {
+        VR_AG_ArmLeft(self, wid, flags, inst); // (its second hand's again: VR_AG_WantsSecond)
+        self.vr_ag_pickups = self.vr_ag_pickups + 1;
+        sound(self, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
+        VR_AG_Log(sprintf("picked up %s in its left hand", self.vr_ag_prop2.netname));
+        return;
+    }
     VR_AG_Arm(self, wid, flags, inst);
     self.vr_ag_reserve = 0;
     self.vr_ag_pickups = self.vr_ag_pickups + 1;
@@ -1033,7 +1135,8 @@ entity() VR_AG_FindWeapon =
     while(e)
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
-           (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0))
+           (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
+           (!self.vr_ag_prop || VR_AG_OneHanded(e.weapon, e.weaponflags))) // (armed: a second one-handed one only)
         {
             float d = vlen(e.origin - self.origin);
             float safe = TRUE;
@@ -1057,9 +1160,16 @@ entity() VR_AG_FindWeapon =
 };
 
 // Disarmed: whether to go for a weapon (it looks now and then).
+// Dual wielding: one of its two weapons lost, it goes for a second one-handed one (out of its target's reach).
+float(entity g) VR_AG_WantsSecond =
+{
+    return g.vr_ag_dual && g.vr_ag_prop && !g.vr_ag_prop2 && VR_AG_OneHanded(g.vr_ag_wid, g.vr_ag_wflags) &&
+           (!g.enemy || g.enemy.health <= 0 || vlen(VR_AI_Origin(g.enemy) - g.origin) > 160);
+};
+
 float() VR_AG_Seeking =
 {
-    if(self.vr_ag_prop || !cvar_hget(cvarh_vr_agrunt_rearm))
+    if((self.vr_ag_prop && !VR_AG_WantsSecond(self)) || !cvar_hget(cvarh_vr_agrunt_rearm))
     {
         self.vr_ag_seek = world;
         return FALSE;
@@ -1176,7 +1286,8 @@ void(float d) VR_AG_Run =
 // VR_AG_Run walks it there and takes it up; then back to standing).
 float() VR_AG_Idle =
 {
-    if(self.vr_ag_prop || self.health <= 0 || !cvar_hget(cvarh_vr_agrunt_rearm_idle) || !VR_AG_Seeking())
+    if((self.vr_ag_prop && !VR_AG_WantsSecond(self)) || self.health <= 0 || !cvar_hget(cvarh_vr_agrunt_rearm_idle) ||
+       !VR_AG_Seeking())
     {
         return FALSE;
     }
@@ -1296,6 +1407,10 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     {
         return; // (where it struck isn't known, or a blast's: its box's nearest point)
     }
+    if(targ.vr_ag_prop2 && !targ.vr_ag_tug_pl && vlen(vr_hr_at - targ.vr_ag_prop2.origin) < vlen(vr_hr_at - targ.vr_ag_prop.origin))
+    {
+        VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
+    }
     float near = vlen(vr_hr_at - targ.vr_ag_prop.origin);
     if(cvar_hget(cvarh_vr_agrunt_debug))
     {
@@ -1349,6 +1464,7 @@ float() VR_AG_Dying =
     }
     makevectors(self.angles);
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
+    VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70'); // (its other, if two)
     return TRUE;
 };
 void() VR_AG_Die = { army_die(); }; // (a save from before: its th_die)
@@ -1360,13 +1476,15 @@ An armed grunt (experimental): a grunt holding one of your weapons. "weapon": it
 grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer,
 28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace, 118 Dark Prince's
 sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; -1 its fists; 0 or unset: one from
-the pool). "weaponflags": that weapon's flags.
+the pool). "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second weapon in its left hand (both
+one-handed: 2 axe, 13 sword, 17 crowbar, 101 Shadow Axe, 111..114 and 117..120 AD's swords; else one weapon).
 */
 void() monster_vr_grunt = { VR_AM_Spawn(VR_AM_GRUNT); };
 
 /*QUAKED monster_vr_enforcer (1 0 0) (-16 -16 -24) (16 16 40) Ambush
 An armed enforcer (experimental): an enforcer holding one of your weapons (its laser rifle's place). "weapon": its weapon
 (as monster_vr_grunt's: WID_*, -1 its fists, 0 or unset: one from the pool). "weaponflags": that weapon's flags.
+"weapon2", "weaponflags2": a second one-handed weapon in its left hand (as monster_vr_grunt's).
 */
 void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
 
@@ -1384,12 +1502,31 @@ void(float kind) VR_AM_Spawn =
     }
     float want = self.weapon;
     float flags = self.weaponflags;
+    float want2 = self.weapon2; // (its left hand's: "weapon2", "weaponflags2"; one-handed both, VR_AG_OneHanded)
+    float flags2 = self.weaponflags2;
     self.weapon = 0;
     self.weaponflags = 0;
+    self.weapon2 = 0;
+    self.weaponflags2 = 0;
+    float pooled = want == 0;
     if(want == 0)
     {
         want = VR_AG_PickWeapon();
         flags = 0;
+    }
+    if(want2 == 0 && pooled && random() < cvar("vr_agrunt_dual_chance") && VR_AG_Decode(want) &&
+       VR_AG_OneHanded(vr_ag_dec_wid, vr_ag_dec_flags))
+    {
+        // A second one-handed weapon from the pool (its weights; a few tries: none, one alone).
+        float tries;
+        for(tries = 0; tries < 12 && want2 == 0; tries++)
+        {
+            float c2 = VR_AG_PickWeapon();
+            if(c2 > 0 && VR_AG_Decode(c2) && VR_AG_OneHanded(vr_ag_dec_wid, vr_ag_dec_flags))
+            {
+                want2 = c2;
+            }
+        }
     }
     entity inst = world;
     self.vr_ag_code = want;
@@ -1443,6 +1580,20 @@ void(float kind) VR_AM_Spawn =
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
     VR_AG_Arm(self, want, flags, inst);
+    self.vr_ag_wid2 = -1;
+    if(want2 > 0 && VR_AG_Decode(want2) && VR_AM_Holds(self, VR_AG_Class(vr_ag_dec_wid)))
+    {
+        entity inst2 = world;
+        if(vr_ag_dec_up)
+        {
+            inst2 = WeaponInst_New(0);
+            inst2.wi_adup = vr_ag_dec_up;
+        }
+        if(!VR_AG_ArmLeft(self, vr_ag_dec_wid, flags2 | vr_ag_dec_flags, inst2))
+        {
+            dprint(sprintf("armed monster: weapon2 %g with weapon %g: not a one-handed pair, one weapon\n", want2, want));
+        }
+    }
     VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));

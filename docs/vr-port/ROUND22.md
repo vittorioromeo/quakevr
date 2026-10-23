@@ -18451,3 +18451,35 @@ blade's bow and the tip to its point; swing it at a target and watch Show Melee 
 the printed lines to us if they should ship. A straight sword: Straighten / Reset Blade; the mace: Head Box and its
 corners round the drawn head. Whether the handles are easy to reach and grab (5 cm), and the panel's place (below the
 eyes, ahead).
+### Armed monsters: dual wielding, the enforcer's tests (worktree `release`, branch `agent/armedmon2`, 2026-10-23)
+
+Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not started (budget).
+
+- **Tests 3 and 21 for the enforcer**: the scripts' mock hand sat at the grunt's gun height (14 units under the
+  enforcer's). The tests now bring it to the held weapon's own height: `vr_mock_hand_lift` (new, metres, the main mock
+  hand raised; a cvar so QC sets it at once: a command from QC would wait behind the script's `wait`s), set back to 0 at
+  the tests' ends. Test 3 also moves the grunt to the hand, then closes the hand itself (its grab time now: the script
+  holds `+grabmain` as before; a grunt spawned at 100, out of the held grab's reach). Grunt and enforcer: 3 PASS, 21
+  3/3 PASS. Test 1 (grunt) 17/17, test 2 4/4 after the dual-wielding change.
+- **Dual wielding** (`docs/vr-port/ARMED_MONSTERS.md`, "Dual wielding"): a second slot (`vr_ag_*2`); the layer acts on
+  the first and an event on the second weapon swaps them first, so tugs, yanks, blows, throws, parries and falls are the
+  one-weapon rules per hand; the weapon left alone goes to the right hand. One-handed pairs only: swords (not AD's hammer
+  and mace), crowbar, axe (two-handed alone); no gun qualifies (all long guns held on the animations' rifle lines).
+  Map keys `weapon2`/`weaponflags2` (FGD regenerated); from the pool `vr_agrunt_dual_chance` (new, 0.25; Armed Grunts
+  page: "Dual Wielding"). Swings alternate hands, 25% both at once (mirrored), the other hand following up 45%; the left
+  weapon ready (mirrored), carried hanging forward at its side, swung on the right's keys mirrored; sent in
+  QVR_SVC_ARMPOSE behind flag 8 and drawn by the client at the left hand's IK target. Lost one: out of a fight (or its
+  target over 160 units off) it goes for another one-handed weapon. Dying: both fall. Test `vr_agrunt_test 40`: grunt
+  and enforcer 5/5 PASS (both held, the crowbar left; both hands strike; the left knocked out, the sword kept in the right;
+  re-armed out of the fight; both fall). Eyeshots: `vr_agrunt_test 14` with `scratch4 1` (a sword in each left hand;
+  `scratch1` the row's distance).
+- **The enforcer's carry** (checked, not changed): test 15's rows at 170 units (`scratch1`): standing, its guns at its
+  chest along its rifle line (not hanging), aiming forward; the left hand on each weapon's second grip (IK misses 0.00;
+  the chainsaw's 7.9 units against the grunt's 6.7). The chainsaw rides higher on it (the fit's +7 z moves hip poses as
+  much as shoulders): look in VR.
+- **Left**: stage 4, the toolgun's spawn UI (kind and loadout pickers, ghost preview); the enforcer's pose per weapon class
+  in VR (idle, run, aim, melee) if it looks off.
+
+**In VR:** spawn armed grunts from the pool with `vr_agrunt_dual_chance 1` (or a map's `weapon2`): two blades, swung in
+turn and together, the left arm on its weapon; knock or pull out either (it fights on with the other, then picks one up);
+kill it: both fall.
