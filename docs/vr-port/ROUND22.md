@@ -16965,3 +16965,55 @@ From the author's voice notes of 2026-10-23 (vrfiringrange 01-16-39 and 01-18-00
 **In VR:** die with Vomit Mode on (Debug > Cheats > Die Now, Blown Back). Check that the death menu now opens after 5 s.
 Walk through VR Calibration and turn your head: the texts should trail a little. Find Holster Calibration on VR Settings'
 first page. Tap bullet time with an empty meter while looking at the gadget.
+
+## Shoulder charge: hands above the chest; crates break from fewer blows; Vanilla pickups (worktree `goreflesh`, branch `agent/charge4`, 2026-10-23; vr_cfg_version 189)
+
+From his notes of 2026-10-23 (vrmelee-recording 01-01-34, vrragtriggers 00-54-11, vrtesthall 01-44-55 and 01-45-50).
+
+### Shoulder charge: hands above the chest
+
+- **Cause.** His new charges hold the hands a bit above the chest: 1.5-4.4 units below the eyes, under Hands Low (5,
+  times the strictness 1.3 at Leniency 0.2: 6.5). Two more missed on the head's tip (9-10 deg against 9.75) and on
+  turning side-on only in the last 0.1 s (the turn was part of the held pose).
+- **Fix.** The pose is now the tuck (hands below the head, close, not reaching ahead, head down), held
+  `vr_kdtrig_tackle_hold`; side-on (`vr_kdtrig_tackle_turn`) is asked for only as the two meet (`vr_kdt_charge_sideon`;
+  not yet: no strike spent, the next frame may be). Defaults (config 189): `vr_kdtrig_tackle_low` 5 -> 0.5,
+  `_head` 7.5 -> 5, `_turn` 50 -> 60, `_runup` 1.5 -> 0.5 (his); `VR_KDT_CHARGE_AHEAD` 0.3 -> 0.4. His not-expected
+  runs are kept out by the head (0.3-3 deg) and by the turn at contact (55-58 deg).
+- **Takes** (the kit's replay, run-up 0): expected 14/22 -> 22/22, false 0/15 -> 0/15, at the defaults and at his
+  Leniency 0.4 / Stand 0.75. Missed before: left 01-00-37, -41, -48, -53; right 01-00-14, -17, -24, -27.
+  (`scratch/charge_sim.py` replays the recorded measures offline for a threshold sweep.)
+
+### Crates break from fewer blows
+
+- **Cause.** The press fix (agent/proppush2) moved the drawn hand back on a prop and restored the game's hand, but kept
+  the offset on the game's muzzle (`VR_SetupViewEntities`). The muzzle is the far end of a melee weapon's line (QC
+  `VR_Blow_Points`): held back it lagged the hand (the first blow 5.3 m/s for a 6 m/s hand), then caught up at once as
+  the press let go, a blow at 2-3 times the hand's speed (18.2 m/s: a crate broken by one).
+- **Fix.** The game's muzzle never carries the press offset (drawn hand only), as before the press fix. The sinking
+  fix itself is untouched (the bodies and the drawn hand are still held back).
+- **Test:** `vr_prop_strike_test [down|ahead [m/s [strikes]]]` (`vr_box3d_striketest.cpp`): the main hand struck into
+  the nearest solid prop at that speed, again and again (it steps up to it, slow glides in between), until it breaks.
+  `scratch/strike_run.py` plays the matrix (fist, crowbar, axe, sword; crate ahead and down, barrel ahead). At 6 m/s
+  ahead, crowbar on a crate: before the fix blows 5.29 then 18.24 m/s (broken on the second); press off 6.95;
+  fixed 6.91. At 5 m/s, fixed: every blow 2.8-5.8 m/s, none over the hand's speed; crate ahead 4 fist blows, 2-3
+  weapon blows to break; barrel ahead fist 5 blows 75 -> 53, crowbar 2, sword 3. Not done: the same matrix on the
+  build before the press fix (stopped for time).
+
+### Bodies by walls
+
+Not looked into (time): see the report.
+
+### Item Pickup Mode Vanilla
+
+- **Cause.** Pickups are taken by their hand touch; the body's touch reaches it only with `vr_body_interactions` (0),
+  so in Vanilla (vr_carry 0) walking over them took nothing. And every carry gate read vr_carry, so a round from the ammo
+  pouch (a carried thing) was dropped the frame it was taken ("carry: lost"), crates and gibs couldn't be carried.
+- **Fix.** The engine's body touch calls a pickup's (FL_ITEM) hand touch with vr_carry 0 (`vr_physics.cpp`). QC
+  `VR_Carry_On(box)`: vr_carry 0 stops only pickups being carried; the pouch's rounds, crates, gibs and wall torches as
+  in the other modes.
+
+**In VR:** charge with the hands a bit above the chest (and as before); run past a grunt with the hands up: no charge.
+Hit crates and barrels with the fist, crowbar, axe and sword: as many blows as before the press fix. Press a crate down:
+still no sinking. Vanilla: walk over ammo, health, armour and a key: taken; take a round from the ammo pouch: it stays
+in the hand; carry a crate.
