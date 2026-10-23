@@ -727,6 +727,56 @@ void bodyTargets(State& s, const Parts& p, const StruggleInput& in, uint32_t hel
     }
 }
 
+// Looking at the holder (vr_struggle_look): its head turned to his head within its neck's range, over the struggle's own
+// head target (bodyTargets'). Its belly towards him or held up before him: straight at him; turned away: to the side he
+// is on, as far as its neck turns (the side kept while he is straight behind it: no flipping). The aim eased, with small
+// quick re-aims (saccades). Its weight eases in and out: none while a hand holds its head, none beheaded or its neck
+// snapped (headPart, jointOk: a loose joint), less as its effort sinks (a flinch, dying); the struggle's end lets its
+// strengths go (stop).
+void lookAtHolder(State& s, const Parts& p, const StruggleInput& in, float since, float dt)
+{
+    Struggle& g = s.struggle;
+    const int head = headPart(p);
+    const bool can = head >= 0 && jointOk(s, p, head);
+    const float want =
+        can ? za::clamp(vr_struggle_look.value, 0.f, 1.f) * (1.f - g.heldHead) * smooth01(g.effort / 0.25f) : 0.f;
+    ease(g.lookWeight, want, dt, 0.25f);
+    if(!can || g.lookWeight < 0.01f)
+    {
+        return;
+    }
+    const auto i = static_cast<za::SizeT>(head);
+    const ragdoll::Bone& bone = p.rig->bones[head];
+    // (His head from its neck in its parent's rest space: x its front, y its left, z up its spine.)
+    const glm::vec3 d = glm::inverse(rotOf(p, bone.parent)) * (in.eye - pointOf(p, head, bone.pivot));
+    const float len = glm::length(d);
+    if(len < 0.05f)
+    {
+        return;
+    }
+    const glm::vec3 u = d / len;
+    if(u.x > 0.f || za::abs(u.y) > 0.2f)
+    {
+        g.lookSide = u.y >= 0.f ? 1.f : -1.f;
+    }
+    // (Its neck's range: its twist the turn, its cone the nod; inside the drive's own clamp.)
+    const float yawMost = za::min(s.upper[i], 1.2f) * 0.9f, pitchMost = za::min(s.lower[i], 1.f) * 0.9f;
+    const float yawTo = za::clamp(g.lookSide * za::abs(za::atan2(u.y, u.x)), -yawMost, yawMost);
+    const float pitchTo = za::clamp(-za::atan2(u.z, glm::length(glm::vec2{u.x, u.y})), -pitchMost, pitchMost);
+    ease(g.lookYaw, yawTo, dt, 0.12f);
+    ease(g.lookPitch, pitchTo, dt, 0.12f);
+    if(since >= g.nextSaccade)
+    {
+        const uint32_t k = g.saccades++;
+        g.saccade = {(roll(g.seed, 300u + k) - 0.5f) * 0.16f, (roll(g.seed, 400u + k) - 0.5f) * 0.1f};
+        g.nextSaccade = since + 0.3f + 0.9f * roll(g.seed, 500u + k);
+    }
+    const float yaw = za::clamp(g.lookYaw + g.saccade.x, -yawMost, yawMost);
+    const float pitch = za::clamp(g.lookPitch + g.saccade.y, -pitchMost, pitchMost);
+    const glm::quat look = glm::angleAxis(yaw, az) * glm::angleAxis(pitch, ay);
+    s.target[i] = glm::normalize(glm::slerp(s.target[i], ragpose::nearTo(look, s.target[i]), za::min(g.lookWeight, 1.f)));
+}
+
 // Clawing on the floor: its body turned about its spine towards belly down (the floor's friction against it; a hand of
 // God's torque on its pelvis and chest, capped).
 void rollOver(State& s, const Parts& p, const Context& c)
@@ -1087,6 +1137,9 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     const float frantic = za::clamp(vr_struggle_frantic.value, 0.f, 2.f) * za::max(g.heldHead, g.heldLegs);
     k[static_cast<int>(Channel::Arms)] += 0.5f * frantic *
         (weightOf(g, Behaviour::Pry) * g.heldHead + weightOf(g, Behaviour::Crunch) + weightOf(g, Behaviour::Claw) * g.heldLegs);
+    // (Looking at the holder: its neck at least this; the look's weight last frame's, eased: lookAtHolder.)
+    k[static_cast<int>(Channel::Head)] =
+        za::max(k[static_cast<int>(Channel::Head)], g.lookWeight * za::clamp(vr_struggle_look_strength.value, 0.f, 0.9f));
     const float scale = g.effort * za::clamp(vr_struggle_strength.value, 0.f, 2.f);
     const float most[channelCount] = {1.4f, 1.2f, 1.4f, 0.9f}; // (Legs, Torso, Arms, Head)
     for(int ch = 0; ch < channelCount; ch++)
@@ -1114,6 +1167,7 @@ bool struggleFrame(State& s, const Parts& p, const Context& c, float t)
     armGoals(s, p, *in, g.armsNow, heldLimbsBits);
     legGoals(s, p, g.legsNow, heldLimbsBits);
     bodyTargets(s, p, *in, heldLimbsBits, static_cast<float>(c.now - g.from));
+    lookAtHolder(s, p, *in, static_cast<float>(c.now - g.from), c.dt);
     rollOver(s, p, c);
     crunchPull(s, p, c, heldLimbsBits);
     stayUp(s, p, c);

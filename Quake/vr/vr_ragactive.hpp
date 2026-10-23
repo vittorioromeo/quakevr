@@ -562,6 +562,14 @@ struct Struggle
     uint32_t measured{0};
     // Its class's arm drive (StruggleInput::arms; the drive's arm springs times this, their cap too).
     float arms{1.f};
+    // Looking at the holder (vr_struggle_look; vr_ragstruggle.cpp, lookAtHolder): the look's weight now (0..1, eased),
+    // its aim (rad, eased: the head's turn about its parent's spine and its nod, in the parent's rest space), the side it
+    // turns to with him behind it (+1 its left, -1 its right: kept while he is straight behind), its small quick re-aim
+    // (a saccade: yaw, pitch, rad), when the next comes (s since it began) and how many so far.
+    float lookWeight{0.f}, lookYaw{0.f}, lookPitch{0.f}, lookSide{1.f};
+    glm::vec2 saccade{0.f};
+    float nextSaccade{0.f};
+    uint32_t saccades{0};
     // Its voice (vr_struggle_voice; vr_box3d_struggle.cpp): the next cry, how many so far, the last sample's index.
     double nextVoice{0.0}, voicedAt{-1e9};
     int voices{0};
