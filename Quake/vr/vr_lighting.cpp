@@ -1115,7 +1115,8 @@ struct ShadowScratch
     za::Vector<Candidate> dlightFading;     // (selectDlights: their strength as the score)
     za::Vector<Candidate> mapCandidates;    // the map lights near the viewer
     za::Vector<Request> requests;           // the faces packed into the atlas
-    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests); }
+    za::Vector<Request> estimate;           // a map's lights' faces at once (atlasEstimate)
+    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests, estimate); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
@@ -1277,10 +1278,15 @@ void selectMapLights(const glm::vec3& eye, float dt)
 {
     int wanted = static_cast<int>(vr_shadow_maplights.value);
     const float size = pow2Floor(za::clamp(vr_shadow_maplight_size.value, 64.f, 2048.f));
-    // The world depth cache: slots of 3 x 2 faces, in at most 8192 x 8192.
+    // The world depth cache: slots of 3 x 2 faces, in at most 8192 x 8192; with vr_shadow_atlas_grow no more than
+    // the map has lights (its static atlas no larger than they need).
     const int columns = za::max(1, static_cast<int>(8192.f / (3.f * size)));
     const int rows = za::max(1, static_cast<int>(8192.f / (2.f * size)));
     wanted = za::clamp(wanted, 0, columns * rows);
+    if(vr_shadow_atlas_grow.value != 0.f)
+    {
+        wanted = za::min(wanted, static_cast<int>(modellight::mapLights().size()));
+    }
 
     if(cl.worldmodel != slotsWorld || worldGeneration() != slotsGeneration || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
     {
@@ -1390,8 +1396,8 @@ void selectMapLights(const glm::vec3& eye, float dt)
 
 // Rows of blocks (a point light's 3 x 2 faces, a spot light's one tile), tallest first; when they
 // do not fit, everything is halved and packed again (as DarkPlaces does), down to 32-texel faces.
-// Returns the scale they were all packed at, 0 if they did not fit.
-float pack(za::Vector<Request>& requests, int atlasSize)
+// Returns the scale they were all packed at, 0 if they did not fit (atlasSize wide, atlasHeight tall).
+float pack(za::Vector<Request>& requests, int atlasSize, int atlasHeight)
 {
     za::quickSort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
     for(float scale = 1.f; scale >= 1.f / 16.f; scale *= 0.5f)
@@ -1407,7 +1413,7 @@ float pack(za::Vector<Request>& requests, int atlasSize)
                 y += rowHeight;
                 rowHeight = 0.f;
             }
-            if(y + r.rows * s > static_cast<float>(atlasSize))
+            if(y + r.rows * s > static_cast<float>(atlasHeight))
             {
                 fits = false;
                 break;
@@ -1429,6 +1435,154 @@ float pack(za::Vector<Request>& requests, int atlasSize)
         }
     }
     return 0.f;
+}
+
+// The texel rows pack's rows take at full size, atlasSize wide however tall (nothing written).
+[[nodiscard]] float packRows(za::Vector<Request>& requests, int atlasSize)
+{
+    za::quickSort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
+    float x = 0.f, y = 0.f, rowHeight = 0.f;
+    for(const Request& r : requests)
+    {
+        const float s = za::max(32.f, r.size);
+        if(x + r.columns * s > static_cast<float>(atlasSize))
+        {
+            x = 0.f;
+            y += rowHeight;
+            rowHeight = 0.f;
+        }
+        x += r.columns * s;
+        rowHeight = za::max(rowHeight, r.rows * s);
+    }
+    return y + rowHeight;
+}
+
+// ----------------------------------------------------------------------------
+// Atlas sizes (vr_shadow_atlas_grow)
+
+// The atlas is as tall as the map needs, not always square (8192 x 8192, 256 MB, mostly unused). At a map's load it is
+// sized for its lights: as many map light slots as it has lights, the dynamic lights' budget at a typical face, the
+// flashlight's tile. It grows (in 32 MB bands, to what this map's frames have needed) only at moments a frame's hitch
+// goes unfelt: the menu or console up, paused, the intermission, dead. Making a texture that size takes the driver
+// 5-9 ms, a hitch mid-fight (ROUND22.md, "Shadow atlas on demand"). Until then a frame that needs more packs its faces
+// smaller, as an over-full atlas always did. The static atlas has a slot per map light at most (selectMapLights).
+// vr_shadow_atlas_grow 0: as tall as wide, as before.
+constexpr int atlasBandTexels = 8 * 1024 * 1024; // 32 MB of D32F
+constexpr float typicalDlightSize = 256.f;       // a muzzle flash's, a rocket's, an explosion's face near you (selectDlights)
+
+struct AtlasGrowth
+{
+    const qmodel_t* world = nullptr; // the map the atlas was sized for: a new one is sized again
+    int generation = -1;             // (the same model can hold another map: worldGeneration)
+    int grows = 0;                   // this map's growths
+    float lastMs = 0.f;              // the last one's cost (vr_shadow_stats: synced with the GPU, with a clear)
+    float used = 0.f;                // the rows this frame's faces needed (packed into the full square)
+    float peak = 0.f;                // and the most this map
+    int squeezed = 0;                // this map's frames packed smaller for want of rows
+};
+AtlasGrowth atlasGrowth;
+
+// Rows rounded up to bands, within the square.
+[[nodiscard]] int atlasRows(int width, float rows)
+{
+    const int band = za::clamp(atlasBandTexels / width, 256, width);
+    return za::clamp((static_cast<int>(rows) + band - 1) / band * band, band, width);
+}
+
+// What the map's lights could ask for at once, packed (the rows).
+[[nodiscard]] float atlasEstimate(int width)
+{
+    za::Vector<Request>& requests = shadowScratch.estimate;
+    requests.clear();
+    for(size_t i = 0; i < mapSlots.size(); i++)
+    {
+        requests.pushBack({mapSlotSize, nullptr, nullptr});
+    }
+    const int dlights = za::clamp(static_cast<int>(vr_shadow_dlights.value), 0, MAX_DLIGHTS);
+    const float maxSize = pow2Floor(za::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
+    for(int i = 0; i < dlights; i++)
+    {
+        requests.pushBack({za::min(typicalDlightSize, maxSize), nullptr, nullptr});
+    }
+    if(dlights > 0 && vr_flashlight_shadows.value != 0.f)
+    {
+        requests.pushBack({za::min(2.f * maxSize, 2048.f), nullptr, nullptr, 1.f, 1.f});
+    }
+    return packRows(requests, width);
+}
+
+// A moment a frame's hitch goes unfelt.
+[[nodiscard]] bool hitchHidden()
+{
+    return key_dest != key_game || cl.paused || cl.intermission || cl.stats[STAT_HEALTH] <= 0;
+}
+
+// The atlas, vr_shadow_atlas wide; usedRows: this frame's faces packed into the full square.
+[[nodiscard]] bool ensureAtlas(int width, float usedRows)
+{
+    const bool newMap = atlasGrowth.world != cl.worldmodel || atlasGrowth.generation != worldGeneration();
+    if(newMap)
+    {
+        atlasGrowth = AtlasGrowth{};
+        atlasGrowth.world = cl.worldmodel;
+        atlasGrowth.generation = worldGeneration();
+    }
+    atlasGrowth.used = usedRows;
+    atlasGrowth.peak = za::max(atlasGrowth.peak, usedRows);
+    int height = width;
+    bool grow = false;
+    if(vr_shadow_atlas_grow.value != 0.f)
+    {
+        if(newMap || !atlas.tex || atlas.width != width)
+        {
+            height = atlasRows(width, za::max(atlasEstimate(width), atlasGrowth.peak));
+        }
+        else
+        {
+            height = atlas.height;
+            const int wanted = atlasRows(width, atlasGrowth.peak);
+            if(wanted > height && hitchHidden())
+            {
+                height = wanted;
+                grow = true;
+            }
+        }
+    }
+    else
+    {
+        grow = atlas.tex && atlas.width == width && atlas.height < width;
+    }
+    double start = 0.0;
+    if(grow && vr_shadow_stats.value != 0.f)
+    {
+        glFinish(); // timed up to the GPU having made and cleared it
+    }
+    start = Sys_DoubleTime();
+    if(!ensure(atlas, width, height, "shadow atlas"))
+    {
+        return false;
+    }
+    if(grow)
+    {
+        if(vr_shadow_stats.value != 0.f)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
+            glDisable(GL_SCISSOR_TEST);
+            GL_SetState(glstate & ~GLS_NO_ZWRITE);
+            glClearDepth(0.f);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+            glFinish();
+        }
+        atlasGrowth.lastMs = static_cast<float>((Sys_DoubleTime() - start) * 1000.0);
+        atlasGrowth.grows++;
+        if(vr_shadow_stats.value != 0.f)
+        {
+            Con_Printf("shadow atlas: grew to %d x %d (%d MB) in %.2f ms\n", atlas.width, atlas.height,
+                atlas.width / 1024 * (atlas.height / 256), atlasGrowth.lastMs);
+        }
+    }
+    return true;
 }
 
 // Two lights, one traversal each: paired source/exit cube maps, 256-unit tiles at most.
@@ -1834,7 +1988,17 @@ extern "C" void VR_RenderShadowMaps(void)
     }
     // What does not fit casts no shadow this frame; the map lights' moving casters must also
     // match their cached world faces' size (not scaled down).
-    const float packScale = pack(requests, atlasSize);
+    // The atlas first: as tall as it is grown (vr_shadow_atlas_grow), told the rows these faces want.
+    if(!ensureAtlas(atlasSize, packRows(requests, atlasSize)))
+    {
+        frameEnabled = false;
+        return;
+    }
+    if(atlasGrowth.used > static_cast<float>(atlas.height))
+    {
+        atlasGrowth.squeezed++;
+    }
+    const float packScale = pack(requests, atlasSize, atlas.height);
     if(packScale <= 0.f) { portalLightCount = 0; }
     for(DlightSlot& slot : dlightSlots)
     {
@@ -1854,7 +2018,7 @@ extern "C" void VR_RenderShadowMaps(void)
             const DlightSlot& s = dlightSlots[i];
             if(s.selected)
             {
-                Con_Printf(" %d%c%.2f", s.key, s.wanted ? '+' : '-', s.strength * s.distFade);
+                Con_Printf(" %d%c%.2f@%.0f%s", s.key, s.wanted ? '+' : '-', s.strength * s.distFade, s.size, s.spot ? "spot" : "");
             }
         }
         Con_Printf("; map lights");
@@ -1868,11 +2032,6 @@ extern "C" void VR_RenderShadowMaps(void)
         Con_Printf("\n");
     }
 
-    if(!ensure(atlas, atlasSize, atlasSize, "shadow atlas"))
-    {
-        frameEnabled = false;
-        return;
-    }
     if(!mapSlots.empty())
     {
         const int columns = za::max(1, static_cast<int>(8192.f / (3.f * mapSlotSize)));
@@ -2081,8 +2240,12 @@ extern "C" void VR_RenderShadowMaps(void)
             {
                 ml += (s.light >= 0 && s.hasCasters) ? 1 : 0;
             }
-            Con_Printf("shadows: %d dynamic, %d map lights, %d faces, %d models; GPU %.2f ms, CPU %.2f ms\n", dl, ml, facesDrawn,
-                modelsDrawn, lastMs, cpuMs);
+            Con_Printf("shadows: %d dynamic, %d map lights, %d faces, %d models; GPU %.2f ms, CPU %.2f ms; atlas %dx%d, static %dx%d "
+                       "(%d MB), faces want %.0f rows (peak %.0f, %d frames squeezed), %d growths (last %.2f ms)\n",
+                dl, ml, facesDrawn, modelsDrawn, lastMs, cpuMs, atlas.width, atlas.height, staticAtlas.width, staticAtlas.height,
+                static_cast<int>((static_cast<double>(atlas.width) * atlas.height + static_cast<double>(staticAtlas.width) * staticAtlas.height) *
+                                 4.0 / (1024.0 * 1024.0)),
+                atlasGrowth.used, atlasGrowth.peak, atlasGrowth.squeezed, atlasGrowth.grows, atlasGrowth.lastMs);
         }
     }
 }

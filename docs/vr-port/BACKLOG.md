@@ -7,8 +7,9 @@ Items the author approved or asked about, not yet started. Each has a note on wh
 **Before 1.1.0:**
 - His VR test pass of the 2026-10-17 ships (checklist top, tracker v7), then a fresh VR Tracy capture
   (`vr_tracy_preset full`) and a VR RenderDoc capture (passes now named) to confirm the perf work on real hardware.
-- Decisions still his: the particle size cap default (0.15 vs 0.3), Auto-Collect as default, shadow atlas VRAM
-  (352 MB, about 5% used: shrink or grow on demand; matters on 8 GB cards).
+- Decisions still his: Auto-Collect as default. Done 2026-10-23 (branch `agent/dec11`; ROUND22.md, "1.1 decisions:
+  particle cap, shadow atlas on demand, struggle in the groups"): particle size cap 0.15 (already the default), the shadow
+  atlas sized per map (352 -> 256 MB on lit id1 maps), awaiting his VR check.
 - Open issues to clear: crowbar/shotgun double wall hits (meleewall); dragging an enemy by the legs unverified, leg
   holds may be too soft to drag (struggle); close two-hand crate grips pull one hand in (gripfit2); AD crossbow hold
   floats (tune slot 33); `weapons::value` ignores an inheriting slot's own defaults (likely the AD soldier guns,
@@ -96,7 +97,8 @@ VR check.
 ### Fold vr_struggle_classes into the monster groups (author, 2026-10-19)
 
 The struggle classes list should become a per-group setting like the lift, neck snap and throw lists did
-(ROUND22.md, "Monster groups"); then retire `vr_struggle_classes`.
+(ROUND22.md, "Monster groups"); then retire `vr_struggle_classes`. Done 2026-10-23 (branch `agent/dec11`; ROUND22.md,
+"1.1 decisions: particle cap, shadow atlas on demand, struggle in the groups"): config 190, awaiting his VR check.
 
 ### Repository chores
 

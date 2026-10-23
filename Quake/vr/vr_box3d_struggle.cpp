@@ -1,9 +1,10 @@
 // vr_box3d_struggle.cpp -- the box3d side of a living knockdown's struggle in a player's hands (vr_struggle;
 // vr_ragstruggle.cpp; docs/vr-port/STRUGGLE.md): whether it may struggle and what holds it (ragactive::StruggleInput),
-// its class's profile (vr_struggle_classes), its drive begun; the overlay (vr_struggle_debug) and vr_struggle_status.
+// its class's profile (its monster group's Struggle settings), its drive begun; the overlay (vr_struggle_debug) and vr_struggle_status.
 
 #include "vr_box3d_internal.hpp"
 
+#include "vr_mgroups.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_text3d.hpp"
 
@@ -20,101 +21,6 @@ namespace box3d::detail
 
 namespace
 {
-
-// A class that struggles (vr_struggle_classes: classname[:strength[:speed[:health[:arms]]]]). `arms`: its arms' springs
-// this many times stiffer while it struggles (1..2.5): an enforcer's forearms (his gun hands, 5 kg) hang on 1-2 kg upper
-// arms and a zombie's whole arm is 2.4 kg, and a Box3D joint's spring acts on its two bodies' own inertia: their hands
-// lagged their goals (STRUGGLE.md, "Classes").
-struct StruggleClass
-{
-    char classname[40]{};
-    float strength{1.f}, speed{1.f}, health{0.f}, arms{1.f};
-};
-constexpr int mostClasses = 64;
-
-// vr_struggle_classes parsed (again when it changes).
-struct StruggleClasses
-{
-    char source[2048]{};
-    bool parsed{false};
-    za::Array<StruggleClass, mostClasses> list{};
-    int count{0};
-};
-StruggleClasses struggleClasses;
-
-void parseClasses()
-{
-    StruggleClasses& sc = struggleClasses;
-    const char* src = vr_struggle_classes.string ? vr_struggle_classes.string : "";
-    if(sc.parsed && std::strcmp(sc.source, src) == 0)
-    {
-        return;
-    }
-    sc.parsed = true;
-    q_strlcpy(sc.source, src, sizeof(sc.source));
-    sc.count = 0;
-    const char* p = src;
-    while(*p && sc.count < mostClasses)
-    {
-        while(*p == ' ' || *p == ',' || *p == '\t')
-        {
-            p++;
-        }
-        char word[96];
-        int n = 0;
-        while(*p && *p != ' ' && *p != ',' && *p != '\t')
-        {
-            if(n < static_cast<int>(sizeof(word)) - 1)
-            {
-                word[n++] = *p;
-            }
-            p++;
-        }
-        word[n] = 0;
-        if(n == 0)
-        {
-            continue;
-        }
-        StruggleClass& c = sc.list[static_cast<za::SizeT>(sc.count)];
-        c = StruggleClass{};
-        char* field = std::strchr(word, ':');
-        if(field)
-        {
-            *field++ = 0;
-        }
-        q_strlcpy(c.classname, word, sizeof(c.classname));
-        float* values[4] = {&c.strength, &c.speed, &c.health, &c.arms};
-        for(int i = 0; i < 4 && field && *field; i++)
-        {
-            char* next = std::strchr(field, ':');
-            if(next)
-            {
-                *next++ = 0;
-            }
-            *values[i] = static_cast<float>(std::atof(field));
-            field = next;
-        }
-        c.strength = za::clamp(c.strength, 0.f, 3.f);
-        c.speed = za::clamp(c.speed, 0.2f, 3.f);
-        c.arms = za::clamp(c.arms, 1.f, 2.5f);
-        sc.count++;
-    }
-}
-
-[[nodiscard]] const StruggleClass* struggleClassOf(const edict_t* ent)
-{
-    parseClasses();
-    const char* name = PR_GetString(ent->v.classname);
-    for(int i = 0; i < struggleClasses.count; i++)
-    {
-        const StruggleClass& c = struggleClasses.list[static_cast<za::SizeT>(i)];
-        if(!std::strcmp(c.classname, name))
-        {
-            return &c;
-        }
-    }
-    return nullptr;
-}
 
 // Why it may not struggle now (null: it may), with `in`'s holds filled in.
 [[nodiscard]] const char* holdsOf(RagdollBodies& r, edict_t* ent, ragactive::StruggleInput& in)
@@ -318,15 +224,16 @@ void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in)
         in.health = ent->v.health <= 0.f ? 0.f : 1.f; // (its struggle's end says why)
         return;
     }
-    const StruggleClass* sc = struggleClassOf(ent);
-    if(!sc || holdsOf(r, ent, in))
+    // Its class's struggle as its monster group sets it (Combat > Monster Groups: Struggle).
+    mgroups::StruggleProfile sc{};
+    if(!mgroups::struggleOfClass(PR_GetString(ent->v.classname), sc) || holdsOf(r, ent, in))
     {
         return;
     }
-    in.strength = sc->strength;
-    in.speed = sc->speed;
-    in.arms = sc->arms;
-    in.health = sc->health > 0.f ? za::clamp(ent->v.health / sc->health, 0.f, 1.f) : 1.f;
+    in.strength = sc.strength;
+    in.speed = sc.speed;
+    in.arms = sc.arms;
+    in.health = sc.health > 0.f ? za::clamp(ent->v.health / sc.health, 0.f, 1.f) : 1.f;
     // (Not while something else leads its body: a shove's topple, a stagger, a get-up, a climb, a liquid; a throw's
     // fall until a moment after it lands.)
     const ragactive::Liquid liquid = liquidFor(r.num)(glmv(b3Body_GetPosition(r.body[0])));

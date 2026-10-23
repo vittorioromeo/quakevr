@@ -77,6 +77,17 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
     {"Neck Snap Kills", MgroupToggle,
         "The neck snap kills it. Off: the twist only hurts it (Holding Enemies > Neck Snap, Tough Neck Damage) and it "
         "fights on."},
+    {"Struggle", MgroupToggle,
+        "Held while knocked down, it struggles against your hands (Holding Enemies > Struggle): its members with a "
+        "struggle of their own (each class's strength, speed, full health and arm drive: Struggle Profiles below). On "
+        "for the humanoids; never ogres, fiends or beasts."},
+    {"Struggle Strength", MgroupTimes, "Its struggle's strength (each class's own) times this."},
+    {"Struggle Speed", MgroupTimes, "Its struggle's speed (each class's own) times this."},
+    {"Struggle Arm Drive", MgroupTimes,
+        "Its arms' drive while it struggles (each class's own: an enforcer's heavy gun hands 2.5) times this; never under "
+        "1 nor over 2.5."},
+    {"Struggle Weaker When Hurt", MgroupToggle,
+        "It struggles weaker as it is hurt (its health over its class's full health). Off: always at full effort."},
 };
 
 [[nodiscard]] Item mgroupItem(int g, mgroups::Param p, const char* label)
@@ -134,7 +145,16 @@ template <int G>
         {
             items.pushBack(header("Toughness"));
         }
+        if(p == static_cast<int>(mgroups::Param::Struggle))
+        {
+            items.pushBack(header("Struggle"));
+        }
         items.pushBack(mgroupItem(G, static_cast<mgroups::Param>(p), mgroupParamRows[p].label));
+    }
+    if(mgroups::struggleProfilesText(G)[0])
+    {
+        items.pushBack(command("Struggle Profiles", "vr_mgroup_list")
+                           .help(mgroups::struggleProfilesText(G))); // (strength/speed/full health/arm drive per class)
     }
     items.pushBack(header("Members"));
     items.pushBack(command("List Every Monster's Group", "vr_mgroup_list")

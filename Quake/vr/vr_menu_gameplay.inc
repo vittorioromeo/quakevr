@@ -149,6 +149,9 @@
         slider("Strength", vr_struggle_strength, 0.f, 2.f, 0.05f, "%.2f")
             .help("Times every struggling muscle."),
         slider("Speed", vr_struggle_speed, 0.3f, 2.f, 0.05f, "%.2f").help("Times the rate of its swings, tugs and kicks."),
+        open("Each Monster Group", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Struggle)>))
+            .help("Which monster groups struggle (Combat > Monster Groups: each group's page has its Struggle Strength, "
+                  "Speed, Arm Drive and Weaker When Hurt)."),
         header("Behaviours"),
         slider("Swat at You", vr_struggle_swat, 0.f, 2.f, 0.05f, "%.2f")
             .help("Held by the body or a shoulder: an arm winds up and swings at your head or the hand holding it, the "
