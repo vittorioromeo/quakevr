@@ -32,7 +32,8 @@ constexpr Named dumped[] = {{Key::MuzzleOffsetX, "MuzzleOffsetX"}, {Key::MuzzleO
     {Key::BladeSpine4Off, "BladeSpine4Off"}, {Key::BladeSpine4Side, "BladeSpine4Side"},
     {Key::BladeSpine5Off, "BladeSpine5Off"}, {Key::BladeSpine5Side, "BladeSpine5Side"}, {Key::BladeHead, "BladeHead"},
     {Key::BladeHeadLoX, "BladeHeadLoX"}, {Key::BladeHeadLoY, "BladeHeadLoY"}, {Key::BladeHeadLoZ, "BladeHeadLoZ"},
-    {Key::BladeHeadHiX, "BladeHeadHiX"}, {Key::BladeHeadHiY, "BladeHeadHiY"}, {Key::BladeHeadHiZ, "BladeHeadHiZ"}};
+    {Key::BladeHeadHiX, "BladeHeadHiX"}, {Key::BladeHeadHiY, "BladeHeadHiY"}, {Key::BladeHeadHiZ, "BladeHeadHiZ"},
+    {Key::BladeFrom, "BladeFrom"}, {Key::BladeFromOff, "BladeFromOff"}, {Key::BladeFromSide, "BladeFromSide"}};
 
 // The curve's knots: the hand, the five points, the tip.
 [[nodiscard]] glm::vec2 knot(const Shape& s, int i)
@@ -73,7 +74,18 @@ Shape shape(int slot)
     s.head = weapons::value(slot, Key::BladeHead) >= 0.5f;
     s.headLo = weapons::vec(slot, Key::BladeHeadLoX, Key::BladeHeadLoY, Key::BladeHeadLoZ);
     s.headHi = weapons::vec(slot, Key::BladeHeadHiX, Key::BladeHeadHiY, Key::BladeHeadHiZ);
+    s.from = weapons::value(slot, Key::BladeFrom);
+    s.fromOff = {weapons::value(slot, Key::BladeFromOff), weapons::value(slot, Key::BladeFromSide)};
     return s;
+}
+
+glm::vec2 fromAt(const Shape& s, float f)
+{
+    if(!hasFrom(s) || !(f > 0.f && f < 1.f))
+    {
+        return glm::vec2{0.f};
+    }
+    return s.fromOff * (f <= s.from ? f / s.from : (1.f - f) / (1.f - s.from));
 }
 
 glm::vec2 spineAt(const Shape& s, float f)

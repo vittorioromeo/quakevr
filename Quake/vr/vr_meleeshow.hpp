@@ -27,6 +27,10 @@ void add(int hand, int what, const glm::vec3& a, const glm::vec3& b, float v);
 // blade shape editor's (vr_bladeedit.cpp) near end where the weapon has none of its own (the kind's).
 [[nodiscard]] bool lastLine(int hand, glm::vec3& nearEnd, glm::vec3& grip, glm::vec3& tip);
 
+// The same frame's first striking point (where its blade proper starts: an axe's head, a sword's blade past the guard):
+// the editor's Blade Start where the weapon has none of its own. False if not sent.
+[[nodiscard]] bool lastStrikeFrom(int hand, glm::vec3& at);
+
 // Draws the hands' last frames (the view's, facing `eye`); nothing when vr_debug_melee_blades is off.
 void draw(const glm::vec3& eye);
 

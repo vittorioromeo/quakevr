@@ -470,6 +470,10 @@ const DefaultChange defaultChanges[] = {
     {196, &vr_slime_foam_green, "0.62"},           // 0.56
     {196, &vr_slime_foam_strength, "1.5"},         // 1.9
     {196, &vr_slime_foam_particles, "0.6"},        // 1.5
+    // 197: AD's metal and stone breakables as before 195 (his note: metal took ~8 axe blows; ROUND22.md, "The blade's
+    // start; the axe's head box", Breakables): a 200-health metal piece 3-4 full axe blows, a rubble wall one.
+    {197, &vr_prop_break_metal, "1.5"}, // 1
+    {197, &vr_prop_break_stone, "1.5"}, // 0.75
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -488,7 +492,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 196;
+constexpr int configVersion = 197;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

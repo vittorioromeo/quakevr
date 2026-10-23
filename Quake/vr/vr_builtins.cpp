@@ -2333,16 +2333,27 @@ void PF_weapondrawnpose()
 // vector(float kind, float f) admeleebend: AD sword kind `kind`'s blade at share `f` of the line from the hand to its tip,
 // off that line (admelee::bend, as shares of its length): x in the blade's plane (the model's +y crossed with the line),
 // y along the model's +y; z 1 if the blade is curved (0: straight, nothing off it). QC VR_Melee_At.
-// A kind below 0: Weapon Offsets slot -1 - kind's own curve (Blade Spine, vr_blade.hpp; z 1 if it has one: Edit Blade Shape).
+// A kind below 0: Weapon Offsets slot -1 - kind's own curve (Blade Spine, vr_blade.hpp; else its model's, a curved AD
+// sword's) and its blade start's bend (Blade From); z 1 if it has either: Edit Blade Shape.
 void PF_admeleebend()
 {
     if(const int kind = static_cast<int>(G_FLOAT(OFS_PARM0)); kind < 0)
     {
         const blade::Shape s = blade::shape(-1 - kind);
-        const glm::vec2 k = s.spine ? blade::spineAt(s, G_FLOAT(OFS_PARM1)) : glm::vec2{0.f};
+        const float f = G_FLOAT(OFS_PARM1);
+        glm::vec2 k{0.f};
+        if(s.spine)
+        {
+            k = blade::spineAt(s, f);
+        }
+        else if(const cvar_t* id = weapons::cvar(-1 - kind, weapons::Key::ID); id && f > 0.f)
+        {
+            k = admelee::bend(admelee::kindOfModel(id->string), f);
+        }
+        k += blade::fromAt(s, f);
         G_VECTOR(OFS_RETURN)[0] = k.x;
         G_VECTOR(OFS_RETURN)[1] = k.y;
-        G_VECTOR(OFS_RETURN)[2] = s.spine ? 1.f : 0.f;
+        G_VECTOR(OFS_RETURN)[2] = s.spine || blade::hasFrom(s) ? 1.f : 0.f;
         return;
     }
     const glm::vec2 b = admelee::bend(static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1));
@@ -2356,7 +2367,8 @@ void PF_admeleebend()
 // VR_Melee_Sweep (the head's volume strikes).
 // A kind below 0: Weapon Offsets slot -1 - kind's own blade shape (vr_blade.hpp; Edit Blade Shape): `which` 0 and 1 its
 // own head's corners ('0 0 0': none of its own), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1
-// the kind's own, QC VR_Melee_NearBack; the swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own).
+// the kind's own, QC VR_Melee_NearBack; the swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own
+// + 4 a blade start of its own), 3 '<blade start> <off> <side>' (Blade From: its share of the line, -1 the kind's own).
 void PF_admeleehead()
 {
     glm::vec3 lo{0.f}, hi{0.f};
@@ -2364,7 +2376,9 @@ void PF_admeleehead()
     {
         const blade::Shape s = blade::shape(-1 - kind);
         const int which = static_cast<int>(G_FLOAT(OFS_PARM1));
-        const glm::vec3 out = which == 2   ? glm::vec3{s.nearBack, s.width, (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f)}
+        const glm::vec3 out = which == 2   ? glm::vec3{s.nearBack, s.width,
+                                                 (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f) + (blade::hasFrom(s) ? 4.f : 0.f)}
+                              : which == 3 ? glm::vec3{blade::hasFrom(s) ? s.from : -1.f, s.fromOff.x, s.fromOff.y}
                               : !s.head    ? glm::vec3{0.f}
                               : which == 1 ? s.headHi
                                            : s.headLo;
