@@ -221,6 +221,16 @@ za::Vector<Item> pageDebugAutomation()
                   "to compare)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
+        command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")
+            .help("vr_agrunt_test 20: a grunt and an armed grunt side by side, knocked down, shot, killed, shot and "
+                  "gibbed: the armed one's ragdoll and corpse take it as the grunt's."),
+        command("Armed Grunts: Shoves and Falls", "vr_agrunt_test 25")
+            .help("vr_agrunt_test 25: you unseen, a shotgun grunt staggered (keeps it), knocked down (drops it beside "
+                  "it), getting up (takes it back)."),
+        command("Armed Grunts: Out of Reach", "vr_agrunt_test 26")
+            .help("vr_agrunt_test 26 (vrtesthall's start): weapons in the pool and in the air left alone, one on the "
+                  "floor taken. 21-24: the tug-of-war, the grab at once, blows and parries (21-23 want your empty main "
+                  "hand held closed); 27: giving a weapon up."),
         toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
             .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
                   "vr_agrunt_ik)."),

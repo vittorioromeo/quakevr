@@ -179,6 +179,9 @@ void mistTest_f();
 void lightReport_f();
 // vr_particle_waste_report: the shaded fragments that showed (next to) nothing since the last (vr_debug_particle_waste).
 void wasteReport_f();
+// vr_water_foam_info: the shore's foam particles (vr_water_foam_particles and lava's, slime's): the world's shore
+// segments, those near, the last frame's spawned, how many the rates ask to be alive (the cap: 600), the cost.
+void shoreFoamInfo_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)

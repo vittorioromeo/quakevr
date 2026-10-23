@@ -2101,6 +2101,7 @@ const Page pages[] = {
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
     {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
     {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
+    {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
 };
 static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

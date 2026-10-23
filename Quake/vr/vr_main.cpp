@@ -2083,6 +2083,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_water_blood_test", water::bloodTest_f);
     Cmd_AddCommand("vr_water_blood_info", water::bloodInfo_f);
+    Cmd_AddCommand("vr_water_foam_info", particles::shoreFoamInfo_f);
     Cmd_AddCommand("vr_water_blood_spray", particles::bloodSprayTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);

@@ -1512,6 +1512,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsShadows();
 [[nodiscard]] za::Vector<Item> pageGraphicsSurfaces();
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids();
+[[nodiscard]] za::Vector<Item> pageGraphicsFoam();
 [[nodiscard]] za::Vector<Item> pageGraphicsTeleporters();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
@@ -2093,6 +2094,62 @@ void retroAllUncheckCategories()
     };
 }
 
+// Graphics > Liquids > Shoreline Foam Settings: each liquid's foam (vr_water_foam_*, vr_lava_foam_*, vr_slime_foam_*;
+// vr_water.cpp foamLook), a section each.
+struct FoamRows
+{
+    cvar_t &on, &opacity, &frequency, &strength, &breathe, &breatheSpeed, &breatheIrregularity, &red, &green, &blue,
+        &particles, &particleLife, &particleOpacity, &particleSize;
+    const char* label[15]; // the header, then each row's
+};
+
+void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
+{
+    items.pushBack(header(r.label[0]));
+    items.pushBack(toggle(r.label[1], r.on).help("This liquid's shoreline foam on or off (Shoreline Foam, on the Liquids page, is every liquid's)."));
+    items.pushBack(slider(r.label[2], r.opacity, 0.f, 1.5f, 0.05f, "%.2fx").extend().help("How opaque the foam is."));
+    items.pushBack(slider(r.label[3], r.frequency, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("How finely the foam's edge and flecks are broken up: higher, more and smaller patches; lower, broad ones."));
+    items.pushBack(slider(r.label[4], r.strength, 0.25f, 3.f, 0.05f, "%.2fx").extend().help("How far the foam reaches out from the shore and round things standing in it."));
+    items.pushBack(slider(r.label[5], r.breathe, 0.f, 1.f, 0.05f, "%.2f").extend().help("Breathing: the foam's band grows and shrinks over time, not all together but stretch by stretch along the shore, so it pulses in and out all round. How much, a share of its width (0 still)."));
+    items.pushBack(slider(r.label[6], r.breatheSpeed, 0.1f, 4.f, 0.05f, "%.2fx").extend().help("How fast the foam breathes (1: a breath in about four seconds)."));
+    items.pushBack(slider(r.label[7], r.breatheIrregularity, 0.f, 1.f, 0.05f, "%.2f").extend().help("How unevenly it breathes along the shore: 0 all of it together; 1 each stretch in its own time and by its own amount."));
+    items.pushBack(slider(r.label[8], r.red, 0.f, 2.f, 0.02f, "%.2f").help("The foam's colour: red (over 1 glows, for lava's crust to bloom)."));
+    items.pushBack(slider(r.label[9], r.green, 0.f, 2.f, 0.02f, "%.2f").help("The foam's colour: green."));
+    items.pushBack(slider(r.label[10], r.blue, 0.f, 2.f, 0.02f, "%.2f").help("The foam's colour: blue."));
+    items.pushBack(slider(r.label[11], r.particles, 0.f, 4.f, 0.1f, "%.1fx").extend().help("Small puffs of foam along the shore where the foam meets the rock, so the edge is not one straight line: how many (1: about 15 a second for each 100 units of shore near you; at most about 600 alive; 0 off)."));
+    items.pushBack(slider(r.label[12], r.particleLife, 0.2f, 4.f, 0.1f, "%.1f s").extend().help("How long each foam particle lasts, drifting and fading out."));
+    items.pushBack(slider(r.label[13], r.particleOpacity, 0.f, 1.f, 0.05f, "%.2f").extend().help("How opaque the foam particles are."));
+    items.pushBack(slider(r.label[14], r.particleSize, 0.25f, 4.f, 0.05f, "%.2fx").extend().help("How big the foam particles are (1: about 3 units across, growing to 9 as they fade)."));
+}
+
+[[nodiscard]] za::Vector<Item> pageGraphicsFoam()
+{
+    za::Vector<Item> items;
+    items.pushBack(slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Every liquid's shoreline foam: how much (0 off). Teleports have none."));
+    addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
+        vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
+        vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,
+        vr_water_foam_particle_opacity, vr_water_foam_particle_size,
+        {"Water", "Water Foam", "Water Opacity", "Water Frequency", "Water Strength", "Water Breathing",
+            "Water Breathing Speed", "Water Breathing Irregularity", "Water Red", "Water Green", "Water Blue",
+            "Water Particles", "Water Particle Life", "Water Particle Opacity", "Water Particle Size"}});
+    addFoamRows(items, {vr_lava_foam_on, vr_lava_foam_opacity, vr_lava_foam_frequency, vr_lava_foam_strength,
+        vr_lava_foam_breathe, vr_lava_foam_breathe_speed, vr_lava_foam_breathe_irregularity, vr_lava_foam_red,
+        vr_lava_foam_green, vr_lava_foam_blue, vr_lava_foam_particles, vr_lava_foam_particle_life,
+        vr_lava_foam_particle_opacity, vr_lava_foam_particle_size,
+        {"Lava", "Lava Foam", "Lava Opacity", "Lava Frequency", "Lava Strength", "Lava Breathing",
+            "Lava Breathing Speed", "Lava Breathing Irregularity", "Lava Red", "Lava Green", "Lava Blue",
+            "Lava Particles", "Lava Particle Life", "Lava Particle Opacity", "Lava Particle Size"}});
+    addFoamRows(items, {vr_slime_foam_on, vr_slime_foam_opacity, vr_slime_foam_frequency, vr_slime_foam_strength,
+        vr_slime_foam_breathe, vr_slime_foam_breathe_speed, vr_slime_foam_breathe_irregularity, vr_slime_foam_red,
+        vr_slime_foam_green, vr_slime_foam_blue, vr_slime_foam_particles, vr_slime_foam_particle_life,
+        vr_slime_foam_particle_opacity, vr_slime_foam_particle_size,
+        {"Slime", "Slime Foam", "Slime Opacity", "Slime Frequency", "Slime Strength", "Slime Breathing",
+            "Slime Breathing Speed", "Slime Breathing Irregularity", "Slime Red", "Slime Green", "Slime Blue",
+            "Slime Particles", "Slime Particle Life", "Slime Particle Opacity", "Slime Particle Size"}});
+    return items;
+}
+
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids()
 {
     return {
@@ -2104,10 +2161,8 @@ void retroAllUncheckCategories()
         slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").extend().help("Lava glows, its hot parts brightest, pulsing slowly."),
         toggle("Real Waves", "vr_water_geo_waves").help("The surfaces of water, slime and lava rise and fall in long swells (still at the walls). Off: flat, the waves only in the lighting."),
         slider("Real Wave Height", "vr_water_geo_amplitude", 0.5f, 24.f, 0.5f, "%.1f").extend().help("How high the swells rise, in units (lava's are bigger and slower, slime's smaller)."),
-        slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Foam where water meets walls, steps and things standing in it; a scum on slime, a glowing rim on lava (0 off)."),
-        slider("Foam Opacity", "vr_water_foam_opacity", 0.f, 1.5f, 0.05f, "%.2fx").extend().help("How opaque the shoreline foam is (1 the default look)."),
-        slider("Foam Frequency", "vr_water_foam_frequency", 0.25f, 4.f, 0.05f, "%.2fx").extend().help("How finely the foam's edge and flecks are broken up: higher, more and smaller patches; lower, broad ones."),
-        slider("Foam Strength", "vr_water_foam_strength", 0.25f, 3.f, 0.05f, "%.2fx").extend().help("How far the foam reaches out from the shore and round things standing in the water."),
+        slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Foam where water meets walls, steps and things standing in it; a scum on slime, a molten crust on lava (0 off). Each liquid's look: Shoreline Foam settings."),
+        open("Shoreline Foam Settings", pageIndex(pageGraphicsFoam)).help("Each liquid's shoreline foam (water, lava, slime): opacity, how fine and how far, its breathing, its colour and the foam particles along the shore."),
         slider("Heat Haze", "vr_heat_haze", 0.f, 1.f, 0.1f, "%.1f").help("The air shimmers over lava, round explosions and over flames (0 off)."),
         header("Under Water"),
         slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").extend().help("Dappled light on floors and walls under water."),

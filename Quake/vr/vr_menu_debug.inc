@@ -1174,6 +1174,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood in Water", "vr_water_blood_test").help("vr_water_blood_test [distance] [amount]: a cloud of blood on the water or slime below a point 96 units ahead (Gore > Blood in Water)."),
         command("Blood Spray Ahead", "vr_water_blood_spray").help("vr_water_blood_spray [distance] [count]: a hit's blood 64 units ahead; under water it slows into sinking clouds (Gore > Blood in Water)."),
         command("Blood in Water: Clouds", "vr_water_blood_info").help("vr_water_blood_info: the blood clouds on the liquids now (where, how big, how strong), in the console."),
+        command("Shoreline Foam Particles", "vr_water_foam_info").help("vr_water_foam_info: the shore's foam particles (Graphics > Liquids > Shoreline Foam): the map's shore segments, those near you, the last frame's spawned, how many the rates ask to be alive (capped at 600) and their cost, in the console."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
         command("Wrist Blood from Hand", "vr_wrist_blood_test hand main").help("A wound across the hand/arm seam, starting on the main hand."),
         command("Wrist Blood from Arm", "vr_wrist_blood_test arm main").help("A wound across the hand/arm seam, starting on the main arm."),

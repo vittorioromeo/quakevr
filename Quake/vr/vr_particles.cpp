@@ -2606,6 +2606,159 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
     });
 }
 
+// ---- Shoreline foam particles (vr_water_foam_particles, vr_lava_foam_*, vr_slime_foam_*) ---------------------------
+// Small puffs of foam (CellFoam, facing the view) along the shore, where the shader's foam band (LiquidFoam) meets the
+// rock: they straddle the line where the liquid's plane cuts the wall, so it is not one straight edge. Each grows a
+// little, drifts along the shore and out into the liquid, and fades out over its life. From the world's shore
+// (water::shoreSegments: the liquid tops' rims, found once as the map's liquid mesh is made), only the segments within
+// kShoreReach of the eye (shoreNear: listed again when the eye has moved kShoreRelist units) whose faces were in a view's
+// PVS lately; fewer further off, none past kShoreReach. At most about kShoreMaxLive of them alive (the rate scaled down
+// past it). Each liquid's rate, life, opacity, size and colour its own (water::foamLook).
+constexpr float kShoreReach = 640.f;   // units: none further (the shader's foam fades out from 600)
+constexpr float kShoreNear = 320.f;    // ... fewer past this
+constexpr float kShoreRelist = 64.f;   // the near list made again once the eye has moved this far
+constexpr float kShoreRate = 0.15f;    // particles a second for each unit of shore at 1 (15 for 100 units)
+constexpr float kShoreMaxLive = 600.f; // about this many alive at most
+
+struct ShoreNear
+{
+    za::Vector<za::U32> list; // indices into water::shoreSegments
+    glm::vec3 at{1e9f};       // where the eye was as it was made
+    unsigned generation = ~0u;
+    double last = -1.0;       // cl.time of the last spawn (once a frame)
+    int spawned = 0;          // the last frame's (vr_water_foam_info)
+    float expectedLive = 0.f; // ... how many would be alive at the rate asked, before the cap
+    double costMs = 0.0;      // ... and its cost
+};
+ShoreNear shoreNear;
+
+[[nodiscard]] float pointSegmentDistance(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b)
+{
+    const glm::vec2 ab = b - a;
+    const float len2 = glm::dot(ab, ab);
+    const float t = len2 > 0.f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
+    return glm::length(p - (a + ab * t));
+}
+
+void shoreFoam()
+{
+    if(vr_particle_freeze.value != 0.f || vr_water_foam.value <= 0.f || !vr_particles.value || !cl.worldmodel ||
+        cl.time == shoreNear.last)
+    {
+        return;
+    }
+    const float dt = shoreNear.last < 0.0 ? 0.f : static_cast<float>(CLAMP(0.0, cl.time - shoreNear.last, 0.1));
+    shoreNear.last = cl.time;
+    shoreNear.spawned = 0;
+    shoreNear.expectedLive = 0.f;
+    unsigned generation = 0;
+    const za::Vector<water::ShoreSegment>& shore = water::shoreSegments(generation);
+    if(dt <= 0.f || shore.empty())
+    {
+        return;
+    }
+    const double start = Sys_DoubleTime();
+    water::FoamLook looks[3];
+    float rate[3];
+    bool any = false;
+    const float mult = za::max(0.f, vr_particle_mult.value);
+    for(int i = 0; i < 3; i++)
+    {
+        looks[i] = water::foamLook(i);
+        rate[i] = looks[i].on && looks[i].particleOpacity > 0.f ? looks[i].particles * kShoreRate * mult : 0.f;
+        any |= rate[i] > 0.f;
+    }
+    if(!any || !ensureAtlas())
+    {
+        return;
+    }
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    if(generation != shoreNear.generation || glm::length(eye - shoreNear.at) > kShoreRelist)
+    {
+        shoreNear.generation = generation;
+        shoreNear.at = eye;
+        shoreNear.list.clear();
+        const float reach = kShoreReach + kShoreRelist;
+        for(za::SizeT i = 0; i < shore.size(); i++)
+        {
+            const water::ShoreSegment& s = shore[i];
+            if(za::fabs(s.z - eye.z) < reach && pointSegmentDistance(glm::vec2(eye), s.a, s.b) < reach)
+            {
+                shoreNear.list.pushBack(static_cast<za::U32>(i));
+            }
+        }
+    }
+    // how many would be alive at the rates asked (the segments seen lately, as if all near): the cap's scale
+    float live = 0.f;
+    for(const za::U32 i : shoreNear.list)
+    {
+        const water::ShoreSegment& s = shore[i];
+        if(rate[s.liquid] > 0.f && water::shoreSeen(s))
+        {
+            live += glm::length(s.b - s.a) * rate[s.liquid] * looks[s.liquid].particleLife;
+        }
+    }
+    shoreNear.expectedLive = live;
+    const float scale = live > kShoreMaxLive ? kShoreMaxLive / live : 1.f;
+    for(const za::U32 i : shoreNear.list)
+    {
+        const water::ShoreSegment& s = shore[i];
+        if(rate[s.liquid] <= 0.f || !water::shoreSeen(s))
+        {
+            continue;
+        }
+        const glm::vec2 d = s.b - s.a;
+        const float len = glm::length(d);
+        const int n = static_cast<int>(len * rate[s.liquid] * scale * dt + rnd(0.f, 1.f));
+        for(int k = 0; k < n && pool.size() < maxParticles; k++)
+        {
+            const glm::vec2 at = s.a + d * rnd(0.f, 1.f);
+            const float away = glm::length(glm::vec3{at.x, at.y, s.z} - eye);
+            if(away > kShoreReach || (away > kShoreNear && rnd(kShoreNear, kShoreReach) < away))
+            {
+                continue;
+            }
+            const water::FoamLook& l = looks[s.liquid];
+            const bool lava = s.liquid == 1;
+            const float size = l.particleSize;
+            const float life = l.particleLife * rnd(0.7f, 1.3f);
+            const float alpha = l.particleOpacity * rnd(0.7f, 1.f);
+            const glm::vec2 along = d / len;
+            const glm::vec3 org{at + s.in * (rnd(0.5f, 3.5f) * size), s.z};
+            Particle p;
+            p.angle = rndAngle();
+            p.cell = CellFoam;
+            p.type = Custom;
+            p.liquid = water::foamContents(s.liquid); // (its light: lava's glows)
+            p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), alpha};
+            p.die = cl.time + life;
+            const float big = rnd(3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
+            p.scale = 0.6f * big;
+            p.grow = 0.9f * big / life;
+            p.fade = -alpha / life;
+            p.spin = rnd(-0.6f, 0.6f);
+            p.drag = 0.8f;
+            // a little above the surface (the bottom in the liquid), drifting along the shore and out
+            p.org = org + glm::vec3{0.f, 0.f, rnd(0.1f, 0.5f) * 0.75f * p.scale};
+            const float drift = rnd(-4.f, 4.f);
+            p.vel = glm::vec3{along * drift + s.in * rnd(1.f, 4.f), rnd(0.f, 1.5f)};
+            pool.pushBack(p);
+            shoreNear.spawned++;
+        }
+    }
+    shoreNear.costMs = (Sys_DoubleTime() - start) * 1000.0;
+}
+
+void shoreFoamInfo_f()
+{
+    unsigned generation = 0;
+    const za::SizeT total = water::shoreSegments(generation).size();
+    Con_Printf("vr_water_foam_info: %d shore segments, %d near; last frame %d spawned, %.0f alive asked (cap %.0f), "
+               "%.3f ms; %d particles live\n",
+        static_cast<int>(total), static_cast<int>(shoreNear.list.size()), shoreNear.spawned, shoreNear.expectedLive,
+        kShoreMaxLive, shoreNear.costMs, static_cast<int>(pool.size()));
+}
+
 // QVR round 21: a casing dropping into a liquid. The splash preset's parts at a casing's size: a few small drops
 // thrown up a few centimetres (half of them leaving a little ring where they fall back), one ring riding the ripple's
 // crest, a wisp of foam; in lava an ember or two. vr_water_splash scales how many, _size how big, _ring_size the ring.
@@ -2751,8 +2904,8 @@ struct Softness
     bool puff = false;
     switch(cell)
     {
-        case CellRing:
-        case CellFoam: return {}; // (lying on a liquid)
+        case CellRing: return {}; // (lying on a liquid)
+        case CellFoam: fade = za::clamp(radius * 0.5f, 1.f, 4.f); break; // (lying: none; standing, the shore's: soft on the rock)
         case CellCircle:
         case CellDrop:
         case CellSpark: fade = 1.5f; break;
@@ -3605,7 +3758,12 @@ extern "C" void VR_DrawSceneTranslucent()
     using namespace qvr::particles;
 
     // The particles first (on the CPU): the simulation and the records for the GPU once a frame, then this view's
-    // pieces lying on the waves (those in its frustum).
+    // pieces lying on the waves (those in its frustum). The shore's foam first (once a frame: its own clock).
+    if((cl.protocolflags & PRFL_QUAKEVR) && builtFrame != host_framecount)
+    {
+        QVR_PROFILE("particle shore foam");
+        shoreFoam();
+    }
     const bool particles = (cl.protocolflags & PRFL_QUAKEVR) && !pool.empty() && atlas;
     const bool soft = softOn();
     bool inView = false;

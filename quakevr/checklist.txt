@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Shoreline foam (Graphics > Liquids > Shoreline Foam Settings): vrtesthall pool: the foam band breathes in and out unevenly, soft foam puffs along the wall line; e1m7 lava: glowing yellow-orange crust (strong enough, right colour?); e1m1 slime: green scum; each liquid's toggle and colour sliders
+Armed grunts disarming: grab a calm grunt's gun and pull back hard (~25 cm) for over a second: a tug-of-war, it headbutts, shoves or fires at you (do 10 units / 1.2 s / fight-back every 1 s feel right?); a staggered, hurt or just-parried grunt lets go at once; a hard crowbar swing or a thrown weapon into its gun knocks it out (a tap or a tossed shell doesn't); every disarm clatters
+Armed grunts after a fall: a shove that doesn't floor it keeps the gun; floored, the gun lies beside it and it picks it up as it rises; weapons in water or mid-air are ignored; no loot beam or sparkles on held guns (tell me if you still see sparkles)
+Armed grunt corpses: shoot and slash them: they gib and bleed like a grunt's
 Armed grunts presentation: fists: guard and punch combos (jab, cross, hooks, uppercut); axe, sword, crowbar, hammer: held blade up, wind-up over the shoulder and a real swing, each with its own hit sounds (crowbar ring); chainsaw: engine runs, thrust and held cut, refuels; shotgun grunt running and shooting: both hands steady on the gun (no jitter), visible recoil
 One wall blow a swing: crowbar, shotgun, axe and sword swung hard into a wall from arm's length and from close: one thunk, spark and mark per swing (also when the weapon ends lying along the wall); two quick blows with a hand's length of draw-back between: both thunk; a corner: both walls thunk
 Parallax depth write: now off by default (High), on in Ultra, and ~0.8 ms cheaper when on (only near relief surfaces write depth); pick Ultra and look at monsters' feet and props on carved/raised floors near and far: same look as before; on High (off): do things meeting the relief look acceptable?

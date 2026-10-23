@@ -438,9 +438,14 @@ const DefaultChange defaultChanges[] = {
     // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
     // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
     {192, &vr_parallax_depth_write, "1"}, // 0
+    // 193: the author's water foam (his config of 2026-10-23; ROUND22.md, "Shoreline foam: per liquid, breathing,
+    // particles"): fainter, finer, reaching further. Water's own now (lava and slime have their own vr_lava_foam_*,
+    // vr_slime_foam_*).
+    {193, &vr_water_foam_opacity, "1"},   // 0.5
+    {193, &vr_water_foam_frequency, "1"}, // 1.75
+    {193, &vr_water_foam_strength, "1"},  // 1.75
     // 194: the death sergeant's flail heavier (the author's note vrfiringrange_2026-10-23_17-33-56): its head 3 kg, its
     // blows at most 120 (with its new least damage, speed limit and drag; ROUND22.md, "The flail: heavier, smaller").
-    // (193 is another branch's.)
     {194, &vr_flail_mass, "2"},         // 3
     {194, &vr_flail_max_damage, "150"}, // 120
 };

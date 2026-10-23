@@ -264,6 +264,7 @@ void() VR_AGTest_Yank =
         p.weapon = WID_FIST; // (the main hand empty)
         p.weaponinst = world;
         p.weaponflags = 0;
+        cvar_set("vr_agrunt_tug", "0"); // (the grab at once: the tug-of-war is vr_agrunt_test 21..23)
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
         vr_agt_step = 1;
         vr_agt_until = time + 1;
@@ -289,6 +290,7 @@ void() VR_AGTest_Yank =
     }
     VR_AGT_Check(sprintf("yank: your main hand %s, the grunt holds %s:", VR_AGT_Name(p.weapon),
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), p.weapon == WID_SHOTGUN && !g.vr_ag_prop);
+    cvar_set("vr_agrunt_tug", "1");
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     cvar_set("vr_agrunt_test", "0");
 };
@@ -434,6 +436,7 @@ void() VR_AGTest_IdleRearm =
     cvar_set("vr_agrunt_test", "0");
 };
 
+void(float t) VR_AGPT_Frame; // (vr_armedgrunt_play_test.qc)
 // Tests 14 and 15 (Debug > Tests > Armed Grunts: Attack Poses): four armed grunts in a row ahead (14: fists, axe, sword,
 // crowbar; 15: chainsaw, Mjolnir, shotgun, super shotgun), turned 60 degrees, each held at an attack's phase every frame:
 // scratch2 1 the wind-up's end, 2 the strike's middle, 3 its end (the chainsaw's cut), 4 the recovery's middle (0: as
@@ -532,6 +535,7 @@ void() VR_AGTest_Frame =
     else if(t == 2) { VR_AGTest_Sequence(); }
     else if(t == 3) { VR_AGTest_Yank(); }
     else if(t == 4) { VR_AGTest_State(); }
+    else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;
