@@ -19081,3 +19081,29 @@ Pictures: `scratch/flail3_eyes.png` (the head hanging under the hand; the hand s
 the hand slowly and turn: it trails and swings; flick it: it swings up and dies down over a few seconds; whirl it: it
 still takes work. Drop it and pick it up: the head swings up from where it lay. Search "flail" in the menus: the Flail
 page first; try Flail Air Drag (lower: swings longer).
+
+## Test scenes: given weapons stay in hand; a bad spawn name no crash; eval's table again (worktree `gorefx`, branch `agent/scnfix`, 2026-10-24)
+
+**Given weapons.** A scene's `give` left the weapon in a hand whose grip was not pressed: with `vr_weapon_grip_mode 0`
+(hold, his setting) the let-go check dropped it or holstered it at once (the mock's hands never grip, so every give
+scene lost its weapons; in VR he had to grab the flail again). Now a give holds it as if just grabbed (QC
+`VRWeaponGivenHeld`, `VR_Scene_HoldGiven` called by vr_scenario.cpp after each give; fields `vr_weapon_given_main/off`):
+it stays until that hand's grip is pressed; from then on the grip holds it as usual (released: let go). Sticky mode
+needed nothing (it already waits for a squeeze and a release) and is unchanged. `vr_scenario runall` now runs each
+scene 3 s of game time and prints SCNHANDS (each hand's given weapon then and now; FAIL when one is gone). Before: the 5
+scenes tried lost every given weapon in hold mode, kept them in sticky. After: all 74 scenes (43 with gives) kept both
+hands' weapons in both modes; with the mock, `+grabmain` then `-grabmain` lets go of it (weapon 13 -> 0).
+
+**Spawn names.** `vr_scenario validate` (and a scene start) from the console crashed on a `spawn` name neither a toolgun
+entry nor a classname with a map loaded: the classname lookup ran with no VM current. It now makes the server's VM
+current (`isClassname`): the line is an SCNERR (`"AD Hell Knight" is no toolgun spawn entry nor classname`), the scene
+not started.
+
+**Kit (eval.sh, not in the repo).** The compare step read each shard's table without checking it had rows: a copy that
+crashed leaves its table empty (made empty before the run), so `lines[1]` raised IndexError and no table printed. Now an
+empty or headless table is reported (`shard N: no table, its K takes not judged (...)` with the crash) and the rest are
+compared. The crashes themselves: `vertsOf` (Quake/vr/vr_modelcollide.cpp:357) reads a null alias header in
+vrmelee-recording, 2 of 8 copies in both the canary and the full set (open, not fixed here).
+
+**In VR:** run the `flail` scene (or any with a give) with grip mode Hold: the weapon is in your hand without gripping
+and stays; grip and let go: it drops as usual. Same in Sticky: a squeeze and a release drops it.

@@ -41,6 +41,8 @@ float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state ta
 .float vr_weapon_load_until; // after loading a save: the original held weapons stay for this long
 .entity vr_weapon_load_main;
 .entity vr_weapon_load_off;
+.entity vr_weapon_given_main; // a test scene's weapon given into the hand: held until that hand's grip is pressed (VRWeaponGivenHeld)
+.entity vr_weapon_given_off;
 
 
 //
