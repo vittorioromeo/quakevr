@@ -8,7 +8,9 @@ the blade-shape part of it as the source edits that ship it (ROUND22.md, "His bl
     a config still holding it takes the new one);
   - each weapon slot's blade keys (vr_wofs_bl_*_NN) and, for a slot whose blade keys changed, its tip (the Muzzle
     offsets, vr_wofs_muzzle_x/y/z_NN: Edit Blade Shape's tip handle moves them; a melee weapon's only: a gun's Muzzle is
-    where its shots start, so its tip change is reported, not shipped): the vr_weapons.inc QVR_WEAPON_DEFAULT
+    where its shots start, so its tip change is reported, not shipped; since agent/bladeorigin a gun's tip handle moves
+    its own vr_wofs_bl_tip_*_NN, a blade key shipped as the others, as is the line's start vr_wofs_bl_org_*_NN): the
+    vr_weapons.inc QVR_WEAPON_DEFAULT
     lines and the vr_weapons.cpp OldValue rows of a wofs-version step (a config still holding the old value takes the
     new).
 
