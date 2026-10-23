@@ -591,6 +591,7 @@ void() StartFrame =
     MG3_Frame();
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
+    VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)

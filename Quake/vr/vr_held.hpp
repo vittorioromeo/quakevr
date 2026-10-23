@@ -35,6 +35,10 @@ void anglesFromAxes(const glm::mat3& m, float* out, bool brush);
 // scaling, then the model's own and `offset` (on raw vertices; brush models: before the scale).
 void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& scaleOrigin, const glm::vec3& offset,
     glm::vec3& lo, glm::vec3& hi);
+// The same transform for one point of the model's own space (its bounds'): where it is drawn, in the entity's axes,
+// relative to its origin (a rigid body's frame: vr_box3d.cpp syncPropRopes's rope ends).
+[[nodiscard]] glm::vec3 drawnPoint(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& scaleOrigin,
+    const glm::vec3& offset, const glm::vec3& point);
 
 // The middle of client entity `num` as drawn.
 [[nodiscard]] glm::vec3 drawnCentre(int num);

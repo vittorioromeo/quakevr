@@ -124,10 +124,15 @@ void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3
 void toolForget(int num);
 
 // AD support: the fuelled guns' tanks lying about, each held to its gun by a rope (QC vr_ad_enemyguns.qc "Fuel tanks";
-// vr_box3d.cpp syncFuelRopes): each pair found at the last step, its gun's and tank's edict numbers, the rope's most
+// vr_box3d.cpp syncPropRopes): each pair found at the last step, its gun's and tank's edict numbers, the rope's most
 // (units) and whether its joint is made now (both bodies there). The server's; the hose drawn between them reads it
 // (vr_adtank.cpp: a listen server's).
 void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool joined)> fn);
+// AD support: the death sergeant's flails lying about, each head held to its handle by its chain's rope (QC vr_ad_melee.qc
+// "The flail lying about"; syncPropRopes): the handle's and head's edict numbers, the rope's most (units, the handle's
+// tip to the head's ring), whether its joint is made now, and how far apart its ends are now (units; -1 not joined).
+// The server's; the chain drawn between them reads it (vr_adtank.cpp's world lines: a listen server's).
+void forEachFlailRope(za::FunctionRef<void(int handle, int head, float length, bool joined, float apart)> fn);
 
 // AD support: the death sergeant's flail's head of client `client`'s hand `hand` (1 the main hand) as the last step left
 // it, and its chain's anchor (the handle's end), world units; false if that hand holds none (vr_box3d_flail.cpp). The

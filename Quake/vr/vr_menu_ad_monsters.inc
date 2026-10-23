@@ -143,15 +143,32 @@
         command("Melee Weapons: Fury's Swords in Hand", "vr_ad_test 116")
             .help("Both hands get the death fury's swords. 117: the death knight's and zombie knight's; 118: the death "
                   "guard's and the hammer; 119: the mace and the knight's own sword (console)."),
-        command("Melee Weapons Dropped: Death Sergeant's Flail", "vr_ad_test 131")
+        command("Melee Weapons Dropped: Death Sergeant's Flail", "vr_ad_test 145")
             .help("Destructive: the death sergeant nearest you killed; its flail lies (its corpse holds none), goes into "
                   "your main hand; its handle strikes nothing, no holster takes it (admelee: lines)."),
-        command("Flail in Hand", "vr_ad_test 132")
+        command("Flail in Hand", "vr_ad_test 146")
             .help("The death sergeant's flail in your main hand: its head hangs on its chain, a body of its own; swing "
                   "it (vr_flail_debug 1: each blow's speed and damage)."),
         command("Flail Info", "vr_flail_info")
             .help("In the console, since the last: the frames a head was held, its chain's most stretch, the frames a wall "
-                  "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits."),
+                  "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits; "
+                  "the flails lying about: handles, heads, pairs, heads without their handle, handles without a head (both "
+                  "0 when right), each rope's ends apart against its length."),
+        command("Flail Lying With Its Head", "vr_ad_test 169")
+            .help("A death sergeant's flail made 64 units ahead (the toolgun's dispenser): its head beside it on its "
+                  "chain, a body of its own you can carry; force grab the handle, the head trails it."),
+        command("Drop the Main Hand's Flail", "vr_ad_test 166")
+            .help("Your main hand lets go of its flail: its head lies where the hand's was, at its speed."),
+        command("Take the Nearest Flail", "vr_ad_test 167")
+            .help("The nearest flail lying about into your empty main hand: the hand's head made where its head lay."),
+        command("Kick the Nearest Flail", "vr_ad_test 168")
+            .help("The nearest flail lying about kicked hard up and sideways: its chain drags its head after it."),
+        command("Carry the Nearest Flail's Head", "vr_ad_test 170")
+            .help("The nearest flail lying about's head into your main hand (carried): the handle hangs from it."),
+        command("Flails Lying About Count", "vr_ad_test 165")
+            .help("In the console: the flails lying about, their heads, the pairs, heads without their handle and "
+                  "handles without a head (both 0 when right), each pair's distance; the heads made, from a hand, "
+                  "handed back to a hand."),
         command("Melee Weapon Models", "vr_admelee_models")
             .help("The melee weapons made from AD's weapon models: triangles, box, tip. 'vr_admelee_models write' "
                   "(console): each made file into the game folder (admelee_<n>.mdl)."),

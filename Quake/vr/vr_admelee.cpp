@@ -1437,6 +1437,28 @@ bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line)
     return false;
 }
 
+bool tipOf(const char* model, glm::vec3& tip, glm::vec3& hand)
+{
+    for(size_t w = 0; w < weaponCount; w++)
+    {
+        char name[MAX_QPATH];
+        q_snprintf(name, sizeof(name), "%s%s", weapons[w].model, suffix);
+        if(strcmp(name, model) != 0)
+        {
+            continue;
+        }
+        const Bend* b = bendOf(w);
+        if(!b->length)
+        {
+            return false;
+        }
+        hand = b->hand;
+        tip = b->hand + b->line * b->length;
+        return true;
+    }
+    return false;
+}
+
 byte* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* at = strstr(name, suffix);

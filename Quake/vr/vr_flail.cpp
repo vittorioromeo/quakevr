@@ -19,7 +19,7 @@ namespace qvr::flail
 namespace
 {
 const glm::vec3 keyLight = glm::normalize(glm::vec3{0.3f, 0.2f, 1.f});
-constexpr float ringReach = 3.5f; // units: the head's middle to its ring (vr_box3d_flail.cpp's)
+constexpr float ringReach = admelee::flailRingReach; // units: the head's middle to its ring (vr_box3d_flail.cpp's)
 
 struct Hand
 {
@@ -38,7 +38,9 @@ struct State
 };
 State state;
 
-[[nodiscard]] coil::Style chainStyle()
+} // namespace
+
+coil::Style chainStyle()
 {
     coil::Style style;
     style.chain = true;
@@ -51,7 +53,23 @@ State state;
     style.rust = glm::vec3{0.2f, 0.16f, 0.12f};
     return style;
 }
-} // namespace
+
+bool lyingEnds(const view::ViewEntity& handle, const view::ViewEntity& head, glm::vec3& a, glm::vec3& aDir, glm::vec3& b,
+    glm::vec3& bDir)
+{
+    glm::vec3 tip, hand;
+    if(!handle.ent.model || !head.ent.model || !admelee::tipOf(admelee::flailModel, tip, hand))
+    {
+        return false;
+    }
+    a = view::modelPoint(handle, tip);
+    const glm::vec3 along = a - view::modelPoint(handle, hand);
+    aDir = glm::length(along) > 0.01f ? glm::normalize(along) : glm::vec3{0.f, 0.f, 1.f};
+    const glm::vec3 mid{head.ent.origin[0], head.ent.origin[1], head.ent.origin[2]};
+    b = view::modelPoint(head, glm::vec3{ringReach, 0.f, 0.f});
+    bDir = glm::length(b - mid) > 0.01f ? glm::normalize(b - mid) : glm::vec3{0.f, 0.f, 1.f};
+    return true;
+}
 
 void frame(const hands::State& s)
 {

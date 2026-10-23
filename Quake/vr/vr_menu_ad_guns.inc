@@ -115,6 +115,9 @@
             .help("Held in both hands (the other on its handle), its blows are this many times harder."),
         slider("Chain Rattle", "vr_flail_rattle", 0.f, 1.f, 0.05f, "%.2f")
             .help("Its chain rattles (AD's own chain sound) as its head swings fast and as it strikes: the volume (0: none)."),
+        toggle("Head Lying About", "vr_flail_world")
+            .help("A flail lying about (dropped, thrown, a death sergeant's) keeps its head on its chain: a body of its "
+                  "own you can carry, dragged by the handle and dragging it. Off: the handle alone."),
         header("Health Vials"),
         slider("Health Vial Size", "vr_ad_healthvial_scale", 1.f, 4.f, 0.1f, "%.1fx").extend(0.5f, 6.f)
             .help("AD's health vials and gems drawn this many times bigger (as objects: times the ammo and health "

@@ -318,6 +318,16 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
     memo.hi = hi;
 }
 
+glm::vec3 drawnPoint(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& scaleOrigin, const glm::vec3& offset,
+    const glm::vec3& point)
+{
+    if(!model || (model->type != mod_alias && model->type != mod_brush))
+    {
+        return point;
+    }
+    return DrawnTransform{model, scale, scaleOrigin, offset}.modelPoint(point);
+}
+
 bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi)
 {
     const entity_t& e = cl_entities[num];

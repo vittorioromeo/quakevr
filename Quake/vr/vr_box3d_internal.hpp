@@ -606,15 +606,24 @@ struct World
     };
     za::Vector<Grace> graces;
     za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
-    // The fuelled guns' tanks lying about, each held to its gun by a rope (syncFuelRopes; QC vr_ad_enemyguns.qc "Fuel
-    // tanks"): found again each frame from their .vr_fuellink, the joint made again whenever either body is.
+    // The things lying about held to a weapon lying about by a rope (syncPropRopes): the fuelled guns' tanks (QC
+    // vr_ad_enemyguns.qc "Fuel tanks"), the flails' heads (QC vr_ad_melee.qc "The flail lying about"): found again each
+    // frame from their .vr_fuellink, the joint made again whenever either body is. `tank` the loose end (the tank, the
+    // head), `gun` the weapon.
+    enum class RopeKind : int
+    {
+        Tank,
+        Flail,
+    };
     struct FuelRope
     {
+        RopeKind kind{RopeKind::Tank};
         int tank{0}, gun{0};
         b3BodyId tankBody{b3_nullBodyId}, gunBody{b3_nullBodyId};
         b3JointId id{b3_nullJointId};
-        float length{0.f}; // metres: the rope's most
-        int seen{0};       // the frame (serverFrames) it was last found
+        float length{0.f};             // metres: the rope's most
+        glm::vec3 gunEnd{0.f}, tankEnd{0.f}; // units, in each body's frame: where the rope holds it (a flail's: the handle's tip, the head's ring)
+        int seen{0};                   // the frame (serverFrames) it was last found
     };
     za::Vector<FuelRope> fuelRopes;
     int fuelFrame{0};
@@ -1313,7 +1322,7 @@ void strikeTestFrame(); // (its next step, each server frame)
 [[nodiscard]] bool wanted();
 [[nodiscard]] b3BodyId toolJointBody(int num);
 void syncToolJoints();
-void syncFuelRopes(); // (vr_box3d.cpp: the fuelled guns' tanks held to their guns)
+void syncPropRopes(); // (vr_box3d.cpp: the fuelled guns' tanks held to their guns, the flails' heads to their handles)
 // AD support: the death sergeant's flail's heads (vr_box3d_flail.cpp): made and led before the step, their hits after
 // each step, dealt (QC VR_Flail_Hit) after the frame's.
 void syncFlails(float dt);

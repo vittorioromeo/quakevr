@@ -18172,3 +18172,69 @@ hotspot 2 X 0.7 -> 0. The Phantom's and Dark Prince's, the flail's: untouched. N
 Shoot a dropped flamethrower's tank (3 pistol-ish hits) near monsters, a sprayer's near yourself; an empty one; pick
 up the spent gun (no hose, no back tank, clicks). The Plasma Gun's bolts in a dark room. Die in Vomit Mode and look
 around.
+
+## The flail lying about keeps its ball and chain (worktree `gorefx`, branch `agent/flailprop`, 2026-10-23)
+
+His ask: a dropped, thrown or monster-dropped flail keeps its head and chain, like the fuel tanks lying about. Built on
+the plan in "The flail: heavier, smaller".
+
+- **The head lying about** (QC `vr_ad_melee.qc`, "The flail lying about"): `CreateThrownWeapon` (a hand's drop or throw,
+  a death sergeant's drop, the toolgun's dispenser) calls `VR_FlailHead_Attach`: a `vr_flailhead` prop
+  (`progs/w_blueflail.mdl#flailhead`, `vr_rigid`, `.vr_prop_mass` `vr_flail_mass`). A hand can carry it
+  (`VR_Carry_Setup`), but it cannot be force grabbed on its own (no `FL_FORCEGRABBABLE`): force grab the handle and
+  the head trails it. Handle and head name each other by the fuel tanks' `.vr_fuellink`. The head goes when its
+  handle is no longer its flail lying about (`VR_FlailHead_Think`, as the tanks). `VR_FlailHead_Frame` (StartFrame,
+  every 0.5 s) gives a head to any flail lying about without one (an older save, a head the toolgun removed).
+  `vr_flail_world` (new, 1; AD Weapons > Death Sergeant's Flail: Head Lying About) 0: the handle alone. Needs AD's
+  data (`vr_ad_mounted`).
+- **Hand to world, world to hand:** after each step the engine leaves each hand's head place and speed on the player
+  (`.vr_flail_head`/`headvel`, `.vr_flail_offhead`/`offheadvel`; `vr_box3d_flail.cpp noteHeldHeads`). Let go of, the
+  head lying about is made there at that speed (the head nearer the handle, with two flails), sparing the player's
+  body for 1 s as the tanks do. Taking the handle (`wpnthrow_handtouch_impl` calls `VR_FlailHead_Taken`): QC writes the
+  lying head's place, speed and the time (`.vr_flail_taken`/`offtaken`) and removes it. The hand's head is made there
+  (`make`, within 0.5 s; brought within its chain of the handle's end if it lay farther), at that speed. A death
+  sergeant's, the toolgun's or an old save's: beside the handle, 0.9 of the chain off its right, falling with it.
+- **The rope** (`vr_box3d.cpp syncPropRopes`, was `syncFuelRopes`, generalised): a kind per rope (`World::RopeKind`
+  Tank, Flail). A flail's rope runs from the handle's tip (`admelee::tipOf`: the made model's MuzzleAnchor, through
+  `held::drawnPoint`, new: the drawn transform of one model point, the bodies' frame) to the head's ring
+  (`admelee::flailRingReach` 3.5 units along +x, shared now by the held head and its drawing). It is
+  `vr_flail_chain` long, the held rope less the ring's reach. `box3d::forEachFlailRope` (new) lists them with their
+  ends' distance now.
+- **The chain drawn** (`vr_adtank.cpp`'s world lines, generalised): `stepWorld`'s Verlet line (falls, lies on the
+  world, rests once still) is now `stepLine`. The tanks' hoses and the flails' chains (`stepFlail`: the ring to the
+  tip, `flail::lyingEnds`) share the 8 nearest world lines, and the chains use `flail::chainStyle` (the hands'
+  links, rusted and faceted: `drawHose` passes the cord's rust and flatness).
+- **Info:** `vr_flail_info` also prints the flails lying about: handles, heads, pairs, orphan heads, handles without a
+  head, and each rope's tip-to-ring distance against its length (`PAST` if over). `vr_adgun_hose_info` prints each
+  drawn chain.
+- **Debug menu** (AD Monsters page): Flail Lying With Its Head (`vr_ad_test 169`), Drop the Main Hand's Flail (166),
+  Take the Nearest Flail (167), Kick the Nearest Flail (168), Carry the Nearest Flail's Head (170), Flails Lying
+  About Count (165). The page's flail entries still used 131/132 from before swords4: now 145/146.
+
+**Tests** (worktree `scratch/fp_t1.sh`, `fp_t2.sh`, `fp_t3.sh`, `fp_tank.sh`; AD mounted, vrfiringrange, headless):
+- Drop from the hand: 1 head made where the hand's was (14.9-15.2 units from the handle, the hand's speed: 17, then
+  38 u/s falling). After it settles: 1 pair, 0 orphans, 0 bare handles, 1 rope joined, the tip and the ring 7.6
+  units apart (most 14.17). The chain drawn: 22 links, 0 points in the world, lying still.
+- Taken again (167): 0 heads, 0 ropes. The hand's head is made where the lying one was, brought within the chain (the
+  mock hand is away from the handle).
+- Thrown mid-swing (`vr_mock_swing 0.4`, real time): handle 408 u/s, head 375 u/s at release. Over its 280-unit flight
+  the ends were 11.0-14.29 units apart (most 14.17). They landed 12.3 apart, 1 pair.
+- Kicked (700 u/s): the ends at most 14.58 apart in flight (3% over), 14.16 at rest, 125 units away.
+- Toolgun (169): 1 pair beside it. Save and load: 1 head (not 2), its rope joined again. Its head carried (170): the
+  rope stays joined. A death sergeant killed (`vr_test_spawn 225`, `impulse 241`, `vr_test_kill 1`): its flail with
+  its head, 2 pairs, 0 orphans. `changelevel e1m1` holding the flail: 0 lying about, 149 frames held. Dropped there:
+  1 pair, joined.
+- Fuel tanks unchanged (e1m1, 151/153/150/159): 1 pair, 0.40 m apart, joined, hose drawn, after the kick 0.41.
+- `eval.sh`: 169/177, 4 differ by 0.1 PASS -> PASS (as the baseline).
+- Picture: `scratch/flailprop_lying.png` (from the toolgun: the head, the chain lying from its ring to the handle's
+  tip, the handle).
+
+**In VR:** drop the flail while still, and while swinging or throwing it: the head should leave the hand's swing with
+no jump. Pick it up by the handle with the head lying a little away: the head should stay where it lay and swing up
+on the chain. Carry the head and drag the flail by it, force grab the handle. Kill a death sergeant. Check the chain's
+look lying, and the head's size beside the handle (the head is the held one's size; the handle lying about is the
+weapon slot's).
+
+**Notes:** the chain lying about collides with the world only, not with props (as the hoses). The head lying about
+is a prop: thrown, it hurts as props do, not as the held head's blows (`VR_Flail_Hit`). A remote client sees the head
+and its rope, but no chain (a listen server's, as the hoses).

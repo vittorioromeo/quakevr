@@ -28,6 +28,7 @@ inline constexpr const char* suffix = "#melee";
 inline constexpr const char* flailHeadSuffix = "#flailhead";
 inline constexpr const char* flailModel = "progs/w_blueflail.mdl#melee";
 inline constexpr const char* flailHeadModel = "progs/w_blueflail.mdl#flailhead";
+inline constexpr float flailRingReach = 3.5f; // units: the head's ball's middle (its origin) to the ring its chain holds (+x)
 
 // Mod_LoadModel (VR_DerivedModelFile): the .mdl file of a weapon model named so (allocated with VR_HeapMalloc), or null.
 [[nodiscard]] byte* derivedFile(const char* name, unsigned int* path_id);
@@ -49,5 +50,9 @@ void info_f();
 // The spine's point at share `f` of the line, in the model's frame, of the made model named `model` (".../...#melee";
 // vr_admelee_spine shows it on the hand's weapon). False if it is not a sword of these, or not made.
 [[nodiscard]] bool spineAt(const char* model, float f, glm::vec3& out, glm::vec3& line); // line: the straight line's point there
+
+// The far end's middle (the slot's MuzzleAnchor: a blade's tip, the flail's handle's end where its chain hangs), and the
+// hand's place, in the model's frame, of the made model named `model` (".../...#melee"). False if none is made.
+[[nodiscard]] bool tipOf(const char* model, glm::vec3& tip, glm::vec3& hand);
 
 } // namespace qvr::admelee
