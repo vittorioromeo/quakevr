@@ -808,10 +808,15 @@
                   "Things thrown at it damage it as they do monsters. 0: impacts never break them."),
         slider("Break Speed", vr_prop_break_speed, 2.f, 20.f, 0.25f, "%.2f m/s").extend(0.1f, 60.f)
             .help("A hand's or weapon's blow on a small crate, or one held and smashed into a wall, the floor or a monster, "
-                  "this fast breaks it; from half as fast it is damaged (more the faster), slower it is only pushed. Every "
-                  "prop that breaks follows it: explosive boxes (they blow up), barrels, AD's and the expansions' "
-                  "breakables, a crate's pieces; each by its health (the square root of it over a small crate's) and its "
-                  "material (below). A weapon's heft helps (the axe 1.4x)."),
+                  "this fast breaks it at once (no real blow is: two strong ones do); from Blows Wear From of it it is "
+                  "damaged (more the faster), slower it is only pushed. Every prop that breaks follows it: explosive boxes "
+                  "(they blow up), barrels, AD's and the expansions' breakables; each by its health (the square root of it "
+                  "over a small crate's) and its material (below). A weapon's heft helps (the axe 1.4x)."),
+        slider("Blows Wear From", vr_prop_blow_wear, 0.1f, 0.9f, 0.05f, "%.2fx").extend(0.05f, 0.95f)
+            .help("How much of Break Speed a blow (or a prop held and smashed) needs to damage a prop, a little at first, "
+                  "more the faster. 0.25: a strong punch (12 m/s) takes two to break a crate, a medium one (9) three or "
+                  "four, a light one (5) barely marks it. Thrown and dropped props are damaged from half their own break "
+                  "speeds."),
         slider("Break Speed: Wood", vr_prop_break_wood, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
             .help("Times Break Speed for crates, barrels and wooden breakables."),
         slider("Break Speed: Glass", vr_prop_break_glass, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
@@ -821,7 +826,7 @@
         slider("Break Speed: Metal", vr_prop_break_metal, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
             .help("Times Break Speed for metal breakables."),
         slider("Break Speed: Explosive", vr_prop_break_explosive, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
-            .help("Times Break Speed for explosive boxes (20 health: 8.4 m/s by default). Broken, they blow up, in your "
+            .help("Times Break Speed for explosive boxes (20 health: 16.7 m/s by default). Broken, they blow up, in your "
                   "hands too."),
         slider("Break Speed: Pieces", vr_prop_break_piece, 1.f, 12.f, 0.25f, "%.2f m/s").extend(0.1f, 40.f)
             .help("A hand's hit on a crate's piece, or one held and smashed into something, this fast bursts it into dust; "

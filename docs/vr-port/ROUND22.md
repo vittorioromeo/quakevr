@@ -18451,6 +18451,51 @@ blade's bow and the tip to its point; swing it at a target and watch Show Melee 
 the printed lines to us if they should ship. A straight sword: Straighten / Reset Blade; the mace: Head Box and its
 corners round the drawn head. Whether the handles are easy to reach and grab (5 cm), and the panel's place (below the
 eyes, ahead).
+### Crates: two strong hits (worktree `gorefx`, branch `agent/cratetough`, 2026-10-23; vr_cfg_version 195)
+
+His request: no single realistic strong blow (a punch up to ~12 m/s, a full weapon swing up to ~10-11 m/s of the hand
+with its heft) breaks a crate; two strong blows do, medium ones take 3-4.
+
+- **Why the break speed alone could not.** With the old wear rule (worn from half the break speed, (2i - 1) of its
+  health) the band between "two hits" (0.75) and "nothing" (0.5) is narrow: at 16 m/s a 12 m/s punch takes two, but a
+  9 m/s punch eight and a 7 m/s one nothing; and a strong axe blow (11.5 m/s read x 1.41 = 16.3) still breaks it in one.
+- **Change.** `vr_prop_break_speed` 9 -> **18** (config 195: configs at 9 move, custom values stay) and a new
+  `vr_prop_blow_wear` **0.25** (Crates > Breaking > Blows Wear From): a hand's hit (a blow, or a prop held and smashed)
+  wears a prop from 0.25 of its break speed, (i - 0.25) / 0.75 of its health. 0.25 x 18 = 4.5 m/s, the same lightest
+  blow that marks a crate as before. Thrown and dropped props (their own `vr_crate_impact`, `vr_explobox_impact`,
+  `vr_crate_piece_impact`) and a crate's pieces keep the old rule from half. QC `VR_Prop_WearFrom` /
+  `VR_Prop_HandWearFrom` (`vr_carry.qc`).
+- **Measured** (`vr_prop_strike_test`, -RealTime, vrtesthall with `vr_crates 0`, a fresh small crate 50 units ahead per
+  case, the strike down onto its top unless "ahead"; strikes to break, 8 at most; old = this build at 9 / 0.5):
+
+| weapon (heft) | 5 m/s old / new | 7 | 9 | 12 |
+|---|---|---|---|---|
+| fist down (1.00) | no blow / no blow | no blow / no blow | 1 / 3 (9.0) | 1 / 2 (12.0) |
+| fist ahead (1.00) | 8+ (75 -> 5) / 8+ (75 -> 51) | 2 / 6 | 1 / 3 | 1 / 2 |
+| crowbar (1.41) | 1 / 3 (6.45) | 1 / 2 (8.7) | 1 / 2 (8.65) | no blow / 8+ (one 7.6) |
+| axe (1.41) | 2 / 4 (5.7) | 1 / 2 (9.1) | 1 / 2 (11.5) | 1 / 2 (10.4) |
+| sword (1.48) | 1 / 3 (6.3) | 1 / 2 (8.65) | 1 / 2 (8.7) | 8+ / no blow |
+| hammer (1.58) | 1 / 3 (6.7) | 1 / 2 (8.2) | 1 / 3 (5.9) | no blow / no blow |
+
+  (the blows' read speeds in brackets; held weapons read about 1.2-1.3x the hand in this test, so "9 m/s" is already
+  a harder blow than a real 9 m/s swing; "no blow" at 12 and down at 5-7 for the fist is the test's geometry, as in
+  "Crates: one hit".) No single blow breaks a crate now; the hardest (axe at 11.5 x 1.41 = 0.91 of 18) takes two.
+- **Side effects** (`vr_prop_impact_test 1` and the strike test on explosive boxes, old / new):
+  - Explosive boxes follow the crates (16.7 m/s to blow up from a blow, was 8.4): a 12 m/s punch two, a 9 m/s punch
+    three, the axe two (was one each). Thrown into a wall: the same (12.6 m/s unhurt, 15.4 blows up).
+  - Held and smashed into a wall (not overhead): a crate breaks from 18 m/s; 13.5 m/s leaves 25 of 75 (old: 6.75 m/s
+    left 37); a hard 12 m/s smash takes two. The overhead slam (`vr_carry_slam`) still breaks it at once and the thrown
+    crate's hit on another crate is the throw's damage: neither reads the break speed (unchanged).
+  - Thrown or dropped crates and pieces: unchanged (9.6 m/s unhurt, 13.6 damaged to 22, 17.6 broken).
+  - AD's and the expansions' breakables scale with it too: glass (a vase, a window) 2.25 -> 4.5 m/s (still a light
+    punch), wood as the crates, stone (a rubble wall, 10 health) 6.75 -> 13.5, metal (200 health) 22 -> 44 (a full axe
+    swing wears it from 11 m/s: about eight to break, was three). Shots and blasts are unchanged.
+- **Migration** (`vr_migrate_config`): 194 at 9 -> 18; 194 at 12 stays 12; 195 at 9 stays 9.
+
+- [ ] Punch a crate as hard as you can: it takes two; a medium punch three or four; a light tap only pushes it.
+- [ ] A full axe or crowbar swing: two; a moderate swing: three or four. The same on an explosive box (it blows up on
+  the second strong hit).
+- [ ] Smash a held crate into a wall hard twice: broken; the overhead slam still breaks it at once.
 ### Armed monsters: dual wielding, the enforcer's tests (worktree `release`, branch `agent/armedmon2`, 2026-10-23)
 
 Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not started (budget).

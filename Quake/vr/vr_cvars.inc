@@ -1199,12 +1199,13 @@ QVR_CVAR(vr_crate_impact, "16", CVAR_ARCHIVE)            // m/s: a crate hitting
 // The props' impact rule (QC vr_carry.qc VR_Prop_Impact; ROUND22.md "Prop impacts"): a hand's or weapon's hit on a prop that
 // breaks (a crate, a barrel, an explosive box, AD's and the expansions' breakables), or one held and smashed into something,
 // at its break speed or faster breaks it; from half of it, it is damaged by (2 x speed / break speed - 1) of its full health.
-QVR_CVAR(vr_prop_break_speed, "9", CVAR_ARCHIVE)         // m/s: a small crate's break speed (75 health); others' by the square root of their health over 75 (0.5x .. 2.5x) times their material's
+QVR_CVAR(vr_prop_break_speed, "18", CVAR_ARCHIVE)        // m/s: a small crate's break speed (75 health); others' by the square root of their health over 75 (0.5x .. 2.5x) times their material's
+QVR_CVAR(vr_prop_blow_wear, "0.25", CVAR_ARCHIVE)        // a hand's blow (or a prop held and smashed) from this much of the break speed wears a prop: (i - w) / (1 - w) of its health (0.5: 2i - 1, the thrown and dropped props' rule)
 QVR_CVAR(vr_prop_break_wood, "1", CVAR_ARCHIVE)          // times vr_prop_break_speed for wood (crates, barrels, AD's wooden breakables)
 QVR_CVAR(vr_prop_break_glass, "0.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for glass and pottery (AD's windows, vases)
 QVR_CVAR(vr_prop_break_stone, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for rock and brick (AD's, Scourge of Armagon's walls with rubble)
 QVR_CVAR(vr_prop_break_metal, "1.5", CVAR_ARCHIVE)       // times vr_prop_break_speed for AD's metal breakables
-QVR_CVAR(vr_prop_break_explosive, "1.8", CVAR_ARCHIVE)   // times vr_prop_break_speed for an explosive box (it blows up: 20 health, so 8.4 m/s)
+QVR_CVAR(vr_prop_break_explosive, "1.8", CVAR_ARCHIVE)   // times vr_prop_break_speed for an explosive box (it blows up: 20 health, so 16.7 m/s)
 QVR_CVAR(vr_prop_break_piece, "4", CVAR_ARCHIVE)         // m/s: a crate's piece's break speed (a hand's hit, held and smashed)
 QVR_CVAR(vr_crate_piece_impact, "8", CVAR_ARCHIVE)       // m/s: a crate's piece thrown into something this hard bursts (from half, damaged); 0: never
 // Overhead slams (QC vr_crates.qc VR_Crate_SlamFrame; NOTES.md vrfiringrange_2026-10-07_23-08-07): a crate or barrel held
