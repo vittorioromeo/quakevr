@@ -1,0 +1,11 @@
+# sword_floor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A sword, Show Melee Blades, two grunt corpses on the floor (one against the wall ahead)
+map vrtesthall
+start -400 -440 25 -90
+god
+notarget
+cvar vr_debug_melee_blades 1
+give "Knight's Sword" main
+spawn "Grunt Corpse" 56 0
+spawn "Grunt Corpse" 10 100
+hint Chop down hard at the lying grunts' arms and legs: the blade should reach them and cut instead of bouncing up off the floor or the wall. Chop the bare floor: it still sparks and marks it.
