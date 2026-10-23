@@ -485,7 +485,7 @@ void(float t) VR_AGT_PoseRow =
             vr_agp_tw + vr_agp_ts + vr_agp_th + vr_agp_tr * 0.5;
         g.vr_ag_act_at = time - s;
         g.vr_ag_act_tick = time;
-        g.vr_ag_act_hit = 1;
+        g.vr_ag_act_hit = 2; // (no blow, no cut)
         VR_AGP_Body(g);
         g.vr_ag_aim = (!g.vr_ag_act && ph >= 2) ? VR_AGP_ToWorld('1 0 0') : '0 0 0';
         g.vr_ag_kick_at = (!g.vr_ag_act && ph == 2) ? time - 0.03 : 0;

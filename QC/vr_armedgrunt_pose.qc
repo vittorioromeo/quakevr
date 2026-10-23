@@ -390,7 +390,7 @@ void(entity g, entity p) VR_AGP_Saw =
                                                           (revving ? cvar_hget(cvarh_vr_chainsaw_fuel_use) : 0)));
     }
     float want = inst.wi_clip <= 0 ? VR_SAW_LOOP_NONE : revving ? VR_SAW_LOOP_RUN : VR_SAW_LOOP_IDLE;
-    if(cutting && inst.wi_clip > 0 && time >= g.vr_ag_saw_next)
+    if(cutting && inst.wi_clip > 0 && time >= g.vr_ag_saw_next && g.vr_ag_act_hit != 2) // (2: a test holding the pose)
     {
         g.vr_ag_saw_next = time + VR_SAW_TICK;
         entity oldself = self;

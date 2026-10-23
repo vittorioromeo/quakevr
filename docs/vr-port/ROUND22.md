@@ -17915,3 +17915,54 @@ texture), the early-out saves ~0.41: net ~0.05, noise; even free tiles would lea
 (the pre-pass's own depth-writing shader and the late depth test remain), and CPU busy rose ~0.25 ms (per-pass GL
 queries). So `vr_parallax_depth_write` stays off in High and on in Ultra with the near split (section "Parallax depth
 write's cost").
+
+### Armed grunts: presentation (worktree `tghost`, branch `agent/agpresent`, 2026-10-23)
+
+From his notes of 2026-10-23 (vrtesthall 15-35-21 .. 15-38-47): punches instead of the shove, melee weapons held blade
+up and swung, the crowbar sounding like a crowbar, a running chainsaw, the hands jittering on the weapons.
+
+- **The jitter's cause** (measured: `vr_agrunt_ik_debug -1` prints `agj` lines, `scratch/agjit.py` the frame-to-frame
+  second difference of the IK targets in the grunt's space; shotgun grunt hunting you, `vr_agrunt_test 106`): the IK
+  turned the weapon's place into the grunt's space with `e->origin`, where its *next step ends*, not where the body is
+  drawn (the step lerp, up to 15 units behind): a sawtooth of up to 15 units each step. Right grip rms 2.02 (max 15),
+  left 2.03 (max 15). Drawn frame (`render::drawnPlace`): 0.11 / 0.19 (max 2); left was the server's prop lagging the
+  drawn poses by a tick or two (a kink at each frame change). Now the weapon is drawn on the client from the drawn body
+  (below) and the animation's hand eased over 40 ms (a shot's frames are drawn unlerped: the hand jumped 7.4 units):
+  right rms 0.16, p95 0.044 (was 0.32); left rms 0.23, p95 0.13 (was 0.60); the max left (3-4) is the recoil kick.
+- **The pose on the client** (`QVR_SVC_ARMPOSE` = 36, unreliable, each server frame; QC `vr_armedgrunt_pose.qc`
+  VR_AGP_Pose, engine `vr_hitreact.cpp` parseArmPose/relinkArms): the right hand at `wr` times its drawn animation
+  hand plus `v` (its body's space), the weapon's turn in its body's space or its drawn rifle line's (`wo`), the left
+  hand's own target (`wl`, `vl`) or the weapon's second grip. The client puts it on the body as drawn now, between
+  the last two messages, at the end of CL_RelinkEntities: the held entity's origin and angles replaced (the server's
+  is the game's: hand touch, muzzle, a blow's line) and the IK reaching the same place. Without messages (an old
+  server) the old search by the right hand.
+- **Fists**: a guard with an enemy (fists at the chin, a little of the run's bob), punches: jab (left), cross (right),
+  hooks (both), uppercut; a wind-up, the fist along a curve to the target (its reach from the shoulder: 21 units),
+  the blow (W_FistMelee) as it arrives, back to the guard; 55% a follow-up with the other hand (up to 3).
+- **Melee weapons**: ready blade up (a grip at the waist, blade up and a little ahead), swings over the shoulder:
+  overhead, diagonal, horizontal, backhand (never the same twice running), through the target's height and side,
+  the blow struck mid-arc with **that weapon's own melee** (sword W_SwordMelee, crowbar W_CrowbarMelee, axe W_FireAxe,
+  Mjolnir, the Super Axe; before: W_FireAxe for all). Axe, Mjolnir, AD's hammer and mace two-handed (the left on its
+  grip), swords and the crowbar one-handed (the left hand free). **Why the shove before**: an armed grunt is a grunt
+  (`th_vrshove`), and `VR_EnemyShove_Check` runs in ai_run before its attack check: up close it shoved (the shove's
+  sounds); its own swing used the shove's frames too. Fists and melee armed grunts never shove now (guns still do).
+  The weapon models are drawn turned up from their entity's forward (Weapon Offsets' hold: axe 49.6, sword 73.1
+  degrees): measured once a weapon from its drawn muzzle (VR_AGP_BladeTilt) and taken off, which is also why the old
+  carry held blades down.
+- **Chainsaw**: its tank is its clip (VR_CHAINSAW_TANK; it had none: out of fuel), reserve two tanks (refuelled as a
+  reload); idles (vr/saw_idle, its fuel use, smoke puffs at the exhaust), revs (vr/saw_run), thrust at the target and
+  held 0.7 s sawing, the player's chain's cutting ticks (VR_Chainsaw_Cut, now also on players when a monster holds it)
+  with the cut's loop; empty: stalls. Test 1: 20 cut ticks, 113 damage to you, 17 fuel used.
+- **Guns**: the aim eased in (0.15 s) and out; the recoil kick stronger (4 units back, 1 up, 14 degrees, 0.2 s; launchers
+  1.5 times).
+- **Tests**: `vr_agrunt_test 1` 16 of 17 (the proximity gun, as before), melee blows each through its own path
+  (`agp:` lines with `vr_agrunt_debug 1`); `vr_agrunt_test 2` 4 passed; eval.sh canary 37/45, verdicts unchanged.
+  `vr_agrunt_test 14` / `15` (Debug: none yet): a row side-on held at an attack's phase (`scratch2` 1-4: wind-up end,
+  mid strike, strike end, mid recovery; `scratch3` the variation); `vr_agrunt_debug 2` prints each grunt's pose.
+- **Left**: reload motion (hands to the gun) not done; a running chain's look (the model's chain) not done (the
+  running flag isn't set on the held prop: a drop would leave it running); punches' elbows use the animation's;
+  tests 14/15 not on the Debug menu.
+
+**In VR:** a fists grunt's guard and punches (`vr_agrunt_test 100`, or the toolgun); axe, sword, crowbar and hammer
+grunts: blade up, the swings and their sounds (crowbar's ring); the chainsaw grunt's engine, its thrust and cut; a
+shotgun grunt running and shooting: both hands still on the gun, the kick.
