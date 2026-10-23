@@ -4728,6 +4728,10 @@ QVR_CVAR(vr_toolgun_brush_grid, "8", CVAR_ARCHIVE)      // ... its grid (units: 
 QVR_CVAR(vr_toolgun_brush_paint_all, "1", CVAR_ARCHIVE) // ... painting textures the whole brush (0: the face shot)
 QVR_CVAR(vr_toolgun_brush_shape, "0", CVAR_ARCHIVE)     // ... what Create makes in the box dragged: 0 a box, 1 a wedge (rising away from the gun), 2 a cylinder, 3 a pyramid
 QVR_CVAR(vr_toolgun_brush_sides, "8", CVAR_ARCHIVE)     // ... a cylinder's or pyramid's sides (3..12)
+QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Armed Humanoid page: its kind (QC vr_armedmon.qc's row: 0 grunt, 1 enforcer, ...)
+QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
+QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
+QVR_CVAR(vr_toolgun_armed_tiles, "0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.

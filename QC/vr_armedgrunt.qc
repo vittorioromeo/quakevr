@@ -1597,6 +1597,6 @@ void(float kind) VR_AM_Spawn =
     VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
-    VR_AG_Log(sprintf("spawned with %s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
-        self.vr_ag_reserve));
+    VR_AG_Log(sprintf("spawned with %s%s%s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
+        self.vr_ag_prop2 ? " and in its left hand " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : "", self.vr_ag_reserve));
 };

@@ -80,6 +80,7 @@ vector vr_agp_vl;
 vector vr_agp_f;     // the body's flat forward and right (VR_AGP_Body)
 vector vr_agp_r;
 float vr_agp_events; // blows and cuts struck (the tests)
+float vr_agp_quiet;  // the pose only placed, not sent nor run (the toolgun's ghost: vr_armedmon_ui.qc VR_AM_UiGhost)
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -665,11 +666,15 @@ void(entity g, entity p) VR_AGP_Pose =
             pL.angles_x = -al_x;
             setorigin(pL, g.origin + VR_AGP_ToWorld(vr_agp_vl));
         }
-        if(p.weapon == WID_CHAINSAW)
+        if(p.weapon == WID_CHAINSAW && !vr_agp_quiet)
         {
             VR_AGP_Saw(g, p);
             VR_AGP_Body(g);
         }
+    }
+    if(vr_agp_quiet)
+    {
+        return;
     }
 
     WriteByte(MSG_BROADCAST, 39); // svc_quakevr

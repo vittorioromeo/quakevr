@@ -42,6 +42,14 @@ trigger still uses the tool. A menu opened meanwhile hides it until it closes.
     (`Quake/vr/vr_toolgun_packs.inc`; ROUND22.md, "Every expansion's entities in the toolgun's spawn panel"). AD's
     entries come from `Misc/quakevr/ad_monsters_gen.py`: AD's maps (or Additional Content Everywhere), its Quoth
     monsters and backpacks AD's maps only (ROUND22.md, "The rest of AD's monsters and pickups in the spawn panel").
+    Monsters' **Armed Humanoid** tile (after id's and Quake VR's own) opens its page: three dropdowns, Kind (every row of
+    the armed monsters' table), Right Hand (Random from Pool, Unarmed, every weapon that kind holds, AD's with its data)
+    and Left Hand (None, or a one-handed weapon; asleep unless the right one is one-handed), the kind's and the weapons'
+    pictures and a line on what it will do; each choice is the spawn tool's at once and its ghost holds the weapons
+    (`docs/vr-port/ARMED_MONSTERS.md`, "The toolgun's spawn page"). Back, Choose. It replaces the per-weapon Armed
+    Grunt / Armed Enforcer tiles on the grid (their entries stay: `vr_toolgun_select`; `vr_toolgun_armed_tiles 1` lists
+    them too). A dropdown opens its list over the panel (a column or two of rows, `<` `>` for more pages, Close; a click
+    off it closes it).
   - Remove: how; Clear Props Made Since the Map Loaded.
   - Physgun: Turn With the Wrist, Snap (X/A) Off/15/45/90, Sticks Turn Pitch/Yaw/Roll, Unfreeze Everything.
   - Scale: Proportional, Reset Its Size.

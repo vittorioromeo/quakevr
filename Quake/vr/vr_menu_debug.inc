@@ -1271,6 +1271,13 @@ za::Vector<Item> pageDebugTools()
             .help("vr_debug_spawn_toolgun: each time you spawn (a new level, a respawn), a toolgun in the first empty holster "
                   "(the hips, the chest, the shoulders; right first) unless you carry one. Weapon Mode Immersive."),
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
+        command("Armed Humanoid Lists", "vr_toolgun_armed_list")
+            .help("vr_toolgun_armed_list: the toolgun's Armed Humanoid page's lists: the kinds (the armed monsters' table's "
+                  "rows) and every weapon's code and name, held two-handed (2h), one-handed (1h: it pairs) or not (-) by "
+                  "each kind (console). vr_toolgun_select_armed <kind> <weapon> <weapon2> chooses a loadout."),
+        toggle("Armed Tiles on the Spawn Grid", vr_toolgun_armed_tiles)
+            .help("vr_toolgun_armed_tiles: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles, one a weapon "
+                  "(the Armed Humanoid page makes them all)."),
         command("Trace the Chosen Spawn", "vr_toolgun_spawn_trace")
             .help("vr_toolgun_spawn_trace [entry] [frames]: the spawn panel's choice made ahead of you, its model, scale, "
                   "box and place on the server and the client printed the frame it is made and the next 4 (a size that "

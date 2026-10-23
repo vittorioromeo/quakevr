@@ -26,6 +26,7 @@ float VR_AM_CLASSES_ALL = 63;
 // The row (VR_AM_Row):
 float vr_am_kind;           // the row filled
 string vr_am_name;          // "Grunt"
+string vr_am_spawnname;     // its spawn function's name (the toolgun's spawn page makes it by this: monster_vr_grunt)
 string vr_am_classname;     // its classname as spawned: the monster it is to the rest of the game
 string vr_am_model;         // its model without the gun (make_vrgrunt.py)
 var void() vr_am_spawn;     // the monster's own spawn function (its health, sounds, th_* the layer doesn't replace)
@@ -59,6 +60,7 @@ void(float k) VR_AM_Row =
         // its right hand on the rifle's grip (vertices 41, 364, 365: still in the gun's space over every living frame,
         // within 1-1.6 units rms; scratch analysis, ROUND22.md).
         vr_am_name = "Enforcer";
+        vr_am_spawnname = "monster_vr_enforcer";
         vr_am_classname = "monster_enforcer";
         vr_am_model = "progs/vrenforcer.mdl";
         vr_am_spawn = monster_enforcer;
@@ -90,6 +92,7 @@ void(float k) VR_AM_Row =
     // 463..548.
     vr_am_kind = VR_AM_GRUNT;
     vr_am_name = "Grunt";
+    vr_am_spawnname = "monster_vr_grunt";
     vr_am_classname = "monster_army";
     vr_am_model = "progs/vrgrunt.mdl";
     vr_am_spawn = monster_army;

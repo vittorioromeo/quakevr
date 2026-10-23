@@ -18483,3 +18483,50 @@ Stage 3 of the armed-monster brief done; stage 4 (the toolgun's spawn UI) not st
 **In VR:** spawn armed grunts from the pool with `vr_agrunt_dual_chance 1` (or a map's `weapon2`): two blades, swung in
 turn and together, the left arm on its weapon; knock or pull out either (it fights on with the other, then picks one up);
 kill it: both fall.
+
+### Armed monsters: the toolgun's spawn page (worktree `release`, branch `agent/armedui`, 2026-10-23)
+
+Stage 4 of the armed-monster brief. Vittorio: pick the kind of humanoid and its weapons separately, dual wielding and
+unarmed included, with dropdowns or the like.
+
+- **The page** (`docs/vr-port/ARMED_MONSTERS.md`, "The toolgun's spawn page"; `docs/vr-port/TOOLGUN.md`): Spawn >
+  Monsters' new **Armed Humanoid** tile (the 16th cell, after id's and Quake VR's own: the tiles before it don't move)
+  opens a page of three dropdowns: Kind, Right Hand (Random from Pool, Unarmed, then every weapon the kind holds: melee
+  first, then guns, launchers, streams, bursts; AD's and the packs' only with their data), Left Hand (None, or a
+  one-handed weapon; dimmed and closed unless the right hand's is one-handed). Under them the kind's and the two weapons'
+  thumbnails and a line on what it will do (Random: the pool's dual-wield chance). Each pick is the spawn tool's choice
+  at once (the info line: "Armed Enforcer: Axe + Knight's Sword"); Back to the grid, Choose (again, after another
+  entry), Pick, Reset, Clear as on the grid.
+- **Filled from the table**: the kinds and the weapons are asked of QC once a map (and when AD's data comes or goes):
+  `QC/vr_armedmon_ui.qc` (`VR_AM_UiCount`, the row's name, spawn function: the new row field `vr_am_spawnname`, model,
+  stand frame; `VR_AM_UiWeapon(kind, code)` for every "weapon" code 1..127: held, one-handed, its class). A new row shows
+  up by itself. 38 weapons with AD's and the packs' data here, both rows holding all.
+- **The dropdown** (`vr_toolgun_panel.cpp` `dropdown` + `listOverlay`, reusable by any panel page): the label, the choice
+  in a box with a chevron; clicked, its list opens over the panel (laid out last: one column up to 8 rows, two beyond,
+  16 a page with `<` `>`, Close); a row clicked chooses and closes; a click off it closes it; the panel's other widgets
+  sleep meanwhile (no hover, no clicks). Its rows are named by their labels for `vr_toolgun_mock_laser`.
+- **The ghost holds the weapons**: `VR_AM_UiGhost` puts stand-ins (the kind's model at its stand frame, the weapons'
+  models) through the layer's own pose (`VR_AGP_Pose`, with `vr_agp_quiet`: placed, nothing sent, the chainsaw's engine
+  not run; the melee stance settled as it is a moment after a spawn), reads the weapons' places and angles and removes
+  them; the engine draws them as ghost parts turned with the ghost (hologram glow too). The arms are the model's (no IK
+  on a temp entity). `vr_toolgun_status` prints "ghost holds <model> in its right/left hand at ... from it".
+- **Kept**: every entry's number (the Armed Grunt / Armed Enforcer entries stay in the list: `vr_toolgun_select`, the
+  Debug menus); they are left off the grid since the page makes them all (`vr_toolgun_armed_tiles 1`, new, Debug >
+  Toolgun "Armed Tiles on the Spawn Grid": listed too). New archived cvars: `vr_toolgun_armed_kind` 0,
+  `vr_toolgun_armed_weapon` 0 (0 random, -1 unarmed, a code), `vr_toolgun_armed_weapon2` 0. `box3d::spawnClass` takes a
+  second key (`weapon2`). The armed log line at a spawn names the left hand's weapon.
+- **Console and Debug**: `vr_toolgun_select_armed [kind [weapon [weapon2]]]`, `vr_toolgun_armed_list` (Debug > Toolgun
+  "Armed Humanoid Lists": each weapon's code, name and 1h/2h per kind).
+- **Tests** (scratch scripts, headless): the lists (2 kinds, 38 weapons); grunt sword + crowbar, enforcer shotgun +
+  crowbar (the crowbar dropped: not a pair), enforcer chainsaw, unarmed, random: each spawned with what was chosen
+  ("agrunt: spawned with Knight's Sword and in its left hand Crowbar"); an old entry still selects. The panel by the
+  mock laser: the tile, Kind > Enforcer, a click off an open list (closed, nothing chosen), Right Hand > Knight's Sword,
+  Left Hand > Crowbar, the list's second page > Shotgun (Left Hand back to None and asleep), spawned from the trigger.
+  Ghost against the monster made there (sword + crowbar, axe + sword on the enforcer, its chainsaw, a grunt's shotgun):
+  the weapons in the same places.
+- **Left**: the enforcer's per-class pose pass (its chainsaw riding high: the fit's +7 z) not done (budget). No
+  checklist scenario: agent/checktest is not on next.
+
+**In VR:** toolgun, B, Spawn > Monsters, page 2's last tile (Armed Humanoid): pick Kind, Right Hand, Left Hand with the
+laser (the lists' rows big enough? the second column readable?); the ghost holds the chosen weapons; spawn a few,
+dual-wielding ones too.

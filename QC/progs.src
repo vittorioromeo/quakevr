@@ -497,5 +497,6 @@ vr_armedmon.qc
 vr_armedgrunt.qc
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
+vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
 vr_armedgrunt_play_test.qc
