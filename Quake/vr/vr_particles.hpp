@@ -109,7 +109,12 @@ void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color);
 // A drop of blood flying (the blood streams' spurts and splashes, vr_bloodstream.cpp): `size` units, fading and shrinking
 // over its `life` seconds as it falls, in `color` (lit already); gone below `floorZ`. From the pool (no allocation).
-void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ);
+// `wet`: let in a liquid (the caller's one test, water::bloodInLiquid): slowed to a slowly sinking cloud, its own life.
+void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ,
+    bool wet = false);
+// vr_water_blood_spray [distance] [count]: a hit's blood (Preset::Blood, count 30) that far ahead (64), across the view:
+// under water, its slowed clouds (vr_water_blood).
+void bloodSprayTest_f();
 
 // Exact burst of additional fire particles for a flame-model source.
 int largeExplosionCount(); // diagnostic: live large textured blast fireballs

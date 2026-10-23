@@ -1262,10 +1262,11 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Each puff's damage; its poison: Arcane Dimensions' Guns."),
         slider("Crossbow Knight's Crossbow", "vr_adgun_crossbow_damage", 1.f, 60.f, 1.f, "%.0f a bolt").extend(0.f, 200.f),
         slider("Melee Monsters' Swords", "vr_admelee_sword_damage", 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("The death fury's, death knight's, zombie knight's and death guard's dropped swords: times the "
-                  "Knight's Sword's."),
+            .help("The death fury's, death knight's, zombie knight's, death guard's, Dark Prince's, justice knight's "
+                  "and judicator's dropped swords: times the Knight's Sword's."),
         slider("Hunter Ogres' Hammer and Mace", "vr_admelee_heavy_damage", 0.25f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("Held in both hands, times the Knight's Sword's (one hand's share: Arcane Dimensions' Guns)."),
+            .help("And the Phantom Swordsman's sword: held in both hands, times the Knight's Sword's (one hand's "
+                  "share: Arcane Dimensions' Guns)."),
         open("Arcane Dimensions' Guns", pageIndex(pageAdGuns))
             .help("The soldiers' guns' every number: rounds, rate, speed, blast, fuel, reach, poison."),
         header("Thrown"),

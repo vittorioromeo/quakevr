@@ -92,6 +92,8 @@ struct Mask
     float waterline{0.f};         // its last liquid's surface (drips under it)
     int liquid{0};                // 0 water, 1 slime (the drips' colour)
     double dripNext{0.0};
+    double bled{-1e9};            // cl.time blood was last painted on it (its blood in the water it stands in: vr_water_blood)
+    double bloodCloud{-1e9};      // cl.time of its last cloud of it there
     float sides[2]{0.f, 0.f};     // your body's: the bones of its right side (bits 0..23, 24..47), painted into the twin
                                   // layer (its arms and legs share their skin's texels, mirrored): 0 none
     bool gear{false};             // a weapon's or a prop's you held: washed, kept dropped and held again (vr_gore_gear)

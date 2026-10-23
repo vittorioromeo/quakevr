@@ -7,7 +7,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 46; // (37-40 unused: AD support's melee weapons from 41)
+inline constexpr int numSlots = 50; // (37-40 unused: AD support's melee weapons from 41, the four monster swords 47-50)
 
 enum class Key : int
 {

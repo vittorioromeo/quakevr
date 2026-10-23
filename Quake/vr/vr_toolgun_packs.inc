@@ -129,7 +129,19 @@ QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Rocket Launcher", "monster_vr
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Thunderbolt", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 11.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Grunt's Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 15.f, 0, 0, nullptr, 0)
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: Laser Rifle", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 16.f, 0, 0, nullptr, 0)
-// Arcane Dimensions' weapons (with AD's data; without it the grunt spawns with its fists): the soldiers' guns (their
+// The four monster swords (swords4; QC vr_ad_guns_defs.qc VR_ADMELEE_PHANTOM.._JUDGE: the knight's sword, 13, of a kind,
+// its weapon flags kind x 256), here at the end so the entries' numbers stay: the Phantom Swordsman's (Rogue's data: the
+// DoE group) and AD's Dark Prince's, justice knight's and judicator's (the Weapons tab's AD group, as AD's other melee
+// weapons: vr_ad_spawnguns.inc).
+    {"Weapons", "DoE Phantom Sword", "func_weapon_grabbable", "progs/sword.mdl#melee", 8.f, "weapon", 13.f, 0, false, false,
+        false, -1, false, 1, "progs/sword.mdl", "DoE", 0, 1792.f},
+    {"Weapons", "AD Dark Prince's Sword", "func_weapon_grabbable", "progs/w_dprincesword.mdl#melee", 8.f, "weapon", 13.f, 0,
+        false, true, false, -1, false, 0, nullptr, nullptr, 0, 2048.f},
+    {"Weapons", "AD Justice Knight's Sword", "func_weapon_grabbable", "progs/w_justicesword.mdl#melee", 8.f, "weapon", 13.f,
+        0, false, true, false, -1, false, 0, nullptr, nullptr, 0, 2304.f},
+    {"Weapons", "AD Judicator's Sword", "func_weapon_grabbable", "progs/w_judgesword.mdl#melee", 8.f, "weapon", 13.f, 0,
+        false, true, false, -1, false, 0, nullptr, nullptr, 0, 2560.f},
+// Armed grunts holding Arcane Dimensions' weapons (after the swords above: the numbers stay; with AD's data; without it the grunt spawns with its fists): the soldiers' guns (their
 // WID_*), the upgrades (101 the Shadow Axe, 102 the Widowmaker, 103 the Plasma Gun) and the melee weapons (111..116:
 // the death fury's, death knight's, zombie knight's and death guard's swords, the hammer, the mace).
 QVR_PACK("Monsters", "Armed Grunts", "Armed Grunt: AD Rocket Launcher", "monster_vr_grunt", "progs/vrgrunt.mdl", 24.f, "weapon", 20.f, 0, 0, nullptr, 0)

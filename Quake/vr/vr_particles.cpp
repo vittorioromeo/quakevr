@@ -342,11 +342,32 @@ void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count
     });
 }
 
-void mist(const glm::vec3& org, const glm::vec3& dir, int count); // the gore's blood mist (below)
+void mist(const glm::vec3& org, const glm::vec3& dir, int count, bool wet = false); // the gore's blood mist (below)
+
+// Blood let in a liquid (water::bloodInLiquid, vr_water_blood: one point test a burst, not a particle): its spray
+// slowed to a stop in a few tenths of a second, sinking slowly, growing bigger and fainter and lasting a few seconds:
+// a slowly blooming cloud. (Blood crossing a surface on its way, a ragdoll half in: not yet; BACKLOG.md.)
+void soak(Particle& p, float lifeMult = 1.f)
+{
+    const float life = rnd(2.f, 4.f) * lifeMult;
+    p.type = Custom;
+    p.vel *= 0.25f;
+    p.drag = 5.f;
+    p.acc = gravity(0.03f); // (5 units a second down, its push spent)
+    p.die = cl.time + life;
+    p.color.a *= 0.7f;
+    p.fade = -p.color.a / life;
+    p.scale *= 1.6f;
+    p.grow = p.scale * 2.f / life; // (three times as big as it fades)
+    p.spin = rnd(-0.3f, 0.3f);
+    p.streak = 0.f;
+    p.plink = false;
+}
 
 void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 {
-    mist(org, dir, count);
+    const bool wet = water::bloodInLiquid(org);
+    mist(org, dir, count, wet);
     constexpr int colors[] = {247, 248, 249, 250, 251};
     make(count * 2.f, [&](Particle& p, int) {
         p.cell = CellBlood;
@@ -358,8 +379,12 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
         p.vel = (dir + 0.3f) * glm::vec3{rnd(-10, 10), rnd(-10, 10), rnd(-10, 10)};
         p.vel.z += rnd(0, 40);
+        if(wet)
+        {
+            soak(p);
+        }
     });
-    make(count * 24.f, [&](Particle& p, int) {
+    make(count * (wet ? 6.f : 24.f), [&](Particle& p, int) { // (in a liquid: fewer, each a little cloud)
         p.cell = CellCircle;
         setColor(p, colors[rndi(0, 5)], 175);
         p.die = cl.time + 0.4 * rndi(0, 3);
@@ -369,6 +394,12 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
         p.vel = (dir + 0.3f) * glm::vec3{rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)} * 13.f;
         p.vel.z += rnd(20, 60);
+        if(wet)
+        {
+            soak(p, 0.6f);
+            p.scale *= 3.f;
+            p.grow *= 3.f;
+        }
     });
     make(1, [&](Particle& p, int) {
         p.cell = CellBloodMist;
@@ -379,6 +410,12 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.type = TxSmoke;
         p.org = org + glm::vec3{rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)};
         p.vel = glm::vec3{-4.f};
+        if(wet)
+        {
+            soak(p, 1.5f);
+            p.color.a = 0.25f; // (its cloud: fainter than the drops' would make it)
+            p.fade = -p.color.a / static_cast<float>(p.die - cl.time);
+        }
     });
 }
 
@@ -386,6 +423,7 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
 {
     constexpr int colors[] = {247, 248, 249, 250, 251};
+    const bool wet = water::bloodInLiquid(org); // (a gib sinking: a trail of little clouds, hanging)
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellBlood;
         setColor(p, colors[rndi(0, 5)], rnd(80, 120));
@@ -395,7 +433,15 @@ void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
         p.acc = gravity(0.12f);
         p.org = org + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f)};
         p.vel = dir * rnd(0.f, 12.f) + glm::vec3{rnd(-4, 4), rnd(-4, 4), rnd(-4, 4)};
+        if(wet)
+        {
+            soak(p);
+        }
     });
+    if(wet)
+    {
+        return; // (no falling drops)
+    }
     make(count * 2.f, [&](Particle& p, int) {
         p.cell = CellCircle;
         setColor(p, colors[rndi(0, 5)], rnd(190, 240));
@@ -1422,7 +1468,7 @@ lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
 glm::vec3 lastMistOrg{0.f}; // the last clouds' place and time
 double lastMistTime = -1.0;
 
-void mist(const glm::vec3& org, const glm::vec3& dir, int count)
+void mist(const glm::vec3& org, const glm::vec3& dir, int count, bool wet)
 {
     const float amount = za::clamp(vr_gore_mist.value, 0.f, 10.f);
     const float alpha = za::clamp(vr_gore_mist_alpha.value, 0.f, 1.f);
@@ -1449,21 +1495,22 @@ void mist(const glm::vec3& org, const glm::vec3& dir, int count)
     const glm::vec3 colour = glm::vec3{0.62f, 0.05f, 0.035f} * (1.f - 0.8f * dark) * shadeAt(org);
     const float len = glm::length(dir);
     const glm::vec3 way = len > 1e-3f ? dir / len : glm::vec3{0.f};
-    constexpr float drag = 1.2f; // the part of their speed lost a second: they hang in the air
+    // (In a liquid: slower, longer, sinking slowly, spreading less fast: soak's cloud.)
+    const float drag = wet ? 3.f : 1.2f; // the part of their speed lost a second: they hang in the air
     make(amount * za::clamp(2.f + static_cast<float>(count) / 10.f, 2.f, 6.f) + rnd(0.f, 1.f), [&](Particle& p, int) {
         p.cell = CellBloodMist;
         p.color = glm::vec4{colour, alpha * rnd(0.7f, 1.f)};
         p.type = Custom;
-        const float lives = life * rnd(0.8f, 1.2f);
+        const float lives = life * rnd(0.8f, 1.2f) * (wet ? 2.f : 1.f);
         p.fade = -p.color.a / lives;
         p.die = cl.time + lives;
-        p.scale = rnd(1.6f, 2.6f) * 15.f * size;
-        p.grow = rnd(22.f, 34.f) * size * za::max(0.f, vr_gore_mist_grow.value);
+        p.scale = rnd(1.6f, 2.6f) * 15.f * size * (wet ? 0.6f : 1.f);
+        p.grow = rnd(22.f, 34.f) * size * za::max(0.f, vr_gore_mist_grow.value) * (wet ? 0.35f : 1.f);
         p.drag = drag;
         p.spin = rnd(-0.4f, 0.4f);
-        p.acc = glm::vec3{0.f, 0.f, vr_gore_mist_rise.value * drag}; // (rising at that speed, once its push is spent)
+        p.acc = glm::vec3{0.f, 0.f, (wet ? -4.f : vr_gore_mist_rise.value) * drag}; // (rising at that speed, once its push is spent)
         p.org = org + inBox(8.f * size);
-        p.vel = (way * rnd(12.f, 36.f) + onSphere() * rnd(4.f, 14.f)) * speed;
+        p.vel = (way * rnd(12.f, 36.f) + onSphere() * rnd(4.f, 14.f)) * speed * (wet ? 0.3f : 1.f);
     });
 }
 
@@ -1907,6 +1954,12 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
     {
         water::addRipple(surface, static_cast<float>(under));
     }
+    else if(preset == Preset::Blood || preset == Preset::BloodTrail)
+    {
+        // Blood in a liquid, or falling onto one: a cloud on its surface (vr_water_blood), with the particles or without.
+        (void)water::addBlood(org, preset == Preset::Blood ? za::clamp(static_cast<float>(count) / 20.f, 0.15f, 1.f)
+                                                           : za::min(0.1f * static_cast<float>(count), 0.3f));
+    }
 
     if(!vr_particles.value || !ensureAtlas())
     {
@@ -1994,6 +2047,20 @@ void mistTest_f()
     Con_Printf("vr_gore_mist_test: %d clouds %.0f units ahead\n", liveCount() - before, static_cast<double>(dist));
 }
 
+void bloodSprayTest_f()
+{
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 64.f;
+    const int count = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : 30;
+    const glm::vec3 at = eye + glm::vec3{fwd[0], fwd[1], fwd[2]} * dist;
+    const int before = liveCount();
+    (void)spawn(at, glm::vec3{right[0], right[1], right[2]}, Preset::Blood, count);
+    Con_Printf("vr_water_blood_spray: %d particles %.0f units ahead, %s\n", liveCount() - before, static_cast<double>(dist),
+        water::bloodInLiquid(at) ? "in a liquid" : "in the air");
+}
+
 void init()
 {
     static_assert(sizeof(Particle) <= 152, "the pool's reservation (4.75 MB) grows with it");
@@ -2064,7 +2131,7 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
     }
 }
 
-void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ)
+void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float life, const glm::vec3& color, float floorZ, bool wet)
 {
     if(!vr_particles.value || pool.size() >= maxParticles || !ensureAtlas())
     {
@@ -2085,6 +2152,11 @@ void bloodDroplet(const glm::vec3& org, const glm::vec3& vel, float size, float 
     p.vel = vel;
     p.die = cl.time + life;
     p.floor = floorZ;
+    if(wet)
+    {
+        soak(p);
+        p.floor = -1e9f;
+    }
     pool.pushBack(p);
 }
 

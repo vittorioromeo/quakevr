@@ -2079,6 +2079,9 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
     Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
+    Cmd_AddCommand("vr_water_blood_test", water::bloodTest_f);
+    Cmd_AddCommand("vr_water_blood_info", water::bloodInfo_f);
+    Cmd_AddCommand("vr_water_blood_spray", particles::bloodSprayTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
     Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);
     Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);

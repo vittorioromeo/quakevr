@@ -214,7 +214,7 @@ float(float code) VR_AG_Decode =
         vr_ag_dec_up = AD_UpgradeFor(vr_ag_dec_wid);
         return vr_ad_data && VR_AD_FeatureScope(AD_UpgradeScope()); // (elsewhere a plain one: not this)
     }
-    if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_LAST)
+    if(code > VR_AG_CODE_ADMELEE && code <= VR_AG_CODE_ADMELEE + VR_ADMELEE_MACE) // (AD's own six: the later kinds aren't in its arsenal)
     {
         vr_ag_dec_wid = WID_SWORD;
         vr_ag_dec_flags = VR_ADMelee_Flags(code - VR_AG_CODE_ADMELEE);
@@ -284,7 +284,7 @@ float() VR_AG_PickWeapon =
     VR_AG_PoolAdd(VR_AG_CODE_SHADOWAXE, cvar("vr_agrunt_w_shadowaxe"));
     VR_AG_PoolAdd(VR_AG_CODE_WIDOWMAKER, cvar("vr_agrunt_w_widowmaker"));
     VR_AG_PoolAdd(VR_AG_CODE_PLASMAGUN, cvar("vr_agrunt_w_plasmagun"));
-    for(float k = 1; k <= VR_ADMELEE_LAST; k++)
+    for(float k = 1; k <= VR_ADMELEE_MACE; k++)
     {
         VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + k, cvar(VR_ADMelee_Heavy(k) ? "vr_agrunt_w_adheavy" : "vr_agrunt_w_adsword"));
     }

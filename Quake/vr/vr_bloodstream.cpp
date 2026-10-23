@@ -15,6 +15,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
 #include "vr_trace.hpp"
+#include "vr_water.hpp"
 #include "vr_wounds.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -123,6 +124,14 @@ struct Stream
     float landTime = 1.2f;
     glm::vec3 land{0.f}, landN{0.f, 0.f, 1.f};
     glm::vec3 color{0.4f, 0.02f, 0.015f};
+    // In a liquid (vr_water_blood; tested with the landing's arc): the wound under it (`wet`: no stream, clouds of blood
+    // drifting off it), or the stream pouring into one (`into`: its points gone at the surface, at `surfaceZ`, clouds
+    // blooming there); a cloud on the surface once a second (water::addBlood).
+    bool wet = false;
+    bool into = false;
+    float surfaceZ = 0.f;
+    double nextCloud = 0.0;
+    float puffAcc = 0.f;
     // The marks where it lands.
     double nextPaint = 0.0;
     glm::vec3 poolAt{0.f};
@@ -804,7 +813,7 @@ void spurt(Stream& s, float dt, float strength, const glm::vec3& axis, float spe
             sp *= rnd(1.f, 1.4f);
             size *= 1.25f;
         }
-        particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel, size, l, s.color, floorZ);
+        particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel, size, l, s.color, floorZ, s.wet);
         spurtsMade++;
     }
 }
@@ -971,6 +980,25 @@ void update(Stream& s, float dt)
             s.nextArc = cl.time + arcInterval;
             traceArc(s, v0);
             s.color = lightColor(s.wound);
+            s.wet = water::bloodInLiquid(s.wound);
+            s.into = s.into && !s.wet && s.lands && inLiquid(s.land + s.landN * 2.f); // (its surface: from the clouds below)
+        }
+        // A cloud on the liquid's surface it bleeds into, once a second (vr_water_blood): over the wound under it, or
+        // where the stream goes in (found from the landing under it: its surface's height for the points too).
+        if(cl.time >= s.nextCloud || cl.time < s.nextCloud - 2.0)
+        {
+            s.nextCloud = cl.time + 1.0;
+            const float amount = 0.3f * za::min(strength, 1.3f) * s.power;
+            if(s.wet)
+            {
+                (void)water::addBlood(s.wound, amount, 0.f);
+            }
+            else if(s.lands && inLiquid(s.land + s.landN * 2.f))
+            {
+                float z = s.land.z;
+                s.into = water::addBlood(s.land + s.landN * 2.f, amount, 0.f, &z) && z > s.land.z && z < s.wound.z;
+                s.surfaceZ = z;
+            }
         }
         // New points: from where the wound was over the frame (an even chain however fast the frames).
         s.emitAcc += dt * emitRate;
@@ -981,8 +1009,34 @@ void update(Stream& s, float dt)
             s.emitAcc = za::max(s.emitAcc, 1.f); // (a point at once where the wound is now, the stream cut there)
             stretch.cuts++;
         }
-        const int n = za::min(8, static_cast<int>(s.emitAcc));
+        // How long a point falls before it goes into the liquid under it (s.into): to the surface's height on its arc.
+        float intoTime = s.landTime;
+        if(s.into && s.wound.z > s.surfaceZ)
+        {
+            const float g = gravity();
+            intoTime = za::min(intoTime, (v0.z + za::sqrt(v0.z * v0.z + 2.f * g * (s.wound.z - s.surfaceZ))) / g);
+        }
+        int n = za::min(8, static_cast<int>(s.emitAcc));
         s.emitAcc = za::min(s.emitAcc - static_cast<float>(n), 1.f);
+        if(s.wet || s.into)
+        {
+            // Under water: clouds drifting off the wound instead (soaked droplets, vr_particles.cpp); poured into it:
+            // clouds blooming where it goes in.
+            s.puffAcc += dt * 14.f * za::min(strength, 1.3f);
+            const int puffs = za::min(4, static_cast<int>(s.puffAcc));
+            s.puffAcc -= static_cast<float>(puffs);
+            for(int k = 0; k < puffs; k++)
+            {
+                const glm::vec3 at = s.wet ? s.wound + out * 0.5f
+                                           : s.wound + v0 * intoTime + glm::vec3{0.f, 0.f, -0.5f * gravity() * intoTime * intoTime};
+                const glm::vec3 vel = s.wet ? v0 * 0.6f : (v0 + glm::vec3{0.f, 0.f, -gravity() * intoTime}) * 0.25f;
+                particles::bloodDroplet(at, vel, dropSize() * rnd(3.f, 6.f) * s.power, 1.f, s.color, -1e9f, true);
+            }
+            if(s.wet)
+            {
+                n = 0; // (no stream)
+            }
+        }
         for(int k = 0; k < n; k++)
         {
             // (Not along the jump: the wound was never in between.)
@@ -994,7 +1048,7 @@ void update(Stream& s, float dt)
             p.pos = s.hasLast ? glm::mix(s.wound, s.lastWound, back) : s.wound;
             p.vel = v0;
             p.age = back * dt;
-            p.life = s.landTime;
+            p.life = intoTime;
             p.width = width * (1.f + thickAmount * rnd(-0.12f, 0.12f)); // (an uneven edge)
             p.speed0 = za::max(10.f, glm::length(v0));
             p.pos += p.vel * p.age;

@@ -2504,6 +2504,8 @@ QVR_CVAR(vr_water_foam, "1", CVAR_ARCHIVE)            // shoreline foam where wa
 QVR_CVAR(vr_water_foam_opacity, "1", CVAR_ARCHIVE)    // ... how opaque it is (0..1.5, times; vr_glsl.h LiquidFoam)
 QVR_CVAR(vr_water_foam_frequency, "1", CVAR_ARCHIVE)  // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
 QVR_CVAR(vr_water_foam_strength, "1", CVAR_ARCHIVE)   // ... how far it reaches out from the shore (0.25..3, times its width)
+QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
+QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
 QVR_CVAR(vr_water_ripples, "1", CVAR_ARCHIVE)         // ripples: rings of waves spreading from splashes, wading and strokes, in the lighting and (with the real waves' grid) the geometry
 QVR_CVAR(vr_water_ripple_amplitude, "16", CVAR_ARCHIVE)   // ... how high they rise in the geometry (with the real waves' grid), units for a hand's slap (a shot's about half, a body's two to three times)
