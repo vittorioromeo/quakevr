@@ -246,7 +246,8 @@ const KnownSword knownSwords[] = {
     // AD's melee monsters (their weapons, rigid pieces in the hand, found moving with it in every frame alive; hidden in
     // their deaths, the rigs' frames: vr_ad_rigs.inc; QC VR_ADMelee_Drop drops them, vr_admelee.cpp makes them): the death
     // fury's two swords (1240..1307 and 1308..1375), the death knight's, the death guard's sword (deaths A-D), the
-    // hunter ogres' hammer and mace. (The zombie knight's falls are its knockdown's too: it keeps its blade lying.)
+    // hunter ogres' hammer and mace. (The zombie knight's falls are its knockdown's too: its rig keeps the blade a loose
+    // piece instead, held alive and gone from its dead ragdoll: vr_ad_rigs.inc QVR_AD_RIG_KEPT.)
     {qvr::modelmeta::Id::AdDfury, 1376, 1070, [] {
          za::Vector<int> v(136);
          za::iota(v.begin(), v.end(), 1240);

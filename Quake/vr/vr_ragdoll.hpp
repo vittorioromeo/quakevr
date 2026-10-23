@@ -74,6 +74,9 @@ struct Rig
     int deathFirst[4]{}, deathLast[4]{};
     // Its loose bone hidden in every ragdoll, whatever the frame (the player's axe and gun: SeedTable::looseWeapons).
     bool hideLoose{false};
+    // Its loose pieces held in its hands: each welded to the forearm nearest it, knocked down (not the part nearest
+    // in the rest pose: the death fury's left sword and the zombie knight's blade hang by its hip there).
+    bool looseInHands{false};
     // How the derivation went (vr_ragdoll_info).
     float clusterRms{0.f}, boneRms{0.f};
     double deriveMs{0.0};

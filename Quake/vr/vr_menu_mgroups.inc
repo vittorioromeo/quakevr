@@ -68,6 +68,15 @@ constexpr MgroupParamRow mgroupParamRows[mgroups::paramCount] = {
         "Its health times this as it appears, on top of Monster Health's cut for big monsters (Combat > Monster Health; "
         "only with it on). Monsters already about keep theirs. Not the scripted bosses (Chthon, Shub, Arcane "
         "Dimensions' wave bosses)."},
+    {"Knockdown Chance", MgroupTimes,
+        "Every chance to knock it down times this: shoves, ragdoll triggers, hits, stomps, leg sweeps; a sure one (over "
+        "a ledge, unaware) by this chance too. Mini Bosses 0.5: hard to put down."},
+    {"Time Down", MgroupTimes,
+        "Its time down times this: its own timer (Knockdowns > Time Down) and the most hits and your hands keep it down."},
+    {"Get-Up Speed", MgroupTimes, "Its get-up's speed times this (Knockdowns > Get-Up Speed)."},
+    {"Neck Snap Kills", MgroupToggle,
+        "The neck snap kills it. Off: the twist only hurts it (Holding Enemies > Neck Snap, Tough Neck Damage) and it "
+        "fights on."},
 };
 
 [[nodiscard]] Item mgroupItem(int g, mgroups::Param p, const char* label)
@@ -120,6 +129,10 @@ template <int G>
         if(p == static_cast<int>(mgroups::Param::Health))
         {
             items.pushBack(header("Health"));
+        }
+        if(p == static_cast<int>(mgroups::Param::KdScale))
+        {
+            items.pushBack(header("Toughness"));
         }
         items.pushBack(mgroupItem(G, static_cast<mgroups::Param>(p), mgroupParamRows[p].label));
     }

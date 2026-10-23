@@ -39,15 +39,19 @@ constexpr Member memberTable[] = {
     // Knights: id's, the infected; AD's crossbow knight.
     {"monster_knight", knightGroup}, {"monster_knight_infected", knightGroup}, {"monster_dcrossbow", knightGroup},
     // Death knights: id's (AD's point knight), the infected, Dawn of the Machine's ranged knight; AD's death knight (and
-    // its ghost, Quoth's death knight), death guard (Quoth's too), death lord, death fury, death sergeant, justice knight
-    // (and the baron, its old name), Dark Prince (the death knight's mesh and size; AD's FGD calls it a "mini boss", as
-    // the baron, but its code is a plain monster's: 400 health, no boss flags or script, placed in no map of AD's).
+    // its ghost, Quoth's death knight), death guard (Quoth's too). (The Dark Prince, the death knight's mesh
+    // and size: AD's FGD calls it a "mini boss", as the baron, but its code is a plain monster's: 400 health, no boss
+    // flags or script, placed in no map of AD's.)
     {"monster_hell_knight", hknightGroup}, {"monster_hell_knight_infected", hknightGroup},
     {"monster_hell_pointknight", hknightGroup}, {"monster_ranged_knight", hknightGroup},
     {"monster_dknight", hknightGroup}, {"monster_dknightghost", hknightGroup}, {"monster_death_knight", hknightGroup},
-    {"monster_dguard", hknightGroup}, {"monster_death_guard", hknightGroup}, {"monster_death_lord", hknightGroup},
-    {"monster_dfury", hknightGroup}, {"monster_dsergeant", hknightGroup}, {"monster_justice", hknightGroup},
-    {"monster_baron", hknightGroup}, {"monster_dprince", hknightGroup},
+    {"monster_dguard", hknightGroup}, {"monster_death_guard", hknightGroup},
+    // Mini Bosses (the author, 2026-10-23): the Dark Prince, AD's big walkers (the minotaur, the stone golem, the drole:
+    // active ragdolls, their rigs a humanoid's legs), the justice knight (AD's normal judicator; the baron, its old name).
+    // Elite Knights: the death fury, the death sergeant and the death lord (400 health each).
+    {"monster_dprince", minibossGroup}, {"monster_minotaur", minibossGroup}, {"monster_golem", minibossGroup},
+    {"monster_drole", minibossGroup}, {"monster_justice", minibossGroup}, {"monster_baron", minibossGroup},
+    {"monster_dfury", eliteknightGroup}, {"monster_dsergeant", eliteknightGroup}, {"monster_death_lord", eliteknightGroup},
     // Ogres: id's, Scourge of Armagon's marksman, Dawn of the Machine's rocket ogre; AD's flak ogre, hunter ogres (cleaver,
     // mace, hammer), the fishing ones (scenery), Freddie (Quoth's Edie).
     {"monster_ogre", ogreGroup}, {"monster_ogre_real", ogreGroup}, {"monster_ogre_marksman", ogreGroup},
@@ -69,8 +73,6 @@ constexpr Member memberTable[] = {
     // AD's spiders, scorpion, steel claw, swampling and voreling (the vore's voreling pool).
     {"monster_spider", crawlerGroup}, {"monster_scorpion", crawlerGroup}, {"monster_steelclaw", crawlerGroup},
     {"monster_swampling", crawlerGroup}, {"monster_voreling", crawlerGroup}, {"monster_shalrathminion", crawlerGroup},
-    // AD's big walkers: the minotaur, the drole, the stone golem.
-    {"monster_minotaur", giantGroup}, {"monster_drole", giantGroup}, {"monster_golem", giantGroup},
     // Scrags (id's, AD's, Nour's minions) and AD's gargoyle (the minotaur's minions) and gaunt (the judicator's, Quoth's
     // polyp).
     {"monster_wizard", wizardGroup}, {"monster_nourminion", wizardGroup}, {"monster_gargoyle", wizardGroup},
@@ -129,7 +131,8 @@ cvar_t* const settings[groupCount][paramCount] = {
         &vr_mgrp_##g##_shotgun, &vr_mgrp_##g##_wounded, &vr_mgrp_##g##_blow, &vr_mgrp_##g##_blast,                       \
         &vr_mgrp_##g##_thrown, &vr_mgrp_##g##_tackle, &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
         &vr_mgrp_##g##_leggrab, &vr_mgrp_##g##_lift, &vr_mgrp_##g##_necksnap, &vr_mgrp_##g##_manhandle,                  \
-        &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise, &vr_mgrp_##g##_health},
+        &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise, &vr_mgrp_##g##_health,                      \
+        &vr_mgrp_##g##_kdscale, &vr_mgrp_##g##_downtime, &vr_mgrp_##g##_getup, &vr_mgrp_##g##_snapkills},
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 };
@@ -206,6 +209,11 @@ void makeMemberText()
         if(g == otherGroup)
         {
             std::snprintf(out + used, sizeof(memberText[g]) - used, "%sany monster in no other group", used ? "; " : "");
+        }
+        else if(!used)
+        {
+            // (Giants: its drole and stone golem are Mini Bosses since 2026-10-23; kept for its settings' names.)
+            std::snprintf(out, sizeof(memberText[g]), "no monster now");
         }
     }
     memberTextMade = true;

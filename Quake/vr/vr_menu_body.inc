@@ -162,6 +162,12 @@ const char* bodytrackAvailability(int)
             .help("When you die (not gibbed) your body falls as a ragdoll (also on VR Settings, Comfort). Off: no body. "
                   "Third Person: your view stays where your eyes were. Immersive: your view goes into your body's head "
                   "(Third Person while a menu is open)."),
+        // (The author's note vrfiringrange_2026-10-23_01-18-00, a player's request.)
+        toggle("Vomit Mode", vr_death_view_vomit)
+            .help("Warning: very likely to make you sick. When you die, you see straight out of your ragdoll's eyes, "
+                  "turned exactly as its head is as it tumbles and rolls: no smoothing, no comfort, and your own head's "
+                  "turns do nothing. Overrides the Immersive rows below; needs Death View on (Third Person or "
+                  "Immersive). Too much: open the menu (it takes the view out) or close your eyes."),
         toggle("Immersive: Turn With the Body", vr_death_view_turn)
             .help("Immersive Death View: your view turns sideways as your body's head does, slowly (Turn Speed). Off: "
                   "only its place follows the head; you turn yourself."),

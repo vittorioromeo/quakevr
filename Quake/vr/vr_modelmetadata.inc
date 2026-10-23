@@ -104,6 +104,7 @@ QVR_MODEL_ID(SSpike, "progs/s_spike.mdl")  // the super nailgun's
 QVR_MODEL_ID(AdVrAxe, "progs/v_shadaxe3.mdl#vr")
 QVR_MODEL_ID(AdVrWidowmaker, "progs/v_shot3.mdl#vr")
 QVR_MODEL_ID(AdVrPlasma, "progs/v_plasma.mdl#vr")
+QVR_MODEL_ID(AdProjPlasma, "progs/proj_plasma.mdl") // AD support: a plasma bolt in flight (vr_emissive.cpp: its blue light, its arcs)
 QVR_MODEL_ID(Missile, "progs/missile.mdl") // the rocket in flight, drawn at vr_rocket_scale (vr_props.cpp ownScale)
 
 QVR_MODEL_TRAIT(Progs, Prefix, "progs/")

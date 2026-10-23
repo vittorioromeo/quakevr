@@ -18,8 +18,10 @@
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
@@ -855,6 +857,37 @@ void wrapLines(za::StringView text, size_t columns, za::String& out)
 
 } // namespace
 
+namespace
+{
+// The view text's turn (viewTextYaw): the head's yaw followed smoothly (the author's note vrstart_2026-10-23_01-23-46:
+// it jumped to each turn of the head at once).
+struct ViewTextFollow
+{
+    bool valid{false};
+    float yaw{0.f};   // degrees
+    double time{0.0}; // realtime of the last call
+};
+ViewTextFollow viewTextFollow;
+} // namespace
+
+float viewTextYaw(const hands::State& s)
+{
+    ViewTextFollow& f = viewTextFollow;
+    const double dtFull = realtime - f.time;
+    f.time = realtime;
+    const float tau = za::max(vr_view_text_smooth.value, 0.f);
+    if(!f.valid || dtFull > 0.5 || dtFull < 0.0 || tau <= 0.f)
+    {
+        f.valid = true; // (none shown for a while: the next starts where you look)
+        f.yaw = s.headAngles.y;
+        return f.yaw;
+    }
+    const float k = 1.f - za::exp(-static_cast<float>(dtFull) / tau);
+    f.yaw += za::remainder(s.headAngles.y - f.yaw, 360.f) * k;
+    f.yaw = za::remainder(f.yaw, 360.f);
+    return f.yaw;
+}
+
 void drawViewText(za::StringView text, float drop)
 {
     const hands::State& s = hands::current();
@@ -863,15 +896,28 @@ void drawViewText(za::StringView text, float drop)
         return;
     }
     const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+    const float yaw = viewTextYaw(s);
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, yaw, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
     za::String& wrapped = scratch.wrapped;
     wrapLines(text, viewTextColumns, wrapped);
-    text3d::queueOverlay(wrapped, at, glm::vec3{0.f, s.headAngles.y, 0.f}, viewTextScale);
+    text3d::queueOverlay(wrapped, at, glm::vec3{0.f, yaw, 0.f}, viewTextScale);
 }
+
+namespace
+{
+// vr_view_text_status (Debug: View Text Follow; tests): the yaw the view texts follow now and the head's.
+void viewTextStatus_f()
+{
+    const hands::State& s = hands::current();
+    Con_Printf("view text: follow yaw %.2f head yaw %.2f smooth %.2f s (%s)\n", viewTextFollow.yaw, s.headAngles.y,
+        vr_view_text_smooth.value, viewTextFollow.valid && realtime - viewTextFollow.time < 0.5 ? "following" : "idle");
+}
+} // namespace
 
 void init()
 {
+    Cmd_AddCommand("vr_view_text_status", viewTextStatus_f);
     Cmd_AddCommand("vr_setup", setup_f);
     Cmd_AddCommand("vr_setup_option", option_f);
     Cmd_AddCommand("vr_setup_skip", skip_f);

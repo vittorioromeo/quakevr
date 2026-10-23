@@ -1,4 +1,4 @@
-// vr_holstersetup.hpp -- Holster Setup (VR Settings > Body and Equipment > Holster Calibration > Holster Setup; offered
+// vr_holstersetup.hpp -- Holster Setup (VR Settings > Holster Calibration > Holster Setup; offered
 // after VR Calibration too; ROUND22.md, "Holster Setup: drag and drop"): the player-facing way to place the holsters and pouches. The game pauses (single player only), every holster's
 // and pouch's zone is drawn as a labelled see-through box over it, and a grip inside one takes hold of it: the hand's moves
 // move it (its zone and its model together, being where its offsets put it: the pair's offsets, vr_hip_offset_* and so

@@ -1097,7 +1097,7 @@ void neckSnap(int c, edict_t* m, const NeckTwist& t, bool ragdoll)
     {
         Con_Printf("foegrab: both hands snap %s (%d)'s neck, twisted %.0f deg within %.2f s (%s): %s\n", name, num,
             t.turned, neckWindow(), ragdoll ? "a ragdoll" : "standing",
-            result >= 3.f ? "killed, no ragdoll to hold" : result >= 2.f ? "the training dummy (it stands)" :
+            result >= 3.f ? "killed, no ragdoll to hold" : result >= 2.f ? "it stands (the training dummy, or a tough neck)" :
             result >= 1.f ? "killed" : "it can't die now");
     }
     if(c == 0 && result >= 1.f)

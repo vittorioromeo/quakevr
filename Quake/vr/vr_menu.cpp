@@ -1135,6 +1135,11 @@ void hologramTestMessage()
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
         toggle("Messages Only on the Gadget", vr_messages_hologram_only)
             .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
+        // (The author's note vrstart_2026-10-23_01-23-46: VR Calibration's texts jumped to each turn of the head.)
+        slider("Messages in View: Follow Smoothing", vr_view_text_smooth, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
+            .help("The messages floating in front of you (VR Calibration's and the maps' texts, Body Calibration's poses, "
+                  "the game's messages when not on the gadget) turn after your head this smoothly: about how long they "
+                  "take to catch up. 0: fixed to your view."),
         toggle("Console Log on the HUD", vr_hud_console_log)
             .help("The console's log (the engine's own lines: warnings, settings changed, command output) shows with the game's messages, over the gadget or in view (and at the top of the flat screen). Off: only the game's messages (pickups, deaths, chat); the console (~) keeps everything."),
         cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
@@ -2068,6 +2073,10 @@ const Page pages[] = {
     {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
     {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
     {"Monster Groups - Health", pageMonsterParam<22>, pageMonsterGroups},
+    {"Monster Groups - Knockdown Chance", pageMonsterParam<23>, pageMonsterGroups},
+    {"Monster Groups - Time Down", pageMonsterParam<24>, pageMonsterGroups},
+    {"Monster Groups - Get-Up Speed", pageMonsterParam<25>, pageMonsterGroups},
+    {"Monster Groups - Neck Snap Kills", pageMonsterParam<26>, pageMonsterGroups},
     {"Monster Health", pageMonsterHealth, pageCombat}, // (vr_menu_mgroups.inc)
     {"Ragdoll Tool", pageRagtool, pageDebug}, // (vr_menu_ragtool.inc; vr_ragtool.cpp)
     {"Ragdoll Tool - Motors", pageRagtoolParams<0>, pageRagtool},
@@ -2081,10 +2090,10 @@ const Page pages[] = {
     {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
     {"Saves and Autosaves", pageSaves, pageMain, LevelStandard}, // (vr_menu_settings.inc; vr_continue.cpp)
     // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing, then one Item Pickup Mode switch.)
-    {"Holster Calibration", pageVrsHolsters, pageVrsBodyEquipment, LevelStandard},
+    {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
 };
-static_assert(mgroups::paramCount == 23, "a Monster Groups page for each trigger and action (the rows above)");
+static_assert(mgroups::paramCount == 27, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the

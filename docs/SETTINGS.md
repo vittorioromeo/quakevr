@@ -62,8 +62,8 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
-| **Body and Equipment** | Height, Legs Fit Your Height, Gear Fits Your Body, *Body Calibration*; the shoulders, torso, belt and flashlight; the ammo pouch's place, size, counter and rounds shown (its wobble: Advanced VR Options > Weapons > Reloading > *Ammo Pouch Wobble*); *Holster Calibration* (below); *Reset Body and Equipment* |
-| **Holster Calibration** (Body and Equipment > *Holster Calibration*) | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Seated Holsters*, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+| **Body and Equipment** | Height, Legs Fit Your Height, Gear Fits Your Body, *Body Calibration*; the shoulders, torso, belt and flashlight; the ammo pouch's place, size, counter and rounds shown (its wobble: Advanced VR Options > Weapons > Reloading > *Ammo Pouch Wobble*); *Reset Body and Equipment* (the holsters too) |
+| **Holster Calibration** (VR Settings > Calibration > *Holster Calibration*) | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Seated Holsters*, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
 
 **Holster Setup (drag and drop)** places the holsters and pouches by hand, no sliders needed. The game pauses (single
 player only) and every holster and pouch shows as a labelled see-through box on your body: grip one with either hand and

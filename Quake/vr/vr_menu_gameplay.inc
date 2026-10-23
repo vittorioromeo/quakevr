@@ -447,6 +447,9 @@
             .help("How far a snapped neck lets the head turn either way about it."),
         slider("Broken Neck Friction", vr_foegrab_necksnap_friction, 0.f, 1.f, 0.05f, "%.2f")
             .help("What holds a snapped neck from flopping freely, as a share of the body's joint friction (0: none)."),
+        slider("Tough Neck Damage", vr_foegrab_necksnap_tough, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A monster whose group's Neck Snap Kills is off (Monster Groups: the Mini Bosses) survives the twist: it "
+                  "takes this share of its full health as damage (it dies of it only when hurt that much) and fights on."),
     };
 }
 

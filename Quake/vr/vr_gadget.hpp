@@ -128,6 +128,11 @@ void drawHologram();
 // there is no hologram (the HUD not the gadget, vr_messages_hologram off): shown another way then.
 bool tip(za::StringView text, float seconds);
 
+// A notice about something you just did (bullet time pressed with its meter empty, vr_bullettime.cpp): `text` as one of
+// the hologram's messages now, for `seconds`, seen if you look at the gadget then; not a notification (no waiting to be
+// seen, no chime nor buzz). False when there is no hologram.
+bool notice(za::StringView text, float seconds);
+
 // QVR round 21 (the Screens page's Show a Test Message): the next of a few of the game's own messages (a key needed,
 // maps' texts, a secret, a powerup running out), sent as the game sends them, so that pressing again stacks them; with
 // a menu open too. False when there is no hologram (no game, or it is off).

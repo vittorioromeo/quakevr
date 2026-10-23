@@ -56,7 +56,13 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
     {"monster_dcrossbow", true}, {"monster_dfury", true}, {"monster_dguard", true}, {"monster_dknight", true},
     {"monster_dsergeant", true}, {"monster_zombiek", false}, {"monster_mummy", false}, {"monster_death_lord", true},
     {"monster_death_guard", true}, {"monster_deflector", true}, {"monster_ogre_flak", true},
-    {"monster_dprince", true}}; // (the Dark Prince: the death knight's mesh and rig, AdDprince)
+    {"monster_dprince", true}, // (the Dark Prince: the death knight's mesh and rig, AdDprince)
+    // The other Mini Bosses (Monster Groups): the minotaur (its rig a spine between pelvis and chest, AdMinotaur) and the
+    // justice knight (AdJustice; the baron its old classname), the stone golem (AdGolem: a humanoid's rig, 105 units tall;
+    // its get-up blended: its body lagged its death backwards 30 units, or lost it twice of three) and the drole (AdDrole:
+    // two legs, two raised scythes, two lower claws from its hips).
+    {"monster_minotaur", true}, {"monster_justice", true}, {"monster_baron", true}, {"monster_golem", true, true},
+    {"monster_drole", true}};
 
 // A joint's limits' share by its group (vr_ragdoll_limits_legs ...; the ragdoll tool's Joint Groups): times the global
 // one and its class's.
@@ -628,7 +634,8 @@ int looseHolder(const ragdoll::Rig& rig, int loose)
     float bestD = 1e30f;
     for(int o = 0; o < rig.numBones; o++)
     {
-        if(rig.bones[o].joint == ragdoll::Joint::Loose)
+        if(rig.bones[o].joint == ragdoll::Joint::Loose ||
+            (rig.looseInHands && strncmp(rig.bones[o].name, "forearm", 7) != 0)) // (held in a hand: Rig::looseInHands)
         {
             continue;
         }

@@ -1592,6 +1592,188 @@ void(entity n) VR_Burn_NailLaunched =
     VR_Burn_NailCheck(n, VR_Burn_LitTorches(), VR_Burn_OtherFires(), n.origin, n.origin + n.velocity * frametime * 2);
 };
 
+// ----------------------------------------------------------------------------
+// Fire put out by water (vr_burn_water_douse; the author's notes vrtesthall_2026-10-23_01-42-34, _01-43-21): a
+// flamethrower's flame meeting the surface (vr_ad_enemyguns.qc VR_ADGun_FlameThink) and a lava nail going in (a nail
+// again: VR_Burn_LavaNailsWater) go out in a puff of steam with a hiss. Slime too; not lava.
+
+float(vector p) VR_Burn_InWater =
+{
+    float c = pointcontents(p);
+    return c == CONTENT_WATER || c == CONTENT_SLIME;
+};
+
+// The surface between `a` (out of the water) and `b` (in it): six halvings, within a unit of it for a step of 64.
+vector(vector a, vector b) VR_Burn_WaterSurface =
+{
+    for(float k = 0; k < 6; k++)
+    {
+        vector m = (a + b) * 0.5;
+        if(VR_Burn_InWater(m)) { b = m; }
+        else { a = m; }
+    }
+    return a;
+};
+
+// A puff of `n` steam at `at` and (at most every 0.12 s, vr_burn_nail_sound's volume) a hiss from `xFrom`.
+float vr_burn_hiss_next;
+void(vector at, float n, entity xFrom) VR_Burn_Doused =
+{
+    particle2(at, '0 0 0', QVR_PARTICLE_PRESET_STEAM, n);
+    float vol = cvar_hget(cvarh_vr_burn_nail_sound);
+    if(vol > 0 && time >= vr_burn_hiss_next)
+    {
+        vr_burn_hiss_next = time + 0.12;
+        sound(xFrom, CHAN_AUTO, random() < 0.5 ? "vr/nail_sizzle1.wav" : "vr/nail_sizzle2.wav", min(1, vol * 0.7), ATTN_STATIC);
+    }
+};
+
+// Every server frame (StartFrame): each lava nail about to go into water (where it is now, or where it will be next
+// frame) put out at the surface: a plain nail (the nailgun's or the super nailgun's: their touch, model and damage),
+// no glow or trail.
+void() VR_Burn_LavaNailsWater =
+{
+    entity n = find(world, classname, "lava_spike");
+    if(n == world || cvar("vr_burn_water_douse") <= 0)
+    {
+        return;
+    }
+    while(n)
+    {
+        entity next = find(n, classname, "lava_spike");
+        vector b = n.origin + n.velocity * frametime;
+        float now = VR_Burn_InWater(n.origin);
+        if(now || VR_Burn_InWater(b))
+        {
+            vector at = now ? n.origin : VR_Burn_WaterSurface(n.origin, b);
+            float super = n.touch == superlavaspike_touch;
+            n.classname = "spike";
+            n.touch = super ? superspike_touch : spike_touch;
+            setmodel(n, super ? "progs/s_spike.mdl" : "progs/spike.mdl");
+            setsize(n, VEC_ORIGIN, VEC_ORIGIN);
+            n.effects = n.effects - (n.effects & (EF_VERYDIMLIGHT | EF_LAVATRAIL));
+            VR_Burn_Doused(at, 4, n);
+            dprint(sprintf("burning: a lava nail into water at %v: put out (%s)\n", at, super ? "super" : "normal"));
+        }
+        n = next;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Monsters and bodies touching the map's flames (vr_burn_map_monsters; the author's note vrtesthall_2026-10-23_01-41-13):
+// as the player does (VR_Burn_MapFrame), a monster awake, a ragdoll (alive, knocked down, or dead) or a corpse whose box
+// meets one of the map's flames (its fire spots: flames, braziers, static wall torches; a lit torch on its wall; the
+// toolgun's resting flames) catches fire. A sleeping monster is left alone (it walks into none; one a mapper placed by a
+// brazier is not lit before the player comes). Three bodies a server frame, in turn: a room of 60 each looked at about
+// every 0.3 s, at a fixed cost a frame.
+entity vr_burn_mapbody_next;
+
+// Whether the box lo..hi comes within r of the upright flame z0..z1 over o.
+float(vector lo, vector hi, vector o, float z0, float z1, float r) VR_Burn_BoxNearFlame =
+{
+    float dx = max(0, max(lo_x - o_x, o_x - hi_x));
+    float dy = max(0, max(lo_y - o_y, o_y - hi_y));
+    if(dx > r || dy > r)
+    {
+        return FALSE;
+    }
+    float dz = max(0, max(lo_z - (o_z + z1), (o_z + z0) - hi_z));
+    return dx * dx + dy * dy + dz * dz <= r * r;
+};
+
+vector vr_mb_fire; // the flame VR_Burn_MapBodyFlame found
+float(entity e, vector o, float kind) VR_Burn_MapBodyFlame =
+{
+    float z0 = 0;
+    float z1 = 12;
+    float r = 3;
+    if(kind == 1)      { z1 = 32; r = 6.5; } // (the player's sizes, VR_Burn_MapContact; 2 more round)
+    else if(kind == 2) { z0 = 1; z1 = 16; r = 2.2; }
+    if(!VR_Burn_BoxNearFlame(e.absmin, e.absmax, o, z0, z1, r + 2))
+    {
+        return FALSE;
+    }
+    vr_mb_fire = o + '0 0 1' * ((z0 + z1) * 0.5);
+    return TRUE;
+};
+
+void(entity e) VR_Burn_MapBodyLook =
+{
+    float body = isragdoll(e) || e.vr_corpse || e.vr_corpse_dying || e.health <= 0;
+    if(e.vr_gib || !e.modelindex || VR_Burn_Fireproof(e) || e.vr_deathdoll != world || (!body && e.enemy == world))
+    {
+        return;
+    }
+    if(e.burn_fire != world && e.burn_fire.burn_end > time + 1)
+    {
+        return; // (burning on: lit again only as it is about to go out)
+    }
+    float got = FALSE;
+    float i;
+    for(i = 0; i < vr_fire_spots && !got; i++)
+    {
+        vector o = vr_fire_spot[i];
+        float kind = vr_fire_spot_large[i]; // (one array read a statement: the getters clobber vector arguments)
+        if(kind != 3) // (a candle: nails only, as for the player)
+        {
+            got = VR_Burn_MapBodyFlame(e, o, kind);
+        }
+    }
+    entity t;
+    for(t = find(world, classname, "light_torch_small_walltorch"); t && !got; t = find(t, classname, "light_torch_small_walltorch"))
+    {
+        if(t.wt_state == 0 && t.wt_fire > 0 && t.modelindex)
+        {
+            got = VR_Burn_MapBodyFlame(e, t.origin, 2);
+        }
+    }
+    for(t = findflags(world, vr_flameprop, 3); t && !got; t = findflags(t, vr_flameprop, 3))
+    {
+        if(t.carry_player == world && VR_Throw_Thrower(t) == world)
+        {
+            got = VR_Burn_MapBodyFlame(e, t.origin, t.vr_flameprop == 2 ? 1 : 0);
+        }
+    }
+    if(!got || VR_Burn_InWater((e.absmin + e.absmax) * 0.5))
+    {
+        return;
+    }
+    vector at;
+    at_x = max(e.absmin_x, min(vr_mb_fire_x, e.absmax_x));
+    at_y = max(e.absmin_y, min(vr_mb_fire_y, e.absmax_y));
+    at_z = max(e.absmin_z, min(vr_mb_fire_z, e.absmax_z));
+    if(e.burn_fire == world)
+    {
+        dprint(sprintf("burning: %s (%s) touches a map flame at %v: catches fire\n", e.classname,
+            e.health > 0 ? (isragdoll(e) ? "a ragdoll, alive" : "alive") : (isragdoll(e) ? "a ragdoll" : "a corpse"), vr_mb_fire));
+    }
+    VR_Burn_Ignite(e, world, at, at - vr_mb_fire, VR_BURN_TOUCH);
+};
+
+void() VR_Burn_MapBodiesFrame =
+{
+    if(cvar("vr_burn_map_monsters") <= 0)
+    {
+        return;
+    }
+    if(vr_fire_spots <= 0 && find(world, classname, "light_torch_small_walltorch") == world &&
+       findflags(world, vr_flameprop, 3) == world)
+    {
+        return; // (no fire in the map)
+    }
+    entity e = vr_burn_mapbody_next;
+    if(e == world || !(e.flags & FL_MONSTER))
+    {
+        e = findflags(world, flags, FL_MONSTER);
+    }
+    for(float k = 0; k < 3 && e; k++)
+    {
+        VR_Burn_MapBodyLook(e);
+        e = findflags(e, flags, FL_MONSTER);
+    }
+    vr_burn_mapbody_next = e;
+};
+
 // Wood in lava (NOTES.md start_2026-10-07_23-42-39; vr_burn_lava): a crate, a barrel or a piece of one whose bottom is
 // in lava catches fire there (and burns its time on in it: VR_Burn_Think puts a fire out in water and slime, not lava).
 // Looked at every VR_BURN_LAVA_LOOK s.

@@ -437,6 +437,13 @@ const DefaultChange defaultChanges[] = {
     // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
     // scorch marks").
     {186, &vr_adgun_fx_scorch, "0"}, // 1
+    // 187: the rocket soldier's dropped launcher holds 4 rockets (the author's 2026-10-23 note; ROUND22.md, "Mini bosses").
+    {187, &vr_adgun_rocket_ammo, "5"}, // 4
+    // 188: the author's values (his config of 2026-10-23, voice notes vrfiringrange_2026-10-23_01-16-39 and
+    // vrtesthall_2026-10-23_01-47-31): the death menu later, the seated hip holsters a little out (ROUND22.md, "Death
+    // menu delay, Vomit Mode, Holster Calibration on VR Settings, smoothed view text, bullet time's empty notice").
+    {188, &vr_death_menu_delay, "2"},      // 5
+    {188, &vr_hip_holster_seated_y, "-3"}, // 1.25
     // 189: the shoulder charge with the hands a bit above the chest (his takes of 2026-10-23: the hands low, the head
     // down less, side-on as the two meet) and his run-up (ROUND22.md, "Shoulder charge: hands above the chest").
     {189, &vr_kdtrig_tackle_runup, "1.5"}, // 0.5

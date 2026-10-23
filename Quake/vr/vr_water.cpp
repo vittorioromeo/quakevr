@@ -1954,6 +1954,9 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // The shoreline foam (vr_water_foam); the scene's distances for the refraction and the foam (VR_WaterSceneDepth:
     // made as liquids draw), if the scene's depth can be read.
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
+    r_framedata.foam[0] = za::clamp(vr_water_foam_opacity.value, 0.f, 1.5f);
+    r_framedata.foam[1] = za::clamp(vr_water_foam_frequency.value, 0.25f, 4.f);
+    r_framedata.foam[2] = za::clamp(vr_water_foam_strength.value, 0.25f, 3.f);
     envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
     VR_PortalFrameData(r_framedata.portalplane, r_framedata.portalmin, r_framedata.portalmax); // teleporters (vr_portals.cpp)
     r_framedata.teleportlook[0] = vr_teleporters.value > 0.f ? za::clamp(

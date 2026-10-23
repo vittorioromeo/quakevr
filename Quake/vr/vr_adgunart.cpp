@@ -11,6 +11,8 @@
 
 #include "vr_adguns.hpp"
 
+#include "vr_units.hpp"
+
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -1352,6 +1354,85 @@ void meshStats(const Build& b, MeshStats& s, bool verbose)
     }
 }
 
+// The build written as a one-skin, one-frame alias model (out.file, its box and counts), packed from `from` (or from
+// lower, where a vertex lies past it).
+void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField, const char* frame, Built& out)
+{
+    glm::vec3 lo = from, hi{-1e30f};
+    float radius = 0.f;
+    for(const Vert& v : b.verts)
+    {
+        lo = glm::min(lo, v.p);
+        hi = glm::max(hi, v.p);
+        radius = za::max(radius, glm::length(v.p));
+    }
+    out.lo = lo;
+    out.hi = hi;
+    const glm::vec3 pack = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
+
+    za::Vector<byte>& f = out.file;
+    f.clear();
+    put(f, IDPOLYHEADER);
+    put(f, ALIAS_VERSION);
+    putf(f, pack.x);
+    putf(f, pack.y);
+    putf(f, pack.z);
+    putf(f, lo.x);
+    putf(f, lo.y);
+    putf(f, lo.z);
+    putf(f, radius);
+    putf(f, 0.f);
+    putf(f, 0.f);
+    putf(f, 0.f);
+    put(f, 1); // one skin
+    put(f, b.skinW);
+    put(f, b.skinH);
+    put(f, static_cast<int>(b.verts.size()));
+    put(f, static_cast<int>(b.tris.size()));
+    put(f, 1); // one frame
+    put(f, 0);
+    put(f, flags);
+    putf(f, sizeField);
+    put(f, 0); // a single skin
+    f.emplaceBackRange(b.skin.data(), b.skin.size());
+    for(const Vert& v : b.verts)
+    {
+        put(f, v.seam ? ALIAS_ONSEAM : 0);
+        put(f, v.s);
+        put(f, v.t);
+    }
+    for(const Tri& t : b.tris)
+    {
+        put(f, t.front);
+        put(f, t.v[0]);
+        put(f, t.v[1]);
+        put(f, t.v[2]);
+    }
+    put(f, 0); // a single frame
+    byte bmin[4] = {255, 255, 255, 0}, bmax[4] = {0, 0, 0, 0};
+    za::Vector<byte> packed;
+    for(const Vert& v : b.verts)
+    {
+        byte q[4];
+        for(int c = 0; c < 3; c++)
+        {
+            q[c] = static_cast<byte>(za::clamp(static_cast<int>((v.p[c] - lo[c]) / pack[c] + 0.5f), 0, 255));
+            bmin[c] = za::min(bmin[c], q[c]);
+            bmax[c] = za::max(bmax[c], q[c]);
+        }
+        q[3] = nearestNormal(v.n);
+        packed.emplaceBackRange(q, 4);
+    }
+    f.emplaceBackRange(bmin, 4);
+    f.emplaceBackRange(bmax, 4);
+    char frameName[16] = {};
+    strncpy(frameName, frame, sizeof(frameName) - 1);
+    f.emplaceBackRange(reinterpret_cast<const byte*>(frameName), 16);
+    f.emplaceBackRange(packed.data(), packed.size());
+    out.verts = static_cast<int>(b.verts.size());
+    out.tris = static_cast<int>(b.tris.size());
+}
+
 [[nodiscard]] bool makeVariant(int variant, const byte* src, size_t size, const byte* rockSrc, size_t rockSize, Built& out,
     const char*& why, MeshStats* stats)
 {
@@ -1414,80 +1495,9 @@ void meshStats(const Build& b, MeshStats& s, bool verbose)
     }
 
     // Packed from the rifle's corner (its settings' scale_origin) whenever no add-on goes past it.
-    glm::vec3 lo = corner, hi{-1e30f};
-    float radius = 0.f;
-    for(const Vert& v : b.verts)
-    {
-        lo = glm::min(lo, v.p);
-        hi = glm::max(hi, v.p);
-        radius = za::max(radius, glm::length(v.p));
-    }
-    out.cornerKept = lo == corner;
-    out.lo = lo;
-    out.hi = hi;
+    writeMdl(b, corner, m.flags, m.sizeField, "gun", out);
+    out.cornerKept = out.lo == corner;
     out.muzzle = glm::vec3{33.1463f, 0.0159f, 8.0776f}; // (slot 21's: the rifle's own)
-    const glm::vec3 pack = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
-
-    za::Vector<byte>& f = out.file;
-    f.clear();
-    put(f, IDPOLYHEADER);
-    put(f, ALIAS_VERSION);
-    putf(f, pack.x);
-    putf(f, pack.y);
-    putf(f, pack.z);
-    putf(f, lo.x);
-    putf(f, lo.y);
-    putf(f, lo.z);
-    putf(f, radius);
-    putf(f, 0.f);
-    putf(f, 0.f);
-    putf(f, 0.f);
-    put(f, 1); // one skin
-    put(f, b.skinW);
-    put(f, b.skinH);
-    put(f, static_cast<int>(b.verts.size()));
-    put(f, static_cast<int>(b.tris.size()));
-    put(f, 1); // one frame
-    put(f, 0);
-    put(f, m.flags);
-    putf(f, m.sizeField);
-    put(f, 0); // a single skin
-    f.emplaceBackRange(b.skin.data(), b.skin.size());
-    for(const Vert& v : b.verts)
-    {
-        put(f, v.seam ? ALIAS_ONSEAM : 0);
-        put(f, v.s);
-        put(f, v.t);
-    }
-    for(const Tri& t : b.tris)
-    {
-        put(f, t.front);
-        put(f, t.v[0]);
-        put(f, t.v[1]);
-        put(f, t.v[2]);
-    }
-    put(f, 0); // a single frame
-    byte bmin[4] = {255, 255, 255, 0}, bmax[4] = {0, 0, 0, 0};
-    za::Vector<byte> packed;
-    for(const Vert& v : b.verts)
-    {
-        byte q[4];
-        for(int c = 0; c < 3; c++)
-        {
-            q[c] = static_cast<byte>(za::clamp(static_cast<int>((v.p[c] - lo[c]) / pack[c] + 0.5f), 0, 255));
-            bmin[c] = za::min(bmin[c], q[c]);
-            bmax[c] = za::max(bmax[c], q[c]);
-        }
-        q[3] = nearestNormal(v.n);
-        packed.emplaceBackRange(q, 4);
-    }
-    f.emplaceBackRange(bmin, 4);
-    f.emplaceBackRange(bmax, 4);
-    char frameName[16] = "gun";
-    f.emplaceBackRange(reinterpret_cast<const byte*>(frameName), 16);
-    f.emplaceBackRange(packed.data(), packed.size());
-    out.verts = static_cast<int>(b.verts.size());
-    out.tris = static_cast<int>(b.tris.size());
     return true;
 }
 
@@ -1522,7 +1532,73 @@ void meshStats(const Build& b, MeshStats& s, bool verbose)
     return ok;
 }
 
+// The fuel tank lying about (tankFile): the back tank's bottle (vr_adtank.cpp buildTank's profile, metres: 6 cm round,
+// 27 cm tall, a 3 cm outlet neck under it, a valve on top), upright along +z round its body's middle (the origin).
+constexpr float tankRadiusM = 0.06f, tankHeightM = 0.27f, tankNeckM = 0.03f;
+
+void makeTank(int variant, Built& out)
+{
+    Build b;
+    b.skinW = 64;
+    b.skinH = 16;
+    b.skin.resize(static_cast<za::SizeT>(b.skinW * b.skinH), static_cast<byte>(0));
+    b.winding = -1.f; // (Quake's: a triangle's corners clockwise seen from outside)
+    const Rect body{0, 0, 32, 16}, band{32, 0, 16, 16}, metal{48, 0, 16, 16};
+    const glm::vec3 colour = variant == Pyro ? glm::vec3{0.62f, 0.13f, 0.07f} : glm::vec3{0.24f, 0.46f, 0.12f};
+    paintRect(b, body, 1.f, 1.f, [&](float, float) { return paint(colour); });
+    paintRect(b, band, 6.f, 2.f, [&](float u, float v) {
+        return paint(fmodf(u + v, 1.f) < 0.5f ? glm::vec3{0.86f, 0.66f, 0.1f} : glm::vec3{0.08f, 0.07f, 0.05f});
+    });
+    paintRect(b, metal, 1.f, 1.f, [&](float, float) { return paint(glm::vec3{0.3f, 0.3f, 0.32f}); });
+    const float u = units::metresToUnits(), r = tankRadiusM * u, h = tankHeightM * u, neck = tankNeckM * u;
+    // (height from the body's bottom, radius; each segment painted with its first corner's rect)
+    const Turn profile[] = {{-neck, 0.f, &metal}, {-neck, 0.016f * u, &metal}, {-0.004f * u, 0.016f * u, &body},
+        {0.f, 0.55f * r, &body}, {0.014f * u, 0.9f * r, &body}, {0.03f * u, r, &body}, {0.11f * u, r, &band},
+        {0.16f * u, r, &body}, {h - 0.035f * u, r, &body}, {h - 0.012f * u, 0.82f * r, &body}, {h, 0.45f * r, &metal},
+        {h, 0.2f * r, &metal}, {h + 0.022f * u, 0.2f * r, &metal}, {h + 0.022f * u, 0.42f * r, &band},
+        {h + 0.032f * u, 0.42f * r, &band}, {h + 0.032f * u, 0.f, nullptr}};
+    lathe(b, glm::vec3{0.f, 0.f, -h * 0.5f}, glm::vec3{0.f, 0.f, 1.f}, profile, static_cast<int>(sizeof(profile) / sizeof(profile[0])), 12);
+    writeMdl(b, glm::vec3{1e30f}, 0, 4.f, "tank", out);
+}
+
 } // namespace
+
+int tankVariantOf(const char* name)
+{
+    const char* at = name ? strstr(name, tankSuffix) : nullptr;
+    if(!at)
+    {
+        return -1;
+    }
+    const char* d = at + strlen(tankSuffix);
+    return (d[0] == '0' + Pyro || d[0] == '0' + Fumigator) && d[1] == 0 ? d[0] - '0' : -1;
+}
+
+byte* tankFile(const char* name, unsigned int* path_id)
+{
+    const int variant = tankVariantOf(name);
+    if(variant < 0)
+    {
+        return nullptr;
+    }
+    Built b;
+    makeTank(variant, b);
+    byte* out = static_cast<byte*>(VR_HeapMalloc(b.file.size() + 1));
+    memcpy(out, b.file.data(), b.file.size());
+    out[b.file.size()] = 0;
+    com_filesize = static_cast<int>(b.file.size());
+    if(path_id)
+    {
+        *path_id = 0;
+    }
+    Con_DPrintf("AD fuel tank model: %s made: %d triangles, %d vertices\n", name, b.tris, b.verts);
+    return out;
+}
+
+glm::vec3 tankOutlet()
+{
+    return glm::vec3{0.f, 0.f, -(tankHeightM * 0.5f + tankNeckM) * units::metresToUnits()};
+}
 
 int variantOf(const char* name)
 {

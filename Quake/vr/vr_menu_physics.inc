@@ -650,7 +650,14 @@
         slider("Flame's Reach for Nails", vr_burn_nail_reach, 2.f, 30.f, 1.f, "%.0f").extend(0.f, 80.f)
             .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
         slider("Nail Sizzle Volume", vr_burn_nail_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Volume of the short fizz a nail makes as it catches fire in a torch's flame (0 off)."),
+            .help("Volume of the short fizz a nail makes as it catches fire in a torch's flame, and of fire hissing out "
+                  "in water (0 off)."),
+        toggle("Map Flames Burn Monsters", vr_burn_map_monsters)
+            .help("Monsters awake, ragdolls and corpses touching the map's flames (flames, braziers, wall torches, the "
+                  "toolgun's) catch fire, as you do."),
+        toggle("Water Puts Fire Out", vr_burn_water_douse)
+            .help("A flamethrower's flames going into water or slime go out in a puff of steam; a lava nail going in "
+                  "becomes a plain nail."),
         slider("Crackle Volume", vr_burn_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("A burning monster, corpse or crate crackles as a wall torch does, heard close by, quieter as its flames "
                   "die (0 off)."),

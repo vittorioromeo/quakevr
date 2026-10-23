@@ -113,6 +113,16 @@
         toggle("Fuel Hose Avoids the Arms", "vr_adgun_hose_arms")
             .help("The hose kept out of your drawn arms (the upper arm and forearm as capsules), going round them. Off: "
                   "it passes through them (to compare; Fuel Hose Info measures how deep)."),
+        command("Poison Sprayer Lying With Its Tank", "vr_ad_test 158")
+            .help("A poison sprayer made lying 2 m ahead (as the toolgun's spawner makes one), its tank beside it, roped "
+                  "and hosed to it (Arcane Dimensions' Guns > Tank Lying About)."),
+        command("Kick the Nearest Fuelled Gun", "vr_ad_test 159")
+            .help("The flamethrower or sprayer lying nearest you kicked hard sideways: its rope drags its tank after it "
+                  "(Fuel Hose Info: the rope's length and how far apart they are)."),
+        command("Fuel Tanks Count", "vr_ad_test 150")
+            .help("In the console: the tanks lying about, the fuelled guns lying about, the pairs, tanks without their gun "
+                  "and guns without a tank (both 0 when right), each pair's distance; Fuel Hose Info has the ropes and the "
+                  "world hoses."),
         command("Melee Weapons Dropped: Death Fury", "vr_ad_test 110")
             .help("Destructive: the death fury nearest you killed; its two swords lie, go into both hands and strike a "
                   "target, one hand and two (admelee: lines). 111-115 (console): the death knight, zombie knight, death "

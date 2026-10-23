@@ -589,6 +589,7 @@ void() StartFrame =
     MGH_TestFrame();
     MG3_Frame();
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
+    VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
@@ -632,6 +633,8 @@ void() StartFrame =
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
     VR_Burn_LavaFrame(); // VR: wood in lava catches fire (vr_burning.qc)
+    VR_Burn_MapBodiesFrame(); // VR: monsters and bodies touching the map's flames catch fire (vr_burning.qc)
+    VR_Burn_LavaNailsWater(); // VR: lava nails going into water are put out (vr_burning.qc)
     VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
     VR_Throw_SelfFrame(); // VR: things you threw hurt you once vr_throw_self_grace is over (vr_carry.qc)
     framecount = framecount + 1;

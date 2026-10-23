@@ -101,6 +101,11 @@ struct SeedTable
                              // so alike that the motion clusters mix them (rig.py's "wholepieces", "pN")
     bool looseWeapons{false}; // every piece but the body loose (one loose bone, hidden in the ragdoll: Rig::hideLoose):
                               // the player's axe and gun, in his hands or on his back by the frame (rig.py LOOSE_PIECES)
+    bool loosePerPiece{false}; // each loose piece a loose bone of its own (not one for them all): the death fury's two
+                               // swords, one in each hand, each welded to its own hand when knocked down
+    bool looseKept{false}; // every piece but the body loose though no frame hides it: drawn and held (welded in its hand)
+                           // while it lives, gone from its dead ragdoll (the zombie knight's blade: it drops it, and its
+                           // falls are its knockdown's, no death frames to hide it in)
 };
 
 // Quake VR's grunt (quakevr/progs/soldier.mdl: 555 vertices, 120 frames). The rest pose: x forward, y left, z up; he
@@ -1092,12 +1097,16 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             }
             hidden = za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < 0.5f;
         }
-        if(hidden || table.looseWeapons)
+        if(hidden || table.looseWeapons || table.looseKept)
         {
             isLoose[static_cast<za::SizeT>(id)] = 1;
             loosePieces.pushBack(id);
         }
     }
+
+    // The loose bones: one for them all, or one each (loosePerPiece; never past maxBones).
+    const int looseBones = loosePieces.empty() ? 0
+                           : table.loosePerPiece ? za::min(static_cast<int>(loosePieces.size()), maxBones - table.count) : 1;
 
     // The motion clusters: the farthest trajectories as the first centres, then each representative to its nearest
     // centre, then refined by the clusters' rigid motion.
@@ -1233,7 +1242,16 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     {
         if(isLoose[static_cast<za::SizeT>(piece[static_cast<za::SizeT>(v)])])
         {
-            label[static_cast<za::SizeT>(v)] = table.count;
+            // (Its own loose bone with loosePerPiece: the pieces in their order, the last ones sharing the last bone.)
+            int k = 0;
+            if(table.loosePerPiece)
+            {
+                while(k < static_cast<int>(loosePieces.size()) && loosePieces[static_cast<za::SizeT>(k)] != piece[static_cast<za::SizeT>(v)])
+                {
+                    k++;
+                }
+            }
+            label[static_cast<za::SizeT>(v)] = table.count + za::min(k, looseBones - 1);
         }
     }
     // A bone no cluster went to (its seed's middle in the weapon its hand held when the table was measured, the weapon
@@ -1241,7 +1259,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     // vertices past its pivot (away from the parent's), the motions' refining then moving the boundary.
     adoptPastPivot(m, moving, table, label);
     rig.boneRms = refine(m, moving, label, table.count, 40, t);
-    const int numBones = table.count + (loosePieces.empty() ? 0 : 1);
+    const int numBones = table.count + looseBones;
     for(int b = 0; b < table.count; b++)
     {
         if(t.members[static_cast<za::SizeT>(b)] < 3)
@@ -1378,6 +1396,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
     const SeedTable& tb = table;
     rig.hideLoose = tb.looseWeapons;
+    rig.looseInHands = tb.loosePerPiece || tb.looseKept;
     // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
     // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
     // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
@@ -1417,7 +1436,8 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 // The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
 // which seed table it is.
 
-constexpr unsigned rigVersion = 3; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's)
+constexpr unsigned rigVersion = 5; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's;
+                                   // 5: the death fury's two loose swords, the zombie knight's kept blade, in their hands)
 const za::String rigBuild = [] {
     const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
     return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
@@ -1548,6 +1568,7 @@ bool rigFields(S& s, Rig& r)
     s.pod(r.deathFirst);
     s.pod(r.deathLast);
     s.pod(r.hideLoose);
+    s.pod(r.looseInHands);
     s.pod(r.clusterRms);
     s.pod(r.boneRms);
     return true;

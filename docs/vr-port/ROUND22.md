@@ -16720,3 +16720,248 @@ where the fire licks, and the frame stays smooth (Debug > Profiling > Log Next 3
 
 **In VR:** swing a crate's plank through a grunt's shins: it should break and sweep him down. Slam a held grunt's head
 on the floor a few times and say whether it hurts enough (the numbers above).
+
+## Fuel tanks lying about; one back tank for every fuelled gun carried (worktree `tghost`, branch `agent/tankhose`, 2026-10-23)
+
+His voice note (vrmelee-recording_2026-10-23_01-06-09): the pyro's flamethrower and the fumigator's poison sprayer lying
+about always have their tank beside them, joined by a visible hose (the player's hose system) and a Box3D rope; the tank
+is a prop a hand can drag but not force grab, and dragging either drags the other. In a hand the tank is on the back
+(as before); dropping the gun drops the tank with it; holstered guns get a hose to the back tank; several fuelled guns
+carried share one back tank, the last held one's.
+
+- **The tank lying about** (QC `vr_ad_enemyguns.qc`, "Fuel tanks"): `CreateThrownWeapon` (every gun made lying about:
+  a player's drop or throw, a monster's death drop, the toolgun's spawner) calls `VR_FuelTank_Attach`: a fuelled gun
+  gets a `vr_fueltank` entity, model `progs/vr_fueltank.mdl#6` (red) or `#7` (green), `vr_rigid` (a Box3D prop),
+  `.vr_prop_mass` `vr_adgun_tank_mass` (3 kg), carried by a hand (`VR_Carry_Setup`; no `FL_FORCEGRABBABLE`: no force
+  grab). Placed off the dropper's back (a player: 10 units behind his origin, his velocity, `.owner` him for a second so
+  it leaves his body), behind a monster, or beside the gun (any other maker: the spawner, an older save's gun). Gun and
+  tank name each other by `.vr_fuellink` (saved with the game); the tank's `.owner` is its gun after that (Box3D's
+  contact filter: they never collide, the rope holds them). The tank thinks every frame and goes when its gun is no
+  longer its gun lying about (taken into a hand, removed, capped, freed: `modelindex` 0), or `vr_adgun_tank_world` is 0.
+  `VR_FuelTank_Frame` (StartFrame, every 0.5 s) gives a tank to any fuelled gun lying about without one (an older save,
+  a tank removed by the toolgun).
+- **The model** (`vr_adgunart.cpp` `makeTank`, `adguns::tankFile`): the back tank's own profile (6 cm round, 27 cm tall,
+  a neck under it, a valve) turned as an alias model, 12 sides, 336 triangles, a 64 x 16 skin (the colour, a hazard
+  band, metal), round its body's middle; the writer of the gun variants (`writeMdl`, split out of `makeVariant`).
+- **The rope** (`vr_box3d.cpp` `syncFuelRopes`, each step after the toolgun's joints): each tank and its gun found
+  again from their `.vr_fuellink` (a saved game, a new world, a body made again when a hand carries either: its joint
+  made again); a Box3D distance joint between their origins, slack up to `vr_adgun_tank_rope` (0.9 m; or as far apart
+  as they are when it is made, plus 2 cm), no spring. `box3d::forEachFuelRope` lists them (the hose, the info).
+- **The world hose** (`vr_adtank.cpp` `setupWorld`/`stepWorld`): each rope within 15 m of the eyes (the nearest 8) a
+  hose from the tank's outlet to the gun's inlet, 22 Verlet points, as long as the rope plus both ends' reach from the
+  bodies' middles (never stretched by the rope), falling and lying on the world (`verlet::collide`), the player's cord
+  and colours; left as it lies once both ends have stayed still for 90 steps. A listen server's (it reads the server's
+  ropes).
+- **Carried** (`vr_adtank.cpp`): one tank on the back while any fuelled gun is in a hand or a drawn holster; its colour
+  the gun last taken into a hand (both at once: the main hand's), kept while that kind is carried. Each hand's gun has
+  its hose through the hip or shoulder clip as before (no more two tanks side by side); each holstered one
+  (`view::holsterGun`) a hose straight from the tank (the torso and arms kept out). `vr_adgun_hose_holstered` 1 (0: the
+  hands' only). The mirror image draws them all.
+- **Settings** (VR Settings > Combat > Enemy Weapons > Arcane Dimensions' Guns): Holstered Guns' Hoses, Tank Lying
+  About (`vr_adgun_tank_world` 1), Tank Rope (`vr_adgun_tank_rope` 0.9 m), Tank Weight (`vr_adgun_tank_mass` 3 kg). Debug
+  > Tests > Arcane Dimensions Monsters: Poison Sprayer Lying With Its Tank (`vr_ad_test 158`), Kick the Nearest Fuelled
+  Gun (159), Fuel Tanks Count (150). `vr_adgun_hose_info` now also prints the back tank, every carried hose, and the
+  world: the server's tanks, fuelled guns, pairs, orphan tanks, guns without a tank, ropes (joined), and each rope's
+  most, the distance apart and its hose.
+- **Tests** (`vr_ad_test 150`..`160`, `vr_ad_enemyguns_test.qc`; one `vr_ad_test` a frame: it is a cvar read once a
+  frame), e1m1, headless; scripts `scratch/t1.sh`..`t7.sh`:
+  - drop from the hand (151, 153): 1 tank made off the back, 1 pair, 0 orphans, rope joined, 0.40 m apart; the back
+    tank gone. Taken again (155): the tank goes the next frame, 0 tanks, the back tank back.
+  - two guns in the hands and two holstered (151, 152, 156): one back tank (variant 7, the sprayer, taken last), three
+    hoses (the left shoulder holster isn't drawn: no hose); the main hand's dropped: 1 world tank, the back keeps 2.
+  - save and load with a tank lying about: 1 tank (not 2), its rope joined again; `changelevel e1m2` holding the
+    sprayer: 0 world tanks, the back tank on; dropped there: 1 pair, joined.
+  - a dead pyro's drop (`vr_test_spawn 232; impulse 241; vr_test_kill 1`): its tank made behind it, 2 pairs with the
+    spawner's sprayer, 0 orphans.
+  - kicked at 700 u/s (159): the rope held them within 0.92 m of 0.9 (in flight), 0.80 at rest; removed (157): its
+    tank went the next frame. The tank carried in a hand (160) lifted the sprayer: 0.88 m apart, joined.
+  - `vr_ad_test 71` (each AD gun dropped): 9 passed, 0 failed, 2 tanks, 2 pairs. `ad_import.py --check`: 0 of 142.
+  - cost: a resting world hose isn't stepped (0.002 ms a frame for two); a moving one about 0.01 ms; the rope sync one
+    pass over the edicts a step (an int read each).
+  - pictures (worktree `scratch/`): `tank_world.png` (the sprayer lying with its tank and hose; a pyro's drop),
+    `tank_carried.png` (one back tank, hoses to two hands and the hip holster), `tank_drop.png`, `tank_carry.png`.
+- **For him in VR**: drop a flamethrower and watch the tank fall off the back; drag the tank by hand (the gun follows)
+  and force grab the gun (the tank trails it); the hose's look lying and swinging; the holstered guns' hoses and the
+  one back tank's colour with two guns; Tank Rope's length.
+- **Not done / notes**: the world hose doesn't collide with props (the world only), and is a listen server's only (a
+  remote client sees the tank and rope, no hose); the tank model is built at the world scale at load. A map's
+  `func_weapon_grabbable` (a pickup spot) has no tank until its gun is taken and dropped. A better idea than the shared
+  tank, for him to consider: a two-cylinder pack (both colours side by side) when both kinds are carried, each kind's
+  guns hosed to its own cylinder.
+
+## Mini bosses: toughness against ragdoll cheese; Death Fury swords, zombie knight blade, crossbow bolt, toolgun bosses (worktree `release`, branch `agent/minibosses`, 2026-10-23; vr_cfg_version 187)
+
+The author's notes of 2026-10-23 (vrmelee-recording 01-09-55, 01-10-59; vrragtriggers 01-24-49 .. 01-39-21).
+
+- **Toughness, per monster group** (Combat > Monster Groups, a "Toughness" block on each group's page, and a page each
+  by action): four new settings, `vr_mgrp_<group>_kdscale` (every chance to knock it down times this: the shove's and
+  bash's, the ragdoll triggers', the hits' unbalancing knockdown, the stomp's, the leg sweep's; a sure one, over a ledge
+  or unaware or from behind, by this chance too: QC `VR_KD_Scale`, `VR_KD_SureRoll`; the engine's leg sweep rolls it),
+  `_downtime` (its own timer, `vr_knockdown_time_min`/`_max`, and `vr_knockdown_keep_max` and each hit's and hand's keep,
+  times this: `VR_KD_DownScale`), `_getup` (its get-up's frames' speed times this: QC `VR_Knockdown_Interval`, the
+  engine's active get-up `ri.fps` and the blended get-up's interval) and `_snapkills` (1: the neck snap kills; 0: its
+  neck holds: the crack, softer, and `vr_foegrab_necksnap_tough` of its full health as damage, 0.25; it fights on in the
+  hands, QC `VR_FoeGrab_NeckSnap` returns 2 as the dummy's). Every existing group 1, 1, 1, 1 (unchanged).
+- **Two new groups** (the death knights' settings otherwise): **Mini Bosses** (`miniboss`: kdscale 0.5, downtime 0.5,
+  getup 1.5, snapkills 0): AD's Dark Prince (`monster_dprince`), the minotaur (`monster_minotaur`, out of Giants: it was
+  never knocked down, no ragdoll triggers, no neck snap), the justice knight (`monster_justice`, AD's normal judicator,
+  and `monster_baron`, its old name: the author's "Justice Knight"). **Elite Knights** (`eliteknight`: kdscale 0.72,
+  getup 1.25, downtime 1, the neck snap still kills): the death fury and the death sergeant (my call: the neck snap kills
+  them; they are commoner than the mini bosses).
+- **Active ragdolls**: the minotaur and the justice knight (and baron) added to `vr_box3d_ragdoll.cpp` activeClasses
+  (their rigs were there: AdMinotaur, AdJustice). ad_active_test.py now includes them (215, 231) and sets
+  `vr_mgrp_miniboss_snapkills 1` for its neck check.
+- **Measured** (vrfiringrange, AD's data): a two-hand shove's chance, Dark Prince 0.07, death knight 0.13, death fury
+  0.09. Forced down with 4 s timers: the death knight's get-up due at 4.00 s, rising over 2.97 s; the Dark Prince's due
+  at 2.0 s, rising over 1.98 s. The Dark Prince's neck snapped: "its neck holds", 88 damage of 350.
+  ad_active_test.py 215 231 256 216 201: 15/15 PASS.
+- **The death fury's swords floated as a ragdoll**: every loose piece of a rig was one loose bone, welded to the part
+  nearest the middle of them all (between its two swords: its pelvis). `SeedTable::loosePerPiece` (QVR_AD_RIG_SPLIT,
+  the fury's rig): one loose bone per piece; `Rig::looseInHands`: each welded to the forearm nearest it in the rest pose
+  (its left sword hangs by its hip there). Now: "welded to its forearm_l", "welded to its forearm_r".
+- **The zombie knight's corpse kept its blade** (it drops it as a weapon now): no death frames to hide it in (its falls
+  are its knockdown's). `SeedTable::looseKept` (QVR_AD_RIG_KEPT): its blade a loose piece though no frame hides it, held
+  (welded to its right forearm) while it lives, gone from its dead ragdoll (killed down, or beheaded or cut: the existing
+  rules for loose pieces). rigVersion 5 (the rig cache).
+- **The death fury's head gib could not be resized while held**: the author's config had all 64 Held Object slots
+  claimed (`vr_prop_id_01` .. `_64`), so `progs/h_dfury.mdl` got none (props::claimSlot: -1). 80 slots now; slot 65
+  (index 64) ships `progs/h_dfury.mdl` at Size 0.65, a head's mass (configVersion 187 gives it to older configs).
+- **The AD crossbow's bolt held another way** (the off hand, a grip taken where the hand met it): the bolt was laid along
+  the shot computed from the hand's controller and the slot's own hold, not the drawn gun. It lies along the shot only
+  while that is within 3 degrees of the rail (`railShotCos`), else on the rail (`vr_adcrossbow.cpp` boltPose). Built,
+  not tested in a run (the mock has no off-hand grip of a two-hand gun to aim).
+- **The rocket soldier's dropped launcher** holds 4 rockets (`vr_adgun_rocket_ammo` 4; 5 before vr_cfg_version 187).
+- **Toolgun bosses**: AD's boss judicator (`monster_judicator`) and ice golem (`monster_icegolem`) wait for their map's
+  trigger: with no targetname their spawn functions leave an invisible marker ("Missing targetname name!"). The debug
+  spawner names them first and uses them after (`VR_AD_DispenserBossPrepare`, `_Wake`); the toolgun's live spawn
+  (`AD_SpawnLive_Finish` -> `VR_AD_LiveBossStart`) names one and runs its spawn function again, then wakes it. What AD
+  expects of the judicator: a targetname and a trigger; a tether point (made where it stands when none: "Generated
+  tetherpoint!"), four waves of 500 health (2000), summoning its gaunts at each; the ice golem: a statue woken by a
+  second use, five waves of 500, column-smash events (`monster_icegolem_wavetrig`) none here. Both woke in a run
+  ("[BOSS] Wave (1 / 4) HP (2000)", "(1 / 5) HP (2500)"), by impulse 241 and by `vr_toolgun_spawn_trace 98` / `96`.
+- **Backlog**: the death sergeant's mace as a usable weapon (BACKLOG.md, next to the Dark Prince's sword).
+
+**Suggested, not applied** (rare, strong humanoids; AD's own health, before Monster Health's cut): the death lord
+(`monster_death_lord`, 400, the fury's and the sergeant's: Elite Knights); the stone golem and the drole (500 each, the
+minotaur's: Giants, never knocked down now; Mini Bosses if they should go down at all). The justice knight has 600; the
+fury, the sergeant and the Dark Prince 400. How often each is placed in AD's maps was not counted (no map scan).
+
+**In VR:** shove, sweep and stomp the Dark Prince, the minotaur and the justice knight: about half as often down, up in
+about half the time and faster; twist their necks: they survive (a quarter of their health). The death fury and
+sergeant a little tougher. Knock the death fury down: a sword in each hand. Kill a zombie knight: no blade on its corpse.
+Hold the death fury's head: 0.65 of its size, and its Held Object page should change it. Hold the AD crossbow in the
+off hand: the bolt on the rail. Spawn the boss judicator and the ice golem from the toolgun: they wake and fight.
+
+## Toughness for the death lord, golem, drole (worktree `release`, branch `agent/tough2`, 2026-10-23)
+
+The Mini bosses' suggestion, approved by the author ("assuming they can be active ragdolled"). Group membership only:
+no setting's default changed, no configVersion bump.
+
+- **Death lord** (`monster_death_lord`, 400): Death Knights -> **Elite Knights**. It already was an active ragdoll.
+- **Stone golem** (`monster_golem`, 500) and **drole** (`monster_drole`, 500): Giants -> **Mini Bosses**, and both made
+  active ragdolls (`vr_box3d_ragdoll.cpp` activeClasses). Both rigs were already there (AdGolem: a humanoid's pelvis, chest,
+  head, arms and legs, 105 units tall; AdDrole: two legs, two raised scythes, two lower claws hanging from its hips) and
+  both already had QC knockdowns (their deaths backwards, `vr_ad_monsters.qc`). The drole is a biped, so it is not too
+  beast-like to be a Mini Boss. In Giants they were only ever pushed (shove 0.03, no triggers, no lift, no neck snap,
+  no sweep); now they get the Mini Bosses' settings.
+- **The golem's get-up is blended from the floor** (`ActiveClass::blendsUp`, the golem's alone): when its body rose
+  through its death played backwards, the pelvis lagged the get-up by 20-30 units (the minotaur's lags 13), and it lost
+  the get-up and slumped on the first try, twice in three runs (`riseLost`: 1 m). A stronger pin did not help
+  (`vr_ragdoll_active_getup_pin` 5: lost both tries). Its shove, stagger and fall stay active, and it then gets up
+  blended, like a ragdoll that is not active.
+- **Giants** has no members now. It is kept so its settings' names stay, and its menu help says "no monster now".
+- **ad_active_test.py**: now covers the golem (222, spawned 160 ahead, because at 64 the second golem stood on the first
+  one's corpse: "no room to stand"; its get-up checked as blended) and the drole (226). Run on 222 226 259 215:
+  12/12 PASS. With the shipped `vr_mgrp_miniboss_snapkills 0`, the golem's and the drole's necks hold (108 damage of
+  431 each).
+
+**In VR:** shove, sweep and stomp a stone golem and a drole. They go down half as often as a death knight (the shove's
+base 0.12 x 0.5; as Giants it was 0.03, with no sweep or ragdoll triggers). The drole rises with its body; the golem staggers and falls with its body, then blends up. Twist their necks:
+they survive. The death lord is a little tougher to knock down and gets up faster; its neck snap still kills.
+
+## Fire and water: scorches on every hit, map flames burn monsters, water douses fire, plasma arcs, foam sliders (worktree `gorefx`, branch `agent/firewater`, 2026-10-23)
+
+His notes vrragtriggers_2026-10-23_00-51-41, vrtesthall_2026-10-23_01-41-13 .. 01-43-54. New cvars only; no default
+changed (no configVersion bump).
+
+- **Flamethrower scorches on every hit.** Why they were rare: a flame (QC `vr_adflame`, size 0) is removed the moment it
+  touches a wall (VR_ADGun_FlameTouch), and the only scorches came from the stream's in-flight particles (Preset::AdFlame
+  every think, 12% of them, rate-limited, only within 12 units of a surface): a flame passes that close only flying
+  along a wall at a slant. Now the touch on the world or a brush sends Preset::AdFlameHit (23) at the contact point: a
+  scorch there every flame (vr_decals.cpp fromEffect; `vr_adgun_fx_scorch` under 1 the share, over 1 a little bigger),
+  16-26 units (was 9-15), each a little aside and drawn out (a ragged patch, not a stamped disc), and a tongue of fire
+  licking up off the wall (vr_particles.cpp). A spot already holding 6 of the last 24 hits takes no more (it is black;
+  the stream marks again as it moves). Baked at once into the permanent layer as before (bakeNow). Props: not marked
+  (decals are world-only). Measured (`scratch/fw_perf.sh`, e1m1, held on the side wall by the start, 500-frame logs,
+  `--exclusive`): scorch 0 vs 3 in one run, CPU mean 0.80 / 0.83 ms, p99 2.06 / 1.75, max 2.9 / 2.7 (103 scorches
+  baked); scorch 0 vs 1: 0.92 / 2.05 mean, the second log's spikes all `screen/swap` (6-31 ms, another game's GPU load:
+  no decal scope in any frame's top three). Look: `scratch/sc_wall1.png` (bottom left).
+- **Map flames burn monsters and bodies** (`vr_burn_map_monsters` 1; QC vr_burning.qc VR_Burn_MapBodiesFrame): a monster
+  awake, a ragdoll (alive or dead) or a corpse whose box comes within the flame's capsule (+2 units) of a fire spot
+  (flames, braziers, static wall torches; not candles), a lit torch on its wall or the toolgun's resting flame catches
+  fire (VR_Burn_Ignite, VR_BURN_TOUCH; lit again only as it is about to go out). A sleeping monster is left alone (a
+  mapper's monster by a brazier is not lit before you come). Fixed cost: three bodies a server frame in turn. Test aid:
+  `developer 1; vr_burn_test 15` (Debug > Burning Tests > Nearest Monster Into a Map Flame) sets the nearest monster
+  or body against the nearest flame. `map start`: a live grunt "(alive) touches a map flame ...: catches fire", then a
+  dead one's ragdoll "(a ragdoll) touches a map flame".
+- **Water puts fire out** (`vr_burn_water_douse` 1): a flamethrower flame (the player's) meeting water or slime is
+  removed at the surface (six halvings between its last two thinks) in a puff of white steam (Preset::Steam, 24) with a
+  hiss (the nail sizzle, at most every 0.12 s, Nail Sizzle Volume; the two sizzles now precached in every map); a lava
+  nail about to go in becomes a plain nail (its touch, model and damage; no glow, no trail) at the surface, steam and
+  hiss. vrfiringrange's pool from above (`scratch/fw_water.sh`): 13 flames "put out" at z -3.8 (the surface), 5 lava
+  nails likewise. The AD monsters' own flames (pyros) are AD's code (not patched): they still go through.
+- **Plasma bolts** (progs/proj_plasma.mdl: the Plasma Gun's, the plasma soldiers', centurions'): a flickering blue light
+  (vr_projectile_lights) and 3 small arcs a frame round each bolt, trailing back (vr_shock.cpp projectileArcs, the
+  electrocution's lines; `vr_adgun_plasma_fx` 0..3, AD Guns > Plasma Bolt Arcs). About 36 line quads a bolt.
+- **Foam sliders** (Graphics > water page, under Shoreline Foam): Foam Opacity `vr_water_foam_opacity`, Foam Frequency
+  `vr_water_foam_frequency` (the noise's scale: smaller, more patches), Foam Strength `vr_water_foam_strength` (its
+  reach from the shore). New frame-data vec4 `Foam` (vr_glsl.h, glquake.h `foam[4]`); 1/1/1 is the old look.
+- **Blood in water: backlog** (BACKLOG.md, "Blood in water"): the bloody surface needs a new liquid-shader input and
+  hooks in every blood source, the slowed sprays a water test in each of the gore's particle paths; a concrete plan is
+  there.
+
+**In VR:** hold the flamethrower on a wall, the floor and a crate (no mark on props), then sweep; spray it into water
+(steam, no flames under it) and shoot lava nails into water. Lure a grunt past a brazier, kill one next to it. Fire the
+Plasma Gun in a dark room. Tune the three foam sliders by a shore.
+
+## Death menu delay, Vomit Mode, Holster Calibration on VR Settings, smoothed view text, bullet time's empty notice, seated hips (worktree `gorefx`, branch `agent/small1023`, 2026-10-23; vr_cfg_version 188)
+
+From the author's voice notes of 2026-10-23 (vrfiringrange 01-16-39 and 01-18-00, vrragtriggers 01-28-41, vrstart
+01-23-46, vrtesthall 01-47-31, vrmelee-recording 01-14-52).
+
+- **Death menu later.** `vr_death_menu_delay` 2 -> 5 (his config). The Death Menu After slider (Saves and Autosaves)
+  now goes to 10 s.
+- **Seated hip holsters.** `vr_hip_holster_seated_y` -3 -> 1.25 (his config: a little out instead of in). His other
+  seated holster and pouch values already were the defaults. SEATED.md updated.
+- **Migration** at 188 (after 187, the mini bosses' rocket ammo): a config at the old value (2, -3) takes the new default, a
+  custom value stays. Checked: a config at 186 with both old values loads as 5 and 1.25 (and rocket ammo 4 from 187), version 188.
+- **Vomit Mode** (`vr_death_view_vomit`, 0; Advanced VR Options > Body, under Death View): dead, the view is the
+  ragdoll head bone's own, with the eyes where they are this frame and the bone's whole turn (pitch, yaw and roll). There
+  is no smoothing and no turn limit. Your own head's turns and steps are left out; only the eyes' spacing is kept, turned
+  with the bone. It overrides every Immersive row and works with Death View Third Person or Immersive (Off has no body).
+  Two things stay: a menu still eases the view out to Third Person's place (the death menu stays usable), and the short
+  fade-in as the view enters the head (`vr_death_view_fade`, it hides the jump) is kept. The help text warns. Checked
+  with `impulse 196` on e1m1: `vr_death_view_status` gives camera angles equal to the head bone's (51.4 106.3 -112.5,
+  then 48.3 102.6 -112.9 as it settles), the camera 1.0 unit from the eyes (half the eye spacing), Immersive's
+  0 90 0 with it off.
+- **Holster Calibration** is a page of VR Settings itself, under Calibration after Body and Equipment (was Body and
+  Equipment > Holsters). Its Back goes to VR Settings. Body and Equipment's help and Reset (still resets the holsters)
+  say so. SETTINGS.md, the Debug menu help and the comments were updated. `vr_menu_path_check`: vrcalibration 6 found 0
+  missing, vrtesthall 14 found 0 missing (neither board names the page).
+- **View text follows the head smoothly** (`vr_view_text_smooth`, 0.12 s; HUD and Menus > Messages > Messages in View:
+  Follow Smoothing). This covers the texts floating in front of you: the maps' view messages (VR Calibration's boards,
+  QC viewmessage), the calibration's steps and welcome, and Body Calibration's poses. They followed the head's yaw at
+  once. Now their yaw eases after it (`setup::viewTextYaw`, exponential, the time constant the setting). After half a
+  second with none shown, the next starts where you look. The head panel's centre prints had a fixed 0.1 s and now use
+  the same setting. Checked in vrcalibration with a 90 degree mock turn: 95.8, 121.6, 178.3 degrees after 1, 3 and 30
+  frames; at 0, instant. Debug > Reports: View Text Follow (`vr_view_text_status`).
+- **Bullet time's empty notice.** In earned bullet time (`vr_bullettime_meter_mode` 1), pressing bullet time with
+  too little in the meter (under `vr_bullettime_min`) plays the denied sound and also puts "Bullet time empty: hurt
+  enemies to refill" in the wrist gadget's hologram for 3 s (`gadget::notice`). It is not a notification, so there is
+  no waiting to be seen and no chime. It shows at most every 4 s, and a cooldown alone gives none. Without a hologram
+  (Status Bar HUD, or holograms off) it is a centre print. Checked: the meter at 0 and two presses give one notice
+  (`vr_gadget_info` now lists the hologram's messages: "2.9 s left"). Debug > Tools: Test Bullet Time Empty Notice.
+
+**In VR:** die with Vomit Mode on (Debug > Cheats > Die Now, Blown Back). Check that the death menu now opens after 5 s.
+Walk through VR Calibration and turn your head: the texts should trail a little. Find Holster Calibration on VR Settings'
+first page. Tap bullet time with an empty meter while looking at the gadget.

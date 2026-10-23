@@ -210,6 +210,9 @@ struct WeaponFrame
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
 [[nodiscard]] entity_t* holsteredWeapon(int stat);
+// The gun drawn in holster `index` (0 .. body::HolsterCount - 1, in no particular order) as placed this frame (null:
+// empty, a stand-in, not drawn): a fuelled gun's hose to the back tank (vr_adtank.cpp).
+[[nodiscard]] const ViewEntity* holsterGun(int index);
 // Where holster `stat` (body::Holster) itself was drawn last frame, empty or not: its model's origin, the loops a gun
 // hangs in (on the body, not the hand's reach point body::holsterPosition, which stands out of it). False: not placed.
 [[nodiscard]] bool holsterPoint(int stat, glm::vec3& at);
