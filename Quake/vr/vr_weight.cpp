@@ -942,13 +942,18 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
                 b.w = glm::vec3{0.f};
                 if(flipped)
                 {
-                    // The melee takes it for a jump, not a swing (the other put-backs, as they were: a hand's own jump
-                    // is one already).
+                    // The melee takes it for a jump, not a swing. (Once only the half turn: a hand's own jump was thought
+                    // one already, but the melee's own test misses one under 30 cm. Its target moved by the walls'
+                    // hold (a weapon slid along the floor, let go) or a frame's hitch put a lagging weapon back in the
+                    // hand at once, 20-25 cm in a frame: a blow at 3-4 times the hand's speed, a crate broken by one;
+                    // ROUND22.md, "Crates: one hit".)
                     b.jumpUntil = vr_gametime + jumpLatch;
                 }
                 if((snapped || flipped) && vr_debug_weight.value)
                 {
-                    Con_Printf("weight: %s put back in the hand\n", h == HAND_MAIN ? "main" : "off");
+                    Con_Printf("weight: %s put back in the hand (%s; %.1f cm, %.0f deg off; the hand %.2f m/s; snap %.0f cm)\n",
+                        h == HAND_MAIN ? "main" : "off", flipped ? "turned half round" : jumped ? "the hand jumped" : "too far behind",
+                        b.off.distance, b.off.angle, dt > 0.f ? glm::distance(xt, b.xt) / dt : 0.f, snap);
                 }
             }
             b.xt = xt;
