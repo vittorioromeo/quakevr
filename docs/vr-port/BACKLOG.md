@@ -478,10 +478,19 @@ All 21 recordings were transcribed and reviewed chronologically before triage. T
 
 - **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
 
-## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed, not built: agent/firewater)
+## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed by agent/firewater)
 
-Not simple enough for the round: both halves touch the water shader and the gore's many particle paths, and neither has
-a hook today. Concrete plan, cheap by construction:
+**Built** 2026-10-23 (branch `agent/bloodwater`; ROUND22.md, "Blood in water"): (a) as planned below (`vr_water_blood`,
+`vr_water_blood_time`), and (b)'s first step, one test a burst (his choice): no per-particle test. Left for later:
+- (b)'s per-particle surface crossing: a stream or spray made above the surface carried into it (a ragdoll half in;
+  `Particle::waterCheck`, every 4th frame a particle) turning to a cloud as it goes in. The streams already end their
+  points at the surface they pour into and bloom puffs there; the particles' sprays and drops from above still fall
+  through the water.
+- Underwater blood decals of their own (pools on a pool's floor under a corpse): only the gore rays' marks are smaller
+  and later under water now.
+- The clouds drifting with the swells or a current (they stay where they were let; only their noisy edge drifts).
+
+The plan as designed:
 
 - **(a) Bloody water surface.** A client-side list of up to 16 blood clouds on liquid surfaces, each {centre xy, surface
   z, radius, strength, born}, uploaded with the frame data as `vec4 BloodWater[16]` beside `RippleAt` (vr_glsl.h

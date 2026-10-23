@@ -17,6 +17,7 @@
 #include "vr_held.hpp"
 #include "vr_handrig.hpp"
 #include "vr_progs.hpp"
+#include "vr_water.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -636,6 +637,14 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
     masks[static_cast<za::SizeT>(layer)].painted = vr_gametime;
+    for(const Splat& s : splats)
+    {
+        if(s.v[2].x > 0.f && s.v[1].w != 3.f) // blood, not a liquid's line (bloodInWater)
+        {
+            masks[static_cast<za::SizeT>(layer)].bled = cl.time;
+            break;
+        }
+    }
     paintsTotal++;
 }
 } // namespace detail
@@ -1156,6 +1165,23 @@ struct Target
     glm::vec3 shift{0.f}; // the player's: where the body is drawn off the player's box (room-scale), added to the blow
 };
 
+// A body or a thing standing in water or slime (`surface` on its waterline) that blood was painted on lately (Mask::bled,
+// within 15 s): that blood in the water, a cloud there once a second (vr_water_blood), less the longer since.
+void bloodInWater(Mask& m, const glm::vec3& surface)
+{
+    if(cl.time - m.bloodCloud < 1.0 && cl.time >= m.bloodCloud)
+    {
+        return;
+    }
+    const float since = static_cast<float>(cl.time - m.bled);
+    if(since < 0.f || since >= 15.f)
+    {
+        return;
+    }
+    m.bloodCloud = cl.time;
+    water::addBloodAt(surface, 0.3f * (1.f - since / 15.f));
+}
+
 void onLiquid(Mask& m, const Event& ev)
 {
     m.waterline = ev.org.z;
@@ -1386,6 +1412,7 @@ void wound(const Target& t, const Event& ev)
                 break;
             }
             splats.pushBack(liquidSplat(ev.org.z, 30.f, 0.f, glm::vec4{0.f, 0.f, 1.f, 0.f}));
+            bloodInWater(m, ev.org);
             if(vr_wounds_wet.value)
             {
                 m.wetLeft = dryTime();
@@ -2935,6 +2962,10 @@ void washGear(float amount)
         if(waterSurface(at, 16.f, surface))
         {
             washUnder(i, const_cast<entity_t*>(m.ent), surface, amount);
+            if(surface <= at.z + 16.f) // (not under more of it)
+            {
+                bloodInWater(m, glm::vec3{at.x, at.y, surface}); // (a bloody prop afloat, a weapon dropped in)
+            }
         }
     }
 }

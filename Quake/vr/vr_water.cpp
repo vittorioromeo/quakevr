@@ -1703,6 +1703,251 @@ float rippleSpeed(int contents)
     return speed * (contents == CONTENTS_LAVA ? 0.35f : contents == CONTENTS_SLIME ? 0.7f : 1.f); // as LiquidRipples
 }
 
+// ----------------------------------------------------------------------------
+// Blood in the liquids (vr_water_blood): what bleeds into water or slime (addBlood: a hit, a gib's burst, a corpse, a
+// wounded body or you standing in it, a bloody prop washed) leaves a cloud on the surface above it, kept here (at most
+// kMaxBlood; a new one inside a living one strengthens that one instead, and the weakest gives way when all are taken)
+// and put in each view's frame data: its centre, the surface's height, its radius now (spreading as the square root of
+// its age, 8 units to 60 over 20 seconds, bigger for more blood) and its strength now (fading out over
+// vr_water_blood_time). The liquid shaders (vr_glsl.h, LiquidBlood) mix a dark red into the surface there.
+
+namespace
+{
+
+constexpr int kMaxBlood = 16; // vr_glsl.h's BloodAt
+constexpr float kMaxBloodStrength = 1.5f;
+
+struct BloodCloud
+{
+    glm::vec2 at{0.f};
+    float z = 0.f;
+    float size = 1.f;     // its radius's multiplier
+    float peak = 0.f;     // its strength as of `fadeFrom` (0: none)
+    double born = 0.0;    // (its spreading)
+    double fadeFrom = 0.0; // (its fading: from its last top-up)
+    const qmodel_t* world = nullptr;
+};
+za::Array<BloodCloud, kMaxBlood> bloodClouds;
+int bloodAdded = 0, bloodMerged = 0; // since the map began (vr_water_blood_info)
+
+[[nodiscard]] float bloodLife()
+{
+    return za::clamp(vr_water_blood_time.value, 2.f, 120.f);
+}
+
+// Its strength `t` on the client's clock (0: gone), without its first half second's rise.
+[[nodiscard]] float bloodStrength(const BloodCloud& c, double t)
+{
+    if(c.peak <= 0.f || c.world != cl.worldmodel)
+    {
+        return 0.f;
+    }
+    const float u = static_cast<float>(t - c.fadeFrom) / bloodLife();
+    return u >= 1.f ? 0.f : c.peak * za::pow(1.f - za::max(u, 0.f), 1.3f);
+}
+
+[[nodiscard]] float bloodRadius(const BloodCloud& c, double t)
+{
+    const float age = za::max(static_cast<float>(t - c.born), 0.f);
+    return c.size * (8.f + 52.f * za::sqrt(za::min(age / 20.f, 1.5f)));
+}
+
+[[nodiscard]] int liquidContents(const glm::vec3& p)
+{
+    vec3_t v{p.x, p.y, p.z};
+    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ? c : 0;
+}
+
+// Halving between a wet `wet` and a dry `dry` point (one above the other): the surface.
+[[nodiscard]] glm::vec3 halve(glm::vec3 wet, glm::vec3 dry)
+{
+    for(int i = 0; i < 6; i++)
+    {
+        const glm::vec3 mid = (wet + dry) * 0.5f;
+        (liquidContents(mid) ? wet : dry) = mid;
+    }
+    return (wet + dry) * 0.5f;
+}
+
+// This view's blood clouds into the frame data (the ones still there, packed).
+void fillBlood()
+{
+    int n = 0;
+    const float mult = za::clamp(vr_water_blood.value, 0.f, 2.f);
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s <= 0.f)
+        {
+            c.peak = 0.f; // gone (or a map's before this one)
+            continue;
+        }
+        if(mult <= 0.f)
+        {
+            continue;
+        }
+        const float rise = glm::smoothstep(0.f, 0.5f, static_cast<float>(cl.time - c.born));
+        float* at = r_framedata.bloodat[n];
+        at[0] = c.at.x;
+        at[1] = c.at.y;
+        at[2] = c.z;
+        at[3] = bloodRadius(c, cl.time);
+        r_framedata.bloodamp[n >> 2][n & 3] = s * rise * mult;
+        n++;
+    }
+    r_framedata.bloodinfo[0] = static_cast<float>(n);
+}
+
+} // namespace
+
+void addBloodAt(const glm::vec3& surface, float amount)
+{
+    if(vr_water_blood.value <= 0.f || !cl.worldmodel || amount <= 0.f)
+    {
+        return;
+    }
+    amount = za::min(amount, kMaxBloodStrength);
+    // Into a living one it falls in: that one stronger (its spreading goes on).
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s > 0.f && za::abs(c.z - surface.z) < 8.f && glm::distance(c.at, glm::vec2{surface}) < bloodRadius(c, cl.time) * 0.8f + 12.f)
+        {
+            c.peak = za::min(s + amount * 0.6f, kMaxBloodStrength);
+            c.fadeFrom = cl.time;
+            bloodMerged++;
+            return;
+        }
+    }
+    // Else in the place of the weakest now (one gone first).
+    BloodCloud* slot = &bloodClouds[0];
+    float weakest = 1e9f;
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s < weakest)
+        {
+            weakest = s;
+            slot = &c;
+        }
+    }
+    *slot = {glm::vec2{surface}, surface.z, za::clamp(za::sqrt(amount), 0.6f, 1.4f), amount, cl.time, cl.time, cl.worldmodel};
+    bloodAdded++;
+    if(developer.value >= 2)
+    {
+        Con_Printf("VR water blood: %.1f %.1f %.1f, %.2f\n", surface.x, surface.y, surface.z, amount);
+    }
+}
+
+bool addBlood(const glm::vec3& at, float amount, float above, float* surfaceZ)
+{
+    if(vr_water_blood.value <= 0.f || !cl.worldmodel || amount <= 0.f)
+    {
+        return false;
+    }
+    QVR_PROFILE("water blood");
+    glm::vec3 surface;
+    if(const int c = liquidContents(at))
+    {
+        if(c == CONTENTS_LAVA)
+        {
+            return true; // (in a liquid, none on it)
+        }
+        // Up to the surface, at most 192 units (deeper, or under a ceiling: none on it).
+        glm::vec3 wet = at;
+        bool found = false;
+        for(float d = 16.f; d <= 192.f && !found; d += 16.f)
+        {
+            const glm::vec3 q = at + glm::vec3{0.f, 0.f, d};
+            if(liquidContents(q))
+            {
+                wet = q;
+                continue;
+            }
+            vec3_t v{q.x, q.y, q.z};
+            if(Mod_PointInLeaf(v, cl.worldmodel)->contents != CONTENTS_EMPTY)
+            {
+                return true;
+            }
+            surface = halve(wet, q);
+            found = true;
+        }
+        if(!found)
+        {
+            return true;
+        }
+    }
+    else
+    {
+        // A little above a surface: blood falling onto it.
+        const glm::vec3 below = at - glm::vec3{0.f, 0.f, above};
+        const int c2 = above > 0.f ? liquidContents(below) : 0;
+        if(!c2 || c2 == CONTENTS_LAVA)
+        {
+            return false;
+        }
+        surface = halve(below, at);
+    }
+    if(surfaceZ)
+    {
+        *surfaceZ = surface.z;
+    }
+    if(VR_NoLiquidEffects(cl.worldmodel, &surface.x))
+    {
+        return true;
+    }
+    addBloodAt(surface, amount);
+    return true;
+}
+
+bool bloodInLiquid(const glm::vec3& at)
+{
+    return vr_water_blood.value > 0.f && cl.worldmodel && liquidContents(at) != 0;
+}
+
+void bloodTest_f()
+{
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 96.f;
+    const float amount = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 1.f;
+    // Down from that far ahead (at the eye's height) to the first liquid, 512 units at most.
+    const glm::vec3 ahead = eye + glm::vec3{fwd[0], fwd[1], 0.f} * dist;
+    for(float d = 0.f; d <= 512.f; d += 8.f)
+    {
+        const glm::vec3 p = ahead - glm::vec3{0.f, 0.f, d};
+        if(liquidContents(p))
+        {
+            const int before = bloodAdded + bloodMerged;
+            (void)addBlood(p, amount, 0.f);
+            Con_Printf("vr_water_blood_test: %s at %.0f %.0f %.0f\n", bloodAdded + bloodMerged > before ? "a cloud" : "none",
+                static_cast<double>(p.x), static_cast<double>(p.y), static_cast<double>(p.z));
+            return;
+        }
+    }
+    Con_Printf("vr_water_blood_test: no liquid below a point %.0f units ahead\n", static_cast<double>(dist));
+}
+
+void bloodInfo_f()
+{
+    int live = 0;
+    for(const BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s <= 0.f)
+        {
+            continue;
+        }
+        live++;
+        Con_Printf("  %.0f %.0f %.0f: radius %.1f, strength %.2f, %.1f s old\n", static_cast<double>(c.at.x),
+            static_cast<double>(c.at.y), static_cast<double>(c.z), static_cast<double>(bloodRadius(c, cl.time)),
+            static_cast<double>(s), cl.time - c.born);
+    }
+    Con_Printf("vr_water_blood_info: %d clouds (%d added, %d merged since the map began)\n", live, bloodAdded, bloodMerged);
+}
+
 namespace
 {
 
@@ -1869,6 +2114,7 @@ void sceneDepthChanged()
 void prepare()
 {
     const double t0 = Sys_DoubleTime();
+    bloodAdded = bloodMerged = 0; // (the clouds of the map before: gone by their world)
     ensureVolume();
     const double t1 = Sys_DoubleTime();
     (void)ensureMesh();
@@ -1945,6 +2191,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // the geometric waves' height (0 off): the swells in the shading of every liquid, the mesh's vertices raised by them
     r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? za::clamp(vr_water_geo_amplitude.value, 0.f, 24.f) : 0.f;
     water::fillRipples(); // the splashes' ripples (vr_water_ripples)
+    water::fillBlood();   // blood in the liquids (vr_water_blood)
     for(int a = 0; a < 3; a++)
     {
         r_framedata.causticsorigin[a] = water::volumeOrigin[a];
