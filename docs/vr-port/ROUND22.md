@@ -19293,3 +19293,63 @@ build, and run the checks below.
 
 **In VR:** punch (straight, hook, uppercut) with both hands: the fist's line should feel like his edit; swing the
 shotgun, the fury's sword and the mace; the shotgun's shots must still leave its muzzle where they did.
+
+## Phantom Sword and the gas flare in the toolgun; shore foam as spray (worktree `dequant`, branch `agent/phantomfoam`, 2026-10-24)
+
+His notes (vrtesthall 01-01-09, 01-03-14, vrfiringrange 01-02-21, e1m1 01-19-00): the toolgun's DoE Phantom Sword
+greyed ("progs/sword.mdl#melee is not on the search path") while the Phantom Swordsman spawned from Rogue's data in
+the same map; the shore's foam particles "disjointed, not soft or blurry enough, like chemical fumes rising from the
+water": they should look like water hitting the wall (the wavy edge is liked: kept).
+
+### Phantom Sword and the gas flare in the toolgun
+
+- Cause: the toolgun's availability check (vr_toolgun.cpp `entryAvailable`, `unavailableWhy`) looked the entry's model
+  up as a file, and the Phantom Sword's model is a variant name, `progs/sword.mdl#melee` (made by vr_admelee.cpp from
+  the file when loaded): never a file. Rogue's data was mounted all along (vrtesthall and e1m1 both: `vr_pack_status`
+  says rogue available). Fix: `modelFileExists` looks for the file before the `#` (any variant: `#melee`, `#gun<n>`,
+  `#vr`, `#rag`).
+- Every greyed entry on vrtesthall and e1m1 (`vr_toolgun_spawnlist`) now: AD's four lights (only in an AD map, by
+  design), MG3's Health Upgrade (only in its campaign, by design), Honey's Spectral Knight and Tree (Honey's data is not
+  installed: not on Steam, not in the test base), and MG Gas Flare (`progs/flame3.mdl`, only in MG1's and MG3's paks).
+  The flare is now read in place from the owned MG1 pack, as MG3's models are: its entry's model
+  `owned/mg1/progs/flame3.mdl`, and QC `light_flame_gas` takes the mounted pack's model, else MG1's or MG3's read in
+  place (`VR_MG_FlameModel`; without any it removes itself instead of a precache error).
+- Scene `phantom_sword` (new): vrtesthall, the Phantom Sword given into the main hand, a knight and a crate.
+
+Tests: `vr_toolgun_spawnlist` on vrtesthall and e1m1: the Phantom Sword and the Gas Flare no longer listed unavailable;
+`vr_toolgun_spawn_test 225 225` (the flare, vrtesthall): spawned, alive and drawn, 0 precaches missing on the client.
+`vr_scenario phantom_sword` + `vr_mock_swing 0.7` at the knight: "AD melee model: progs/sword.mdl#melee made", "weapon:
+Phantom Sword taken into the main hand", the knight parries it 4 times and staggers back as a ragdoll. `vr_scenario
+validate`: 77 files, 0 errors; `runall` phantom_sword, phantom_swordsman, foam_pool: OK, the given weapon still held.
+
+### Shore foam as spray
+
+- Cause: the shore's particles were the splash's foam cell (`CellFoam`: a patch of bubbles with bright rims and a
+  ragged edge), small, popping in at full opacity and drifting slowly up and out while growing: rising, wispy, hard-rimmed
+  puffs. The retro textures (Particles: palette and dither by default; blocks with Snap) also applied to them.
+- Now (vr_particles.cpp `shoreFoam`, `vr_water_foam_particle_spray 1`, new, default on; 0 gives the old puffs back for
+  comparison): a new generated cell `CellShoreSpray` (`buildShoreSpray`: a few overlapping Gaussian lumps in a wide haze,
+  the alpha falling smoothly to nothing inside the cell: no rims, no bubbles), about half again as big (5 to 8 x the
+  size across, spreading 60% over its life), 0.7 x the liquid's particle opacity, fading in over its first 15% of life
+  (the `ramp` of a Custom particle: no pop) and out to nothing by its end; it bursts up off the shore line (up 1.5 to
+  3.5 x the size, at most 6 units, its top at 30% of its life), falls back under gravity past the surface while fading,
+  and moves out from the wall 1 to 5 units/s. Soft particles fade it against the rock (no pull off the wall). Each
+  liquid's rate, life, opacity, size, colour and shore offset are its own as before (no default changed: no migration).
+- Retro: the spray skips retro textures (`vr_water_foam_particle_retro 0`, new; 1 puts it through them like other
+  particles). A particle's `plain` flag goes to the shader in the instance's spare float (`flags.w`); the retro particle
+  programs (`PARTICLE_PLAIN`) read the texture smoothly for it. Read at each frame's upload: the menu toggle shows at once.
+- Menu: Graphics > Shoreline Foam: "Particles as Spray" and "Spray in Retro Look" under Shoreline Foam.
+
+Tests: eyeshots (scratch, before/after: `pf_pool2c.png` vrtesthall's pool wall, `pf_e1m1c.png` e1m1's water room at
+900 640 -250): the old puffs are dark, hard-rimmed blotches; the spray is a soft white haze bursting along the wall line
+(in e1m1's dark water room faint, lit by the place). Retro check (vrtesthall, particles frozen, `vr_retro_particles_block
+24`): the old foam turns into big blocks, the spray stays smooth, and with `vr_water_foam_particle_retro 1` it turns
+blocky too (`pf_retroc5.png`, `pf_retroc6.png`). GPU (exclusive, vrtesthall pool wall, mock resolution, 5 s each, old,
+new, old, new): total 0.99 / 0.99-1.00 / 0.98 / 0.99 ms, vr particles 0.04 / 0.04 / 0.04 / 0.05 ms: within noise (the
+quads are bigger: fill rate at the headset's resolution is the thing to watch). `eval.sh`: 36/44 canary, its 12
+differences the punch takes moved by the fist line already on `next` (the section above), none from this.
+
+**In VR:** the toolgun's Weapons tab, DoE group: the Phantom Sword is not greyed; take it: it sits in the hand, swings
+heavy, hits and parries with its sounds (scene `phantom_sword`). Fire tab: MG Gas Flare spawns in any map. At the
+vrtesthall pool and e1m1's water: the shore particles should read as water thrown up off the wall and falling back,
+soft; flip Graphics > Shoreline Foam > Particles as Spray for the old look, Spray in Retro Look for the retro one.
