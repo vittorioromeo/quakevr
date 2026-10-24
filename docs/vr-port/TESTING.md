@@ -154,6 +154,7 @@ start 0 -400 25 -90                                 # optional: your origin and 
 god                                                 # and/or notarget; health 50
 give "Crowbar" main                                 # a toolgun Weapons entry into a hand (main|off)
 spawn "Armed Grunt: Axe" 240 -80                     # toolgun entry (label or classname): fwd, left, [up], [yaw]
+spawnarmed monster_vr_grunt 2 2 200 40             # an armed humanoid by weapon codes (right, left; vr_toolgun_armed_list; 0 pool, -1 fists, left 0 none), then fwd [left] [up] [yaw] as spawn: duals and any weapon the toolgun has no entry for
 cvar vr_debug_melee_blades 1                        # set for the test, put back after (never saved)
 cmd impulse 9                                       # console commands, after everything is placed
 hint Swing at them: ...                             # optional; default the checklist line's text
