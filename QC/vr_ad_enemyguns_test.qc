@@ -853,7 +853,9 @@ void(float request, entity p) AD_FuelTankTest =
 // nearest field (its edge and 48 more, to your right of it); 177 that grunt into the field's middle (it walks in);
 // 178 an armed grunt with a flamethrower (temp1 1: a poison sprayer) 160 ahead, its back to you; 179 the nearest worn
 // tank: its place on its wearer's back, its health, whether a shot from your eyes meets it; 180 that tank shot by you
-// for 10 (three burst it: its wearer's state after).
+// for 10 (three burst it: its wearer's state after; whom it is after: you, the hit alerting it); 182 an armed monster
+// firing now (else the nearest wearer) killed by you: whether it was firing, its loop stopped. 175 also counts the 3D
+// flames, the fields' effects sent and the monsters' streams ended (2026-10-24, ROUND22.md "Tank fields' look").
 entity vr_tankfield_testmon; // 176's grunt
 entity(entity p) VR_FuelTank_TestWorn;
 entity(entity p, float xWid, float xDist) VR_FuelTank_TestWearer;
@@ -901,7 +903,16 @@ void(float request, entity p) AD_TankFieldTest =
         }
         bprint(sprintf("tankfield: time %.2f: %g fields (%g made), %g reached, loops playing %g, whooshes playing %g, ", time,
             n, vr_tankfield_made, vr_tankfield_hits, vr_tankfield_loops, vr_tankfield_whoosh));
-        bprint(sprintf("bursts %g, worn tanks made %g\n", vr_fueltank_bursts, vr_fueltank_worn_made));
+        float flames = 0;
+        for(entity fm = find(world, classname, "vr_tankflame"); fm; fm = find(fm, classname, "vr_tankflame"))
+        {
+            flames++;
+        }
+        bprint(sprintf("bursts %g, worn tanks made %g, 3D flames made %g (%g now), ", vr_fueltank_bursts, vr_fueltank_worn_made,
+            vr_tankflame_made, flames));
+        bprint(sprintf("monsters' streams ended %g (on death or a drop %g); ", vr_ag_stream_ends, vr_ag_stream_ends_gone));
+        bprint(sprintf("fields' effects sent: fire %g, smoke %g, cloud %g\n", vr_tankfield_fx_fire, vr_tankfield_fx_smoke,
+            vr_tankfield_fx_cloud));
         AD_TankField_PrintMon(vr_tankfield_testmon);
         return;
     }
@@ -988,7 +999,34 @@ void(float request, entity p) AD_TankFieldTest =
         bprint(sprintf("tankfield: shot %s's worn tank: health %g, burst %g, reached %g; its wearer: health %g -> %g, "
             "holds %s\n", m.classname, t.health, vr_fueltank_bursts - bursts, vr_fueltank_burst_hit, hp, m.health,
             m.vr_ag_prop ? m.vr_ag_prop.netname : "nothing"));
+        bprint(sprintf("tankfield: its wearer after %s, wearers alerted by their tank %g\n", m.enemy ? m.enemy.classname : "nothing",
+            vr_fueltank_worn_alerts));
         AD_TankField_PrintMon(m);
+        return;
+    }
+    if(request == 182)
+    {
+        // Its wearer killed by you, firing or not (one firing now first, anywhere): its flamethrower's loop stopped
+        // (VR_ADGun_MonsterStreamEnd).
+        for(entity fg = nextent(world); fg; fg = nextent(fg))
+        {
+            if(fg.vr_adgun_stream > 0 && (fg.flags & FL_MONSTER) && fg.health > 0)
+            {
+                m = fg;
+            }
+        }
+        float firing = m.vr_adgun_stream > 0;
+        float ends = vr_ag_stream_ends;
+        T_Damage(m, p, p, 1000);
+        bprint(sprintf("tankfield: killed %s (health %g), firing %g: its stream ended %g, still firing %g; ", m.classname,
+            m.health, firing, vr_ag_stream_ends - ends, m.vr_adgun_stream > 0));
+        float on = 0;
+        for(entity g = nextent(world); g; g = nextent(g))
+        {
+            on += (g.vr_adgun_stream > 0 && (g.flags & FL_MONSTER));
+        }
+        bprint(sprintf("monsters firing now %g, streams ended %g (on death or a drop %g)\n", on, vr_ag_stream_ends,
+            vr_ag_stream_ends_gone));
         return;
     }
 };
@@ -1000,7 +1038,7 @@ void(float request, entity p) AD_GunTest =
         AD_FuelTankTest(request, p);
         return;
     }
-    if(request >= 175 && request <= 181)
+    if(request >= 175 && request <= 182)
     {
         AD_TankFieldTest(request, p);
         return;
