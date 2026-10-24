@@ -45,6 +45,11 @@ constexpr float bodyWeight = 0.3f;  // ... the elbow's cost of each unit in squa
 constexpr float handClear = 1.0f;   // ... a hand (its wrist and grip) pushed out to this clear of them
 constexpr float secondSlack = 0.05f; // vr_agarms_second_hold: a second grip held is let go only this share of the arm further,
 constexpr float secondBendSlack = 15.f; // ... or its wrist bent this much (degrees) past where it is taken
+constexpr float jumpEase = 2.f;        // vr_agarms_jump_ease: a goal's wrist jumping more than this (its second difference on the chest, units at 90 Hz)
+constexpr float jumpEaseRate = 100.f;  // ... eased into over its size over this (seconds: units / this),
+constexpr float jumpEaseLeast = 0.06f; // ... at least (a kick stays crisp)
+constexpr float jumpEaseMost = 0.25f;  // ... at most
+constexpr float secondDwell = 0.5f; // ... nor taken or let go again within this (seconds)
 constexpr float secondEase = 0.25f; // ... taken and let go over this (seconds; the hand round the shoulder, not through the body)
 constexpr float reachFar = 1.6f;    // vr_agarms_reach_ease: a weapon lying this many arm's lengths off: the hand hanging,
 constexpr float reachNear = 1.15f;  // ... this near: reaching for it wholly
@@ -114,6 +119,14 @@ struct Ent
     bool haveLeft{false};
     bool held2{false};    // vr_agarms_second_hold: the second grip held (its hysteresis),
     float grip2w{0.f};    // ... its share eased in and out
+    double held2At{0.0};  // ... when it last changed
+    // vr_agarms_jump_ease: each hand's goal's wrist on the chest (the last two), its drawn hand on the chest, its ease
+    rigpose::Rigid drawnRel[2];
+    bool haveDrawn[2]{false, false};
+    glm::vec3 relW[2][2]{{glm::vec3{0.f}, glm::vec3{0.f}}, {glm::vec3{0.f}, glm::vec3{0.f}}};
+    int relN[2]{0, 0};
+    rigpose::Rigid easeFrom[2];
+    float easeT[2]{0.f, 0.f}, easeDur[2]{0.f, 0.f};
     int leftMode{-1};     // its goal's kind (Goal, 3 the second grip, 4 a cup) and since when
     double leftModeAt{0.0};
 };
@@ -1001,11 +1014,12 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
     e.held2 += held2 ? 1 : 0;
 }
 
-// The elbow's preferred way from its shoulder (model space; a strike's or a key's pole blended in): solveArm's.
+// The glitch finder's right way for an elbow (model space): outward and down from its shoulder (its hemisphere: one
+// past 135 degrees off it points up and in, the wrong way), or a strike's or a key's pole where one is sent.
 [[nodiscard]] glm::vec3 preferredPole(int s, const glm::quat& cq, const glm::vec3& pole)
 {
     const float sideSign = s == 0 ? -1.f : 1.f;
-    glm::vec3 pref = cq * glm::normalize(glm::vec3{elbowPref.x, elbowPref.y * sideSign, elbowPref.z});
+    const glm::vec3 pref = cq * glm::normalize(glm::vec3{0.f, sideSign, -1.f});
     const float poleShare = za::min(glm::length(pole), 1.f);
     return poleShare > 1e-3f ? norm(pref * (1.f - poleShare) + pole, pref) : pref;
 }
@@ -1178,6 +1192,31 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             Hm[s] = blendAbout(S1, sd.W, hang, Hm[s], 1.f - smoothstep(reachNear, reachFar, away));
         }
         pushOut(s, Hm[s]);
+        // vr_agarms_jump_ease: a goal that jumps (on its chest: a weapon taken up into the carry, a kick, a key's
+        // change) eased into from where the hand was drawn, round the shoulder, over a time as long as the jump.
+        const rigpose::Rigid rel = compose(inverse(C), Hm[s]);
+        const glm::vec3 relW = rigpose::apply(rel, sd.W);
+        if(vr_agarms_jump_ease.value != 0.f && st->relN[s] >= 2 && dt > 0.f && st->haveDrawn[s])
+        {
+            const float k = (1.f / 90.f) / dt;
+            const float jump = glm::length(relW - 2.f * st->relW[s][0] + st->relW[s][1]) * k * k;
+            if(jump > jumpEase)
+            {
+                st->easeFrom[s] = st->drawnRel[s];
+                st->easeT[s] = 0.f;
+                st->easeDur[s] = za::clamp(jump / jumpEaseRate, jumpEaseLeast, jumpEaseMost);
+            }
+        }
+        st->relW[s][1] = st->relW[s][0];
+        st->relW[s][0] = relW;
+        st->relN[s] = za::min(st->relN[s] + 1, 2);
+        if(st->easeT[s] < st->easeDur[s] && vr_agarms_jump_ease.value != 0.f)
+        {
+            st->easeT[s] += dt;
+            const float w = smoothstep(0.f, 1.f, st->easeT[s] / za::max(st->easeDur[s], 1e-3f));
+            Hm[s] = blendAbout(S1, sd.W, compose(C, st->easeFrom[s]), Hm[s], w);
+            pushOut(s, Hm[s]);
+        }
         free[s] = Hm[s];
     }
     // An arm solved: a weapon's hand turned as its weapon wants; a fist (a point) or a free hand with its wrist straight
@@ -1249,8 +1288,20 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         const bool hold = vr_agarms_second_hold.value != 0.f;
         // (vr_agarms_second_hold: a grip held is let go a little further than it is taken, no toggling at its edge)
         const bool keep = hold && st->held2;
-        const bool can = reach <= (vr_agarms_second.value + (keep ? secondSlack : 0.f)) * armLen &&
-                         tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f);
+        bool can = reach <= (vr_agarms_second.value + (keep ? secondSlack : 0.f)) * armLen &&
+                   tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f);
+        if(hold && can != st->held2)
+        {
+            // (... and kept taken or let go a moment before it changes again)
+            if(cl.time - st->held2At < secondDwell)
+            {
+                can = st->held2;
+            }
+            else
+            {
+                st->held2At = cl.time;
+            }
+        }
         st->held2 = can;
         if(!hold)
         {
@@ -1350,6 +1401,8 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->chest = C;
         st->elbow[s] = glm::inverse(C.rot) * (arms[s].elbow - rigpose::apply(C, m->side[s].S));
         st->haveElbow[s] = true;
+        st->drawnRel[s] = compose(inverse(C), arms[s].H);
+        st->haveDrawn[s] = true;
     }
     if(agglitch::watching(num))
     {

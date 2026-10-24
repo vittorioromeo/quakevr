@@ -292,7 +292,7 @@ bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* po
     u->chest = want;
     u->have = true;
     const glm::vec3 waist = rigpose::apply(want, rig.bones[chest].pivot);
-    const float breath = vr_agrunt_upper_breath.value * (3.14159265f / 180.f) *
+    const float breath = (vr_agrunt_freeze.value != 0.f ? 0.f : vr_agrunt_upper_breath.value) * (3.14159265f / 180.f) * // (held still: none)
                          za::sin(static_cast<float>(cl.time) * (6.2831853f / breathPeriod) + 0.37f * static_cast<float>(ent));
     rigpose::Rigid lean;
     lean.rot = glm::angleAxis(breath, want.rot * glm::vec3{0.f, 1.f, 0.f});

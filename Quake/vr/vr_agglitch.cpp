@@ -46,7 +46,7 @@ enum Metric : int
 constexpr const char* metricNames[numMetrics] = {"flip", "wrong", "pen", "reach", "grip2", "toggle", "gap", "aim", "jump", "shoulder"};
 constexpr const char* metricUnits[numMetrics] = {"deg/f", "deg", "u", "u", "u", "/s", "u", "deg", "u", "u"};
 // (a moment's severity: its value over this; 1 a glitch)
-constexpr float metricBad[numMetrics] = {20.f, 120.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f};
+constexpr float metricBad[numMetrics] = {20.f, 135.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f};
 constexpr double settle = 0.4;  // seconds after a subject starts (spawned, moved) before it is measured
 constexpr double merge = 0.3;   // a glitch this close after the subject's last is the same moment
 constexpr int maxMoments = 8192;
