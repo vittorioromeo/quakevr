@@ -1631,5 +1631,7 @@ void(entity g, float c) VR_AGP_Demo =
     self = g;
     self.vr_ag_demo = 1;
     VR_AGP_Attack();
+    self.vr_ag_act_hit = 2; // (no blow dealt: the air, never a neighbour in the row)
+    self.vr_ag_act_hitl = 1;
     self = oldself;
 };

@@ -4,10 +4,10 @@ map vrtesthall
 god
 notarget
 cvar vr_agrunt_strike_demo 1
-spawn "Armed Grunt: Sword" 220 -150 0 90
-spawn "Armed Grunt: Axe" 240 -75 0 90
-spawn "Armed Grunt: Hunter Ogre's Hammer" 260 0 0 90
-spawn "Armed Grunt: Fists" 240 75 0 90
-spawn "Armed Enforcer: Sword" 220 150 0 90
-spawn "Armed Enforcer: Fists" 300 225 0 90
-hint Each strikes the air every couple of seconds, side on to you: the torso twists back as the arm rises by the head (the elbow up and back), then twists and leans through the blow, the shoulder driving forward, and follows through. Fists: jabs, crosses, hooks and uppercuts each turn the torso. Tune in Combat > Armed Grunts > Their Strikes.
+spawn "Armed Grunt: Sword" 240 -200 0 90
+spawn "Armed Grunt: Axe" 260 -100 0 90
+spawn "Armed Grunt: Hunter Ogre's Hammer" 280 0 0 90
+spawn "Armed Grunt: Fists" 260 100 0 90
+spawn "Armed Enforcer: Sword" 240 200 0 90
+spawn "Armed Enforcer: Fists" 320 280 0 90
+hint Each strikes the air every couple of seconds where it stands (no blow dealt; walk round them for a side view): the torso twists back as the arm rises by the head (the elbow up and back), then twists and leans through the blow, the shoulder driving forward, and follows through. Fists: jabs, crosses, hooks and uppercuts each turn the torso. Tune in Combat > Armed Grunts > Their Strikes.
