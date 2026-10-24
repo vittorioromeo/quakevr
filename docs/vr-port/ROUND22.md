@@ -20297,3 +20297,25 @@ archived cvar `vr_agrunt_poses`, command `vr_agrunt_pose_dump`.
 - [ ] Grab an elbow and pull it out: the elbow follows; grab the chest and lean it forward.
 - [ ] Copy > Enforcer, walk to the enforcer with a sword: the same pose. Done: the console shows the rows.
 - [ ] A hand inside its weapon's box: grip it in Everything (the hand comes); click a stick to Grab: Weapons and take the weapon.
+
+
+## Test 35: parrying armed humanoids' blows again (worktree `gorefx`, branch `agent/t35`, 2026-10-24)
+
+`vr_agrunt_test 35` gave 0 parried for every weapon on next (axe 5 blows, sword 6, chainsaw 22, ... 0 parried, ~50
+damage each). **Cause: the test's setup, not the parry.** With the default `vr_weapon_grip_mode 0` the crowbar the test
+gives the main hand falls out of the open mock hand at once (the "holds Crowbar" line is printed before it drops), so
+nothing is there to parry with. With the old script's `vr_weapon_grip_mode 1; impulse 167` next passes 6/6 untouched:
+none of agarms, agstrike, agleft, agparry or the Pose Studio ships moved the blow line, and no bisect was needed.
+
+**Fix:** test 35 sets `vr_weapon_grip_mode 1` itself at its first weapon and puts back the value it found at the end
+(`vr_agpt_grip0`, `vr_agpt_gripset`; aborted midway, the next full run restores it). New Debug > Automation &
+Self-Tests row **Armed Grunts: Parry Their Blows** (`vr_mock_hand main 0.15 1.35 -0.35 0 90 0; vr_agrunt_test 35`; the
+mock hand only moves without a headset; Tests Spawn Enforcers picks the enforcer).
+
+**Results** (vrtesthall, a fresh map each): the row via `vr_menu_press`, grip mode 0 before: grunt 6/6 PASS, enforcer
+6/6 PASS (axe, sword, crowbar, chainsaw, Mjolnir, fists: 1 blow, 1 parried, 2-3 damage, stagger), grip mode 0 after;
+the old script (grip mode 1, `impulse 167`), enforcer: 6/6 PASS, grip mode left 1. eval.sh: canary 36/44, 0 differ.
+Back-to-back runs of 35/34/42 on one map (agleft's note) were not looked at.
+
+**In VR:** Debug > Automation & Self-Tests > Armed Grunts: Parry Their Blows on vrtesthall: hold the crowbar level
+across in front; each of the six strikes is parried (the ring, its stagger) and the console says PASS.
