@@ -973,24 +973,26 @@ struct ArmedLists
 {
     int generation{-1};
     int kind{-1};
+    int code{0}; // the right hand's: the left's list is its pairs
     za::InPlaceVector<const char*, 8> kinds;
     za::InPlaceVector<const char*, armedListMax> right; // Random from Pool, Unarmed, its weapons
     za::InPlaceVector<int, armedListMax> rightCode;
-    za::InPlaceVector<const char*, armedListMax> left; // None, its one-handed weapons
+    za::InPlaceVector<const char*, armedListMax> left; // None, the weapons that pair with the right hand's
     za::InPlaceVector<int, armedListMax> leftCode;
 };
 ArmedLists armedLists;
 
-const ArmedLists& armedListsFor(int kind)
+const ArmedLists& armedListsFor(int kind, int code)
 {
     ArmedLists& l = armedLists;
-    if(l.generation == toolgun::armed::generation() && l.kind == kind)
+    if(l.generation == toolgun::armed::generation() && l.kind == kind && l.code == code)
     {
         return l;
     }
     l = {};
     l.generation = toolgun::armed::generation();
     l.kind = kind;
+    l.code = code;
     for(int k = 0; k < toolgun::armed::kindCount() && l.kinds.size() < l.kinds.capacity(); k++)
     {
         l.kinds.pushBack(toolgun::armed::kindName(k));
@@ -1010,7 +1012,7 @@ const ArmedLists& armedListsFor(int kind)
             l.right.pushBack(toolgun::armed::codeName(code));
             l.rightCode.pushBack(code);
         }
-        if(toolgun::armed::oneHanded(kind, code) && l.left.size() < l.left.capacity())
+        if(toolgun::armed::pairs(kind, l.code, code) && l.left.size() < l.left.capacity())
         {
             l.left.pushBack(toolgun::armed::codeName(code));
             l.leftCode.pushBack(code);
@@ -1040,9 +1042,9 @@ template <typename Codes>
 void armedPage(Ui& ui)
 {
     const int kind = za::clamp(static_cast<int>(vr_toolgun_armed_kind.value), 0, za::max(0, toolgun::armed::kindCount() - 1));
-    const ArmedLists& l = armedListsFor(kind);
     const int code = static_cast<int>(vr_toolgun_armed_weapon.value);
     const int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
+    const ArmedLists& l = armedListsFor(kind, code);
     const float x0 = pad, x1 = panelWidth - pad;
     if(l.kinds.empty())
     {
@@ -1067,6 +1069,7 @@ void armedPage(Ui& ui)
             toolgun::armed::choose();
         }
         const bool pairs = code > 0 && toolgun::armed::oneHanded(kind, code);
+        const bool melee = (toolgun::armed::fits(kind, code) >> 2) == 1; // (QC VR_AG_CLASS_MELEE)
         const int lc = dropdown(ui, Rect{x0, 98.f, x1, 111.f}, "Left Hand", l.left.data(), static_cast<int>(l.left.size()),
             pairs ? za::max(0, indexOfCode(l.leftCode, code2)) : 0, pairs);
         if(lc >= 0)
@@ -1086,24 +1089,29 @@ void armedPage(Ui& ui)
             char note[160];
             if(code == 0)
             {
-                q_snprintf(note, sizeof(note), "Random: a weapon from the pool (Combat > Armed Grunts), a second one-handed one %.0f%% of the time.",
+                q_snprintf(note, sizeof(note), "Random: a weapon from the pool (Combat > Armed Grunts), a second that pairs %.0f%% of the time.",
                     Cvar_VariableValue("vr_agrunt_dual_chance") * 100.f);
             }
             else if(code < 0)
             {
                 q_strlcpy(note, "Unarmed: it fights with its fists.", sizeof(note));
             }
-            else if(pairs && code2 > 0)
+            else if(pairs && code2 > 0 && melee)
             {
                 q_strlcpy(note, "Dual wielding: it swings them in turn, now and then both at once.", sizeof(note));
             }
+            else if(pairs && code2 > 0)
+            {
+                q_strlcpy(note, "Dual guns: one in each hand, fired in turn; less accurate than one held in both hands.", sizeof(note));
+            }
             else if(pairs)
             {
-                q_strlcpy(note, "One-handed: a second one-handed weapon can go in its left hand.", sizeof(note));
+                q_strlcpy(note, melee ? "One-handed: a second one-handed weapon can go in its left hand." :
+                                        "A gun: a second gun can go in its left hand (dual wielding).", sizeof(note));
             }
             else
             {
-                q_strlcpy(note, "Two-handed or a gun: its left hand stays on it.", sizeof(note));
+                q_strlcpy(note, "Too big to dual wield: its left hand stays on it.", sizeof(note));
             }
             paragraph(x0 + 3.f * w + 12.f, y0 + 2.f, x1 - (x0 + 3.f * w + 12.f), 5.f, note, false);
         }

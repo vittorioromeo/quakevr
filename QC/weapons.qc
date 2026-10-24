@@ -2210,6 +2210,8 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
+        vr_fire_dev_sum = vr_fire_dev_sum + atan2(vlen(direction - dir * (direction * dir)), direction * dir) * 57.29578;
+        vr_fire_dev_n = vr_fire_dev_n + 1;
 
         traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through teleporters (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
@@ -2248,6 +2250,12 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             else if(trace_ent == world) { hitsWorld++; }
             else { hitsTarget++; targetName = trace_ent.classname; }
         }
+        // VR: a held weapon or its hand on the pellet's way (vr_armedgrunt_shot.qc); stopped on the weapon: no further
+        if(VR_AGS_Shot(self, shotFrom, trace_endpos, shotDir, vr_pellet_damage ? vr_pellet_damage : 4, QVR_AGS_PELLET))
+        {
+            shotcount = shotcount - 1;
+            continue;
+        }
         if(trace_fraction != 1.0)
         //JIM
         {
@@ -2283,6 +2291,7 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = spread * (1 + vr_fire_spread_extra); // VR: an armed monster's dual-wielded gun (vr_armedgrunt.qc VR_AG_ShootProp)
     spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
@@ -2630,6 +2639,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
+    VR_AGS_Shot(from, p1, trace_endpos, p2 - p1, damage, QVR_AGS_LIGHTNING); // VR: through a held weapon or its hand (vr_armedgrunt_shot.qc)
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {

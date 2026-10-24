@@ -1760,7 +1760,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
-    VR_AG_Hit(targ, inflictor, attacker, take); // VR: an armed grunt struck on its gun hand drops it (vr_armedgrunt.qc)
+    // VR: an armed grunt struck on its gun hand drops it (vr_armedgrunt.qc); a player's shot: the shooting rule's
+    // (vr_armedgrunt_shot.qc), an explosion counting there too
+    if(!VR_AGS_Hit(targ, inflictor, attacker, take))
+    {
+        VR_AG_Hit(targ, inflictor, attacker, take);
+    }
     // VR: situational knockdowns (vr_kdtrig.qc): by stairs, a ledge, on a slope, a close shotgun blast, wounded: it may go
     // down as a ragdoll (a knockdown: its pain's sound below, not its frames).
     VR_KdTrig_Hit(targ, inflictor, attacker, take);

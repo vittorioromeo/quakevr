@@ -13,6 +13,7 @@ Rows now: the grunt (`monster_vr_grunt`, row 0) and the enforcer (`monster_vr_en
 | The layer: pool, picking, prop, firing, melee, ammo, reloads, drops, AI | `QC/vr_armedgrunt.qc` |
 | Its poses and attacks (punches, swings, the chainsaw; sent to clients) | `QC/vr_armedgrunt_pose.qc` |
 | Disarming, tugs, falls, reach | `QC/vr_armedgrunt_play.qc` |
+| Shooting the weapon out (hits on the held weapon or its hand adding up, the roll) | `QC/vr_armedgrunt_shot.qc` (hooks: `vr_armedgrunt_shot_defs.qc`) |
 | Fields and hooks other files call | `QC/vr_armedgrunt_defs.qc` |
 | Tests (`vr_agrunt_test N`, `vr_agrunt_test_kind` the row) | `QC/vr_armedgrunt_test.qc`, `QC/vr_armedgrunt_play_test.qc` |
 | The engine's table (the hands' IK, the held weapon drawn on the body) | `Quake/vr/vr_hitreact.cpp` `armedRigs` |
@@ -58,8 +59,17 @@ vertices (ranges: never a hand's), the gun's line, its arm bones' names (the rag
 Two slots: `vr_ag_wid/wflags/prop/reserve` and `vr_ag_wid2/...2`. The layer acts on the first; an event on the second
 weapon (a grab, a blow near it, a blow on it, a parried left-hand swing) swaps the slots first (`VR_AG_Swap`), so every
 rule (tugs, yanks, disarms, drops) is the one-weapon code. Which hand holds a weapon is its prop's `.vr_ag_left`; a
-weapon left alone is passed to the right hand (`VR_AG_Settle`, after every drop). Pairs: one-handed weapons only
-(`VR_AG_OneHanded`: swords but AD's hammer and mace, the crowbar, the axe; no gun: they are long guns). Map keys
+weapon left alone is passed to the right hand (`VR_AG_Settle`, after every drop). Pairs (`VR_AG_Pairs`): two one-handed
+melee weapons (`VR_AG_OneHanded`: swords but AD's hammer and mace, the crowbar, the axe), or two guns not too big
+(`VR_AG_DualGun`; the per-weapon flag `VR_AG_Big`: the hammers, the rocket launchers, the Laser Cannon, the chainsaw, the
+two-handed melee weapons, the flamethrowers); never a blade and a gun. Dual guns (ROUND22.md, "Armed monsters: dual-wielded
+guns"): each in one hand along the rifle line's pitch straight ahead, the left at the right hand mirrored
+(`VR_AGP_Gun`); the second fires a frame behind the first (`VR_AG_AtkFrame`: shots and rounds in turn, streams together);
+`VR_AG_ShootProp` adds the penalties (`vr_agrunt_dual_penalty`: spread and aim error times 1 / `vr_2h_spread_reduction`,
+a heavy gun's kick up `weaponheft(model, 1)` x 0.1 s, coming back over `vr_heavy_recoil_time`); both reload together
+(`vr_ag_reserve2`), a spent one with no reserve is thrown away. `vr_agrunt_dual_pickup`: one holding a weapon that pairs
+goes for a second (`VR_AG_WantsSecond`). Tests `vr_agrunt_test 42` (pairs, penalty, kick, a fight, the pickup option),
+`43` (test 41's frames with a shotgun and a nail gun), `44` (a row of dual-gun humanoids: scene `agrunt_dual_guns`). Map keys
 `weapon2`/`weaponflags2`; from the pool `vr_agrunt_dual_chance` (Armed Grunts page: Dual Wielding). Attacks: the hands
 in turn, a quarter of them both at once (mirrored keys), the other hand following up (`VR_AGP_Begin`, `vr_ag_act_hand`).
 The left weapon's pose: `VR_AGP_MeleeLeft` (ready, carried at its side, swung on the right's keys mirrored); sent in
@@ -80,6 +90,18 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
 - Parries: `T_Damage_VRMelee` runs `VR_Parry` for an armed monster's blow (combat.qc).
 - Tests 31..35 (`QC/vr_armedgrunt_play_test.qc`); scenarios `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`, `agrunt_guard`.
 
+## Shooting the weapon out (ROUND22.md, "Armed grunts: shooting the weapon out")
+
+- Generic: the volumes are the held prop's own (`VR_AG_WeaponLine`: behind the grip to the muzzle) and its hand's (the
+  grip to `VR_AGS_FOREARM` units towards the shoulder, guessed from the monster's yaw, its height and the prop's
+  `vr_ag_left`). A row with a very different build (a wide or tall monster) may want its shoulder guess
+  (`VR_AGS_HandLine`) to read the row.
+- Hooks: `FireBulletsImpl` (each pellet's path, `VR_AGS_Shot`; TRUE stops it on the weapon), `LightningDamage`,
+  `T_DamageDeal` (`VR_AGS_Hit`: splash; a player's shot skips `VR_AG_Hit`'s blow rule) and `VR_AG_WeaponStruck` (each
+  held weapon's frame: the nails, rockets and grenades flying through it, the roll: `VR_AGS_Frame`). Each weapon keeps
+  its own count on its prop (`.vr_ags_acc`): dual wielding needs nothing more.
+- Test `vr_agrunt_test 50` (`QC/vr_armedgrunt_shot_test.qc`); scenario `agrunt_shootout`.
+
 ## The toolgun's spawn page
 
 Spawn > Monsters > Armed Humanoid (`vr_toolgun_panel.cpp` `armedPage`; `docs/vr-port/TOOLGUN.md`): Kind, Right Hand,
@@ -88,7 +110,7 @@ Left Hand as dropdowns (the panel's `dropdown` widget, reusable). The lists are 
 (`vr_am_spawnname`), model and stand frame; the weapons every "weapon" code 1..127 `VR_AM_UiWeapon` says a row holds
 (`VR_AG_Decode`: its data there; the row's `vr_am_classes`), one-handed or not (`VR_AG_OneHanded`), by class. Right Hand:
 Random from Pool ("weapon" 0: the pool and `vr_agrunt_dual_chance`), Unarmed (-1), a weapon; Left Hand ("weapon2"): None
-or a one-handed weapon, only with a one-handed one in the right. The choice is `vr_toolgun_armed_kind`, `_weapon`,
+or a weapon pairing with the right one (two one-handed melee weapons, or two guns: `toolgun::armed::pairs`). The choice is `vr_toolgun_armed_kind`, `_weapon`,
 `_weapon2` (kept), made the spawn tool's with each pick (`vr_toolgun_select_armed [kind [weapon [weapon2]]]` from the
 console). The ghost holds the weapons where the layer's own pose holds them a moment after it is made
 (`VR_AM_UiGhost`: `VR_AGP_Pose` on stand-ins, quiet: placed, nothing sent; the melee stance settled), turned with the

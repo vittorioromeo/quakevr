@@ -219,6 +219,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 11: 36 launcher grunts in turn (grenades, rockets, mines) on headings all round you, "
                   "often with their backs to a wall, 8 s each: how many killed themselves (vr_agrunt_blast_safe off "
                   "to compare)."),
+        command("Armed Grunts: Shooting Weapons Out", "vr_agrunt_test 50")
+            .help("vr_agrunt_test 50 (vrtesthall's start; about a minute): fresh armed grunts ahead, their weapons and "
+                  "hands shot 100 times a case (shotguns at 2, 5 and 15 m, a nail burst, single far shots, lightning, "
+                  "hand only, weapon only, the volumes' size, absorbing, dual wielding): each case's disarm rate printed "
+                  "(agshot: ...) and the defaults' targets checked (PASS/FAIL). scratch1: trials a case."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")

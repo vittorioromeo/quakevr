@@ -33,6 +33,11 @@
 .float vr_ag_act_hand;     // a dual swing's hands: 0 the right, 1 the left, 2 both
 .float vr_ag_act_hitl;     // ... the left's blow struck
 .float vr_ag_strikes_l;    // its left hand's blows (the tests)
+// Dual-wielded guns (vr_armedgrunt.qc VR_AG_ShootProp): a shot's pellet spread times 1 + this while it fires (FireBullets,
+// AD_FirePellets; 0 otherwise); every pellet's angle off its shot's line summed (the tests' spread measure).
+float vr_fire_spread_extra;
+float vr_fire_dev_sum;
+float vr_fire_dev_n;
 
 float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
 float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)

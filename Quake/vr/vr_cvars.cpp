@@ -474,6 +474,15 @@ const DefaultChange defaultChanges[] = {
     // start; the axe's head box", Breakables): a 200-health metal piece 3-4 full axe blows, a rubble wall one.
     {197, &vr_prop_break_metal, "1.5"}, // 1
     {197, &vr_prop_break_stone, "1.5"}, // 0.75
+    // 198: the author's fist blow line (his config of 2026-10-24, edited with Edit Blade Shape; ROUND22.md, "His blade
+    // shapes and fist line as defaults"; Misc/quakevr/blade_defaults.py writes these rows).
+    {198, &vr_melee_fist_from_x, "0"}, // -0.34
+    {198, &vr_melee_fist_from_y, "0"}, // 0.5039
+    {198, &vr_melee_fist_from_z, "0"}, // -1.0026
+    {198, &vr_melee_fist_to_x, "4"},   // -0.4123
+    {198, &vr_melee_fist_to_y, "0"},   // 0.7656
+    {198, &vr_melee_fist_to_z, "0"},   // -4.2209
+    {198, &vr_melee_fist_width, "1"},  // 0.291
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -492,7 +501,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 197;
+constexpr int configVersion = 198;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

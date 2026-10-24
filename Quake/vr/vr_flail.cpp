@@ -90,6 +90,21 @@ void frame(const hands::State& s)
         }
         // The chain from the handle's end as drawn now (the server's anchor is the frame before's).
         const glm::vec3 at = s.muzzleValid[h] ? s.muzzle[h] : anchor;
+        // The head on the hand as drawn now, at its place from the handle's end interpolated between the server's steps
+        // (vr_flail_smooth; the note vrtesthall_2026-10-24_00-54-30: drawn where each 72 Hz step left it, it went on in
+        // jerks under the hand drawn at the headset's rate). Its place in the play space's frame turned by the turn now.
+        glm::vec3 off;
+        glm::quat roomRot;
+        if(vr_flail_smooth.value != 0.f && s.muzzleValid[h] && box3d::flailHeadAt(cl.viewentity, h, cl.time, off, roomRot))
+        {
+            pos = at + hands::rotateYaw(off, s.turnYaw);
+            rot = glm::angleAxis(glm::radians(s.turnYaw), glm::vec3{0.f, 0.f, 1.f}) * roomRot;
+        }
+        if(vr_flail_debug.value >= 3.f)
+        {
+            Con_Printf("flail drawn %d: %.4f head %.2f %.2f %.2f at %.2f %.2f %.2f\n", h, cl.time, pos.x, pos.y, pos.z, at.x,
+                at.y, at.z);
+        }
         const glm::vec3 handle = at - s.pos[h];
         const glm::vec3 out = glm::length(handle) > 0.5f ? glm::normalize(handle) : glm::vec3{0.f, 0.f, -1.f};
         glm::vec3 toChain = at - pos;

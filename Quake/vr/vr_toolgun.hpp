@@ -105,8 +105,9 @@ void refresh();
 [[nodiscard]] int weaponCount(); // every kind's weapons (melee first)
 [[nodiscard]] int weaponCode(int i);
 [[nodiscard]] const char* codeName(int code); // "Random from Pool", "Unarmed", a weapon's name
-[[nodiscard]] int fits(int kind, int code);    // 0: not held by that kind; else 1, + 2 one-handed, + 4 * its class
-[[nodiscard]] bool oneHanded(int kind, int code);
+[[nodiscard]] int fits(int kind, int code);    // 0: not held by that kind; else 1, + 2 it pairs, + 4 * its class
+[[nodiscard]] bool oneHanded(int kind, int code);          // it pairs (a one-handed melee weapon, a gun not too big)
+[[nodiscard]] bool pairs(int kind, int code, int code2);   // the two held one in each hand (both melee or both guns)
 [[nodiscard]] bool chosen(); // the spawn tool's choice is the page's
 void choose();               // the page's choice made the spawn tool's (the cvars made valid for the kind first)
 [[nodiscard]] const char* ghostModel(int hand); // the choice's held weapons' models (0 right, 1 left; "": none)
