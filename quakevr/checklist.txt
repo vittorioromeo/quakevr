@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Tank fields look: fire field grows from the tank in ~0.4 s, dense rising flames, 3D torch flames thrown out, embers and smoke; poison field: billowing green cloud; dense enough on vrtesthall's bright floor? cloud colour? (AD Guns: Burst Field Spread, Fire Field Flames/3D Flames/Smoke, Poison Cloud Amount) {test:tank_burst_field}
+Armed grunts' back tanks: shoot only the tank: the grunt turns on you (no damage); kill one mid-stream: the hiss stops {test:agrunt_tanks}
 Armed humanoids' arms fixed: grunts and enforcers with axe, sword, shotgun, dual: hands keep their shape (no stretching), weapons sit on the hand by the handle, arms stay out of the torso in swings, the off hand only takes a second grip it can reach naturally; shove one into a fall and parry one into a stagger: the weapon stays in the hand {test:agrunt_weapon_hands}
 Grip Editor (VR Settings > Armed Grunts > Grip Editor): in the scene, tune each weapon's place in their hands by eye (Freeze Them, Fit Angles to Its Pose), then Print as Defaults and send me the lines {test:agrunt_grip_editor}
 Phantom Sword from the toolgun (DoE group, no longer greyed): offsets, swing and sounds; the MG Gas Flare spawns on any map {test:phantom_sword}
