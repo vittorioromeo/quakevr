@@ -441,23 +441,35 @@ built-in ones.
 | `vr_melee_speed`, `vr_melee_wrist_speed` | 3, 1.1 | how fast (m/s) the striking hand (a weapon's swing 1.25x, a stab 0.75x) and its wrist must move for a blow |
 | `vr_parry`, `vr_bash`, `vr_headbutt`, `vr_deflect` | 1 | parry, bash, headbutt, batting projectiles |
 | `vr_posestudio_reach` | 2.5 | the Pose Studio: the armed humanoid nearest within this many metres is the one edited |
+| `vr_agrunt_poses` | "" | the Pose Studio's pose keys changed from the shipped ones (kept between sessions; Reset Pose, Undo, Cancel there) |
 
 **Setting armed humanoids' grips by hand (the Pose Studio).** VR Settings > Combat > Armed Grunts > Grip Editor > Drag
 Mode (or the Debug menu's Pose Studio, or `vr_posestudio`; the scenario `agrunt_pose_studio` sets up a row to try). The armed
-grunts and enforcers hold still. Walk up to one: its weapon gets a blue wire box, its hands orange ones (a white dot
-is where each of your controllers takes things: your drawn hand stays outside its body). Put a controller in a box (it
-turns yellow, a tick) and hold the grip: the box turns green and follows your controller, moved and turned.
+grunts and enforcers hold still. Walk up to one: its weapon gets a blue wire box, its hands orange ones, its elbows
+violet ones, its chest a faint green one (a white dot is where each of your controllers takes things: your drawn hand
+stays outside its body). Put a controller in a box (it turns yellow, a tick) and hold the grip: the box turns green and
+follows your controller, moved and turned. Let go: it stays there, in the pose shown on the panel.
 
-- The **weapon**: turn and move it in its hand (the hand stays still). Let go: the weapon goes back to where its pose
-  holds it, and the hand now holds it the way you set.
-- A **hand**: move and turn the hand on the weapon (the weapon stays still): where along the handle and how the fist
-  closes round it. The left hand on a two-handed weapon's front grip sets that grip.
+- **Pick the pose first**, on the panel's top rows: **< Pose / Pose >** steps through the poses its weapon has (Idle /
+  Carry or Port Arms, Aim / Ready / Guard, Run, Pickup, and each strike: Jab, Cross, Hook, Uppercut for the fists;
+  Overhead, Diagonal, Horizontal, Backhand for a melee weapon; Saw Thrust; Dual Strike with two). The monster shows it,
+  held. A strike has three keys: **< Key / Key >** steps its wind-up, blow and follow-through; **Play** plays the
+  whole strike in place (no blow dealt) to see it move.
+- The **weapon**: move and turn it: that is where it is in this pose (the hand follows it). **Weapon: Grip** on the panel
+  instead turns it in its hand (the hand stays still; let go: back on the pose, the hand holding it the new way).
+- A **hand on a weapon**: move and turn the hand on it: where along the handle and how the fist closes round it. The
+  left hand on a two-handed weapon's front grip sets that grip. A **fist or a free hand**: where it is in this pose.
+- An **elbow**: pull it the way it should point (the arm bends that way as far as its wrist allows).
+- The **chest**: push or pull it to lean the body, carry it round or twist your wrist to turn it (about its waist; the
+  arms ride it).
 
-The panel to your left (touch a button, pull the trigger): **Every Weapon / This Weapon** (one change for every weapon
-that kind holds, or a nudge for this weapon only), **Undo** (also B/Y), **Reset Grips** (this kind's, or this weapon's,
-back to the shipped ones), **Frozen** (off: watch them move with your grips), **Cancel** (everything back as it was on
-entering) and **Done** (also the menu button: the changed grips printed as code for the shipped defaults, and written
-to `quakevr/proposed_defaults/agrunt_grips_<time>.txt`). Your changes are kept in `vr_agrunt_grips` meanwhile.
+The panel to your left (touch a button, pull the trigger): the pose rows above, **Reset Pose** (this pose's keys back
+to the shipped ones), **Every Weapon / This Weapon** (a grip change for every weapon that kind holds, or for this weapon
+only), **Reset Grips**, **Copy > Enforcer / Copy > Grunt** (this kind's poses and grips laid on the other kind, scaled
+to its body), **Undo** (also B/Y), **Frozen** (off: watch them move live; poses are edited held), **Cancel** (everything
+back as it was on entering) and **Done** (also the menu button: the changed grips and pose keys printed as code for the
+shipped defaults, and written to `quakevr/proposed_defaults/agrunt_poses_<time>.txt`). Your changes are kept in
+`vr_agrunt_grips` and `vr_agrunt_poses` meanwhile (`vr_agrunt_pose_dump` prints the keys).
 
 ### Damage and gore
 

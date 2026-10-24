@@ -46,4 +46,4 @@ spawn "Armed Enforcer: Shotgun" 130 0
 spawn "Armed Enforcer: Sword" 130 45
 spawn "Armed Enforcer (Pool)" 130 -45
 cmd vr_posestudio
-hint Pose Studio (Grip Editor > Drag Mode): walk up to one; boxes show on its weapon (blue) and hands (orange). Grip a box: move and turn it, let go. The weapon: how it sits in the hand; a hand: where it holds the weapon. The panel beside you: Every Weapon / This Weapon, Undo, Reset Grips, Frozen, Cancel, Done (prints the grips as code).
+hint Pose Studio (Grip Editor > Drag Mode): walk up to one; pick a pose on the panel (< Pose >; a strike: < Key > and Play). Boxes on its weapon (blue), hands (orange), elbows (violet), chest (green): grip one, move and turn it, let go: it stays there in that pose. A hand on a weapon: how it holds it. Reset Pose, Copy to the other kind, Undo, Cancel, Done (prints the code).

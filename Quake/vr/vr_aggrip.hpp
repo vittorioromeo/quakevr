@@ -51,6 +51,9 @@ void clearPreview();
 void set(int kind, int slot, int hand, const Offset& o);
 // Every hand's entry of (kind, slot) back to its default (slot allWeapons: the kind's global ones).
 void resetEntries(int kind, int slot);
+// Kind `from`'s changes laid on kind `to` (its own dropped): an Every Weapon entry as its change from `from`'s default on
+// top of `to`'s, a weapon's own as it is. Returns how many entries.
+int copyKind(int from, int to);
 // vr_agrunt_grip_dump's lines (the changes from the defaults; none: a comment saying so).
 void dumpText(za::String& out);
 // An offset as a rigid motion (yaw about z, then pitch about y (down), then roll about x) and back.
