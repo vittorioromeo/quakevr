@@ -229,6 +229,13 @@ za::Vector<Item> pageDebugAutomation()
                   "its weapon (parried: damage cut, the ring), its head and its legs (full damage), a second parry in a "
                   "row (disarmed), a blow from behind (not parried), and an ogre's chainsaw on its weapon (parried) "
                   "(agparry: ... PASS/FAIL)."),
+        command("Armed Grunts: Parry Their Blows", "vr_mock_hand main 0.15 1.35 -0.35 0 90 0; vr_agrunt_test 35")
+            .help("vr_agrunt_test 35 (vrtesthall; about 40 s; Tests Spawn Enforcers picks the enforcer): one "
+                  "after another, an armed one with an axe, a sword, a crowbar, the chainsaw, Mjolnir and fists strikes "
+                  "you; hold the crowbar it gives you (or your own melee weapon) level across in front to parry each "
+                  "blow (agtest: parry ... PASS when one is parried; its stagger). The mock hand is put in that pose "
+                  "(no headset); the weapon stays in a hand not gripping while it runs (vr_weapon_grip_mode 1, as it "
+                  "was again at the end)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")

@@ -302,7 +302,9 @@ float vr_agpt_dmg0;
 float vr_agpt_path; // test 33's disarm path
 float vr_agpt_t0;
 float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand closed
-float vr_agpt_n0;   // test 35's: weapon index
+float vr_agpt_n0;   // test 35's: weapon index,
+float vr_agpt_grip0;   // ... your vr_weapon_grip_mode before it (as it was again at the end),
+float vr_agpt_gripset; // ... 1 while it holds vr_weapon_grip_mode at 1
 
 void(entity g) VR_AGPT_Watch =
 {
@@ -643,9 +645,17 @@ void() VR_AGPT_Parry =
     if(vr_agt_step == 0)
     {
         VR_AGPT_Clear();
+        if(!vr_agpt_gripset)
+        {
+            // (A weapon stays in a hand not gripping: the mock's, or yours from Debug > Tests. With grip mode 0 the
+            // crowbar given falls out of the open mock hand at once and nothing is there to parry with.)
+            vr_agpt_grip0 = cvar("vr_weapon_grip_mode");
+            vr_agpt_gripset = 1;
+            cvar_set("vr_weapon_grip_mode", "1");
+        }
         if(p.weapon == WID_FIST)
         {
-            VRGiveEntWeapon(p, cVR_MainHand, WID_CROWBAR, 0, 0); // (the script's own: vr_weapon_grip_mode 1; impulse 167)
+            VRGiveEntWeapon(p, cVR_MainHand, WID_CROWBAR, 0, 0); // (or the script's own: impulse 167)
         }
         VR_AGT_Print(sprintf("parry: your main hand holds %s", VR_AGT_Name(p.weapon)));
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_parry_disarm);
@@ -680,6 +690,8 @@ void() VR_AGPT_Parry =
     if(VR_AGPT_MeleeWid(vr_agpt_n0) == -2)
     {
         vr_agpt_n0 = 0;
+        cvar_set("vr_weapon_grip_mode", ftos(vr_agpt_grip0));
+        vr_agpt_gripset = 0;
         cvar_set("vr_agrunt_test", "0");
     }
 };
