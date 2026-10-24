@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Phantom Sword from the toolgun (DoE group, no longer greyed): offsets, swing and sounds; the MG Gas Flare spawns on any map {test:phantom_sword}
+Shore foam as spray: at the vrtesthall pool and e1m1's water the particles read as water thrown off the wall (soft, bigger, rise and fall back), not fumes; A/B with Shoreline Foam > spray off and retro on {test:foam_pool}
 Armed humanoids dual-wield guns: two shotguns/nailguns/plasma guns/grenade launchers one per hand (not hammers, rocket launchers, Laser Cannon, chainsaw, flamethrowers), second gun fires 0.1 s after the first, wider misses (Dual Guns' Penalty), both reload, both fall on death; toolgun Left Hand lists guns for a gun in the Right Hand; Pick Up a Second (off) {test:agrunt_dual_guns}
 Blade line start: Edit Blade Shape with the axe: drag the teal Line Start (above the hand) onto the edge's low corner, the red Tip onto its top corner, the purple Blade Start down to the Line Start: the white line lies along the edge; the panel says what each handle does; on the shotgun, your bash tip is the default and shots leave the muzzle where they did before your edit {test:blade_editor_axe}
 Flail moves with you: hold the hand still and walk with the stick: the ball hangs and comes along, swaying a little on start/stop (Flail Body Inertia 0..1); snap and smooth turns carry it; swinging while walking feels as standing; a slow hand: ball and chain as smooth as the hand (compare Debug > Flail Head Drawn Smooth off) {test:flail}
