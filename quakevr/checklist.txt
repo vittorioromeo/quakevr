@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Pose Studio drag mode (Grip Editor > Drag Mode, or the scene): walk up to the shotgun grunt, hold grip on the yellow box: turn the shotgun in its hand and let go (it goes back to its aim with the hand as set); grab its left hand and slide it along the barrel; switch to This Weapon and try a sword's hand; Done (menu button) prints the lines to send me {test:agrunt_pose_studio}
 Armed humanoids strike with the whole body: wind-up twists the torso back and lifts the shoulder and elbow, the drive twists and leans through the blow, then follow-through; repeats vary; punches too; watch from side and front, tune Combat > Armed Grunts > Their Strikes (your values become defaults); parry them as before {test:agrunt_strikes}
 Floor pickup: knock a weapon out of a grunt's/enforcer's hand and watch it go back: kneels, chest bends down to the weapon, hand closes on the handle, straightens as it lifts {test:agrunt_pickup}
 Armed chainsaw grunts: both hands on the saw, carried low across the body, raised level when ready, both hands on the thrust; dual axes/swords/crowbars carried at the sides with blades ahead (left wrist natural) {test:agrunt_weapon_hands}
