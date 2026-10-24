@@ -12,8 +12,8 @@
 // - The skin: each leg vertex weighed once a model between its thigh, shin and foot (smooth over the knee and the
 //   ankle, the hip blended into the pelvis), drawn by the alias shader's RigLeg (agarms' fourth rest row, the codes
 //   past the arms').
-// - Keys: the pickup's legs are a pose key of their own (vr_agpose.hpp legCode: vr_agrunt_poses, the dump, Copy);
-//   the Pose Studio's boxes to drag them are not made yet.
+// - Keys: the pickup's legs are a pose key of their own (vr_agpose.hpp legCode: vr_agrunt_poses, the dump, Copy),
+//   dragged in the Pose Studio's Pickup pose (its boxes from `placed`: the pelvis, the feet, the knees' poles).
 
 #pragma once
 

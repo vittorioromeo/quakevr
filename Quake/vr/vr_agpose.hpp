@@ -112,6 +112,8 @@ void clearPreview();
 void set(int code, const Key& k);
 // Every phase of (kind, cls, pose) back to the shipped keys.
 void resetPose(int kind, int cls, int pose);
+// The Pickup's legs (legCode) of `kind` back to the shipped key.
+void resetLegs(int kind);
 // Every change of kind `from` laid on kind `to` (its own dropped): the places scaled by their fits (QC VR_AM_Fit's
 // scale), the turns as they are. Returns how many keys.
 int copyKind(int from, int to);

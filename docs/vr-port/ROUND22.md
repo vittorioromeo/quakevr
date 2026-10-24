@@ -20408,6 +20408,11 @@ Tests: 34 2/2 grunt and enforcer, 25 3/3, 38 3/3 (grunt). Sheets `scratch/legs_k
 - [ ] Scene `agrunt_pickup`, grunts and enforcers: each goes down on one knee, its right foot planted ahead, its left
   knee down behind on its toes, not as low as before; its hand on the handle; no foot sliding; up again smoothly.
   `vr_aglegs 0` for the old kneel to compare.
+- [ ] Pose Studio (scene `agrunt_pose_studio`), the shotgun grunt, `Pose >` to Pickup: boxes on its pelvis (tan), feet
+  (pink) and knees (blue-violet, a faint line to each knee's way); grip the pelvis and lift it, turn it; drag the
+  planted foot, the kneeling foot, a knee: each stays where let go; Undo; Grab: Weapons hides nothing but won't take
+  them, Limbs takes them; Copy, then the enforcer kneels the same way (scaled); Done prints the `{31, ...}` row.
+
 **Regression checks (second pass, nothing broken, nothing to fix):** test 41 joint gap 0.000, hand shape 0.0000 (grunt
 248 tags, enforcer 236); test 45's full sheets (sets 0..15, 320 shots each kind) joint gap 0, hand shape 0, agerr 0, and
 its take sheet over every set (192 shots each) the same (looked at: one knee down, the planted foot ahead, no torn
@@ -20415,3 +20420,25 @@ skin); tests 35 6/6 and 60 6/6, 25 3/3, 34 2/2, 38 3/3, both kinds; `vr_scenario
 agrunt_* scenes 0 failed; eval.sh: no verdict changes (canary 36/44, full 163/171, 5 differ only by 0.1 in a number).
 Note: `vr_aglegs_info`'s foot drift counts a pain's knock-back over the 0.2 s ease-out (test 34 run through to its end:
 grunt 27 units, the body knocked back with its feet; to the pain's cut 0.008).
+
+**The Pose Studio's leg boxes** (`vr_posestudio.cpp`; the key `agpose::legCode`, stage 2 of the editing): in the Pickup
+pose, with the kneel up (`vr_aglegs` 1, a weapon to take), five more parts from `aglegs::placed`: the pelvis (a box round
+its pivot, turned with it: its place and turn: `LegPelvis`, `LegPelvisTurn`, each axis kept within 60 degrees), the
+planted foot and the kneeling foot (a box round each ankle: `LegPlantFoot`, `LegKneelFoot`), each knee (a box at the
+knee: its pole, `LegKneelKnee`, `LegPlantKnee`: the knee goes as far that way as its leg allows; the pole drawn as a dot
+with a faint line). Hidden outside Pickup. The legs' bones drawn as dim lines like the arms'. A drag moves the key by the
+controller's move in the body's space (the studio holds the kneel at its lowest, weight 1: the change lands 1:1),
+mirrored for a left hand's take. They are limbs for the Grab filter; the pelvis's box is taken last, with the chest's (a hand,
+an elbow, a foot, a knee, then a weapon near enough first). Undo, Cancel, Done (the `{31, ...}` / `{10031, ...}` rows) and Copy go through
+`vr_agrunt_poses` as every key; Reset Pose in Pickup also puts the legs back (`agpose::resetLegs`). The legs' key rows
+now keep their knees' and feet's places to 0.01 (only the pelvis's turn to 0.1: `isTurn` by the code). Mock: `posepart`
+7 the pelvis, 8 the planted foot, 9 the kneeling knee, 10 the kneeling foot, 11 the planted knee; `vr_posestudio_report`
+prints the legs (`legs`, `leg`, `legkey` lines).
+
+Measured (`scratch/ps_legs.sh`: scene `agrunt_pose_studio`, the shotgun grunt): in Carry no leg parts; in Pickup the five
+shown. Pelvis taken, 2 up and the controller turned 15: key `0.01 0.25 2.00 / 15 0 0`, the pivot drawn 2.00 higher,
+its yaw 12 -> 27. Planted foot 1.5 up: key `0 0 1.5`, its ankle 1.50 higher. Kneeling knee 3 sideways: its pole `0 3 0`,
+the knee 2.6 that way; kneeling foot 2 along: `-2 0 0`, its ankle 2.00 moved; planted knee 3: `-3 0 0`. Grab: Weapons:
+the hand at the planted foot takes nothing; Limbs: takes it. Undo: the planted knee's key back to 0. Copy: the enforcer's
+`10031` the grunt's scaled (y x1.35, z x1.1). Done: the `{31, ...}` and `{10031, ...}` rows, the file written. Scenes
+validate 0 errors, runall `agrunt_pose_studio`, `agrunt_grip_editor`, `agrunt_pickup` OK.

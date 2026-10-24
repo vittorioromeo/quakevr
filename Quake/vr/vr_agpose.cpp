@@ -264,16 +264,21 @@ void write()
     return static_cast<float>(static_cast<int>(f * per + (f < 0.f ? -0.5f : 0.5f))) / per;
 }
 
-[[nodiscard]] bool isTurn(int part)
+// Whether key `code`'s part is a turn (degrees: kept to 0.1) or a place (units: 0.01); the legs' key: its pelvis's turn.
+[[nodiscard]] bool isTurn(int code, int part)
 {
+    if(agpose::isLegCode(code))
+    {
+        return part == agpose::LegPelvisTurn;
+    }
     return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso;
 }
 
-[[nodiscard]] bool same(const agpose::Key& a, const agpose::Key& b)
+[[nodiscard]] bool same(int code, const agpose::Key& a, const agpose::Key& b)
 {
     for(int i = 0; i < agpose::NumParts; i++)
     {
-        const float eps = isTurn(i) ? 0.05f : 0.005f;
+        const float eps = isTurn(code, i) ? 0.05f : 0.005f;
         for(int c = 0; c < 3; c++)
         {
             if(za::abs(a.v[i][c] - b.v[i][c]) > eps)
@@ -389,13 +394,13 @@ void set(int c, const Key& k)
     {
         for(int a = 0; a < 3; a++)
         {
-            r.v[i][a] = rounded(k.v[i][a], isTurn(i) ? 10.f : 100.f);
+            r.v[i][a] = rounded(k.v[i][a], isTurn(c, i) ? 10.f : 100.f);
         }
     }
     Key ship;
     const bool hasShip = shippedOf(c, ship);
     dropCode(c);
-    if(!same(r, hasShip ? ship : Key{}) && static_cast<int>(state.over.size()) < maxEntries)
+    if(!same(c, r, hasShip ? ship : Key{}) && static_cast<int>(state.over.size()) < maxEntries)
     {
         state.over.pushBack(Entry{c, r});
     }
@@ -409,6 +414,13 @@ void resetPose(int kind, int cls, int pose)
     {
         dropCode(code(kind, cls, pose, ph));
     }
+    write();
+}
+
+void resetLegs(int kind)
+{
+    parse();
+    dropCode(legCode(kind, Pickup));
     write();
 }
 
@@ -460,7 +472,7 @@ int copyKind(int from, int to)
     {
         Entry c;
         c.code = to * 10000 + within;
-        const bool has = get(from * 10000 + within, c.k) && !same(c.k, Key{});
+        const bool has = get(from * 10000 + within, c.k) && !same(c.code, c.k, Key{});
         c.k.v[RPos] *= s;
         c.k.v[LPos] *= s;
         if(isLegCode(c.code))
@@ -471,7 +483,7 @@ int copyKind(int from, int to)
         }
         Key ship;
         const bool hasShip = shippedOf(c.code, ship);
-        if(!same(c.k, hasShip ? ship : Key{}) && static_cast<int>(kept.size()) < maxEntries)
+        if(!same(c.code, c.k, hasShip ? ship : Key{}) && static_cast<int>(kept.size()) < maxEntries)
         {
             kept.pushBack(c);
         }
@@ -494,7 +506,7 @@ void dumpText(za::String& out)
         out += va("    {%d, {", e.code);
         for(int i = 0; i < NumParts * 3; i++)
         {
-            out += va("%s%.*ff", i ? ", " : "", isTurn(i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
+            out += va("%s%.*ff", i ? ", " : "", isTurn(e.code, i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
         }
         if(isLegCode(e.code))
         {

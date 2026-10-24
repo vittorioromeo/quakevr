@@ -772,8 +772,9 @@ void mockHandTo_f()
     if(hand >= 0 && Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "posepart") || !q_strcasecmp(Cmd_Argv(2), "posebutton")))
     {
         // "posepart <index> [<dx> <dy> <dz>]": at the Pose Studio's part `index` (vr_posestudio.cpp: 0 the right weapon's
-        // box's middle, 1 the left weapon's, 2 the right hand's grip, 3 the left's; 99 where the controller was when the
-        // grab began), plus world units; "posebutton <index>": at its panel button (0 Scope, 1 Undo, 2 Reset Grips, 3
+        // box's middle, 1 the left weapon's, 2 the right hand's grip, 3 the left's, 4/5 the elbows, 6 the chest, 7..11 the
+        // Pickup's legs: pelvis, planted foot, kneeling knee, kneeling foot, planted knee; 99 where the controller was when
+        // the grab began), plus world units; "posebutton <index>": at its panel button (0 Scope, 1 Undo, 2 Reset Grips, 3
         // Frozen, 4 Cancel, 5 Done).
         const bool isPart = !q_strcasecmp(Cmd_Argv(2), "posepart");
         glm::vec3 offset{0.f}, target;
