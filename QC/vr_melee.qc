@@ -4790,6 +4790,7 @@ float(float xHand) VR_Melee_Strike =
     }
     AD_ShadowAxeChop(xHand, b); // AD support: the Shadow Axe chops the bodies lying on the floor (vr_ad_bridge.qc)
     float struck = VR_Melee_Sweep(xHand, b);
+    VR_HoseCut_Melee(xHand, b); // AD support: a blade cuts a hose lying about, its sweep's lines (vr_ad_enemyguns.qc)
     return VR_Melee_StrikeAfter(xHand, b, struck);
 };
 

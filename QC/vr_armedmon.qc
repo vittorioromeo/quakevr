@@ -43,7 +43,8 @@ float vr_am_f_atk;          // its aiming frames (9: the shots in the 4th..8th, 
 float vr_am_f_shove;        // its shove frames (6: a gun's butt): the first
 float vr_am_f_reload;       // its reload frames (11 drawn, these repeating): the first,
 float vr_am_n_reload;       // ... how many
-float vr_am_f_take;         // taking up a weapon (bending down: this and the next three frames, and back)
+float vr_am_f_take;         // taking up a weapon: bending down from this frame,
+float vr_am_n_take;         // ... this many frames, its lowest last (its hand closes there), and back up
 string vr_am_pain1;         // its pain sounds (a tug, a disarm)
 string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
@@ -85,7 +86,8 @@ void(float k) VR_AM_Row =
         vr_am_f_shove = 102; // shove1..6
         vr_am_f_reload = 0;  // (no load frames: its stand)
         vr_am_n_reload = 7;
-        vr_am_f_take = 87;   // paind5..8: down on a knee
+        vr_am_f_take = 85;   // paind3..7: down on a knee (its top 34, 34, 30, 22, 18 units; its hand 6 units over the floor)
+        vr_am_n_take = 5;
         vr_am_pain1 = "enforcer/pain1.wav";
         vr_am_pain2 = "enforcer/pain2.wav";
         vr_am_loot_aid = AID_CELLS;
@@ -124,7 +126,8 @@ void(float k) VR_AM_Row =
     vr_am_f_shove = 114; // shove1..6
     vr_am_f_reload = 29; // load1..11 (unused by id's)
     vr_am_n_reload = 11;
-    vr_am_f_take = 63;   // painc4..7: a crouch (its top 28, 24, 17, 15 units; load1..4 stood upright)
+    vr_am_f_take = 46;   // painb1..6: down on a knee, bent over (its top 28, 22, 18, 17, 10, 2 units; its hand 9 units over
+    vr_am_n_take = 6;    // the floor. painc4..7, a crouch to 15 units, its hand 18 over it, was too shallow: note 2026-10-24 01:15:28)
     vr_am_pain1 = "soldier/pain1.wav";
     vr_am_pain2 = "soldier/pain2.wav";
     vr_am_loot_aid = AID_SHELLS;

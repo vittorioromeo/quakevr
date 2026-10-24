@@ -1056,6 +1056,7 @@ void(entity g, entity p) VR_AGP_Pose =
         vr_agp_wl = 0;
         vr_agp_flags = vr_agp_flags - VR_AGP_LEFTMIRROR;
     }
+    float reaching = FALSE; // (its hand reaching down to a weapon on the floor: sent as no weapon)
     if(g.vr_ag_took_at > 0 && p)
     {
         // A weapon just taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin): where it lay until its hand closes on
@@ -1067,7 +1068,23 @@ void(entity g, entity p) VR_AGP_Pose =
         }
         u = u * u * (3 - 2 * u);
         vector lay = VR_AGP_ToLocal(g.vr_ag_took_org - g.origin);
-        if(pL)
+        if(!pL && time < g.vr_ag_took_grab)
+        {
+            // Bending down: its hand reaches down with the bend (from where its frame has it to the weapon's grip as the
+            // lowest frame is drawn in full), the weapon lying where it lay (sent as no weapon: the client draws it where
+            // the server has it, not at the hand's target). It closes on it there (the author's note 2026-10-24 01:15:28:
+            // the hand was on it from the first frame, the grunt barely bent).
+            float d = (time - g.vr_ag_took_at) / max(0.01, g.vr_ag_took_grab - g.vr_ag_took_at);
+            d = min(1, max(0, d));
+            d = d * d * (3 - 2 * d);
+            vr_agp_wr = 1 - d;
+            vr_agp_v = lay * d;
+            reaching = TRUE;
+            posL = lay;
+            vr_agp_fw = g.vr_ag_took_fw;
+            vr_agp_up = g.vr_ag_took_up;
+        }
+        else if(pL)
         {
             vr_agp_vl = lay + (vr_agp_vl - lay) * u;
             vr_agp_fwl = normalize(g.vr_ag_took_fw + (vr_agp_fwl - g.vr_ag_took_fw) * u);
@@ -1123,7 +1140,7 @@ void(entity g, entity p) VR_AGP_Pose =
     WriteByte(MSG_BROADCAST, 39); // svc_quakevr
     WriteByte(MSG_BROADCAST, 36); // QVR_SVC_ARMPOSE
     WriteEntity(MSG_BROADCAST, g);
-    WriteEntity(MSG_BROADCAST, p);
+    WriteEntity(MSG_BROADCAST, reaching ? world : p);
     WriteByte(MSG_BROADCAST, vr_agp_flags);
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wr)) * 255));
     VR_AGP_WriteVec(vr_agp_v);

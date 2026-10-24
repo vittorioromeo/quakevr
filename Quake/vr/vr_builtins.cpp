@@ -43,6 +43,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
+#include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
@@ -2576,13 +2577,30 @@ void PF_hitmodel_target()
 // hitmodel_segment(e, a, b, radius, class): the segment a..b, a sphere of radius `radius` plus the class's tolerance
 // (0 guns, 1 grapple, 2 melee, 3 thrown), against e's model as drawn: where along it it first meets it (0: it starts
 // in it), -1 missed; -2: e's model is not tested (the option off, not a target): its box as before. The point on the
-// model: hitmodel_rest's (the last hit).
+// model: hitmodel_rest's (the last hit). Class -1 (the hose cut, QC vr_ad_enemyguns.qc VR_HoseCut_Melee): e a tank lying
+// about, its hose to its gun as drawn (vr_adtank.cpp crossHose, a listen server's): how far along the hose (0 at the
+// tank, 1 at the gun) its nearest point within `radius` of a..b lies, trace_endpos that point; -1 missed; -2 no hose.
 void PF_hitmodel_segment()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
     const float radius = za::max(0.f, G_FLOAT(OFS_PARM3));
+    if(G_FLOAT(OFS_PARM4) < 0.f)
+    {
+        glm::vec3 at{0.f};
+        float share = 0.f;
+        const int got = adtank::crossHose(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius, at, share);
+        if(got > 0)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                pr_global_struct->trace_endpos[i] = at[i];
+            }
+        }
+        G_FLOAT(OFS_RETURN) = got > 0 ? share : static_cast<float>(got);
+        return;
+    }
     const auto c = static_cast<hitmodel::Class>(za::clamp(static_cast<int>(G_FLOAT(OFS_PARM4)), 0, 3));
     if(!hitmodel::target(e))
     {
