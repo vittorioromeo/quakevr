@@ -450,6 +450,8 @@ violet ones, its chest a faint green one (a white dot is where each of your cont
 stays outside its body). Put a controller in a box (it turns yellow, a tick) and hold the grip: the box turns green and
 follows your controller, moved and turned. Let go: it stays there, in the pose shown on the panel.
 
+- **Grab: Everything / Weapons / Limbs** (the panel, or either stick's click): what a grip takes; the others dim. In
+  Everything a hand or an elbow inside a weapon's box is taken before the weapon.
 - **Pick the pose first**, on the panel's top rows: **< Pose / Pose >** steps through the poses its weapon has (Idle /
   Carry or Port Arms, Aim / Ready / Guard, Run, Pickup, and each strike: Jab, Cross, Hook, Uppercut for the fists;
   Overhead, Diagonal, Horizontal, Backhand for a melee weapon; Saw Thrust; Dual Strike with two). The monster shows it,

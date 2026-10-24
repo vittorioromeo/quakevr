@@ -20282,8 +20282,18 @@ archived cvar `vr_agrunt_poses`, command `vr_agrunt_pose_dump`.
   blow key: the hand 3.00 higher; Play: mid-strike (torso turned) then back at the key; Reset Pose drops 2141, Undo
   brings it back; Copy > Enforcer: 12010 "1.2 2.16 3.3", 12141 "0 0 3.3"; Cancel restores. Done printed and wrote the file.
 
+- **Grab set** (Vittorio: a weapon overlapping a hand hid the hand): the panel's Grab: Everything / Weapons / Limbs
+  (bottom left; either stick's click cycles it, now taken by the studio), the parts outside it dimmed and never hovered.
+  In Everything, parts within reach are ranked hands and elbows, then weapons, then the chest (nearest within a rank):
+  a hand inside its weapon's box is taken. Test (`scratch/ps2_t4.sh`): the shotgun grunt's right hand point: hovered 2
+  (the hand) in Everything, 0 (the weapon) in Weapons, 2 in Limbs and taken there.
+- **His grips shipped**: `globalDefaults` = his Done dump of 13:33 (both kinds' Main, Off; the grunt's Second). The
+  shotgun grunt drawn with the new defaults and an empty `vr_agrunt_grips` equals his text on the old defaults (every
+  report line: hands, elbows, weapon, totals).
+
 **In VR (stages 2-4):**
 - [ ] The sword grunt: < Pose > to Ready; grab the sword, move it up and turn it, let go: it stays there.
 - [ ] Overhead: Key > to the blow, move the sword; Play: the swing passes through where you put it.
 - [ ] Grab an elbow and pull it out: the elbow follows; grab the chest and lean it forward.
 - [ ] Copy > Enforcer, walk to the enforcer with a sword: the same pose. Done: the console shows the rows.
+- [ ] A hand inside its weapon's box: grip it in Everything (the hand comes); click a stick to Grab: Weapons and take the weapon.

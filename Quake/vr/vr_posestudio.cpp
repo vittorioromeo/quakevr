@@ -71,6 +71,7 @@ enum ButtonId : int
     BtnKeyNext,
     BtnWeaponMode,
     BtnCopy,
+    BtnGrabSet,
     BtnCount
 };
 
@@ -94,6 +95,7 @@ constexpr Place buttonPlace[BtnCount] = {
     {1, 1},  // Key >
     {-1, 2}, // Weapon: Pose / Grip
     {-1, 3}, // Copy to the other kind
+    {-1, 4}, // Grab: Everything / Weapons / Limbs
 };
 constexpr int PANEL_ROWS = 5;
 
@@ -170,6 +172,7 @@ struct Session
     int phase{0};
     int playCount{0};
     bool weaponGrip{false};
+    int grabSet{0}; // what a grip takes: 0 everything, 1 the weapons only, 2 the limbs only (hands, elbows, chest)
     ClassNote classes[CLASS_NOTES];
     int nextClass{0};
     // the monsters noted: the nearest this frame (pending, filled while the relink runs) and the last complete
@@ -310,6 +313,13 @@ Session ses;
         case PHandL: return freeHand(n, sideOf(p));
         default: return true;
     }
+}
+
+// Whether part `p` is in the Grab set (the panel's Grab: Everything / Weapons / Limbs; a stick's click cycles it).
+[[nodiscard]] bool inGrabSet(int p)
+{
+    const bool weapon = p == PWeaponR || p == PWeaponL;
+    return ses.grabSet == 0 || (ses.grabSet == 1) == weapon;
 }
 
 // The kind and weapon class QC last told of `ent` (-1: none yet).
@@ -912,6 +922,13 @@ void stepKey(int by)
     say(va("key: %s", agpose::phaseName(ses.phase)));
 }
 
+void cycleGrabSet()
+{
+    ses.grabSet = (ses.grabSet + 1) % 3;
+    say(ses.grabSet == 1 ? "grab: the weapons only" : ses.grabSet == 2 ? "grab: the limbs only (hands, elbows, chest)"
+                                                            : "grab: everything (a hand inside a weapon's box first)");
+}
+
 void play()
 {
     if(!agpose::isStrike(ses.pose))
@@ -1004,6 +1021,7 @@ void press(int b)
             say(ses.weaponGrip ? "a weapon's drag turns it in its hand (its grip)" : "a weapon's drag moves it in this pose (the hand follows)");
             break;
         case BtnCopy: copyKind(); break;
+        case BtnGrabSet: cycleGrabSet(); break;
         default: break;
     }
 }
@@ -1026,6 +1044,7 @@ void press(int b)
         case BtnPlay: return "Play";
         case BtnResetPose: return "Reset Pose";
         case BtnWeaponMode: return ses.weaponGrip ? "Weapon: Grip" : "Weapon: Pose";
+        case BtnGrabSet: return ses.grabSet == 1 ? "Grab: Weapons" : ses.grabSet == 2 ? "Grab: Limbs" : "Grab: Everything";
         default: return n && n->kind == 1 ? "Copy > Grunt" : "Copy > Enforcer";
     }
 }
@@ -1152,6 +1171,7 @@ void drawPanel()
     text += "\ngrip a box, move and turn it, let go:";
     text += "\n  weapon, fist, elbow, chest: this pose";
     text += "\n  a hand on a weapon: how it holds it";
+    text += va("\nstick click: grab %s", ses.grabSet == 1 ? "weapons only" : ses.grabSet == 2 ? "limbs only" : "everything");
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
     int lineCount = 1;
@@ -1216,8 +1236,12 @@ void drawParts(const Note& n)
         }
         const bool held = ses.grab.part == p;
         const bool hovered = !held && (ses.hover[HAND_OFF] == p || ses.hover[HAND_MAIN] == p);
-        const glm::vec4 col = held ? glm::vec4{0.2f, 1.f, 0.35f, 1.f} : hovered ? glm::vec4{1.f, 0.9f, 0.2f, 1.f} : partColour(p);
-        const float width = held || hovered ? 0.3f : 0.2f;
+        const bool takeable = inGrabSet(p);
+        const glm::vec4 col = held      ? glm::vec4{0.2f, 1.f, 0.35f, 1.f}
+                              : hovered ? glm::vec4{1.f, 0.9f, 0.2f, 1.f}
+                              : takeable ? partColour(p)
+                                         : glm::vec4{0.55f, 0.55f, 0.6f, 0.25f}; // (not taken now: Grab: Weapons / Limbs)
+        const float width = held || hovered ? 0.3f : takeable ? 0.2f : 0.1f;
         const Rigid f = partFrame(n, p);
         if(p == PWeaponR || p == PWeaponL)
         {
@@ -1279,17 +1303,22 @@ void hoverFrame(const hands::State& s)
     {
         int best = -1;
         float bestD = 1e30f;
+        // (the parts in the Grab set; within reach of more than one: a hand or an elbow before a weapon, a weapon before
+        // the chest (a hand inside its weapon's box is taken), then the nearest)
+        int bestTier = 3;
         for(int p = 0; p < PCount && n; p++)
         {
-            if(!shown(*n, p))
+            if(!shown(*n, p) || !inGrabSet(p))
             {
                 continue;
             }
             const float d = partDistance(*n, p, grabber(s, h));
-            if(d <= partReach(p) && d < bestD)
+            const int tier = p == PChest ? 2 : p == PWeaponR || p == PWeaponL ? 1 : 0;
+            if(d <= partReach(p) && (tier < bestTier || (tier == bestTier && d < bestD)))
             {
                 best = p;
                 bestD = d;
+                bestTier = tier;
             }
         }
         if(ses.grab.part >= 0)
@@ -1345,8 +1374,9 @@ void press_f()
 void report_f()
 {
     const Note* n = current();
-    Con_Printf("posestudio active %d subject %d grab %d hover %d %d undo %d scope %s\n", ses.active ? 1 : 0, n ? n->ent : 0,
-        ses.grab.part, ses.hover[HAND_OFF], ses.hover[HAND_MAIN], static_cast<int>(ses.undo.size()), scopeAll() ? "all" : "own");
+    Con_Printf("posestudio active %d subject %d grab %d hover %d %d undo %d scope %s grabset %d\n", ses.active ? 1 : 0, n ? n->ent : 0,
+        ses.grab.part, ses.hover[HAND_OFF], ses.hover[HAND_MAIN], static_cast<int>(ses.undo.size()), scopeAll() ? "all" : "own",
+        ses.grabSet);
     if(!n)
     {
         return;
@@ -1580,14 +1610,18 @@ bool button(int hand, posing::Button b, bool down)
     {
         return false;
     }
-    // (the walk's buttons pass: A/X, the sticks' presses)
-    if(b == posing::Button::Primary || b == posing::Button::StickClick)
+    // (the walk's buttons pass: A/X)
+    if(b == posing::Button::Primary)
     {
         return false;
     }
     ses.eaten[hand][i] = true;
     switch(b)
     {
+        case posing::Button::StickClick:
+            haptic(hand, 0.03f, 0.5f);
+            cycleGrabSet(); // (either stick's click: Grab: Everything / Weapons / Limbs)
+            break;
         case posing::Button::Grip:
             if(ses.grab.part < 0 && ses.hover[hand] >= 0)
             {
