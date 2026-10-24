@@ -188,18 +188,33 @@ constexpr Spawnable spawnables[] = {
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
+// Whether a model's file is on the search path: a variant's name ("<file>#melee", "#gun<n>", "#vr", "#rag": made by
+// the engine from the file when loaded, not a file of its own) looks for its file (the DoE Phantom Sword's
+// "progs/sword.mdl#melee" was greyed with Rogue's data mounted).
+[[nodiscard]] bool modelFileExists(const char* model)
+{
+    const char* tag = strchr(model, '#');
+    if(!tag) { return COM_FileExists(model, nullptr); }
+    char file[MAX_QPATH];
+    const size_t n = static_cast<size_t>(tag - model);
+    if(n >= sizeof(file)) { return false; }
+    memcpy(file, model, n);
+    file[n] = '\0';
+    return COM_FileExists(file, nullptr);
+}
+
 // Whether an entry can be made now: AD's while AD's data is in play (ad::spawnAvailable), an expansion's while its
 // model is there, AD's lights only in an AD map (outside its rules AD's ad_ classes are not made: box3d::spawnClass).
 [[nodiscard]] bool entryAvailable(const Spawnable& s)
 {
     if(s.adOnly && adBackpack(s.classname)) // (any map, AD's data permitting)
     {
-        return Cvar_VariableValue("vr_ad_mounted") != 0.f && COM_FileExists(s.model, nullptr);
+        return Cvar_VariableValue("vr_ad_mounted") != 0.f && modelFileExists(s.model);
     }
     if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
     if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
     if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
-    return s.needs == 0 || (COM_FileExists(s.model, nullptr) && (!s.probe || COM_FileExists(s.probe, nullptr)));
+    return s.needs == 0 || (modelFileExists(s.model) && (!s.probe || modelFileExists(s.probe)));
 }
 
 // Why entryAvailable says no (for the console: vr_toolgun_spawnlist, a selection refused), "" when it is available.
@@ -209,7 +224,7 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
     if(s.adOnly) { return "Arcane Dimensions' data not in play here (vr_ad_mounted, its rules, Additional Content)"; }
     if(s.needs == 2) { return "only in a map played by Arcane Dimensions' rules"; }
     if(s.needs == 3) { return "only in Dawn of the Machine's campaign"; }
-    const char* missing = !COM_FileExists(s.model, nullptr) ? s.model : s.probe ? s.probe : s.model;
+    const char* missing = !modelFileExists(s.model) ? s.model : s.probe ? s.probe : s.model;
     return va("%s is not on the search path (its pack's data missing or not mounted: vr_pack_status)", missing);
 }
 
@@ -637,9 +652,18 @@ void armedRefresh()
     return w && kind >= 0 && kind < armedMaxKinds ? w->fits[kind] : 0;
 }
 
+// It may go in a pair (QC VR_AG_Pairable: a one-handed melee weapon, or a gun not too big to dual wield).
 [[nodiscard]] bool armedOneHanded(int kind, int code)
 {
     return (armedFits(kind, code) & 2) != 0;
+}
+
+// The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
+[[nodiscard]] bool armedPairs(int kind, int code, int code2)
+{
+    constexpr int classMelee = 1; // (QC VR_AG_CLASS_MELEE: the fits' class, 4 x)
+    const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == classMelee) == ((f2 >> 2) == classMelee);
 }
 
 [[nodiscard]] const char* armedCodeName(int code)
@@ -703,7 +727,7 @@ void armedChoose()
     int code = static_cast<int>(vr_toolgun_armed_weapon.value);
     int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
     code = code < 0 ? -1 : (code > 0 && !armedFits(kind, code) ? 0 : code);
-    code2 = code > 0 && armedOneHanded(kind, code) && armedOneHanded(kind, code2) ? code2 : 0;
+    code2 = armedPairs(kind, code, code2) ? code2 : 0;
     const auto keep = [](cvar_t& cv, float v) {
         if(cv.value != v)
         {
@@ -2319,6 +2343,7 @@ int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i]
 const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
+bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
 bool chosen() { return tg.sel.valid && tg.sel.armed; }
 
 void choose()
@@ -2738,7 +2763,7 @@ void selectArmed_f()
 }
 
 // vr_toolgun_armed_list: the Armed Humanoid page's lists: the kinds (the armed monsters' table's rows), each weapon's
-// code and name and what each kind makes of it ("1h": one-handed, it pairs; "-": not held).
+// code and name and what each kind makes of it ("pair": it pairs, one in each hand; "one": held alone; "-": not held).
 void armedList_f()
 {
     armedRefresh();
@@ -2758,7 +2783,7 @@ void armedList_f()
         char fits[64] = "";
         for(int k = 0; k < c.kindCount; k++)
         {
-            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " 1h" : " 2h", sizeof(fits));
+            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " pair" : " one", sizeof(fits));
         }
         Con_Printf("armedlist: weapon %d \"%s\" class %d:%s\n", w.code, w.name, w.fits[0] / 4, fits);
     }

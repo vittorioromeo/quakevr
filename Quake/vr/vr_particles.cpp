@@ -105,6 +105,7 @@ enum Cell : za::U8
     CellSpray, // a cloud of fine droplets in a haze (generated)
     CellFoam,  // a patch of bubbly foam (generated), lying on a liquid
     CellFire, // generated wispy flame tongue; emission sources keep their low-poly flame models
+    CellShoreSpray, // a soft, blurry burst of spray (generated): the shore's foam particles (shoreFoam)
     CellCount
 };
 
@@ -143,6 +144,7 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
+    bool plain{false};    // its texture read smoothly, not through retro textures (the shore's spray; unless vr_water_foam_particle_retro)
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
@@ -648,6 +650,18 @@ void run()
                 break;
             case Drip: fade(p, -170.f); break;
             case Custom:
+                // Fading in first (`ramp` seconds of it left: the shore's spray, as `fade` rises to its peak), then out
+                // to nothing by its end.
+                if(p.ramp > 0.f)
+                {
+                    p.ramp -= dt;
+                    if(p.ramp <= 0.f)
+                    {
+                        p.color.a += p.fade * (dt + p.ramp);
+                        p.fade = -p.color.a / za::max(static_cast<float>(p.die - cl.time), 0.05f);
+                        p.ramp = 0.f;
+                    }
+                }
                 p.color.a += p.fade * dt;
                 p.scale += p.grow * dt;
                 p.vel *= za::max(0.f, 1.f - p.drag * dt);
@@ -886,6 +900,55 @@ struct CellRandom
     return dst;
 }
 
+// Shore spray (ROUND22.md, "Shore foam as spray"): a soft, blurry cloud, a few overlapping lumps in a wide haze, its
+// alpha falling smoothly to nothing well inside the cell (no rims, no hard edge, no bubbles): water thrown up off the
+// wall, not a patch of foam.
+[[nodiscard]] za::Vector<za::U8> buildShoreSpray(int size)
+{
+    struct Lump
+    {
+        float x, y, s, w;
+    };
+    za::Vector<Lump> lumps;
+    CellRandom rand{0x5b1a5u};
+    for(int i = 0; i < 9; i++)
+    {
+        const float r = za::sqrt(rand.next()) * 0.38f, t = rand.next() * 6.2831853f;
+        lumps.pushBack({za::cos(t) * r, za::sin(t) * r, 0.16f + 0.14f * rand.next(), 0.5f + 0.5f * rand.next()});
+    }
+    za::Vector<float> alpha(static_cast<za::SizeT>(size * size), 0.f);
+    const float c = (size - 1) * 0.5f;
+    float peak = 0.f;
+    for(int y = 0; y < size; y++)
+    {
+        for(int x = 0; x < size; x++)
+        {
+            const float dx = (x - c) / c, dy = (y - c) / c;
+            const float r2 = dx * dx + dy * dy;
+            float a = 0.55f * za::exp(-r2 * 4.f); // the haze
+            for(const Lump& l : lumps)
+            {
+                const float ex = dx - l.x, ey = dy - l.y;
+                a += l.w * za::exp(-(ex * ex + ey * ey) / (2.f * l.s * l.s));
+            }
+            // to nothing smoothly by the cell's edge (0.62 .. 0.98 of its radius)
+            const float r = za::sqrt(r2);
+            const float t = za::clamp((r - 0.62f) / 0.36f, 0.f, 1.f);
+            a *= 1.f - t * t * (3.f - 2.f * t);
+            alpha[static_cast<za::SizeT>(y * size + x)] = a;
+            peak = za::max(peak, a);
+        }
+    }
+    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
+    for(za::SizeT i = 0; i < alpha.size(); i++)
+    {
+        // its densest 0.8, and a gentle shoulder (more of it faint than a plain Gaussian's)
+        const float a = 0.8f * za::sqrt(za::clamp(alpha[i] / za::max(peak, 1e-4f), 0.f, 1.f)) * za::clamp(alpha[i] / za::max(peak, 1e-4f) * 4.f, 0.f, 1.f);
+        dst[i * 4 + 3] = static_cast<za::U8>(a * 255.f + 0.5f);
+    }
+    return dst;
+}
+
 bool ensureAtlas()
 {
     if(atlas || atlasFailed)
@@ -915,6 +978,7 @@ bool ensureAtlas()
     put(CellDrop, buildDrop(48).data(), 48, 48);
     put(CellSpray, buildSpray(128).data(), 128, 128);
     put(CellFoam, buildFoam(128).data(), 128, 128);
+    put(CellShoreSpray, buildShoreSpray(128).data(), 128, 128);
 
     struct File
     {
@@ -1859,6 +1923,126 @@ void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
     });
 }
 
+// A random point on the ground's plane within `radius` of the middle (evenly over the disc).
+[[nodiscard]] glm::vec3 inDisc(float radius)
+{
+    const float a = rndAngle();
+    const float r = radius * za::sqrt(rnd(0.f, 1.f));
+    return {r * za::cos(a), r * za::sin(a), 0.f};
+}
+
+// AD support: a fuel tank's burst field (Preset::TankFire, TankSmoke, TankCloud; QC vr_ad_enemyguns.qc
+// VR_TankField_Look): `org` a spot on the ground in it, `dir` (spread round it in 8 units, as the message holds 1/16ths
+// to 8; size; alpha: the field fading).
+// The fire: tongues of the torches' fire (CellFire) rising straight up off the ground, slowing at the top, and a few
+// embers going up with them.
+void tankFire(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellFire;
+        p.type = Custom;
+        // Some glowing (added to the scene: a dark place's fire), most drawn over it in deep oranges, so that they read
+        // on a bright floor too (added light vanishes on one: vrtesthall's).
+        p.additive = rnd(0.f, 1.f) < 0.4f;
+        const float life = rnd(0.35f, 0.7f);
+        const glm::vec3 c = p.additive ? fireColor()
+                                       : glm::mix(glm::vec3{0.85f, 0.2f, 0.02f}, glm::vec3{1.f, 0.55f, 0.1f}, rnd(0.f, 1.f));
+        p.color = glm::vec4{c, (p.additive ? rnd(0.55f, 0.75f) : rnd(0.65f, 0.85f)) * alpha};
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(5.f, 8.f) * size;
+        p.grow = rnd(2.f, 6.f) * size;
+        p.spin = rnd(-0.6f, 0.6f);
+        p.drag = 1.2f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(2.f, 8.f) * size};
+        p.vel = glm::vec3{rnd(-3.f, 3.f), rnd(-3.f, 3.f), rnd(55.f, 95.f) * size};
+        p.acc = glm::vec3{0.f, 0.f, 30.f};
+    });
+    make(someOf(0.25f * static_cast<float>(count)), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.type = Custom;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, rnd(0.f, 0.6f)), alpha};
+        const float life = rnd(0.7f, 1.4f);
+        p.die = cl.time + life;
+        p.fade = -alpha / life;
+        p.scale = rnd(0.2f, 0.4f);
+        p.drag = 0.6f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 24.f)};
+        p.vel = glm::vec3{rnd(-12.f, 12.f), rnd(-12.f, 12.f), rnd(60.f, 130.f)};
+        p.acc = gravity(0.08f);
+    });
+}
+
+// ... its smoke: dark puffs off the flames' tops, rising, swelling and thinning out.
+void tankSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        const float g = rnd(0.08f, 0.16f);
+        p.color = glm::vec4{g, g * 0.94f, g * 0.88f, rnd(0.32f, 0.48f) * alpha};
+        const float life = rnd(2.5f, 3.8f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(4.f, 7.f) * size;
+        p.grow = rnd(2.5f, 4.f) * size;
+        p.spin = rnd(-0.5f, 0.5f);
+        p.drag = 0.5f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(28.f, 44.f) * size};
+        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(22.f, 40.f)};
+        p.acc = glm::vec3{0.f, 0.f, 5.f};
+    });
+}
+
+// ... the poison sprayer's cloud: big puffs of green smoke (a smoke bomb's) low over the ground, billowing out and
+// churning slowly, thinning out; a faint glow in some, as AD's poison (additive: it shows in the dark too).
+void tankCloud(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        const float g = rnd(0.8f, 1.15f);
+        p.color = glm::vec4{0.15f * g, 0.4f * g, 0.08f * g, rnd(0.35f, 0.5f) * alpha};
+        const float life = rnd(2.4f, 3.6f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(10.f, 15.f) * size;
+        p.grow = rnd(2.f, 4.f) * size;
+        p.spin = rnd(-0.35f, 0.35f);
+        p.drag = 0.8f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 48.f) * size};
+        p.vel = glm::vec3{rnd(-8.f, 8.f), rnd(-8.f, 8.f), rnd(2.f, 9.f)};
+        p.acc = glm::vec3{0.f, 0.f, 1.5f};
+    });
+    make(someOf(0.35f * static_cast<float>(count)), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        p.additive = true;
+        const float g = rnd(0.8f, 1.1f);
+        p.color = glm::vec4{0.25f * g, 0.62f * g, 0.1f * g, rnd(0.06f, 0.1f) * alpha};
+        const float life = rnd(2.f, 3.f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(5.f, 7.f) * size;
+        p.grow = 1.5f * size;
+        p.spin = rnd(-0.3f, 0.3f);
+        p.drag = 0.8f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(6.f, 26.f) * size};
+        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(1.f, 5.f)};
+        p.acc = glm::vec3{0.f, 0.f, 1.f};
+    });
+}
+
 // Short blue-white crackling arcs (CellLightning), `count` of them about `org`, `reach` units out.
 void electricArcs(const glm::vec3& org, float count, float reach, float size)
 {
@@ -2017,6 +2201,9 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
             break;
         }
         case Preset::Steam: steam(org, count); break;
+        case Preset::TankFire: tankFire(org, dir, count); break;
+        case Preset::TankSmoke: tankSmoke(org, dir, count); break;
+        case Preset::TankCloud: tankCloud(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -2619,6 +2806,11 @@ constexpr float kShoreNear = 320.f;    // ... fewer past this
 constexpr float kShoreRelist = 64.f;   // the near list made again once the eye has moved this far
 constexpr float kShoreRate = 0.15f;    // particles a second for each unit of shore at 1 (15 for 100 units)
 constexpr float kShoreMaxLive = 600.f; // about this many alive at most
+// Spray (vr_water_foam_particle_spray 1): its opacity a share of the liquid's particle opacity (the cloud is bigger),
+// the share of its life it fades in over, and the share it rises for (up and back down by twice that).
+constexpr float kSprayOpacity = 0.7f;
+constexpr float kSprayFadeIn = 0.15f;
+constexpr float kSprayRise = 0.3f;
 
 struct ShoreNear
 {
@@ -2700,6 +2892,7 @@ void shoreFoam()
     }
     shoreNear.expectedLive = live;
     const float scale = live > kShoreMaxLive ? kShoreMaxLive / live : 1.f;
+    const bool spray = vr_water_foam_particle_spray.value != 0.f;
     for(const za::U32 i : shoreNear.list)
     {
         const water::ShoreSegment& s = shore[i];
@@ -2722,27 +2915,54 @@ void shoreFoam()
             const bool lava = s.liquid == 1;
             const float size = l.particleSize;
             const float life = l.particleLife * rnd(0.7f, 1.3f);
-            const float alpha = l.particleOpacity * rnd(0.7f, 1.f);
             const glm::vec2 along = d / len;
             // on the shore's line (the particle shore setting out from it), a little either side: over the hard edge
             const glm::vec3 org{at + s.in * (l.particleShore + rnd(-0.5f, 1.5f) * size), s.z};
             Particle p;
             p.angle = rndAngle();
-            p.cell = CellFoam;
             p.type = Custom;
             p.liquid = water::foamContents(s.liquid); // (its light: lava's glows)
-            p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), alpha};
             p.die = cl.time + life;
-            const float big = rnd(3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
-            p.scale = 0.6f * big;
-            p.grow = 0.9f * big / life;
-            p.fade = -alpha / life;
-            p.spin = rnd(-0.6f, 0.6f);
-            p.drag = 0.8f;
-            // a little above the surface (the bottom in the liquid), drifting along the shore and out
-            p.org = org + glm::vec3{0.f, 0.f, rnd(0.1f, 0.5f) * 0.75f * p.scale};
-            const float drift = rnd(-4.f, 4.f);
-            p.vel = glm::vec3{along * drift + s.in * rnd(0.5f, 2.5f), rnd(0.f, 1.5f)};
+            if(spray)
+            {
+                // Spray (ROUND22.md, "Shore foam as spray"): water thrown up where it hits the wall. A soft blurry cloud
+                // (CellShoreSpray), bigger and fainter than the old puffs, bursts up off the shore line, slows, falls
+                // back and spreads as it goes; it fades in over its first moments and out by its end (no pop).
+                const float alpha = kSprayOpacity * l.particleOpacity * rnd(0.6f, 1.f);
+                p.cell = CellShoreSpray;
+                p.plain = true; // (smooth unless vr_water_foam_particle_retro: buildInstances)
+                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), 0.02f * alpha};
+                const float big = rnd(5.f, 8.f) * size; // 5 to 8 units across at 1 (half again the old puffs'), spreading
+                p.scale = 0.7f * big;
+                p.grow = 0.6f * big / life;
+                p.ramp = kSprayFadeIn * life;
+                p.fade = alpha / p.ramp;
+                p.spin = rnd(-0.3f, 0.3f);
+                // Up to its top at kSprayRise of its life (a short burst: its height rnd(1.5, 3.5) x the size, at most
+                // 6 units), back at the surface by twice that, still falling as it fades; out from the wall a little.
+                const float up = za::min(rnd(1.5f, 3.5f) * size, 6.f);
+                const float tUp = kSprayRise * life;
+                const float g = 2.f * up / (tUp * tUp);
+                p.org = org + glm::vec3{0.f, 0.f, 0.15f * p.scale};
+                p.vel = glm::vec3{along * rnd(-3.f, 3.f) + s.in * rnd(1.f, 5.f), g * tUp};
+                p.acc = glm::vec3{0.f, 0.f, -g};
+            }
+            else
+            {
+                const float alpha = l.particleOpacity * rnd(0.7f, 1.f);
+                p.cell = CellFoam;
+                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), alpha};
+                const float big = rnd(3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
+                p.scale = 0.6f * big;
+                p.grow = 0.9f * big / life;
+                p.fade = -alpha / life;
+                p.spin = rnd(-0.6f, 0.6f);
+                p.drag = 0.8f;
+                // a little above the surface (the bottom in the liquid), drifting along the shore and out
+                p.org = org + glm::vec3{0.f, 0.f, rnd(0.1f, 0.5f) * 0.75f * p.scale};
+                const float drift = rnd(-4.f, 4.f);
+                p.vel = glm::vec3{along * drift + s.in * rnd(0.5f, 2.5f), rnd(0.f, 1.5f)};
+            }
             pool.pushBack(p);
             shoreNear.spawned++;
         }
@@ -2907,6 +3127,7 @@ struct Softness
     {
         case CellRing: return {}; // (lying on a liquid)
         case CellFoam: fade = za::clamp(radius * 0.5f, 1.f, 4.f); break; // (lying: none; standing, the shore's: soft on the rock)
+        case CellShoreSpray: fade = za::clamp(radius * 0.6f, 1.5f, 6.f); break; // (soft on the rock it hits, not pulled off it)
         case CellCircle:
         case CellDrop:
         case CellSpark: fade = 1.5f; break;
@@ -3043,7 +3264,8 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
         case CellRing: // water: ripples, drops, spray, foam
         case CellDrop:
         case CellSpray:
-        case CellFoam: return Lighting::Lit;
+        case CellFoam:
+        case CellShoreSpray: return Lighting::Lit;
         case CellCount: break;
     }
     return Lighting::Lit;
@@ -3403,7 +3625,7 @@ void drainWaste()
 }
 
 constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "blood", "blood mist", "lightning",
-    "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire"};
+    "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire", "shore spray"};
 
 // vr_particle_waste_report: the fragments the particles shaded since the last report (vr_debug_particle_waste 1), and
 // how many showed nothing (under half a level of 255) or next to nothing (under vr_debug_particle_waste_alpha), by
@@ -3473,6 +3695,7 @@ void buildInstances()
     glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
     gfx::ParticleInstance* out = instances.data();
     bool trim = false;
+    const bool plainOn = vr_water_foam_particle_retro.value == 0.f; // the shore's spray kept smooth (Particle::plain)
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -3507,6 +3730,7 @@ void buildInstances()
         q.flat = p.flat ? 1.f : 0.f;
         q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
         q.kind = static_cast<float>(p.cell);
+        q.pad = p.plain && plainOn ? 1.f : 0.f; // (flags.w: the shader skips retro textures)
         trim |= cellTrim[p.cell];
     }
     instanceCount = static_cast<za::SizeT>(out - instances.data());

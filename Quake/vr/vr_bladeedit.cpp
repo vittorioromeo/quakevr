@@ -42,7 +42,8 @@ constexpr Key managedKeys[] = {Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::Muzz
     Key::BladeSpine, Key::BladeSpine1Off, Key::BladeSpine1Side, Key::BladeSpine2Off, Key::BladeSpine2Side,
     Key::BladeSpine3Off, Key::BladeSpine3Side, Key::BladeSpine4Off, Key::BladeSpine4Side, Key::BladeSpine5Off,
     Key::BladeSpine5Side, Key::BladeHead, Key::BladeHeadLoX, Key::BladeHeadLoY, Key::BladeHeadLoZ, Key::BladeHeadHiX,
-    Key::BladeHeadHiY, Key::BladeHeadHiZ, Key::BladeFrom, Key::BladeFromOff, Key::BladeFromSide};
+    Key::BladeHeadHiY, Key::BladeHeadHiZ, Key::BladeFrom, Key::BladeFromOff, Key::BladeFromSide, Key::BladeOrgX,
+    Key::BladeOrgY, Key::BladeOrgZ, Key::BladeTipX, Key::BladeTipY, Key::BladeTipZ};
 constexpr int managedCount = static_cast<int>(sizeof(managedKeys) / sizeof(managedKeys[0]));
 constexpr Key spineKeys[blade::spinePoints][2] = {{Key::BladeSpine1Off, Key::BladeSpine1Side},
     {Key::BladeSpine2Off, Key::BladeSpine2Side}, {Key::BladeSpine3Off, Key::BladeSpine3Side},
@@ -78,7 +79,8 @@ enum HandleId : int
     HSpine1,
     HHeadLo = HSpine1 + blade::spinePoints,
     HHeadHi,
-    HFrom, // the blade's start: where its striking part (an axe's head, a sword's blade) begins
+    HFrom,   // the blade's start: where its striking part (an axe's head, a sword's blade) begins
+    HOrigin, // the line's start (the hand by default): moved freely, as the tip
     HCount
 };
 
@@ -104,7 +106,9 @@ constexpr float HANDLE_KEEP = 1.5f;     // the handle under the hand stays its o
 constexpr float HANDLE_SWITCH = 0.6f;   // ...unless another is nearer than this share of its distance
 constexpr float LIFT = 0.07f;           // metres a handle at or behind the holding hand is shown (and taken) out of it
 constexpr float LIFT_NEAR = 0.12f;      // metres: a handle this near the holding hand is lifted (the near end always)
+constexpr float LIFT_ORIGIN = 0.11f;    // metres the line's start is lifted out of the hand (above the near end's)
 constexpr float LIFT_FACE = 0.035f;     // metres the blade's start is shown out of the blade's flat (towards the eyes)
+constexpr float ORG_REACH = 40.f;       // units: the line's start and a gun's tip at most this far off the hand / muzzle
 constexpr float FROM_MIN = 0.05f;       // the blade's start's share of the line: at least this...
 constexpr float FROM_MAX = 0.95f;       // ...and at most this
 constexpr float HEAD_FROM = 0.3f;       // Head Box On seeds the box round the model's vertices past this share at least...
@@ -137,6 +141,7 @@ struct Geo
     glm::vec3 f{1.f, 0.f, 0.f}, r{0.f, -1.f, 0.f}, u{0.f, 0.f, 1.f}; // its frame (QC makevectors of its turn)
     float mirror{1.f};                                         // the fist's right offsets: -1 the off hand's mirrored
     glm::vec3 lift{0.f, 0.f, 1.f};                             // the way a handle at the hand is lifted out of it
+    bool gun{false}; // it fires: its Muzzle offset is its shots' start, so its Tip handle moves Blade Tip instead
 };
 
 struct Session
@@ -175,6 +180,26 @@ Session ses;
 [[nodiscard]] bool emptyHand(int hand)
 {
     return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2] == 0;
+}
+
+// The weapon in `hand` fires (QC VR_Melee_Thing's gun: not the fists, the axe, Mjolnir, a sword, the chainsaw, the
+// crowbar, MG3's Super Axe: QC vr_defs.qc WID_*), so its Muzzle offset is where its shots start.
+[[nodiscard]] bool firesShots(int hand)
+{
+    const int wid = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
+    return wid != 0 && wid != 2 && wid != 3 && wid != 13 && wid != 14 && wid != 17 && wid != 18;
+}
+
+// An offset along the hand's forward, right (mirrored in the off hand), up in the world (QC VR_Melee_Line's line ends).
+[[nodiscard]] glm::vec3 handOffset(const Geo& g, const glm::vec3& o)
+{
+    return g.f * o.x + g.r * (o.y * g.mirror) + g.u * o.z;
+}
+
+// A move in the world as such an offset.
+[[nodiscard]] glm::vec3 toHandOffset(const Geo& g, const glm::vec3& d)
+{
+    return {glm::dot(d, g.f), glm::dot(d, g.r) * g.mirror, glm::dot(d, g.u)};
 }
 
 // The settings the session changes: the weapon's keys, or the fist's line's.
@@ -337,16 +362,21 @@ void haptic(int hand, float seconds, float amplitude)
     {
         return false;
     }
-    g.hand = s.pos[h];
-    g.tip = s.muzzle[h] + (s.pos[h] - s.placedFrom[h]);
+    // The line from its start (the hand, or its own Line Start off it) to the tip (the muzzle, or its own Blade Tip off
+    // it): QC VR_Melee_Line.
+    g.origin = s.pos[h];
+    hands::angleVectors(s.rot[h], g.f, g.r, g.u);
+    g.mirror = h == HAND_OFF ? -1.f : 1.f;
+    g.gun = firesShots(h);
+    g.shape = blade::shape(ses.slot);
+    g.hand = g.origin + handOffset(g, g.shape.origin);
+    g.tip = s.muzzle[h] + (s.pos[h] - s.placedFrom[h]) + handOffset(g, g.shape.tipOffset);
     g.len = glm::length(g.tip - g.hand);
     if(g.len < 2.f || g.len > 80.f)
     {
         return false;
     }
     g.a = (g.tip - g.hand) / g.len;
-    g.origin = g.hand;
-    hands::angleVectors(s.rot[h], g.f, g.r, g.u);
     glm::vec3 y = -g.r - g.a * glm::dot(-g.r, g.a);
     if(glm::length(y) < 1e-4f)
     {
@@ -355,7 +385,6 @@ void haptic(int hand, float seconds, float amplitude)
     g.y = glm::normalize(y);
     g.p = glm::normalize(glm::cross(g.y, g.a));
     g.lift = squareTo(glm::vec3{0.f, 0.f, 1.f}, g.a, g.p); // (above the forearm behind the hand)
-    g.shape = blade::shape(ses.slot);
     g.kind = admelee::kindOfModel(modelName());
     g.modelCurve = !g.shape.spine && g.kind > 0 && vr_melee_curved_blades.value != 0.f &&
                    admelee::bend(g.kind, 0.5f) != glm::vec2{0.f};
@@ -446,6 +475,7 @@ void haptic(int hand, float seconds, float amplitude)
         case HHeadLo: return boxPoint(g, g.headLo);
         case HHeadHi: return boxPoint(g, g.headHi);
         case HFrom: return pointAt(g, g.from);
+        case HOrigin: return g.hand;
         default: return pointAt(g, blade::spineShare(h - HSpine1));
     }
 }
@@ -463,7 +493,7 @@ void haptic(int hand, float seconds, float amplitude)
     const bool lifted = ses.fist || h == HNear || glm::length(handleAt(g, h) - g.origin) < LIFT_NEAR * m2u;
     if(lifted)
     {
-        return g.lift * (LIFT * m2u);
+        return g.lift * ((h == HOrigin ? LIFT_ORIGIN : LIFT) * m2u);
     }
     if(h == HFrom)
     {
@@ -484,11 +514,12 @@ void haptic(int hand, float seconds, float amplitude)
     switch(h)
     {
         case HTip: return ses.fist ? "Knuckles End" : "Tip";
-        case HNear: return ses.fist ? "Fist End" : "Near End";
+        case HNear: return ses.fist ? "Fist End" : "Handle Length";
         case HWidth: return "Width";
-        case HHeadLo: return "Head Corner";
-        case HHeadHi: return "Head Corner";
+        case HHeadLo: return "Head";
+        case HHeadHi: return "Head";
         case HFrom: return "Blade Start";
+        case HOrigin: return "Line Start";
         default: return "Curve";
     }
 }
@@ -498,6 +529,7 @@ void haptic(int hand, float seconds, float amplitude)
     switch(h)
     {
         case HFrom: return {0.65f, 0.4f, 1.f, 1.f};
+        case HOrigin: return {0.1f, 0.8f, 0.7f, 1.f};
         case HTip: return {1.f, 0.3f, 0.25f, 1.f};
         case HNear: return {1.f, 0.6f, 0.15f, 1.f};
         case HWidth: return {0.3f, 0.85f, 1.f, 1.f};
@@ -631,6 +663,16 @@ void drag(const Geo& g, int h, const glm::vec3& t)
     {
         case HTip:
         {
+            if(g.gun)
+            {
+                // A gun's Muzzle offset is where its shots start: its bash line's tip is its own (Blade Tip, off the
+                // muzzle in the hand's frame), so editing the line never moves its shots.
+                const glm::vec3 next = g.shape.tipOffset + toHandOffset(g, t - g.tip);
+                set(Key::BladeTipX, za::clamp(next.x, -ORG_REACH, ORG_REACH));
+                set(Key::BladeTipY, za::clamp(next.y, -ORG_REACH, ORG_REACH));
+                set(Key::BladeTipZ, za::clamp(next.z, -ORG_REACH, ORG_REACH));
+                break;
+            }
             // The tip's offset solved through the drawn weapon: the muzzle's move per unit of each offset axis (the
             // offset's frame is the model's, scaled and mirrored as drawn).
             const glm::vec3 now = weapons::vec(ses.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
@@ -682,13 +724,19 @@ void drag(const Geo& g, int h, const glm::vec3& t)
         }
         case HFrom:
         {
-            // Its share along the line and its point off it (less the curve's there: the start's own bend).
-            const glm::vec3 d = t - g.hand;
-            const float f = za::clamp(glm::dot(d, g.a) / g.len, FROM_MIN, FROM_MAX);
-            const glm::vec2 k = glm::vec2{glm::dot(d, g.p), glm::dot(d, g.y)} / g.len - curveAt(g, f, false);
-            set(Key::BladeFrom, f);
-            set(Key::BladeFromOff, za::clamp(k.x, -0.6f, 0.6f));
-            set(Key::BladeFromSide, za::clamp(k.y, -0.6f, 0.6f));
+            // Its share along the line only: where the striking part begins. (It also bent the line through a point off
+            // it, Blade From Off/Side: the author found that confusing, and Line Start now lays the line itself along
+            // the edge. A bend set before is kept; Straighten takes it off.)
+            set(Key::BladeFrom, za::clamp(glm::dot(t - g.hand, g.a) / g.len, FROM_MIN, FROM_MAX));
+            break;
+        }
+        case HOrigin:
+        {
+            // The line's start anywhere: off the holding hand in its frame, the tip staying where it is.
+            const glm::vec3 o = toHandOffset(g, t - g.origin);
+            set(Key::BladeOrgX, za::clamp(o.x, -ORG_REACH, ORG_REACH));
+            set(Key::BladeOrgY, za::clamp(o.y, -ORG_REACH, ORG_REACH));
+            set(Key::BladeOrgZ, za::clamp(o.z, -ORG_REACH, ORG_REACH));
             break;
         }
         default:
@@ -715,7 +763,14 @@ void drag(const Geo& g, int h, const glm::vec3& t)
     }
     switch(h)
     {
-        case HTip: return va("%.1f units", static_cast<double>(g.len));
+        case HTip:
+            return g.gun ? va("%.1f units (%+.1f %+.1f %+.1f off the muzzle)", static_cast<double>(g.len),
+                               static_cast<double>(g.shape.tipOffset.x), static_cast<double>(g.shape.tipOffset.y),
+                               static_cast<double>(g.shape.tipOffset.z))
+                         : va("%.1f units", static_cast<double>(g.len));
+        case HOrigin:
+            return va("%+.1f %+.1f %+.1f (ahead, right, up of the hand)", static_cast<double>(g.shape.origin.x),
+                static_cast<double>(g.shape.origin.y), static_cast<double>(g.shape.origin.z));
         case HNear: return va("%.2f%s", static_cast<double>(g.nearBack), g.shape.nearBack < 0.f ? " (kind's)" : "");
         case HWidth: return va("%.2fx (%.1f units)", static_cast<double>(g.shape.width), static_cast<double>(g.radius));
         case HHeadLo:
@@ -1103,12 +1158,22 @@ void drawPanel()
         const cvar_t* id = weapons::cvar(ses.slot, Key::ID);
         text += va(" (slot %d: %s)", ses.slot + 1, id ? COM_SkipPath(id->string) : "?");
         text += "\nother hand's grip on a dot: drag it";
-        text += "\nred tip, purple blade start, orange near";
-        text += "\nend, blue width, green curve, pink head";
+        text += "\nteal Line Start, red Tip: the line's ends";
+        if(ses.geoValid && ses.geo.gun)
+        {
+            text += "\n(a gun: Tip moves the bash line, not shots)";
+        }
+        text += "\norange Handle Length: the part behind it";
+        text += "\npurple Blade Start: strikes from there on";
+        text += "\nblue Width, green Curve, pink Head";
     }
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
-    int lineCount = 6;
+    int lineCount = 1;
+    for(const char* c = text.cStr(); *c; c++)
+    {
+        lineCount += *c == '\n' ? 1 : 0;
+    }
     if(realtime < ses.feedbackUntil)
     {
         text += "\n" + ses.feedback;

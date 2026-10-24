@@ -24,6 +24,7 @@ float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
+float VR_AGP_LEFTMIRROR = 16; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -530,15 +531,14 @@ void(entity g, entity p) VR_AGP_Saw =
     }
 };
 
-// A gun: carried along its animation's rifle line; aimed (VR_AG_AtkFrame sets vr_ag_aim), turned at its target
-// (eased); a shot's kick back and up.
-void(entity g, vector gx, vector gz) VR_AGP_Gun =
+// A gun `p`'s turn: carried along `gx` (its up `gz`), aimed as its holder aims (vr_ag_aimw, vr_ag_aimdir), a shot's kick
+// (fired at `kickAt`) back and up, and what is left of a heavy gun's kick up in one hand (VR_AG_KickLeft: dual wielding).
+// Out: vr_agp_gfw, vr_agp_gup (world), vr_agp_gk (the kick's move, world).
+vector vr_agp_gfw;
+vector vr_agp_gup;
+vector vr_agp_gk;
+void(entity g, entity p, vector gx, vector gz, float kickAt) VR_AGP_GunTurn =
 {
-    if(g.vr_ag_aim != '0 0 0')
-    {
-        g.vr_ag_aimdir = g.vr_ag_aim;
-    }
-    g.vr_ag_aimw = VR_AGP_Ease(g.vr_ag_aimw, g.vr_ag_aim != '0 0 0' ? 1 : 0, g.vr_ag_aim != '0 0 0' ? 7 : 4);
     float a = VR_AGP_Smooth(g.vr_ag_aimw);
     vector fw = gx;
     if(a > 0 && g.vr_ag_aimdir != '0 0 0')
@@ -548,21 +548,69 @@ void(entity g, vector gx, vector gz) VR_AGP_Gun =
     vector up = normalize(gz - fw * (gz * fw));
     if(up == '0 0 0') { up = '0 0 1'; }
     vector right = VR_AGP_Cross(fw, up);
-    float k = 1 - (time - g.vr_ag_kick_at) / 0.2;
+    float k = 1 - (time - kickAt) / 0.2;
     vector kick = '0 0 0';
-    if(g.vr_ag_kick_at > 0 && k > 0)
+    if(kickAt > 0 && k > 0)
     {
-        float big = VR_AG_Class(g.vr_ag_wid) == VR_AG_CLASS_EXPLOSIVE ? 1.5 : 1;
+        float big = VR_AG_Class(p.weapon) == VR_AG_CLASS_EXPLOSIVE ? 1.5 : 1;
         float kk = k * k * big;
         kick = -fw * (4 * kk) + '0 0 1' * kk;
         fw = VR_AG_Rotate(fw, right, 14 * kk);
         up = VR_AG_Rotate(up, right, 14 * kk);
     }
+    float hk = VR_AG_KickLeft(p);
+    if(hk > 0)
+    {
+        fw = VR_AG_Rotate(fw, right, hk);
+        up = VR_AG_Rotate(up, right, hk);
+    }
+    vr_agp_gfw = fw;
+    vr_agp_gup = up;
+    vr_agp_gk = kick;
+};
+
+// A gun: carried along its animation's rifle line; aimed (VR_AG_AtkFrame sets vr_ag_aim), turned at its target
+// (eased); a shot's kick back and up. Two guns (`pL` the left's: dual wielding, ROUND22.md "Armed monsters: dual-wielded
+// guns"): each in one hand, the rifle line's pitch straight ahead (no hand across to hold it), the left one at the right
+// hand mirrored (VR_AGP_LEFTMIRROR, made whole in VR_AGP_Pose), each kicked by its own shots.
+void(entity g, entity p, entity pL, vector gx, vector gz) VR_AGP_Gun =
+{
+    if(g.vr_ag_aim != '0 0 0')
+    {
+        g.vr_ag_aimdir = g.vr_ag_aim;
+    }
+    g.vr_ag_aimw = VR_AGP_Ease(g.vr_ag_aimw, g.vr_ag_aim != '0 0 0' ? 1 : 0, g.vr_ag_aim != '0 0 0' ? 7 : 4);
+    float a = VR_AGP_Smooth(g.vr_ag_aimw);
+    vector lx = '1 0 0';
+    vector lz = '0 0 1';
+    if(pL)
+    {
+        VR_AGP_Body(g);
+        lx = VR_AGP_ToLocal(gx);
+        lx_y = 0;
+        lx = normalize(lx);
+        if(lx == '0 0 0') { lx = '1 0 0'; }
+        lz = VR_AGP_ToLocal(gz);
+        gx = VR_AGP_ToWorld(lx);
+        gz = VR_AGP_ToWorld(lz);
+    }
+    VR_AGP_GunTurn(g, p, gx, gz, pL ? p.vr_ag_kick_at : g.vr_ag_kick_at);
+    VR_AGP_Body(g);
     vr_agp_wr = 1;
-    vr_agp_v = VR_AGP_ToLocal(kick);
-    vr_agp_fw = fw;
-    vr_agp_up = up;
+    vr_agp_v = VR_AGP_ToLocal(vr_agp_gk);
+    vr_agp_fw = vr_agp_gfw;
+    vr_agp_up = vr_agp_gup;
     vr_agp_wo = 1 - a;
+    if(pL)
+    {
+        VR_AGP_GunTurn(g, pL, VR_AGP_ToWorld(VR_AGP_Mirror(lx)), VR_AGP_ToWorld(VR_AGP_Mirror(lz)), pL.vr_ag_kick_at);
+        VR_AGP_Body(g);
+        vr_agp_fwl = vr_agp_gfw;
+        vr_agp_upl = vr_agp_gup;
+        vr_agp_wl = 1;
+        vr_agp_vl = VR_AGP_ToLocal(vr_agp_gk);
+        vr_agp_flags = VR_AGP_LEFT | VR_AGP_LEFTWPN | VR_AGP_LEFTMIRROR;
+    }
 };
 
 void(vector d) VR_AGP_WriteDir =
@@ -582,6 +630,15 @@ void(vector v) VR_AGP_WriteVec =
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
+    if(cvar("vr_agrunt_freeze") && g.health > 0)
+    {
+        // (the Grip Editor: held still in its first idle frame, its weapons ready, its AI held)
+        g.nextthink = time + 0.5;
+        g.enemy = world;
+        g.vr_ag_act = 0;
+        g.velocity = '0 0 0';
+        g.frame = VR_AM_StandFrame(g, 0);
+    }
     vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)
     if(trace_fraction == 0)
     {
@@ -641,10 +698,18 @@ void(entity g, entity p) VR_AGP_Pose =
     }
     else
     {
-        VR_AGP_Gun(g, gx, gz);
+        VR_AGP_Gun(g, p, pL, gx, gz);
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;
+    if(vr_agp_flags & VR_AGP_LEFTMIRROR)
+    {
+        // Two guns: the left's target is the right hand (as the server has it) mirrored, sent whole (wl 0: the client's
+        // left target as for a blade in the left hand; the hands' IK is the engine's, vr_hitreact.cpp, untouched).
+        vr_agp_vl = VR_AGP_Mirror(handL) * vr_agp_wl + vr_agp_vl;
+        vr_agp_wl = 0;
+        vr_agp_flags = vr_agp_flags - VR_AGP_LEFTMIRROR;
+    }
     if(g.vr_ag_took_at > 0 && p)
     {
         // A weapon just taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin): where it lay until its hand closes on

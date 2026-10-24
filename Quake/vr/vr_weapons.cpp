@@ -160,7 +160,9 @@ namespace
 // 58: the flail's handle smaller (index 50; takeFlailHandle58).
 // 59: his blade shapes (the shotgun's, the AD fury's sword's, the AD mace's: indices 1, 40, 45; the sword's tip) and the
 // axe's head box corners where the config still holds the zeros of before they shipped (takeBladeShapes59).
-constexpr int settingsVersion = 59;
+// 60: the shotgun's (slot 1) blade tip his as its own Blade Tip (shipped): a config whose Muzzle offset still holds the
+// tip he dragged there (-0.2229 0.2441 0.4977, which also moved its shots) gets the shipped muzzle back (takeShotgunTip60).
+constexpr int settingsVersion = 60;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -592,6 +594,28 @@ void takeBladeShapes59()
         zero ? ", the axe its head box" : "");
 }
 
+// 60: his shotgun bash tip, dragged in Edit Blade Shape before a gun's tip had keys of its own, moved its Muzzle offset
+// (where its shots start). It ships as Blade Tip (vr_weapons.inc, the same line in the hand's frame); a config still
+// holding his muzzle gets the shipped one back, so the line is his once and the shots start where they did.
+void takeShotgunTip60()
+{
+    constexpr OldValue his[] = {{1, Key::MuzzleOffsetX, -0.2229f}, {1, Key::MuzzleOffsetY, 0.2441f}, {1, Key::MuzzleOffsetZ, 0.4977f}};
+    bool all = true;
+    for(const OldValue& o : his)
+    {
+        all = all && fabsf(cvarAt(o.slot, o.key).value - o.value) < 1e-4f;
+    }
+    if(all)
+    {
+        for(const OldValue& o : his)
+        {
+            cvar_t& var = cvarAt(o.slot, o.key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+        Con_DPrintf("Weapon settings: the shotgun's muzzle back to its own, its bash tip its Blade Tip\n");
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -618,6 +642,7 @@ constexpr Step steps[] = {
     {57, takeMonsterSwords57},
     {58, takeFlailHandle58},
     {59, takeBladeShapes59},
+    {60, takeShotgunTip60},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

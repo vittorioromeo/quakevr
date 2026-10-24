@@ -19190,6 +19190,69 @@ alias header the placement was made from instead of looking it up again from the
 After: canary 37/45, full 169/177, no copy crashed; no verdict changes against the baseline (only PASS -> PASS drifts
 of 0.1 in a hit's numbers, which differ run to run; slash_horizontal_ltr's as before).
 
+## Armed monsters: dual-wielded guns (worktree `goreflesh`, branch `agent/agguns2`, 2026-10-24)
+
+Note vrtesthall 2026-10-23 22:46:49, item 1 (agent/agdual2 did 2, 3, 5): armed humanoids dual wield two-handed guns, one
+per hand, with the player's one-hand penalties. Vittorio's decisions: the hammers, the rocket launcher, the Laser Cannon
+and the chainsaw stay single; the grenade launcher and the Plasma Gun pair; the penalty is the player's (slider 1).
+
+- **Pairs** (`QC/vr_armedgrunt.qc`; `docs/vr-port/ARMED_MONSTERS.md`, "Dual wielding"): `VR_AG_Big`, the table's
+  per-weapon "too big to dual wield" flag (the hammers: Mjolnir, AD's hammer and mace; the rocket launchers, ours and AD's;
+  the Laser Cannon; the chainsaw; the two-handed melee weapons; AD's flamethrowers too: their fuel tank on its back).
+  `VR_AG_Pairs`: two one-handed melee weapons, or two guns not too big (any two: a shotgun and a nail gun); never a blade
+  and a gun. Map keys, the pool (`vr_agrunt_dual_chance` now draws a second gun for a gun from the pool too), pickups and
+  the toolgun all go through it. A Plasma Gun or Widowmaker as `weapon2` now spawns with a full clip (was 0).
+- **The pose** (`QC/vr_armedgrunt_pose.qc` `VR_AGP_Gun`): each gun along its rifle line's pitch, straight ahead (no hand
+  across to hold it), the left gun at the right hand mirrored; aimed together; each kicked by its own shots. The left's
+  target is sent whole (the left-hand-weapon message agent/armedmon2 made for blades). No engine change: the hands' IK
+  (vr_hitreact.cpp) is another worker's now.
+- **Firing** (`VR_AG_ShootProp`, `VR_AG_AtkFrame`): the second gun fires a frame (0.1 s) behind the first: shots and
+  rounds in turn, the nail guns' and the thunderbolt's streams together, a burst on frames 6..8. Both reload in the one
+  reload (`vr_ag_reserve2`: spare clips for the second too); a spent gun with no reserve is thrown away to its side and
+  the other fights on (passed to the right hand). Dying: both fall.
+- **The penalty** (`vr_agrunt_dual_penalty`, new, 1; Combat > Armed Grunts "Dual Guns' Penalty"): as yours in one hand.
+  Spread (FireBullets, AD's pellets: `vr_fire_spread_extra`) and the aim error (`vr_agrunt_aim_error`) times
+  1 + penalty x (1 / `vr_2h_spread_reduction` - 1): x2 at the defaults. A heavy gun's aim kicked up a shot by its heavy
+  recoil (`weaponheft(model, 1)`: `weight::kickSpeed`, deg/s, an optional argument since the builtins' table is full)
+  over 0.1 s, times the penalty, coming back over `vr_heavy_recoil_time` (a shot before then starts from what is left).
+  Of the guns that pair only AD's Widowmaker has Heft (0.6, Heavy Recoil x 1.5): the others kick only as before (the
+  shot's visual kick), as yours do.
+- **Pickup option** (`vr_agrunt_dual_pickup`, new, 0; Combat > Armed Grunts "Pick Up a Second"): one holding a single
+  weapon that pairs goes for a second (out of a fight, as a dual wielder that lost one does).
+- **Toolgun** (`vr_toolgun.cpp` `armedPairs`, `vr_toolgun_panel.cpp`): the Left Hand list is the right weapon's pairs
+  (guns for a gun, one-handed melee for a blade), its note says so; `vr_toolgun_armed_list` marks "pair"/"one" (was
+  "1h"/"2h").
+
+**Decision:** a single gun held in both hands keeps today's spread (monsters never had the two-hand reduction): the dual
+penalty multiplies on top of it, so the pair is x2 against one gun, as the brief measures, and single armed grunts'
+balance is unchanged.
+
+**Tests** (`vr_agrunt_test 42`, grunt and enforcer: 20/20 PASS each): the pairs (shotgun + shotgun, + nail gun, super
+shotgun + grenade launcher, super nail gun + thunderbolt held; shotgun + rocket launcher, rocket launcher + shotgun,
+shotgun + chainsaw, shotgun + axe, axe + shotgun refused; axe + sword still held; the big flag: rocket launchers, Laser
+Cannon, chainsaw, Mjolnir 0). The penalty, 40 shots each at aim error 4 (kick zeroed):
+
+| | one shotgun | two shotguns | ratio |
+| --- | --- | --- | --- |
+| grunt: pellets off their line (deg) | 0.43 | 0.88 | 2.02 |
+| grunt: aim off the target (deg) | 2.99 | 6.63 | 2.21 |
+| enforcer: pellets | 0.44 | 0.85 | 1.93 |
+| enforcer: aim | 3.44 | 6.07 | 1.76 |
+
+Penalty 0: two shotguns 0.42 vs 0.43. The kick (the super nail gun's Heft set to 0.5 for the test: 50 deg/s): two super
+nail guns' aim up 0, 3.6, 6.2, 8.1, 9.4, 10.4 deg at six shots 0.1 s apart (5 deg a shot, 0.4 s back); one super nail gun
+0. A fight (nail gun + shotgun, short clips): both fire (6 and 2 shots), a reload, both held; killed: 2 fell. Pickup 0:
+the lying nail gun left; 1: taken into the left hand. Toolgun: `vr_toolgun_select_armed 1 4 6` "Armed Enforcer: Shotgun +
+Nailgun", `0 5 8` kept, shotgun + axe, shotgun + rocket launcher, rocket launcher + shotgun, axe + shotgun: one weapon.
+`vr_agrunt_test 41` unchanged (grunt frames 0.54 / 0.41, swings 0 / 0; enforcer 2.75 / 0, swings 0); `vr_agrunt_test
+43` (test 41's frames with a shotgun and a nail gun): grunt 0.50 / 0.00, enforcer 0.00 / 0.00. eval.sh: 0 verdict changes.
+
+Scenario `agrunt_dual_guns` (vrtesthall, god: `vr_agrunt_test 44`, a row of five dual-gun humanoids 300 ahead that
+shoot at you): validate and runall OK.
+
+**In VR:** the scene: watch them fire both guns (in turn), the misses wider than a single gunner's; kill one (both guns
+fall); the toolgun's Armed Humanoid page: Right Hand a gun, Left Hand lists the guns. The hands themselves: judge after the
+IK rework.
 ### Armed grunts: shooting the weapon out (worktree `tghost`, branch `agent/shootdisarm`, 2026-10-24)
 
 A new way to disarm an armed monster: shoot its weapon, or the hand holding it, precisely. QC
@@ -19377,7 +19440,7 @@ spends the motion for everything (the list cleared). Heavy and blunt weapons: th
 before). `vr_melee_multi 0`: exactly the old behaviour. Gameplay > Melee > One Swing, Many Hits: the toggle and
 "Most Things a Swing".
 
-**Tested.** `vr_melee_sweep_test 5` (Debug > Tests > One Swing, Many Hits Test; the new scene `sword_multi`: a sword,
+**Tested.** `vr_melee_sweep_test 6` (Debug > Tests > One Swing, Many Hits Test; the new scene `sword_multi`: a sword,
 two grunts side by side, one by the wall, a corpse): scripted sword frames that land (`vr_msw_decide`: the speed tests
 skipped, a cut at strength 1.5), dealt as in play, with multi 0 then 1:
 
@@ -19399,3 +19462,256 @@ and the limb still come off; chop the one against the wall the same. `sword_mult
 grunts on the left: both hit (two hit sounds); swing along the wall into the grunt by it: sparks on the wall and the
 grunt hit. Punches still hit one thing. If a swing now feels like it hits too much (gibs, a prop behind the target),
 lower Most Things a Swing or turn the toggle off to compare.
+## The blade's line start (worktree `release`, branch `agent/bladeorigin`, 2026-10-24; vr_wofs_version 60)
+
+Vittorio (note vrtesthall_2026-10-24_00-57-50, the axe in the main hand): he still could not move the line's start, the
+point near the hand at the handle's end; the purple handle moved "some point", the orange one only how much of the line
+counts as the handle. The line ran from the holding hand (fixed) to the tip.
+
+**Line Start** (new keys `vr_wofs_bl_org_x/y/z_NN`, 0 0 0, no migration): the line's start off the holding hand, units
+along its forward, right, up (right mirrored in the off hand, as its model). QC `VR_Melee_Line` lays the held weapon's
+line from it (`vr_mline_grip`) to the tip; the near end is its Handle Length behind it along the new line; every
+consumer of the line (layout points, sweeps, the decapitation share, parry, the motion recorder) reads the track's
+grip/far, so all follow. The defaults' arithmetic is the old code's (grip = the hand). `admeleehead(-1 - slot, 4)` gives
+it, flag 8 says the slot has one (vr_builtins.cpp). The editor's teal **Line Start** handle (index 11, `bladehandle 11`)
+sits at it, lifted 11 cm out of the hand while it is at the hand (above the orange one's 7 cm), tied down; dragging it
+moves the start in 3D, the tip staying.
+
+**A gun's Tip** (new keys `vr_wofs_bl_tip_x/y/z_NN`, 0 0 0): a gun's Muzzle offset is where its shots and flash start
+(Weapon Offsets' "Muzzle X" help, `view::anchorPosition`), and the editor's Tip handle moved it, so editing a gun's bash
+line moved its shots. Now on a gun (any weapon but the fists, axe, Mjolnir, swords, chainsaw, crowbar, Super Axe) the
+Tip handle moves Blade Tip, the line's tip off the muzzle in the hand's frame; melee weapons keep moving their Muzzle
+offset (their tip, as shipped). His shotgun tip (bladedefaults left it out: it lived in the muzzle) ships as Blade Tip
+-1.0821 0.1403 -0.0605: the same line measured in the hand's frame (the dump's far end with his muzzle 12.9094 0.9031
+-0.1114, with the shipped muzzle and the tip 12.9094 0.9031 -0.1114, 3e-5 apart). **wofs 60** (`takeShotgunTip60`): a
+config whose shotgun muzzle still holds his -0.2229 0.2441 0.4977 gets the shipped 0.9 0.4 0.6 back (his own config does:
+his shots start where they did before his edit); another value stays.
+
+**Blade Start: kept, along the line only.** Line Start lays the line itself along an edge, which the start's off-line
+bend did (the part he found confusing); but where the striking part begins along the line is still the weapon's own (an
+axe's head from 0.75, a sword's past its guard), and Line Start can't say it. So the purple handle now slides along the
+line only (`bl_from`); a bend set before is kept and Straighten takes it off. With the line along the axe's edge (Line
+Start at the edge's low corner) he slides Blade Start down to the start for the whole edge to strike.
+
+**Names and panel.** Handles: Line Start (teal), Tip (red), Handle Length (orange; was Near End), Blade Start (purple),
+Width (blue), Curve (green), Head (pink; was Head Corner). The panel says what each does: "teal Line Start, red Tip: the
+line's ends / orange Handle Length: the part behind it / purple Blade Start: strikes from there on / blue Width, green
+Curve, pink Head", on a gun also "(a gun: Tip moves the bash line, not shots)"; its height counts its lines. Reset Blade,
+Undo and Cancel cover the new keys; Done's `vr_blade_dump` prints them (`blade_defaults.py` ships them as blade keys).
+Scene `blade_editor_axe`'s hint: Line Start onto the edge's low corner, Tip onto its top, Blade Start down to the start.
+
+**Tests** (scripts `scratch/bo_dump.sh`, `bo_line.sh`, `bo_edit.sh`, `bo_shottip.sh`, `bo_mig.sh`; vrtesthall, mock):
+- Defaults: `vr_melee_sweep_test 2` (now in the hand's frame from the hand: the same as before for the defaults) on
+  axe, shotgun, super shotgun, nailgun, knight's sword, chainsaw, crowbar, origin/next's QC against this branch's
+  (before the merge): 54 lines, the largest difference 0.0001 (the mock's noise). After the merge the shotgun's line is
+  his (shipped tip).
+- `vr_melee_sweep_test 5` (new, QC `VR_Melee_LineEndsTest`): the line's start and tip off the hand and muzzle, each layout
+  point's distance from the new line, and a box one swept radius off the new line (away from the default one) by the
+  striking point the ends moved most, swept across by both lines. Axe defaults: PASS (no point moved). Axe start 0 3 2:
+  the start 0 3 2 off the hand, every point on the new line (0.000), line 8.55 -> 7.43; the points moved 3.6 (the
+  start) down to 0.9 (0.75 along), the tip not; the box (3.5 units off the default line) struck by both (the axe strikes
+  from 0.75 only, 0.9 units moved there): PASS. Start 0 8 4 with Blade Start 0.3: the box 7.24
+  units off the default line, struck by the new line only: PASS. The shotgun's tip dragged: struck by the new only.
+- Editor, the axe, each handle with the mock off hand (hovered, grip, moved, let go): Line Start 3 along the line's
+  normal and 2 across its flat -> `bl_org` 2.55 -2.00 -1.58 (3.61 units: the hand's move), the Handle Length then 0.25
+  of the new 9.3-unit line; Tip 2 along (melee: Muzzle offset moved); Handle Length 2 back -> 0.43; Blade Start 1 back ->
+  0.66 (`bl_from_off` stays 0); Width -> 1.33; a curve point -> spine 1; Head Box On and a corner -> hi x 1.32; Done
+  printed 13 changed lines with BladeOrgX/Y/Z. The shotgun's Tip 3 along, 2 across: `bl_tip` 3.10 -1.83 -0.01, its
+  Muzzle offsets untouched (0.9 0.4 0.6, the defaults).
+- wofs 60: his muzzle at version 59 -> 0.9 0.4 0.6, version 60; a muzzle x of 0.5 stays.
+- `eval.sh`: before the merge 164/172 (the 8 known failures), no verdict changed (0.1 noise; the sword slash 12-34-13
+  18.2 -> 21.6 is the baseline's known drift). After merging origin/next the differences are the merged fist line's
+  (bladedefaults: punches and slaps), no weapon take moved past 0.1.
+- Eyeshots: `scratch/bladeorigin_axe_1_enter.png`, `_2_linestart.png` (the panel's new text; the mock arms hide most of
+  the axe).
+
+- [ ] Edit Blade Shape on the axe (Test scene `blade_editor_axe`): the teal Line Start above your hand: drag it onto the
+  low corner of the axe's edge, the red Tip onto its top corner, the purple Blade Start down to the Line Start; the white
+  line lies along the edge; Done; swing at the grunt with Show Melee Blades on.
+- [ ] The shotgun: its bash line's tip is his (shipped); Edit Blade Shape's Tip moves the line, and the shots still leave
+  its muzzle.
+
+## Phantom Sword and the gas flare in the toolgun; shore foam as spray (worktree `dequant`, branch `agent/phantomfoam`, 2026-10-24)
+
+His notes (vrtesthall 01-01-09, 01-03-14, vrfiringrange 01-02-21, e1m1 01-19-00): the toolgun's DoE Phantom Sword
+greyed ("progs/sword.mdl#melee is not on the search path") while the Phantom Swordsman spawned from Rogue's data in
+the same map; the shore's foam particles "disjointed, not soft or blurry enough, like chemical fumes rising from the
+water": they should look like water hitting the wall (the wavy edge is liked: kept).
+
+### Phantom Sword and the gas flare in the toolgun
+
+- Cause: the toolgun's availability check (vr_toolgun.cpp `entryAvailable`, `unavailableWhy`) looked the entry's model
+  up as a file, and the Phantom Sword's model is a variant name, `progs/sword.mdl#melee` (made by vr_admelee.cpp from
+  the file when loaded): never a file. Rogue's data was mounted all along (vrtesthall and e1m1 both: `vr_pack_status`
+  says rogue available). Fix: `modelFileExists` looks for the file before the `#` (any variant: `#melee`, `#gun<n>`,
+  `#vr`, `#rag`).
+- Every greyed entry on vrtesthall and e1m1 (`vr_toolgun_spawnlist`) now: AD's four lights (only in an AD map, by
+  design), MG3's Health Upgrade (only in its campaign, by design), Honey's Spectral Knight and Tree (Honey's data is not
+  installed: not on Steam, not in the test base), and MG Gas Flare (`progs/flame3.mdl`, only in MG1's and MG3's paks).
+  The flare is now read in place from the owned MG1 pack, as MG3's models are: its entry's model
+  `owned/mg1/progs/flame3.mdl`, and QC `light_flame_gas` takes the mounted pack's model, else MG1's or MG3's read in
+  place (`VR_MG_FlameModel`; without any it removes itself instead of a precache error).
+- Scene `phantom_sword` (new): vrtesthall, the Phantom Sword given into the main hand, a knight and a crate.
+
+Tests: `vr_toolgun_spawnlist` on vrtesthall and e1m1: the Phantom Sword and the Gas Flare no longer listed unavailable;
+`vr_toolgun_spawn_test 225 225` (the flare, vrtesthall): spawned, alive and drawn, 0 precaches missing on the client.
+`vr_scenario phantom_sword` + `vr_mock_swing 0.7` at the knight: "AD melee model: progs/sword.mdl#melee made", "weapon:
+Phantom Sword taken into the main hand", the knight parries it 4 times and staggers back as a ragdoll. `vr_scenario
+validate`: 77 files, 0 errors; `runall` phantom_sword, phantom_swordsman, foam_pool: OK, the given weapon still held.
+
+### Shore foam as spray
+
+- Cause: the shore's particles were the splash's foam cell (`CellFoam`: a patch of bubbles with bright rims and a
+  ragged edge), small, popping in at full opacity and drifting slowly up and out while growing: rising, wispy, hard-rimmed
+  puffs. The retro textures (Particles: palette and dither by default; blocks with Snap) also applied to them.
+- Now (vr_particles.cpp `shoreFoam`, `vr_water_foam_particle_spray 1`, new, default on; 0 gives the old puffs back for
+  comparison): a new generated cell `CellShoreSpray` (`buildShoreSpray`: a few overlapping Gaussian lumps in a wide haze,
+  the alpha falling smoothly to nothing inside the cell: no rims, no bubbles), about half again as big (5 to 8 x the
+  size across, spreading 60% over its life), 0.7 x the liquid's particle opacity, fading in over its first 15% of life
+  (the `ramp` of a Custom particle: no pop) and out to nothing by its end; it bursts up off the shore line (up 1.5 to
+  3.5 x the size, at most 6 units, its top at 30% of its life), falls back under gravity past the surface while fading,
+  and moves out from the wall 1 to 5 units/s. Soft particles fade it against the rock (no pull off the wall). Each
+  liquid's rate, life, opacity, size, colour and shore offset are its own as before (no default changed: no migration).
+- Retro: the spray skips retro textures (`vr_water_foam_particle_retro 0`, new; 1 puts it through them like other
+  particles). A particle's `plain` flag goes to the shader in the instance's spare float (`flags.w`); the retro particle
+  programs (`PARTICLE_PLAIN`) read the texture smoothly for it. Read at each frame's upload: the menu toggle shows at once.
+- Menu: Graphics > Shoreline Foam: "Particles as Spray" and "Spray in Retro Look" under Shoreline Foam.
+
+Tests: eyeshots (scratch, before/after: `pf_pool2c.png` vrtesthall's pool wall, `pf_e1m1c.png` e1m1's water room at
+900 640 -250): the old puffs are dark, hard-rimmed blotches; the spray is a soft white haze bursting along the wall line
+(in e1m1's dark water room faint, lit by the place). Retro check (vrtesthall, particles frozen, `vr_retro_particles_block
+24`): the old foam turns into big blocks, the spray stays smooth, and with `vr_water_foam_particle_retro 1` it turns
+blocky too (`pf_retroc5.png`, `pf_retroc6.png`). GPU (exclusive, vrtesthall pool wall, mock resolution, 5 s each, old,
+new, old, new): total 0.99 / 0.99-1.00 / 0.98 / 0.99 ms, vr particles 0.04 / 0.04 / 0.04 / 0.05 ms: within noise (the
+quads are bigger: fill rate at the headset's resolution is the thing to watch). `eval.sh`: 36/44 canary, its 12
+differences the punch takes moved by the fist line already on `next` (the section above), none from this.
+
+**In VR:** the toolgun's Weapons tab, DoE group: the Phantom Sword is not greyed; take it: it sits in the hand, swings
+heavy, hits and parries with its sounds (scene `phantom_sword`). Fire tab: MG Gas Flare spawns in any map. At the
+vrtesthall pool and e1m1's water: the shore particles should read as water thrown up off the wall and falling back,
+soft; flip Graphics > Shoreline Foam > Particles as Spray for the old look, Spray in Retro Look for the retro one.
+## Armed humanoids' arms, hands and grips: rigid forearms and hands, the weapon on the hand, the Grip Editor (worktree `tghost`, branch `agent/aghands`, 2026-10-24)
+
+Notes vrtesthall 2026-10-24 00:49-00:52, 01:16, 01:23 (agrunt_weapon_hands failed: the grunt's off hand bent and stretched,
+the enforcer's hand ~3x and through its torso, the axe handle off the hand, the sword held by its guard, the weapon
+floating off the hand in a shove's fall and a parry's stagger, arms through torsos in attacks).
+
+**Causes** (measured by the new arm numbers, below): agdual2's IK moved the drawn hand onto the weapon by turning the
+rig's forearm, but the hand's mesh was not one piece: `vr_agrunt_ik_hands 4` put the vertices within 4 units of the
+forearm's end wholly on the forearm and left the rest of the hand on the rig's fit (the grunt's left hand on its upper
+arm; the enforcer's on its chest and upper arm, at a share of their turns), so every IK turn tore the hand apart (the
+enforcer's left hand's edges up to 14x their length, the grunt's 10x). Its metric (`agerr`: the hand vertices' middle
+against the weapon's origin, 0.5 units) could not see it. The weapon was drawn at the server's target, not on the hand:
+the sword's origin is its guard. In a ragdoll the server's own placing (QC VR_AG_RagProp: the limb nearest the weapon,
+at the server's rate) was 11 units (mean; 14 max) off the drawn hand and turned up to 118 degrees.
+
+**Fixes** (vr_hitreact.cpp, vr_animsmooth.cpp, vr_glsl.h; new vr_aggrip.cpp):
+- `vr_agrunt_ik_rigid` (1; read at a map load): each arm's forearm and hand are found once a model (flood fill along
+  the triangles from the forearm's end, within its bones' lines; the hand past the wrist) and drawn as their rest shape
+  moved whole (the shader's `RigKickOrPiece`: four pieces' rows after the bones' kicks), each pose's place fitted to the
+  frames by one rigid motion (Horn's quaternion fit: the grunt's forearm and hand are rigid in its frames to 1.2 units).
+- The arm solve runs in the relink (before the drawing): the wrist to the weapon's grip (the server's target less the
+  grip offset), the elbow kept as the animation had it but out of the torso (the target moved to the torso's skin, the
+  pole turned away from the chest's line when the elbow or forearm went in), the elbow at most `vr_agrunt_ik_elbow`
+  (150) degrees bent, the hand turned at its wrist towards the weapon's turn (at most `vr_agrunt_ik_wrist` 65 degrees
+  bent, `vr_agrunt_ik_twist` 80 twisted), and the weapon drawn on the hand as solved: always in it.
+- The off hand takes a two-handed weapon's second grip only within `vr_agrunt_ik_second` (0.97) of its arm's length
+  and its wrist within 25 degrees past its limit; else it hangs free (the grunt's idle axe: it used to reach across its
+  body). The sword stays one-handed (QC's choice; the agstrike worker's swings may change it).
+- A ragdoll's (stagger, shove, fall, tug, lying) weapons are drawn on its hand's bone as drawn (`ragdollProps`:
+  ragdoll::drawnPart of the bone most of the hand's vertices are on, by the grip offset), every frame.
+- Grip offsets per monster kind, weapon (its Weapon Offsets slot) and hand (main, off: dual, second grip): VR Settings >
+  Armed Grunts > Grip Editor (live sliders on the nearest armed monster, Freeze Them `vr_agrunt_freeze`, Fit Angles to
+  Its Pose `vr_agrunt_grip_fit`, Print as Defaults `vr_agrunt_grip_dump`, Reset This One `vr_agrunt_grip_reset`);
+  changes kept in `vr_agrunt_grips` (archived). Seeds: the melee weapons' angles fitted on the grunt's idle (its wrist
+  unturned as the server readies them), the sword moved 4.9 units along its blade (its guard above the fist).
+- agstrike's notes kept: the solve's out[] are absolute model-space turns per bone (upper arm, forearm), `relinkRigid`
+  is the place for a body turn before the arms' solve.
+
+**Measured** (`vr_agrunt_test 41`, new arm numbers in `vr_agrunt_ik_err` (`1`: each tag): the hand's edges against rest
+(stretch: root mean square ratio and longest edge), the forearm's and hand's shape against their rest shape, the elbow's
+bend, the arm inside the torso, the hand's middle against the weapon's grip; test 41 now takes `scratch2`/`scratch3`
+(weapons + 1), `scratch4` (distance), `temp1` (turn) and reruns in one map). Whole sweep (every frame, every swing, dual
+and two-handed), r_lerpmodels as shipped:
+
+| | before right / left | after right / left |
+| --- | --- | --- |
+| grunt: stretch (rms, longest edge) | 1.19, 1.68x / 3.30, 10.3x | 1.00, 1.00x / 1.00, 1.00x |
+| grunt: shape off (units) | 1.95 / 13.1 | 0 / 0 |
+| grunt: hand to grip (max) | 1.35 / 2.74 | 0 / 0 |
+| grunt: in the torso (units) | 1.63 / 0.89 | 1.04 / 1.36 |
+| enforcer: stretch | 1.18, 1.70x / 3.22, 14.4x | 1.00, 1.00x / 1.00, 1.00x |
+| enforcer: shape off | 7.89 / 14.4 | 0 / 0 |
+| enforcer: hand to grip (max) | 2.68 / 10.2 | 0 / 0 |
+| enforcer: in the torso | 6.73 / 5.01 | 1.94 / 4.45 (frames 88-89 only, a bent pain) |
+| elbow bend (both) | 0..175 | 28..150 |
+
+Parries (test 35, script `vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35 0 90 0`): 6/6 PASS;
+through their staggers (418 ragdoll frames) the server's weapon was 11.4 units (mean) off the drawn hand: now drawn on
+it. eval.sh: no verdict changes (PASS -> PASS drifts only). Scenes: validate 76 files 0 errors; runall
+agrunt_weapon_hands and the new `agrunt_grip_editor` (a frozen grunt with a sword and an enforcer with an axe) OK.
+
+**In VR:** agrunt_grip_editor: tune each weapon's grip by eye (main hand; then a dual pair and a shotgun's second
+grip), Print as Defaults and send the lines; agrunt_weapon_hands with Freeze Them off: hands never stretched, weapons
+always in the hand, arms out of the torso in swings; shove one into a fall and parry one (the stagger): the weapon stays
+in its hand. Left: the normals of the pieces are the frames' (lighting on a hand turned far may look off); the wrist
+limit makes a weapon turn with the hand in the widest swings (the server's parry and hit lines are its own place).
+## Tank fields' look: a strong fire, a poison cloud, spreading out; back tanks alert, loops stop (worktree `goreflesh`, branch `agent/tankfx`, 2026-10-24)
+
+His notes (vrtesthall_2026-10-24_01-04-12, 01-05-18, 01-06-16, 01-07-34): the fire field needs many more flames, all
+rising, 3D flames thrown out over the circle, smoke: a strong area denial; the poison one a real cloud (a smoke bomb);
+neither should pop into its whole circle at once; radius and time in the options; armed grunts' back tanks: a hit on
+the tank alone must alert the grunt, and killing a grunt mid-stream left its flamethrower's hiss looping for ever. New
+cvars only.
+
+- **Spread** (`VR_TankField_Reach`): a field grows from the tank to its reach over `vr_adgun_tank_field_spread` (0.4 s,
+  quick then slowing), its look and its damage's reach together (its think every 0.05 s while it spreads). Its time,
+  reach, damage and ticks are as before.
+- **The fire** (`VR_TankField_Look`, new engine presets `TankFire`, `TankSmoke`, `TankCloud` = 25..27, vr_particles.cpp
+  `tankFire`, `tankSmoke`, `tankCloud`): spots through the circle as far as it reaches now (no wall between, ground
+  under them: `VR_TankField_Spot`), area x 3 a tenth of a second x `vr_adgun_tank_field_flames` (1; fewer as it fades):
+  tongues of fire rising straight up (no sideways scatter), 60% drawn over the scene in deep oranges so they read on a
+  bright floor (vrtesthall's: added light vanishes on it), 40% glowing, and embers; dark smoke puffs off their tops
+  (`vr_adgun_tank_field_smoke`, 1). About 3x the old flames. Particle2's dir is a char (1/16 to 8): the spread goes in
+  eighths of units.
+- **3D flames** (`VR_TankField_Flames`, `vr_tankflame` entities, `VR_TankFlame_Think`): `vr_adgun_tank_field_models`
+  (10 at a full tank, 40% near empty) of id's large torch flame (progs/flame2.mdl frame 1), thrown out from the tank to
+  random spots over the spread time, 1.6x big on the way, settling to 0.75-1.2 there; each goes at 55-95% of the
+  field's life, fading and shrinking over its last 1.2 s. The first lights its place as a torch (no alpha); the rest
+  are drawn with alpha 1 (no light of their own).
+- **The poison cloud**: big blended green smoke puffs (`vr_adgun_tank_field_cloud`, 1) billowing slowly, 8-48 units up,
+  thinner toward the edge and as the field fades, four times as many while it spreads (a smoke bomb going off), with a
+  few low green wisps of the sprayer's flame (instead of the green flames and puffs).
+- **A tank thrown up by another's blast** burst in the air left its field floating (no ground within 96 units: nothing
+  drawn, nothing reached): the field's ground is now looked for 1024 units down.
+- **Back tanks alert** (`VR_FuelTank_WornPain`, `VR_FuelTank_WornAlert`, vr_adtankworn.qc): a hit leaving the worn tank
+  whole alerts its wearer as T_Damage's reaction would (FoundTarget: it turns on whoever hit it, its sight sound wakes
+  its group), no damage, no pain.
+- **Loops stop** (`VR_ADGun_MonsterStreamEnd`, vr_ad_enemyguns.qc): an armed monster's stream (its "on" loop on
+  CHAN_WEAPON) ends with its "off" at its attack's end, at `VR_AG_DropHeld` (dying, gibbed, disarmed, its tank burst,
+  spent and thrown away, falling down), when its gun's think finds it dead or gone, and when no flame came for 0.4 s
+  (a pain cutting the attack short). Every place a monster's held gun goes passes one of these (grep of
+  `vr_ag_prop = `, `VR_AG_DropHeld`, `remove(p)`).
+- **Settings** (AD Guns): Burst Field Spread, Fire Field Flames, Fire Field 3D Flames, Fire Field Smoke, Poison Cloud
+  Amount; the field rows' help says "fire field", "poison cloud", "tank" (searches "fire field", "poison", "tank field"
+  find them all). **Debug** > Tests > Arcane Dimensions Monsters: Kill the Worn Tank's Wearer (`vr_ad_test 182`: one
+  firing now first); 175 also prints the 3D flames, the fields' effects sent, the monsters' streams ended; 180 whom the
+  wearer is after.
+- **Measured** (vrtesthall, AD mounted, headless; `scratch/tfx_field.sh`, `tfx_worn.sh`, `tfx_perf.sh`, `tfx_shots.sh`):
+  - fields unchanged: full tanks 6.0 s, reach 96, gone after 6.0 s (6.1 before: the 0.05 s thinks while spreading),
+    loops and whooshes 0 after; the test grunt walking in 30 -> 17 -> 9 -> 3 -> dead, poisoned 8/s, burning 5.5 s (as
+    before). A full fire field sends ~110 effects a second (~650 over its life), 10 3D flames; the cloud ~300 puffs.
+  - back tanks: shot for 10 (tank 30 -> 20), the grunt's health 30 -> 30, after: the player (wearers alerted 1; the other
+    grunt woken by it already after you); killed while firing: its stream ended 1 (on death), monsters firing after 0.
+  - frame time, both fields in view at 250 fps (--exclusive, the mock's small eyes): particles' GPU 0.026 -> 0.055-0.10
+    ms, the frame's GPU 0.93 -> 0.84-1.06 (noisy run to run: which tanks burst varies); particles' CPU 0.06 -> 0.05-0.10.
+  - eval.sh: no verdict changed (0.1 noise). Scenes: validate SCNOK (0 errors), runall `tank_burst_field`,
+    `agrunt_tanks` OK.
+  - eyeshots: `scratch/tfx_fire5.png` (both fields, 0.2 / 1 / 3 / 5 s), `scratch/tfx_poison6.png` (the cloud nearer).
+
+- [ ] Shoot a lying flamethrower's tank (Test scene `tank_burst_field`): the fire spreads out from the tank in under half
+  a second, flames rising straight up all over the circle, big 3D flames thrown out and fading one by one, dark smoke;
+  the sprayer's: a green cloud billowing over its circle, thinner at the edge, fading out. Burst Field Spread, Fire
+  Field Flames / 3D Flames / Smoke, Poison Cloud Amount to taste.
+- [ ] Armed grunts (Test scene `agrunt_tanks`): shoot only a grunt's back tank: it turns on you (and wakes the other);
+  kill one while it fires: its hiss stops.

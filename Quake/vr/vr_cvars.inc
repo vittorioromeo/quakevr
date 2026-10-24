@@ -768,7 +768,7 @@ QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
 QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
 QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // Debug > Tools: 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 5 one swing, many hits (vr_melee_multi; the sword_multi scene: "meleemulti:")
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (vr_melee_multi; the sword_multi scene: "meleemulti:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 // Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
 // the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
@@ -2557,6 +2557,8 @@ QVR_CVAR(vr_water_foam_particle_life, "0.8", CVAR_ARCHIVE) // ... how long each 
 QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
 QVR_CVAR(vr_water_foam_particle_size, "1.5", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
 QVR_CVAR(vr_water_foam_particle_shore, "0", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side)
+QVR_CVAR(vr_water_foam_particle_spray, "1", CVAR_ARCHIVE) // every liquid's shore foam particles: 1 soft spray bursting up off the shore line and falling back (water hitting the wall), 0 the older rising puffs of bubbly foam
+QVR_CVAR(vr_water_foam_particle_retro, "0", CVAR_ARCHIVE) // ... the spray through retro textures as other particles (1), or always smooth and soft (0)
 QVR_CVAR(vr_water_foam_edge, "4", CVAR_ARCHIVE)       // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
 QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
 QVR_CVAR(vr_lava_foam_opacity, "1", CVAR_ARCHIVE)
@@ -2777,7 +2779,9 @@ QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each ro
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
-QVR_CVAR(vr_agrunt_dual_chance, "0.25", CVAR_ARCHIVE)  // 0..1: one from the pool with a one-handed weapon (a sword, the crowbar, the axe) gets a second in its left hand
+QVR_CVAR(vr_agrunt_dual_chance, "0.25", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
+QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
+QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand
 QVR_CVAR(vr_agrunt_reload_time, "1.5", CVAR_ARCHIVE)   // seconds a reload takes
 QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off at most (each shot, besides the weapon's own spread)
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
@@ -2869,6 +2873,20 @@ QVR_CVAR(vr_agrunt_ik_hands,"4", CVAR_NONE)           // armed monsters' models:
 QVR_CVAR(vr_agrunt_ik_reach,"0.96", CVAR_NONE)        // armed monsters' weapons (and their hands' targets) brought within this share of their arm's length from its shoulder as drawn (a bent body's, a swing's far end): the hand on its weapon; 0 off (before)
 QVR_CVAR(vr_agrunt_ik_tag, "-1", CVAR_NONE)          // 0..1023: the drawn hands' distances to their weapons counted under this tag (QC's sweeps set it: a frame, an attack's phase); vr_agrunt_ik_err prints them; -1 none
 QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; vr_agrunt_ik_info: now)
+QVR_CVAR(vr_agrunt_ik_rigid, "1", CVAR_NONE)          // 1: armed monsters' forearms and hands drawn as rigid pieces (their shape kept: no stretched hands), each hand turned at its wrist towards its weapon, the weapon drawn on the hand by its grip offset (vr_agrunt_grips), a ragdoll's on its hand's bone; 0: agdual2's way (before; read when the model's rest data is made: a map load)
+QVR_CVAR(vr_agrunt_ik_wrist, "65", CVAR_NONE)         // armed monsters (vr_agrunt_ik_rigid): a hand's most bend at its wrist (degrees) towards its weapon's turn: past it the weapon turns with the hand
+QVR_CVAR(vr_agrunt_ik_twist, "80", CVAR_NONE)         // ... its most twist about its forearm (degrees)
+QVR_CVAR(vr_agrunt_ik_elbow, "150", CVAR_NONE)        // ... an elbow's most bend (degrees: 180 folded flat)
+QVR_CVAR(vr_agrunt_ik_second, "0.97", CVAR_NONE)      // ... the other hand takes a two-handed weapon's second grip only while its wrist reaches it within this share of its arm's length (and its wrist turns within vr_agrunt_ik_wrist plus 25 degrees); else it hangs free
+QVR_CVAR(vr_agrunt_grips, "", CVAR_ARCHIVE)           // armed monsters' grip offsets changed from the defaults (Armed Grunts > Grip Editor; vr_agrunt_grip_dump prints them as code): "kind weapon hand x y z pitch yaw roll;" each
+QVR_CVAR(vr_agrunt_grip_hand, "0", CVAR_NONE)         // the Grip Editor's hand: 0 the main hand's weapon, 1 the off hand's own weapon (dual), 2 the off hand on a two-handed weapon's second grip
+QVR_CVAR(vr_agrunt_grip_x, "0", CVAR_NONE)            // the Grip Editor's offset (the entry it edits: the nearest armed monster's weapon, vr_agrunt_grip_hand's hand): forward (units)
+QVR_CVAR(vr_agrunt_grip_y, "0", CVAR_NONE)            // ... left (units)
+QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
+QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
+QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
+QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
+QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)            // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)
@@ -2896,6 +2914,11 @@ QVR_CVAR(vr_adgun_tank_burst_poisontime, "6", CVAR_ARCHIVE) // ... and for how m
 QVR_CVAR(vr_adgun_tank_field_time, "6", CVAR_ARCHIVE) // ... the field a burst leaves (flames on the ground, a poison cloud: QC VR_TankField_*): seconds at a full tank (40% near empty); 0 none
 QVR_CVAR(vr_adgun_tank_field_radius, "96", CVAR_ARCHIVE) // ... its reach at a full tank, units (40% near empty)
 QVR_CVAR(vr_adgun_tank_field_damage, "1", CVAR_ARCHIVE) // ... its damage times this: the cloud's poison a second (the burst's), the flames' own burning damage a second on the living (vr_burn_damage's) as well as setting them on fire
+QVR_CVAR(vr_adgun_tank_field_spread, "0.4", CVAR_ARCHIVE) // ... seconds it takes to spread from the tank out to its full reach (its look and its damage's reach together); 0 at once
+QVR_CVAR(vr_adgun_tank_field_flames, "1", CVAR_ARCHIVE) // ... the fire field's flames: how many tongues of fire rising off the ground, times this (the poison cloud's green wisps too); 0 none
+QVR_CVAR(vr_adgun_tank_field_models, "10", CVAR_ARCHIVE) // ... the fire field's 3D flames (id's large torch flame, progs/flame2.mdl) at a full tank (40% near empty): thrown out from the tank to random spots in it, fading out over its life; 0 none
+QVR_CVAR(vr_adgun_tank_field_smoke, "1", CVAR_ARCHIVE) // ... the fire field's dark smoke rising off it, times this; 0 none
+QVR_CVAR(vr_adgun_tank_field_cloud, "1", CVAR_ARCHIVE) // ... the poison field's cloud: how many puffs of green smoke over it, times this; 0 none
 QVR_CVAR(vr_adgun_tank_pickup_time, "0.25", CVAR_ARCHIVE) // ... a tank lying about flying to your back as you take its gun, seconds (vr_adtank.cpp); 0 at once
 QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone

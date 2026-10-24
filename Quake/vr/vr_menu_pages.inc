@@ -2142,6 +2142,8 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 {
     za::Vector<Item> items;
     items.pushBack(slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Every liquid's shoreline foam: how much (0 off). Teleports have none."));
+    items.pushBack(toggle("Particles as Spray", vr_water_foam_particle_spray).help("Every liquid's foam particles: checked, soft spray thrown up off the shore and falling back, as water hitting the wall; unchecked, the older rising puffs of bubbly foam (for comparison)."));
+    items.pushBack(toggle("Spray in Retro Look", vr_water_foam_particle_retro).help("Checked: the spray through Retro Textures as the other particles (palette, dither, blocks); unchecked: always smooth and soft."));
     addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
         vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
         vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,

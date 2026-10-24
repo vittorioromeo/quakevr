@@ -676,14 +676,19 @@ float(float xThing) VR_Melee_NearBack =
 // (the kind's near end, the model's curve and head).
 // '<blade start> <off> <side>' (Blade From, admeleehead 3): the share of the line where its striking part starts (-1 the
 // kind's own: VR_Melee_Layout's first striking point) and that point off the line (its bend: VR_Melee_BendLine).
+// The line's start off the hand and its tip off the muzzle (Blade Org, Blade Tip, admeleehead 4 and 5; flag 8): units along
+// the hand's forward, right, up ('0 0 0': the hand and the muzzle).
 float vr_mline_slot;
 vector vr_mline_shape;
 vector vr_mline_from;
+vector vr_mline_org;
+vector vr_mline_tipofs;
 void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
 {
     vr_mline_slot = -1;
     vr_mline_shape = '-1 1 0';
     vr_mline_from = '-1 0 0';
+    vr_mline_org = vr_mline_tipofs = '0 0 0';
     if(xThing == VR_MTHING_FIST)
     {
         vr_mline_shape_y = max(0.1, cvar_hget(cvarh_vr_melee_fist_width)); // (its blow line's width: vr_melee_fist_width)
@@ -701,6 +706,11 @@ void(entity p, float xHand, float xThing) VR_Melee_ShapeOf =
         if(vr_mline_shape_z & 4)
         {
             vr_mline_from = admeleehead(-1 - vr_mline_slot, 3);
+        }
+        if(vr_mline_shape_z & 8)
+        {
+            vr_mline_org = admeleehead(-1 - vr_mline_slot, 4);
+            vr_mline_tipofs = admeleehead(-1 - vr_mline_slot, 5);
         }
     }
 };
@@ -954,7 +964,24 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     {
         m = h + VRForwardOf(VRGetEntHandRot(p, xHand)) * 8;
     }
-    vector a = m - h;
+    if(vr_mline_org != '0 0 0' || vr_mline_tipofs != '0 0 0')
+    {
+        // Its line's own ends (Edit Blade Shape's Line Start, a gun's Tip): off the hand and the muzzle in the hand's
+        // frame, its right mirrored in the off hand (as the model is drawn).
+        vector oldF = v_forward, oldR = v_right, oldU = v_up;
+        makevectors(VRGetEntHandRot(p, xHand));
+        float side = xHand == cVR_OffHand ? -1 : 1;
+        vr_mline_grip = h + v_forward * vr_mline_org_x + v_right * (vr_mline_org_y * side) + v_up * vr_mline_org_z;
+        m = m + v_forward * vr_mline_tipofs_x + v_right * (vr_mline_tipofs_y * side) + v_up * vr_mline_tipofs_z;
+        v_forward = oldF;
+        v_right = oldR;
+        v_up = oldU;
+        if(vlen(m - vr_mline_grip) < 2)
+        {
+            m = vr_mline_grip + VRForwardOf(VRGetEntHandRot(p, xHand)) * 8;
+        }
+    }
+    vector a = m - vr_mline_grip;
     vr_mline_far = m;
     VR_Melee_BendLine(p, xHand, xThing, a);
     float back = VR_Melee_NearBackOf(xThing);
@@ -962,7 +989,7 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     {
         back = 0.8; // held by its pump: the stock is well behind the hand
     }
-    vr_mline_near = h - a * back;
+    vr_mline_near = vr_mline_grip - a * back;
     return TRUE;
 };
 
@@ -1815,7 +1842,7 @@ float(float xThing) VR_Melee_PommelWeight =
 
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
-float vr_msw_decide; // (the multi-target test, vr_melee_sweep_test 5: every blow lands, a cut at this strength)
+float vr_msw_decide; // (the multi-target test, vr_melee_sweep_test 6: every blow lands, a cut at this strength)
 float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 {
     if(vr_msw_decide > 0)

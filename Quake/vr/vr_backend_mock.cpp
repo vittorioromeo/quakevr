@@ -749,7 +749,8 @@ void mockHandTo_f()
         (!q_strcasecmp(Cmd_Argv(2), "bladehandle") || !q_strcasecmp(Cmd_Argv(2), "bladebutton")))
     {
         // "bladehandle <index> [<along> <normal> <flat>]": at Edit Blade Shape's handle `index` (vr_bladeedit.cpp: 0 the
-        // tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's corners), plus units along the
+        // tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's corners, 10 the blade's start, 11
+        // the line's start), plus units along the
         // blade's line, its normal in the blade's plane and the model's +y; "bladebutton <index>": at its panel button (0
         // Undo, 1 Reset Blade, 2 Straighten, 3 Head Box, 4 Cancel, 5 Done).
         const bool isHandle = !q_strcasecmp(Cmd_Argv(2), "bladehandle");

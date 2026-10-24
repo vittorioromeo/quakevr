@@ -1,0 +1,8 @@
+# phantom_sword: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Dissolution of Eternity's Phantom Sword held, with a knight and a crate to cut (Rogue's data installed)
+map vrtesthall
+god
+give "DoE Phantom Sword" main
+spawn "Knight" 140 0
+spawn "Wooden Crate" 90 60
+hint You hold the Phantom Sword (the toolgun's Weapons tab, DoE group: not greyed). Check it sits in the hand, swings heavy and hits with its sounds; spawn another from the toolgun.
