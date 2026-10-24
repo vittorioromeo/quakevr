@@ -80,6 +80,27 @@ struct Key
     return pose >= Jab && pose < NumPoses;
 }
 
+// A pose's legs (vr_aglegs.cpp; the Pickup's kneel): a key of its own, the pose's phase 1 on class 0 (the legs the same
+// with any weapon; QC never reads it), its parts so (its body's space as the arms' keys: changes on the procedural
+// pose, the places in units; for a right hand's reach, mirrored for a left's):
+enum LegPart : int
+{
+    LegPelvis = 0,     // the pelvis's place (forward, left, up)
+    LegPelvisTurn = 1, // ... its turn: yaw (left), pitch (forward), roll (to its right); degrees
+    LegPlantFoot = 2,  // the planted foot's place (its ankle)
+    LegKneelKnee = 3,  // the kneeling knee's pole (where it goes, as near as the leg allows)
+    LegKneelFoot = 4,  // the kneeling foot's place (its ankle; its toes stay on the floor)
+    LegPlantKnee = 5,  // the planted knee's pole
+};
+[[nodiscard]] constexpr int legCode(int kind, int pose)
+{
+    return code(kind, 0, pose, 1);
+}
+[[nodiscard]] constexpr bool isLegCode(int c)
+{
+    return c >= 0 && c % 10 == 1 && (c / 10) % 100 == Pickup;
+}
+
 // Key `code` now (the studio's preview, else the archived change, else the shipped key); false: none (all zero).
 bool get(int code, Key& out);
 [[nodiscard]] Key value(int code);

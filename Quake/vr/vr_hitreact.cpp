@@ -2,6 +2,7 @@
 
 #include "vr_hitreact.hpp"
 #include "vr_agarms.hpp"
+#include "vr_aglegs.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_cvars.hpp"
@@ -852,6 +853,8 @@ struct ArmPoseMsg
     glm::vec3 torso{0.f};                  // apBody: its torso's turn in a strike (yaw, pitch, roll; degrees)
     glm::vec3 elbowR{0.f}, elbowL{0.f};    // ... its elbows' poles (its body's space; their length the share)
     glm::vec3 waist{0.f};                  // ... the point QC turned its targets about (its body's space, units)
+    float take{0.f};                       // apFixed: a take's weight (vr_aglegs: 0 standing .. 1 at its lowest)
+    int takeSide{0};                       // ... its reaching hand (0 right, 1 left)
 };
 
 struct ArmPose
@@ -870,6 +873,8 @@ struct ArmPose
     glm::vec3 torso{0.f};                        // its torso's turn now (degrees: bodyTurn), its elbows' poles
     glm::vec3 elbowR{0.f}, elbowL{0.f};
     glm::vec3 waist{0.f};                        // (model space: the message's over its scale)
+    float take{0.f};                             // a take's weight, its reaching hand (vr_aglegs)
+    int takeSide{0};
 };
 
 struct ArmPoses
@@ -987,6 +992,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
         m.torso = p.torso + (m.torso - p.torso) * f;
         m.elbowR = p.elbowR + (m.elbowR - p.elbowR) * f;
         m.elbowL = p.elbowL + (m.elbowL - p.elbowL) * f;
+        m.take = p.take + (m.take - p.take) * f;
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
@@ -1036,6 +1042,8 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.elbowR = m.elbowR;
     s.elbowL = m.elbowL;
     s.waist = m.waist / scale;
+    s.take = (m.flags & apFixed) ? m.take : 0.f;
+    s.takeSide = m.takeSide;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2374,6 +2382,20 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    {
+        // A take's kneel (vr_aglegs: its legs posed, the body above carried by its pelvis, the arms solved on it)
+        float yawDeg = 0.f;
+        const glm::vec3 origin = drawnOrigin(e, &yawDeg);
+        rigpose::Rigid legs[ragdoll::maxBones];
+        if(aglegs::solve(e, hdr, *rig, spec.kind, posed, aglegs::Take{s.take, s.takeSide}, origin, yawDeg,
+               za::max(ENTSCALE_DECODE(e->scale), 0.01f), legs))
+        {
+            for(int i = 0; i < rig->numBones; i++)
+            {
+                posed[i] = composeRigid(legs[i], posed[i]);
+            }
+        }
+    }
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).
     rigpose::Rigid body[ragdoll::maxBones];
@@ -2599,6 +2621,12 @@ void parseArmPose()
         for(int i = 0; i < 3; i++)
         {
             m.waist[i] = MSG_ReadCoord(cl.protocolflags);
+        }
+        if(m.flags & apFixed)
+        {
+            const int k = MSG_ReadByte(); // (a take's weight x 127, its left hand's reach 128)
+            m.take = static_cast<float>(k & 127) / 127.f;
+            m.takeSide = (k & 128) ? 1 : 0;
         }
     }
     m.t = cl.mtime[0];
@@ -3024,15 +3052,26 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
                 out[b] = rigpose::Rigid{};
             }
         }
-        // (a strike's body: bodyTurn, as relinkSkinned solved the arms on it)
+        // (a take's kneel: the body carried by its pelvis, vr_aglegs; a strike's body: bodyTurn, as relinkSkinned
+        // solved the arms on them)
+        rigpose::Rigid legs[ragdoll::maxBones], posedL[ragdoll::maxBones];
+        const bool legged = aglegs::carry(e, rig, posed, legs);
+        for(int b = 0; b < rig.numBones && legged; b++)
+        {
+            posedL[b] = composeRigid(legs[b], posed[b]);
+        }
         rigpose::Rigid body[ragdoll::maxBones];
         const ArmPose* ap = armPoseNow(e);
-        const bool bodied = ap && agarms::active(e) && bodyTurn(rig, posed, *ap, body);
+        const bool bodied = ap && agarms::active(e) && bodyTurn(rig, legged ? posedL : posed, *ap, body);
         for(int b = 0; b < rig.numBones && bodied; b++)
         {
             out[b] = composeRigid(out[b], body[b]);
         }
-        return kicked || bodied || agarms::active(e);
+        for(int b = 0; b < rig.numBones && legged; b++)
+        {
+            out[b] = composeRigid(out[b], legs[b]);
+        }
+        return kicked || bodied || legged || agarms::active(e);
     }
     const bool armed = armsWanted(e) && armsNow(e, rig, posed, hdr, pose1, pose2, blend, arms);
     const bool kicked = reacting(e) && boneKicks(e, rig, posed, out);
@@ -3487,6 +3526,7 @@ void registerCommands()
     Cmd_AddCommand("vr_agrunt_grip_fit", gripFit_f);
     aggrip::registerCommands();
     agarms::registerCommands();
+    aglegs::registerCommands();
 }
 
 } // namespace qvr::hitreact

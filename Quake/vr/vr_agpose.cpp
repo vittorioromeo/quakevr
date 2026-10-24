@@ -308,6 +308,12 @@ int copyKind(int from, int to)
         c.code = e.code - from * 10000 + to * 10000;
         c.k.v[RPos] *= s;
         c.k.v[LPos] *= s;
+        if(isLegCode(c.code))
+        {
+            c.k.v[LegKneelKnee] *= s; // (the legs' places: all but the pelvis's turn)
+            c.k.v[LegKneelFoot] *= s;
+            c.k.v[LegPlantKnee] *= s;
+        }
         kept.pushBack(c);
         n++;
     }
@@ -329,6 +335,12 @@ void dumpText(za::String& out)
         for(int i = 0; i < NumParts * 3; i++)
         {
             out += va("%s%.*ff", i ? ", " : "", isTurn(i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
+        }
+        if(isLegCode(e.code))
+        {
+            // (vr_aglegs: pelvis place, pelvis turn, planted foot, kneeling knee's pole, kneeling foot, planted knee's pole)
+            out += va("}}, // %s, the pickup's legs (any weapon)\n", kind == 0 ? "grunt" : "enforcer");
+            continue;
         }
         out += va("}}, // %s, %s, %s%s%s\n", kind == 0 ? "grunt" : "enforcer", className(cls), poseName(cls, pose),
             isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(phase) : "");
