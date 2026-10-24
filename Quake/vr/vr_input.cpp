@@ -25,6 +25,7 @@
 #include "vr_motion.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
@@ -597,6 +598,12 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "Edit Blade Shape");
                     continue;
                 }
+                // And the Pose Studio (vr_posestudio.cpp): the grips, triggers, B/Y (not A/X or the sticks: you walk).
+                if(posestudio::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "the Pose Studio");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -709,6 +716,7 @@ void update(const InputState& tracked)
         menuGestures.menuWas[h] = menuNow;
         if(menuNow == menuBefore ||
             (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
+                !posestudio::button(h, posing::Button::Menu, menuNow) &&
                 !posing::button(h, posing::Button::Menu, menuNow)))
         {
             menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");

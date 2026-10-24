@@ -60,6 +60,7 @@ gun's way): `vr_agarms_info` prints all of these for a loaded model (and its ski
 | The arms' IK, the hands' grip frames, the weapons drawn on the hands | `vr_agarms.cpp` `solve` (`vr_hitreact.cpp` `relinkSkinned` calls it) |
 | The skin (weights per vertex, once a model) | `vr_agarms.cpp` `skinOf`; the alias shader's `RigArm` (`vr_glsl.h`), rows from `kickInstance` |
 | Grips: one per kind and hand for every weapon, a weapon's own on top | `vr_aggrip.cpp` (`global`, `offset`); VR Settings > Armed Grunts > Grip Editor (Edits: Every Weapon / This Weapon Only) |
+| Grips set by hand: the Pose Studio (Grip Editor > Drag Mode, `vr_posestudio`) | `vr_posestudio.cpp` (the boxes, the drag, the panel); `relinkSkinned` calls `posestudio::adjust` before the solve (a dragged weapon at the controller) and `note` after it (`agarms::Placed`'s hands, elbows, shoulders, chest); `aggrip::setPreview` / `set` |
 | Numbers, the contact sheet | `vr_agrunt_ik_err` (agarms, agt, agprop lines), `vr_agrunt_test 45` |
 
 A new row needs only its row's fields above and its engine row's anchor: its skin is found from its rig.

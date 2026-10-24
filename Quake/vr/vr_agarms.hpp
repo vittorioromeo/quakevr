@@ -67,6 +67,11 @@ struct Placed
     bool on[2]{false, false};
     rigpose::Rigid weapon[2];
     bool held2{false}; // the off hand on the second grip (else free)
+    // The arms as solved (model space; the Pose Studio's handles): each hand's grip frame, elbow and shoulder; the chest.
+    rigpose::Rigid hand[2];
+    glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 shoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    rigpose::Rigid chest;
 };
 
 [[nodiscard]] bool enabled(); // vr_agarms (read at a map load for the models' rest data)

@@ -1135,6 +1135,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     }
     for(int s = 0; s < 2; s++)
     {
+        out.hand[s] = compose(arms[s].H, m->side[s].grip);
+        out.elbow[s] = arms[s].elbow;
+        out.shoulder[s] = rigpose::apply(C, m->side[s].S);
+        out.chest = C;
         st->bones[3 * s] = arms[s].U;
         st->bones[3 * s + 1] = arms[s].F;
         st->bones[3 * s + 2] = arms[s].H;

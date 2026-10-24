@@ -6,7 +6,11 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+
+#include <glm/gtc/quaternion.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +92,9 @@ struct State
     int subjectKind{-1}, subjectSlot{-1}, subjectSlotL{-1};
     Key subject; // the last frame's
     char line[256]{}; // subjectLine's
+    // the Pose Studio's entry being dragged (setPreview)
+    Key preview;
+    aggrip::Offset previewOffset;
 };
 State state;
 
@@ -111,6 +118,7 @@ void parse()
         return;
     }
     state.everParsed = true;
+    state.loaded = Key{}; // (the Grip Editor's sliders reloaded: the text changed under them, an undo, the Pose Studio)
     q_strlcpy(state.parsed, vr_agrunt_grips.string, sizeof(state.parsed));
     state.numOver = 0;
     const char* p = state.parsed;
@@ -190,38 +198,46 @@ void write()
     return true;
 }
 
-void dump_f()
+[[nodiscard]] const char* handName(int hand)
+{
+    return hand == aggrip::Main ? "Main" : hand == aggrip::Off ? "Off" : "Second";
+}
+
+void dumpInto(za::String& out, bool all)
 {
     parse();
-    const bool all = Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0;
-    Con_Printf("// vr_agrunt_grip_dump%s: rows for vr_aggrip.cpp's defaults (kind -1 both kinds)\n", all ? " all" : "");
+    out += va("// vr_agrunt_grip_dump%s: rows for vr_aggrip.cpp's defaults (kind -1 both kinds)\n", all ? " all" : "");
     for(int i = 0; i < state.numOver; i++)
     {
         const Override& o = state.over[i];
         if(o.slot == aggrip::allWeapons)
         {
-            Con_Printf("    {%d, aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (globalDefaults: every weapon)\n", o.kind,
-                o.hand == aggrip::Main ? "Main" : o.hand == aggrip::Off ? "Off" : "Second", o.o.pos.x, o.o.pos.y, o.o.pos.z,
-                o.o.angles.x, o.o.angles.y, o.o.angles.z);
+            out += va("    {%d, aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (globalDefaults: every weapon)\n", o.kind,
+                handName(o.hand), o.o.pos.x, o.o.pos.y, o.o.pos.z, o.o.angles.x, o.o.angles.y, o.o.angles.z);
             continue;
         }
-        Con_Printf("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff},\n", o.kind, slotId(o.slot),
-            o.hand == aggrip::Main ? "Main" : o.hand == aggrip::Off ? "Off" : "Second", o.o.pos.x, o.o.pos.y, o.o.pos.z,
-            o.o.angles.x, o.o.angles.y, o.o.angles.z);
+        out += va("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff},\n", o.kind, slotId(o.slot),
+            handName(o.hand), o.o.pos.x, o.o.pos.y, o.o.pos.z, o.o.angles.x, o.o.angles.y, o.o.angles.z);
     }
     if(all)
     {
         for(const Row& r : defaults)
         {
-            Con_Printf("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default)\n", r.kind, r.id,
-                r.hand == aggrip::Main ? "Main" : r.hand == aggrip::Off ? "Off" : "Second", r.x, r.y, r.z, r.pitch, r.yaw,
-                r.roll);
+            out += va("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default)\n", r.kind, r.id,
+                handName(r.hand), r.x, r.y, r.z, r.pitch, r.yaw, r.roll);
         }
     }
     if(state.numOver == 0 && !all)
     {
-        Con_Printf("// (no changes from the defaults; vr_agrunt_grip_dump all prints those)\n");
+        out += "// (no changes from the defaults; vr_agrunt_grip_dump all prints those)\n";
     }
+}
+
+void dump_f()
+{
+    za::String text;
+    dumpInto(text, Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0);
+    Con_Printf("%s", text.cStr());
 }
 
 // vr_agrunt_grip_reset: the edited entry back to its default (all: every change dropped).
@@ -256,6 +272,10 @@ Offset global(int kind, int hand)
 Offset offset(int kind, int slot, int hand)
 {
     parse();
+    if(Key{kind, slot, hand} == state.preview)
+    {
+        return state.previewOffset;
+    }
     for(int i = 0; i < state.numOver; i++)
     {
         const Override& o = state.over[i];
@@ -361,6 +381,99 @@ const char* subjectLine()
         k.slot == allWeapons ? "every weapon" : slotId(k.slot),
         k.hand == Main ? "main hand" : k.hand == Off ? "off hand (dual)" : "off hand on its second grip");
     return state.line;
+}
+
+void setPreview(int kind, int slot, int hand, const Offset& o)
+{
+    state.preview = Key{kind, slot, hand};
+    state.previewOffset = o;
+}
+
+void clearPreview()
+{
+    state.preview = Key{};
+}
+
+void set(int kind, int slot, int hand, const Offset& o)
+{
+    parse();
+    const Key key{kind, slot, hand};
+    Offset d;
+    const bool hasDefault = defaultOf(kind, slot, hand, d);
+    const auto within = [](const glm::vec3& a, const glm::vec3& b, float eps) {
+        return za::abs(a.x - b.x) <= eps && za::abs(a.y - b.y) <= eps && za::abs(a.z - b.z) <= eps;
+    };
+    // (rounded as the dump prints them: hundredths of a unit, tenths of a degree)
+    Offset r;
+    for(int i = 0; i < 3; i++)
+    {
+        r.pos[i] = static_cast<float>(static_cast<int>(o.pos[i] * 100.f + (o.pos[i] < 0.f ? -0.5f : 0.5f))) / 100.f;
+        r.angles[i] = static_cast<float>(static_cast<int>(o.angles[i] * 10.f + (o.angles[i] < 0.f ? -0.5f : 0.5f))) / 10.f;
+    }
+    const bool isDefault = within(r.pos, hasDefault ? d.pos : glm::vec3{0.f}, 0.005f) &&
+                           within(r.angles, hasDefault ? d.angles : glm::vec3{0.f}, 0.05f);
+    int kept = 0;
+    for(int i = 0; i < state.numOver; i++)
+    {
+        if(!(Key{state.over[i].kind, state.over[i].slot, state.over[i].hand} == key))
+        {
+            state.over[kept++] = state.over[i];
+        }
+    }
+    state.numOver = kept;
+    if(!isDefault && state.numOver < maxOverrides)
+    {
+        Override& n = state.over[state.numOver++];
+        n.kind = kind;
+        n.slot = slot;
+        n.hand = hand;
+        n.o = r;
+    }
+    write();
+}
+
+void resetEntries(int kind, int slot)
+{
+    parse();
+    int kept = 0;
+    for(int i = 0; i < state.numOver; i++)
+    {
+        if(!(state.over[i].kind == kind && state.over[i].slot == slot))
+        {
+            state.over[kept++] = state.over[i];
+        }
+    }
+    state.numOver = kept;
+    write();
+}
+
+void dumpText(za::String& out)
+{
+    dumpInto(out, false);
+}
+
+rigpose::Rigid toRigid(const Offset& o)
+{
+    constexpr float d2r = 3.14159265f / 180.f;
+    rigpose::Rigid r;
+    r.rot = glm::normalize(glm::angleAxis(o.angles.y * d2r, glm::vec3{0.f, 0.f, 1.f}) *
+                           glm::angleAxis(o.angles.x * d2r, glm::vec3{0.f, 1.f, 0.f}) *
+                           glm::angleAxis(o.angles.z * d2r, glm::vec3{1.f, 0.f, 0.f}));
+    r.pos = o.pos;
+    return r;
+}
+
+Offset fromRigid(const rigpose::Rigid& r)
+{
+    // R = Rz(yaw) Ry(pitch) Rx(roll): R20 = -sin(pitch), R10 / R00 the yaw, R21 / R22 the roll (glm: m[column][row]).
+    constexpr float r2d = 180.f / 3.14159265f;
+    const glm::mat3 m = glm::mat3_cast(glm::normalize(r.rot));
+    Offset o;
+    o.pos = r.pos;
+    o.angles.x = za::asin(za::clamp(-m[0][2], -1.f, 1.f)) * r2d;
+    o.angles.y = za::atan2(m[0][1], m[0][0]) * r2d;
+    o.angles.z = za::atan2(m[1][2], m[2][2]) * r2d;
+    return o;
 }
 
 void registerCommands()

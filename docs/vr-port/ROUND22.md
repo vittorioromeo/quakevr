@@ -20177,3 +20177,62 @@ to run, PASS -> PASS).
 - [ ] A chainsaw grunt (toolgun's Armed Humanoid page, the chainsaw): both hands on it, carried low across its body,
   raised level towards you, thrust with both hands; the right wrist natural.
 - [ ] Two axes (and two swords, two crowbars): carried out by its sides, blades ahead, both wrists natural.
+
+## Pose Studio: armed humanoids' grips by hand (worktree `tghost`, branch `agent/posestudio`, 2026-10-24)
+
+Vittorio: he needs to tweak poses and grips himself, grab and place, not sliders. **Stage 1 (this branch): the grips.**
+VR Settings > Armed Grunts > Grip Editor > Drag Mode (also the Debug menu beside Edit Blade Shape, `vr_posestudio`; the scenario
+`agrunt_pose_studio`: a grunt and an enforcer each with a shotgun, a sword and two axes, frozen, your hands empty,
+the studio started). New: `Quake/vr/vr_posestudio.cpp`, cvar `vr_posestudio_reach` (2.5 m, archived).
+
+- **What it shows.** The armed humanoid nearest within reach (held still: `vr_agrunt_freeze` 1 while it runs, put back
+  after): its weapon(s) in a wire box round their butt, muzzle and second grip (`view::weaponLocalGeometry`; cyan),
+  its hands' grip frames as boxes (orange) with their forward (red) and up (blue) axes, its arms dim (shoulder, elbow,
+  hand). The controller's taking point is its unresolved place (`hands::State::unresolvedPos`: the monster's body
+  pushes the drawn hand out, the controller goes on in) drawn as a white dot. A part within reach turns yellow (a
+  tick), held green; its name floats over it.
+- **The drag.** Either grip takes what its controller is at (one part at a time); the part's world frame keeps its
+  offset from the controller (6-DoF). The weapon: turned and moved in the hand, the hand held (relinkSkinned draws the
+  weapon at the controller through `posestudio::adjust`: the solve's target replaced); total grip T = hand^-1 * weapon.
+  A hand on its weapon: the weapon held at the pose's place, T = hand^-1 * target. The left hand on a two-handed
+  weapon's second grip: that grip's offset (its point on the weapon taken out). The entry edited: the kind's global
+  grip (Every Weapon: G' = T * W^-1) or the weapon's own (This Weapon: W' = G^-1 * T), previewed live
+  (`aggrip::setPreview`: every armed humanoid of the kind follows), stored on letting go (`aggrip::set`, rounded as
+  the dump prints, a default's equal dropped; the Grip Editor's sliders reload). Haptics: a tick on reaching a part or
+  a button, a click on taking and letting go, a tick each unit or 5 degrees dragged.
+- **The panel** (45 degrees to the left, below the eyes; it follows you when you walk a metre off): Every Weapon /
+  This Weapon (`vr_agrunt_grip_scope`), Undo (B/Y; snapshots of `vr_agrunt_grips`), Reset Grips (the kind's global, or
+  the weapon's own, entries dropped), Frozen On/Off, Cancel (the grips as on entering), Done (the menu button too:
+  `vr_agrunt_grip_dump`'s lines printed and written to `quakevr/proposed_defaults/agrunt_grips_<time>.txt`). Text: the
+  subject (kind, weapons), its pose by name (from the message's flags: idle frozen, a strike, the pickup's reach or
+  bend, fists, live), what the edits change. A/X and the sticks still reach the game: walk up to the next one.
+- **Safety.** Grips are drawn-only: the server's weapon line is QC's placing, unchanged; the hand moves round it. With
+  the studio off nothing runs but one `active()` check per armed monster. `Placed` carries the solved hands, elbows,
+  shoulders and chest (no change to the solve).
+- **Tests** (mock hands: `vr_mock_hand_to <hand> posepart <0 weapon R|1 weapon L|2 hand R|3 hand L|99 grab start> [dx dy
+  dz]`, `posebutton <i>`; `vr_posestudio_report`): the frozen shotgun grunt's weapon taken, moved and turned 20 degrees
+  about the controller: stored offset 1.94 -0.21 0.75 / 1.2 18.6 -7.1, turned 20.0 degrees; the drawn weapon in the
+  drawn hand equal to the offsets (0.0 degrees, same position); the hand held during the drag, after letting go the
+  weapon back on its line and the hand round it. The right hand taken and moved 3 units up: "moved 3.00 units", the hand
+  drawn 3.00 higher, the weapon still. The left hand on the second grip moved 2 units and rolled 20 degrees: its entry
+  (hand 2) stored, the hand drawn there. Undo twice: `vr_agrunt_grips` empty. This Weapon then a weapon drag:
+  `0 progs/v_shot.mdl 0 ...` stored, Done printed `{0, "progs/v_shot.mdl", aggrip::Main, ...}` and wrote the file;
+  Cancel restores the entry text. Eyeshots (spectator view, overlay lines): the hover (yellow weapon box), the drag
+  (green box, the shotgun turned in the frozen hand), a hand hovered (yellow hand box among the cyan weapon box and the
+  orange right hand). At the defaults (the studio off): test 41's arm numbers joint gap 0.000, hand shape 0.0000;
+  tests 35 6/6 and 60 6/6 PASS; eval.sh 36/44, 0 differ from the baseline; scenes validate 85 files 0 errors, runall
+  `agrunt_pose_studio` and `agrunt_grip_editor` OK.
+
+**Not done (stages 2-4, for a next worker).** Pose keys: the weapon's place per pose (so a weapon drag could move the
+pose rather than the grip), a free hand's pose, the elbows' poles and the torso's turn per pose (new archived override
+text read by QC through an existing builtin's optional argument: the slots are full), the pose stepping (Idle/Carry,
+Aim, Port, Guard, Run, Pickup, each strike kind with its phases scrubbed, Play through `vr_agrunt_strike_demo`), the
+per-kind copy (grunt to enforcer, mirrored and scaled by the fits). The panel and drag here are built for them: a part
+id, an entry edited, a preview and a commit.
+
+**In VR:**
+- [ ] Drag Mode from the Grip Editor: walk up to the shotgun grunt; its boxes show, a box lights yellow as your hand
+  reaches it, with a buzz.
+- [ ] Grab the shotgun, turn it in its hand, let go: it returns to its aim with the hand round it as you set; Undo.
+- [ ] Grab its left hand on the barrel and slide it along: it stays there; the enforcer's own shotgun unchanged.
+- [ ] This Weapon, then a sword's hand: only swords change. Done: the console shows the code lines.

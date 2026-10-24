@@ -44,6 +44,7 @@
 #include "vr_hands.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_setup.hpp"
