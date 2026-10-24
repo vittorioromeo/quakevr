@@ -19657,6 +19657,85 @@ always in the hand, arms out of the torso in swings; shove one into a fall and p
 in its hand. Left: the normals of the pieces are the frames' (lighting on a hand turned far may look off); the wrist
 limit makes a weapon turn with the hand in the widest swings (the server's parry and hit lines are its own place).
 
+## Armed monsters: a deliberate tug-of-war, a short stumble, deeper pickups, a gentle fall keeps the weapon (worktree `release`, branch `agent/tug2`, 2026-10-24)
+
+His notes vrtesthall_2026-10-24_01-10-14 (the tug feels great when deliberate, but in a fight it grabs from too far,
+by accident while punching or grabbing the grunt, too little pull needed, and they go down too easily after), 01-15-28
+(the pickup: barely bent, the gun seemingly in hand from the first frame: FAIL) and 01-22-21 (a shove to the floor
+should keep the gun in the hand, free to take while it lies; violent falls drop it).
+
+**What made it easy in a fight** (his 30 s replay, `scratch/tug2_presses.py`, `scratch/tug2_notes.py`; replay and
+entities CSV): 19 presses of an empty hand's grip; 4 were punches (the grip squeezed for a fist: 2.3-4.0 m/s); the
+weapon's grab volume was its prop's box, a 20-unit cube round its grip (with the hand's 5-unit box: 40 cm each way at
+his scale), so a fist closing near its arm or chest took it. 5 tugs began; the three begun at 1.5-1.9 m/s were won in
+0.21, 0.51 (it at 14 of 30 health, in pain: the break force x 0.47 x 0.5 = 211 N) and 0.11 s: the yank's first spike
+(test 31: 1185-1650 N in the first frames of a 0.6 m/s pull) tore it out at once, the pain halving and the health
+share (down to 0.35) cut the thresholds, and force x time counted from a tenth of the break force (90 N: a still hold
+is 13-40 N, a pull with the body following 30-120 N). Re-running the replay itself (`scratch/tug2_replay.sh`, the
+`agrunt_tug` scene, `vr_motion_play ... noplace`) reproduced no grab: the grunts' AI goes its own way without his
+hands near them, so the measure is the take's presses against the rules.
+
+**Grabs (item 1).** The weapon (`vr_ag_weapon`) is taken only by the fist on its drawn surface (vr_physics.cpp
+`handOn`, `armedWeapon`): each of the fist's spheres against the model's triangles by distance (`held::surfaceDistance`;
+not `grabTouch`'s inside test: the held guns' open models read a fist 20 cm over a shotgun as sunk in it), within
+`vr_carry_grab_bias` + `vr_agrunt_grab_slack` (0 cm). Holding enemies (vr_foegrab.cpp `tryTake`, which runs first)
+leaves a fist on such a weapon to it (`physics::fistOnArmedWeapon`): a fist on the gun is the gun's, on the body
+the body's. A hand faster than `vr_agrunt_grab_speed` (1.25 m/s, relative to you; QC `VR_AG_PropHandTouch`) doesn't
+take it: of his presses, the 4 punches and the 3 fast grabs that won in 0.1-0.5 s are refused, the deliberate ones
+(0.1-1.2 m/s) still take it. `vr_agrunt_debug` prints each refusal; with it on the engine writes the main fist's gap
+to `vr_agrunt_grab_gap` (cm; the tests' reading).
+
+**The pull (item 2, `VR_AG_TugBreak`).** Only a pull above `vr_agrunt_tug_pull_force` (200 N) counts (its time and
+its force x time; eased off below it, twice as fast); kept up `vr_agrunt_tug_pull_time` (0.5 s), the break force
+(900 N) or the break impulse (350 N s) tears it out. A yank `vr_agrunt_tug_snap` (2.5) x the break force tears it out
+at once (my call: a violent wrench should still win; 2250 N is above the 1650 N peaks a 0.6 m/s mock pull gives, so
+in practice it is a tug). Wounds weaken its grip by `vr_agrunt_tug_hurt_ease` (0.4: at half health x0.8); pain no
+longer halves it. Measured (test 31, slow pull 0.3 m/s to 1 m, unbreakable): 30-100 N while its body follows (the
+first 30 cm), then 300-850 N with its arm out; the default pull (0.6 m/s to 0.7 m) wins after 1.43 s, pulled above
+200 N for 0.64 s (357 N s, peak 1650 N). Test 37 (the hold's force replaced: `vr_ag_tug_test_force`): 900 N for 0.3 s
+holds on; 900 N for 0.6 s torn out at 0.50 s; 2340 N at once (0.01 s); 300 N pulled out by the impulse at 1.18 s.
+
+**Recovery (item 3).** Won, it stumbles `vr_agrunt_tug_won_stumble` (0.1 s, was 0.35) and stands (the stagger
+recovers, sure-footed): up again 0.13-0.14 s after each win in test 37, never down; test 31 0.13 s (was 0.4). A
+shove or a leg sweep then is a fresh one on a standing grunt.
+
+**Pickups (item 4).** The row's take frames are now `vr_am_f_take` and `vr_am_n_take` frames down, its lowest last:
+the grunt painb1..6 (a knee, bent over: its top 28 -> 2 units, its hand 9 units over the floor; painc4..7 went to 15,
+its hand 18 over it), the enforcer paind3..7 (top 34 -> 18, its hand 4 over the floor). 0.1 s a frame down (was
+0.06), held at the lowest a frame while its hand closes (`vr_ag_took_grab`: the lowest frame drawn in full, 0.6 s
+for the grunt, 0.5 s the enforcer), back up at 0.07 s a frame (`vr_ag_takestep`; the old `vr_ag_take2..6` kept for
+saves). While it bends its hand reaches down with the bend (from its frame's hand to the grip, eased), and the pose
+message sends no weapon (QC `VR_AGP_Pose` `reaching`): the client draws the weapon where the server has it, lying,
+not at the hand's target. Fixed with it: `vr_ag_take1` sets its think before arming (the arm's placement saw a run
+think and cut the reach short). Test 34: lay still until its hand closed (0.0 units), carried up, 1 pickup; cut
+short by a pain: untaken. Test 25 now waits for the hand to close.
+
+**Falls keep the weapon (item 5, `vr_agrunt_fall_keep` 1).** Knocked down, its fall is measured from its start
+(`VR_AG_FallViolent`): the floor under it against the floor it stood on (`vr_agrunt_fall_keep_height` 0.75 m: a
+ledge), its body's fall speed (`_speed` 4.5 m/s) and its speed any way but down (`_fling` 5 m/s: thrown, held and
+flung, blown away: the strong forces show as speed; a force in newtons can't be told from a landing's). Gentle: the
+weapon stays on its hand's limb (`VR_AG_RagProp`), a grab takes it at once (shaky: knocked down) and a blow over
+0.8 m/s knocks it away (`VR_AG_DOWN_SWING`, was `vr_agrunt_disarm_swing`). Violent: dropped as before (and taken
+back as it gets up). A stagger never drops it; a tug's stagger is the tug's. Test 38: a shove's topple measured
+falling 1.6 m/s, moving 2.2 m/s, the floor 0 m down: kept; grabbed while down: yours at once; knocked down then flung
+at 8 m/s (measured 7.0-7.2): dropped. Tests 25 and 33's fall path set `vr_agrunt_fall_keep 0` (the old drop).
+Built on aghands' attach as merged (`VR_AG_RagProp`, the hand bone): how the kept weapon sits in the lying hand is
+theirs; to check in VR.
+
+**Menus** (Armed Grunts page): Tug: Least Pull, Least Pull Time, Yank Tears It Out At, Wounds Weaken Its Grip,
+Stumble When Disarmed; Grab: Precision, Fastest Hand; Keeps It in a Gentle Fall, Fall: Drops It Below, Falling
+Faster, Flung Faster. Scenes: `agrunt_tug`, `agrunt_fall` (new hint), `agrunt_pickup` hints updated.
+
+**Tests** (vrtesthall, `vr_mock_hand main 0.1 0.72 -1.2 65 0 0`, `+grabmain`): 36 grabs (on it -0.5 cm: taken; 2.5
+and 5.9 cm off: not; on it at 3 m/s: refused) PASS; 31, 32, 33 (7 paths), 34, 37 (4 cases, each up again), 38, 25
+PASS. eval.sh: 171 takes, 0 verdict changes (4 takes' damage differ by 0.1, the usual noise).
+
+**In VR:** `agrunt_tug`: close the hand slowly right on the gun: it tugs; hold it 2-3 cm off: nothing; punch it or
+swipe through it with the grip closed: nothing; grab its arm or chest: you hold the body. Pull steadily for a while:
+it comes out; a sharp yank alone shouldn't. After winning it should stand at once. `agrunt_pickup`: it should go down
+on a knee, the hand reaching down, close only at the bottom, then rise with it. `agrunt_fall`: shove one over: it
+keeps the gun in its hand (how the hand holds it: aghands); grab it or hit it while it lies: yours or knocked away;
+throw one hard or off the ledge: it drops it. Tune Grab: Fastest Hand (1.25 m/s) and Tug: Least Pull / Time.
 ## Armed grunts parry melee blows (worktree `dequant`, branch `agent/agparry`, 2026-10-24)
 
 His note (vrtesthall_2026-10-24_01-13-57): armed humanoids should defend against melee as the player parries, drop the

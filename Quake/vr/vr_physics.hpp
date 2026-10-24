@@ -18,6 +18,10 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // in to take hold of an object (Quake's boxes do not turn, and items' are widened).
 [[nodiscard]] bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin);
 
+// Whether `player`'s hand (0 off, 1 main) is on an armed monster's weapon as its grab takes it (the fist on its drawn
+// shape: vr_physics.cpp handOn). Holding enemies (vr_foegrab.cpp) leaves such a grip to the weapon's tug.
+[[nodiscard]] bool fistOnArmedWeapon(edict_t* player, int hand);
+
 // The middle of `ent`'s drawn model (turned with it), in the world: QC's modelcentre.
 [[nodiscard]] glm::vec3 modelCentre(edict_t* ent);
 

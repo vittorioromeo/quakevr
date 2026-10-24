@@ -84,6 +84,7 @@ float(entity g) VR_AGPar_WeaponFrame;                                      // VR
 .vector vr_ag_took_org;    // ... where it lay, its forward and up there
 .vector vr_ag_took_fw;
 .vector vr_ag_took_up;
+float vr_ag_grab_fast;     // grabs of its weapon refused as too fast (vr_agrunt_grab_speed; the tests)
 void(entity g, entity p) VR_AG_RagProp;
 void(entity g, float won, string why) VR_AG_TugEnd;
 
