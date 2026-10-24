@@ -703,6 +703,68 @@ bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
     return true;
 }
 
+bool view::weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, glm::vec3& second, int& secondType)
+{
+    const int slot = model && model->type == mod_alias ? weapons::slotForModel(model) : -1;
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    // Drawn as a weapon lying (or held by a monster) is, at the origin unturned: its own frame (x forward, y left, z up).
+    entity_t e{};
+    e.model = model;
+    muzzle = anchorPosition(e, false, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    // Its butt: the middle of its points within a unit of its rearmost along the line from its handle to the muzzle.
+    butt = glm::vec3{0.f};
+    const glm::vec3 axis = glm::normalize(muzzle + glm::vec3{0.f, 0.f, 1e-6f});
+    if(const grasp::Shape* shape = grasp::shapeOf(e, -1))
+    {
+        const glm::mat4 m = grasp::shapeToWorld(e, false);
+        float rear = 1e30f;
+        for(const grasp::Triangle& t : shape->tris)
+        {
+            for(const glm::vec3& p : t.p)
+            {
+                rear = za::min(rear, glm::dot(glm::vec3{m * glm::vec4{p, 1.f}}, axis));
+            }
+        }
+        glm::vec3 sum{0.f};
+        int n = 0;
+        for(const grasp::Triangle& t : shape->tris)
+        {
+            for(const glm::vec3& p : t.p)
+            {
+                const glm::vec3 v{m * glm::vec4{p, 1.f}};
+                if(glm::dot(v, axis) <= rear + 1.f)
+                {
+                    sum += v;
+                    n++;
+                }
+            }
+        }
+        butt = n > 0 ? sum / static_cast<float>(n) : glm::vec3{0.f};
+    }
+    // Its second grip: its first Grip hotspot's (2: a Cup's under the handle; 0 none).
+    second = glm::vec3{0.f};
+    secondType = 0;
+    for(int i = 0; i < weapons::maxHotspots && secondType == 0; i++)
+    {
+        const weapons::Hotspot h = weapons::hotspot(slot, i);
+        glm::vec3 a, b;
+        if(h.type == weapons::HotspotType::Grip && groundHotspotZone(e, slot, h, a, b))
+        {
+            second = (a + b) * 0.5f;
+            secondType = 1;
+        }
+        else if(h.type == weapons::HotspotType::Cup)
+        {
+            secondType = 2;
+        }
+    }
+    return true;
+}
+
 namespace view_detail
 {
 namespace

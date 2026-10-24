@@ -2312,6 +2312,25 @@ void PF_weapondrawnpose()
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
         return;
     }
+    if(what >= 8 && what <= 10)
+    {
+        // The weapon model `player` (a weapon entity) is drawn with, in its own frame (view::weaponLocalGeometry): 8 its
+        // muzzle (a blade's tip), 9 its butt, 10 its second grip (z +1000: a Cup's, no point); '0 0 0' none.
+        const int index = static_cast<int>(player->v.modelindex);
+        qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
+        int type = 0;
+        glm::vec3 out{0.f};
+        if(view::weaponLocalGeometry(model, muzzle, butt, second, type))
+        {
+            out = what == 8 ? muzzle : what == 9 ? butt : (type == 2 ? glm::vec3{0.f, 0.f, 1000.f} : second);
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
+        return;
+    }
     if(what == 7)
     {
         // x: the Weapon Offsets slot (-1 none) of the weapon `player`'s `hand` holds (its weaponmodel, weaponmodel2): the

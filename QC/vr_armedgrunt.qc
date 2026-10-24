@@ -1278,7 +1278,7 @@ void() VR_AG_ReloadFrame =
 {
     self.nextthink = time + max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time)) / 11;
 };
-void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); VR_AG_Log("reloading"); };
+void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); self.vr_agp_rl_at = time; VR_AG_Log("reloading"); };
 void() vr_ag_reload2 = { VR_AM_Anim(VR_AM_A_RELOAD, 1, vr_ag_reload3); VR_AG_ReloadFrame(); };
 void() vr_ag_reload3 = { VR_AM_Anim(VR_AM_A_RELOAD, 2, vr_ag_reload4); VR_AG_ReloadFrame(); };
 void() vr_ag_reload4 = { VR_AM_Anim(VR_AM_A_RELOAD, 3, vr_ag_reload5); VR_AG_ReloadFrame(); };

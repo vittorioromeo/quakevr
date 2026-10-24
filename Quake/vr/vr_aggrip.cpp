@@ -37,6 +37,24 @@ constexpr Row defaults[] = {
     {-1, "progs/v_hammer.mdl", aggrip::Main, 0.f, 0.f, 0.f, -28.5f, 118.f, -25.5f},
 };
 
+// vr_agarms: each kind's hands' grip frames for every weapon (the weapon's entity frame is the hand's, as your
+// controller's is: its Weapon Offsets draw it off that), on top of each hand's rest grip frame (its middle, turned as
+// the rest pose's gun). The Grip Editor's "All Weapons" entries; a weapon's own (above) go on top of these.
+struct GlobalRow
+{
+    int kind;
+    int hand;
+    float x, y, z, pitch, yaw, roll;
+};
+constexpr GlobalRow globalDefaults[] = {
+    {0, aggrip::Main, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {0, aggrip::Off, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {0, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {1, aggrip::Main, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {1, aggrip::Off, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {1, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+};
+
 struct Override
 {
     int kind{0};
@@ -78,6 +96,10 @@ cvar_t* const sliderCvars[6] = {&vr_agrunt_grip_x, &vr_agrunt_grip_y, &vr_agrunt
 
 [[nodiscard]] const char* slotId(int slot)
 {
+    if(slot == aggrip::allWeapons)
+    {
+        return "*";
+    }
     const cvar_t* c = slot >= 0 && slot < weapons::numSlots ? weapons::cvar(slot, weapons::Key::ID) : nullptr;
     return c && c->string ? c->string : "-1";
 }
@@ -100,8 +122,8 @@ void parse()
         if(sscanf(p, " %d %255s %d %f %f %f %f %f %f%n", &o.kind, id, &o.hand, &o.o.pos.x, &o.o.pos.y, &o.o.pos.z,
                &o.o.angles.x, &o.o.angles.y, &o.o.angles.z, &used) == 9)
         {
-            o.slot = weapons::slotForName(id);
-            if(o.slot >= 0 && o.kind >= 0 && o.kind < aggrip::numKinds && o.hand >= 0 && o.hand < aggrip::NumHands)
+            o.slot = strcmp(id, "*") == 0 ? aggrip::allWeapons : weapons::slotForName(id);
+            if((o.slot >= 0 || o.slot == aggrip::allWeapons) && o.kind >= 0 && o.kind < aggrip::numKinds && o.hand >= 0 && o.hand < aggrip::NumHands)
             {
                 state.over[state.numOver++] = o;
             }
@@ -134,6 +156,23 @@ void write()
 
 [[nodiscard]] bool defaultOf(int kind, int slot, int hand, aggrip::Offset& out)
 {
+    if(slot == aggrip::allWeapons)
+    {
+        for(const GlobalRow& r : globalDefaults)
+        {
+            if(r.kind == kind && r.hand == hand)
+            {
+                out.pos = {r.x, r.y, r.z};
+                out.angles = {r.pitch, r.yaw, r.roll};
+                return true;
+            }
+        }
+        return false;
+    }
+    if(vr_agarms.value != 0.f)
+    {
+        return false; // (the seeds above fitted the old poses' weapon frames: vr_agarms' hands hold them as you do)
+    }
     const Row* found = nullptr;
     for(const Row& r : defaults)
     {
@@ -202,6 +241,11 @@ void reset_f()
 namespace qvr::aggrip
 {
 
+Offset global(int kind, int hand)
+{
+    return offset(kind, allWeapons, hand);
+}
+
 Offset offset(int kind, int slot, int hand)
 {
     parse();
@@ -241,10 +285,10 @@ void frame()
     if(state.subjectFrame == host_framecount && state.subjectKind >= 0)
     {
         const int slot = hand == Off ? state.subjectSlotL : state.subjectSlot;
-        state.subject = Key{state.subjectKind, slot, hand};
+        state.subject = Key{state.subjectKind, vr_agrunt_grip_scope.value == 0.f ? allWeapons : slot, hand};
     }
     const Key key = state.subject;
-    if(key.kind < 0 || key.slot < 0)
+    if(key.kind < 0 || (key.slot < 0 && key.slot != allWeapons))
     {
         return;
     }
@@ -301,12 +345,13 @@ void frame()
 const char* subjectLine()
 {
     const Key k = state.subject;
-    if(k.kind < 0 || k.slot < 0)
+    if(k.kind < 0 || (k.slot < 0 && k.slot != allWeapons))
     {
         q_snprintf(state.line, sizeof(state.line), "No armed grunt near (spawn one)");
         return state.line;
     }
-    q_snprintf(state.line, sizeof(state.line), "The nearest %s: %s, %s", k.kind == 0 ? "grunt" : "enforcer", slotId(k.slot),
+    q_snprintf(state.line, sizeof(state.line), "%s: %s, %s", k.kind == 0 ? "Grunts" : "Enforcers",
+        k.slot == allWeapons ? "every weapon" : slotId(k.slot),
         k.hand == Main ? "main hand" : k.hand == Off ? "off hand (dual)" : "off hand on its second grip");
     return state.line;
 }

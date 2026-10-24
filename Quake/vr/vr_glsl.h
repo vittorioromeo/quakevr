@@ -2259,7 +2259,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "layout(std430, binding=9) restrict readonly buffer SmoothSwingBuffer { vec4 SmoothSwing[]; };\n" \
 "vec3 RigSwing(uint base)\n" \
 "{\n" \
-"	vec4 r = SmoothRest[3u * uint(gl_VertexID)];\n" \
+"	vec4 r = SmoothRest[4u * uint(gl_VertexID)];\n" \
 "	float bone = floor(r.w);\n" \
 "	uint i = base + uint(bone) * 3u;\n" \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
@@ -2269,7 +2269,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "// vertex moved whole with its bone.\n" \
 "vec3 RigKick(uint base)\n" \
 "{\n" \
-"	vec4 r = SmoothRest[3u * uint(gl_VertexID)];\n" \
+"	vec4 r = SmoothRest[4u * uint(gl_VertexID)];\n" \
 "	uint i = base + uint(floor(r.w)) * 3u;\n" \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
 "	return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
@@ -2279,21 +2279,77 @@ QVR_PERMDECAL_FUNCTIONS \
 "// vertex `pos` plus its bone's kick.\n" \
 "vec3 RigKickOrPiece(uint base, vec3 pos)\n" \
 "{\n" \
-"	float at = SmoothRest[3u * uint(gl_VertexID) + 2u].w;\n" \
+"	float at = SmoothRest[4u * uint(gl_VertexID) + 2u].w;\n" \
 "	if (at > 0.5)\n" \
 "	{\n" \
-"		vec4 p = vec4(SmoothRest[3u * uint(gl_VertexID)].xyz, 1.0);\n" \
+"		vec4 p = vec4(SmoothRest[4u * uint(gl_VertexID)].xyz, 1.0);\n" \
 "		uint i = base + uint(at - 0.5);\n" \
 "		return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
 "	}\n" \
 "	return pos + RigKick(base);\n" \
+"}\n" \
+"// QVR: an armed humanoid's arms (vr/vr_agarms.cpp, vr_agarms): its vertex weighed between its arm's bones (the rest\n" \
+"// row's fourth: x 1 + side * 4 + its bone and its blend to the next, y its share of the body as animated, z its rest\n" \
+"// normal packed, w its arm rows' offset from `base`), each bone a turn and a move of the rest place (model units; the\n" \
+"// rows: origin and on-share, 1 / scale, six bones' quaternion and move, the four joints' rest places). Two bones are\n" \
+"// blended about their joint (the turns interpolated: no gap, no shrinking), the hand rigid.\n" \
+"vec3 QvrQRot(vec4 q, vec3 v) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }\n" \
+"vec3 QvrOctNormal(float pk)\n" \
+"{\n" \
+"	float a = floor(pk / 4096.0);\n" \
+"	vec2 e = vec2(a, pk - a * 4096.0) * (2.0 / 4095.0) - 1.0;\n" \
+"	vec3 n = vec3(e, 1.0 - abs(e.x) - abs(e.y));\n" \
+"	float t = max(-n.z, 0.0);\n" \
+"	n.x += n.x >= 0.0 ? -t : t;\n" \
+"	n.y += n.y >= 0.0 ? -t : t;\n" \
+"	return normalize(n);\n" \
+"}\n" \
+"vec3 RigArm(uint base, vec3 pos, inout vec3 nor)\n" \
+"{\n" \
+"	vec4 s = SmoothRest[4u * uint(gl_VertexID) + 3u];\n" \
+"	if (s.x < 0.5)\n" \
+"		return pos;\n" \
+"	uint b = base + uint(s.w);\n" \
+"	vec4 info = SmoothSwing[b];\n" \
+"	if (info.w <= 0.0)\n" \
+"		return pos;\n" \
+"	float code = s.x - 1.0;\n" \
+"	float side = floor(code * 0.25);\n" \
+"	float c = code - side * 4.0;\n" \
+"	float bone = min(floor(c), 2.0);\n" \
+"	float f = c - bone;\n" \
+"	uint k = uint(side * 3.0 + bone);\n" \
+"	vec4 qa = SmoothSwing[b + 2u + 2u * k];\n" \
+"	vec3 ta = SmoothSwing[b + 3u + 2u * k].xyz;\n" \
+"	vec3 r = SmoothRest[4u * uint(gl_VertexID)].xyz;\n" \
+"	vec3 n0 = QvrOctNormal(s.z);\n" \
+"	vec3 p;\n" \
+"	vec3 n;\n" \
+"	if (f > 0.0005 && bone < 1.5)\n" \
+"	{\n" \
+"		vec4 qb = SmoothSwing[b + 4u + 2u * k];\n" \
+"		if (dot(qa, qb) < 0.0)\n" \
+"			qb = -qb;\n" \
+"		vec4 q = normalize(mix(qa, qb, f));\n" \
+"		vec3 j0 = SmoothSwing[b + 14u + uint(side * 2.0 + bone)].xyz;\n" \
+"		p = QvrQRot(q, r - j0) + QvrQRot(qa, j0) + ta;\n" \
+"		n = QvrQRot(q, n0);\n" \
+"	}\n" \
+"	else\n" \
+"	{\n" \
+"		p = QvrQRot(qa, r) + ta;\n" \
+"		n = QvrQRot(qa, n0);\n" \
+"	}\n" \
+"	float body = 1.0 - (1.0 - s.y) * info.w;\n" \
+"	nor = mix(n * max(length(nor), 1e-3), nor, body);\n" \
+"	return mix((p - info.xyz) * SmoothSwing[b + 1u].xyz, pos, body);\n" \
 "}\n" \
 "// QVR: vr_anim_smooth_rebuild: 9 rows a bone (its swing, its motion now from its rest place to the poses' bytes, its\n" \
 "// turn with its share in the first's w); each vertex's rebuild place on its bone (units) and share, its normal so: the\n" \
 "// vertex (and normal) moved from the spline's (`pos`, swung) to its bone's by both shares.\n" \
 "vec3 RigRebuild(uint base, vec3 pos, inout vec3 nor)\n" \
 "{\n" \
-"	uint v = 3u * uint(gl_VertexID);\n" \
+"	uint v = 4u * uint(gl_VertexID);\n" \
 "	vec4 r = SmoothRest[v];\n" \
 "	float bone = floor(r.w);\n" \
 "	uint i = base + uint(bone) * 9u;\n" \
@@ -2345,7 +2401,10 @@ QVR_PERMDECAL_FUNCTIONS \
 "		else if (inst.Smooth.z < 0)\n" \
 "			lerpedPos = RigRebuild(uint(-inst.Smooth.z - 1), lerpedPos, smoothnor);\n" \
 "		if (inst.Smooth.w > 1)\n" \
+"		{\n" \
 "			lerpedPos = RigKickOrPiece(uint(inst.Smooth.w - 2), lerpedPos);\n" \
+"			lerpedPos = RigArm(uint(inst.Smooth.w - 2), lerpedPos, smoothnor);\n" \
+"		}\n" \
 "#endif\n" \
 "		pose1.nor = smoothnor;\n" \
 "		pose2.nor = smoothnor;\n" \
