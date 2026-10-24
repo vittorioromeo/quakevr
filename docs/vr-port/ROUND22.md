@@ -20062,6 +20062,75 @@ screenshots of 03:10:02 and 03:12:16.
 - [ ] Swords and axes: carried, raised ready, swung; a free hand hanging or in a guard.
 - [ ] Grip Editor (scene `agrunt_grip_editor`): Edits Every Weapon moves the hand's grip for all of a kind's weapons.
 
+## Armed humanoids: the body in their strikes (worktree `fastship`, branch `agent/agstrike`, 2026-10-24)
+
+Note vrtesthall 2026-10-23 22:46:49 (item 4 of the agdual2 brief): their melee strikes moved only the arms and hands.
+Now each strike (one- and two-handed weapons, dual, the chainsaw's thrust, every punch) winds up, drives through and
+follows through with the torso, the shoulder, the elbow, the hips and the head, on agarms' skinned arms.
+
+**How.** QC (vr_armedgrunt_pose.qc) works the body out each server frame of an attack:
+- `VR_AGP_Phase`: the wind-up's share (rising over the wind-up, back to 0 exactly at the blow: a swing's smoothed strike
+  parameter 0.55, a punch's 0.8) and the follow-through's (from the blow, 1 at the strike's end, back to 0 over the
+  recovery). The torso passes its rest pose as the blow is struck, fastest there.
+- `VR_AGP_TorsoNow`: each kind's turns wound up and followed through (yaw, pitch: leaning forward, roll: bent to its
+  right; degrees): a diagonal -28 / +24 yaw, a horizontal -32 / +28, an overhead's lean back -9 then into the blow +15, a
+  backhand coiled the other way; a jab -6 / +12, a cross -16 / +26, hooks -22 / +30, an uppercut's dip and rise. Two-handed
+  x1.15; the left hand's mirrored; both hands at once (dual) keep the lean, not the twist. Each attack its own amounts
+  (0.8-1.2 of the twist, of the lean: `.vr_ag_act_var`). The striking hand drawn back and up in the wind-up (faded where
+  its arms-only target is already near its arm's reach, never further out), its elbow's pole raised and drawn back.
+- `VR_AGP_TurnPose`: both hands' targets (from the chest's anchor) and both weapons turned with the torso about the
+  waist, the server's weapon entities with them. The blow is worked out before it, from the arms-only pose: the blow's
+  frame, its line, its parry and its damage are as before.
+- QVR_SVC_ARMPOSE flag 32 (`VR_AGP_BODY`): the turns, the elbows' poles and the waist QC turned about.
+
+The engine (vr_hitreact.cpp): `bodyTurn` turns the chest about its joint by the turns, the pelvis by
+`vr_agrunt_strike_hips` of the yaw (the legs planted), the head back by `vr_agrunt_strike_head` (its eyes on its target),
+every bone on the chest with it. `relinkSkinned` puts it on the bones before the arms' solve (agarms' hook), shifts the
+targets by the difference between its waist and the chest's own joint (so the arms ride the chest exactly) and passes
+the elbows' poles (`Targets::pole`); `boneTurns` draws the same turns on the body.
+
+**Settings** (Combat > Armed Grunts > Their Strikes): `vr_agrunt_strike_torso` 1 (the twist and lean; 0 arms only),
+`vr_agrunt_strike_shoulder` 1 (the side bend, the hand's draw back, the elbow), `vr_agrunt_strike_hips` 0.3,
+`vr_agrunt_strike_head` 0.5. Debug: `vr_agrunt_strike_demo` (Debug > Armed Humanoids: Strike Demo): armed humanoids with
+a melee weapon or fists and no enemy strike the air every couple of seconds where they stand (no blow dealt).
+
+**Measured:**
+- Test 41 (`vr_agrunt_ik_err`), strike sliders 0 / 1: grunt joint gap 0 / 0, hand shape 0 / 0, arm edges 0.03..9.15 /
+  0.03..9.15, in the torso 4.68 / 4.68, reach short right 7.48 / 7.48, left 9.15-9.24 / 9.19 (the runs' spread), second
+  grip held 7039 / 7041 of ~7485 frames; enforcer 0 / 0, 0 / 0, 0.05..3.39 / 0.03..3.39, 5.25 / 5.26, right 1.85 /
+  1.83, left 8.42 / 8.42, held 430 / 428 of ~7027. (Earlier tries were worse at an overhead's first eighth, 3.3 short:
+  the overhead draws nothing now, the torso's lean back is its wind-up.)
+- Test 35 (`vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35 0 90 0`), both kinds, sliders off
+  and on: 16 runs x 6 weapons, 96/96 PASS; then 8 more after the last change, 48/48. One enforcer fist FAIL in a first
+  combined run (50 damage, not parried) did not come back in 24 enforcer runs.
+- Test 60: 6/6 both kinds. eval.sh: canary 36/44, 0 differ. Scenes: validate 84 files 0 errors; runall
+  `agrunt_strikes`, `agrunt_weapon_hands` OK.
+- Test 45's strike sheet (new: `scratch1` N = attack kind + 1; each pose an eighth of the strike, side on, arms only
+  then with the body; tags as the sheet's): `scratch/strkO_k0_s0..2.png` (grunt: jab, sword and axe overheads),
+  `scratch/strk_k0_s0..2.png` (cross, diagonals), `scratch/strkEz_k1_s1.png` (enforcer's sword, horizontal). Wound up:
+  the torso turned back, the weapon raised by the head; through the blow: leaning and turning into it, the arm extended;
+  followed through and back.
+- Test 41 sweeps every punch with `scratch2 -1` (its fists).
+
+Scene `agrunt_strikes` (vrtesthall, god, notarget, the strike demo: grunts with a sword, an axe, the hunter ogre's
+hammer and fists, enforcers with a sword and fists).
+
+**In VR:**
+- [ ] Scene `agrunt_strikes`: watch each from the side and the front: the wind-up (torso back, weapon by the head, elbow
+  up), the drive through (torso and shoulder forward, arm extending), the follow-through; punches with their torso turn.
+  Tune Torso Twist and Shoulder Drive (Hips, Head Steady) to taste: his values become the defaults.
+- [ ] Fight armed grunts and enforcers with a sword, an axe, two axes and fists: parry their blows as before (the
+  timing and the line are unchanged).
+**Left:** the two-handed axe's off hand hangs in some swings (agarms' second grip, not this); the server's weapon entity
+is up to a few units off the drawn one in the turns (the waist QC guesses: drawn on the hand, the game's line unchanged).
+
+**The floor pickup's bend** (agent/agleft's "Not done: the floor pickup's reach"): taking a weapon up, the chest bends
+forward at the waist (`VR_AGP_TAKE_BEND` 28 degrees, vr_agarms only), eased in with the reach down, held through the
+grab, straightened over the lift; sent as the body's turn alone (flag 1, `VR_AGP_FIXED`: the hands' targets are the
+lying weapon's, neither turned nor shifted). Test 45's take-up (set 3, the lowest frame): reach short 5.2 -> 0.0 (grunt;
+the enforcer 0.0), joint gap 0, hand shape 0, arm edges within the sheet's others; tests 25 3/3, 34 2/2, 38 3/3 both
+kinds (each on a fresh map). Sheets `scratch/take_k0_s3.png`, `take_k1_s3.png` (take up / front, side: the hand on the
+shotgun's handle on the floor).
 ## Armed humanoids' leftovers: test 42's penalty, the chainsaw's front handle, the left hand's blades (worktree `gorefx`, branch `agent/agleft`, 2026-10-24)
 
 **Test 42's penalty volleys counted no pellets** (18/20 on next). Not agarms and not the behaviour: the test spawned

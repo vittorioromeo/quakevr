@@ -645,6 +645,13 @@ void(entity g, float a, float base) VR_AGT_SweepSwing =
     g.vr_ag_act = VR_AGP_SWING;
     g.vr_ag_act_kind = a & 3;
     g.vr_ag_act_hand = floor(a / 4);
+    if(!g.vr_ag_prop)
+    {
+        // (its fists, scratch2 1: every punch, a jab, a cross, the hooks, an uppercut, in turn)
+        g.vr_ag_act = VR_AGP_PUNCH;
+        g.vr_ag_act_kind = a - floor(a / 5) * 5;
+        g.vr_ag_act_hand = 0;
+    }
     g.vr_ag_act_hit = 2; // (no blow)
     g.vr_ag_act_hitl = 1;
     g.vr_ag_act_tick = time;
@@ -671,6 +678,10 @@ void() VR_AGTest_Sweep =
         // temp1 its turn from facing you (degrees); 0 each: an axe in each hand (43: a shotgun and a nail gun), 90 units,
         // side on)
         float w1 = cvar("scratch2") ? cvar("scratch2") - 1 : (t43 ? WID_SHOTGUN : WID_AXE);
+        if(cvar("scratch2") < 0)
+        {
+            w1 = -1; // (scratch2 -1: its fists, every punch: VR_AGT_SweepSwing)
+        }
         float w2 = cvar("scratch3") ? cvar("scratch3") - 1 : (t43 ? WID_NAILGUN : WID_AXE);
         vr_agt_weapon2 = w2 >= 0 ? w2 : 0;
         vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 90);
@@ -745,6 +756,7 @@ void() VR_AGTest_Sweep =
             vr_agt_index = floor((hold - base) / 8);
             s.vr_ag_act_kind = vr_agt_index & 3;
             s.vr_ag_act_hand = floor(vr_agt_index / 4);
+            VR_AGT_SweepSwing(s, vr_agt_index, base); // (its attack's kind and length: a punch's with its fists)
             float len0 = VR_AGP_Length(s);
             s.vr_ag_act_at = time - len0 * ((hold - base - vr_agt_index * 8) + 0.5) / 8;
         }
@@ -1051,13 +1063,17 @@ void() VR_AGTest_DualGuns =
 // from its front and its right side:
 // held temp1 seconds (0.7), then a screenshot (`agsheet:` its label), the engine's arm numbers counted under tag set * 20
 // + pose * 2 + view meanwhile (vr_agrunt_ik_err prints them at the end). Eyeshots: the run's script sets the camera
-// (scratch/ag_sheet.sh: vr_mock_camera, vr_eyeshot 1).
+// (scratch/ag_sheet.sh: vr_mock_camera, vr_eyeshot 1). `scratch1` N > 0: the strike sheet instead (ROUND22.md, "Armed
+// humanoids: the body in their strikes"): each pose an eighth of attack kind N - 1 (a swing's, a punch's) at a target
+// ahead, side on, without its body's turn (view 0: vr_agrunt_strike_torso and _shoulder 0) and with it (view 1: theirs).
 float vr_agt_sheet_set;
 float vr_agt_sheet_pose;
 float vr_agt_sheet_view;
 float vr_agt_sheet_at;
 entity vr_agt_sheet_tgt;
 float vr_agt_sheet_w2; // (VR_AGT_SheetSet's left hand's weapon: -1 none)
+float vr_agt_sheet_torso;    // (the strike sheet: vr_agrunt_strike_torso and _shoulder as they were, put back after)
+float vr_agt_sheet_shoulder;
 float(float s) VR_AGT_SheetSet =
 {
     vr_agt_sheet_w2 = -1;
@@ -1119,11 +1135,12 @@ void(entity g, float pose) VR_AGT_SheetPose =
             g.vr_ag_aim = normalize(t - p.origin);
         }
     }
-    if(pose == 6)
+    float sheet = cvar("scratch1") <= 0; // (the strike sheet: its eighths all on its stand frame)
+    if(pose == 6 && sheet)
     {
         g.frame = vr_am_f_run + (floor(time * 10) & 7);
     }
-    if(pose == 7 && p)
+    if(pose == 7 && p && sheet)
     {
         // (its hand on a weapon lying before it, down on its knee: the take's lowest frame, about to close)
         g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
@@ -1137,9 +1154,30 @@ void(entity g, float pose) VR_AGT_SheetPose =
     {
         g.vr_ag_took_at = 0;
     }
-    if(pose == 8)
+    if(pose == 8 && sheet)
     {
         g.frame = g.vr_ag_kind == VR_AM_ENFORCER ? 67 : 41;
+    }
+    float strike = cvar("scratch1"); // (the strike sheet: its kind + 1; each pose an eighth of it)
+    if(strike > 0)
+    {
+        float cs = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
+        if(cs == VR_AG_CLASS_MELEE || cs == VR_AG_CLASS_FISTS)
+        {
+            g.enemy = vr_agt_sheet_tgt;
+            setorigin(vr_agt_sheet_tgt, chest + v_forward * 40);
+            g.vr_ag_act = cs == VR_AG_CLASS_FISTS ? VR_AGP_PUNCH : p.weapon == WID_CHAINSAW ? VR_AGP_SAW : VR_AGP_SWING;
+            g.vr_ag_act_kind = strike - 1;
+            g.vr_ag_act_hand = 0;
+            g.vr_ag_act_hit = 2;
+            g.vr_ag_act_hitl = 1;
+            g.vr_ag_act_tick = time;
+            g.vr_ag_act_var = 0.5;
+            g.vr_ag_readyw = 0.7;
+            g.vr_ag_act_at = time - VR_AGP_Length(g) * (pose + 0.5) / 8;
+        }
+        g.vr_ag_took_at = 0;
+        return;
     }
     if(pose == 9)
     {
@@ -1181,6 +1219,8 @@ void() VR_AGTest_Sheet =
         vr_agt_sheet_set = first;
         vr_agt_sheet_pose = 0;
         vr_agt_sheet_view = 0;
+        vr_agt_sheet_torso = cvar("vr_agrunt_strike_torso");
+        vr_agt_sheet_shoulder = cvar("vr_agrunt_strike_shoulder");
         localcmd("vr_agrunt_ik_err\n"); // (counted afresh)
         vr_agt_step = 1;
     }
@@ -1197,7 +1237,13 @@ void() VR_AGTest_Sheet =
     }
     entity g = vr_agt_grunt;
     float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * 2 + vr_agt_sheet_view;
-    g.angles_y = vectoyaw(pl.origin - g.origin) + (vr_agt_sheet_view ? 90 : 0) + 0.01;
+    float strike = cvar("scratch1") > 0; // (the strike sheet: side on, each eighth without (view 0) and with its body)
+    g.angles_y = vectoyaw(pl.origin - g.origin) + ((vr_agt_sheet_view || strike) ? 90 : 0) + 0.01;
+    if(strike)
+    {
+        cvar_set("vr_agrunt_strike_torso", vr_agt_sheet_view ? ftos(vr_agt_sheet_torso) : "0");
+        cvar_set("vr_agrunt_strike_shoulder", vr_agt_sheet_view ? ftos(vr_agt_sheet_shoulder) : "0");
+    }
     VR_AGT_SheetPose(g, vr_agt_sheet_pose);
     float s = time - vr_agt_sheet_at;
     cvar_set("vr_agrunt_ik_tag", s >= hold * 0.6 ? ftos(tag) : "-1");
@@ -1206,7 +1252,8 @@ void() VR_AGTest_Sheet =
         // (the script's screenshot follows this line: `vr_waitprint 3000 (tag; screenshot`; held 0.2 s more)
         VR_AGT_Print(sprintf("sheet: %s %s, set %g %s: %s, %s (tag %g)", VR_AM_UiKindName(g.vr_ag_kind), g.vr_ag_prop ?
             g.vr_ag_prop.netname : "fists", vr_agt_sheet_set, g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "-",
-            VR_AGT_SheetPoseName(vr_agt_sheet_pose), vr_agt_sheet_view ? "side" : "front", tag));
+            strike ? sprintf("strike eighth %g", vr_agt_sheet_pose) : VR_AGT_SheetPoseName(vr_agt_sheet_pose),
+            strike ? (vr_agt_sheet_view ? "body" : "arms only") : (vr_agt_sheet_view ? "side" : "front"), tag));
         vr_agt_step = 3;
         vr_agt_sheet_at = time;
         return;
@@ -1220,7 +1267,7 @@ void() VR_AGTest_Sheet =
         {
             vr_agt_sheet_view = 0;
             vr_agt_sheet_pose = vr_agt_sheet_pose + 1;
-            if(vr_agt_sheet_pose > 9)
+            if(vr_agt_sheet_pose > (strike ? 7 : 9))
             {
                 vr_agt_sheet_pose = 0;
                 vr_agt_sheet_set = vr_agt_sheet_set + 1;
@@ -1234,6 +1281,11 @@ void() VR_AGTest_Sheet =
         localcmd("vr_agrunt_ik_err\n");
         if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); }
         pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
+        if(strike)
+        {
+            cvar_set("vr_agrunt_strike_torso", ftos(vr_agt_sheet_torso));
+            cvar_set("vr_agrunt_strike_shoulder", ftos(vr_agt_sheet_shoulder));
+        }
         VR_AGT_Print("sheet: done");
         cvar_set("vr_agrunt_test", "0");
     }

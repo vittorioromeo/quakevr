@@ -267,6 +267,10 @@ za::Vector<Item> pageDebugAutomation()
         toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
             .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
                   "vr_agrunt_ik)."),
+        toggle("Armed Humanoids: Strike Demo", vr_agrunt_strike_demo)
+            .help("Armed humanoids with a melee weapon or their fists and no enemy strike the air ahead of them every "
+                  "couple of seconds, standing still: watch their wind-ups, blows and follow-throughs from afar (with "
+                  "notarget; scene agrunt_strikes; vr_agrunt_strike_demo)."),
         toggle("Armed Grunts: Log", vr_agrunt_debug)
             .help("Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug)."),
         toggle("Armed Grunts: Tests Spawn Enforcers", vr_agrunt_test_kind)

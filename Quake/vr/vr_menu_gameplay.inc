@@ -1092,6 +1092,17 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("How long it stands reloading (vr_agrunt_reload_time)."),
         slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
             .help("How far off its aim is at most, each shot, besides the weapon's own spread (vr_agrunt_aim_error)."),
+        header("Their Strikes"),
+        slider("Torso Twist", vr_agrunt_strike_torso, 0.f, 2.f, 0.05f, "%.2fx")
+            .help("How far its torso twists and leans in its melee strikes and punches: wound back, driven through the "
+                  "blow, followed through. 0: only its arms move (vr_agrunt_strike_torso)."),
+        slider("Shoulder Drive", vr_agrunt_strike_shoulder, 0.f, 2.f, 0.05f, "%.2fx")
+            .help("How far the striking shoulder lifts and bends back, its hand drawn back by its head and its elbow "
+                  "raised in the wind-up, then driven down through the blow (vr_agrunt_strike_shoulder)."),
+        slider("Hips in the Twist", vr_agrunt_strike_hips, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of the torso's twist its hips take; its feet stay planted (vr_agrunt_strike_hips)."),
+        slider("Head Steady", vr_agrunt_strike_head, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of the torso's turn its head takes back, its eyes kept on you (vr_agrunt_strike_head)."),
         header("Disarming"),
         toggle("Hits Disarm", vr_agrunt_disarm)
             .help("A hard blow on its gun hand (a shot, a melee blow, a thrown thing) or a knockdown knocks the "
