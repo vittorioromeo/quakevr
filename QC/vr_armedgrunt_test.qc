@@ -878,8 +878,14 @@ void() VR_AGTest_DualGuns =
         vr_agt_keep_err = cvar("vr_agrunt_aim_error");
         cvar_set("vr_agrunt_aim_error", "4");
         p.flags = p.flags | FL_GODMODE;
+        // (Side by side, 15 degrees either way from you: on one spot each is in the other's line of fire, its shots held
+        // for that friend, vr_agrunt_friendly_care.)
+        p.angles_y = p.angles_y - 15;
         entity a = VR_AGT_Spawn(WID_SHOTGUN, 220);
+        p.angles_y = p.angles_y + 30;
         entity b = VR_AGT_SpawnPair(WID_SHOTGUN, WID_SHOTGUN, 220);
+        p.angles_y = p.angles_y - 15;
+        float heldBefore = vr_ag_ff_held;
         a.takedamage = DAMAGE_NO; // (side by side: the other's pellets)
         b.takedamage = DAMAGE_NO;
         VR_AGT_Volley(a, a.vr_ag_prop, 40);
@@ -892,8 +898,9 @@ void() VR_AGTest_DualGuns =
         sp2 = (sp2 + vr_agt_kick_sum) * 0.5;
         aim2 = (aim2 + vr_agt_kick_sum1) * 0.5;
         float want = 1 + keepPen * (1 / max(0.05, cvar("vr_2h_spread_reduction")) - 1);
-        VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", keepPen,
-            sp1, sp2, sp2 / max(0.001, sp1), want), fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want);
+        VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f), %g shots "
+            "held for a friend:", keepPen, sp1, sp2, sp2 / max(0.001, sp1), want, vr_ag_ff_held - heldBefore),
+            fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want && vr_ag_ff_held == heldBefore);
         VR_AGT_Check(sprintf("guns: aims %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", aim1, aim2,
             aim2 / max(0.001, aim1), want), fabs(aim2 / max(0.001, aim1) - want) < 0.25 * want);
         cvar_set("vr_agrunt_dual_penalty", "0");
