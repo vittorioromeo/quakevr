@@ -710,11 +710,26 @@ float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, 
     }
     // (Nothing of the fist near the box it is drawn in: no triangles to test. The triangles made once for all its
     // spheres, not once a sphere: a fist by an armed monster's weapon cost 5 ms a frame, vrragtriggers_2026-10-24_23-01-03.)
+    // (A sphere round its model's corners about its origin, generous: its scale and offset taken at their most.)
     glm::vec3 centre;
     const float bound = bounds(spheres, centre);
-    if(!nearDrawnBox(ent, centre, bound + za::fmax(within, 0.f)))
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(model)
     {
-        return ZA_FLOAT_MAX;
+        using namespace progs;
+        const FieldOffsets& f = fields();
+        const glm::vec3 lo{model->mins[0], model->mins[1], model->mins[2]};
+        const glm::vec3 hi{model->maxs[0], model->maxs[1], model->maxs[2]};
+        const glm::vec3 sc = f.model_scale >= 0 ? glm::abs(fieldVec(ent, f.model_scale)) : glm::vec3{0.f};
+        const float scale = za::max(1.f, za::max(sc.x, za::max(sc.y, sc.z)));
+        const float offset = f.model_offset >= 0 ? glm::length(fieldVec(ent, f.model_offset)) : 0.f;
+        const float radius = glm::length(glm::max(glm::abs(lo), glm::abs(hi))) * scale + offset;
+        if(glm::distance(centre, glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}) >
+            radius + bound + za::fmax(within, 0.f))
+        {
+            return ZA_FLOAT_MAX;
+        }
     }
     za::Vector<Triangle>& triangles = scratch.distanceTris;
     glm::mat3 axes;

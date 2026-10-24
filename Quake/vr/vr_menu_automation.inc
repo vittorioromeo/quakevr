@@ -255,14 +255,16 @@ za::Vector<Item> pageDebugAutomation()
                   "the arms' numbers per pose at the end (agt lines: vr_agrunt_ik_err). scratch2..scratch3 the weapon "
                   "kinds (0..13), scratch4 how far (110)."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
-            .help("vr_agrunt_test 46 (vrtesthall; about 8 minutes): you unseen, each kind with each weapon class in turn "
+            .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
                   "against a target moving all round it (aiming, firing, reloading, running, striking, pain, taking its "
                   "weapon up again) while every frame of its arms is measured: elbow flips and elbows the wrong way, arms in "
-                  "the body, hands short, the second grip toggling, the weapon off its aim, jumps. Then the worst moments "
+                  "the body, hands short, the second grip toggling, the weapon off its aim, jumps; 7 s of it with you at "
+                  "touching distance (its close aim, shoves, guards: states \"close ...\"; agglitch close lines: a gun "
+                  "pointing up, its muzzle over its head, its parry raised, disarms). Then the worst moments "
                   "and each subject's worst and 95th percentile (aggtop, agg lines; files in quakevr/agglitch). "
                   "vr_agglitch_shots N shoots each subject's N worst as eye images (the mock headset only); "
-                  "scratch2..scratch3 the subjects (0..23)."),
+                  "scratch2..scratch3 the subjects (0..23); temp1 1 the touching-distance loop alone."),
         command("Armed Humanoids: Glitch Report", "vr_agglitch_report")
             .help("Prints and writes the glitch finder's numbers so far (vr_agglitch_report): the worst moments and each "
                   "subject's worst and 95th percentile per metric."),
