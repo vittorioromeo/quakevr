@@ -1,0 +1,9 @@
+# agrunt_grip_editor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts' Grip Editor: a frozen grunt with a sword and an enforcer with an axe, close up
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+spawn "Armed Grunt: Sword" 70 -25
+spawn "Armed Enforcer: Axe" 90 25
+hint VR Settings > Armed Grunts > Grip Editor: walk up to one (the nearest is edited), move and turn its weapon in its hand with the sliders; Print as Defaults (vr_agrunt_grip_dump) when it looks right. Freeze Them off to watch them fight.

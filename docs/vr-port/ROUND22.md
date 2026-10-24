@@ -19479,3 +19479,129 @@ Scene `blade_editor_axe`'s hint: Line Start onto the edge's low corner, Tip onto
   line lies along the edge; Done; swing at the grunt with Show Melee Blades on.
 - [ ] The shotgun: its bash line's tip is his (shipped); Edit Blade Shape's Tip moves the line, and the shots still leave
   its muzzle.
+
+## Phantom Sword and the gas flare in the toolgun; shore foam as spray (worktree `dequant`, branch `agent/phantomfoam`, 2026-10-24)
+
+His notes (vrtesthall 01-01-09, 01-03-14, vrfiringrange 01-02-21, e1m1 01-19-00): the toolgun's DoE Phantom Sword
+greyed ("progs/sword.mdl#melee is not on the search path") while the Phantom Swordsman spawned from Rogue's data in
+the same map; the shore's foam particles "disjointed, not soft or blurry enough, like chemical fumes rising from the
+water": they should look like water hitting the wall (the wavy edge is liked: kept).
+
+### Phantom Sword and the gas flare in the toolgun
+
+- Cause: the toolgun's availability check (vr_toolgun.cpp `entryAvailable`, `unavailableWhy`) looked the entry's model
+  up as a file, and the Phantom Sword's model is a variant name, `progs/sword.mdl#melee` (made by vr_admelee.cpp from
+  the file when loaded): never a file. Rogue's data was mounted all along (vrtesthall and e1m1 both: `vr_pack_status`
+  says rogue available). Fix: `modelFileExists` looks for the file before the `#` (any variant: `#melee`, `#gun<n>`,
+  `#vr`, `#rag`).
+- Every greyed entry on vrtesthall and e1m1 (`vr_toolgun_spawnlist`) now: AD's four lights (only in an AD map, by
+  design), MG3's Health Upgrade (only in its campaign, by design), Honey's Spectral Knight and Tree (Honey's data is not
+  installed: not on Steam, not in the test base), and MG Gas Flare (`progs/flame3.mdl`, only in MG1's and MG3's paks).
+  The flare is now read in place from the owned MG1 pack, as MG3's models are: its entry's model
+  `owned/mg1/progs/flame3.mdl`, and QC `light_flame_gas` takes the mounted pack's model, else MG1's or MG3's read in
+  place (`VR_MG_FlameModel`; without any it removes itself instead of a precache error).
+- Scene `phantom_sword` (new): vrtesthall, the Phantom Sword given into the main hand, a knight and a crate.
+
+Tests: `vr_toolgun_spawnlist` on vrtesthall and e1m1: the Phantom Sword and the Gas Flare no longer listed unavailable;
+`vr_toolgun_spawn_test 225 225` (the flare, vrtesthall): spawned, alive and drawn, 0 precaches missing on the client.
+`vr_scenario phantom_sword` + `vr_mock_swing 0.7` at the knight: "AD melee model: progs/sword.mdl#melee made", "weapon:
+Phantom Sword taken into the main hand", the knight parries it 4 times and staggers back as a ragdoll. `vr_scenario
+validate`: 77 files, 0 errors; `runall` phantom_sword, phantom_swordsman, foam_pool: OK, the given weapon still held.
+
+### Shore foam as spray
+
+- Cause: the shore's particles were the splash's foam cell (`CellFoam`: a patch of bubbles with bright rims and a
+  ragged edge), small, popping in at full opacity and drifting slowly up and out while growing: rising, wispy, hard-rimmed
+  puffs. The retro textures (Particles: palette and dither by default; blocks with Snap) also applied to them.
+- Now (vr_particles.cpp `shoreFoam`, `vr_water_foam_particle_spray 1`, new, default on; 0 gives the old puffs back for
+  comparison): a new generated cell `CellShoreSpray` (`buildShoreSpray`: a few overlapping Gaussian lumps in a wide haze,
+  the alpha falling smoothly to nothing inside the cell: no rims, no bubbles), about half again as big (5 to 8 x the
+  size across, spreading 60% over its life), 0.7 x the liquid's particle opacity, fading in over its first 15% of life
+  (the `ramp` of a Custom particle: no pop) and out to nothing by its end; it bursts up off the shore line (up 1.5 to
+  3.5 x the size, at most 6 units, its top at 30% of its life), falls back under gravity past the surface while fading,
+  and moves out from the wall 1 to 5 units/s. Soft particles fade it against the rock (no pull off the wall). Each
+  liquid's rate, life, opacity, size, colour and shore offset are its own as before (no default changed: no migration).
+- Retro: the spray skips retro textures (`vr_water_foam_particle_retro 0`, new; 1 puts it through them like other
+  particles). A particle's `plain` flag goes to the shader in the instance's spare float (`flags.w`); the retro particle
+  programs (`PARTICLE_PLAIN`) read the texture smoothly for it. Read at each frame's upload: the menu toggle shows at once.
+- Menu: Graphics > Shoreline Foam: "Particles as Spray" and "Spray in Retro Look" under Shoreline Foam.
+
+Tests: eyeshots (scratch, before/after: `pf_pool2c.png` vrtesthall's pool wall, `pf_e1m1c.png` e1m1's water room at
+900 640 -250): the old puffs are dark, hard-rimmed blotches; the spray is a soft white haze bursting along the wall line
+(in e1m1's dark water room faint, lit by the place). Retro check (vrtesthall, particles frozen, `vr_retro_particles_block
+24`): the old foam turns into big blocks, the spray stays smooth, and with `vr_water_foam_particle_retro 1` it turns
+blocky too (`pf_retroc5.png`, `pf_retroc6.png`). GPU (exclusive, vrtesthall pool wall, mock resolution, 5 s each, old,
+new, old, new): total 0.99 / 0.99-1.00 / 0.98 / 0.99 ms, vr particles 0.04 / 0.04 / 0.04 / 0.05 ms: within noise (the
+quads are bigger: fill rate at the headset's resolution is the thing to watch). `eval.sh`: 36/44 canary, its 12
+differences the punch takes moved by the fist line already on `next` (the section above), none from this.
+
+**In VR:** the toolgun's Weapons tab, DoE group: the Phantom Sword is not greyed; take it: it sits in the hand, swings
+heavy, hits and parries with its sounds (scene `phantom_sword`). Fire tab: MG Gas Flare spawns in any map. At the
+vrtesthall pool and e1m1's water: the shore particles should read as water thrown up off the wall and falling back,
+soft; flip Graphics > Shoreline Foam > Particles as Spray for the old look, Spray in Retro Look for the retro one.
+## Armed humanoids' arms, hands and grips: rigid forearms and hands, the weapon on the hand, the Grip Editor (worktree `tghost`, branch `agent/aghands`, 2026-10-24)
+
+Notes vrtesthall 2026-10-24 00:49-00:52, 01:16, 01:23 (agrunt_weapon_hands failed: the grunt's off hand bent and stretched,
+the enforcer's hand ~3x and through its torso, the axe handle off the hand, the sword held by its guard, the weapon
+floating off the hand in a shove's fall and a parry's stagger, arms through torsos in attacks).
+
+**Causes** (measured by the new arm numbers, below): agdual2's IK moved the drawn hand onto the weapon by turning the
+rig's forearm, but the hand's mesh was not one piece: `vr_agrunt_ik_hands 4` put the vertices within 4 units of the
+forearm's end wholly on the forearm and left the rest of the hand on the rig's fit (the grunt's left hand on its upper
+arm; the enforcer's on its chest and upper arm, at a share of their turns), so every IK turn tore the hand apart (the
+enforcer's left hand's edges up to 14x their length, the grunt's 10x). Its metric (`agerr`: the hand vertices' middle
+against the weapon's origin, 0.5 units) could not see it. The weapon was drawn at the server's target, not on the hand:
+the sword's origin is its guard. In a ragdoll the server's own placing (QC VR_AG_RagProp: the limb nearest the weapon,
+at the server's rate) was 11 units (mean; 14 max) off the drawn hand and turned up to 118 degrees.
+
+**Fixes** (vr_hitreact.cpp, vr_animsmooth.cpp, vr_glsl.h; new vr_aggrip.cpp):
+- `vr_agrunt_ik_rigid` (1; read at a map load): each arm's forearm and hand are found once a model (flood fill along
+  the triangles from the forearm's end, within its bones' lines; the hand past the wrist) and drawn as their rest shape
+  moved whole (the shader's `RigKickOrPiece`: four pieces' rows after the bones' kicks), each pose's place fitted to the
+  frames by one rigid motion (Horn's quaternion fit: the grunt's forearm and hand are rigid in its frames to 1.2 units).
+- The arm solve runs in the relink (before the drawing): the wrist to the weapon's grip (the server's target less the
+  grip offset), the elbow kept as the animation had it but out of the torso (the target moved to the torso's skin, the
+  pole turned away from the chest's line when the elbow or forearm went in), the elbow at most `vr_agrunt_ik_elbow`
+  (150) degrees bent, the hand turned at its wrist towards the weapon's turn (at most `vr_agrunt_ik_wrist` 65 degrees
+  bent, `vr_agrunt_ik_twist` 80 twisted), and the weapon drawn on the hand as solved: always in it.
+- The off hand takes a two-handed weapon's second grip only within `vr_agrunt_ik_second` (0.97) of its arm's length
+  and its wrist within 25 degrees past its limit; else it hangs free (the grunt's idle axe: it used to reach across its
+  body). The sword stays one-handed (QC's choice; the agstrike worker's swings may change it).
+- A ragdoll's (stagger, shove, fall, tug, lying) weapons are drawn on its hand's bone as drawn (`ragdollProps`:
+  ragdoll::drawnPart of the bone most of the hand's vertices are on, by the grip offset), every frame.
+- Grip offsets per monster kind, weapon (its Weapon Offsets slot) and hand (main, off: dual, second grip): VR Settings >
+  Armed Grunts > Grip Editor (live sliders on the nearest armed monster, Freeze Them `vr_agrunt_freeze`, Fit Angles to
+  Its Pose `vr_agrunt_grip_fit`, Print as Defaults `vr_agrunt_grip_dump`, Reset This One `vr_agrunt_grip_reset`);
+  changes kept in `vr_agrunt_grips` (archived). Seeds: the melee weapons' angles fitted on the grunt's idle (its wrist
+  unturned as the server readies them), the sword moved 4.9 units along its blade (its guard above the fist).
+- agstrike's notes kept: the solve's out[] are absolute model-space turns per bone (upper arm, forearm), `relinkRigid`
+  is the place for a body turn before the arms' solve.
+
+**Measured** (`vr_agrunt_test 41`, new arm numbers in `vr_agrunt_ik_err` (`1`: each tag): the hand's edges against rest
+(stretch: root mean square ratio and longest edge), the forearm's and hand's shape against their rest shape, the elbow's
+bend, the arm inside the torso, the hand's middle against the weapon's grip; test 41 now takes `scratch2`/`scratch3`
+(weapons + 1), `scratch4` (distance), `temp1` (turn) and reruns in one map). Whole sweep (every frame, every swing, dual
+and two-handed), r_lerpmodels as shipped:
+
+| | before right / left | after right / left |
+| --- | --- | --- |
+| grunt: stretch (rms, longest edge) | 1.19, 1.68x / 3.30, 10.3x | 1.00, 1.00x / 1.00, 1.00x |
+| grunt: shape off (units) | 1.95 / 13.1 | 0 / 0 |
+| grunt: hand to grip (max) | 1.35 / 2.74 | 0 / 0 |
+| grunt: in the torso (units) | 1.63 / 0.89 | 1.04 / 1.36 |
+| enforcer: stretch | 1.18, 1.70x / 3.22, 14.4x | 1.00, 1.00x / 1.00, 1.00x |
+| enforcer: shape off | 7.89 / 14.4 | 0 / 0 |
+| enforcer: hand to grip (max) | 2.68 / 10.2 | 0 / 0 |
+| enforcer: in the torso | 6.73 / 5.01 | 1.94 / 4.45 (frames 88-89 only, a bent pain) |
+| elbow bend (both) | 0..175 | 28..150 |
+
+Parries (test 35, script `vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35 0 90 0`): 6/6 PASS;
+through their staggers (418 ragdoll frames) the server's weapon was 11.4 units (mean) off the drawn hand: now drawn on
+it. eval.sh: no verdict changes (PASS -> PASS drifts only). Scenes: validate 76 files 0 errors; runall
+agrunt_weapon_hands and the new `agrunt_grip_editor` (a frozen grunt with a sword and an enforcer with an axe) OK.
+
+**In VR:** agrunt_grip_editor: tune each weapon's grip by eye (main hand; then a dual pair and a shotgun's second
+grip), Print as Defaults and send the lines; agrunt_weapon_hands with Freeze Them off: hands never stretched, weapons
+always in the hand, arms out of the torso in swings; shove one into a fall and parry one (the stagger): the weapon stays
+in its hand. Left: the normals of the pieces are the frames' (lighting on a hand turned far may look off); the wrist
+limit makes a weapon turn with the hand in the widest swings (the server's parry and hit lines are its own place).

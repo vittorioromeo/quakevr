@@ -1,3 +1,4 @@
+#include "vr_aggrip.hpp"
 #include "vr_cheats.hpp"
 #include "vr_doom.hpp"
 #include "vr_toolgun.hpp"
@@ -907,6 +908,7 @@ void selectCampaignRow(int index)
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageArmedGrunts();
+[[nodiscard]] za::Vector<Item> pageArmedGrips();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageKdTriggers();
 [[nodiscard]] za::Vector<Item> pageKdTrigLedge();
@@ -2233,6 +2235,7 @@ const Page pages[] = {
     {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
     {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
+    {"Armed Grunts - Grip Editor", pageArmedGrips, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_aggrip.cpp)
     {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
     {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
     {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)

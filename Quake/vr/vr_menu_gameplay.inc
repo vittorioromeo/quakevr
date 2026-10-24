@@ -1013,6 +1013,49 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
 // Combat > Armed Grunts (Experimental) (QC vr_armedgrunt.qc; ROUND22.md, "Armed grunts"): grunts holding your weapons.
+[[nodiscard]] const char* armedGripSubject()
+{
+    return aggrip::subjectLine();
+}
+
+// The Grip Editor (vr_aggrip.cpp): the nearest armed monster's weapon in its hand, live.
+[[nodiscard]] za::Vector<Item> pageArmedGrips()
+{
+    const auto pos = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, -8.f, 8.f, 0.1f, "%.1f").extend(-30.f, 30.f).help(what);
+    };
+    const auto ang = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, -180.f, 180.f, 2.5f, "%.1f deg").help(what);
+    };
+    return {
+        header("Editing"),
+        info(armedGripSubject),
+        toggle("Freeze Them", vr_agrunt_freeze)
+            .help("Armed grunts and enforcers hold still in their idle pose, weapons ready, while you tune (spawn one with "
+                  "the toolgun's Armed Humanoid page, or Debug > Tests > Test Scenarios: Armed Grip Editor). "
+                  "(vr_agrunt_freeze)"),
+        cycle("Hand", vr_agrunt_grip_hand, {{0.f, "Main Hand"}, {1.f, "Off Hand (Dual)"}, {2.f, "Off Hand on the Second Grip"}})
+            .help("Main Hand: the weapon in its right hand. Off Hand (Dual): its left hand's own weapon. Second Grip: its "
+                  "left hand on a two-handed weapon's second grip (where its hand goes, along the weapon's axes)."),
+        header("The Weapon in the Hand"),
+        pos("Forward", vr_agrunt_grip_x, "Moves the weapon forward (back: negative) in the hand: units, along the hand's "
+                                          "grip (the way its own gun pointed). Second Grip: the hand along the weapon."),
+        pos("Left", vr_agrunt_grip_y, "Moves the weapon to the hand's left (units)."),
+        pos("Up", vr_agrunt_grip_z, "Moves the weapon up in the hand (units): a sword's handle into the fist, not its guard."),
+        ang("Pitch", vr_agrunt_grip_pitch, "Tips the weapon down (up: negative) in the hand."),
+        ang("Yaw", vr_agrunt_grip_yaw, "Turns the weapon left (right: negative) in the hand."),
+        ang("Roll", vr_agrunt_grip_roll, "Rolls the weapon about its length in the hand."),
+        command("Fit Angles to Its Pose", "vr_agrunt_grip_fit")
+            .help("Sets the angles so its hand holds the weapon as its pose now has the weapon turned, the wrist "
+                  "unturned (a starting point; freeze it first)."),
+        header("Keep Them"),
+        command("Print as Defaults", "vr_agrunt_grip_dump")
+            .help("Prints the changed grips as code for the shipped defaults (the console; vr_agrunt_grip_dump). They are "
+                  "kept in your config meanwhile (vr_agrunt_grips)."),
+        command("Reset This One", "vr_agrunt_grip_reset").help("This weapon and hand back to the shipped default."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedGrunts()
 {
     const auto weight = [](const char* label, cvar_t& c) {
@@ -1205,6 +1248,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "
                   "(vr_agrunt_ik)."),
+        open("Grip Editor", pageIndex(pageArmedGrips))
+            .help("Tune where each weapon sits in an armed grunt's or enforcer's hand, live, on the one nearest you."),
         header("The Pool"),
         weight("Fists", vr_agrunt_w_fists),
         weight("Axe", vr_agrunt_w_axe),

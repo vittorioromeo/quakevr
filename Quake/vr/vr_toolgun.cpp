@@ -188,18 +188,33 @@ constexpr Spawnable spawnables[] = {
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
+// Whether a model's file is on the search path: a variant's name ("<file>#melee", "#gun<n>", "#vr", "#rag": made by
+// the engine from the file when loaded, not a file of its own) looks for its file (the DoE Phantom Sword's
+// "progs/sword.mdl#melee" was greyed with Rogue's data mounted).
+[[nodiscard]] bool modelFileExists(const char* model)
+{
+    const char* tag = strchr(model, '#');
+    if(!tag) { return COM_FileExists(model, nullptr); }
+    char file[MAX_QPATH];
+    const size_t n = static_cast<size_t>(tag - model);
+    if(n >= sizeof(file)) { return false; }
+    memcpy(file, model, n);
+    file[n] = '\0';
+    return COM_FileExists(file, nullptr);
+}
+
 // Whether an entry can be made now: AD's while AD's data is in play (ad::spawnAvailable), an expansion's while its
 // model is there, AD's lights only in an AD map (outside its rules AD's ad_ classes are not made: box3d::spawnClass).
 [[nodiscard]] bool entryAvailable(const Spawnable& s)
 {
     if(s.adOnly && adBackpack(s.classname)) // (any map, AD's data permitting)
     {
-        return Cvar_VariableValue("vr_ad_mounted") != 0.f && COM_FileExists(s.model, nullptr);
+        return Cvar_VariableValue("vr_ad_mounted") != 0.f && modelFileExists(s.model);
     }
     if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
     if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
     if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
-    return s.needs == 0 || (COM_FileExists(s.model, nullptr) && (!s.probe || COM_FileExists(s.probe, nullptr)));
+    return s.needs == 0 || (modelFileExists(s.model) && (!s.probe || modelFileExists(s.probe)));
 }
 
 // Why entryAvailable says no (for the console: vr_toolgun_spawnlist, a selection refused), "" when it is available.
@@ -209,7 +224,7 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
     if(s.adOnly) { return "Arcane Dimensions' data not in play here (vr_ad_mounted, its rules, Additional Content)"; }
     if(s.needs == 2) { return "only in a map played by Arcane Dimensions' rules"; }
     if(s.needs == 3) { return "only in Dawn of the Machine's campaign"; }
-    const char* missing = !COM_FileExists(s.model, nullptr) ? s.model : s.probe ? s.probe : s.model;
+    const char* missing = !modelFileExists(s.model) ? s.model : s.probe ? s.probe : s.model;
     return va("%s is not on the search path (its pack's data missing or not mounted: vr_pack_status)", missing);
 }
 
