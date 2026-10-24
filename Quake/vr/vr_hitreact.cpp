@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_view.hpp"
 #include "vr_render.hpp"
 #include "vr_weapons.hpp"
@@ -2480,10 +2481,32 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             return;
         }
     }
+    posestudio::adjust(s.ent, t); // (the Pose Studio's drag: a weapon held at the controller)
     agarms::Placed placed;
     if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
         return;
+    }
+    if(posestudio::active())
+    {
+        posestudio::Note n;
+        n.ent = s.ent;
+        n.kind = kind;
+        n.slot = slot;
+        n.slotL = slotL;
+        n.prop = hasR ? s.prop : 0;
+        n.propL = placed.on[1] ? s.propL : 0;
+        n.pose = (s.flags & apReach)                          ? "pickup (reaching)"
+                 : (s.flags & apBody) && (s.flags & apFixed) ? "pickup (the bend)"
+                 : (s.flags & apBody)                        ? "a strike"
+                 : !hasR                                     ? "fists"
+                 : vr_agrunt_freeze.value != 0.f             ? "idle, weapon ready (frozen)"
+                                                             : "live";
+        n.space.origin = drawnOrigin(e, &n.space.yawDeg);
+        n.space.scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
+        n.t = t;
+        n.placed = placed;
+        posestudio::note(n);
     }
     if(placed.on[0] && hasR && placeable(placed.weapon[0]))
     {

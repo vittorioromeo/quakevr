@@ -23,6 +23,7 @@
 #include "vr_holsterzones.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -763,6 +764,26 @@ void mockHandTo_f()
                     : !bladeedit::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
         {
             Con_Printf("vr_mock_hand_to: no Edit Blade Shape %s %s\n", isHandle ? "handle" : "button", Cmd_Argv(3));
+            return;
+        }
+        moveHandTo(hand, target);
+        return;
+    }
+    if(hand >= 0 && Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "posepart") || !q_strcasecmp(Cmd_Argv(2), "posebutton")))
+    {
+        // "posepart <index> [<dx> <dy> <dz>]": at the Pose Studio's part `index` (vr_posestudio.cpp: 0 the right weapon's
+        // box's middle, 1 the left weapon's, 2 the right hand's grip, 3 the left's; 99 where the controller was when the
+        // grab began), plus world units; "posebutton <index>": at its panel button (0 Scope, 1 Undo, 2 Reset Grips, 3
+        // Frozen, 4 Cancel, 5 Done).
+        const bool isPart = !q_strcasecmp(Cmd_Argv(2), "posepart");
+        glm::vec3 offset{0.f}, target;
+        for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
+        {
+            offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
+        }
+        if(isPart ? !posestudio::partPoint(hand, Q_atoi(Cmd_Argv(3)), offset, target) : !posestudio::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
+        {
+            Con_Printf("vr_mock_hand_to: no Pose Studio %s %s\n", isPart ? "part" : "button", Cmd_Argv(3));
             return;
         }
         moveHandTo(hand, target);

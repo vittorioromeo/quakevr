@@ -1018,6 +1018,12 @@ void kdTrigWeightRows(za::Vector<Item>& items)
     return aggrip::subjectLine();
 }
 
+// Drag Mode (vr_posestudio.cpp): the grips set by hand on the armed humanoid you walk up to; this page reopened after.
+void armedGripsDragMode()
+{
+    (void)posestudio::start(qvr::menu::currentPage());
+}
+
 // The Grip Editor (vr_aggrip.cpp): the nearest armed monster's weapon in its hand, live.
 [[nodiscard]] za::Vector<Item> pageArmedGrips()
 {
@@ -1029,6 +1035,12 @@ void kdTrigWeightRows(za::Vector<Item>& items)
     };
     return {
         header("Editing"),
+        action("Drag Mode (Grab and Place)", armedGripsDragMode)
+            .help("The Pose Studio: walk up to any armed grunt or enforcer (they hold still) and grab its weapon or a hand "
+                  "with your grip: move and turn it as you want it held, let go. The weapon: how it sits in the hand; a "
+                  "hand: where it holds the weapon. A panel beside you: Every Weapon / This Weapon, Undo, Reset Grips, "
+                  "Frozen, Cancel, Done (prints the grips as code; quakevr/proposed_defaults). B/Y undoes, the menu "
+                  "button is Done. (vr_posestudio)"),
         info(armedGripSubject),
         toggle("Freeze Them", vr_agrunt_freeze)
             .help("Armed grunts and enforcers hold still in their idle pose, weapons ready, while you tune (spawn one with "

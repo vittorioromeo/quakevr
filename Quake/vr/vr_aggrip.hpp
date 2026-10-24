@@ -6,6 +6,9 @@
 #pragma once
 
 #include "vr_engine.hpp"
+#include "vr_rigpose.hpp"
+
+#include "Zancle/String/String.hpp"
 
 #include <glm/glm.hpp>
 
@@ -40,6 +43,19 @@ void noteSubject(int kind, int slot, int slotL, float dist);
 void frame();
 // The subject's line for the menu (the Grip Editor's: its kind, its weapon, the hand).
 [[nodiscard]] const char* subjectLine();
+
+// The Pose Studio (vr_posestudio.cpp): an entry's offset while a hand drags it (offset() returns it; one at a time;
+// none drawn from the archived text meanwhile), then kept (set: written to vr_agrunt_grips; a default's equal dropped).
+void setPreview(int kind, int slot, int hand, const Offset& o);
+void clearPreview();
+void set(int kind, int slot, int hand, const Offset& o);
+// Every hand's entry of (kind, slot) back to its default (slot allWeapons: the kind's global ones).
+void resetEntries(int kind, int slot);
+// vr_agrunt_grip_dump's lines (the changes from the defaults; none: a comment saying so).
+void dumpText(za::String& out);
+// An offset as a rigid motion (yaw about z, then pitch about y (down), then roll about x) and back.
+[[nodiscard]] rigpose::Rigid toRigid(const Offset& o);
+[[nodiscard]] Offset fromRigid(const rigpose::Rigid& r);
 
 void registerCommands();
 

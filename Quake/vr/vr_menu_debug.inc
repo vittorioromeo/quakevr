@@ -133,6 +133,10 @@ za::Vector<Item> pageDebugViews()
         command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
             .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
                   "Shape): its tip, near end, width, curve and head box. With the hand empty: the fist's blow line."),
+        command("Pose Studio (Armed Humanoids' Grips)", "vr_posestudio")
+            .help("vr_posestudio: the armed grunts' and enforcers' grips set by hand (as Armed Grunts > Grip Editor > "
+                  "Drag Mode): walk up to one, grab its weapon or hand, move and turn it. vr_posestudio_report prints "
+                  "its parts and grips."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")
