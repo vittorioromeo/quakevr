@@ -724,6 +724,24 @@ void() VR_AG_PropHandTouch =
     {
         return;
     }
+    // (A deliberate grab: the fist on the weapon itself (the engine's handOn), and not a punch or a swipe through it.)
+    float most = cvar_hget(cvarh_vr_agrunt_grab_speed);
+    float sp = vlen(VRGetEntHandVel(pl, h) - pl.velocity) / VRMetersToUnits();
+    if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+    {
+        VR_AG_Log(sprintf("a hand (%g) takes hold of its weapon at %.2f m/s, %.1f units from its grip", h, sp,
+            vlen(VRGetEntHandPos(pl, h) - self.origin)));
+    }
+    if(most > 0 && sp > most)
+    {
+        vr_ag_grab_fast = vr_ag_grab_fast + 1;
+        if(cvar_hget(cvarh_vr_agrunt_debug))
+        {
+            VR_AG_Log(sprintf("a hand (%g) through its weapon at %.1f m/s: too fast to take hold (vr_agrunt_grab_speed %g)", h,
+                sp, most));
+        }
+        return;
+    }
     entity g = self.owner;
     if(g.vr_ag_prop2 == self)
     {
@@ -1312,8 +1330,10 @@ void() vr_ag_reload11 =
 // on it: vr_armedgrunt_pose.qc VR_AGP_Pose), its hand closes on it at the deepest frame (VR_AG_TakeGrab), and it comes
 // up with it, the weapon carried from the floor to its hold over VR_AG_LIFT_TIME. Cut short before its hand closes (a
 // pain, a shove: VR_AG_PlaceProp), the weapon stays on the floor.
-float VR_AG_TAKE_FRAME = 0.06;  // s each take frame
+float VR_AG_TAKE_FRAME = 0.1;   // s each take frame down (was 0.06: down and up in 0.36 s, the hand on it at once)
+float VR_AG_TAKE_UP = 0.07;     // s each frame back up
 float VR_AG_LIFT_TIME = 0.3;    // s from the floor to its hold
+.float vr_ag_take_i;            // its take frames: the next step
 
 void() VR_AG_TakeBegin =
 {
@@ -1336,7 +1356,8 @@ void() VR_AG_TakeBegin =
     w.weaponinst = world;
     remove(w);
     self.vr_ag_took_at = time;
-    self.vr_ag_took_grab = time + 3 * VR_AG_TAKE_FRAME;
+    VR_AM_Row(self.vr_ag_kind);
+    self.vr_ag_took_grab = time + max(1, vr_am_n_take) * VR_AG_TAKE_FRAME; // (its lowest frame drawn in full)
     self.vr_ag_took_done = 0;
     if(self.vr_ag_prop)
     {
@@ -1364,18 +1385,42 @@ void() VR_AG_TakeGrab =
     VR_AG_Log(sprintf("picked up %s (%g in its clip)%s", p.netname, p.weaponinst.wi_clip,
         self.vr_ag_prop2 ? " in its left hand" : ""));
 };
-void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeBegin(); };
-void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + VR_AG_TAKE_FRAME; };
+// Its take frames (the row's vr_am_n_take down, VR_AG_TAKE_FRAME each, its lowest last), held there while its hand
+// closes (VR_AG_TakeGrab at vr_ag_took_grab: the lowest frame drawn in full), then back up (VR_AG_TAKE_UP each).
+void() vr_ag_takestep =
+{
+    VR_AM_Row(self.vr_ag_kind);
+    float n = max(1, vr_am_n_take);
+    float i = self.vr_ag_take_i;
+    self.vr_ag_take_i = i + 1;
+    if(i <= n)
+    {
+        VR_AM_Anim(VR_AM_A_TAKE, min(i, n - 1), vr_ag_takestep); // (down; then held at its lowest a frame)
+        self.nextthink = time + VR_AG_TAKE_FRAME;
+        return;
+    }
+    float k = n - 2 - (i - n - 1);
+    if(k >= 0)
+    {
+        VR_AM_Anim(VR_AM_A_TAKE, k, vr_ag_takestep); // (back up)
+        self.nextthink = time + VR_AG_TAKE_UP;
+        return;
+    }
+    vr_ag_run1();
+};
+void() vr_ag_take1 = { self.vr_ag_take_i = 0; VR_AG_TakeBegin(); vr_ag_takestep(); };
+// (The old take frames' names, kept for saved games: on from where the step was.)
+void() vr_ag_take2 = { vr_ag_takestep(); };
+void() vr_ag_take3 = { vr_ag_takestep(); };
+void() vr_ag_take4 = { vr_ag_takestep(); };
+void() vr_ag_take5 = { vr_ag_takestep(); };
+void() vr_ag_take6 = { vr_ag_takestep(); };
 
 // Its take frames on (its reach for a weapon not cut short).
 float(entity g) VR_AG_Taking =
 {
-    return g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 || g.think == vr_ag_take5 ||
-           g.think == vr_ag_take6 || g.think == vr_ag_run1;
+    return g.think == vr_ag_takestep || g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 ||
+           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1;
 };
 
 // ----------------------------------------------------------------------------
