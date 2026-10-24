@@ -2,6 +2,7 @@
 
 #include "vr_hitreact.hpp"
 #include "vr_agarms.hpp"
+#include "vr_agbody.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_cvars.hpp"
@@ -870,6 +871,8 @@ struct ArmPose
     glm::vec3 torso{0.f};                        // its torso's turn now (degrees: bodyTurn), its elbows' poles
     glm::vec3 elbowR{0.f}, elbowL{0.f};
     glm::vec3 waist{0.f};                        // (model space: the message's over its scale)
+    glm::vec3 anchorAt{0.f};                     // vr_agarms: its chest's anchor as the frames draw it (model space; apAnchor),
+    float wr{0.f}, wl{0.f};                      // ... its weight in the right and left targets (the upper body moves them with it)
 };
 
 struct ArmPoses
@@ -956,6 +959,23 @@ void drawnPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2
     return {c * d.x - s * d.y, s * d.x + c * d.y, d.z};
 }
 
+// The turn `corr` laid on every bone on rig's `chest` (the chest too; its loose pieces not), on the left (rest -> now).
+void layOnChest(const ragdoll::Rig& rig, int chest, const rigpose::Rigid& corr, rigpose::Rigid* bones)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        bool onChest = b == chest;
+        for(int p = rig.bones[b].parent, n = 0; p >= 0 && n < ragdoll::maxBones && !onChest; p = rig.bones[p].parent, n++)
+        {
+            onChest = p == chest;
+        }
+        if(onChest && rig.bones[b].joint != ragdoll::Joint::Loose)
+        {
+            bones[b] = composeRigid(corr, bones[b]);
+        }
+    }
+}
+
 // Its arm pose's targets now (`s` fresh), on the poses drawn: s.right, s.left, s.fw, s.up. False: none now.
 bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, ArmPose& s)
 {
@@ -1036,6 +1056,9 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.elbowR = m.elbowR;
     s.elbowL = m.elbowL;
     s.waist = m.waist / scale;
+    s.anchorAt = anchorAt;
+    s.wr = anchored ? m.wr : 0.f;
+    s.wl = anchored ? m.wl : 0.f;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2374,6 +2397,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    // The procedural upper body (vr_agrunt_upper: the chest held on the hips, not the frames'; a pickup's crouch keeps
+    // the frames'): laid under everything else, drawn too (boneTurns); the targets placed from the chest's anchor move
+    // with it.
+    rigpose::Rigid upperCorr;
+    const bool pickup = (s.flags & apReach) || ((s.flags & apBody) && (s.flags & apFixed));
+    const bool uppered = agbody::upper(s.ent, *rig, spec.chest, posed, pickup, upperCorr);
+    if(uppered)
+    {
+        layOnChest(*rig, spec.chest, upperCorr, posed);
+    }
+    const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).
     rigpose::Rigid body[ragdoll::maxBones];
@@ -2403,6 +2437,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.weapon[0].rot = frameRot(s.fw, s.up);
         t.weapon[0].pos = s.right;
         t.offset[0] = gripRigid(kind, -1, aggrip::Main);
+        t.reaching = true;
     }
     else
     {
@@ -2449,6 +2484,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
                 t.cup = true;
             }
         }
+    }
+    if(uppered)
+    {
+        t.weapon[0].pos += anchorShift * s.wr;
+        t.weapon[1].pos += anchorShift * s.wl;
     }
     if(bodied && !(s.flags & apFixed))
     {
@@ -3011,7 +3051,20 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(agarms::enabled() && armedRigOf(e->model))
     {
-        // vr_agarms: the arms are the skin's (its rows after these: kickInstance); the bones only kicked.
+        // vr_agarms: the arms are the skin's (its rows after these: kickInstance); the bones only kicked. The upper
+        // body (vr_agrunt_upper) as relinkSkinned laid it, under the strike's turn and the kicks.
+        rigpose::Rigid upperCorr;
+        const bool uppered = agarms::active(e) && agbody::upperNow(numberOf(e), upperCorr);
+        rigpose::Rigid held[ragdoll::maxBones];
+        for(int b = 0; b < rig.numBones; b++)
+        {
+            held[b] = posed[b];
+        }
+        if(uppered)
+        {
+            layOnChest(rig, chestOf(rig), upperCorr, held);
+            posed = held;
+        }
         const bool kicked = reacting(e) && boneKicks(e, rig, posed, out);
         if(pieces && piecesOn)
         {
@@ -3031,6 +3084,20 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         for(int b = 0; b < rig.numBones && bodied; b++)
         {
             out[b] = composeRigid(out[b], body[b]);
+        }
+        if(uppered)
+        {
+            // (each bone's drawn turn: the kick's, the strike's, then the upper body's on the frames)
+            rigpose::Rigid lay[ragdoll::maxBones];
+            for(int b = 0; b < rig.numBones; b++)
+            {
+                lay[b] = rigpose::Rigid{};
+            }
+            layOnChest(rig, chestOf(rig), upperCorr, lay);
+            for(int b = 0; b < rig.numBones; b++)
+            {
+                out[b] = composeRigid(out[b], lay[b]);
+            }
         }
         return kicked || bodied || agarms::active(e);
     }

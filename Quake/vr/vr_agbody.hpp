@@ -65,4 +65,13 @@ float segmentDepth(const Posed& q, const glm::vec3& p0, const glm::vec3& p1, int
 // vr_agarms_info: the proxies fitted so far.
 void print();
 
+// The procedural upper body (vr_agrunt_upper; ROUND22.md, "Armed humanoids in motion"): the chest held on the pelvis as
+// the rest pose has it (the frames' own chest and shoulder motion in their shots, reloads, pains and runs, which the posed
+// arms don't follow, taken out; the legs and hips still the frames'), breathing, eased in and out (`keepFrames`: the
+// frames' chest, a pickup's crouch). Once a frame for entity `ent` on `posed` (its bones as the frames draw them): the
+// turn to lay on every bone on the chest (on the left: rest -> now becomes corr * posed). False: none (off, no pelvis).
+bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, bool keepFrames, rigpose::Rigid& corr);
+// ... the one laid this frame (the drawing's bone turns read it). False: none.
+bool upperNow(int ent, rigpose::Rigid& corr);
+
 } // namespace qvr::agbody

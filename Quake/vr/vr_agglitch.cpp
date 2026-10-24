@@ -511,10 +511,11 @@ void note(const Sample& s)
     }
     float sev = 0.f;
     int worst = 0;
+    const char* focus = vr_agglitch_metric.string ? vr_agglitch_metric.string : "";
     for(int k = 0; k < numMetrics; k++)
     {
         const float v = r.m[k] / metricBad[k];
-        if(v > sev)
+        if(v > sev && (!focus[0] || strstr(focus, metricNames[k])))
         {
             sev = v;
             worst = k;
