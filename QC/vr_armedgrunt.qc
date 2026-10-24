@@ -463,6 +463,10 @@ void() VR_AG_PropThink =
         {
             sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop)
         }
+        if(VR_AG_Stream(self.weapon) && (g.vr_ag_prop == self || !g.vr_ag_prop))
+        {
+            VR_ADGun_MonsterStreamEnd(g, self.weapon, TRUE); // (its wielder dead or gone while firing: its loop)
+        }
         self.weaponinst = world; // (its record goes with a drop, if any: never freed here)
         remove(self);
         return;
@@ -485,6 +489,10 @@ void() VR_AG_PropThink =
     }
     VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
     VR_AG_PlaceProp(g, self);
+    if(g.vr_adgun_stream && time - g.vr_adgun_stream > 0.4)
+    {
+        VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
+    }
     VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
     self.nextthink = time;
 };
@@ -646,6 +654,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
         VR_AG_TugEnd(g, FALSE, "disarmed otherwise");
     }
     g.vr_ag_took_at = 0;
+    VR_ADGun_MonsterStreamEnd(g, p.weapon, TRUE); // (its flamethrower's loop: never on after it)
     entity inst = p.weaponinst;
     if(p.weapon == WID_CHAINSAW)
     {
@@ -1142,13 +1151,7 @@ void() VR_AG_AfterAttack =
 {
     self.vr_ag_aim = '0 0 0';
     entity p = self.vr_ag_prop;
-    if(self.vr_adgun_stream)
-    {
-        // A flamethrower's stream ends with its sound (the player's: VR_ADGun_Frame).
-        self.vr_adgun_stream = 0;
-        sound(self, CHAN_WEAPON, self.vr_ag_wid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav",
-            1, ATTN_NORM);
-    }
+    VR_ADGun_MonsterStreamEnd(self, self.vr_ag_wid, FALSE); // (a flamethrower's stream ends with its sound: the player's VR_ADGun_Frame)
     float reload = FALSE;
     entity q = self.vr_ag_prop2;
     if(VR_AG_Spent(q))

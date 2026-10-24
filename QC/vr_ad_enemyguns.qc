@@ -833,7 +833,8 @@ void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun
 // reach vr_adgun_tank_field_radius at a full tank (40% near empty). Its look and its sound (a fire's crackle, a hiss)
 // fade out with it over its second half. It plays the burst's sounds too, and stops every loop of them as it goes
 // (they never outlive it: the hiss that never stopped). A burst with no field (time 0) still has one, silent and empty,
-// for its sounds' 0.7 s.
+// for its sounds' 0.7 s. It spreads from the tank out to its reach over vr_adgun_tank_field_spread (VR_TankField_Reach),
+// its look and its damage together; its look: VR_TankField_Look, its 3D flames VR_TankField_Flames (2026-10-24).
 float VR_TANKFIELD_TICK = 0.5;   // s between its damages
 float VR_TANKFIELD_HUSH = 0.7;   // s the burst's whoosh plays (its "off" then: the loop's end)
 .float vr_tf_kind;   // 1 fire, 2 poison
@@ -844,6 +845,8 @@ float VR_TANKFIELD_HUSH = 0.7;   // s the burst's whoosh plays (its "off" then: 
 .float vr_tf_level;  // its loop's volume step now (0..4; 0 silent)
 .float vr_tf_tick;   // its next damage
 .float vr_tf_hush;   // when the burst's whoosh stops (0: stopped)
+.float vr_tf_spread; // s it takes to spread from the tank out to its reach (vr_adgun_tank_field_spread as it was made)
+.float vr_tf_looked; // its last look's time (VR_TankField_Look: as many as the time since)
 float vr_tankfield_made;  // fields made (the tests)
 float vr_tankfield_hits;  // what the fields reached, tick by tick (the tests)
 float vr_tankfield_loops; // fields' loops playing now (the tests: 0 once they are gone)
@@ -854,6 +857,18 @@ float(entity f) VR_TankField_Strength =
 {
     float life = max(0.01, f.vr_tf_end - f.vr_tf_start);
     return clamp((f.vr_tf_end - time) / (life * 0.5), 0, 1);
+};
+
+// Its reach now (Vittorio, 2026-10-24, vrtesthall_2026-10-24_01-05-18: not popping into its whole circle at once): from
+// the tank out to its full reach over its spread time, quick at first and slowing (its look and its damage together).
+float(entity f) VR_TankField_Reach =
+{
+    if(f.vr_tf_spread <= 0)
+    {
+        return f.vr_tf_radius;
+    }
+    float k = clamp((time - f.vr_tf_start) / f.vr_tf_spread, 0, 1);
+    return max(8, f.vr_tf_radius * (1 - (1 - k) * (1 - k)));
 };
 
 // Its loop at volume step `xLevel` (0..4: silent .. full), started again only when the step changes.
@@ -902,7 +917,8 @@ void(entity f) VR_TankField_Damage =
     float dps = max(0, cvar("vr_adgun_tank_burst_poison")) * f.vr_tf_s * scale;
     float ptime = max(0, cvar("vr_adgun_tank_burst_poisontime")) * f.vr_tf_s;
     vector eye = f.origin + '0 0 16';
-    for(entity e = findradius(f.origin, f.vr_tf_radius + 24); e; e = e.chain)
+    float reach = VR_TankField_Reach(f);
+    for(entity e = findradius(f.origin, reach + 24); e; e = e.chain)
     {
         if(e == f || (!e.takedamage && !(fire && VR_Burn_Can(e))) || e.absmin_z > top || e.absmax_z < f.origin_z - 12)
         {
@@ -911,7 +927,7 @@ void(entity f) VR_TankField_Damage =
         vector mid = e.origin + (e.mins + e.maxs) * 0.5;
         vector flat = mid - f.origin;
         flat_z = 0;
-        if(vlen(flat) > f.vr_tf_radius + max(e.maxs_x, 8))
+        if(vlen(flat) > reach + max(e.maxs_x, 8))
         {
             continue; // (outside its circle: findradius's ball is wider)
         }
@@ -955,42 +971,176 @@ void(entity f) VR_TankField_Damage =
     }
 };
 
-// Its look: flames licking up off the ground through its circle, or a green cloud, as strong as it is now.
-void(entity f, float xStrength) VR_TankField_Look =
+// A spot on the ground in its circle out to `xReach`, in sight of its middle (not through a wall), not past a ledge:
+// vr_tankfield_spot, vr_tankfield_out its share of the way out (0 the middle, 1 the edge). FALSE: none this time.
+vector vr_tankfield_spot;
+float vr_tankfield_out;
+float vr_tankfield_fx_fire;  // its look's effects sent (the tests): fire, smoke, the cloud's puffs
+float vr_tankfield_fx_smoke;
+float vr_tankfield_fx_cloud;
+float(entity f, float xReach) VR_TankField_Spot =
 {
-    float fire = f.vr_tf_kind == 1;
-    float n = ceil(xStrength * clamp(f.vr_tf_radius * f.vr_tf_radius / 1600, 1, 7));
+    float a = random() * 6.2831853;
+    vr_tankfield_out = sqrt(random());
+    float r = vr_tankfield_out * xReach;
+    vector p = f.origin + '1 0 0' * (cos(a) * r) + '0 1 0' * (sin(a) * r);
+    traceline(f.origin + '0 0 16', p + '0 0 16', TRUE, f);
+    if(trace_fraction < 1)
+    {
+        return FALSE; // (a wall in the way: not through it)
+    }
+    traceline(p + '0 0 16', p - '0 0 48', TRUE, f);
+    if(trace_fraction >= 1)
+    {
+        return FALSE; // (no ground there: a ledge)
+    }
+    vr_tankfield_spot = trace_endpos + '0 0 1';
+    return TRUE;
+};
+
+// `x` rounded up or down at random (its fraction's share of the time up): a few a second from a fraction a think.
+float(float x) VR_TankField_SomeOf = { return floor(max(0, x) + random()); };
+
+// Its look over the last `xDt` s (Vittorio, 2026-10-24, vrtesthall_2026-10-24_01-04-12, 01-05-18: a strong area denial):
+// spots through its circle as far as it reaches now (VR_TankField_Reach), as many as its area. The fire: tongues of fire
+// rising straight up off the ground (vr_adgun_tank_field_flames), dark smoke rising off their tops
+// (vr_adgun_tank_field_smoke); the flames thinning and shrinking as it fades. The poison: a big green cloud
+// (vr_adgun_tank_field_cloud) low over it, thinner at its edge and as it fades, thick at once as it spreads (a smoke
+// bomb's), with a few green wisps of the sprayer's flame low in it. Its 3D flames are their own (VR_TankFlame_*).
+void(entity f, float xStrength, float xDt) VR_TankField_Look =
+{
+    float reach = VR_TankField_Reach(f);
+    float area = clamp(reach * reach / 1600, 0.25, 9); // (a full tank's 96: 5.8)
+    float per = xDt / 0.1;
+    float i = 0, n = 0;
+    vector look = '1 0 0' + '0 1 0' * (0.55 + 0.45 * xStrength) + '0 0 1' * (0.3 + 0.7 * xStrength);
+    if(f.vr_tf_kind == 1)
+    {
+        n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_flames")) * area * 3 * per * (0.25 + 0.75 * xStrength));
+        for(i = 0; i < n; i++)
+        {
+            if(VR_TankField_Spot(f, reach) && (pointcontents(vr_tankfield_spot + '0 0 4') > CONTENT_WATER))
+            {
+                particle2(vr_tankfield_spot, look, QVR_PARTICLE_PRESET_TANKFIRE, 2 + floor(2 * xStrength * random() + 0.5));
+                vr_tankfield_fx_fire++;
+            }
+        }
+        n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_smoke")) * clamp(area * 0.45, 0.5, 4) * per * xStrength);
+        for(i = 0; i < n; i++)
+        {
+            if(VR_TankField_Spot(f, reach) && (pointcontents(vr_tankfield_spot + '0 0 4') > CONTENT_WATER))
+            {
+                particle2(vr_tankfield_spot, look, QVR_PARTICLE_PRESET_TANKSMOKE, 1);
+                vr_tankfield_fx_smoke++;
+            }
+        }
+        return;
+    }
+    float burst = (time - f.vr_tf_start < f.vr_tf_spread + 0.3) ? 4 : 1; // (thick at once: a smoke bomb going off)
+    n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_cloud")) * clamp(area, 0.5, 9) * per * burst);
+    for(i = 0; i < n; i++)
+    {
+        if(VR_TankField_Spot(f, reach))
+        {
+            float edge = clamp((1 - vr_tankfield_out) * 3, 0.3, 1); // (thinner toward its edge)
+            particle2(vr_tankfield_spot, '1.5 0 0' + '0 1 0' * (0.7 + 0.3 * reach / max(1, f.vr_tf_radius)) +
+                '0 0 1' * (edge * xStrength), QVR_PARTICLE_PRESET_TANKCLOUD, 1);
+            vr_tankfield_fx_cloud++;
+        }
+    }
+    n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_flames")) * area * 0.5 * per * xStrength);
+    for(i = 0; i < n; i++)
+    {
+        if(VR_TankField_Spot(f, reach))
+        {
+            particle2(vr_tankfield_spot + '0 0 4', '0 0 0.15' + randomVec(0.08), QVR_PARTICLE_PRESET_ADPOISON, 1);
+        }
+    }
+};
+
+// Its 3D flames (vrtesthall_2026-10-24_01-04-12): id's large torch flame (progs/flame2.mdl's second frame, as the
+// burning bodies' and the torches'), each thrown out from the tank to a random spot in its circle over its spread time,
+// large on the way and settling to its size there; it burns on, then fades out and shrinks, each at its own time over
+// the field's life (the last before the field fades out). The first lights its place as a torch does (vr_emissive.cpp:
+// drawn with no alpha); the others are drawn opaque, no light of their own.
+.vector vr_tfm_spot;   // where it goes
+.float vr_tfm_born;    // when it was thrown
+.float vr_tfm_arrive;  // when it is there
+.float vr_tfm_fade;    // when it starts fading out,
+.float vr_tfm_end;     // ... gone
+.float vr_tfm_size;    // its scale there
+float vr_tankflame_made; // (the tests)
+
+void() VR_TankFlame_Think =
+{
+    if(time >= self.vr_tfm_end)
+    {
+        remove(self);
+        return;
+    }
+    float s = self.vr_tfm_size;
+    if(time < self.vr_tfm_arrive)
+    {
+        float u = clamp((time - self.vr_tfm_born) / max(0.01, self.vr_tfm_arrive - self.vr_tfm_born), 0, 1);
+        s = s * (1.6 - 0.6 * u * u); // (large on its way out)
+    }
+    else if(self.velocity != '0 0 0')
+    {
+        self.velocity = '0 0 0';
+        setorigin(self, self.vr_tfm_spot);
+    }
+    if(time > self.vr_tfm_fade)
+    {
+        float v = clamp((self.vr_tfm_end - time) / max(0.01, self.vr_tfm_end - self.vr_tfm_fade), 0, 1);
+        self.alpha = max(0.03, v);
+        s = s * (0.45 + 0.55 * v);
+    }
+    self.scale = s;
+    self.nextthink = time + 0.05;
+};
+
+// The fire field `f`'s 3D flames (vr_adgun_tank_field_models at a full tank, the fuel's share `s` of it), its life `xLife`.
+void(entity f, float s, float xLife) VR_TankField_Flames =
+{
+    float n = floor(max(0, cvar("vr_adgun_tank_field_models")) * s + 0.5);
+    float spread = max(0.05, f.vr_tf_spread);
+    float lit = FALSE;
     for(float i = 0; i < n; i++)
     {
-        float a = random() * 6.2831853;
-        float r = sqrt(random()) * f.vr_tf_radius;
-        vector p = f.origin + '1 0 0' * (cos(a) * r) + '0 1 0' * (sin(a) * r);
-        traceline(f.origin + '0 0 16', p + '0 0 16', TRUE, f);
-        if(trace_fraction < 1)
+        float tries = 0;
+        float ok = FALSE;
+        while(!ok && tries < 4)
         {
-            continue; // (a wall in the way: not through it)
+            ok = (VR_TankField_Spot(f, f.vr_tf_radius * 0.9) && (pointcontents(vr_tankfield_spot + '0 0 4') > CONTENT_WATER));
+            tries++;
         }
-        traceline(p + '0 0 16', p - '0 0 48', TRUE, f);
-        if(trace_fraction >= 1)
+        if(!ok)
         {
-            continue; // (no ground there: a ledge)
+            continue;
         }
-        p = trace_endpos + '0 0 1';
-        if(fire)
-        {
-            if(pointcontents(p + '0 0 4') > CONTENT_WATER)
-            {
-                particle2(p, '0 0 0.6' + randomVec(0.15), QVR_PARTICLE_PRESET_ADFLAME, 1 + floor(2 * xStrength * random() + 0.5));
-            }
-        }
-        else
-        {
-            particle2(p + '0 0 6', '0 0 0.15' + randomVec(0.15), QVR_PARTICLE_PRESET_ADPOISON, 1 + floor(xStrength + random()));
-            if(random() < 0.35 * xStrength)
-            {
-                particle2(p + '0 0 10', '1.5 1.5 0.8', QVR_PARTICLE_PRESET_POISONPUFF, 1);
-            }
-        }
+        entity m = spawn();
+        m.classname = "vr_tankflame";
+        m.owner = f;
+        m.movetype = MOVETYPE_NOCLIP;
+        m.solid = SOLID_NOT;
+        setmodel(m, "progs/flame2.mdl");
+        setsize(m, '0 0 0', '0 0 0');
+        m.frame = 1; // (the large flame)
+        m.angles_y = random() * 360;
+        setorigin(m, f.origin);
+        m.vr_tfm_spot = vr_tankfield_spot;
+        m.vr_tfm_born = time;
+        m.vr_tfm_arrive = time + spread * (0.6 + 0.4 * vr_tankfield_out);
+        m.velocity = (m.vr_tfm_spot - f.origin) * (1 / (m.vr_tfm_arrive - time));
+        m.vr_tfm_end = time + xLife * (0.55 + 0.4 * random());
+        m.vr_tfm_fade = m.vr_tfm_end - min(1.2, xLife * 0.25);
+        m.vr_tfm_size = (0.75 + 0.45 * random()) * (0.7 + 0.3 * s);
+        m.scale = m.vr_tfm_size * 1.6;
+        m.alpha = lit ? 1 : 0; // (the first lights its place)
+        lit = TRUE;
+        m.think = VR_TankFlame_Think;
+        m.nextthink = time + 0.05;
+        vr_tankflame_made++;
     }
 };
 
@@ -1018,13 +1168,14 @@ void() VR_TankField_Think =
     }
     float k = VR_TankField_Strength(self);
     VR_TankField_Loop(self, ceil(k * 4));
-    VR_TankField_Look(self, k);
+    VR_TankField_Look(self, k, clamp(time - self.vr_tf_looked, 0.01, 0.2));
+    self.vr_tf_looked = time;
     if(time >= self.vr_tf_tick)
     {
         self.vr_tf_tick = time + VR_TANKFIELD_TICK;
         VR_TankField_Damage(self);
     }
-    self.nextthink = time + 0.1;
+    self.nextthink = time + (time - self.vr_tf_start < self.vr_tf_spread ? 0.05 : 0.1); // (spreading: smoothly)
 };
 
 // The field of a tank burst at `at` (its fuel's share `s`: 0.4 .. 1; `xFuel` 0: empty, no field), `xBy` who burst it:
@@ -1035,8 +1186,8 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
     f.classname = "vr_tankfield";
     f.movetype = MOVETYPE_NONE;
     f.solid = SOLID_NOT;
-    traceline(at, at - '0 0 96', TRUE, world);
-    setorigin(f, trace_endpos + '0 0 1'); // (on the ground under it)
+    traceline(at, at - '0 0 1024', TRUE, world);
+    setorigin(f, trace_endpos + '0 0 1'); // (on the ground under it: a tank thrown up by another's blast too)
     f.owner = xBy;
     f.vr_tf_kind = poison ? 2 : 1;
     f.vr_tf_s = s;
@@ -1045,8 +1196,10 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
     f.vr_tf_end = time + life;
     f.vr_tf_radius = max(16, cvar("vr_adgun_tank_field_radius")) * s;
     f.vr_tf_tick = time + 0.2; // (the burst's own reach first)
+    f.vr_tf_spread = max(0, cvar("vr_adgun_tank_field_spread"));
+    f.vr_tf_looked = time;
     f.think = VR_TankField_Think;
-    f.nextthink = time + 0.1;
+    f.nextthink = time + (f.vr_tf_spread > 0 ? 0.05 : 0.1);
     if(xFuel > 0)
     {
         if(cvar("vr_ad_mounted"))
@@ -1062,6 +1215,11 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
     {
         vr_tankfield_made++;
         VR_TankField_Loop(f, 4);
+        VR_TankField_Look(f, 1, 0.05); // (its first flames or puffs at the tank at once)
+        if(!poison)
+        {
+            VR_TankField_Flames(f, s, life);
+        }
         if(cvar("developer"))
         {
             dprint(sprintf("adgun: a tank's %s field at %v: %.1f s, reach %.0f\n", poison ? "poison" : "fire", f.origin, life,
@@ -1444,6 +1602,26 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     VR_ADGun_StreamFx(f, poison);
     VR_ADGun_StreamMuzzle(org, dir, poison, water);
     VRGunHaptic(xHand, 0.1, 40, 0.4);
+};
+
+// An armed monster's stream ended (its flamethrower or sprayer firing, vr_armedgrunt.qc: `m`.vr_adgun_stream its last
+// flame's time): its loop's "off" on the channel it plays on, CHAN_WEAPON (`xWid` its gun). Vittorio, 2026-10-24
+// (vrtesthall_2026-10-24_01-07-34): killed while firing, the hiss went on for ever; now its attack's end, its gun leaving
+// its hand any way (VR_AG_DropHeld: dying, gibbed, disarmed, its tank burst, thrown away), its gun's think finding it
+// gone or not firing for a moment (a pain cutting the attack short), `xGone` the ones it loses its gun or goes by.
+float vr_ag_stream_ends;      // (the tests)
+float vr_ag_stream_ends_gone;
+float vr_fueltank_worn_alerts; // (the tests: wearers alerted by a hit on their tank alone, vr_adtankworn.qc)
+void(entity m, float xWid, float xGone) VR_ADGun_MonsterStreamEnd =
+{
+    if(!m.vr_adgun_stream)
+    {
+        return;
+    }
+    m.vr_adgun_stream = 0;
+    vr_ag_stream_ends++;
+    vr_ag_stream_ends_gone += (xGone != 0);
+    sound(m, CHAN_WEAPON, xWid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav", 1, ATTN_NORM);
 };
 
 // Every player frame, each hand (VR_EnemyGuns_Frame): a stream let go of (or the gun gone, empty) ends with its sound.

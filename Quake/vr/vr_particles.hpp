@@ -82,7 +82,14 @@ enum class Preset : int
     AdFlameHit,
     // Fire put out by water (QC: a flamethrower's flame meeting the surface, a lava nail going in): `count` puffs of
     // white steam rising off `org`, quick and thin.
-    Steam
+    Steam,
+    // AD support: a fuel tank's burst field (QC vr_ad_enemyguns.qc VR_TankField_Look), `org` a spot on the ground in it,
+    // `dir` (how far round it they spread, in 8 units; their size; their alpha: the field fading). TankFire: `count` tongues of
+    // fire rising straight up off it, and embers; TankSmoke: `count` puffs of dark smoke rising off the flames' tops;
+    // TankCloud: `count` big puffs of the poison cloud, a green smoke slowly billowing and churning low over the ground.
+    TankFire,
+    TankSmoke,
+    TankCloud
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
