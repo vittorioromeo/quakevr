@@ -1408,7 +1408,13 @@ void() vr_ag_takestep =
     }
     vr_ag_run1();
 };
-void() vr_ag_take1 = { self.vr_ag_take_i = 0; VR_AG_TakeBegin(); vr_ag_takestep(); };
+void() vr_ag_take1 =
+{
+    self.vr_ag_take_i = 0;
+    self.think = vr_ag_takestep; // (taking: VR_AG_Taking, as VR_AG_TakeBegin arms it and places the weapon)
+    VR_AG_TakeBegin();
+    vr_ag_takestep();
+};
 // (The old take frames' names, kept for saved games: on from where the step was.)
 void() vr_ag_take2 = { vr_ag_takestep(); };
 void() vr_ag_take3 = { vr_ag_takestep(); };

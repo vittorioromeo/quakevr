@@ -164,6 +164,8 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     return !strcmp(PR_GetString(target->v.classname), "vr_ag_weapon");
 }
 
+za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
+
 // A weapon at rest on something (on the floor, a crate, stuck in a wall), not in the air: resting (FL_ONGROUND, or not
 // moving at all) or barely moving (lyingSpeed: a gun lying as a Box3D prop is awake, not FL_ONGROUND, while the closing
 // hand nudges it, and slid off the fist that would take it: the author's note of 2026-10-08, "very hard to grab guns by
@@ -221,17 +223,26 @@ constexpr float weaponDrawnReach = 48.f;
         const float slack = vr_agrunt_grab_slack.value * 0.01f * m2u;
         if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
         {
-            if(vr_agrunt_debug.value)
+            // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
+            // gun's model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a
+            // fist's sphere middle sinks into without passing near its surface.
+            held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
+                armedFist);
+            float gap = 999.f * m2u;
+            for(const glm::vec4& s : armedFist)
             {
-                // (The tests' reading: the fist's gap to its surface, cm; 999 none near.)
-                za::Vector<glm::vec4> spheres;
-                held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
-                    spheres);
-                held::FistContact c;
-                const bool found = held::fistContact(target, spheres, 64.f, c);
-                Cvar_SetValueQuick(&vr_agrunt_grab_gap, found ? c.gap / m2u * 100.f : 999.f);
+                const float d = held::surfaceDistance(target, glm::vec3{s});
+                if(d < 0.f)
+                {
+                    return false; // (no surface to measure)
+                }
+                gap = za::min(gap, d - s.w);
             }
-            return held::grabTouch(target, player, h, slack);
+            if(vr_agrunt_debug.value && which == HAND_MAIN)
+            {
+                Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
+            }
+            return gap <= vr_carry_grab_bias.value * 0.01f * m2u + slack;
         }
         // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
         return held::nearDrawn(target, fieldVec(player, handPos), za::max(slack, 0.f));
