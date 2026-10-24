@@ -228,21 +228,19 @@ constexpr float weaponDrawnReach = 48.f;
             // fist's sphere middle sinks into without passing near its surface.
             held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
                 armedFist);
-            float gap = 999.f * m2u;
-            for(const glm::vec4& s : armedFist)
+            const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+            bool surface = true;
+            // (within: the tests' reading wants the gap a little way out too)
+            const float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface));
+            if(!surface)
             {
-                const float d = held::surfaceDistance(target, glm::vec3{s});
-                if(d < 0.f)
-                {
-                    return false; // (no surface to measure)
-                }
-                gap = za::min(gap, d - s.w);
+                return false; // (no surface to measure)
             }
             if(vr_agrunt_debug.value && which == HAND_MAIN)
             {
                 Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
             }
-            return gap <= vr_carry_grab_bias.value * 0.01f * m2u + slack;
+            return gap <= allowed;
         }
         // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
         return held::nearDrawn(target, fieldVec(player, handPos), za::max(slack, 0.f));

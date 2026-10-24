@@ -103,6 +103,11 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
 [[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
 
+// The gap (units) between a fist's spheres (world: middle and radius) and `ent`'s drawn surface: the least of each
+// sphere's distance less its radius; ZA_FLOAT_MAX when the fist's bounds are farther than `within` from the box it is
+// drawn in (not measured), or when it has no surface to measure (`surface` false). Its triangles are made once.
+[[nodiscard]] float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface);
+
 // Server side: the corners of `ent`'s drawn surface (as surfaceDistance measures it: the alias model's current frame,
 // the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid
 // bodies' convex hulls, vr_box3d.cpp).

@@ -701,6 +701,42 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     return best;
 }
 
+float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface)
+{
+    surface = true;
+    if(spheres.empty())
+    {
+        return ZA_FLOAT_MAX;
+    }
+    // (Nothing of the fist near the box it is drawn in: no triangles to test. The triangles made once for all its
+    // spheres, not once a sphere: a fist by an armed monster's weapon cost 5 ms a frame, vrragtriggers_2026-10-24_23-01-03.)
+    glm::vec3 centre;
+    const float bound = bounds(spheres, centre);
+    if(!nearDrawnBox(ent, centre, bound + za::fmax(within, 0.f)))
+    {
+        return ZA_FLOAT_MAX;
+    }
+    za::Vector<Triangle>& triangles = scratch.distanceTris;
+    glm::mat3 axes;
+    glm::vec3 origin;
+    if(!entityTriangles(ent, triangles, axes, origin))
+    {
+        surface = false;
+        return ZA_FLOAT_MAX;
+    }
+    const glm::mat3 toLocal = glm::transpose(axes);
+    float gap = ZA_FLOAT_MAX;
+    for(const glm::vec4& s : spheres)
+    {
+        const glm::vec3 p = toLocal * (glm::vec3{s} - origin);
+        for(const Triangle& t : triangles)
+        {
+            gap = za::min(gap, glm::distance(p, geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2])) - s.w);
+        }
+    }
+    return gap;
+}
+
 void setFist(int hand, const za::Vector<glm::vec4>& spheres)
 {
     if(hand >= 0 && hand < 2)
