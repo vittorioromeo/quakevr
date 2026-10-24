@@ -1063,6 +1063,8 @@ void() VR_AGTest_DualRow =
     cvar_set("vr_agrunt_test", "0");
 };
 
+void() VR_AGPar_Test; // (vr_armedgrunt_parry_test.qc)
+
 void() VR_AGTest_Frame =
 {
     float t = cvar_hget(cvarh_vr_agrunt_test);
@@ -1108,6 +1110,7 @@ void() VR_AGTest_Frame =
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)
+    else if(t == 60) { VR_AGPar_Test(); } // (they parry your blows: vr_armedgrunt_parry_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

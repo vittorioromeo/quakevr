@@ -2800,6 +2800,14 @@ QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over
 QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
+// Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
+QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE)          // 1: an armed grunt or enforcer holding a weapon parries a melee blow (yours, a monster's) that meets its weapon first
+QVR_CVAR(vr_agrunt_parry_damage, "0.25", CVAR_ARCHIVE) // share of a parried blow's damage it still takes
+QVR_CVAR(vr_agrunt_parry_cost, "1", CVAR_ARCHIVE)     // stamina a parry spends (of vr_agrunt_parry_count)
+QVR_CVAR(vr_agrunt_parry_count, "2", CVAR_ARCHIVE)    // its stamina: the parry that spends it all knocks its weapon out of its hand (2: the second parry in a row)
+QVR_CVAR(vr_agrunt_parry_recover, "0.35", CVAR_ARCHIVE) // stamina it recovers a second
+QVR_CVAR(vr_agrunt_parry_react, "0.15", CVAR_ARCHIVE) // s from seeing a blow coming to raising its parry (normal skill; easy 1.4x, hard 0.85x, nightmare 0.7x)
+QVR_CVAR(vr_agrunt_parry_chance, "0.7", CVAR_ARCHIVE) // the chance it sees a blow coming in time (normal skill; easy 0.6x, hard 1.15x, nightmare 1.3x)
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
