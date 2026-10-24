@@ -572,6 +572,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_melee_sweep_test 1: scripted sweeps of the weapon in your main hand past a box ahead of you and onto "
                   "the floor, with Swept Blades off and on: whether each strikes and where (meleesweep: lines, PASS or "
                   "FAIL). Give the weapon first (an AD hammer: vr_ad_test 128 with AD's data)."),
+        command("One Swing, Many Hits Test", "vr_scenario sword_multi;wait200;vr_melee_sweep_test 6")
+            .help("vr_melee_sweep_test 6 on the sword_multi scene (loaded first): scripted sword swings that land: the "
+                  "floor then a corpse's limb (cut off), two grunts side by side, the wall then a grunt by it; with One "
+                  "Swing, Many Hits off then on (meleemulti: lines, PASS or FAIL with it on)."),
         header("Parry"),
         command("Check the Parry Pose", "impulse 249")
             .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),

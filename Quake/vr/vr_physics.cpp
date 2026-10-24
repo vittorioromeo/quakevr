@@ -156,6 +156,16 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     return vr_weapon_grab_drawn.value && thrownWeapon(target);
 }
 
+// An armed monster's weapon in its hand (QC vr_armedgrunt.qc VR_AG_MakeProp): taken (a tug-of-war, or at once) only by
+// the fist on its drawn shape (vr_agrunt_grab_slack), never by its box (a 20-unit cube round its grip: a hand on the
+// monster's arm or chest, or swung past it, took it; the author's note vrtesthall_2026-10-24_01-10-14).
+[[nodiscard]] bool armedWeapon(edict_t* target)
+{
+    return !strcmp(PR_GetString(target->v.classname), "vr_ag_weapon");
+}
+
+za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
+
 // A weapon at rest on something (on the floor, a crate, stuck in a wall), not in the air: resting (FL_ONGROUND, or not
 // moving at all) or barely moving (lyingSpeed: a gun lying as a Box3D prop is awake, not FL_ONGROUND, while the closing
 // hand nudges it, and slid off the fist that would take it: the author's note of 2026-10-08, "very hard to grab guns by
@@ -207,6 +217,35 @@ constexpr float weaponDrawnReach = 48.f;
                                 ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * m2u
                                 : 0.f;
         return held::grabTouch(target, player, h, slack);
+    }
+    if(armedWeapon(target))
+    {
+        const float slack = vr_agrunt_grab_slack.value * 0.01f * m2u;
+        if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+        {
+            // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
+            // gun's model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a
+            // fist's sphere middle sinks into without passing near its surface.
+            held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
+                armedFist);
+            float gap = 999.f * m2u;
+            for(const glm::vec4& s : armedFist)
+            {
+                const float d = held::surfaceDistance(target, glm::vec3{s});
+                if(d < 0.f)
+                {
+                    return false; // (no surface to measure)
+                }
+                gap = za::min(gap, d - s.w);
+            }
+            if(vr_agrunt_debug.value && which == HAND_MAIN)
+            {
+                Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
+            }
+            return gap <= vr_carry_grab_bias.value * 0.01f * m2u + slack;
+        }
+        // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
+        return held::nearDrawn(target, fieldVec(player, handPos), za::max(slack, 0.f));
     }
     if(weaponByFist(target))
     {
@@ -571,7 +610,7 @@ void handTouch(edict_t* ent, edict_t* target)
     const glm::vec3 tMin = vec(target->v.absmin);
     const glm::vec3 tMax = vec(target->v.absmax);
 
-    const bool drawn = weaponByFist(target);
+    const bool drawn = weaponByFist(target) || armedWeapon(target);
     for(const int ofs : {f().offhandpos, f().handpos})
     {
         const glm::vec3 hand = fieldVec(ent, ofs);
@@ -2074,5 +2113,29 @@ namespace qvr::physics
 void propTouchStats_f()
 {
     Con_Printf("prop touch verification: %llu callbacks checked\n", static_cast<unsigned long long>(touchVerified));
+}
+
+bool fistOnArmedWeapon(edict_t* player, int hand)
+{
+    if(!player || hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const glm::vec3 at = fieldVec(player, hand == 0 ? f().offhandpos : f().handpos);
+    const float reach = handHalfSize + weaponDrawnReach;
+    const float lo[3] = {at.x - reach, at.y - reach, at.z - reach};
+    const float hi[3] = {at.x + reach, at.y + reach, at.z + reach};
+    const int mark = Hunk_LowMark();
+    const int space = qcvm->num_edicts;
+    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    int found = 0;
+    SV_AreaEdictsUnordered(lo, hi, list, &found, space);
+    bool on = false;
+    for(int i = 0; i < found && !on; i++)
+    {
+        on = !list[i]->free && armedWeapon(list[i]) && handOn(list[i], player, hand == 0 ? HAND_OFF : HAND_MAIN);
+    }
+    Hunk_FreeToLowMark(mark);
+    return on;
 }
 }

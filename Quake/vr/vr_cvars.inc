@@ -768,7 +768,7 @@ QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
 QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
 QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // Debug > Tools: 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:")
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (vr_melee_multi; the sword_multi scene: "meleemulti:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 // Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
 // the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
@@ -780,6 +780,11 @@ QVR_CVAR(vr_melee_world_pass_length, "0.35", CVAR_ARCHIVE) // the share of the w
 QVR_CVAR(vr_melee_world_pass_speed, "2.5", CVAR_ARCHIVE) // m/s the hand (its grip) swings at from which (a blow's least speed is about 2.25)
 QVR_CVAR(vr_melee_world_pass_time, "0.25", CVAR_ARCHIVE) // s it stays let in after the hand slowed (the cut's follow-through), then eased back out over 0.15 s
 QVR_CVAR(vr_melee_world_pass_reach, "12", CVAR_ARCHIVE) // units: how near the weapon's far part (as it is and a frame ahead) the body must be
+// One swing, many things (ROUND22.md, "One swing hits everything its edge passes through"; QC VR_Melee_Multi): a swing of
+// a weapon (not a bare fist) strikes each thing its striking part passes through once, each its own blow, and the wall
+// or the floor once as well, in any order: a blow on the floor no longer spends the swing for a body beyond it.
+QVR_CVAR(vr_melee_multi, "1", CVAR_ARCHIVE)          // 1 on; 0 as before (the world ends the swing; one thing after another)
+QVR_CVAR(vr_melee_multi_max, "4", CVAR_ARCHIVE)      // things (not the world) one swing strikes at most (1..6)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
 QVR_CVAR(vr_gunyaw, "0", CVAR_ARCHIVE)
@@ -2794,7 +2799,24 @@ QVR_CVAR(vr_agrunt_tug_break_force, "900", CVAR_ARCHIVE) // N: a pull this hard 
 QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
 QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
+// A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
+QVR_CVAR(vr_agrunt_grab_slack, "0", CVAR_ARCHIVE)        // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
+QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)          // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
+QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)      // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
+QVR_CVAR(vr_agrunt_tug_pull_force, "200", CVAR_ARCHIVE)  // N: the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)
+QVR_CVAR(vr_agrunt_tug_pull_time, "0.5", CVAR_ARCHIVE)   // s you must keep pulling above that before its weapon can come out (a tug-of-war, not a yank)
+QVR_CVAR(vr_agrunt_tug_snap, "2.5", CVAR_ARCHIVE)        // a yank this many times the break force tears it out at once, before that time (0: never)
+QVR_CVAR(vr_agrunt_tug_hurt_ease, "0.4", CVAR_ARCHIVE)   // how much its wounds weaken its grip (0: not at all; 1: in proportion to its health lost)
+QVR_CVAR(vr_agrunt_tug_won_stumble, "0.1", CVAR_ARCHIVE) // s it stumbles as its weapon is torn away before it stands (as an active ragdoll; then its AI)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
+// Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
+QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE)          // 1: an armed grunt or enforcer holding a weapon parries a melee blow (yours, a monster's) that meets its weapon first
+QVR_CVAR(vr_agrunt_parry_damage, "0.25", CVAR_ARCHIVE) // share of a parried blow's damage it still takes
+QVR_CVAR(vr_agrunt_parry_cost, "1", CVAR_ARCHIVE)     // stamina a parry spends (of vr_agrunt_parry_count)
+QVR_CVAR(vr_agrunt_parry_count, "2", CVAR_ARCHIVE)    // its stamina: the parry that spends it all knocks its weapon out of its hand (2: the second parry in a row)
+QVR_CVAR(vr_agrunt_parry_recover, "0.35", CVAR_ARCHIVE) // stamina it recovers a second
+QVR_CVAR(vr_agrunt_parry_react, "0.15", CVAR_ARCHIVE) // s from seeing a blow coming to raising its parry (normal skill; easy 1.4x, hard 0.85x, nightmare 0.7x)
+QVR_CVAR(vr_agrunt_parry_chance, "0.7", CVAR_ARCHIVE) // the chance it sees a blow coming in time (normal skill; easy 0.6x, hard 1.15x, nightmare 1.3x)
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
@@ -2815,6 +2837,10 @@ QVR_CVAR(vr_agrunt_shotdisarm_w_blast, "1", CVAR_ARCHIVE)      // a rocket's or 
 QVR_CVAR(vr_agrunt_shotdisarm_w_splash, "0", CVAR_ARCHIVE)     // an explosion's damage to the grunt (0: splash never counts)
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
+QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
+QVR_CVAR(vr_agrunt_fall_keep_height, "0.75", CVAR_ARCHIVE) // m: the floor under it now this far below the floor it stood on (a ledge): it lets go
+QVR_CVAR(vr_agrunt_fall_keep_speed, "4.5", CVAR_ARCHIVE)   // m/s: its body falling faster than this: it lets go
+QVR_CVAR(vr_agrunt_fall_keep_fling, "5", CVAR_ARCHIVE)     // m/s: its body moving faster than this any way but down (thrown, flung, blown away: a strong force): it lets go
 QVR_CVAR(vr_agrunt_seek_timeout, "6", CVAR_ARCHIVE) // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_CVAR(vr_agrunt_seek_shun, "20", CVAR_ARCHIVE) // s it leaves a weapon it gave up on before trying it again
 QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough
@@ -2861,10 +2887,12 @@ QVR_CVAR(vr_agrunt_w_justice, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_judge, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
 QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
+QVR_CVAR(vr_agrunt_friendly_care, "1", CVAR_ARCHIVE)   // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
+QVR_CVAR(vr_agrunt_friendly_giveup, "2.5", CVAR_ARCHIVE) // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
 QVR_CVAR(vr_agrunt_ik_drawn, "1", CVAR_NONE)           // 1: armed monsters' arms aimed by their hands as drawn (Model Animation's spline, swings, rebuild: the hands on their weapons every frame); 0: by the frames' lerp (before)
 QVR_CVAR(vr_agrunt_ik_misfit, "3", CVAR_NONE)          // armed monsters: where the rig's forearm misplaces its hand by more than this (units; a grunt's crouching pains), the weapon goes to the animation's hand (wholly at twice it); 0 off (before)
-QVR_CVAR(vr_agrunt_ik_hands,"4", CVAR_NONE)           // armed monsters' models: vertices within this of a forearm's end (units, its first frame) drawn wholly on that forearm (their hands follow their arms' IK onto their weapons); 0: the rig's fit (before; read when the model's rest data is made: a map load)
+QVR_CVAR(vr_agrunt_ik_hands,"4", CVAR_NONE)           // (vr_agarms 0 only) armed monsters' models: vertices within this of a forearm's end (units, its first frame) drawn wholly on that forearm (their hands follow their arms' IK onto their weapons); 0: the rig's fit (before; read when the model's rest data is made: a map load)
 QVR_CVAR(vr_agrunt_ik_reach,"0.96", CVAR_NONE)        // armed monsters' weapons (and their hands' targets) brought within this share of their arm's length from its shoulder as drawn (a bent body's, a swing's far end): the hand on its weapon; 0 off (before)
 QVR_CVAR(vr_agrunt_ik_tag, "-1", CVAR_NONE)          // 0..1023: the drawn hands' distances to their weapons counted under this tag (QC's sweeps set it: a frame, an attack's phase); vr_agrunt_ik_err prints them; -1 none
 QVR_CVAR(vr_agrunt_strike_torso, "1", CVAR_ARCHIVE)    // armed monsters' melee strikes (QC vr_armedgrunt_pose.qc VR_AGP_TorsoNow): the torso's twist and lean (wound back, driven through the blow, followed through) times this; 0: arms only (before)
@@ -2873,20 +2901,26 @@ QVR_CVAR(vr_agrunt_strike_hips, "0.3", CVAR_ARCHIVE)   // ... the share of the t
 QVR_CVAR(vr_agrunt_strike_head, "0.5", CVAR_ARCHIVE)   // ... the share of the torso's turn the head takes back (its eyes kept on its target; client)
 QVR_CVAR(vr_agrunt_strike_demo, "0", CVAR_NONE)        // debug: armed monsters with a melee weapon or fists and no enemy strike the air ahead every 2 s, standing (scene agrunt_strikes)
 QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; vr_agrunt_ik_info: now)
-QVR_CVAR(vr_agrunt_ik_rigid, "1", CVAR_NONE)          // 1: armed monsters' forearms and hands drawn as rigid pieces (their shape kept: no stretched hands), each hand turned at its wrist towards its weapon, the weapon drawn on the hand by its grip offset (vr_agrunt_grips), a ragdoll's on its hand's bone; 0: agdual2's way (before; read when the model's rest data is made: a map load)
+QVR_CVAR(vr_agrunt_ik_rigid, "1", CVAR_NONE)          // (vr_agarms 0 only) 1: armed monsters' forearms and hands drawn as rigid pieces (their shape kept: no stretched hands), each hand turned at its wrist towards its weapon, the weapon drawn on the hand by its grip offset (vr_agrunt_grips), a ragdoll's on its hand's bone; 0: agdual2's way (before; read when the model's rest data is made: a map load)
 QVR_CVAR(vr_agrunt_ik_wrist, "65", CVAR_NONE)         // armed monsters (vr_agrunt_ik_rigid): a hand's most bend at its wrist (degrees) towards its weapon's turn: past it the weapon turns with the hand
 QVR_CVAR(vr_agrunt_ik_twist, "80", CVAR_NONE)         // ... its most twist about its forearm (degrees)
 QVR_CVAR(vr_agrunt_ik_elbow, "150", CVAR_NONE)        // ... an elbow's most bend (degrees: 180 folded flat)
 QVR_CVAR(vr_agrunt_ik_second, "0.97", CVAR_NONE)      // ... the other hand takes a two-handed weapon's second grip only while its wrist reaches it within this share of its arm's length (and its wrist turns within vr_agrunt_ik_wrist plus 25 degrees); else it hangs free
 QVR_CVAR(vr_agrunt_grips, "", CVAR_ARCHIVE)           // armed monsters' grip offsets changed from the defaults (Armed Grunts > Grip Editor; vr_agrunt_grip_dump prints them as code): "kind weapon hand x y z pitch yaw roll;" each
 QVR_CVAR(vr_agrunt_grip_hand, "0", CVAR_NONE)         // the Grip Editor's hand: 0 the main hand's weapon, 1 the off hand's own weapon (dual), 2 the off hand on a two-handed weapon's second grip
-QVR_CVAR(vr_agrunt_grip_x, "0", CVAR_NONE)            // the Grip Editor's offset (the entry it edits: the nearest armed monster's weapon, vr_agrunt_grip_hand's hand): forward (units)
+QVR_CVAR(vr_agrunt_grip_scope, "0", CVAR_NONE)        // the Grip Editor's entry (vr_agarms): 0 every weapon of the nearest armed monster's kind (its hand's global grip), 1 its weapon's own on top
+QVR_CVAR(vr_agrunt_grip_x, "0", CVAR_NONE)           // the Grip Editor's offset (the entry it edits: the nearest armed monster's weapon, vr_agrunt_grip_hand's hand): forward (units)
 QVR_CVAR(vr_agrunt_grip_y, "0", CVAR_NONE)            // ... left (units)
 QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
 QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
 QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
 QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
-QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)            // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
+QVR_CVAR(vr_agarms, "1", CVAR_NONE)                  // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
+QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
+QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
+QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
+QVR_CVAR(vr_agarms_wrist, "80", CVAR_NONE)           // vr_agarms: ... and its wrist bends at most this much there (degrees); else it lets go and hangs free
+QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)
@@ -2914,8 +2948,15 @@ QVR_CVAR(vr_adgun_tank_burst_poisontime, "6", CVAR_ARCHIVE) // ... and for how m
 QVR_CVAR(vr_adgun_tank_field_time, "6", CVAR_ARCHIVE) // ... the field a burst leaves (flames on the ground, a poison cloud: QC VR_TankField_*): seconds at a full tank (40% near empty); 0 none
 QVR_CVAR(vr_adgun_tank_field_radius, "96", CVAR_ARCHIVE) // ... its reach at a full tank, units (40% near empty)
 QVR_CVAR(vr_adgun_tank_field_damage, "1", CVAR_ARCHIVE) // ... its damage times this: the cloud's poison a second (the burst's), the flames' own burning damage a second on the living (vr_burn_damage's) as well as setting them on fire
+QVR_CVAR(vr_adgun_tank_field_spread, "0.4", CVAR_ARCHIVE) // ... seconds it takes to spread from the tank out to its full reach (its look and its damage's reach together); 0 at once
+QVR_CVAR(vr_adgun_tank_field_flames, "1", CVAR_ARCHIVE) // ... the fire field's flames: how many tongues of fire rising off the ground, times this (the poison cloud's green wisps too); 0 none
+QVR_CVAR(vr_adgun_tank_field_models, "10", CVAR_ARCHIVE) // ... the fire field's 3D flames (id's large torch flame, progs/flame2.mdl) at a full tank (40% near empty): thrown out from the tank to random spots in it, fading out over its life; 0 none
+QVR_CVAR(vr_adgun_tank_field_smoke, "1", CVAR_ARCHIVE) // ... the fire field's dark smoke rising off it, times this; 0 none
+QVR_CVAR(vr_adgun_tank_field_cloud, "1", CVAR_ARCHIVE) // ... the poison field's cloud: how many puffs of green smoke over it, times this; 0 none
 QVR_CVAR(vr_adgun_tank_pickup_time, "0.25", CVAR_ARCHIVE) // ... a tank lying about flying to your back as you take its gun, seconds (vr_adtank.cpp); 0 at once
 QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
+QVR_CVAR(vr_adgun_hosecut, "1", CVAR_ARCHIVE) // ... a blade (a sword's, an axe's, a knife's, the chainsaw's) swung across the hose between a gun and its tank lying about cuts it: the gun spent, the tank a prop of its own (QC vr_ad_enemyguns.qc "Cutting the hose"); 0 never
+QVR_CVAR(vr_adgun_hosecut_speed, "3", CVAR_ARCHIVE) // ... the blade's least speed where it meets the hose, m/s (a cut, not a touch)
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next

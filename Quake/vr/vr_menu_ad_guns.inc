@@ -146,6 +146,14 @@
                   "that long and a little more."),
         slider("Tank Weight", "vr_adgun_tank_mass", 0.5f, 10.f, 0.5f, "%.1f kg")
             .help("A tank lying about's weight: how hard it drags its gun, and its gun it."),
+        toggle("Hose Cut", "vr_adgun_hosecut")
+            .help("Slash a blade (a sword, an axe, a knife, the chainsaw) across the hose between a gun and its tank "
+                  "lying about to cut it: the gun is spent (it never fires again), the tank a prop of its own you can "
+                  "force grab, carry and throw, and shoot to burst with the fuel it kept (a thrown bomb, a trap). Both "
+                  "keep a short stub of the hose. Fists and blunt weapons (clubs, the hammer, the mace) don't cut it. "
+                  "Off: hoses can't be cut."),
+        slider("Hose Cut Speed", "vr_adgun_hosecut_speed", 0.5f, 8.f, 0.25f, "%.2f m/s")
+            .help("How fast the blade must move where it meets the hose to cut it (a slash, not a touch)."),
         slider("Tank Health", "vr_adgun_tank_health", 0.f, 200.f, 5.f, "%.0f")
             .help("How much a tank lying about takes (shots, blasts, blows, flames) before it bursts. With fuel in its "
                   "gun it explodes, as big as the fuel left: the flamethrower's sets everything near on fire, the poison "
@@ -164,14 +172,29 @@
         slider("Tank Burst Poison Time", "vr_adgun_tank_burst_poisontime", 0.f, 20.f, 0.5f, "%.1f s")
             .help("How long that poison lasts at a full tank (near empty, 40% of it)."),
         slider("Burst Field Time", "vr_adgun_tank_field_time", 0.f, 15.f, 0.5f, "%.1f s")
-            .help("How long a full tank's burst leaves its field behind (near empty, 40% of it): flames on the ground "
-                  "that set on fire whatever walks in (you, monsters, bodies, crates), or a green cloud that poisons it. It "
-                  "fades out, sound and all, over its second half. 0: no field."),
+            .help("How long a full tank's burst leaves its field behind (near empty, 40% of it): a fire field, flames on "
+                  "the ground that set on fire whatever walks in (you, monsters, bodies, crates), or a poison cloud that "
+                  "poisons it. It fades out, sound and all, over its second half. 0: no field."),
         slider("Burst Field Reach", "vr_adgun_tank_field_radius", 16.f, 300.f, 8.f, "%.0f")
-            .help("How far a full tank's field reaches from where it burst (units; near empty, 40% of it)."),
+            .help("How far a full tank's fire field or poison cloud reaches from where it burst (units; near empty, 40% "
+                  "of it)."),
         slider("Burst Field Damage", "vr_adgun_tank_field_damage", 0.f, 4.f, 0.1f, "%.1fx")
-            .help("The field's damage: the cloud's poison a second (the burst's own at 1), the flames' burning damage a "
-                  "second while you stand in them (a fire's own at 1), on top of the burning they set."),
+            .help("A tank's field's damage: the poison cloud's poison a second (the burst's own at 1), the fire field's "
+                  "burning damage a second while you stand in it (a fire's own at 1), on top of the burning it sets."),
+        slider("Burst Field Spread", "vr_adgun_tank_field_spread", 0.f, 1.5f, 0.05f, "%.2f s")
+            .help("How long a tank's fire field or poison cloud takes to spread from the tank out to its full reach: its "
+                  "flames, 3D flames and cloud, and the reach of its damage, grow together. 0: all of it at once."),
+        slider("Fire Field Flames", "vr_adgun_tank_field_flames", 0.f, 3.f, 0.1f, "%.1fx")
+            .help("How many tongues of fire rise off the ground of a tank's fire field (and green wisps in a poison "
+                  "cloud). 0: none."),
+        slider("Fire Field 3D Flames", "vr_adgun_tank_field_models", 0.f, 30.f, 1.f, "%.0f")
+            .help("How many big 3D flames (a torch's) a full tank's fire field throws out from the tank to random spots "
+                  "in it, each fading out after a while (near empty, 40% of them). 0: none."),
+        slider("Fire Field Smoke", "vr_adgun_tank_field_smoke", 0.f, 3.f, 0.1f, "%.1fx")
+            .help("How much dark smoke rises off a tank's fire field. 0: none."),
+        slider("Poison Cloud Amount", "vr_adgun_tank_field_cloud", 0.f, 3.f, 0.1f, "%.1fx")
+            .help("How thick a poison sprayer tank's poison cloud is: how many puffs of green smoke billow over its "
+                  "field. 0: none (its poison still works)."),
         slider("Tank Pickup Flight", "vr_adgun_tank_pickup_time", 0.f, 1.f, 0.05f, "%.2f s")
             .help("Taking a flamethrower or sprayer that lies with its tank: the tank flies to your back over this long, "
                   "its hose following. 0: on your back at once."),

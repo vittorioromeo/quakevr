@@ -224,6 +224,11 @@ za::Vector<Item> pageDebugAutomation()
                   "hands shot 100 times a case (shotguns at 2, 5 and 15 m, a nail burst, single far shots, lightning, "
                   "hand only, weapon only, the volumes' size, absorbing, dual wielding): each case's disarm rate printed "
                   "(agshot: ...) and the defaults' targets checked (PASS/FAIL). scratch1: trials a case."),
+        command("Armed Grunts: They Parry Your Blows", "vr_agrunt_test 60")
+            .help("vr_agrunt_test 60 (vrtesthall; a few seconds): a sword grunt facing you takes blows swept through "
+                  "its weapon (parried: damage cut, the ring), its head and its legs (full damage), a second parry in a "
+                  "row (disarmed), a blow from behind (not parried), and an ogre's chainsaw on its weapon (parried) "
+                  "(agparry: ... PASS/FAIL)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")
@@ -236,6 +241,29 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 26 (vrtesthall's start): weapons in the pool and in the air left alone, one on the "
                   "floor taken. 21-24: the tug-of-war, the grab at once, blows and parries (21-23 want your empty main "
                   "hand held closed); 27: giving a weapon up."),
+        command("Armed Grunts: Arms' Contact Sheet", "scratch2 0; scratch3 13; vr_agrunt_test 45")
+            .help("vr_agrunt_test 45 (vrtesthall): an armed monster ahead, its AI held, through every weapon kind (fists, "
+                  "sword, axe, guns, two shotguns, two axes, the chainsaw) and pose (idle, aiming ahead, up, down, left, "
+                  "right, running, taking a weapon up, a pain, a blow), seen from its front and its right, 0.7 s each; "
+                  "the arms' numbers per pose at the end (agt lines: vr_agrunt_ik_err). scratch2..scratch3 the weapon "
+                  "kinds (0..13), scratch4 how far (110)."),
+        toggle("Armed Grunts: Posed Arms", vr_agarms)
+            .help("On: their arms posed by their weapons, held as you hold them, IK and skinned arms (vr_agarms). Off: "
+                  "the animation's arms bent onto the weapons (before). Takes effect at the next map."),
+        command("Armed Grunts: Arms' Numbers", "vr_agrunt_ik_err")
+            .help("Prints the arms' numbers counted since the last time (vr_agrunt_ik_err): joints' gaps, the hands' shape, "
+                  "edges' stretch, the arms in the torso, the hands short of their weapons, the wrists' bend; and how far "
+                  "held weapons were drawn from their holders (agprop)."),
+        command("Armed Grunts: Melee Pickups", "vr_agrunt_test 61")
+            .help("vr_agrunt_test 61 (vrtesthall, you unseen): each melee weapon taken up from the floor by a grunt and "
+                  "an enforcer (lying, after its disarm, thrown by you, after a knockdown): the weapon in its hand has "
+                  "its model and is drawn there. scratch1 N: case N alone, left standing to look at."),
+        command("Armed Grunts: Walk Into Their Blows", "vr_agrunt_test 62")
+            .help("vr_agrunt_test 62: each weapon's armed grunt hunting you while you are pushed into it for 10 s: no "
+                  "drop (your idle hands, your body, a blow's push never knock its weapon out)."),
+        command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
+            .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
+                  "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),
         toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
             .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
                   "vr_agrunt_ik)."),

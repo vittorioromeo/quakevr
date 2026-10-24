@@ -1037,6 +1037,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         cycle("Hand", vr_agrunt_grip_hand, {{0.f, "Main Hand"}, {1.f, "Off Hand (Dual)"}, {2.f, "Off Hand on the Second Grip"}})
             .help("Main Hand: the weapon in its right hand. Off Hand (Dual): its left hand's own weapon. Second Grip: its "
                   "left hand on a two-handed weapon's second grip (where its hand goes, along the weapon's axes)."),
+        cycle("Edits", vr_agrunt_grip_scope, {{0.f, "Every Weapon (This Kind)"}, {1.f, "This Weapon Only"}})
+            .help("Every Weapon: the hand's grip for every weapon this kind of monster holds (grunts, enforcers: each "
+                  "its own), as you hold them; tune this first. This Weapon Only: one weapon's own nudge on top of it. "
+                  "(vr_agrunt_grip_scope; with Posed Arms on, vr_agarms)"),
         header("The Weapon in the Hand"),
         pos("Forward", vr_agrunt_grip_x, "Moves the weapon forward (back: negative) in the hand: units, along the hand's "
                                           "grip (the way its own gun pointed). Second Grip: the hand along the weapon."),
@@ -1130,8 +1134,29 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A pull this hard on its weapon tears it out of its hand at once (the physical tug; less as it is "
                   "hurt) (vr_agrunt_tug_break_force)."),
         slider("Tug: Break Impulse", vr_agrunt_tug_break_impulse, 10.f, 1000.f, 10.f, "%.0f N s").extend(0.f, 10000.f)
-            .help("Pulling over time: the pull's force times its time (above a tenth of the break force) that tears it "
+            .help("Pulling over time: the pull's force times its time (counted above Tug: Least Pull) that tears it "
                   "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse)."),
+        slider("Tug: Least Pull", vr_agrunt_tug_pull_force, 0.f, 1000.f, 10.f, "%.0f N").extend(0.f, 10000.f)
+            .help("Only a pull at least this hard counts in the physical tug: its grip gives only while you pull this "
+                  "hard, and gets its hold back as you let up (vr_agrunt_tug_pull_force)."),
+        slider("Tug: Least Pull Time", vr_agrunt_tug_pull_time, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("You must keep pulling at least Tug: Least Pull this long before its weapon can come out: a "
+                  "tug-of-war, not a sharp yank. 0: the break force tears it out at once (vr_agrunt_tug_pull_time)."),
+        slider("Tug: Yank Tears It Out At", vr_agrunt_tug_snap, 0.f, 10.f, 0.1f, "%.1fx").extend(0.f, 100.f)
+            .help("A yank this many times the break force tears the weapon out at once, before the least pull time. "
+                  "0: never (vr_agrunt_tug_snap)."),
+        slider("Tug: Wounds Weaken Its Grip", vr_agrunt_tug_hurt_ease, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("How much its wounds weaken its grip in the physical tug: 0 not at all, 1 in proportion to the "
+                  "health it lost (vr_agrunt_tug_hurt_ease)."),
+        slider("Tug: Stumble When Disarmed", vr_agrunt_tug_won_stumble, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("How long it stumbles as you tear its weapon away, before it stands and fights on unarmed (a shove "
+                  "or a leg sweep then still floors it) (vr_agrunt_tug_won_stumble)."),
+        slider("Grab: Precision", vr_agrunt_grab_slack, -2.f, 10.f, 0.5f, "%.1f cm").extend(-10.f, 50.f)
+            .help("How far off its weapon's surface your fist may be and still grab it (0: touching it). Never by "
+                  "its arm or chest (vr_agrunt_grab_slack)."),
+        slider("Grab: Fastest Hand", vr_agrunt_grab_speed, 0.f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon. 0: any speed "
+                  "(vr_agrunt_grab_speed)."),
         slider("Tug: Its Pull", vr_agrunt_tug_strength, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 3.f)
             .help("How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength)."),
         slider("Tug: Longest", vr_agrunt_tug_hold_max, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
@@ -1152,9 +1177,44 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Parry Disarm Chance", vr_agrunt_parry_disarm, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("The chance your weapon's parry of its melee blow knocks its weapon out of its hand; a well-timed "
                   "parry's 1.5 times (vr_agrunt_parry_disarm)."),
+        header("Parrying Your Blows (Experimental)"),
+        toggle("They Parry", vr_agrunt_parry)
+            .help("One holding a weapon defends against a melee blow as you do: seeing it coming it raises and angles its "
+                  "weapon into the blow's way, and a blow that meets its weapon before its body is parried (the ring, "
+                  "sparks, your hand knocked back). A blow to its head, legs or a side its weapon doesn't cover lands in "
+                  "full. Never from behind, unaware of you, staggered or in pain. Monsters' blows on it too "
+                  "(vr_agrunt_parry)."),
+        slider("Parry: Damage Kept", vr_agrunt_parry_damage, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a parried blow's damage it still takes (vr_agrunt_parry_damage)."),
+        slider("Parry: Parries Before Disarm", vr_agrunt_parry_count, 1.f, 6.f, 0.5f, "%.1f").extend(0.1f, 50.f)
+            .help("Its parry stamina: the parry that spends it all knocks its weapon out of its hand. 2: the second "
+                  "parry in a row (vr_agrunt_parry_count)."),
+        slider("Parry: Stamina Per Parry", vr_agrunt_parry_cost, 0.f, 3.f, 0.25f, "%.2f").extend(0.f, 50.f)
+            .help("What each parry spends of it (vr_agrunt_parry_cost)."),
+        slider("Parry: Recovery", vr_agrunt_parry_recover, 0.f, 2.f, 0.05f, "%.2f /s").extend(0.f, 20.f)
+            .help("The stamina it gets back a second: at 0.35 a parry's worth in about 3 s (vr_agrunt_parry_recover)."),
+        slider("Parry: Reaction Time", vr_agrunt_parry_react, 0.f, 1.f, 0.01f, "%.2f s").extend(0.f, 5.f)
+            .help("From seeing a blow coming to its weapon raised into its way, at Normal skill (Easy 1.4x, Hard 0.85x, "
+                  "Nightmare 0.7x): a quick swing gets through (vr_agrunt_parry_react)."),
+        slider("Parry: Chance", vr_agrunt_parry_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it sees a blow coming in time, at Normal skill (Easy 0.6x, Hard 1.15x, Nightmare 1.3x); "
+                  "caught out, its weapon stays where it was: a blow still meeting it there is parried "
+                  "(vr_agrunt_parry_chance)."),
         toggle("Drops It When Floored", vr_agrunt_fall_drop)
             .help("Knocked down onto the floor (not just staggered by a shove) it drops its weapon beside it, and "
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
+        toggle("Keeps It in a Gentle Fall", vr_agrunt_fall_keep)
+            .help("A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
+                  "there a grab takes it at once and a blow knocks it away. A violent one (below) drops it "
+                  "(vr_agrunt_fall_keep)."),
+        slider("Fall: Drops It Below", vr_agrunt_fall_keep_height, 0.f, 5.f, 0.05f, "%.2f m").extend(0.f, 50.f)
+            .help("Falling to a floor this far below the one it stood on (off a ledge) it lets go "
+                  "(vr_agrunt_fall_keep_height)."),
+        slider("Fall: Drops It Falling Faster", vr_agrunt_fall_keep_speed, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("Its body falling faster than this, it lets go (vr_agrunt_fall_keep_speed)."),
+        slider("Fall: Drops It Flung Faster", vr_agrunt_fall_keep_fling, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("A strong force: its body moving faster than this any way but down (thrown, held and flung, blown "
+                  "away), it lets go (vr_agrunt_fall_keep_fling)."),
         toggle("Picks Weapons Up", vr_agrunt_rearm)
             .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
                   "not nearer to it than it is (vr_agrunt_rearm)."),
@@ -1222,6 +1282,13 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
                   "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
                   "steps aside first, and keeps away from its mines (vr_agrunt_blast_safe)."),
+        slider("Careful of Friends", vr_agrunt_friendly_care, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How careful it is not to shoot or strike its friends: with another monster in its line of fire (a "
+                  "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: "
+                  "always, 0: never, it fires through them as before (vr_agrunt_friendly_care)."),
+        slider("Gives Up After", vr_agrunt_friendly_giveup, 0.f, 10.f, 0.5f, "%.1f s")
+            .help("Held so long for friends in the way, it fires anyway (a friend stepping in mid-burst can still be "
+                  "hit). 0: it never does (vr_agrunt_friendly_giveup)."),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "

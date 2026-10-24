@@ -499,8 +499,11 @@ vr_armedgrunt.qc
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
+vr_armedgrunt_parry.qc
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
 vr_armedgrunt_play_test.qc
 vr_armedgrunt_shot_test.qc
+vr_armedgrunt_parry_test.qc
+vr_armedgrunt_bugs_test.qc

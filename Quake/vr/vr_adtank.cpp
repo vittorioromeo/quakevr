@@ -78,6 +78,7 @@ struct Hose
     glm::vec3 lastOutlet{0.f}, lastInlet{0.f};
     int still{0};
     int seen{-1};
+    bool lying{false}; // a world hose between a gun and its tank lying about (a blade cuts it: crossHose)
     coil::Cord cord;
     // The draw's (built once a frame, uploaded once, drawn in both eyes; the mirror image's too).
     gfx::TubeBatch hoseRings, hoseMirror;
@@ -86,6 +87,12 @@ struct Hose
 };
 Hose carried[carriedCount];
 Hose worldHoses[worldHoseMax];
+// The hose cut's stubs (setupStubs): a cut gun's and tank's short free end of the hose.
+constexpr int stubNodes = 6;
+constexpr int stubMax = 8;
+constexpr float stubLength = 0.15f; // metres (some 3-4 of the world hose's links)
+Hose stubs[stubMax];
+int stubsDrawn = 0; // (vr_adgun_hose_info)
 
 // The one tank on the back (Vittorio, 2026-10-23: several fuelled guns carried, in the hands or the holsters, share
 // one, the last held one's; every gun's hose runs to it), while any is carried.
@@ -454,6 +461,7 @@ void hide(Hose& h)
     h.p.clear();
     h.prev.clear();
     h.gun = h.tank = 0;
+    h.lying = false;
 }
 
 // The tank's rings: an upright bottle (an outlet's neck under it, domes, a valve on top), its band in the hazard colour
@@ -567,6 +575,23 @@ void info_f()
         vr_adgun_hose.value, vr_adgun_hose_route.value != 0.f ? "shoulder" : "hip", vr_adgun_tank_x.value, vr_adgun_tank_y.value,
         vr_adgun_tank_z.value, setupCost * 1000.0, setupHoses, buildCost * 1000.0, units::metresToUnits());
     Con_Printf("adgun pilot light: %d and %d particles made (main, off hand)\n", pilots[HAND_MAIN].made, pilots[1 - HAND_MAIN].made);
+    int lyingHoses = 0;
+    for(const Hose& h : worldHoses)
+    {
+        lyingHoses += h.live && h.lying ? 1 : 0;
+    }
+    Con_Printf("adgun hose cut: on %g, least speed %g m/s, %d lying hoses to cut, %d stubs drawn\n", vr_adgun_hosecut.value,
+        vr_adgun_hosecut_speed.value, lyingHoses, stubsDrawn);
+    for(const Hose& h : stubs)
+    {
+        if(h.live && h.p.size() > 0)
+        {
+            Con_Printf("adgun hose stub: entity %d, variant %d, from %.1f %.1f %.1f, its free end %.1f %.1f %.1f (%.1f units "
+                       "below its start), %s\n",
+                h.gun, h.variant, h.p[0].x, h.p[0].y, h.p[0].z, h.p.back().x, h.p.back().y, h.p.back().z, h.p[0].z - h.p.back().z,
+                h.cord.visible() ? "drawn" : "hidden");
+        }
+    }
     const float u2cm = 100.f / units::metresToUnits();
     Con_Printf("adgun hose arms: %s, %d arm capsules\n", vr_adgun_hose_arms.value != 0.f ? "kept out" : "not collided", armCapCount);
     for(int i = 0; i < 2; i++)
@@ -1051,6 +1076,7 @@ void setupWorld(const hands::State& s)
             continue;
         }
         h->seen = frame;
+        h->lying = !pairs[k].flail && pairs[k].wearer <= 0;
         if(pairs[k].flail)
         {
             stepFlail(*h, pairs[k].gun, pairs[k].tank, pairs[k].rope, g, t);
@@ -1122,7 +1148,10 @@ void drawHose(Hose& h, bool cloned, const glm::mat4& mirror)
     }
 }
 
+[[nodiscard]] bool hoseCutEdict(int num);
+
 // The tanks drawn this frame near the eyes (lying about, on an armed monster's back) remembered: where, which way up.
+// (Not one cut free of its gun: no gun taken flies it to the back.)
 void updateSeen(const glm::vec3& eye)
 {
     const float m2u = units::metresToUnits();
@@ -1138,7 +1167,7 @@ void updateSeen(const glm::vec3& eye)
         const int variant = adguns::tankVariantOf(e.model->name);
         view::ViewEntity ve;
         if(variant < 0 || !drawnEntity(n, ve) ||
-            glm::distance(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2]}) > 6.f * m2u)
+            glm::distance(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2]}) > 6.f * m2u || hoseCutEdict(n))
         {
             continue;
         }
@@ -1220,7 +1249,220 @@ bool flyNow(const glm::vec3& target, glm::vec3& at, glm::vec3& axis)
     return true;
 }
 
+// The hose cut's stubs (Vittorio, 2026-10-24; QC vr_ad_enemyguns.qc "Cutting the hose"): a gun lying about whose hose a
+// blade cut and the tank cut free of it (.vr_hosecut, the time of the cut) each keep a short free end of the hose, at the
+// gun's inlet and the tank's outlet, swinging with it (Verlet, as the world hoses: falling, lying on the world). The
+// nearest stubMax within worldReach of the eyes (stubs, above).
+
+// Whether server edict `num` is a cut piece (its stub drawn; a cut tank is no gun's tank: the pickup's flight skips it).
+[[nodiscard]] bool hoseCutEdict(int num)
+{
+    const int cut = progs::fields().vr_hosecut;
+    if(!sv.active || cut < 0 || num <= svs.maxclients || num >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    edict_t* e = EDICT_NUM(num);
+    const bool isCut = !e->free && progs::fieldFloat(e, cut) > 0.f;
+    PR_PopQCVM(old);
+    return isCut;
+}
+
+// Stub `h` of entity `num` (hose `variant`'s colour) from `end`, leaving it along `dir`.
+void stepStub(Hose& h, int num, int variant, const glm::vec3& end, const glm::vec3& dir)
+{
+    const float m2u = units::metresToUnits();
+    const float rest = stubLength * m2u / static_cast<float>(stubNodes - 1);
+    const glm::vec3 way = glm::normalize(dir + glm::vec3{1e-6f});
+    const bool fresh = !h.live || h.gun != num || h.p.size() != static_cast<za::SizeT>(stubNodes) ||
+                       glm::distance(end, h.lastOutlet) > 2.f * m2u;
+    if(fresh)
+    {
+        // (laid out the way it leaves the body; then it falls)
+        h.p.clear();
+        h.prev.clear();
+        for(int k = 0; k < stubNodes; k++)
+        {
+            const glm::vec3 q = end + way * (rest * static_cast<float>(k));
+            h.p.pushBack(q);
+            h.prev.pushBack(q);
+        }
+        h.touching.clear();
+        h.touching.resize(static_cast<za::SizeT>(stubNodes), static_cast<char>(0));
+        h.lastDt = 0.f;
+        h.time = vr_gametime;
+        h.still = 0;
+    }
+    const bool moved = fresh || glm::distance(end, h.lastOutlet) > 0.05f || glm::distance(way, h.lastInlet) > 0.01f;
+    h.still = moved ? 0 : h.still + 1;
+    h.live = true;
+    h.lying = false;
+    h.variant = variant;
+    h.gun = num;
+    h.tank = 0;
+    h.length = stubLength * m2u;
+    h.lastOutlet = end;
+    h.lastInlet = way; // (a stub's: the way its end leaves the body)
+    const float dt = fresh ? 1.f / 90.f : static_cast<float>(za::clamp(vr_gametime - h.time, 1.0 / 500.0, 1.0 / 20.0));
+    if((!fresh && vr_gametime == h.time) || h.still > 90)
+    {
+        return; // (paused, or lying still: as it lies)
+    }
+    za::Vector<char>& pinned = scratch.pinned;
+    pinned.clear();
+    pinned.resize(static_cast<za::SizeT>(stubNodes), static_cast<char>(0));
+    pinned[0] = pinned[1] = 1;
+    h.p[0] = end;
+    h.p[1] = end + way * rest;
+    h.from.clear();
+    for(const glm::vec3& q : h.p)
+    {
+        h.from.pushBack(q);
+    }
+    verlet::fall(h.p.data(), h.prev.data(), pinned.data(), static_cast<za::SizeT>(stubNodes), dt, h.lastDt, 2.5f, 9.81f * m2u);
+    za::Vector<float>& rests = scratch.rests;
+    rests.clear();
+    rests.resize(static_cast<za::SizeT>(stubNodes - 1), rest);
+    verlet::holdLengths(h.p.data(), pinned.data(), static_cast<za::SizeT>(stubNodes), rests.data(), 20, 1.f);
+    verlet::collide(h.p.data(), h.prev.data(), h.from.data(), pinned.data(), static_cast<za::SizeT>(stubNodes), hoseRadius * m2u,
+        0.2f, nullptr, h.touching.data());
+    h.lastDt = dt;
+    h.time = vr_gametime;
+    coil::Style style;
+    style.turns = 0;
+    style.wireRadius = hoseRadius;
+    style.albedo = hoseColour(variant);
+    h.cord.shape(h.p.data(), h.p.size(), style);
+}
+
+// The cut pieces near the eyes found on the server (a listen server's) and their stubs stepped.
+void setupStubs(const glm::vec3& eye)
+{
+    stubsDrawn = 0;
+    const int cut = progs::fields().vr_hosecut;
+    int nums[stubMax];
+    float dists[stubMax];
+    int count = 0;
+    if(sv.active && cl.worldmodel && cut >= 0)
+    {
+        qcvm_t* old = nullptr;
+        PR_PushQCVM(&sv.qcvm, &old);
+        for(int n = svs.maxclients + 1; n < qcvm->num_edicts && n < cl.num_entities; n++)
+        {
+            edict_t* e = EDICT_NUM(n);
+            if(e->free || !e->v.modelindex || progs::fieldFloat(e, cut) <= 0.f)
+            {
+                continue;
+            }
+            const float d = glm::distance(eye, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
+            if(d > worldReach)
+            {
+                continue;
+            }
+            int at = count < stubMax ? count++ : -1;
+            if(at < 0)
+            {
+                int farthest = 0;
+                for(int k = 1; k < stubMax; k++)
+                {
+                    farthest = dists[k] > dists[farthest] ? k : farthest;
+                }
+                at = dists[farthest] > d ? farthest : -1;
+            }
+            if(at >= 0)
+            {
+                nums[at] = n;
+                dists[at] = d;
+            }
+        }
+        PR_PopQCVM(old);
+    }
+    const int frame = host_framecount;
+    for(int k = 0; k < count; k++)
+    {
+        view::ViewEntity ve;
+        if(!drawnEntity(nums[k], ve))
+        {
+            continue;
+        }
+        int variant = adguns::tankVariantOf(ve.ent.model->name);
+        glm::vec3 end, dir;
+        if(variant >= 0)
+        {
+            const glm::vec3 om = adguns::tankOutlet();
+            end = view::modelPoint(ve, om);
+            dir = view::modelPoint(ve, om - glm::vec3{0.f, 0.f, 1.f}) - end;
+        }
+        else
+        {
+            variant = adguns::variantOf(ve.ent.model->name);
+            glm::vec3 im, idm;
+            if(!fuelled(variant) || !adguns::hoseInlet(variant, im, idm))
+            {
+                continue;
+            }
+            end = view::modelPoint(ve, im);
+            dir = view::modelPoint(ve, im + idm) - end;
+        }
+        Hose* h = nullptr;
+        for(Hose& x : stubs)
+        {
+            h = !h && x.live && x.gun == nums[k] ? &x : h;
+        }
+        for(Hose& x : stubs)
+        {
+            h = !h && !x.live && x.seen != frame ? &x : h;
+        }
+        if(!h)
+        {
+            continue;
+        }
+        h->seen = frame;
+        stepStub(*h, nums[k], variant, end, dir);
+        stubsDrawn++;
+    }
+    for(Hose& h : stubs)
+    {
+        if(h.live && h.seen != frame)
+        {
+            hide(h);
+        }
+    }
+}
+
 } // namespace
+
+int crossHose(int tank, const glm::vec3& p0, const glm::vec3& p1, float radius, glm::vec3& at, float& share)
+{
+    float best = radius + hoseRadius * units::metresToUnits();
+    int found = -2;
+    for(const Hose& h : worldHoses)
+    {
+        if(!h.live || !h.lying || h.tank != tank || h.p.size() < 2)
+        {
+            continue;
+        }
+        found = found < 0 ? -1 : found;
+        const za::SizeT n = h.p.size();
+        for(za::SizeT k = 0; k + 1 < n; k++)
+        {
+            float s, t;
+            closestSegments(p0, p1, h.p[k], h.p[k + 1], s, t);
+            const glm::vec3 q = h.p[k] + (h.p[k + 1] - h.p[k]) * t;
+            const float d = glm::distance(p0 + (p1 - p0) * s, q);
+            if(d < best)
+            {
+                best = d;
+                found = 1;
+                at = q;
+                share = (static_cast<float>(k) + t) / static_cast<float>(n - 1);
+            }
+        }
+    }
+    return found;
+}
 
 void relinkWorn()
 {
@@ -1286,6 +1528,7 @@ void setupView(const hands::State& s)
     if(s.valid)
     {
         setupWorld(s);
+        setupStubs(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]));
         updateSeen(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]));
     }
     // What is carried: the hands' guns, the holsters'.
@@ -1405,6 +1648,10 @@ void drawOpaque()
         drawHose(h, cloned, mirror);
     }
     for(Hose& h : worldHoses)
+    {
+        drawHose(h, false, mirror);
+    }
+    for(Hose& h : stubs)
     {
         drawHose(h, false, mirror);
     }

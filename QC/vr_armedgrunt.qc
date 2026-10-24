@@ -463,6 +463,10 @@ void() VR_AG_PropThink =
         {
             sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM); // (its engine's loop)
         }
+        if(VR_AG_Stream(self.weapon) && (g.vr_ag_prop == self || !g.vr_ag_prop))
+        {
+            VR_ADGun_MonsterStreamEnd(g, self.weapon, TRUE); // (its wielder dead or gone while firing: its loop)
+        }
         self.weaponinst = world; // (its record goes with a drop, if any: never freed here)
         remove(self);
         return;
@@ -483,7 +487,12 @@ void() VR_AG_PropThink =
     {
         return;
     }
+    VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
     VR_AG_PlaceProp(g, self);
+    if(g.vr_adgun_stream && time - g.vr_adgun_stream > 0.4)
+    {
+        VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
+    }
     VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
     self.nextthink = time;
 };
@@ -645,6 +654,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
         VR_AG_TugEnd(g, FALSE, "disarmed otherwise");
     }
     g.vr_ag_took_at = 0;
+    VR_ADGun_MonsterStreamEnd(g, p.weapon, TRUE); // (its flamethrower's loop: never on after it)
     entity inst = p.weaponinst;
     if(p.weapon == WID_CHAINSAW)
     {
@@ -722,6 +732,24 @@ void() VR_AG_PropHandTouch =
     }
     if(!VRIsHandEmpty(pl, h) || !VR_HandGrabUtil_StartedHandGrabbing(pl, h))
     {
+        return;
+    }
+    // (A deliberate grab: the fist on the weapon itself (the engine's handOn), and not a punch or a swipe through it.)
+    float most = cvar_hget(cvarh_vr_agrunt_grab_speed);
+    float sp = vlen(VRGetEntHandVel(pl, h) - pl.velocity) / VRMetersToUnits();
+    if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+    {
+        VR_AG_Log(sprintf("a hand (%g) takes hold of its weapon at %.2f m/s, %.1f units from its grip", h, sp,
+            vlen(VRGetEntHandPos(pl, h) - self.origin)));
+    }
+    if(most > 0 && sp > most)
+    {
+        vr_ag_grab_fast = vr_ag_grab_fast + 1;
+        if(cvar_hget(cvarh_vr_agrunt_debug))
+        {
+            VR_AG_Log(sprintf("a hand (%g) through its weapon at %.1f m/s: too fast to take hold (vr_agrunt_grab_speed %g)", h,
+                sp, most));
+        }
         return;
     }
     entity g = self.owner;
@@ -808,6 +836,118 @@ void(entity p, vector dir) VR_AG_SetHand =
     self.weaponflags = p.weaponflags;
     self.weaponinst = p.weaponinst;
     makevectors(self.handrot);
+};
+
+// ----------------------------------------------------------------------------
+// Its friends not shot (vr_agrunt_friendly_care): a friend in its line of fire, it holds and sidesteps
+// ----------------------------------------------------------------------------
+
+.float vr_ag_ff_until;    // stepping aside (a friend in its line of fire) until then (VR_AG_Run)
+.float vr_ag_ff_since;    // held for friends since then (0: its line clear): vr_agrunt_friendly_giveup
+.float vr_ag_ff_last;     // ... the last time it held
+float vr_ag_ff_held;      // armed humanoids' shots and blows held for friends (the tests)
+float vr_ag_ff_hits;      // ... their hits on other monsters (VR_AG_DamageScale: the tests)
+float vr_ag_ff_dmg;       // ... those hits' damage
+
+// The half-angle (degrees) of the lines it checks about its line of fire: a shotgun's spread, a burst's error, a swing's
+// arc.
+float(float wid) VR_AG_FriendSpread =
+{
+    if(wid == WID_SUPER_SHOTGUN) { return 6; }
+    if(wid == WID_SHOTGUN) { return 3.5; }
+    if(VR_AG_Class(wid) == VR_AG_CLASS_MELEE || VR_AG_Class(wid) == VR_AG_CLASS_FISTS) { return 15; }
+    return 2;
+};
+
+// A friend in its line of fire: a living monster (not its enemy, not fighting it) that the line from `from` to its
+// enemy meets first, or one of four more lines `deg` degrees about it (left, right, up, down). world: clear.
+entity(vector from, float deg) VR_AG_FriendInLine =
+{
+    entity targ = self.enemy;
+    vector to = VR_AI_Origin(targ) + targ.view_ofs * 0.5; // (its chest)
+    float dist = vlen(to - from);
+    if(dist < 1)
+    {
+        return world;
+    }
+    // (A friend against it, its muzzle at or in it: the line from its own middle out to the muzzle first.)
+    traceline(self.origin + '0 0 8', from, FALSE, self);
+    if(trace_ent && trace_ent != targ && (trace_ent.flags & FL_MONSTER) && trace_ent.health > 0 && trace_ent.enemy != self)
+    {
+        return trace_ent;
+    }
+    vector dir = (to - from) * (1 / dist);
+    vector side;
+    side_x = dir_y;
+    side_y = -dir_x;
+    side_z = 0;
+    side = vlen(side) > 0.01 ? normalize(side) : '1 0 0';
+    float i;
+    for(i = 0; i < (deg > 0 ? 5 : 1); i++)
+    {
+        vector r = dir;
+        if(i == 1) { r = VR_AG_Rotate(dir, '0 0 1', deg); }
+        else if(i == 2) { r = VR_AG_Rotate(dir, '0 0 1', -deg); }
+        else if(i == 3) { r = VR_AG_Rotate(dir, side, deg); }
+        else if(i == 4) { r = VR_AG_Rotate(dir, side, -deg); }
+        traceline(from, from + r * dist, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
+        entity e = trace_ent;
+        if(e && e != targ && e != self && (e.flags & FL_MONSTER) && e.health > 0 && e.enemy != self)
+        {
+            return e;
+        }
+    }
+    return world;
+};
+
+// Before it fires (each shot) or swings, from `from`: TRUE when it holds for a friend in its line of fire (by
+// vr_agrunt_friendly_care's chance) and steps aside, away from it, for a clear line (VR_AG_Run); held so for
+// vr_agrunt_friendly_giveup, it fires anyway (once, then it is careful again).
+float(vector from, float deg) VR_AG_FriendHold =
+{
+    float care = cvar_hget(cvarh_vr_agrunt_friendly_care);
+    if(care <= 0 || !self.enemy)
+    {
+        return FALSE;
+    }
+    entity f = VR_AG_FriendInLine(from, deg);
+    if(!f)
+    {
+        self.vr_ag_ff_since = 0;
+        return FALSE;
+    }
+    if(self.vr_ag_ff_since <= 0 || time - self.vr_ag_ff_last > 1.5)
+    {
+        self.vr_ag_ff_since = time;
+    }
+    self.vr_ag_ff_last = time;
+    float giveup = cvar_hget(cvarh_vr_agrunt_friendly_giveup);
+    if(giveup > 0 && time - self.vr_ag_ff_since >= giveup)
+    {
+        VR_AG_Log(sprintf("its %s in the way %.1f s: fires anyway", f.classname, time - self.vr_ag_ff_since));
+        self.vr_ag_ff_since = time;
+        return FALSE;
+    }
+    if(random() >= care)
+    {
+        return FALSE;
+    }
+    vr_ag_ff_held = vr_ag_ff_held + 1;
+    // Its step: away from the friend's side of its line (on the line itself: either way).
+    vector toEnemy = self.enemy.origin - self.origin;
+    makevectors([0, vectoyaw(toEnemy), 0]);
+    float off = (f.origin - self.origin) * v_right;
+    if(fabs(off) > 4)
+    {
+        self.lefty = off > 0; // (lefty: VR_AG_Run's step to its left)
+    }
+    if(time >= self.vr_ag_ff_until)
+    {
+        VR_AG_Log(sprintf("holds: its %s in the way, %.0f off its line; stepping %s", f.classname, off,
+            self.lefty ? "left" : "right"));
+    }
+    self.vr_ag_ff_until = time + 0.4 + random() * 0.4;
+    return TRUE;
 };
 
 // ----------------------------------------------------------------------------
@@ -957,6 +1097,11 @@ void(entity p) VR_AG_ShootProp =
         self.lefty = !self.lefty;
         self.weaponinst = world;
         VR_AG_Log(sprintf("%s held back: it would burst %.0f from it", p.netname, vlen(vr_ag_blast_at - self.origin)));
+        return;
+    }
+    if(VR_AG_FriendHold(self.muzzlepos, VR_AG_FriendSpread(wid))) // (its muzzle: VR_AG_SetHand)
+    {
+        self.weaponinst = world; // (a friend stepped into its line: this shot held, a step aside)
         return;
     }
     makevectors(self.handrot); // (VR_AG_BlastSafe's arc used the globals)
@@ -1141,13 +1286,7 @@ void() VR_AG_AfterAttack =
 {
     self.vr_ag_aim = '0 0 0';
     entity p = self.vr_ag_prop;
-    if(self.vr_adgun_stream)
-    {
-        // A flamethrower's stream ends with its sound (the player's: VR_ADGun_Frame).
-        self.vr_adgun_stream = 0;
-        sound(self, CHAN_WEAPON, self.vr_ag_wid == WID_ADFUMIGATOR ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav",
-            1, ATTN_NORM);
-    }
+    VR_ADGun_MonsterStreamEnd(self, self.vr_ag_wid, FALSE); // (a flamethrower's stream ends with its sound: the player's VR_ADGun_Frame)
     float reload = FALSE;
     entity q = self.vr_ag_prop2;
     if(VR_AG_Spent(q))
@@ -1274,7 +1413,7 @@ void() VR_AG_ReloadFrame =
 {
     self.nextthink = time + max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time)) / 11;
 };
-void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); VR_AG_Log("reloading"); };
+void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); self.vr_agp_rl_at = time; VR_AG_Log("reloading"); };
 void() vr_ag_reload2 = { VR_AM_Anim(VR_AM_A_RELOAD, 1, vr_ag_reload3); VR_AG_ReloadFrame(); };
 void() vr_ag_reload3 = { VR_AM_Anim(VR_AM_A_RELOAD, 2, vr_ag_reload4); VR_AG_ReloadFrame(); };
 void() vr_ag_reload4 = { VR_AM_Anim(VR_AM_A_RELOAD, 3, vr_ag_reload5); VR_AG_ReloadFrame(); };
@@ -1312,8 +1451,10 @@ void() vr_ag_reload11 =
 // on it: vr_armedgrunt_pose.qc VR_AGP_Pose), its hand closes on it at the deepest frame (VR_AG_TakeGrab), and it comes
 // up with it, the weapon carried from the floor to its hold over VR_AG_LIFT_TIME. Cut short before its hand closes (a
 // pain, a shove: VR_AG_PlaceProp), the weapon stays on the floor.
-float VR_AG_TAKE_FRAME = 0.06;  // s each take frame
+float VR_AG_TAKE_FRAME = 0.1;   // s each take frame down (was 0.06: down and up in 0.36 s, the hand on it at once)
+float VR_AG_TAKE_UP = 0.07;     // s each frame back up
 float VR_AG_LIFT_TIME = 0.3;    // s from the floor to its hold
+.float vr_ag_take_i;            // its take frames: the next step
 
 void() VR_AG_TakeBegin =
 {
@@ -1336,7 +1477,8 @@ void() VR_AG_TakeBegin =
     w.weaponinst = world;
     remove(w);
     self.vr_ag_took_at = time;
-    self.vr_ag_took_grab = time + 3 * VR_AG_TAKE_FRAME;
+    VR_AM_Row(self.vr_ag_kind);
+    self.vr_ag_took_grab = time + max(1, vr_am_n_take) * VR_AG_TAKE_FRAME; // (its lowest frame drawn in full)
     self.vr_ag_took_done = 0;
     if(self.vr_ag_prop)
     {
@@ -1364,18 +1506,48 @@ void() VR_AG_TakeGrab =
     VR_AG_Log(sprintf("picked up %s (%g in its clip)%s", p.netname, p.weaponinst.wi_clip,
         self.vr_ag_prop2 ? " in its left hand" : ""));
 };
-void() vr_ag_take1 = { VR_AM_Anim(VR_AM_A_TAKE, 0, vr_ag_take2); self.nextthink = time + VR_AG_TAKE_FRAME; VR_AG_TakeBegin(); };
-void() vr_ag_take2 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_take3); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take3 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take4); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take4 = { VR_AM_Anim(VR_AM_A_TAKE, 3, vr_ag_take5); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take5 = { VR_AM_Anim(VR_AM_A_TAKE, 2, vr_ag_take6); self.nextthink = time + VR_AG_TAKE_FRAME; };
-void() vr_ag_take6 = { VR_AM_Anim(VR_AM_A_TAKE, 1, vr_ag_run1); self.nextthink = time + VR_AG_TAKE_FRAME; };
+// Its take frames (the row's vr_am_n_take down, VR_AG_TAKE_FRAME each, its lowest last), held there while its hand
+// closes (VR_AG_TakeGrab at vr_ag_took_grab: the lowest frame drawn in full), then back up (VR_AG_TAKE_UP each).
+void() vr_ag_takestep =
+{
+    VR_AM_Row(self.vr_ag_kind);
+    float n = max(1, vr_am_n_take);
+    float i = self.vr_ag_take_i;
+    self.vr_ag_take_i = i + 1;
+    if(i <= n)
+    {
+        VR_AM_Anim(VR_AM_A_TAKE, min(i, n - 1), vr_ag_takestep); // (down; then held at its lowest a frame)
+        self.nextthink = time + VR_AG_TAKE_FRAME;
+        return;
+    }
+    float k = n - 2 - (i - n - 1);
+    if(k >= 0)
+    {
+        VR_AM_Anim(VR_AM_A_TAKE, k, vr_ag_takestep); // (back up)
+        self.nextthink = time + VR_AG_TAKE_UP;
+        return;
+    }
+    vr_ag_run1();
+};
+void() vr_ag_take1 =
+{
+    self.vr_ag_take_i = 0;
+    self.think = vr_ag_takestep; // (taking: VR_AG_Taking, as VR_AG_TakeBegin arms it and places the weapon)
+    VR_AG_TakeBegin();
+    vr_ag_takestep();
+};
+// (The old take frames' names, kept for saved games: on from where the step was.)
+void() vr_ag_take2 = { vr_ag_takestep(); };
+void() vr_ag_take3 = { vr_ag_takestep(); };
+void() vr_ag_take4 = { vr_ag_takestep(); };
+void() vr_ag_take5 = { vr_ag_takestep(); };
+void() vr_ag_take6 = { vr_ag_takestep(); };
 
 // Its take frames on (its reach for a weapon not cut short).
 float(entity g) VR_AG_Taking =
 {
-    return g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 || g.think == vr_ag_take5 ||
-           g.think == vr_ag_take6 || g.think == vr_ag_run1;
+    return g.think == vr_ag_takestep || g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 ||
+           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1;
 };
 
 // ----------------------------------------------------------------------------
@@ -1510,6 +1682,18 @@ void(float d) VR_AG_Run =
         }
         return;
     }
+    if(time < self.vr_ag_ff_until)
+    {
+        // A friend in its line of fire: a step aside for a clear one, facing its target (VR_AG_FriendHold); blocked, the
+        // other way.
+        ai_face();
+        if(!walkmove(self.angles_y + (self.lefty ? 90 : -90), d))
+        {
+            self.lefty = !self.lefty;
+            walkmove(self.angles_y + (self.lefty ? 90 : -90), d);
+        }
+        return;
+    }
     float explosive = self.vr_ag_prop && VR_AG_MinRange(self.vr_ag_wid) > 0;
     if(explosive && safe && time < self.vr_ag_dodge_until)
     {
@@ -1565,7 +1749,7 @@ float() VR_AG_CheckAttack =
     float mine = time - self.vr_ag_myrun < 0.15;
     float explosive = VR_AG_MinRange(self.vr_ag_wid) > 0;
     float blastSafe = cvar_hget(cvarh_vr_agrunt_blast_safe);
-    if(!mine && (VR_AG_Seeking() || (explosive && d < VR_AG_MinRange(self.vr_ag_wid)) ||
+    if(!mine && (VR_AG_Seeking() || (explosive && d < VR_AG_MinRange(self.vr_ag_wid)) || time < self.vr_ag_ff_until ||
                  (explosive && blastSafe && (time < self.vr_ag_dodge_until || VR_AG_NearMine()))))
     {
         vr_ag_run1();
@@ -1591,6 +1775,10 @@ float() VR_AG_CheckAttack =
     {
         if(d < VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0))
         {
+            if(VR_AG_FriendHold(self.origin + self.view_ofs * 0.5, VR_AG_FriendSpread(self.vr_ag_wid)))
+            {
+                return FALSE; // (a friend between: no swing through it)
+            }
             self.th_melee();
             SUB_AttackFinished(0.6 + random() * 0.4);
             return TRUE;
@@ -1606,11 +1794,19 @@ float() VR_AG_CheckAttack =
     }
     if(trace_ent != targ)
     {
+        if((trace_ent.flags & FL_MONSTER) && trace_ent.health > 0 && trace_ent.enemy != self)
+        {
+            VR_AG_FriendHold(self.origin + self.view_ofs, 0); // (a friend in its sight line: a step aside)
+        }
         return FALSE;
     }
     if(VR_AG_MinRange(self.vr_ag_wid) > 0 && d < VR_AG_MinRange(self.vr_ag_wid))
     {
         return FALSE; // (backing off: VR_AG_Run)
+    }
+    if(self.vr_ag_prop && VR_AG_FriendHold(weaponmuzzle(self.vr_ag_prop), VR_AG_FriendSpread(self.vr_ag_wid)))
+    {
+        return FALSE; // (a friend in its line of fire: a step aside, VR_AG_Run)
     }
     if(explosive && blastSafe && self.vr_ag_prop &&
        !VR_AG_BlastSafe(self.vr_ag_prop, normalize(VR_AI_Origin(targ) - weaponmuzzle(self.vr_ag_prop))))
@@ -1645,6 +1841,14 @@ float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
     {
         vr_ag_self_dmg = vr_ag_self_dmg + damage; // (the tests: its own blast)
     }
+    if(attacker.vr_ag && (targ.flags & FL_MONSTER) && attacker != targ && targ.health > 0)
+    {
+        vr_ag_ff_hits = vr_ag_ff_hits + 1; // (the tests: friendly fire)
+        vr_ag_ff_dmg = vr_ag_ff_dmg + damage;
+        VR_AG_Log(sprintf("friendly hit: %s's %s on %s, %g damage, %.0f from it (held for friends %.1f s ago)",
+            attacker.classname, attacker.vr_ag_prop ? attacker.vr_ag_prop.netname : "fists", targ.classname, damage,
+            vlen(targ.origin - attacker.origin), time - attacker.vr_ag_ff_last));
+    }
     if(attacker.vr_ag && (targ.flags & FL_CLIENT) && attacker != targ)
     {
         damage = damage * max(0, cvar_hget(cvarh_vr_agrunt_damage_scale));
@@ -1657,7 +1861,7 @@ float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
-    if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) ||
+    if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) || vr_agpar_now ||
        take < VR_AG_DisarmDamage(targ) || inflictor == world || inflictor.classname == "vr_burn")
     {
         return;

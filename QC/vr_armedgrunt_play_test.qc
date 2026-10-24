@@ -405,9 +405,9 @@ void() VR_AGPT_RagTug =
     {
         if(t == 31)
         {
-            // Drawn back 0.6 m/s to 0.35 m (each 0.1 s: the print).
+            // Drawn back 0.6 m/s to 0.7 m (each 0.1 s: the print).
             // (scratch2: m drawn back, scratch3: m/s; a slow one: the long pull's impulse)
-            float pull = min(cvar("scratch2") > 0 ? cvar("scratch2") : 0.35,
+            float pull = min(cvar("scratch2") > 0 ? cvar("scratch2") : 0.7,
                 (time - vr_agt_clip) * (cvar("scratch3") > 0 ? cvar("scratch3") : 0.6));
             cvar_set("vr_mock_hand_pull", ftos(pull));
             if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
@@ -523,6 +523,7 @@ void() VR_AGPT_Paths =
         }
         else
         {
+            cvar_set("vr_agrunt_fall_keep", "0"); // (the old drop: test 38 is the kept one)
             VR_Knockdown_Start(g);
             makevectors('0 1 0' * g.angles_y);
             ragdollshovetopple(g, v_forward * -1, 1, FALSE, 40);
@@ -558,6 +559,7 @@ void() VR_AGPT_Paths =
     {
         vr_agpt_path = 0;
         cvar_set("vr_agrunt_disarm_yank", "1");
+        cvar_set("vr_agrunt_fall_keep", "1");
         cvar_set("vr_agrunt_test", "0");
     }
 };
@@ -807,6 +809,7 @@ void() VR_AGPT_Fall =
         VR_AGPT_Clear();
         p.flags = p.flags | FL_NOTARGET;
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 140);
+        cvar_set("vr_agrunt_fall_keep", "0"); // (the old drop: test 38 is the kept one)
         vr_agt_step = 1;
         vr_agt_until = time + 0.5;
         return;
@@ -840,10 +843,11 @@ void() VR_AGPT_Fall =
         vr_agt_until = time + 15;
         return;
     }
-    if(!g.vr_ag_prop && time < vr_agt_until) { return; }
+    if((!g.vr_ag_prop || ((g.vr_ag_took_at > 0) && !g.vr_ag_took_done)) && time < vr_agt_until) { return; } // (its hand closed on it)
     VR_AGT_Check(sprintf("fall: got up (knockdown %g) and took it back: %s, %g pickups:", g.vr_knockdown,
         g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_pickups), g.vr_ag_prop != world && g.vr_ag_pickups == 1);
     p.flags = p.flags - (p.flags & FL_NOTARGET);
+    cvar_set("vr_agrunt_fall_keep", "1");
     cvar_set("vr_agrunt_test", "0");
 };
 
@@ -1002,9 +1006,18 @@ void() VR_AGPT_WeaponBlow =
     makevectors(p.angles);
     float m2u = VRMetersToUnits();
     float fb = vr_ag_feedbacks;
+    // (The swing's speed is the melee tracker's, the hand's own in the play space: VR_AG_SwingSpeed.)
+    entity was = self;
+    self = p;
+    entity b = VR_Blow(cVR_MainHand);
+    self = was;
+    b.mh_thing = VR_MTHING_FIST;
+    b.mh_time = time;
+    b.mh_fast = 2;
     p.handvel = v_forward * 2 * m2u;
     p.vr_ag_knock_at = 0;
     float slow = VR_AG_WeaponStruck(g, g.vr_ag_prop);
+    b.mh_fast = 6;
     p.handvel = v_forward * 6 * m2u;
     p.vr_ag_knock_at = 0;
     float hard = VR_AG_WeaponStruck(g, g.vr_ag_prop);
@@ -1061,8 +1074,320 @@ void() VR_AGPT_WeaponThrow =
     cvar_set("vr_agrunt_test", "0");
 };
 
+// ----------------------------------------------------------------------------
+// A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"): tests 36..38
+// ----------------------------------------------------------------------------
+
+float vr_agpt_case;  // the case being tried
+vector vr_agpt_at;   // ... where its weapon's grip was put
+
+// A fresh calm grunt with a shotgun (any tug over the old one ended first).
+void() VR_AGPT_Fresh =
+{
+    if(vr_agt_grunt && vr_agt_grunt.vr_ag_tug_pl)
+    {
+        VR_AG_TugEnd(vr_agt_grunt, FALSE, "test");
+    }
+    VR_AGPT_Clear();
+    vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+};
+
+// Its weapon taken (a tug begun, or yanked at once).
+float(entity g, entity p) VR_AGPT_Taken = { return g.vr_ag_tug_pl == p || (!g.vr_ag_prop && p.weapon == WID_SHOTGUN); };
+
+// Test 36: grabs must be deliberate. A calm shotgun grunt (still), its weapon's grip put at your main hand, the grip
+// pressed with the hand still: case 0 on it: taken; cases 1, 2 the hand raised until the fist is 2 cm and 5 cm off the
+// weapon's surface (the engine's reading, vr_agrunt_grab_gap; the old box took it up to 40 cm off its grip): not taken;
+// case 3 on it moving at 3 m/s (a punch through it): not taken.
+string(float i) VR_AGPT_GrabCase =
+{
+    return i == 0 ? "on it" : i == 1 ? "2 cm off it" : i == 2 ? "5 cm off it" : "a punch through it";
+};
+
+void() VR_AGPT_Grab =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        p.flags = p.flags | FL_NOTARGET;
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_pull", "0");
+        cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab before its press: step 5)
+        if(!cvar("vr_agrunt_debug"))
+        {
+            cvar_set("vr_agrunt_debug", "0.5"); // (the engine's reading of the fist's gap: vr_agrunt_grab_gap)
+        }
+        p.mainhand_lastgrabtime = time - 2; // (the last try's grip over: no grab before this one's press)
+        p.mainhand_lastreleasetime = time - 1;
+        VR_AGPT_Fresh();
+        vr_ag_grab_fast = 0;
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.4;
+        return;
+    }
+    if(time < vr_agt_until && vr_agt_step != 6) { return; }
+    if(vr_agt_step == 1)
+    {
+        g.think = SUB_Null; // (still: its frame, its weapon's pose kept)
+        g.nextthink = -1;
+        g.velocity = '0 0 0';
+        cvar_set("vr_mock_hand_lift", "0");
+        vr_agt_step = 2;
+        vr_agt_until = time + 0.1;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        VR_AGPT_ToHand(g, p);
+        vr_agt_step = 3;
+        vr_agt_until = time + 0.2;
+        return;
+    }
+    if(vr_agt_step == 3)
+    {
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        VR_AGPT_ToHand(g, p);
+        vr_agpt_at = g.vr_ag_prop.origin;
+        vr_agt_step = 4;
+        vr_agt_until = time + 0.2;
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        // Off it: the hand raised half a centimetre a frame until the fist is that far off its surface.
+        float want = vr_agpt_case == 1 ? 2 : vr_agpt_case == 2 ? 5 : -999;
+        vr_agt_index = vr_agt_index + 1;
+        if(vr_agt_index < 4)
+        {
+            return; // (the engine's reading of this hand on this weapon first)
+        }
+        if(cvar("vr_agrunt_grab_gap") < want && vr_agt_index < 100)
+        {
+            cvar_set("vr_mock_hand_lift", sprintf("%.4f", cvar("vr_mock_hand_lift") + 0.005));
+            return;
+        }
+        vr_agt_index = 0;
+        vr_agt_step = 5;
+        return;
+    }
+    if(vr_agt_step == 5)
+    {
+        cvar_set("vr_mock_hand_pull", "0");
+        vr_agt_clip = cvar("vr_agrunt_grab_gap");
+        VR_AGT_Print(sprintf("grab %s: pressed with the fist %.1f cm off its surface, the hand %.1f units from its grip",
+            VR_AGPT_GrabCase(vr_agpt_case), vr_agt_clip, vlen(p.handpos - g.vr_ag_prop.origin)));
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        p.mainhand_lastgrabtime = time; // (the grip pressed now: VR_HandGrabUtil_StartedHandGrabbing)
+        p.mainhand_lastreleasetime = time - 1;
+        if(vr_agpt_case == 3)
+        {
+            // A punch: the fist on it as the grip closes, moving at 3 m/s (its touch run here, with that speed: the
+            // engine's tracked speed is the mock's), then gone on through it (its grip's start over).
+            makevectors(p.angles);
+            p.handvel = v_forward * 3 * VRMetersToUnits();
+            entity oldself = self;
+            self = g.vr_ag_prop;
+            self.handtouch_ent = p;
+            self.handtouch_hand = cVR_MainHand;
+            VR_AG_PropHandTouch();
+            self = oldself;
+            p.mainhand_lastgrabtime = time - 2;
+        }
+        vr_agt_step = 6;
+        vr_agt_until = time + 0.1;
+        return;
+    }
+    if(time < vr_agt_until && vr_agt_step == 6)
+    {
+        return;
+    }
+    float on = (vr_agpt_case == 0) || (vr_agpt_case == 3);
+    float placed = on ? (vr_agt_clip <= 0) : (vr_agt_clip >= (vr_agpt_case == 1 ? 2 : 5));
+    float ok = (VR_AGPT_Taken(g, p) == (vr_agpt_case == 0)) && placed;
+    VR_AGT_Check(sprintf("grab %s: the fist %.1f cm off it, taken %g (too fast %g):", VR_AGPT_GrabCase(vr_agpt_case),
+        vr_agt_clip, VR_AGPT_Taken(g, p), vr_ag_grab_fast), ok);
+    vr_agpt_case = vr_agpt_case + 1;
+    VR_AGPT_EmptyHand(p);
+    vr_agt_step = 0;
+    if(vr_agpt_case > 3)
+    {
+        vr_agpt_case = 0;
+        VR_AGPT_Fresh();
+        if(cvar("vr_agrunt_debug") == 0.5)
+        {
+            cvar_set("vr_agrunt_debug", "0");
+        }
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
+// Test 37: a tug-of-war, not a yank. The physical tug with the hold's pull replaced by a steady one (vr_ag_tug_test_force):
+// the break force for 0.3 s (case 0): it holds on; for 0.6 s (case 1): torn out at vr_agrunt_tug_pull_time; 2.6 x the
+// break force (case 2): torn out at once (a yank, vr_agrunt_tug_snap); 300 N (case 3): pulled out by the impulse. Each
+// win: up again (its stumble, vr_agrunt_tug_won_stumble) without going down.
+string(float i) VR_AGPT_PullCase =
+{
+    return i == 0 ? "the break force 0.3 s" : i == 1 ? "the break force 0.6 s" : i == 2 ? "a yank of 2.6 x" : "300 N 2 s";
+};
+
+void() VR_AGPT_Pull =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    float brk = cvar_hget(cvarh_vr_agrunt_tug_break_force);
+    if(vr_agt_step == 0)
+    {
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_pull", "0");
+        cvar_set("vr_agrunt_disarm_yank", "0"); // (the test's own grab)
+        vr_ag_tug_test_force = 0;
+        VR_AGPT_Fresh();
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.5;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        if(time < vr_agt_until) { return; }
+        VR_AGT_Hunt(g);
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        vr_agt_step = 2;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        if(time < vr_agt_until) { return; }
+        VR_AGPT_GrabRag(g, p);
+        if(!g.vr_ag_tug_rag)
+        {
+            VR_AGT_Check("pull: the physical tug begun:", FALSE);
+        }
+        vr_agt_step = 3;
+        vr_agt_until = time + 0.3; // (held still a moment)
+        return;
+    }
+    if(vr_agt_step == 3)
+    {
+        if(time < vr_agt_until) { return; }
+        float f = vr_agpt_case == 3 ? 300 : vr_agpt_case == 2 ? brk * 2.6 : brk;
+        vr_ag_tug_test_force = f;
+        vr_agt_clip = time;
+        vr_agt_step = 4;
+        vr_agt_until = time + (vr_agpt_case == 0 ? 0.3 : vr_agpt_case == 3 ? 2 : 0.6);
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
+        float took = time - vr_agt_clip;
+        vr_ag_tug_test_force = 0;
+        float won = !g.vr_ag_prop && p.weapon == WID_SHOTGUN;
+        float ok = vr_agpt_case == 0 ? !won && g.vr_ag_tug_pl == p :
+                   vr_agpt_case == 1 ? won && took >= cvar_hget(cvarh_vr_agrunt_tug_pull_time) - 0.03 :
+                   vr_agpt_case == 2 ? won && took < 0.05 : won && took > 1;
+        VR_AGT_Check(sprintf("pull %s: %s after %.2f s (%s), pulled %.2f s:", VR_AGPT_PullCase(vr_agpt_case),
+            won ? "torn out" : "it holds on", took, vr_ag_tug_why, g.vr_ag_tug_held), ok);
+        if(!won)
+        {
+            p.mainhand_lastreleasetime = time; // (let go)
+        }
+        vr_agt_clip = time;
+        vr_agt_index = 0;
+        vr_agt_step = 5;
+        vr_agt_until = time + 3;
+        return;
+    }
+    if(g.vr_knockdown == 1 && !g.vr_kd_stagger)
+    {
+        vr_agt_index = 1; // (went down)
+    }
+    if(g.vr_knockdown && time < vr_agt_until) { return; }
+    VR_AGT_Check(sprintf("pull %s: up again after %.2f s, went down %g:", VR_AGPT_PullCase(vr_agpt_case),
+        time - vr_agt_clip, vr_agt_index), !g.vr_knockdown && !vr_agt_index && time - vr_agt_clip < 0.6);
+    VR_AGPT_EmptyHand(p);
+    vr_agpt_case = vr_agpt_case + 1;
+    vr_agt_step = 0;
+    if(vr_agpt_case > 3)
+    {
+        vr_agpt_case = 0;
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
+// Test 38: knocked down keeps its weapon (vr_agrunt_fall_keep). Case 0: a shove's fall to the floor: it keeps it (its
+// fall's measures printed); grabbed while down: yours at once. Case 1: knocked down, then flung (8 m/s): it lets go.
+void() VR_AGPT_FallKeep =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    if(vr_agt_step == 0)
+    {
+        p.flags = p.flags | FL_NOTARGET;
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_agrunt_disarm_yank", "0");
+        VR_AGPT_Clear();
+        vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 120);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.5;
+        return;
+    }
+    if(time < vr_agt_until) { return; }
+    float u = VRMetersToUnits();
+    if(vr_agt_step == 1)
+    {
+        VR_Knockdown_Start(g);
+        makevectors('0 1 0' * g.angles_y);
+        ragdollshovetopple(g, v_forward * -1, 1, FALSE, 40);
+        vr_agt_step = 2;
+        vr_agt_until = time + (vr_agpt_case == 0 ? 1.5 : 0.4);
+        return;
+    }
+    if(vr_agt_step == 2 && vr_agpt_case == 1)
+    {
+        makevectors('0 1 0' * g.angles_y);
+        ragdollfling(g, (v_forward * -1 + '0 0 0.3') * 8 * u);
+        vr_agt_step = 3;
+        vr_agt_until = time + 1;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        VR_AGT_Check(sprintf("fall keep: floored (knockdown %g, stagger %g): it holds %s (floor %.2f m down, falling %.1f, moving %.1f m/s):",
+            g.vr_knockdown, g.vr_kd_stagger, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_drop / u,
+            g.vr_ag_fall_down / u, g.vr_ag_fall_fling / u), g.vr_knockdown == 1 && g.vr_ag_prop != world);
+        VR_AG_GrabBy(g, p, cVR_MainHand);
+        VR_AGT_Check(sprintf("fall keep: grabbed while down: yours %g (%s):", p.weapon == WID_SHOTGUN, vr_ag_tug_why),
+            p.weapon == WID_SHOTGUN && !g.vr_ag_prop && !g.vr_ag_tug_pl);
+    }
+    else
+    {
+        VR_AGT_Check(sprintf("fall keep: flung while down: it holds %s (floor %.2f m down, falling %.1f, moving %.1f m/s):",
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_drop / u, g.vr_ag_fall_down / u,
+            g.vr_ag_fall_fling / u), !g.vr_ag_prop);
+    }
+    VR_AGPT_EmptyHand(p);
+    vr_agpt_case = vr_agpt_case + 1;
+    vr_agt_step = 0;
+    if(vr_agpt_case > 1)
+    {
+        vr_agpt_case = 0;
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
 void(float t) VR_AGPT_Frame =
 {
+    if(t == 36) { VR_AGPT_Grab(); return; }
+    if(t == 37) { VR_AGPT_Pull(); return; }
+    if(t == 38) { VR_AGPT_FallKeep(); return; }
     if(t == 20) { VR_AGPT_Ragdoll(); }
     else if(t == 21 || t == 22) { VR_AGPT_Tug(); }
     else if(t == 23) { VR_AGPT_Easy(); }

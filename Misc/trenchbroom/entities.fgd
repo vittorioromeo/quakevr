@@ -19,6 +19,11 @@
 //! internal vr_ag_reload1          an armed monster's reload frame (vr_armedgrunt.qc)
 //! internal vr_ag_swing1           an armed monster's gun-butt frame (vr_armedgrunt.qc)
 //! internal vr_ag_take1            an armed monster's pickup frame (vr_armedgrunt.qc)
+//! internal vr_ag_take2            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take3            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take4            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take5            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take6            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
 
 // Entities with no spawn function: the compilers' and the editor's.
 //! editor func_group

@@ -1,0 +1,6 @@
+# agrunt_friendly_fire: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids careful of their friends: a crowd of gunners hunting you (god)
+map vrtesthall
+god
+cmd vr_agrunt_test 64
+hint Eight armed humanoids with guns in two loose rows, the back row behind the front one. With a friend in their line of fire they hold and sidestep for a clear shot instead of shooting through it (Combat > Armed Grunts: Careful of Friends, Gives Up After); one stepping in mid-burst can still be hit now and then. Set Careful of Friends to 0 to see the old chaos.

@@ -319,7 +319,9 @@ void(entity pl, float xHand) VR_Guard_Hand =
     entity m = findradius(hp, VR_GUARD_NEAR + speed * VR_GUARD_UPM * VR_GUARD_AHEAD + 48);
     while(m)
     {
-        if((m.flags & FL_MONSTER) && m.health > 0 && time >= m.vr_guard_next && !VR_IsDummy(m) && canragdoll(m) && VR_Guard_Aware(m, pl))
+        // (An armed one holding a weapon parries with it instead: vr_armedgrunt_parry.qc.)
+        if((m.flags & FL_MONSTER) && m.health > 0 && time >= m.vr_guard_next && !VR_IsDummy(m) && canragdoll(m) &&
+           VR_Guard_Aware(m, pl) && !VR_AGPar_Guards(m))
         {
             vector head = VR_Guard_Head(m);
             // (Its way's nearest point to the head, and the hand coming towards it.)

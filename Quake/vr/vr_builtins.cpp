@@ -43,6 +43,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
+#include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
 #include "vr_meleeshow.hpp"
 #include "vr_weapons.hpp"
@@ -2312,6 +2313,25 @@ void PF_weapondrawnpose()
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
         return;
     }
+    if(what >= 8 && what <= 10)
+    {
+        // The weapon model `player` (a weapon entity) is drawn with, in its own frame (view::weaponLocalGeometry): 8 its
+        // muzzle (a blade's tip), 9 its butt, 10 its second grip (z +1000: a Cup's, no point); '0 0 0' none.
+        const int index = static_cast<int>(player->v.modelindex);
+        qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+        glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
+        int type = 0;
+        glm::vec3 out{0.f};
+        if(view::weaponLocalGeometry(model, muzzle, butt, second, type))
+        {
+            out = what == 8 ? muzzle : what == 9 ? butt : (type == 2 ? glm::vec3{0.f, 0.f, 1000.f} : second);
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
+        return;
+    }
     if(what == 7)
     {
         // x: the Weapon Offsets slot (-1 none) of the weapon `player`'s `hand` holds (its weaponmodel, weaponmodel2): the
@@ -2557,13 +2577,30 @@ void PF_hitmodel_target()
 // hitmodel_segment(e, a, b, radius, class): the segment a..b, a sphere of radius `radius` plus the class's tolerance
 // (0 guns, 1 grapple, 2 melee, 3 thrown), against e's model as drawn: where along it it first meets it (0: it starts
 // in it), -1 missed; -2: e's model is not tested (the option off, not a target): its box as before. The point on the
-// model: hitmodel_rest's (the last hit).
+// model: hitmodel_rest's (the last hit). Class -1 (the hose cut, QC vr_ad_enemyguns.qc VR_HoseCut_Melee): e a tank lying
+// about, its hose to its gun as drawn (vr_adtank.cpp crossHose, a listen server's): how far along the hose (0 at the
+// tank, 1 at the gun) its nearest point within `radius` of a..b lies, trace_endpos that point; -1 missed; -2 no hose.
 void PF_hitmodel_segment()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
     const float radius = za::max(0.f, G_FLOAT(OFS_PARM3));
+    if(G_FLOAT(OFS_PARM4) < 0.f)
+    {
+        glm::vec3 at{0.f};
+        float share = 0.f;
+        const int got = adtank::crossHose(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius, at, share);
+        if(got > 0)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                pr_global_struct->trace_endpos[i] = at[i];
+            }
+        }
+        G_FLOAT(OFS_RETURN) = got > 0 ? share : static_cast<float>(got);
+        return;
+    }
     const auto c = static_cast<hitmodel::Class>(za::clamp(static_cast<int>(G_FLOAT(OFS_PARM4)), 0, 3));
     if(!hitmodel::target(e))
     {

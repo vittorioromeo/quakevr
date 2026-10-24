@@ -43,7 +43,8 @@ float vr_am_f_atk;          // its aiming frames (9: the shots in the 4th..8th, 
 float vr_am_f_shove;        // its shove frames (6: a gun's butt): the first
 float vr_am_f_reload;       // its reload frames (11 drawn, these repeating): the first,
 float vr_am_n_reload;       // ... how many
-float vr_am_f_take;         // taking up a weapon (bending down: this and the next three frames, and back)
+float vr_am_f_take;         // taking up a weapon: bending down from this frame,
+float vr_am_n_take;         // ... this many frames, its lowest last (its hand closes there), and back up
 string vr_am_pain1;         // its pain sounds (a tug, a disarm)
 string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
@@ -53,6 +54,15 @@ vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, mad
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
 vector vr_am_back_hi;       // ... a flamethrower's or poison sprayer's tank worn there, upright along them (vr_adtankworn.qc)
+// vr_agarms (vr_armedgrunt_pose.qc VR_AGP_Arms; the engine's vr_agarms.cpp, its rig as vr_agarms_info prints it):
+float vr_am_anchor;         // its chest's vertex its poses are placed from (the engine's armedRigs row's too),
+vector vr_am_anchor_at;     // ... where it is at rest (its body's space: x ahead, y its left, z up, from its origin)
+vector vr_am_sh_r;          // its shoulders at rest
+vector vr_am_sh_l;
+float vr_am_arm;            // ... an arm from its shoulder to its wrist (units)
+vector vr_am_grip_r;        // its hands' grips at rest (on its own gun: its rest pose's hold, the wrists as the artist made them)
+vector vr_am_grip_l;
+vector vr_am_gun_fw;        // ... its own gun's way at rest
 
 void(float k) VR_AM_Row =
 {
@@ -79,7 +89,8 @@ void(float k) VR_AM_Row =
         vr_am_f_shove = 102; // shove1..6
         vr_am_f_reload = 0;  // (no load frames: its stand)
         vr_am_n_reload = 7;
-        vr_am_f_take = 87;   // paind5..8: down on a knee
+        vr_am_f_take = 85;   // paind3..7: down on a knee (its top 34, 34, 30, 22, 18 units; its hand 6 units over the floor)
+        vr_am_n_take = 5;
         vr_am_pain1 = "enforcer/pain1.wav";
         vr_am_pain2 = "enforcer/pain2.wav";
         vr_am_loot_aid = AID_CELLS;
@@ -91,6 +102,14 @@ void(float k) VR_AM_Row =
         vr_am_fit_shift = '-3 0 7';
         vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
         vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
+        vr_am_anchor = 322;
+        vr_am_anchor_at = '-9.9 -1.6 21.9';
+        vr_am_sh_r = '-6.2 -11.3 21.8';
+        vr_am_sh_l = '-5.9 7.2 22.8';
+        vr_am_arm = 20.4;
+        vr_am_grip_r = '3.3 -5.5 11';
+        vr_am_grip_l = '8.7 11.6 13.4';
+        vr_am_gun_fw = '0 0.984 0.18';
         return;
     }
     // The grunt (the first row; k 0, an armed grunt from before the table): Quake VR's soldier.mdl, the gun's vertices
@@ -113,7 +132,8 @@ void(float k) VR_AM_Row =
     vr_am_f_shove = 114; // shove1..6
     vr_am_f_reload = 29; // load1..11 (unused by id's)
     vr_am_n_reload = 11;
-    vr_am_f_take = 63;   // painc4..7: a crouch (its top 28, 24, 17, 15 units; load1..4 stood upright)
+    vr_am_f_take = 46;   // painb1..6: down on a knee, bent over (its top 28, 22, 18, 17, 10, 2 units; its hand 9 units over
+    vr_am_n_take = 6;    // the floor. painc4..7, a crouch to 15 units, its hand 18 over it, was too shallow: note 2026-10-24 01:15:28)
     vr_am_pain1 = "soldier/pain1.wav";
     vr_am_pain2 = "soldier/pain2.wav";
     vr_am_loot_aid = AID_SHELLS;
@@ -123,6 +143,14 @@ void(float k) VR_AM_Row =
     vr_am_fit_shift = '0 0 0';
     vr_am_back_lo = '93 95 0';   // (its back at the waist, x -8.9 / -8.0, z 5.3, standing)
     vr_am_back_hi = '160 162 0'; // (... at the shoulder blades, x -6.2, z 14.8)
+    vr_am_anchor = 148;
+    vr_am_anchor_at = '-0.1 0 19.3';
+    vr_am_sh_r = '0.1 -7.7 16.3';
+    vr_am_sh_l = '0.7 6.3 14.5';
+    vr_am_arm = 16.7;
+    vr_am_grip_r = '5.7 -3.6 4.8';
+    vr_am_grip_l = '11.8 5.5 1.9';
+    vr_am_gun_fw = '0.394 0.888 -0.235';
 };
 
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).
