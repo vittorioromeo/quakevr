@@ -137,6 +137,11 @@ za::Vector<Item> pageDebugViews()
             .help("vr_posestudio: the armed grunts' and enforcers' grips set by hand (as Armed Grunts > Grip Editor > "
                   "Drag Mode): walk up to one, grab its weapon or hand, move and turn it. vr_posestudio_report prints "
                   "its parts and grips."),
+        command("Pose Studio: Live On/Off", "vr_posestudio_live")
+            .help("vr_posestudio_live (the studio running: its panel's Live button): the armed humanoid shown fights in "
+                  "place, its frames taped; Pause, scrub (a stick, or < 0.5 s >), Next Glitch, drag the key the readout "
+                  "names at that frame. vr_posestudio_live_report prints the tape's playhead: its keys and the glitch "
+                  "finder's measures."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")

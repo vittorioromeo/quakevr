@@ -228,6 +228,7 @@ struct Session
     float panelYaw{0.f};
     za::String feedback;
     double feedbackUntil{0.0};
+    bool liveWanted{false}; // vr_posestudio_live with the studio off: started, Live on the first armed humanoid shown
 };
 Session ses;
 
@@ -1788,6 +1789,11 @@ void live_f()
     if(active())
     {
         toggleLive();
+        return;
+    }
+    if(start(-1))
+    {
+        ses.liveWanted = true; // (the Debug menu's row: Live once one is shown)
     }
 }
 
@@ -2121,6 +2127,11 @@ void frame()
     if(glm::length(s.head - ses.panelHead) > PANEL_FOLLOW * m2u && ses.hoverButton[HAND_OFF] < 0 && ses.hoverButton[HAND_MAIN] < 0)
     {
         placePanel(s); // (walking off: it comes along)
+    }
+    if(ses.liveWanted && current() && !poselive::on())
+    {
+        ses.liveWanted = false;
+        toggleLive();
     }
     poselive::frame();
     dragFrame(s);
