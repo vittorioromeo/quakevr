@@ -553,13 +553,13 @@ void(entity g, entity p) VR_AGPar_Pose =
     float cls = VR_AG_Class(p.weapon);
     if(cls != VR_AG_CLASS_MELEE && cls != VR_AG_CLASS_FISTS)
     {
-        // A gun held across its body (port arms: its muzzle up to its left 30 degrees, level over its head against a
+        // A gun held across its body (port arms: its muzzle up to its left 15 degrees, level over its head against a
         // blow from above), nearer its chest: never upright with its muzzle past its head (his screenshots
         // vrragtriggers_2026-10-24_22-59-28 and 22-59-37).
-        a = normalize(across + '0 0 0.58' * (1 - high));
+        a = normalize(across + '0 0 0.27' * (1 - high));
         mid = chest + d * 12;
-        mid_x = max(mid_x, chest_x + 6);
-        mid_z = min(chest_z + (high > 0.5 ? 16 : 6), max(chest_z - 8, mid_z));
+        mid_x = max(mid_x, chest_x + 8);
+        mid_z = min(chest_z + (high > 0.5 ? 14 : -5), max(chest_z - 12, mid_z));
     }
     float len = min(40, max(8, vlen(weaponmuzzle(p) - p.origin)));
     vector grip = mid - a * (len * 0.5 - 4);
