@@ -35,8 +35,8 @@ vector VR_AGP_READY_FW = '0.3 0.1 0.95';
 vector VR_AGP_FREE_L = '7 9 4';         // a one-handed weapon's free hand
 vector VR_AGP_SAW_READY = '9 -7 1';     // a chainsaw at the hip, bar ahead
 vector VR_AGP_SAW_FW = '0.95 0.05 0.25';
-vector VR_AGP_CARRY_R = '5 -10 -1';     // vr_agarms: a one-handed melee weapon carried by its side, blade down and ahead
-vector VR_AGP_CARRY_R_FW = '0.45 -0.1 -0.9';
+vector VR_AGP_CARRY_R = '6 -9 3';       // vr_agarms: a one-handed melee weapon carried by its side, the blade ahead, a little down (the fist hanging)
+vector VR_AGP_CARRY_R_FW = '0.95 -0.1 0.15';
 vector VR_AGP_PORT = '9 -5 3';          // ... a two-handed one at port arms, across the body
 vector VR_AGP_PORT_FW = '0.35 0.55 0.75';
 
@@ -57,6 +57,7 @@ vector VR_AGP_PORT_FW = '0.35 0.55 0.75';
 .float vr_ag_tilt_set;
 // vr_agarms (VR_AGP_ArmsGun and below):
 float VR_AGP_ANCHOR = 64;     // QVR_SVC_ARMPOSE flags: wr and wl weigh its chest's anchor (vr_am_anchor), not its hands
+float VR_AGP_REACH = 128;     // ... its right hand reaching for a weapon lying (sent as none): its grip frame to the weapon's (fw, up)
 .float vr_agp_geo;            // its points found (a weapon entity: once)
 .vector vr_agp_muz;           // its muzzle (a blade's tip) in its own frame (weapondrawnpose 8)
 .vector vr_agp_butt;          // its butt (9)
@@ -767,8 +768,8 @@ void(entity p, vector fw, vector edge) VR_AGP_BladeHand =
 vector(float left) VR_AGP_Hang =
 {
     vector sh = left ? vr_am_sh_l : vr_am_sh_r;
-    vector d = normalize(left ? '0.12 0.14 -1' : '0.12 -0.14 -1');
-    return sh + d * (0.93 * vr_am_arm + 2.5);
+    vector d = normalize(left ? '0.3 0.15 -1' : '0.3 -0.15 -1');
+    return sh + d * (0.8 * vr_am_arm + 2.5); // (its elbow bent as at rest)
 };
 
 // vr_agarms: a gun (or two) held as a player holds it, its body's space at rest; out: vr_agp_v, vr_agp_fw, vr_agp_up
@@ -814,6 +815,15 @@ void(entity g, entity p, entity pL) VR_AGP_ArmsGun =
     {
         tl = VR_AGP_ToLocal(p.origin - g.origin) + VR_AGP_ToLocal(g.vr_ag_aimdir) * max(64, vlen(tl));
     }
+    // (its gun turned at most 30 degrees off its body's way: further, its arms would cross its chest; its body turns to
+    // its target anyway, and its shots go along its aim)
+    float fl = vlen([tl_x, tl_y, 0]);
+    if(fl > 1 && tl_x < fl * 0.866)
+    {
+        float ty = tl_y > 0 ? 0.5 : -0.5;
+        tl_x = fl * 0.866;
+        tl_y = fl * ty;
+    }
     float scale = vr_am_arm / 16.7;
     vector gR;
     vector fwR;
@@ -825,16 +835,23 @@ void(entity g, entity p, entity pL) VR_AGP_ArmsGun =
     }
     else
     {
-        // Shouldered: its butt in the pocket before the shoulder, the barrel on the target.
+        // A long gun: carried as its own rifle is at rest (its rest pose's hold turned with the gun: its arms and wrists
+        // as the artist made them), raised to its shoulder as it aims by vr_agarms_shoulder (its butt in the pocket before
+        // the shoulder, the barrel on the target; your guns have next to no stock behind the hand: a stock half its arm
+        // long taken, so its hand is out before its shoulder, a rifleman's).
+        vector g0 = normalize(vr_am_gun_fw);
+        vector butt = p.vr_agp_butt;
+        butt_x = min(butt_x, -0.5 * vr_am_arm);
         vector pocket = vr_am_sh_r + '1.5 2.5 -1.5' * scale;
-        vector d = normalize(VR_AGP_Lerp(normalize('0.72 0.3 -0.62'), normalize(tl - pocket), a));
+        float sh = a * min(1, max(0, cvar_hget(cvarh_vr_agarms_shoulder)));
+        vector d = normalize(VR_AGP_Lerp(normalize(g0 + '0.5 0 -0.25'), normalize(tl - VR_AGP_Lerp(vr_am_grip_r, pocket, sh)), a));
         VR_AGP_Orient('1 0 0', d, '0 0 1', '0 0 1');
-        gR = pocket - VR_AGP_InFrame(p.vr_agp_butt);
+        gR = VR_AGP_Lerp(vr_am_sh_r + VR_AGP_Arc(vr_am_grip_r - vr_am_sh_r, g0, d), pocket - VR_AGP_InFrame(butt), sh);
         if(a > 0)
         {
             d = normalize(VR_AGP_Lerp(d, normalize(tl - (gR + VR_AGP_InFrame(p.vr_agp_muz))), a));
             VR_AGP_Orient('1 0 0', d, '0 0 1', '0 0 1');
-            gR = pocket - VR_AGP_InFrame(p.vr_agp_butt);
+            gR = VR_AGP_Lerp(vr_am_sh_r + VR_AGP_Arc(vr_am_grip_r - vr_am_sh_r, g0, d), pocket - VR_AGP_InFrame(butt), sh);
         }
         // (a long butt: the hand brought within its reach, the butt past the shoulder)
         vector fromSh = gR - vr_am_sh_r;
@@ -1079,6 +1096,14 @@ void(entity g, entity p) VR_AGP_Pose =
             d = d * d * (3 - 2 * d);
             vr_agp_wr = 1 - d;
             vr_agp_v = lay * d;
+            if(vr_agp_arms)
+            {
+                // (vr_agarms: from its hand hanging free, from its anchor; its hand turned to the weapon's handle as it
+                // reaches, VR_AGP_REACH: the client's IK closes it on the grip as you would)
+                VR_AM_Row(g.vr_ag_kind);
+                vr_agp_v = (VR_AGP_Hang(0) - vr_am_anchor_at) * (1 - d) + lay * d;
+                vr_agp_flags = vr_agp_flags | VR_AGP_REACH;
+            }
             reaching = TRUE;
             posL = lay;
             vr_agp_fw = g.vr_ag_took_fw;

@@ -310,6 +310,7 @@ float cvarh_vr_agrunt_rearm;
 float cvarh_vr_agrunt_rearm_range;
 float cvarh_vr_agrunt_debug;
 float cvarh_vr_agarms;
+float cvarh_vr_agarms_shoulder;
 float cvarh_vr_agrunt_w_fists;
 float cvarh_vr_agrunt_w_axe;
 float cvarh_vr_agrunt_w_sword;
@@ -1430,6 +1431,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_rearm_range);
     VR_CVAR_HMAKE(vr_agrunt_debug);
     VR_CVAR_HMAKE(vr_agarms);
+    VR_CVAR_HMAKE(vr_agarms_shoulder);
     VR_CVAR_HMAKE(vr_agrunt_w_fists);
     VR_CVAR_HMAKE(vr_agrunt_w_axe);
     VR_CVAR_HMAKE(vr_agrunt_w_sword);

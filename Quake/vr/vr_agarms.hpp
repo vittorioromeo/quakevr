@@ -28,7 +28,7 @@ namespace qvr::agarms
 {
 
 inline constexpr int numBones = 6;   // right upper arm, forearm, hand; left upper arm, forearm, hand
-inline constexpr int blockRows = 18; // the instance's arm rows after its bones' kicks (vr_animsmooth.cpp, RigArm)
+inline constexpr int blockRows = 22; // the instance's arm rows after its bones' kicks (vr_animsmooth.cpp, RigArm)
 
 // What a model's rig tells (vr_hitreact.cpp's armed rig row for it).
 struct Spec

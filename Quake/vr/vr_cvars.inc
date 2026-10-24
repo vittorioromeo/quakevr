@@ -2909,6 +2909,7 @@ QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
 QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
 QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
 QVR_CVAR(vr_agarms, "1", CVAR_NONE)                  // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
+QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist, "80", CVAR_NONE)           // vr_agarms: ... and its wrist bends at most this much there (degrees); else it lets go and hangs free
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off

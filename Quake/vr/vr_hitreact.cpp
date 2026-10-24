@@ -829,6 +829,7 @@ constexpr int apLeft = 2;            // the left hand to its own target (else on
 constexpr int apLeftFree = 4;        // ... the left as the animation has it
 constexpr int apLeftWeapon = 8;      // ... the left holding its own weapon at its target (dual wielding: propL, its turn)
 constexpr int apAnchor = 64;         // vr_agarms: wr and wl weigh its chest's anchor vertex as drawn, not its hands (QC VR_AGP_ANCHOR)
+constexpr int apReach = 128;         // vr_agarms: the right hand reaching for a weapon lying (none sent): its grip to fw, up (QC VR_AGP_REACH)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
@@ -1809,6 +1810,7 @@ struct RagErr
 {
     int n{0};
     float offMax{0.f}, offSum{0.f}, turnMax{0.f};
+    float propFar{0.f}; // vr_agarms: a held weapon drawn this far from its holder's origin, most (units)
 };
 RagErr ragErr;
 
@@ -2190,6 +2192,8 @@ bool relinkRigid(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int
     return true;
 }
 
+[[nodiscard]] bool placeable(const rigpose::Rigid& w);
+
 // A ragdoll's weapons (an active ragdoll's: a stagger, a shove's fall, a tug) on its hands' bones as drawn now, by their
 // grip offsets: never left floating while the server's catch up.
 void ragdollProps(const ArmPose& s, const entity_t* e)
@@ -2227,6 +2231,10 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off));
         const glm::vec3 at = rot * (scale * w.pos) + pos;
         const glm::quat wr = rot * w.rot;
+        if(!placeable(rigpose::Rigid{wr, at - drawnOrigin(e, nullptr)}))
+        {
+            continue; // (no place for it on the ragdoll's hand now: the server's)
+        }
         const glm::vec3 an = weaponAngles(wr * glm::vec3{1.f, 0.f, 0.f}, wr * glm::vec3{0.f, 0.f, 1.f});
         {
             // (vr_agrunt_ik_err: how far the server's own placing, drawn before this, was off the drawn hand)
@@ -2239,6 +2247,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             ragErr.offMax = za::max(ragErr.offMax, off);
             ragErr.offSum += off;
             ragErr.turnMax = za::max(ragErr.turnMax, turn);
+            ragErr.propFar = za::max(ragErr.propFar, glm::length(at - drawnOrigin(e, nullptr)));
         }
         for(int i = 0; i < 3; i++)
         {
@@ -2246,6 +2255,28 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             p.angles[i] = an[i];
         }
     }
+}
+
+// A weapon's frame on a body (model space): finite, within reach of it.
+[[nodiscard]] bool placeable(const rigpose::Rigid& w)
+{
+    const auto finite = [](float x) {
+        uint32_t bits = 0;
+        memcpy(&bits, &x, sizeof(bits));
+        return (bits & 0x7f800000u) != 0x7f800000u && x > -1e6f && x < 1e6f; // (NaN, infinite: exponent all ones)
+    };
+    for(int i = 0; i < 3; i++)
+    {
+        if(!finite(w.pos[i]))
+        {
+            return false;
+        }
+    }
+    if(!finite(w.rot.x) || !finite(w.rot.y) || !finite(w.rot.z) || !finite(w.rot.w) || glm::dot(w.rot, w.rot) < 0.5f)
+    {
+        return false;
+    }
+    return glm::length(w.pos) < 96.f;
 }
 
 // vr_agarms: `e`'s arms posed by its weapons (vr_agarms.cpp) and those drawn on its hands; `s` placed this frame.
@@ -2281,6 +2312,14 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.weapon[0].rot = frameRot(s.fw, s.up);
         t.weapon[0].pos = s.right;
         t.offset[0] = gripRigid(kind, slot, aggrip::Main);
+    }
+    else if(s.flags & apReach)
+    {
+        // (reaching for a weapon lying: its grip frame onto the weapon's handle, nothing drawn on it yet)
+        t.goal[0] = agarms::Goal::Frame;
+        t.weapon[0].rot = frameRot(s.fw, s.up);
+        t.weapon[0].pos = s.right;
+        t.offset[0] = gripRigid(kind, -1, aggrip::Main);
     }
     else
     {
@@ -2332,18 +2371,45 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         t.weapon[side] = composeRigid(chestKick, t.weapon[side]); // (the torso's flinch carries the weapons)
     }
+    // (a target that is no place on its body: none solved, its weapons left where the server has them, never drawn far
+    // off, at NaN or inside it: the note of 2026-10-24 03:11:45's invisible sword)
+    for(int side = 0; side < 2; side++)
+    {
+        if(t.goal[side] != agarms::Goal::None && !placeable(t.weapon[side]))
+        {
+            return;
+        }
+    }
     agarms::Placed placed;
     if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
         return;
     }
-    if(placed.on[0])
+    if(placed.on[0] && hasR && placeable(placed.weapon[0]))
     {
         placeProp(cl_entities[s.prop], e, placed.weapon[0], nullptr);
     }
-    if(placed.on[1])
+    if(placed.on[1] && placeable(placed.weapon[1]))
     {
         placeProp(cl_entities[s.propL], e, placed.weapon[1], nullptr);
+    }
+    if(vr_agrunt_ik_debug.value >= 2.f && hasR)
+    {
+        const entity_t& p = cl_entities[s.prop];
+        Con_Printf("agarms ent %d prop %d: want %.1f %.1f %.1f, placed %d %.1f %.1f %.1f, drawn at %.0f %.0f %.0f (it %.0f %.0f %.0f), "
+                   "model %s\n",
+            s.ent, s.prop, t.weapon[0].pos.x, t.weapon[0].pos.y, t.weapon[0].pos.z, placed.on[0] ? 1 : 0, placed.weapon[0].pos.x,
+            placed.weapon[0].pos.y, placed.weapon[0].pos.z, p.origin[0], p.origin[1], p.origin[2], e->origin[0], e->origin[1],
+            e->origin[2], p.model ? p.model->name : "none");
+    }
+    // (vr_agrunt_ik_err: how far its held weapons are drawn from it, most)
+    for(const int num : {hasR ? s.prop : 0, placed.on[1] ? s.propL : 0})
+    {
+        if(num > 0)
+        {
+            const entity_t& p = cl_entities[num];
+            ragErr.propFar = za::max(ragErr.propFar, glm::length(glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - drawnOrigin(e, nullptr)));
+        }
     }
     aggrip::noteSubject(kind, slot, slotL, viewDistance(e));
 }
@@ -3177,6 +3243,8 @@ void armErr_f()
     {
         agarms::printErr(); // (vr_agarms: its numbers; counted afresh after)
         agarms::clearErr();
+        Con_Printf("agprop: held weapons drawn at most %.1f units from their holders\n", ragErr.propFar);
+        ragErr.propFar = 0.f;
     }
     float most[2] = {0.f, 0.f};
     for(int r = 0; r < 2; r++)

@@ -2325,6 +2325,29 @@ QVR_PERMDECAL_FUNCTIONS \
 "	vec3 n0 = QvrOctNormal(s.z);\n" \
 "	vec3 p;\n" \
 "	vec3 n;\n" \
+"	// y: 2 * round(frame share * 1000) + body share. The body near the arms moves as the chest, not as its frames\n" \
+"	// (which swing the shoulders with the animation's arms); further off, more as its frames.\n" \
+"	float fq = floor(s.y * 0.5);\n" \
+"	float body = 1.0 - (1.0 - (s.y - 2.0 * fq)) * info.w;\n" \
+"	vec3 invS = SmoothSwing[b + 1u].xyz;\n" \
+"	vec4 qc = SmoothSwing[b + 18u];\n" \
+"	vec3 framed = pos / invS + info.xyz;\n" \
+"	vec3 chest = QvrQRot(qc, r) + SmoothSwing[b + 19u].xyz;\n" \
+"	vec3 bodyAt = mix(framed, chest + (fq * 0.001) * (framed - chest), info.w);\n" \
+"	if (body >= 0.9995)\n" \
+"		return (bodyAt - info.xyz) * invS;\n" \
+"	if (bone < 0.5 && f < 0.0005 && body > 0.0005)\n" \
+"	{\n" \
+"		// the shoulder: the upper arm's turn and the chest's blended about the shoulder (no flap as the arm rises), plus\n" \
+"		// the body's own move off the chest by the body's share\n" \
+"		if (dot(qc, qa) < 0.0)\n" \
+"			qa = -qa;\n" \
+"		vec4 q = normalize(mix(qa, qc, body));\n" \
+"		vec3 s0 = SmoothSwing[b + 20u + uint(side)].xyz;\n" \
+"		p = QvrQRot(q, r - s0) + QvrQRot(qa, s0) + ta + body * (bodyAt - chest);\n" \
+"		nor = mix(QvrQRot(q, n0) * max(length(nor), 1e-3), nor, body);\n" \
+"		return (p - info.xyz) * invS;\n" \
+"	}\n" \
 "	if (f > 0.0005 && bone < 1.5)\n" \
 "	{\n" \
 "		vec4 qb = SmoothSwing[b + 4u + 2u * k];\n" \
@@ -2340,9 +2363,8 @@ QVR_PERMDECAL_FUNCTIONS \
 "		p = QvrQRot(qa, r) + ta;\n" \
 "		n = QvrQRot(qa, n0);\n" \
 "	}\n" \
-"	float body = 1.0 - (1.0 - s.y) * info.w;\n" \
 "	nor = mix(n * max(length(nor), 1e-3), nor, body);\n" \
-"	return mix((p - info.xyz) * SmoothSwing[b + 1u].xyz, pos, body);\n" \
+"	return (mix(p, bodyAt, body) - info.xyz) * invS;\n" \
 "}\n" \
 "// QVR: vr_anim_smooth_rebuild: 9 rows a bone (its swing, its motion now from its rest place to the poses' bytes, its\n" \
 "// turn with its share in the first's w); each vertex's rebuild place on its bone (units) and share, its normal so: the\n" \

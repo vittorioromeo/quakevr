@@ -1113,10 +1113,10 @@ void(entity g, float pose) VR_AGT_SheetPose =
     }
     if(pose == 7 && p)
     {
-        // (its hand on a weapon lying before it, crouched: the take's deepest frame)
-        g.frame = vr_am_f_take + 2;
-        g.vr_ag_took_at = time;
-        g.vr_ag_took_grab = time + 10;
+        // (its hand on a weapon lying before it, down on its knee: the take's lowest frame, about to close)
+        g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
+        g.vr_ag_took_at = time - 5; // (its hand just closed on it: still where it lay)
+        g.vr_ag_took_grab = time - 0.001;
         g.vr_ag_took_org = g.origin + v_forward * 18 + v_right * 4 + '0 0 -22';
         g.vr_ag_took_fw = v_forward;
         g.vr_ag_took_up = '0 0 1';
@@ -1191,14 +1191,15 @@ void() VR_AGTest_Sheet =
     cvar_set("vr_agrunt_ik_tag", s >= hold * 0.6 ? ftos(tag) : "-1");
     if(vr_agt_step == 2 && s >= hold)
     {
-        localcmd("screenshot\n");
+        // (the script's screenshot follows this line: `vr_waitprint 3000 (tag; screenshot`; held 0.2 s more)
         VR_AGT_Print(sprintf("sheet: %s %s, set %g %s: %s, %s (tag %g)", VR_AM_UiKindName(g.vr_ag_kind), g.vr_ag_prop ?
             g.vr_ag_prop.netname : "fists", vr_agt_sheet_set, g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "-",
             VR_AGT_SheetPoseName(vr_agt_sheet_pose), vr_agt_sheet_view ? "side" : "front", tag));
-        vr_agt_step = 3; // (the screenshot taken next frame: held one more)
+        vr_agt_step = 3;
+        vr_agt_sheet_at = time;
         return;
     }
-    if(vr_agt_step == 3)
+    if(vr_agt_step == 3 && s >= 0.2)
     {
         vr_agt_step = 2;
         vr_agt_sheet_at = time;

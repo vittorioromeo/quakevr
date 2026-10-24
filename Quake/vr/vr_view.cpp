@@ -713,6 +713,7 @@ bool view::weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& bu
     // Drawn as a weapon lying (or held by a monster) is, at the origin unturned: its own frame (x forward, y left, z up).
     entity_t e{};
     e.model = model;
+    e.scale = ENTSCALE_DEFAULT;
     muzzle = anchorPosition(e, false, 1.f, weapons::anchor(slot, Key::MuzzleAnchor),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     // Its butt: the middle of its points within a unit of its rearmost along the line from its handle to the muzzle.
