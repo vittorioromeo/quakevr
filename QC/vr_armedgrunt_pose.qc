@@ -1063,6 +1063,26 @@ void(entity g, entity p) VR_AGP_Pose =
         vr_agp_v = vr_agp_v + bob;
         vr_agp_vl = vr_agp_vl + bob * vr_agp_wl;
         vr_agp_flags = vr_agp_flags | VR_AGP_ANCHOR;
+        // (its hands' grips within its arms' reach of its shoulders as its chest has them: a swing's arc past them, a
+        // bent pain's, drawn where its hand can hold it, and the game's weapon line with it)
+        VR_AM_Row(g.vr_ag_kind);
+        vector moved = handL - vr_am_anchor_at;
+        float most = 0.93 * vr_am_arm + 2.5;
+        vector grip = handL * vr_agp_wr + vr_agp_v;
+        vector fromSh = grip - (vr_am_sh_r + moved);
+        if(vlen(fromSh) > most)
+        {
+            vr_agp_v = vr_am_sh_r + moved + normalize(fromSh) * most - handL * vr_agp_wr;
+        }
+        if(vr_agp_flags & VR_AGP_LEFT)
+        {
+            grip = handL * vr_agp_wl + vr_agp_vl;
+            fromSh = grip - (vr_am_sh_l + moved);
+            if(vlen(fromSh) > most)
+            {
+                vr_agp_vl = vr_am_sh_l + moved + normalize(fromSh) * most - handL * vr_agp_wl;
+            }
+        }
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;
@@ -1075,6 +1095,11 @@ void(entity g, entity p) VR_AGP_Pose =
         vr_agp_flags = vr_agp_flags - VR_AGP_LEFTMIRROR;
     }
     float reaching = FALSE; // (its hand reaching down to a weapon on the floor: sent as no weapon)
+    if(g.vr_ag_took_at > 0 && p && pL && vr_agp_wl > 0)
+    {
+        vr_agp_vl = handL * vr_agp_wl + vr_agp_vl; // (vr_agarms: the left weapon's place whole, as the lay it eases from)
+        vr_agp_wl = 0;
+    }
     if(g.vr_ag_took_at > 0 && p)
     {
         // A weapon just taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin): where it lay until its hand closes on
@@ -1150,7 +1175,7 @@ void(entity g, entity p) VR_AGP_Pose =
             pL.angles_x = -al_x;
             pL.vr_ag_pfw = vr_agp_fwl;
             pL.vr_ag_pup = vr_agp_upl;
-            setorigin(pL, g.origin + VR_AGP_ToWorld(vr_agp_vl));
+            setorigin(pL, g.origin + VR_AGP_ToWorld(handL * vr_agp_wl + vr_agp_vl)); // (wl: vr_agarms' anchor; 0 before)
         }
         if(p.weapon == WID_CHAINSAW && !vr_agp_quiet)
         {

@@ -669,7 +669,8 @@ struct ArmOut
 {
     rigpose::Rigid U, F, H;
     float miss{0.f};  // the wrist's goal out of reach (units it was brought in)
-    float bend{0.f};  // the wrist's bend (degrees)
+    float bend{0.f};  // the wrist's bend wanted (degrees)
+    float turned{0.f}; // ... past its most: the hand turned back by this (degrees)
     glm::vec3 elbow{0.f};
 };
 
@@ -774,6 +775,15 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
     o.F.pos = E1 - rf * sd.E;
     o.H = H;
     o.bend = angleDeg(glm::inverse(rf) * H.rot);
+    // A wrist past its most (a swing's twist the elbow can't take): the hand, and its weapon with it, turned back
+    // towards the forearm about the wrist (the wrist stays).
+    const float bendMost = za::max(vr_agarms_wrist_most.value, 10.f);
+    if(o.bend > bendMost)
+    {
+        o.H.rot = glm::normalize(glm::slerp(rf, H.rot, bendMost / o.bend));
+        o.H.pos = W1 - o.H.rot * sd.W;
+        o.turned = o.bend - bendMost;
+    }
     return o;
 }
 
@@ -865,7 +875,7 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
             glm::length(rigpose::apply(b[1], sd.W) - rigpose::apply(b[2], sd.W)));
         e.gap = za::max(e.gap, gap);
         e.miss[s] = za::max(e.miss[s], arms[s].miss);
-        (s == 0 ? e.bend : e.bendL) = za::max(s == 0 ? e.bend : e.bendL, arms[s].bend);
+        (s == 0 ? e.bend : e.bendL) = za::max(s == 0 ? e.bend : e.bendL, arms[s].bend - arms[s].turned); // (as drawn)
         // In the torso: the elbow, the forearm's middle.
         const glm::vec3 E = rigpose::apply(b[1], sd.E), Wr = rigpose::apply(b[2], sd.W);
         for(const glm::vec3& p : {E, (E + Wr) * 0.5f})

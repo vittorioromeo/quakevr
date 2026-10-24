@@ -19914,3 +19914,81 @@ with a short dangling stub of the hose, a hiss or snap and a few sparks or a puf
 - [ ] Slash the sword across a lying hose (Test scene `tank_hose_cut`): a hiss, a snap, sparks and a puff; the hose is
   gone and both pieces keep a short stub swinging with them. A slow wave, a punch, the mace: nothing.
 - [ ] The cut gun never fires; force grab the tank, throw it at the grunts and shoot it: it bursts as big as before.
+
+## Armed humanoids' arms: posed and skinned (worktree `tghost`, branch `agent/agarms`, 2026-10-24)
+
+Notes vrtesthall 2026-10-24 03:06-03:15 (a gap between forearm and hand, the enforcer's off hand stretched crouching and
+running, dual shotguns: the left all over the place, hands in the torso, gaps; "pose everything through an IK-based
+solution that works in general, from how the player holds each gun"; the Grip Editor far too much work per weapon).
+A rebuild: agdual2's vertex reassignment and aghands' rigid pieces are superseded (`vr_agarms` 1; 0 brings them back,
+read at a map load). New: `Quake/vr/vr_agarms.cpp`; `vr_hitreact.cpp` (`relinkSkinned`), `vr_animsmooth.cpp` (a fourth
+rest row, the arm rows), `vr_glsl.h` (`RigArm`), `vr_aggrip.cpp` (global grips), `vr_view.cpp`
+(`weaponLocalGeometry`), QC `vr_armedgrunt_pose.qc` (the `vr_agarms` poses), `vr_armedmon.qc` (the rows' arm fields).
+
+**The weapon where a player holds it.** A held weapon's entity frame is its hand's, as your controller is to the weapon
+you hold (its Weapon Offsets draw the model off it): so the barrel is the hand's forward and the weapon's own points
+(its muzzle or tip, its butt, its second grip: `weapondrawnpose(p, 0, 8..10)`) are where your hand finds them. QC
+(`VR_AGP_ArmsGun`, server-side: the game's weapon line, the parry and shot-disarm volumes are the drawn weapon's) puts:
+- a long gun (one with a second grip) as the monster held its own rifle (its rest pose's hold turned with the gun: arms
+  and wrists as the artist made them), raised to its shoulder as it aims by `vr_agarms_shoulder` (0.5: its butt in the
+  pocket before the shoulder, a stock half its arm long taken: your guns have next to none), the barrel through its
+  muzzle on the target; carried low across the body when not aiming;
+- a one-handed gun, and each of two, out from its shoulder towards the target (its sights at its eyes' line), lowered
+  by its side when carried; aimed at most 30 degrees off the body's way (its arms would cross its chest);
+- a melee weapon from the existing ready, carry (new: one-handed by its side, two-handed at port arms), swing and parry
+  keys: its tip on the blade's line, the fist's forward towards the edge's way (`VR_AGP_BladeHand`); the free hand a
+  point (hanging, or raised into a guard);
+- the kick (back and up), a heavy gun's kick in one hand, a reload's tilt with the off hand to the belt and back, a
+  run's bob, a pickup's reach (tug2's knee: the hand's grip frame onto the lying weapon's handle, `VR_AGP_REACH`);
+- every grip within the arm's reach of its shoulder (a swing's arc, a bent pain): drawn where the hand holds it.
+Poses are placed from a chest vertex (`VR_AGP_ANCHOR`, the rows' `vr_am_anchor`), not the animation's hand. The left
+weapon of two is placed by the server from the same anchor (it was placed at its feet: shots from a left gun came
+from there).
+
+**The arm: IK.** Each frame (`agarms::solve`): the shoulder carried by the chest as drawn (its hit reactions too, and
+the weapons with it); the hand's grip frame to the weapon's frame (`aggrip`: one per kind and hand for every weapon,
+Grip Editor > Edits: Every Weapon; a weapon's own on top); two-bone IK to the wrist, the elbow chosen round its circle
+(36 places, refined) for the wrist kept as the rest pose has it, low and out, not up past the shoulder or across the
+chest, near its last place; the forearm takes half the hand's twist. Fists and free hands keep their wrists straight
+(the hand turned with the forearm). Beyond reach the hand (and its weapon) is brought in. The off hand takes the second
+grip within reach (sliding back along the gun towards the right hand when the hotspot is past it) and a wrist within
+`vr_agarms_wrist` (80), else hangs; its goal changing eases over 0.3 s. A wrist past `vr_agarms_wrist_most` (100) turns
+the hand (and weapon) back. The arms ease in and out of the animation's (0.12 / 0.2 s: spawn, death).
+Hook for agent/agstrike: `relinkSkinned` notes where `bodyTurn` goes (on `posed`, before the solve);
+`agarms::Targets::pole` takes a strike's elbow poles.
+
+**The skin.** Once a model (`skinOf`, from the rig's rest pose and frames): an arm's vertex is nearest that arm's bone
+lines and moves with them through the frames clearly more than with the chest (the rest pose's arms touch the body);
+weights along the chain: the elbow by distance to both bones (the web inside the rest pose's bent elbow opens evenly),
+the wrist over a short band on the forearm's side, the hand rigid; the shoulder blended into the body (its seam smoothed
+over three rings), its turn blended with the chest's about the joint (no flap as the arm rises); the body within three
+rings of the arms carried by the chest rather than its frames (the frames swing the shoulders with the animation's arms),
+a body vertex the rest pose's elbow touches half on the arm. Drawn by `RigArm` (blends about the joints: no gaps, the
+hand rigid, normals turned).
+
+**Measured** (test 45, the contact sheet, and tests 41/43; `vr_agrunt_ik_err`'s agarms/agt lines):
+
+| | grunt | enforcer |
+| --- | --- | --- |
+| joint gaps (all frames, all tests) | 0.000 | 0.000 |
+| hand shape (most edge off rest) | 0.0000 | 0.0000 |
+| sheet, guns: wrist bend (aim, most) | 40-69 | 46-72 |
+| sheet, guns: off hand on the second grip (aim ahead) | held | held, but not every gun |
+| sheet: arm and body edges, most growth (units) | 2-5 (the left shoulder's front aiming) | 3-5 |
+| test 41 living frames: hands short of their targets (most) | 5.4 (a pain's bend) | 6.6 |
+
+**Tests**: 35, 60, 42 PASS for both kinds; 50 PASS (grunt; see below for the enforcer); eval.sh below.
+Contact sheets: `scratch/ag_sheet.sh` (eyes 1100, vrtesthall), images `scratch/v17z_k0_s3.png` (grunt, shotgun: idle,
+aim ahead/up/down/left/right, run, take up, pain, blow; front and side), `scratch/v13az_k0_s1.png` (sword),
+`scratch/v18z_k0_s11.png` (two shotguns), `scratch/v21w_k1_s3.png` (enforcer, shotgun); before: the author's
+screenshots of 03:10:02 and 03:12:16.
+
+**In VR:**
+- [ ] Armed grunts and enforcers with each gun (scene `agrunt_weapon_hands`, the toolgun's Armed Humanoid page): no gap
+  at the wrist or the elbow, hands never stretched, the gun carried low across the body and raised (towards the shoulder)
+  as it aims, the off hand on the fore-end; Shoulder share (`vr_agarms_shoulder`) to taste.
+- [ ] Two shotguns (scene `agrunt_dual_guns`): each in its own hand at its side, both out towards you as it aims.
+- [ ] An enforcer running and crouching for a gun: its off hand keeps its shape; the gun comes up from the floor in its
+  hand (tug2's knee pickup).
+- [ ] Swords and axes: carried, raised ready, swung; a free hand hanging or in a guard.
+- [ ] Grip Editor (scene `agrunt_grip_editor`): Edits Every Weapon moves the hand's grip for all of a kind's weapons.
