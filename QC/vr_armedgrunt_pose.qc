@@ -670,6 +670,7 @@ void(entity g, entity p) VR_AGP_Pose =
     else if(c == VR_AG_CLASS_MELEE)
     {
         VR_AGP_Melee(g, p, handL, -gx, -gz);
+        VR_AGPar_Pose(g, p); // (its parry raised into a blow's way: vr_armedgrunt_parry.qc)
         // The pose is the blade's (or the head's, the bar's) line; the model is drawn turned up from its entity's
         // forward by its Weapon Offsets (a hand's hold): the entity turned down by that so the blade lies where wanted.
         float tilt = VR_AGP_BladeTilt(p);
@@ -690,6 +691,7 @@ void(entity g, entity p) VR_AGP_Pose =
     else
     {
         VR_AGP_Gun(g, p, pL, gx, gz);
+        VR_AGPar_Pose(g, p);
     }
     VR_AGP_Body(g);
     vector posL = handL * vr_agp_wr + vr_agp_v;

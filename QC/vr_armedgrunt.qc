@@ -483,6 +483,7 @@ void() VR_AG_PropThink =
     {
         return;
     }
+    VR_AGPar_Frame(g); // (a melee blow coming: its parry raised: vr_armedgrunt_parry.qc)
     VR_AG_PlaceProp(g, self);
     VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
     self.nextthink = time;
@@ -1657,7 +1658,7 @@ float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
-    if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) ||
+    if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) || vr_agpar_now ||
        take < VR_AG_DisarmDamage(targ) || inflictor == world || inflictor.classname == "vr_burn")
     {
         return;

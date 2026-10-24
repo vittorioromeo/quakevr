@@ -2696,9 +2696,27 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
     float parried = VR_Parry(targ, inflictor, attacker, damage);
+    // VR: an armed one parries a monster's melee blow on its weapon (vr_armedgrunt_parry.qc): cut, and no pain from it.
+    float agp = FALSE;
+    float agpPain = 0;
+    if(targ.vr_ag && !(attacker.flags & FL_CLIENT))
+    {
+        parried = VR_AGPar_Blow(targ, inflictor, attacker, parried);
+        agp = vr_agpar_now;
+    }
     float corpse = targ.vr_corpse == 2 || targ.vr_corpse_dying;
     float qpop = VR_Decap_QuadArm(targ, inflictor, attacker, parried); // VR: with Quad, any headshot kill pops (vr_decap.qc)
+    if(agp)
+    {
+        agpPain = targ.pain_finished;
+        targ.pain_finished = time + 0.1;
+    }
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
+    if(agp)
+    {
+        targ.pain_finished = agpPain;
+        vr_agpar_now = FALSE;
+    }
     if(qpop)
     {
         VR_Decap_After(targ);
@@ -2778,6 +2796,15 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
             return FALSE;
         }
     }
+    // VR: an armed one parries a blow that meets its weapon first (yours, or an armed monster's: vr_armedgrunt_parry.qc):
+    // cut, no zone multiplier, no beheading, no pain from it.
+    float agp = FALSE;
+    float agpPain = 0;
+    if(targ.vr_ag && targ != attacker)
+    {
+        damage = VR_AGPar_Blow(targ, inflictor, attacker, damage);
+        agp = vr_agpar_now;
+    }
     float prop = -1;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_blowhand == vr_hithand + 1 && attacker == self &&
        (attacker.flags & FL_CLIENT))
@@ -2799,21 +2826,35 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
             return FALSE;
         }
     }
-    else
+    else if(!agp)
     {
         mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
         damage = VR_Melee_CapDamage(damage * mult, mult);
         pushDamage = damage;
     }
-    VR_Teeth_Blow(targ, attacker, damage); // VR: a punch to the face knocks teeth out (vr_teeth.qc)
-    VR_GoreSnd_FaceBlow(targ, attacker, damage); // VR: a heavy blow to the face: a choke, not a cry (vr_teeth.qc)
-    float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
+    float decap = FALSE;
+    if(!agp)
+    {
+        VR_Teeth_Blow(targ, attacker, damage); // VR: a punch to the face knocks teeth out (vr_teeth.qc)
+        VR_GoreSnd_FaceBlow(targ, attacker, damage); // VR: a heavy blow to the face: a choke, not a cry (vr_teeth.qc)
+        decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
+    }
     float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
     float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
     vector hotAt = vr_hitpos;
     vector hotDir = vr_hitdir;
-    float head = VR_HitStagger_Head(targ, vr_hitpos);
+    float head = agp ? FALSE : VR_HitStagger_Head(targ, vr_hitpos);
+    if(agp)
+    {
+        agpPain = targ.pain_finished;
+        targ.pain_finished = time + 0.1;
+    }
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    if(agp)
+    {
+        targ.pain_finished = agpPain;
+        vr_agpar_now = FALSE;
+    }
     if(decap)
     {
         VR_Decap_After(targ);
@@ -2846,7 +2887,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
             min(200, pushDamage * 3) * cvar_hget(cvarh_vr_melee_push));
     }
     // VR: a strong blow may unbalance it as a shove does (vr_hitstagger.qc; a head blow counts more).
-    if(r && alive && damage > 0)
+    if(r && alive && damage > 0 && !agp) // (a parried blow: its weapon took it)
     {
         VR_HitStagger_Melee(targ, attacker, targ.origin - attacker.origin, damage, head);
     }

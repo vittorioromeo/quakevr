@@ -1,0 +1,8 @@
+# agrunt_theyparry: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids parry your blows: a sword grunt and an axe enforcer; a sword in hand
+map vrtesthall
+god
+give "Knight's Sword" main
+spawn "Armed Grunt: Sword" 140 -40
+spawn "Armed Enforcer: Axe" 200 90
+hint Swing at one: it raises its weapon into your blow's way; a blow that meets its weapon rings and is knocked back (little damage), and the second in a row knocks its weapon away. Go round its weapon (head, legs, the side it doesn't cover) and it takes the full blow; quick or feinted swings can get through; never from behind or while it reels.
