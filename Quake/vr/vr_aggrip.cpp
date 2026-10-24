@@ -48,10 +48,10 @@ struct GlobalRow
 };
 constexpr GlobalRow globalDefaults[] = {
     {0, aggrip::Main, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-    {0, aggrip::Off, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {0, aggrip::Off, 0.f, 0.f, 0.f, 15.f, -35.f, -90.f}, // (the left hand's rest hold is under a barrel: a pistol grip turned into it; ag_offtry.sh)
     {0, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-    {1, aggrip::Main, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-    {1, aggrip::Off, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {1, aggrip::Main, 0.f, 0.f, 0.f, 30.f, -10.f, 0.f}, // (the enforcer's wrists straighter so)
+    {1, aggrip::Off, 0.f, 0.f, 0.f, 15.f, -35.f, -90.f},
     {1, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
 };
 
@@ -198,6 +198,13 @@ void dump_f()
     for(int i = 0; i < state.numOver; i++)
     {
         const Override& o = state.over[i];
+        if(o.slot == aggrip::allWeapons)
+        {
+            Con_Printf("    {%d, aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (globalDefaults: every weapon)\n", o.kind,
+                o.hand == aggrip::Main ? "Main" : o.hand == aggrip::Off ? "Off" : "Second", o.o.pos.x, o.o.pos.y, o.o.pos.z,
+                o.o.angles.x, o.o.angles.y, o.o.angles.z);
+            continue;
+        }
         Con_Printf("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff},\n", o.kind, slotId(o.slot),
             o.hand == aggrip::Main ? "Main" : o.hand == aggrip::Off ? "Off" : "Second", o.o.pos.x, o.o.pos.y, o.o.pos.z,
             o.o.angles.x, o.o.angles.y, o.o.angles.z);
