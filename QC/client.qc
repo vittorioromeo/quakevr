@@ -3029,58 +3029,84 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
+// The blow of `xHand` VR_Melee_Strike (or VR_Melee_StrikeMore) found, in mh_c_*: dealt by the weapon in that hand.
+void(float xHand) VR_Melee_Deal =
+{
+    entity b = VR_Blow(xHand);
+    // Each thing struck sounds (a swing through two monsters sounds twice).
+    float spent = VRGetMeleeHitSoundPlayed(xHand);    if(spent && b.mh_c_ent != b.mh_hit_ent)
+    {
+        VRSetMeleeHitSoundPlayed(xHand, FALSE);
+    }
+
+    if(b.mh_c_ent.vr_gib)
+    {
+        // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
+        VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
+    }
+    else if(VR_Melee_CorpseTarget(b.mh_c_ent))
+    {
+        // A corpse the sweep crossed (one swing, many things): VR_Corpse_StrikeFrame's blow, where the blade met it.
+        float blunt = (b.mh_kind == VR_MKIND_POMMEL) || ((VRGetEntWeapon(self, xHand) == WID_SWORD) &&
+                      VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand))));
+        VR_Corpse_Struck(xHand, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, blunt);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
+    else
+    {
+        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+        vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
+                         ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
+                          VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
+        vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
+        vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
+        vr_melee_blowhand = xHand + 1; // a prop it breaks by the impact rule (T_Damage_VRMelee, VR_Prop_BlowDamage)
+        if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
+            if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
+                if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
+                if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
+                if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
+                if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
+                if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
+                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
+        vr_melee_blowhand = 0;
+        vr_melee_blunt = FALSE;
+        vr_melee_slap = FALSE;
+        vr_sgib_at = '0 0 0';
+        VR_ClearHitKind();
+    }
+
+    if(VRGetMeleeHitSoundPlayed(xHand))
+    {
+        // It landed.
+        VR_Melee_Landed(xHand);
+    }
+};
+
+// The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and with one swing, many things
+// (vr_melee_multi) every other thing, and the world, the same sweep crossed.
+void(float xHand) VR_Melee_DealAll =
+{
+    VR_Melee_Deal(xHand);
+    float more;
+    for(more = 0; (more < VR_MELEE_MULTI_LIST + 1) && VR_Melee_StrikeMore(xHand); ++more)
+    {
+        VR_Melee_Deal(xHand);
+    }
+};
+
 void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInMelee,
      float* xMeleeHitSoundPlayed) PlayerVRMeleeImpl =
 {
     // The blow this frame (vr_melee.qc): a part of what the hand holds swept into something, fast enough, as the kind
     // of blow its part and motion make; the hands in a bash's push don't strike, and each thing is struck once a motion.
-    if(VRHandsTracked(self) && time >= xInMelee && VR_Melee_Strike(xHand))
+    // One swing, many things (VR_Melee_Multi): every thing it crosses, each once, and no pause after a blow (each thing
+    // struck once a motion: a body crossed the frame after the floor is struck).
+    if(VRHandsTracked(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
     {
-        entity b = VR_Blow(xHand);
-        // Each thing struck sounds (a swing through two monsters sounds twice).
-        float spent = VRGetMeleeHitSoundPlayed(xHand);
-        if(spent && b.mh_c_ent != b.mh_hit_ent)
-        {
-            VRSetMeleeHitSoundPlayed(xHand, FALSE);
-        }
-
-        if(b.mh_c_ent.vr_gib)
-        {
-            // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
-            VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
-        }
-        else
-        {
-            VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-            vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
-                             ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
-                              VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
-            vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
-            vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
-            vr_melee_blowhand = xHand + 1; // a prop it breaks by the impact rule (T_Damage_VRMelee, VR_Prop_BlowDamage)
-            if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
-                if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
-                    if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
-                    if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
-                    if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
-                    if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
-                    if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
-                        DoXHandMeleeImpl(xHand, "", W_GunMelee);
-            vr_melee_blowhand = 0;
-            vr_melee_blunt = FALSE;
-            vr_melee_slap = FALSE;
-            vr_sgib_at = '0 0 0';
-            VR_ClearHitKind();
-        }
-
+        VR_Melee_DealAll(xHand);
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
-
-        if(VRGetMeleeHitSoundPlayed(xHand))
-        {
-            // It landed.
-            VR_Melee_Landed(xHand);
-        }
     }
 
     VR_Grenade_CatchCheck(xHand, VR_Blow(xHand)); // an empty hand not striking catches a grenade in flight (vr_grenade.qc)

@@ -780,6 +780,11 @@ QVR_CVAR(vr_melee_world_pass_length, "0.35", CVAR_ARCHIVE) // the share of the w
 QVR_CVAR(vr_melee_world_pass_speed, "2.5", CVAR_ARCHIVE) // m/s the hand (its grip) swings at from which (a blow's least speed is about 2.25)
 QVR_CVAR(vr_melee_world_pass_time, "0.25", CVAR_ARCHIVE) // s it stays let in after the hand slowed (the cut's follow-through), then eased back out over 0.15 s
 QVR_CVAR(vr_melee_world_pass_reach, "12", CVAR_ARCHIVE) // units: how near the weapon's far part (as it is and a frame ahead) the body must be
+// One swing, many things (ROUND22.md, "One swing hits everything its edge passes through"; QC VR_Melee_Multi): a swing of
+// a weapon (not a bare fist) strikes each thing its striking part passes through once, each its own blow, and the wall
+// or the floor once as well, in any order: a blow on the floor no longer spends the swing for a body beyond it.
+QVR_CVAR(vr_melee_multi, "1", CVAR_ARCHIVE)          // 1 on; 0 as before (the world ends the swing; one thing after another)
+QVR_CVAR(vr_melee_multi_max, "4", CVAR_ARCHIVE)      // things (not the world) one swing strikes at most (1..6)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
 QVR_CVAR(vr_gunyaw, "0", CVAR_ARCHIVE)
