@@ -2,9 +2,11 @@
 // "Blade shape editor"): the weapon in the hand's melee blade (vr_blade.hpp: what its blows strike with) shaped by hand,
 // live. Show Melee Blades is on while it runs (QC's own blow line and sweeps, as they strike); over it the blade as its
 // settings lay it (its line from the near end through the hand along its curve to the tip, its width as a tube) and its
-// handles, which the other hand's grip takes and drags: the tip (Muzzle X/Y/Z), the near end (Blade Near End), the width
-// (Blade Width), five points of the curve (Blade Spine: a smooth spline through them; the first drag seeds them from the
-// model's curve) and a head's two corners (Blade Head; when it has one). A panel ahead (touch a button, pull the trigger):
+// handles, which the other hand's grip takes and drags: Line Start (the line's start off the hand, Blade Org; ROUND22.md,
+// "The blade's line start"), Tip (Muzzle X/Y/Z; a gun's Blade Tip, its shots' muzzle kept), Handle Length (the near end,
+// Blade Near End), Blade Start (where the striking part begins along the line, Blade From), Width (Blade Width), five
+// Curve points (Blade Spine: a smooth spline through them; the first drag seeds them from the model's curve) and a Head's
+// two corners (Blade Head; when it has one). A panel ahead (touch a button, pull the trigger):
 // Undo, Reset Blade, Straighten, Head Box On/Off, Cancel (everything back as it was) and Done (vr_blade_dump's lines
 // printed). B/Y undoes, the menu button is Done. The game goes on (the hands strike as they would): the buttons are the
 // editor's, the sticks don't move the player.
@@ -36,7 +38,7 @@ void sticks(const glm::vec2& off, const glm::vec2& main);
 void frame();
 
 // Handle `index` (0 the tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's low and high
-// corners), `offset` units off it along the line, its normal in the blade's plane and the model's +y; and the panel's
+// corners, 10 the blade's start, 11 the line's start), `offset` units off it along the line, its normal in the blade's plane and the model's +y; and the panel's
 // button `index` (0 Undo, 1 Reset Blade, 2 Straighten, 3 Head Box, 4 Cancel, 5 Done): where they are, for the mock hands
 // (vr_mock_hand_to <hand> bladehandle|bladebutton <index>). False: not active, not shown.
 [[nodiscard]] bool handlePoint(int index, const glm::vec3& offset, glm::vec3& out);

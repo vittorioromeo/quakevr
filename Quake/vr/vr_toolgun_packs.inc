@@ -108,9 +108,10 @@ QVR_PACK("Props", "Corpses", "Player Corpse", "misc_corpse", "progs/player.mdl",
 QVR_PACK("Props", "DoE", "DoE Buzzsaw", "buzzsaw", "progs/buzzsaw.mdl", 16.f, nullptr, 0.f, 0, 1, nullptr, 0)
 QVR_PACK("Props", "Honey", "Honey Tree", "misc_tree", "progs/tree1.mdl", 0.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
-// Fire: id's fireball spout (its lava balls), the Machine packs' gas flare (MG1's and MG3's flame3.mdl).
+// Fire: id's fireball spout (its lava balls), the Machine packs' gas flare (MG1's flame3.mdl read in place from the owned
+// pack in any map, as MG3's models: QC VR_MG_FlameModel also takes the mounted pack's or MG3's).
 QVR_PACK("Fire", nullptr, "Fireball Spout", "misc_fireball", "progs/lavaball.mdl", 8.f, nullptr, 0.f, 0, 0, nullptr, 0)
-QVR_PACK("Fire", "MG", "MG Gas Flare", "light_flame_gas", "progs/flame3.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
+QVR_PACK("Fire", "MG", "MG Gas Flare", "light_flame_gas", "owned/mg1/progs/flame3.mdl", 8.f, nullptr, 0.f, 0, 1, nullptr, 0)
 
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding any of your weapons, its
 // "weapon" key the weapon (QC's WID_*; 0 one from Combat > Armed Grunts' pool, -1 its fists).

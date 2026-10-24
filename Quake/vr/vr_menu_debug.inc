@@ -125,6 +125,11 @@ za::Vector<Item> pageDebugViews()
                   "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
                   "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
+        cycle("Show Shot Disarms", vr_agrunt_shotdisarm_debug, {{0.f, "Off"}, {1.f, "Print"}, {2.f, "Print and Volumes"}})
+            .help("vr_agrunt_shotdisarm_debug: each shot of yours on an armed grunt printed (shotdisarm: the part it hit, "
+                  "weapon, hand or body; the damage adding up; each roll, its chance and result); Print "
+                  "and Volumes also shows each held weapon's line (blue-white sparks) and its hand and forearm (sparks). "
+                  "The settings: Armed Grunts > Disarming: Shooting It Out."),
         command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
             .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
                   "Shape): its tip, near end, width, curve and head box. With the hand empty: the fist's blow line."),

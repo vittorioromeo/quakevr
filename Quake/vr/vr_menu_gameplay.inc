@@ -1013,6 +1013,49 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
 // Combat > Armed Grunts (Experimental) (QC vr_armedgrunt.qc; ROUND22.md, "Armed grunts"): grunts holding your weapons.
+[[nodiscard]] const char* armedGripSubject()
+{
+    return aggrip::subjectLine();
+}
+
+// The Grip Editor (vr_aggrip.cpp): the nearest armed monster's weapon in its hand, live.
+[[nodiscard]] za::Vector<Item> pageArmedGrips()
+{
+    const auto pos = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, -8.f, 8.f, 0.1f, "%.1f").extend(-30.f, 30.f).help(what);
+    };
+    const auto ang = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, -180.f, 180.f, 2.5f, "%.1f deg").help(what);
+    };
+    return {
+        header("Editing"),
+        info(armedGripSubject),
+        toggle("Freeze Them", vr_agrunt_freeze)
+            .help("Armed grunts and enforcers hold still in their idle pose, weapons ready, while you tune (spawn one with "
+                  "the toolgun's Armed Humanoid page, or Debug > Tests > Test Scenarios: Armed Grip Editor). "
+                  "(vr_agrunt_freeze)"),
+        cycle("Hand", vr_agrunt_grip_hand, {{0.f, "Main Hand"}, {1.f, "Off Hand (Dual)"}, {2.f, "Off Hand on the Second Grip"}})
+            .help("Main Hand: the weapon in its right hand. Off Hand (Dual): its left hand's own weapon. Second Grip: its "
+                  "left hand on a two-handed weapon's second grip (where its hand goes, along the weapon's axes)."),
+        header("The Weapon in the Hand"),
+        pos("Forward", vr_agrunt_grip_x, "Moves the weapon forward (back: negative) in the hand: units, along the hand's "
+                                          "grip (the way its own gun pointed). Second Grip: the hand along the weapon."),
+        pos("Left", vr_agrunt_grip_y, "Moves the weapon to the hand's left (units)."),
+        pos("Up", vr_agrunt_grip_z, "Moves the weapon up in the hand (units): a sword's handle into the fist, not its guard."),
+        ang("Pitch", vr_agrunt_grip_pitch, "Tips the weapon down (up: negative) in the hand."),
+        ang("Yaw", vr_agrunt_grip_yaw, "Turns the weapon left (right: negative) in the hand."),
+        ang("Roll", vr_agrunt_grip_roll, "Rolls the weapon about its length in the hand."),
+        command("Fit Angles to Its Pose", "vr_agrunt_grip_fit")
+            .help("Sets the angles so its hand holds the weapon as its pose now has the weapon turned, the wrist "
+                  "unturned (a starting point; freeze it first)."),
+        header("Keep Them"),
+        command("Print as Defaults", "vr_agrunt_grip_dump")
+            .help("Prints the changed grips as code for the shipped defaults (the console; vr_agrunt_grip_dump). They are "
+                  "kept in your config meanwhile (vr_agrunt_grips)."),
+        command("Reset This One", "vr_agrunt_grip_reset").help("This weapon and hand back to the shipped default."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedGrunts()
 {
     const auto weight = [](const char* label, cvar_t& c) {
@@ -1030,9 +1073,17 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "gun away and fights with its fists. Not the grunts' and enforcers' rifles: their clip is all they "
                   "have (vr_agrunt_reserve)."),
         slider("Dual Wielding", vr_agrunt_dual_chance, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance one from the pool holding a one-handed weapon (a sword, the crowbar, the axe) gets a second "
-                  "in its left hand: it swings them in turn or both at once, each can be knocked or pulled out of its "
-                  "hand, and it goes for another (vr_agrunt_dual_chance)."),
+            .help("The chance one from the pool holding a weapon that pairs gets a second in its left hand: one-handed "
+                  "blades and clubs (a sword, the crowbar, the axe) swung in turn or both at once; guns one in each "
+                  "hand (not the rocket launcher, the Laser Cannon, the chainsaw, the hammers). Each can be knocked or "
+                  "pulled out of its hand, and it goes for another (vr_agrunt_dual_chance)."),
+        slider("Dual Guns' Penalty", vr_agrunt_dual_penalty, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Two guns held one in each hand aim as yours do in one hand: no two-hand spread reduction (spread "
+                  "and aim error x2 at 1) and heavy guns kick their aim up a shot by their heft. This times those "
+                  "penalties; 0: as accurate as with one gun in both hands (vr_agrunt_dual_penalty)."),
+        toggle("Pick Up a Second", vr_agrunt_dual_pickup)
+            .help("One holding a single weapon that pairs goes for a second lying about, out of a fight, and holds it in "
+                  "its left hand (vr_agrunt_dual_pickup)."),
         slider("Reload Time", vr_agrunt_reload_time, 0.2f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
             .help("How long it stands reloading (vr_agrunt_reload_time)."),
         slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
@@ -1051,7 +1102,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         header("Disarming"),
         toggle("Hits Disarm", vr_agrunt_disarm)
             .help("A hard blow on its gun hand (a shot, a melee blow, a thrown thing) or a knockdown knocks the "
-                  "weapon out of its hand, its rounds with it (vr_agrunt_disarm)."),
+                  "weapon out of its hand, its rounds with it; your shots by Shooting It Out's rule below while that is "
+                  "on (vr_agrunt_disarm)."),
         slider("Disarming Blow", vr_agrunt_disarm_damage, 1.f, 50.f, 1.f, "%.0f damage").extend(0.f, 500.f)
             .help("A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage)."),
         toggle("Grab Its Weapon", vr_agrunt_disarm_yank)
@@ -1117,6 +1169,54 @@ void kdTrigWeightRows(za::Vector<Item>& items)
                   "ledge (vr_agrunt_seek_timeout)."),
         slider("Leaves It Alone For", vr_agrunt_seek_shun, 0.f, 120.f, 1.f, "%.0f s").extend(0.f, 600.f)
             .help("How long it leaves a weapon it gave up on before trying it again (vr_agrunt_seek_shun)."),
+        header("Disarming: Shooting It Out"),
+        toggle("Shoot Weapons Out", vr_agrunt_shotdisarm)
+            .help("Your shots on the weapon an armed grunt holds, or the hand holding it, add up; each time they pass "
+                  "the threshold within the time window, a roll may knock the weapon out of its hand, along your shots. "
+                  "A close shotgun blast on the gun likely does, a quick nail burst may, a chip shot from afar seldom. "
+                  "Each hand's weapon on its own. While on, your shots disarm only this way (vr_agrunt_shotdisarm)."),
+        cycle("What Counts", vr_agrunt_shotdisarm_parts, {{0.f, "The Weapon"}, {1.f, "The Hand"}, {2.f, "Weapon or Hand"}})
+            .help("Which hits add up: on the weapon itself, on the hand and forearm holding it, or either "
+                  "(vr_agrunt_shotdisarm_parts)."),
+        slider("Weapon Hits Count", vr_agrunt_shotdisarm_weapon_w, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A hit on the weapon counts its damage times this (vr_agrunt_shotdisarm_weapon_w)."),
+        slider("Hand Hits Count", vr_agrunt_shotdisarm_hand_w, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A hit on the hand or forearm counts its damage times this; it hurts the grunt as usual "
+                  "(vr_agrunt_shotdisarm_hand_w)."),
+        slider("Hit Volume Size", vr_agrunt_shotdisarm_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The weapon's and the hand's hit volumes times this: under 1 only precise shots count, over 1 near ones "
+                  "too (vr_agrunt_shotdisarm_size)."),
+        slider("Near Misses Count Within", vr_agrunt_shotdisarm_near, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 64.f)
+            .help("A shot passing this close to the weapon or the hand, but not on it, counts at half. 0: only hits "
+                  "(vr_agrunt_shotdisarm_near)."),
+        slider("Damage to a Roll", vr_agrunt_shotdisarm_damage, 1.f, 100.f, 1.f, "%.0f damage").extend(0.f, 1000.f)
+            .help("The damage adding up to a roll: a shotgun blast's six pellets are 24, a nail 9, a super nail 18, a "
+                  "bolt 30 (times its weight below). Each crossing rolls once, then it starts over "
+                  "(vr_agrunt_shotdisarm_damage)."),
+        slider("Time Window", vr_agrunt_shotdisarm_window, 0.05f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("How long hits add up, from the first: then it starts over (vr_agrunt_shotdisarm_window)."),
+        slider("Chance a Roll", vr_agrunt_shotdisarm_chance, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("The roll's chance right at the threshold (vr_agrunt_shotdisarm_chance)."),
+        slider("Chance Past the Threshold", vr_agrunt_shotdisarm_chance_scale, 0.f, 2.f, 0.05f, "+%.2f").extend(0.f, 10.f)
+            .help("Added to the chance for each threshold's worth past it (half past: half of it); at most 0.95. A "
+                  "shotgun blast all on the gun, 24 on 16: 0.25 + 0.4 (vr_agrunt_shotdisarm_chance_scale)."),
+        slider("After a Failed Roll", vr_agrunt_shotdisarm_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("No hits add up for this long after a roll that failed (vr_agrunt_shotdisarm_cooldown)."),
+        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_absorb)
+            .help("A pellet or a nail on the weapon stops there: it doesn't hurt the grunt. Off: it goes on into the body "
+                  "behind (vr_agrunt_shotdisarm_absorb)."),
+        slider("Shotgun Pellets", vr_agrunt_shotdisarm_w_pellet, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the shotguns' pellets count (vr_agrunt_shotdisarm_w_pellet)."),
+        slider("Nails", vr_agrunt_shotdisarm_w_nail, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the nailguns' nails count (vr_agrunt_shotdisarm_w_nail)."),
+        slider("Lightning", vr_agrunt_shotdisarm_w_lightning, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the lightning gun's bolts count, 30 each tenth of a second (vr_agrunt_shotdisarm_w_lightning)."),
+        slider("Rockets and Grenades", vr_agrunt_shotdisarm_w_blast, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much a rocket or a grenade flying through the weapon or the hand counts, its direct hit's damage "
+                  "(vr_agrunt_shotdisarm_w_blast)."),
+        slider("Explosions", vr_agrunt_shotdisarm_w_splash, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much an explosion's damage to the grunt counts on its weapons. 0: never "
+                  "(vr_agrunt_shotdisarm_w_splash)."),
         header("Behaviour"),
         toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
             .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
@@ -1126,6 +1226,8 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "
                   "(vr_agrunt_ik)."),
+        open("Grip Editor", pageIndex(pageArmedGrips))
+            .help("Tune where each weapon sits in an armed grunt's or enforcer's hand, live, on the one nearest you."),
         header("The Pool"),
         weight("Fists", vr_agrunt_w_fists),
         weight("Axe", vr_agrunt_w_axe),

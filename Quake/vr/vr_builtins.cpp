@@ -1137,11 +1137,20 @@ void PF_meleearc()
     }
 }
 
-// float(string model) weaponheft: heavy handling's weight class of the weapon drawn with `model` (weight::heft: 0 light ..
-// 1; 0 for no such weapon or vr_heavy 0).
+// float(string model, optional float kick) weaponheft: heavy handling's weight class of the weapon drawn with `model`
+// (weight::heft: 0 light .. 1; 0 for no such weapon or vr_heavy 0). `kick` 1: its heavy recoil fired in one hand instead
+// (deg/s its muzzle is flung up: weight::kickSpeed, vr_heavy_recoil*; 0 for a light one or vr_heavy_recoil 0): armed
+// monsters' dual-wielded guns kick so (QC vr_armedgrunt.qc VR_AG_ShootProp). (An argument, not a builtin: the table is
+// full.)
 void PF_weaponheft()
 {
-    G_FLOAT(OFS_RETURN) = weight::heft(weapons::slotForName(G_STRING(OFS_PARM0)));
+    const int slot = weapons::slotForName(G_STRING(OFS_PARM0));
+    if(qcvm->argc >= 2 && G_FLOAT(OFS_PARM1) == 1.f)
+    {
+        G_FLOAT(OFS_RETURN) = slot < 0 ? 0.f : weight::kickSpeed(slot, 0.f);
+        return;
+    }
+    G_FLOAT(OFS_RETURN) = weight::heft(slot);
 }
 
 // vector meleegripago(entity b, float xBack): where the grip was xBack s ago (from the head, in the play space, metres;
@@ -2368,7 +2377,9 @@ void PF_admeleebend()
 // A kind below 0: Weapon Offsets slot -1 - kind's own blade shape (vr_blade.hpp; Edit Blade Shape): `which` 0 and 1 its
 // own head's corners ('0 0 0': none of its own), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1
 // the kind's own, QC VR_Melee_NearBack; the swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own
-// + 4 a blade start of its own), 3 '<blade start> <off> <side>' (Blade From: its share of the line, -1 the kind's own).
+// + 4 a blade start of its own + 8 a line start or tip of its own), 3 '<blade start> <off> <side>' (Blade From: its share
+// of the line, -1 the kind's own), 4 the line's start off the hand and 5 its tip off the muzzle (Blade Org, Blade Tip:
+// units along the hand's forward, right, up).
 void PF_admeleehead()
 {
     glm::vec3 lo{0.f}, hi{0.f};
@@ -2377,8 +2388,11 @@ void PF_admeleehead()
         const blade::Shape s = blade::shape(-1 - kind);
         const int which = static_cast<int>(G_FLOAT(OFS_PARM1));
         const glm::vec3 out = which == 2   ? glm::vec3{s.nearBack, s.width,
-                                                 (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f) + (blade::hasFrom(s) ? 4.f : 0.f)}
+                                                 (s.spine ? 1.f : 0.f) + (s.head ? 2.f : 0.f) + (blade::hasFrom(s) ? 4.f : 0.f) +
+                                                     (blade::hasEnds(s) ? 8.f : 0.f)}
                               : which == 3 ? glm::vec3{blade::hasFrom(s) ? s.from : -1.f, s.fromOff.x, s.fromOff.y}
+                              : which == 4 ? s.origin
+                              : which == 5 ? s.tipOffset
                               : !s.head    ? glm::vec3{0.f}
                               : which == 1 ? s.headHi
                                            : s.headLo;

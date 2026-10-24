@@ -208,15 +208,27 @@ void() target_lightramp = {
 /*QUAKED light_flame_gas (0 1 0) (-10 -10 -40) (10 10 40) START_OFF
 Gas flare (spawns two entites)
 */
+// QVR: the flare's model: the mounted pack's, else MG1's or MG3's read in place (the toolgun's MG Gas Flare in any map:
+// ROUND22.md, "Phantom Sword and the gas flare in the toolgun"); "" without either (the flare removes itself).
+string() VR_MG_FlameModel =
+{
+    if(fileexists("progs/flame3.mdl")) { return "progs/flame3.mdl"; }
+    if(fileexists("owned/mg1/progs/flame3.mdl")) { return "owned/mg1/progs/flame3.mdl"; }
+    if(fileexists("owned/mg3/progs/flame3.mdl")) { return "owned/mg3/progs/flame3.mdl"; }
+    return "";
+};
+
 void() light_flame_gas =
 {
-    precache_model ("progs/flame3.mdl");
-	setmodel (self, "progs/flame3.mdl");
+    string m = VR_MG_FlameModel();
+    if(m == "") { remove(self); return; }
+    precache_model (m);
+	setmodel (self, m);
     self.alpha = 0.6;
 
     entity s = spawn();
     setorigin(s, self.origin);
-    setmodel (s, "progs/flame3.mdl");
+    setmodel (s, m);
     s.alpha = 0.4;
     s.frame = 1;
     s.angles = self.angles;
