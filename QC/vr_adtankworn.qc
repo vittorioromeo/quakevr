@@ -20,6 +20,40 @@
 .vector vr_tw_lo;  // its wearer's back vertices (vr_am_back_lo, _hi as made)
 .vector vr_tw_hi;
 
+// Its wearer `m` alerted by a hit on its tank alone (Vittorio, 2026-10-24, vrtesthall_2026-10-24_01-07-34: shooting the
+// tank and not the grunt, it didn't care): as a hit on it would (T_Damage's reaction, combat.qc), with no damage to it
+// and no pain: it turns on whoever hit it (FoundTarget: its sight sound, its group woken), not on itself or its own kind
+// (but grunts), never noticing what it was already after.
+void(entity m, entity xBy) VR_FuelTank_WornAlert =
+{
+    if(!(m.flags & FL_MONSTER) || m.health <= 0 || !xBy || xBy == m || xBy == m.enemy || m.charmer == xBy)
+    {
+        return;
+    }
+    if(m.classname == xBy.classname && m.classname != "monster_army")
+    {
+        return;
+    }
+    m.vr_oblivious = 0; // (vr_oblivious: it notices you now)
+    entity was = self;
+    self = m;
+    if(self.enemy.classname == "player")
+    {
+        self.oldenemy = self.enemy;
+    }
+    self.enemy = xBy;
+    FoundTarget();
+    self = was;
+    vr_fueltank_worn_alerts++;
+};
+
+// A hit that leaves it whole: its sparks (VR_FuelTank_Pain), its wearer alerted.
+void(entity attacker, float damage) VR_FuelTank_WornPain =
+{
+    VR_FuelTank_Pain(attacker, damage);
+    VR_FuelTank_WornAlert(self.owner, attacker);
+};
+
 void() VR_FuelTank_WornThink =
 {
     entity m = self.owner;
@@ -92,7 +126,7 @@ entity(entity p, entity m) VR_FuelTank_WornMake =
         t.health = hp;
         t.max_health = hp;
         t.th_die = VR_FuelTank_Burst;
-        t.th_pain = VR_FuelTank_Pain;
+        t.th_pain = VR_FuelTank_WornPain;
     }
     vr_fueltank_worn_made++;
     if(cvar("developer"))

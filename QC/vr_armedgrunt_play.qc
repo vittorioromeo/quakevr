@@ -819,7 +819,15 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     {
         return TRUE;
     }
-    if(!cvar_hget(cvarh_vr_agrunt_disarm) || g.vr_ag_tug_pl)
+    if(g.vr_ag_tug_pl)
+    {
+        return FALSE;
+    }
+    if(g.vr_ag_prop == p && VR_AGPar_WeaponFrame(g)) // (your blow parried, its last strength spent: vr_armedgrunt_parry.qc)
+    {
+        return TRUE;
+    }
+    if(!cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop)
     {
         return FALSE;
     }

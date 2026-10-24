@@ -276,6 +276,19 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_hit_dir;    // the struck part's way then (play space),
 .float mh_hit_time;    // when
 .float mh_hit_touch;   // the last time a part touched it (VR_MELEE_REARM_OUT)
+// One swing, many things (vr_melee_multi, VR_Melee_Multi): what this motion struck, each once (VR_Melee_Armed), and
+// whether it struck the world (a wall, the floor: once a motion, VR_Melee_WallArmed). Cleared as the motion is new.
+.float mh_hit_n;       // how many things (VR_MELEE_MULTI_LIST at most),
+.float mh_hit_cap;     // of them not loose gibs (vr_melee_multi_max of them at most: a blow's small gibs don't count)
+.entity mh_hit_e0;
+.entity mh_hit_e1;
+.entity mh_hit_e2;
+.entity mh_hit_e3;
+.entity mh_hit_e4;
+.entity mh_hit_e5;
+.entity mh_hit_e6;
+.entity mh_hit_e7;
+.float mh_hit_world;   // the world struck
 // The blow being dealt (VR_Melee_Contact, VRMeleeDmg, the dummy's report).
 .float mh_kind;        // VR_MKIND_*
 .float mh_strength;    // its damage multiplier
@@ -1829,8 +1842,20 @@ float(float xThing) VR_Melee_PommelWeight =
 
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
+float vr_msw_decide; // (the multi-target test, vr_melee_sweep_test 6: every blow lands, a cut at this strength)
 float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 {
+    if(vr_msw_decide > 0)
+    {
+        b.mh_part = vr_mpt_name[xI];
+        b.mh_kind = xKind == VR_MPT_EDGE ? VR_MKIND_SLASH : VR_MKIND_POMMEL;
+        b.mh_speed = 6;
+        b.mh_dmgspeed = 6;
+        b.mh_core = vr_msw_decide;
+        b.mh_strength = vr_msw_decide;
+        b.mh_way = "down";
+        return TRUE;
+    }
     float minSpeed = VR_Melee_MinSpeedOf(b);
     float f = vr_mpt_f[xI];
     vector vp = VR_Melee_PointVel(b, f);
@@ -2067,9 +2092,69 @@ float(entity b, entity xEnt) VR_Melee_SlapLands =
     return b.mh_kind != VR_MKIND_SLAP || (xEnt.takedamage && !xEnt.vr_gib);
 };
 
+// One swing, many things (vr_melee_multi; ROUND22.md "One swing hits everything its edge passes through"): a swing of a
+// weapon (not a bare fist: a punch strikes one thing) strikes each thing its striking part passes through once (at
+// most vr_melee_multi_max of them), each its own blow by its own point and speed, and the world (a wall, the floor)
+// once as well, in the order its parts meet them: a blow on the floor before a body lying on it no longer spends the
+// swing (his note vrtesthall_2026-10-24_01-17-02), nor one on a body the wall beyond it.
+float VR_MELEE_MULTI_MOST = 6; // things a swing strikes at most (vr_melee_multi_max's top)
+float VR_MELEE_MULTI_LIST = 8; // and loose gibs with them (the list's fields: mh_hit_e0..e7; a full list: no more)
+float(entity b) VR_Melee_Multi =
+{
+    return (cvar("vr_melee_multi") != 0) && (b.mh_thing != VR_MTHING_FIST) && (b.mh_thing != VR_MTHING_NONE);
+};
+
+float(entity b, entity xEnt) VR_Melee_HitHas =
+{
+    float n = b.mh_hit_n;
+    return ((n > 0) && (b.mh_hit_e0 == xEnt)) || ((n > 1) && (b.mh_hit_e1 == xEnt)) ||
+           ((n > 2) && (b.mh_hit_e2 == xEnt)) || ((n > 3) && (b.mh_hit_e3 == xEnt)) ||
+           ((n > 4) && (b.mh_hit_e4 == xEnt)) || ((n > 5) && (b.mh_hit_e5 == xEnt)) ||
+           ((n > 6) && (b.mh_hit_e6 == xEnt)) || ((n > 7) && (b.mh_hit_e7 == xEnt));
+};
+
+void(entity b, entity xEnt, float xGib) VR_Melee_HitAdd =
+{
+    if(VR_Melee_HitHas(b, xEnt) || (b.mh_hit_n >= VR_MELEE_MULTI_LIST))
+    {
+        return;
+    }
+    if(b.mh_hit_n == 0)      b.mh_hit_e0 = xEnt;
+    else if(b.mh_hit_n == 1) b.mh_hit_e1 = xEnt;
+    else if(b.mh_hit_n == 2) b.mh_hit_e2 = xEnt;
+    else if(b.mh_hit_n == 3) b.mh_hit_e3 = xEnt;
+    else if(b.mh_hit_n == 4) b.mh_hit_e4 = xEnt;
+    else if(b.mh_hit_n == 5) b.mh_hit_e5 = xEnt;
+    else if(b.mh_hit_n == 6) b.mh_hit_e6 = xEnt;
+    else                     b.mh_hit_e7 = xEnt;
+    b.mh_hit_n = b.mh_hit_n + 1;
+    if(!xGib)
+    {
+        b.mh_hit_cap = b.mh_hit_cap + 1;
+    }
+};
+
+// (A new motion: nothing struck yet.)
+void(entity b) VR_Melee_HitClear =
+{
+    b.mh_hit_n = 0;
+    b.mh_hit_cap = 0;
+    b.mh_hit_world = FALSE;
+};
+
+// Whether a swing of `b` may still strike another thing: it struck something already (none: a bash or a held gib
+// spent it, setting the hand's blow landed without one), fewer than vr_melee_multi_max things (loose gibs aside) and
+// its list not full.
+float(entity b) VR_Melee_MultiRoom =
+{
+    float most = min(VR_MELEE_MULTI_MOST, max(1, floor(cvar("vr_melee_multi_max"))));
+    return ((b.mh_hit_n > 0) || b.mh_hit_world) && (b.mh_hit_cap < most) && (b.mh_hit_n < VR_MELEE_MULTI_LIST);
+};
+
 // Whether `xHand` may strike `xEnt` now: once per motion (see VR_MELEE_REARM_*); another thing at once (a swing
 // through two monsters). A bash or a held gib struck spends the motion for everything (mh_hit_ent world). Never a
-// ragdoll it holds or just let go of (VR_Ragdoll_HandSpares: a throw is not a blow).
+// ragdoll it holds or just let go of (VR_Ragdoll_HandSpares: a throw is not a blow). One swing, many things
+// (VR_Melee_Multi): each thing once, after the world too.
 float(float xHand, entity b, entity xEnt) VR_Melee_Armed =
 {
     if(VR_Ragdoll_HandSpares(xEnt, self, xHand))
@@ -2080,7 +2165,22 @@ float(float xHand, entity b, entity xEnt) VR_Melee_Armed =
     {
         return TRUE;
     }
+    if(VR_Melee_Multi(b))
+    {
+        return VR_Melee_MultiRoom(b) && !VR_Melee_HitHas(b, xEnt);
+    }
     return b.mh_hit_ent != world && xEnt != b.mh_hit_ent;
+};
+
+// Whether `xHand` may strike the world (a wall, the floor) now: a motion's first blow; one swing, many things
+// (VR_Melee_Multi), once a motion after the things it struck too.
+float(float xHand, entity b) VR_Melee_WallArmed =
+{
+    if(!VRGetMeleeHitSoundPlayed(xHand))
+    {
+        return TRUE;
+    }
+    return VR_Melee_Multi(b) && !b.mh_hit_world && b.mh_hit_n > 0;
 };
 
 // Re-arms `xHand` (each frame) once its motion slowed down since the last blow, or, its parts out of what it struck,
@@ -2112,6 +2212,7 @@ void(float xHand, entity b) VR_Melee_Rearm =
     {
         VRSetMeleeHitSoundPlayed(xHand, FALSE);
         b.mh_hit_ent = world;
+        VR_Melee_HitClear(b);
     }
 };
 
@@ -2333,6 +2434,16 @@ float(entity e) VR_Melee_BoxTarget =
            (e.solid == SOLID_NOT_BUT_TOUCHABLE && e.vr_knockdown == 1 && e.health > 0 && (e.flags & FL_MONSTER)) ||
            (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world &&
             (!VR_SmallGib_BlowSpared(e) || VR_SmallGib_BlowBursts(e)));
+};
+
+// One swing, many things (VR_Melee_Multi): a corpse or a body still dying (not solid to the traces: a ragdoll lying on the
+// floor) is struck by the sweep as a box target is, as drawn (vr_hit_precise), and dealt as VR_Corpse_StrikeFrame's
+// blow (VR_Corpse_Struck: client.qc VR_Melee_Deal). That one only traced the weapon's line as it is, from the hand: a
+// blade whose tip met the floor first stopped there, short of the limb under it (his note vrtesthall_2026-10-24_01-17-02).
+float(entity e) VR_Melee_CorpseTarget =
+{
+    return (e.solid == SOLID_NOT_BUT_TOUCHABLE) && e.takedamage && ((e.vr_corpse == 2) || e.vr_corpse_dying) &&
+           !e.vr_gib && (e.health <= 0) && cvar_hget(cvarh_vr_corpse_gib);
 };
 
 // Whether a point swept from `xP0` to `xP1` (`xR` thick) starts in `e` (a box target: its model, vr_hit_precise, else its
@@ -2587,6 +2698,7 @@ void(float xHand, entity b) VR_Melee_Show =
 // VR_Melee_SweepTest's probe: VR_Melee_Sweep finds the contacts and stops (no speeds, nothing armed or decided), into
 // vr_msw_*.
 float vr_msw_probe;
+float vr_msw_more; // (VR_Melee_StrikeMore's sweep: the frame's blades already shown)
 entity vr_msw_edge;
 vector vr_msw_edge_at;
 float vr_msw_edge_i;
@@ -2613,7 +2725,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     float swept = cvar_hget(cvarh_vr_melee_swept);
     vector hand = b.mh_grip;
     VR_Melee_Ribs(b, r, swept);
-    if(!vr_msw_probe && cvar_hget(cvarh_vr_debug_melee_blades))
+    if(!vr_msw_probe && !vr_msw_more && cvar_hget(cvarh_vr_debug_melee_blades))
     {
         VR_Melee_Show(xHand, b);
     }
@@ -2821,10 +2933,12 @@ float(float xHand, entity b) VR_Melee_Sweep =
     float reach = max(max(vlen(b.mh_pp[0] - mid), vlen(b.mh_cp[0] - mid)),
                       max(vlen(b.mh_pp[n - 1] - mid), vlen(b.mh_cp[n - 1] - mid)));
     entity e = findradius(mid, reach + vr_rib_rmax + 96);
+    float corpses = VR_Melee_Multi(b); // (corpses too: VR_Melee_CorpseTarget)
     while(e)
     {
         // A small gib just torn out: struck only to burst (vr_smallgibs_blow_burst), never batted (VR_SmallGib_BlowSpared).
-        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) && VR_Melee_BoxTarget(e))
+        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) &&
+           (VR_Melee_BoxTarget(e) || (corpses && VR_Melee_CorpseTarget(e))))
         {
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;
@@ -3043,7 +3157,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_pend_ent = world;
         return b.mh_c_ent.takedamage && VR_Melee_Armed(xHand, b, b.mh_c_ent);
     }
-    if(edgeI < 0 && hiltI < 0 && wallI >= 0 && !VRGetMeleeHitSoundPlayed(xHand) &&
+    if(edgeI < 0 && hiltI < 0 && wallI >= 0 && VR_Melee_WallArmed(xHand, b) &&
        (vr_melee_wallwin <= 0 || VR_PlayerTime() - b.mh_wall_blow >= VR_MELEE_WALL_AGAIN) &&
        VR_Melee_WallDecide(xHand, b, wallI) && VR_Melee_SlapLands(b, wallEnt) && VR_Melee_WallFresh(b, wallNormal, wallAt))
     {
@@ -4504,12 +4618,14 @@ void() VR_Bash =
     // The hands in the push strike nothing else in this motion.
     VRSetMeleeHitSoundPlayed(readyHand, TRUE);
     b.mh_hit_ent = world;
+    VR_Melee_HitClear(b); // (one swing, many things: spent all the same)
     b.mh_hit_time = VR_PlayerTime();
     b.mh_hit_touch = VR_PlayerTime();
     if(both)
     {
         VRSetMeleeHitSoundPlayed(other, TRUE);
         ob.mh_hit_ent = world;
+        VR_Melee_HitClear(ob);
         ob.mh_hit_time = VR_PlayerTime();
         ob.mh_hit_touch = VR_PlayerTime();
     }
@@ -4645,12 +4761,18 @@ void() VR_Melee_Frame =
     VR_Melee_Hud();
 };
 
+float(float xHand, entity b, float xStruck) VR_Melee_StrikeAfter; // (below)
+
 // The blow of `xHand` this frame, if any (PlayerVRMeleeImpl): FALSE, or TRUE with the contact in mh_c_*, the kind and
 // strength set.
 float(float xHand) VR_Melee_Strike =
 {
     entity b = VR_Blow(xHand);
     VR_Melee_Rearm(xHand, b);
+    if(!VRGetMeleeHitSoundPlayed(xHand))
+    {
+        VR_Melee_HitClear(b); // (a new motion, however it was re-armed)
+    }
     if(!b.mh_fresh || b.mh_thing == VR_MTHING_NONE)
     {
         return FALSE;
@@ -4668,6 +4790,13 @@ float(float xHand) VR_Melee_Strike =
     }
     AD_ShadowAxeChop(xHand, b); // AD support: the Shadow Axe chops the bodies lying on the floor (vr_ad_bridge.qc)
     float struck = VR_Melee_Sweep(xHand, b);
+    return VR_Melee_StrikeAfter(xHand, b, struck);
+};
+
+// The rest of a blow found by VR_Melee_Sweep (`xStruck`): what it struck, the stamina it costs, a counter.
+float(float xHand, entity b, float xStruck) VR_Melee_StrikeAfter =
+{
+    float struck = xStruck;
     b.mh_c_gib = FALSE;
     if(struck && b.mh_c_ent.vr_gib)
     {
@@ -4698,6 +4827,28 @@ float(float xHand) VR_Melee_Strike =
     return struck;
 };
 
+// One swing, many things (VR_Melee_Multi): after a blow of `xHand` landed this frame (PlayerVRMeleeImpl), another the
+// same sweep finds on something not struck yet in this motion, or the world: as VR_Melee_Strike, the contact in mh_c_*.
+// (A body and the floor under it crossed in one frame: both.)
+float(float xHand) VR_Melee_StrikeMore =
+{
+    entity b = VR_Blow(xHand);
+    if(!VRGetMeleeHitSoundPlayed(xHand) || !VR_Melee_Multi(b) || (!b.mh_fresh && !vr_msw_decide))
+    {
+        return FALSE;
+    }
+    if(!VR_Melee_MultiRoom(b) && (b.mh_hit_world || b.mh_hit_n == 0))
+    {
+        return FALSE; // (no thing more, and the world struck)
+    }
+    b.mh_c_ent = world;
+    b.mh_c_pos = '0 0 0';
+    vr_msw_more = TRUE;
+    float struck = VR_Melee_Sweep(xHand, b);
+    vr_msw_more = FALSE;
+    return VR_Melee_StrikeAfter(xHand, b, struck);
+};
+
 // After a blow of `xHand` landed on mh_c_ent: once per motion (VR_Melee_Rearm).
 void(float xHand) VR_Melee_Landed =
 {
@@ -4707,8 +4858,23 @@ void(float xHand) VR_Melee_Landed =
     // QVR: heard by its strength and the held thing's weight (a fist's 200 units at strength 1; vr_stealth.qc)
     VR_Stealth_Noise(self.origin, 200 * b.mh_strength * (1 + max(0, VR_Weight_HeldMass(self, xHand)) / 3) *
         cvar_hget(cvarh_vr_stealth_noise_melee), self, STL_N_MELEE);
-    b.mh_hit_ent = b.mh_c_ent;
-    b.mh_struck = b.mh_c_ent;
+    float wall = !b.mh_c_ent.takedamage && !b.mh_c_gib;
+    float multi = VR_Melee_Multi(b);
+    if(wall)
+    {
+        b.mh_hit_world = TRUE;
+    }
+    else
+    {
+        VR_Melee_HitAdd(b, b.mh_c_ent, b.mh_c_gib);
+    }
+    // (One swing, many things: the world struck keeps the thing struck last, and a thing struck keeps the wall a part
+    // went into a moment ago, VR_Melee_WallHeld: each gives its blow after the other.)
+    if(!multi || !wall)
+    {
+        b.mh_hit_ent = b.mh_c_ent;
+        b.mh_struck = b.mh_c_ent;
+    }
     if(cvar_hget(cvarh_vr_debug_melee_blades))
     {
         meleeshow(xHand, 6, b.mh_c_pos, '0 0 0', -1); // (Show Melee Blades: where it landed)
@@ -4721,8 +4887,11 @@ void(float xHand) VR_Melee_Landed =
         v = b.mh_vgrip;
     }
     b.mh_hit_dir = normalize(v);
-    b.mh_wall_time = -1; // (a blow landed: the wall it went into gives no more, VR_Melee_WallHeld; only a new one)
-    if(!b.mh_c_ent.takedamage && !b.mh_c_gib)
+    if(!multi || wall)
+    {
+        b.mh_wall_time = -1; // (a blow landed: the wall it went into gives no more, VR_Melee_WallHeld; only a new one)
+    }
+    if(wall)
     {
         b.mh_wall_blow = VR_PlayerTime();
         b.mh_wall_bn = b.mh_c_normal; // (VR_Melee_WallFresh: that wall, until the weapon is off it)

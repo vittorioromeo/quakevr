@@ -1162,6 +1162,29 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Parry Disarm Chance", vr_agrunt_parry_disarm, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("The chance your weapon's parry of its melee blow knocks its weapon out of its hand; a well-timed "
                   "parry's 1.5 times (vr_agrunt_parry_disarm)."),
+        header("Parrying Your Blows (Experimental)"),
+        toggle("They Parry", vr_agrunt_parry)
+            .help("One holding a weapon defends against a melee blow as you do: seeing it coming it raises and angles its "
+                  "weapon into the blow's way, and a blow that meets its weapon before its body is parried (the ring, "
+                  "sparks, your hand knocked back). A blow to its head, legs or a side its weapon doesn't cover lands in "
+                  "full. Never from behind, unaware of you, staggered or in pain. Monsters' blows on it too "
+                  "(vr_agrunt_parry)."),
+        slider("Parry: Damage Kept", vr_agrunt_parry_damage, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a parried blow's damage it still takes (vr_agrunt_parry_damage)."),
+        slider("Parry: Parries Before Disarm", vr_agrunt_parry_count, 1.f, 6.f, 0.5f, "%.1f").extend(0.1f, 50.f)
+            .help("Its parry stamina: the parry that spends it all knocks its weapon out of its hand. 2: the second "
+                  "parry in a row (vr_agrunt_parry_count)."),
+        slider("Parry: Stamina Per Parry", vr_agrunt_parry_cost, 0.f, 3.f, 0.25f, "%.2f").extend(0.f, 50.f)
+            .help("What each parry spends of it (vr_agrunt_parry_cost)."),
+        slider("Parry: Recovery", vr_agrunt_parry_recover, 0.f, 2.f, 0.05f, "%.2f /s").extend(0.f, 20.f)
+            .help("The stamina it gets back a second: at 0.35 a parry's worth in about 3 s (vr_agrunt_parry_recover)."),
+        slider("Parry: Reaction Time", vr_agrunt_parry_react, 0.f, 1.f, 0.01f, "%.2f s").extend(0.f, 5.f)
+            .help("From seeing a blow coming to its weapon raised into its way, at Normal skill (Easy 1.4x, Hard 0.85x, "
+                  "Nightmare 0.7x): a quick swing gets through (vr_agrunt_parry_react)."),
+        slider("Parry: Chance", vr_agrunt_parry_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it sees a blow coming in time, at Normal skill (Easy 0.6x, Hard 1.15x, Nightmare 1.3x); "
+                  "caught out, its weapon stays where it was: a blow still meeting it there is parried "
+                  "(vr_agrunt_parry_chance)."),
         toggle("Drops It When Floored", vr_agrunt_fall_drop)
             .help("Knocked down onto the floor (not just staggered by a shove) it drops its weapon beside it, and "
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),

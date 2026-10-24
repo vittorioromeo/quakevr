@@ -19411,6 +19411,57 @@ along, swaying a little as you start and stop (Flail Body Inertia: higher swings
 it turns with you. Swing it while walking: it swings as when standing. Look at the ball and chain while moving your
 hand slowly: they should move as smoothly as the hand (toggle Flail Head Drawn Smooth in the Debug menu to compare).
 
+## One swing hits everything its edge passes through (worktree `gorefx`, branch `agent/meleemulti`, 2026-10-24)
+
+Note vrtesthall_2026-10-24_01-17-02 ("Swords past the floor" FAIL): a sword that meets the floor first and then the
+ragdoll doesn't cut it; the other way round it does. A wide swing of a long blade should strike everything its edge
+passes through, the floor or a wall included; keep the sink into the floor (`vr_melee_world_pass`).
+
+**Why.** Three latches, all in the QC: (1) a blow on the world set the swing's "struck" to world
+(`VR_Melee_Landed`: `mh_hit_ent = world`), and `VR_Melee_Armed` reads world as "the motion is spent" (a bash's
+meaning), so nothing beyond the floor or a wall was armed until the hand slowed or turned back (`VR_Melee_Rearm`);
+(2) a wall gave a blow only as a motion's first (`!VRGetMeleeHitSoundPlayed`), so a body first and then the wall
+gave no sparks; (3) corpses and ragdolls lying about (`SOLID_NOT_BUT_TOUCHABLE`) are not in the swept melee at all:
+`VR_Corpse_StrikeFrame` traces only the weapon's line as it is now, from the hand to the tip, which stops at the
+first solid: a blade whose tip is in the floor never reached the limb under its middle (measured: the line at the
+cut's pose finds nothing). Also each frame gave one blow, and after a blow the hand paused 0.02 s (a 72 Hz frame).
+
+**Now (`vr_melee_multi 1`, default; `vr_melee_multi_max 4`).** A swing of a weapon (anything held but a bare fist:
+punches stay one thing) keeps a list of what it struck (`mh_hit_e0..e7`, `VR_Melee_HitHas`/`HitAdd`/`HitClear`):
+each thing once, at most `vr_melee_multi_max` things (1..6; loose gibs and small gibs torn out don't count), and the
+world once (`mh_hit_world`, `VR_Melee_WallArmed`), in any order. A blow on the world keeps the thing struck last and
+a blow on a thing keeps the wall a part went into a moment ago (`VR_Melee_WallHeld`), so each gives its blow after
+the other. In one frame every contact is dealt (client.qc `VR_Melee_DealAll`: `VR_Melee_StrikeMore` sweeps again for
+something not yet struck, then the world), each its own blow (its own point, `VR_Melee_Decide`'s speed and strength,
+the weapon's damage, gore, sparks and marks); no pause after a blow. Corpses and bodies still dying are swept as box
+targets (`VR_Melee_CorpseTarget`, as drawn) and dealt as `VR_Corpse_StrikeFrame`'s blow (`VR_Corpse_Struck`: its
+0.35 s per-corpse wait keeps the old line's strike and the sweep's from both landing). A bash or a held gib still
+spends the motion for everything (the list cleared). Heavy and blunt weapons: the same rules (their blows decided as
+before). `vr_melee_multi 0`: exactly the old behaviour. Gameplay > Melee > One Swing, Many Hits: the toggle and
+"Most Things a Swing".
+
+**Tested.** `vr_melee_sweep_test 6` (Debug > Tests > One Swing, Many Hits Test; the new scene `sword_multi`: a sword,
+two grunts side by side, one by the wall, a corpse): scripted sword frames that land (`vr_msw_decide`: the speed tests
+skipped, a cut at strength 1.5), dealt as in play, with multi 0 then 1:
+
+| case | multi 0 (as before) | multi 1 |
+|---|---|---|
+| floor: the tip into the floor beside the corpse's arm (frame 1), then the blade through the arm (frame 2) | the corpse not swept; the old corpse line at frame 2's pose finds nothing | frame 1 the floor only; frame 2 the corpse, its limb 4 cut off: PASS |
+| two: a level swing across two grunts 42 apart, 12 units a frame | both struck (one after the other, as before) | both: PASS (with the small gibs torn out, 6 in the list) |
+| wall: the tip into the wall beside a grunt 18 units from it, then along it | the wall only | the wall, then the grunt: PASS |
+
+`vr_melee_sweep_test 1`: PASS. `vr_scenario validate`: 77 files, 0 errors; `runall sword_multi sword_floor`: both OK.
+His replay (`vr_motion_play` of the note's take, trimmed to after the scene's start, `noplace weapon 13`, on
+`sword_floor`): no blow lands with multi 0 or 1 (18 decided, 0 events, no corpse strike either way): the take's
+hands don't meet the corpses headless (the bodies' poses and his place differ), so it shows nothing either way.
+`eval.sh --full`: 171 takes (the 5 retired ones gone: no trouble), 163 pass, 0 verdict changes; 3 PASS -> PASS with
+0.1 less damage (slash_diagonal_down_left 12-30-37, slash_diagonal_down_right 12-30-27, stab_one_hand 12-36-15).
+
+**In VR:** `sword_floor`: chop at a lying grunt's arm or leg so the tip meets the floor first: the floor should spark
+and the limb still come off; chop the one against the wall the same. `sword_multi`: one wide swing through both
+grunts on the left: both hit (two hit sounds); swing along the wall into the grunt by it: sparks on the wall and the
+grunt hit. Punches still hit one thing. If a swing now feels like it hits too much (gibs, a prop behind the target),
+lower Most Things a Swing or turn the toggle off to compare.
 ## The blade's line start (worktree `release`, branch `agent/bladeorigin`, 2026-10-24; vr_wofs_version 60)
 
 Vittorio (note vrtesthall_2026-10-24_00-57-50, the axe in the main hand): he still could not move the line's start, the
@@ -19685,3 +19736,122 @@ it comes out; a sharp yank alone shouldn't. After winning it should stand at onc
 on a knee, the hand reaching down, close only at the bottom, then rise with it. `agrunt_fall`: shove one over: it
 keeps the gun in its hand (how the hand holds it: aghands); grab it or hit it while it lies: yours or knocked away;
 throw one hard or off the ledge: it drops it. Tune Grab: Fastest Hand (1.25 m/s) and Tug: Least Pull / Time.
+## Armed grunts parry melee blows (worktree `dequant`, branch `agent/agparry`, 2026-10-24)
+
+His note (vrtesthall_2026-10-24_01-13-57): armed humanoids should defend against melee as the player parries, drop the
+weapon after about two parries in a row, take reduced damage from a parried blow, and take full damage from a blow that
+goes round the weapon (head, legs); behind an optional flag, on by default. New: `QC/vr_armedgrunt_parry.qc` (the test:
+`vr_armedgrunt_parry_test.qc`), hooks in `combat.qc` (T_Damage, T_Damage_VRMelee), the armed grunts' prop think, pose and
+weapon-blow test, and `vr_hitreact.qc` (VR_Guard_Hand).
+
+- **Seeing it coming** (VR_AGPar_Frame, its weapon's think each frame): your hand's weapon (or fist) within 30 units of
+  its chest, or closing on it at 1.2 m/s or more (its way over the next quarter second within 40 units); a monster's
+  melee attack on it (VR_Parry_MeleeMonster's list, its th_melee begun within 1.5 s, its enemy the grunt). A new blow is
+  decided once: by `vr_agrunt_parry_chance` (0.7) it sees it in time and raises its parry after `vr_agrunt_parry_react`
+  (0.15 s); else it is caught out (its weapon stays where it was). Skill scales both (chance x0.6 / 1 / 1.15 / 1.3,
+  reaction x1.4 / 1 / 0.85 / 0.7 for easy .. nightmare). Never: from behind (more than 70 degrees off its facing),
+  unaware of the attacker (its enemy is not it, nor is it the attacker's), staggered, down, a ragdoll, stunned by your
+  parry, in pain (pain_finished), swinging itself, taking up a weapon, in a tug.
+- **The pose** (VR_AGPar_Pose, after its weapon's own pose in VR_AGP_Pose, before a blade's tilt; blended by its share,
+  eased up at 9/s, down at 3/s): the held weapon's middle 17 units out from its chest towards the blow's point (in front,
+  -2..30 units high), its line across the blow's way: upright against a blow at its middle, level over its head against
+  one from above, its edge to the attacker. The game's weapon line and the drawn weapon both follow (the prop is placed
+  from it, QVR_SVC_ARMPOSE sends it; the arms' IK reaches it). The head guard (VR_Guard_Hand: arms up before the face,
+  drawn by the engine only) is skipped for an armed one holding a weapon while parrying is on: its drawn weapon would
+  move where the game's line is not, and the hit test would no longer match what you see.
+- **The hit test** (honest): your blow (T_Damage_VRMelee, its hand's VR_Blow: its first and last points at the last pose
+  and now) parried only if its sweep passes within 5 units of the held weapon's line (VR_AG_WeaponLine: either weapon of
+  two) no later than a quarter of the sweep after the point where it met the body; a blow whose sweep meets the weapon
+  without reaching the body this frame (the weapon held out) is parried from the weapon's think (VR_AGPar_WeaponFrame,
+  through VR_AG_WeaponStruck), its later blows within 0.3 s that parry's. A monster's blow: the line from its weapon (an
+  armed one's held weapon's far end, its blade against the weapon too) or its front at 60% of its height to the grunt's
+  chest passing within 5 units of the weapon. Then the grunt must be able (above) for it to count.
+- **A parried blow**: `vr_agrunt_parry_damage` (0.25) of it, no zone multiplier, no beheading, teeth or face sound, no hit
+  stagger, no pain (pain_finished held a moment over the damage), no gun-hand disarm (VR_AG_Hit); `vr/parry.wav` and the
+  axe's ring, sparks, your hand's haptics and knock (handimpact, as your own parries), both pushed apart (your push by
+  vr_parry_push_player, a monster's by vr_parry_push_enemy). Within vr_parry_cooldown (0.4 s) of its last parry of the same
+  attacker: quiet (damage cut, nothing else).
+- **Stamina**: each parry spends `vr_agrunt_parry_cost` (1) of `vr_agrunt_parry_count` (2); it recovers
+  `vr_agrunt_parry_recover` (0.35) a second; the parry that leaves less than half a parry knocks the weapon out of its
+  hand (VR_AG_Disarm: its clatter and grunt; two held: the one nearer the blow). At the defaults: two parries within about
+  1.4 s. Flag `vr_agrunt_parry` (1). All on Combat > Armed Grunts > Parrying Your Blows (Experimental).
+
+**Tests** (`vr_agrunt_test 60`, Debug > Tests > Armed Grunts: They Parry Your Blows; vrtesthall, the grunt and
+`vr_agrunt_test_kind 1` the enforcer, twice each after merging `next`: 6/6 PASS every time): a blade swept through its
+weapon: parried, 5 of 20 damage, still armed; the second 0.6 s later: parried, disarmed, the sword lying, 1 clatter; a
+chop on its head beside its weapon (the first of 6, 8, 10 units off its middle that clears the weapon by 8; 9.5 units
+from it): not parried, 30 damage as unparried; a cut across its legs (12.5 / 20.7 units off): 12, full; through its
+weapon from behind: not parried ("from behind"), full; an ogre's chainsaw on one facing it (the ogre settling 0 to 49
+degrees off its front), its parry raised (its weapon's middle between its chest and the blow, e.g. body '15.8 -9.6 14.1'
+for a blow from '29.6 -19.3 14.2'): parried, 3 (2.5 rounded up) of 10. The chainsaw's way can meet the grunt's sword held
+ready too: the ready blade is in front of the chest. The pose's targets are in its own body's space (an enforcer's
+chest fitted, VR_AM_Fit; the first try fitted the target itself and missed side blows on enforcers). `eval.sh`: canary
+36/44, 0 differ from the baseline. Test 29 (a blow on the gun, you unseen) and 35 (its blows parried by you, with its
+script's mock hand) PASS; test 2's `rearm` fails the same with vr_agrunt_parry 0 and 1 (0 pickups counted, it holds the
+shotgun: not this change).
+
+**In VR** (scene `agrunt_theyparry`: a sword grunt and an axe enforcer, notarget off, a sword in hand): swing at one: it
+raises its weapon into your blow; a blow on its weapon rings, knocks your hand back and does little; the second within
+about 1.4 s knocks its weapon away. Go round the weapon (head, legs, its open side): full damage. Quick swings and feints
+get through sometimes (the chance, the reaction). From behind, or while it reels from a shove or a hit: no parry. Watch
+that the guard looks natural (the blade upright before its chest, level over its head against an overhead blow) and
+that the drawn weapon is where your blow meets it.
+## Tank fields' look: a strong fire, a poison cloud, spreading out; back tanks alert, loops stop (worktree `goreflesh`, branch `agent/tankfx`, 2026-10-24)
+
+His notes (vrtesthall_2026-10-24_01-04-12, 01-05-18, 01-06-16, 01-07-34): the fire field needs many more flames, all
+rising, 3D flames thrown out over the circle, smoke: a strong area denial; the poison one a real cloud (a smoke bomb);
+neither should pop into its whole circle at once; radius and time in the options; armed grunts' back tanks: a hit on
+the tank alone must alert the grunt, and killing a grunt mid-stream left its flamethrower's hiss looping for ever. New
+cvars only.
+
+- **Spread** (`VR_TankField_Reach`): a field grows from the tank to its reach over `vr_adgun_tank_field_spread` (0.4 s,
+  quick then slowing), its look and its damage's reach together (its think every 0.05 s while it spreads). Its time,
+  reach, damage and ticks are as before.
+- **The fire** (`VR_TankField_Look`, new engine presets `TankFire`, `TankSmoke`, `TankCloud` = 25..27, vr_particles.cpp
+  `tankFire`, `tankSmoke`, `tankCloud`): spots through the circle as far as it reaches now (no wall between, ground
+  under them: `VR_TankField_Spot`), area x 3 a tenth of a second x `vr_adgun_tank_field_flames` (1; fewer as it fades):
+  tongues of fire rising straight up (no sideways scatter), 60% drawn over the scene in deep oranges so they read on a
+  bright floor (vrtesthall's: added light vanishes on it), 40% glowing, and embers; dark smoke puffs off their tops
+  (`vr_adgun_tank_field_smoke`, 1). About 3x the old flames. Particle2's dir is a char (1/16 to 8): the spread goes in
+  eighths of units.
+- **3D flames** (`VR_TankField_Flames`, `vr_tankflame` entities, `VR_TankFlame_Think`): `vr_adgun_tank_field_models`
+  (10 at a full tank, 40% near empty) of id's large torch flame (progs/flame2.mdl frame 1), thrown out from the tank to
+  random spots over the spread time, 1.6x big on the way, settling to 0.75-1.2 there; each goes at 55-95% of the
+  field's life, fading and shrinking over its last 1.2 s. The first lights its place as a torch (no alpha); the rest
+  are drawn with alpha 1 (no light of their own).
+- **The poison cloud**: big blended green smoke puffs (`vr_adgun_tank_field_cloud`, 1) billowing slowly, 8-48 units up,
+  thinner toward the edge and as the field fades, four times as many while it spreads (a smoke bomb going off), with a
+  few low green wisps of the sprayer's flame (instead of the green flames and puffs).
+- **A tank thrown up by another's blast** burst in the air left its field floating (no ground within 96 units: nothing
+  drawn, nothing reached): the field's ground is now looked for 1024 units down.
+- **Back tanks alert** (`VR_FuelTank_WornPain`, `VR_FuelTank_WornAlert`, vr_adtankworn.qc): a hit leaving the worn tank
+  whole alerts its wearer as T_Damage's reaction would (FoundTarget: it turns on whoever hit it, its sight sound wakes
+  its group), no damage, no pain.
+- **Loops stop** (`VR_ADGun_MonsterStreamEnd`, vr_ad_enemyguns.qc): an armed monster's stream (its "on" loop on
+  CHAN_WEAPON) ends with its "off" at its attack's end, at `VR_AG_DropHeld` (dying, gibbed, disarmed, its tank burst,
+  spent and thrown away, falling down), when its gun's think finds it dead or gone, and when no flame came for 0.4 s
+  (a pain cutting the attack short). Every place a monster's held gun goes passes one of these (grep of
+  `vr_ag_prop = `, `VR_AG_DropHeld`, `remove(p)`).
+- **Settings** (AD Guns): Burst Field Spread, Fire Field Flames, Fire Field 3D Flames, Fire Field Smoke, Poison Cloud
+  Amount; the field rows' help says "fire field", "poison cloud", "tank" (searches "fire field", "poison", "tank field"
+  find them all). **Debug** > Tests > Arcane Dimensions Monsters: Kill the Worn Tank's Wearer (`vr_ad_test 182`: one
+  firing now first); 175 also prints the 3D flames, the fields' effects sent, the monsters' streams ended; 180 whom the
+  wearer is after.
+- **Measured** (vrtesthall, AD mounted, headless; `scratch/tfx_field.sh`, `tfx_worn.sh`, `tfx_perf.sh`, `tfx_shots.sh`):
+  - fields unchanged: full tanks 6.0 s, reach 96, gone after 6.0 s (6.1 before: the 0.05 s thinks while spreading),
+    loops and whooshes 0 after; the test grunt walking in 30 -> 17 -> 9 -> 3 -> dead, poisoned 8/s, burning 5.5 s (as
+    before). A full fire field sends ~110 effects a second (~650 over its life), 10 3D flames; the cloud ~300 puffs.
+  - back tanks: shot for 10 (tank 30 -> 20), the grunt's health 30 -> 30, after: the player (wearers alerted 1; the other
+    grunt woken by it already after you); killed while firing: its stream ended 1 (on death), monsters firing after 0.
+  - frame time, both fields in view at 250 fps (--exclusive, the mock's small eyes): particles' GPU 0.026 -> 0.055-0.10
+    ms, the frame's GPU 0.93 -> 0.84-1.06 (noisy run to run: which tanks burst varies); particles' CPU 0.06 -> 0.05-0.10.
+  - eval.sh: no verdict changed (0.1 noise). Scenes: validate SCNOK (0 errors), runall `tank_burst_field`,
+    `agrunt_tanks` OK.
+  - eyeshots: `scratch/tfx_fire5.png` (both fields, 0.2 / 1 / 3 / 5 s), `scratch/tfx_poison6.png` (the cloud nearer).
+
+- [ ] Shoot a lying flamethrower's tank (Test scene `tank_burst_field`): the fire spreads out from the tank in under half
+  a second, flames rising straight up all over the circle, big 3D flames thrown out and fading one by one, dark smoke;
+  the sprayer's: a green cloud billowing over its circle, thinner at the edge, fading out. Burst Field Spread, Fire
+  Field Flames / 3D Flames / Smoke, Poison Cloud Amount to taste.
+- [ ] Armed grunts (Test scene `agrunt_tanks`): shoot only a grunt's back tank: it turns on you (and wakes the other);
+  kill one while it fires: its hiss stops.

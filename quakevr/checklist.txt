@@ -2,6 +2,11 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed humanoids parry your blows (experimental): they raise their weapon into your swing; a blow on the weapon rings and does little, a second within ~1.4 s knocks it away; head, legs and the open side take full damage; quick swings and feints sometimes get through; does the guard look natural and is the drawn weapon where your blade meets it? (Combat > Armed Grunts > Parrying Your Blows) {test:agrunt_theyparry}
+One swing, many hits: chop with the sword tip meeting the floor first: the floor sparks and the corpse limb still comes off {test:sword_floor}
+One wide swing hits both grunts side by side; a swing along the wall sparks it and hits the grunt beside it; punches still hit one thing (Gameplay > Melee > One Swing, Many Hits) {test:sword_multi}
+Tank fields look: fire field grows from the tank in ~0.4 s, dense rising flames, 3D torch flames thrown out, embers and smoke; poison field: billowing green cloud; dense enough on vrtesthall's bright floor? cloud colour? (AD Guns: Burst Field Spread, Fire Field Flames/3D Flames/Smoke, Poison Cloud Amount) {test:tank_burst_field}
+Armed grunts' back tanks: shoot only the tank: the grunt turns on you (no damage); kill one mid-stream: the hiss stops {test:agrunt_tanks}
 Armed humanoids' arms fixed: grunts and enforcers with axe, sword, shotgun, dual: hands keep their shape (no stretching), weapons sit on the hand by the handle, arms stay out of the torso in swings, the off hand only takes a second grip it can reach naturally; shove one into a fall and parry one into a stagger: the weapon stays in the hand {test:agrunt_weapon_hands}
 Grip Editor (VR Settings > Armed Grunts > Grip Editor): in the scene, tune each weapon's place in their hands by eye (Freeze Them, Fit Angles to Its Pose), then Print as Defaults and send me the lines {test:agrunt_grip_editor}
 Phantom Sword from the toolgun (DoE group, no longer greyed): offsets, swing and sounds; the MG Gas Flare spawns on any map {test:phantom_sword}

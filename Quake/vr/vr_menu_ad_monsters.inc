@@ -147,7 +147,11 @@
                   "from your eyes meets it."),
         command("Shoot the Worn Tank", "vr_ad_test 180")
             .help("That tank takes a shot of 10 from you (the third bursts it on its wearer: hurt, burning or poisoned, "
-                  "the field round it, its gun dropped spent)."),
+                  "the field round it, its gun dropped spent); its wearer turns on you."),
+        command("Kill the Worn Tank's Wearer", "vr_ad_test 182")
+            .help("Destructive: an armed monster firing its flamethrower or sprayer now (else the nearest with a back "
+                  "tank) killed by you: in the console whether it was firing, and the monsters' loops stopped (none left "
+                  "playing)."),
         command("Fuel Tanks Count", "vr_ad_test 150")
             .help("In the console: the tanks lying about, the fuelled guns lying about, the pairs, tanks without their gun "
                   "and guns without a tank (both 0 when right), each pair's distance; Fuel Hose Info has the ropes and the "

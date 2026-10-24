@@ -50,6 +50,25 @@ float() VR_AG_Dying;                                                       // ar
 void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
 float(entity e) VR_AG_Striking;                                            // VR_Parry_MeleeMonster: its melee blow under way
 
+// Parrying melee blows with its weapon (vr_armedgrunt_parry.qc; vr_agrunt_parry).
+.float vr_agpar_w;         // the parry pose's share, eased
+.vector vr_agpar_t;        // the blow coming: its point (body space, eased)
+.float vr_agpar_since;     // when that blow was first seen (0: none)
+.float vr_agpar_seen;      // ... last seen
+.float vr_agpar_ready;     // ... when its parry rises (the reaction; -1: caught out, this blow not parried)
+.entity vr_agpar_tby;      // ... whose
+.float vr_agpar_load;      // stamina spent (parries' worth, recovering since vr_agpar_load_at)
+.float vr_agpar_load_at;
+.entity vr_agpar_by;       // its last parry: whose blow, when, the hand (+1; 0 a monster's)
+.float vr_agpar_last;
+.float vr_agpar_hand;
+float vr_agpar_now;        // the blow being dealt was parried (T_Damage, T_Damage_VRMelee: no pain, no zone, no disarm by it)
+float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
+float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
+void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
+void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
+float(entity g) VR_AGPar_WeaponFrame;                                      // VR_AG_WeaponStruck: a blow on its weapon
+
 // The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
 // limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).
 .float vr_ag_tug_rag;      // the physical tug on: it stands as an active ragdoll, a hand holding its weapon

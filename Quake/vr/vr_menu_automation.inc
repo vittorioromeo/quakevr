@@ -224,6 +224,11 @@ za::Vector<Item> pageDebugAutomation()
                   "hands shot 100 times a case (shotguns at 2, 5 and 15 m, a nail burst, single far shots, lightning, "
                   "hand only, weapon only, the volumes' size, absorbing, dual wielding): each case's disarm rate printed "
                   "(agshot: ...) and the defaults' targets checked (PASS/FAIL). scratch1: trials a case."),
+        command("Armed Grunts: They Parry Your Blows", "vr_agrunt_test 60")
+            .help("vr_agrunt_test 60 (vrtesthall; a few seconds): a sword grunt facing you takes blows swept through "
+                  "its weapon (parried: damage cut, the ring), its head and its legs (full damage), a second parry in a "
+                  "row (disarmed), a blow from behind (not parried), and an ogre's chainsaw on its weapon (parried) "
+                  "(agparry: ... PASS/FAIL)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")
