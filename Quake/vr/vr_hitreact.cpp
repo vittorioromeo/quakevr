@@ -9,6 +9,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
+#include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_view.hpp"
 #include "vr_render.hpp"
@@ -35,6 +36,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
+#include <type_traits>
 
 using namespace qvr;
 
@@ -2682,6 +2684,183 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     aggrip::noteSubject(kind, slot, slotL, viewDistance(e));
 }
 
+// --- The Pose Studio's Live mode (vr_poselive.hpp): its subject's frames recorded, or drawn from its tape -----------
+
+static_assert(sizeof(ArmPose) <= poselive::poseBytes, "the Live tape's room for an arm pose");
+static_assert(sizeof(entity_t) <= poselive::entBytes, "the Live tape's room for an entity");
+static_assert(std::is_trivially_copyable_v<ArmPose>, "copied as bytes");
+
+// The subject as the game had it when paused (put back on Play): its arm pose, its solve's state, its entity.
+struct LiveHeld
+{
+    bool on{false};
+    int ent{0};
+    ArmPose pose;
+    int armsLen{0}, legsLen{0}, bodyLen{0};
+    unsigned char arms[agarms::stateBytes];
+    unsigned char legs[aglegs::stateBytes];
+    unsigned char body[agbody::stateBytes];
+    entity_t place;
+};
+LiveHeld liveHeld;
+
+// `to`'s place, frames and their lerps from `from`, its times moved by `shift` seconds (drawn at another clock as at
+// its own).
+void livePlace(entity_t& to, const entity_t& from, float shift)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        to.origin[i] = from.origin[i];
+        to.angles[i] = from.angles[i];
+        to.previousorigin[i] = from.previousorigin[i];
+        to.currentorigin[i] = from.currentorigin[i];
+        to.previousangles[i] = from.previousangles[i];
+        to.currentangles[i] = from.currentangles[i];
+    }
+    const auto moved = [shift](float t) { return t != 0.f ? t + shift : t; };
+    to.frame = from.frame;
+    to.lerpflags = from.lerpflags;
+    to.lerpstart = moved(from.lerpstart);
+    to.lerptime = from.lerptime;
+    to.lerpfinish = moved(from.lerpfinish);
+    to.animlerpfinish = moved(from.animlerpfinish);
+    to.previouspose = from.previouspose;
+    to.currentpose = from.currentpose;
+    to.animfrom = from.animfrom;
+    to.animpose0 = from.animpose0;
+    to.animspan0 = from.animspan0;
+    to.movelerpstart = moved(from.movelerpstart);
+    to.movelerpfinish = moved(from.movelerpfinish);
+}
+
+// Playing: the subject's frame on the tape before its solve (its inputs, the solve's state, its entity as drawn).
+void liveRecord(const ArmPose& s, const entity_t* e, int pose1, int pose2, float blend)
+{
+    poselive::Frame* f = poselive::record();
+    f->pose1 = pose1;
+    f->pose2 = pose2;
+    f->blend = blend;
+    f->frame = e->frame;
+    memcpy(f->ent, e, sizeof(entity_t));
+    memcpy(f->pose, &s, sizeof(ArmPose));
+    f->armsLen = agarms::saveState(s.ent, f->arms);
+    f->legsLen = aglegs::saveState(s.ent, f->legs);
+    f->bodyLen = agbody::saveState(s.ent, f->body);
+}
+
+// The keys' edits since a frame was recorded laid on its arm pose as QC lays its keys on (vr_armedgrunt_pose.qc
+// VR_AGP_Pose: the targets' places and turns in its body's space after the torso's turn, the elbows' poles, the torso
+// turning the targets about its waist).
+void liveEdit(ArmPose& s, const agpose::Key& d, float scale)
+{
+    const auto turn = [](const glm::vec3& r) {
+        const float a = glm::length(r);
+        return a < 1e-4f ? glm::quat{1.f, 0.f, 0.f, 0.f} : glm::angleAxis(a * (3.14159265f / 180.f), r / a);
+    };
+    if(s.flags & apBody)
+    {
+        if(glm::length(d.v[agpose::Torso]) > 1e-4f)
+        {
+            const glm::vec3 t1 = s.torso + d.v[agpose::Torso];
+            if(!(s.flags & apFixed))
+            {
+                const glm::quat R = glm::normalize(posestudio::torsoRotation(t1) * glm::inverse(posestudio::torsoRotation(s.torso)));
+                s.right = s.waist + R * (s.right - s.waist);
+                s.left = s.waist + R * (s.left - s.waist);
+                s.fw = R * s.fw;
+                s.up = R * s.up;
+                s.fwL = R * s.fwL;
+                s.upL = R * s.upL;
+            }
+            s.torso = t1;
+        }
+        s.elbowR += d.v[agpose::ElbowR];
+        s.elbowL += d.v[agpose::ElbowL];
+        for(glm::vec3* p : {&s.elbowR, &s.elbowL})
+        {
+            *p = glm::length(*p) > 1.f ? glm::normalize(*p) : *p;
+        }
+    }
+    s.right += d.v[agpose::RPos] / scale;
+    const glm::quat qr = turn(d.v[agpose::RTurn]);
+    s.fw = qr * s.fw;
+    s.up = qr * s.up;
+    if(s.flags & apLeft)
+    {
+        s.left += d.v[agpose::LPos] / scale;
+    }
+    if(s.flags & apLeftWeapon)
+    {
+        const glm::quat ql = turn(d.v[agpose::LTurn]);
+        s.fwL = ql * s.fwL;
+        s.upL = ql * s.upL;
+    }
+}
+
+// Paused: the subject drawn from the tape. The window's frames solved in turn at their own clocks (the first from its
+// recorded state, each from its recorded inputs with the edits laid on), the last drawn at the live clock as it was.
+void liveReplay(ArmPose& s, entity_t* e, const aliashdr_t* hdr)
+{
+    int first = 0, count = 0;
+    if(!poselive::window(first, count) || count <= 0)
+    {
+        return;
+    }
+    if(!liveHeld.on)
+    {
+        liveHeld.on = true;
+        liveHeld.ent = s.ent;
+        liveHeld.pose = s;
+        liveHeld.armsLen = agarms::saveState(s.ent, liveHeld.arms);
+        liveHeld.legsLen = aglegs::saveState(s.ent, liveHeld.legs);
+        liveHeld.bodyLen = agbody::saveState(s.ent, liveHeld.body);
+        liveHeld.place = *e;
+    }
+    const double timeWas = cl.time;
+    const int frameWas = host_framecount;
+    const int ent = s.ent;
+    const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
+    entity_t rec;
+    for(int k = 0; k < count; k++)
+    {
+        const poselive::Frame& f = poselive::at(first, k);
+        if(k == 0)
+        {
+            agarms::loadState(ent, f.arms, f.armsLen);
+            aglegs::loadState(ent, f.legs, f.legsLen);
+            agbody::loadState(ent, f.body, f.bodyLen);
+        }
+        memcpy(&s, f.pose, sizeof(ArmPose));
+        s.ent = ent;
+        agpose::Key d;
+        if(poselive::delta(f, d))
+        {
+            liveEdit(s, d, scale);
+        }
+        memcpy(&rec, f.ent, sizeof(entity_t));
+        cl.time = f.time;
+        host_framecount = frameWas - (count - 1 - k); // (each frame of the window a frame of its own to the solve)
+        livePlace(*e, rec, 0.f);
+        poselive::setWarming(k < count - 1);
+        relinkSkinned(s, e, hdr, f.pose1, f.pose2, f.blend);
+    }
+    poselive::setWarming(false);
+    cl.time = timeWas;
+    host_framecount = frameWas;
+    livePlace(*e, rec, static_cast<float>(timeWas - poselive::at(first, count - 1).time));
+}
+
+// Play again: the subject as the game had it when paused.
+void liveRelease(ArmPose& s, entity_t* e)
+{
+    liveHeld.on = false;
+    s = liveHeld.pose;
+    agarms::loadState(s.ent, liveHeld.arms, liveHeld.armsLen);
+    aglegs::loadState(s.ent, liveHeld.legs, liveHeld.legsLen);
+    agbody::loadState(s.ent, liveHeld.body, liveHeld.bodyLen);
+    livePlace(*e, liveHeld.place, 0.f);
+}
+
 } // namespace
 
 namespace qvr::hitreact
@@ -2786,6 +2965,19 @@ void relinkArms()
             continue;
         }
         const entity_t* e = &cl_entities[s.ent];
+        if(poselive::replaying(s.ent))
+        {
+            // (the Pose Studio's Live mode paused: its subject drawn from its tape)
+            if(agarms::enabled() && e->model && e->model->type == mod_alias && armedRigOf(e->model))
+            {
+                liveReplay(s, &cl_entities[s.ent], static_cast<const aliashdr_t*>(Mod_Extradata(e->model)));
+            }
+            continue;
+        }
+        if(liveHeld.on && liveHeld.ent == s.ent)
+        {
+            liveRelease(s, &cl_entities[s.ent]);
+        }
         if(rigid && e->model && e->msgtime == cl.mtime[0] && ragdoll::sourceModel(e))
         {
             ragdollProps(s, e); // (its weapons on its ragdoll's hands; the server's own placing is for the game: QC VR_AG_RagProp)
@@ -2810,7 +3002,16 @@ void relinkArms()
         }
         if(agarms::enabled())
         {
+            const bool rec = poselive::recording(s.ent); // (the Pose Studio's Live tape)
+            if(rec)
+            {
+                liveRecord(s, e, pose1, pose2, blend);
+            }
             relinkSkinned(s, e, hdr, pose1, pose2, blend);
+            if(rec)
+            {
+                poselive::recorded();
+            }
             continue;
         }
         if(s.prop <= 0 || s.prop >= cl.num_entities)

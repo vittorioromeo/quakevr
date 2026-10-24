@@ -74,4 +74,10 @@ bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* po
 // ... the one laid this frame (the drawing's bone turns read it). False: none.
 bool upperNow(int ent, rigpose::Rigid& corr);
 
+// The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length
+// returned (0: none); and put back (a length of 0: dropped).
+inline constexpr int stateBytes = 256;
+int saveState(int ent, unsigned char* out);
+void loadState(int ent, const unsigned char* in, int len);
+
 } // namespace qvr::agbody

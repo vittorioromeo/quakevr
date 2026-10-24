@@ -1,6 +1,8 @@
 // vr_agbody.cpp -- armed humanoids' body proxies (vr_agbody.hpp; ROUND22.md, "Armed humanoids in motion: the glitch
 // finder and a robust solve").
 
+#include <type_traits>
+#include <string.h>
 #include "vr_agbody.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -347,6 +349,34 @@ float segmentDepth(const Posed& q, const glm::vec3& p0, const glm::vec3& p1, int
         most = za::max(most, depth(q, p0 + (p1 - p0) * (static_cast<float>(k) / static_cast<float>(za::max(steps, 1))), margin));
     }
     return most;
+}
+
+int saveState(int ent, unsigned char* out)
+{
+    static_assert(sizeof(Upper) <= stateBytes, "the Live tape's room for its state");
+    static_assert(std::is_trivially_copyable_v<Upper>, "copied as bytes");
+    const Upper* st = upperOf(ent, false);
+    if(!st)
+    {
+        return 0;
+    }
+    memcpy(out, st, sizeof(Upper));
+    return static_cast<int>(sizeof(Upper));
+}
+
+void loadState(int ent, const unsigned char* in, int len)
+{
+    Upper* st = upperOf(ent, len > 0);
+    if(!st)
+    {
+        return;
+    }
+    if(len != static_cast<int>(sizeof(Upper)))
+    {
+        *st = Upper{}; // (none then: dropped)
+        return;
+    }
+    memcpy(st, in, sizeof(Upper));
 }
 
 } // namespace qvr::agbody

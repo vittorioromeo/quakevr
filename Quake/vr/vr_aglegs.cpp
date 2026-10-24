@@ -1,6 +1,8 @@
 // vr_aglegs.cpp -- armed humanoids' legs posed for a crouch (vr_aglegs.hpp; ROUND22.md, "Armed humanoids' legs: the
 // pickup's kneel").
 
+#include <type_traits>
+#include <string.h>
 #include "vr_aglegs.hpp"
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
@@ -810,6 +812,34 @@ bool placed(int ent, Placed& out)
         out.pole[s] = st->pole[s];
     }
     return true;
+}
+
+int saveState(int ent, unsigned char* out)
+{
+    static_assert(sizeof(Ent) <= stateBytes, "the Live tape's room for its state");
+    static_assert(std::is_trivially_copyable_v<Ent>, "copied as bytes");
+    const Ent* st = entOf(ent, false);
+    if(!st)
+    {
+        return 0;
+    }
+    memcpy(out, st, sizeof(Ent));
+    return static_cast<int>(sizeof(Ent));
+}
+
+void loadState(int ent, const unsigned char* in, int len)
+{
+    Ent* st = entOf(ent, len > 0);
+    if(!st)
+    {
+        return;
+    }
+    if(len != static_cast<int>(sizeof(Ent)))
+    {
+        *st = Ent{}; // (none then: dropped)
+        return;
+    }
+    memcpy(st, in, sizeof(Ent));
 }
 
 } // namespace qvr::aglegs
