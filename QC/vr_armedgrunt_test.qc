@@ -643,6 +643,13 @@ void(entity g, float a, float base) VR_AGT_SweepSwing =
     g.vr_ag_act = VR_AGP_SWING;
     g.vr_ag_act_kind = a & 3;
     g.vr_ag_act_hand = floor(a / 4);
+    if(!g.vr_ag_prop)
+    {
+        // (its fists, scratch2 1: every punch, a jab, a cross, the hooks, an uppercut, in turn)
+        g.vr_ag_act = VR_AGP_PUNCH;
+        g.vr_ag_act_kind = a - floor(a / 5) * 5;
+        g.vr_ag_act_hand = 0;
+    }
     g.vr_ag_act_hit = 2; // (no blow)
     g.vr_ag_act_hitl = 1;
     g.vr_ag_act_tick = time;
@@ -669,6 +676,10 @@ void() VR_AGTest_Sweep =
         // temp1 its turn from facing you (degrees); 0 each: an axe in each hand (43: a shotgun and a nail gun), 90 units,
         // side on)
         float w1 = cvar("scratch2") ? cvar("scratch2") - 1 : (t43 ? WID_SHOTGUN : WID_AXE);
+        if(cvar("scratch2") < 0)
+        {
+            w1 = -1; // (scratch2 -1: its fists, every punch: VR_AGT_SweepSwing)
+        }
         float w2 = cvar("scratch3") ? cvar("scratch3") - 1 : (t43 ? WID_NAILGUN : WID_AXE);
         vr_agt_weapon2 = w2 >= 0 ? w2 : 0;
         vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 90);
@@ -743,6 +754,7 @@ void() VR_AGTest_Sweep =
             vr_agt_index = floor((hold - base) / 8);
             s.vr_ag_act_kind = vr_agt_index & 3;
             s.vr_ag_act_hand = floor(vr_agt_index / 4);
+            VR_AGT_SweepSwing(s, vr_agt_index, base); // (its attack's kind and length: a punch's with its fists)
             float len0 = VR_AGP_Length(s);
             s.vr_ag_act_at = time - len0 * ((hold - base - vr_agt_index * 8) + 0.5) / 8;
         }

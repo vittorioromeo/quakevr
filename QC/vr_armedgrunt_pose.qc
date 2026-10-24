@@ -44,6 +44,8 @@ vector VR_AGP_SAW_FW = '0.95 0.05 0.25';
 .float vr_ag_act_hit;  // its blow struck
 .float vr_ag_act_combo; // punches in a row
 .float vr_ag_act_var;  // its variation (0..1, each attack: VR_AGP_TorsoNow's amounts)
+.float vr_ag_demo;     // its attack is vr_agrunt_strike_demo's (at the air, standing)
+.float vr_ag_demo_next;
 .float vr_ag_aimw;     // a gun's aim's share (0 its rifle line .. 1 at the target), eased
 .vector vr_ag_aimdir;  // the last aim
 .float vr_ag_readyw;   // its stance's share (a guard, a melee weapon ready), eased
@@ -730,10 +732,10 @@ float(entity g) VR_AGP_TorsoNow =
     }
     else
     {
-        if(kind == 0)      { w = '-14 -9 -7'; f = '12 15 6';   draw = '-5 0 5';  elbow = '-0.4 -0.7 0.8'; } // overhead
+        if(kind == 0)      { w = '-14 -9 -7'; f = '12 15 6';   draw = '-3 -1 6'; elbow = '-0.4 -0.7 0.8'; } // overhead
         else if(kind == 1) { w = '-28 -5 -8'; f = '24 10 8';   draw = '-5 -1 4'; elbow = '-0.5 -0.8 0.6'; } // diagonal
         else if(kind == 2) { w = '-32 0 -3';  f = '28 4 3';    draw = '-5 -2 1'; elbow = '-0.6 -0.8 0.3'; } // horizontal
-        else               { w = '24 5 6';    f = '-20 -5 -6'; draw = '-3 2 -1'; elbow = '0.3 -0.6 0.5';  } // backhand
+        else               { w = '16 4 5';    f = '-20 -5 -6'; draw = '3 3 1';   elbow = '0.3 -0.6 0.5';  } // backhand (its hand out, off the chest)
         if(g.vr_ag_prop && VR_AGP_TwoHanded(g.vr_ag_prop))
         {
             w = w * 1.15;
@@ -857,6 +859,7 @@ void(entity g, entity p) VR_AGP_Pose =
     vr_agp_up = gz;
     vr_agp_wo = 1;
     float c = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
+    VR_AGP_Demo(g, c);
     if(c == VR_AG_CLASS_FISTS)
     {
         VR_AGP_Fists(g, handL);
@@ -933,7 +936,8 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         dprint(sprintf("agpose %s act %g kind %g s %.3f wr %.2f grip %v", p ? p.netname : "fists", g.vr_ag_act,
             g.vr_ag_act_kind, time - g.vr_ag_act_at, vr_agp_wr, posL)); // (sprintf: 7 arguments at most)
-        dprint(sprintf(" fw %v up %v\n", VR_AGP_ToLocal(vr_agp_fw), VR_AGP_ToLocal(vr_agp_up)));
+        dprint(sprintf(" fw %v up %v torso %v wind %.2f follow %.2f\n", VR_AGP_ToLocal(vr_agp_fw), VR_AGP_ToLocal(vr_agp_up),
+            vr_agp_tq, body ? vr_agp_ww : 0, body ? vr_agp_wf : 0));
     }
     if(p)
     {
@@ -1116,11 +1120,15 @@ void() VR_AGP_Attack =
 void() VR_AGP_Frame =
 {
     self.vr_ag_act_tick = time;
-    ai_face();
+    float demo = self.vr_ag_demo && !self.enemy; // (vr_agrunt_strike_demo's: at the air, standing)
+    if(!demo)
+    {
+        ai_face();
+    }
     float s = time - self.vr_ag_act_at;
     VR_AGP_Times(self);
     self.frame = VR_AM_StandFrame(self, floor(s * 10)); // (its stand frames: its legs under the arms)
-    if(s < vr_agp_tw + vr_agp_ts)
+    if(s < vr_agp_tw + vr_agp_ts && !demo)
     {
         ai_charge(s < vr_agp_tw ? 1 : 3);
     }
@@ -1146,5 +1154,37 @@ void() VR_AGP_Frame =
         VR_AGP_Begin(VR_AGP_SWING); // (two held: the other hand follows up)
         return;
     }
+    if(demo)
+    {
+        self.vr_ag_demo = 0;
+        self.th_stand();
+        return;
+    }
+    self.vr_ag_demo = 0;
     VR_AG_AfterAttack();
+};
+
+// vr_agrunt_strike_demo: `g` (a melee weapon or its fists, no enemy, standing) strikes the air ahead every 2 s.
+void(entity g, float c) VR_AGP_Demo =
+{
+    if(!cvar_hget(cvarh_vr_agrunt_strike_demo) || vr_agp_quiet || g.enemy || g.vr_ag_act || g.health <= 0 ||
+       g.vr_knockdown || g.vr_ag_took_at > 0 || (c != VR_AG_CLASS_FISTS && c != VR_AG_CLASS_MELEE))
+    {
+        return;
+    }
+    if(g.vr_ag_demo_next <= 0 || g.vr_ag_demo_next > time + 4)
+    {
+        g.vr_ag_demo_next = time + 1 + random();
+        return;
+    }
+    if(time < g.vr_ag_demo_next)
+    {
+        return;
+    }
+    g.vr_ag_demo_next = time + 1.6 + random() * 0.8;
+    entity oldself = self;
+    self = g;
+    self.vr_ag_demo = 1;
+    VR_AGP_Attack();
+    self = oldself;
 };
