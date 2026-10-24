@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed chainsaw grunts: both hands on the saw, carried low across the body, raised level when ready, both hands on the thrust; dual axes/swords/crowbars carried at the sides with blades ahead (left wrist natural) {test:agrunt_weapon_hands}
 Armed humanoids' arms rebuilt (procedural, IK, skinned): no gaps at wrist or elbow, hands keep their shape; long guns carried low and raised to the shoulder to aim, off hand on the fore-end (vr_agarms_shoulder to taste); dual guns at the sides, both coming up to aim; enforcer running and kneeling for a gun keeps its arms' shape; vr_agarms 0 (then reload the map) for the old system as A/B {test:agrunt_weapon_hands}
 Grip Editor, Every Weapon: one offset per humanoid kind moves the grip for all its weapons ("Edits: Every Weapon / This Weapon Only"); send me the printed lines {test:agrunt_grip_editor}
 No drops from walking into armed grunts' swings: get pushed by their blows with your hands idle: they keep their weapons; a real swing on the weapon still knocks it out {test:agrunt_weapon_hands}
