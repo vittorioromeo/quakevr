@@ -27,7 +27,7 @@ constexpr float pi = 3.14159265f;
 constexpr float wristBack = 0.34f;   // the wrist: this share of the forearm bone's length back from its end (its hand)
 constexpr float wristBand = 0.16f;   // the wrist's: this share of the forearm's, mostly on the forearm's side
 constexpr float shoulderIn = 0.12f;  // the shoulder's blend into the body: from this share of the upper arm inside it
-constexpr float shoulderOut = 0.42f; // ... to this share along it
+constexpr float shoulderOut = 0.6f;  // ... to this share along it (a shoulder pad, an enforcer's, turns partly with the chest)
 constexpr float handReach = 1.5f;    // the hand's segment (wrist to the forearm bone's end) taken this far on (its fingers)
 constexpr float armRadius = 0.7f;    // an arm's vertex: within this share of its upper arm's length of its bones' lines
 constexpr float reachMost = 0.97f;   // a wrist within this share of the arm's length of its shoulder (straighter: snapping)
@@ -510,6 +510,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         const auto* idx2 = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
         za::Vector<int8_t> ring(static_cast<za::SizeT>(nv), static_cast<int8_t>(99));
         za::Vector<int8_t> ringSide(static_cast<za::SizeT>(nv), static_cast<int8_t>(-1));
+        za::Vector<float> contact(static_cast<za::SizeT>(nv), 0.f), contactCode(static_cast<za::SizeT>(nv), 0.f);
         for(int v = 0; v < nv; v++)
         {
             if(sideOf[static_cast<za::SizeT>(v)] >= 0)
@@ -537,11 +538,20 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
                             ring[a] = static_cast<int8_t>(r);
                             ringSide[a] = ringSide[b];
                         }
+                        // (a body's vertex the rest pose's elbow or forearm touches: half on that arm's place there,
+                        // the web from the arm to the body stretched over two edges, not one)
+                        const glm::vec4& rb = m.row[b];
+                        const float cb = rb.x - 1.f - 4.f * za::floor((rb.x - 1.f) * 0.25f);
+                        if(r == 1 && ring[a] == 1 && ring[b] == 0 && rb.x > 0.5f && cb >= 0.3f && cb > contact[a])
+                        {
+                            contact[a] = cb;
+                            contactCode[a] = rb.x;
+                        }
                     }
                 }
             }
         }
-        constexpr float frameShare[4] = {0.f, 0.f, 0.35f, 0.7f};
+        constexpr float ringFrame[4] = {0.f, 0.f, 0.35f, 0.7f};
         for(int v = 0; v < nv; v++)
         {
             glm::vec4& row = m.row[static_cast<za::SizeT>(v)];
@@ -554,8 +564,13 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             {
                 row.x = 1.f + static_cast<float>(ringSide[static_cast<za::SizeT>(v)]) * 4.f; // (its side's upper arm: all body)
                 row.y = 1.f;
+                if(contact[static_cast<za::SizeT>(v)] > 0.f)
+                {
+                    row.x = contactCode[static_cast<za::SizeT>(v)];
+                    row.y = 0.5f;
+                }
             }
-            row.y = 2.f * za::floor(frameShare[r] * 1000.f + 0.5f) + row.y;
+            row.y = 2.f * za::floor(ringFrame[r] * 1000.f + 0.5f) + row.y;
         }
     }
     for(int s = 0; s < 2; s++)
