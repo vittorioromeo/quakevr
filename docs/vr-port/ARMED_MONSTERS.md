@@ -184,3 +184,9 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
 - **The upper body** (`vr_agrunt_upper`): the chest upright on the frames' hips (their own chest motion in shots, reloads,
   pains and runs taken out; a pickup's crouch, falls and deaths keep the frames'), breathing; QC's gun torso turns (aim
   twist `vr_agrunt_aim_twist`, kick lean, reload turn) as the body block, the Pose Studio's torso keys on top.
+- **Round 2** (ROUND22.md, "Armed humanoids in motion, round 2"): a held weapon's turn is never eased, only its hand's
+  place (`vr_agarms_aim_line`), and a gun's shots leave its drawn muzzle along its drawn line (`vr_agrunt_shot_drawn`,
+  QC asks `weapondrawnpose(p, 0, 21/22)`: the turn and shift of the drawn weapon off the server's, a listen server's own
+  view); a two-handed melee weapon (not the chainsaw) is swung one-handed, the off hand let go and taken again round the
+  shoulder (`vr_agrunt_swing_one_hand`, `vr_agarms_second_release`); punches eased into the blow (`vr_agrunt_punch_ease`); a chainsaw's thrust keeps both handles within reach (`vr_agrunt_saw_reach`); a
+  weapon taken up turns from how it lay the short way (`vr_agrunt_lift_turn`). Each 1 by default, 0 before.

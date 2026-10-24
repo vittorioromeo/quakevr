@@ -97,6 +97,12 @@ void noteHandsDrawn(const entity_t* e, const glm::vec3& right, const glm::vec3& 
 // feet. VR_AliasPreTransform's.
 void tiltModel(const entity_t* e, float matrix[16]);
 
+// An armed humanoid's held weapon (entity `prop`) as the arms drew it lately (this listen server's own view, within
+// the last 0.15 s): `turn` the rotation (world; its axis times degrees) from the server's forward to the drawn one, `off`
+// the drawn origin less the server's. QC weapondrawnpose(p, 0, 21 / 22): its shots go along the drawn line
+// (vr_agrunt_shot_drawn). False: not drawn lately.
+bool drawnWeaponTurn(int prop, glm::vec3& turn, glm::vec3& off);
+
 // vr_hit_react_trace, vr_hit_react_info (Debug > Tests).
 void registerCommands();
 

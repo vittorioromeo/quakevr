@@ -816,6 +816,9 @@ vector(vector from) VR_AG_AimDir =
     return dir;
 };
 
+float vr_ag_drawn_shots; // (vr_agrunt_shot_drawn: shots turned onto the drawn line, their degrees, all shots: test 46)
+float vr_ag_drawn_deg;
+float vr_ag_all_shots;
 // Its hand fields as the player's would be holding the weapon `p` aimed along `dir` (VRGetHandPos, VRGetMuzzlePos,
 // VRGetWeaponFireRot, VRGetWeapon, VRGetEntWeaponInst read them).
 void(entity p, vector dir) VR_AG_SetHand =
@@ -832,6 +835,27 @@ void(entity p, vector dir) VR_AG_SetHand =
     if(m == p.origin)
     {
         m = p.origin + dir * 16;
+    }
+    if(cvar_hget(cvarh_vr_agrunt_shot_drawn))
+    {
+        // (vr_agrunt_shot_drawn: the gun as the arms drew it, a few degrees off this line where an arm can't turn its
+        // wrist so far or its hand eases into a jump: its shots leave its drawn muzzle along its drawn line, as you see
+        // it; up to 30 degrees, a listen server's own view)
+        vector turn = weapondrawnpose(p, 0, 21);
+        float ang = vlen(turn);
+        if(ang > 0.01 && ang < 30)
+        {
+            vector ax = turn * (1 / ang);
+            vector off = weapondrawnpose(p, 0, 22);
+            dir = normalize(VR_AG_Rotate(dir, ax, ang));
+            m = p.origin + off + VR_AG_Rotate(m - p.origin, ax, ang);
+            a = vectoangles(dir);
+            a_x = -a_x;
+            self.handrot = a;
+            vr_ag_drawn_shots = vr_ag_drawn_shots + 1;
+            vr_ag_drawn_deg = vr_ag_drawn_deg + ang;
+        }
+        vr_ag_all_shots = vr_ag_all_shots + 1;
     }
     self.muzzlepos = m;
     self.weapon = p.weapon;

@@ -20544,3 +20544,78 @@ in punches (pen 11). Phase B (the studio's Live playback, pause on a glitch, Nex
   carry without a snap.
 - [ ] Pain, a fall, a death: still readable (frames and ragdolls as before).
 - [ ] Pose Studio: his poses look as he set them.
+
+## Armed humanoids in motion, round 2: agrobust's leftovers (worktree `tghost`, branch `agent/agrobust2`, 2026-10-24)
+
+After agent/agrobust (the section above). Measured with its glitch finder (`vr_agrunt_test 46`, all 24 subjects, 90 Hz
+fixed frames, seed 7: `scratch/agg_run.sh <label> 0 0`, tables `scratch/agg_table.py <before> <after>`). New settings,
+each 1 by default and 0 as before: `vr_agarms_aim_line`, `vr_agarms_second_release`, `vr_agrunt_swing_one_hand`,
+`vr_agrunt_punch_ease`, `vr_agrunt_saw_reach`, `vr_agrunt_shot_drawn`, `vr_agrunt_lift_turn`. QC: `vr_armedgrunt_pose.qc`
+(swings, punches, the saw's reach, the lift's turn), `vr_armedgrunt.qc` (`VR_AG_SetHand`: the drawn line); engine:
+`vr_agarms.cpp` (the ease's turn, the second grip's release), `vr_hitreact.cpp` (`drawnWeaponTurn`), `vr_builtins.cpp`
+(`weapondrawnpose(p, 0, 21 / 22)`).
+
+**1. His Pose Studio poses** (the scenario `agrunt_pose_studio`, the studio's subject frozen, `vr_posestudio_report` with
+`vr_agrunt_upper` 0 then 1 at each pose, `scratch/ps_upper.sh`, `ps_diff.py`): the shotgun grunt (Idle, Aim, Pickup),
+the sword grunt (Idle, Ready, Pickup, Overhead, Diagonal, Horizontal, Backhand) and the two-axe grunt (Idle, Ready,
+Pickup) the same to 0.28 units (every hand, elbow, weapon, grip line). Run differs by 1.5-2.5 units: the frozen
+mid-stride frame's own chest bob is taken out by the upper body, the hands and weapons moving with the chest (the pose
+on the body as he set it; in a fight the run is drawn so). Nothing to fix.
+
+**2. The leftovers** (before -> after, worst / p95 (% of frames over the finder's threshold), per state):
+- a. **One-handed swings sent a second grip** (an axe or Mjolnir: two-handed in QC, swung on one hand's arcs; the off
+  hand chased the grip). QC frees the off hand in a two-handed weapon's swing (`VR_AGP_SwingOneHand`; not the chainsaw,
+  not two weapons), the engine lets go over 0.25 s round the shoulder from where the hand held it and takes it again
+  after. Swings: grip2 17.5/5.3 (9.0%) -> 0/0, toggles 14.9% -> 0%, pen 1.9% -> 0.3%, flip worst 31 -> 19.
+- b. **Punches**: the blow eased out of the wind-up and into the target (smoothstep, the blow's frame at the same time),
+  the keys' and the body turn's shares eased (no kink at the blow). Punch jump p95 4.3 -> 4.6 (22% -> 25%): not the
+  curves. Found: the drawn fist jumps up to 21 units in one frame at some punch changes (a combo's next punch, the
+  hook's wind-up), which the jump ease does not catch; a softer reach and an elbow acceleration limit were tried and
+  dropped (no change). Left for a next round.
+- c. **The chainsaw's handles**: QC keeps the rear handle within 0.92 of the right arm and the front within 0.9 of the
+  left (three rounds; before only the front). Saw thrust reach p95 6.8 -> 4.2, frames short 49% -> 36%; grip2 unchanged
+  (6.5): the thrust's bar still leaves the left hand short at full extension.
+- d. **A pickup's spin**: the lying weapon's frame turned to the hold the short way (`VR_AGP_TurnFrame`: its line swung
+  about the common normal, then rolled, each the shorter way), the server's own targets (no client ease of the turn).
+  Pickup aim (drawn weapon off the server's) worst 158.6 -> 68.7, p95 19.5 -> 4.8.
+- e. **The enforcer's fist in its pads**: not fixed. Its punches' wind-ups and arcs 5 units further ahead changed nothing
+  (enforcer fists' punch pen 16.7% -> 15.9% of frames, the double shotgun's 16% -> 19%) and were dropped: the forearm
+  goes in from the hooks' and the uppercut's paths across the chest, not the wind-up. Left (a pad proxy on the upper arm,
+  or the hooks' control points out past the pad).
+- f. **The drawn weapon off the server's line**: the jump ease turned the hand (and gun) late; now it moves the hand's
+  place only, the weapon's turn the server's (`vr_agarms_aim_line`): aim p95 all 4.7 -> 0.0, fire 22.3 -> 10.3 (12% ->
+  5.3%), aim state 0.8 -> 0, swing 45 -> 38. What is left is the wrist's limit turning the hand back (the wrist metric
+  follows it); so a gun's shots now leave its drawn muzzle along its drawn line (`vr_agrunt_shot_drawn`; QC
+  `VR_AG_SetHand` turns its aim by the drawn weapon's turn off the server's, up to 30 degrees, a listen server's own view):
+  in the finder 234 of 235 shots turned, 1.57 degrees on average. What you see a gun point at is where it shoots.
+
+| state | flip | pen | reach | grip2 | toggle | jump | aim |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| all | 39.1/8.1 (0.0%) -> 35.1/8.2 (0.0%) | 12.1/0.0 (0.5%) -> 9.7/0.0 (0.5%) | 29.2/3.2 (6.3%) -> 32.2/3.1 (6.7%) | 18.7/1.2 (4.8%) -> 18.9/0.5 (4.0%) | 3.0/2.0 (12.0%) -> 3.0/2.0 (9.9%) | 19.5/1.3 (4.1%) -> 18.5/1.3 (4.3%) | 158.6/4.7 (3.9%) -> 73.6/0.0 (2.6%) |
+| run | 25.5/6.6 (0.0%) -> 12.7/6.3 (0.0%) | 1.1/0.0 (0.0%) -> 1.1/0.0 (0.0%) | 5.7/3.1 (5.2%) -> 4.7/4.2 (5.3%) | 13.8/0.0 (2.9%) -> 15.3/0.0 (3.0%) | 2.0/2.0 (8.2%) -> 3.0/2.0 (7.3%) | 5.7/0.3 (1.0%) -> 5.8/0.3 (0.9%) | 64.5/0.0 (0.2%) -> 37.5/0.0 (0.1%) |
+| punch | 29.4/10.6 (0.6%) -> 25.6/10.0 (0.7%) | 8.9/3.5 (10.6%) -> 7.6/3.1 (10.9%) | 3.5/0.6 (1.1%) -> 3.3/0.6 (1.3%) | 0.0/0.0 (0.0%) -> 0.0/0.0 (0.0%) | 0.0/0.0 (0.0%) -> 0.0/0.0 (0.0%) | 14.4/4.3 (22.3%) -> 15.4/4.6 (25.3%) | 0.0/0.0 (0.0%) -> 0.0/0.0 (0.0%) |
+| pain | 17.5/8.0 (0.0%) -> 18.1/8.0 (0.0%) | 2.8/0.0 (0.0%) -> 0.6/0.0 (0.0%) | 4.6/0.9 (3.0%) -> 4.7/1.0 (4.2%) | 13.7/0.9 (4.1%) -> 13.5/0.0 (3.2%) | 3.0/2.0 (15.5%) -> 2.0/2.0 (7.9%) | 6.7/1.0 (2.7%) -> 7.8/0.9 (2.5%) | 50.0/0.0 (1.2%) -> 25.3/0.0 (0.2%) |
+| pickup | 31.9/7.4 (0.1%) -> 35.1/7.2 (0.1%) | 2.3/0.0 (0.1%) -> 5.0/0.0 (0.4%) | 24.2/3.5 (7.1%) -> 32.2/4.4 (8.2%) | 13.1/0.0 (1.2%) -> 13.0/0.0 (0.9%) | 3.0/1.0 (1.8%) -> 3.0/1.0 (1.6%) | 6.8/1.0 (2.6%) -> 6.8/0.9 (2.8%) | 158.6/19.5 (6.0%) -> 68.7/4.8 (4.3%) |
+| swing | 31.2/10.0 (0.1%) -> 19.3/9.6 (0.0%) | 2.8/0.0 (1.9%) -> 2.3/0.0 (0.3%) | 29.2/4.0 (10.8%) -> 29.8/5.0 (12.5%) | 17.5/5.3 (9.0%) -> 0.0/0.0 (0.0%) | 2.0/2.0 (14.9%) -> 1.0/1.0 (0.0%) | 12.9/2.2 (10.0%) -> 6.8/2.1 (9.3%) | 129.6/45.1 (21.3%) -> 63.1/37.9 (15.9%) |
+| carry | 9.7/7.1 (0.0%) -> 9.8/8.0 (0.0%) | 0.3/0.0 (0.0%) -> 1.1/0.0 (0.2%) | 2.4/0.0 (0.1%) -> 3.4/0.0 (0.2%) | 7.4/2.4 (7.1%) -> 7.1/1.8 (6.1%) | 2.0/2.0 (19.6%) -> 2.0/2.0 (26.7%) | 5.3/0.6 (1.5%) -> 4.4/0.7 (1.3%) | 4.2/0.0 (0.0%) -> 0.0/0.0 (0.0%) |
+| aim | 39.1/8.9 (0.1%) -> 10.9/9.2 (0.0%) | 0.6/0.0 (0.0%) -> 0.5/0.0 (0.0%) | 5.3/2.5 (7.7%) -> 5.6/2.5 (8.3%) | 13.1/5.4 (15.4%) -> 13.9/6.1 (14.6%) | 2.0/2.0 (24.2%) -> 2.0/2.0 (26.9%) | 5.8/1.8 (7.4%) -> 5.9/1.8 (8.6%) | 51.4/0.8 (3.4%) -> 43.4/0.0 (2.8%) |
+| fire | 21.5/9.2 (0.1%) -> 19.2/9.6 (0.0%) | 2.1/0.0 (0.1%) -> 3.1/0.0 (0.4%) | 9.5/2.6 (7.1%) -> 8.9/2.9 (8.6%) | 15.6/7.5 (15.1%) -> 18.9/7.3 (14.9%) | 2.0/2.0 (34.5%) -> 2.0/2.0 (36.1%) | 7.0/2.7 (15.7%) -> 6.7/2.9 (17.2%) | 61.6/22.3 (12.0%) -> 73.6/10.3 (5.3%) |
+| reload | 9.9/7.8 (0.0%) -> 10.0/6.9 (0.0%) | 0.0/0.0 (0.0%) -> 0.0/0.0 (0.0%) | 0.0/0.0 (0.0%) -> 2.5/0.0 (0.7%) | 0.0/0.0 (0.0%) -> 0.0/0.0 (0.0%) | 3.0/2.0 (18.5%) -> 2.0/2.0 (6.0%) | 2.2/0.4 (0.7%) -> 1.9/0.5 (0.4%) | 45.7/0.0 (1.2%) -> 26.2/0.0 (1.0%) |
+| saw thrust | 17.0/8.0 (0.0%) -> 18.0/8.0 (0.0%) | 12.1/0.3 (2.9%) -> 9.7/0.2 (2.8%) | 7.8/6.8 (49.2%) -> 8.6/4.2 (35.6%) | 18.7/6.4 (13.1%) -> 13.7/6.5 (13.0%) | 2.0/2.0 (31.9%) -> 2.0/2.0 (34.1%) | 19.5/2.5 (10.6%) -> 18.5/2.6 (10.3%) | 139.5/30.2 (17.7%) -> 72.1/27.3 (16.0%) |
+
+Tests: 35 6/6, 60 6/6, 42 20/20, 50 10/10, 25 3/3, 34 2/2, 38 3/3 PASS for both kinds; 41: joint gap 0.000, hand shape 0.0000, in the torso 4.56 (4.68 before), second grip held 1872 of 1881; 45 (the shotgun set) joint gap 0.000 both kinds; eval.sh canary 36/44, the full set 163/171, no verdict changed (3 takes' speeds 0.1 apart); scenes validate 89 files 0 errors, runall agrunt_weapon_hands, _dual_guns, _strikes, _pose_studio, _grip_editor OK.
+
+**Left:** punches' one-frame fist jumps (b); the chainsaw's left hand at full thrust (c: grip2 p95 6.5); the enforcer's
+hooks in its pads (e); guns aimed steeply up (the nailgun's left hand off its grip at 19 units: fire grip2 p95 7.3, toggles
+36% of fire frames: the second grip's reach at high pitch); a dual pickup's second weapon reached from afar (reach 32).
+**Phase B** (the Pose Studio's Live mode: the subject running the real loops at 0.1-1x, pause, a scrub over the last few
+seconds, the dominant key shown and dragged at a paused frame, Next Glitch from the finder's `_top.csv`) not started.
+
+**In VR:**
+- [ ] An axe grunt and a Mjolnir grunt: their swings one-handed, the off hand leaving the haft and coming back to it after,
+  no wandering; the axe's elbow out of the torso.
+- [ ] Knock a gun out of a grunt's hand and let it take it up: it lifts and turns into its hold without spinning.
+- [ ] Shotgun and nailgun grunts firing at you from below and above: their shots come from where their muzzles are drawn
+  and go where they point.
+- [ ] An enforcer with fists: its punches land without its fist sinking in its shoulder pad.
+- [ ] A chainsaw grunt's thrust: both hands on the saw.

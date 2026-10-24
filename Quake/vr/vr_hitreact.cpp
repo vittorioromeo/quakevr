@@ -2137,6 +2137,8 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     return agarms::enabled() ? composeRigid(offsetRigid(aggrip::global(kind, hand)), w) : w;
 }
 
+void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw);
+
 // A weapon drawn at `w` (model space of `e`; `kick`: its forearm's hit reaction on it, if any).
 void placeProp(entity_t& p, const entity_t* e, const rigpose::Rigid& w, const rigpose::Rigid* kick)
 {
@@ -2144,12 +2146,70 @@ void placeProp(entity_t& p, const entity_t* e, const rigpose::Rigid& w, const ri
     float yaw = 0.f;
     (void)drawnOrigin(e, &yaw);
     const glm::vec3 at = toWorld(e, r.pos);
-    const glm::vec3 a = weaponAngles(turnYaw(yaw, r.rot * glm::vec3{1.f, 0.f, 0.f}), turnYaw(yaw, r.rot * glm::vec3{0.f, 0.f, 1.f}));
+    const glm::vec3 fw = turnYaw(yaw, r.rot * glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 a = weaponAngles(fw, turnYaw(yaw, r.rot * glm::vec3{0.f, 0.f, 1.f}));
+    const int num = static_cast<int>(&p - cl_entities);
+    if(num > 0 && num < cl.num_entities)
+    {
+        noteDrawnTurn(num, p, at, fw);
+    }
     for(int i = 0; i < 3; i++)
     {
         p.origin[i] = at[i];
         p.angles[i] = a[i];
     }
+}
+
+// The held weapons as drawn lately (hitreact::drawnWeaponTurn): each one's turn and shift off the server's.
+struct DrawnTurn
+{
+    int num{0};
+    double time{0.0};
+    glm::vec3 turn{0.f}, off{0.f};
+};
+za::Vector<DrawnTurn> drawnTurns;
+constexpr za::SizeT maxDrawnTurns = 64;
+
+[[nodiscard]] glm::vec3 forwardOfAngles(const float* angles)
+{
+    vec3_t a{-angles[0], angles[1], angles[2]}, f, r, u;
+    AngleVectors(a, f, r, u);
+    return {f[0], f[1], f[2]};
+}
+
+// placeProp's: the prop `p` (still at the server's place) is about to be drawn at `at`, its forward `fw`.
+void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw)
+{
+    const glm::vec3 f0 = glm::normalize(forwardOfAngles(p.angles));
+    const glm::vec3 f1 = glm::normalize(fw);
+    const glm::vec3 k = glm::cross(f0, f1);
+    const float s = glm::length(k);
+    const float deg = za::atan2(s, glm::dot(f0, f1)) * (180.f / 3.14159265f);
+    DrawnTurn d;
+    d.num = num;
+    d.time = cl.time;
+    d.turn = s > 1e-5f ? k * (deg / s) : glm::vec3{0.f};
+    d.off = at - glm::vec3{p.origin[0], p.origin[1], p.origin[2]};
+    for(DrawnTurn& o : drawnTurns)
+    {
+        if(o.num == num)
+        {
+            o = d;
+            return;
+        }
+    }
+    if(drawnTurns.size() >= maxDrawnTurns)
+    {
+        // (the stalest given up)
+        za::SizeT old = 0;
+        for(za::SizeT i = 1; i < drawnTurns.size(); i++)
+        {
+            old = drawnTurns[i].time < drawnTurns[old].time ? i : old;
+        }
+        drawnTurns[old] = d;
+        return;
+    }
+    drawnTurns.pushBack(d);
 }
 
 [[nodiscard]] bool heldProp(int num)
@@ -2626,6 +2686,20 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
 
 namespace qvr::hitreact
 {
+
+bool drawnWeaponTurn(int prop, glm::vec3& turn, glm::vec3& off)
+{
+    for(const DrawnTurn& d : drawnTurns)
+    {
+        if(d.num == prop && cl.time - d.time <= 0.15 && cl.time >= d.time)
+        {
+            turn = d.turn;
+            off = d.off;
+            return true;
+        }
+    }
+    return false;
+}
 
 void parseArmPose()
 {
