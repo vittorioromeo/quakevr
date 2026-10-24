@@ -254,6 +254,16 @@ za::Vector<Item> pageDebugAutomation()
             .help("Prints the arms' numbers counted since the last time (vr_agrunt_ik_err): joints' gaps, the hands' shape, "
                   "edges' stretch, the arms in the torso, the hands short of their weapons, the wrists' bend; and how far "
                   "held weapons were drawn from their holders (agprop)."),
+        command("Armed Grunts: Melee Pickups", "vr_agrunt_test 61")
+            .help("vr_agrunt_test 61 (vrtesthall, you unseen): each melee weapon taken up from the floor by a grunt and "
+                  "an enforcer (lying, after its disarm, thrown by you, after a knockdown): the weapon in its hand has "
+                  "its model and is drawn there. scratch1 N: case N alone, left standing to look at."),
+        command("Armed Grunts: Walk Into Their Blows", "vr_agrunt_test 62")
+            .help("vr_agrunt_test 62: each weapon's armed grunt hunting you while you are pushed into it for 10 s: no "
+                  "drop (your idle hands, your body, a blow's push never knock its weapon out)."),
+        command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
+            .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
+                  "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),
         toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
             .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
                   "vr_agrunt_ik)."),
