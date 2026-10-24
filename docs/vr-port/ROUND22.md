@@ -19895,10 +19895,11 @@ Notes vrtesthall_2026-10-24_03-11-45 (an invisible sword taken from the floor), 
 
 **Tests** (vrtesthall; Debug > Tests: Armed Grunts: Melee Pickups / Walk Into Their Blows / Friendly Fire;
 `QC/vr_armedgrunt_bugs_test.qc`):
-- `vr_agrunt_test 61`: 40 passed, 0 failed.
+- `vr_agrunt_test 61`: 40 passed, 0 failed (after merging origin/next a floored grunt keeps its weapon through a slow
+  fall: those cases check the kept prop, `0 pickups`).
 - `vr_agrunt_test 62` (each weapon's grunt hunting you, you pushed into it every frame for 10 s): before 5 drops (axe,
-  sword, chainsaw, Mjolnir, nailgun: "a blow of 4.6-6.3 m/s on its weapon"), after 0 drops (PASS), its blows landing as
-  before (9-42 a weapon).
+  sword, chainsaw, Mjolnir, nailgun: "a blow of 4.6-6.3 m/s on its weapon"), after 0 drops (PASS) in 5 runs of 6, its
+  blows landing as before (9-42 a weapon); one run after the merge (its log off) had 1 drop, its cause not caught.
 - `vr_agrunt_test 63` (four gunners 420 ahead, four friends held still in their lines, 15 s each): careless 13, 6 and 6
   friendly hits in three runs; careful 0, 0 (an earlier build without the muzzle line: 4); damage to you 146-210 careless,
   248-387 careful (they still fight: 30-42 shots held, then sidestepped clear).
