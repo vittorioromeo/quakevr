@@ -19605,3 +19605,59 @@ grip), Print as Defaults and send the lines; agrunt_weapon_hands with Freeze The
 always in the hand, arms out of the torso in swings; shove one into a fall and parry one (the stagger): the weapon stays
 in its hand. Left: the normals of the pieces are the frames' (lighting on a hand turned far may look off); the wrist
 limit makes a weapon turn with the hand in the widest swings (the server's parry and hit lines are its own place).
+
+## Armed grunts parry melee blows (worktree `dequant`, branch `agent/agparry`, 2026-10-24)
+
+His note (vrtesthall_2026-10-24_01-13-57): armed humanoids should defend against melee as the player parries, drop the
+weapon after about two parries in a row, take reduced damage from a parried blow, and take full damage from a blow that
+goes round the weapon (head, legs); behind an optional flag, on by default. New: `QC/vr_armedgrunt_parry.qc` (the test:
+`vr_armedgrunt_parry_test.qc`), hooks in `combat.qc` (T_Damage, T_Damage_VRMelee), the armed grunts' prop think, pose and
+weapon-blow test, and `vr_hitreact.qc` (VR_Guard_Hand).
+
+- **Seeing it coming** (VR_AGPar_Frame, its weapon's think each frame): your hand's weapon (or fist) within 30 units of
+  its chest, or closing on it at 1.2 m/s or more (its way over the next quarter second within 40 units); a monster's
+  melee attack on it (VR_Parry_MeleeMonster's list, its th_melee begun within 1.5 s, its enemy the grunt). A new blow is
+  decided once: by `vr_agrunt_parry_chance` (0.7) it sees it in time and raises its parry after `vr_agrunt_parry_react`
+  (0.15 s); else it is caught out (its weapon stays where it was). Skill scales both (chance x0.6 / 1 / 1.15 / 1.3,
+  reaction x1.4 / 1 / 0.85 / 0.7 for easy .. nightmare). Never: from behind (more than 70 degrees off its facing),
+  unaware of the attacker (its enemy is not it, nor is it the attacker's), staggered, down, a ragdoll, stunned by your
+  parry, in pain (pain_finished), swinging itself, taking up a weapon, in a tug.
+- **The pose** (VR_AGPar_Pose, after its weapon's own pose in VR_AGP_Pose, before a blade's tilt; blended by its share,
+  eased up at 9/s, down at 3/s): the held weapon's middle 17 units out from its chest towards the blow's point (in front,
+  -2..30 units high), its line across the blow's way: upright against a blow at its middle, level over its head against
+  one from above, its edge to the attacker. The game's weapon line and the drawn weapon both follow (the prop is placed
+  from it, QVR_SVC_ARMPOSE sends it; the arms' IK reaches it). The head guard (VR_Guard_Hand: arms up before the face,
+  drawn by the engine only) is skipped for an armed one holding a weapon while parrying is on: its drawn weapon would
+  move where the game's line is not, and the hit test would no longer match what you see.
+- **The hit test** (honest): your blow (T_Damage_VRMelee, its hand's VR_Blow: its first and last points at the last pose
+  and now) parried only if its sweep passes within 5 units of the held weapon's line (VR_AG_WeaponLine: either weapon of
+  two) no later than a quarter of the sweep after the point where it met the body; a blow whose sweep meets the weapon
+  without reaching the body this frame (the weapon held out) is parried from the weapon's think (VR_AGPar_WeaponFrame,
+  through VR_AG_WeaponStruck), its later blows within 0.3 s that parry's. A monster's blow: the line from its weapon (an
+  armed one's held weapon's far end, its blade against the weapon too) or its front at 60% of its height to the grunt's
+  chest passing within 5 units of the weapon. Then the grunt must be able (above) for it to count.
+- **A parried blow**: `vr_agrunt_parry_damage` (0.25) of it, no zone multiplier, no beheading, teeth or face sound, no hit
+  stagger, no pain (pain_finished held a moment over the damage), no gun-hand disarm (VR_AG_Hit); `vr/parry.wav` and the
+  axe's ring, sparks, your hand's haptics and knock (handimpact, as your own parries), both pushed apart (your push by
+  vr_parry_push_player, a monster's by vr_parry_push_enemy). Within vr_parry_cooldown (0.4 s) of its last parry of the same
+  attacker: quiet (damage cut, nothing else).
+- **Stamina**: each parry spends `vr_agrunt_parry_cost` (1) of `vr_agrunt_parry_count` (2); it recovers
+  `vr_agrunt_parry_recover` (0.35) a second; the parry that leaves less than half a parry knocks the weapon out of its
+  hand (VR_AG_Disarm: its clatter and grunt; two held: the one nearer the blow). At the defaults: two parries within about
+  1.4 s. Flag `vr_agrunt_parry` (1). All on Combat > Armed Grunts > Parrying Your Blows (Experimental).
+
+**Tests** (`vr_agrunt_test 60`, Debug > Tests > Armed Grunts: They Parry Your Blows; vrtesthall, the grunt and
+`vr_agrunt_test_kind 1` the enforcer, both 6/6 PASS): a blade swept through its weapon: parried, 5 of 20 damage, still
+armed; the second 0.6 s later: parried, disarmed, the sword lying, 1 clatter; a chop on its head 6.6 units beside its
+weapon (enforcer 6.0): not parried, 30 damage as unparried; a cut across its legs (12.5 / 20.7 units off): 12, full;
+through its weapon from behind: not parried ("from behind"), full; an ogre's chainsaw on one facing it, its parry raised
+(weapon middle at body '18 -5 14', its line '0.07 0.28 0.96'): parried, 3 (2.5 rounded up) of 10. The chainsaw's way met
+the grunt's sword held ready too (the enforcer's not): the ready blade is in front of the chest. `eval.sh`: canary 36/44,
+0 differ from the baseline. Test 29 (a blow on the gun, you unseen): PASS as before.
+
+**In VR** (scene `agrunt_theyparry`: a sword grunt and an axe enforcer, notarget off, a sword in hand): swing at one: it
+raises its weapon into your blow; a blow on its weapon rings, knocks your hand back and does little; the second within
+about 1.4 s knocks its weapon away. Go round the weapon (head, legs, its open side): full damage. Quick swings and feints
+get through sometimes (the chance, the reaction). From behind, or while it reels from a shove or a hit: no parry. Watch
+that the guard looks natural (the blade upright before its chest, level over its head against an overhead blow) and
+that the drawn weapon is where your blow meets it.
