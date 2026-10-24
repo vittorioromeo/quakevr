@@ -2921,6 +2921,11 @@ QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun a
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
 QVR_CVAR(vr_agarms_wrist, "80", CVAR_NONE)           // vr_agarms: ... and its wrist bends at most this much there (degrees); else it lets go and hangs free
+QVR_CVAR(vr_agglitch_ent, "0", CVAR_NONE)            // the glitch finder (vr_agglitch.cpp, test 46): the armed humanoid it measures (an entity number; QC's sweep sets it); 0 none
+QVR_CVAR(vr_agglitch_subject, "", CVAR_NONE)         // ... its subject's label (its kind and weapons: QC's sweep sets it; a change starts a new segment)
+QVR_CVAR(vr_agglitch_state, "", CVAR_NONE)           // ... what it is doing now (aim, fire, reload, run, pain, a strike's kind, pickup: QC's sweep sets it)
+QVR_CVAR(vr_agglitch_shots, "2", CVAR_NONE)          // ... its worst moments per subject shot as eye images (the left eye from its front, the right from its side; 0 none)
+QVR_CVAR(vr_agglitch_top, "30", CVAR_NONE)           // ... the worst moments vr_agglitch_report lists
 QVR_CVAR(vr_posestudio_reach, "2.5", CVAR_ARCHIVE)     // the Pose Studio (Grip Editor > Drag Mode): the armed humanoid nearest within this many metres of your head is the one shown and edited
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)

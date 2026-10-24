@@ -2315,6 +2315,14 @@ void PF_weapondrawnpose()
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
         return;
     }
+    if(what == 20)
+    {
+        // weapondrawnpose(e, 0, 20): '<e's entity number> 0 0' (the glitch finder's subject: vr_agglitch_ent).
+        G_VECTOR(OFS_RETURN)[0] = static_cast<float>(NUM_FOR_EDICT(player));
+        G_VECTOR(OFS_RETURN)[1] = 0.f;
+        G_VECTOR(OFS_RETURN)[2] = 0.f;
+        return;
+    }
     if(what >= 11 && what <= 19)
     {
         // The armed humanoids' pose keys (vr_agpose.hpp; QC vr_armedgrunt_pose.qc VR_AGK_*), the builtin slots being full:

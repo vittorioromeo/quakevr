@@ -2,6 +2,8 @@
 // and skinned").
 
 #include "vr_agarms.hpp"
+#include "vr_agbody.hpp"
+#include "vr_agglitch.hpp"
 #include "vr_cvars.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -924,6 +926,62 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
     e.held2 += held2 ? 1 : 0;
 }
 
+// The elbow's preferred way from its shoulder (model space; a strike's or a key's pole blended in): solveArm's.
+[[nodiscard]] glm::vec3 preferredPole(int s, const glm::quat& cq, const glm::vec3& pole)
+{
+    const float sideSign = s == 0 ? -1.f : 1.f;
+    glm::vec3 pref = cq * glm::normalize(glm::vec3{elbowPref.x, elbowPref.y * sideSign, elbowPref.z});
+    const float poleShare = za::min(glm::length(pole), 1.f);
+    return poleShare > 1e-3f ? norm(pref * (1.f - poleShare) + pole, pref) : pref;
+}
+
+// The glitch finder's frame (vr_agglitch.hpp): the arms as drawn, how far they are in the body.
+void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
+    const agarms::Targets& t, const agarms::Placed& out, const ArmOut* arms, const rigpose::Rigid& C, int num, float second,
+    bool held2)
+{
+    agglitch::Sample g;
+    g.ent = num;
+    const agbody::Proxies* px = agbody::of(m.model, rig, m.chest);
+    const agbody::Posed body = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
+    for(int s = 0; s < 2; s++)
+    {
+        const Side& sd = m.side[s];
+        const rigpose::Rigid* b = st.bones + 3 * s;
+        agglitch::Arm& a = g.arm[s];
+        a.S = rigpose::apply(C, sd.S);
+        a.E = rigpose::apply(b[1], sd.E);
+        a.W = rigpose::apply(b[2], sd.W);
+        a.grip = rigpose::apply(b[2], sd.grip.pos);
+        a.pole = preferredPole(s, C.rot, t.pole[s]);
+        a.miss = arms[s].miss;
+        a.pen = -1e9f;
+        for(const glm::vec3& p : {a.E, (a.E + a.W) * 0.5f, a.W, a.grip})
+        {
+            int part = -1;
+            const float d = agbody::depth(body, p, 0.f, nullptr, &part);
+            if(d > a.pen)
+            {
+                a.pen = d;
+                a.penPart = part;
+            }
+        }
+        g.gap = za::max(g.gap, za::max(glm::length(rigpose::apply(b[0], sd.E) - rigpose::apply(b[1], sd.E)),
+                                   glm::length(rigpose::apply(b[1], sd.W) - rigpose::apply(b[2], sd.W))));
+    }
+    g.chestUp = C.rot * glm::vec3{0.f, 0.f, 1.f};
+    g.want2 = t.second;
+    g.held2 = held2;
+    g.second = second;
+    if(t.goal[0] == agarms::Goal::Frame && out.on[0])
+    {
+        g.aim = za::acos(za::clamp(glm::dot(t.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}, out.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}),
+                    -1.f, 1.f)) *
+                (180.f / pi);
+    }
+    agglitch::note(g);
+}
+
 } // namespace
 
 namespace qvr::agarms
@@ -1149,6 +1207,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->elbow[s] = glm::inverse(C.rot) * (arms[s].elbow - rigpose::apply(C, m->side[s].S));
         st->haveElbow[s] = true;
     }
+    if(agglitch::watching(num))
+    {
+        noteGlitch(*m, *st, rig, posed, kick, t, out, arms, C, num, second, held2);
+    }
     if(vr_agrunt_ik_tag.value >= 0.f)
     {
         // (the frames as drawn, near enough: the lerp's poses)
@@ -1316,7 +1378,27 @@ void info_f()
                 sd.grip.pos.y, sd.grip.pos.z, sd.Lu, sd.Lf, static_cast<int>(sd.verts.size()), static_cast<int>(sd.hand.size()),
                 sd.handBone, static_cast<int>(sd.edges.size() / 2));
         }
+        const ragdoll::Rig* rig = ragdoll::rigFor(const_cast<qmodel_t*>(m.model));
+        const agbody::Proxies* px = rig ? agbody::of(m.model, *rig, m.chest) : nullptr;
+        if(px)
+        {
+            // (the rest pose's arms against its body: how far in each joint is as made)
+            rigpose::Rigid rest[ragdoll::maxBones];
+            for(int b = 0; b < rig->numBones; b++)
+            {
+                rest[b] = rigpose::key(*rig, 0, b);
+            }
+            const agbody::Posed q = agbody::pose(*px, rest, nullptr);
+            for(int s = 0; s < 2; s++)
+            {
+                const Side& sd = m.side[s];
+                Con_Printf("  %s at rest in the body: elbow %.1f, forearm %.1f, wrist %.1f, grip %.1f units\n", s == 0 ? "right" : "left",
+                    agbody::depth(q, sd.E, 0.f), agbody::depth(q, (sd.E + sd.W) * 0.5f, 0.f), agbody::depth(q, sd.W, 0.f),
+                    agbody::depth(q, sd.grip.pos, 0.f));
+            }
+        }
     }
+    agbody::print();
 }
 
 // vr_agarms_dump: each armed model's vertices (its rest place, its arm row) to the console (agv lines: the skin's check,
@@ -1344,4 +1426,5 @@ void qvr::agarms::registerCommands()
 {
     Cmd_AddCommand("vr_agarms_info", info_f);
     Cmd_AddCommand("vr_agarms_dump", dump_f);
+    agglitch::registerCommands();
 }

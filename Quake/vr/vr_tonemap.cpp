@@ -193,6 +193,11 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
     }
 }
 
+int nextEyeshot()
+{
+    return eyeshotCount;
+}
+
 } // namespace qvr::tonemap
 
 using namespace qvr;

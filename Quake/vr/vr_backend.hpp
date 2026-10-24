@@ -294,4 +294,9 @@ void registerMockCommands();
 // glides, plays, aims, walks, turns, camera, and the scripted moves' velocities): a batched test's next case.
 void resetMockState();
 
+// The glitch finder's eye cameras (vr_agglitch.cpp): each eye drawn from its own world point `at[eye]`, looking along
+// world yaw `yawDeg[eye]` and `pitchDeg[eye]` (down positive), instead of from the head (which stays where it is); off:
+// from the head again. The mock backend only.
+void setMockEyeCameras(bool on, const glm::vec3* at = nullptr, const float* pitchDeg = nullptr, const float* yawDeg = nullptr);
+
 } // namespace qvr
