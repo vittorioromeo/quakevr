@@ -19776,3 +19776,62 @@ cvars only.
   Field Flames / 3D Flames / Smoke, Poison Cloud Amount to taste.
 - [ ] Armed grunts (Test scene `agrunt_tanks`): shoot only a grunt's back tank: it turns on you (and wakes the other);
   kill one while it fires: its hiss stops.
+
+## Cutting a dropped flamethrower's hose (worktree `goreflesh`, branch `agent/hosecut`, 2026-10-24)
+
+His request: a bladed melee weapon slashed across the hose of a flamethrower or poison sprayer lying with its tank
+severs it: the gun spent, the tank a prop of its own (carried, force grabbed, thrown, shot: a bomb or a trap), both
+with a short dangling stub of the hose, a hiss or snap and a few sparks or a puff at the cut. New cvars only.
+
+- **The cut** (QC `vr_ad_enemyguns.qc`, "Cutting the hose"; `VR_HoseCut_Melee` called by `VR_Melee_Strike` right after
+  `VR_Melee_Sweep`, from its lines `vr_rib_*`): only a blade (the hand's melee thing a sword, an axe or Super Axe, the
+  chainsaw: as the beheading's `VR_Decap_Slash`; not fists, clubs, guns, the crowbar, Mjolnir, the hammer or mace, nor
+  a weapon held off its handle), only its blade proper's swept points (`VR_MPT_EDGE` from 0.4 of the way to the tip, an
+  axe's head from 0.6, the saw's bar from 0.55). The tanks lying about with their gun whose pair's box (widened by the
+  rope) the sweep's box meets are tested: each line against the hose as the engine draws it (its 22 Verlet points), a
+  hit within the line's reach (3 units, the melee's) plus the hose's radius. The blade's speed at that point
+  (`VR_Melee_PointVel`) at least `vr_adgun_hosecut_speed` (3 m/s), moving across the blade (within 30 degrees of its
+  line is a stab: no cut); slower, refused (a dprint with developer 1). `vr_adgun_hosecut` 1 (0 never).
+- **Engine** (`vr_adtank.cpp`): `crossHose(tank, p0, p1, radius)` over the world hoses of the pairs lying about (a hose
+  now knows it is one: `Hose::lying`; not a worn tank's, not a flail's chain). Exposed to QC as `hitmodel_segment`'s
+  class -1 (e the tank; returns the share along the hose, 0 at the tank, 1 at the gun, `trace_endpos` the point; -1
+  missed, -2 no hose): the VR builtins' numbers are all taken (vr_builtins.cpp's static_assert), so no new builtin.
+- **After the cut** (`VR_HoseCut_Cut`): the gun spent as a burst tank's (`QVR_WPNFLAG_TANK_BURST`, fuel 0,
+  `.vr_depleted`: never fires, no tank lying about or on the back again, no force grab). The tank: its link and rope gone
+  (`.vr_fuellink` cleared: syncFuelRopes drops the joint, the hose goes), `.owner` world (it meets its gun again),
+  `FL_FORCEGRABBABLE`, `VR_FuelTank_FreeThink` (only a neighbour's burst setting it off), its fuel kept
+  (`.vr_fueltank_fuel`, the share of a full tank its gun held): `VR_FuelTank_BurstNow` takes it for a tank without a gun,
+  so its burst and field are as big as before the cut. Both get `.vr_hosecut` (the time; a new engine field). The look:
+  `pyro_flameoff.wav` / `fum_poisonoff.wav` (the stream's end: a hiss) on the tank, `weapons/tink1.wav` on the gun, 3
+  contact sparks, 3 puffs of gun smoke (fuel vapour) or 1 poison puff at the cut. No field.
+- **The stubs** (`vr_adtank.cpp` `setupStubs`/`stepStub`): each cut piece within 15 m (the nearest 8, read off the
+  server's edicts) a 15 cm free end (6 Verlet points, the first two pinned) at the gun's inlet or the tank's outlet,
+  leaving it the way the hose did, falling and lying on the world, swinging with it, in the hose's colour; resting ones
+  aren't stepped. A cut tank isn't remembered for the pickup's flight (another gun taken near it doesn't fly it to your
+  back). Carried by a hand the tank keeps its stub; the cut gun taken into a hand has none (and dropped again none).
+- **Cases**: both pieces lying (dropped by you or a monster, or the spawner's): yes. You holding the gun with its tank
+  lying: never happens (taking the gun puts its tank on your back). A monster's worn tank: not cut (out of scope).
+- **Settings**: AD Guns > Hose Cut (on/off), Hose Cut Speed (0.5-8 m/s). **Debug** > Tests > Arcane Dimensions Monsters:
+  Flamethrower Lying With Its Tank (`vr_ad_test 191`, temp1 1 the sprayer), Sweep the Main Hand Across the Hose (193:
+  the held weapon's blade swept down across the nearest hose in one frame, its 0.7 on it, at temp1 m/s, 0: 5), Cut Hose
+  Pieces' State (194), Throw the Cut Tank (195), Shoot the Cut Tank (196); 192 empties both hands. `vr_adgun_hose_info`
+  prints the cut's settings, the lying hoses and each stub.
+- **Measured** (e1m1 and vrtesthall, AD mounted, headless; `scratch/hc_a.sh`, `hc_b.sh`, `hc_c.sh 0|1`):
+  - a death knight's sword at 5 m/s across a lying flamethrower's hose: cut (0.54 of the way from the tank); the gun burst
+    1, depleted 1, fuel 0, no tank (still none 90 frames on); the tank linked 0, owner world, force grab 1, fuel kept
+    1.00, health 30; `vr_physics_forcegrab vr_fueltank`: may be force grabbed; 0 ropes, 0 lying hoses, 2 stubs drawn
+    (their free ends fallen 1.3-1.9 units onto the floor). Same for the sprayer.
+  - the mace (thing 2, weapon the sword's), fists (thing 0): not cut, the gun still has its tank; the sword at 1 m/s:
+    refused (1), not cut; then at 5: cut.
+  - the cut tank carried into the hand, thrown at 450 u/s: landed 576 units away; shot for 1000: burst, a fire field
+    of 6.0 s, reach 96, strength 1.00 (a full tank's, as an uncut one's).
+  - eval.sh: no verdict changed (canary 36/44, full 163/171 as the baseline; 4 takes' damage 0.1 off: the known noise).
+    Scene `tank_hose_cut`: validate SCNOK, runall OK.
+  - eyeshot: `scratch/hc_cut1.png` (a sprayer lying with its tank and hose; after the cut, the tank's stub), `hc_cut0.png`
+    (the flamethrower, farther).
+- **Not done / notes**: the live swing path (VR_Melee_Strike's call) wasn't driven by a mock swing headless (the tests
+  sweep the held weapon's real layout and lines through the same function, the speed given); a listen server's only
+  (the hose is the engine's). The stub on a gun taken and dropped again is lost.
+- [ ] Slash the sword across a lying hose (Test scene `tank_hose_cut`): a hiss, a snap, sparks and a puff; the hose is
+  gone and both pieces keep a short stub swinging with them. A slow wave, a punch, the mace: nothing.
+- [ ] The cut gun never fires; force grab the tank, throw it at the grunts and shoot it: it bursts as big as before.

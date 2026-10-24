@@ -2929,6 +2929,8 @@ QVR_CVAR(vr_adgun_tank_field_smoke, "1", CVAR_ARCHIVE) // ... the fire field's d
 QVR_CVAR(vr_adgun_tank_field_cloud, "1", CVAR_ARCHIVE) // ... the poison field's cloud: how many puffs of green smoke over it, times this; 0 none
 QVR_CVAR(vr_adgun_tank_pickup_time, "0.25", CVAR_ARCHIVE) // ... a tank lying about flying to your back as you take its gun, seconds (vr_adtank.cpp); 0 at once
 QVR_CVAR(vr_adgun_tank_worn, "1", CVAR_ARCHIVE) // ... armed monsters holding a flamethrower or poison sprayer wear its tank on their back, hosed to it, shootable (QC vr_adtankworn.qc); 0 none
+QVR_CVAR(vr_adgun_hosecut, "1", CVAR_ARCHIVE) // ... a blade (a sword's, an axe's, a knife's, the chainsaw's) swung across the hose between a gun and its tank lying about cuts it: the gun spent, the tank a prop of its own (QC vr_ad_enemyguns.qc "Cutting the hose"); 0 never
+QVR_CVAR(vr_adgun_hosecut_speed, "3", CVAR_ARCHIVE) // ... the blade's least speed where it meets the hose, m/s (a cut, not a touch)
 QVR_CVAR(vr_adgun_hose_holstered, "1", CVAR_ARCHIVE) // ... a holstered one's hose to the back tank too (one tank for every fuelled gun carried: the last held one's); 0 none, and no tank for holstered ones alone
 QVR_CVAR(vr_adgun_rocket_ammo, "4", CVAR_ARCHIVE) // the rocket soldier's dropped launcher (Quake VR's rockets: vr_dmg_rocket): the rockets it holds (its own: never refilled; the author's 4, 5 before vr_cfg_version 187)
 QVR_CVAR(vr_adgun_rocket_refire, "1", CVAR_ARCHIVE) // ... seconds from a shot to the next

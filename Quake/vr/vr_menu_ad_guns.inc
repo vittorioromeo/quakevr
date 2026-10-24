@@ -146,6 +146,14 @@
                   "that long and a little more."),
         slider("Tank Weight", "vr_adgun_tank_mass", 0.5f, 10.f, 0.5f, "%.1f kg")
             .help("A tank lying about's weight: how hard it drags its gun, and its gun it."),
+        toggle("Hose Cut", "vr_adgun_hosecut")
+            .help("Slash a blade (a sword, an axe, a knife, the chainsaw) across the hose between a gun and its tank "
+                  "lying about to cut it: the gun is spent (it never fires again), the tank a prop of its own you can "
+                  "force grab, carry and throw, and shoot to burst with the fuel it kept (a thrown bomb, a trap). Both "
+                  "keep a short stub of the hose. Fists and blunt weapons (clubs, the hammer, the mace) don't cut it. "
+                  "Off: hoses can't be cut."),
+        slider("Hose Cut Speed", "vr_adgun_hosecut_speed", 0.5f, 8.f, 0.25f, "%.2f m/s")
+            .help("How fast the blade must move where it meets the hose to cut it (a slash, not a touch)."),
         slider("Tank Health", "vr_adgun_tank_health", 0.f, 200.f, 5.f, "%.0f")
             .help("How much a tank lying about takes (shots, blasts, blows, flames) before it bursts. With fuel in its "
                   "gun it explodes, as big as the fuel left: the flamethrower's sets everything near on fire, the poison "

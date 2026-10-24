@@ -30,4 +30,12 @@ void drawOpaque();
 // server's), for the hoses to their guns.
 void relinkWorn();
 
+// The hose cut (QC vr_ad_enemyguns.qc "Cutting the hose"; ROUND22.md, "Cutting a dropped flamethrower's hose"): the world
+// hoses of the guns lying about with their tanks (not the armed monsters' worn ones, nor a flail's chain) as drawn last
+// frame. crossHose: whether the hose of tank `tank` (its edict number) passes within `radius` units of the segment p0..p1:
+// 1, its nearest point there (`at`) and how far along the hose (`share`: 0 at the tank, 1 at the gun); -1 not; -2 it
+// has no hose drawn. (QC's hitmodel_segment, hitclass -1.) The cut pieces' stubs (QC .vr_hosecut) are drawn by setupView
+// and drawOpaque.
+[[nodiscard]] int crossHose(int tank, const glm::vec3& p0, const glm::vec3& p1, float radius, glm::vec3& at, float& share);
+
 } // namespace qvr::adtank

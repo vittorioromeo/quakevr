@@ -207,6 +207,7 @@ QVR_FIELD(vr_sgib) // a small gib: when it was made (QC vr_smallgibs.qc; vr_box3
 QVR_FIELD(vr_sgib_id) // its serial (vr_smallgibs_trace's lines)
 QVR_FIELD(vr_monster_drop) // a weapon or backpack a monster dropped: when (QC vr_carry.qc; vr_box3d.cpp: made inside a body it passes through it, vr_prop_drop_pass_inside)
 QVR_FIELD(vr_fuellink) // AD support: a fuelled gun lying about's tank, the tank's gun; a flail lying about's head, the head's flail (QC vr_ad_enemyguns.qc, vr_ad_melee.qc; vr_box3d.cpp syncPropRopes)
+QVR_FIELD(vr_hosecut) // AD support: a gun lying about whose hose a blade cut, or the tank cut free of it: when (QC vr_ad_enemyguns.qc "Cutting the hose"; 0 not); its hose's stub drawn (vr_adtank.cpp)
 QVR_FIELD(vr_flail_head) // AD support: a player's main hand's flail's head, after the last step (vr_box3d_flail.cpp; 0 none); QC VR_FlailHead_Taken: where the head lying about was, the hand taking its flail
 QVR_FIELD(vr_flail_headvel) // ... its velocity (units/s)
 QVR_FIELD(vr_flail_offhead) // ... the off hand's

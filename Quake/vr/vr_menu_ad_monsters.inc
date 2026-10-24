@@ -131,6 +131,21 @@
         command("Nearest Fuelled Gun's State", "vr_ad_test 163")
             .help("In the console: the nearest flamethrower or sprayer lying about: its tank burst, spent, its fuel, its "
                   "tank, whether the force grab skips it; and your hands' guns' flags and fuel."),
+        command("Flamethrower Lying With Its Tank", "vr_ad_test 191")
+            .help("A flamethrower (temp1 1: a poison sprayer) made lying 64 units ahead, its tank beside it: a hose to "
+                  "cut (Arcane Dimensions' Guns > Hose Cut)."),
+        command("Sweep the Main Hand Across the Hose", "vr_ad_test 193")
+            .help("The main hand's weapon swept down across the nearest lying hose in one frame, its blade's outer part "
+                  "on it, at temp1 m/s (0: 5): a blade cuts it, fists and blunt weapons don't, too slow doesn't. In the "
+                  "console: cut or not, then the cut pieces' state."),
+        command("Cut Hose Pieces' State", "vr_ad_test 194")
+            .help("In the console: the last cut gun (spent, its fuel, its tank) and tank (free of its rope, force "
+                  "grabbed, the fuel it kept, its health); Fuel Hose Info prints their stubs."),
+        command("Throw the Cut Tank", "vr_ad_test 195")
+            .help("The last tank cut free taken into your main hand and thrown ahead; then Shoot the Cut Tank."),
+        command("Shoot the Cut Tank", "vr_ad_test 196")
+            .help("The last tank cut free shot for 1000 by you: it bursts as big as the fuel it kept (its field in the "
+                  "console)."),
         command("Burst Fields and Sounds", "vr_ad_test 175")
             .help("In the console: each burst tank's field (fire or poison, the time left, its reach, its loop's volume), "
                   "the loops and whooshes still playing (0 once the fields are gone), the test grunt's health, burning "

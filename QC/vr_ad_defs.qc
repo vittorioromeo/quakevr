@@ -75,6 +75,7 @@ float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded;
 float(float xHand) AD_AxeScale;      // W_FireAxe: the Shadow Axe's blow of the axe in xHand (1 without it)
 void(float xHand, entity xVictim) AD_AxeMark; // W_FireAxe: AD's mark of the axe that hit (.ad_axhitme: 2 the Shadow Axe)
 void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe chops the bodies lying on the floor
+void(float xHand, entity b) VR_HoseCut_Melee; // VR_Melee_Strike, after the sweep: a blade cuts a hose lying about (vr_ad_enemyguns.qc)
 float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
 void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
