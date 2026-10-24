@@ -20408,5 +20408,10 @@ Tests: 34 2/2 grunt and enforcer, 25 3/3, 38 3/3 (grunt). Sheets `scratch/legs_k
 - [ ] Scene `agrunt_pickup`, grunts and enforcers: each goes down on one knee, its right foot planted ahead, its left
   knee down behind on its toes, not as low as before; its hand on the handle; no foot sliding; up again smoothly.
   `vr_aglegs 0` for the old kneel to compare.
-**Left:** the Pose Studio's boxes for the legs (pelvis, feet, knees: grab and drag in the Pickup pose; the keys and
-their storage are ready); tests 41, 45 (the full sheets), 35, 60, the scene's validate/runall and eval.sh not run.
+**Regression checks (second pass, nothing broken, nothing to fix):** test 41 joint gap 0.000, hand shape 0.0000 (grunt
+248 tags, enforcer 236); test 45's full sheets (sets 0..15, 320 shots each kind) joint gap 0, hand shape 0, agerr 0, and
+its take sheet over every set (192 shots each) the same (looked at: one knee down, the planted foot ahead, no torn
+skin); tests 35 6/6 and 60 6/6, 25 3/3, 34 2/2, 38 3/3, both kinds; `vr_scenario validate` 0 errors, runall of the 20
+agrunt_* scenes 0 failed; eval.sh: no verdict changes (canary 36/44, full 163/171, 5 differ only by 0.1 in a number).
+Note: `vr_aglegs_info`'s foot drift counts a pain's knock-back over the 0.2 s ease-out (test 34 run through to its end:
+grunt 27 units, the body knocked back with its feet; to the pain's cut 0.008).
