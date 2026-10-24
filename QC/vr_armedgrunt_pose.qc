@@ -331,6 +331,11 @@ vector(vector v) VR_AGP_Mirror = { v_y = -v_y; return v; };
 // Whether the right hand's weapon swings in its attack (two held: VR_AGP_Begin's hands).
 float(entity g) VR_AGP_RightSwings = { return !g.vr_ag_prop2 || g.vr_ag_act_hand != 1; };
 
+vector vr_agp_sawat; // (VR_AGP_SawHold's out: the grip, VR_AGP_Melee's space; the bar's way, its body's)
+vector vr_agp_sawfw;
+void(entity g, float rdy) VR_AGP_SawHold;
+vector(entity p, vector at, vector fw) VR_AGP_SawReach;
+
 // A melee weapon: ready (blade up, mostly its own place), a swing's arc through the target; a chainsaw at the hip,
 // running, thrust into the target and held there cutting.
 void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Melee =
@@ -347,8 +352,22 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
         g.vr_agp_rdy = VR_AGP_Ease(g.vr_agp_rdy, g.enemy ? 1 : 0, 2.5);
         rk = VR_AGP_Smooth(g.vr_agp_rdy);
         float two = VR_AGP_TwoHanded(p);
-        ready = VR_AGP_Lerp(saw ? VR_AGP_SAW_READY : two ? VR_AGP_PORT : VR_AGP_CARRY_R, ready, rk);
-        readyFw = VR_AGP_Nlerp(normalize(saw ? VR_AGP_SAW_FW : two ? VR_AGP_PORT_FW : VR_AGP_CARRY_R_FW), readyFw, rk);
+        if(saw)
+        {
+            // (a chainsaw as its own rifle at rest, the bar ahead and across the body (the long guns' low carry: its
+            // front handle in the off hand's reach), raised level towards the target when ready: VR_AGP_SawHold)
+            VR_AGP_SawHold(g, 0);
+            vector sawCarry = vr_agp_sawat;
+            vector sawCarryFw = vr_agp_sawfw;
+            VR_AGP_SawHold(g, 1);
+            ready = VR_AGP_Lerp(sawCarry, vr_agp_sawat, rk);
+            readyFw = VR_AGP_Nlerp(sawCarryFw, vr_agp_sawfw, rk);
+        }
+        else
+        {
+            ready = VR_AGP_Lerp(two ? VR_AGP_PORT : VR_AGP_CARRY_R, ready, rk);
+            readyFw = VR_AGP_Nlerp(normalize(two ? VR_AGP_PORT_FW : VR_AGP_CARRY_R_FW), readyFw, rk);
+        }
     }
     vector pos = ready;
     vector fw = readyFw;
@@ -364,7 +383,7 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
         if(saw)
         {
             w = '5 -8 4'; wfw = '0.95 0 0.3';
-            e = '16 -4 0'; e_z = e_z + dz;
+            e = vr_agp_arms ? '14 -2 0' : '16 -4 0'; e_z = e_z + dz; // (vr_agarms: its front handle kept in reach)
             efw = normalize(tl - e);
             c = (w + e) * 0.5;
         }
@@ -432,6 +451,10 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
         VR_AM_Row(g.vr_ag_kind);
         vr_agp_wr = 1;
         vr_agp_v = VR_AM_Fit(g, pos) - vr_am_anchor_at;
+        if(saw)
+        {
+            vr_agp_v = VR_AGP_SawReach(p, vr_agp_v + vr_am_anchor_at, fw) - vr_am_anchor_at;
+        }
         vr_agp_fw = VR_AGP_ToWorld(fw);
         vr_agp_up = VR_AGP_ToWorld(edge);
         vr_agp_wo = 0;
@@ -472,8 +495,12 @@ vector vr_agp_upl;
 void(entity g, entity p) VR_AGP_MeleeLeft =
 {
     float r = vr_agp_arms ? VR_AGP_Smooth(g.vr_agp_rdy) : VR_AGP_Smooth(g.vr_ag_readyw / 0.7);
-    vector pos = VR_AGP_Lerp(VR_AGP_CARRY_L, VR_AGP_READY_L, r);
-    vector readyFw = VR_AGP_Nlerp(normalize(VR_AGP_CARRY_L_FW), normalize(VR_AGP_READY_L_FW), r);
+    // (vr_agarms: carried as the right hand carries its own, mirrored: the blade ahead, a little up, the fist hanging. The
+    // old carry's blade hanging down bent the left wrist to its limit)
+    vector carry = vr_agp_arms ? VR_AGP_Mirror(VR_AGP_CARRY_R) : VR_AGP_CARRY_L;
+    vector carryFw = vr_agp_arms ? VR_AGP_Mirror(VR_AGP_CARRY_R_FW) : VR_AGP_CARRY_L_FW;
+    vector pos = VR_AGP_Lerp(carry, VR_AGP_READY_L, r);
+    vector readyFw = VR_AGP_Nlerp(normalize(carryFw), normalize(VR_AGP_READY_L_FW), r);
     vector fw = readyFw;
     vector ready = pos;
     vector edge = '1 0 0';
@@ -721,6 +748,48 @@ vector(vector v, vector a, vector b) VR_AGP_Arc =
         return VR_AG_Rotate(v, normalize(k), 180);
     }
     return VR_AG_Rotate(v, k * (1 / s), atan2(s, c) * (180 / 3.14159265));
+};
+
+// vr_agarms: a chainsaw's hold (VR_AGP_Melee: `rdy` 0 carried, 1 ready): its rear handle where its own rifle's grip is,
+// turned with the bar as the long guns' low carry turns it (VR_AGP_ArmsGun): across its body and down, so its front
+// handle (on top, ahead) is in the off hand's reach; ready, the bar raised level and more ahead.
+vector VR_AGP_SAW_RDY_FW = '0.88 0.45 0.1';
+void(entity g, float rdy) VR_AGP_SawHold =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    vector g0 = normalize(vr_am_gun_fw);
+    vector d = rdy ? normalize(VR_AGP_SAW_RDY_FW) : normalize(g0 + '0.5 0 -0.25');
+    vector at = vr_am_sh_r + VR_AGP_Arc(vr_am_grip_r - vr_am_sh_r, g0, d);
+    // (VR_AGP_Melee's places are fitted to its body by VR_AM_Fit: undone here)
+    vr_agp_sawat_x = (at_x - vr_am_fit_shift_x) / vr_am_fit_scale_x;
+    vr_agp_sawat_y = (at_y - vr_am_fit_shift_y) / vr_am_fit_scale_y;
+    vr_agp_sawat_z = (at_z - vr_am_fit_shift_z) / vr_am_fit_scale_z;
+    vr_agp_sawfw = d;
+};
+
+// A chainsaw's grip `at` (its body's space as it is: VR_AM_Row's) with the bar along `fw`, brought in towards its left
+// shoulder as far as its front handle (its second grip, on top) is past VR_AGP_SAW_REACH of its arm from it: the off hand
+// holds it (the engine takes a second grip within vr_agarms_second of the arm; else it slides back along the bar).
+float VR_AGP_SAW_REACH = 0.9;
+vector(entity p, vector at, vector fw) VR_AGP_SawReach =
+{
+    VR_AGP_Geo(p);
+    vector sec = p.vr_agp_sec;
+    if(sec == '0 0 0' || sec_z >= 999)
+    {
+        return at;
+    }
+    fw = normalize(fw);
+    vector up = normalize('0 0 1' - fw * fw_z);
+    vector side = VR_AGP_Cross(up, fw);
+    vector h = at + fw * sec_x + side * sec_y + up * sec_z;
+    float most = VR_AGP_SAW_REACH * vr_am_arm;
+    float d = vlen(h - vr_am_sh_l);
+    if(d > most)
+    {
+        at = at - normalize(h - vr_am_sh_l) * (d - most);
+    }
+    return at;
 };
 
 // A weapon's frame (vr_agp_fw its x, vr_agp_up its z) turning its own unit `t` onto `b`, its own `r` as near `hint` as
@@ -1223,7 +1292,12 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         VR_AGP_Melee(g, p, handL, -gx, -gz);
         VR_AGPar_Pose(g, p); // (its parry raised into a blow's way: vr_armedgrunt_parry.qc)
-        if(vr_agp_arms)
+        if(vr_agp_arms && p.weapon == WID_CHAINSAW)
+        {
+            // (vr_agarms: a chainsaw held as a gun is, its bar the hand's forward, upright: its front handle on top)
+            VR_AGP_Orient('1 0 0', vr_agp_fw, '0 0 1', VR_AGP_ToWorld('0 0 1'));
+        }
+        else if(vr_agp_arms)
         {
             // (vr_agarms: the hand's frame holding the blade on that line, the edge leading as the knuckles do)
             VR_AGP_BladeHand(p, vr_agp_fw, vr_agp_up);
