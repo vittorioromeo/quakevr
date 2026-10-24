@@ -119,8 +119,8 @@ void() VR_AGCT_Grab =
         vr_agct_w = max(vr_agct_w, g.vr_agpar_w);
         vector pn = VR_AGCT_Point(g, vr_agct_case);
         VR_AGT_HandToHeight(p, pn_z);
-        float on = vr_agct_case != VR_AGCT_FIST && vr_agct_d > 2 && cvar("vr_agrunt_grab_gap") <= 0;
-        if(!on && vr_agct_d < VR_AGCT_REACH + 3)
+        float on = vr_agct_case != VR_AGCT_FIST && vr_agct_d > 2 && cvar("vr_agrunt_grab_gap") < -0.25; // (on it, a little in)
+        if(!on && vr_agct_d < VR_AGCT_REACH + 6)
         {
             if(vr_agct_case == VR_AGCT_FIST && cvar("vr_agrunt_debug") >= 1)
             {

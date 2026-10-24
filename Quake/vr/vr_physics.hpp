@@ -28,6 +28,7 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // vr_prop_query_test: exact reference checks with temporary live-transform mutations.
 void testModelQueries();
 void propTouchStats_f();
+void grabBench_f(); // vr_agrunt_grab_bench [calls]: the fist-on-weapon gap's cost a call (Debug > Profiling)
 
 // QC's carryangles: a held object's angles (into `out`), turning with the hand at `handAngles`.
 // At the grip (`grab`) its turn relative to the hand is kept, and its angles are unchanged.

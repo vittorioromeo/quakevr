@@ -71,6 +71,10 @@ QVR_FIELD(ammopouchz)
 QVR_FIELD(shotrot)
 QVR_FIELD(offshotrot)
 QVR_FIELD(vrbits0)
+QVR_FIELD(mainhand_lastgrabtime)    // the grips pressed and let go (QC VR_HandGrabUtil_StartedHandGrabbing): vr_physics.cpp gripStarted
+QVR_FIELD(offhand_lastgrabtime)
+QVR_FIELD(mainhand_lastreleasetime)
+QVR_FIELD(offhand_lastreleasetime)
 QVR_FIELD(offhand_hotspot)
 QVR_FIELD(sawcord)
 QVR_FIELD(vr_flatscreen) // this player plays flatscreen (-flatscreenmode: his client's move; vr_server.cpp): QC VR_FlatPlay

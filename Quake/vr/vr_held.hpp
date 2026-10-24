@@ -105,8 +105,15 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 
 // The gap (units) between a fist's spheres (world: middle and radius) and `ent`'s drawn surface: the least of each
 // sphere's distance less its radius; ZA_FLOAT_MAX when the fist's bounds are farther than `within` from the box it is
-// drawn in (not measured), or when it has no surface to measure (`surface` false). Its triangles are made once.
-[[nodiscard]] float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface);
+// drawn in (not measured), or when it has no surface to measure (`surface` false). Its mesh is made once (the model's
+// frame as drawn, in its own space, with a box tree: every surface query here uses it); `stopAt`: done as soon as a
+// sphere is that near (the gap returned is then at most it, not the least).
+[[nodiscard]] float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface,
+    float stopAt = -1e30f);
+
+// vr_agrunt_grab_bench: fistGap's cost a call against `ent` (the old per-sphere re-posing, posed once a call, the cached
+// mesh's tree exact, stopping at `allowed`), printed with each one's gap.
+void benchFistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float allowed, int calls);
 
 // Server side: the corners of `ent`'s drawn surface (as surfaceDistance measures it: the alias model's current frame,
 // the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid

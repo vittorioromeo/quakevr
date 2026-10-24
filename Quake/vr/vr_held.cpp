@@ -182,6 +182,193 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& o
     return !out.empty();
 }
 
+// The drawn meshes, made once (agclose: the fist's gap against an armed monster's weapon re-posed its model's triangles
+// for each of the fist's spheres, every frame, 5 ms). A model is rigid in a frame: its triangles in its axes relative to
+// its origin depend only on the model, its frame's pose and its drawn transform (the networked scale and offset, a
+// prop's Size), so each such mesh is made once, with a box tree over it (MeshNode), and the queries bring their points
+// into its space instead. Freed on a map change, a game change, a model reload.
+struct MeshNode
+{
+    glm::vec3 lo{0.f}, hi{0.f};
+    int first{0}, count{0}; // a leaf's triangles (count > 0)
+    int right{0};           // an inner node's second child (its first is the next node)
+};
+
+struct DrawnMesh
+{
+    const qmodel_t* model{nullptr};
+    int pose{-1};
+    DrawnTransform xf;
+    bool ok{false};
+    za::Vector<Triangle> tris;
+    za::Vector<MeshNode> nodes;
+    DrawnMesh(const qmodel_t* m, int p, const DrawnTransform& t) : model{m}, pose{p}, xf{t} {}
+};
+
+struct DrawnMeshCache
+{
+    ankerl::unordered_dense::map<za::U64, DrawnMesh> meshes; // by the model, pose and transform's hash
+    auto members() { return mem::list(meshes); }
+};
+mem::Cache<DrawnMeshCache> drawnMeshes{"held drawn meshes", mem::MapChange | mem::GameDirChange | mem::ModelReload};
+
+constexpr int meshLeaf = 4; // triangles a leaf holds at most
+
+void triBox(const Triangle& t, glm::vec3& lo, glm::vec3& hi)
+{
+    lo = glm::min(t.p[0], glm::min(t.p[1], t.p[2]));
+    hi = glm::max(t.p[0], glm::max(t.p[1], t.p[2]));
+}
+
+// The box tree over tris[first, first + count) (reordered), its root at nodes' end.
+void buildMeshNodes(DrawnMesh& m, int first, int count)
+{
+    const int at = static_cast<int>(m.nodes.size());
+    m.nodes.pushBack(MeshNode{});
+    glm::vec3 lo{1e30f}, hi{-1e30f}, clo{1e30f}, chi{-1e30f};
+    for(int i = first; i < first + count; i++)
+    {
+        glm::vec3 a, b;
+        triBox(m.tris[static_cast<za::SizeT>(i)], a, b);
+        lo = glm::min(lo, a);
+        hi = glm::max(hi, b);
+        const glm::vec3 c = (a + b) * 0.5f;
+        clo = glm::min(clo, c);
+        chi = glm::max(chi, c);
+    }
+    m.nodes[static_cast<za::SizeT>(at)].lo = lo;
+    m.nodes[static_cast<za::SizeT>(at)].hi = hi;
+    if(count <= meshLeaf)
+    {
+        m.nodes[static_cast<za::SizeT>(at)].first = first;
+        m.nodes[static_cast<za::SizeT>(at)].count = count;
+        return;
+    }
+    // Split at the middle of the widest axis of the triangles' middles (all on one side: halves by count).
+    const glm::vec3 ext = chi - clo;
+    const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
+    const float mid = (clo[axis] + chi[axis]) * 0.5f;
+    Triangle* t = m.tris.data() + first;
+    int left = 0;
+    for(int i = 0; i < count; i++)
+    {
+        if((t[i].p[0][axis] + t[i].p[1][axis] + t[i].p[2][axis]) * (1.f / 3.f) < mid)
+        {
+            const Triangle keep = t[left];
+            t[left] = t[i];
+            t[i] = keep;
+            left++;
+        }
+    }
+    if(left == 0 || left == count)
+    {
+        left = count / 2;
+    }
+    buildMeshNodes(m, first, left);
+    m.nodes[static_cast<za::SizeT>(at)].right = static_cast<int>(m.nodes.size());
+    buildMeshNodes(m, first + left, count - left);
+}
+
+// `ent`'s drawn mesh (null: none).
+[[nodiscard]] const DrawnMesh* drawnMesh(edict_t* ent, const qmodel_t* model)
+{
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const glm::vec3 zero{0.f};
+    const DrawnTransform xf{model, f.model_scale >= 0 ? fieldVec(ent, f.model_scale) : zero,
+        f.model_scale_origin >= 0 ? fieldVec(ent, f.model_scale_origin) : zero,
+        f.model_offset >= 0 ? fieldVec(ent, f.model_offset) : zero};
+    int pose = 0;
+    if(model->type == mod_alias)
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+        const int frame = static_cast<int>(ent->v.frame);
+        pose = hdr->numframes > 0 ? hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose : 0;
+    }
+    za::U64 h = 1469598103934665603ull;
+    const auto mix = [&h](const void* p, za::SizeT n) {
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            h = (h ^ static_cast<const unsigned char*>(p)[i]) * 1099511628211ull;
+        }
+    };
+    mix(&model, sizeof(model));
+    mix(&pose, sizeof(pose));
+    const float numbers[] = {xf.netScale.x, xf.netScale.y, xf.netScale.z, xf.scaleOrigin.x, xf.scaleOrigin.y,
+        xf.scaleOrigin.z, xf.offset.x, xf.offset.y, xf.offset.z, xf.size};
+    mix(numbers, sizeof(numbers));
+    auto& meshes = drawnMeshes.meshes;
+    auto it = meshes.find(h);
+    if(it != meshes.end() && it->second.model == model && it->second.pose == pose && sameTransform(it->second.xf, xf))
+    {
+        return it->second.ok ? &it->second : nullptr;
+    }
+    if(it != meshes.end())
+    {
+        meshes.erase(it); // (another's with the same hash: made again)
+    }
+    DrawnMesh& m = meshes.try_emplace(h, model, pose, xf).first->second;
+    m.ok = drawnTriangles(ent, model, m.tris);
+    if(m.ok)
+    {
+        m.nodes.reserve(m.tris.size() / 2 + 1);
+        buildMeshNodes(m, 0, static_cast<int>(m.tris.size()));
+    }
+    return m.ok ? &m : nullptr;
+}
+
+[[nodiscard]] float boxDistance(const glm::vec3& p, const glm::vec3& lo, const glm::vec3& hi)
+{
+    return glm::length(p - glm::clamp(p, lo, hi));
+}
+
+// The nearest of `m`'s triangles to `p` (local), if nearer than `best` (updated, with `at`); the box tree pruned by
+// `best + slack` (a sphere's radius: a box farther than best + radius can't hold a nearer surface for it).
+void meshNearest(const DrawnMesh& m, const glm::vec3& p, float& best, glm::vec3* at)
+{
+    int stack[64];
+    int n = 0;
+    stack[n++] = 0;
+    while(n > 0)
+    {
+        const MeshNode& node = m.nodes[static_cast<za::SizeT>(stack[--n])];
+        if(boxDistance(p, node.lo, node.hi) >= best)
+        {
+            continue;
+        }
+        if(node.count > 0)
+        {
+            for(int i = node.first; i < node.first + node.count; i++)
+            {
+                const Triangle& t = m.tris[static_cast<za::SizeT>(i)];
+                const glm::vec3 q = geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2]);
+                const float d = glm::distance(p, q);
+                if(d < best)
+                {
+                    best = d;
+                    if(at)
+                    {
+                        *at = q;
+                    }
+                }
+            }
+            continue;
+        }
+        const int self = static_cast<int>(&node - m.nodes.data());
+        const int a = self + 1;
+        const int b = node.right;
+        // (the nearer child last: popped first)
+        const MeshNode& na = m.nodes[static_cast<za::SizeT>(a)];
+        const MeshNode& nb = m.nodes[static_cast<za::SizeT>(b)];
+        const bool aFirst = boxDistance(p, na.lo, na.hi) <= boxDistance(p, nb.lo, nb.hi);
+        if(n + 2 <= 64)
+        {
+            stack[n++] = aFirst ? b : a;
+            stack[n++] = aFirst ? a : b;
+        }
+    }
+}
+
 // The drawn fist (hand_base.mdl and the finger models, all curled: grip and trigger held) as seen
 // along its palm's normal: how far its surface reaches towards the palm's side, in cm from the grip
 // (the tracked hand's pose, the controller's), over a 1 cm grid of the hand's forward and up. Measured
@@ -245,10 +432,8 @@ float modelGap(const qmodel_t* model)
 // own: drawnVertices runs inside others' tests (a hull being made).
 struct HeldScratch
 {
-    za::Vector<Triangle> verticesTris;   // drawnVertices
     za::Vector<glm::vec3> centreVertices; // drawnCentre
-    za::Vector<Triangle> distanceTris;   // surfaceDistance
-    za::Vector<Triangle> fistTris;       // fistContact: the thing's triangles
+    za::Vector<glm::vec4> gapLocal;      // fistGap: the fist in the thing's space
     za::Vector<glm::vec4> fistLocal;     // the fist's spheres in the thing's axes
     za::Vector<float> nearest;           // each sphere's nearest distance
     za::Vector<glm::vec3> nearestAt;     // and point
@@ -258,7 +443,7 @@ struct HeldScratch
     za::Vector<glm::vec4> fitCells;      // surfaceFit: the fist's cells (the hand's frame)
     auto members()
     {
-        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris, fitCells);
+        return qvr::mem::list(centreVertices, gapLocal, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris, fitCells);
     }
 };
 mem::Scratch<HeldScratch> scratch{"held"};
@@ -496,13 +681,13 @@ bool drawnVertices(edict_t* ent, za::Vector<glm::vec3>& out)
     out.clear();
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    za::Vector<Triangle>& triangles = scratch.verticesTris;
-    if(!model || !drawnTriangles(ent, model, triangles))
+    const DrawnMesh* mesh = model ? drawnMesh(ent, model) : nullptr; // (made once)
+    if(!mesh)
     {
         return false;
     }
-    out.reserve(triangles.size() * 3);
-    for(const Triangle& t : triangles)
+    out.reserve(mesh->tris.size() * 3);
+    for(const Triangle& t : mesh->tris)
     {
         out.emplaceBackRange(t.p, 3);
     }
@@ -600,18 +785,20 @@ void forgetDrawnCentres()
 namespace
 {
 
-// `ent`'s drawn triangles in its axes relative to its origin, and those axes and origin.
-bool entityTriangles(edict_t* ent, za::Vector<Triangle>& out, glm::mat3& axes, glm::vec3& origin)
+// `ent`'s drawn mesh (its triangles in its axes relative to its origin: drawnMesh, made once), and those axes and
+// origin; null if it has none.
+const DrawnMesh* entityMesh(edict_t* ent, glm::mat3& axes, glm::vec3& origin)
 {
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(!model || !drawnTriangles(ent, model, out))
+    const DrawnMesh* m = model ? drawnMesh(ent, model) : nullptr;
+    if(!m)
     {
-        return false;
+        return nullptr;
     }
     axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
     origin = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    return true;
+    return m;
 }
 
 // The box `ent`'s model is drawn in (the networked scale and offset), in its axes relative to its origin.
@@ -674,26 +861,17 @@ bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
-    za::Vector<Triangle>& triangles = scratch.distanceTris;
     glm::mat3 axes;
     glm::vec3 origin;
-    if(!entityTriangles(ent, triangles, axes, origin))
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    if(!m)
     {
         return -1.f;
     }
     const glm::vec3 p = glm::transpose(axes) * (point - origin);
     float best = ZA_FLOAT_MAX;
     glm::vec3 at{0.f};
-    for(const Triangle& t : triangles)
-    {
-        const glm::vec3 q = geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2]);
-        const float d = glm::distance(p, q);
-        if(d < best)
-        {
-            best = d;
-            at = q;
-        }
-    }
+    meshNearest(*m, p, best, &at);
     if(nearest)
     {
         *nearest = origin + axes * at;
@@ -701,55 +879,127 @@ float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
     return best;
 }
 
-float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface)
+float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface, float stopAt)
 {
     surface = true;
     if(spheres.empty())
     {
         return ZA_FLOAT_MAX;
     }
-    // (Nothing of the fist near the box it is drawn in: no triangles to test. The triangles made once for all its
-    // spheres, not once a sphere: a fist by an armed monster's weapon cost 5 ms a frame, vrragtriggers_2026-10-24_23-01-03.)
-    // (A sphere round its model's corners about its origin, generous: its scale and offset taken at their most.)
-    glm::vec3 centre;
-    const float bound = bounds(spheres, centre);
-    const int index = static_cast<int>(ent->v.modelindex);
-    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(model)
-    {
-        using namespace progs;
-        const FieldOffsets& f = fields();
-        const glm::vec3 lo{model->mins[0], model->mins[1], model->mins[2]};
-        const glm::vec3 hi{model->maxs[0], model->maxs[1], model->maxs[2]};
-        const glm::vec3 sc = f.model_scale >= 0 ? glm::abs(fieldVec(ent, f.model_scale)) : glm::vec3{0.f};
-        const float scale = za::max(1.f, za::max(sc.x, za::max(sc.y, sc.z)));
-        const float offset = f.model_offset >= 0 ? glm::length(fieldVec(ent, f.model_offset)) : 0.f;
-        const float radius = glm::length(glm::max(glm::abs(lo), glm::abs(hi))) * scale + offset;
-        if(glm::distance(centre, glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}) >
-            radius + bound + za::fmax(within, 0.f))
-        {
-            return ZA_FLOAT_MAX;
-        }
-    }
-    za::Vector<Triangle>& triangles = scratch.distanceTris;
+    // Its mesh made once (drawnMesh: not re-posed for each sphere, nor each call: 5 ms a frame by an armed monster's
+    // weapon, vrragtriggers_2026-10-24_23-01-03); the fist brought into its space; nothing of the fist within `within` of
+    // its mesh's box: not measured; each sphere's search pruned by the gap so far (its box tree); `stopAt`: done as soon
+    // as a sphere is that near (a grab asks only whether it is within its allowance).
     glm::mat3 axes;
     glm::vec3 origin;
-    if(!entityTriangles(ent, triangles, axes, origin))
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    if(!m)
     {
         surface = false;
         return ZA_FLOAT_MAX;
     }
     const glm::mat3 toLocal = glm::transpose(axes);
-    float gap = ZA_FLOAT_MAX;
+    za::Vector<glm::vec4>& local = scratch.gapLocal;
+    local.clear();
     for(const glm::vec4& s : spheres)
     {
-        const glm::vec3 p = toLocal * (glm::vec3{s} - origin);
-        for(const Triangle& t : triangles)
+        local.pushBack(glm::vec4{toLocal * (glm::vec3{s} - origin), s.w});
+    }
+    glm::vec3 centre;
+    const float bound = bounds(local, centre);
+    const MeshNode& root = m->nodes[0];
+    if(boxDistance(centre, root.lo, root.hi) > bound + za::fmax(within, 0.f))
+    {
+        return ZA_FLOAT_MAX;
+    }
+    float gap = ZA_FLOAT_MAX;
+    for(const glm::vec4& s : local)
+    {
+        float best = gap < ZA_FLOAT_MAX ? gap + s.w : ZA_FLOAT_MAX;
+        meshNearest(*m, glm::vec3{s}, best, nullptr);
+        if(best < ZA_FLOAT_MAX)
         {
-            gap = za::min(gap, glm::distance(p, geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2])) - s.w);
+            gap = za::min(gap, best - s.w);
+        }
+        if(gap <= stopAt)
+        {
+            break;
         }
     }
     return gap;
+}
+
+void benchFistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float allowed, int calls)
+{
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || spheres.empty())
+    {
+        Con_Printf("vr_agrunt_grab_bench: no model or no fist\n");
+        return;
+    }
+    calls = za::clamp(calls, 1, 100000);
+    const glm::mat3 axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    za::Vector<Triangle>& tris = scratch.fitTris;
+    // 1. Before agclose: each sphere's distance by re-posing the model's triangles (surfaceDistance a sphere).
+    double t0 = Sys_DoubleTime();
+    float gapOld = ZA_FLOAT_MAX;
+    for(int c = 0; c < calls; c++)
+    {
+        gapOld = ZA_FLOAT_MAX;
+        for(const glm::vec4& s : spheres)
+        {
+            (void)drawnTriangles(ent, model, tris);
+            const glm::vec3 p = glm::transpose(axes) * (glm::vec3{s} - origin);
+            float best = ZA_FLOAT_MAX;
+            for(const Triangle& t : tris)
+            {
+                best = za::min(best, glm::distance(p, geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2])));
+            }
+            gapOld = za::min(gapOld, best - s.w);
+        }
+    }
+    const double old = (Sys_DoubleTime() - t0) / calls;
+    // 2. The first fix: posed once a call, every triangle for every sphere.
+    t0 = Sys_DoubleTime();
+    float gapOnce = ZA_FLOAT_MAX;
+    for(int c = 0; c < calls; c++)
+    {
+        (void)drawnTriangles(ent, model, tris);
+        gapOnce = ZA_FLOAT_MAX;
+        for(const glm::vec4& s : spheres)
+        {
+            const glm::vec3 p = glm::transpose(axes) * (glm::vec3{s} - origin);
+            for(const Triangle& t : tris)
+            {
+                gapOnce = za::min(gapOnce, glm::distance(p, geom::closestOnTriangle(p, t.p[0], t.p[1], t.p[2])) - s.w);
+            }
+        }
+    }
+    const double once = (Sys_DoubleTime() - t0) / calls;
+    // 3. The cached mesh and its box tree, exact; 4. stopping at the grab's allowance.
+    bool surface = true;
+    t0 = Sys_DoubleTime();
+    float gapTree = 0.f;
+    for(int c = 0; c < calls; c++)
+    {
+        gapTree = fistGap(ent, spheres, 1e9f, surface);
+    }
+    const double tree = (Sys_DoubleTime() - t0) / calls;
+    t0 = Sys_DoubleTime();
+    float gapStop = 0.f;
+    for(int c = 0; c < calls; c++)
+    {
+        gapStop = fistGap(ent, spheres, 1e9f, surface, allowed);
+    }
+    const double stop = (Sys_DoubleTime() - t0) / calls;
+    const DrawnMesh* m = drawnMesh(ent, model);
+    Con_Printf("vr_agrunt_grab_bench: %s, %d triangles (%d nodes), %d spheres, %d calls: re-posed a sphere %.4f ms (gap %.3f), "
+               "posed a call %.4f ms (gap %.3f), cached mesh and tree %.4f ms (gap %.3f), stopping at %.2f %.4f ms (gap %.3f)\n",
+        model->name, m ? static_cast<int>(m->tris.size()) : 0, m ? static_cast<int>(m->nodes.size()) : 0,
+        static_cast<int>(spheres.size()), calls, old * 1000.0, gapOld, once * 1000.0, gapOnce, tree * 1000.0, gapTree,
+        allowed, stop * 1000.0, gapStop);
 }
 
 void setFist(int hand, const za::Vector<glm::vec4>& spheres)
@@ -783,13 +1033,14 @@ bool fistContact(edict_t* ent, const za::Vector<glm::vec4>& spheres, float reach
 {
     out = FistContact{};
     out.gap = ZA_FLOAT_MAX;
-    za::Vector<Triangle>& triangles = scratch.fistTris;
     glm::mat3 axes;
     glm::vec3 origin;
-    if(spheres.empty() || !entityTriangles(ent, triangles, axes, origin))
+    const DrawnMesh* mesh = spheres.empty() ? nullptr : entityMesh(ent, axes, origin);
+    if(!mesh)
     {
         return false;
     }
+    const za::Vector<Triangle>& triangles = mesh->tris; // (made once: drawnMesh)
 
     // The fist in the thing's axes, and a sphere round all of it.
     za::Vector<glm::vec4>& local = scratch.fistLocal;

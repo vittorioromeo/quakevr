@@ -287,6 +287,10 @@ za::Vector<Item> pageDebugAutomation()
                   "its barrel, its stock, its grip (0.8 m/s), its barrel at 3.5 m/s, then closes: each a tug, its parry "
                   "never raised, nothing parried or knocked away. Last, a closed fist punching its chest at 4.5 m/s: "
                   "its parry raised (vr_agrunt_parry_strikes_only)."),
+        command("Armed Grunts: Grab Test's Cost", "vr_agrunt_grab_bench")
+            .help("vr_agrunt_grab_bench [calls] (an armed grunt near): your main fist against the nearest armed monster's "
+                  "weapon, timed a call: the old way (its model re-posed for each of the fist's spheres), posed once a "
+                  "call, the cached mesh's box tree, and stopping at the grab's allowance; each with its gap (units)."),
         command("Armed Grunts: Reach for a Lying One's Weapon", "vr_agrunt_test 66")
             .help("vr_agrunt_test 66: a shotgun grunt shoved to the floor keeps its gun in its hand; you walk up to it "
                   "and reach for the gun with an open hand at 0.8 m/s for 3 s: it keeps it. Then the old rules (printed: "

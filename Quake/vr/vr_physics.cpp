@@ -166,6 +166,21 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 
 za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
 
+// Whether `player`'s hand `h` (0 off, 1 main) grips (QVR_VRBITS0_*HAND_GRABBING) or has just pressed its grip (QC
+// VR_HandGrabUtil_StartedHandGrabbing's 0.125 s: the tests press it so): a grab's time.
+[[nodiscard]] bool gripStarted(edict_t* player, int h)
+{
+    constexpr int grabBit[2] = {1 << 1, 1 << 3};
+    if(f().vrbits0 >= 0 && (static_cast<int>(fieldFloat(player, f().vrbits0)) & grabBit[h]) != 0)
+    {
+        return true;
+    }
+    const float grab = fieldFloatOr(player, h == 0 ? f().offhand_lastgrabtime : f().mainhand_lastgrabtime, -1.f);
+    const float letGo = fieldFloatOr(player, h == 0 ? f().offhand_lastreleasetime : f().mainhand_lastreleasetime, -1.f);
+    const double now = qcvm->time;
+    return grab > 0.f && now < grab + 0.125 && now > letGo && letGo + 0.125 <= grab;
+}
+
 // A weapon at rest on something (on the floor, a crate, stuck in a wall), not in the air: resting (FL_ONGROUND, or not
 // moving at all) or barely moving (lyingSpeed: a gun lying as a Box3D prop is awake, not FL_ONGROUND, while the closing
 // hand nudges it, and slid off the fist that would take it: the author's note of 2026-10-08, "very hard to grab guns by
@@ -226,12 +241,20 @@ constexpr float weaponDrawnReach = 48.f;
             // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
             // gun's model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a
             // fist's sphere middle sinks into without passing near its surface.
+            // Measured only for a grab (its grip held, or just pressed: QC VR_AG_PropHandTouch takes it only then) or the
+            // tests' reading (vr_agrunt_debug): an open hand by it, or a fist at rest on it, asks nothing.
+            const bool reading = vr_agrunt_debug.value && which == HAND_MAIN;
+            if(!reading && !gripStarted(player, h))
+            {
+                return false;
+            }
             held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
                 armedFist);
             const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
             bool surface = true;
-            // (within: the tests' reading wants the gap a little way out too)
-            const float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface));
+            // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
+            const float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface,
+                                                      reading ? -1e30f : allowed));
             if(!surface)
             {
                 return false; // (no surface to measure)
@@ -2111,6 +2134,71 @@ namespace qvr::physics
 void propTouchStats_f()
 {
     Con_Printf("prop touch verification: %llu callbacks checked\n", static_cast<unsigned long long>(touchVerified));
+}
+
+void grabBench(); // (below: in the server's progs)
+
+void grabBench_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_agrunt_grab_bench: no game\n");
+        return;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    grabBench();
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
+}
+
+void grabBench()
+{
+    // The armed monsters' weapon nearest your main hand, your main fist against it (held::benchFistGap).
+    edict_t* player = sv.active && svs.maxclients > 0 ? EDICT_NUM(1) : nullptr;
+    if(!player || held::fist(1).empty())
+    {
+        Con_Printf("vr_agrunt_grab_bench: no player or no fist\n");
+        return;
+    }
+    const glm::vec3 hand = fieldVec(player, f().handpos);
+    edict_t* best = nullptr;
+    float bestD = 1e30f;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && armedWeapon(e))
+        {
+            const float d = glm::distance(hand, vec(e->v.origin));
+            if(d < bestD)
+            {
+                bestD = d;
+                best = e;
+            }
+        }
+    }
+    if(!best)
+    {
+        Con_Printf("vr_agrunt_grab_bench: no armed monster's weapon\n");
+        return;
+    }
+    held::fistInWorld(1, hand, fieldVec(player, f().handrot), armedFist);
+    const float m2u = units::metresToUnits();
+    held::benchFistGap(best, armedFist, vr_carry_grab_bias.value * 0.01f * m2u + vr_agrunt_grab_slack.value * 0.01f * m2u,
+        Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 200);
 }
 
 bool fistOnArmedWeapon(edict_t* player, int hand)
