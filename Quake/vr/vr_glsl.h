@@ -2307,7 +2307,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "vec3 RigArm(uint base, vec3 pos, inout vec3 nor)\n" \
 "{\n" \
 "	vec4 s = SmoothRest[4u * uint(gl_VertexID) + 3u];\n" \
-"	if (s.x < 0.5)\n" \
+"	if (s.x < 0.5 || s.x > 8.5)\n" \
 "		return pos;\n" \
 "	uint b = base + uint(s.w);\n" \
 "	vec4 info = SmoothSwing[b];\n" \
@@ -2365,6 +2365,53 @@ QVR_PERMDECAL_FUNCTIONS \
 "	}\n" \
 "	nor = mix(n * max(length(nor), 1e-3), nor, body);\n" \
 "	return (mix(p, bodyAt, body) - info.xyz) * invS;\n" \
+"}\n" \
+"// QVR: an armed humanoid's legs in a crouch (vr/vr_aglegs.cpp, vr_aglegs): its vertex weighed between its leg's bones\n" \
+"// (the rest row's fourth: x 9 + side * 4 + its bone (thigh, shin, foot) and its blend to the next, y its hip's share on\n" \
+"// the pelvis, z its rest normal packed, w its leg rows' offset from `base`), each bone a turn and a move of the rest\n" \
+"// place (model units; the rows: origin and on-share, 1 / scale, six bones' quaternion and move, the knees' and ankles'\n" \
+"// rest places, the pelvis as drawn, the hips' rest places). Blended about their joint, the foot rigid.\n" \
+"vec3 RigLeg(uint base, vec3 pos, inout vec3 nor)\n" \
+"{\n" \
+"	vec4 s = SmoothRest[4u * uint(gl_VertexID) + 3u];\n" \
+"	if (s.x < 8.5)\n" \
+"		return pos;\n" \
+"	uint b = base + uint(s.w);\n" \
+"	vec4 info = SmoothSwing[b];\n" \
+"	if (info.w <= 0.0)\n" \
+"		return pos;\n" \
+"	float code = s.x - 9.0;\n" \
+"	float side = floor(code * 0.25);\n" \
+"	float c = code - side * 4.0;\n" \
+"	float bone = min(floor(c), 2.0);\n" \
+"	float f = c - bone;\n" \
+"	uint k = uint(side * 3.0 + bone);\n" \
+"	vec4 qa = SmoothSwing[b + 2u + 2u * k];\n" \
+"	vec3 ta = SmoothSwing[b + 3u + 2u * k].xyz;\n" \
+"	vec3 r = SmoothRest[4u * uint(gl_VertexID)].xyz;\n" \
+"	vec3 invS = SmoothSwing[b + 1u].xyz;\n" \
+"	vec3 framed = pos / invS + info.xyz;\n" \
+"	vec4 q = qa;\n" \
+"	vec3 j = vec3(0.0);\n" \
+"	if (f > 0.0005 && bone < 1.5)\n" \
+"	{\n" \
+"		vec4 qb = SmoothSwing[b + 4u + 2u * k];\n" \
+"		if (dot(qa, qb) < 0.0)\n" \
+"			qb = -qb;\n" \
+"		q = normalize(mix(qa, qb, f));\n" \
+"		j = SmoothSwing[b + 14u + uint(side * 2.0 + bone)].xyz;\n" \
+"	}\n" \
+"	else if (bone < 0.5 && s.y > 0.0005)\n" \
+"	{\n" \
+"		vec4 qp = SmoothSwing[b + 18u];\n" \
+"		if (dot(qa, qp) < 0.0)\n" \
+"			qp = -qp;\n" \
+"		q = normalize(mix(qa, qp, s.y));\n" \
+"		j = SmoothSwing[b + 20u + uint(side)].xyz;\n" \
+"	}\n" \
+"	vec3 p = QvrQRot(q, r - j) + QvrQRot(qa, j) + ta;\n" \
+"	nor = mix(nor, QvrQRot(q, QvrOctNormal(s.z)) * max(length(nor), 1e-3), info.w);\n" \
+"	return (mix(framed, p, info.w) - info.xyz) * invS;\n" \
 "}\n" \
 "// QVR: vr_anim_smooth_rebuild: 9 rows a bone (its swing, its motion now from its rest place to the poses' bytes, its\n" \
 "// turn with its share in the first's w); each vertex's rebuild place on its bone (units) and share, its normal so: the\n" \
@@ -2426,6 +2473,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "		{\n" \
 "			lerpedPos = RigKickOrPiece(uint(inst.Smooth.w - 2), lerpedPos);\n" \
 "			lerpedPos = RigArm(uint(inst.Smooth.w - 2), lerpedPos, smoothnor);\n" \
+"			lerpedPos = RigLeg(uint(inst.Smooth.w - 2), lerpedPos, smoothnor);\n" \
 "		}\n" \
 "#endif\n" \
 "		pose1.nor = smoothnor;\n" \

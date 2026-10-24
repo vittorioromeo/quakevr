@@ -68,8 +68,9 @@ void frame();
 void adjust(int ent, agarms::Targets& t);
 void note(const Note& n);
 
-// Part `index` (0 the right weapon, 1 the left weapon, 2 the right hand, 3 the left hand; 99 the controller's place when
-// the grab began) plus `offset` (world units), for controller `hand`, and the panel's button `index` (0 Scope, 1 Undo, 2 Reset Grips, 3 Frozen,
+// Part `index` (0 the right weapon, 1 the left weapon, 2 the right hand, 3 the left hand, 4/5 the elbows, 6 the chest;
+// in the Pickup pose the legs: 7 the pelvis, 8 the planted foot, 9 the kneeling knee, 10 the kneeling foot, 11 the
+// planted knee; 99 the controller's place when the grab began) plus `offset` (world units), for controller `hand`, and the panel's button `index` (0 Scope, 1 Undo, 2 Reset Grips, 3 Frozen,
 // 4 Cancel, 5 Done): where they are, for the mock hands (vr_mock_hand_to <hand> posepart|posebutton <index>). False: not
 // active, not shown.
 [[nodiscard]] bool partPoint(int hand, int index, const glm::vec3& offset, glm::vec3& out);

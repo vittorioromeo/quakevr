@@ -27,7 +27,8 @@ float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: 
 float VR_AGP_LEFTMIRROR = 16; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
 float VR_AGP_BODY = 32;     // ... its body's turns in a strike (VR_AGP_TorsoNow: the torso's, the elbows' poles)
 float VR_AGP_FIXED = 1;     // ... the body's turns alone, its hands' targets not turned with it (a take's bend)
-float VR_AGP_TAKE_BEND = 28; // degrees its chest bends forward at the waist taking a weapon up from the floor (vr_agarms)
+float VR_AGP_TAKE_BEND = 28; // degrees its chest bends forward at the waist taking a weapon up from the floor (vr_agarms; its take frames' kneel)
+float VR_AGP_TAKE_BEND_KNEEL = 45; // ... on one knee (vr_aglegs: its pelvis higher, the rest pose's chest on it)
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -1725,6 +1726,7 @@ void(entity g, entity p) VR_AGP_Pose =
     }
     float reaching = FALSE; // (its hand reaching down to a weapon on the floor: sent as no weapon)
     float takeBend = 0;     // (its chest's bend forward taking a weapon up: degrees)
+    float takeW = 0;        // (... the take's weight: 0 standing, 1 at its lowest; the client's kneel, vr_aglegs)
     if(g.vr_ag_took_at > 0 && p && pL && vr_agp_wl > 0)
     {
         vr_agp_vl = handL * vr_agp_wl + vr_agp_vl; // (vr_agarms: the left weapon's place whole, as the lay it eases from)
@@ -1745,7 +1747,8 @@ void(entity g, entity p) VR_AGP_Pose =
         // lift: its hand reaches the handle; the take frames' crouch alone leaves it 5 units short)
         float dk = (time - g.vr_ag_took_at) / max(0.01, g.vr_ag_took_grab - g.vr_ag_took_at);
         dk = min(1, max(0, dk));
-        takeBend = VR_AGP_TAKE_BEND * (time < g.vr_ag_took_grab ? dk * dk * (3 - 2 * dk) : 1 - u);
+        takeW = time < g.vr_ag_took_grab ? dk * dk * (3 - 2 * dk) : 1 - u;
+        takeBend = (cvar_hget(cvarh_vr_aglegs) ? VR_AGP_TAKE_BEND_KNEEL : VR_AGP_TAKE_BEND) * takeW;
         if(!pL && time < g.vr_ag_took_grab)
         {
             // Bending down: its hand reaches down with the bend (from where its frame has it to the weapon's grip as the
@@ -1911,6 +1914,11 @@ void(entity g, entity p) VR_AGP_Pose =
         VR_AGP_WriteDir(vr_agp_elr);
         VR_AGP_WriteDir(vr_agp_ell);
         VR_AGP_WriteVec(VR_AM_Fit(g, VR_AGP_WAIST)); // (the waist they were turned about)
+        if(vr_agp_flags & VR_AGP_FIXED)
+        {
+            // (a take's weight x 127, its left hand taking it 128: the client's kneel, vr_aglegs)
+            WriteByte(MSG_BROADCAST, rint(min(1, max(0, takeW)) * 127) + (pL ? 128 : 0));
+        }
     }
 };
 

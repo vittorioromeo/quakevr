@@ -67,6 +67,7 @@ struct SmoothModel
     bool rebuildOk{false};
     bool restUploaded{false};         // `rest` is in the model's restBuffers buffer (VR_AnimSmoothBind)
     bool armSkin{false};              // its rest data has arm skin rows (vr_agarms): each instance's kicks then carry its arm rows
+    bool legSkin{false};              // ... and leg skin rows (vr_aglegs): its leg rows after the arm rows
 };
 
 [[nodiscard]] inline za::SizeT heldBytes(const SmoothModel& m)

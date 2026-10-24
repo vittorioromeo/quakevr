@@ -1074,6 +1074,7 @@ entity vr_agt_sheet_tgt;
 float vr_agt_sheet_w2; // (VR_AGT_SheetSet's left hand's weapon: -1 none)
 float vr_agt_sheet_torso;    // (the strike sheet: vr_agrunt_strike_torso and _shoulder as they were, put back after)
 float vr_agt_sheet_shoulder;
+float vr_agt_sheet_take; // (the take sheet's phase now: below 1 the share of the way down, 1 the grab, above it 1 + the lift's share)
 float(float s) VR_AGT_SheetSet =
 {
     vr_agt_sheet_w2 = -1;
@@ -1146,6 +1147,20 @@ void(entity g, float pose) VR_AGT_SheetPose =
         g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
         g.vr_ag_took_at = time - 5; // (its hand just closed on it: still where it lay)
         g.vr_ag_took_grab = time - 0.001;
+        float takeSheet = cvar("scratch1") < 0;
+        if(takeSheet && vr_agt_sheet_take < 1)
+        {
+            // (the take sheet: on its way down, this share of it; its frames' that far)
+            float tk = max(1, vr_am_n_take) * VR_AG_TAKE_FRAME;
+            g.frame = vr_am_f_take + min(max(1, vr_am_n_take) - 1, floor(vr_agt_sheet_take * max(1, vr_am_n_take)));
+            g.vr_ag_took_at = time - vr_agt_sheet_take * tk;
+            g.vr_ag_took_grab = g.vr_ag_took_at + tk;
+            g.think = vr_ag_takestep; // (taking: its reach not cut short, VR_AG_PlaceProp; held, its nextthink ahead)
+        }
+        else if(takeSheet && vr_agt_sheet_take > 1)
+        {
+            g.vr_ag_took_grab = time - (vr_agt_sheet_take - 1) * VR_AG_LIFT_TIME; // (... on its way up)
+        }
         g.vr_ag_took_org = g.origin + v_forward * 18 + v_right * 4 + '0 0 -22';
         g.vr_ag_took_fw = v_forward;
         g.vr_ag_took_up = '0 0 1';
@@ -1236,15 +1251,19 @@ void() VR_AGTest_Sheet =
         vr_agt_step = 2;
     }
     entity g = vr_agt_grunt;
-    float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * 2 + vr_agt_sheet_view;
+    float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * (cvar("scratch1") < 0 ? 3 : 2) + vr_agt_sheet_view; // (the take sheet: 3 views)
     float strike = cvar("scratch1") > 0; // (the strike sheet: side on, each eighth without (view 0) and with its body)
-    g.angles_y = vectoyaw(pl.origin - g.origin) + ((vr_agt_sheet_view || strike) ? 90 : 0) + 0.01;
+    // (the take sheet, scratch1 -1: its poses the take's phases (way down 0.45, 0.8, the grab, half up), each from its
+    // front, its right side and three-quarters: vr_aglegs)
+    float takes = cvar("scratch1") < 0;
+    vr_agt_sheet_take = vr_agt_sheet_pose == 0 ? 0.45 : vr_agt_sheet_pose == 1 ? 0.8 : vr_agt_sheet_pose == 2 ? 1 : 1.5;
+    g.angles_y = vectoyaw(pl.origin - g.origin) + ((vr_agt_sheet_view || strike) ? (vr_agt_sheet_view == 2 ? 45 : 90) : 0) + 0.01;
     if(strike)
     {
         cvar_set("vr_agrunt_strike_torso", vr_agt_sheet_view ? ftos(vr_agt_sheet_torso) : "0");
         cvar_set("vr_agrunt_strike_shoulder", vr_agt_sheet_view ? ftos(vr_agt_sheet_shoulder) : "0");
     }
-    VR_AGT_SheetPose(g, vr_agt_sheet_pose);
+    VR_AGT_SheetPose(g, takes ? 7 : vr_agt_sheet_pose);
     float s = time - vr_agt_sheet_at;
     cvar_set("vr_agrunt_ik_tag", s >= hold * 0.6 ? ftos(tag) : "-1");
     if(vr_agt_step == 2 && s >= hold)
@@ -1252,8 +1271,9 @@ void() VR_AGTest_Sheet =
         // (the script's screenshot follows this line: `vr_waitprint 3000 (tag; screenshot`; held 0.2 s more)
         VR_AGT_Print(sprintf("sheet: %s %s, set %g %s: %s, %s (tag %g)", VR_AM_UiKindName(g.vr_ag_kind), g.vr_ag_prop ?
             g.vr_ag_prop.netname : "fists", vr_agt_sheet_set, g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "-",
-            strike ? sprintf("strike eighth %g", vr_agt_sheet_pose) : VR_AGT_SheetPoseName(vr_agt_sheet_pose),
-            strike ? (vr_agt_sheet_view ? "body" : "arms only") : (vr_agt_sheet_view ? "side" : "front"), tag));
+            strike ? sprintf("strike eighth %g", vr_agt_sheet_pose) : takes ? sprintf("take phase %g", vr_agt_sheet_take) :
+            VR_AGT_SheetPoseName(vr_agt_sheet_pose), strike ? (vr_agt_sheet_view ? "body" : "arms only") :
+            (vr_agt_sheet_view == 2 ? "three-quarter" : vr_agt_sheet_view ? "side" : "front"), tag));
         vr_agt_step = 3;
         vr_agt_sheet_at = time;
         return;
@@ -1263,11 +1283,11 @@ void() VR_AGTest_Sheet =
         vr_agt_step = 2;
         vr_agt_sheet_at = time;
         vr_agt_sheet_view = vr_agt_sheet_view + 1;
-        if(vr_agt_sheet_view > 1)
+        if(vr_agt_sheet_view > (takes ? 2 : 1))
         {
             vr_agt_sheet_view = 0;
             vr_agt_sheet_pose = vr_agt_sheet_pose + 1;
-            if(vr_agt_sheet_pose > (strike ? 7 : 9))
+            if(vr_agt_sheet_pose > (strike ? 7 : takes ? 3 : 9))
             {
                 vr_agt_sheet_pose = 0;
                 vr_agt_sheet_set = vr_agt_sheet_set + 1;

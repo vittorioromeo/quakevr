@@ -33,6 +33,7 @@
 
 #include "vr_animsmooth_internal.hpp"
 #include "vr_agarms.hpp"
+#include "vr_aglegs.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -502,6 +503,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     m.rest.resize(static_cast<za::SizeT>(hdr->numverts_vbo) * restStride);
     m.restUploaded = false;
     m.armSkin = false;
+    m.legSkin = false;
     m.swungVerts = m.fadedVerts = 0;
     m.rebuiltVerts = m.rebuildFaded = 0;
     za::Vector<float> rms(static_cast<za::SizeT>(hdr->numverts_vbo));
@@ -525,6 +527,11 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
         if(hitreact::armSkinRow(model, hdr, rig, v, r[3]))
         {
             m.armSkin = true;
+        }
+        // ... and its legs' (vr_aglegs: the codes past the arms', the shader's RigLeg; their rows after the arms').
+        if(m.armSkin && r[3].x < 0.5f && aglegs::restRow(model, hdr, rig, v, 3 * rig.numBones + agarms::blockRows, r[3]))
+        {
+            m.legSkin = true;
         }
         int pieceBone = -1;
         const int piece = hitreact::armedPiece(model, hdr, rig, v, pieceBone);
@@ -1171,11 +1178,16 @@ struct HandDraw
     const za::SizeT at = swing.size();
     piecesOn = piecesOn && !m.armSkin;
     swing.resize(at + static_cast<za::SizeT>(3 * rig.numBones + (piecesOn ? 3 * hitreact::numArmPieces : 0) +
-                                             (m.armSkin ? agarms::blockRows : 0)));
+                                             (m.armSkin ? agarms::blockRows : 0) + (m.legSkin ? aglegs::blockRows : 0)));
     if(m.armSkin)
     {
         // An armed humanoid's arm rows after its bones' (its rest data's fourth row says where: vr_agarms.cpp).
         (void)agarms::rows(e, hdr, swing.data() + at + static_cast<za::SizeT>(3 * rig.numBones));
+    }
+    if(m.legSkin)
+    {
+        // ... its leg rows after them (vr_aglegs.cpp).
+        aglegs::rows(e, hdr, swing.data() + at + static_cast<za::SizeT>(3 * rig.numBones + agarms::blockRows));
     }
     for(int p = 0; piecesOn && p < hitreact::numArmPieces; p++)
     {
