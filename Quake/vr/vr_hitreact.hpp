@@ -52,7 +52,19 @@ bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 // `aliashdr`, `pose1`, `pose2`, `blend`: the poses drawn (the hands' vertices).
 [[nodiscard]] bool bonesWanted(const entity_t* e);
 bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const void* aliashdr, int pose1,
-    int pose2, float blend, rigpose::Rigid* out);
+    int pose2, float blend, rigpose::Rigid* out, rigpose::Rigid* pieces = nullptr, bool* piecesOn = nullptr);
+
+// Armed monsters' rigid arms (vr_agrunt_ik_rigid): boneTurns' `pieces` (numArmPieces: the right forearm, the right hand,
+// the left forearm, the left hand; rest -> model space, each drawn whole: the shader's RigPiece) and each vertex's piece
+// (-1 none; `bone` its forearm's): read when the model's rest data is made.
+inline constexpr int numArmPieces = 4;
+[[nodiscard]] int armedPiece(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v, int& bone);
+
+// vr_agrunt_ik_err's arm numbers for one drawn armed monster (kickInstance, while a tag is set): each side's forearm and
+// hand vertices (armPieceVerts' order) as drawn (model space), with the bones' turns.
+void armPieceVerts(const entity_t* e, const void* aliashdr, const ragdoll::Rig& rig, int side, const int*& verts, int& n);
+void noteArmsDrawn(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
+    const glm::vec3* drawnR, const glm::vec3* drawnL);
 
 // An armed monster's hand as the shader draws it (kickInstance): its vertices' places before the bones' turns, their bones'
 // share of a turn (the vertex's fit), their rig places. Drawn after a turn K: D + W * K(P) (model space, units).

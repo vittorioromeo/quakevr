@@ -2868,6 +2868,20 @@ QVR_CVAR(vr_agrunt_ik_hands,"4", CVAR_NONE)           // armed monsters' models:
 QVR_CVAR(vr_agrunt_ik_reach,"0.96", CVAR_NONE)        // armed monsters' weapons (and their hands' targets) brought within this share of their arm's length from its shoulder as drawn (a bent body's, a swing's far end): the hand on its weapon; 0 off (before)
 QVR_CVAR(vr_agrunt_ik_tag, "-1", CVAR_NONE)          // 0..1023: the drawn hands' distances to their weapons counted under this tag (QC's sweeps set it: a frame, an attack's phase); vr_agrunt_ik_err prints them; -1 none
 QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; vr_agrunt_ik_info: now)
+QVR_CVAR(vr_agrunt_ik_rigid, "1", CVAR_NONE)          // 1: armed monsters' forearms and hands drawn as rigid pieces (their shape kept: no stretched hands), each hand turned at its wrist towards its weapon, the weapon drawn on the hand by its grip offset (vr_agrunt_grips), a ragdoll's on its hand's bone; 0: agdual2's way (before; read when the model's rest data is made: a map load)
+QVR_CVAR(vr_agrunt_ik_wrist, "65", CVAR_NONE)         // armed monsters (vr_agrunt_ik_rigid): a hand's most bend at its wrist (degrees) towards its weapon's turn: past it the weapon turns with the hand
+QVR_CVAR(vr_agrunt_ik_twist, "80", CVAR_NONE)         // ... its most twist about its forearm (degrees)
+QVR_CVAR(vr_agrunt_ik_elbow, "150", CVAR_NONE)        // ... an elbow's most bend (degrees: 180 folded flat)
+QVR_CVAR(vr_agrunt_ik_second, "0.97", CVAR_NONE)      // ... the other hand takes a two-handed weapon's second grip only while its wrist reaches it within this share of its arm's length (and its wrist turns within vr_agrunt_ik_wrist plus 25 degrees); else it hangs free
+QVR_CVAR(vr_agrunt_grips, "", CVAR_ARCHIVE)           // armed monsters' grip offsets changed from the defaults (Armed Grunts > Grip Editor; vr_agrunt_grip_dump prints them as code): "kind weapon hand x y z pitch yaw roll;" each
+QVR_CVAR(vr_agrunt_grip_hand, "0", CVAR_NONE)         // the Grip Editor's hand: 0 the main hand's weapon, 1 the off hand's own weapon (dual), 2 the off hand on a two-handed weapon's second grip
+QVR_CVAR(vr_agrunt_grip_x, "0", CVAR_NONE)            // the Grip Editor's offset (the entry it edits: the nearest armed monster's weapon, vr_agrunt_grip_hand's hand): forward (units)
+QVR_CVAR(vr_agrunt_grip_y, "0", CVAR_NONE)            // ... left (units)
+QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
+QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
+QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
+QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
+QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)            // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_CVAR(vr_enfrifle_speed, "1800", CVAR_ARCHIVE)    // an enforcer's dropped laser rifle: its lasers' speed, units a second (the enforcer's own: 600)
 QVR_CVAR(vr_enfrifle_ammo, "20", CVAR_ARCHIVE)       // the shots an enforcer's dropped rifle holds (its own: never refilled)

@@ -630,6 +630,15 @@ void(vector v) VR_AGP_WriteVec =
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
+    if(cvar("vr_agrunt_freeze") && g.health > 0)
+    {
+        // (the Grip Editor: held still in its first idle frame, its weapons ready, its AI held)
+        g.nextthink = time + 0.5;
+        g.enemy = world;
+        g.vr_ag_act = 0;
+        g.velocity = '0 0 0';
+        g.frame = VR_AM_StandFrame(g, 0);
+    }
     vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)
     if(trace_fraction == 0)
     {
