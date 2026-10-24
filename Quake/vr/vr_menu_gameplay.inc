@@ -1119,8 +1119,29 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("A pull this hard on its weapon tears it out of its hand at once (the physical tug; less as it is "
                   "hurt) (vr_agrunt_tug_break_force)."),
         slider("Tug: Break Impulse", vr_agrunt_tug_break_impulse, 10.f, 1000.f, 10.f, "%.0f N s").extend(0.f, 10000.f)
-            .help("Pulling over time: the pull's force times its time (above a tenth of the break force) that tears it "
+            .help("Pulling over time: the pull's force times its time (counted above Tug: Least Pull) that tears it "
                   "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse)."),
+        slider("Tug: Least Pull", vr_agrunt_tug_pull_force, 0.f, 1000.f, 10.f, "%.0f N").extend(0.f, 10000.f)
+            .help("Only a pull at least this hard counts in the physical tug: its grip gives only while you pull this "
+                  "hard, and gets its hold back as you let up (vr_agrunt_tug_pull_force)."),
+        slider("Tug: Least Pull Time", vr_agrunt_tug_pull_time, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
+            .help("You must keep pulling at least Tug: Least Pull this long before its weapon can come out: a "
+                  "tug-of-war, not a sharp yank. 0: the break force tears it out at once (vr_agrunt_tug_pull_time)."),
+        slider("Tug: Yank Tears It Out At", vr_agrunt_tug_snap, 0.f, 10.f, 0.1f, "%.1fx").extend(0.f, 100.f)
+            .help("A yank this many times the break force tears the weapon out at once, before the least pull time. "
+                  "0: never (vr_agrunt_tug_snap)."),
+        slider("Tug: Wounds Weaken Its Grip", vr_agrunt_tug_hurt_ease, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("How much its wounds weaken its grip in the physical tug: 0 not at all, 1 in proportion to the "
+                  "health it lost (vr_agrunt_tug_hurt_ease)."),
+        slider("Tug: Stumble When Disarmed", vr_agrunt_tug_won_stumble, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("How long it stumbles as you tear its weapon away, before it stands and fights on unarmed (a shove "
+                  "or a leg sweep then still floors it) (vr_agrunt_tug_won_stumble)."),
+        slider("Grab: Precision", vr_agrunt_grab_slack, -2.f, 10.f, 0.5f, "%.1f cm").extend(-10.f, 50.f)
+            .help("How far off its weapon's surface your fist may be and still grab it (0: touching it). Never by "
+                  "its arm or chest (vr_agrunt_grab_slack)."),
+        slider("Grab: Fastest Hand", vr_agrunt_grab_speed, 0.f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon. 0: any speed "
+                  "(vr_agrunt_grab_speed)."),
         slider("Tug: Its Pull", vr_agrunt_tug_strength, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 3.f)
             .help("How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength)."),
         slider("Tug: Longest", vr_agrunt_tug_hold_max, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
@@ -1167,6 +1188,18 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         toggle("Drops It When Floored", vr_agrunt_fall_drop)
             .help("Knocked down onto the floor (not just staggered by a shove) it drops its weapon beside it, and "
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
+        toggle("Keeps It in a Gentle Fall", vr_agrunt_fall_keep)
+            .help("A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
+                  "there a grab takes it at once and a blow knocks it away. A violent one (below) drops it "
+                  "(vr_agrunt_fall_keep)."),
+        slider("Fall: Drops It Below", vr_agrunt_fall_keep_height, 0.f, 5.f, 0.05f, "%.2f m").extend(0.f, 50.f)
+            .help("Falling to a floor this far below the one it stood on (off a ledge) it lets go "
+                  "(vr_agrunt_fall_keep_height)."),
+        slider("Fall: Drops It Falling Faster", vr_agrunt_fall_keep_speed, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("Its body falling faster than this, it lets go (vr_agrunt_fall_keep_speed)."),
+        slider("Fall: Drops It Flung Faster", vr_agrunt_fall_keep_fling, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("A strong force: its body moving faster than this any way but down (thrown, held and flung, blown "
+                  "away), it lets go (vr_agrunt_fall_keep_fling)."),
         toggle("Picks Weapons Up", vr_agrunt_rearm)
             .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
                   "not nearer to it than it is (vr_agrunt_rearm)."),

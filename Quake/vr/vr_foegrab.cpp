@@ -1,6 +1,7 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_physics.hpp"
 
 namespace foegrab::detail
 {
@@ -394,6 +395,16 @@ struct Search
 // The hand `h` grips: the living monster its fist touches (the least gap), its spot and hold taken. False: none.
 bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
 {
+    if(physics::fistOnArmedWeapon(player, h))
+    {
+        // (The fist on an armed monster's weapon: the weapon's grab, its tug-of-war, not its body: QC
+        // vr_armedgrunt.qc VR_AG_PropHandTouch.)
+        if(debug(fabs(qcvm->time - hd.pressedAt[h]) < 1e-6 ? 1 : 3))
+        {
+            Con_Printf("foegrab: %s hand grips an armed monster's weapon: left to its tug\n", handName(h));
+        }
+        return false;
+    }
     const glm::vec3 palm = palmOf(player, move, h);
     za::Vector<glm::vec4>& fist = scratch.fist;
     fist.clear();

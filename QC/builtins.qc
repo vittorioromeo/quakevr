@@ -460,6 +460,9 @@ float VR_HITMODEL_REACH = 96; // units a model is found out of its box (an ogre'
 float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the option on; a monster or corpse with a Quake model)
 // The segment a..b (a sphere of `radius` plus the class's tolerance) against e's model as drawn: where along it (0..1)
 // it first meets it (0: it starts in it), -1 missed; -2: e's model is not tested (the option off, not a target).
+// hitclass -1 (the hose cut, vr_ad_enemyguns.qc): e a tank lying about, its hose to its gun as the engine draws it: how
+// far along the hose (0 at the tank, 1 at the gun) its nearest point within `radius` of a..b is (trace_endpos that
+// point), -1 missed, -2 no hose drawn (vr_adtank.cpp, a listen server's).
 float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).

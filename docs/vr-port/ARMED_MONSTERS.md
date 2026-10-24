@@ -88,7 +88,21 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
 - Pickups: `VR_AG_TakeBegin` / `VR_AG_TakeGrab` (the weapon where it lay until the hand closes, then lifted:
   vr_armedgrunt_pose.qc `VR_AGP_Pose`); a new row needs only a crouching or kneeling `vr_am_f_take`.
 - Parries: `T_Damage_VRMelee` runs `VR_Parry` for an armed monster's blow (combat.qc).
-- Tests 31..35 (`QC/vr_armedgrunt_play_test.qc`); scenarios `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`, `agrunt_guard`.
+- A deliberate tug (ROUND22.md, "Armed monsters: a deliberate tug-of-war"): the weapon is grabbed only by the fist on
+  its drawn shape (vr_physics.cpp `handOn`, `armedWeapon`; `vr_agrunt_grab_slack`), not by a hand moving faster than
+  `vr_agrunt_grab_speed` (`VR_AG_PropHandTouch`); holding enemies (vr_foegrab.cpp `tryTake`) leaves a fist on such a
+  weapon to it (`physics::fistOnArmedWeapon`). The break (`VR_AG_TugBreak`): only a pull above
+  `vr_agrunt_tug_pull_force` counts, kept up `vr_agrunt_tug_pull_time` s; a yank `vr_agrunt_tug_snap` x the break
+  force at once; wounds weaken the grip by `vr_agrunt_tug_hurt_ease` (no pain halving). Won: it stumbles
+  `vr_agrunt_tug_won_stumble` s.
+- Falls (`vr_agrunt_fall_keep`): a gentle one keeps the weapon on the ragdoll's hand (`VR_AG_FallViolent` measures the
+  floor's drop, the fall's and the body's speeds against `vr_agrunt_fall_keep_height`, `_speed`, `_fling`); down, a
+  grab takes it at once and a blow over `VR_AG_DOWN_SWING` knocks it away.
+- Pickups: the row's `vr_am_f_take`, `vr_am_n_take` (down to the lowest frame, held there while the hand closes, back
+  up: `vr_ag_takestep`); while it bends the hand reaches down with the bend and the weapon is sent as none (the client
+  draws it where it lies).
+- Tests 31..38 (`QC/vr_armedgrunt_play_test.qc`); scenarios `agrunt_tug`, `agrunt_parry`, `agrunt_pickup`, `agrunt_guard`,
+  `agrunt_fall`.
 
 ## Shooting the weapon out (ROUND22.md, "Armed grunts: shooting the weapon out")
 

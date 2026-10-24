@@ -1031,6 +1031,167 @@ void(float request, entity p) AD_TankFieldTest =
     }
 };
 
+// The hose cut (ROUND22.md, "Cutting a dropped flamethrower's hose"; vr_ad_enemyguns.qc "Cutting the hose"): 191 a
+// flamethrower (temp1 1: the sprayer) made lying with its tank 64 ahead; 192 both hands emptied (fists); 193 the main
+// hand's weapon swept down across the nearest lying hose in one frame, its blade's 0.7 at the hose (temp1: its speed
+// there, m/s; 0: 5), as VR_Melee_Strike's sweep (its lines, then VR_HoseCut_Melee); 194 the cut pieces' state; 195 the
+// cut tank carried into the main hand and thrown (let go at 450 u/s ahead, up); 196 it shot for 1000 by you (its burst,
+// its field). Arm first: `vr_ad_test 117` (the death knight's sword), `129` (the mace), `192` (fists).
+void(entity p) AD_HoseCut_Print =
+{
+    entity g = vr_hosecut_gun;
+    entity t = vr_hosecut_tank;
+    bprint(sprintf("hosecut: cuts %g, refused %g; gun %s: burst %g, depleted %g, fuel %g, ", vr_hosecut_count, vr_hosecut_refused,
+        g ? g.netname : "none", (g.weaponflags & QVR_WPNFLAG_TANK_BURST) ? 1 : 0, g.vr_depleted, g.weaponinst.wi_clip));
+    bprint(sprintf("its tank %s, cut %g; ", VR_FuelTank_Of(g) ? "there" : "none", g.vr_hosecut > 0));
+    bprint(sprintf("tank %s at %v: linked %g, owner %s, force grab %g, ", t ? t.classname : "none", t.origin, t.vr_fuellink != world,
+        t.owner ? t.owner.classname : "world", (t.flags & FL_FORCEGRABBABLE) ? 1 : 0));
+    bprint(sprintf("fuel kept %.2f, health %g, cut %g, free think %g\n", t.vr_fueltank_fuel, t.health, t.vr_hosecut > 0,
+        t.think == VR_FuelTank_FreeThink));
+};
+
+void(float request, entity p) AD_HoseCutTest =
+{
+    if(request == 191)
+    {
+        entity m = VR_ADWeapons_Make(p, cvar("temp1") ? 319 : 318, 64);
+        bprint(sprintf("hosecut: made %s, its tank %s\n", m ? m.netname : "nothing", VR_FuelTank_Of(m) ? "there" : "none"));
+        return;
+    }
+    if(request == 192)
+    {
+        VRSetHandEmpty(p, cVR_MainHand);
+        VRSetHandEmpty(p, cVR_OffHand);
+        bprint(sprintf("hosecut: hands emptied (%g %g)\n", p.weapon, p.weapon2));
+        return;
+    }
+    if(request == 193)
+    {
+        entity g = AD_FuelTank_Nearest(p);
+        entity t = VR_FuelTank_Of(g);
+        if(!t)
+        {
+            bprint("hosecut: no gun lying with its tank\n");
+            return;
+        }
+        // The hose found across the middle between them, a little over the floor.
+        vector mid = (g.origin + t.origin) * 0.5;
+        vector dir = g.origin - t.origin;
+        dir_z = 0;
+        dir = normalize(dir);
+        vector perp = '0 0 0';
+        perp_x = -dir_y;
+        perp_y = dir_x;
+        traceline(mid + '0 0 16', mid - '0 0 64', TRUE, g);
+        vector floorAt = trace_endpos;
+        float along = hitmodel_segment(t, floorAt - perp * 40 + '0 0 1', floorAt + perp * 40 + '0 0 1', 4, -1);
+        if(along < 0)
+        {
+            bprint(sprintf("hosecut: no hose found across %v (%g)\n", floorAt, along));
+            return;
+        }
+        vector hoseAt = trace_endpos;
+        float thing = VR_Melee_Thing(p, cVR_MainHand);
+        float len = 30;
+        if(VR_Melee_Line(p, cVR_MainHand, thing))
+        {
+            len = max(8, vlen(vr_mline_far - vr_mline_grip));
+        }
+        // The blade along `perp`, its 0.7 at the hose, from 13 units over it down to 1 over (one frame's sweep).
+        entity b = VR_Blow(cVR_MainHand);
+        vector g1 = hoseAt + '0 0 1' - perp * (len * 0.7);
+        vector g0 = g1 + '0 0 13';
+        VR_Melee_Layout(thing);
+        b.mh_thing = thing;
+        b.mh_wid = VRGetEntWeapon(p, cVR_MainHand);
+        b.mh_free = FALSE;
+        b.mh_n = vr_mpt_n;
+        vr_mline_bend = 0;
+        vr_mline_free = FALSE;
+        for(float i = 0; i < vr_mpt_n; ++i)
+        {
+            vr_mline_grip = g0;
+            vr_mline_far = g0 + perp * len;
+            vr_mline_near = g0 - perp * len * 0.2;
+            b.mh_pp[i] = VR_Melee_At(vr_mpt_f[i]);
+            vr_mline_grip = g1;
+            vr_mline_far = g1 + perp * len;
+            vr_mline_near = g1 - perp * len * 0.2;
+            b.mh_cp[i] = VR_Melee_At(vr_mpt_f[i]);
+        }
+        b.mh_pgrip = g0;
+        b.mh_grip = g1;
+        b.mh_far = g1 + perp * len;
+        b.mh_hd_hi = '0 0 0';
+        VR_Melee_Ribs(b, VR_MELEE_RADIUS * max(0.25, cvar("vr_melee_range_multiplier")), 1);
+        vr_hosecut_speed_test = cvar("temp1") > 0 ? cvar("temp1") : 5;
+        float cuts = vr_hosecut_count;
+        entity sweeper = self;
+        self = p; // (VR_Melee_Strike's: the player's blow)
+        VR_HoseCut_Melee(cVR_MainHand, b);
+        self = sweeper;
+        vr_hosecut_speed_test = 0;
+        bprint(sprintf("hosecut: swept thing %g (weapon %g, %.0f long, %g lines) at %.1f m/s across the hose at %v (%.2f along it): ",
+            thing, b.mh_wid, len, vr_rib_n, cvar("temp1") > 0 ? cvar("temp1") : 5, hoseAt, along));
+        bprint(sprintf("%s\n", vr_hosecut_count > cuts ? "cut" : "not cut"));
+        if(vr_hosecut_count == cuts)
+        {
+            bprint(sprintf("hosecut: %s still has its tank: %s\n", g.netname, VR_FuelTank_Of(g) ? "yes" : "no"));
+            return;
+        }
+        AD_HoseCut_Print(p);
+        return;
+    }
+    if(request == 194)
+    {
+        AD_HoseCut_Print(p);
+        return;
+    }
+    entity ct = vr_hosecut_tank;
+    if(!ct || !ct.modelindex)
+    {
+        bprint("hosecut: no cut tank\n");
+        return;
+    }
+    if(request == 195)
+    {
+        VR_Carry_Start(p, cVR_MainHand, ct);
+        float held = ct.carry_player == p;
+        VR_Carry_Forget(ct);
+        ct.carry_player = p;
+        VR_Carry_Loose(ct); // (a physics object again, let go of by you)
+        makevectors(p.angles_y * '0 1 0');
+        entity thrower = self;
+        self = p;
+        VR_Carry_Throw(ct, v_forward * 450 + '0 0 200');
+        self = thrower;
+        vr_ad_test_z = ct.origin_x; // (where it was thrown from: 196's distance)
+        vr_ad_test_clip = ct.origin_y;
+        bprint(sprintf("hosecut: tank carried by the main hand %g, thrown from %v\n", held, ct.origin));
+        return;
+    }
+    if(request == 196)
+    {
+        float bursts = vr_fueltank_bursts;
+        float fields = vr_tankfield_made;
+        vector from = '0 0 0';
+        from_x = vr_ad_test_z;
+        from_y = vr_ad_test_clip;
+        from_z = ct.origin_z;
+        bprint(sprintf("hosecut: the tank at %v, %.0f units from where it was thrown; shot for 1000: ", ct.origin,
+            vlen(ct.origin - from)));
+        T_Damage(ct, p, p, 1000);
+        bprint(sprintf("burst %g, reached %g, fields made %g\n", vr_fueltank_bursts - bursts, vr_fueltank_burst_hit,
+            vr_tankfield_made - fields));
+        for(entity f = find(world, classname, "vr_tankfield"); f; f = find(f, classname, "vr_tankfield"))
+        {
+            bprint(sprintf("hosecut: field %s at %v: %.1f s, reach %.0f, strength %.2f\n", f.vr_tf_kind == 1 ? "fire" : "poison",
+                f.origin, f.vr_tf_end - f.vr_tf_start, f.vr_tf_radius, f.vr_tf_s));
+        }
+        return;
+    }
+};
+
 void(float request, entity p) AD_GunTest =
 {
     if(request >= 150 && request <= 164)
@@ -1041,6 +1202,11 @@ void(float request, entity p) AD_GunTest =
     if(request >= 175 && request <= 182)
     {
         AD_TankFieldTest(request, p);
+        return;
+    }
+    if(request >= 191 && request <= 197)
+    {
+        AD_HoseCutTest(request, p);
         return;
     }
     if(request >= 96 && request <= 100)

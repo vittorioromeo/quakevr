@@ -438,6 +438,181 @@ void() VR_FuelTank_Frame =
     }
 };
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Cutting the hose
+//
+// Vittorio, 2026-10-24: a blade swung across the hose between a gun and its tank lying about (a sword's, an axe's, a
+// knife's, the chainsaw's bar; not a fist, a club, the hammer or mace, the crowbar, a gun, nor a pommel or a hilt) cuts
+// it: the blade proper's swept points (VR_Melee_Sweep's lines, vr_rib_*) passing within their reach of the hose as the
+// engine draws it (hosecross; vr_adtank.cpp), at vr_adgun_hosecut_speed (m/s) or faster, across the blade (a stab along
+// it doesn't). The gun is spent from then, as a burst tank's (QVR_WPNFLAG_TANK_BURST, its fuel 0, .vr_depleted: it never
+// fires, no tank again); the tank a prop of its own (force grabbed, carried, thrown, shot: it bursts as big as the fuel
+// it kept, .vr_fueltank_fuel, its field as a tank's). Both keep a stub of the hose at the cut (.vr_hosecut, its time:
+// the engine draws a short free end at the gun's inlet and the tank's outlet). A hiss and a snap, sparks and a puff of
+// fuel vapour or poison where it was cut (no field). Only a hose lying about: a monster's worn tank's isn't cut, and in
+// your hands the gun's tank is on your back. vr_adgun_hosecut 0: never.
+.float vr_hosecut;        // a gun lying about whose hose was cut, the tank cut free of it: when (0: not)
+.float vr_fueltank_fuel;  // a tank cut free of its gun: the fuel it kept, a share of a full tank
+float vr_hosecut_count;   // hoses cut (the tests)
+float vr_hosecut_refused; // cuts refused for the blade's speed (the tests)
+float vr_hosecut_speed_test; // the tests: the blade's speed at the hose, m/s (0: the hand's)
+entity vr_hosecut_tank;   // the last tank cut free (the tests)
+entity vr_hosecut_gun;    // and its gun
+float VR_HOSECUT_ALONG = 0.87; // cosine: the blade moving within 30 degrees of its own line is a stab, not a cut
+
+// A tank cut free: it bursts when set off by a neighbour's burst (VR_FuelTank_Think's, without its gun).
+void() VR_FuelTank_FreeThink =
+{
+    if(self.vr_fueltank_burstat && time >= self.vr_fueltank_burstat)
+    {
+        VR_FuelTank_BurstNow(self, self.enemy);
+        return;
+    }
+    self.nextthink = time + 0.05;
+};
+
+// The hose between gun `g` and its tank `t` lying about cut at `xAt` by `xBy`.
+void(entity g, entity t, vector xAt, entity xBy) VR_HoseCut_Cut =
+{
+    float full = WeaponIdToBaseClipSize(g.weapon);
+    float fuel = g.weaponinst ? g.weaponinst.wi_clip : 0;
+    float poison = g.weapon == WID_ADFUMIGATOR;
+    t.vr_fueltank_fuel = full > 0 ? clamp(fuel / full, 0, 1) : 0;
+    // The gun spent for good, as a burst tank's: no tank, no fuel, no force grab, no loot pillar (a hand still takes it).
+    g.weaponflags = g.weaponflags | QVR_WPNFLAG_TANK_BURST;
+    if(g.weaponinst)
+    {
+        g.weaponinst.wi_clip = 0;
+    }
+    g.vr_depleted = TRUE;
+    g.vr_fuellink = world;
+    g.vr_hosecut = time;
+    // The tank a prop of its own: no rope (the engine's goes with the link), meeting its gun again, force grabbed.
+    t.vr_fuellink = world;
+    t.owner = world;
+    t.vr_fueltank_grace = 0;
+    t.vr_hosecut = time;
+    t.flags = t.flags | FL_FORCEGRABBABLE;
+    t.think = VR_FuelTank_FreeThink;
+    t.nextthink = time + 0.05;
+    // A hiss (the stream's end) and a snap; sparks and a puff of fuel vapour or poison.
+    sound(t, CHAN_WEAPON, poison ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav", 0.7, ATTN_NORM);
+    sound(g, CHAN_AUTO, "weapons/tink1.wav", 0.6, ATTN_NORM);
+    particle2(xAt, '0 0 0', QVR_PARTICLE_PRESET_CONTACTSPARKS, 3);
+    if(poison)
+    {
+        particle2(xAt, '0 0 0', QVR_PARTICLE_PRESET_POISONPUFF, 1);
+    }
+    else
+    {
+        particle2(xAt, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
+    }
+    vr_hosecut_count++;
+    vr_hosecut_tank = t;
+    vr_hosecut_gun = g;
+    if(cvar("developer"))
+    {
+        dprint(sprintf("adgun: %s's hose cut at %v by %s, its tank free with %.2f of its fuel\n", g.netname, xAt,
+            xBy.classname, t.vr_fueltank_fuel));
+    }
+};
+
+// Whether `b`'s swept lines (the blade proper's, from `xFrom` of the way from the grip to the tip) met the hose of tank
+// `t` to gun `g`: then cut, if fast enough across the blade (else refused). TRUE: met (cut or refused).
+float(entity b, entity t, entity g, float xFrom) VR_HoseCut_Ribs =
+{
+    vector line = b.mh_far - b.mh_grip;
+    float len2 = line * line;
+    float least = max(0, cvar("vr_adgun_hosecut_speed"));
+    for(float k = 0; k < vr_rib_n; ++k)
+    {
+        float i = vr_rib_i[k];
+        vector p0 = vr_rib_p0[k];
+        vector p1 = vr_rib_p1[k];
+        float f = ((p1 - b.mh_grip) * line) / len2; // (the grip 0, the tip 1)
+        if(vr_mpt_kind[i] != VR_MPT_EDGE || p0 == p1 || f < xFrom)
+        {
+            continue; // (the blade proper, an axe's head, the saw's bar)
+        }
+        if(hitmodel_segment(t, p0, p1, vr_rib_r[k], -1) < 0)
+        {
+            continue;
+        }
+        vector at = trace_endpos;
+        vector vp = VR_Melee_PointVel(b, min(1, f));
+        float speed = vlen(vp);
+        vector axis = normalize(b.mh_rfar - b.mh_rgrip);
+        float along = speed > 0 ? fabs(vp * axis) / speed : 0;
+        if(vr_hosecut_speed_test > 0)
+        {
+            speed = vr_hosecut_speed_test;
+            along = 0;
+        }
+        if(speed < least || along > VR_HOSECUT_ALONG)
+        {
+            vr_hosecut_refused++;
+            if(cvar("developer"))
+            {
+                dprint(sprintf("adgun: %s's hose not cut: %.1f m/s, %.2f along the blade\n", g.netname, speed, along));
+            }
+            return TRUE;
+        }
+        VR_HoseCut_Cut(g, t, at, self);
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// What `b` (hand `xHand`'s blow, VR_Melee_Sweep's lines just made: vr_rib_*) holds cuts a hose lying about it swept
+// across (the first met), at its speed there. VR_Melee_Strike's, after the sweep.
+void(float xHand, entity b) VR_HoseCut_Melee =
+{
+    float thing = b.mh_thing;
+    if(b.mh_free || b.mh_n <= 0 || vr_rib_n <= 0 || (thing != VR_MTHING_SWORD && thing != VR_MTHING_AXE && thing != VR_MTHING_SAW) ||
+       (thing == VR_MTHING_AXE && b.mh_wid != WID_AXE && b.mh_wid != WID_SUPERAXE))
+    {
+        return; // (not a blade: a fist, a club, a gun, the crowbar, Mjolnir, the hammer, the mace; one held off its handle)
+    }
+    if(!cvar("vr_adgun_hosecut"))
+    {
+        return;
+    }
+    vector line = b.mh_far - b.mh_grip;
+    float len2 = line * line;
+    if(len2 < 1)
+    {
+        return;
+    }
+    // The tanks lying about with their gun whose pair's box (widened by its rope) the swept lines' box meets.
+    vector lo = vr_rib_lo - '1 1 1' * (vr_rib_rmax + 2);
+    vector hi = vr_rib_hi + '1 1 1' * (vr_rib_rmax + 2);
+    float slack = max(0.4, cvar("vr_adgun_tank_rope")) * VRMetersToUnits() * 0.6;
+    float from = thing == VR_MTHING_SAW ? VR_SAW_BAR_START : (thing == VR_MTHING_AXE ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD);
+    for(entity e = find(world, classname, "vr_fueltank"); e; e = find(e, classname, "vr_fueltank"))
+    {
+        entity eg = VR_FuelTank_Gun(e);
+        if(!eg)
+        {
+            continue;
+        }
+        vector plo = '0 0 0';
+        vector phi = '0 0 0';
+        plo_x = min(e.origin_x, eg.origin_x) - slack;
+        plo_y = min(e.origin_y, eg.origin_y) - slack;
+        plo_z = min(e.origin_z, eg.origin_z) - slack;
+        phi_x = max(e.origin_x, eg.origin_x) + slack;
+        phi_y = max(e.origin_y, eg.origin_y) + slack;
+        phi_z = max(e.origin_z, eg.origin_z) + slack;
+        if(plo_x <= hi_x && plo_y <= hi_y && plo_z <= hi_z && phi_x >= lo_x && phi_y >= lo_y && phi_z >= lo_z)
+        {
+            if(VR_HoseCut_Ribs(b, e, eg, from))
+            {
+                return;
+            }
+        }
+    }
+};
+
 // Freddie's gun arm: his rig's left forearm (vr_ad_rigs.inc adFreddieSeeds: bone 4, forearm_l), the super nailgun's
 // five barrels on it (mon_freddie.mdl vertices 88..182: the engine leaves them off his limbs' models, vr_limbmodel.cpp).
 float VR_AD_FREDDIE_GUNBONE = 4;
@@ -1253,6 +1428,11 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
     float full = g ? WeaponIdToBaseClipSize(g.weapon) : 0;
     float fuel = (g && g.weaponinst) ? g.weaponinst.wi_clip : 0;
     float f = full > 0 ? clamp(fuel / full, 0, 1) : 0;
+    if(!g && t.vr_hosecut)
+    {
+        f = clamp(t.vr_fueltank_fuel, 0, 1); // (cut free of its gun: the fuel it kept; "Cutting the hose")
+        fuel = f;
+    }
     vector at = t.origin + (t.mins + t.maxs) * 0.5;
     if(!worn)
     {
