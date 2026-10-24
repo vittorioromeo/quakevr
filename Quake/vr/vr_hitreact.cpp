@@ -2387,8 +2387,24 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         float yawDeg = 0.f;
         const glm::vec3 origin = drawnOrigin(e, &yawDeg);
         rigpose::Rigid legs[ragdoll::maxBones];
-        if(aglegs::solve(e, hdr, *rig, spec.kind, posed, aglegs::Take{s.take, s.takeSide}, origin, yawDeg,
-               za::max(ENTSCALE_DECODE(e->scale), 0.01f), legs))
+        aglegs::Take take;
+        take.w = s.take;
+        take.side = s.takeSide;
+        const int hs = s.takeSide == 1 ? 1 : 0;
+        if(s.take > 0.002f && spec.upper[hs] >= 0 && spec.fore[hs] >= 0 && spec.chest >= 0)
+        {
+            // (its hand reaching for the weapon lying, then taking it up: the pelvis bends as far as the hand needs)
+            const ragdoll::Bone& u = rig->bones[spec.upper[hs]];
+            const ragdoll::Bone& f = rig->bones[spec.fore[hs]];
+            take.reach = true;
+            take.target = hs ? s.left : s.right;
+            take.shoulder = u.pivot;
+            take.chest = rig->bones[spec.chest].pivot;
+            take.armLen = glm::length(f.pivot - u.pivot) + glm::length(f.end - f.pivot);
+            take.torso = s.torso;
+        }
+        if(aglegs::solve(e, hdr, *rig, spec.kind, posed, take, origin, yawDeg, za::max(ENTSCALE_DECODE(e->scale), 0.01f),
+               legs))
         {
             for(int i = 0; i < rig->numBones; i++)
             {

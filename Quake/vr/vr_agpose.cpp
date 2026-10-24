@@ -419,6 +419,33 @@ int copyKind(int from, int to)
         return 0;
     }
     parse();
+    // The keys `from` has in effect (archived, else shipped), by their code within the kind; and the codes `to` ships
+    // (each then the copy's, or none: its shipped key overridden by zeros where `from` has none).
+    za::Vector<int> codes;
+    const auto note = [&codes](int within) {
+        for(const int c : codes)
+        {
+            if(c == within)
+            {
+                return;
+            }
+        }
+        codes.pushBack(within);
+    };
+    for(const Entry& e : state.over)
+    {
+        if(e.code / 10000 == from)
+        {
+            note(e.code % 10000);
+        }
+    }
+    for(const ShippedRow& r : shipped)
+    {
+        if(r.code >= 0 && (r.code / 10000 == from || r.code / 10000 == to))
+        {
+            note(r.code % 10000);
+        }
+    }
     za::Vector<Entry> kept;
     for(const Entry& e : state.over)
     {
@@ -429,14 +456,11 @@ int copyKind(int from, int to)
     }
     int n = 0;
     const glm::vec3 s = fitScale[to] / fitScale[from];
-    for(const Entry& e : state.over)
+    for(const int within : codes)
     {
-        if(e.code / 10000 != from)
-        {
-            continue;
-        }
-        Entry c = e;
-        c.code = e.code - from * 10000 + to * 10000;
+        Entry c;
+        c.code = to * 10000 + within;
+        const bool has = get(from * 10000 + within, c.k) && !same(c.k, Key{});
         c.k.v[RPos] *= s;
         c.k.v[LPos] *= s;
         if(isLegCode(c.code))
@@ -445,8 +469,13 @@ int copyKind(int from, int to)
             c.k.v[LegKneelFoot] *= s;
             c.k.v[LegPlantKnee] *= s;
         }
-        kept.pushBack(c);
-        n++;
+        Key ship;
+        const bool hasShip = shippedOf(c.code, ship);
+        if(!same(c.k, hasShip ? ship : Key{}) && static_cast<int>(kept.size()) < maxEntries)
+        {
+            kept.pushBack(c);
+        }
+        n += has ? 1 : 0;
     }
     state.over = static_cast<za::Vector<Entry>&&>(kept);
     write();

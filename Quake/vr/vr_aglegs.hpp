@@ -34,6 +34,15 @@ struct Take
 {
     float w{0.f};
     int side{0};
+    // Reaching for the weapon lying (QC VR_AGP_REACH): the hand's target, the reaching arm's shoulder and the chest's
+    // joint (rest), the arm's reach to its grip, the torso's turn sent (degrees: yaw, pitch, roll): the pelvis bends
+    // further forward as far as the hand needs to land on the handle (the pose keys' torso may straighten it).
+    bool reach{false};
+    glm::vec3 target{0.f};
+    glm::vec3 shoulder{0.f};
+    glm::vec3 chest{0.f};
+    float armLen{0.f};
+    glm::vec3 torso{0.f};
 };
 
 // The rest data's fourth row for leg vertex `v` (agarms' row left empty): x 9 + side * 4 + bone (thigh, shin, foot)

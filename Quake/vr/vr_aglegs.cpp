@@ -48,7 +48,10 @@ constexpr float stepLift = 0.1f;        // a foot lifted this much (of the hips'
 constexpr float toeOver = 0.3f;         // units: the kneeling foot's toes over the floor
 constexpr float onUp = 0.12f;           // the legs fully on by this take weight
 constexpr float onOut = 0.2f;           // seconds: back to the frame's legs when no take comes (a death, a stale pose)
-constexpr float floorReach = 8.f;       // units (the model's): a floor traced this far above or below its soles at rest
+constexpr float reachMost = 60.f;       // degrees: the pelvis bent at most this much further for the hand's reach
+constexpr float reachShare = 0.95f;     // ... until its shoulder is within this share of its arm of the handle
+constexpr float reachRate = 120.f;      // ... changing at most so fast (degrees a second)
+constexpr float floorReach = 8.f;      // units (the model's): a floor traced this far above or below its soles at rest
 
 struct LegRest
 {
@@ -88,6 +91,7 @@ struct Ent
     rigpose::Rigid bones[numLegBones];
     glm::vec3 hip[2]{}, knee[2]{}, ankle[2]{}, toe[2]{}, pole[2]{};
     float floorZ[2]{0.f, 0.f}; // the floor under each foot at its lowest (model z)
+    float reachBend{0.f};      // the pelvis's further bend for the hand's reach now (degrees)
     bool planted{false}; // the planted foot down where it stays (its drift measured from plantAt, world)
     glm::vec3 plantAt{0.f};
 };
@@ -489,7 +493,7 @@ void carries(const Model& m, const Ent& st, const ragdoll::Rig& rig, const rigpo
     }
 }
 
-void pose(const Model& m, Ent& st, const glm::vec3& origin, float yawDeg, float scale)
+void pose(const Model& m, Ent& st, const aglegs::Take& take, float dt, const glm::vec3& origin, float yawDeg, float scale)
 {
     const float w = st.w;
     const int kneel = st.side == 0 ? 1 : 0; // (the side opposite the reaching hand)
@@ -508,6 +512,40 @@ void pose(const Model& m, Ent& st, const glm::vec3& origin, float yawDeg, float 
     };
     st.pelvis = pelvisAt(w);
     const rigpose::Rigid low = pelvisAt(1.f);
+    // The hand's reach: the pelvis bent further forward about its pivot (from the hips: the body above with it) as far
+    // as the reaching shoulder needs to bring the handle within its arm (QC's torso turn on top, about the chest's
+    // joint); held through the grab, eased out over the lift.
+    const auto bent = [&m](const rigpose::Rigid& p, float deg) {
+        const glm::vec3 pivot = rigpose::apply(p, m.P0);
+        const glm::quat q = glm::angleAxis(deg * d2r, glm::vec3{0.f, 1.f, 0.f});
+        return rigpose::Rigid{glm::normalize(q * p.rot), pivot + q * (p.pos - pivot)};
+    };
+    float want = 0.f;
+    if(take.reach && take.armLen > 1.f)
+    {
+        float best = 1e9f;
+        want = 0.f;
+        const glm::quat tq = turnQuat(take.torso);
+        for(float e = 0.f; e <= reachMost + 0.01f; e += 2.f)
+        {
+            const rigpose::Rigid p = bent(st.pelvis, e);
+            const glm::vec3 c = rigpose::apply(p, take.chest);
+            const glm::vec3 sh = c + tq * (rigpose::apply(p, take.shoulder) - c);
+            const float d = glm::length(sh - take.target) - take.armLen * reachShare;
+            if(d < best)
+            {
+                best = d;
+                want = e;
+            }
+            if(d <= 0.f)
+            {
+                break;
+            }
+        }
+    }
+    const float step = reachRate * dt;
+    st.reachBend = st.reachBend + za::clamp(want - st.reachBend, -step, step);
+    st.pelvis = bent(st.pelvis, st.reachBend);
     for(int s = 0; s < 2; s++)
     {
         const LegRest& L = m.side[s];
@@ -669,9 +707,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
     {
         st->frame = -1;
         st->planted = false;
+        st->reachBend = 0.f;
         return false;
     }
-    pose(*m, *st, origin, yawDeg, za::max(scale, 0.01f));
+    pose(*m, *st, take, dt, origin, yawDeg, za::max(scale, 0.01f));
     carries(*m, *st, rig, posed, carryOut);
     st->drawnPelvis = compose(carryOut[m->pelvis], posed[m->pelvis]);
     st->frame = host_framecount;
@@ -837,9 +876,10 @@ void info_f()
         const Model* m = st.ent > 0 ? modelFor(st.model) : nullptr;
         if(m)
         {
-            Con_Printf("aglegs ent %d: weight %.2f on %.2f reach %d, solved %d frames ago, pelvis drop %.1f, knees %.1f %.1f, "
-                       "ankles %.1f %.1f over the floor\n",
-                st.ent, static_cast<double>(st.w), static_cast<double>(st.on), st.side, host_framecount - st.frame,
+            Con_Printf("aglegs ent %d: weight %.2f on %.2f reach %d bend %.0f, solved %d frames ago, pelvis drop %.1f, knees %.1f "
+                       "%.1f, ankles %.1f %.1f over the floor\n",
+                st.ent, static_cast<double>(st.w), static_cast<double>(st.on), st.side, static_cast<double>(st.reachBend),
+                host_framecount - st.frame,
                 static_cast<double>(m->P0.z - rigpose::apply(st.pelvis, m->P0).z), static_cast<double>(st.knee[0].z - st.floorZ[0]),
                 static_cast<double>(st.knee[1].z - st.floorZ[1]), static_cast<double>(st.ankle[0].z - st.floorZ[0]),
                 static_cast<double>(st.ankle[1].z - st.floorZ[1]));
