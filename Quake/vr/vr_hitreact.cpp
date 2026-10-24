@@ -2466,11 +2466,13 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         t.weapon[side] = composeRigid(chestKick, t.weapon[side]); // (the torso's flinch carries the weapons)
     }
-    if(bodied)
+    if(bodied || (s.flags & apBody))
     {
-        // (its elbows' poles in a strike: raised and drawn back in the wind-up, on its turned chest)
-        t.pole[0] = body[spec.chest].rot * s.elbowR;
-        t.pole[1] = body[spec.chest].rot * s.elbowL;
+        // (its elbows' poles in a strike: raised and drawn back in the wind-up, on its turned chest; the Pose Studio's
+        // keys may send them with no turn: vr_agpose.hpp)
+        const glm::quat cr = bodied ? body[spec.chest].rot : glm::quat{1.f, 0.f, 0.f, 0.f};
+        t.pole[0] = cr * s.elbowR;
+        t.pole[1] = cr * s.elbowL;
     }
     // (a target that is no place on its body: none solved, its weapons left where the server has them, never drawn far
     // off, at NaN or inside it: the note of 2026-10-24 03:11:45's invisible sword)
@@ -2506,6 +2508,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         n.space.scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
         n.t = t;
         n.placed = placed;
+        n.bodyFlag = (s.flags & apBody) != 0;
+        n.torso = n.bodyFlag ? s.torso : glm::vec3{0.f};
+        n.elbowPole[0] = n.bodyFlag ? s.elbowR : glm::vec3{0.f};
+        n.elbowPole[1] = n.bodyFlag ? s.elbowL : glm::vec3{0.f};
+        n.waist = s.waist;
         posestudio::note(n);
     }
     if(placed.on[0] && hasR && placeable(placed.weapon[0]))

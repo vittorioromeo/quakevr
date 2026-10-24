@@ -471,7 +471,9 @@ void() VR_AG_PropThink =
         remove(self);
         return;
     }
-    if(VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
+    // (held still, vr_agrunt_freeze: the Grip Editor, the Pose Studio, hands reaching into its weapons: no tug, no blow)
+    float still = cvar("vr_agrunt_freeze") && g.health > 0;
+    if(!still && VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
     {
         if(g.vr_ag_prop == self)
         {
@@ -479,7 +481,7 @@ void() VR_AG_PropThink =
         }
         return;
     }
-    if(VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
+    if(!still && VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
     {
         return;
     }
@@ -677,9 +679,9 @@ entity(entity g, vector vel) VR_AG_DropHeld =
 // Disarmed: the weapon knocked out of its hand (`dir`: the blow's way).
 void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
 {
-    if(!g.vr_ag_prop)
+    if(!g.vr_ag_prop || (cvar("vr_agrunt_freeze") && g.health > 0))
     {
-        return;
+        return; // (held still: the Grip Editor, the Pose Studio, where hands reach into its weapons)
     }
     dir_z = 0;
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);

@@ -51,11 +51,12 @@ struct GlobalRow
     float x, y, z, pitch, yaw, roll;
 };
 constexpr GlobalRow globalDefaults[] = {
-    {0, aggrip::Main, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-    {0, aggrip::Off, 0.f, 0.f, 0.f, 15.f, -35.f, -90.f}, // (the left hand's rest hold is under a barrel: a pistol grip turned into it; ag_offtry.sh)
-    {0, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
-    {1, aggrip::Main, 0.f, 0.f, 0.f, 30.f, -10.f, 0.f}, // (the enforcer's wrists straighter so)
-    {1, aggrip::Off, 0.f, 0.f, 0.f, 15.f, -35.f, -90.f},
+    // (Vittorio's, set in the Pose Studio: proposed_defaults/agrunt_grips_2026-10-24_13-33-26.txt)
+    {0, aggrip::Main, 1.05f, 0.24f, 2.60f, -3.5f, -3.9f, -1.9f},
+    {0, aggrip::Off, 3.56f, -0.32f, -0.81f, 10.0f, -78.5f, -81.2f}, // (the left hand's rest hold is under a barrel: a pistol grip turned into it)
+    {0, aggrip::Second, -1.95f, -0.49f, -0.76f, -76.0f, -23.6f, 36.0f},
+    {1, aggrip::Main, 1.71f, 0.55f, 3.13f, 15.0f, -4.2f, -2.7f},
+    {1, aggrip::Off, 2.15f, -1.17f, -2.18f, -9.5f, -94.2f, -137.8f},
     {1, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
 };
 
@@ -445,6 +446,50 @@ void resetEntries(int kind, int slot)
     }
     state.numOver = kept;
     write();
+}
+
+int copyKind(int from, int to)
+{
+    parse();
+    if(from < 0 || from >= numKinds || to < 0 || to >= numKinds || from == to)
+    {
+        return 0;
+    }
+    Override copied[maxOverrides];
+    int numCopied = 0;
+    int kept = 0;
+    for(int i = 0; i < state.numOver; i++)
+    {
+        const Override o = state.over[i];
+        if(o.kind == from && numCopied < maxOverrides)
+        {
+            Override c = o;
+            c.kind = to;
+            if(o.slot == allWeapons)
+            {
+                Offset dFrom, dTo;
+                const rigpose::Rigid df = defaultOf(from, allWeapons, o.hand, dFrom) ? toRigid(dFrom) : rigpose::Rigid{};
+                const rigpose::Rigid dt = defaultOf(to, allWeapons, o.hand, dTo) ? toRigid(dTo) : rigpose::Rigid{};
+                const rigpose::Rigid t = toRigid(o.o);
+                // (T_to = D_to * D_from^-1 * T_from)
+                const glm::quat dfInv = glm::inverse(df.rot);
+                const rigpose::Rigid change{dfInv * t.rot, dfInv * (t.pos - df.pos)};
+                c.o = fromRigid(rigpose::Rigid{glm::normalize(dt.rot * change.rot), dt.rot * change.pos + dt.pos});
+            }
+            copied[numCopied++] = c;
+        }
+        if(o.kind != to)
+        {
+            state.over[kept++] = o;
+        }
+    }
+    state.numOver = kept;
+    for(int i = 0; i < numCopied && state.numOver < maxOverrides; i++)
+    {
+        state.over[state.numOver++] = copied[i];
+    }
+    write();
+    return numCopied;
 }
 
 void dumpText(za::String& out)

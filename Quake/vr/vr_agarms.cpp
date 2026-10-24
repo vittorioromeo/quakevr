@@ -723,13 +723,16 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
     const glm::vec3 fWant = H.rot * glm::normalize(sd.W - sd.E);
     const glm::vec3 chestUp = cq * glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 inward = cq * glm::vec3{0.f, -sideSign, 0.f};
+    // (a pole past a strike's own share, 0.8: the Pose Studio's keys, vr_agpose.hpp, set by hand: weighed up to 9 times
+    // as much, its elbow where it was put as far as its wrist allows)
+    const float poleWeight = 0.5f + 4.f * za::clamp((poleShare - 0.8f) / 0.2f, 0.f, 1.f);
     const auto cost = [&](float phi) {
         const glm::vec3 E = C + rho * (za::cos(phi) * e1 + za::sin(phi) * e2);
         const glm::vec3 f = norm(W1 - E, fWant);
         const float wrist = za::acos(za::clamp(glm::dot(f, fWant), -1.f, 1.f));
         float c = wrist * wrist;
         const glm::vec3 eDir = norm(E - S1, pref);
-        c += 0.5f * (1.f - glm::dot(eDir, pref));
+        c += poleWeight * (1.f - glm::dot(eDir, pref));
         // An elbow up past its shoulder, or in across the chest.
         const float up = glm::dot(E - S1, chestUp);
         c += up > 0.f ? 0.02f * up * up : 0.f;

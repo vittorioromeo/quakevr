@@ -103,6 +103,16 @@ vector vr_agp_f;     // the body's flat forward and right (VR_AGP_Body)
 vector vr_agp_r;
 float vr_agp_events; // blows and cuts struck (the tests)
 float vr_agp_quiet;  // the pose only placed, not sent nor run (the toolgun's ghost: vr_armedmon_ui.qc VR_AM_UiGhost)
+// The Pose Studio's keys this frame (VR_AGK_Keys, below: its body's space, units and degrees): the right target's place
+// and turn (a rotation vector), the left's, the elbows' poles, the torso's turn; vr_agk_on: any.
+vector vr_agk_rp;
+vector vr_agk_rr;
+vector vr_agk_lp;
+vector vr_agk_lr;
+vector vr_agk_er;
+vector vr_agk_el;
+vector vr_agk_t;
+float vr_agk_on;
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -194,6 +204,18 @@ vector(entity g) VR_AGP_TargetLocal =
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
 {
+    if(vr_agk_on)
+    {
+        // (the Pose Studio's keys move the blow's line with the pose: its hand's place and turn)
+        float kl = p ? p.vr_ag_left : (g.vr_ag_act_kind == 0 || g.vr_ag_act_kind == 2);
+        vector kr = kl ? vr_agk_lr : vr_agk_rr;
+        VR_AGP_Body(g);
+        from = from + VR_AGP_ToWorld(kl ? vr_agk_lp : vr_agk_rp);
+        if(vlen(kr) > 0.01)
+        {
+            dir = VR_AG_Rotate(dir, normalize(VR_AGP_ToWorld(kr)), vlen(kr));
+        }
+    }
     entity oldself = self;
     self = g;
     float h = cVR_MainHand;
@@ -1235,10 +1257,314 @@ vector(entity g, vector posL, vector handL) VR_AGP_TurnPose =
     return pr;
 };
 
+// ----------------------------------------------------------------------------
+// The Pose Studio's keys (Quake/vr/vr_agpose.hpp; ROUND22.md, "Pose Studio"): changes laid on the poses above by hand,
+// one key per kind, weapon class, pose and phase (its code: kind * 10000 + class * 1000 + pose * 10 + phase), read
+// through weapondrawnpose(world, code, 11..18) and blended by this pose's weights: the stance (carried or aimed/ready),
+// the run, the pickup, a strike's wind-up, blow and follow-through. And the studio's hold: its subject shown in the pose
+// picked on its panel (weapondrawnpose(g, kind * 100 + class, 19)).
+// ----------------------------------------------------------------------------
+float VR_AGK_FISTS = 0;     // the classes (agpose::Class)
+float VR_AGK_GUN = 1;
+float VR_AGK_MELEE = 2;
+float VR_AGK_MELEE2 = 3;
+float VR_AGK_SAW = 4;
+float VR_AGK_TWOMELEE = 5;
+float VR_AGK_TWOGUNS = 6;
+float vr_agk_ww;            // a strike's phases' shares now (VR_AGK_Phases): its wind-up, its blow, its follow-through
+float vr_agk_wb;
+float vr_agk_wf;
+float vr_agk_hpose;         // the studio's hold this frame (VR_AGK_Query): the pose (-1 none), its phase, Play's count
+float vr_agk_hphase;
+float vr_agk_hplay;
+.float vr_agk_held;         // held in a pose by the studio (put back when let go)
+.float vr_agk_play;         // its Play count seen
+.float vr_agk_play_end;     // its strike played until
+entity vr_agk_tgt;          // the studio's target ahead (an aim, a guard, a strike's)
+
+float(entity g, entity p) VR_AGK_Class =
+{
+    if(!p)
+    {
+        return VR_AGK_FISTS;
+    }
+    float c = VR_AG_Class(p.weapon);
+    if(g.vr_ag_prop2)
+    {
+        return c == VR_AG_CLASS_MELEE ? VR_AGK_TWOMELEE : VR_AGK_TWOGUNS;
+    }
+    if(c == VR_AG_CLASS_MELEE)
+    {
+        return p.weapon == WID_CHAINSAW ? VR_AGK_SAW : (VR_AGP_TwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
+    }
+    return VR_AGK_GUN;
+};
+
+// Key `code` at share `w` added (`mirror`: a left-handed strike on the right's key, the hands swapped and mirrored).
+void(float code, float w, float mirror) VR_AGK_Add =
+{
+    if(w <= 0.001)
+    {
+        return;
+    }
+    vector has = weapondrawnpose(world, code, 18);
+    if(has_x == 0)
+    {
+        return;
+    }
+    vector rp = weapondrawnpose(world, code, 11);
+    vector rr = weapondrawnpose(world, code, 12);
+    vector lp = weapondrawnpose(world, code, 13);
+    vector lr = weapondrawnpose(world, code, 14);
+    vector er = weapondrawnpose(world, code, 15);
+    vector el = weapondrawnpose(world, code, 16);
+    vector t = weapondrawnpose(world, code, 17);
+    if(mirror)
+    {
+        // (a place's y the other way; a turn's rotation vector: its x and z; the torso's yaw and roll)
+        vector k = rp;
+        rp = VR_AGP_Mirror(lp);
+        lp = VR_AGP_Mirror(k);
+        k = rr;
+        rr = [-lr_x, lr_y, -lr_z];
+        lr = [-k_x, k_y, -k_z];
+        k = er;
+        er = VR_AGP_Mirror(el);
+        el = VR_AGP_Mirror(k);
+        t = [-t_x, t_y, -t_z];
+    }
+    vr_agk_rp = vr_agk_rp + rp * w;
+    vr_agk_rr = vr_agk_rr + rr * w;
+    vr_agk_lp = vr_agk_lp + lp * w;
+    vr_agk_lr = vr_agk_lr + lr * w;
+    vr_agk_er = vr_agk_er + er * w;
+    vr_agk_el = vr_agk_el + el * w;
+    vr_agk_t = vr_agk_t + t * w;
+    vr_agk_on = TRUE;
+};
+
+// A strike's phases' shares at its time now: the wind-up's (1 at its end), the blow's (1 as it is struck: VR_AGP_Phase's
+// turning point), the follow-through's (1 at the strike's end, held through a cut, back to 0 over the recovery).
+void(entity g) VR_AGK_Phases =
+{
+    VR_AGP_Times(g);
+    float s = time - g.vr_ag_act_at;
+    float tS = vr_agp_tw + vr_agp_ts;
+    float punch = g.vr_ag_act == VR_AGP_PUNCH;
+    float h = punch ? 0.8 : 0.55;
+    vr_agk_ww = 0;
+    vr_agk_wb = 0;
+    vr_agk_wf = 0;
+    if(s < vr_agp_tw)
+    {
+        vr_agk_ww = VR_AGP_Smooth(s / vr_agp_tw);
+    }
+    else if(s < tS)
+    {
+        float u = (s - vr_agp_tw) / vr_agp_ts;
+        if(!punch)
+        {
+            u = VR_AGP_Smooth(u);
+        }
+        if(u < h)
+        {
+            vr_agk_ww = cos(1.5708 * u / h);
+        }
+        else
+        {
+            vr_agk_wf = sin(1.5708 * (u - h) / (1 - h));
+        }
+        vr_agk_wb = max(0, 1 - vr_agk_ww - vr_agk_wf);
+    }
+    else if(s < tS + vr_agp_th)
+    {
+        vr_agk_wf = 1;
+    }
+    else
+    {
+        vr_agk_wf = 1 - VR_AGP_Smooth((s - tS - vr_agp_th) / max(vr_agp_tr, 0.01));
+    }
+};
+
+// `g`'s keys now (vr_agk_*), its right weapon `p` (world: its fists).
+void(entity g, entity p) VR_AGK_Keys =
+{
+    vr_agk_rp = '0 0 0';
+    vr_agk_rr = '0 0 0';
+    vr_agk_lp = '0 0 0';
+    vr_agk_lr = '0 0 0';
+    vr_agk_er = '0 0 0';
+    vr_agk_el = '0 0 0';
+    vr_agk_t = '0 0 0';
+    vr_agk_on = FALSE;
+    float cls = VR_AGK_Class(g, p);
+    float base = (g.vr_ag_kind == VR_AM_ENFORCER ? 10000 : 0) + cls * 1000;
+    float wp = 0; // (the pickup's: its bend's)
+    if(g.vr_ag_took_at > 0 && p)
+    {
+        if(time < g.vr_ag_took_grab)
+        {
+            wp = VR_AGP_Smooth((time - g.vr_ag_took_at) / max(0.01, g.vr_ag_took_grab - g.vr_ag_took_at));
+        }
+        else
+        {
+            wp = 1 - VR_AGP_Smooth((time - g.vr_ag_took_grab) / VR_AG_LIFT_TIME);
+        }
+    }
+    float wa; // (aimed or ready: the stance's)
+    if(cls == VR_AGK_FISTS)
+    {
+        wa = min(1, g.vr_ag_readyw / 0.75);
+    }
+    else if(cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS)
+    {
+        wa = VR_AGP_Smooth(g.vr_ag_aimw);
+    }
+    else
+    {
+        wa = vr_agp_arms ? VR_AGP_Smooth(g.vr_agp_rdy) : min(1, g.vr_ag_readyw / 0.7);
+    }
+    VR_AGK_Add(base, (1 - wp) * (1 - wa), FALSE);
+    VR_AGK_Add(base + 10, (1 - wp) * wa, FALSE);
+    VR_AGK_Add(base + 20, (1 - wp) * g.vr_agp_runw, FALSE);
+    VR_AGK_Add(base + 30, wp, FALSE);
+    float act = g.vr_ag_act;
+    if(act == VR_AGP_PUNCH || act == VR_AGP_SWING || act == VR_AGP_SAW)
+    {
+        float k = g.vr_ag_act_kind;
+        float pose = 18;
+        float mir = FALSE;
+        if(act == VR_AGP_PUNCH)
+        {
+            pose = k == 0 ? 10 : k == 1 ? 11 : k == 4 ? 13 : 12;
+            mir = k == 2; // (a left hook: the right's mirrored)
+        }
+        else if(act == VR_AGP_SWING)
+        {
+            pose = 14 + min(3, k);
+            if(g.vr_ag_prop2 && g.vr_ag_act_hand == 2)
+            {
+                pose = 19;
+            }
+            else if(g.vr_ag_prop2)
+            {
+                mir = g.vr_ag_act_hand == 1;
+            }
+        }
+        VR_AGK_Phases(g);
+        VR_AGK_Add(base + pose * 10, vr_agk_ww, mir);
+        VR_AGK_Add(base + pose * 10 + 1, vr_agk_wb, mir);
+        VR_AGK_Add(base + pose * 10 + 2, vr_agk_wf, mir);
+    }
+};
+
+// The studio's hold this frame on `g` (its weapon `p`, pre-sorted: the class's the same): asked, and its kind and class
+// told.
+void(entity g, entity p) VR_AGK_Query =
+{
+    vector h = weapondrawnpose(g, (g.vr_ag_kind == VR_AM_ENFORCER ? 100 : 0) + VR_AGK_Class(g, p), 19);
+    vr_agk_hpose = h_x;
+    vr_agk_hphase = h_y;
+    vr_agk_hplay = h_z;
+};
+
+// `g` (frozen: VR_AGP_Pose) held in the studio's pose: its target ahead, its stance's shares set at once, its frame (a
+// run's mid-stride, the take's lowest), a strike at its phase's key (no blow dealt; Play: once from its start).
+void(entity g, entity p) VR_AGK_Hold =
+{
+    float pose = vr_agk_hpose;
+    float cls = VR_AGK_Class(g, p);
+    float was = g.vr_agk_held;
+    g.vr_agk_held = 1;
+    VR_AM_Row(g.vr_ag_kind);
+    makevectors([0, g.angles_y, 0]);
+    if(!vr_agk_tgt)
+    {
+        vr_agk_tgt = spawn();
+        vr_agk_tgt.classname = "vr_agk_target";
+    }
+    float gun = cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS;
+    float aimed = pose == 1 || pose >= 10;
+    setorigin(vr_agk_tgt, g.origin + v_forward * (gun ? 200 : 40) + '0 0 10');
+    g.enemy = aimed ? vr_agk_tgt : world;
+    g.vr_ag_aim = (aimed && gun) ? v_forward : '0 0 0';
+    g.vr_ag_aimw = aimed ? 1 : 0;
+    g.vr_agp_rdy = aimed ? 1 : 0;
+    g.vr_ag_readyw = cls == VR_AGK_FISTS ? (aimed ? 0.75 : 0) : 0.7;
+    g.vr_agp_runw = pose == 2 ? 1 : 0;
+    if(pose == 2)
+    {
+        g.frame = vr_am_f_run + 2;
+    }
+    if(pose == 3 && p)
+    {
+        // (as test 41's take: its hand just closed on a weapon lying before it, down on its knee)
+        g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
+        g.vr_ag_took_at = time - 5;
+        g.vr_ag_took_grab = time - 0.001;
+        g.vr_ag_took_done = 1; // (its weapon in its hand already: no take run, VR_AG_PlaceProp)
+        g.vr_ag_took_org = g.origin + v_forward * 18 + v_right * 4 + '0 0 -22';
+        g.vr_ag_took_fw = v_forward;
+        g.vr_ag_took_up = '0 0 1';
+    }
+    else
+    {
+        g.vr_ag_took_at = 0;
+    }
+    if(pose < 10)
+    {
+        g.vr_agk_play = vr_agk_hplay;
+        return;
+    }
+    g.vr_ag_act = pose <= 13 ? VR_AGP_PUNCH : pose == 18 ? VR_AGP_SAW : VR_AGP_SWING;
+    g.vr_ag_act_kind = pose == 10 ? 0 : pose == 11 ? 1 : pose == 12 ? 3 : pose == 13 ? 4 : pose == 18 ? 0 : pose == 19 ? 2 : pose - 14;
+    g.vr_ag_act_hand = pose == 19 ? 2 : 0;
+    g.vr_ag_act_var = 0.5;
+    g.vr_ag_act_hit = 2; // (no blow dealt, no cut)
+    g.vr_ag_act_hitl = 1;
+    g.vr_ag_act_tick = time;
+    VR_AGP_Times(g);
+    if(was && vr_agk_hplay != g.vr_agk_play)
+    {
+        g.vr_ag_act_at = time; // (Play: the strike from its start, in place)
+        g.vr_agk_play_end = time + VR_AGP_Length(g) + 0.4;
+    }
+    g.vr_agk_play = vr_agk_hplay;
+    if(time >= g.vr_agk_play_end)
+    {
+        float s = vr_agp_tw * 0.999;
+        if(vr_agk_hphase == 1)
+        {
+            s = vr_agp_tw + vr_agp_ts * (g.vr_ag_act == VR_AGP_PUNCH ? 0.8 : 0.5334); // (Smooth(0.5334) = 0.55: a swing's blow)
+        }
+        else if(vr_agk_hphase == 2)
+        {
+            s = vr_agp_tw + vr_agp_ts + vr_agp_th * 0.5 + 0.001;
+        }
+        g.vr_ag_act_at = time - s;
+    }
+};
+
+// Let go by the studio: its take, its attack and its target dropped.
+void(entity g) VR_AGK_Release =
+{
+    g.vr_agk_held = 0;
+    g.vr_ag_took_at = 0;
+    g.vr_ag_act = 0;
+    g.vr_ag_aim = '0 0 0';
+    g.enemy = world;
+};
+
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
-    if(cvar("vr_agrunt_freeze") && g.health > 0)
+    vr_agk_hpose = -1;
+    if(!vr_agp_quiet)
+    {
+        VR_AGK_Query(g, p); // (the Pose Studio's hold; it learns its kind and class)
+    }
+    float frozen = cvar("vr_agrunt_freeze") && g.health > 0;
+    if(frozen)
     {
         // (the Grip Editor: held still in its first idle frame, its weapons ready, its AI held)
         g.nextthink = time + 0.5;
@@ -1246,6 +1572,14 @@ void(entity g, entity p) VR_AGP_Pose =
         g.vr_ag_act = 0;
         g.velocity = '0 0 0';
         g.frame = VR_AM_StandFrame(g, 0);
+    }
+    if(frozen && vr_agk_hpose >= 0)
+    {
+        VR_AGK_Hold(g, p); // (the Pose Studio's pose picked on its panel)
+    }
+    else if(g.vr_agk_held && !vr_agp_quiet)
+    {
+        VR_AGK_Release(g);
     }
     vr_agp_arms = cvar_hget(cvarh_vr_agarms) != 0;
     vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)
@@ -1286,6 +1620,7 @@ void(entity g, entity p) VR_AGP_Pose =
     vr_agp_wo = 1;
     float c = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
     VR_AGP_Demo(g, c);
+    VR_AGK_Keys(g, p); // (the Pose Studio's keys: laid on below; the blows' lines moved with them, VR_AGP_Strike)
     if(c == VR_AG_CLASS_FISTS)
     {
         VR_AGP_Fists(g, handL);
@@ -1453,20 +1788,58 @@ void(entity g, entity p) VR_AGP_Pose =
         }
     }
     float body = g.vr_ag_took_at <= 0 && VR_AGP_TorsoNow(g);
+    // (the Pose Studio's keys: a torso's turn, elbows' poles, outside a strike too; TorsoNow zeroed the rest)
+    float keyBody = vr_agk_on && (vr_agk_t != '0 0 0' || vr_agk_er != '0 0 0' || vr_agk_el != '0 0 0');
+    if(!body && keyBody && g.vr_ag_took_at <= 0)
+    {
+        body = TRUE;
+    }
     if(body)
     {
+        vr_agp_tq = vr_agp_tq + vr_agk_t;
+        vr_agp_elr = vr_agp_elr + vr_agk_er;
+        vr_agp_ell = vr_agp_ell + vr_agk_el;
         posL = VR_AGP_TurnPose(g, posL, handL);
         vr_agp_flags = vr_agp_flags | VR_AGP_BODY;
     }
-    else if(vr_agp_arms && takeBend > 0.1)
+    else if(vr_agp_arms && (takeBend > 0.1 || keyBody))
     {
         // A take's bend: the body only (its hands' targets the lying weapon's, where it lies, not turned with it)
-        vr_agp_tq = '0 0 0';
-        vr_agp_tq_y = takeBend;
-        vr_agp_elr = '0 0 0';
-        vr_agp_ell = '0 0 0';
+        vr_agp_tq = vr_agk_t;
+        vr_agp_tq_y = vr_agp_tq_y + takeBend;
+        vr_agp_elr = vr_agk_er;
+        vr_agp_ell = vr_agk_el;
         vr_agp_flags = vr_agp_flags | VR_AGP_BODY | VR_AGP_FIXED;
         body = TRUE;
+    }
+    if(vlen(vr_agp_elr) > 1) { vr_agp_elr = normalize(vr_agp_elr); }
+    if(vlen(vr_agp_ell) > 1) { vr_agp_ell = normalize(vr_agp_ell); }
+    if(vr_agk_on)
+    {
+        // The Pose Studio's keys: its targets' places and turns (its body's space, after the torso's turn; a weapon
+        // lying while its hand reaches for it stays where it lies)
+        VR_AGP_Body(g);
+        if(!reaching)
+        {
+            posL = posL + vr_agk_rp;
+        }
+        vr_agp_v = vr_agp_v + vr_agk_rp;
+        if(vlen(vr_agk_rr) > 0.01)
+        {
+            vector kax = normalize(VR_AGP_ToWorld(vr_agk_rr));
+            vr_agp_fw = VR_AG_Rotate(vr_agp_fw, kax, vlen(vr_agk_rr));
+            vr_agp_up = VR_AG_Rotate(vr_agp_up, kax, vlen(vr_agk_rr));
+        }
+        if(vr_agp_flags & VR_AGP_LEFT)
+        {
+            vr_agp_vl = vr_agp_vl + vr_agk_lp;
+        }
+        if((vr_agp_flags & VR_AGP_LEFTWPN) && vlen(vr_agk_lr) > 0.01)
+        {
+            vector kaxl = normalize(VR_AGP_ToWorld(vr_agk_lr));
+            vr_agp_fwl = VR_AG_Rotate(vr_agp_fwl, kaxl, vlen(vr_agk_lr));
+            vr_agp_upl = VR_AG_Rotate(vr_agp_upl, kaxl, vlen(vr_agk_lr));
+        }
     }
     if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
@@ -1500,6 +1873,7 @@ void(entity g, entity p) VR_AGP_Pose =
             VR_AGP_Body(g);
         }
     }
+    vr_agk_on = FALSE; // (another's blow, later, unmoved)
     if(vr_agp_quiet)
     {
         return;

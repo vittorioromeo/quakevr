@@ -42,6 +42,10 @@ struct Note
     Space space;
     agarms::Targets t;      // the targets solved onto
     agarms::Placed placed;  // the arms as solved, the weapons as placed
+    bool bodyFlag{false};   // the message turned its body (a strike, a take's bend, the pose keys): the next three
+    glm::vec3 torso{0.f};   // its torso's turn as sent (yaw, pitch, roll; degrees)
+    glm::vec3 elbowPole[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // its elbows' poles as sent (its chest's space)
+    glm::vec3 waist{0.f};   // the point the torso turns about (model space)
 };
 
 void init(); // the commands
@@ -69,6 +73,13 @@ void note(const Note& n);
 // 4 Cancel, 5 Done): where they are, for the mock hands (vr_mock_hand_to <hand> posepart|posebutton <index>). False: not
 // active, not shown.
 [[nodiscard]] bool partPoint(int hand, int index, const glm::vec3& offset, glm::vec3& out);
+// (parts 4 the right elbow, 5 the left, 6 the chest; panel buttons 6 < Pose, 7 Play, 8 Pose >, 9 < Key, 10 Reset Pose,
+// 11 Key >, 12 Weapon: Pose/Grip, 13 Copy to the other kind)
+
+// QC (weapondrawnpose(e, kind * 100 + class, 19), every armed humanoid each server frame): its kind and weapon class
+// noted; the pose the studio holds it in: x the pose (agpose::Pose; -1 none: not the subject, not running), y the
+// phase, z Play's count (a change: play the strike once from its start).
+[[nodiscard]] glm::vec3 qcHold(int ent, int kind, int cls);
 [[nodiscard]] bool buttonPoint(int index, glm::vec3& out);
 
 } // namespace qvr::posestudio

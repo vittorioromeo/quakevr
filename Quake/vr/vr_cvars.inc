@@ -2907,6 +2907,7 @@ QVR_CVAR(vr_agrunt_ik_twist, "80", CVAR_NONE)         // ... its most twist abou
 QVR_CVAR(vr_agrunt_ik_elbow, "150", CVAR_NONE)        // ... an elbow's most bend (degrees: 180 folded flat)
 QVR_CVAR(vr_agrunt_ik_second, "0.97", CVAR_NONE)      // ... the other hand takes a two-handed weapon's second grip only while its wrist reaches it within this share of its arm's length (and its wrist turns within vr_agrunt_ik_wrist plus 25 degrees); else it hangs free
 QVR_CVAR(vr_agrunt_grips, "", CVAR_ARCHIVE)           // armed monsters' grip offsets changed from the defaults (Armed Grunts > Grip Editor; vr_agrunt_grip_dump prints them as code): "kind weapon hand x y z pitch yaw roll;" each
+QVR_CVAR(vr_agrunt_poses, "", CVAR_ARCHIVE)           // armed humanoids' pose keys changed from the shipped ones (the Pose Studio, vr_agpose.cpp; vr_agrunt_pose_dump prints them as code): "code" then 21 numbers (each part's x y z) and ";" each
 QVR_CVAR(vr_agrunt_grip_hand, "0", CVAR_NONE)         // the Grip Editor's hand: 0 the main hand's weapon, 1 the off hand's own weapon (dual), 2 the off hand on a two-handed weapon's second grip
 QVR_CVAR(vr_agrunt_grip_scope, "0", CVAR_NONE)        // the Grip Editor's entry (vr_agarms): 0 every weapon of the nearest armed monster's kind (its hand's global grip), 1 its weapon's own on top
 QVR_CVAR(vr_agrunt_grip_x, "0", CVAR_NONE)           // the Grip Editor's offset (the entry it edits: the nearest armed monster's weapon, vr_agrunt_grip_hand's hand): forward (units)

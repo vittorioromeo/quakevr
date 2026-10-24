@@ -61,6 +61,7 @@ gun's way): `vr_agarms_info` prints all of these for a loaded model (and its ski
 | The skin (weights per vertex, once a model) | `vr_agarms.cpp` `skinOf`; the alias shader's `RigArm` (`vr_glsl.h`), rows from `kickInstance` |
 | Grips: one per kind and hand for every weapon, a weapon's own on top | `vr_aggrip.cpp` (`global`, `offset`); VR Settings > Armed Grunts > Grip Editor (Edits: Every Weapon / This Weapon Only) |
 | Grips set by hand: the Pose Studio (Grip Editor > Drag Mode, `vr_posestudio`) | `vr_posestudio.cpp` (the boxes, the drag, the panel); `relinkSkinned` calls `posestudio::adjust` before the solve (a dragged weapon at the controller) and `note` after it (`agarms::Placed`'s hands, elbows, shoulders, chest); `aggrip::setPreview` / `set` |
+| Poses set by hand (Pose Studio stages 2-4): pose keys per kind, weapon class, pose and strike phase | `vr_agpose.cpp` (the keys: `vr_agrunt_poses`, the shipped table, copy between kinds, the dump); QC `vr_armedgrunt_pose.qc` `VR_AGK_*` (read through `weapondrawnpose(world, code, 11..18)`, blended by the pose's weights, laid on the targets after the torso's turn; the blow's line moved with them in `VR_AGP_Strike`; the studio's hold `VR_AGK_Hold` through `weapondrawnpose(g, kind*100+class, 19)`); a pole past 0.8 weighed up in `solveArm`; frozen monsters can't be disarmed, tugged or struck |
 | Numbers, the contact sheet | `vr_agrunt_ik_err` (agarms, agt, agprop lines), `vr_agrunt_test 45` |
 
 A new row needs only its row's fields above and its engine row's anchor: its skin is found from its rig.

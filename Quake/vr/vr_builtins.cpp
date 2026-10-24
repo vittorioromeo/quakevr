@@ -43,6 +43,8 @@
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
+#include "vr_agpose.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
 #include "vr_meleeshow.hpp"
@@ -2311,6 +2313,29 @@ void PF_weapondrawnpose()
     if(what == 6)
     {
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
+        return;
+    }
+    if(what >= 11 && what <= 19)
+    {
+        // The armed humanoids' pose keys (vr_agpose.hpp; QC vr_armedgrunt_pose.qc VR_AGK_*), the builtin slots being full:
+        // `hand` a key's code, 11..17 its parts (agpose::Part), 18 '1 0 0' if it has one ('0 0 0': all zero). 19 the Pose
+        // Studio's hold on `player` (an armed humanoid; `hand` its kind * 100 + its weapon class): posestudio::qcHold.
+        const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
+        glm::vec3 out{0.f};
+        if(what == 19)
+        {
+            out = posestudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100);
+        }
+        else
+        {
+            agpose::Key k;
+            const bool has = agpose::get(arg, k);
+            out = what == 18 ? glm::vec3{has ? 1.f : 0.f, 0.f, 0.f} : k.v[what - 11];
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
         return;
     }
     if(what >= 8 && what <= 10)

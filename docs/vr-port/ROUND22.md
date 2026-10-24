@@ -20236,3 +20236,64 @@ id, an entry edited, a preview and a commit.
 - [ ] Grab the shotgun, turn it in its hand, let go: it returns to its aim with the hand round it as you set; Undo.
 - [ ] Grab its left hand on the barrel and slide it along: it stays there; the enforcer's own shotgun unchanged.
 - [ ] This Weapon, then a sword's hand: only swords change. Done: the console shows the code lines.
+
+**Stages 2-4 (branch `agent/posestudio2`): poses, strikes, the other kind.** New: `Quake/vr/vr_agpose.cpp` (the pose keys),
+archived cvar `vr_agrunt_poses`, command `vr_agrunt_pose_dump`.
+
+- **Pose keys.** One key per kind, weapon class (fists, a gun, a one-handed melee weapon, a two-handed one, a chainsaw, two
+  melee weapons, two guns), pose (Idle/Carry or Port Arms, Aim/Ready/Guard, Run, Pickup, and the strikes: jab, cross,
+  hook, uppercut, overhead, diagonal, horizontal, backhand, saw thrust, dual) and phase (a strike's wind-up, blow,
+  follow-through): the right target's place and turn, the left's (its weapon, its free hand, its fist), each elbow's pole
+  and the torso's turn. Changes laid on QC's procedural pose (every motion kept: the aim's tracking, the run's sway),
+  in its body's space after the torso's turn; QC (`VR_AGK_Keys`) reads them through `weapondrawnpose(world, code,
+  11..18)` (the builtin slots are full) and blends them by the pose's weights: the stance (carried 1 - w, aimed or ready
+  w), the run's share on top, the pickup's bend's share in place of the stance, a strike's phases (the wind-up's share
+  rising to 1 at its end, the blow's 1 as VR_AGP_Phase passes its turning point, the follow-through's 1 at the strike's
+  end and back over the recovery). A left hook, a left hand's swing: the right's key mirrored. Outside a strike a key's
+  torso turn or poles send the body block (the client's poles now taken with `apBody` even with no turn).
+- **The hit line follows.** The server's weapon entities are placed at the keyed targets; `VR_AGP_Strike` moves the blow's
+  start and turns its line by the striking hand's key (the blow's key at its share 1 as the blow is struck). Hit frame and
+  parry windows untouched (only places and turns change).
+- **The studio's hold.** The subject is held in the pose picked on the panel (`VR_AGK_Hold`, through
+  `weapondrawnpose(g, kind * 100 + class, 19)`, which also tells the engine its class): its target ahead (a gun aimed,
+  a weapon ready, the fists' guard), the shares set at once (so an edit lands in its key at weight 1, exactly), a run's
+  mid-stride frame, the take's lowest frame (test 41's), a strike at its key's time (no blow, no cut; Play: once from its
+  start, then back to the key).
+- **Drags** (the parts: weapon, hand, elbow, chest; `posepart` 4/5 the elbows, 6 the chest): a weapon (Weapon: Pose, the
+  default) moves its pose's place and turn (drawn at the controller while held; let go: it stays: test numbers below);
+  Weapon: Grip keeps stage 1's grip drag. A hand on a weapon: its grip (stage 1). A fist or free hand: its place. An
+  elbow: its pole (its chest's space: the way from the shoulder-wrist line to where it is held); a pole past a strike's
+  0.8 is weighed up to 9 times in `solveArm`'s cost, so the elbow goes there as far as the wrist allows (strikes'
+  unchanged). The chest: turned about the waist by the arc the hand carries it through, plus the controller's twist.
+- **Panel** (5 rows): < Pose, Play, Pose > / < Key, Reset Pose, Key > / Weapon: Pose|Grip, Every|This Weapon, Reset Grips /
+  Copy > Enforcer|Grunt, Undo, Frozen / Cancel, Done. Undo, Cancel cover both texts; Done prints the grip rows and the key
+  rows (for `vr_agpose.cpp`'s `shipped[]`; a stance whose place is one QC constant also gets that constant's line,
+  `VR_AGP_CARRY_R`, `PORT`, `READY`, `FREE_L`, `GUARD_R/L`), written to `quakevr/proposed_defaults/agrunt_poses_<time>.txt`.
+- **Copy** (stage 4): the subject's kind's keys laid on the other kind, places scaled by the fits (`vr_am_fit_scale`:
+  the enforcer 1, 1.35, 1.1), turns and poles as they are; its Every Weapon grips as their change from its defaults on
+  the other's (`aggrip::copyKind`), a weapon's own as they are.
+- **Frozen monsters** (`vr_agrunt_freeze`) can no longer be disarmed, tugged or struck through their weapons (a hand
+  reaching into a raised gun knocked it out: `VR_AG_Disarm`, the prop's think).
+- **Tests** (mock: `scratch/ps2_t1.sh`, `ps2_t2.sh`, `ps2_t3.sh`): the shotgun grunt in Aim, its weapon taken, moved 3 up
+  and turned 20 degrees: key 1010 stored "0.41 -1.64 3 / 0 0 20", the weapon where it was let go (0.14 units, 0.4 degrees:
+  the aim's line follows the gun); its chest carried 4 units sideways: torso -8.6 -28.6 2.2 sent and drawn; its left
+  elbow pulled up: pole 0.57 0.52 0.63 stored and sent. The sword grunt: Ready's free hand moved: key 2010 left "1.2 1.6
+  3", the hand drawn 1.19 1.63 3.00 further; Run (its stride), Pickup (torso pitch 28, hands on the floor) held; Overhead's
+  blow key: the hand 3.00 higher; Play: mid-strike (torso turned) then back at the key; Reset Pose drops 2141, Undo
+  brings it back; Copy > Enforcer: 12010 "1.2 2.16 3.3", 12141 "0 0 3.3"; Cancel restores. Done printed and wrote the file.
+
+- **Grab set** (Vittorio: a weapon overlapping a hand hid the hand): the panel's Grab: Everything / Weapons / Limbs
+  (bottom left; either stick's click cycles it, now taken by the studio), the parts outside it dimmed and never hovered.
+  In Everything, parts within reach are ranked hands and elbows, then weapons, then the chest (nearest within a rank):
+  a hand inside its weapon's box is taken. Test (`scratch/ps2_t4.sh`): the shotgun grunt's right hand point: hovered 2
+  (the hand) in Everything, 0 (the weapon) in Weapons, 2 in Limbs and taken there.
+- **His grips shipped**: `globalDefaults` = his Done dump of 13:33 (both kinds' Main, Off; the grunt's Second). The
+  shotgun grunt drawn with the new defaults and an empty `vr_agrunt_grips` equals his text on the old defaults (every
+  report line: hands, elbows, weapon, totals).
+
+**In VR (stages 2-4):**
+- [ ] The sword grunt: < Pose > to Ready; grab the sword, move it up and turn it, let go: it stays there.
+- [ ] Overhead: Key > to the blow, move the sword; Play: the swing passes through where you put it.
+- [ ] Grab an elbow and pull it out: the elbow follows; grab the chest and lean it forward.
+- [ ] Copy > Enforcer, walk to the enforcer with a sword: the same pose. Done: the console shows the rows.
+- [ ] A hand inside its weapon's box: grip it in Everything (the hand comes); click a stick to Grab: Weapons and take the weapon.
