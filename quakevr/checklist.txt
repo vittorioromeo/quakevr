@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Cut a dropped flamethrower's/sprayer's hose with a blade (sword, axe, chainsaw; not fists or blunt): a slash across the hose at 3 m/s+ cuts it with a hiss and a puff; the gun is spent, the tank becomes a free prop with a swinging hose stub: force grab it, throw it at the grunts or place it as a trap and shoot it (AD Guns > Hose Cut, Hose Cut Speed) {test:tank_hose_cut}
 Armed humanoids parry your blows (experimental): they raise their weapon into your swing; a blow on the weapon rings and does little, a second within ~1.4 s knocks it away; head, legs and the open side take full damage; quick swings and feints sometimes get through; does the guard look natural and is the drawn weapon where your blade meets it? (Combat > Armed Grunts > Parrying Your Blows) {test:agrunt_theyparry}
 One swing, many hits: chop with the sword tip meeting the floor first: the floor sparks and the corpse limb still comes off {test:sword_floor}
 One wide swing hits both grunts side by side; a swing along the wall sparks it and hits the grunt beside it; punches still hit one thing (Gameplay > Melee > One Swing, Many Hits) {test:sword_multi}
