@@ -2082,6 +2082,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
+    Cmd_AddCommand("vr_agrunt_grab_bench", physics::grabBench_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
     hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)

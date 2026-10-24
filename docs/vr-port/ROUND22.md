@@ -20682,3 +20682,69 @@ frame where it weighs.
 - [ ] Next Glitch: it stops on a red bar; grip the weapon (or an elbow) and fix it there; Play: it plays with the fix.
 - [ ] Loop: Strikes with the sword grunt; Pause mid-swing, drag the sword: the swing's key (wind-up/blow) is named.
 - [ ] Live: On again: frozen as before; Done prints the keys.
+
+## Armed humanoids at close range: the gun over the shoulder, the lag, grabs taken for blows, weapons flying off (worktree `tghost`, branch `agent/agclose`, 2026-10-25)
+
+His notes vrragtriggers_2026-10-24_22-57-53 .. 23-04-09 and screenshots 22-59-28/37: up close a grunt's shotgun pointed
+up past its head; touching distance lagged (frames to 128 ms, only with armed humanoids); grabbing the weapon by its
+barrel made it parry; walking up to one (standing or lying) knocked its weapon away. New settings, 1 / on by default:
+`vr_agrunt_parry_strikes_only`, `vr_agrunt_disarm_deliberate`, `vr_agrunt_down_swing` (3.2 m/s),
+`vr_agrunt_fall_keep_window` (1.5 s); Combat > Armed Grunts rows for each.
+
+**Causes** (test 46's new touching-distance loop, below; his entities CSVs; the replays):
+- The gun up: its parry. `VR_AGPar_Frame` counted any hand within 30 units of its chest as a blow coming: up close your
+  idle hands always are, so it held its parry (487 of 487 frames of the loop), and a gun's parry is "upright against a
+  blow at its middle": the shotgun vertical before its face (22-59-28: shove frames; 22-59-37: aim frames). The same
+  rule made it parry your hand reaching for its barrel (23-01-03), and a parry's push and stamina dropped it.
+- The lag: the grab's fist-on-weapon gap (`handOn`, vr_physics.cpp) re-posed the weapon's model into triangles for each
+  of the fist's 93 spheres, each hand, every frame a hand was near it: 1.7 ms a call for a shotgun, quake physics 5.4 ms
+  a frame steady, hitch frames 14-24 ms (the mock loop; in VR at 72 Hz ticks with both hands on it, worse).
+- The drops: (a) the disarm by a blow (`VR_AG_HandStrike`) read the tracker's speed, which a push's one-frame jolt of
+  idle hands passes (11.6 m/s on still mock hands as the shove threw the player); an open hand counted; (b) lying, it
+  kept its weapon against blows over 0.8 m/s (`VR_AG_DOWN_SWING`): a reaching hand; (c) lying, its "flung" measure
+  (`VR_AG_FallViolent`, over 5 m/s) ran all the time it was down, so your body nudging the ragdoll made it let go
+  (test 66 on the old rules: "moving 5.1 m/s", dropped).
+
+**Fixes:**
+- Parry only real strikes (`vr_agrunt_parry_strikes_only`): a held weapon swung at 1.2 m/s (the tracker's speed), a
+  closed fist (grip held) past `vr_melee_speed`; never an open hand, a resting hand or a grab (`VR_AG_HandStrikes`), in
+  its raise and in both hit tests. A gun's guard is held across its chest (muzzle 15 degrees up to its left, below
+  its chest's height; level over its head against an overhead blow), not upright.
+- Deliberate disarms (`vr_agrunt_disarm_deliberate`): a closed fist or something held, swung over two frames (the
+  frame before at least half the speed); lying, `vr_agrunt_down_swing` (3.2 m/s) instead of 0.8. A fall's "flung" only in
+  its first `vr_agrunt_fall_keep_window` s.
+- The gap test (vr_held.cpp): every drawn-surface query (`fistGap`, `surfaceDistance`, `fistContact`, `drawnVertices`:
+  the gun pieces' source too) uses a mesh made once per model, frame pose and drawn transform (`drawnMeshes`, freed on a
+  map/game change and model reload), in its own space with a box tree; the fist's spheres are brought into it; culled
+  by its box; a grab stops at the first sphere within its allowance. Measured only at a grab (grip held or just pressed)
+  or for the tests' reading (`vr_agrunt_debug`). Decision: the triangle cache, not box3d's convex gun pieces: those fill
+  the gun's concave parts (and are one hull at `vr_box3d_gun_pieces` 0/1) and need the box3d world; the triangles give
+  the same readings as before to the digit. `vr_agrunt_grab_bench [calls]` (Debug > Tests: Grab Test's Cost).
+
+**Measured:**
+- Test 46's close loop (`temp1 1`, all 24 subjects, 7 s each): a gun's line over 45 degrees up 2967 frames -> 0 (worst
+  72 -> 24 degrees, two shotguns), its muzzle over its head 3089 -> 12, parry raised 4425 -> 0, disarms 7 -> 0; the
+  finder's close states: pen p95 0 (worst 3.1 in fire), flip worst 31 deg/f, jump p95 under 3.
+- Cost a call (`vr_agrunt_grab_bench`, the mock fist by a grunt's weapon): double shotgun (983 triangles) re-posed a
+  sphere 1.70 ms, posed once a call 0.44 ms, the cached tree 0.0028 ms; crowbar (444) 0.76 / 0.19 / 0.003; gaps equal.
+  The close loop's quake physics 5.43 ms a frame (max 5.9; hitches 14-24 ms) -> 0.54 (posed once) -> 0.010 (max 0.03).
+- Left: the mock shows "render other" hitches of 70-80 ms about once a second in every phase of test 46 (far ones too:
+  not touching distance; with 59 MB heap asked in the frame): not traced here.
+- Tests: 65 (new: open hand on its barrel, stock, body, grip at 0.8 m/s, its barrel at 3.5 m/s: a tug each, its parry
+  never raised; an axe swung at its chest: parry raised) 12/12 both kinds; 66 (new: lying, walked up to and reached
+  for) PASS both kinds; 36 8/8 (the fist 2.7-2.9 and 5.6-5.7 cm off: not taken), 34, 35, 38, 25, 33, 60, 41, 45, 50 PASS.
+  31, 32 and 37 with the enforcer fail on next as well. 37 case 1 with the grunt now fails (torn out 0.32 s after the
+  test's pull; the grip's still hold reads 203 N, over the 200 N least pull): its still hold was 51 N only because its
+  parry was up when your hand came near; with `vr_agrunt_parry 0` next reads 211 N too. Open: the tug's least pull
+  (or the still hold's force) wants a look. eval.sh: canary 36/44, full 163/171, no verdict changed (4 takes' damage
+  text). Scenes: validate 89 files 0 errors; runall agrunt_weapon_hands, _tug, _fall, _theyparry, _pose_studio,
+  _strikes, _pickup OK. Eyeshots: `scratch/agcs_sg.png` (now), `agcs_sgold.png` (the old trigger: his pose),
+  `agcs_guard2.png` (a gun's guard).
+
+**In VR:**
+- [ ] Stand against a shotgun or nailgun grunt, hands down or reaching: it aims and shoves with the gun held normally,
+  never over its shoulder; no lag.
+- [ ] Grab its gun by the barrel, the stock, the body: a tug every time, no parry sound.
+- [ ] Punch it with a closed fist or swing a weapon at it: it still raises its guard (a gun across its chest).
+- [ ] Shove one down keeping its gun; walk up and reach for the gun: it keeps it until you grab (yours) or hit it hard.
+- [ ] Hold a tug still without pulling: say whether it comes out too easily (the 200 N least pull; above).

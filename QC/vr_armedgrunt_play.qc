@@ -789,6 +789,28 @@ float(entity pl, float h) VR_AG_SwingSpeed =
     return b.mh_fast;
 };
 
+// ... its swing the frame before (0 untracked or stale): a strike is swung over frames, a jolt is one frame.
+float(entity pl, float h) VR_AG_SwingBefore =
+{
+    entity was = self;
+    self = pl;
+    entity b = VR_Blow(h);
+    self = was;
+    if(b.mh_thing == VR_MTHING_NONE || fabs(time - b.mh_time) > 0.2)
+    {
+        return 0;
+    }
+    return max(vlen(b.mh_vfar_last), vlen(b.mh_vgrip_last));
+};
+
+// Whether `pl`'s hand `h` can strike (vr_agrunt_parry_strikes_only, VR_AG_HandStrike's disarms): it holds something
+// (a weapon, a carried thing), or it is an empty hand closed into a fist (its grip held). An open hand is a reach, never a
+// blow on its weapon (his note vrragtriggers_2026-10-24_23-01-03: it parried his hand reaching for its barrel).
+float(entity pl, float h) VR_AG_HandStrikes =
+{
+    return !VRIsHandEmpty(pl, h) || VR_HandGrabUtil_IsHandGrabbing(pl, h);
+};
+
 // A player's hand (or what it holds) striking the held weapon hard enough: knocked out along the blow. TRUE: disarmed.
 float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 {
@@ -814,9 +836,12 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     // blow (vrtesthall_2026-10-24_03-12-16: hands still against the head, 0.0-0.5 m/s, pushed at 4.9 m/s: dropped).
     float sp = VR_AG_SwingSpeed(pl, h);
     float need = cvar_hget(cvarh_vr_agrunt_disarm_swing);
+    float deliberate = cvar_hget(cvarh_vr_agrunt_disarm_deliberate);
     if(g.vr_knockdown == 1 && !g.vr_kd_stagger)
     {
-        need = min(need, VR_AG_DOWN_SWING); // (down with it in its hand: it doesn't resist a blow)
+        // (down with it in its hand: it doesn't resist a blow; but a real one, vr_agrunt_down_swing: a hand reaching
+        // for it at 0.8 m/s knocked it away, vrragtriggers_2026-10-24_23-04-09)
+        need = min(need, deliberate ? max(VR_AG_DOWN_SWING, cvar_hget(cvarh_vr_agrunt_down_swing)) : VR_AG_DOWN_SWING);
     }
     if(sp < need)
     {
@@ -826,6 +851,26 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
                 vlen(hv) / VRMetersToUnits(), need));
         }
         return FALSE;
+    }
+    if(deliberate)
+    {
+        // A deliberate strike (vr_agrunt_disarm_deliberate): a closed fist or something held (never an open hand
+        // reaching), swung over two frames (a push's or a teleport's one-frame jolt of an idle hand against the head is
+        // no swing: its tracker read 11.6 m/s on still mock hands as the shove threw the player), not in a tug.
+        string no = "";
+        if(!VR_AG_HandStrikes(pl, h))
+        {
+            no = "an open hand";
+        }
+        else if(VR_AG_SwingBefore(pl, h) < need * 0.5)
+        {
+            no = sprintf("a jolt, %.1f m/s the frame before", VR_AG_SwingBefore(pl, h));
+        }
+        if(no != "")
+        {
+            VR_AG_Log(sprintf("a blow of %.1f m/s on its weapon: not a strike (%s)", sp, no));
+            return FALSE;
+        }
     }
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
     VR_AG_Disarm(g, hv, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
@@ -917,7 +962,13 @@ string(entity g) VR_AG_FallViolent =
         vector v = (g.origin - g.vr_ag_fall_last) * (1 / frametime);
         g.vr_ag_fall_down = max(g.vr_ag_fall_down, -v_z);
         v_z = max(0, v_z);
-        g.vr_ag_fall_fling = max(g.vr_ag_fall_fling, vlen(v));
+        // (Flung: in its fall's first vr_agrunt_fall_keep_window s only. Lying, your body or hand nudging it as you come
+        // to take its weapon is no fling: vrragtriggers_2026-10-24_23-04-09, it lost it lying as he walked up.)
+        float win = cvar_hget(cvarh_vr_agrunt_fall_keep_window);
+        if(win <= 0 || time - g.vr_kd_since <= win)
+        {
+            g.vr_ag_fall_fling = max(g.vr_ag_fall_fling, vlen(v));
+        }
     }
     g.vr_ag_fall_last = g.origin;
     traceline(g.origin, g.origin - '0 0 160', TRUE, g);
