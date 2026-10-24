@@ -19479,3 +19479,62 @@ Scene `blade_editor_axe`'s hint: Line Start onto the edge's low corner, Tip onto
   line lies along the edge; Done; swing at the grunt with Show Melee Blades on.
 - [ ] The shotgun: its bash line's tip is his (shipped); Edit Blade Shape's Tip moves the line, and the shots still leave
   its muzzle.
+## Tank fields' look: a strong fire, a poison cloud, spreading out; back tanks alert, loops stop (worktree `goreflesh`, branch `agent/tankfx`, 2026-10-24)
+
+His notes (vrtesthall_2026-10-24_01-04-12, 01-05-18, 01-06-16, 01-07-34): the fire field needs many more flames, all
+rising, 3D flames thrown out over the circle, smoke: a strong area denial; the poison one a real cloud (a smoke bomb);
+neither should pop into its whole circle at once; radius and time in the options; armed grunts' back tanks: a hit on
+the tank alone must alert the grunt, and killing a grunt mid-stream left its flamethrower's hiss looping for ever. New
+cvars only.
+
+- **Spread** (`VR_TankField_Reach`): a field grows from the tank to its reach over `vr_adgun_tank_field_spread` (0.4 s,
+  quick then slowing), its look and its damage's reach together (its think every 0.05 s while it spreads). Its time,
+  reach, damage and ticks are as before.
+- **The fire** (`VR_TankField_Look`, new engine presets `TankFire`, `TankSmoke`, `TankCloud` = 25..27, vr_particles.cpp
+  `tankFire`, `tankSmoke`, `tankCloud`): spots through the circle as far as it reaches now (no wall between, ground
+  under them: `VR_TankField_Spot`), area x 3 a tenth of a second x `vr_adgun_tank_field_flames` (1; fewer as it fades):
+  tongues of fire rising straight up (no sideways scatter), 60% drawn over the scene in deep oranges so they read on a
+  bright floor (vrtesthall's: added light vanishes on it), 40% glowing, and embers; dark smoke puffs off their tops
+  (`vr_adgun_tank_field_smoke`, 1). About 3x the old flames. Particle2's dir is a char (1/16 to 8): the spread goes in
+  eighths of units.
+- **3D flames** (`VR_TankField_Flames`, `vr_tankflame` entities, `VR_TankFlame_Think`): `vr_adgun_tank_field_models`
+  (10 at a full tank, 40% near empty) of id's large torch flame (progs/flame2.mdl frame 1), thrown out from the tank to
+  random spots over the spread time, 1.6x big on the way, settling to 0.75-1.2 there; each goes at 55-95% of the
+  field's life, fading and shrinking over its last 1.2 s. The first lights its place as a torch (no alpha); the rest
+  are drawn with alpha 1 (no light of their own).
+- **The poison cloud**: big blended green smoke puffs (`vr_adgun_tank_field_cloud`, 1) billowing slowly, 8-48 units up,
+  thinner toward the edge and as the field fades, four times as many while it spreads (a smoke bomb going off), with a
+  few low green wisps of the sprayer's flame (instead of the green flames and puffs).
+- **A tank thrown up by another's blast** burst in the air left its field floating (no ground within 96 units: nothing
+  drawn, nothing reached): the field's ground is now looked for 1024 units down.
+- **Back tanks alert** (`VR_FuelTank_WornPain`, `VR_FuelTank_WornAlert`, vr_adtankworn.qc): a hit leaving the worn tank
+  whole alerts its wearer as T_Damage's reaction would (FoundTarget: it turns on whoever hit it, its sight sound wakes
+  its group), no damage, no pain.
+- **Loops stop** (`VR_ADGun_MonsterStreamEnd`, vr_ad_enemyguns.qc): an armed monster's stream (its "on" loop on
+  CHAN_WEAPON) ends with its "off" at its attack's end, at `VR_AG_DropHeld` (dying, gibbed, disarmed, its tank burst,
+  spent and thrown away, falling down), when its gun's think finds it dead or gone, and when no flame came for 0.4 s
+  (a pain cutting the attack short). Every place a monster's held gun goes passes one of these (grep of
+  `vr_ag_prop = `, `VR_AG_DropHeld`, `remove(p)`).
+- **Settings** (AD Guns): Burst Field Spread, Fire Field Flames, Fire Field 3D Flames, Fire Field Smoke, Poison Cloud
+  Amount; the field rows' help says "fire field", "poison cloud", "tank" (searches "fire field", "poison", "tank field"
+  find them all). **Debug** > Tests > Arcane Dimensions Monsters: Kill the Worn Tank's Wearer (`vr_ad_test 182`: one
+  firing now first); 175 also prints the 3D flames, the fields' effects sent, the monsters' streams ended; 180 whom the
+  wearer is after.
+- **Measured** (vrtesthall, AD mounted, headless; `scratch/tfx_field.sh`, `tfx_worn.sh`, `tfx_perf.sh`, `tfx_shots.sh`):
+  - fields unchanged: full tanks 6.0 s, reach 96, gone after 6.0 s (6.1 before: the 0.05 s thinks while spreading),
+    loops and whooshes 0 after; the test grunt walking in 30 -> 17 -> 9 -> 3 -> dead, poisoned 8/s, burning 5.5 s (as
+    before). A full fire field sends ~110 effects a second (~650 over its life), 10 3D flames; the cloud ~300 puffs.
+  - back tanks: shot for 10 (tank 30 -> 20), the grunt's health 30 -> 30, after: the player (wearers alerted 1; the other
+    grunt woken by it already after you); killed while firing: its stream ended 1 (on death), monsters firing after 0.
+  - frame time, both fields in view at 250 fps (--exclusive, the mock's small eyes): particles' GPU 0.026 -> 0.055-0.10
+    ms, the frame's GPU 0.93 -> 0.84-1.06 (noisy run to run: which tanks burst varies); particles' CPU 0.06 -> 0.05-0.10.
+  - eval.sh: no verdict changed (0.1 noise). Scenes: validate SCNOK (0 errors), runall `tank_burst_field`,
+    `agrunt_tanks` OK.
+  - eyeshots: `scratch/tfx_fire5.png` (both fields, 0.2 / 1 / 3 / 5 s), `scratch/tfx_poison6.png` (the cloud nearer).
+
+- [ ] Shoot a lying flamethrower's tank (Test scene `tank_burst_field`): the fire spreads out from the tank in under half
+  a second, flames rising straight up all over the circle, big 3D flames thrown out and fading one by one, dark smoke;
+  the sprayer's: a green cloud billowing over its circle, thinner at the edge, fading out. Burst Field Spread, Fire
+  Field Flames / 3D Flames / Smoke, Poison Cloud Amount to taste.
+- [ ] Armed grunts (Test scene `agrunt_tanks`): shoot only a grunt's back tank: it turns on you (and wakes the other);
+  kill one while it fires: its hiss stops.
