@@ -444,6 +444,10 @@ built-in ones.
 | `vr_agrunt_poses` | "" | the Pose Studio's pose keys changed from the shipped ones (kept between sessions; Reset Pose, Undo, Cancel there) |
 | `vr_posestudio_live_loop`, `vr_posestudio_live_speed` | 0, 1 | the Pose Studio's Live mode: the loop played (0 all, 1 aim and fire, 2 reload, 3 run, 4 strikes, 5 pickup) and its speed (0.1..1); the panel's Loop and Speed set them |
 | `vr_posestudio_live_follow` | 1 | Live, paused: a dragged part follows your hand at that frame (the key moves by the drag over its share there); 0: the key moves by the drag |
+| `vr_posestudio_live_walk` | 1 | Live, paused: the sticks walk and turn, scrubbing while a grip is held on nothing (or a hand is at the panel); 0: the sticks scrub |
+| `vr_posestudio_panel` | (empty) | The panel where you put it with its top bar (grip "Move"), from your head; Recentre empties it |
+| `vr_posestudio_panel_folded` | 0 | The panel folded to its top bar (Fold / Unfold) |
+| `vr_agarms_pole_key` | 10 | An elbow set in the Pose Studio weighed this much against the wrist's comfort and the arm's limits (4 before) |
 | `vr_posestudio_live_warm` | 0.4 | Live, paused: seconds of the tape played again before the frame with your edit (so the arms' easing sees it as in a fight) |
 
 **Setting armed humanoids' grips by hand (the Pose Studio).** VR Settings > Combat > Armed Grunts > Grip Editor > Drag
@@ -487,8 +491,10 @@ the body), **flip** (the elbow swinging round in a frame), **reach** (a hand sho
 hand off its second grip), **jump** (a hand or elbow jerking).
 
 1. Let it play a few seconds (the last ~10 s are kept), then **Pause**: the game stops on that frame.
-2. Scrub: push either stick left or right (further: faster), or **< 0.5 s / 0.5 s >** and **< Frame / Frame >**. Every
-   frame is the one that was played, exactly.
+2. Paused, the sticks still walk and turn (walk up close to pose it). Scrub: hold a grip on nothing (or keep a hand at
+   the panel) and push either stick left or right (further: faster), or **< 0.5 s / 0.5 s >** and **< Frame / Frame >**.
+   Every frame is the one that was played, exactly. The panel's top bar: grip **Move** to put the panel anywhere (it is
+   kept there), **Recentre**, **Fold**. A part held back by a limit turns orange and the reason is named over it.
 3. Or press **Next Glitch**: it jumps to the worst moment on the tape (again: the next worst), and says what went
    wrong and which key to drag.
 4. Grip the weapon, a fist, an elbow or the chest and move it as at a frozen pose: the key named in the readout is the
