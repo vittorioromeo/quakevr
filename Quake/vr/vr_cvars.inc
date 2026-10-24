@@ -2947,7 +2947,11 @@ QVR_CVAR(vr_aglegs, "1", CVAR_NONE)                  // vr_agarms: 1: an armed h
 QVR_CVAR(vr_posestudio_live_loop, "0", CVAR_NONE)     // the Pose Studio's Live mode (vr_poselive.hpp): the loop its subject plays (0 all, 1 aim and fire, 2 reload, 3 run, 4 strikes, 5 pickup; the panel's Loop)
 QVR_CVAR(vr_posestudio_live_speed, "1", CVAR_NONE)    // ... its speed, 0.1..1 (the panel's Speed: host_timescale while it plays)
 QVR_CVAR(vr_posestudio_live_follow, "1", CVAR_NONE)   // ... a key dragged at a paused frame: 1 moved by the drag over its share there (the part follows the hand at that frame); 0 by the drag
-QVR_CVAR(vr_posestudio_live_warm, "0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
+QVR_CVAR(vr_posestudio_live_walk, "1", CVAR_NONE)    // ... paused: 1 the sticks walk and turn (the player in real time, the world stopped), scrubbing with a grip held on nothing or a hand at the panel; 0 the sticks scrub (before)
+QVR_CVAR(vr_posestudio_panel, "", CVAR_ARCHIVE)       // the Pose Studio's panel where you put it (its handle: grip to move it), from your head's place and yaw: forward left up (metres), yaw pitch roll (degrees); empty: the default place (Recentre)
+QVR_CVAR(vr_posestudio_panel_folded, "0", CVAR_ARCHIVE) // ... 1 folded to its handle bar (Fold / Unfold)
+QVR_CVAR(vr_agarms_pole_key, "10", CVAR_NONE)          // vr_agarms: an elbow's pole set by a Pose Studio key (its share 1) weighed this much against its wrist's comfort and its limits (4 before: it drifted off where it was put)
+QVR_CVAR(vr_posestudio_live_warm,"0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
 QVR_CVAR(vr_posestudio_reach, "2.5", CVAR_ARCHIVE)     // the Pose Studio (Grip Editor > Drag Mode): the armed humanoid nearest within this many metres of your head is the one shown and edited
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)

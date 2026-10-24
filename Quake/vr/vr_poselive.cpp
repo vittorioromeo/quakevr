@@ -76,6 +76,7 @@ struct Live
     int glitch{-1};     // the moment Next Glitch went to last
     double lastReal{-1.0};
     glm::vec2 stick{0.f};
+    bool scrubHeld{false}; // (holdScrub: the studio's scrub modifier held, else the sticks walk)
     za::String feedback;
     double feedbackUntil{0.0};
 };
@@ -672,7 +673,25 @@ void frame()
 
 bool sticksTaken()
 {
-    return live.on && live.paused;
+    // (vr_posestudio_live_walk 1: only while the studio's scrub modifier is held, else the sticks walk and turn)
+    return live.on && live.paused && (live.scrubHeld || vr_posestudio_live_walk.value == 0.f);
+}
+
+void holdScrub(bool held)
+{
+    live.scrubHeld = held;
+    if(!held)
+    {
+        live.stick = glm::vec2{0.f};
+    }
+}
+
+double playerSpeedup()
+{
+    // (the game's clock all but stopped by host_timescale: the player's own frames that many times longer, real time)
+    return live.on && live.paused && vr_posestudio_live_walk.value != 0.f && svs.maxclients == 1
+               ? 1.0 / static_cast<double>(pauseScale)
+               : 1.0;
 }
 
 void sticks(const glm::vec2& off, const glm::vec2& main)

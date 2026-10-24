@@ -102,7 +102,11 @@ void describe(za::String& out, int& measureLine);
 
 // Once a host frame while the studio runs (posestudio::frame): the time scale; a stick's scrub.
 void frame();
-[[nodiscard]] bool sticksTaken(); // paused: the sticks scrub (no walking, no turning)
+[[nodiscard]] bool sticksTaken(); // paused with the scrub modifier held (holdScrub): the sticks scrub (no walking, no turning)
+void holdScrub(bool held);        // the studio's scrub modifier (a grip held on nothing, a hand at the panel)
+// Paused (vr_posestudio_live_walk): how many times longer the player's own frames are than the world's (the game's clock
+// all but stopped, the player walking in real time: vr_timescale.cpp's player time); else 1.
+[[nodiscard]] double playerSpeedup();
 void sticks(const glm::vec2& off, const glm::vec2& main);
 
 // What the studio's hold tells QC for `ent` (posestudio::qcHold): the loop (-1: not live).

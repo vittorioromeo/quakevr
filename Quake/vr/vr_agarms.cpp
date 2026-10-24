@@ -727,6 +727,9 @@ struct ArmOut
     float bend{0.f};  // the wrist's bend wanted (degrees)
     float turned{0.f}; // ... past its most: the hand turned back by this (degrees)
     glm::vec3 elbow{0.f};
+    float poleOff{0.f}; // its elbow off its pole (degrees), the cost that most held it (agarms::Limit), held by the rate
+    int poleWhy{0};
+    bool rated{false};
 };
 
 // The robust solve's limits each frame (ROUND22.md, "Armed humanoids in motion"): the body's proxies the elbow keeps out
@@ -788,24 +791,32 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
     const glm::vec3 inward = cq * glm::vec3{0.f, -sideSign, 0.f};
     // (a pole past a strike's own share, 0.8: the Pose Studio's keys, vr_agpose.hpp, set by hand: weighed up to 9 times
     // as much, its elbow where it was put as far as its wrist allows)
-    const float poleWeight = 0.5f + 4.f * za::clamp((poleShare - 0.8f) / 0.2f, 0.f, 1.f);
-    const auto cost = [&](float phi) {
+    // (vr_agarms_pole_key: a key's pole, its share 1, weighed that much more: it stays where the studio put it)
+    const float poleWeight = 0.5f + za::max(0.f, vr_agarms_pole_key.value) * za::clamp((poleShare - 0.8f) / 0.2f, 0.f, 1.f);
+    // The elbow's costs at `phi` round its circle: its wrist's comfort, its pole, its shoulder's (up past it, in across the
+    // chest), its last place's, the body's proxies.
+    struct Terms
+    {
+        float wrist, pole, shoulder, prev, body;
+    };
+    const auto terms = [&](float phi) {
+        Terms t{};
         const glm::vec3 E = C + rho * (za::cos(phi) * e1 + za::sin(phi) * e2);
         const glm::vec3 f = norm(W1 - E, fWant);
         const float wrist = za::acos(za::clamp(glm::dot(f, fWant), -1.f, 1.f));
-        float c = wrist * wrist;
+        t.wrist = wrist * wrist;
         const glm::vec3 eDir = norm(E - S1, pref);
-        c += poleWeight * (1.f - glm::dot(eDir, pref));
+        t.pole = poleWeight * (1.f - glm::dot(eDir, pref));
         // An elbow up past its shoulder, or in across the chest.
         const float up = glm::dot(E - S1, chestUp);
-        c += up > 0.f ? 0.02f * up * up : 0.f;
+        t.shoulder = up > 0.f ? 0.02f * up * up : 0.f;
         const float in = glm::dot(E - S1, inward);
-        c += in > 0.f ? 0.03f * in * in : 0.f;
+        t.shoulder += in > 0.f ? 0.03f * in * in : 0.f;
         if(prevElbow)
         {
             const glm::vec3 pe = S1 + cq * *prevElbow;
             const glm::vec3 dd = E - pe;
-            c += 0.01f * glm::dot(dd, dd);
+            t.prev = 0.01f * glm::dot(dd, dd);
         }
         if(lim.body)
         {
@@ -814,9 +825,13 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
             float dep = agbody::depth(*lim.body, E, bodyClear);
             dep = za::max(dep, agbody::depth(*lim.body, (E + W1) * 0.5f, bodyClear));
             dep = za::max(dep, agbody::depth(*lim.body, S1 + (E - S1) * 0.75f, bodyClear));
-            c += dep > 0.f ? bodyWeight * dep * dep : 0.f;
+            t.body = dep > 0.f ? bodyWeight * dep * dep : 0.f;
         }
-        return c;
+        return t;
+    };
+    const auto cost = [&](float phi) {
+        const Terms t = terms(phi);
+        return t.wrist + t.pole + t.shoulder + t.prev + t.body;
     };
     int best = 0;
     float bestC = 1e30f;
@@ -856,10 +871,20 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
             };
             way = barrier(delta) <= barrier(other) ? delta : other;
             phi = phi0 + (way > 0.f ? lim.maxStep : -lim.maxStep);
+            o.rated = true;
         }
     }
     const glm::vec3 E1 = C + rho * (za::cos(phi) * e1 + za::sin(phi) * e2);
     o.elbow = E1;
+    {
+        // (the Pose Studio's: how far off its pole the elbow is, and the cost that most held it there)
+        o.poleOff = za::acos(za::clamp(glm::dot(norm(E1 - S1, pref), pref), -1.f, 1.f)) * (180.f / pi);
+        const Terms t = terms(phi);
+        o.poleWhy = o.rated ? agarms::LimitRate
+                    : t.body >= t.wrist && t.body >= t.shoulder && t.body > 0.f ? agarms::LimitBody
+                    : t.shoulder >= t.wrist && t.shoulder > 0.f                 ? agarms::LimitShoulder
+                                                                                : agarms::LimitWrist;
+    }
     // The bones: the upper arm and the forearm turned onto their lines about the elbow's hinge (its rest hinge to now's),
     // the forearm twisted towards the hand by twistShare.
     const glm::vec3 u0 = glm::normalize(sd.E - sd.S), f0 = glm::normalize(sd.W - sd.E);
@@ -1147,7 +1172,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.body = px ? &bodyNow : nullptr;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
+    float pushedBy[2]{0.f, 0.f}; // (the Pose Studio's: Placed::pushed)
     const auto pushOut = [&](int s, rigpose::Rigid& H) {
+        float by = 0.f;
         for(int round = 0; round < 2 && lim.body; round++)
         {
             glm::vec3 pw, pg;
@@ -1158,7 +1185,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                 break;
             }
             H.pos += dw > dg ? pw : pg;
+            by += glm::length(dw > dg ? pw : pg);
         }
+        pushedBy[s] = za::max(pushedBy[s], by);
     };
     // The goals' hand motions (rest -> now).
     rigpose::Rigid Hm[2], free[2];
@@ -1440,6 +1469,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         out.elbow[s] = arms[s].elbow;
         out.shoulder[s] = rigpose::apply(C, m->side[s].S);
         out.chest = C;
+        out.reach[s] = arms[s].miss;
+        out.pushed[s] = pushedBy[s];
+        out.wrist[s] = arms[s].turned;
+        out.poleOff[s] = arms[s].poleOff;
+        out.poleWhy[s] = arms[s].poleWhy;
         st->bones[3 * s] = arms[s].U;
         st->bones[3 * s + 1] = arms[s].F;
         st->bones[3 * s + 2] = arms[s].H;
