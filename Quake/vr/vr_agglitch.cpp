@@ -41,12 +41,13 @@ enum Metric : int
     Aim,       // the right weapon off its wanted line (degrees)
     Jump,      // a hand's or an elbow's jump (its second difference: units at 90 Hz)
     Shoulder,  // a shoulder's jump (the body under the arms: units at 90 Hz)
+    Wrist,     // a wrist bent past its most, its hand (and weapon) turned back (degrees)
     numMetrics
 };
-constexpr const char* metricNames[numMetrics] = {"flip", "wrong", "pen", "reach", "grip2", "toggle", "gap", "aim", "jump", "shoulder"};
-constexpr const char* metricUnits[numMetrics] = {"deg/f", "deg", "u", "u", "u", "/s", "u", "deg", "u", "u"};
+constexpr const char* metricNames[numMetrics] = {"flip", "wrong", "pen", "reach", "grip2", "toggle", "gap", "aim", "jump", "shoulder", "wrist"};
+constexpr const char* metricUnits[numMetrics] = {"deg/f", "deg", "u", "u", "u", "/s", "u", "deg", "u", "u", "deg"};
 // (a moment's severity: its value over this; 1 a glitch)
-constexpr float metricBad[numMetrics] = {20.f, 135.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f};
+constexpr float metricBad[numMetrics] = {20.f, 135.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f, 10.f};
 constexpr double settle = 0.4;  // seconds after a subject starts (spawned, moved) before it is measured
 constexpr double merge = 0.3;   // a glitch this close after the subject's last is the same moment
 constexpr int maxMoments = 8192;
@@ -459,6 +460,7 @@ void note(const Sample& s)
         }
         put(Pen, za::max(0.f, a.pen), side);
         put(Reach, a.miss, side);
+        put(Wrist, a.turned, side);
         if(tr.n >= 2)
         {
             const float k2 = rate * rate;

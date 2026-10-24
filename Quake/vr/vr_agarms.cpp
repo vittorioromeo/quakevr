@@ -1044,6 +1044,7 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
         a.grip = rigpose::apply(b[2], sd.grip.pos);
         a.pole = preferredPole(s, C.rot, t.pole[s]);
         a.miss = arms[s].miss;
+        a.turned = arms[s].turned;
         a.pen = -1e9f;
         for(const glm::vec3& p : {a.E, (a.E + a.W) * 0.5f, a.W, a.grip})
         {

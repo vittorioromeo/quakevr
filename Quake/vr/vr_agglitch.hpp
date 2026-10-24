@@ -26,6 +26,7 @@ struct Arm
     glm::vec3 S{0.f}, E{0.f}, W{0.f}, grip{0.f}; // its shoulder, elbow, wrist and grip as drawn (model space)
     glm::vec3 pole{0.f};                         // the elbow's preferred way (model space, unit)
     float miss{0.f};                             // its wrist brought in, out of reach (units)
+    float turned{0.f};                           // its hand turned back, its wrist past its most (degrees)
     float pen{0.f};                              // the most its elbow, forearm, wrist or hand is inside the body (units)
     int penPart{-1};                             // ... which proxy (agbody::Part)
 };

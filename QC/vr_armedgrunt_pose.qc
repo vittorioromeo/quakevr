@@ -71,7 +71,9 @@ float VR_AGP_REACH = 128;     // ... its right hand reaching for a weapon lying 
 .float vr_agp_runw;           // its run's sway's share (eased)
 .float vr_agp_rdy;            // a melee weapon or the fists ready (an enemy) or carried (eased)
 .float vr_agp_rl_at;          // its reload's start (vr_ag_reload1; 0 none)
+.vector vr_agp_twist;        // vr_agrunt_upper: its chest's turn towards its gun's aim (yaw, pitch; eased)
 float vr_agp_arms;            // VR_AGP_Pose: vr_agarms this frame
+float vr_agp_gunpose;         // VR_AGP_Pose: a gun (or two) held as a player holds it this frame (VR_AGP_ArmsGun)
 
 // How far up from its entity's forward a weapon model's muzzle (a melee weapon's tip) is drawn: its angles zeroed a
 // moment, its drawn muzzle measured (weapondrawnpose), found once a weapon.
@@ -1613,6 +1615,7 @@ void(entity g, entity p) VR_AGP_Pose =
     VR_AGP_Body(g);
     vector handL = VR_AGP_ToLocal(hand - g.origin);
     vr_agp_flags = 0;
+    vr_agp_gunpose = 0;
     vr_agp_wl = 0;
     vr_agp_vl = '0 0 0';
     vr_agp_fw = gx;
@@ -1678,6 +1681,7 @@ void(entity g, entity p) VR_AGP_Pose =
     else if(vr_agp_arms)
     {
         VR_AGP_ArmsGun(g, p, pL);
+        vr_agp_gunpose = 1;
         VR_AGPar_Pose(g, p);
     }
     else
@@ -1811,6 +1815,44 @@ void(entity g, entity p) VR_AGP_Pose =
         vr_agp_ell = vr_agk_el;
         vr_agp_flags = vr_agp_flags | VR_AGP_BODY | VR_AGP_FIXED;
         body = TRUE;
+    }
+    if(vr_agp_gunpose && !(vr_agp_flags & VR_AGP_FIXED) && cvar_hget(cvarh_vr_agrunt_upper))
+    {
+        // The procedural upper body's gun motions (vr_agrunt_upper; the engine holds the chest on the hips, these turn
+        // it): the chest turned towards its aim (vr_agrunt_aim_twist of the aim's yaw and pitch off its body's way), leant
+        // back by a shot's kick, turned and bent towards its off hand in a reload. Its hands' targets stay where they are
+        // (on the aim): only the body turns under them.
+        vector tw = '0 0 0';
+        float aw = VR_AGP_Smooth(g.vr_ag_aimw);
+        if(aw > 0 && g.vr_ag_aimdir != '0 0 0')
+        {
+            vector al = VR_AGP_ToLocal(g.vr_ag_aimdir);
+            float share = cvar_hget(cvarh_vr_agrunt_aim_twist) * aw;
+            tw_x = max(-25, min(25, share * atan2(al_y, al_x) * (180 / 3.14159265)));
+            tw_y = max(-20, min(20, -share * atan2(al_z, vlen([al_x, al_y, 0])) * (180 / 3.14159265)));
+        }
+        // (eased: a shot's own aim error, a target darting about, don't jerk the chest)
+        g.vr_agp_twist_x = VR_AGP_Ease(g.vr_agp_twist_x, tw_x, 60);
+        g.vr_agp_twist_y = VR_AGP_Ease(g.vr_agp_twist_y, tw_y, 60);
+        vector tq = [g.vr_agp_twist_x, g.vr_agp_twist_y, 0];
+        float ke = time - g.vr_ag_kick_at;
+        if(ke >= 0 && ke < 0.4 && g.vr_ag_kick_at > 0)
+        {
+            tq_y = tq_y - 3 * sin(ke / 0.4 * 3.14159265); // (back and forward again, no snap)
+        }
+        float rlp = g.vr_agp_rl_at > 0 ? (time - g.vr_agp_rl_at) / max(0.1, cvar_hget(cvarh_vr_agrunt_reload_time)) : -1;
+        if(rlp >= 0 && rlp <= 1)
+        {
+            float rs = sin(rlp * 3.14159265);
+            tq_x = tq_x + 8 * rs;
+            tq_y = tq_y + 6 * rs;
+        }
+        if(tq != '0 0 0')
+        {
+            vr_agp_tq = (vr_agp_flags & VR_AGP_BODY) ? vr_agp_tq + tq : tq;
+            vr_agp_flags = vr_agp_flags | VR_AGP_BODY;
+            body = TRUE;
+        }
     }
     if(vlen(vr_agp_elr) > 1) { vr_agp_elr = normalize(vr_agp_elr); }
     if(vlen(vr_agp_ell) > 1) { vr_agp_ell = normalize(vr_agp_ell); }
