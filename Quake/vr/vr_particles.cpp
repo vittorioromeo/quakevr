@@ -1859,6 +1859,126 @@ void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
     });
 }
 
+// A random point on the ground's plane within `radius` of the middle (evenly over the disc).
+[[nodiscard]] glm::vec3 inDisc(float radius)
+{
+    const float a = rndAngle();
+    const float r = radius * za::sqrt(rnd(0.f, 1.f));
+    return {r * za::cos(a), r * za::sin(a), 0.f};
+}
+
+// AD support: a fuel tank's burst field (Preset::TankFire, TankSmoke, TankCloud; QC vr_ad_enemyguns.qc
+// VR_TankField_Look): `org` a spot on the ground in it, `dir` (spread round it in 8 units, as the message holds 1/16ths
+// to 8; size; alpha: the field fading).
+// The fire: tongues of the torches' fire (CellFire) rising straight up off the ground, slowing at the top, and a few
+// embers going up with them.
+void tankFire(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellFire;
+        p.type = Custom;
+        // Some glowing (added to the scene: a dark place's fire), most drawn over it in deep oranges, so that they read
+        // on a bright floor too (added light vanishes on one: vrtesthall's).
+        p.additive = rnd(0.f, 1.f) < 0.4f;
+        const float life = rnd(0.35f, 0.7f);
+        const glm::vec3 c = p.additive ? fireColor()
+                                       : glm::mix(glm::vec3{0.85f, 0.2f, 0.02f}, glm::vec3{1.f, 0.55f, 0.1f}, rnd(0.f, 1.f));
+        p.color = glm::vec4{c, (p.additive ? rnd(0.55f, 0.75f) : rnd(0.65f, 0.85f)) * alpha};
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(5.f, 8.f) * size;
+        p.grow = rnd(2.f, 6.f) * size;
+        p.spin = rnd(-0.6f, 0.6f);
+        p.drag = 1.2f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(2.f, 8.f) * size};
+        p.vel = glm::vec3{rnd(-3.f, 3.f), rnd(-3.f, 3.f), rnd(55.f, 95.f) * size};
+        p.acc = glm::vec3{0.f, 0.f, 30.f};
+    });
+    make(someOf(0.25f * static_cast<float>(count)), [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.type = Custom;
+        p.additive = true;
+        p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, rnd(0.f, 0.6f)), alpha};
+        const float life = rnd(0.7f, 1.4f);
+        p.die = cl.time + life;
+        p.fade = -alpha / life;
+        p.scale = rnd(0.2f, 0.4f);
+        p.drag = 0.6f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 24.f)};
+        p.vel = glm::vec3{rnd(-12.f, 12.f), rnd(-12.f, 12.f), rnd(60.f, 130.f)};
+        p.acc = gravity(0.08f);
+    });
+}
+
+// ... its smoke: dark puffs off the flames' tops, rising, swelling and thinning out.
+void tankSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        const float g = rnd(0.08f, 0.16f);
+        p.color = glm::vec4{g, g * 0.94f, g * 0.88f, rnd(0.32f, 0.48f) * alpha};
+        const float life = rnd(2.5f, 3.8f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(4.f, 7.f) * size;
+        p.grow = rnd(2.5f, 4.f) * size;
+        p.spin = rnd(-0.5f, 0.5f);
+        p.drag = 0.5f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(28.f, 44.f) * size};
+        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(22.f, 40.f)};
+        p.acc = glm::vec3{0.f, 0.f, 5.f};
+    });
+}
+
+// ... the poison sprayer's cloud: big puffs of green smoke (a smoke bomb's) low over the ground, billowing out and
+// churning slowly, thinning out; a faint glow in some, as AD's poison (additive: it shows in the dark too).
+void tankCloud(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float spread = za::clamp(dir.x, 0.f, 7.9f) * 8.f;
+    const float size = za::clamp(dir.y, 0.2f, 3.f);
+    const float alpha = za::clamp(dir.z, 0.f, 1.f);
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        const float g = rnd(0.8f, 1.15f);
+        p.color = glm::vec4{0.15f * g, 0.4f * g, 0.08f * g, rnd(0.35f, 0.5f) * alpha};
+        const float life = rnd(2.4f, 3.6f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(10.f, 15.f) * size;
+        p.grow = rnd(2.f, 4.f) * size;
+        p.spin = rnd(-0.35f, 0.35f);
+        p.drag = 0.8f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 48.f) * size};
+        p.vel = glm::vec3{rnd(-8.f, 8.f), rnd(-8.f, 8.f), rnd(2.f, 9.f)};
+        p.acc = glm::vec3{0.f, 0.f, 1.5f};
+    });
+    make(someOf(0.35f * static_cast<float>(count)), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.type = Custom;
+        p.additive = true;
+        const float g = rnd(0.8f, 1.1f);
+        p.color = glm::vec4{0.25f * g, 0.62f * g, 0.1f * g, rnd(0.06f, 0.1f) * alpha};
+        const float life = rnd(2.f, 3.f);
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.scale = rnd(5.f, 7.f) * size;
+        p.grow = 1.5f * size;
+        p.spin = rnd(-0.3f, 0.3f);
+        p.drag = 0.8f;
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(6.f, 26.f) * size};
+        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(1.f, 5.f)};
+        p.acc = glm::vec3{0.f, 0.f, 1.f};
+    });
+}
+
 // Short blue-white crackling arcs (CellLightning), `count` of them about `org`, `reach` units out.
 void electricArcs(const glm::vec3& org, float count, float reach, float size)
 {
@@ -2017,6 +2137,9 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
             break;
         }
         case Preset::Steam: steam(org, count); break;
+        case Preset::TankFire: tankFire(org, dir, count); break;
+        case Preset::TankSmoke: tankSmoke(org, dir, count); break;
+        case Preset::TankCloud: tankCloud(org, dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;

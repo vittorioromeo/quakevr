@@ -588,6 +588,9 @@ void parseParticle2()
         case Preset::ElectricSparks: puff(244, count); break;
         case Preset::AdFlameHit: break; // (its scorch alone)
         case Preset::Steam: puff(12, count * 2); break;
+        case Preset::TankFire: puff(232 + (rand() & 3), count * 2); break; // (the fire's yellows and oranges)
+        case Preset::TankSmoke: break;                                     // (too faint for Quake's dots)
+        case Preset::TankCloud: puff(56 + (rand() & 7), count * 3); break; // (the greens)
         default: puff(73, count); break;
     }
 }

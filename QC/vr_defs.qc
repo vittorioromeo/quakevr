@@ -387,6 +387,10 @@ float QVR_PARTICLE_PRESET_POISONPUFF     = 21;
 float QVR_PARTICLE_PRESET_ELECTRICSPARKS = 22;
 float QVR_PARTICLE_PRESET_ADFLAMEHIT     = 23; // a flamethrower's flame spent on a wall: its scorch, a tongue of fire (vr_ad_enemyguns.qc)
 float QVR_PARTICLE_PRESET_STEAM          = 24; // fire put out by water: count puffs of white steam (a flame, a lava nail going in)
+// A fuel tank's burst field (vr_ad_enemyguns.qc VR_TankField_Look): org a spot on the ground, dir (spread / 8, size, alpha):
+float QVR_PARTICLE_PRESET_TANKFIRE       = 25; // count tongues of fire rising straight up, embers
+float QVR_PARTICLE_PRESET_TANKSMOKE      = 26; // count puffs of dark smoke off the flames' tops
+float QVR_PARTICLE_PRESET_TANKCLOUD      = 27; // count big puffs of the poison cloud's green smoke
 
 //
 //
