@@ -20035,7 +20035,18 @@ hand rigid, normals turned).
 | sheet: arm and body edges, most growth (units) | 2-5 (the left shoulder's front aiming) | 3-5 |
 | test 41 living frames: hands short of their targets (most) | 5.4 (a pain's bend) | 6.6 |
 
-**Tests**: 35, 60, 42 PASS for both kinds; 50 PASS (grunt; see below for the enforcer); eval.sh below.
+**Tests** (both kinds): 35 6/6, 60 6/6, 50 10/10 (its hand volume now from the row's shoulder towards the elbow:
+the enforcer's forearm case failed with the old guess; its dual case failed until the left weapon was placed from the
+anchor server-side), 42 20/20 before merging next (after it, with agbugs' friendly fire, its penalty volleys count no
+pellets: 18/20, the same with `vr_agarms 0`), 25, 34, 38 (knocked down, dropped, taken back; kept lying), 61 40/40: held
+weapons drawn at most 25-48 units from their holders (a weapon on the floor in reach; never far, never NaN: placements
+are checked, else the server's). eval.sh canary 36/44, 0 differ. Scenes validate (82 files, 0 errors), runall
+`agrunt_weapon_hands`, `agrunt_dual_guns`, `agrunt_grip_editor` (now a shotgun and a sword of each kind) OK.
+Global grips shipped: the left hand's own weapon turned 15 -35 -90 (its rest hold is under a barrel; the left wrist on
+two shotguns 85 -> 28 degrees), the enforcer's main hand 30 -10 0 (its wrist 72 -> 41 aiming two guns).
+**Left:** the hand reaching for a weapon on the floor stops up to 6 units short in the take's lowest frame (the weapon
+is then drawn in the hand, a little off the floor); the chainsaw's front handle is not taken (its wrist), the dual
+axes' left wrist reaches its limit; test 41's pain frames bend the body past the arms' reach (5-7 units short).
 Contact sheets: `scratch/ag_sheet.sh` (eyes 1100, vrtesthall), images `scratch/v17z_k0_s3.png` (grunt, shotgun: idle,
 aim ahead/up/down/left/right, run, take up, pain, blow; front and side), `scratch/v13az_k0_s1.png` (sword),
 `scratch/v18z_k0_s11.png` (two shotguns), `scratch/v21w_k1_s3.png` (enforcer, shotgun); before: the author's
