@@ -20350,3 +20350,63 @@ Vittorio: "make those new poses and animations the default for now" (he keeps tu
 **In VR:**
 - [ ] With `vr_agrunt_poses ""` and `vr_agrunt_grips ""`: the sword grunt's swings and the enforcer's Ready look as you set them.
 
+## Armed humanoids' legs: the pickup's kneel (worktree `gorefx`, branch `agent/aglegs`, 2026-10-24)
+
+His note: the grab-and-pickup pose looked like a prayer (both knees down, very low); he wants one foot planted, one knee
+down, not so low. New: `Quake/vr/vr_aglegs.cpp` (`vr_aglegs` 1, the A/B toggle, live); hooks in `vr_hitreact.cpp`
+(`relinkSkinned`: `aglegs::solve` before the body's turn; `boneTurns`: `aglegs::carry`), `vr_animsmooth.cpp` (the leg
+rows after the arm rows, the legs' codes in agarms' fourth rest row), `vr_glsl.h` (`RigLeg`; `RigArm` skips codes
+past 8.5), QC `vr_armedgrunt_pose.qc` (the take's weight sent).
+
+**The pose** (a genuflect; the side opposite the reaching hand kneels: the right hand takes it, the left knee goes down,
+the right foot planted ahead beside the weapon, so the arm reaches past the planted shin, not across the kneeling
+thigh): the pelvis down 0.38 of its hips' height (the grunt 8.2 units, the enforcer 7.9; the take frames went far
+lower), forward 0.1, pitched 12, turned 12 (the kneeling hip back) and rolled 4 towards it. The planted foot steps
+ahead to where its shin stands near upright, flat on the floor (traced); the kneeling knee goes under its hip, down to
+the floor (back as far as the hip is too low for the thigh upright; the enforcer's short thighs leave it 5 units over
+the floor), its shin back to its foot on its toes. Two-bone IK per leg (knees to their poles), the foot a third bone;
+the ankle and toe found in the shin's boot vertices (heel to toe along the body's forward). The feet step over the
+first half of the way down (lifted on the way) and stay put; the pelvis eases down with the take's weight (QC
+`takeW`, sent as a byte after the waist with flag 1: weight x 127, 128 for a left hand's take) and up over the lift.
+The body above is the rest pose's on the pelvis (each bone: `pelvis * inverse(posed)`): the take frames' crouch and
+hunch are dropped (the enforcer's paind frames bent it double). QC's bend is now `VR_AGP_TAKE_BEND_KNEEL` 45 with the
+legs (28 without them, `VR_AGP_TAKE_BEND`), and the pelvis bends further at the hips (up to 60 degrees, 120 a second)
+as far as the taking hand's shoulder needs to bring its target within 0.95 of its arm, the torso's turn sent on top:
+his Pickup keys' torso (-50 pitch, rolls of 14..47) straighten the chest, and the hand still lands on the handle.
+
+**The skin**: each thigh and shin vertex (the rig's) weighed between thigh, shin and foot: the knee over a band
+across its bisecting plane, the ankle over a short band, the foot rigid; the top of the thigh blended into the pelvis
+(its turn mixed about the hip). Drawn by `RigLeg` (22 rows: origin and on-share, 1 / scale, six bones, the knees' and
+ankles' rest places, the pelvis as drawn, the hips' rest places). The legs ease in with the take (fully by weight
+0.12) and out in 0.2 s when no take comes (a pain cuts it short, a death).
+
+**Keys** (stage 1 of the editing): the pickup's legs are a pose key of their own, `agpose::legCode(kind, Pickup)` (the
+Pickup's phase 1 on class 0, code 31 / 10031; QC never reads it): pelvis place, pelvis turn, planted foot, kneeling
+knee's pole, kneeling foot, planted knee's pole, the same 21 numbers in `vr_agrunt_poses` (set by hand now:
+`vr_agrunt_poses "31 0 0 -2 0 5 0 ..."`), mirrored for a left hand's take; the dump names them, Copy scales their
+places, `Misc/quakevr/pose_defaults.py` ships them like any key. `agpose::copyKind` now copies the keys in effect
+(archived, else shipped; a shipped key of the other kind with none to copy overridden by zeros), so Copy works after he
+clears his cvars.
+
+**Measured** (`vr_aglegs_info`: the takes' numbers since `vr_aglegs_info clear`; test 45's take sheet: `scratch1 -1`,
+the take's phases 0.45, 0.8, the grab, half up, each from the front, the side and three-quarters):
+
+| | grunt | enforcer |
+| --- | --- | --- |
+| test 34 (a real take): the planted foot's drift once down | 0.000 | 0.001 |
+| leg vertices under the floor (most) | 0.18 | 0.00 |
+| pelvis drop | 8.2 | 7.9 |
+| kneeling knee (its joint) over the floor | 2.2 | 5.0 |
+| test 45 take sheet: reach short at 0.45 / 0.8 / grab / lift (before) | 9.2 / 4.3 / 0.7 / 1.4 | |
+| ... with the legs | 3.9 / <0.5 / <0.5 / 0.7 | |
+| joint gaps, hand shape | 0.000, 0.0000 | |
+
+Tests: 34 2/2 grunt and enforcer, 25 3/3, 38 3/3 (grunt). Sheets `scratch/legs_k0_before.png`,
+`scratch/legs_k0_after4.png`, `scratch/legs_k1_after2.png` (`scratch/legsheet.sh <kind> <out> [extra]`).
+
+**In VR:**
+- [ ] Scene `agrunt_pickup`, grunts and enforcers: each goes down on one knee, its right foot planted ahead, its left
+  knee down behind on its toes, not as low as before; its hand on the handle; no foot sliding; up again smoothly.
+  `vr_aglegs 0` for the old kneel to compare.
+**Left:** the Pose Studio's boxes for the legs (pelvis, feet, knees: grab and drag in the Pickup pose; the keys and
+their storage are ready); tests 41, 45 (the full sheets), 35, 60, the scene's validate/runall and eval.sh not run.

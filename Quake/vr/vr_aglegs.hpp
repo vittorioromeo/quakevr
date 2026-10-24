@@ -5,13 +5,15 @@
 // - The pose: its pelvis lowered (moderately), a little forward and turned (the kneeling hip back), one foot planted
 //   flat ahead (its shin near upright), the other knee down behind it on its toes; the side opposite the reaching hand
 //   kneels. Feet on the floor (traced); the pelvis eases down with the reach and up with the lift (the take's weight,
-//   QVR_SVC_ARMPOSE). The upper body is its frame's, carried by the pelvis (the arms solved on it).
+//   QVR_SVC_ARMPOSE). The body above is the rest pose's on the pelvis (the take frames' hunch dropped; the arms
+//   solved on it), bent further at the hips as far as the taking hand needs to reach its target.
 // - The legs: two-bone IK per leg (hip, knee, ankle; the knee towards its pole), the foot a third bone (flat, or on
 //   its toes), from the rig's fit (its thighs and shins; the ankle and toe found in the shin's vertices).
 // - The skin: each leg vertex weighed once a model between its thigh, shin and foot (smooth over the knee and the
 //   ankle, the hip blended into the pelvis), drawn by the alias shader's RigLeg (agarms' fourth rest row, the codes
 //   past the arms').
-// - Pose Studio: the pickup's legs are a pose key of their own (vr_agpose.hpp legCode), dragged by their boxes.
+// - Keys: the pickup's legs are a pose key of their own (vr_agpose.hpp legCode: vr_agrunt_poses, the dump, Copy);
+//   the Pose Studio's boxes to drag them are not made yet.
 
 #pragma once
 
@@ -34,9 +36,9 @@ struct Take
 {
     float w{0.f};
     int side{0};
-    // Reaching for the weapon lying (QC VR_AGP_REACH): the hand's target, the reaching arm's shoulder and the chest's
-    // joint (rest), the arm's reach to its grip, the torso's turn sent (degrees: yaw, pitch, roll): the pelvis bends
-    // further forward as far as the hand needs to land on the handle (the pose keys' torso may straighten it).
+    // The taking hand's target (the weapon lying, then taken up), its arm's shoulder and the chest's joint (rest), the
+    // arm's reach to its grip, the torso's turn sent (degrees: yaw, pitch, roll): the pelvis bends further forward as
+    // far as the hand needs to land on the handle (the pose keys' torso may straighten it).
     bool reach{false};
     glm::vec3 target{0.f};
     glm::vec3 shoulder{0.f};
