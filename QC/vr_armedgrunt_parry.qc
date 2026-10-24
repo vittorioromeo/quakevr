@@ -26,7 +26,9 @@ float VR_AGPAR_RMON = 5;         // ... a monster's blow's way (its line to the 
                                  // beside that misses it, raised into it meets it)
 float VR_AGPAR_FOV = 70;         // degrees either side of its facing: an attacker further round is behind it
 float VR_AGPAR_MARK = 0.3;       // s: a parried motion's later blows on it are that parry's
-vector VR_AGPAR_CHEST = '2 0 14'; // its chest (body space)
+vector VR_AGPAR_CHEST = '2 0 14'; // its chest (the poses' body space: the grunt's)
+// ... on its own body (body space: an enforcer's fitted, VR_AM_Fit).
+vector(entity g) VR_AGPar_Chest = { return VR_AM_Fit(g, VR_AGPAR_CHEST); };
 
 float vr_agpar_n;      // full parries (the tests)
 float vr_agpar_quiet;  // quiet ones
@@ -187,7 +189,7 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AGPar_PlayerMeets =
 float(entity g, entity m) VR_AGPar_MonsterMeets =
 {
     VR_AGP_Body(g);
-    vector chest = g.origin + VR_AGP_ToWorld(VR_AGPAR_CHEST);
+    vector chest = g.origin + VR_AGP_ToWorld(VR_AGPar_Chest(g));
     vector from;
     vector to = chest - m.origin;
     to_z = 0;
@@ -405,7 +407,7 @@ void(entity g) VR_AGPar_Frame =
     }
     float mu = VRMetersToUnits();
     VR_AGP_Body(g);
-    vector chest = g.origin + VR_AGP_ToWorld(VR_AGPAR_CHEST);
+    vector chest = g.origin + VR_AGP_ToWorld(VR_AGPar_Chest(g));
     entity by = world;
     vector at = '0 0 0';
     float bestD = 100000;
@@ -507,7 +509,9 @@ void(entity g, entity p) VR_AGPar_Pose =
     {
         return;
     }
-    vector d = g.vr_agpar_t - VR_AGPAR_CHEST;
+    // (Its own body's space throughout: the targets are not the grunt's poses fitted, VR_AM_Fit, but its body's own.)
+    vector chest = VR_AGPar_Chest(g);
+    vector d = g.vr_agpar_t - chest;
     if(vlen(d) < 1)
     {
         d = '1 0 0';
@@ -515,9 +519,9 @@ void(entity g, entity p) VR_AGPar_Pose =
     d = normalize(d);
     d_x = max(d_x, 0.35); // (in front of it)
     d = normalize(d);
-    vector mid = VR_AGPAR_CHEST + d * 17;
-    mid_x = max(mid_x, 8);
-    mid_z = min(30, max(-2, mid_z));
+    vector mid = chest + d * 17;
+    mid_x = max(mid_x, chest_x + 6);
+    mid_z = min(chest_z + 16, max(chest_z - 16, mid_z));
     vector up = '0 0 1' - d * d_z;
     up = vlen(up) > 0.01 ? normalize(up) : '0 0 1';
     vector across = VR_AGP_Cross('0 0 1', d); // (to its left)
@@ -529,7 +533,7 @@ void(entity g, entity p) VR_AGPar_Pose =
     vector edge = d - a * (d * a);
     edge = vlen(edge) > 0.01 ? normalize(edge) : '1 0 0';
     VR_AGP_Body(g);
-    vr_agp_v = vr_agp_v * (1 - w) + VR_AM_Fit(g, grip) * w;
+    vr_agp_v = vr_agp_v * (1 - w) + grip * w;
     vr_agp_wr = vr_agp_wr * (1 - w);
     vr_agp_fw = VR_AGP_Nlerp(vr_agp_fw, VR_AGP_ToWorld(a), w);
     vr_agp_up = VR_AGP_Nlerp(vr_agp_up, VR_AGP_ToWorld(edge), w);

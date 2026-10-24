@@ -91,7 +91,7 @@ float(entity g) VR_AGPT2_WeaponBlow =
     along = normalize(along);
     vector side = VR_AGP_Cross(along, '0 0 1');
     float miss = VR_AGPT2_Miss(g, mid - side * 14, mid + side * 14, along);
-    float d = VR_AGPT2_Blow(g, mid - side * 14, mid + side * 14, along, VR_AGPT2_At(g, VR_AGPAR_CHEST));
+    float d = VR_AGPT2_Blow(g, mid - side * 14, mid + side * 14, along, VR_AGPT2_At(g, VR_AGPar_Chest(g)));
     VR_AGPT2_Print(sprintf("(a blade through its weapon: %.1f units from it, %g damage, unparried %g; why '%s')", miss, d,
         vr_agpt2_expect, vr_agpar_why));
     return d;
@@ -187,10 +187,21 @@ void() VR_AGPar_Test =
         if(vr_agt_step == 3)
         {
             vector wl = VR_AGP_ToLocal((vr_ag_wa + vr_ag_wb) * 0.5 - g.origin);
-            float y = wl_y < 0 ? 6 : -6; // (beside its weapon, the other side of its head)
             float hz = g.view_ofs_z > 0 ? g.view_ofs_z : 22;
-            c0 = VR_AGPT2_At(g, [2, y, hz + 16]);
-            c1 = VR_AGPT2_At(g, [2, y, hz - 4]);
+            // (On the other side of its head from its weapon: the first of 6, 8, 10 units off its middle that passes 8
+            // units clear of the weapon, as each kind holds it.)
+            float y = 0;
+            float off;
+            for(off = 6; off <= 10; off += 2)
+            {
+                y = wl_y < 0 ? off : -off;
+                c0 = VR_AGPT2_At(g, [2, y, hz + 16]);
+                c1 = VR_AGPT2_At(g, [2, y, hz - 4]);
+                if(VR_AGPT2_Miss(g, c0 - along * 4, c1 - along * 4, along) >= 8)
+                {
+                    break;
+                }
+            }
             at = VR_AGPT2_At(g, [2, y * 0.5, hz]);
             what = "head";
         }
@@ -273,6 +284,8 @@ void() VR_AGPar_Test =
         VR_AGP_Body(g);
         VR_AGPT2_Print(sprintf("(its parry's pose: its weapon's middle %v, its line %v, body space)",
             VR_AGP_ToLocal((vr_ag_wa + vr_ag_wb) * 0.5 - g.origin), VR_AGP_ToLocal(normalize(vr_ag_wb - vr_ag_wa))));
+        VR_AGPT2_Print(sprintf("(the ogre at %v, the blow's point %v, body space)", VR_AGP_ToLocal(o.origin - g.origin),
+            g.vr_agpar_t));
         float kept7 = 10 * cvar_hget(cvarh_vr_agrunt_parry_damage);
         VR_AGPT2_Check(sprintf("ogre: its parry up %.2f, parried %g, %g damage (kept %g of 10), why '%s':", g.vr_agpar_w,
             vr_agpar_n - vr_agpt2_n0, d7, kept7, vr_agpar_why),

@@ -19647,13 +19647,18 @@ weapon-blow test, and `vr_hitreact.qc` (VR_Guard_Hand).
   1.4 s. Flag `vr_agrunt_parry` (1). All on Combat > Armed Grunts > Parrying Your Blows (Experimental).
 
 **Tests** (`vr_agrunt_test 60`, Debug > Tests > Armed Grunts: They Parry Your Blows; vrtesthall, the grunt and
-`vr_agrunt_test_kind 1` the enforcer, both 6/6 PASS): a blade swept through its weapon: parried, 5 of 20 damage, still
-armed; the second 0.6 s later: parried, disarmed, the sword lying, 1 clatter; a chop on its head 6.6 units beside its
-weapon (enforcer 6.0): not parried, 30 damage as unparried; a cut across its legs (12.5 / 20.7 units off): 12, full;
-through its weapon from behind: not parried ("from behind"), full; an ogre's chainsaw on one facing it, its parry raised
-(weapon middle at body '18 -5 14', its line '0.07 0.28 0.96'): parried, 3 (2.5 rounded up) of 10. The chainsaw's way met
-the grunt's sword held ready too (the enforcer's not): the ready blade is in front of the chest. `eval.sh`: canary 36/44,
-0 differ from the baseline. Test 29 (a blow on the gun, you unseen): PASS as before.
+`vr_agrunt_test_kind 1` the enforcer, twice each after merging `next`: 6/6 PASS every time): a blade swept through its
+weapon: parried, 5 of 20 damage, still armed; the second 0.6 s later: parried, disarmed, the sword lying, 1 clatter; a
+chop on its head beside its weapon (the first of 6, 8, 10 units off its middle that clears the weapon by 8; 9.5 units
+from it): not parried, 30 damage as unparried; a cut across its legs (12.5 / 20.7 units off): 12, full; through its
+weapon from behind: not parried ("from behind"), full; an ogre's chainsaw on one facing it (the ogre settling 0 to 49
+degrees off its front), its parry raised (its weapon's middle between its chest and the blow, e.g. body '15.8 -9.6 14.1'
+for a blow from '29.6 -19.3 14.2'): parried, 3 (2.5 rounded up) of 10. The chainsaw's way can meet the grunt's sword held
+ready too: the ready blade is in front of the chest. The pose's targets are in its own body's space (an enforcer's
+chest fitted, VR_AM_Fit; the first try fitted the target itself and missed side blows on enforcers). `eval.sh`: canary
+36/44, 0 differ from the baseline. Test 29 (a blow on the gun, you unseen) and 35 (its blows parried by you, with its
+script's mock hand) PASS; test 2's `rearm` fails the same with vr_agrunt_parry 0 and 1 (0 pickups counted, it holds the
+shotgun: not this change).
 
 **In VR** (scene `agrunt_theyparry`: a sword grunt and an axe enforcer, notarget off, a sword in hand): swing at one: it
 raises its weapon into your blow; a blow on its weapon rings, knocks your hand back and does little; the second within
