@@ -19539,3 +19539,69 @@ differences the punch takes moved by the fist line already on `next` (the sectio
 heavy, hits and parries with its sounds (scene `phantom_sword`). Fire tab: MG Gas Flare spawns in any map. At the
 vrtesthall pool and e1m1's water: the shore particles should read as water thrown up off the wall and falling back,
 soft; flip Graphics > Shoreline Foam > Particles as Spray for the old look, Spray in Retro Look for the retro one.
+## Armed humanoids' arms, hands and grips: rigid forearms and hands, the weapon on the hand, the Grip Editor (worktree `tghost`, branch `agent/aghands`, 2026-10-24)
+
+Notes vrtesthall 2026-10-24 00:49-00:52, 01:16, 01:23 (agrunt_weapon_hands failed: the grunt's off hand bent and stretched,
+the enforcer's hand ~3x and through its torso, the axe handle off the hand, the sword held by its guard, the weapon
+floating off the hand in a shove's fall and a parry's stagger, arms through torsos in attacks).
+
+**Causes** (measured by the new arm numbers, below): agdual2's IK moved the drawn hand onto the weapon by turning the
+rig's forearm, but the hand's mesh was not one piece: `vr_agrunt_ik_hands 4` put the vertices within 4 units of the
+forearm's end wholly on the forearm and left the rest of the hand on the rig's fit (the grunt's left hand on its upper
+arm; the enforcer's on its chest and upper arm, at a share of their turns), so every IK turn tore the hand apart (the
+enforcer's left hand's edges up to 14x their length, the grunt's 10x). Its metric (`agerr`: the hand vertices' middle
+against the weapon's origin, 0.5 units) could not see it. The weapon was drawn at the server's target, not on the hand:
+the sword's origin is its guard. In a ragdoll the server's own placing (QC VR_AG_RagProp: the limb nearest the weapon,
+at the server's rate) was 11 units (mean; 14 max) off the drawn hand and turned up to 118 degrees.
+
+**Fixes** (vr_hitreact.cpp, vr_animsmooth.cpp, vr_glsl.h; new vr_aggrip.cpp):
+- `vr_agrunt_ik_rigid` (1; read at a map load): each arm's forearm and hand are found once a model (flood fill along
+  the triangles from the forearm's end, within its bones' lines; the hand past the wrist) and drawn as their rest shape
+  moved whole (the shader's `RigKickOrPiece`: four pieces' rows after the bones' kicks), each pose's place fitted to the
+  frames by one rigid motion (Horn's quaternion fit: the grunt's forearm and hand are rigid in its frames to 1.2 units).
+- The arm solve runs in the relink (before the drawing): the wrist to the weapon's grip (the server's target less the
+  grip offset), the elbow kept as the animation had it but out of the torso (the target moved to the torso's skin, the
+  pole turned away from the chest's line when the elbow or forearm went in), the elbow at most `vr_agrunt_ik_elbow`
+  (150) degrees bent, the hand turned at its wrist towards the weapon's turn (at most `vr_agrunt_ik_wrist` 65 degrees
+  bent, `vr_agrunt_ik_twist` 80 twisted), and the weapon drawn on the hand as solved: always in it.
+- The off hand takes a two-handed weapon's second grip only within `vr_agrunt_ik_second` (0.97) of its arm's length
+  and its wrist within 25 degrees past its limit; else it hangs free (the grunt's idle axe: it used to reach across its
+  body). The sword stays one-handed (QC's choice; the agstrike worker's swings may change it).
+- A ragdoll's (stagger, shove, fall, tug, lying) weapons are drawn on its hand's bone as drawn (`ragdollProps`:
+  ragdoll::drawnPart of the bone most of the hand's vertices are on, by the grip offset), every frame.
+- Grip offsets per monster kind, weapon (its Weapon Offsets slot) and hand (main, off: dual, second grip): VR Settings >
+  Armed Grunts > Grip Editor (live sliders on the nearest armed monster, Freeze Them `vr_agrunt_freeze`, Fit Angles to
+  Its Pose `vr_agrunt_grip_fit`, Print as Defaults `vr_agrunt_grip_dump`, Reset This One `vr_agrunt_grip_reset`);
+  changes kept in `vr_agrunt_grips` (archived). Seeds: the melee weapons' angles fitted on the grunt's idle (its wrist
+  unturned as the server readies them), the sword moved 4.9 units along its blade (its guard above the fist).
+- agstrike's notes kept: the solve's out[] are absolute model-space turns per bone (upper arm, forearm), `relinkRigid`
+  is the place for a body turn before the arms' solve.
+
+**Measured** (`vr_agrunt_test 41`, new arm numbers in `vr_agrunt_ik_err` (`1`: each tag): the hand's edges against rest
+(stretch: root mean square ratio and longest edge), the forearm's and hand's shape against their rest shape, the elbow's
+bend, the arm inside the torso, the hand's middle against the weapon's grip; test 41 now takes `scratch2`/`scratch3`
+(weapons + 1), `scratch4` (distance), `temp1` (turn) and reruns in one map). Whole sweep (every frame, every swing, dual
+and two-handed), r_lerpmodels as shipped:
+
+| | before right / left | after right / left |
+| --- | --- | --- |
+| grunt: stretch (rms, longest edge) | 1.19, 1.68x / 3.30, 10.3x | 1.00, 1.00x / 1.00, 1.00x |
+| grunt: shape off (units) | 1.95 / 13.1 | 0 / 0 |
+| grunt: hand to grip (max) | 1.35 / 2.74 | 0 / 0 |
+| grunt: in the torso (units) | 1.63 / 0.89 | 1.04 / 1.36 |
+| enforcer: stretch | 1.18, 1.70x / 3.22, 14.4x | 1.00, 1.00x / 1.00, 1.00x |
+| enforcer: shape off | 7.89 / 14.4 | 0 / 0 |
+| enforcer: hand to grip (max) | 2.68 / 10.2 | 0 / 0 |
+| enforcer: in the torso | 6.73 / 5.01 | 1.94 / 4.45 (frames 88-89 only, a bent pain) |
+| elbow bend (both) | 0..175 | 28..150 |
+
+Parries (test 35, script `vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35 0 90 0`): 6/6 PASS;
+through their staggers (418 ragdoll frames) the server's weapon was 11.4 units (mean) off the drawn hand: now drawn on
+it. eval.sh: no verdict changes (PASS -> PASS drifts only). Scenes: validate 76 files 0 errors; runall
+agrunt_weapon_hands and the new `agrunt_grip_editor` (a frozen grunt with a sword and an enforcer with an axe) OK.
+
+**In VR:** agrunt_grip_editor: tune each weapon's grip by eye (main hand; then a dual pair and a shotgun's second
+grip), Print as Defaults and send the lines; agrunt_weapon_hands with Freeze Them off: hands never stretched, weapons
+always in the hand, arms out of the torso in swings; shove one into a fall and parry one (the stagger): the weapon stays
+in its hand. Left: the normals of the pieces are the frames' (lighting on a hand turned far may look off); the wrist
+limit makes a weapon turn with the hand in the widest swings (the server's parry and hit lines are its own place).
