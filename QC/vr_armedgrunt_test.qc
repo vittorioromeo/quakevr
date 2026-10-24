@@ -248,7 +248,9 @@ void() VR_AGTest_Sequence =
     }
     if(vr_agt_step == 3) // goes back for it
     {
-        if(!g.vr_ag_prop && time < vr_agt_until) { return; }
+        // (Taken up: counted when its hand closes on it, VR_AG_TakeGrab, a few frames after VR_AG_TakeBegin gave it the
+        // prop: waiting on the prop alone checked before the count.)
+        if((!g.vr_ag_prop || g.vr_ag_pickups < 1) && time < vr_agt_until && g.health > 0) { return; }
         entity lying = VR_AGT_LyingNear(g.origin);
         VR_AGT_Print(sprintf("rearm: frame %g, enemy %s, health %g, a weapon %.0f away (speed %.0f, depleted %g)", g.frame,
             g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
@@ -1064,6 +1066,7 @@ void() VR_AGTest_DualRow =
 };
 
 void() VR_AGPar_Test; // (vr_armedgrunt_parry_test.qc)
+void(float t) VR_AGBT_Frame; // (vr_armedgrunt_bugs_test.qc)
 
 void() VR_AGTest_Frame =
 {
@@ -1111,6 +1114,7 @@ void() VR_AGTest_Frame =
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)
     else if(t == 60) { VR_AGPar_Test(); } // (they parry your blows: vr_armedgrunt_parry_test.qc)
+    else if(t >= 61 && t <= 64) { VR_AGBT_Frame(t); } // (pickups drawn, drops up close, friendly fire: vr_armedgrunt_bugs_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;
