@@ -128,11 +128,15 @@ void() VR_AGBT_Pickup =
     {
         if(vr_agbt_kd_at > 0 && time >= vr_agbt_kd_at)
         {
-            vr_agbt_kd_at = 0;
-            VR_Knockdown_Start(g); // (floored: VR_AG_FallDrop lets it go)
+            vr_agbt_kd_at = -time; // (floored: VR_AG_FallDrop lets it go, or it keeps it through the fall)
+            VR_Knockdown_Start(g);
         }
+        // (Kept through the fall, up again: the same prop to check.)
+        float kept = vr_agbt_kd_at < 0 && time > 6 - vr_agbt_kd_at && g.vr_ag_prop && !g.vr_knockdown &&
+                     g.vr_ag_pickups <= vr_agbt_val;
         // Taken up, its hand closed on it a while (its lift: vr_armedgrunt_pose.qc VR_AG_LIFT_TIME).
-        if((g.vr_ag_pickups <= vr_agbt_val || time < g.vr_ag_took_grab + 0.8) && time < vr_agt_until && g.health > 0)
+        if((g.vr_ag_pickups <= vr_agbt_val || time < g.vr_ag_took_grab + 0.8) && time < vr_agt_until && g.health > 0 &&
+           !kept)
         {
             return;
         }
@@ -150,7 +154,8 @@ void() VR_AGBT_Pickup =
             pr ? pr.model : "none"); // (sprintf: 8 values at most)
         VR_AGT_Check(sprintf("%s (index %g, spawned %g), effects %g, alpha %g, %.0f from it:", what, pr.modelindex,
             spawned, pr.effects, pr.alpha, d), pr && pr.modelindex > 0 && pr.modelindex == spawned && pr.model == want &&
-            (pr.effects & VR_AG_EF_HELD) && (pr.alpha == 0 || pr.alpha >= 0.5) && d < 64 && g.vr_ag_pickups > vr_agbt_val);
+            (pr.effects & VR_AG_EF_HELD) && (pr.alpha == 0 || pr.alpha >= 0.5) && d < 64 &&
+            (g.vr_ag_pickups > vr_agbt_val || kept));
         if(vr_agbt_keep > 0)
         {
             vr_agbt_case = vr_agbt_count; // (left standing for an eyeshot)
