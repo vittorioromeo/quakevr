@@ -20,6 +20,7 @@
 #include "vr_held.hpp"
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_motion.hpp"
 #include "vr_mem.hpp"
 #include "vr_engine.hpp"
@@ -2313,6 +2314,24 @@ void PF_weapondrawnpose()
     if(what == 6)
     {
         weaponModelMuzzle(player, G_VECTOR(OFS_RETURN));
+        return;
+    }
+    if(what == 21 || what == 22)
+    {
+        // weapondrawnpose(p, 0, 21): an armed humanoid's held weapon `p` as the arms drew it lately (this listen server's
+        // own view): its drawn forward's turn off the server's (world; the axis times degrees); 22 its drawn origin less
+        // the server's. '0 0 0' (both): not drawn lately (a dedicated server, out of view). vr_agrunt_shot_drawn.
+        glm::vec3 turn{0.f}, off{0.f};
+        const bool local = sv.active && cls.state == ca_connected;
+        if(!local || !hitreact::drawnWeaponTurn(NUM_FOR_EDICT(player), turn, off))
+        {
+            turn = off = glm::vec3{0.f};
+        }
+        const glm::vec3 out = what == 21 ? turn : off;
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
         return;
     }
     if(what == 20)

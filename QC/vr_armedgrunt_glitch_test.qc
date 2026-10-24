@@ -199,6 +199,8 @@ void() VR_AGTest_Glitch =
         vr_agt_grunt = world;
         cvar_set("vr_agglitch_ent", "0");
         localcmd("vr_agglitch_report agglitch\n");
+        VR_AGT_Print(sprintf("agglitch: shots %g, %g turned onto their gun's drawn line (vr_agrunt_shot_drawn), %.2f deg each on average",
+            vr_ag_all_shots, vr_ag_drawn_shots, vr_ag_drawn_deg / max(1, vr_ag_drawn_shots)));
         p.flags = p.flags - (p.flags & FL_NOTARGET);
         VR_AGT_Print("agglitch: done");
         cvar_set("vr_agrunt_test", "0");

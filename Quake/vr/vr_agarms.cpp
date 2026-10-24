@@ -120,6 +120,8 @@ struct Ent
     bool held2{false};    // vr_agarms_second_hold: the second grip held (its hysteresis),
     float grip2w{0.f};    // ... its share eased in and out
     double held2At{0.0};  // ... when it last changed
+    rigpose::Rigid grip2Rel; // ... the off hand on it last (chest space): let go by QC, eased out from there
+    bool haveGrip2{false};
     // vr_agarms_jump_ease: each hand's goal's wrist on the chest (the last two), its drawn hand on the chest, its ease
     rigpose::Rigid drawnRel[2];
     bool haveDrawn[2]{false, false};
@@ -837,6 +839,7 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
         const float phi0 = za::atan2(glm::dot(pe, e2), glm::dot(pe, e1));
         float delta = phi - phi0;
         delta -= 2.f * pi * za::floor((delta + pi) / (2.f * pi)); // (-pi..pi)
+        float way = delta;
         if(za::abs(delta) > lim.maxStep)
         {
             const float other = delta > 0.f ? delta - 2.f * pi : delta + 2.f * pi;
@@ -848,7 +851,7 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
                 }
                 return worst;
             };
-            const float way = barrier(delta) <= barrier(other) ? delta : other;
+            way = barrier(delta) <= barrier(other) ? delta : other;
             phi = phi0 + (way > 0.f ? lim.maxStep : -lim.maxStep);
         }
     }
@@ -1215,7 +1218,16 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         {
             st->easeT[s] += dt;
             const float w = smoothstep(0.f, 1.f, st->easeT[s] / za::max(st->easeDur[s], 1e-3f));
+            const glm::quat turn = Hm[s].rot;
             Hm[s] = blendAbout(S1, sd.W, compose(C, st->easeFrom[s]), Hm[s], w);
+            if(vr_agarms_aim_line.value != 0.f && g == Goal::Frame && !(s == 0 && t.reaching))
+            {
+                // vr_agarms_aim_line: a weapon's turn never eased (its drawn line the server's, where its shots go): the
+                // hand's place eased, turned as its weapon wants about its grip
+                const glm::vec3 gp = rigpose::apply(Hm[s], sd.grip.pos);
+                Hm[s].rot = turn;
+                Hm[s].pos = gp - turn * sd.grip.pos;
+            }
             pushOut(s, Hm[s]);
         }
         free[s] = Hm[s];
@@ -1260,10 +1272,30 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         Hm[1] = compose(want, inverse(m->side[1].grip));
     }
     bool leftDone = false;
+    bool releasing = false;
     if(!t.second || !out.on[0])
     {
-        st->grip2w = 0.f;
+        // (vr_agarms_second_release: QC letting the second grip go, a one-handed swing, eased out round the shoulder
+        // from where the hand held it, as the hold's own letting go)
+        const bool release = vr_agarms_second_release.value != 0.f && vr_agarms_second_hold.value != 0.f && st->haveGrip2 &&
+                             st->grip2w > 0.f && dt > 0.f && t.goal[1] != Goal::Frame && !t.cup;
+        st->grip2w = release ? za::max(0.f, st->grip2w - dt / secondEase) : 0.f;
         st->held2 = false;
+        const float w = smoothstep(0.f, 1.f, st->grip2w);
+        if(release && w > 0.001f)
+        {
+            const glm::vec3 S1 = rigpose::apply(C, m->side[1].S);
+            Hm[1] = blendAbout(S1, m->side[1].W, free[1], compose(C, st->grip2Rel), w);
+            pushOut(1, Hm[1]);
+            arms[1] = solveArm(m->side[1], 1, S1, C.rot, Hm[1], prevOf(1), t.pole[1], lim);
+            leftDone = true;
+            releasing = true;
+        }
+        else
+        {
+            st->grip2w = 0.f;
+            st->haveGrip2 = false;
+        }
     }
     if(t.second && out.on[0])
     {
@@ -1320,6 +1352,8 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             // the grip (pushed out of the body), not along the straight line through it.
             st->grip2w = dt > 0.f ? za::clamp(st->grip2w + (can ? dt : -dt) / secondEase, 0.f, 1.f) : (can ? 1.f : st->grip2w);
             const float w = smoothstep(0.f, 1.f, st->grip2w);
+            st->grip2Rel = compose(inverse(C), hl);
+            st->haveGrip2 = true;
             held2 = w >= 0.5f;
             if(w >= 0.999f)
             {
@@ -1349,7 +1383,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     out.held2 = held2;
     // The off hand's goal changing (a grip let go, taken): eased a moment.
     {
-        const int mode = held2 ? 3 : t.cup ? 4 : static_cast<int>(t.goal[1]);
+        const int mode = held2 || releasing ? 3 : t.cup ? 4 : static_cast<int>(t.goal[1]);
         if(mode != st->leftMode)
         {
             st->leftMode = mode;
