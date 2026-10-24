@@ -1234,6 +1234,13 @@ void kdTrigWeightRows(za::Vector<Item>& items)
             .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
                   "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
                   "steps aside first, and keeps away from its mines (vr_agrunt_blast_safe)."),
+        slider("Careful of Friends", vr_agrunt_friendly_care, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How careful it is not to shoot or strike its friends: with another monster in its line of fire (a "
+                  "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: "
+                  "always, 0: never, it fires through them as before (vr_agrunt_friendly_care)."),
+        slider("Gives Up After", vr_agrunt_friendly_giveup, 0.f, 10.f, 0.5f, "%.1f s")
+            .help("Held so long for friends in the way, it fires anyway (a friend stepping in mid-burst can still be "
+                  "hit). 0: it never does (vr_agrunt_friendly_giveup)."),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "

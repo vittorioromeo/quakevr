@@ -1002,9 +1002,18 @@ void() VR_AGPT_WeaponBlow =
     makevectors(p.angles);
     float m2u = VRMetersToUnits();
     float fb = vr_ag_feedbacks;
+    // (The swing's speed is the melee tracker's, the hand's own in the play space: VR_AG_SwingSpeed.)
+    entity was = self;
+    self = p;
+    entity b = VR_Blow(cVR_MainHand);
+    self = was;
+    b.mh_thing = VR_MTHING_FIST;
+    b.mh_time = time;
+    b.mh_fast = 2;
     p.handvel = v_forward * 2 * m2u;
     p.vr_ag_knock_at = 0;
     float slow = VR_AG_WeaponStruck(g, g.vr_ag_prop);
+    b.mh_fast = 6;
     p.handvel = v_forward * 6 * m2u;
     p.vr_ag_knock_at = 0;
     float hard = VR_AG_WeaponStruck(g, g.vr_ag_prop);

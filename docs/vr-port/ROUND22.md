@@ -19776,3 +19776,61 @@ cvars only.
   Field Flames / 3D Flames / Smoke, Poison Cloud Amount to taste.
 - [ ] Armed grunts (Test scene `agrunt_tanks`): shoot only a grunt's back tank: it turns on you (and wakes the other);
   kill one while it fires: its hiss stops.
+
+## Armed humanoids: drops up close, friendly fire, test 2, the picked-up sword (worktree `gorefx`, branch `agent/agbugs`, 2026-10-24)
+
+Notes vrtesthall_2026-10-24_03-11-45 (an invisible sword taken from the floor), 03-12-16 (weapons dropped up close),
+03-14-23 (they shoot each other all the time).
+
+- **Drops up close** (03-12-16). The entities CSV: grunt #66's sword gone at 0.88 s (52 units off) and 28.80 s (26 off),
+  attacking. The replay (`scratch/agb_replay.py`): both hands still against the head (0.01-0.5 m/s), the player pushed at
+  4.9 m/s by its blow the same frame. The path: `VR_AG_HandStrike` ("a blow of N m/s on its weapon"), its speed the hand's
+  world velocity less the player's (`handvel - velocity`): a push (a blow's knockback, a parry's, a shotgun's) reads as
+  4.6-6.3 m/s on idle hands for a frame (the hand's velocity a frame behind the body's), over `vr_agrunt_disarm_swing`
+  (4.5). The headless mock showed it too: test 2's grunt lost its shotgun twice to "a blow of 4.6 m/s" from the still mock
+  hands (so its reserve was gone: `reload FAIL`). Fix: the blow's speed is the hand's own swing, the melee tracker's
+  (`VR_AG_SwingSpeed`: `vr_blow` `mh_fast`, the grip's or far end's play-space speed against the head; stale or untracked:
+  0); the world velocity only gives its way. Every other disarm path was already deliberate: a hit's damage near the gun
+  hand (`VR_AG_Hit`), shot out, parry stamina, its blow parried (your weapon), a grab/tug, a throw (`vr_agrunt_disarm_throw`
+  momentum), a knockdown. Every disarm logs its cause with `vr_agrunt_debug 1` (`disarmed (...)`; under the speed, `a blow
+  of N m/s (M in the world): under 4.5`).
+- **Friendly fire** (03-14-23): new `vr_agrunt_friendly_care` (1; 0..1, Combat > Armed Grunts > Careful of Friends) and
+  `vr_agrunt_friendly_giveup` (2.5 s; Gives Up After). Before its attack (`VR_AG_CheckAttack`), before each shot
+  (`VR_AG_ShootProp`) and before a melee swing, `VR_AG_FriendInLine` traces from its muzzle to your chest along the line
+  and four lines about it (a super shotgun's 6 degrees, a shotgun's 3.5, a swing's 15, else 2) and from its middle to the
+  muzzle: a living monster not its enemy (not fighting it) met first is a friend in the way. Then (by the care's chance) it
+  holds that shot and steps aside, away from the friend's side of the line, 0.4-0.8 s (`VR_AG_Run`, `vr_ag_ff_until`,
+  blocked: the other way), then looks again; a friend in its sight line itself does the same. Held so for the give-up
+  time, it fires anyway once. A friend stepping in during a burst's flight can still be hit.
+- **Test 2's `rearm` FAIL**: two causes. The disarms above (its reserve lost: no reload, an empty gun picked up and thrown
+  away); and the test checked at `VR_AG_TakeBegin`, where the grunt already holds the prop, before `VR_AG_TakeGrab` counts
+  the pickup 3 frames later (`0 pickups` though it holds the shotgun). The test now waits for the count.
+- **The invisible sword** (03-11-45): not reproduced. The entities CSV: #66 floored with its sword at 3.1 s, the sword
+  dropped at 4.1, taken back at 9.3 (`vr_ag_take2..6`), held to the note. Test 61 takes each melee weapon up (grunt and
+  enforcer; lying, after its disarm, thrown by you, after a knockdown; 40 cases): the held prop has the spawn path's
+  model and model index (the knight's sword `progs/v_ksword.mdl`, precached by world.qc), the held flag, no alpha, in its
+  hand; eyeshots (fast and real time, his `vr_agrunt_grips` too) show the sword in the hand. The server's pose of a
+  picked-up sword is the spawned one's (`agpose` lines identical). What is left is the client's placement of the held
+  entity from the arm pose (vr_hitreact.cpp, being rebuilt by `agent/agarms`); `vr_agrunt_test 61` with `scratch1 N`
+  leaves one case standing to look at.
+
+**Tests** (vrtesthall; Debug > Tests: Armed Grunts: Melee Pickups / Walk Into Their Blows / Friendly Fire;
+`QC/vr_armedgrunt_bugs_test.qc`):
+- `vr_agrunt_test 61`: 40 passed, 0 failed.
+- `vr_agrunt_test 62` (each weapon's grunt hunting you, you pushed into it every frame for 10 s): before 5 drops (axe,
+  sword, chainsaw, Mjolnir, nailgun: "a blow of 4.6-6.3 m/s on its weapon"), after 0 drops (PASS), its blows landing as
+  before (9-42 a weapon).
+- `vr_agrunt_test 63` (four gunners 420 ahead, four friends held still in their lines, 15 s each): careless 13, 6 and 6
+  friendly hits in three runs; careful 0, 0 (an earlier build without the muzzle line: 4); damage to you 146-210 careless,
+  248-387 careful (they still fight: 30-42 shots held, then sidestepped clear).
+- `vr_agrunt_test 2`: 4 passed (parry on, twice; parry off); `vr_agrunt_test 29`, `30`, `24`: PASS (29 sets the tracker's
+  speed now); `vr_agrunt_test 1`: 16 of 17 (the proximity gun, as before).
+- Scenes: validate SCNSUM 82 files, 0 errors; runall `agrunt_friendly_fire` (new: `vr_agrunt_test 64`, eight gunners in two
+  rows hunting you) OK.
+
+- [ ] Walk into an armed grunt's swings, and let its blows push you (Test scene `agrunt_weapon_hands`): it never drops its
+  weapon unless you strike it (a real swing on the weapon still knocks it out), shoot it, grab it or parry its blow.
+- [ ] Test scene `agrunt_friendly_fire`: the back row holds and sidesteps instead of shooting the front row in the back;
+  now and then one still hits a friend that steps in. Careful of Friends 0 brings back the chaos to compare.
+- [ ] A grunt taking a sword up from the floor (after a knockdown, a disarm, one you threw): is the sword in its hand
+  drawn? If not, say which way it was taken up.

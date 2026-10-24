@@ -721,6 +721,21 @@ void(entity p) VR_AG_WeaponLine =
     vr_ag_wb = m;
 };
 
+// `pl`'s hand `h`'s own swing now (m/s): the fastest of its grip and far end in the play space, against the head (the
+// melee's tracking: vr_melee.qc VR_Melee_Track, this frame's or the last); 0 untracked or stale.
+float(entity pl, float h) VR_AG_SwingSpeed =
+{
+    entity was = self;
+    self = pl;
+    entity b = VR_Blow(h);
+    self = was;
+    if(b.mh_thing == VR_MTHING_NONE || fabs(time - b.mh_time) > 0.2) // (its clock: the player's, a frame or so ahead)
+    {
+        return 0;
+    }
+    return b.mh_fast;
+};
+
 // A player's hand (or what it holds) striking the held weapon hard enough: knocked out along the blow. TRUE: disarmed.
 float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 {
@@ -739,14 +754,19 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     {
         return FALSE;
     }
-    vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (the blow's own: not your walk or a push)
-    float sp = vlen(hv) / VRMetersToUnits();
+    vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (the blow's way)
+    // Its speed: the hand's (or its weapon's far end's) own swing, in your play space against your head (your melee's,
+    // vr_melee.qc VR_Melee_Track), not its world velocity: a push (a blow's knockback, a parry's, a shotgun's) or a step
+    // carries your idle hands along at 5 m/s and more, and the world velocity less yours (a frame behind) read as a
+    // blow (vrtesthall_2026-10-24_03-12-16: hands still against the head, 0.0-0.5 m/s, pushed at 4.9 m/s: dropped).
+    float sp = VR_AG_SwingSpeed(pl, h);
     float need = cvar_hget(cvarh_vr_agrunt_disarm_swing);
     if(sp < need)
     {
-        if(sp > need * 0.5)
+        if(sp > need * 0.5 || cvar_hget(cvarh_vr_agrunt_debug) >= 2)
         {
-            VR_AG_Log(sprintf("a blow of %.1f m/s on its weapon: under %g", sp, need));
+            VR_AG_Log(sprintf("a blow of %.1f m/s on its weapon (%.1f in the world): under %g", sp,
+                vlen(hv) / VRMetersToUnits(), need));
         }
         return FALSE;
     }

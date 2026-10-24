@@ -506,3 +506,4 @@ vr_armedgrunt_test.qc
 vr_armedgrunt_play_test.qc
 vr_armedgrunt_shot_test.qc
 vr_armedgrunt_parry_test.qc
+vr_armedgrunt_bugs_test.qc

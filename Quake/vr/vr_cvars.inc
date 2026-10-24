@@ -2874,6 +2874,8 @@ QVR_CVAR(vr_agrunt_w_justice, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_judge, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
 QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
+QVR_CVAR(vr_agrunt_friendly_care, "1", CVAR_ARCHIVE)   // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
+QVR_CVAR(vr_agrunt_friendly_giveup, "2.5", CVAR_ARCHIVE) // s: held so long for friends in the way (sidestepping), it fires anyway (0: never gives up)
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
 QVR_CVAR(vr_agrunt_ik_drawn, "1", CVAR_NONE)           // 1: armed monsters' arms aimed by their hands as drawn (Model Animation's spline, swings, rebuild: the hands on their weapons every frame); 0: by the frames' lerp (before)
 QVR_CVAR(vr_agrunt_ik_misfit, "3", CVAR_NONE)          // armed monsters: where the rig's forearm misplaces its hand by more than this (units; a grunt's crouching pains), the weapon goes to the animation's hand (wholly at twice it); 0 off (before)
