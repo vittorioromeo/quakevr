@@ -830,6 +830,7 @@ constexpr int apLeftFree = 4;        // ... the left as the animation has it
 constexpr int apLeftWeapon = 8;      // ... the left holding its own weapon at its target (dual wielding: propL, its turn)
 constexpr int apAnchor = 64;         // vr_agarms: wr and wl weigh its chest's anchor vertex as drawn, not its hands (QC VR_AGP_ANCHOR)
 constexpr int apBody = 32;           // its body's turns in a strike follow (torso, elbows: bodyTurn)
+constexpr int apFixed = 1;           // ... its hands' targets not turned with them (a take's bend: QC VR_AGP_FIXED)
 constexpr int apReach = 128;         // vr_agarms: the right hand reaching for a weapon lying (none sent): its grip to fw, up (QC VR_AGP_REACH)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
@@ -2448,10 +2449,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             }
         }
     }
-    if(bodied)
+    if(bodied && !(s.flags & apFixed))
     {
         // (QC turned the targets about its guess of the waist, `s.waist`; the chest turns about its own joint: the
-        // targets moved by the difference, a shift, so the arms ride the chest exactly)
+        // targets moved by the difference, a shift, so the arms ride the chest exactly. apFixed: a take's bend, the
+        // targets where the lying weapon is: not moved)
         const rigpose::Rigid& c = body[spec.chest];
         const glm::vec3 shift = c.pos + c.rot * s.waist - s.waist;
         for(int side = 0; side < 2; side++)

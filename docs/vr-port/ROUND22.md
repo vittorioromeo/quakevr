@@ -20123,6 +20123,14 @@ hammer and fists, enforcers with a sword and fists).
   timing and the line are unchanged).
 **Left:** the two-handed axe's off hand hangs in some swings (agarms' second grip, not this); the server's weapon entity
 is up to a few units off the drawn one in the turns (the waist QC guesses: drawn on the hand, the game's line unchanged).
+
+**The floor pickup's bend** (agent/agleft's "Not done: the floor pickup's reach"): taking a weapon up, the chest bends
+forward at the waist (`VR_AGP_TAKE_BEND` 28 degrees, vr_agarms only), eased in with the reach down, held through the
+grab, straightened over the lift; sent as the body's turn alone (flag 1, `VR_AGP_FIXED`: the hands' targets are the
+lying weapon's, neither turned nor shifted). Test 45's take-up (set 3, the lowest frame): reach short 5.2 -> 0.0 (grunt;
+the enforcer 0.0), joint gap 0, hand shape 0, arm edges within the sheet's others; tests 25 3/3, 34 2/2, 38 3/3 both
+kinds (each on a fresh map). Sheets `scratch/take_k0_s3.png`, `take_k1_s3.png` (take up / front, side: the hand on the
+shotgun's handle on the floor).
 ## Armed humanoids' leftovers: test 42's penalty, the chainsaw's front handle, the left hand's blades (worktree `gorefx`, branch `agent/agleft`, 2026-10-24)
 
 **Test 42's penalty volleys counted no pellets** (18/20 on next). Not agarms and not the behaviour: the test spawned
