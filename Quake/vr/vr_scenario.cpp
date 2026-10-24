@@ -38,6 +38,8 @@ struct Spawn
     int entry{-1}; // the toolgun's spawn list entry (-1: a classname)
     float fwd{0.f}, left{0.f}, up{0.f}, yaw{0.f};
     bool hasYaw{false};
+    bool armed{false}; // `spawnarmed`: `what` a classname, made with its right hand's weapon code and its left's
+    float code{0.f}, code2{0.f};
     int line{0};
 };
 
@@ -385,6 +387,39 @@ bool read(const char* id, Scenario& out)
             }
             out.spawns.pushBack(ZA_MOVE(s));
         }
+        else if(!q_strcasecmp(d, "spawnarmed"))
+        {
+            Spawn s;
+            s.line = lineNo;
+            const int nums = static_cast<int>(w.size()) - 4;
+            bool ok = w.size() >= 5 && w.size() <= 8;
+            float code[2]{};
+            ok = ok && number(w[2], code[0]) && number(w[3], code[1]);
+            for(int k = 0; ok && k < nums; k++)
+            {
+                ok = number(w[4 + k], n[k]);
+            }
+            if(!ok)
+            {
+                error(lineNo, "spawnarmed <classname> <weapon> <weapon2> <fwd> [left] [up] [yaw]");
+                return;
+            }
+            s.what = w[1];
+            s.armed = true;
+            s.code = code[0];
+            s.code2 = code[1];
+            s.fwd = n[0];
+            s.left = n[1];
+            s.up = n[2];
+            s.yaw = n[3];
+            s.hasYaw = nums >= 4;
+            if(!isClassname(s.what.cStr()))
+            {
+                error(lineNo, va("\"%s\" is not a spawn function", s.what.cStr()));
+                return;
+            }
+            out.spawns.pushBack(ZA_MOVE(s));
+        }
         else if(!q_strcasecmp(d, "cvar"))
         {
             if(w.size() != 3)
@@ -605,7 +640,12 @@ void place()
         at.z = (tr.fraction < 1.f ? tr.endpos[2] : feet.z) + sp.up;
         const float faceYaw = sp.hasYaw ? yaw + sp.yaw : glm::degrees(glm::atan(feet.y - at.y, feet.x - at.x));
         edict_t* e = nullptr;
-        if(sp.entry >= 0)
+        if(sp.armed)
+        {
+            e = box3d::spawnClass(sp.what.cStr(), at + glm::vec3{0.f, 0.f, 25.f}, glm::vec3{0.f, faceYaw, 0.f}, nullptr,
+                "weapon", sp.code, false, 0.f, "weapon2", sp.code2);
+        }
+        else if(sp.entry >= 0)
         {
             e = toolgun::spawnEntryAt(sp.entry, at, faceYaw);
         }

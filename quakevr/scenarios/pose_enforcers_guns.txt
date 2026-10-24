@@ -1,0 +1,60 @@
+# pose_enforcers_guns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (generated: scratch/gen_posescenes.py)
+title Pose Studio: frozen enforcers, every gun one each (then pairs of shotguns, nailguns, plasma guns, grenade launchers)
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_grip_scope 0
+cvar vr_agrunt_dual_chance 0
+# Shotgun
+spawnarmed monster_vr_enforcer 4 0 89 -108
+# Double-barrelled Shotgun
+spawnarmed monster_vr_enforcer 5 0 126 -60
+# Enforcer's Laser Rifle
+spawnarmed monster_vr_enforcer 16 0 140 0
+# Defender's Shotgun
+spawnarmed monster_vr_enforcer 23 0 126 60
+# Crossbow Knight's Crossbow
+spawnarmed monster_vr_enforcer 28 0 89 108
+# Widowmaker
+spawnarmed monster_vr_enforcer 102 0 72 -192
+# Grenade Launcher
+spawnarmed monster_vr_enforcer 8 0 126 -162
+# Proximity Gun
+spawnarmed monster_vr_enforcer 9 0 169 -117
+# Rocket Launcher
+spawnarmed monster_vr_enforcer 10 0 196 -61
+# Rocket Soldier's Launcher
+spawnarmed monster_vr_enforcer 20 0 205 0
+# Grenade Soldier's Launcher
+spawnarmed monster_vr_enforcer 21 0 196 61
+# Nailgun
+spawnarmed monster_vr_enforcer 6 0 169 117
+# Super Nailgun
+spawnarmed monster_vr_enforcer 7 0 126 162
+# Thunderbolt
+spawnarmed monster_vr_enforcer 11 0 72 192
+# Laser Cannon
+spawnarmed monster_vr_enforcer 12 0 111 -246
+# Pyro's Flamethrower
+spawnarmed monster_vr_enforcer 26 0 164 -215
+# Fumigator's Poison Sprayer
+spawnarmed monster_vr_enforcer 27 0 208 -172
+# Plasma Gun
+spawnarmed monster_vr_enforcer 103 0 242 -120
+# Grunt Burst Rifle
+spawnarmed monster_vr_enforcer 15 0 263 -61
+# Plasma Soldier's Rifle
+spawnarmed monster_vr_enforcer 22 0 270 0
+# Centurion's Plasma Gun
+spawnarmed monster_vr_enforcer 25 0 263 61
+# Shotgun x2
+spawnarmed monster_vr_enforcer 4 4 242 120
+# Nailgun x2
+spawnarmed monster_vr_enforcer 6 6 208 172
+# Plasma Gun x2
+spawnarmed monster_vr_enforcer 103 103 164 215
+# Grenade Launcher x2
+spawnarmed monster_vr_enforcer 8 8 111 246
+cmd vr_posestudio
+hint Pose Studio (Grip Editor > Drag Mode): walk up to one; boxes show on its weapon (blue) and hands (orange). Grip a box: move and turn it, let go. The panel beside you: Every Weapon / This Weapon, Undo, Reset Grips, Done (prints the grips as code). Every gun an enforcer holds, one each; the last four hold a pair.

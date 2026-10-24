@@ -18,7 +18,10 @@
 //                                        "Explosive Box"; or a classname) `fwd` units ahead of you, `left` to your left,
 //                                        on the floor under that point (`up` above it); facing you, or `yaw` degrees
 //                                        turned from your facing (0: the way you face)
-//   cvar <name> <value>                  set for the test; put back by End Test, the next test, a map change or load, and
+//   spawnarmed <classname> <weapon> <weapon2> <fwd> [left] [up] [yaw]
+//                                        an armed humanoid (monster_vr_grunt, monster_vr_enforcer) with its right hand's weapon
+//                                        code (vr_toolgun_armed_list; 0 the pool, -1 fists) and its left's (0 none), placed as spawn
+//   cvar <name> <value>                set for the test; put back by End Test, the next test, a map change or load, and
 //                                        never written to the config
 //   cmd <console command>                run once everything is placed (`cmd vr_agrunt_test 7`, `cmd impulse 9`)
 //   hint <text>                          the hint shown (default: the checklist line's text)

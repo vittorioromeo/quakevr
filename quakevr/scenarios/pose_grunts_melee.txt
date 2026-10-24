@@ -1,0 +1,52 @@
+# pose_grunts_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (generated: scratch/gen_posescenes.py)
+title Pose Studio: frozen grunts, every melee weapon one each (fists, then the axe, sword and crowbar pairs)
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_grip_scope 0
+cvar vr_agrunt_dual_chance 0
+# Fists
+spawnarmed monster_vr_grunt -1 0 110 -86
+# Axe
+spawnarmed monster_vr_grunt 2 0 137 -31
+# Mjolnir
+spawnarmed monster_vr_grunt 3 0 137 31
+# Knight's Sword
+spawnarmed monster_vr_grunt 13 0 110 86
+# Ogre's Chainsaw
+spawnarmed monster_vr_grunt 14 0 126 -162
+# Crowbar
+spawnarmed monster_vr_grunt 17 0 169 -117
+# Super Axe
+spawnarmed monster_vr_grunt 18 0 196 -61
+# Shadow Axe
+spawnarmed monster_vr_grunt 101 0 205 0
+# Death Fury's Sword
+spawnarmed monster_vr_grunt 111 0 196 61
+# Death Knight's Sword
+spawnarmed monster_vr_grunt 112 0 169 117
+# Zombie Knight's Sword
+spawnarmed monster_vr_grunt 113 0 126 162
+# Death Guard's Sword
+spawnarmed monster_vr_grunt 114 0 138 -232
+# Hunter Ogre's Hammer
+spawnarmed monster_vr_grunt 115 0 187 -194
+# Hunter Ogre's Mace
+spawnarmed monster_vr_grunt 116 0 227 -147
+# Phantom Sword
+spawnarmed monster_vr_grunt 117 0 254 -91
+# Dark Prince's Sword
+spawnarmed monster_vr_grunt 118 0 268 -31
+# Justice Knight's Sword
+spawnarmed monster_vr_grunt 119 0 268 31
+# Judicator's Sword
+spawnarmed monster_vr_grunt 120 0 254 91
+# Axe x2
+spawnarmed monster_vr_grunt 2 2 227 147
+# Knight's Sword x2
+spawnarmed monster_vr_grunt 13 13 187 194
+# Crowbar x2
+spawnarmed monster_vr_grunt 17 17 138 232
+cmd vr_posestudio
+hint Pose Studio (Grip Editor > Drag Mode): walk up to one; boxes show on its weapon (blue) and hands (orange). Grip a box: move and turn it, let go. The panel beside you: Every Weapon / This Weapon, Undo, Reset Grips, Done (prints the grips as code). Every melee weapon a grunt holds, one each; the last three hold a pair.
