@@ -170,3 +170,17 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
    `vr_toolgun_armed_tiles 1`).
 8. Test: `vr_agrunt_test_kind <row>`, then `vr_agrunt_test 1, 2, 3, 20..30` and the eyeshots (`vr_agrunt_test 14`,
    `15` with `scratch2` the phase).
+
+## Arms in motion: the glitch finder, the robust solve, the upper body (ROUND22.md, "Armed humanoids in motion")
+
+- **Glitch finder:** `vr_agrunt_test 46` (Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder): every kind
+  and weapon class through its real fights; `vr_agglitch_report` the worst moments and each metric's worst and 95th
+  percentile per subject (files in `quakevr/agglitch`); `vr_agglitch_shots N` eye images of the worst (front: left eye,
+  side: right eye). Run it before and after any change to the poses, keys or the solve.
+- **The solve each frame** (`vr_agarms.cpp`): body proxies (`vr_agbody.cpp`: torso, pelvis, head) the hands are pushed out
+  of and the elbow kept out of (`vr_agarms_body`); the elbow's swing rate-limited the way round outside the body
+  (`vr_agarms_elbow_rate`); the second grip's hysteresis and ease (`vr_agarms_second_hold`); a pickup's reach eased in by
+  distance (`vr_agarms_reach_ease`); goal jumps eased (`vr_agarms_jump_ease`).
+- **The upper body** (`vr_agrunt_upper`): the chest upright on the frames' hips (their own chest motion in shots, reloads,
+  pains and runs taken out; a pickup's crouch, falls and deaths keep the frames'), breathing; QC's gun torso turns (aim
+  twist `vr_agrunt_aim_twist`, kick lean, reload turn) as the body block, the Pose Studio's torso keys on top.

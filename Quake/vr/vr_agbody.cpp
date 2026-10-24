@@ -8,6 +8,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -24,6 +25,7 @@ constexpr float fitShare = 0.8f; // a radius: this share of its bone's vertices 
 constexpr int maxUppers = 64;
 constexpr float upperEase = 0.25f;   // seconds the procedural upper body takes to come in or go (a pickup's crouch)
 constexpr float breathPeriod = 3.4f; // seconds a breath
+constexpr float upperTilt = 35.f;   // degrees the hips tip (from their rest) past which the frames' chest is kept (falls, deaths)
 constexpr float upperLag = 0.04f;    // seconds the upper body takes to follow its hips (an unlerped frame's jump smoothed)
 
 // The procedural upper body of one armed humanoid.
@@ -272,7 +274,11 @@ bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* po
         return u->on;
     }
     const float dt = u->frame < 0 ? 0.f : static_cast<float>(za::clamp(cl.time - u->time, 0.0, 0.25));
-    u->w = u->frame < 0 ? (keepFrames ? 0.f : 1.f) : za::clamp(u->w + (keepFrames ? -dt : dt) / upperEase, 0.f, 1.f);
+    // (hips tipped well over, a fall's or a death's frames: theirs, readable)
+    const rigpose::Rigid hips = composeR(posed[pelvis], inverseR(rigpose::key(rig, 0, pelvis)));
+    const float tilt = za::acos(za::clamp(glm::dot(hips.rot * glm::vec3{0.f, 0.f, 1.f}, glm::vec3{0.f, 0.f, 1.f}), -1.f, 1.f)) * (180.f / 3.14159265f);
+    const bool frames = keepFrames || tilt > upperTilt;
+    u->w = u->frame < 0 ? (frames ? 0.f : 1.f) : za::clamp(u->w + (frames ? -dt : dt) / upperEase, 0.f, 1.f);
     u->frame = host_framecount;
     u->time = cl.time;
     // The chest upright as at rest (pose 0; turned with the hips by vr_agrunt_upper_hips of theirs), its waist where the
