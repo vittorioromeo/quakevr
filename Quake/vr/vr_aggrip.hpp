@@ -27,7 +27,12 @@ struct Offset
     glm::vec3 angles{0.f}; // degrees: pitch (down), yaw (left), roll
 };
 
+// A weapon's own offset (its Weapon Offsets slot; vr_agarms: on top of its kind's global one).
 [[nodiscard]] Offset offset(int kind, int slot, int hand);
+
+// vr_agarms: a kind's hand's grip frame for every weapon (the Grip Editor's All Weapons entry; its slot allWeapons).
+inline constexpr int allWeapons = -2;
+[[nodiscard]] Offset global(int kind, int hand);
 
 // The editor's subject this frame: the armed monster nearest the view (relinkArms tells each one; `dist` its distance).
 void noteSubject(int kind, int slot, int slotL, float dist);

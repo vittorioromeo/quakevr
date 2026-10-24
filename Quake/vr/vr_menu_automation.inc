@@ -241,6 +241,19 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 26 (vrtesthall's start): weapons in the pool and in the air left alone, one on the "
                   "floor taken. 21-24: the tug-of-war, the grab at once, blows and parries (21-23 want your empty main "
                   "hand held closed); 27: giving a weapon up."),
+        command("Armed Grunts: Arms' Contact Sheet", "scratch2 0; scratch3 13; vr_agrunt_test 45")
+            .help("vr_agrunt_test 45 (vrtesthall): an armed monster ahead, its AI held, through every weapon kind (fists, "
+                  "sword, axe, guns, two shotguns, two axes, the chainsaw) and pose (idle, aiming ahead, up, down, left, "
+                  "right, running, taking a weapon up, a pain, a blow), seen from its front and its right, 0.7 s each; "
+                  "the arms' numbers per pose at the end (agt lines: vr_agrunt_ik_err). scratch2..scratch3 the weapon "
+                  "kinds (0..13), scratch4 how far (110)."),
+        toggle("Armed Grunts: Posed Arms", vr_agarms)
+            .help("On: their arms posed by their weapons, held as you hold them, IK and skinned arms (vr_agarms). Off: "
+                  "the animation's arms bent onto the weapons (before). Takes effect at the next map."),
+        command("Armed Grunts: Arms' Numbers", "vr_agrunt_ik_err")
+            .help("Prints the arms' numbers counted since the last time (vr_agrunt_ik_err): joints' gaps, the hands' shape, "
+                  "edges' stretch, the arms in the torso, the hands short of their weapons, the wrists' bend; and how far "
+                  "held weapons were drawn from their holders (agprop)."),
         command("Armed Grunts: Melee Pickups", "vr_agrunt_test 61")
             .help("vr_agrunt_test 61 (vrtesthall, you unseen): each melee weapon taken up from the floor by a grunt and "
                   "an enforcer (lying, after its disarm, thrown by you, after a knockdown): the weapon in its hand has "

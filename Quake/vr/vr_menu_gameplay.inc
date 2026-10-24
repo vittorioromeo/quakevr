@@ -1037,6 +1037,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         cycle("Hand", vr_agrunt_grip_hand, {{0.f, "Main Hand"}, {1.f, "Off Hand (Dual)"}, {2.f, "Off Hand on the Second Grip"}})
             .help("Main Hand: the weapon in its right hand. Off Hand (Dual): its left hand's own weapon. Second Grip: its "
                   "left hand on a two-handed weapon's second grip (where its hand goes, along the weapon's axes)."),
+        cycle("Edits", vr_agrunt_grip_scope, {{0.f, "Every Weapon (This Kind)"}, {1.f, "This Weapon Only"}})
+            .help("Every Weapon: the hand's grip for every weapon this kind of monster holds (grunts, enforcers: each "
+                  "its own), as you hold them; tune this first. This Weapon Only: one weapon's own nudge on top of it. "
+                  "(vr_agrunt_grip_scope; with Posed Arms on, vr_agarms)"),
         header("The Weapon in the Hand"),
         pos("Forward", vr_agrunt_grip_x, "Moves the weapon forward (back: negative) in the hand: units, along the hand's "
                                           "grip (the way its own gun pointed). Second Grip: the hand along the weapon."),

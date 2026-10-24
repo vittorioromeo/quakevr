@@ -132,8 +132,29 @@ float(vector a0, vector a1, vector b0, vector b1) VR_AGS_Closest =
 // The hand holding `p` and its forearm (vr_ags_ha the grip, vr_ags_hb VR_AGS_FOREARM on towards its shoulder).
 void(entity g, entity p) VR_AGS_HandLine =
 {
-    makevectors('0 1 0' * g.angles_y);
-    vector sh = g.origin + v_right * (p.vr_ag_left ? -7 : 7) + '0 0 1' * (g.maxs_z * 0.45);
+    vector sh = '0 0 0';
+    float rowed = FALSE;
+    if(cvar_hget(cvarh_vr_agarms))
+    {
+        // (vr_agarms: its row's shoulder, carried by its chest's anchor as its arms are drawn from it)
+        vector an = VR_AM_Anchor(g);
+        if(trace_fraction != 0)
+        {
+            VR_AM_Row(g.vr_ag_kind);
+            vector l = (p.vr_ag_left ? vr_am_sh_l : vr_am_sh_r) - vr_am_anchor_at;
+            makevectors('0 1 0' * g.angles_y);
+            sh = an + v_forward * l_x - v_right * l_y + '0 0 1' * l_z;
+            // (its forearm towards its elbow, the engine's IK's: down and out between its shoulder and its hand)
+            float side = p.vr_ag_left ? -1 : 1;
+            sh = (sh + p.origin) * 0.5 + ('0 0 -0.3' * vr_am_arm) + v_right * (side * 0.2 * vr_am_arm);
+            rowed = TRUE;
+        }
+    }
+    if(!rowed)
+    {
+        makevectors('0 1 0' * g.angles_y);
+        sh = g.origin + v_right * (p.vr_ag_left ? -7 : 7) + '0 0 1' * (g.maxs_z * 0.45);
+    }
     vector d = sh - p.origin;
     vr_ags_ha = p.origin;
     vr_ags_hb = vlen(d) > 1 ? p.origin + normalize(d) * min(VR_AGS_FOREARM, vlen(d)) : p.origin;

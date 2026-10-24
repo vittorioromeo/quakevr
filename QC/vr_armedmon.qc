@@ -54,6 +54,15 @@ vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, mad
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
 vector vr_am_back_hi;       // ... a flamethrower's or poison sprayer's tank worn there, upright along them (vr_adtankworn.qc)
+// vr_agarms (vr_armedgrunt_pose.qc VR_AGP_Arms; the engine's vr_agarms.cpp, its rig as vr_agarms_info prints it):
+float vr_am_anchor;         // its chest's vertex its poses are placed from (the engine's armedRigs row's too),
+vector vr_am_anchor_at;     // ... where it is at rest (its body's space: x ahead, y its left, z up, from its origin)
+vector vr_am_sh_r;          // its shoulders at rest
+vector vr_am_sh_l;
+float vr_am_arm;            // ... an arm from its shoulder to its wrist (units)
+vector vr_am_grip_r;        // its hands' grips at rest (on its own gun: its rest pose's hold, the wrists as the artist made them)
+vector vr_am_grip_l;
+vector vr_am_gun_fw;        // ... its own gun's way at rest
 
 void(float k) VR_AM_Row =
 {
@@ -93,6 +102,14 @@ void(float k) VR_AM_Row =
         vr_am_fit_shift = '-3 0 7';
         vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
         vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
+        vr_am_anchor = 322;
+        vr_am_anchor_at = '-9.9 -1.6 21.9';
+        vr_am_sh_r = '-6.2 -11.3 21.8';
+        vr_am_sh_l = '-5.9 7.2 22.8';
+        vr_am_arm = 20.4;
+        vr_am_grip_r = '3.3 -5.5 11';
+        vr_am_grip_l = '8.7 11.6 13.4';
+        vr_am_gun_fw = '0 0.984 0.18';
         return;
     }
     // The grunt (the first row; k 0, an armed grunt from before the table): Quake VR's soldier.mdl, the gun's vertices
@@ -126,6 +143,14 @@ void(float k) VR_AM_Row =
     vr_am_fit_shift = '0 0 0';
     vr_am_back_lo = '93 95 0';   // (its back at the waist, x -8.9 / -8.0, z 5.3, standing)
     vr_am_back_hi = '160 162 0'; // (... at the shoulder blades, x -6.2, z 14.8)
+    vr_am_anchor = 148;
+    vr_am_anchor_at = '-0.1 0 19.3';
+    vr_am_sh_r = '0.1 -7.7 16.3';
+    vr_am_sh_l = '0.7 6.3 14.5';
+    vr_am_arm = 16.7;
+    vr_am_grip_r = '5.7 -3.6 4.8';
+    vr_am_grip_l = '11.8 5.5 1.9';
+    vr_am_gun_fw = '0.394 0.888 -0.235';
 };
 
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).

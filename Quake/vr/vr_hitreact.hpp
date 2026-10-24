@@ -58,6 +58,9 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 // the left forearm, the left hand; rest -> model space, each drawn whole: the shader's RigPiece) and each vertex's piece
 // (-1 none; `bone` its forearm's): read when the model's rest data is made.
 inline constexpr int numArmPieces = 4;
+
+// vr_agarms: an armed humanoid's model's vertex `v`'s arm skin row (vr_agarms.hpp restRow). False: none.
+bool armSkinRow(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v, glm::vec4& out);
 [[nodiscard]] int armedPiece(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v, int& bone);
 
 // vr_agrunt_ik_err's arm numbers for one drawn armed monster (kickInstance, while a tag is set): each side's forearm and

@@ -66,6 +66,7 @@ struct SmoothModel
     float rebuildMedian{0.f}, rebuildP90{0.f}, rebuildMost{0.f};
     bool rebuildOk{false};
     bool restUploaded{false};         // `rest` is in the model's restBuffers buffer (VR_AnimSmoothBind)
+    bool armSkin{false};              // its rest data has arm skin rows (vr_agarms): each instance's kicks then carry its arm rows
 };
 
 [[nodiscard]] inline za::SizeT heldBytes(const SmoothModel& m)
@@ -145,7 +146,7 @@ struct Stats
 };
 inline Stats stats;
 
-inline constexpr int restStride = 3;           // SmoothModel::rest's vec4s per vertex (the shader's SmoothRest)
+inline constexpr int restStride = 4;           // SmoothModel::rest's vec4s per vertex (the shader's SmoothRest; the fourth: an armed humanoid's arm skin, vr_agarms.cpp)
 
 inline constexpr float pinSpan = 0.1f; // s: a pinned spline's frames' time each
 

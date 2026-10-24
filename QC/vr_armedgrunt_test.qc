@@ -1037,6 +1037,198 @@ void() VR_AGTest_DualGuns =
 // Test 44: a row of dual-gun humanoids ahead, 40 units apart, 300 off (the checklist scene agrunt_dual_guns): grunts with
 // two shotguns, two nail guns, a super shotgun and a grenade launcher, enforcers with two super nail guns and a shotgun
 // and a thunderbolt.
+// Test 45: the arms' contact sheet (vr_agarms; ROUND22.md, "Armed humanoids' arms: posed and skinned"). You unseen, one
+// armed monster (`vr_agrunt_test_kind`) `scratch4` units ahead (110), its AI held, through weapon sets scratch2 ..
+// scratch3 (VR_AGT_SheetSet: 0 fists .. 13 the chainsaw) and, for each, the poses (VR_AGT_SheetPose: idle, aiming ahead,
+// up, down, left, right, running, taking a weapon up, a pain, a blow), each seen from its front and its right side:
+// held temp1 seconds (0.7), then a screenshot (`agsheet:` its label), the engine's arm numbers counted under tag set * 20
+// + pose * 2 + view meanwhile (vr_agrunt_ik_err prints them at the end). Eyeshots: the run's script sets the camera
+// (scratch/ag_sheet.sh: vr_mock_camera, vr_eyeshot 1).
+float vr_agt_sheet_set;
+float vr_agt_sheet_pose;
+float vr_agt_sheet_view;
+float vr_agt_sheet_at;
+entity vr_agt_sheet_tgt;
+float vr_agt_sheet_w2; // (VR_AGT_SheetSet's left hand's weapon: -1 none)
+float(float s) VR_AGT_SheetSet =
+{
+    vr_agt_sheet_w2 = -1;
+    if(s == 0) { return -1; }
+    if(s == 1) { return WID_SWORD; }
+    if(s == 2) { return WID_AXE; }
+    if(s == 3) { return WID_SHOTGUN; }
+    if(s == 4) { return WID_SUPER_SHOTGUN; }
+    if(s == 5) { return WID_NAILGUN; }
+    if(s == 6) { return WID_SUPER_NAILGUN; }
+    if(s == 7) { return WID_GRENADE_LAUNCHER; }
+    if(s == 8) { return WID_ROCKET_LAUNCHER; }
+    if(s == 9) { return WID_LIGHTNING; }
+    if(s == 10) { return WID_ENFRIFLE; }
+    if(s == 11) { vr_agt_sheet_w2 = WID_SHOTGUN; return WID_SHOTGUN; }
+    if(s == 12) { vr_agt_sheet_w2 = WID_AXE; return WID_AXE; }
+    return WID_CHAINSAW;
+};
+string(float p) VR_AGT_SheetPoseName =
+{
+    if(p == 0) { return "idle"; }
+    if(p == 1) { return "aim ahead"; }
+    if(p == 2) { return "aim up"; }
+    if(p == 3) { return "aim down"; }
+    if(p == 4) { return "aim left"; }
+    if(p == 5) { return "aim right"; }
+    if(p == 6) { return "run"; }
+    if(p == 7) { return "take up"; }
+    if(p == 8) { return "pain"; }
+    return "blow";
+};
+
+// `g` held in pose `pose` this frame (its target, its frame, its attack's phase).
+void(entity g, float pose) VR_AGT_SheetPose =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    entity p = g.vr_ag_prop;
+    g.nextthink = time + 1;
+    g.velocity = '0 0 0';
+    g.vr_ag_act = 0;
+    g.vr_ag_aim = '0 0 0';
+    g.enemy = world;
+    g.frame = VR_AM_StandFrame(g, 0);
+    makevectors([0, g.angles_y, 0]);
+    vector chest = g.origin + '0 0 12';
+    vector t = chest + v_forward * 200;
+    if(pose == 2) { t = chest + v_forward * 140 + '0 0 140'; }
+    if(pose == 3) { t = chest + v_forward * 170 - '0 0 100'; }
+    if(pose == 4) { t = chest + v_forward * 150 - v_right * 130; }
+    if(pose == 5) { t = chest + v_forward * 150 + v_right * 130; }
+    setorigin(vr_agt_sheet_tgt, t);
+    if((pose >= 1 && pose <= 5) || pose == 9)
+    {
+        g.enemy = vr_agt_sheet_tgt;
+        if(p && VR_AG_Class(p.weapon) != VR_AG_CLASS_MELEE)
+        {
+            g.vr_ag_aim = normalize(t - p.origin);
+        }
+    }
+    if(pose == 6)
+    {
+        g.frame = vr_am_f_run + (floor(time * 10) & 7);
+    }
+    if(pose == 7 && p)
+    {
+        // (its hand on a weapon lying before it, down on its knee: the take's lowest frame, about to close)
+        g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
+        g.vr_ag_took_at = time - 5; // (its hand just closed on it: still where it lay)
+        g.vr_ag_took_grab = time - 0.001;
+        g.vr_ag_took_org = g.origin + v_forward * 18 + v_right * 4 + '0 0 -22';
+        g.vr_ag_took_fw = v_forward;
+        g.vr_ag_took_up = '0 0 1';
+    }
+    else
+    {
+        g.vr_ag_took_at = 0;
+    }
+    if(pose == 8)
+    {
+        g.frame = g.vr_ag_kind == VR_AM_ENFORCER ? 67 : 41;
+    }
+    if(pose == 9)
+    {
+        float c = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
+        if(c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS)
+        {
+            // (held at its blow: a swing's strike, a cross's punch)
+            g.vr_ag_act = c == VR_AG_CLASS_FISTS ? VR_AGP_PUNCH : p.weapon == WID_CHAINSAW ? VR_AGP_SAW : VR_AGP_SWING;
+            g.vr_ag_act_kind = c == VR_AG_CLASS_FISTS ? 1 : 0;
+            g.vr_ag_act_hand = 0;
+            g.vr_ag_act_hit = 2;
+            g.vr_ag_act_hitl = 1;
+            g.vr_ag_act_tick = time;
+            VR_AGP_Times(g);
+            g.vr_ag_act_at = time - vr_agp_tw - (c == VR_AG_CLASS_FISTS ? 0.8 : 0.6) * vr_agp_ts;
+        }
+        else
+        {
+            // (a shot's kick, a moment after it)
+            g.vr_ag_kick_at = time - 0.05;
+            if(p) { p.vr_ag_kick_at = time - 0.05; }
+            if(g.vr_ag_prop2) { g.vr_ag_prop2.vr_ag_kick_at = time - 0.05; }
+        }
+    }
+};
+
+void() VR_AGTest_Sheet =
+{
+    entity pl = vr_agt_player;
+    float first = cvar("scratch2");
+    float last = cvar("scratch3") >= first ? cvar("scratch3") : first;
+    float hold = cvar("temp1") > 0 ? cvar("temp1") : 0.7;
+    if(vr_agt_step == 0)
+    {
+        VR_AGT_ClearWeapons();
+        pl.flags = pl.flags | FL_NOTARGET;
+        if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); }
+        if(!vr_agt_sheet_tgt) { vr_agt_sheet_tgt = spawn(); vr_agt_sheet_tgt.classname = "vr_agt_sheet_target"; }
+        vr_agt_sheet_set = first;
+        vr_agt_sheet_pose = 0;
+        vr_agt_sheet_view = 0;
+        localcmd("vr_agrunt_ik_err\n"); // (counted afresh)
+        vr_agt_step = 1;
+    }
+    if(vr_agt_step == 1)
+    {
+        // A set's monster.
+        if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); }
+        float w1 = VR_AGT_SheetSet(vr_agt_sheet_set);
+        vr_agt_weapon2 = vr_agt_sheet_w2 >= 0 ? vr_agt_sheet_w2 : 0;
+        vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 110);
+        vr_agt_weapon2 = 0;
+        vr_agt_sheet_at = time;
+        vr_agt_step = 2;
+    }
+    entity g = vr_agt_grunt;
+    float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * 2 + vr_agt_sheet_view;
+    g.angles_y = vectoyaw(pl.origin - g.origin) + (vr_agt_sheet_view ? 90 : 0) + 0.01;
+    VR_AGT_SheetPose(g, vr_agt_sheet_pose);
+    float s = time - vr_agt_sheet_at;
+    cvar_set("vr_agrunt_ik_tag", s >= hold * 0.6 ? ftos(tag) : "-1");
+    if(vr_agt_step == 2 && s >= hold)
+    {
+        // (the script's screenshot follows this line: `vr_waitprint 3000 (tag; screenshot`; held 0.2 s more)
+        VR_AGT_Print(sprintf("sheet: %s %s, set %g %s: %s, %s (tag %g)", VR_AM_UiKindName(g.vr_ag_kind), g.vr_ag_prop ?
+            g.vr_ag_prop.netname : "fists", vr_agt_sheet_set, g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "-",
+            VR_AGT_SheetPoseName(vr_agt_sheet_pose), vr_agt_sheet_view ? "side" : "front", tag));
+        vr_agt_step = 3;
+        vr_agt_sheet_at = time;
+        return;
+    }
+    if(vr_agt_step == 3 && s >= 0.2)
+    {
+        vr_agt_step = 2;
+        vr_agt_sheet_at = time;
+        vr_agt_sheet_view = vr_agt_sheet_view + 1;
+        if(vr_agt_sheet_view > 1)
+        {
+            vr_agt_sheet_view = 0;
+            vr_agt_sheet_pose = vr_agt_sheet_pose + 1;
+            if(vr_agt_sheet_pose > 9)
+            {
+                vr_agt_sheet_pose = 0;
+                vr_agt_sheet_set = vr_agt_sheet_set + 1;
+                vr_agt_step = vr_agt_sheet_set > last ? 4 : 1;
+            }
+        }
+    }
+    if(vr_agt_step == 4)
+    {
+        cvar_set("vr_agrunt_ik_tag", "-1");
+        localcmd("vr_agrunt_ik_err\n");
+        if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); }
+        pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
+        VR_AGT_Print("sheet: done");
+        cvar_set("vr_agrunt_test", "0");
+    }
+};
+
 void() VR_AGTest_DualRow =
 {
     entity p = vr_agt_player;
@@ -1110,6 +1302,7 @@ void() VR_AGTest_Frame =
     else if(t == 41 || t == 43) { VR_AGTest_Sweep(); }
     else if(t == 42) { VR_AGTest_DualGuns(); }
     else if(t == 44) { VR_AGTest_DualRow(); }
+    else if(t == 45) { VR_AGTest_Sheet(); } // (the arms' contact sheet: vr_agarms)
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)

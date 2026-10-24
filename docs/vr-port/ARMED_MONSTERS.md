@@ -44,7 +44,25 @@ name; the settings keep their cvars): read "AG" as "armed".
 | `vr_am_fit_scale`, `_fit_shift` | the poses (made on the grunt's body) onto its body: scaled, then moved | 1 1 1, 0 0 0 | 1 1.35 1.1, -3 0 7 |
 
 The engine's row (`armedRigs` in `vr_hitreact.cpp`): its model id, vertex count, the right hand's and the gun's
-vertices (ranges: never a hand's), the gun's line, its arm bones' names (the ragdoll rig's).
+vertices (ranges: never a hand's), the gun's line, its arm bones' names (the ragdoll rig's), its chest anchor vertex.
+
+Its arms (`vr_agarms`, ROUND22.md "Armed humanoids' arms: posed and skinned"): `vr_am_anchor` / `_anchor_at` (a chest
+vertex its poses are placed from; the engine row has the same index), `vr_am_sh_r` / `_sh_l` (its shoulders at rest),
+`vr_am_arm` (shoulder to wrist), `vr_am_grip_r` / `_grip_l` and `vr_am_gun_fw` (its hands on its own gun at rest, the
+gun's way): `vr_agarms_info` prints all of these for a loaded model (and its skin: arm vertices, hands, joints).
+
+## Arms: posed by the weapon, IK, skinned (vr_agarms)
+
+| Part | Where |
+| --- | --- |
+| Where each weapon is held (its entity frame is the hand's, as your controller's is) | QC `vr_armedgrunt_pose.qc`: `VR_AGP_ArmsGun` (long guns from the rest pose's hold, raised by `vr_agarms_shoulder`; one-handed and dual out from the shoulder), `VR_AGP_BladeHand` (melee: the tip on the blade's line, the knuckles leading), fists and free hands as points, `VR_AGP_RunBob`, the reach clamp; flags `VR_AGP_ANCHOR` (64), `VR_AGP_REACH` (128) |
+| A weapon's own points (muzzle or tip, butt, second grip) in its frame | `weapondrawnpose(p, 0, 8..10)` (`view::weaponLocalGeometry`) |
+| The arms' IK, the hands' grip frames, the weapons drawn on the hands | `vr_agarms.cpp` `solve` (`vr_hitreact.cpp` `relinkSkinned` calls it) |
+| The skin (weights per vertex, once a model) | `vr_agarms.cpp` `skinOf`; the alias shader's `RigArm` (`vr_glsl.h`), rows from `kickInstance` |
+| Grips: one per kind and hand for every weapon, a weapon's own on top | `vr_aggrip.cpp` (`global`, `offset`); VR Settings > Armed Grunts > Grip Editor (Edits: Every Weapon / This Weapon Only) |
+| Numbers, the contact sheet | `vr_agrunt_ik_err` (agarms, agt, agprop lines), `vr_agrunt_test 45` |
+
+A new row needs only its row's fields above and its engine row's anchor: its skin is found from its rig.
 
 ## Hooks in the monster's own code
 

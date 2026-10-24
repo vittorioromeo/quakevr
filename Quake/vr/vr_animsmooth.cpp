@@ -32,6 +32,7 @@
 // frames is a few units off it at most mid-swing (vr_anim_smooth_check).
 
 #include "vr_animsmooth_internal.hpp"
+#include "vr_agarms.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -500,6 +501,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     m.rest.clear();
     m.rest.resize(static_cast<za::SizeT>(hdr->numverts_vbo) * restStride);
     m.restUploaded = false;
+    m.armSkin = false;
     m.swungVerts = m.fadedVerts = 0;
     m.rebuiltVerts = m.rebuildFaded = 0;
     za::Vector<float> rms(static_cast<za::SizeT>(hdr->numverts_vbo));
@@ -518,6 +520,12 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
         // fit's bone).
         // A rigid arm's piece (vr_agrunt_ik_rigid): drawn as its piece moves its rest place (the shader's RigPiece: its
         // rows after the bones' kicks, kickInstance's), whatever its frames.
+        // An armed humanoid's arm skin (vr_agarms): its fourth row (its arm's bones' weights; the shader's RigArm).
+        r[3] = glm::vec4{0.f};
+        if(hitreact::armSkinRow(model, hdr, rig, v, r[3]))
+        {
+            m.armSkin = true;
+        }
         int pieceBone = -1;
         const int piece = hitreact::armedPiece(model, hdr, rig, v, pieceBone);
         const int hand = piece >= 0 ? -1 : hitreact::armedHandBone(model, hdr, rig, v);
@@ -1161,7 +1169,14 @@ struct HandDraw
     }
     za::Vector<glm::vec4>& swing = swingsOf(channel);
     const za::SizeT at = swing.size();
-    swing.resize(at + static_cast<za::SizeT>(3 * rig.numBones + (piecesOn ? 3 * hitreact::numArmPieces : 0)));
+    piecesOn = piecesOn && !m.armSkin;
+    swing.resize(at + static_cast<za::SizeT>(3 * rig.numBones + (piecesOn ? 3 * hitreact::numArmPieces : 0) +
+                                             (m.armSkin ? agarms::blockRows : 0)));
+    if(m.armSkin)
+    {
+        // An armed humanoid's arm rows after its bones' (its rest data's fourth row says where: vr_agarms.cpp).
+        (void)agarms::rows(e, hdr, swing.data() + at + static_cast<za::SizeT>(3 * rig.numBones));
+    }
     for(int p = 0; piecesOn && p < hitreact::numArmPieces; p++)
     {
         // A piece's rows: its rest place moved (model units) to the poses' units.
