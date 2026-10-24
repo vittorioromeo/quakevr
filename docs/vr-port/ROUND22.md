@@ -20442,3 +20442,105 @@ the knee 2.6 that way; kneeling foot 2 along: `-2 0 0`, its ankle 2.00 moved; pl
 the hand at the planted foot takes nothing; Limbs: takes it. Undo: the planted knee's key back to 0. Copy: the enforcer's
 `10031` the grunt's scaled (y x1.35, z x1.1). Done: the `{31, ...}` and `{10031, ...}` rows, the file written. Scenes
 validate 0 errors, runall `agrunt_pose_studio`, `agrunt_grip_editor`, `agrunt_pickup` OK.
+
+## Armed humanoids in motion: the glitch finder and a robust solve (worktree `tghost`, branch `agent/agrobust`, 2026-10-24)
+
+Notes vrragtriggers 2026-10-24 14:25:04 and 14:27:52: poses right in the Pose Studio, wrong in fights (elbows the wrong
+way, limbs through the torso while aiming, firing, reloading; the one-handed axe's elbow in the torso, the other arm
+wandering for a second grip). New: `Quake/vr/vr_agglitch.cpp` (the finder), `vr_agbody.cpp` (body proxies, the upper
+body), QC `vr_armedgrunt_glitch_test.qc` (test 46); `vr_agarms.cpp` (the solve's limits), `vr_hitreact.cpp`
+(relinkSkinned, boneTurns), `vr_backend_mock.cpp` (`setMockEyeCameras`), `vr_builtins.cpp` (`weapondrawnpose(e, 0, 20)`:
+e's entity number), QC `vr_armedgrunt_pose.qc` (the gun torso).
+
+**The glitch finder** (Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder; `vr_agrunt_test 46`,
+vrtesthall). Each of 24 subjects (grunt and enforcer x fists, sword, axe, shotgun, double shotgun, nailgun, rocket
+launcher, thunderbolt, chainsaw, two shotguns, two axes, Mjolnir) plays its own AI for 19 s against a target moving
+all round it (0-7 s circling 220 units off, rising and falling 130: every yaw and pitch, its aim, fire, reloads; 7-9.5
+far: a run; 9.5-13 circling 44 off: its strikes; 13-15 three hits: pain; 15-19 disarmed: the pickup). Every drawn frame
+of the subject (`vr_agglitch_ent`, `_subject`, `_state`, set by QC) is measured: **flip** (the elbow's swing about its
+reach line, degrees a frame at 90 Hz), **wrong** (the elbow off outward-and-down, or off a strike's pole; past 135 it
+points up and in), **pen** (elbow, forearm, wrist or grip inside the torso, pelvis or head: ellipsoidal capsules fitted
+per side to each bone's rest vertices, `vr_agbody.cpp`), **reach** (a hand short of its goal), **grip2** (the off hand off
+its second grip), **toggle** (second grip taken/let go in the last second), **gap**, **aim** (the right weapon off its
+wanted line), **jump** (hand and elbow second difference, units at 90 Hz), **shoulder** (the same for the shoulders:
+the body under the arms), **wrist** (degrees a hand is turned back past the wrist's most). `vr_agglitch_report` prints
+each subject's worst/95th percentile (`agg` lines) and the worst moments (`aggtop`, one per subject and metric), writes
+`quakevr/agglitch/<label>_summary.csv` (per subject and state), `_top.csv`, `_frames.csv` (every frame: the studio's
+"jump to glitch", later). `vr_agglitch_shots N` shoots each subject's N worst as an eyeshot: the left eye from its front,
+the right from its side, in the same frame (the mock's eye cameras follow the subject; `vr_agglitch_metric` limits the
+moments to some metrics). Scripts: `scratch/agg_run.sh <label> <first> <last> [cmds]` (90 Hz fixed frames, seed 7: the
+same frames every run; 24 subjects in ~90 s), `agg_table.py`, `agg_compare.py`, `agg_sheet.py` (py -3.13: PIL).
+
+**Causes found** (baseline: his poses from posedefaults, every new setting off; % = frames over the threshold):
+- The frames move the chest under the arms: a shot's frame is drawn unlerped, the shoulders jump 9.5-21 units a frame
+  (fire p95 9.5, 13.5% of fire frames); pain, run and reload frames swing the chest too. The targets ride only the
+  anchor's translation, so the arms whip and the elbows flip (fire flips up to 169 deg a frame).
+- The elbow chosen afresh each frame (36 samples, a weak continuity term): flips of 166-180 deg in a frame in swings
+  (p95 22.5), aims (p95 20.7), punches.
+- Nothing kept the arms out of the body but a soft "inward" cost: the enforcer's arms in its torso in 31% of carry
+  frames, a reload's off hand through the body in 47% of reload frames (3.8 units).
+- The second grip switched at its reach edge with no hysteresis: 11.5% of frames toggling (swings 33%, fire 15%, up to
+  13 times a second): the "other arm wandering".
+- A pickup's reach from afar: the hand stretched at a weapon 1-2 m off (reach short 20-34 units), then a 25-32 unit snap
+  into the carry as it is taken.
+
+**The robust solve, every frame** (`vr_agarms.cpp`; each with an A/B setting, 1 by default; 0 is before):
+`vr_agarms_body` (hands' wrists and grips pushed 1 unit clear of the proxies, the weapon with them; the elbow's choice
+costs 0.3 per unit squared of elbow, forearm or lower upper arm inside them), `vr_agarms_elbow_rate` 720 (deg/s the
+elbow may swing round its reach line, the way round whose worst place costs less: never through the chest),
+`vr_agarms_second_hold` (a held second grip let go 0.05 arm and 15 deg of wrist later than it is taken, kept 0.5 s,
+eased in and out over 0.25 s round the shoulder: `blendAbout`, not the straight line through the body),
+`vr_agarms_reach_ease` (a pickup's reach comes from hanging between 1.6 and 1.15 arm's lengths), `vr_agarms_jump_ease`
+(a goal jumping on its chest, second difference > 2 units, is eased into from the drawn hand over 0.06-0.25 s by size:
+a kick stays crisp, a take's lift is no snap).
+
+**The procedural upper body** (`vr_agrunt_upper` 1, `vr_agbody.cpp`): the chest held upright as it stands (pose 0) on
+the frames' hips, turned with them by `vr_agrunt_upper_hips` (0.3), followed over 0.04 s (an unlerped frame's jump
+smoothed), breathing `vr_agrunt_upper_breath` 0.8 deg (none frozen: the Pose Studio unchanged); every bone on the chest
+(the head too) carried, drawn too (`boneTurns`: kick * strike * upper * legs on the frames); the targets placed from the
+anchor move with it. The frames' chest is kept (eased over 0.25 s) in a pickup's crouch (apReach, the take's bend) and
+when the hips tip past 35 deg (falls, deaths: readable). Legs and hips stay the frames' (and agent/aglegs' kneel: the
+upper body is laid on its pelvis). QC adds a gun's torso motions as the body block (targets not turned): turned towards
+its aim by `vr_agrunt_aim_twist` 0.5 of the aim's yaw and pitch (at most 25/20 deg, eased 60 deg/s), leant back 3 deg by
+a shot's kick (over 0.4 s), turned 8 and bent 6 deg towards the off hand in a reload. The Pose Studio's torso keys add
+on top as before.
+
+**Measured** (the finder, all 24 subjects, 40177 frames; before -> after, worst / p95 (% frames over the threshold)):
+
+| state | flip deg/f | pen u | toggle /s | jump u | shoulder u |
+| --- | --- | --- | --- | --- | --- |
+| all | 180/10.3 (1.3%) -> 32/8.3 (0.0%) | 11.8/2.6 (10.3%) -> 11.0/0.0 (0.5%) | 13/4 (11.5%) -> 3/2 (0.0%) | 22.6/1.8 (5.8%) -> 28.7/1.4 (4.4%) | 21.4/0.4 (2.3%) -> 7.8/0.2 (0.9%) |
+| aim | 175/20.7 (5.9%) -> 31/9.2 (0.2%) | 5.5/2.8 (10.8%) -> 0.6/0 (0%) | 12/5 (13%) -> 2/2 (0%) | 20.6/3.2 (17%) -> 13.3/1.9 (9%) | 2.0/0.4 -> 7.8/0.2 |
+| fire | 169/14.6 (2.7%) -> 31/9.4 (0.1%) | 6.3/3.5 (17.7%) -> 5.1/0 (0.4%) | 13/4 (15%) -> 2/2 (0%) | 20.4/9.4 (21%) -> 8.8/3.0 (15%) | 21.4/9.5 (13.5%) -> 4.6/1.4 (7.9%) |
+| reload | 138/6.1 -> 9.6/7.2 | 4.0/3.8 (46.7%) -> 0/0 (0%) | 4/3 (8%) -> 2/1 (0%) | 14.2/0.8 -> 2.3/0.4 | 2.0/0.2 -> 0.4/0.1 |
+| pain | 94/8.6 (1.3%) -> 15/8.0 (0%) | 5.9/1.6 (9%) -> 0.7/0 (0%) | 13/5 (14%) -> 3/2 (0.3%) | 21.2/1.5 -> 8.3/0.8 | 21.4/0.4 -> 4.3/0.1 |
+| run | 125/6.2 -> 12/7.0 | 4.2/1.4 (6.3%) -> 3.7/0 (0%) | 8/3 (10%) -> 2/2 (0%) | 21.3/0.8 -> 13.5/0.3 | 5.5/0.3 -> 7.7/0.1 |
+| swing | 180/22.5 (6.4%) -> 32/10.1 (0.2%) | 4.8/1.3 (6.5%) -> 2.2/0 (1.3%) | 12/7 (33.5%) -> 2/2 (0%) | 13.4/4.1 (16%) -> 18.8/2.4 (11%) | 1.6/0.5 -> 0.9/0.4 |
+| punch | 170/17.6 (3.4%) -> 27/10.9 (0.5%) | 11.8/3.4 (12%) -> 11.0/3.1 (8.5%) | - | 21.9/4.6 (16%) -> 21.3/6.0 (27%) | 4.5/0.9 -> 3.3/0.7 |
+| pickup | 166/6.8 -> 23/7.8 | 7.3/1.9 (6%) -> 2.8/0 (0.3%) | 9/3 (7%) -> 2/1 (0%) | 22.6/1.2 -> 7.0/0.9 | 5.1/0.5 -> 2.2/0.2 |
+
+Per subject (worst/p95 before -> after): `scratch/compare.md`. Before/after sheets (front and side of the top moments):
+`scratch/agg_before.png`, `scratch/agg_after.png`; images `scratch/fb_shots/`, `scratch/final_shots/`.
+Tests (after merging next with aglegs): 35 6/6, 60 6/6, 42 20/20, 50 10/10, 25, 34, 38 PASS, both kinds (50 PASS, 0 FAIL
+each); 41: joint gap 0.000, hand shape 0.0000, in the torso 4.68 (5.16 with every new setting off), reach short right
+25.9 (30.7 off: next's own, not this branch), second grip held 7001 of 7488 (6962 off); 45 (shotgun set) gap 0; eval.sh
+canary 36/44, 0 differ; scenes validate 89 files 0 errors, runall agrunt_weapon_hands, _dual_guns, _strikes,
+_pose_studio, _grip_editor OK. The Pose Studio's frozen subject holds its first stand frame (pose 0) with breathing off:
+the upper body lays nothing there (his static keys look as before; not measured with the studio's report).
+
+**Left** (the finder's after list): the one-handed axe's and sword's off hand still goes for a second grip in a swing
+(enforcer axe grip2 22 at t 11.58: QC sends the second grip for a one-handed blade; free it there); punches are violent
+(jump p95 6, the keys' own reversal: their timing curves); the chainsaw's front handle out of reach (reach p95 6.8, 48%
+of thrust frames, agleft's 0.9 arm) and its left hand jumping as it takes and leaves it; after a pickup the weapon turns
+through up to 160 deg as the hand eases from the floor grip to the carry (0.25 s); the enforcer's fist in its shoulder pad
+in punches (pen 11). Phase B (the studio's Live playback, pause on a glitch, Next Glitch from `_top.csv`) not started.
+
+**In VR:**
+- [ ] Fight grunts and enforcers with each gun: firing and reloading, their chest steady (no jolt at each shot), turned
+  a little towards you as they aim, leaning back with the kick; elbows never flipping, arms out of the torso; the off
+  hand on the fore-end, not flickering. A/B: Debug console `vr_agrunt_upper 0`, `vr_agarms_body 0`, ... (ROUND22).
+- [ ] An axe grunt: its swings' elbow out of the torso (the off hand: see Left).
+- [ ] Knock a gun out of a grunt's hand: it walks to it with its arm hanging, reaches as it kneels, lifts it into the
+  carry without a snap.
+- [ ] Pain, a fall, a death: still readable (frames and ragdolls as before).
+- [ ] Pose Studio: his poses look as he set them.

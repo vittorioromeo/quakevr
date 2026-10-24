@@ -2,6 +2,7 @@
 
 #include "vr_hitreact.hpp"
 #include "vr_agarms.hpp"
+#include "vr_agbody.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
@@ -873,6 +874,8 @@ struct ArmPose
     glm::vec3 torso{0.f};                        // its torso's turn now (degrees: bodyTurn), its elbows' poles
     glm::vec3 elbowR{0.f}, elbowL{0.f};
     glm::vec3 waist{0.f};                        // (model space: the message's over its scale)
+    glm::vec3 anchorAt{0.f};                     // vr_agarms: its chest's anchor as the frames draw it (model space; apAnchor),
+    float wr{0.f}, wl{0.f};                      // ... its weight in the right and left targets (the upper body moves them with it)
     float take{0.f};                             // a take's weight, its reaching hand (vr_aglegs)
     int takeSide{0};
 };
@@ -961,6 +964,23 @@ void drawnPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2
     return {c * d.x - s * d.y, s * d.x + c * d.y, d.z};
 }
 
+// The turn `corr` laid on every bone on rig's `chest` (the chest too; its loose pieces not), on the left (rest -> now).
+void layOnChest(const ragdoll::Rig& rig, int chest, const rigpose::Rigid& corr, rigpose::Rigid* bones)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        bool onChest = b == chest;
+        for(int p = rig.bones[b].parent, n = 0; p >= 0 && n < ragdoll::maxBones && !onChest; p = rig.bones[p].parent, n++)
+        {
+            onChest = p == chest;
+        }
+        if(onChest && rig.bones[b].joint != ragdoll::Joint::Loose)
+        {
+            bones[b] = composeRigid(corr, bones[b]);
+        }
+    }
+}
+
 // Its arm pose's targets now (`s` fresh), on the poses drawn: s.right, s.left, s.fw, s.up. False: none now.
 bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, ArmPose& s)
 {
@@ -1042,6 +1062,9 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.elbowR = m.elbowR;
     s.elbowL = m.elbowL;
     s.waist = m.waist / scale;
+    s.anchorAt = anchorAt;
+    s.wr = anchored ? m.wr : 0.f;
+    s.wl = anchored ? m.wl : 0.f;
     s.take = (m.flags & apFixed) ? m.take : 0.f;
     s.takeSide = m.takeSide;
     if(anchored)
@@ -2412,6 +2435,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             }
         }
     }
+    // The procedural upper body (vr_agrunt_upper: the chest held on the hips, not the frames'; a pickup's crouch keeps
+    // the frames'): laid under everything else, drawn too (boneTurns); the targets placed from the chest's anchor move
+    // with it.
+    rigpose::Rigid upperCorr;
+    const bool pickup = (s.flags & apReach) || ((s.flags & apBody) && (s.flags & apFixed));
+    const bool uppered = agbody::upper(s.ent, *rig, spec.chest, posed, pickup, upperCorr);
+    if(uppered)
+    {
+        layOnChest(*rig, spec.chest, upperCorr, posed);
+    }
+    const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).
     rigpose::Rigid body[ragdoll::maxBones];
@@ -2441,6 +2475,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.weapon[0].rot = frameRot(s.fw, s.up);
         t.weapon[0].pos = s.right;
         t.offset[0] = gripRigid(kind, -1, aggrip::Main);
+        t.reaching = true;
     }
     else
     {
@@ -2487,6 +2522,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
                 t.cup = true;
             }
         }
+    }
+    if(uppered)
+    {
+        t.weapon[0].pos += anchorShift * s.wr;
+        t.weapon[1].pos += anchorShift * s.wl;
     }
     if(bodied && !(s.flags & apFixed))
     {
@@ -3068,26 +3108,43 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
                 out[b] = rigpose::Rigid{};
             }
         }
-        // (a take's kneel: the body carried by its pelvis, vr_aglegs; a strike's body: bodyTurn, as relinkSkinned
-        // solved the arms on them)
+        // (a take's kneel: the body carried by its pelvis, vr_aglegs; the upper body on it, vr_agrunt_upper; a strike's
+        // body: bodyTurn; as relinkSkinned solved the arms on them)
         rigpose::Rigid legs[ragdoll::maxBones], posedL[ragdoll::maxBones];
         const bool legged = aglegs::carry(e, rig, posed, legs);
-        for(int b = 0; b < rig.numBones && legged; b++)
+        for(int b = 0; b < rig.numBones; b++)
         {
-            posedL[b] = composeRigid(legs[b], posed[b]);
+            posedL[b] = legged ? composeRigid(legs[b], posed[b]) : posed[b];
+        }
+        rigpose::Rigid upperCorr;
+        const bool uppered = agarms::active(e) && agbody::upperNow(numberOf(e), upperCorr);
+        rigpose::Rigid lay[ragdoll::maxBones];
+        for(int b = 0; b < rig.numBones; b++)
+        {
+            lay[b] = rigpose::Rigid{};
+        }
+        if(uppered)
+        {
+            layOnChest(rig, chestOf(rig), upperCorr, lay);
+            layOnChest(rig, chestOf(rig), upperCorr, posedL);
         }
         rigpose::Rigid body[ragdoll::maxBones];
         const ArmPose* ap = armPoseNow(e);
-        const bool bodied = ap && agarms::active(e) && bodyTurn(rig, legged ? posedL : posed, *ap, body);
+        const bool bodied = ap && agarms::active(e) && bodyTurn(rig, posedL, *ap, body);
         for(int b = 0; b < rig.numBones && bodied; b++)
         {
             out[b] = composeRigid(out[b], body[b]);
+        }
+        // (each bone's drawn turn: the kick's, the strike's, the upper body's, the legs' on the frames)
+        for(int b = 0; b < rig.numBones && uppered; b++)
+        {
+            out[b] = composeRigid(out[b], lay[b]);
         }
         for(int b = 0; b < rig.numBones && legged; b++)
         {
             out[b] = composeRigid(out[b], legs[b]);
         }
-        return kicked || bodied || legged || agarms::active(e);
+        return kicked || bodied || legged || uppered || agarms::active(e);
     }
     const bool armed = armsWanted(e) && armsNow(e, rig, posed, hdr, pose1, pose2, blend, arms);
     const bool kicked = reacting(e) && boneKicks(e, rig, posed, out);

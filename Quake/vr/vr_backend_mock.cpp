@@ -1496,6 +1496,15 @@ bool mockCameraSet = false;
 glm::vec3 mockCameraPos{0.f};
 glm::quat mockCameraRot{1.f, 0.f, 0.f, 0.f};
 
+// setMockEyeCameras: each eye from its own world point (the glitch finder's front and side views in one eyeshot).
+struct EyeCams
+{
+    bool on{false};
+    glm::vec3 at[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float pitch[2]{0.f, 0.f}, yaw[2]{0.f, 0.f};
+};
+EyeCams eyeCams;
+
 // resetMockState's calls so far: the backend's own scripted moves (their velocities, the shake) start again when it
 // sees a new count (MockBackend::beginFrame).
 za::U64 mockResetCount = 0;
@@ -1808,6 +1817,20 @@ public:
                 frame.eyes[eye].pose.position = mockCameraPos;
                 frame.eyes[eye].pose.orientation = mockCameraRot;
             }
+            const hands::State& hs = hands::current();
+            if(eyeCams.on && hs.valid)
+            {
+                // (the world point in the tracking space: from the head's world place, the play space's axes)
+                glm::vec3 fwd, right, up;
+                const float ps = hands::playSpaceYaw();
+                hands::angleVectors(glm::vec3{0.f, ps, 0.f}, fwd, right, up);
+                const glm::vec3 d = (eyeCams.at[eye] - hs.head) / units::metresToUnits();
+                frame.eyes[eye].pose.position = tracking.head.position + glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+                frame.eyes[eye].pose.orientation = glm::angleAxis(glm::radians(eyeCams.yaw[eye] - ps), glm::vec3{0.f, 1.f, 0.f}) *
+                                                   glm::angleAxis(-glm::radians(eyeCams.pitch[eye]), glm::vec3{1.f, 0.f, 0.f});
+                frame.eyes[eye].fov = Fov{};
+                continue;
+            }
             frame.eyes[eye].pose.position.x += eye == 0 ? -halfIpd : halfIpd;
             frame.eyes[eye].fov = Fov{};
         }
@@ -2022,7 +2045,19 @@ void resetMockState()
     mockCameraSet = false;
     mockCameraPos = glm::vec3{0.f};
     mockCameraRot = glm::quat{1.f, 0.f, 0.f, 0.f};
+    eyeCams = EyeCams{};
     mockResetCount++;
+}
+
+void setMockEyeCameras(bool on, const glm::vec3* at, const float* pitchDeg, const float* yawDeg)
+{
+    eyeCams.on = on && at && pitchDeg && yawDeg;
+    for(int eye = 0; eye < 2 && eyeCams.on; eye++)
+    {
+        eyeCams.at[eye] = at[eye];
+        eyeCams.pitch[eye] = pitchDeg[eye];
+        eyeCams.yaw[eye] = yawDeg[eye];
+    }
 }
 
 za::UniquePtr<Backend> makeMockBackend()
