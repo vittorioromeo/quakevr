@@ -20219,7 +20219,9 @@ the studio started). New: `Quake/vr/vr_posestudio.cpp`, cvar `vr_posestudio_reac
   `0 progs/v_shot.mdl 0 ...` stored, Done printed `{0, "progs/v_shot.mdl", aggrip::Main, ...}` and wrote the file;
   Cancel restores the entry text. Eyeshots (spectator view, overlay lines): the hover (yellow weapon box), the drag
   (green box, the shotgun turned in the frozen hand), a hand hovered (yellow hand box among the cyan weapon box and the
-  orange right hand).
+  orange right hand). At the defaults (the studio off): test 41's arm numbers joint gap 0.000, hand shape 0.0000;
+  tests 35 6/6 and 60 6/6 PASS; eval.sh 36/44, 0 differ from the baseline; scenes validate 85 files 0 errors, runall
+  `agrunt_pose_studio` and `agrunt_grip_editor` OK.
 
 **Not done (stages 2-4, for a next worker).** Pose keys: the weapon's place per pose (so a weapon drag could move the
 pose rather than the grip), a free hand's pose, the elbows' poles and the torso's turn per pose (new archived override
