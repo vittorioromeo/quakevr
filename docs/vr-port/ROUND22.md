@@ -20061,3 +20061,50 @@ screenshots of 03:10:02 and 03:12:16.
   hand (tug2's knee pickup).
 - [ ] Swords and axes: carried, raised ready, swung; a free hand hanging or in a guard.
 - [ ] Grip Editor (scene `agrunt_grip_editor`): Edits Every Weapon moves the hand's grip for all of a kind's weapons.
+
+## Armed humanoids' leftovers: test 42's penalty, the chainsaw's front handle, the left hand's blades (worktree `gorefx`, branch `agent/agleft`, 2026-10-24)
+
+**Test 42's penalty volleys counted no pellets** (18/20 on next). Not agarms and not the behaviour: the test spawned
+the single shotgunner and the dual one on the same spot (both `VR_AGT_Spawn(..., 220)`), so each was inside the other
+and agbugs' friendly-fire check (`VR_AG_FriendInLine`'s first trace, its middle out to its muzzle) met the other every
+shot: every shot was held for a friend (`vr_ag_ff_held` +40, +20, +20, +40), no pellet fired. (With
+`vr_agrunt_friendly_care 0` it passes 20/20: the note that it failed so too was wrong.) The test now spawns them side
+by side, 15 degrees either way from you, and its penalty check also wants no shot held for a friend: 20/20 grunt and
+enforcer (pellets x1.96 / x1.93, want 2.00).
+
+**The chainsaw's front handle.** It was carried at the hip one-handed with the blade rules (`VR_AGP_BladeHand`: a
+chainsaw's bar and its "edge" are the same line, so its roll was whatever the degenerate turn gave): its right wrist at
+its limit (100 degrees) in every pose, its front handle 1.3-1.5 arms from the left shoulder: never taken. vr_agarms now
+holds it as a gun is held (`VR_AGP_Orient` bar ahead, upright: its front handle on top), carried as its own rifle at
+rest turned with the bar as the long guns' low carry turns it (`VR_AGP_SawHold`), raised level ahead and a little across
+when ready (`VR_AGP_SAW_RDY_FW`), its grip brought in towards the left shoulder as far as its front handle is past 0.9 of
+the arm (`VR_AGP_SawReach`, the enforcer's longer reach); its thrust's end a little nearer (14 -2 0, was 16 -4 0). The
+off hand takes the handle (as long guns' fore-ends: the engine's second-grip rule, sliding back along the top in the
+thrust). Test 45 (set 13): held in every pose, both kinds (grunt 46/46 frames each, was 0; enforcer 72/72); wrists
+right 8-44 (was 100) left 4-42 grunt, right 28-76 left 18-55 enforcer.
+
+**The left hand's one-handed blades.** Its carry was its own pose (blade hanging down, `VR_AGP_CARRY_L`): the left
+wrist at its limit (100) carrying, running and in pain. The grip frame was not the cause (the left's global grip makes
+it hold a weapon as the right's mirror: the guns' are fine); the carry was. vr_agarms now carries the left blade as the
+right carries its own, mirrored (`VR_AGP_CARRY_R`). Test 45 (sets 12 two axes, 14 two swords, 15 two crowbars: new
+sets): the left wrist carrying 14 (was 100), running 22-64, pain 31; ready 56-72 (as the right's 34-62); the enforcer's
+left at most 75. Images: `scratch/f0z_k0_s12..15.png`, `scratch/f1z_k1_s12..15.png` (zoomed; the full in `f0_`, `f1_`).
+
+**Not done: the floor pickup's reach.** Measured (test 45's take-up, set 3, an engine print): in the take's lowest
+frame (the grunt's painb6) its right shoulder is at (11, -2.6, -0.2) of its body and the wrist's goal on the lying
+weapon's handle at (15.3, -3.9, -21.1): 21.4 units away, the arm 16.7 (reach 16.2): 5.2 short, almost straight down.
+So no step, grip or reach clamp closes it (the hand turned down onto the handle raises the wrist about 3 units; the clamp
+at a straight arm 0.5): the chest must come down about 5 units, a forward bend of about 25-30 degrees about the waist
+in the lowest frames. That is agent/agstrike's torso turn (`bodyTurn` on `posed` in `relinkSkinned`, QC's torso turn
+message), not merged yet and kept out of this branch: once it is, the take can send a torso pitch (QC only:
+`VR_AGP_Pose`'s take branch, eased with the reach's share `d`, held through the grab, eased out over the lift).
+
+**Tests:** 42 20/20 both kinds; 35 6/6 and 60 6/6, 25 3/3, 34 2/2, 38 3/3 both kinds (each on a fresh map); 41 run
+(all frames: reach short right 7.5 / left 7.4 grunt, 1.9 / 5.7 enforcer); scenes validate (83 files, 0 errors), runall
+of the 18 `agrunt_*` scenes OK; eval.sh: no verdict changes (canary 36/44, 1-4 takes' numbers differ by a tenth from run
+to run, PASS -> PASS).
+
+**In VR:**
+- [ ] A chainsaw grunt (toolgun's Armed Humanoid page, the chainsaw): both hands on it, carried low across its body,
+  raised level towards you, thrust with both hands; the right wrist natural.
+- [ ] Two axes (and two swords, two crowbars): carried out by its sides, blades ahead, both wrists natural.

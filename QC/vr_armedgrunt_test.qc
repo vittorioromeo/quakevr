@@ -878,8 +878,14 @@ void() VR_AGTest_DualGuns =
         vr_agt_keep_err = cvar("vr_agrunt_aim_error");
         cvar_set("vr_agrunt_aim_error", "4");
         p.flags = p.flags | FL_GODMODE;
+        // (Side by side, 15 degrees either way from you: on one spot each is in the other's line of fire, its shots held
+        // for that friend, vr_agrunt_friendly_care.)
+        p.angles_y = p.angles_y - 15;
         entity a = VR_AGT_Spawn(WID_SHOTGUN, 220);
+        p.angles_y = p.angles_y + 30;
         entity b = VR_AGT_SpawnPair(WID_SHOTGUN, WID_SHOTGUN, 220);
+        p.angles_y = p.angles_y - 15;
+        float heldBefore = vr_ag_ff_held;
         a.takedamage = DAMAGE_NO; // (side by side: the other's pellets)
         b.takedamage = DAMAGE_NO;
         VR_AGT_Volley(a, a.vr_ag_prop, 40);
@@ -892,8 +898,9 @@ void() VR_AGTest_DualGuns =
         sp2 = (sp2 + vr_agt_kick_sum) * 0.5;
         aim2 = (aim2 + vr_agt_kick_sum1) * 0.5;
         float want = 1 + keepPen * (1 / max(0.05, cvar("vr_2h_spread_reduction")) - 1);
-        VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", keepPen,
-            sp1, sp2, sp2 / max(0.001, sp1), want), fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want);
+        VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f), %g shots "
+            "held for a friend:", keepPen, sp1, sp2, sp2 / max(0.001, sp1), want, vr_ag_ff_held - heldBefore),
+            fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want && vr_ag_ff_held == heldBefore);
         VR_AGT_Check(sprintf("guns: aims %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f):", aim1, aim2,
             aim2 / max(0.001, aim1), want), fabs(aim2 / max(0.001, aim1) - want) < 0.25 * want);
         cvar_set("vr_agrunt_dual_penalty", "0");
@@ -1039,8 +1046,9 @@ void() VR_AGTest_DualGuns =
 // and a thunderbolt.
 // Test 45: the arms' contact sheet (vr_agarms; ROUND22.md, "Armed humanoids' arms: posed and skinned"). You unseen, one
 // armed monster (`vr_agrunt_test_kind`) `scratch4` units ahead (110), its AI held, through weapon sets scratch2 ..
-// scratch3 (VR_AGT_SheetSet: 0 fists .. 13 the chainsaw) and, for each, the poses (VR_AGT_SheetPose: idle, aiming ahead,
-// up, down, left, right, running, taking a weapon up, a pain, a blow), each seen from its front and its right side:
+// scratch3 (VR_AGT_SheetSet: 0 fists .. 13 the chainsaw, 14 two swords, 15 two crowbars) and, for each, the poses
+// (VR_AGT_SheetPose: idle, aiming ahead, up, down, left, right, running, taking a weapon up, a pain, a blow), each seen
+// from its front and its right side:
 // held temp1 seconds (0.7), then a screenshot (`agsheet:` its label), the engine's arm numbers counted under tag set * 20
 // + pose * 2 + view meanwhile (vr_agrunt_ik_err prints them at the end). Eyeshots: the run's script sets the camera
 // (scratch/ag_sheet.sh: vr_mock_camera, vr_eyeshot 1).
@@ -1066,6 +1074,8 @@ float(float s) VR_AGT_SheetSet =
     if(s == 10) { return WID_ENFRIFLE; }
     if(s == 11) { vr_agt_sheet_w2 = WID_SHOTGUN; return WID_SHOTGUN; }
     if(s == 12) { vr_agt_sheet_w2 = WID_AXE; return WID_AXE; }
+    if(s == 14) { vr_agt_sheet_w2 = WID_SWORD; return WID_SWORD; } // (the one-handed melee weapons left-handed too)
+    if(s == 15) { vr_agt_sheet_w2 = WID_CROWBAR; return WID_CROWBAR; }
     return WID_CHAINSAW;
 };
 string(float p) VR_AGT_SheetPoseName =
