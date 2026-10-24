@@ -91,7 +91,14 @@ float(entity g) VR_AGPT2_WeaponBlow =
     along = normalize(along);
     vector side = VR_AGP_Cross(along, '0 0 1');
     float miss = VR_AGPT2_Miss(g, mid - side * 14, mid + side * 14, along);
-    float d = VR_AGPT2_Blow(g, mid - side * 14, mid + side * 14, along, VR_AGPT2_At(g, VR_AGPar_Chest(g)));
+    // (Its body met at its chest; its back to you, its weapon beyond its chest: met just past the weapon, so that only its
+    // facing keeps it from parrying.)
+    vector at = VR_AGPT2_At(g, VR_AGPar_Chest(g));
+    if((at - mid) * along < 0)
+    {
+        at = mid + along * 4;
+    }
+    float d = VR_AGPT2_Blow(g, mid - side * 14, mid + side * 14, along, at);
     VR_AGPT2_Print(sprintf("(a blade through its weapon: %.1f units from it, %g damage, unparried %g; why '%s')", miss, d,
         vr_agpt2_expect, vr_agpar_why));
     return d;
