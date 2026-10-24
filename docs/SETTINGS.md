@@ -442,6 +442,9 @@ built-in ones.
 | `vr_parry`, `vr_bash`, `vr_headbutt`, `vr_deflect` | 1 | parry, bash, headbutt, batting projectiles |
 | `vr_posestudio_reach` | 2.5 | the Pose Studio: the armed humanoid nearest within this many metres is the one edited |
 | `vr_agrunt_poses` | "" | the Pose Studio's pose keys changed from the shipped ones (kept between sessions; Reset Pose, Undo, Cancel there) |
+| `vr_posestudio_live_loop`, `vr_posestudio_live_speed` | 0, 1 | the Pose Studio's Live mode: the loop played (0 all, 1 aim and fire, 2 reload, 3 run, 4 strikes, 5 pickup) and its speed (0.1..1); the panel's Loop and Speed set them |
+| `vr_posestudio_live_follow` | 1 | Live, paused: a dragged part follows your hand at that frame (the key moves by the drag over its share there); 0: the key moves by the drag |
+| `vr_posestudio_live_warm` | 0.4 | Live, paused: seconds of the tape played again before the frame with your edit (so the arms' easing sees it as in a fight) |
 
 **Setting armed humanoids' grips by hand (the Pose Studio).** VR Settings > Combat > Armed Grunts > Grip Editor > Drag
 Mode (or the Debug menu's Pose Studio, or `vr_posestudio`; the scenario `agrunt_pose_studio` sets up a row to try). The armed
@@ -472,6 +475,27 @@ to its body), **Undo** (also B/Y), **Frozen** (off: watch them move live; poses 
 back as it was on entering) and **Done** (also the menu button: the changed grips and pose keys printed as code for the
 shipped defaults, and written to `quakevr/proposed_defaults/agrunt_poses_<time>.txt`). Your changes are kept in
 `vr_agrunt_grips` and `vr_agrunt_poses` meanwhile (`vr_agrunt_pose_dump` prints the keys).
+
+**Live: fixing what glitches in a fight.** A pose can look right held still and go wrong as the monster moves. Walk up to
+one and press **Live: Off** (the bottom row) to turn it on: that monster now fights in place (the others stay frozen;
+you are made god and notarget while it plays): its own AI aims and fires at a target circling round it, reloads, runs on
+the spot, strikes up close, takes a little pain and picks its weapon up after it is knocked out. **Loop** picks what it
+plays (All, Aim+Fire, Reload, Run, Strikes, Pickup); **Speed** slows the game (1x, 0.5x, 0.25x, 0.1x). The panel's top
+rows become the tape's, and a readout sits over the panel: what plays, the pose key that weighs most at that moment
+(and its share), and the glitch finder's measures with a bar each (green fine, red a glitch): **pen** (an arm inside
+the body), **flip** (the elbow swinging round in a frame), **reach** (a hand short of its grip), **grip2** (the off
+hand off its second grip), **jump** (a hand or elbow jerking).
+
+1. Let it play a few seconds (the last ~10 s are kept), then **Pause**: the game stops on that frame.
+2. Scrub: push either stick left or right (further: faster), or **< 0.5 s / 0.5 s >** and **< Frame / Frame >**. Every
+   frame is the one that was played, exactly.
+3. Or press **Next Glitch**: it jumps to the worst moment on the tape (again: the next worst), and says what went
+   wrong and which key to drag.
+4. Grip the weapon, a fist, an elbow or the chest and move it as at a frozen pose: the key named in the readout is the
+   one changed, and the frame is played again with it at once (a key that weighs half there moves twice as far, so the
+   part follows your hand at this frame). A hand on a weapon still sets its grip.
+5. **Play** goes on from where it was paused, with your change; **Live: On** back to frozen poses. Undo, Cancel and
+   Done work as before.
 
 ### Damage and gore
 

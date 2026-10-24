@@ -45,6 +45,18 @@ struct Sample
 // agarms::solve: the subject's frame as drawn.
 void note(const Sample& s);
 
+// The metrics (flip, wrong, pen, reach, grip2, toggle, gap, aim, jump, shoulder, wrist): names, units, the value of each
+// that is a glitch (a moment's severity: its value over this).
+inline constexpr int numMetrics = 11;
+[[nodiscard]] const char* metricName(int k);
+[[nodiscard]] const char* metricUnit(int k);
+[[nodiscard]] float metricBad(int k);
+
+// One frame's metrics (the Pose Studio's Live tape, vr_poselive.hpp; note's own): `s` with the frame before it `p1` and
+// the one before that `p2` (null: none), `dt` seconds after p1. out[k] the worst of either arm, side[k] which (0 right);
+// the toggle's left 0 (note counts it over the last second).
+void measure(const Sample& s, const Sample* p1, const Sample* p2, float dt, float* out, signed char* side);
+
 void registerCommands();
 
 } // namespace qvr::agglitch

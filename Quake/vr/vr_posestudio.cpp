@@ -14,6 +14,7 @@
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_poselive.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -79,6 +80,16 @@ enum ButtonId : int
     BtnWeaponMode,
     BtnCopy,
     BtnGrabSet,
+    // Live (vr_poselive.hpp): its own row, and in Live the rows of the poses' and keys' steps
+    BtnLive,
+    BtnLoop,
+    BtnSpeed,
+    BtnBack,
+    BtnPause,
+    BtnFwd,
+    BtnFramePrev,
+    BtnGlitch,
+    BtnFrameNext,
     BtnCount
 };
 
@@ -103,8 +114,17 @@ constexpr Place buttonPlace[BtnCount] = {
     {-1, 2}, // Weapon: Pose / Grip
     {-1, 3}, // Copy to the other kind
     {-1, 4}, // Grab: Everything / Weapons / Limbs
+    {-1, 5}, // Live: On / Off
+    {0, 5},  // Loop: All / ...
+    {1, 5},  // Speed
+    {-1, 0}, // (Live) < 0.5 s
+    {0, 0},  // (Live) Pause / Play
+    {1, 0},  // (Live) 0.5 s >
+    {-1, 1}, // (Live) < Frame
+    {0, 1},  // (Live) Next Glitch
+    {1, 1},  // (Live) Frame >
 };
-constexpr int PANEL_ROWS = 5;
+constexpr int PANEL_ROWS = 6;
 
 constexpr int grabStartPart = 99;      // partPoint's: the controller where the grab began
 constexpr float PANEL_DISTANCE = 0.55f;// metres from the eyes...
@@ -156,6 +176,10 @@ struct Grab
     glm::vec3 shoulder{0.f}, wrist{0.f}, waist{0.f};
     glm::vec3 torso0{0.f}, pole0{0.f};
     bool legMirror{false}; // a leg part's: the kneel mirrored (a left hand's take: the key's y, yaw and roll flipped)
+    // Live, paused (vr_poselive.hpp): the key weighing most at that frame, its share there, whether it is mirrored there
+    bool live{false};
+    float liveW{1.f};
+    bool liveMirror{false};
 };
 
 // The kind and weapon class QC tells of each armed humanoid (qcHold), the last few.
@@ -204,6 +228,7 @@ struct Session
     float panelYaw{0.f};
     za::String feedback;
     double feedbackUntil{0.0};
+    bool liveWanted{false}; // vr_posestudio_live with the studio off: started, Live on the first armed humanoid shown
 };
 Session ses;
 
@@ -708,7 +733,32 @@ void grab(int hand, int p)
             g.code = legsOf(n, L) ? agpose::legCode(n.kind, agpose::Pickup) : -1;
             g.legMirror = L.kneel == 0;
         }
-        if(g.code < 0 || vr_agrunt_freeze.value == 0.f)
+        if(poselive::on())
+        {
+            // (Live: the key weighing most at the paused frame)
+            if(!poselive::paused())
+            {
+                say("Live: Pause first, then grip a part at that frame");
+                return;
+            }
+            if(isLeg(p))
+            {
+                say("the legs' key: in Frozen mode (Live: Off)");
+                return;
+            }
+            float w = 0.f;
+            bool mirror = false;
+            g.code = poselive::dominant(w, mirror);
+            if(g.code < 0)
+            {
+                say("no pose key weighs at this frame: step to another");
+                return;
+            }
+            g.live = true;
+            g.liveW = vr_posestudio_live_follow.value != 0.f ? za::max(w, 0.2f) : 1.f;
+            g.liveMirror = mirror;
+        }
+        else if(g.code < 0 || vr_agrunt_freeze.value == 0.f)
         {
             say(g.code < 0 ? "its pose isn't known yet: wait a moment" : "a pose is edited held: Frozen On first");
             return;
@@ -765,10 +815,105 @@ void grab(int hand, int p)
     haptic(hand, 0.03f, 0.6f);
 }
 
+// The chest's turn a drag asks for now: turned about its waist as the hand carries the box round it, and twisted as the
+// controller twists (yaw).
+[[nodiscard]] glm::vec3 chestTurnNow(const Grab& g, const Note& n, const Rigid& c)
+{
+    const glm::vec3 a = g.ctrl0.pos - g.waist, b = toModel(n.space, c).pos - g.waist;
+    glm::quat arc{1.f, 0.f, 0.f, 0.f};
+    if(glm::length(a) > 2.f && glm::length(b) > 2.f)
+    {
+        const glm::vec3 an = glm::normalize(a), bn = glm::normalize(b), ax = glm::cross(an, bn);
+        if(glm::length(ax) > 1e-5f)
+        {
+            arc = glm::angleAxis(za::acos(za::clamp(glm::dot(an, bn), -1.f, 1.f)), glm::normalize(ax));
+        }
+    }
+    const glm::vec3 f = glm::normalize(toModel(n.space, c).rot * glm::inverse(g.ctrl0.rot)) * glm::vec3{1.f, 0.f, 0.f};
+    const float twist = glm::length(glm::vec2{f.x, f.y}) > 0.2f ? za::atan2(f.y, f.x) : 0.f;
+    const glm::quat R = glm::angleAxis(twist, glm::vec3{0.f, 0.f, 1.f}) * arc;
+    return torsoOf(R * torsoQuat(g.torso0));
+}
+
+// A pose key's drag at a paused Live frame (vr_poselive.hpp): the key weighing most there moved by the part's move over
+// its share there (vr_posestudio_live_follow: the part follows the hand at this frame), mirrored back for a key laid on
+// mirrored (a left hook's), previewed (the tape's frames solved again with it).
+void poseDragLive(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
+{
+    agpose::Key d;
+    const float sc = 1.f / za::max(g.liveW, 0.05f);
+    const int side = sideOf(g.part);
+    const int pp = side ? agpose::LPos : agpose::RPos;
+    switch(g.part)
+    {
+        case PWeaponR:
+        case PWeaponL:
+            g.weaponNow = partNow;
+            d.v[pp] = (partNow.pos - g.part0.pos) * sc;
+            d.v[pp + 1] = rotVec(glm::normalize(partNow.rot * glm::inverse(g.part0.rot))) * sc;
+            break;
+        case PHandR:
+        case PHandL: d.v[pp] = (partNow.pos - g.part0.pos) * sc; break;
+        case PElbowR:
+        case PElbowL:
+        {
+            const glm::vec3 dir = glm::normalize(g.wrist - g.shoulder);
+            glm::vec3 e = partNow.pos - g.shoulder;
+            e -= dir * glm::dot(e, dir);
+            if(glm::length(e) > 0.5f)
+            {
+                d.v[side ? agpose::ElbowL : agpose::ElbowR] = (glm::inverse(torsoQuat(g.torso0)) * glm::normalize(e) - g.pole0) * sc;
+            }
+            break;
+        }
+        case PChest:
+        {
+            const glm::vec3 now = chestTurnNow(g, n, c);
+            for(int i = 0; i < 3; i++)
+            {
+                d.v[agpose::Torso][i] = wrap180(now[i] - g.torso0[i]) * sc;
+            }
+            break;
+        }
+        default: break;
+    }
+    if(g.liveMirror)
+    {
+        // (laid on mirrored: the hands swapped, places' y and turns' x and z the other way)
+        const agpose::Key m = d;
+        const auto place = [](glm::vec3 v) { v.y = -v.y; return v; };
+        const auto turn = [](const glm::vec3& v) { return glm::vec3{-v.x, v.y, -v.z}; };
+        d.v[agpose::RPos] = place(m.v[agpose::LPos]);
+        d.v[agpose::LPos] = place(m.v[agpose::RPos]);
+        d.v[agpose::RTurn] = turn(m.v[agpose::LTurn]);
+        d.v[agpose::LTurn] = turn(m.v[agpose::RTurn]);
+        d.v[agpose::ElbowR] = place(m.v[agpose::ElbowL]);
+        d.v[agpose::ElbowL] = place(m.v[agpose::ElbowR]);
+        d.v[agpose::Torso] = turn(m.v[agpose::Torso]);
+    }
+    agpose::Key k = g.key0;
+    for(int p = 0; p < agpose::NumParts; p++)
+    {
+        k.v[p] += d.v[p];
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        const float most = i == 0 ? 70.f : 50.f;
+        k.v[agpose::Torso][i] = za::clamp(k.v[agpose::Torso][i], -most, most);
+    }
+    g.keyNow = k;
+    agpose::setPreview(g.code, k);
+}
+
 // A pose key's drag: the key the part's place now asks for (model space: its body's), previewed (QC lays it on next
 // frame; a weapon drawn at the controller meanwhile).
 void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
 {
+    if(g.live)
+    {
+        poseDragLive(g, n, c, partNow);
+        return;
+    }
     agpose::Key k = g.key0;
     const int side = sideOf(g.part);
     const int pp = side ? agpose::LPos : agpose::RPos;
@@ -804,22 +949,8 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         }
         case PChest:
         {
-            // The chest: turned about its waist as the hand carries the box round it, and twisted as the controller
-            // twists (yaw); the turn's change added to the key.
-            const glm::vec3 a = g.ctrl0.pos - g.waist, b = toModel(n.space, c).pos - g.waist;
-            glm::quat arc{1.f, 0.f, 0.f, 0.f};
-            if(glm::length(a) > 2.f && glm::length(b) > 2.f)
-            {
-                const glm::vec3 an = glm::normalize(a), bn = glm::normalize(b), ax = glm::cross(an, bn);
-                if(glm::length(ax) > 1e-5f)
-                {
-                    arc = glm::angleAxis(za::acos(za::clamp(glm::dot(an, bn), -1.f, 1.f)), glm::normalize(ax));
-                }
-            }
-            const glm::vec3 f = glm::normalize(toModel(n.space, c).rot * glm::inverse(g.ctrl0.rot)) * glm::vec3{1.f, 0.f, 0.f};
-            const float twist = glm::length(glm::vec2{f.x, f.y}) > 0.2f ? za::atan2(f.y, f.x) : 0.f;
-            const glm::quat R = glm::angleAxis(twist, glm::vec3{0.f, 0.f, 1.f}) * arc;
-            const glm::vec3 now = torsoOf(R * torsoQuat(g.torso0));
+            // The chest: the turn's change added to the key.
+            const glm::vec3 now = chestTurnNow(g, n, c);
             glm::vec3 t = g.key0.v[agpose::Torso];
             for(int i = 0; i < 3; i++)
             {
@@ -1138,6 +1269,29 @@ void dumpDone()
     }
 }
 
+// Live: On / Off (vr_poselive.hpp): the subject shown runs its real loops in place, the others still frozen.
+void toggleLive()
+{
+    if(poselive::on())
+    {
+        poselive::stop();
+        say("Live off: frozen again, held in the pose picked");
+        return;
+    }
+    const Note* n = current();
+    if(!n)
+    {
+        say("walk up to an armed grunt or enforcer first");
+        return;
+    }
+    if(ses.grab.part >= 0)
+    {
+        release();
+    }
+    Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f); // (the others held still)
+    (void)poselive::start(n->ent);
+}
+
 void press(int b)
 {
     switch(b)
@@ -1166,6 +1320,15 @@ void press(int b)
             break;
         case BtnCopy: copyKind(); break;
         case BtnGrabSet: cycleGrabSet(); break;
+        case BtnLive: toggleLive(); break;
+        case BtnLoop: poselive::cycleLoop(); break;
+        case BtnSpeed: poselive::cycleSpeed(); break;
+        case BtnBack: poselive::scrub(-0.5f); break;
+        case BtnPause: poselive::togglePause(); break;
+        case BtnFwd: poselive::scrub(0.5f); break;
+        case BtnFramePrev: poselive::step(-1); break;
+        case BtnGlitch: poselive::nextGlitch(); break;
+        case BtnFrameNext: poselive::step(1); break;
         default: break;
     }
 }
@@ -1189,6 +1352,20 @@ void press(int b)
         case BtnResetPose: return "Reset Pose";
         case BtnWeaponMode: return ses.weaponGrip ? "Weapon: Grip" : "Weapon: Pose";
         case BtnGrabSet: return ses.grabSet == 1 ? "Grab: Weapons" : ses.grabSet == 2 ? "Grab: Limbs" : "Grab: Everything";
+        case BtnLive: return poselive::on() ? "Live: On" : "Live: Off";
+        case BtnLoop:
+        {
+            constexpr const char* loops[poselive::NumLoops] = {"Loop: All", "Loop: Aim+Fire", "Loop: Reload", "Loop: Run",
+                "Loop: Strikes", "Loop: Pickup"};
+            return loops[poselive::loop()];
+        }
+        case BtnSpeed: return va("Speed: %gx", static_cast<double>(poselive::speed()));
+        case BtnBack: return "< 0.5 s";
+        case BtnPause: return poselive::paused() ? "Play" : "Pause";
+        case BtnFwd: return "0.5 s >";
+        case BtnFramePrev: return "< Frame";
+        case BtnGlitch: return "Next Glitch";
+        case BtnFrameNext: return "Frame >";
         default: return n && n->kind == 1 ? "Copy > Grunt" : "Copy > Enforcer";
     }
 }
@@ -1203,8 +1380,25 @@ void press(int b)
         case BtnPlay: return agpose::isStrike(ses.pose);
         case BtnCopy:
         case BtnResetPose: return current() != nullptr;
+        case BtnLoop:
+        case BtnSpeed:
+        case BtnPause:
+        case BtnGlitch: return poselive::on();
+        case BtnBack:
+        case BtnFwd:
+        case BtnFramePrev:
+        case BtnFrameNext: return poselive::on();
+        case BtnLive: return poselive::on() || current() != nullptr;
         default: return true;
     }
+}
+
+// Whether button `b` is on the panel now: in Live the poses' and keys' steps give their rows to the tape's.
+[[nodiscard]] bool buttonShown(int b)
+{
+    const bool tapeRow = b >= BtnBack && b <= BtnFrameNext;
+    const bool poseRow = b >= BtnPosePrev && b <= BtnKeyNext;
+    return poselive::on() ? !poseRow : !tapeRow;
 }
 
 // --- the panel -----------------------------------------------------------------------------------------------------
@@ -1222,6 +1416,10 @@ void press(int b)
     const float m2u = units::metresToUnits();
     for(int b = 0; b < BtnCount; b++)
     {
+        if(!buttonShown(b))
+        {
+            continue;
+        }
         const glm::vec3 d = p - buttonAt(b);
         if(za::fabs(glm::dot(d, ses.panelRight)) <= (BUTTON_WIDTH * 0.5f + 0.01f) * m2u &&
             za::fabs(glm::dot(d, ses.panelUp)) <= (BUTTON_HEIGHT * 0.5f + 0.01f) * m2u &&
@@ -1253,11 +1451,17 @@ void drawPanel()
     const glm::vec3 angles{0.f, ses.panelYaw, 0.f};
     for(int b = 0; b < BtnCount; b++)
     {
+        if(!buttonShown(b))
+        {
+            continue;
+        }
         const glm::vec3 at = buttonAt(b);
         const bool hovered = ses.hoverButton[HAND_OFF] == b || ses.hoverButton[HAND_MAIN] == b;
         const bool live = buttonLive(b);
         const glm::vec4 color = hovered ? glm::vec4{1.f, 0.85f, 0.15f, 1.f}
-                                : live  ? (b >= BtnPosePrev && b <= BtnKeyNext ? glm::vec4{0.45f, 1.f, 0.6f, 0.85f} : glm::vec4{0.5f, 0.7f, 1.f, 0.8f})
+                                : live  ? ((b >= BtnPosePrev && b <= BtnKeyNext) || (b >= BtnBack && b <= BtnFrameNext)
+                                                  ? glm::vec4{0.45f, 1.f, 0.6f, 0.85f}
+                                                  : b >= BtnLive && b <= BtnSpeed ? glm::vec4{1.f, 0.55f, 0.35f, 0.85f} : glm::vec4{0.5f, 0.7f, 1.f, 0.8f})
                                         : glm::vec4{0.4f, 0.4f, 0.45f, 0.45f};
         const glm::vec3 r = ses.panelRight * (BUTTON_WIDTH * 0.5f * m2u), u = ses.panelUp * (BUTTON_HEIGHT * 0.5f * m2u);
         const glm::vec3 back = at - ses.panelNormal * 0.15f;
@@ -1284,8 +1488,15 @@ void drawPanel()
         const int i = poseIndex(n, &count);
         text += va("\n%s with %s%s%s", n->kind == 0 ? "Grunt" : "Enforcer", n->slot >= 0 ? slotLabel(n->slot) : "its fists",
             n->slotL >= 0 ? " + " : "", n->slotL >= 0 ? slotLabel(n->slotL) : "");
-        text += va("\n\x10%s\x11 pose %d of %d", agpose::poseName(cls < 0 ? 0 : cls, ses.pose), i + 1, count);
-        if(agpose::isStrike(ses.pose))
+        if(poselive::on())
+        {
+            text += "\nLIVE: its real loops (the tape below)";
+        }
+        else
+        {
+            text += va("\n\x10%s\x11 pose %d of %d", agpose::poseName(cls < 0 ? 0 : cls, ses.pose), i + 1, count);
+        }
+        if(!poselive::on() && agpose::isStrike(ses.pose))
         {
             // (its keys, the one shown bright: wind-up, blow, follow-through)
             text += "\nkey:";
@@ -1300,7 +1511,7 @@ void drawPanel()
                 text += va(" %s", name);
             }
         }
-        if(vr_agrunt_freeze.value == 0.f)
+        if(vr_agrunt_freeze.value == 0.f && !poselive::on())
         {
             text += "\nunfrozen: live (pose edits need Frozen: On)";
         }
@@ -1316,6 +1527,8 @@ void drawPanel()
     text += "\n  weapon, fist, elbow, chest: this pose";
     text += "\n  a hand on a weapon: how it holds it";
     text += va("\nstick click: grab %s", ses.grabSet == 1 ? "weapons only" : ses.grabSet == 2 ? "limbs only" : "everything");
+    text += poselive::on() ? "\nLive: Pause, then grip a part: the key shown" : "";
+    text += poselive::paused() ? "\nstick left/right: scrub the tape" : "";
     text += "\nbutton: touch it, pull the trigger";
     text += "\nB/Y: undo     menu button: done";
     int lineCount = 1;
@@ -1331,7 +1544,34 @@ void drawPanel()
     constexpr float HINT_SCALE = 0.05f;
     const float half = 8.f * HINT_SCALE * (static_cast<float>(lineCount) * 0.5f + 0.4f);
     const float top = (static_cast<float>(PANEL_ROWS - 1) * 0.5f * (BUTTON_HEIGHT + BUTTON_GAP) + BUTTON_HEIGHT * 0.5f + 0.02f) * m2u;
-    text3d::queueOverlay(text, ses.panelAt + ses.panelUp * (top + half), angles, HINT_SCALE);
+    // Live (vr_poselive.hpp): the tape's readout right over the panel (the mode, the playhead, the key weighing most, the
+    // finder's measures, each a bar: red when a glitch), the hint over it.
+    float liveHeight = 0.f;
+    if(poselive::on())
+    {
+        constexpr float LIVE_SCALE = 0.065f;
+        za::String live;
+        int measureLine = -1;
+        poselive::describe(live, measureLine);
+        int liveLines = 1;
+        for(const char* c = live.cStr(); *c; c++)
+        {
+            liveLines += *c == '\n' ? 1 : 0;
+        }
+        text3d::OverlayBar bars[5];
+        int nBars = 0;
+        for(int i = 0; i < 5 && measureLine >= 0; i++)
+        {
+            bool bad = false;
+            const float v = poselive::measureShare(i, bad);
+            bars[nBars++] = text3d::OverlayBar{measureLine + i, 20.f, za::clamp(v, 0.f, 1.5f) * 10.f, 15.f,
+                bad ? glm::vec4{1.f, 0.15f, 0.1f, 0.9f} : glm::vec4{0.3f, 0.85f, 0.4f, 0.75f}};
+        }
+        liveHeight = 8.f * LIVE_SCALE * (static_cast<float>(liveLines) + 0.8f) + 0.01f * m2u;
+        text3d::queueOverlay(live, ses.panelAt + ses.panelUp * (top + liveHeight * 0.5f), angles, LIVE_SCALE,
+            za::Span<const text3d::OverlayBar>{bars, static_cast<za::SizeT>(nBars)}, 0.75f);
+    }
+    text3d::queueOverlay(text, ses.panelAt + ses.panelUp * (top + liveHeight + half), angles, HINT_SCALE);
 }
 
 // --- the parts -----------------------------------------------------------------------------------------------------
@@ -1543,6 +1783,20 @@ void press_f()
     }
 }
 
+// vr_posestudio_live: Live On / Off (the panel's button) on the subject shown.
+void live_f()
+{
+    if(active())
+    {
+        toggleLive();
+        return;
+    }
+    if(start(-1))
+    {
+        ses.liveWanted = true; // (the Debug menu's row: Live once one is shown)
+    }
+}
+
 // vr_posestudio_report: whether it runs, the subject, each part's place (world) and the grips it holds now.
 void report_f()
 {
@@ -1649,7 +1903,9 @@ void init()
     Cmd_AddCommand("vr_posestudio_undo", undo_f);
     Cmd_AddCommand("vr_posestudio_press", press_f);
     Cmd_AddCommand("vr_posestudio_report", report_f);
+    Cmd_AddCommand("vr_posestudio_live", live_f);
     agpose::registerCommands();
+    poselive::init();
 }
 
 glm::vec3 qcHold(int ent, int kind, int cls)
@@ -1669,6 +1925,11 @@ glm::vec3 qcHold(int ent, int kind, int cls)
     if(!active())
     {
         return glm::vec3{-1.f, 0.f, 0.f};
+    }
+    if(poselive::qcLoop(ent) >= 0)
+    {
+        // (Live: its loops played, QC VR_AGK_Live; z its restarts)
+        return glm::vec3{static_cast<float>(100 + poselive::qcLoop(ent)), 0.f, static_cast<float>(poselive::restarts())};
     }
     const Note* n = current();
     if(!n || n->ent != ent)
@@ -1758,6 +2019,7 @@ void finish(bool keep)
     {
         release();
     }
+    poselive::stop();
     aggrip::clearPreview();
     agpose::clearPreview();
     if(!keep)
@@ -1866,6 +2128,12 @@ void frame()
     {
         placePanel(s); // (walking off: it comes along)
     }
+    if(ses.liveWanted && current() && !poselive::on())
+    {
+        ses.liveWanted = false;
+        toggleLive();
+    }
+    poselive::frame();
     dragFrame(s);
     hoverFrame(s);
     if(const Note* n = current())
@@ -1890,7 +2158,7 @@ void adjust(int ent, agarms::Targets& t)
 
 void note(const Note& n)
 {
-    if(!active())
+    if(!active() || poselive::warming())
     {
         return;
     }
@@ -1906,8 +2174,9 @@ void note(const Note& n)
         ses.havePending = false;
     }
     const hands::State& s = hands::current();
-    const float d = glm::length(n.space.origin - s.head);
-    if(d <= vr_posestudio_reach.value * units::metresToUnits() && d < ses.pendingDist)
+    const bool liveOne = poselive::on() && n.ent == poselive::subject(); // (Live: its subject, wherever you are)
+    const float d = liveOne ? -1.f : glm::length(n.space.origin - s.head);
+    if((liveOne || d <= vr_posestudio_reach.value * units::metresToUnits()) && d < ses.pendingDist)
     {
         ses.pendingDist = d;
         ses.pending = n;
@@ -1942,9 +2211,14 @@ bool partPoint(int hand, int index, const glm::vec3& offset, glm::vec3& out)
     return true;
 }
 
+glm::quat torsoRotation(const glm::vec3& t)
+{
+    return torsoQuat(t);
+}
+
 bool buttonPoint(int index, glm::vec3& out)
 {
-    if(!active() || index < 0 || index >= BtnCount)
+    if(!active() || index < 0 || index >= BtnCount || !buttonShown(index))
     {
         return false;
     }

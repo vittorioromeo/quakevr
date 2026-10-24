@@ -472,7 +472,7 @@ void() VR_AG_PropThink =
         return;
     }
     // (held still, vr_agrunt_freeze: the Grip Editor, the Pose Studio, hands reaching into its weapons: no tug, no blow)
-    float still = cvar("vr_agrunt_freeze") && g.health > 0;
+    float still = VR_AG_Still(g);
     if(!still && VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
     {
         if(g.vr_ag_prop == self)
@@ -679,7 +679,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
 // Disarmed: the weapon knocked out of its hand (`dir`: the blow's way).
 void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
 {
-    if(!g.vr_ag_prop || (cvar("vr_agrunt_freeze") && g.health > 0))
+    if(!g.vr_ag_prop || VR_AG_Still(g))
     {
         return; // (held still: the Grip Editor, the Pose Studio, where hands reach into its weapons)
     }

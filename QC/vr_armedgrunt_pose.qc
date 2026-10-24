@@ -1361,11 +1361,19 @@ float(entity g, entity p) VR_AGK_Class =
 };
 
 // Key `code` at share `w` added (`mirror`: a left-handed strike on the right's key, the hands swapped and mirrored).
+float vr_agk_rep;            // VR_AGK_Keys: the keys laid on told to the engine (the Pose Studio's Live subject), on
+entity vr_agk_repent;
 void(float code, float w, float mirror) VR_AGK_Add =
 {
     if(w <= 0.001)
     {
         return;
+    }
+    if(vr_agk_rep)
+    {
+        // (the Pose Studio's Live tape: this key at this share, negative mirrored; vr_poselive.hpp)
+        float wr = min(w, 0.999);
+        weapondrawnpose(vr_agk_repent, mirror ? -(code + wr) : code + wr, 23);
     }
     vector has = weapondrawnpose(world, code, 18);
     if(has_x == 0)
@@ -1458,6 +1466,8 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_el = '0 0 0';
     vr_agk_t = '0 0 0';
     vr_agk_on = FALSE;
+    vr_agk_rep = g.vr_agk_live;
+    vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
     float base = (g.vr_ag_kind == VR_AM_ENFORCER ? 10000 : 0) + cls * 1000;
     float wp = 0; // (the pickup's: its bend's)
@@ -1616,6 +1626,191 @@ void(entity g) VR_AGK_Release =
     g.enemy = world;
 };
 
+// ----------------------------------------------------------------------------
+// The Pose Studio's Live mode (Quake/vr/vr_poselive.hpp): its subject plays its real loops where it stands, the others
+// held still: its own AI against a target moving round it as the glitch finder's (vr_armedgrunt_glitch_test.qc), held
+// on its spot (a run in place) but for a pickup's walk to its weapon. The loop (the studio's hold's x less 100): 0 the
+// finder's 19 s (aim and fire round it, a run, strikes up close, pain, a pickup), 1 aim and fire, 2 reloads (its
+// magazine emptied every 3 s), 3 a run, 4 strikes, 5 a pickup; z its restarts (a change: from its start). The player is
+// god and notarget while it plays (its shots go at the target past you), put back after.
+// ----------------------------------------------------------------------------
+.float vr_agk_live_at;    // its loop's start
+.float vr_agk_live_t;     // the server frame it last ran on
+.float vr_agk_live_n;     // the restarts seen
+.vector vr_agk_home;      // where it stands, its way
+.float vr_agk_home_yaw;
+.float vr_agk_live_hits;  // pain dealt this loop
+.float vr_agk_live_knock; // its weapon knocked out this loop
+.float vr_agk_live_hp;    // its health before (put back)
+.float vr_agk_live_armed; // it held a weapon when it began
+float vr_agk_live_cheats; // the player's god (1) and notarget (2) set by it
+entity vr_agk_ltgt;
+
+void(entity attacker, float damage) VR_AGK_TargetPain = { self.health = 100000; };
+entity() VR_AGK_LiveTarget =
+{
+    if(!vr_agk_ltgt)
+    {
+        vr_agk_ltgt = spawn();
+        vr_agk_ltgt.classname = "vr_agk_live_target";
+        vr_agk_ltgt.netname = "the Pose Studio's target";
+        vr_agk_ltgt.solid = SOLID_BBOX; // (its AI shoots only with a clear shot at it: CheckAttack)
+        vr_agk_ltgt.movetype = MOVETYPE_NONE;
+        vr_agk_ltgt.takedamage = DAMAGE_AIM;
+        vr_agk_ltgt.th_pain = VR_AGK_TargetPain;
+        vr_agk_ltgt.th_die = VR_AGK_TargetPain;
+        vr_agk_ltgt.view_ofs = '0 0 22';
+        setsize(vr_agk_ltgt, '-8 -8 -24', '8 8 24');
+    }
+    vr_agk_ltgt.health = 100000;
+    return vr_agk_ltgt;
+};
+
+// Live off: back on its spot, its health and the player's cheats as they were.
+void(entity g) VR_AGK_LiveEnd =
+{
+    g.vr_agk_live = 0;
+    g.enemy = world;
+    g.vr_ag_act = 0;
+    g.velocity = '0 0 0';
+    setorigin(g, g.vr_agk_home);
+    g.angles_y = g.vr_agk_home_yaw;
+    if(g.vr_agk_live_hp > 0)
+    {
+        g.health = g.vr_agk_live_hp;
+    }
+    entity pl = find(world, classname, "player");
+    if(pl && (vr_agk_live_cheats & 1))
+    {
+        pl.flags = pl.flags - (pl.flags & FL_GODMODE);
+    }
+    if(pl && (vr_agk_live_cheats & 2))
+    {
+        pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
+    }
+    vr_agk_live_cheats = 0;
+    if(vr_agk_ltgt)
+    {
+        setorigin(vr_agk_ltgt, g.vr_agk_home + '0 0 4000');
+    }
+};
+
+// `g` (its right weapon `p`) live this server frame, playing loop `loop`.
+void(entity g, entity p, float loop) VR_AGK_Live =
+{
+    if(g.vr_agk_live_t == time)
+    {
+        return; // (two weapons: called for each)
+    }
+    g.vr_agk_live_t = time;
+    entity tg = VR_AGK_LiveTarget();
+    entity oldself;
+    if(!g.vr_agk_live || g.vr_agk_live_n != vr_agk_hplay)
+    {
+        if(!g.vr_agk_live)
+        {
+            g.vr_agk_home = g.origin;
+            g.vr_agk_home_yaw = g.angles_y;
+            g.vr_agk_live_hp = g.health;
+            g.vr_agk_live_armed = g.vr_ag_prop != world;
+            entity pl = find(world, classname, "player");
+            if(pl && !(pl.flags & FL_GODMODE))
+            {
+                pl.flags = pl.flags | FL_GODMODE;
+                vr_agk_live_cheats = vr_agk_live_cheats | 1;
+            }
+            if(pl && !(pl.flags & FL_NOTARGET))
+            {
+                pl.flags = pl.flags | FL_NOTARGET;
+                vr_agk_live_cheats = vr_agk_live_cheats | 2;
+            }
+        }
+        else if(g.vr_ag_prop || !g.vr_agk_live_armed)
+        {
+            setorigin(g, g.vr_agk_home);
+        }
+        g.vr_agk_live = 1;
+        g.vr_agk_live_n = vr_agk_hplay;
+        g.vr_agk_live_at = time;
+        g.vr_agk_live_hits = 0;
+        g.vr_agk_live_knock = 0;
+        g.nextthink = time + 0.05; // (its AI on again)
+    }
+    float len = loop == 0 ? 19 : loop == 2 ? 3 : loop == 4 ? 3.5 : loop == 5 ? 5 : 7;
+    float s = time - g.vr_agk_live_at;
+    if(s >= len)
+    {
+        g.vr_agk_live_at = time;
+        s = 0;
+        g.vr_agk_live_hits = 0;
+        g.vr_agk_live_knock = 0;
+        if(g.vr_ag_prop || !g.vr_agk_live_armed)
+        {
+            setorigin(g, g.vr_agk_home); // (back on its spot after a pickup's walk)
+        }
+    }
+    // (the finder's schedule's time for this loop)
+    float u = loop == 3 ? 8 : loop == 4 ? 9.5 + s : loop == 5 ? 15 + s : s;
+    if(loop == 2 && s == 0 && p && p.weaponinst && VR_AG_ClipOf(p.weapon, p.weaponinst) > 0)
+    {
+        p.weaponinst.wi_clip = 0; // (its next shot a reload)
+    }
+    g.health = 1000;
+    g.vr_ag_reserve = max(g.vr_ag_reserve, 50);
+    vector home = g.vr_agk_home;
+    makevectors([0, g.vr_agk_home_yaw, 0]);
+    traceline(home + '0 0 16', home + v_forward * 600 + '0 0 16', TRUE, g);
+    vector far = trace_endpos - v_forward * 40 - '0 0 16';
+    vector at;
+    if(u < 7)
+    {
+        float a = u * (u < 3.5 ? 50 : -50) + (u < 3.5 ? 0 : 350);
+        makevectors([0, a, 0]);
+        at = home + v_forward * 220 + '0 0 1' * (130 * sin(u * 0.9));
+    }
+    else if(u < 9.5)
+    {
+        at = far;
+    }
+    else if(u < 13)
+    {
+        makevectors([0, (u - 9.5) * 40, 0]);
+        at = g.origin + v_forward * 44; // (within its reach: its strikes)
+    }
+    else
+    {
+        makevectors([0, g.angles_y, 0]);
+        at = g.origin + v_forward * (u < 15 ? 160 : 300);
+    }
+    setorigin(tg, at);
+    if(g.enemy != tg)
+    {
+        oldself = self;
+        self = g;
+        self.enemy = tg;
+        FoundTarget();
+        self = oldself;
+    }
+    if(loop == 0 && u >= 13.2 && g.vr_agk_live_hits < 1 + floor((u - 13.2) / 0.7) && g.vr_agk_live_hits < 3)
+    {
+        g.vr_agk_live_hits = g.vr_agk_live_hits + 1;
+        T_Damage(g, tg, tg, 3);
+        g.health = 1000;
+    }
+    if(u >= 15 && !g.vr_agk_live_knock && g.vr_ag_prop)
+    {
+        g.vr_agk_live_knock = 1;
+        makevectors([0, g.angles_y + 60, 0]);
+        VR_AG_Disarm(g, v_forward, 120, "the Pose Studio");
+    }
+    // (held on its spot, a run in place; not while it goes for its weapon knocked out)
+    if(!g.vr_agk_live_knock && (g.vr_ag_prop || !g.vr_agk_live_armed))
+    {
+        setorigin(g, home);
+        g.velocity = '0 0 0';
+    }
+};
+
 // `g`'s pose this server frame, its weapon `p` (world: its fists) placed by it and the pose sent (QVR_SVC_ARMPOSE).
 void(entity g, entity p) VR_AGP_Pose =
 {
@@ -1624,7 +1819,7 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         VR_AGK_Query(g, p); // (the Pose Studio's hold; it learns its kind and class)
     }
-    float frozen = cvar("vr_agrunt_freeze") && g.health > 0;
+    float frozen = VR_AG_Still(g);
     if(frozen)
     {
         // (the Grip Editor: held still in its first idle frame, its weapons ready, its AI held)
@@ -1634,13 +1829,21 @@ void(entity g, entity p) VR_AGP_Pose =
         g.velocity = '0 0 0';
         g.frame = VR_AM_StandFrame(g, 0);
     }
-    if(frozen && vr_agk_hpose >= 0)
+    if(frozen && vr_agk_hpose >= 0 && vr_agk_hpose < 100)
     {
         VR_AGK_Hold(g, p); // (the Pose Studio's pose picked on its panel)
     }
     else if(g.vr_agk_held && !vr_agp_quiet)
     {
         VR_AGK_Release(g);
+    }
+    if(!vr_agp_quiet && vr_agk_hpose >= 100 && g.health > 0)
+    {
+        VR_AGK_Live(g, p, vr_agk_hpose - 100); // (the Pose Studio's Live mode: its loops)
+    }
+    else if(!vr_agp_quiet && g.vr_agk_live)
+    {
+        VR_AGK_LiveEnd(g);
     }
     vr_agp_arms = cvar_hget(cvarh_vr_agarms) != 0;
     vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)

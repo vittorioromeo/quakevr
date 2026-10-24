@@ -102,3 +102,6 @@ float() VR_AG_TugResume;
 void(entity g, float wid) VR_AG_DisarmFeedback;
 void() VR_AG_PlayPrecache;
 float(entity g, entity p) VR_AG_WeaponStruck;
+.float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
+// Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
+float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 && !g.vr_agk_live; };

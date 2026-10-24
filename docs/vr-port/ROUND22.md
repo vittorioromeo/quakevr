@@ -20619,3 +20619,66 @@ seconds, the dominant key shown and dragged at a paused frame, Next Glitch from 
   and go where they point.
 - [ ] An enforcer with fists: its punches land without its fist sinking in its shoulder pad.
 - [ ] A chainsaw grunt's thrust: both hands on the saw.
+
+
+## Pose Studio: Live (worktree `gorefx`, branch `agent/poselive`, 2026-10-24)
+
+Vittorio: poses look right in the studio but glitch in fights; he wants to see the animations as they play and tweak
+them there (Phase B of agrobust/agrobust2). New: `Quake/vr/vr_poselive.cpp/.hpp`; settings `vr_posestudio_live_loop` (0),
+`_speed` (1), `_follow` (1), `_warm` (0.4); commands `vr_posestudio_live` (also the Debug menu's "Pose Studio: Live
+On/Off": starts the studio too), `_live_pause`, `_live_scrub <s>`, `_live_step <n>`, `_live_glitch`, `_live_loop_next`,
+`_live_speed_next`, `_live_report`. Engine: `vr_hitreact.cpp` (record/replay in relinkArms), `vr_agarms/aglegs/agbody`
+(`saveState`/`loadState`: the solve's per-entity state as bytes), `vr_agglitch` (`measure`: one frame's metrics, shared
+by the finder and the tape), `vr_builtins.cpp` (`weapondrawnpose(e, +-(code + share), 23)`), `vr_input.cpp` (paused: the
+sticks scrub), `vr_posestudio.cpp` (panel, drag). QC: `vr_armedgrunt_pose.qc` (`VR_AGK_Live`, `VR_AGK_LiveEnd`, the keys
+reported), `VR_AG_Still` (freeze checks skip the Live subject).
+
+- **Live** (panel bottom row: Live / Loop / Speed): the subject shown plays its own AI in place against a target moving
+  as the glitch finder's (circling and rising 220 off: aim, fire, reloads; far: a run, held on its spot; circling 44
+  off: strikes; three small hits: pain; disarmed: the pickup, the only time it may walk; back on its spot after). Loop:
+  All (the finder's 19 s), Aim+Fire, Reload (magazine emptied every 3 s), Run, Strikes, Pickup. Speed 1/0.5/0.25/0.1 by
+  `host_timescale` (put back after). The others stay frozen; the player is made god and notarget while it plays (put
+  back). The target is a small invisible bbox (CheckAttack needs a clear shot at it).
+- **The tape**: 1200 frames, one per drawn frame at most every 1/120 s of game time (~10-16 s): the arm pose as
+  relinkSkinned takes it, the entity as drawn (its lerp fields), the solve's state before it, the keys QC laid on with
+  their shares, and the finder's metrics of the solved frame.
+- **Pause**: `host_timescale` 0.0001 (the game all but stopped, the headset live). The subject is drawn from the tape:
+  the playhead's frame solved again from its recorded state and inputs at its own clock (`cl.time` and
+  `host_framecount` set for the solve, the entity's lerp times moved to the live clock). Exact: at the paused frame the
+  re-solved measures equal the recorded ones to the digit (flip 0.15 wrong 29.71 jump 0.10). On Play the live state
+  taken at the pause is put back and the game goes on from there.
+- **Scrub**: either stick left/right (paused; deflection squared, 1.5 s/s at full), `< 0.5 s`, `0.5 s >`, `< Frame`,
+  `Frame >`. The readout over the panel: mode, playhead (s before the pause, frame), the key(s) weighing most and their
+  shares, and pen, flip, reach, grip2, jump with a bar each (red at the finder's glitch value), the last message.
+- **Edit at a paused frame**: gripping a pose part edits the key weighing most there (a mirrored use mirrored back);
+  the move is divided by its share (`vr_posestudio_live_follow`: the part follows the hand at this frame; shares under
+  0.2 count as 0.2). Each frame the edit (sum of each key's change since recording times its share) is laid on the
+  recorded arm poses as QC lays keys on (places in body space, turns, poles, the torso turning the targets about the
+  waist), and the tape is solved again from `vr_posestudio_live_warm` s before (so the eases and the elbow's continuity
+  see it as play would); the measures' history uses those re-solved frames. Grips (a hand on a weapon) work as in
+  Frozen. Legs: Frozen only.
+- **Next Glitch**: the tape's bad frames (finder severity >= 1) merged within 0.3 s into moments, worst first; each
+  press pauses on the next one and says the metric, side, when and which key to drag. (Decision: the tape is the finder
+  pass for this subject; `_top.csv` from test 46 is from other maps and spawns, not this subject's frames.)
+
+**Measured** (mock, `scratch/pl_t1.sh`, `pl_t2.sh`, `pl_t3.sh`; the scenario `agrunt_pose_studio`, the shotgun grunt):
+Live at 0.25x Aim+Fire for 900 frames: 301 frames, 3.13 s; Pause; scrub -1 s: frame 205, its keys Idle/Carry 1.00 and
+Run 1.00; its right weapon dragged 3 up: key 1000 RPos 0 0 3 stored, the weapon drawn 29.29 -> 32.29 at that frame;
+Play: the live frames carry it (grip z +3); Live off: frozen, `host_timescale` 0 again, the Carry key on the frozen pose
+(28.65 -> 31.65). Loop All at 1x for 1300 frames: Next Glitch 1 of 6 grip2 11.32 u (left, key Aim 1.00), 2 of 6 grip2
+11.14, 3 of 6 grip2 8.93 (the off hand off the shotgun's fore-end: agrobust2's known "guns aimed steeply" leftover).
+Panel screenshots (spectator view): `scratch/pl_shots2.png` (paused/playing), `scratch/pl_live_readout.png`.
+Tests: 35, 60, 25, 34, 38 PASS both kinds; 41 and 45 joint gap 0.000, hand shape 0.0000; scenes validate 89 files 0
+errors, runall agrunt_pose_studio, _grip_editor, _strikes OK; eval.sh: canary 36/44, 0 differ from the baseline. The Debug row with the studio off: the studio starts, Live on the first one shown (299 frames in 300), Pause, scrub -0.5 s, Play, Done.
+
+**Left:** the punch fist's one-frame jumps (optional item: not started; the tape now shows them frame by frame: Loop
+Strikes with a fists grunt, Next Glitch on jump). Hit reactions' kicks at a paused frame are the live ones (none while
+paused). An edit of a key that weighs nothing at the paused frame (another pose's) is not reachable there: step to a
+frame where it weighs.
+
+**In VR:**
+- [ ] Pose Studio, walk up to the shotgun grunt, Live: On: it fights in place, the readout over the panel; Speed 0.25x.
+- [ ] Pause; push a stick left and right: it moves back and forth through what it did; the key and bars change.
+- [ ] Next Glitch: it stops on a red bar; grip the weapon (or an elbow) and fix it there; Play: it plays with the fix.
+- [ ] Loop: Strikes with the sword grunt; Pause mid-swing, drag the sword: the swing's key (wind-up/blow) is named.
+- [ ] Live: On again: frozen as before; Done prints the keys.

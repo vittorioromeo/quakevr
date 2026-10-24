@@ -19,6 +19,7 @@
 #include "vr_posing.hpp"
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace qvr::posestudio
 {
@@ -82,5 +83,10 @@ void note(const Note& n);
 // phase, z Play's count (a change: play the strike once from its start).
 [[nodiscard]] glm::vec3 qcHold(int ent, int kind, int cls);
 [[nodiscard]] bool buttonPoint(int index, glm::vec3& out);
+// (buttons 15 Live: On/Off, 16 Loop, 17 Speed; in Live, rows 1-2: 18 < 0.5 s, 19 Pause/Play, 20 0.5 s >, 21 < Frame,
+// 22 Next Glitch, 23 Frame >: vr_poselive.hpp)
+
+// The torso's turn (yaw, pitch, roll; degrees, as QC sends it) as a rotation (hitreact's bodyTurn).
+[[nodiscard]] glm::quat torsoRotation(const glm::vec3& t);
 
 } // namespace qvr::posestudio

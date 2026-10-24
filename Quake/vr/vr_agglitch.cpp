@@ -47,7 +47,7 @@ enum Metric : int
 constexpr const char* metricNames[numMetrics] = {"flip", "wrong", "pen", "reach", "grip2", "toggle", "gap", "aim", "jump", "shoulder", "wrist"};
 constexpr const char* metricUnits[numMetrics] = {"deg/f", "deg", "u", "u", "u", "/s", "u", "deg", "u", "u", "deg"};
 // (a moment's severity: its value over this; 1 a glitch)
-constexpr float metricBad[numMetrics] = {20.f, 135.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f, 10.f};
+constexpr float metricBadValue[numMetrics] = {20.f, 135.f, 1.f, 2.f, 1.5f, 2.f, 0.05f, 10.f, 1.5f, 1.f, 10.f};
 constexpr double settle = 0.4;  // seconds after a subject starts (spawned, moved) before it is measured
 constexpr double merge = 0.3;   // a glitch this close after the subject's last is the same moment
 constexpr int maxMoments = 8192;
@@ -83,7 +83,7 @@ struct Track
     int ent{0};
     int n{0};          // frames of history
     double time{0.0};  // its last frame's cl.time
-    glm::vec3 grip[2][2], elbow[2][2], sh[2][2], S[2], E[2], W[2];
+    agglitch::Sample prev[2]; // its last frame, the one before
     bool held2{false};
     double toggles[16]{};
     int nToggles{0};
@@ -427,11 +427,11 @@ void note(const Sample& s)
         return; // (the same instant: drawn twice)
     }
     const float dt = static_cast<float>(za::clamp(dtd, 1e-4, 0.25));
-    const float rate = refFrame / dt;
     Row r;
     r.t = static_cast<float>(cl.time - state.starts[static_cast<za::SizeT>(subject)]);
     r.subject = static_cast<short>(subject);
     r.state = static_cast<short>(st);
+    measure(s, tr.n >= 1 ? &tr.prev[0] : nullptr, tr.n >= 2 ? &tr.prev[1] : nullptr, dt, r.m, r.side);
     const auto put = [&](int k, float v, int side) {
         if(v > r.m[k])
         {
@@ -439,40 +439,6 @@ void note(const Sample& s)
             r.side[k] = static_cast<signed char>(side);
         }
     };
-    for(int side = 0; side < 2; side++)
-    {
-        const Arm& a = s.arm[side];
-        const glm::vec3 dir = glm::normalize(a.W - a.S + glm::vec3{0.f, 0.f, 1e-5f});
-        const glm::vec3 u = perp(a.E - a.S, dir);
-        const float lu = glm::length(a.E - a.S);
-        if(tr.n >= 1)
-        {
-            const glm::vec3 u0 = perp(tr.E[side] - tr.S[side], dir);
-            if(glm::length(u) > 0.25f * lu && glm::length(u0) > 0.25f * lu)
-            {
-                put(Flip, angleBetween(u, u0) * rate, side);
-            }
-        }
-        const glm::vec3 pp = perp(a.pole, dir);
-        if(glm::length(u) > 0.25f * lu && glm::length(pp) > 0.2f)
-        {
-            put(Wrong, angleBetween(u, pp), side);
-        }
-        put(Pen, za::max(0.f, a.pen), side);
-        put(Reach, a.miss, side);
-        put(Wrist, a.turned, side);
-        if(tr.n >= 2)
-        {
-            const float k2 = rate * rate;
-            put(Jump, glm::length(a.grip - 2.f * tr.grip[side][0] + tr.grip[side][1]) * k2, side);
-            put(Jump, glm::length(a.E - 2.f * tr.elbow[side][0] + tr.elbow[side][1]) * k2, side);
-            put(Shoulder, glm::length(a.S - 2.f * tr.sh[side][0] + tr.sh[side][1]) * k2, side);
-        }
-    }
-    if(s.held2)
-    {
-        put(Grip2, s.second, 1);
-    }
     if(tr.n >= 1 && s.held2 != tr.held2 && (s.want2 || tr.held2))
     {
         tr.toggles[tr.nToggles % 16] = cl.time;
@@ -484,22 +450,9 @@ void note(const Sample& s)
         recent += cl.time - tr.toggles[i] <= 1.0 ? 1 : 0;
     }
     put(Toggle, static_cast<float>(recent), 1);
-    put(Gap, s.gap, 0);
-    put(Aim, s.aim, 0);
     // History.
-    for(int side = 0; side < 2; side++)
-    {
-        const Arm& a = s.arm[side];
-        tr.grip[side][1] = tr.grip[side][0];
-        tr.grip[side][0] = a.grip;
-        tr.elbow[side][1] = tr.elbow[side][0];
-        tr.elbow[side][0] = a.E;
-        tr.sh[side][1] = tr.sh[side][0];
-        tr.sh[side][0] = a.S;
-        tr.S[side] = a.S;
-        tr.E[side] = a.E;
-        tr.W[side] = a.W;
-    }
+    tr.prev[1] = tr.prev[0];
+    tr.prev[0] = s;
     tr.held2 = s.held2;
     tr.time = cl.time;
     tr.n++;
@@ -516,7 +469,7 @@ void note(const Sample& s)
     const char* focus = vr_agglitch_metric.string ? vr_agglitch_metric.string : "";
     for(int k = 0; k < numMetrics; k++)
     {
-        const float v = r.m[k] / metricBad[k];
+        const float v = r.m[k] / metricBadValue[k];
         if(v > sev && (!focus[0] || strstr(focus, metricNames[k])))
         {
             sev = v;
@@ -527,6 +480,76 @@ void note(const Sample& s)
     {
         noteMoment(r, sev, worst);
     }
+}
+
+const char* metricName(int k)
+{
+    return k >= 0 && k < numMetrics ? metricNames[k] : "?";
+}
+
+const char* metricUnit(int k)
+{
+    return k >= 0 && k < numMetrics ? metricUnits[k] : "";
+}
+
+float metricBad(int k)
+{
+    return k >= 0 && k < numMetrics ? metricBadValue[k] : 1.f;
+}
+
+void measure(const Sample& s, const Sample* p1, const Sample* p2, float dt, float* out, signed char* sideOut)
+{
+    const float rate = refFrame / za::max(dt, 1e-4f);
+    for(int k = 0; k < numMetrics; k++)
+    {
+        out[k] = 0.f;
+        sideOut[k] = 0;
+    }
+    const auto put = [&](int k, float v, int side) {
+        if(v > out[k])
+        {
+            out[k] = v;
+            sideOut[k] = static_cast<signed char>(side);
+        }
+    };
+    for(int side = 0; side < 2; side++)
+    {
+        const Arm& a = s.arm[side];
+        const glm::vec3 dir = glm::normalize(a.W - a.S + glm::vec3{0.f, 0.f, 1e-5f});
+        const glm::vec3 u = perp(a.E - a.S, dir);
+        const float lu = glm::length(a.E - a.S);
+        if(p1)
+        {
+            const glm::vec3 u0 = perp(p1->arm[side].E - p1->arm[side].S, dir);
+            if(glm::length(u) > 0.25f * lu && glm::length(u0) > 0.25f * lu)
+            {
+                put(Flip, angleBetween(u, u0) * rate, side);
+            }
+        }
+        const glm::vec3 pp = perp(a.pole, dir);
+        if(glm::length(u) > 0.25f * lu && glm::length(pp) > 0.2f)
+        {
+            put(Wrong, angleBetween(u, pp), side);
+        }
+        put(Pen, za::max(0.f, a.pen), side);
+        put(Reach, a.miss, side);
+        put(Wrist, a.turned, side);
+        if(p1 && p2)
+        {
+            const float k2 = rate * rate;
+            const Arm& b = p1->arm[side];
+            const Arm& c = p2->arm[side];
+            put(Jump, glm::length(a.grip - 2.f * b.grip + c.grip) * k2, side);
+            put(Jump, glm::length(a.E - 2.f * b.E + c.E) * k2, side);
+            put(Shoulder, glm::length(a.S - 2.f * b.S + c.S) * k2, side);
+        }
+    }
+    if(s.held2)
+    {
+        put(Grip2, s.second, 1);
+    }
+    put(Gap, s.gap, 0);
+    put(Aim, s.aim, 0);
 }
 
 void registerCommands()

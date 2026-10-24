@@ -1,9 +1,12 @@
 // vr_agarms.cpp -- armed humanoids' arms posed and skinned (vr_agarms.hpp; ROUND22.md, "Armed humanoids' arms: posed
 // and skinned").
 
+#include <type_traits>
+#include <string.h>
 #include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
 #include "vr_agglitch.hpp"
+#include "vr_poselive.hpp"
 #include "vr_cvars.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -1072,7 +1075,14 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
                     -1.f, 1.f)) *
                 (180.f / pi);
     }
-    agglitch::note(g);
+    if(poselive::measuring(num))
+    {
+        poselive::sample(g);
+    }
+    if(agglitch::watching(num))
+    {
+        agglitch::note(g);
+    }
 }
 
 } // namespace
@@ -1439,7 +1449,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->drawnRel[s] = compose(inverse(C), arms[s].H);
         st->haveDrawn[s] = true;
     }
-    if(agglitch::watching(num))
+    if(agglitch::watching(num) || poselive::measuring(num)) // (the Pose Studio's Live tape measures its subject too)
     {
         noteGlitch(*m, *st, rig, posed, kick, t, out, arms, C, num, second, held2);
     }
@@ -1576,6 +1586,34 @@ void printErr()
                "%.2f..%.2f of rest, in the torso %.2f units, reach short right %.2f / left %.2f units, off hand on its "
                "second grip %.2f units, wrist bend %.0f deg (most), second grip held %d of %d frames\n",
         tags, t.n, t.gap, t.handMost, t.armShort, t.armLong, t.torso, t.miss[0], t.miss[1], t.second, t.bend, t.held2, t.want2);
+}
+
+int saveState(int ent, unsigned char* out)
+{
+    static_assert(sizeof(Ent) <= stateBytes, "the Live tape's room for its state");
+    static_assert(std::is_trivially_copyable_v<Ent>, "copied as bytes");
+    const Ent* st = entOf(ent, false);
+    if(!st)
+    {
+        return 0;
+    }
+    memcpy(out, st, sizeof(Ent));
+    return static_cast<int>(sizeof(Ent));
+}
+
+void loadState(int ent, const unsigned char* in, int len)
+{
+    Ent* st = entOf(ent, len > 0);
+    if(!st)
+    {
+        return;
+    }
+    if(len != static_cast<int>(sizeof(Ent)))
+    {
+        *st = Ent{}; // (none then: dropped)
+        return;
+    }
+    memcpy(st, in, sizeof(Ent));
 }
 
 } // namespace qvr::agarms

@@ -25,6 +25,7 @@
 #include "vr_motion.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
+#include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
 #include "vr_progs.hpp"
@@ -764,6 +765,16 @@ void update(const InputState& tracked)
         stickKey(stickKeys[2], -stick.x, true);
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
+    }
+    else if(poselive::sticksTaken())
+    {
+        // The Pose Studio's Live mode paused: either stick left or right scrubs its tape (no walking, no turning).
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        poselive::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(toolgun::sticksTaken())
     {

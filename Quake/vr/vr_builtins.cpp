@@ -45,6 +45,7 @@
 #include "vr_view.hpp"
 #include "vr_admelee.hpp"
 #include "vr_agpose.hpp"
+#include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
@@ -2340,6 +2341,17 @@ void PF_weapondrawnpose()
         G_VECTOR(OFS_RETURN)[0] = static_cast<float>(NUM_FOR_EDICT(player));
         G_VECTOR(OFS_RETURN)[1] = 0.f;
         G_VECTOR(OFS_RETURN)[2] = 0.f;
+        return;
+    }
+    if(what == 23)
+    {
+        // weapondrawnpose(e, +-(code + share), 23): the Pose Studio's Live subject `e` had key `code` laid on at that
+        // share this frame (negative: mirrored, a left hook's); recorded with its frame (vr_poselive.hpp).
+        poselive::qcKey(NUM_FOR_EDICT(player), G_FLOAT(OFS_PARM1));
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = 0.f;
+        }
         return;
     }
     if(what >= 11 && what <= 19)
