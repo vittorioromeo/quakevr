@@ -20730,6 +20730,20 @@ round (budget): the torso proxy's sides should be fitted from the chest bone's l
 things to try, measured with the same tables. Note: `host_framerate` broke the finder's jump and flip numbers in these
 runs (fast mode already fixes the frames): run it without.
 
+**Regression checks** (second pass, the same branch). Tests, grunt and enforcer (`vr_agrunt_test_kind`), a fresh
+vrtesthall each: 60 (6/6 PASS each), 35 (6/6 parried each), 25, 34, 38 (all PASS), 42 (20/20 each), 50 (10/10 each),
+41 ran through; 45's sheets (sword and super shotgun sets, front and side, both kinds) looked at: arms on their weapons,
+nothing broken. `vr_scenario validate` 89 files 0 errors, 138 tags 0 missing; runall of the 20 `agrunt_*` scenes 0
+failed. eval.sh: no verdict changes. **`vr_agarms_pole_key` 4 -> 10 on his shipped poses** (the studio's report of every
+pose and key of four subjects, frozen, both values in one run; `scratch/pole.sh`, `pole_cmp.py`): only the keys with a
+pole of share 1 move, by at most 2.5 units (the enforcer's and the grunt's sword follow-through, P8 k2), the grunt's
+pickup bend 1.8, the rest under 1; the hands do not move. That is the elbow going to where he put the pole (with 4 it
+sat up to ~20 degrees off it, his snap-back complaint), so 10 stays. The glitch finder (all 24 subjects, no
+`host_framerate`, 4 then 10): frames over the flip value 0.1% -> 0.1% (both kinds), the wrong-way elbow 1.4% -> 1.0%
+(enforcer) and 0.7% -> 0.5% (grunt); no metric worse. Pictures (spectator camera, `vr_body_mode 0`): the panel at its
+default, moved (`vr_posestudio_panel`), folded to its bar, and a weapon dragged out of reach in its orange box
+(`scratch/psshots.sh`).
+
 Checklist:
 - [ ] Pose Studio, Live, Pause: walk up to the grunt with the stick; hold a grip on nothing and push the stick left /
   right: it scrubs; let go: the stick walks again.
