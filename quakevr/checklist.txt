@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Armed humanoids round 2: axe/Mjolnir grunts swing one-handed and the off hand comes back to the haft afterwards; a disarmed gun is picked up without spinning; gun grunts firing up or down shoot where their muzzles point {test:agrunt_weapon_hands}
 Armed humanoids in a real fight (gun grunts and enforcers): the chest stays steady when they fire; elbows don't flip; arms stay out of the torso (reloads too); the fore-end hand stays put; no snap after a pickup; pain, falls and deaths still read clearly; your Pose Studio poses look the same as you set them (A/B: vr_agrunt_upper 0, vr_agarms_body 0) {test:agrunt_weapon_hands}
 One-knee pickup: armed grunts and enforcers go down on one knee with the other foot planted ahead, not too low, hand on the handle, no foot sliding (vr_aglegs 0 for the old kneel) {test:agrunt_pickup}
 Pose Studio legs: shotgun grunt, Pose > to Pickup: grab the pelvis (tan), feet (pink) or knees (blue-violet), move and let go (each stays); Undo, Grab: Limbs, Copy (the enforcer kneels the same way), Done {test:agrunt_pose_studio}
