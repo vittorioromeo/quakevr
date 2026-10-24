@@ -51,12 +51,13 @@ struct GlobalRow
     float x, y, z, pitch, yaw, roll;
 };
 constexpr GlobalRow globalDefaults[] = {
-    // (Vittorio's, set in the Pose Studio: proposed_defaults/agrunt_grips_2026-10-24_13-33-26.txt)
-    {0, aggrip::Main, 1.05f, 0.24f, 2.60f, -3.5f, -3.9f, -1.9f},
+    // (Vittorio's, set in the Pose Studio: proposed_defaults/agrunt_grips_2026-10-24_13-33-26.txt; the grunt's Main and
+    // the enforcer's Off from his vr_agrunt_grips of 14:24, Misc/quakevr/pose_defaults.py)
+    {0, aggrip::Main, 1.65f, 0.14f, 1.71f, 4.6f, -4.3f, -0.5f},
     {0, aggrip::Off, 3.56f, -0.32f, -0.81f, 10.0f, -78.5f, -81.2f}, // (the left hand's rest hold is under a barrel: a pistol grip turned into it)
     {0, aggrip::Second, -1.95f, -0.49f, -0.76f, -76.0f, -23.6f, 36.0f},
     {1, aggrip::Main, 1.71f, 0.55f, 3.13f, 15.0f, -4.2f, -2.7f},
-    {1, aggrip::Off, 2.15f, -1.17f, -2.18f, -9.5f, -94.2f, -137.8f},
+    {1, aggrip::Off, 0.89f, -0.53f, -2.72f, -11.5f, -87.1f, -153.0f},
     {1, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
 };
 
