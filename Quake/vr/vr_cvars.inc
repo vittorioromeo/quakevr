@@ -2797,7 +2797,7 @@ QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: 
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_grab_slack, "0", CVAR_ARCHIVE)        // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)          // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
-QVR_CVAR(vr_agrunt_grab_speed, "1.5", CVAR_ARCHIVE)      // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
+QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)      // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
 QVR_CVAR(vr_agrunt_tug_pull_force, "200", CVAR_ARCHIVE)  // N: the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)
 QVR_CVAR(vr_agrunt_tug_pull_time, "0.5", CVAR_ARCHIVE)   // s you must keep pulling above that before its weapon can come out (a tug-of-war, not a yank)
 QVR_CVAR(vr_agrunt_tug_snap, "2.5", CVAR_ARCHIVE)        // a yank this many times the break force tears it out at once, before that time (0: never)
