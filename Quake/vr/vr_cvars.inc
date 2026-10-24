@@ -2552,6 +2552,8 @@ QVR_CVAR(vr_water_foam_particle_life, "0.8", CVAR_ARCHIVE) // ... how long each 
 QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
 QVR_CVAR(vr_water_foam_particle_size, "1.5", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
 QVR_CVAR(vr_water_foam_particle_shore, "0", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side)
+QVR_CVAR(vr_water_foam_particle_spray, "1", CVAR_ARCHIVE) // every liquid's shore foam particles: 1 soft spray bursting up off the shore line and falling back (water hitting the wall), 0 the older rising puffs of bubbly foam
+QVR_CVAR(vr_water_foam_particle_retro, "0", CVAR_ARCHIVE) // ... the spray through retro textures as other particles (1), or always smooth and soft (0)
 QVR_CVAR(vr_water_foam_edge, "4", CVAR_ARCHIVE)       // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
 QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
 QVR_CVAR(vr_lava_foam_opacity, "1", CVAR_ARCHIVE)

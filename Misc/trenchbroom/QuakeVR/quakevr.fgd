@@ -1537,7 +1537,7 @@ Candle Default light value is 200 Default style is 0"
 [
 ]
 
-@PointClass color(0 255 0) size(-10 -10 -40, 10 10 40) model({ "path": "progs/flame3.mdl" }) =
+@PointClass color(0 255 0) size(-10 -10 -40, 10 10 40) =
 	light_flame_gas : "Owned campaign gas flare: two translucent flame3 models; its flame can relight a held VR torch and burn tracked hands."
 [
 	spawnflags(flags) =

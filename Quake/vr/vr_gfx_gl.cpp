@@ -113,6 +113,9 @@ flat in int wasteSlot;
 #if RETRO
 layout(location = 9) uniform int RetroSet; // retro textures' set (vr_retro.h; 0 none): blocks in world units
 #endif
+#ifdef PARTICLE_PLAIN
+flat in float particlePlain; // (the particles' vertex shader: 1, never through retro textures)
+#endif
 #ifdef PARTICLE_RETRO_GRID
 flat in vec3 particleGridScale;
 // A planar particle's UV density is constant. The vertex shader derives it from the final
@@ -359,6 +362,10 @@ void main()
 #else
     RetroBegin(float(RetroSet), vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));
 #endif
+#ifdef PARTICLE_PLAIN
+    if(particlePlain > 0.5)
+        Retro = 0;
+#endif
     if(Retro > 0)
     {
 #ifdef PARTICLE_RETRO_CENTRE_NEAR
@@ -498,6 +505,9 @@ out vec3 worldPos;
 layout(binding = 0) uniform sampler2D Tex;
 flat out vec3 particleGridScale;
 #endif
+#ifdef PARTICLE_PLAIN
+flat out float particlePlain; // 1: its texture read smoothly, never through retro textures (the shore's spray)
+#endif
 // The six corners (two triangles): down left, up left, up right, down left, up right, down right.
 const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
 void main()
@@ -507,6 +517,9 @@ void main()
     if(Reverse > 0)
         index = Reverse - 1 - index;
     Particle p = particles[index];
+#ifdef PARTICLE_PLAIN
+    particlePlain = p.flags.w;
+#endif
     int corner = gl_VertexID % 6;
     vec3 org = p.orgHalf.xyz;
     float h = p.orgHalf.w;
@@ -1371,6 +1384,11 @@ namespace
         {
             fs.insert(fs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
             vs.insert(vs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
+        }
+        if(which == 1 || which >= 3) // (retro: a particle may skip it, flags.w)
+        {
+            fs.insert(fs.find('\n') + 1, "#define PARTICLE_PLAIN 1\n");
+            vs.insert(vs.find('\n') + 1, "#define PARTICLE_PLAIN 1\n");
         }
         if(which >= 3)
         {
