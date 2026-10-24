@@ -849,6 +849,7 @@ struct ArmPoseMsg
     glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
     glm::vec3 torso{0.f};                  // apBody: its torso's turn in a strike (yaw, pitch, roll; degrees)
     glm::vec3 elbowR{0.f}, elbowL{0.f};    // ... its elbows' poles (its body's space; their length the share)
+    glm::vec3 waist{0.f};                  // ... the point QC turned its targets about (its body's space, units)
 };
 
 struct ArmPose
@@ -866,6 +867,7 @@ struct ArmPose
     glm::vec3 fwL{1.f, 0.f, 0.f}, upL{0.f, 0.f, 1.f};
     glm::vec3 torso{0.f};                        // its torso's turn now (degrees: bodyTurn), its elbows' poles
     glm::vec3 elbowR{0.f}, elbowL{0.f};
+    glm::vec3 waist{0.f};                        // (model space: the message's over its scale)
 };
 
 struct ArmPoses
@@ -1031,6 +1033,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.torso = m.torso;
     s.elbowR = m.elbowR;
     s.elbowL = m.elbowL;
+    s.waist = m.waist / scale;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2445,6 +2448,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             }
         }
     }
+    if(bodied)
+    {
+        // (QC turned the targets about its guess of the waist, `s.waist`; the chest turns about its own joint: the
+        // targets moved by the difference, a shift, so the arms ride the chest exactly)
+        const rigpose::Rigid& c = body[spec.chest];
+        const glm::vec3 shift = c.pos + c.rot * s.waist - s.waist;
+        for(int side = 0; side < 2; side++)
+        {
+            t.weapon[side].pos += shift;
+        }
+    }
     for(int side = 0; side < 2 && kicked; side++)
     {
         t.weapon[side] = composeRigid(chestKick, t.weapon[side]); // (the torso's flinch carries the weapons)
@@ -2549,6 +2563,10 @@ void parseArmPose()
             {
                 (*v)[i] = static_cast<float>(MSG_ReadShort()) / 32000.f;
             }
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            m.waist[i] = MSG_ReadCoord(cl.protocolflags);
         }
     }
     m.t = cl.mtime[0];

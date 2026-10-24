@@ -1052,7 +1052,7 @@ float(entity g) VR_AGP_TorsoNow =
     }
     else
     {
-        if(kind == 0)      { w = '-14 -9 -7'; f = '12 15 6';   draw = '-3 -1 6'; elbow = '-0.4 -0.7 0.8'; } // overhead
+        if(kind == 0)      { w = '-14 -9 -7'; f = '12 15 6';   draw = '0 0 0';   elbow = '-0.4 -0.7 0.8'; } // overhead (raised high already)
         else if(kind == 1) { w = '-28 -5 -8'; f = '24 10 8';   draw = '-5 -1 4'; elbow = '-0.5 -0.8 0.6'; } // diagonal
         else if(kind == 2) { w = '-32 0 -3';  f = '28 4 3';    draw = '-5 -2 1'; elbow = '-0.6 -0.8 0.3'; } // horizontal
         else               { w = '16 4 5';    f = '-20 -5 -6'; draw = '3 3 1';   elbow = '0.3 -0.6 0.5';  } // backhand (its hand out, off the chest)
@@ -1118,11 +1118,41 @@ vector(entity g, vector posL, vector handL) VR_AGP_TurnPose =
 {
     vector piv = VR_AM_Fit(g, VR_AGP_WAIST);
     vector o = VR_AM_Fit(g, '0 0 0');
-    vector pr = posL + VR_AM_Fit(g, vr_agp_drawr) - o;
+    float fr = 1;
+    float fl = 1;
+    if(vr_agp_arms)
+    {
+        // (the draw back fading out as the arms-only pose's hand nears its arm's reach: its wrist kept in reach)
+        VR_AM_Row(g.vr_ag_kind);
+        vector mv = handL - vr_am_anchor_at;
+        fr = min(1, max(0, (0.85 * vr_am_arm - vlen(posL - (vr_am_sh_r + mv))) / (0.2 * vr_am_arm)));
+        fl = min(1, max(0, (0.85 * vr_am_arm - vlen(handL * vr_agp_wl + vr_agp_vl - (vr_am_sh_l + mv))) / (0.2 * vr_am_arm)));
+    }
+    vector pr = posL + (VR_AM_Fit(g, vr_agp_drawr) - o) * fr;
     pr = piv + VR_AGP_TurnDir(pr - piv);
+    vector pl = handL * vr_agp_wl + vr_agp_vl + (VR_AM_Fit(g, vr_agp_drawl) - o) * fl;
+    pl = piv + VR_AGP_TurnDir(pl - piv);
+    if(vr_agp_arms)
+    {
+        // (the hands drawn back never further from their shoulders, turned with it, than the arms-only pose has them:
+        // the draw moves them back and up, never out of its arms' reach; vr_agarms' wrists reach as before)
+        VR_AM_Row(g.vr_ag_kind);
+        vector moved = handL - vr_am_anchor_at;
+        float far = vlen(posL - (vr_am_sh_r + moved));
+        vector sh = piv + VR_AGP_TurnDir(vr_am_sh_r + moved - piv);
+        if(vlen(pr - sh) > far)
+        {
+            pr = sh + normalize(pr - sh) * far;
+        }
+        far = vlen(handL * vr_agp_wl + vr_agp_vl - (vr_am_sh_l + moved));
+        sh = piv + VR_AGP_TurnDir(vr_am_sh_l + moved - piv);
+        if((vr_agp_flags & VR_AGP_LEFT) && vlen(pl - sh) > far)
+        {
+            pl = sh + normalize(pl - sh) * far;
+        }
+    }
     vr_agp_v = vr_agp_v + (pr - posL);
-    vector pl = handL * vr_agp_wl + vr_agp_vl + VR_AM_Fit(g, vr_agp_drawl) - o;
-    vr_agp_vl = piv + VR_AGP_TurnDir(pl - piv) - handL * vr_agp_wl;
+    vr_agp_vl = pl - handL * vr_agp_wl;
     VR_AGP_Body(g);
     vr_agp_fw = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_fw)));
     vr_agp_up = VR_AGP_ToWorld(VR_AGP_TurnDir(VR_AGP_ToLocal(vr_agp_up)));
@@ -1414,6 +1444,7 @@ void(entity g, entity p) VR_AGP_Pose =
         WriteShort(MSG_BROADCAST, rint(vr_agp_tq_z * 100));
         VR_AGP_WriteDir(vr_agp_elr);
         VR_AGP_WriteDir(vr_agp_ell);
+        VR_AGP_WriteVec(VR_AM_Fit(g, VR_AGP_WAIST)); // (the waist they were turned about)
     }
 };
 
