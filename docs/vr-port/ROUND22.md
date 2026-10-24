@@ -19411,6 +19411,57 @@ along, swaying a little as you start and stop (Flail Body Inertia: higher swings
 it turns with you. Swing it while walking: it swings as when standing. Look at the ball and chain while moving your
 hand slowly: they should move as smoothly as the hand (toggle Flail Head Drawn Smooth in the Debug menu to compare).
 
+## One swing hits everything its edge passes through (worktree `gorefx`, branch `agent/meleemulti`, 2026-10-24)
+
+Note vrtesthall_2026-10-24_01-17-02 ("Swords past the floor" FAIL): a sword that meets the floor first and then the
+ragdoll doesn't cut it; the other way round it does. A wide swing of a long blade should strike everything its edge
+passes through, the floor or a wall included; keep the sink into the floor (`vr_melee_world_pass`).
+
+**Why.** Three latches, all in the QC: (1) a blow on the world set the swing's "struck" to world
+(`VR_Melee_Landed`: `mh_hit_ent = world`), and `VR_Melee_Armed` reads world as "the motion is spent" (a bash's
+meaning), so nothing beyond the floor or a wall was armed until the hand slowed or turned back (`VR_Melee_Rearm`);
+(2) a wall gave a blow only as a motion's first (`!VRGetMeleeHitSoundPlayed`), so a body first and then the wall
+gave no sparks; (3) corpses and ragdolls lying about (`SOLID_NOT_BUT_TOUCHABLE`) are not in the swept melee at all:
+`VR_Corpse_StrikeFrame` traces only the weapon's line as it is now, from the hand to the tip, which stops at the
+first solid: a blade whose tip is in the floor never reached the limb under its middle (measured: the line at the
+cut's pose finds nothing). Also each frame gave one blow, and after a blow the hand paused 0.02 s (a 72 Hz frame).
+
+**Now (`vr_melee_multi 1`, default; `vr_melee_multi_max 4`).** A swing of a weapon (anything held but a bare fist:
+punches stay one thing) keeps a list of what it struck (`mh_hit_e0..e7`, `VR_Melee_HitHas`/`HitAdd`/`HitClear`):
+each thing once, at most `vr_melee_multi_max` things (1..6; loose gibs and small gibs torn out don't count), and the
+world once (`mh_hit_world`, `VR_Melee_WallArmed`), in any order. A blow on the world keeps the thing struck last and
+a blow on a thing keeps the wall a part went into a moment ago (`VR_Melee_WallHeld`), so each gives its blow after
+the other. In one frame every contact is dealt (client.qc `VR_Melee_DealAll`: `VR_Melee_StrikeMore` sweeps again for
+something not yet struck, then the world), each its own blow (its own point, `VR_Melee_Decide`'s speed and strength,
+the weapon's damage, gore, sparks and marks); no pause after a blow. Corpses and bodies still dying are swept as box
+targets (`VR_Melee_CorpseTarget`, as drawn) and dealt as `VR_Corpse_StrikeFrame`'s blow (`VR_Corpse_Struck`: its
+0.35 s per-corpse wait keeps the old line's strike and the sweep's from both landing). A bash or a held gib still
+spends the motion for everything (the list cleared). Heavy and blunt weapons: the same rules (their blows decided as
+before). `vr_melee_multi 0`: exactly the old behaviour. Gameplay > Melee > One Swing, Many Hits: the toggle and
+"Most Things a Swing".
+
+**Tested.** `vr_melee_sweep_test 6` (Debug > Tests > One Swing, Many Hits Test; the new scene `sword_multi`: a sword,
+two grunts side by side, one by the wall, a corpse): scripted sword frames that land (`vr_msw_decide`: the speed tests
+skipped, a cut at strength 1.5), dealt as in play, with multi 0 then 1:
+
+| case | multi 0 (as before) | multi 1 |
+|---|---|---|
+| floor: the tip into the floor beside the corpse's arm (frame 1), then the blade through the arm (frame 2) | the corpse not swept; the old corpse line at frame 2's pose finds nothing | frame 1 the floor only; frame 2 the corpse, its limb 4 cut off: PASS |
+| two: a level swing across two grunts 42 apart, 12 units a frame | both struck (one after the other, as before) | both: PASS (with the small gibs torn out, 6 in the list) |
+| wall: the tip into the wall beside a grunt 18 units from it, then along it | the wall only | the wall, then the grunt: PASS |
+
+`vr_melee_sweep_test 1`: PASS. `vr_scenario validate`: 77 files, 0 errors; `runall sword_multi sword_floor`: both OK.
+His replay (`vr_motion_play` of the note's take, trimmed to after the scene's start, `noplace weapon 13`, on
+`sword_floor`): no blow lands with multi 0 or 1 (18 decided, 0 events, no corpse strike either way): the take's
+hands don't meet the corpses headless (the bodies' poses and his place differ), so it shows nothing either way.
+`eval.sh --full`: 171 takes (the 5 retired ones gone: no trouble), 163 pass, 0 verdict changes; 3 PASS -> PASS with
+0.1 less damage (slash_diagonal_down_left 12-30-37, slash_diagonal_down_right 12-30-27, stab_one_hand 12-36-15).
+
+**In VR:** `sword_floor`: chop at a lying grunt's arm or leg so the tip meets the floor first: the floor should spark
+and the limb still come off; chop the one against the wall the same. `sword_multi`: one wide swing through both
+grunts on the left: both hit (two hit sounds); swing along the wall into the grunt by it: sparks on the wall and the
+grunt hit. Punches still hit one thing. If a swing now feels like it hits too much (gibs, a prop behind the target),
+lower Most Things a Swing or turn the toggle off to compare.
 ## The blade's line start (worktree `release`, branch `agent/bladeorigin`, 2026-10-24; vr_wofs_version 60)
 
 Vittorio (note vrtesthall_2026-10-24_00-57-50, the axe in the main hand): he still could not move the line's start, the

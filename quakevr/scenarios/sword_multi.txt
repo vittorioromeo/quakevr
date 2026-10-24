@@ -1,0 +1,14 @@
+# sword_multi: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+# (vr_melee_sweep_test 6 runs its scripted swings on this scene: ROUND22.md "One swing hits everything its edge passes through")
+title A sword, Show Melee Blades: two grunts side by side, one by the wall, a corpse on the floor
+map vrtesthall
+start -400 -440 25 -90
+god
+notarget
+cvar vr_debug_melee_blades 1
+give "Knight's Sword" main
+spawn "Grunt" 0 150
+spawn "Grunt" 0 192
+spawn "Grunt" 54 60
+spawn "Grunt Corpse" 40 -100
+hint One wide swing of the sword through both grunts on your left hits them both. Swing along the wall into the grunt by it: the wall sparks and the grunt is hit too. Chop at the corpse's arm so the tip meets the floor first: the floor sparks and the arm is still cut off.
