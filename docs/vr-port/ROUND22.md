@@ -20297,3 +20297,35 @@ archived cvar `vr_agrunt_poses`, command `vr_agrunt_pose_dump`.
 - [ ] Grab an elbow and pull it out: the elbow follows; grab the chest and lean it forward.
 - [ ] Copy > Enforcer, walk to the enforcer with a sword: the same pose. Done: the console shows the rows.
 - [ ] A hand inside its weapon's box: grip it in Everything (the hand comes); click a stick to Grab: Weapons and take the weapon.
+
+## His Pose Studio poses and strikes as defaults (worktree `dequant`, branch `agent/posedefaults`, 2026-10-24)
+
+Vittorio: "make those new poses and animations the default for now" (he keeps tuning: a repeatable step). Source: his
+`quakevr/ironwail.cfg` (`vr_agrunt_poses`, `vr_agrunt_grips`), checked against his Done file
+`proposed_defaults/agrunt_poses_2026-10-24_14-24-34.txt`: the same (64 keys, 2 grips, 0 differ).
+
+- **Shipped**: `vr_agpose.cpp` `shipped[]` 64 keys (each with its name above it). Grunt 32: a gun's Aim and Pickup; a
+  one-handed melee weapon's Pickup and its four swings' three keys each; two melee weapons' Ready, Run, Pickup,
+  Overhead (blow and follow-through), Diagonal, Horizontal, Backhand, Dual. Enforcer 32: a gun's Aim; a one-handed
+  and two melee weapons' Carry, Ready and the four swings' keys (two melee: Dual too). The `shipped[]` rows rather than
+  the QC constant lines: his stance keys are the enforcer's (the constants are the grunt's, shared) or a gun's (no
+  constant). `vr_aggrip.cpp` `globalDefaults`: the grunt's Main and the enforcer's Off (the other four as shipped at 13:33).
+- **No double application**: `agpose::get` takes the archived key, else the shipped one; `aggrip::offset` the archived
+  entry, else the default: both replace. His cvars now equal the defaults (left as they are: clearing them changes nothing).
+- **Next time**: `python Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> [--done <Done file>...] [--write]`: compares
+  the cfg with the Done files (the cfg is taken), lays his keys on `shipped[]` (an all-zero key drops its row) and his grips
+  on `globalDefaults` / `defaults` (same kind, hand, weapon replaced; comments kept); without `--write` it prints them.
+- **Measured** (the studio's report, `scratch/pd_verify.sh`, with the cvars empty vs his text): the shotgun grunt (Carry, Aim,
+  Pickup), the sword grunt (Carry, Ready, Run, Pickup, Overhead's three keys), the two-axe grunt (Carry, Ready, Dual's
+  wind-up and blow), the sword enforcer (Carry, Ready, Overhead's wind-up and blow): every key, grip and drawn line equal,
+  the arms equal (Run: 0.02, its stride's timing); e.g. 2141 drawn "3.71 -4.62 1.55 / 5.6 -26.1 -11.3 / pole -0.22 -0.90
+  0.38", grip 0 "1.65 0.14 1.71 / 4.6 -4.3 -0.5". Test 41: joint gap 0.000, hand shape 0.0000 (grunt and enforcer). Test 60:
+  grunt 6/6; enforcer 5/6 then 6/6: its ogre case ("missed its weapon") fails as often with the old defaults (all 64 keys
+  zeroed, the old grips: 5/6), a flake of its own. eval.sh: 0 verdict changes (163/171, 4 numbers a tenth off). Scenes:
+  validate 89 files 0 errors, runall of the 20 `agrunt_*` OK.
+- **Open**: Copy > Enforcer copies the archived keys only (`agpose::copyKind`), not the shipped ones: with his cvars as they
+  are nothing changes; once cleared, a grunt's shipped key is not copied.
+
+**In VR:**
+- [ ] With `vr_agrunt_poses ""` and `vr_agrunt_grips ""`: the sword grunt's swings and the enforcer's Ready look as you set them.
+
