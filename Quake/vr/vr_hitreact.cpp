@@ -1600,7 +1600,23 @@ ArmDone solveArmPiece(const ArmModel& am, const ragdoll::Rig& rig, const rigpose
         H = rigpose::apply(now, side.grip);
         T = goal.want.pos;
     }
-    // Its elbow out of the torso: tried as wanted, then (if it went in) away from the chest's line.
+    // Its hand out of the torso: a target inside it (a swing's arc across the chest, a crouch's) moved out to its skin.
+    if(am.chest >= 0 && am.torso > 0.f)
+    {
+        const glm::vec3 c0 = rigpose::apply(posed[am.chest], rig.bones[am.chest].pivot);
+        const glm::vec3 c1 = rigpose::apply(posed[am.chest], rig.bones[am.chest].end);
+        const glm::vec3 cl = c1 - c0;
+        const float t = za::clamp(glm::dot(T - c0, cl) / za::max(glm::dot(cl, cl), 1e-4f), 0.f, 1.f);
+        const glm::vec3 c = c0 + cl * t;
+        const glm::vec3 out = T - c;
+        const float skin = am.torso + 1.5f; // (the hand's own thickness)
+        if(glm::length(out) < skin)
+        {
+            const glm::vec3 away = glm::length(out) > 1e-3f ? glm::normalize(out) : glm::normalize(S - c);
+            T = c + away * skin;
+        }
+    }
+    // Its elbow and forearm out of the torso: tried as wanted, then (if they went in) away from the chest's line.
     rigpose::Rigid turnU, turnF;
     glm::vec3 pole = goal.pole;
     for(int attempt = 0; attempt < 2; attempt++)
@@ -1616,7 +1632,8 @@ ArmDone solveArmPiece(const ArmModel& am, const ragdoll::Rig& rig, const rigpose
         const glm::vec3 c0 = rigpose::apply(posed[am.chest], rig.bones[am.chest].pivot);
         const glm::vec3 c1 = rigpose::apply(posed[am.chest], rig.bones[am.chest].end);
         const glm::vec3 E2 = rigpose::apply(turnU, E);
-        if(segmentDistance(E2, c0, c1) >= am.torso)
+        const glm::vec3 M2 = (E2 + rigpose::apply(turnF, H)) * 0.5f;
+        if(segmentDistance(E2, c0, c1) >= am.torso && segmentDistance(M2, c0, c1) >= am.torso)
         {
             break;
         }
@@ -1745,6 +1762,14 @@ struct ArmErrs
     ArmErr at[2][errTags][2];
 };
 ArmErrs armErrs;
+
+// vr_agrunt_ik_err's ragdoll numbers (ragdollProps): the server's placing of a ragdoll's weapons against its drawn hand.
+struct RagErr
+{
+    int n{0};
+    float offMax{0.f}, offSum{0.f}, turnMax{0.f};
+};
+RagErr ragErr;
 
 // The arms' turns now (armsWanted), out: every bone's (none but the arms' turned). False: not now (dead, no weapon).
 bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const aliashdr_t* hdr, int pose1,
@@ -2155,6 +2180,18 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
         const glm::vec3 at = rot * (scale * w.pos) + pos;
         const glm::quat wr = rot * w.rot;
         const glm::vec3 an = weaponAngles(wr * glm::vec3{1.f, 0.f, 0.f}, wr * glm::vec3{0.f, 0.f, 1.f});
+        {
+            // (vr_agrunt_ik_err: how far the server's own placing, drawn before this, was off the drawn hand)
+            vec3_t sa{-p.angles[0], p.angles[1], p.angles[2]}, f, r, u;
+            AngleVectors(sa, f, r, u);
+            const glm::vec3 fw = wr * glm::vec3{1.f, 0.f, 0.f};
+            const float off = glm::length(glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - at);
+            const float turn = za::acos(za::clamp(glm::dot(fw, glm::vec3{f[0], f[1], f[2]}), -1.f, 1.f)) * (180.f / 3.14159265f);
+            ragErr.n++;
+            ragErr.offMax = za::max(ragErr.offMax, off);
+            ragErr.offSum += off;
+            ragErr.turnMax = za::max(ragErr.turnMax, turn);
+        }
         for(int i = 0; i < 3; i++)
         {
             p.origin[i] = at[i];
@@ -2768,9 +2805,10 @@ bool armedHandVerts(const entity_t* e, const void* aliashdr, const ragdoll::Rig&
 {
     const ArmedRig* a = armedRigOf(e->model);
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
-    if(!a || hdr->numverts != a->numVerts || rig.numVerts != hdr->numverts)
+    if(!a || hdr->numverts != a->numVerts || rig.numVerts != hdr->numverts ||
+        (vr_agrunt_ik_rigid.value != 0.f && armModelOf(*a, e->model, rig, hdr)))
     {
-        return false;
+        return false; // (the rigid arms' hands are drawn where solved: no fit, and the arm numbers are noteArmsDrawn's)
     }
     const int fr = boneNamed(rig, a->foreR);
     const int fl = boneNamed(rig, a->foreL);
@@ -2970,6 +3008,13 @@ void armErr_f()
         }
     }
     Con_Printf("agerr: most right %.2f, left %.2f units\n", most[0], most[1]);
+    if(ragErr.n > 0)
+    {
+        Con_Printf("agrag: %d ragdoll frames: the server's weapon off its drawn hand's grip max %.2f mean %.2f units, turned "
+                   "%.0f deg (drawn on the hand instead)\n",
+            ragErr.n, ragErr.offMax, ragErr.offSum / static_cast<float>(ragErr.n), ragErr.turnMax);
+        ragErr = RagErr{};
+    }
     // The arms' numbers (noteArmsDrawn): each tag's, then each rig's and side's worst.
     const bool each = Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) > 0;
     for(int r = 0; r < 2; r++)
