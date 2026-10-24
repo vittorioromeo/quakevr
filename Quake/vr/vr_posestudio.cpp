@@ -2,6 +2,7 @@
 
 #include "vr_posestudio.hpp"
 #include "vr_aggrip.hpp"
+#include "vr_aglegs.hpp"
 #include "vr_agpose.hpp"
 #include "vr_backend.hpp"
 #include "vr_bladeedit.hpp"
@@ -51,6 +52,12 @@ enum PartId : int
     PElbowR,
     PElbowL,
     PChest,
+    // The legs (the Pickup's kneel, vr_aglegs: shown in the Pickup pose only; their key agpose::legCode)
+    PPelvis,
+    PFootPlant,
+    PKneeKneel,
+    PFootKneel,
+    PKneePlant,
     PCount
 };
 
@@ -114,6 +121,8 @@ constexpr float WEAPON_BIAS = 0.03f;   // metres: a hand near enough beats the w
 constexpr float CHEST_BIAS = 0.045f;   // ... and the chest's box (the hands, elbows and weapons before it)
 constexpr float HAND_BOX = 2.f;        // units (the monster's): half a hand's box
 constexpr float ELBOW_BOX = 1.4f;      // ... an elbow's
+constexpr float LEG_BOX = 1.6f;        // ... a foot's (round its ankle), a knee's
+constexpr float PELVIS_TURN_MOST = 60.f; // degrees: the pelvis key's turn, each axis
 constexpr float WEAPON_PAD = 1.2f;     // units: a weapon's box round its points
 constexpr float TICK_UNITS = 1.f;      // a haptic tick each unit (or TICK_DEG) a held part moves
 constexpr float TICK_DEG = 5.f;
@@ -146,6 +155,7 @@ struct Grab
     Rigid part0, ctrl0;
     glm::vec3 shoulder{0.f}, wrist{0.f}, waist{0.f};
     glm::vec3 torso0{0.f}, pole0{0.f};
+    bool legMirror{false}; // a leg part's: the kneel mirrored (a left hand's take: the key's y, yaw and roll flipped)
 };
 
 // The kind and weapon class QC tells of each armed humanoid (qcHold), the last few.
@@ -172,7 +182,7 @@ struct Session
     int phase{0};
     int playCount{0};
     bool weaponGrip{false};
-    int grabSet{0}; // what a grip takes: 0 everything, 1 the weapons only, 2 the limbs only (hands, elbows, chest)
+    int grabSet{0}; // what a grip takes: 0 everything, 1 the weapons only, 2 the limbs only (hands, elbows, chest, legs)
     ClassNote classes[CLASS_NOTES];
     int nextClass{0};
     // the monsters noted: the nearest this frame (pending, filled while the relink runs) and the last complete
@@ -281,6 +291,44 @@ Session ses;
     return n.t.goal[side] == agarms::Goal::Point;
 }
 
+[[nodiscard]] bool isLeg(int p)
+{
+    return p >= PPelvis && p < PCount;
+}
+
+// The subject's legs as solved now (model space), in the Pickup pose with its kneel up (vr_aglegs); else false.
+[[nodiscard]] bool legsOf(const Note& n, aglegs::Placed& out)
+{
+    return ses.pose == agpose::Pickup && aglegs::enabled() && aglegs::placed(n.ent, out) && out.on > 0.5f;
+}
+
+// A leg part's frame (model space): the pelvis's pivot (turned with it), a foot's ankle, a knee (unturned).
+[[nodiscard]] Rigid legFrame(const aglegs::Placed& L, int p)
+{
+    const int kneel = L.kneel == 0 ? 0 : 1, plant = 1 - kneel;
+    switch(p)
+    {
+        case PPelvis: return Rigid{glm::normalize(L.pelvis.rot), L.pelvis.pos};
+        case PFootPlant: return Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, L.ankle[plant]};
+        case PFootKneel: return Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, L.ankle[kneel]};
+        case PKneeKneel: return Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, L.knee[kneel]};
+        default: return Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, L.knee[plant]};
+    }
+}
+
+// The leg key's part a leg part's drag moves (the pelvis: its place, its turn the next).
+[[nodiscard]] int legKeyPart(int p)
+{
+    switch(p)
+    {
+        case PPelvis: return agpose::LegPelvis;
+        case PFootPlant: return agpose::LegPlantFoot;
+        case PKneeKneel: return agpose::LegKneelKnee;
+        case PFootKneel: return agpose::LegKneelFoot;
+        default: return agpose::LegPlantKnee;
+    }
+}
+
 // Whether part `p` can be taken.
 [[nodiscard]] bool shown(const Note& n, int p)
 {
@@ -293,7 +341,11 @@ Session ses;
         case PElbowR:
         case PElbowL:
         case PChest: return true;
-        default: return false;
+        default:
+        {
+            aglegs::Placed L;
+            return isLeg(p) && legsOf(n, L);
+        }
     }
 }
 
@@ -421,6 +473,27 @@ int subjectPoses(const Note* n, int* out)
 }
 constexpr glm::vec3 CHEST_LO{-3.5f, -5.5f, -11.f};
 constexpr glm::vec3 CHEST_HI{3.5f, 5.5f, 1.5f};
+// The pelvis's box: round its pivot (between the hips), turned with it
+constexpr glm::vec3 PELVIS_LO{-3.f, -5.f, -3.f};
+constexpr glm::vec3 PELVIS_HI{3.f, 5.f, 2.5f};
+
+// A part's box that the hand's distance is taken from (else a point's: the hands, elbows, feet, knees).
+[[nodiscard]] bool boxPart(int p, glm::vec3& lo, glm::vec3& hi)
+{
+    if(p == PChest)
+    {
+        lo = CHEST_LO;
+        hi = CHEST_HI;
+        return true;
+    }
+    if(p == PPelvis)
+    {
+        lo = PELVIS_LO;
+        hi = PELVIS_HI;
+        return true;
+    }
+    return false;
+}
 
 // The point the torso turns about (model space): as sent, else QC's VR_AGP_WAIST fitted to the kind.
 [[nodiscard]] glm::vec3 waistOf(const Note& n)
@@ -458,7 +531,12 @@ constexpr glm::vec3 CHEST_HI{3.5f, 5.5f, 1.5f};
         case PHandL: return toWorld(n.space, n.placed.hand[1]);
         case PElbowR:
         case PElbowL: return toWorld(n.space, Rigid{glm::normalize(n.placed.chest.rot), n.placed.elbow[sideOf(p)]});
-        default: return toWorld(n.space, chestFrame(n));
+        case PChest: return toWorld(n.space, chestFrame(n));
+        default:
+        {
+            aglegs::Placed L;
+            return legsOf(n, L) ? toWorld(n.space, legFrame(L, p)) : toWorld(n.space, chestFrame(n));
+        }
     }
 }
 
@@ -490,33 +568,38 @@ void weaponBox(const Note& n, int p, glm::vec3& lo, glm::vec3& hi)
 {
     const float u2m = 1.f / units::metresToUnits();
     const Rigid f = partFrame(n, p);
-    if(p == PWeaponR || p == PWeaponL || p == PChest)
+    glm::vec3 lo, hi;
+    const bool weapon = p == PWeaponR || p == PWeaponL;
+    if(weapon || boxPart(p, lo, hi))
     {
-        glm::vec3 lo = CHEST_LO, hi = CHEST_HI;
-        if(p != PChest)
+        if(weapon)
         {
             weaponBox(n, p, lo, hi);
         }
         const glm::vec3 local = glm::inverse(f.rot) * (q - f.pos) / za::max(n.space.scale, 0.01f);
         const glm::vec3 out = glm::max(glm::max(lo - local, local - hi), glm::vec3{0.f});
-        return glm::length(out) * n.space.scale * u2m + (p == PChest ? CHEST_BIAS : WEAPON_BIAS);
+        return glm::length(out) * n.space.scale * u2m + (weapon ? WEAPON_BIAS : CHEST_BIAS);
     }
     return glm::length(q - f.pos) * u2m;
 }
 
 [[nodiscard]] float partReach(int p)
 {
-    return p == PWeaponR || p == PWeaponL ? WEAPON_REACH + WEAPON_BIAS : p == PChest ? WEAPON_REACH + CHEST_BIAS : HAND_REACH;
+    return p == PWeaponR || p == PWeaponL ? WEAPON_REACH + WEAPON_BIAS
+           : p == PChest || p == PPelvis  ? WEAPON_REACH + CHEST_BIAS
+                                          : HAND_REACH;
 }
 
-// The point a mock hand goes to for part `p`: a weapon's box's middle, a hand's grip point.
+// The point a mock hand goes to for part `p`: a box's middle (a weapon's, the chest's, the pelvis's), a hand's grip
+// point, an elbow, a foot's ankle, a knee.
 [[nodiscard]] glm::vec3 partGrabPoint(const Note& n, int p)
 {
     const Rigid f = partFrame(n, p);
-    if(p == PWeaponR || p == PWeaponL || p == PChest)
+    glm::vec3 lo, hi;
+    const bool weapon = p == PWeaponR || p == PWeaponL;
+    if(weapon || boxPart(p, lo, hi))
     {
-        glm::vec3 lo = CHEST_LO, hi = CHEST_HI;
-        if(p != PChest)
+        if(weapon)
         {
             weaponBox(n, p, lo, hi);
         }
@@ -536,7 +619,12 @@ void weaponBox(const Note& n, int p, glm::vec3& lo, glm::vec3& hi)
                                                                                                     : "Left hand (second grip)";
         case PElbowR: return "Right elbow";
         case PElbowL: return "Left elbow";
-        default: return "Chest: the body's turn";
+        case PChest: return "Chest: the body's turn";
+        case PPelvis: return "Pelvis: its height, place and turn";
+        case PFootPlant: return "Planted foot";
+        case PKneeKneel: return "Kneeling knee: its way";
+        case PFootKneel: return "Kneeling foot";
+        default: return "Planted knee: its way";
     }
 }
 
@@ -611,8 +699,15 @@ void grab(int hand, int p)
     g.kind = n.kind;
     if(editsPose(n, p))
     {
-        // A pose key: the pose held as picked on the panel (frozen), its key moved from where it is
+        // A pose key: the pose held as picked on the panel (frozen), its key moved from where it is (a leg's: the
+        // Pickup's legs' own key, mirrored for a left hand's take)
         g.code = keyCode(n);
+        if(isLeg(p))
+        {
+            aglegs::Placed L;
+            g.code = legsOf(n, L) ? agpose::legCode(n.kind, agpose::Pickup) : -1;
+            g.legMirror = L.kneel == 0;
+        }
         if(g.code < 0 || vr_agrunt_freeze.value == 0.f)
         {
             say(g.code < 0 ? "its pose isn't known yet: wait a moment" : "a pose is edited held: Frozen On first");
@@ -707,7 +802,7 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             }
             break;
         }
-        default:
+        case PChest:
         {
             // The chest: turned about its waist as the hand carries the box round it, and twisted as the controller
             // twists (yaw); the turn's change added to the key.
@@ -733,6 +828,36 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             }
             k.v[agpose::Torso] = t;
             break;
+        }
+        default: break; // (the legs: below)
+    }
+    if(isLeg(g.part))
+    {
+        // A leg part: its key moved as the controller moved it (model space = the key's; the kneel's own at its lowest,
+        // where the studio holds it): the pelvis's place and turn, a foot's ankle, a knee's pole (the knee goes as far
+        // towards it as its leg allows).
+        k = g.key0;
+        glm::vec3 d = partNow.pos - g.part0.pos;
+        if(g.legMirror)
+        {
+            d.y = -d.y;
+        }
+        const int lp = legKeyPart(g.part);
+        k.v[lp] = g.key0.v[lp] + d;
+        if(g.part == PPelvis)
+        {
+            const glm::vec3 t0 = torsoOf(g.part0.rot), t1 = torsoOf(partNow.rot);
+            glm::vec3 dt{wrap180(t1.x - t0.x), wrap180(t1.y - t0.y), wrap180(t1.z - t0.z)};
+            if(g.legMirror)
+            {
+                dt.x = -dt.x;
+                dt.z = -dt.z;
+            }
+            for(int i = 0; i < 3; i++)
+            {
+                k.v[agpose::LegPelvisTurn][i] =
+                    za::clamp(g.key0.v[agpose::LegPelvisTurn][i] + dt[i], -PELVIS_TURN_MOST, PELVIS_TURN_MOST);
+            }
         }
     }
     g.keyNow = k;
@@ -807,7 +932,21 @@ void release()
         const char* what = va("%s, %s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? agpose::phaseName(g.code % 10) : "",
             agpose::isStrike(pose) ? ", " : "", g.kind == 0 ? "grunts" : "enforcers");
         za::String text{what};
-        if(g.part == PChest)
+        if(isLeg(g.part))
+        {
+            const int lp = legKeyPart(g.part);
+            const glm::vec3 v = g.keyNow.v[lp], m = g.keyNow.v[lp] - g.key0.v[lp];
+            const glm::vec3 t = g.keyNow.v[agpose::LegPelvisTurn];
+            say(g.part == PPelvis
+                    ? va("pelvis: moved %.2f units, its key %.2f %.2f %.2f, turned %.1f %.1f %.1f (the pickup's legs, %s)",
+                          static_cast<double>(glm::length(m)), static_cast<double>(v.x), static_cast<double>(v.y),
+                          static_cast<double>(v.z), static_cast<double>(t.x), static_cast<double>(t.y), static_cast<double>(t.z),
+                          g.kind == 0 ? "grunts" : "enforcers")
+                    : va("%s: moved %.2f units, its key %.2f %.2f %.2f (the pickup's legs, %s)", partName(ses.locked, g.part),
+                          static_cast<double>(glm::length(m)), static_cast<double>(v.x), static_cast<double>(v.y),
+                          static_cast<double>(v.z), g.kind == 0 ? "grunts" : "enforcers"));
+        }
+        else if(g.part == PChest)
         {
             const glm::vec3 t = g.keyNow.v[agpose::Torso];
             say(va("chest turned: yaw %.1f pitch %.1f roll %.1f (%s)", static_cast<double>(t.x), static_cast<double>(t.y),
@@ -872,6 +1011,10 @@ void resetPose()
     }
     pushUndo();
     agpose::resetPose(n->kind, cls, ses.pose);
+    if(ses.pose == agpose::Pickup)
+    {
+        agpose::resetLegs(n->kind); // (its legs' key too)
+    }
     dropUnchangedUndo();
     say(va("%s: %s back to the shipped pose (%s)", n->kind == 0 ? "grunts" : "enforcers", agpose::poseName(cls, ses.pose),
         agpose::className(cls)));
@@ -908,7 +1051,8 @@ void stepPose(int by)
     {
         Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f); // (a pose is shown held)
     }
-    say(va("pose: %s", agpose::poseName(n ? classOf(n->ent) : 0, ses.pose)));
+    say(va("pose: %s%s", agpose::poseName(n ? classOf(n->ent) : 0, ses.pose),
+        ses.pose == agpose::Pickup && aglegs::enabled() ? " (its legs too: pelvis, feet, knees)" : ""));
 }
 
 void stepKey(int by)
@@ -925,7 +1069,7 @@ void stepKey(int by)
 void cycleGrabSet()
 {
     ses.grabSet = (ses.grabSet + 1) % 3;
-    say(ses.grabSet == 1 ? "grab: the weapons only" : ses.grabSet == 2 ? "grab: the limbs only (hands, elbows, chest)"
+    say(ses.grabSet == 1 ? "grab: the weapons only" : ses.grabSet == 2 ? "grab: the limbs only (hands, elbows, chest, legs)"
                                                             : "grab: everything (a hand inside a weapon's box first)");
 }
 
@@ -1221,6 +1365,11 @@ void box(const Rigid& f, const glm::vec3& lo, const glm::vec3& hi, float scale, 
         case PElbowR:
         case PElbowL: return glm::vec4{0.85f, 0.45f, 1.f, 0.8f};    // violet
         case PChest: return glm::vec4{0.55f, 0.9f, 0.45f, 0.55f};   // green, faint
+        case PPelvis: return glm::vec4{0.95f, 0.8f, 0.45f, 0.6f};   // tan, faint
+        case PFootPlant:
+        case PFootKneel: return glm::vec4{1.f, 0.4f, 0.6f, 0.8f};   // pink: the feet
+        case PKneeKneel:
+        case PKneePlant: return glm::vec4{0.6f, 0.5f, 1.f, 0.8f};   // blue-violet: the knees
         default: return glm::vec4{1.f, 0.55f, 0.15f, 0.8f};          // orange: the hands
     }
 }
@@ -1253,6 +1402,14 @@ void drawParts(const Note& n)
         {
             box(f, CHEST_LO, CHEST_HI, n.space.scale, width, col);
         }
+        else if(p == PPelvis)
+        {
+            box(f, PELVIS_LO, PELVIS_HI, n.space.scale, width, col);
+        }
+        else if(isLeg(p))
+        {
+            box(f, glm::vec3{-LEG_BOX}, glm::vec3{LEG_BOX}, n.space.scale, width, col);
+        }
         else if(p == PElbowR || p == PElbowL)
         {
             box(f, glm::vec3{-ELBOW_BOX}, glm::vec3{ELBOW_BOX}, n.space.scale, width, col);
@@ -1279,6 +1436,22 @@ void drawParts(const Note& n)
         const glm::vec3 sh = toWorld(n.space, n.placed.shoulder[side]), el = toWorld(n.space, n.placed.elbow[side]);
         lines::line(sh, el, 0.15f, dim, dim);
         lines::line(el, toWorld(n.space, n.placed.hand[side].pos), 0.15f, dim, dim);
+    }
+    // The legs (the Pickup's kneel): hip, knee, ankle, toe (dim lines), each knee's pole (a dot, a faint line to it)
+    if(aglegs::Placed L; legsOf(n, L))
+    {
+        const glm::vec4 pole{0.6f, 0.5f, 1.f, 0.4f};
+        for(int side = 0; side < 2; side++)
+        {
+            const glm::vec3 h = toWorld(n.space, L.hip[side]), k = toWorld(n.space, L.knee[side]);
+            const glm::vec3 a = toWorld(n.space, L.ankle[side]), t = toWorld(n.space, L.toe[side]);
+            lines::line(h, k, 0.15f, dim, dim);
+            lines::line(k, a, 0.15f, dim, dim);
+            lines::line(a, t, 0.15f, dim, dim);
+            const glm::vec3 pw = toWorld(n.space, L.pole[side]);
+            lines::line(k, pw, 0.05f, pole, pole);
+            lines::point(pw, 0.4f, pole);
+        }
     }
     // Each controller near a part: a thin line to it.
     for(int h = 0; h < HAND_COUNT; h++)
@@ -1313,7 +1486,7 @@ void hoverFrame(const hands::State& s)
                 continue;
             }
             const float d = partDistance(*n, p, grabber(s, h));
-            const int tier = p == PChest ? 2 : p == PWeaponR || p == PWeaponL ? 1 : 0;
+            const int tier = p == PChest || p == PPelvis ? 2 : p == PWeaponR || p == PWeaponL ? 1 : 0;
             if(d <= partReach(p) && (tier < bestTier || (tier == bestTier && d < bestD)))
             {
                 best = p;
@@ -1404,6 +1577,27 @@ void report_f()
                 static_cast<double>(w.y), static_cast<double>(w.z), static_cast<double>(t.x), static_cast<double>(t.y),
                 static_cast<double>(t.z), static_cast<double>(n->elbowPole[side].x), static_cast<double>(n->elbowPole[side].y),
                 static_cast<double>(n->elbowPole[side].z));
+        }
+        if(aglegs::Placed L; legsOf(*n, L))
+        {
+            // (the Pickup's legs as solved, model space, and their key)
+            const glm::vec3 pt = torsoOf(L.pelvis.rot);
+            Con_Printf("posestudio legs on %.2f w %.2f kneel %d pelvis %.2f %.2f %.2f turn %.1f %.1f %.1f\n", static_cast<double>(L.on),
+                static_cast<double>(L.w), L.kneel, static_cast<double>(L.pelvis.pos.x), static_cast<double>(L.pelvis.pos.y),
+                static_cast<double>(L.pelvis.pos.z), static_cast<double>(pt.x), static_cast<double>(pt.y), static_cast<double>(pt.z));
+            for(int side = 0; side < 2; side++)
+            {
+                Con_Printf("posestudio leg %d knee %.2f %.2f %.2f ankle %.2f %.2f %.2f pole %.2f %.2f %.2f\n", side,
+                    static_cast<double>(L.knee[side].x), static_cast<double>(L.knee[side].y), static_cast<double>(L.knee[side].z),
+                    static_cast<double>(L.ankle[side].x), static_cast<double>(L.ankle[side].y), static_cast<double>(L.ankle[side].z),
+                    static_cast<double>(L.pole[side].x), static_cast<double>(L.pole[side].y), static_cast<double>(L.pole[side].z));
+            }
+            const agpose::Key lk = agpose::value(agpose::legCode(n->kind, agpose::Pickup));
+            for(int i = 0; i <= agpose::LegPlantKnee; i++)
+            {
+                Con_Printf("posestudio legkey %d %.2f %.2f %.2f\n", i, static_cast<double>(lk.v[i].x), static_cast<double>(lk.v[i].y),
+                    static_cast<double>(lk.v[i].z));
+            }
         }
         const glm::vec3 wf = n->t.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f};
         Con_Printf("posestudio weapon0 forward %.3f %.3f %.3f\n", static_cast<double>(wf.x), static_cast<double>(wf.y),

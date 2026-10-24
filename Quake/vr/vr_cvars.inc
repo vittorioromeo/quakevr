@@ -2936,6 +2936,7 @@ QVR_CVAR(vr_agglitch_state, "", CVAR_NONE)           // ... what it is doing now
 QVR_CVAR(vr_agglitch_shots, "2", CVAR_NONE)          // ... its worst moments per subject shot as eye images (the left eye from its front, the right from its side; 0 none)
 QVR_CVAR(vr_agglitch_metric, "", CVAR_NONE)          // ... its moments (the list, the shots) of these metrics only (names: flip wrong pen reach grip2 toggle gap aim jump shoulder); "" all
 QVR_CVAR(vr_agglitch_top, "30", CVAR_NONE)          // ... the worst moments vr_agglitch_report lists
+QVR_CVAR(vr_aglegs, "1", CVAR_NONE)                  // vr_agarms: 1: an armed humanoid taking a weapon up from the floor goes down on one knee, its legs posed (IK) and skinned (vr_aglegs.cpp); 0: its take frames' legs (both knees down)
 QVR_CVAR(vr_posestudio_reach, "2.5", CVAR_ARCHIVE)     // the Pose Studio (Grip Editor > Drag Mode): the armed humanoid nearest within this many metres of your head is the one shown and edited
 QVR_CVAR(vr_agrunt_freeze, "0", CVAR_NONE)           // 1: armed monsters hold still in their idle pose, their weapons ready (the Grip Editor; QC vr_armedgrunt.qc), AI held; 0 off
 QVR_CVAR(vr_enfrifle_damage, "16", CVAR_ARCHIVE)     // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)

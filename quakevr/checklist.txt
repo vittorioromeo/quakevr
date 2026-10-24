@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+One-knee pickup: armed grunts and enforcers go down on one knee with the other foot planted ahead, not too low, hand on the handle, no foot sliding (vr_aglegs 0 for the old kneel) {test:agrunt_pickup}
+Pose Studio legs: shotgun grunt, Pose > to Pickup: grab the pelvis (tan), feet (pink) or knees (blue-violet), move and let go (each stays); Undo, Grab: Limbs, Copy (the enforcer kneels the same way), Done {test:agrunt_pose_studio}
 Pose Studio poses and strikes: Drag Mode, walk to the sword grunt, < Pose > to Ready, grab the sword, move and turn it, let go (it stays); < Pose > to Overhead, Key > to the blow, move it, Play; pull an elbow out (violet), lean the chest (green), Copy > Enforcer, Done (send me the file in proposed_defaults); a stick click cycles Grab: Everything / Weapons / Limbs (a hand inside the weapon's box is taken first) {test:agrunt_pose_studio}
 Pose all grunts' melee weapons in Pose Studio: 21 frozen grunts in three arcs (every melee weapon, fists, pairs of axes/swords/crowbars); are they reachable and apart? {test:pose_grunts_melee}
 Pose all grunts' guns in Pose Studio: 25 frozen grunts (every gun, pairs of shotguns/nailguns/plasma guns/grenade launchers) {test:pose_grunts_guns}

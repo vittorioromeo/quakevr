@@ -55,6 +55,10 @@ def fmt(x):
 
 def pose_name(code):
     kind, cls, pose, phase = code // 10000, (code // 1000) % 10, (code // 10) % 100, code % 10
+    if pose == 3 and phase == 1:
+        # (vr_aglegs: the pickup's legs, agpose::legCode: pelvis place, pelvis turn, planted foot, kneeling knee's pole,
+        # kneeling foot, planted knee's pole; the same 21 numbers as any key)
+        return "%s, the pickup's legs (any weapon)" % ("grunt" if kind == 0 else "enforcer")
     name = POSES.get(pose, "?")
     if cls == 0 and pose == 0:
         name = "Idle"

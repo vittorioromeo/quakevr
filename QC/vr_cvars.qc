@@ -313,6 +313,7 @@ float cvarh_vr_agarms;
 float cvarh_vr_agarms_shoulder;
 float cvarh_vr_agrunt_upper;
 float cvarh_vr_agrunt_aim_twist;
+float cvarh_vr_aglegs;
 float cvarh_vr_agrunt_strike_torso;
 float cvarh_vr_agrunt_strike_shoulder;
 float cvarh_vr_agrunt_strike_demo;
@@ -1441,6 +1442,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agarms_shoulder);
     VR_CVAR_HMAKE(vr_agrunt_upper);
     VR_CVAR_HMAKE(vr_agrunt_aim_twist);
+    VR_CVAR_HMAKE(vr_aglegs);
     VR_CVAR_HMAKE(vr_agrunt_strike_torso);
     VR_CVAR_HMAKE(vr_agrunt_strike_shoulder);
     VR_CVAR_HMAKE(vr_agrunt_strike_demo);
