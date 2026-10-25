@@ -668,6 +668,11 @@ static void VID_ApplyVSync (void)
 		Con_SafePrintf ("VSync interval %d too high, clamping to %d\n", abs(interval), MAX_INTERVAL);
 		interval = interval < 0 ? -MAX_INTERVAL : MAX_INTERVAL;
 	}
+	if (VR_SwapIntervalOverride (&interval)) // QVR: in VR the desktop window never waits for vsync (vid_vsync is the flat screen's)
+	{
+		SDL_GL_SetSwapInterval (interval);
+		return;
+	}
 	if (SDL_GL_SetSwapInterval (interval) != 0)
 	{
 		if (interval == 0)
@@ -1516,7 +1521,9 @@ void GL_EndRendering (void)
 	VR_GLFrame (); // QVR: the start-up's breadcrumbs (vr/vr_glsafe.cpp)
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
+		const double swapstart = Sys_DoubleTime (); // QVR: the swap's time (VR_MirrorPresented)
 		SDL_GL_SwapWindow(draw_context);
+		VR_MirrorPresented (swapstart); // QVR
 		VR_RenderDocPresented (); // QVR: the frame boundary RenderDoc sees
 	}
 }

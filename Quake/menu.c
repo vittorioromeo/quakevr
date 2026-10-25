@@ -4823,7 +4823,9 @@ void M_AdjustSliders (int dir)
 		}
 		else
 		{
-			Cvar_SetValueQuick (&r_lerpmodels, menu_animlerp_smooth ? menu_animlerp_smooth : 1.f);
+			// (none remembered: the default, Smooth's 3 since configVersion 204)
+			float smooth = menu_animlerp_smooth ? menu_animlerp_smooth : Q_atof (r_lerpmodels.default_string);
+			Cvar_SetValueQuick (&r_lerpmodels, smooth > 0.f ? smooth : 1.f);
 			Cvar_SetValueQuick (&r_lerpmove, 1.f);
 		}
 		break;

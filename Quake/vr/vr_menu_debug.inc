@@ -244,6 +244,9 @@ za::Vector<Item> pageDebugViews()
         command("Weapon Settings Inheritance", "vr_wofs_dump")
             .help("vr_wofs_dump: in the console, the weapon slots that inherit another's settings, and from which; "
                   "vr_wofs_dump <slot> ... prints every value a slot uses (\"<-n\": slot n's)."),
+        command("Held Heads' Weights", "vr_prop_heads")
+            .help("vr_prop_heads: in the console, each monster head's held-object slot, its Mass setting and what it "
+                  "weighs (Mass -1: its share of its monster's ragdoll, an AD monster's as the class it is tuned as)."),
         command("Magnetic Holsters Info", "vr_magholster_info")
             .help("vr_magholster_info: in the console, each holster's bound weapon (Immersion > Magnetic Holsters): where it "
                   "is (holstered, held, away and how far), its chains and their links."),
@@ -477,6 +480,13 @@ za::Vector<Item> pageDebugProfiling()
                   "program's: the menus' warning in the top right corner; in VR the mirror presented only "
                   "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
                   "background sleep."),
+        cycle("Act as if the Driver Forced V-Sync", "vr_debug_mirror_vsync",
+            {{0.f, "Off"}, {60.f, "60 Hz Monitor"}, {75.f, "75 Hz Monitor"}})
+            .help("vr_debug_mirror_vsync 60 (any Hz in the console): in VR the desktop window's presents wait as on a "
+                  "monitor of that refresh with the GPU driver forcing V-Sync (or G-SYNC on the focused window; GitHub "
+                  "issue #79). With Recording > Window Frame Rate at Every Headset Frame the headset then drops to the "
+                  "monitor's rate; at Up to the Monitor's (the default) it never slows. vr_debug_clock says the frame "
+                  "period, the presents and the swap interval the driver reports."),
         toggle("Act as if the Window Were Minimized", vr_debug_window_hidden)
             .help("vr_debug_window_hidden 1: the game acts as if its desktop window were minimized: the Spectator "
                   "Camera is skipped (Recording > Skip While the Window Is Minimized; the console says so with "

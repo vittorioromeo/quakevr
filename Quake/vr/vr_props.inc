@@ -422,20 +422,29 @@ QVR_PROP_DEFAULT(64, ID, "progs/h_dfury.mdl")
 QVR_PROP_DEFAULT(64, Size, "0.65")
 QVR_PROP_DEFAULT(64, Mass, "-1")
 // Arcane Dimensions' heads the author held, at his sizes (his config's slots, approved
-// 2026-10-25): their mass estimated as it was (Mass 0). configVersion 202 gives the slots to configs saved before
-// (takeShippedSlots: a model of another slot there moves; the head's values chosen in another slot come along).
+// 2026-10-25). configVersion 202 gives the slots to configs saved before (takeShippedSlots: a model of another slot
+// there moves; the head's values chosen in another slot come along). Mass -1 as every other monster's head (approved
+// 2026-10-25; was 0, estimated, until configVersion 204): a share of the ragdoll of the class the monster is tuned as
+// (ad::headVrClass: the death knight's the hell knight's).
 QVR_PROP_DEFAULT(32, ID, "progs/h_dknight.mdl")
 QVR_PROP_DEFAULT(32, Size, "0.6")
+QVR_PROP_DEFAULT(32, Mass, "-1")
 QVR_PROP_DEFAULT(57, ID, "progs/h_dcrossbow.mdl")
 QVR_PROP_DEFAULT(57, Size, "0.6")
+QVR_PROP_DEFAULT(57, Mass, "-1")
 QVR_PROP_DEFAULT(58, ID, "progs/h_soldier.mdl")
 QVR_PROP_DEFAULT(58, Size, "0.65")
+QVR_PROP_DEFAULT(58, Mass, "-1")
 QVR_PROP_DEFAULT(59, ID, "progs/h_enforcer.mdl")
 QVR_PROP_DEFAULT(59, Size, "0.65")
+QVR_PROP_DEFAULT(59, Mass, "-1")
 QVR_PROP_DEFAULT(61, ID, "progs/h_hogreham.mdl")
 QVR_PROP_DEFAULT(61, Size, "0.7")
+QVR_PROP_DEFAULT(61, Mass, "-1")
 QVR_PROP_DEFAULT(63, ID, "progs/h_dguard.mdl")
 QVR_PROP_DEFAULT(63, Size, "0.65")
+QVR_PROP_DEFAULT(63, Mass, "-1")
 QVR_PROP_DEFAULT(70, ID, "progs/h_hogre.mdl") // (his was slot 56's until configVersion 201 moved it: a free slot here)
 QVR_PROP_DEFAULT(70, Size, "0.6")
+QVR_PROP_DEFAULT(70, Mass, "-1")
 #endif

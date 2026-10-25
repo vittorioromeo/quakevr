@@ -1653,7 +1653,12 @@ QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown
 "	vec3 morphSeam; // QVR\n"
 "	bool morphShown = Morph(morphSeam); // QVR: discarded at the end (after the derivatives)\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
-"	uv -= 0.5 / vec2(textureSize(Tex, 0).xy);\n"
+// QVR: no half-texel shift back to the software renderer's texel corners (upstream's `uv -= 0.5 / size`): the skin is
+// read at the texel centres the mesh's ST put the vertices on (gl_mesh.c's + 0.5), as the standard path reads it. Quake VR's
+// guns map most faces to a line or a point of the skin (1021 of the shotgun's 1576 triangles), so with the shift every
+// sample sat exactly on a texel boundary and rounding read the texels either side of it: the glow strips next to
+// them showed as red, orange and white specks over the shotgun and the super shotgun (r_softemu_mdl_warp 1;
+// ROUND22.md, "Glowing specks, part 3"). A linear gl_texturemode blended them in half.
 "	vec4 result = textureLod(Tex, uv, 0.);\n"
 "#else\n"
 QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights

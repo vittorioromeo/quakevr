@@ -505,6 +505,9 @@ const DefaultChange defaultChanges[] = {
     {202, &vr_struggle_look_strength, "0.6"},       // 0.8
     {202, &vr_ammo_pouch_wobble_intensity, "1"},    // 0.8
     {202, &vr_ammo_pouch_wobble_settle, "1.3"},     // 0.5
+    // 204: Model Animation Smooth by default (approved 2026-10-25; ROUND22.md, "Defaults of 2026-10-25"): a config
+    // still at Quake's Blend (1) takes Smooth (3); Stepped (0) stays.
+    {204, &r_lerpmodels, "1"}, // 3
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -537,12 +540,21 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {202, "vr_prop_grip_y_57", "0.05"},    // 0
     {202, "vr_prop_grip_z_57", "-2.6"},    // 0
     {202, "vr_prop_handle_tilt_57", "25"}, // 30.5
+    // 204: AD's heads weigh as every other monster's head (Mass -1, a share of their ragdoll's; approved 2026-10-25):
+    // were estimated (0). After props::takeShippedSlots, as 202's: a head brought from another slot comes with its 0.
+    {204, "vr_prop_mass_33", "0"}, // -1 h_dknight
+    {204, "vr_prop_mass_58", "0"}, // -1 h_dcrossbow
+    {204, "vr_prop_mass_59", "0"}, // -1 h_soldier
+    {204, "vr_prop_mass_60", "0"}, // -1 h_enforcer
+    {204, "vr_prop_mass_62", "0"}, // -1 h_hogreham
+    {204, "vr_prop_mass_64", "0"}, // -1 h_dguard
+    {204, "vr_prop_mass_71", "0"}, // -1 h_hogre
 };
 // (200: the nail pistol's magazine's prop slot 56; 201: a shipped prop slot another model had taken moves that model to
 // another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
-// aggrip::dropDefaultEqual)
-constexpr int configVersion = 203;
+// aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1)
+constexpr int configVersion = 204;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

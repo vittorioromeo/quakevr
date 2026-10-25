@@ -22189,8 +22189,8 @@ The approved art (above, "Flare gun: the art") made a weapon, after the nail pis
 `QC/vr_flaregun_test.qc`, the flare lights in `Quake/vr/vr_emissive.cpp`.
 
 - **Ids:** `WID_FLAREGUN` 30 (`WID_LAST` 30), `IID_FLAREGUN` 60, `HIP_IT_FLAREGUN` (hipnotic bit 22: only 23 is left
-  under float precision, for the revolver), weapon settings slot 37 (cvars `_38`; `vr_wofs_version` 66 resets the slot:
-  `takeFlareGun66`), `modelmeta::Id::VFlareGun`, `VrFlare`. QC tables (`vr_weaponutil.qc`: model, `AID_NONE`, throw
+  under float precision, for the revolver), weapon settings slot 37 (cvars `_38`; `vr_wofs_version` 67 resets the slot:
+  `takeFlareGun67`), `modelmeta::Id::VFlareGun`, `VrFlare`. QC tables (`vr_weaponutil.qc`: model, `AID_NONE`, throw
   numbers, "Flare Gun", no reload, clip 2), item tables, stealth loudness 600, gun prep, the toolgun's Weapons page,
   the sight table (rear 1.15 0 6.132, front 11.75 0 6.132), FGDs (`weapon_flaregun`, weapon 30 in
   func_weapon_grabbable's and the dispenser's lists). Not in the weapon cycle nor impulse 9 (a disposable gun lives in
@@ -22263,3 +22263,155 @@ scene in the hall and in the dark (the floor and walls lit red, the air flare's 
 - [ ] Flare guns lie on some crates' tops (Physics > Crates: Flare Gun on Crates 1 to see many).
 - [ ] An armed grunt with a flare gun (Armed Grunts > Flare Gun First 1) fires two flares at you, throws it away and takes its own weapon.
 - [ ] Holster it (hip, upper) and draw it, loaded and half-fired {test:flaregun}.
+## GitHub issue #79: stutter with the desktop window focused, no sound unfocused (worktree `tghost`, branch `agent/issue79`, 2026-10-25)
+
+Report: "runs better when minimized/inactive; when inactive, no sound". Most users run the Latest release, 1.0.1
+(2026-10-11), older than the xrfocus fix (2026-10-16, in 1.1.0-beta1..3).
+- **Sound (B): already fixed since beta1** (in_sdl.c: a lost focus never blocks the sound in VR; 1.0.1 still called
+  `S_BlockSound`). Minimizing goes through the same focus event. Verified: `vr_debug_window focuslost|focusgained` (new:
+  pushes SDL's focus event through `IN_SendKeyEvents`; its report adds `VR on/off, sound blocked N`,
+  `S_SoundBlocked`), `scratch/sndfocus_test.sh`: VR focus lost / minimized / regained 0 blocked, flat lost 1 then 0:
+  `sndfocus: 6 passed, 0 failed`.
+- **Stutter (A): the focused window's presents paced by the monitor.** The engine's own paths don't differ in VR (no
+  sleep, swap interval 0 since 1.0.0), but a GPU driver can make the window wait anyway: NVIDIA's forced V-Sync
+  (global "Vertical sync: On", the common G-SYNC advice), G-SYNC/the independent flip of the focused window. Such a
+  present waits once presents outrun the monitor, so a 72-120 Hz headset dropped to a 60 Hz monitor's rate. Unfocused
+  windows are composed (and since beta1 thinned to 4 Hz), minimized ones not presented at all: hence smooth then. On
+  the author's PC the driver reports swap interval 1 though the game sets 0 (forced vsync) but the monitor is 360 Hz:
+  why he never saw it.
+- Fix: `vr_mirror_hz` (-1, archived): in VR with the window focused the mirror is presented at most once per refresh of
+  the window's display (SDL's current mode, read once a second): every k-th headset frame, k the first whole number of
+  the runtime's display periods a refresh fits in (72 or 90 Hz on 60: every 2nd; 120 on 60: every 2nd; a monitor as
+  fast as the headset: every frame). 0 every frame (the old), >0 at most that many. Recording > "Window Frame Rate"
+  (Up to the Monitor's / Every Headset Frame). Unfocused keeps `vr_mirror_unfocused_hz`.
+- Swap interval: one place says it (`VR_SwapIntervalOverride`): 0 while VR runs or frames run unpaced; `VID_ApplyVSync`
+  (vid_vsync's callback: the menu's VSync, a config exec) no longer turns vsync back on mid-session;
+  `applySwapInterval` (was applyUnpacedSwap) sets it as VR starts or stops, vid_vsync's again after (flat unchanged).
+  The mock headset now gets 0 too when paced (it used vid_vsync's).
+- Diagnostics: the OpenXR timing line (`vr_xr_log_timing`) always ends with `window focused|unfocused, N presents
+  (swap avg/max ms, interval I), M skipped (at most X Hz)` (I: the interval the driver reports; 1 = it forces vsync);
+  `vr_debug_clock` adds presents, the largest swap, skipped, the cap and the interval.
+- Test aid: `vr_debug_mirror_vsync N` (Debug page, "Act as if the Driver Forced V-Sync": Off / 60 / 75 Hz Monitor):
+  each present waits as on an N Hz monitor with forced vsync and a flip queue of one (the interval can't act it out:
+  his driver keeps 1 whatever the game sets), and `vr_mirror_hz -1` counts N as the refresh.
+Test (`scratch/mirrorpace_test.sh HZ VS`: -RealTime -Visible, mock headset at HZ via host_maxfps, period over 240
+frames; real time because the measure is the wall-clock pacing). Old = `vr_mirror_hz 0`, new = -1:
+| headset / monitor | focused old | focused new | unfocused (old/new) | "minimized" old / new |
+|---|---|---|---|---|
+| 72 / 60 | 16.67 ms (60 Hz), swap max 17 ms | 13.89 ms, 120 of 240 presented | 13.89 / 13.90 | 16.67 / 13.98 |
+| 90 / 60 | 16.67 ms | 11.11 ms, 150 of 300 | | |
+| 120 / 60 | 17.42 ms | 8.49 ms (196 of 392; swap max 5.3 ms) | | |
+| 72 / 144 | 13.89 ms | 13.89 ms, every frame | | |
+(The test run's window counts as focused, so its "minimized" rows show the emulation on a minimized window; Windows
+itself doesn't present a minimized window. 120 / 60, exactly 2:1: 1.9% over the period, the presents' jitter against
+the emulated refresh with host_maxfps's pacing, which doesn't absorb a wait as xrWaitFrame does within a frame's
+budget.) Without the emulation 72 / 360 Hz: 13.91 ms. `vid_vsync 1` in VR: the interval set stays 0. eval.sh: canary
+36/44 as the baseline.
+For him: in VR with the window focused and Recording > Window Frame Rate at "Every Headset Frame", Debug > "Act as if
+the Driver Forced V-Sync" 60 should make the headset judder; "Up to the Monitor's" should not. Recording at 60 fps on a
+60 Hz monitor with a 90 Hz headset: the window now shows 45 fps; Every Headset Frame gives the old rate back.
+## Glowing specks, part 3: Model Warp's half-texel shift (worktree `release`, branch `agent/ssgtex3`, 2026-10-25)
+
+The player's whole config (`report_player_ironwail.cfg`, configVersion 165) replayed headless as the game config
+reproduces the report: the shotgun and the super shotgun held close at a grazing angle, in a dark spot of e1m1 and in
+start, have red, orange and white specks over their far ends, rails and barrel tops. Stripped for the mock: `vid_*`
+window/mode lines and `vid_restart` (`vid_fsaa`/`vid_fsaamode` 0 kept), `joy_device`, `vr_note_device`, `vr_xr_runtime*`,
+`vr_xr_panel`. Eye images 1800 px at their `vr_render_scale` 0.6.
+
+- **The setting: `r_softemu_mdl_warp 1`** (Ironwail's Model Warp, software Quake's affine skin mapping forced on; the
+  default -1 leaves it to `r_softemu`). Bisected over the 574 cvars set differently from the defaults
+  (`scratch/bisect.py`, the speck count in the gun's area): reverting it alone takes the shotgun from 2224 to 0 specks
+  (what stays is the sights' pink, `vr_sight_hue`). Not the texture mode, anisotropy, LOD bias, overbright models or
+  r_lerpmodels: with Model Warp on every gl_texturemode had them (nearest modes 2067 / 2912 on the shotgun / super
+  shotgun; linear ones 848 / 2056, blended in half).
+- **The mechanism**: in that mode the alias fragment shader (`gl_shaders.h`, `ALIASSHADER_NOPERSP`) moved the skin
+  coordinate back half a texel (`uv -= 0.5 / size`), undoing `gl_mesh.c`'s `+ 0.5` so the samples land on the software
+  renderer's texel corners. Quake VR's guns map most faces to a line or a point of the skin (`scratch/uvdegen.py`: the
+  shotgun 1021 of its 1576 triangles, 480 of them along a row or column of fullbright texels; the super shotgun 255,
+  198), so every sample sat exactly on a texel boundary and rounding read the texels on either side: the glow strips
+  packed next to them (muzzle flash, sight gradient) drew as fullbright specks. id's guns and the other Quake VR ones
+  (nailguns, launchers, lightning gun: 0 such triangles) were unaffected.
+- **The fix**: no shift; the skin is read at the texel centres the vertices are on, as the standard path reads it.
+  Model Warp keeps its affine warp and its unfiltered level-0 look; against software Quake the texel grid moves half a
+  texel (not visible). Considered and not done: keeping the shift a hair short of half a texel in nearest modes
+  (software-exact) and none in linear ones: it needs the skin's filter per surface in the shader, for no visible gain.
+
+Checked (`scratch/sweepall.sh`, every gun and four monsters, player config unless noted; specks shotgun / super shotgun
+before -> after): e1m1 2067 / 2912 -> 44 / 71 (the sights), start 3217 / 4137 -> 249 / 501 (start's lit floor in the
+box), GL_NEAREST same as e1m1, GL_LINEAR_MIPMAP_LINEAR 848 / 2056 -> 59 / 75; defaults and `r_softemu 3` unchanged.
+Nailguns, launchers, lightning gun, grunt, ogre, knight, enforcer: no change. Images: `scratch/ssgtex3_e1m1_before_after.png`,
+`scratch/ssgtex3_start_before_after.png` (shotgun before, after, super shotgun before, after). eval.sh: 163/171, no
+verdict changes (PASS -> PASS, 0.1 damage).
+
+Workaround for the released version: Model Warp off (`r_softemu_mdl_warp 0`, or -1, in Ironwail's Graphics menu or the
+console).
+
+**In VR:**
+- [ ] Model Warp on (`r_softemu_mdl_warp 1`): the shotgun and super shotgun held close and level with your eye show no
+  red or orange specks, in GL_NEAREST_MIPMAP_LINEAR and a linear texture mode.
+## Defaults of 2026-10-25: AD heads' weight, the death guard's sword, Smooth animation, half-size heat haze (worktree `dequant`, branch `agent/defaults2`, 2026-10-25; configVersion 204, vr_wofs_version 66)
+
+Vittorio's decisions of 2026-10-25 (the questions left by `agent/promote` and `agent/perf3`). Every changed default has a
+migration that moves only a config still at the old default; reason "approved 2026-10-25".
+
+| what | old -> new | migration |
+|---|---|---|
+| AD heads held as props: `vr_prop_mass_33` h_dknight, `_58` h_dcrossbow, `_59` h_soldier, `_60` h_enforcer, `_62` h_hogreham, `_64` h_dguard, `_71` h_hogre | 0 (estimated) -> -1 (a share of the ragdoll, as every older shipped head) | configVersion 204, named rows (after `takeShippedSlots`) |
+| the death guard's sword (`vr_wofs_*_44`, w_dguardsword#melee) | its own defaults = the death knight's sword's (`_42`): only Heft differed, 0.3 -> 0.35; Inherit From stays 0 | vr_wofs_version 66 (`takeGuardSword66`) |
+| `r_lerpmodels` (Model Animation) | 1 (Quake's Blend) -> 3 (Smooth) | configVersion 204: 1 -> 3; 0 (Stepped) and 2 stay |
+| `vr_heat_haze_half` (new; Graphics > Heat Haze Detail) | 1: the haze's scene copy at half size; 0 full size as before | new setting |
+
+- **Heads.** Mass -1 was the right direction (the older shipped heads' convention) but did nothing for AD's heads:
+  `box3d::headPropMass` knew only the ragdoll classes' own head models, so -1 fell back to 0 (estimated), as AD's death
+  fury's head (`_65`, shipped -1 in 187) did all along. `ad::headVrClass` (vr_ad_monsters.cpp) now maps each AD head
+  model to the class its monster is tuned as (`vrClass`: h_dknight/h_dguard/h_dfury the hell knight's, h_dcrossbow the
+  knight's, h_soldier the grunt's, h_enforcer the enforcer's, h_hogre/h_hogreham the ogre's). Weights now (default
+  ragdoll masses): death knight, death guard, death fury 9.1 kg; crossbow knight 6.3; soldier 5.6; enforcer 7; both hunter
+  ogres 14. Debug > "Held Heads' Weights" (`vr_prop_heads`, new) lists every head slot, its Mass and its kg.
+- **Death guard's sword.** All 292 keys of `_44`'s defaults already equalled `_42`'s except Heft and the ID, so the
+  copy is Heft 0.35. Step 66: a config whose `_44` inherits 42 (his did) takes, for each inheritable value still at the
+  old default, what it showed (the death knight's sword's value as that config has it), keeps its own values, then
+  Inherit From 0; any other config's Heft still at 0.3 takes 0.35.
+- **Smooth animation.** `gl_rmain.c` default 3. Ironwail's Options > Animations row (menu.c) shows "Smooth" for any
+  non-zero value; its Classic -> Smooth with nothing remembered (a config saved at 0) now restores the default (3, was 1).
+  The VR menu's Model Animation cycle already lists 3. Flat screen (`vr_enabled 0`) on E1M1: clean.
+- **Half-size heat haze** (vr_haze.cpp `copyPart`): the part of the view the hot air covers is blitted (linear, exactly
+  half: each texel the mean of four) into a half-size copy, widened to even pixels; the shader reads it between the
+  copied texels' centres (`CopyRect`) through `CopySize`. Bullet time's trails keep their full-size copy (each its own
+  texture: no reallocations when both run). A multisampled scene (`vid_fsaa` > 0) is always copied full size: a resolve
+  cannot scale (GL_EXT_framebuffer_multisample_blit_scaled could; not done). His `vid_fsaa` is 0, as is the default.
+
+**Tests**
+- Migrations (`scratch/mig_run.sh`, one run, `resetcfg; exec <cfg>; vr_migrate_config`, then `vr_wofs_dump 43` and the
+  values): old defaults at 203/65 -> lerp 3, the 7 masses -1, `_44` heft 0.35; chosen values (lerp 0, `_33` mass 2.5,
+  heft 0.5) -> all kept, the other masses -1; inheriting 42 with `_42` heft 0.4 and scale 0.9 and an own `_44` pitch 5 ->
+  heft 0.4, scale 0.9, pitch 5, inherit 0, lerp 2 kept; his whole config (200/63) -> `_44`: 292 keys, 0 differ from what
+  it showed before (`scratch/mig_his.py`: its own value where it differed from the old default, else his `_42`'s), inherit
+  0, the 7 masses 0 -> -1, lerp 3 kept, versions 204/66.
+- Heat haze eye shots (left eye, paused, `vid_fsaa 0`, low-res kit eyes 1024): E1M7 facing the lava, the haze changes 7.2%
+  of the pixels (mean 2.1 levels); half against full 0.84 (3%); looking down 45 degrees 1.88 (6%). At 2x the lava inside
+  the haze is visibly softer: its fine bright specks blur away; the rest of the view is identical. The fire field
+  (gpu_fields_inside's spot) shows no visible haze in that view either way (0.02).
+- GPU (LTO, exclusive, paced, his ironwail.cfg of 10-25 + the variant, Quest 3 Ultra eyes 2688x2784 at 120 Hz, 3 x 600
+  frames, medians; `kit/benchresults/dq_*`):
+
+| scenario | variant | GPU 3D avg | heat haze | alias |
+|---|---|---|---|---|
+| lava_e1m7 | haze full | 2.064 | 0.331 | |
+| lava_e1m7 | haze half | 1.742 | 0.081 | |
+| gpu_fields_inside | haze full | 3.411 | 0.139 | |
+| gpu_fields_inside | haze half | 3.010 | 0.073 | |
+| crowd_ad_40 | r_lerpmodels 1 | 4.067 | | 0.508 |
+| crowd_ad_40 | r_lerpmodels 3 | 3.864 | | 0.473 |
+
+  The haze over lava costs a quarter (-0.25 ms a frame), in fire half (-0.07). Smooth animation costs nothing measurable
+  on the GPU (alias 0.47-0.51 run to run either way) nor the CPU (busy 2.35 vs 2.34 ms).
+- `vr_menu_path_check maps/vrcalibration.map`: 0 missing. E1M1 VR then flat smoke: clean. eval.sh: no verdict changes
+  (canary 36/44; 5 of the full set's takes move by 0.1 damage, PASS -> PASS: the dummy drawn with Smooth animation).
+
+**In VR:**
+- [ ] Pick up an AD head (death knight, hunter ogre): it weighs as the Quake head of its kind (the ogre's heavy).
+- [ ] Hold the AD death guard's sword: as before (it handles as the death knight's).
+- [ ] Monsters move smoothly on a fresh config (Model Animation: Smooth); Options > Animations Classic and back: Smooth.
+- [ ] Stand over E1M7's lava and in a burning fuel tank's field: the haze looks right (a little softer inside it than
+  Heat Haze Detail: Full Size).

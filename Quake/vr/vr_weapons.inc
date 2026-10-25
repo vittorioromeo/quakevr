@@ -2674,7 +2674,7 @@ QVR_WEAPON_DEFAULT(35, Heft, "0")    // AD plasma gun
 QVR_WEAPON_DEFAULT(40, Heft, "0")    // the fury's swords (dual-wielded)
 QVR_WEAPON_DEFAULT(41, Heft, "0.35") // death knight's sword
 QVR_WEAPON_DEFAULT(42, Heft, "0")    // zombie knight's sword
-QVR_WEAPON_DEFAULT(43, Heft, "0.3")  // death guard's sword
+QVR_WEAPON_DEFAULT(43, Heft, "0.35") // death guard's sword: the death knight's (approved 2026-10-25; was 0.3 until vr_wofs_version 66)
 QVR_WEAPON_DEFAULT(44, Heft, "0.9")  // hunter ogre's hammer
 QVR_WEAPON_DEFAULT(45, Heft, "0.85") // hunter ogre's mace
 QVR_WEAPON_DEFAULT(50, Heft, "0.85") // death sergeant's flail
@@ -4658,7 +4658,7 @@ QVR_WEAPON_DEFAULT(36, RecoilStrength, "0.6")
 QVR_WEAPON_DEFAULT(36, FlashSize, "0.6")
 QVR_WEAPON_DEFAULT(36, ShotPitch, "0.28")
 // Slot 37: the flare gun (QC WID_FLAREGUN, vr_flaregun.qc; the art Misc/quakevr/models_src/flaregun; vr_wofs_version
-// 66 gives it to configs saved before): the nail pistol's keys (our other pistol, its hand point at the grip as this
+// 67 gives it to configs saved before): the nail pistol's keys (our other pistol, its hand point at the grip as this
 // one's) for a base; its muzzle the top barrel's (the art's README: 12 0 4.532, the barrels lengthened; the bottom's 2.3 below it, QC
 // VR_FlareGun_Muzzle), Scale 0.45 (the art's in-hand size), a heavier kick and a bigger flash than the nail pistol's.
 QVR_WEAPON_DEFAULT(37, TwoHDisplayMode, "0.0")

@@ -600,6 +600,17 @@ QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
 QVR_CVAR(vr_mirror_unfocused_hz, "4", CVAR_ARCHIVE)
+// While VR runs and the desktop window has the focus: -1 the mirror presented at most once each refresh of the window's
+// display (a monitor slower than the headset: every 2nd headset frame or so), 0 every frame, more than 0 at most this
+// many times a second. A present the display paces (the driver forcing vsync, G-SYNC's or the compositor's flip of the
+// focused window) waits for the monitor once presents outrun it, and held the headset to the monitor's rate (60 Hz:
+// stutter while focused, smooth minimized; GitHub issue #79). Presents spaced a refresh apart never wait.
+QVR_CVAR(vr_mirror_hz, "-1", CVAR_ARCHIVE)
+// Debug: N (Hz) while VR runs the desktop window's presents wait as on a monitor of that refresh with the GPU driver
+// forcing vsync (a flip queue of one: a present while the last waits for its refresh waits too), and vr_mirror_hz -1
+// counts that monitor's refresh; 0 off. For testing vr_mirror_hz on any monitor (a real-time test run).
+// (The interval itself can't act it out: a driver forcing vsync keeps 1 whatever the game sets, 0 to 4.)
+QVR_CVAR(vr_debug_mirror_vsync, "0", CVAR_NONE)
 // The eye images' size, times the runtime's recommended (each side; SteamVR's includes its own resolution setting, 150%
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.
@@ -2661,6 +2672,7 @@ QVR_CVAR(vr_slime_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
 QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
+QVR_CVAR(vr_heat_haze_half, "1", CVAR_ARCHIVE)        // ... the scene it bends copied at half size (1, default: a quarter of the cost over lava, half in fire; the image inside the haze a little softer) or full size (0); a multisampled scene is always copied full size
 QVR_CVAR(vr_water_ripples, "1", CVAR_ARCHIVE)         // ripples: rings of waves spreading from splashes, wading and strokes, in the lighting and (with the real waves' grid) the geometry
 QVR_CVAR(vr_water_ripple_amplitude, "16", CVAR_ARCHIVE)   // ... how high they rise in the geometry (with the real waves' grid), units for a hand's slap (a shot's about half, a body's two to three times)
 QVR_CVAR(vr_water_ripple_normal, "0.75", CVAR_ARCHIVE)    // ... how steep they look in the lighting, times the geometry's slope (1: as the shape; 0: the shape only)

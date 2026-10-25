@@ -75,7 +75,35 @@ constexpr ClassAlias classAliases[] = {
     {"monster_wraith", "monster_wizard"},
 };
 
+// AD's heads held as props (vr_props.inc, Mass -1) and the class that throws each (QC ad_mon_*.qc ad_headmdl).
+constexpr ClassAlias headClasses[] = {
+    {"progs/h_dknight.mdl", "monster_dknight"},
+    {"progs/h_dcrossbow.mdl", "monster_dcrossbow"},
+    {"progs/h_dguard.mdl", "monster_dguard"},
+    {"progs/h_dfury.mdl", "monster_dfury"},
+    {"progs/h_soldier.mdl", "monster_army"},
+    {"progs/h_enforcer.mdl", "monster_enforcer"},
+    {"progs/h_hogre.mdl", "monster_hogre"},
+    {"progs/h_hogreham.mdl", "monster_hogreham"},
+};
+
 } // namespace
+
+const char* headVrClass(const char* model)
+{
+    if(!model)
+    {
+        return nullptr;
+    }
+    for(const ClassAlias& h : headClasses)
+    {
+        if(!std::strcmp(model, h.ad))
+        {
+            return vrClass(h.vr);
+        }
+    }
+    return nullptr;
+}
 
 const char* vrClass(const char* classname)
 {

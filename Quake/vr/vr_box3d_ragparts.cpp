@@ -1894,6 +1894,17 @@ namespace
             return &c;
         }
     }
+    // AD support: AD's heads, as their monster's nearest class (h_dknight.mdl the death knight's, monster_hell_knight)
+    if(const char* classname = ad::headVrClass(model))
+    {
+        for(const RagdollClass& c : ragdollClasses)
+        {
+            if(!strcmp(classname, c.classname))
+            {
+                return &c;
+            }
+        }
+    }
     return nullptr;
 }
 } // namespace
