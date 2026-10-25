@@ -368,6 +368,7 @@ void() VR_AGPT_RagTug =
     {
         VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N, impulse %.0f, its hand %.1f from yours, standing %g", time - g.vr_ag_tug_since,
             vr_ag_tug_force, g.vr_ag_tug_imp, ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
+        if(g.vr_ag_prop) { VR_AGT_Print(sprintf("  weapon minus hand %v, grunt minus you %v", g.vr_ag_prop.origin - p.handpos, g.origin - p.origin)); }
     }
     if(time < vr_agt_until && vr_agt_step != 4 && vr_agt_step != 6) { return; }
     if(vr_agt_step == 1)
@@ -385,7 +386,7 @@ void() VR_AGPT_RagTug =
         VR_AGT_Check(sprintf("ragtug begun: tug %g, physical %g, ragdoll %g, standing %g:", g.vr_ag_tug_pl != world,
             g.vr_ag_tug_rag, isragdoll(g), g.vr_kd_stagger), g.vr_ag_tug_pl == p && g.vr_ag_tug_rag && isragdoll(g));
         vr_agt_step = 3;
-        vr_agt_until = time + 1;
+        vr_agt_until = time + (cvar("scratch1") == 2 ? 3 : 1); // (scratch1 2: unbreakable, held still 3 s: the still hold's peak)
         return;
     }
     if(vr_agt_step == 3) // held still 1 s: it holds on, standing

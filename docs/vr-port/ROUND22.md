@@ -20748,3 +20748,17 @@ barrel made it parry; walking up to one (standing or lying) knocked its weapon a
 - [ ] Punch it with a closed fist or swing a weapon at it: it still raises its guard (a gun across its chest).
 - [ ] Shove one down keeping its gun; walk up and reach for the gun: it keeps it until you grab (yours) or hit it hard.
 - [ ] Hold a tug still without pulling: say whether it comes out too easily (the 200 N least pull; above).
+
+## Tug least pull 200 -> 270 N (worktree `tghost`, branch `agent/tugpull`)
+
+`vr_agrunt_tug_pull_force` 270 (was 200), configVersion 199 (row: 200 -> 270, a custom value stays; checked with a
+config at version 198: 200 -> 270, 350 stays 350). Still-hold forces (test 31 unbreakable, `scratch1 2` holds still 3 s,
+`vr_mock_hand main 0.1 0.72 -1.2 65 0 0`): grunt peak 254 N (steady 190-245 N over 3 s), so 270 sits ~6% above it (the
+brief's 211 N reading x 1.28 = 270 too). The test 31 pull (0.6 m/s) still breaks at 0.97 s (1534 N, pulled 0.52 s);
+test 37 grunt 8/8 (900 N 0.3 s holds, 900 N 0.6 s out at 0.50 s, yank 0.01 s, 300 N out at 1.18 s by impulse). Test
+note: the mock hand only moves (`vr_mock_hand_pull`) after `vr_mock_hand main ...` has been set: tests 31/32/37 need it.
+**Enforcer tests 31, 32, 37 fail for a different reason, not the tuning:** its grabbed forearm_r ends ~15 units from the
+hand (weapon minus hand -14, -6, +5), the hold spring pulls at a constant ~1800 N from the first frame, so a still hold
+is already over every threshold and the gun tears out at once (test 31 still hold: tug lost; 37 case 3 out at 0.21 s).
+The grunt's offset is 1-2 units. Engine/ragdoll side (ragdolltug's anchor against the enforcer's active pose): open.
+Test 31 `scratch1 2` = unbreakable, still 3 s (the ragtug debug line also prints weapon minus hand).

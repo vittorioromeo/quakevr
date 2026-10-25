@@ -483,6 +483,8 @@ const DefaultChange defaultChanges[] = {
     {198, &vr_melee_fist_to_y, "0"},   // 0.7656
     {198, &vr_melee_fist_to_z, "0"},   // -4.2209
     {198, &vr_melee_fist_width, "1"},  // 0.291
+    // 199: the tug's least pull 200 -> 270 N (a still hold read up to 211 N and tore the gun out; ROUND22.md, "Tug least pull").
+    {199, &vr_agrunt_tug_pull_force, "200"},
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -501,7 +503,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
 };
-constexpr int configVersion = 198;
+constexpr int configVersion = 199;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
