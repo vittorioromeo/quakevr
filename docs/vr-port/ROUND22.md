@@ -20997,71 +20997,6 @@ of changed files does not help (the compile is the cost, and the progs is one un
 Both tested on dequant: `--lto` gives `QVR_BUILD_LTO 1` and the release script's check passes; the no-LTO exe is refused
 and warned about.
 
-## The nail pistol: a weapon of its own (worktree `tghost`, branch `agent/nailpistol`, 2026-10-25)
-
-The art (above, "Nail pistol: the art") made a first-class weapon, after the existing weapons' patterns everywhere a
-weapon is listed. Brief: one-handed, semi-automatic, a 12-round magazine in the grip on the magazine/pouch reload
-system, fed from your nails; fast precise nails; a grunt dies to two headshots or three or four body shots.
-
-- **Ids:** `WID_NAILPISTOL` 29 (`WID_LAST` 29), `IID_NAILPISTOL` 59, `HIP_IT_NAILPISTOL` (hipnotic bit 21); weapon settings
-  slot 36 (cvars `_37`; `vr_wofs_version` 61 resets the slot for older configs: `takeNailPistol61`); prop slot 56 for its
-  magazine (`configVersion` 200 ships it: `vr_props.cpp shippedSlots`). All the QC weapon tables
-  (`vr_weaponutil.qc`: model, ammo nails, throw numbers, name "Nail Pistol", reload yes, clip `vr_nailpistol_mag`,
-  24 nails with the pickup), item tables, damage credit (`IT_NAILGUN`), stealth loudness 700 (the nailgun's 800),
-  gun prep, FGD (`weapon_nailpistol`, weapon id 29 in func_weapon_grabbable's and the dispenser's lists), the toolgun's
-  Weapons page ("Nail Pistol", between the nailgun and the super nailgun), the sight table (`vr_sightalign_table.inc`:
-  the rear ears' tops level with the front post's top, z 6.376), `modelmeta::Id::VNailPistol`.
-- **Weapon select:** impulse 4 (the nails' slot) toggles nailgun and nail pistol, as Hipnotic's 6 toggles the grenade
-  launcher and the proximity gun (the one you have when only one); the controllers' cycle puts it between the super
-  shotgun and the nailgun (`VR_NailPistol_CycleStep`). `impulse 150+id` can't give it (179 is the off hand's id 9):
-  Debug > Tests > Nail Pistol (`vr_np_test 2`/`3`) or `vr_physics_spawn weapon_nailpistol reach` instead.
-- **Firing (`QC/vr_nailpistol.qc`):** `W_AttackImpl` hands it to `VR_NailPistol_Attack`: a pull fires once (or clicks
-  dry once: `gunclick.wav`), then nothing until the trigger is let go (`VR_NailPistol_PlayerFrame` re-arms it), at most
-  one shot each `vr_nailpistol_cooldown` 0.12 s (a pull during the cooldown fires as it ends). `W_FireNailPistol`: a nail
-  of the magazine (or the reserve without reloading) at `vr_nailpistol_speed` 2600 (the nailgun's 1750) plus the hand's,
-  within `vr_nailpistol_spread` 0.25 degrees; its own touch (`VR_NailPistol_SpikeTouch`: spike_touch's path with
-  `vr_dmg_nailpistol` 12; a monster's 9); `weaponfired` (slot 36: Recoil 1, strength 0.6, 0.1 s; Flash 1, size 0.6),
-  `EF_MUZZLEFLASH`, a 0.06 s haptic, gun smoke; the slide (frame 1) back `vr_nailpistol_slide_time` 0.07 s then home
-  (the renderer's lerp runs it), locked back while the gun has no round (clip 0 or no magazine); a wisp of smoke 0.3 s
-  after the last shot, more after a quick string (`vr_nailpistol_smoke`). Its sound: `vr/nailpistol_shot.wav`
-  (synthesised, `Misc/quakevr/make_nailpistol_sounds.py`: crack, thump, two slide clacks) over id's
-  `weapons/spike2.wav` pitched to 135% (`vr_nailpistol_volume`); magazine out/in: the existing reload sounds.
-- **Damage:** the hit zones are `VR_Proj_Begin`'s (`vr_headshot_mult` 1.5, limbs and legs 0.6). 12 a nail: a head 18
-  (one doesn't kill a 30 grunt, two do), the body 12 (three kill, two don't), an arm or a leg 7.2 (five).
-- **Magazine:** `make_nailpistol_mags.py` makes `vr_mag_npistol.mdl` (the prop: its middle the origin, +z its top; Size
-  0.52, as the nailgun's 0.55 to its gun's 0.48) and `vr_mag_on_v_nailpistol.mdl` (in the gun's frame, up the grip:
-  top 0.468 0 2.201, 12 degrees back) from the art's `v_nailpistol_mag.mdl`. Engine: `magMounts` (no receiver model:
-  `well` null, now allowed), `magProps` (top 2.76), `loadPorts` (the grip's bottom, -0.62 0 -2.93: the magazine's top
-  goes in there and slaps up), `magHolds[3]`; the pouch shows it as the nailgun's kind with bit 16
-  (`STAT_QVR_POUCHKIND` 18; `vr_pouchitems.cpp footFor`, 12 rounds a magazine). New cvars as the other magazine guns':
-  `vr_reload_mode_npistol` -1, `vr_reload_pouch_npistol` 1, `vr_reload_port_npistol_x/y/z` 0 and `_radius` 1.5,
-  `vr_reload_mag_npistol_x/y/z` 0 and `_radius` 0.5, `vr_reload_well_npistol_*` 0 (unused: no receiver),
-  `vr_reload_hold_npistol_*` (the thunderbolt's defaults). Menu: Weapons > Reloading > Nail Pistol, its override and
-  pouch toggle.
-- **Armed grunts:** usable in every campaign, a gun of class GUN, pairable (not "big": dual-wielded as the other guns,
-  the guns' pair poses), fired through `W_FireNailPistol`; pool weight `vr_agrunt_w_nailpistol` 1 (Armed Grunts'
-  weights page). `VR_AG_OneHanded` stays the melee weapons' (it picks the melee pair poses).
-- **Menus:** Combat > Weapon Damage: Nail Pistol, its speed, cooldown, spread, magazine; Debug > Tests: Nail Pistol (a
-  pickup), and a Nail Pistol section (in your hand, in both, the self-test).
-- **Not now:** map pickups replaced by it. It could be: a `vr_nailpistol_replace` chance in `weapon_nailgun` (or in
-  `impl_weapon_item` for the nailgun's pickups) calling `weapon_nailpistol` instead, or a start weapon beside the
-  shotgun (`VR_WeaponUtil_EntIsEligibleForWeapon`'s always-eligible list and `PutClientInServer`).
-
-**Tests** (`vr_np_test 1`, QC `vr_nailpistol_test.qc`; fast mode, ends on "nptest: N passed, M failed"): `run.sh tghost
--Script "map vrtesthall;wait30;developer 1;vr_np_test 1" -QuitOn "nptest: [0-9]+ passed"`: 17 passed: the trigger held
-0.55 s fires 1; the slide back after it, home after; 12 shots, the shortest gap 0.139 s (cooldown 0.12, pulls every
-0.028 s); 13th pull: 1 dry click; 12 hits on a target ahead; empty: slide locked back; ejected empty magazine; a 12 from
-the pouch (nails 100 -> 88); the engine's well 2.7 units from the hand; seated: clip 12; slide home; a shot from it;
-headshots: dead in 2 (x1.50); body: dead in 3 (x1.00); an armed grunt's nail pistol fires; a pair fires both. Scene:
-`nailpistol` (vrtesthall: in your hand, one lying, crates, two grunts, armed grunts with one and a pair).
-
-**In VR:**
-- [ ] The nail pistol in hand {test:nailpistol}: the grip sits in the palm, the trigger under the finger; aim down the sights (the rear ears level with the front post) and the nails land there.
-- [ ] Shooting {test:nailpistol}: a shot each pull, as fast as you pull; the kick, the flash, the slide snapping back, the smoke after a string; the sound punchy.
-- [ ] Reloading {test:nailpistol}: empty, the slide stays back; B/Y drops the magazine, one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines.
-- [ ] Two headshots or three body shots kill a grunt {test:nailpistol}.
-- [ ] Holster it (hip, upper) and draw it; drop and throw it; the one lying on the floor picks up.
-- [ ] The armed grunts far off fire their nail pistols (one, and a pair) {test:nailpistol}.
 ## Build speed, round 2: header isolation, vr_menu.cpp split, the VR precompiled header (worktree `dequant`, branch `agent/buildspeed2`, 2026-10-25)
 
 Vittorio's decisions on round 1's findings, in order, each measured (Release x64 no-LTO MSBuild; a shared 32-thread
@@ -21132,3 +21067,68 @@ What's left (step 3): the backend, 183 CPU-s, is now two thirds of the build: th
 include it (9.7 CPU-s); the link. Correctness: smoke run e1m1 (Windows and the WSL Linux mock run), the menu dump
 identical, eval.sh's verdicts unchanged (the canary differed in 1-2 takes, the full set in 3-5, by 0.1 damage, PASS ->
 PASS, different takes in each of three runs of the same exe: the replays' run-to-run jitter).
+## The nail pistol: a weapon of its own (worktree `tghost`, branch `agent/nailpistol`, 2026-10-25)
+
+The art (above, "Nail pistol: the art") made a first-class weapon, after the existing weapons' patterns everywhere a
+weapon is listed. Brief: one-handed, semi-automatic, a 12-round magazine in the grip on the magazine/pouch reload
+system, fed from your nails; fast precise nails; a grunt dies to two headshots or three or four body shots.
+
+- **Ids:** `WID_NAILPISTOL` 29 (`WID_LAST` 29), `IID_NAILPISTOL` 59, `HIP_IT_NAILPISTOL` (hipnotic bit 21); weapon settings
+  slot 36 (cvars `_37`; `vr_wofs_version` 61 resets the slot for older configs: `takeNailPistol61`); prop slot 56 for its
+  magazine (`configVersion` 200 ships it: `vr_props.cpp shippedSlots`). All the QC weapon tables
+  (`vr_weaponutil.qc`: model, ammo nails, throw numbers, name "Nail Pistol", reload yes, clip `vr_nailpistol_mag`,
+  24 nails with the pickup), item tables, damage credit (`IT_NAILGUN`), stealth loudness 700 (the nailgun's 800),
+  gun prep, FGD (`weapon_nailpistol`, weapon id 29 in func_weapon_grabbable's and the dispenser's lists), the toolgun's
+  Weapons page ("Nail Pistol", between the nailgun and the super nailgun), the sight table (`vr_sightalign_table.inc`:
+  the rear ears' tops level with the front post's top, z 6.376), `modelmeta::Id::VNailPistol`.
+- **Weapon select:** impulse 4 (the nails' slot) toggles nailgun and nail pistol, as Hipnotic's 6 toggles the grenade
+  launcher and the proximity gun (the one you have when only one); the controllers' cycle puts it between the super
+  shotgun and the nailgun (`VR_NailPistol_CycleStep`). `impulse 150+id` can't give it (179 is the off hand's id 9):
+  Debug > Tests > Nail Pistol (`vr_np_test 2`/`3`) or `vr_physics_spawn weapon_nailpistol reach` instead.
+- **Firing (`QC/vr_nailpistol.qc`):** `W_AttackImpl` hands it to `VR_NailPistol_Attack`: a pull fires once (or clicks
+  dry once: `gunclick.wav`), then nothing until the trigger is let go (`VR_NailPistol_PlayerFrame` re-arms it), at most
+  one shot each `vr_nailpistol_cooldown` 0.12 s (a pull during the cooldown fires as it ends). `W_FireNailPistol`: a nail
+  of the magazine (or the reserve without reloading) at `vr_nailpistol_speed` 2600 (the nailgun's 1750) plus the hand's,
+  within `vr_nailpistol_spread` 0.25 degrees; its own touch (`VR_NailPistol_SpikeTouch`: spike_touch's path with
+  `vr_dmg_nailpistol` 12; a monster's 9); `weaponfired` (slot 36: Recoil 1, strength 0.6, 0.1 s; Flash 1, size 0.6),
+  `EF_MUZZLEFLASH`, a 0.06 s haptic, gun smoke; the slide (frame 1) back `vr_nailpistol_slide_time` 0.07 s then home
+  (the renderer's lerp runs it), locked back while the gun has no round (clip 0 or no magazine); a wisp of smoke 0.3 s
+  after the last shot, more after a quick string (`vr_nailpistol_smoke`). Its sound: `vr/nailpistol_shot.wav`
+  (synthesised, `Misc/quakevr/make_nailpistol_sounds.py`: crack, thump, two slide clacks) over id's
+  `weapons/spike2.wav` pitched to 135% (`vr_nailpistol_volume`); magazine out/in: the existing reload sounds.
+- **Damage:** the hit zones are `VR_Proj_Begin`'s (`vr_headshot_mult` 1.5, limbs and legs 0.6). 12 a nail: a head 18
+  (one doesn't kill a 30 grunt, two do), the body 12 (three kill, two don't), an arm or a leg 7.2 (five).
+- **Magazine:** `make_nailpistol_mags.py` makes `vr_mag_npistol.mdl` (the prop: its middle the origin, +z its top; Size
+  0.52, as the nailgun's 0.55 to its gun's 0.48) and `vr_mag_on_v_nailpistol.mdl` (in the gun's frame, up the grip:
+  top 0.468 0 2.201, 12 degrees back) from the art's `v_nailpistol_mag.mdl`. Engine: `magMounts` (no receiver model:
+  `well` null, now allowed), `magProps` (top 2.76), `loadPorts` (the grip's bottom, -0.62 0 -2.93: the magazine's top
+  goes in there and slaps up), `magHolds[3]`; the pouch shows it as the nailgun's kind with bit 16
+  (`STAT_QVR_POUCHKIND` 18; `vr_pouchitems.cpp footFor`, 12 rounds a magazine). New cvars as the other magazine guns':
+  `vr_reload_mode_npistol` -1, `vr_reload_pouch_npistol` 1, `vr_reload_port_npistol_x/y/z` 0 and `_radius` 1.5,
+  `vr_reload_mag_npistol_x/y/z` 0 and `_radius` 0.5, `vr_reload_well_npistol_*` 0 (unused: no receiver),
+  `vr_reload_hold_npistol_*` (the thunderbolt's defaults). Menu: Weapons > Reloading > Nail Pistol, its override and
+  pouch toggle.
+- **Armed grunts:** usable in every campaign, a gun of class GUN, pairable (not "big": dual-wielded as the other guns,
+  the guns' pair poses), fired through `W_FireNailPistol`; pool weight `vr_agrunt_w_nailpistol` 1 (Armed Grunts'
+  weights page). `VR_AG_OneHanded` stays the melee weapons' (it picks the melee pair poses).
+- **Menus:** Combat > Weapon Damage: Nail Pistol, its speed, cooldown, spread, magazine; Debug > Tests: Nail Pistol (a
+  pickup), and a Nail Pistol section (in your hand, in both, the self-test).
+- **Not now:** map pickups replaced by it. It could be: a `vr_nailpistol_replace` chance in `weapon_nailgun` (or in
+  `impl_weapon_item` for the nailgun's pickups) calling `weapon_nailpistol` instead, or a start weapon beside the
+  shotgun (`VR_WeaponUtil_EntIsEligibleForWeapon`'s always-eligible list and `PutClientInServer`).
+
+**Tests** (`vr_np_test 1`, QC `vr_nailpistol_test.qc`; fast mode, ends on "nptest: N passed, M failed"): `run.sh tghost
+-Script "map vrtesthall;wait30;developer 1;vr_np_test 1" -QuitOn "nptest: [0-9]+ passed"`: 17 passed: the trigger held
+0.55 s fires 1; the slide back after it, home after; 12 shots, the shortest gap 0.139 s (cooldown 0.12, pulls every
+0.028 s); 13th pull: 1 dry click; 12 hits on a target ahead; empty: slide locked back; ejected empty magazine; a 12 from
+the pouch (nails 100 -> 88); the engine's well 2.7 units from the hand; seated: clip 12; slide home; a shot from it;
+headshots: dead in 2 (x1.50); body: dead in 3 (x1.00); an armed grunt's nail pistol fires; a pair fires both. Scene:
+`nailpistol` (vrtesthall: in your hand, one lying, crates, two grunts, armed grunts with one and a pair).
+
+**In VR:**
+- [ ] The nail pistol in hand {test:nailpistol}: the grip sits in the palm, the trigger under the finger; aim down the sights (the rear ears level with the front post) and the nails land there.
+- [ ] Shooting {test:nailpistol}: a shot each pull, as fast as you pull; the kick, the flash, the slide snapping back, the smoke after a string; the sound punchy.
+- [ ] Reloading {test:nailpistol}: empty, the slide stays back; B/Y drops the magazine, one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines.
+- [ ] Two headshots or three body shots kill a grunt {test:nailpistol}.
+- [ ] Holster it (hip, upper) and draw it; drop and throw it; the one lying on the floor picks up.
+- [ ] The armed grunts far off fire their nail pistols (one, and a pair) {test:nailpistol}.
