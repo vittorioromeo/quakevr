@@ -2068,18 +2068,55 @@ void R_ShowTris (void)
 R_BeginTranslucency
 ================
 */
-static void R_BeginTranslucency (void)
+static qboolean r_oit_cleared; // QVR: this view's OIT targets cleared (vr_oit_lazy_clear: at the first translucent draw)
+static qboolean r_oit_inpass; // QVR: between R_BeginTranslucency and R_EndTranslucency (the OIT targets bound)
+int r_oit_views, r_oit_viewsdrawn; // QVR: views with the OIT pass, and those with something translucent (vr_oit_stats)
+static int r_oit_firstby[5]; // QVR: ... which kind of draw came first (R_PrepareOITDraw's site)
+
+/*
+================
+R_PrepareOITDraw -- QVR
+
+Before a draw into the OIT targets (bound): their clear, once a view, at the first such draw (vr_oit_lazy_clear; off:
+in R_BeginTranslucency as before). A view with nothing translucent clears nothing and skips the resolve.
+================
+*/
+void R_PrepareOITDraw (int site)
 {
 	static const float zeroes[4] = {0.f, 0.f, 0.f, 0.f};
 	static const float ones[4] = {1.f, 1.f, 1.f, 1.f};
 
+	if (r_oit_cleared || !r_oit_inpass)
+		return;
+	r_oit_cleared = true;
+	r_oit_viewsdrawn++;
+	r_oit_firstby[site >= 0 && site < 5 ? site : 0]++;
+	GL_ClearBufferfvFunc (GL_COLOR, 0, zeroes);
+	GL_ClearBufferfvFunc (GL_COLOR, 1, ones);
+}
+
+void R_OITStats (void)
+{
+	Con_Printf ("oit: %d views, %d drew something translucent (cleared and resolved), %d skipped%s\n", r_oit_views,
+		r_oit_viewsdrawn, r_oit_views - r_oit_viewsdrawn, VR_OITLazyClear () ? "" : " (vr_oit_lazy_clear 0: every view cleared)");
+	Con_Printf ("oit: the first translucent draw: models %d, particles %d, brush models %d, liquids %d\n", r_oit_firstby[1],
+		r_oit_firstby[2], r_oit_firstby[3], r_oit_firstby[4]);
+	r_oit_views = r_oit_viewsdrawn = 0;
+	memset (r_oit_firstby, 0, sizeof (r_oit_firstby));
+}
+
+static void R_BeginTranslucency (void)
+{
 	GL_BeginGroup ("Translucent objects");
 
 	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.oit_fbo);
-		GL_ClearBufferfvFunc (GL_COLOR, 0, zeroes);
-		GL_ClearBufferfvFunc (GL_COLOR, 1, ones);
+		r_oit_cleared = false;
+		r_oit_inpass = true;
+		r_oit_views++;
+		if (!VR_OITLazyClear ())
+			R_PrepareOITDraw (0);
 
 		glEnable (GL_STENCIL_TEST);
 		glStencilMask (2);
@@ -2095,7 +2132,15 @@ R_EndTranslucency
 */
 static void R_EndTranslucency (void)
 {
-	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
+	r_oit_inpass = false;
+	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT && !r_oit_cleared) // QVR: nothing drawn into them (vr_oit_lazy_clear)
+	{
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.scene_fbo);
+		glStencilFunc (GL_EQUAL, 2, 2); // (the stencil state the resolve leaves)
+		glStencilOp (GL_KEEP, GL_KEEP, GL_KEEP);
+		glDisable (GL_STENCIL_TEST);
+	}
+	else if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 	{
 		GL_BeginGroup  ("OIT resolve");
 

@@ -936,6 +936,46 @@ budget kept for the next frame (400 at once: 10 ms; needs the events kept in the
 data made on the job pool at the load (its 170-200 ms in AD's first map; the hit reactions' and arms' lookups it
 calls would need checking for thread safety).
 
+### Performance batch 3: restarts, AD monsters' deaths, wound bursts, OIT (2026-10-25)
+
+Worktree `fastship`, branch `agent/perf3` (ROUND22.md, "Performance batch 3"). Each change has its toggle (Debug >
+Profiling and Memory); A/B runs alternate the toggle run by run, his settings of 2026-10-25, eyes 2048, paced 90 Hz,
+exclusive, 3 runs each, medians, ThinLTO build (`scratch/pf_ab.sh`; the tables: `p3_tab.py`, loads `p3_loads.py`).
+
+| change (toggle) | scenario | measure | off | on |
+|---|---|---|---|---|
+| crates' and rocks' layouts kept (`vr_place_keep`) | load_ad_restarts (new) | ad_sepulcher restart, ms to the first frame | 878, 860 | 637, 611 |
+| | | ad_tfuma restart | 473, 467 | 369, 367 |
+| | | cold loads (sepulcher, tfuma) | 2023, 1320 | 2016, 1316 |
+| AD monsters' death assets at their spawn (`vr_ad_death_precache`) | crowd_ad_40 | CPU busy max / frame max | 35.5 / 35.6 | 7.9 / 13.1 |
+| wound painting budget (`vr_wounds_budget 1`) | gore_dismember_16 | CPU busy max / frame max | 26.3 / 26.3 | 20.1 / 20.2 |
+| | gore_blast_crowd_32 | CPU busy max | 20.1 | 20.3 (its worst frame is not the wounds') |
+| OIT clear at the first translucent draw (`vr_oit_lazy_clear`) | idle_e1m1, fight_ad_tears, crowd_ad_40 | translucent GPU phase | 0.114, 0.223, 0.214 | 0.112, 0.220, 0.188 |
+
+Averages and p99s unchanged in every row (within +-0.05 ms CPU, +-0.3 GPU between runs).
+
+- **Layouts kept**: the key (vr_debris.hpp `PlanKey`) hashes the map's files and geometry, every vr_crate*, vr_debris*,
+  vr_place_* setting and the entities' boxes as the plan finds them; a kept plan costs 1-25 ms (the key's hash of the
+  world's light) instead of 50-450. AD's rising bubbles (misc_bubble: noclip triggers) were obstacles whose places
+  differed each load: no longer obstacles (the layouts unchanged), the key then matches. Kept == fresh layout hashes on
+  ad_sepulcher, ad_tfuma, ad_tears, ad_crucial, e1m1, e1m7, e2m1, e4m7, hip2m5 (`scratch/p3_crates.sh`).
+- **AD death assets**: crowd_ad_40's late precaches at deaths were proj_diam2 (160 ms in a fast-mode run), w_backpack
+  (41), gib_5 (20), the explosions' sprites; and AD's footsteps, shell casings' and grenade loads' sounds were never
+  precached outside AD's maps (hundreds of "not precached" a run). id maps' fights have none.
+- **Wound budget**: in a still scene (1152 events on 48 grunts and items in one frame) every mask identical with the
+  budget off and on; on, at most 540 events a frame, all within 0.04 s.
+- **OIT**: small because a view's first translucent draw is almost always a liquid (`vr_oit_stats`: every view in E1M1;
+  his water 0.3, slime 0.6, lava 0.9): only views with no liquid in their set skip it.
+- **Heat haze copy** (not kept): the copy split into each hot volume's own part of the view (joined where one copy
+  costs no more) gave the same images and the same heat haze GPU time (lava_e1m7 0.210 -> 0.209, gpu_fields_inside
+  0.252 -> 0.251, crowd_ad_40 0.212 -> 0.219, combined 0.334 -> 0.327): where it costs, a volume reaches behind the eye
+  (standing in fire or over lava) and the whole view is copied either way. Reverted. Left: a half-size copy (a softer
+  image inside the haze) or the bend drawn without a copy.
+- **Left**: the dismembering's second cut of a limb (`#limb3m8`, 5 ms, a partial limb model not prebuilt).
+
+Rerun: `bash scratch/pf_ab.sh <label> 3 "<toggle> 0" "<toggle> 1" <scenarios>`, then `python scratch/p3_tab.py <label> -
+<scenarios>` (`p3_loads.py <label> load_ad_restarts` for the loads); the scripts are in `qvr-kit/scratch/perf3/`.
+
 ## Profiling in the game
 
 The in-game profiling tools (moved from TESTING.md on 2026-10-09).

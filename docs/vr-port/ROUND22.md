@@ -21509,3 +21509,33 @@ check_mdl_art.py LOW only.
 
 Checked: build 0 warnings; `vr_prop_impact_test 2` (15 lines + done), `vr_agrunt_test 1` 16/17 (the proximity gun, as
 before), `61` 40/0, `41` and `45` run to their end; eval.sh 163/171, no verdict changes.
+## Performance batch 3 (worktree `fastship`, branch `agent/perf3`, 2026-10-25)
+
+His approved batch from the overnight profiling, the GPU benchmark and the frame spikes. Numbers, method and rerun:
+BENCHMARKS.md, "Performance batch 3". Each change has a toggle in Debug > Profiling and Memory (default on).
+
+- **Crates' and rocks' layouts kept** (`vr_place_keep`): a restart of the same map (a death in AD) takes the last plan
+  when its key (map files and geometry, every vr_crate*/vr_debris*/vr_place_* setting, the entities' boxes) is the
+  same. ad_sepulcher's restart 878 -> 637 ms, ad_tfuma's 473 -> 369; the same layout hashes on nine maps; another
+  seed or setting plans anew. AD's rising bubbles no longer count as obstacles (their places differed each load).
+- **AD monsters' death assets at their spawn** (`vr_ad_death_precache`, QC `VR_AD_DeathPrecache`): outside AD's maps
+  the first AD monster precaches AD's backpack, gibs, explosions, projectiles and their sounds, and the footsteps
+  (which were never precached there: hundreds of "not precached" warnings a fight). The test hall's AD crowd: CPU
+  busy max 35.5 -> 7.9 ms.
+- **Wound painting budget** (`vr_wounds_budget` 1 ms, `vr_wounds_budget_wait` 0.04 s): a burst's events beyond the
+  budget wait in their body's own frame of reference and are painted within 0.04 s; dropped if the body is removed
+  or gibbed. The same masks to the pixel in a still scene; gore_dismember_16's worst frame 26.3 -> 20.1 ms.
+- **OIT clear at the first translucent draw** (`vr_oit_lazy_clear`, `vr_oit_stats`): small (0.00-0.03 ms): a liquid
+  is in almost every view's set with his translucent liquids.
+- **Heat haze copy**: tried (each hot volume's part copied apart) and reverted: the same time, the costly cases copy
+  the whole view either way. Open: a half-size copy changes the image a little; his call.
+- **Checks**: eye shots identical with the OIT toggle on and off (water, lava, a dry view); eval.sh canary 36/44, 0
+  differ from the baseline; E1M1 smoke clean.
+
+For him in VR:
+- [ ] Die in an AD map (Sepulcher, Tears) and restart: the same crates, barrels and rocks where they were, the
+  restart a quarter second quicker.
+- [ ] Spawn AD monsters with the toolgun in the test hall or an id map and kill them: no hitch at the first death or
+  backpack; their footsteps audible.
+- [ ] Cut up or blow up a crowd (Gore > test crowd, a rocket into grunts): the wounds appear as before (within a few
+  frames), on the right places of bodies that are flying.

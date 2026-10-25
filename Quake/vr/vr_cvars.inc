@@ -627,6 +627,17 @@ QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
 // entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
 QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
+// bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
+// and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
+// (a death) skips the planning (200-250 ms in AD's big maps); 0 planned at every load, as before. The same layout either way.
+QVR_CVAR(vr_place_keep, "1", CVAR_NONE)
+// Debug > Profiling and Memory > AD Monsters' Death Assets Early: 1 outside AD's maps, the first AD monster precaches AD's
+// world's shared assets for their deaths, drops, steps and blasts (its backpack, gibs and their sounds, footsteps,
+// explosions, projectiles: QC vr_ad_monsters.qc VR_AD_DeathPrecache) as it spawns: at the map's load for the map's (and
+// the kinds that can appear later), at the spawn for the toolgun's; 0 as before (each at its first use, 25-38 ms; the
+// steps' sounds missing).
+QVR_CVAR(vr_ad_death_precache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
 // first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
 // your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use
@@ -651,6 +662,11 @@ QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
 // props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
 // pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
 QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Lazy OIT Clear: 1 the translucent pass's two OIT targets (gl_rmain.c) cleared at a
+// view's first translucent draw, and neither cleared nor resolved in a view with nothing translucent (most views: the
+// GPU benchmark, BENCHMARKS.md, about 0.05 ms a view); 0 cleared and resolved in every view, as before. The same image
+// either way.
+QVR_CVAR(vr_oit_lazy_clear, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -1588,6 +1604,11 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+// Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
+// burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
+// paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
+QVR_CVAR(vr_wounds_budget, "1", CVAR_NONE)
+QVR_CVAR(vr_wounds_budget_wait, "0.04", CVAR_NONE)   // ... the longest an event waits (s): what is left then is shared out over the frames left
 // Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
 QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
 QVR_CVAR(vr_gore_dents_depth, "2.5", CVAR_ARCHIVE)    // how deep the dents push in, times their own (0 flat: the raw flesh only; his config of 2026-10-20, 3 before)
