@@ -415,7 +415,7 @@ void buildSearchIndex()
     for(int q = 0; q < queued; q++)
     {
         const int p = queue[q];
-        if(pages[p].build == pageSearch || pages[p].build == pageChanged)
+        if(p == pageIndex(pageSearch) || p == pageIndex(pageChanged))
         {
             continue;
         }
@@ -440,7 +440,7 @@ void buildSearchIndex()
     for(int q = 0; q < queued; q++)
     {
         const int p = queue[q];
-        if(pages[p].build == pageSearch || pages[p].build == pageChanged)
+        if(p == pageIndex(pageSearch) || p == pageIndex(pageChanged))
         {
             continue;
         }

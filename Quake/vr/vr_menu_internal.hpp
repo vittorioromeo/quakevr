@@ -249,10 +249,28 @@ struct Item
     }
 };
 
-using PageBuilder = za::Vector<Item> (*)();
+// A page's builder: its rows.
+using PageFn = za::Vector<Item> (*)();
 
-// The index of the page `build` builds (pages[], below): what a link to it opens.
-[[nodiscard]] int pageIndex(PageBuilder build);
+// A page: its number in pages[] (vr_menu_table.inc). Pages are known by number, never by their builders' addresses
+// (the release link gives builders with the same code one address: vr_menu_table.inc). A builder named in the code
+// becomes its page's number while compiling (a builder not in pages[] does not compile); a number at run time: at().
+struct PageRef
+{
+    int index;
+    consteval PageRef(PageFn build); // (vr_menu_table.inc)
+    [[nodiscard]] static constexpr PageRef at(int p) { return PageRef{p, 0}; }
+    friend constexpr bool operator==(PageRef, PageRef) = default;
+
+private:
+    constexpr PageRef(int p, int) : index(p) {}
+};
+
+// The number of a page (pageIndex(pageConsole)): what a link to it opens.
+[[nodiscard]] constexpr int pageIndex(PageRef page)
+{
+    return page.index;
+}
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
@@ -335,7 +353,7 @@ enum MenuLevel
 // WeaponOffsetsPart, a line in `pages` (last) and one here.
 struct WeaponOffsetsPartPage
 {
-    PageBuilder build;
+    PageRef build;
     const char* link;
     const char* help;
 };
@@ -349,6 +367,11 @@ extern const char* const menuButtonHelp;
 extern const WeaponOffsetsPartPage weaponOffsetsPartPages[WofsParts - 1];
 template <int P>
 [[nodiscard]] za::Vector<Item> pageMonsterParam();
+template <int G>
+[[nodiscard]] za::Vector<Item> pageMonsterGroup();
+template <int Group>
+[[nodiscard]] za::Vector<Item> pageRagtoolParams();
+[[nodiscard]] za::Vector<Item> pageCampaigns();
 // core
 [[nodiscard]] Item action(const char* label, void (*fn)());
 [[nodiscard]] const char* buildVersionLine();
@@ -646,8 +669,6 @@ za::Vector<Item> pageWofsSights();
 za::Vector<Item> pageWofsStock();
 za::Vector<Item> pageWofsTwoHanded();
 extern int relightToolState;
-void sightAlignApply();
-void sightAlignUndo();
 extern int weaponOffsetsHand;
 extern int weaponOffsetsHeldSlot;
 extern int weaponOffsetsHolster;
@@ -658,11 +679,12 @@ extern int weaponOffsetsInherit;
 extern int weaponOffsetsManual;
 extern int weaponOffsetsPreviewOwn;
 extern bool weaponOffsetsSightFocus;
+extern int weaponOffsetsSightFocusRow;
 extern int weaponOffsetsSightVersion;
 extern int weaponOffsetsSlot;
 extern bool weaponOffsetsStale;
-void weightPageShown(PageBuilder build);
-[[nodiscard]] bool weightPageStale(PageBuilder build);
+void weightPageShown(PageRef build);
+[[nodiscard]] bool weightPageStale(PageRef build);
 [[nodiscard]] const char* weightReadout(int hand);
 // (the Retro Textures pages' template, below)
 [[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)());
@@ -680,6 +702,8 @@ za::Vector<Item> pageRetroCategory()
 {
     return retroCategoryItems(C, retroResetCategory<C>);
 }
+
+#include "vr_menu_table.inc" // pages[], the pages by number
 
 } // namespace menu_detail
 

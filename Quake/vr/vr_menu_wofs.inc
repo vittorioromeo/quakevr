@@ -135,6 +135,7 @@ void weaponOffsetsPose(int hotspot)
 // Align Sights to My Aim (vr_sightalign.cpp) on the page's weapon.
 int weaponOffsetsSightVersion = -1;
 bool weaponOffsetsSightFocus = false; // the section changed: the cursor to Apply (a result) or Undo (applied)
+int weaponOffsetsSightFocusRow = -1; // the row it goes to on the page as built last: Apply or Undo (-1: neither)
 
 void sightAlignStart()
 {
@@ -566,6 +567,7 @@ za::Vector<Item> pageWofsSights()
 {
     using weapons::Key;
     za::Vector<Item> list;
+    weaponOffsetsSightFocusRow = -1;
     const int slot = weaponOffsetsBegin(list, WofsSights);
     if(slot < 0 || slot == weapons::fistSlot())
     {
@@ -579,6 +581,7 @@ za::Vector<Item> pageWofsSights()
     {
         if(sightalign::phase() == sightalign::Phase::Result)
         {
+            weaponOffsetsSightFocusRow = static_cast<int>(list.size());
             list.pushBack(action("Apply", sightAlignApply)
                                .help("Turns the hand and the gun together about your fist (Hand and Weapon Together) so "
                                      "that the sights line up in front of your dominant eye, and the shots onto the "
@@ -594,6 +597,7 @@ za::Vector<Item> pageWofsSights()
                                      "button stops."));
             if(sightalign::canUndo())
             {
+                weaponOffsetsSightFocusRow = static_cast<int>(list.size());
                 list.pushBack(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
             }
         }

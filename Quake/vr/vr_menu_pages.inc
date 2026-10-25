@@ -42,7 +42,7 @@
 [[nodiscard]] za::Vector<Item> pageCrosshairSettings()
 {
     return {
-        open("Crosshair: VR Settings", pageIndex(pageVrsHud)).help("The crosshair's kind is on VR Settings."),
+        open("Crosshair: VR Settings", pageIndex(pageVrsHudHapticsSound)).help("The crosshair's kind is on VR Settings."),
         slider("Crosshair Depth", "vr_crosshair_depth", 0.f, 4096.f, 16.f, "%.0f").extend().help("When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth."),
         slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").extend().help("Size of the crosshair."),
         slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
@@ -2337,7 +2337,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageHudConfiguration()
 {
     return {
-        open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
+        open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageVrsHudHapticsSound)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
         slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f").extend(0.005f, 0.3f),
         slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
         slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
