@@ -203,7 +203,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     vr_ad_melee = isVRMelee;
     ad_T_Damage(targ, inflictor, attacker, damage, ad_DAMARMOR);
     vr_ad_melee = oldMelee;
-    if(isVRMelee && alive && getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
+    if(isVRMelee && alive && (targ.flags & FL_MONSTER) && getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED) // (enemies only)
     {
         float take = before - targ.health;
         if(targ.health <= 0)
