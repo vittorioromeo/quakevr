@@ -613,6 +613,286 @@ void() VR_PropImp_FtStep =
     }
 };
 
+// vr_prop_impact_test 5 (Debug > Gore Tests, "Flail Head Hits"; ROUND22.md, "His config's tuning as defaults; the loose
+// flail head hits"): the head of a flail lying about (vr_ad_melee.qc VR_FlailHead_Impact; AD mounted), its chain 2 m
+// meanwhile (vr_flail_chain: the handle made 130 ahead holds it within reach of the target). Cases, each from 40 units
+// off the target, its health 1000 to see the whole hit; each watched until a second after its first hit, or 1.5 s:
+//   0-5: flung (no hand: kicked, trailing its handle) into a grunt at 13, 16, 19 m/s, then a small crate as heavy
+//        (vr_flail_mass) the same way: a pair passes if the head hurt it once (no repeat hit) and, where the crate hit,
+//        within 0.3-3x the crate's damage;
+//   6:   thrown by a hand at 13 m/s into a grunt (VR_Carry_Loose, VR_Carry_Throw): hurt once;
+//   7:   made from your hand as you let go of the flail (its grace) and flung back at you: you unhurt;
+//   8:   (the control) a head lying beside a grunt's feet (no grace) flung at it: it hurt once;
+//   9:   the same, the grunt's own (dropped by it: its grace): it unhurt. (A Box3D prop never meets a player: his
+//        flung hits are touches, which the head has none of, as the fuel tank; case 7 checks nothing reaches you.)
+// One "flailhead_hit:" line a case, then "flailhead_hit: N passed, M failed". Use notarget, not god (cases 7, 8 read
+// your health).
+float vr_propimp_fh_on;
+float vr_propimp_fh_case;     // 0..9 (above)
+float vr_propimp_fh_phase;    // 0 make, 1 settle, 2 in flight
+float vr_propimp_fh_frames;
+float vr_propimp_fh_h0;       // the target's health before
+float vr_propimp_fh_mass;     // what flies, kg (kept: a crate broken by its hit is gone)
+float vr_propimp_fh_last;     // and last frame
+float vr_propimp_fh_hits;     // its health's drops in flight
+float vr_propimp_fh_first;    // the frame of the first (-1: none yet)
+float vr_propimp_fh_spared0;  // vr_flailhead_spared before the case
+float vr_propimp_fh_headdmg;  // this speed's head damage and hits (cases 0-5)
+float vr_propimp_fh_headhits;
+float vr_propimp_fh_pass;
+float vr_propimp_fh_fail;
+float vr_propimp_fh_chain;    // vr_flail_chain before
+float vr_propimp_fh_health;   // your health before
+entity vr_propimp_fh_mon;
+entity vr_propimp_fh_gun;     // the flail's handle
+entity vr_propimp_fh_prop;    // what flies
+entity vr_propimp_fh_at;      // where you stood at the start, facing the way you faced
+float VR_PROPIMP_FH_AFTER = 72;  // frames watched after the first hit (a repeat hit)
+float VR_PROPIMP_FH_GIVEUP = 108; // frames (1.5 s) without a hit: none (past the heads' 1 s grace)
+
+float(float c) VR_PropImp_FhSpeed = { return c < 6 ? 13 + 3 * floor(c / 2) : 13; };
+
+// The flail made this frame (VR_ADWeapons_Make's).
+entity() VR_PropImp_FhFlail =
+{
+    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    {
+        if(VR_FlailHead_IsFlail(w) && w.vr_drop_born == time)
+        {
+            return w;
+        }
+    }
+    return world;
+};
+
+// `w`'s head made again from `xFrom` (a player's hand, a monster's drop: its grace), the one beside it gone.
+entity(entity w, entity xFrom) VR_PropImp_FhRemake =
+{
+    entity h = VR_FlailHead_Of(w);
+    if(h)
+    {
+        w.vr_fuellink = world;
+        remove(h);
+    }
+    VR_FlailHead_Attach(w, xFrom);
+    return VR_FlailHead_Of(w);
+};
+
+void() VR_PropImp_FhClear =
+{
+    if(vr_propimp_fh_mon != world && vr_propimp_fh_mon.modelindex)
+    {
+        remove(vr_propimp_fh_mon);
+    }
+    if(vr_propimp_fh_gun != world && vr_propimp_fh_gun.modelindex)
+    {
+        remove(vr_propimp_fh_gun); // (its head goes with it: VR_FlailHead_Think)
+    }
+    else if(vr_propimp_fh_prop != world && vr_propimp_fh_prop.modelindex)
+    {
+        VR_Carry_Forget(vr_propimp_fh_prop);
+        remove(vr_propimp_fh_prop);
+    }
+    vr_propimp_fh_mon = world;
+    vr_propimp_fh_gun = world;
+    vr_propimp_fh_prop = world;
+};
+
+// Each frame while it runs; self the player.
+void() VR_PropImp_FhStep =
+{
+    float c = vr_propimp_fh_case;
+    float crate = (c < 6 && mod(c, 2) == 1);
+    float onYou = (c == 7);
+    float speed = VR_PropImp_FhSpeed(c);
+    float m2u = VRMetersToUnits();
+    entity at = vr_propimp_fh_at;
+    makevectors('0 1 0' * at.angles_y);
+    vector fwd = v_forward, right = v_right;
+    entity oself;
+    if(vr_propimp_fh_phase == 0)
+    {
+        if(!onYou)
+        {
+            oself = self;
+            self = spawn();
+            self.classname = "monster_army";
+            setorigin(self, at.origin + fwd * 200);
+            self.angles_y = at.angles_y + 180;
+            monster_army();
+            vr_propimp_fh_mon = self;
+            self = oself;
+        }
+        if(!crate)
+        {
+            VR_ADWeapons_Make(at, 346, onYou ? 60 : 130); // (the death sergeant's flail lying with its head)
+            vr_propimp_fh_gun = VR_PropImp_FhFlail();
+            vr_propimp_fh_prop = VR_FlailHead_Of(vr_propimp_fh_gun);
+        }
+        vr_propimp_fh_phase = 1;
+        vr_propimp_fh_frames = 0;
+        return;
+    }
+    vr_propimp_fh_frames++;
+    entity m = vr_propimp_fh_mon;
+    entity target = onYou ? self : m;
+    entity t = vr_propimp_fh_prop;
+    entity w = vr_propimp_fh_gun;
+    if(vr_propimp_fh_phase == 1)
+    {
+        if(vr_propimp_fh_frames < VR_PROPIMP_FT_SETTLE)
+        {
+            return;
+        }
+        vector mid = onYou ? self.origin + '0 0 8' : (m.absmin + m.absmax) * 0.5;
+        vector from = onYou ? self.origin + fwd * (self.maxs_x + 40) + '0 0 8' : mid - fwd * (m.maxs_x + 40);
+        if(!onYou)
+        {
+            from_z = m.absmin_z + 20;
+        }
+        if(!crate && (w == world || t == world))
+        {
+            bprint(sprintf("flailhead_hit: case %g: no flail or head made (AD mounted?)\n", c));
+            vr_propimp_fh_fail++;
+            vr_propimp_fh_phase = 3;
+            return;
+        }
+        vector vel = fwd * speed * m2u;
+        if(crate)
+        {
+            t = VR_Crate_TestSpawn(from, 1, 0, FALSE);
+            setorigin(t, t.origin + '0 0 4');
+            t.flags = t.flags - (t.flags & FL_ONGROUND);
+            t.vr_prop_mass = max(0.2, cvar("vr_flail_mass")); // (as heavy as the head)
+            vr_propimp_fh_prop = t;
+        }
+        else if(c == 7)
+        {
+            // (its handle off to your side: the head flies on past you and the chain pulls the handle after it, which
+            // would hit you as a flung weapon if it came straight at you)
+            setorigin(w, self.origin + right * 48 + fwd * 24);
+            vel = -vel;
+            self.vr_flail_head = from; // (where the engine left your hand's head, flying back at you)
+            self.vr_flail_headvel = vel;
+            t = VR_PropImp_FhRemake(w, self);
+            vr_propimp_fh_prop = t;
+        }
+        else if(c >= 8)
+        {
+            setorigin(w, m.origin + right * 4 + '0 0 8'); // (the handle at its feet: dropped)
+            t = VR_PropImp_FhRemake(w, c == 9 ? m : world); // (9 its drop: its grace; 8 none: the control)
+            vr_propimp_fh_prop = t;
+            vel = normalize(mid - t.origin) * speed * m2u;
+        }
+        else
+        {
+            setorigin(t, from);
+        }
+        if(t == world)
+        {
+            bprint(sprintf("flailhead_hit: case %g: no head made again\n", c));
+            vr_propimp_fh_fail++;
+            vr_propimp_fh_phase = 3;
+            return;
+        }
+        t.vr_spin = '0 0 0';
+        if(c == 6)
+        {
+            VR_Carry_Start(self, cVR_MainHand, t);
+            VR_Carry_Forget(t);
+            t.carry_player = self;
+            VR_Carry_Loose(t);
+            VR_Carry_Throw(t, vel);
+        }
+        else
+        {
+            t.velocity = vel; // (flung: no hand's throw)
+        }
+        target.health = 1000;
+        vr_propimp_fh_h0 = target.health;
+        vr_propimp_fh_mass = t.vr_prop_mass > 0 ? t.vr_prop_mass : propvalue(t, "mass");
+        vr_propimp_fh_last = target.health;
+        vr_propimp_fh_hits = 0;
+        vr_propimp_fh_first = -1;
+        vr_propimp_fh_spared0 = vr_flailhead_spared;
+        dprint(sprintf("flailhead_hit: case %g from %v at %v, the target's middle %v\n", c, t.origin, vel, mid));
+        vr_propimp_fh_phase = 2;
+        vr_propimp_fh_frames = 0;
+        return;
+    }
+    if(vr_propimp_fh_phase == 2)
+    {
+        if(target.health < vr_propimp_fh_last)
+        {
+            vr_propimp_fh_hits++;
+            if(vr_propimp_fh_first < 0)
+            {
+                vr_propimp_fh_first = vr_propimp_fh_frames;
+            }
+        }
+        vr_propimp_fh_last = target.health;
+        if(vr_propimp_fh_first >= 0 ? vr_propimp_fh_frames < vr_propimp_fh_first + VR_PROPIMP_FH_AFTER :
+                                      vr_propimp_fh_frames < VR_PROPIMP_FH_GIVEUP)
+        {
+            return;
+        }
+        float dmg = vr_propimp_fh_h0 - target.health;
+        float spared = vr_flailhead_spared - vr_propimp_fh_spared0;
+        string what = crate ? "small crate" : "flail head";
+        string how = c == 6 ? "thrown" : "flung";
+        string into = onYou ? "you" : "a grunt";
+        if(c == 7) { what = "your hand's flail head"; }
+        if(c == 9) { what = "its own dropped flail head"; }
+        bprint(sprintf("flailhead_hit: %s (%.1f kg) %s at %g m/s into %s: %.1f damage, %g hits, %g spared\n", what,
+            vr_propimp_fh_mass, how, speed, into, dmg, vr_propimp_fh_hits, spared));
+        float ok = -1;
+        if(c < 6 && !crate)
+        {
+            vr_propimp_fh_headdmg = dmg;
+            vr_propimp_fh_headhits = vr_propimp_fh_hits;
+        }
+        else if(crate)
+        {
+            float ratio = dmg > 0 ? vr_propimp_fh_headdmg / dmg : 0;
+            ok = (vr_propimp_fh_headdmg > 0 && vr_propimp_fh_headhits == 1 && (dmg <= 0 || (ratio >= 0.3 && ratio <= 3)));
+            bprint(sprintf("flailhead_hit: flung at %g m/s: head %.1f (%g hits), crate %.1f (x%.2f%s): %s\n", speed,
+                vr_propimp_fh_headdmg, vr_propimp_fh_headhits, dmg, ratio, dmg > 0 ? "" : ", the crate missed",
+                ok ? "passed" : "FAILED"));
+        }
+        else if(c == 6 || c == 8)
+        {
+            ok = (dmg > 0 && vr_propimp_fh_hits == 1);
+        }
+        else
+        {
+            ok = dmg <= 0;
+        }
+        if(ok >= 0)
+        {
+            if(!crate)
+            {
+                bprint(sprintf("flailhead_hit: case %g: %s\n", c, ok ? "passed" : "FAILED"));
+            }
+            if(ok) { vr_propimp_fh_pass++; } else { vr_propimp_fh_fail++; }
+        }
+        vr_propimp_fh_phase = 3;
+    }
+    // Phase 3: this case done.
+    if(onYou)
+    {
+        self.health = vr_propimp_fh_health;
+    }
+    VR_PropImp_FhClear();
+    vr_propimp_fh_case++;
+    vr_propimp_fh_phase = 0;
+    if(vr_propimp_fh_case >= 10)
+    {
+        vr_propimp_fh_on = FALSE;
+        cvar_set("vr_flail_chain", ftos(vr_propimp_fh_chain));
+        bprint(sprintf("flailhead_hit: %g passed, %g failed\n", vr_propimp_fh_pass, vr_propimp_fh_fail));
+    }
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
@@ -626,6 +906,17 @@ void() VR_PropImp_TestFrame =
             oself = self;
             self = p;
             VR_PropImp_FtStep();
+            self = oself;
+        }
+    }
+    if(vr_propimp_fh_on)
+    {
+        p = find(world, classname, "player");
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_PropImp_FhStep();
             self = oself;
         }
     }
@@ -688,6 +979,25 @@ void() VR_PropImp_TestFrame =
         vr_propimp_ft_at.angles = '0 1 0' * self.angles_y;
         vr_propimp_ft_rope = cvar("vr_adgun_tank_rope");
         cvar_set("vr_adgun_tank_rope", "3");
+    }
+    else if(ask == 5)
+    {
+        VR_PropImp_FhClear();
+        vr_propimp_fh_on = TRUE;
+        vr_propimp_fh_case = 0;
+        vr_propimp_fh_phase = 0;
+        vr_propimp_fh_pass = 0;
+        vr_propimp_fh_fail = 0;
+        if(!vr_propimp_fh_at)
+        {
+            vr_propimp_fh_at = spawn();
+            vr_propimp_fh_at.classname = "vr_propimp_fh_at";
+        }
+        setorigin(vr_propimp_fh_at, self.origin);
+        vr_propimp_fh_at.angles = '0 1 0' * self.angles_y;
+        vr_propimp_fh_chain = cvar("vr_flail_chain");
+        vr_propimp_fh_health = self.health;
+        cvar_set("vr_flail_chain", "2");
     }
     else if(ask == 3)
     {

@@ -22048,3 +22048,88 @@ wrists in odd places, and the shots still went where they went before. The optio
   Pitch 7.
 - Tests: `vr_np_test 5` 7/0, `vr_np_test 1` 17/0, eval.sh no verdict changes (4 numbers differ in the third digit).
   Eyeshots: `scratch/before_gmp2.png`, `scratch/after_gmp2.png` (7, 17; after also -90, 90).
+(Done since: the next section.)
+
+## His config's tuning as defaults; the loose flail head hits (worktree `dequant`, branch `agent/promote`, 2026-10-25)
+
+From the cvar audit (qvr-kit `scratch/cvar_audit.md`, A1.4 and B2) and Vittorio's decisions of 2026-10-25. Source: his
+`quakevr-iw/quakevr/ironwail.cfg` of 10-25 17:50 (read only). Reason for every row: **his config, approved 2026-10-25**
+(the logging ones: his decision, "logging off by default").
+
+**configVersion 202** (vr_cvars.cpp). Every row moves only a config still at the old default (`defaultChanges` strcmp;
+`namedDefaultChanges` sameValue):
+
+| setting | old -> new | how |
+|---|---|---|
+| `vr_memstats_log` | 60 -> 0 | row 202 |
+| `vr_xr_log_timing` | 1 -> 0 | row 202 |
+| `vr_gl_markers` | 1 -> 0 | not archived (CVAR_NONE): the default only |
+| `vr_flail_max_damage` / `_max_speed` / `vr_flail_chain` | 120 -> 100, 16 -> 12, 0.45 -> 0.6 | row 202 |
+| `vr_water_foam_particle_life` / `_shore` / `_spray` | 0.8 -> 0.4, 0 -> -1, 1 -> 0 | row 202 |
+| `vr_adgun_tank_health` | 30 -> 15 | row 202 |
+| `vr_bullettime_duration` | 20 -> 15 | row 202 |
+| `vr_struggle_look` / `_strength` | 0.9 -> 1, 0.6 -> 0.8 | row 202 |
+| `vr_ammo_pouch_wobble_intensity` / `_settle` | 1 -> 0.8, 1.3 -> 0.5 | row 202 |
+| `vr_mgrp_ogre_poise` | 1.6 -> 1.4 | named row 202 (vr_mgroups.inc) |
+| `vr_prop_size_45` (h_zombie's head) | 1 -> 0.8 | named row 202 |
+| `vr_prop_grip_x_51` / `grip_z_51` / `two_hands_51` (nailgun magazine) | -2.13 -> -2.1, -3.05 -> -3.35, 0 -> 1 | named rows 202 |
+| `vr_prop_size_57` / `grip_57` / `handle_tilt_57` (nail pistol magazine) | 0.52 -> 0.55, 1 -> 2 (In the Palm), 25 -> 30.5 | named rows 202 |
+| `vr_prop_grip_x/y/z_57` | -1.8/0.05/-2.6 -> 0/0/0 | named rows 202 (his: In the Palm needs no offset) |
+| AD heads held as props: `_33` h_dknight 0.6, `_58` h_dcrossbow 0.6, `_59` h_soldier 0.65, `_60` h_enforcer 0.65, `_62` h_hogreham 0.7, `_64` h_dguard 0.65, `_71` h_hogre 0.6 | new shipped slots (were free) | `shippedSlots {202, ...}` (vr_props.cpp) |
+| armed grunts' pose keys (`vr_agpose.cpp shipped[]`) and grips (`vr_aggrip.cpp globalDefaults`) | his 70 keys, 3 grips | compiled in; archived copies dropped (below) |
+
+Not promoted: `vr_agrunt_dual_chance` (his test value 1), `r_lerpmodels`, the AD guard sword's inherit (questions to him),
+every personal setting.
+
+- **Prop slots.** The heads ship in his config's slots (free in every shipped table; a model another config put there is
+  moved out with all its settings by 201's `moveSquatter`, and a head grabbed into another slot brings its chosen values
+  over, that slot freed). The hunter ogre's head goes to `_71`, not `_69` where 201 moves it in his config: `_69` must
+  stay free by default, or 201 could not find the nail pistol magazine's other slot to merge from. Their mass stays
+  estimated (Mass 0), as in his slots (the other shipped heads have -1: a ragdoll's share; ask him if these should too).
+- **Order.** The named rows now run after `props::takeShippedSlots`: before, a model squatting in `_57` at its key
+  defaults (handle tilt 25) would have taken the magazine's new tilt and carried it to its new slot.
+- **Pose keys and grips.** `Misc/quakevr/pose_defaults.py --cfg <his cfg> --write`: 14 keys new or changed (grunt fists
+  pickup legs, gun Carry/Aim/Pickup, one-handed Pickup, Overhead x3, Diagonal wind-up, two guns Carry/Aim; enforcer gun
+  Carry/Aim/Run), grunt Main and Second, enforcer Second. **Decision: clear what equals the new defaults.** At 202
+  `agpose::dropShippedEqual` and `aggrip::dropDefaultEqual` drop each archived entry equal (within the studio's
+  rounding) to its shipped key / default, as the studio's own set() does (an entry with no shipped row: equal to zeros).
+  His text then is "" (70 keys, 3 grips dropped), so a later change of the shipped keys reaches him; an entry he changed
+  since stays. The text is left alone if any entry in it did not parse (a weapon slot unknown here: rewriting would lose
+  it).
+- **The loose flail head** (QC `vr_ad_melee.qc`): `.vr_impact = VR_FlailHead_Impact` (`VR_SolidProp_Impact`, as the fuel
+  tank) and `.throwhit = QVR_THROWHIT_HIT` at spawn (a dropped head is not a throw). Thrown by a hand it hurts as a
+  thrown 3 kg prop; flung (trailing a thrown or kicked handle, batted, on the grapple's rope) as a flung prop, once a
+  `VR_FLING_REHIT`. Never its wielder: made from a player's hand it spares him (`.owner` for its 1 s grace, `carry_letgo`
+  him: credited with its hits, `vr_throw_self_grace`), a monster's drop or throw now has the same grace (`.owner` the
+  monster; `vr_monster_drop` copied from the handle), the player force grabbing its handle is skipped. A Box3D prop never
+  meets a player (players' flung hits are touches, which neither the head nor the tank has). `vr_flailhead_spared` counts
+  skipped hits; `developer 1` prints each hit.
+
+**Tests** (headless, vrtesthall):
+- Migration (`scratch/mig_make.py`, `mig_run.sh`, `mig_check.py`: one run, `resetcfg; exec <cfg>; vr_migrate_config`
+  each): fresh (resetcfg), old defaults at 201 (with h_dknight grabbed in `_75` at size 0.7, a v_axe of mass 5 squatting
+  in `_58`, his pose/grip text), chosen values at 201 (his poses and grips with one entry changed each), his whole
+  config (200): 504 values, 0 failed. Old -> every new default, h_dknight to `_33` at its chosen 0.7, the axe moved to
+  `_66` with its mass, poses/grips "" ; chosen -> all kept, one pose key and one grip left; his -> his values, logging 0,
+  `_57` the magazine, h_hogre `_69` -> `_71`, poses/grips "", dual chance still 1.
+- `vr_prop_impact_test 5` (new; Debug > Gore Tests, "Flail Head Hits"; `-QuitOn "flailhead_hit: [0-9]+ passed"`): 7
+  passed, 0 failed. Flung into a grunt at 13/16/19 m/s: head 10/14/17 (one hit each) vs a 3 kg crate 13/16/13; thrown
+  by a hand at 13 m/s: 6-8; your hand's head flung back at you: 0; a grunt's own dropped head flung at it: 0 (its
+  control, the same head with no grace: 12-13, one hit). Before: no hit at all (touch SUB_Null, no .vr_impact).
+  A first try of case 7 showed the handle (1.2 kg, base damage 60) yanked by the chain into you for 53 as a flung
+  weapon (a handle made by the toolgun: nobody's throw): existing weapon behaviour, the test now keeps the handle aside.
+- Fuel tank (`vr_prop_impact_test 4`): 6 passed, 0 failed. `vr_prop_impact_test 1`: every line, done.
+- Armed grunts: test 1 16/17 (the proximity gun, as before), 61 40/0, 70 21/0, 72 7/0, 73 census (no verdicts), 71
+  8/2 (the enforcer's balance: damage a shot and a second; the same 8/2 with next's 14 keys and 3 grips put back over
+  the new ones by `vr_agrunt_poses`, `scratch/old_poses.py`, and its vanilla side swings 6-15 a shot run to run: noise,
+  not the poses). Tests 41 and 45, grunt and enforcer, with the cvars empty (the new shipped keys) vs his text: every
+  number equal (joint gap 0.000, hand shape 0.0000; the enforcer's off hand on its second grip 5.40 vs 5.53, the
+  grunt's 6.17 vs 6.21 units: the dump's rounding).
+- Scenes: `vr_scenario runall quit agrunt_pose_studio agrunt_grip_editor agrunt_pickup`: 3 run, 0 failed. Eyeshot of
+  `agrunt_pose_studio` with the cvars empty and with his text: the same poses.
+- `eval.sh`: canary 36/44, 0 differ.
+
+**In VR:**
+- [ ] Throw a death sergeant's flail at a grunt: the trailing head hits it once (about as a small crate); let go of a
+  swinging flail: its head never hurts you.
+- [ ] The armed grunts' and enforcers' poses with an empty `vr_agrunt_poses`: as you set them in the Pose Studio.

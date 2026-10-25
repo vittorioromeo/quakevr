@@ -419,7 +419,7 @@ QVR_CVAR(vr_sandevistan_missiles, "1", CVAR_ARCHIVE)   // in Sandevistan, the pl
 // world for as long as the meter lasts.
 QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a hard tap on the gadget's screen (vr_bullettime_tap) and vr_bullettime start and stop it; 0: off
 QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
-QVR_CVAR(vr_bullettime_duration, "20", CVAR_ARCHIVE)    // real seconds a full meter lasts
+QVR_CVAR(vr_bullettime_duration, "15", CVAR_ARCHIVE)    // real seconds a full meter lasts (his 15, 20 before vr_cfg_version 202)
 QVR_CVAR(vr_bullettime_meter_mode, "1", CVAR_ARCHIVE) // QVR round 22: how the meter fills: 1 earned (by the damage you deal living monsters, never over time: vr_bullettime_earn_*); 0 over time (vr_bullettime_recharge, 1.0's)
 QVR_CVAR(vr_bullettime_earn_damage, "350", CVAR_ARCHIVE) // earned: the damage (health taken from living monsters, no overkill) that fills it from empty on Normal (times vr_bullettime_earn_skill<n> on the others); 350: about twelve grunts (30 health each)
 QVR_CVAR(vr_bullettime_earn_active, "0.2", CVAR_ARCHIVE) // earned: damage dealt while it runs fills it at this share (0: not at all .. 1: fully; low: no endless slow motion)
@@ -681,7 +681,7 @@ QVR_CVAR(vr_stereo_single, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
-QVR_CVAR(vr_xr_log_timing, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_xr_log_timing, "0", CVAR_ARCHIVE) // (1 before vr_cfg_version 202)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
@@ -1124,7 +1124,7 @@ QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
 QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_ARCHIVE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
 QVR_CVAR(vr_heap_load_hold, "60000", CVAR_ARCHIVE)  // ms a map load keeps the memory it frees for its own later allocations (the heap's purge delay while it loads, vr_crtheap.c), all given back at its first frame drawn: 0 off (purged as vr_heap_purge_delay says; vrstart's hull build 1.7x slower)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
-QVR_CVAR(vr_memstats_log, "60", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off)
+QVR_CVAR(vr_memstats_log, "0", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
 QVR_CVAR(vr_memstats_glscan, "1", CVAR_NONE)       // the memory log's GL object count at each map load (vr_main.cpp countGlForLog): 1 the names glGen* hands out (no object, by the GL spec) not asked about (the same count, 5 ms), 0 every name asked up to 4096 past the last object (13 ms), 2 both, compared (printed)
 QVR_CVAR(vr_image_cache_mb, "512", CVAR_ARCHIVE)   // decoded image files (a texture pack's world textures, material maps, skies, skins) kept across map loads, up to this many MB (vr_imgcache.cpp: keyed by the file itself; the least recently used go first; vr_image_cache_info); 0: none kept, each load decodes them again
 QVR_CVAR(vr_texture_prefetch, "1", CVAR_ARCHIVE)   // a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker threads ahead of Mod_LoadTextures' uploads, which take them in order (vr_imgprefetch.cpp; the same pixels; vr_image_prefetch_info); 0: decoded on the main thread at each upload, as before
@@ -2204,7 +2204,7 @@ QVR_CVAR(vr_retrolight_shadow_steps, "0", CVAR_ARCHIVE)     // shadows' darkness
 QVR_CVAR(vr_retrolight_shadow_block, "0.5", CVAR_ARCHIVE)     // shadows looked up on a grid of blocks this many texels (0: per pixel; 0.25, 0.5, 1, 2, 4, 8, 16)
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
-QVR_CVAR(vr_gl_markers, "1", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame
+QVR_CVAR(vr_gl_markers, "0", CVAR_NONE)               // GL debug groups for frame debuggers (RenderDoc, Nsight): each GPU profile scope (eye L/R, depth prepass, world, shadow maps, post, 2D, xr submit ...) and the engine's own groups (GL_BeginGroup); 1 on, 2 only with a debugger or frame debugger in the process, 0 off (-glmarkers and -gldebug: on). Latched each frame (1 before 2026-10-25)
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front
 QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU times: its GPU scopes' timer queries on one frame in this many (each stalls the GPU a little: 1 every frame, 4 a quarter of the cost; 0 none, the CPU's times alone)
@@ -2617,11 +2617,11 @@ QVR_CVAR(vr_water_foam_red, "0.85", CVAR_ARCHIVE)     // ... its colour, red (0.
 QVR_CVAR(vr_water_foam_green, "0.9", CVAR_ARCHIVE)    // ... green
 QVR_CVAR(vr_water_foam_blue, "0.92", CVAR_ARCHIVE)    // ... blue
 QVR_CVAR(vr_water_foam_particles, "2", CVAR_ARCHIVE)  // ... foam particles along the shore (vr_particles.cpp shoreFoam): how many (0 off .. 4; 1 about 15 a second for each 100 units of shore near you)
-QVR_CVAR(vr_water_foam_particle_life, "0.8", CVAR_ARCHIVE) // ... how long each lasts, seconds (0.2..4)
+QVR_CVAR(vr_water_foam_particle_life, "0.4", CVAR_ARCHIVE) // ... how long each lasts, seconds (0.2..4) (his 0.4, 0.8 before vr_cfg_version 202)
 QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
 QVR_CVAR(vr_water_foam_particle_size, "1.5", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
-QVR_CVAR(vr_water_foam_particle_shore, "0", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side)
-QVR_CVAR(vr_water_foam_particle_spray, "1", CVAR_ARCHIVE) // every liquid's shore foam particles: 1 soft spray bursting up off the shore line and falling back (water hitting the wall), 0 the older rising puffs of bubbly foam
+QVR_CVAR(vr_water_foam_particle_shore, "-1", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side) (his -1, 0 before vr_cfg_version 202)
+QVR_CVAR(vr_water_foam_particle_spray, "0", CVAR_ARCHIVE) // every liquid's shore foam particles: 1 soft spray bursting up off the shore line and falling back (water hitting the wall), 0 the older rising puffs of bubbly foam (his 0, 1 before vr_cfg_version 202)
 QVR_CVAR(vr_water_foam_particle_retro, "0", CVAR_ARCHIVE) // ... the spray through retro textures as other particles (1), or always smooth and soft (0)
 QVR_CVAR(vr_water_foam_edge, "4", CVAR_ARCHIVE)       // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
 QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
@@ -3076,7 +3076,7 @@ QVR_CVAR(vr_adgun_tank_z, "8", CVAR_ARCHIVE)  // ... up (times vr_height_calibra
 QVR_CVAR(vr_adgun_tank_world, "1", CVAR_ARCHIVE) // ... lying about (dropped, thrown, a monster's): the gun's tank beside it, a prop held to it by a rope, a hose between them (QC vr_ad_enemyguns.qc "Fuel tanks"; vr_box3d.cpp, vr_adtank.cpp); 0 none
 QVR_CVAR(vr_adgun_tank_rope, "0.9", CVAR_ARCHIVE) // ... the rope's most from the gun's grip to the tank's middle, metres (its hose drawn as long, and a little more)
 QVR_CVAR(vr_adgun_tank_mass, "3", CVAR_ARCHIVE) // ... the tank's mass, kg (a gun dragging it, it dragging the gun)
-QVR_CVAR(vr_adgun_tank_health, "30", CVAR_ARCHIVE) // ... the tank's health (a grunt's): shot, blasted or struck enough it bursts (QC VR_FuelTank_Burst), its gun spent for good; 0: it never bursts
+QVR_CVAR(vr_adgun_tank_health, "15", CVAR_ARCHIVE) // ... the tank's health (a grunt's): shot, blasted or struck enough it bursts (QC VR_FuelTank_Burst), its gun spent for good; 0: it never bursts (his 15, 30 before vr_cfg_version 202)
 QVR_CVAR(vr_adgun_tank_burst_radius, "160", CVAR_ARCHIVE) // ... its burst's reach at a full tank, units (40% of it near empty; an empty tank only breaks with a puff of smoke)
 QVR_CVAR(vr_adgun_tank_burst_damage, "30", CVAR_ARCHIVE) // ... its burst's blast at its middle at a full tank (as the fuel left; the poison sprayer's half; weaker at the edge)
 QVR_CVAR(vr_adgun_tank_burst_burn, "6", CVAR_ARCHIVE) // ... the flamethrower's: seconds what it reaches burns at a full tank (40% near empty)
@@ -3138,13 +3138,13 @@ QVR_CVAR(vr_admelee_drops, "1", CVAR_ARCHIVE) // AD support: Arcane Dimensions' 
 QVR_CVAR(vr_admelee_sword_damage, "1.25", CVAR_ARCHIVE) // ... their swords' damage, times the knight's sword's (vr_sword_damage_mult; the hell knight's: 1.25)
 QVR_CVAR(vr_admelee_heavy_damage, "1.6", CVAR_ARCHIVE) // ... the hammer's and the mace's, times the knight's sword's, held in both hands (their weight: Weapon Weights, slots 45-46)
 QVR_CVAR(vr_admelee_heavy_1h, "0.5", CVAR_ARCHIVE) // ... held in one hand: their damage's share (heavy: one hand swings them slowly and weakly)
-QVR_CVAR(vr_flail_chain, "0.45", CVAR_ARCHIVE) // AD support: the death sergeant's flail: its chain's length, metres, from the handle's end to the head (vr_box3d_flail.cpp: a rope)
+QVR_CVAR(vr_flail_chain, "0.6", CVAR_ARCHIVE) // AD support: the death sergeant's flail: its chain's length, metres, from the handle's end to the head (vr_box3d_flail.cpp: a rope) (his 0.6, 0.45 before vr_cfg_version 202)
 QVR_CVAR(vr_flail_mass, "3", CVAR_ARCHIVE) // ... its spiked head's mass, kg (its swing's weight; its blows' damage goes by it; 2 before vr_cfg_version 194)
 QVR_CVAR(vr_flail_damage, "3", CVAR_ARCHIVE) // ... its head's blow: this times its mass (kg) times its speed into what it hits beyond vr_flail_min_speed (m/s)
 QVR_CVAR(vr_flail_min_speed, "3", CVAR_ARCHIVE) // ... its head hitting slower than this (m/s) deals nothing (a lazy wave), only knocks
-QVR_CVAR(vr_flail_max_damage, "120", CVAR_ARCHIVE) // ... a blow's damage at most (150 before vr_cfg_version 194)
+QVR_CVAR(vr_flail_max_damage, "100", CVAR_ARCHIVE) // ... a blow's damage at most (150 before vr_cfg_version 194) (his 100, 120 before vr_cfg_version 202)
 QVR_CVAR(vr_flail_min_damage, "10", CVAR_ARCHIVE) // ... and at least, a blow faster than vr_flail_min_speed (the author's note vrfiringrange_2026-10-23_17-33-56)
-QVR_CVAR(vr_flail_max_speed, "16", CVAR_ARCHIVE) // ... its head never faster than this, m/s (vr_box3d_flail.cpp; was a fixed 40: whirled up without end)
+QVR_CVAR(vr_flail_max_speed, "12", CVAR_ARCHIVE) // ... its head never faster than this, m/s (vr_box3d_flail.cpp; was a fixed 40: whirled up without end) (his 12, 16 before vr_cfg_version 202)
 QVR_CVAR(vr_flail_drag, "0.6", CVAR_ARCHIVE) // ... the air slowing its head (Box3D's linear damping, a second's share; its spin 1 + 4x it; was 0.05): whirling it takes work
 QVR_CVAR(vr_flail_2h, "1.3", CVAR_ARCHIVE) // ... held in both hands (the other on its handle): its blows this many times harder
 QVR_CVAR(vr_flail_rattle, "0.7", CVAR_ARCHIVE) // ... its chain's rattle (AD's gibs/gibchain.wav) as its head swings fast and strikes: its volume (0 none)
@@ -3794,8 +3794,8 @@ QVR_CVAR(vr_struggle_held_share, "0.5", CVAR_ARCHIVE)   // the joints above a he
 QVR_CVAR(vr_struggle_grip_guard, "6", CVAR_ARCHIVE)     // units: a held point this far from the hand (the hold lagging) eases the struggle, to a quarter at 2.5 times it (0: never)
 QVR_CVAR(vr_struggle_frantic, "1", CVAR_ARCHIVE)        // held by the head or the legs (or an arm): its free hands slap at the holding hands, erratic, pulled back and struck in (0..2; 0 the plain pry and grasp)
 QVR_CVAR(vr_struggle_squirm, "1", CVAR_ARCHIVE)         // held by the head or the legs: its body squirms (more thrashing over Flail; 0..2)
-QVR_CVAR(vr_struggle_look, "0.9", CVAR_ARCHIVE)        // its head turns to look at you (belly towards you or held up before you: straight at you; turned away: to the side you are on), within its neck's range, with small quick re-aims; not while you hold its head (0..1: the look's share over the struggle's own head moves; 0 never)
-QVR_CVAR(vr_struggle_look_strength, "0.6", CVAR_ARCHIVE) // its neck's strength while it looks at you (0..0.9: its head's muscles at least this, times its effort)
+QVR_CVAR(vr_struggle_look, "1", CVAR_ARCHIVE)        // its head turns to look at you (belly towards you or held up before you: straight at you; turned away: to the side you are on), within its neck's range, with small quick re-aims; not while you hold its head (0..1: the look's share over the struggle's own head moves; 0 never) (his 1, 0.9 before vr_cfg_version 202)
+QVR_CVAR(vr_struggle_look_strength, "0.8", CVAR_ARCHIVE) // its neck's strength while it looks at you (0..0.9: its head's muscles at least this, times its effort) (his 0.8, 0.6 before vr_cfg_version 202)
 QVR_CVAR(vr_struggle_upright, "1", CVAR_ARCHIVE)       // dragged by an arm: it fights to stay up, its legs under it holding it up and its chest righted (0..2; 0 it flops down)
 QVR_CVAR(vr_struggle_arm_reach, "150", CVAR_ARCHIVE)    // degrees: its shoulders' cone while it struggles, for its hands over its head (the rig's 85 about the hanging arm reach no higher than the shoulder; 0: the rig's)
 QVR_CVAR(vr_struggle_voice, "1", CVAR_ARCHIVE)          // its own pain, grunt, sight and idle sounds while it struggles: their volume (0..2; 0 silent), quieter as it weakens
@@ -4451,8 +4451,8 @@ QVR_CVAR(vr_ammo_pouch_wobble, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_wobble_test, "0", CVAR_NONE)
 QVR_CVAR(vr_ammo_pouch_wobble_each, "1", CVAR_ARCHIVE)      // each round on its own spring (its own frequency, damping, drive; lying ones tilt too), kept clear of the others; 0: one spring for all, as one block
 QVR_CVAR(vr_ammo_pouch_wobble_freq, "2", CVAR_ARCHIVE)      // springiness: how fast they sway, Hz (0.2..8)
-QVR_CVAR(vr_ammo_pouch_wobble_settle, "1.3", CVAR_ARCHIVE)  // how long a swing takes to die down to 5%, s (0.1..10)
-QVR_CVAR(vr_ammo_pouch_wobble_intensity, "1", CVAR_ARCHIVE) // how hard a move swings them (0..5; Wobble caps how far)
+QVR_CVAR(vr_ammo_pouch_wobble_settle, "0.5", CVAR_ARCHIVE)  // how long a swing takes to die down to 5%, s (0.1..10) (his 0.5, 1.3 before vr_cfg_version 202)
+QVR_CVAR(vr_ammo_pouch_wobble_intensity, "0.8", CVAR_ARCHIVE) // how hard a move swings them (0..5; Wobble caps how far) (his 0.8, 1 before vr_cfg_version 202)
 QVR_CVAR(vr_ammo_pouch_leg_follow, "0.5", CVAR_ARCHIVE) // it rides both thighs' animation (full body: walking), as the hip holsters do (vr_holster_leg_follow): 0 fixed on the belt, 1 all the way
 // Immersive reloading's rules (QC vr_reload.qc; Weapons > Reloading).
 QVR_CVAR(vr_reload_shell_pairs, "1", CVAR_ARCHIVE)     // 1: the pouch gives two shells taped together (both go in at once; one if one fits); a single one when only one is left or the gun in the other hand has one place left (1.1: the default)

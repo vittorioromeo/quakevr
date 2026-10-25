@@ -287,6 +287,7 @@ float vr_flailhead_made;    // heads made (the tests)
 float vr_flailhead_next;    // VR_FlailHead_Frame's next look
 float vr_flailhead_handed;  // heads made from a hand's (the tests)
 float vr_flailhead_taken;   // heads handed to a hand taking the flail (the tests)
+float vr_flailhead_spared;  // hits on its wielder skipped (VR_FlailHead_Impact; the tests)
 .float vr_flailhead_grace;  // let go of from a hand: until when it spares its dropper's body (.owner him, then its handle)
 string VR_FLAILHEAD_MODEL = "progs/w_blueflail.mdl#flailhead";
 
@@ -341,6 +342,34 @@ void() VR_FlailHead_Think =
     self.nextthink = time + 0.01;
 };
 
+// Its Box3D hit (.vr_impact, at `xSpeed` m/s; Vittorio, 2026-10-25: the loose head dealt no damage, its touch SUB_Null):
+// as the fuel tank's (vr_ad_enemyguns.qc VR_FuelTank_Impact, vr_crates.qc VR_SolidProp_Impact): thrown by a hand into a
+// monster it hurts it as a thrown prop of its mass (vr_flail_mass) does; flung into one (trailing its thrown or kicked
+// handle, batted, on the grapple's rope) as a flung prop (VR_Prop_Flung: once a VR_FLING_REHIT, a 3 kg prop's damage).
+// Never its wielder: let go of from a hand, or dropped by a monster, it spares that body (.owner) until its grace is
+// over, whatever it lands on; nor the player pulling its handle to him (a force grab).
+void(float xSpeed) VR_FlailHead_Impact =
+{
+    entity w = VR_FlailHead_Handle(self);
+    if(cvar("developer") && other != world)
+    {
+        dprint(sprintf("admelee: a flail's head met %s at %.1f m/s (its owner %s, grace %.2f s)\n", other.classname, xSpeed,
+            self.owner.classname, self.vr_flailhead_grace ? self.vr_flailhead_grace - time : 0));
+    }
+    if(other != world && ((self.vr_flailhead_grace && other == self.owner) || (w && w.fg_state != 0 && other == w.fg_player)))
+    {
+        vr_flailhead_spared++;
+        return;
+    }
+    entity was = self.owner;
+    float spare = self.vr_flailhead_grace > 0 && self.throwhit != QVR_THROWHIT_NEVER_HIT;
+    VR_SolidProp_Impact(xSpeed);
+    if(spare && self.owner != was)
+    {
+        self.owner = was;
+    }
+};
+
 void(entity xGun, entity xFrom) VR_FlailHead_Attach =
 {
     if(!VR_FlailHead_IsFlail(xGun) || !cvar("vr_flail_world") || !cvar("vr_ad_mounted") || VR_FlailHead_Of(xGun))
@@ -392,7 +421,13 @@ void(entity xGun, entity xFrom) VR_FlailHead_Attach =
             at = xGun.origin + (trace_endpos - xGun.origin) * 0.7; // (short of a wall)
         }
         vel = xGun.velocity;
+        if(xFrom.flags & FL_MONSTER)
+        {
+            h.owner = xFrom; // (a monster's drop or throw: out of its body before it meets it)
+            h.vr_flailhead_grace = time + 1;
+        }
     }
+    h.vr_monster_drop = xGun.vr_monster_drop; // (a monster's: not on a player just yet, as its handle: VR_Prop_Flung)
     h.angles = vectoangles(xGun.origin - at); // (its ring, +x, towards the handle)
     setorigin(h, at);
     h.velocity = vel;
@@ -400,6 +435,13 @@ void(entity xGun, entity xFrom) VR_FlailHead_Attach =
     xGun.vr_fuellink = h;
     h.vr_prop_mass = max(0.2, cvar("vr_flail_mass"));
     h.touch = SUB_Null;
+    h.vr_impact = VR_FlailHead_Impact;
+    h.throwhit = QVR_THROWHIT_HIT; // (not thrown yet: QVR_THROWHIT_NEVER_HIT, 0, is a throw in flight)
+    if(h.vr_flailhead_grace && (xFrom.flags & FL_CLIENT))
+    {
+        h.carry_letgo = xFrom; // (his: the flung hit's attacker, and spared as it leaves the hand: VR_Prop_Flung)
+        h.carry_letgo_time = time;
+    }
     h.handtouch = SUB_Null; // (nothing to take: a hand carries it, VR_Carry_Setup)
     VR_Carry_Setup(h);
     h.think = VR_FlailHead_Think;

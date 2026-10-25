@@ -196,6 +196,14 @@ constexpr ShippedSlot shippedSlots[] = {
     {183, 62}, // AD's health vial (progs/health_5.mdl): in the palm
     {187, 64}, // AD's death fury's head (progs/h_dfury.mdl): 0.65 of its size
     {200, 56}, // the nail pistol's magazine (progs/vr_mag_npistol.mdl): held as the nailgun's
+    // 202: AD's heads the author held, at his sizes (his config's slots; the hunter ogre's past where 201 moved it)
+    {202, 32}, // progs/h_dknight.mdl
+    {202, 57}, // progs/h_dcrossbow.mdl
+    {202, 58}, // progs/h_soldier.mdl
+    {202, 59}, // progs/h_enforcer.mdl
+    {202, 61}, // progs/h_hogreham.mdl
+    {202, 63}, // progs/h_dguard.mdl
+    {202, 70}, // progs/h_hogre.mdl
 };
 
 // configVersion 201: a shipped slot that another model had taken (the slots shipped since 1.0.1 were free before, and a

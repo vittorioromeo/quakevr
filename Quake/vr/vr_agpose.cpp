@@ -22,28 +22,33 @@ namespace
 // The shipped keys (vr_agrunt_pose_dump prints rows to paste here): the key's code (agpose::code: kind * 10000 +
 // class * 1000 + pose * 10 + phase), then its parts as agpose::Part orders them; a code with no row: QC's pose as it
 // is. An archived key (vr_agrunt_poses) replaces its code's row (agpose::get). Vittorio's, set in the Pose Studio (his
-// vr_agrunt_poses of 2026-10-24 14:24, its Done file proposed_defaults/agrunt_poses_2026-10-24_14-24-34.txt), written
-// by Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
+// vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25), written by
+// Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write. configVersion 202 drops the archived keys equal to
+// these (dropShippedEqual: his text then empty).
 struct ShippedRow
 {
     int code;
     float v[agpose::NumParts * 3];
 };
 constexpr ShippedRow shipped[] = {
+    // grunt, the pickup's legs (any weapon)
+    {31, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -1.2f, -0.39f, 0.97f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a gun, Idle / Carry
+    {1000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a gun, Aim
-    {1010, {7.99f, 1.2f, 3.13f, -2.7f, -4.f, -6.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {1010, {3.88f, 7.97f, 5.5f, 0.4f, 9.2f, -4.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // grunt, a gun, Pickup
-    {1030, {-1.44f, 6.11f, 13.54f, -15.f, 7.7f, 14.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.21f, -0.95f, 0.22f, 0.76f, 0.63f, -0.15f, 7.6f, -50.f, 47.2f}},
+    {1030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 7.6f, -50.f, 47.2f}},
     // grunt, a one-handed melee weapon, Pickup
-    {2030, {-4.82f, -8.26f, 14.69f, -13.3f, 6.3f, -9.3f, 0.96f, -9.4f, 16.33f, 0.f, 0.f, 0.f, -0.9f, -0.35f, 0.27f, -0.53f, 0.07f, -0.84f, -4.5f, -50.f, 22.4f}},
+    {2030, {-4.82f, -8.26f, 14.69f, -13.3f, 6.3f, -9.3f, -4.31f, -6.9f, 14.4f, 0.f, 0.f, 0.f, -0.9f, -0.35f, 0.27f, -0.62f, 0.66f, -0.42f, -4.5f, -50.f, 22.4f}},
     // grunt, a one-handed melee weapon, Overhead, wind-up
-    {2140, {4.37f, -4.83f, 8.02f, 34.9f, 2.6f, -16.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.53f, -0.08f, -0.43f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2140, {5.01f, -5.35f, 7.79f, 38.4f, 6.9f, -21.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.24f, -0.46f, -0.86f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Overhead, blow
-    {2141, {3.71f, -4.62f, 1.55f, 5.6f, -26.1f, -11.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.22f, -0.9f, 0.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2141, {4.4f, -3.21f, 1.07f, 13.2f, -24.2f, -0.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Overhead, follow-through
-    {2142, {6.07f, -7.28f, -0.91f, 22.f, -39.9f, -11.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.43f, -0.79f, -0.44f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2142, {5.6f, -3.59f, -1.2f, 33.1f, -36.7f, -20.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.43f, -0.79f, -0.44f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, wind-up
-    {2150, {2.33f, -7.4f, 3.37f, 4.8f, 2.1f, 24.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.35f, 0.04f, -0.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2150, {2.33f, -7.4f, 3.37f, 4.8f, 2.1f, 24.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.29f, -0.02f, -0.91f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, blow
     {2151, {1.88f, -2.27f, -0.51f, -5.f, -3.8f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.09f, -0.98f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, follow-through
@@ -94,8 +99,16 @@ constexpr ShippedRow shipped[] = {
     {5191, {2.51f, -0.94f, -1.12f, -56.f, -47.4f, -33.8f, 0.79f, 3.38f, -3.68f, 52.3f, -18.3f, 7.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, two melee weapons, Dual Strike, follow-through
     {5192, {16.06f, -13.43f, -25.45f, 2.9f, 15.2f, -78.7f, 4.79f, 11.33f, -18.14f, 8.3f, 23.4f, 49.5f, -0.26f, -0.92f, -0.31f, -0.54f, 0.32f, -0.78f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Idle / Carry
+    {6000, {-0.54f, -0.56f, 2.02f, 5.4f, 3.9f, 14.3f, 1.74f, 1.04f, 1.94f, 1.4f, 1.2f, -21.6f, -0.97f, -0.18f, -0.14f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Aim
+    {6010, {0.94f, 1.83f, 1.78f, -1.3f, 3.9f, -2.5f, 0.85f, 1.27f, 2.49f, 2.2f, 3.1f, -3.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a gun, Idle / Carry
+    {11000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, 0.89f, -0.42f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Aim
-    {11010, {12.2f, 8.93f, 8.82f, -1.1f, 2.4f, -7.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.45f, -0.7f, -0.55f, 0.03f, 1.f, -0.04f, 0.f, 0.f, 0.f}},
+    {11010, {12.1f, 6.33f, 6.41f, 2.5f, 3.9f, 13.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
+    // enforcer, a gun, Run
+    {11020, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Idle / Carry
     {12000, {5.62f, 2.02f, -1.7f, 5.7f, -51.1f, 9.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Ready
@@ -492,6 +505,48 @@ int copyKind(int from, int to)
     state.over = static_cast<za::Vector<Entry>&&>(kept);
     write();
     return n;
+}
+
+int dropShippedEqual()
+{
+    parse();
+    const char* text = vr_agrunt_poses.string ? vr_agrunt_poses.string : "";
+    int entries = 0; // (each ';'-ended, and a last one without)
+    bool open = false;
+    for(const char* p = text; *p; p++)
+    {
+        if(*p == ';')
+        {
+            entries++;
+            open = false;
+        }
+        else if(*p != ' ')
+        {
+            open = true;
+        }
+    }
+    entries += open ? 1 : 0;
+    if(entries != static_cast<int>(state.over.size()))
+    {
+        return 0;
+    }
+    za::Vector<Entry> kept;
+    for(const Entry& e : state.over)
+    {
+        Key ship;
+        const bool hasShip = shippedOf(e.code, ship);
+        if(!same(e.code, e.k, hasShip ? ship : Key{}))
+        {
+            kept.pushBack(e);
+        }
+    }
+    const int dropped = static_cast<int>(state.over.size() - kept.size());
+    if(dropped > 0)
+    {
+        state.over = static_cast<za::Vector<Entry>&&>(kept);
+        write();
+    }
+    return dropped;
 }
 
 void dumpText(za::String& out)
