@@ -345,6 +345,12 @@ void(float xSpeed) VR_SolidProp_Impact =
         float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
         if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < VR_Thrown_HitSpeed(self))
         {
+            if(cvar("developer"))
+            {
+                dprint(sprintf("%s: met %s at %.1f m/s (%.2f s after the throw; hurts from %.1f): the throw is over\n",
+                    self.classname, other == world ? "the level" : other.classname, speed / VRMetersToUnits(),
+                    time - self.carry_thrown, VR_Thrown_HitSpeed(self) / VRMetersToUnits()));
+            }
             self.throwhit = QVR_THROWHIT_HIT;
             self.owner = world; // the throw is over: no longer the thrower's (his traces pass his own missiles)
         }

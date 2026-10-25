@@ -313,8 +313,21 @@ entity(entity t) VR_FuelTank_WornGun =
 };
 entity(entity g, vector vel) VR_AG_DropHeld; // (vr_armedgrunt.qc: a worn tank's burst drops its gun)
 
+void(float xSpeed) VR_FuelTank_Impact;
+
+// A tank from a save made before it had its hit (none then) gets it.
+void(entity t) VR_FuelTank_ImpactFix =
+{
+    if(t.vr_impact != VR_FuelTank_Impact)
+    {
+        t.vr_impact = VR_FuelTank_Impact;
+        t.throwhit = QVR_THROWHIT_HIT;
+    }
+};
+
 void() VR_FuelTank_Think =
 {
+    VR_FuelTank_ImpactFix(self);
     entity g = VR_FuelTank_Gun(self);
     if(!g || !cvar("vr_adgun_tank_world"))
     {
@@ -347,6 +360,24 @@ void() VR_FuelTank_Think =
 void(entity attacker, float damage) VR_FuelTank_Pain =
 {
     particle2(self.origin, '0 0 0', QVR_PARTICLE_PRESET_CONTACTSPARKS, 2);
+};
+
+// Its Box3D hit (.vr_impact, at `xSpeed` m/s; Vittorio, 2026-10-25: "a thrown fuel tank deals no damage to enemies": it
+// had no hit at all, its touch SUB_Null): as a crate's or an explosive box's (vr_crates.qc VR_SolidProp_Impact): thrown
+// hard into a monster it hurts it as a thrown prop of its mass does (VR_Thrown_Damage), flung into one (on its rope,
+// batted) as a flung prop (VR_Prop_Flung). Box3D's speed of the hit, not the touch's (the touch, after the step, saw an
+// ogre's bounce: half the speed). Its own hits never hurt it, on a monster no more than on a wall: shots, blasts, blows
+// and flames burst it, not a throw. Dropped off a player's back, it still spares his body (.owner him) until its grace
+// is over, whatever it lands on.
+void(float xSpeed) VR_FuelTank_Impact =
+{
+    entity was = self.owner;
+    float spare = self.vr_fueltank_grace > 0 && self.throwhit != QVR_THROWHIT_NEVER_HIT;
+    VR_SolidProp_Impact(xSpeed);
+    if(spare && self.owner != was)
+    {
+        self.owner = was;
+    }
 };
 
 // `xGun`, a gun lying about, given its tank if it is a fuelled one without one: off `xFrom`'s back (a player dropping it:
@@ -397,6 +428,8 @@ void(entity xGun, entity xFrom) VR_FuelTank_Attach =
     xGun.vr_fuellink = t;
     t.vr_prop_mass = max(0.2, cvar("vr_adgun_tank_mass"));
     t.touch = SUB_Null;
+    t.vr_impact = VR_FuelTank_Impact;
+    t.throwhit = QVR_THROWHIT_HIT; // (not thrown yet: QVR_THROWHIT_NEVER_HIT, 0, is a throw in flight)
     t.handtouch = SUB_Null; // (nothing to take: a hand carries it, VR_Carry_Setup)
     VR_Carry_Setup(t);
     t.think = VR_FuelTank_Think;
@@ -463,6 +496,7 @@ float VR_HOSECUT_ALONG = 0.87; // cosine: the blade moving within 30 degrees of 
 // A tank cut free: it bursts when set off by a neighbour's burst (VR_FuelTank_Think's, without its gun).
 void() VR_FuelTank_FreeThink =
 {
+    VR_FuelTank_ImpactFix(self);
     if(self.vr_fueltank_burstat && time >= self.vr_fueltank_burstat)
     {
         VR_FuelTank_BurstNow(self, self.enemy);

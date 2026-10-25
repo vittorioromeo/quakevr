@@ -444,11 +444,191 @@ void() VR_PropImp_BlastStep =
     vr_propimp_bl_next = time + 0.25;
 };
 
+// vr_prop_impact_test 4 (Debug > Gore Tests, "Fuel Tank and Crate Thrown at Monsters"; ROUND22.md, "A thrown fuel tank
+// hurts"): a flamethrower's tank lying about (vr_ad_enemyguns.qc VR_FuelTank_Attach, its gun made ahead) and a small
+// crate as heavy as it (.vr_prop_mass vr_adgun_tank_mass) each thrown at 10, 13 and 16 m/s from 40 units off its face
+// into a grunt, then an ogre (made 200 ahead, its health 1000 to see the whole hit), as a hand lets go (VR_Carry_Loose,
+// VR_Carry_Throw); the tank's rope 3 m meanwhile (at 0.9 its gun held it back short of the monster). One "fueltankhit:" line a throw (the damage dealt), one a pair (passed: the tank hurt, stayed whole,
+// and where the crate hit its damage within 0.3-3x the crate's), then "fueltankhit: N passed, M failed". Use god and notarget. Each throw waits
+// for its hit (the throw over: .throwhit, or the monster hurt); 1.5 s without: no hit.
+float vr_propimp_ft_on;     // running
+float vr_propimp_ft_case;   // 0..11: monster (6 each), speed (2 each), tank or crate
+float vr_propimp_ft_phase;  // 0 make, 1 settle, 2 in flight
+float vr_propimp_ft_frames;
+float vr_propimp_ft_h0;     // the monster's health before the throw
+float vr_propimp_ft_bursts; // tanks burst before the throw
+float vr_propimp_ft_pass;
+float vr_propimp_ft_fail;
+float vr_propimp_ft_tankdmg; // this pair's tank damage (-1: no hit)
+float vr_propimp_ft_tankok;  // and whether it stayed whole
+entity vr_propimp_ft_mon;
+entity vr_propimp_ft_gun;   // the tank's gun (world: the crate's throw)
+entity vr_propimp_ft_prop;  // what is thrown
+entity vr_propimp_ft_at;    // where you stood at the start, facing the way you faced
+float vr_propimp_ft_rope;   // vr_adgun_tank_rope before (3 m while it runs: its gun 0.9 m off held the tank back)
+float VR_PROPIMP_FT_SETTLE = 36; // frames: the monster dropped to the floor, the bodies made
+float VR_PROPIMP_FT_GIVEUP = 108; // frames (1.5 s) in flight without a hit
+
+float(float c) VR_PropImp_FtSpeed = { return 10 + 3 * mod(floor(c / 2), 3); };
+
+void() VR_PropImp_FtClear =
+{
+    if(vr_propimp_ft_mon != world && vr_propimp_ft_mon.modelindex)
+    {
+        remove(vr_propimp_ft_mon);
+    }
+    if(vr_propimp_ft_gun != world && vr_propimp_ft_gun.modelindex)
+    {
+        remove(vr_propimp_ft_gun); // (its tank goes with it: VR_FuelTank_Think)
+    }
+    else if(vr_propimp_ft_prop != world && vr_propimp_ft_prop.modelindex)
+    {
+        VR_Carry_Forget(vr_propimp_ft_prop);
+        remove(vr_propimp_ft_prop);
+    }
+    vr_propimp_ft_mon = world;
+    vr_propimp_ft_gun = world;
+    vr_propimp_ft_prop = world;
+};
+
+// Each frame while it runs; self the player.
+void() VR_PropImp_FtStep =
+{
+    float c = vr_propimp_ft_case;
+    float tank = mod(c, 2) == 0;
+    float ogre = c >= 6;
+    float speed = VR_PropImp_FtSpeed(c);
+    entity at = vr_propimp_ft_at; // (where you stood at the start: you may be pushed about)
+    makevectors('0 1 0' * at.angles_y);
+    vector fwd = v_forward;
+    entity oself;
+    if(vr_propimp_ft_phase == 0)
+    {
+        oself = self;
+        self = spawn();
+        self.classname = ogre ? "monster_ogre" : "monster_army";
+        setorigin(self, at.origin + fwd * 200);
+        self.angles_y = at.angles_y + 180;
+        if(ogre) { monster_ogre(); } else { monster_army(); }
+        vr_propimp_ft_mon = self;
+        self = oself;
+        if(tank)
+        {
+            vr_propimp_ft_gun = VR_ADWeapons_Make(at, 318, 130); // (a flamethrower lying with its tank)
+            vr_propimp_ft_prop = VR_FuelTank_Of(vr_propimp_ft_gun);
+        }
+        vr_propimp_ft_phase = 1;
+        vr_propimp_ft_frames = 0;
+        return;
+    }
+    vr_propimp_ft_frames++;
+    entity m = vr_propimp_ft_mon;
+    entity t = vr_propimp_ft_prop;
+    if(vr_propimp_ft_phase == 1)
+    {
+        if(vr_propimp_ft_frames < VR_PROPIMP_FT_SETTLE)
+        {
+            return;
+        }
+        vector mid = (m.absmin + m.absmax) * 0.5;
+        vector from = mid - fwd * (m.maxs_x + 40); // (40 units clear of its face)
+        from_z = m.absmin_z + 20; // (both as high: a small crate's middle, a little over the floor)
+        if(tank)
+        {
+            if(t == world)
+            {
+                bprint("fueltankhit: no tank made with the flamethrower\n");
+                vr_propimp_ft_tankdmg = -1;
+                vr_propimp_ft_tankok = FALSE;
+                vr_propimp_ft_phase = 3;
+                return;
+            }
+            VR_Carry_Start(self, cVR_MainHand, t);
+            VR_Carry_Forget(t);
+            t.carry_player = self;
+            setorigin(t, from);
+            VR_Carry_Loose(t);
+        }
+        else
+        {
+            t = VR_Crate_TestSpawn(from, 1, 0, FALSE);
+            setorigin(t, t.origin + '0 0 4'); // (off the floor: it would slide on it)
+            t.flags = t.flags - (t.flags & FL_ONGROUND);
+            t.vr_prop_mass = max(0.2, cvar("vr_adgun_tank_mass")); // (as heavy as the tank)
+            t.carry_player = self;
+            VR_Carry_Loose(t);
+            vr_propimp_ft_prop = t;
+        }
+        t.vr_spin = '0 0 0';
+        t.angles = '0 0 0';
+        m.health = 1000;
+        vr_propimp_ft_h0 = m.health;
+        vr_propimp_ft_bursts = vr_fueltank_bursts;
+        VR_Carry_Throw(t, fwd * speed * VRMetersToUnits());
+        dprint(sprintf("fueltankhit: thrown from %v (box %v %v), the monster's middle %v\n", t.origin, t.mins, t.maxs, mid));
+        vr_propimp_ft_phase = 2;
+        vr_propimp_ft_frames = 0;
+        return;
+    }
+    if(vr_propimp_ft_phase == 2)
+    {
+        float hurt = m.health < vr_propimp_ft_h0;
+        if(!hurt && t.throwhit == QVR_THROWHIT_NEVER_HIT && vr_propimp_ft_frames < VR_PROPIMP_FT_GIVEUP)
+        {
+            return;
+        }
+        float dmg = hurt ? vr_propimp_ft_h0 - m.health : (vr_propimp_ft_frames >= VR_PROPIMP_FT_GIVEUP ? -1 : 0);
+        float whole = !tank || (t.modelindex && t.health == t.max_health && vr_fueltank_bursts == vr_propimp_ft_bursts);
+        bprint(strcat(sprintf("fueltankhit: %s (%.1f kg) at %g m/s into the %s: ", tank ? "fuel tank" : "small crate",
+            propvalue(t, "mass"), speed, ogre ? "ogre" : "grunt"),
+            sprintf("%s after %g frames%s", dmg < 0 ? "no hit" : sprintf("%.1f damage", dmg), vr_propimp_ft_frames,
+            tank ? (whole ? ", the tank whole" : ", the tank hurt or burst") : ""),
+            sprintf(" (it at %v, the monster's middle %v)\n", t.origin, (m.absmin + m.absmax) * 0.5)));
+        if(tank)
+        {
+            vr_propimp_ft_tankdmg = dmg;
+            vr_propimp_ft_tankok = whole;
+        }
+        else
+        {
+            // (The tank hurts and stays whole; against the crate's, where it hit square: a small tank meets a monster's
+            // body where it is rounded, a crate where it is flat, so the hit's own speed differs, 50-100% of the throw.)
+            float ratio = dmg > 0 ? vr_propimp_ft_tankdmg / dmg : 0;
+            float ok = vr_propimp_ft_tankdmg > 0 && vr_propimp_ft_tankok && (dmg <= 0 || (ratio >= 0.3 && ratio <= 3));
+            bprint(sprintf("fueltankhit: %s at %g m/s: tank %.1f, crate %.1f (x%.2f%s): %s\n", ogre ? "ogre" : "grunt", speed,
+                vr_propimp_ft_tankdmg, dmg, ratio, dmg > 0 ? "" : ", the crate missed", ok ? "passed" : "FAILED"));
+            if(ok) { vr_propimp_ft_pass++; } else { vr_propimp_ft_fail++; }
+        }
+        vr_propimp_ft_phase = 3;
+    }
+    // Phase 3: this throw done.
+    VR_PropImp_FtClear();
+    vr_propimp_ft_case++;
+    vr_propimp_ft_phase = 0;
+    if(vr_propimp_ft_case >= 12)
+    {
+        vr_propimp_ft_on = FALSE;
+        cvar_set("vr_adgun_tank_rope", ftos(vr_propimp_ft_rope));
+        bprint(sprintf("fueltankhit: %g passed, %g failed\n", vr_propimp_ft_pass, vr_propimp_ft_fail));
+    }
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
     entity p;
     entity oself;
+    if(vr_propimp_ft_on)
+    {
+        p = find(world, classname, "player");
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_PropImp_FtStep();
+            self = oself;
+        }
+    }
     if(vr_propimp_bl_next && time >= vr_propimp_bl_next)
     {
         p = find(world, classname, "player");
@@ -490,6 +670,24 @@ void() VR_PropImp_TestFrame =
         vr_propimp_lt_thing = world;
         vr_propimp_lt_crate = world;
         VR_PropImp_LightStep();
+    }
+    else if(ask == 4)
+    {
+        VR_PropImp_FtClear();
+        vr_propimp_ft_on = TRUE;
+        vr_propimp_ft_case = 0;
+        vr_propimp_ft_phase = 0;
+        vr_propimp_ft_pass = 0;
+        vr_propimp_ft_fail = 0;
+        if(!vr_propimp_ft_at)
+        {
+            vr_propimp_ft_at = spawn();
+            vr_propimp_ft_at.classname = "vr_propimp_ft_at";
+        }
+        setorigin(vr_propimp_ft_at, self.origin);
+        vr_propimp_ft_at.angles = '0 1 0' * self.angles_y;
+        vr_propimp_ft_rope = cvar("vr_adgun_tank_rope");
+        cvar_set("vr_adgun_tank_rope", "3");
     }
     else if(ask == 3)
     {
