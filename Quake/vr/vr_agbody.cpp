@@ -334,7 +334,7 @@ void print()
         for(int i = 0; i < m.n; i++)
         {
             const Proxy& p = m.p[i];
-            Con_Printf("agbody %s %s: bone %d, %.1f %.1f %.1f to %.1f %.1f %.1f, radii %.1f %.1f %.1f\n", m.model->name,
+            Con_Printf("agbody %s %s: bone %d, %.1f %.1f %.1f to %.1f %.1f %.1f, radii %.1f %.1f %.1f, back %.1f %.1f %.1f\n", m.model->name,
                 i == Torso ? "torso" : i == Pelvis ? "pelvis" : "head", p.bone, p.a.x, p.a.y, p.a.z, p.b.x, p.b.y, p.b.z,
                 p.radii.x, p.radii.y, p.radii.z, p.back.x, p.back.y, p.back.z);
         }

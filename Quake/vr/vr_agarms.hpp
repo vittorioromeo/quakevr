@@ -73,6 +73,24 @@ struct Placed
     glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 shoulder[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     rigpose::Rigid chest;
+    // What held each hand off its goal this frame (the Pose Studio names it): its wrist brought into reach (units), its
+    // hand pushed out of the body (units), turned back at its wrist's most (degrees); its elbow off its pole (degrees)
+    // and why (Limit).
+    float reach[2]{0.f, 0.f};
+    float pushed[2]{0.f, 0.f};
+    float wrist[2]{0.f, 0.f};
+    float poleOff[2]{0.f, 0.f};
+    int poleWhy[2]{0, 0};
+};
+
+// Placed::poleWhy: the cost that most held an elbow off its pole.
+enum Limit : int
+{
+    LimitNone = 0,
+    LimitWrist,    // its wrist's comfort (the hand's turn on the forearm)
+    LimitBody,     // the body's proxies (vr_agarms_body)
+    LimitShoulder, // up past its shoulder, in across its chest
+    LimitRate,     // vr_agarms_elbow_rate: still swinging there
 };
 
 [[nodiscard]] bool enabled(); // vr_agarms (read at a map load for the models' rest data)

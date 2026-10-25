@@ -20779,3 +20779,71 @@ thicker guard and grip, a skin with Quake's contrast in Quake's palette). Everyt
 **In VR:**
 - [ ] Debug > Tools > Nail Pistol Art: walk around it: it reads as rusty riveted iron, the copper slide, the sights.
 - [ ] Scenario nailpistol_art: pick up the nailgun and hold it next to the pistol: the grips about the same size.
+## Pose Studio usability; the enforcer's rig measured (worktree `gorefx`, branch `agent/agrig`, 2026-10-24)
+
+His session (vrragtriggers 22-57): paused in Live he could not move closer; edits snapped back somewhere else; the
+panel got in the way. Second item: the enforcer's arms "overly strict".
+
+**1a. Walking while paused.** Live's pause stops the game's clock (`host_timescale` 0.0001), so the sticks could not
+walk even when passed through. Now the player runs in real time while paused (`poselive::playerSpeedup`: the slow
+motion's own player-time path in `vr_timescale.cpp`, `moveSpeedup`, so its moves, falls and timers are in its own time
+and its timers put back into the world's), and the sticks walk and turn. Scrubbing: hold a grip on nothing (or keep a
+hand at the panel) and push either stick left/right; the panel's < 0.5 s / Frame > buttons as before. New cvar
+`vr_posestudio_live_walk` (1; 0: the sticks scrub as before). Mock (`scratch/ps_test.sh`): paused, off stick forward
+90 frames: the player (and the panel following him) moved 33 units, the playhead stayed at 0.000 s; off grip held on
+nothing + stick left 60 frames: playhead -1.207 s, `sticksTaken` 1 only while held.
+
+**1b. Snap-back: causes.** A weapon's or a fist's drag set its key from the part's move from where it was *drawn* at
+the grab, but QC lays the key on the *target*: whenever the drawn part was off its target at the grab (out of reach,
+pushed out of the body, turned back at the wrist), letting go put the target where the hand put the part plus that gap,
+so the part jumped (`adjust` had drawn the weapon at the controller during the drag). Now the key moves the target to
+where the hand holds the part (`Grab::target0`, frozen and Live), so let go it stays where it was shown, as far as the
+arm allows. Where a limit holds it (for 0.15 s, not a frame's lag) its box turns orange and the readout and the label
+over it name why, from the solve (`agarms::Placed` now carries `reach`, `pushed`, `wrist`, `poleOff`, `poleWhy`):
+"out of its arm's reach by N units", "inside its body: pushed out N", "wrist limit: turned back N deg", an elbow "N deg
+off: its wrist's comfort / inside its body / up past its shoulder / still swinging there", the chest's "torso turn
+limit", Live's "this key weighs only N% at this frame"; a haptic bump when it starts. Elbows: a keyed pole (share 1)
+was weighed 4.5 against the wrist's comfort and could sit 20 degrees off where it was put; `vr_agarms_pole_key` (10,
+before 4) weighs it 10.5. Mock: the shotgun grunt's weapon dragged 40 units out: "out of its arm's reach by 22.4
+units"; after letting go the hand stays at 3.17 9.44 9.96 (the same as held: no snap).
+
+**1c. The panel.** A handle bar on its top edge: Fold / Unfold, "Grip: Move" (grip it: the panel follows the hand in
+6-DoF; let go, it stays, kept from the head's place and yaw in the archived `vr_posestudio_panel`, the next session's
+too; walking a metre off it comes along at the same place from you), Recentre (back to its default, the cvar
+emptied). Folded (`vr_posestudio_panel_folded`, archived) it is the bar alone. The Live readout and the hint sit over
+it wherever it is. Mock: moved, saved, Recentre emptied the cvar and put it back, Fold left the bar.
+
+**2. The enforcer measured** (glitch finder, all 24 subjects, `scratch/agg_run.sh`, `agg_table.py`; frames over the
+finder's glitch value): enforcer vs grunt: reach 2.0% vs 0.6% (worst 26.5 vs 6.9), pen 0.3% vs 0.1% (worst 10.2 vs
+4.4; punches 13-25% of their frames vs 0-1.4%), grip2 3.2% vs 0.9%. With guns, aim and fire: the enforcer's wrist
+limit p95 10-19 degrees (the grunt's 0), grip2 p95 3.5-10 units (grunt 1.3-4.9), reach p95 2-5.6 (grunt 0-3.9).
+`vr_agarms_info`: the enforcer's torso proxy is 10.2 units to its left (the shoulder pad: the left shoulder, 7.2 out,
+sits inside it) and 12.9 behind (the backpack) against the grunt's 6.2-6.9; arms 10.3 + 10.1 (grunt 9.8 + 6.9),
+shoulders 6 units behind the grunt's with the poses' fit shifted back only 3 (`vr_am_fit_shift`). Not fixed in this
+round (budget): the torso proxy's sides should be fitted from the chest bone's lower part only (a per-model share in
+`armedRigs`, passed to `agbody::of`), and the enforcer's wrist limit hits come from its rest hand's turn on the forearm
+(the bend is measured from rest): a per-model `twistShare` / wrist most, or the poses' fit shift -6, are the next
+things to try, measured with the same tables. Note: `host_framerate` broke the finder's jump and flip numbers in these
+runs (fast mode already fixes the frames): run it without.
+
+**Regression checks** (second pass, the same branch). Tests, grunt and enforcer (`vr_agrunt_test_kind`), a fresh
+vrtesthall each: 60 (6/6 PASS each), 35 (6/6 parried each), 25, 34, 38 (all PASS), 42 (20/20 each), 50 (10/10 each),
+41 ran through; 45's sheets (sword and super shotgun sets, front and side, both kinds) looked at: arms on their weapons,
+nothing broken. `vr_scenario validate` 89 files 0 errors, 138 tags 0 missing; runall of the 20 `agrunt_*` scenes 0
+failed. eval.sh: no verdict changes. **`vr_agarms_pole_key` 4 -> 10 on his shipped poses** (the studio's report of every
+pose and key of four subjects, frozen, both values in one run; `scratch/pole.sh`, `pole_cmp.py`): only the keys with a
+pole of share 1 move, by at most 2.5 units (the enforcer's and the grunt's sword follow-through, P8 k2), the grunt's
+pickup bend 1.8, the rest under 1; the hands do not move. That is the elbow going to where he put the pole (with 4 it
+sat up to ~20 degrees off it, his snap-back complaint), so 10 stays. The glitch finder (all 24 subjects, no
+`host_framerate`, 4 then 10): frames over the flip value 0.1% -> 0.1% (both kinds), the wrong-way elbow 1.4% -> 1.0%
+(enforcer) and 0.7% -> 0.5% (grunt); no metric worse. Pictures (spectator camera, `vr_body_mode 0`): the panel at its
+default, moved (`vr_posestudio_panel`), folded to its bar, and a weapon dragged out of reach in its orange box
+(`scratch/psshots.sh`).
+
+Checklist:
+- [ ] Pose Studio, Live, Pause: walk up to the grunt with the stick; hold a grip on nothing and push the stick left /
+  right: it scrubs; let go: the stick walks again.
+- [ ] Drag a weapon far out: its box turns orange, "out of its arm's reach"; let go: it stays where it stopped.
+- [ ] Drag an elbow up high: orange, "up past its shoulder"; let go: no jump.
+- [ ] Grip the panel's top bar, move it where you like, let go; leave and re-enter the studio: it is there. Recentre;
+  Fold / Unfold.
