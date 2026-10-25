@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // A whole map's monsters at once (vr_test_monsters; Debug > Tests > Whole-Map Monsters; the benchmarks' full-count
 // scenarios, BENCHMARKS.md "Dawn of the Machine"): 1 report, 2 wake every live monster (each hunts the player, as if it
 // had seen you), 3 kill every live monster with just enough damage (deaths, corpses and ragdolls as a fight's: up to
@@ -153,3 +154,4 @@ void() VR_MonstersTest_Frame =
     }
     VR_MonstersTest_Run(request);
 };
+#endif

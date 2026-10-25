@@ -735,6 +735,41 @@ void makePreview(int windowWidth, int windowHeight)
     p.madeAt = realtime;
 }
 
+// vr_spectator_skip_hidden: nothing of the window to see (minimized or hidden: qvr::windowNotVisible), and no menu
+// showing the camera's preview: its whole frame skipped (the scene, its culling, glow, UI and the window pass). The
+// window keeps what it last showed; the frame it shows again draws the camera anew. The changes on the console
+// (developer 1), with the frames skipped.
+struct SpectatorSkip
+{
+    bool skipping = false;
+    int frames = 0; // frames skipped since it began
+};
+SpectatorSkip spectatorSkip;
+
+[[nodiscard]] bool spectatorSkipped()
+{
+    SpectatorSkip& s = spectatorSkip;
+    const bool skip = vr_spectator_skip_hidden.value != 0.f && windowNotVisible() && !menuui::spectatorPreviewWanted();
+    if(skip != s.skipping)
+    {
+        if(skip)
+        {
+            Con_DPrintf("spectator camera: skipped, the window not visible\n");
+        }
+        else
+        {
+            Con_DPrintf("spectator camera: drawn again, the window visible (%d frames skipped)\n", s.frames);
+        }
+        s.skipping = skip;
+        s.frames = 0;
+    }
+    if(skip)
+    {
+        s.frames++;
+    }
+    return skip;
+}
+
 void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
 {
     const float scale = window::spectatorScale();
@@ -1096,8 +1131,11 @@ extern "C" int VR_RenderView()
     bench::submitted();
     loading::submitted(eyesRendered == 2); // (the level change's notice was in them: vr_loading.cpp)
 
-    // The window's spectator camera, once the headset has its images: it does not delay them.
-    if(window::view() == window::View::Spectator && eyesRendered == 2)
+    // The window's spectator camera, once the headset has its images: it does not delay them. Not while nothing of the
+    // window can be seen (minimized or hidden: vr_spectator_skip_hidden), unless the menus' preview shows it.
+    const bool spectatorOn = window::view() == window::View::Spectator && eyesRendered == 2;
+    const bool spectatorSkipped = spectatorOn && stereo::spectatorSkipped();
+    if(spectatorOn && !spectatorSkipped)
     {
         stereo::renderSpectator(windowTarget, windowWidth, windowHeight);
     }

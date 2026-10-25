@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Focused parry tests, available in Debug > Tests. Invoked as spawn functions by vr_physics_spawn.
 // They use the real damage/guard and dragon tail paths, with only target/route setup made deterministic.
 void() VR_Parry_DragonObserve =
@@ -108,3 +109,4 @@ void() VR_Parry_SameCallbackTest =
     dprint(sprintf("parry callback test: first health %g, after follow-ups %g, self/vectors restored %g, recovery think %g\n",
         first, p.health, restored, self.think == VR_Parry_Recover || self.vr_knockdown != 0));
 };
+#endif

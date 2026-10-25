@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_burning's test harness (moved out of vr_burning.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -385,3 +386,4 @@ void() VR_Burn_TestFrame =
     dprint(sprintf("burning: test %g on %s (health %g, corpse %g)\n", ask, best.classname, best.health, best.vr_corpse));
     VR_Burn_Ignite(best, p, at, mid - p.origin, ask == 2 ? VR_BURN_NAIL : (ask == 3 ? VR_BURN_TOUCH : VR_BURN_BLOW));
 };
+#endif

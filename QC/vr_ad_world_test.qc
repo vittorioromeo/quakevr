@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // AD support: Debug > Tests world interactions on actual AD map entities (vr_ad_test 61..64).
 void(float request, entity p) AD_WorldTest =
 {
@@ -167,3 +168,4 @@ void(float request, entity p) AD_WorldTest =
     }
     self = os; other = oo;
 };
+#endif

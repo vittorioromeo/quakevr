@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine monsters' tests, M3-19..23 (vr_mg3_btest N, developer 1; Debug > Tests > Dawn of the Machine
 // Bestiary): docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3btest: PASS/FAIL <what>" and a total.
 //   1 report: the data each monster needs, and how many of each this map has (alive, dead)
@@ -876,3 +877,4 @@ void() MG3_BestiaryTestFrame =
     }
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

@@ -387,6 +387,7 @@ QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the 
 QVR_CVAR(vr_spectator_fov, "130", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
 QVR_CVAR(vr_spectator_scale, "1", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
+QVR_CVAR(vr_spectator_skip_hidden, "1", CVAR_ARCHIVE)  // spectator camera: 1 not drawn while the desktop window is minimized or hidden (nothing to see; drawn again the frame it shows; the menus' preview keeps it drawn while a menu shows it); 0 always drawn
 QVR_CVAR(vr_spectator_bullettime_fx, "1", CVAR_ARCHIVE) // 1: bullet time's colour, tint and darkened edges in the spectator camera; 0: its normal look (headset unchanged)
 QVR_CVAR(vr_spectator_preview, "1", CVAR_ARCHIVE)      // spectator camera: a small preview of its image in the headset's menus while it is on (bottom left, above its switch; vr_menuui.cpp)
 QVR_CVAR(vr_spectator_aa, "1", CVAR_ARCHIVE)           // spectator camera: 1 the window's MSAA (vid_fsaa), as the eyes; 0 none
@@ -588,6 +589,10 @@ QVR_CVAR(vr_debug_runtime_menu, "0", CVAR_NONE)
 // Debug: 1 the game acts as if its desktop window had lost the keyboard's focus (another program's window in front):
 // the menus' warning, the flat screen's background sleep, the mirror's presents (vr_mirror_unfocused_hz); 0 the window says.
 QVR_CVAR(vr_debug_window_unfocused, "0", CVAR_NONE)
+// Debug: 1 the game acts as if its desktop window were minimized (nothing of it visible: the spectator camera skipped,
+// vr_spectator_skip_hidden); 0 the window says. For tests and benchmarks in a hidden test run (vr_debug_window
+// minimize|hide|show does it for real).
+QVR_CVAR(vr_debug_window_hidden, "0", CVAR_NONE)
 // Debug: each VR frame's end waits this many ms inside the timed end call (OpenXR's xrEndFrame, the mock's), as a runtime
 // holding the frames would (vr_xr_stall.cpp's held-frames lines: the test of them); 0 never.
 QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)

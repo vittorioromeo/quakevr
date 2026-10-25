@@ -120,5 +120,7 @@ void() trigger_activate_coop_spawns = {
 };
 string MG_intermissiontext;
 
+#ifdef QVR_TESTS
 entity MG_telefrag_victim;
 entity MG_telefrag_monster;
+#endif

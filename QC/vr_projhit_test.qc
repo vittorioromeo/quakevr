@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_projhit_test.qc -- every projectile's one path (weapons.qc "Projectile hits", VR_Proj_Begin; ROUND22.md,
 // "Projectiles: one path"): a projectile of each kind fired at a body, whatever its game.
 //
@@ -197,3 +198,4 @@ void(float request, entity p) AD_ProjHitTest =
     r.think = VR_ProjTest_Fire;
     r.nextthink = time + wait;
 };
+#endif

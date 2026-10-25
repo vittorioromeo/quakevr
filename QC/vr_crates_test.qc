@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_crates's test harness (moved out of vr_crates.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -58,3 +59,4 @@ entity(vector at, float yaw, float what) VR_Crate_ClimbTestSpawn =
     }
     return e;
 };
+#endif

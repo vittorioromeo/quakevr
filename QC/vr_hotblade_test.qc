@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_hotblade's test harness (moved out of vr_hotblade.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -316,3 +317,4 @@ void() VR_HotBlade_TestFrame =
     }
     self = oldSelf;
 };
+#endif

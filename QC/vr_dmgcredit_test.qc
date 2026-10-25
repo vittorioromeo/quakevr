@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_dmgcredit_test.qc -- the weapon each of a player's weapons is credited with (vr_dmgcredit.qc; Honey's
 // FL_SPECIFICDAMAGE targets take damage only from the weapons in their .items).
 //
@@ -316,3 +317,4 @@ void() VR_DCTest_Frame =
     d.think = VR_DCTest_Think;
     d.nextthink = time + 0.1;
 };
+#endif

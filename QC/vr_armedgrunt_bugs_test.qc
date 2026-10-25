@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_armedgrunt_bugs_test.qc -- armed humanoids' tests of round 22's fixes (ROUND22.md, "Armed humanoids: the picked-up
 // sword, drops up close, friendly fire, test 2"). `vr_agrunt_test N` in vrtesthall (Debug > Tests > Armed Grunts):
 // - 61: each melee weapon picked up from the floor by a grunt and an enforcer, lying (another's drop), after its own
@@ -82,10 +83,10 @@ void(float c) VR_AGBT_PickupBegin =
         if(src == 0)
         {
             p.angles_y = p.angles_y + 25;
-            entity other = VR_AGT_Spawn(wid, 150); // (another dropping it: it lies there)
+            entity dropper = VR_AGT_Spawn(wid, 150); // (another dropping it: it lies there)
             p.angles_y = p.angles_y - 25;
-            vr_agbt_src = VR_AG_DropHeld(other, '0 0 0');
-            VR_AGT_Remove(other);
+            vr_agbt_src = VR_AG_DropHeld(dropper, '0 0 0');
+            VR_AGT_Remove(dropper);
         }
         else
         {
@@ -364,3 +365,4 @@ void(float t) VR_AGBT_Frame =
     else if(t == 63) { VR_AGBT_Friendly(); }
     else if(t == 64) { VR_AGBT_Crowd(); }
 };
+#endif

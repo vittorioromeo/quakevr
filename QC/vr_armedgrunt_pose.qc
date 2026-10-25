@@ -1648,6 +1648,7 @@ float vr_agk_live_cheats; // the player's god (1) and notarget (2) set by it
 entity vr_agk_ltgt;
 
 void(entity attacker, float damage) VR_AGK_TargetPain = { self.health = 100000; };
+void() VR_AGK_TargetDie = { self.health = 100000; }; // (th_die is a void(): no arguments)
 entity() VR_AGK_LiveTarget =
 {
     if(!vr_agk_ltgt)
@@ -1659,7 +1660,7 @@ entity() VR_AGK_LiveTarget =
         vr_agk_ltgt.movetype = MOVETYPE_NONE;
         vr_agk_ltgt.takedamage = DAMAGE_AIM;
         vr_agk_ltgt.th_pain = VR_AGK_TargetPain;
-        vr_agk_ltgt.th_die = VR_AGK_TargetPain;
+        vr_agk_ltgt.th_die = VR_AGK_TargetDie;
         vr_agk_ltgt.view_ofs = '0 0 22';
         setsize(vr_agk_ltgt, '-8 -8 -24', '8 8 24');
     }

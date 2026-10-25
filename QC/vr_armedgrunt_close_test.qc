@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Armed humanoids up close (ROUND22.md, "Armed humanoids at close range"; his notes vrragtriggers_2026-10-24_23-01-03
 // and 23-04-09): grabbing its weapon anywhere on it starts the tug and is never taken for a blow (test 65); walking up
 // to one lying with its weapon in its hand and reaching for it never knocks it away (test 66). Debug > Tests > Armed
@@ -313,3 +314,4 @@ void(float t) VR_AGCT_Frame =
     if(t == 65) { VR_AGCT_Grab(); }
     else if(t == 66) { VR_AGCT_Lying(); }
 };
+#endif

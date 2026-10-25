@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_ad_upgrades_test.qc -- AD's upgraded weapons' rules through our weapons, in any map while AD's data is installed:
 // 140 the Shadow Axe's, 141 the Plasma Gun's cell (one "adplasma:" line per check).
 //
@@ -476,3 +477,4 @@ void(float request, entity p) AD_UpgradesTest =
     t.nextthink = time + 2;
     bprint("adshadowaxe: three AD zombies and an AD knight ahead; the checks in 2 s\n");
 };
+#endif

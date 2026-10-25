@@ -231,10 +231,14 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 // 1 the head, 2 an arm (its right side as he sees it), 3 a leg, on its side facing him. Prints `test hit:`.
 // ... and the monster it struck watched each frame for vr_test_hit_watch seconds after (`hitwatch:` lines: its frame,
 // place, health, enemy and attack state; the tests compare them with the reactions on and off).
+#ifdef QVR_TESTS
 entity vr_hr_watch;
 float vr_hr_watch_until;
+#endif
 
+#ifdef QVR_TESTS
 void(entity pl, entity best, float part) VR_TestHit_One;
+#endif
 
 // ----------------------------------------------------------------------------
 // Guarding the head in melee (vr_ragdoll_active_guard; ROUND22.md, "Guarding the head"): a player's hand swung at a
@@ -345,6 +349,7 @@ void(entity pl, float xHand) VR_Guard_Hand =
 // n 1 standing or as it is; Debug > Tests).
 void() VR_Guard_Frame =
 {
+#ifdef QVR_TESTS
     float want = cvar("vr_test_guard");
     if(want >= 1)
     {
@@ -367,6 +372,7 @@ void() VR_Guard_Frame =
             VR_Guard_Raise(best, pl1.origin + pl1.view_ofs, normalize(VR_Guard_Head(best) - pl1.origin - pl1.view_ofs));
         }
     }
+#endif
     if(cvar_hget(cvarh_vr_ragdoll_active_guard) <= 0)
     {
         return;

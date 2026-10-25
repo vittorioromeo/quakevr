@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -134,3 +135,4 @@ void() VR_WeaponInst_Test =
     }
     VR_WeaponInst_TestList();
 };
+#endif

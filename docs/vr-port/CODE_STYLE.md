@@ -192,3 +192,9 @@ fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on 
 `a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
 `Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
 expression that compiles differently under C's priorities; the repro that showed each case, `Misc/quakevr/qcrepro/repro.qc`, is in git history (commit `2f6ffb4ba`).
+
+Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `progs.src`) is wrapped whole in
+`#ifdef QVR_TESTS` ... `#endif` (the macro is defined in `QC/vr_macros.qc` unless fteqcc is given `-DQVR_NO_TESTS`, which
+the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
+wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
+for the development one).

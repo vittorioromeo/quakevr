@@ -24,4 +24,6 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit;
 float(entity g, entity p) VR_AGS_Frame;
 
 // vr_agrunt_test 50..59 (vr_armedgrunt_shot_test.qc).
+#ifdef QVR_TESTS
 void(float t) VR_AGS_TestFrame;
+#endif

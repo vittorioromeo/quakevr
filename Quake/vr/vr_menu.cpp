@@ -219,6 +219,17 @@ void runCommand(const char* text)
     return i;
 }
 
+// Whether the loaded progs carry the QC tests (QC/vr_macros.qc QVR_TESTS).
+[[nodiscard]] bool qcTestsBuilt()
+{
+    return qvr::progs::qcTestsPresent();
+}
+
+[[nodiscard]] const char* qcTestsNotice()
+{
+    return "Tests are not in this build's progs (QVR_NO_TESTS): the rows below do nothing.";
+}
+
 // A progress bar across the row, filled to fraction() (an empty row while it is below 0), text() right of it (the
 // percentage, the time left): Graphics > Relighting's.
 [[nodiscard]] Item progressBar(float (*fraction)(), const char* (*text)())
@@ -2716,7 +2727,8 @@ struct MenuPages
     bool done[pageCount]{};
     int level[pageCount]{}; // the menu detail level each was built for
     int cvars[pageCount]{}; // how many cvars there were (Cvar_Count): a row whose cvar came later, left out till then
-    auto members() { return qvr::mem::list(built, done, level, cvars); }
+    bool qcTests[pageCount]{}; // whether the progs had the QC tests then (qcTestsPresent: the Tests pages' notice)
+    auto members() { return qvr::mem::list(built, done, level, cvars, qcTests); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
@@ -2977,6 +2989,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // cvars registered since (a row naming one was left out)
     }
+    if(menuPages.qcTests[page] != qcTestsBuilt())
+    {
+        done[page] = false; // other progs loaded since (with or without the QC tests): the Tests pages' notice
+    }
     if(ui().resetArmedPage == page && realtime - ui().resetArmedTime > 3.0)
     {
         ui().resetArmedPage = -1; // Reset This Page not pressed again in time
@@ -3000,6 +3016,15 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         const int level = menuLevel();
         menuPages.level[page] = level;
         menuPages.cvars[page] = Cvar_Count();
+        menuPages.qcTests[page] = qcTestsBuilt();
+        if(pages[page].build == pageDebugTests || pages[page].build == pageDebugAutomation)
+        {
+            // Progs built without the QC tests (QVR_NO_TESTS, the release flavour): the rows below set cvars nothing reads.
+            if(!qcTestsBuilt())
+            {
+                built[page].pushBack(info(qcTestsNotice));
+            }
+        }
         for(Item& item : pages[page].build())
         {
             if(item.kind != Item::Header && item.kind != Item::Action && item.kind != Item::Info && !item.cvar)

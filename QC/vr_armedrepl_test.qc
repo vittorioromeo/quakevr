@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_armedrepl_test.qc -- armed humanoid replacements' tests (vr_armedrepl.qc; ROUND22.md, "Armed humanoid
 // replacements"). `vr_agrunt_test N` (Debug > Automation & Self-Tests), the player kept alive (VR_AGTest_Frame); each
 // ends on `agtest: test N over: P passed, F failed` (run.sh -QuitOn "agtest: test [0-9]+ over").
@@ -727,3 +728,4 @@ void() VR_AGRT_Begin =
         vr_agrt_res[i] = 0;
     }
 };
+#endif

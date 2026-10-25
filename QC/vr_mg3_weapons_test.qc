@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine weapons' tests (vr_mg3_wtest N, developer 1; Debug > Tests > Dawn of the Machine Weapons):
 // docs/vr-port/MG3.md M3-11..14, docs/vr-port/TESTING.md. Prints "mg3wtest: PASS/FAIL <what>" and a total.
 //   1 report: the data, the hands and holsters, cells, the Super Axe's chain
@@ -603,3 +604,4 @@ void() MG3_WeaponsTestFrame =
     else if(request == 15) { MG3_SetBloodyBits(0); MG3_WT_BloodyReport(); }
     self = oldself; other = oldother; activator = oldact;
 };
+#endif
