@@ -779,7 +779,7 @@ QVR_CVAR(vr_xr_vendor_profiles, "1", CVAR_ARCHIVE)
 // and Index controllers), so that they and the weapon offsets line up as in the old engine.
 QVR_CVAR(vr_controller_legacy_pose, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunangle, "70", CVAR_ARCHIVE)
-QVR_CVAR(vr_gunmodelpitch, "7", CVAR_ARCHIVE) // Gun Model Pitch: past 7 (the weapons' tuning) turns the held gun, its hand and aim up together
+QVR_CVAR(vr_gunmodelpitch, "7", CVAR_ARCHIVE) // Gun Model Pitch (deprecated: use Hand Pitch; migrated into vr_gunangle/vr_offhandpitch by configVersion 203, no menu row): past 7 (the weapons' tuning) turns the held gun, its hand and aim up together
 QVR_CVAR(vr_gunmodelscale, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_gunmodely, "1.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshairy, "0", CVAR_ARCHIVE)

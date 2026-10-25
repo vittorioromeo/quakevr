@@ -22169,3 +22169,15 @@ Also found (not changed): the shipped skins pack glowing islands (the super shot
 shotgun's, the grappling hook's) right against plain ones, so a coarse mip level spreads a little glow onto them (up to
 96/255 on the super shotgun's top ribs at level 2, `scratch/bleed.py`); eyeshots at grazing angles showed nothing
 visible, so it stays.
+
+## Gun Model Pitch removed from the menu (worktree `gorefx`, branch `agent/gmpremove`, 2026-10-25; configVersion 203)
+
+Hand Pitch (Hand Calibration; `vr_menu_hands_pitch` = `vr_gunangle` + `vr_offhandpitch`) already turns both hands, the guns and the
+aim together, so the Gun Model Pitch slider (the section above) is gone. `vr_gunmodelpitch` still works, marked deprecated in
+`vr_cvars.inc`. configVersion 203 migrates a config below it with the value not 7: `vr_gunangle` and `vr_offhandpitch` each
+**lose** (value - 7), then it is set to 7. Measured with `vr_aim_check` (shotgun main, nailgun off hand): Gun Model Pitch +10
+gives shot pitch +10 against the base, `vr_gunangle` +10 gives -10, so the sign is subtracted (the brief said add; Hand Pitch adds
+to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30.25 gave the same shot pitch as before (main
+-61.12, off -60.06). Configs at 7 are untouched. Tests: synthetic 202 configs (7: 70 / 40.25 unchanged; 17: 60 / 30.25, 7),
+`vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
+verdict changes.
