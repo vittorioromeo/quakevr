@@ -1837,7 +1837,7 @@ int scaledEyeSize(int image, int max)
 
 } // namespace qvr
 
-static void applyUnpacedSwap(); // vr_mock_fast (below)
+static void applySwapInterval(); // the window's swap interval in VR (below)
 
 // vr_test_dialog [seconds] [turn] [shot]: the New Game confirmation (SCR_ModalMessage) for this long, closing by itself, the
 // mock head turned `turn` degrees a second meanwhile (vr_mock_look); the eyes' images (vr_eyeshot `shot`, 1; 3 with the
@@ -1939,12 +1939,33 @@ namespace
 {
 int framesToShoot = 0;
 
+// The desktop window's presents and swap interval (VR_SkipSwap, VR_MirrorPresented, applySwapInterval: the main thread).
+inline constexpr int swapIntervalFlat = -1000; // applySwapInterval: vid_vsync's (VID_ApplyVSync), not VR's
+struct UnpacedSwap
+{
+    double lastPresent = 0.0;          // the last frame presented (Sys_DoubleTime)
+    int framesSince = 0;               // frames since (vr_mirror_hz)
+    int interval = swapIntervalFlat;   // the swap interval applySwapInterval last set
+    int presented = 0;                 // since the start: frames presented, left unpresented, the swaps' time
+    int skipped = 0;
+    double swapMs = 0.0;
+    double capHz = 0.0;                // the present rate's cap the last frame had (0: none)
+    double displayHz = 0.0;            // the window's display's refresh (vr_mirror_hz -1), read once a second
+    double displayRead = -1.0;
+    MirrorPresents taken{};            // the totals at the timing line's last take, its max since
+    double clockSwapMax = 0.0;         // the largest swap since the last vr_debug_clock
+    double debugFlip = 0.0;            // vr_debug_mirror_vsync: when the last present shows on the monitor it acts out
+};
+UnpacedSwap unpacedSwap;
+
 // vr_debug_clock: the host's frame count and the wall clock (ms), and, from the previous call, the frames' mean period:
 // `vr_debug_clock;wait120;vr_debug_clock` measures a throttle (vr_debug_window_unfocused) in a test run.
 struct DebugClock
 {
     int frame = -1;
     double seconds = 0.0;
+    int presented = 0; // the window's presents then (unpacedSwap's totals)
+    int skipped = 0;
 };
 DebugClock debugClock;
 void debugClock_f()
@@ -1952,11 +1973,14 @@ void debugClock_f()
     const double now = Sys_DoubleTime();
     DebugClock& c = debugClock;
     const int frames = host_framecount - c.frame;
+    UnpacedSwap& s = unpacedSwap;
     if(c.frame >= 0 && frames > 0)
     {
-        Con_Printf("vr_debug_clock: frame %d, %.1f ms; %d frames since, period %.2f ms (VR %s, window %s)\n",
+        Con_Printf("vr_debug_clock: frame %d, %.1f ms; %d frames since, period %.2f ms (VR %s, window %s); %d presents "
+                   "(swap max %.2f ms), %d skipped, cap %.0f Hz, swap interval %d\n",
             host_framecount, now * 1000.0, frames, (now - c.seconds) * 1000.0 / frames, vrActive() ? "on" : "off",
-            windowUnfocused() ? "unfocused" : "focused");
+            windowUnfocused() ? "unfocused" : "focused", s.presented - c.presented, s.clockSwapMax, s.skipped - c.skipped,
+            s.capHz, SDL_GL_GetSwapInterval());
     }
     else
     {
@@ -1964,6 +1988,9 @@ void debugClock_f()
     }
     c.frame = host_framecount;
     c.seconds = now;
+    c.presented = s.presented;
+    c.skipped = s.skipped;
+    s.clockSwapMax = 0.0;
 }
 
 void screenshotFrames_f()
@@ -1972,7 +1999,8 @@ void screenshotFrames_f()
 }
 
 // vr_debug_window minimize|hide|show: the desktop window really minimized, hidden or shown again (restored, without
-// taking the focus), as the player would; then the window's state and what windowNotVisible says. A test run's
+// taking the focus), as the player would; focuslost|focusgained: SDL's focus event pushed (the sound's blocking, flat
+// only); then the window's state, what windowNotVisible says and whether the sound is blocked. A test run's
 // window must be shown for it (run.sh -Visible); vr_debug_window_hidden 1 emulates it in a hidden one.
 void debugWindow_f()
 {
@@ -1992,14 +2020,25 @@ void debugWindow_f()
         SDL_ShowWindow(w);
         SDL_RestoreWindow(w);
     }
+    else if(w && (!q_strcasecmp(what, "focuslost") || !q_strcasecmp(what, "focusgained")))
+    {
+        // SDL's event of the focus lost or gained, as Windows' would bring (alt-tab), for IN_SendKeyEvents to handle
+        // next frame: its sound blocking (in_sdl.c; the window's real focus, windowUnfocused, unchanged)
+        SDL_Event e{};
+        e.type = SDL_WINDOWEVENT;
+        e.window.windowID = SDL_GetWindowID(w);
+        e.window.event = !q_strcasecmp(what, "focuslost") ? SDL_WINDOWEVENT_FOCUS_LOST : SDL_WINDOWEVENT_FOCUS_GAINED;
+        SDL_PushEvent(&e);
+    }
     else if(*what)
     {
-        Con_Printf("vr_debug_window minimize|hide|show\n");
+        Con_Printf("vr_debug_window minimize|hide|show|focuslost|focusgained\n");
         return;
     }
     const Uint32 flags = w ? SDL_GetWindowFlags(w) : 0;
-    Con_Printf("vr_debug_window: %s%s, not visible %d\n", (flags & SDL_WINDOW_SHOWN) ? "shown" : "hidden",
-        (flags & SDL_WINDOW_MINIMIZED) ? ", minimized" : "", windowNotVisible() ? 1 : 0);
+    Con_Printf("vr_debug_window: %s%s, not visible %d; VR %s, sound blocked %d\n",
+        (flags & SDL_WINDOW_SHOWN) ? "shown" : "hidden", (flags & SDL_WINDOW_MINIMIZED) ? ", minimized" : "",
+        windowNotVisible() ? 1 : 0, vrActive() ? "on" : "off", S_SoundBlocked());
 }
 } // namespace
 
@@ -2267,7 +2306,7 @@ extern "C" void VR_BeginFrame()
         }
     }
 
-    applyUnpacedSwap();
+    applySwapInterval();
 
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
@@ -2392,14 +2431,6 @@ extern "C" int VR_SkipScreen()
 
 namespace
 {
-// vr_mock_fast's presents and vsync (VR_SkipSwap, applyUnpacedSwap: the main thread).
-struct UnpacedSwap
-{
-    double lastPresent = 0.0; // the last frame presented (Sys_DoubleTime)
-    bool vsyncOff = false;    // vsync turned off for unpaced frames
-    int skipped = 0;          // frames left unpresented (the timing log's mirror count, while unfocused)
-};
-UnpacedSwap unpacedSwap;
 // QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
@@ -2447,9 +2478,83 @@ bool qvr::windowNotVisible()
     return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }
 
-int qvr::presentsSkipped()
+MirrorPresents qvr::takeMirrorPresents()
 {
-    return unpacedSwap.skipped;
+    UnpacedSwap& s = unpacedSwap;
+    MirrorPresents m;
+    m.presented = s.presented - s.taken.presented;
+    m.skipped = s.skipped - s.taken.skipped;
+    m.swapMsSum = s.swapMs - s.taken.swapMsSum;
+    m.swapMsMax = s.taken.swapMsMax;
+    m.capHz = s.capHz;
+    s.taken = MirrorPresents{s.presented, s.skipped, s.swapMs, 0.0, 0.0};
+    return m;
+}
+
+// vr_debug_mirror_vsync N (Hz): the present waits as a vsync'd one on a monitor of that refresh, through a flip queue of
+// one (a driver forcing vsync on the focused window): a present while the last one is still waiting for its refresh
+// waits for that refresh; the frame then shows at the next. Its refreshes are whole multiples of the period.
+static void mirrorDebugVsync()
+{
+    const double hz = vr_debug_mirror_vsync.value;
+    if(hz <= 0.f || !vrActive() || VR_Unpaced())
+    {
+        unpacedSwap.debugFlip = 0.0;
+        return;
+    }
+    const double period = 1.0 / za::clamp(hz, 10.0, 1000.0);
+    double now = Sys_DoubleTime();
+    double& flip = unpacedSwap.debugFlip; // when the last present shows
+    if(now < flip)
+    {
+        const double until = flip;
+        if(!VR_HiResSleepUntil(until, &now))
+        {
+            now = Sys_DoubleTime();
+        }
+        while(now < until)
+        {
+            now = Sys_DoubleTime();
+        }
+        flip = until + period;
+    }
+    else
+    {
+        flip = (std::floor(now / period) + 1.0) * period;
+    }
+}
+
+// GL_EndRendering: the window's swap, begun at swapStart (Sys_DoubleTime), is done.
+extern "C" void VR_MirrorPresented(double swapStart)
+{
+    mirrorDebugVsync();
+    UnpacedSwap& s = unpacedSwap;
+    const double ms = (Sys_DoubleTime() - swapStart) * 1000.0;
+    s.presented++;
+    s.swapMs += ms;
+    s.taken.swapMsMax = za::max(s.taken.swapMsMax, ms);
+    s.clockSwapMax = za::max(s.clockSwapMax, ms);
+}
+
+// The refresh of the display the window is on (Hz; 60 if SDL doesn't say), read again once a second (the window moved).
+static double mirrorDisplayHz(double now)
+{
+    UnpacedSwap& s = unpacedSwap;
+    if(s.displayRead < 0.0 || now - s.displayRead >= 1.0)
+    {
+        s.displayRead = now;
+        s.displayHz = 60.0;
+        SDL_Window* w = static_cast<SDL_Window*>(VID_GetWindow());
+        SDL_DisplayMode mode{};
+        const int display = w ? SDL_GetWindowDisplayIndex(w) : -1;
+        if(display >= 0 && SDL_GetCurrentDisplayMode(display, &mode) == 0 && mode.refresh_rate > 0)
+        {
+            s.displayHz = mode.refresh_rate;
+        }
+    }
+    // (vr_debug_mirror_vsync: the monitor it acts out.)
+    return vr_debug_mirror_vsync.value > 0.f ? za::clamp(static_cast<double>(vr_debug_mirror_vsync.value), 10.0, 1000.0)
+                                             : s.displayHz;
 }
 
 extern "C" int VR_DebugWindowUnfocused()
@@ -2463,8 +2568,14 @@ extern "C" int VR_SkipSwap()
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
     // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on
     // a background window's frame rate must not hold the headset's frames.
-    double& lastPresent = unpacedSwap.lastPresent;
+    // In VR with the window focused, at most once each refresh of its display (vr_mirror_hz): a present the display
+    // paces (a driver's forced vsync, the focused window's flip) never waits, as presents never outrun the monitor.
+    UnpacedSwap& s = unpacedSwap;
+    s.framesSince++;
+    s.capHz = 0.0;
+    const double now = Sys_DoubleTime();
     double interval = 0.0;
+    int frames = 1; // the headset's frames each present takes at least (the focused mirror's cap)
     if(VR_Unpaced())
     {
         interval = 0.1;
@@ -2472,30 +2583,67 @@ extern "C" int VR_SkipSwap()
     else if(vrActive() && vr_mirror_unfocused_hz.value > 0.f && windowUnfocused())
     {
         interval = 1.0 / vr_mirror_unfocused_hz.value;
+        s.capHz = vr_mirror_unfocused_hz.value;
+    }
+    else if(vrActive() && vr_mirror_hz.value != 0.f)
+    {
+        s.capHz = vr_mirror_hz.value > 0.f ? static_cast<double>(vr_mirror_hz.value) : mirrorDisplayHz(now);
+        // Counted in the runtime's display periods where it says them (the frames come one a period, the clock read
+        // here jitters): the first whole number of them a refresh fits in (120 Hz on a 60 Hz monitor: every 2nd;
+        // 72 or 90: every 2nd; 120 on 59: every 3rd, never a little faster than the monitor). Else by the clock.
+        const double periodMs = profile::displayPeriodMs();
+        if(periodMs > 0.0)
+        {
+            frames = za::max(1, static_cast<int>(std::ceil(1000.0 / s.capHz / periodMs - 0.01)));
+        }
+        else
+        {
+            interval = 1.0 / s.capHz;
+        }
     }
     else
     {
+        s.framesSince = 0;
         return 0;
     }
-    const double now = Sys_DoubleTime();
-    if(now - lastPresent < interval)
+    if(now - s.lastPresent < interval || s.framesSince < frames)
     {
-        unpacedSwap.skipped++;
+        s.skipped++;
         return 1;
     }
-    lastPresent = now;
+    s.lastPresent = now;
+    s.framesSince = 0;
     return 0;
 }
 
-// vr_mock_fast: no vsync either while the frames run unpaced (the window's vid_vsync again after).
-static void applyUnpacedSwap()
+// While VR runs or the frames run unpaced (vr_mock_fast), the window's swap interval is 0: the runtime paces a headset's
+// frames, nothing an unpaced test's, and a present must never wait for the desktop's vsync (vid_vsync, also set in the
+// menu while VR runs, would make it; VID_ApplyVSync asks here). Returns 0 otherwise: vid_vsync's. (A driver forcing
+// vsync keeps its own: vr_debug_clock and the OpenXR timing line say the interval the driver reports.)
+extern "C" int VR_SwapIntervalOverride(int* interval)
 {
-    bool& off = unpacedSwap.vsyncOff;
     const bool unpaced = VR_Unpaced();
-    if(unpaced != off)
+    if(!unpaced && !vrActive())
     {
-        off = unpaced;
-        SDL_GL_SetSwapInterval(unpaced ? 0 : CLAMP(-4, static_cast<int>(Cvar_VariableValue("vid_vsync")), 4));
+        return 0;
+    }
+    *interval = 0;
+    return 1;
+}
+
+// Each frame: the interval VR_SwapIntervalOverride says, set as it changes (VR starting or stopping, vr_mock_fast);
+// vid_vsync's again once neither holds (a flat screen's untouched otherwise).
+static void applySwapInterval()
+{
+    int interval = 0;
+    const int wanted = VR_SwapIntervalOverride(&interval) ? interval : swapIntervalFlat;
+    if(wanted != unpacedSwap.interval)
+    {
+        unpacedSwap.interval = wanted;
+        const int set = wanted != swapIntervalFlat ? wanted : CLAMP(-4, static_cast<int>(Cvar_VariableValue("vid_vsync")), 4);
+        const int result = SDL_GL_SetSwapInterval(set);
+        Con_DPrintf("swap interval %d (%s): %s, now %d\n", set, wanted != swapIntervalFlat ? "VR" : "vid_vsync",
+            result == 0 ? "set" : SDL_GetError(), SDL_GL_GetSwapInterval());
     }
 }
 
