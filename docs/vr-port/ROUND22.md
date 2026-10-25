@@ -21321,3 +21321,22 @@ of GPU p50 and 0.4-2.1 ms of p99; scale 1 against 1.5 saves 0.2-0.5 ms of the ca
 **Check in VR**: with the Spectator Camera on, minimize the desktop window: the headset is the same and VD's GPU
 overlay shows the saving; restore it: the window shows the camera at once. OBS recording a covered (not minimized)
 window still records. Recording > Resolution Scale steps through the six values.
+
+## Linux linker: LLD or mold when available (worktree `tghost`, branch `agent/linuxlink`, 2026-10-25)
+
+`Quake/vr/vr.cmake`: on Linux the link uses mold, then LLD (`-fuse-ld=`, probed with `check_linker_flag`), else the default
+linker; `-DQVR_LINKER=auto|default|lld|mold` forces one (a forced one that cannot link warns and falls back). The
+Flatpak build needs no change: a CMake or SDK without them just keeps the default linker. WSL archlinux has LLD (with
+clang) and no mold (to try it: `pacman -S mold`, as root).
+
+Measured (WSL Arch, clang 23, Ninja Release, `-j 32`, source over /mnt/c, ninja times, 3 runs, default ld.bfd 2.47 / lld):
+full 24.9 / 24.8 s; `vr_held.cpp` edit 3.9-4.1 / 3.5-4.6 s; `vr_hands.hpp` edit 13.3-14.2 / 14.2-15.6 s; no-change 1.7 /
+2.5 s (noise, see below). The link alone (5 runs): bfd 0.31-0.36 s, lld 0.12-0.16 s. So the "7-8 s link" in the brief is
+gone since the no-LTO/PCH rounds: the link is 0.3 s and LLD saves ~0.17 s, not the edit time.
+
+The ~2 s before the first compile is not CMake: `ninja -d stats` shows 2647 `stat`s at 0.93 ms each (2.4 s) on the
+headers and sources under /mnt/c (9p). `VerifyGlobs` is 0.09 s, `qvr_buildinfo` ~0 (it only rewrites its header when the
+text changes, and the no-change rebuild compiles nothing). A source tree on the distro's ext4 (clone there) removes it.
+In a worktree git fails inside WSL (the `.git` file holds a Windows path), so the build number reads 0/unknown there.
+
+Smoke: kit `linux/linux_wsl.sh tghost 120` (LLD binary): configure+build ok, ldd 0 missing, Monado session started, exit 0.
