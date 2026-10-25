@@ -78,10 +78,19 @@
                   "often as a 60 fps recording takes (OBS), a third of the cost saved at 90 Hz, half at 120 Hz. Every "
                   "Frame: the headset's rate (smoother only if you record at more than 60 fps). Every 2nd or 3rd Frame: "
                   "half or a third of the headset's rate (45 or 30 fps at 90 Hz), for a slower PC."),
-        slider("Resolution Scale", "vr_spectator_scale", 0.5f, 2.f, 0.25f, "%.2fx").extend(0.25f, 2.f)
-            .help("Its resolution, times the window's: 1 sharp at the window's size; 0.75 (the default) draws 56% of "
-                  "the pixels, drawn up to the window smoothly (a recording's compression softens more than that); lower "
-                  "costs less (the pixels go with its square); 2 supersamples (four times the pixels)."),
+        cycle("Resolution Scale", "vr_spectator_scale",
+            {{0.5f, "0.5x (a quarter of the pixels)"}, {0.75f, "0.75x (56% of the pixels)"}, {1.f, "1x (the window's)"},
+                {1.25f, "1.25x (1.6 times the pixels)"}, {1.5f, "1.5x (2.25 times the pixels)"}, {2.f, "2x (4 times the pixels)"}})
+            .help("Its resolution, times the window's (vr_spectator_scale; the cost goes with the pixels, the scale's "
+                  "square). 1x (the default): sharp at the window's size. Lower costs less: 0.75x draws 56% of the "
+                  "pixels, drawn up to the window smoothly (a recording's compression softens more than that); 0.5x a "
+                  "quarter. Above 1x supersamples: at a 1920x1080 window, 1.5x draws 2880x1620 (about 1.3 ms of the "
+                  "GPU's frame in a big fight on an RTX 4090, twice that on the frames it draws)."),
+        toggle("Skip While the Window Is Minimized", "vr_spectator_skip_hidden")
+            .help("While the desktop window is minimized or hidden, the camera is not drawn at all (on by default): "
+                  "nothing to record, its whole cost saved; drawn again the moment the window shows. A window covered "
+                  "by others is still drawn (OBS's Window Capture records it). The menus' preview keeps it drawn while "
+                  "it shows."),
         cycle("Anti-Aliasing", "vr_spectator_aa", {{0.f, "Off"}, {1.f, "Window's MSAA"}})
             .help("Window's MSAA (the default): the window's multisampling (Anti-Aliasing, vid_fsaa), as the eyes: "
                   "smooth edges, which a recording shows (4x costs the camera about a tenth more; nothing without "

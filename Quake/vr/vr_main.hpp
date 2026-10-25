@@ -25,6 +25,11 @@ namespace qvr
 [[nodiscard]] bool windowUnfocused();
 [[nodiscard]] int presentsSkipped();
 
+// Nothing of the desktop window can be seen: it is minimized or hidden (SDL's flags), or vr_debug_window_hidden says
+// so. A test run's never-shown window (QVR_TEST_HIDDEN) counts as shown: its screenshots read what is drawn. Not a
+// window covered by others: OBS's Window Capture records a covered window (vr_spectator_skip_hidden).
+[[nodiscard]] bool windowNotVisible();
+
 // The running backend (null when VR is off) and its current frame.
 [[nodiscard]] Backend* backend();
 // A backend (re)start asked for (start-up, a vr_backend change) and not yet made: it happens at the next frame's start.
