@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_ad_bridge's test harness (moved out of vr_ad_bridge.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -114,6 +115,8 @@ float(entity e) AD_TestWaiting =
     return AD_Run(e) && !(e.flags & FL_MONSTER) && (e.use == ad_monster_spawn || e.use == ad_monster_spawndelay);
 };
 
+// Not test code (the release build keeps these three: Show Melee Arcs and Show Aim Cones use them).
+#endif
 // One of AD's monsters with a melee attack (Show Melee Arcs: fight.qc VR_MeleeArc_ShowFrame).
 float(entity e) AD_HasMelee =
 {
@@ -131,6 +134,7 @@ float(entity e) AD_IsBoss =
 {
     return AD_Run(e) && e.ad_bossflag;
 };
+#ifdef QVR_TESTS
 
 // Wakes one of AD's monsters (self) to hunt `p`, by AD's own AI. TRUE: it was one.
 float(entity p) AD_TestWake =
@@ -143,3 +147,4 @@ float(entity p) AD_TestWake =
     ad_FoundTarget();
     return TRUE;
 };
+#endif

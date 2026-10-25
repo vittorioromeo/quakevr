@@ -3,6 +3,14 @@
 #ifndef VR_MACROS_QC
 #define VR_MACROS_QC
 
+// QVR_TESTS: the *_test.qc files (about 26k lines: every vr_*_test harness, the test impulses, the QC side of
+// the Debug menu's test rows) are compiled in. On by default (dev builds: QC/build.sh, the kit, Visual Studio);
+// the release flavour passes -DQVR_NO_TESTS to fteqcc (Misc/release/make_release.ps1, flatpak, CI) and leaves
+// them out. Game code that calls into a test file wraps the call in #ifdef QVR_TESTS.
+#ifndef QVR_NO_TESTS
+#define QVR_TESTS
+#endif
+
 #define VRUTIL_POWER_OF_TWO(xExponent) (1 << xExponent)
 
 #define NULLSTR 0

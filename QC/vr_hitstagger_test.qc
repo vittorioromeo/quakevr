@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_hitstagger's test harness (moved out of vr_hitstagger.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -108,3 +109,4 @@ void(float xMode) VR_HitStagger_Test =
     vr_hst_test = FALSE;
     dprint(sprintf("hit stagger test: %s %s: %g\n", best.classname, what, (cooling && !r) ? -1 : r));
 };
+#endif

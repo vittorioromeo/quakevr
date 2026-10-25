@@ -23,9 +23,11 @@ float(entity e) VR_AxeStick_Tugging;
 void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug;
 void() VR_AxeStick_Think;
 void(entity e) VR_AxeStick_PulledOut;
+#ifdef QVR_TESTS
 void() VR_AxeStick_TestThrow;
 void() VR_AxeStick_TestReach;
 void() VR_AxeStick_TestReport;
+#endif
 
 // ----------------------------------------------------------------------------
 // Per-hand state, on the player

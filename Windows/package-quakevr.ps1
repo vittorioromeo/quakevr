@@ -26,7 +26,10 @@ param(
     [string]$Root = "",
     [string]$Dist = "",
     [switch]$NoZip,
-    [string]$Version = ""
+    [string]$Version = "",
+    # The QC tests (QC/vr_macros.qc, QVR_TESTS) are left out of the shipped progs.dat (fteqcc -DQVR_NO_TESTS) unless
+    # this is given. Either way the checkout's quakevr\progs.dat is the development flavour again afterwards.
+    [switch]$WithTests
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +50,9 @@ if (-not $DryRun) {
     try {
         # fteqcc prints its banner on stderr, which PowerShell would turn into an error.
         $ErrorActionPreference = "Continue"
-        & $Fteqcc -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 2>&1 | Out-Null
+        [string[]]$qcDefs = @()
+        if (-not $WithTests) { $qcDefs = @("-DQVR_NO_TESTS") }
+        & $Fteqcc @qcDefs -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 2>&1 | Out-Null
         $qcResult = $LASTEXITCODE
         $ErrorActionPreference = "Stop"
         if ($qcResult -ne 0) { throw "QC compilation failed" }
@@ -120,6 +125,21 @@ foreach ($rel in $gameFiles) {
     $target = Join-Path (Join-Path $dist "quakevr") $rel
     New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
     Copy-Item -LiteralPath (Join-Path $game $rel) $target
+}
+
+# The progs.dat just shipped has no tests (unless -WithTests): the checkout gets its development progs.dat back (the
+# engine build's QvrCompileQC skips a progs.dat newer than the QC, so the release flavour would stay for the author).
+if (-not $WithTests) {
+    Push-Location (Join-Path $root "QC")
+    try {
+        $ErrorActionPreference = "Continue"
+        & $Fteqcc -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 2>&1 | Out-Null
+        $qcResult = $LASTEXITCODE
+        $ErrorActionPreference = "Stop"
+        if ($qcResult -ne 0) { throw "QC compilation (development flavour, restoring progs.dat) failed" }
+    } finally {
+        Pop-Location
+    }
 }
 
 # The relighting scripts (docs/RELIGHTING.md), so players can relight their own maps without the

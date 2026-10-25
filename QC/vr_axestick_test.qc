@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_axestick's test harness (moved out of vr_axestick.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -363,3 +364,4 @@ void() VR_AxeStick_TestReport =
         dprint(sprintf("axe test:   its edge at %v facing %v\n", e.vr_stick_at, e.vr_stick_dir));
     }
 };
+#endif

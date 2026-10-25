@@ -4315,39 +4315,49 @@ void(float xHand) ToggleSecondaryAmmo =
     W_SetCurrentAmmoFor(xHand);
 }
 
+#ifdef QVR_TESTS
 float vr_test_armor_kind;   // impulse 250: the next armour it drops (0 green, 1 yellow, 2 red)
 float vr_test_held_kind;    // impulse 252: the next gib or head it puts in the off hand (round 21)
 entity vr_test_armor_last;  // and the last it dropped (impulse 251)
+#endif
 
 // Projectiles through the same corner columns and at the middle (impulse 237 a nail, 236 a rocket, 234 a nail with the
 // grappling hook's class, one at a time, each
 // through the next of the 6 columns, then the middle; 235 prints what the last touched): real missiles, as the engine
 // flies them (MOVE_MISSILE, with the precise hits of the option as it is set). The target takes no damage (no pain
 // poses, no shove), and is put back where it stood.
+#ifdef QVR_TESTS
 entity vr_test_target;
 vector vr_test_home;
 float vr_test_shot;
 float vr_test_on;
 float vr_test_world;
 float vr_test_other;
+#endif
 
 // QVR test: crate cover (Debug > Tests > Crate Cover; NOTES.md vrfiringrange_2026-10-02_01-39-38, "set up a scenario"):
 // a large crate square to you just ahead to crouch behind, a small one at your right to hold up, and a grunt beyond the
 // crate facing you, not yet awake (Quake's monsters wake when they see you: vr_crate_sight, VR_Crate_HidesFrom).
 // Crouched behind the crate it should stay asleep; standing up, or holding the small crate up, it should see you.
+#ifdef QVR_TESTS
 entity vr_test_cover_grunt; // the last one it put there (impulse 224 reports on it)
+#endif
 
+#ifdef QVR_TESTS
 void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
 void() VR_Reload_Test;     // (vr_reload_test.qc)
+#endif
 
 void() ImpulseCommands =
 {
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
     // through as it did here.
+#ifdef QVR_TESTS
     if(!deathmatch && !coop && VR_TestImpulse())
     {
         return;
     }
+#endif
 
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
     // the main hand; 170 + id in the off hand.
@@ -4585,7 +4595,9 @@ void() ImpulseCommands =
     }
     if(self.impulse == 208) // QVR test: each thrown axe, stuck or not (vr_axestick.qc)
     {
+#ifdef QVR_TESTS
         VR_AxeStick_TestReport();
+#endif
     }
     // QVR: prints the held weapons' hotspots (weaponhotspot, weaponhotspotinfo; round 21).
     if(self.impulse == 253)
@@ -6385,8 +6397,10 @@ void() W_Frame =
     VR_Carry_ItemsFrame(); // (the hands carrying a thing to put away: their zones larger, STAT_QVR_CARRYITEM)
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+#ifdef QVR_TESTS
     VR_AI_TestFrame();
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
+#endif
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);
     VR_Reload_PlayerFrame(); // what the ammo pouch gives and shows (vr_reload.qc)

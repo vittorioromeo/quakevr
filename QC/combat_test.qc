@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // combat's test harness (moved out of combat.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -119,3 +120,4 @@ void() VR_TestHurt_Frame =
     T_Damage(best, pl, pl, dmg);
     dprint(sprintf("test hurt: %s %g damage, health %g -> %g\n", best.classname, dmg, before, best.health));
 };
+#endif

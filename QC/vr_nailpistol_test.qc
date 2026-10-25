@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -380,3 +381,4 @@ void() VR_NailPistol_TestFrame =
     }
     self = os;
 };
+#endif

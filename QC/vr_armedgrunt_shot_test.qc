@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -321,3 +322,4 @@ void(float t) VR_AGS_TestFrame =
         vr_agst_step = 0;
     }
 };
+#endif

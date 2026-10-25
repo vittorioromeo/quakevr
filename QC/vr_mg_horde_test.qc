@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Native Horde acceptance uses the production spawns, pickup handlers, wave and revival paths.
 float MGH_test_pass, MGH_test_fail;
 void(float ok, string label) MGH_Check = {
@@ -194,3 +195,4 @@ void() MGH_TestFrame = {
  }
  self=caller; other=prevother; activator=prevact;
 };
+#endif

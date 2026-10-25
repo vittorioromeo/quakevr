@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_knockdown's test harness (moved out of vr_knockdown.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -277,3 +278,4 @@ void(float xMode) VR_Knockdown_Test =
     dprint(sprintf("knockdown test: %s hit for %g\n", best.classname, dmg));
     T_Damage(best, self, self, dmg);
 };
+#endif

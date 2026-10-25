@@ -1277,9 +1277,13 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_He
 
 // The gore tests on a crowd (vr_gore_test_crowd: the benchmarks' gore scenarios, Debug > Gore Tests): each monster
 // within its radius tested in turn as if it were the nearest (vr_gore_test_only), the tests' lines left out but one.
+#ifdef QVR_TESTS
 entity vr_gore_test_only;
+#endif
 float vr_gore_test_quiet;
+#ifdef QVR_TESTS
 void(float xTest, float xDecap) VR_Gore_TestCrowd;
+#endif
 
 void(string xText) VR_Gore_Print =
 {
@@ -1289,7 +1293,9 @@ void(string xText) VR_Gore_Print =
     }
 };
 
+#ifdef QVR_TESTS
 float vr_poptest_spread; // (VR_Decap_PopTest: the test shot with its weapon's spread)
+#endif
 
 // Test 19 (Debug > Tests > Decapitation Tests > Sweep the Head Zone): how forgiving the melee's zone is. At each height
 // from 24 units below the head zone's middle to 16 above it (2 apart), a striking point (3 units thick, the melee's
@@ -1347,9 +1353,11 @@ void(entity m) VR_Decap_Sweep =
 // head vr_decap_poptest_n times, not killing it (its health kept high): each blast's chance rolled (random), the rates by
 // the pellets at the head; 47 a weapon (vr_decap_poptest_wid) thrown into its head (vr_decap_poptest_body: its body) at
 // 16 m/s that kills, 48 an explosive box. `poptest:` lines.
+#ifdef QVR_TESTS
 float vr_poptest_bn[15];    // blasts with that many pellets at the head (VR_Decap_PopTest 45, 46)
 float vr_poptest_bpop[15];  // of which popped
 float vr_poptest_bsum[15];  // their chances summed
+#endif
 
 // Blunt melee head pops' and Quad Damage's tests (vr_decap_test 49..58; Debug > Gore Tests), on the nearest live
 // monster: 49 each blunt class's (fist, gun, crowbar, pommel, club, Mjolnir) blow at its head at a soft, a medium and a

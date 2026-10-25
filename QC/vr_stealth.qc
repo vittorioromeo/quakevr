@@ -1747,5 +1747,7 @@ void() VR_Stealth_Frame =
         }
         last = p;
     }
+#ifdef QVR_TESTS
     VR_Stealth_TestFrame();
+#endif
 };

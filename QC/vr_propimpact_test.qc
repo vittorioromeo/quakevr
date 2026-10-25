@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_propimpact_test.qc -- the props' impact rule's test (vr_prop_impact_test 1; Debug > Gore Tests, "Prop Impacts: Tap,
 // Hit, Smash, Throw"): vr_carry.qc VR_Prop_Impact. Each kind made in turn ahead of you, alone (a small crate, an explosive
 // box, a crate's piece; Scourge of Armagon's wall with rubble and AD's vase and metal breakable as stand-ins: their class
@@ -501,3 +502,4 @@ void() VR_PropImp_TestFrame =
     }
     self = oself;
 };
+#endif
