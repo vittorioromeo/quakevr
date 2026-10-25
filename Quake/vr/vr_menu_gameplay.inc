@@ -1338,6 +1338,7 @@ void armedGripsDragMode()
         weight("Thunderbolt", vr_agrunt_w_lg),
         weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
         weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
+        weight("Nail Pistol", vr_agrunt_w_nailpistol),
         weight("Mission Packs' (Each)", vr_agrunt_w_packs),
         header("The Pool: Arcane Dimensions (With Its Data)"),
         weight("Rocket Soldier's Launcher", vr_agrunt_w_adrocket),
@@ -1453,6 +1454,16 @@ void armedGripsDragMode()
             .help("Each of its 14 pellets (id's 4)."),
         slider("Nailgun", vr_dmg_nail, 1.f, 60.f, 1.f, "%.0f a nail").extend().help("id's 9 (a head more)."),
         slider("Super Nailgun", vr_dmg_super_nail, 1.f, 100.f, 1.f, "%.0f a nail").extend().help("id's 18 (a head more)."),
+        slider("Nail Pistol", vr_dmg_nailpistol, 1.f, 60.f, 1.f, "%.0f a nail").extend()
+            .help("Quake VR's nail pistol: 12 kills a grunt (30) with two in the head (x1.5) or three in the body."),
+        slider("Nail Pistol Speed", vr_nailpistol_speed, 500.f, 6000.f, 100.f, "%.0f u/s").extend(100.f, 20000.f)
+            .help("Its nails' speed (the nailgun's 1750), plus the hand's."),
+        slider("Nail Pistol Cooldown", vr_nailpistol_cooldown, 0.02f, 1.f, 0.01f, "%.2f s").extend(0.02f, 3.f)
+            .help("Semi-automatic: a shot each pull of the trigger, at least this long apart."),
+        slider("Nail Pistol Spread", vr_nailpistol_spread, 0.f, 5.f, 0.05f, "%.2f deg").extend(0.f, 30.f)
+            .help("How far its nails stray from its aim at most."),
+        slider("Nail Pistol Magazine", vr_nailpistol_mag, 1.f, 30.f, 1.f, "%.0f rounds").extend(1.f, 100.f)
+            .help("The rounds its magazine holds, a nail of yours each."),
         slider("Grenade", vr_dmg_grenade, 10.f, 400.f, 5.f, "%.0f").extend()
             .help("A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
                   "ogre's grenade caught and thrown back."),

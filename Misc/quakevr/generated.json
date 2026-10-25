@@ -588,6 +588,10 @@
   "sha256": "b78db8ea8eb2952d571ffb70db4cc12d44fceffb574c1528031a59a54d032ac6",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_mag_npistol.mdl": {
+  "sha256": "396614e17a30bbe557d623ccc988cf1c4d58537869b9d5e09d797a58422cf30c",
+  "by": "make_nailpistol_mags.py"
+ },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
   "sha256": "c781342fe2ae06050dd3a4ef7e6605d8ba67bccbed87178abeee7f260e9bca84",
   "by": "make_mags.py"
@@ -627,6 +631,10 @@
  "quakevr/progs/vr_mag_on_v_nail2.mdl_0_norm.png": {
   "sha256": "8cff29af6383ac242bfe16de3a74338f9de3214f154b5305f06c6bf5887106f3",
   "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_mag_on_v_nailpistol.mdl": {
+  "sha256": "0fbf69c60c3bef9892e436d7bc5a4b6c1a32067c5daaf3153a52e39837ab6501",
+  "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl": {
   "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",

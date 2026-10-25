@@ -115,6 +115,7 @@ float(float wid) VR_AG_Usable =
 {
     if(wid == WID_FIST) { return TRUE; }
     if(VR_IsADGun(wid)) { return wid != WID_ADELIMINATOR && VR_ADGun_Available(); }
+    if(wid == WID_NAILPISTOL) { return TRUE; } // (Quake VR's own: every campaign)
     if(wid < WID_AXE || wid > WID_SUPERAXE || wid == WID_TOOLGUN) { return FALSE; }
     return VR_Pack_WeaponAvailable(wid);
 };
@@ -267,6 +268,7 @@ float() VR_AG_PickWeapon =
     VR_AG_PoolAdd(WID_LIGHTNING, cvar_hget(cvarh_vr_agrunt_w_lg));
     VR_AG_PoolAdd(WID_GRUNTGUN, cvar_hget(cvarh_vr_agrunt_w_gruntgun));
     VR_AG_PoolAdd(WID_ENFRIFLE, cvar_hget(cvarh_vr_agrunt_w_enfrifle));
+    VR_AG_PoolAdd(WID_NAILPISTOL, cvar_hget(cvarh_vr_agrunt_w_nailpistol));
     VR_AG_PoolAdd(WID_MJOLNIR, cvar_hget(cvarh_vr_agrunt_w_packs));
     VR_AG_PoolAdd(WID_LASER_CANNON, cvar_hget(cvarh_vr_agrunt_w_packs));
     VR_AG_PoolAdd(WID_PROXIMITY_GUN, cvar_hget(cvarh_vr_agrunt_w_packs));
@@ -1163,6 +1165,7 @@ void(entity p) VR_AG_ShootProp =
     else if(wid == WID_SUPER_SHOTGUN)   { W_FireSuperShotgun(h); }
     else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
     else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
+    else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); } // (vr_nailpistol.qc)
     else if(wid == WID_GRENADE_LAUNCHER)
     {
         if(p.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO) { W_FireMultiGrenade(h); } else { W_FireGrenade(h); }

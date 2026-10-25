@@ -36,6 +36,7 @@ float(string c) VR_GunPrep_ClassWid =
     if(c == "weapon_mjolnir")         { return WID_MJOLNIR; }
     if(c == "weapon_superaxe")        { return WID_SUPERAXE; }
     if(c == "weapon_toolgun")         { return WID_TOOLGUN; }
+    if(c == "weapon_nailpistol")      { return WID_NAILPISTOL; }
     if(c == "weapon_shotgun")         { return WID_SHOTGUN; }
     if(c == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
     if(c == "weapon_upgrade_ssg")     { return WID_SUPER_SHOTGUN; }

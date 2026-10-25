@@ -219,6 +219,10 @@ constexpr LoadPort loadPorts[] = {
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
     {modelmeta::Id::VPlasma, {11.6f, 0.f, 3.f},
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
+    // The nail pistol's: its grip's bottom, where its magazine's top goes in (make_nailpistol_mags.py: 5.25 down the grip
+    // from the seated top), slapped up into the grip from there.
+    {modelmeta::Id::VNailPistol, {-0.6237f, 0.f, -2.934f},
+        {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
     // AD support: AD's Plasma Gun: its cell's well on its inner side (vr_adweapons.cpp plasmaSeat; vr_view.cpp magMounts).
     {modelmeta::Id::AdVrPlasma, {11.6f, 2.1f, 4.5f},
         {&vr_reload_port_adplasma_x, &vr_reload_port_adplasma_y, &vr_reload_port_adplasma_z}, &vr_reload_port_adplasma_radius,
@@ -261,7 +265,7 @@ struct MagMount
     glm::vec3 seat;
     glm::vec3 centre;
     cvar_t* wellOffset[6]; // x, y, z (model units), pitch, yaw, roll (degrees)
-    int kind;              // its magazine (magHolds): 0 the nailgun's, 1 the super nailgun's, 2 the thunderbolt's cell
+    int kind;              // its magazine (magHolds): 0 the nailgun's, 1 the super nailgun's, 2 the thunderbolt's cell, 3 the nail pistol's
 };
 #undef QVR_WELL_OFFSETS
 
@@ -275,7 +279,7 @@ struct MagHold
     cvar_t* curl[handrig::FingerCount];
 };
 #define QVR_MAG_HOLD(k)                                                                                                     {{&vr_reload_hold_##k##_x, &vr_reload_hold_##k##_y, &vr_reload_hold_##k##_z, &vr_reload_hold_##k##_pitch,                  &vr_reload_hold_##k##_yaw, &vr_reload_hold_##k##_roll},                                                               &vr_reload_hold_##k##_fingers,                                                                                         {&vr_reload_hold_##k##_curl_thumb, &vr_reload_hold_##k##_curl_index, &vr_reload_hold_##k##_curl_middle,                    &vr_reload_hold_##k##_curl_ring, &vr_reload_hold_##k##_curl_pinky}}
-constexpr MagHold magHolds[] = {QVR_MAG_HOLD(nail), QVR_MAG_HOLD(snail), QVR_MAG_HOLD(light)};
+constexpr MagHold magHolds[] = {QVR_MAG_HOLD(nail), QVR_MAG_HOLD(snail), QVR_MAG_HOLD(light), QVR_MAG_HOLD(npistol)};
 #undef QVR_MAG_HOLD
 
 // An attached magazine's shape (magazineBox): the box round its model's vertices (frame 0) in the gun's model space, along
