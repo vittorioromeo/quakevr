@@ -1239,6 +1239,12 @@ void S_BlockSound (void)
 	}
 }
 
+// QVR: whether S_BlockSound holds the sound (vr_debug_window's report: the lost focus's test)
+int S_SoundBlocked (void)
+{
+	return snd_blocked;
+}
+
 void S_UnblockSound (void)
 {
 	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first

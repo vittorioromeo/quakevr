@@ -20,10 +20,21 @@ namespace qvr
 [[nodiscard]] bool vrActive();
 
 // The game's desktop window lacks the keyboard's focus (another program's window in front), or vr_debug_window_unfocused
-// says so; a test run's hidden window (QVR_TEST_BACKGROUND) counts as focused. And the frames left unpresented so far
-// (VR_SkipSwap: vr_mock_fast's, the unfocused mirror's).
+// says so; a test run's hidden window (QVR_TEST_BACKGROUND) counts as focused.
 [[nodiscard]] bool windowUnfocused();
-[[nodiscard]] int presentsSkipped();
+
+// The desktop window's presents since the last take (VR_SkipSwap, VR_MirrorPresented): those made and how long the
+// swap took, those left out (vr_mock_fast's, the unfocused mirror's vr_mirror_unfocused_hz, the focused one's
+// vr_mirror_hz), and the present rate's cap the last frame had (0: none). For the OpenXR timing line.
+struct MirrorPresents
+{
+    int presented{0};
+    int skipped{0};
+    double swapMsSum{0.0};
+    double swapMsMax{0.0};
+    double capHz{0.0};
+};
+[[nodiscard]] MirrorPresents takeMirrorPresents();
 
 // Nothing of the desktop window can be seen: it is minimized or hidden (SDL's flags), or vr_debug_window_hidden says
 // so. A test run's never-shown window (QVR_TEST_HIDDEN) counts as shown: its screenshots read what is drawn. Not a

@@ -600,6 +600,17 @@ QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
 QVR_CVAR(vr_mirror_unfocused_hz, "4", CVAR_ARCHIVE)
+// While VR runs and the desktop window has the focus: -1 the mirror presented at most once each refresh of the window's
+// display (a monitor slower than the headset: every 2nd headset frame or so), 0 every frame, more than 0 at most this
+// many times a second. A present the display paces (the driver forcing vsync, G-SYNC's or the compositor's flip of the
+// focused window) waits for the monitor once presents outrun it, and held the headset to the monitor's rate (60 Hz:
+// stutter while focused, smooth minimized; GitHub issue #79). Presents spaced a refresh apart never wait.
+QVR_CVAR(vr_mirror_hz, "-1", CVAR_ARCHIVE)
+// Debug: N (Hz) while VR runs the desktop window's presents wait as on a monitor of that refresh with the GPU driver
+// forcing vsync (a flip queue of one: a present while the last waits for its refresh waits too), and vr_mirror_hz -1
+// counts that monitor's refresh; 0 off. For testing vr_mirror_hz on any monitor (a real-time test run).
+// (The interval itself can't act it out: a driver forcing vsync keeps 1 whatever the game sets, 0 to 4.)
+QVR_CVAR(vr_debug_mirror_vsync, "0", CVAR_NONE)
 // The eye images' size, times the runtime's recommended (each side; SteamVR's includes its own resolution setting, 150%
 // of the panel's area on Auto), at the next VR start: smaller images cost less to render, copy (SteamVR's OpenGL path
 // copies each into its own textures) and keep in video memory. 0.5 .. 1.

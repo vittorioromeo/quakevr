@@ -36,6 +36,13 @@
             .help("No tips, no messages on the wrist gadget and no text in front of your head (pickups, centre prints, "
                   "notify lines), in the headset too: clean takes. The trailer scene (vrtrailer) turns it on by "
                   "itself while it is loaded; menus and the wrist gadget's own display stay."),
+        cycle("Window Frame Rate", "vr_mirror_hz", {{-1.f, "Up to the Monitor's"}, {0.f, "Every Headset Frame"}})
+            .help("How often the desktop window shows a new frame while it has the focus. Up to the Monitor's (the "
+                  "default): at most once each refresh of its monitor, so the window never holds the headset back (a "
+                  "60 Hz monitor with the headset at 90 Hz: 45 fps in the window; a monitor as fast as the headset: "
+                  "every frame). Every Headset Frame: smoother window on a slower monitor, for a 60 fps recording; if "
+                  "the headset then stutters while the window has the focus, the GPU driver makes the window wait for "
+                  "the monitor (its V-Sync or G-SYNC setting): go back. Unfocused: vr_mirror_unfocused_hz."),
         header("OBS"),
         toggle("OBS Recording Control", "vr_obs")
             .help("While a menu is open, the game looks for OBS Studio on this PC: when it finds it, a row above the "

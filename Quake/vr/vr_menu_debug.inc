@@ -477,6 +477,13 @@ za::Vector<Item> pageDebugProfiling()
                   "program's: the menus' warning in the top right corner; in VR the mirror presented only "
                   "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
                   "background sleep."),
+        cycle("Act as if the Driver Forced V-Sync", "vr_debug_mirror_vsync",
+            {{0.f, "Off"}, {60.f, "60 Hz Monitor"}, {75.f, "75 Hz Monitor"}})
+            .help("vr_debug_mirror_vsync 60 (any Hz in the console): in VR the desktop window's presents wait as on a "
+                  "monitor of that refresh with the GPU driver forcing V-Sync (or G-SYNC on the focused window; GitHub "
+                  "issue #79). With Recording > Window Frame Rate at Every Headset Frame the headset then drops to the "
+                  "monitor's rate; at Up to the Monitor's (the default) it never slows. vr_debug_clock says the frame "
+                  "period, the presents and the swap interval the driver reports."),
         toggle("Act as if the Window Were Minimized", vr_debug_window_hidden)
             .help("vr_debug_window_hidden 1: the game acts as if its desktop window were minimized: the Spectator "
                   "Camera is skipped (Recording > Skip While the Window Is Minimized; the console says so with "

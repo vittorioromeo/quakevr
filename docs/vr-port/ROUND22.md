@@ -22181,3 +22181,51 @@ to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30
 -61.12, off -60.06). Configs at 7 are untouched. Tests: synthetic 202 configs (7: 70 / 40.25 unchanged; 17: 60 / 30.25, 7),
 `vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
 verdict changes.
+
+## GitHub issue #79: stutter with the desktop window focused, no sound unfocused (worktree `tghost`, branch `agent/issue79`, 2026-10-25)
+
+Report: "runs better when minimized/inactive; when inactive, no sound". Most users run the Latest release, 1.0.1
+(2026-10-11), older than the xrfocus fix (2026-10-16, in 1.1.0-beta1..3).
+- **Sound (B): already fixed since beta1** (in_sdl.c: a lost focus never blocks the sound in VR; 1.0.1 still called
+  `S_BlockSound`). Minimizing goes through the same focus event. Verified: `vr_debug_window focuslost|focusgained` (new:
+  pushes SDL's focus event through `IN_SendKeyEvents`; its report adds `VR on/off, sound blocked N`,
+  `S_SoundBlocked`), `scratch/sndfocus_test.sh`: VR focus lost / minimized / regained 0 blocked, flat lost 1 then 0:
+  `sndfocus: 6 passed, 0 failed`.
+- **Stutter (A): the focused window's presents paced by the monitor.** The engine's own paths don't differ in VR (no
+  sleep, swap interval 0 since 1.0.0), but a GPU driver can make the window wait anyway: NVIDIA's forced V-Sync
+  (global "Vertical sync: On", the common G-SYNC advice), G-SYNC/the independent flip of the focused window. Such a
+  present waits once presents outrun the monitor, so a 72-120 Hz headset dropped to a 60 Hz monitor's rate. Unfocused
+  windows are composed (and since beta1 thinned to 4 Hz), minimized ones not presented at all: hence smooth then. On
+  the author's PC the driver reports swap interval 1 though the game sets 0 (forced vsync) but the monitor is 360 Hz:
+  why he never saw it.
+- Fix: `vr_mirror_hz` (-1, archived): in VR with the window focused the mirror is presented at most once per refresh of
+  the window's display (SDL's current mode, read once a second): every k-th headset frame, k the first whole number of
+  the runtime's display periods a refresh fits in (72 or 90 Hz on 60: every 2nd; 120 on 60: every 2nd; a monitor as
+  fast as the headset: every frame). 0 every frame (the old), >0 at most that many. Recording > "Window Frame Rate"
+  (Up to the Monitor's / Every Headset Frame). Unfocused keeps `vr_mirror_unfocused_hz`.
+- Swap interval: one place says it (`VR_SwapIntervalOverride`): 0 while VR runs or frames run unpaced; `VID_ApplyVSync`
+  (vid_vsync's callback: the menu's VSync, a config exec) no longer turns vsync back on mid-session;
+  `applySwapInterval` (was applyUnpacedSwap) sets it as VR starts or stops, vid_vsync's again after (flat unchanged).
+  The mock headset now gets 0 too when paced (it used vid_vsync's).
+- Diagnostics: the OpenXR timing line (`vr_xr_log_timing`) always ends with `window focused|unfocused, N presents
+  (swap avg/max ms, interval I), M skipped (at most X Hz)` (I: the interval the driver reports; 1 = it forces vsync);
+  `vr_debug_clock` adds presents, the largest swap, skipped, the cap and the interval.
+- Test aid: `vr_debug_mirror_vsync N` (Debug page, "Act as if the Driver Forced V-Sync": Off / 60 / 75 Hz Monitor):
+  each present waits as on an N Hz monitor with forced vsync and a flip queue of one (the interval can't act it out:
+  his driver keeps 1 whatever the game sets), and `vr_mirror_hz -1` counts N as the refresh.
+Test (`scratch/mirrorpace_test.sh HZ VS`: -RealTime -Visible, mock headset at HZ via host_maxfps, period over 240
+frames; real time because the measure is the wall-clock pacing). Old = `vr_mirror_hz 0`, new = -1:
+| headset / monitor | focused old | focused new | unfocused (old/new) | "minimized" old / new |
+|---|---|---|---|---|
+| 72 / 60 | 16.67 ms (60 Hz), swap max 17 ms | 13.89 ms, 120 of 240 presented | 13.89 / 13.90 | 16.67 / 13.98 |
+| 90 / 60 | 16.67 ms | 11.11 ms, 150 of 300 | | |
+| 120 / 60 | 17.42 ms | 8.49 ms (196 of 392; swap max 5.3 ms) | | |
+| 72 / 144 | 13.89 ms | 13.89 ms, every frame | | |
+(The test run's window counts as focused, so its "minimized" rows show the emulation on a minimized window; Windows
+itself doesn't present a minimized window. 120 / 60, exactly 2:1: 1.9% over the period, the presents' jitter against
+the emulated refresh with host_maxfps's pacing, which doesn't absorb a wait as xrWaitFrame does within a frame's
+budget.) Without the emulation 72 / 360 Hz: 13.91 ms. `vid_vsync 1` in VR: the interval set stays 0. eval.sh: canary
+36/44 as the baseline.
+For him: in VR with the window focused and Recording > Window Frame Rate at "Every Headset Frame", Debug > "Act as if
+the Driver Forced V-Sync" 60 should make the headset judder; "Up to the Monitor's" should not. Recording at 60 fps on a
+60 Hz monitor with a 90 Hz headset: the window now shows 45 fps; Every Headset Frame gives the old rate back.
