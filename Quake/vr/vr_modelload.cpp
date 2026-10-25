@@ -414,6 +414,36 @@ name_luma); else the 8-bit skin's own fullbrights stay (`*fb` untouched). The pi
 made once the triangles are known (Mod_SkinNormalMapLater). NULL if there is none.
 ===============
 */
+/*
+===============
+Mod_ExternalSkinFits -- whether the image `name` (no extension) that Image_LoadImage would open comes from a game
+directory at least as high as the model's own (as Ironwail takes a map's .lit, .vis and .ent files). A model pack's
+skin in id1 (progs/v_shot.mdl_0.tga, its _luma) is painted for id's model and its texture coordinates; Quake VR's
+remade weapons in quakevr/ have their own, and such a skin on them is noise with glowing specks (a player's report:
+red, orange and yellow specks along the shotguns, 2026-10). Also true when there is no such file.
+===============
+*/
+static qboolean Mod_ExternalSkinFits (qmodel_t *loadmodel, const char *name)
+{
+	static constexpr const char *exts[] = {"png", "tga", "jpg", "pcx", "lmp"}; // Image_LoadImageRun's order
+	char			path[MAX_QPATH];
+	unsigned int	path_id;
+	int				i;
+
+	for (i = 0; i < (int) countof (exts); i++)
+	{
+		q_snprintf (path, sizeof (path), "%s.%s", name, exts[i]);
+		if (COM_FileExists (path, &path_id))
+		{
+			if (path_id >= loadmodel->path_id)
+				return true;
+			Con_DPrintf ("%s: %s ignored (a lower game directory's than the model's)\n", loadmodel->name, path);
+			return false;
+		}
+	}
+	return true;
+}
+
 static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name, unsigned texflags, gltexture_t **fb)
 {
 	int				mark = Hunk_LowMark (), fwidth, fheight, i;
@@ -423,7 +453,7 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 	size_t			size;
 	char			fbname[MAX_QPATH];
 
-	if (isDedicated)
+	if (isDedicated || !Mod_ExternalSkinFits (loadmodel, name))
 		return NULL;
 	data = Image_LoadImage (name, &fwidth, &fheight, &fmt);
 	if (!data || fwidth < 1 || fheight < 1)
@@ -443,6 +473,8 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 		int gw, gh;
 		enum srcformat gfmt;
 		q_snprintf (fbname, sizeof (fbname), "%s%s", name, i ? "_luma" : "_glow");
+		if (!Mod_ExternalSkinFits (loadmodel, fbname))
+			continue;
 		data = Image_LoadImage (fbname, &gw, &gh, &gfmt);
 		if (data)
 			glow = TexMgr_LoadImage (loadmodel, fbname, gw, gh, gfmt, data, fbname, 0, TEXPREF_MIPMAP);

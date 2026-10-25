@@ -22011,3 +22011,40 @@ to `_33`); a free `_57` with the magazine's size 0.6 elsewhere (merged, the othe
 `vr_ad_test 148` PASS (16 of 16), `149` 11/11 (with `vr_weapon_grip_mode 1`), `vr_np_test 1` 17/0, eval.sh 0 differ.
 
 Not done: his magazine values (size 0.55, grip 2, handle tilt 30.5) stay his, not the defaults (he hasn't said so).
+
+## Glowing specks on the shotguns: id1 model-pack skins on Quake VR's guns (worktree `tghost`, branch `agent/ssgtex`, 2026-10-25)
+
+A player's report (Discord): the super shotgun "and other guns" show red, orange and yellow glowing specks, on every
+version and install; no HD textures installed; the author never saw it. His screenshot is the **shotgun** (`v_shot.mdl`):
+the two yellow dots are its rear sight posts (they glow by design, `vr_sights.cpp`), the specks the noise around them.
+
+- **Not the HD textures**: the installer's pack is world textures only (`id1\textures`, INSTALLER.md); no weapon model
+  reads them. Not a setting either: a sweep at the same pose (`gl_texturemode` nearest, `r_softemu` 1-3, `vr_retro` 0,
+  held palette+dither, `gl_lodbias` 3, anisotropy off, `vr_sight_hue`, `vr_retrolight` 0, `gl_fullbrights` 0) never
+  made specks. The shipped skins' fullbright texels are only the sights (and the muzzle flashes, collapsed at rest):
+  checked for every model (`scratch/fball.py`).
+- **The cause**: `VR_ExternalSkin` took a full-colour replacement skin (`progs/<model>_0.png/.tga` and its `_luma`/`_glow`)
+  from **any** game directory. A model pack in the player's `id1\progs` (QRP or another, as packs ship them for other
+  ports) is painted for id's models and their texture coordinates; Quake VR's remade guns in `quakevr\progs` have their
+  own, so the pack's skin lands on them as noise and its glow map (id's muzzle-flash hexagons, fire colours) as glowing
+  specks. Reproduced headless: id's own shotgun and super shotgun skins written as such a pack into the agent's base
+  `id1\progs` gave blue noise with an orange glow at the far end on both guns, in a dark spot of e1m1.
+- **The fix** (`vr_modelload.cpp` `Mod_ExternalSkinFits`): an external skin, or its `_glow`/`_luma`, counts only when its
+  file comes from a game directory at least as high as the model's own (the rule Ironwail already uses for a map's
+  `.lit`, `.vis` and `.ent`). A pack still dresses id's own models from id1 (same directory), Quake VR's own skins
+  (`v_crowbar.mdl_0.png`) still load; a skipped one says so with `developer 1`
+  (`progs/v_shot.mdl: progs/v_shot.mdl_0.png ignored (a lower game directory's than the model's)`).
+- Every Quake VR model that replaces an id one in `quakevr\progs` (the guns, the nail pistol, revolver, flare gun,
+  Widowmaker, the AD weapons, the soldier, enforcer, player) is covered: none can take a lower directory's skin now.
+- Not covered: an authored `_norm` from a lower directory (`VR_LoadNormalMap` is shared with the world); the guns ship
+  their own `_norm.png` in `quakevr\progs`, which wins anyway.
+
+Checked: the same e1m1 eyeshots with the pack present, before and after (`scratch/ssgtex_before_id1skins.png`,
+`scratch/ssgtex_after_id1skins.png`): after, identical to a run without the pack. Recipe: put `progs/v_shot.mdl_0.png`
+(any image) into the base's `id1`, `developer 1; map e1m1`, the log line above. eval.sh: 163/171, no verdict changes (3 takes differ by 0.1 damage,
+PASS -> PASS).
+
+Also found (not changed): the shipped skins pack glowing islands (the super shotgun's flash strip and sight gradient, the
+shotgun's, the grappling hook's) right against plain ones, so a coarse mip level spreads a little glow onto them (up to
+96/255 on the super shotgun's top ribs at level 2, `scratch/bleed.py`); eyeshots at grazing angles showed nothing
+visible, so it stays.
