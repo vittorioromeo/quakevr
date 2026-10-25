@@ -1929,8 +1929,9 @@ void() VR_AG_Melee = { VR_AGP_Attack(); }; // (punches, swings, the chainsaw's t
 // T_DamageDeal: its weapon's damage to a player.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_DamageScale =
 {
-    // (a replacement's own gun: its monster's own shot, its own damage: vr_armedrepl.qc)
-    float native = inflictor.vr_ag_native || (vr_agr_native_fire && inflictor == attacker);
+    // (a replacement's own gun: its monster's own shot, its own damage; its shoves its monster's: vr_armedrepl.qc)
+    float native = inflictor.vr_ag_native || (vr_agr_native_fire && inflictor == attacker) ||
+                   (attacker.vr_agr && attacker.vr_eshove_striking);
     if((targ.flags & FL_CLIENT) && (attacker.flags & FL_MONSTER))
     {
         vr_agr_pl_hits = vr_agr_pl_hits + 1; // (the tests: vr_armedrepl_test.qc; the armed ones' scale below)

@@ -348,6 +348,24 @@ float vr_agrt_hits0;
 float vr_agrt_dmg0;
 float vr_agrt_killed;
 
+.float vr_agrt_mark; // test 71's kills
+
+// Every monster the test made gone (its kills' corpses, any left alive).
+void() VR_AGRT_Clear =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity next = nextent(e);
+        if(e.vr_agrt_mark || e == vr_agrt_g)
+        {
+            VR_AGRT_Remove(e);
+        }
+        e = next;
+    }
+    vr_agrt_g = world;
+};
+
 float() VR_AGRT_Shots = { return (vr_agrt_case >= 2) ? vr_agr_shots_enf : vr_agr_shots_grunt; };
 
 // The drops lying about now: counted into case `c`'s (-1: none), then gone.
@@ -399,13 +417,13 @@ void() VR_AGRT_Balance =
                 string nm = k ? "enforcer" : "grunt";
                 float dpsA = vr_agrt_res[a * 8 + 2] / VR_AGRT_FIGHT;
                 float dpsB = vr_agrt_res[b * 8 + 2] / VR_AGRT_FIGHT;
-                float accA = vr_agrt_res[a * 8 + 1] / max(1, vr_agrt_res[a * 8]);
-                float accB = vr_agrt_res[b * 8 + 1] / max(1, vr_agrt_res[b * 8]);
+                float accA = vr_agrt_res[a * 8 + 2] / max(1, vr_agrt_res[a * 8]); // (damage a shot: its accuracy; a hit may deal in parts)
+                float accB = vr_agrt_res[b * 8 + 2] / max(1, vr_agrt_res[b * 8]);
                 float rateA = vr_agrt_res[a * 8] / VR_AGRT_FIGHT;
                 float rateB = vr_agrt_res[b * 8] / VR_AGRT_FIGHT;
-                VR_AGT_Print(sprintf("balance %s vanilla: %g shots (%.2f/s), %g hits (%.2f), %.2f damage/s",
+                VR_AGT_Print(sprintf("balance %s vanilla: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s",
                     nm, vr_agrt_res[a * 8], rateA, vr_agrt_res[a * 8 + 1], accA, dpsA));
-                VR_AGT_Print(sprintf("balance %s replaced: %g shots (%.2f/s), %g hits (%.2f), %.2f damage/s",
+                VR_AGT_Print(sprintf("balance %s replaced: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s",
                     nm, vr_agrt_res[b * 8], rateB, vr_agrt_res[b * 8 + 1], accB, dpsB));
                 VR_AGT_Print(sprintf("drops %s vanilla (%g kills): guns %g, backpacks %g (ammo %g), extra weapons %g",
                     nm, VR_AGRT_KILLS, vr_agrt_res[a * 8 + 3], vr_agrt_res[a * 8 + 4], vr_agrt_res[a * 8 + 5], vr_agrt_res[a * 8 + 6]));
@@ -413,7 +431,7 @@ void() VR_AGRT_Balance =
                     nm, VR_AGRT_KILLS, vr_agrt_res[b * 8 + 3], vr_agrt_res[b * 8 + 4], vr_agrt_res[b * 8 + 5], vr_agrt_res[b * 8 + 6]));
                 VR_AGT_Check(sprintf("balance %s: damage a second within 25%%", nm), fabs(dpsB - dpsA) <= 0.25 * max(0.1, dpsA));
                 VR_AGT_Check(sprintf("balance %s: shots a second within 25%%", nm), fabs(rateB - rateA) <= 0.25 * max(0.01, rateA));
-                VR_AGT_Check(sprintf("balance %s: accuracy within 0.1", nm), fabs(accB - accA) <= 0.1);
+                VR_AGT_Check(sprintf("balance %s: damage a shot (accuracy) within 20%%", nm), fabs(accB - accA) <= 0.2 * max(0.1, accA));
                 VR_AGT_Check(sprintf("drops %s: a gun from each, the same backpacks", nm),
                     vr_agrt_res[a * 8 + 3] == VR_AGRT_KILLS && vr_agrt_res[b * 8 + 3] == VR_AGRT_KILLS &&
                     vr_agrt_res[a * 8 + 4] == vr_agrt_res[b * 8 + 4] && vr_agrt_res[a * 8 + 5] == vr_agrt_res[b * 8 + 5]);
@@ -458,7 +476,7 @@ void() VR_AGRT_Balance =
         vr_agrt_res[c * 8] = VR_AGRT_Shots() - vr_agrt_shots0;
         vr_agrt_res[c * 8 + 1] = vr_agr_pl_hits - vr_agrt_hits0;
         vr_agrt_res[c * 8 + 2] = vr_agr_pl_dmg - vr_agrt_dmg0;
-        VR_AGRT_Remove(g);
+        VR_AGRT_Clear();
         VR_AGRT_CountDrops(-1); // (none counted: what lay about before)
         vr_agrt_killed = 0;
         vr_agrt_step = 3;
@@ -472,30 +490,37 @@ void() VR_AGRT_Balance =
             vr_agrt_step = 0;
             return;
         }
-        // Ten in a row ahead, killed (not gibbed: their deaths' frames drop the loot), counted 1.5 s later.
+        // Ten in a row ahead, up a second (their walkmonster_start_go: hurt only then), then killed (not gibbed: their
+        // deaths' frames drop the loot), counted 1.5 s later.
         float j;
         for(j = 0; j < 10; j++)
         {
             entity m = VR_AGRT_Make(kind, VR_AGRT_Ahead(260, (j - 4.5) * 48), repl);
-            T_Damage(m, pl, pl, m.health + 10);
+            m.vr_agrt_mark = 1;
         }
         vr_agrt_killed = vr_agrt_killed + 10;
         vr_agrt_step = 4;
-        vr_agrt_until = time + 1.5;
+        vr_agrt_until = time + 1;
         return;
     }
     if(time < vr_agrt_until) { return; }
-    VR_AGRT_CountDrops(vr_agrt_case);
     entity e = nextent(world);
-    while(e)
+    if(vr_agrt_step == 4)
     {
-        entity next2 = nextent(e);
-        if((e.classname == "monster_army" || e.classname == "monster_enforcer") && e.health <= 0)
+        while(e)
         {
-            VR_AGRT_Remove(e); // (the corpses)
+            if(e.vr_agrt_mark && e.health > 0)
+            {
+                T_Damage(e, pl, pl, e.health + 10);
+            }
+            e = nextent(e);
         }
-        e = next2;
+        vr_agrt_step = 5;
+        vr_agrt_until = time + 1.5;
+        return;
     }
+    VR_AGRT_CountDrops(vr_agrt_case);
+    VR_AGRT_Clear();
     vr_agrt_step = 3;
 };
 

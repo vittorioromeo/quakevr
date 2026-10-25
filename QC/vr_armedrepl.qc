@@ -577,6 +577,9 @@ float(float kind, float s) VR_AGR_NatFires =
 // ... a nightmare's refire is checked then (SUB_CheckRefire: army_atk7, enf_atk14).
 float(float kind, float s) VR_AGR_NatRefire = { return kind == VR_AM_ENFORCER ? s == 14 : s == 7; };
 
+void() VR_AGR_NatStep;
+void() VR_AGR_NatRetry = { self.vr_ag_nstep = self.vr_ag_nstep - 1; VR_AGR_NatStep(); }; // (its step again)
+
 void() VR_AGR_NatStep =
 {
     float s = self.vr_ag_nstep + 1;
@@ -602,6 +605,12 @@ void() VR_AGR_NatStep =
     }
     if(VR_AGR_NatFires(self.vr_ag_kind, s))
     {
+        // Far off its facing it waits, turning, as its monster does (vr_aimcone.qc: army_atk5's, enforcer_fire's;
+        // VR_AGR_NatRetry fires this step when the wait ends).
+        if((self.vr_ag_kind == VR_AM_ENFORCER || s == 5) && VR_AimCone_Wait(VR_AGR_NatRetry, VR_AIM_NARROW))
+        {
+            return;
+        }
         VR_AG_Shoot();
     }
     if(VR_AGR_NatRefire(self.vr_ag_kind, s) && skill == 3 && self.cnt != 1 && visible(self.enemy))
