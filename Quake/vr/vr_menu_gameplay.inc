@@ -1128,6 +1128,10 @@ void armedGripsDragMode()
             .help("How fast your hand (a punch, or the weapon it holds) must be going when it lands on the weapon an "
                   "armed grunt holds to knock it out of its hands, along the blow. A melee hit lands from 3.2 m/s "
                   "(vr_melee_speed): 4.5 is a deliberate hard swing (vr_agrunt_disarm_swing)."),
+        toggle("Deliberate Blows Only", vr_agrunt_disarm_deliberate)
+            .help("Only a deliberate blow knocks its weapon out: a closed fist or something held, swung over more than "
+                  "a frame. An open hand reaching for it, or your idle hands jolted as you are pushed or walk into it, "
+                  "never (vr_agrunt_disarm_deliberate)."),
         slider("Throw at Its Weapon", vr_agrunt_disarm_throw, 1.f, 100.f, 1.f, "%.0f kg m/s").extend(0.f, 1000.f)
             .help("The momentum (its mass times its speed) a thrown weapon, prop or gib must carry when it lands on the "
                   "weapon an armed grunt holds to knock it out: 20 is a 2 kg weapon thrown at 10 m/s; a gib or a shell "
@@ -1196,6 +1200,11 @@ void armedGripsDragMode()
                   "sparks, your hand knocked back). A blow to its head, legs or a side its weapon doesn't cover lands in "
                   "full. Never from behind, unaware of you, staggered or in pain. Monsters' blows on it too "
                   "(vr_agrunt_parry)."),
+        toggle("Parry: Real Strikes Only", vr_agrunt_parry_strikes_only)
+            .help("It raises its parry only for a real strike: a held weapon swung at it, or a closed fist punching "
+                  "faster than a melee hit's least (vr_melee_speed). Your hands near it, an open hand or a grab reaching "
+                  "for its weapon never (0: any hand within 30 units of its chest, as before; "
+                  "vr_agrunt_parry_strikes_only)."),
         slider("Parry: Damage Kept", vr_agrunt_parry_damage, 0.f, 1.f, 0.05f, "%.2f")
             .help("The share of a parried blow's damage it still takes (vr_agrunt_parry_damage)."),
         slider("Parry: Parries Before Disarm", vr_agrunt_parry_count, 1.f, 6.f, 0.5f, "%.1f").extend(0.1f, 50.f)
@@ -1227,6 +1236,13 @@ void armedGripsDragMode()
         slider("Fall: Drops It Flung Faster", vr_agrunt_fall_keep_fling, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
             .help("A strong force: its body moving faster than this any way but down (thrown, held and flung, blown "
                   "away), it lets go (vr_agrunt_fall_keep_fling)."),
+        slider("Fall: Flung Within", vr_agrunt_fall_keep_window, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 60.f)
+            .help("Flung counts only this long after it goes down: lying there, your body or hand nudging it as you "
+                  "come to take its weapon doesn't make it let go. 0: any time while down (vr_agrunt_fall_keep_window)."),
+        slider("Down: Blow on Its Weapon", vr_agrunt_down_swing, 0.5f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("Lying with its weapon in its hand, how fast a deliberate blow (a fist or something held) must be "
+                  "going to knock it away (with Deliberate Blows Only; 3.2 is a melee hit's least, vr_melee_speed). A "
+                  "hand reaching to take it never does (vr_agrunt_down_swing)."),
         toggle("Picks Weapons Up", vr_agrunt_rearm)
             .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
                   "not nearer to it than it is (vr_agrunt_rearm)."),

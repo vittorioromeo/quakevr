@@ -176,7 +176,9 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
 - **Glitch finder:** `vr_agrunt_test 46` (Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder): every kind
   and weapon class through its real fights; `vr_agglitch_report` the worst moments and each metric's worst and 95th
   percentile per subject (files in `quakevr/agglitch`); `vr_agglitch_shots N` eye images of the worst (front: left eye,
-  side: right eye). Run it before and after any change to the poses, keys or the solve.
+  side: right eye). Its 13-20 s: you at touching distance (states `close ...`; `agglitch close:` lines: its gun pointing
+  up over 45 degrees, its muzzle over its head, its parry raised, disarms; `temp1 1`: that loop alone). Run it before
+  and after any change to the poses, keys or the solve.
 - **The solve each frame** (`vr_agarms.cpp`): body proxies (`vr_agbody.cpp`: torso, pelvis, head) the hands are pushed out
   of and the elbow kept out of (`vr_agarms_body`); the elbow's swing rate-limited the way round outside the body
   (`vr_agarms_elbow_rate`); the second grip's hysteresis and ease (`vr_agarms_second_hold`); a pickup's reach eased in by

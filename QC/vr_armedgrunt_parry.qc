@@ -26,6 +26,7 @@ float VR_AGPAR_RMON = 5;         // ... a monster's blow's way (its line to the 
                                  // beside that misses it, raised into it meets it)
 float VR_AGPAR_FOV = 70;         // degrees either side of its facing: an attacker further round is behind it
 float VR_AGPAR_MARK = 0.3;       // s: a parried motion's later blows on it are that parry's
+float VR_AGPAR_SWING = 1.2;      // m/s: a held weapon swung at it this fast (closing on its chest) is a blow coming
 vector VR_AGPAR_CHEST = '2 0 14'; // its chest (the poses' body space: the grunt's)
 // ... on its own body (body space: an enforcer's fitted, VR_AM_Fit).
 vector(entity g) VR_AGPar_Chest = { return VR_AM_Fit(g, VR_AGPAR_CHEST); };
@@ -301,6 +302,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
             return damage;
         }
         h = vr_hithand;
+        if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(attacker, h))
+        {
+            return damage; // (an open hand: no strike to parry)
+        }
         // (This motion already parried on it: its blows that get through are that parry's.)
         if(targ.vr_agpar_by == attacker && targ.vr_agpar_hand == h + 1 && time - targ.vr_agpar_last < VR_AGPAR_MARK)
         {
@@ -374,6 +379,10 @@ float(entity g) VR_AGPar_WeaponFrame =
                 {
                     continue;
                 }
+                if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(pl, h))
+                {
+                    continue; // (an open hand reaching for its weapon: no blow to parry, VR_AGPar_Frame)
+                }
                 if(VR_AGPar_PlayerMeets(g, pl, h, '0 0 0') >= 0 && VR_AGPar_Able(g, pl))
                 {
                     VR_AGPar_Parried(g, pl, h, 0);
@@ -429,12 +438,25 @@ void(entity g) VR_AGPar_Frame =
                 {
                     tip = hp;
                 }
-                vector hv = VRGetEntHandVel(pl, h) - pl.velocity;
-                float sp = vlen(hv) / mu;
+                // Only a real strike (vr_agrunt_parry_strikes_only): a held weapon swung, a closed fist punching past
+                // the punch's speed; never a hand at rest near it, nor an open or grabbing hand reaching for its weapon
+                // (vrragtriggers_2026-10-24_23-01-03: it parried his reach for its barrel).
+                if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(pl, h))
+                {
+                    continue;
+                }
+                vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (its way)
+                float sp = cvar_hget(cvarh_vr_agrunt_parry_strikes_only) ? VR_AG_SwingSpeed(pl, h) : vlen(hv) / mu;
+                float need = VR_AGPAR_SWING;
+                if(VRIsHandEmpty(pl, h) && cvar_hget(cvarh_vr_agrunt_parry_strikes_only))
+                {
+                    need = VR_Melee_MinSpeed(); // (a punch: the melee's least blow)
+                }
                 vector ahead = tip + hv * 0.25;
                 float dNow = vlen(tip - chest);
                 float dWay = VR_AG_SegDist(tip, ahead, chest, chest);
-                if(dNow < 30 || (sp >= 1.2 && dWay < 40 && (chest - tip) * hv > 0))
+                float near = cvar_hget(cvarh_vr_agrunt_parry_strikes_only) ? (sp >= need && dNow < 30) : dNow < 30;
+                if(near || (sp >= need && dWay < 40 && (chest - tip) * hv > 0))
                 {
                     if(dNow < bestD)
                     {
@@ -528,6 +550,17 @@ void(entity g, entity p) VR_AGPar_Pose =
     across = vlen(across) > 0.01 ? normalize(across) : '0 1 0';
     float high = VR_AGP_Smooth((d_z - 0.15) / 0.45);
     vector a = normalize(up * (1 - high) + across * (high + 0.3 * (1 - high)));
+    float cls = VR_AG_Class(p.weapon);
+    if(cls != VR_AG_CLASS_MELEE && cls != VR_AG_CLASS_FISTS)
+    {
+        // A gun held across its body (port arms: its muzzle up to its left 15 degrees, level over its head against a
+        // blow from above), nearer its chest: never upright with its muzzle past its head (his screenshots
+        // vrragtriggers_2026-10-24_22-59-28 and 22-59-37).
+        a = normalize(across + '0 0 0.27' * (1 - high));
+        mid = chest + d * 12;
+        mid_x = max(mid_x, chest_x + 8);
+        mid_z = min(chest_z + (high > 0.5 ? 14 : -5), max(chest_z - 12, mid_z));
+    }
     float len = min(40, max(8, vlen(weaponmuzzle(p) - p.origin)));
     vector grip = mid - a * (len * 0.5 - 4);
     vector edge = d - a * (d * a);
