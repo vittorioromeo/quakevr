@@ -1344,15 +1344,24 @@ void() VR_AGTest_Glitch; // (vr_armedgrunt_glitch_test.qc)
 void(float t) VR_AGBT_Frame; // (vr_armedgrunt_bugs_test.qc)
 void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 
+float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
+
 void() VR_AGTest_Frame =
 {
     float t = cvar_hget(cvarh_vr_agrunt_test);
     if(!t)
     {
+        if(vr_agt_running)
+        {
+            // (Every test's last line: the runs end on it, run.sh -QuitOn "agtest: test [0-9]+ over".)
+            VR_AGT_Print(sprintf("test %g over: %g passed, %g failed", vr_agt_running, vr_agt_passed, vr_agt_failed));
+            vr_agt_running = 0;
+        }
         vr_agt_player = world;
         vr_agt_row_made = 0;
         return;
     }
+    vr_agt_running = t;
     if(!vr_agt_player)
     {
         vr_agt_player = find(world, classname, "player");

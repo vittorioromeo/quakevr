@@ -900,6 +900,17 @@ void physgunRelease(const glm::vec3& velocity)
 }
 } // namespace
 
+bool tugHolds(int player, int hand, int num)
+{
+    const int index = world ? grabIndex(player, hand) : -1;
+    if(index < 0)
+    {
+        return false;
+    }
+    const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
+    return g.tug && g.num == num;
+}
+
 // Before the step: each hold's body to its hand (a hold whose limb stays far from the hand is let go of: QC sees it
 // gone, ragdollheld); those of what is gone ended.
 void syncRagdollGrabs(float dt)

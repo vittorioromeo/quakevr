@@ -20890,3 +20890,29 @@ hand (weapon minus hand -14, -6, +5), the hold spring pulls at a constant ~1800 
 is already over every threshold and the gun tears out at once (test 31 still hold: tug lost; 37 case 3 out at 0.21 s).
 The grunt's offset is 1-2 units. Engine/ragdoll side (ragdolltug's anchor against the enforcer's active pose): open.
 Test 31 `scratch1 2` = unbreakable, still 3 s (the ragtug debug line also prints weapon minus hand).
+
+## The enforcer's physical tug: the hand's body pushed its forearm (worktree `tghost`, branch `agent/enftug`)
+
+**Cause** (the open item above): not the anchor nor the rig. The tug's hold (`tugRagdoll`, no palm fit) holds the limb's
+point at the hand's middle, which on an enforcer's gun lies inside its `forearm_r`. The player's empty hand body (reach
+body, `catReachHand`) met the ragdoll (`catCorpse`) and pushed the forearm out while the hold pulled it back: a constant
+fight that read as its pull (~1700 N held still, 3 units off the hold; `vr_agrunt_tug_strength 0` changed nothing; a
+probe of the ragdoll's contacts showed `forearm_r` against the reach hand). The grunt's forearm is a little further from
+its grip, so it only grazed it (its still hold read 140-226 N, now ~46 N).
+**Fix:** `reachSkips` (vr_box3d_hands.cpp): a hand's reach body passes through the ragdoll that hand holds in a tug
+(`tugHolds`, vr_box3d_ragparts.cpp). Any armed kind, no per-kind data.
+**Forces** (test 31 `scratch1 2`, still 3 s; `vr_mock_hand main 0.1 0.72 -1.2 65 0 0;+grabmain`): enforcer 1680-1790 N
+before, 120-160 N after (peak 680-790 N in the first frames, under the 900 N break; impulse 0); grunt ~46 N at 1 s (peak
+243). The pull (0.6 m/s): grunt torn out at 1.13 s (1454 N, pulled 0.52 s); the enforcer is torn out by a yank at 0.13 s
+(2700 N): its arm follows the hand much less (open: whether that reads right in VR).
+**Test 36:** the 14.5 cm miss (grunt; enforcer 9.3 cm) was the harness: the first case's hand was still settling when
+put on the grip (10-14 units off it); the test now puts it there again (up to 8 times) until within 3 units. Now on it
+-1.1 cm (grunt), -1.0 cm (enforcer).
+**Every vr_agrunt_test ends on one line** `agtest: test N over: P passed, F failed` (VR_AGTest_Frame, when
+`vr_agrunt_test` goes back to 0): runs end on it (`run.sh -QuitOn "agtest: test [0-9]+ over"`, no wait/quit).
+**Tests** (both kinds): 31 5, 32 5, 33 7, 34 2, 36 4, 37 8, 38 3, 35 6 (`vr_weapon_grip_mode 1; impulse 167;
+vr_mock_hand main 0.15 1.35 -0.35 0 90 0`), 60 6, 25 3: all PASS, each ended on its line. eval.sh: canary 36/44 (one run
+1 differ, the full set 163/171 with 4 differ; run again 0 differ: noise). Glitch finder (46): all gun frames 4751, up
+worst 14 deg, over 45 deg 0, muzzle over its head 104 (no tug in it: untouched by the change).
+- [ ] Grab an enforcer's gun and hold still: it holds on (no tear-out); pull: it comes out. Say whether its pull feels
+  too abrupt next to a grunt's.

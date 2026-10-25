@@ -1093,6 +1093,7 @@ void() VR_AGPT_WeaponThrow =
 
 float vr_agpt_case;  // the case being tried
 vector vr_agpt_at;   // ... where its weapon's grip was put
+float vr_agpt_tries; // ... how many times it was put at the hand again (the hand not on it yet)
 
 // A fresh calm grunt with a shotgun (any tug over the old one ended first).
 void() VR_AGPT_Fresh =
@@ -1135,6 +1136,7 @@ void() VR_AGPT_Grab =
         p.mainhand_lastreleasetime = time - 1;
         VR_AGPT_Fresh();
         vr_ag_grab_fast = 0;
+        vr_agpt_tries = 0;
         vr_agt_step = 1;
         vr_agt_until = time + 0.4;
         return;
@@ -1169,6 +1171,15 @@ void() VR_AGPT_Grab =
     }
     if(vr_agt_step == 4)
     {
+        // (The first case's hand still settling as it was put there (the player just placed: the hand ended 10-14 units
+        // off its grip, the fist 9-15 cm off it): put there again until the hand is on its grip.)
+        if(vr_agt_index == 0 && vlen(p.handpos - g.vr_ag_prop.origin) > 3 && vr_agpt_tries < 8)
+        {
+            vr_agpt_tries = vr_agpt_tries + 1;
+            vr_agt_step = 3;
+            vr_agt_until = time + 0.2;
+            return;
+        }
         // Off it: the hand raised half a centimetre a frame until the fist is that far off its surface.
         float want = vr_agpt_case == 1 ? 2 : vr_agpt_case == 2 ? 5 : -999;
         vr_agt_index = vr_agt_index + 1;
