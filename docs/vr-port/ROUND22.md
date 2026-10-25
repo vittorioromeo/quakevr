@@ -22182,6 +22182,92 @@ to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30
 `vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
 verdict changes.
 
+## The heavy revolver: a weapon of its own (worktree `fastship`, branch `agent/revolver`, 2026-10-26)
+
+Vittorio's spec (qvr-kit `scratch/spec_revolver_flaregun.md`, REVOLVER) on the approved art
+(`Misc/quakevr/models_src/revolver/`), the nail pistol's way end to end. QC `vr_revolver.qc` (its header has the whole
+design), test `vr_revolver_test.qc`.
+
+- **Ids:** `WID_REVOLVER` 31, `IID_REVOLVER` 61, Hipnotic item bit 23 (**the last bit a float holds exactly: no item bit
+  is left**), weapon settings slot 38 (the flare gun, agent/flaregun, takes 30 / 60 / 22 / 37), `weapon_revolver` (FGD,
+  12 shells), toolgun Weapons page. Impulse 2 toggles shotgun / revolver; the weapon cycle puts it after the shotgun.
+- **Firing:** double action. A new pull cocks the hammer (frame 1) and turns the cylinder a chamber (the next chamber
+  under the hammer, 60 degrees), the hammer falls `vr_revolver_cock_time` (0.05 s) later: a live shell fires one slug, a
+  spent shell or an empty chamber clicks (the cylinder turned all the same). At most one each `vr_revolver_cooldown`
+  (0.3); the trigger held after a shot: frame 2, let go: 0. The blast is the super shotgun's pitched down with the
+  action's clack; heavy recoil (slot 38 RecoilStrength 1.6, RecoilTime 0.16, punch -4), a big flash (FlashSize 1.1),
+  smoke, haptics.
+- **Damage** (`vr_dmg_revolver` 26, up to `vr_revolver_dmg_random` 0.15 more): a grunt (30) dies to one in the head
+  (x1.5: 39-45) and to two in the body (26-29.9 each: one never kills). The spec's ogre (4-5 in the body) and grunt (2)
+  can't share one number (200 / 4.5 is 44, over the grunt's 30), so a slug into a big body deals
+  `vr_revolver_heavy_mult` (1.75) times as much: a monster of `vr_revolver_heavy_health` (150) or more full health (an
+  ogre, a hell knight, a fiend, a vore, a shambler): 45.5-52.3 a body shot, an ogre (200) dead to 4 or 5. A monster
+  that hasn't noticed you takes the stealth's sneak attack on top (`vr_stealth_sneak` 1.25): an unaware grunt can die to
+  one body shot. Head pops: its own kind (`QVR_DECAP_REVOLVER`, `vr_decap_revolver` 1), the shotguns' ranges, its own
+  chance `vr_decap_pop_revolver_scale` 1.6 and falloff `_falloff` 0.5: 1.00 at 4 player lengths, 1.00 at 8, 0.51 at 11
+  (the super shotgun's at 8: 0.50, the shotgun's 0.19). A monster's revolver: 15 a slug, no big-body extra.
+- **Chambers:** six, each empty, live or spent, in the weapon's record (`wi_rv`, `wi_rv_at` the chamber under the
+  hammer, `wi_rv_open`, the spin): they go with the gun to the holsters, the floor, a save. Its clip is their live count
+  (HUD, screen). Whatever else changes the clip (a holster reload in the other modes, a level change, a grunt's shots)
+  is followed: the next chambers to come filled first, the last emptied first (`VR_Revolver_Sync`).
+- **Immersive reloading** (`vr_reload_mode_revolver`, -1 global): out by a **flick of the wrist towards the cylinder's
+  side** (`vr_revolver_open_flick` 1; its force `_open_flick_speed` 350 deg/s at its fastest, its wrist flick
+  `_open_flick_angle` 30 degrees rolled that way in one go; the roll measured from the hand's turn between frames, about
+  its aim) or **B/Y** (`vr_revolver_open_button` 1). Out: B/Y, the **muzzle tilted up** (`vr_revolver_eject_tilt` 50
+  degrees) or the other hand **pushing the ejector rod's head back** (`_eject_rod`, `_reach` 2.5 units, `_speed` 0.3 m/s)
+  drop its shells, spent ones as casings (vr_shells.cpp, out of the chambers as drawn) and live ones as shells lying
+  about to take again. The pouch gives **single shells** for it (not taped pairs); one held at the cylinder's back face
+  (its load point, radius `vr_reload_port_revolver_radius` 2) goes into the **empty chamber nearest it**. The other
+  hand **swiping across it spins it** (`vr_revolver_spin`, `_spin_speed` 0.5 m/s, `_mult` 1, `_friction` 720 deg/s2,
+  `_max` 1800): it stops on a chamber, which changes which comes next. Home by the **flick the other way** (always;
+  `_close_flick_speed` 300, `_close_flick_angle` 25), a **push up from below** (`_close_push`, `_speed` 0.8 m/s) or B/Y
+  with `vr_revolver_close_button` (0). Out, it doesn't fire; a revolver leaving the hand out swings home. Menus: Weapons >
+  Reloading > Heavy Revolver, its override.
+- **Drawn** in its parts in the hands (vr_view.cpp `setupRevolverParts`; stats `STAT_QVR_REVOLVER*`, `_REVOLVERCYL*`
+  from `.vr_rv_hud`, `.vr_rv_cyl`): `v_revolver_frame.mdl` with the hammer's frames, the crane swung out 95 degrees
+  (700 deg/s out, 900 home), the cylinder turned (60 degrees a shot, a spin as it turns), a shell in each loaded chamber
+  (`v_revolver_shell.mdl` skin 1 the blue slug, 3 spent), the rod pushed (cylinder frame 1) as the shells drop. Each part
+  is placed from the README's pivots and checked against the gun's own transform (the roll's sign chosen so its +y lands
+  where the gun's turned +y is: mirrored or not; `vr_reload_debug 2` prints the error: 0.0000 units). The parts get the
+  gun's slot transform (`weapons::slotForPart`: `progs/v_revolver_*`). Holstered, lying, a grunt's: `v_revolver.mdl`.
+  Its load point swings out with the crane (`modelLoadPort`; none shut); a lying revolver takes no shells.
+- **Slot 38** (vr_weapons.inc; `vr_wofs_version` 68 resets it for configs saved before: it was unused): the nail pistol's
+  grip, pitch (-6.85) and holster poses for a base, muzzle 16.964 0 7.058 (the bore's mouth), Scale 0.45, Shot Pitch
+  0.07 (the sights 2.12 over the bore, zeroed near 20 m), its screen and button on the frame's left plate. Sights:
+  `vr_sightalign_table.inc` (rear notch 3.764 0 9.178, blade 16.714 0 9.178).
+- **Armed grunts:** rare (`vr_agrunt_w_revolver` 0.25; the armed replacements' rare tier), one or a pair, fired through
+  `W_FireRevolver` (the shared code: `VR_AG_ShootProp`).
+- **Test aids:** Debug > Tests > Heavy Revolver (`vr_rv_test 2` in the hand, 3 both, 4 swung out with live and spent
+  shells, 5 an armed grunt with one, 1 the self-test); Debug > Tests' spawn row; scenario `revolver`.
+
+**Measured** (`vr_rv_test 1`, vrtesthall, fast mode, ends on "rvtest: N passed, M failed": 28 passed, 0 failed): one
+shot for 0.69 s held; the hammer 1 then 2 then 0; six shots 0.306 s apart, 6 of 6 on a target 80 units along the aim;
+a click on the seventh pull; B/Y out, B/Y again 6 spent / 0 live dropped; three singles at chambers 3, 5, 0 went there;
+the hands' shell (the mock's off hand at the load point) into the next empty one; a 900 deg/s spin stopped on a chamber
+(550 degrees, the chamber under the hammer moved with it); the flick home (27 deg at 934 deg/s) and out (32 deg); the
+pulls after the spin `cFF` as its chambers said; the muzzle 60 degrees up dropped 2 spent and 2 live (2 shells lying);
+the flicks' thresholds both ways and customized; a grunt to one headshot, its head popped; another to two body shots;
+an ogre (180 health here) to 4; an armed grunt's revolver fired once. `vr_aim_check` (both hands): shots 0.08 degrees off
+the barrel (level, and pitched/turned/rolled). A live armed grunt with one fired it at the player. `menu_vr links` 40
+links, 0 failed; `vr_scenario validate` revolver OK. eval.sh canary 36/44, 0 differ (an earlier run 1 differ, the full
+set 163/171: run-to-run noise, no melee code touched).
+
+**Decisions:** the cylinder turns before the hammer falls (the chamber that fires is the one after the hammer's); the
+flick's roll is measured about the aim from the hand's turn (the mock's controller is pitched 70 off its aim, so a
+`vr_mock_hand_turn` roll is a third the aim's roll); spinning only while out (a shut cylinder is locked); the shells
+dropped look like the shotguns' (red live shells, red casings), blue only in the revolver; sounds are the existing ones
+pitched (no new files); the ejector rod and the swipe/push need an empty other hand; `vr_revolver_close_button` off.
+
+**In VR:**
+- [ ] Heavy revolver: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash.
+- [ ] Heavy revolver: a flick of the wrist towards the cylinder swings it out (Flick Open Force / Wrist Flick to taste); B/Y too.
+- [ ] Heavy revolver out: muzzle up, B/Y or pushing the ejector rod drops the shells (spent casings, live shells to pick up).
+- [ ] Heavy revolver: single shells from the pouch go into the chamber you hold them at; blue in the cylinder.
+- [ ] Heavy revolver: swipe the open cylinder: it spins and stops on a chamber; empty chambers click and turn.
+- [ ] Heavy revolver: a flick back or a push from below swings it home.
+- [ ] Heavy revolver: a grunt to one headshot (its head pops) or two body shots; an ogre to 4-5.
+- [ ] Heavy revolver: its grip in the palm and the sights on the aim (the nail pistol's for now); its holsters.
+- [ ] Armed grunts rarely carry a heavy revolver and fire it.
 ## Flare gun: the weapon (worktree `goreflesh`, branch `agent/flaregun`, 2026-10-26)
 
 The approved art (above, "Flare gun: the art") made a weapon, after the nail pistol's patterns, to his spec

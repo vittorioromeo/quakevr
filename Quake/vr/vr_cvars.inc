@@ -2801,6 +2801,38 @@ QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazin
 QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
 QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
 QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
+QVR_CVAR(vr_dmg_revolver, "26", CVAR_ARCHIVE)        // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body; vr_revolver_heavy_mult in a big body)
+// The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
+// Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers
+// of your shells fired as slugs; immersive reloading: its cylinder swung out (a flick, B/Y), the shells dropped (the
+// muzzle up, the ejector), a shell at a time from the pouch into its chambers, swung home (a flick, a push).
+QVR_CVAR(vr_revolver_dmg_random, "0.15", CVAR_ARCHIVE) // up to this share more damage at random, each slug (a grunt's body shot stays under its 30)
+QVR_CVAR(vr_revolver_heavy_mult, "1.75", CVAR_ARCHIVE) // a slug into a big body (a monster of vr_revolver_heavy_health or more full health: an ogre, a fiend...) deals this many times as much (an ogre: 4-5 in the body)
+QVR_CVAR(vr_revolver_heavy_health, "150", CVAR_ARCHIVE) // the full health from which a monster's body is big (vr_revolver_heavy_mult)
+QVR_CVAR(vr_revolver_cooldown, "0.3", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull: double action)
+QVR_CVAR(vr_revolver_cock_time, "0.05", CVAR_ARCHIVE) // s from the pull to the shot: the hammer cocks and the cylinder turns a chamber, then the hammer falls (0: at once)
+QVR_CVAR(vr_revolver_spread, "0.15", CVAR_ARCHIVE) // degrees its slugs stray at most from its aim
+QVR_CVAR(vr_revolver_volume, "1", CVAR_ARCHIVE) // its shot's volume (0..4)
+QVR_CVAR(vr_revolver_smoke, "1", CVAR_ARCHIVE) // a wisp of smoke from its muzzle after a shot (0 none)
+QVR_CVAR(vr_revolver_open_flick, "1", CVAR_ARCHIVE) // immersive reloading: a flick of the wrist towards the cylinder's side (left in the right hand) swings it out
+QVR_CVAR(vr_revolver_open_flick_speed, "350", CVAR_ARCHIVE) // the flick open's force: degrees a second the wrist must roll at, at its fastest
+QVR_CVAR(vr_revolver_open_flick_angle, "30", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
+QVR_CVAR(vr_revolver_close_flick_speed, "300", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
+QVR_CVAR(vr_revolver_close_flick_angle, "25", CVAR_ARCHIVE) // and its wrist flick, degrees
+QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
+QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then drop by the tilt or the ejector rod alone)
+QVR_CVAR(vr_revolver_close_push, "1", CVAR_ARCHIVE) // the other hand pushing the swung-out cylinder up from below swings it home
+QVR_CVAR(vr_revolver_close_push_speed, "0.8", CVAR_ARCHIVE) // m/s that push must reach (the hands' relative speed, along the cylinder's way home)
+QVR_CVAR(vr_revolver_eject_tilt, "50", CVAR_ARCHIVE) // out, the muzzle tilted up this many degrees drops its shells, spent and live (0: never)
+QVR_CVAR(vr_revolver_eject_rod, "1", CVAR_ARCHIVE) // out, the other hand pushing the ejector rod's head back drops them
+QVR_CVAR(vr_revolver_eject_rod_reach, "2.5", CVAR_ARCHIVE) // units from the rod's head the other hand pushes it within
+QVR_CVAR(vr_revolver_eject_rod_speed, "0.3", CVAR_ARCHIVE) // m/s back along the cylinder that push must reach
+QVR_CVAR(vr_revolver_spin, "1", CVAR_ARCHIVE) // out, the other hand swiping across the cylinder spins it (the chamber that comes next changes)
+QVR_CVAR(vr_revolver_spin_speed, "0.5", CVAR_ARCHIVE) // m/s a swipe must reach across it
+QVR_CVAR(vr_revolver_spin_mult, "1", CVAR_ARCHIVE) // how fast a swipe spins it, times
+QVR_CVAR(vr_revolver_spin_friction, "720", CVAR_ARCHIVE) // degrees a second, each second, a spin slows by (it stops on a chamber)
+QVR_CVAR(vr_revolver_spin_max, "1800", CVAR_ARCHIVE) // degrees a second at most
+QVR_CVAR(vr_revolver_hand_reach, "3", CVAR_ARCHIVE) // units from the swung-out cylinder's middle (beyond its radius) the other hand spins it or pushes it home within
 QVR_CVAR(vr_dmg_grenade, "120", CVAR_ARCHIVE)        // a grenade's blast (the launcher's, a hand grenade's, a returned ogre grenade's)
 QVR_CVAR(vr_dmg_rocket, "100", CVAR_ARCHIVE)         // a rocket's direct hit (and up to a fifth more at random); its blast 1.2 times it
 QVR_CVAR(vr_dmg_lightning, "30", CVAR_ARCHIVE)       // the lightning gun: a bolt's (10 a second)
@@ -2995,6 +3027,7 @@ QVR_CVAR(vr_agrunt_w_gruntgun, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_enfrifle, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_nailpistol, "1", CVAR_ARCHIVE)   // the nail pistol (one in each hand when it pairs)
 QVR_CVAR(vr_agrunt_flaregun, "0.1", CVAR_ARCHIVE)      // 0..1: one from the pool with one weapon carries a flare gun too: it fires its two flares first, then throws it away and takes its own
+QVR_CVAR(vr_agrunt_w_revolver, "0.25", CVAR_ARCHIVE)  // the heavy revolver (rare)
 QVR_CVAR(vr_agrunt_w_packs, "1", CVAR_ARCHIVE)          // the mission packs' guns while theirs is installed (Mjolnir, laser cannon, proximity gun), each
 // Armed grunts, polish (ROUND22.md "Armed grunts: polish"): Arcane Dimensions' weapons in the pool while AD's data is
 // loaded (the soldiers' guns each; the upgrades where AD's upgrades play; the swords, hammer and mace each).
@@ -3650,6 +3683,7 @@ QVR_CVAR(vr_decap_thrown, "1", CVAR_ARCHIVE)          // a thrown axe going in e
 QVR_CVAR(vr_decap_chainsaw, "1", CVAR_ARCHIVE)        // the chainsaw beheads too (its running chain at the neck, or a swing)
 QVR_CVAR(vr_decap_shotgun, "1", CVAR_ARCHIVE)         // a shotgun blast killing with a headshot pops the head (no head flies: a burst of blood and small gibs), a headless ragdoll
 QVR_CVAR(vr_decap_super_shotgun, "1", CVAR_ARCHIVE)   // ... a super shotgun blast
+QVR_CVAR(vr_decap_revolver, "1", CVAR_ARCHIVE)        // ... a heavy revolver's slug
 QVR_CVAR(vr_decap_lightning, "1", CVAR_ARCHIVE)       // ... a lightning gun bolt at the head that kills
 QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's damage on him (after the headshot multiplier) its head pellets must deal to pop the head
 // Head pop chance (QC vr_decap.qc, "Head pop chance"; ROUND21.md): a shotgun's or super shotgun's headshot kill pops the head
@@ -3662,6 +3696,8 @@ QVR_CVAR(vr_decap_pop_ssg_scale, "1.25", CVAR_ARCHIVE)    // the super shotgun's
 QVR_CVAR(vr_decap_pop_ssg_falloff, "1", CVAR_ARCHIVE)     // its falloff exponent over the way between them (1: straight; higher: dies away sooner)
 QVR_CVAR(vr_decap_pop_sg_scale, "0.75", CVAR_ARCHIVE)     // the shotgun's chance between the ranges, times this
 QVR_CVAR(vr_decap_pop_sg_falloff, "1.5", CVAR_ARCHIVE)     // its falloff exponent (stronger than the super shotgun's)
+QVR_CVAR(vr_decap_pop_revolver_scale, "1.6", CVAR_ARCHIVE)  // the heavy revolver's slug's chance between the ranges, times this (all of it at the head: high)
+QVR_CVAR(vr_decap_pop_revolver_falloff, "0.5", CVAR_ARCHIVE) // its falloff exponent (gentler than the shotguns')
 QVR_CVAR(vr_decap_pop_pellet_weight, "0.75", CVAR_ARCHIVE) // how much the share of the blast's pellets at the head weighs (0: none; 1: in proportion)
 QVR_CVAR(vr_decap_pop_lightning_always, "1", CVAR_ARCHIVE) // a lightning bolt's headshot kill always pops, at any range (0: the ranges, the super shotgun's falloff, all of it at the head)
 QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung) blunt weapon or prop killing with a headshot pops the head
@@ -4446,6 +4482,7 @@ QVR_CVAR(vr_reload_mode_light, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_widow, "-1", CVAR_ARCHIVE)    // AD support: the Widowmaker's (the super shotgun with AD's upgrade)
 QVR_CVAR(vr_reload_mode_adplasma, "-1", CVAR_ARCHIVE) // AD support: the Plasma Gun's (the thunderbolt with AD's upgrade)
 QVR_CVAR(vr_reload_mode_npistol, "-1", CVAR_ARCHIVE)  // the nail pistol's
+QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
 // hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
@@ -4623,6 +4660,9 @@ QVR_CVAR(vr_reload_port_adplasma_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_npistol_x, "0", CVAR_ARCHIVE)  // the nail pistol's: the grip's bottom, where its magazine goes in
 QVR_CVAR(vr_reload_port_npistol_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_npistol_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_revolver_x, "0", CVAR_ARCHIVE) // the heavy revolver's: the swung-out cylinder's back face, on its axis (a shell goes into the empty chamber nearest it)
+QVR_CVAR(vr_reload_port_revolver_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_revolver_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
 QVR_CVAR(vr_reload_port_shot_radius, "1.6", CVAR_ARCHIVE)
@@ -4630,6 +4670,7 @@ QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_npistol_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_revolver_radius, "2", CVAR_ARCHIVE) // (the cylinder's whole back face, its six chambers)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
 QVR_CVAR(vr_reload_port_widow_radius, "1.4", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
 QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
@@ -4957,6 +4998,7 @@ QVR_CVAR(vr_mg3_shubtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine
 QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Bestiary: 1 report, 2 the orb (QC/vr_mg3_bestiary_test.qc; not archived)
 QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
 QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (9: in the dark), 7 the crates' flare guns planned twice (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
+QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived

@@ -2267,6 +2267,13 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             VR_SmallGib_Pellet(trace_ent, trace_endpos);
             if(debugShots && posDmgType == 1) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
+            if(vr_pellet_heavy_mult > 0 && (trace_ent.flags & FL_MONSTER) && trace_ent.max_health >= vr_pellet_heavy_health)
+            {
+                adjDmg = adjDmg * vr_pellet_heavy_mult; // VR: a revolver's slug into a big body (vr_revolver.qc)
+            }
+            vr_pellet_last = adjDmg;
+            vr_pellet_last_part = posDmgType;
+            vr_pellet_last_ent = trace_ent;
 
             TraceAttack (adjDmg, shotDir);
 
@@ -3595,6 +3602,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         VR_FlareGun_Attack(xHand, xAttackFinished, xOutAttackFinished);
         return;
     }
+    // The heavy revolver: double action, a pull cocks the hammer, turns the cylinder and fires (vr_revolver.qc).
+    if(xWeapon == WID_REVOLVER)
+    {
+        VR_Revolver_Attack(xHand, xAttackFinished, xOutAttackFinished);
+        return;
+    }
 
     // A grunt's shotgun or an enforcer's rifle: from its own ammo, its clip (vr_enemyguns.qc).
     if(VR_IsEnemyGun(xWeapon))
@@ -3841,7 +3854,14 @@ void() W_ChangeWeapon =
     }
     else if(self.impulse == 2)
     {
+        // VR: the shells' slot holds the shotgun and the heavy revolver (vr_revolver.qc): 2 again toggles them, as 4
+        // the nailgun and the nail pistol; the one you have when you have one only.
         wid = WID_SHOTGUN;
+        if(VR_ItemUtil_EntHasItem(self, IID_REVOLVER) &&
+           (self.weapon == WID_SHOTGUN || !VR_ItemUtil_EntHasItem(self, IID_SHOTGUN)))
+        {
+            wid = WID_REVOLVER;
+        }
         if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_SHELLS) < 1) { am = 1; }
     }
     else if(self.impulse == 3)
@@ -3982,6 +4002,7 @@ void() CheatCommand =
     VR_WeaponUtil_EntAddWeapon(self, WID_MJOLNIR);
     VR_WeaponUtil_EntAddWeapon(self, WID_PROXIMITY_GUN);
     VR_WeaponUtil_EntAddWeapon(self, WID_NAILPISTOL); // VR: the nail pistol (vr_nailpistol.qc)
+    VR_WeaponUtil_EntAddWeapon(self, WID_REVOLVER); // VR: the heavy revolver (vr_revolver.qc)
 
     VR_ItemUtil_EntAddItem(self, IID_KEY1);
     VR_ItemUtil_EntAddItem(self, IID_KEY2);
@@ -4001,7 +4022,7 @@ float(entity xPlayer, float xDir, float xWeapon,
     if(VR_FlatPlay(xPlayer)) { minWeapon = WID_FIST; }
 
     // Just for safety.
-    float maxIterations = maxWeapon + 2; // (the nail pistol too)
+    float maxIterations = maxWeapon + 3; // (the nail pistol and the heavy revolver too)
 
     float skipEmptyWeapons = FALSE;
 
@@ -4013,10 +4034,11 @@ float(entity xPlayer, float xDir, float xWeapon,
     for(float iterations = 0; iterations < maxIterations; ++iterations)
     {
 
-        xWeapon = VR_NailPistol_CycleStep(xWeapon, xDir); // (+ xDir; the nail pistol before the nailgun)
+        // (+ xDir; the heavy revolver after the shotgun, the nail pistol before the nailgun)
+        xWeapon = VR_Revolver_CycleStep(xWeapon, xDir);
 
-        if(xWeapon > maxWeapon && xWeapon != WID_NAILPISTOL) { xWeapon = minWeapon; }
-        else if(xWeapon < minWeapon)                         { xWeapon = maxWeapon; }
+        if(xWeapon > maxWeapon && xWeapon != WID_NAILPISTOL && xWeapon != WID_REVOLVER) { xWeapon = minWeapon; }
+        else if(xWeapon < minWeapon)                                                    { xWeapon = maxWeapon; }
 
         // If we get to the original weapon after cycling, break.
         if(xWeapon == originalWeapon)

@@ -165,6 +165,14 @@ enum Stat : int
     // The hands carrying a thing to put away (QC .vr_carry_items, VR_Carry_IsCollectable: an ammo box, a health box, a
     // backpack): bit 0 the off hand, 1 the main. Their zones are larger (vr_holster_zone_item_*; vr_holsterzones.cpp).
     STAT_QVR_CARRYITEM = STAT_QVR_MAGBIND0 + 6,
+    // The heavy revolver in each hand (QC vr_revolver.qc .vr_rv_hud, .vr_rv_hud2; vr_view.cpp setupRevolverParts): its
+    // chambers (2 bits each from bit 0: 0 empty, 1 a live shell, 2 a spent one) + 4096 its cylinder swung out + 8192
+    // its ejector rod pushed + 16384 x the chamber under the hammer + 131072 (one held); 0: none. And its cylinder's
+    // turn (.vr_rv_cyl, .vr_rv_cyl2: degrees about the bore, its model's +y towards +z; a float stat).
+    STAT_QVR_REVOLVER,
+    STAT_QVR_REVOLVER2,
+    STAT_QVR_REVOLVERCYL,
+    STAT_QVR_REVOLVERCYL2,
     STAT_QVR_END
 
 };

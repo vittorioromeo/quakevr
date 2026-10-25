@@ -221,6 +221,10 @@ constexpr LoadPort loadPorts[] = {
         {&vr_reload_port_light_x, &vr_reload_port_light_y, &vr_reload_port_light_z}, &vr_reload_port_light_radius, true},
     // The nail pistol's: its grip's bottom, where its magazine's top goes in (make_nailpistol_mags.py: 5.25 down the grip
     // from the seated top), slapped up into the grip from there.
+    // The heavy revolver's: its cylinder's back face's middle (on its axis; README: 3.764 0 5.608 home), on the crane swung
+    // out (modelLoadPort): a held shell there goes into the empty chamber nearest it (QC vr_revolver.qc).
+    {modelmeta::Id::VRevolver, {3.764f, 0.f, 5.608f},
+        {&vr_reload_port_revolver_x, &vr_reload_port_revolver_y, &vr_reload_port_revolver_z}, &vr_reload_port_revolver_radius, false},
     {modelmeta::Id::VNailPistol, {-0.6237f, 0.f, -2.934f},
         {&vr_reload_port_npistol_x, &vr_reload_port_npistol_y, &vr_reload_port_npistol_z}, &vr_reload_port_npistol_radius, true},
     // AD support: AD's Plasma Gun: its cell's well on its inner side (vr_adweapons.cpp plasmaSeat; vr_view.cpp magMounts).
@@ -310,6 +314,21 @@ struct SsgDrawn
     bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
 };
 inline SsgDrawn ssgHands[2];
+// The heavy revolver in a hand (QC vr_revolver.qc; STAT_QVR_REVOLVER*, STAT_QVR_REVOLVERCYL*), drawn in its parts
+// (setupRevolverParts): its crane swung out `swing` degrees (0 home .. 95 out, about the bore, to its +y), its cylinder
+// turned `cyl` degrees (its model's +y towards +z), both stepped smoothly towards the server's (revolverStep).
+struct RevolverDrawn
+{
+    float swing{0.f};
+    float cyl{0.f};
+    double time{-1.0};            // vr_gametime of its last step
+    const qmodel_t* gun{nullptr}; // the model it was for (another gun: no animation)
+    bool parts{false};            // drawn in its parts this frame (the gun itself not drawn)
+};
+inline RevolverDrawn rvHands[2];
+float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand);
+// A point of v_revolver.mdl (its Body's frame) on its crane, the crane swung out `swing` degrees.
+[[nodiscard]] glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing);
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags);
 [[nodiscard]] glm::vec3 ssgTurnWorld(const view::ViewEntity& gun, const glm::vec3& w, float deg);
 [[nodiscard]] glm::mat3 ssgWorldTurn(const view::ViewEntity& gun, float deg);
@@ -348,6 +367,10 @@ struct Entities
     view::ViewEntity holsterSsgBarrels[HolsterCount];
     view::ViewEntity worldSsgFrame[maxWorldSsgs];   // and lying about (setupWorldSsgs)
     view::ViewEntity worldSsgBarrels[maxWorldSsgs];
+    view::ViewEntity rvFrame[2];   // the heavy revolver in the hands, in its parts (setupRevolverParts): the frame with its
+    view::ViewEntity rvCrane[2];   // hammer and trigger, the crane, the cylinder and the shells in its chambers
+    view::ViewEntity rvCyl[2];
+    view::ViewEntity rvShell[2][6];
     view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
@@ -448,6 +471,16 @@ void forEachEntity(F&& f)
     {
         f(entities.worldSsgFrame[i]);
         f(entities.worldSsgBarrels[i]);
+    }
+    for(int i = 0; i < 2; i++)
+    {
+        f(entities.rvFrame[i]);
+        f(entities.rvCrane[i]);
+        f(entities.rvCyl[i]);
+        for(view::ViewEntity& ve : entities.rvShell[i])
+        {
+            f(ve);
+        }
     }
     f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)

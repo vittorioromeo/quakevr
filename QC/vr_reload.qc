@@ -176,6 +176,7 @@ float(float xWeapon, entity xInst) VR_Reload_ManualForInst =
 {
     // (AD support: the Widowmaker's tube loads a handful at a time at its port, as the shotgun's: never broken open.)
     return VR_Reload_ImmersiveForInst(xWeapon, xInst) && (xWeapon == WID_SHOTGUN || VR_Reload_UsesMag(xWeapon) ||
+        xWeapon == WID_REVOLVER || // (its cylinder swung out, a shell at a time: vr_revolver.qc)
         VR_Reload_IsFront(xWeapon) || (xWeapon == WID_SUPER_SHOTGUN && (AD_Widowmaker(xInst) || cvar_hget(cvarh_vr_reload_ssg_break))));
 };
 
@@ -959,6 +960,10 @@ float(float xWeapon) VR_Reload_PortRadius =
     {
         return cvar_hget(cvarh_vr_reload_port_npistol_radius);
     }
+    if(xWeapon == WID_REVOLVER)
+    {
+        return cvar_hget(cvarh_vr_reload_port_revolver_radius); // (its cylinder's back face)
+    }
     if(xWeapon == WID_GRENADE_LAUNCHER)
     {
         return cvar_hget(cvarh_vr_reload_port_gl_radius);
@@ -1255,6 +1260,10 @@ void(float xHand) VR_Reload_Take =
             VR_ClipSizeIn(self, VRGetOtherHand(xHand)) - VRGetEntWeaponClip(self, VRGetOtherHand(xHand)) < 2)
     {
         n = 1; // (one place left in the gun's tube, or none: a single shell, not a pair)
+    }
+    if(VRGetEntWeapon(self, VRGetOtherHand(xHand)) == WID_REVOLVER && VR_Reload_ManualInHand(self, VRGetOtherHand(xHand)))
+    {
+        n = 1; // (the heavy revolver: a shell at a time into its chambers, vr_revolver.qc)
     }
     if(w)
     {
@@ -1993,8 +2002,15 @@ float(float xGunHand, entity r) VR_Reload_FrontLies =
 // The round `r` goes into the gun in `xGunHand` of self (from the other hand, `xHeld`; else a loose one:
 // VR_Reload_LooseFrame): as many of its rounds as fit (a pair with one place left: one, a single shell left in the hand
 // or lying). TRUE if it is used up (gone). A full gun takes nothing: a dull tap (once, until it leaves the port).
+// (The heavy revolver's: a shell into a chamber of its swung-out cylinder, vr_revolver.qc.)
+float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto;
+
 float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
 {
+    if(VRGetEntWeapon(self, xGunHand) == WID_REVOLVER)
+    {
+        return VR_Revolver_LoadInto(xGunHand, r, xHeld);
+    }
     float gunHand = xGunHand;
     float xHand = VRGetOtherHand(gunHand);
     float w = VRGetEntWeapon(self, gunHand);
@@ -2755,6 +2771,10 @@ float(entity g, entity r) VR_Reload_PropRoom =
     if(r.vr_ammo_wid)
     {
         return (g.weaponflags & QVR_WPNFLAG_NOMAG) != 0;
+    }
+    if(w == WID_REVOLVER)
+    {
+        return FALSE; // (the heavy revolver lies shut: its cylinder swings out in the hand)
     }
     if(w == WID_SUPER_SHOTGUN && !(g.weaponflags & QVR_WPNFLAG_SSG_OPEN) && !AD_Widowmaker(g.weaponinst))
     {

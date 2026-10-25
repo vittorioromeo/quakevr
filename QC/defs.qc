@@ -519,6 +519,7 @@ float HIP_IT_ADFUMIGATOR       = VRUTIL_POWER_OF_TWO(19);
 float HIP_IT_ADCROSSBOW        = VRUTIL_POWER_OF_TWO(20); // AD support: the crossbow knight's crossbow.
 float HIP_IT_NAILPISTOL        = VRUTIL_POWER_OF_TWO(21); // VR: the nail pistol (vr_nailpistol.qc).
 float HIP_IT_FLAREGUN          = VRUTIL_POWER_OF_TWO(22); // VR: the flare gun (vr_flaregun.qc).
+float HIP_IT_REVOLVER          = VRUTIL_POWER_OF_TWO(23); // VR: the heavy revolver (vr_revolver.qc). The last bit a float holds exactly: none left.
 
 //
 //

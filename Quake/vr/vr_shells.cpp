@@ -81,6 +81,10 @@ constexpr Weapon weaponTable[] = {
     // opposite its shell port: out sideways and up, onto the ground (as the shotgun's).
     {modelmeta::Id::AdVrWidowmaker, 1, {{7.25f, -3.9f, 7.7f}}, {{-0.25f, -1.f, 0.6f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
         "12.5 -3.6 9.2"},
+    // The heavy revolver (QC vr_revolver.qc): its spent shells drop out of the back of its swung-out cylinder (eject:
+    // out of its chambers as drawn), slowly, back along the bore.
+    {modelmeta::Id::VRevolver, 1, {{3.4f, 0.f, 5.608f}}, {{-1.f, 0.f, 0.f}}, 0.5f, {0.f, 1.f, 0.f}, 4.f, 0.6f, 0,
+        "3.4 0 5.608"},
 };
 
 // The casings' models (the QC's `kind`).
@@ -383,6 +387,15 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
             // with the barrels (vr_view.cpp; make_ssg_open.py's breech face at x 12.7, z 7), backwards and up.
             at = view::ssgTurned(glm::vec3{12.7f, w->port[port].y, 7.f}, open) + shift;
             portDir = view::ssgTurned(portDir, open, false);
+        }
+        if(w->model == modelmeta::Id::VRevolver)
+        {
+            // The heavy revolver swung out: each out of a chamber of its cylinder as drawn (its back face 3.764 0 5.608 home,
+            // its chambers 1.45 round its axis, on the crane), back along the bore.
+            const float swing = view::revolverSwing(p.hand);
+            const float a = glm::radians(90.f + 60.f * static_cast<float>(i) - swing);
+            at = view::revolverTurned(glm::vec3{3.4f, 0.f, 5.608f}, swing) +
+                 glm::vec3{0.f, 1.45f * std::cos(a), 1.45f * std::sin(a)} + shift;
         }
         const glm::vec3 pos = view::modelPoint(ve, at);
 

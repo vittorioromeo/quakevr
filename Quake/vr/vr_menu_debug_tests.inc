@@ -32,6 +32,8 @@ za::Vector<Item> pageSpawnWeapons()
             .help("Quake VR's nail pistol lying ready to be picked up (with 24 nails)."),
         command("Flare Gun", "vr_physics_spawn weapon_flaregun reach")
             .help("Quake VR's disposable flare gun lying ready to be picked up (two flares)."),
+        command("Heavy Revolver", "vr_physics_spawn weapon_revolver reach")
+            .help("Quake VR's heavy revolver lying ready to be picked up (with 12 shells)."),
         command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
@@ -1015,6 +1017,18 @@ za::Vector<Item> pageDebugTests()
         command("Flare Gun Muzzles Test", "vr_flare_test 5")
             .help("Headless: each flare leaves its own barrel's muzzle (the top's first) along the barrels "
                   "(\"flaremuzzle: N passed, M failed\")."),
+        header("Heavy Revolver"),
+        command("A Heavy Revolver in Your Hand", "vr_rv_test 2").help("A loaded heavy revolver in the main hand (and 36 shells)."),
+        command("Heavy Revolvers in Both Hands", "vr_rv_test 3").help("A loaded heavy revolver in each hand."),
+        command("A Heavy Revolver Swung Out", "vr_rv_test 4")
+            .help("One in the main hand with its cylinder swung out, live and spent shells in it (immersive reloading on it: "
+                  "vr_reload_mode_revolver 3)."),
+        command("An Armed Grunt With One", "vr_rv_test 5").help("An armed grunt with a heavy revolver, 200 units ahead."),
+        command("Heavy Revolver Self-Test", "vr_rv_test 1")
+            .help("Headless checks: double action, its rate, the hammer, the cylinder turning, a click on an empty chamber, "
+                  "B/Y out and its shells dropped, single shells into the chambers, a spin, the flicks home and out, chamber "
+                  "tracking, the muzzle up dropping spent and live shells, the flicks' thresholds, a grunt to one headshot "
+                  "(popped) or two body shots, an ogre to 4-5, an armed grunt firing one (\"rvtest: N passed, M failed\")."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

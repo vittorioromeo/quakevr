@@ -764,6 +764,11 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     const float ssgOpen = ssgStep(ssgHands[hand], floating ? nullptr : model,
         cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2]);
 
+    // The heavy revolver: how far its crane is drawn swung out now, its cylinder's turn (its parts: setupRevolverParts);
+    // its load point swings out with the crane.
+    const float rvSwing = revolverStep(rvHands[hand], floating ? nullptr : model, hand);
+    const float portOpen = model && modelmeta::is(model, modelmeta::Id::VRevolver) ? rvSwing : ssgOpen;
+
     // Its loading port (a gun held by its handle or carried; vr_reload_mode 3): where a round from the ammo pouch goes in.
     s.loadPortValid[hand] = false;
     if(model && slot >= 0)
@@ -775,7 +780,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             {
                 // (Its point and ways in the model's space: modelLoadPort, as the server's guns lying about.)
                 glm::vec3 at, axis, out;
-                if(!view::modelLoadPort(model, ssgOpen, at, axis, out))
+                if(!view::modelLoadPort(model, portOpen, at, axis, out))
                 {
                     break;
                 }

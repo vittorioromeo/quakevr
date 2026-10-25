@@ -202,6 +202,8 @@
                   "falls at once as a headless ragdoll (never gibbed, nor its death animation) (vr_decap_shotgun)."),
         toggle("Super Shotgun", vr_decap_super_shotgun)
             .help("The same for a super shotgun blast (vr_decap_super_shotgun)."),
+        toggle("Heavy Revolver", vr_decap_revolver)
+            .help("The same for a heavy revolver's slug (vr_decap_revolver)."),
         toggle("Lightning Gun", vr_decap_lightning)
             .help("The same for a lightning gun bolt at the head that kills (vr_decap_lightning)."),
         slider("Blast's Head Share", vr_decap_head_share, 0.f, 1.f, 0.05f, "%.2f")
@@ -225,6 +227,11 @@
         slider("Super Shotgun Falloff", vr_decap_pop_ssg_falloff, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
             .help("How fast its chance dies away with range: 1 straight down to the far range, higher sooner, 0 not at all "
                   "(vr_decap_pop_ssg_falloff)."),
+        slider("Heavy Revolver Chance", vr_decap_pop_revolver_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The heavy revolver's chance between the ranges, times this: a slug, all of it at the head, pops it "
+                  "often (vr_decap_pop_revolver_scale)."),
+        slider("Heavy Revolver Falloff", vr_decap_pop_revolver_falloff, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("How fast its chance dies away with range (gentler than the shotguns') (vr_decap_pop_revolver_falloff)."),
         slider("Shotgun Chance", vr_decap_pop_sg_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("The shotgun's chance between the ranges, times this (vr_decap_pop_sg_scale)."),
         slider("Shotgun Falloff", vr_decap_pop_sg_falloff, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)

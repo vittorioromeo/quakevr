@@ -168,7 +168,8 @@ namespace
 // (takeWidowmaker65).
 // 66: the AD death guard's sword (slot 43) the death knight's (41) values as its own, inheriting none (takeGuardSword66).
 // 67: the flare gun's slot (37) at its defaults (takeFlareGun67).
-constexpr int settingsVersion = 67;
+// 68: the heavy revolver's slot (38) at its defaults (takeRevolver68).
+constexpr int settingsVersion = 68;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -756,6 +757,12 @@ void takeFlareGun67()
     resetSlot(37);
 }
 
+// The heavy revolver's slot (68; unused before: a config archived its keys at the empty slot's defaults).
+void takeRevolver68()
+{
+    resetSlot(38);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -790,6 +797,7 @@ constexpr Step steps[] = {
     {65, takeWidowmaker65},
     {66, takeGuardSword66},
     {67, takeFlareGun67},
+    {68, takeRevolver68},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -1243,6 +1251,11 @@ int slotForPart(const qmodel_t* model)
             slot = slotForName(gun);
             break; // (the prefixes don't overlap)
         }
+    }
+    // The heavy revolver's parts (vr_view.cpp setupRevolverParts: each in its own frame, drawn on the gun): its slot.
+    if(slot < 0 && !strncmp(model->name, "progs/v_revolver_", strlen("progs/v_revolver_")))
+    {
+        slot = slotForName("progs/v_revolver.mdl");
     }
     partSlotCache.emplace(model, slot);
     return slot;

@@ -1957,6 +1957,7 @@ void() PlayerPreThink =
     VR_Grapple_PlayerFrame();
     VR_NailPistol_PlayerFrame(); // its trigger re-armed, its slide, its smoke (vr_nailpistol.qc)
     VR_FlareGun_PlayerFrame(); // its trigger re-armed, its muzzles' smoke (vr_flaregun.qc)
+    VR_Revolver_PlayerFrame(); // its hammer, cylinder and chambers, its loading by hand (vr_revolver.qc)
 
     // Slid by a grunt's, an enforcer's or a vore's shove (vr_enemyshove.qc)
     VR_EnemyShove_PlayerFrame();
