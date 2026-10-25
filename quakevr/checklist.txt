@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Flare Gun Art (Debug > Tools > Model Previews): plain solid top with no cartridge housing; down the sights the brass blade sits in the bottom of the rear notch {test:flaregun_art}
 Heavy Revolver Art (Debug > Tools > Model Previews, or scene revolver_art): walk around it (brass frame, cylinder, runes, grip); "Swung Out": the cylinder out to the left with red and blue shell heads; grip size next to the shotgun {test:revolver_art}
 Heavy Revolver Art (Debug > Tools > Model Previews, or scene revolver_art): walk around it (brass frame, cylinder, runes, grip); "Swung Out": the cylinder out to the left with red and blue shell heads; grip size next to the shotgun {test:revolver_art}
 Bloodlust only from enemies: hurt, then punch or chop crates, props and breakables: no health back; melee hits and kills on monsters still heal
