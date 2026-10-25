@@ -21158,6 +21158,34 @@ For him in VR: nothing should look different. In the calibration room and the hu
 setting buttons, the campaign's SELECTED and Continue's save still show (and change at once when pressed). Catch an
 ogre's grenade (vr_grenade_catch on). Arcane Dimensions' big maps (Sepulcher, Tears) start a little faster, the same
 crates in the same places.
+
+## Frame spikes (worktree `fastship`, branch `agent/spikes`, 2026-10-25)
+
+His request: find and fix the frames that make VR stutter at 120 Hz (8.33 ms). Write-up, the causes table, the
+before/after medians and how to rerun: BENCHMARKS.md, "Frame spikes (2026-10-25)".
+
+- **Hunted**: 22 scenarios x 5 paced runs with the hitch log on frames over 8.33 ms (the window only), the repeating
+  ones then taken apart in Release-Tracy captures (per-model render steps, QC functions).
+- **The real ones**: a model's smooth-animation rig data made at its first draw (6-27 ms, a monster kind's first
+  appearance: AD's maps, e4m7, hip2m5, in view or in a shadow map); a gun lying near you, its screen anchors bound
+  (~10 ms); the first frame after every load (skin masks, glove paint read again, the reflections' buffers: 4-13 ms);
+  QC's late precaches of AD monsters in non-AD maps (25-38 ms); 400 wounds in a frame (10 ms); explosions' bursts
+  (11-25 ms, no part over 3 ms); AD's first frames after the load (70-90 ms). Many single big frames (water 102 ms, a
+  run of 600 slow frames) came once in five runs: other workers on the machine.
+- **Fixed**: `vr_load_prewarm` (1; Debug > Profiling and Memory > Load Prewarm) makes the rig data, the guns'
+  anchors, the cubes' world buffers and your skin masks in the map's load (VR_NewMap). CPU busy max, medians of 5:
+  ad_tears 31.4 -> 11.8 ms, ad_sepulcher 21.5 -> 6.3, ad_crucial 8.4 -> 5.1, e4m7 14.1 -> 11.7, hip2m5 10.4 -> 4.6;
+  the frame after a load 13.0 -> 7.5 (p99 of saveload_e1m1); medians unchanged. The cost: AD's first map loads
+  ~150-200 ms longer once a session (ad_sepulcher cold 1847 -> 2001 ms), the rest the same.
+- **Checks**: the same rig data on and off (`vr_anim_smooth_info`, 26 models), the glitch finder's summary identical,
+  eval.sh 36/44 and 163/171 as before.
+- **Left** (BENCHMARKS.md's proposals): AD monsters' drops precached with them, `VR_GunPrep_Collect` without
+  substrings, a wound budget, AO bakes waited for in the load, the rig data on the job pool.
+
+For him in VR: in Arcane Dimensions' maps (Tears, Sepulcher), turning to a new monster kind for the first time or
+walking past a gun lying on the floor should no longer hitch; nor the first moment after loading a save. Monsters'
+animation should look exactly as before. The first load of an AD map in a session takes a fifth of a second longer.
+
 ## Nail pistol: grip, sights, holsters (worktree `tghost`, branch `agent/nailpistol2`, 2026-10-25)
 
 - **Why moving the hand anchor did nothing:** `vr_wofs_hand_av_NN` (and `hand_x/y/z`, `gunoff_*`, the old finger keys)
@@ -21206,3 +21234,55 @@ where it goes, fix the simple wins. Full write-up, tables and proposals: BENCHMA
 For him in VR: nothing should look different (monsters, props, gibs and items are drawn the same). Compare a big fight
 with Debug > Profiling and Memory > Model Depth Pre-pass Off and On on the wrist profiler (`vr_profile 2`). In VD's
 overlay, check that Ultra's resolution is 2688 x 2784 an eye (else tell me the numbers: the benchmark's `--eye`).
+
+## Build speed, round 3: mimalloc built once, the menu's two big page groups split (worktree `dequant`, branch `agent/buildsplit`, 2026-10-25)
+
+Two items Vittorio approved from round 2's "What's left". Measured as round 2 (Release x64 no-LTO MSBuild as build.sh
+builds; a shared 32-thread machine with other agents' benchmarks running, so a few tenths are noise; "full" = sln
+`-t:Rebuild`, "engine" = `-t:ironwail:Rebuild`, which leaves its libraries alone; then a touch-and-build twice each;
+backend seconds from a `-ftime-trace` rebuild, clang-cl reading `_CL_=/clang:-ftime-trace`).
+
+| | full | engine | vr_held.cpp | vr_hands.hpp | vr_menu_internal.hpp |
+|---|---|---|---|---|---|
+| before (origin/next) | 21.3 s | 21.5 s | 2.5-2.6 s | 12.2-12.5 s | 5.5-5.6 s |
+| after | 21.1 s | 20.3 s | 2.6 s | 11.4-11.5 s | 4.5-4.6 s |
+
+Linux (WSL Arch, clang 23.1.3, CMake + Ninja Release, `-j 32`, a fresh build folder each, the source over /mnt/c): full
+34.3 -> 35.0 s (two more files; noise), `vr_held.cpp` 11.6-12.2 -> 11.2-11.6 s, `vr_hands.hpp` 25.0-25.3 -> 22.6-23.3 s,
+`vr_menu_internal.hpp` 14.8-15.4 -> 13.2-14.3 s. A one-file edit there is mostly not compiling: ~2 s before the first
+compile (the globs' re-check, the build number) and a 7-8 s link (`.ninja_log`; clang++'s default linker); not
+looked into further.
+
+1. **mimalloc's `src/static.c` its own target.** It was one of ironwail's files (3.2 s backend, last in the item list,
+   so late in a full build). Visual Studio: `Windows/VisualStudio/mimalloc.vcxproj`, a static library in the solution
+   (all four configurations), referenced by ironwail (`quakevr.props`, when `QVR_MIMALLOC`). Its settings are the
+   ones it had: the same clang-cl command line (`/O2 /Oi /Ot /Ob3 /Gw /GF /GS- /Gy /MD /fp:precise /std:c17 /Z7 /W3 /WX`,
+   NDEBUG; Debug `/Od /MDd /GS`, _DEBUG; Release-TracyFull without the Release extras, as before) but the engine's own
+   defines and include folders, which mimalloc doesn't read: the disassembly and every non-debug section of the object
+   identical. ThinLTO as before (`-flto=thin` in Release and Release-Tracy unless QvrNoLto=1: it took part in the LTO
+   link before and still does). `MultiProcessorCompilation` as ironwail's: the ClangCL toolset's single-process
+   compile drops `/GF` and `/std:c17`. An archive is fine on Windows (static.c defines no C runtime function there;
+   vr_crtheap.c's mi_* calls pull it in). An engine rebuild or a change to the engine's settings no longer compiles
+   it (checked: `ironwail:Rebuild` left static.obj alone); the sln Rebuild and the release script's `-Rebuild` still
+   compile it (in parallel with the rest). CMake: `qvr_mimalloc`, an OBJECT library rather than STATIC (deliberate:
+   on Linux it defines malloc itself, MI_MALLOC_OVERRIDE, and must be linked as an object, not taken from an archive
+   after the C library could win); the same flags as before (the configuration's NDEBUG=1/DEBUG=1, the override
+   defines, `-fno-builtin-*`; the engine-only defines and includes dropped), object disassembly identical, the exe
+   still exports malloc/free/calloc/realloc/posix_memalign. Engine rebuild: 21.5 -> 20.3 s.
+2. **The menu's gameplay and settings page groups split further** (a move: each file was already a list of
+   `vr_menu_*.inc`). `vr_menu_pages_gameplay.cpp` -> gameplay (with AD guns) / `_body.cpp` (body, gore) /
+   `_physics.cpp`; `vr_menu_pages_settings.cpp` -> settings (`vr_menu_pages.inc`) / `_vrsettings.cpp` (Stealth, VR
+   Settings) / `_props.cpp` (props, Weapon Offsets). One declaration more in `vr_menu_internal.hpp`: `weightReadout`
+   (props' file defines it, the settings pages use it). /Ob1 and no PCH come with the `vr_menu_pages_*.cpp` globs
+   (checked in the compile commands). Backend: gameplay 4.91 s -> 1.47 + 1.25 + 1.36, settings 4.53 s -> 2.06 + 0.71
+   + 1.03; the menu's longest file is now `vr_menu.cpp` (2.31 s), then settings (2.06); each file has ~1.1 s of
+   frontend (no PCH). The menu-header edit 5.5 -> 4.5 s, `vr_hands.hpp` 12.3 -> 11.4 s.
+
+Checks: `vr_menu_dump 2` byte-identical before and after (283 pages); `vr_menu_path_check maps/vrcalibration.map` 0
+missing; Windows no-LTO, `--lto` (mimalloc compiled with `-flto=thin`, linked; `vr_heap`: mimalloc 3.5.4 in use) and
+Debug build; `check_nopch.sh` ok on Windows and in WSL (clang); the Linux build; e1m1 smoke run (LTO exe). eval.sh
+canary: 1 differs (`stab_one_hand_2026-10-12_12-35-58`, PASS -> PASS, damage 31.0 -> 31.1), and origin/next itself
+gives the same on two runs of three: the baseline's, not this change's.
+
+What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
+`vr_relight` 2.6 s; the Linux link.

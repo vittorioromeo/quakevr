@@ -1919,6 +1919,13 @@ extern "C" void VR_NewMap()
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
     step("cords", gfx::prepareTube); // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
+    if(vr_load_prewarm.value != 0.f) // (ROUND22.md "Frame spikes": each first use's frame, Tracy)
+    {
+        step("smooth rigs", animsmooth::prepare);         // 6-27 ms a monster kind's first smooth draw
+        step("env cube world", envmap::prepare);         // 2-12 ms the first frame
+        step("gun anchors", view::prepareWorldWeapons);  // ~10 ms the first gun lying near
+        step("skin masks", VR_PrecacheSkinMasks);         // 4-9 ms the first frame (your hands' glove paint read again)
+    }
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)

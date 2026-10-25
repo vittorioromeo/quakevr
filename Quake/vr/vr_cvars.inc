@@ -622,6 +622,10 @@ QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
 // entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
 QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
+// first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
+// your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use
+QVR_CVAR(vr_load_prewarm, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Shadow Caster Set-up Shared: 1 each animated shadow caster's whole instance (pose, matrix,
 // zero blend, swing rows) made once for the frame's shadow lights and copied into the others' batches, its depth draws
 // with no textures bound (no fragment shader reads them), and the first eye's scene taking the shadow pass's lerp and

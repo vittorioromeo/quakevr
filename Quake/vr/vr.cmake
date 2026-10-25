@@ -160,8 +160,10 @@ endif()
 target_link_libraries(ironwail PRIVATE qvr_zancle)
 
 # mimalloc (external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c; new/delete
-# call malloc/free, vr_alloccount.cpp). One C file, src/static.c, includes the others; it is compiled into the
-# executable itself (an object, not an archive: its definitions must win over the C library's).
+# call malloc/free, vr_alloccount.cpp). One C file, src/static.c, includes the others: its own target, qvr_mimalloc, so
+# a change to ironwail's settings leaves it alone (docs/vr-port/ROUND22.md, "Build speed, round 3"), with the settings
+# it had as one of ironwail's files (the configuration's NDEBUG/DEBUG, _WIN32 on Windows). An OBJECT library: its object
+# is linked into the executable itself, not taken from an archive (its definitions must win over the C library's).
 # Windows (clang-cl, the DLL C runtime): vr_crtheap.c defines malloc and the rest and their import pointers (__imp_*), on
 # 64-bit only. Elsewhere: mimalloc's own override (MI_MALLOC_OVERRIDE: malloc and the rest defined in the executable,
 # which the shared libraries' calls bind to as well); not on macOS (its static override does not take there).
@@ -176,9 +178,13 @@ set(QVR_CRTHEAP_SRC "${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" "${CMAKE_CURRENT_LI
 target_sources(ironwail PRIVATE ${QVR_CRTHEAP_SRC})
 set_source_files_properties(${QVR_CRTHEAP_SRC} PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/include")
 if (QVR_MIMALLOC)
-	set(QVR_MIMALLOC_SRC "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/src/static.c")
-	target_sources(ironwail PRIVATE ${QVR_MIMALLOC_SRC})
-	set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/include")
+	add_library(qvr_mimalloc OBJECT "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/src/static.c")
+	target_include_directories(qvr_mimalloc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/external/mimalloc/include")
+	target_compile_definitions(qvr_mimalloc PRIVATE $<$<CONFIG:Debug>:DEBUG=1> $<$<NOT:$<CONFIG:Debug>>:NDEBUG=1>)
+	if (WIN32)
+		target_compile_definitions(qvr_mimalloc PRIVATE _CRT_SECURE_NO_WARNINGS _WIN32)
+	endif()
+	target_link_libraries(ironwail PRIVATE qvr_mimalloc)
 	set_source_files_properties(${QVR_CRTHEAP_SRC} PROPERTIES COMPILE_DEFINITIONS QVR_MIMALLOC)
 	if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 		set_source_files_properties("${CMAKE_CURRENT_LIST_DIR}/vr_crtheap.c" PROPERTIES COMPILE_OPTIONS "/clang:-fno-builtin")
@@ -193,7 +199,7 @@ if (QVR_MIMALLOC)
 			list(APPEND QVR_MI_CXX_OPS ${op}RKSt9nothrow_t ${op}St11align_val_t ${op}St11align_val_tRKSt9nothrow_t ${op}mSt11align_val_t)
 		endforeach()
 		list(TRANSFORM QVR_MI_CXX_OPS REPLACE "^(.+)$" "\\1=qvr_mimalloc_unused\\1")
-		set_source_files_properties(${QVR_MIMALLOC_SRC} PROPERTIES COMPILE_DEFINITIONS "MI_MALLOC_OVERRIDE;${QVR_MI_CXX_OPS}"
-			COMPILE_OPTIONS "-fno-builtin-malloc;-fno-builtin-free;-fno-builtin-calloc;-fno-builtin-realloc")
+		target_compile_definitions(qvr_mimalloc PRIVATE MI_MALLOC_OVERRIDE ${QVR_MI_CXX_OPS})
+		target_compile_options(qvr_mimalloc PRIVATE -fno-builtin-malloc -fno-builtin-free -fno-builtin-calloc -fno-builtin-realloc)
 	endif()
 endif()
