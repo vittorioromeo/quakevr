@@ -21697,3 +21697,69 @@ baseline's own flake). Test files under `#ifdef QVR_TESTS`; `-DQVR_NO_TESTS` com
 rate of fire, their damage) while you can grab their rifles, tug them, shoot them out; dead, their rifle and backpack as
 before. The scene `agrunt_repl_gunaxe`: the axe in the left hand looks right carried and swung, the gun one-handed in the
 right; walk up and back off. Variety: the hand-offs at a map's start (none visible), a dual-wielder's two rifles.
+
+## Thumbstick locomotion response (worktree `dequant`, branch `agent/stickcurve`, 2026-10-25)
+
+Vittorio: walking slowly and controlling the speed before a run felt hard. Before: `deadzone()` per axis, then a straight
+`fwd/side * cl_forwardspeed * (running ? cl_movespeedkey : 1)`; running asked 400 against the server's `sv_maxspeed` 320,
+so the top fifth of the push (past 0.82) did nothing, and Quake's ground friction holds nothing under 40 units a second
+(under `sv_stopspeed` it takes `stopspeed * friction` a second; the acceleration gives `accelerate * wishspeed`): asked
+less, you stand (measured: asked 19.8, moved 2.6), so the bottom quarter of a curved push would have been dead too.
+
+Now (`Quake/vr/vr_input.cpp` `moveStick`, `moveSpeed`, `VR_AdjustMove`; the menus' and turning's `deadzone()` unchanged):
+- **Radial deadzone:** the push's length past `vr_deadzone` (10 %, inner, as before) up to `1 - vr_deadzone_outer`
+  (new, **5 %**) rescaled onto 0..1, the direction kept: diagonals as straight, a push longer than 1 (square gates) is 1.
+- **Curve** `vr_move_curve` (new, **1.6**; slider 1..3): the rescaled push to that power times the top speed.
+- **Top fits the cap:** a full push is `min(cl_forwardspeed * (running ? cl_movespeedkey : 1), sv_maxspeed)` (the cvar, as
+  in_sdl.c's gamepad path reads it; a listen server's own): walking 200, running 320, the whole travel counts.
+- **Ground floor** `vr_move_min_speed` (new, **-1** = auto: `1.1 * sv_stopspeed * sv_friction / sv_accelerate` = 44; 0
+  none; >0 that): on the ground (`cl.onground`, not `cl.inwater`) the speed runs from it to the top, so a push just past
+  the deadzone always moves you. Not in water or the air (no such floor there). **Decision** (not in the brief): without it
+  pushes under 0.41 walk nothing on the ground with the 1.6 curve. It moves the half-speed point: on the ground 1.6 gives
+  0.61 of the top at a 65 % push (0.50 for the curve alone); `vr_move_min_speed 0` is exactly the brief's mapping.
+- **Walk into run** `vr_move_autorun` (new, **0**), `vr_move_autorun_threshold` (**0.9**, the rescaled push before the
+  curve): walking (cl_alwaysrun 0, the speed button up), the walk is spread over 0..threshold (full walk there) and past it
+  the speed eases into the run's over 0.3 s (back under it, out over 0.2 s): no step. The speed button runs as before.
+- A hand steering (vr_movement_mode 0, 2, 3): the rolled hand's compensation (`1 / |up.z|`) is clamped so the horizontal
+  move never passes the push (a rolled hand could ask more than a full push before). Swimming up/down scales as the horizontal speed.
+- **Replays:** a take from before (no `vr_move_curve` in its settings) replays with `vr_move_legacy 1` (new, CVAR_NONE:
+  the old per-axis, straight, uncapped response; `vr_motion_play.cpp applySettings`), and `vr_move_*` /
+  `vr_deadzone_outer` are now placing settings (a new take replays with its own). Without that the archived shoulder
+  charge takes (partial pushes that ran 320 then) fell to 17/22 caught.
+- Menus: Movement page (pageLocomotionSettings): Stick Outer Deadzone, Stick Response Curve, Walk Into Run, Run From Push;
+  VR Settings > Locomotion: Stick Response Curve, Walk Into Run. Debug > Tests > Stick Locomotion: Stick: Show Speed
+  (`vr_debug_stick`: push, speed asked, moved, twice a second) and Stick: Curve Table (`vr_stick_curve_test table`).
+
+Push (raw stick length) -> commanded speed (u/s), deadzones 10/5 %:
+
+| push | m | walk lin | walk 1.6 | run lin | run 1.6 | ground walk 1.6 | ground run 1.6 |
+|---|---|---|---|---|---|---|---|
+| 0.10 | 0.000 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 0.15 | 0.059 | 11.8 | 2.1 | 18.8 | 3.4 | 45.7 | 47.0 |
+| 0.25 | 0.176 | 35.3 | 12.5 | 56.5 | 19.9 | 53.7 | 61.2 |
+| 0.35 | 0.294 | 58.8 | 28.2 | 94.1 | 45.2 | 66.0 | 83.0 |
+| 0.45 | 0.412 | 82.4 | 48.4 | 131.8 | 77.4 | 81.7 | 110.7 |
+| 0.55 | 0.529 | 105.9 | 72.3 | 169.4 | 115.7 | 100.4 | 143.8 |
+| 0.65 | 0.647 | 129.4 | 99.7 | 207.1 | 159.5 | 121.7 | 181.5 |
+| 0.75 | 0.765 | 152.9 | 130.2 | 244.7 | 208.3 | 145.6 | 223.7 |
+| 0.85 | 0.882 | 176.5 | 163.7 | 282.4 | 261.9 | 171.7 | 269.9 |
+| 0.90 | 0.941 | 188.2 | 181.5 | 301.2 | 290.4 | 185.6 | 294.5 |
+| 0.95 | 1.000 | 200 | 200 | 320 | 320 | 200 | 320 |
+
+(Before: walking 200 * (push - 0.1) / 0.9 per axis; running the same times 2, clamped by the server at a 0.82 push.)
+
+**Test:** `bash <kit>/run.sh <name> -Script "map vrtesthall;wait30;vr_stick_curve_test -300 -150 24" -Filter "stick
+curve" -QuitOn "stick curve test:"` (about 10 s): the table and the response's checks (monotonic for curves 1, 1.6, 3
+walking and running, 0 inside the deadzone, full from a 95 % push, 0.498 of the top at 65 % with 1.6, diagonals at every
+15 degrees equal to straight and never past 1, the ground floor monotonic and at least 40, the autorun blend only adding,
+full walk at the threshold), then 31 cases driven on the moving stick, each settled (speed still over 12 frames): asked
+== expected (worked out apart) and moved within 1 % (+1) of it; diagonals moved == straight; running 320 at 95 %; autorun
+0.8 -> 173.5, 0.85 -> 193.8, 1.0 -> 320; modes 0/2/3, swimming (0.176 of asked: vr_swim's 0.25 of Quake's 0.7) and noclip
+move. **115 passed, 0 failed.** eval.sh: canary 36/44, 0 differ; Hand Line 6/6; shoulder charge 22/22, 0 false
+(baseline the same).
+
+**In VR:** Movement: push the stick a little: you creep (about 45 u/s) instead of standing; ease forward: the speed
+should climb smoothly, half a push about a slow walk, the last bit of travel full speed (no hard press on the gate);
+running: the whole push matters up to the top (before, the last fifth did nothing). Try Stick Response Curve 1.0 vs 1.6
+vs 2.2. Walk Into Run on: walk with most of the push, shove it fully forward: a run eases in; let off a little: back
+to a walk. Diagonals as fast as straight. Hand-steered (Move Towards: hand) and swimming as before.

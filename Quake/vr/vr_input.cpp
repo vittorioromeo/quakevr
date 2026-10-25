@@ -368,7 +368,7 @@ float autorunBlend = 0.f;
 
 [[nodiscard]] bool autorunOn(bool running)
 {
-    return vr_move_autorun.value != 0.f && !running && cl_alwaysrun.value == 0.f;
+    return vr_move_autorun.value != 0.f && vr_move_legacy.value == 0.f && !running && cl_alwaysrun.value == 0.f;
 }
 
 // The least speed a push past the deadzone asks, on the ground (vr_move_min_speed): Quake's ground friction (under
@@ -562,6 +562,8 @@ struct StickCase
     bool run;
     bool autorun;
     float curve;
+    int mode{1};  // vr_movement_mode (1 the head steers; 0, 2, 3 a hand)
+    int where{0}; // 0 on the ground, 1 swimming (the test hall's pool), 2 noclip
 };
 
 constexpr StickCase stickCases[] = {
@@ -573,6 +575,10 @@ constexpr StickCase stickCases[] = {
     {1.f, 0.f, true, false, 1.6f},     {1.f, 45.f, true, false, 1.6f},   {1.2f, 30.f, true, false, 1.6f},
     {0.8f, 0.f, false, true, 1.6f},    {0.85f, 0.f, false, true, 1.6f},  {1.f, 0.f, false, true, 1.6f},
     {1.f, 45.f, false, true, 1.6f},
+    // the hands steering, swimming and noclip: the same push still moves you (they take the same forward and side)
+    {1.f, 0.f, false, false, 1.6f, 0}, {1.f, 0.f, false, false, 1.6f, 2}, {1.f, 0.f, true, false, 1.6f, 3},
+    {0.65f, 0.f, false, false, 1.6f, 0}, {1.f, 0.f, false, false, 1.6f, 1, 1}, {0.65f, 0.f, true, false, 1.6f, 1, 1},
+    {1.f, 0.f, true, false, 1.6f, 1, 2}, {0.65f, 0.f, false, false, 1.6f, 1, 2},
 };
 constexpr int stickCaseCount = static_cast<int>(sizeof(stickCases) / sizeof(stickCases[0]));
 constexpr int stickSettleSpan = 12;      // frames the speed must hold still over
@@ -660,6 +666,10 @@ void stickTestFinish()
     stickTest.active = false;
     stickTest.stick = glm::vec2{0.f};
     stickTestRestore();
+    if(edict_t* p = stickPlayer(); p && stickTest.index > 0)
+    {
+        p->v.movetype = static_cast<float>(MOVETYPE_WALK); // (out of the noclip cases)
+    }
     Con_Printf("stick curve test: %d passed, %d failed\n", stickTest.passed, stickTest.failed);
 }
 
@@ -762,12 +772,16 @@ void stickTestSetCase()
     Cvar_SetValueQuick(&cl_alwaysrun, c.run ? 1.f : 0.f);
     Cvar_SetValueQuick(&vr_move_autorun, c.autorun ? 1.f : 0.f);
     Cvar_SetValueQuick(&vr_move_curve, c.curve);
+    Cvar_SetValueQuick(&vr_movement_mode, static_cast<float>(c.mode));
     const float rad = c.angle * (3.14159265f / 180.f);
     t.stick = {c.push * glm::sin(rad), c.push * glm::cos(rad)};
     t.frames = 0;
     if(edict_t* p = stickPlayer())
     {
-        VectorCopy(t.start, p->v.origin);
+        // (swimming: under the test hall's pool's water, its middle)
+        const glm::vec3 at = c.where == 1 ? glm::vec3{384.f, -256.f, -64.f} : t.start;
+        p->v.movetype = static_cast<float>(c.where == 2 ? MOVETYPE_NOCLIP : MOVETYPE_WALK);
+        VectorCopy(at, p->v.origin);
         VectorCopy(vec3_origin, p->v.velocity);
         qcvm_t* old = nullptr;
         PR_PushQCVM(&sv.qcvm, &old); // (the input's frame: the client's VM, or none, is in)
@@ -870,23 +884,40 @@ void stickTestTick()
 
     const float expected = stickExpected(c);
     char what[200];
-    q_snprintf(what, sizeof(what), "push %.2f at %.0f deg %s%s curve %.1f", c.push, c.angle, c.run ? "run" : "walk",
-               c.autorun ? " autorun" : "", c.curve);
+    static constexpr const char* places[] = {"", " swimming", " noclip"};
+    q_snprintf(what, sizeof(what), "push %.2f at %.0f deg %s%s curve %.1f%s%s", c.push, c.angle, c.run ? "run" : "walk",
+               c.autorun ? " autorun" : "", c.curve, c.mode != 1 ? va(" mode %d", c.mode) : "", places[c.where]);
     Con_Printf("stick curve: %s: asked %.1f (expected %.1f), moved %.1f%s\n", what, lastStickSpeed, expected, speed,
                settled ? "" : " (timed out)");
     char check[260];
     q_snprintf(check, sizeof(check), "%s: timed out", what);
     stickCheck(settled, check);
-    q_snprintf(check, sizeof(check), "%s: asked %.1f, expected %.1f", what, lastStickSpeed, expected);
-    stickCheck(za::fabs(lastStickSpeed - expected) < 0.05f, check);
-    q_snprintf(check, sizeof(check), "%s: moved %.1f, asked %.1f", what, speed, lastStickSpeed);
-    stickCheck(za::fabs(speed - lastStickSpeed) <= 1.f + 0.01f * lastStickSpeed, check);
+    if(c.mode == 1 && c.where == 0)
+    {
+        q_snprintf(check, sizeof(check), "%s: asked %.1f, expected %.1f", what, lastStickSpeed, expected);
+        stickCheck(za::fabs(lastStickSpeed - expected) < 0.05f, check);
+        q_snprintf(check, sizeof(check), "%s: moved %.1f, asked %.1f", what, speed, lastStickSpeed);
+        stickCheck(za::fabs(speed - lastStickSpeed) <= 1.f + 0.01f * lastStickSpeed, check);
+    }
+    else
+    {
+        // a hand steering (where it points: no faster than the head), in water (slower: Quake's 0.7 and the swimming),
+        // noclip (no floor: from 0): it moves, never past the top
+        const float top = c.run ? stickTestRun : stickTestWalk;
+        q_snprintf(check, sizeof(check), "%s: asked %.1f, moved %.1f (top %.0f)", what, lastStickSpeed, speed, top);
+        // (immersive swimming, vr_swim 1: the stick at vr_swim_stick_speed, 0.25, of Quake's 0.7)
+        const float slowest = c.where == 1 ? 0.1f : 0.3f;
+        stickCheck(lastStickSpeed <= expected + 0.05f && speed > slowest * lastStickSpeed && lastStickSpeed > 0.f &&
+                       speed <= lastStickSpeed * 1.01f + 1.f,
+                   check);
+    }
     t.moved[t.index] = speed;
     // the same push at an angle as straight ahead
     for(int i = 0; i < t.index; ++i)
     {
         const StickCase& o = stickCases[i];
-        if(o.push == c.push && o.run == c.run && o.autorun == c.autorun && o.curve == c.curve && o.angle == 0.f && c.angle != 0.f)
+        if(o.push == c.push && o.run == c.run && o.autorun == c.autorun && o.curve == c.curve && o.angle == 0.f &&
+           c.angle != 0.f && o.mode == c.mode && o.where == c.where)
         {
             q_snprintf(check, sizeof(check), "%s: moved %.1f, straight %.1f", what, speed, t.moved[i]);
             stickCheck(za::fabs(speed - t.moved[i]) <= 1.f, check);
@@ -1278,7 +1309,8 @@ void update(const InputState& tracked)
         stickKey(stickKeys[2], 0.f, false);
         stickKey(stickKeys[3], 0.f, false);
         // (vr_stick_curve_test drives the moving stick while it runs.)
-        moveAxes = moveStick(stickTest.active ? stickTest.stick : off.stick);
+        const glm::vec2 moving = stickTest.active ? stickTest.stick : off.stick;
+        moveAxes = vr_move_legacy.value != 0.f ? glm::vec2{deadzone(moving.x), deadzone(moving.y)} : moveStick(moving);
         stickDebug(off.stick);
         if(active)
         {
@@ -1339,7 +1371,9 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     }
 
     // The push's direction (length 1) at the curve's speed (moveSpeed); swimming up or down as fast relatively.
-    const float speed = moveSpeed(m, running, autorunBlend, vr_move_curve.value, moveMinSpeed());
+    const bool legacy = vr_move_legacy.value != 0.f;
+    const float speed = legacy ? m * cl_forwardspeed.value * (running ? cl_movespeedkey.value : 1.f)
+                               : moveSpeed(m, running, autorunBlend, vr_move_curve.value, moveMinSpeed());
     const float speedScale = cl_forwardspeed.value > 0.f ? speed / (m * cl_forwardspeed.value) : 0.f;
     const glm::vec2 dir = moveAxes / m;
     const hands::State& s = hands::current();
@@ -1378,7 +1412,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         fwd = glm::dot(move, vfwd);
         side = glm::dot(move, vright);
         // (A rolled hand's compensation never past the push: the top speed stays the top.)
-        if(const float l = za::sqrt(fwd * fwd + side * side); l > 1.f)
+        if(const float l = za::sqrt(fwd * fwd + side * side); l > 1.f && !legacy)
         {
             fwd /= l;
             side /= l;

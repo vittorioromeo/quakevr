@@ -760,6 +760,9 @@ QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
 // The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
 // a little over what Quake's ground friction lets you hold (44: asked less, you stand), 0 none (from 0).
 QVR_CVAR(vr_move_min_speed, "-1", CVAR_ARCHIVE)
+// 1: the moving stick as before the response above (2026-10-25): each axis past vr_deadzone, straight, cl_forwardspeed
+// (times cl_movespeedkey running) unclamped. Replays of takes recorded before it set it (vr_motion_play.cpp applySettings).
+QVR_CVAR(vr_move_legacy, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_stick, "0", CVAR_NONE) // Debug: twice a second, the moving stick's push, the speed asked and moved (vr_input.cpp stickDebug)
 // Ways to the menu besides the controller's menu button, which some controllers and runtimes never pass to the game
 // (Pico controllers under SteamVR: player report, ROUND22.md "Menu on any controller"). Each is a press of the menu

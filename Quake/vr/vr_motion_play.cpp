@@ -435,7 +435,7 @@ namespace
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
         "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health",
-        "vr_dummy_anchored"};
+        "vr_dummy_anchored", "vr_move_", "vr_deadzone_outer"};
     // (Every setting the QC's melee, damage and hit reactions read.)
     static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
@@ -594,6 +594,12 @@ void applySettings(const Take& take, bool melee)
     if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_dummy_anchored"; }))
     {
         list.emplaceBack("vr_dummy_anchored", "0");
+    }
+    // A take from before the stick's response curve (vr_move_curve; ROUND22.md "Thumbstick locomotion response"): the
+    // stick as then (vr_move_legacy: each axis's deadzone, straight, running uncapped), so its run-ups run as recorded.
+    if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_move_curve"; }))
+    {
+        list.emplaceBack("vr_move_legacy", "1");
     }
     // A take from before the training dummy's enemies and health (vr_dummy_type, vr_dummy_health): a grunt, of a grunt's
     // health, as then.
