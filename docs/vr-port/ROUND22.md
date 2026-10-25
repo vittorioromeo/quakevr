@@ -21844,3 +21844,42 @@ should climb smoothly, half a push about a slow walk, the last bit of travel ful
 running: the whole push matters up to the top (before, the last fifth did nothing). Try Stick Response Curve 1.0 vs 1.6
 vs 2.2. Walk Into Run on: walk with most of the push, shove it fully forward: a run eases in; let off a little: back
 to a walk. Diagonals as fast as straight. Hand-steered (Move Towards: hand) and swimming as before.
+
+## Nail pistol shot angle (worktree `fastship`, branch `agent/npangle`, 2026-10-25)
+
+His report: the nail pistol's sight line, muzzle and controller lines all line up, but its nails come out at the wrong
+angle.
+
+- **Cause: the physics' speed bound, an axis at a time.** `SV_CheckVelocity` (sv_phys.c) clamps each component of a
+  velocity to `sv_maxvelocity` (2000) on its own. The nail pistol's nails fly at `vr_nailpistol_speed` 2600: aimed
+  mostly along a world axis, that component was cut to 2000 and the others kept, so on its first physics frame the
+  nail turned towards the other axes: up when aimed up, sideways when turned. The launch itself was right (the QC's
+  direction is the shot line exactly: `makevectors(shotrot)`, as the nailgun's); every check that read the velocity at
+  the launch (before the physics) saw nothing. The nailgun (1750) and the other projectiles stay under 2000, unless a
+  hand's or the player's carried velocity (`vrProjectileVelocity`) pushes an axis over it.
+- **Fix:** a `MOVETYPE_FLYMISSILE` is no longer clamped an axis at a time; its speed is bounded instead, its direction
+  kept, at `sv_maxvelocity` x sqrt(3) (3464: the most the old bound ever let anything fly, diagonally). Nothing else
+  (players, gibs, grenades, bouncing things) changes. No weapon offset changed: the zeroing (Shot Pitch 0.28 with Pitch
+  -7, his -6.85) was right.
+- **Measured** (`vr_np_test 5`, new; spread 0 meanwhile): the nail's flight (its velocity as it struck) and its impact
+  against the shot line (the red laser) from where it left. Before: pitched 10 up and turned 10 (case 3) 3.50 degrees
+  off, rolled 90 and pitched up (case 5) 3.89, the off hand's (case 6) 2.05, the level sight picture at 768 units 0.08;
+  after: every case under 0.00002 degrees (0.0002 units off at 660-1100 units), the sight picture at 128, 384 and 768
+  units, both hands, rolls 45 and 90. The sight line against the shot line (`vr_sight_check`, the mock's sight
+  picture): 0.28 degrees by design (zeroed at 10 m: 2 m 3.9 cm low, 5 m 2.5, 10 m 0); with his Pitch -6.85, 0.13
+  degrees (zeroed near 20 m).
+- **Armed grunts** fire the same nails (`W_FireNailPistol`): theirs were bent the same way, now straight;
+  `vr_np_test 1` 17/0 (a grunt's and a pair fire).
+- **Other weapons on the path:** none else flies over 2000 by default (nailgun and super nailgun 1750, the enforcer
+  rifle's lasers 1800, the AD crossbow 1050); those were bent only when the carried hand or run velocity took an axis
+  past 2000, and now go straight. No revolver or flare gun exists yet; at their speeds the same bound now keeps them
+  straight.
+- **Debug aid:** `vr_debug_shots 1` (Debug > Developer Shots) prints each nail pistol nail's angle off the shot line at
+  its launch and what velocity it carried (the hand's m/s x110, yours x0.8): in the headset, a nail off the laser while
+  moving is that carried velocity, by design as every projectile's. Debug > Tests > Nail Pistol Aim Test runs
+  `vr_np_test 5` (it moves the mock hands; headless).
+- Tests: `vr_np_test 5` ("npaim: 7 passed, 0 failed", ends on that line), `vr_np_test 1` 17/0, eval.sh (see the report).
+
+**In VR:** with the nail pistol, aim with the sights at a mark on a wall 5-10 m away, pitched up and down and turned
+well left and right (the old error was worst aimed along the map's axes with some pitch): the nails should strike on the
+sights (at 2 m about 4 cm low, as zeroed) and follow the red laser (Show Controller Laser) from the muzzle.
